@@ -1,18 +1,13 @@
-
-# abi (work-in-progress)
-
-
 ---
 
 > # Multi-Segmented Persona, Distributed Database: Adaptive Design, Learning Architecture, Performance Benchmarks, and Ethical Considerations
 
-
-- Research conducted by: [MLAI Corporation](tidal_forages.3q@icloud.com)
-- Date published on: `February 1, 2025`
-
-
 ---
 
+- Research conducted by: [MLAI Team](tidal_forages.3q@icloud.com)
+- Date published on: `February 1, 2025`
+
+---
 
 ### **Table of Contents**
 1. Abstract
