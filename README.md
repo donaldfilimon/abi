@@ -1,7 +1,7 @@
 
 # Multi-Segmented Persona, Distributed Database: Adaptive Design, Learning Architecture, Performance Benchmarks, and Ethical Considerations
 
-- Research conducted by: [MLAI Corporation](mailto:mlaicorp@icloud.com)
+- Research conducted by: [Donald Filimon](https://github.com/donaldfilimon)
 - Date published on: `February 1, 2025`
 
 ---
