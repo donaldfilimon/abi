@@ -11,12 +11,6 @@ const simd = @import("../zvim/simd_text.zig");
 const lockfree = @import("lockfree.zig");
 const platform = @import("platform.zig");
 
-pub fn main() !void {
-    std.debug.print("zvim starting...\n", .{});
-}
-
-const std = @import("std");
-
 pub const Error = error{
     EmptyText,
     BlacklistedWord,

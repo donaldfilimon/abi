@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -19,7 +20,7 @@ pub fn build(b: *std.Build) void {
 
     const exe = b.addExecutable(.{
         .name = "abi",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = platform_optimize,
     });
@@ -28,14 +29,10 @@ pub fn build(b: *std.Build) void {
     exe.link_function_sections = true;
     exe.link_gc_sections = true;
     if (platform_optimize == .ReleaseSmall or platform_optimize == .ReleaseFast) {
-        exe.strip = true;
+        exe.root_module.strip = true;
     }
 
-    // ─── Dependencies ────────────────────────────────────────────────────────
-    exe.root_module.addImport("zli", b.dependency("zli", .{}).module("root"));
-    exe.root_module.addImport("zf", b.dependency("zf", .{}).module("root"));
-    exe.root_module.addImport("json", b.dependency("json", .{}).module("json"));
-    exe.root_module.addImport("prompter", b.dependency("prompter", .{}).module("prompter"));
+    // No external dependencies currently required.
     exe.root_module.addOptions("build_options", options);
 
     // ─── Platform-specific dependencies ──────────────────────────────────────
@@ -94,7 +91,7 @@ fn addCrossTargets(b: *std.Build, exe: *std.Build.Step.Compile, options: *std.Bu
     for (targets) |t| {
         const cross_exe = b.addExecutable(.{
             .name = b.fmt("zvim-{s}", .{t.name}),
-            .root_source_file = exe.root_source_file,
+            .root_source_file = b.path("src/main.zig"),
             .target = b.resolveTargetQuery(t.query),
             .optimize = exe.root_module.optimize orelse .ReleaseSafe,
         });
@@ -115,20 +112,4 @@ fn detectSIMDSupport() bool {
         .aarch64 => std.Target.aarch64.featureSetHas(builtin.cpu.features, .neon),
         else => false,
     };
-
-    const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
-
-    const run_step = b.step("run", "Run the application");
-    run_step.dependOn(&run_cmd.step);
-
-    const main_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/main.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const run_main_tests = b.addRunArtifact(main_tests);
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_main_tests.step);
 }
