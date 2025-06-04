@@ -1,8 +1,22 @@
 const std = @import("std");
 
+pub const Error = error{
+    EmptyText,
+    BlacklistedWord,
+    TextTooLong,
+    InvalidValues,
+    ProcessingFailed,
+};
+
 pub const Request = struct {
     text: []const u8,
     values: []const usize,
+
+    pub fn validate(self: Request) Error!void {
+        if (self.text.len == 0) return Error.EmptyText;
+        if (self.values.len == 0) return Error.InvalidValues;
+        _ = try Abbey.checkCompliance(self.text);
+    }
 };
 
 pub const Response = struct {
@@ -10,20 +24,42 @@ pub const Response = struct {
     message: []const u8,
 };
 
+pub const ComplianceError = error{
+    EmptyText,
+    BlacklistedWord,
+    TextTooLong,
+};
+
 /// Abbey persona: ensures simple ethical compliance
 pub const Abbey = struct {
+    const MAX_TEXT_LENGTH = 1000;
+    const BLACKLISTED_WORDS = [_][]const u8{ "bad", "evil", "hate" };
+
     pub fn isCompliant(text: []const u8) bool {
-        // Very basic check for the word "bad"
-        return std.mem.indexOf(u8, text, "bad") == null;
+        return checkCompliance(text) catch return false;
+    }
+
+    pub fn checkCompliance(text: []const u8) Error!bool {
+        if (text.len == 0) return Error.EmptyText;
+        if (text.len > MAX_TEXT_LENGTH) return Error.TextTooLong;
+
+        // Check for blacklisted words
+        for (BLACKLISTED_WORDS) |word| {
+            if (std.mem.indexOf(u8, text, word) != null) {
+                return Error.BlacklistedWord;
+            }
+        }
+        return true;
     }
 };
 
 /// Aviva persona: performs computation on provided values
 pub const Aviva = struct {
-    pub fn computeSum(values: []const usize) usize {
+    pub fn computeSum(values: []const usize) Error!usize {
+        if (values.len == 0) return Error.InvalidValues;
         var sum: usize = 0;
         for (values) |v| {
-            sum += v;
+            sum = std.math.add(usize, sum, v) catch return Error.ProcessingFailed;
         }
         return sum;
     }
@@ -31,14 +67,9 @@ pub const Aviva = struct {
 
 /// Abi persona: orchestrates Abbey and Aviva
 pub const Abi = struct {
-    pub fn process(req: Request) Response {
-        if (!Abbey.isCompliant(req.text)) {
-            return Response{
-                .result = 0,
-                .message = "Ethics violation detected",
-            };
-        }
-        const sum = Aviva.computeSum(req.values);
+    pub fn process(req: Request) Error!Response {
+        try req.validate();
+        const sum = try Aviva.computeSum(req.values);
         return Response{
             .result = sum,
             .message = "Computation successful",
@@ -78,8 +109,7 @@ test "Aviva computeSum" {
 
 test "Abi orchestrates personas" {
     const req = Request{ .text = "ok", .values = &[_]usize{ 1, 2 } };
-    const res = Abi.process(req);
+    const res = try Abi.process(req);
     try std.testing.expectEqual(@as(usize, 3), res.result);
     try std.testing.expectEqualStrings("Computation successful", res.message);
 }
-
