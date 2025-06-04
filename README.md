@@ -8,6 +8,13 @@ zig run agent_client.zig -- --persona Abbey
 
 Choose from Abbey, Aviva, or Abi to interact with each persona.
 
+### TUI Demo
+Run a simple terminal UI that exposes basic persona features:
+
+```bash
+zig build run -- tui
+```
+
 ### Local ML Example
 `local_ml.zig` demonstrates cross-platform logistic regression training and
 prediction without any external dependencies. To train a model using a CSV file
