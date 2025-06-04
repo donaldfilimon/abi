@@ -1,10 +1,10 @@
 const std = @import("std");
 
-// Dynamic Persona Router example
-// Demonstrates selecting the most suitable persona for a query based on
-// simple metrics. In a real system this logic would be backed by a
-// transformer architecture that takes context, user needs and ethical
-// considerations into account.
+pub const RouterError = error{
+    NoPersonasAvailable,
+    InvalidQuery,
+    ScoringFailed,
+};
 
 /// Represents a single conversational persona with basic metrics.
 pub const Persona = struct {
@@ -12,28 +12,49 @@ pub const Persona = struct {
     empathy_score: f32,
     glue_accuracy: f32,
     codegen_score: f32,
+
+    pub fn validate(self: Persona) bool {
+        return self.empathy_score >= 0 and self.empathy_score <= 1 and
+            self.glue_accuracy >= 0 and self.glue_accuracy <= 1 and
+            self.codegen_score >= 0 and self.codegen_score <= 1;
+    }
 };
 
 /// Represents a user query with context information.
 pub const Query = struct {
     text: []const u8,
     context: []const u8,
+
+    pub fn validate(self: Query) RouterError!void {
+        if (self.text.len == 0) return RouterError.InvalidQuery;
+    }
 };
 
 /// Placeholder transformer model used to evaluate personas.
 pub const TransformerModel = struct {
     /// Score a persona for the given query.
-    pub fn scorePersona(self: TransformerModel, persona: Persona, query: Query) f32 {
-        _ = self; // unused for this placeholder
-        // Simplistic scoring combining metrics depending on query content.
+    pub fn scorePersona(self: TransformerModel, persona: Persona, query: Query) RouterError!f32 {
+        _ = self;
+        if (!persona.validate()) return RouterError.ScoringFailed;
+        try query.validate();
+
+        var score: f32 = 0.0;
         const text = query.text;
+        const context_weight: f32 = 0.3;
+
+        if (query.context.len > 0) {
+            score += persona.glue_accuracy * context_weight;
+        }
+
         if (std.mem.indexOf(u8, text, "code") != null) {
-            return persona.codegen_score;
+            score += persona.codegen_score * 0.4;
         }
         if (std.mem.indexOf(u8, text, "help") != null) {
-            return persona.empathy_score;
+            score += persona.empathy_score * 0.4;
         }
-        return persona.glue_accuracy;
+
+        score += persona.glue_accuracy * 0.2;
+        return std.math.clamp(score, 0.0, 1.0);
     }
 };
 
@@ -42,23 +63,34 @@ pub const DynamicPersonaRouter = struct {
     personas: []const Persona,
     model: TransformerModel,
 
+    pub fn init(personas: []const Persona) RouterError!DynamicPersonaRouter {
+        if (personas.len == 0) return RouterError.NoPersonasAvailable;
+        return DynamicPersonaRouter{
+            .personas = personas,
+            .model = TransformerModel{},
+        };
+    }
+
     /// Select a persona based on query context and user needs.
-    pub fn select(self: DynamicPersonaRouter, query: Query) Persona {
+    pub fn select(self: DynamicPersonaRouter, query: Query) RouterError!Persona {
+        try query.validate();
+
         var best_index: usize = 0;
         var best_score: f32 = 0.0;
-        // iterate over personas while tracking the index
+
         for (self.personas, 0..) |persona, i| {
-            const score = self.evaluatePersona(persona, query);
+            const score = try self.evaluatePersona(persona, query);
             if (score > best_score) {
                 best_score = score;
                 best_index = i;
             }
         }
+
         return self.personas[best_index];
     }
 
     /// Evaluate persona suitability using the transformer model.
-    fn evaluatePersona(self: DynamicPersonaRouter, persona: Persona, query: Query) f32 {
+    fn evaluatePersona(self: DynamicPersonaRouter, persona: Persona, query: Query) RouterError!f32 {
         return self.model.scorePersona(persona, query);
     }
 };
@@ -97,7 +129,7 @@ test "router selects coder when query mentions code" {
         .model = TransformerModel{},
     };
     const query = Query{ .text = "please show code", .context = "" };
-    const persona = router.select(query);
+    const persona = try router.select(query);
     try std.testing.expectEqualStrings("coder", persona.name);
 }
 
@@ -111,6 +143,6 @@ test "router selects helper for help query" {
         .model = TransformerModel{},
     };
     const query = Query{ .text = "I need help", .context = "" };
-    const persona = router.select(query);
+    const persona = try router.select(query);
     try std.testing.expectEqualStrings("helper", persona.name);
 }
