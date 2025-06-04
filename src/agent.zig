@@ -137,7 +137,7 @@ pub const personas = [_]Persona{
 
 fn findPersona(name: []const u8) ?Persona {
     for (personas) |p| {
-        if (std.mem.eql(u8, p.name, name)) return p;
+        if (std.mem.eqlIgnoreCase(u8, p.name, name)) return p;
     }
     return null;
 }
