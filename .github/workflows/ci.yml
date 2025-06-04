@@ -10,8 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: mlugg/setup-zig@v2
-        with:
+      - uses: mlugg/setup-zig@v2.0.1
+        with: 
           version: 0.14.1
-      - run: zig test src/main.zig
-      - run: zig test dynamic_persona_router.zig
+      - run: zig fmt .
+      - run: zig build
+      - run: zig test

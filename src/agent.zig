@@ -1,18 +1,43 @@
 const std = @import("std");
 
-const Message = struct {
-    role: []const u8,
+pub const MessageRole = enum {
+    system,
+    user,
+    assistant,
+
+    pub fn toString(self: MessageRole) []const u8 {
+        return switch (self) {
+            .system => "system",
+            .user => "user",
+            .assistant => "assistant",
+        };
+    }
+};
+
+pub const Message = struct {
+    role: MessageRole,
     content: []const u8,
 };
 
-const Persona = struct {
+pub const Persona = struct {
     name: []const u8,
     prompt: []const u8,
 };
 
-pub const PersonaType = enum { EmpatheticAnalyst, DirectExpert, AdaptiveModerator };
+pub const PersonaType = enum {
+    EmpatheticAnalyst,
+    DirectExpert,
+    AdaptiveModerator,
 
-/// Configuration for persona embedding and response filtering
+    pub fn toString(self: PersonaType) []const u8 {
+        return switch (self) {
+            .EmpatheticAnalyst => "EmpatheticAnalyst",
+            .DirectExpert => "DirectExpert",
+            .AdaptiveModerator => "AdaptiveModerator",
+        };
+    }
+};
+
 pub const Config = struct {
     persona_weight: f32 = 1.0,
     risk_threshold: i32 = 50,
@@ -24,16 +49,22 @@ pub const AbiError = error{
     EthicsViolation,
     AllocationFailed,
     ResponseTooLong,
+    InvalidResponse,
+    NetworkError,
+    ApiKeyMissing,
+    JsonParseError,
 };
 
 pub fn personaEmbedding(input: []const u8, p: PersonaType, cfg: Config, alloc: std.mem.Allocator) ![]u8 {
     _ = cfg; // unused for now
     var list = std.ArrayList(u8).init(alloc);
+    errdefer list.deinit();
+
     try list.appendSlice(input);
     const tag = switch (p) {
-        .EmpatheticAnalyst => "[EA]",
-        .DirectExpert => "[DE]",
-        .AdaptiveModerator => "[AM]",
+        .EmpatheticAnalyst => " [Empathetic]",
+        .DirectExpert => " [Expert]",
+        .AdaptiveModerator => " [Adaptive]",
     };
     try list.appendSlice(tag);
     return list.toOwnedSlice();
@@ -42,26 +73,26 @@ pub fn personaEmbedding(input: []const u8, p: PersonaType, cfg: Config, alloc: s
 pub fn evaluateRisk(response: []const u8, config: Config) i32 {
     var risk: i32 = 0;
     if (std.mem.indexOf(u8, response, "banned") != null) {
-        risk += 100;
+        risk += 100; // High risk for banned content
     }
     if (response.len > config.max_response_length) {
-        risk += 25;
+        risk += 50; // Medium risk for long responses
     }
     return risk;
 }
 
 pub fn respond(p: PersonaType, query: []const u8, alloc: std.mem.Allocator) AbiError![]u8 {
     if (query.len == 0) return AbiError.InvalidQuery;
+
     const base = switch (p) {
-        .EmpatheticAnalyst => "I understand how you feel. Let's see how I can help.",
-        .DirectExpert => "Here is the direct answer to your question.",
-        .AdaptiveModerator => "I'll route your request appropriately.",
+        .EmpatheticAnalyst => "I understand your question. ",
+        .DirectExpert => "Here's what you need to know: ",
+        .AdaptiveModerator => "Let me help you with that. ",
     };
-    return personaEmbedding(base, p, .{}, alloc) catch |err| {
-        return switch (err) {
-            error.OutOfMemory => AbiError.AllocationFailed,
-            else => err,
-        };
+
+    return personaEmbedding(base, p, .{}, alloc) catch |err| switch (err) {
+        error.OutOfMemory => AbiError.AllocationFailed,
+        else => AbiError.InvalidQuery,
     };
 }
 
@@ -106,7 +137,7 @@ pub const personas = [_]Persona{
 
 fn findPersona(name: []const u8) ?Persona {
     for (personas) |p| {
-        if (std.ascii.eqlIgnoreCase(p.name, name)) return p;
+        if (std.mem.eql(u8, p.name, name)) return p;
     }
     return null;
 }
@@ -117,22 +148,26 @@ fn buildMessages(allocator: std.mem.Allocator, persona_prompt: []const u8, histo
     try w.writeAll("[");
     try w.print("{{\"role\":\"system\",\"content\":\"{s}\"}}", .{persona_prompt});
     for (history) |msg| {
-        try w.print(",{{\"role\":\"{s}\",\"content\":\"{s}\"}}", .{ msg.role, msg.content });
+        try w.print(",{{\"role\":\"{s}\",\"content\":\"{s}\"}}", .{ msg.role.toString(), msg.content });
     }
     try w.print(",{{\"role\":\"user\",\"content\":\"{s}\"}}]", .{user_input});
     return list.toOwnedSlice();
 }
 
-fn generateResponse(allocator: std.mem.Allocator, persona: Persona, api_key: []const u8, history: *std.ArrayList(Message), user_input: []const u8) ![]u8 {
+fn generateResponse(allocator: std.mem.Allocator, persona: Persona, api_key: []const u8, history: *std.ArrayList(Message), user_input: []const u8) AbiError![]u8 {
+    if (api_key.len == 0) return AbiError.ApiKeyMissing;
+    if (user_input.len == 0) return AbiError.InvalidQuery;
+
     const msg_json = try buildMessages(allocator, persona.prompt, history.items, user_input);
     defer allocator.free(msg_json);
-    const payload = try std.fmt.allocPrint(allocator, "{{\"model\":\"gpt-3.5-turbo\",\"messages\":{s}}}", .{msg_json});
+
+    const payload = try std.fmt.allocPrint(allocator, "{{\"model\":\"gpt-3.5-turbo\",\"messages\":{s}}}", .{msg_json}) catch return AbiError.AllocationFailed;
     defer allocator.free(payload);
 
     var auth_header_buf: [256]u8 = undefined;
-    const auth_header = try std.fmt.bufPrint(&auth_header_buf, "Authorization: Bearer {s}", .{api_key});
+    const auth_header = try std.fmt.bufPrint(&auth_header_buf, "Authorization: Bearer {s}", .{api_key}) catch return AbiError.AllocationFailed;
 
-    const result = try std.ChildProcess.run(.{
+    const result = std.ChildProcess.run(.{
         .allocator = allocator,
         .argv = &.{
             "curl",                                       "-sS",
@@ -141,20 +176,25 @@ fn generateResponse(allocator: std.mem.Allocator, persona: Persona, api_key: []c
             "-d",                                         payload,
             "https://api.openai.com/v1/chat/completions",
         },
-    });
+    }) catch return AbiError.NetworkError;
 
     if (result.stderr.len != 0) {
         std.debug.print("curl error: {s}\n", .{result.stderr});
+        return AbiError.NetworkError;
     }
 
-    const root = try std.json.parseFromSlice(std.json.Value, allocator, result.stdout, .{});
-    defer root.deinit();
-    const choices_val = root.value.object.get("choices") orelse return error.InvalidResponse;
-    const first = choices_val.array.items[0];
-    const message = first.object.get("message") orelse return error.InvalidResponse;
-    const content = message.object.get("content") orelse return error.InvalidResponse;
-    const text = content.string;
-    return allocator.dupe(u8, text);
+    const parsed = std.json.parseFromSlice(std.json.Value, allocator, result.stdout, .{}) catch return AbiError.JsonParseError;
+    defer parsed.deinit();
+
+    const root = &parsed.value;
+    const choices = root.object.get("choices") orelse return AbiError.InvalidResponse;
+    if (choices.array.items.len == 0) return AbiError.InvalidResponse;
+
+    const message = choices.array.items[0].object.get("message") orelse return AbiError.InvalidResponse;
+    const content = message.object.get("content") orelse return AbiError.InvalidResponse;
+
+    if (content.string.len == 0) return AbiError.InvalidResponse;
+    return allocator.dupe(u8, content.string) catch AbiError.AllocationFailed;
 }
 
 pub fn main() !void {

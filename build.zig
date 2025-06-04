@@ -1,7 +1,6 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    // ─── Standard build configuration ────────────────────────────────────────
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -19,8 +18,8 @@ pub fn build(b: *std.Build) void {
     };
 
     const exe = b.addExecutable(.{
-        .name = "zvim",
-        .root_source_file = b.path("src/main.zig"),
+        .name = "abi",
+        .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = platform_optimize,
     });
@@ -62,7 +61,6 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(exe);
 
-    // ─── Build steps ─────────────────────────────────────────────────────────
     const bench_step = b.step("bench", "Run performance benchmarks");
     const bench_exe = b.addRunArtifact(exe);
     bench_exe.addArg("bench");
@@ -78,7 +76,6 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addOptions("build_options", options);
     test_step.dependOn(&b.addRunArtifact(unit_tests).step);
 
-    // ─── Cross-platform targets ──────────────────────────────────────────────
     addCrossTargets(b, exe, options);
 }
 
@@ -118,4 +115,20 @@ fn detectSIMDSupport() bool {
         .aarch64 => std.Target.aarch64.featureSetHas(builtin.cpu.features, .neon),
         else => false,
     };
+
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+
+    const run_step = b.step("run", "Run the application");
+    run_step.dependOn(&run_cmd.step);
+
+    const main_tests = b.addTest(.{
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const run_main_tests = b.addRunArtifact(main_tests);
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_main_tests.step);
 }
