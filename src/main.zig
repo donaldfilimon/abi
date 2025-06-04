@@ -47,8 +47,18 @@ pub const Abi = struct {
 };
 
 pub fn main() !void {
+    var args = std.process.args();
+    _ = args.next(); // exe name
+    if (args.next()) |arg| {
+        if (std.mem.eql(u8, arg, "tui")) {
+            const tui = @import("tui.zig");
+            try tui.run();
+            return;
+        }
+    }
+
     const req = Request{
-        .text = "example input", // modify as needed
+        .text = "example input",
         .values = &[_]usize{ 1, 2, 3, 4 },
     };
     const res = Abi.process(req);
