@@ -86,3 +86,31 @@ pub fn main() !void {
     const persona = router.select(query);
     std.debug.print("Selected persona: {s}\n", .{persona.name});
 }
+
+test "router selects coder when query mentions code" {
+    const personas = [_]Persona{
+        .{ .name = "helper", .empathy_score = 0.9, .glue_accuracy = 0.8, .codegen_score = 0.4 },
+        .{ .name = "coder", .empathy_score = 0.6, .glue_accuracy = 0.7, .codegen_score = 0.9 },
+    };
+    var router = DynamicPersonaRouter{
+        .personas = personas[0..],
+        .model = TransformerModel{},
+    };
+    const query = Query{ .text = "please show code", .context = "" };
+    const persona = router.select(query);
+    try std.testing.expectEqualStrings("coder", persona.name);
+}
+
+test "router selects helper for help query" {
+    const personas = [_]Persona{
+        .{ .name = "helper", .empathy_score = 0.9, .glue_accuracy = 0.8, .codegen_score = 0.4 },
+        .{ .name = "coder", .empathy_score = 0.6, .glue_accuracy = 0.7, .codegen_score = 0.9 },
+    };
+    var router = DynamicPersonaRouter{
+        .personas = personas[0..],
+        .model = TransformerModel{},
+    };
+    const query = Query{ .text = "I need help", .context = "" };
+    const persona = router.select(query);
+    try std.testing.expectEqualStrings("helper", persona.name);
+}
