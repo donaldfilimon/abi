@@ -1,14 +1,12 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-
     const target = b.standardTargetOptions(.{});
-
     const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
-        .name = "multi_persona_framework", // Retained the name from 'enhance-abbey-aviva-abi-framework-with-visual-aids'
-        .root_source_file = b.path("src/main.zig"),
+        .name = "abi",
+        .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -16,12 +14,18 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
 
-    if (b.args) |args| {
+    const run_step = b.step("run", "Run the application");
+    run_step.dependOn(&run_cmd.step);
 
-        run_cmd.addArgs(args);
+    const main_tests = b.addTest(.{
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
 
-    }
-
-    b.step("run", "Run the program").dependOn(&run_cmd.step); // Combined the dependOn from both branches
+    const run_main_tests = b.addRunArtifact(main_tests);
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_main_tests.step);
 }
