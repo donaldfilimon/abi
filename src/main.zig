@@ -96,6 +96,31 @@ pub fn main() !void {
             const tui = @import("tui.zig");
             try tui.run();
             return;
+        } else if (std.mem.eql(u8, arg, "discord")) {
+            const api = @import("discord/api.zig");
+            const gw = @import("discord/gateway.zig");
+            var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+            defer _ = gpa.deinit();
+            const allocator = gpa.allocator();
+
+            const token = std.process.getEnvVarOwned(allocator, "DISCORD_TOKEN") catch {
+                std.log.err("DISCORD_TOKEN environment variable not set", .{});
+                return;
+            };
+            defer allocator.free(token);
+
+            const channel = args.next() orelse {
+                std.log.err("channel id required", .{});
+                return;
+            };
+
+            var bot = gw.DiscordBot.init(allocator, token);
+            defer bot.deinit();
+            // Non-blocking send using REST API
+            try api.postMessage(allocator, token, channel, "Hello from Zig!");
+            // Connect to gateway in blocking mode (example only)
+            // try bot.connect();
+            return;
         }
     }
 
