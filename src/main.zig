@@ -97,6 +97,8 @@ pub fn main() !void {
             try tui.run();
             return;
         } else if (std.mem.eql(u8, arg, "discord")) {
+            const api = @import("discord/api.zig");
+            const gw = @import("discord/gateway.zig");
             const bot = @import("discord_bot.zig");
             var gpa = std.heap.GeneralPurposeAllocator(.{}){};
             defer _ = gpa.deinit();
@@ -113,6 +115,12 @@ pub fn main() !void {
                 return;
             };
 
+            var bot = gw.DiscordBot.init(allocator, token);
+            defer bot.deinit();
+            // Non-blocking send using REST API
+            try api.postMessage(allocator, token, channel, "Hello from Zig!");
+            // Connect to gateway in blocking mode (example only)
+            // try bot.connect();
             try bot.postMessage(allocator, token, channel, "Hello from Zig!");
             return;
         }
