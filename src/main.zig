@@ -96,6 +96,25 @@ pub fn main() !void {
             const tui = @import("tui.zig");
             try tui.run();
             return;
+        } else if (std.mem.eql(u8, arg, "discord")) {
+            const bot = @import("discord_bot.zig");
+            var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+            defer _ = gpa.deinit();
+            const allocator = gpa.allocator();
+
+            const token = std.process.getEnvVarOwned(allocator, "DISCORD_TOKEN") catch {
+                std.log.err("DISCORD_TOKEN environment variable not set", .{});
+                return;
+            };
+            defer allocator.free(token);
+
+            const channel = args.next() orelse {
+                std.log.err("channel id required", .{});
+                return;
+            };
+
+            try bot.postMessage(allocator, token, channel, "Hello from Zig!");
+            return;
         }
     }
 
