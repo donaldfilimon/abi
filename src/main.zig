@@ -10,6 +10,7 @@ const gpu = @import("../zvim/gpu_renderer.zig");
 const simd = @import("../zvim/simd_text.zig");
 const lockfree = @import("lockfree.zig");
 const platform = @import("platform.zig");
+const engine = @import("engine/mod.zig");
 
 pub const Error = error{
     EmptyText,
@@ -91,6 +92,8 @@ pub const Abi = struct {
 pub fn main() !void {
     var args = std.process.args();
     _ = args.next(); // exe name
+    var driver = engine.graphics.GraphicsDriver.init(.opengl);
+    driver.renderFrame();
     if (args.next()) |arg| {
         if (std.mem.eql(u8, arg, "tui")) {
             const tui = @import("tui.zig");
