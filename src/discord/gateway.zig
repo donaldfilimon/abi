@@ -39,11 +39,12 @@ fn handleTextFrame(self: *DiscordBot, payload: []const u8) !void {
 
     const root = &parsed.value;
     const opv = root.object.get("op") orelse return;
-    const op = @intCast(types.OpCode, opv.integer);
+    const op: types.OpCode = @enumFromInt(opv.integer);
 
     switch (op) {
         .hello => if (root.object.get("d")) |data| {
-            const interval = data.object.get("heartbeat_interval")?.integer orelse return;
+            const iv = data.object.get("heartbeat_interval") orelse return;
+            const interval = iv.integer;
             try heartbeatLoop(self, @as(u32, @intCast(interval)));
             try identify(self);
         } else {},
@@ -55,7 +56,7 @@ fn heartbeatLoop(self: *DiscordBot, interval: u32) !void {
     var ws = self.ws.?;
     const buf = try self.allocator.alloc(u8, 32);
     defer self.allocator.free(buf);
-    var timer = std.time.Timer.start() catch return;
+    _ = std.time.Timer.start() catch return;
     while (true) {
         try std.json.stringify(.{ .op = @as(u8, @intCast(types.OpCode.heartbeat)), .d = null }, .{}, std.io.fixedBufferStream(buf).writer());
         try ws.writeFrame(.{ .fin = true, .opcode = .text, .data = buf });
@@ -65,10 +66,10 @@ fn heartbeatLoop(self: *DiscordBot, interval: u32) !void {
 
 fn identify(self: *DiscordBot) !void {
     var ws = self.ws.?;
-    const identify = types.Identify{ .token = self.token, .intents = 1 << 15 };
+    const id_payload = types.Identify{ .token = self.token, .intents = 1 << 15 };
     var buf = std.ArrayList(u8).init(self.allocator);
     defer buf.deinit();
-    try std.json.stringify(.{ .op = @as(u8, @intCast(types.OpCode.identify)), .d = identify }, .{}, buf.writer());
+    try std.json.stringify(.{ .op = @as(u8, @intCast(types.OpCode.identify)), .d = id_payload }, .{}, buf.writer());
     try ws.writeFrame(.{ .fin = true, .opcode = .text, .data = buf.items });
 }
 
@@ -79,7 +80,7 @@ fn fetchGatewayUrl(allocator: std.mem.Allocator, token: []const u8) ![]const u8 
     const auth_value = try std.fmt.allocPrint(allocator, "Bot {s}", .{token});
     defer allocator.free(auth_value);
 
-    const headers = [_]std.http.Header{ .{ .name = "Authorization", .value = auth_value } };
+    const headers = [_]std.http.Header{.{ .name = "Authorization", .value = auth_value }};
     var buf = std.ArrayList(u8).init(allocator);
     defer buf.deinit();
     const result = try client.fetch(.{ .location = .{ .url = "https://discord.com/api/v10/gateway" }, .extra_headers = &headers, .response_storage = .dynamic(&buf) });
