@@ -22,6 +22,6 @@ pub const GraphicsDriver = struct {
 };
 
 test "GraphicsDriver init" {
-    var driver = GraphicsDriver.init(.vulkan);
+    const driver = GraphicsDriver.init(.vulkan);
     try std.testing.expect(driver.backend == .vulkan);
 }
