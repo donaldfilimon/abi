@@ -211,9 +211,9 @@ pub fn main() !void {
         const data_contents = try std.fs.cwd().readFileAlloc(alloc, data_path, 1024 * 1024);
         defer alloc.free(data_contents);
 
-        var lines = std.mem.tokenize(u8, data_contents, "\n");
+        var lines = std.mem.tokenizeScalar(u8, data_contents, '\n');
         while (lines.next()) |line| {
-            var cols = std.mem.tokenize(u8, line, ",");
+            var cols = std.mem.tokenizeScalar(u8, line, ',');
             const x1 = try std.fmt.parseFloat(f64, cols.next() orelse continue);
             const x2 = try std.fmt.parseFloat(f64, cols.next() orelse continue);
             const label = try std.fmt.parseFloat(f64, cols.next() orelse continue);

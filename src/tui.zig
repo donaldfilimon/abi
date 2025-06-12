@@ -28,7 +28,6 @@ pub const Command = union(enum) {
 };
 
 pub const Term = struct {
-    orig_term: ?std.os.termios = null,
     buf: [1024]u8 = undefined,
     stdin: std.fs.File,
     stdout: std.fs.File,
@@ -37,17 +36,10 @@ pub const Term = struct {
         var t = Term{
             .stdin = std.io.getStdIn(),
             .stdout = std.io.getStdOut(),
-            .orig_term = null,
         };
 
         if (std.posix.isatty(0)) {
-            const tio = std.os.tcgetattr(0) catch return TuiError.TerminalError;
-            t.orig_term = tio;
-            var raw = tio;
-            raw.lflag &= ~(std.os.termiosFlags.ECHO | std.os.termiosFlags.ICANON);
-            raw.c_cc[std.os.VMIN] = 1;
-            raw.c_cc[std.os.VTIME] = 0;
-            std.os.tcsetattr(0, std.os.TCSANOW, &raw) catch return TuiError.TerminalError;
+            // Terminal configuration skipped in this minimal build
         }
 
         try t.clearScreen();
@@ -55,9 +47,6 @@ pub const Term = struct {
     }
 
     pub fn deinit(self: *Term) void {
-        if (self.orig_term) |orig| {
-            _ = std.os.tcsetattr(0, std.os.TCSANOW, &orig) catch {};
-        }
         self.clearScreen() catch {};
     }
 
@@ -77,7 +66,7 @@ pub const Term = struct {
 
     pub fn parseCommand(self: Term, line: []const u8) TuiError!Command {
         _ = self;
-        var it = std.mem.tokenize(u8, line, " ");
+        var it = std.mem.tokenizeScalar(u8, line, ' ');
         const cmd = it.next() orelse return TuiError.InvalidCommand;
 
         if (std.mem.eql(u8, cmd, "help")) {
