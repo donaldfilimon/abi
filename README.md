@@ -1,12 +1,19 @@
 ### Quick Start
 
-A simple command-line client is provided in `agent_client.zig`. Set the `OPENAI_API_KEY` environment variable and run:
+A simple command-line client is provided in `agent_client.zig`. Make sure Zig 0.14.1 is installed (see <https://ziglang.org/download/>). Set the `OPENAI_API_KEY` environment variable and run:
 
 ```bash
 zig run agent_client.zig -- --persona Abbey
 ```
 
 Choose from Abbey, Aviva, or Abi to interact with each persona.
+
+### TUI Demo
+Run a simple terminal UI that exposes basic persona features:
+
+```bash
+zig build run -- tui
+```
 
 ### Local ML Example
 `local_ml.zig` demonstrates cross-platform logistic regression training and
