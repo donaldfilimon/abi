@@ -30,3 +30,6 @@ To predict a probability with the trained model:
 zig run local_ml.zig -- predict model.txt 1.2 3.4
 ```
 
+
+### Cell Framework Example
+This repository now includes a demonstration of the Cell framework using modern C++23 modules. See `cell_framework/README.md` for build instructions.
