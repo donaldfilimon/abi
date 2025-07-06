@@ -1,2 +1,4 @@
 **/*.DS_Store
 **/*.zig-cache
+# Ignore build directories
+*/build/
