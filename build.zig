@@ -58,6 +58,17 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(exe);
 
+    // Cell compiler example
+    const cellc = b.addExecutable(.{
+        .name = "cellc",
+        .root_source_file = b.path("src/cell/main.zig"),
+        .target = target,
+        .optimize = platform_optimize,
+    });
+    cellc.root_module.addOptions("build_options", options);
+    const cell_step = b.step("cell", "Run cell compiler example");
+    cell_step.dependOn(&b.addRunArtifact(cellc).step);
+
     const bench_step = b.step("bench", "Run performance benchmarks");
     const bench_exe = b.addRunArtifact(exe);
     bench_exe.addArg("bench");

@@ -1,0 +1,10 @@
+# Simple header generation from module interface files
+file(GLOB MODULE_FILES "${CMAKE_SOURCE_DIR}/Cell/*.ixx")
+foreach(MFILE ${MODULE_FILES})
+    get_filename_component(MNAME ${MFILE} NAME_WE)
+    set(HEADER "${GENERATED_INCLUDE_DIR}/Cell/${MNAME}.hpp")
+    file(MAKE_DIRECTORY "${GENERATED_INCLUDE_DIR}/Cell")
+    file(READ ${MFILE} CONTENTS)
+    string(REGEX REPLACE "export module ([A-Za-z0-9_.]+);" "#pragma once\n// Generated from module \1" CONTENTS "${CONTENTS}")
+    file(WRITE ${HEADER} "${CONTENTS}")
+endforeach()

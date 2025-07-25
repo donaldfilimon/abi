@@ -137,7 +137,7 @@ pub const personas = [_]Persona{
 
 fn findPersona(name: []const u8) ?Persona {
     for (personas) |p| {
-        if (std.mem.eqlIgnoreCase(u8, p.name, name)) return p;
+        if (std.ascii.eqlIgnoreCase(p.name, name)) return p;
         if (std.mem.eql(u8, p.name, name)) return p;
     }
     return null;
@@ -159,16 +159,18 @@ fn generateResponse(allocator: std.mem.Allocator, persona: Persona, api_key: []c
     if (api_key.len == 0) return AbiError.ApiKeyMissing;
     if (user_input.len == 0) return AbiError.InvalidQuery;
 
-    const msg_json = try buildMessages(allocator, persona.prompt, history.items, user_input);
+    const msg_json = buildMessages(allocator, persona.prompt, history.items, user_input) catch |err| switch (err) {
+        error.OutOfMemory => return AbiError.AllocationFailed,
+    };
     defer allocator.free(msg_json);
 
-    const payload = try std.fmt.allocPrint(allocator, "{{\"model\":\"gpt-3.5-turbo\",\"messages\":{s}}}", .{msg_json}) catch return AbiError.AllocationFailed;
+    const payload = std.fmt.allocPrint(allocator, "{{\"model\":\"gpt-3.5-turbo\",\"messages\":{s}}}", .{msg_json}) catch return AbiError.AllocationFailed;
     defer allocator.free(payload);
 
     var auth_header_buf: [256]u8 = undefined;
-    const auth_header = try std.fmt.bufPrint(&auth_header_buf, "Authorization: Bearer {s}", .{api_key}) catch return AbiError.AllocationFailed;
+    const auth_header = std.fmt.bufPrint(&auth_header_buf, "Authorization: Bearer {s}", .{api_key}) catch return AbiError.AllocationFailed;
 
-    const result = std.ChildProcess.run(.{
+    const result = std.process.Child.run(.{
         .allocator = allocator,
         .argv = &.{
             "curl",                                       "-sS",
@@ -247,13 +249,13 @@ pub fn main() !void {
         const trimmed = std.mem.trimRight(u8, line, " \t\r\n");
         if (std.ascii.eqlIgnoreCase(trimmed, "quit")) break;
 
-        defer history.append(.{ .role = "user", .content = allocator.dupe(u8, trimmed) catch trimmed }) catch {};
+        defer history.append(.{ .role = .user, .content = allocator.dupe(u8, trimmed) catch trimmed }) catch {};
         const reply = generateResponse(allocator, persona, api_key, &history, trimmed) catch |err| {
             try stdout.print("error: {s}\n", .{@errorName(err)});
             continue;
         };
         defer allocator.free(reply);
-        try history.append(.{ .role = "assistant", .content = reply });
+        try history.append(.{ .role = .assistant, .content = reply });
         try stdout.print("{s}> {s}\n", .{ persona.name, reply });
     }
 }
