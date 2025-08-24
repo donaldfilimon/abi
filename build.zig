@@ -1,126 +1,122 @@
 const std = @import("std");
-const builtin = @import("builtin");
 
+// Although this function looks imperative, it does not perform the build
+// directly and instead it mutates the build graph (`b`) that will be then
+// executed by an external runner. The functions in `std.Build` implement a DSL
+// for defining build steps and express dependencies between them, allowing the
+// build runner to parallelize the build automatically (and the cache system to
+// know when a step doesn't need to be re-run).
 pub fn build(b: *std.Build) void {
+    // Standard target options allow the person running `zig build` to choose
+    // what target to build for. Here we do not override the defaults, which
+    // means any target is allowed, and the default is native. Other options
+    // for restricting supported target set are available.
     const target = b.standardTargetOptions(.{});
+    // Standard optimization options allow the person running `zig build` to select
+    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
+    // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    // Feature flags for conditional compilation
-    const options = b.addOptions();
-    options.addOption(bool, "enable_gpu", b.option(bool, "gpu", "Enable GPU acceleration") orelse detectGPUSupport());
-    options.addOption(bool, "enable_simd", b.option(bool, "simd", "Enable SIMD optimizations") orelse detectSIMDSupport());
-    options.addOption(bool, "enable_tracy", b.option(bool, "tracy", "Enable Tracy profiler") orelse false);
+    // Build options for feature flags
+    const build_options = b.addOptions();
+    build_options.addOption([]const u8, "simd_level", "auto");
+    build_options.addOption(bool, "gpu", false);
+    build_options.addOption(bool, "simd", true);
+    build_options.addOption(bool, "neural_accel", false);
+    build_options.addOption(bool, "webgpu", false);
+    build_options.addOption(bool, "hot_reload", false);
+    build_options.addOption(bool, "enable_tracy", false);
+    build_options.addOption(bool, "is_wasm", false);
 
-    // Platform-specific optimizations
-    const platform_optimize = switch (target.result.os.tag) {
-        .ios => .ReleaseSmall,
-        .windows => .ReleaseSafe,
-        else => optimize,
-    };
-
-    const exe = b.addExecutable(.{
-        .name = "abi",
-        .root_source_file = .{ .src_path = .{ .owner = b, .sub_path = "src/main.zig" } },
+    // This creates a module, which represents a collection of source files alongside
+    // some compilation options, such as optimization mode and linked system libraries.
+    // Zig modules are the preferred way of making Zig code available to consumers.
+    // addModule defines a module that we intend to make available for importing
+    // to our consumers. We must give it a name because a Zig package can expose
+    // multiple modules and consumers will need to be able to specify which
+    // module they want to access.
+    const core_mod = b.createModule(.{
+        .root_source_file = b.path("src/core/mod.zig"),
         .target = target,
-        .optimize = platform_optimize,
+        .optimize = optimize,
     });
 
-    // Optimization flags
-    exe.link_function_sections = true;
-    exe.link_gc_sections = true;
-    if (platform_optimize == .ReleaseSmall or platform_optimize == .ReleaseFast) {
-        exe.root_module.strip = true;
-    }
+    const mod = b.addModule("abi", .{
+        // The root source file is the "entry point" of this module. Users of
+        // this module will only be able to access public declarations contained
+        // in this file, which means that if you have declarations that you
+        // intend to expose to consumers that were defined in other files part
+        // of this module, you will have to make sure to re-export them from
+        // the root file.
+        .root_source_file = b.path("src/root.zig"),
+        // Later on we'll use this module as the root module of a test executable
+        // which requires us to specify a target.
+        .target = target,
+    });
 
-    // Dependencies
-    exe.root_module.addOptions("build_options", options);
+    mod.addImport("core", core_mod);
 
-    // Platform-specific dependencies
-    switch (target.result.os.tag) {
-        .linux => {
-            exe.linkSystemLibrary("c");
-            if (b.option(bool, "enable_io_uring", "Enable io_uring support") orelse false) {
-                exe.linkSystemLibrary("uring");
-            }
-        },
-        .windows => {
-            exe.linkSystemLibrary("kernel32");
-            exe.linkSystemLibrary("user32");
-            exe.linkSystemLibrary("d3d12");
-        },
-        .macos, .ios => {
-            exe.linkFramework("Metal");
-            exe.linkFramework("MetalKit");
-            exe.linkFramework("CoreGraphics");
-        },
-        else => {},
-    }
+    // CLI executable
+    const cli_exe = b.addExecutable(.{
+        .name = "abi",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/cli/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = mod },
+                .{ .name = "build_options", .module = build_options.createModule() },
+            },
+        }),
+    });
 
+    // Main executable (legacy)
+    const exe = b.addExecutable(.{
+        .name = "abi-main",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = mod },
+            },
+        }),
+    });
+
+    // This declares intent for the executable to be installed into the
+    // install prefix when running `zig build` (i.e. when executing the default
+    // step). By default the install prefix is `zig-out/` but can be overridden
+    // by passing `--prefix` or -p`.
+    b.installArtifact(cli_exe);
     b.installArtifact(exe);
 
-    // Cell compiler example
-    const cellc = b.addExecutable(.{
-        .name = "cellc",
-        .root_source_file = b.path("src/cell/main.zig"),
-        .target = target,
-        .optimize = platform_optimize,
-    });
-    cellc.root_module.addOptions("build_options", options);
-    const cell_step = b.step("cell", "Run cell compiler example");
-    cell_step.dependOn(&b.addRunArtifact(cellc).step);
+    // This creates a top level step. Top level steps have a name and can be
+    // invoked by name when running `zig build` (e.g. `zig build run`).
+    // This will evaluate the `run` step rather than the default step.
+    // For a top level step to actually do something, it must depend on other
+    // steps (e.g. a Run step, as we will see in a moment).
+    const run_step = b.step("run", "Run the CLI app");
+    const run_main_step = b.step("run-main", "Run the main app");
 
-    const bench_step = b.step("bench", "Run performance benchmarks");
-    const bench_exe = b.addRunArtifact(exe);
-    bench_exe.addArg("bench");
-    bench_exe.addArg("--iterations=1000");
-    bench_step.dependOn(&bench_exe.step);
+    // This creates a RunArtifact step in the build graph. A RunArtifact step
+    // invokes an executable compiled by Zig. Steps will only be executed by
+    // the build runner when they are depended on by another step.
+    const cli_run = b.addRunArtifact(cli_exe);
+    const main_run = b.addRunArtifact(exe);
 
-    const test_step = b.step("test", "Run unit tests");
+    run_step.dependOn(&cli_run.step);
+    run_main_step.dependOn(&main_run.step);
+
+    // Creates a step for unit testing. This will expose a `test` step that
+    // can be invoked like this: `zig build test`
     const unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = platform_optimize,
+        .root_module = mod,
     });
-    unit_tests.root_module.addOptions("build_options", options);
-    test_step.dependOn(&b.addRunArtifact(unit_tests).step);
 
-    addCrossTargets(b, exe, options);
-}
+    const run_unit_tests = b.addRunArtifact(unit_tests);
 
-fn addCrossTargets(b: *std.Build, exe: *std.Build.Step.Compile, options: *std.Build.Step.Options) void {
-    const targets = [_]struct { name: []const u8, query: std.Target.Query }{
-        .{ .name = "x86_64-linux", .query = .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .musl } },
-        .{ .name = "aarch64-linux", .query = .{ .cpu_arch = .aarch64, .os_tag = .linux, .abi = .gnu } },
-        .{ .name = "x86_64-windows", .query = .{ .cpu_arch = .x86_64, .os_tag = .windows } },
-        .{ .name = "x86_64-macos", .query = .{ .cpu_arch = .x86_64, .os_tag = .macos } },
-        .{ .name = "aarch64-macos", .query = .{ .cpu_arch = .aarch64, .os_tag = .macos } },
-        .{ .name = "aarch64-ios", .query = .{ .cpu_arch = .aarch64, .os_tag = .ios } },
-    };
-
-    const cross_step = b.step("cross", "Build for all supported platforms");
-
-    for (targets) |t| {
-        const cross_exe = b.addExecutable(.{
-            .name = b.fmt("zvim-{s}", .{t.name}),
-            .root_source_file = b.path("src/main.zig"),
-            .target = b.resolveTargetQuery(t.query),
-            .optimize = exe.root_module.optimize orelse .ReleaseSafe,
-        });
-
-        cross_exe.root_module.addOptions("build_options", options);
-        const install = b.addInstallArtifact(cross_exe, .{});
-        cross_step.dependOn(&install.step);
-    }
-}
-
-fn detectGPUSupport() bool {
-    return true;
-}
-
-fn detectSIMDSupport() bool {
-    return switch (builtin.cpu.arch) {
-        .x86_64 => std.Target.x86.featureSetHas(builtin.cpu.features, .avx2),
-        .aarch64 => std.Target.aarch64.featureSetHas(builtin.cpu.features, .neon),
-        else => false,
-    };
+    // Similar to creating the run step earlier, this exposes a `test` step that
+    // can be invoked like this: `zig build test`
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_unit_tests.step);
 }

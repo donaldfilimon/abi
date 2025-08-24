@@ -1,11 +1,12 @@
 const std = @import("std");
+
 const agent = @import("../../agent.zig");
 
 pub const Config = struct {
     shard_count: u32 = 3,
 };
 
-const prime_numbers = [_]u64{31, 37, 43, 47, 53, 59, 61, 67, 71, 73};
+const prime_numbers = [_]u64{ 31, 37, 43, 47, 53, 59, 61, 67, 71, 73 };
 
 pub fn primeHash(data: []const u8, seed: u64) u64 {
     var hash: u64 = seed | 1;
@@ -65,7 +66,7 @@ pub const Database = struct {
     pub fn init(alloc: std.mem.Allocator, cfg: Config) !Database {
         const count = cfg.shard_count;
         if (count == 0 or count > prime_numbers.len) return error.InvalidShardCount;
-        var shards = try alloc.alloc(Shard, count);
+        const shards = try alloc.alloc(Shard, count);
         for (shards, 0..) |*s, i| {
             s.* = try Shard.init(alloc, prime_numbers[i]);
         }
@@ -100,7 +101,7 @@ pub const Database = struct {
 
 pub const WDBXError = error{InvalidShardCount};
 
-pub test "basic store and retrieve" {
+test "basic store and retrieve" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     var db = try Database.init(gpa.allocator(), .{ .shard_count = 2 });

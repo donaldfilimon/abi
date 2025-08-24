@@ -1,38 +1,168 @@
-# Cell Language Specification (Draft)
+# Cell Language Specification
 
-This document outlines a minimal prototype of the **Cell** programming language.
-It incorporates experimental features discussed previously such as scoped error
-handling with `error_scope` and `raise`.
+Cell is a domain-specific language integrated into the Abi AI framework, designed for high-performance computation with error handling capabilities.
 
-## Syntax Overview
+## Language Overview
 
+Cell is a simple, expression-based language with:
+- Variable declarations
+- Arithmetic operations
+- Print statements
+- Error scope handling
+
+## Syntax
+
+### Variable Declaration
+
+```cell
+let x = 5;
+let sum = x + 10;
 ```
-let x = 1 + 2;
-print x;
 
+### Print Statement
+
+```cell
+print x;
+print sum + 2;
+```
+
+### Expressions
+
+Cell supports basic arithmetic expressions:
+
+```cell
+let a = 10;
+let b = 20;
+let result = a + b - 5;
+```
+
+### Error Scopes
+
+Cell provides structured error handling through error scopes:
+
+```cell
 error_scope {
-    let y = x + 3;
-    print y;
+    let x = risky_operation();
+    print x;
 } handle {
-    SomeError => {
+    error1 => {
         print 0;
+    }
+    error2 => {
+        print -1;
     }
 }
 ```
 
-The prototype supports:
+## Grammar
 
-- Variable declarations using `let`.
-- Integer arithmetic with `+` and `-`.
-- `print` statements.
-- `error_scope { ... } handle { ... }` blocks. Handlers are parsed but not yet
-  executed at runtime.
+```
+program     = statement*
+statement   = varDecl | printStmt | errorScope
+varDecl     = "let" IDENTIFIER "=" expression ";"
+printStmt   = "print" expression ";"
+errorScope  = "error_scope" "{" statement* "}" "handle" "{" handler* "}"
+handler     = IDENTIFIER "=>" "{" statement* "}"
+expression  = term (("+"|"-") term)*
+term        = primary
+primary     = NUMBER | IDENTIFIER | "(" expression ")"
+```
 
-## Future Directions
+## Token Types
 
-- Implement `raise` semantics for propagating errors.
-- Add coroutines and typed channels for concurrency.
-- Expand the standard library with data structures and algorithms.
+- `identifier` - Variable names
+- `number` - Integer literals
+- `plus`, `minus`, `star`, `slash` - Arithmetic operators
+- `assign` - Assignment operator `=`
+- `arrow` - Error handler arrow `=>`
+- `semicolon` - Statement terminator
+- `l_paren`, `r_paren` - Parentheses
+- `l_brace`, `r_brace` - Braces
+- `error_scope` - Error scope keyword
+- `handle_kw` - Handle keyword
 
-This specification is intentionally small to enable rapid iteration and
-experimentation. The implementation can be found in `src/cell`.
+## Example Programs
+
+### Basic Arithmetic
+
+```cell
+let a = 10;
+let b = 20;
+let sum = a + b;
+print sum;
+```
+
+### With Error Handling
+
+```cell
+error_scope {
+    let value = get_value();
+    let result = value + 100;
+    print result;
+} handle {
+    null_error => {
+        print 0;
+    }
+    overflow_error => {
+        print 999;
+    }
+}
+```
+
+## Implementation
+
+The Cell language is implemented in Zig with:
+
+- **Lexer** (`lexer.zig`): Tokenizes input text
+- **Parser** (`parser.zig`): Builds AST from tokens
+- **AST** (`ast.zig`): Abstract syntax tree representation
+- **Interpreter** (`interpreter.zig`): Executes the AST
+- **Token** (`token.zig`): Token type definitions
+
+## Usage
+
+### As a Library
+
+```zig
+const cell = @import("cell");
+
+pub fn main() !void {
+    const source = "let x = 1 + 2; print x;";
+    var parser = cell.Parser.init(allocator, source);
+    const program = try parser.parseProgram();
+    
+    var interpreter = cell.Interpreter.init(allocator);
+    interpreter.evalProgram(program);
+}
+```
+
+### As a REPL
+
+```bash
+abi cell
+> let x = 10;
+> let y = 20;
+> print x + y;
+30
+```
+
+## Future Extensions
+
+Planned features include:
+
+1. **Functions**: User-defined functions with parameters
+2. **Conditionals**: If/else statements
+3. **Loops**: While and for loops
+4. **Types**: Static type system
+5. **Modules**: Import/export system
+6. **Async**: Asynchronous operations
+7. **FFI**: Foreign function interface to Zig
+
+## Performance
+
+Cell is designed for performance:
+
+- Zero-allocation parsing where possible
+- Arena allocation for AST nodes
+- Direct execution without intermediate bytecode
+- Integration with Abi's SIMD and GPU capabilities

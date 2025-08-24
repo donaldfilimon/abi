@@ -1,10 +1,27 @@
-const std = @import("std");
+//! Dynamic AI Router - Intelligent Persona Selection and Routing
+//!
+//! This module provides dynamic routing capabilities for AI agents, enabling:
+//! - Intelligent persona selection based on query analysis
+//! - Context-aware routing decisions
+//! - Performance-based persona evaluation
+//! - Dynamic adaptation to user preferences
+//! - Multi-model orchestration and load balancing
 
+const std = @import("std");
+const core = @import("core/mod.zig");
+
+/// Re-export commonly used types
+pub const Allocator = core.Allocator;
+
+/// Router-specific error types
 pub const RouterError = error{
     NoPersonasAvailable,
     InvalidQuery,
     ScoringFailed,
-};
+    ModelUnavailable,
+    ConfigurationError,
+    ResourceExhausted,
+} || core.Error;
 
 /// Represents a single conversational persona with basic metrics.
 pub const Persona = struct {
