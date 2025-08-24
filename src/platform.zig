@@ -1,175 +1,276 @@
-//! Platform-specific optimizations and abstractions
+//! Cross-platform utilities for the Abi AI framework
+//!
+//! This module provides platform-specific functionality using only Zig's built-in APIs,
+//! avoiding any C dependencies or libc requirements.
 
 const std = @import("std");
 const builtin = @import("builtin");
+const abi = @import("root.zig");
+const core = @import("core/mod.zig");
 
-pub const PlatformLayer = struct {
-    /// iOS-specific optimizations for a-Shell
-    pub const iOS = struct {
-        const max_memory = 256 * 1024 * 1024; // 256MB limit
-        const max_file_handles = 256;
+/// Re-export commonly used types
+pub const Allocator = core.Allocator;
 
-        pub fn init() !void {
-            // Set up iOS-specific memory limits
-            if (builtin.os.tag == .ios) {
-                // Configure memory pressure handler
-                const dispatch = @cImport({
-                    @cInclude("dispatch/dispatch.h");
-                });
+/// Platform capabilities and configuration
+pub const PlatformInfo = struct {
+    os: std.Target.Os.Tag,
+    arch: std.Target.Cpu.Arch,
+    supports_ansi_colors: bool,
+    supports_simd: bool,
+    max_threads: u32,
+    cache_line_size: u32,
 
-                dispatch.dispatch_source_set_event_handler(dispatch.dispatch_source_create(dispatch.DISPATCH_SOURCE_TYPE_MEMORYPRESSURE, 0, dispatch.DISPATCH_MEMORYPRESSURE_WARN, dispatch.dispatch_get_main_queue()), struct {
-                    fn handler() callconv(.C) void {
-                        // Aggressive memory cleanup placeholder
-                    }
-                }.handler);
-            }
-        }
-
-        pub fn openFile(path: []const u8) !std.fs.File {
-            // iOS sandbox restrictions
-            const allowed_prefixes = [_][]const u8{
-                "~/Documents/",
-                "~/tmp/",
-                "/private/var/mobile/",
-            };
-
-            for (allowed_prefixes) |prefix| {
-                if (std.mem.startsWith(u8, path, prefix)) {
-                    return std.fs.cwd().openFile(path, .{});
-                }
-            }
-
-            return error.SandboxViolation;
-        }
-    };
-
-    /// Windows-specific console optimizations
-    pub const Windows = struct {
-        pub const ConPTY = struct {
-            handle: *anyopaque,
-            input: *anyopaque,
-            output: *anyopaque,
+    pub fn detect() PlatformInfo {
+        return .{
+            .os = builtin.os.tag,
+            .arch = builtin.cpu.arch,
+            .supports_ansi_colors = detectAnsiSupport(),
+            .supports_simd = abi.features.has_simd,
+            .max_threads = detectMaxThreads(),
+            .cache_line_size = detectCacheLineSize(),
         };
-        pub fn enableAnsiColors() !void {
-            const kernel32 = @cImport({
-                @cInclude("windows.h");
-            });
+    }
 
-            const stdout_handle = kernel32.GetStdHandle(kernel32.STD_OUTPUT_HANDLE);
-            var mode: kernel32.DWORD = 0;
-
-            if (kernel32.GetConsoleMode(stdout_handle, &mode) == 0) {
-                return error.GetConsoleModeFailed;
-            }
-
-            mode |= kernel32.ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-            mode |= kernel32.ENABLE_PROCESSED_OUTPUT;
-
-            if (kernel32.SetConsoleMode(stdout_handle, mode) == 0) {
-                return error.SetConsoleModeFailed;
-            }
-        }
-
-        pub fn createConPTY(cols: u16, rows: u16) !ConPTY {
-            const kernel32 = @cImport({
-                @cInclude("windows.h");
-                @cInclude("consoleapi.h");
-            });
-
-            const size = kernel32.COORD{ .X = cols, .Y = rows };
-            var input_pipe: kernel32.HANDLE = undefined;
-            var output_pipe: kernel32.HANDLE = undefined;
-            var pty: kernel32.HPCON = undefined;
-
-            // Create pipes
-            if (kernel32.CreatePipe(&input_pipe, null, null, 0) == 0) {
-                return error.CreatePipeFailed;
-            }
-
-            if (kernel32.CreatePipe(null, &output_pipe, null, 0) == 0) {
-                return error.CreatePipeFailed;
-            }
-
-            // Create pseudo console
-            const hr = kernel32.CreatePseudoConsole(size, input_pipe, output_pipe, 0, &pty);
-
-            if (hr != kernel32.S_OK) {
-                return error.CreatePseudoConsoleFailed;
-            }
-
-            return ConPTY{
-                .handle = pty,
-                .input = input_pipe,
-                .output = output_pipe,
-            };
-        }
-    };
-
-    /// Linux io_uring for maximum async I/O performance
-    pub const Linux = struct {
-        pub const AsyncIO = struct {
-            ring: std.os.linux.io_uring,
-            submission_queue: []std.os.linux.io_uring_sqe,
-            completion_queue: []std.os.linux.io_uring_cqe,
-
-            pub fn init(queue_depth: u13) !AsyncIO {
-                var ring: std.os.linux.io_uring = undefined;
-                const params = std.os.linux.io_uring_params{};
-
-                try std.os.linux.io_uring_setup(queue_depth, &params, &ring);
-
-                return AsyncIO{
-                    .ring = ring,
-                    .submission_queue = undefined, // Mapped separately
-                    .completion_queue = undefined,
-                };
-            }
-
-            pub fn readFile(self: *AsyncIO, path: []const u8, buffer: []u8) !usize {
-                const fd = try std.os.open(path, .{ .ACCMODE = .RDONLY }, 0);
-                defer std.os.close(fd);
-
-                // Get submission queue entry
-                const sqe = try self.getSQE();
-                std.os.linux.io_uring_prep_read(sqe, fd, buffer.ptr, buffer.len, 0);
-                sqe.user_data = 1;
-
-                // Submit and wait
-                _ = try std.os.linux.io_uring_submit(&self.ring);
-
-                var cqe: *std.os.linux.io_uring_cqe = undefined;
-                _ = try std.os.linux.io_uring_wait_cqe(&self.ring, &cqe);
-                defer std.os.linux.io_uring_cqe_seen(&self.ring, cqe);
-
-                if (cqe.res < 0) {
-                    return error.ReadFailed;
-                }
-
-                return @intCast(cqe.res);
-            }
+    fn detectAnsiSupport() bool {
+        return switch (builtin.os.tag) {
+            .windows => false, // Simplified for now
+            .linux, .macos, .freebsd, .openbsd, .netbsd => true,
+            else => false,
         };
-    };
+    }
 
-    /// macOS unified memory optimizations
-    pub const macOS = struct {
-        pub fn createUnifiedBuffer(size: usize) ![]u8 {
-            const mach = @cImport({
-                @cInclude("mach/mach.h");
-                @cInclude("mach/vm_map.h");
-            });
+    fn detectMaxThreads() u32 {
+        return switch (builtin.os.tag) {
+            .windows, .linux, .macos => 8, // Conservative default
+            else => 4,
+        };
+    }
 
-            var address: mach.vm_address_t = 0;
-            const kr = mach.vm_allocate(mach.mach_task_self(), &address, size, mach.VM_FLAGS_ANYWHERE);
-
-            if (kr != mach.KERN_SUCCESS) {
-                return error.VmAllocateFailed;
-            }
-
-            // Mark as purgeable for memory pressure handling
-            var state: mach.vm_purgable_t = mach.VM_PURGABLE_NONVOLATILE;
-            _ = mach.vm_purgable_control(mach.mach_task_self(), address, mach.VM_PURGABLE_SET_STATE, &state);
-
-            return @as([*]u8, @ptrFromInt(address))[0..size];
-        }
-    };
+    fn detectCacheLineSize() u32 {
+        return switch (builtin.cpu.arch) {
+            .x86_64, .aarch64 => 64,
+            .x86 => 32,
+            else => 64, // Safe default
+        };
+    }
 };
+
+/// Platform-specific initialization
+pub fn initializePlatform() !void {
+    const info = PlatformInfo.detect();
+
+    std.log.info("Platform initialized: {any} {any}", .{ info.os, info.arch });
+    std.log.info("Features: ANSI={any}, SIMD={any}, Threads={any}", .{ info.supports_ansi_colors, info.supports_simd, info.max_threads });
+
+    // Platform-specific setup
+    switch (builtin.os.tag) {
+        .windows => try initWindows(),
+        .linux => try initLinux(),
+        .macos => try initMacOS(),
+        else => {}, // No special setup needed
+    }
+}
+
+/// Windows-specific initialization
+fn initWindows() !void {
+    // Enable ANSI color support on Windows 10+
+    if (builtin.os.tag == .windows) {
+        enableWindowsAnsiColors() catch |err| {
+            std.log.warn("Failed to enable ANSI colors: {}", .{err});
+        };
+    }
+}
+
+/// Linux-specific initialization
+fn initLinux() !void {
+    // Set up signal handlers or other Linux-specific features
+    std.log.debug("Linux platform initialized", .{});
+}
+
+/// macOS-specific initialization
+fn initMacOS() !void {
+    // Set up macOS-specific features
+    std.log.debug("macOS platform initialized", .{});
+}
+
+/// Enable ANSI color support on Windows (simplified)
+fn enableWindowsAnsiColors() !void {
+    if (builtin.os.tag != .windows) return;
+
+    // Simplified implementation - skip Windows API calls to avoid compatibility issues
+    std.log.debug("Windows ANSI color support skipped (simplified implementation)", .{});
+}
+
+/// Cross-platform file operations
+pub const FileOps = struct {
+    pub fn openFile(path: []const u8) !std.fs.File {
+        return std.fs.cwd().openFile(path, .{});
+    }
+
+    pub fn createFile(path: []const u8) !std.fs.File {
+        return std.fs.cwd().createFile(path, .{});
+    }
+
+    pub fn deleteFile(path: []const u8) !void {
+        return std.fs.cwd().deleteFile(path);
+    }
+
+    pub fn fileExists(path: []const u8) bool {
+        const file = std.fs.cwd().openFile(path, .{}) catch return false;
+        file.close();
+        return true;
+    }
+};
+
+/// Cross-platform memory operations
+pub const MemoryOps = struct {
+    pub fn getPageSize() usize {
+        return switch (builtin.os.tag) {
+            .windows => 4096,
+            .linux, .macos, .freebsd, .openbsd, .netbsd => 4096,
+            else => 4096,
+        };
+    }
+
+    pub fn alignToPageSize(size: usize) usize {
+        const page_size = getPageSize();
+        return (size + page_size - 1) & ~(page_size - 1);
+    }
+
+    pub fn getVirtualMemoryLimit() usize {
+        return switch (builtin.cpu.arch) {
+            .x86_64 => 1 << 47, // 128 TB
+            .x86 => 1 << 32, // 4 GB
+            .aarch64 => 1 << 48, // 256 TB
+            else => 1 << 32, // Conservative default
+        };
+    }
+};
+
+/// Cross-platform threading utilities
+pub const ThreadOps = struct {
+    pub fn getOptimalThreadCount() u32 {
+        const info = PlatformInfo.detect();
+        return @min(info.max_threads, std.Thread.getCpuCount() catch 4);
+    }
+
+    pub fn setThreadPriority(thread: std.Thread, priority: ThreadPriority) !void {
+        _ = thread;
+        _ = priority;
+        // Simplified - actual implementation would be platform-specific
+        std.log.debug("Thread priority setting not implemented", .{});
+    }
+};
+
+pub const ThreadPriority = enum {
+    low,
+    normal,
+    high,
+    realtime,
+};
+
+/// Cross-platform performance utilities
+pub const PerfOps = struct {
+    pub fn getCpuFrequency() u64 {
+        // Simplified - return base frequency estimate
+        return switch (builtin.cpu.arch) {
+            .x86_64 => 2_500_000_000, // 2.5 GHz
+            .aarch64 => 2_000_000_000, // 2.0 GHz
+            else => 1_000_000_000, // 1.0 GHz
+        };
+    }
+
+    pub fn getCacheInfo() CacheInfo {
+        return .{
+            .l1_cache_size = 32 * 1024, // 32 KB
+            .l2_cache_size = 256 * 1024, // 256 KB
+            .l3_cache_size = 8 * 1024 * 1024, // 8 MB
+            .cache_line_size = PlatformInfo.detect().cache_line_size,
+        };
+    }
+};
+
+pub const CacheInfo = struct {
+    l1_cache_size: u32,
+    l2_cache_size: u32,
+    l3_cache_size: u32,
+    cache_line_size: u32,
+};
+
+/// ANSI color support
+pub const Colors = struct {
+    pub const reset = "\x1b[0m";
+    pub const bold = "\x1b[1m";
+    pub const red = "\x1b[31m";
+    pub const green = "\x1b[32m";
+    pub const yellow = "\x1b[33m";
+    pub const blue = "\x1b[34m";
+    pub const magenta = "\x1b[35m";
+    pub const cyan = "\x1b[36m";
+    pub const white = "\x1b[37m";
+
+    pub fn print(comptime color: []const u8, comptime fmt: []const u8, args: anytype) void {
+        const info = PlatformInfo.detect();
+        if (info.supports_ansi_colors) {
+            std.debug.print("{s}", .{color});
+            std.debug.print(fmt, args);
+            std.debug.print("{s}", .{reset});
+        } else {
+            std.debug.print(fmt, args);
+        }
+    }
+};
+
+/// Platform-specific error handling
+pub const PlatformError = error{
+    PlatformNotSupported,
+    FeatureNotAvailable,
+    InsufficientPermissions,
+    ResourceExhausted,
+};
+
+/// Get platform-specific temporary directory
+pub fn getTempDir(allocator: std.mem.Allocator) ![]const u8 {
+    return switch (builtin.os.tag) {
+        .windows => try allocator.dupe(u8, "C:\\temp"),
+        .linux, .macos, .freebsd, .openbsd, .netbsd => try allocator.dupe(u8, "/tmp"),
+        else => try allocator.dupe(u8, "/tmp"),
+    };
+}
+
+/// Platform-specific sleep function
+pub fn sleep(milliseconds: u64) void {
+    std.time.sleep(milliseconds * 1_000_000); // Convert to nanoseconds
+}
+
+/// Get system information as a formatted string
+pub fn getSystemInfo(allocator: std.mem.Allocator) ![]const u8 {
+    const info = PlatformInfo.detect();
+    const cache_info = PerfOps.getCacheInfo();
+
+    return try std.fmt.allocPrint(allocator,
+        \\System Information:
+        \\  OS: {}
+        \\  Architecture: {}
+        \\  ANSI Colors: {}
+        \\  SIMD Support: {}
+        \\  Max Threads: {}
+        \\  Cache Line Size: {} bytes
+        \\  L1 Cache: {} KB
+        \\  L2 Cache: {} KB
+        \\  L3 Cache: {} MB
+        \\  CPU Frequency: {d:.1} GHz
+        \\
+    , .{
+        info.os,
+        info.arch,
+        info.supports_ansi_colors,
+        info.supports_simd,
+        info.max_threads,
+        info.cache_line_size,
+        cache_info.l1_cache_size / 1024,
+        cache_info.l2_cache_size / 1024,
+        cache_info.l3_cache_size / (1024 * 1024),
+        @as(f64, @floatFromInt(PerfOps.getCpuFrequency())) / 1_000_000_000.0,
+    });
+}

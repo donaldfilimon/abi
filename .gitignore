@@ -1,3 +1,87 @@
-**/*.DS_Store
-**/*.zig-cache
+# Zig build artifacts
+zig-cache/
 zig-out/
+build/
+.zig-cache/
+
+# Documentation
+docs/build/
+
+# Editor and IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Dependencies and package management
+node_modules/
+.bun/
+
+# Test and benchmark results
+*.test
+*.bench
+coverage/
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Database files
+*.wdbx
+*.db
+*.sqlite
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS specific
+Thumbs.db
+desktop.ini
+
+# Cell language build artifacts
+*.cell.out
+
+# AI model files
+*.onnx
+*.pt
+*.pth
+*.h5
+*.pb
+
+# Profiling data
+*.prof
+*.tracy
+perf.data*
+
+# Core dumps
+core
+*.core
+
+# Binary executables
+abi
+abi-agent
+cell
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Distribution
+dist/
+release/
+*.tar.gz
+*.zip

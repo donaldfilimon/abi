@@ -6,7 +6,7 @@ pub const Lexer = struct {
     index: usize = 0,
 
     pub fn init(input: []const u8) Lexer {
-        return Lexer{ .input = input }; 
+        return Lexer{ .input = input };
     }
 
     fn peek(self: *Lexer) ?u8 {
@@ -67,7 +67,7 @@ pub const Lexer = struct {
                     return .{ .ttype = .identifier, .lexeme = lex };
                 }
                 return .{ .ttype = .eof, .lexeme = self.input[start..start] };
-            }
+            },
         }
     }
 };

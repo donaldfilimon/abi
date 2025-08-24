@@ -1,5 +1,21 @@
-const std = @import("std");
+//! LocalML Module - On-Device Machine Learning
+//!
+//! This module provides lightweight machine learning capabilities that run entirely
+//! on the local device without requiring external services:
+//! - Simple linear regression and classification models
+//! - Basic neural network implementations
+//! - Data preprocessing and feature engineering
+//! - Model serialization and persistence
+//! - Cross-validation and evaluation metrics
+//! - Memory-efficient streaming data processing
 
+const std = @import("std");
+const core = @import("core/mod.zig");
+
+/// Re-export commonly used types
+pub const Allocator = core.Allocator;
+
+/// LocalML-specific error types
 pub const MLError = error{
     EmptyDataset,
     InvalidData,
@@ -9,7 +25,10 @@ pub const MLError = error{
     ModelNotInitialized,
     InvalidParameters,
     TrainingFailed,
-};
+    InsufficientData,
+    ConvergenceFailed,
+    InvalidModelState,
+} || core.Error;
 
 pub const DataRow = struct {
     x1: f64,
