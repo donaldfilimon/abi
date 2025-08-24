@@ -252,9 +252,9 @@ test "database module: vector indexing performance" {
     defer allocator.free(results);
     const search_time = timer.read();
 
-    std.debug.print("Database performance: {} vectors, {} dimensions\n", .{ num_vectors, dimensions });
-    std.debug.print("Insert time: {}ns total, {}ns per vector\n", .{ insert_time, insert_time / num_vectors });
-    std.debug.print("Search time: {}ns for top 10 results\n", .{search_time});
+    std.debug.print("Database performance: {any} vectors, {any} dimensions\n", .{ num_vectors, dimensions });
+    std.debug.print("Insert time: {any}ns total, {any}ns per vector\n", .{ insert_time, insert_time / num_vectors });
+    std.debug.print("Search time: {any}ns for top 10 results\n", .{search_time});
 
     try testing.expect(store.vectors.items.len == num_vectors);
     try testing.expect(results.len <= 10);
@@ -301,8 +301,8 @@ test "vector search performance" {
     }
     const search_time = timer.read();
 
-    std.debug.print("Linear search: {} vectors, {} dimensions, {}ns\n", .{ num_vectors, dimensions, search_time });
-    std.debug.print("Best match: index {}, similarity {d:.3}\n", .{ best_index, best_similarity });
+    std.debug.print("Linear search: {any} vectors, {any} dimensions, {any}ns\n", .{ num_vectors, dimensions, search_time });
+    std.debug.print("Best match: index {any}, similarity {d:.3}\n", .{ best_index, best_similarity });
 
     try testing.expect(best_index > 0);
     try testing.expect(best_similarity >= -1.0 and best_similarity <= 1.0);

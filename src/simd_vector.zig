@@ -139,7 +139,7 @@ pub fn distanceSquaredSIMD(a: []const f32, b: []const f32, opts: SIMDOpts) f32 {
     return sum;
 }
 
-/// High-performance dot product with FMA optimization
+/// High-performance dot product with FMA optimization and alignment awareness
 pub fn dotProductSIMD(a: []const f32, b: []const f32, opts: SIMDOpts) f32 {
     std.debug.assert(a.len == b.len);
 
@@ -149,31 +149,45 @@ pub fn dotProductSIMD(a: []const f32, b: []const f32, opts: SIMDOpts) f32 {
     const width = simd_config.width_f32;
     const unroll = opts.unroll_factor;
 
-    // Unrolled SIMD with FMA when available
-    while (i + width * unroll <= a.len) : (i += width * unroll) {
-        var acc_vectors = [_]F32Vector{@splat(0.0)} ** unroll;
+    // Check alignment for optimized processing
+    const a_aligned = SIMDAlignment.isOptimallyAligned(a.ptr);
+    const b_aligned = SIMDAlignment.isOptimallyAligned(b.ptr);
 
-        inline for (0..unroll) |u| {
-            const offset = i + u * width;
-            const va: F32Vector = a[offset .. offset + width][0..width].*;
-            const vb: F32Vector = b[offset .. offset + width][0..width].*;
+    if (a_aligned and b_aligned) {
+        // Both arrays are aligned - use optimized SIMD
+        // Unrolled SIMD with FMA when available
+        while (i + width * unroll <= a.len) : (i += width * unroll) {
+            var acc_vectors = [_]F32Vector{@splat(0.0)} ** unroll;
 
-            // Use FMA if available (a * b + acc)
-            acc_vectors[u] = va * vb + acc_vectors[u];
+            inline for (0..unroll) |u| {
+                const offset = i + u * width;
+                const va: F32Vector = a[offset .. offset + width][0..width].*;
+                const vb: F32Vector = b[offset .. offset + width][0..width].*;
+
+                // Use FMA if available (a * b + acc)
+                acc_vectors[u] = va * vb + acc_vectors[u];
+            }
+
+            // Reduce all accumulators
+            for (acc_vectors) |acc| {
+                sum += @reduce(.Add, acc);
+            }
         }
 
-        // Reduce all accumulators
-        for (acc_vectors) |acc| {
-            sum += @reduce(.Add, acc);
+        // Standard SIMD for remaining aligned elements
+        while (i + width <= a.len) : (i += width) {
+            const va: F32Vector = a[i .. i + width][0..width].*;
+            const vb: F32Vector = b[i .. i + width][0..width].*;
+            const product = va * vb;
+            sum += @reduce(.Add, product);
         }
-    }
-
-    // Standard SIMD for remaining aligned elements
-    while (i + width <= a.len) : (i += width) {
-        const va: F32Vector = a[i .. i + width][0..width].*;
-        const vb: F32Vector = b[i .. i + width][0..width].*;
-        const product = va * vb;
-        sum += @reduce(.Add, product);
+    } else {
+        // Arrays not aligned - process with caution
+        // Scalar processing for misaligned data
+        while (i < a.len) : (i += 1) {
+            sum += a[i] * b[i];
+        }
+        return sum;
     }
 
     // Scalar remainder
@@ -472,6 +486,45 @@ pub fn sigmoidSIMD(input: []const f32, output: []f32) void {
 pub fn getSIMDInfo() SIMDConfig {
     return simd_config;
 }
+
+/// Enhanced memory alignment utilities for SIMD operations
+pub const SIMDAlignment = struct {
+    /// Get the optimal alignment for SIMD operations
+    pub fn getOptimalAlignment() u29 {
+        // Ensure the alignment is a power of 2 and reasonable for SIMD
+        const vector_bytes = simd_config.max_width * @sizeOf(f32);
+        const alignment_bytes = if (vector_bytes <= 32) vector_bytes else 32;
+        return alignment_bytes;
+    }
+
+    /// Check if a pointer is optimally aligned for SIMD operations
+    pub fn isOptimallyAligned(ptr: anytype) bool {
+        const alignment = getOptimalAlignment();
+        const addr = @intFromPtr(ptr);
+        return addr % alignment == 0;
+    }
+
+    /// Allocate an aligned buffer for SIMD operations
+    pub fn allocAlignedBuffer(allocator: std.mem.Allocator, size: usize) ![]f32 {
+        const alignment = comptime std.mem.Alignment.fromByteUnits(getOptimalAlignment());
+        return try allocator.alignedAlloc(f32, alignment, size);
+    }
+
+    /// Create a copy of data with optimal SIMD alignment
+    pub fn createAlignedCopy(allocator: std.mem.Allocator, data: []const f32) ![]f32 {
+        const aligned = try allocAlignedBuffer(allocator, data.len);
+        @memcpy(aligned, data);
+        return aligned;
+    }
+
+    /// Ensure a slice is aligned by copying if necessary
+    pub fn ensureAligned(allocator: std.mem.Allocator, data: []f32) ![]f32 {
+        if (isOptimallyAligned(data.ptr)) {
+            return data;
+        }
+        return createAlignedCopy(allocator, data);
+    }
+};
 
 /// Benchmark SIMD operations
 pub fn benchmarkSIMD(allocator: std.mem.Allocator, size: usize) !struct {

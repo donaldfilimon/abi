@@ -400,7 +400,7 @@ fn runTrain(ctx: *AppContext) !void {
     };
 
     // Initialize neural network
-    var network = try abi.neural.NeuralNetwork.init(ctx.allocator);
+    var network = try abi.neural.NeuralNetwork.initDefault(ctx.allocator);
     defer network.deinit();
 
     // Add a simple layer
@@ -549,7 +549,7 @@ fn runServe(ctx: *AppContext) !void {
             },
         };
 
-        model = try abi.neural.NeuralNetwork.init(ctx.allocator);
+        model = try abi.neural.NeuralNetwork.initDefault(ctx.allocator);
         for (network_config.hidden_layers) |layer_config| {
             try model.?.addLayer(layer_config);
         }

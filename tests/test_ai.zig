@@ -239,5 +239,5 @@ test "AI Performance characteristics" {
     // Should be reasonably fast (less than 1ms average on modern hardware)
     try testing.expect(avg_time < 1_000_000); // 1ms in nanoseconds
 
-    std.debug.print("AI generation benchmark: {} iterations, {}ns average\n", .{ iterations, avg_time });
+    std.debug.print("AI generation benchmark: {any} iterations, {any}ns average\n", .{ iterations, avg_time });
 }
