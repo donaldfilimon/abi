@@ -304,17 +304,25 @@ pub const distance = struct {
 pub const text = struct {
     /// Count occurrences of a byte in a buffer
     pub fn countByte(haystack: []const u8, needle: u8) usize {
+        // Use conservative SIMD approach - fall back to scalar if alignment issues
         if (!config.has_simd or haystack.len < 32) {
+            return countByteScalar(haystack, needle);
+        }
+
+        const vec_size = @min(32, config.vector_width);
+        const alignment = @alignOf(@Vector(vec_size, u8));
+
+        // Check if we can safely use SIMD with current alignment
+        if (@intFromPtr(haystack.ptr) % alignment != 0) {
+            // Data is not aligned, use scalar approach
             return countByteScalar(haystack, needle);
         }
 
         var count: usize = 0;
         var i: usize = 0;
-
-        const vec_size = @min(32, config.vector_width);
         const needle_vec = @as(@Vector(vec_size, u8), @splat(needle));
 
-        // Process SIMD chunks
+        // Process SIMD chunks (data is aligned)
         while (i + vec_size <= haystack.len) : (i += vec_size) {
             const chunk = @as(*const @Vector(vec_size, u8), @ptrCast(@alignCast(haystack.ptr + i))).*;
             const matches = chunk == needle_vec;
@@ -339,15 +347,24 @@ pub const text = struct {
 
     /// Find first occurrence of byte
     pub fn findByte(haystack: []const u8, needle: u8) ?usize {
+        // Use conservative SIMD approach - fall back to scalar if alignment issues
         if (!config.has_simd or haystack.len < 32) {
             return std.mem.indexOfScalar(u8, haystack, needle);
         }
 
-        var i: usize = 0;
         const vec_size = @min(32, config.vector_width);
+        const alignment = @alignOf(@Vector(vec_size, u8));
+
+        // Check if we can safely use SIMD with current alignment
+        if (@intFromPtr(haystack.ptr) % alignment != 0) {
+            // Data is not aligned, use scalar approach
+            return std.mem.indexOfScalar(u8, haystack, needle);
+        }
+
+        var i: usize = 0;
         const needle_vec = @as(@Vector(vec_size, u8), @splat(needle));
 
-        // Process SIMD chunks
+        // Process SIMD chunks (data is aligned)
         while (i + vec_size <= haystack.len) : (i += vec_size) {
             const chunk = @as(*const @Vector(vec_size, u8), @ptrCast(@alignCast(haystack.ptr + i))).*;
             const matches = chunk == needle_vec;
@@ -367,6 +384,7 @@ pub const text = struct {
     pub fn toLowerAscii(dst: []u8, src: []const u8) void {
         std.debug.assert(dst.len >= src.len);
 
+        // Use conservative SIMD approach - fall back to scalar if alignment issues
         if (!config.has_simd or src.len < 32) {
             for (src, 0..) |c, i| {
                 dst[i] = std.ascii.toLower(c);
@@ -374,14 +392,24 @@ pub const text = struct {
             return;
         }
 
-        var i: usize = 0;
         const vec_size = @min(32, config.vector_width);
+        const alignment = @alignOf(@Vector(vec_size, u8));
 
+        // Check if both src and dst are aligned for SIMD operations
+        if (@intFromPtr(src.ptr) % alignment != 0 or @intFromPtr(dst.ptr) % alignment != 0) {
+            // Data is not aligned, use scalar approach
+            for (src, 0..) |c, i| {
+                dst[i] = std.ascii.toLower(c);
+            }
+            return;
+        }
+
+        var i: usize = 0;
         const A_vec = @as(@Vector(vec_size, u8), @splat('A'));
         const Z_vec = @as(@Vector(vec_size, u8), @splat('Z'));
         const diff_vec = @as(@Vector(vec_size, u8), @splat('a' - 'A'));
 
-        // Process SIMD chunks
+        // Process SIMD chunks (both src and dst are aligned)
         while (i + vec_size <= src.len) : (i += vec_size) {
             const chunk = @as(*const @Vector(vec_size, u8), @ptrCast(@alignCast(src.ptr + i))).*;
             const is_upper = (chunk >= A_vec) & (chunk <= Z_vec);

@@ -56,7 +56,7 @@ pub fn build(b: *std.Build) void {
 
     mod.addImport("core", core_mod);
 
-    // CLI executable
+    // Main executable
     const cli_exe = b.addExecutable(.{
         .name = "abi",
         .root_module = b.createModule(.{
@@ -70,25 +70,11 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
-    // Main executable (legacy)
-    const exe = b.addExecutable(.{
-        .name = "abi-main",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "abi", .module = mod },
-            },
-        }),
-    });
-
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default
     // step). By default the install prefix is `zig-out/` but can be overridden
     // by passing `--prefix` or -p`.
     b.installArtifact(cli_exe);
-    b.installArtifact(exe);
 
     // This creates a top level step. Top level steps have a name and can be
     // invoked by name when running `zig build` (e.g. `zig build run`).
@@ -96,16 +82,13 @@ pub fn build(b: *std.Build) void {
     // For a top level step to actually do something, it must depend on other
     // steps (e.g. a Run step, as we will see in a moment).
     const run_step = b.step("run", "Run the CLI app");
-    const run_main_step = b.step("run-main", "Run the main app");
 
     // This creates a RunArtifact step in the build graph. A RunArtifact step
     // invokes an executable compiled by Zig. Steps will only be executed by
     // the build runner when they are depended on by another step.
     const cli_run = b.addRunArtifact(cli_exe);
-    const main_run = b.addRunArtifact(exe);
 
     run_step.dependOn(&cli_run.step);
-    run_main_step.dependOn(&main_run.step);
 
     // Creates a step for unit testing. This will expose a `test` step that
     // can be invoked like this: `zig build test`

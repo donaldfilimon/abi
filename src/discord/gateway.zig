@@ -95,7 +95,7 @@ pub const DiscordBot = struct {
 
         while (!self.should_stop) {
             const frame = ws.readFrame(&frame_buf) catch |err| {
-                std.debug.print("❌ WebSocket read error: {}\n", .{err});
+                std.debug.print("❌ WebSocket read error: {any}\n", .{err});
                 break;
             };
 
@@ -131,7 +131,7 @@ pub const DiscordBot = struct {
 
 fn handleTextFrame(self: *DiscordBot, payload: []const u8) !void {
     var parsed = std.json.parseFromSlice(std.json.Value, self.allocator, payload, .{}) catch |err| {
-        std.debug.print("❌ JSON parse error: {}\n", .{err});
+        std.debug.print("❌ JSON parse error: {any}\n", .{err});
         return;
     };
     defer parsed.deinit();
@@ -162,7 +162,7 @@ fn handleTextFrame(self: *DiscordBot, payload: []const u8) !void {
             // In a full implementation, we'd reconnect here
         },
         else => {
-            std.debug.print("🔍 Unhandled opcode: {}\n", .{op});
+            std.debug.print("🔍 Unhandled opcode: {any}\n", .{op});
         },
     }
 }
@@ -173,7 +173,7 @@ fn handleHello(self: *DiscordBot, root: *const std.json.Value) !void {
         const interval = @as(u32, @intCast(iv.integer));
         self.heartbeat_interval = interval;
 
-        std.debug.print("💓 Starting heartbeat with interval: {}ms\n", .{interval});
+        std.debug.print("💓 Starting heartbeat with interval: {any}ms\n", .{interval});
 
         // Start heartbeat in a separate thread (simplified for this example)
         try startHeartbeat(self, interval);
@@ -241,7 +241,7 @@ fn handleMessageCreate(self: *DiscordBot, root: *const std.json.Value) !void {
     // Call message handler if set
     if (self.message_handler) |handler| {
         handler(self, incoming_message) catch |err| {
-            std.debug.print("❌ Message handler error: {}\n", .{err});
+            std.debug.print("❌ Message handler error: {any}\n", .{err});
         };
     }
 }
