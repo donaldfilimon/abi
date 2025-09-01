@@ -1,5 +1,3 @@
-{{REWRITTEN_CODE}}
-```zig
 //! WDBX Enhanced Vector Database - Production-Ready Implementation
 //!
 //! This module provides a comprehensive, enterprise-grade vector database with the following 15 major enhancements:
@@ -287,7 +285,8 @@ pub const CompressedVector = struct {
         var quantized = try allocator.alloc(u8, vector.len);
         for (vector, 0..) |val, i| {
             const normalized = (val - offset) / scale;
-            quantized[i] = @intFromFloat(@min(255, @max(0, normalized * 255)));
+            const q = @as(u32, (@as(f32, @min(@as(f32, 255), @max(@as(f32, 0), normalized * 255);
+            quantized[i] = @intCast(q);
         }
 
         return CompressedVector{
@@ -1140,21 +1139,20 @@ pub const WdbxEnhanced = struct {
         // Reinitialize components if needed
         if (old_config.cache_size_mb != new_config.cache_size_mb) {
             if (self.cache) |cache| cache.deinit();
-            self.cache = if (new_config.cache_size_mb > 0)
-                try LruCache.init(self.allocator, new_config.cache_size_mb)
-            else
-                null;
+            self.cache = if (new_config.cache_size_mb > 0) try LruCache.init(self.allocator, new_config.cache_size_mb) else null;
         }
 
         // Update index if type changed
         if (old_config.index_type != new_config.index_type) {
             if (self.lsh_index) |index| index.deinit();
             if (new_config.index_type == .lsh) {
-                self.lsh_index = try LshIndex.init(allocator, new_config);
+                self.lsh_index = try LshIndex.init(self.allocator, new_config);
                 // Rebuild index
                 for (self.vectors.items) |vec| {
                     try self.lsh_index.?.insert(vec.data, vec.id);
                 }
+            } else {
+                self.lsh_index = null;
             }
         }
     }
@@ -1271,7 +1269,7 @@ pub const WdbxEnhanced = struct {
         // Rebuild index
         if (self.lsh_index) |index| {
             index.deinit();
-            self.lsh_index = try LshIndex.init(allocator, self.config);
+            self.lsh_index = try LshIndex.init(self.allocator, self.config);
 
             for (self.vectors.items) |vec| {
                 try self.lsh_index.?.insert(vec.data, vec.id);
@@ -1380,4 +1378,3 @@ test "Compression and decompression" {
         try std.testing.expectApproxEqAbs(o, d, 0.01);
     }
 }
-```
