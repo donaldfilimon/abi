@@ -3,7 +3,7 @@ const testing = std.testing;
 
 // Import the modules we want to test
 const neural = @import("../src/neural.zig");
-const simd_mod = @import("../src/simd/mod.zig");
+const memory_tracker = @import("../src/memory_tracker.zig");
 const ai = @import("../src/ai/mod.zig");
 const root = @import("../src/root.zig");
 
@@ -151,14 +151,14 @@ test "SIMD performance regression - vector operations" {
             vb.* = @as(f32, @floatFromInt(std.crypto.random.int(u8))) / 255.0;
         }
 
-        const opts = simd_mod.SIMDOpts{};
+        const opts = root.simd.SIMDOpts{};
 
         // Benchmark dot product
         var timer = try std.time.Timer.start();
         const iterations = 1000;
 
         for (0..iterations) |_| {
-            _ = simd_mod.dotProductSIMD(a, b, opts);
+            _ = root.simd.dotProductSIMD(a, b, opts);
         }
 
         const dot_time = timer.read();
@@ -167,7 +167,7 @@ test "SIMD performance regression - vector operations" {
         // Benchmark vector addition
         timer.reset();
         for (0..iterations) |_| {
-            _ = simd_mod.vectorAddSIMD(a, b, result);
+            _ = root.simd.vectorAddSIMD(a, b, result);
         }
 
         const add_time = timer.read();
@@ -218,8 +218,8 @@ test "SIMD performance regression - text operations" {
         const iterations = 1000;
 
         for (0..iterations) |_| {
-            _ = simd_mod.text.countByte(test_case.text, 'e');
-            _ = simd_mod.text.findByte(test_case.text, 'e');
+            _ = root.simd.text.countByte(test_case.text, 'e');
+            _ = root.simd.text.findByte(test_case.text, 'e');
         }
 
         const total_time = timer.read();
@@ -371,7 +371,7 @@ test "benchmark baseline establishment" {
         timestamp: u64,
     };
 
-    var results = std.ArrayList(BaselineResult).init(testing.allocator);
+    var results = std.ArrayList(BaselineResult).initCapacity(testing.allocator, 16);
     defer results.deinit();
 
     const timestamp = std.time.nanoTimestamp();
@@ -393,7 +393,7 @@ test "benchmark baseline establishment" {
         const iterations = 1000;
 
         for (0..iterations) |_| {
-            _ = simd_mod.dotProductSIMD(a, b, .{});
+            _ = root.simd.dotProductSIMD(a, b, .{});
         }
 
         const time_ns = timer.read() / iterations;

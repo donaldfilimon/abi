@@ -5,5 +5,5 @@ pub fn main() !void {
         test: i32,
     };
     const data = Data{ .test = 123 };
-    std.debug.print("{}", .{data});
+    std.debug.print("{any}", .{data});
 }

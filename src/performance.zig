@@ -12,6 +12,7 @@ const std = @import("std");
 const core = @import("core/mod.zig");
 const lockfree = @import("lockfree.zig");
 const platform = @import("platform.zig");
+const builtin = @import("builtin");
 
 /// Re-export commonly used types
 pub const Allocator = core.Allocator;
