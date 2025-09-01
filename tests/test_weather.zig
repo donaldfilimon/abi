@@ -3,37 +3,37 @@
 //! Tests for the weather module functionality
 
 const std = @import("std");
-const abi = @import("abi");
+const weather = @import("../src/weather.zig");
 
 test "weather utilities" {
     // Test temperature conversions
-    try std.testing.expectEqual(@as(f32, 0.0), abi.weather.WeatherUtils.kelvinToCelsius(273.15));
-    try std.testing.expectEqual(@as(f32, 32.0), abi.weather.WeatherUtils.celsiusToFahrenheit(0.0));
-    try std.testing.expectEqual(@as(f32, 0.0), abi.weather.WeatherUtils.fahrenheitToCelsius(32.0));
+    try std.testing.expectEqual(@as(f32, 0.0), weather.WeatherUtils.kelvinToCelsius(273.15));
+    try std.testing.expectEqual(@as(f32, 32.0), weather.WeatherUtils.celsiusToFahrenheit(0.0));
+    try std.testing.expectEqual(@as(f32, 0.0), weather.WeatherUtils.fahrenheitToCelsius(32.0));
 
     // Test wind direction
-    try std.testing.expectEqualStrings("N", abi.weather.WeatherUtils.getWindDirection(0));
-    try std.testing.expectEqualStrings("E", abi.weather.WeatherUtils.getWindDirection(90));
-    try std.testing.expectEqualStrings("S", abi.weather.WeatherUtils.getWindDirection(180));
-    try std.testing.expectEqualStrings("W", abi.weather.WeatherUtils.getWindDirection(270));
-    try std.testing.expectEqualStrings("NE", abi.weather.WeatherUtils.getWindDirection(45));
-    try std.testing.expectEqualStrings("SE", abi.weather.WeatherUtils.getWindDirection(135));
-    try std.testing.expectEqualStrings("SW", abi.weather.WeatherUtils.getWindDirection(225));
-    try std.testing.expectEqualStrings("NW", abi.weather.WeatherUtils.getWindDirection(315));
+    try std.testing.expectEqualStrings("N", weather.WeatherUtils.getWindDirection(0));
+    try std.testing.expectEqualStrings("E", weather.WeatherUtils.getWindDirection(90));
+    try std.testing.expectEqualStrings("S", weather.WeatherUtils.getWindDirection(180));
+    try std.testing.expectEqualStrings("W", weather.WeatherUtils.getWindDirection(270));
+    try std.testing.expectEqualStrings("NE", weather.WeatherUtils.getWindDirection(45));
+    try std.testing.expectEqualStrings("SE", weather.WeatherUtils.getWindDirection(135));
+    try std.testing.expectEqualStrings("SW", weather.WeatherUtils.getWindDirection(225));
+    try std.testing.expectEqualStrings("NW", weather.WeatherUtils.getWindDirection(315));
 
     // Test weather emojis
-    try std.testing.expectEqualStrings("☀️", abi.weather.WeatherUtils.getWeatherEmoji("01d"));
-    try std.testing.expectEqualStrings("⛅", abi.weather.WeatherUtils.getWeatherEmoji("02d"));
-    try std.testing.expectEqualStrings("☁️", abi.weather.WeatherUtils.getWeatherEmoji("03d"));
-    try std.testing.expectEqualStrings("🌧️", abi.weather.WeatherUtils.getWeatherEmoji("09d"));
-    try std.testing.expectEqualStrings("🌦️", abi.weather.WeatherUtils.getWeatherEmoji("10d"));
-    try std.testing.expectEqualStrings("⛈️", abi.weather.WeatherUtils.getWeatherEmoji("11d"));
-    try std.testing.expectEqualStrings("🌨️", abi.weather.WeatherUtils.getWeatherEmoji("13d"));
-    try std.testing.expectEqualStrings("🌫️", abi.weather.WeatherUtils.getWeatherEmoji("50d"));
+    try std.testing.expectEqualStrings("☀️", weather.WeatherUtils.getWeatherEmoji("01d"));
+    try std.testing.expectEqualStrings("⛅", weather.WeatherUtils.getWeatherEmoji("02d"));
+    try std.testing.expectEqualStrings("☁️", weather.WeatherUtils.getWeatherEmoji("03d"));
+    try std.testing.expectEqualStrings("🌧️", weather.WeatherUtils.getWeatherEmoji("09d"));
+    try std.testing.expectEqualStrings("🌦️", weather.WeatherUtils.getWeatherEmoji("10d"));
+    try std.testing.expectEqualStrings("⛈️", weather.WeatherUtils.getWeatherEmoji("11d"));
+    try std.testing.expectEqualStrings("🌨️", weather.WeatherUtils.getWeatherEmoji("13d"));
+    try std.testing.expectEqualStrings("🌫️", weather.WeatherUtils.getWeatherEmoji("50d"));
 }
 
 test "weather config" {
-    const config = abi.weather.WeatherConfig{
+    const config = weather.WeatherConfig{
         .api_key = "test_key",
         .units = "metric",
         .language = "en",
@@ -50,7 +50,7 @@ test "weather data structure" {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    var weather_data = abi.weather.WeatherData{
+    var weather_data = weather.WeatherData{
         .temperature = 20.5,
         .feels_like = 19.2,
         .humidity = 65,
@@ -91,13 +91,13 @@ test "weather service initialization" {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    const config = abi.weather.WeatherConfig{
+    const config = weather.WeatherConfig{
         .api_key = "test_key",
         .units = "metric",
         .language = "en",
     };
 
-    var service = try abi.weather.WeatherService.init(allocator, config);
+    var service = try weather.WeatherService.init(allocator, config);
     defer service.deinit();
 
     try std.testing.expectEqualStrings("test_key", service.config.api_key);
@@ -110,7 +110,7 @@ test "weather json formatting" {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    var weather_data = abi.weather.WeatherData{
+    var weather_data = weather.WeatherData{
         .temperature = 20.5,
         .feels_like = 19.2,
         .humidity = 65,
@@ -128,7 +128,7 @@ test "weather json formatting" {
     };
     defer weather_data.deinit(allocator);
 
-    const json = try abi.weather.WeatherUtils.formatWeatherJson(weather_data, allocator);
+    const json = try weather.WeatherUtils.formatWeatherJson(weather_data, allocator);
     defer allocator.free(json);
 
     // Verify JSON contains expected fields

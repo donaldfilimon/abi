@@ -26,6 +26,7 @@ const Config = struct {
     // Connection settings
     host: []const u8 = "localhost",
     port: u16 = 8080,
+    allocator: std.mem.Allocator,
 
     // Test parameters
     num_threads: u32 = 32,
@@ -98,6 +99,21 @@ const Config = struct {
         csv,
         prometheus, // Prometheus metrics format
     };
+
+    fn init(allocator: std.mem.Allocator) Config {
+        return .{
+            .allocator = allocator,
+            .host = "localhost", // Will be overridden if --host is specified
+        };
+    }
+
+    fn deinit(self: *Config) void {
+        // Only free host if it was allocated (i.e., not the default "localhost")
+        // We use a simple length check as a heuristic
+        if (self.host.len != "localhost".len or !std.mem.eql(u8, self.host, "localhost")) {
+            self.allocator.free(self.host);
+        }
+    }
 
     fn validate(self: Config) !void {
         // Validate operation mix percentages
@@ -432,10 +448,10 @@ const Metrics = struct {
     }
 
     fn exportJson(self: *const Metrics, allocator: std.mem.Allocator) ![]const u8 {
-        var json = std.ArrayList(u8).init(allocator);
-        defer json.deinit();
+        var json = try std.ArrayList(u8).initCapacity(allocator, 0);
+        defer json.deinit(allocator);
 
-        try json.writer().print(
+        try json.writer(allocator).print(
             \\{{
             \\  "summary": {{
             \\    "total_operations": {},
@@ -493,14 +509,14 @@ const Metrics = struct {
             self.server_errors.load(.monotonic),
         });
 
-        return json.toOwnedSlice();
+        return json.toOwnedSlice(allocator);
     }
 };
 
 const StressTest = struct {
     allocator: std.mem.Allocator,
     config: Config,
-    metrics: *Metrics,
+    metrics: Metrics,
     shutdown: std.atomic.Value(bool),
     client: *HttpClient,
 
@@ -567,15 +583,23 @@ const StressTest = struct {
         try config.validate();
 
         const self = try allocator.create(StressTest);
+
+        // Initialize metrics first
+        const metrics = try Metrics.init(allocator, config);
+
+        // Initialize ArrayLists first
+        const connection_pool = try std.ArrayList(*HttpClient).initCapacity(allocator, 0);
+        const memory_blocks = try std.ArrayList([]u8).initCapacity(allocator, 0);
+
         self.* = .{
             .allocator = allocator,
             .config = config,
-            .metrics = try Metrics.init(allocator, config),
+            .metrics = metrics,
             .shutdown = std.atomic.Value(bool).init(false),
             .client = try HttpClient.init(allocator, config.host, config.port),
-            .connection_pool = std.ArrayList(*HttpClient).init(allocator),
+            .connection_pool = connection_pool,
             .connection_semaphore = std.Thread.Semaphore{},
-            .memory_blocks = std.ArrayList([]u8).init(allocator),
+            .memory_blocks = memory_blocks,
             .memory_pressure_thread = null,
         };
 
@@ -603,29 +627,28 @@ const StressTest = struct {
         for (self.connection_pool.items) |client| {
             client.deinit();
         }
-        self.connection_pool.deinit();
+        self.connection_pool.deinit(self.allocator);
 
         // Clean up memory blocks
         for (self.memory_blocks.items) |block| {
             self.allocator.free(block);
         }
-        self.memory_blocks.deinit();
+        self.memory_blocks.deinit(self.allocator);
 
         // Clean up metrics
         self.metrics.deinit(self.allocator);
 
         self.client.deinit();
-        self.allocator.destroy(self.metrics);
         self.allocator.destroy(self);
     }
 
     fn initializeConnectionPool(self: *StressTest) !void {
         const num_connections = self.config.concurrent_connections;
-        try self.connection_pool.ensureTotalCapacity(num_connections);
+        try self.connection_pool.ensureTotalCapacity(self.allocator, num_connections);
 
         for (0..num_connections) |_| {
             const client = try HttpClient.init(self.allocator, self.config.host, self.config.port);
-            try self.connection_pool.append(client);
+            try self.connection_pool.append(self.allocator, client);
         }
 
         // Initialize semaphore to control connection usage
@@ -640,7 +663,7 @@ const StressTest = struct {
                     const block_size = 1024 * 1024; // 1MB blocks
                     const block = self.allocator.alloc(u8, block_size) catch continue;
                     @memset(block, 0); // Touch the memory
-                    self.memory_blocks.append(block) catch {
+                    self.memory_blocks.append(self.allocator, block) catch {
                         self.allocator.free(block);
                         continue;
                     };
@@ -680,7 +703,7 @@ const StressTest = struct {
                         const block_size = 1024 * 1024; // 1MB
                         const block = self.allocator.alloc(u8, block_size) catch continue;
                         @memset(block, 0);
-                        self.memory_blocks.append(block) catch {
+                        self.memory_blocks.append(self.allocator, block) catch {
                             self.allocator.free(block);
                         };
                     }
@@ -707,7 +730,7 @@ const StressTest = struct {
             std.debug.print("    Failure Simulation: Enabled ({}% failure rate)\n", .{self.config.failure_rate_percent});
         }
         if (self.config.enable_memory_pressure) {
-            std.debug.print("    Memory Pressure:   Enabled ({} MB, {} pattern)\n", .{ self.config.memory_pressure_mb, @tagName(self.config.memory_pressure_pattern) });
+            std.debug.print("    Memory Pressure:   Enabled ({} MB, {s} pattern)\n", .{ self.config.memory_pressure_mb, @tagName(self.config.memory_pressure_pattern) });
         }
         std.debug.print("\n", .{});
 
@@ -817,11 +840,11 @@ const StressTest = struct {
         std.debug.print("\n📈 Prometheus Export:\n", .{});
         std.debug.print("# HELP wdbx_stress_test_total_operations Total number of operations\n", .{});
         std.debug.print("# TYPE wdbx_stress_test_total_operations counter\n", .{});
-        std.debug.print("wdbx_stress_test_total_operations{} {}\n", .{ self.metrics.operations.load(.monotonic), timestamp });
+        std.debug.print("wdbx_stress_test_total_operations{d} {d}\n", .{ self.metrics.operations.load(.monotonic), timestamp });
 
         std.debug.print("# HELP wdbx_stress_test_success_rate Success rate percentage\n", .{});
         std.debug.print("# TYPE wdbx_stress_test_success_rate gauge\n", .{});
-        std.debug.print("wdbx_stress_test_success_rate{d:.2} {}\n", .{ @as(f64, @floatFromInt(self.metrics.successes.load(.monotonic))) / @as(f64, @floatFromInt(self.metrics.operations.load(.monotonic))) * 100.0, timestamp });
+        std.debug.print("wdbx_stress_test_success_rate{d:.2} {d}\n", .{ @as(f64, @floatFromInt(self.metrics.successes.load(.monotonic))) / @as(f64, @floatFromInt(self.metrics.operations.load(.monotonic))) * 100.0, timestamp });
     }
 
     fn workerThread(self: *StressTest, thread_id: usize) void {
@@ -991,7 +1014,8 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
-    var config = Config{};
+    var config = Config.init(allocator);
+    defer config.deinit();
 
     var i: usize = 1;
     while (i < args.len) : (i += 1) {
@@ -1001,7 +1025,7 @@ pub fn main() !void {
             return;
         } else if (std.mem.eql(u8, arg, "--host") and i + 1 < args.len) {
             i += 1;
-            config.host = args[i];
+            config.host = try config.allocator.dupe(u8, args[i]);
         } else if (std.mem.eql(u8, arg, "--port") and i + 1 < args.len) {
             i += 1;
             config.port = try std.fmt.parseInt(u16, args[i], 10);

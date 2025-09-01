@@ -129,7 +129,7 @@ pub const GpuBackend = struct {
         defer self.allocator.free(results);
 
         // Allocate buffer for reading vectors
-        var vector_buffer = try self.allocator.alloc(f32, dimension);
+        const vector_buffer = try self.allocator.alloc(f32, dimension);
         defer self.allocator.free(vector_buffer);
 
         // Calculate distances for all vectors

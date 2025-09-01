@@ -8,6 +8,7 @@
 //! - Integration with performance profiler
 
 const std = @import("std");
+const builtin = @import("builtin");
 const performance_profiler = @import("performance_profiler.zig");
 const memory_tracker = @import("memory_tracker.zig");
 
@@ -310,7 +311,7 @@ pub const Benchmark = struct {
             null;
 
         // Calculate timing statistics
-        const timing_stats = try calculateTimingStats(allocator, raw_times.items);
+        const timing_stats = try calculateTimingStats(raw_times.items);
 
         // Get memory statistics
         const memory_stats = if (config.enable_memory_tracking and runner.memory_profiler != null)
@@ -408,7 +409,7 @@ pub const BenchmarkRunner = struct {
     }
 
     /// End iteration (called automatically by benchmark framework)
-    pub fn endIteration(self: *BenchmarkRunner) void {
+    pub fn endIteration() void {
         // Performance monitoring is handled by the scope
     }
 };
@@ -416,7 +417,7 @@ pub const BenchmarkRunner = struct {
 /// Statistical analysis functions
 pub const stats = struct {
     /// Calculate timing statistics from raw data
-    pub fn calculateTimingStats(allocator: std.mem.Allocator, raw_times: []const u64) !TimingStats {
+    pub fn calculateTimingStats(raw_times: []const u64) !TimingStats {
         if (raw_times.len == 0) {
             return TimingStats{};
         }
@@ -638,8 +639,8 @@ pub const BenchmarkComparison = struct {
 };
 
 /// Helper functions
-fn calculateTimingStats(allocator: std.mem.Allocator, raw_times: []const u64) !TimingStats {
-    return stats.calculateTimingStats(allocator, raw_times);
+fn calculateTimingStats(raw_times: []const u64) !TimingStats {
+    return stats.calculateTimingStats(raw_times);
 }
 
 fn getMemoryStats(profiler: *memory_tracker.MemoryProfiler) !MemoryStats {
@@ -653,8 +654,8 @@ fn getMemoryStats(profiler: *memory_tracker.MemoryProfiler) !MemoryStats {
     };
 }
 
-fn getPerformanceCounters(allocator: std.mem.Allocator, profiler: *performance_profiler.PerformanceProfiler) !std.StringHashMapUnmanaged(PerformanceCounterResult) {
-    var counters = std.StringHashMapUnmanaged(PerformanceCounterResult){};
+fn getPerformanceCounters(profiler: *performance_profiler.PerformanceProfiler) !std.StringHashMapUnmanaged(PerformanceCounterResult) {
+    const counters = std.StringHashMapUnmanaged(PerformanceCounterResult){};
 
     // Get counter values from profiler
     // (This would need to be implemented based on the actual profiler API)

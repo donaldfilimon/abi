@@ -68,7 +68,7 @@ test "memory tracker - timestamp consistency" {
     const allocator = testing.allocator;
 
     // Test memory tracker with consistent timestamps
-    var config = memory_tracker.MemoryProfilerConfig{
+    const config = memory_tracker.MemoryProfilerConfig{
         .enable_periodic_stats = true,
         .enable_warnings = false,
     };
@@ -79,6 +79,7 @@ test "memory tracker - timestamp consistency" {
     // Record some allocations
     const id1 = try profiler.recordAllocation(1024, 32, "test.zig", 10, "testFunction", null);
     const id2 = try profiler.recordAllocation(2048, 32, "test.zig", 11, "testFunction2", null);
+    _ = id2; // autofix
 
     // Get stats and verify timestamps are consistent
     const stats = profiler.getStats();
@@ -186,6 +187,7 @@ test "memory pool - intelligent cleanup" {
     // Check that cleanup occurred
     const stats = pool.getStats();
     const liveness_stats = pool.getLivenessStats();
+    _ = liveness_stats; // autofix
 
     // The test should pass even if cleanup didn't occur due to timing
     try testing.expect(stats.total_pooled_buffers >= 0);
