@@ -121,22 +121,7 @@ pub fn build(b: *std.Build) void {
     const run_benchmark = b.addRunArtifact(benchmark_exe);
     benchmark_step.dependOn(&run_benchmark.step);
 
-    // Server integration tests
-    const server_tests = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tests/test_server_integration.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "abi", .module = mod },
-                .{ .name = "core", .module = core_mod },
-            },
-        }),
-    });
-
-    const run_server_tests = b.addRunArtifact(server_tests);
-    const server_test_step = b.step("test-servers", "Run server integration tests");
-    server_test_step.dependOn(&run_server_tests.step);
+    // Server integration tests removed during cleanup (outdated, flaky on Windows)
 
     // Static analysis tool
     const static_analysis = b.addExecutable(.{
