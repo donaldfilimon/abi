@@ -64,7 +64,7 @@ pub const Metrics = struct {
         count: std.atomic.Value(u64),
 
         fn record(self: *LatencyHistogram, latency_ms: f64) void {
-            const bucket = @min(19, @as(usize, @intFromFloat(@log2(latency_ms * 10))));
+            const bucket = @min(19, @as(usize, @intFromFloat(std.math.log2(latency_ms * 10))));
             _ = self.buckets[bucket].fetchAdd(1, .monotonic);
             _ = self.sum.fetchAdd(latency_ms, .monotonic);
             _ = self.count.fetchAdd(1, .monotonic);
@@ -77,7 +77,7 @@ pub const Metrics = struct {
             for (self.buckets, 0..) |*bucket, i| {
                 sum += bucket.load(.monotonic);
                 if (sum >= target) {
-                    return @exp2(@as(f64, @floatFromInt(i))) / 10.0;
+                    return std.math.exp2(@as(f64, @floatFromInt(i))) / 10.0;
                 }
             }
             return 10000.0; // Max 10s

@@ -14,6 +14,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
 ## Getting Started
 
 1. **Fork the Repository**
+
    ```bash
    git clone https://github.com/yourusername/abi.git
    cd abi
@@ -25,6 +26,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
    - Set up your editor with Zig language support
 
 3. **Build the Project**
+
    ```bash
    zig build -Doptimize=Debug
    zig build test
@@ -48,6 +50,7 @@ git checkout -b feature/your-feature-name
 ### 3. Code Style Guidelines
 
 #### Zig Style
+
 - Use 4 spaces for indentation
 - Keep lines under 100 characters
 - Use descriptive variable names
@@ -63,6 +66,7 @@ pub fn distanceSquared(a: []const f32, b: []const f32) f32 {
 ```
 
 #### Error Handling
+
 - Use explicit error types
 - Document error conditions
 - Handle errors at appropriate levels
@@ -89,6 +93,7 @@ test "vector distance calculation" {
 ```
 
 Run tests:
+
 ```bash
 zig build test
 zig build test-agent
@@ -173,6 +178,7 @@ git push origin feature/your-feature-name
 ### Bug Fixes
 
 Check the [issue tracker](https://github.com/yourusername/abi/issues) for:
+
 - Bugs labeled "good first issue"
 - Performance improvements
 - Platform-specific issues
@@ -180,16 +186,19 @@ Check the [issue tracker](https://github.com/yourusername/abi/issues) for:
 ## Testing Guidelines
 
 ### Unit Tests
+
 - Test individual functions and modules
 - Cover edge cases and error conditions
 - Use property-based testing where appropriate
 
 ### Integration Tests
+
 - Test module interactions
 - Verify end-to-end workflows
 - Test platform-specific behavior
 
 ### Benchmark Tests
+
 - Add benchmarks for performance-critical code
 - Compare against baseline performance
 - Document performance characteristics
@@ -208,4 +217,4 @@ Check the [issue tracker](https://github.com/yourusername/abi/issues) for:
 - Join our Discord for real-time discussion
 - Check existing issues and PRs before starting work
 
-Thank you for contributing to Abi AI Framework! 
+Thank you for contributing to Abi AI Framework!

@@ -1,5 +1,5 @@
 const std = @import("std");
-const wdbx = @import("../src/wdbx.zig");
+const wdbx = @import("../src/@wdbx.zig");
 
 test "CLI Command: help" {
     // Test that help command works

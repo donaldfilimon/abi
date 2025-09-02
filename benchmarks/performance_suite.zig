@@ -92,7 +92,7 @@ const BenchmarkSuite = struct {
             const diff = @as(f64, @floatFromInt(time)) - @as(f64, @floatFromInt(avg_time));
             variance_sum += diff * diff;
         }
-        const std_dev = @sqrt(variance_sum / @as(f64, @floatFromInt(self.config.sample_count)));
+        const std_dev = std.math.sqrt(variance_sum / @as(f64, @floatFromInt(self.config.sample_count)));
 
         const result = BenchmarkResult{
             .name = name,

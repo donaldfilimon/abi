@@ -102,4 +102,22 @@ pub fn build(b: *std.Build) void {
     // can be invoked like this: `zig build test`
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
+
+    // Benchmark executable
+    const benchmark_exe = b.addExecutable(.{
+        .name = "database_benchmark",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("benchmarks/database_benchmark.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "database", .module = mod },
+            },
+        }),
+    });
+
+    // Benchmark step
+    const benchmark_step = b.step("benchmark", "Run database performance benchmarks");
+    const run_benchmark = b.addRunArtifact(benchmark_exe);
+    benchmark_step.dependOn(&run_benchmark.step);
 }

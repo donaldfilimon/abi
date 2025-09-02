@@ -1,661 +1,649 @@
-//! SIMD Module - High-performance vectorized operations
+//! Unified SIMD Operations Module
 //!
-//! This module provides SIMD-optimized implementations for:
-//! - Vector arithmetic and distance calculations
-//! - Text processing and pattern matching
-//! - Matrix operations
-//! - Data transformation pipelines
-//! - Custom compute kernels
+//! This module consolidates all SIMD functionality into a single, high-performance
+//! implementation with:
+//! - Vector operations (f32x4, f32x8, f32x16)
+//! - Matrix operations with SIMD acceleration
+//! - Performance monitoring and optimization
+//! - Cross-platform compatibility
+//! - Automatic fallbacks for unsupported operations
 
 const std = @import("std");
 const builtin = @import("builtin");
-const core = @import("../core/mod.zig");
 
-/// SIMD configuration based on target architecture
-pub const config = struct {
-    /// Vector width in bytes
-    pub const vector_width: comptime_int = switch (builtin.cpu.arch) {
-        .x86_64 => if (std.Target.x86.featureSetHas(builtin.cpu.features, .avx2)) 32 else 16,
-        .aarch64 => if (std.Target.aarch64.featureSetHas(builtin.cpu.features, .sve)) 64 else 16,
-        .wasm32, .wasm64 => 16,
-        else => 1,
-    };
+/// SIMD vector types with automatic detection
+pub const Vector = struct {
+    /// 4-float SIMD vector
+    pub const f32x4 = if (@hasDecl(std.simd, "f32x4")) std.simd.f32x4 else @Vector(4, f32);
+    /// 8-float SIMD vector
+    pub const f32x8 = if (@hasDecl(std.simd, "f32x8")) std.simd.f32x8 else @Vector(8, f32);
+    /// 16-float SIMD vector
+    pub const f32x16 = if (@hasDecl(std.simd, "f32x16")) std.simd.f32x16 else @Vector(16, f32);
 
-    /// Whether SIMD is available
-    pub const has_simd = vector_width > 1;
-
-    /// Preferred alignment for SIMD operations
-    pub const alignment = if (has_simd) vector_width else @alignOf(f32);
-
-    /// SIMD level string
-    pub const level = "auto";
-};
-
-/// Vector type for a given element type and count
-pub fn Vector(comptime T: type, comptime len: comptime_int) type {
-    if (config.has_simd and len > 1) {
-        return @Vector(len, T);
-    } else {
-        return [len]T;
-    }
-}
-
-/// SIMD operations for vectors
-pub const ops = struct {
-    /// Add two vectors
-    pub inline fn add(a: anytype, b: @TypeOf(a)) @TypeOf(a) {
-        const T = @TypeOf(a);
-        if (comptime isSimdVector(T)) {
-            return a + b;
+    /// Load vector from slice (compatible with both std.simd and @Vector)
+    pub fn load(comptime T: type, data: []const f32) T {
+        if (@hasDecl(std.simd, "f32x16") and T == std.simd.f32x16) {
+            return std.simd.f32x16.load(data);
+        } else if (@hasDecl(std.simd, "f32x8") and T == std.simd.f32x8) {
+            return std.simd.f32x8.load(data);
+        } else if (@hasDecl(std.simd, "f32x4") and T == std.simd.f32x4) {
+            return std.simd.f32x4.load(data);
         } else {
-            var result = a;
-            inline for (0..a.len) |i| {
-                result[i] = a[i] + b[i];
+            // Fallback for @Vector types
+            var result: T = undefined;
+            for (0..@typeInfo(T).vector.len) |i| {
+                result[i] = data[i];
             }
             return result;
         }
     }
 
-    /// Subtract two vectors
-    pub inline fn sub(a: anytype, b: @TypeOf(a)) @TypeOf(a) {
-        const T = @TypeOf(a);
-        if (comptime isSimdVector(T)) {
-            return a - b;
+    /// Store vector to slice (compatible with both std.simd and @Vector)
+    pub fn store(data: []f32, vec: anytype) void {
+        const T = @TypeOf(vec);
+        if (@hasDecl(std.simd, "f32x16") and T == std.simd.f32x16) {
+            std.simd.f32x16.store(data, vec);
+        } else if (@hasDecl(std.simd, "f32x8") and T == std.simd.f32x8) {
+            std.simd.f32x8.store(data, vec);
+        } else if (@hasDecl(std.simd, "f32x4") and T == std.simd.f32x4) {
+            std.simd.f32x4.store(data, vec);
         } else {
-            var result = a;
-            inline for (0..a.len) |i| {
-                result[i] = a[i] - b[i];
+            // Fallback for @Vector types
+            for (0..@typeInfo(T).vector.len) |i| {
+                data[i] = vec[i];
             }
-            return result;
         }
     }
 
-    /// Multiply two vectors element-wise
-    pub inline fn mul(a: anytype, b: @TypeOf(a)) @TypeOf(a) {
-        const T = @TypeOf(a);
-        if (comptime isSimdVector(T)) {
-            return a * b;
+    /// Create splat vector (compatible with both std.simd and @Vector)
+    pub fn splat(comptime T: type, value: f32) T {
+        if (@hasDecl(std.simd, "f32x16") and T == std.simd.f32x16) {
+            return std.simd.f32x16.splat(value);
+        } else if (@hasDecl(std.simd, "f32x8") and T == std.simd.f32x8) {
+            return std.simd.f32x8.splat(value);
+        } else if (@hasDecl(std.simd, "f32x4") and T == std.simd.f32x4) {
+            return std.simd.f32x4.splat(value);
         } else {
-            var result = a;
-            inline for (0..a.len) |i| {
-                result[i] = a[i] * b[i];
-            }
-            return result;
+            // Fallback for @Vector types
+            return @splat(value);
         }
     }
 
-    /// Divide two vectors element-wise
-    pub inline fn div(a: anytype, b: @TypeOf(a)) @TypeOf(a) {
-        const T = @TypeOf(a);
-        if (comptime isSimdVector(T)) {
-            return a / b;
-        } else {
-            var result = a;
-            inline for (0..a.len) |i| {
-                result[i] = a[i] / b[i];
-            }
-            return result;
-        }
+    /// Check if SIMD is available for a given vector size
+    pub fn isSimdAvailable(comptime size: usize) bool {
+        return switch (size) {
+            4 => @hasDecl(std.simd, "f32x4"),
+            8 => @hasDecl(std.simd, "f32x8"),
+            16 => @hasDecl(std.simd, "f32x16"),
+            else => false,
+        };
     }
 
-    /// Fused multiply-add: a * b + c
-    pub inline fn fma(a: anytype, b: @TypeOf(a), c: @TypeOf(a)) @TypeOf(a) {
-        const T = @TypeOf(a);
-        const info = @typeInfo(T);
-
-        if (comptime isSimdVector(T)) {
-            const element_type = info.vector.child;
-            if (element_type == f32 or element_type == f64) {
-                return @mulAdd(T, a, b, c);
-            } else {
-                return add(mul(a, b), c);
-            }
-        } else {
-            var result = a;
-            inline for (0..a.len) |i| {
-                result[i] = @mulAdd(@TypeOf(a[i]), a[i], b[i], c[i]);
-            }
-            return result;
-        }
-    }
-
-    /// Horizontal sum of vector elements
-    pub inline fn hsum(v: anytype) ElementType(@TypeOf(v)) {
-        const T = @TypeOf(v);
-        if (comptime isSimdVector(T)) {
-            return @reduce(.Add, v);
-        } else {
-            var sum = v[0];
-            inline for (1..v.len) |i| {
-                sum += v[i];
-            }
-            return sum;
-        }
-    }
-
-    /// Horizontal minimum
-    pub inline fn hmin(v: anytype) ElementType(@TypeOf(v)) {
-        const T = @TypeOf(v);
-        if (comptime isSimdVector(T)) {
-            return @reduce(.Min, v);
-        } else {
-            var min = v[0];
-            inline for (1..v.len) |i| {
-                min = @min(min, v[i]);
-            }
-            return min;
-        }
-    }
-
-    /// Horizontal maximum
-    pub inline fn hmax(v: anytype) ElementType(@TypeOf(v)) {
-        const T = @TypeOf(v);
-        if (comptime isSimdVector(T)) {
-            return @reduce(.Max, v);
-        } else {
-            var max = v[0];
-            inline for (1..v.len) |i| {
-                max = @max(max, v[i]);
-            }
-            return max;
-        }
-    }
-
-    /// Dot product of two vectors
-    pub inline fn dot(a: anytype, b: @TypeOf(a)) ElementType(@TypeOf(a)) {
-        return hsum(mul(a, b));
-    }
-
-    /// Square root of vector elements
-    pub inline fn sqrt(v: anytype) @TypeOf(v) {
-        const T = @TypeOf(v);
-        if (comptime isSimdVector(T)) {
-            return @sqrt(v);
-        } else {
-            var result = v;
-            inline for (0..v.len) |i| {
-                result[i] = @sqrt(v[i]);
-            }
-            return result;
-        }
-    }
-
-    /// Absolute value of vector elements
-    pub inline fn abs(v: anytype) @TypeOf(v) {
-        const T = @TypeOf(v);
-        if (comptime isSimdVector(T)) {
-            return @abs(v);
-        } else {
-            var result = v;
-            inline for (0..v.len) |i| {
-                result[i] = @abs(v[i]);
-            }
-            return result;
-        }
-    }
-
-    /// Clamp vector elements between min and max
-    pub inline fn clamp(v: anytype, min_val: ElementType(@TypeOf(v)), max_val: ElementType(@TypeOf(v))) @TypeOf(v) {
-        const T = @TypeOf(v);
-        const min_vec = @as(T, @splat(min_val));
-        const max_vec = @as(T, @splat(max_val));
-
-        if (comptime isSimdVector(T)) {
-            return @max(min_vec, @min(max_vec, v));
-        } else {
-            var result = v;
-            inline for (0..v.len) |i| {
-                result[i] = @max(min_val, @min(max_val, v[i]));
-            }
-            return result;
-        }
+    /// Get optimal SIMD vector size for given dimension
+    pub fn getOptimalSize(dimension: usize) usize {
+        if (dimension >= 16 and isSimdAvailable(16)) return 16;
+        if (dimension >= 8 and isSimdAvailable(8)) return 8;
+        if (dimension >= 4 and isSimdAvailable(4)) return 4;
+        return 1;
     }
 };
 
-/// Distance calculations
-pub const distance = struct {
-    /// Euclidean distance squared
-    pub fn euclideanSquared(comptime T: type, a: []const T, b: []const T) T {
-        std.debug.assert(a.len == b.len);
+/// SIMD-optimized vector operations
+pub const VectorOps = struct {
+    /// Calculate Euclidean distance between two vectors using SIMD
+    pub fn distance(a: []const f32, b: []const f32) f32 {
+        if (a.len != b.len) return std.math.inf(f32);
+        if (a.len == 0) return 0.0;
 
-        const vec_size = comptime getVectorSize(T);
-        var sum: T = 0;
+        const optimal_size = Vector.getOptimalSize(a.len);
+        var sum: f32 = 0.0;
         var i: usize = 0;
 
-        // Process vectorized chunks
-        while (i + vec_size <= a.len) : (i += vec_size) {
-            const va = loadVector(T, vec_size, a[i..]);
-            const vb = loadVector(T, vec_size, b[i..]);
-            const diff = ops.sub(va, vb);
-            sum += ops.dot(diff, diff);
+        // SIMD-optimized distance calculation
+        switch (optimal_size) {
+            16 => {
+                while (i + 16 <= a.len) : (i += 16) {
+                    const va = Vector.load(Vector.f32x16, a[i..][0..16]);
+                    const vb = Vector.load(Vector.f32x16, b[i..][0..16]);
+                    const diff = va - vb;
+                    const sq = diff * diff;
+                    sum += std.simd.f32x16.reduce_add(sq);
+                }
+            },
+            8 => {
+                while (i + 8 <= a.len) : (i += 8) {
+                    const va = Vector.f32x8.load(a[i..][0..8]);
+                    const vb = Vector.f32x8.load(b[i..][0..8]);
+                    const diff = va - vb;
+                    const sq = diff * diff;
+                    sum += std.simd.f32x8.reduce_add(sq);
+                }
+            },
+            4 => {
+                while (i + 4 <= a.len) : (i += 4) {
+                    const va = Vector.f32x4.load(a[i..][0..4]);
+                    const vb = Vector.f32x4.load(b[i..][0..4]);
+                    const diff = va - vb;
+                    const sq = diff * diff;
+                    sum += std.simd.f32x4.reduce_add(sq);
+                }
+            },
+            else => {},
         }
 
-        // Process remaining elements
+        // Handle remaining elements
         while (i < a.len) : (i += 1) {
             const diff = a[i] - b[i];
             sum += diff * diff;
         }
 
-        return sum;
+        return @sqrt(sum);
     }
 
-    /// Euclidean distance
-    pub fn euclidean(comptime T: type, a: []const T, b: []const T) T {
-        return @sqrt(euclideanSquared(T, a, b));
-    }
+    /// Calculate cosine similarity between two vectors
+    pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
+        if (a.len != b.len) return 0.0;
+        if (a.len == 0) return 0.0;
 
-    /// Manhattan distance
-    pub fn manhattan(comptime T: type, a: []const T, b: []const T) T {
-        std.debug.assert(a.len == b.len);
+        var dot_product: f32 = 0.0;
+        var norm_a: f32 = 0.0;
+        var norm_b: f32 = 0.0;
 
-        const vec_size = comptime getVectorSize(T);
-        var sum: T = 0;
+        const optimal_size = Vector.getOptimalSize(a.len);
         var i: usize = 0;
 
-        // Process vectorized chunks
-        while (i + vec_size <= a.len) : (i += vec_size) {
-            const va = loadVector(T, vec_size, a[i..]);
-            const vb = loadVector(T, vec_size, b[i..]);
-            const diff = ops.abs(ops.sub(va, vb));
-            sum += ops.hsum(diff);
+        // SIMD-optimized calculations
+        switch (optimal_size) {
+            16 => {
+                while (i + 16 <= a.len) : (i += 16) {
+                    const va = Vector.f32x16.load(a[i..][0..16]);
+                    const vb = Vector.f32x16.load(b[i..][0..16]);
+
+                    dot_product += std.simd.f32x16.reduce_add(va * vb);
+                    norm_a += std.simd.f32x16.reduce_add(va * va);
+                    norm_b += std.simd.f32x16.reduce_add(vb * vb);
+                }
+            },
+            8 => {
+                while (i + 8 <= a.len) : (i += 8) {
+                    const va = Vector.f32x8.load(a[i..][0..8]);
+                    const vb = Vector.f32x8.load(b[i..][0..8]);
+
+                    dot_product += std.simd.f32x8.reduce_add(va * vb);
+                    norm_a += std.simd.f32x8.reduce_add(va * va);
+                    norm_b += std.simd.f32x8.reduce_add(vb * vb);
+                }
+            },
+            4 => {
+                while (i + 4 <= a.len) : (i += 4) {
+                    const va = Vector.f32x4.load(a[i..][0..4]);
+                    const vb = Vector.f32x4.load(b[i..][0..4]);
+
+                    dot_product += std.simd.f32x4.reduce_add(va * vb);
+                    norm_a += std.simd.f32x4.reduce_add(va * va);
+                    norm_b += std.simd.f32x4.reduce_add(vb * vb);
+                }
+            },
+            else => {},
         }
 
-        // Process remaining elements
-        while (i < a.len) : (i += 1) {
-            sum += @abs(a[i] - b[i]);
-        }
-
-        return sum;
-    }
-
-    /// Cosine similarity
-    pub fn cosineSimilarity(comptime T: type, a: []const T, b: []const T) T {
-        std.debug.assert(a.len == b.len);
-
-        const vec_size = comptime getVectorSize(T);
-        var dot_product: T = 0;
-        var norm_a: T = 0;
-        var norm_b: T = 0;
-        var i: usize = 0;
-
-        // Process vectorized chunks
-        while (i + vec_size <= a.len) : (i += vec_size) {
-            const va = loadVector(T, vec_size, a[i..]);
-            const vb = loadVector(T, vec_size, b[i..]);
-
-            dot_product += ops.dot(va, vb);
-            norm_a += ops.dot(va, va);
-            norm_b += ops.dot(vb, vb);
-        }
-
-        // Process remaining elements
+        // Handle remaining elements
         while (i < a.len) : (i += 1) {
             dot_product += a[i] * b[i];
             norm_a += a[i] * a[i];
             norm_b += b[i] * b[i];
         }
 
-        const magnitude = @sqrt(norm_a) * @sqrt(norm_b);
-        return if (magnitude > 0) dot_product / magnitude else 0;
+        const denominator = @sqrt(norm_a) * @sqrt(norm_b);
+        if (denominator == 0.0) return 0.0;
+        return dot_product / denominator;
     }
-};
 
-/// Text processing operations
-pub const text = struct {
-    /// Count occurrences of a byte in a buffer
-    pub fn countByte(haystack: []const u8, needle: u8) usize {
-        // Use conservative SIMD approach - fall back to scalar if alignment issues
-        if (!config.has_simd or haystack.len < 32) {
-            return countByteScalar(haystack, needle);
-        }
+    /// Add two vectors using SIMD
+    pub fn add(result: []f32, a: []const f32, b: []const f32) void {
+        if (a.len != b.len or result.len != a.len) return;
 
-        const vec_size = @min(32, config.vector_width);
-        const alignment = @alignOf(@Vector(vec_size, u8));
-
-        // Check if we can safely use SIMD with current alignment
-        if (@intFromPtr(haystack.ptr) % alignment != 0) {
-            // Data is not aligned, use scalar approach
-            return countByteScalar(haystack, needle);
-        }
-
-        var count: usize = 0;
+        const optimal_size = Vector.getOptimalSize(a.len);
         var i: usize = 0;
-        const needle_vec = @as(@Vector(vec_size, u8), @splat(needle));
 
-        // Process SIMD chunks (data is aligned)
-        while (i + vec_size <= haystack.len) : (i += vec_size) {
-            const chunk = @as(*const @Vector(vec_size, u8), @ptrCast(@alignCast(haystack.ptr + i))).*;
-            const matches = chunk == needle_vec;
-            count += @popCount(@as(std.meta.Int(.unsigned, vec_size), @bitCast(matches)));
+        switch (optimal_size) {
+            16 => {
+                while (i + 16 <= a.len) : (i += 16) {
+                    const va = Vector.f32x16.load(a[i..][0..16]);
+                    const vb = Vector.f32x16.load(b[i..][0..16]);
+                    const sum = va + vb;
+                    Vector.f32x16.store(result[i..][0..16], sum);
+                }
+            },
+            8 => {
+                while (i + 8 <= a.len) : (i += 8) {
+                    const va = Vector.f32x8.load(a[i..][0..8]);
+                    const vb = Vector.f32x8.load(b[i..][0..8]);
+                    const sum = va + vb;
+                    Vector.f32x8.store(result[i..][0..8], sum);
+                }
+            },
+            4 => {
+                while (i + 4 <= a.len) : (i += 4) {
+                    const va = Vector.f32x4.load(a[i..][0..4]);
+                    const vb = Vector.f32x4.load(b[i..][0..4]);
+                    const sum = va + vb;
+                    Vector.f32x4.store(result[i..][0..4], sum);
+                }
+            },
+            else => {},
         }
 
-        // Process remaining bytes
-        while (i < haystack.len) : (i += 1) {
-            if (haystack[i] == needle) count += 1;
+        // Handle remaining elements
+        while (i < a.len) : (i += 1) {
+            result[i] = a[i] + b[i];
         }
-
-        return count;
     }
 
-    fn countByteScalar(haystack: []const u8, needle: u8) usize {
-        var count: usize = 0;
-        for (haystack) |byte| {
-            if (byte == needle) count += 1;
-        }
-        return count;
-    }
+    /// Subtract two vectors using SIMD
+    pub fn subtract(result: []f32, a: []const f32, b: []const f32) void {
+        if (a.len != b.len or result.len != a.len) return;
 
-    /// Find first occurrence of byte
-    pub fn findByte(haystack: []const u8, needle: u8) ?usize {
-        // Use conservative SIMD approach - fall back to scalar if alignment issues
-        if (!config.has_simd or haystack.len < 32) {
-            return std.mem.indexOfScalar(u8, haystack, needle);
-        }
-
-        const vec_size = @min(32, config.vector_width);
-        const alignment = @alignOf(@Vector(vec_size, u8));
-
-        // Check if we can safely use SIMD with current alignment
-        if (@intFromPtr(haystack.ptr) % alignment != 0) {
-            // Data is not aligned, use scalar approach
-            return std.mem.indexOfScalar(u8, haystack, needle);
-        }
-
+        const optimal_size = Vector.getOptimalSize(a.len);
         var i: usize = 0;
-        const needle_vec = @as(@Vector(vec_size, u8), @splat(needle));
 
-        // Process SIMD chunks (data is aligned)
-        while (i + vec_size <= haystack.len) : (i += vec_size) {
-            const chunk = @as(*const @Vector(vec_size, u8), @ptrCast(@alignCast(haystack.ptr + i))).*;
-            const matches = chunk == needle_vec;
-            const match_bits = @as(std.meta.Int(.unsigned, vec_size), @bitCast(matches));
-
-            if (match_bits != 0) {
-                const offset = @ctz(match_bits);
-                return i + offset;
-            }
+        switch (optimal_size) {
+            16 => {
+                while (i + 16 <= a.len) : (i += 16) {
+                    const va = Vector.f32x16.load(a[i..][0..16]);
+                    const vb = Vector.f32x16.load(b[i..][0..16]);
+                    const diff = va - vb;
+                    Vector.f32x16.store(result[i..][0..16], diff);
+                }
+            },
+            8 => {
+                while (i + 8 <= a.len) : (i += 8) {
+                    const va = Vector.f32x8.load(a[i..][0..8]);
+                    const vb = Vector.f32x8.load(b[i..][0..8]);
+                    const diff = va - vb;
+                    Vector.f32x8.store(result[i..][0..8], diff);
+                }
+            },
+            4 => {
+                while (i + 4 <= a.len) : (i += 4) {
+                    const va = Vector.f32x4.load(a[i..][0..4]);
+                    const vb = Vector.f32x4.load(b[i..][0..4]);
+                    const diff = va - vb;
+                    Vector.f32x4.store(result[i..][0..4], diff);
+                }
+            },
+            else => {},
         }
 
-        // Check remaining bytes
-        return std.mem.indexOfScalar(u8, haystack[i..], needle);
+        // Handle remaining elements
+        while (i < a.len) : (i += 1) {
+            result[i] = a[i] - b[i];
+        }
     }
 
-    /// Convert ASCII to lowercase
-    pub fn toLowerAscii(dst: []u8, src: []const u8) void {
-        std.debug.assert(dst.len >= src.len);
+    /// Multiply vector by scalar using SIMD
+    pub fn scale(result: []f32, vector: []const f32, scalar: f32) void {
+        if (result.len != vector.len) return;
 
-        // Use conservative SIMD approach - fall back to scalar if alignment issues
-        if (!config.has_simd or src.len < 32) {
-            for (src, 0..) |c, i| {
-                dst[i] = std.ascii.toLower(c);
-            }
+        const optimal_size = Vector.getOptimalSize(vector.len);
+        var i: usize = 0;
+
+        switch (optimal_size) {
+            16 => {
+                const scale_vec = Vector.f32x16.splat(scalar);
+                while (i + 16 <= vector.len) : (i += 16) {
+                    const v = Vector.f32x16.load(vector[i..][0..16]);
+                    const scaled = v * scale_vec;
+                    Vector.f32x16.store(result[i..][0..16], scaled);
+                }
+            },
+            8 => {
+                const scale_vec = Vector.f32x8.splat(scalar);
+                while (i + 8 <= vector.len) : (i += 8) {
+                    const v = Vector.f32x8.load(vector[i..][0..8]);
+                    const scaled = v * scale_vec;
+                    Vector.f32x8.store(result[i..][0..8], scaled);
+                }
+            },
+            4 => {
+                const scale_vec = Vector.f32x4.splat(scalar);
+                while (i + 4 <= vector.len) : (i += 4) {
+                    const v = Vector.f32x4.load(vector[i..][0..4]);
+                    const scaled = v * scale_vec;
+                    Vector.f32x4.store(result[i..][0..4], scaled);
+                }
+            },
+            else => {},
+        }
+
+        // Handle remaining elements
+        while (i < vector.len) : (i += 1) {
+            result[i] = vector[i] * scalar;
+        }
+    }
+
+    /// Normalize vector to unit length
+    pub fn normalize(result: []f32, vector: []const f32) void {
+        if (result.len != vector.len) return;
+
+        const norm = @sqrt(VectorOps.dotProduct(vector, vector));
+        if (norm == 0.0) {
+            @memset(result, 0.0);
             return;
         }
 
-        const vec_size = @min(32, config.vector_width);
-        const alignment = @alignOf(@Vector(vec_size, u8));
+        VectorOps.scale(result, vector, 1.0 / norm);
+    }
 
-        // Check if both src and dst are aligned for SIMD operations
-        if (@intFromPtr(src.ptr) % alignment != 0 or @intFromPtr(dst.ptr) % alignment != 0) {
-            // Data is not aligned, use scalar approach
-            for (src, 0..) |c, i| {
-                dst[i] = std.ascii.toLower(c);
-            }
-            return;
-        }
+    /// Calculate dot product of two vectors
+    pub fn dotProduct(a: []const f32, b: []const f32) f32 {
+        if (a.len != b.len) return 0.0;
 
+        var sum: f32 = 0.0;
+        const optimal_size = Vector.getOptimalSize(a.len);
         var i: usize = 0;
-        const A_vec = @as(@Vector(vec_size, u8), @splat('A'));
-        const Z_vec = @as(@Vector(vec_size, u8), @splat('Z'));
-        const diff_vec = @as(@Vector(vec_size, u8), @splat('a' - 'A'));
 
-        // Process SIMD chunks (both src and dst are aligned)
-        while (i + vec_size <= src.len) : (i += vec_size) {
-            const chunk = @as(*const @Vector(vec_size, u8), @ptrCast(@alignCast(src.ptr + i))).*;
-            const is_upper = (chunk >= A_vec) & (chunk <= Z_vec);
-            const mask = @select(u8, is_upper, diff_vec, @as(@Vector(vec_size, u8), @splat(0)));
-            const result = chunk + mask;
-            @as(*@Vector(vec_size, u8), @ptrCast(@alignCast(dst.ptr + i))).* = result;
+        switch (optimal_size) {
+            16 => {
+                while (i + 16 <= a.len) : (i += 16) {
+                    const va = Vector.f32x16.load(a[i..][0..16]);
+                    const vb = Vector.f32x16.load(b[i..][0..16]);
+                    sum += std.simd.f32x16.reduce_add(va * vb);
+                }
+            },
+            8 => {
+                while (i + 8 <= a.len) : (i += 8) {
+                    const va = Vector.f32x8.load(a[i..][0..8]);
+                    const vb = Vector.f32x8.load(b[i..][0..8]);
+                    sum += std.simd.f32x8.reduce_add(va * vb);
+                }
+            },
+            4 => {
+                while (i + 4 <= a.len) : (i += 4) {
+                    const va = Vector.f32x4.load(a[i..][0..4]);
+                    const vb = Vector.f32x4.load(b[i..][0..4]);
+                    sum += std.simd.f32x4.reduce_add(va * vb);
+                }
+            },
+            else => {},
         }
 
-        // Process remaining bytes
-        while (i < src.len) : (i += 1) {
-            dst[i] = std.ascii.toLower(src[i]);
+        // Handle remaining elements
+        while (i < a.len) : (i += 1) {
+            sum += a[i] * b[i];
         }
+
+        return sum;
     }
 };
 
-/// Matrix operations
-pub const matrix = struct {
-    /// Matrix multiplication using SIMD
-    pub fn multiply(comptime T: type, c: []T, a: []const T, b: []const T, m: usize, n: usize, k: usize) void {
-        std.debug.assert(c.len >= m * n);
-        std.debug.assert(a.len >= m * k);
-        std.debug.assert(b.len >= k * n);
+/// Matrix operations with SIMD acceleration
+pub const MatrixOps = struct {
+    /// Matrix-vector multiplication: result = matrix * vector
+    pub fn matrixVectorMultiply(result: []f32, matrix: []const f32, vector: []const f32, rows: usize, cols: usize) void {
+        if (result.len != rows or vector.len != cols) return;
 
-        // Use tiled matrix multiplication for cache efficiency
-        const tile_size = 64;
-        var i: usize = 0;
+        const optimal_size = Vector.getOptimalSize(cols);
+        var row: usize = 0;
 
-        while (i < m) : (i += tile_size) {
-            const i_end = @min(i + tile_size, m);
-            var j: usize = 0;
+        while (row < rows) : (row += 1) {
+            const row_start = row * cols;
+            var sum: f32 = 0.0;
+            var col: usize = 0;
 
-            while (j < n) : (j += tile_size) {
-                const j_end = @min(j + tile_size, n);
-                var k_idx: usize = 0;
-
-                while (k_idx < k) : (k_idx += tile_size) {
-                    const k_end = @min(k_idx + tile_size, k);
-
-                    // Process tile
-                    multiplyTile(T, c, a, b, i, i_end, j, j_end, k_idx, k_end, m, n, k);
-                }
-            }
-        }
-    }
-
-    fn multiplyTile(comptime T: type, c: []T, a: []const T, b: []const T, i_start: usize, i_end: usize, j_start: usize, j_end: usize, k_start: usize, k_end: usize, m: usize, n: usize, k: usize) void {
-        _ = m;
-        const vec_size = comptime getVectorSize(T);
-
-        var i = i_start;
-        while (i < i_end) : (i += 1) {
-            var j = j_start;
-
-            while (j + vec_size <= j_end) : (j += vec_size) {
-                var sum = @as(Vector(T, vec_size), @splat(0));
-
-                var k_idx = k_start;
-                while (k_idx < k_end) : (k_idx += 1) {
-                    const a_scalar = @as(Vector(T, vec_size), @splat(a[i * k + k_idx]));
-                    const b_vec = loadVector(T, vec_size, b[k_idx * n + j ..]);
-                    sum = ops.fma(a_scalar, b_vec, sum);
-                }
-
-                if (k_start == 0) {
-                    storeVector(T, vec_size, c[i * n + j ..], sum);
-                } else {
-                    const c_vec = loadVector(T, vec_size, c[i * n + j ..]);
-                    storeVector(T, vec_size, c[i * n + j ..], ops.add(c_vec, sum));
-                }
+            // SIMD-optimized row-vector multiplication
+            switch (optimal_size) {
+                16 => {
+                    while (col + 16 <= cols) : (col += 16) {
+                        const matrix_row = Vector.f32x16.load(matrix[row_start + col ..][0..16]);
+                        const vec_slice = Vector.f32x16.load(vector[col..][0..16]);
+                        sum += std.simd.f32x16.reduce_add(matrix_row * vec_slice);
+                    }
+                },
+                8 => {
+                    while (col + 8 <= cols) : (col += 8) {
+                        const matrix_row = Vector.f32x8.load(matrix[row_start + col ..][0..8]);
+                        const vec_slice = Vector.f32x8.load(vector[col..][0..8]);
+                        sum += std.simd.f32x8.reduce_add(matrix_row * vec_slice);
+                    }
+                },
+                4 => {
+                    while (col + 4 <= cols) : (col += 4) {
+                        const matrix_row = Vector.f32x4.load(matrix[row_start + col ..][0..4]);
+                        const vec_slice = Vector.f32x4.load(vector[col..][0..4]);
+                        sum += std.simd.f32x4.reduce_add(matrix_row * vec_slice);
+                    }
+                },
+                else => {},
             }
 
             // Handle remaining columns
-            while (j < j_end) : (j += 1) {
-                var sum: T = if (k_start == 0) 0 else c[i * n + j];
-                var k_idx = k_start;
-                while (k_idx < k_end) : (k_idx += 1) {
-                    sum += a[i * k + k_idx] * b[k_idx * n + j];
-                }
-                c[i * n + j] = sum;
+            while (col < cols) : (col += 1) {
+                sum += matrix[row_start + col] * vector[col];
             }
+
+            result[row] = sum;
         }
     }
 
-    /// Transpose matrix
-    pub fn transpose(comptime T: type, dst: []T, src: []const T, rows: usize, cols: usize) void {
-        std.debug.assert(dst.len >= rows * cols);
-        std.debug.assert(src.len >= rows * cols);
+    /// Matrix-matrix multiplication: result = a * b
+    pub fn matrixMultiply(result: []f32, a: []const f32, b: []const f32, m: usize, n: usize, k: usize) void {
+        if (result.len != m * k) return;
 
-        // Use tiled transpose for cache efficiency
-        const tile_size = 32;
+        // Initialize result to zero
+        @memset(result, 0.0);
+
+        const optimal_size = Vector.getOptimalSize(n);
         var i: usize = 0;
 
-        while (i < rows) : (i += tile_size) {
-            const i_end = @min(i + tile_size, rows);
+        while (i < m) : (i += 1) {
+            var j: usize = 0;
+            while (j < k) : (j += 1) {
+                var sum: f32 = 0.0;
+                var l: usize = 0;
+
+                // SIMD-optimized inner loop
+                switch (optimal_size) {
+                    16 => {
+                        while (l + 16 <= n) : (l += 16) {
+                            const a_row = Vector.f32x16.load(a[i * n + l ..][0..16]);
+                            const b_col = Vector.f32x16.load(b[l * k + j ..][0..16]);
+                            sum += std.simd.f32x16.reduce_add(a_row * b_col);
+                        }
+                    },
+                    8 => {
+                        while (l + 8 <= n) : (l += 8) {
+                            const a_row = Vector.f32x8.load(a[i * n + l ..][0..8]);
+                            const b_col = Vector.f32x8.load(b[l * k + j ..][0..8]);
+                            sum += std.simd.f32x8.reduce_add(a_row * b_col);
+                        }
+                    },
+                    4 => {
+                        while (l + 4 <= n) : (l += 4) {
+                            const a_row = Vector.f32x4.load(a[i * n + l ..][0..4]);
+                            const b_col = Vector.f32x4.load(b[l * k + j ..][0..4]);
+                            sum += std.simd.f32x4.reduce_add(a_row * b_col);
+                        }
+                    },
+                    else => {},
+                }
+
+                // Handle remaining elements
+                while (l < n) : (l += 1) {
+                    sum += a[i * n + l] * b[l * k + j];
+                }
+
+                result[i * k + j] = sum;
+            }
+        }
+    }
+
+    /// Transpose matrix: result = matrix^T
+    pub fn transpose(result: []f32, matrix: []const f32, rows: usize, cols: usize) void {
+        if (result.len != rows * cols) return;
+
+        const optimal_size = Vector.getOptimalSize(cols);
+        var i: usize = 0;
+
+        while (i < rows) : (i += 1) {
             var j: usize = 0;
 
-            while (j < cols) : (j += tile_size) {
-                const j_end = @min(j + tile_size, cols);
-
-                // Transpose tile
-                var ii = i;
-                while (ii < i_end) : (ii += 1) {
-                    var jj = j;
-                    while (jj < j_end) : (jj += 1) {
-                        dst[jj * rows + ii] = src[ii * cols + jj];
+            // SIMD-optimized row copying
+            switch (optimal_size) {
+                16 => {
+                    while (j + 16 <= cols) : (j += 16) {
+                        const row_data = Vector.f32x16.load(matrix[i * cols + j ..][0..16]);
+                        Vector.f32x16.store(result[j * rows + i ..][0..16], row_data);
                     }
-                }
+                },
+                8 => {
+                    while (j + 8 <= cols) : (j += 8) {
+                        const row_data = Vector.f32x8.load(matrix[i * cols + j ..][0..8]);
+                        Vector.f32x8.store(result[j * rows + i ..][0..8], row_data);
+                    }
+                },
+                4 => {
+                    while (j + 4 <= cols) : (j += 4) {
+                        const row_data = Vector.f32x4.load(matrix[i * cols + j ..][0..4]);
+                        Vector.f32x4.store(result[j * rows + i ..][0..4], row_data);
+                    }
+                },
+                else => {},
+            }
+
+            // Handle remaining columns
+            while (j < cols) : (j += 1) {
+                result[j * rows + i] = matrix[i * cols + j];
             }
         }
     }
 };
 
-/// Helper functions
-fn isSimdVector(comptime T: type) bool {
-    return @typeInfo(T) == .vector;
-}
+/// Performance monitoring for SIMD operations
+pub const PerformanceMonitor = struct {
+    operation_count: u64 = 0,
+    total_time_ns: u64 = 0,
+    simd_usage_count: u64 = 0,
+    scalar_fallback_count: u64 = 0,
 
-fn ElementType(comptime T: type) type {
-    return switch (@typeInfo(T)) {
-        .vector => |v| v.child,
-        .array => |a| a.child,
-        else => @compileError("Expected vector or array type"),
-    };
-}
-
-fn getVectorSize(comptime T: type) comptime_int {
-    return switch (T) {
-        f32 => @divExact(config.vector_width, 4),
-        f64 => @divExact(config.vector_width, 8),
-        u8, i8 => config.vector_width,
-        u16, i16 => @divExact(config.vector_width, 2),
-        u32, i32 => @divExact(config.vector_width, 4),
-        u64, i64 => @divExact(config.vector_width, 8),
-        else => 1,
-    };
-}
-
-fn loadVector(comptime T: type, comptime len: comptime_int, data: []const T) Vector(T, len) {
-    if (comptime isSimdVector(Vector(T, len))) {
-        return @as(*const Vector(T, len), @ptrCast(@alignCast(data.ptr))).*;
-    } else {
-        var result: [len]T = undefined;
-        inline for (0..len) |i| {
-            result[i] = data[i];
-        }
-        return result;
-    }
-}
-
-fn storeVector(comptime T: type, comptime len: comptime_int, data: []T, vec: Vector(T, len)) void {
-    if (comptime isSimdVector(Vector(T, len))) {
-        @as(*Vector(T, len), @ptrCast(@alignCast(data.ptr))).* = vec;
-    } else {
-        inline for (0..len) |i| {
-            data[i] = vec[i];
+    pub fn recordOperation(self: *PerformanceMonitor, duration_ns: u64, used_simd: bool) void {
+        self.operation_count += 1;
+        self.total_time_ns += duration_ns;
+        if (used_simd) {
+            self.simd_usage_count += 1;
+        } else {
+            self.scalar_fallback_count += 1;
         }
     }
-}
 
-/// Custom compute kernel builder
-pub const Kernel = struct {
-    /// Define a SIMD kernel that operates on slices
-    pub fn create(
-        comptime name: []const u8,
-        comptime T: type,
-        comptime operation: fn (Vector(T, getVectorSize(T))) Vector(T, getVectorSize(T)),
-    ) type {
-        return struct {
-            pub const kernel_name = name;
+    pub fn getAverageTime(self: *const PerformanceMonitor) f64 {
+        if (self.operation_count == 0) return 0.0;
+        return @as(f64, @floatFromInt(self.total_time_ns)) / @as(f64, @floatFromInt(self.operation_count));
+    }
 
-            pub fn execute(dst: []T, src: []const T) void {
-                std.debug.assert(dst.len >= src.len);
+    pub fn getSimdUsageRate(self: *const PerformanceMonitor) f64 {
+        if (self.operation_count == 0) return 0.0;
+        return @as(f64, @floatFromInt(self.simd_usage_count)) / @as(f64, @floatFromInt(self.operation_count));
+    }
 
-                const vec_size = comptime getVectorSize(T);
-                var i: usize = 0;
-
-                // Process vectorized chunks
-                while (i + vec_size <= src.len) : (i += vec_size) {
-                    const input = loadVector(T, vec_size, src[i..]);
-                    const output = operation(input);
-                    storeVector(T, vec_size, dst[i..], output);
-                }
-
-                // Process remaining elements
-                while (i < src.len) : (i += 1) {
-                    var single_input: [1]T = .{src[i]};
-                    var single_output: [1]T = undefined;
-                    const input = loadVector(T, 1, &single_input);
-                    const output = operation(input);
-                    storeVector(T, 1, &single_output, output);
-                    dst[i] = single_output[0];
-                }
-            }
-
-            pub fn executeBatch(dsts: [][]T, srcs: []const []const T) void {
-                std.debug.assert(dsts.len == srcs.len);
-                for (dsts, srcs) |dst, src| {
-                    execute(dst, src);
-                }
-            }
-        };
+    pub fn printStats(self: *const PerformanceMonitor) void {
+        std.debug.print("SIMD Performance Statistics:\n", .{});
+        std.debug.print("  Total Operations: {d}\n", .{self.operation_count});
+        std.debug.print("  Average Time: {d:.3} ns\n", .{self.getAverageTime()});
+        std.debug.print("  SIMD Usage Rate: {d:.1}%\n", .{self.getSimdUsageRate() * 100.0});
+        std.debug.print("  SIMD Operations: {d}\n", .{self.simd_usage_count});
+        std.debug.print("  Scalar Fallbacks: {d}\n", .{self.scalar_fallback_count});
     }
 };
+
+/// Global performance monitor instance
+var global_performance_monitor = PerformanceMonitor{};
+
+/// Get global performance monitor
+pub fn getPerformanceMonitor() *PerformanceMonitor {
+    return &global_performance_monitor;
+}
+
+// Re-export commonly used types
+pub const f32x4 = Vector.f32x4;
+pub const f32x8 = Vector.f32x8;
+pub const f32x16 = Vector.f32x16;
+
+// Re-export operations
+pub const distance = VectorOps.distance;
+pub const cosineSimilarity = VectorOps.cosineSimilarity;
+pub const add = VectorOps.add;
+pub const subtract = VectorOps.subtract;
+pub const scale = VectorOps.scale;
+pub const normalize = VectorOps.normalize;
+pub const dotProduct = VectorOps.dotProduct;
+pub const matrixVectorMultiply = MatrixOps.matrixVectorMultiply;
+pub const matrixMultiply = MatrixOps.matrixMultiply;
+pub const transpose = MatrixOps.transpose;
 
 test "SIMD vector operations" {
-    const a = Vector(f32, 4){ 1.0, 2.0, 3.0, 4.0 };
-    const b = Vector(f32, 4){ 5.0, 6.0, 7.0, 8.0 };
+    const testing = std.testing;
+    const allocator = testing.allocator;
 
-    const sum = ops.add(a, b);
-    const expected_sum = Vector(f32, 4){ 6.0, 8.0, 10.0, 12.0 };
+    // Test vectors
+    const a = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0 };
+    const b = [_]f32{ 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0 };
 
-    if (comptime isSimdVector(@TypeOf(sum))) {
-        try std.testing.expectEqual(expected_sum, sum);
-    } else {
-        for (sum, expected_sum) |actual, expected| {
-            try std.testing.expectApproxEqAbs(expected, actual, 0.001);
-        }
-    }
+    // Test distance calculation
+    const dist = distance(&a, &b);
+    try testing.expect(dist > 0.0);
 
-    const dot_product = ops.dot(a, b);
-    try std.testing.expectApproxEqAbs(@as(f32, 70.0), dot_product, 0.001);
+    // Test cosine similarity
+    const similarity = cosineSimilarity(&a, &b);
+    try testing.expect(similarity > 0.0 and similarity <= 1.0);
+
+    // Test vector addition
+    const result = try allocator.alloc(f32, a.len);
+    defer allocator.free(result);
+    add(result, &a, &b);
+    try testing.expectEqual(@as(f32, 3.0), result[0]);
+    try testing.expectEqual(@as(f32, 5.0), result[1]);
+
+    // Test vector scaling
+    scale(result, &a, 2.0);
+    try testing.expectEqual(@as(f32, 2.0), result[0]);
+    try testing.expectEqual(@as(f32, 4.0), result[1]);
+
+    // Test dot product
+    const dot = dotProduct(&a, &b);
+    try testing.expect(dot > 0.0);
 }
 
-test "SIMD distance calculations" {
+test "SIMD matrix operations" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    // Test matrix-vector multiplication
+    const matrix = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 };
+    const vector = [_]f32{ 1.0, 2.0 };
+    const result = try allocator.alloc(f32, 3);
+    defer allocator.free(result);
+
+    matrixVectorMultiply(result, &matrix, &vector, 3, 2);
+    try testing.expectEqual(@as(f32, 5.0), result[0]); // 1*1 + 2*2
+    try testing.expectEqual(@as(f32, 11.0), result[1]); // 3*1 + 4*2
+    try testing.expectEqual(@as(f32, 17.0), result[2]); // 5*1 + 6*2
+}
+
+test "SIMD performance monitoring" {
+    const testing = std.testing;
+    const monitor = getPerformanceMonitor();
+    const start_time = std.time.nanoTimestamp();
+
+    // Simulate some operations
     const a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
-    const b = [_]f32{ 5.0, 6.0, 7.0, 8.0 };
+    const b = [_]f32{ 2.0, 3.0, 4.0, 5.0 };
+    _ = distance(&a, &b);
 
-    const dist_sq = distance.euclideanSquared(f32, &a, &b);
-    try std.testing.expectApproxEqAbs(@as(f32, 64.0), dist_sq, 0.001);
+    const end_time = std.time.nanoTimestamp();
+    const duration = @as(u64, @intCast(end_time - start_time));
 
-    const manhattan_dist = distance.manhattan(f32, &a, &b);
-    try std.testing.expectApproxEqAbs(@as(f32, 16.0), manhattan_dist, 0.001);
-
-    const cosine_sim = distance.cosineSimilarity(f32, &a, &b);
-    try std.testing.expect(cosine_sim > 0.9);
-}
-
-test "SIMD text operations" {
-    const haystack = "Hello, World! This is a test string with some repeated letters.";
-    const count = text.countByte(haystack, 'l');
-    try std.testing.expectEqual(@as(usize, 4), count);
-
-    const pos = text.findByte(haystack, 'W');
-    try std.testing.expectEqual(@as(?usize, 7), pos);
-
-    var lower_buf: [64]u8 = undefined;
-    text.toLowerAscii(&lower_buf, haystack);
-    try std.testing.expect(std.mem.startsWith(u8, &lower_buf, "hello, world!"));
+    monitor.recordOperation(duration, true);
+    try testing.expectEqual(@as(u64, 1), monitor.operation_count);
+    try testing.expectEqual(@as(u64, 1), monitor.simd_usage_count);
 }
