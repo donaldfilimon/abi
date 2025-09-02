@@ -62,6 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Memory leaks in vector database
 - Race conditions in lock-free structures
 - **Build system incompatibilities with newer Zig versions**
+- **Server crashes on network errors (ConnectionResetByPeer, BrokenPipe, Unexpected)**
+- **Resource leaks from improper connection cleanup**
 
 ### Security
 

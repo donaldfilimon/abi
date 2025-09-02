@@ -12,6 +12,19 @@ const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 
+/// GPU renderer errors
+pub const GpuError = error{
+    UnsupportedBackend,
+    InitializationFailed,
+    DeviceNotFound,
+    OutOfMemory,
+    NotImplemented,
+    ValidationFailed,
+    ShaderCompilationFailed,
+    BufferCreationFailed,
+    CommandSubmissionFailed,
+};
+
 /// GPU renderer configuration
 pub const GPUConfig = struct {
     /// Enable validation layers for debugging
@@ -325,32 +338,36 @@ pub const GPURenderer = struct {
     }
 
     fn initWebGPU(self: *Self) !void {
-        if (build_options.is_wasm) {
-            // WASM: WebGPU is initialized from JavaScript
+        if (self.backend == .webgpu) {
+            // WASM: Delegate to JavaScript
             std.log.info("WebGPU initialization deferred to JavaScript for {s}", .{self.backend});
         } else {
             // Desktop: Initialize WebGPU through native bindings
             std.log.info("Initializing native WebGPU for {s}", .{self.backend});
-            // TODO: Implement native WebGPU initialization
+            // FUTURE: Native WebGPU implementation planned for v1.1.0
+            return GpuError.NotImplemented;
         }
     }
 
     fn initVulkan(self: *Self) !void {
         _ = self;
         std.log.info("Initializing Vulkan backend", .{});
-        // TODO: Implement Vulkan initialization
+        // FUTURE: Vulkan backend implementation planned for v1.2.0
+        return GpuError.NotImplemented;
     }
 
     fn initMetal(self: *Self) !void {
         _ = self;
         std.log.info("Initializing Metal backend", .{});
-        // TODO: Implement Metal initialization
+        // FUTURE: Metal backend implementation planned for v1.2.0 (macOS/iOS)
+        return GpuError.NotImplemented;
     }
 
     fn initDX12(self: *Self) !void {
         _ = self;
         std.log.info("Initializing DirectX 12 backend", .{});
-        // TODO: Implement DirectX 12 initialization
+        // FUTURE: DirectX 12 backend implementation planned for v1.2.0 (Windows)
+        return GpuError.NotImplemented;
     }
 
     fn createDefaultResources(self: *Self) !void {

@@ -107,25 +107,25 @@ pub const VectorOps = struct {
                     const vb = Vector.load(Vector.f32x16, b[i..][0..16]);
                     const diff = va - vb;
                     const sq = diff * diff;
-                    sum += std.simd.f32x16.reduce_add(sq);
+                    sum += @reduce(.Add, sq);
                 }
             },
             8 => {
                 while (i + 8 <= a.len) : (i += 8) {
-                    const va = Vector.f32x8.load(a[i..][0..8]);
-                    const vb = Vector.f32x8.load(b[i..][0..8]);
+                    const va = @as(@Vector(8, f32), a[i..][0..8].*);
+                    const vb = @as(@Vector(8, f32), b[i..][0..8].*);
                     const diff = va - vb;
                     const sq = diff * diff;
-                    sum += std.simd.f32x8.reduce_add(sq);
+                    sum += @reduce(.Add, sq);
                 }
             },
             4 => {
                 while (i + 4 <= a.len) : (i += 4) {
-                    const va = Vector.f32x4.load(a[i..][0..4]);
-                    const vb = Vector.f32x4.load(b[i..][0..4]);
+                    const va = @as(@Vector(4, f32), a[i..][0..4].*);
+                    const vb = @as(@Vector(4, f32), b[i..][0..4].*);
                     const diff = va - vb;
                     const sq = diff * diff;
-                    sum += std.simd.f32x4.reduce_add(sq);
+                    sum += @reduce(.Add, sq);
                 }
             },
             else => {},
@@ -156,32 +156,32 @@ pub const VectorOps = struct {
         switch (optimal_size) {
             16 => {
                 while (i + 16 <= a.len) : (i += 16) {
-                    const va = Vector.f32x16.load(a[i..][0..16]);
-                    const vb = Vector.f32x16.load(b[i..][0..16]);
+                    const va = @as(@Vector(16, f32), a[i..][0..16].*);
+                    const vb = @as(@Vector(16, f32), b[i..][0..16].*);
 
-                    dot_product += std.simd.f32x16.reduce_add(va * vb);
-                    norm_a += std.simd.f32x16.reduce_add(va * va);
-                    norm_b += std.simd.f32x16.reduce_add(vb * vb);
+                    dot_product += @reduce(.Add, va * vb);
+                    norm_a += @reduce(.Add, va * va);
+                    norm_b += @reduce(.Add, vb * vb);
                 }
             },
             8 => {
                 while (i + 8 <= a.len) : (i += 8) {
-                    const va = Vector.f32x8.load(a[i..][0..8]);
-                    const vb = Vector.f32x8.load(b[i..][0..8]);
+                    const va = @as(@Vector(8, f32), a[i..][0..8].*);
+                    const vb = @as(@Vector(8, f32), b[i..][0..8].*);
 
-                    dot_product += std.simd.f32x8.reduce_add(va * vb);
-                    norm_a += std.simd.f32x8.reduce_add(va * va);
-                    norm_b += std.simd.f32x8.reduce_add(vb * vb);
+                    dot_product += @reduce(.Add, va * vb);
+                    norm_a += @reduce(.Add, va * va);
+                    norm_b += @reduce(.Add, vb * vb);
                 }
             },
             4 => {
                 while (i + 4 <= a.len) : (i += 4) {
-                    const va = Vector.f32x4.load(a[i..][0..4]);
-                    const vb = Vector.f32x4.load(b[i..][0..4]);
+                    const va = @as(@Vector(4, f32), a[i..][0..4].*);
+                    const vb = @as(@Vector(4, f32), b[i..][0..4].*);
 
-                    dot_product += std.simd.f32x4.reduce_add(va * vb);
-                    norm_a += std.simd.f32x4.reduce_add(va * va);
-                    norm_b += std.simd.f32x4.reduce_add(vb * vb);
+                    dot_product += @reduce(.Add, va * vb);
+                    norm_a += @reduce(.Add, va * va);
+                    norm_b += @reduce(.Add, vb * vb);
                 }
             },
             else => {},
@@ -209,26 +209,26 @@ pub const VectorOps = struct {
         switch (optimal_size) {
             16 => {
                 while (i + 16 <= a.len) : (i += 16) {
-                    const va = Vector.f32x16.load(a[i..][0..16]);
-                    const vb = Vector.f32x16.load(b[i..][0..16]);
+                    const va = @as(@Vector(16, f32), a[i..][0..16].*);
+                    const vb = @as(@Vector(16, f32), b[i..][0..16].*);
                     const sum = va + vb;
-                    Vector.f32x16.store(result[i..][0..16], sum);
+                    @memcpy(result[i..][0..16], @as([16]f32, sum)[0..]);
                 }
             },
             8 => {
                 while (i + 8 <= a.len) : (i += 8) {
-                    const va = Vector.f32x8.load(a[i..][0..8]);
-                    const vb = Vector.f32x8.load(b[i..][0..8]);
+                    const va = @as(@Vector(8, f32), a[i..][0..8].*);
+                    const vb = @as(@Vector(8, f32), b[i..][0..8].*);
                     const sum = va + vb;
-                    Vector.f32x8.store(result[i..][0..8], sum);
+                    @memcpy(result[i..][0..8], @as([8]f32, sum)[0..]);
                 }
             },
             4 => {
                 while (i + 4 <= a.len) : (i += 4) {
-                    const va = Vector.f32x4.load(a[i..][0..4]);
-                    const vb = Vector.f32x4.load(b[i..][0..4]);
+                    const va = @as(@Vector(4, f32), a[i..][0..4].*);
+                    const vb = @as(@Vector(4, f32), b[i..][0..4].*);
                     const sum = va + vb;
-                    Vector.f32x4.store(result[i..][0..4], sum);
+                    @memcpy(result[i..][0..4], @as([4]f32, sum)[0..]);
                 }
             },
             else => {},
@@ -250,26 +250,26 @@ pub const VectorOps = struct {
         switch (optimal_size) {
             16 => {
                 while (i + 16 <= a.len) : (i += 16) {
-                    const va = Vector.f32x16.load(a[i..][0..16]);
-                    const vb = Vector.f32x16.load(b[i..][0..16]);
+                    const va = @as(@Vector(16, f32), a[i..][0..16].*);
+                    const vb = @as(@Vector(16, f32), b[i..][0..16].*);
                     const diff = va - vb;
-                    Vector.f32x16.store(result[i..][0..16], diff);
+                    @memcpy(result[i..][0..16], @as([16]f32, diff)[0..]);
                 }
             },
             8 => {
                 while (i + 8 <= a.len) : (i += 8) {
-                    const va = Vector.f32x8.load(a[i..][0..8]);
-                    const vb = Vector.f32x8.load(b[i..][0..8]);
+                    const va = @as(@Vector(8, f32), a[i..][0..8].*);
+                    const vb = @as(@Vector(8, f32), b[i..][0..8].*);
                     const diff = va - vb;
-                    Vector.f32x8.store(result[i..][0..8], diff);
+                    @memcpy(result[i..][0..8], @as([8]f32, diff)[0..]);
                 }
             },
             4 => {
                 while (i + 4 <= a.len) : (i += 4) {
-                    const va = Vector.f32x4.load(a[i..][0..4]);
-                    const vb = Vector.f32x4.load(b[i..][0..4]);
+                    const va = @as(@Vector(4, f32), a[i..][0..4].*);
+                    const vb = @as(@Vector(4, f32), b[i..][0..4].*);
                     const diff = va - vb;
-                    Vector.f32x4.store(result[i..][0..4], diff);
+                    @memcpy(result[i..][0..4], @as([4]f32, diff)[0..]);
                 }
             },
             else => {},
@@ -290,27 +290,27 @@ pub const VectorOps = struct {
 
         switch (optimal_size) {
             16 => {
-                const scale_vec = Vector.f32x16.splat(scalar);
+                const scale_vec = @as(@Vector(16, f32), @splat(scalar));
                 while (i + 16 <= vector.len) : (i += 16) {
-                    const v = Vector.f32x16.load(vector[i..][0..16]);
+                    const v = @as(@Vector(16, f32), vector[i..][0..16].*);
                     const scaled = v * scale_vec;
-                    Vector.f32x16.store(result[i..][0..16], scaled);
+                    @memcpy(result[i..][0..16], @as([16]f32, scaled)[0..]);
                 }
             },
             8 => {
-                const scale_vec = Vector.f32x8.splat(scalar);
+                const scale_vec = @as(@Vector(8, f32), @splat(scalar));
                 while (i + 8 <= vector.len) : (i += 8) {
-                    const v = Vector.f32x8.load(vector[i..][0..8]);
+                    const v = @as(@Vector(8, f32), vector[i..][0..8].*);
                     const scaled = v * scale_vec;
-                    Vector.f32x8.store(result[i..][0..8], scaled);
+                    @memcpy(result[i..][0..8], @as([8]f32, scaled)[0..]);
                 }
             },
             4 => {
-                const scale_vec = Vector.f32x4.splat(scalar);
+                const scale_vec = @as(@Vector(4, f32), @splat(scalar));
                 while (i + 4 <= vector.len) : (i += 4) {
-                    const v = Vector.f32x4.load(vector[i..][0..4]);
+                    const v = @as(@Vector(4, f32), vector[i..][0..4].*);
                     const scaled = v * scale_vec;
-                    Vector.f32x4.store(result[i..][0..4], scaled);
+                    @memcpy(result[i..][0..4], @as([4]f32, scaled)[0..]);
                 }
             },
             else => {},
@@ -346,23 +346,23 @@ pub const VectorOps = struct {
         switch (optimal_size) {
             16 => {
                 while (i + 16 <= a.len) : (i += 16) {
-                    const va = Vector.f32x16.load(a[i..][0..16]);
-                    const vb = Vector.f32x16.load(b[i..][0..16]);
-                    sum += std.simd.f32x16.reduce_add(va * vb);
+                    const va = @as(@Vector(16, f32), a[i..][0..16].*);
+                    const vb = @as(@Vector(16, f32), b[i..][0..16].*);
+                    sum += @reduce(.Add, va * vb);
                 }
             },
             8 => {
                 while (i + 8 <= a.len) : (i += 8) {
-                    const va = Vector.f32x8.load(a[i..][0..8]);
-                    const vb = Vector.f32x8.load(b[i..][0..8]);
-                    sum += std.simd.f32x8.reduce_add(va * vb);
+                    const va = @as(@Vector(8, f32), a[i..][0..8].*);
+                    const vb = @as(@Vector(8, f32), b[i..][0..8].*);
+                    sum += @reduce(.Add, va * vb);
                 }
             },
             4 => {
                 while (i + 4 <= a.len) : (i += 4) {
-                    const va = Vector.f32x4.load(a[i..][0..4]);
-                    const vb = Vector.f32x4.load(b[i..][0..4]);
-                    sum += std.simd.f32x4.reduce_add(va * vb);
+                    const va = @as(@Vector(4, f32), a[i..][0..4].*);
+                    const vb = @as(@Vector(4, f32), b[i..][0..4].*);
+                    sum += @reduce(.Add, va * vb);
                 }
             },
             else => {},
@@ -395,23 +395,23 @@ pub const MatrixOps = struct {
             switch (optimal_size) {
                 16 => {
                     while (col + 16 <= cols) : (col += 16) {
-                        const matrix_row = Vector.f32x16.load(matrix[row_start + col ..][0..16]);
-                        const vec_slice = Vector.f32x16.load(vector[col..][0..16]);
-                        sum += std.simd.f32x16.reduce_add(matrix_row * vec_slice);
+                        const matrix_row = @as(@Vector(16, f32), matrix[row_start + col ..][0..16].*);
+                        const vec_slice = @as(@Vector(16, f32), vector[col..][0..16].*);
+                        sum += @reduce(.Add, matrix_row * vec_slice);
                     }
                 },
                 8 => {
                     while (col + 8 <= cols) : (col += 8) {
-                        const matrix_row = Vector.f32x8.load(matrix[row_start + col ..][0..8]);
-                        const vec_slice = Vector.f32x8.load(vector[col..][0..8]);
-                        sum += std.simd.f32x8.reduce_add(matrix_row * vec_slice);
+                        const matrix_row = @as(@Vector(8, f32), matrix[row_start + col ..][0..8].*);
+                        const vec_slice = @as(@Vector(8, f32), vector[col..][0..8].*);
+                        sum += @reduce(.Add, matrix_row * vec_slice);
                     }
                 },
                 4 => {
                     while (col + 4 <= cols) : (col += 4) {
-                        const matrix_row = Vector.f32x4.load(matrix[row_start + col ..][0..4]);
-                        const vec_slice = Vector.f32x4.load(vector[col..][0..4]);
-                        sum += std.simd.f32x4.reduce_add(matrix_row * vec_slice);
+                        const matrix_row = @as(@Vector(4, f32), matrix[row_start + col ..][0..4].*);
+                        const vec_slice = @as(@Vector(4, f32), vector[col..][0..4].*);
+                        sum += @reduce(.Add, matrix_row * vec_slice);
                     }
                 },
                 else => {},
@@ -446,22 +446,22 @@ pub const MatrixOps = struct {
                 switch (optimal_size) {
                     16 => {
                         while (l + 16 <= n) : (l += 16) {
-                            const a_row = Vector.f32x16.load(a[i * n + l ..][0..16]);
-                            const b_col = Vector.f32x16.load(b[l * k + j ..][0..16]);
+                            const a_row = Vector.load(Vector.f32x16, a[i * n + l ..][0..16]);
+                            const b_col = Vector.load(Vector.f32x16, b[l * k + j ..][0..16]);
                             sum += std.simd.f32x16.reduce_add(a_row * b_col);
                         }
                     },
                     8 => {
                         while (l + 8 <= n) : (l += 8) {
-                            const a_row = Vector.f32x8.load(a[i * n + l ..][0..8]);
-                            const b_col = Vector.f32x8.load(b[l * k + j ..][0..8]);
+                            const a_row = Vector.load(Vector.f32x8, a[i * n + l ..][0..8]);
+                            const b_col = Vector.load(Vector.f32x8, b[l * k + j ..][0..8]);
                             sum += std.simd.f32x8.reduce_add(a_row * b_col);
                         }
                     },
                     4 => {
                         while (l + 4 <= n) : (l += 4) {
-                            const a_row = Vector.f32x4.load(a[i * n + l ..][0..4]);
-                            const b_col = Vector.f32x4.load(b[l * k + j ..][0..4]);
+                            const a_row = Vector.load(Vector.f32x4, a[i * n + l ..][0..4]);
+                            const b_col = Vector.load(Vector.f32x4, b[l * k + j ..][0..4]);
                             sum += std.simd.f32x4.reduce_add(a_row * b_col);
                         }
                     },
@@ -492,20 +492,20 @@ pub const MatrixOps = struct {
             switch (optimal_size) {
                 16 => {
                     while (j + 16 <= cols) : (j += 16) {
-                        const row_data = Vector.f32x16.load(matrix[i * cols + j ..][0..16]);
-                        Vector.f32x16.store(result[j * rows + i ..][0..16], row_data);
+                        const row_data = Vector.load(Vector.f32x16, matrix[i * cols + j ..][0..16]);
+                        Vector.store(result[j * rows + i ..][0..16], row_data);
                     }
                 },
                 8 => {
                     while (j + 8 <= cols) : (j += 8) {
-                        const row_data = Vector.f32x8.load(matrix[i * cols + j ..][0..8]);
-                        Vector.f32x8.store(result[j * rows + i ..][0..8], row_data);
+                        const row_data = Vector.load(Vector.f32x8, matrix[i * cols + j ..][0..8]);
+                        Vector.store(result[j * rows + i ..][0..8], row_data);
                     }
                 },
                 4 => {
                     while (j + 4 <= cols) : (j += 4) {
-                        const row_data = Vector.f32x4.load(matrix[i * cols + j ..][0..4]);
-                        Vector.f32x4.store(result[j * rows + i ..][0..4], row_data);
+                        const row_data = Vector.load(Vector.f32x4, matrix[i * cols + j ..][0..4]);
+                        Vector.store(result[j * rows + i ..][0..4], row_data);
                     }
                 },
                 else => {},

@@ -13,7 +13,8 @@ pub const database = @import("database.zig");
 pub const simd = @import("simd/mod.zig");
 pub const ai = @import("ai/mod.zig");
 pub const core = @import("core/mod.zig");
-pub const wdbx = @import("wdbx_unified.zig");
+pub const wdbx = @import("wdbx/mod.zig");
+pub const plugins = @import("plugins/mod.zig");
 
 // Re-export commonly used types and functions
 pub const Db = database.Db;

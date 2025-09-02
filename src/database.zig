@@ -135,9 +135,19 @@ pub const Db = struct {
     } || std.fs.File.SeekError || std.fs.File.WriteError ||
         std.fs.File.ReadError || std.fs.File.OpenError;
 
+    pub fn isInitialized(self: *const Db) bool {
+        return self.header.dim != 0 and self.header.row_count >= 0;
+    }
+
     pub fn init(self: *Db, dim: u16) DbError!void {
-        if (self.header.dim != 0 or self.header.row_count != 0)
+        // Allow re-initialization with the same dimensions
+        if (self.isInitialized()) {
+            if (self.header.dim == dim) {
+                // Already initialized with same dimensions, that's OK
+                return;
+            }
             return DbError.AlreadyInitialized;
+        }
         if (dim == 0 or dim > 4096)
             return DbError.DimensionMismatch;
 
