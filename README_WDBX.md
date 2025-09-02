@@ -71,6 +71,7 @@ The WDBX CLI provides comprehensive database management:
 The HTTP server provides a RESTful interface for vector operations:
 
 #### Start Server
+
 ```bash
 ./zig-out/bin/wdbx http 8080
 ```
@@ -78,16 +79,19 @@ The HTTP server provides a RESTful interface for vector operations:
 #### API Endpoints
 
 **Health Check**
+
 ```bash
 curl http://localhost:8080/health
 ```
 
 **Database Statistics**
+
 ```bash
 curl http://localhost:8080/stats
 ```
 
 **Add Vector** (requires admin token)
+
 ```bash
 # Get JWT token first
 TOKEN=$(./zig-out/bin/wdbx gen_token admin | grep "JWT:" | cut -d' ' -f2)
@@ -99,16 +103,19 @@ curl -X POST "http://localhost:8080/add" \
 ```
 
 **Query Nearest Neighbor**
+
 ```bash
 curl "http://localhost:8080/query?vec=1.1,2.1,3.1,4.1,5.1,6.1,7.1,8.1"
 ```
 
 **Query K-Nearest Neighbors**
+
 ```bash
 curl "http://localhost:8080/knn?vec=1.1,2.1,3.1,4.1,5.1,6.1,7.1,8.1&k=5"
 ```
 
 **Performance Monitoring**
+
 ```bash
 curl http://localhost:8080/monitor
 ```

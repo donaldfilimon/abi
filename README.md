@@ -11,6 +11,7 @@ Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency
 ## Features
 
 ### 🚀 Performance & Monitoring
+
 - **GPU Acceleration**: WebGPU support with fallback to platform-specific APIs
 - **SIMD Optimizations**: 3GB/s+ text processing throughput with alignment safety
 - **Lock-free Concurrency**: Wait-free data structures for minimal contention
@@ -20,12 +21,14 @@ Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency
 - **Benchmarking Suite**: Automated performance regression testing
 
 ### 🤖 AI Capabilities
+
 - **Multi-persona AI Agents**: 8 distinct personalities with OpenAI integration
 - **Neural Networks**: Feed-forward networks with SIMD-accelerated operations
 - **Vector Database**: Custom WDBX-AI format for high-dimensional embeddings
 - **Machine Learning**: Simple yet effective ML algorithms with memory safety
 
 ### 🛠️ Developer Tools & Testing
+
 - **LSP Server**: Sub-10ms completion responses
 - **Cell Language**: Domain-specific language with interpreter
 - **TUI Interface**: Terminal UI with GPU rendering (500+ FPS)
@@ -34,6 +37,7 @@ Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency
 - **CLI Framework**: Full command-line interface with extensive options
 
 ### 🌐 Platform Support
+
 - **Cross-platform**: Windows, Linux, macOS, iOS (a-Shell)
 - **Platform Optimizations**: OS-specific performance enhancements
 - **Discord Integration**: Bot framework with gateway support
@@ -41,6 +45,7 @@ Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency
 ## Installation
 
 ### Prerequisites
+
 - **Zig 0.16.0-dev or later** (required for latest features)
 - GPU drivers (optional, for acceleration)
 - OpenAI API key (for AI agent features)
@@ -221,25 +226,30 @@ const value = queue.dequeue(); // Returns ?i32
 The framework is organized into the following modules:
 
 ### Core Framework
+
 - **`abi`**: Main module exporting all functionality
 - **`root.zig`**: Framework initialization and configuration
 
 ### AI & Machine Learning
+
 - **`ai/`**: AI agent system with multiple personas and backends
 - **`neural.zig`**: Neural network implementation with memory safety
 - **`database.zig`**: WDBX-AI vector database with advanced indexing
 
 ### Performance & Acceleration
+
 - **`simd/`**: SIMD-accelerated operations with alignment safety
 - **`simd_vector.zig`**: SIMD-accelerated vector operations
 - **`platform.zig`**: Platform-specific optimizations
 
 ### Monitoring & Profiling
+
 - **`memory_tracker.zig`**: Comprehensive memory usage monitoring and leak detection
 - **`performance_profiler.zig`**: CPU performance profiling with call tracing
 - **`benchmarking.zig`**: Automated benchmarking and regression testing
 
 ### Developer Tools
+
 - **`cli/`**: Full command-line interface with extensive options
 - **`lockfree.zig`**: Lock-free concurrent data structures
 - **`discord/`**: Discord bot integration and gateway support
@@ -248,6 +258,7 @@ The framework is organized into the following modules:
 - **`web_server.zig`**: REST API endpoints and HTTP server
 
 ### Testing & Validation
+
 - **`tests/test_memory_management.zig`**: Memory safety and leak detection tests
 - **`tests/test_performance_regression.zig`**: Performance regression monitoring
 - **`tests/test_cli_integration.zig`**: CLI functionality integration tests

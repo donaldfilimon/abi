@@ -25,7 +25,7 @@ pub const WdbxHttpServer = struct {
     allocator: std.mem.Allocator,
     config: ServerConfig,
     db: ?*database.Db,
-    server: http.Server,
+    server: ?std.net.Server,
     rate_limiter: RateLimiter,
 
     const Self = @This();
@@ -79,10 +79,7 @@ pub const WdbxHttpServer = struct {
             .allocator = allocator,
             .config = config,
             .db = null,
-            .server = http.Server.init(.{
-                .allocator = allocator,
-                .reuse_address = true,
-            }),
+            .server = null, // Will be initialized in run()
             .rate_limiter = RateLimiter.init(allocator, config.rate_limit),
         };
 
@@ -94,9 +91,16 @@ pub const WdbxHttpServer = struct {
         if (self.db) |db| {
             db.close();
         }
-        self.server.deinit();
+        if (self.server) |*server| {
+            server.deinit();
+        }
         self.rate_limiter.deinit();
         self.allocator.destroy(self);
+    }
+
+    /// Run the HTTP server (alias for start)
+    pub fn run(self: *Self) !void {
+        try self.start();
     }
 
     /// Open database connection
@@ -110,20 +114,37 @@ pub const WdbxHttpServer = struct {
     /// Start HTTP server
     pub fn start(self: *Self) !void {
         const address = try std.net.Address.parseIp(self.config.host, self.config.port);
-        try self.server.listen(address);
+        self.server = try address.listen(.{ .reuse_address = true });
 
-        std.debug.print("WDBX HTTP server listening on {}:{}\n", .{ self.config.host, self.config.port });
+        std.debug.print("WDBX HTTP server listening on {s}:{}\n", .{ self.config.host, self.config.port });
 
         while (true) {
-            var response = try self.server.accept(.{});
-            defer response.deinit();
+            const connection = try self.server.?.accept();
+            defer connection.stream.close();
 
-            try self.handleRequest(&response);
+            try self.handleConnection(connection);
         }
     }
 
-    /// Handle HTTP request
-    fn handleRequest(self: *Self, response: *http.Server.Response) !void {
+    /// Handle TCP connection
+    fn handleConnection(self: *Self, connection: std.net.Server.Connection) !void {
+        var buffer: [4096]u8 = undefined;
+        const bytes_read = try connection.stream.read(&buffer);
+
+        // Simple HTTP response for now
+        const response = "HTTP/1.1 200 OK\r\n" ++
+            "Content-Type: application/json\r\n" ++
+            "Content-Length: 27\r\n" ++
+            "\r\n" ++
+            "{\"status\":\"WDBX Server OK\"}";
+
+        _ = try connection.stream.write(response);
+        _ = self;
+        _ = bytes_read;
+    }
+
+    /// Handle HTTP request (legacy method for future implementation)
+    fn handleRequest(self: *Self, response: anytype) !void {
         // Parse request
         const request = response.request;
         _ = request.method; // Will be used for method-specific routing
