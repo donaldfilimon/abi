@@ -1,71 +1,99 @@
+//! @Definitions
+//!
+//! **GpuBackendConfig:**  
+//!   Configures the GPU backend. Fields:
+//!     - `max_batch_size`: Maximum vectors per batch (default: 1024).
+//!     - `memory_limit`: Maximum GPU memory in bytes (default: 512MB).
+//!     - `debug_validation`: Enable/disable GPU debug/validation layers.
+//!     - `power_preference`: Preferred GPU power profile (e.g., high_performance, low_power).
+//!
+//! **GpuBackend:**  
+//!   Main context for GPU-accelerated vector search. Fields:
+//!     - `config`: GpuBackendConfig instance.
+//!     - `allocator`: CPU-side memory allocator.
+//!     - `gpu_available`: Whether a suitable GPU is available.
+//!     - `memory_used`: Current GPU memory usage.
+//!     - `Error`: Error set for all GPU backend operations.
+//!   Methods for initialization, cleanup, and vector search (with CPU fallback).
+//!
+//! **GpuBackend.Error:**  
+//!   Error set for GPU backend operations, including:
+//!     - `GpuNotAvailable`, `GpuInitializationFailed`, `AdapterNotFound`, `DeviceCreationFailed`,
+//!       `PipelineCreationFailed`, `BufferCreationFailed`, `OperationTimeout`, `InsufficientGpuMemory`,
+//!       `ShaderCompilationFailed`, `InvalidBufferSize`, `GpuOperationFailed`,
+//!       and all `std.mem.Allocator.Error` errors.
+//!
+//! **GpuBackend.init(allocator, config):**  
+//!   Initializes a GpuBackend instance with the given allocator and configuration.
+//!   Returns a pointer to the backend or an error if initialization fails.
+//!
+//! **GpuBackend.deinit():**  
+//!   Cleans up and releases all resources held by the backend.
+//!
+//! **GpuBackend.searchSimilar(db, query, top_k):**  
+//!   Performs a vector similarity search for the given query vector against the database.
+//!   Returns the top_k closest results. Falls back to CPU if GPU is unavailable.
+//!
+//! **GpuBackend.batchSearch(db, queries, top_k):**  
+//!   Batch version of searchSimilar, processes multiple queries and returns results for each.
+//!
+//! **BatchConfig:**  
+//!   Configuration for batch processing. Fields:
+//!     - `parallel_queries`: Number of queries to process in parallel (default: 4).
+//!     - `max_batch_size`: Maximum batch size for each batch (default: 1024).
+//!     - `report_progress`: Whether to log progress information.
+//!
+//! **BatchProcessor:**  
+//!   Utility for batch processing of vector search queries. Fields:
+//!     - `backend`: Pointer to the GpuBackend instance.
+//!     - `config`: BatchConfig instance.
+//!   Methods for batch processing with or without progress reporting and callbacks.
+//!
+//! **GpuStats:**  
+//!   Tracks performance statistics for GPU operations. Fields:
+//!     - `total_operations`: Total number of operations performed.
+//!     - `total_gpu_time`: Total time spent in GPU operations (in microseconds).
+//!     - `peak_memory_usage`: Highest observed memory usage.
+//!     - `cpu_fallback_count`: Number of times CPU fallback was used.
+//!   Methods to record operations, compute averages, and print statistics.
+
 const std = @import("std");
 const gpu = std.gpu;
 
 const database = @import("database.zig");
 const root = @import("root.zig");
 
-// GPU-Accelerated Backend for WDBX-AI Vector Database
-//
-// This module provides GPU-accelerated operations for vector similarity search,
-// batch processing, and compute-intensive operations using WebGPU through std.gpu.
-//
-// Features:
-// - GPU-accelerated vector similarity search
-// - Batch vector processing
-// - Compute shader-based operations
-// - Asynchronous GPU operations
-// - Memory-efficient GPU buffer management
-
-/// GPU Backend configuration
+/// Configuration for the GPU backend.
 pub const GpuBackendConfig = struct {
-    /// Maximum number of vectors to process in a single batch
     max_batch_size: u32 = 1024,
-    /// GPU memory limit in bytes
     memory_limit: u64 = 512 * 1024 * 1024, // 512MB
-    /// Enable debug validation layers
     debug_validation: bool = false,
-    /// Preferred GPU power preference
     power_preference: gpu.PowerPreference = .high_performance,
 };
 
-/// GPU backend context for accelerated operations
+/// Main context for GPU-accelerated operations.
 pub const GpuBackend = struct {
-    /// Configuration
     config: GpuBackendConfig,
-    /// Allocator for CPU-side memory
     allocator: std.mem.Allocator,
-    /// GPU availability flag
     gpu_available: bool = false,
-    /// Memory usage tracking
     memory_used: u64 = 0,
 
-    /// Error types for GPU backend operations - improved based on Zig best practices
+    /// Error set for all GPU backend operations.
     pub const Error = error{
-        /// GPU not available on this system
         GpuNotAvailable,
-        /// GPU initialization failed
         GpuInitializationFailed,
-        /// GPU adapter not found
         AdapterNotFound,
-        /// GPU device creation failed
         DeviceCreationFailed,
-        /// Compute pipeline creation failed
         PipelineCreationFailed,
-        /// GPU buffer creation failed
         BufferCreationFailed,
-        /// GPU operation timeout
         OperationTimeout,
-        /// Insufficient GPU memory
         InsufficientGpuMemory,
-        /// Shader compilation failed
         ShaderCompilationFailed,
-        /// Invalid buffer size
         InvalidBufferSize,
-        /// GPU operation failed
         GpuOperationFailed,
     } || std.mem.Allocator.Error;
 
-    /// Initialize GPU backend with given configuration
+    /// Initialize the GPU backend with the given configuration.
     pub fn init(allocator: std.mem.Allocator, config: GpuBackendConfig) Error!*GpuBackend {
         const self = try allocator.create(GpuBackend);
         errdefer allocator.destroy(self);
@@ -77,62 +105,55 @@ pub const GpuBackend = struct {
             .memory_used = 0,
         };
 
-        // Check if GPU is available (simplified check)
         self.gpu_available = checkGpuAvailability();
 
         if (!self.gpu_available) {
-            // Still return a valid backend, but operations will fallback to CPU
             std.log.warn("GPU not available, using CPU fallback for compute operations", .{});
         }
 
         return self;
     }
 
-    /// Clean up GPU resources
+    /// Clean up and release all resources held by the backend.
     pub fn deinit(self: *GpuBackend) void {
         self.allocator.destroy(self);
     }
 
-    /// Check if GPU is available on the system
+    /// Check if a suitable GPU is available for compute.
     fn checkGpuAvailability() bool {
-        // In a real implementation, this would check for WebGPU/Vulkan/etc support
-        // For now, return false to use CPU fallback
+        // In a real implementation, this would check for WebGPU/Vulkan/Metal/DX12 support.
+        // For now, return false to use CPU fallback.
         return false;
     }
 
-    /// GPU-accelerated vector similarity search with CPU fallback
+    /// Perform a vector similarity search for the given query vector against the database.
+    /// Returns the top_k closest results. Falls back to CPU if GPU is unavailable.
     pub fn searchSimilar(self: *GpuBackend, db: *database.Db, query: []const f32, top_k: usize) Error![]database.Db.Result {
-        // Fast path check for query validity
-        if (query.len == 0) return Error.InvalidBufferSize;
-        if (query.len != db.header.dim) return Error.InvalidBufferSize;
+        if (query.len == 0 or query.len != db.header.dim)
+            return Error.InvalidBufferSize;
 
-        // Use CPU fallback if GPU is not available
         if (!self.gpu_available) {
             return self.searchSimilarCpu(db, query, top_k);
         }
 
-        // GPU implementation would go here
+        // GPU implementation would go here (see gpu_examples.zig for reference).
         return Error.GpuNotAvailable;
     }
 
-    /// CPU fallback implementation for vector similarity search
+    /// CPU fallback implementation for vector similarity search.
     fn searchSimilarCpu(self: *GpuBackend, db: *database.Db, query: []const f32, top_k: usize) Error![]database.Db.Result {
         const vector_count = db.header.row_count;
         const dimension = db.header.dim;
 
-        if (vector_count == 0) {
+        if (vector_count == 0)
             return self.allocator.alloc(database.Db.Result, 0);
-        }
 
-        // Allocate results array
         var results = try self.allocator.alloc(database.Db.Result, vector_count);
         defer self.allocator.free(results);
 
-        // Allocate buffer for reading vectors
         const vector_buffer = try self.allocator.alloc(f32, dimension);
         defer self.allocator.free(vector_buffer);
 
-        // Calculate distances for all vectors
         const record_size = @as(u64, dimension) * @sizeOf(f32);
 
         for (0..vector_count) |i| {
@@ -142,7 +163,6 @@ pub const GpuBackend = struct {
             const vector_bytes = std.mem.sliceAsBytes(vector_buffer);
             try db.file.reader().readNoEof(vector_bytes);
 
-            // Calculate squared Euclidean distance
             var distance: f32 = 0.0;
             for (vector_buffer, 0..) |val, j| {
                 const diff = val - query[j];
@@ -155,10 +175,8 @@ pub const GpuBackend = struct {
             };
         }
 
-        // Sort results by score (ascending)
         std.mem.sort(database.Db.Result, results, {}, comptime database.Db.Result.lessThanAsc);
 
-        // Return top-k results
         const result_count = @min(top_k, results.len);
         const final_results = try self.allocator.alloc(database.Db.Result, result_count);
         @memcpy(final_results, results[0..result_count]);
@@ -166,12 +184,12 @@ pub const GpuBackend = struct {
         return final_results;
     }
 
-    /// Check if there's enough GPU memory for an operation
+    /// Returns true if there is enough GPU memory for an operation.
     pub fn hasMemoryFor(self: *const GpuBackend, bytes: u64) bool {
         return self.memory_used + bytes <= self.config.memory_limit;
     }
 
-    /// Batch process multiple queries
+    /// Batch version of searchSimilar, processes multiple queries and returns results for each.
     pub fn batchSearch(self: *GpuBackend, db: *database.Db, queries: []const []const f32, top_k: usize) Error![][]database.Db.Result {
         const results = try self.allocator.alloc([]database.Db.Result, queries.len);
         errdefer self.allocator.free(results);
@@ -192,17 +210,14 @@ pub const GpuBackend = struct {
     }
 };
 
-/// Batch processing configuration
+/// Configuration for batch processing.
 pub const BatchConfig = struct {
-    /// Number of queries to process in parallel
     parallel_queries: u32 = 4,
-    /// Maximum batch size
     max_batch_size: u32 = 1024,
-    /// Enable progress reporting
     report_progress: bool = false,
 };
 
-/// Batch processor for multiple vector operations
+/// Utility for batch processing of vector search queries.
 pub const BatchProcessor = struct {
     backend: *GpuBackend,
     config: BatchConfig,
@@ -214,7 +229,7 @@ pub const BatchProcessor = struct {
         };
     }
 
-    /// Process a batch of queries with progress reporting
+    /// Process a batch of queries with optional progress reporting.
     pub fn processBatch(self: *BatchProcessor, db: *database.Db, queries: []const []const f32, top_k: usize) ![][]database.Db.Result {
         const batch_count = (queries.len + self.config.max_batch_size - 1) / self.config.max_batch_size;
 
@@ -225,7 +240,7 @@ pub const BatchProcessor = struct {
         return self.backend.batchSearch(db, queries, top_k);
     }
 
-    /// Process queries with a callback for each result
+    /// Process queries with a callback for each result.
     pub fn processBatchWithCallback(
         self: *BatchProcessor,
         db: *database.Db,
@@ -241,15 +256,11 @@ pub const BatchProcessor = struct {
     }
 };
 
-/// Performance statistics for GPU operations
+/// Tracks performance statistics for GPU operations.
 pub const GpuStats = struct {
-    /// Total operations performed
     total_operations: u64 = 0,
-    /// Total time spent in GPU operations (microseconds)
     total_gpu_time: u64 = 0,
-    /// Peak memory usage
     peak_memory_usage: u64 = 0,
-    /// Number of fallbacks to CPU
     cpu_fallback_count: u64 = 0,
 
     pub fn recordOperation(self: *GpuStats, duration_us: u64, memory_used: u64, used_cpu: bool) void {

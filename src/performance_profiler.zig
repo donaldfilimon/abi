@@ -1,137 +1,114 @@
 //! Performance Profiling Infrastructure
 //!
-//! This module provides comprehensive performance profiling capabilities including:
-//! - CPU performance monitoring
-//! - Function call tracing
-//! - Performance counters
-//! - Hot path analysis
+//! This module provides comprehensive and extensible performance profiling capabilities including:
+//! - CPU performance monitoring (sampling and counters)
+//! - Function call tracing and call tree analysis
+//! - Performance counters (custom and built-in)
+//! - Hot path and bottleneck analysis
 //! - Integration with memory tracking
+//! - Thread-aware profiling
+//! - Flexible configuration for development and production
 
 const std = @import("std");
 const memory_tracker = @import("memory_tracker.zig");
 
 /// Performance profiling configuration
 pub const ProfilingConfig = struct {
-    /// Enable CPU profiling
+    /// Enable CPU profiling (sampling and counters)
     enable_cpu_profiling: bool = true,
-    /// Enable function call tracing
+    /// Enable function call tracing (call stacks, call tree)
     enable_call_tracing: bool = false,
-    /// Enable performance counters
+    /// Enable performance counters (custom and built-in)
     enable_counters: bool = true,
-    /// Sampling interval (nanoseconds)
+    /// Sampling interval (nanoseconds) for periodic sampling
     sampling_interval_ns: u64 = 1_000_000, // 1ms
-    /// Maximum number of call stack frames
+    /// Maximum number of call stack frames to record
     max_stack_depth: usize = 64,
-    /// Enable memory integration
+    /// Enable memory integration (track allocations/deallocations)
     enable_memory_integration: bool = true,
-    /// Performance report output interval
+    /// Performance report output interval (nanoseconds)
     report_interval_ns: u64 = 10_000_000_000, // 10 seconds
+    /// Maximum number of function profilers to keep
+    max_function_profilers: usize = 1024,
+    /// Maximum number of call records to keep in a session
+    max_call_records: usize = 10_000,
 };
 
-/// Function call record
+/// Function call record (for call tracing and call tree)
 pub const CallRecord = struct {
-    /// Function name
     function_name: []const u8,
-    /// Source file
     file: []const u8,
-    /// Line number
     line: u32,
-    /// Entry timestamp
     entry_time: u64,
-    /// Exit timestamp (0 if not exited)
     exit_time: u64 = 0,
-    /// Call depth
     depth: u32,
-    /// Parent call ID
     parent_id: ?u64,
-    /// Unique call ID
     call_id: u64,
-    /// Thread ID
     thread_id: std.Thread.Id,
 
-    /// Calculate call duration
+    /// Calculate call duration (nanoseconds)
     pub fn duration(self: CallRecord) u64 {
         if (self.exit_time == 0) return 0;
         return self.exit_time - self.entry_time;
     }
 
-    /// Check if call is complete
+    /// Check if call is complete (has exit time)
     pub fn isComplete(self: CallRecord) bool {
         return self.exit_time != 0;
     }
 };
 
-/// Performance counter
+/// Performance counter (for custom and built-in metrics)
 pub const PerformanceCounter = struct {
-    /// Counter name
     name: []const u8,
-    /// Counter value
     value: u64 = 0,
-    /// Unit of measurement
     unit: []const u8,
-    /// Description
     description: []const u8,
-    /// Last update timestamp
     last_update: u64 = 0,
 
-    /// Increment counter
     pub fn increment(self: *PerformanceCounter) void {
         self.value += 1;
         self.last_update = std.time.nanoTimestamp();
     }
 
-    /// Add value to counter
     pub fn add(self: *PerformanceCounter, delta: u64) void {
         self.value += delta;
         self.last_update = std.time.nanoTimestamp();
     }
 
-    /// Set counter value
     pub fn set(self: *PerformanceCounter, new_value: u64) void {
         self.value = new_value;
         self.last_update = std.time.nanoTimestamp();
     }
 
-    /// Reset counter
     pub fn reset(self: *PerformanceCounter) void {
         self.value = 0;
         self.last_update = std.time.nanoTimestamp();
     }
 };
 
-/// Performance profile data
+/// Performance profile data (per session)
 pub const PerformanceProfile = struct {
-    /// Total execution time
     total_time: u64 = 0,
-    /// CPU time spent
     cpu_time: u64 = 0,
-    /// Memory allocations during profiling
     allocations: u64 = 0,
-    /// Memory deallocations during profiling
     deallocations: u64 = 0,
-    /// Peak memory usage during profiling
     peak_memory: usize = 0,
-    /// Function call records
     call_records: std.ArrayListUnmanaged(CallRecord),
-    /// Performance counters
     counters: std.StringHashMapUnmanaged(PerformanceCounter),
-    /// Start timestamp
     start_time: u64,
-    /// End timestamp (0 if profiling active)
     end_time: u64 = 0,
+    session_name: []const u8 = "",
 
-    /// Calculate profiling duration
     pub fn duration(self: PerformanceProfile) u64 {
         if (self.end_time == 0) return std.time.nanoTimestamp() - self.start_time;
         return self.end_time - self.start_time;
     }
 
-    /// Get profiling duration in seconds
     pub fn durationSeconds(self: PerformanceProfile) f64 {
         return @as(f64, @floatFromInt(self.duration())) / 1_000_000_000.0;
     }
 
-    /// Calculate CPU utilization
     pub fn cpuUtilization(self: PerformanceProfile) f64 {
         const total_duration = self.duration();
         if (total_duration == 0) return 0.0;
@@ -139,28 +116,18 @@ pub const PerformanceProfile = struct {
     }
 };
 
-/// Function profiler for instrumenting functions
+/// Function profiler for instrumenting and aggregating function stats
 pub const FunctionProfiler = struct {
-    /// Function name
     function_name: []const u8,
-    /// File name
     file_name: []const u8,
-    /// Line number
     line_number: u32,
-    /// Total call count
     call_count: u64 = 0,
-    /// Total execution time
     total_time: u64 = 0,
-    /// Minimum execution time
     min_time: u64 = std.math.maxInt(u64),
-    /// Maximum execution time
     max_time: u64 = 0,
-    /// Average execution time
     average_time: f64 = 0,
-    /// Last call timestamp
     last_call_time: u64 = 0,
 
-    /// Record function entry
     pub fn enter(self: *FunctionProfiler) u64 {
         const entry_time = std.time.nanoTimestamp();
         self.call_count += 1;
@@ -168,30 +135,24 @@ pub const FunctionProfiler = struct {
         return entry_time;
     }
 
-    /// Record function exit
     pub fn exit(self: *FunctionProfiler, entry_time: u64) void {
         const exit_time = std.time.nanoTimestamp();
         const duration = exit_time - entry_time;
 
         self.total_time += duration;
 
-        if (duration < self.min_time) {
-            self.min_time = duration;
-        }
-        if (duration > self.max_time) {
-            self.max_time = duration;
-        }
+        if (duration < self.min_time) self.min_time = duration;
+        if (duration > self.max_time) self.max_time = duration;
 
-        // Update rolling average
+        // Exponential moving average for average_time
         if (self.call_count == 1) {
             self.average_time = @as(f64, @floatFromInt(duration));
         } else {
-            const alpha = 0.1; // Smoothing factor
+            const alpha = 0.1;
             self.average_time = self.average_time * (1.0 - alpha) + @as(f64, @floatFromInt(duration)) * alpha;
         }
     }
 
-    /// Get average execution time in nanoseconds
     pub fn averageExecutionTime(self: FunctionProfiler) u64 {
         if (self.call_count == 0) return 0;
         return @intFromFloat(self.average_time);
@@ -200,27 +161,16 @@ pub const FunctionProfiler = struct {
 
 /// Main performance profiler
 pub const PerformanceProfiler = struct {
-    /// Configuration
     config: ProfilingConfig,
-    /// Memory allocator
     allocator: std.mem.Allocator,
-    /// Function profilers
     function_profilers: std.StringHashMapUnmanaged(FunctionProfiler),
-    /// Current performance profile
     current_profile: ?PerformanceProfile = null,
-    /// Call stack for tracing
     call_stack: std.ArrayListUnmanaged(CallRecord),
-    /// Performance counters
     counters: std.StringHashMapUnmanaged(PerformanceCounter),
-    /// Next call ID
     next_call_id: u64 = 1,
-    /// Memory tracker integration
     memory_tracker: ?*memory_tracker.MemoryProfiler = null,
-    /// Mutex for thread safety
     mutex: std.Thread.Mutex = .{},
-    /// Profiling thread
     profiling_thread: ?std.Thread = null,
-    /// Stop profiling flag
     stop_profiling: bool = false,
 
     /// Initialize performance profiler
@@ -236,13 +186,11 @@ pub const PerformanceProfiler = struct {
             .counters = std.StringHashMapUnmanaged(PerformanceCounter){},
         };
 
-        // Initialize default performance counters
         try self.initDefaultCounters();
-
         return self;
     }
 
-    /// Deinitialize performance profiler
+    /// Deinitialize performance profiler and free all resources
     pub fn deinit(self: *PerformanceProfiler) void {
         self.stop();
 
@@ -253,6 +201,8 @@ pub const PerformanceProfiler = struct {
         var profiler_iter = self.function_profilers.iterator();
         while (profiler_iter.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
+            self.allocator.free(entry.value_ptr.function_name);
+            self.allocator.free(entry.value_ptr.file_name);
         }
         self.function_profilers.deinit(self.allocator);
 
@@ -264,9 +214,14 @@ pub const PerformanceProfiler = struct {
                 self.allocator.free(entry.key_ptr.*);
             }
             profile.counters.deinit(self.allocator);
+            if (profile.session_name.len > 0) self.allocator.free(profile.session_name);
         }
 
         // Clean up call stack
+        for (self.call_stack.items) |record| {
+            self.allocator.free(record.function_name);
+            self.allocator.free(record.file);
+        }
         self.call_stack.deinit(self.allocator);
 
         // Clean up counters
@@ -293,6 +248,7 @@ pub const PerformanceProfiler = struct {
             .{ .name = "allocations", .unit = "count", .description = "Memory allocations" },
             .{ .name = "deallocations", .unit = "count", .description = "Memory deallocations" },
             .{ .name = "function_calls", .unit = "count", .description = "Function calls" },
+            .{ .name = "cpu_time", .unit = "ns", .description = "CPU time measured" },
         };
 
         for (default_counters) |counter_def| {
@@ -318,11 +274,13 @@ pub const PerformanceProfiler = struct {
         }
 
         const start_time = std.time.nanoTimestamp();
+        const session_name_copy = try self.allocator.dupe(u8, session_name);
 
         self.current_profile = .{
-            .call_records = try std.ArrayListUnmanaged(CallRecord).initCapacity(self.allocator, 1000),
+            .call_records = try std.ArrayListUnmanaged(CallRecord).initCapacity(self.allocator, self.config.max_call_records),
             .counters = std.StringHashMapUnmanaged(PerformanceCounter){},
             .start_time = start_time,
+            .session_name = session_name_copy,
         };
 
         // Copy current counters to profile
@@ -339,7 +297,7 @@ pub const PerformanceProfiler = struct {
         }
     }
 
-    /// End profiling session
+    /// End profiling session and return report
     pub fn endSession(self: *PerformanceProfiler) ![]u8 {
         self.mutex.lock();
         defer self.mutex.unlock();
@@ -375,19 +333,24 @@ pub const PerformanceProfiler = struct {
         const report = try self.generateProfileReport(&profile);
 
         // Clean up profile
+        for (profile.call_records.items) |record| {
+            self.allocator.free(record.function_name);
+            self.allocator.free(record.file);
+        }
         profile.call_records.deinit(self.allocator);
         var counter_iter = profile.counters.iterator();
         while (counter_iter.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
         }
         profile.counters.deinit(self.allocator);
+        if (profile.session_name.len > 0) self.allocator.free(profile.session_name);
 
         self.current_profile = null;
 
         return report;
     }
 
-    /// Start function call
+    /// Start function call (for call tracing)
     pub fn startFunctionCall(self: *PerformanceProfiler, function_name: []const u8, file: []const u8, line: u32) !u64 {
         if (!self.config.enable_call_tracing) return 0;
 
@@ -444,7 +407,7 @@ pub const PerformanceProfiler = struct {
         return profiler_entry_time;
     }
 
-    /// End function call
+    /// End function call (for call tracing)
     pub fn endFunctionCall(self: *PerformanceProfiler, entry_time: u64) void {
         if (!self.config.enable_call_tracing) return;
 
@@ -456,7 +419,7 @@ pub const PerformanceProfiler = struct {
         const record = self.call_stack.pop();
         const exit_time = std.time.nanoTimestamp();
 
-        // Update record
+        // Update record in current profile
         if (self.current_profile) |*profile| {
             for (profile.call_records.items) |*rec| {
                 if (rec.call_id == record.call_id) {
@@ -479,7 +442,7 @@ pub const PerformanceProfiler = struct {
         self.allocator.free(record.file);
     }
 
-    /// Update performance counter
+    /// Update or create a performance counter
     pub fn updateCounter(self: *PerformanceProfiler, name: []const u8, delta: u64) void {
         self.mutex.lock();
         defer self.mutex.unlock();
@@ -487,7 +450,6 @@ pub const PerformanceProfiler = struct {
         if (self.counters.getPtr(name)) |counter| {
             counter.add(delta);
         } else if (self.config.enable_counters) {
-            // Create new counter
             const name_copy = self.allocator.dupe(u8, name) catch return;
             const counter = PerformanceCounter{
                 .name = name_copy,
@@ -504,7 +466,7 @@ pub const PerformanceProfiler = struct {
         }
     }
 
-    /// Get function profiler statistics
+    /// Get function profiler statistics (sorted by total_time descending)
     pub fn getFunctionStats(self: *PerformanceProfiler, allocator: std.mem.Allocator) ![]FunctionProfiler {
         self.mutex.lock();
         defer self.mutex.unlock();
@@ -517,10 +479,17 @@ pub const PerformanceProfiler = struct {
             try stats.append(allocator, entry.value_ptr.*);
         }
 
+        // Sort by total_time descending
+        std.sort.insertion(FunctionProfiler, stats.items, {}, struct {
+            fn lessThan(_: void, a: FunctionProfiler, b: FunctionProfiler) bool {
+                return a.total_time > b.total_time;
+            }
+        }.lessThan);
+
         return try stats.toOwnedSlice(allocator);
     }
 
-    /// Generate profiling report
+    /// Generate profiling report (returns owned slice)
     fn generateProfileReport(self: *PerformanceProfiler, profile: *PerformanceProfile) ![]u8 {
         var report = std.ArrayListUnmanaged(u8){};
         errdefer report.deinit(self.allocator);
@@ -528,6 +497,8 @@ pub const PerformanceProfiler = struct {
         const writer = report.writer(self.allocator);
 
         try writer.print("=== Performance Profile Report ===\n", .{});
+        if (profile.session_name.len > 0)
+            try writer.print("Session: {s}\n", .{profile.session_name});
         try writer.print("Duration: {d:.3} seconds\n", .{profile.durationSeconds()});
         try writer.print("Total CPU Time: {d} ns\n", .{profile.cpu_time});
         try writer.print("CPU Utilization: {d:.1}%\n", .{profile.cpuUtilization() * 100.0});
@@ -557,13 +528,6 @@ pub const PerformanceProfiler = struct {
         const function_stats = try self.getFunctionStats(self.allocator);
         defer self.allocator.free(function_stats);
 
-        // Sort by total time (descending)
-        std.sort.insertion(FunctionProfiler, function_stats, {}, struct {
-            fn lessThan(_: void, a: FunctionProfiler, b: FunctionProfiler) bool {
-                return a.total_time > b.total_time;
-            }
-        }.lessThan);
-
         const top_count = @min(10, function_stats.len);
         for (function_stats[0..top_count], 0..) |func, i| {
             const total_ms = @as(f64, @floatFromInt(func.total_time)) / 1_000_000.0;
@@ -590,7 +554,7 @@ pub const PerformanceProfiler = struct {
             }
 
             try writer.print("Completed calls: {d}\n", .{completed_calls});
-            try writer.print("Average call duration: {d} ns\n", .{total_call_time / @max(1, completed_calls)});
+            try writer.print("Average call duration: {d} ns\n", .{if (completed_calls > 0) total_call_time / completed_calls else 0});
         }
 
         try writer.print("\n=== End Report ===\n", .{});
@@ -598,7 +562,7 @@ pub const PerformanceProfiler = struct {
         return try report.toOwnedSlice(self.allocator);
     }
 
-    /// Start profiling thread for periodic sampling
+    /// Start profiling thread for periodic sampling/reporting
     fn startProfilingThread(self: *PerformanceProfiler) void {
         if (self.profiling_thread != null) return;
 
@@ -615,18 +579,16 @@ pub const PerformanceProfiler = struct {
         }
     }
 
-    /// Profiling thread loop
+    /// Profiling thread loop (periodic sampling/reporting)
     fn profilingLoop(self: *PerformanceProfiler) void {
         var last_report_time = std.time.nanoTimestamp();
 
         while (!self.stop_profiling) {
-            // Periodic sampling (if implemented)
-            // This would collect CPU samples, stack traces, etc.
+            // TODO: Implement periodic sampling (CPU, stack, etc.)
 
             // Generate periodic reports
             const current_time = std.time.nanoTimestamp();
             if (current_time - last_report_time >= self.config.report_interval_ns) {
-                // Generate and log report
                 if (self.current_profile) |*profile| {
                     const report = self.generateProfileReport(profile) catch continue;
                     defer self.allocator.free(report);
@@ -656,15 +618,11 @@ pub const PerformanceProfiler = struct {
     }
 };
 
-/// Performance measurement scope
+/// Performance measurement scope (RAII-style)
 pub const Scope = struct {
-    /// Associated profiler
     profiler: *PerformanceProfiler,
-    /// Scope name
     name: []const u8,
-    /// Start timestamp
     start_time: u64,
-    /// Memory usage at start
     memory_start: usize,
 
     /// End the scope and record measurements
@@ -689,7 +647,7 @@ pub const Scope = struct {
     }
 };
 
-/// Global performance profiler instance
+/// Global performance profiler instance (singleton)
 var global_profiler: ?*PerformanceProfiler = null;
 
 /// Initialize global performance profiler
@@ -721,7 +679,7 @@ pub fn startScope(name: []const u8) ?Scope {
     return null;
 }
 
-/// Convenience macro for profiling function calls (would be implemented as a macro in real usage)
+/// Convenience function for profiling function calls (to be used with defer)
 pub fn profileFunctionCall(profiler: ?*PerformanceProfiler, function_name: []const u8, file: []const u8, line: u32) FunctionCall {
     return .{
         .profiler = profiler,
@@ -732,7 +690,7 @@ pub fn profileFunctionCall(profiler: ?*PerformanceProfiler, function_name: []con
     };
 }
 
-/// Function call scope for automatic profiling
+/// Function call scope for automatic profiling (RAII-style)
 pub const FunctionCall = struct {
     profiler: ?*PerformanceProfiler,
     function_name: []const u8,
@@ -747,7 +705,7 @@ pub const FunctionCall = struct {
     }
 };
 
-/// Performance monitoring utilities
+/// Performance monitoring utilities and presets
 pub const utils = struct {
     /// Create a development profiling configuration
     pub fn developmentConfig() ProfilingConfig {
@@ -759,6 +717,8 @@ pub const utils = struct {
             .max_stack_depth = 64,
             .enable_memory_integration = true,
             .report_interval_ns = 5_000_000_000, // 5 seconds
+            .max_function_profilers = 2048,
+            .max_call_records = 100_000,
         };
     }
 
@@ -772,6 +732,8 @@ pub const utils = struct {
             .max_stack_depth = 32,
             .enable_memory_integration = true,
             .report_interval_ns = 60_000_000_000, // 60 seconds
+            .max_function_profilers = 512,
+            .max_call_records = 10_000,
         };
     }
 
@@ -785,6 +747,8 @@ pub const utils = struct {
             .max_stack_depth = 8,
             .enable_memory_integration = false,
             .report_interval_ns = 300_000_000_000, // 5 minutes
+            .max_function_profilers = 64,
+            .max_call_records = 100,
         };
     }
 };

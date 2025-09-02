@@ -49,7 +49,7 @@ pub const Activation = enum {
     pub fn applyF16(self: Activation, x: f16) f16 {
         return switch (self) {
             .ReLU => if (x > 0) x else 0,
-            .Sigmoid => 1.0 / (1.0 + @as(f16, @floatCast(@exp(@as(f64, -x))))),
+            .Sigmoid => 1.0 / (1.0 + @as(f16, @floatCast(std.math.exp(@as(f64, -x))))),
             .Tanh => @as(f16, @floatCast(math.tanh(@as(f64, x)))),
             .None => x,
         };

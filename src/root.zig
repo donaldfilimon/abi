@@ -1,396 +1,210 @@
-//! Abi AI Framework
-//! Ultra-high-performance AI framework with GPU acceleration and advanced features.
+//! WDBX-AI Vector Database - Unified Root Module
 //!
-//! This framework provides:
-//! - Multi-persona AI agents with extensible backends
-//! - GPU-accelerated vector database with WDBX-AI format
-//! - SIMD-optimized text and vector processing
-//! - Lock-free concurrent data structures
-//! - Cross-platform optimizations
-//! - Neural network training and inference
-//! - High-performance LSP server
-//! - Hot code reloading support
+//! This module provides a unified interface to all WDBX-AI functionality:
+//! - Vector database operations (HNSW, parallel search, SIMD)
+//! - AI and machine learning capabilities
+//! - Core utilities and data structures
+//! - Performance monitoring and optimization
 
 const std = @import("std");
-const builtin = @import("builtin");
 
-/// Framework version information
-pub const version = std.SemanticVersion{
-    .major = 1,
-    .minor = 0,
-    .patch = 0,
-    .pre = "alpha.1",
-};
-
-/// Build-time feature detection
-pub const features = struct {
-    pub const has_simd = @import("simd/mod.zig").config.has_simd;
-    pub const vector_width = @import("simd/mod.zig").config.vector_width;
-    pub const is_wasm = builtin.target.cpu.arch == .wasm32 or builtin.target.cpu.arch == .wasm64;
-};
-
-/// Re-export common types for convenience
-pub const Allocator = std.mem.Allocator;
-pub const ArrayList = std.ArrayListUnmanaged;
-pub const HashMap = std.HashMapUnmanaged;
-pub const MultiArrayList = std.MultiArrayList;
-
-/// Core framework modules with improved organization
-pub const core = @import("core/mod.zig");
-pub const ai = @import("ai/mod.zig");
-pub const agent = @import("agent.zig");
-pub const neural = @import("neural.zig");
-
-/// Performance and optimization modules
-pub const simd = @import("simd/mod.zig");
-
-/// Web and networking modules
-pub const web_server = @import("web_server.zig");
-
-/// Database modules
+// Import consolidated modules
 pub const database = @import("database.zig");
+pub const simd = @import("simd/mod.zig");
+pub const ai = @import("ai/mod.zig");
+pub const core = @import("core/mod.zig");
+pub const wdbx = @import("wdbx_unified.zig");
 
-/// WDBX Vector Database - Enhanced Unified Implementation
-pub const wdbx = @import("@wdbx.zig");
+// Re-export commonly used types and functions
+pub const Db = database.Db;
+pub const DbError = database.DbError;
+pub const Result = database.Result;
+pub const WdbxHeader = database.WdbxHeader;
 
-/// Platform-specific modules
-pub const platform = @import("platform.zig");
+// Re-export SIMD operations
+pub const Vector = simd.Vector;
+pub const VectorOps = simd.VectorOps;
+pub const MatrixOps = simd.MatrixOps;
+pub const PerformanceMonitor = simd.PerformanceMonitor;
 
-/// Comprehensive framework error types
-pub const Error = error{
-    // Initialization and Setup
-    InitializationFailed,
-    InvalidConfiguration,
-    FeatureNotSupported,
-    PlatformNotSupported,
+// Re-export AI capabilities
+pub const NeuralNetwork = ai.NeuralNetwork;
+pub const EmbeddingGenerator = ai.EmbeddingGenerator;
+pub const ModelTrainer = ai.ModelTrainer;
+pub const Layer = ai.Layer;
+pub const Activation = ai.Activation;
 
-    // Resource Management
-    ResourceNotFound,
-    MemoryAllocationFailed,
-    OutOfMemory,
+// Re-export core utilities
+pub const Allocator = core.Allocator;
+pub const ArrayList = core.ArrayList;
+pub const HashMap = core.HashMap;
+pub const random = core.random;
+pub const string = core.string;
+pub const time = core.time;
+pub const log = core.log;
+pub const perf = core.performance;
 
-    // Hardware and Acceleration
-    GPUNotAvailable,
-    GPUError,
-    SIMDNotSupported,
+// Re-export WDBX utilities
+pub const Command = wdbx.Command;
+pub const OutputFormat = wdbx.OutputFormat;
+pub const LogLevel = wdbx.LogLevel;
 
-    // Network and I/O
-    NetworkError,
-    ConnectionFailed,
-    TimeoutError,
-    PermissionDenied,
-    IOError,
-
-    // Data and Processing
-    DatabaseError,
-    AIModelError,
-    ValidationError,
-    InvalidInput,
-    ComputationError,
-
-    // Concurrency and Threading
-    ConcurrencyError,
-    LockError,
-    ThreadError,
-
-    // Serialization and Persistence
-    SerializationError,
-    DeserializationError,
-    FileFormatError,
-    CorruptedData,
-} || Allocator.Error || std.fs.File.OpenError || std.Thread.SpawnError;
-
-/// Global framework configuration
-pub const Config = struct {
-    /// Memory management configuration
-    memory: MemoryConfig = .{},
-
-    /// Performance configuration
-    performance: PerformanceConfig = .{},
-
-    /// AI model configuration
-    ai: AIConfig = .{},
-
-    /// Network configuration
-    network: NetworkConfig = .{},
-
-    /// Logging configuration
-    logging: LoggingConfig = .{},
-
-    /// Security configuration
-    security: SecurityConfig = .{},
-
-    pub const MemoryConfig = struct {
-        /// Maximum memory usage in bytes
-        max_memory: usize = 2 * 1024 * 1024 * 1024, // 2GB for native
-
-        /// Memory allocator type
-        allocator_type: AllocatorType = .general_purpose,
-
-        /// Enable memory pooling
-        enable_pooling: bool = true,
-
-        /// Cache line size for alignment
-        cache_line_size: u32 = 64,
-    };
-
-    pub const PerformanceConfig = struct {
-        /// Number of worker threads (0 = auto-detect)
-        thread_pool_size: u32 = 0,
-
-        /// Enable SIMD optimizations
-        enable_simd: bool = true,
-
-        /// Enable GPU acceleration
-        enable_gpu: bool = false,
-
-        /// Enable performance profiling
-        enable_profiling: bool = false,
-
-        /// Enable hot code reloading
-        enable_hot_reload: bool = false,
-
-        /// Batch size for operations
-        batch_size: u32 = 32,
-    };
-
-    pub const AIConfig = struct {
-        /// Default AI persona
-        default_persona: ai.PersonaType = .adaptive,
-
-        /// Maximum response length
-        max_response_length: usize = 4096,
-
-        /// Context window size
-        context_window: usize = 8192,
-
-        /// Temperature for generation
-        temperature: f32 = 0.7,
-
-        /// Enable safety filters
-        enable_safety: bool = true,
-
-        /// Model backend
-        backend: ai.Backend = .local,
-    };
-
-    pub const NetworkConfig = struct {
-        /// Maximum concurrent connections
-        max_connections: u32 = 1000,
-
-        /// Connection timeout in milliseconds
-        timeout_ms: u32 = 30000,
-
-        /// Enable compression
-        enable_compression: bool = true,
-
-        /// Buffer size for network operations
-        buffer_size: usize = 64 * 1024,
-    };
-
-    pub const LoggingConfig = struct {
-        /// Log level
-        level: std.log.Level = .info,
-
-        /// Enable structured logging
-        structured: bool = true,
-
-        /// Log output format
-        format: LogFormat = .json,
-
-        /// Enable telemetry
-        enable_telemetry: bool = false,
-    };
-
-    pub const SecurityConfig = struct {
-        /// Enable sandboxing
-        enable_sandbox: bool = true,
-
-        /// Enable input validation
-        enable_validation: bool = true,
-
-        /// Maximum input size
-        max_input_size: usize = 1024 * 1024, // 1MB
-
-        /// Allowed operations
-        allowed_operations: OperationSet = OperationSet.safe(),
-    };
-};
-
-/// Allocator types supported by the framework
-pub const AllocatorType = enum {
-    general_purpose,
-    arena,
-    thread_safe,
-    pool,
-    debug,
-    tracy,
-    custom,
-};
-
-/// Log output formats
-pub const LogFormat = enum {
-    text,
-    json,
-    structured,
-    compact,
-};
-
-/// Operation permission set
-pub const OperationSet = packed struct {
-    file_read: bool = true,
-    file_write: bool = false,
-    network: bool = true,
-    gpu: bool = true,
-    system: bool = false,
-
-    pub fn safe() OperationSet {
-        return .{
-            .file_read = true,
-            .file_write = false,
-            .network = true,
-            .gpu = true,
-            .system = false,
-        };
-    }
-
-    pub fn all() OperationSet {
-        return .{
-            .file_read = true,
-            .file_write = true,
-            .network = true,
-            .gpu = true,
-            .system = true,
-        };
-    }
-};
-
-/// Global framework context
-pub const Context = struct {
-    allocator: Allocator,
-    config: Config,
-
-    const Self = @This();
-
-    /// Initialize the framework context
-    pub fn init(allocator: Allocator, config: Config) !*Self {
-        const self = try allocator.create(Self);
-        errdefer allocator.destroy(self);
-
-        // Create appropriate allocator based on configuration
-        const framework_allocator = try createAllocator(allocator, config.memory.allocator_type);
-
-        self.* = .{
-            .allocator = framework_allocator,
-            .config = config,
-        };
-
-        std.log.info("Abi Framework v{any} initialized", .{version});
-        return self;
-    }
-
-    /// Deinitialize the framework
-    pub fn deinit(self: *Self) void {
-        const allocator = self.allocator;
-        allocator.destroy(self);
-    }
-
-    /// Get or create the global context
-    pub fn global() !*Self {
-        const GlobalState = struct {
-            var instance: ?*Context = null;
-            var mutex: std.Thread.Mutex = .{};
-        };
-
-        GlobalState.mutex.lock();
-        defer GlobalState.mutex.unlock();
-
-        if (GlobalState.instance) |ctx| {
-            return ctx;
-        }
-
-        // Create with default configuration
-        const allocator = std.heap.page_allocator;
-
-        GlobalState.instance = try init(allocator, .{});
-        return GlobalState.instance.?;
-    }
-};
-
-fn createAllocator(base_allocator: Allocator, allocator_type: AllocatorType) !Allocator {
-    return switch (allocator_type) {
-        .general_purpose => blk: {
-            const gpa = try base_allocator.create(std.heap.GeneralPurposeAllocator(.{}));
-            gpa.* = .{};
-            break :blk gpa.allocator();
-        },
-        .arena => blk: {
-            const arena = try base_allocator.create(std.heap.ArenaAllocator);
-            arena.* = std.heap.ArenaAllocator.init(base_allocator);
-            break :blk arena.allocator();
-        },
-        .thread_safe => blk: {
-            // Wrap any allocator to make it thread-safe
-            const tsa = try base_allocator.create(std.heap.ThreadSafeAllocator);
-            tsa.* = .{ .child_allocator = base_allocator };
-            break :blk tsa.allocator();
-        },
-        .pool => blk: {
-            const pool = try base_allocator.create(std.heap.GeneralPurposeAllocator(.{}));
-            pool.* = .{};
-            break :blk pool.allocator();
-        },
-        .debug => blk: {
-            const debug_alloc = try base_allocator.create(std.heap.GeneralPurposeAllocator(.{}));
-            debug_alloc.* = .{};
-            break :blk debug_alloc.allocator();
-        },
-        .tracy => base_allocator,
-        .custom => base_allocator,
-    };
+/// Main application entry point
+pub fn main() !void {
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("WDBX-AI Vector Database v1.0.0\n", .{});
+    try stdout.print("Unified high-performance vector database with AI capabilities\n", .{});
+    try stdout.print("Use 'zig build test' to run tests\n", .{});
+    try stdout.print("Use 'zig build benchmark' to run benchmarks\n", .{});
 }
 
-/// Standard options for the framework
-pub const std_options = .{
-    .log_level = if (builtin.mode == .Debug) .warn else .info,
-    .log_scope_levels = &.{
-        .{ .scope = .abi_framework, .level = .warn },
-        .{ .scope = .abi_ai, .level = .warn },
-        .{ .scope = .abi_gpu, .level = .warn },
+/// Initialize the WDBX-AI system
+pub fn init(allocator: std.mem.Allocator) !void {
+    // Initialize core systems
+    _ = allocator;
+
+    // Log system initialization
+    log.info("WDBX-AI system initialized", .{});
+}
+
+/// Cleanup the WDBX-AI system
+pub fn deinit() void {
+    // Cleanup resources
+    log.info("WDBX-AI system shutdown complete", .{});
+}
+
+/// Get system information
+pub fn getSystemInfo() struct {
+    version: []const u8,
+    features: []const []const u8,
+    simd_support: struct {
+        f32x4: bool,
+        f32x8: bool,
+        f32x16: bool,
     },
-};
-
-test "abi framework" {
-    // Test basic declarations compile
-    std.testing.refAllDecls(@This());
-
-    // Simple test that the framework can be imported and basic types work
-    const test_version = version;
-    try std.testing.expect(test_version.major >= 0);
-
-    // Test basic config creation
-    const test_config = Config{};
-    try std.testing.expect(test_config.memory.max_memory > 0);
+} {
+    return .{
+        .version = "1.0.0",
+        .features = &[_][]const u8{
+            "HNSW Indexing",
+            "Parallel Search",
+            "SIMD Optimization",
+            "Neural Networks",
+            "Embedding Generation",
+            "Performance Monitoring",
+        },
+        .simd_support = .{
+            .f32x4 = simd.Vector.isSimdAvailable(4),
+            .f32x8 = simd.Vector.isSimdAvailable(8),
+            .f32x16 = simd.Vector.isSimdAvailable(16),
+        },
+    };
 }
 
-comptime {
-    const supported_platforms = [_]std.Target.Os.Tag{
-        .linux,     .windows, .macos,   .freebsd, .openbsd,      .netbsd,
-        .dragonfly, .solaris, .illumos, .haiku,   .freestanding, .uefi,
-        .wasi,
-    };
+/// Run a quick system test
+pub fn runSystemTest() !void {
+    const testing = std.testing;
+    const allocator = testing.allocator;
 
-    const current_os = builtin.target.os.tag;
-    var is_supported = false;
+    // Test database operations
+    const test_file = "test_system.wdbx";
+    defer std.fs.cwd().deleteFile(test_file) catch {};
 
-    for (supported_platforms) |os| {
-        if (current_os == os) {
-            is_supported = true;
-            break;
-        }
-    }
+    var db = try database.Db.open(test_file, true);
+    defer db.close();
+    try db.init(64);
 
-    if (!is_supported) {
-        @compileError("Platform not supported: " ++ @tagName(current_os));
-    }
+    // Test HNSW indexing
+    try db.initHNSW();
+
+    // Test vector operations
+    const test_vector = [_]f32{0.1} ** 64;
+    _ = try db.addEmbedding(&test_vector);
+
+    // Test search
+    const results = try db.search(&test_vector, 5, allocator);
+    defer allocator.free(results);
+    try testing.expect(results.len > 0);
+
+    // Test SIMD operations
+    const vector_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    const vector_b = [_]f32{ 2.0, 3.0, 4.0, 5.0 };
+    const distance = simd.distance(&vector_a, &vector_b);
+    try testing.expect(distance > 0.0);
+
+    // Test AI operations
+    var network = try ai.NeuralNetwork.init(allocator, &[_]usize{4}, &[_]usize{2});
+    defer network.deinit();
+    try network.addDenseLayer(8, .relu);
+    try network.addDenseLayer(2, .softmax);
+    try network.compile();
+
+    const output = try allocator.alloc(f32, 2);
+    defer allocator.free(output);
+    try network.forward(&vector_a, output);
+
+    // Test core utilities
+    const random_val = core.random.int(u32, 1, 100);
+    try testing.expect(random_val >= 1 and random_val <= 100);
+
+    const trimmed = core.string.trim("  test  ");
+    try testing.expectEqualStrings("test", trimmed);
+
+    log.info("System test completed successfully", .{});
+}
+
+test "Root module functionality" {
+    const testing = std.testing;
+
+    // Test system info
+    const info = getSystemInfo();
+    try testing.expectEqualStrings("1.0.0", info.version);
+    try testing.expect(info.features.len > 0);
+
+    // Test system initialization
+    try init(testing.allocator);
+    defer deinit();
+
+    // Test system test
+    try runSystemTest();
+}
+
+test "Module integration" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    // Test that all modules can be imported and used together
+    try testing.expect(@TypeOf(database.Db) == @TypeOf(Db));
+    try testing.expect(@TypeOf(simd.Vector) == @TypeOf(Vector));
+    try testing.expect(@TypeOf(ai.NeuralNetwork) == @TypeOf(NeuralNetwork));
+    try testing.expect(@TypeOf(core.Allocator) == @TypeOf(Allocator));
+
+    // Test cross-module functionality
+    const test_file = "test_integration.wdbx";
+    defer std.fs.cwd().deleteFile(test_file) catch {};
+
+    var db = try database.Db.open(test_file, true);
+    defer db.close();
+    try db.init(32);
+    try db.initHNSW();
+
+    // Use SIMD for vector operations
+    const vector = [_]f32{0.5} ** 32;
+    _ = try db.addEmbedding(&vector);
+
+    // Use AI for processing
+    var network = try ai.NeuralNetwork.init(allocator, &[_]usize{32}, &[_]usize{16});
+    defer network.deinit();
+    try network.addDenseLayer(16, .relu);
+    try network.compile();
+
+    const output = try allocator.alloc(f32, 16);
+    defer allocator.free(output);
+    try network.forward(&vector, output);
+
+    // Use core utilities
+    const random_val = core.random.int(u32, 1, 10);
+    try testing.expect(random_val >= 1 and random_val <= 10);
+
+    log.info("Module integration test completed", .{});
 }

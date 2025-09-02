@@ -494,11 +494,44 @@ pub const WdbxHttpServer = struct {
         return try list.toOwnedSlice(self.allocator);
     }
 
-    /// Validate JWT token (placeholder implementation)
-    fn validateJWT(_: *Self, token: []const u8) bool {
-        // TODO: Implement proper JWT validation
-        // For now, accept any non-empty token
-        return token.len > 0;
+    /// Validate JWT token
+    fn validateJWT(self: *Self, token: []const u8) bool {
+        // Basic JWT validation implementation
+        // In production, use a proper JWT library
+
+        // Check token format (header.payload.signature)
+        var parts_iter = std.mem.split(u8, token, ".");
+        var parts_count: usize = 0;
+        while (parts_iter.next()) |_| {
+            parts_count += 1;
+        }
+
+        if (parts_count != 3) {
+            return false;
+        }
+
+        // Reset iterator
+        parts_iter = std.mem.split(u8, token, ".");
+        const header = parts_iter.next() orelse return false;
+        const payload = parts_iter.next() orelse return false;
+        const signature = parts_iter.next() orelse return false;
+
+        // Validate each part has content
+        if (header.len == 0 or payload.len == 0 or signature.len == 0) {
+            return false;
+        }
+
+        // Check if token exists in our valid tokens map
+        if (self.auth_tokens.get(token)) |auth_info| {
+            // Check expiration
+            const current_time = std.time.milliTimestamp();
+            if (auth_info.expires_at > 0 and current_time > auth_info.expires_at) {
+                return false;
+            }
+            return true;
+        }
+
+        return false;
     }
 
     /// Format neighbors array for JSON output

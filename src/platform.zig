@@ -1,7 +1,57 @@
 //! Cross-platform utilities for the Abi AI framework
 //!
-//! This module provides platform-specific functionality using only Zig's built-in APIs,
-//! avoiding any C dependencies or libc requirements.
+//! @Definitions
+//!
+//! **PlatformInfo:**
+//!   A structure describing the detected platform's capabilities and configuration. Fields include:
+//!     - `os`: The operating system tag (e.g., .linux, .windows, .macos).
+//!     - `arch`: The CPU architecture (e.g., .x86_64, .aarch64).
+//!     - `supports_ansi_colors`: Whether the terminal supports ANSI color codes.
+//!     - `supports_simd`: Whether SIMD instructions are available (from build-time detection).
+//!     - `max_threads`: Maximum recommended thread count for the platform.
+//!     - `cache_line_size`: The CPU's cache line size in bytes.
+//!   Use `PlatformInfo.detect()` to obtain a populated instance at runtime.
+//!
+//! **FileOps:**
+//!   Cross-platform file operations, including:
+//!     - `openFile(path)`: Open a file for reading.
+//!     - `createFile(path)`: Create a file for writing.
+//!     - `deleteFile(path)`: Delete a file.
+//!     - `fileExists(path)`: Check if a file exists.
+//!   All operations use Zig's standard library and are safe for use on all supported platforms.
+//!
+//! **MemoryOps:**
+//!   Cross-platform memory and virtual memory utilities, including:
+//!     - `getPageSize()`: Returns the system's memory page size.
+//!     - `alignToPageSize(size)`: Rounds up a size to the nearest page boundary.
+//!     - `getVirtualMemoryLimit()`: Returns the maximum virtual memory addressable by the architecture.
+//!
+//! **ThreadOps:**
+//!   Threading utilities for optimal concurrency, including:
+//!     - `getOptimalThreadCount()`: Returns the recommended thread count for the platform.
+//!     - `setThreadPriority(thread, priority)`: (Stub) Set thread priority (not implemented, platform-specific).
+//!   The `ThreadPriority` enum provides standard priority levels: `low`, `normal`, `high`, `realtime`.
+//!
+//! **PerfOps:**
+//!   Performance-related utilities, including:
+//!     - `getCpuFrequency()`: Returns an estimated CPU base frequency in Hz.
+//!     - `getCacheInfo()`: Returns a `CacheInfo` struct with L1/L2/L3 cache sizes and cache line size.
+//!
+//! **Colors:**
+//!   ANSI color escape codes and colorized printing utilities. Fields include:
+//!     - `reset`, `bold`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white` (ANSI codes).
+//!     - `print(color, fmt, args)`: Print formatted text in color if supported by the terminal.
+//!
+//! **PlatformError:**
+//!   Error set for platform-specific failures, including:
+//!     - `PlatformNotSupported`, `FeatureNotAvailable`, `InsufficientPermissions`, `ResourceExhausted`.
+//!
+//! **Other Utilities:**
+//!     - `getTempDir(allocator)`: Returns the path to the platform's temporary directory.
+//!     - `sleep(milliseconds)`: Sleeps for the specified number of milliseconds.
+//!     - `getSystemInfo(allocator)`: Returns a formatted string with system information.
+//!
+//! All functionality is implemented using Zig's standard library and builtins, with no C or libc dependencies.
 
 const std = @import("std");
 const builtin = @import("builtin");

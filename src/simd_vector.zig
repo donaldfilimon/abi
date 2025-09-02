@@ -1,5 +1,85 @@
 //! Ultra-optimized SIMD Vector Operations for AI and High-Performance Computing
 //!
+//! @Definitions
+//!
+//! **SIMD (Single Instruction, Multiple Data):**
+//!   A parallel computing paradigm where a single instruction operates on multiple data elements simultaneously. SIMD is widely used to accelerate vector arithmetic, image processing, neural network inference, and other data-parallel workloads by leveraging hardware vector units. SIMD instructions are available on most modern CPUs (e.g., AVX, NEON, SSE, WASM SIMD).
+//!
+//! **SIMDConfig:**
+//!   A structure describing the SIMD capabilities and optimal configuration for the current target architecture. Fields include:
+//!     - `width_f32`: Number of `f32` elements in a SIMD vector.
+//!     - `width_f64`: Number of `f64` elements in a SIMD vector.
+//!     - `width_i32`: Number of `i32` elements in a SIMD vector.
+//!     - `max_width`: Maximum SIMD width supported (in elements).
+//!     - `arch_name`: Human-readable architecture identifier (e.g., "x86_64 AVX2", "ARM64 NEON").
+//!   This enables portable and efficient SIMD usage across platforms, and allows code to adapt to the best available vector width.
+//!
+//! **simd_config:**
+//!   A constant instance of `SIMDConfig` that is automatically initialized at compile time to reflect the optimal SIMD configuration for the target architecture. All vector operations in this module use `simd_config` to select the most efficient vector width and instruction set, with fallbacks for generic targets.
+//!
+//! **F32Vector, F64Vector, I32Vector:**
+//!   Type aliases for SIMD vector types of `f32`, `f64`, and `i32` elements, respectively. The vector length is determined by the optimal width from `simd_config`. These types are used for efficient, portable vectorized operations in all core routines.
+//!
+//! **SIMDLevel:**
+//!   An enumeration representing the level of SIMD optimization to apply. Options include:
+//!     - `basic`: Minimal SIMD usage, prioritizing compatibility and portability.
+//!     - `optimized`: Default, balanced optimizations for most workloads (uses unrolling, alignment, and vectorization).
+//!     - `aggressive`: Enables aggressive loop unrolling, prefetching, and advanced optimizations for maximum performance (may increase code size).
+//!
+//! **SIMDOpts:**
+//!   A structure for configuring SIMD operations. Fields include:
+//!     - `level`: The SIMD optimization level (`SIMDLevel`).
+//!     - `unroll_factor`: How many SIMD vectors to process per loop iteration (for loop unrolling).
+//!     - `prefetch_distance`: How far ahead to prefetch memory (in bytes) for cache optimization.
+//!     - `cache_line_size`: The assumed cache line size (in bytes), used for memory alignment and prefetching.
+//!   These options allow fine-tuning of performance for specific workloads and hardware.
+//!
+//! **distanceSquaredSIMD:**
+//!   Computes the squared Euclidean distance between two `f32` vectors using SIMD. Employs loop unrolling and vectorized arithmetic for high throughput, with scalar fallbacks for remaining elements. This is a fundamental operation in machine learning (e.g., k-NN, clustering), search, and signal processing.
+//!
+//! **dotProductSIMD:**
+//!   Calculates the dot product of two `f32` vectors using SIMD, with optimizations for memory alignment and Fused Multiply-Add (FMA) where available. Falls back to scalar computation for misaligned data. Essential for neural networks, linear algebra, and signal processing.
+//!
+//! **normalizeSIMD:**
+//!   Normalizes a vector in-place using SIMD. Computes the magnitude using vectorized sum-of-squares, then scales all elements by the reciprocal magnitude. Uses fast reciprocal square root approximations for performance. Common in graphics, ML, and physics simulations.
+//!
+//! **matrixMultiplySIMD:**
+//!   Performs matrix multiplication with SIMD, using tiling and blocking strategies to optimize cache usage and throughput. Supports large matrices efficiently, making it suitable for deep learning, scientific computing, and high-performance applications. Handles both square and non-square matrices.
+//!
+//! **convolution1DSIMD:**
+//!   Computes the 1D convolution of a signal and kernel using SIMD for the inner product, with scalar fallback for the remainder. Accelerates signal processing, feature extraction, and neural network layers (e.g., 1D CNN).
+//!
+//! **fftSIMD:**
+//!   Implements the Cooley-Tukey Fast Fourier Transform (FFT) algorithm with SIMD optimizations for complex data. Enables efficient frequency analysis and spectral processing in audio, communications, and scientific domains. Handles in-place transforms of real and imaginary arrays.
+//!
+//! **vectorAddSIMD:**
+//!   Adds two vectors element-wise using SIMD, with scalar fallback for remaining elements. Useful for vector arithmetic, neural network layers, and data processing pipelines.
+//!
+//! **vectorScaleSIMD:**
+//!   Scales a vector by a scalar using SIMD, with scalar fallback for the remainder. Accelerates normalization, feature scaling, and signal amplification.
+//!
+//! **reluSIMD:**
+//!   Applies the ReLU (Rectified Linear Unit) activation function to a vector using SIMD, setting negative values to zero. Widely used in deep learning and neural networks for non-linear activation.
+//!
+//! **sigmoidSIMD:**
+//!   Applies the sigmoid activation function to a vector using SIMD. Uses a fast linear approximation for vectorized elements and computes the exact sigmoid for scalar remainders. Useful in ML, logistic regression, and neural network output layers.
+//!
+//! **SIMDAlignment:**
+//!   A utility struct providing functions for memory alignment in SIMD operations. Includes methods to determine optimal alignment, check pointer alignment, allocate aligned buffers, and create aligned copies. Ensures efficient memory access and avoids performance penalties due to misalignment. Also provides a function to ensure a slice is aligned, copying if necessary.
+//!
+//! **benchmarkSIMD:**
+//!   Benchmarks key SIMD operations (dot product, matrix multiplication, vector addition) and reports performance metrics such as operations per second, GFLOPS, and memory bandwidth. Useful for performance analysis, regression testing, and hardware evaluation. Returns a struct with the measured metrics.
+//!
+//! **SIMD Compatibility Functions:**
+//!   For backward compatibility, this module exports aliases and simple wrappers for the main SIMD routines (e.g., `distanceSquaredSIMD_compat`, `dotProductSIMD_simple`) that use default options, so existing code can migrate easily.
+//!
+//! **General Notes:**
+//!   - All routines automatically select the optimal SIMD width for the target architecture at compile time.
+//!   - Scalar fallbacks are always provided for any remainder elements or for platforms without SIMD support.
+//!   - This module is designed for high performance, portability, and ease of integration into AI, scientific, and data processing applications.
+//!
+//! ---
+//!
 //! This module provides highly optimized vector operations using Zig's
 //! built-in SIMD support with architecture-specific optimizations.
 //! Automatically detects optimal vector width and provides fallback implementations.
@@ -478,7 +558,7 @@ pub fn sigmoidSIMD(input: []const f32, output: []f32) void {
 
     // Scalar remainder with proper sigmoid
     while (i < input.len) : (i += 1) {
-        output[i] = 1.0 / (1.0 + @exp(-input[i]));
+        output[i] = 1.0 / (1.0 + std.math.exp(-input[i]));
     }
 }
 
@@ -564,7 +644,7 @@ pub fn benchmarkSIMD(allocator: std.mem.Allocator, size: usize) !struct {
     const dot_ops_per_sec = total_ops / duration_s;
 
     // Simple matrix multiply benchmark (square matrices)
-    const matrix_size: u32 = @intFromFloat(@sqrt(@as(f64, @floatFromInt(size))));
+    const matrix_size: u32 = @intFromFloat(std.math.sqrt(@as(f64, @floatFromInt(size))));
     const matrix_start = std.time.nanoTimestamp();
     try matrixMultiplySIMD(a[0 .. matrix_size * matrix_size], b[0 .. matrix_size * matrix_size], result[0 .. matrix_size * matrix_size], matrix_size, matrix_size, matrix_size);
     const matrix_end = std.time.nanoTimestamp();
