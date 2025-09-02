@@ -154,6 +154,7 @@ pub const Layer = struct {
 
     fn forwardLSTM(self: *Layer, _input: []const f32, _output: []f32) !void {
         // LSTM implementation
+        _ = self;
         _ = _input;
         _ = _output;
         return error.NotImplemented;
@@ -161,6 +162,7 @@ pub const Layer = struct {
 
     fn forwardGRU(self: *Layer, _input: []const f32, _output: []f32) !void {
         // GRU implementation
+        _ = self;
         _ = _input;
         _ = _output;
         return error.NotImplemented;
@@ -168,12 +170,14 @@ pub const Layer = struct {
 
     fn forwardAttention(self: *Layer, _input: []const f32, _output: []f32) !void {
         // Attention mechanism implementation
+        _ = self;
         _ = _input;
         _ = _output;
         return error.NotImplemented;
     }
 
     fn applyActivation(self: *Layer, data: []f32, activation: Activation) !void {
+        _ = self;
         switch (activation) {
             .relu => {
                 for (data) |*val| {
@@ -495,6 +499,7 @@ pub const ModelTrainer = struct {
 
     /// Mean squared error loss
     fn meanSquaredError(self: *ModelTrainer, _predictions: []const f32, _targets: []const f32) f32 {
+        _ = self;
         _ = _predictions;
         _ = _targets;
         return 0.0; // Placeholder implementation
@@ -502,6 +507,7 @@ pub const ModelTrainer = struct {
 
     /// Cross-entropy loss
     fn crossEntropy(self: *ModelTrainer, _predictions: []const f32, _targets: []const f32) f32 {
+        _ = self;
         _ = _predictions;
         _ = _targets;
         return 0.0; // Placeholder implementation
@@ -509,6 +515,7 @@ pub const ModelTrainer = struct {
 
     /// Categorical cross-entropy loss
     fn categoricalCrossEntropy(self: *ModelTrainer, _predictions: []const f32, _targets: []const f32) f32 {
+        _ = self;
         _ = _predictions;
         _ = _targets;
         return 0.0; // Placeholder implementation
@@ -516,6 +523,7 @@ pub const ModelTrainer = struct {
 
     /// Huber loss
     fn huberLoss(self: *ModelTrainer, _predictions: []const f32, _targets: []const f32) f32 {
+        _ = self;
         _ = _predictions;
         _ = _targets;
         return 0.0; // Placeholder implementation
@@ -523,6 +531,7 @@ pub const ModelTrainer = struct {
 
     /// Hinge loss
     fn hingeLoss(self: *ModelTrainer, _predictions: []const f32, _targets: []const f32) f32 {
+        _ = self;
         _ = _predictions;
         _ = _targets;
         return 0.0; // Placeholder implementation

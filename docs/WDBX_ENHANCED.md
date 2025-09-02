@@ -7,90 +7,105 @@ WDBX Enhanced is a comprehensive upgrade to the WDBX vector database, featuring 
 ## 📊 15 Major Enhancements
 
 ### 1. **Enhanced SIMD Operations** ⚡
+
 - Runtime detection of CPU capabilities (SSE2, AVX, AVX2, NEON)
 - Automatic selection of optimal vectorized implementation
 - Up to 4x performance improvement for distance calculations
 - Cross-platform support (x86_64, ARM64)
 
 ### 2. **LSH Indexing** 🔍
+
 - Locality Sensitive Hashing for O(1) approximate nearest neighbor search
 - Configurable hash tables and bit precision
 - 10-100x faster search for large datasets
 - Tunable accuracy vs. speed trade-offs
 
 ### 3. **Vector Compression** 🗜️
+
 - 8-bit quantization reducing memory usage by up to 75%
 - Configurable compression levels (1-9)
 - Automatic compression/decompression
 - Minimal accuracy loss (<0.01% for most use cases)
 
 ### 4. **Read-Write Locks** 🔒
+
 - Multiple concurrent readers with exclusive writers
 - Deadlock detection and prevention
 - Fair scheduling with writer priority
 - Thread-safe operations throughout
 
 ### 5. **Async Operations** ⚙️
+
 - Non-blocking write operations
 - Asynchronous queue processing
 - Background worker threads
 - Callback-based completion notifications
 
 ### 6. **Comprehensive Error Handling** 🛡️
+
 - Structured error types with detailed categorization
 - Error propagation with context
 - Graceful degradation strategies
 - Recovery procedures for common failures
 
 ### 7. **Memory Leak Detection** 🔬
+
 - Built-in allocation tracking
 - Real-time leak detection
 - Peak memory usage monitoring
 - Detailed allocation reports
 
 ### 8. **Health Monitoring** 🏥
+
 - Configurable health checks
 - Automatic recovery procedures
 - System resource monitoring
 - Consecutive failure tracking
 
 ### 9. **Backup System** 💾
+
 - Automated timestamp-based backups
 - Configurable backup intervals
 - Retention policies with automatic cleanup
 - Checksum verification
 
 ### 10. **Configuration Validation** ✅
+
 - Runtime parameter validation
 - Type-safe configuration
 - Range checking for all parameters
 - Hot configuration reloading
 
 ### 11. **Performance Profiling** 📈
+
 - Function-level timing statistics
 - Call frequency tracking
 - Min/max/average latency metrics
 - Exportable performance reports
 
 ### 12. **Query Statistics** 📊
+
 - Success/failure rate tracking
 - Latency distribution histograms
 - Query type categorization
 - Optimization suggestions
 
 ### 13. **Cache Hit Rate Tracking** 💾
+
 - LRU cache with size-based eviction
 - Hit/miss ratio monitoring
 - Eviction statistics
 - Adaptive cache sizing
 
 ### 14. **Resource Usage Tracking** 📉
+
 - Real-time memory usage monitoring
 - CPU utilization tracking
 - Disk I/O statistics
 - Network bandwidth monitoring (future)
 
 ### 15. **Enhanced Features** 🔧
+
 - Full CRUD operations with unique IDs
 - Streaming API for large result sets
 - Metadata attachment to vectors
@@ -158,17 +173,20 @@ if (db.profiler) |prof| {
 
 ## 📦 Building and Running
 
-### Build the enhanced version:
+### Build the enhanced version
+
 ```bash
 zig build -f build_wdbx.zig
 ```
 
-### Run the comprehensive demo:
+### Run the comprehensive demo
+
 ```bash
 zig build -f build_wdbx.zig demo-enhanced
 ```
 
-### Run tests:
+### Run tests
+
 ```bash
 zig build -f build_wdbx.zig test-enhanced
 ```
@@ -231,18 +249,21 @@ WdbxEnhanced
 ## 🛡️ Reliability Features
 
 ### Automatic Recovery
+
 - Corrupted index rebuilding
 - Cache invalidation and refresh
 - Statistics reset
 - Connection pool recycling
 
 ### Data Integrity
+
 - Checksum verification
 - Atomic operations
 - Write-ahead logging (future)
 - Point-in-time recovery (future)
 
 ### Monitoring & Alerting
+
 - Health check endpoints
 - Metric exporters (Prometheus format - future)
 - Log aggregation support
@@ -283,6 +304,7 @@ const config = Config{
 ## 🚀 Future Enhancements
 
 ### Planned Features
+
 - [ ] GPU acceleration (CUDA/OpenCL)
 - [ ] Distributed clustering
 - [ ] HNSW and IVF indexing
@@ -293,6 +315,7 @@ const config = Config{
 - [ ] Encryption at rest
 
 ### Research Areas
+
 - Neural network-based indexing
 - Learned compression techniques
 - Quantum-resistant encryption
@@ -301,6 +324,7 @@ const config = Config{
 ## 📝 Configuration Reference
 
 ### Core Settings
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `dimension` | u16 | 0 | Vector dimensionality |
@@ -308,6 +332,7 @@ const config = Config{
 | `page_size` | u32 | 4096 | File I/O page size |
 
 ### Performance Settings
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `enable_simd` | bool | true | Use SIMD operations |
@@ -316,6 +341,7 @@ const config = Config{
 | `cache_size_mb` | usize | 256 | LRU cache size |
 
 ### Indexing Settings
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `index_type` | enum | lsh | Index type (exact/lsh/hnsw/ivf/gpu) |
@@ -323,6 +349,7 @@ const config = Config{
 | `lsh_hash_bits` | u32 | 16 | Bits per LSH hash |
 
 ### Monitoring Settings
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `enable_profiling` | bool | true | Performance profiling |
@@ -346,6 +373,7 @@ Same as the main Abi AI Framework.
 ## 🙏 Acknowledgments
 
 The enhanced WDBX builds upon industry best practices from:
+
 - Faiss (Facebook AI)
 - Annoy (Spotify)
 - Milvus

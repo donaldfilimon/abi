@@ -120,4 +120,19 @@ pub fn build(b: *std.Build) void {
     const benchmark_step = b.step("benchmark", "Run database performance benchmarks");
     const run_benchmark = b.addRunArtifact(benchmark_exe);
     benchmark_step.dependOn(&run_benchmark.step);
+
+    // Static analysis tool
+    const static_analysis = b.addExecutable(.{
+        .name = "static_analysis",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/static_analysis.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    b.installArtifact(static_analysis);
+
+    const run_static_analysis = b.addRunArtifact(static_analysis);
+    const analyze_step = b.step("analyze", "Run static analysis");
+    analyze_step.dependOn(&run_static_analysis.step);
 }

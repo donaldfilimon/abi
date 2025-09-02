@@ -406,7 +406,7 @@ pub const AppContext = struct {
 
     /// Start the HTTP REST API server.
     fn runHttpServer(self: *AppContext) !void {
-        std.debug.print("Starting HTTP server on {}:{}\n", .{ self.options.host, self.options.port });
+        std.debug.print("Starting HTTP server on {s}:{}\n", .{ self.options.host, self.options.port });
 
         const http_server = @import("wdbx_http_server.zig");
         const config = http_server.ServerConfig{
@@ -429,13 +429,13 @@ pub const AppContext = struct {
 
     /// Start the TCP binary protocol server (not yet implemented).
     fn runTcpServer(self: *AppContext) !void {
-        std.debug.print("Starting TCP server on {}:{}\n", .{ self.options.host, self.options.port });
+        std.debug.print("Starting TCP server on {s}:{}\n", .{ self.options.host, self.options.port });
         std.debug.print("TCP server not yet implemented\n", .{});
     }
 
     /// Start the WebSocket server (not yet implemented).
     fn runWebSocketServer(self: *AppContext) !void {
-        std.debug.print("Starting WebSocket server on {}:{}\n", .{ self.options.host, self.options.port });
+        std.debug.print("Starting WebSocket server on {s}:{}\n", .{ self.options.host, self.options.port });
         std.debug.print("WebSocket server not yet implemented\n", .{});
     }
 
