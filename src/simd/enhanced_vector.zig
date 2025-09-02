@@ -66,6 +66,14 @@ pub const SIMDConfig = struct {
     }
 };
 
+/// Activation functions
+pub const ActivationFunction = enum {
+    relu,
+    sigmoid,
+    tanh,
+    softplus,
+};
+
 /// Enhanced vector structure
 pub fn Vector(comptime T: type) type {
     return struct {
@@ -76,32 +84,30 @@ pub fn Vector(comptime T: type) type {
         const Self = @This();
         const VectorT = @Vector(4, T);
 
-        /// Initialize vector with size
+        /// Initialize vector with size, zero-initialized
         pub fn init(allocator: Allocator, size: usize) !Self {
             const config = SIMDConfig.detect();
             const aligned_size = (size + config.vector_width - 1) & ~(config.vector_width - 1);
-            const data = try allocator.alloc(T, aligned_size);
-
+            var data = try allocator.alloc(T, aligned_size);
+            std.mem.set(T, data, 0);
             return Self{
-                .data = data,
+                .data = data[0..size],
                 .allocator = allocator,
                 .config = config,
             };
         }
 
-        /// Initialize vector with data
+        /// Initialize vector with data, zero-padding if needed
         pub fn initWithData(allocator: Allocator, data: []const T) !Self {
             const config = SIMDConfig.detect();
             const aligned_size = (data.len + config.vector_width - 1) & ~(config.vector_width - 1);
-            const vec_data = try allocator.alloc(T, aligned_size);
-
-            @memcpy(vec_data[0..data.len], data);
+            var vec_data = try allocator.alloc(T, aligned_size);
+            std.mem.copy(T, vec_data[0..data.len], data);
             if (aligned_size > data.len) {
-                @memset(vec_data[data.len..], 0);
+                std.mem.set(T, vec_data[data.len..aligned_size], 0);
             }
-
             return Self{
-                .data = vec_data,
+                .data = vec_data[0..data.len],
                 .allocator = allocator,
                 .config = config,
             };
@@ -109,7 +115,7 @@ pub fn Vector(comptime T: type) type {
 
         /// Deinitialize vector
         pub fn deinit(self: *Self) void {
-            self.allocator.free(self.data);
+            self.allocator.free(self.data.ptr);
         }
 
         /// Get vector length
@@ -119,40 +125,38 @@ pub fn Vector(comptime T: type) type {
 
         /// Get element at index
         pub fn get(self: *const Self, index: usize) T {
+            std.debug.assert(index < self.data.len);
             return self.data[index];
         }
 
         /// Set element at index
         pub fn set(self: *Self, index: usize, value: T) void {
+            std.debug.assert(index < self.data.len);
             self.data[index] = value;
         }
 
         /// Fill vector with value
         pub fn fill(self: *Self, value: T) void {
-            @memset(self.data, value);
+            std.mem.set(T, self.data, value);
         }
 
         /// Copy data from another vector
         pub fn copyFrom(self: *Self, other: *const Self) void {
             const min_len = @min(self.data.len, other.data.len);
-            @memcpy(self.data[0..min_len], other.data[0..min_len]);
+            std.mem.copy(T, self.data[0..min_len], other.data[0..min_len]);
         }
 
         /// Add another vector element-wise
         pub fn add(self: *Self, other: *const Self) void {
             const min_len = @min(self.data.len, other.data.len);
             const simd_len = (min_len / 4) * 4;
-
-            // SIMD operations
             var i: usize = 0;
             while (i < simd_len) : (i += 4) {
-                const a: VectorT = self.data[i..][0..4].*;
+                var a: VectorT = self.data[i..][0..4].*;
                 const b: VectorT = other.data[i..][0..4].*;
-                const result = a + b;
-                self.data[i..][0..4].* = result;
+                a += b;
+                self.data[i..][0..4].* = a;
             }
-
-            // Scalar remainder
             while (i < min_len) : (i += 1) {
                 self.data[i] += other.data[i];
             }
@@ -162,17 +166,13 @@ pub fn Vector(comptime T: type) type {
         pub fn sub(self: *Self, other: *const Self) void {
             const min_len = @min(self.data.len, other.data.len);
             const simd_len = (min_len / 4) * 4;
-
-            // SIMD operations
             var i: usize = 0;
             while (i < simd_len) : (i += 4) {
-                const a: VectorT = self.data[i..][0..4].*;
+                var a: VectorT = self.data[i..][0..4].*;
                 const b: VectorT = other.data[i..][0..4].*;
-                const result = a - b;
-                self.data[i..][0..4].* = result;
+                a -= b;
+                self.data[i..][0..4].* = a;
             }
-
-            // Scalar remainder
             while (i < min_len) : (i += 1) {
                 self.data[i] -= other.data[i];
             }
@@ -181,17 +181,13 @@ pub fn Vector(comptime T: type) type {
         /// Multiply by scalar
         pub fn scale(self: *Self, scalar: T) void {
             const simd_len = (self.data.len / 4) * 4;
-
-            // SIMD operations
             var i: usize = 0;
             while (i < simd_len) : (i += 4) {
-                const a: VectorT = self.data[i..][0..4].*;
+                var a: VectorT = self.data[i..][0..4].*;
                 const scalar_vec: VectorT = @splat(scalar);
-                const result = a * scalar_vec;
-                self.data[i..][0..4].* = result;
+                a *= scalar_vec;
+                self.data[i..][0..4].* = a;
             }
-
-            // Scalar remainder
             while (i < self.data.len) : (i += 1) {
                 self.data[i] *= scalar;
             }
@@ -201,17 +197,13 @@ pub fn Vector(comptime T: type) type {
         pub fn mul(self: *Self, other: *const Self) void {
             const min_len = @min(self.data.len, other.data.len);
             const simd_len = (min_len / 4) * 4;
-
-            // SIMD operations
             var i: usize = 0;
             while (i < simd_len) : (i += 4) {
-                const a: VectorT = self.data[i..][0..4].*;
+                var a: VectorT = self.data[i..][0..4].*;
                 const b: VectorT = other.data[i..][0..4].*;
-                const result = a * b;
-                self.data[i..][0..4].* = result;
+                a *= b;
+                self.data[i..][0..4].* = a;
             }
-
-            // Scalar remainder
             while (i < min_len) : (i += 1) {
                 self.data[i] *= other.data[i];
             }
@@ -221,37 +213,29 @@ pub fn Vector(comptime T: type) type {
         pub fn dot(self: *const Self, other: *const Self) T {
             const min_len = @min(self.data.len, other.data.len);
             const simd_len = (min_len / 4) * 4;
-
-            var sum: T = 0;
-
-            // SIMD operations
+            var dot_sum: T = 0;
             var i: usize = 0;
             while (i < simd_len) : (i += 4) {
                 const a: VectorT = self.data[i..][0..4].*;
                 const b: VectorT = other.data[i..][0..4].*;
-                const product = a * b;
-                sum += @reduce(.Add, product);
+                dot_sum += @reduce(.Add, a * b);
             }
-
-            // Scalar remainder
             while (i < min_len) : (i += 1) {
-                sum += self.data[i] * other.data[i];
+                dot_sum += self.data[i] * other.data[i];
             }
-
-            return sum;
+            return dot_sum;
         }
 
         /// Compute magnitude (L2 norm)
         pub fn magnitude(self: *const Self) T {
-            const dot_product = self.dot(self);
-            return @sqrt(dot_product);
+            return std.math.sqrt(self.dot(self));
         }
 
         /// Normalize vector to unit length
         pub fn normalize(self: *Self) void {
             const mag = self.magnitude();
             if (mag > 0) {
-                self.scale(1.0 / mag);
+                self.scale(@as(T, 1.0) / mag);
             }
         }
 
@@ -290,15 +274,12 @@ pub fn Vector(comptime T: type) type {
 
         /// Compute sum of all elements
         pub fn sum(self: *const Self) T {
-            return self.reduce(0, struct {
-                fn add(a: T, b: T) T {
-                    return a + b;
-                }
-            }.add);
+            return self.reduce(0, std.math.add);
         }
 
         /// Compute mean of all elements
         pub fn mean(self: *const Self) T {
+            if (self.data.len == 0) return 0;
             return self.sum() / @as(T, @floatFromInt(self.data.len));
         }
 
@@ -306,18 +287,17 @@ pub fn Vector(comptime T: type) type {
         pub fn variance(self: *const Self) T {
             const mean_val = self.mean();
             var sum_sq: T = 0;
-
             for (self.data) |element| {
                 const diff = element - mean_val;
                 sum_sq += diff * diff;
             }
-
+            if (self.data.len == 0) return 0;
             return sum_sq / @as(T, @floatFromInt(self.data.len));
         }
 
         /// Compute standard deviation
         pub fn stdDev(self: *const Self) T {
-            return @sqrt(self.variance());
+            return std.math.sqrt(self.variance());
         }
 
         /// Apply activation function
@@ -325,12 +305,12 @@ pub fn Vector(comptime T: type) type {
             switch (activation) {
                 .relu => self.map(struct {
                     fn relu(x: T) T {
-                        return @max(0, x);
+                        return std.math.max(@as(T, 0), x);
                     }
                 }.relu),
                 .sigmoid => self.map(struct {
                     fn sigmoid(x: T) T {
-                        return 1.0 / (1.0 + std.math.exp(-x));
+                        return @as(T, 1.0) / (@as(T, 1.0) + std.math.exp(-x));
                     }
                 }.sigmoid),
                 .tanh => self.map(struct {
@@ -340,7 +320,7 @@ pub fn Vector(comptime T: type) type {
                 }.tanh),
                 .softplus => self.map(struct {
                     fn softplus(x: T) T {
-                        return std.math.log(1.0 + std.math.exp(x));
+                        return std.math.log(@as(T, 1.0) + std.math.exp(x));
                     }
                 }.softplus),
             }
@@ -355,167 +335,133 @@ pub fn Vector(comptime T: type) type {
 
         /// Create slice view
         pub fn slice(self: *Self, start: usize, end: usize) []T {
+            std.debug.assert(start <= end and end <= self.data.len);
             return self.data[start..end];
         }
 
-        /// Resize vector
+        /// Resize vector (preserves data up to new_size or old size)
         pub fn resize(self: *Self, new_size: usize) !void {
-            if (new_size != self.data.len) {
-                const new_data = try self.allocator.realloc(self.data, new_size);
-                self.data = new_data;
+            if (new_size == self.data.len) return;
+            const config = self.config;
+            const aligned_size = (new_size + config.vector_width - 1) & ~(config.vector_width - 1);
+            var new_data = try self.allocator.realloc(self.data.ptr, aligned_size);
+            if (aligned_size > self.data.len) {
+                std.mem.set(T, new_data[self.data.len..aligned_size], 0);
             }
+            self.data = new_data[0..new_size];
         }
     };
 }
 
-/// Activation functions
-pub const ActivationFunction = enum {
-    relu,
-    sigmoid,
-    tanh,
-    softplus,
-};
-
 /// Vector operations namespace
 pub const VectorOps = struct {
     /// Element-wise addition
-    pub fn add(comptime T: type, a: []T, b: []T, result: []T) void {
+    pub fn add(comptime T: type, a: []const T, b: []const T, result: []T) void {
         const min_len = @min(@min(a.len, b.len), result.len);
         const simd_len = (min_len / 4) * 4;
-
-        // SIMD operations
         var i: usize = 0;
         while (i < simd_len) : (i += 4) {
-            const va: @Vector(4, T) = a[i..][0..4].*;
+            var va: @Vector(4, T) = a[i..][0..4].*;
             const vb: @Vector(4, T) = b[i..][0..4].*;
-            const sum = va + vb;
-            result[i..][0..4].* = sum;
+            va += vb;
+            result[i..][0..4].* = va;
         }
-
-        // Scalar remainder
         while (i < min_len) : (i += 1) {
             result[i] = a[i] + b[i];
         }
     }
 
     /// Element-wise subtraction
-    pub fn sub(comptime T: type, a: []T, b: []T, result: []T) void {
+    pub fn sub(comptime T: type, a: []const T, b: []const T, result: []T) void {
         const min_len = @min(@min(a.len, b.len), result.len);
         const simd_len = (min_len / 4) * 4;
-
-        // SIMD operations
         var i: usize = 0;
         while (i < simd_len) : (i += 4) {
-            const va: @Vector(4, T) = a[i..][0..4].*;
+            var va: @Vector(4, T) = a[i..][0..4].*;
             const vb: @Vector(4, T) = b[i..][0..4].*;
-            const diff = va - vb;
-            result[i..][0..4].* = diff;
+            va -= vb;
+            result[i..][0..4].* = va;
         }
-
-        // Scalar remainder
         while (i < min_len) : (i += 1) {
             result[i] = a[i] - b[i];
         }
     }
 
     /// Element-wise multiplication
-    pub fn mul(comptime T: type, a: []T, b: []T, result: []T) void {
+    pub fn mul(comptime T: type, a: []const T, b: []const T, result: []T) void {
         const min_len = @min(@min(a.len, b.len), result.len);
         const simd_len = (min_len / 4) * 4;
-
-        // SIMD operations
         var i: usize = 0;
         while (i < simd_len) : (i += 4) {
-            const va: @Vector(4, T) = a[i..][0..4].*;
+            var va: @Vector(4, T) = a[i..][0..4].*;
             const vb: @Vector(4, T) = b[i..][0..4].*;
-            const product = va * vb;
-            result[i..][0..4].* = product;
+            va *= vb;
+            result[i..][0..4].* = va;
         }
-
-        // Scalar remainder
         while (i < min_len) : (i += 1) {
             result[i] = a[i] * b[i];
         }
     }
 
     /// Scalar multiplication
-    pub fn scale(comptime T: type, a: []T, scalar: T, result: []T) void {
+    pub fn scale(comptime T: type, a: []const T, scalar: T, result: []T) void {
         const min_len = @min(a.len, result.len);
         const simd_len = (min_len / 4) * 4;
-
-        // SIMD operations
         var i: usize = 0;
         while (i < simd_len) : (i += 4) {
-            const va: @Vector(4, T) = a[i..][0..4].*;
+            var va: @Vector(4, T) = a[i..][0..4].*;
             const scalar_vec: @Vector(4, T) = @splat(scalar);
-            const product = va * scalar_vec;
-            result[i..][0..4].* = product;
+            va *= scalar_vec;
+            result[i..][0..4].* = va;
         }
-
-        // Scalar remainder
         while (i < min_len) : (i += 1) {
             result[i] = a[i] * scalar;
         }
     }
 
     /// Dot product
-    pub fn dot(comptime T: type, a: []T, b: []T) T {
+    pub fn dot(comptime T: type, a: []const T, b: []const T) T {
         const min_len = @min(a.len, b.len);
         const simd_len = (min_len / 4) * 4;
-
         var sum: T = 0;
-
-        // SIMD operations
         var i: usize = 0;
         while (i < simd_len) : (i += 4) {
             const va: @Vector(4, T) = a[i..][0..4].*;
             const vb: @Vector(4, T) = b[i..][0..4].*;
-            const product = va * vb;
-            sum += @reduce(.Add, product);
+            sum += @reduce(.Add, va * vb);
         }
-
-        // Scalar remainder
         while (i < min_len) : (i += 1) {
             sum += a[i] * b[i];
         }
-
         return sum;
     }
 
     /// Cosine similarity
-    pub fn cosineSimilarity(comptime T: type, a: []T, b: []T) T {
+    pub fn cosineSimilarity(comptime T: type, a: []const T, b: []const T) T {
         const dot_product = dot(T, a, b);
-        const norm_a = @sqrt(dot(T, a, a));
-        const norm_b = @sqrt(dot(T, b, b));
-
+        const norm_a = std.math.sqrt(dot(T, a, a));
+        const norm_b = std.math.sqrt(dot(T, b, b));
         if (norm_a == 0 or norm_b == 0) return 0;
         return dot_product / (norm_a * norm_b);
     }
 
     /// Euclidean distance
-    pub fn euclideanDistance(comptime T: type, a: []T, b: []T) T {
+    pub fn euclideanDistance(comptime T: type, a: []const T, b: []const T) T {
         const min_len = @min(a.len, b.len);
         const simd_len = (min_len / 4) * 4;
-
         var sum_sq: T = 0;
-
-        // SIMD operations
         var i: usize = 0;
         while (i < simd_len) : (i += 4) {
             const va: @Vector(4, T) = a[i..][0..4].*;
             const vb: @Vector(4, T) = b[i..][0..4].*;
             const diff = va - vb;
-            const diff_sq = diff * diff;
-            sum_sq += @reduce(.Add, diff_sq);
+            sum_sq += @reduce(.Add, diff * diff);
         }
-
-        // Scalar remainder
         while (i < min_len) : (i += 1) {
             const diff = a[i] - b[i];
             sum_sq += diff * diff;
         }
-
-        return @sqrt(sum_sq);
+        return std.math.sqrt(sum_sq);
     }
 };
 
@@ -580,7 +526,7 @@ test "enhanced vector operations" {
 
     // Test magnitude
     const magnitude = vec1.magnitude();
-    try testing.expectApproxEqAbs(@as(f32, 5.477), magnitude, 0.001);
+    try testing.expectApproxEqAbs(@as(f32, 5.4772256), magnitude, 0.001);
 
     // Test normalization
     vec1.normalize();

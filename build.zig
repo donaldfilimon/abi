@@ -121,6 +121,23 @@ pub fn build(b: *std.Build) void {
     const run_benchmark = b.addRunArtifact(benchmark_exe);
     benchmark_step.dependOn(&run_benchmark.step);
 
+    // Server integration tests
+    const server_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/test_server_integration.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = mod },
+                .{ .name = "core", .module = core_mod },
+            },
+        }),
+    });
+
+    const run_server_tests = b.addRunArtifact(server_tests);
+    const server_test_step = b.step("test-servers", "Run server integration tests");
+    server_test_step.dependOn(&run_server_tests.step);
+
     // Static analysis tool
     const static_analysis = b.addExecutable(.{
         .name = "static_analysis",
@@ -135,4 +152,38 @@ pub fn build(b: *std.Build) void {
     const run_static_analysis = b.addRunArtifact(static_analysis);
     const analyze_step = b.step("analyze", "Run static analysis");
     analyze_step.dependOn(&run_static_analysis.step);
+
+    // Windows network diagnostic tool
+    const network_test = b.addExecutable(.{
+        .name = "windows_network_test",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("windows_network_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = mod },
+            },
+        }),
+    });
+    b.installArtifact(network_test);
+
+    const run_network_test = b.addRunArtifact(network_test);
+    const network_test_step = b.step("test-network", "Run Windows network diagnostic");
+    network_test_step.dependOn(&run_network_test.step);
+
+    // Plugin system tests
+    const plugin_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/plugins/mod.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = mod },
+            },
+        }),
+    });
+
+    const run_plugin_tests = b.addRunArtifact(plugin_tests);
+    const plugin_test_step = b.step("test-plugins", "Run plugin system tests");
+    plugin_test_step.dependOn(&run_plugin_tests.step);
 }

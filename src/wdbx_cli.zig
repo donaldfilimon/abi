@@ -408,7 +408,7 @@ pub const AppContext = struct {
     fn runHttpServer(self: *AppContext) !void {
         std.debug.print("Starting HTTP server on {s}:{}\n", .{ self.options.host, self.options.port });
 
-        const http_server = @import("wdbx_http_server.zig");
+        const http_server = @import("wdbx/http.zig");
         const config = http_server.ServerConfig{
             .host = self.options.host,
             .port = self.options.port,
@@ -427,16 +427,541 @@ pub const AppContext = struct {
         try server.start();
     }
 
-    /// Start the TCP binary protocol server (not yet implemented).
+    /// Start the TCP binary protocol server.
     fn runTcpServer(self: *AppContext) !void {
         std.debug.print("Starting TCP server on {s}:{}\n", .{ self.options.host, self.options.port });
-        std.debug.print("TCP server not yet implemented\n", .{});
+
+        // Open database
+        const db_path = self.options.db_path orelse "vectors.wdbx";
+        var db = try database.Db.open(db_path, true);
+        defer db.close();
+
+        if (db.getDimension() == 0) {
+            try db.init(8); // Default to 8 dimensions
+        }
+
+        // Create TCP server
+        const address = try std.net.Address.parseIp(self.options.host, self.options.port);
+        var server = try address.listen(.{ .reuse_address = true });
+        defer server.deinit();
+
+        std.debug.print("TCP server listening on {s}:{}\n", .{ self.options.host, self.options.port });
+
+        while (true) {
+            const connection = server.accept() catch |err| {
+                std.debug.print("Failed to accept TCP connection: {any}\n", .{err});
+                continue;
+            };
+
+            // Handle connection in background
+            self.handleTcpConnection(connection, &db) catch |err| {
+                std.debug.print("TCP connection handling error: {any}\n", .{err});
+            };
+        }
     }
 
-    /// Start the WebSocket server (not yet implemented).
+    /// Handle TCP connection for binary protocol
+    fn handleTcpConnection(self: *AppContext, connection: std.net.Server.Connection, db: *database.Db) !void {
+        defer connection.stream.close();
+
+        var buffer: [4096]u8 = undefined;
+        const bytes_read = connection.stream.read(&buffer) catch |err| {
+            switch (err) {
+                error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
+                else => return err,
+            }
+        };
+
+        if (bytes_read == 0) return;
+
+        // Parse binary command
+        if (bytes_read < 4) return; // Need at least command length
+
+        const command_len = std.mem.readIntLittle(u32, buffer[0..4]);
+        if (command_len > bytes_read - 4) return; // Invalid command length
+
+        const command_data = buffer[4 .. 4 + command_len];
+
+        // Handle different commands
+        if (command_data.len > 0) {
+            const command = command_data[0];
+            switch (command) {
+                0x01 => try self.handleTcpQuery(connection, db, command_data[1..]),
+                0x02 => try self.handleTcpAdd(connection, db, command_data[1..]),
+                0x03 => try self.handleTcpStats(connection, db),
+                else => try self.sendTcpError(connection, "Unknown command"),
+            }
+        }
+    }
+
+    /// Handle TCP query command
+    fn handleTcpQuery(self: *AppContext, connection: std.net.Server.Connection, db: *database.Db, data: []const u8) !void {
+        if (data.len < 4) {
+            try self.sendTcpError(connection, "Invalid query data");
+            return;
+        }
+
+        const vector_len = std.mem.readIntLittle(u32, data[0..4]);
+        if (data.len < 4 + vector_len * 4) {
+            try self.sendTcpError(connection, "Incomplete vector data");
+            return;
+        }
+
+        const vector_data = data[4 .. 4 + vector_len * 4];
+        const vector = std.mem.bytesAsSlice(f32, vector_data);
+
+        // Query database
+        const results = try db.search(vector, 1, self.allocator);
+        defer self.allocator.free(results);
+
+        // Send response
+        if (results.len > 0) {
+            try self.sendTcpResponse(connection, &[_]u8{0x01}, &[_]u8{0x00}); // Success
+            try self.sendTcpVector(connection, results[0]);
+        } else {
+            try self.sendTcpResponse(connection, &[_]u8{0x01}, &[_]u8{0x01}); // No results
+        }
+    }
+
+    /// Handle TCP add command
+    fn handleTcpAdd(self: *AppContext, connection: std.net.Server.Connection, db: *database.Db, data: []const u8) !void {
+        if (data.len < 4) {
+            try self.sendTcpError(connection, "Invalid add data");
+            return;
+        }
+
+        const vector_len = std.mem.readIntLittle(u32, data[0..4]);
+        if (data.len < 4 + vector_len * 4) {
+            try self.sendTcpError(connection, "Incomplete vector data");
+            return;
+        }
+
+        const vector_data = data[4 .. 4 + vector_len * 4];
+        const vector = std.mem.bytesAsSlice(f32, vector_data);
+
+        // Add to database
+        const index = try db.addEmbedding(vector);
+        try self.sendTcpResponse(connection, &[_]u8{0x02}, &[_]u8{0x00}); // Success
+        try self.sendTcpIndex(connection, index);
+    }
+
+    /// Handle TCP stats command
+    fn handleTcpStats(self: *AppContext, connection: std.net.Server.Connection, db: *database.Db) !void {
+        const stats = db.getStats();
+        try self.sendTcpResponse(connection, &[_]u8{0x03}, &[_]u8{0x00}); // Success
+        try self.sendTcpStats(connection, stats);
+    }
+
+    /// Send TCP error response
+    fn sendTcpError(self: *AppContext, connection: std.net.Server.Connection, message: []const u8) !void {
+        try self.sendTcpResponse(connection, &[_]u8{0xFF}, message);
+    }
+
+    /// Send TCP response
+    fn sendTcpResponse(self: *AppContext, connection: std.net.Server.Connection, command: []const u8, data: []const u8) !void {
+        const total_len = command.len + data.len;
+        var response = try std.ArrayList(u8).initCapacity(self.allocator, 4 + total_len);
+        defer response.deinit(self.allocator);
+
+        // Write length
+        try response.appendSlice(self.allocator, &std.mem.toBytes(total_len));
+        // Write command
+        try response.appendSlice(self.allocator, command);
+        // Write data
+        try response.appendSlice(self.allocator, data);
+
+        _ = connection.stream.write(response.items) catch |err| {
+            switch (err) {
+                error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
+                else => return err,
+            }
+        };
+    }
+
+    /// Send TCP vector result
+    fn sendTcpVector(self: *AppContext, connection: std.net.Server.Connection, result: database.Db.Result) !void {
+        var data = try std.ArrayList(u8).initCapacity(self.allocator, 12);
+        defer data.deinit(self.allocator);
+
+        try data.appendSlice(self.allocator, &std.mem.toBytes(result.index));
+        try data.appendSlice(self.allocator, &std.mem.toBytes(result.score));
+
+        try self.sendTcpResponse(connection, &[_]u8{0x01}, data.items);
+    }
+
+    /// Send TCP index result
+    fn sendTcpIndex(self: *AppContext, connection: std.net.Server.Connection, index: u64) !void {
+        try self.sendTcpResponse(connection, &[_]u8{0x02}, &std.mem.toBytes(index));
+    }
+
+    /// Send TCP stats result
+    fn sendTcpStats(self: *AppContext, connection: std.net.Server.Connection, stats: database.Db.DbStats) !void {
+        var data = try std.ArrayList(u8).initCapacity(self.allocator, 32);
+        defer data.deinit(self.allocator);
+
+        try data.appendSlice(self.allocator, &std.mem.toBytes(stats.initialization_count));
+        try data.appendSlice(self.allocator, &std.mem.toBytes(stats.write_count));
+        try data.appendSlice(self.allocator, &std.mem.toBytes(stats.search_count));
+        try data.appendSlice(self.allocator, &std.mem.toBytes(stats.total_search_time_us));
+
+        try self.sendTcpResponse(connection, &[_]u8{0x03}, data.items);
+    }
+
+    /// Start the WebSocket server.
     fn runWebSocketServer(self: *AppContext) !void {
         std.debug.print("Starting WebSocket server on {s}:{}\n", .{ self.options.host, self.options.port });
-        std.debug.print("WebSocket server not yet implemented\n", .{});
+
+        // Open database
+        const db_path = self.options.db_path orelse "vectors.wdbx";
+        var db = try database.Db.open(db_path, true);
+        defer db.close();
+
+        if (db.getDimension() == 0) {
+            try db.init(8); // Default to 8 dimensions
+        }
+
+        // Create TCP server for WebSocket upgrade
+        const address = try std.net.Address.parseIp(self.options.host, self.options.port);
+        var server = try address.listen(.{ .reuse_address = true });
+        defer server.deinit();
+
+        std.debug.print("WebSocket server listening on {s}:{}\n", .{ self.options.host, self.options.port });
+
+        while (true) {
+            const connection = server.accept() catch |err| {
+                std.debug.print("Failed to accept WebSocket connection: {any}\n", .{err});
+                continue;
+            };
+
+            // Handle connection in background
+            self.handleWebSocketConnection(connection, &db) catch |err| {
+                std.debug.print("WebSocket connection handling error: {any}\n", .{err});
+            };
+        }
+    }
+
+    /// Handle WebSocket connection with upgrade and protocol
+    fn handleWebSocketConnection(self: *AppContext, connection: std.net.Server.Connection, db: *database.Db) !void {
+        defer connection.stream.close();
+
+        var buffer: [4096]u8 = undefined;
+        const bytes_read = connection.stream.read(&buffer) catch |err| {
+            switch (err) {
+                error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
+                else => return err,
+            }
+        };
+
+        if (bytes_read == 0) return;
+
+        const request_str = buffer[0..bytes_read];
+
+        // Check if this is a WebSocket upgrade request
+        if (self.isWebSocketUpgrade(request_str)) {
+            try self.handleWebSocketUpgrade(connection, request_str);
+            try self.handleWebSocketProtocol(connection, db);
+        } else {
+            // Send HTTP 400 for non-WebSocket requests
+            const response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
+            _ = connection.stream.write(response) catch |err| {
+                switch (err) {
+                    error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
+                    else => return err,
+                }
+            };
+        }
+    }
+
+    /// Check if request is a WebSocket upgrade
+    fn isWebSocketUpgrade(self: *AppContext, request: []const u8) bool {
+        var upgrade = false;
+        var connection_upgrade = false;
+        var ws_key = false;
+
+        var lines = std.mem.splitSequence(u8, request, "\r\n");
+        _ = lines.next(); // skip request line
+        while (lines.next()) |line| {
+            if (line.len == 0) break;
+            if (std.mem.indexOfScalar(u8, line, ':')) |colon| {
+                const key = std.mem.trim(u8, line[0..colon], " \t");
+                const value = std.mem.trim(u8, line[colon + 1 ..], " \t");
+
+                if (std.ascii.eqlIgnoreCase(key, "Upgrade")) {
+                    if (std.ascii.eqlIgnoreCase(value, "websocket")) upgrade = true;
+                } else if (std.ascii.eqlIgnoreCase(key, "Connection")) {
+                    if (std.mem.indexOf(u8, value, "Upgrade") != null) connection_upgrade = true;
+                } else if (std.ascii.eqlIgnoreCase(key, "Sec-WebSocket-Key")) {
+                    ws_key = true;
+                }
+            }
+        }
+
+        return upgrade and connection_upgrade and ws_key;
+    }
+
+    /// Handle WebSocket upgrade handshake
+    fn handleWebSocketUpgrade(self: *AppContext, connection: std.net.Server.Connection, request: []const u8) !void {
+        // Extract WebSocket key
+        var ws_key: ?[]const u8 = null;
+        var lines = std.mem.splitSequence(u8, request, "\r\n");
+        _ = lines.next(); // skip request line
+        while (lines.next()) |line| {
+            if (line.len == 0) break;
+            if (std.mem.indexOfScalar(u8, line, ':')) |colon| {
+                const key = std.mem.trim(u8, line[0..colon], " \t");
+                const value = std.mem.trim(u8, line[colon + 1 ..], " \t");
+                if (std.ascii.eqlIgnoreCase(key, "Sec-WebSocket-Key")) {
+                    ws_key = value;
+                    break;
+                }
+            }
+        }
+
+        if (ws_key == null) {
+            try self.sendWebSocketError(connection, "Missing Sec-WebSocket-Key");
+            return;
+        }
+
+        // Compute Sec-WebSocket-Accept
+        const guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+        var sha1 = std.crypto.hash.Sha1.init(.{});
+        sha1.update(ws_key.?);
+        sha1.update(guid);
+        var digest: [20]u8 = undefined;
+        sha1.final(&digest);
+
+        var accept_buf: [64]u8 = undefined;
+        const accept = std.base64.standard.Encoder.encode(&accept_buf, &digest);
+
+        // Send upgrade response
+        const response = try std.fmt.allocPrint(
+            self.allocator,
+            "HTTP/1.1 101 Switching Protocols\r\n" ++
+                "Upgrade: websocket\r\n" ++
+                "Connection: Upgrade\r\n" ++
+                "Sec-WebSocket-Accept: {s}\r\n" ++
+                "\r\n",
+            .{accept},
+        );
+        defer self.allocator.free(response);
+
+        _ = connection.stream.write(response) catch |err| {
+            switch (err) {
+                error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
+                else => return err,
+            }
+        };
+    }
+
+    /// Handle WebSocket protocol after upgrade
+    fn handleWebSocketProtocol(self: *AppContext, connection: std.net.Server.Connection, db: *database.Db) !void {
+        var buffer: [4096]u8 = undefined;
+
+        while (true) {
+            const bytes_read = connection.stream.read(&buffer) catch |err| {
+                switch (err) {
+                    error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
+                    else => return err,
+                }
+            };
+
+            if (bytes_read == 0) return;
+
+            // Parse WebSocket frame
+            const frame = try self.parseWebSocketFrame(buffer[0..bytes_read]);
+            if (frame.opcode == 0x8) { // Close frame
+                try self.sendWebSocketClose(connection);
+                return;
+            } else if (frame.opcode == 0x9) { // Ping frame
+                try self.sendWebSocketPong(connection);
+            } else if (frame.opcode == 0x1) { // Text frame
+                try self.handleWebSocketMessage(connection, db, frame.payload);
+            }
+        }
+    }
+
+    /// WebSocket frame structure
+    const WebSocketFrame = struct {
+        fin: bool,
+        opcode: u4,
+        payload: []const u8,
+    };
+
+    /// Parse WebSocket frame
+    fn parseWebSocketFrame(self: *AppContext, data: []const u8) !WebSocketFrame {
+        if (data.len < 2) return error.InvalidFrame;
+
+        const first_byte = data[0];
+        const second_byte = data[1];
+
+        const fin = (first_byte & 0x80) != 0;
+        const opcode = first_byte & 0x0F;
+        const masked = (second_byte & 0x80) != 0;
+        var payload_len = second_byte & 0x7F;
+
+        var offset: usize = 2;
+
+        // Extended payload length
+        if (payload_len == 126) {
+            if (data.len < 4) return error.InvalidFrame;
+            payload_len = std.mem.readIntBig(u16, data[2..4]);
+            offset += 2;
+        } else if (payload_len == 127) {
+            if (data.len < 10) return error.InvalidFrame;
+            payload_len = std.mem.readIntBig(u64, data[2..10]);
+            offset += 8;
+        }
+
+        // Mask key
+        if (masked) {
+            if (data.len < offset + 4) return error.InvalidFrame;
+            offset += 4;
+        }
+
+        if (data.len < offset + payload_len) return error.InvalidFrame;
+
+        const payload = data[offset .. offset + payload_len];
+
+        return WebSocketFrame{
+            .fin = fin,
+            .opcode = opcode,
+            .payload = payload,
+        };
+    }
+
+    /// Handle WebSocket message
+    fn handleWebSocketMessage(self: *AppContext, connection: std.net.Server.Connection, db: *database.Db, message: []const u8) !void {
+        // Parse JSON message
+        const parsed = std.json.parseFromSlice(WebSocketMessage, self.allocator, message, .{}) catch |err| {
+            try self.sendWebSocketError(connection, "Invalid JSON");
+            return err;
+        };
+        defer parsed.deinit();
+
+        const msg = parsed.value;
+
+        switch (msg.type) {
+            .query => try self.handleWebSocketQuery(connection, db, msg),
+            .add => try self.handleWebSocketAdd(connection, db, msg),
+            .stats => try self.handleWebSocketStats(connection, db),
+            else => try self.sendWebSocketError(connection, "Unknown message type"),
+        }
+    }
+
+    /// WebSocket message structure
+    const WebSocketMessage = struct {
+        type: WebSocketMessageType,
+        data: ?[]const u8,
+        vector: ?[]const f32,
+        k: ?u32,
+    };
+
+    /// WebSocket message types
+    const WebSocketMessageType = enum {
+        query,
+        add,
+        stats,
+    };
+
+    /// Handle WebSocket query
+    fn handleWebSocketQuery(self: *AppContext, connection: std.net.Server.Connection, db: *database.Db, msg: WebSocketMessage) !void {
+        if (msg.vector == null) {
+            try self.sendWebSocketError(connection, "Missing vector data");
+            return;
+        }
+
+        const k = msg.k orelse 1;
+        const results = try db.search(msg.vector.?, k, self.allocator);
+        defer self.allocator.free(results);
+
+        try self.sendWebSocketResponse(connection, "query_result", results);
+    }
+
+    /// Handle WebSocket add
+    fn handleWebSocketAdd(self: *AppContext, connection: std.net.Server.Connection, db: *database.Db, msg: WebSocketMessage) !void {
+        if (msg.vector == null) {
+            try self.sendWebSocketError(connection, "Missing vector data");
+            return;
+        }
+
+        const index = try db.addEmbedding(msg.vector.?);
+        try self.sendWebSocketResponse(connection, "add_result", &[_]database.Db.Result{.{ .index = index, .score = 0.0 }});
+    }
+
+    /// Handle WebSocket stats
+    fn handleWebSocketStats(_: *AppContext, connection: std.net.Server.Connection, db: *database.Db, _: WebSocketMessage) !void {
+        const stats = db.getStats();
+        _ = stats; // Use stats to avoid unused variable warning
+        try self.sendWebSocketResponse(connection, "stats_result", &[_]database.Db.Result{});
+    }
+
+    /// Send WebSocket response
+    fn sendWebSocketResponse(self: *AppContext, connection: std.net.Server.Connection, response_type: []const u8, results: []const database.Db.Result) !void {
+        var response = try std.ArrayList(u8).initCapacity(self.allocator, 256);
+        defer response.deinit(self.allocator);
+
+        try response.writer(self.allocator).print("{{\"type\":\"{s}\",\"success\":true,\"results\":[", .{response_type});
+
+        for (results, 0..) |result, i| {
+            if (i > 0) try response.appendSlice(self.allocator, ",");
+            try response.writer(self.allocator).print("{{\"index\":{d},\"distance\":{d}}}", .{ result.index, result.score });
+        }
+
+        try response.appendSlice(self.allocator, "]}");
+
+        try self.sendWebSocketFrame(connection, 0x1, response.items); // Text frame
+    }
+
+    /// Send WebSocket error
+    fn sendWebSocketError(self: *AppContext, connection: std.net.Server.Connection, message: []const u8) !void {
+        const error_response = try std.fmt.allocPrint(
+            self.allocator,
+            "{{\"type\":\"error\",\"success\":false,\"message\":\"{s}\"}}",
+            .{message},
+        );
+        defer self.allocator.free(error_response);
+
+        try self.sendWebSocketFrame(connection, 0x1, error_response); // Text frame
+    }
+
+    /// Send WebSocket close frame
+    fn sendWebSocketClose(self: *AppContext, connection: std.net.Server.Connection) !void {
+        try self.sendWebSocketFrame(connection, 0x8, ""); // Close frame
+    }
+
+    /// Send WebSocket pong frame
+    fn sendWebSocketPong(self: *AppContext, connection: std.net.Server.Connection) !void {
+        try self.sendWebSocketFrame(connection, 0xA, ""); // Pong frame
+    }
+
+    /// Send WebSocket frame
+    fn sendWebSocketFrame(self: *AppContext, connection: std.net.Server.Connection, opcode: u4, payload: []const u8) !void {
+        var frame = try std.ArrayList(u8).initCapacity(self.allocator, 2 + payload.len);
+        defer frame.deinit(self.allocator);
+
+        // First byte: FIN + RSV + Opcode
+        try frame.append(0x80 | opcode); // FIN = 1, RSV = 0, Opcode = opcode
+
+        // Second byte: MASK + Payload length
+        if (payload.len < 126) {
+            try frame.append(@intCast(payload.len));
+        } else if (payload.len < 65536) {
+            try frame.append(126);
+            try frame.appendSlice(self.allocator, &std.mem.toBytes(@as(u16, @intCast(payload.len))));
+        } else {
+            try frame.append(127);
+            try frame.appendSlice(self.allocator, &std.mem.toBytes(@as(u64, @intCast(payload.len))));
+        }
+
+        // Payload
+        try frame.appendSlice(self.allocator, payload);
+
+        _ = connection.stream.write(frame.items) catch |err| {
+            switch (err) {
+                error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
+                else => return err,
+            }
+        };
     }
 
     /// Generate a JWT authentication token (stub).
