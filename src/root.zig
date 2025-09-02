@@ -50,6 +50,9 @@ pub const web_server = @import("web_server.zig");
 /// Database modules
 pub const database = @import("database.zig");
 
+/// WDBX Vector Database - Enhanced Unified Implementation
+pub const wdbx = @import("@wdbx.zig");
+
 /// Platform-specific modules
 pub const platform = @import("platform.zig");
 

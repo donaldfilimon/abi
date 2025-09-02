@@ -1,14 +1,23 @@
-// ----------  wdbx.zig  ----------
-// This file unifies the four original modules:
+// ----------  @wdbx.zig  ----------
+// UNIFIED WDBX VECTOR DATABASE - Complete Implementation
 //
-//   * wdbx_cli.zig
-//   * wdbx_enhanced.zig
-//   * wdbx_http_server.zig
-//   * wdbx_production.zig
+// This file unifies ALL WDBX modules into a single, comprehensive file:
 //
-// All imports are consolidated at the top and duplicate type definitions are
-// removed.  The HTTP server and CLI refer to the `WdbxProduction` type via
-// an alias named `database.Db` so that the original code compiles unchanged.
+//   * wdbx_cli.zig          - Command Line Interface
+//   * wdbx_enhanced.zig     - Enhanced features and optimizations
+//   * wdbx_http_server.zig  - HTTP REST API Server
+//   * wdbx_production.zig   - Production-ready database engine
+//
+// Features included:
+// - Complete CLI with all commands (help, version, add, query, knn, stats, etc.)
+// - HTTP REST API server with authentication and rate limiting
+// - Production-grade vector database with sharding and metrics
+// - Advanced compression (8-bit, 4-bit, product quantization, delta encoding)
+// - LSH indexing for fast approximate nearest neighbor search
+// - SIMD optimizations with runtime CPU capability detection
+// - Comprehensive error handling and health monitoring
+// - Memory management and leak detection
+// - Performance profiling and metrics collection
 //
 // ---------------------------------------------------------------
 // 1. Imports & global constants
@@ -17,6 +26,46 @@ const std = @import("std");
 const builtin = @import("builtin");
 const simd = @import("simd/mod.zig");
 const http = std.http;
+
+// Enhanced error types for comprehensive error handling
+pub const WdbxError = error{
+    // Database state errors
+    AlreadyInitialized,
+    NotInitialized,
+    InvalidState,
+    CorruptedDatabase,
+
+    // Operation errors
+    DimensionMismatch,
+    VectorNotFound,
+    IndexOutOfBounds,
+    CompressionFailed,
+    DecompressionFailed,
+
+    // Resource errors
+    OutOfMemory,
+    FileBusy,
+    DiskFull,
+    BackupFailed,
+    RestoreFailed,
+
+    // Configuration errors
+    InvalidConfiguration,
+    ConfigurationValidationFailed,
+    UnsupportedVersion,
+
+    // Network errors
+    ConnectionFailed,
+    Timeout,
+    InvalidRequest,
+    AuthenticationFailed,
+    RateLimitExceeded,
+
+    // CLI errors
+    InvalidCommand,
+    MissingArgument,
+    InvalidParameter,
+};
 
 // ---------------------------------------------------------------
 // 2. Common data structures
@@ -138,6 +187,161 @@ pub const Metrics = struct {
         try writer.print("# HELP wdbx_memory_bytes Memory usage in bytes\n", .{});
         try writer.print("# TYPE wdbx_memory_bytes gauge\n", .{});
         try writer.print("wdbx_memory_bytes {d}\n", .{self.memory_used_bytes.load(.monotonic)});
+    }
+};
+
+// ---------------------------------------------------------------
+// Enhanced Features: Memory Leak Detection
+// ---------------------------------------------------------------
+pub const MemoryTracker = struct {
+    allocator: std.mem.Allocator,
+    allocations: std.HashMap(usize, AllocationInfo, std.hash_map.AutoContext(usize), 80),
+    total_allocated: std.atomic.Value(usize),
+    peak_allocated: std.atomic.Value(usize),
+    allocation_count: std.atomic.Value(u64),
+
+    const AllocationInfo = struct {
+        size: usize,
+        timestamp: i64,
+        stack_trace: ?[]const u8,
+    };
+
+    pub fn init(allocator: std.mem.Allocator) !*MemoryTracker {
+        const self = try allocator.create(MemoryTracker);
+        self.* = .{
+            .allocator = allocator,
+            .allocations = std.HashMap(usize, AllocationInfo, std.hash_map.AutoContext(usize), 80).init(allocator),
+            .total_allocated = std.atomic.Value(usize).init(0),
+            .peak_allocated = std.atomic.Value(usize).init(0),
+            .allocation_count = std.atomic.Value(u64).init(0),
+        };
+        return self;
+    }
+
+    pub fn trackAllocation(self: *MemoryTracker, ptr: usize, size: usize) void {
+        const info = AllocationInfo{
+            .size = size,
+            .timestamp = std.time.milliTimestamp(),
+            .stack_trace = null, // Could capture stack trace here
+        };
+        _ = self.allocations.put(ptr, info) catch return;
+        _ = self.total_allocated.fetchAdd(size, .monotonic);
+        _ = self.allocation_count.fetchAdd(1, .monotonic);
+
+        // Update peak
+        const current = self.total_allocated.load(.monotonic);
+        var peak = self.peak_allocated.load(.monotonic);
+        while (current > peak) {
+            if (self.peak_allocated.compareAndSwap(peak, current, .monotonic, .monotonic)) |_| {
+                break;
+            }
+            peak = self.peak_allocated.load(.monotonic);
+        }
+    }
+
+    pub fn trackDeallocation(self: *MemoryTracker, ptr: usize) void {
+        if (self.allocations.get(ptr)) |info| {
+            _ = self.total_allocated.fetchSub(info.size, .monotonic);
+            _ = self.allocations.remove(ptr);
+        }
+    }
+
+    pub fn getStats(self: *const MemoryTracker) struct { total: usize, peak: usize, count: u64, leaks: usize } {
+        return .{
+            .total = self.total_allocated.load(.monotonic),
+            .peak = self.peak_allocated.load(.monotonic),
+            .count = self.allocation_count.load(.monotonic),
+            .leaks = self.allocations.count(),
+        };
+    }
+
+    pub fn deinit(self: *MemoryTracker) void {
+        self.allocations.deinit();
+        self.allocator.destroy(self);
+    }
+};
+
+// ---------------------------------------------------------------
+// Enhanced Features: Performance Profiler
+// ---------------------------------------------------------------
+pub const PerformanceProfiler = struct {
+    allocator: std.mem.Allocator,
+    function_times: std.StringHashMap(FunctionStats),
+    enabled: std.atomic.Value(bool),
+
+    const FunctionStats = struct {
+        total_time_ms: f64,
+        call_count: u64,
+        min_time_ms: f64,
+        max_time_ms: f64,
+        avg_time_ms: f64,
+    };
+
+    pub fn init(allocator: std.mem.Allocator) !*PerformanceProfiler {
+        const self = try allocator.create(PerformanceProfiler);
+        self.* = .{
+            .allocator = allocator,
+            .function_times = std.StringHashMap(FunctionStats).init(allocator),
+            .enabled = std.atomic.Value(bool).init(true),
+        };
+        return self;
+    }
+
+    pub fn profile(self: *PerformanceProfiler, function_name: []const u8, comptime func: anytype, args: anytype) !@typeInfo(@TypeOf(func)).Fn.return_type.? {
+        if (!self.enabled.load(.monotonic)) {
+            return func(args);
+        }
+
+        const start_time = std.time.nanoTimestamp();
+        const result = func(args);
+        const end_time = std.time.nanoTimestamp();
+        const duration_ms = @as(f64, @floatFromInt(end_time - start_time)) / 1_000_000.0;
+
+        const entry = self.function_times.getOrPut(function_name) catch return result;
+        if (entry.found_existing) {
+            const stats = entry.value_ptr.*;
+            stats.total_time_ms += duration_ms;
+            stats.call_count += 1;
+            stats.min_time_ms = @min(stats.min_time_ms, duration_ms);
+            stats.max_time_ms = @max(stats.max_time_ms, duration_ms);
+            stats.avg_time_ms = stats.total_time_ms / @as(f64, @floatFromInt(stats.call_count));
+            entry.value_ptr.* = stats;
+        } else {
+            entry.value_ptr.* = FunctionStats{
+                .total_time_ms = duration_ms,
+                .call_count = 1,
+                .min_time_ms = duration_ms,
+                .max_time_ms = duration_ms,
+                .avg_time_ms = duration_ms,
+            };
+        }
+
+        return result;
+    }
+
+    pub fn getReport(self: *const PerformanceProfiler) ![]const u8 {
+        var buffer = std.ArrayList(u8).init(self.allocator);
+        defer buffer.deinit(self.allocator);
+
+        try buffer.writer().print("=== Performance Profiler Report ===\n", .{});
+        var iterator = self.function_times.iterator();
+        while (iterator.next()) |entry| {
+            const stats = entry.value_ptr.*;
+            try buffer.writer().print("Function: {s}\n", .{entry.key_ptr.*});
+            try buffer.writer().print("  Calls: {d}\n", .{stats.call_count});
+            try buffer.writer().print("  Total: {d:.3}ms\n", .{stats.total_time_ms});
+            try buffer.writer().print("  Average: {d:.3}ms\n", .{stats.avg_time_ms});
+            try buffer.writer().print("  Min: {d:.3}ms\n", .{stats.min_time_ms});
+            try buffer.writer().print("  Max: {d:.3}ms\n", .{stats.max_time_ms});
+            try buffer.writer().print("\n", .{});
+        }
+
+        return try buffer.toOwnedSlice(self.allocator);
+    }
+
+    pub fn deinit(self: *PerformanceProfiler) void {
+        self.function_times.deinit();
+        self.allocator.destroy(self);
     }
 };
 
@@ -1238,7 +1442,29 @@ pub const WdbxCLI = struct {
 
     fn runHttpServer(self: *WdbxCLI) !void {
         std.debug.print("Starting HTTP server for CLI at {s}:{d}\n", .{ self.options.host, self.options.port });
-        // Placeholder: just print, actual server launch is handled in WdbxHttpServer
+
+        // Create HTTP server configuration
+        const server_config = WdbxHttpServer.ServerConfig{
+            .host = self.options.host,
+            .port = self.options.port,
+            .max_request_size = 1024 * 1024,
+            .rate_limit = 1000,
+            .enable_cors = true,
+            .enable_auth = true,
+        };
+
+        // Initialize and start HTTP server
+        var server = try WdbxHttpServer.init(self.allocator, server_config);
+        defer server.deinit();
+
+        // Open database if specified
+        if (self.options.db_path) |path| {
+            try server.openDatabase(path);
+        } else {
+            try server.openDatabase("vectors.wdbx");
+        }
+
+        try server.start();
     }
 
     fn runTcpServer(_: *WdbxCLI) !void {
@@ -1304,28 +1530,112 @@ pub fn main() !void {
 
     while (args.next()) |arg| {
         if (std.mem.eql(u8, arg, "--db")) {
-            if (args.next()) |path| cli.options.db_path = try allocator.dupe(u8, path);
+            if (args.next()) |path| {
+                cli.options.db_path = try allocator.dupe(u8, path);
+            } else {
+                std.debug.print("Error: --db requires a path argument\n", .{});
+                return;
+            }
         } else if (std.mem.eql(u8, arg, "--host")) {
-            if (args.next()) |host| cli.options.host = try allocator.dupe(u8, host);
+            if (args.next()) |host| {
+                cli.options.host = try allocator.dupe(u8, host);
+            } else {
+                std.debug.print("Error: --host requires a host argument\n", .{});
+                return;
+            }
         } else if (std.mem.eql(u8, arg, "--port")) {
-            if (args.next()) |port_str| cli.options.port = try std.fmt.parseInt(u16, port_str, 10);
+            if (args.next()) |port_str| {
+                cli.options.port = std.fmt.parseInt(u16, port_str, 10) catch |err| {
+                    std.debug.print("Error: Invalid port number '{s}': {}\n", .{ port_str, err });
+                    return;
+                };
+            } else {
+                std.debug.print("Error: --port requires a port number\n", .{});
+                return;
+            }
         } else if (std.mem.eql(u8, arg, "--k")) {
-            if (args.next()) |k_str| cli.options.k = try std.fmt.parseInt(usize, k_str, 10);
+            if (args.next()) |k_str| {
+                cli.options.k = std.fmt.parseInt(usize, k_str, 10) catch |err| {
+                    std.debug.print("Error: Invalid k value '{s}': {}\n", .{ k_str, err });
+                    return;
+                };
+            } else {
+                std.debug.print("Error: --k requires a number\n", .{});
+                return;
+            }
         } else if (std.mem.eql(u8, arg, "--vector")) {
-            if (args.next()) |vec| cli.options.vector = try allocator.dupe(u8, vec);
+            if (args.next()) |vec| {
+                cli.options.vector = try allocator.dupe(u8, vec);
+            } else {
+                std.debug.print("Error: --vector requires a vector string\n", .{});
+                return;
+            }
         } else if (std.mem.eql(u8, arg, "--verbose")) {
             cli.options.verbose = true;
         } else if (std.mem.eql(u8, arg, "--quiet")) {
             cli.options.quiet = true;
         } else if (std.mem.eql(u8, arg, "--role")) {
-            if (args.next()) |role| cli.options.role = try allocator.dupe(u8, role);
+            if (args.next()) |role| {
+                cli.options.role = try allocator.dupe(u8, role);
+            } else {
+                std.debug.print("Error: --role requires a role name\n", .{});
+                return;
+            }
         } else if (std.mem.eql(u8, arg, "--format")) {
-            if (args.next()) |fmt| cli.options.output_format = if (std.mem.eql(u8, fmt, "json")) .json else .text;
+            if (args.next()) |fmt| {
+                if (std.mem.eql(u8, fmt, "json")) {
+                    cli.options.output_format = .json;
+                } else if (std.mem.eql(u8, fmt, "csv")) {
+                    cli.options.output_format = .csv;
+                } else if (std.mem.eql(u8, fmt, "text")) {
+                    cli.options.output_format = .text;
+                } else {
+                    std.debug.print("Error: Invalid format '{s}'. Use: text, json, or csv\n", .{fmt});
+                    return;
+                }
+            } else {
+                std.debug.print("Error: --format requires a format (text, json, csv)\n", .{});
+                return;
+            }
+        } else if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
+            try cli.showHelp();
+            return;
+        } else if (std.mem.eql(u8, arg, "--version") or std.mem.eql(u8, arg, "-v")) {
+            try cli.showVersion();
+            return;
         } else if (cli.options.vector == null and (command == .knn or command == .query or command == .add)) {
             // Treat non-flag arguments as vectors for vector commands
             cli.options.vector = try allocator.dupe(u8, arg);
+        } else if (std.mem.startsWith(u8, arg, "-")) {
+            std.debug.print("Error: Unknown option '{s}'. Use --help for available options.\n", .{arg});
+            return;
         } else {
-            std.debug.print("Unknown option: {s}\n", .{arg});
+            // Handle positional arguments based on command
+            switch (command) {
+                .knn, .query, .add => {
+                    if (cli.options.vector == null) {
+                        cli.options.vector = try allocator.dupe(u8, arg);
+                    }
+                },
+                .http, .tcp, .ws => {
+                    cli.options.port = std.fmt.parseInt(u16, arg, 10) catch |err| {
+                        std.debug.print("Error: Invalid port '{s}': {}\n", .{ arg, err });
+                        return;
+                    };
+                },
+                .gen_token => {
+                    cli.options.role = try allocator.dupe(u8, arg);
+                },
+                .save, .load => {
+                    if (cli.options.db_path == null) {
+                        cli.options.db_path = try allocator.dupe(u8, arg);
+                    }
+                },
+                else => {
+                    std.debug.print("Error: Unexpected argument '{s}' for command '{s}'\n", .{ arg, @tagName(command) });
+                    return;
+                },
+            }
         }
     }
 
