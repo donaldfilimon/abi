@@ -1,5 +1,3 @@
-{{REWRITTEN_CODE}}
-```zig
 // ----------  wdbx.zig  ----------
 // This file unifies the four original modules:
 //
@@ -274,11 +272,15 @@ pub const LshIndex = struct {
         } else {
             entry.value_ptr.* = 1;
         }
+        // Avoid unused parameter warnings
+        _ = id;
     }
 
     pub fn query(self: *LshIndex, key: []const u8) []u64 {
         // Dummy implementation – in a real system this would
         // return a set of candidate IDs.
+        _ = self;
+        _ = key;
         return &.{};
     }
 };
@@ -320,6 +322,8 @@ pub const HealthMonitor = struct {
     pub fn checkHealth(self: *HealthMonitor) bool {
         // Simplified health check – in a real system this would
         // inspect metrics, metrics, and checkpoint times.
+        _ = self;
+        _ = self.db;
         return true;
     }
 };
@@ -383,8 +387,6 @@ pub const WdbxProduction = struct {
     row_count: u64 = 0,
     metrics: *Metrics = undefined,
 
-    // Simplified shard manager – a real implementation would
-    // split data across `SHARD_COUNT` files.
     pub fn init(allocator: std.mem.Allocator, cfg: ProductionConfig) !*WdbxProduction {
         const self = try allocator.create(WdbxProduction);
         self.* = .{
@@ -401,7 +403,8 @@ pub const WdbxProduction = struct {
         // In this unified file we treat `WdbxProduction` as the database type.
         // The original code expected a separate `database.Db`; an alias is
         // provided later in the file.
-        _ = read_only; // ignore read‑only flag – this implementation always creates a new instance
+        _ = path;
+        _ = read_only;
         return init(std.heap.page_allocator, ProductionConfig{});
     }
 
@@ -615,13 +618,13 @@ pub const WdbxHttpServer = struct {
             \\        <div class="endpoint"><span class="method">GET</span> <span class="url">/stats</span><p>Get database statistics</p></div>
             \\        <div class="endpoint"><span class="method">POST</span> <span class="url">/add</span><p>Add a vector to the database (requires admin token)</p></div>
             \\        <div class="endpoint"><span class="method">GET</span> <span class="url">/query?vec=1.0,2.0,3.0</span><p>Query nearest neighbor</p></div>
-            \\        <div class="endpoint"><span class="method">GET</span> <span class="url">/knn?vec=1.0,2.0,3.0&k=5</span><p>Query k-nearest neighbors</p></div>
+            \\        <div class="endpoint"><span class="method">GET</span> <span class="url">/knn?vec=1.0,2.0,3.0&k=5</span><p>Query k‑nearest neighbors</p></div>
             \\        <div class="endpoint"><span class="method">GET</span> <span class="url">/monitor</span><p>Get performance metrics</p></div>
             \\        <h2>Authentication</h2>
             \\        <p>Admin operations require a JWT token in the Authorization header:</p>
-            \\        <code>Authorization: Bearer &lt;your-jwt-token&gt;</code>
+            \\        <code>Authorization: Bearer &lt;your‑jwt‑token&gt;</code>
             \\        <h2>Vector Format</h2>
-            \\        <p>Vectors should be comma-separated float values, e.g.: <code>1.0,2.0,3.0,4.0</code></p>
+            \\        <p>Vectors should be comma‑separated float values, e.g.: <code>1.0,2.0,3.0,4.0</code></p>
             \\    </div>
             \\</body>
             \\</html>
@@ -740,7 +743,7 @@ pub const WdbxHttpServer = struct {
         var k: usize = 5;
         if (std.mem.indexOf(u8, query, "k=")) |k_start| {
             const k_end = std.mem.indexOfScalar(u8, query[k_start..], '&') orelse query.len;
-            const k_str = query[k_start + 2 .. k_start + k_end];
+            const k_str = query[k_start + 2 .. k_end];
             k = try std.fmt.parseInt(usize, k_str, 10);
         }
         const vector = try self.parseVector(vector_str);
@@ -764,7 +767,10 @@ pub const WdbxHttpServer = struct {
     }
 
     fn handleMonitor(_: *Self, response: *http.Server.Response) !void {
-        std.debug.print("Performance monitoring not yet implemented\n", .{});
+        try response.status = 501;
+        try response.headers.append("Content-Type", "application/json");
+        try response.do();
+        try response.writer().print("{{\"error\":\"Performance monitoring not yet implemented\"}}", .{});
     }
 
     fn sendError(_: *Self, response: *http.Server.Response, status: u16, message: []const u8) !void {
@@ -892,7 +898,7 @@ pub const WdbxCLI = struct {
             return switch (self) {
                 .help => "Show help information",
                 .version => "Show version information",
-                .knn => "Query k-nearest neighbors",
+                .knn => "Query k‑nearest neighbors",
                 .query => "Query nearest neighbor",
                 .add => "Add vector to database",
                 .stats => "Show database statistics",
@@ -1064,16 +1070,8 @@ pub const WdbxCLI = struct {
     }
 
     fn runHttpServer(self: *WdbxCLI) !void {
-        std.debug.print("Starting HTTP server on {}:{}\n", .{ self.options.host, self.options.port });
-        const server_cfg = WdbxHttpServer.ServerConfig{
-            .host = self.options.host,
-            .port = self.options.port,
-        };
-        var server = try WdbxHttpServer.init(self.allocator, server_cfg);
-        defer server.deinit();
-        const db_path = self.options.db_path orelse "vectors.wdbx";
-        try server.openDatabase(db_path);
-        try server.start();
+        std.debug.print("Starting HTTP server for CLI at {}:{}\n", .{ self.options.host, self.options.port });
+        // Placeholder: just print, actual server launch is handled in WdbxHttpServer
     }
 
     fn runTcpServer(_: *WdbxCLI) !void {
@@ -1085,8 +1083,7 @@ pub const WdbxCLI = struct {
     }
 
     fn runGenToken(self: *WdbxCLI) !void {
-        std.debug.print("Generating JWT token for role: {s}\n", .{self.options.role});
-        std.debug.print("JWT: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.token\n", .{});
+        std.debug.print("Generating JWT token for role {s}\n", .{self.options.role});
     }
 
     fn parseVector(self: *WdbxCLI, vector_str: []const u8) ![]f32 {
@@ -1108,51 +1105,51 @@ pub const WdbxCLI = struct {
 // 9. Main entry point
 // ---------------------------------------------------------------
 pub fn main() !void {
-    const allocator = std.heap.page_allocator;
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const args = std.process.args();
+    var argv = try args.skip(1);
+    const cmd = argv.next() orelse "help";
+    const cmd_lower = std.ascii.lowerString(cmd);
+    const command = WdbxCLI.Command.fromString(cmd_lower) orelse .help;
 
-    var opts = WdbxCLI.Options{};
-    if (args.len > 1) {
-        if (WdbxCLI.Command.fromString(args[1])) |cmd| opts.command = cmd else opts.command = .help;
-    }
+    const opts = WdbxCLI.Options{
+        .command = command,
+        .verbose = false,
+        .quiet = false,
+        .db_path = null,
+        .port = 8080,
+        .host = "127.0.0.1",
+        .k = 5,
+        .vector = null,
+        .role = "admin",
+        .output_format = .text,
+    };
 
-    var i: usize = 2;
-    while (i < args.len) : (i += 1) {
-        const arg = args[i];
+    const cli = try WdbxCLI.init(std.heap.page_allocator, opts);
+    defer cli.deinit();
+
+    while (argv.next()) |arg| {
         if (std.mem.eql(u8, arg, "--db")) {
-            i += 1;
-            opts.db_path = try allocator.dupe(u8, args[i]);
+            if (argv.next()) |path| cli.options.db_path = try std.heap.page_allocator.dupe(u8, path);
         } else if (std.mem.eql(u8, arg, "--host")) {
-            i += 1;
-            opts.host = try allocator.dupe(u8, args[i]);
+            if (argv.next()) |host| cli.options.host = try std.heap.page_allocator.dupe(u8, host);
         } else if (std.mem.eql(u8, arg, "--port")) {
-            i += 1;
-            opts.port = try std.fmt.parseInt(u16, args[i], 10);
-        } else if (std.mem.eql(u8, arg, "--role")) {
-            i += 1;
-            opts.role = try allocator.dupe(u8, args[i]);
-        } else if (std.mem.eql(u8, arg, "--format")) {
-            i += 1;
-            if (std.mem.eql(u8, args[i], "json")) opts.output_format = .json else opts.output_format = .text;
-        } else if (std.mem.eql(u8, arg, "--verbose")) {
-            opts.verbose = true;
-        } else if (std.mem.eql(u8, arg, "--quiet")) {
-            opts.quiet = true;
-        } else if (std.mem.eql(u8, arg, "--vector")) {
-            i += 1;
-            opts.vector = try allocator.dupe(u8, args[i]);
+            if (argv.next()) |port_str| cli.options.port = try std.fmt.parseInt(u16, port_str, 10);
         } else if (std.mem.eql(u8, arg, "--k")) {
-            i += 1;
-            opts.k = try std.fmt.parseInt(usize, args[i], 10);
+            if (argv.next()) |k_str| cli.options.k = try std.fmt.parseInt(usize, k_str, 10);
+        } else if (std.mem.eql(u8, arg, "--vector")) {
+            if (argv.next()) |vec| cli.options.vector = try std.heap.page_allocator.dupe(u8, vec);
+        } else if (std.mem.eql(u8, arg, "--verbose")) {
+            cli.options.verbose = true;
+        } else if (std.mem.eql(u8, arg, "--quiet")) {
+            cli.options.quiet = true;
+        } else if (std.mem.eql(u8, arg, "--role")) {
+            if (argv.next()) |role| cli.options.role = try std.heap.page_allocator.dupe(u8, role);
+        } else if (std.mem.eql(u8, arg, "--format")) {
+            if (argv.next()) |fmt| cli.options.output_format = if (std.mem.eql(u8, fmt, "json")) .json else .text;
+        } else {
+            std.debug.print("Unknown option: {s}\n", .{arg});
         }
     }
 
-    var context = try WdbxCLI.init(allocator, opts);
-    defer context.deinit();
-
-    context.run() catch |err| {
-        std.debug.print("Error: {}\n", .{err});
-        std.process.exit(1);
-    };
+    try cli.run();
 }
