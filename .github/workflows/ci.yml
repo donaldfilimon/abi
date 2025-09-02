@@ -18,26 +18,30 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Setup Zig
-      uses: goto-bus-stop/setup-zig@v2
+      uses: mlugg/setup-zig@v2
       with:
         version: ${{ matrix.zig-version }}
 
-    - name: Check formatting
+    - name: Check C/C++ formatting (clang-format)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format
+        find src/ -type f \( -name "*.c" -o -name "*.cc" -o -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) -exec clang-format --dry-run --Werror {} +
+
+    - name: Check Zig formatting
       run: zig fmt --check src/
 
-    - name: Run tests
-      run: |
-        # Test individual modules that work
-        zig test tests/dummy_test.zig
-        zig test tests/test_simd_vector.zig
-        zig test tests/test_database.zig
-        zig test src/core/errors.zig
+    - name: Build and Test (zig build test)
+      run: zig build test
 
-    - name: Build project
+    - name: Build (zig build)
       run: zig build
 
-    - name: Build CLI
-      run: zig build --release=safe
+    - name: Test All (zig build test --all)
+      run: zig build test --all
+
+    - name: Run simple_tcp_test.zig
+      run: zig run simple_tcp_test.zig
 
   windows-test:
     runs-on: windows-latest
@@ -46,19 +50,24 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Setup Zig
-      uses: goto-bus-stop/setup-zig@v2
+      uses: mlugg/setup-zig@v2
       with:
         version: '0.15.1'
 
-    - name: Run tests
-      run: |
-        zig test tests/dummy_test.zig
-        zig test tests/test_simd_vector.zig
-        zig test tests/test_database.zig
-        zig test src/core/errors.zig
+    - name: Build and Test (zig build test)
+      run: zig build test
 
-    - name: Build project
+    - name: Build (zig build)
       run: zig build
+
+    - name: Test All (zig build test --all)
+      run: zig build test --all
+
+    - name: Run simple_tcp_test.zig
+      run: zig run simple_tcp_test.zig
+
+    - name: Run test_windows_networking.zig
+      run: zig run test_windows_networking.zig
 
   macos-test:
     runs-on: macos-latest
@@ -67,16 +76,18 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Setup Zig
-      uses: goto-bus-stop/setup-zig@v2
+      uses: mlugg/setup-zig@v2
       with:
         version: '0.15.1'
 
-    - name: Run tests
-      run: |
-        zig test tests/dummy_test.zig
-        zig test tests/test_simd_vector.zig
-        zig test tests/test_database.zig
-        zig test src/core/errors.zig
+    - name: Build and Test (zig build test)
+      run: zig build test
 
-    - name: Build project
+    - name: Build (zig build)
       run: zig build
+
+    - name: Test All (zig build test --all)
+      run: zig build test --all
+
+    - name: Run simple_tcp_test.zig
+      run: zig run simple_tcp_test.zig
