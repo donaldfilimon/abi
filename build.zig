@@ -35,8 +35,21 @@ pub fn build(b: *std.Build) void {
     // to our consumers. We must give it a name because a Zig package can expose
     // multiple modules and consumers will need to be able to specify which
     // module they want to access.
+    // Core modules
     const core_mod = b.createModule(.{
         .root_source_file = b.path("src/core/mod.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    const api_mod = b.createModule(.{
+        .root_source_file = b.path("src/api/mod.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    const utils_mod = b.createModule(.{
+        .root_source_file = b.path("src/utils/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -55,12 +68,14 @@ pub fn build(b: *std.Build) void {
     });
 
     mod.addImport("core", core_mod);
+    mod.addImport("api", api_mod);
+    mod.addImport("utils", utils_mod);
 
-    // Main executable
+    // Main executable - refactored entry point
     const cli_exe = b.addExecutable(.{
-        .name = "abi",
+        .name = "wdbx",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/cli/main.zig"),
+            .root_source_file = b.path("src/main_refactored.zig"),
             .target = target,
             .optimize = optimize,
             .imports = &.{

@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  wdbx:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: wdbx:refactored-latest
+    container_name: wdbx-production
+    restart: unless-stopped
+    ports:
+      - "8080:8080"  # API port
+      - "8081:8081"  # Admin port
+      - "9090:9090"  # Metrics port
+    volumes:
+      - wdbx-data:/var/lib/wdbx
+      - ./config:/etc/wdbx:ro
+    environment:
+      - WDBX_LOG_LEVEL=info
+      - WDBX_ENABLE_METRICS=true
+      - WDBX_MAX_CONNECTIONS=5000
+      - WDBX_MEMORY_LIMIT=4096
+      - WDBX_THREADS=32
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 16G
+        reservations:
+          cpus: '4'
+          memory: 8G
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - wdbx-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: wdbx-prometheus
+    restart: unless-stopped
+    ports:
+      - "9091:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ../../monitoring/prometheus:/etc/prometheus:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - wdbx-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: wdbx-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ../../monitoring/grafana:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    networks:
+      - wdbx-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: wdbx-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - wdbx
+    networks:
+      - wdbx-network
+
+volumes:
+  wdbx-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  wdbx-network:
+    driver: bridge

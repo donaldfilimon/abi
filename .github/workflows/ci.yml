@@ -21,4 +21,25 @@ jobs:
         uses: mlugg/setup-zig@v1
         with:
           version: ${{ matrix.zig }}
-      - run: zig build test
+      
+      # Build the refactored codebase
+      - name: Build
+        run: zig build
+      
+      # Run tests
+      - name: Run tests
+        run: zig build test
+      
+      # Run benchmarks (quick mode)
+      - name: Run benchmarks
+        run: zig build benchmark -- --quick
+        if: matrix.os == 'ubuntu-latest'
+      
+      # Check code formatting
+      - name: Check formatting
+        run: zig fmt --check src/
+      
+      # Run static analysis
+      - name: Static analysis
+        run: zig build analyze
+        if: matrix.os == 'ubuntu-latest'
