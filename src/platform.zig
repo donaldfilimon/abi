@@ -55,8 +55,8 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const abi = @import("root.zig");
 const core = @import("core/mod.zig");
+const simd = @import("simd/mod.zig");
 
 /// Re-export commonly used types
 pub const Allocator = core.Allocator;
@@ -75,7 +75,7 @@ pub const PlatformInfo = struct {
             .os = builtin.os.tag,
             .arch = builtin.cpu.arch,
             .supports_ansi_colors = detectAnsiSupport(),
-            .supports_simd = abi.features.has_simd,
+            .supports_simd = detectSimdSupport(),
             .max_threads = detectMaxThreads(),
             .cache_line_size = detectCacheLineSize(),
         };
@@ -102,6 +102,11 @@ pub const PlatformInfo = struct {
             .x86 => 32,
             else => 64, // Safe default
         };
+    }
+
+    fn detectSimdSupport() bool {
+        // Consider SIMD supported if any of the common vector widths is available
+        return simd.Vector.isSimdAvailable(4) or simd.Vector.isSimdAvailable(8) or simd.Vector.isSimdAvailable(16);
     }
 };
 

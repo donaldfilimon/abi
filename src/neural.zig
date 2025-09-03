@@ -840,11 +840,11 @@ pub const NeuralNetwork = struct {
         const self = try allocator.create(NeuralNetwork);
         errdefer allocator.destroy(self);
 
-        var checkpoints = try std.ArrayList([]f32).initCapacity(allocator, 16);
+        var checkpoints = try std.ArrayListUnmanaged([]f32).initCapacity(allocator, 16);
         errdefer checkpoints.deinit(allocator);
 
         self.* = .{
-            .layers = try std.ArrayList(*Layer).initCapacity(allocator, 16),
+            .layers = try std.ArrayListUnmanaged(*Layer).initCapacity(allocator, 16),
             .allocator = allocator,
             .training_config = config,
             .precision = config.precision,
@@ -1031,7 +1031,7 @@ pub const NeuralNetwork = struct {
         learning_rate: f32,
     ) !f32 {
         // Forward pass with intermediate values
-        var activations = try std.ArrayList([]f32).initCapacity(self.allocator, 8);
+        var activations = try std.ArrayListUnmanaged([]f32).initCapacity(self.allocator, 8);
         defer {
             for (activations.items) |activation| {
                 self.allocator.free(activation);
@@ -1105,7 +1105,7 @@ pub const NeuralNetwork = struct {
         const use_f16 = self.precision == .f16 or self.precision == .mixed;
 
         // Forward pass with intermediate values
-        var activations = try std.ArrayList([]f32).initCapacity(self.allocator, 8);
+        var activations = try std.ArrayListUnmanaged([]f32).initCapacity(self.allocator, 8);
         defer {
             for (activations.items) |activation| {
                 self.allocator.free(activation);

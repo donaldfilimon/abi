@@ -454,7 +454,7 @@ pub const WdbxProduction = struct {
     dimension: u16 = 0,
     row_count: u64 = 0,
     metrics: *Metrics = undefined,
-    vectors: std.ArrayList([]f32),
+    vectors: std.ArrayListUnmanaged([]f32),
     lsh_index: ?*LshIndex = null,
 
     pub fn init(allocator: std.mem.Allocator, cfg: ProductionConfig) !*WdbxProduction {
@@ -466,8 +466,8 @@ pub const WdbxProduction = struct {
             .row_count = 0,
             .vectors = .{},
         };
-        // Initialize vectors ArrayList
-        self.vectors = .{ .items = &.{}, .capacity = 0 };
+        // Initialize vectors container
+        // (Unmanaged lists do not require allocator during init.)
 
         self.metrics = try Metrics.init(allocator, cfg.shard_count);
 
@@ -554,7 +554,7 @@ pub const WdbxProduction = struct {
         const DistanceResult = struct { id: u64, distance: f32 };
 
         // Calculate distances to all vectors
-        var distances = try std.ArrayList(DistanceResult).initCapacity(allocator, self.vectors.items.len);
+        var distances = try std.ArrayListUnmanaged(DistanceResult).initCapacity(allocator, self.vectors.items.len);
         defer distances.deinit(allocator);
 
         for (self.vectors.items, 0..) |stored_vector, i| {
@@ -918,7 +918,7 @@ pub const WdbxHttpServer = struct {
         const db = self.db.?;
         const results = try db.search(vector, k, self.allocator);
         defer self.allocator.free(results);
-        var neighbors = try std.ArrayList(struct { index: u64, distance: f32 }).initCapacity(self.allocator, results.len);
+        var neighbors = try std.ArrayListUnmanaged(struct { index: u64, distance: f32 }).initCapacity(self.allocator, results.len);
         defer neighbors.deinit(self.allocator);
         for (results) |result| {
             try neighbors.append(self.allocator, .{ .index = result.index, .distance = result.score });
@@ -973,7 +973,7 @@ pub const WdbxHttpServer = struct {
     }
 
     fn parseVector(self: *Self, vector_str: []const u8) ![]f32 {
-        var list = try std.ArrayList(f32).initCapacity(self.allocator, 8);
+        var list = try std.ArrayListUnmanaged(f32).initCapacity(self.allocator, 8);
         defer list.deinit(self.allocator);
         var iter = std.mem.splitSequence(u8, vector_str, ",");
         while (iter.next()) |part| {
@@ -991,11 +991,13 @@ pub const WdbxHttpServer = struct {
     }
 
     fn formatNeighbors(self: *Self, neighbors: []const struct { index: u64, distance: f32 }) ![]const u8 {
-        var buffer = std.ArrayList(u8).init(self.allocator);
+        var buffer = std.ArrayListUnmanaged(u8){};
         defer buffer.deinit(self.allocator);
         for (neighbors, 0..) |neighbor, i| {
-            if (i > 0) try buffer.appendSlice(",");
-            try buffer.writer().print("{{\"index\":{d},\"distance\":{d}}}", .{ neighbor.index, neighbor.distance });
+            if (i > 0) try buffer.appendSlice(self.allocator, ",");
+            const s = try std.fmt.allocPrint(self.allocator, "{{\"index\":{d},\"distance\":{d}}}", .{ neighbor.index, neighbor.distance });
+            defer self.allocator.free(s);
+            try buffer.appendSlice(self.allocator, s);
         }
         return try buffer.toOwnedSlice(self.allocator);
     }
@@ -1254,7 +1256,7 @@ pub const WdbxCLI = struct {
     }
 
     fn parseVector(self: *WdbxCLI, vector_str: []const u8) ![]f32 {
-        var list = try std.ArrayList(f32).initCapacity(self.allocator, 8);
+        var list = try std.ArrayListUnmanaged(f32).initCapacity(self.allocator, 8);
         defer list.deinit(self.allocator);
         var iter = std.mem.splitSequence(u8, vector_str, ",");
         while (iter.next()) |part| {
