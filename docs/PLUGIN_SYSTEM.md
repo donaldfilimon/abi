@@ -1,16 +1,18 @@
 # 🔌 Plugin System
 
-> **Extensible plugin architecture for the Abi AI Framework**
+> **Extensible plugin architecture for the Abi AI Framework with stable ABI**
 
 [![Plugin System](https://img.shields.io/badge/Plugin-System-blue.svg)](docs/PLUGIN_SYSTEM.md)
+[![ABI Version](https://img.shields.io/badge/ABI-v1.0.0-orange.svg)](PLUGIN_ABI_SPECIFICATION.md)
 [![Extensible](https://img.shields.io/badge/Extensible-Architecture-brightgreen.svg)]()
 
-The Abi AI Framework features a powerful and extensible plugin system that allows developers to add new functionality, integrate external services, and customize the framework's behavior without modifying the core codebase.
+The Abi AI Framework features a powerful and extensible plugin system that allows developers to add new functionality, integrate external services, and customize the framework's behavior without modifying the core codebase. The system provides a stable Application Binary Interface (ABI) ensuring compatibility across versions and languages.
 
 ## 📋 **Table of Contents**
 
 - [Overview](#overview)
 - [Architecture](#architecture)
+- [Application Binary Interface (ABI)](#application-binary-interface-abi)
 - [Plugin Types](#plugin-types)
 - [Creating Plugins](#creating-plugins)
 - [Using Plugins](#using-plugins)
@@ -28,11 +30,14 @@ The plugin system provides a clean, type-safe interface for extending the Abi AI
 
 ### **Key Features**
 - **Cross-Platform**: Works on Windows, macOS, and Linux
+- **Stable ABI**: C-compatible interface for binary compatibility
 - **Dynamic Loading**: Load and unload plugins at runtime
 - **Type Safety**: Compile-time type checking for plugin interfaces
+- **Version Management**: Semantic versioning for ABI compatibility
 - **Dependency Management**: Automatic dependency resolution and management
 - **Event-Driven**: Plugin communication through event system
 - **Resource Management**: Automatic resource cleanup and lifecycle management
+- **Cross-Language**: Support for plugins written in any language with C ABI
 
 ---
 
@@ -200,6 +205,85 @@ const EventBus = struct {
     };
 };
 ```
+
+---
+
+## 🔐 **Application Binary Interface (ABI)**
+
+The plugin system provides a stable ABI that ensures binary compatibility across different versions and implementations. This allows plugins to be compiled once and work with any compatible version of the framework.
+
+### **ABI Version**
+
+Current ABI Version: **1.0.0**
+
+The ABI follows semantic versioning:
+- **Major**: Breaking changes to the binary interface
+- **Minor**: Backward-compatible additions
+- **Patch**: Bug fixes with no interface changes
+
+### **Key ABI Components**
+
+#### **1. Plugin Entry Point**
+All plugins must export a standard factory function:
+```zig
+export fn abi_plugin_create() callconv(.c) ?*const PluginInterface;
+```
+
+#### **2. C-Compatible Interface**
+The plugin interface uses C calling conventions for cross-language compatibility:
+```zig
+pub const PluginInterface = extern struct {
+    // Required functions
+    get_info: *const fn () callconv(.c) *const PluginInfo,
+    init: *const fn (context: *PluginContext) callconv(.c) c_int,
+    deinit: *const fn (context: *PluginContext) callconv(.c) void,
+    
+    // Optional lifecycle functions
+    start: ?*const fn (context: *PluginContext) callconv(.c) c_int = null,
+    stop: ?*const fn (context: *PluginContext) callconv(.c) c_int = null,
+    // ... more optional functions
+};
+```
+
+#### **3. Version Compatibility**
+Plugins declare their required ABI version:
+```zig
+const PLUGIN_INFO = PluginInfo{
+    .name = "my_plugin",
+    .version = PluginVersion.init(1, 0, 0),
+    .abi_version = PluginVersion.init(1, 0, 0), // Required ABI version
+    // ... other fields
+};
+```
+
+### **Cross-Language Support**
+
+The C-compatible ABI allows plugins to be written in any language that can:
+- Export C functions
+- Use C calling conventions
+- Handle C-compatible data structures
+
+Examples:
+- **C/C++**: Direct support
+- **Rust**: Use `extern "C"` functions
+- **Go**: Use CGO with `//export` directives
+- **Python**: Use ctypes or cffi
+
+### **ABI Stability Guarantees**
+
+Within a major version:
+- Function signatures remain unchanged
+- Struct layouts are stable for `extern` structs
+- New optional functions can be added (set to null in older plugins)
+- Enums can have new values added at the end
+
+### **Documentation**
+
+For detailed ABI specifications, see:
+- [Plugin ABI Specification](PLUGIN_ABI_SPECIFICATION.md) - Complete ABI reference
+- [Example Plugin](../examples/plugins/example_plugin.zig) - Basic implementation
+- [Advanced Plugin Example](../examples/plugins/advanced_plugin_example.zig) - Production-ready example
+- [ABI Tests](../tests/test_plugin_abi.zig) - Compatibility test suite
 
 ---
 
