@@ -16,7 +16,7 @@ pub const ServerConfig = struct {
     rate_limit: usize = 1000, // requests per minute
     enable_cors: bool = true,
     enable_auth: bool = true,
-    jwt_secret: []const u8 = "wdbx-secret-key-change-in-production",
+    jwt_secret: []const u8 = "",
     // Added to satisfy tests
     max_connections: u32 = 1024,
     request_timeout_ms: u32 = 5000,

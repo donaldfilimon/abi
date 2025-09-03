@@ -206,9 +206,25 @@ pub const ThreadOps = struct {
 
     pub fn setThreadPriority(thread: std.Thread, priority: ThreadPriority) !void {
         _ = thread;
-        _ = priority;
-        // Simplified - actual implementation would be platform-specific
-        std.log.debug("Thread priority setting not implemented", .{});
+        switch (builtin.os.tag) {
+            .windows => {
+                const w = std.os.windows;
+                const k32 = w.kernel32;
+                const prio: c_int = switch (priority) {
+                    .low => w.THREAD_PRIORITY_BELOW_NORMAL,
+                    .normal => w.THREAD_PRIORITY_NORMAL,
+                    .high => w.THREAD_PRIORITY_ABOVE_NORMAL,
+                    .realtime => w.THREAD_PRIORITY_TIME_CRITICAL,
+                };
+                const handle = k32.GetCurrentThread();
+                if (k32.SetThreadPriority(handle, prio) == 0) return PlatformError.FeatureNotAvailable;
+                return;
+            },
+            else => {
+                std.log.debug("Thread priority not supported on this platform", .{});
+                return;
+            },
+        }
     }
 };
 

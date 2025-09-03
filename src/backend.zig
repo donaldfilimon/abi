@@ -1,13 +1,13 @@
 //! @Definitions
 //!
-//! **GpuBackendConfig:**  
+//! **GpuBackendConfig:**
 //!   Configures the GPU backend. Fields:
 //!     - `max_batch_size`: Maximum vectors per batch (default: 1024).
 //!     - `memory_limit`: Maximum GPU memory in bytes (default: 512MB).
 //!     - `debug_validation`: Enable/disable GPU debug/validation layers.
 //!     - `power_preference`: Preferred GPU power profile (e.g., high_performance, low_power).
 //!
-//! **GpuBackend:**  
+//! **GpuBackend:**
 //!   Main context for GPU-accelerated vector search. Fields:
 //!     - `config`: GpuBackendConfig instance.
 //!     - `allocator`: CPU-side memory allocator.
@@ -16,40 +16,40 @@
 //!     - `Error`: Error set for all GPU backend operations.
 //!   Methods for initialization, cleanup, and vector search (with CPU fallback).
 //!
-//! **GpuBackend.Error:**  
+//! **GpuBackend.Error:**
 //!   Error set for GPU backend operations, including:
 //!     - `GpuNotAvailable`, `GpuInitializationFailed`, `AdapterNotFound`, `DeviceCreationFailed`,
 //!       `PipelineCreationFailed`, `BufferCreationFailed`, `OperationTimeout`, `InsufficientGpuMemory`,
 //!       `ShaderCompilationFailed`, `InvalidBufferSize`, `GpuOperationFailed`,
 //!       and all `std.mem.Allocator.Error` errors.
 //!
-//! **GpuBackend.init(allocator, config):**  
+//! **GpuBackend.init(allocator, config):**
 //!   Initializes a GpuBackend instance with the given allocator and configuration.
 //!   Returns a pointer to the backend or an error if initialization fails.
 //!
-//! **GpuBackend.deinit():**  
+//! **GpuBackend.deinit():**
 //!   Cleans up and releases all resources held by the backend.
 //!
-//! **GpuBackend.searchSimilar(db, query, top_k):**  
+//! **GpuBackend.searchSimilar(db, query, top_k):**
 //!   Performs a vector similarity search for the given query vector against the database.
 //!   Returns the top_k closest results. Falls back to CPU if GPU is unavailable.
 //!
-//! **GpuBackend.batchSearch(db, queries, top_k):**  
+//! **GpuBackend.batchSearch(db, queries, top_k):**
 //!   Batch version of searchSimilar, processes multiple queries and returns results for each.
 //!
-//! **BatchConfig:**  
+//! **BatchConfig:**
 //!   Configuration for batch processing. Fields:
 //!     - `parallel_queries`: Number of queries to process in parallel (default: 4).
 //!     - `max_batch_size`: Maximum batch size for each batch (default: 1024).
 //!     - `report_progress`: Whether to log progress information.
 //!
-//! **BatchProcessor:**  
+//! **BatchProcessor:**
 //!   Utility for batch processing of vector search queries. Fields:
 //!     - `backend`: Pointer to the GpuBackend instance.
 //!     - `config`: BatchConfig instance.
 //!   Methods for batch processing with or without progress reporting and callbacks.
 //!
-//! **GpuStats:**  
+//! **GpuStats:**
 //!   Tracks performance statistics for GPU operations. Fields:
 //!     - `total_operations`: Total number of operations performed.
 //!     - `total_gpu_time`: Total time spent in GPU operations (in microseconds).

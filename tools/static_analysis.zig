@@ -223,6 +223,7 @@ pub const StaticAnalyzer = struct {
                 if (brace_count <= 0 and function_name != null) {
                     if (line_count > self.config.max_function_length) {
                         const msg = try std.fmt.allocPrint(self.allocator, "Function '{s}' is {d} lines (max: {d})", .{ function_name.?, line_count, self.config.max_function_length });
+                        defer self.allocator.free(msg);
                         try self.addFinding(file_path, start, 1, .warning, msg, "complexity.function_length");
                     }
                     function_start = null;

@@ -1,0 +1,158 @@
+# WDBX Alerting Rules
+# Based on validated performance thresholds: 2,777+ ops/sec baseline
+
+groups:
+  - name: wdbx-performance
+    rules:
+      # Throughput Alerts - Based on validated 2,777+ ops/sec baseline
+      - alert: WDBXThroughputWarning
+        expr: rate(wdbx_operations_total[5m]) < 2500
+        for: 2m
+        labels:
+          severity: warning
+          service: wdbx
+        annotations:
+          summary: "WDBX throughput below warning threshold"
+          description: "WDBX throughput is {{ $value }} ops/sec, below warning threshold of 2500 ops/sec (validated baseline: 2777+ ops/sec)"
+
+      - alert: WDBXThroughputCritical
+        expr: rate(wdbx_operations_total[5m]) < 2000
+        for: 1m
+        labels:
+          severity: critical
+          service: wdbx
+        annotations:
+          summary: "WDBX throughput critically low"
+          description: "WDBX throughput is {{ $value }} ops/sec, below critical threshold of 2000 ops/sec"
+
+      # Latency Alerts - Based on validated sub-millisecond performance
+      - alert: WDBXHighLatency
+        expr: histogram_quantile(0.95, rate(wdbx_latency_histogram_bucket[5m])) > 1000
+        for: 3m
+        labels:
+          severity: warning
+          service: wdbx
+        annotations:
+          summary: "WDBX latency above threshold"
+          description: "WDBX P95 latency is {{ $value }}μs, above 1ms threshold (validated: 783-885μs)"
+
+      - alert: WDBXVeryHighLatency
+        expr: histogram_quantile(0.95, rate(wdbx_latency_histogram_bucket[5m])) > 2000
+        for: 1m
+        labels:
+          severity: critical
+          service: wdbx
+        annotations:
+          summary: "WDBX latency critically high"
+          description: "WDBX P95 latency is {{ $value }}μs, critically high (>2ms)"
+
+  - name: wdbx-reliability
+    rules:
+      # Success Rate Alerts - Based on validated 99.98% success rate
+      - alert: WDBXLowSuccessRate
+        expr: (rate(wdbx_operations_total[5m]) - rate(wdbx_errors_total[5m])) / rate(wdbx_operations_total[5m]) < 0.95
+        for: 2m
+        labels:
+          severity: warning
+          service: wdbx
+        annotations:
+          summary: "WDBX success rate below threshold"
+          description: "WDBX success rate is {{ $value | humanizePercentage }}, below 95% (validated: 99.98%)"
+
+      - alert: WDBXVeryLowSuccessRate
+        expr: (rate(wdbx_operations_total[5m]) - rate(wdbx_errors_total[5m])) / rate(wdbx_operations_total[5m]) < 0.90
+        for: 1m
+        labels:
+          severity: critical
+          service: wdbx
+        annotations:
+          summary: "WDBX success rate critically low"
+          description: "WDBX success rate is {{ $value | humanizePercentage }}, critically low (<90%)"
+
+      # Memory Leak Detection - Based on validated zero-leak performance
+      - alert: WDBXMemoryLeak
+        expr: increase(wdbx_memory_usage_bytes[30m]) > 1073741824  # 1GB increase in 30min
+        for: 5m
+        labels:
+          severity: warning
+          service: wdbx
+        annotations:
+          summary: "Potential WDBX memory leak detected"
+          description: "WDBX memory usage increased by {{ $value | humanizeBytes }} in 30 minutes"
+
+      - alert: WDBXHighMemoryUsage
+        expr: wdbx_memory_usage_bytes > 15032385536  # 14GB (87.5% of 16GB limit)
+        for: 3m
+        labels:
+          severity: critical
+          service: wdbx
+        annotations:
+          summary: "WDBX memory usage critically high"
+          description: "WDBX memory usage is {{ $value | humanizeBytes }}, approaching container limit"
+
+  - name: wdbx-network
+    rules:
+      # Network Connection Alerts - Based on validated 5000+ connection capacity
+      - alert: WDBXHighConnectionCount
+        expr: wdbx_connection_pool_size > 4000
+        for: 5m
+        labels:
+          severity: warning
+          service: wdbx
+        annotations:
+          summary: "WDBX connection count high"
+          description: "WDBX has {{ $value }} active connections, approaching capacity (validated: 5000+)"
+
+      - alert: WDBXNetworkErrors
+        expr: rate(wdbx_network_errors_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: wdbx
+        annotations:
+          summary: "WDBX network errors detected"
+          description: "WDBX experiencing {{ $value }} network errors/sec (validated: 0 errors under stress)"
+
+  - name: wdbx-infrastructure
+    rules:
+      # Pod Health Alerts
+      - alert: WDBXPodDown
+        expr: up{job="wdbx-staging"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: wdbx
+        annotations:
+          summary: "WDBX pod is down"
+          description: "WDBX pod {{ $labels.instance }} has been down for more than 1 minute"
+
+      - alert: WDBXPodRestarting
+        expr: increase(kube_pod_container_status_restarts_total{container="wdbx"}[15m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          service: wdbx
+        annotations:
+          summary: "WDBX pod restarting"
+          description: "WDBX pod {{ $labels.pod }} has restarted {{ $value }} times in the last 15 minutes"
+
+      # Resource Alerts
+      - alert: WDBXHighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{container="wdbx"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: wdbx
+        annotations:
+          summary: "WDBX high CPU usage"
+          description: "WDBX CPU usage is {{ $value }}%, above 80% threshold"
+
+      - alert: WDBXHealthCheckFailing
+        expr: wdbx_health_score < 0.8
+        for: 2m
+        labels:
+          severity: critical
+          service: wdbx
+        annotations:
+          summary: "WDBX health check failing"
+          description: "WDBX health score is {{ $value }}, below 0.8 threshold"

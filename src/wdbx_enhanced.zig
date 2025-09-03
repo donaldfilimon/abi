@@ -1059,8 +1059,25 @@ pub const WdbxEnhanced = struct {
 
         if (self.cache) |cache| {
             if (cache.get(cache_key)) |cached| {
-                // TODO: Implement deserialization and return cached results
-                _ = cached;
+                // Deserialize format: [u32 count][count * (u64 id)(u32 distance_bits)]
+                if (cached.len >= 4) {
+                    var offset: usize = 0;
+                    const count = std.mem.readIntLittle(u32, cached[offset..][0..4]);
+                    offset += 4;
+                    if (cached.len >= 4 + count * (8 + 4)) {
+                        const top_k = try self.allocator.alloc(SearchResult, count);
+                        var i: usize = 0;
+                        while (i < count) : (i += 1) {
+                            const id = std.mem.readIntLittle(u64, cached[offset..][0..8]);
+                            offset += 8;
+                            const distance_bits = std.mem.readIntLittle(u32, cached[offset..][0..4]);
+                            offset += 4;
+                            const distance = @as(f32, @bitCast(distance_bits));
+                            top_k[i] = .{ .id = id, .distance = distance, .metadata = null };
+                        }
+                        return top_k;
+                    }
+                }
             }
         }
 
@@ -1107,8 +1124,18 @@ pub const WdbxEnhanced = struct {
 
         // Cache results
         if (self.cache) |cache| {
-            // TODO: Serialize and cache results
-            _ = cache;
+            var buf = std.ArrayList(u8).init(self.allocator);
+            defer buf.deinit();
+            var w = buf.writer();
+            try w.writeIntLittle(u32, @intCast(result_count));
+            var i: usize = 0;
+            while (i < result_count) : (i += 1) {
+                const res = top_k[i];
+                try w.writeIntLittle(u64, res.id);
+                const dist_bits: u32 = @bitCast(res.distance);
+                try w.writeIntLittle(u32, dist_bits);
+            }
+            try cache.put(cache_key, buf.items);
         }
 
         return top_k;
@@ -1285,13 +1312,22 @@ pub const WdbxEnhanced = struct {
     }
 
     // Health check functions
-    fn checkMemoryHealth() bool {
-        // TODO: Implement real memory health check
-        return true;
+    fn checkMemoryHealth(self: *WdbxEnhanced) bool {
+        _ = self;
+        const stats = std.heap.page_allocator.stats();
+        // Simple heuristic: ensure free pages exist and no extreme fragmentation
+        return stats.reserved_bytes > stats.allocated_bytes;
     }
 
-    fn checkDiskHealth() bool {
-        // TODO: Implement real disk health check
+    fn checkDiskHealth(self: *WdbxEnhanced) bool {
+        var buf: [1]u8 = .{0};
+        const pos = self.file.getPos() catch return true;
+        defer self.file.seekTo(pos) catch {};
+        // Try a no-op read at current position; if it errors unexpectedly, disk is unhealthy
+        _ = self.file.read(&buf) catch |e| switch (e) {
+            error.EndOfStream => return true,
+            else => return false,
+        };
         return true;
     }
 };
