@@ -33,3 +33,6 @@ zig run localml.zig -- predict model.txt 1.2 3.4
 
 ### Cell Framework Example
 This repository now includes a demonstration of the Cell framework using modern C++23 modules. See `cell_framework/README.md` for build instructions.
+## Advanced Persona System Example
+This repository also includes a standalone example of a multi-layered adaptive persona AI system. See `src/advanced_persona_system.zig` and the documentation in `docs/advanced_persona_system.md` for details. The example is not compiled by default.
+
