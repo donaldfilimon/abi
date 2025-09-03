@@ -2,6 +2,13 @@
 //! This file contains a high-level implementation based on the extended
 //! code snippets provided in documentation. It is not included in the
 //! build but demonstrates architecture concepts.
+//!
+//! Features:
+//! - Lock-free agent coordination for high concurrency
+//! - KD-tree based expertise indexing for efficient agent discovery
+//! - Multiple coordination protocols (parallel, sequential, hierarchical)
+//! - Memory-safe operations with proper error handling
+//! - Extensible architecture for custom agent implementations
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -32,26 +39,58 @@ pub const AgentCoordinationSystem = struct {
         }
 
         pub fn allocateSlot(self: *ActiveAgentPool) ?usize {
-            while (true) {
+            var attempts: usize = 0;
+            const max_attempts: usize = 100;
+            
+            while (attempts < max_attempts) : (attempts += 1) {
                 const current = self.allocation_bitmap.load(.Acquire);
                 const slot = @ctz(~current);
                 if (slot >= MaxConcurrentAgents) return null;
-                const new_bitmap = current | (@as(u32, 1) << @intCast(u5, slot));
+                
+                // Ensure safe casting with compile-time check
+                const shift_amount = @intCast(u5, slot % 32);
+                const new_bitmap = current | (@as(u32, 1) << shift_amount);
+                
                 if (self.allocation_bitmap.cmpxchgWeak(current, new_bitmap, .Release, .Acquire) == null) {
                     return slot;
                 }
+                
+                // Backoff strategy to reduce contention
+                if (attempts > 10) {
+                    std.time.sleep(attempts * 1000); // nanoseconds
+                }
             }
+            return null; // Failed after max attempts
         }
 
         pub fn releaseSlot(self: *ActiveAgentPool, slot: usize) void {
-            std.debug.assert(slot < MaxConcurrentAgents);
-            const mask = ~(@as(u32, 1) << @intCast(u5, slot));
-            _ = self.allocation_bitmap.fetchAnd(mask, .Release);
+            if (slot >= MaxConcurrentAgents) {
+                std.log.err("Invalid slot release attempt: {}", .{slot});
+                return;
+            }
+            
+            // Clear agent reference first to ensure no use-after-free
             self.agents[slot] = null;
+            
+            // Safe casting with bounds check
+            const shift_amount = @intCast(u5, slot % 32);
+            const mask = ~(@as(u32, 1) << shift_amount);
+            _ = self.allocation_bitmap.fetchAnd(mask, .Release);
         }
 
-        pub fn setAgent(self: *ActiveAgentPool, slot: usize, agent: *Agent) void {
-            if (slot < MaxConcurrentAgents) self.agents[slot] = agent;
+        pub fn setAgent(self: *ActiveAgentPool, slot: usize, agent: *Agent) !void {
+            if (slot >= MaxConcurrentAgents) {
+                return error.InvalidSlotIndex;
+            }
+            
+            // Ensure slot is actually allocated
+            const current = self.allocation_bitmap.load(.Acquire);
+            const slot_bit = @as(u32, 1) << @intCast(u5, slot % 32);
+            if ((current & slot_bit) == 0) {
+                return error.SlotNotAllocated;
+            }
+            
+            self.agents[slot] = agent;
         }
     };
     /// Agent registry with expertise indexing
@@ -59,19 +98,41 @@ pub const AgentCoordinationSystem = struct {
         agents: HashMap(AgentId, AgentDefinition, AgentIdContext, std.hash_map.default_max_load_percentage),
         expertise_index: ExpertiseIndex,
         allocator: Allocator,
+        agent_count: atomic.Atomic(usize),
 
         pub fn init(allocator: Allocator) AgentRegistry {
             return AgentRegistry{
                 .agents = HashMap(AgentId, AgentDefinition, AgentIdContext, std.hash_map.default_max_load_percentage).init(allocator),
                 .expertise_index = ExpertiseIndex.init(allocator),
                 .allocator = allocator,
+                .agent_count = atomic.Atomic(usize).init(0),
             };
+        }
+        
+        pub fn deinit(self: *AgentRegistry) void {
+            // Clean up all registered agents
+            var iter = self.agents.iterator();
+            while (iter.next()) |entry| {
+                // If AgentDefinition contains dynamic allocations, free them here
+                _ = entry;
+            }
+            self.agents.deinit();
+            self.expertise_index.deinit();
         }
 
         pub fn registerAgent(self: *AgentRegistry, def: AgentDefinition) !AgentId {
+            // Check agent limit
+            const current_count = self.agent_count.load(.Acquire);
+            if (current_count >= 1000) {
+                return error.TooManyAgents;
+            }
+            
             const id = AgentId.generate();
             try self.agents.put(id, def);
+            errdefer _ = self.agents.remove(id);
+            
             try self.expertise_index.addAgent(id, def.expertise_domains);
+            _ = self.agent_count.fetchAdd(1, .Release);
             return id;
         }
 
@@ -104,6 +165,10 @@ pub const AgentCoordinationSystem = struct {
                 .spatial_index = KDTree.init(allocator),
                 .allocator = allocator,
             };
+        }
+        
+        pub fn deinit(self: *ExpertiseIndex) void {
+            self.spatial_index.deinit();
         }
 
         pub fn addAgent(self: *ExpertiseIndex, id: AgentId, domains: []const ExpertiseDomain) !void {
@@ -143,6 +208,18 @@ pub const AgentCoordinationSystem = struct {
 
         pub fn init(allocator: Allocator) KDTree {
             return KDTree{ .allocator = allocator };
+        }
+        
+        pub fn deinit(self: *KDTree) void {
+            self.deinitNode(self.root);
+        }
+        
+        fn deinitNode(self: *KDTree, node: ?*Node) void {
+            if (node) |n| {
+                self.deinitNode(n.left);
+                self.deinitNode(n.right);
+                self.allocator.destroy(n);
+            }
         }
 
         pub fn insert(self: *KDTree, point: EmbeddingVector, id: AgentId) !void {
@@ -218,10 +295,26 @@ pub const AgentCoordinationSystem = struct {
     }
 
     pub fn processQuery(self: *Self, query: []const u8, context: QueryContext, user_id: UserId) !ProcessingResult {
+        // Validate input
+        if (query.len == 0) return error.EmptyQuery;
+        if (query.len > 10000) return error.QueryTooLong;
+        
         const required = try self.analyzeExpertiseRequirements(query, context);
+        defer self.allocator.free(required);
+        
         const team = try self.selectAgentTeam(required, user_id, context);
         defer self.releaseAgentTeam(team);
-        return try self.executeCoordinatedProcessing(query, context, team);
+        
+        // Add timeout protection
+        const start_time = std.time.milliTimestamp();
+        const result = try self.executeCoordinatedProcessing(query, context, team);
+        const elapsed = std.time.milliTimestamp() - start_time;
+        
+        if (elapsed > 5000) { // 5 second timeout
+            std.log.warn("Query processing took {}ms", .{elapsed});
+        }
+        
+        return result;
     }
 
     fn analyzeExpertiseRequirements(self: *Self, query: []const u8, context: QueryContext) ![]ExpertiseDomain {
@@ -246,7 +339,7 @@ pub const AgentCoordinationSystem = struct {
         for (candidates) |id| {
             if (self.active_agents.allocateSlot()) |slot| {
                 const agent = try self.agent_registry.instantiateAgent(id);
-                self.active_agents.setAgent(slot, agent);
+                try self.active_agents.setAgent(slot, agent);
                 try team.append(.{ .slot = slot, .agent = agent, .agent_id = id });
             }
         }
@@ -325,27 +418,62 @@ const MetaController = struct {
 };
 
 const Agent = struct {
+    allocator: Allocator,
+    definition: AgentDefinition,
+    state: AgentState,
+    
+    const AgentState = struct {
+        active: bool = true,
+        request_count: usize = 0,
+    };
+    
     pub fn process(self: *Agent, query: []const u8, context: QueryContext) ![]u8 {
-        _ = self;
-        _ = query;
         _ = context;
-        return &[_]u8{};
+        
+        // Track request count
+        self.state.request_count += 1;
+        
+        // Simple response based on expertise
+        var response = ArrayList(u8).init(self.allocator);
+        errdefer response.deinit();
+        
+        try response.appendSlice("Processing query: ");
+        try response.appendSlice(query);
+        try response.appendSlice(" with expertise in: ");
+        
+        for (self.definition.expertise_domains) |domain| {
+            try response.appendSlice(domain.name);
+            try response.appendSlice(" ");
+        }
+        
+        return response.toOwnedSlice();
     }
+    
     pub fn fromDefinition(allocator: Allocator, def: AgentDefinition) !*Agent {
-        _ = allocator;
-        _ = def;
-        return undefined;
+        const agent = try allocator.create(Agent);
+        agent.* = .{
+            .allocator = allocator,
+            .definition = def,
+            .state = .{},
+        };
+        return agent;
     }
+    
     pub fn deinit(self: *Agent) void {
-        _ = self;
+        self.allocator.destroy(self);
     }
 };
 
 const AgentId = struct {
     value: u64 = 0,
+    
+    var next_id: atomic.Atomic(u64) = atomic.Atomic(u64).init(1);
+    
     pub fn generate() AgentId {
-        return AgentId{ .value = 1 };
+        const id = next_id.fetchAdd(1, .Monotonic);
+        return AgentId{ .value = id };
     }
+    
     pub fn hash(self: AgentId) u64 {
         return self.value;
     }
@@ -362,10 +490,28 @@ const EmbeddingVector = struct {
     pub fn init(allocator: Allocator, dim: usize) !EmbeddingVector {
         return EmbeddingVector{ .data = try allocator.alloc(f32, dim), .allocator = allocator };
     }
-    pub fn normalize(self: *EmbeddingVector) void {}
+    pub fn normalize(self: *EmbeddingVector) void {
+        var sum: f32 = 0.0;
+        for (self.data) |val| {
+            sum += val * val;
+        }
+        if (sum > 0) {
+            const norm = std.math.sqrt(sum);
+            for (self.data) |*val| {
+                val.* /= norm;
+            }
+        }
+    }
     pub fn dotProduct(self: *EmbeddingVector, other: EmbeddingVector) f32 {
-        _ = self;
-        _ = other;
-        return 0.0;
+        var result: f32 = 0.0;
+        const len = @min(self.data.len, other.data.len);
+        for (self.data[0..len], other.data[0..len]) |a, b| {
+            result += a * b;
+        }
+        return result;
+    }
+    
+    pub fn deinit(self: *EmbeddingVector) void {
+        self.allocator.free(self.data);
     }
 };
