@@ -1,0 +1,278 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wdbx-refactored
+  namespace: wdbx-production
+  labels:
+    app: wdbx
+    version: refactored
+    tier: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: wdbx
+      version: refactored
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: wdbx
+        version: refactored
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - wdbx
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: wdbx
+        image: wdbx:refactored-v2.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: api
+          containerPort: 8080
+          protocol: TCP
+        - name: admin
+          containerPort: 8081
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        env:
+        - name: WDBX_LOG_LEVEL
+          value: "info"
+        - name: WDBX_ENABLE_METRICS
+          value: "true"
+        - name: WDBX_MAX_CONNECTIONS
+          value: "5000"
+        - name: WDBX_MEMORY_LIMIT
+          value: "4096"
+        - name: WDBX_THREADS
+          value: "32"
+        - name: WDBX_ENABLE_SIMD
+          value: "true"
+        - name: WDBX_INDEX_TYPE
+          value: "hnsw"
+        resources:
+          requests:
+            memory: "8Gi"
+            cpu: "4"
+            ephemeral-storage: "10Gi"
+          limits:
+            memory: "16Gi"
+            cpu: "8"
+            ephemeral-storage: "20Gi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: admin
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: admin
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/wdbx
+        - name: config
+          mountPath: /etc/wdbx
+          readOnly: true
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: wdbx-data-pvc
+      - name: config
+        configMap:
+          name: wdbx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wdbx-service
+  namespace: wdbx-production
+  labels:
+    app: wdbx
+spec:
+  type: LoadBalancer
+  selector:
+    app: wdbx
+    version: refactored
+  ports:
+  - name: api
+    port: 8080
+    targetPort: api
+    protocol: TCP
+  - name: admin
+    port: 8081
+    targetPort: admin
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+    protocol: TCP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wdbx-config
+  namespace: wdbx-production
+data:
+  config.yaml: |
+    # WDBX Refactored Production Configuration
+    server:
+      api_port: 8080
+      admin_port: 8081
+      metrics_port: 9090
+      max_connections: 5000
+      connection_timeout: 30s
+      read_timeout: 60s
+      write_timeout: 60s
+    
+    database:
+      data_dir: /var/lib/wdbx/data
+      cache_size: 1024MB
+      page_size: 64KB
+      enable_compression: false
+      sync_mode: normal
+    
+    index:
+      type: hnsw
+      hnsw:
+        m: 16
+        ef_construction: 200
+        ef_search: 100
+        max_elements: 10000000
+    
+    vector:
+      enable_simd: true
+      simd_level: auto
+      normalize_on_add: false
+      distance_metric: euclidean
+    
+    performance:
+      threads: 32
+      batch_size: 1000
+      prefetch_size: 100
+      memory_limit: 4096MB
+      enable_numa: true
+    
+    monitoring:
+      enable_metrics: true
+      metrics_interval: 10s
+      enable_profiling: false
+      enable_tracing: false
+    
+    security:
+      enable_auth: true
+      auth_type: jwt
+      jwt_secret_env: WDBX_JWT_SECRET
+      enable_tls: false
+      allowed_origins:
+        - "*"
+    
+    logging:
+      level: info
+      format: json
+      output: stdout
+      enable_file_logging: false
+      max_file_size: 100MB
+      max_files: 10
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wdbx-data-pvc
+  namespace: wdbx-production
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast-ssd
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: wdbx-pdb
+  namespace: wdbx-production
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: wdbx
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: wdbx-hpa
+  namespace: wdbx-production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: wdbx-refactored
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60

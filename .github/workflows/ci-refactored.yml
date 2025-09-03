@@ -1,0 +1,203 @@
+name: CI - Refactored Codebase
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run nightly performance tests
+    - cron: '0 2 * * *'
+
+env:
+  ZIG_VERSION: 0.15.1
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        optimize: [ Debug, ReleaseFast, ReleaseSafe ]
+    runs-on: ${{ matrix.os }}
+    name: Build and Test on ${{ matrix.os }} (${{ matrix.optimize }})
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      
+      - name: Cache Zig dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/zig
+            zig-cache
+          key: ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-${{ hashFiles('build.zig') }}
+      
+      - name: Build
+        run: zig build -D${{ matrix.optimize }}
+      
+      - name: Run unit tests
+        run: zig build test -D${{ matrix.optimize }}
+      
+      - name: Run integration tests
+        run: zig build test -Dtest-filter=integration -D${{ matrix.optimize }}
+        if: matrix.optimize != 'Debug'
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: wdbx-${{ matrix.os }}-${{ matrix.optimize }}
+          path: zig-out/bin/
+
+  performance-tests:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    name: Performance Tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      
+      - name: Build benchmarks
+        run: zig build benchmark -DReleaseFast
+      
+      - name: Run performance benchmarks
+        run: |
+          ./zig-out/bin/wdbx-benchmark > benchmark-results.json
+          echo "## Performance Results" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat benchmark-results.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      
+      - name: Check performance regression
+        run: |
+          # Compare against baseline
+          if [ -f benchmark-baseline.json ]; then
+            zig run tools/compare_benchmarks.zig -- benchmark-baseline.json benchmark-results.json
+          fi
+      
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results
+          path: benchmark-results.json
+      
+      - name: Store benchmark results
+        if: github.ref == 'refs/heads/main'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'customBiggerIsBetter'
+          output-file-path: benchmark-results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+
+  code-quality:
+    runs-on: ubuntu-latest
+    name: Code Quality Checks
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      
+      - name: Check formatting
+        run: |
+          zig fmt --check src/
+          zig fmt --check tests/
+          zig fmt --check benchmarks/
+          zig fmt --check examples/
+      
+      - name: Run static analysis
+        run: zig build analyze
+      
+      - name: Check for memory leaks
+        run: |
+          zig build test -DReleaseSafe -- --enable-memory-tracking
+      
+      - name: License check
+        run: |
+          # Ensure all source files have proper license headers
+          find src -name "*.zig" -exec grep -L "// SPDX-License-Identifier" {} \; | wc -l | grep -q "^0$"
+
+  documentation:
+    runs-on: ubuntu-latest
+    name: Documentation
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      
+      - name: Generate documentation
+        run: zig build docs
+      
+      - name: Upload documentation
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation
+          path: zig-out/docs/
+
+  deploy-staging:
+    needs: [build-and-test, performance-tests, code-quality]
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    name: Deploy to Staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      
+      - name: Build production binary
+        run: zig build -DReleaseFast -Dstrip
+      
+      - name: Build Docker image
+        run: |
+          docker build -f deploy/Dockerfile.staging -t wdbx:staging-${{ github.sha }} .
+      
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging environment..."
+          # Add your deployment script here
+          # ./deploy/scripts/deploy-staging.sh
+
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Scan
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run security scan
+        uses: github/super-linter@v4
+        env:
+          DEFAULT_BRANCH: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_ZIG: true
