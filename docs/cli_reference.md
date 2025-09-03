@@ -1,8 +1,13 @@
-# CLI Reference
+# 📱 CLI Reference
+
+> **Comprehensive command-line interface documentation for the Abi AI Framework**
+
+[![CLI Docs](https://img.shields.io/badge/CLI-Documentation-blue.svg)](docs/cli_reference.md)
+[![Zig Version](https://img.shields.io/badge/Zig-0.15.1+-orange.svg)](https://ziglang.org/)
 
 This document provides comprehensive documentation for the Abi AI Framework command-line interface, including detailed usage patterns, examples, and advanced configuration options.
 
-## Table of Contents
+## 📋 **Table of Contents**
 
 - [Core Commands](#core-commands)
 - [Configuration Options](#configuration-options)
@@ -12,7 +17,9 @@ This document provides comprehensive documentation for the Abi AI Framework comm
 - [Examples](#examples)
 - [Troubleshooting](#troubleshooting)
 
-## Core Commands
+---
+
+## 🚀 **Core Commands**
 
 ### `abi help`
 
@@ -181,67 +188,11 @@ abi benchmark --compare baseline.json --output comparison.html
 - `--threshold <percent>`: Performance regression threshold
 - `--compare <file>`: Compare against baseline file
 
-### `abi analyze`
+---
 
-Analyze text files and generate reports.
+## ⚙️ **Configuration Options**
 
-```bash
-# Basic text analysis
-abi analyze document.txt
-
-# Multiple files
-abi analyze *.txt --recursive
-
-# With output formatting
-abi analyze data/ --format json --output analysis.json
-abi analyze document.txt --format csv --output stats.csv
-
-# Advanced analysis
-abi analyze large_file.txt \
-  --memory-track \
-  --chunk-size 1MB \
-  --parallel 4
-```
-
-**Options:**
-- `--format <type>`: Output format (text, json, yaml, csv)
-- `--output, -o <file>`: Output file
-- `--recursive, -r`: Process directories recursively
-- `--chunk-size <size>`: Processing chunk size
-- `--parallel <n>`: Number of parallel workers
-- `--include-pattern <pattern>`: File inclusion pattern
-- `--exclude-pattern <pattern>`: File exclusion pattern
-
-### `abi convert`
-
-Convert between different model formats.
-
-```bash
-# Convert ONNX to internal format
-abi convert model.onnx --output model.bin
-
-# Convert with specific format
-abi convert model.bin --output model.onnx --format onnx
-abi convert model.bin --output model.json --format json
-
-# Convert with validation
-abi convert model.onnx --output model.bin --validate
-
-# Batch conversion
-abi convert input_dir/ --output output_dir/ --format binary
-```
-
-**Supported Formats:**
-- `binary`: Internal Abi format (default)
-- `onnx`: Open Neural Network Exchange
-- `tflite`: TensorFlow Lite
-- `json`: JSON representation
-- `yaml`: YAML representation
-- `csv`: CSV data format
-
-## Configuration Options
-
-### Memory Management
+### **Memory Management**
 
 ```bash
 # Memory tracking and monitoring
@@ -257,7 +208,7 @@ abi --memory-max-alloc 2GB command           # Maximum allocation size
 abi --memory-alignment 64 command            # Memory alignment
 ```
 
-### Performance Monitoring
+### **Performance Monitoring**
 
 ```bash
 # Performance profiling
@@ -273,7 +224,7 @@ abi --counter-cache command                   # Cache performance counters
 abi --counter-branch command                  # Branch prediction counters
 ```
 
-### Development and Debugging
+### **Development and Debugging**
 
 ```bash
 # Debugging options
@@ -288,41 +239,13 @@ abi --dev-mode command                       # Enable development features
 abi --test-mode command                      # Enable test mode features
 ```
 
-### GPU and Acceleration
+---
 
-```bash
-# GPU configuration
-abi --gpu command                            # Enable GPU acceleration
-abi --no-gpu command                         # Disable GPU acceleration
-abi --gpu-backend <type> command             # GPU backend (auto, vulkan, metal, d3d12)
-abi --gpu-device <id> command                # Specific GPU device ID
-
-# SIMD configuration
-abi --simd command                           # Enable SIMD optimizations (default)
-abi --no-simd command                        # Disable SIMD optimizations
-abi --simd-level <level> command             # SIMD optimization level (basic, optimized, aggressive)
-```
-
-### Threading and Concurrency
-
-```bash
-# Threading options
-abi --threads 8 command                      # Number of worker threads
-abi --threads auto command                   # Auto-detect thread count
-abi --thread-affinity command                # Enable CPU affinity
-abi --thread-pinning command                 # Pin threads to CPU cores
-
-# Concurrency settings
-abi --max-concurrent 100 command             # Maximum concurrent operations
-abi --queue-size 1000 command                # Internal queue size
-abi --timeout 30 command                     # Operation timeout (seconds)
-```
-
-## Memory Management
+## 🧠 **Memory Management**
 
 The CLI includes comprehensive memory management features:
 
-### Memory Tracking
+### **Memory Tracking**
 
 ```bash
 # Enable memory tracking for any command
@@ -336,7 +259,7 @@ abi --memory-profile --memory-report memory.json benchmark
 abi --leak-detection --leak-threshold 5000000000 serve model.bin
 ```
 
-### Memory Thresholds
+### **Memory Thresholds**
 
 ```bash
 # Set memory usage thresholds
@@ -346,7 +269,7 @@ abi --memory-warn 100MB --memory-critical 500MB benchmark
 abi --memory-pool-size 1GB --memory-max-alloc 2GB train data.txt
 ```
 
-### Memory Reports
+### **Memory Reports**
 
 ```bash
 # Generate memory usage reports
@@ -357,9 +280,11 @@ abi --memory-report-html memory.html benchmark
 abi --memory-monitor --memory-interval 1000 benchmark
 ```
 
-## Performance Monitoring
+---
 
-### Performance Profiling
+## 📊 **Performance Monitoring**
+
+### **Performance Profiling**
 
 ```bash
 # Basic performance profiling
@@ -372,7 +297,7 @@ abi --profile --profile-output profile.json benchmark
 abi --profile-functions --profile-call-graph benchmark
 ```
 
-### Performance Counters
+### **Performance Counters**
 
 ```bash
 # Hardware performance counters
@@ -382,7 +307,7 @@ abi --performance-counters benchmark
 abi --counter-cpu --counter-memory --counter-cache benchmark
 ```
 
-### Benchmarking Features
+### **Benchmarking Features**
 
 ```bash
 # Statistical benchmarking
@@ -395,9 +320,11 @@ abi benchmark --baseline baseline.json --threshold 5.0
 abi benchmark --continuous --interval 3600
 ```
 
-## Development Tools
+---
 
-### Logging and Debugging
+## 🛠️ **Development Tools**
+
+### **Logging and Debugging**
 
 ```bash
 # Logging configuration
@@ -410,7 +337,7 @@ abi --structured-log --log-format json benchmark
 abi --debug --verbose --trace benchmark
 ```
 
-### Testing and Validation
+### **Testing and Validation**
 
 ```bash
 # Run tests with CLI
@@ -423,7 +350,7 @@ abi validate --comprehensive model.bin
 abi health --detailed --report health.json
 ```
 
-### Hot Reloading
+### **Hot Reloading**
 
 ```bash
 # Enable hot code reloading
@@ -433,9 +360,11 @@ abi --hot-reload serve model.bin
 abi --dev-mode --watch src/ serve model.bin
 ```
 
-## Examples
+---
 
-### Complete Workflow
+## 📖 **Examples**
+
+### **Complete Workflow**
 
 ```bash
 # 1. Train a model with monitoring
@@ -462,7 +391,7 @@ abi serve my_model.bin \
   --performance-counters
 ```
 
-### Development Workflow
+### **Development Workflow**
 
 ```bash
 # Development with full monitoring
@@ -476,7 +405,7 @@ abi --profile --performance-counters benchmark
 abi --profile --profile-compare previous_profile.json benchmark
 ```
 
-### Production Deployment
+### **Production Deployment**
 
 ```bash
 # Production server with monitoring
@@ -495,9 +424,11 @@ abi serve model.bin \
   --log-file /var/log/abi.log
 ```
 
-## Troubleshooting
+---
 
-### Common Issues
+## 🐛 **Troubleshooting**
+
+### **Common Issues**
 
 **Memory Issues:**
 ```bash
@@ -528,7 +459,7 @@ abi --verbose --log-level debug --trace serve model.bin
 abi --max-connections 500 --timeout 120 serve model.bin
 ```
 
-### Error Codes
+### **Error Codes**
 
 - `1001`: Memory allocation failed
 - `1002`: Memory leak detected
@@ -541,7 +472,7 @@ abi --max-connections 500 --timeout 120 serve model.bin
 - `5001`: Invalid configuration
 - `5002`: Missing required parameter
 
-### Getting Help
+### **Getting Help**
 
 ```bash
 # Get help for specific commands
@@ -555,9 +486,11 @@ abi health --detailed --report diagnostic.json
 abi version --system --verbose
 ```
 
-## Advanced Configuration
+---
 
-### Configuration Files
+## 🔧 **Advanced Configuration**
+
+### **Configuration Files**
 
 ```bash
 # Use configuration file
@@ -570,7 +503,7 @@ abi config --generate default.json
 abi config --validate my_config.json
 ```
 
-### Environment Variables
+### **Environment Variables**
 
 - `ABI_MEMORY_WARN`: Memory warning threshold
 - `ABI_MEMORY_CRITICAL`: Memory critical threshold
@@ -579,7 +512,7 @@ abi config --validate my_config.json
 - `ABI_API_KEY`: Default API key
 - `ABI_MODEL_PATH`: Default model path
 
-### Docker Integration
+### **Docker Integration**
 
 ```bash
 # Run with Docker
@@ -589,4 +522,18 @@ docker run abi:latest --memory-track benchmark
 docker run -v config.json:/app/config.json abi:latest --config /app/config.json serve model.bin
 ```
 
-This CLI reference covers the most important commands and options. For the latest updates and additional features, run `abi help --verbose` or check the online documentation.
+---
+
+## 🔗 **Additional Resources**
+
+- **[API Reference](docs/api_reference.md)** - Complete API documentation
+- **[Database Guide](docs/database_usage_guide.md)** - Vector database usage
+- **[Plugin System](docs/PLUGIN_SYSTEM.md)** - Plugin development guide
+- **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Deployment guide
+- **[Testing Guide](README_TESTING.md)** - Comprehensive testing documentation
+
+---
+
+**📱 This CLI reference covers the most important commands and options. For the latest updates and additional features, run `abi help --verbose` or check the online documentation.**
+
+**🚀 Ready to use the Abi AI Framework CLI? Start with the examples above and explore the comprehensive command options!**

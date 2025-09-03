@@ -1,486 +1,1027 @@
-# Abi AI Framework Plugin System
-
-## 🔌 **Overview**
-
-The Abi AI Framework includes a robust, cross-platform plugin system that enables dynamic loading and management of extensions. The plugin system is designed with the following principles:
-
-- **Cross-Platform Compatibility**: Works on Windows (.dll), Linux (.so), and macOS (.dylib)
-- **Type Safety**: Uses C-compatible interfaces with Zig wrapper types
-- **Dependency Management**: Handles plugin dependencies and load ordering
-- **Lifecycle Management**: Complete plugin lifecycle from loading to unloading
-- **Event System**: Plugin communication through events and service registry
-- **Resource Management**: Automatic cleanup and memory management
-
-## 🏗️ **Architecture**
-
-### **Core Components**
-
-1. **Plugin Interface** (`src/plugins/interface.zig`)
-   - Defines the standard C-compatible plugin interface
-   - Provides safe Zig wrapper around C interface
-   - Manages plugin lifecycle and state transitions
-
-2. **Plugin Loader** (`src/plugins/loader.zig`)
-   - Handles cross-platform dynamic library loading
-   - Discovers plugins in specified directories
-   - Manages library handles and symbol resolution
-
-3. **Plugin Registry** (`src/plugins/registry.zig`)
-   - Centralized plugin management
-   - Dependency resolution and load ordering
-   - Event broadcasting and service discovery
-
-4. **Plugin Types** (`src/plugins/types.zig`)
-   - Common types, errors, and enumerations
-   - Plugin metadata and configuration structures
-   - Version compatibility checking
-
-## 📋 **Plugin Types Supported**
-
-The framework supports various plugin categories:
-
-### **Database Plugins**
-- `vector_database` - Custom vector database implementations
-- `indexing_algorithm` - Alternative indexing strategies (LSH, HNSW variants)
-- `compression_algorithm` - Data compression methods
-
-### **AI/ML Plugins**
-- `neural_network` - Custom neural network architectures
-- `embedding_generator` - Text/image embedding generators
-- `training_algorithm` - Training optimization algorithms
-- `inference_engine` - Inference acceleration engines
-
-### **Processing Plugins**
-- `text_processor` - Text analysis and processing
-- `image_processor` - Image manipulation and analysis
-- `audio_processor` - Audio processing and analysis
-- `data_transformer` - Data transformation utilities
-
-### **I/O Plugins**
-- `data_loader` - Custom data format loaders
-- `data_exporter` - Data export functionality
-- `protocol_handler` - Network protocol implementations
-
-### **Utility Plugins**
-- `logger` - Custom logging implementations
-- `metrics_collector` - Performance metrics collection
-- `security_provider` - Authentication and security
-- `configuration_provider` - Configuration management
-
-## 🚀 **Creating a Plugin**
-
-### **1. Basic Plugin Structure**
-
-```zig
-const std = @import("std");
-// Import plugin types from the framework
-const PluginInterface = @import("abi").plugins.PluginInterface;
-const PluginInfo = @import("abi").plugins.PluginInfo;
-const PluginContext = @import("abi").plugins.PluginContext;
-
-// Plugin metadata
-const PLUGIN_INFO = PluginInfo{
-    .name = "my_awesome_plugin",
-    .version = .{ .major = 1, .minor = 0, .patch = 0 },
-    .author = "Your Name",
-    .description = "Description of your plugin",
-    .plugin_type = .text_processor,
-    .abi_version = .{ .major = 1, .minor = 0, .patch = 0 },
-    .provides = &[_][]const u8{"feature1", "feature2"},
-    .dependencies = &[_][]const u8{}, // Dependencies on other plugins
-    .license = "MIT",
-};
-
-// Plugin state
-var initialized = false;
-var running = false;
-
-// Required interface implementation
-fn getInfo() callconv(.c) *const PluginInfo {
-    return &PLUGIN_INFO;
-}
-
-fn initPlugin(context: *PluginContext) callconv(.c) c_int {
-    if (initialized) return -1;
-    
-    context.log(1, "Initializing my awesome plugin");
-    initialized = true;
-    return 0; // Success
-}
-
-fn deinitPlugin(context: *PluginContext) callconv(.c) void {
-    if (!initialized) return;
-    
-    context.log(1, "Deinitializing my awesome plugin");
-    initialized = false;
-    running = false;
-}
-
-fn startPlugin(context: *PluginContext) callconv(.c) c_int {
-    if (!initialized || running) return -1;
-    
-    context.log(1, "Starting my awesome plugin");
-    running = true;
-    return 0;
-}
-
-fn stopPlugin(context: *PluginContext) callconv(.c) c_int {
-    if (!running) return -1;
-    
-    context.log(1, "Stopping my awesome plugin");
-    running = false;
-    return 0;
-}
-
-// Process function - implement your plugin logic here
-fn processData(context: *PluginContext, input: ?*anyopaque, output: ?*anyopaque) callconv(.c) c_int {
-    if (!running) return -1;
-    
-    // Your processing logic here
-    _ = context;
-    _ = input;
-    _ = output;
-    
-    return 0; // Success
-}
-
-// Plugin interface vtable
-const PLUGIN_INTERFACE = PluginInterface{
-    .get_info = getInfo,
-    .init = initPlugin,
-    .deinit = deinitPlugin,
-    .start = startPlugin,
-    .stop = stopPlugin,
-    .process = processData,
-};
-
-// Plugin entry point - this is called by the framework
-export fn abi_plugin_create() ?*const PluginInterface {
-    return &PLUGIN_INTERFACE;
-}
-```
-
-### **2. Building the Plugin**
-
-To build your plugin as a shared library:
-
-```bash
-# Windows
-zig build-lib -dynamic my_plugin.zig -O ReleaseFast
-
-# Linux
-zig build-lib -dynamic my_plugin.zig -O ReleaseFast
-
-# macOS  
-zig build-lib -dynamic my_plugin.zig -O ReleaseFast
-```
-
-This creates:
-- Windows: `my_plugin.dll`
-- Linux: `libmy_plugin.so`
-- macOS: `libmy_plugin.dylib`
-
-### **3. Advanced Plugin Features**
-
-#### **Configuration Support**
-
-```zig
-fn configurePlugin(context: *PluginContext, config: *const PluginConfig) callconv(.c) c_int {
-    const my_setting = config.getParameter("my_setting") orelse "default";
-    context.log(1, std.fmt.bufPrint(buffer, "Configured with: {s}", .{my_setting}));
-    return 0;
-}
-```
-
-#### **Event Handling**
-
-```zig
-fn onEvent(context: *PluginContext, event_type: u32, event_data: ?*anyopaque) callconv(.c) c_int {
-    switch (event_type) {
-        1 => context.log(1, "System startup event received"),
-        2 => context.log(1, "System shutdown event received"),
-        else => {},
-    }
-    return 0;
-}
-```
-
-#### **Custom API Exposure**
-
-```zig
-fn getApi(api_name: [*:0]const u8) callconv(.c) ?*anyopaque {
-    const name = std.mem.span(api_name);
-    
-    if (std.mem.eql(u8, name, "my_custom_api")) {
-        return @ptrCast(&my_custom_function);
-    }
-    
-    return null;
-}
-```
-
-## 🔧 **Using Plugins in Your Application**
-
-### **1. Basic Plugin Loading**
-
-```zig
-const std = @import("std");
-const plugins = @import("abi").plugins;
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-    
-    // Initialize plugin registry
-    var registry = try plugins.init(allocator);
-    defer registry.deinit();
-    
-    // Add plugin search paths
-    try registry.addPluginPath("./plugins");
-    try registry.addPluginPath("/usr/local/lib/abi-plugins");
-    
-    // Discover available plugins
-    var discovered = try registry.discoverPlugins();
-    defer {
-        for (discovered.items) |path| {
-            allocator.free(path);
-        }
-        discovered.deinit(allocator);
-    }
-    
-    std.log.info("Found {} plugins", .{discovered.items.len});
-    
-    // Load a specific plugin
-    try registry.loadPlugin("./plugins/my_plugin.dll");
-    
-    // Initialize and start the plugin
-    try registry.initializePlugin("my_awesome_plugin", null);
-    try registry.startPlugin("my_awesome_plugin");
-    
-    // Use the plugin
-    const plugin = registry.getPlugin("my_awesome_plugin");
-    if (plugin) |p| {
-        // Process data with the plugin
-        var input_data = "Hello, Plugin!";
-        var output_data: [256]u8 = undefined;
-        try p.process(&input_data, &output_data);
-    }
-    
-    // Stop and unload
-    try registry.stopPlugin("my_awesome_plugin");
-    try registry.unloadPlugin("my_awesome_plugin");
-}
-```
-
-### **2. Plugin Management**
-
-```zig
-// Get all plugins of a specific type
-var text_processors = try registry.getPluginsByType(.text_processor);
-defer text_processors.deinit(allocator);
-
-for (text_processors.items) |plugin| {
-    const info = plugin.getInfo();
-    std.log.info("Text processor: {s} v{}", .{ info.name, info.version });
-}
-
-// Get plugin information
-if (registry.getPluginInfo("my_plugin")) |info| {
-    std.log.info("Plugin: {s} by {s}", .{ info.name, info.author });
-    std.log.info("Description: {s}", .{info.description});
-}
-
-// Configure a plugin
-var config = plugins.PluginConfig.init(allocator);
-defer config.deinit();
-
-try config.setParameter("input_format", "json");
-try config.setParameter("output_format", "xml");
-try registry.configurePlugin("my_plugin", &config);
-```
-
-### **3. Event System**
-
-```zig
-// Broadcast events to all plugins
-try registry.broadcastEvent(1, null); // System startup
-try registry.broadcastEvent(2, null); // System shutdown
-
-// Register custom event handlers
-const MyEventHandler = struct {
-    fn handleEvent(event_data: ?*anyopaque) void {
-        _ = event_data;
-        std.log.info("Custom event received!");
-    }
-};
-
-try registry.registerEventHandler(100, MyEventHandler.handleEvent);
-```
-
-## 🔒 **Security Considerations**
-
-### **Plugin Sandboxing**
-
-```zig
-var config = plugins.PluginConfig.init(allocator);
-config.sandboxed = true;
-config.max_memory_mb = 100;
-config.max_cpu_time_ms = 5000;
-config.permissions = &[_][]const u8{"read_files", "network_access"};
-```
-
-### **Validation and Trust**
-
-- Always validate plugin signatures in production
-- Use allowlists for trusted plugin directories
-- Implement resource limits to prevent abuse
-- Monitor plugin behavior for anomalies
-
-## 🧪 **Testing Plugins**
-
-### **Unit Testing**
-
-```zig
-test "plugin functionality" {
-    var registry = try plugins.init(std.testing.allocator);
-    defer registry.deinit();
-    
-    // Load test plugin
-    try registry.loadPlugin("./test_plugins/test_plugin.dll");
-    
-    // Test plugin lifecycle
-    try registry.initializePlugin("test_plugin", null);
-    try std.testing.expectEqual(.initialized, registry.getPlugin("test_plugin").?.getState());
-    
-    try registry.startPlugin("test_plugin");
-    try std.testing.expectEqual(.running, registry.getPlugin("test_plugin").?.getState());
-}
-```
-
-### **Integration Testing**
-
-```zig
-test "plugin integration" {
-    var registry = try plugins.init(std.testing.allocator);
-    defer registry.deinit();
-    
-    // Test plugin discovery
-    try registry.addPluginPath("./test_plugins");
-    var discovered = try registry.discoverPlugins();
-    defer discovered.deinit(std.testing.allocator);
-    
-    try std.testing.expect(discovered.items.len > 0);
-}
-```
-
-## 📊 **Performance Considerations**
-
-### **Plugin Loading**
-- Plugins are loaded on-demand to minimize startup time
-- Multiple plugins can be loaded in parallel
-- Plugin discovery caches results for faster subsequent loads
-
-### **Runtime Performance**
-- Plugin calls use direct function pointers (minimal overhead)
-- Memory allocations are tracked per plugin
-- Resource limits prevent plugins from consuming excessive resources
-
-### **Best Practices**
-- Keep plugin interfaces simple and focused
-- Minimize data copying between plugin and host
-- Use event-driven communication for loose coupling
-- Implement proper error handling and recovery
-
-## 🚀 **Production Deployment**
-
-### **Plugin Distribution**
-```bash
-# Plugin package structure
-my-plugin/
-├── plugin.manifest     # Plugin metadata
-├── libmy_plugin.so     # Linux binary
-├── my_plugin.dll       # Windows binary
-├── libmy_plugin.dylib  # macOS binary
-├── README.md           # Documentation
-└── LICENSE             # License file
-```
-
-### **Configuration Management**
-```toml
-# plugins.toml
-[plugins]
-search_paths = [
-    "./plugins",
-    "/usr/local/lib/abi-plugins",
-    "~/.abi/plugins"
-]
-
-[plugins.text_processor]
-enabled = true
-auto_load = true
-config = { input_format = "json", output_format = "xml" }
-
-[plugins.my_custom_plugin]
-enabled = false
-priority = 10
-max_memory_mb = 200
-```
-
-### **Monitoring and Logging**
-```zig
-// Plugin metrics collection
-const metrics = try plugin.getMetrics(buffer);
-std.log.info("Plugin metrics: {s}", .{metrics});
-
-// Plugin health checks
-const status = plugin.getStatus();
-if (status != 2) { // Not running
-    std.log.warn("Plugin {} is not healthy (status: {})", .{ plugin.getInfo().name, status });
-}
-```
-
-## 🔧 **Troubleshooting**
-
-### **Common Issues**
-
-1. **Plugin Not Loading**
-   - Check file permissions
-   - Verify plugin path is correct
-   - Ensure plugin exports `abi_plugin_create` function
-
-2. **ABI Incompatibility**
-   - Verify plugin was built for correct architecture
-   - Check plugin ABI version matches framework version
-   - Ensure calling convention is `.c`
-
-3. **Missing Dependencies**
-   - Check plugin dependency list
-   - Ensure dependent plugins are loaded first
-   - Verify plugin search paths include all dependencies
-
-### **Debug Mode**
-```zig
-var config = plugins.PluginConfig.init(allocator);
-config.debug_mode = true;  // Enable verbose logging
-```
-
-## 📚 **API Reference**
-
-For complete API documentation, see:
-- [Plugin Interface API](./api/plugins.md)
-- [Plugin Types Reference](./api/plugin_types.md)
-- [Plugin Examples](../examples/plugins/)
-
-## 🎯 **Future Enhancements**
-
-- **Hot Reloading**: Reload plugins without restarting the application
-- **Plugin Marketplace**: Centralized plugin repository and distribution
-- **Visual Plugin Editor**: GUI for creating and configuring plugins
-- **Language Bindings**: Support for plugins written in C, C++, and Rust
-- **Distributed Plugins**: Load plugins from remote locations
-- **Plugin Analytics**: Usage statistics and performance metrics
+# 🔌 Plugin System
+
+> **Extensible plugin architecture for the Abi AI Framework**
+
+[![Plugin System](https://img.shields.io/badge/Plugin-System-blue.svg)](docs/PLUGIN_SYSTEM.md)
+[![Extensible](https://img.shields.io/badge/Extensible-Architecture-brightgreen.svg)]()
+
+The Abi AI Framework features a powerful and extensible plugin system that allows developers to add new functionality, integrate external services, and customize the framework's behavior without modifying the core codebase.
+
+## 📋 **Table of Contents**
+
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Plugin Types](#plugin-types)
+- [Creating Plugins](#creating-plugins)
+- [Using Plugins](#using-plugins)
+- [Security](#security)
+- [Testing](#testing)
+- [Performance](#performance)
+- [Production Deployment](#production-deployment)
+- [Best Practices](#best-practices)
 
 ---
 
-The Abi AI Framework plugin system provides a powerful foundation for extensibility while maintaining safety, performance, and ease of use. Whether you're building custom data processors, AI model integrations, or specialized I/O handlers, the plugin system gives you the flexibility to extend the framework to meet your specific needs.
+## 🎯 **Overview**
+
+The plugin system provides a clean, type-safe interface for extending the Abi AI Framework's capabilities. Plugins can add new AI models, data sources, processing pipelines, and integration points while maintaining the framework's performance and reliability characteristics.
+
+### **Key Features**
+- **Cross-Platform**: Works on Windows, macOS, and Linux
+- **Dynamic Loading**: Load and unload plugins at runtime
+- **Type Safety**: Compile-time type checking for plugin interfaces
+- **Dependency Management**: Automatic dependency resolution and management
+- **Event-Driven**: Plugin communication through event system
+- **Resource Management**: Automatic resource cleanup and lifecycle management
+
+---
+
+## 🏗️ **Architecture**
+
+### **1. Core Components**
+
+#### **Plugin Manager**
+```zig
+const PluginManager = struct {
+    plugins: std.StringHashMap(Plugin),
+    event_bus: EventBus,
+    allocator: std.mem.Allocator,
+    
+    pub fn init(allocator: std.mem.Allocator) @This() {
+        return @This(){
+            .plugins = std.StringHashMap(Plugin).init(allocator),
+            .event_bus = EventBus.init(allocator),
+            .allocator = allocator,
+        };
+    }
+    
+    pub fn loadPlugin(self: *@This(), path: []const u8) !void {
+        const plugin = try Plugin.load(path, self.allocator);
+        try self.plugins.put(plugin.name, plugin);
+        
+        // Initialize plugin
+        try plugin.init();
+        
+        // Register event handlers
+        try self.registerPluginEvents(plugin);
+        
+        std.log.info("Plugin loaded: {}", .{plugin.name});
+    }
+    
+    pub fn unloadPlugin(self: *@This(), name: []const u8) !void {
+        if (self.plugins.get(name)) |plugin| {
+            // Unregister event handlers
+            try self.unregisterPluginEvents(plugin);
+            
+            // Cleanup plugin
+            try plugin.cleanup();
+            
+            // Remove from registry
+            _ = self.plugins.remove(name);
+            
+            std.log.info("Plugin unloaded: {}", .{name});
+        }
+    }
+};
+```
+
+#### **Plugin Interface**
+```zig
+const Plugin = struct {
+    name: []const u8,
+    version: []const u8,
+    description: []const u8,
+    author: []const u8,
+    license: []const u8,
+    
+    // Plugin lifecycle
+    init: *const fn () error!void,
+    cleanup: *const fn () error!void,
+    
+    // Plugin capabilities
+    capabilities: PluginCapabilities,
+    
+    // Event handlers
+    event_handlers: std.StringHashMap(EventHandler),
+    
+    // Configuration
+    config: PluginConfig,
+    
+    pub fn load(path: []const u8, allocator: std.mem.Allocator) !@This() {
+        // Load plugin from dynamic library
+        const library = try std.DynLib.open(path);
+        
+        // Get plugin information
+        const get_info = library.lookup(*const fn () PluginInfo, "get_plugin_info") orelse {
+            return error.PluginInfoNotFound;
+        };
+        
+        const info = get_info();
+        
+        // Get plugin functions
+        const init_fn = library.lookup(*const fn () error!void, "plugin_init") orelse {
+            return error.PluginInitNotFound;
+        };
+        
+        const cleanup_fn = library.lookup(*const fn () error!void, "plugin_cleanup") orelse {
+            return error.PluginCleanupNotFound;
+        };
+        
+        return @This(){
+            .name = try allocator.dupe(u8, info.name),
+            .version = try allocator.dupe(u8, info.version),
+            .description = try allocator.dupe(u8, info.description),
+            .author = try allocator.dupe(u8, info.author),
+            .license = try allocator.dupe(u8, info.license),
+            .init = init_fn,
+            .cleanup = cleanup_fn,
+            .capabilities = info.capabilities,
+            .event_handlers = std.StringHashMap(EventHandler).init(allocator),
+            .config = PluginConfig.init(allocator),
+        };
+    }
+};
+```
+
+### **2. Event System**
+
+#### **Event Bus**
+```zig
+const EventBus = struct {
+    handlers: std.AutoHashMap(EventType, std.ArrayList(EventHandler)),
+    allocator: std.mem.Allocator,
+    
+    pub fn init(allocator: std.mem.Allocator) @This() {
+        return @This(){
+            .handlers = std.AutoHashMap(EventType, std.ArrayList(EventHandler)).init(allocator),
+            .allocator = allocator,
+        };
+    }
+    
+    pub fn subscribe(self: *@This(), event_type: EventType, handler: EventHandler) !void {
+        if (self.handlers.get(event_type)) |existing_handlers| {
+            try existing_handlers.append(handler);
+        } else {
+            var new_handlers = std.ArrayList(EventHandler).init(self.allocator);
+            try new_handlers.append(handler);
+            try self.handlers.put(event_type, new_handlers);
+        }
+    }
+    
+    pub fn publish(self: *@This(), event: Event) !void {
+        if (self.handlers.get(event.type)) |handlers| {
+            for (handlers.items) |handler| {
+                handler.handle(event) catch |err| {
+                    std.log.err("Event handler error: {}", .{err});
+                };
+            }
+        }
+    }
+    
+    const EventType = enum {
+        data_processed,
+        model_updated,
+        error_occurred,
+        plugin_loaded,
+        plugin_unloaded,
+        user_action,
+    };
+    
+    const Event = struct {
+        type: EventType,
+        data: []const u8,
+        timestamp: i64,
+        source: []const u8,
+    };
+    
+    const EventHandler = struct {
+        plugin: *Plugin,
+        handle: *const fn (event: Event) error!void,
+    };
+};
+```
+
+---
+
+## 🔌 **Plugin Types**
+
+### **1. AI Model Plugins**
+
+#### **Model Plugin Interface**
+```zig
+const ModelPlugin = struct {
+    base: Plugin,
+    model: *const fn (input: []const u8) error![]const u8,
+    train: *const fn (data: []const u8) error!void,
+    evaluate: *const fn (input: []const u8) error!f32,
+    
+    pub fn init(allocator: std.mem.Allocator) !@This() {
+        return @This(){
+            .base = try Plugin.init(allocator),
+            .model = undefined,
+            .train = undefined,
+            .evaluate = undefined,
+        };
+    }
+    
+    pub fn predict(self: *@This(), input: []const u8) ![]const u8 {
+        return self.model(input);
+    }
+    
+    pub fn trainModel(self: *@This(), data: []const u8) !void {
+        try self.train(data);
+    }
+    
+    pub fn evaluateModel(self: *@This(), input: []const u8) !f32 {
+        return self.evaluate(input);
+    }
+};
+```
+
+#### **Example: GPT Plugin**
+```zig
+const GPTPlugin = struct {
+    base: ModelPlugin,
+    api_key: []const u8,
+    model_name: []const u8,
+    
+    pub fn init(allocator: std.mem.Allocator, api_key: []const u8) !@This() {
+        return @This(){
+            .base = try ModelPlugin.init(allocator),
+            .api_key = try allocator.dupe(u8, api_key),
+            .model_name = try allocator.dupe(u8, "gpt-3.5-turbo"),
+        };
+    }
+    
+    pub fn predict(self: *@This(), input: []const u8) ![]const u8 {
+        // Make API call to OpenAI
+        const response = try self.callOpenAI(input);
+        return response;
+    }
+    
+    fn callOpenAI(self: *@This(), prompt: []const u8) ![]const u8 {
+        // Implementation for OpenAI API call
+        // ... API call logic ...
+        return "Generated response";
+    }
+};
+```
+
+### **2. Data Source Plugins**
+
+#### **Data Source Interface**
+```zig
+const DataSourcePlugin = struct {
+    base: Plugin,
+    connect: *const fn () error!void,
+    disconnect: *const fn () error!void,
+    read: *const fn (query: []const u8) error![]const u8,
+    write: *const fn (data: []const u8) error!void,
+    
+    pub fn init(allocator: std.mem.Allocator) !@This() {
+        return @This(){
+            .base = try Plugin.init(allocator),
+            .connect = undefined,
+            .disconnect = undefined,
+            .read = undefined,
+            .write = undefined,
+        };
+    }
+    
+    pub fn getData(self: *@This(), query: []const u8) ![]const u8 {
+        return self.read(query);
+    }
+    
+    pub fn storeData(self: *@This(), data: []const u8) !void {
+        try self.write(data);
+    }
+};
+```
+
+#### **Example: Database Plugin**
+```zig
+const DatabasePlugin = struct {
+    base: DataSourcePlugin,
+    connection_string: []const u8,
+    connection: ?std.net.Stream,
+    
+    pub fn init(allocator: std.mem.Allocator, connection_string: []const u8) !@This() {
+        return @This(){
+            .base = try DataSourcePlugin.init(allocator),
+            .connection_string = try allocator.dupe(u8, connection_string),
+            .connection = null,
+        };
+    }
+    
+    pub fn connect(self: *@This()) !void {
+        // Connect to database
+        self.connection = try std.net.tcpConnectToAddress(try std.net.Address.parseIp("127.0.0.1", 5432));
+    }
+    
+    pub fn disconnect(self: *@This()) !void {
+        if (self.connection) |conn| {
+            conn.close();
+            self.connection = null;
+        }
+    }
+    
+    pub fn read(self: *@This(), query: []const u8) ![]const u8 {
+        if (self.connection) |conn| {
+            // Execute query and return results
+            return "Query results";
+        } else {
+            return error.NotConnected;
+        }
+    }
+};
+```
+
+### **3. Processing Pipeline Plugins**
+
+#### **Pipeline Interface**
+```zig
+const PipelinePlugin = struct {
+    base: Plugin,
+    stages: std.ArrayList(PipelineStage),
+    allocator: std.mem.Allocator,
+    
+    pub fn init(allocator: std.mem.Allocator) !@This() {
+        return @This(){
+            .base = try Plugin.init(allocator),
+            .stages = std.ArrayList(PipelineStage).init(allocator),
+            .allocator = allocator,
+        };
+    }
+    
+    pub fn addStage(self: *@This(), stage: PipelineStage) !void {
+        try self.stages.append(stage);
+    }
+    
+    pub fn process(self: *@This(), input: []const u8) ![]const u8 {
+        var data = try self.allocator.dupe(u8, input);
+        defer self.allocator.free(data);
+        
+        for (self.stages.items) |stage| {
+            data = try stage.process(data);
+        }
+        
+        return data;
+    }
+    
+    const PipelineStage = struct {
+        name: []const u8,
+        process: *const fn (input: []const u8) error![]const u8,
+    };
+};
+```
+
+---
+
+## 🛠️ **Creating Plugins**
+
+### **1. Plugin Structure**
+
+#### **Basic Plugin Template**
+```zig
+// my_plugin.zig
+const std = @import("std");
+
+export fn get_plugin_info() PluginInfo {
+    return PluginInfo{
+        .name = "MyPlugin",
+        .version = "1.0.0",
+        .description = "A sample plugin for the Abi AI Framework",
+        .author = "Your Name",
+        .license = "MIT",
+        .capabilities = .{
+            .ai_model = true,
+            .data_source = false,
+            .pipeline = false,
+        },
+    };
+}
+
+export fn plugin_init() error!void {
+    std.log.info("MyPlugin initialized", .{});
+}
+
+export fn plugin_cleanup() error!void {
+    std.log.info("MyPlugin cleaned up", .{});
+}
+
+export fn plugin_predict(input: [*]const u8, input_len: usize) [*]u8 {
+    const input_slice = input[0..input_len];
+    
+    // Process input and generate response
+    const response = "Hello from MyPlugin!";
+    
+    // Allocate response buffer
+    const response_buffer = std.heap.page_allocator.alloc(u8, response.len) catch {
+        return null;
+    };
+    
+    @memcpy(response_buffer, response);
+    return response_buffer.ptr;
+}
+
+const PluginInfo = struct {
+    name: [*]const u8,
+    version: [*]const u8,
+    description: [*]const u8,
+    author: [*]const u8,
+    license: [*]const u8,
+    capabilities: PluginCapabilities,
+};
+
+const PluginCapabilities = struct {
+    ai_model: bool,
+    data_source: bool,
+    pipeline: bool,
+};
+```
+
+### **2. Build Configuration**
+
+#### **Plugin Build File**
+```zig
+// build.zig
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+    
+    // Build plugin as shared library
+    const plugin = b.addSharedLibrary(.{
+        .name = "my_plugin",
+        .root_source_file = .{ .path = "src/my_plugin.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    
+    // Set output directory
+    plugin.setOutputDir("plugins/");
+    
+    // Build plugin
+    b.installArtifact(plugin);
+}
+```
+
+### **3. Plugin Configuration**
+
+#### **Configuration File**
+```json
+{
+  "name": "MyPlugin",
+  "version": "1.0.0",
+  "description": "A sample plugin for the Abi AI Framework",
+  "author": "Your Name",
+  "license": "MIT",
+  "capabilities": {
+    "ai_model": true,
+    "data_source": false,
+    "pipeline": false
+  },
+  "dependencies": [
+    "core_framework >= 1.0.0",
+    "ai_models >= 1.0.0"
+  ],
+  "config": {
+    "model_type": "transformer",
+    "max_input_length": 1024,
+    "temperature": 0.7
+  },
+  "events": [
+    "data_processed",
+    "model_updated"
+  ]
+}
+```
+
+---
+
+## 🚀 **Using Plugins**
+
+### **1. Loading Plugins**
+
+#### **Plugin Discovery and Loading**
+```zig
+const PluginLoader = struct {
+    plugin_dir: []const u8,
+    plugin_manager: *PluginManager,
+    
+    pub fn init(plugin_dir: []const u8, plugin_manager: *PluginManager) @This() {
+        return @This(){
+            .plugin_dir = plugin_dir,
+            .plugin_manager = plugin_manager,
+        };
+    }
+    
+    pub fn discoverPlugins(self: *@This()) !void {
+        var dir = try std.fs.openDirAbsolute(self.plugin_dir, .{ .iterate = true });
+        defer dir.close();
+        
+        var iter = dir.iterate();
+        while (iter.next()) |entry| {
+            if (std.mem.endsWith(u8, entry.name, ".so") or 
+                std.mem.endsWith(u8, entry.name, ".dll") or
+                std.mem.endsWith(u8, entry.name, ".dylib")) {
+                
+                const plugin_path = try std.fs.path.join(self.plugin_manager.allocator, &[_][]const u8{
+                    self.plugin_dir,
+                    entry.name,
+                });
+                defer self.plugin_manager.allocator.free(plugin_path);
+                
+                // Load plugin
+                self.plugin_manager.loadPlugin(plugin_path) catch |err| {
+                    std.log.err("Failed to load plugin {}: {}", .{ entry.name, err });
+                };
+            }
+        }
+    }
+};
+```
+
+#### **Plugin Usage Example**
+```zig
+const PluginUser = struct {
+    plugin_manager: *PluginManager,
+    
+    pub fn useAIPlugin(self: *@This(), input: []const u8) ![]const u8 {
+        // Find AI model plugin
+        var iter = self.plugin_manager.plugins.iterator();
+        while (iter.next()) |entry| {
+            const plugin = entry.value_ptr;
+            if (plugin.capabilities.ai_model) {
+                // Use the plugin
+                return try self.callPlugin(plugin, input);
+            }
+        }
+        
+        return error.NoAIPluginFound;
+    }
+    
+    fn callPlugin(self: *@This(), plugin: *Plugin, input: []const u8) ![]const u8 {
+        // Call plugin's predict function
+        if (plugin.capabilities.ai_model) {
+            const model_plugin = @ptrCast(*ModelPlugin, plugin);
+            return try model_plugin.predict(input);
+        }
+        
+        return error.PluginTypeMismatch;
+    }
+};
+```
+
+### **2. Plugin Communication**
+
+#### **Event-Based Communication**
+```zig
+const PluginCommunicator = struct {
+    event_bus: *EventBus,
+    
+    pub fn sendEvent(self: *@This(), event: Event) !void {
+        try self.event_bus.publish(event);
+    }
+    
+    pub fn subscribeToEvents(self: *@This(), plugin: *Plugin, event_types: []const EventType) !void {
+        for (event_types) |event_type| {
+            const handler = EventHandler{
+                .plugin = plugin,
+                .handle = plugin.handleEvent,
+            };
+            
+            try self.event_bus.subscribe(event_type, handler);
+        }
+    }
+};
+```
+
+---
+
+## 🔒 **Security**
+
+### **1. Plugin Validation**
+
+#### **Security Checks**
+```zig
+const PluginValidator = struct {
+    pub fn validatePlugin(plugin: *Plugin) !void {
+        // Check plugin signature
+        try self.verifySignature(plugin);
+        
+        // Validate plugin capabilities
+        try self.validateCapabilities(plugin);
+        
+        // Check for malicious code patterns
+        try self.scanForMaliciousCode(plugin);
+        
+        // Validate configuration
+        try self.validateConfiguration(plugin);
+    }
+    
+    fn verifySignature(self: *@This(), plugin: *Plugin) !void {
+        // Verify plugin digital signature
+        const signature = try self.extractSignature(plugin);
+        try self.verifySignature(signature, plugin.public_key);
+    }
+    
+    fn validateCapabilities(self: *@This(), plugin: *Plugin) !void {
+        // Ensure plugin doesn't request excessive permissions
+        if (plugin.capabilities.file_system_access) {
+            try self.validateFileSystemAccess(plugin);
+        }
+        
+        if (plugin.capabilities.network_access) {
+            try self.validateNetworkAccess(plugin);
+        }
+    }
+};
+```
+
+### **2. Sandboxing**
+
+#### **Plugin Isolation**
+```zig
+const PluginSandbox = struct {
+    plugin: *Plugin,
+    resource_limits: ResourceLimits,
+    
+    pub fn init(plugin: *Plugin, limits: ResourceLimits) @This() {
+        return @This(){
+            .plugin = plugin,
+            .resource_limits = limits,
+        };
+    }
+    
+    pub fn executeInSandbox(self: *@This(), operation: *const fn () error!void) !void {
+        // Set resource limits
+        try self.setResourceLimits();
+        
+        // Execute operation in isolated environment
+        try self.executeIsolated(operation);
+        
+        // Reset resource limits
+        try self.resetResourceLimits();
+    }
+    
+    const ResourceLimits = struct {
+        max_memory: usize,
+        max_cpu_time: u64,
+        max_file_descriptors: usize,
+        allowed_paths: []const []const u8,
+    };
+};
+```
+
+---
+
+## 🧪 **Testing**
+
+### **1. Plugin Testing**
+
+#### **Unit Tests**
+```zig
+test "plugin loading" {
+    const allocator = testing.allocator;
+    
+    // Create plugin manager
+    var plugin_manager = try PluginManager.init(allocator);
+    defer plugin_manager.deinit();
+    
+    // Load test plugin
+    try plugin_manager.loadPlugin("test_plugins/test_plugin.so");
+    
+    // Verify plugin loaded
+    try testing.expect(plugin_manager.plugins.contains("TestPlugin"));
+    
+    // Test plugin functionality
+    const plugin = plugin_manager.plugins.get("TestPlugin").?;
+    try testing.expectEqualStrings("TestPlugin", plugin.name);
+    try testing.expectEqualStrings("1.0.0", plugin.version);
+}
+
+test "plugin communication" {
+    const allocator = testing.allocator;
+    
+    // Create plugin manager with event bus
+    var plugin_manager = try PluginManager.init(allocator);
+    defer plugin_manager.deinit();
+    
+    // Load plugins
+    try plugin_manager.loadPlugin("test_plugins/sender_plugin.so");
+    try plugin_manager.loadPlugin("test_plugins/receiver_plugin.so");
+    
+    // Send test event
+    const event = Event{
+        .type = .data_processed,
+        .data = "test data",
+        .timestamp = std.time.milliTimestamp(),
+        .source = "test",
+    };
+    
+    try plugin_manager.event_bus.publish(event);
+    
+    // Verify event was received
+    // ... verification logic ...
+}
+```
+
+### **2. Integration Testing**
+
+#### **Plugin Integration Tests**
+```zig
+test "plugin integration" {
+    const allocator = testing.allocator;
+    
+    // Create complete system with plugins
+    var system = try TestSystem.init(allocator);
+    defer system.deinit();
+    
+    // Load multiple plugins
+    try system.loadPlugins(&[_][]const u8{
+        "plugins/ai_model.so",
+        "plugins/data_source.so",
+        "plugins/pipeline.so",
+    });
+    
+    // Test end-to-end functionality
+    const input = "test input";
+    const output = try system.processWithPlugins(input);
+    
+    // Verify output
+    try testing.expect(output.len > 0);
+    try testing.expect(std.mem.indexOf(u8, output, "processed") != null);
+}
+```
+
+---
+
+## ⚡ **Performance**
+
+### **1. Plugin Performance**
+
+#### **Performance Monitoring**
+```zig
+const PluginProfiler = struct {
+    plugin: *Plugin,
+    metrics: PluginMetrics,
+    
+    pub fn init(plugin: *Plugin) @This() {
+        return @This(){
+            .plugin = plugin,
+            .metrics = PluginMetrics.init(),
+        };
+    }
+    
+    pub fn measureOperation(self: *@This(), operation: *const fn () error!void) !u64 {
+        const start_time = std.time.nanoTimestamp();
+        
+        try operation();
+        
+        const end_time = std.time.nanoTimestamp();
+        const duration = @intCast(u64, end_time - start_time);
+        
+        // Update metrics
+        self.metrics.operation_count += 1;
+        self.metrics.total_time += duration;
+        self.metrics.avg_time = self.metrics.total_time / self.metrics.operation_count;
+        
+        return duration;
+    }
+    
+    const PluginMetrics = struct {
+        operation_count: u64,
+        total_time: u64,
+        avg_time: u64,
+        min_time: u64,
+        max_time: u64,
+        
+        pub fn init() @This() {
+            return @This(){
+                .operation_count = 0,
+                .total_time = 0,
+                .avg_time = 0,
+                .min_time = std.math.maxInt(u64),
+                .max_time = 0,
+            };
+        }
+    };
+};
+```
+
+### **2. Optimization Strategies**
+
+#### **Plugin Optimization**
+```zig
+const PluginOptimizer = struct {
+    pub fn optimizePlugin(plugin: *Plugin) !void {
+        // Profile plugin performance
+        const profiler = try PluginProfiler.init(plugin);
+        
+        // Identify bottlenecks
+        const bottlenecks = try self.identifyBottlenecks(profiler);
+        
+        // Apply optimizations
+        for (bottlenecks) |bottleneck| {
+            try self.applyOptimization(plugin, bottleneck);
+        }
+        
+        // Verify improvements
+        try self.verifyOptimizations(profiler);
+    }
+    
+    fn identifyBottlenecks(self: *@This(), profiler: *PluginProfiler) ![]Bottleneck {
+        var bottlenecks = std.ArrayList(Bottleneck).init(profiler.allocator);
+        
+        if (profiler.metrics.avg_time > SLOW_OPERATION_THRESHOLD) {
+            try bottlenecks.append(Bottleneck{
+                .type = .slow_operation,
+                .severity = .high,
+                .description = "Operation taking too long",
+            });
+        }
+        
+        return bottlenecks.toOwnedSlice();
+    }
+    
+    const Bottleneck = struct {
+        type: BottleneckType,
+        severity: Severity,
+        description: []const u8,
+        
+        const BottleneckType = enum {
+            slow_operation,
+            memory_leak,
+            inefficient_algorithm,
+        };
+        
+        const Severity = enum {
+            low,
+            medium,
+            high,
+            critical,
+        };
+    };
+};
+```
+
+---
+
+## 🚀 **Production Deployment**
+
+### **1. Deployment Configuration**
+
+#### **Production Plugin Configuration**
+```zig
+const ProductionPluginConfig = struct {
+    // Plugin loading
+    plugin_directory: []const u8 = "/opt/abi/plugins",
+    auto_discovery: bool = true,
+    load_on_startup: bool = true,
+    
+    // Security
+    enable_sandboxing: bool = true,
+    require_signatures: bool = true,
+    restrict_permissions: bool = true,
+    
+    // Performance
+    enable_profiling: bool = true,
+    performance_thresholds: PerformanceThresholds = .{},
+    resource_limits: ResourceLimits = .{},
+    
+    // Monitoring
+    enable_monitoring: bool = true,
+    health_check_interval: u64 = 30000, // 30 seconds
+    metrics_collection: bool = true,
+    
+    const PerformanceThresholds = struct {
+        max_operation_time: u64 = 1000, // 1 second
+        max_memory_usage: usize = 100 * 1024 * 1024, // 100MB
+        max_cpu_usage: f32 = 80.0, // 80%
+    };
+    
+    const ResourceLimits = struct {
+        max_memory: usize = 512 * 1024 * 1024, // 512MB
+        max_cpu_time: u64 = 60 * std.time.ns_per_s, // 60 seconds
+        max_file_descriptors: usize = 1000,
+    };
+};
+```
+
+### **2. Monitoring and Alerting**
+
+#### **Plugin Monitoring**
+```zig
+const PluginMonitor = struct {
+    plugin_manager: *PluginManager,
+    metrics_collector: *MetricsCollector,
+    
+    pub fn startMonitoring(self: *@This()) !void {
+        // Start health check loop
+        try self.startHealthChecks();
+        
+        // Start metrics collection
+        try self.startMetricsCollection();
+        
+        // Start alerting
+        try self.startAlerting();
+    }
+    
+    fn startHealthChecks(self: *@This()) !void {
+        while (true) {
+            try self.checkPluginHealth();
+            std.time.sleep(30 * std.time.ns_per_s); // 30 seconds
+        }
+    }
+    
+    fn checkPluginHealth(self: *@This()) !void {
+        var iter = self.plugin_manager.plugins.iterator();
+        while (iter.next()) |entry| {
+            const plugin = entry.value_ptr;
+            const health = try self.checkPluginHealth(plugin);
+            
+            if (health.status != .healthy) {
+                try self.raiseAlert(plugin, health);
+            }
+        }
+    }
+    
+    const PluginHealth = struct {
+        status: HealthStatus,
+        memory_usage: usize,
+        cpu_usage: f32,
+        response_time: u64,
+        error_count: u64,
+        
+        const HealthStatus = enum {
+            healthy,
+            degraded,
+            unhealthy,
+        };
+    };
+};
+```
+
+---
+
+## 🎯 **Best Practices**
+
+### **1. Plugin Development**
+
+#### **Design Principles**
+- **Single Responsibility**: Each plugin should have one clear purpose
+- **Loose Coupling**: Minimize dependencies between plugins
+- **High Cohesion**: Related functionality should be grouped together
+- **Error Handling**: Comprehensive error handling and recovery
+- **Resource Management**: Proper cleanup and resource management
+
+#### **Performance Guidelines**
+- **Efficient Algorithms**: Use optimal algorithms for your use case
+- **Memory Management**: Minimize memory allocations and leaks
+- **Async Operations**: Use asynchronous operations where appropriate
+- **Caching**: Implement caching for expensive operations
+- **Profiling**: Profile and optimize critical paths
+
+### **2. Plugin Integration**
+
+#### **Integration Patterns**
+- **Event-Driven**: Use events for loose coupling
+- **Configuration-Driven**: Make plugins configurable
+- **Dependency Injection**: Inject dependencies rather than creating them
+- **Interface Segregation**: Use specific interfaces for different capabilities
+- **Plugin Chaining**: Chain plugins for complex workflows
+
+#### **Error Handling**
+```zig
+// Always handle plugin errors gracefully
+const result = plugin.operation() catch |err| {
+    switch (err) {
+        error.PluginNotFound => {
+            std.log.warn("Plugin not found, using fallback");
+            return try fallbackOperation();
+        },
+        error.PluginError => {
+            std.log.err("Plugin error: {}", .{err});
+            return error.OperationFailed;
+        },
+        else => return err,
+    }
+};
+```
+
+---
+
+## 🔗 **Additional Resources**
+
+- **[Main Documentation](README.md)** - Start here for an overview
+- **[API Reference](docs/api_reference.md)** - Complete API documentation
+- **[Plugin Examples](examples/plugins/)** - Sample plugin implementations
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute plugins
+
+---
+
+**🔌 The Abi AI Framework's plugin system provides a powerful, secure, and performant way to extend the framework's capabilities!**
+
+**🚀 With comprehensive plugin management, event-driven communication, and production-ready deployment, you can build sophisticated AI applications with modular, maintainable code.**
