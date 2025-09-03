@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  wdbx-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: wdbx-ai:latest
+    container_name: wdbx-ai
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - wdbx-data:/data
+      - wdbx-logs:/logs
+      - ./config:/config:ro
+    environment:
+      - WDBX_DATABASE_PATH=/data/wdbx.db
+      - WDBX_LOG_LEVEL=info
+      - WDBX_SERVER_HOST=0.0.0.0
+      - WDBX_SERVER_PORT=8080
+      - WDBX_PERFORMANCE_THREAD_COUNT=0
+      - WDBX_PERFORMANCE_USE_SIMD=true
+    networks:
+      - wdbx-network
+    healthcheck:
+      test: ["CMD", "wdbx-cli", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # Optional: Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: wdbx-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - wdbx-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    depends_on:
+      - wdbx-ai
+
+  # Optional: Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: wdbx-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - wdbx-network
+    depends_on:
+      - prometheus
+
+  # Optional: Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: wdbx-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - wdbx-network
+    depends_on:
+      - wdbx-ai
+
+volumes:
+  wdbx-data:
+    driver: local
+  wdbx-logs:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  wdbx-network:
+    driver: bridge
