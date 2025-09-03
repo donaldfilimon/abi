@@ -630,7 +630,10 @@ pub const MemoryMonitor = struct {
             }
 
             // Sleep for interval
-            std.time.sleep(self.interval_ns);
+            const end_itv = std.time.milliTimestamp() + @as(i64, @intCast(self.interval_ns / 1_000_000));
+            while (std.time.milliTimestamp() < end_itv) {
+                std.atomic.spinLoopHint();
+            }
         }
     }
 };

@@ -565,7 +565,9 @@ pub const WdbxHttpServer = struct {
 
         for (neighbors, 0..) |neighbor, i| {
             if (i > 0) try buffer.appendSlice(self.allocator, ",");
-            try buffer.writer(self.allocator).print("{{\"index\":{d},\"distance\":{d}}}", .{ neighbor.index, neighbor.distance });
+            const s = try std.fmt.allocPrint(self.allocator, "{{\"index\":{d},\"distance\":{d}}}", .{ neighbor.index, neighbor.distance });
+            defer self.allocator.free(s);
+            try buffer.appendSlice(self.allocator, s);
         }
 
         return try buffer.toOwnedSlice(self.allocator);

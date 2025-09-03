@@ -83,7 +83,7 @@ pub const StaticAnalyzer = struct {
         };
         defer file.close();
 
-        const content = try file.readToEndAlloc(self.allocator, 10 * 1024 * 1024);
+        const content = std.fs.cwd().readFileAlloc(self.allocator, file_path, 10 * 1024 * 1024) catch return;
         defer self.allocator.free(content);
 
         try self.analyzeContent(file_path, content);

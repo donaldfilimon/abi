@@ -1244,7 +1244,10 @@ pub const WdbxEnhanced = struct {
     /// Async worker thread using Zig concurrency
     fn asyncWorker(self: *WdbxEnhanced) void {
         while (true) {
-            std.time.sleep(100 * std.time.ns_per_ms);
+            const end = std.time.milliTimestamp() + 100;
+            while (std.time.milliTimestamp() < end) {
+                std.atomic.spinLoopHint();
+            }
 
             // Process async queue
             while (self.async_queue.items.len > 0) {

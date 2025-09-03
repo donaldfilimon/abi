@@ -199,7 +199,10 @@ pub const CPUProfiler = struct {
 
             self.samples.append(sample) catch continue;
 
-            std.time.sleep(interval_ns);
+            const end_ns = std.time.milliTimestamp() + @as(i64, @intCast(interval_ns / 1_000_000));
+            while (std.time.milliTimestamp() < end_ns) {
+                std.atomic.spinLoopHint();
+            }
         }
     }
 

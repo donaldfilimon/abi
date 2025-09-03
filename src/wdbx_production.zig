@@ -663,7 +663,10 @@ pub const HealthMonitor = struct {
             while (attempts < strategy.max_attempts) : (attempts += 1) {
                 strategy.execute_fn(self.allocator) catch |err| {
                     std.debug.print("Recovery attempt {d} failed: {any}\n", .{ attempts, err });
-                    std.time.sleep(strategy.backoff_ms * std.time.ns_per_ms);
+                    const end_backoff = std.time.milliTimestamp() + @as(i64, @intCast(strategy.backoff_ms));
+                    while (std.time.milliTimestamp() < end_backoff) {
+                        std.atomic.spinLoopHint();
+                    }
                     continue;
                 };
                 break;
@@ -891,7 +894,10 @@ pub const WdbxProduction = struct {
             self.health_monitor.runHealthChecks() catch |err| {
                 std.debug.print("Health check failed: {any}\n", .{err});
             };
-            std.time.sleep(self.config.health_check_interval_ms * std.time.ns_per_ms);
+            const end_health = std.time.milliTimestamp() + @as(i64, @intCast(self.config.health_check_interval_ms));
+            while (std.time.milliTimestamp() < end_health) {
+                std.atomic.spinLoopHint();
+            }
         }
     }
 
@@ -899,7 +905,10 @@ pub const WdbxProduction = struct {
         while (!self.thread_pool.shutdown.load(.monotonic)) {
             // Export metrics to monitoring system
             _ = self.metrics.operations_total.load(.monotonic);
-            std.time.sleep(self.config.metrics_export_interval_ms * std.time.ns_per_ms);
+            const end_metrics = std.time.milliTimestamp() + @as(i64, @intCast(self.config.metrics_export_interval_ms));
+            while (std.time.milliTimestamp() < end_metrics) {
+                std.atomic.spinLoopHint();
+            }
         }
     }
 
@@ -910,7 +919,10 @@ pub const WdbxProduction = struct {
                 shard.last_checkpoint = std.time.milliTimestamp();
             }
             self.metrics.last_checkpoint_time.store(std.time.milliTimestamp(), .monotonic);
-            std.time.sleep(self.config.checkpoint_interval_ms * std.time.ns_per_ms);
+            const end_checkpoint = std.time.milliTimestamp() + @as(i64, @intCast(self.config.checkpoint_interval_ms));
+            while (std.time.milliTimestamp() < end_checkpoint) {
+                std.atomic.spinLoopHint();
+            }
         }
     }
 
@@ -922,7 +934,10 @@ pub const WdbxProduction = struct {
                 };
                 _ = self.metrics.rebalance_operations.fetchAdd(1, .monotonic);
             }
-            std.time.sleep(60_000 * std.time.ns_per_ms); // Check every minute
+            const end_rebalance = std.time.milliTimestamp() + 60_000;
+            while (std.time.milliTimestamp() < end_rebalance) {
+                std.atomic.spinLoopHint();
+            } // Check every minute
         }
     }
 
