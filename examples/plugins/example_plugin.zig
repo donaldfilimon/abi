@@ -122,8 +122,8 @@ const PLUGIN_INFO = PluginInfo{
     .abi_version = PluginVersion.init(1, 0, 0),
     .provides = &[_][]const u8{ "text_uppercase", "text_lowercase", "text_reverse" },
     .license = "MIT",
-    .homepage = "https://github.com/abi-ai/plugins",
-    .repository = "https://github.com/abi-ai/plugins/tree/main/examples",
+    .homepage = "https://github.com/donaldfilimon/abi/docs/plugins.md",
+    .repository = "https://github.com/donaldfilimon/abi.git",
 };
 
 /// Text processing input/output structures

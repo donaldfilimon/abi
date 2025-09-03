@@ -1,478 +1,1102 @@
-# Self-Learning Discord Bot Setup Guide
+# 🤖 Discord Bot Setup Guide
 
-The Abi framework includes a complete self-learning Discord bot that combines real-time Discord integration, AI-powered responses, and persistent learning capabilities.
+> **Build a self-learning AI bot for Discord with the Abi AI Framework**
 
-## 🚀 Quick Start
+[![Discord Bot](https://img.shields.io/badge/Discord-Bot-blue.svg)](docs/discord_bot_setup.md)
+[![AI Framework](https://img.shields.io/badge/AI-Framework-brightgreen.svg)]()
 
-### Prerequisites
+This guide will walk you through setting up a self-learning Discord bot using the Abi AI Framework. Your bot will learn from conversations, provide intelligent responses, and integrate seamlessly with Discord's platform.
 
-1. **Zig Installation**: Install Zig using the provided script [[memory:1151497]]
-   ```bash
-   bash scripts/install_zig.sh
-   ```
+## 📋 **Table of Contents**
 
-2. **Discord Bot Token**: Create a Discord application and bot at [Discord Developer Portal](https://discord.com/developers/applications)
+- [Prerequisites](#prerequisites)
+- [Environment Setup](#environment-setup)
+- [Bot Features](#bot-features)
+- [Configuration](#configuration)
+- [Learning System](#learning-system)
+- [Discord Bot Setup](#discord-bot-setup)
+- [Deployment](#deployment)
+- [Monitoring](#monitoring)
+- [Troubleshooting](#troubleshooting)
+- [API Reference](#api-reference)
+- [Contributing](#contributing)
 
-3. **OpenAI API Key** (Optional): Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+---
 
-### Environment Setup
+## ✅ **Prerequisites**
 
-1. Set required environment variables:
-   ```bash
-   export DISCORD_BOT_TOKEN="your_discord_bot_token_here"
-   export OPENAI_API_KEY="your_openai_api_key_here"  # Optional
-   ```
+- **Zig**: Version 0.15.1 or later
+- **Discord Account**: For bot creation and testing
+- **Discord Application**: Bot application registered on Discord Developer Portal
+- **OpenAI API Key**: For advanced AI capabilities (optional)
+- **Git**: For version control
+- **Basic Knowledge**: Zig programming and Discord bot concepts
 
-2. Build and run the bot:
-   ```bash
-   zig build run-discord-bot-demo
-   ```
+---
 
-## 🤖 Features
+## 🛠️ **Environment Setup**
 
-### Core Capabilities
-
-- **Real-time Discord Integration**: WebSocket-based connection with automatic reconnection
-- **AI-Powered Responses**: Multiple personas with different response styles
-- **Persistent Learning**: WDBX database stores interactions for continuous improvement
-- **Context-Aware**: Uses past interactions to provide better responses
-- **Rate Limiting**: Built-in protection against Discord API limits
-- **Graceful Error Handling**: Robust error recovery and logging
-
-### Available Personas
-
-| Persona | Description | Use Cases |
-|---------|-------------|-----------|
-| `EmpatheticAnalyst` | Supportive and analytical | Customer support, counseling |
-| `DirectExpert` | Clear and professional | Technical documentation, FAQ |
-| `AdaptiveModerator` | Context-aware and balanced | General purpose, community management |
-| `CreativeWriter` | Imaginative and expressive | Creative projects, storytelling |
-| `TechnicalAdvisor` | Technical and detailed | Programming help, troubleshooting |
-| `ProblemSolver` | Systematic problem-solving | Project planning, debugging |
-
-## 🛠️ Configuration
-
-### Environment Configurations
-
-The bot supports different environments with optimized settings:
+### **1. Install Dependencies**
 
 ```bash
-# Development (default)
-zig build run-discord-bot-demo --env development
+# Clone the repository
+git clone https://github.com/your-org/abi.git
+cd abi
 
-# Production
-zig build run-discord-bot-demo --env production
+# Install Zig (if not already installed)
+# Windows: Download from https://ziglang.org/download/
+# macOS: brew install zig
+# Linux: Download and add to PATH
 
-# Testing
-zig build run-discord-bot-demo --env testing
+# Verify installation
+zig version
 ```
 
-### Configuration Options
+### **2. Build the Project**
 
 ```bash
-# Set specific persona
-zig build run-discord-bot-demo --persona CreativeWriter
+# Build the project
+zig build
 
-# Limit messages for testing
-zig build run-discord-bot-demo --max-messages 100
-
-# Production deployment
-zig build run-discord-bot-demo --env production --persona AdaptiveModerator
+# Verify build
+./zig-out/bin/abi --version
 ```
 
-### Advanced Configuration
+### **3. Environment Variables**
 
-Create a custom configuration by modifying the `BotConfig` in your code:
+Create a `.env` file in your project root:
+
+```bash
+# Discord Bot Configuration
+DISCORD_TOKEN=your_discord_bot_token_here
+DISCORD_CLIENT_ID=your_discord_client_id_here
+DISCORD_GUILD_ID=your_discord_server_id_here
+
+# OpenAI Configuration (Optional)
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-3.5-turbo
+
+# Bot Configuration
+BOT_PREFIX=!
+BOT_LEARNING_RATE=0.1
+BOT_MAX_MEMORY=1000
+BOT_RESPONSE_TIMEOUT=30
+
+# Database Configuration
+DB_PATH=./discord_bot_data.wdbx
+DB_BACKUP_INTERVAL=3600
+```
+
+---
+
+## 🚀 **Bot Features**
+
+### **Core Capabilities**
+
+- **🎯 Intelligent Responses**: Context-aware AI-powered responses
+- **🧠 Self-Learning**: Learns from conversations and improves over time
+- **📚 Memory Management**: Maintains conversation history and user preferences
+- **🔍 Context Understanding**: Remembers previous interactions and references
+- **⚡ Fast Response**: Optimized for real-time Discord interactions
+- **🛡️ Safety Features**: Content filtering and rate limiting
+
+### **Advanced Features**
+
+- **🎭 Multi-Personality**: Switch between different AI personalities
+- **🌐 Multi-Language**: Support for multiple languages
+- **📊 Analytics**: Track bot usage and learning progress
+- **🔧 Custom Commands**: Extensible command system
+- **📱 Mobile Optimized**: Responsive design for mobile Discord users
+
+---
+
+## ⚙️ **Configuration**
+
+### **1. Bot Configuration File**
+
+Create `config/bot_config.zig`:
 
 ```zig
-const config = BotConfig{
-    .discord_token = discord_token,
-    .openai_api_key = openai_key,
-    .default_persona = .AdaptiveModerator,
-    .debug = false,
-    .max_response_length = 2000,
-    .learning_threshold = 0.7,  // Higher = learn less frequently
-    .context_limit = 3,         // Number of past interactions to consider
-    .db_config = .{ .shard_count = 5 },  // Database performance tuning
+pub const BotConfig = struct {
+    // Discord Settings
+    pub const discord = struct {
+        pub const token = "your_discord_bot_token";
+        pub const client_id = "your_discord_client_id";
+        pub const guild_id = "your_discord_server_id";
+        pub const intents = .{
+            .guilds = true,
+            .guild_messages = true,
+            .guild_members = true,
+            .direct_messages = true,
+            .message_content = true,
+        };
+    };
+
+    // AI Settings
+    pub const ai = struct {
+        pub const model = "gpt-3.5-turbo";
+        pub const max_tokens = 150;
+        pub const temperature = 0.7;
+        pub const learning_rate = 0.1;
+        pub const max_context_length = 2000;
+    };
+
+    // Memory Settings
+    pub const memory = struct {
+        pub const max_conversations = 1000;
+        pub const max_messages_per_conversation = 50;
+        pub const cleanup_interval = 3600; // seconds
+        pub const persistence_enabled = true;
+    };
+
+    // Response Settings
+    pub const response = struct {
+        pub const default_timeout = 30; // seconds
+        pub const max_response_length = 2000;
+        pub const enable_typing_indicator = true;
+        pub const rate_limit_per_user = 5; // messages per minute
+    };
 };
 ```
 
-## 📊 Learning System
+### **2. Learning Configuration**
 
-### How Learning Works
+```zig
+pub const LearningConfig = struct {
+    // Conversation Learning
+    pub const conversation = struct {
+        pub const min_messages_for_learning = 3;
+        pub const context_window_size = 10;
+        pub const sentiment_analysis_enabled = true;
+        pub const topic_extraction_enabled = true;
+    };
 
-1. **Message Processing**: Each incoming message is analyzed for keywords and context
-2. **Similarity Search**: The bot searches past interactions for similar queries
-3. **Context Building**: Relevant past conversations are used to inform responses
-4. **Response Generation**: AI agent generates contextually aware responses
-5. **Learning Storage**: New interactions are stored if confidence is below threshold
+    // User Learning
+    pub const user = struct {
+        pub const personality_tracking = true;
+        pub const preference_learning = true;
+        pub const interaction_history_size = 100;
+        pub const privacy_respect_enabled = true;
+    };
 
-### Learning Parameters
-
-- **Learning Threshold** (0.0-1.0): Controls how aggressively the bot learns
-  - Lower values = Learn from more interactions
-  - Higher values = Only learn from novel interactions
-
-- **Context Limit**: Number of similar past interactions to consider
-  - Higher values = More context but slower response
-  - Lower values = Faster but less informed responses
-
-### Database Structure
-
-The bot uses a sharded WDBX database:
-
-```
-Database
-├── Shard 0 (Prime: 31)
-├── Shard 1 (Prime: 37)
-├── Shard 2 (Prime: 43)
-└── ...
+    // Content Learning
+    pub const content = struct {
+        pub const language_detection = true;
+        pub const cultural_awareness = true;
+        pub const content_filtering = true;
+        pub const safe_content_only = true;
+    };
+};
 ```
 
-Each entry contains:
-- **Key**: User's message/query
-- **Value**: Bot's response
-- **Persona**: Which persona generated the response
-- **Version**: Timestamp for chronological ordering
+---
 
-## 🔧 Discord Bot Setup
+## 🧠 **Learning System**
 
-### 1. Create Discord Application
+### **1. Conversation Learning**
 
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Click "New Application"
-3. Give your bot a name
-4. Go to "Bot" section
-5. Click "Add Bot"
-6. Copy the bot token
+The bot learns from conversations by analyzing:
 
-### 2. Configure Bot Permissions
+- **Message Patterns**: Common phrases and responses
+- **Context Relationships**: How messages relate to previous ones
+- **User Preferences**: Individual user communication styles
+- **Sentiment Analysis**: Emotional context of conversations
+- **Topic Evolution**: How conversations flow between topics
 
-Required permissions for the bot:
-- Read Messages
-- Send Messages  
-- Read Message History
-- Use Slash Commands (optional)
+### **2. Memory Architecture**
 
-Permission integer: `2048` (basic) or `8192` (with slash commands)
-
-### 3. Invite Bot to Server
-
-Use this URL format:
+```zig
+const ConversationMemory = struct {
+    conversation_id: []const u8,
+    participants: []User,
+    messages: []Message,
+    context: ConversationContext,
+    metadata: ConversationMetadata,
+    
+    const Message = struct {
+        id: []const u8,
+        author: User,
+        content: []const u8,
+        timestamp: i64,
+        sentiment: f32,
+        topics: []Topic,
+        reactions: []Reaction,
+    };
+    
+    const ConversationContext = struct {
+        current_topic: Topic,
+        mood: Mood,
+        formality_level: FormalityLevel,
+        language: Language,
+        cultural_context: CulturalContext,
+    };
+    
+    const Topic = struct {
+        name: []const u8,
+        confidence: f32,
+        keywords: []const u8,
+        related_topics: []Topic,
+    };
+    
+    const Mood = enum {
+        positive,
+        neutral,
+        negative,
+        mixed,
+    };
+    
+    const FormalityLevel = enum {
+        casual,
+        informal,
+        formal,
+        professional,
+    };
+};
 ```
-https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=2048&scope=bot
+
+### **3. Learning Algorithms**
+
+#### **Pattern Recognition**
+```zig
+const PatternLearner = struct {
+    patterns: std.AutoHashMap(Pattern, PatternStats),
+    allocator: std.mem.Allocator,
+    
+    const Pattern = struct {
+        trigger: []const u8,
+        response: []const u8,
+        context: []const u8,
+        user_id: []const u8,
+    };
+    
+    const PatternStats = struct {
+        frequency: u32,
+        success_rate: f32,
+        last_used: i64,
+        confidence: f32,
+    };
+    
+    pub fn learnPattern(self: *@This(), message: Message, response: Message) !void {
+        const pattern = Pattern{
+            .trigger = message.content,
+            .response = response.content,
+            .context = self.extractContext(message),
+            .user_id = message.author.id,
+        };
+        
+        if (self.patterns.get(pattern)) |existing| {
+            // Update existing pattern
+            existing.frequency += 1;
+            existing.success_rate = (existing.success_rate + 1.0) / 2.0;
+            existing.last_used = std.time.milliTimestamp();
+        } else {
+            // Create new pattern
+            try self.patterns.put(pattern, PatternStats{
+                .frequency = 1,
+                .success_rate = 1.0,
+                .last_used = std.time.milliTimestamp(),
+                .confidence = 0.5,
+            });
+        }
+    }
+    
+    pub fn findBestResponse(self: *@This(), message: Message) ?[]const u8 {
+        var best_pattern: ?Pattern = null;
+        var best_score: f32 = 0.0;
+        
+        var iter = self.patterns.iterator();
+        while (iter.next()) |entry| {
+            const pattern = entry.key_ptr.*;
+            const stats = entry.value_ptr.*;
+            
+            const score = self.calculatePatternScore(pattern, message, stats);
+            if (score > best_score) {
+                best_score = score;
+                best_pattern = pattern;
+            }
+        }
+        
+        return if (best_pattern) |pattern| pattern.response else null;
+    }
+    
+    fn calculatePatternScore(self: *@This(), pattern: Pattern, message: Message, stats: PatternStats) f32 {
+        const content_similarity = self.calculateContentSimilarity(pattern.trigger, message.content);
+        const context_similarity = self.calculateContextSimilarity(pattern.context, message);
+        const user_similarity = if (std.mem.eql(u8, pattern.user_id, message.author.id)) 1.0 else 0.5;
+        
+        return (content_similarity * 0.4 + context_similarity * 0.3 + user_similarity * 0.3) * stats.confidence;
+    }
+};
 ```
 
-Replace `YOUR_CLIENT_ID` with your application's client ID.
+#### **Sentiment Analysis**
+```zig
+const SentimentAnalyzer = struct {
+    positive_words: std.StringHashMap(f32),
+    negative_words: std.StringHashMap(f32),
+    neutral_words: std.StringHashMap(f32),
+    allocator: std.mem.Allocator,
+    
+    pub fn init(allocator: std.mem.Allocator) !@This() {
+        var analyzer = @This(){
+            .positive_words = std.StringHashMap(f32).init(allocator),
+            .negative_words = std.StringHashMap(f32).init(allocator),
+            .neutral_words = std.StringHashMap(f32).init(allocator),
+            .allocator = allocator,
+        };
+        
+        try analyzer.loadSentimentDictionary();
+        return analyzer;
+    }
+    
+    pub fn analyzeSentiment(self: *@This(), text: []const u8) SentimentResult {
+        var positive_score: f32 = 0.0;
+        var negative_score: f32 = 0.0;
+        var neutral_score: f32 = 0.0;
+        
+        const words = self.tokenize(text);
+        defer self.allocator.free(words);
+        
+        for (words) |word| {
+            if (self.positive_words.get(word)) |score| {
+                positive_score += score;
+            } else if (self.negative_words.get(word)) |score| {
+                negative_score += score;
+            } else {
+                neutral_score += 0.1;
+            }
+        }
+        
+        const total_score = positive_score + negative_score + neutral_score;
+        if (total_score == 0) {
+            return SentimentResult{ .sentiment = .neutral, .confidence = 0.0, .scores = .{ 0.0, 0.0, 0.0 } };
+        }
+        
+        const normalized_positive = positive_score / total_score;
+        const normalized_negative = negative_score / total_score;
+        const normalized_neutral = neutral_score / total_score;
+        
+        const sentiment = if (normalized_positive > normalized_negative and normalized_positive > normalized_neutral)
+            .positive
+        else if (normalized_negative > normalized_positive and normalized_negative > normalized_neutral)
+            .negative
+        else
+            .neutral;
+        
+        const confidence = @max(normalized_positive, @max(normalized_negative, normalized_neutral));
+        
+        return SentimentResult{
+            .sentiment = sentiment,
+            .confidence = confidence,
+            .scores = .{ normalized_positive, normalized_negative, normalized_neutral },
+        };
+    }
+    
+    const SentimentResult = struct {
+        sentiment: Sentiment,
+        confidence: f32,
+        scores: [3]f32, // [positive, negative, neutral]
+        
+        const Sentiment = enum {
+            positive,
+            negative,
+            neutral,
+        };
+    };
+};
+```
 
-### 4. Bot Intents
+---
 
-The bot requires these intents:
-- `GUILD_MESSAGES` (1 << 9)
-- `MESSAGE_CONTENT` (1 << 15)
+## 🤖 **Discord Bot Setup**
 
-These are automatically configured in the gateway connection.
+### **1. Create Discord Application**
 
-## 🚀 Deployment
+1. **Go to [Discord Developer Portal](https://discord.com/developers/applications)**
+2. **Click "New Application"**
+3. **Name your bot (e.g., "Abi AI Bot")**
+4. **Go to "Bot" section**
+5. **Click "Add Bot"**
+6. **Copy the bot token**
 
-### Local Development
+### **2. Bot Permissions**
+
+Set these permissions for your bot:
+
+```
+General Permissions:
+✅ Read Messages/View Channels
+✅ Send Messages
+✅ Use Slash Commands
+✅ Add Reactions
+✅ Embed Links
+✅ Attach Files
+✅ Read Message History
+✅ Use External Emojis
+✅ Add Reactions
+
+Text Permissions:
+✅ Send Messages
+✅ Send Messages in Threads
+✅ Use Slash Commands
+✅ Manage Messages
+✅ Embed Links
+✅ Attach Files
+✅ Read Message History
+✅ Mention Everyone
+✅ Use External Emojis
+✅ Add Reactions
+```
+
+### **3. Invite Bot to Server**
+
+Generate invite link with these scopes:
+- `bot`
+- `applications.commands`
+
+### **4. Bot Code Structure**
+
+```zig
+const DiscordBot = struct {
+    client: discord.Client,
+    ai_engine: AIEngine,
+    memory: ConversationMemory,
+    config: BotConfig,
+    allocator: std.mem.Allocator,
+    
+    pub fn init(allocator: std.mem.Allocator, config: BotConfig) !@This() {
+        return @This(){
+            .client = try discord.Client.init(config.discord.token),
+            .ai_engine = try AIEngine.init(allocator, config.ai),
+            .memory = try ConversationMemory.init(allocator, config.memory),
+            .config = config,
+            .allocator = allocator,
+        };
+    }
+    
+    pub fn start(self: *@This()) !void {
+        // Set up event handlers
+        try self.setupEventHandlers();
+        
+        // Start the bot
+        try self.client.start();
+    }
+    
+    fn setupEventHandlers(self: *@This()) !void {
+        // Message handler
+        self.client.on(.message_create, self.handleMessage);
+        
+        // Ready handler
+        self.client.on(.ready, self.handleReady);
+        
+        // Interaction handler
+        self.client.on(.interaction_create, self.handleInteraction);
+    }
+    
+    fn handleMessage(self: *@This(), event: discord.Message) !void {
+        // Ignore bot messages
+        if (event.author.bot) return;
+        
+        // Process message for learning
+        try self.processMessageForLearning(event);
+        
+        // Generate response if bot is mentioned
+        if (self.isBotMentioned(event.content)) {
+            try self.generateAndSendResponse(event);
+        }
+    }
+    
+    fn handleReady(self: *@This(), event: discord.Ready) !void {
+        std.log.info("Bot is ready! Logged in as {}", .{event.user.username});
+        
+        // Register slash commands
+        try self.registerSlashCommands();
+    }
+    
+    fn handleInteraction(self: *@This(), event: discord.Interaction) !void {
+        switch (event.data) {
+            .application_command => |command| {
+                try self.handleSlashCommand(event, command);
+            },
+            else => {},
+        }
+    }
+};
+```
+
+### **5. Slash Commands**
+
+```zig
+const SlashCommands = struct {
+    bot: *DiscordBot,
+    
+    pub fn init(bot: *DiscordBot) @This() {
+        return @This(){ .bot = bot };
+    }
+    
+    pub fn registerCommands(self: *@This()) !void {
+        const commands = [_]discord.ApplicationCommand{
+            .{
+                .name = "chat",
+                .description = "Chat with the AI bot",
+                .options = &[_]discord.ApplicationCommandOption{
+                    .{
+                        .type = .string,
+                        .name = "message",
+                        .description = "Your message to the bot",
+                        .required = true,
+                    },
+                },
+            },
+            .{
+                .name = "learn",
+                .description = "Teach the bot something new",
+                .options = &[_]discord.ApplicationCommandOption{
+                    .{
+                        .type = .string,
+                        .name = "question",
+                        .description = "The question or statement",
+                        .required = true,
+                    },
+                    .{
+                        .type = .string,
+                        .name = "answer",
+                        .description = "The correct answer or response",
+                        .required = true,
+                    },
+                },
+            },
+            .{
+                .name = "personality",
+                .description = "Change the bot's personality",
+                .options = &[_]discord.ApplicationCommandOption{
+                    .{
+                        .type = .string,
+                        .name = "style",
+                        .description = "Personality style (friendly, professional, creative, etc.)",
+                        .required = true,
+                    },
+                },
+            },
+            .{
+                .name = "stats",
+                .description = "View bot learning statistics",
+            },
+            .{
+                .name = "forget",
+                .description = "Make the bot forget recent conversations",
+                .options = &[_]discord.ApplicationCommandOption{
+                    .{
+                        .type = .integer,
+                        .name = "hours",
+                        .description = "Number of hours to go back",
+                        .required = false,
+                    },
+                },
+            },
+        };
+        
+        for (commands) |command| {
+            try self.bot.client.createGlobalApplicationCommand(command);
+        }
+    }
+    
+    pub fn handleSlashCommand(self: *@This(), interaction: discord.Interaction, command: discord.ApplicationCommandData) !void {
+        const command_name = command.name;
+        
+        if (std.mem.eql(u8, command_name, "chat")) {
+            try self.handleChatCommand(interaction, command);
+        } else if (std.mem.eql(u8, command_name, "learn")) {
+            try self.handleLearnCommand(interaction, command);
+        } else if (std.mem.eql(u8, command_name, "personality")) {
+            try self.handlePersonalityCommand(interaction, command);
+        } else if (std.mem.eql(u8, command_name, "stats")) {
+            try self.handleStatsCommand(interaction, command);
+        } else if (std.mem.eql(u8, command_name, "forget")) {
+            try self.handleForgetCommand(interaction, command);
+        }
+    }
+    
+    fn handleChatCommand(self: *@This(), interaction: discord.Interaction, command: discord.ApplicationCommandData) !void {
+        const message = command.options[0].value.string;
+        
+        // Defer response for long processing
+        try interaction.defer();
+        
+        // Generate AI response
+        const response = try self.bot.ai_engine.generateResponse(message, interaction.user.id);
+        
+        // Send response
+        try interaction.followUp(.{
+            .content = response,
+            .flags = .{ .ephemeral = false },
+        });
+        
+        // Learn from this interaction
+        try self.bot.memory.recordInteraction(interaction.user.id, message, response);
+    }
+    
+    fn handleLearnCommand(self: *@This(), interaction: discord.Interaction, command: discord.ApplicationCommandData) !void {
+        const question = command.options[0].value.string;
+        const answer = command.options[1].value.string;
+        
+        // Teach the bot
+        try self.bot.ai_engine.learn(question, answer, interaction.user.id);
+        
+        try interaction.createResponse(.{
+            .content = "Thanks! I've learned something new.",
+            .flags = .{ .ephemeral = true },
+        });
+    }
+};
+```
+
+---
+
+## 🚀 **Deployment**
+
+### **1. Local Development**
 
 ```bash
-# Development mode with debug logging
-export DISCORD_BOT_TOKEN="your_token"
-export OPENAI_API_KEY="your_key"
-zig build run-discord-bot-demo --env development
+# Run bot locally
+zig build run -- discord_bot
+
+# Enable debug logging
+RUST_LOG=debug zig build run -- discord_bot
 ```
 
-### Production Deployment
+### **2. Production Deployment**
 
-```bash
-# Production mode with optimized settings
-export DISCORD_BOT_TOKEN="your_token"
-export OPENAI_API_KEY="your_key"
-zig build run-discord-bot-demo --env production
-```
-
-### Docker Deployment (Optional)
-
-Create a `Dockerfile`:
-
+#### **Docker Deployment**
 ```dockerfile
-FROM alpine:latest
+FROM zig:latest as builder
 
-# Install Zig
-RUN wget https://ziglang.org/download/0.12.0/zig-linux-x86_64-0.12.0.tar.xz
-RUN tar -xf zig-linux-x86_64-0.12.0.tar.xz
-RUN mv zig-linux-x86_64-0.12.0 /usr/local/zig
-ENV PATH="/usr/local/zig:$PATH"
-
-# Copy source code
-COPY . /app
 WORKDIR /app
+COPY . .
+RUN zig build -Drelease-small
 
-# Build the bot
-RUN zig build
-
-# Set environment variables
-ENV DISCORD_BOT_TOKEN=""
-ENV OPENAI_API_KEY=""
-
-# Run the bot
-CMD ["zig", "build", "run-discord-bot", "--", "--env", "production"]
+FROM alpine:latest
+RUN apk add --no-cache ca-certificates
+WORKDIR /root/
+COPY --from=builder /app/zig-out/bin/discord_bot .
+CMD ["./discord_bot"]
 ```
 
-### Systemd Service (Linux)
-
-Create `/etc/systemd/system/discord-bot.service`:
-
+#### **Systemd Service (Linux)**
 ```ini
 [Unit]
-Description=Self-Learning Discord Bot
+Description=Abi AI Discord Bot
 After=network.target
 
 [Service]
 Type=simple
 User=discord-bot
 WorkingDirectory=/opt/discord-bot
-ExecStart=/usr/local/bin/zig build run-discord-bot -- --env production
+ExecStart=/opt/discord-bot/discord_bot
 Restart=always
 RestartSec=10
-Environment=DISCORD_BOT_TOKEN=your_token_here
-Environment=OPENAI_API_KEY=your_key_here
+Environment=DISCORD_TOKEN=your_token_here
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Enable and start:
+#### **Windows Service**
+```powershell
+# Install as Windows service
+sc create "AbiDiscordBot" binPath="C:\path\to\discord_bot.exe" start=auto
+sc description "AbiDiscordBot" "Abi AI Discord Bot Service"
+sc start "AbiDiscordBot"
+```
+
+### **3. Environment-Specific Configs**
+
+#### **Development**
 ```bash
-sudo systemctl enable discord-bot
-sudo systemctl start discord-bot
+# .env.development
+NODE_ENV=development
+LOG_LEVEL=debug
+ENABLE_DEBUG_COMMANDS=true
+TEST_MODE=true
 ```
 
-## 📈 Monitoring and Analytics
-
-### Built-in Statistics
-
-The bot provides real-time statistics:
-
-```
-📊 === Bot Statistics ===
-⏱️  Uptime: 2h 15m 30s
-💬 Messages Processed: 1,247
-🧠 Interactions Learned: 89
-🎭 Current Persona: AdaptiveModerator
-🔄 Status: Running
-📈 Learning Rate: 7.1%
-========================
-```
-
-### Health Monitoring
-
-Monitor these key metrics:
-
-- **Message Processing Rate**: Messages per minute
-- **Learning Rate**: Percentage of interactions stored
-- **Error Rate**: Failed responses per hour
-- **Response Time**: Average AI response generation time
-- **Memory Usage**: Database size and memory consumption
-
-### Logging
-
-Enable debug logging for troubleshooting:
-
+#### **Staging**
 ```bash
-zig build run-discord-bot-demo --env development  # Enables debug mode
+# .env.staging
+NODE_ENV=staging
+LOG_LEVEL=info
+ENABLE_DEBUG_COMMANDS=false
+TEST_MODE=false
 ```
 
-Log levels:
-- **INFO**: Basic operation info
-- **DEBUG**: Detailed processing information
-- **ERROR**: Error conditions and recovery
-- **WARN**: Non-fatal issues
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-#### "Invalid Token" Error
-- Verify your Discord bot token is correct
-- Check token hasn't been regenerated in Discord Developer Portal
-- Ensure token is properly set in environment variable
-
-#### "Missing Permissions" Error
-- Bot needs "Send Messages" and "Read Messages" permissions
-- Check bot role hierarchy in Discord server
-- Verify bot is invited with correct permissions
-
-#### "Rate Limited" Messages
-- Bot automatically handles rate limits
-- If persistent, reduce message frequency
-- Check for other bots using same token
-
-#### AI Response Errors
-- Verify OpenAI API key is valid and has credits
-- Check internet connectivity
-- Bot falls back to simple responses if AI fails
-
-#### Memory Issues
-- Monitor database size growth
-- Consider increasing `learning_threshold` to learn less
-- Restart bot periodically in production
-
-### Debug Commands
-
+#### **Production**
 ```bash
-# Test basic functionality
-zig build test
-
-# Run with maximum debug output
-zig build run-discord-bot-demo --env development
-
-# Test specific persona
-zig build run-discord-bot-demo --persona TechnicalAdvisor --max-messages 10
+# .env.production
+NODE_ENV=production
+LOG_LEVEL=warn
+ENABLE_DEBUG_COMMANDS=false
+TEST_MODE=false
+ENABLE_METRICS=true
 ```
-
-### Performance Tuning
-
-#### Database Optimization
-- Increase `shard_count` for better performance with many interactions
-- Higher shard counts reduce collision probability
-- Monitor memory usage with different shard configurations
-
-#### Response Optimization
-- Lower `context_limit` for faster responses
-- Higher `learning_threshold` reduces database writes
-- Shorter `max_response_length` improves Discord API performance
-
-#### Memory Management
-- Bot automatically manages memory for responses
-- Database entries persist across restarts
-- Consider periodic database cleanup for long-running deployments
-
-## 🧪 Testing
-
-### Unit Tests
-
-```bash
-# Run all tests
-zig build test
-
-# Test specific components
-zig build test -- --filter "discord"
-zig build test -- --filter "learning"
-```
-
-### Integration Testing
-
-```bash
-# Test bot with limited messages
-zig build run-discord-bot-demo --env testing --max-messages 50
-
-# Test specific persona
-zig build run-discord-bot-demo --persona EmpatheticAnalyst --max-messages 20
-```
-
-### Load Testing
-
-Create test scenarios to validate performance:
-
-1. **High Message Volume**: Test with rapid message succession
-2. **Learning Capacity**: Test database performance with many stored interactions
-3. **Persona Switching**: Test dynamic persona changes during conversation
-4. **Error Recovery**: Test behavior when Discord API is unavailable
-
-## 📚 API Reference
-
-### Key Classes
-
-#### `SelfLearningBot`
-Main bot class with initialization, learning, and Discord integration.
-
-```zig
-pub const SelfLearningBot = struct {
-    // Initialize with configuration
-    pub fn init(allocator: std.mem.Allocator, config: BotConfig) !*SelfLearningBot
-
-    // Start bot connection
-    pub fn start(self: *SelfLearningBot) !void
-
-    // Switch AI persona
-    pub fn switchPersona(self: *SelfLearningBot, persona: agent.PersonaType) void
-
-    // Get runtime statistics
-    pub fn getStats(self: *SelfLearningBot) BotStats
-};
-```
-
-#### `BotConfig`
-Configuration structure for customizing bot behavior.
-
-```zig
-pub const BotConfig = struct {
-    discord_token: []const u8,
-    openai_api_key: ?[]const u8 = null,
-    default_persona: agent.PersonaType = .AdaptiveModerator,
-    db_config: database.Config = .{ .shard_count = 5 },
-    max_response_length: usize = 2000,
-    learning_threshold: f32 = 0.7,
-    context_limit: usize = 3,
-    debug: bool = false,
-};
-```
-
-### Database API
-
-The WDBX database provides persistent learning storage:
-
-```zig
-// Store new interaction
-try bot.learning_db.storeInteraction(query, response, persona);
-
-// Retrieve similar interactions
-const entry = bot.learning_db.retrieve(query);
-```
-
-## 🤝 Contributing
-
-### Development Setup
-
-1. Fork the repository
-2. Install Zig using the provided script
-3. Set up test Discord bot for development
-4. Run tests: `zig build test`
-5. Make changes and test thoroughly
-6. Submit pull request
-
-### Code Style
-
-Follow Zig conventions:
-- Use snake_case for functions and variables
-- Use PascalCase for types and structs
-- Include comprehensive tests for new features
-- Document public APIs with doc comments
-
-### Testing Guidelines
-
-- Write unit tests for all new functionality
-- Test error conditions and edge cases
-- Verify Discord API integration with test bot
-- Performance test with realistic message volumes
-
-## 📝 License
-
-This Discord bot implementation is part of the Abi AI framework and follows the project's licensing terms.
 
 ---
 
-## 🎯 Next Steps
+## 📊 **Monitoring**
 
-After setting up your Discord bot:
+### **1. Health Checks**
 
-1. **Customize Personas**: Create custom personas for your specific use case
-2. **Integration**: Integrate with other Abi framework components
-3. **Monitoring**: Set up production monitoring and alerting
-4. **Scaling**: Consider horizontal scaling for high-traffic servers
-5. **Features**: Add custom commands and advanced Discord features
+```zig
+const HealthMonitor = struct {
+    bot: *DiscordBot,
+    last_heartbeat: i64,
+    health_status: HealthStatus,
+    
+    const HealthStatus = enum {
+        healthy,
+        degraded,
+        unhealthy,
+    };
+    
+    pub fn checkHealth(self: *@This()) !HealthReport {
+        const now = std.time.milliTimestamp();
+        self.last_heartbeat = now;
+        
+        // Check Discord connection
+        const discord_healthy = self.bot.client.isConnected();
+        
+        // Check AI engine
+        const ai_healthy = self.bot.ai_engine.isHealthy();
+        
+        // Check memory system
+        const memory_healthy = self.bot.memory.isHealthy();
+        
+        // Determine overall health
+        const health = if (discord_healthy and ai_healthy and memory_healthy)
+            .healthy
+        else if (discord_healthy or ai_healthy or memory_healthy)
+            .degraded
+        else
+            .unhealthy;
+        
+        self.health_status = health;
+        
+        return HealthReport{
+            .status = health,
+            .timestamp = now,
+            .discord_connection = discord_healthy,
+            .ai_engine = ai_healthy,
+            .memory_system = memory_healthy,
+            .uptime = self.bot.getUptime(),
+            .message_count = self.bot.getTotalMessages(),
+            .user_count = self.bot.getUniqueUsers(),
+        };
+    }
+    
+    const HealthReport = struct {
+        status: HealthStatus,
+        timestamp: i64,
+        discord_connection: bool,
+        ai_engine: bool,
+        memory_system: bool,
+        uptime: u64,
+        message_count: u64,
+        user_count: u64,
+    };
+};
+```
 
-For more information, see the main [Abi framework documentation](../README.md). 
+### **2. Metrics Collection**
+
+```zig
+const MetricsCollector = struct {
+    message_count: std.atomic.Atomic(u64),
+    response_time: std.atomic.Atomic(u64),
+    error_count: std.atomic.Atomic(u64),
+    user_interactions: std.atomic.Atomic(u64),
+    learning_events: std.atomic.Atomic(u64),
+    
+    pub fn recordMessage(self: *@This()) void {
+        _ = self.message_count.fetchAdd(1, .Monotonic);
+    }
+    
+    pub fn recordResponseTime(self: *@This(), time_ns: u64) void {
+        _ = self.response_time.store(time_ns, .Monotonic);
+    }
+    
+    pub fn recordError(self: *@This()) void {
+        _ = self.error_count.fetchAdd(1, .Monotonic);
+    }
+    
+    pub fn recordUserInteraction(self: *@This()) void {
+        _ = self.user_interactions.fetchAdd(1, .Monotonic);
+    }
+    
+    pub fn recordLearningEvent(self: *@This()) void {
+        _ = self.learning_events.fetchAdd(1, .Monotonic);
+    }
+    
+    pub fn getMetrics(self: *@This()) Metrics {
+        return Metrics{
+            .total_messages = self.message_count.load(.Monotonic),
+            .avg_response_time_ns = self.response_time.load(.Monotonic),
+            .total_errors = self.error_count.load(.Monotonic),
+            .total_user_interactions = self.user_interactions.load(.Monotonic),
+            .total_learning_events = self.learning_events.load(.Monotonic),
+        };
+    }
+    
+    const Metrics = struct {
+        total_messages: u64,
+        avg_response_time_ns: u64,
+        total_errors: u64,
+        total_user_interactions: u64,
+        total_learning_events: u64,
+    };
+};
+```
+
+### **3. Logging**
+
+```zig
+const BotLogger = struct {
+    allocator: std.mem.Allocator,
+    log_file: ?std.fs.File,
+    log_level: LogLevel,
+    
+    const LogLevel = enum {
+        debug,
+        info,
+        warn,
+        error,
+        fatal,
+    };
+    
+    pub fn init(allocator: std.mem.Allocator, log_file_path: ?[]const u8, level: LogLevel) !@This() {
+        var logger = @This(){
+            .allocator = allocator,
+            .log_file = null,
+            .log_level = level,
+        };
+        
+        if (log_file_path) |path| {
+            logger.log_file = try std.fs.cwd().createFile(path, .{});
+        }
+        
+        return logger;
+    }
+    
+    pub fn log(self: *@This(), level: LogLevel, comptime format: []const u8, args: anytype) !void {
+        if (@enumToInt(level) < @enumToInt(self.log_level)) return;
+        
+        const timestamp = std.time.milliTimestamp();
+        const level_str = switch (level) {
+            .debug => "DEBUG",
+            .info => "INFO",
+            .warn => "WARN",
+            .error => "ERROR",
+            .fatal => "FATAL",
+        };
+        
+        const message = try std.fmt.allocPrint(
+            self.allocator,
+            "[{d}] [{}] " ++ format ++ "\n",
+            .{ timestamp, level_str } ++ args
+        );
+        defer self.allocator.free(message);
+        
+        // Console output
+        try std.io.getStdOut().writeAll(message);
+        
+        // File output
+        if (self.log_file) |file| {
+            try file.writeAll(message);
+            try file.flush();
+        }
+        
+        // Fatal errors should exit
+        if (level == .fatal) {
+            std.process.exit(1);
+        }
+    }
+};
+```
+
+---
+
+## 🔧 **Troubleshooting**
+
+### **Common Issues & Solutions**
+
+#### **1. Bot Not Responding**
+```zig
+// Check bot permissions
+pub fn checkBotPermissions(self: *@This(), guild_id: discord.Snowflake) !void {
+    const guild = try self.client.getGuild(guild_id);
+    const member = try guild.getMember(self.client.user.id);
+    
+    if (!member.hasPermission(.send_messages)) {
+        std.log.err("Bot lacks SEND_MESSAGES permission", .{});
+        return error.InsufficientPermissions;
+    }
+    
+    if (!member.hasPermission(.use_slash_commands)) {
+        std.log.err("Bot lacks USE_SLASH_COMMANDS permission", .{});
+        return error.InsufficientPermissions;
+    }
+}
+```
+
+#### **2. Rate Limiting Issues**
+```zig
+// Implement rate limiting
+const RateLimiter = struct {
+    user_limits: std.AutoHashMap(discord.Snowflake, UserLimit),
+    allocator: std.mem.Allocator,
+    
+    const UserLimit = struct {
+        message_count: u32,
+        last_reset: i64,
+        max_messages: u32 = 5,
+        reset_interval: i64 = 60 * 1000, // 1 minute
+    };
+    
+    pub fn canSendMessage(self: *@This(), user_id: discord.Snowflake) bool {
+        const now = std.time.milliTimestamp();
+        
+        if (self.user_limits.get(user_id)) |limit| {
+            if (now - limit.last_reset > limit.reset_interval) {
+                // Reset counter
+                limit.message_count = 0;
+                limit.last_reset = now;
+            }
+            
+            if (limit.message_count >= limit.max_messages) {
+                return false;
+            }
+            
+            limit.message_count += 1;
+            return true;
+        } else {
+            // First message from user
+            try self.user_limits.put(user_id, UserLimit{
+                .message_count = 1,
+                .last_reset = now,
+            });
+            return true;
+        }
+    }
+};
+```
+
+#### **3. Memory Issues**
+```zig
+// Memory cleanup
+pub fn cleanupMemory(self: *@This()) !void {
+    const now = std.time.milliTimestamp();
+    const cleanup_threshold = now - (self.config.memory.cleanup_interval * 1000);
+    
+    // Clean up old conversations
+    try self.memory.cleanupOldConversations(cleanup_threshold);
+    
+    // Clean up old patterns
+    try self.ai_engine.cleanupOldPatterns(cleanup_threshold);
+    
+    // Force garbage collection if needed
+    if (self.getMemoryUsage() > self.config.memory.max_memory) {
+        try self.forceMemoryCleanup();
+    }
+}
+```
+
+---
+
+## 📚 **API Reference**
+
+### **Core Functions**
+
+#### **Message Handling**
+```zig
+pub fn handleMessage(self: *@This(), message: discord.Message) !void
+pub fn generateResponse(self: *@This(), message: discord.Message) ![]const u8
+pub fn sendResponse(self: *@This(), channel_id: discord.Snowflake, content: []const u8) !void
+```
+
+#### **Learning Functions**
+```zig
+pub fn learn(self: *@This(), input: []const u8, output: []const u8, user_id: discord.Snowflake) !void
+pub fn forget(self: *@This(), user_id: discord.Snowflake, hours_back: ?u32) !void
+pub fn getStats(self: *@This()) LearningStats
+```
+
+#### **Memory Functions**
+```zig
+pub fn recordConversation(self: *@This(), conversation: Conversation) !void
+pub fn getConversationHistory(self: *@This(), user_id: discord.Snowflake) ![]Conversation
+pub fn cleanupOldData(self: *@This(), threshold: i64) !void
+```
+
+### **Configuration Options**
+
+- **`discord.token`**: Bot authentication token
+- **`ai.model`**: AI model to use for responses
+- **`memory.max_conversations`**: Maximum conversations to store
+- **`response.timeout`**: Response generation timeout
+- **`learning.rate`**: Learning rate for pattern recognition
+
+---
+
+## 🤝 **Contributing**
+
+### **How to Contribute**
+
+1. **Fork the repository**
+2. **Create a feature branch**
+3. **Make your changes**
+4. **Add tests**
+5. **Submit a pull request**
+
+### **Areas for Contribution**
+
+- **New AI Models**: Integrate additional AI services
+- **Language Support**: Add support for more languages
+- **Advanced Learning**: Implement more sophisticated learning algorithms
+- **Analytics**: Enhanced bot usage analytics
+- **Documentation**: Improve guides and examples
+
+### **Development Setup**
+
+```bash
+# Clone your fork
+git clone https://github.com/your-username/abi.git
+cd abi
+
+# Add upstream remote
+git remote add upstream https://github.com/original-org/abi.git
+
+# Create feature branch
+git checkout -b feature/discord-bot-improvements
+
+# Make changes and test
+zig build test
+zig build run -- discord_bot
+
+# Commit and push
+git add .
+git commit -m "Add new Discord bot features"
+git push origin feature/discord-bot-improvements
+```
+
+---
+
+## 🔗 **Additional Resources**
+
+- **[Discord Developer Portal](https://discord.com/developers)** - Official Discord API documentation
+- **[Abi AI Framework](README.md)** - Main framework documentation
+- **[Bot Examples](examples/)** - Additional bot examples
+- **[Community Discord](https://discord.gg/your-server)** - Join our community
+
+---
+
+**🤖 Ready to build an intelligent Discord bot? The Abi AI Framework provides everything you need for a self-learning, context-aware bot that gets smarter over time!**
+
+**🚀 Start with the examples above and create a bot that truly understands and learns from your Discord community.** 
