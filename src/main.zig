@@ -1,7 +1,6 @@
 const std = @import("std");
-const wdbx = @import("wdbx/mod.zig");
 
+// Forward to the refactored implementation
 pub fn main() !void {
-    // Use the unified WDBX CLI implementation
-    try wdbx.main().?;
+    return @import("main_refactored.zig").main();
 }
