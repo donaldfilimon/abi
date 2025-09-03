@@ -44,8 +44,9 @@ pub const PluginInterface = extern struct {
     get_api: ?*const fn (api_name: [*:0]const u8) callconv(.c) ?*anyopaque = null,
 
     pub fn isValid(self: *const PluginInterface) bool {
-        _ = self;
-        return true; // In this version, all fields are mandatory so always valid
+        if (self.get_info == null or self.init == null or self.deinit == null) return false;
+        const info = self.get_info();
+        return info != null;
     }
 };
 
