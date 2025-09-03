@@ -410,9 +410,9 @@ pub const EnhancedDatabase = struct {
         const encrypted = record_header[25] != 0;
 
         // Read record data
-        const data = try self.allocator.alloc(u8, data_len); // TODO: Use a fixed size buffer instead of allocating
+        const data = try self.allocator.alloc(u8, data_len);
         errdefer self.allocator.free(data);
-        _ = try self.file.read(data);
+        try self.file.readNoEof(data);
 
         // Create record
         var record = DatabaseRecord{

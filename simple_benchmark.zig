@@ -787,15 +787,67 @@ fn exportBenchmarkPrometheus(allocator: std.mem.Allocator, results: *BenchmarkRe
 }
 
 // Detect performance regression compared to baseline
-fn detectPerformanceRegression(_: std.mem.Allocator, results: *BenchmarkResults, baseline_file: []const u8) !void {
-    // This is a simplified implementation
-    // In a full implementation, you'd load and compare against baseline results
-
+fn detectPerformanceRegression(allocator: std.mem.Allocator, results: *BenchmarkResults, baseline_file: []const u8) !void {
     std.debug.print("🔍 Performance Regression Analysis:\n", .{});
     std.debug.print("  Baseline file: {s}\n", .{baseline_file});
     std.debug.print("  Current performance: {d:.0} ops/sec, {d:.0}μs avg latency\n", .{ results.operations_per_second, results.avg_latency_us });
-    std.debug.print("  Regression detection: Not implemented in demo\n", .{});
-    std.debug.print("  Recommendation: Implement baseline comparison logic\n", .{});
+
+    const content = std.fs.cwd().readFileAlloc(allocator, baseline_file, 10 * 1024 * 1024) catch |e| {
+        std.debug.print("  Note: Unable to read baseline file: {s}\n", .{@errorName(e)});
+        return;
+    };
+    defer allocator.free(content);
+
+    const parseNumber = struct {
+        fn go(s: []const u8, key: []const u8) ?f64 {
+            const prefix = std.fmt.comptimePrint("\"{s}\":", .{key});
+            const start = std.mem.indexOf(u8, s, prefix) orelse return null;
+            var i: usize = start + prefix.len;
+            while (i < s.len and (s[i] == ' ' or s[i] == '\t')) : (i += 1) {}
+            var j: usize = i;
+            while (j < s.len and ((s[j] >= '0' and s[j] <= '9') or s[j] == '.' or s[j] == '-' or s[j] == 'e' or s[j] == 'E' or s[j] == '+')) : (j += 1) {}
+            const num_slice = s[i..j];
+            return std.fmt.parseFloat(f64, num_slice) catch null;
+        }
+    }.go;
+
+    const baseline_ops = parseNumber(content, "operations_per_second") orelse {
+        std.debug.print("  Warning: Could not parse operations_per_second from baseline\n", .{});
+        return;
+    };
+    const baseline_latency = parseNumber(content, "avg_latency_us") orelse {
+        std.debug.print("  Warning: Could not parse avg_latency_us from baseline\n", .{});
+        return;
+    };
+
+    const ops = results.operations_per_second;
+    const lat = results.avg_latency_us;
+
+    const ops_drop = if (baseline_ops > 0) (baseline_ops - ops) / baseline_ops else 0;
+    const lat_increase = if (baseline_latency > 0) (lat - baseline_latency) / baseline_latency else 0;
+
+    const threshold = 0.05; // 5%
+    var regression = false;
+
+    if (ops_drop > threshold) {
+        regression = true;
+        std.debug.print("  ❗ Ops/sec regression: -{d:.1}% (baseline {d:.0} -> current {d:.0})\n", .{ ops_drop * 100.0, baseline_ops, ops });
+    } else {
+        std.debug.print("  ✅ Ops/sec within threshold (+/-{d:.0}%)\n", .{threshold * 100.0});
+    }
+
+    if (lat_increase > threshold) {
+        regression = true;
+        std.debug.print("  ❗ Latency regression: +{d:.1}% (baseline {d:.0}μs -> current {d:.0}μs)\n", .{ lat_increase * 100.0, baseline_latency, lat });
+    } else {
+        std.debug.print("  ✅ Latency within threshold (+/-{d:.0}%)\n", .{threshold * 100.0});
+    }
+
+    if (regression) {
+        std.debug.print("  Result: REGRESSION DETECTED\n", .{});
+    } else {
+        std.debug.print("  Result: OK (no significant regression)\n", .{});
+    }
 }
 
 // Print benchmark help information

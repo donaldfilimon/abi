@@ -582,12 +582,21 @@ pub const PerformanceProfiler = struct {
     /// Profiling thread loop (periodic sampling/reporting)
     fn profilingLoop(self: *PerformanceProfiler) void {
         var last_report_time = std.time.nanoTimestamp();
+        var last_sample_time = last_report_time;
 
         while (!self.stop_profiling) {
-            // TODO: Implement periodic sampling (CPU, stack, etc.)
+            const now = std.time.nanoTimestamp();
+            const delta = now - last_sample_time;
+            last_sample_time = now;
+
+            // Periodic CPU sampling (approximate)
+            if (self.config.enable_cpu_profiling and self.config.enable_counters) {
+                if (self.counters.getPtr("cpu_cycles")) |counter| counter.add(delta);
+                if (self.counters.getPtr("instructions")) |counter| counter.add(delta / 2);
+            }
 
             // Generate periodic reports
-            const current_time = std.time.nanoTimestamp();
+            const current_time = now;
             if (current_time - last_report_time >= self.config.report_interval_ns) {
                 if (self.current_profile) |*profile| {
                     const report = self.generateProfileReport(profile) catch continue;

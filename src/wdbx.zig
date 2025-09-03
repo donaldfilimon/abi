@@ -658,7 +658,7 @@ pub const WdbxHttpServer = struct {
         rate_limit: usize = 1000,
         enable_cors: bool = true,
         enable_auth: bool = true,
-        jwt_secret: []const u8 = "wdbx-secret-key-change-in-production",
+        jwt_secret: []const u8 = "",
     };
 
     const RateLimiter = struct {

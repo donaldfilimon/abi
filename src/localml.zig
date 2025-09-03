@@ -130,7 +130,7 @@ fn readDataset(allocator: std.mem.Allocator, path: []const u8) ![]DataRow {
 }
 
 fn logistic(x: f64) f64 {
-            return 1.0 / (1.0 + std.math.exp(-x));
+    return 1.0 / (1.0 + std.math.exp(-x));
 }
 
 fn train(data: []const DataRow, iterations: u32, lr: f64) !struct { w: [2]f64, b: f64 } {

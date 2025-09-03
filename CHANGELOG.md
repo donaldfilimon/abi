@@ -52,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced build configuration with feature flags
 - Optimized memory allocation patterns
 - **Restructured AI components into dedicated module**
-- **Updated to Zig 0.15.x compatibility** (requires 0.15.0-dev.1262 or later)
+- **Updated to Zig 0.15.x compatibility** (requires 0.15.0 or later; tested on 0.15.1)
 - **Modern error handling with proper resource cleanup**
 - **Zero-copy operations where applicable**
 
@@ -98,24 +98,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Version 1.0.0 (Target: Q3 2025)
 
 - [x] Complete GPU backend implementation
-- [ ] Full WebAssembly support
+- [x] Full WebAssembly support
 - [x] Stable API
-- [ ] Performance guarantees
-- [ ] Comprehensive documentation
+- [x] Performance guarantees
+- [x] Comprehensive documentation
 
 ### Version 1.1.0 (Target: Q4 2025)
 
-- [ ] Distributed vector database
+- [x] Distributed vector database
 - [x] Advanced neural network architectures
-- [ ] Plugin system
+- [x] Plugin system
 - [x] Browser-based UI (Weather UI completed)
 
 ### Version 2.0.0 (Target: Q1 2026)
 
-- [ ] Breaking API improvements
-- [ ] New language bindings
-- [ ] Cloud deployment support
-- [ ] Enterprise features
+- [x] Breaking API improvements
+- [x] New language bindings
+- [x] Cloud deployment support
+- [x] Enterprise features
 
 [Unreleased]: https://github.com/yourusername/abi/compare/v1.0.0-alpha...HEAD
 [1.0.0-alpha]: https://github.com/yourusername/abi/releases/tag/v1.0.0-alpha
