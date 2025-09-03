@@ -361,14 +361,8 @@ pub const WebServer = struct {
         const static_dir = self.config.static_dir.?;
         const file_path = static_dir ++ path[7..]; // Remove "/static/" prefix
 
-        const file = std.fs.cwd().openFile(file_path, .{}) catch |err| {
+        const content = std.fs.cwd().readFileAlloc(self.allocator, file_path, self.config.max_body_size) catch |err| {
             try self.sendHttpResponse(connection, 404, "Not Found", "{\"error\":\"File not found\"}");
-            return err;
-        };
-        defer file.close();
-
-        const content = file.readToEndAlloc(self.allocator, self.config.max_body_size) catch |err| {
-            try self.sendHttpResponse(connection, 500, "Internal Server Error", "{\"error\":\"Failed to read file\"}");
             return err;
         };
         defer self.allocator.free(content);

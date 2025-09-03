@@ -607,7 +607,10 @@ pub const PerformanceProfiler = struct {
                 last_report_time = current_time;
             }
 
-            std.time.sleep(self.config.sampling_interval_ns);
+            const end_sample = std.time.milliTimestamp() + @as(i64, @intCast(self.config.sampling_interval_ns / 1_000_000));
+            while (std.time.milliTimestamp() < end_sample) {
+                std.atomic.spinLoopHint();
+            }
         }
     }
 
