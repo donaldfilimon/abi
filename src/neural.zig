@@ -14,7 +14,6 @@
 const std = @import("std");
 const math = std.math;
 const core = @import("core/mod.zig");
-const abi = @import("root.zig");
 const simd_vector = @import("simd_vector.zig");
 const memory_tracker = @import("memory_tracker.zig");
 

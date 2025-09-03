@@ -21,16 +21,16 @@ const PluginEntry = struct {
     plugin: *Plugin,
     config: PluginConfig,
     load_order: u32,
-    dependencies: std.ArrayList([]const u8),
-    dependents: std.ArrayList([]const u8),
+    dependencies: std.ArrayListUnmanaged([]const u8),
+    dependents: std.ArrayListUnmanaged([]const u8),
 
     pub fn init(allocator: std.mem.Allocator, plugin: *Plugin, load_order: u32) PluginEntry {
         return .{
             .plugin = plugin,
             .config = PluginConfig.init(allocator),
             .load_order = load_order,
-            .dependencies = std.ArrayList([]const u8){},
-            .dependents = std.ArrayList([]const u8){},
+            .dependencies = .{},
+            .dependents = .{},
         };
     }
 
@@ -53,7 +53,7 @@ pub const PluginRegistry = struct {
     loader: PluginLoader,
     plugins: std.StringHashMap(PluginEntry),
     load_order_counter: u32 = 0,
-    event_handlers: std.ArrayList(EventHandler),
+    event_handlers: std.ArrayListUnmanaged(EventHandler),
 
     const EventHandler = struct {
         event_type: u32,
@@ -65,7 +65,7 @@ pub const PluginRegistry = struct {
             .allocator = allocator,
             .loader = loader.createLoader(allocator),
             .plugins = std.StringHashMap(PluginEntry).init(allocator),
-            .event_handlers = std.ArrayList(EventHandler){},
+            .event_handlers = .{},
         };
     }
 
@@ -87,7 +87,7 @@ pub const PluginRegistry = struct {
     }
 
     /// Discover plugins in search paths
-    pub fn discoverPlugins(self: *PluginRegistry) !std.ArrayList([]const u8) {
+    pub fn discoverPlugins(self: *PluginRegistry) !std.ArrayListUnmanaged([]const u8) {
         return try self.loader.discoverPlugins();
     }
 
@@ -155,7 +155,7 @@ pub const PluginRegistry = struct {
     /// Start all plugins in dependency order
     pub fn startAllPlugins(self: *PluginRegistry) !void {
         // Get plugins sorted by load order
-        var plugin_list = std.ArrayList(PluginEntry){};
+        var plugin_list = std.ArrayListUnmanaged(PluginEntry){};
         defer plugin_list.deinit(self.allocator);
 
         var iterator = self.plugins.valueIterator();
@@ -179,7 +179,7 @@ pub const PluginRegistry = struct {
     /// Stop all plugins in reverse order
     pub fn stopAllPlugins(self: *PluginRegistry) !void {
         // Get plugins sorted by reverse load order
-        var plugin_list = std.ArrayList(PluginEntry){};
+        var plugin_list = std.ArrayListUnmanaged(PluginEntry){};
         defer plugin_list.deinit(self.allocator);
 
         var iterator = self.plugins.valueIterator();
@@ -207,8 +207,8 @@ pub const PluginRegistry = struct {
     }
 
     /// Get plugins by type
-    pub fn getPluginsByType(self: *PluginRegistry, plugin_type: PluginType) !std.ArrayList(*Plugin) {
-        var result = std.ArrayList(*Plugin){};
+    pub fn getPluginsByType(self: *PluginRegistry, plugin_type: PluginType) !std.ArrayListUnmanaged(*Plugin) {
+        var result = std.ArrayListUnmanaged(*Plugin){};
 
         var iterator = self.plugins.valueIterator();
         while (iterator.next()) |entry| {
@@ -222,8 +222,8 @@ pub const PluginRegistry = struct {
     }
 
     /// Get all plugin names
-    pub fn getPluginNames(self: *PluginRegistry) !std.ArrayList([]const u8) {
-        var names = std.ArrayList([]const u8){};
+    pub fn getPluginNames(self: *PluginRegistry) !std.ArrayListUnmanaged([]const u8) {
+        var names = std.ArrayListUnmanaged([]const u8){};
 
         var iterator = self.plugins.keyIterator();
         while (iterator.next()) |name| {
