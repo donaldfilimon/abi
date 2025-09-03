@@ -186,4 +186,25 @@ pub fn build(b: *std.Build) void {
     const run_plugin_tests = b.addRunArtifact(plugin_tests);
     const plugin_test_step = b.step("test-plugins", "Run plugin system tests");
     plugin_test_step.dependOn(&run_plugin_tests.step);
+
+    // Plugin ABI tests
+    const abi_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/test_plugin_abi.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = mod },
+            },
+        }),
+    });
+
+    const run_abi_tests = b.addRunArtifact(abi_tests);
+    const abi_test_step = b.step("test-abi", "Run plugin ABI compatibility tests");
+    abi_test_step.dependOn(&run_abi_tests.step);
+
+    // Include plugin build script
+    const plugin_build_step = b.step("build-plugins", "Build example plugins");
+    const plugin_build_cmd = b.addSystemCommand(&.{ "zig", "build", "--build-file", "build_plugins.zig" });
+    plugin_build_step.dependOn(&plugin_build_cmd.step);
 }
