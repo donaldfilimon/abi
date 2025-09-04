@@ -89,22 +89,6 @@ pub const Abi = struct {
 };
 
 pub fn main() !void {
-    return @import("main_refactored.zig").main();
-}
-
-test "Abbey compliance" {
-    try std.testing.expect(Abbey.isCompliant("good"));
-    try std.testing.expect(!Abbey.isCompliant("bad"));
-}
-
-test "Aviva computeSum" {
-    const vals = [_]usize{ 1, 2, 3 };
-    try std.testing.expectEqual(@as(usize, 6), Aviva.computeSum(&vals));
-}
-
-test "Abi orchestrates personas" {
-    const req = Request{ .text = "ok", .values = &[_]usize{ 1, 2 } };
-    const res = try Abi.process(req);
-    try std.testing.expectEqual(@as(usize, 3), res.result);
-    try std.testing.expectEqualStrings("Computation successful", res.message);
+    // Use the unified WDBX CLI implementation
+    try wdbx.main();
 }

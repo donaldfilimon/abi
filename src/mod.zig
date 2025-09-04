@@ -19,6 +19,9 @@ pub const wdbx = @import("wdbx/mod.zig");
 pub const utils = @import("utils.zig");
 pub const performance = @import("performance.zig");
 pub const memory_tracker = @import("memory_tracker.zig");
+pub const errors = @import("errors.zig");
+pub const optimizations = @import("optimizations.zig");
+pub const config_loader = @import("config_loader.zig");
 
 // Re-export commonly used types
 pub const Db = database.Db;

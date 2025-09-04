@@ -1,45 +1,231 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [main, develop]
+    tags: ['v*']
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+env:
+  ZIG_VERSION: 0.15.1
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        zig: [ "0.15.1" ]
-        os: [ ubuntu-latest, windows-latest, macos-latest ]
+  test:
+    name: Test
     runs-on: ${{ matrix.os }}
-    name: Zig ${{ matrix.zig }} on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        build-mode: [debug, release]
+    
     steps:
-      - uses: actions/checkout@v3
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v1
-        with:
-          version: ${{ matrix.zig }}
-      
-      # Build the refactored codebase
-      - name: Build
-        run: zig build
-      
-      # Run tests
-      - name: Run tests
-        run: zig build test
-      
-      # Run benchmarks (quick mode)
-      - name: Run benchmarks
-        run: zig build benchmark -- --quick
-        if: matrix.os == 'ubuntu-latest'
-      
-      # Check code formatting
-      - name: Check formatting
-        run: zig fmt --check src/
-      
-      # Run static analysis
-      - name: Static analysis
-        run: zig build analyze
-        if: matrix.os == 'ubuntu-latest'
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+    
+    - name: Cache Zig
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/zig
+          zig-cache
+        key: ${{ runner.os }}-zig-${{ hashFiles('build.zig') }}
+        restore-keys: |
+          ${{ runner.os }}-zig-
+    
+    - name: Format check
+      run: zig build fmt-check
+    
+    - name: Build
+      run: |
+        if [ "${{ matrix.build-mode }}" = "release" ]; then
+          zig build -Doptimize=ReleaseFast
+        else
+          zig build
+        fi
+    
+    - name: Run tests
+      run: zig build test
+    
+    - name: Run integration tests
+      run: zig build test-integration
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.os }}-${{ matrix.build-mode }}
+        path: |
+          zig-out/test-results/
+          logs/
+
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+    
+    - name: Build release
+      run: zig build -Doptimize=ReleaseFast
+    
+    - name: Run benchmarks
+      run: zig build bench
+    
+    - name: Store benchmark results
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        tool: 'customBiggerIsBetter'
+        output-file-path: zig-out/benchmark-results.json
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: true
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Run security scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload security results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: wdbx/wdbx-ai
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha
+    
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [test, security, build-docker]
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: ${{ env.ZIG_VERSION }}
+    
+    - name: Build releases
+      run: |
+        # Linux x86_64
+        zig build -Doptimize=ReleaseFast -Dtarget=x86_64-linux
+        ./scripts/build.sh release ${{ github.ref_name }}
+        mv release/*.tar.gz wdbx-ai-${{ github.ref_name }}-linux-x86_64.tar.gz
+        
+        # macOS x86_64
+        zig build -Doptimize=ReleaseFast -Dtarget=x86_64-macos
+        ./scripts/build.sh release ${{ github.ref_name }}
+        mv release/*.tar.gz wdbx-ai-${{ github.ref_name }}-macos-x86_64.tar.gz
+        
+        # macOS ARM64
+        zig build -Doptimize=ReleaseFast -Dtarget=aarch64-macos
+        ./scripts/build.sh release ${{ github.ref_name }}
+        mv release/*.tar.gz wdbx-ai-${{ github.ref_name }}-macos-arm64.tar.gz
+    
+    - name: Generate changelog
+      id: changelog
+      uses: metcalfc/changelog-generator@v4.1.0
+      with:
+        myToken: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body: ${{ steps.changelog.outputs.changelog }}
+        files: |
+          wdbx-ai-*.tar.gz
+        draft: false
+        prerelease: false
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+    
+    - name: Deploy to Kubernetes
+      run: |
+        kubectl apply -f deploy/kubernetes/deployment.yaml
+        kubectl set image deployment/wdbx-ai wdbx-ai=wdbx/wdbx-ai:${{ github.ref_name }} -n wdbx
+        kubectl rollout status deployment/wdbx-ai -n wdbx
