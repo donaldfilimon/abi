@@ -5,6 +5,7 @@ This document maps features from the deleted `wdbx_enhanced.zig` and `wdbx_produ
 ## From `wdbx_enhanced.zig`:
 
 ### 1. Enhanced SIMD Operations
+
 - **Old Location**: `wdbx_enhanced.zig` - SIMD with runtime CPU detection
 - **New Location**: `src/core/vector/simd.zig`
 - **Status**: ✅ Implemented with auto-detection and fallbacks

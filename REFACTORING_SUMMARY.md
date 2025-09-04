@@ -27,6 +27,7 @@ src/
 ```
 
 ### 2. **Improved Type Safety**
+
 - Strong typing throughout the codebase
 - Compile-time validation where possible
 - Type-safe error handling with comprehensive error sets
@@ -39,12 +40,14 @@ src/
 - Optimized storage layout for cache efficiency
 
 ### 4. **Better Error Handling**
+
 - Unified error set across all modules
 - Error context tracking with file/line information
 - Retry mechanisms for transient errors
 - Result type for functional error handling
 
 ### 5. **Cleaner Interfaces**
+
 - Clear separation between public API and implementation
 - Consistent naming conventions
 - Well-documented public interfaces

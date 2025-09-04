@@ -4,6 +4,7 @@
 
 ### Redundant Main Implementations
 These files have been consolidated into the new modular structure:
+
 - `src/wdbx.zig` - Replaced by modular core/database.zig
 - `src/wdbx_enhanced.zig` - Features merged into core modules
 - `src/wdbx_production.zig` - Production features integrated
@@ -14,6 +15,7 @@ These files have been consolidated into the new modular structure:
 
 ### Standalone Examples (Move to examples/)
 These should be moved to a dedicated examples directory:
+
 - `src/gpu_examples.zig` → `examples/gpu_examples.zig`
 - `src/weather.zig` → `examples/weather.zig`
 - `src/neural.zig` → `examples/neural.zig`
