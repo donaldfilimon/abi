@@ -164,10 +164,58 @@ pub fn build(b: *std.Build) void {
     const analyze_cmd = b.addSystemCommand(&.{ "zig", "ast-check", "src/main.zig" });
     analyze_step.dependOn(&analyze_cmd.step);
 
-    // All step - runs everything
-    const all_step = b.step("all", "Build everything and run all checks");
-    all_step.dependOn(check_step);
-    all_step.dependOn(benchmark_step);
-    all_step.dependOn(docs_step);
-    all_step.dependOn(&b.getInstallStep().step);
+    // Windows network diagnostic tool
+    const network_test = b.addExecutable(.{
+        .name = "windows_network_test",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("windows_network_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = mod },
+            },
+        }),
+    });
+    b.installArtifact(network_test);
+
+    const run_network_test = b.addRunArtifact(network_test);
+    const network_test_step = b.step("test-network", "Run Windows network diagnostic");
+    network_test_step.dependOn(&run_network_test.step);
+
+    // Plugin system tests
+    const plugin_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/plugins/mod.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = mod },
+            },
+        }),
+    });
+
+    const run_plugin_tests = b.addRunArtifact(plugin_tests);
+    const plugin_test_step = b.step("test-plugins", "Run plugin system tests");
+    plugin_test_step.dependOn(&run_plugin_tests.step);
+
+    // Plugin ABI tests
+    const abi_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/test_plugin_abi.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = mod },
+            },
+        }),
+    });
+
+    const run_abi_tests = b.addRunArtifact(abi_tests);
+    const abi_test_step = b.step("test-abi", "Run plugin ABI compatibility tests");
+    abi_test_step.dependOn(&run_abi_tests.step);
+
+    // Include plugin build script
+    const plugin_build_step = b.step("build-plugins", "Build example plugins");
+    const plugin_build_cmd = b.addSystemCommand(&.{ "zig", "build", "--build-file", "build_plugins.zig" });
+    plugin_build_step.dependOn(&plugin_build_cmd.step);
 }
