@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+description: Project architecture and modular structure
+---
+
+# WDBX-AI Project Architecture
+
+## Core Structure
+This is a **modular vector database** built in Zig with AI integration capabilities.
+
+### Main Entry Points
+- [src/main.zig](mdc:src/main.zig) - Primary entry point
+- [src/main_refactored.zig](mdc:src/main_refactored.zig) - Refactored implementation
+- [src/root.zig](mdc:src/root.zig) - Root module exports
+
+### Core Modules
+- [src/core/](mdc:src/core/) - Core utilities and system initialization
+- [src/database/](mdc:src/database/) - Vector database implementation
+- [src/simd/](mdc:src/simd/) - SIMD-optimized vector operations
+- [src/ai/](mdc:src/ai/) - AI and machine learning capabilities
+- [src/wdbx/](mdc:src/wdbx/) - Unified WDBX interface
+
+### API Layer
+- [src/api/](mdc:src/api/) - API implementations (CLI, HTTP, etc.)
+- [src/plugins/](mdc:src/plugins/) - Extensible plugin system
+- [src/utils/](mdc:src/utils/) - Common utilities and error handling
+
+## Key Features
+- **High Performance**: SIMD-accelerated operations with 2-4x speedup
+- **Enterprise Ready**: Production features with monitoring and health checks
+- **AI Integration**: Built-in neural networks and embedding generation
+- **Scalable**: Handles millions of vectors with efficient indexing
+- **Modular**: Clean separation of concerns with well-defined interfaces
+
+## Documentation
+- [docs/](mdc:docs/) - Comprehensive documentation
+- [README.md](mdc:README.md) - Project overview and quick start
+- [IMPROVEMENT_COMPLETION_REPORT.md](mdc:IMPROVEMENT_COMPLETION_REPORT.md) - Recent improvements summary

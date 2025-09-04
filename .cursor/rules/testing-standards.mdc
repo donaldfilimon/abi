@@ -1,0 +1,89 @@
+---
+globs: tests/*.zig
+description: Testing standards and best practices
+---
+
+# Testing Standards
+
+## Test Organization
+The project includes comprehensive testing in [tests/](mdc:tests/):
+
+- [tests/test_runner.zig](mdc:tests/test_runner.zig) - Main test runner
+- [tests/test_database.zig](mdc:tests/test_database.zig) - Database functionality tests
+- [tests/test_simd_vector.zig](mdc:tests/test_simd_vector.zig) - SIMD operations tests
+- [tests/test_performance_*.zig](mdc:tests/test_performance_*.zig) - Performance regression tests
+
+## Testing Categories
+
+### Unit Tests
+- Test individual functions and modules
+- Use `std.testing` for assertions
+- Include edge cases and error conditions
+- Test both success and failure paths
+
+### Integration Tests
+- Test cross-module functionality
+- Verify API compatibility
+- Test end-to-end workflows
+- Include real-world usage scenarios
+
+### Performance Tests
+- Benchmark critical operations
+- Detect performance regressions
+- Compare against baseline metrics
+- Test with various data sizes
+
+### Memory Tests
+- Verify proper memory management
+- Detect memory leaks
+- Test allocation patterns
+- Verify cleanup procedures
+
+## Test Structure
+```zig
+test "descriptive test name" {
+    const allocator = testing.allocator;
+    
+    // Setup
+    var obj = try Object.init(allocator);
+    defer obj.deinit();
+    
+    // Test
+    const result = try obj.operation();
+    try testing.expect(result == expected);
+    
+    // Cleanup (handled by defer)
+}
+```
+
+## Testing Best Practices
+- Use descriptive test names that explain what is being tested
+- Include setup and cleanup in each test
+- Use `testing.allocator` for memory allocations
+- Test error conditions and edge cases
+- Verify resource cleanup with `defer` statements
+
+## Performance Testing
+- Use [benchmarks/](mdc:benchmarks/) for performance benchmarks
+- Include warmup iterations before timing
+- Test with various data sizes and configurations
+- Compare against established performance targets
+
+## Test Coverage
+- Aim for 95%+ test coverage
+- Test all public APIs
+- Include error handling tests
+- Test concurrent operations
+- Verify memory safety
+
+## Running Tests
+- Use `zig build test` for standard tests
+- Use `zig test` for individual test files
+- Use `zig build benchmark` for performance tests
+- Include tests in CI/CD pipeline
+
+## Test Data
+- Use realistic test data when possible
+- Include edge cases (empty inputs, large inputs, etc.)
+- Test with various vector dimensions
+- Include both valid and invalid inputs

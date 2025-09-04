@@ -1,0 +1,83 @@
+---
+globs: *.md,docs/*.md
+description: Documentation standards and markdown formatting
+---
+
+# Documentation Standards
+
+## Documentation Structure
+The project includes comprehensive documentation:
+
+- [README.md](mdc:README.md) - Main project overview
+- [docs/](mdc:docs/) - Detailed documentation
+- [IMPROVEMENT_COMPLETION_REPORT.md](mdc:IMPROVEMENT_COMPLETION_REPORT.md) - Recent improvements
+- [REFACTORING_SUMMARY.md](mdc:REFACTORING_SUMMARY.md) - Refactoring details
+
+## Markdown Standards
+
+### Formatting Rules
+- **Lists**: Always surround lists with blank lines (MD032 compliance)
+- **Headers**: Use consistent header hierarchy
+- **Code Blocks**: Use appropriate language tags for syntax highlighting
+- **Links**: Use relative paths for internal documentation links
+
+### List Formatting (MD032 Compliance)
+```markdown
+### Section Header
+
+- List item 1
+- List item 2
+
+More content after the list.
+```
+
+### Code Examples
+```markdown
+```zig
+const std = @import("std");
+const database = @import("database");
+
+pub fn main() !void {
+    var db = try database.Db.open("vectors.wdbx", true);
+    defer db.close();
+}
+```
+```
+
+## Documentation Categories
+
+### API Documentation
+- [docs/api_reference.md](mdc:docs/api_reference.md) - Complete API reference
+- [docs/database_api.md](mdc:docs/database_api.md) - Database API specification
+- [docs/cli_reference.md](mdc:docs/cli_reference.md) - CLI reference
+
+### User Guides
+- [docs/database_quickstart.md](mdc:docs/database_quickstart.md) - Quick start guide
+- [docs/database_usage_guide.md](mdc:docs/database_usage_guide.md) - Usage guide
+- [docs/MIGRATION_GUIDE.md](mdc:docs/MIGRATION_GUIDE.md) - Migration guide
+
+### Technical Documentation
+- [docs/ARCHITECTURE.md](mdc:docs/ARCHITECTURE.md) - System architecture
+- [docs/IMPROVEMENTS_SUMMARY.md](mdc:docs/IMPROVEMENTS_SUMMARY.md) - Improvements overview
+- [docs/PRODUCTION_DEPLOYMENT.md](mdc:docs/PRODUCTION_DEPLOYMENT.md) - Deployment guide
+
+## Documentation Best Practices
+- Use clear, concise language
+- Include code examples for complex concepts
+- Keep documentation up-to-date with code changes
+- Use consistent formatting throughout
+- Include troubleshooting sections where appropriate
+
+## Markdown Linting
+- Ensure MD032 compliance (blank lines around lists)
+- Use consistent heading levels
+- Include alt text for images
+- Use descriptive link text
+- Maintain consistent formatting
+
+## Documentation Updates
+- Update documentation when making API changes
+- Include examples for new features
+- Update version information when releasing
+- Keep migration guides current
+- Document breaking changes clearly

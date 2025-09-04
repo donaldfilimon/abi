@@ -1,0 +1,95 @@
+---
+globs: examples/*.zig,src/plugins/*.zig
+description: Examples and plugin system guidelines
+---
+
+# Examples and Plugin System
+
+## Examples Directory
+The project includes standalone examples in [examples/](mdc:examples/):
+
+- [examples/gpu_examples.zig](mdc:examples/gpu_examples.zig) - GPU acceleration examples
+- [examples/neural.zig](mdc:examples/neural.zig) - Neural network examples
+- [examples/weather.zig](mdc:examples/weather.zig) - Weather API integration
+- [examples/plugins/](mdc:examples/plugins/) - Plugin examples
+
+## Plugin System
+The project includes a comprehensive plugin system in [src/plugins/](mdc:src/plugins/):
+
+- [src/plugins/interface.zig](mdc:src/plugins/interface.zig) - Plugin interface definitions
+- [src/plugins/loader.zig](mdc:src/plugins/loader.zig) - Plugin loading and management
+- [src/plugins/registry.zig](mdc:src/plugins/registry.zig) - Plugin registry and discovery
+- [src/plugins/types.zig](mdc:src/plugins/types.zig) - Plugin type definitions
+
+## Example Guidelines
+
+### Standalone Examples
+- Each example should be self-contained and runnable
+- Include clear documentation and usage instructions
+- Demonstrate key features and capabilities
+- Use realistic data and scenarios
+
+### Code Examples
+```zig
+const std = @import("std");
+const database = @import("database");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    
+    // Example code here
+    var db = try database.Db.open("example.wdbx", true);
+    defer db.close();
+}
+```
+
+## Plugin Development
+
+### Plugin Interface
+```zig
+pub const PluginInterface = struct {
+    name: []const u8,
+    version: []const u8,
+    init: *const fn (allocator: std.mem.Allocator) anyerror!*Plugin,
+    deinit: *const fn (plugin: *Plugin) void,
+    process: *const fn (plugin: *Plugin, input: []const u8) anyerror![]u8,
+};
+```
+
+### Plugin Implementation
+- Implement the required interface functions
+- Handle memory management properly
+- Include error handling for all operations
+- Provide clear documentation and examples
+
+## Best Practices
+
+### Examples
+- Keep examples simple and focused
+- Include error handling and cleanup
+- Use descriptive variable names
+- Comment complex operations
+- Test examples regularly
+
+### Plugins
+- Follow the established plugin interface
+- Use proper memory management
+- Include comprehensive error handling
+- Provide clear documentation
+- Test plugins thoroughly
+
+## Plugin Registry
+- Register plugins with descriptive names
+- Include version information
+- Provide metadata for plugin discovery
+- Support plugin dependencies
+- Handle plugin loading errors gracefully
+
+## Testing
+- Test examples with various inputs
+- Verify plugin loading and unloading
+- Test plugin error handling
+- Include integration tests for plugins
+- Verify memory management in plugins

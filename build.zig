@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) void {
     // Main executable
     const exe = b.addExecutable(.{
         .name = "wdbx-ai",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -37,11 +37,11 @@ pub fn build(b: *std.Build) void {
 
     // Test step
     const test_step = b.step("test", "Run unit tests");
-    
+
     // Add test executables for each test file
     const test_files = [_][]const u8{
         "tests/test_ai.zig",
-        "tests/test_database.zig", 
+        "tests/test_database.zig",
         "tests/test_database_hnsw.zig",
         "tests/test_database_integration.zig",
         "tests/test_memory_management.zig",
@@ -61,7 +61,7 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
         });
-        
+
         const run_test = b.addRunArtifact(test_exe);
         test_step.dependOn(&run_test.step);
     }
@@ -86,14 +86,14 @@ pub fn build(b: *std.Build) void {
 
     // Benchmark step
     const benchmark_step = b.step("benchmark", "Run benchmarks");
-    
+
     const benchmark_exe = b.addExecutable(.{
         .name = "benchmark",
         .root_source_file = .{ .path = "benchmarks/main.zig" },
         .target = target,
         .optimize = .ReleaseFast,
     });
-    
+
     const run_benchmark = b.addRunArtifact(benchmark_exe);
     benchmark_step.dependOn(&run_benchmark.step);
 
@@ -111,7 +111,7 @@ pub fn build(b: *std.Build) void {
     const fmt = b.addFmt(.{
         .paths = &.{
             "src",
-            "tests", 
+            "tests",
             "benchmarks",
             "build.zig",
         },
@@ -143,7 +143,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .Debug,
     });
     dev_exe.addArgs(&.{"-DDEBUG"});
-    
+
     const dev_step = b.step("dev", "Build development version with debug symbols");
     dev_step.dependOn(&b.addInstallArtifact(dev_exe, .{}).step);
 
@@ -155,7 +155,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .ReleaseFast,
     });
     prod_exe.strip = true;
-    
+
     const prod_step = b.step("prod", "Build optimized production version");
     prod_step.dependOn(&b.addInstallArtifact(prod_exe, .{}).step);
 

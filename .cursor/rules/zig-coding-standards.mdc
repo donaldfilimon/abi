@@ -1,0 +1,48 @@
+---
+globs: *.zig
+description: Zig coding standards and best practices
+---
+
+# Zig Coding Standards
+
+## Code Style
+- Use **4 spaces** for indentation (not tabs)
+- Follow Zig's official style guide
+- Use `zig fmt` for automatic formatting
+- Prefer explicit types over type inference for public APIs
+
+## Memory Management
+- Always use proper allocator patterns: `init()`, `deinit()`
+- Use `errdefer` for cleanup in error cases
+- Prefer arena allocators for temporary allocations
+- Use `std.heap.GeneralPurposeAllocator` for main allocations
+
+## Error Handling
+- Use Zig's error handling system with `!` return types
+- Define custom error sets for module-specific errors
+- Use `try` for error propagation, `catch` for error handling
+- Follow the error handling patterns in [src/utils/errors.zig](mdc:src/utils/errors.zig)
+
+## Module Organization
+- Each module should have a `mod.zig` file for exports
+- Use clear, descriptive names for public APIs
+- Group related functionality together
+- Follow the modular structure established in the codebase
+
+## Performance Considerations
+- Use SIMD operations where applicable (see [src/simd/](mdc:src/simd/))
+- Prefer stack allocations over heap when possible
+- Use `comptime` for compile-time optimizations
+- Profile performance-critical code paths
+
+## Testing
+- Write comprehensive tests in the [tests/](mdc:tests/) directory
+- Use `std.testing` for unit tests
+- Include integration tests for cross-module functionality
+- Follow the testing patterns in existing test files
+
+## Documentation
+- Use `//!` for module-level documentation
+- Use `///` for public API documentation
+- Include usage examples in documentation
+- Keep documentation up-to-date with code changes

@@ -1,0 +1,48 @@
+---
+globs: benchmarks/*.zig
+description: Benchmarking and performance testing guidelines
+---
+
+# Benchmarking Guidelines
+
+## Benchmark Structure
+The project includes comprehensive benchmarking in [benchmarks/](mdc:benchmarks/):
+
+- [benchmarks/main.zig](mdc:benchmarks/main.zig) - Main benchmark runner
+- [benchmarks/database_benchmark.zig](mdc:benchmarks/database_benchmark.zig) - Database performance tests
+- [benchmarks/performance_suite.zig](mdc:benchmarks/performance_suite.zig) - Comprehensive performance suite
+- [benchmarks/refactored_performance_test.zig](mdc:benchmarks/refactored_performance_test.zig) - Refactored performance tests
+
+## Benchmarking Standards
+- **Warmup**: Always include warmup iterations before actual benchmarking
+- **Multiple Runs**: Use multiple iterations for statistical significance
+- **Memory Tracking**: Monitor memory usage during benchmarks
+- **Error Handling**: Properly handle errors in benchmark code
+- **Cleanup**: Clean up resources after each benchmark
+
+## Performance Targets
+- **Vector Operations**: Target 2,777+ operations per second
+- **Database Search**: Maintain sub-millisecond latency
+- **Memory Efficiency**: Minimize memory overhead
+- **SIMD Performance**: Achieve 2-4x speedup over scalar implementations
+
+## Benchmark Configuration
+```zig
+const BenchmarkConfig = struct {
+    warmup_iterations: u32 = 100,
+    benchmark_iterations: u32 = 1000,
+    vector_sizes: []const usize = &[_]usize{ 64, 128, 256, 512, 1024 },
+    // ... other configuration options
+};
+```
+
+## Running Benchmarks
+- Use `zig build benchmark` for standard benchmarks
+- Use `zig run benchmarks/main.zig -- comprehensive` for full suite
+- Use `zig run benchmarks/main.zig -- quick` for development testing
+
+## Benchmark Results
+- Always print results in a consistent format
+- Include operations per second, latency, and memory usage
+- Compare against baseline performance targets
+- Document any performance regressions or improvements

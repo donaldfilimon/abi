@@ -1,0 +1,73 @@
+---
+globs: src/simd*.zig,src/simd/*.zig
+description: SIMD optimization and vector operations
+---
+
+# SIMD Optimization
+
+## SIMD Module Structure
+The project includes comprehensive SIMD optimization for vector operations:
+
+- [src/simd/](mdc:src/simd/) - SIMD module with optimized operations
+- [src/simd_vector.zig](mdc:src/simd_vector.zig) - SIMD vector utilities
+- [src/simd/optimized_ops.zig](mdc:src/simd/optimized_ops.zig) - CPU-optimized operations
+- [src/simd/enhanced_vector.zig](mdc:src/simd/enhanced_vector.zig) - Enhanced vector operations
+
+## Key Features
+- **Runtime CPU Detection**: Automatic detection of available SIMD features
+- **Fallback Support**: Graceful fallback to scalar operations
+- **Multiple Vector Types**: Support for different vector dimensions
+- **Performance Monitoring**: Built-in performance tracking
+
+## SIMD Operations
+
+### Vector Operations
+```zig
+// Distance calculations
+const distance = simd.euclideanDistance(vec1, vec2);
+const similarity = simd.cosineSimilarity(vec1, vec2);
+
+// Vector arithmetic
+simd.addVectors(a, b, result);
+simd.multiplyVectors(a, b, result);
+
+// Normalization
+simd.normalizeVector(vector);
+```
+
+### Performance Targets
+- **Vector Operations**: 10x faster than scalar implementations
+- **Distance Calculations**: 8x improvement in similarity search
+- **Batch Processing**: 15x improvement in bulk operations
+- **Memory Usage**: 40% reduction in memory overhead
+
+## CPU Feature Detection
+```zig
+const features = simd.CpuFeatures.detect();
+if (features.avx2) {
+    // Use AVX2 optimized operations
+} else if (features.sse4_1) {
+    // Use SSE4.1 optimized operations
+} else {
+    // Fall back to scalar operations
+}
+```
+
+## Best Practices
+- Always check CPU features before using SIMD operations
+- Provide fallback implementations for unsupported features
+- Use appropriate vector sizes for optimal performance
+- Profile SIMD operations to verify performance gains
+- Handle alignment requirements for SIMD operations
+
+## Testing
+- Test SIMD operations across different CPU architectures
+- Verify fallback behavior on systems without SIMD support
+- Benchmark performance improvements over scalar implementations
+- Test with various vector dimensions and batch sizes
+
+## Memory Considerations
+- Ensure proper alignment for SIMD operations
+- Use appropriate memory allocation strategies
+- Monitor memory usage during batch operations
+- Implement proper cleanup for SIMD resources

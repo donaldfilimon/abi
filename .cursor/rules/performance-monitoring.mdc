@@ -1,0 +1,113 @@
+---
+globs: src/performance*.zig,src/memory_tracker.zig,monitoring/*
+description: Performance monitoring and profiling
+---
+
+# Performance Monitoring
+
+## Performance Monitoring Components
+The project includes comprehensive performance monitoring:
+
+- [src/performance.zig](mdc:src/performance.zig) - Performance monitoring utilities
+- [src/performance_profiler.zig](mdc:src/performance_profiler.zig) - Advanced profiling
+- [src/memory_tracker.zig](mdc:src/memory_tracker.zig) - Memory usage tracking
+- [monitoring/](mdc:monitoring/) - Production monitoring setup
+
+## Monitoring Infrastructure
+
+### Prometheus Integration
+- [monitoring/prometheus/prometheus.yaml](mdc:monitoring/prometheus/prometheus.yaml) - Prometheus configuration
+- [monitoring/prometheus/wdbx-alerts.yml](mdc:monitoring/prometheus/wdbx-alerts.yml) - Alerting rules
+
+### Grafana Dashboards
+- [monitoring/grafana/wdbx-dashboard.json](mdc:monitoring/grafana/wdbx-dashboard.json) - Performance dashboard
+
+## Performance Metrics
+
+### Key Performance Indicators
+- **Operations per Second**: Target 2,777+ ops/sec
+- **Latency**: Sub-millisecond response times
+- **Memory Usage**: Monitor for leaks and efficiency
+- **CPU Utilization**: Track SIMD optimization effectiveness
+
+### Memory Monitoring
+```zig
+const memory_tracker = try MemoryTracker.init(allocator);
+defer memory_tracker.deinit();
+
+// Track memory usage
+memory_tracker.recordAllocation(size);
+memory_tracker.recordDeallocation(size);
+
+// Get memory statistics
+const stats = memory_tracker.getStats();
+```
+
+### Performance Profiling
+```zig
+const profiler = try PerformanceProfiler.init(allocator);
+defer profiler.deinit();
+
+// Start profiling
+profiler.startTimer("operation_name");
+// ... perform operation ...
+profiler.endTimer("operation_name");
+
+// Get performance report
+const report = profiler.generateReport();
+```
+
+## Monitoring Best Practices
+
+### Metrics Collection
+- Collect metrics at appropriate intervals
+- Use efficient data structures for metrics storage
+- Implement proper cleanup for monitoring resources
+- Handle monitoring errors gracefully
+
+### Alerting
+- Set appropriate thresholds for performance metrics
+- Include context in alert messages
+- Implement escalation procedures
+- Test alerting systems regularly
+
+### Dashboard Design
+- Focus on key performance indicators
+- Use clear visualizations
+- Include historical trends
+- Provide drill-down capabilities
+
+## Production Monitoring
+
+### Health Checks
+- Implement comprehensive health check endpoints
+- Monitor system resources (CPU, memory, disk)
+- Check database connectivity and performance
+- Verify external service dependencies
+
+### Logging
+- Use structured logging for better analysis
+- Include correlation IDs for request tracking
+- Log performance metrics at appropriate levels
+- Implement log rotation and retention policies
+
+### Error Tracking
+- Track error rates and types
+- Monitor error recovery mechanisms
+- Implement error alerting
+- Analyze error patterns for improvements
+
+## Performance Optimization
+
+### Profiling Workflow
+1. **Baseline**: Establish current performance baseline
+2. **Profile**: Identify performance bottlenecks
+3. **Optimize**: Implement performance improvements
+4. **Validate**: Verify improvements with benchmarks
+5. **Monitor**: Track performance in production
+
+### Optimization Targets
+- **SIMD Operations**: Achieve 2-4x speedup
+- **Memory Allocation**: Reduce allocation overhead
+- **Database Operations**: Optimize query performance
+- **Concurrent Operations**: Improve thread utilization

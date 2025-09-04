@@ -1,0 +1,67 @@
+---
+globs: src/database*.zig,src/wdbx/*.zig
+description: Database operations and vector storage
+---
+
+# Database Operations
+
+## Database Architecture
+The project implements a high-performance vector database with multiple storage backends:
+
+- [src/database.zig](mdc:src/database.zig) - Core database implementation
+- [src/database/](mdc:src/database/) - Database module with enhanced features
+- [src/wdbx/](mdc:src/wdbx/) - Unified WDBX interface
+
+## Key Features
+- **Vector Storage**: Efficient storage of high-dimensional vectors
+- **Indexing**: HNSW and flat indexing for fast similarity search
+- **SIMD Optimization**: CPU-optimized vector operations
+- **Concurrent Access**: Thread-safe operations with proper locking
+- **Memory Management**: Smart allocation strategies
+
+## Database Operations
+
+### Initialization
+```zig
+var db = try database.Db.open("vectors.wdbx", true);
+defer db.close();
+try db.init(384); // 384-dimensional vectors
+```
+
+### Vector Operations
+```zig
+// Add single vector
+const index = try db.addEmbedding(vector);
+
+// Add batch of vectors
+const indices = try db.addEmbeddingsBatch(vectors);
+
+// Search for similar vectors
+const results = try db.search(query_vector, top_k, allocator);
+defer allocator.free(results);
+```
+
+### Performance Targets
+- **Search Performance**: 2,777+ operations per second
+- **Insert Throughput**: 5,000+ vectors per second
+- **Memory Efficiency**: 60% reduction in memory usage
+- **Index Performance**: 100x faster approximate search
+
+## Error Handling
+- Use proper error handling for all database operations
+- Clean up resources with `defer` statements
+- Handle file I/O errors gracefully
+- Use `errdefer` for cleanup in error cases
+
+## Testing
+- Use [benchmarks/database_benchmark.zig](mdc:benchmarks/database_benchmark.zig) for performance testing
+- Test with various vector dimensions and database sizes
+- Verify memory usage and leak detection
+- Test concurrent access patterns
+
+## Best Practices
+- Always close database files properly
+- Use appropriate indexing strategies for your use case
+- Monitor memory usage during bulk operations
+- Use batch operations for better performance
+- Implement proper error recovery mechanisms

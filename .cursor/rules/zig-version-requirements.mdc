@@ -1,0 +1,30 @@
+---
+alwaysApply: true
+description: Zig version requirements and compatibility
+---
+
+# Zig Version Requirements
+
+This project requires **Zig 0.16.0-dev.164+bc7955306** or later.
+
+## Version Management
+- The required version is specified in [.zigversion](mdc:.zigversion)
+- Always check this file before making changes that might affect compatibility
+- Use `zig version` to verify your installation matches the requirement
+
+## Build System Compatibility
+- The project uses modern Zig build system features from 0.16.0
+- Build files: [build.zig](mdc:build.zig) and [build_refactored.zig](mdc:build_refactored.zig)
+- Some deprecated APIs have been updated for 0.16.0 compatibility
+
+## Key Changes for 0.16.0
+- Updated build system APIs (e.g., `root_source_file` → `root_source_file`)
+- Enhanced SIMD vector operations
+- Improved memory management features
+- Updated standard library APIs
+
+## Development Guidelines
+- Always test with the specified Zig version
+- Update version requirements in documentation when upgrading
+- Maintain backward compatibility where possible
+- Use `zig build` to verify compatibility after changes

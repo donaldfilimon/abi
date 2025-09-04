@@ -1,0 +1,74 @@
+---
+globs: build*.zig
+description: Build system configuration and targets
+---
+
+# Build System
+
+## Build Configuration
+The project uses Zig's modern build system with multiple build targets:
+
+- [build.zig](mdc:build.zig) - Main build configuration
+- [build_refactored.zig](mdc:build_refactored.zig) - Refactored build system
+
+## Build Targets
+
+### Development Builds
+```bash
+zig build                    # Standard development build
+zig build test              # Run tests
+zig build benchmark         # Run benchmarks
+```
+
+### Production Builds
+```bash
+zig build -Doptimize=ReleaseFast  # Optimized release build
+zig build -Doptimize=ReleaseSmall # Size-optimized build
+```
+
+### Library Builds
+```bash
+zig build-lib               # Build as library
+zig build-lib -Doptimize=ReleaseFast  # Optimized library
+```
+
+## Build Features
+
+### Code Formatting
+- Use `zig fmt` for automatic code formatting
+- Follow Zig's official style guide
+- Format all source files before committing
+
+### Static Analysis
+- Use `zig build static-analysis` for code analysis
+- Check for potential issues and improvements
+- Run analysis as part of CI/CD pipeline
+
+### Documentation Generation
+- Use `zig build docs` to generate documentation
+- Include API documentation for all public interfaces
+- Keep documentation up-to-date with code changes
+
+## Build Dependencies
+- **Zig Version**: 0.16.0-dev.164+bc7955306 or later
+- **Standard Library**: Use Zig's built-in standard library
+- **External Dependencies**: Minimize external dependencies
+
+## Build Optimization
+- Use appropriate optimization levels for different targets
+- Enable SIMD optimizations where available
+- Optimize for both performance and size as needed
+- Profile builds to identify optimization opportunities
+
+## Cross-Platform Support
+- Support Windows, macOS, and Linux
+- Use platform-specific optimizations where beneficial
+- Test builds on multiple platforms
+- Handle platform-specific dependencies
+
+## Build Best Practices
+- Keep build files clean and well-organized
+- Use descriptive target names
+- Include proper error handling in build scripts
+- Document build requirements and dependencies
+- Use consistent build configurations across environments

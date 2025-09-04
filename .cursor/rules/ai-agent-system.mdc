@@ -1,0 +1,60 @@
+---
+globs: src/advanced_persona_system*.zig,src/agent.zig,src/ai/*.zig
+description: AI agent system and persona management
+---
+
+# AI Agent System
+
+## Agent Architecture
+The project includes a sophisticated AI agent system with multiple coordination protocols:
+
+- [src/advanced_persona_system.zig](mdc:src/advanced_persona_system.zig) - Multi-layered adaptive persona system
+- [src/agent.zig](mdc:src/agent.zig) - Basic AI agent with persona management
+- [src/ai/](mdc:src/ai/) - AI module with enhanced agent capabilities
+
+## Key Components
+
+### Agent Coordination System
+- **Lock-free agent pool** for high concurrency
+- **KD-tree based expertise indexing** for efficient agent discovery
+- **Multiple coordination protocols**: parallel, sequential, hierarchical
+- **Memory-safe operations** with proper error handling
+
+### Persona Types
+```zig
+pub const PersonaType = enum {
+    empathetic,    // Empathetic and understanding
+    direct,        // Direct and to the point
+    adaptive,      // Adaptive to user needs
+    creative,      // Creative and imaginative
+    technical,     // Technical and precise
+    solver,        // Problem-solving focused
+    educator,      // Educational and explanatory
+    counselor,     // Supportive and guiding
+};
+```
+
+### Agent Lifecycle
+1. **Registration**: Agents register with expertise domains
+2. **Selection**: System selects appropriate agents based on query requirements
+3. **Coordination**: Agents work together using specified protocols
+4. **Processing**: Query processing with context management
+5. **Cleanup**: Proper resource cleanup and agent release
+
+## Usage Patterns
+- Use `AgentCoordinationSystem` for complex multi-agent scenarios
+- Use `Agent` for simple single-agent interactions
+- Implement custom personas by extending `PersonaType`
+- Use proper error handling for agent operations
+
+## Testing
+- [src/advanced_persona_system_test.zig](mdc:src/advanced_persona_system_test.zig) - Comprehensive test suite
+- Test agent allocation, coordination, and cleanup
+- Verify lock-free operations under concurrent load
+- Test expertise-based agent selection
+
+## Performance Considerations
+- Agent pool uses lock-free data structures for high concurrency
+- KD-tree indexing provides efficient agent discovery
+- Memory management follows Zig best practices
+- Proper cleanup prevents memory leaks
