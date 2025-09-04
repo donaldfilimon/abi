@@ -5,11 +5,17 @@ const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 
+comptime {
+    // Ensure libc is linked when running directly with `zig run`
+    @linkSystemLibrary("c");
+}
+
 const perf = @import("performance.zig");
-const gpu = @import("../zvim/gpu_renderer.zig");
-const simd = @import("../zvim/simd_text.zig");
+const gpu = @import("gpu_renderer.zig");
+const simd = @import("simd_text.zig");
 const lockfree = @import("lockfree.zig");
 const platform = @import("platform.zig");
+const engine = @import("engine/mod.zig");
 
 pub const Error = error{
     EmptyText,
@@ -89,6 +95,43 @@ pub const Abi = struct {
 };
 
 pub fn main() !void {
-    // Use the unified WDBX CLI implementation
-    try wdbx.main();
+    var args = std.process.args();
+    _ = args.next(); // exe name
+    var driver = engine.graphics.GraphicsDriver.init(.opengl);
+    driver.renderFrame();
+    if (args.next()) |arg| {
+        if (std.mem.eql(u8, arg, "tui")) {
+            const tui = @import("tui.zig");
+            try tui.run();
+            return;
+        } else if (std.mem.eql(u8, arg, "discord")) {
+            std.log.err("discord feature not available", .{});
+            return;
+        }
+    }
+
+    const req = Request{
+        .text = "example input",
+        .values = &[_]usize{ 1, 2, 3, 4 },
+    };
+    const res = try Abi.process(req);
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("{s}: {d}\n", .{ res.message, res.result });
+}
+
+test "Abbey compliance" {
+    try std.testing.expect(Abbey.isCompliant("good"));
+    try std.testing.expect(!Abbey.isCompliant("bad"));
+}
+
+test "Aviva computeSum" {
+    const vals = [_]usize{ 1, 2, 3 };
+    try std.testing.expectEqual(@as(usize, 6), Aviva.computeSum(&vals));
+}
+
+test "Abi orchestrates personas" {
+    const req = Request{ .text = "ok", .values = &[_]usize{ 1, 2 } };
+    const res = try Abi.process(req);
+    try std.testing.expectEqual(@as(usize, 3), res.result);
+    try std.testing.expectEqualStrings("Computation successful", res.message);
 }
