@@ -1,11 +1,4 @@
-# Zig build artifacts
-zig-cache/
-zig-out/
-
-# Common build outputs
-build/
-CMakeCache.txt
-CMakeFiles/
-*.ninja
-compile_commands.json
-zig-cache/
+**/*.DS_Store
+**/*.zig-cache
+# Ignore build directories
+*/build/
