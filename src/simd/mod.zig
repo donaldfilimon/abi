@@ -15,6 +15,7 @@ const builtin = @import("builtin");
 pub const optimized = @import("optimized_ops.zig");
 pub const enhanced_vector = @import("enhanced_vector.zig");
 pub const matrix_ops = @import("matrix_ops.zig");
+pub const simd_vector = @import("simd_vector.zig");
 
 // Re-export optimized operations
 pub const CpuFeatures = optimized.CpuFeatures;

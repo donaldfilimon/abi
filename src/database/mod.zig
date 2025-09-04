@@ -9,10 +9,10 @@ const std = @import("std");
 pub const enhanced_db = @import("enhanced_db.zig");
 
 // Re-export the main database implementation
-pub const Db = @import("../database.zig").Db;
-pub const DbError = @import("../database.zig").DatabaseError;
-pub const Result = @import("../database.zig").Result;
-pub const WdbxHeader = @import("../database.zig").WdbxHeader;
+pub const Db = @import("database.zig").Db;
+pub const DbError = @import("database.zig").DatabaseError;
+pub const Result = @import("database.zig").Result;
+pub const WdbxHeader = @import("database.zig").WdbxHeader;
 
 // Enhanced database features
 pub const EnhancedDb = enhanced_db.EnhancedDb;

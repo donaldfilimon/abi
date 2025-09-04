@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) void {
     // Main executable
     const exe = b.addExecutable(.{
         .name = "wdbx-ai",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
     // Add library dependencies
     const lib = b.addStaticLibrary(.{
         .name = "wdbx-ai-lib",
-        .root_source_file = .{ .path = "src/mod.zig" },
+        .root_source_file = b.path("src/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -57,7 +57,7 @@ pub fn build(b: *std.Build) void {
 
     for (test_files) |test_file| {
         const test_exe = b.addTest(.{
-            .root_source_file = .{ .path = test_file },
+            .root_source_file = b.path(test_file),
             .target = target,
             .optimize = optimize,
         });
@@ -68,7 +68,7 @@ pub fn build(b: *std.Build) void {
 
     // Core module tests
     const core_test = b.addTest(.{
-        .root_source_file = .{ .path = "src/core/mod.zig" },
+        .root_source_file = b.path("src/core/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -77,7 +77,7 @@ pub fn build(b: *std.Build) void {
 
     // Main module tests
     const main_test = b.addTest(.{
-        .root_source_file = .{ .path = "src/mod.zig" },
+        .root_source_file = b.path("src/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -89,7 +89,7 @@ pub fn build(b: *std.Build) void {
     
     const benchmark_exe = b.addExecutable(.{
         .name = "benchmark",
-        .root_source_file = .{ .path = "benchmarks/main.zig" },
+        .root_source_file = b.path("benchmarks/main.zig"),
         .target = target,
         .optimize = .ReleaseFast,
     });
@@ -114,7 +114,7 @@ pub fn build(b: *std.Build) void {
             "tests", 
             "benchmarks",
             "build.zig",
-        },
+       ),
     });
     fmt_step.dependOn(&fmt.step);
 
@@ -131,14 +131,14 @@ pub fn build(b: *std.Build) void {
     // Install step for CLI tool
     const install_step = b.step("install", "Install WDBX-AI CLI tool");
     const install_exe = b.addInstallArtifact(exe, .{
-        .dest_dir = .{ .override = .{ .custom = "../bin" } },
+        .dest_dir = .{ .override = .{ .custom = "../bin" }),
     });
     install_step.dependOn(&install_exe.step);
 
     // Development mode with debug symbols
     const dev_exe = b.addExecutable(.{
         .name = "wdbx-ai-dev",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = .Debug,
     });
@@ -150,7 +150,7 @@ pub fn build(b: *std.Build) void {
     // Production build
     const prod_exe = b.addExecutable(.{
         .name = "wdbx-ai-prod",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = .ReleaseFast,
     });
