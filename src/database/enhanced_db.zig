@@ -4,8 +4,8 @@
 const std = @import("std");
 const core = @import("../core/mod.zig");
 const Allocator = core.Allocator;
-const Logger = core.Logger;
-const Timer = core.Timer;
+const Logger = core.logging.Logger;
+const Timer = core.time.Timer;
 
 /// Database configuration
 pub const DatabaseConfig = struct {
@@ -17,7 +17,7 @@ pub const DatabaseConfig = struct {
     compression_level: u8 = 6,
     encryption_key: ?[]const u8 = null,
     enable_logging: bool = true,
-    log_level: Logger.LogLevel = .info,
+    log_level: core.logging.Level = .info,
 };
 
 /// Database record with metadata

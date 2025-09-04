@@ -1,0 +1,180 @@
+# WDBX-AI Default Configuration
+# This file contains the default configuration values for WDBX-AI
+# Copy this file to config.toml and modify as needed
+
+[database]
+# Path to the database file
+path = "wdbx.db"
+
+# Maximum file size in bytes (default: 1GB)
+max_file_size = 1073741824
+
+# Page size in bytes
+page_size = 4096
+
+# Cache size in bytes (default: 100MB)
+cache_size = 104857600
+
+# Enable compression for stored data
+enable_compression = false
+
+# Compression level (1-9, higher = better compression but slower)
+compression_level = 6
+
+# Enable automatic checkpointing
+auto_checkpoint = true
+
+# Checkpoint interval (number of operations)
+checkpoint_interval = 1000
+
+[server]
+# Server host address
+host = "127.0.0.1"
+
+# Server port
+port = 8080
+
+# Maximum concurrent connections
+max_connections = 100
+
+# Request timeout in seconds
+request_timeout = 30
+
+# Enable CORS
+enable_cors = true
+
+# Allowed CORS origins
+cors_origins = ["*"]
+
+[ai]
+# Path to AI models directory
+model_path = "models/"
+
+# Default embedding dimensions
+embedding_dimensions = 768
+
+# Batch size for inference
+batch_size = 32
+
+# Maximum sequence length
+max_sequence_length = 512
+
+# Model cache size in MB
+model_cache_size = 512
+
+# Default learning rate
+learning_rate = 0.001
+
+[performance]
+# Number of worker threads (0 = auto-detect)
+thread_count = 0
+
+# Enable SIMD optimizations
+use_simd = true
+
+# Default batch size for operations
+batch_size = 1000
+
+# Memory pool size in MB
+memory_pool_size = 256
+
+# Enable performance profiling
+enable_profiling = false
+
+# Profile sampling rate (ms)
+profile_sample_rate = 100
+
+[logging]
+# Log level (trace, debug, info, warn, error, fatal)
+level = "info"
+
+# Log output file
+file = "wdbx.log"
+
+# Enable console logging
+console = true
+
+# Use colored output in console
+use_color = true
+
+# Include timestamps in logs
+include_timestamp = true
+
+# Include source location in logs
+include_location = false
+
+# Log rotation size in MB
+rotation_size = 100
+
+# Number of log files to keep
+rotation_count = 5
+
+[security]
+# Enable authentication
+enable_auth = false
+
+# Authentication method (basic, token, oauth)
+auth_method = "token"
+
+# Token expiration in seconds
+token_expiration = 3600
+
+# Enable SSL/TLS
+enable_ssl = false
+
+# SSL certificate path
+ssl_cert = ""
+
+# SSL key path
+ssl_key = ""
+
+[monitoring]
+# Enable metrics collection
+enable_metrics = true
+
+# Metrics export interval in seconds
+metrics_interval = 60
+
+# Metrics export format (prometheus, json)
+metrics_format = "prometheus"
+
+# Metrics endpoint
+metrics_endpoint = "/metrics"
+
+# Enable health checks
+enable_health_check = true
+
+# Health check endpoint
+health_endpoint = "/health"
+
+[plugins]
+# Enable plugin system
+enable_plugins = true
+
+# Plugin directory
+plugin_dir = "plugins/"
+
+# Auto-load plugins on startup
+auto_load = true
+
+# Plugin timeout in seconds
+plugin_timeout = 30
+
+# Maximum plugin memory in MB
+max_plugin_memory = 256
+
+[experimental]
+# Enable experimental features
+enable_experimental = false
+
+# GPU acceleration
+enable_gpu = false
+
+# Distributed mode
+enable_distributed = false
+
+# Cluster size for distributed mode
+cluster_size = 3
+
+# Feature flags
+features = []

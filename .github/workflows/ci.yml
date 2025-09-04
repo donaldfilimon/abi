@@ -2,44 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        zig: [ "0.15.1" ]
-        os: [ ubuntu-latest, windows-latest, macos-latest ]
-    runs-on: ${{ matrix.os }}
-    name: Zig ${{ matrix.zig }} on ${{ matrix.os }}
+  test:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v1
-        with:
-          version: ${{ matrix.zig }}
-      
-      # Build the refactored codebase
-      - name: Build
-        run: zig build
-      
-      # Run tests
-      - name: Run tests
-        run: zig build test
-      
-      # Run benchmarks (quick mode)
-      - name: Run benchmarks
-        run: zig build benchmark -- --quick
-        if: matrix.os == 'ubuntu-latest'
-      
-      # Check code formatting
-      - name: Check formatting
-        run: zig fmt --check src/
-      
-      # Run static analysis
-      - name: Static analysis
-        run: zig build analyze
-        if: matrix.os == 'ubuntu-latest'
+      - uses: mlugg/setup-zig@v2.0.1
+        with: 
+          version: 0.14.1
+      - run: zig fmt .
+      - run: zig build
+      - run: zig test

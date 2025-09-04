@@ -215,9 +215,5 @@ test "Module integration" {
     const random_val = core.random.int(u32, 1, 10);
     try testing.expect(random_val >= 1 and random_val <= 10);
 
-<<<<<<< Current (Your changes)
-    log.info("Module integration test completed", .{});
-=======
     core.log.info("Module integration test completed", .{});
->>>>>>> Incoming (Background Agent changes)
 }

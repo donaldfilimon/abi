@@ -23,8 +23,8 @@ const LibraryHandle = switch (builtin.os.tag) {
 /// Cross-platform plugin loader
 pub const PluginLoader = struct {
     allocator: std.mem.Allocator,
-    loaded_libraries: std.ArrayList(LoadedLibrary),
-    plugin_paths: std.ArrayList([]const u8),
+    loaded_libraries: std.ArrayListUnmanaged(LoadedLibrary),
+    plugin_paths: std.ArrayListUnmanaged([]const u8),
 
     const LoadedLibrary = struct {
         path: []const u8,
@@ -36,8 +36,8 @@ pub const PluginLoader = struct {
     pub fn init(allocator: std.mem.Allocator) PluginLoader {
         return .{
             .allocator = allocator,
-            .loaded_libraries = std.ArrayList(LoadedLibrary){},
-            .plugin_paths = std.ArrayList([]const u8){},
+            .loaded_libraries = .{},
+            .plugin_paths = .{},
         };
     }
 
@@ -74,8 +74,8 @@ pub const PluginLoader = struct {
     }
 
     /// Discover plugins in the search paths
-    pub fn discoverPlugins(self: *PluginLoader) !std.ArrayList([]const u8) {
-        var discovered_plugins = std.ArrayList([]const u8){};
+    pub fn discoverPlugins(self: *PluginLoader) !std.ArrayListUnmanaged([]const u8) {
+        var discovered_plugins = std.ArrayListUnmanaged([]const u8){};
 
         for (self.plugin_paths.items) |search_path| {
             try self.discoverPluginsInPath(search_path, &discovered_plugins);
@@ -85,7 +85,7 @@ pub const PluginLoader = struct {
     }
 
     /// Discover plugins in a specific directory
-    fn discoverPluginsInPath(self: *PluginLoader, path: []const u8, plugins: *std.ArrayList([]const u8)) !void {
+    fn discoverPluginsInPath(self: *PluginLoader, path: []const u8, plugins: *std.ArrayListUnmanaged([]const u8)) !void {
         var dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch |err| switch (err) {
             error.FileNotFound => return, // Path doesn't exist, skip
             error.NotDir => return, // Not a directory, skip

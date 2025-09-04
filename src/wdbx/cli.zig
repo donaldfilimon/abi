@@ -411,33 +411,17 @@ pub const WdbxCLI = struct {
     }
 
     fn parseVectorString(self: *Self, s: []const u8) ![]f32 {
-        // Count commas to determine vector size
-        var count: usize = 1;
-        for (s) |char| {
-            if (char == ',') count += 1;
-        }
-
-        var values = try self.allocator.alloc(f32, count);
-        var index: usize = 0;
+        var list = try std.ArrayListUnmanaged(f32).initCapacity(self.allocator, 8);
+        defer list.deinit(self.allocator);
 
         var iter = std.mem.splitScalar(u8, s, ',');
         while (iter.next()) |part| {
-            if (index >= count) break;
             const trimmed = std.mem.trim(u8, part, " \t\r\n");
-            if (trimmed.len > 0) {
-                const value = try std.fmt.parseFloat(f32, trimmed);
-                values[index] = value;
-                index += 1;
-            }
+            if (trimmed.len == 0) continue;
+            const value = try std.fmt.parseFloat(f32, trimmed);
+            try list.append(self.allocator, value);
         }
-
-        // Resize to actual count
-        if (index < count) {
-            const actual_values = try self.allocator.realloc(values, index);
-            return actual_values;
-        }
-
-        return values;
+        return try list.toOwnedSlice(self.allocator);
     }
 
     fn generateAuthToken(self: *Self, role: []const u8) ![]u8 {

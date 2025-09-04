@@ -482,7 +482,7 @@ pub const WdbxHttpServer = struct {
         defer self.allocator.free(results);
 
         // Format results
-        var neighbors = try std.ArrayList(NeighborResult).initCapacity(self.allocator, results.len);
+        var neighbors = try std.ArrayListUnmanaged(NeighborResult).initCapacity(self.allocator, results.len);
         defer neighbors.deinit(self.allocator);
 
         for (results) |result| {
@@ -543,7 +543,7 @@ pub const WdbxHttpServer = struct {
 
     /// Parse vector string
     fn parseVector(self: *Self, vector_str: []const u8) ![]f32 {
-        var list = try std.ArrayList(f32).initCapacity(self.allocator, 8);
+        var list = try std.ArrayListUnmanaged(f32).initCapacity(self.allocator, 8);
         defer list.deinit(self.allocator);
 
         var iter = std.mem.splitSequence(u8, vector_str, ",");
@@ -560,7 +560,7 @@ pub const WdbxHttpServer = struct {
 
     /// Format neighbors array for JSON output
     fn formatNeighbors(self: *Self, neighbors: []const NeighborResult) ![]const u8 {
-        var buffer = try std.ArrayList(u8).initCapacity(self.allocator, 256);
+        var buffer = try std.ArrayListUnmanaged(u8).initCapacity(self.allocator, 256);
         defer buffer.deinit(self.allocator);
 
         for (neighbors, 0..) |neighbor, i| {
