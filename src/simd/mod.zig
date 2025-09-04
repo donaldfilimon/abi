@@ -11,6 +11,19 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+// Import optimized operations
+pub const optimized = @import("optimized_ops.zig");
+pub const enhanced_vector = @import("enhanced_vector.zig");
+pub const matrix_ops = @import("matrix_ops.zig");
+
+// Re-export optimized operations
+pub const CpuFeatures = optimized.CpuFeatures;
+pub const DistanceOps = optimized.DistanceOps;
+pub const MatrixOps = optimized.MatrixOps;
+pub const NormalizationOps = optimized.NormalizationOps;
+pub const BatchOps = optimized.BatchOps;
+pub const BenchmarkOps = optimized.BenchmarkOps;
+
 /// SIMD vector types with automatic detection
 pub const Vector = struct {
     /// 4-float SIMD vector

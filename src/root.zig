@@ -9,7 +9,7 @@
 const std = @import("std");
 
 // Import consolidated modules
-pub const database = @import("database.zig");
+pub const database = @import("database/mod.zig");
 pub const simd = @import("simd/mod.zig");
 pub const ai = @import("ai/mod.zig");
 pub const core = @import("core/mod.zig");
@@ -107,11 +107,15 @@ pub fn runSystemTest() !void {
     const testing = std.testing;
     const allocator = testing.allocator;
 
+    // Initialize core system
+    try core.init(allocator);
+    defer core.deinit();
+
     // Test database operations
     const test_file = "test_system.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
 
-    var db = try database.Db.open(test_file, true);
+    var db = try database.createStandard(test_file, true);
     defer db.close();
     try db.init(64);
 
@@ -130,7 +134,7 @@ pub fn runSystemTest() !void {
     // Test SIMD operations
     const vector_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const vector_b = [_]f32{ 2.0, 3.0, 4.0, 5.0 };
-    const distance = simd.distance(&vector_a, &vector_b);
+    const distance = simd.VectorOps.distance(&vector_a, &vector_b);
     try testing.expect(distance > 0.0);
 
     // Test AI operations
@@ -151,7 +155,7 @@ pub fn runSystemTest() !void {
     const trimmed = core.string.trim("  test  ");
     try testing.expectEqualStrings("test", trimmed);
 
-    log.info("System test completed successfully", .{});
+    core.log.info("System test completed successfully", .{});
 }
 
 test "Root module functionality" {
@@ -174,6 +178,10 @@ test "Module integration" {
     const testing = std.testing;
     const allocator = testing.allocator;
 
+    // Initialize core system
+    try core.init(allocator);
+    defer core.deinit();
+
     // Test that all modules can be imported and used together
     try testing.expect(@TypeOf(database.Db) == @TypeOf(Db));
     try testing.expect(@TypeOf(simd.Vector) == @TypeOf(Vector));
@@ -184,7 +192,7 @@ test "Module integration" {
     const test_file = "test_integration.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
 
-    var db = try database.Db.open(test_file, true);
+    var db = try database.createStandard(test_file, true);
     defer db.close();
     try db.init(32);
     try db.initHNSW();
@@ -207,5 +215,9 @@ test "Module integration" {
     const random_val = core.random.int(u32, 1, 10);
     try testing.expect(random_val >= 1 and random_val <= 10);
 
+<<<<<<< Current (Your changes)
     log.info("Module integration test completed", .{});
+=======
+    core.log.info("Module integration test completed", .{});
+>>>>>>> Incoming (Background Agent changes)
 }

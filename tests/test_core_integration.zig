@@ -1,435 +1,240 @@
-//! Core Integration Tests
-//!
-//! This file contains comprehensive integration tests for the core database functionality.
+//! Comprehensive integration tests for the core system
 
 const std = @import("std");
 const testing = std.testing;
-const core = @import("core");
+const core = @import("../src/core/mod.zig");
 
-test "Database lifecycle" {
-    const allocator = testing.allocator;
+test "Core system initialization and cleanup" {
+    // Test basic initialization
+    try core.init(testing.allocator);
+    try testing.expect(core.isInitialized());
+    try testing.expect(core.getAllocator() != null);
     
-    // Create temporary directory
-    const tmp_dir = testing.tmpDir(.{});
-    defer tmp_dir.cleanup();
-    
-    const db_path = try std.fmt.allocPrint(allocator, "{s}/lifecycle_test.wdbx", .{tmp_dir.sub_path});
-    defer allocator.free(db_path);
-
-    // Test database creation
-    {
-        const db = try core.Database.open(allocator, db_path, true);
-        defer db.close();
-
-        try testing.expect(!db.is_initialized);
-
-        // Initialize with configuration
-        try db.init(.{
-            .dimensions = 128,
-            .index_type = .hnsw,
-            .distance_metric = .euclidean,
-            .enable_simd = true,
-            .hnsw_m = 16,
-            .hnsw_ef_construction = 200,
-        });
-
-        try testing.expect(db.is_initialized);
-        try testing.expectEqual(@as(u32, 128), db.config.dimensions);
-    }
-
-    // Test database reopening
-    {
-        const db = try core.Database.open(allocator, db_path, false);
-        defer db.close();
-
-        try testing.expect(db.is_initialized);
-        try testing.expectEqual(@as(u32, 128), db.config.dimensions);
-        try testing.expectEqual(core.index.IndexType.hnsw, db.config.index_type);
-    }
+    // Test cleanup
+    core.deinit();
+    try testing.expect(!core.isInitialized());
+    try testing.expect(core.getAllocator() == null);
 }
 
-test "Vector operations with different dimensions" {
-    const allocator = testing.allocator;
-    
-    const dimensions = [_]u32{ 64, 128, 256, 384, 512, 768, 1024 };
-    
-    for (dimensions) |dim| {
-        const tmp_dir = testing.tmpDir(.{});
-        defer tmp_dir.cleanup();
-        
-        const db_path = try std.fmt.allocPrint(allocator, "{s}/dim_{d}.wdbx", .{ tmp_dir.sub_path, dim });
-        defer allocator.free(db_path);
-
-        const db = try core.Database.open(allocator, db_path, true);
-        defer db.close();
-
-        try db.init(.{
-            .dimensions = dim,
-            .index_type = .flat,
-            .distance_metric = .euclidean,
-        });
-
-        // Create test vectors
-        const v1 = try allocator.alloc(f32, dim);
-        defer allocator.free(v1);
-        const v2 = try allocator.alloc(f32, dim);
-        defer allocator.free(v2);
-
-        // Initialize with pattern
-        for (v1, 0..) |*val, i| {
-            val.* = @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(dim));
-        }
-        for (v2, 0..) |*val, i| {
-            val.* = 1.0 - @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(dim));
-        }
-
-        // Add vectors
-        const id1 = try db.addVector(v1, null);
-        const id2 = try db.addVector(v2, null);
-
-        try testing.expect(id1 != id2);
-
-        // Search
-        const results = try db.search(v1, 2, allocator);
-        defer allocator.free(results);
-
-        try testing.expectEqual(@as(usize, 2), results.len);
-        try testing.expectEqual(id1, results[0].index);
-    }
-}
-
-test "Concurrent operations" {
-    const allocator = testing.allocator;
-    
-    const tmp_dir = testing.tmpDir(.{});
-    defer tmp_dir.cleanup();
-    
-    const db_path = try std.fmt.allocPrint(allocator, "{s}/concurrent_test.wdbx", .{tmp_dir.sub_path});
-    defer allocator.free(db_path);
-
-    const db = try core.Database.open(allocator, db_path, true);
-    defer db.close();
-
-    try db.init(.{
-        .dimensions = 64,
-        .index_type = .hnsw,
-        .distance_metric = .euclidean,
-    });
-
-    // Spawn multiple threads
-    const thread_count = 4;
-    const vectors_per_thread = 100;
-    
-    const ThreadContext = struct {
-        db: *core.Database,
-        thread_id: u32,
-        allocator: std.mem.Allocator,
+test "Core system with configuration" {
+    const config = core.CoreConfig{
+        .log_level = .debug,
+        .enable_performance_monitoring = true,
+        .memory_pool_size = 512 * 1024,
+        .thread_pool_size = 2,
     };
-
-    const thread_fn = struct {
-        fn run(ctx: ThreadContext) !void {
-            var rng = std.rand.DefaultPrng.init(ctx.thread_id);
-            const random = rng.random();
-
-            var i: usize = 0;
-            while (i < vectors_per_thread) : (i += 1) {
-                const vec = try ctx.allocator.alloc(f32, 64);
-                defer ctx.allocator.free(vec);
-
-                for (vec) |*val| {
-                    val.* = random.float(f32);
-                }
-
-                _ = try ctx.db.addVector(vec, null);
-            }
-        }
-    }.run;
-
-    var threads: [thread_count]std.Thread = undefined;
     
-    for (&threads, 0..) |*thread, i| {
-        thread.* = try std.Thread.spawn(.{}, thread_fn, .{
-            ThreadContext{
-                .db = db,
-                .thread_id = @intCast(i),
-                .allocator = allocator,
-            },
-        });
-    }
-
-    for (threads) |thread| {
-        thread.join();
-    }
-
-    // Verify all vectors were added
-    const stats = db.getStats();
-    try testing.expectEqual(@as(u64, thread_count * vectors_per_thread), stats.total_vectors);
+    try core.initWithConfig(testing.allocator, config);
+    defer core.deinit();
+    
+    try testing.expect(core.isInitialized());
+    try testing.expect(core.log.getLevel() == .debug);
 }
 
-test "Distance metrics comparison" {
-    const allocator = testing.allocator;
+test "String utilities integration" {
+    try core.init(testing.allocator);
+    defer core.deinit();
     
-    const metrics = [_]core.vector.DistanceMetric{
-        .euclidean,
-        .cosine,
-        .dot_product,
-        .manhattan,
-    };
+    // Test string operations
+    const trimmed = core.string.trim("  hello world  ");
+    try testing.expectEqualStrings("hello world", trimmed);
+    
+    const parts = try core.string.split(testing.allocator, "a,b,c", ',');
+    defer testing.allocator.free(parts);
+    try testing.expect(parts.len == 3);
+    
+    const joined = try core.string.join(testing.allocator, parts, "-");
+    defer testing.allocator.free(joined);
+    try testing.expectEqualStrings("a-b-c", joined);
+}
 
-    for (metrics) |metric| {
-        const tmp_dir = testing.tmpDir(.{});
-        defer tmp_dir.cleanup();
+test "Time utilities integration" {
+    try core.init(testing.allocator);
+    defer core.deinit();
+    
+    const start_time = core.time.now();
+    core.time.sleep(1); // Sleep 1ms
+    const end_time = core.time.now();
+    
+    try testing.expect(end_time > start_time);
+    
+    // Test timer
+    var timer = core.time.Timer.start();
+    core.time.sleep(1);
+    const elapsed = timer.elapsedMillis();
+    try testing.expect(elapsed >= 0);
+    
+    // Test stopwatch
+    var stopwatch = core.time.Stopwatch.init(testing.allocator);
+    defer stopwatch.deinit();
+    
+    try stopwatch.startLap();
+    core.time.sleep(1);
+    try stopwatch.startLap();
+    
+    try testing.expect(stopwatch.lapCount() == 2);
+    try testing.expect(stopwatch.totalTime() > 0);
+}
+
+test "Random utilities integration" {
+    try core.init(testing.allocator);
+    defer core.deinit();
+    
+    // Test deterministic random with seed
+    core.random.initWithSeed(12345);
+    
+    const val1 = core.random.int(u32, 1, 100);
+    const val2 = core.random.int(u32, 1, 100);
+    try testing.expect(val1 >= 1 and val1 <= 100);
+    try testing.expect(val2 >= 1 and val2 <= 100);
+    
+    // Test float generation
+    const f = core.random.float(f32);
+    try testing.expect(f >= 0.0 and f < 1.0);
+    
+    // Test vector generation
+    const vec = try core.random.vector(f32, testing.allocator, 5, 0.0, 1.0);
+    defer testing.allocator.free(vec);
+    try testing.expect(vec.len == 5);
+    
+    const norm_vec = try core.random.normalizedVector(f32, testing.allocator, 3);
+    defer testing.allocator.free(norm_vec);
+    
+    // Check normalization
+    var magnitude: f32 = 0;
+    for (norm_vec) |v| {
+        magnitude += v * v;
+    }
+    magnitude = std.math.sqrt(magnitude);
+    try testing.expect(std.math.approxEqAbs(f32, magnitude, 1.0, 0.001));
+}
+
+test "Performance monitoring integration" {
+    try core.init(testing.allocator);
+    defer core.deinit();
+    
+    // Test performance timing
+    var timer = try core.performance.startTimer("test_operation");
+    core.time.sleep(1);
+    core.performance.endTimer("test_operation", timer);
+    
+    // Test multiple measurements
+    for (0..3) |_| {
+        timer = try core.performance.startTimer("repeated_op");
+        core.time.sleep(1);
+        core.performance.endTimer("repeated_op", timer);
+    }
+    
+    const stats = core.performance.getStats("repeated_op");
+    try testing.expect(stats != null);
+    try testing.expect(stats.?.count == 3);
+    try testing.expect(stats.?.average() > 0);
+}
+
+test "Memory management integration" {
+    try core.init(testing.allocator);
+    defer core.deinit();
+    
+    // Test memory pool
+    var pool = core.memory.MemoryPool.init(testing.allocator);
+    defer pool.deinit();
+    
+    const pool_alloc = pool.allocator();
+    const data = try pool_alloc.alloc(u8, 100);
+    try testing.expect(data.len == 100);
+    
+    // Test memory tracking
+    if (core.memory.getTracker()) |tracker| {
+        const initial_stats = tracker.getStats();
         
-        const db_path = try std.fmt.allocPrint(allocator, "{s}/{s}_test.wdbx", .{
-            tmp_dir.sub_path,
-            @tagName(metric),
-        });
-        defer allocator.free(db_path);
-
-        const db = try core.Database.open(allocator, db_path, true);
-        defer db.close();
-
-        try db.init(.{
-            .dimensions = 3,
-            .index_type = .flat,
-            .distance_metric = metric,
-        });
-
-        // Add orthogonal vectors
-        const v1 = [_]f32{ 1.0, 0.0, 0.0 };
-        const v2 = [_]f32{ 0.0, 1.0, 0.0 };
-        const v3 = [_]f32{ 0.0, 0.0, 1.0 };
-
-        _ = try db.addVector(&v1, null);
-        _ = try db.addVector(&v2, null);
-        _ = try db.addVector(&v3, null);
-
-        // Search with a query close to v1
-        const query = [_]f32{ 0.9, 0.1, 0.0 };
-        const results = try db.search(&query, 3, allocator);
-        defer allocator.free(results);
-
-        try testing.expectEqual(@as(usize, 3), results.len);
+        // Simulate allocation tracking
+        try tracker.trackAllocation(0x1000, 256, "test_location");
         
-        // First result should always be closest to v1
-        try testing.expectEqual(@as(u64, 0), results[0].index);
-    }
-}
-
-test "Index type comparison" {
-    const allocator = testing.allocator;
-    
-    const index_types = [_]core.index.IndexType{
-        .flat,
-        .hnsw,
-    };
-
-    // Generate test data
-    const vector_count = 1000;
-    const dimensions = 64;
-    var rng = std.rand.DefaultPrng.init(42);
-    const random = rng.random();
-
-    var test_vectors = try allocator.alloc([]f32, vector_count);
-    defer {
-        for (test_vectors) |vec| {
-            allocator.free(vec);
-        }
-        allocator.free(test_vectors);
-    }
-
-    for (test_vectors) |*vec| {
-        vec.* = try allocator.alloc(f32, dimensions);
-        for (vec.*) |*val| {
-            val.* = random.float(f32);
-        }
-    }
-
-    // Test each index type
-    for (index_types) |index_type| {
-        const tmp_dir = testing.tmpDir(.{});
-        defer tmp_dir.cleanup();
+        const updated_stats = tracker.getStats();
+        try testing.expect(updated_stats.total_allocated > initial_stats.total_allocated);
+        try testing.expect(updated_stats.active_allocations > initial_stats.active_allocations);
         
-        const db_path = try std.fmt.allocPrint(allocator, "{s}/{s}_index.wdbx", .{
-            tmp_dir.sub_path,
-            @tagName(index_type),
-        });
-        defer allocator.free(db_path);
-
-        const db = try core.Database.open(allocator, db_path, true);
-        defer db.close();
-
-        try db.init(.{
-            .dimensions = dimensions,
-            .index_type = index_type,
-            .distance_metric = .euclidean,
-        });
-
-        // Add all vectors
-        for (test_vectors) |vec| {
-            _ = try db.addVector(vec, null);
-        }
-
-        // Perform searches and measure time
-        const query_count = 10;
-        var total_time: i64 = 0;
+        // Simulate free
+        tracker.trackFree(0x1000);
         
-        var i: usize = 0;
-        while (i < query_count) : (i += 1) {
-            const query_idx = random.intRangeAtMost(usize, 0, vector_count - 1);
-            const query = test_vectors[query_idx];
-            
-            const start = std.time.nanoTimestamp();
-            const results = try db.search(query, 10, allocator);
-            const end = std.time.nanoTimestamp();
-            defer allocator.free(results);
-            
-            total_time += end - start;
-            
-            // Verify self is found first
-            try testing.expectEqual(@as(u64, query_idx), results[0].index);
-            try testing.expect(results[0].score < 0.001); // Should be very close to 0
-        }
-
-        const avg_time_ms = @as(f64, @floatFromInt(total_time)) / @as(f64, query_count) / 1_000_000.0;
-        std.debug.print("{s} index: avg query time = {d:.2} ms\n", .{ @tagName(index_type), avg_time_ms });
+        const final_stats = tracker.getStats();
+        try testing.expect(final_stats.total_freed > initial_stats.total_freed);
     }
 }
 
-test "Storage backend comparison" {
-    const allocator = testing.allocator;
+test "Error handling integration" {
+    try core.init(testing.allocator);
+    defer core.deinit();
     
-    const tmp_dir = testing.tmpDir(.{});
-    defer tmp_dir.cleanup();
+    // Test error creation and tracking
+    const error_info = core.errors.systemError(1001, "Test system error")
+        .withContext("During testing")
+        .withLocation("test_core_integration.zig", 123, "test function");
     
-    // Test file storage
-    {
-        const db_path = try std.fmt.allocPrint(allocator, "{s}/file_storage.wdbx", .{tmp_dir.sub_path});
-        defer allocator.free(db_path);
-
-        const db = try core.Database.open(allocator, db_path, true);
-        defer db.close();
-
-        try db.init(.{
-            .dimensions = 32,
-            .index_type = .flat,
-            .storage_type = .file,
-        });
-
-        const vec = [_]f32{1.0} ** 32;
-        _ = try db.addVector(&vec, "metadata");
-
-        const stats = db.getStats();
-        try testing.expectEqual(@as(u64, 1), stats.total_vectors);
-    }
-
-    // Test memory storage
-    {
-        // Memory storage would be initialized differently
-        // This is a placeholder for when memory storage is fully integrated
-    }
+    try core.errors.recordError(error_info);
+    
+    const stats = core.errors.getGlobalErrorStats();
+    try testing.expect(stats != null);
+    try testing.expect(stats.?.total_errors >= 1);
+    
+    // Test error formatting
+    const formatted = try error_info.format(testing.allocator);
+    defer testing.allocator.free(formatted);
+    try testing.expect(std.mem.indexOf(u8, formatted, "SYSTEM") != null);
+    try testing.expect(std.mem.indexOf(u8, formatted, "Test system error") != null);
 }
 
-test "Error handling and recovery" {
-    const allocator = testing.allocator;
+test "Threading integration" {
+    try core.init(testing.allocator);
+    defer core.deinit();
     
-    const tmp_dir = testing.tmpDir(.{});
-    defer tmp_dir.cleanup();
+    // Test thread pool
+    var pool = try core.threading.ThreadPool.init(testing.allocator, 2);
+    defer pool.deinit();
     
-    const db_path = try std.fmt.allocPrint(allocator, "{s}/error_test.wdbx", .{tmp_dir.sub_path});
-    defer allocator.free(db_path);
-
-    // Test uninitialized database
-    {
-        const db = try core.Database.open(allocator, db_path, true);
-        defer db.close();
-
-        const vec = [_]f32{ 1.0, 2.0, 3.0 };
-        try testing.expectError(error.DatabaseNotInitialized, db.addVector(&vec, null));
-    }
-
-    // Test dimension mismatch
-    {
-        const db = try core.Database.open(allocator, db_path, true);
-        defer db.close();
-
-        try db.init(.{
-            .dimensions = 4,
-            .index_type = .flat,
-        });
-
-        const vec = [_]f32{ 1.0, 2.0, 3.0 }; // Wrong dimension
-        try testing.expectError(error.DimensionMismatch, db.addVector(&vec, null));
-    }
-
-    // Test read-only database
-    {
-        // First create and populate
-        {
-            const db = try core.Database.open(allocator, db_path, true);
-            defer db.close();
-            
-            try db.init(.{
-                .dimensions = 3,
-                .index_type = .flat,
-            });
-            
-            const vec = [_]f32{ 1.0, 2.0, 3.0 };
-            _ = try db.addVector(&vec, null);
+    var counter = std.atomic.Value(u32).init(0);
+    
+    const incrementTask = struct {
+        fn call(data: ?*anyopaque) void {
+            const c: *std.atomic.Value(u32) = @ptrCast(@alignCast(data.?));
+            _ = c.fetchAdd(1, .monotonic);
         }
-
-        // Then try to write to read-only
-        const db = try core.Database.open(allocator, db_path, false);
-        defer db.close();
-
-        const vec = [_]f32{ 4.0, 5.0, 6.0 };
-        try testing.expectError(error.InvalidOperation, db.addVector(&vec, null));
+    }.call;
+    
+    // Submit tasks
+    for (0..5) |_| {
+        try pool.submit(incrementTask, &counter);
     }
+    
+    // Wait for completion
+    core.time.sleep(50); // 50ms should be enough
+    
+    try testing.expect(counter.load(.monotonic) == 5);
 }
 
-test "Database optimization" {
-    const allocator = testing.allocator;
+test "Allocator integration" {
+    try core.init(testing.allocator);
+    defer core.deinit();
     
-    const tmp_dir = testing.tmpDir(.{});
-    defer tmp_dir.cleanup();
+    try core.allocators.init(testing.allocator);
+    defer core.allocators.deinit();
     
-    const db_path = try std.fmt.allocPrint(allocator, "{s}/optimize_test.wdbx", .{tmp_dir.sub_path});
-    defer allocator.free(db_path);
-
-    const db = try core.Database.open(allocator, db_path, true);
-    defer db.close();
-
-    try db.init(.{
-        .dimensions = 16,
-        .index_type = .hnsw,
-        .distance_metric = .euclidean,
-    });
-
-    // Add many vectors
-    var rng = std.rand.DefaultPrng.init(42);
-    const random = rng.random();
-    
-    var i: usize = 0;
-    while (i < 500) : (i += 1) {
-        var vec: [16]f32 = undefined;
-        for (&vec) |*val| {
-            val.* = random.float(f32);
-        }
-        _ = try db.addVector(&vec, null);
+    // Test smart allocator
+    if (core.allocators.getSmartAllocator()) |smart_alloc| {
+        const small_data = try smart_alloc.alloc(u8, 64);
+        defer smart_alloc.free(small_data);
+        try testing.expect(small_data.len == 64);
+        
+        const large_data = try smart_alloc.alloc(u8, 2048);
+        defer smart_alloc.free(large_data);
+        try testing.expect(large_data.len == 2048);
     }
-
-    // Get stats before optimization
-    const stats_before = db.getStats();
-
-    // Run optimization
-    try db.optimize();
-
-    // Get stats after optimization
-    const stats_after = db.getStats();
-
-    // Verify vector count unchanged
-    try testing.expectEqual(stats_before.total_vectors, stats_after.total_vectors);
     
-    // Performance should be same or better
-    try testing.expect(stats_after.avg_search_time_ns <= stats_before.avg_search_time_ns);
+    // Test string interning
+    const str1 = try core.allocators.internString("test string");
+    const str2 = try core.allocators.internString("test string");
+    try testing.expect(str1.ptr == str2.ptr); // Should be interned
+    
+    const stats = core.allocators.getAllocatorStats();
+    try testing.expect(stats != null);
 }

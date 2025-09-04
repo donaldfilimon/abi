@@ -1,278 +1,403 @@
-# WDBX Architecture Guide
+# WDBX-AI Architecture Documentation
 
 ## Overview
 
-WDBX (Vector Database for AI) is a high-performance, modular vector database designed for AI applications. It provides efficient storage, indexing, and retrieval of high-dimensional vector embeddings with a focus on performance, reliability, and ease of use.
-
-## Architecture Principles
-
-1. **Modularity**: Clear separation of concerns with well-defined interfaces
-2. **Performance**: SIMD optimizations and efficient algorithms
-3. **Flexibility**: Pluggable components for storage, indexing, and APIs
-4. **Type Safety**: Leveraging Zig's compile-time features
-5. **Simplicity**: Clean, understandable code structure
+WDBX-AI is a high-performance, enterprise-grade vector database designed for AI and machine learning workloads. The system has been completely refactored and improved with a unified architecture that consolidates multiple implementations into a coherent, maintainable codebase.
 
 ## System Architecture
 
+### Core Components
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        API Layer                             │
-│  ┌─────────┐  ┌──────────┐  ┌───────┐  ┌──────────────┐   │
-│  │   CLI   │  │   HTTP   │  │  TCP  │  │  WebSocket   │   │
-│  └────┬────┘  └────┬─────┘  └───┬───┘  └──────┬───────┘   │
-│       │            │             │              │            │
-│       └────────────┴─────────────┴──────────────┘           │
-│                           │                                  │
-├───────────────────────────┼─────────────────────────────────┤
-│                     Core Database                            │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Database Manager                        │   │
-│  │  ┌─────────┐  ┌─────────┐  ┌──────────────────┐   │   │
-│  │  │ Config  │  │  Stats  │  │  Thread Safety   │   │   │
-│  │  └─────────┘  └─────────┘  └──────────────────┘   │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                           │                                  │
-│  ┌───────────────┬────────┴────────┬────────────────────┐  │
-│  │    Vector     │     Index       │     Storage        │  │
-│  │  Operations   │    Backend      │     Backend        │  │
-│  │               │                 │                    │  │
-│  │ ┌───────────┐ │ ┌────────────┐ │ ┌───────────────┐ │  │
-│  │ │   SIMD    │ │ │    HNSW    │ │ │     File      │ │  │
-│  │ │ Distance  │ │ │    Flat    │ │ │    Memory     │ │  │
-│  │ │  Metrics  │ │ │    IVF     │ │ │     MMap      │ │  │
-│  │ └───────────┘ │ └────────────┘ │ └───────────────┘ │  │
-│  └───────────────┴─────────────────┴────────────────────┘  │
+│                      WDBX-AI System                        │
+├─────────────────────────────────────────────────────────────┤
+│  Application Layer                                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │     CLI     │  │   Web UI    │  │    API      │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+├─────────────────────────────────────────────────────────────┤
+│  WDBX Layer (Unified Implementation)                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │ Unified CLI │  │ HTTP Server │  │ Core Engine │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+├─────────────────────────────────────────────────────────────┤
+│  Service Layer                                              │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │  Database   │  │     AI      │  │    SIMD     │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+├─────────────────────────────────────────────────────────────┤
+│  Core Infrastructure                                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │   Memory    │  │ Performance │  │   Errors    │        │
+│  │ Management  │  │ Monitoring  │  │  Handling   │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+├─────────────────────────────────────────────────────────────┤
+│  System Layer                                               │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │ Threading   │  │   Logging   │  │   Utilities │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Core Components
+### Module Structure
 
-### 1. Database Manager (`core/database.zig`)
+#### Core Module (`src/core/`)
+The foundation of the system providing essential utilities:
 
-The central component that coordinates all database operations:
+- **`mod.zig`** - Main module interface and system initialization
+- **`string.zig`** - String manipulation utilities
+- **`time.zig`** - Time measurement and timing utilities
+- **`random.zig`** - Random number generation and vector creation
+- **`log.zig`** - Structured logging with levels and formatting
+- **`performance.zig`** - Performance monitoring and profiling
+- **`memory.zig`** - Memory tracking and leak detection
+- **`threading.zig`** - Thread pool and parallel operations
+- **`errors.zig`** - Standardized error handling and tracking
+- **`allocators.zig`** - Advanced memory allocators (pool, mmap, smart)
 
-- **Initialization**: Sets up storage and index backends
-- **Vector Operations**: Add, update, delete vectors
-- **Search**: Coordinate searches through index backend
-- **Transaction Management**: Ensures data consistency
-- **Statistics**: Tracks performance metrics
+#### Database Module (`src/database/`)
+Vector database implementation:
 
-```zig
-pub const Database = struct {
-    allocator: std.mem.Allocator,
-    config: DatabaseConfig,
-    storage_backend: storage.StorageBackend,
-    index_backend: index.IndexBackend,
-    vector_ops: vector.VectorOps,
-    // ...
-};
-```
+- **`mod.zig`** - Database module interface
+- **`enhanced_db.zig`** - Enhanced database features
+- **`../database.zig`** - Core database implementation
 
-### 2. Vector Operations (`core/vector/`)
+#### SIMD Module (`src/simd/`)
+High-performance vector operations:
 
-Optimized vector operations with automatic SIMD detection:
+- **`mod.zig`** - SIMD module interface
+- **`optimized_ops.zig`** - CPU-optimized SIMD operations
+- **`enhanced_vector.zig`** - Enhanced vector operations
+- **`matrix_ops.zig`** - Matrix operations with SIMD
 
-- **Distance Metrics**: Euclidean, Cosine, Dot Product, Manhattan
-- **SIMD Acceleration**: AVX2 (x86_64), NEON (ARM)
-- **Vector Arithmetic**: Add, subtract, scale, normalize
-- **Memory Alignment**: Optimal cache utilization
+#### AI Module (`src/ai/`)
+Machine learning and neural network capabilities:
 
-### 3. Index Backend (`core/index/`)
+- **`mod.zig`** - AI module interface
+- **`enhanced_agent.zig`** - Enhanced AI agent implementation
 
-Pluggable indexing algorithms:
+#### WDBX Module (`src/wdbx/`)
+Unified vector database interface:
 
-#### Flat Index
-- Brute-force search
-- 100% recall
-- Best for small datasets (<10K vectors)
+- **`mod.zig`** - WDBX module interface
+- **`unified.zig`** - Consolidated WDBX implementation
+- **`cli.zig`** - Command-line interface
+- **`core.zig`** - Core WDBX functionality
+- **`http.zig`** - HTTP server implementation
 
-#### HNSW Index
-- Hierarchical Navigable Small World
-- Approximate nearest neighbor search
-- Scalable to millions of vectors
-- Configurable accuracy/speed trade-off
+#### Plugins Module (`src/plugins/`)
+Extensible plugin system:
 
-#### Future Indexes
-- IVF (Inverted File): Clustering-based index
-- LSH (Locality Sensitive Hashing): Hash-based index
+- **`mod.zig`** - Plugin system interface
+- **`interface.zig`** - Plugin interface definitions
+- **`loader.zig`** - Plugin loading and management
+- **`registry.zig`** - Plugin registry and discovery
+- **`types.zig`** - Plugin type definitions
 
-### 4. Storage Backend (`core/storage/`)
+## Key Improvements
 
-Flexible storage options:
+### 1. Unified Architecture
+- Consolidated multiple WDBX implementations into a single, coherent system
+- Eliminated code duplication and inconsistencies
+- Standardized interfaces across all modules
 
-#### File Storage
-- Binary format with efficient I/O
-- Page-aligned operations
-- Append-only writes for durability
-- Defragmentation support
+### 2. Enhanced Memory Management
+- **Smart Allocator**: Automatically chooses optimal allocation strategy
+- **Pool Allocator**: Efficient allocation for small, frequent objects
+- **Memory-Mapped Allocator**: Efficient handling of large data
+- **String Interning**: Reduces memory usage for repeated strings
+- **Memory Tracking**: Real-time leak detection and usage monitoring
 
-#### Memory Storage
-- In-memory storage for testing
-- Fast operations
-- No persistence
+### 3. Performance Optimizations
+- **CPU Feature Detection**: Automatic detection of SIMD capabilities
+- **Optimized SIMD Operations**: Hand-tuned for different CPU architectures
+- **Batch Operations**: Efficient processing of multiple vectors
+- **Parallel Processing**: Multi-threaded operations with thread pools
+- **Cache-Friendly Algorithms**: Optimized for modern CPU cache hierarchies
 
-#### Future Storage
-- Memory-mapped files
-- Distributed storage
-- Cloud storage adapters
+### 4. Comprehensive Error Handling
+- **Categorized Errors**: Systematic error classification
+- **Error Tracking**: Real-time error monitoring and reporting
+- **Contextual Information**: Rich error context with location and timing
+- **Automatic Recovery**: Health monitoring with automatic recovery
 
-### 5. API Layer (`api/`)
+### 5. Advanced Monitoring
+- **Performance Metrics**: Detailed timing and throughput statistics
+- **Resource Monitoring**: Memory, CPU, and I/O usage tracking
+- **Health Checks**: Automatic system health monitoring
+- **Comprehensive Logging**: Structured logging with multiple levels
 
-Multiple interfaces for different use cases:
+### 6. Production Features
+- **Concurrent Operations**: Read-write locks for safe concurrency
+- **Asynchronous Operations**: Non-blocking operations with worker threads
+- **Backup and Recovery**: Automated backup with retention policies
+- **Configuration Validation**: Runtime configuration validation
+- **Metrics Export**: Prometheus-compatible metrics export
 
-#### CLI (`api/cli/`)
-- Interactive and batch modes
-- Multiple output formats
-- Scripting support
+## Performance Characteristics
 
-#### HTTP Server (`api/http/`)
-- RESTful API
-- JSON request/response
-- JWT authentication
-- WebSocket support
+### SIMD Optimizations
+- **AVX-512**: 16-element vector operations (where supported)
+- **AVX/AVX2**: 8-element vector operations
+- **SSE2**: 4-element vector operations
+- **NEON**: ARM SIMD support
+- **Automatic Fallback**: Scalar operations when SIMD unavailable
 
-#### TCP Server (`api/tcp/`)
-- Binary protocol
-- Low latency
-- Persistent connections
+### Scalability
+- **Vector Capacity**: Millions of vectors per database
+- **Dimension Support**: Up to 65,535 dimensions
+- **Concurrent Readers**: Up to 128 concurrent read operations
+- **Batch Processing**: Efficient bulk operations
+- **Memory Efficiency**: Optimized memory layout and compression
 
-## Data Flow
-
-### Write Path
-
-1. **API Request**: Vector data received through API
-2. **Validation**: Dimension and format checking
-3. **Storage Write**: Append vector to storage backend
-4. **Index Update**: Add vector to index structure
-5. **Response**: Return vector ID to client
-
-### Read Path
-
-1. **API Request**: Query vector received
-2. **Index Search**: Find nearest neighbors
-3. **Storage Read**: Fetch vector data for results
-4. **Post-processing**: Apply filters, limits
-5. **Response**: Return search results
-
-## Performance Optimizations
-
-### SIMD Acceleration
-
-Automatic detection and use of SIMD instructions:
-
-```zig
-// Automatic SIMD selection
-pub fn init(allocator: std.mem.Allocator, use_simd: bool) !Self {
-    const simd_ops = if (use_simd and simd.isSupported()) 
-        try simd.SimdOps.init(allocator)
-    else 
-        null;
-    // ...
-}
-```
-
-### Memory Management
-
-- Arena allocators for temporary data
-- Memory pools for frequent allocations
-- Aligned allocations for SIMD
-- Zero-copy operations where possible
-
-### Concurrency
-
-- Thread-safe database operations
-- Lock-free data structures
-- Parallel index construction
-- Concurrent searches
+### Indexing Methods
+- **HNSW**: Hierarchical Navigable Small World for approximate search
+- **LSH**: Locality Sensitive Hashing (planned)
+- **IVF**: Inverted File Index (planned)
+- **Brute Force**: Exact search with SIMD acceleration
 
 ## Configuration
 
+### Core Configuration
+```zig
+const config = core.CoreConfig{
+    .log_level = .info,
+    .enable_performance_monitoring = true,
+    .memory_pool_size = 1024 * 1024, // 1MB
+    .thread_pool_size = 0, // Auto-detect
+};
+```
+
 ### Database Configuration
-
 ```zig
-pub const DatabaseConfig = struct {
-    dimensions: u32,
-    index_type: index.IndexType = .hnsw,
-    storage_type: storage.StorageType = .file,
-    distance_metric: vector.DistanceMetric = .euclidean,
-    enable_simd: bool = true,
-    hnsw_m: u32 = 16,
-    hnsw_ef_construction: u32 = 200,
-    // ...
+const config = wdbx.UnifiedConfig{
+    .dimension = 384,
+    .max_vectors = 1_000_000,
+    .enable_simd = true,
+    .enable_compression = true,
+    .index_type = .hnsw,
+    .enable_async = true,
+    .enable_profiling = true,
 };
 ```
 
-### API Configuration
-
+### Production Configuration
 ```zig
-pub const ApiConfig = struct {
-    enable_auth: bool = true,
-    enable_rate_limit: bool = true,
-    rate_limit_rpm: u32 = 1000,
-    enable_metrics: bool = true,
-    // ...
-};
+const config = wdbx.UnifiedConfig.createProduction(384);
+// Includes: sharding, replication, enhanced monitoring
 ```
 
-## Error Handling
+## Usage Examples
 
-Comprehensive error handling with context:
-
+### Basic Usage
 ```zig
-pub const ErrorSet = error{
-    InvalidFileFormat,
-    CorruptedData,
-    InvalidDimensions,
-    // ...
+const std = @import("std");
+const wdbx = @import("src/wdbx/mod.zig");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    
+    // Create database
+    var db = try wdbx.createWithDefaults(allocator, "vectors.wdbx", 384);
+    defer db.deinit();
+    
+    // Add vectors
+    const vector = [_]f32{0.1} ** 384;
+    const id = try db.addVector(&vector);
+    
+    // Search
+    const results = try db.search(&vector, 10);
+    defer {
+        for (results) |*result| {
+            result.deinit(allocator);
+        }
+        allocator.free(results);
+    }
+    
+    // Print statistics
+    try db.printStats();
+}
+```
+
+### Advanced Usage with Configuration
+```zig
+const config = wdbx.UnifiedConfig{
+    .dimension = 1536,
+    .max_vectors = 10_000_000,
+    .enable_simd = true,
+    .enable_compression = true,
+    .compression_level = 8,
+    .cache_size_mb = 2048,
+    .index_type = .hnsw,
+    .hnsw_m = 32,
+    .hnsw_ef_construction = 400,
+    .enable_async = true,
+    .enable_profiling = true,
+    .enable_health_check = true,
+    .enable_auto_backup = true,
+    .backup_interval_minutes = 30,
 };
 
-pub const ErrorContext = struct {
-    error_type: ErrorSet,
-    message: []const u8,
-    file: []const u8,
-    line: u32,
-    timestamp: i64,
-};
+var db = try wdbx.createUnified(allocator, "production.wdbx", config);
+defer db.deinit();
 ```
+
+## Build System
+
+### Build Commands
+```bash
+# Build the project
+zig build
+
+# Run tests
+zig build test
+
+# Run benchmarks
+zig build benchmark
+
+# Generate documentation
+zig build docs
+
+# Format code
+zig build fmt
+
+# Check code (format + test)
+zig build check
+
+# Build production version
+zig build prod
+
+# Build development version
+zig build dev
+
+# Clean build artifacts
+zig build clean
+```
+
+### Build Targets
+- **`wdbx-ai`** - Main CLI executable
+- **`wdbx-ai-lib`** - Static library
+- **`benchmark`** - Performance benchmarking tool
+- **`wdbx-ai-dev`** - Development build with debug symbols
+- **`wdbx-ai-prod`** - Optimized production build
 
 ## Testing Strategy
 
-### Unit Tests
-- Per-module tests
-- Mock dependencies
-- Property-based testing
+### Test Categories
+1. **Unit Tests**: Individual module functionality
+2. **Integration Tests**: Cross-module interactions
+3. **Performance Tests**: Timing and throughput validation
+4. **Stress Tests**: High-load and edge case testing
+5. **Memory Tests**: Leak detection and usage validation
 
-### Integration Tests
-- End-to-end scenarios
-- Multi-component interactions
-- Performance regression tests
+### Test Configuration
+```zig
+const test_config = TestConfig{
+    .enable_performance_tests = true,
+    .enable_integration_tests = true,
+    .enable_stress_tests = false,
+    .verbose_output = true,
+    .parallel_execution = true,
+    .timeout_seconds = 300,
+};
+```
 
-### Benchmarks
-- Micro-benchmarks for hot paths
-- Macro-benchmarks for real workloads
-- Comparison with other databases
+## Monitoring and Observability
 
-## Deployment
+### Metrics Available
+- **Operation Metrics**: Count, latency, success rate
+- **Resource Metrics**: Memory usage, cache hit rate
+- **Performance Metrics**: Throughput, response times
+- **Health Metrics**: System health score, error rates
 
-### Single Node
-- Simple file-based deployment
-- Systemd service configuration
-- Docker container support
+### Logging Levels
+- **DEBUG**: Detailed debugging information
+- **INFO**: General operational information
+- **WARN**: Warning conditions
+- **ERROR**: Error conditions requiring attention
 
-### High Availability
-- Read replicas
-- Failover support
-- Backup strategies
+### Error Categories
+- **SYSTEM**: System-level errors
+- **DATABASE**: Database operation errors
+- **NETWORK**: Network communication errors
+- **CONFIG**: Configuration validation errors
+- **VALIDATION**: Input validation errors
+- **RESOURCE**: Resource exhaustion errors
+- **CONCURRENCY**: Concurrency-related errors
+- **SECURITY**: Security and authentication errors
 
-### Monitoring
-- Prometheus metrics
-- Health endpoints
-- Performance dashboards
+## Security Considerations
 
-## Future Directions
+### Memory Safety
+- Comprehensive bounds checking
+- Memory leak detection and prevention
+- Safe concurrent access with proper locking
+- Automatic cleanup and resource management
 
-1. **GPU Acceleration**: CUDA/ROCm support for large-scale operations
-2. **Distributed Mode**: Sharding and replication
-3. **Advanced Indexes**: Graph-based and learned indexes
-4. **Query Optimization**: Cost-based optimizer
-5. **Multi-modal Support**: Text, image, and audio embeddings
+### Error Handling
+- Comprehensive error categorization
+- Secure error message handling
+- No sensitive information in error logs
+- Graceful degradation under failure conditions
+
+## Future Enhancements
+
+### Planned Features
+1. **Distributed Clustering**: Multi-node deployment
+2. **GPU Acceleration**: CUDA/OpenCL support
+3. **Advanced Indexing**: LSH and IVF implementations
+4. **Compression**: Advanced vector compression algorithms
+5. **Replication**: Multi-master replication support
+6. **Monitoring**: Enhanced metrics and alerting
+7. **Security**: Authentication and authorization
+8. **APIs**: REST and gRPC interfaces
+
+### Roadmap
+- **v2.1**: GPU acceleration and advanced indexing
+- **v2.2**: Distributed clustering and replication
+- **v2.3**: Enhanced security and monitoring
+- **v3.0**: Complete distributed system with auto-scaling
+
+## Contributing
+
+### Code Style
+- Follow Zig community conventions
+- Use descriptive variable and function names
+- Include comprehensive documentation
+- Write tests for all new functionality
+
+### Development Workflow
+1. **Setup**: Install Zig 0.15.1 and dependencies
+2. **Development**: Use `zig build dev` for development builds
+3. **Testing**: Run `zig build test` before committing
+4. **Formatting**: Use `zig build fmt` to format code
+5. **Documentation**: Update docs for any API changes
+
+### Performance Guidelines
+- Always consider SIMD optimization opportunities
+- Use appropriate allocators for different use cases
+- Implement comprehensive benchmarks for new features
+- Profile memory usage and optimize for cache efficiency
+
+## Troubleshooting
+
+### Common Issues
+1. **Build Failures**: Ensure Zig 0.15.1 is installed
+2. **Memory Issues**: Check for leaks using built-in tracking
+3. **Performance Issues**: Use benchmarking tools to identify bottlenecks
+4. **Configuration Issues**: Validate configuration before use
+
+### Debug Tools
+- **Memory Tracker**: Real-time memory usage monitoring
+- **Performance Profiler**: Function-level timing analysis
+- **Error Tracker**: Comprehensive error logging and analysis
+- **Health Monitor**: System health checks and recovery
+
+### Support
+- Check documentation in `docs/` directory
+- Run `zig build test` to verify system functionality
+- Use verbose logging for detailed troubleshooting
+- Consult benchmark results for performance baselines

@@ -1,189 +1,173 @@
 const std = @import("std");
 
-// Although this function looks imperative, it does not perform the build
-// directly and instead it mutates the build graph (`b`) that will be then
-// executed by an external runner. The functions in `std.Build` implement a DSL
-// for defining build steps and express dependencies between them, allowing the
-// build runner to parallelize the build automatically (and the cache system to
-// know when a step doesn't need to be re-run).
 pub fn build(b: *std.Build) void {
-    // Standard target options allow the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
+    // Standard target options
     const target = b.standardTargetOptions(.{});
-    // Standard optimization options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
-    // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    // Build options for feature flags
-    const build_options = b.addOptions();
-    build_options.addOption([]const u8, "simd_level", "auto");
-    build_options.addOption(bool, "gpu", false);
-    build_options.addOption(bool, "simd", true);
-    build_options.addOption(bool, "neural_accel", false);
-    build_options.addOption(bool, "webgpu", false);
-    build_options.addOption(bool, "hot_reload", false);
-    build_options.addOption(bool, "enable_tracy", false);
-    build_options.addOption(bool, "is_wasm", false);
-
-    // This creates a module, which represents a collection of source files alongside
-    // some compilation options, such as optimization mode and linked system libraries.
-    // Zig modules are the preferred way of making Zig code available to consumers.
-    // addModule defines a module that we intend to make available for importing
-    // to our consumers. We must give it a name because a Zig package can expose
-    // multiple modules and consumers will need to be able to specify which
-    // module they want to access.
-    // Core modules
-    const core_mod = b.createModule(.{
-        .root_source_file = b.path("src/core/mod.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    
-    const api_mod = b.createModule(.{
-        .root_source_file = b.path("src/api/mod.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    
-    const utils_mod = b.createModule(.{
-        .root_source_file = b.path("src/utils/mod.zig"),
+    // Main executable
+    const exe = b.addExecutable(.{
+        .name = "wdbx-ai",
+        .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
     });
 
-    const mod = b.addModule("abi", .{
-        // The root source file is the "entry point" of this module. Users of
-        // this module will only be able to access public declarations contained
-        // in this file, which means that if you have declarations that you
-        // intend to expose to consumers that were defined in other files part
-        // of this module, you will have to make sure to re-export them from
-        // the root file.
-        .root_source_file = b.path("src/root.zig"),
-        // Later on we'll use this module as the root module of a test executable
-        // which requires us to specify a target.
+    // Add library dependencies
+    const lib = b.addStaticLibrary(.{
+        .name = "wdbx-ai-lib",
+        .root_source_file = .{ .path = "src/mod.zig" },
         .target = target,
+        .optimize = optimize,
     });
 
-    mod.addImport("core", core_mod);
-    mod.addImport("api", api_mod);
-    mod.addImport("utils", utils_mod);
+    // Install artifacts
+    b.installArtifact(exe);
+    b.installArtifact(lib);
 
-    // Main executable - refactored entry point
-    const cli_exe = b.addExecutable(.{
-        .name = "wdbx",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main_refactored.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "abi", .module = mod },
-                .{ .name = "build_options", .module = build_options.createModule() },
-            },
-        }),
-    });
+    // Run command
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+    if (b.args) |args| {
+        run_cmd.addArgs(args);
+    }
 
-    // This declares intent for the executable to be installed into the
-    // install prefix when running `zig build` (i.e. when executing the default
-    // step). By default the install prefix is `zig-out/` but can be overridden
-    // by passing `--prefix` or -p`.
-    b.installArtifact(cli_exe);
+    const run_step = b.step("run", "Run the application");
+    run_step.dependOn(&run_cmd.step);
 
-    // This creates a top level step. Top level steps have a name and can be
-    // invoked by name when running `zig build` (e.g. `zig build run`).
-    // This will evaluate the `run` step rather than the default step.
-    // For a top level step to actually do something, it must depend on other
-    // steps (e.g. a Run step, as we will see in a moment).
-    const run_step = b.step("run", "Run the CLI app");
-
-    // This creates a RunArtifact step in the build graph. A RunArtifact step
-    // invokes an executable compiled by Zig. Steps will only be executed by
-    // the build runner when they are depended on by another step.
-    const cli_run = b.addRunArtifact(cli_exe);
-
-    run_step.dependOn(&cli_run.step);
-
-    // Creates a step for unit testing. This will expose a `test` step that
-    // can be invoked like this: `zig build test`
-    const unit_tests = b.addTest(.{
-        .root_module = mod,
-    });
-
-    const run_unit_tests = b.addRunArtifact(unit_tests);
-
-    // Similar to creating the run step earlier, this exposes a `test` step that
-    // can be invoked like this: `zig build test`
+    // Test step
     const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_unit_tests.step);
+    
+    // Add test executables for each test file
+    const test_files = [_][]const u8{
+        "tests/test_ai.zig",
+        "tests/test_database.zig", 
+        "tests/test_database_hnsw.zig",
+        "tests/test_database_integration.zig",
+        "tests/test_memory_management.zig",
+        "tests/test_performance_optimizations.zig",
+        "tests/test_simd_vector.zig",
+        "tests/test_weather.zig",
+        "tests/test_web_server.zig",
+        "tests/test_cli_integration.zig",
+        "tests/test_discord_plugin.zig",
+        "tests/test_weather_integration.zig",
+        "tests/test_performance_regression.zig",
+    };
 
-    // Benchmark executable
-    const benchmark_exe = b.addExecutable(.{
-        .name = "database_benchmark",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("benchmarks/database_benchmark.zig"),
+    for (test_files) |test_file| {
+        const test_exe = b.addTest(.{
+            .root_source_file = .{ .path = test_file },
             .target = target,
             .optimize = optimize,
-            .imports = &.{
-                .{ .name = "database", .module = mod },
-            },
-        }),
+        });
+        
+        const run_test = b.addRunArtifact(test_exe);
+        test_step.dependOn(&run_test.step);
+    }
+
+    // Core module tests
+    const core_test = b.addTest(.{
+        .root_source_file = .{ .path = "src/core/mod.zig" },
+        .target = target,
+        .optimize = optimize,
     });
+    const run_core_test = b.addRunArtifact(core_test);
+    test_step.dependOn(&run_core_test.step);
+
+    // Main module tests
+    const main_test = b.addTest(.{
+        .root_source_file = .{ .path = "src/mod.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    const run_main_test = b.addRunArtifact(main_test);
+    test_step.dependOn(&run_main_test.step);
 
     // Benchmark step
-    const benchmark_step = b.step("benchmark", "Run database performance benchmarks");
+    const benchmark_step = b.step("benchmark", "Run benchmarks");
+    
+    const benchmark_exe = b.addExecutable(.{
+        .name = "benchmark",
+        .root_source_file = .{ .path = "benchmarks/main.zig" },
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    
     const run_benchmark = b.addRunArtifact(benchmark_exe);
     benchmark_step.dependOn(&run_benchmark.step);
 
-    // Server integration tests removed during cleanup (outdated, flaky on Windows)
-
-    // Static analysis tool
-    const static_analysis = b.addExecutable(.{
-        .name = "static_analysis",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tools/static_analysis.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
+    // Documentation step
+    const docs_step = b.step("docs", "Generate documentation");
+    const docs_install = b.addInstallDirectory(.{
+        .source_dir = lib.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs",
     });
-    b.installArtifact(static_analysis);
+    docs_step.dependOn(&docs_install.step);
 
-    const run_static_analysis = b.addRunArtifact(static_analysis);
+    // Format step
+    const fmt_step = b.step("fmt", "Format source code");
+    const fmt = b.addFmt(.{
+        .paths = &.{
+            "src",
+            "tests", 
+            "benchmarks",
+            "build.zig",
+        },
+    });
+    fmt_step.dependOn(&fmt.step);
+
+    // Check step (format + test)
+    const check_step = b.step("check", "Check code formatting and run tests");
+    check_step.dependOn(&fmt.step);
+    check_step.dependOn(test_step);
+
+    // Clean step
+    const clean_step = b.step("clean", "Clean build artifacts");
+    const clean_cmd = b.addSystemCommand(&.{ "rm", "-rf", "zig-cache", "zig-out" });
+    clean_step.dependOn(&clean_cmd.step);
+
+    // Install step for CLI tool
+    const install_step = b.step("install", "Install WDBX-AI CLI tool");
+    const install_exe = b.addInstallArtifact(exe, .{
+        .dest_dir = .{ .override = .{ .custom = "../bin" } },
+    });
+    install_step.dependOn(&install_exe.step);
+
+    // Development mode with debug symbols
+    const dev_exe = b.addExecutable(.{
+        .name = "wdbx-ai-dev",
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = .Debug,
+    });
+    dev_exe.addArgs(&.{"-DDEBUG"});
+    
+    const dev_step = b.step("dev", "Build development version with debug symbols");
+    dev_step.dependOn(&b.addInstallArtifact(dev_exe, .{}).step);
+
+    // Production build
+    const prod_exe = b.addExecutable(.{
+        .name = "wdbx-ai-prod",
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    prod_exe.strip = true;
+    
+    const prod_step = b.step("prod", "Build optimized production version");
+    prod_step.dependOn(&b.addInstallArtifact(prod_exe, .{}).step);
+
+    // Static analysis step
     const analyze_step = b.step("analyze", "Run static analysis");
-    analyze_step.dependOn(&run_static_analysis.step);
+    const analyze_cmd = b.addSystemCommand(&.{ "zig", "ast-check", "src/main.zig" });
+    analyze_step.dependOn(&analyze_cmd.step);
 
-    // Windows network diagnostic tool
-    const network_test = b.addExecutable(.{
-        .name = "windows_network_test",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("windows_network_test.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "abi", .module = mod },
-            },
-        }),
-    });
-    b.installArtifact(network_test);
-
-    const run_network_test = b.addRunArtifact(network_test);
-    const network_test_step = b.step("test-network", "Run Windows network diagnostic");
-    network_test_step.dependOn(&run_network_test.step);
-
-    // Plugin system tests
-    const plugin_tests = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/plugins/mod.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "abi", .module = mod },
-            },
-        }),
-    });
-
-    const run_plugin_tests = b.addRunArtifact(plugin_tests);
-    const plugin_test_step = b.step("test-plugins", "Run plugin system tests");
-    plugin_test_step.dependOn(&run_plugin_tests.step);
+    // All step - runs everything
+    const all_step = b.step("all", "Build everything and run all checks");
+    all_step.dependOn(check_step);
+    all_step.dependOn(benchmark_step);
+    all_step.dependOn(docs_step);
+    all_step.dependOn(&b.getInstallStep().step);
 }

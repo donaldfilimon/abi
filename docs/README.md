@@ -1,6 +1,6 @@
-# Abi AI Framework Documentation
+# WDBX-AI Vector Database Documentation v2.0
 
-This directory contains comprehensive documentation for the Abi AI Framework, covering all aspects from quick start guides to detailed technical specifications.
+This directory contains comprehensive documentation for the WDBX-AI Vector Database, covering all aspects from quick start guides to detailed technical specifications. The system has been completely overhauled with unified architecture, enhanced performance, and production-ready features.
 
 ## 📚 **Core Documentation**
 
