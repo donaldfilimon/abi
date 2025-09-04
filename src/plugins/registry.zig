@@ -21,14 +21,17 @@ const PluginEntry = struct {
     plugin: *Plugin,
     config: PluginConfig,
     load_order: u32,
+    /// Filesystem path to the loaded plugin library (owned by registry)
+    path: []const u8,
     dependencies: std.ArrayList([]const u8),
     dependents: std.ArrayList([]const u8),
 
-    pub fn init(allocator: std.mem.Allocator, plugin: *Plugin, load_order: u32) PluginEntry {
+    pub fn init(allocator: std.mem.Allocator, plugin: *Plugin, load_order: u32, path: []const u8) !PluginEntry {
         return .{
             .plugin = plugin,
             .config = PluginConfig.init(allocator),
             .load_order = load_order,
+            .path = try allocator.dupe(u8, path),
             .dependencies = std.ArrayList([]const u8){},
             .dependents = std.ArrayList([]const u8){},
         };
@@ -44,6 +47,7 @@ const PluginEntry = struct {
             allocator.free(dep);
         }
         self.dependents.deinit(allocator);
+        allocator.free(self.path);
     }
 };
 
@@ -103,6 +107,11 @@ pub const PluginRegistry = struct {
         // Get plugin info
         const info = plugin.getInfo();
 
+        // Validate ABI compatibility
+        if (!info.isCompatible(interface.PLUGIN_ABI_VERSION)) {
+            return PluginError.IncompatibleVersion;
+        }
+
         // Check if already registered
         if (self.plugins.contains(info.name)) {
             return PluginError.AlreadyRegistered;
@@ -112,7 +121,7 @@ pub const PluginRegistry = struct {
         const load_order = self.load_order_counter;
         self.load_order_counter += 1;
 
-        var entry = PluginEntry.init(self.allocator, plugin, load_order);
+        var entry = try PluginEntry.init(self.allocator, plugin, load_order, plugin_path);
         errdefer entry.deinit(self.allocator);
 
         // Check dependencies
@@ -152,50 +161,94 @@ pub const PluginRegistry = struct {
         try entry.plugin.stop();
     }
 
-    /// Start all plugins in dependency order
-    pub fn startAllPlugins(self: *PluginRegistry) !void {
-        // Get plugins sorted by load order
-        var plugin_list = std.ArrayList(PluginEntry){};
-        defer plugin_list.deinit(self.allocator);
+    /// Compute a dependency-based topological order of plugin names
+    fn computeTopologicalOrder(self: *PluginRegistry) !std.ArrayList([]const u8) {
+        // indegree map for each plugin (number of unresolved dependencies)
+        var indegree = std.StringHashMap(u32).init(self.allocator);
+        defer indegree.deinit();
 
-        var iterator = self.plugins.valueIterator();
-        while (iterator.next()) |entry| {
-            try plugin_list.append(self.allocator, entry.*);
+        // Initialize indegree to 0 for all plugins
+        var key_it = self.plugins.keyIterator();
+        while (key_it.next()) |name| {
+            try indegree.put(name.*, 0);
         }
 
-        // Sort by load order
-        std.sort.insertion(PluginEntry, plugin_list.items, {}, struct {
-            fn lessThan(_: void, a: PluginEntry, b: PluginEntry) bool {
-                return a.load_order < b.load_order;
+        // Count dependencies
+        var val_it = self.plugins.valueIterator();
+        while (val_it.next()) |entry| {
+            for (entry.dependencies.items) |dep_name| {
+                if (indegree.getPtr(dep_name)) |count_ptr| {
+                    count_ptr.* += 1;
+                }
             }
-        }.lessThan);
+        }
 
-        // Start plugins in order
-        for (plugin_list.items) |entry| {
+        // Queue of nodes with indegree 0
+        var queue = std.ArrayList([]const u8){};
+        defer queue.deinit(self.allocator);
+
+        key_it = self.plugins.keyIterator();
+        while (key_it.next()) |name| {
+            if (indegree.get(name.*)) |count| {
+                if (count == 0) {
+                    try queue.append(self.allocator, name.*);
+                }
+            }
+        }
+
+        // Result order
+        var order = std.ArrayList([]const u8){};
+        errdefer order.deinit(self.allocator);
+
+        while (queue.items.len > 0) {
+            const current = queue.items[queue.items.len - 1];
+            _ = queue.pop();
+
+            try order.append(self.allocator, current);
+
+            // Decrease indegree of dependents
+            if (self.plugins.getPtr(current)) |entry_ptr| {
+                for (entry_ptr.dependents.items) |dependent_name| {
+                    if (indegree.getPtr(dependent_name)) |dep_count| {
+                        dep_count.* -= 1;
+                        if (dep_count.* == 0) {
+                            try queue.append(self.allocator, dependent_name);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (order.items.len != self.plugins.count()) {
+            // Cycle detected or missing dependencies
+            order.deinit(self.allocator);
+            return PluginError.ConflictingPlugin;
+        }
+
+        return order;
+    }
+
+    /// Start all plugins in dependency order (dependencies before dependents)
+    pub fn startAllPlugins(self: *PluginRegistry) !void {
+        var order = try self.computeTopologicalOrder();
+        defer order.deinit(self.allocator);
+
+        for (order.items) |name| {
+            const entry = self.plugins.get(name) orelse continue;
             try entry.plugin.start();
         }
     }
 
-    /// Stop all plugins in reverse order
+    /// Stop all plugins in reverse dependency order (dependents before dependencies)
     pub fn stopAllPlugins(self: *PluginRegistry) !void {
-        // Get plugins sorted by reverse load order
-        var plugin_list = std.ArrayList(PluginEntry){};
-        defer plugin_list.deinit(self.allocator);
+        var order = try self.computeTopologicalOrder();
+        defer order.deinit(self.allocator);
 
-        var iterator = self.plugins.valueIterator();
-        while (iterator.next()) |entry| {
-            try plugin_list.append(self.allocator, entry.*);
-        }
-
-        // Sort by reverse load order
-        std.sort.insertion(PluginEntry, plugin_list.items, {}, struct {
-            fn lessThan(_: void, a: PluginEntry, b: PluginEntry) bool {
-                return a.load_order > b.load_order;
-            }
-        }.lessThan);
-
-        // Stop plugins in reverse order
-        for (plugin_list.items) |entry| {
+        var i: usize = order.items.len;
+        while (i > 0) {
+            i -= 1;
+            const name = order.items[i];
+            const entry = self.plugins.get(name) orelse continue;
             try entry.plugin.stop();
         }
     }
@@ -307,8 +360,9 @@ pub const PluginRegistry = struct {
             }
         }
 
-        // Destroy the plugin
+        // Destroy the plugin and unload the shared library
         interface.destroyPlugin(self.allocator, entry.value.plugin);
+        try self.loader.unloadPlugin(entry.value.path);
     }
 
     /// Validate plugin dependencies

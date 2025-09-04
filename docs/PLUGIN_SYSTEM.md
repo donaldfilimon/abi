@@ -383,61 +383,53 @@ const PipelinePlugin = struct {
 
 #### **Basic Plugin Template**
 ```zig
-// my_plugin.zig
 const std = @import("std");
+const abi = @import("abi");
+const plugins = abi.plugins;
 
-export fn get_plugin_info() PluginInfo {
-    return PluginInfo{
-        .name = "MyPlugin",
-        .version = "1.0.0",
-        .description = "A sample plugin for the Abi AI Framework",
-        .author = "Your Name",
-        .license = "MIT",
-        .capabilities = .{
-            .ai_model = true,
-            .data_source = false,
-            .pipeline = false,
-        },
-    };
-}
+const PluginInfo = plugins.types.PluginInfo;
+const PluginVersion = plugins.types.PluginVersion;
+const PluginType = plugins.types.PluginType;
+const PluginConfig = plugins.types.PluginConfig;
+const PluginContext = plugins.types.PluginContext;
+const PluginInterface = plugins.interface.PluginInterface;
+const PLUGIN_ABI_VERSION = plugins.interface.PLUGIN_ABI_VERSION;
 
-export fn plugin_init() error!void {
-    std.log.info("MyPlugin initialized", .{});
-}
-
-export fn plugin_cleanup() error!void {
-    std.log.info("MyPlugin cleaned up", .{});
-}
-
-export fn plugin_predict(input: [*]const u8, input_len: usize) [*]u8 {
-    const input_slice = input[0..input_len];
-    
-    // Process input and generate response
-    const response = "Hello from MyPlugin!";
-    
-    // Allocate response buffer
-    const response_buffer = std.heap.page_allocator.alloc(u8, response.len) catch {
-        return null;
-    };
-    
-    @memcpy(response_buffer, response);
-    return response_buffer.ptr;
-}
-
-const PluginInfo = struct {
-    name: [*]const u8,
-    version: [*]const u8,
-    description: [*]const u8,
-    author: [*]const u8,
-    license: [*]const u8,
-    capabilities: PluginCapabilities,
+// Static plugin metadata
+const PLUGIN_INFO = PluginInfo{
+    .name = "MyPlugin",
+    .version = PluginVersion.init(1, 0, 0),
+    .author = "Your Name",
+    .description = "A sample plugin for the Abi AI Framework",
+    .plugin_type = .custom,
+    .abi_version = PLUGIN_ABI_VERSION,
+    .license = "MIT",
 };
 
-const PluginCapabilities = struct {
-    ai_model: bool,
-    data_source: bool,
-    pipeline: bool,
+// Required lifecycle functions
+fn getInfo() callconv(.c) *const PluginInfo { return &PLUGIN_INFO; }
+fn initPlugin(context: *PluginContext) callconv(.c) c_int { _ = context; return 0; }
+fn deinitPlugin(context: *PluginContext) callconv(.c) void { _ = context; }
+
+// Optional handlers
+fn startPlugin(context: *PluginContext) callconv(.c) c_int { _ = context; return 0; }
+fn stopPlugin(context: *PluginContext) callconv(.c) c_int { _ = context; return 0; }
+fn getStatus(context: *PluginContext) callconv(.c) c_int { _ = context; return 1; }
+
+// VTable definition
+const PLUGIN_INTERFACE = PluginInterface{
+    .get_info = getInfo,
+    .init = initPlugin,
+    .deinit = deinitPlugin,
+    .start = startPlugin,
+    .stop = stopPlugin,
+    .get_status = getStatus,
 };
+
+// Standard entry point symbol
+pub export fn abi_plugin_create() ?*const PluginInterface {
+    return &PLUGIN_INTERFACE;
+}
 ```
 
 ### **2. Build Configuration**
