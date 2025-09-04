@@ -127,8 +127,8 @@ pub const CLI = struct {
     /// Output message based on configuration
     pub fn output(self: *Self, message: []const u8) !void {
         if (!self.config.quiet) {
-            const stdout = std.io.getStdOut().writer();
-            try stdout.print("{s}\n", .{message});
+            // const stdout = std.io.getStdOut().writer(); // Use std.debug.print instead
+            std.debug.print("{s}\n", .{message});
         }
     }
 

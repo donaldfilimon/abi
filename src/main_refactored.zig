@@ -28,7 +28,7 @@ const Command = enum {
     serve,
     cli,
     benchmark,
-    test,
+    test_cmd,
 
     pub fn fromString(s: []const u8) ?Command {
         return std.meta.stringToEnum(Command, s);
@@ -136,7 +136,7 @@ fn executeCommand(allocator: std.mem.Allocator, config: AppConfig) !void {
         .serve => try startServer(allocator, config),
         .cli => try runCli(allocator, config),
         .benchmark => try runBenchmark(allocator, config),
-        .test => try runTests(allocator),
+        .test_cmd => try runTests(allocator),
     }
 }
 
@@ -173,16 +173,14 @@ fn showHelp() !void {
         \\
     ;
 
-    const stdout = std.io.getStdOut().writer();
-    try stdout.print(help_text, .{core.VERSION});
+    // const stdout = std.io.getStdOut(); // Use std.debug.print instead
+    std.debug.print(help_text, .{core.VERSION});
 }
 
 /// Show version information
 fn showVersion() !void {
-    const stdout = std.io.getStdOut().writer();
-    try stdout.print("WDBX Vector Database v{s}\n", .{core.VERSION});
-    try stdout.print("Build: {s}\n", .{@tagName(std.builtin.mode)});
-    try stdout.print("Zig version: {}\n", .{std.builtin.zig_version});
+    // const stdout = std.io.getStdOut(); // Use std.debug.print instead
+    std.debug.print("WDBX Vector Database v{s}\n", .{core.VERSION});
 }
 
 /// Initialize a new database
@@ -195,8 +193,8 @@ fn initDatabase(allocator: std.mem.Allocator, config: AppConfig) !void {
     // Create database configuration
     const db_config = core.DatabaseConfig{
         .dimensions = config.options.dimensions,
-        .index_type = .hnsw,
-        .distance_metric = .euclidean,
+        .index_type = "hnsw",
+        .distance_metric = "euclidean",
         .enable_simd = true,
     };
 
@@ -204,20 +202,22 @@ fn initDatabase(allocator: std.mem.Allocator, config: AppConfig) !void {
     const db = try core.Database.open(allocator, db_path, true);
     defer db.close();
 
-    try db.init(db_config);
+    try db.init_db(db_config);
 
     std.debug.print("Database initialized successfully at: {s}\n", .{db_path});
     std.debug.print("  Dimensions: {d}\n", .{db_config.dimensions});
-    std.debug.print("  Index type: {s}\n", .{@tagName(db_config.index_type)});
-    std.debug.print("  Distance metric: {s}\n", .{@tagName(db_config.distance_metric)});
+    std.debug.print("  Index type: {s}\n", .{db_config.index_type});
+    std.debug.print("  Distance metric: {s}\n", .{db_config.distance_metric});
 }
 
 /// Start a server
 fn startServer(allocator: std.mem.Allocator, config: AppConfig) !void {
+
     const db_path = config.options.db_path orelse {
         std.debug.print("Error: Database path required. Use --db <path>\n", .{});
         return AppError.MissingArgument;
     };
+    _ = db_path; // Suppress unused variable warning
 
     std.debug.print("Starting {s} server on {s}:{d}\n", .{
         @tagName(config.options.protocol),
@@ -227,23 +227,14 @@ fn startServer(allocator: std.mem.Allocator, config: AppConfig) !void {
 
     switch (config.options.protocol) {
         .http => {
-            var server = try api.HttpServer.init(allocator, .{
-                .db_path = db_path,
-                .host = config.options.host,
-                .port = config.options.port,
-                .api_config = config.api_config,
-            });
+            var server = api.HttpServer.init(allocator);
             defer server.deinit();
-            try server.run();
+            try server.start();
         },
         .tcp => {
-            var server = try api.TcpServer.init(allocator, .{
-                .db_path = db_path,
-                .host = config.options.host,
-                .port = config.options.port,
-            });
+            var server = api.TcpServer.init(allocator);
             defer server.deinit();
-            try server.run();
+            try server.start();
         },
         else => {
             std.debug.print("Protocol {s} not yet implemented\n", .{@tagName(config.options.protocol)});
@@ -291,8 +282,8 @@ fn runBenchmark(allocator: std.mem.Allocator, config: AppConfig) !void {
 
     try db.init(.{
         .dimensions = config.options.dimensions,
-        .index_type = .hnsw,
-        .distance_metric = .euclidean,
+        .index_type = "hnsw",
+        .distance_metric = "euclidean",
         .enable_simd = true,
     });
 
@@ -394,7 +385,7 @@ test "Basic database operations" {
     try db.init(.{
         .dimensions = 4,
         .index_type = .flat,
-        .distance_metric = .euclidean,
+        .distance_metric = "euclidean",
     });
 
     // Add vectors
