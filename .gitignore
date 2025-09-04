@@ -4,8 +4,39 @@ zig-out/
 
 # Common build outputs
 build/
+dist/
+out/
+
+# CMake build artifacts
 CMakeCache.txt
 CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+*.cmake.in
+CPackConfig.cmake
+CPackSourceConfig.cmake
+_deps/
+
+# Ninja build artifacts
 *.ninja
-compile_commands.json
+.ninja_deps
+.ninja_log
+
+# Zig build artifacts
 zig-cache/
+zig-out/
+*.zig-cache
+
+# General compilation artifacts
+compile_commands.json
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+*.exe
