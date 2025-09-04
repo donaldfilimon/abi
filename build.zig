@@ -1,115 +1,73 @@
 const std = @import("std");
-const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
+	const target = b.standardTargetOptions(.{});
+	const optimize = b.standardOptimizeOption(.{});
 
-    // Feature flags for conditional compilation
-    const options = b.addOptions();
-    options.addOption(bool, "enable_gpu", b.option(bool, "gpu", "Enable GPU acceleration") orelse detectGPUSupport());
-    options.addOption(bool, "enable_simd", b.option(bool, "simd", "Enable SIMD optimizations") orelse detectSIMDSupport());
-    options.addOption(bool, "enable_tracy", b.option(bool, "tracy", "Enable Tracy profiler") orelse false);
+	// Library/module exposing the abi interface (src/mod.zig)
+	const abi_mod = b.addModule("abi", .{
+		.root_source_file = .{ .path = "src/mod.zig" },
+	});
 
-    // Platform-specific optimizations
-    const platform_optimize = switch (target.result.os.tag) {
-        .ios => .ReleaseSmall,
-        .windows => .ReleaseSafe,
-        else => optimize,
-    };
+	// Executable
+	const exe = b.addExecutable(.{
+		.name = "abi",
+		.root_source_file = .{ .path = "src/main.zig" },
+		.target = target,
+		.optimize = optimize,
+	});
+	// Provide the abi module to any code that does @import("abi") in the exe
+	exe.root_module.addImport("abi", abi_mod);
+	b.installArtifact(exe);
 
-    const exe = b.addExecutable(.{
-        .name = "abi",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = platform_optimize,
-    });
+	// Unit tests for core code (aggregate via src/mod.zig)
+	const core_tests = b.addTest(.{
+		.root_source_file = .{ .path = "src/mod.zig" },
+		.target = target,
+		.optimize = optimize,
+	});
+	core_tests.root_module.addImport("abi", abi_mod);
 
-    // Optimization flags
-    exe.link_function_sections = true;
-    exe.link_gc_sections = true;
-    if (platform_optimize == .ReleaseSmall or platform_optimize == .ReleaseFast) {
-        exe.root_module.strip = true;
-    }
+	// Standalone test files under tests/
+	const test_files = [_][]const u8{
+		"tests/test_memory_management.zig",
+		"tests/test_performance_optimizations.zig",
+		"tests/test_performance_regression.zig",
+		"tests/test_simd_vector.zig",
+		"tests/test_weather.zig",
+		"tests/test_weather_integration.zig",
+		"tests/test_web_server.zig",
+		"tests/test_ai.zig",
+		"tests/test_cli_integration.zig",
+		"tests/test_database.zig",
+		"tests/test_database_hnsw.zig",
+		"tests/test_database_integration.zig",
+		"tests/test_discord_plugin.zig",
+	};
 
-    // Dependencies
-    exe.root_module.addOptions("build_options", options);
+	// Module for example plugins referenced by tests
+	const discord_plugin_mod = b.addModule("discord_plugin", .{
+		.root_source_file = .{ .path = "examples/plugins/discord_plugin.zig" },
+	});
+	// Expose abi to plugin sources too
+	discord_plugin_mod.addImport("abi", abi_mod);
 
-    // Platform-specific dependencies
-    switch (target.result.os.tag) {
-        .linux => {
-            exe.linkSystemLibrary("c");
-            if (b.option(bool, "enable_io_uring", "Enable io_uring support") orelse false) {
-                exe.linkSystemLibrary("uring");
-            }
-        },
-        .windows => {
-            exe.linkSystemLibrary("kernel32");
-            exe.linkSystemLibrary("user32");
-            exe.linkSystemLibrary("d3d12");
-        },
-        .macos, .ios => {
-            exe.linkFramework("Metal");
-            exe.linkFramework("MetalKit");
-            exe.linkFramework("CoreGraphics");
-        },
-        else => {},
-    }
+	const all_tests_step = b.step("test", "Run all tests");
+	const run_core_tests = b.addRunArtifact(core_tests);
+	all_tests_step.dependOn(&run_core_tests.step);
 
-    b.installArtifact(exe);
+	inline for (test_files) |tf| {
+		const t = b.addTest(.{
+			.root_source_file = .{ .path = tf },
+			.target = target,
+			.optimize = optimize,
+		});
+		// Provide modules commonly imported by tests
+		t.root_module.addImport("abi", abi_mod);
+		t.root_module.addImport("discord_plugin", discord_plugin_mod);
 
-    const bench_step = b.step("bench", "Run performance benchmarks");
-    const bench_exe = b.addRunArtifact(exe);
-    bench_exe.addArg("bench");
-    bench_exe.addArg("--iterations=1000");
-    bench_step.dependOn(&bench_exe.step);
-
-    const test_step = b.step("test", "Run unit tests");
-    const unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = platform_optimize,
-    });
-    unit_tests.root_module.addOptions("build_options", options);
-    test_step.dependOn(&b.addRunArtifact(unit_tests).step);
-
-    addCrossTargets(b, exe, options);
+		const run_t = b.addRunArtifact(t);
+		all_tests_step.dependOn(&run_t.step);
+	}
 }
 
-fn addCrossTargets(b: *std.Build, exe: *std.Build.Step.Compile, options: *std.Build.Step.Options) void {
-    const targets = [_]struct { name: []const u8, query: std.Target.Query }{
-        .{ .name = "x86_64-linux", .query = .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .musl } },
-        .{ .name = "aarch64-linux", .query = .{ .cpu_arch = .aarch64, .os_tag = .linux, .abi = .gnu } },
-        .{ .name = "x86_64-windows", .query = .{ .cpu_arch = .x86_64, .os_tag = .windows } },
-        .{ .name = "x86_64-macos", .query = .{ .cpu_arch = .x86_64, .os_tag = .macos } },
-        .{ .name = "aarch64-macos", .query = .{ .cpu_arch = .aarch64, .os_tag = .macos } },
-        .{ .name = "aarch64-ios", .query = .{ .cpu_arch = .aarch64, .os_tag = .ios } },
-    };
-
-    const cross_step = b.step("cross", "Build for all supported platforms");
-
-    for (targets) |t| {
-        const cross_exe = b.addExecutable(.{
-            .name = b.fmt("zvim-{s}", .{t.name}),
-            .root_source_file = b.path("src/main.zig"),
-            .target = b.resolveTargetQuery(t.query),
-            .optimize = exe.root_module.optimize orelse .ReleaseSafe,
-        });
-
-        cross_exe.root_module.addOptions("build_options", options);
-        const install = b.addInstallArtifact(cross_exe, .{});
-        cross_step.dependOn(&install.step);
-    }
-}
-
-fn detectGPUSupport() bool {
-    return true;
-}
-
-fn detectSIMDSupport() bool {
-    return switch (builtin.cpu.arch) {
-        .x86_64 => std.Target.x86.featureSetHas(builtin.cpu.features, .avx2),
-        .aarch64 => std.Target.aarch64.featureSetHas(builtin.cpu.features, .neon),
-        else => false,
-    };
-}

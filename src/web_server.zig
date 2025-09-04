@@ -268,20 +268,20 @@ pub const WebServer = struct {
 
     /// Send WebSocket frame
     fn sendWebSocketFrame(self: *WebServer, connection: std.net.Server.Connection, opcode: u4, payload: []const u8) !void {
-        var frame = try std.ArrayList(u8).initCapacity(self.allocator, 2 + payload.len);
+        var frame = try std.ArrayListUnmanaged(u8).initCapacity(self.allocator, 2 + payload.len);
         defer frame.deinit(self.allocator);
 
         // First byte: FIN + RSV + Opcode
-        try frame.append(0x80 | opcode); // FIN = 1, RSV = 0, Opcode = opcode
+        try frame.append(self.allocator, 0x80 | opcode); // FIN = 1, RSV = 0, Opcode = opcode
 
         // Second byte: MASK + Payload length
         if (payload.len < 126) {
-            try frame.append(@intCast(payload.len));
+            try frame.append(self.allocator, @intCast(payload.len));
         } else if (payload.len < 65536) {
-            try frame.append(126);
+            try frame.append(self.allocator, 126);
             try frame.appendSlice(self.allocator, &std.mem.toBytes(@as(u16, @intCast(payload.len))));
         } else {
-            try frame.append(127);
+            try frame.append(self.allocator, 127);
             try frame.appendSlice(self.allocator, &std.mem.toBytes(@as(u64, @intCast(payload.len))));
         }
 

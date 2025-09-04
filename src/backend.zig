@@ -61,7 +61,6 @@ const std = @import("std");
 const gpu = std.gpu;
 
 const database = @import("database.zig");
-const root = @import("root.zig");
 
 /// Configuration for the GPU backend.
 pub const GpuBackendConfig = struct {
