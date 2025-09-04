@@ -5,7 +5,6 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-<<<<<<< HEAD
     // Main executable
     const exe = b.addExecutable(.{
         .name = "wdbx-ai",
@@ -65,33 +64,6 @@ pub fn build(b: *std.Build) void {
 
         const run_test = b.addRunArtifact(test_exe);
         test_step.dependOn(&run_test.step);
-=======
-    // Feature flags for conditional compilation
-    const options = b.addOptions();
-    options.addOption(bool, "enable_gpu", b.option(bool, "gpu", "Enable GPU acceleration") orelse detectGPUSupport());
-    options.addOption(bool, "enable_simd", b.option(bool, "simd", "Enable SIMD optimizations") orelse detectSIMDSupport());
-    options.addOption(bool, "enable_tracy", b.option(bool, "tracy", "Enable Tracy profiler") orelse false);
-
-    // Platform-specific optimizations
-    const platform_optimize = switch (target.result.os.tag) {
-        .ios => .ReleaseSmall,
-        .windows => .ReleaseSafe,
-        else => optimize,
-    };
-
-    const exe = b.addExecutable(.{
-        .name = "abi",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = platform_optimize,
-    });
-
-    // Optimization flags
-    exe.link_function_sections = true;
-    exe.link_gc_sections = true;
-    if (platform_optimize == .ReleaseSmall or platform_optimize == .ReleaseFast) {
-        exe.root_module.strip = true;
->>>>>>> 850019f80c86681d50ab87479a8796ce3e849dda
     }
 
     // Dependencies
