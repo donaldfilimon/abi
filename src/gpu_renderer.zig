@@ -1,8 +1,50 @@
 //! GPU-accelerated terminal rendering with cross-platform abstraction
 //! Achieves 500+ FPS at 4K with minimal GPU utilization
 
+const std = @import("std");
+const builtin = @import("builtin");
 const gpu = @import("mach-gpu");
-const TextureAtlas = @import("texture_atlas.zig");
+// Placeholder TextureAtlas for demo purposes
+const TextureAtlas = struct {
+    pub fn initWithSDF(allocator: std.mem.Allocator, device: anytype, options: anytype) !TextureAtlas {
+        _ = allocator;
+        _ = device;
+        _ = options;
+        return TextureAtlas{};
+    }
+};
+
+pub const Terminal = struct {
+    width: u32,
+    height: u32,
+
+    pub const Cell = struct {
+        char: u21,
+        fg_color: [3]f32,
+        bg_color: [3]f32,
+    };
+};
+
+fn orthoProjection(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) [16]f32 {
+    const width = right - left;
+    const height = top - bottom;
+    const depth = far - near;
+
+    return [16]f32{
+        2.0 / width,             0,                        0,                     0,
+        0,                       2.0 / height,             0,                     0,
+        0,                       0,                        -2.0 / depth,          0,
+        -(right + left) / width, -(top + bottom) / height, -(far + near) / depth, 1,
+    };
+}
+
+fn getSystemFont() []const u8 {
+    return switch (builtin.os.tag) {
+        .windows => "C:/Windows/Fonts/consola.ttf",
+        .macos => "/System/Library/Fonts/Monaco.ttf",
+        else => "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+    };
+}
 
 pub const GPUTerminalRenderer = struct {
     device: *gpu.Device,
@@ -11,42 +53,42 @@ pub const GPUTerminalRenderer = struct {
     glyph_atlas: TextureAtlas,
     instance_buffer: *gpu.Buffer,
     uniform_buffer: *gpu.Buffer,
-    
+
     // Performance metrics
     frame_time_ns: @Vector(16, u64) = @splat(0),
     frame_index: u8 = 0,
-    
+
     const max_instances = 65536; // 64K characters on screen
     const GlyphInstance = extern struct {
         position: [2]f32,
         tex_coord: [2]f32,
         color: [4]f32,
         scale: f32,
-        _padding: [3]f32 = .{0, 0, 0},
+        _padding: [3]f32 = .{ 0, 0, 0 },
     };
-    
+
     const Uniforms = extern struct {
         projection: [16]f32,
         time: f32,
         screen_size: [2]f32,
         _padding: f32 = 0,
     };
-    
+
     pub fn init(allocator: std.mem.Allocator) !GPUTerminalRenderer {
         const instance = try gpu.createInstance(.{});
         const adapter = try instance.requestAdapter(.{
             .power_preference = .high_performance,
         });
-        
+
         const device = try adapter.requestDevice(.{
             .required_features = &.{
                 .texture_compression_bc,
                 .timestamp_query,
             },
         });
-        
+
         const queue = device.getQueue();
-        
+
         // Shader compilation with platform-specific optimizations
         const shader_module = device.createShaderModule(&.{
             .code = comptime switch (builtin.os.tag) {
@@ -56,7 +98,7 @@ pub const GPUTerminalRenderer = struct {
             },
         });
         defer shader_module.release();
-        
+
         // Pipeline state with optimized blending for text
         const pipeline = device.createRenderPipeline(&.{
             .vertex = .{
@@ -66,10 +108,10 @@ pub const GPUTerminalRenderer = struct {
                     .array_stride = @sizeOf(GlyphInstance),
                     .step_mode = .instance,
                     .attributes = &.{
-                        .{ .format = .float32x2, .offset = 0, .shader_location = 0 },  // position
-                        .{ .format = .float32x2, .offset = 8, .shader_location = 1 },  // tex_coord
+                        .{ .format = .float32x2, .offset = 0, .shader_location = 0 }, // position
+                        .{ .format = .float32x2, .offset = 8, .shader_location = 1 }, // tex_coord
                         .{ .format = .float32x4, .offset = 16, .shader_location = 2 }, // color
-                        .{ .format = .float32, .offset = 32, .shader_location = 3 },   // scale
+                        .{ .format = .float32, .offset = 32, .shader_location = 3 }, // scale
                     },
                 }},
             },
@@ -97,19 +139,19 @@ pub const GPUTerminalRenderer = struct {
                 .strip_index_format = .uint16,
             },
         });
-        
+
         // Pre-allocate instance buffer for zero-alloc rendering
         const instance_buffer = device.createBuffer(&.{
             .size = max_instances * @sizeOf(GlyphInstance),
             .usage = .{ .vertex = true, .copy_dst = true },
             .mapped_at_creation = false,
         });
-        
+
         const uniform_buffer = device.createBuffer(&.{
             .size = @sizeOf(Uniforms),
             .usage = .{ .uniform = true, .copy_dst = true },
         });
-        
+
         // Initialize glyph atlas with SDF for crisp rendering at any scale
         const glyph_atlas = try TextureAtlas.initWithSDF(allocator, device, .{
             .font_path = getSystemFont(),
@@ -117,7 +159,7 @@ pub const GPUTerminalRenderer = struct {
             .padding = 4,
             .sdf_spread = 4,
         });
-        
+
         return GPUTerminalRenderer{
             .device = device,
             .queue = queue,
@@ -127,41 +169,37 @@ pub const GPUTerminalRenderer = struct {
             .uniform_buffer = uniform_buffer,
         };
     }
-    
+
     pub fn renderFrame(self: *GPUTerminalRenderer, terminal: *Terminal, surface: *gpu.Surface) !void {
         const frame_start = std.time.nanoTimestamp();
-        
+
         // Get next frame buffer
         const back_buffer = surface.getCurrentTexture();
         const view = back_buffer.texture.createView(.{});
         defer view.release();
-        
+
         // Prepare instance data with SIMD acceleration
         const visible_cells = terminal.getVisibleCells();
         const instances = try self.prepareInstances(visible_cells);
-        
+
         // Update instance buffer
         self.queue.writeBuffer(self.instance_buffer, 0, std.mem.sliceAsBytes(instances));
-        
+
         // Update uniforms
         const uniforms = Uniforms{
-            .projection = orthoProjection(
-                0, @floatFromInt(terminal.width),
-                @floatFromInt(terminal.height), 0,
-                -1, 1
-            ),
-            .time = @floatFromInt(std.time.milliTimestamp()) / 1000.0,
+            .projection = orthoProjection(0, @floatFromInt(terminal.width), @floatFromInt(terminal.height), 0, -1, 1),
+            .time = @as(f32, @floatFromInt(std.time.milliTimestamp())) / 1000.0,
             .screen_size = .{
                 @floatFromInt(terminal.width),
                 @floatFromInt(terminal.height),
             },
         };
         self.queue.writeBuffer(self.uniform_buffer, 0, std.mem.asBytes(&uniforms));
-        
+
         // Record rendering commands
         const encoder = self.device.createCommandEncoder(.{});
         defer encoder.release();
-        
+
         const render_pass = encoder.beginRenderPass(&.{
             .color_attachments = &.{.{
                 .view = view,
@@ -170,31 +208,31 @@ pub const GPUTerminalRenderer = struct {
                 .clear_value = .{ .r = 0.05, .g = 0.05, .b = 0.05, .a = 1.0 },
             }},
         });
-        
+
         render_pass.setPipeline(self.pipeline);
         render_pass.setVertexBuffer(0, self.instance_buffer, 0, instances.len * @sizeOf(GlyphInstance));
         render_pass.setBindGroup(0, self.createBindGroup(), &.{});
         render_pass.draw(4, @intCast(instances.len), 0, 0);
         render_pass.end();
-        
+
         // Submit and present
         const command_buffer = encoder.finish(.{});
         self.queue.submit(&.{command_buffer});
         surface.present();
-        
+
         // Update performance metrics
-        const frame_time = @intCast(u64, std.time.nanoTimestamp() - frame_start);
+        const frame_time = @as(u64, @intCast(std.time.nanoTimestamp() - frame_start));
         self.frame_time_ns[self.frame_index] = frame_time;
         self.frame_index = (self.frame_index + 1) & 15;
     }
-    
+
     fn prepareInstances(self: *GPUTerminalRenderer, cells: []const Terminal.Cell) ![]GlyphInstance {
         var instances = try self.allocator.alloc(GlyphInstance, cells.len);
-        
+
         // SIMD-accelerated instance data preparation
         const chunk_size = 8;
         var i: usize = 0;
-        
+
         while (i + chunk_size <= cells.len) : (i += chunk_size) {
             const positions_x = @Vector(8, f32){
                 @floatFromInt(cells[i + 0].x), @floatFromInt(cells[i + 1].x),
@@ -202,26 +240,26 @@ pub const GPUTerminalRenderer = struct {
                 @floatFromInt(cells[i + 4].x), @floatFromInt(cells[i + 5].x),
                 @floatFromInt(cells[i + 6].x), @floatFromInt(cells[i + 7].x),
             };
-            
+
             const positions_y = @Vector(8, f32){
                 @floatFromInt(cells[i + 0].y), @floatFromInt(cells[i + 1].y),
                 @floatFromInt(cells[i + 2].y), @floatFromInt(cells[i + 3].y),
                 @floatFromInt(cells[i + 4].y), @floatFromInt(cells[i + 5].y),
                 @floatFromInt(cells[i + 6].y), @floatFromInt(cells[i + 7].y),
             };
-            
+
             // Vectorized position calculation
             const char_width = @as(@Vector(8, f32), @splat(self.glyph_atlas.char_width));
             const char_height = @as(@Vector(8, f32), @splat(self.glyph_atlas.char_height));
-            
+
             const screen_x = positions_x * char_width;
             const screen_y = positions_y * char_height;
-            
+
             // Fill instances
             inline for (0..8) |j| {
                 const cell = cells[i + j];
                 const glyph_info = self.glyph_atlas.getGlyph(cell.char);
-                
+
                 instances[i + j] = .{
                     .position = .{ screen_x[j], screen_y[j] },
                     .tex_coord = .{ glyph_info.u, glyph_info.v },
@@ -230,12 +268,12 @@ pub const GPUTerminalRenderer = struct {
                 };
             }
         }
-        
+
         // Handle remaining cells
         while (i < cells.len) : (i += 1) {
             const cell = cells[i];
             const glyph_info = self.glyph_atlas.getGlyph(cell.char);
-            
+
             instances[i] = .{
                 .position = .{
                     @floatFromInt(cell.x * self.glyph_atlas.char_width),
@@ -246,10 +284,10 @@ pub const GPUTerminalRenderer = struct {
                 .scale = if (cell.style.bold) 1.1 else 1.0,
             };
         }
-        
+
         return instances;
     }
-    
+
     pub fn getAverageFPS(self: *const GPUTerminalRenderer) f64 {
         const sum = @reduce(.Add, self.frame_time_ns);
         const avg_ns = sum / 16;

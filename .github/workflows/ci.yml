@@ -4,15 +4,32 @@ on:
   push:
     branches: [ main, master ]
   pull_request:
+    branches: [ main, master ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        zig-version: ['0.13.0', '0.14.0']
+    
     steps:
-      - uses: actions/checkout@v3
-      - uses: mlugg/setup-zig@v2.0.1
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
         with: 
-          version: 0.14.1
-      - run: zig fmt .
-      - run: zig build
-      - run: zig test
+          version: ${{ matrix.zig-version }}
+          
+      - name: Check formatting
+        run: zig fmt --check .
+        
+      - name: Build project
+        run: zig build
+        
+      - name: Run tests
+        run: zig build test
+        
+      - name: Run benchmarks
+        run: zig build bench

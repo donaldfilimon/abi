@@ -32,7 +32,7 @@ pub fn router(query: []const u8) agent.PersonaType {
     return .AdaptiveModerator;
 }
 
-pub test "process request stores data" {
+test "process request stores data" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     var system = try MLAISystem.init(gpa.allocator(), .{ .shard_count = 2 });

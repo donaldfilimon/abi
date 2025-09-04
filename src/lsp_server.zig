@@ -6,7 +6,7 @@ pub const LSPServer = struct {
     message_queue: MPMCQueue(LSPMessage, 4096),
     completion_cache: LockFreeCache(CompletionResult, 1024),
     diagnostics_engine: DiagnosticsEngine,
-    
+
     const LSPMessage = union(enum) {
         initialize: InitializeParams,
         completion: CompletionParams,
@@ -16,36 +16,36 @@ pub const LSPServer = struct {
         diagnostics: DiagnosticsParams,
         shutdown: void,
     };
-    
+
     const WorkStealingSystem = struct {
         queues: [Priority.count][]WorkStealingDeque(Task),
         workers: []Worker,
         topology: *const HardwareTopology,
-        
+
         const Priority = enum(u2) {
-            immediate = 0,  // <10ms target
-            high = 1,       // <50ms target
-            normal = 2,     // <200ms target
+            immediate = 0, // <10ms target
+            high = 1, // <50ms target
+            normal = 2, // <200ms target
             background = 3, // Best effort
-            
+
             const count = 4;
         };
-        
+
         const Task = struct {
             id: u64,
             priority: Priority,
             deadline_ns: i128,
             execute: *const fn (*anyopaque) anyerror!void,
             context: *anyopaque,
-            
+
             pub fn compareDeadline(_: void, a: Task, b: Task) bool {
                 return a.deadline_ns < b.deadline_ns;
             }
         };
-        
+
         pub fn init(allocator: std.mem.Allocator, thread_count: usize) !WorkStealingSystem {
             const topology = try HardwareTopology.detect(allocator);
-            
+
             // Create per-thread, per-priority queues
             var queues: [Priority.count][]WorkStealingDeque(Task) = undefined;
             for (&queues) |*priority_queues| {
@@ -54,7 +54,7 @@ pub const LSPServer = struct {
                     queue.* = WorkStealingDeque(Task).init(allocator);
                 }
             }
-            
+
             // Create workers with NUMA affinity
             const workers = try allocator.alloc(Worker, thread_count);
             for (workers, 0..) |*worker, i| {
@@ -65,35 +65,35 @@ pub const LSPServer = struct {
                     .numa_node = @intCast(i % topology.numa_nodes.len),
                     .running = true,
                 };
-                
+
                 // Assign local queue references
                 for (0..Priority.count) |p| {
                     worker.local_queues[p] = &queues[p][i];
                 }
             }
-            
+
             return WorkStealingSystem{
                 .queues = queues,
                 .workers = workers,
                 .topology = topology,
             };
         }
-        
+
         pub fn schedule(self: *WorkStealingSystem, task: Task) !void {
             // Select worker based on current thread for cache locality
             const current_thread = std.Thread.getCurrentId();
             const worker_id = current_thread % self.workers.len;
             const priority_idx = @intFromEnum(task.priority);
-            
+
             // Try local queue first
             if (self.queues[priority_idx][worker_id].tryPush(task)) {
                 return;
             }
-            
+
             // Find least loaded queue
             var min_load: usize = std.math.maxInt(usize);
             var target_worker: usize = 0;
-            
+
             for (self.workers, 0..) |worker, i| {
                 const load = self.getWorkerLoad(i);
                 if (load < min_load) {
@@ -101,10 +101,10 @@ pub const LSPServer = struct {
                     target_worker = i;
                 }
             }
-            
+
             try self.queues[priority_idx][target_worker].push(task);
         }
-        
+
         fn workerLoop(worker: *Worker, system: *WorkStealingSystem) void {
             // Set thread affinity
             if (builtin.os.tag == .linux) {
@@ -112,13 +112,13 @@ pub const LSPServer = struct {
                 std.os.linux.CPU_SET(worker.id, &cpu_set);
                 _ = std.os.linux.sched_setaffinity(0, @sizeOf(std.os.linux.cpu_set_t), &cpu_set);
             }
-            
+
             var rng = std.rand.DefaultPrng.init(@intCast(std.time.nanoTimestamp() ^ worker.id));
             const random = rng.random();
-            
+
             while (worker.running) {
                 var found_work = false;
-                
+
                 // Try local queues in priority order
                 for (0..Priority.count) |p| {
                     if (worker.local_queues[p].tryPop()) |task| {
@@ -129,7 +129,7 @@ pub const LSPServer = struct {
                         break;
                     }
                 }
-                
+
                 if (!found_work) {
                     // Try stealing from other workers
                     const victim = random.intRangeAtMost(usize, 0, system.workers.len - 1);
@@ -145,7 +145,7 @@ pub const LSPServer = struct {
                         }
                     }
                 }
-                
+
                 if (!found_work) {
                     // Exponential backoff
                     std.atomic.spinLoopHint();
@@ -157,10 +157,10 @@ pub const LSPServer = struct {
             }
         }
     };
-    
+
     pub fn init(allocator: std.mem.Allocator) !LSPServer {
         const thread_count = try std.Thread.getCpuCount();
-        
+
         return LSPServer{
             .work_system = try WorkStealingSystem.init(allocator, thread_count),
             .message_queue = MPMCQueue(LSPMessage, 4096).init(),
@@ -168,7 +168,7 @@ pub const LSPServer = struct {
             .diagnostics_engine = try DiagnosticsEngine.init(allocator),
         };
     }
-    
+
     pub fn handleMessage(self: *LSPServer, msg: LSPMessage) !void {
         switch (msg) {
             .completion => |params| try self.handleCompletion(params),
@@ -179,7 +179,7 @@ pub const LSPServer = struct {
             else => {},
         }
     }
-    
+
     fn handleCompletion(self: *LSPServer, params: CompletionParams) !void {
         // Check cache first
         const cache_key = computeCompletionCacheKey(params);
@@ -188,7 +188,7 @@ pub const LSPServer = struct {
                 return self.sendCompletionResponse(cached.items);
             }
         }
-        
+
         // Schedule completion task with immediate priority
         const ctx = try self.allocator.create(CompletionContext);
         ctx.* = .{
@@ -196,7 +196,7 @@ pub const LSPServer = struct {
             .params = params,
             .cache_key = cache_key,
         };
-        
+
         try self.work_system.schedule(.{
             .id = generateTaskId(),
             .priority = .immediate,
@@ -205,24 +205,24 @@ pub const LSPServer = struct {
             .context = ctx,
         });
     }
-    
+
     fn executeCompletion(ctx_ptr: *anyopaque) !void {
         const ctx = @as(*CompletionContext, @ptrCast(@alignCast(ctx_ptr)));
         defer ctx.server.allocator.destroy(ctx);
-        
+
         // Fast path: keyword completion
         if (ctx.params.trigger_kind == .keyword) {
             const items = try getKeywordCompletions(ctx.params.position);
             try ctx.server.sendCompletionResponse(items);
             return;
         }
-        
+
         // Semantic completion with tree-sitter
         const ast = try ctx.server.parseDocument(ctx.params.document);
         const scope = try ast.getScopeAt(ctx.params.position);
-        
+
         var items = std.ArrayList(CompletionItem).init(ctx.server.allocator);
-        
+
         // Add local variables
         for (scope.locals) |local| {
             try items.append(.{
@@ -232,18 +232,18 @@ pub const LSPServer = struct {
                 .sort_text = "0", // Prioritize locals
             });
         }
-        
+
         // Add imports
         for (scope.imports) |import| {
             try addImportCompletions(&items, import);
         }
-        
+
         // Cache results
         try ctx.server.completion_cache.put(ctx.cache_key, .{
             .items = items.items,
             .timestamp = std.time.nanoTimestamp(),
         });
-        
+
         try ctx.server.sendCompletionResponse(items.items);
     }
 };

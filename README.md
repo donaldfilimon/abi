@@ -1,32 +1,48 @@
-### Quick Start
+# zvim
 
-A simple command-line client is provided in `agent_client.zig`. Set the `OPENAI_API_KEY` environment variable and run:
+A high-performance CLI application with GPU acceleration, SIMD optimizations, and cross-platform support.
+
+## Features
+
+- **Abbey Persona**: Content compliance checking with configurable rules
+- **Aviva Persona**: High-performance numerical computations 
+- **Abi Persona**: Orchestrates other personas for complex workflows
+- **GPU Rendering**: Cross-platform terminal rendering with GPU acceleration
+- **SIMD Text Processing**: Ultra-fast text search and processing algorithms
+- **TUI Interface**: Interactive terminal user interface
+
+## Quick Start
+
+Build and run the application:
 
 ```bash
-zig run agent_client.zig -- --persona Abbey
+zig build run
 ```
 
-Choose from Abbey, Aviva, or Abi to interact with each persona.
-
 ### TUI Demo
-Run a simple terminal UI that exposes basic persona features:
+Run the interactive terminal UI:
 
 ```bash
 zig build run -- tui
 ```
 
-### Local ML Example
-`local_ml.zig` demonstrates cross-platform logistic regression training and
-prediction without any external dependencies. To train a model using a CSV file
-containing `x1,x2,label` rows and save it to `model.txt`:
+### Available Commands
+
+The application supports several personas:
+- **Abbey**: Ensures content compliance and safety
+- **Aviva**: Performs numerical computations 
+- **Abi**: Orchestrates complex multi-step operations
+
+## Building
 
 ```bash
-zig run local_ml.zig -- train data.csv model.txt
-```
+# Standard build
+zig build
 
-To predict a probability with the trained model:
+# Run tests
+zig build test
 
-```bash
-zig run local_ml.zig -- predict model.txt 1.2 3.4
+# Run benchmarks  
+zig build bench
 ```
 

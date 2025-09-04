@@ -15,7 +15,7 @@ const Term = struct {
     renderer: ?GPUTerminalRenderer,
     text_processor: SIMDTextProcessor,
     platform: PlatformLayer,
-    
+
     pub fn init() !Term {
         // Platform-specific initialization
         switch (builtin.os.tag) {
@@ -23,29 +23,30 @@ const Term = struct {
             .ios => try PlatformLayer.iOS.init(),
             else => {},
         }
-        
+
         // Try GPU initialization
         const renderer = if (build_options.enable_gpu)
             GPUTerminalRenderer.init(gpa) catch |err| blk: {
                 std.log.warn("GPU initialization failed: {}, falling back to CPU", .{err});
                 break :blk null;
             }
-        else null;
-        
+        else
+            null;
+
         return Term{
             .renderer = renderer,
             .text_processor = SIMDTextProcessor{},
             .platform = PlatformLayer{},
         };
     }
-    
+
     pub fn runREPL(self: *Term) !void {
         if (self.renderer) |*gpu| {
             // GPU-accelerated rendering path
             while (true) {
                 const surface = try createSurface();
                 try gpu.renderFrame(self, surface);
-                
+
                 if (try self.handleInput()) break;
             }
         } else {
@@ -63,15 +64,15 @@ fn startLSP(language: []const u8) !void {
         std.log.info("{s} LSP already running", .{language});
         return;
     }
-    
+
     const server = try gpa.create(LSPServer);
     server.* = try LSPServer.init(gpa);
-    
+
     try lsp_servers.put(language, server);
-    
+
     // Start server thread
     _ = try std.Thread.spawn(.{}, LSPServer.run, .{server});
-    
+
     std.log.info("{s} LSP started with lock-free architecture", .{language});
 }
 
@@ -79,39 +80,39 @@ fn startLSP(language: []const u8) !void {
 fn cmdBench(args: zli.Command.Args) !void {
     const iterations = args.getInt("iterations") orelse 1000;
     const file = args.getString("file") orelse "bench.zig";
-    
+
     // Warm up
     for (0..10) |_| {
         _ = try execAndCapture(&.{ "zig", "build", "-Doptimize=ReleaseFast" });
     }
-    
+
     var times: [100]u64 = undefined;
     var text_processor = SIMDTextProcessor{};
-    
+
     for (times[0..@min(iterations, 100)], 0..) |*time, i| {
         const start = std.time.nanoTimestamp();
-        
+
         // Benchmark operations
         const content = try readFile(gpa, file);
         const line_count = text_processor.countLines(content);
         _ = try text_processor.findSubstring(content, "fn main");
-        
+
         const output = try execAndCapture(&.{ "zig", "build", "-Doptimize=ReleaseFast" });
         gpa.free(output);
-        
+
         time.* = @intCast(std.time.nanoTimestamp() - start);
-        
+
         if (i % 10 == 0) {
             std.log.info("Progress: {}/{} (lines: {})", .{ i, iterations, line_count });
         }
     }
-    
+
     // Calculate statistics
     std.sort.block(u64, &times, {}, std.sort.asc(u64));
     const median = times[times.len / 2];
     const p95 = times[@intFromFloat(@as(f64, @floatFromInt(times.len)) * 0.95)];
     const p99 = times[@intFromFloat(@as(f64, @floatFromInt(times.len)) * 0.99)];
-    
+
     std.log.info(
         \\Benchmark Results:
         \\  Median: {d:.2}ms
@@ -130,7 +131,7 @@ pub fn main() !void {
     // Initialize global state
     lsp_servers = std.StringHashMap(*LSPServer).init(gpa);
     defer lsp_servers.deinit();
-    
+
     // Platform-specific setup
     switch (builtin.os.tag) {
         .windows => {
@@ -139,18 +140,18 @@ pub fn main() !void {
         },
         else => {},
     }
-    
+
     // Initialize high-performance allocator
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
-    
+
     // Continue with existing CLI setup...
     var app = zli.App.init(arena.allocator(), .{
         .name = "zvim",
         .description = "Ultra-high-performance CLI with GPU acceleration",
         .version = "1.0.0",
     });
-    
+
     // Enhanced commands with performance features
     app.addCommand(.{
         .name = "bench",
@@ -161,7 +162,7 @@ pub fn main() !void {
         },
         .action = cmdBench,
     });
-    
+
     // GPU-accelerated TUI
     app.addCommand(.{
         .name = "tui",
@@ -174,7 +175,7 @@ pub fn main() !void {
             }
         }.f,
     });
-    
+
     // Parse and run
     const args = try std.process.argsAlloc(arena.allocator());
     try app.parseAndRun(args);

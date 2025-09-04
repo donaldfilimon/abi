@@ -5,15 +5,10 @@ const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 
-comptime {
-    // Ensure libc is linked when running directly with `zig run`
-    @linkSystemLibrary("c");
-}
+// libc linking is now handled in build.zig
 
-const perf = @import("performance.zig");
 const gpu = @import("gpu_renderer.zig");
 const simd = @import("simd_text.zig");
-const lockfree = @import("lockfree.zig");
 const platform = @import("platform.zig");
 const engine = @import("engine/mod.zig");
 

@@ -5,7 +5,7 @@ pub const Config = struct {
     shard_count: u32 = 3,
 };
 
-const prime_numbers = [_]u64{31, 37, 43, 47, 53, 59, 61, 67, 71, 73};
+const prime_numbers = [_]u64{ 31, 37, 43, 47, 53, 59, 61, 67, 71, 73 };
 
 pub fn primeHash(data: []const u8, seed: u64) u64 {
     var hash: u64 = seed | 1;
@@ -100,7 +100,7 @@ pub const Database = struct {
 
 pub const WDBXError = error{InvalidShardCount};
 
-pub test "basic store and retrieve" {
+test "basic store and retrieve" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     var db = try Database.init(gpa.allocator(), .{ .shard_count = 2 });

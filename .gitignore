@@ -1,2 +1,36 @@
+# macOS
 **/.DS_Store
+.AppleDouble
+.LSOverride
+
+# Zig build artifacts
 **/zig-cache/
+**/zig-out/
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.#*
+
+# Build and dependency artifacts
+node_modules/
+target/
+build/
+dist/
+
+# Environment and config files
+.env
+.env.local
+*.log
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
