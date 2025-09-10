@@ -123,6 +123,7 @@
   }
   let searchData = [];
   let currentPath = '';
+  let currentAnchor = '';
   async function init(){
     try { searchData = await fetchJSON('generated/search_index.json'); } catch(e){ console.error('search index', e); }
     renderNav(searchData);
@@ -136,11 +137,19 @@
     document.getElementById('open_md').addEventListener('click', () => { if (currentPath) window.open(currentPath, '_blank'); });
   }
   async function loadDoc(path){
-    currentPath = path;
+    const [file, anchor] = path.split('#');
+    currentPath = file;
+    currentAnchor = anchor || '';
     location.hash = encodeURIComponent(path);
-    const md = await fetchText(path);
-    document.getElementById('content').innerHTML = mdToHtml(md);
-    window.scrollTo(0,0);
+    const md = await fetchText(file);
+    const contentEl = document.getElementById('content');
+    contentEl.innerHTML = mdToHtml(md);
+    if (currentAnchor) {
+      const target = document.getElementById(currentAnchor.toLowerCase());
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.scrollTo(0,0);
+    }
   }
   function renderNav(list){
     const nav = document.getElementById('nav');
