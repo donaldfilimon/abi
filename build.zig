@@ -379,7 +379,6 @@ pub fn build(b: *std.Build) void {
             http_test_exe.linkSystemLibrary("c");
         }
 
-        b.installArtifact(http_test_exe);
 
         const http_test_step = b.step("test-http-enhanced", "Test enhanced HTTP client with retry/backoff");
         const run_http_test = b.addRunArtifact(http_test_exe);
@@ -410,7 +409,6 @@ pub fn build(b: *std.Build) void {
         }
 
         b.installArtifact(demo_exe);
-
         const demo_step = b.step("demo-http", "Run enhanced HTTP client demonstration");
         const run_demo = b.addRunArtifact(demo_exe);
         demo_step.dependOn(&run_demo.step);

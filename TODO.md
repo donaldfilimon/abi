@@ -13,6 +13,7 @@
 - [ ] Add configuration file support (.wdbx-config)
 - [ ] Implement batch operations API endpoints
 - [ ] Add query result pagination
+- [ ] Finalize `http_client` headers API for Zig 0.16+ std (remove `std.http.Headers`; adopt explicit header fields and extra headers; update impl/tests/docs; ensure proxy/TLS paths use libcurl with timeouts/backoff)
 
 ## 🟡 **Medium Priority Tasks**
 
@@ -100,6 +101,7 @@
 - [x] ✅ HTTP/TCP server stability
 - [x] ✅ Comprehensive documentation
 - [x] ✅ Build system optimization
+- [x] ✅ Enabled install for `demo_http_client` and `http_smoke` via `zig build install`
 - [x] ✅ Test suite organization
 - [x] ✅ Memory management improvements
 - [x] ✅ SIMD vector operations
