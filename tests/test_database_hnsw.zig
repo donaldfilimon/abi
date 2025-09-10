@@ -1,6 +1,7 @@
 const std = @import("std");
 const testing = std.testing;
-const database = @import("database");
+const abi = @import("abi");
+const database = abi.wdbx.database;
 
 test "HNSW index initialization" {
     const test_file = "test_hnsw_init.wdbx";

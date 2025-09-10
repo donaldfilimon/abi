@@ -14,7 +14,7 @@ pub fn main() !void {
     const test_file = "perf_guard.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
 
-    const database = @import("database");
+    const database = @import("wdbx/database.zig");
     var db = try database.Db.open(test_file, true);
     defer db.close();
     try db.init(128);

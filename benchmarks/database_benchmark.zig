@@ -1,5 +1,6 @@
 const std = @import("std");
-const database = @import("database");
+const abi = @import("abi");
+const database = abi.wdbx.database;
 
 const BenchmarkResult = struct {
     operation: []const u8,

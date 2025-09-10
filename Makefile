@@ -55,12 +55,12 @@ docs:
 	zig build docs
 
 # Format code
-fmt:
-	zig fmt src/
-
-# Check formatting
-fmt-check:
-	zig fmt --check src/
+	fmt:
+		zig fmt src/
+	
+	# Check formatting
+	fmt-check:
+		zig fmt --check src/
 
 # Development workflow
 dev: fmt build test

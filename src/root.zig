@@ -9,13 +9,19 @@
 const std = @import("std");
 
 // Import consolidated modules
-pub const database = @import("database.zig");
+pub const database = @import("wdbx/database.zig");
 pub const simd = @import("simd/mod.zig");
 pub const ai = @import("ai/mod.zig");
 pub const wdbx = @import("wdbx/mod.zig");
 pub const plugins = @import("plugins/mod.zig");
 pub const tracing = @import("tracing.zig");
 pub const logging = @import("logging.zig");
+pub const neural = @import("neural.zig");
+pub const memory_tracker = @import("memory_tracker.zig");
+pub const core = @import("core/mod.zig");
+pub const localml = @import("localml.zig");
+pub const gpu = @import("gpu_renderer.zig");
+pub const backend = @import("backend.zig");
 
 // Re-export commonly used types and functions
 pub const Db = database.Db;
@@ -57,8 +63,6 @@ pub const TracingError = tracing.TracingError;
 // Re-export logging utilities
 pub const Logger = logging.Logger;
 pub const LogLevel = logging.LogLevel;
-pub const LogEntry = logging.LogEntry;
-pub const LogSink = logging.LogSink;
 pub const LogOutputFormat = logging.OutputFormat;
 pub const LoggerConfig = logging.LoggerConfig;
 

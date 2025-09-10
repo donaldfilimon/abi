@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const database = @import("../database.zig");
+const database = @import("../wdbx/database.zig");
 
 const version_string = "WDBX Vector Database v1.0.0";
 
@@ -703,7 +703,7 @@ pub const WdbxHttpServer = struct {
 
         // Parse query parameters
         const query = request.path;
-        
+
         // Parse vector parameter
         const vec_start = std.mem.indexOf(u8, query, "vec=") orelse {
             try self.sendHttpResponse(connection, 400, "Bad Request", "{\"error\":\"Missing 'vec' parameter\"}");
@@ -789,7 +789,7 @@ pub const WdbxHttpServer = struct {
         const stats = db.getStats();
 
         const body = try std.fmt.allocPrint(self.allocator,
-            \\{{"compression_statistics":{{"total_compressions":{d},"total_decompressions":{d},"compression_ratio":{d:.3},"average_compression_time_ns":{d:.0},"space_savings_bytes":{d},"compression_errors":{d},"algorithms":{{"lz4_usage_percent":75.5,"zstd_usage_percent":20.2,"gzip_usage_percent":4.3}}}},"performance":{{"avg_search_time_ns":{d:.0},"total_searches":{d},"avg_insert_time_ns":{d:.0},"total_inserts":{d},"cache_hit_rate":{d:.1},"hnsw_nodes":{d}}}}}
+            \\{{"compression_statistics":{{"total_compressions":{d},"total_decompressions":{d},"compression_ratio":{d:.3},"average_compression_time_ns":{d:.0},"space_savings_bytes":{d},"compression_errors":{d},"algorithms":{{"lz4_usage_percent":75.5,"zstd_usage_percent":20.2,"gzip_usage_percent":4.3}}}} ,"performance":{{"avg_search_time_ns":{d:.0},"total_searches":{d},"avg_insert_time_ns":{d:.0},"total_inserts":{d},"cache_hit_rate":{d:.1},"hnsw_nodes":{d}}}}}
         , .{ stats.total_compressions, @as(u64, 0), stats.compression_ratio, stats.avg_compression_time_ns, stats.space_savings_bytes, stats.compression_errors, stats.avg_search_time_ns, stats.total_searches, stats.avg_insert_time_ns, stats.total_inserts, stats.cache_hit_rate, stats.hnsw_nodes });
         defer self.allocator.free(body);
 

@@ -55,7 +55,7 @@ zig build
 
 ```zig
 const std = @import("std");
-const database = @import("database");
+const database = @import("wdbx/database.zig");
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;

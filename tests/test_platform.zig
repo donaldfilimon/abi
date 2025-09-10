@@ -45,7 +45,6 @@ test "PlatformInfo ANSI color detection" {
 }
 
 test "Platform initialization functions" {
-    const testing = std.testing;
 
     // Test that initialization functions don't crash
     try platform.initializePlatform();
@@ -70,7 +69,6 @@ test "Platform initialization functions" {
 
 test "FileOps functionality" {
     const testing = std.testing;
-    const allocator = testing.allocator;
 
     // Test file operations with a temporary file
     const temp_path = "test_temp_file.txt";

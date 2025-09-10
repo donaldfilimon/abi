@@ -399,7 +399,7 @@ pub const Db = struct {
 #### **Usage Example**
 
 ```zig
-const database = @import("database");
+const database = @import("wdbx/database.zig");
 
 // Open or create database
 var db = try database.Db.open("vectors.wdbx", true);

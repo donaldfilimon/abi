@@ -9,7 +9,6 @@
 //! - Thread-safe operations
 
 const std = @import("std");
-const root = @import("root.zig");
 const platform = @import("platform.zig");
 
 /// Log level enumeration

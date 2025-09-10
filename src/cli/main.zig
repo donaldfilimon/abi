@@ -1,5 +1,6 @@
 const std = @import("std");
 const abi = @import("abi");
+const gpu = abi.gpu;
 
 const CLI_VERSION = "1.0.0-alpha";
 const CLI_NAME = "WDBX-AI Framework CLI";
@@ -12,7 +13,21 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
-        // Configuration management will be added in future updates
+    // Unified subcommands: gpu, db, config
+    if (args.len > 1 and std.mem.eql(u8, args[1], "gpu")) {
+        try runGpuCommand(allocator, args);
+        return;
+    }
+    if (args.len > 1 and (std.mem.eql(u8, args[1], "db") or std.mem.eql(u8, args[1], "wdbx"))) {
+        try runDbCommand(allocator, args);
+        return;
+    }
+
+    // Configuration management command
+    if (args.len > 1 and std.mem.eql(u8, args[1], "config")) {
+        try runConfigCommand(allocator, args);
+        return;
+    }
 
     // Check for help flags
     if (args.len > 1) {
@@ -34,7 +49,7 @@ pub fn main() !void {
         }
 
         if (std.mem.eql(u8, first_arg, "config")) {
-            std.debug.print("Configuration management will be available in future updates\n", .{});
+            // handled above
             return;
         }
     }
@@ -49,6 +64,304 @@ pub fn main() !void {
     try abi.main();
 }
 
+fn parseBackend(allocator: std.mem.Allocator, name: []const u8) ?gpu.Backend {
+    const buf = allocator.alloc(u8, name.len) catch return null;
+    defer allocator.free(buf);
+    const lower = std.ascii.lowerString(buf, name);
+    var res: ?gpu.Backend = null;
+    if (std.mem.eql(u8, lower, "auto")) {
+        res = .auto;
+    } else if (std.mem.eql(u8, lower, "webgpu")) {
+        res = .webgpu;
+    } else if (std.mem.eql(u8, lower, "vulkan")) {
+        res = .vulkan;
+    } else if (std.mem.eql(u8, lower, "metal")) {
+        res = .metal;
+    } else if (std.mem.eql(u8, lower, "dx12")) {
+        res = .dx12;
+    } else if (std.mem.eql(u8, lower, "opengl")) {
+        res = .opengl;
+    } else if (std.mem.eql(u8, lower, "opencl")) {
+        res = .opencl;
+    } else if (std.mem.eql(u8, lower, "cuda")) {
+        res = .cuda;
+    } else if (std.mem.eql(u8, lower, "cpu")) {
+        res = .cpu_fallback;
+    }
+    return res;
+}
+
+fn runGpuCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
+    // Usage:
+    //   abi gpu info [--backend <name>] [--no-webgpu-first]
+    //   abi gpu run-examples [--backend <name>]
+    //   abi gpu dot --a "1,2,3" --b "4,5,6"
+
+    if (args.len < 3) {
+        std.debug.print("Usage: abi gpu <info|run-examples|dot> [flags]\n", .{});
+        return;
+    }
+
+    const sub = args[2];
+    if (std.mem.eql(u8, sub, "info")) {
+        var backend: gpu.Backend = .auto;
+        var try_wgpu = true;
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--backend") and i + 1 < args.len) {
+                i += 1;
+                if (parseBackend(allocator, args[i])) |b| backend = b;
+            } else if (std.mem.eql(u8, args[i], "--no-webgpu-first")) {
+                try_wgpu = false;
+            }
+        }
+
+        const cfg = gpu.GPUConfig{
+            .backend = backend,
+            .try_webgpu_first = try_wgpu,
+        };
+
+        var renderer = try gpu.GPURenderer.init(allocator, cfg);
+        defer renderer.deinit();
+        const stats = renderer.getStats();
+        std.debug.print("GPU Backend: {}\n", .{renderer.backend});
+        std.debug.print("Buffers: created={d}, destroyed={d}\n", .{ stats.buffers_created, stats.buffers_destroyed });
+        std.debug.print("Memory: current={d}B, peak={d}B\n", .{ stats.bytes_current, stats.bytes_peak });
+        return;
+    } else if (std.mem.eql(u8, sub, "run-examples")) {
+        try gpu.runExamples();
+        return;
+    } else if (std.mem.eql(u8, sub, "dot")) {
+        var a_str: ?[]const u8 = null;
+        var b_str: ?[]const u8 = null;
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--a") and i + 1 < args.len) {
+                i += 1;
+                a_str = args[i];
+            } else if (std.mem.eql(u8, args[i], "--b") and i + 1 < args.len) {
+                i += 1;
+                b_str = args[i];
+            }
+        }
+        if (a_str == null or b_str == null) {
+            std.debug.print("gpu dot requires --a and --b CSV vectors\n", .{});
+            return;
+        }
+
+        const a_vals = try parseCsvFloats(allocator, a_str.?);
+        defer allocator.free(a_vals);
+        const b_vals = try parseCsvFloats(allocator, b_str.?);
+        defer allocator.free(b_vals);
+
+        const cfg = gpu.GPUConfig{ .backend = .auto };
+        var renderer = try gpu.GPURenderer.init(allocator, cfg);
+        defer renderer.deinit();
+
+        const ha = try renderer.createBufferWithData(f32, a_vals, .{ .storage = true, .copy_src = true, .copy_dst = true });
+        const hb = try renderer.createBufferWithData(f32, b_vals, .{ .storage = true, .copy_src = true, .copy_dst = true });
+        const len = if (a_vals.len < b_vals.len) a_vals.len else b_vals.len;
+        const dot = try renderer.computeVectorDotBuffers(ha, hb, len);
+        std.debug.print("dot({d}): {d:.6}\n", .{ len, dot });
+        return;
+    } else if (std.mem.eql(u8, sub, "search")) {
+        // gpu search --db <path> --vector "csv" [--k N]
+        var db_path: ?[]const u8 = null;
+        var vec_str: ?[]const u8 = null;
+        var k: usize = 5;
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--db") and i + 1 < args.len) {
+                i += 1;
+                db_path = args[i];
+            } else if (std.mem.eql(u8, args[i], "--vector") and i + 1 < args.len) {
+                i += 1;
+                vec_str = args[i];
+            } else if (std.mem.eql(u8, args[i], "--k") and i + 1 < args.len) {
+                i += 1;
+                k = try std.fmt.parseInt(usize, args[i], 10);
+            }
+        }
+        if (db_path == null or vec_str == null) {
+            std.debug.print("gpu search requires --db and --vector\n", .{});
+            return;
+        }
+        const v = try parseCsvFloats(allocator, vec_str.?);
+        defer allocator.free(v);
+
+        var db = try abi.database.Db.open(db_path.?, false);
+        defer db.close();
+
+        var backend = try abi.backend.GpuBackend.init(allocator, .{});
+        defer backend.deinit();
+        const results = try backend.searchSimilar(db, v, k);
+        defer allocator.free(results);
+        std.debug.print("Found {d} results (gpu={s})\n", .{ results.len, if (backend.isGpuAvailable()) "on" else "off" });
+        for (results, 0..) |r, idx| {
+            std.debug.print("  {d}: id={d} score={d:.6}\n", .{ idx, r.index, r.score });
+        }
+        return;
+    } else {
+        std.debug.print("Unknown gpu subcommand: {s}\n", .{sub});
+        return;
+    }
+}
+
+fn parseCsvFloats(allocator: std.mem.Allocator, csv: []const u8) ![]f32 {
+    // Count commas
+    var count: usize = 1;
+    for (csv) |ch| {
+        if (ch == ',') count += 1;
+    }
+    var vals = try allocator.alloc(f32, count);
+    var idx: usize = 0;
+    var it = std.mem.splitScalar(u8, csv, ',');
+    while (it.next()) |part| {
+        const trimmed = std.mem.trim(u8, part, " \t\r\n");
+        if (trimmed.len == 0) continue;
+        vals[idx] = try std.fmt.parseFloat(f32, trimmed);
+        idx += 1;
+    }
+    if (idx != count) {
+        vals = try allocator.realloc(vals, idx);
+    }
+    return vals;
+}
+
+fn runDbCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
+    // Usage:
+    //   abi db add --db <path> --vector "..."
+    //   abi db query --db <path> --vector "..." [--k N]
+    //   abi db stats --db <path>
+    if (args.len < 3) {
+        std.debug.print("Usage: abi db <add|query|stats> [flags]\n", .{});
+        return;
+    }
+    const sub = args[2];
+    if (std.mem.eql(u8, sub, "add")) {
+        var db_path: ?[]const u8 = null;
+        var vec_str: ?[]const u8 = null;
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--db") and i + 1 < args.len) {
+                i += 1;
+                db_path = args[i];
+            } else if (std.mem.eql(u8, args[i], "--vector") and i + 1 < args.len) {
+                i += 1;
+                vec_str = args[i];
+            }
+        }
+        if (db_path == null or vec_str == null) {
+            std.debug.print("db add requires --db and --vector\n", .{});
+            return;
+        }
+        const v = try parseCsvFloats(allocator, vec_str.?);
+        defer allocator.free(v);
+        var db = try abi.database.Db.open(db_path.?, true);
+        defer db.close();
+        if (db.header.dim == 0) try db.init(@intCast(v.len));
+        const id = try db.addEmbedding(v);
+        std.debug.print("Added vector id={d}\n", .{id});
+        return;
+    } else if (std.mem.eql(u8, sub, "query")) {
+        var db_path: ?[]const u8 = null;
+        var vec_str: ?[]const u8 = null;
+        var k: usize = 5;
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--db") and i + 1 < args.len) {
+                i += 1;
+                db_path = args[i];
+            } else if (std.mem.eql(u8, args[i], "--vector") and i + 1 < args.len) {
+                i += 1;
+                vec_str = args[i];
+            } else if (std.mem.eql(u8, args[i], "--k") and i + 1 < args.len) {
+                i += 1;
+                k = try std.fmt.parseInt(usize, args[i], 10);
+            }
+        }
+        if (db_path == null or vec_str == null) {
+            std.debug.print("db query requires --db and --vector\n", .{});
+            return;
+        }
+        const v = try parseCsvFloats(allocator, vec_str.?);
+        defer allocator.free(v);
+        var db = try abi.database.Db.open(db_path.?, false);
+        defer db.close();
+        const results = try db.search(v, k, allocator);
+        defer allocator.free(results);
+        std.debug.print("Found {d} results\n", .{results.len});
+        for (results, 0..) |r, iidx| {
+            std.debug.print("  {d}: id={d} score={d:.6}\n", .{ iidx, r.index, r.score });
+        }
+        return;
+    } else if (std.mem.eql(u8, sub, "stats")) {
+        var db_path: ?[]const u8 = null;
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--db") and i + 1 < args.len) {
+                i += 1;
+                db_path = args[i];
+            }
+        }
+        if (db_path == null) {
+            std.debug.print("db stats requires --db <path>\n", .{});
+            return;
+        }
+        var db = try abi.database.Db.open(db_path.?, false);
+        defer db.close();
+        const stats = db.getStats();
+        std.debug.print("Dimensions={d} Rows={d} Writes={d} Searches={d}\n", .{ db.getDimension(), db.getRowCount(), stats.write_count, stats.search_count });
+        return;
+    } else {
+        std.debug.print("Unknown db subcommand: {s}\n", .{sub});
+    }
+}
+
+fn runConfigCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
+    // Usage:
+    //   abi config [--file <path>] [--validate] [--summary]
+    var config_path: ?[]const u8 = null;
+    var do_validate = false;
+    var do_summary = true;
+
+    var i: usize = 2;
+    while (i < args.len) : (i += 1) {
+        const arg = args[i];
+        if (std.mem.eql(u8, arg, "--file") and i + 1 < args.len) {
+            i += 1;
+            config_path = args[i];
+        } else if (std.mem.eql(u8, arg, "--validate")) {
+            do_validate = true;
+        } else if (std.mem.eql(u8, arg, "--summary")) {
+            do_summary = true;
+        } else if (std.mem.eql(u8, arg, "--no-summary")) {
+            do_summary = false;
+        } else if (std.mem.eql(u8, arg, "show")) {
+            do_summary = true;
+        } else if (std.mem.eql(u8, arg, "validate")) {
+            do_validate = true;
+        }
+    }
+
+    var manager = try abi.wdbx.ConfigManager.init(allocator, config_path);
+    defer manager.deinit();
+
+    if (do_validate) {
+        manager.validate() catch |err| {
+            std.debug.print("Config validation failed: {any}\n", .{err});
+            return err;
+        };
+        std.debug.print("Config validation: OK\n", .{});
+    }
+
+    if (do_summary) {
+        const cfg = manager.getConfig();
+        std.debug.print("\nLoaded configuration from: {s}\n", .{manager.config_path});
+        abi.wdbx.ConfigUtils.printSummary(cfg);
+    }
+}
+
 fn printHelp() void {
     std.debug.print(
         \\
@@ -59,8 +372,28 @@ fn printHelp() void {
         \\
         \\📋 USAGE:
         \\   abi [options]
+        \\   abi gpu <info|run-examples|dot> [flags]
+        \\   abi db  <add|query|stats> [flags]
         \\   abi --help                    Show this help message
         \\   abi --version                 Show version information
+        \\   abi config [flags]           Manage and validate configuration
+        \\
+        \\   GPU commands:
+        \\     gpu info [--backend <auto|webgpu|vulkan|metal|dx12|opengl|opencl|cuda|cpu>] [--no-webgpu-first]
+        \\     gpu run-examples
+        \\     gpu dot --a "csv" --b "csv"
+        \\     gpu search --db <path> --vector "csv" [--k N]
+        \\
+        \\   Database commands:
+        \\     db add --db <path> --vector "csv"
+        \\     db query --db <path> --vector "csv" [--k N]
+        \\     db stats --db <path>
+        \\
+        \\   Config flags:
+        \\     --file <path>              Use a specific config file (default: .wdbx-config)
+        \\     --validate                 Validate configuration and exit
+        \\     --summary                  Print configuration summary (default)
+        \\     --no-summary               Do not print summary
         \\
         \\🎯 FEATURES:
         \\
@@ -88,7 +421,6 @@ fn printHelp() void {
         \\     • Production-ready HTTP/TCP servers (99.98% uptime)
         \\     • RESTful API for all framework features
         \\     • WebSocket support for real-time communication
-        \\     • Built-in rate limiting and authentication
         \\
         \\   🤖 AI Agents
         \\     • 8 specialized AI personas for different use cases
@@ -105,7 +437,6 @@ fn printHelp() void {
         \\   🌤️  Weather Integration
         \\     • OpenWeatherMap API integration
         \\     • Modern web interface with real-time updates
-        \\     • Location-based weather services
         \\
         \\📈 PERFORMANCE METRICS (Production Validated):
         \\   • Database: 2,777+ operations/second
@@ -131,40 +462,20 @@ fn printHelp() void {
         \\
         \\💡 QUICK START EXAMPLES:
         \\
-        \\   # Interactive mode (default)
-        \\   abi
+        \\   # Show configuration summary
+        \\   abi config --summary
         \\
-        \\   # Create vector database and insert embeddings
-        \\   abi --database create --dim 384 --file vectors.wdbx
-        \\   abi --database insert --file vectors.wdbx --data embeddings.json
+        \\   # Validate configuration file
+        \\   abi config --validate
         \\
-        \\   # Start web server
-        \\   abi --server --port 8080 --host 0.0.0.0
-        \\
-        \\   # Run performance benchmarks
-        \\   abi --benchmark --duration 60 --threads auto
-        \\
-        \\   # Train neural network
-        \\   abi --neural train --data training.json --epochs 100
-        \\
-        \\   # AI chat with technical persona
-        \\   abi --ai chat --persona technical
+        \\   # Use alternate config path
+        \\   abi config --file ./prod.wdbx-config --validate
         \\
         \\🏗️  BUILD INFORMATION:
         \\   Target: {s}
         \\   Zig Version: {s}
         \\   Features: SIMD, Neural Networks, WebGPU, Plugins
         \\   Cross-platform: Windows, Linux, macOS, iOS, WebAssembly
-        \\
-        \\📚 DOCUMENTATION & SUPPORT:
-        \\   • Full API Reference: docs/api_reference.md
-        \\   • Usage Examples: docs/examples/
-        \\   • Performance Guide: docs/performance_guide.md
-        \\   • Troubleshooting: docs/troubleshooting.md
-        \\   • GitHub Issues: https://github.com/username/abi/issues
-        \\
-        \\🚀 The WDBX-AI framework is ready for production deployment with
-        \\   enterprise-grade performance, reliability, and scalability.
         \\
     , .{ CLI_NAME, CLI_VERSION, @tagName(@import("builtin").target.cpu.arch), @import("builtin").zig_version_string });
 }
@@ -177,7 +488,7 @@ fn printVersion() void {
         \\   Zig Version:    {s}
         \\   Build Mode:     Debug
         \\   Target:         {s}
-        \\   Features:       SIMD, GPU, Neural Networks, WebGPU, Plugins
+        \\   Features:       SIMD, GPU (multi-backend), Neural Networks, WebGPU, Plugins
         \\   Git Commit:     [development build]
         \\
         \\📊 Performance Characteristics:
@@ -199,11 +510,11 @@ fn printVersion() void {
         \\   ✅ Web Services        (100% - 99.98% uptime)
         \\   ✅ SIMD Operations     (100% - Cross-platform)
         \\   ✅ Plugin System       (100% - Dynamic loading)
-        \\   🚧 GPU Backend         (75% - WebGPU + platform APIs)
+        \\   🚧 GPU Backend         (75% - WebGPU + Vulkan/Metal/DX12/OpenGL/OpenCL/CUDA stubs)
         \\   🚧 Advanced ML        (40% - Research phase)
         \\
         \\📄 License: MIT
-        \\🏠 Homepage: https://github.com/username/abi
+        \\🏠 Homepage: https://github.com/donaldfilimon/abi
         \\
     , .{ CLI_NAME, CLI_VERSION, @import("builtin").zig_version_string, @tagName(@import("builtin").target.cpu.arch) });
 }

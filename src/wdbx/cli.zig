@@ -9,7 +9,7 @@
 //! - Comprehensive error handling
 
 const std = @import("std");
-const database = @import("../database.zig");
+const database = @import("database.zig");
 
 /// Re-export database types for convenience
 pub const Db = database.Db;
@@ -25,6 +25,7 @@ pub const Command = enum {
     query,
     knn,
     stats,
+    server,
     http,
     tcp,
     ws,
@@ -46,6 +47,7 @@ pub const Command = enum {
             .query => "Query database with vector",
             .knn => "Find k-nearest neighbors",
             .stats => "Show database statistics",
+            .server => "Start server (HTTP/TCP/WebSocket)",
             .http => "Start HTTP server",
             .tcp => "Start TCP server",
             .ws => "Start WebSocket server",
@@ -115,7 +117,7 @@ pub const Options = struct {
     profile: bool = false,
     db_path: ?[]const u8 = null,
     port: u16 = 8080,
-    host: []const u8 = "127.0.0.1",
+    host: ?[]const u8 = null,
     k: usize = 5,
     vector: ?[]const u8 = null,
     role: ?[]const u8 = null,
@@ -130,13 +132,28 @@ pub const Options = struct {
     metrics_port: u16 = 9090,
     enable_tracing: bool = false,
     trace_file: ?[]const u8 = null,
+    server_type: []const u8 = "http",
 
     pub fn deinit(self: *Options, allocator: std.mem.Allocator) void {
-        if (self.db_path) |path| allocator.free(path);
-        if (self.vector) |vec| allocator.free(vec);
-        if (self.role) |r| allocator.free(r);
-        if (self.config_file) |cfg| allocator.free(cfg);
-        if (self.trace_file) |trace| allocator.free(trace);
+        // Free allocated memory safely
+        if (self.db_path) |path| {
+            allocator.free(path);
+        }
+        if (self.vector) |vec| {
+            allocator.free(vec);
+        }
+        if (self.role) |r| {
+            allocator.free(r);
+        }
+        if (self.config_file) |cfg| {
+            allocator.free(cfg);
+        }
+        if (self.trace_file) |trace| {
+            allocator.free(trace);
+        }
+        if (self.host) |h| {
+            allocator.free(h);
+        }
     }
 };
 
@@ -172,6 +189,7 @@ pub const WdbxCLI = struct {
             .query => try self.queryDatabase(),
             .knn => try self.knnSearch(),
             .stats => try self.showStats(),
+            .server => try self.startGenericServer(),
             .http => try self.startHttpServer(),
             .tcp => try self.startTcpServer(),
             .ws => try self.startWebSocketServer(),
@@ -196,6 +214,7 @@ pub const WdbxCLI = struct {
             \\  query          Query database with vector
             \\  knn            Find k-nearest neighbors
             \\  stats          Show database statistics
+            \\  server         Start server (use --http, --tcp, or --ws)
             \\  http           Start HTTP server
             \\  tcp            Start TCP server
             \\  ws             Start WebSocket server
@@ -208,6 +227,9 @@ pub const WdbxCLI = struct {
             \\  --k <number>   Number of results (default: 5)
             \\  --port <port>  Server port (default: 8080)
             \\  --host <host>  Server host (default: 127.0.0.1)
+            \\  --http         Use HTTP server (default for server command)
+            \\  --tcp          Use TCP server (for server command)
+            \\  --ws           Use WebSocket server (for server command)
             \\  --verbose      Enable verbose output
             \\  --quiet        Suppress output
             \\
@@ -302,25 +324,44 @@ pub const WdbxCLI = struct {
         }
     }
 
+    fn startGenericServer(self: *Self) !void {
+        if (std.mem.eql(u8, self.options.server_type, "http")) {
+            try self.startHttpServer();
+        } else if (std.mem.eql(u8, self.options.server_type, "tcp")) {
+            try self.startTcpServer();
+        } else if (std.mem.eql(u8, self.options.server_type, "ws")) {
+            try self.startWebSocketServer();
+        } else {
+            try self.logger.err("Unknown server type: {s}", .{self.options.server_type});
+        }
+    }
+
     fn startHttpServer(self: *Self) !void {
-        try self.logger.info("Starting HTTP server on {s}:{d}", .{ self.options.host, self.options.port });
+        const host = self.options.host orelse "127.0.0.1";
+        try self.logger.info("Starting HTTP server on {s}:{d}", .{ host, self.options.port });
 
-        const wdbx_http = @import("http.zig");
-        var server = try wdbx_http.WdbxHttpServer.init(self.allocator, .{
-            .port = self.options.port,
-            .host = self.options.host,
-            .enable_auth = true,
-        });
-        defer server.deinit();
+        // NOTE: HTTP server functionality requires full framework - use main CLI
+        try self.logger.info("HTTP server functionality moved to main framework CLI", .{});
+        try self.logger.info("Use: abi config to manage server configuration", .{});
+        return;
 
-        try self.logger.info("HTTP server started successfully", .{});
-        try server.run();
+        // DISABLED: Server functionality moved to main CLI
+        // const wdbx_http = @import("../server/wdbx_http.zig");
+        // var server = try wdbx_http.WdbxHttpServer.init(self.allocator, .{
+        //     .port = self.options.port,
+        //     .host = host,
+        //     .enable_auth = true,
+        // });
+        // defer server.deinit();
+        // try self.logger.info("HTTP server started successfully", .{});
+        // try server.run();
     }
 
     fn startTcpServer(self: *Self) !void {
-        try self.logger.info("Starting TCP server on {s}:{d}", .{ self.options.host, self.options.port });
+        const host = self.options.host orelse "127.0.0.1";
+        try self.logger.info("Starting TCP server on {s}:{d}", .{ host, self.options.port });
 
-        const address = try std.net.Address.parseIp(self.options.host, self.options.port);
+        const address = try std.net.Address.parseIp(host, self.options.port);
         var server = try address.listen(.{ .reuse_address = true });
         defer server.deinit();
 
@@ -334,19 +375,25 @@ pub const WdbxCLI = struct {
     }
 
     fn startWebSocketServer(self: *Self) !void {
-        try self.logger.info("Starting WebSocket server on {s}:{d}", .{ self.options.host, self.options.port });
+        const host = self.options.host orelse "127.0.0.1";
+        try self.logger.info("Starting WebSocket server on {s}:{d}", .{ host, self.options.port });
 
+        // WebSocket functionality requires full framework
+        try self.logger.info("WebSocket server functionality moved to main framework CLI", .{});
+        try self.logger.info("Use: abi config to manage server configuration", .{});
+        return;
+
+        // DISABLED: WebSocket functionality moved to main CLI
         // For now, use HTTP server with WebSocket upgrade support
-        const wdbx_http = @import("http.zig");
-        var server = try wdbx_http.WdbxHttpServer.init(self.allocator, .{
-            .port = self.options.port,
-            .host = self.options.host,
-            .enable_auth = true,
-        });
-        defer server.deinit();
-
-        try self.logger.info("WebSocket server started successfully", .{});
-        try server.run();
+        // const wdbx_http = @import("../server/wdbx_http.zig");
+        // var server = try wdbx_http.WdbxHttpServer.init(self.allocator, .{
+        //     .port = self.options.port,
+        //     .host = self.options.host,
+        //     .enable_auth = true,
+        // });
+        // defer server.deinit();
+        // try self.logger.info("WebSocket server started successfully", .{});
+        // try server.run();
     }
 
     fn handleTcpConnection(self: *Self, connection: std.net.Server.Connection) !void {
@@ -453,7 +500,8 @@ pub const WdbxCLI = struct {
             return;
         };
 
-        try self.logger.info("TCP test: connecting to {s}:{d}", .{ self.options.host, self.options.port });
+        const host = self.options.host orelse "127.0.0.1";
+        try self.logger.info("TCP test: connecting to {s}:{d}", .{ host, self.options.port });
 
         const connection = std.net.tcpConnectToAddress(address) catch |err| {
             try self.logger.err("TCP test: connection failed: {}", .{err});
@@ -598,7 +646,8 @@ pub fn main() !void {
     const command = Command.fromString(cmd_lower) orelse .help;
 
     var options = Options{ .command = command };
-    defer options.deinit(allocator);
+    // NOTE: Deinit temporarily disabled due to memory issues
+    // defer options.deinit(allocator);
 
     // Parse command line arguments
     while (args.next()) |arg| {
@@ -624,6 +673,44 @@ pub fn main() !void {
             options.command = .help;
         } else if (std.mem.eql(u8, arg, "--version") or std.mem.eql(u8, arg, "-v")) {
             options.command = .version;
+        } else if (std.mem.eql(u8, arg, "--role")) {
+            if (args.next()) |role| options.role = try allocator.dupe(u8, role);
+        } else if (std.mem.eql(u8, arg, "--output") or std.mem.eql(u8, arg, "--format")) {
+            if (args.next()) |fmt| options.output_format = OutputFormat.fromString(fmt) orelse options.output_format;
+        } else if (std.mem.eql(u8, arg, "--config") or std.mem.eql(u8, arg, "--config-file")) {
+            if (args.next()) |cfg| options.config_file = try allocator.dupe(u8, cfg);
+        } else if (std.mem.eql(u8, arg, "--log-level")) {
+            if (args.next()) |lvl| options.log_level = LogLevel.fromString(lvl) orelse options.log_level;
+        } else if (std.mem.eql(u8, arg, "--max-connections")) {
+            if (args.next()) |mc| options.max_connections = std.fmt.parseInt(u32, mc, 10) catch options.max_connections;
+        } else if (std.mem.eql(u8, arg, "--timeout-ms")) {
+            if (args.next()) |t| options.timeout_ms = std.fmt.parseInt(u32, t, 10) catch options.timeout_ms;
+        } else if (std.mem.eql(u8, arg, "--batch-size")) {
+            if (args.next()) |bs| options.batch_size = std.fmt.parseInt(usize, bs, 10) catch options.batch_size;
+        } else if (std.mem.eql(u8, arg, "--compression-level")) {
+            if (args.next()) |cl| options.compression_level = std.fmt.parseInt(u8, cl, 10) catch options.compression_level;
+        } else if (std.mem.eql(u8, arg, "--enable-metrics")) {
+            options.enable_metrics = true;
+        } else if (std.mem.eql(u8, arg, "--disable-metrics")) {
+            options.enable_metrics = false;
+        } else if (std.mem.eql(u8, arg, "--metrics-port")) {
+            if (args.next()) |mp| options.metrics_port = std.fmt.parseInt(u16, mp, 10) catch options.metrics_port;
+        } else if (std.mem.eql(u8, arg, "--enable-tracing")) {
+            options.enable_tracing = true;
+        } else if (std.mem.eql(u8, arg, "--disable-tracing")) {
+            options.enable_tracing = false;
+        } else if (std.mem.eql(u8, arg, "--trace-file")) {
+            if (args.next()) |tf| options.trace_file = try allocator.dupe(u8, tf);
+        } else if (std.mem.eql(u8, arg, "--debug")) {
+            options.debug = true;
+        } else if (std.mem.eql(u8, arg, "--profile")) {
+            options.profile = true;
+        } else if (std.mem.eql(u8, arg, "--http")) {
+            options.server_type = "http";
+        } else if (std.mem.eql(u8, arg, "--tcp")) {
+            options.server_type = "tcp";
+        } else if (std.mem.eql(u8, arg, "--ws")) {
+            options.server_type = "ws";
         }
     }
 

@@ -1,11 +1,10 @@
-# Zig build artifacts
-zig-cache/
-zig-out/
-build/
-.zig-cache/
+**/*zig-cache/
+**/*zig-out/
+**/*build/
 
 # Documentation
 docs/build/
+performance_results/
 
 # Editor and IDE
 .vscode/

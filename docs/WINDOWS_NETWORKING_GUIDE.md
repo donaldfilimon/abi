@@ -205,7 +205,7 @@ Invoke-WebRequest -Uri http://localhost:8080/health
 
 - [Windows Networking Documentation](https://docs.microsoft.com/en-us/windows/win32/winsock/)
 - [Zig Networking Examples](https://github.com/ziglang/zig/tree/master/lib/std/net)
-- [WDBX Server Documentation](./docs/WDBX_ENHANCED.md)
+- [WDBX Server Documentation](./WDBX_ENHANCED.md)
 
 ## 🆘 Getting Help
 

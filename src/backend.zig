@@ -58,10 +58,11 @@
 //!   Methods to record operations, compute averages, and print statistics.
 
 const std = @import("std");
-const gpu = std.gpu;
-
-const database = @import("database.zig");
 const root = @import("root.zig");
+const gpu = root.gpu;
+
+const database = @import("wdbx/database.zig");
+// root imported above
 
 /// Configuration for the GPU backend.
 pub const GpuBackendConfig = struct {
@@ -77,6 +78,7 @@ pub const GpuBackend = struct {
     allocator: std.mem.Allocator,
     gpu_available: bool = false,
     memory_used: u64 = 0,
+    renderer: ?*gpu.GPURenderer = null,
 
     /// Error set for all GPU backend operations.
     pub const Error = error{
@@ -103,9 +105,18 @@ pub const GpuBackend = struct {
             .config = config,
             .gpu_available = false,
             .memory_used = 0,
+            .renderer = null,
         };
 
-        self.gpu_available = checkGpuAvailability();
+        // Attempt to initialize a GPU renderer (auto backend, WebGPU first)
+        const cfg = gpu.GPUConfig{
+            .debug_validation = config.debug_validation,
+            .power_preference = config.power_preference,
+            .backend = .auto,
+            .try_webgpu_first = true,
+        };
+        self.renderer = gpu.GPURenderer.init(allocator, cfg) catch null;
+        self.gpu_available = self.renderer != null;
 
         if (!self.gpu_available) {
             std.log.warn("GPU not available, using CPU fallback for compute operations", .{});
@@ -116,14 +127,15 @@ pub const GpuBackend = struct {
 
     /// Clean up and release all resources held by the backend.
     pub fn deinit(self: *GpuBackend) void {
+        if (self.renderer) |r| {
+            r.deinit();
+        }
         self.allocator.destroy(self);
     }
 
     /// Check if a suitable GPU is available for compute.
-    fn checkGpuAvailability() bool {
-        // In a real implementation, this would check for WebGPU/Vulkan/Metal/DX12 support.
-        // For now, return false to use CPU fallback.
-        return false;
+    pub fn isGpuAvailable(self: *const GpuBackend) bool {
+        return self.gpu_available;
     }
 
     /// Perform a vector similarity search for the given query vector against the database.
@@ -132,12 +144,14 @@ pub const GpuBackend = struct {
         if (query.len == 0 or query.len != db.header.dim)
             return Error.InvalidBufferSize;
 
-        if (!self.gpu_available) {
-            return self.searchSimilarCpu(db, query, top_k);
-        }
+        if (!self.gpu_available) return self.searchSimilarCpu(db, query, top_k);
 
-        // GPU implementation would go here (see gpu_examples.zig for reference).
-        return Error.GpuNotAvailable;
+        // Try GPU-accelerated path; fall back on any failure
+        return self.searchSimilarGpu(db, query, top_k) catch {
+            return self.searchSimilarCpu(db, query, top_k);
+        };
+
+        // Unreachable
     }
 
     /// CPU fallback implementation for vector similarity search.
@@ -158,10 +172,14 @@ pub const GpuBackend = struct {
 
         for (0..vector_count) |i| {
             const offset = db.header.records_off + @as(u64, i) * record_size;
-            try db.file.seekTo(offset);
-
+            db.file.seekTo(offset) catch return Error.GpuOperationFailed;
             const vector_bytes = std.mem.sliceAsBytes(vector_buffer);
-            try db.file.reader().readNoEof(vector_bytes);
+            var filled: usize = 0;
+            while (filled < vector_bytes.len) {
+                const n = db.file.read(vector_bytes[filled..]) catch return Error.GpuOperationFailed;
+                if (n == 0) return Error.GpuOperationFailed;
+                filled += n;
+            }
 
             var distance: f32 = 0.0;
             for (vector_buffer, 0..) |val, j| {
@@ -181,6 +199,67 @@ pub const GpuBackend = struct {
         const final_results = try self.allocator.alloc(database.Db.Result, result_count);
         @memcpy(final_results, results[0..result_count]);
 
+        return final_results;
+    }
+
+    /// GPU-accelerated similarity search using the renderer (CPU fallback if any step fails).
+    fn searchSimilarGpu(self: *GpuBackend, db: *database.Db, query: []const f32, top_k: usize) Error![]database.Db.Result {
+        const renderer = self.renderer orelse return Error.GpuNotAvailable;
+        const vector_count = db.header.row_count;
+        const dimension = db.header.dim;
+
+        if (vector_count == 0)
+            return self.allocator.alloc(database.Db.Result, 0);
+
+        var results = try self.allocator.alloc(database.Db.Result, vector_count);
+        defer self.allocator.free(results);
+
+        const vector_buffer = try self.allocator.alloc(f32, dimension);
+        defer self.allocator.free(vector_buffer);
+        const record_size = @as(u64, dimension) * @sizeOf(f32);
+
+        // Precompute sum of squares for query
+        var sum_q: f32 = 0.0;
+        for (query) |v| sum_q += v * v;
+
+        // Upload query once
+        const q_handle = renderer.createBufferWithData(f32, query, .{ .storage = true, .copy_src = true, .copy_dst = true }) catch return Error.GpuOperationFailed;
+        defer renderer.destroyBuffer(q_handle) catch {};
+
+        // Create reusable row buffer
+        const row_bytes: usize = dimension * @sizeOf(f32);
+        const r_handle = renderer.createBuffer(row_bytes, .{ .storage = true, .copy_dst = true, .copy_src = true }) catch return Error.GpuOperationFailed;
+        defer renderer.destroyBuffer(r_handle) catch {};
+
+        for (0..vector_count) |i| {
+            const offset = db.header.records_off + @as(u64, i) * record_size;
+            db.file.seekTo(offset) catch return Error.GpuOperationFailed;
+            const bytes = std.mem.sliceAsBytes(vector_buffer);
+            var filled2: usize = 0;
+            while (filled2 < bytes.len) {
+                const n2 = db.file.read(bytes[filled2..]) catch return Error.GpuOperationFailed;
+                if (n2 == 0) return Error.GpuOperationFailed;
+                filled2 += n2;
+            }
+
+            // Sum of squares for row
+            var sum_r: f32 = 0.0;
+            for (vector_buffer) |v| sum_r += v * v;
+
+            // Upload row data into GPU buffer
+            renderer.writeBuffer(r_handle, bytes) catch return Error.GpuOperationFailed;
+
+            // dot(query, row)
+            const dot_val = renderer.computeVectorDotBuffers(q_handle, r_handle, dimension) catch return Error.GpuOperationFailed;
+            const dist = sum_q + sum_r - 2.0 * dot_val;
+
+            results[i] = .{ .index = @intCast(i), .score = dist };
+        }
+
+        std.mem.sort(database.Db.Result, results, {}, comptime database.Db.Result.lessThanAsc);
+        const result_count = @min(top_k, results.len);
+        const final_results = try self.allocator.alloc(database.Db.Result, result_count);
+        @memcpy(final_results, results[0..result_count]);
         return final_results;
     }
 

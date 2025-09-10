@@ -1,6 +1,7 @@
 const std = @import("std");
 const testing = std.testing;
-const database = @import("database");
+const abi = @import("abi");
+const database = abi.wdbx.database;
 
 test "database basic operations" {
     const allocator = testing.allocator;
