@@ -382,6 +382,7 @@ fn printHelp() void {
         \\   abi [options]
         \\   abi gpu <info|run-examples|dot> [flags]
         \\   abi db  <add|query|stats> [flags]
+        \\   abi llm <embed|query> [flags]
         \\   abi --help                    Show this help message
         \\   abi --version                 Show version information
         \\   abi config [flags]           Manage and validate configuration
@@ -701,9 +702,45 @@ fn runLlmCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
         else
             .{ .ollama = .{ .host = host, .model = model } };
 
+        // Use plugin interface if available
+        var registry = try abi.plugins.createRegistry(allocator);
+        defer registry.deinit();
+        try registry.registerBuiltinInterface(abi.connectors.plugin.getInterface());
+        const iface = abi.connectors.plugin.getInterface();
+        var plugin = try abi.plugins.interface.createPlugin(allocator, iface);
+        defer abi.plugins.interface.destroyPlugin(allocator, plugin);
+        var plugin_cfg = abi.plugins.types.PluginConfig.init(allocator);
+        defer plugin_cfg.deinit();
+        try plugin_cfg.setParameter("provider", provider);
+        if (std.mem.eql(u8, provider, "openai")) {
+            try plugin_cfg.setParameter("base_url", "https://api.openai.com/v1");
+            try plugin_cfg.setParameter("api_key", api_key);
+            try plugin_cfg.setParameter("model", model);
+        } else {
+            try plugin_cfg.setParameter("host", host);
+            try plugin_cfg.setParameter("model", model);
+        }
+        try plugin.initialize(&plugin_cfg);
+        try plugin.start();
+        if (plugin.getApi("embedding")) |p| {
+            const emb_api = @as(*const abi.connectors.plugin.EmbeddingApi, @ptrCast(p));
+            var out_ptr: [*]f32 = undefined;
+            var out_len: usize = 0;
+            const rc: c_int = emb_api.embed_text(plugin.context.?, text.?.ptr, text.?.len, &out_ptr, &out_len);
+            if (rc == 0) {
+                const emb = out_ptr[0..out_len];
+                defer emb_api.free_vector(plugin.context.?, out_ptr, out_len);
+                var db = try abi.database.Db.open(db_path.?, true);
+                defer db.close();
+                if (db.getDimension() == 0) try db.init(@intCast(emb.len));
+                const id = try db.addEmbedding(emb);
+                std.debug.print("Embedded text added, id={d}, dim={d}\n", .{ id, emb.len });
+                return;
+            }
+        }
+        // Fallback to direct connectors if plugin API not available
         const emb = try abi.connectors.embedText(allocator, cfg, text.?);
         defer allocator.free(emb);
-
         var db = try abi.database.Db.open(db_path.?, true);
         defer db.close();
         if (db.getDimension() == 0) try db.init(@intCast(emb.len));
