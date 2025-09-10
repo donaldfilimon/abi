@@ -13,11 +13,11 @@ pub fn main() !void {
     var timer = try std.time.Timer.start();
 
     const N = 1_000_000; // 1M elements
-    var a = try allocator.alloc(f32, N);
+    const a = try allocator.alloc(f32, N);
     defer allocator.free(a);
-    var b = try allocator.alloc(f32, N);
+    const b = try allocator.alloc(f32, N);
     defer allocator.free(b);
-    var r = try allocator.alloc(f32, N);
+    const r = try allocator.alloc(f32, N);
     defer allocator.free(r);
 
     fillLinear(a, 1.0);
@@ -45,7 +45,7 @@ pub fn main() !void {
 
     // sum/mean/variance/stddev
     timer.reset();
-    const sum_val = abi.simd.sum(a);
+    var sum_val = abi.simd.sum(a);
     const sum_ns = timer.read();
     const mean_val = abi.simd.mean(a);
     timer.reset();
@@ -55,21 +55,21 @@ pub fn main() !void {
 
     // dot product
     timer.reset();
-    const dot = abi.simd.dotProduct(a, b);
+    var dot = abi.simd.dotProduct(a, b);
     const dot_ns = timer.read();
 
     // l1 distance
     timer.reset();
-    const l1 = abi.simd.l1Distance(a, b);
+    var l1 = abi.simd.l1Distance(a, b);
     const l1_ns = timer.read();
 
     // small matrix multiply (256x64) * (64x64)
     const M: usize = 256;
     const K: usize = 64;
     const Ncol: usize = 64;
-    var mat_a = try allocator.alloc(f32, M * K);
+    const mat_a = try allocator.alloc(f32, M * K);
     defer allocator.free(mat_a);
-    var mat_b = try allocator.alloc(f32, K * Ncol);
+    const mat_b = try allocator.alloc(f32, K * Ncol);
     defer allocator.free(mat_b);
     var mat_r = try allocator.alloc(f32, M * Ncol);
     defer allocator.free(mat_r);
@@ -84,3 +84,4 @@ pub fn main() !void {
         .{ N, add_ns, mul_ns, scale_ns, norm_ns, sum_ns, mean_val, var_val, var_ns, stddev_val, dot_ns, l1_ns, mm_ns },
     );
 }
+
