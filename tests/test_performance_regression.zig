@@ -2,10 +2,10 @@ const std = @import("std");
 const testing = std.testing;
 
 // Import the modules we want to test
-const neural = @import("../src/neural.zig");
-const memory_tracker = @import("../src/memory_tracker.zig");
-const ai = @import("../src/ai/mod.zig");
-const root = @import("../src/root.zig");
+const neural = @import("neural");
+const memory_tracker = @import("memory_tracker");
+const abi = @import("abi");
+const ai = abi.ai;
 
 // Performance regression test for neural network operations
 test "neural network performance regression - forward pass" {

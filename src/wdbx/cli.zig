@@ -10,7 +10,6 @@
 
 const std = @import("std");
 const database = @import("../database.zig");
-const core = @import("../core/mod.zig");
 
 /// Re-export database types for convenience
 pub const Db = database.Db;

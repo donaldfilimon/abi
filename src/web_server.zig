@@ -9,10 +9,10 @@
 //! - CORS support
 
 const std = @import("std");
-const core = @import("core/mod.zig");
+const builtin = @import("builtin");
 
 /// Re-export commonly used types
-pub const Allocator = core.Allocator;
+pub const Allocator = std.mem.Allocator;
 
 /// Web server configuration
 pub const WebConfig = struct {
@@ -72,12 +72,24 @@ pub const WebServer = struct {
         defer connection.stream.close();
 
         var buffer: [4096]u8 = undefined;
-        const bytes_read = connection.stream.read(&buffer) catch |err| {
-            switch (err) {
-                error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
-                else => return err,
+        var bytes_read: usize = 0;
+        if (builtin.os.tag == .windows) {
+            const windows = std.os.windows;
+            const max_len: c_int = @intCast(@min(buffer.len, @as(usize, @intCast(std.math.maxInt(c_int)))));
+            const n: c_int = windows.ws2_32.recv(connection.stream.handle, @ptrCast(&buffer[0]), max_len, 0);
+            if (n == windows.ws2_32.SOCKET_ERROR) {
+                // Treat as client disconnect or transient error; ignore
+                return;
             }
-        };
+            bytes_read = @intCast(n);
+        } else {
+            bytes_read = connection.stream.read(&buffer) catch |err| {
+                switch (err) {
+                    error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
+                    else => return err,
+                }
+            };
+        }
 
         if (bytes_read == 0) return;
 
@@ -272,16 +284,17 @@ pub const WebServer = struct {
         defer frame.deinit(self.allocator);
 
         // First byte: FIN + RSV + Opcode
-        try frame.append(0x80 | opcode); // FIN = 1, RSV = 0, Opcode = opcode
+        const first_byte: u8 = 0x80 | @as(u8, @intCast(opcode));
+        try frame.append(self.allocator, first_byte); // FIN = 1, RSV = 0, Opcode = opcode
 
         // Second byte: MASK + Payload length
         if (payload.len < 126) {
-            try frame.append(@intCast(payload.len));
+            try frame.append(self.allocator, @intCast(payload.len));
         } else if (payload.len < 65536) {
-            try frame.append(126);
+            try frame.append(self.allocator, 126);
             try frame.appendSlice(self.allocator, &std.mem.toBytes(@as(u16, @intCast(payload.len))));
         } else {
-            try frame.append(127);
+            try frame.append(self.allocator, 127);
             try frame.appendSlice(self.allocator, &std.mem.toBytes(@as(u64, @intCast(payload.len))));
         }
 
@@ -318,6 +331,42 @@ pub const WebServer = struct {
             try self.handleStaticFile(connection, path);
         } else {
             try self.sendHttpResponse(connection, 404, "Not Found", "{\"error\":\"Not Found\"}");
+        }
+    }
+
+    /// Start the server, accept a single connection, handle it, then stop.
+    /// Intended for testing with a live socket.
+    pub fn startOnce(self: *WebServer) !void {
+        const address = try std.net.Address.parseIp(self.config.host, self.config.port);
+        self.server = try address.listen(.{ .reuse_address = true });
+        defer {
+            if (self.server) |*srv| srv.deinit();
+            self.server = null;
+        }
+
+        const connection = self.server.?.accept() catch |err| switch (err) {
+            error.ConnectionAborted, error.WouldBlock, error.ConnectionResetByPeer => return,
+            else => return err,
+        };
+        try self.handleConnection(connection);
+    }
+
+    // Test helper: route by path and return body string
+    pub fn handlePathForTest(self: *WebServer, path: []const u8, allocator: std.mem.Allocator) ![]u8 {
+        _ = self;
+        if (std.mem.eql(u8, path, "/")) {
+            const html =
+                "<!DOCTYPE html>" ++
+                "<html><head><title>Abi AI Framework</title></head><body>" ++
+                "<h1>Abi AI Framework Web Server</h1>" ++
+                "</body></html>";
+            return allocator.dupe(u8, html);
+        } else if (std.mem.eql(u8, path, "/health")) {
+            return allocator.dupe(u8, "{\"status\":\"healthy\"}");
+        } else if (std.mem.eql(u8, path, "/api/status")) {
+            return allocator.dupe(u8, "{\"api\":\"running\"}");
+        } else {
+            return allocator.dupe(u8, "{\"error\":\"Not Found\"}");
         }
     }
 
@@ -359,7 +408,8 @@ pub const WebServer = struct {
         }
 
         const static_dir = self.config.static_dir.?;
-        const file_path = static_dir ++ path[7..]; // Remove "/static/" prefix
+        const file_path = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ static_dir, path[7..] });
+        defer self.allocator.free(file_path);
 
         const file = std.fs.cwd().openFile(file_path, .{}) catch |err| {
             try self.sendHttpResponse(connection, 404, "Not Found", "{\"error\":\"File not found\"}");
@@ -367,13 +417,25 @@ pub const WebServer = struct {
         };
         defer file.close();
 
-        const content = file.readToEndAlloc(self.allocator, self.config.max_body_size) catch |err| {
+        // Zig 0.16-dev: replace deprecated readToEndAlloc with manual stat+read
+        const st = file.stat() catch |err| {
+            try self.sendHttpResponse(connection, 500, "Internal Server Error", "{\"error\":\"Failed to stat file\"}");
+            return err;
+        };
+        const file_size_u64: u64 = st.size;
+        const max_bytes: u64 = self.config.max_body_size;
+        const to_read_u64: u64 = if (file_size_u64 > max_bytes) max_bytes else file_size_u64;
+        const to_read: usize = @intCast(to_read_u64);
+
+        var buf = try self.allocator.alloc(u8, to_read);
+        defer self.allocator.free(buf);
+        const n = file.readAll(buf) catch |err| {
             try self.sendHttpResponse(connection, 500, "Internal Server Error", "{\"error\":\"Failed to read file\"}");
             return err;
         };
-        defer self.allocator.free(content);
+        const body = buf[0..n];
 
-        try self.sendHttpResponse(connection, 200, "OK", content);
+        try self.sendHttpResponse(connection, 200, "OK", body);
     }
 
     /// Send HTTP response

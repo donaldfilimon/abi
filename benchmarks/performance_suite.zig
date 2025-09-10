@@ -42,16 +42,16 @@ const BenchmarkSuite = struct {
         return @This(){
             .allocator = allocator,
             .config = config,
-            .results = ArrayList(BenchmarkResult).init(allocator),
+            .results = ArrayList(BenchmarkResult){},
         };
     }
 
     fn deinit(self: *@This()) void {
-        self.results.deinit();
+        self.results.deinit(self.allocator);
     }
 
     fn recordResult(self: *@This(), result: BenchmarkResult) !void {
-        try self.results.append(result);
+        try self.results.append(self.allocator, result);
     }
 
     fn runBenchmark(self: *@This(), comptime name: []const u8, benchmark_fn: anytype, context: anytype) !BenchmarkResult {

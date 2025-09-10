@@ -8,10 +8,9 @@
 //! - Multi-model orchestration and load balancing
 
 const std = @import("std");
-const core = @import("core/mod.zig");
 
 /// Re-export commonly used types
-pub const Allocator = core.Allocator;
+pub const Allocator = std.mem.Allocator;
 
 /// Router-specific error types
 pub const RouterError = error{
@@ -21,7 +20,7 @@ pub const RouterError = error{
     ModelUnavailable,
     ConfigurationError,
     ResourceExhausted,
-} || core.Error;
+};
 
 /// Represents a single conversational persona with basic metrics.
 pub const Persona = struct {
@@ -113,7 +112,8 @@ pub const DynamicPersonaRouter = struct {
 };
 
 /// Example usage of the router.
-pub fn main() !void {
+// Note: This is an example function, not a main entry point
+pub fn example() !void {
     const personas = [_]Persona{
         .{ .name = "helper", .empathy_score = 0.9, .glue_accuracy = 0.8, .codegen_score = 0.4 },
         .{ .name = "coder", .empathy_score = 0.6, .glue_accuracy = 0.7, .codegen_score = 0.9 },

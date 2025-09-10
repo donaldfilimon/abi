@@ -1269,65 +1269,6 @@ pub const WdbxCLI = struct {
 };
 
 // ---------------------------------------------------------------
-// 9. Main entry point
+// Note: This module provides WDBX database functionality but is not a standalone executable.
+// Use the main CLI application (src/cli/main.zig) for command-line usage.
 // ---------------------------------------------------------------
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    var args = try std.process.argsWithAllocator(allocator);
-    defer args.deinit();
-
-    // Skip the program name
-    _ = args.next();
-    const cmd = args.next() orelse "help";
-    var cmd_lower_buf: [256]u8 = undefined;
-    const cmd_lower = std.ascii.lowerString(&cmd_lower_buf, cmd);
-    const command = WdbxCLI.Command.fromString(cmd_lower) orelse .help;
-
-    const opts = WdbxCLI.Options{
-        .command = command,
-        .verbose = false,
-        .quiet = false,
-        .db_path = null,
-        .port = 8080,
-        .host = "127.0.0.1",
-        .k = 5,
-        .vector = null,
-        .role = "admin",
-        .output_format = .text,
-    };
-
-    var cli = try WdbxCLI.init(allocator, opts);
-    defer cli.deinit();
-
-    while (args.next()) |arg| {
-        if (std.mem.eql(u8, arg, "--db")) {
-            if (args.next()) |path| cli.options.db_path = try allocator.dupe(u8, path);
-        } else if (std.mem.eql(u8, arg, "--host")) {
-            if (args.next()) |host| cli.options.host = try allocator.dupe(u8, host);
-        } else if (std.mem.eql(u8, arg, "--port")) {
-            if (args.next()) |port_str| cli.options.port = try std.fmt.parseInt(u16, port_str, 10);
-        } else if (std.mem.eql(u8, arg, "--k")) {
-            if (args.next()) |k_str| cli.options.k = try std.fmt.parseInt(usize, k_str, 10);
-        } else if (std.mem.eql(u8, arg, "--vector")) {
-            if (args.next()) |vec| cli.options.vector = try allocator.dupe(u8, vec);
-        } else if (std.mem.eql(u8, arg, "--verbose")) {
-            cli.options.verbose = true;
-        } else if (std.mem.eql(u8, arg, "--quiet")) {
-            cli.options.quiet = true;
-        } else if (std.mem.eql(u8, arg, "--role")) {
-            if (args.next()) |role| cli.options.role = try allocator.dupe(u8, role);
-        } else if (std.mem.eql(u8, arg, "--format")) {
-            if (args.next()) |fmt| cli.options.output_format = if (std.mem.eql(u8, fmt, "json")) .json else .text;
-        } else if (cli.options.vector == null and (command == .knn or command == .query or command == .add)) {
-            // Treat non-flag arguments as vectors for vector commands
-            cli.options.vector = try allocator.dupe(u8, arg);
-        } else {
-            std.debug.print("Unknown option: {s}\n", .{arg});
-        }
-    }
-
-    try cli.run();
-}

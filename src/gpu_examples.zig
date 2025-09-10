@@ -583,8 +583,9 @@ fn imageProcessing(ctx: *GPUContext, allocator: std.mem.Allocator) !void {
     print("Image processing completed (512x512 blur filter)\n");
 }
 
-/// Main function demonstrating GPU compute capabilities
-pub fn main() !void {
+/// Example function demonstrating GPU compute capabilities
+// Note: This is an example function, not a main entry point
+pub fn runExamples() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();

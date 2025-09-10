@@ -4,11 +4,10 @@
 //! Supports multiple backend integrations and maintains conversation context.
 
 const std = @import("std");
-const core = @import("core/mod.zig");
 
-/// Re-export core types for convenience
-pub const Allocator = core.Allocator;
-pub const ArrayList = core.ArrayList;
+/// Re-export standard library types for convenience
+pub const Allocator = std.mem.Allocator;
+pub const ArrayList = std.ArrayList;
 
 /// Agent-specific error types with standardized naming
 pub const AgentError = error{
@@ -21,7 +20,7 @@ pub const AgentError = error{
     InvalidConfiguration,
     ResourceExhausted,
     OperationTimeout,
-} || core.Error;
+};
 
 /// Defines the various personas an AI agent can adopt
 pub const PersonaType = enum {
@@ -126,9 +125,9 @@ pub const Agent = struct {
 
     /// Starts the agent (placeholder implementation)
     pub fn start(self: *Agent) !void {
-        const logger = core.logging.ai_logger;
+        // TODO: Implement logging when core module is available
         const persona_desc = if (self.current_persona) |p| p.getDescription() else "no persona";
-        logger.info("AI Agent started with {s} persona", .{persona_desc});
+        std.log.info("AI Agent started with {s} persona", .{persona_desc});
     }
 
     /// Adds a message to the conversation history

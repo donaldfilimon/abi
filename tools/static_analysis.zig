@@ -83,8 +83,18 @@ pub const StaticAnalyzer = struct {
         };
         defer file.close();
 
-        const content = try file.readToEndAlloc(self.allocator, 10 * 1024 * 1024);
-        defer self.allocator.free(content);
+        // Zig 0.16: replace deprecated readToEndAlloc with manual stat + readAll
+        const st = try file.stat();
+        const max_bytes: usize = 10 * 1024 * 1024;
+        const file_size_u64: u64 = st.size;
+        const max_bytes_u64: u64 = @intCast(max_bytes);
+        const to_read_u64: u64 = if (file_size_u64 > max_bytes_u64) max_bytes_u64 else file_size_u64;
+        const to_read: usize = @intCast(to_read_u64);
+
+        var buf = try self.allocator.alloc(u8, to_read);
+        defer self.allocator.free(buf);
+        const n = try file.readAll(buf);
+        const content = buf[0..n];
 
         try self.analyzeContent(file_path, content);
     }

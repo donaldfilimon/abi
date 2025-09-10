@@ -13,13 +13,12 @@
 
 const std = @import("std");
 const math = std.math;
-const core = @import("core/mod.zig");
 const abi = @import("root.zig");
-const simd_vector = @import("simd_vector.zig");
+const simd = @import("simd/mod.zig");
 const memory_tracker = @import("memory_tracker.zig");
 
 /// Re-export commonly used types
-pub const Allocator = core.Allocator;
+pub const Allocator = std.mem.Allocator;
 
 /// Neural network layer types
 pub const LayerType = enum {
@@ -753,11 +752,12 @@ pub const Layer = struct {
         while (i < self.output_size) : (i += 1) {
             const weights_start = i * self.input_size;
             const weights_end = weights_start + self.input_size;
-            output[i] = simd_vector.dotProductSIMD(
-                input,
-                self.weights[weights_start..weights_end],
-                .{},
-            ) + self.biases[i];
+            // Simple dot product implementation
+            var sum: f32 = 0.0;
+            for (input, self.weights[weights_start..weights_end]) |a, b| {
+                sum += a * b;
+            }
+            output[i] = sum + self.biases[i];
             output[i] = self.activation.apply(output[i]);
         }
 

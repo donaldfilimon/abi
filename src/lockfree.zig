@@ -52,7 +52,7 @@ pub const LockFreeStats = struct {
 };
 
 /// Lock-free queue using Michael & Scott algorithm
-pub fn LockFreeQueue(comptime T: type) type {
+pub fn lockFreeQueue(comptime T: type) type {
     return struct {
         const Self = @This();
 
@@ -155,7 +155,7 @@ pub fn LockFreeQueue(comptime T: type) type {
 }
 
 /// Lock-free stack using Treiber algorithm
-pub fn LockFreeStack(comptime T: type) type {
+pub fn lockFreeStack(comptime T: type) type {
     return struct {
         const Self = @This();
 
@@ -213,7 +213,7 @@ pub fn LockFreeStack(comptime T: type) type {
 }
 
 /// Lock-free hash map using hopscotch hashing
-pub fn LockFreeHashMap(comptime K: type, comptime V: type) type {
+pub fn lockFreeHashMap(comptime K: type, comptime V: type) type {
     return struct {
         const Self = @This();
         const H = 32; // Hopscotch neighborhood size
@@ -358,7 +358,7 @@ pub fn LockFreeHashMap(comptime K: type, comptime V: type) type {
 }
 
 /// Lock-free work-stealing deque
-pub fn WorkStealingDeque(comptime T: type) type {
+pub fn workStealingDeque(comptime T: type) type {
     return struct {
         const Self = @This();
 
@@ -447,7 +447,7 @@ pub fn WorkStealingDeque(comptime T: type) type {
 }
 
 /// Multi-producer, multi-consumer queue with batching
-pub fn MPMCQueue(comptime T: type, comptime capacity: usize) type {
+pub fn mpmcQueue(comptime T: type, comptime capacity: usize) type {
     return struct {
         const Self = @This();
 
@@ -507,7 +507,7 @@ pub fn MPMCQueue(comptime T: type, comptime capacity: usize) type {
 test "lock-free queue" {
     const testing = std.testing;
 
-    var queue = try LockFreeQueue(i32).init(testing.allocator);
+    var queue = try lockFreeQueue(i32).init(testing.allocator);
     defer queue.deinit();
 
     try queue.enqueue(1);
@@ -523,7 +523,7 @@ test "lock-free queue" {
 test "lock-free stack" {
     const testing = std.testing;
 
-    var stack = LockFreeStack(i32).init(testing.allocator);
+    var stack = lockFreeStack(i32).init(testing.allocator);
     defer stack.deinit();
 
     try stack.push(1);

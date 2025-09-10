@@ -11,7 +11,7 @@
 const std = @import("std");
 const neural = @import("src/neural.zig");
 const memory_tracker = @import("src/memory_tracker.zig");
-const simd_vector = @import("src/simd_vector.zig");
+const simd = @import("src/simd/mod.zig");
 
 /// Benchmark configuration
 pub const BenchmarkConfig = struct {
@@ -72,27 +72,33 @@ pub const BenchmarkResult = struct {
 
     /// Format result as string
     pub fn format(self: BenchmarkResult, allocator: std.mem.Allocator) ![]u8 {
-        var buffer = std.ArrayListUnmanaged(u8){};
-        errdefer buffer.deinit(allocator);
+        var buf = std.ArrayListUnmanaged(u8){};
+        errdefer buf.deinit(allocator);
 
-        const writer = buffer.writer(allocator);
+        const appendf = struct {
+            fn add(bufp: *std.ArrayListUnmanaged(u8), alloc: std.mem.Allocator, comptime fmt: []const u8, args: anytype) !void {
+                const s = try std.fmt.allocPrint(alloc, fmt, args);
+                defer alloc.free(s);
+                try bufp.appendSlice(alloc, s);
+            }
+        }.add;
 
-        try writer.print("=== Benchmark Result: {s} ===\n", .{self.test_name});
-        try writer.print("Total Time: {d:.3} ms\n", .{@as(f64, @floatFromInt(self.total_time_ns)) / 1_000_000.0});
-        try writer.print("Average Time: {d:.3} μs\n", .{self.avg_time_ns / 1000.0});
-        try writer.print("Ops/sec: {d:.2}\n", .{self.ops_per_sec});
-        try writer.print("Memory Used: {d:.2} KB\n", .{@as(f64, @floatFromInt(self.memory_used)) / 1024.0});
-        try writer.print("Status: {s}\n", .{if (self.success) "✅ PASSED" else "❌ FAILED"});
+        try appendf(&buf, allocator, "=== Benchmark Result: {s} ===\n", .{self.test_name});
+        try appendf(&buf, allocator, "Total Time: {d:.3} ms\n", .{@as(f64, @floatFromInt(self.total_time_ns)) / 1_000_000.0});
+        try appendf(&buf, allocator, "Average Time: {d:.3} μs\n", .{self.avg_time_ns / 1000.0});
+        try appendf(&buf, allocator, "Ops/sec: {d:.2}\n", .{self.ops_per_sec});
+        try appendf(&buf, allocator, "Memory Used: {d:.2} KB\n", .{@as(f64, @floatFromInt(self.memory_used)) / 1024.0});
+        try appendf(&buf, allocator, "Status: {s}\n", .{if (self.success) "✅ PASSED" else "❌ FAILED"});
 
         if (self.metrics.count() > 0) {
-            try writer.print("Additional Metrics:\n", .{});
+            try buf.appendSlice(allocator, "Additional Metrics:\n");
             var it = self.metrics.iterator();
             while (it.next()) |entry| {
-                try writer.print("  {s}: {d:.4}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
+                try appendf(&buf, allocator, "  {s}: {d:.4}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
             }
         }
 
-        return try buffer.toOwnedSlice(allocator);
+        return try buf.toOwnedSlice(allocator);
     }
 };
 
@@ -212,7 +218,6 @@ pub const BenchmarkSuite = struct {
                 operations += 1;
             }
         }
-
         const end_time = std.time.nanoTimestamp();
         const memory_end = profiler.getStats().currentUsage();
 
@@ -259,26 +264,35 @@ pub const BenchmarkSuite = struct {
             val.* = @as(f32, @floatFromInt(i % 100)) / 100.0;
         }
 
-        // Test aligned vs unaligned performance
-        const aligned_data = try simd_vector.SIMDAlignment.ensureAligned(self.allocator, data);
-        defer if (aligned_data.ptr != data.ptr) self.allocator.free(aligned_data);
-
+        // Simple performance test without SIMD alignment
         const start_time = std.time.nanoTimestamp();
         var operations: usize = 0;
 
-        const opts = simd_vector.SIMDOpts{};
-
-        // Run SIMD operations
+        // Run simple vector operations
         for (0..self.config.iterations) |_| {
             // Test dot product
-            const dot_result = simd_vector.dotProductSIMD(aligned_data, aligned_data, opts);
-            _ = dot_result;
+            var dot_result: f32 = 0.0;
+            for (data, data) |a, b| {
+                dot_result += a * b;
+            }
+            std.mem.doNotOptimizeAway(&dot_result);
 
             // Test vector addition
-            _ = simd_vector.vectorAddSIMD(aligned_data, aligned_data, result_buffer);
+            for (data, data, result_buffer) |a, b, *r| {
+                r.* = a + b;
+            }
 
-            // Test normalization
-            _ = simd_vector.normalizeSIMD(result_buffer, opts);
+            // Test normalization (simple version)
+            var norm: f32 = 0.0;
+            for (result_buffer) |val| {
+                norm += val * val;
+            }
+            norm = @sqrt(norm);
+            if (norm > 0.0) {
+                for (result_buffer) |*val| {
+                    val.* /= norm;
+                }
+            }
 
             operations += 3; // 3 operations per iteration
         }
@@ -623,9 +637,9 @@ pub const BenchmarkSuite = struct {
 };
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
 
     // Configure benchmark
     const config = BenchmarkConfig{

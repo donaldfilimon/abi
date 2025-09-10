@@ -56,10 +56,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("root.zig");
-const core = @import("core/mod.zig");
 
 /// Re-export commonly used types
-pub const Allocator = core.Allocator;
+pub const Allocator = std.mem.Allocator;
 
 /// Platform capabilities and configuration
 pub const PlatformInfo = struct {
