@@ -18,7 +18,8 @@ pub const tracing = @import("tracing.zig");
 pub const logging = @import("logging.zig");
 pub const neural = @import("neural.zig");
 pub const memory_tracker = @import("memory_tracker.zig");
-pub const core = @import("core/mod.zig");
+// Core utilities live under wdbx/core.zig
+pub const core = @import("wdbx/core.zig");
 pub const localml = @import("localml.zig");
 pub const gpu = @import("gpu_renderer.zig");
 pub const backend = @import("backend.zig");
