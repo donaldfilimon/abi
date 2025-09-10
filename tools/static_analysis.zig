@@ -83,9 +83,19 @@ pub const StaticAnalyzer = struct {
         };
         defer file.close();
 
-        const content = try file.readToEndAlloc(self.allocator, 10 * 1024 * 1024);
-        defer self.allocator.free(content);
+        const max_bytes: usize = 10 * 1024 * 1024;
+        const file_size_u64 = file.getEndPos() catch 0;
+        const to_read_u64 = if (file_size_u64 > @as(u64, max_bytes)) @as(u64, max_bytes) else file_size_u64;
+        const to_read: usize = @intCast(to_read_u64);
 
+        const content = try self.allocator.alloc(u8, to_read);
+        errdefer self.allocator.free(content);
+        _ = file.readAll(content) catch |err| {
+            print("Error reading file {s}: {}\n", .{ file_path, err });
+            return;
+        };
+
+        defer self.allocator.free(content);
         try self.analyzeContent(file_path, content);
     }
 

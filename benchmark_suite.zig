@@ -361,6 +361,12 @@ pub const BenchmarkSuite = struct {
             }
         }
 
+        // Return any remaining buffers to avoid leaks in the benchmark
+        while (buffers.items.len > 0) {
+            const buffer = buffers.pop() orelse break;
+            pool.returnBuffer(buffer);
+        }
+
         const end_time = std.time.nanoTimestamp();
 
         result.total_time_ns = @as(u64, @intCast(end_time - start_time));

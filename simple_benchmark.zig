@@ -13,9 +13,53 @@
 //! - Comparative analysis capabilities
 
 const std = @import("std");
-const neural = @import("src/neural.zig");
-const memory_tracker = @import("src/memory_tracker.zig");
-const simd_vector = @import("src/simd_vector.zig");
+
+// Mock imports for modules that don't exist yet
+const neural = struct {
+    // Mock neural network functionality
+    pub fn processVector(data: []f32) f32 {
+        var sum: f32 = 0;
+        for (data) |val| sum += val;
+        return sum / @as(f32, @floatFromInt(data.len));
+    }
+};
+
+const memory_tracker = struct {
+    // Mock memory tracking functionality
+    pub fn getCurrentMemoryUsage() u64 {
+        return 1024 * 1024; // 1MB mock usage
+    }
+
+    pub fn trackAllocation(size: usize) void {
+        _ = size;
+    }
+};
+
+const simd_vector = struct {
+    pub const SIMDAlignment = struct {
+        pub fn ensureAligned(allocator: std.mem.Allocator, data: []f32) ![]f32 {
+            // Mock alignment - just return the same data for now
+            _ = allocator;
+            return data;
+        }
+
+        pub fn isOptimallyAligned(ptr: *const f32) bool {
+            const addr = @intFromPtr(ptr);
+            return addr % 32 == 0; // Check for 32-byte alignment
+        }
+    };
+
+    pub const SIMDOpts = struct {};
+
+    pub fn dotProductSIMD(a: []f32, b: []f32, opts: SIMDOpts) f32 {
+        _ = opts;
+        var sum: f32 = 0;
+        for (a, b) |av, bv| {
+            sum += av * bv;
+        }
+        return sum;
+    }
+};
 
 // Benchmark configuration structure
 const BenchmarkConfig = struct {
@@ -115,6 +159,12 @@ const BenchmarkResults = struct {
 
     allocator: std.mem.Allocator,
 
+    const OperationType = enum {
+        read,
+        write,
+        search,
+    };
+
     fn init(allocator: std.mem.Allocator, config: BenchmarkConfig) !*BenchmarkResults {
         const self = try allocator.create(BenchmarkResults);
         self.* = .{
@@ -141,7 +191,6 @@ const BenchmarkResults = struct {
             .read_latencies = undefined,
             .write_latencies = undefined,
             .search_latencies = undefined,
-
             .allocator = allocator,
         };
 
@@ -367,18 +416,12 @@ const BenchmarkResults = struct {
             std.debug.print("  Reliability Rating:   🔴 NEEDS IMPROVEMENT\n", .{});
         }
     }
-
-    const OperationType = enum {
-        read,
-        write,
-        search,
-    };
 };
 
 // Test the enhanced features
 fn testEnhancedFeatures() !void {
     std.debug.print("🧪 **Testing WDBX Enhanced Testing Suite Features**\n", .{});
-    std.debug.print("============================================================", .{});
+    std.debug.print("============================================================\n", .{});
 
     // Test 1: Prometheus Metrics Export
     std.debug.print("\n📊 **Test 1: Prometheus Metrics Export**\n", .{});
@@ -454,7 +497,7 @@ fn testEnhancedFeatures() !void {
     std.debug.print("   ✅ Peak memory tracking with atomic counters\n", .{});
 
     std.debug.print("\n🎉 **All Enhanced Features Successfully Implemented!**\n", .{});
-    std.debug.print("============================================================", .{});
+    std.debug.print("============================================================\n", .{});
     std.debug.print("\n📋 **Usage Examples:**\n", .{});
     std.debug.print("   # Test network saturation\n", .{});
     std.debug.print("   zig run tools/stress_test.zig -- --enable-network-saturation --concurrent-connections 5000\n", .{});
@@ -468,12 +511,55 @@ fn testEnhancedFeatures() !void {
     std.debug.print("\n✨ **Ready for Production Validation!**\n", .{});
 }
 
+// Main function that parses args and runs benchmark
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    // Test the enhanced features
-    try testEnhancedFeatures();
+    // Parse command line arguments
+    var config = try parseBenchmarkArgs(allocator);
+    defer config.deinit();
+
+    // If no specific benchmark requested, run feature test
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
+
+    if (args.len == 1) {
+        try testEnhancedFeatures();
+        return;
+    }
+
+    // Run actual benchmark
+    std.debug.print("🚀 Starting WDBX Advanced Benchmarking Suite\n", .{});
+    std.debug.print("Config: {} iterations, {} workload\n", .{ config.iterations, @tagName(config.workload_pattern) });
+
+    var results = try BenchmarkResults.init(allocator, config);
+    defer results.deinit();
+
+    // Run warmup
+    std.debug.print("\n🔥 Running warmup phase ({} iterations)...\n", .{config.warmup_iterations});
+    try runBenchmarkWarmup(allocator, config, results);
+
+    // Run main benchmark
+    std.debug.print("📊 Running main benchmark ({} iterations)...\n", .{config.iterations});
+    try runBenchmarkMain(allocator, config, results);
+
+    // Finalize results
+    results.finalize();
+
+    // Print report
+    results.printReport();
+
+    // Export results if requested
+    if (config.export_results) {
+        try exportBenchmarkResults(allocator, results);
+    }
+
+    // Check for performance regression
+    if (config.baseline_file) |baseline| {
+        try detectPerformanceRegression(allocator, results, baseline);
+    }
 }
 
 // Parse command line arguments for benchmark configuration
@@ -561,10 +647,7 @@ fn runBenchmarkMain(allocator: std.mem.Allocator, config: BenchmarkConfig, resul
 
     // Generate test vectors
     const test_vectors = try generateTestVectors(allocator, config);
-    defer {
-        for (test_vectors) |vector| allocator.free(vector);
-        allocator.free(test_vectors);
-    }
+    defer allocator.free(test_vectors);
 
     for (0..config.iterations) |i| {
         const operation_type = getOperationTypeForWorkload(config.workload_pattern, random);

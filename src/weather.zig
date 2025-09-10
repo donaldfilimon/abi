@@ -101,18 +101,31 @@ pub const WeatherService = struct {
     }
 
     fn fetchJson(self: *WeatherService, url: []const u8) ![]u8 {
-        var client = std.http.Client{ .allocator = self.allocator };
-        defer client.deinit();
-
-        var req = try client.request(.GET, try std.net.uri.parse(url), .{});
-        defer req.deinit();
-
-        try req.start();
-        try req.wait();
-
-        if (req.response.status != .ok) return error.WeatherApiError;
-
-        return req.reader().readAllAlloc(self.allocator, 1024 * 1024);
+        const http_client = @import("http_client.zig");
+        
+        // Configure HTTP client with retries and timeouts
+        var client = http_client.HttpClient.init(self.allocator, .{
+            .connect_timeout_ms = 10000,
+            .read_timeout_ms = 15000,
+            .max_retries = 3,
+            .initial_backoff_ms = 1000,
+            .max_backoff_ms = 5000,
+            .user_agent = "WDBX-Weather-Client/1.0",
+            .follow_redirects = true,
+            .verify_ssl = true,
+            .verbose = false,
+        });
+        
+        const response = try client.get(url);
+        defer response.deinit();
+        
+        if (response.status_code != 200) {
+            std.debug.print("Weather API error: HTTP {d}\n", .{response.status_code});
+            return error.WeatherApiError;
+        }
+        
+        // Return a copy of the response body since response.deinit() will free it
+        return try self.allocator.dupe(u8, response.body);
     }
 
     fn parseWeatherResponse(self: *WeatherService, json_str: []const u8) !WeatherData {

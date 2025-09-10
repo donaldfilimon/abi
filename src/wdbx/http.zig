@@ -4,7 +4,7 @@
 //! including vector operations, authentication, and monitoring endpoints.
 
 const std = @import("std");
-const database = @import("../database.zig");
+const database = @import("database");
 
 const version_string = "WDBX Vector Database v1.0.0";
 
@@ -195,21 +195,52 @@ pub const WdbxHttpServer = struct {
         var buffer = try self.allocator.alloc(u8, self.config.socket_buffer_size);
         defer self.allocator.free(buffer);
 
-        const bytes_read = connection.stream.read(buffer) catch |err| {
-            switch (err) {
-                error.ConnectionResetByPeer, error.Unexpected => {
-                    // These errors are common and normal
-                    std.debug.print("Client disconnected (normal)\n", .{});
-                    return; // Client disconnected, this is normal
-                },
-                error.WouldBlock => {
-                    // Non-blocking socket behavior
-                    return;
-                },
-                else => {
-                    std.debug.print("Unexpected read error: {}\n", .{err});
-                    return err;
-                },
+        const bytes_read: usize = blk: {
+            const builtin = @import("builtin");
+            if (builtin.os.tag == .windows) {
+                const w = std.os.windows;
+                const ws2 = w.ws2_32;
+                const wsabuf: ws2.WSABUF = .{
+                    .len = @as(w.DWORD, @intCast(buffer.len)),
+                    .buf = buffer.ptr,
+                };
+                var flags: w.DWORD = 0;
+                var recvd: w.DWORD = 0;
+                const s: ws2.SOCKET = connection.stream.handle;
+                var bufs = [_]ws2.WSABUF{wsabuf};
+                const rc = ws2.WSARecv(s, bufs[0..].ptr, 1, &recvd, &flags, null, null);
+                if (rc == ws2.SOCKET_ERROR) {
+                    const wsa_err_code: i32 = @intFromEnum(ws2.WSAGetLastError());
+                    const WSAECONNRESET: i32 = 10054;
+                    const WSAEINTR: i32 = 10004;
+                    const WSAEWOULDBLOCK: i32 = 10035;
+                    if (wsa_err_code == WSAECONNRESET or wsa_err_code == WSAEINTR) {
+                        std.debug.print("Client disconnected (normal)\n", .{});
+                        return;
+                    }
+                    if (wsa_err_code == WSAEWOULDBLOCK) return;
+                    std.debug.print("Unexpected WSARecv error: {d}\n", .{wsa_err_code});
+                    return error.Unexpected;
+                }
+                break :blk @as(usize, @intCast(recvd));
+            } else {
+                const n = connection.stream.read(buffer) catch |err| {
+                    switch (err) {
+                        error.ConnectionResetByPeer, error.Unexpected => {
+                            std.debug.print("Client disconnected (normal)\n", .{});
+                            return; // Client disconnected, this is normal
+                        },
+                        error.WouldBlock => {
+                            // Non-blocking socket behavior
+                            return;
+                        },
+                        else => {
+                            std.debug.print("Unexpected read error: {}\n", .{err});
+                            return err;
+                        },
+                    }
+                };
+                break :blk n;
             }
         };
 
@@ -565,7 +596,9 @@ pub const WdbxHttpServer = struct {
 
         for (neighbors, 0..) |neighbor, i| {
             if (i > 0) try buffer.appendSlice(self.allocator, ",");
-            try buffer.writer(self.allocator).print("{{\"index\":{d},\"distance\":{d}}}", .{ neighbor.index, neighbor.distance });
+            const item = try std.fmt.allocPrint(self.allocator, "{{\"index\":{d},\"distance\":{d}}}", .{ neighbor.index, neighbor.distance });
+            defer self.allocator.free(item);
+            try buffer.appendSlice(self.allocator, item);
         }
 
         return try buffer.toOwnedSlice(self.allocator);
@@ -574,34 +607,38 @@ pub const WdbxHttpServer = struct {
     /// Test basic connectivity - useful for diagnosing Windows networking issues
     pub fn testConnectivity(self: *Self) !bool {
         if (self.server == null) return false;
-
-        // Try to connect to ourselves
-        const connection = std.net.tcpConnectToAddress(try std.net.Address.parseIp(self.config.host, self.config.port)) catch |err| {
-            std.debug.print("Connectivity test failed: {any}\n", .{err});
+        
+        const abi = @import("abi");
+        const http_client = abi.http_client;
+        
+        // Configure HTTP client with aggressive timeouts for testing
+        var client = http_client.HttpClient.init(self.allocator, .{
+            .connect_timeout_ms = 5000,
+            .read_timeout_ms = 10000,
+            .max_retries = 2,
+            .initial_backoff_ms = 500,
+            .max_backoff_ms = 2000,
+            .user_agent = "WDBX-Connectivity-Test/1.0",
+            .follow_redirects = false,
+            .verify_ssl = false,  // For local testing
+            .verbose = true,
+        });
+        
+        const health_url = try std.fmt.allocPrint(self.allocator, "http://{s}:{d}/health", .{ self.config.host, self.config.port });
+        defer self.allocator.free(health_url);
+        
+        const success = client.testConnectivity(health_url) catch |err| {
+            std.debug.print("Enhanced connectivity test failed: {any}\n", .{err});
             return false;
         };
-        defer connection.close();
-
-        // Send a simple HTTP request
-        const test_request = "GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
-        _ = connection.write(test_request) catch |err| {
-            std.debug.print("Failed to write test request: {any}\n", .{err});
-            return false;
-        };
-
-        // Try to read response
-        var response_buffer: [1024]u8 = undefined;
-        const bytes_read = connection.read(&response_buffer) catch |err| {
-            std.debug.print("Failed to read test response: {any}\n", .{err});
-            return false;
-        };
-
-        if (bytes_read > 0) {
-            std.debug.print("Connectivity test successful - received {d} bytes\n", .{bytes_read});
-            return true;
+        
+        if (success) {
+            std.debug.print("Enhanced connectivity test successful\n", .{});
+        } else {
+            std.debug.print("Enhanced connectivity test failed - server returned error\n", .{});
         }
-
-        return false;
+        
+        return success;
     }
 
     /// Handle network information endpoint (Windows diagnostics)

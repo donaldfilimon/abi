@@ -367,7 +367,9 @@ pub const WebServer = struct {
         };
         defer file.close();
 
-        const content = file.readToEndAlloc(self.allocator, self.config.max_body_size) catch |err| {
+        var buf: [8192]u8 = undefined;
+        var reader = file.reader(&buf);
+        const content = std.io.readAllAlloc(self.allocator, reader, self.config.max_body_size) catch |err| {
             try self.sendHttpResponse(connection, 500, "Internal Server Error", "{\"error\":\"Failed to read file\"}");
             return err;
         };
