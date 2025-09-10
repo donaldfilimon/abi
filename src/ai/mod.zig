@@ -17,7 +17,7 @@ const std = @import("std");
 const simd = @import("../simd/mod.zig");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-const Random = std.rand.Random;
+const Random = std.Random;
 
 // Compile-time mathematical constants for optimized activation functions
 const EULER_CONSTANT = std.math.e;
@@ -1140,7 +1140,7 @@ pub const NeuralNetwork = struct {
 
         const layer = try Layer.init(self.allocator, .dense, prev_output_shape, &[_]usize{units});
         layer.activation = activation;
-        var prng = std.rand.DefaultPrng.init(0);
+        var prng = std.Random.DefaultPrng.init(0);
         var rng = prng.random();
         try layer.initializeWeights(self.allocator, &rng);
         try self.addLayer(layer);
@@ -1158,7 +1158,7 @@ pub const NeuralNetwork = struct {
         const layer = try Layer.init(self.allocator, .conv2d, prev_output_shape, output_shape);
         layer.activation = activation;
         layer.kernel_size = try self.allocator.dupe(usize, &kernel_size);
-        var prng = std.rand.DefaultPrng.init(0);
+        var prng = std.Random.DefaultPrng.init(0);
         var rng = prng.random();
         try layer.initializeWeights(self.allocator, &rng);
         try self.addLayer(layer);
@@ -1198,7 +1198,7 @@ pub const NeuralNetwork = struct {
 
         const layer = try Layer.init(self.allocator, .lstm, prev_output_shape, output_shape);
         layer.hidden_size = units;
-        var prng = std.rand.DefaultPrng.init(0);
+        var prng = std.Random.DefaultPrng.init(0);
         var rng = prng.random();
         try layer.initializeWeights(self.allocator, &rng);
         try self.addLayer(layer);
@@ -1213,7 +1213,7 @@ pub const NeuralNetwork = struct {
         const layer = try Layer.init(self.allocator, .multi_head_attention, prev_output_shape, prev_output_shape);
         layer.num_heads = num_heads;
         layer.head_dim = head_dim;
-        var prng = std.rand.DefaultPrng.init(0);
+        var prng = std.Random.DefaultPrng.init(0);
         var rng = prng.random();
         try layer.initializeWeights(self.allocator, &rng);
         try self.addLayer(layer);
@@ -2066,3 +2066,5 @@ test "Enhanced model trainer" {
         try testing.expect(metric.accuracy >= 0.0 and metric.accuracy <= 1.0);
     }
 }
+
+
