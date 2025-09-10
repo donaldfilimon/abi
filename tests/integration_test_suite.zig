@@ -29,8 +29,7 @@ fn testDatabaseAIIntegration(allocator: std.mem.Allocator) !void {
     // Initialize database using the actual database module
     const test_file = "test_db_ai_integration.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
-
-    var db = try abi.database.Db.open(test_file, true);
+    var db = try abi.wdbx.database.Db.open(test_file, true);
     defer db.close();
     try db.init(128);
     try db.initHNSW();
@@ -84,7 +83,7 @@ fn testSIMDDatabaseIntegration(allocator: std.mem.Allocator) !void {
     const test_file = "test_simd_db_integration.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
 
-    var db = try abi.database.Db.open(test_file, true);
+    var db = try abi.wdbx.database.Db.open(test_file, true);
     defer db.close();
     try db.init(128);
     try db.initHNSW();
@@ -180,7 +179,7 @@ fn testEndToEndWorkflow(allocator: std.mem.Allocator) !void {
     const test_file = "test_e2e_workflow.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
 
-    var db = try abi.database.Db.open(test_file, true);
+    var db = try abi.wdbx.database.Db.open(test_file, true);
     defer db.close();
     try db.init(128);
     try db.initHNSW();
@@ -248,7 +247,7 @@ fn testPerformanceIntegration(allocator: std.mem.Allocator) !void {
     const test_file = "test_performance_integration.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
 
-    var db = try abi.database.Db.open(test_file, true);
+    var db = try abi.wdbx.database.Db.open(test_file, true);
     defer db.close();
     try db.init(128);
     try db.initHNSW();
@@ -336,7 +335,7 @@ fn testMemoryManagementIntegration(_: std.mem.Allocator) !void {
     const test_file = "test_memory_integration.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
 
-    var db = try abi.database.Db.open(test_file, true);
+    var db = try abi.wdbx.database.Db.open(test_file, true);
     defer db.close();
     try db.init(128);
     try db.initHNSW();
@@ -371,7 +370,7 @@ fn testErrorHandlingIntegration(allocator: std.mem.Allocator) !void {
     const test_file = "test_error_handling.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
 
-    var db = try abi.database.Db.open(test_file, true);
+    var db = try abi.wdbx.database.Db.open(test_file, true);
     defer db.close();
     try db.init(128);
     try db.initHNSW();

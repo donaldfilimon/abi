@@ -55,7 +55,6 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const abi = @import("root.zig");
 
 /// Re-export commonly used types
 pub const Allocator = std.mem.Allocator;

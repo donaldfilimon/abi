@@ -41,6 +41,12 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    // Expose core module directly for optional direct imports
+    const core_mod = b.addModule("core", .{
+        .root_source_file = b.path("src/core/mod.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
     // CLI module
     const cli_mod = b.createModule(.{
@@ -49,6 +55,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .imports = &.{
             .{ .name = "abi", .module = abi_mod },
+            .{ .name = "core", .module = core_mod },
         },
     });
 
@@ -97,13 +104,7 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
-    // Additional named modules to support tests that import by package name
-    // (e.g., tests that use `@import("database")`).
-    const database_mod = b.createModule(.{
-        .root_source_file = b.path("src/database.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    // Database is now consumed via abi.wdbx.database; no separate named module is needed.
 
     // Additional modules used by tests
     // Named modules for tests
@@ -114,7 +115,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     const web_server_mod = b.createModule(.{
-        .root_source_file = b.path("src/web_server.zig"),
+        .root_source_file = b.path("src/server/web_server.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -154,7 +155,6 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("tests/test_database.zig"),
             .target = target,
             .optimize = optimize,
-            .imports = &.{.{ .name = "database", .module = database_mod }},
         });
         const t = b.addTest(.{ .root_module = mod });
         const run_t = b.addRunArtifact(t);
@@ -169,7 +169,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("tests/test_database_hnsw.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "database", .module = database_mod }},
+        .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
     const hnsw_tests = b.addTest(.{ .root_module = hnsw_mod });
     const run_hnsw = b.addRunArtifact(hnsw_tests);
@@ -181,7 +181,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("tests/test_database_integration.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "database", .module = database_mod }},
+        .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
     const db_int_tests = b.addTest(.{ .root_module = db_int_mod });
     const run_db_int = b.addRunArtifact(db_int_tests);
@@ -198,7 +198,6 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("tests/test_memory_management.zig"),
             .target = target,
             .optimize = optimize,
-            .imports = &.{.{ .name = "database", .module = database_mod }},
         });
         const t = b.addTest(.{ .root_module = mod });
         const run_t = b.addRunArtifact(t);
@@ -213,6 +212,19 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
             .imports = &.{},
+        });
+        const t = b.addTest(.{ .root_module = mod });
+        const run_t = b.addRunArtifact(t);
+        test_step.dependOn(&run_t.step);
+    }
+
+    // Configuration validation tests
+    {
+        const mod = b.createModule(.{
+            .root_source_file = b.path("tests/test_config_validation.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "abi", .module = abi_mod }},
         });
         const t = b.addTest(.{ .root_module = mod });
         const run_t = b.addRunArtifact(t);
@@ -265,7 +277,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("benchmarks/database_benchmark.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "database", .module = database_mod }},
+        .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
 
     const benchmark_exe = b.addExecutable(.{
@@ -278,7 +290,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("benchmarks/main.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "database", .module = database_mod }},
+        .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
 
     const benchmark_main = b.addExecutable(.{
@@ -294,10 +306,10 @@ pub fn build(b: *std.Build) void {
     // Separate benchmark executables
     // Support modules for benchmarks
     const neural_benchmark_mod = b.createModule(.{
-        .root_source_file = b.path("benchmark_suite.zig"),
+        .root_source_file = b.path("benchmarks/benchmark_suite.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{},
+        .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
 
     const neural_benchmark = b.addExecutable(.{
@@ -306,7 +318,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const simple_benchmark_mod = b.createModule(.{
-        .root_source_file = b.path("simple_benchmark.zig"),
+        .root_source_file = b.path("benchmarks/simple_benchmark.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -358,7 +370,7 @@ pub fn build(b: *std.Build) void {
 
     // Windows network diagnostic tool (Windows-only)
     const network_test_mod = b.createModule(.{
-        .root_source_file = b.path("windows_network_test.zig"),
+        .root_source_file = b.path("tools/windows_network_test.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -450,13 +462,25 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("tools/perf_guard.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "database", .module = database_mod }},
     });
     const perf_guard_exe = b.addExecutable(.{ .name = "perf_guard", .root_module = perf_guard_mod });
     const run_perf_guard = b.addRunArtifact(perf_guard_exe);
     run_perf_guard.addArg(if (perf_threshold_opt) |t| b.fmt("{d}", .{t}) else "20000000");
     const perf_guard_step = b.step("perf-guard", "Run performance regression guard");
     perf_guard_step.dependOn(&run_perf_guard.step);
+
+    // Performance CI/CD tool
+    const perf_ci_mod = b.createModule(.{
+        .root_source_file = b.path("tools/performance_ci.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const perf_ci_exe = b.addExecutable(.{ .name = "performance_ci", .root_module = perf_ci_mod });
+    b.installArtifact(perf_ci_exe);
+
+    const run_perf_ci = b.addRunArtifact(perf_ci_exe);
+    const perf_ci_step = b.step("perf-ci", "Run comprehensive performance CI/CD testing");
+    perf_ci_step.dependOn(&run_perf_ci.step);
 
     // Integration tests
     const integration_mod = b.createModule(.{

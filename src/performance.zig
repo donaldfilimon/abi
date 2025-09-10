@@ -204,12 +204,7 @@ pub const CPUProfiler = struct {
 
     fn getCurrentCPU() u32 {
         return switch (builtin.os.tag) {
-            .linux => blk: {
-                // Use getcpu() syscall on Linux
-                var cpu: u32 = 0;
-                _ = std.os.linux.syscall2(.getcpu, @intFromPtr(&cpu), 0);
-                break :blk cpu;
-            },
+            .linux => 0,
             else => 0, // Fallback for other platforms
         };
     }
@@ -217,7 +212,7 @@ pub const CPUProfiler = struct {
 
 /// Memory allocation tracker
 pub const MemoryTracker = struct {
-    allocations: lockfree.LockFreeHashMap(usize, AllocationInfo),
+    allocations: lockfree.lockFreeHashMap(usize, AllocationInfo),
     total_allocated: std.atomic.Value(u64),
     total_freed: std.atomic.Value(u64),
     peak_usage: std.atomic.Value(u64),
@@ -230,7 +225,7 @@ pub const MemoryTracker = struct {
 
     pub fn init(allocator: std.mem.Allocator) !MemoryTracker {
         return MemoryTracker{
-            .allocations = try lockfree.LockFreeHashMap(usize, AllocationInfo).init(allocator, 4096),
+            .allocations = try lockfree.lockFreeHashMap(usize, AllocationInfo).init(allocator, 4096),
             .total_allocated = std.atomic.Value(u64).init(0),
             .total_freed = std.atomic.Value(u64).init(0),
             .peak_usage = std.atomic.Value(u64).init(0),
@@ -288,7 +283,7 @@ pub const MemoryTracker = struct {
 
 /// Global performance monitoring system
 pub const PerformanceMonitor = struct {
-    metrics: lockfree.LockFreeHashMap([]const u8, Metric),
+    metrics: lockfree.lockFreeHashMap([]const u8, Metric),
     cpu_profiler: CPUProfiler,
     memory_tracker: MemoryTracker,
     allocator: std.mem.Allocator,
@@ -301,7 +296,7 @@ pub const PerformanceMonitor = struct {
 
         const self = try allocator.create(PerformanceMonitor);
         self.* = PerformanceMonitor{
-            .metrics = try lockfree.LockFreeHashMap([]const u8, Metric).init(allocator, 1024),
+            .metrics = try lockfree.lockFreeHashMap([]const u8, Metric).init(allocator, 1024),
             .cpu_profiler = CPUProfiler.init(allocator, 1000), // 1kHz sampling
             .memory_tracker = try MemoryTracker.init(allocator),
             .allocator = allocator,
@@ -446,7 +441,7 @@ test "performance monitoring" {
 
     // Test timer
     const timer = Timer.start("test_timer");
-    std.Thread.sleep(1_000_000); // 1ms
+    std.time.sleep(1_000_000); // 1ms
     timer.stop();
 }
 

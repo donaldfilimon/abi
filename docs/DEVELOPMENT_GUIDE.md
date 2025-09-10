@@ -229,7 +229,7 @@ zig build benchmark -- performance
 zig build test --track-memory
 
 # GPU profiling (if available)
-zig run src/gpu_examples.zig
+zig run src/gpu_renderer.zig
 ```
 
 ## 📈 **Performance Monitoring**

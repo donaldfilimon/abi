@@ -13,7 +13,7 @@ pub fn main() !void {
     const test_file = "test_simple_integration.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
 
-    var db = try abi.database.Db.open(test_file, true);
+    var db = try abi.wdbx.database.Db.open(test_file, true);
     defer db.close();
     try db.init(128);
     try db.initHNSW();
