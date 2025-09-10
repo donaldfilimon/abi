@@ -58,17 +58,14 @@
 git clone https://github.com/donaldfilimon/abi.git
 cd abi
 
-# Build the framework (optimized)
-zig build -Doptimize=ReleaseFast
+# Run tests (optimized)
+zig build test -Doptimize=ReleaseFast
 
-# Build with all features enabled
-zig build -Doptimize=ReleaseFast -Denable-gpu -Denable-simd
+# Run CLI
+zig build run
 
-# Run comprehensive tests
-zig build test
-
-# Install globally (optional)
-zig build install
+# Run SIMD micro-benchmark
+zig build bench-simd
 ```
 
 ### **Basic Usage**

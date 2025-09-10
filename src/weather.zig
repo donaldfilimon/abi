@@ -120,7 +120,18 @@ pub const WeatherService = struct {
         errdefer list.deinit();
         var transfer_buf: [8192]u8 = undefined;
         const rdr = response.reader(&.{});
+
+        // Timeout and size guards
+        const max_ns: u64 = @as(u64, self.config.timeout_seconds) * 1_000_000_000;
+        const max_bytes: usize = 1024 * 1024; // 1 MiB cap
+        var timer = try std.time.Timer.start();
+
         while (true) {
+            // Check timeout
+            if (max_ns > 0 and @as(u64, @intCast(timer.read())) > max_ns) {
+                return error.Timeout;
+            }
+            // Read chunk
             const slice: []u8 = transfer_buf[0..];
             var slices = [_][]u8{slice};
             const n = rdr.readVec(slices[0..]) catch |err| switch (err) {
@@ -128,6 +139,10 @@ pub const WeatherService = struct {
                 error.EndOfStream => 0,
             };
             if (n == 0) break; // EOF
+            // Enforce maximum payload size
+            if (list.items.len + n > max_bytes) {
+                return error.ServiceUnavailable; // treat as invalid/oversized response
+            }
             try list.appendSlice(transfer_buf[0..n]);
         }
         return try list.toOwnedSlice();
