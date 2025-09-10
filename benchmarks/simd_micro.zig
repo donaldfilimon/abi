@@ -1,6 +1,10 @@
 const std = @import("std");
 const abi = @import("abi");
 
+fn fillLinear(buf: []f32, mul: f32) void {
+    for (buf, 0..) |*v, i| v.* = mul * @as(f32, @floatFromInt(i % 100));
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -16,8 +20,8 @@ pub fn main() !void {
     var r = try allocator.alloc(f32, N);
     defer allocator.free(r);
 
-    for (a, 0..) |*v, i| v.* = @floatFromInt(i % 100);
-    for (b, 0..) |*v, i| v.* = @floatFromInt((i * 3) % 97);
+    fillLinear(a, 1.0);
+    fillLinear(b, 0.5);
 
     // add
     timer.reset();
@@ -29,6 +33,26 @@ pub fn main() !void {
     abi.simd.multiply(r, a, b);
     const mul_ns = timer.read();
 
+    // scale
+    timer.reset();
+    abi.simd.scale(r, a, 1.2345);
+    const scale_ns = timer.read();
+
+    // normalize
+    timer.reset();
+    abi.simd.normalize(r, a);
+    const norm_ns = timer.read();
+
+    // sum/mean/variance/stddev
+    timer.reset();
+    const sum_val = abi.simd.sum(a);
+    const sum_ns = timer.read();
+    const mean_val = abi.simd.mean(a);
+    timer.reset();
+    const var_val = abi.simd.variance(a);
+    const var_ns = timer.read();
+    const stddev_val = abi.simd.stddev(a);
+
     // dot product
     timer.reset();
     const dot = abi.simd.dotProduct(a, b);
@@ -39,5 +63,24 @@ pub fn main() !void {
     const l1 = abi.simd.l1Distance(a, b);
     const l1_ns = timer.read();
 
-    std.debug.print("SIMD micro (N={d}): add={d}ns mul={d}ns dot={d}ns l1={d}ns dot={d:.3} l1={d:.3}\n", .{ N, add_ns, mul_ns, dot_ns, l1_ns, dot, l1 });
+    // small matrix multiply (256x64) * (64x64)
+    const M: usize = 256;
+    const K: usize = 64;
+    const Ncol: usize = 64;
+    var mat_a = try allocator.alloc(f32, M * K);
+    defer allocator.free(mat_a);
+    var mat_b = try allocator.alloc(f32, K * Ncol);
+    defer allocator.free(mat_b);
+    var mat_r = try allocator.alloc(f32, M * Ncol);
+    defer allocator.free(mat_r);
+    for (mat_a, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 7) % 31)) * 0.03125;
+    for (mat_b, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 11) % 29)) * 0.03448;
+    timer.reset();
+    abi.simd.matrixMultiply(mat_r, mat_a, mat_b, M, K, Ncol);
+    const mm_ns = timer.read();
+
+    std.debug.print(
+        "SIMD micro (N={d})\n  add={d}ns mul={d}ns scale={d}ns norm={d}ns\n  sum={d}ns mean={d:.3} var={d:.3} (var_ns={d}ns) stddev={d:.3}\n  dot={d}ns l1={d}ns\n  mm(256x64 * 64x64)={d}ns\n",
+        .{ N, add_ns, mul_ns, scale_ns, norm_ns, sum_ns, mean_val, var_val, var_ns, stddev_val, dot_ns, l1_ns, mm_ns },
+    );
 }

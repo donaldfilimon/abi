@@ -554,8 +554,6 @@ pub fn build(b: *std.Build) void {
         });
         cross_platform_step.dependOn(&install_cross.step);
     }
-}
-
     // SIMD micro-benchmark
     {
         const mod = b.createModule(.{
@@ -569,3 +567,4 @@ pub fn build(b: *std.Build) void {
         const bench_step = b.step("bench-simd", "Run SIMD micro-benchmark");
         bench_step.dependOn(&run_bench.step);
     }
+}
