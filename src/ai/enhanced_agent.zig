@@ -4,6 +4,9 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+// Create a scoped logger for the AI agent
+const log = std.log.scoped(.ai_agent);
+
 /// Agent state management
 pub const AgentState = enum {
     idle,
@@ -50,7 +53,7 @@ pub const MemoryEntry = struct {
 
     pub fn init(allocator: Allocator, content: []const u8, importance: f32) !MemoryEntry {
         return .{
-            .id = std.time.microTimestamp(),
+            .id = @intCast(std.time.microTimestamp()),
             .timestamp = std.time.microTimestamp(),
             .content = try allocator.dupe(u8, content),
             .importance = importance,
@@ -79,7 +82,6 @@ pub const MemoryEntry = struct {
 pub const EnhancedAgent = struct {
     config: AgentConfig,
     allocator: Allocator,
-    logger: Logger,
     state: AgentState,
     memory: std.ArrayList(MemoryEntry),
     context: std.ArrayList(u8),
@@ -114,7 +116,6 @@ pub const EnhancedAgent = struct {
         self.* = .{
             .config = config,
             .allocator = allocator,
-            .logger = std.log.scoped(.ai_agent),
             .state = .idle,
             .memory = std.ArrayList(MemoryEntry).init(allocator),
             .context = std.ArrayList(u8).init(allocator),
@@ -123,7 +124,7 @@ pub const EnhancedAgent = struct {
         };
 
         if (config.enable_logging) {
-            self.logger.info("Enhanced Agent '{s}' initialized", .{config.name});
+            log.info("Enhanced Agent '{s}' initialized", .{config.name});
         }
 
         return self;
@@ -132,7 +133,7 @@ pub const EnhancedAgent = struct {
     /// Deinitialize agent
     pub fn deinit(self: *Self) void {
         if (self.config.enable_logging) {
-            self.logger.info("Enhanced Agent '{s}' shutting down", .{self.config.name});
+            log.info("Enhanced Agent '{s}' shutting down", .{self.config.name});
         }
 
         // Free memory entries
@@ -159,7 +160,7 @@ pub const EnhancedAgent = struct {
 
         self.state = .thinking;
         if (self.config.enable_logging) {
-            self.logger.debug("Processing input: {s}", .{input});
+            log.debug("Processing input: {s}", .{input});
         }
 
         // Store in memory
@@ -173,7 +174,7 @@ pub const EnhancedAgent = struct {
 
         self.state = .responding;
         if (self.config.enable_logging) {
-            self.logger.debug("Generated response: {s}", .{response});
+            log.debug("Generated response: {s}", .{response});
         }
 
         // Store response in memory
@@ -194,7 +195,7 @@ pub const EnhancedAgent = struct {
         try self.memory.append(entry);
 
         if (self.config.enable_logging) {
-            self.logger.debug("Stored memory (importance: {d:.2})", .{importance});
+            log.debug("Stored memory (importance: {d:.2})", .{importance});
         }
     }
 
@@ -207,7 +208,7 @@ pub const EnhancedAgent = struct {
         // Limit context length
         if (self.context.items.len > self.config.max_context_length) {
             const excess = self.context.items.len - self.config.max_context_length;
-            std.mem.copy(u8, self.context.items, self.context.items[excess..]);
+            std.mem.copyForwards(u8, self.context.items, self.context.items[excess..]);
             self.context.items.len -= excess;
         }
     }
@@ -259,7 +260,7 @@ pub const EnhancedAgent = struct {
         // Remove bottom 20% of memories
         const remove_count = self.memory.items.len / 5;
         for (0..remove_count) |i| {
-            const entry = self.memory.items[i];
+            var entry = self.memory.items[i];
             entry.deinit(self.allocator);
         }
 
@@ -270,7 +271,7 @@ pub const EnhancedAgent = struct {
         self.memory.items.len -= remove_count;
 
         if (self.config.enable_logging) {
-            self.logger.debug("Pruned {d} memories", .{remove_count});
+            log.debug("Pruned {d} memories", .{remove_count});
         }
     }
 
@@ -306,7 +307,7 @@ pub const EnhancedAgent = struct {
         }
 
         if (self.config.enable_logging) {
-            self.logger.info("Learned from interaction (feedback: {d:.2})", .{feedback});
+            log.info("Learned from interaction (feedback: {d:.2})", .{feedback});
         }
 
         self.state = .idle;
@@ -328,11 +329,12 @@ test "enhanced agent basic functionality" {
 
     // Test basic processing
     const response = try agent.processInput("Hello, can you help me with code?");
+    defer allocator.free(response);
     try testing.expect(response.len > 0);
 
     // Test memory storage
     try agent.storeMemory("Important information", 0.9);
-    try testing.expect(agent.memory.items.len == 2); // input + response + manual storage
+    try testing.expect(agent.memory.items.len == 3); // input + response + manual storage
 
     // Test statistics
     const stats = agent.getStats();

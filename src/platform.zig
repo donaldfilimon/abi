@@ -74,7 +74,7 @@ pub const PlatformInfo = struct {
             .os = builtin.os.tag,
             .arch = builtin.cpu.arch,
             .supports_ansi_colors = detectAnsiSupport(),
-            .supports_simd = abi.features.has_simd,
+            .supports_simd = true, // Assume SIMD support for now
             .max_threads = detectMaxThreads(),
             .cache_line_size = detectCacheLineSize(),
         };

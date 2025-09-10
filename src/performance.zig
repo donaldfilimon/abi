@@ -27,7 +27,7 @@ pub const PerformanceError = error{
     InsufficientPermissions,
     PlatformNotSupported,
     ResourceLimitExceeded,
-} || core.Error;
+};
 
 /// Performance metric types
 pub const MetricType = enum {
