@@ -944,7 +944,7 @@
     }
 
     async function fetchJSON(path) {
-      const fullPath = path.startsWith('http') ? path : `${basePath}/${path}`;
+      const fullPath = path.startsWith('http') ? path : `${basePath}/${path}`.replace(/\/+/, '/').replace(':/', '://');
 
       if (cache.has(fullPath)) {
         const cached = cache.get(fullPath);
@@ -970,7 +970,7 @@
     }
 
     async function fetchText(path) {
-      const fullPath = path.startsWith('http') ? path : `${basePath}/${path}`;
+      const fullPath = path.startsWith('http') ? path : `${basePath}/${path}`.replace(/\/+/, '/').replace(':/', '://');
 
       if (cache.has(fullPath)) {
         const cached = cache.get(fullPath);
@@ -1053,6 +1053,7 @@
 
     function updateBreadcrumb(path) {
       const breadcrumbEl = document.getElementById('breadcrumb');
+      if (!breadcrumbEl) return;
       const parts = path.split('/');
       const fileName = parts[parts.length - 1].replace('.md', '');
 
@@ -1072,6 +1073,19 @@
       }
 
       breadcrumbEl.innerHTML = breadcrumbHTML;
+    }
+
+    // Minimal directory loader: lists files under a virtual directory from searchData
+    function loadDirectory(dir) {
+      try {
+        const prefix = dir.endsWith('/') ? dir : dir + '/';
+        const items = searchData.filter(item => item.file.startsWith(prefix));
+        renderNav(items);
+        const first = items.find(i => i.file.endsWith('README.md')) || items[0];
+        if (first) loadDoc(first.file);
+      } catch (e) {
+        console.warn('loadDirectory failed:', e);
+      }
     }
 
     function updateSearchResults(query, results) {
@@ -1187,12 +1201,7 @@
         requireSpaceBeforeHeadingText: true
       });
 
-      // Custom extensions for GitHub Pages
-      converter.addExtension({
-        type: 'output',
-        regex: /<a href="(?!http|#)([^"]+)">/g,
-        replace: `<a href="${basePath}/$1">`
-      }, 'github-pages-links');
+
 
       return converter;
     }
@@ -1231,16 +1240,19 @@
           const links = contentEl.querySelectorAll('a[href]');
           links.forEach(link => {
             const href = link.getAttribute('href');
-            if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:')) {
-              if (href.endsWith('.md')) {
-                link.setAttribute('href', `#${href}`);
-                link.onclick = (e) => {
-                  e.preventDefault();
-                  loadDoc(href);
-                };
-              } else {
-                link.setAttribute('href', `${basePath}/${href}`);
-              }
+            if (!href) return;
+            // Ignore absolute and special links
+            if (href.startsWith('http') || href.startsWith('#') || href.startsWith('mailto:')) return;
+            // Already prefixed with basePath
+            if (href.startsWith(basePath + '/')) return;
+            if (href.endsWith('.md')) {
+              link.setAttribute('href', `#${href}`);
+              link.onclick = (e) => {
+                e.preventDefault();
+                loadDoc(href);
+              };
+            } else {
+              link.setAttribute('href', `${basePath}/${href}`);
             }
           });
 
