@@ -503,7 +503,7 @@ pub fn main() !void {
 - **[Database Guide](docs/database_usage_guide.md)** - Vector database usage
 - **[Plugin System](docs/PLUGIN_SYSTEM.md)** - Plugin development guide
 - **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Deployment guide
-- **[Testing Guide](README_TESTING.md)** - Comprehensive testing documentation
+- **[Testing Guide](docs/TEST_REPORT.md)** - Comprehensive testing and validation
 
 ---
 

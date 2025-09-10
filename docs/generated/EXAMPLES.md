@@ -147,7 +147,7 @@ const std = @import("std");
 export fn process_data(input: [*c]const u8, input_len: usize, output: [*c]u8, output_len: *usize) c_int {
     // Process input data
     const input_slice = input[0..input_len];
-    
+
     // Example: convert to uppercase
     var result = std.ArrayList(u8).init(std.heap.page_allocator);
     defer result.deinit();
@@ -164,7 +164,7 @@ export fn process_data(input: [*c]const u8, input_len: usize, output: [*c]u8, ou
     if (result.items.len > output_len.*) {
         return -1; // Buffer too small
     }
-    
+
     @memcpy(output[0..result.items.len], result.items);
     output_len.* = result.items.len;
     return 0; // Success

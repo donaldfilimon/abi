@@ -379,6 +379,7 @@ pub fn build(b: *std.Build) void {
         .name = "windows_network_test",
         .root_module = network_test_mod,
     });
+    network_test.root_module.link_libc = true;
     // Only install on Windows or when target is unspecified (native)
     if (target.result.os.tag == .windows) {
         b.installArtifact(network_test);
@@ -426,7 +427,7 @@ pub fn build(b: *std.Build) void {
     kcov_exe.addArtifactArg(coverage_tests);
     coverage_step.dependOn(&kcov_exe.step);
 
-    // Documentation generation
+    // Documentation generation (Markdown + Zig HTML docs)
     const docs_step = b.step("docs", "Generate API documentation");
     const docs_mod = b.createModule(.{
         .root_source_file = b.path("tools/docs_generator.zig"),
@@ -462,6 +463,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("tools/perf_guard.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
     const perf_guard_exe = b.addExecutable(.{ .name = "perf_guard", .root_module = perf_guard_mod });
     const run_perf_guard = b.addRunArtifact(perf_guard_exe);

@@ -390,7 +390,7 @@ pub const WebServer = struct {
 
     /// Handle health check
     fn handleHealth(self: *WebServer, connection: std.net.Server.Connection) !void {
-        const body = "{\"status\":\"healthy\",\"timestamp\":\"2024-01-01T00:00:00Z\"}";
+        const body = "{\"status\":\"healthy\",\"timestamp\":\"2025-01-01T00:00:00Z\"}";
         try self.sendHttpResponse(connection, 200, "OK", body);
     }
 

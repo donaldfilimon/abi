@@ -22,6 +22,8 @@ pub const core = @import("core/mod.zig");
 pub const localml = @import("localml.zig");
 pub const gpu = @import("gpu_renderer.zig");
 pub const backend = @import("backend.zig");
+pub const connectors = @import("connectors/mod.zig");
+const weather_mod = @import("weather.zig");
 
 // Re-export commonly used types and functions
 pub const Db = database.Db;
@@ -65,6 +67,10 @@ pub const Logger = logging.Logger;
 pub const LogLevel = logging.LogLevel;
 pub const LogOutputFormat = logging.OutputFormat;
 pub const LoggerConfig = logging.LoggerConfig;
+
+// Re-export weather types for convenience
+pub const WeatherService = weather_mod.WeatherService;
+pub const WeatherData = weather_mod.WeatherData;
 
 /// Main application entry point
 pub fn main() !void {

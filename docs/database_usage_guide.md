@@ -1127,7 +1127,7 @@ pub fn validateDatabase(db: *database.Db) !bool {
 
 - **[Database API Reference](docs/api/database.md)** - Complete API documentation
 - **[Database Quickstart](docs/database_quickstart.md)** - Get started quickly
-- **[Performance Guide](README_TESTING.md)** - Performance optimization tips
+- **[Performance Guide](docs/generated/PERFORMANCE_GUIDE.md)** - Performance optimization tips
 - **[Production Guide](docs/PRODUCTION_DEPLOYMENT.md)** - Production deployment best practices
 
 ---

@@ -523,7 +523,7 @@ std.debug.print("SIMD operation took {} ms\n", .{duration});
 
 - **[SIMD Module](src/simd/mod.zig)** - Complete SIMD implementation
 - **[Matrix Operations](docs/api/matrix_ops.md)** - Advanced matrix operations
-- **[Performance Guide](README_TESTING.md)** - Performance optimization tips
+- **[Performance Guide](docs/generated/PERFORMANCE_GUIDE.md)** - Performance optimization tips
 - **[API Reference](docs/api_reference.md)** - Complete API documentation
 
 ---

@@ -271,7 +271,7 @@ test "Weather forecast data structure" {
         condition: []const u8,
         precipitation_prob: f32,
     }{
-        .date = "2024-01-15",
+        .date = "2025-01-15",
         .temp_min = 15.0,
         .temp_max = 25.0,
         .condition = "Partly cloudy",
@@ -279,7 +279,7 @@ test "Weather forecast data structure" {
     };
 
     // Validate forecast structure
-    try testing.expectEqualStrings("2024-01-15", forecast_data.date);
+    try testing.expectEqualStrings("2025-01-15", forecast_data.date);
     try testing.expect(forecast_data.temp_min < forecast_data.temp_max);
     try testing.expect(forecast_data.precipitation_prob >= 0.0);
     try testing.expect(forecast_data.precipitation_prob <= 1.0);

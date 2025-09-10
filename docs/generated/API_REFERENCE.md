@@ -64,8 +64,6 @@ Train the neural network.
 
 **Returns:** Final training loss
 
-**Performance:** ~30μs per iteration
-
 ##### `predict(self: *NeuralNetwork, input: []const f32) ![]f32`
 Make predictions using the trained network.
 

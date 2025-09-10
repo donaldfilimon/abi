@@ -1,0 +1,59 @@
+const std = @import("std");
+
+pub const Allocator = std.mem.Allocator;
+
+pub fn embedText(allocator: Allocator, host: []const u8, model: []const u8, text: []const u8) ![]f32 {
+    var client = std.http.Client{ .allocator = allocator };
+    defer client.deinit();
+
+    const url = try std.fmt.allocPrint(allocator, "{s}/api/embeddings", .{host});
+    defer allocator.free(url);
+
+    // Build JSON body: {"model":"...","input":"..."}
+    const body = try std.fmt.allocPrint(allocator, "{\"model\":\"{s}\",\"input\":\"{s}\"}", .{ model, text });
+    defer allocator.free(body);
+
+    var req = try client.request(.POST, try std.Uri.parse(url), .{});
+    defer req.deinit();
+
+    // 0.15: send body and receive head
+    try req.sendBodyComplete(body);
+    var redirect_buf: [1024]u8 = undefined;
+    const response = try req.receiveHead(&redirect_buf);
+    defer response.deinit();
+
+    if (response.head.status != .ok) return error.NetworkError;
+    var tmp: [8192]u8 = undefined;
+    var rdr = response.reader(tmp[0..]);
+    const resp = try rdr.readAllAlloc(allocator, 1024 * 1024);
+    defer allocator.free(resp);
+
+    // Expected minimal shape: {"embedding":[...]} or {"data":[{"embedding":[...]}]}
+    var parser = std.json.Parser.init(allocator, false);
+    defer parser.deinit();
+    var tree = try parser.parse(resp);
+    defer tree.deinit();
+
+    const root_obj = tree.root.object;
+    if (root_obj.get("embedding")) |val| {
+        return parseEmbeddingArray(allocator, val);
+    }
+    if (root_obj.get("data")) |data_val| {
+        const arr = data_val.array;
+        if (arr.items.len > 0) {
+            const first = arr.items[0].object;
+            return parseEmbeddingArray(allocator, first.get("embedding").?);
+        }
+    }
+    return error.InvalidResponse;
+}
+
+fn parseEmbeddingArray(allocator: Allocator, v: std.json.Value) ![]f32 {
+    const arr = v.array;
+    const out = try allocator.alloc(f32, arr.items.len);
+    var i: usize = 0;
+    while (i < out.len) : (i += 1) {
+        out[i] = @floatCast(arr.items[i].Float);
+    }
+    return out;
+}

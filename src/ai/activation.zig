@@ -206,6 +206,12 @@ pub const ActivationProcessor = struct {
         self.activateBatchScalar(output, input);
     }
 
+    /// Scalar sigmoid helper used by certain activations (e.g., quick_gelu)
+    fn sigmoid(self: *const ActivationProcessor, x: f32) f32 {
+        _ = self;
+        return 1.0 / (1.0 + @exp(-x));
+    }
+
     fn softmax(self: *const ActivationProcessor, output: []f32, input: []const f32) void {
         _ = self;
         if (input.len == 0) return;
@@ -255,15 +261,32 @@ pub const ActivationProcessor = struct {
     }
 
     fn softmin(self: *const ActivationProcessor, output: []f32, input: []const f32) void {
-        // Softmin is softmax with negated inputs
-        const temp = std.heap.page_allocator.alloc(f32, input.len) catch unreachable;
-        defer std.heap.page_allocator.free(temp);
+        // Softmin is equivalent to softmax over negated inputs, implemented without extra allocation
+        _ = self;
+        if (input.len == 0) return;
 
-        for (temp, input) |*t, in| {
-            t.* = -in;
+        // For numerical stability, compute the max of the negated inputs (i.e., -min(input))
+        var max_neg = -input[0];
+        for (input[1..]) |val| {
+            const neg = -val;
+            if (neg > max_neg) max_neg = neg;
         }
 
-        self.softmax(output, temp);
+        // Compute exponentials of negated, shifted inputs and accumulate sum
+        var sum: f32 = 0.0;
+        for (output, input) |*out, in| {
+            const e = @exp(-in - max_neg);
+            out.* = e;
+            sum += e;
+        }
+
+        // Normalize
+        if (sum > 0.0) {
+            const inv_sum = 1.0 / sum;
+            for (output) |*out| {
+                out.* *= inv_sum;
+            }
+        }
     }
 };
 

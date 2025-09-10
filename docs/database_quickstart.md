@@ -300,7 +300,7 @@ zig build run -- test_memory_management
 ### **For Developers**
 1. **Read the [Database API Reference](docs/api/database.md)** for complete function documentation
 2. **Explore [Usage Patterns](docs/database_usage_guide.md)** for advanced scenarios
-3. **Check [Performance Guide](README_TESTING.md)** for optimization tips
+3. **Check [Performance Guide](docs/generated/PERFORMANCE_GUIDE.md)** for optimization tips
 
 ### **For Production**
 1. **Review [Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** for deployment best practices
@@ -318,7 +318,7 @@ zig build run -- test_memory_management
 
 - **[Database API Reference](docs/api/database.md)** - Complete API documentation
 - **[Database Usage Guide](docs/database_usage_guide.md)** - Comprehensive usage examples
-- **[Performance Guide](README_TESTING.md)** - Performance optimization tips
+- **[Performance Guide](docs/generated/PERFORMANCE_GUIDE.md)** - Performance optimization tips
 - **[Production Guide](docs/PRODUCTION_DEPLOYMENT.md)** - Production deployment best practices
 
 ---

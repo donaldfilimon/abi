@@ -965,9 +965,9 @@ fn logConnectionEvent(self: *@This(), event: ConnectionEvent) void {
 ## 🔗 **Additional Resources**
 
 - **[Main Documentation](README.md)** - Start here for an overview
-- **[Testing Guide](README_TESTING.md)** - Comprehensive testing documentation
+- **[Testing Guide](docs/TEST_REPORT.md)** - Comprehensive testing and validation
 - **[Production Guide](docs/PRODUCTION_DEPLOYMENT.md)** - Production deployment best practices
-- **[Performance Guide](README_TESTING.md)** - Performance optimization tips
+- **[Performance Guide](docs/generated/PERFORMANCE_GUIDE.md)** - Performance optimization tips
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute
 
 ---

@@ -132,7 +132,7 @@ pub fn main() !void {
 
     // Initialize database
     const config = abi.DatabaseConfig{
-        .max_vectors = 100000,
+        .max_vectors = 10000,
         .vector_dimension = 128,
     };
     var db = try abi.database.init(allocator, config);
