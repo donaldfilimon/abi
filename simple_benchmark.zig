@@ -15,7 +15,7 @@
 const std = @import("std");
 const neural = @import("src/neural.zig");
 const memory_tracker = @import("src/memory_tracker.zig");
-const simd_vector = @import("src/simd_vector.zig");
+const simd = @import("src/simd/mod.zig");
 
 // Benchmark configuration structure
 const BenchmarkConfig = struct {
@@ -154,9 +154,9 @@ const BenchmarkResults = struct {
     }
 
     fn deinit(self: *BenchmarkResults) void {
-        self.read_latencies.deinit();
-        self.write_latencies.deinit();
-        self.search_latencies.deinit();
+        self.read_latencies.deinit(self.allocator);
+        self.write_latencies.deinit(self.allocator);
+        self.search_latencies.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -174,9 +174,9 @@ const BenchmarkResults = struct {
 
         // Store latency by operation type
         switch (operation_type) {
-            .read => self.read_latencies.append(latency_us) catch {},
-            .write => self.write_latencies.append(latency_us) catch {},
-            .search => self.search_latencies.append(latency_us) catch {},
+            .read => self.read_latencies.append(self.allocator, latency_us) catch {},
+            .write => self.write_latencies.append(self.allocator, latency_us) catch {},
+            .search => self.search_latencies.append(self.allocator, latency_us) catch {},
         }
     }
 
@@ -197,12 +197,12 @@ const BenchmarkResults = struct {
 
     fn calculatePercentiles(self: *BenchmarkResults) void {
         // Combine all latencies for percentile calculation
-        var all_latencies = std.ArrayList(u64).init(self.allocator);
-        defer all_latencies.deinit();
+        var all_latencies = std.ArrayList(u64).initCapacity(self.allocator, 0) catch return;
+        defer all_latencies.deinit(self.allocator);
 
-        for (self.read_latencies.items) |lat| all_latencies.append(lat) catch {};
-        for (self.write_latencies.items) |lat| all_latencies.append(lat) catch {};
-        for (self.search_latencies.items) |lat| all_latencies.append(lat) catch {};
+        for (self.read_latencies.items) |lat| all_latencies.append(self.allocator, lat) catch {};
+        for (self.write_latencies.items) |lat| all_latencies.append(self.allocator, lat) catch {};
+        for (self.search_latencies.items) |lat| all_latencies.append(self.allocator, lat) catch {};
 
         if (all_latencies.items.len == 0) return;
 
@@ -300,15 +300,15 @@ const BenchmarkResults = struct {
         std.debug.print("\n🔍 **Operation Breakdown:**\n", .{});
         if (self.read_latencies.items.len > 0) {
             const avg_read = self.calculateAverage(self.read_latencies.items);
-            std.debug.print("  Read Operations:      {} (avg: {d:.0}μs)\n", .{ self.read_latencies.items.len, avg_read });
+            std.debug.print("  Read Operations:      {d} (avg: {d:.0}μs)\n", .{ self.read_latencies.items.len, avg_read });
         }
         if (self.write_latencies.items.len > 0) {
             const avg_write = self.calculateAverage(self.write_latencies.items);
-            std.debug.print("  Write Operations:     {} (avg: {d:.0}μs)\n", .{ self.write_latencies.items.len, avg_write });
+            std.debug.print("  Write Operations:     {d} (avg: {d:.0}μs)\n", .{ self.write_latencies.items.len, avg_write });
         }
         if (self.search_latencies.items.len > 0) {
             const avg_search = self.calculateAverage(self.search_latencies.items);
-            std.debug.print("  Search Operations:    {} (avg: {d:.0}μs)\n", .{ self.search_latencies.items.len, avg_search });
+            std.debug.print("  Search Operations:    {d} (avg: {d:.0}μs)\n", .{ self.search_latencies.items.len, avg_search });
         }
 
         // Performance Assessment
@@ -471,9 +471,66 @@ fn testEnhancedFeatures() !void {
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    // Test the enhanced features
-    try testEnhancedFeatures();
+    // Check if any command line arguments are provided
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
+
+    if (args.len <= 1) {
+        // No arguments provided, run enhanced features test
+        try testEnhancedFeatures();
+        return;
+    }
+
+    // Check for help flag
+    for (args[1..]) |arg| {
+        if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
+            printBenchmarkHelp();
+            return;
+        }
+    }
+
+    // Parse benchmark configuration
+    var config = try parseBenchmarkArgs(allocator);
+    defer config.deinit();
+
+    // Initialize benchmark results
+    var results = try BenchmarkResults.init(allocator, config);
+    defer results.deinit();
+
+    // Run benchmark
+    std.debug.print("🚀 **WDBX Advanced Benchmarking Suite**\n", .{});
+    std.debug.print("=======================================================\n", .{});
+    std.debug.print("  Workload Pattern: {s}\n", .{@tagName(config.workload_pattern)});
+    std.debug.print("  Iterations:       {}\n", .{config.iterations});
+    std.debug.print("  Export Mode:      {}\n", .{config.export_results});
+    std.debug.print("  Output Format:    {s}\n", .{@tagName(config.output_format)});
+    std.debug.print("=======================================================\n\n", .{});
+
+    // Run warmup if enabled
+    if (config.warmup_iterations > 0) {
+        std.debug.print("🔥 **Warmup Phase**\n", .{});
+        try runBenchmarkWarmup(allocator, config, results);
+    }
+
+    // Run main benchmark
+    std.debug.print("📊 **Benchmark Execution**\n", .{});
+    try runBenchmarkMain(allocator, config, results);
+
+    // Calculate and display results
+    results.finalize();
+    results.printReport();
+
+    // Export results if requested
+    if (config.export_results) {
+        try exportBenchmarkResults(allocator, results);
+    }
+
+    // Regression detection if baseline provided
+    if (config.baseline_file) |baseline| {
+        try detectPerformanceRegression(allocator, results, baseline);
+    }
 }
 
 // Parse command line arguments for benchmark configuration
@@ -531,15 +588,16 @@ fn runBenchmarkWarmup(allocator: std.mem.Allocator, config: BenchmarkConfig, res
         }
 
         // Test alignment
-        const aligned_data = try simd_vector.SIMDAlignment.ensureAligned(allocator, data);
+        // Use the data directly without SIMD alignment
+        const aligned_data = data;
         defer if (aligned_data.ptr != data.ptr) allocator.free(aligned_data);
 
-        const is_aligned = simd_vector.SIMDAlignment.isOptimallyAligned(aligned_data.ptr);
-        const opts = simd_vector.SIMDOpts{};
-        _ = if (is_aligned)
-            simd_vector.dotProductSIMD(aligned_data, aligned_data, opts)
-        else
-            0.0;
+        // Simple dot product calculation
+        var dot_result: f32 = 0.0;
+        for (aligned_data, aligned_data) |a, b| {
+            dot_result += a * b;
+        }
+        std.mem.doNotOptimizeAway(&dot_result);
 
         const latency = @as(u64, @intCast(std.time.microTimestamp() - start_time));
         results.recordOperation(.search, latency, true); // Record as search for warmup
@@ -561,10 +619,7 @@ fn runBenchmarkMain(allocator: std.mem.Allocator, config: BenchmarkConfig, resul
 
     // Generate test vectors
     const test_vectors = try generateTestVectors(allocator, config);
-    defer {
-        for (test_vectors) |vector| allocator.free(vector);
-        allocator.free(test_vectors);
-    }
+    defer allocator.free(test_vectors);
 
     for (0..config.iterations) |i| {
         const operation_type = getOperationTypeForWorkload(config.workload_pattern, random);
@@ -675,10 +730,7 @@ fn exportBenchmarkResults(allocator: std.mem.Allocator, results: *BenchmarkResul
 
 // Export results in JSON format
 fn exportBenchmarkJson(allocator: std.mem.Allocator, results: *BenchmarkResults) !void {
-    var json = std.ArrayList(u8).init(allocator);
-    defer json.deinit();
-
-    try json.writer().print(
+    const json_content = try std.fmt.allocPrint(allocator,
         \\{{
         \\  "benchmark_results": {{
         \\    "workload_pattern": "{s}",
@@ -703,21 +755,19 @@ fn exportBenchmarkJson(allocator: std.mem.Allocator, results: *BenchmarkResults)
         results.p99_latency_us,
         results.error_rate,
     });
+    defer allocator.free(json_content);
 
     // Write to file
     const filename = try std.fmt.allocPrint(allocator, "benchmark_results_{}.json", .{std.time.timestamp()});
     defer allocator.free(filename);
 
-    try std.fs.cwd().writeFile(filename, json.items);
+    try std.fs.cwd().writeFile(.{ .sub_path = filename, .data = json_content });
     std.debug.print("📄 JSON results exported to: {s}\n", .{filename});
 }
 
 // Export results in CSV format
 fn exportBenchmarkCsv(allocator: std.mem.Allocator, results: *BenchmarkResults) !void {
-    var csv = std.ArrayList(u8).init(allocator);
-    defer csv.deinit();
-
-    try csv.writer().print("metric,value,timestamp\n" ++
+    const csv_content = try std.fmt.allocPrint(allocator, "metric,value,timestamp\n" ++
         "workload_pattern,{s},{}\n" ++
         "total_operations,{},{}\n" ++
         "operations_per_second,{d:.2},{}\n" ++
@@ -733,22 +783,20 @@ fn exportBenchmarkCsv(allocator: std.mem.Allocator, results: *BenchmarkResults) 
         results.p99_latency_us,                    results.end_time,
         results.error_rate,                        results.end_time,
     });
+    defer allocator.free(csv_content);
 
     const filename = try std.fmt.allocPrint(allocator, "benchmark_results_{}.csv", .{std.time.timestamp()});
     defer allocator.free(filename);
 
-    try std.fs.cwd().writeFile(filename, csv.items);
+    try std.fs.cwd().writeFile(.{ .sub_path = filename, .data = csv_content });
     std.debug.print("📊 CSV results exported to: {s}\n", .{filename});
 }
 
 // Export results in Prometheus format
 fn exportBenchmarkPrometheus(allocator: std.mem.Allocator, results: *BenchmarkResults) !void {
-    var prom = std.ArrayList(u8).init(allocator);
-    defer prom.deinit();
-
     const timestamp = results.end_time * 1_000_000; // Prometheus expects microseconds
 
-    try prom.writer().print(
+    const prom_content = try std.fmt.allocPrint(allocator,
         \\# HELP wdbx_benchmark_operations_total Total number of benchmark operations
         \\# TYPE wdbx_benchmark_operations_total counter
         \\wdbx_benchmark_operations_total{{workload="{s}"}} {} {}
@@ -778,11 +826,12 @@ fn exportBenchmarkPrometheus(allocator: std.mem.Allocator, results: *BenchmarkRe
         results.error_rate,
         timestamp,
     });
+    defer allocator.free(prom_content);
 
     const filename = try std.fmt.allocPrint(allocator, "benchmark_results_{}.prom", .{std.time.timestamp()});
     defer allocator.free(filename);
 
-    try std.fs.cwd().writeFile(filename, prom.items);
+    try std.fs.cwd().writeFile(.{ .sub_path = filename, .data = prom_content });
     std.debug.print("📈 Prometheus results exported to: {s}\n", .{filename});
 }
 
@@ -792,7 +841,7 @@ fn detectPerformanceRegression(allocator: std.mem.Allocator, results: *Benchmark
     std.debug.print("  Baseline file: {s}\n", .{baseline_file});
     std.debug.print("  Current performance: {d:.0} ops/sec, {d:.0}μs avg latency\n", .{ results.operations_per_second, results.avg_latency_us });
 
-    const content = std.fs.cwd().readFileAlloc(allocator, baseline_file, 10 * 1024 * 1024) catch |e| {
+    const content = std.fs.cwd().readFileAlloc(baseline_file, allocator, 10 * 1024 * 1024) catch |e| {
         std.debug.print("  Note: Unable to read baseline file: {s}\n", .{@errorName(e)});
         return;
     };

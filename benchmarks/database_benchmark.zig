@@ -1,5 +1,5 @@
 const std = @import("std");
-const database = @import("database").database;
+const database = @import("database");
 
 const BenchmarkResult = struct {
     operation: []const u8,

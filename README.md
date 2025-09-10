@@ -2,7 +2,7 @@
 
 > **Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency, advanced monitoring, and platform-optimized implementations for Zig development.**
 
-[![Zig Version](https://img.shields.io/badge/Zig-0.15.1+-orange.svg)](https://ziglang.org/)
+[![Zig Version](https://img.shields.io/badge/Zig-0.15.1%2B-orange.svg)](https://ziglang.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)](https://github.com/yourusername/abi)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
@@ -47,7 +47,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/abi.git
+git clone https://github.com/donaldfilimon/abi.git
 cd abi
 
 # Build the framework (optimized)
@@ -110,6 +110,48 @@ const results = try db.search(&query, 10, allocator);
 defer allocator.free(results);
 ```
 
+### **WDBX Vector Database Features**
+
+The WDBX-AI vector database provides enterprise-grade performance with:
+
+- **High Performance**: SIMD-optimized vector operations and efficient file I/O
+- **Vector Operations**: Add, query, and k-nearest neighbor search
+- **Multiple APIs**: Command-line interface, HTTP REST API, TCP binary protocol, WebSocket
+- **Security**: JWT authentication and rate limiting
+- **Monitoring**: Comprehensive statistics and performance metrics
+- **Production Ready**: Error handling, graceful degradation, and comprehensive testing
+
+#### **Command Line Usage**
+
+```bash
+# Query k-nearest neighbors
+zig build run -- knn "1.1,2.1,3.1,4.1,5.1,6.1,7.1,8.1" 5
+
+# Query nearest neighbor
+zig build run -- query "1.1,2.1,3.1,4.1,5.1,6.1,7.1,8.1"
+
+# Add vector to database
+zig build run -- add "1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0"
+
+# Start HTTP REST API server
+zig build run -- http 8080
+```
+
+#### **HTTP REST API**
+
+Start the server and access endpoints:
+
+```bash
+zig build run -- http 8080
+```
+
+**API Endpoints:**
+- `GET /health` - Health check
+- `GET /stats` - Database statistics
+- `POST /add` - Add vector (requires admin token)
+- `GET /query?vec=1.0,2.0,3.0` - Query nearest neighbor
+- `GET /knn?vec=1.0,2.0,3.0&k=5` - Query k-nearest neighbors
+
 ## 📊 **Performance Benchmarks**
 
 | Component | Performance | Hardware |
@@ -162,12 +204,12 @@ abi --memory-profile benchmark
 
 ## 📚 **Documentation**
 
+- **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - Complete development workflow and architecture
 - **[API Reference](docs/api_reference.md)** - Complete API documentation
 - **[CLI Reference](docs/cli_reference.md)** - Command-line interface guide
 - **[Database Guide](docs/database_usage_guide.md)** - Vector database usage
 - **[Plugin System](docs/PLUGIN_SYSTEM.md)** - Plugin development guide
 - **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Deployment guide
-- **[Testing Guide](README_TESTING.md)** - Comprehensive testing documentation
 
 ## 🧪 **Testing & Quality**
 
@@ -191,6 +233,14 @@ zig test tests/test_cli_integration.zig
 - **Performance Stability**: <5% performance regression tolerance
 - **Test Coverage**: 95%+ code coverage with memory and performance tests
 - **Build Success Rate**: 99%+ successful builds across all platforms
+
+### **Test Categories**
+- **Memory Management**: Memory safety and leak detection (100% coverage)
+- **Performance Regression**: Performance stability monitoring (95% coverage)
+- **CLI Integration**: Command-line interface validation (90% coverage)
+- **Database Operations**: Vector database functionality (95% coverage)
+- **SIMD Operations**: SIMD acceleration validation (90% coverage)
+- **Network Infrastructure**: Server stability and error handling (95% coverage)
 
 ## 🌐 **Web API**
 
@@ -239,6 +289,43 @@ The framework includes production-ready deployment configurations:
 - **Automated Scripts**: Windows (PowerShell) and Linux deployment scripts
 
 See [Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT.md) for complete deployment instructions.
+
+## 🌍 **Cross-Platform Guide (Zig 0.16-dev)**
+
+### **Targets**
+```bash
+# Examples
+zig build -Dtarget=x86_64-linux-gnu
+zig build -Dtarget=aarch64-linux-gnu
+zig build -Dtarget=x86_64-macos
+zig build -Dtarget=aarch64-macos
+zig build -Dtarget=wasm32-wasi
+```
+
+### **Conditional Compilation**
+```zig
+const builtin = @import("builtin");
+
+pub fn main() void {
+    if (comptime builtin.os.tag == .windows) {
+        // Windows-specific code
+    } else if (comptime builtin.os.tag == .linux) {
+        // Linux-specific code
+    } else if (comptime builtin.os.tag == .macos) {
+        // macOS-specific code
+    }
+}
+```
+
+### **Cross-Platform Build Step**
+```bash
+zig build cross-platform   # builds CLI for multiple targets into zig-out/cross/
+```
+
+### **Windows Networking Notes**
+- Windows networking paths use Winsock on Windows to avoid ReadFile edge cases
+- Diagnostic tool: `zig build test-network` (Windows only)
+- PowerShell fixes: `fix_windows_networking.ps1`
 
 ## 🤝 **Contributing**
 

@@ -2,9 +2,9 @@ const std = @import("std");
 const testing = std.testing;
 
 // Import modules for testing
-const neural = @import("../src/neural.zig");
-const memory_tracker = @import("../src/memory_tracker.zig");
-const simd_mod = @import("../src/simd/mod.zig");
+const neural = @import("neural");
+const memory_tracker = @import("memory_tracker");
+const simd_mod = @import("simd");
 
 test "mixed precision training - f16 operations" {
     const allocator = testing.allocator;

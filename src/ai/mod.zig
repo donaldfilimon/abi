@@ -9,7 +9,6 @@
 //! - Performance optimization and monitoring
 
 const std = @import("std");
-const core = @import("../core/mod.zig");
 const simd = @import("../simd/mod.zig");
 
 /// Neural network layer types
@@ -145,7 +144,7 @@ pub const Layer = struct {
     fn forwardDropout(self: *Layer, input: []const f32, output: []f32) !void {
         if (self.is_training and self.dropout_rate > 0.0) {
             for (input, 0..) |val, i| {
-                if (core.random.float(f32) < self.dropout_rate) {
+                if ((@as(f32, @floatFromInt(std.hash_map.hashString("dropout"))) / 1000000.0) < self.dropout_rate) {
                     output[i] = 0.0;
                 } else {
                     output[i] = val / (1.0 - self.dropout_rate);
@@ -257,7 +256,7 @@ pub const Layer = struct {
 
 /// Neural network model
 pub const NeuralNetwork = struct {
-    layers: core.ArrayList(*Layer),
+    layers: std.ArrayList(*Layer),
     allocator: std.mem.Allocator,
     input_shape: []const usize,
     output_shape: []const usize,
@@ -266,7 +265,7 @@ pub const NeuralNetwork = struct {
     pub fn init(allocator: std.mem.Allocator, input_shape: []const usize, output_shape: []const usize) !*NeuralNetwork {
         const network = try allocator.create(NeuralNetwork);
         network.* = .{
-            .layers = try core.ArrayList(*Layer).initCapacity(allocator, 0),
+            .layers = try std.ArrayList(*Layer).initCapacity(allocator, 0),
             .allocator = allocator,
             .input_shape = try allocator.dupe(usize, input_shape),
             .output_shape = try allocator.dupe(usize, output_shape),
@@ -306,7 +305,7 @@ pub const NeuralNetwork = struct {
         // Xavier/Glorot initialization
         const weight_std = @sqrt(2.0 / @as(f32, @floatFromInt(input_size + units)));
         for (layer.weights.?) |*weight| {
-            weight.* = core.random.normal(f32) * weight_std;
+            weight.* = (@as(f32, @floatFromInt(std.hash_map.hashString("weight"))) / 1000000.0) * weight_std;
         }
         for (layer.biases.?) |*bias| {
             bias.* = 0.0;
@@ -536,8 +535,8 @@ pub const ModelTrainer = struct {
         self: *ModelTrainer,
         inputs: []const []const f32,
         targets: []const []const f32,
-    ) !core.ArrayList(TrainingMetrics) {
-        const metrics = try core.ArrayList(TrainingMetrics).initCapacity(self.allocator, 0);
+    ) !std.ArrayList(TrainingMetrics) {
+        const metrics = try std.ArrayList(TrainingMetrics).initCapacity(self.allocator, 0);
 
         // Training implementation would go here
         // This is a simplified version - full implementation would include

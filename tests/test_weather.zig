@@ -3,7 +3,7 @@
 //! Tests for the weather module functionality
 
 const std = @import("std");
-const weather = @import("../src/weather.zig");
+const weather = @import("weather");
 
 test "weather utilities" {
     // Test temperature conversions

@@ -2,10 +2,7 @@
 //! Modern AI agent implementation with advanced features and performance optimizations
 
 const std = @import("std");
-const core = @import("../core/mod.zig");
-const Allocator = core.Allocator;
-const Logger = core.Logger;
-const Timer = core.Timer;
+const Allocator = std.mem.Allocator;
 
 /// Agent state management
 pub const AgentState = enum {
@@ -40,7 +37,7 @@ pub const AgentConfig = struct {
     capabilities: AgentCapabilities = .{},
     memory_size: usize = 1024 * 1024, // 1MB
     enable_logging: bool = true,
-    log_level: Logger.LogLevel = .info,
+    log_level: std.log.Level = .info,
 };
 
 /// Memory entry for agent
@@ -117,7 +114,7 @@ pub const EnhancedAgent = struct {
         self.* = .{
             .config = config,
             .allocator = allocator,
-            .logger = Logger.init(allocator, config.log_level),
+            .logger = std.log.scoped(.ai_agent),
             .state = .idle,
             .memory = std.ArrayList(MemoryEntry).init(allocator),
             .context = std.ArrayList(u8).init(allocator),
@@ -152,9 +149,10 @@ pub const EnhancedAgent = struct {
 
     /// Process user input and generate response
     pub fn processInput(self: *Self, input: []const u8) ![]const u8 {
-        const timer = Timer.start();
+        const start_time = std.time.microTimestamp();
         defer {
-            const elapsed = timer.elapsedMs();
+            const end_time = std.time.microTimestamp();
+            const elapsed = @as(f64, @floatFromInt(end_time - start_time)) / 1000.0; // Convert to milliseconds
             self.performance_stats.updateResponseTime(elapsed);
             self.performance_stats.total_requests += 1;
         }

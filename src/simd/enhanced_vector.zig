@@ -2,9 +2,7 @@
 //! Advanced vector operations with modern Zig patterns and performance optimizations
 
 const std = @import("std");
-const core = @import("../core/mod.zig");
-const Allocator = core.Allocator;
-const Timer = core.Timer;
+const Allocator = std.mem.Allocator;
 
 /// Vector types with enhanced features
 pub const VectorType = enum {
@@ -75,7 +73,7 @@ pub const ActivationFunction = enum {
 };
 
 /// Enhanced vector structure
-pub fn Vector(comptime T: type) type {
+pub fn vector(comptime T: type) type {
     return struct {
         data: []T,
         allocator: Allocator,
@@ -469,7 +467,7 @@ test "enhanced vector basic operations" {
     const testing = std.testing;
     const allocator = testing.allocator;
 
-    var vec = try Vector(f32).init(allocator, 8);
+    var vec = try vector(f32).init(allocator, 8);
     defer vec.deinit();
 
     // Test initialization
@@ -491,10 +489,10 @@ test "enhanced vector arithmetic" {
     const testing = std.testing;
     const allocator = testing.allocator;
 
-    var vec1 = try Vector(f32).initWithData(allocator, &[_]f32{ 1.0, 2.0, 3.0, 4.0 });
+    var vec1 = try vector(f32).initWithData(allocator, &[_]f32{ 1.0, 2.0, 3.0, 4.0 });
     defer vec1.deinit();
 
-    var vec2 = try Vector(f32).initWithData(allocator, &[_]f32{ 5.0, 6.0, 7.0, 8.0 });
+    var vec2 = try vector(f32).initWithData(allocator, &[_]f32{ 5.0, 6.0, 7.0, 8.0 });
     defer vec2.deinit();
 
     // Test addition
@@ -514,10 +512,10 @@ test "enhanced vector operations" {
     const testing = std.testing;
     const allocator = testing.allocator;
 
-    var vec1 = try Vector(f32).initWithData(allocator, &[_]f32{ 1.0, 2.0, 3.0, 4.0 });
+    var vec1 = try vector(f32).initWithData(allocator, &[_]f32{ 1.0, 2.0, 3.0, 4.0 });
     defer vec1.deinit();
 
-    var vec2 = try Vector(f32).initWithData(allocator, &[_]f32{ 1.0, 2.0, 3.0, 4.0 });
+    var vec2 = try vector(f32).initWithData(allocator, &[_]f32{ 1.0, 2.0, 3.0, 4.0 });
     defer vec2.deinit();
 
     // Test dot product

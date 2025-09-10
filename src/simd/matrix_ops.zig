@@ -2,9 +2,7 @@
 //! High-performance matrix operations with SIMD optimizations and modern Zig patterns
 
 const std = @import("std");
-const core = @import("../core/mod.zig");
-const Allocator = core.Allocator;
-const Timer = core.Timer;
+const Allocator = std.mem.Allocator;
 
 /// Matrix configuration for SIMD operations
 pub const MatrixConfig = struct {

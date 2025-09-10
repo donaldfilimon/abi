@@ -10,10 +10,9 @@
 //! - Memory-efficient streaming data processing
 
 const std = @import("std");
-const core = @import("core/mod.zig");
 
 /// Re-export commonly used types
-pub const Allocator = core.Allocator;
+pub const Allocator = std.mem.Allocator;
 
 /// LocalML-specific error types
 pub const MLError = error{
@@ -28,7 +27,7 @@ pub const MLError = error{
     InsufficientData,
     ConvergenceFailed,
     InvalidModelState,
-} || core.Error;
+};
 
 pub const DataRow = struct {
     x1: f64,
@@ -200,75 +199,8 @@ fn loadModel(path: []const u8) !struct { w: [2]f64, b: f64 } {
     return .{ .w = .{ w0, w1 }, .b = b };
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const alloc = gpa.allocator();
-
-    var args = std.process.args();
-    _ = args.next(); // skip executable name
-
-    const cmd = args.next() orelse {
-        std.log.err("Usage: localml [train|predict] [args...]", .{});
-        return error.InvalidUsage;
-    };
-
-    if (std.mem.eql(u8, cmd, "train")) {
-        const data_path = args.next() orelse {
-            std.log.err("Usage: localml train <data.csv> <model.txt>", .{});
-            return error.InvalidUsage;
-        };
-        const model_path = args.next() orelse {
-            std.log.err("Usage: localml train <data.csv> <model.txt>", .{});
-            return error.InvalidUsage;
-        };
-
-        var data = std.ArrayList(DataRow).init(alloc);
-        defer data.deinit();
-
-        // Load training data
-        const data_contents = try std.fs.cwd().readFileAlloc(alloc, data_path, 1024 * 1024);
-        defer alloc.free(data_contents);
-
-        var lines = std.mem.tokenizeScalar(u8, data_contents, '\n');
-        while (lines.next()) |line| {
-            var cols = std.mem.tokenizeScalar(u8, line, ',');
-            const x1 = try std.fmt.parseFloat(f64, cols.next() orelse continue);
-            const x2 = try std.fmt.parseFloat(f64, cols.next() orelse continue);
-            const label = try std.fmt.parseFloat(f64, cols.next() orelse continue);
-            try data.append(.{ .x1 = x1, .x2 = x2, .label = label });
-        }
-
-        // Train model
-        const model = try train(data.items, 1000, 0.1);
-        try saveModel(model_path, model.w, model.b);
-        std.log.info("Model saved to {s}", .{model_path});
-    } else if (std.mem.eql(u8, cmd, "predict")) {
-        const model_path = args.next() orelse {
-            std.log.err("Usage: localml predict <model.txt> <x1> <x2>", .{});
-            return error.InvalidUsage;
-        };
-        const x1_str = args.next() orelse {
-            std.log.err("Usage: localml predict <model.txt> <x1> <x2>", .{});
-            return error.InvalidUsage;
-        };
-        const x2_str = args.next() orelse {
-            std.log.err("Usage: localml predict <model.txt> <x1> <x2>", .{});
-            return error.InvalidUsage;
-        };
-
-        const model = try loadModel(model_path);
-        const x1 = try std.fmt.parseFloat(f64, x1_str);
-        const x2 = try std.fmt.parseFloat(f64, x2_str);
-
-        const z = model.w[0] * x1 + model.w[1] * x2 + model.b;
-        const prob = 1.0 / (1.0 + std.math.exp(-z));
-        std.log.info("Probability: {d:.6}", .{prob});
-    } else {
-        std.log.err("Unknown command: {s}", .{cmd});
-        return error.InvalidCommand;
-    }
-}
+// Note: This module provides machine learning functionality but is not a standalone executable.
+// Use the main CLI application for command-line usage of ML features.
 
 test "DataRow validation" {
     // Valid data

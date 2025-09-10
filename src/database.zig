@@ -179,10 +179,11 @@ pub const Db = struct {
     }
 
     pub fn addEmbedding(self: *Db, embedding: []const f32) DbError!u64 {
-        if (embedding.len != self.header.dim)
-            return DbError.DimensionMismatch;
+        // Must be initialized before accepting embeddings
         if (self.header.records_off == 0)
             return DbError.InvalidState;
+        if (embedding.len != self.header.dim)
+            return DbError.DimensionMismatch;
 
         const row_index = self.header.row_count;
         const record_size: u64 = @as(u64, self.header.dim) * @sizeOf(f32);
@@ -326,22 +327,21 @@ pub const Db = struct {
     pub fn open(path: []const u8, create_if_missing: bool) DbError!*Db {
         const allocator = std.heap.page_allocator;
 
-        const file = std.fs.cwd().openFile(path, .{ .mode = .read_write }) catch |err| blk: {
-            if (create_if_missing and err == error.FileNotFound) {
-                const new_file = try std.fs.cwd().createFile(path, .{ .read = true, .truncate = true });
-                const hdr = WdbxHeader.createDefault();
-                try new_file.writeAll(std.mem.asBytes(&hdr));
-                new_file.setEndPos(DEFAULT_PAGE_SIZE) catch |set_end_pos_err| {
-                    return switch (set_end_pos_err) {
-                        error.NonResizable => DbError.InvalidState,
-                        else => |e| e,
-                    };
+        var file: std.fs.File = undefined;
+        if (create_if_missing) {
+            // Always create/truncate when requested to ensure a clean slate
+            file = try std.fs.cwd().createFile(path, .{ .read = true, .truncate = true });
+            const hdr = WdbxHeader.createDefault();
+            try file.writeAll(std.mem.asBytes(&hdr));
+            file.setEndPos(DEFAULT_PAGE_SIZE) catch |set_end_pos_err| {
+                return switch (set_end_pos_err) {
+                    error.NonResizable => DbError.InvalidState,
+                    else => |e| e,
                 };
-                break :blk new_file;
-            } else {
-                return err;
-            }
-        };
+            };
+        } else {
+            file = try std.fs.cwd().openFile(path, .{ .mode = .read_write });
+        }
 
         const self = try allocator.create(Db);
         errdefer allocator.destroy(self);
@@ -402,12 +402,18 @@ pub const Db = struct {
     pub const HNSWIndex = struct {
         const Self = @This();
 
-        /// Maximum number of connections per layer
-        const MAX_CONNECTIONS = 16;
-        /// Construction parameter for search quality
-        const EF_CONSTRUCTION = 200;
-        /// Search parameter for query quality
-        const EF_SEARCH = 100;
+        /// Tunable parameters
+        max_connections: u32 = 16,
+        ef_construction: u32 = 200,
+        ef_search: u32 = 100,
+
+        // (type declarations moved after fields)
+
+        allocator: std.mem.Allocator,
+        nodes: std.AutoHashMap(u64, *Node),
+        entry_point: ?u64 = null,
+        max_layer: u32 = 0,
+        dimension: u16,
 
         /// Node in the HNSW graph
         const Node = struct {
@@ -443,8 +449,10 @@ pub const Db = struct {
             id: u64,
             distance: f32,
 
-            pub fn lessThan(_: void, a: SearchResult, b: SearchResult) bool {
-                return a.distance < b.distance;
+            pub fn compare(_: void, a: SearchResult, b: SearchResult) std.math.Order {
+                if (a.distance < b.distance) return .lt;
+                if (a.distance > b.distance) return .gt;
+                return .eq;
             }
         };
 
@@ -453,16 +461,13 @@ pub const Db = struct {
             id: u64,
             distance: f32,
 
-            pub fn lessThan(_: void, a: QueueEntry, b: QueueEntry) bool {
-                return a.distance > b.distance; // Max heap for closest neighbors
+            pub fn compare(_: void, a: QueueEntry, b: QueueEntry) std.math.Order {
+                // Maintain a max-heap by considering larger distance as "less"
+                if (a.distance > b.distance) return .lt;
+                if (a.distance < b.distance) return .gt;
+                return .eq;
             }
         };
-
-        allocator: std.mem.Allocator,
-        nodes: std.AutoHashMap(u64, *Node),
-        entry_point: ?u64 = null,
-        max_layer: u32 = 0,
-        dimension: u16,
 
         pub fn init(allocator: std.mem.Allocator, dimension: u16) !*Self {
             const self = try allocator.create(Self);
@@ -514,10 +519,10 @@ pub const Db = struct {
             var visited = std.AutoHashMap(u64, void).init(self.allocator);
             defer visited.deinit();
 
-            var candidates = std.PriorityQueue(QueueEntry, void, QueueEntry.lessThan).init(self.allocator);
+            var candidates = std.PriorityQueue(QueueEntry, void, QueueEntry.compare).init(self.allocator, {});
             defer candidates.deinit();
 
-            var results = std.PriorityQueue(SearchResult, void, SearchResult.lessThan).init(self.allocator);
+            var results = std.PriorityQueue(SearchResult, void, SearchResult.compare).init(self.allocator, {});
             defer results.deinit();
 
             // Start from entry point
@@ -551,12 +556,12 @@ pub const Db = struct {
             self: *Self,
             query: []const f32,
             layer: u32,
-            candidates: *std.PriorityQueue(QueueEntry, void, QueueEntry.lessThan),
+            candidates: *std.PriorityQueue(QueueEntry, void, QueueEntry.compare),
             visited: *std.AutoHashMap(u64, void),
-            results: *std.PriorityQueue(SearchResult, void, SearchResult.lessThan),
+            results: *std.PriorityQueue(SearchResult, void, SearchResult.compare),
             top_k: usize,
         ) !void {
-            var layer_candidates = std.PriorityQueue(QueueEntry, void, QueueEntry.lessThan).init(self.allocator);
+            var layer_candidates = std.PriorityQueue(QueueEntry, void, QueueEntry.compare).init(self.allocator, {});
             defer layer_candidates.deinit();
 
             // Process candidates at this layer
@@ -600,7 +605,7 @@ pub const Db = struct {
 
         /// Connect a new node to existing nodes
         fn connectNode(self: *Self, node: *Node) !void {
-            const max_connections = @min(MAX_CONNECTIONS, self.nodes.count());
+            const max_connections = @min(self.max_connections, self.nodes.count());
             if (max_connections == 0) return;
 
             var distances = std.ArrayListUnmanaged(DistanceEntry){};
@@ -700,6 +705,15 @@ pub const Db = struct {
         }
     }
 
+    /// Adjust HNSW parameters (useful for tests/benchmarks)
+    pub fn setHNSWParams(self: *Db, params: struct { max_connections: u32 = 16, ef_construction: u32 = 200, ef_search: u32 = 100 }) void {
+        if (self.hnsw_index) |index| {
+            index.max_connections = params.max_connections;
+            index.ef_construction = params.ef_construction;
+            index.ef_search = params.ef_search;
+        }
+    }
+
     /// Search using HNSW index (fallback to brute force if not available)
     pub fn searchHNSW(self: *Db, query: []const f32, top_k: usize, allocator: std.mem.Allocator) ![]Result {
         if (self.hnsw_index) |index| {
@@ -738,7 +752,7 @@ pub const Db = struct {
 
         var thread_results = try allocator.alloc([]Result, num_threads);
         defer {
-            for (thread_results) |result| allocator.free(result);
+            for (thread_results) |result| self.allocator.free(result);
             allocator.free(thread_results);
         }
 
@@ -756,7 +770,7 @@ pub const Db = struct {
         }
 
         // Merge results from all threads
-        return self.mergeSearchResults(thread_results, top_k, allocator);
+        return mergeSearchResults(thread_results, top_k, allocator);
     }
 
     /// Search a chunk of vectors (used by parallel search)
@@ -771,15 +785,15 @@ pub const Db = struct {
         defer self.allocator.free(chunk_results);
 
         const record_size: u64 = @as(u64, self.header.dim) * @sizeOf(f32);
-        const buf_size = @min(record_size, self.read_buffer.len);
-        const buf = self.read_buffer[0..buf_size];
+        // Use a per-thread buffer to avoid concurrent access to self.read_buffer
+        const buf = try self.allocator.alloc(u8, @intCast(record_size));
+        defer self.allocator.free(buf);
 
         var result_index: usize = 0;
         var row: u64 = start_row;
         while (row < end_row) : (row += 1) {
             const offset: u64 = self.header.records_off + row * record_size;
-            try self.file.seekTo(offset);
-            _ = try self.file.readAll(buf);
+            _ = try self.file.preadAll(buf, offset);
 
             var dist: f32 = 0;
             const row_data = std.mem.bytesAsSlice(f32, buf);

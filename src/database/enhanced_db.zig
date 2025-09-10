@@ -2,10 +2,7 @@
 //! Modern database implementation with advanced features and performance optimizations
 
 const std = @import("std");
-const core = @import("../core/mod.zig");
-const Allocator = core.Allocator;
-const Logger = core.Logger;
-const Timer = core.Timer;
+const Allocator = std.mem.Allocator;
 
 /// Database configuration
 pub const DatabaseConfig = struct {
@@ -17,7 +14,7 @@ pub const DatabaseConfig = struct {
     compression_level: u8 = 6,
     encryption_key: ?[]const u8 = null,
     enable_logging: bool = true,
-    log_level: Logger.LogLevel = .info,
+    log_level: std.log.Level = .info,
 };
 
 /// Database record with metadata
@@ -146,7 +143,7 @@ pub const DatabaseIndex = struct {
 pub const EnhancedDatabase = struct {
     config: DatabaseConfig,
     allocator: Allocator,
-    logger: Logger,
+    logger: std.log.scoped(.database), // Logger module
     file: std.fs.File,
     index: DatabaseIndex,
     cache: std.AutoHashMap(u64, DatabaseRecord),
@@ -225,7 +222,7 @@ pub const EnhancedDatabase = struct {
         self.* = .{
             .config = config,
             .allocator = allocator,
-            .logger = Logger.init(allocator, config.log_level),
+            .logger = std.log.scoped(.database),
             .file = file,
             .index = DatabaseIndex.init(allocator),
             .cache = std.AutoHashMap(u64, DatabaseRecord).init(allocator),
@@ -259,7 +256,7 @@ pub const EnhancedDatabase = struct {
         self.* = .{
             .config = config,
             .allocator = allocator,
-            .logger = Logger.init(allocator, config.log_level),
+            .logger = std.log.scoped(.database),
             .file = file,
             .index = DatabaseIndex.init(allocator),
             .cache = std.AutoHashMap(u64, DatabaseRecord).init(allocator),
@@ -304,9 +301,10 @@ pub const EnhancedDatabase = struct {
 
     /// Write record to database
     pub fn writeRecord(self: *Self, data: []const u8) !u64 {
-        const timer = Timer.start();
+        const start_time = std.time.microTimestamp();
         defer {
-            const elapsed = timer.elapsedMs();
+            const end_time = std.time.microTimestamp();
+            const elapsed = @as(f64, @floatFromInt(end_time - start_time)) / 1000.0; // Convert to milliseconds
             self.stats.updateWriteTime(elapsed);
             self.stats.total_writes += 1;
         }
@@ -377,9 +375,10 @@ pub const EnhancedDatabase = struct {
 
     /// Read record from database
     pub fn readRecord(self: *Self, id: u64) !?DatabaseRecord {
-        const timer = Timer.start();
+        const start_time = std.time.microTimestamp();
         defer {
-            const elapsed = timer.elapsedMs();
+            const end_time = std.time.microTimestamp();
+            const elapsed = @as(f64, @floatFromInt(end_time - start_time)) / 1000.0; // Convert to milliseconds
             self.stats.updateReadTime(elapsed);
             self.stats.total_reads += 1;
         }
