@@ -539,16 +539,19 @@ pub const StaticAnalyzer = struct {
     fn analyzeFunctionComplexity(self: *Self, file_path: []const u8, start_line: usize, function_name: []const u8, line_count: usize, max_nesting: usize, cyclomatic_complexity: usize) !void {
         if (line_count > self.config.max_function_length) {
             const msg = try std.fmt.allocPrint(self.allocator, "Function '{s}' is {d} lines (max: {d})", .{ function_name, line_count, self.config.max_function_length });
+            defer self.allocator.free(msg);
             try self.addFinding(file_path, start_line, 1, .warning, msg, "complexity.function_length", "", "Consider breaking this function into smaller functions", 0.8);
         }
 
         if (cyclomatic_complexity > self.config.max_cyclomatic_complexity) {
             const msg = try std.fmt.allocPrint(self.allocator, "Function '{s}' has cyclomatic complexity {d} (max: {d})", .{ function_name, cyclomatic_complexity, self.config.max_cyclomatic_complexity });
+            defer self.allocator.free(msg);
             try self.addFinding(file_path, start_line, 1, .warning, msg, "complexity.cyclomatic", "", "Reduce branching by extracting methods or using lookup tables", 0.85);
         }
 
         if (max_nesting > self.config.max_nesting_depth) {
             const msg = try std.fmt.allocPrint(self.allocator, "Function '{s}' has nesting depth {d} (max: {d})", .{ function_name, max_nesting, self.config.max_nesting_depth });
+            defer self.allocator.free(msg);
             try self.addFinding(file_path, start_line, 1, .suggestion, msg, "complexity.nesting", "", "Use early returns or extract nested logic into separate functions", 0.75);
         }
     }
