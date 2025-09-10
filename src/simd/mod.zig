@@ -96,7 +96,7 @@ pub const VectorOps = struct {
         if (a.len == 0) return 0.0;
 
         const optimal_size = Vector.getOptimalSize(a.len);
-        var sum: f32 = 0.0;
+        var acc: f32 = 0.0;
         var i: usize = 0;
 
         // SIMD-optimized distance calculation
@@ -107,7 +107,7 @@ pub const VectorOps = struct {
                     const vb = Vector.load(Vector.f32x16, b[i..][0..16]);
                     const diff = va - vb;
                     const sq = diff * diff;
-                    sum += @reduce(.Add, sq);
+                    acc += @reduce(.Add, sq);
                 }
             },
             8 => {
@@ -116,7 +116,7 @@ pub const VectorOps = struct {
                     const vb = @as(@Vector(8, f32), b[i..][0..8].*);
                     const diff = va - vb;
                     const sq = diff * diff;
-                    sum += @reduce(.Add, sq);
+                    acc += @reduce(.Add, sq);
                 }
             },
             4 => {
@@ -125,7 +125,7 @@ pub const VectorOps = struct {
                     const vb = @as(@Vector(4, f32), b[i..][0..4].*);
                     const diff = va - vb;
                     const sq = diff * diff;
-                    sum += @reduce(.Add, sq);
+                    acc += @reduce(.Add, sq);
                 }
             },
             else => {},
@@ -134,10 +134,10 @@ pub const VectorOps = struct {
         // Handle remaining elements
         while (i < a.len) : (i += 1) {
             const diff = a[i] - b[i];
-            sum += diff * diff;
+            acc += diff * diff;
         }
 
-        return @sqrt(sum);
+        return @sqrt(acc);
     }
 
     /// Calculate cosine similarity between two vectors
@@ -211,24 +211,24 @@ pub const VectorOps = struct {
                 while (i + 16 <= a.len) : (i += 16) {
                     const va = @as(@Vector(16, f32), a[i..][0..16].*);
                     const vb = @as(@Vector(16, f32), b[i..][0..16].*);
-                    const sum = va + vb;
-                    @memcpy(result[i..][0..16], @as([16]f32, sum)[0..]);
+                    const s = va + vb;
+                    @memcpy(result[i..][0..16], @as([16]f32, s)[0..]);
                 }
             },
             8 => {
                 while (i + 8 <= a.len) : (i += 8) {
                     const va = @as(@Vector(8, f32), a[i..][0..8].*);
                     const vb = @as(@Vector(8, f32), b[i..][0..8].*);
-                    const sum = va + vb;
-                    @memcpy(result[i..][0..8], @as([8]f32, sum)[0..]);
+                    const s = va + vb;
+                    @memcpy(result[i..][0..8], @as([8]f32, s)[0..]);
                 }
             },
             4 => {
                 while (i + 4 <= a.len) : (i += 4) {
                     const va = @as(@Vector(4, f32), a[i..][0..4].*);
                     const vb = @as(@Vector(4, f32), b[i..][0..4].*);
-                    const sum = va + vb;
-                    @memcpy(result[i..][0..4], @as([4]f32, sum)[0..]);
+                    const s = va + vb;
+                    @memcpy(result[i..][0..4], @as([4]f32, s)[0..]);
                 }
             },
             else => {},
@@ -339,7 +339,7 @@ pub const VectorOps = struct {
     pub fn dotProduct(a: []const f32, b: []const f32) f32 {
         if (a.len != b.len) return 0.0;
 
-        var sum: f32 = 0.0;
+        var acc: f32 = 0.0;
         const optimal_size = Vector.getOptimalSize(a.len);
         var i: usize = 0;
 
@@ -348,21 +348,21 @@ pub const VectorOps = struct {
                 while (i + 16 <= a.len) : (i += 16) {
                     const va = @as(@Vector(16, f32), a[i..][0..16].*);
                     const vb = @as(@Vector(16, f32), b[i..][0..16].*);
-                    sum += @reduce(.Add, va * vb);
+                    acc += @reduce(.Add, va * vb);
                 }
             },
             8 => {
                 while (i + 8 <= a.len) : (i += 8) {
                     const va = @as(@Vector(8, f32), a[i..][0..8].*);
                     const vb = @as(@Vector(8, f32), b[i..][0..8].*);
-                    sum += @reduce(.Add, va * vb);
+                    acc += @reduce(.Add, va * vb);
                 }
             },
             4 => {
                 while (i + 4 <= a.len) : (i += 4) {
                     const va = @as(@Vector(4, f32), a[i..][0..4].*);
                     const vb = @as(@Vector(4, f32), b[i..][0..4].*);
-                    sum += @reduce(.Add, va * vb);
+                    acc += @reduce(.Add, va * vb);
                 }
             },
             else => {},
@@ -370,10 +370,262 @@ pub const VectorOps = struct {
 
         // Handle remaining elements
         while (i < a.len) : (i += 1) {
-            sum += a[i] * b[i];
+            acc += a[i] * b[i];
         }
 
-        return sum;
+        return acc;
+    }
+
+    /// Element-wise multiply: result = a * b
+    pub fn multiply(result: []f32, a: []const f32, b: []const f32) void {
+        if (a.len != b.len or result.len != a.len) return;
+        const optimal_size = Vector.getOptimalSize(a.len);
+        var i: usize = 0;
+        switch (optimal_size) {
+            16 => {
+                while (i + 16 <= a.len) : (i += 16) {
+                    const va = @as(@Vector(16, f32), a[i..][0..16].*);
+                    const vb = @as(@Vector(16, f32), b[i..][0..16].*);
+                    const prod = va * vb;
+                    @memcpy(result[i..][0..16], @as([16]f32, prod)[0..]);
+                }
+            },
+            8 => {
+                while (i + 8 <= a.len) : (i += 8) {
+                    const va = @as(@Vector(8, f32), a[i..][0..8].*);
+                    const vb = @as(@Vector(8, f32), b[i..][0..8].*);
+                    const prod = va * vb;
+                    @memcpy(result[i..][0..8], @as([8]f32, prod)[0..]);
+                }
+            },
+            4 => {
+                while (i + 4 <= a.len) : (i += 4) {
+                    const va = @as(@Vector(4, f32), a[i..][0..4].*);
+                    const vb = @as(@Vector(4, f32), b[i..][0..4].*);
+                    const prod = va * vb;
+                    @memcpy(result[i..][0..4], @as([4]f32, prod)[0..]);
+                }
+            },
+            else => {},
+        }
+        while (i < a.len) : (i += 1) {
+            result[i] = a[i] * b[i];
+        }
+    }
+
+    /// Element-wise divide: result = a / b (no special NaN handling)
+    pub fn divide(result: []f32, a: []const f32, b: []const f32) void {
+        if (a.len != b.len or result.len != a.len) return;
+        const optimal_size = Vector.getOptimalSize(a.len);
+        var i: usize = 0;
+        switch (optimal_size) {
+            16 => {
+                while (i + 16 <= a.len) : (i += 16) {
+                    const va = @as(@Vector(16, f32), a[i..][0..16].*);
+                    const vb = @as(@Vector(16, f32), b[i..][0..16].*);
+                    const quot = va / vb;
+                    @memcpy(result[i..][0..16], @as([16]f32, quot)[0..]);
+                }
+            },
+            8 => {
+                while (i + 8 <= a.len) : (i += 8) {
+                    const va = @as(@Vector(8, f32), a[i..][0..8].*);
+                    const vb = @as(@Vector(8, f32), b[i..][0..8].*);
+                    const quot = va / vb;
+                    @memcpy(result[i..][0..8], @as([8]f32, quot)[0..]);
+                }
+            },
+            4 => {
+                while (i + 4 <= a.len) : (i += 4) {
+                    const va = @as(@Vector(4, f32), a[i..][0..4].*);
+                    const vb = @as(@Vector(4, f32), b[i..][0..4].*);
+                    const quot = va / vb;
+                    @memcpy(result[i..][0..4], @as([4]f32, quot)[0..]);
+                }
+            },
+            else => {},
+        }
+        while (i < a.len) : (i += 1) {
+            result[i] = a[i] / b[i];
+        }
+    }
+
+    /// Element-wise min: result[i] = min(a[i], b[i])
+    pub fn min(result: []f32, a: []const f32, b: []const f32) void {
+        if (a.len != b.len or result.len != a.len) return;
+        var i: usize = 0;
+        while (i < a.len) : (i += 1) result[i] = @min(a[i], b[i]);
+    }
+
+    /// Element-wise max: result[i] = max(a[i], b[i])
+    pub fn max(result: []f32, a: []const f32, b: []const f32) void {
+        if (a.len != b.len or result.len != a.len) return;
+        var i: usize = 0;
+        while (i < a.len) : (i += 1) result[i] = @max(a[i], b[i]);
+    }
+
+    /// Element-wise absolute value
+    pub fn abs(result: []f32, a: []const f32) void {
+        if (result.len != a.len) return;
+        var i: usize = 0;
+        while (i < a.len) : (i += 1) result[i] = @abs(a[i]);
+    }
+
+    /// Clamp elements to [lo, hi]
+    pub fn clamp(result: []f32, a: []const f32, lo: f32, hi: f32) void {
+        if (result.len != a.len) return;
+        var i: usize = 0;
+        while (i < a.len) : (i += 1) {
+            const x = a[i];
+            result[i] = if (x < lo) lo else if (x > hi) hi else x;
+        }
+    }
+
+    /// Element-wise square: result[i] = a[i]^2
+    pub fn square(result: []f32, a: []const f32) void {
+        if (result.len != a.len) return;
+        var i: usize = 0;
+        while (i < a.len) : (i += 1) result[i] = a[i] * a[i];
+    }
+
+    /// Element-wise sqrt
+    pub fn sqrt(result: []f32, a: []const f32) void {
+        if (result.len != a.len) return;
+        var i: usize = 0;
+        while (i < a.len) : (i += 1) result[i] = @sqrt(a[i]);
+    }
+
+    /// Element-wise exp
+    pub fn exp(result: []f32, a: []const f32) void {
+        if (result.len != a.len) return;
+        var i: usize = 0;
+        while (i < a.len) : (i += 1) result[i] = std.math.exp(a[i]);
+    }
+
+    /// Element-wise natural log (ln)
+    pub fn log(result: []f32, a: []const f32) void {
+        if (result.len != a.len) return;
+        var i: usize = 0;
+        while (i < a.len) : (i += 1) result[i] = std.math.log(a[i]);
+    }
+
+    /// Add scalar to vector: result = a + s
+    pub fn addScalar(result: []f32, a: []const f32, s: f32) void {
+        if (result.len != a.len) return;
+        var i: usize = 0;
+        const vs4 = @as(@Vector(4, f32), @splat(s));
+        while (i + 4 <= a.len) : (i += 4) {
+            const va = @as(@Vector(4, f32), a[i..][0..4].*);
+            const s4 = va + vs4;
+            @memcpy(result[i..][0..4], @as([4]f32, s4)[0..]);
+        }
+        while (i < a.len) : (i += 1) result[i] = a[i] + s;
+    }
+
+    /// Subtract scalar from vector: result = a - s
+    pub fn subScalar(result: []f32, a: []const f32, s: f32) void {
+        if (result.len != a.len) return;
+        var i: usize = 0;
+        const vs4 = @as(@Vector(4, f32), @splat(s));
+        while (i + 4 <= a.len) : (i += 4) {
+            const va = @as(@Vector(4, f32), a[i..][0..4].*);
+            const diff = va - vs4;
+            @memcpy(result[i..][0..4], @as([4]f32, diff)[0..]);
+        }
+        while (i < a.len) : (i += 1) result[i] = a[i] - s;
+    }
+
+    /// L1 (Manhattan) distance
+    pub fn l1Distance(a: []const f32, b: []const f32) f32 {
+        if (a.len != b.len) return std.math.inf(f32);
+        var acc: f32 = 0.0;
+        var i: usize = 0;
+        while (i + 4 <= a.len) : (i += 4) {
+            const va = @as(@Vector(4, f32), a[i..][0..4].*);
+            const vb = @as(@Vector(4, f32), b[i..][0..4].*);
+            const diff = va - vb;
+            const tmp: [4]f32 = @as([4]f32, diff);
+            // absolute values
+            var j: usize = 0;
+            while (j < 4) : (j += 1) acc += @abs(tmp[j]);
+        }
+        while (i < a.len) : (i += 1) acc += @abs(a[i] - b[i]);
+        return acc;
+    }
+
+    /// L-infinity (Chebyshev) distance
+    pub fn linfDistance(a: []const f32, b: []const f32) f32 {
+        if (a.len != b.len) return std.math.inf(f32);
+        var maxd: f32 = 0.0;
+        var i: usize = 0;
+        while (i < a.len) : (i += 1) {
+            const d = @abs(a[i] - b[i]);
+            if (d > maxd) maxd = d;
+        }
+        return maxd;
+    }
+
+    /// Sum of elements
+    pub fn sum(a: []const f32) f32 {
+        var acc: f32 = 0.0;
+        var i: usize = 0;
+        while (i + 4 <= a.len) : (i += 4) {
+            const va = @as(@Vector(4, f32), a[i..][0..4].*);
+            acc += @reduce(.Add, va);
+        }
+        while (i < a.len) : (i += 1) acc += a[i];
+        return acc;
+    }
+
+    /// Mean of elements
+    pub fn mean(a: []const f32) f32 {
+        if (a.len == 0) return 0.0;
+        return VectorOps.sum(a) / @as(f32, @floatFromInt(a.len));
+    }
+
+    /// Variance (population)
+    pub fn variance(a: []const f32) f32 {
+        if (a.len == 0) return 0.0;
+        const m = VectorOps.mean(a);
+        var acc: f32 = 0.0;
+        for (a) |x| {
+            const d = x - m;
+            acc += d * d;
+        }
+        return acc / @as(f32, @floatFromInt(a.len));
+    }
+
+    /// Standard deviation (population)
+    pub fn stddev(a: []const f32) f32 {
+        return @sqrt(VectorOps.variance(a));
+    }
+
+    /// AXPY operation: y = a*x + y
+    pub fn axpy(y: []f32, a: f32, x: []const f32) void {
+        if (y.len != x.len) return;
+        var i: usize = 0;
+        const av4 = @as(@Vector(4, f32), @splat(a));
+        while (i + 4 <= y.len) : (i += 4) {
+            const xv = @as(@Vector(4, f32), x[i..][0..4].*);
+            const yv = @as(@Vector(4, f32), y[i..][0..4].*);
+            const res = yv + (av4 * xv);
+            @memcpy(y[i..][0..4], @as([4]f32, res)[0..]);
+        }
+        while (i < y.len) : (i += 1) y[i] = y[i] + a * x[i];
+    }
+
+    /// Fused multiply-add: result = x*y + z
+    pub fn fma(result: []f32, x: []const f32, y: []const f32, z: []const f32) void {
+        if (!(result.len == x.len and x.len == y.len and y.len == z.len)) return;
+        var i: usize = 0;
+        while (i + 4 <= result.len) : (i += 4) {
+            const xv = @as(@Vector(4, f32), x[i..][0..4].*);
+            const yv = @as(@Vector(4, f32), y[i..][0..4].*);
+            const zv = @as(@Vector(4, f32), z[i..][0..4].*);
+            const rv = (xv * yv) + zv;
+            @memcpy(result[i..][0..4], @as([4]f32, rv)[0..]);
+        }
+        while (i < result.len) : (i += 1) result[i] = x[i] * y[i] + z[i];
     }
 };
 
@@ -388,7 +640,7 @@ pub const MatrixOps = struct {
 
         while (row < rows) : (row += 1) {
             const row_start = row * cols;
-            var sum: f32 = 0.0;
+            var acc_row: f32 = 0.0;
             var col: usize = 0;
 
             // SIMD-optimized row-vector multiplication
@@ -397,21 +649,21 @@ pub const MatrixOps = struct {
                     while (col + 16 <= cols) : (col += 16) {
                         const matrix_row = @as(@Vector(16, f32), matrix[row_start + col ..][0..16].*);
                         const vec_slice = @as(@Vector(16, f32), vector[col..][0..16].*);
-                        sum += @reduce(.Add, matrix_row * vec_slice);
+                        acc_row += @reduce(.Add, matrix_row * vec_slice);
                     }
                 },
                 8 => {
                     while (col + 8 <= cols) : (col += 8) {
                         const matrix_row = @as(@Vector(8, f32), matrix[row_start + col ..][0..8].*);
                         const vec_slice = @as(@Vector(8, f32), vector[col..][0..8].*);
-                        sum += @reduce(.Add, matrix_row * vec_slice);
+                        acc_row += @reduce(.Add, matrix_row * vec_slice);
                     }
                 },
                 4 => {
                     while (col + 4 <= cols) : (col += 4) {
                         const matrix_row = @as(@Vector(4, f32), matrix[row_start + col ..][0..4].*);
                         const vec_slice = @as(@Vector(4, f32), vector[col..][0..4].*);
-                        sum += @reduce(.Add, matrix_row * vec_slice);
+                        acc_row += @reduce(.Add, matrix_row * vec_slice);
                     }
                 },
                 else => {},
@@ -419,10 +671,10 @@ pub const MatrixOps = struct {
 
             // Handle remaining columns
             while (col < cols) : (col += 1) {
-                sum += matrix[row_start + col] * vector[col];
+                acc_row += matrix[row_start + col] * vector[col];
             }
 
-            result[row] = sum;
+            result[row] = acc_row;
         }
     }
 
@@ -439,7 +691,7 @@ pub const MatrixOps = struct {
         while (i < m) : (i += 1) {
             var j: usize = 0;
             while (j < k) : (j += 1) {
-                var sum: f32 = 0.0;
+                var acc_inner: f32 = 0.0;
                 var l: usize = 0;
 
                 // SIMD-optimized inner loop
@@ -448,21 +700,21 @@ pub const MatrixOps = struct {
                         while (l + 16 <= n) : (l += 16) {
                             const a_row = Vector.load(Vector.f32x16, a[i * n + l ..][0..16]);
                             const b_col = Vector.load(Vector.f32x16, b[l * k + j ..][0..16]);
-                            sum += std.simd.f32x16.reduce_add(a_row * b_col);
+                            acc_inner += std.simd.f32x16.reduce_add(a_row * b_col);
                         }
                     },
                     8 => {
                         while (l + 8 <= n) : (l += 8) {
                             const a_row = Vector.load(Vector.f32x8, a[i * n + l ..][0..8]);
                             const b_col = Vector.load(Vector.f32x8, b[l * k + j ..][0..8]);
-                            sum += std.simd.f32x8.reduce_add(a_row * b_col);
+                            acc_inner += std.simd.f32x8.reduce_add(a_row * b_col);
                         }
                     },
                     4 => {
                         while (l + 4 <= n) : (l += 4) {
                             const a_row = Vector.load(Vector.f32x4, a[i * n + l ..][0..4]);
                             const b_col = Vector.load(Vector.f32x4, b[l * k + j ..][0..4]);
-                            sum += std.simd.f32x4.reduce_add(a_row * b_col);
+                            acc_inner += std.simd.f32x4.reduce_add(a_row * b_col);
                         }
                     },
                     else => {},
@@ -470,10 +722,10 @@ pub const MatrixOps = struct {
 
                 // Handle remaining elements
                 while (l < n) : (l += 1) {
-                    sum += a[i * n + l] * b[l * k + j];
+                    acc_inner += a[i * n + l] * b[l * k + j];
                 }
 
-                result[i * k + j] = sum;
+                result[i * k + j] = acc_inner;
             }
         }
     }
@@ -577,6 +829,26 @@ pub const subtract = VectorOps.subtract;
 pub const scale = VectorOps.scale;
 pub const normalize = VectorOps.normalize;
 pub const dotProduct = VectorOps.dotProduct;
+pub const multiply = VectorOps.multiply;
+pub const divide = VectorOps.divide;
+pub const min = VectorOps.min;
+pub const max = VectorOps.max;
+pub const abs = VectorOps.abs;
+pub const clamp = VectorOps.clamp;
+pub const square = VectorOps.square;
+pub const sqrt = VectorOps.sqrt;
+pub const exp = VectorOps.exp;
+pub const log = VectorOps.log;
+pub const addScalar = VectorOps.addScalar;
+pub const subScalar = VectorOps.subScalar;
+pub const l1Distance = VectorOps.l1Distance;
+pub const linfDistance = VectorOps.linfDistance;
+pub const sum = VectorOps.sum;
+pub const mean = VectorOps.mean;
+pub const variance = VectorOps.variance;
+pub const stddev = VectorOps.stddev;
+pub const axpy = VectorOps.axpy;
+pub const fma = VectorOps.fma;
 pub const matrixVectorMultiply = MatrixOps.matrixVectorMultiply;
 pub const matrixMultiply = MatrixOps.matrixMultiply;
 pub const transpose = MatrixOps.transpose;
@@ -612,6 +884,20 @@ test "SIMD vector operations" {
     // Test dot product
     const dot = dotProduct(&a, &b);
     try testing.expect(dot > 0.0);
+
+    // Test element-wise multiply/divide
+    multiply(result, &a, &b);
+    try testing.expectEqual(@as(f32, 2.0), result[0]);
+    divide(result, &b, &a);
+    try testing.expectEqual(@as(f32, 1.5), result[1]);
+
+    // Test min/max and L1 distance
+    min(result, &a, &b);
+    try testing.expectEqual(@as(f32, 1.0), result[0]);
+    max(result, &a, &b);
+    try testing.expectEqual(@as(f32, 2.0), result[0]);
+    const l1 = l1Distance(&a, &b);
+    try testing.expectEqual(@as(f32, 8.0), l1);
 }
 
 test "SIMD matrix operations" {

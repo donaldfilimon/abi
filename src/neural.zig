@@ -522,8 +522,8 @@ pub const Layer = struct {
 
         // Initialize weights with Xavier/Glorot initialization
         const scale = @sqrt(2.0 / @as(f32, @floatFromInt(config.input_size + config.output_size)));
-        var rng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
-        const random = rng.random();
+        var prng = std.rand.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+        const random = prng.random();
 
         for (self.weights) |*w| {
             w.* = (random.float(f32) * 2 - 1) * scale;
@@ -614,13 +614,13 @@ pub const Layer = struct {
 
         // Apply dropout during training
         if (self.dropout_rate > 0) {
-            var rng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
-            const random = rng.random();
+            var prng = std.rand.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+            const random = prng.random();
             for (output) |*o| {
                 if (random.float(f32) < self.dropout_rate) {
                     o.* = 0;
                 } else {
-                    o.* /= (1.0 - self.dropout_rate); // Scale to maintain expected value
+                    o.* = o.* / (1.0 - self.dropout_rate);
                 }
             }
         }
@@ -763,13 +763,13 @@ pub const Layer = struct {
 
         // Apply dropout during training
         if (self.dropout_rate > 0) {
-            var rng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
-            const random = rng.random();
+            var prng = std.rand.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+            const random = prng.random();
             for (output) |*o| {
                 if (random.float(f32) < self.dropout_rate) {
                     o.* = 0;
                 } else {
-                    o.* /= (1.0 - self.dropout_rate); // Scale to maintain expected value
+                    o.* = o.* / (1.0 - self.dropout_rate);
                 }
             }
         }

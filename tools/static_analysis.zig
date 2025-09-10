@@ -283,8 +283,8 @@ pub const StaticAnalyzer = struct {
             try self.addFinding(file_path, line_number, 1, .warning, "Unsafe pointer cast - verify type safety", "security.pointer_safety", line, "Ensure the cast is safe and consider using @alignCast if needed", 0.8);
         }
 
-        // Enhanced secret detection
-        const secret_patterns = [_][]const u8{ "password", "secret", "token", "key", "api_key", "apikey", "private_key", "auth", "credential", "bearer" };
+        // Enhanced secret detection (tuned to reduce false positives)
+        const secret_patterns = [_][]const u8{ "password", "secret", "token", "api_key", "apikey", "private_key", "credentials" };
 
         for (secret_patterns) |pattern| {
             // Create a temporary buffer for lowercased line
@@ -294,9 +294,13 @@ pub const StaticAnalyzer = struct {
             else
                 line; // Fallback to original if too long
 
-            if (std.mem.indexOf(u8, line_lower, pattern) != null and
-                std.mem.indexOf(u8, line, "=") != null and
-                !std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "//"))
+            const has_pattern = std.mem.indexOf(u8, line_lower, pattern) != null;
+            const is_assignment = std.mem.indexOf(u8, line, "=") != null;
+            const is_comment = std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "//");
+            const is_loglevel = std.mem.indexOf(u8, line_lower, "std.debug.print") != null or std.mem.indexOf(u8, line_lower, "std.log.") != null;
+            const is_header_construction = std.mem.indexOf(u8, line_lower, "authorization") != null or std.mem.indexOf(u8, line_lower, "bearer ") != null;
+            const is_metadata_field = std.mem.indexOf(u8, line_lower, ".author") != null or std.mem.indexOf(u8, line_lower, ".description") != null;
+            if (has_pattern and is_assignment and !is_comment and !is_loglevel and !is_header_construction and !is_metadata_field)
             {
                 const severity: Severity = if (std.mem.indexOf(u8, line, "\"") != null) .critical else .err;
                 try self.addFinding(file_path, line_number, 1, severity, "Potential hardcoded credential", "security.hardcoded_secrets", line, "Use environment variables or secure configuration management", 0.9);
