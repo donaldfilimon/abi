@@ -555,3 +555,17 @@ pub fn build(b: *std.Build) void {
         cross_platform_step.dependOn(&install_cross.step);
     }
 }
+
+    // SIMD micro-benchmark
+    {
+        const mod = b.createModule(.{
+            .root_source_file = b.path("benchmarks/simd_micro.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "abi", .module = abi_mod }},
+        });
+        const exe = b.addExecutable(.{ .name = "simd-micro", .root_module = mod });
+        const run_bench = b.addRunArtifact(exe);
+        const bench_step = b.step("bench-simd", "Run SIMD micro-benchmark");
+        bench_step.dependOn(&run_bench.step);
+    }

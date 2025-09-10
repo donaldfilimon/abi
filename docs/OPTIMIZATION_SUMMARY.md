@@ -184,7 +184,11 @@ Memory allocations:                  70% stack, 30% heap
 - **ReleaseFast mode**: Maximum performance optimizations
 - **Compile-time validation**: Catch errors at build time
 - **Zero-overhead abstractions**: Runtime cost elimination
-- **SIMD utilization**: Manual vectorization for critical paths
+- **SIMD utilization**: Manual vectorization for critical paths (expanded ops: multiply/divide, min/max, abs/clamp, square/sqrt, exp/log, add/sub scalar, L1/L∞, sum/mean/variance/stddev, axpy/fma)
+
+### Micro-benchmarks
+- Added `benchmarks/simd_micro.zig` to measure add/mul/dot/L1 on 1M elements.
+- Run with `zig build bench-simd`.
 
 ---
 
