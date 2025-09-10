@@ -782,7 +782,7 @@ The refactored codebase now provides a **solid foundation** for:
 ## 🔗 **Additional Resources**
 
 - **[Main Documentation](README.md)** - Start here for an overview
-- **[Testing Guide](README_TESTING.md)** - Comprehensive testing documentation
+- **[Testing Guide](docs/TEST_REPORT.md)** - Comprehensive testing and validation
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
 - **[API Reference](docs/api_reference.md)** - Complete API documentation
 - **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Production deployment guide

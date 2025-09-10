@@ -43,7 +43,7 @@ The Abi AI Framework is designed for production deployment with enterprise-grade
 
 Based on comprehensive stress testing, the Abi AI Framework demonstrates enterprise-grade performance:
 
-#### **Benchmark Results (Validated 2024)**
+#### **Benchmark Results (Validated 2025)**
 - **Throughput**: 2,777-2,790 operations/second sustained
 - **Latency**: 783-885μs average under all load conditions
 - **Reliability**: 99.98% success rate under normal operations
@@ -103,7 +103,7 @@ const PerformanceBaselines = struct {
 
 #### **Software Requirements**
 - **Operating System**: Linux (Ubuntu 20.04+, CentOS 8+), Windows Server 2019+, macOS 12+
-- **Zig Compiler**: Version 0.11.0 or later
+- **Zig Compiler**: Version 0.15.1 or later
 - **Network Stack**: Modern TCP/IP stack with IPv6 support
 - **File System**: Ext4, XFS, or NTFS with journaling support
 
@@ -762,7 +762,7 @@ const IncidentResponse = struct {
 ## 🔗 **Additional Resources**
 
 - **[Main Documentation](README.md)** - Start here for an overview
-- **[Testing Guide](README_TESTING.md)** - Comprehensive testing documentation
+- **[Testing Guide](docs/TEST_REPORT.md)** - Comprehensive testing and validation
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
 - **[API Reference](docs/api_reference.md)** - Complete API documentation
 - **[Network Infrastructure](docs/NETWORK_INFRASTRUCTURE.md)** - Network setup and optimization

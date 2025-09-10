@@ -73,7 +73,7 @@ pub const WeatherService = struct {
         _ = self; // no-op for now
     }
 
-    fn getCurrentWeather(self: *WeatherService, city: []const u8) !WeatherData {
+    pub fn getCurrentWeather(self: *WeatherService, city: []const u8) !WeatherData {
         const url = try std.fmt.allocPrint(self.allocator, "{s}/weather?q={s}&appid={s}&units={s}&lang={s}", .{ self.config.base_url, city, self.config.api_key, self.config.units, self.config.language });
         defer self.allocator.free(url);
 

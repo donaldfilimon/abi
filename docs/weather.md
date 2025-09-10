@@ -223,7 +223,7 @@ GET /api/weather/forecast?city=London
   "country": "GB",
   "forecast": [
     {
-      "date": "2024-01-15",
+      "date": "2025-01-15",
       "temperature": {
         "min": 8.2,
         "max": 15.5
@@ -251,7 +251,7 @@ GET /api/weather/air-quality?city=London
 GET /api/weather/uv-index?city=London
 
 # Historical weather data
-GET /api/weather/history?city=London&date=2024-01-01
+GET /api/weather/history?city=London&date=2025-01-01
 
 # Weather alerts
 GET /api/weather/alerts?city=London

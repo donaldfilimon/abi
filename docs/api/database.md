@@ -507,7 +507,7 @@ try db.init(384); // Common for modern embedding models
 - **[Database Quickstart](docs/database_quickstart.md)** - Get started quickly
 - **[Database Usage Guide](docs/database_usage_guide.md)** - Comprehensive usage guide
 - **[API Reference](docs/api_reference.md)** - Complete API documentation
-- **[Performance Guide](README_TESTING.md)** - Performance optimization tips
+- **[Performance Guide](docs/generated/PERFORMANCE_GUIDE.md)** - Performance optimization tips
 
 ---
 

@@ -3,7 +3,7 @@
 > **Comprehensive overview of all documentation improvements and enhancements**
 
 [![Documentation](https://img.shields.io/badge/Documentation-Updates-blue.svg)](docs/DOCUMENTATION_UPDATES.md)
-[![Last Updated](https://img.shields.io/badge/Last%20Updated-2024-brightgreen.svg)]()
+[![Last Updated](https://img.shields.io/badge/Last%20Updated-2025-brightgreen.svg)]()
 
 This document provides a comprehensive summary of all documentation updates, improvements, and enhancements made to the Abi AI Framework project. It serves as a central reference for understanding the evolution of our documentation and the key improvements implemented.
 
@@ -55,7 +55,7 @@ The Abi AI Framework documentation has undergone a comprehensive transformation 
 ✅ Enhanced architecture overview
 ```
 
-#### **README_TESTING.md**
+#### **TEST_REPORT.md**
 - **Complete Overhaul**: Transformed from basic to comprehensive testing guide
 - **Testing Philosophy**: Added clear testing principles and methodology
 - **Test Categories**: Detailed breakdown of all test suites
@@ -515,8 +515,8 @@ The Abi AI Framework documentation has undergone a comprehensive transformation 
 - **[Main Documentation](README.md)** - Start here for an overview
 - **[API Reference](docs/api_reference.md)** - Complete API documentation
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
-- **[Testing Guide](README_TESTING.md)** - Comprehensive testing documentation
-- **[Performance Guide](README_TESTING.md)** - Performance optimization tips
+- **[Testing Guide](docs/TEST_REPORT.md)** - Comprehensive testing and validation
+- **[Performance Guide](docs/generated/PERFORMANCE_GUIDE.md)** - Performance optimization tips
 
 ---
 
