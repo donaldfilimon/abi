@@ -188,6 +188,30 @@ abi benchmark --compare baseline.json --output comparison.html
 - `--threshold <percent>`: Performance regression threshold
 - `--compare <file>`: Compare against baseline file
 
+### `abi llm`
+
+Manage text embeddings and vector queries using built-in connectors (Ollama/OpenAI) via the plugin system.
+
+```bash
+# Embed text and store in a WDBX database
+abi llm embed --db my.wdbx --provider ollama --host http://localhost:11434 --model nomic-embed-text --text "hello world"
+
+# Embed using OpenAI
+abi llm embed --db my.wdbx --provider openai --api-key $OPENAI_API_KEY --model text-embedding-3-small --text "hello world"
+
+# Query using a text prompt against stored embeddings
+abi llm query --db my.wdbx --text "hello world" --k 5
+```
+
+**Options:**
+- `--db <path>`: Path to WDBX database; created if needed for embed
+- `--provider <ollama|openai>`: Embedding provider (default: ollama)
+- `--host <url>`: Ollama host (default: http://localhost:11434)
+- `--model <name>`: Embedding model name
+- `--api-key <key>`: API key for OpenAI
+- `--text <string>`: Input text
+- `--k <n>`: Top-k for queries (default: 5)
+
 ---
 
 ## ⚙️ **Configuration Options**
