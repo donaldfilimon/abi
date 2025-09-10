@@ -16,6 +16,9 @@ pub fn embedText(allocator: Allocator, host: []const u8, model: []const u8, text
     var req = try client.request(.POST, try std.Uri.parse(url), .{});
     defer req.deinit();
 
+    // Set headers
+    req.headers.content_type = .{ .override = "application/json" };
+
     // 0.15: send body and receive head
     try req.sendBodyComplete(body);
     var redirect_buf: [1024]u8 = undefined;

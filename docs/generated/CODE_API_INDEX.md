@@ -1,6 +1,6 @@
 # Code API Index (Scanned)
 
-Scanned 42 Zig files under `src/`. This index lists public declarations discovered along with leading doc comments.
+Scanned 46 Zig files under `src/`. This index lists public declarations discovered along with leading doc comments.
 
 ## src\backend.zig
 
@@ -3648,6 +3648,12 @@ pub const gpu = @import("gpu_renderer.zig");
 pub const backend = @import("backend.zig");
 ```
 
+- const `connectors`
+
+```zig
+pub const connectors = @import("connectors/mod.zig");
+```
+
 - const `Db`
 
 ```zig
@@ -3820,6 +3826,18 @@ pub const LogOutputFormat = logging.OutputFormat;
 
 ```zig
 pub const LoggerConfig = logging.LoggerConfig;
+```
+
+- const `WeatherService`
+
+```zig
+pub const WeatherService = weather_mod.WeatherService;
+```
+
+- const `WeatherData`
+
+```zig
+pub const WeatherData = weather_mod.WeatherData;
 ```
 
 - fn `main`
@@ -4552,6 +4570,12 @@ pub fn init(allocator: std.mem.Allocator, config: WeatherConfig) !WeatherService
 
 ```zig
 pub fn deinit(self: *WeatherService) void {
+```
+
+- fn `getCurrentWeather`
+
+```zig
+pub fn getCurrentWeather(self: *WeatherService, city: []const u8) !WeatherData {
 ```
 
 - type `WeatherUtils`
@@ -6501,6 +6525,12 @@ pub const createLoader = loader.createLoader;
 pub const createRegistry = registry.createRegistry;
 ```
 
+- const `registerBuiltinInterface`
+
+```zig
+pub const registerBuiltinInterface = registry.registerBuiltinInterface;
+```
+
 - fn `init`
 
 Initialize the plugin system
@@ -6618,6 +6648,15 @@ Unload a plugin
 
 ```zig
 pub fn unloadPlugin(self: *PluginRegistry, plugin_name: []const u8) !void {
+```
+
+- fn `registerBuiltinInterface`
+
+Register a plugin interface that is built into the process (no dynamic library)
+
+
+```zig
+pub fn registerBuiltinInterface(self: *PluginRegistry, plugin_interface: *const interface.PluginInterface) !void {
 ```
 
 - fn `initializePlugin`
@@ -7900,6 +7939,110 @@ Transpose matrix: B = A^T
 
 ```zig
 pub fn transpose(b: []f32, a: []const f32, rows: usize, cols: usize) void {
+```
+
+## src\connectors\mod.zig
+
+- const `Allocator`
+
+```zig
+pub const Allocator = std.mem.Allocator;
+```
+
+- type `ProviderType`
+
+```zig
+pub const ProviderType = enum { ollama, openai };
+```
+
+- type `OllamaConfig`
+
+```zig
+pub const OllamaConfig = struct {
+```
+
+- type `OpenAIConfig`
+
+```zig
+pub const OpenAIConfig = struct {
+```
+
+- const `ProviderConfig`
+
+```zig
+pub const ProviderConfig = union(ProviderType) {
+```
+
+- const `plugin`
+
+```zig
+pub const plugin = @import("plugin.zig");
+```
+
+- const `ConnectorsError`
+
+```zig
+pub const ConnectorsError = error{
+```
+
+- fn `embedText`
+
+```zig
+pub fn embedText(allocator: Allocator, config: ProviderConfig, text: []const u8) ConnectorsError![]f32 {
+```
+
+## src\connectors\ollama.zig
+
+- const `Allocator`
+
+```zig
+pub const Allocator = std.mem.Allocator;
+```
+
+- fn `embedText`
+
+```zig
+pub fn embedText(allocator: Allocator, host: []const u8, model: []const u8, text: []const u8) ![]f32 {
+```
+
+## src\connectors\openai.zig
+
+- const `Allocator`
+
+```zig
+pub const Allocator = std.mem.Allocator;
+```
+
+- fn `embedText`
+
+```zig
+pub fn embedText(allocator: Allocator, base_url: []const u8, api_key: []const u8, model: []const u8, text: []const u8) ![]f32 {
+```
+
+## src\connectors\plugin.zig
+
+- type `EmbeddingApi`
+
+```zig
+pub const EmbeddingApi = extern struct {
+```
+
+- var `PLUGIN_INTERFACE`
+
+```zig
+pub var PLUGIN_INTERFACE: iface.PluginInterface = .{
+```
+
+- fn `abi_plugin_create`
+
+```zig
+pub fn abi_plugin_create() callconv(.c) ?*const iface.PluginInterface {
+```
+
+- fn `getInterface`
+
+```zig
+pub fn getInterface() *const iface.PluginInterface {
 ```
 
 ## src\cli\main.zig

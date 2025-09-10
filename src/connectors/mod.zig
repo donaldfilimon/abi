@@ -20,6 +20,8 @@ pub const ProviderConfig = union(ProviderType) {
     openai: OpenAIConfig,
 };
 
+pub const plugin = @import("plugin.zig");
+
 pub const ConnectorsError = error{
     NetworkError,
     InvalidResponse,
