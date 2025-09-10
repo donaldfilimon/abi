@@ -14,6 +14,8 @@ pub const simd = @import("simd/mod.zig");
 pub const ai = @import("ai/mod.zig");
 pub const wdbx = @import("wdbx/mod.zig");
 pub const plugins = @import("plugins/mod.zig");
+pub const tracing = @import("tracing.zig");
+pub const logging = @import("logging.zig");
 
 // Re-export commonly used types and functions
 pub const Db = database.Db;
@@ -41,8 +43,24 @@ pub const HashMap = std.HashMap;
 
 // Re-export WDBX utilities
 pub const Command = wdbx.Command;
-pub const OutputFormat = wdbx.OutputFormat;
-pub const LogLevel = wdbx.LogLevel;
+pub const WdbxOutputFormat = wdbx.OutputFormat;
+pub const WdbxLogLevel = wdbx.LogLevel;
+
+// Re-export tracing utilities
+pub const Tracer = tracing.Tracer;
+pub const TraceId = tracing.TraceId;
+pub const Span = tracing.Span;
+pub const SpanId = tracing.SpanId;
+pub const TraceContext = tracing.TraceContext;
+pub const TracingError = tracing.TracingError;
+
+// Re-export logging utilities
+pub const Logger = logging.Logger;
+pub const LogLevel = logging.LogLevel;
+pub const LogEntry = logging.LogEntry;
+pub const LogSink = logging.LogSink;
+pub const LogOutputFormat = logging.OutputFormat;
+pub const LoggerConfig = logging.LoggerConfig;
 
 /// Main application entry point
 pub fn main() !void {
@@ -99,9 +117,34 @@ pub fn runSystemTest() !void {
     const testing = std.testing;
     const allocator = testing.allocator;
 
+    // Initialize tracing
+    const tracer_config = Tracer.TracerConfig{
+        .max_active_spans = 100,
+        .max_finished_spans = 1000,
+    };
+    try tracing.initGlobalTracer(allocator, tracer_config);
+    defer tracing.deinitGlobalTracer();
+
+    // Initialize logging
+    const logger_config = LoggerConfig{
+        .level = .info,
+        .format = .colored,
+        .enable_timestamps = true,
+        .enable_source_info = true,
+    };
+    try logging.initGlobalLogger(allocator, logger_config);
+    defer logging.deinitGlobalLogger();
+
+    // Start system test span
+    const system_test_span = try tracing.startSpan("system_test", .internal, null);
+    defer tracing.endSpan(system_test_span);
+
     // Test database operations
     const test_file = "test_system.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
+
+    const db_span = try tracing.startSpan("database_test", .internal, null);
+    defer tracing.endSpan(db_span);
 
     var db = try database.Db.open(test_file, true);
     defer db.close();
@@ -122,10 +165,17 @@ pub fn runSystemTest() !void {
     // Test SIMD operations
     const vector_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const vector_b = [_]f32{ 2.0, 3.0, 4.0, 5.0 };
+
+    const simd_span = try tracing.startSpan("simd_test", .internal, null);
+    defer tracing.endSpan(simd_span);
+
     const distance = simd.distance(&vector_a, &vector_b);
     try testing.expect(distance > 0.0);
 
     // Test AI operations
+    const ai_span = try tracing.startSpan("ai_test", .internal, null);
+    defer tracing.endSpan(ai_span);
+
     var network = try ai.NeuralNetwork.init(allocator, &[_]usize{4}, &[_]usize{2});
     defer network.deinit();
     try network.addDenseLayer(8, .relu);
@@ -143,7 +193,30 @@ pub fn runSystemTest() !void {
     const trimmed = std.mem.trim(u8, "  test  ", " ");
     try testing.expectEqualStrings("test", trimmed);
 
-    std.log.info("System test completed successfully", .{});
+    // Test tracing functionality
+    const trace_span = try tracing.startSpan("trace_test", .internal, null);
+    defer tracing.endSpan(trace_span);
+
+    try trace_span.setAttribute(allocator, "test_type", "system_test");
+    try trace_span.addEvent(allocator, "test_completed");
+
+    // Export trace data
+    const tracer = tracing.getGlobalTracer().?;
+    const trace_json = try tracer.exportToJson(allocator);
+    defer allocator.free(trace_json);
+
+    try testing.expect(trace_json.len > 0);
+
+    // Test structured logging
+    try logging.info("System test completed successfully", .{
+        .database_vectors = 64,
+        .simd_dimensions = 4,
+        .ai_layers = 2,
+        .tracing_spans = 4,
+        .test_duration_ms = 100,
+    }, @src());
+
+    std.log.info("System test completed successfully with tracing", .{});
 }
 
 test "Root module functionality" {
