@@ -700,21 +700,21 @@ pub const MatrixOps = struct {
                         while (l + 16 <= n) : (l += 16) {
                             const a_row = Vector.load(Vector.f32x16, a[i * n + l ..][0..16]);
                             const b_col = Vector.load(Vector.f32x16, b[l * k + j ..][0..16]);
-                            acc_inner += std.simd.f32x16.reduce_add(a_row * b_col);
+                            acc_inner += @reduce(.Add, a_row * b_col);
                         }
                     },
                     8 => {
                         while (l + 8 <= n) : (l += 8) {
                             const a_row = Vector.load(Vector.f32x8, a[i * n + l ..][0..8]);
                             const b_col = Vector.load(Vector.f32x8, b[l * k + j ..][0..8]);
-                            acc_inner += std.simd.f32x8.reduce_add(a_row * b_col);
+                            acc_inner += @reduce(.Add, a_row * b_col);
                         }
                     },
                     4 => {
                         while (l + 4 <= n) : (l += 4) {
                             const a_row = Vector.load(Vector.f32x4, a[i * n + l ..][0..4]);
                             const b_col = Vector.load(Vector.f32x4, b[l * k + j ..][0..4]);
-                            acc_inner += std.simd.f32x4.reduce_add(a_row * b_col);
+                            acc_inner += @reduce(.Add, a_row * b_col);
                         }
                     },
                     else => {},

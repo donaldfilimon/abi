@@ -5856,6 +5856,186 @@ Calculate dot product of two vectors
 pub fn dotProduct(a: []const f32, b: []const f32) f32 {
 ```
 
+- fn `multiply`
+
+Element-wise multiply: result = a * b
+
+
+```zig
+pub fn multiply(result: []f32, a: []const f32, b: []const f32) void {
+```
+
+- fn `divide`
+
+Element-wise divide: result = a / b (no special NaN handling)
+
+
+```zig
+pub fn divide(result: []f32, a: []const f32, b: []const f32) void {
+```
+
+- fn `min`
+
+Element-wise min: result[i] = min(a[i], b[i])
+
+
+```zig
+pub fn min(result: []f32, a: []const f32, b: []const f32) void {
+```
+
+- fn `max`
+
+Element-wise max: result[i] = max(a[i], b[i])
+
+
+```zig
+pub fn max(result: []f32, a: []const f32, b: []const f32) void {
+```
+
+- fn `abs`
+
+Element-wise absolute value
+
+
+```zig
+pub fn abs(result: []f32, a: []const f32) void {
+```
+
+- fn `clamp`
+
+Clamp elements to [lo, hi]
+
+
+```zig
+pub fn clamp(result: []f32, a: []const f32, lo: f32, hi: f32) void {
+```
+
+- fn `square`
+
+Element-wise square: result[i] = a[i]^2
+
+
+```zig
+pub fn square(result: []f32, a: []const f32) void {
+```
+
+- fn `sqrt`
+
+Element-wise sqrt
+
+
+```zig
+pub fn sqrt(result: []f32, a: []const f32) void {
+```
+
+- fn `exp`
+
+Element-wise exp
+
+
+```zig
+pub fn exp(result: []f32, a: []const f32) void {
+```
+
+- fn `log`
+
+Element-wise natural log (ln)
+
+
+```zig
+pub fn log(result: []f32, a: []const f32) void {
+```
+
+- fn `addScalar`
+
+Add scalar to vector: result = a + s
+
+
+```zig
+pub fn addScalar(result: []f32, a: []const f32, s: f32) void {
+```
+
+- fn `subScalar`
+
+Subtract scalar from vector: result = a - s
+
+
+```zig
+pub fn subScalar(result: []f32, a: []const f32, s: f32) void {
+```
+
+- fn `l1Distance`
+
+L1 (Manhattan) distance
+
+
+```zig
+pub fn l1Distance(a: []const f32, b: []const f32) f32 {
+```
+
+- fn `linfDistance`
+
+L-infinity (Chebyshev) distance
+
+
+```zig
+pub fn linfDistance(a: []const f32, b: []const f32) f32 {
+```
+
+- fn `sum`
+
+Sum of elements
+
+
+```zig
+pub fn sum(a: []const f32) f32 {
+```
+
+- fn `mean`
+
+Mean of elements
+
+
+```zig
+pub fn mean(a: []const f32) f32 {
+```
+
+- fn `variance`
+
+Variance (population)
+
+
+```zig
+pub fn variance(a: []const f32) f32 {
+```
+
+- fn `stddev`
+
+Standard deviation (population)
+
+
+```zig
+pub fn stddev(a: []const f32) f32 {
+```
+
+- fn `axpy`
+
+AXPY operation: y = a*x + y
+
+
+```zig
+pub fn axpy(y: []f32, a: f32, x: []const f32) void {
+```
+
+- fn `fma`
+
+Fused multiply-add: result = x*y + z
+
+
+```zig
+pub fn fma(result: []f32, x: []const f32, y: []const f32, z: []const f32) void {
+```
+
 - type `MatrixOps`
 
 Matrix operations with SIMD acceleration
@@ -5992,6 +6172,126 @@ pub const normalize = VectorOps.normalize;
 
 ```zig
 pub const dotProduct = VectorOps.dotProduct;
+```
+
+- const `multiply`
+
+```zig
+pub const multiply = VectorOps.multiply;
+```
+
+- const `divide`
+
+```zig
+pub const divide = VectorOps.divide;
+```
+
+- const `min`
+
+```zig
+pub const min = VectorOps.min;
+```
+
+- const `max`
+
+```zig
+pub const max = VectorOps.max;
+```
+
+- const `abs`
+
+```zig
+pub const abs = VectorOps.abs;
+```
+
+- const `clamp`
+
+```zig
+pub const clamp = VectorOps.clamp;
+```
+
+- const `square`
+
+```zig
+pub const square = VectorOps.square;
+```
+
+- const `sqrt`
+
+```zig
+pub const sqrt = VectorOps.sqrt;
+```
+
+- const `exp`
+
+```zig
+pub const exp = VectorOps.exp;
+```
+
+- const `log`
+
+```zig
+pub const log = VectorOps.log;
+```
+
+- const `addScalar`
+
+```zig
+pub const addScalar = VectorOps.addScalar;
+```
+
+- const `subScalar`
+
+```zig
+pub const subScalar = VectorOps.subScalar;
+```
+
+- const `l1Distance`
+
+```zig
+pub const l1Distance = VectorOps.l1Distance;
+```
+
+- const `linfDistance`
+
+```zig
+pub const linfDistance = VectorOps.linfDistance;
+```
+
+- const `sum`
+
+```zig
+pub const sum = VectorOps.sum;
+```
+
+- const `mean`
+
+```zig
+pub const mean = VectorOps.mean;
+```
+
+- const `variance`
+
+```zig
+pub const variance = VectorOps.variance;
+```
+
+- const `stddev`
+
+```zig
+pub const stddev = VectorOps.stddev;
+```
+
+- const `axpy`
+
+```zig
+pub const axpy = VectorOps.axpy;
+```
+
+- const `fma`
+
+```zig
+pub const fma = VectorOps.fma;
 ```
 
 - const `matrixVectorMultiply`
@@ -8530,7 +8830,7 @@ Initialize weights and biases for the layer
 
 
 ```zig
-pub fn initializeWeights(self: *Self, rng: *std.Random) core.FrameworkError!void {
+pub fn initializeWeights(self: *Self, rng: *std.rand.Random) core.FrameworkError!void {
 ```
 
 - fn `forward`
