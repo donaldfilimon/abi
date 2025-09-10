@@ -9,12 +9,16 @@
 const std = @import("std");
 
 // Import consolidated modules
-pub const database = @import("database.zig");
-pub const simd = @import("simd/mod.zig");
-pub const ai = @import("ai/mod.zig");
-pub const core = @import("core/mod.zig");
-pub const wdbx = @import("wdbx/mod.zig");
-pub const plugins = @import("plugins/mod.zig");
+pub const database = @import("database");
+pub const simd = @import("simd");
+pub const ai = @import("ai");
+pub const core = @import("core");
+pub const wdbx = @import("wdbx");
+pub const plugins = @import("plugins");
+
+// Enhanced HTTP client modules
+pub const http_client = @import("http_client.zig");
+pub const curl_wrapper = @import("curl_wrapper.zig");
 
 // Re-export commonly used types and functions
 pub const Db = database.Db;

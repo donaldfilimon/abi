@@ -9,8 +9,8 @@
 //! - Performance optimization and monitoring
 
 const std = @import("std");
-const core = @import("../core/mod.zig");
-const simd = @import("../simd/mod.zig");
+const core = @import("core");
+const simd = @import("simd");
 
 /// Neural network layer types
 pub const LayerType = enum {

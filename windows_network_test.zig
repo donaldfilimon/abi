@@ -5,7 +5,7 @@
 //! error reporting.
 
 const std = @import("std");
-const http_server = @import("src/wdbx/http.zig");
+const http_server = @import("http");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

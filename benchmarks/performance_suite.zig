@@ -11,7 +11,7 @@
 const std = @import("std");
 const print = std.debug.print;
 const Timer = std.time.Timer;
-const ArrayList = std.ArrayList;
+const ArrayListUnmanaged = std.ArrayListUnmanaged;
 
 // Benchmark configuration
 const BenchmarkConfig = struct {
@@ -36,22 +36,22 @@ const BenchmarkResult = struct {
 const BenchmarkSuite = struct {
     allocator: std.mem.Allocator,
     config: BenchmarkConfig,
-    results: ArrayList(BenchmarkResult),
+    results: ArrayListUnmanaged(BenchmarkResult),
 
     fn init(allocator: std.mem.Allocator, config: BenchmarkConfig) @This() {
         return @This(){
             .allocator = allocator,
             .config = config,
-            .results = ArrayList(BenchmarkResult).init(allocator),
+            .results = ArrayListUnmanaged(BenchmarkResult){},
         };
     }
 
     fn deinit(self: *@This()) void {
-        self.results.deinit();
+        self.results.deinit(self.allocator);
     }
 
     fn recordResult(self: *@This(), result: BenchmarkResult) !void {
-        try self.results.append(result);
+        try self.results.append(self.allocator, result);
     }
 
     fn runBenchmark(self: *@This(), comptime name: []const u8, benchmark_fn: anytype, context: anytype) !BenchmarkResult {

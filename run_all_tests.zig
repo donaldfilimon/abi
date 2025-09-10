@@ -2,10 +2,10 @@ const std = @import("std");
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
-    var stdout = std.io.getStdOut().writer();
+    const stdout = std.debug;
 
-    try stdout.print("\n🧪 WDBX-AI Comprehensive Test Suite\n", .{});
-    try stdout.print("=====================================\n\n", .{});
+    stdout.print("\n🧪 WDBX-AI Comprehensive Test Suite\n", .{});
+    stdout.print("=====================================\n\n", .{});
 
     // Test configurations
     const test_suites = [_]struct {
@@ -18,7 +18,7 @@ pub fn main() !void {
         },
         .{
             .name = "Server Integration Tests",
-            .command = &[_][]const u8{ "zig", "build", "test-servers" },
+            .command = &[_][]const u8{ "zig", "build", "test-plugins" },
         },
         .{
             .name = "Performance Benchmarks",
@@ -34,72 +34,66 @@ pub fn main() !void {
     var total_failed: usize = 0;
 
     for (test_suites) |suite| {
-        try stdout.print("▶️  Running: {s}\n", .{suite.name});
-        try stdout.print("   Command: ", .{});
+        stdout.print("▶️  Running: {s}\n", .{suite.name});
+        stdout.print("   Command: ", .{});
         for (suite.command) |arg| {
-            try stdout.print("{s} ", .{arg});
+            stdout.print("{s} ", .{arg});
         }
-        try stdout.print("\n", .{});
+        stdout.print("\n", .{});
 
         const start_time = std.time.milliTimestamp();
 
-        var child = std.ChildProcess.init(suite.command, allocator);
-        child.stdout_behavior = .Pipe;
-        child.stderr_behavior = .Pipe;
-
-        try child.spawn();
-
-        // Capture output
-        const stdout_data = try child.stdout.?.readToEndAlloc(allocator, 10 * 1024 * 1024);
-        defer allocator.free(stdout_data);
-        const stderr_data = try child.stderr.?.readToEndAlloc(allocator, 10 * 1024 * 1024);
-        defer allocator.free(stderr_data);
-
-        const result = try child.wait();
+        const exec_result = try std.process.Child.run(.{
+            .allocator = allocator,
+            .argv = suite.command,
+            .max_output_bytes = 10 * 1024 * 1024,
+        });
+        defer allocator.free(exec_result.stdout);
+        defer allocator.free(exec_result.stderr);
         const elapsed_ms = std.time.milliTimestamp() - start_time;
 
-        switch (result) {
+        switch (exec_result.term) {
             .Exited => |code| {
                 if (code == 0) {
-                    try stdout.print("   ✅ PASSED ({d}ms)\n", .{elapsed_ms});
+                    stdout.print("   ✅ PASSED ({d}ms)\n", .{elapsed_ms});
                     total_passed += 1;
                 } else {
-                    try stdout.print("   ❌ FAILED (exit code: {d}, {d}ms)\n", .{ code, elapsed_ms });
+                    stdout.print("   ❌ FAILED (exit code: {d}, {d}ms)\n", .{ code, elapsed_ms });
                     total_failed += 1;
 
                     // Print error output
-                    if (stderr_data.len > 0) {
-                        try stdout.print("   Error output:\n", .{});
-                        var lines = std.mem.split(u8, stderr_data, "\n");
-                        while (lines.next()) |line| {
+                    if (exec_result.stderr.len > 0) {
+                        stdout.print("   Error output:\n", .{});
+                        var it = std.mem.tokenizeAny(u8, exec_result.stderr, "\n");
+                        while (it.next()) |line| {
                             if (line.len > 0) {
-                                try stdout.print("      {s}\n", .{line});
+                                stdout.print("      {s}\n", .{line});
                             }
                         }
                     }
                 }
             },
             else => {
-                try stdout.print("   ❌ FAILED (abnormal termination)\n", .{});
+                stdout.print("   ❌ FAILED (abnormal termination)\n", .{});
                 total_failed += 1;
             },
         }
 
-        try stdout.print("\n", .{});
+        stdout.print("\n", .{});
     }
 
     // Summary
-    try stdout.print("=====================================\n", .{});
-    try stdout.print("📊 Test Summary:\n", .{});
-    try stdout.print("   Total suites: {d}\n", .{test_suites.len});
-    try stdout.print("   ✅ Passed: {d}\n", .{total_passed});
-    try stdout.print("   ❌ Failed: {d}\n", .{total_failed});
-    try stdout.print("\n", .{});
+    stdout.print("=====================================\n", .{});
+    stdout.print("📊 Test Summary:\n", .{});
+    stdout.print("   Total suites: {d}\n", .{test_suites.len});
+    stdout.print("   ✅ Passed: {d}\n", .{total_passed});
+    stdout.print("   ❌ Failed: {d}\n", .{total_failed});
+    stdout.print("\n", .{});
 
     if (total_failed == 0) {
-        try stdout.print("🎉 All tests passed! System is production ready.\n", .{});
+        stdout.print("🎉 All tests passed! System is production ready.\n", .{});
     } else {
-        try stdout.print("⚠️  Some tests failed. Please review the errors above.\n", .{});
+        stdout.print("⚠️  Some tests failed. Please review the errors above.\n", .{});
         std.process.exit(1);
     }
 }
@@ -107,9 +101,9 @@ pub fn main() !void {
 // Utility function to run individual server tests
 pub fn testHttpServer() !void {
     const allocator = std.heap.page_allocator;
-    var stdout = std.io.getStdOut().writer();
+    const stdout = std.debug;
 
-    try stdout.print("\n🌐 Testing HTTP Server...\n", .{});
+    stdout.print("\n🌐 Testing HTTP Server...\n", .{});
 
     // Start HTTP server
     var server_process = std.ChildProcess.init(
@@ -131,7 +125,7 @@ pub fn testHttpServer() !void {
     };
 
     for (endpoints) |endpoint| {
-        try stdout.print("   Testing {s}...", .{endpoint});
+        stdout.print("   Testing {s}...", .{endpoint});
 
         // Simple curl test
         const result = try std.ChildProcess.exec(.{
@@ -142,42 +136,42 @@ pub fn testHttpServer() !void {
         defer allocator.free(result.stderr);
 
         if (std.mem.eql(u8, result.stdout, "200") or std.mem.eql(u8, result.stdout, "404")) {
-            try stdout.print(" ✅\n", .{});
+            stdout.print(" ✅\n", .{});
         } else {
-            try stdout.print(" ❌ (status: {s})\n", .{result.stdout});
+            stdout.print(" ❌ (status: {s})\n", .{result.stdout});
         }
     }
 }
 
 pub fn testTcpServer() !void {
-    const stdout = std.io.getStdOut().writer();
+    const stdout = std.debug;
 
-    try stdout.print("\n🔌 Testing TCP Server...\n", .{});
+    stdout.print("\n🔌 Testing TCP Server...\n", .{});
 
     // Test TCP connection
     const address = try std.net.Address.parseIp("127.0.0.1", 8081);
 
     if (std.net.tcpConnectToAddress(address)) |stream| {
         defer stream.close();
-        try stdout.print("   ✅ TCP connection successful\n", .{});
+        stdout.print("   ✅ TCP connection successful\n", .{});
 
         // Send test message
         _ = try stream.write("PING\n");
 
         var buffer: [256]u8 = undefined;
         if (try stream.read(&buffer)) |bytes| {
-            try stdout.print("   ✅ Received response: {s}\n", .{buffer[0..bytes]});
+            stdout.print("   ✅ Received response: {s}\n", .{buffer[0..bytes]});
         }
     } else |err| {
-        try stdout.print("   ⚠️  TCP connection failed: {}\n", .{err});
+        stdout.print("   ⚠️  TCP connection failed: {}\n", .{err});
     }
 }
 
 pub fn testWebSocketServer() !void {
     const allocator = std.heap.page_allocator;
-    var stdout = std.io.getStdOut().writer();
+    const stdout = std.debug;
 
-    try stdout.print("\n🔄 Testing WebSocket Server...\n", .{});
+    stdout.print("\n🔄 Testing WebSocket Server...\n", .{});
 
     // WebSocket upgrade test
     const ws_test = try std.ChildProcess.exec(.{
@@ -202,8 +196,8 @@ pub fn testWebSocketServer() !void {
     defer allocator.free(ws_test.stderr);
 
     if (std.mem.indexOf(u8, ws_test.stdout, "101") != null) {
-        try stdout.print("   ✅ WebSocket upgrade successful\n", .{});
+        stdout.print("   ✅ WebSocket upgrade successful\n", .{});
     } else {
-        try stdout.print("   ❌ WebSocket upgrade failed\n", .{});
+        stdout.print("   ❌ WebSocket upgrade failed\n", .{});
     }
 }
