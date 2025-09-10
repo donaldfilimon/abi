@@ -448,10 +448,7 @@ const Metrics = struct {
     }
 
     fn exportJson(self: *const Metrics, allocator: std.mem.Allocator) ![]const u8 {
-        var json = try std.ArrayList(u8).initCapacity(allocator, 0);
-        defer json.deinit();
-
-        try json.writer().print(
+        const json_content = try std.fmt.allocPrint(allocator,
             \\{{
             \\  "summary": {{
             \\    "total_operations": {},
@@ -509,7 +506,7 @@ const Metrics = struct {
             self.server_errors.load(.monotonic),
         });
 
-        return try allocator.dupe(u8, json.items);
+        return json_content;
     }
 };
 

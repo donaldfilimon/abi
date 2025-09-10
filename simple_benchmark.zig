@@ -841,7 +841,7 @@ fn detectPerformanceRegression(allocator: std.mem.Allocator, results: *Benchmark
     std.debug.print("  Baseline file: {s}\n", .{baseline_file});
     std.debug.print("  Current performance: {d:.0} ops/sec, {d:.0}μs avg latency\n", .{ results.operations_per_second, results.avg_latency_us });
 
-    const content = std.fs.cwd().readFileAlloc(baseline_file, allocator, 10 * 1024 * 1024) catch |e| {
+    const content = std.fs.cwd().readFileAlloc(baseline_file, allocator, @enumFromInt(10 * 1024 * 1024)) catch |e| {
         std.debug.print("  Note: Unable to read baseline file: {s}\n", .{@errorName(e)});
         return;
     };
@@ -849,7 +849,8 @@ fn detectPerformanceRegression(allocator: std.mem.Allocator, results: *Benchmark
 
     const parseNumber = struct {
         fn go(s: []const u8, key: []const u8) ?f64 {
-            const prefix = std.fmt.comptimePrint("\"{s}\":", .{key});
+            var prefix_buf: [256]u8 = undefined;
+            const prefix = std.fmt.bufPrint(&prefix_buf, "\"{s}\":", .{key}) catch return null;
             const start = std.mem.indexOf(u8, s, prefix) orelse return null;
             var i: usize = start + prefix.len;
             while (i < s.len and (s[i] == ' ' or s[i] == '\t')) : (i += 1) {}
