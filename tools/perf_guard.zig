@@ -384,7 +384,7 @@ fn runPercentileAnalysis(db: anytype, config: Config, allocator: std.mem.Allocat
 
 /// Generate test vector with optional SIMD optimization
 fn generateTestVector(vector: []f32, seed: usize, enable_simd: bool) void {
-    var prng = std.Random.DefaultPrng.init(@intCast(seed));
+    var prng = std.rand.DefaultPrng.init(@intCast(seed));
     const random = prng.random();
 
     if (enable_simd and vector.len >= 4) {

@@ -617,6 +617,42 @@ pub const StaticAnalyzer = struct {
         print("  CRITICAL: {d}\n", .{counts[@intFromEnum(Severity.critical)]});
         print("\n", .{});
 
+        // Category summary (by rule prefix)
+        var cat_style: usize = 0;
+        var cat_security: usize = 0;
+        var cat_performance: usize = 0;
+        var cat_memory: usize = 0;
+        var cat_concurrency: usize = 0;
+        var cat_error: usize = 0;
+        var cat_complexity: usize = 0;
+        for (self.findings.items) |finding| {
+            const rule = finding.rule;
+            if (std.mem.startsWith(u8, rule, "style.")) {
+                cat_style += 1;
+            } else if (std.mem.startsWith(u8, rule, "security.")) {
+                cat_security += 1;
+            } else if (std.mem.startsWith(u8, rule, "performance.")) {
+                cat_performance += 1;
+            } else if (std.mem.startsWith(u8, rule, "memory.")) {
+                cat_memory += 1;
+            } else if (std.mem.startsWith(u8, rule, "concurrency.")) {
+                cat_concurrency += 1;
+            } else if (std.mem.startsWith(u8, rule, "error_handling.")) {
+                cat_error += 1;
+            } else if (std.mem.startsWith(u8, rule, "complexity.")) {
+                cat_complexity += 1;
+            }
+        }
+        print("Finding Counts by Category:\n", .{});
+        print("  Style: {d}\n", .{cat_style});
+        print("  Security: {d}\n", .{cat_security});
+        print("  Performance: {d}\n", .{cat_performance});
+        print("  Memory: {d}\n", .{cat_memory});
+        print("  Concurrency: {d}\n", .{cat_concurrency});
+        print("  Error Handling: {d}\n", .{cat_error});
+        print("  Complexity: {d}\n", .{cat_complexity});
+        print("\n", .{});
+
         if (self.findings.items.len == 0) {
             print("🎉 No issues found!\n", .{});
             return;
@@ -719,5 +755,8 @@ pub fn main() !void {
     print("🚀 Running Enhanced Static Analysis on WDBX codebase...\n\n", .{});
 
     try analyzer.analyzeDirectory("src");
+    try analyzer.analyzeDirectory("tests");
+    try analyzer.analyzeDirectory("tools");
+    try analyzer.analyzeDirectory("benchmarks");
     try analyzer.generateReport();
 }

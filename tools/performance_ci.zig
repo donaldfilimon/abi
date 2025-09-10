@@ -282,7 +282,7 @@ const PerformanceOps = struct {
 
     /// Generate optimized test vectors with configurable SIMD usage
     inline fn generateTestVector(vector: []f32, seed: u64, enable_simd: bool) void {
-        var prng = std.Random.DefaultPrng.init(seed);
+        var prng = std.rand.DefaultPrng.init(seed);
         const random = prng.random();
 
         if (enable_simd and vector.len >= 4) {
