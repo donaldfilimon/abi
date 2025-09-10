@@ -487,10 +487,19 @@ pub const WdbxCLI = struct {
     }
 
     fn generateAuthToken(self: *Self, role: []const u8) ![]u8 {
-        // Simple token generation - in production, use proper JWT
+        // Secure token generation using cryptographically strong randomness
         const timestamp = std.time.milliTimestamp();
-        const token_data = try std.fmt.allocPrint(self.allocator, "{s}_{d}_{s}", .{ role, timestamp, "wdbx_ai" });
-        return token_data;
+        var random_bytes: [32]u8 = undefined;
+        std.crypto.random.bytes(&random_bytes);
+
+        // Base64-encode the random bytes
+        const b64 = try std.base64.standard.Encoder.encodeAlloc(self.allocator, &random_bytes);
+        errdefer self.allocator.free(b64);
+
+        // Compose token: role_timestamp_base64
+        const token = try std.fmt.allocPrint(self.allocator, "{s}_{d}_{s}", .{ role, timestamp, b64 });
+        self.allocator.free(b64);
+        return token;
     }
 
     fn runTcpTest(self: *Self) !void {
