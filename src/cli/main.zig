@@ -664,6 +664,8 @@ fn runLlmCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
         return;
     }
     const sub = args[2];
+    // Track env-provided API key for best-effort zeroization
+    var api_key_owned: ?[]u8 = null;
     if (std.mem.eql(u8, sub, "embed")) {
         var db_path: ?[]const u8 = null;
         var provider: []const u8 = "ollama";
@@ -697,6 +699,14 @@ fn runLlmCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
             std.debug.print("llm embed requires --db and --text\n", .{});
             return;
         }
+        // If OpenAI provider and no API key provided, try environment variable
+        if (std.mem.eql(u8, provider, "openai") and api_key.len == 0) {
+            if (std.process.getEnvVarOwned(allocator, "OPENAI_API_KEY")) |buf| {
+                api_key_owned = buf;
+                api_key = buf;
+            } else |_| {}
+        }
+
         const cfg: abi.connectors.ProviderConfig = if (std.mem.eql(u8, provider, "openai"))
             .{ .openai = .{ .base_url = "https://api.openai.com/v1", .api_key = api_key, .model = model } }
         else
@@ -723,7 +733,7 @@ fn runLlmCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
         try plugin.initialize(&plugin_cfg);
         try plugin.start();
         if (plugin.getApi("embedding")) |p| {
-            const emb_api = @as(*const abi.connectors.plugin.EmbeddingApi, @ptrCast(p));
+            const emb_api = @as(*const abi.connectors.plugin.EmbeddingApi, @ptrCast(@alignCast(p)));
             var out_ptr: [*]f32 = undefined;
             var out_len: usize = 0;
             const rc: c_int = emb_api.embed_text(plugin.context.?, text.?.ptr, text.?.len, &out_ptr, &out_len);
@@ -746,6 +756,12 @@ fn runLlmCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
         if (db.getDimension() == 0) try db.init(@intCast(emb.len));
         const id = try db.addEmbedding(emb);
         std.debug.print("Embedded text added, id={d}, dim={d}\n", .{ id, emb.len });
+        // Best effort: zeroize env-provided API key before return
+        if (api_key_owned) |buf| {
+            @memset(buf, 0);
+            allocator.free(buf);
+            api_key_owned = null;
+        }
         return;
     } else if (std.mem.eql(u8, sub, "query")) {
         var db_path: ?[]const u8 = null;
@@ -778,6 +794,12 @@ fn runLlmCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
         std.debug.print("Found {d} results for query\n", .{results.len});
         for (results, 0..) |r, iidx| {
             std.debug.print("  {d}: id={d} score={d:.6}\n", .{ iidx, r.index, r.score });
+        }
+        // Best effort: zeroize env-provided API key before return
+        if (api_key_owned) |buf| {
+            @memset(buf, 0);
+            allocator.free(buf);
+            api_key_owned = null;
         }
         return;
     } else {

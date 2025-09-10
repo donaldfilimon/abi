@@ -107,56 +107,63 @@ pub const WeatherService = struct {
         var client = std.http.Client{ .allocator = self.allocator };
         defer client.deinit();
 
-        var req = try client.request(.GET, try std.net.uri.parse(url), .{});
+        var req = try client.request(.GET, try std.Uri.parse(url), .{});
         defer req.deinit();
 
-        try req.start();
-        try req.wait();
+        // Send GET with an empty body and read response, matching connector usage
+        try req.sendBodyComplete(&.{});
+        var redirect_buf: [1024]u8 = undefined;
+        var response = try req.receiveHead(&redirect_buf);
 
-        if (req.response.status != .ok) return error.WeatherApiError;
-
-        return req.reader().readAllAlloc(self.allocator, 1024 * 1024);
+        if (response.head.status != .ok) return error.WeatherApiError;
+        var list = std.array_list.Managed(u8).init(self.allocator);
+        errdefer list.deinit();
+        var transfer_buf: [8192]u8 = undefined;
+        const rdr = response.reader(&.{});
+        while (true) {
+            const slice: []u8 = transfer_buf[0..];
+            var slices = [_][]u8{slice};
+            const n = rdr.readVec(slices[0..]) catch |err| switch (err) {
+                error.ReadFailed => return response.bodyErr().?,
+                error.EndOfStream => 0,
+            };
+            if (n == 0) break; // EOF
+            try list.appendSlice(transfer_buf[0..n]);
+        }
+        return try list.toOwnedSlice();
     }
 
     fn parseWeatherResponse(self: *WeatherService, json_str: []const u8) !WeatherData {
-        var parser = std.json.Parser.init(self.allocator, false);
-        defer parser.deinit();
-
-        var tree = try parser.parse(json_str);
-        defer tree.deinit();
-
-        const root_obj = tree.root.object;
+        var parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, json_str, .{});
+        defer parsed.deinit();
+        const root_obj = parsed.value.object;
         const main = root_obj.get("main").?.object;
         const weather = root_obj.get("weather").?.array.items[0].object;
         const wind = root_obj.get("wind").?.object;
         const sys = root_obj.get("sys").?.object;
 
         return WeatherData{
-            .temperature = @floatCast(main.get("temp").?.Float),
-            .feels_like = @floatCast(main.get("feels_like").?.Float),
-            .humidity = @intCast(main.get("humidity").?.Integer),
-            .pressure = @intCast(main.get("pressure").?.Integer),
-            .description = try self.allocator.dupe(u8, weather.get("description").?.String),
-            .icon = try self.allocator.dupe(u8, weather.get("icon").?.String),
-            .wind_speed = @floatCast(wind.get("speed").?.Float),
-            .wind_direction = @intCast(wind.get("deg").?.Integer),
-            .visibility = @intCast(root_obj.get("visibility").?.Integer),
-            .sunrise = @intCast(sys.get("sunrise").?.Integer),
-            .sunset = @intCast(sys.get("sunset").?.Integer),
-            .city = try self.allocator.dupe(u8, root_obj.get("name").?.String),
-            .country = try self.allocator.dupe(u8, sys.get("country").?.String),
-            .timestamp = @intCast(root_obj.get("dt").?.Integer),
+            .temperature = @floatCast(main.get("temp").?.float),
+            .feels_like = @floatCast(main.get("feels_like").?.float),
+            .humidity = @intCast(main.get("humidity").?.integer),
+            .pressure = @intCast(main.get("pressure").?.integer),
+            .description = try self.allocator.dupe(u8, weather.get("description").?.string),
+            .icon = try self.allocator.dupe(u8, weather.get("icon").?.string),
+            .wind_speed = @floatCast(wind.get("speed").?.float),
+            .wind_direction = @intCast(wind.get("deg").?.integer),
+            .visibility = @intCast(root_obj.get("visibility").?.integer),
+            .sunrise = @intCast(sys.get("sunrise").?.integer),
+            .sunset = @intCast(sys.get("sunset").?.integer),
+            .city = try self.allocator.dupe(u8, root_obj.get("name").?.string),
+            .country = try self.allocator.dupe(u8, sys.get("country").?.string),
+            .timestamp = @intCast(root_obj.get("dt").?.integer),
         };
     }
 
     fn parseForecastResponse(self: *WeatherService, json_str: []const u8) ![]WeatherData {
-        var parser = std.json.Parser.init(self.allocator, false);
-        defer parser.deinit();
-
-        var tree = try parser.parse(json_str);
-        defer tree.deinit();
-
-        const list = tree.root.object.get("list").?.array;
+        var parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, json_str, .{});
+        defer parsed.deinit();
+        const list = parsed.value.object.get("list").?.array;
         var forecast = try std.ArrayList(WeatherData).initCapacity(self.allocator, list.items.len);
         defer forecast.deinit();
 
@@ -174,20 +181,20 @@ pub const WeatherService = struct {
         const wind = obj.get("wind").?.object;
 
         return WeatherData{
-            .temperature = @floatCast(main.get("temp").?.Float),
-            .feels_like = @floatCast(main.get("feels_like").?.Float),
-            .humidity = @intCast(main.get("humidity").?.Integer),
-            .pressure = @intCast(main.get("pressure").?.Integer),
-            .description = try self.allocator.dupe(u8, weather.get("description").?.String),
-            .icon = try self.allocator.dupe(u8, weather.get("icon").?.String),
-            .wind_speed = @floatCast(wind.get("speed").?.Float),
-            .wind_direction = @intCast(wind.get("deg").?.Integer),
-            .visibility = @intCast(obj.get("visibility").?.Integer),
+            .temperature = @floatCast(main.get("temp").?.float),
+            .feels_like = @floatCast(main.get("feels_like").?.float),
+            .humidity = @intCast(main.get("humidity").?.integer),
+            .pressure = @intCast(main.get("pressure").?.integer),
+            .description = try self.allocator.dupe(u8, weather.get("description").?.string),
+            .icon = try self.allocator.dupe(u8, weather.get("icon").?.string),
+            .wind_speed = @floatCast(wind.get("speed").?.float),
+            .wind_direction = @intCast(wind.get("deg").?.integer),
+            .visibility = @intCast(obj.get("visibility").?.integer),
             .sunrise = 0,
             .sunset = 0,
             .city = "",
             .country = "",
-            .timestamp = @intCast(obj.get("dt").?.Integer),
+            .timestamp = @intCast(obj.get("dt").?.integer),
         };
     }
 };

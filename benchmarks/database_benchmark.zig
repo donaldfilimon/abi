@@ -26,12 +26,16 @@ const BenchmarkSuite = struct {
             if (result.details) |details| {
                 self.allocator.free(details);
             }
+            // Operation is owned (duplicated on insert)
+            self.allocator.free(result.operation);
         }
         self.results.deinit(self.allocator);
     }
 
     pub fn addResult(self: *BenchmarkSuite, result: BenchmarkResult) !void {
-        try self.results.append(self.allocator, result);
+        var owned = result;
+        owned.operation = try self.allocator.dupe(u8, result.operation);
+        try self.results.append(self.allocator, owned);
     }
 
     pub fn printResults(self: *const BenchmarkSuite) void {

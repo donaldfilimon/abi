@@ -23,10 +23,7 @@ pub fn main() !void {
         }
     }
 
-    const bench = bench_type orelse {
-        try printUsage();
-        return;
-    };
+    const bench = bench_type orelse "all";
 
     if (do_export) try writeExportStub(fmt);
 
@@ -74,11 +71,12 @@ fn printUsage() !void {
         \\  database    - Database and vector operations benchmarks
         \\  performance - Performance and memory benchmarks
         \\  simple      - Simple VDBench-style benchmarks (use: zig build benchmark-simple)
-        \\  all         - Run available benchmark suites
+        \\  all         - Run available benchmark suites (default)
         \\
         \\Examples:
         \\  zig run benchmarks/main.zig -- database
         \\  zig run benchmarks/main.zig -- all
+        \\  zig run benchmarks/main.zig -- --export --format=json all
         \\  zig build benchmark-neural
         \\  zig build benchmark-simple
         \\

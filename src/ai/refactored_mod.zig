@@ -258,7 +258,7 @@ pub const NeuralNetwork = struct {
         }
 
         // Initialize all layer weights
-        var rng = std.Random.DefaultPrng.init(@as(u64, @intCast(std.time.microTimestamp())));
+        var rng = std.rand.DefaultPrng.init(@as(u64, @intCast(std.time.microTimestamp())));
         for (self.layers.items) |l| {
             try l.initializeWeights(&rng.random());
         }

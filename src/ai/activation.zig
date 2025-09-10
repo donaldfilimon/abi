@@ -8,7 +8,7 @@ const std = @import("std");
 // FIXME: Replace relative import with proper module import
 // const simd = @import("simd");
 
-const simd = @import("../core/simd.zig");
+const simd = @import("../core/simd.zig"); // TODO: consider replacing with abi.simd if root re-exports capabilities
 
 /// Available activation function types
 pub const ActivationType = enum {

@@ -12,7 +12,7 @@ pub const EmbeddingApi = extern struct {
     // Returns 0 on success, negative on error
     // Allocates the output vector using context.allocator. Caller must free via free_vector
     embed_text: *const fn (context: *PluginContext, text_ptr: [*]const u8, text_len: usize, out_ptr: *[*]f32, out_len: *usize) callconv(.c) c_int,
-    free_vector: *const fn (context: *PluginContext, ptr: *f32, len: usize) callconv(.c) void,
+    free_vector: *const fn (context: *PluginContext, ptr: [*]f32, len: usize) callconv(.c) void,
 };
 
 var EMBEDDING_API: EmbeddingApi = .{
@@ -69,8 +69,8 @@ fn api_embed_text(ctx: *PluginContext, text_ptr: [*]const u8, text_len: usize, o
         const model = cfg.getParameter("model") orelse (connectors.OllamaConfig{}).model;
         provider_config = .{ .ollama = .{ .host = host, .model = model } };
     } else if (std.mem.eql(u8, provider_name, "openai")) {
-        const base_url = cfg.getParameter("base_url") orelse (connectors.OpenAIConfig{}).base_url;
-        const model = cfg.getParameter("model") orelse (connectors.OpenAIConfig{}).model;
+        const base_url = cfg.getParameter("base_url") orelse "https://api.openai.com/v1";
+        const model = cfg.getParameter("model") orelse "text-embedding-3-small";
         const api_key = cfg.getParameter("api_key") orelse return -2; // Missing API key
         provider_config = .{ .openai = .{ .base_url = base_url, .api_key = api_key, .model = model } };
     } else {
@@ -83,7 +83,7 @@ fn api_embed_text(ctx: *PluginContext, text_ptr: [*]const u8, text_len: usize, o
     return 0;
 }
 
-fn api_free_vector(ctx: *PluginContext, ptr: *f32, len: usize) callconv(.c) void {
+fn api_free_vector(ctx: *PluginContext, ptr: [*]f32, len: usize) callconv(.c) void {
     ctx.allocator.free(ptr[0..len]);
 }
 

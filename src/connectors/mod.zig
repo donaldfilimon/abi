@@ -38,10 +38,19 @@ pub fn embedText(allocator: Allocator, config: ProviderConfig, text: []const u8)
 
 fn ollama_embed(allocator: Allocator, cfg: OllamaConfig, text: []const u8) ConnectorsError![]f32 {
     const ollama = @import("ollama.zig");
-    return ollama.embedText(allocator, cfg.host, cfg.model, text);
+    return ollama.embedText(allocator, cfg.host, cfg.model, text) catch |err| switch (err) {
+        error.InvalidResponse => error.InvalidResponse,
+        error.NetworkError => error.NetworkError,
+        else => error.NetworkError,
+    };
 }
 
 fn openai_embed(allocator: Allocator, cfg: OpenAIConfig, text: []const u8) ConnectorsError![]f32 {
     const openai = @import("openai.zig");
-    return openai.embedText(allocator, cfg.base_url, cfg.api_key, cfg.model, text);
+    return openai.embedText(allocator, cfg.base_url, cfg.api_key, cfg.model, text) catch |err| switch (err) {
+        error.MissingApiKey => error.MissingApiKey,
+        error.InvalidResponse => error.InvalidResponse,
+        error.NetworkError => error.NetworkError,
+        else => error.NetworkError,
+    };
 }

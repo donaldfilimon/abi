@@ -41,12 +41,6 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    // Expose core module directly for optional direct imports
-    const core_mod = b.addModule("core", .{
-        .root_source_file = b.path("src/core/mod.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
 
     // CLI module
     const cli_mod = b.createModule(.{
@@ -55,7 +49,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .imports = &.{
             .{ .name = "abi", .module = abi_mod },
-            .{ .name = "core", .module = core_mod },
         },
     });
 
