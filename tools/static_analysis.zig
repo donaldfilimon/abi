@@ -132,6 +132,7 @@ pub const StaticAnalyzer = struct {
     findings: std.ArrayListUnmanaged(Finding),
     config: AnalysisConfig,
     allowed_secret_substrings: []const []const u8 = &.{},
+    suppressed: []const struct { dir: []const u8, rule: []const u8 } = &.{},
 
     // Analysis state
     total_lines: usize,
@@ -570,6 +571,11 @@ pub const StaticAnalyzer = struct {
 
     fn addFinding(self: *Self, file_path: []const u8, line: usize, column: usize, severity: Severity, message: []const u8, rule: []const u8, context: []const u8, suggestion: []const u8, confidence: f32) !void {
         if (confidence < self.config.min_confidence_threshold) return;
+        if (self.suppressed.len > 0) {
+            for (self.suppressed) |s| {
+                if (std.mem.startsWith(u8, file_path, s.dir) and std.mem.eql(u8, rule, s.rule)) return;
+            }
+        }
 
         const finding = Finding{
             .file = try self.allocator.dupe(u8, file_path),
@@ -801,6 +807,25 @@ fn loadOverrides(self: *StaticAnalyzer) !void {
     const arena_alloc = self.arena.allocator();
     const bytes = try readFileAlloc(arena_alloc, path);
     self.allowed_secret_substrings = try parseOverrides(arena_alloc, bytes);
+    var parsed = try std.json.parseFromSlice(std.json.Value, arena_alloc, bytes, .{});
+    defer parsed.deinit();
+    const root = parsed.value;
+    if (root == .object) {
+        if (root.object.get("suppress")) |ptr| {
+            const arr = ptr.array.items;
+            var list = try arena_alloc.alloc(struct { dir: []const u8, rule: []const u8 }, arr.len);
+            var n: usize = 0;
+            for (arr) |e| {
+                if (e == .object) {
+                    if (e.object.get("dir")) |d| if (e.object.get("rule")) |r| {
+                        list[n] = .{ .dir = d.string, .rule = r.string };
+                        n += 1;
+                    };
+                }
+            }
+            self.suppressed = list[0..n];
+        }
+    }
 }
 
 pub fn main() !void {

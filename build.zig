@@ -469,6 +469,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("tools/performance_ci.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
     const perf_ci_exe = b.addExecutable(.{ .name = "performance_ci", .root_module = perf_ci_mod });
     b.installArtifact(perf_ci_exe);
