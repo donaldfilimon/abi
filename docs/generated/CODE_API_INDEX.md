@@ -3840,6 +3840,12 @@ pub const WeatherService = weather_mod.WeatherService;
 pub const WeatherData = weather_mod.WeatherData;
 ```
 
+- const `WeatherConfig`
+
+```zig
+pub const WeatherConfig = weather_mod.WeatherConfig;
+```
+
 - fn `main`
 
 Main application entry point
