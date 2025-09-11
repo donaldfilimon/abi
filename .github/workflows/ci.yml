@@ -1,0 +1,143 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit & Integration Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        zig: [0.15.1]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ matrix.zig }}
+
+      - name: Cache Zig
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/zig
+            zig-cache
+            zig-out
+          key: ${{ runner.os }}-zig-${{ matrix.zig }}-${{ hashFiles('build.zig.zon', 'build.zig') }}
+          restore-keys: |
+            ${{ runner.os }}-zig-${{ matrix.zig }}-
+
+      - name: Verify build system
+        run: |
+          zig version
+          zig build --help | head -20
+
+      - name: Build
+        run: zig build
+
+      - name: Run all tests
+        run: zig build test-all
+
+  analyze:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Verify build system
+        run: |
+          zig version
+          zig build --help | head -20
+
+      - name: Run analysis
+        run: zig build analyze
+
+  docs-check:
+    name: Docs Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Verify build system
+        run: |
+          zig version
+          zig build --help | head -20
+
+      - name: Build docs
+        run: zig build docs
+
+      - name: Verify documentation generation
+        run: |
+          ls -la docs/
+          test -f docs/index.html || echo "Warning: index.html not found"
+          test -f docs/.nojekyll || echo "Warning: .nojekyll not found"
+
+  cross-matrix:
+    name: Cross-target Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Verify build system
+        run: |
+          zig version
+          zig build --help | head -20
+
+      - name: Run test matrix
+        run: zig build test-matrix
+
+  scheduled-heavy:
+    if: github.event_name == 'schedule'
+    name: Heavy Tests & Perf Guard (scheduled)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Verify build system
+        run: |
+          zig version
+          zig build --help | head -20
+
+      - name: Run heavy tests
+        run: zig build test-heavy
+
+      - name: Run perf guard
+        run: zig build perf-guard
