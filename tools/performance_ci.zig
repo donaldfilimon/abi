@@ -13,6 +13,7 @@
 //! - Comprehensive error handling and reporting
 
 const std = @import("std");
+const abi = @import("abi");
 const builtin = @import("builtin");
 
 inline fn print(comptime fmt: []const u8, args: anytype) void {
@@ -128,6 +129,21 @@ pub const PerformanceMetrics = struct {
     coefficient_of_variation: f64,
     performance_stability_score: f64,
 
+    // SIMD micro-benchmark metrics
+    simd_add_ns: u64 = 0,
+    simd_mul_ns: u64 = 0,
+    simd_scale_ns: u64 = 0,
+    simd_norm_ns: u64 = 0,
+    simd_clamp_ns: u64 = 0,
+    simd_axpy_ns: u64 = 0,
+    simd_fma_ns: u64 = 0,
+    simd_sum_ns: u64 = 0,
+    simd_var_ns: u64 = 0,
+    simd_dot_ns: u64 = 0,
+    simd_l1_ns: u64 = 0,
+    simd_mm_ns: u64 = 0,
+    simd_micro_n: u32 = 0,
+
     /// Initialize performance metrics with sensible defaults
     pub fn init(_: std.mem.Allocator) PerformanceMetrics {
         return PerformanceMetrics{
@@ -155,6 +171,19 @@ pub const PerformanceMetrics = struct {
             .platform_info = "",
             .coefficient_of_variation = 0.0,
             .performance_stability_score = 100.0,
+            .simd_add_ns = 0,
+            .simd_mul_ns = 0,
+            .simd_scale_ns = 0,
+            .simd_norm_ns = 0,
+            .simd_clamp_ns = 0,
+            .simd_axpy_ns = 0,
+            .simd_fma_ns = 0,
+            .simd_sum_ns = 0,
+            .simd_var_ns = 0,
+            .simd_dot_ns = 0,
+            .simd_l1_ns = 0,
+            .simd_mm_ns = 0,
+            .simd_micro_n = 0,
         };
     }
 
@@ -221,6 +250,21 @@ pub const PerformanceMetrics = struct {
             \\    "avg_memory_mb": {d},
             \\    "avg_cpu_percent": {d:.1},
             \\    "cache_hit_rate": {d:.2}
+            \\  }},
+            \\  "simd_micro": {{
+            \\    "n": {d},
+            \\    "add_ns": {d},
+            \\    "mul_ns": {d},
+            \\    "scale_ns": {d},
+            \\    "norm_ns": {d},
+            \\    "clamp_ns": {d},
+            \\    "axpy_ns": {d},
+            \\    "fma_ns": {d},
+            \\    "sum_ns": {d},
+            \\    "var_ns": {d},
+            \\    "dot_ns": {d},
+            \\    "l1_ns": {d},
+            \\    "mm_ns": {d}
             \\  }}
             \\}}
         , .{
@@ -242,6 +286,19 @@ pub const PerformanceMetrics = struct {
             self.avg_memory_mb,
             self.avg_cpu_percent,
             self.cache_hit_rate,
+            self.simd_micro_n,
+            self.simd_add_ns,
+            self.simd_mul_ns,
+            self.simd_scale_ns,
+            self.simd_norm_ns,
+            self.simd_clamp_ns,
+            self.simd_axpy_ns,
+            self.simd_fma_ns,
+            self.simd_sum_ns,
+            self.simd_var_ns,
+            self.simd_dot_ns,
+            self.simd_l1_ns,
+            self.simd_mm_ns,
         });
     }
 
@@ -501,27 +558,51 @@ pub const PerformanceBenchmarkRunner = struct {
         }
 
         const arena_allocator = self.arena.allocator();
-        const num_operations = 100000;
-        const vector_size = 128;
-
-        const a = try arena_allocator.alloc(f32, vector_size);
-        const b = try arena_allocator.alloc(f32, vector_size);
-
-        PerformanceOps.generateTestVector(a, 12345, true);
-        PerformanceOps.generateTestVector(b, 67890, true);
-
-        const batch_start = std.time.nanoTimestamp();
-
-        // Execute vectorized operations with proper measurement
-        for (0..num_operations) |_| {
-            const similarity = PerformanceOps.calculateSimilarity(a, b);
-            std.mem.doNotOptimizeAway(similarity);
+        // Small similarity kernel for QPS estimate
+        const sim_ops = 100000;
+        const vec_sim = 128;
+        const a_sim = try arena_allocator.alloc(f32, vec_sim);
+        const b_sim = try arena_allocator.alloc(f32, vec_sim);
+        PerformanceOps.generateTestVector(a_sim, 12345, true);
+        PerformanceOps.generateTestVector(b_sim, 67890, true);
+        const t0 = std.time.nanoTimestamp();
+        for (0..sim_ops) |_| {
+            const s = PerformanceOps.calculateSimilarity(a_sim, b_sim);
+            std.mem.doNotOptimizeAway(s);
         }
-
-        const batch_end = std.time.nanoTimestamp();
-        metrics.avg_batch_time_ns = @intCast(@divTrunc(batch_end - batch_start, num_operations));
-
+        const t1 = std.time.nanoTimestamp();
+        metrics.avg_batch_time_ns = @intCast(@divTrunc(t1 - t0, sim_ops));
         print("  ✓ SIMD similarity calculations: {d}ns avg per operation\n", .{metrics.avg_batch_time_ns});
+
+        // Micro-benchmark style timings (reduced N for CI)
+        const N: usize = 200_000;
+        const a = try arena_allocator.alloc(f32, N);
+        const b = try arena_allocator.alloc(f32, N);
+        const r = try arena_allocator.alloc(f32, N);
+        for (a, 0..) |*v, i| v.* = @as(f32, @floatFromInt(i % 100));
+        for (b, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 3) % 97));
+
+        var timer = try std.time.Timer.start();
+        timer.reset(); abi.simd.add(r, a, b); metrics.simd_add_ns = timer.read();
+        timer.reset(); abi.simd.multiply(r, a, b); metrics.simd_mul_ns = timer.read();
+        timer.reset(); abi.simd.scale(r, a, 1.2345); metrics.simd_scale_ns = timer.read();
+        timer.reset(); abi.simd.normalize(r, a); metrics.simd_norm_ns = timer.read();
+        timer.reset(); abi.simd.clamp(r, a, -10.0, 10.0); metrics.simd_clamp_ns = timer.read();
+        timer.reset(); abi.simd.axpy(r, 0.5, a); metrics.simd_axpy_ns = timer.read();
+        timer.reset(); abi.simd.fma(r, a, b, r); metrics.simd_fma_ns = timer.read();
+        timer.reset(); _ = abi.simd.sum(a); metrics.simd_sum_ns = timer.read();
+        timer.reset(); _ = abi.simd.variance(a); metrics.simd_var_ns = timer.read();
+        timer.reset(); _ = abi.simd.dotProduct(a, b); metrics.simd_dot_ns = timer.read();
+        timer.reset(); _ = abi.simd.l1Distance(a, b); metrics.simd_l1_ns = timer.read();
+        // small matrix multiply
+        const M: usize = 256; const K: usize = 64; const NC: usize = 64;
+        const ma = try arena_allocator.alloc(f32, M * K);
+        const mb = try arena_allocator.alloc(f32, K * NC);
+        const mr = try arena_allocator.alloc(f32, M * NC);
+        for (ma, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 7) % 31)) * 0.03125;
+        for (mb, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 11) % 29)) * 0.03448;
+        timer.reset(); abi.simd.matrixMultiply(mr, ma, mb, M, K, NC); metrics.simd_mm_ns = timer.read();
+        metrics.simd_micro_n = @intCast(N);
     }
 
     /// Collect comprehensive system metrics including memory, CPU, and cache performance
@@ -975,3 +1056,7 @@ test "Regression detection algorithm accuracy" {
     try testing.expect(result.has_regression);
     try testing.expect(result.regression_percent > 15.0);
 }
+
+
+
+

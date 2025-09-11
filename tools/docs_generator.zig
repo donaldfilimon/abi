@@ -12,11 +12,22 @@ pub fn main() !void {
 
     // Create comprehensive docs directory structure
     try std.fs.cwd().makePath("docs/generated");
-    try std.fs.cwd().makePath("docs/assets");
-    // Static site (no Jekyll)
+    try std.fs.cwd().makePath("docs/assets/css");
+    try std.fs.cwd().makePath("docs/assets/js");
+    try std.fs.cwd().makePath("docs/_layouts");
+    try std.fs.cwd().makePath("docs/_data");
+    try std.fs.cwd().makePath(".github/workflows");
+
+    // GitHub Pages configuration (no Jekyll processing)
     try generateNoJekyll();
 
-    // Generate module documentation
+    // Generate Jekyll configuration for enhanced GitHub Pages support
+    try generateJekyllConfig(allocator);
+    try generateGitHubPagesLayout(allocator);
+    try generateNavigationData(allocator);
+    try generateSEOMetadata(allocator);
+
+    // Generate core documentation
     try generateModuleDocs(allocator);
     try generateApiReference(allocator);
     try generateExamples(allocator);
@@ -27,14 +38,22 @@ pub fn main() !void {
     try generateCodeApiIndex(allocator);
     try generateSearchIndex(allocator);
 
+    // GitHub Pages assets and styling
+    try generateGitHubPagesAssets(allocator);
+
     // Static index and assets
     try generateDocsIndexHtml(allocator);
     try generateReadmeRedirect(allocator);
+
+    // GitHub Actions workflow for automated deployment
+    try generateGitHubActionsWorkflow(allocator);
 
     // Generate Zig native documentation
     try generateZigNativeDocs();
 
     std.log.info("✅ GitHub Pages documentation generation completed!", .{});
+    std.log.info("📝 To deploy: Enable GitHub Pages in repository settings (source: docs folder)", .{});
+    std.log.info("🚀 GitHub Actions workflow created for automated deployment", .{});
 }
 
 fn generateNoJekyll() !void {
@@ -586,6 +605,1127 @@ fn generateReadmeRedirect(_: std.mem.Allocator) !void {
     ;
 
     try file.writeAll(content);
+}
+
+// ===== New Code: Source scanner for public declarations =====
+const Declaration = struct {
+    name: []u8,
+    kind: []u8,
+    signature: []u8,
+    doc: []u8,
+};
+
+fn generateCodeApiIndex(allocator: std.mem.Allocator) !void {
+    // Use an arena for all temporary allocations in scanning to avoid leaks and simplify ownership
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var files = std.ArrayListUnmanaged([]u8){};
+    defer files.deinit(a);
+
+    try collectZigFiles(a, "src", &files);
+
+    var out = try std.fs.cwd().createFile("docs/generated/CODE_API_INDEX.md", .{ .truncate = true });
+    defer out.close();
+
+    const writef = struct {
+        fn go(file: std.fs.File, alloc2: std.mem.Allocator, comptime fmt: []const u8, args: anytype) !void {
+            const s = try std.fmt.allocPrint(alloc2, fmt, args);
+            defer alloc2.free(s);
+            try file.writeAll(s);
+        }
+    }.go;
+
+    try writef(out, a, "# Code API Index (Scanned)\n\n", .{});
+    try writef(out, a, "Scanned {d} Zig files under `src/`. This index lists public declarations discovered along with leading doc comments.\n\n", .{files.items.len});
+
+    var decls = std.ArrayListUnmanaged(Declaration){};
+    defer decls.deinit(a);
+
+    for (files.items) |rel| {
+        decls.clearRetainingCapacity();
+        try scanFile(a, rel, &decls);
+        if (decls.items.len == 0) continue;
+
+        try writef(out, a, "## {s}\n\n", .{rel});
+        for (decls.items) |d| {
+            try writef(out, a, "- {s} `{s}`\n\n", .{ d.kind, d.name });
+            if (d.doc.len > 0) {
+                try writef(out, a, "{s}\n\n", .{d.doc});
+            }
+            if (d.signature.len > 0) {
+                try writef(out, a, "```zig\n{s}\n```\n\n", .{d.signature});
+            }
+        }
+    }
+}
+
+fn collectZigFiles(allocator: std.mem.Allocator, dir_path: []const u8, out_files: *std.ArrayListUnmanaged([]u8)) !void {
+    var stack = std.ArrayListUnmanaged([]u8){};
+    defer {
+        for (stack.items) |p| allocator.free(p);
+        stack.deinit(allocator);
+    }
+    try stack.append(allocator, try allocator.dupe(u8, dir_path));
+
+    while (stack.items.len > 0) {
+        const idx = stack.items.len - 1;
+        const path = stack.items[idx];
+        _ = stack.pop();
+        defer allocator.free(path);
+
+        var dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch continue;
+        defer dir.close();
+
+        var it = dir.iterate();
+        while (it.next() catch null) |entry| {
+            if (entry.kind == .file) {
+                if (std.mem.endsWith(u8, entry.name, ".zig")) {
+                    const rel = try std.fs.path.join(allocator, &[_][]const u8{ path, entry.name });
+                    try out_files.append(allocator, rel);
+                }
+            } else if (entry.kind == .directory) {
+                if (std.mem.eql(u8, entry.name, ".") or std.mem.eql(u8, entry.name, "..")) continue;
+                const sub = try std.fs.path.join(allocator, &[_][]const u8{ path, entry.name });
+                try stack.append(allocator, sub);
+            }
+        }
+    }
+}
+
+fn scanFile(allocator: std.mem.Allocator, rel_path: []const u8, decls: *std.ArrayListUnmanaged(Declaration)) !void {
+    const file = try std.fs.cwd().openFile(rel_path, .{});
+    defer file.close();
+
+    const data = try file.readToEndAlloc(allocator, 1024 * 1024 * 4);
+    defer allocator.free(data);
+
+    var it = std.mem.splitScalar(u8, data, '\n');
+
+    var doc_buf = std.ArrayListUnmanaged(u8){};
+    defer doc_buf.deinit(allocator);
+
+    while (it.next()) |line| {
+        const trimmed = std.mem.trim(u8, line, " \t\r");
+        if (std.mem.startsWith(u8, trimmed, "///")) {
+            // accumulate doc lines
+            const doc_line = std.mem.trim(u8, trimmed[3..], " \t");
+            try doc_buf.appendSlice(allocator, doc_line);
+            try doc_buf.append(allocator, '\n');
+            continue;
+        }
+
+        // Identify public declarations after doc comments
+        if (isPubDecl(trimmed)) {
+            const kind = detectKind(trimmed);
+            const name = extractName(allocator, trimmed) catch {
+                // reset doc buffer and continue
+                doc_buf.clearRetainingCapacity();
+                continue;
+            };
+            const sig = try allocator.dupe(u8, trimmed);
+            const doc = try allocator.dupe(u8, doc_buf.items);
+            doc_buf.clearRetainingCapacity();
+
+            try decls.append(allocator, .{
+                .name = name,
+                .kind = try allocator.dupe(u8, kind),
+                .signature = sig,
+                .doc = doc,
+            });
+            continue;
+        } else {
+            // reset doc buffer if we encounter a non-doc, non-decl line
+            if (trimmed.len > 0 and !std.mem.startsWith(u8, trimmed, "//")) {
+                doc_buf.clearRetainingCapacity();
+            }
+        }
+    }
+}
+
+fn isPubDecl(line: []const u8) bool {
+    // consider pub fn/const/var/type usingnamespace
+    if (!std.mem.startsWith(u8, line, "pub ")) return false;
+    return std.mem.indexOfAny(u8, line[4..], "fctuv") != null // quick filter
+    or std.mem.startsWith(u8, line, "pub usingnamespace") or std.mem.indexOf(u8, line, " struct") != null or std.mem.indexOf(u8, line, " enum") != null;
+}
+
+fn detectKind(line: []const u8) []const u8 {
+    if (std.mem.startsWith(u8, line, "pub fn ")) return "fn";
+    if (std.mem.startsWith(u8, line, "pub const ")) {
+        if (std.mem.indexOf(u8, line, " struct") != null) return "type";
+        if (std.mem.indexOf(u8, line, " enum") != null) return "type";
+        return "const";
+    }
+    if (std.mem.startsWith(u8, line, "pub var ")) return "var";
+    if (std.mem.startsWith(u8, line, "pub usingnamespace")) return "usingnamespace";
+    return "pub";
+}
+
+fn extractName(allocator: std.mem.Allocator, line: []const u8) ![]u8 {
+    // naive name extraction: after `pub fn|const|var` read identifier
+    var rest: []const u8 = line;
+    if (std.mem.startsWith(u8, rest, "pub fn ")) rest = rest[7..] else if (std.mem.startsWith(u8, rest, "pub const ")) rest = rest[10..] else if (std.mem.startsWith(u8, rest, "pub var ")) rest = rest[8..] else if (std.mem.startsWith(u8, rest, "pub usingnamespace ")) rest = rest[18..] else if (std.mem.startsWith(u8, rest, "pub ")) rest = rest[4..];
+
+    // identifier: letters, digits, underscore
+    var i: usize = 0;
+    while (i < rest.len) : (i += 1) {
+        const c = rest[i];
+        const is_id = (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9') or (c == '_') or (c == '.');
+        if (!is_id) break;
+    }
+    const ident = std.mem.trim(u8, rest[0..i], " \t");
+    if (ident.len == 0) return error.Invalid;
+    return allocator.dupe(u8, ident);
+}
+
+fn generateSearchIndex(allocator: std.mem.Allocator) !void {
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Ensure output dir exists
+    try std.fs.cwd().makePath("docs/generated");
+
+    // Collect Markdown files in docs/generated
+    var dir = std.fs.cwd().openDir("docs/generated", .{ .iterate = true }) catch |err| switch (err) {
+        error.FileNotFound => return, // nothing to index yet
+        else => return err,
+    };
+    defer dir.close();
+
+    var files = std.ArrayListUnmanaged([]const u8){};
+    defer files.deinit(a);
+
+    var it = dir.iterate();
+    while (it.next() catch null) |entry| {
+        if (entry.kind == .file and std.mem.endsWith(u8, entry.name, ".md")) {
+            const rel = try std.fs.path.join(a, &[_][]const u8{ "generated", entry.name });
+            try files.append(a, rel);
+        }
+    }
+
+    var out = try std.fs.cwd().createFile("docs/generated/search_index.json", .{ .truncate = true });
+    defer out.close();
+
+    try out.writeAll("[\n");
+    var first = true;
+
+    for (files.items) |rel| {
+        const full = try std.fs.path.join(a, &[_][]const u8{ "docs", rel });
+        var title_buf: []const u8 = "";
+        var excerpt_buf: []const u8 = "";
+        getTitleAndExcerpt(a, full, &title_buf, &excerpt_buf) catch {
+            // Fallbacks
+            title_buf = std.fs.path.basename(rel);
+            excerpt_buf = "";
+        };
+
+        if (!first) {
+            try out.writeAll(",\n");
+        } else {
+            first = false;
+        }
+
+        try out.writeAll("  {\"file\": ");
+        try writeJsonString(out, rel);
+        try out.writeAll(", \"title\": ");
+        try writeJsonString(out, title_buf);
+        try out.writeAll(", \"excerpt\": ");
+        try writeJsonString(out, excerpt_buf);
+        try out.writeAll("}");
+    }
+
+    try out.writeAll("\n]\n");
+}
+
+fn getTitleAndExcerpt(allocator: std.mem.Allocator, path: []const u8, title_out: *[]const u8, excerpt_out: *[]const u8) !void {
+    const file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
+    const data = try file.readToEndAlloc(allocator, 1024 * 1024 * 4);
+    defer allocator.free(data);
+
+    var it = std.mem.splitScalar(u8, data, '\n');
+
+    var first_heading: ?[]const u8 = null;
+    var in_code = false;
+
+    var excerpt = std.ArrayListUnmanaged(u8){};
+    defer excerpt.deinit(allocator);
+
+    while (it.next()) |line| {
+        const trimmed = std.mem.trim(u8, line, " \t\r");
+        if (std.mem.startsWith(u8, trimmed, "```")) {
+            in_code = !in_code;
+            continue;
+        }
+        if (in_code) continue;
+
+        if (first_heading == null and std.mem.startsWith(u8, trimmed, "#")) {
+            var j: usize = 0;
+            while (j < trimmed.len and trimmed[j] == '#') j += 1;
+            const after = std.mem.trim(u8, trimmed[j..], " \t");
+            if (after.len > 0) first_heading = after;
+            continue;
+        }
+
+        if (trimmed.len == 0) continue;
+        if (trimmed[0] == '#') continue; // skip headings in excerpt
+        if (trimmed[0] == '|') continue; // skip tables
+
+        // Append to excerpt up to ~300 chars
+        if (excerpt.items.len > 0) try excerpt.append(allocator, ' ');
+        var k: usize = 0;
+        while (k < trimmed.len and excerpt.items.len < 300) : (k += 1) {
+            const c = trimmed[k];
+            if (c == '`') continue;
+            try excerpt.append(allocator, c);
+        }
+        if (excerpt.items.len >= 300) break;
+    }
+
+    if (first_heading) |h| {
+        title_out.* = try allocator.dupe(u8, h);
+    } else {
+        const base = std.fs.path.basename(path);
+        title_out.* = try allocator.dupe(u8, base);
+    }
+    excerpt_out.* = try allocator.dupe(u8, excerpt.items);
+}
+
+fn writeJsonString(out: std.fs.File, s: []const u8) !void {
+    try out.writeAll("\"");
+    var i: usize = 0;
+    while (i < s.len) : (i += 1) {
+        const c = s[i];
+        switch (c) {
+            '\\' => try out.writeAll("\\\\"),
+            '"' => try out.writeAll("\\\""),
+            '\n' => try out.writeAll("\\n"),
+            '\r' => try out.writeAll("\\r"),
+            '\t' => try out.writeAll("\\t"),
+            else => {
+                var buf: [1]u8 = .{c};
+                try out.writeAll(buf[0..1]);
+            },
+        }
+    }
+    try out.writeAll("\"");
+}
+
+fn generateDocsIndexHtml(_: std.mem.Allocator) !void {
+    // Write a GitHub Pages friendly index.html that renders docs/generated/*.md client-side
+    try std.fs.cwd().makePath("docs");
+    var out = try std.fs.cwd().createFile("docs/index.html", .{ .truncate = true });
+    defer out.close();
+
+    const html =
+        \\<!DOCTYPE html>
+        \\<html lang="en">
+        \\<head>
+        \\  <meta charset="UTF-8" />
+        \\  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        \\  <title>ABI Documentation</title>
+        \\  <style>
+        \\    body {
+        \\      margin: 0;
+        \\      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        \\      color-scheme: light dark;
+        \\      --bg: #0b0d10;
+        \\      --fg: #e6edf3;
+        \\      --muted: #9aa4b2;
+        \\      --accent: #5eb1ff;
+        \\      --panel: #111418;
+        \\      background: var(--bg);
+        \\      color: var(--fg);
+        \\      display: grid;
+        \\      grid-template-columns: 320px 1fr;
+        \\      height: 100svh;
+        \\      overflow: hidden;
+        \\    }
+        \\
+        \\    aside {
+        \\      background: var(--panel);
+        \\      border-right: 1px solid #1f2328;
+        \\      display: flex;
+        \\      flex-direction: column;
+        \\      padding: 16px;
+        \\      overflow: hidden;
+        \\    }
+        \\
+        \\    main {
+        \\      overflow: auto;
+        \\      padding: 24px 32px;
+        \\    }
+        \\
+        \\    #brand { font-weight: 700; letter-spacing: 0.2px; margin-bottom: 8px; }
+        \\    #desc { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+        \\    #search { padding: 10px 12px; border-radius: 8px; border: 1px solid #2a2f36; background: #0f1216; color: var(--fg); outline: none; width: 100%; box-sizing: border-box; }
+        \\    #nav { overflow: auto; margin-top: 12px; padding-right: 6px; }
+        \\    .nav-item { padding: 10px 8px; border-radius: 8px; }
+        \\    .nav-item:hover { background: rgba(94, 177, 255, 0.12); }
+        \\    .nav-item a { color: var(--fg); text-decoration: none; font-weight: 600; }
+        \\    .nav-excerpt { color: var(--muted); font-size: 12px; margin-top: 4px; line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+        \\
+        \\    /* Content styling */
+        \\    #content { max-width: 1100px; margin: 0 auto; line-height: 1.6; }
+        \\    #content h1, #content h2, #content h3 { margin-top: 26px; scroll-margin-top: 80px; }
+        \\    #content pre { background: #0f1216; padding: 14px; border-radius: 8px; overflow: auto; }
+        \\    #content code { background: #0f1216; padding: 2px 4px; border-radius: 4px; }
+        \\    #content a { color: var(--accent); }
+        \\    #topbar { display: flex; align-items: center; justify-content: space-between; }
+        \\    #topbar .right { display: flex; gap: 8px; align-items: center; }
+        \\    button.small { background: #0f1216; border: 1px solid #2a2f36; color: var(--fg); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+        \\    button.small:hover { border-color: var(--accent); }
+        \\  </style>
+        \\</head>
+        \\<body>
+        \\  <aside>
+        \\    <div id="brand">ABI Docs</div>
+        \\    <div id="desc">Search and browse documentation generated from the codebase.</div>
+        \\    <input id="search" type="search" placeholder="Search docs..." />
+        \\    <div id="nav"></div>
+        \\  </aside>
+        \\  <main>
+        \\    <div id="topbar">
+        \\      <div></div>
+        \\      <div class="right">
+        \\        <button class="small" id="open_md">Open in raw Markdown</button>
+        \\      </div>
+        \\    </div>
+        \\    <div id="content"></div>
+        \\  </main>
+        \\  <script>
+        \\  async function fetchJSON(p) { const r = await fetch(p); return await r.json(); }
+        \\  async function fetchText(p) { const r = await fetch(p); return await r.text(); }
+        \\  function escapeHTML(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        \\  function mdToHtml(md) {
+        \\    const lines = md.split('\\n');
+        \\    let html = '';
+        \\    let inCode = false; let codeLang = '';
+        \\    for (let i=0;i<lines.length;i++){
+        \\      let line = lines[i];
+        \\      if (line.startsWith('```')) {
+        \\        if (!inCode) { inCode = true; codeLang = line.slice(3).trim(); html += '<pre><code class="lang-'+escapeHTML(codeLang)+'">'; }
+        \\        else { inCode = false; html += '</code></pre>'; }
+        \\        continue;
+        \\      }
+        \\      if (inCode) { html += escapeHTML(line)+'\\n'; continue; }
+        \\      if (line.startsWith('#')) {
+        \\        const m = line.match(/^#+/); const level = m ? m[0].length : 1;
+        \\        const text = line.slice(level).trim();
+        \\        const id = text.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+        \\        html += `<h${level} id="${id}">${inline(text)}</h${level}>`;
+        \\        continue;
+        \\      }
+        \\      if (/^\\s*[-*] /.test(line)) {
+        \\        let items = []; let j=i;
+        \\        while (j<lines.length && /^\\s*[-*] /.test(lines[j])) { items.push(lines[j].replace(/^\\s*[-*] /,'')); j++; }
+        \\        html += '<ul>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ul>';
+        \\        i = j-1; continue;
+        \\      }
+        \\      if (/^\\s*[0-9]+\\. /.test(line)) {
+        \\        let items=[]; let j=i;
+        \\        while (j<lines.length && /^\\s*[0-9]+\\. /.test(lines[j])) { items.push(lines[j].replace(/^\\s*[0-9]+\\. /,'')); j++; }
+        \\        html += '<ol>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ol>';
+        \\        i = j-1; continue;
+        \\      }
+        \\      if (line.trim() === '') { html += ''; continue; }
+        \\      html += `<p>${inline(line)}</p>`;
+        \\    }
+        \\    return html;
+        \\    function inline(t) {
+        \\      t = t.replace(/`([^`]+)`/g,'<code>$1</code>');
+        \\      t = t.replace(/\\*\\*([^*]+)\\*\\*/g,'<strong>$1</strong>');
+        \\      t = t.replace(/\\*([^*]+)\\*/g,'<em>$1</em>');
+        \\      t = t.replace(/\\!\\[([^\\]]*)\\]\\(([^)]+)\\)/g,'<img alt="$1" src="$2" />');
+        \\      t = t.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g,(m,txt,url) => {\n        \\        if (url.startsWith('http') || url.startsWith('mailto:') || url.startsWith('#')) return `<a href=\"${url}\" target=\"_blank\" rel=\"noopener\">${txt}</a>`;\n        \\        if (url.endsWith('.md')) return `<a href=\"#${url}\" onclick=\"loadDoc('${url}'); return false;\">${txt}</a>`;\n        \\        return `<a href=\"${url}\" target=\"_blank\" rel=\"noopener\">${txt}</a>`;\n        \\      });
+        \\      return t;
+        \\    }
+        \\  }
+        \\  let searchData = [];
+        \\  let currentPath = '';
+        \\  async function init(){
+        \\    try { searchData = await fetchJSON('generated/search_index.json'); } catch(e){ console.error('search index', e); }
+        \\    renderNav(searchData);
+        \\    const initial = location.hash ? decodeURIComponent(location.hash.slice(1)) : (searchData[0]?.file || 'generated/API_REFERENCE.md');
+        \\    loadDoc(initial);
+        \\    document.getElementById('search').addEventListener('input', (e) => {
+        \\      const q = e.target.value.toLowerCase();
+        \\      const results = searchData.filter(it => it.title.toLowerCase().includes(q) || it.excerpt.toLowerCase().includes(q));
+        \\      renderNav(results);
+        \\    });
+        \\    document.getElementById('open_md').addEventListener('click', () => { if (currentPath) window.open(currentPath, '_blank'); });
+        \\  }
+        \\  async function loadDoc(path){
+        \\    currentPath = path;
+        \\    location.hash = encodeURIComponent(path);
+        \\    const md = await fetchText(path);
+        \\    document.getElementById('content').innerHTML = mdToHtml(md);
+        \\    window.scrollTo(0,0);
+        \\  }
+        \\  function renderNav(list){
+        \\    const nav = document.getElementById('nav');
+        \\    nav.innerHTML = list.map(it => `<div class="nav-item"><a href="#${encodeURIComponent(it.file)}" onclick="loadDoc('${it.file}'); return false;">${it.title}</a><div class="nav-excerpt">${escapeHTML(it.excerpt)}</div></div>`).join('');
+        \\  }
+        \\  window.addEventListener('hashchange', () => {
+        \\    const p = decodeURIComponent(location.hash.slice(1));
+        \\    if (p) loadDoc(p);
+        \\  });
+        \\  init();
+        \\  </script>
+        \\</body>
+        \\</html>
+    ;
+
+    try out.writeAll(html);
+}
+
+/// Generate CSS and JavaScript assets for GitHub Pages
+fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
+    _ = allocator;
+
+    // Generate enhanced CSS
+    const css_file = try std.fs.cwd().createFile("docs/assets/css/documentation.css", .{});
+    defer css_file.close();
+
+    const css_content =
+        \\/* Enhanced GitHub Pages Documentation Styles */
+        \\:root {
+        \\  --color-canvas-default: #ffffff;
+        \\  --color-canvas-subtle: #f6f8fa;
+        \\  --color-border-default: #d0d7de;
+        \\  --color-border-muted: #d8dee4;
+        \\  --color-fg-default: #1f2328;
+        \\  --color-fg-muted: #656d76;
+        \\  --color-accent-fg: #0969da;
+        \\  --color-accent-emphasis: #0969da;
+        \\  --color-success-fg: #1a7f37;
+        \\  --color-attention-fg: #9a6700;
+        \\  --color-severe-fg: #d1242f;
+        \\}
+        \\
+        \\@media (prefers-color-scheme: dark) {
+        \\  :root {
+        \\    --color-canvas-default: #0d1117;
+        \\    --color-canvas-subtle: #161b22;
+        \\    --color-border-default: #30363d;
+        \\    --color-border-muted: #21262d;
+        \\    --color-fg-default: #e6edf3;
+        \\    --color-fg-muted: #8b949e;
+        \\    --color-accent-fg: #58a6ff;
+        \\    --color-accent-emphasis: #1f6feb;
+        \\    --color-success-fg: #3fb950;
+        \\    --color-attention-fg: #d29922;
+        \\    --color-severe-fg: #f85149;
+        \\  }
+        \\}
+        \\
+        \\/* Documentation-specific styles */
+        \\.documentation-content {
+        \\  max-width: 1012px;
+        \\  margin: 0 auto;
+        \\  padding: 32px;
+        \\  line-height: 1.6;
+        \\}
+        \\
+        \\.table-of-contents {
+        \\  background: var(--color-canvas-subtle);
+        \\  border: 1px solid var(--color-border-default);
+        \\  border-radius: 6px;
+        \\  padding: 16px;
+        \\  margin: 16px 0 24px 0;
+        \\  font-size: 14px;
+        \\}
+        \\
+        \\.table-of-contents h4 {
+        \\  margin: 0 0 8px 0;
+        \\  color: var(--color-fg-default);
+        \\  font-weight: 600;
+        \\}
+        \\
+        \\.table-of-contents ul {
+        \\  margin: 0;
+        \\  padding-left: 20px;
+        \\}
+        \\
+        \\.table-of-contents li {
+        \\  margin: 4px 0;
+        \\}
+        \\
+        \\.table-of-contents a {
+        \\  color: var(--color-accent-fg);
+        \\  text-decoration: none;
+        \\}
+        \\
+        \\.table-of-contents a:hover {
+        \\  text-decoration: underline;
+        \\}
+        \\
+        \\/* Search functionality */
+        \\.search-container {
+        \\  position: relative;
+        \\  margin: 16px 0;
+        \\}
+        \\
+        \\#search-input {
+        \\  width: 100%;
+        \\  padding: 8px 12px;
+        \\  border: 1px solid var(--color-border-default);
+        \\  border-radius: 6px;
+        \\  background: var(--color-canvas-default);
+        \\  color: var(--color-fg-default);
+        \\  font-size: 14px;
+        \\}
+        \\
+        \\.search-results {
+        \\  position: absolute;
+        \\  top: 100%;
+        \\  left: 0;
+        \\  right: 0;
+        \\  background: var(--color-canvas-default);
+        \\  border: 1px solid var(--color-border-default);
+        \\  border-radius: 6px;
+        \\  max-height: 300px;
+        \\  overflow-y: auto;
+        \\  z-index: 1000;
+        \\  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        \\}
+        \\
+        \\.search-result-item {
+        \\  padding: 12px;
+        \\  border-bottom: 1px solid var(--color-border-muted);
+        \\  cursor: pointer;
+        \\}
+        \\
+        \\.search-result-item:hover {
+        \\  background: var(--color-canvas-subtle);
+        \\}
+        \\
+        \\.search-result-title {
+        \\  font-weight: 600;
+        \\  color: var(--color-accent-fg);
+        \\  margin-bottom: 4px;
+        \\}
+        \\
+        \\.search-result-excerpt {
+        \\  color: var(--color-fg-muted);
+        \\  font-size: 13px;
+        \\  line-height: 1.4;
+        \\}
+        \\
+        \\/* Navigation improvements */
+        \\.doc-navigation {
+        \\  margin: 24px 0;
+        \\}
+        \\
+        \\.doc-navigation h3 {
+        \\  margin: 0 0 12px 0;
+        \\  font-size: 16px;
+        \\  font-weight: 600;
+        \\  color: var(--color-fg-default);
+        \\}
+        \\
+        \\.doc-navigation ul {
+        \\  list-style: none;
+        \\  margin: 0;
+        \\  padding: 0;
+        \\}
+        \\
+        \\.doc-navigation li {
+        \\  margin: 0;
+        \\}
+        \\
+        \\.doc-navigation a {
+        \\  display: block;
+        \\  padding: 8px 12px;
+        \\  color: var(--color-fg-default);
+        \\  text-decoration: none;
+        \\  border-radius: 6px;
+        \\  transition: background-color 0.1s ease;
+        \\}
+        \\
+        \\.doc-navigation a:hover {
+        \\  background: var(--color-canvas-subtle);
+        \\  text-decoration: none;
+        \\}
+        \\
+        \\.doc-navigation a.current {
+        \\  background: var(--color-accent-emphasis);
+        \\  color: #ffffff;
+        \\  font-weight: 600;
+        \\}
+        \\
+        \\/* Code syntax highlighting */
+        \\.highlight {
+        \\  background: var(--color-canvas-subtle);
+        \\  border-radius: 6px;
+        \\  padding: 16px;
+        \\  overflow-x: auto;
+        \\  margin: 16px 0;
+        \\}
+        \\
+        \\.highlight pre {
+        \\  margin: 0;
+        \\  background: transparent;
+        \\}
+        \\
+        \\/* Responsive design */
+        \\@media (max-width: 768px) {
+        \\  .documentation-content {
+        \\    padding: 16px;
+        \\  }
+        \\  
+        \\  .table-of-contents {
+        \\    margin: 16px -16px 24px -16px;
+        \\    border-radius: 0;
+        \\    border-left: none;
+        \\    border-right: none;
+        \\  }
+        \\}
+        \\
+        \\/* Feedback section */
+        \\.feedback-section {
+        \\  margin-top: 48px;
+        \\  padding: 24px;
+        \\  background: var(--color-canvas-subtle);
+        \\  border: 1px solid var(--color-border-default);
+        \\  border-radius: 6px;
+        \\}
+        \\
+        \\.feedback-section h3 {
+        \\  margin: 0 0 12px 0;
+        \\  color: var(--color-fg-default);
+        \\}
+        \\
+        \\.feedback-section p {
+        \\  margin: 0;
+        \\  color: var(--color-fg-muted);
+        \\}
+        \\
+        \\.feedback-section a {
+        \\  color: var(--color-accent-fg);
+        \\  text-decoration: none;
+        \\}
+        \\
+        \\.feedback-section a:hover {
+        \\  text-decoration: underline;
+        \\}
+        \\
+        \\/* Performance indicators */
+        \\.performance-badge {
+        \\  display: inline-block;
+        \\  padding: 2px 6px;
+        \\  background: var(--color-success-fg);
+        \\  color: #ffffff;
+        \\  font-size: 11px;
+        \\  font-weight: 600;
+        \\  border-radius: 12px;
+        \\  text-transform: uppercase;
+        \\  letter-spacing: 0.5px;
+        \\}
+        \\
+        \\.performance-badge.warning {
+        \\  background: var(--color-attention-fg);
+        \\}
+        \\
+        \\.performance-badge.error {
+        \\  background: var(--color-severe-fg);
+        \\}
+        \\
+        \\/* Quick navigation cards */
+        \\.quick-nav {
+        \\  display: grid;
+        \\  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        \\  gap: 16px;
+        \\  margin: 24px 0;
+        \\}
+        \\
+        \\.nav-card {
+        \\  border: 1px solid var(--color-border-default);
+        \\  border-radius: 8px;
+        \\  padding: 20px;
+        \\  background: var(--color-canvas-default);
+        \\  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        \\}
+        \\
+        \\.nav-card:hover {
+        \\  border-color: var(--color-accent-emphasis);
+        \\  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        \\}
+        \\
+        \\.nav-card h3 {
+        \\  margin: 0 0 8px 0;
+        \\  font-size: 18px;
+        \\}
+        \\
+        \\.nav-card h3 a {
+        \\  color: var(--color-accent-fg);
+        \\  text-decoration: none;
+        \\}
+        \\
+        \\.nav-card p {
+        \\  margin: 0;
+        \\  color: var(--color-fg-muted);
+        \\  font-size: 14px;
+        \\  line-height: 1.5;
+        \\}
+        \\
+        \\/* Print styles */
+        \\@media print {
+        \\  .doc-navigation,
+        \\  .search-container,
+        \\  .feedback-section {
+        \\    display: none;
+        \\  }
+        \\  
+        \\  .documentation-content {
+        \\    max-width: none;
+        \\    margin: 0;
+        \\    padding: 0;
+        \\  }
+        \\}
+        \\
+    ;
+
+    try css_file.writeAll(css_content);
+
+    // Generate JavaScript for enhanced functionality
+    const js_file = try std.fs.cwd().createFile("docs/assets/js/documentation.js", .{});
+    defer js_file.close();
+
+    const js_content =
+        \\// Enhanced GitHub Pages Documentation JavaScript
+        \\(function() {
+        \\  'use strict';
+        \\
+        \\  // Generate table of contents
+        \\  function generateTOC() {
+        \\    const content = document.querySelector('.documentation-content .content');
+        \\    const tocList = document.getElementById('toc-list');
+        \\    
+        \\    if (!content || !tocList) return;
+        \\
+        \\    const headings = content.querySelectorAll('h2, h3, h4');
+        \\    if (headings.length === 0) {
+        \\      document.getElementById('toc').style.display = 'none';
+        \\      return;
+        \\    }
+        \\
+        \\    headings.forEach((heading, index) => {
+        \\      const id = heading.id || `heading-${index}`;
+        \\      heading.id = id;
+        \\      
+        \\      const li = document.createElement('li');
+        \\      const a = document.createElement('a');
+        \\      a.href = `#${id}`;
+        \\      a.textContent = heading.textContent;
+        \\      a.className = `toc-${heading.tagName.toLowerCase()}`;
+        \\      
+        \\      li.appendChild(a);
+        \\      tocList.appendChild(li);
+        \\    });
+        \\  }
+        \\
+        \\  // Search functionality
+        \\  function initializeSearch() {
+        \\    const searchInput = document.getElementById('search-input');
+        \\    const searchResults = document.getElementById('search-results');
+        \\    
+        \\    if (!searchInput || !searchResults) return;
+        \\
+        \\    let searchData = [];
+        \\    
+        \\    // Load search index
+        \\    fetch('/generated/search_index.json')
+        \\      .then(response => response.json())
+        \\      .then(data => {
+        \\        searchData = data;
+        \\      })
+        \\      .catch(error => {
+        \\        console.warn('Search index not available:', error);
+        \\      });
+        \\
+        \\    let searchTimeout;
+        \\    searchInput.addEventListener('input', function() {
+        \\      clearTimeout(searchTimeout);
+        \\      const query = this.value.trim().toLowerCase();
+        \\      
+        \\      if (query.length < 2) {
+        \\        searchResults.classList.add('hidden');
+        \\        return;
+        \\      }
+        \\
+        \\      searchTimeout = setTimeout(() => {
+        \\        const results = searchData.filter(item => 
+        \\          item.title.toLowerCase().includes(query) || 
+        \\          item.excerpt.toLowerCase().includes(query)
+        \\        ).slice(0, 10);
+        \\
+        \\        displaySearchResults(results, query);
+        \\      }, 200);
+        \\    });
+        \\
+        \\    // Hide search results when clicking outside
+        \\    document.addEventListener('click', function(e) {
+        \\      if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+        \\        searchResults.classList.add('hidden');
+        \\      }
+        \\    });
+        \\  }
+        \\
+        \\  function displaySearchResults(results, query) {
+        \\    const searchResults = document.getElementById('search-results');
+        \\    if (!searchResults) return;
+        \\
+        \\    if (results.length === 0) {
+        \\      searchResults.innerHTML = '<div class="search-result-item">No results found</div>';
+        \\    } else {
+        \\      searchResults.innerHTML = results.map(result => 
+        \\        `<div class="search-result-item" onclick="navigateToPage('${result.file}')">
+        \\          <div class="search-result-title">${highlightText(result.title, query)}</div>
+        \\          <div class="search-result-excerpt">${highlightText(result.excerpt, query)}</div>
+        \\        </div>`
+        \\      ).join('');
+        \\    }
+        \\    
+        \\    searchResults.classList.remove('hidden');
+        \\  }
+        \\
+        \\  function highlightText(text, query) {
+        \\    if (!query) return text;
+        \\    const regex = new RegExp(`(${query})`, 'gi');
+        \\    return text.replace(regex, '<strong>$1</strong>');
+        \\  }
+        \\
+        \\  function navigateToPage(file) {
+        \\    window.location.href = `/${file}`;
+        \\  }
+        \\
+        \\  // Smooth scrolling for anchor links
+        \\  function initializeSmoothScrolling() {
+        \\    document.addEventListener('click', function(e) {
+        \\      if (e.target.tagName === 'A' && e.target.getAttribute('href').startsWith('#')) {
+        \\        e.preventDefault();
+        \\        const targetId = e.target.getAttribute('href').substring(1);
+        \\        const targetElement = document.getElementById(targetId);
+        \\        
+        \\        if (targetElement) {
+        \\          targetElement.scrollIntoView({
+        \\            behavior: 'smooth',
+        \\            block: 'start'
+        \\          });
+        \\          
+        \\          // Update URL without triggering navigation
+        \\          history.pushState(null, null, `#${targetId}`);
+        \\        }
+        \\      }
+        \\    });
+        \\  }
+        \\
+        \\  // Copy code functionality
+        \\  function addCopyButtons() {
+        \\    const codeBlocks = document.querySelectorAll('pre code');
+        \\    
+        \\    codeBlocks.forEach(function(codeBlock) {
+        \\      const pre = codeBlock.parentElement;
+        \\      const button = document.createElement('button');
+        \\      button.textContent = 'Copy';
+        \\      button.className = 'copy-button';
+        \\      button.style.cssText = `
+        \\        position: absolute;
+        \\        top: 8px;
+        \\        right: 8px;
+        \\        background: var(--color-canvas-subtle);
+        \\        border: 1px solid var(--color-border-default);
+        \\        border-radius: 4px;
+        \\        padding: 4px 8px;
+        \\        font-size: 12px;
+        \\        cursor: pointer;
+        \\        color: var(--color-fg-default);
+        \\      `;
+        \\      
+        \\      pre.style.position = 'relative';
+        \\      pre.appendChild(button);
+        \\      
+        \\      button.addEventListener('click', function() {
+        \\        navigator.clipboard.writeText(codeBlock.textContent).then(function() {
+        \\          button.textContent = 'Copied!';
+        \\          setTimeout(function() {
+        \\            button.textContent = 'Copy';
+        \\          }, 2000);
+        \\        });
+        \\      });
+        \\    });
+        \\  }
+        \\
+        \\  // Performance monitoring
+        \\  function trackPerformance() {
+        \\    if ('performance' in window) {
+        \\      window.addEventListener('load', function() {
+        \\        setTimeout(function() {
+        \\          const perfData = performance.getEntriesByType('navigation')[0];
+        \\          const loadTime = perfData.loadEventEnd - perfData.loadEventStart;
+        \\          
+        \\          if (loadTime > 0) {
+        \\            console.log(`Page load time: ${loadTime}ms`);
+        \\          }
+        \\        }, 0);
+        \\      });
+        \\    }
+        \\  }
+        \\
+        \\  // Initialize all functionality when DOM is ready
+        \\  function initialize() {
+        \\    generateTOC();
+        \\    initializeSearch();
+        \\    initializeSmoothScrolling();
+        \\    addCopyButtons();
+        \\    trackPerformance();
+        \\    
+        \\    // Add performance badges to relevant sections
+        \\    const performanceMarkers = document.querySelectorAll('code:contains("~"), code:contains("ms"), code:contains("μs")');
+        \\    performanceMarkers.forEach(function(marker) {
+        \\      if (marker.textContent.includes('~')) {
+        \\        const badge = document.createElement('span');
+        \\        badge.className = 'performance-badge';
+        \\        badge.textContent = 'PERF';
+        \\        marker.parentElement.insertBefore(badge, marker.nextSibling);
+        \\      }
+        \\    });
+        \\  }
+        \\
+        \\  // DOM ready check
+        \\  if (document.readyState === 'loading') {
+        \\    document.addEventListener('DOMContentLoaded', initialize);
+        \\  } else {
+        \\    initialize();
+        \\  }
+        \\
+        \\})();
+        \\
+    ;
+
+    try js_file.writeAll(js_content);
+
+    // Generate search JavaScript
+    const search_js_file = try std.fs.cwd().createFile("docs/assets/js/search.js", .{});
+    defer search_js_file.close();
+
+    const search_js_content =
+        \\// Advanced search functionality for GitHub Pages
+        \\(function() {
+        \\  'use strict';
+        \\
+        \\  let searchIndex = [];
+        \\  let searchWorker;
+        \\
+        \\  // Initialize search with web worker for better performance
+        \\  function initializeAdvancedSearch() {
+        \\    // Load search index
+        \\    fetch('/generated/search_index.json')
+        \\      .then(response => response.json())
+        \\      .then(data => {
+        \\        searchIndex = data;
+        \\        setupSearchInterface();
+        \\      })
+        \\      .catch(error => {
+        \\        console.warn('Search functionality unavailable:', error);
+        \\      });
+        \\  }
+        \\
+        \\  function setupSearchInterface() {
+        \\    const searchInput = document.getElementById('search-input');
+        \\    if (!searchInput) return;
+        \\
+        \\    // Add keyboard shortcuts
+        \\    document.addEventListener('keydown', function(e) {
+        \\      // Ctrl/Cmd + K to focus search
+        \\      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        \\        e.preventDefault();
+        \\        searchInput.focus();
+        \\        searchInput.select();
+        \\      }
+        \\      
+        \\      // Escape to clear search
+        \\      if (e.key === 'Escape' && document.activeElement === searchInput) {
+        \\        searchInput.value = '';
+        \\        hideSearchResults();
+        \\      }
+        \\    });
+        \\
+        \\    // Add search suggestions
+        \\    searchInput.addEventListener('focus', function() {
+        \\      if (this.value.trim() === '') {
+        \\        showSearchSuggestions();
+        \\      }
+        \\    });
+        \\  }
+        \\
+        \\  function showSearchSuggestions() {
+        \\    const suggestions = [
+        \\      'database API',
+        \\      'neural networks',
+        \\      'SIMD operations',
+        \\      'performance guide',
+        \\      'plugin system',
+        \\      'vector search',
+        \\      'machine learning'
+        \\    ];
+        \\
+        \\    const searchResults = document.getElementById('search-results');
+        \\    if (!searchResults) return;
+        \\
+        \\    searchResults.innerHTML = suggestions.map(suggestion =>
+        \\      `<div class="search-result-item suggestion" onclick="searchFor('${suggestion}')">
+        \\        <div class="search-result-title">💡 ${suggestion}</div>
+        \\        <div class="search-result-excerpt">Search suggestion</div>
+        \\      </div>`
+        \\    ).join('');
+        \\    
+        \\    searchResults.classList.remove('hidden');
+        \\  }
+        \\
+        \\  function searchFor(query) {
+        \\    const searchInput = document.getElementById('search-input');
+        \\    if (searchInput) {
+        \\      searchInput.value = query;
+        \\      searchInput.dispatchEvent(new Event('input'));
+        \\    }
+        \\  }
+        \\
+        \\  function hideSearchResults() {
+        \\    const searchResults = document.getElementById('search-results');
+        \\    if (searchResults) {
+        \\      searchResults.classList.add('hidden');
+        \\    }
+        \\  }
+        \\
+        \\  // Fuzzy search implementation
+        \\  function fuzzySearch(query, items) {
+        \\    const fuse = new Fuse(items, {
+        \\      keys: ['title', 'excerpt'],
+        \\      threshold: 0.4,
+        \\      distance: 100,
+        \\      includeScore: true
+        \\    });
+        \\    
+        \\    return fuse.search(query).map(result => result.item);
+        \\  }
+        \\
+        \\  // Initialize when DOM is ready
+        \\  if (document.readyState === 'loading') {
+        \\    document.addEventListener('DOMContentLoaded', initializeAdvancedSearch);
+        \\  } else {
+        \\    initializeAdvancedSearch();
+        \\  }
+        \\
+        \\})();
+        \\
+    ;
+
+    try search_js_file.writeAll(search_js_content);
 }
 
 /// Generate comprehensive module documentation
@@ -1847,477 +2987,94 @@ fn generateDefinitionsReference(_: std.mem.Allocator) !void {
     try file.writeAll(content);
 }
 
-// ===== New Code: Source scanner for public declarations =====
-const Declaration = struct {
-    name: []u8,
-    kind: []u8,
-    signature: []u8,
-    doc: []u8,
-};
-
-fn generateCodeApiIndex(allocator: std.mem.Allocator) !void {
-    // Use an arena for all temporary allocations in scanning to avoid leaks and simplify ownership
-    var arena = std.heap.ArenaAllocator.init(allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-
-    var files = std.ArrayListUnmanaged([]u8){};
-    defer files.deinit(a);
-
-    try collectZigFiles(a, "src", &files);
-
-    var out = try std.fs.cwd().createFile("docs/generated/CODE_API_INDEX.md", .{ .truncate = true });
-    defer out.close();
-
-    const writef = struct {
-        fn go(file: std.fs.File, alloc2: std.mem.Allocator, comptime fmt: []const u8, args: anytype) !void {
-            const s = try std.fmt.allocPrint(alloc2, fmt, args);
-            defer alloc2.free(s);
-            try file.writeAll(s);
-        }
-    }.go;
-
-    try writef(out, a, "# Code API Index (Scanned)\n\n", .{});
-    try writef(out, a, "Scanned {d} Zig files under `src/`. This index lists public declarations discovered along with leading doc comments.\n\n", .{files.items.len});
-
-    var decls = std.ArrayListUnmanaged(Declaration){};
-    defer decls.deinit(a);
-
-    for (files.items) |rel| {
-        decls.clearRetainingCapacity();
-        try scanFile(a, rel, &decls);
-        if (decls.items.len == 0) continue;
-
-        try writef(out, a, "## {s}\n\n", .{rel});
-        for (decls.items) |d| {
-            try writef(out, a, "- {s} `{s}`\n\n", .{ d.kind, d.name });
-            if (d.doc.len > 0) {
-                try writef(out, a, "{s}\n\n", .{d.doc});
-            }
-            if (d.signature.len > 0) {
-                try writef(out, a, "```zig\n{s}\n```\n\n", .{d.signature});
-            }
-        }
-    }
-}
-
-fn collectZigFiles(allocator: std.mem.Allocator, dir_path: []const u8, out_files: *std.ArrayListUnmanaged([]u8)) !void {
-    var stack = std.ArrayListUnmanaged([]u8){};
-    defer {
-        for (stack.items) |p| allocator.free(p);
-        stack.deinit(allocator);
-    }
-    try stack.append(allocator, try allocator.dupe(u8, dir_path));
-
-    while (stack.items.len > 0) {
-        const idx = stack.items.len - 1;
-        const path = stack.items[idx];
-        _ = stack.pop();
-        defer allocator.free(path);
-
-        var dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch continue;
-        defer dir.close();
-
-        var it = dir.iterate();
-        while (it.next() catch null) |entry| {
-            if (entry.kind == .file) {
-                if (std.mem.endsWith(u8, entry.name, ".zig")) {
-                    const rel = try std.fs.path.join(allocator, &[_][]const u8{ path, entry.name });
-                    try out_files.append(allocator, rel);
-                }
-            } else if (entry.kind == .directory) {
-                if (std.mem.eql(u8, entry.name, ".") or std.mem.eql(u8, entry.name, "..")) continue;
-                const sub = try std.fs.path.join(allocator, &[_][]const u8{ path, entry.name });
-                try stack.append(allocator, sub);
-            }
-        }
-    }
-}
-
-fn scanFile(allocator: std.mem.Allocator, rel_path: []const u8, decls: *std.ArrayListUnmanaged(Declaration)) !void {
-    const file = try std.fs.cwd().openFile(rel_path, .{});
+/// Generate GitHub Actions workflow for automated documentation deployment
+fn generateGitHubActionsWorkflow(allocator: std.mem.Allocator) !void {
+    _ = allocator;
+    const file = try std.fs.cwd().createFile(".github/workflows/deploy_docs.yml", .{});
     defer file.close();
 
-    const data = try file.readToEndAlloc(allocator, 1024 * 1024 * 4);
-    defer allocator.free(data);
-
-    var it = std.mem.splitScalar(u8, data, '\n');
-
-    var doc_buf = std.ArrayListUnmanaged(u8){};
-    defer doc_buf.deinit(allocator);
-
-    while (it.next()) |line| {
-        const trimmed = std.mem.trim(u8, line, " \t\r");
-        if (std.mem.startsWith(u8, trimmed, "///")) {
-            // accumulate doc lines
-            const doc_line = std.mem.trim(u8, trimmed[3..], " \t");
-            try doc_buf.appendSlice(allocator, doc_line);
-            try doc_buf.append(allocator, '\n');
-            continue;
-        }
-
-        // Identify public declarations after doc comments
-        if (isPubDecl(trimmed)) {
-            const kind = detectKind(trimmed);
-            const name = extractName(allocator, trimmed) catch {
-                // reset doc buffer and continue
-                doc_buf.clearRetainingCapacity();
-                continue;
-            };
-            const sig = try allocator.dupe(u8, trimmed);
-            const doc = try allocator.dupe(u8, doc_buf.items);
-            doc_buf.clearRetainingCapacity();
-
-            try decls.append(allocator, .{
-                .name = name,
-                .kind = try allocator.dupe(u8, kind),
-                .signature = sig,
-                .doc = doc,
-            });
-            continue;
-        } else {
-            // reset doc buffer if we encounter a non-doc, non-decl line
-            if (trimmed.len > 0 and !std.mem.startsWith(u8, trimmed, "//")) {
-                doc_buf.clearRetainingCapacity();
-            }
-        }
-    }
-}
-
-fn isPubDecl(line: []const u8) bool {
-    // consider pub fn/const/var/type usingnamespace
-    if (!std.mem.startsWith(u8, line, "pub ")) return false;
-    return std.mem.indexOfAny(u8, line[4..], "fctuv") != null // quick filter
-    or std.mem.startsWith(u8, line, "pub usingnamespace") or std.mem.indexOf(u8, line, " struct") != null or std.mem.indexOf(u8, line, " enum") != null;
-}
-
-fn detectKind(line: []const u8) []const u8 {
-    if (std.mem.startsWith(u8, line, "pub fn ")) return "fn";
-    if (std.mem.startsWith(u8, line, "pub const ")) {
-        if (std.mem.indexOf(u8, line, " struct") != null) return "type";
-        if (std.mem.indexOf(u8, line, " enum") != null) return "type";
-        return "const";
-    }
-    if (std.mem.startsWith(u8, line, "pub var ")) return "var";
-    if (std.mem.startsWith(u8, line, "pub usingnamespace")) return "usingnamespace";
-    return "pub";
-}
-
-fn extractName(allocator: std.mem.Allocator, line: []const u8) ![]u8 {
-    // naive name extraction: after `pub fn|const|var` read identifier
-    var rest: []const u8 = line;
-    if (std.mem.startsWith(u8, rest, "pub fn ")) rest = rest[7..] else if (std.mem.startsWith(u8, rest, "pub const ")) rest = rest[10..] else if (std.mem.startsWith(u8, rest, "pub var ")) rest = rest[8..] else if (std.mem.startsWith(u8, rest, "pub usingnamespace ")) rest = rest[18..] else if (std.mem.startsWith(u8, rest, "pub ")) rest = rest[4..];
-
-    // identifier: letters, digits, underscore
-    var i: usize = 0;
-    while (i < rest.len) : (i += 1) {
-        const c = rest[i];
-        const is_id = (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9') or (c == '_') or (c == '.');
-        if (!is_id) break;
-    }
-    const ident = std.mem.trim(u8, rest[0..i], " \t");
-    if (ident.len == 0) return error.Invalid;
-    return allocator.dupe(u8, ident);
-}
-
-fn generateSearchIndex(allocator: std.mem.Allocator) !void {
-    var arena = std.heap.ArenaAllocator.init(allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-
-    // Ensure output dir exists
-    try std.fs.cwd().makePath("docs/generated");
-
-    // Collect Markdown files in docs/generated
-    var dir = std.fs.cwd().openDir("docs/generated", .{ .iterate = true }) catch |err| switch (err) {
-        error.FileNotFound => return, // nothing to index yet
-        else => return err,
-    };
-    defer dir.close();
-
-    var files = std.ArrayListUnmanaged([]const u8){};
-    defer files.deinit(a);
-
-    var it = dir.iterate();
-    while (it.next() catch null) |entry| {
-        if (entry.kind == .file and std.mem.endsWith(u8, entry.name, ".md")) {
-            const rel = try std.fs.path.join(a, &[_][]const u8{ "generated", entry.name });
-            try files.append(a, rel);
-        }
-    }
-
-    var out = try std.fs.cwd().createFile("docs/generated/search_index.json", .{ .truncate = true });
-    defer out.close();
-
-    try out.writeAll("[\n");
-    var first = true;
-
-    for (files.items) |rel| {
-        const full = try std.fs.path.join(a, &[_][]const u8{ "docs", rel });
-        var title_buf: []const u8 = "";
-        var excerpt_buf: []const u8 = "";
-        getTitleAndExcerpt(a, full, &title_buf, &excerpt_buf) catch {
-            // Fallbacks
-            title_buf = std.fs.path.basename(rel);
-            excerpt_buf = "";
-        };
-
-        if (!first) {
-            try out.writeAll(",\n");
-        } else {
-            first = false;
-        }
-
-        try out.writeAll("  {\"file\": ");
-        try writeJsonString(out, rel);
-        try out.writeAll(", \"title\": ");
-        try writeJsonString(out, title_buf);
-        try out.writeAll(", \"excerpt\": ");
-        try writeJsonString(out, excerpt_buf);
-        try out.writeAll("}");
-    }
-
-    try out.writeAll("\n]\n");
-}
-
-fn getTitleAndExcerpt(allocator: std.mem.Allocator, path: []const u8, title_out: *[]const u8, excerpt_out: *[]const u8) !void {
-    const file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
-    const data = try file.readToEndAlloc(allocator, 1024 * 1024 * 4);
-    defer allocator.free(data);
-
-    var it = std.mem.splitScalar(u8, data, '\n');
-
-    var first_heading: ?[]const u8 = null;
-    var in_code = false;
-
-    var excerpt = std.ArrayListUnmanaged(u8){};
-    defer excerpt.deinit(allocator);
-
-    while (it.next()) |line| {
-        const trimmed = std.mem.trim(u8, line, " \t\r");
-        if (std.mem.startsWith(u8, trimmed, "```")) {
-            in_code = !in_code;
-            continue;
-        }
-        if (in_code) continue;
-
-        if (first_heading == null and std.mem.startsWith(u8, trimmed, "#")) {
-            var j: usize = 0;
-            while (j < trimmed.len and trimmed[j] == '#') j += 1;
-            const after = std.mem.trim(u8, trimmed[j..], " \t");
-            if (after.len > 0) first_heading = after;
-            continue;
-        }
-
-        if (trimmed.len == 0) continue;
-        if (trimmed[0] == '#') continue; // skip headings in excerpt
-        if (trimmed[0] == '|') continue; // skip tables
-
-        // Append to excerpt up to ~300 chars
-        if (excerpt.items.len > 0) try excerpt.append(allocator, ' ');
-        var k: usize = 0;
-        while (k < trimmed.len and excerpt.items.len < 300) : (k += 1) {
-            const c = trimmed[k];
-            if (c == '`') continue;
-            try excerpt.append(allocator, c);
-        }
-        if (excerpt.items.len >= 300) break;
-    }
-
-    if (first_heading) |h| {
-        title_out.* = try allocator.dupe(u8, h);
-    } else {
-        const base = std.fs.path.basename(path);
-        title_out.* = try allocator.dupe(u8, base);
-    }
-    excerpt_out.* = try allocator.dupe(u8, excerpt.items);
-}
-
-fn writeJsonString(out: std.fs.File, s: []const u8) !void {
-    try out.writeAll("\"");
-    var i: usize = 0;
-    while (i < s.len) : (i += 1) {
-        const c = s[i];
-        switch (c) {
-            '\\' => try out.writeAll("\\\\"),
-            '"' => try out.writeAll("\\\""),
-            '\n' => try out.writeAll("\\n"),
-            '\r' => try out.writeAll("\\r"),
-            '\t' => try out.writeAll("\\t"),
-            else => {
-                var buf: [1]u8 = .{c};
-                try out.writeAll(buf[0..1]);
-            },
-        }
-    }
-    try out.writeAll("\"");
-}
-
-fn generateDocsIndexHtml(_: std.mem.Allocator) !void {
-    // Write a GitHub Pages friendly index.html that renders docs/generated/*.md client-side
-    try std.fs.cwd().makePath("docs");
-    var out = try std.fs.cwd().createFile("docs/index.html", .{ .truncate = true });
-    defer out.close();
-
-    const html =
-        \\<!DOCTYPE html>
-        \\<html lang="en">
-        \\<head>
-        \\  <meta charset="UTF-8" />
-        \\  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        \\  <title>ABI Documentation</title>
-        \\  <style>
-        \\    body {
-        \\      margin: 0;
-        \\      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-        \\      color-scheme: light dark;
-        \\      --bg: #0b0d10;
-        \\      --fg: #e6edf3;
-        \\      --muted: #9aa4b2;
-        \\      --accent: #5eb1ff;
-        \\      --panel: #111418;
-        \\      background: var(--bg);
-        \\      color: var(--fg);
-        \\      display: grid;
-        \\      grid-template-columns: 320px 1fr;
-        \\      height: 100svh;
-        \\      overflow: hidden;
-        \\    }
+    const content =
+        \\name: Deploy Documentation to GitHub Pages
         \\
-        \\    aside {
-        \\      background: var(--panel);
-        \\      border-right: 1px solid #1f2328;
-        \\      display: flex;
-        \\      flex-direction: column;
-        \\      padding: 16px;
-        \\      overflow: hidden;
-        \\    }
+        \\on:
+        \\  push:
+        \\    branches: [main, master]
+        \\    paths:
+        \\      - 'src/**'
+        \\      - 'docs/**'
+        \\      - 'tools/docs_generator.zig'
+        \\      - '.github/workflows/deploy_docs.yml'
+        \\  pull_request:
+        \\    branches: [main, master]
+        \\    paths:
+        \\      - 'src/**'
+        \\      - 'docs/**'
+        \\      - 'tools/docs_generator.zig'
+        \\  workflow_dispatch:
         \\
-        \\    main {
-        \\      overflow: auto;
-        \\      padding: 24px 32px;
-        \\    }
+        \\permissions:
+        \\  contents: read
+        \\  pages: write
+        \\  id-token: write
         \\
-        \\    #brand { font-weight: 700; letter-spacing: 0.2px; margin-bottom: 8px; }
-        \\    #desc { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
-        \\    #search { padding: 10px 12px; border-radius: 8px; border: 1px solid #2a2f36; background: #0f1216; color: var(--fg); outline: none; width: 100%; box-sizing: border-box; }
-        \\    #nav { overflow: auto; margin-top: 12px; padding-right: 6px; }
-        \\    .nav-item { padding: 10px 8px; border-radius: 8px; }
-        \\    .nav-item:hover { background: rgba(94, 177, 255, 0.12); }
-        \\    .nav-item a { color: var(--fg); text-decoration: none; font-weight: 600; }
-        \\    .nav-excerpt { color: var(--muted); font-size: 12px; margin-top: 4px; line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+        \\# Allow only one concurrent deployment
+        \\concurrency:
+        \\  group: "pages"
+        \\  cancel-in-progress: false
         \\
-        \\    /* Content styling */
-        \\    #content { max-width: 1100px; margin: 0 auto; line-height: 1.6; }
-        \\    #content h1, #content h2, #content h3 { margin-top: 26px; scroll-margin-top: 80px; }
-        \\    #content pre { background: #0f1216; padding: 14px; border-radius: 8px; overflow: auto; }
-        \\    #content code { background: #0f1216; padding: 2px 4px; border-radius: 4px; }
-        \\    #content a { color: var(--accent); }
-        \\    #topbar { display: flex; align-items: center; justify-content: space-between; }
-        \\    #topbar .right { display: flex; gap: 8px; align-items: center; }
-        \\    button.small { background: #0f1216; border: 1px solid #2a2f36; color: var(--fg); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
-        \\    button.small:hover { border-color: var(--accent); }
-        \\  </style>
-        \\</head>
-        \\<body>
-        \\  <aside>
-        \\    <div id="brand">ABI Docs</div>
-        \\    <div id="desc">Search and browse documentation generated from the codebase.</div>
-        \\    <input id="search" type="search" placeholder="Search docs..." />
-        \\    <div id="nav"></div>
-        \\  </aside>
-        \\  <main>
-        \\    <div id="topbar">
-        \\      <div></div>
-        \\      <div class="right">
-        \\        <button class="small" id="open_md">Open in raw Markdown</button>
-        \\      </div>
-        \\    </div>
-        \\    <div id="content"></div>
-        \\  </main>
-        \\  <script>
-        \\  async function fetchJSON(p) { const r = await fetch(p); return await r.json(); }
-        \\  async function fetchText(p) { const r = await fetch(p); return await r.text(); }
-        \\  function escapeHTML(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-        \\  function mdToHtml(md) {
-        \\    const lines = md.split('\\n');
-        \\    let html = '';
-        \\    let inCode = false; let codeLang = '';
-        \\    for (let i=0;i<lines.length;i++){
-        \\      let line = lines[i];
-        \\      if (line.startsWith('```')) {
-        \\        if (!inCode) { inCode = true; codeLang = line.slice(3).trim(); html += '<pre><code class="lang-'+escapeHTML(codeLang)+'">'; }
-        \\        else { inCode = false; html += '</code></pre>'; }
-        \\        continue;
-        \\      }
-        \\      if (inCode) { html += escapeHTML(line)+'\\n'; continue; }
-        \\      if (line.startsWith('#')) {
-        \\        const m = line.match(/^#+/); const level = m ? m[0].length : 1;
-        \\        const text = line.slice(level).trim();
-        \\        const id = text.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-        \\        html += `<h${level} id="${id}">${inline(text)}</h${level}>`;
-        \\        continue;
-        \\      }
-        \\      if (/^\\s*[-*] /.test(line)) {
-        \\        let items = []; let j=i;
-        \\        while (j<lines.length && /^\\s*[-*] /.test(lines[j])) { items.push(lines[j].replace(/^\\s*[-*] /,'')); j++; }
-        \\        html += '<ul>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ul>';
-        \\        i = j-1; continue;
-        \\      }
-        \\      if (/^\\s*[0-9]+\\. /.test(line)) {
-        \\        let items=[]; let j=i;
-        \\        while (j<lines.length && /^\\s*[0-9]+\\. /.test(lines[j])) { items.push(lines[j].replace(/^\\s*[0-9]+\\. /,'')); j++; }
-        \\        html += '<ol>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ol>';
-        \\        i = j-1; continue;
-        \\      }
-        \\      if (line.trim() === '') { html += ''; continue; }
-        \\      html += `<p>${inline(line)}</p>`;
-        \\    }
-        \\    return html;
-        \\    function inline(t) {
-        \\      t = t.replace(/`([^`]+)`/g,'<code>$1</code>');
-        \\      t = t.replace(/\\*\\*([^*]+)\\*\\*/g,'<strong>$1</strong>');
-        \\      t = t.replace(/\\*([^*]+)\\*/g,'<em>$1</em>');
-        \\      t = t.replace(/\\!\\[([^\\]]*)\\]\\(([^)]+)\\)/g,'<img alt="$1" src="$2" />');
-        \\      t = t.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g,(m,txt,url) => {\n        \\        if (url.startsWith('http') || url.startsWith('mailto:') || url.startsWith('#')) return `<a href=\"${url}\" target=\"_blank\" rel=\"noopener\">${txt}</a>`;\n        \\        if (url.endsWith('.md')) return `<a href=\"#${url}\" onclick=\"loadDoc('${url}'); return false;\">${txt}</a>`;\n        \\        return `<a href=\"${url}\" target=\"_blank\" rel=\"noopener\">${txt}</a>`;\n        \\      });
-        \\      return t;
-        \\    }
-        \\  }
-        \\  let searchData = [];
-        \\  let currentPath = '';
-        \\  async function init(){
-        \\    try { searchData = await fetchJSON('generated/search_index.json'); } catch(e){ console.error('search index', e); }
-        \\    renderNav(searchData);
-        \\    const initial = location.hash ? decodeURIComponent(location.hash.slice(1)) : (searchData[0]?.file || 'generated/API_REFERENCE.md');
-        \\    loadDoc(initial);
-        \\    document.getElementById('search').addEventListener('input', (e) => {
-        \\      const q = e.target.value.toLowerCase();
-        \\      const results = searchData.filter(it => it.title.toLowerCase().includes(q) || it.excerpt.toLowerCase().includes(q));
-        \\      renderNav(results);
-        \\    });
-        \\    document.getElementById('open_md').addEventListener('click', () => { if (currentPath) window.open(currentPath, '_blank'); });
-        \\  }
-        \\  async function loadDoc(path){
-        \\    currentPath = path;
-        \\    location.hash = encodeURIComponent(path);
-        \\    const md = await fetchText(path);
-        \\    document.getElementById('content').innerHTML = mdToHtml(md);
-        \\    window.scrollTo(0,0);
-        \\  }
-        \\  function renderNav(list){
-        \\    const nav = document.getElementById('nav');
-        \\    nav.innerHTML = list.map(it => `<div class="nav-item"><a href="#${encodeURIComponent(it.file)}" onclick="loadDoc('${it.file}'); return false;">${it.title}</a><div class="nav-excerpt">${escapeHTML(it.excerpt)}</div></div>`).join('');
-        \\  }
-        \\  window.addEventListener('hashchange', () => {
-        \\    const p = decodeURIComponent(location.hash.slice(1));
-        \\    if (p) loadDoc(p);
-        \\  });
-        \\  init();
-        \\  </script>
-        \\</body>
-        \\</html>
+        \\jobs:
+        \\  # Build documentation
+        \\  build:
+        \\    runs-on: ubuntu-latest
+        \\    steps:
+        \\      - name: Checkout repository
+        \\        uses: actions/checkout@v4
+        \\        with:
+        \\          fetch-depth: 0
+        \\
+        \\      - name: Setup Zig
+        \\        uses: goto-bus-stop/setup-zig@v2
+        \\        with:
+        \\          version: 0.12.0
+        \\
+        \\      - name: Cache Zig dependencies
+        \\        uses: actions/cache@v3
+        \\        with:
+        \\          path: |
+        \\            ~/.cache/zig
+        \\            zig-cache
+        \\          key: ${{ runner.os }}-zig-${{ hashFiles('build.zig.zon') }}
+        \\          restore-keys: |
+        \\            ${{ runner.os }}-zig-
+        \\
+        \\      - name: Build project
+        \\        run: zig build
+        \\
+        \\      - name: Generate documentation
+        \\        run: zig run tools/docs_generator.zig
+        \\
+        \\      - name: Setup Pages
+        \\        uses: actions/configure-pages@v3
+        \\
+        \\      - name: Upload artifact
+        \\        uses: actions/upload-pages-artifact@v2
+        \\        with:
+        \\          path: './docs'
+        \\
+        \\  # Deploy to GitHub Pages
+        \\  deploy:
+        \\    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        \\    environment:
+        \\      name: github-pages
+        \\      url: ${{ steps.deployment.outputs.page_url }}
+        \\    runs-on: ubuntu-latest
+        \\    needs: build
+        \\    steps:
+        \\      - name: Deploy to GitHub Pages
+        \\        id: deployment
+        \\        uses: actions/deploy-pages@v2
+        \\
     ;
 
-    try out.writeAll(html);
+    try file.writeAll(content);
 }
