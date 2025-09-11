@@ -43,6 +43,21 @@ pub fn main() !void {
     abi.simd.normalize(r, a);
     const norm_ns = timer.read();
 
+    // clamp
+    timer.reset();
+    abi.simd.clamp(r, a, -10.0, 10.0);
+    const clamp_ns = timer.read();
+
+    // axpy: y = a*x + y (in-place on r)
+    timer.reset();
+    abi.simd.axpy(r, 0.5, a);
+    const axpy_ns = timer.read();
+
+    // fma: r = a*b + r
+    timer.reset();
+    abi.simd.fma(r, a, b, r);
+    const fma_ns = timer.read();
+
     // sum/mean/variance/stddev
     timer.reset();
     const sum_val = abi.simd.sum(a);
@@ -79,5 +94,6 @@ pub fn main() !void {
     abi.simd.matrixMultiply(mat_r, mat_a, mat_b, M, K, Ncol);
     const mm_ns = timer.read();
 
-    std.debug.print("SIMD micro (N={d})\n  add={d}ns mul={d}ns scale={d}ns norm={d}ns\n  sum={d}ns sum_val={d:.3} mean={d:.3} var={d:.3} (var_ns={d}ns) stddev={d:.3}\n  dot={d}ns dot_val={d:.3} l1={d}ns l1_val={d:.3}\n  mm(256x64 * 64x64)={d}ns\n", .{ N, add_ns, mul_ns, scale_ns, norm_ns, sum_ns, sum_val, mean_val, var_val, var_ns, stddev_val, dot_ns, dot, l1_ns, l1, mm_ns });
+    std.debug.print("SIMD micro (N={d})\n  add={d}ns mul={d}ns scale={d}ns norm={d}ns clamp={d}ns axpy={d}ns fma={d}ns\n  sum={d}ns sum_val={d:.3} mean={d:.3} var={d:.3} (var_ns={d}ns) stddev={d:.3}\n  dot={d}ns dot_val={d:.3} l1={d}ns l1_val={d:.3}\n  mm(256x64 * 64x64)={d}ns\n", .{ N, add_ns, mul_ns, scale_ns, norm_ns, clamp_ns, axpy_ns, fma_ns, sum_ns, sum_val, mean_val, var_val, var_ns, stddev_val, dot_ns, dot, l1_ns, l1, mm_ns });
 }
+

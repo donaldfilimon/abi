@@ -1,3 +1,9 @@
+---
+layout: documentation
+title: "API Reference"
+description: "Complete API reference for WDBX-AI with detailed function documentation"
+---
+
 # WDBX-AI API Reference
 
 ## 🗄️ Database API

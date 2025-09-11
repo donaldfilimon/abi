@@ -4554,6 +4554,12 @@ pub fn deinit(self: *WeatherData, allocator: std.mem.Allocator) void {
 pub const WeatherConfig = struct {
 ```
 
+- fn `fromEnv`
+
+```zig
+pub fn fromEnv(allocator: std.mem.Allocator, base: WeatherConfig) WeatherConfig {
+```
+
 - type `WeatherService`
 
 ```zig

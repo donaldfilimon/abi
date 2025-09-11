@@ -1,3 +1,9 @@
+---
+layout: documentation
+title: "Performance Guide"
+description: "Comprehensive performance optimization guide with benchmarks and best practices"
+---
+
 # WDBX-AI Performance Guide
 
 ## 🚀 Performance Characteristics
