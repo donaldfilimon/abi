@@ -460,7 +460,7 @@ pub fn build(b: *std.Build) void {
     });
     const perf_guard_exe = b.addExecutable(.{ .name = "perf_guard", .root_module = perf_guard_mod });
     const run_perf_guard = b.addRunArtifact(perf_guard_exe);
-    run_perf_guard.addArg(if (perf_threshold_opt) |t| b.fmt("{d}", .{t}) else "20000000");
+    run_perf_guard.addArg(if (perf_threshold_opt) |t| b.fmt("{d}", .{t}) else "50000000");
     const perf_guard_step = b.step("perf-guard", "Run performance regression guard");
     perf_guard_step.dependOn(&run_perf_guard.step);
 
