@@ -1,0 +1,177 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify build
+        run: |
+          zig version
+          zig build
+          zig build test-all
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Extract changelog for this version
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          if [ -f "CHANGELOG.md" ]; then
+            # Extract the section for this version
+            awk "/^## \[$VERSION\]/{flag=1;next}/^## \[/{flag=0}flag" CHANGELOG.md > release_notes.md
+          else
+            echo "No changelog found" > release_notes.md
+          fi
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          release_name: Release ${{ steps.version.outputs.VERSION }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
+
+  build-binaries:
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            ext: ""
+          - os: windows-latest
+            platform: windows
+            ext: ".exe"
+          - os: macos-latest
+            platform: macos
+            ext: ""
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Build release binary
+        run: |
+          zig build -Doptimize=ReleaseFast
+          mkdir -p release
+          cp zig-out/bin/abi${{ matrix.ext }} release/abi-${{ matrix.platform }}${{ matrix.ext }}
+
+      - name: Upload to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./release/abi-${{ matrix.platform }}${{ matrix.ext }}
+          asset_name: abi-${{ matrix.platform }}${{ matrix.ext }}
+          asset_content_type: application/octet-stream
+
+  build-cross-targets:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Build cross-target binaries
+        run: |
+          zig build cross-platform
+          mkdir -p release-cross
+          
+          # Copy cross-compiled binaries
+          find zig-out/cross -name "abi-*" -executable -type f | while read binary; do
+            filename=$(basename "$binary")
+            cp "$binary" "release-cross/$filename"
+          done
+
+      - name: Create cross-target archive
+        run: |
+          cd release-cross
+          tar -czf ../abi-cross-targets.tar.gz *
+          cd ..
+
+      - name: Upload cross-targets to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./abi-cross-targets.tar.gz
+          asset_name: abi-cross-targets.tar.gz
+          asset_content_type: application/gzip
+
+  update-version:
+    needs: [create-release, build-binaries, build-cross-targets]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update version in build.zig.zon
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          # Remove 'v' prefix if present
+          VERSION_NUMBER=${VERSION#v}
+          
+          # Update build.zig.zon
+          sed -i "s/\.version = \".*\"/\.version = \"$VERSION_NUMBER\"/" build.zig.zon
+          
+          # Commit and push
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add build.zig.zon
+          git commit -m "chore: bump version to $VERSION_NUMBER" || exit 0
+          git push

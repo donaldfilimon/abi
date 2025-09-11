@@ -37,31 +37,48 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Zig
-        uses: goto-bus-stop/setup-zig@v2
+        uses: mlugg/setup-zig@v2
         with:
-          version: 0.12.0
+          version: 0.15.1
 
       - name: Cache Zig dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/zig
             zig-cache
-          key: ${{ runner.os }}-zig-${{ hashFiles('build.zig.zon') }}
+            zig-out
+          key: ${{ runner.os }}-zig-${{ hashFiles('build.zig.zon', 'build.zig') }}
           restore-keys: |
             ${{ runner.os }}-zig-
 
-      - name: Build project
-        run: zig build
+      - name: Verify build system
+        run: |
+          zig version
+          zig build --help | head -20
 
-      - name: Generate documentation
-        run: zig run tools/docs_generator.zig
+      - name: Run tests before building docs
+        run: zig build test-all
+        continue-on-error: false
+
+      - name: Build project and generate documentation
+        run: |
+          echo "Building project..."
+          zig build
+          echo "Generating documentation..."
+          zig build docs
+
+      - name: Verify documentation generation
+        run: |
+          ls -la docs/
+          test -f docs/index.html || echo "Warning: index.html not found"
+          test -f docs/.nojekyll || echo "Warning: .nojekyll not found"
 
       - name: Setup Pages
-        uses: actions/configure-pages@v3
+        uses: actions/configure-pages@v4
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
           path: './docs'
 
@@ -76,4 +93,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2
+        uses: actions/deploy-pages@v4
