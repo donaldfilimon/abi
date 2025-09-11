@@ -131,6 +131,7 @@ pub const StaticAnalyzer = struct {
     arena: std.heap.ArenaAllocator,
     findings: std.ArrayListUnmanaged(Finding),
     config: AnalysisConfig,
+    allowed_secret_substrings: []const []const u8 = &.{},
 
     // Analysis state
     total_lines: usize,
@@ -142,7 +143,7 @@ pub const StaticAnalyzer = struct {
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator, config: AnalysisConfig) Self {
-        return .{
+        var self: Self = .{
             .allocator = allocator,
             .arena = std.heap.ArenaAllocator.init(allocator),
             .findings = .{},
@@ -153,6 +154,8 @@ pub const StaticAnalyzer = struct {
             .performance_issues = 0,
             .security_issues = 0,
         };
+        loadOverrides(&self) catch {};
+        return self;
     }
 
     pub fn deinit(self: *Self) void {
@@ -300,7 +303,13 @@ pub const StaticAnalyzer = struct {
             const is_loglevel = std.mem.indexOf(u8, line_lower, "std.debug.print") != null or std.mem.indexOf(u8, line_lower, "std.log.") != null;
             const is_header_construction = std.mem.indexOf(u8, line_lower, "authorization") != null or std.mem.indexOf(u8, line_lower, "bearer ") != null;
             const is_metadata_field = std.mem.indexOf(u8, line_lower, ".author") != null or std.mem.indexOf(u8, line_lower, ".description") != null;
-            if (has_pattern and is_assignment and !is_comment and !is_loglevel and !is_header_construction and !is_metadata_field) {
+            var is_allowed = false;
+            if (has_pattern and self.allowed_secret_substrings.len > 0) {
+                for (self.allowed_secret_substrings) |allowed| {
+                    if (std.mem.indexOf(u8, line_lower, allowed) != null) { is_allowed = true; break; }
+                }
+            }
+            if (has_pattern and is_assignment and !is_comment and !is_loglevel and !is_header_construction and !is_metadata_field and !is_allowed) {
                 const severity: Severity = if (std.mem.indexOf(u8, line, "\"") != null) .critical else .err;
                 try self.addFinding(file_path, line_number, 1, severity, "Potential hardcoded credential", "security.hardcoded_secrets", line, "Use environment variables or secure configuration management", 0.9);
                 break;
@@ -745,6 +754,54 @@ pub const StaticAnalyzer = struct {
         }
     }
 };
+
+fn fileExists(path: []const u8) bool {
+    _ = std.fs.cwd().access(path, .{}) catch return false;
+    return true;
+}
+
+fn readFileAlloc(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
+    var f = try std.fs.cwd().openFile(path, .{});
+    defer f.close();
+    const st = try f.stat();
+    const buf = try allocator.alloc(u8, @intCast(st.size));
+    _ = try f.readAll(buf);
+    return buf;
+}
+
+fn lowerStrings(arena: std.mem.Allocator, in: []const []const u8) ![]const []const u8 {
+    var out = try arena.alloc([]const u8, in.len);
+    for (in, 0..) |v, i| {
+        const copy = try arena.alloc(u8, v.len);
+        @memcpy(copy, v);
+        _ = std.ascii.lowerString(copy, copy);
+        out[i] = copy;
+    }
+    return out;
+}
+
+fn parseOverrides(arena: std.mem.Allocator, data: []const u8) ![]const []const u8 {
+    var parsed = try std.json.parseFromSlice(std.json.Value, arena, data, .{});
+    defer parsed.deinit();
+    const root = parsed.value;
+    if (root == .object) {
+        if (root.object.get("allow_secret_substrings")) |ptr| {
+            const arr = ptr.array.items;
+            var out = try arena.alloc([]const u8, arr.len);
+            for (arr, 0..) |item, i| out[i] = item.string;
+            return try lowerStrings(arena, out);
+        }
+    }
+    return &.{};
+}
+
+fn loadOverrides(self: *StaticAnalyzer) !void {
+    const path = "tools/static_analysis.config.json";
+    if (!fileExists(path)) return;
+    const arena_alloc = self.arena.allocator();
+    const bytes = try readFileAlloc(arena_alloc, path);
+    self.allowed_secret_substrings = try parseOverrides(arena_alloc, bytes);
+}
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

@@ -564,8 +564,10 @@ fn runWeatherCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
             std.debug.print("weather ingest requires --db, --apikey and --city\n", .{});
             return;
         }
-        // Fetch weather
-        var svc = try abi.WeatherService.init(allocator, .{ .api_key = api_key.?, .units = units });
+        // Fetch weather (honor env overrides for timeouts/max bytes)
+        const base_cfg = abi.WeatherConfig{ .api_key = api_key.?, .units = units };
+        const cfg = abi.WeatherConfig.fromEnv(allocator, base_cfg);
+        var svc = try abi.WeatherService.init(allocator, cfg);
         defer svc.deinit();
         var wd = try svc.getCurrentWeather(city.?);
         defer wd.deinit(allocator);

@@ -1,0 +1,24 @@
+{
+  "timestamp": 1757549680018,
+  "test_duration_ms": 5,
+  "git_commit": "ece8840",
+  "platform": "windows-x86_64",
+  "performance": {
+    "avg_insert_time_ns": 70,
+    "avg_search_time_ns": 94,
+    "p50_search_time_ns": 100,
+    "p95_search_time_ns": 100,
+    "p99_search_time_ns": 200,
+    "std_dev_search_time_ns": 33.83,
+    "insert_qps": 11782726.52,
+    "search_qps": 8190008.19,
+    "coefficient_of_variation": 0.3599,
+    "stability_score": 64.0
+  },
+  "resources": {
+    "peak_memory_mb": 276,
+    "avg_memory_mb": 252,
+    "avg_cpu_percent": 59.0,
+    "cache_hit_rate": 87.00
+  }
+}
