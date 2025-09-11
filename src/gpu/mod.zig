@@ -24,6 +24,7 @@ const gpu_enabled = @import("root").abi.gpu;
 
 // Import and re-export from organized submodules
 pub const core = @import("core/mod.zig");
+pub const unified_memory = @import("unified_memory.zig");
 
 // Direct exports for backward compatibility with tests
 pub const GPURenderer = core.GPURenderer;
@@ -52,6 +53,12 @@ pub const PowerPreference = core.PowerPreference;
 pub const has_webgpu_support = core.has_webgpu_support;
 pub const Color = core.Color;
 pub const GPUHandle = core.GPUHandle;
+
+// Unified Memory exports
+pub const UnifiedMemoryManager = unified_memory.UnifiedMemoryManager;
+pub const UnifiedMemoryType = unified_memory.UnifiedMemoryType;
+pub const UnifiedMemoryConfig = unified_memory.UnifiedMemoryConfig;
+pub const UnifiedBuffer = unified_memory.UnifiedBuffer;
 
 // Convenience functions
 pub const initDefault = core.initDefault;

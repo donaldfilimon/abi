@@ -17,6 +17,15 @@ pub fn main() !void {
     std.log.info("🚀 GPU Backend Manager Demo", .{});
     std.log.info("============================", .{});
 
+    // Initialize Unified Memory Manager
+    std.log.info("🔧 Initializing Unified Memory Manager...", .{});
+    var unified_memory_manager = gpu.UnifiedMemoryManager.init(allocator) catch |err| {
+        std.log.warn("❌ Unified Memory Manager initialization failed: {}", .{err});
+        std.log.info("🔄 Continuing with standard memory management", .{});
+        return demoStandardMode(allocator);
+    };
+    defer unified_memory_manager.deinit();
+
     // Initialize GPU renderer with fallback configuration
     const config = gpu.GPUConfig{
         .debug_validation = false,
@@ -34,6 +43,35 @@ pub fn main() !void {
     defer renderer.deinit();
 
     std.log.info("✅ GPU renderer initialized successfully", .{});
+
+    // Test unified memory capabilities
+    std.log.info("🧠 Testing unified memory capabilities...", .{});
+
+    // Create unified memory buffer
+    const unified_buffer_size = 1024 * 1024; // 1MB
+    if (gpu.UnifiedBuffer.create(&unified_memory_manager, unified_buffer_size)) |unified_buffer| {
+        defer unified_buffer.destroy();
+
+        std.log.info("✅ Unified buffer created ({} bytes)", .{unified_buffer_size});
+
+        // Test zero-copy operations
+        if (unified_buffer.isGpuAccessible()) {
+            std.log.info("🔄 Zero-copy GPU access available", .{});
+            std.log.info("✅ Unified memory buffer ready for GPU operations", .{});
+        } else {
+            std.log.info("⚠️  Standard memory buffer (GPU access limited)", .{});
+        }
+
+        // Get performance characteristics
+        const perf_info = unified_memory_manager.getPerformanceInfo();
+        std.log.info("📊 Unified Memory Performance:", .{});
+        std.log.info("  - Bandwidth: {} MB/s", .{perf_info.bandwidth});
+        std.log.info("  - Latency: {} ns", .{perf_info.latency});
+        std.log.info("  - Efficiency: {d:.1}%", .{perf_info.efficiency * 100});
+    } else |err| {
+        std.log.warn("❌ Unified buffer creation failed: {}", .{err});
+        std.log.info("🔄 Continuing with standard buffer operations", .{});
+    }
 
     // Test basic GPU functionality
     std.log.info("🧪 Testing GPU functionality...", .{});
@@ -182,6 +220,7 @@ pub fn main() !void {
     std.log.info("  - Data integrity: ✅ Verified", .{});
     std.log.info("  - Average performance: {d:.2} MB/s", .{avg_throughput / (1024 * 1024)});
     std.log.info("  - Multi-GPU support: ✅ {} devices detected", .{simulated_gpus.len});
+    std.log.info("  - Unified memory: ✅ {} architecture", .{unified_memory_manager.config.memory_type});
 }
 
 fn demoCpuMode(allocator: std.mem.Allocator) !void {
@@ -209,4 +248,39 @@ fn demoCpuMode(allocator: std.mem.Allocator) !void {
     std.log.info("  - Sum of squares: {d:.2}", .{sum});
 
     std.log.info("🎉 CPU Fallback Demo Complete!", .{});
+}
+
+fn demoStandardMode(allocator: std.mem.Allocator) !void {
+    std.log.info("🔧 Standard Memory Mode Demo", .{});
+    std.log.info("=============================", .{});
+
+    // Initialize GPU renderer with fallback configuration
+    const config = gpu.GPUConfig{
+        .debug_validation = false,
+        .power_preference = .high_performance,
+        .backend = .auto,
+        .try_webgpu_first = false,
+    };
+
+    std.log.info("🔧 Initializing GPU renderer...", .{});
+    var renderer = gpu.GPURenderer.init(allocator, config) catch |err| {
+        std.log.warn("❌ GPU renderer initialization failed: {}", .{err});
+        std.log.info("🔄 Falling back to CPU mode", .{});
+        return demoCpuMode(allocator);
+    };
+    defer renderer.deinit();
+
+    std.log.info("✅ GPU renderer initialized successfully", .{});
+    std.log.info("⚠️  Using standard memory management (no unified memory)", .{});
+
+    // Test basic functionality
+    const buffer_size = 1024 * 1024; // 1MB
+    const buffer = renderer.createBuffer(buffer_size, .{ .storage = true, .copy_dst = true }) catch |err| {
+        std.log.warn("❌ Buffer creation failed: {}", .{err});
+        return demoCpuMode(allocator);
+    };
+    defer renderer.destroyBuffer(buffer) catch {};
+
+    std.log.info("✅ Standard GPU buffer created ({} bytes)", .{buffer_size});
+    std.log.info("🎉 Standard Mode Demo Complete!", .{});
 }
