@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ABI Documentation - Jekyll Configuration
 title: "ABI Documentation"
 description: "High-performance vector database with AI capabilities"
@@ -46,6 +47,13 @@ social:
   type: "Organization"
   links:
     - "https://github.com/donaldfilimon/abi"
+=======
+title: "ABI - Advanced AI Framework"
+description: "High-performance AI and vector database framework with GPU acceleration"
+baseurl: "https://donaldfilimon.github.io/abi/"
+url: "https://donaldfilimon.github.io/abi/#"
+repository: "donaldfilimon/abi"
+>>>>>>> 22930ef5fac9fca4506bdc2d5b13b1237055c07c
 
 # Build settings
 markdown: kramdown
@@ -80,6 +88,7 @@ collections:
     output: true
     permalink: /:collection/:name/
 
+<<<<<<< HEAD
 # Defaults
 defaults:
   - scope:
@@ -88,3 +97,38 @@ defaults:
     values:
       layout: "documentation"
       sitemap: true
+=======
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor/
+  - .bundle/
+  - .sass-cache/
+  - .jekyll-cache/
+  - gemfiles/
+
+# Include files
+include:
+  - _pages
+  - _data
+  - _layouts
+  - assets
+  - generated
+  - zig-docs
+
+# Navigation
+navigation:
+  - title: "Home"
+    url: "/"
+  - title: "Getting Started"
+    url: "/getting-started/"
+  - title: "API Reference"
+    url: "/api/"
+  - title: "Examples"
+    url: "/examples/"
+  - title: "Performance"
+    url: "/performance/"
+  - title: "Contributing"
+    url: "/contributing/"
+>>>>>>> 22930ef5fac9fca4506bdc2d5b13b1237055c07c
