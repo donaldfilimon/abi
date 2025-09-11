@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -37,119 +36,27 @@
       padding: 24px 32px;
     }
 
-    #brand {
-      font-weight: 700;
-      letter-spacing: 0.2px;
-      margin-bottom: 8px;
-    }
-
-    #desc {
-      color: var(--muted);
-      font-size: 13px;
-      margin-bottom: 12px;
-    }
-
-    #search {
-      padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px solid #2a2f36;
-      background: #0f1216;
-      color: var(--fg);
-      outline: none;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    #nav {
-      overflow: auto;
-      margin-top: 12px;
-      padding-right: 6px;
-    }
-
-    .nav-item {
-      padding: 10px 8px;
-      border-radius: 8px;
-    }
-
-    .nav-item:hover {
-      background: rgba(94, 177, 255, 0.12);
-    }
-
-    .nav-item a {
-      color: var(--fg);
-      text-decoration: none;
-      font-weight: 600;
-    }
-
-    .nav-excerpt {
-      color: var(--muted);
-      font-size: 12px;
-      margin-top: 4px;
-      line-height: 1.35;
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-      overflow: hidden;
-    }
+    #brand { font-weight: 700; letter-spacing: 0.2px; margin-bottom: 8px; }
+    #desc { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+    #search { padding: 10px 12px; border-radius: 8px; border: 1px solid #2a2f36; background: #0f1216; color: var(--fg); outline: none; width: 100%; box-sizing: border-box; }
+    #nav { overflow: auto; margin-top: 12px; padding-right: 6px; }
+    .nav-item { padding: 10px 8px; border-radius: 8px; }
+    .nav-item:hover { background: rgba(94, 177, 255, 0.12); }
+    .nav-item a { color: var(--fg); text-decoration: none; font-weight: 600; }
+    .nav-excerpt { color: var(--muted); font-size: 12px; margin-top: 4px; line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 
     /* Content styling */
-    #content {
-      max-width: 1100px;
-      margin: 0 auto;
-      line-height: 1.6;
-    }
-
-    #content h1,
-    #content h2,
-    #content h3 {
-      margin-top: 26px;
-      scroll-margin-top: 80px;
-    }
-
-    #content pre {
-      background: #0f1216;
-      padding: 14px;
-      border-radius: 8px;
-      overflow: auto;
-    }
-
-    #content code {
-      background: #0f1216;
-      padding: 2px 4px;
-      border-radius: 4px;
-    }
-
-    #content a {
-      color: var(--accent);
-    }
-
-    #topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    #topbar .right {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    button.small {
-      background: #0f1216;
-      border: 1px solid #2a2f36;
-      color: var(--fg);
-      border-radius: 8px;
-      padding: 6px 10px;
-      cursor: pointer;
-    }
-
-    button.small:hover {
-      border-color: var(--accent);
-    }
+    #content { max-width: 1100px; margin: 0 auto; line-height: 1.6; }
+    #content h1, #content h2, #content h3 { margin-top: 26px; scroll-margin-top: 80px; }
+    #content pre { background: #0f1216; padding: 14px; border-radius: 8px; overflow: auto; }
+    #content code { background: #0f1216; padding: 2px 4px; border-radius: 4px; }
+    #content a { color: var(--accent); }
+    #topbar { display: flex; align-items: center; justify-content: space-between; }
+    #topbar .right { display: flex; gap: 8px; align-items: center; }
+    button.small { background: #0f1216; border: 1px solid #2a2f36; color: var(--fg); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+    button.small:hover { border-color: var(--accent); }
   </style>
 </head>
-
 <body>
   <aside>
     <div id="brand">ABI Docs</div>
@@ -167,88 +74,83 @@
     <div id="content"></div>
   </main>
   <script>
-    async function fetchJSON(p) { const r = await fetch(p); return await r.json(); }
-    async function fetchText(p) { const r = await fetch(p); return await r.text(); }
-    function escapeHTML(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-    function mdToHtml(md) {
-      const lines = md.split('\\n');
-      let html = '';
-      let inCode = false; let codeLang = '';
-      for (let i = 0; i < lines.length; i++) {
-        let line = lines[i];
-        if (line.startsWith('```')) {
-          if (!inCode) { inCode = true; codeLang = line.slice(3).trim(); html += '<pre><code class="lang-' + escapeHTML(codeLang) + '">'; }
-          else { inCode = false; html += '</code></pre>'; }
-          continue;
-        }
-        if (inCode) { html += escapeHTML(line) + '\\n'; continue; }
-        if (line.startsWith('#')) {
-          const m = line.match(/^#+/); const level = m ? m[0].length : 1;
-          const text = line.slice(level).trim();
-          const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-          html += `<h${level} id="${id}">${inline(text)}</h${level}>`;
-          continue;
-        }
-        if (/^\\s*[-*] /.test(line)) {
-          let items = []; let j = i;
-          while (j < lines.length && /^\\s*[-*] /.test(lines[j])) { items.push(lines[j].replace(/^\\s*[-*] /, '')); j++; }
-          html += '<ul>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ul>';
-          i = j - 1; continue;
-        }
-        if (/^\\s*[0-9]+\\. /.test(line)) {
-          let items = []; let j = i;
-          while (j < lines.length && /^\\s*[0-9]+\\. /.test(lines[j])) { items.push(lines[j].replace(/^\\s*[0-9]+\\. /, '')); j++; }
-          html += '<ol>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ol>';
-          i = j - 1; continue;
-        }
-        if (line.trim() === '') { html += ''; continue; }
-        html += `<p>${inline(line)}</p>`;
+  async function fetchJSON(p) { const r = await fetch(p); return await r.json(); }
+  async function fetchText(p) { const r = await fetch(p); return await r.text(); }
+  function escapeHTML(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function mdToHtml(md) {
+    const lines = md.split('\\n');
+    let html = '';
+    let inCode = false; let codeLang = '';
+    for (let i=0;i<lines.length;i++){
+      let line = lines[i];
+      if (line.startsWith('```')) {
+        if (!inCode) { inCode = true; codeLang = line.slice(3).trim(); html += '<pre><code class="lang-'+escapeHTML(codeLang)+'">'; }
+        else { inCode = false; html += '</code></pre>'; }
+        continue;
       }
-      return html;
-      function inline(t) {
-        t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
-        t = t.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>');
-        t = t.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-        t = t.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" />');
-        t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, txt, url) => {
-          if (url.startsWith('http') || url.startsWith('mailto:') || url.startsWith('#')) return `<a href="${url}" target="_blank" rel="noopener">${txt}</a>`;
-          if (url.endsWith('.md')) return `<a href="#${url}" onclick="loadDoc('${url}'); return false;">${txt}</a>`;
-          return `<a href="${url}" target="_blank" rel="noopener">${txt}</a>`;
-        });
-        return t;
+      if (inCode) { html += escapeHTML(line)+'\\n'; continue; }
+      if (line.startsWith('#')) {
+        const m = line.match(/^#+/); const level = m ? m[0].length : 1;
+        const text = line.slice(level).trim();
+        const id = text.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+        html += `<h${level} id="${id}">${inline(text)}</h${level}>`;
+        continue;
       }
+      if (/^\\s*[-*] /.test(line)) {
+        let items = []; let j=i;
+        while (j<lines.length && /^\\s*[-*] /.test(lines[j])) { items.push(lines[j].replace(/^\\s*[-*] /,'')); j++; }
+        html += '<ul>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ul>';
+        i = j-1; continue;
+      }
+      if (/^\\s*[0-9]+\\. /.test(line)) {
+        let items=[]; let j=i;
+        while (j<lines.length && /^\\s*[0-9]+\\. /.test(lines[j])) { items.push(lines[j].replace(/^\\s*[0-9]+\\. /,'')); j++; }
+        html += '<ol>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ol>';
+        i = j-1; continue;
+      }
+      if (line.trim() === '') { html += ''; continue; }
+      html += `<p>${inline(line)}</p>`;
     }
-    let searchData = [];
-    let currentPath = '';
-    async function init() {
-      try { searchData = await fetchJSON('generated/search_index.json'); } catch (e) { console.error('search index', e); }
-      renderNav(searchData);
-      const initial = location.hash ? decodeURIComponent(location.hash.slice(1)) : (searchData[0]?.file || 'generated/API_REFERENCE.md');
-      loadDoc(initial);
-      document.getElementById('search').addEventListener('input', (e) => {
-        const q = e.target.value.toLowerCase();
-        const results = searchData.filter(it => it.title.toLowerCase().includes(q) || it.excerpt.toLowerCase().includes(q));
-        renderNav(results);
-      });
-      document.getElementById('open_md').addEventListener('click', () => { if (currentPath) window.open(currentPath, '_blank'); });
+    return html;
+    function inline(t) {
+      t = t.replace(/`([^`]+)`/g,'<code>$1</code>');
+      t = t.replace(/\\*\\*([^*]+)\\*\\*/g,'<strong>$1</strong>');
+      t = t.replace(/\\*([^*]+)\\*/g,'<em>$1</em>');
+      t = t.replace(/\\!\\[([^\\]]*)\\]\\(([^)]+)\\)/g,'<img alt="$1" src="$2" />');
+      t = t.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g,(m,txt,url) => {\n        \\        if (url.startsWith('http') || url.startsWith('mailto:') || url.startsWith('#')) return `<a href=\"${url}\" target=\"_blank\" rel=\"noopener\">${txt}</a>`;\n        \\        if (url.endsWith('.md')) return `<a href=\"#${url}\" onclick=\"loadDoc('${url}'); return false;\">${txt}</a>`;\n        \\        return `<a href=\"${url}\" target=\"_blank\" rel=\"noopener\">${txt}</a>`;\n        \\      });
+      return t;
     }
-    async function loadDoc(path) {
-      currentPath = path;
-      location.hash = encodeURIComponent(path);
-      const md = await fetchText(path);
-      document.getElementById('content').innerHTML = mdToHtml(md);
-      window.scrollTo(0, 0);
-    }
-    function renderNav(list) {
-      const nav = document.getElementById('nav');
-      nav.innerHTML = list.map(it => `<div class="nav-item"><a href="#${encodeURIComponent(it.file)}" onclick="loadDoc('${it.file}'); return false;">${it.title}</a><div class="nav-excerpt">${escapeHTML(it.excerpt)}</div></div>`).join('');
-    }
-    window.addEventListener('hashchange', () => {
-      const p = decodeURIComponent(location.hash.slice(1));
-      if (p) loadDoc(p);
+  }
+  let searchData = [];
+  let currentPath = '';
+  async function init(){
+    try { searchData = await fetchJSON('generated/search_index.json'); } catch(e){ console.error('search index', e); }
+    renderNav(searchData);
+    const initial = location.hash ? decodeURIComponent(location.hash.slice(1)) : (searchData[0]?.file || 'generated/API_REFERENCE.md');
+    loadDoc(initial);
+    document.getElementById('search').addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      const results = searchData.filter(it => it.title.toLowerCase().includes(q) || it.excerpt.toLowerCase().includes(q));
+      renderNav(results);
     });
-    init();
+    document.getElementById('open_md').addEventListener('click', () => { if (currentPath) window.open(currentPath, '_blank'); });
+  }
+  async function loadDoc(path){
+    currentPath = path;
+    location.hash = encodeURIComponent(path);
+    const md = await fetchText(path);
+    document.getElementById('content').innerHTML = mdToHtml(md);
+    window.scrollTo(0,0);
+  }
+  function renderNav(list){
+    const nav = document.getElementById('nav');
+    nav.innerHTML = list.map(it => `<div class="nav-item"><a href="#${encodeURIComponent(it.file)}" onclick="loadDoc('${it.file}'); return false;">${it.title}</a><div class="nav-excerpt">${escapeHTML(it.excerpt)}</div></div>`).join('');
+  }
+  window.addEventListener('hashchange', () => {
+    const p = decodeURIComponent(location.hash.slice(1));
+    if (p) loadDoc(p);
+  });
+  init();
   </script>
 </body>
-
 </html>
