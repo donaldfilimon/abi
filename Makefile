@@ -88,7 +88,7 @@ analyze:
 profile:
 	zig build profile
 
-# Performance regression guard (pass threshold in ns: make perf-guard PERF=20000000)
+# Performance regression guard (pass threshold in ns: make perf-guard PERF=50000000)
 perf-guard:
 	zig build perf-guard -- $(PERF)
 
