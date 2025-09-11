@@ -96,4 +96,3 @@ pub fn main() !void {
 
     std.debug.print("SIMD micro (N={d})\n  add={d}ns mul={d}ns scale={d}ns norm={d}ns clamp={d}ns axpy={d}ns fma={d}ns\n  sum={d}ns sum_val={d:.3} mean={d:.3} var={d:.3} (var_ns={d}ns) stddev={d:.3}\n  dot={d}ns dot_val={d:.3} l1={d}ns l1_val={d:.3}\n  mm(256x64 * 64x64)={d}ns\n", .{ N, add_ns, mul_ns, scale_ns, norm_ns, clamp_ns, axpy_ns, fma_ns, sum_ns, sum_val, mean_val, var_val, var_ns, stddev_val, dot_ns, dot, l1_ns, l1, mm_ns });
 }
-

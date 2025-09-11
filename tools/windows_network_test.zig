@@ -528,7 +528,7 @@ pub const WindowsNetworkTester = struct {
             defer stream.close();
 
             const end_time = std.time.nanoTimestamp();
-            latency.* = end_time - start_time;
+            latency.* = @intCast(end_time - start_time);
             self.metrics.recordLatency(latency.*);
         }
 
@@ -571,7 +571,7 @@ pub const WindowsNetworkTester = struct {
 
             if (bytes_sent > 0) {
                 self.metrics.bytes_sent += bytes_sent;
-                self.metrics.recordBandwidth(bytes_sent, end_time - start_time);
+                self.metrics.recordBandwidth(bytes_sent, @intCast(end_time - start_time));
 
                 const duration_ms = @as(f64, @floatFromInt(end_time - start_time)) / 1_000_000.0;
                 const bandwidth_mbps = (@as(f64, @floatFromInt(bytes_sent)) * 8.0) / (duration_ms / 1000.0) / 1_000_000.0;
@@ -664,12 +664,12 @@ pub const WindowsNetworkTester = struct {
             };
 
             // Get actual buffer size
-            var actual_size: i32 = 0;
-            var size_len: std.posix.socklen_t = @sizeOf(i32);
-            std.posix.getsockopt(sock, std.posix.SOL.SOCKET, std.posix.SO.SNDBUF, std.mem.asBytes(&actual_size), &size_len) catch {
+            var opt_buf: [@sizeOf(i32)]u8 = undefined;
+            std.posix.getsockopt(sock, std.posix.SOL.SOCKET, std.posix.SO.SNDBUF, opt_buf[0..]) catch {
                 std.debug.print("     Buffer size {d}B: Failed to get\n", .{buffer_size});
                 continue;
             };
+            const actual_size = std.mem.bytesToValue(i32, opt_buf[0..@sizeOf(i32)]);
 
             std.debug.print("     Buffer size {d}B: Set successfully (actual: {d}B)\n", .{ buffer_size, actual_size });
         }

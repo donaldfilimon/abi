@@ -1,6 +1,6 @@
 User-agent: *
 Allow: /
-Sitemap: https://your-username.github.io/wdbx-ai/sitemap.xml
+Sitemap: https://donaldfilimon.github.io/abi/sitemap.xml
 
 # Disallow build artifacts
 Disallow: /zig-out/

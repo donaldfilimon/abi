@@ -298,5 +298,3 @@ pub const WeatherUtils = struct {
         return "🌡️";
     }
 };
-
-

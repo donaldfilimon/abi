@@ -529,15 +529,31 @@ pub fn build(b: *std.Build) void {
         "aarch64-linux-gnu",
         "x86_64-macos",
         "aarch64-macos",
+        "riscv64-linux-gnu",
+        "x86_64-windows-gnu",
+        "aarch64-windows-gnu",
+        "x86_64-windows-msvc",
+        "aarch64-windows-msvc",
         "wasm32-wasi",
+        "wasm32-freestanding",
     };
 
     for (cross_targets) |cross_target| {
         const cross_target_query = std.Target.Query.parse(.{ .arch_os_abi = cross_target }) catch unreachable;
         const cross_target_resolved = b.resolveTargetQuery(cross_target_query);
 
+        const os_tag = cross_target_resolved.result.os.tag;
+        const abi_tag = cross_target_resolved.result.abi;
+        const arch_tag = cross_target_resolved.result.cpu.arch;
+
+        const root_src_path: []const u8 = blk: {
+            if (arch_tag == .wasm32 and os_tag == .wasi) break :blk "src/cli/wasm_wasi_stub.zig";
+            if (arch_tag == .wasm32 and os_tag == .freestanding) break :blk "src/cli/wasm_freestanding_stub.zig";
+            break :blk "src/cli/main.zig";
+        };
+
         const cross_cli_mod = b.createModule(.{
-            .root_source_file = b.path("src/cli/main.zig"),
+            .root_source_file = b.path(root_src_path),
             .target = cross_target_resolved,
             .optimize = optimize,
             .imports = &.{
@@ -549,9 +565,8 @@ pub fn build(b: *std.Build) void {
             .name = b.fmt("abi-{s}", .{cross_target}),
             .root_module = cross_cli_mod,
         });
-        // Link libc explicitly for targets that require it (e.g., Linux, macOS)
-        const os_tag = cross_target_resolved.result.os.tag;
-        if (os_tag == .linux or os_tag == .macos) {
+        // Link libc explicitly for targets that require it (e.g., Linux, macOS, Windows-gnu, WASI)
+        if (os_tag == .linux or os_tag == .macos or (os_tag == .windows and abi_tag == .gnu) or os_tag == .wasi) {
             cross_cli_exe.linkLibC();
         }
 

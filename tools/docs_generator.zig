@@ -68,12 +68,12 @@ fn generateJekyllConfig(_: std.mem.Allocator) !void {
     defer file.close();
 
     const content =
-        \\# WDBX-AI Documentation - Jekyll Configuration
-        \\title: "WDBX-AI Documentation"
+        \\# ABI Documentation - Jekyll Configuration
+        \\title: "ABI Documentation"
         \\description: "High-performance vector database with AI capabilities"
-        \\url: "https://your-username.github.io"
-        \\baseurl: "/wdbx-ai"
-        \\
+        \\url: "https://donaldfilimon.github.io/abi/"
+        \\baseurl: "/abi"
+        \\  
         \\# GitHub Pages settings
         \\remote_theme: pages-themes/minimal@v0.2.0
         \\plugins:
@@ -109,7 +109,7 @@ fn generateJekyllConfig(_: std.mem.Allocator) !void {
         \\github:
         \\  repository_url: "https://github.com/donaldfilimon/abi"
         \\  repository_name: "wdbx-ai"
-        \\  owner_name: "your-username"
+        \\  owner_name: "donaldfilimon"
         \\
         \\# Social media
         \\social:
@@ -378,43 +378,43 @@ fn generateSEOMetadata(_: std.mem.Allocator) !void {
         \\<?xml version="1.0" encoding="UTF-8"?>
         \\<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
         \\  <url>
-        \\    <loc>https://your-username.github.io/wdbx-ai/</loc>
+        \\    <loc>https://donaldfilimon.github.io/abi/</loc>
         \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
         \\    <changefreq>weekly</changefreq>
         \\    <priority>1.0</priority>
         \\  </url>
         \\  <url>
-        \\    <loc>https://your-username.github.io/wdbx-ai/generated/API_REFERENCE/</loc>
+        \\    <loc>https://donaldfilimon.github.io/abi/generated/API_REFERENCE/</loc>
         \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
         \\    <changefreq>weekly</changefreq>
         \\    <priority>0.9</priority>
         \\  </url>
         \\  <url>
-        \\    <loc>https://your-username.github.io/wdbx-ai/generated/MODULE_REFERENCE/</loc>
+        \\    <loc>https://donaldfilimon.github.io/abi/generated/MODULE_REFERENCE/</loc>
         \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
         \\    <changefreq>weekly</changefreq>
         \\    <priority>0.8</priority>
         \\  </url>
         \\  <url>
-        \\    <loc>https://your-username.github.io/wdbx-ai/generated/EXAMPLES/</loc>
+        \\    <loc>https://donaldfilimon.github.io/abi/generated/EXAMPLES/</loc>
         \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
         \\    <changefreq>weekly</changefreq>
         \\    <priority>0.8</priority>
         \\  </url>
         \\  <url>
-        \\    <loc>https://your-username.github.io/wdbx-ai/generated/PERFORMANCE_GUIDE/</loc>
+        \\    <loc>https://donaldfilimon.github.io/abi/generated/PERFORMANCE_GUIDE/</loc>
         \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
         \\    <changefreq>monthly</changefreq>
         \\    <priority>0.7</priority>
         \\  </url>
         \\  <url>
-        \\    <loc>https://your-username.github.io/wdbx-ai/generated/DEFINITIONS_REFERENCE/</loc>
+        \\    <loc>https://donaldfilimon.github.io/abi/generated/DEFINITIONS_REFERENCE/</loc>
         \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
         \\    <changefreq>monthly</changefreq>
         \\    <priority>0.7</priority>
         \\  </url>
         \\  <url>
-        \\    <loc>https://your-username.github.io/wdbx-ai/generated/CODE_API_INDEX/</loc>
+        \\    <loc>https://donaldfilimon.github.io/abi/generated/CODE_API_INDEX/</loc>
         \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
         \\    <changefreq>daily</changefreq>
         \\    <priority>0.6</priority>
@@ -432,7 +432,7 @@ fn generateSEOMetadata(_: std.mem.Allocator) !void {
     const robots_content =
         \\User-agent: *
         \\Allow: /
-        \\Sitemap: https://your-username.github.io/wdbx-ai/sitemap.xml
+        \\Sitemap: https://donaldfilimon.github.io/abi/sitemap.xml
         \\
         \\# Disallow build artifacts
         \\Disallow: /zig-out/
@@ -543,15 +543,15 @@ fn generateReadmeRedirect(_: std.mem.Allocator) !void {
         \\
         \\## 🔗 External Resources
         \\
-        \\- **[GitHub Repository](https://github.com/your-username/wdbx-ai)** - Source code and issues
+        \\- **[GitHub Repository](https://github.com/donaldfilimon/wdbx-ai)** - Source code and issues
         \\- **[Zig Language](https://ziglang.org/)** - Learn about the Zig programming language
         \\- **[Vector Databases](./generated/DEFINITIONS_REFERENCE/#vector-database)** - Learn about vector database concepts
         \\
         \\## 📧 Support
         \\
-        \\- **Issues**: [Report bugs or request features](https://github.com/your-username/wdbx-ai/issues)
-        \\- **Discussions**: [Join community discussions](https://github.com/your-username/wdbx-ai/discussions)
-        \\- **Documentation**: [Improve documentation](https://github.com/your-username/wdbx-ai/issues/new?title=Documentation%20Improvement)
+        \\- **Issues**: [Report bugs or request features](https://github.com/donaldfilimon/abi/issues)
+        \\- **Discussions**: [Join community discussions](https://github.com/donaldfilimon/abi/discussions)
+        \\- **Documentation**: [Improve documentation](https://github.com/donaldfilimon/abi/issues/new?title=Documentation%20Improvement)
         \\
         \\---
         \\

@@ -80,15 +80,15 @@ This documentation is generated using multiple approaches:
 
 ## 🔗 External Resources
 
-- **[GitHub Repository](https://github.com/your-username/wdbx-ai)** - Source code and issues
+- **[GitHub Repository](https://github.com/donaldfilimon/wdbx-ai)** - Source code and issues
 - **[Zig Language](https://ziglang.org/)** - Learn about the Zig programming language
 - **[Vector Databases](./generated/DEFINITIONS_REFERENCE/#vector-database)** - Learn about vector database concepts
 
 ## 📧 Support
 
-- **Issues**: [Report bugs or request features](https://github.com/your-username/wdbx-ai/issues)
-- **Discussions**: [Join community discussions](https://github.com/your-username/wdbx-ai/discussions)
-- **Documentation**: [Improve documentation](https://github.com/your-username/wdbx-ai/issues/new?title=Documentation%20Improvement)
+- **Issues**: [Report bugs or request features](https://github.com/donaldfilimon/abi/issues)
+- **Discussions**: [Join community discussions](https://github.com/donaldfilimon/abi/discussions)
+- **Documentation**: [Improve documentation](https://github.com/donaldfilimon/abi/issues/new?title=Documentation%20Improvement)
 
 ---
 

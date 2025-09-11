@@ -208,7 +208,7 @@ const PerformanceMetrics = struct {
 /// Memory allocation tracker for heap profiling
 const MemoryTracker = struct {
     allocator: std.mem.Allocator,
-    tracked_allocations: std.HashMapUnmanaged(usize, AllocationInfo),
+    tracked_allocations: std.AutoHashMapUnmanaged(usize, AllocationInfo),
     total_allocated: usize,
     total_freed: usize,
     peak_usage: usize,
@@ -287,7 +287,7 @@ const SIMDAnalyzer = struct {
 
     pub fn benchmarkVectorOperations(allocator: std.mem.Allocator, iterations: usize) !PerformanceMetrics {
         var metrics = PerformanceMetrics.init("SIMD Vector Operations");
-        var measurements = try allocator.alloc(u64, iterations);
+        const measurements = try allocator.alloc(u64, iterations);
         defer allocator.free(measurements);
 
         // Generate test data
@@ -299,8 +299,8 @@ const SIMDAnalyzer = struct {
         const test_vectors_b = try arena_allocator.alloc(FloatVector, 1000);
 
         // Initialize with random data
-        var prng = std.rand.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
-        const random = prng.random();
+        var prng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+        var random = prng.random();
 
         for (test_vectors_a, test_vectors_b) |*a, *b| {
             for (0..VectorSize) |i| {
@@ -342,7 +342,7 @@ const SIMDAnalyzer = struct {
 
     pub fn benchmarkScalarOperations(allocator: std.mem.Allocator, iterations: usize) !PerformanceMetrics {
         var metrics = PerformanceMetrics.init("Scalar Operations");
-        var measurements = try allocator.alloc(u64, iterations);
+        const measurements = try allocator.alloc(u64, iterations);
         defer allocator.free(measurements);
 
         // Generate test data
@@ -354,8 +354,8 @@ const SIMDAnalyzer = struct {
         const test_data_b = try arena_allocator.alloc(f32, 1000 * VectorSize);
 
         // Initialize with random data
-        var prng = std.rand.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
-        const random = prng.random();
+        var prng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+        var random = prng.random();
 
         for (test_data_a, test_data_b) |*a, *b| {
             a.* = random.float(f32) * 100.0;
@@ -363,7 +363,7 @@ const SIMDAnalyzer = struct {
         }
 
         // Benchmark scalar operations
-        for (measurements, 0..) |*measurement, _| {
+        for (measurements) |*measurement| {
             const start = std.time.nanoTimestamp();
 
             var dot_product: f32 = 0.0;
@@ -437,9 +437,7 @@ pub const PerformanceProfiler = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        for (self.metrics.items) |metric| {
-            self.allocator.free(metric.operation_name);
-        }
+        // metric.operation_name is not owned; no need to free
         self.metrics.deinit(self.allocator);
         self.memory_tracker.deinit();
         self.arena.deinit();
@@ -498,11 +496,11 @@ pub const PerformanceProfiler = struct {
     }
 
     pub fn runBenchmarkSuite(self: *Self) !void {
-        print("🔬 Running comprehensive benchmark suite...\n\n");
+        print("🔬 Running comprehensive benchmark suite...\n\n", .{});
 
         // SIMD vs Scalar comparison
         if (self.config.enable_simd_profiling) {
-            print("📊 SIMD Performance Analysis:\n");
+            print("📊 SIMD Performance Analysis:\n", .{});
 
             const simd_metrics = try SIMDAnalyzer.benchmarkVectorOperations(self.allocator, self.config.benchmark_iterations);
             const scalar_metrics = try SIMDAnalyzer.benchmarkScalarOperations(self.allocator, self.config.benchmark_iterations);
@@ -513,33 +511,33 @@ pub const PerformanceProfiler = struct {
             const speedup = scalar_metrics.avg_time_ns / simd_metrics.avg_time_ns;
             print("  SIMD Speedup: {d:.2}x\n", .{speedup});
             print("  SIMD Efficiency: {d:.2}%\n", .{simd_metrics.simd_efficiency_score * 100.0});
-            print("\n");
+            print("\n", .{});
         }
 
         // Memory allocation benchmarks
         if (self.config.enable_memory_tracking) {
-            print("💾 Memory Performance Analysis:\n");
+            print("💾 Memory Performance Analysis:\n", .{});
             try self.benchmarkMemoryOperations();
-            print("\n");
+            print("\n", .{});
         }
 
         // Database operation benchmarks
         if (self.config.enable_database_profiling) {
-            print("🗄️  Database Performance Analysis:\n");
+            print("🗄️  Database Performance Analysis:\n", .{});
             try self.benchmarkDatabaseOperations();
-            print("\n");
+            print("\n", .{});
         }
     }
 
     fn benchmarkMemoryOperations(self: *Self) !void {
-        var measurements = try self.allocator.alloc(u64, self.config.benchmark_iterations);
+        const measurements = try self.allocator.alloc(u64, self.config.benchmark_iterations);
         defer self.allocator.free(measurements);
 
         // Benchmark different allocation patterns
         const allocation_sizes = [_]usize{ 32, 128, 1024, 4096, 16384 };
 
         for (allocation_sizes) |size| {
-            for (measurements, 0..) |*measurement, _| {
+            for (measurements) |*measurement| {
                 const start = std.time.nanoTimestamp();
 
                 const ptr = self.allocator.alloc(u8, size) catch continue;
@@ -561,15 +559,15 @@ pub const PerformanceProfiler = struct {
 
     fn benchmarkDatabaseOperations(self: *Self) !void {
         // Simulate database operations with mock data
-        var measurements = try self.allocator.alloc(u64, 100);
+        const measurements = try self.allocator.alloc(u64, 100);
         defer self.allocator.free(measurements);
 
         // Mock database insert operations
-        for (measurements, 0..) |*measurement, _| {
+        for (measurements) |*measurement| {
             const start = std.time.nanoTimestamp();
 
             // Simulate database work with array operations
-            var data = try self.allocator.alloc(f32, 512);
+            const data = try self.allocator.alloc(f32, 512);
             defer self.allocator.free(data);
 
             for (data, 0..) |*val, i| {
@@ -601,13 +599,13 @@ pub const PerformanceProfiler = struct {
     }
 
     pub fn generateDetailedReport(self: *Self) !void {
-        print("📈 Detailed Performance Profiling Report\n");
-        print("=" ** 50 ++ "\n\n");
+        print("📈 Detailed Performance Profiling Report\n", .{});
+        print("=" ** 50 ++ "\n\n", .{});
 
         // Overall summary
         print("Profiling Duration: {d}ms\n", .{self.end_time - self.start_time});
         print("Total Operations Profiled: {d}\n", .{self.metrics.items.len});
-        print("\n");
+        print("\n", .{});
 
         // Individual operation metrics
         for (self.metrics.items) |metric| {
@@ -629,7 +627,7 @@ pub const PerformanceProfiler = struct {
                 print("  Vectorization: {d:.2}%\n", .{metric.vectorization_ratio * 100.0});
             }
 
-            print("\n");
+            print("\n", .{});
         }
 
         // Memory tracking report
@@ -653,7 +651,7 @@ pub const PerformanceProfiler = struct {
     }
 
     fn generateRecommendations(self: *Self) !void {
-        print("🔧 Performance Optimization Recommendations:\n");
+        print("🔧 Performance Optimization Recommendations:\n", .{});
 
         for (self.metrics.items) |metric| {
             if (metric.coefficient_of_variation > 0.3) {
@@ -673,7 +671,7 @@ pub const PerformanceProfiler = struct {
             print("  • 🚨 Memory leaks detected: {d} allocations not freed\n", .{self.memory_tracker.getMemoryLeaks()});
         }
 
-        print("\n");
+        print("\n", .{});
     }
 
     fn exportJsonReport(self: *Self) !void {
@@ -695,7 +693,7 @@ pub const PerformanceProfiler = struct {
         }
 
         try file.writeAll("  ]\n}\n");
-        print("📄 JSON report exported to performance_profile.json\n");
+        print("📄 JSON report exported to performance_profile.json\n", .{});
     }
 
     fn exportCsvReport(self: *Self) !void {
@@ -712,7 +710,7 @@ pub const PerformanceProfiler = struct {
             try file.writeAll(line);
         }
 
-        print("📊 CSV report exported to performance_profile.csv\n");
+        print("📊 CSV report exported to performance_profile.csv\n", .{});
     }
 };
 
@@ -725,8 +723,8 @@ pub fn main() !void {
     var profiler = PerformanceProfiler.init(allocator, config);
     defer profiler.deinit();
 
-    print("🎯 Enhanced Performance Profiler for WDBX-AI\n");
-    print("=" ** 45 ++ "\n\n");
+    print("🎯 Enhanced Performance Profiler for WDBX-AI\n", .{});
+    print("=" ** 45 ++ "\n\n", .{});
 
     profiler.startProfiling();
 

@@ -125,6 +125,8 @@ const AnalysisConfig = struct {
     }
 };
 
+const SuppressEntry = struct { dir: []const u8, rule: []const u8 };
+
 /// Enhanced static analyzer with comprehensive analysis capabilities
 pub const StaticAnalyzer = struct {
     allocator: std.mem.Allocator,
@@ -132,7 +134,7 @@ pub const StaticAnalyzer = struct {
     findings: std.ArrayListUnmanaged(Finding),
     config: AnalysisConfig,
     allowed_secret_substrings: []const []const u8 = &.{},
-    suppressed: []const struct { dir: []const u8, rule: []const u8 } = &.{},
+    suppressed: []const SuppressEntry = &.{},
 
     // Analysis state
     total_lines: usize,
@@ -307,7 +309,10 @@ pub const StaticAnalyzer = struct {
             var is_allowed = false;
             if (has_pattern and self.allowed_secret_substrings.len > 0) {
                 for (self.allowed_secret_substrings) |allowed| {
-                    if (std.mem.indexOf(u8, line_lower, allowed) != null) { is_allowed = true; break; }
+                    if (std.mem.indexOf(u8, line_lower, allowed) != null) {
+                        is_allowed = true;
+                        break;
+                    }
                 }
             }
             if (has_pattern and is_assignment and !is_comment and !is_loglevel and !is_header_construction and !is_metadata_field and !is_allowed) {
@@ -813,7 +818,7 @@ fn loadOverrides(self: *StaticAnalyzer) !void {
     if (root == .object) {
         if (root.object.get("suppress")) |ptr| {
             const arr = ptr.array.items;
-            var list = try arena_alloc.alloc(struct { dir: []const u8, rule: []const u8 }, arr.len);
+            var list = try arena_alloc.alloc(SuppressEntry, arr.len);
             var n: usize = 0;
             for (arr) |e| {
                 if (e == .object) {
