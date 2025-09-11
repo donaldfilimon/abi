@@ -1,0 +1,10 @@
+{
+  "allow_secret_substrings": [
+    "authorization",
+    "bearer ",
+    "std.debug.print",
+    "std.log.",
+    ".author",
+    ".description"
+  ]
+}
