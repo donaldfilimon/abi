@@ -1,6 +1,6 @@
 # Code API Index (Scanned)
 
-Scanned 46 Zig files under `src/`. This index lists public declarations discovered along with leading doc comments.
+Scanned 45 Zig files under `src/`. This index lists public declarations discovered along with leading doc comments.
 
 ## src\backend.zig
 
@@ -3576,12 +3576,6 @@ pub fn getSystemInfo(allocator: std.mem.Allocator) ![]const u8 {
 pub const database = @import("wdbx/database.zig");
 ```
 
-- const `simd`
-
-```zig
-pub const simd = @import("simd/mod.zig");
-```
-
 - const `ai`
 
 ```zig
@@ -3627,7 +3621,7 @@ pub const memory_tracker = @import("memory_tracker.zig");
 - const `core`
 
 ```zig
-pub const core = @import("wdbx/core.zig");
+pub const core = @import("core/mod.zig");
 ```
 
 - const `localml`
@@ -3681,25 +3675,19 @@ pub const WdbxHeader = database.WdbxHeader;
 - const `Vector`
 
 ```zig
-pub const Vector = simd.Vector;
+pub const Vector = core.Vector;
 ```
 
 - const `VectorOps`
 
 ```zig
-pub const VectorOps = simd.VectorOps;
+pub const VectorOps = core.VectorOps;
 ```
 
 - const `MatrixOps`
 
 ```zig
-pub const MatrixOps = simd.MatrixOps;
-```
-
-- const `PerformanceMonitor`
-
-```zig
-pub const PerformanceMonitor = simd.PerformanceMonitor;
+pub const MatrixOps = core.MatrixOps;
 ```
 
 - const `NeuralNetwork`
@@ -5713,617 +5701,6 @@ pub const main = cli.main;
 pub const createServer = http.createServer;
 ```
 
-## src\simd\mod.zig
-
-- type `Vector`
-
-SIMD vector types with automatic detection
-
-
-```zig
-pub const Vector = struct {
-```
-
-- const `f32x4`
-
-4-float SIMD vector
-
-
-```zig
-pub const f32x4 = if (@hasDecl(std.simd, "f32x4")) std.simd.f32x4 else @Vector(4, f32);
-```
-
-- const `f32x8`
-
-8-float SIMD vector
-
-
-```zig
-pub const f32x8 = if (@hasDecl(std.simd, "f32x8")) std.simd.f32x8 else @Vector(8, f32);
-```
-
-- const `f32x16`
-
-16-float SIMD vector
-
-
-```zig
-pub const f32x16 = if (@hasDecl(std.simd, "f32x16")) std.simd.f32x16 else @Vector(16, f32);
-```
-
-- fn `load`
-
-Load vector from slice (compatible with both std.simd and @Vector)
-
-
-```zig
-pub fn load(comptime T: type, data: []const f32) T {
-```
-
-- fn `store`
-
-Store vector to slice (compatible with both std.simd and @Vector)
-
-
-```zig
-pub fn store(data: []f32, vec: anytype) void {
-```
-
-- fn `splat`
-
-Create splat vector (compatible with both std.simd and @Vector)
-
-
-```zig
-pub fn splat(comptime T: type, value: f32) T {
-```
-
-- fn `isSimdAvailable`
-
-Check if SIMD is available for a given vector size
-
-
-```zig
-pub fn isSimdAvailable(comptime size: usize) bool {
-```
-
-- fn `getOptimalSize`
-
-Get optimal SIMD vector size for given dimension
-
-
-```zig
-pub fn getOptimalSize(dimension: usize) usize {
-```
-
-- type `VectorOps`
-
-SIMD-optimized vector operations
-
-
-```zig
-pub const VectorOps = struct {
-```
-
-- fn `distance`
-
-Calculate Euclidean distance between two vectors using SIMD
-
-
-```zig
-pub fn distance(a: []const f32, b: []const f32) f32 {
-```
-
-- fn `cosineSimilarity`
-
-Calculate cosine similarity between two vectors
-
-
-```zig
-pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
-```
-
-- fn `add`
-
-Add two vectors using SIMD
-
-
-```zig
-pub fn add(result: []f32, a: []const f32, b: []const f32) void {
-```
-
-- fn `subtract`
-
-Subtract two vectors using SIMD
-
-
-```zig
-pub fn subtract(result: []f32, a: []const f32, b: []const f32) void {
-```
-
-- fn `scale`
-
-Multiply vector by scalar using SIMD
-
-
-```zig
-pub fn scale(result: []f32, vector: []const f32, scalar: f32) void {
-```
-
-- fn `normalize`
-
-Normalize vector to unit length
-
-
-```zig
-pub fn normalize(result: []f32, vector: []const f32) void {
-```
-
-- fn `dotProduct`
-
-Calculate dot product of two vectors
-
-
-```zig
-pub fn dotProduct(a: []const f32, b: []const f32) f32 {
-```
-
-- fn `multiply`
-
-Element-wise multiply: result = a * b
-
-
-```zig
-pub fn multiply(result: []f32, a: []const f32, b: []const f32) void {
-```
-
-- fn `divide`
-
-Element-wise divide: result = a / b (no special NaN handling)
-
-
-```zig
-pub fn divide(result: []f32, a: []const f32, b: []const f32) void {
-```
-
-- fn `min`
-
-Element-wise min: result[i] = min(a[i], b[i])
-
-
-```zig
-pub fn min(result: []f32, a: []const f32, b: []const f32) void {
-```
-
-- fn `max`
-
-Element-wise max: result[i] = max(a[i], b[i])
-
-
-```zig
-pub fn max(result: []f32, a: []const f32, b: []const f32) void {
-```
-
-- fn `abs`
-
-Element-wise absolute value
-
-
-```zig
-pub fn abs(result: []f32, a: []const f32) void {
-```
-
-- fn `clamp`
-
-Clamp elements to [lo, hi]
-
-
-```zig
-pub fn clamp(result: []f32, a: []const f32, lo: f32, hi: f32) void {
-```
-
-- fn `square`
-
-Element-wise square: result[i] = a[i]^2
-
-
-```zig
-pub fn square(result: []f32, a: []const f32) void {
-```
-
-- fn `sqrt`
-
-Element-wise sqrt
-
-
-```zig
-pub fn sqrt(result: []f32, a: []const f32) void {
-```
-
-- fn `exp`
-
-Element-wise exp
-
-
-```zig
-pub fn exp(result: []f32, a: []const f32) void {
-```
-
-- fn `log`
-
-Element-wise natural log (ln)
-
-
-```zig
-pub fn log(result: []f32, a: []const f32) void {
-```
-
-- fn `addScalar`
-
-Add scalar to vector: result = a + s
-
-
-```zig
-pub fn addScalar(result: []f32, a: []const f32, s: f32) void {
-```
-
-- fn `subScalar`
-
-Subtract scalar from vector: result = a - s
-
-
-```zig
-pub fn subScalar(result: []f32, a: []const f32, s: f32) void {
-```
-
-- fn `l1Distance`
-
-L1 (Manhattan) distance
-
-
-```zig
-pub fn l1Distance(a: []const f32, b: []const f32) f32 {
-```
-
-- fn `linfDistance`
-
-L-infinity (Chebyshev) distance
-
-
-```zig
-pub fn linfDistance(a: []const f32, b: []const f32) f32 {
-```
-
-- fn `sum`
-
-Sum of elements
-
-
-```zig
-pub fn sum(a: []const f32) f32 {
-```
-
-- fn `mean`
-
-Mean of elements
-
-
-```zig
-pub fn mean(a: []const f32) f32 {
-```
-
-- fn `variance`
-
-Variance (population)
-
-
-```zig
-pub fn variance(a: []const f32) f32 {
-```
-
-- fn `stddev`
-
-Standard deviation (population)
-
-
-```zig
-pub fn stddev(a: []const f32) f32 {
-```
-
-- fn `axpy`
-
-AXPY operation: y = a*x + y
-
-
-```zig
-pub fn axpy(y: []f32, a: f32, x: []const f32) void {
-```
-
-- fn `fma`
-
-Fused multiply-add: result = x*y + z
-
-
-```zig
-pub fn fma(result: []f32, x: []const f32, y: []const f32, z: []const f32) void {
-```
-
-- type `MatrixOps`
-
-Matrix operations with SIMD acceleration
-
-
-```zig
-pub const MatrixOps = struct {
-```
-
-- fn `matrixVectorMultiply`
-
-Matrix-vector multiplication: result = matrix * vector
-
-
-```zig
-pub fn matrixVectorMultiply(result: []f32, matrix: []const f32, vector: []const f32, rows: usize, cols: usize) void {
-```
-
-- fn `matrixMultiply`
-
-Matrix-matrix multiplication: result = a * b
-
-
-```zig
-pub fn matrixMultiply(result: []f32, a: []const f32, b: []const f32, m: usize, n: usize, k: usize) void {
-```
-
-- fn `transpose`
-
-Transpose matrix: result = matrix^T
-
-
-```zig
-pub fn transpose(result: []f32, matrix: []const f32, rows: usize, cols: usize) void {
-```
-
-- type `PerformanceMonitor`
-
-Performance monitoring for SIMD operations
-
-
-```zig
-pub const PerformanceMonitor = struct {
-```
-
-- fn `recordOperation`
-
-```zig
-pub fn recordOperation(self: *PerformanceMonitor, duration_ns: u64, used_simd: bool) void {
-```
-
-- fn `getAverageTime`
-
-```zig
-pub fn getAverageTime(self: *const PerformanceMonitor) f64 {
-```
-
-- fn `getSimdUsageRate`
-
-```zig
-pub fn getSimdUsageRate(self: *const PerformanceMonitor) f64 {
-```
-
-- fn `printStats`
-
-```zig
-pub fn printStats(self: *const PerformanceMonitor) void {
-```
-
-- fn `getPerformanceMonitor`
-
-Get global performance monitor
-
-
-```zig
-pub fn getPerformanceMonitor() *PerformanceMonitor {
-```
-
-- const `f32x4`
-
-```zig
-pub const f32x4 = Vector.f32x4;
-```
-
-- const `f32x8`
-
-```zig
-pub const f32x8 = Vector.f32x8;
-```
-
-- const `f32x16`
-
-```zig
-pub const f32x16 = Vector.f32x16;
-```
-
-- const `distance`
-
-```zig
-pub const distance = VectorOps.distance;
-```
-
-- const `cosineSimilarity`
-
-```zig
-pub const cosineSimilarity = VectorOps.cosineSimilarity;
-```
-
-- const `add`
-
-```zig
-pub const add = VectorOps.add;
-```
-
-- const `subtract`
-
-```zig
-pub const subtract = VectorOps.subtract;
-```
-
-- const `scale`
-
-```zig
-pub const scale = VectorOps.scale;
-```
-
-- const `normalize`
-
-```zig
-pub const normalize = VectorOps.normalize;
-```
-
-- const `dotProduct`
-
-```zig
-pub const dotProduct = VectorOps.dotProduct;
-```
-
-- const `multiply`
-
-```zig
-pub const multiply = VectorOps.multiply;
-```
-
-- const `divide`
-
-```zig
-pub const divide = VectorOps.divide;
-```
-
-- const `min`
-
-```zig
-pub const min = VectorOps.min;
-```
-
-- const `max`
-
-```zig
-pub const max = VectorOps.max;
-```
-
-- const `abs`
-
-```zig
-pub const abs = VectorOps.abs;
-```
-
-- const `clamp`
-
-```zig
-pub const clamp = VectorOps.clamp;
-```
-
-- const `square`
-
-```zig
-pub const square = VectorOps.square;
-```
-
-- const `sqrt`
-
-```zig
-pub const sqrt = VectorOps.sqrt;
-```
-
-- const `exp`
-
-```zig
-pub const exp = VectorOps.exp;
-```
-
-- const `log`
-
-```zig
-pub const log = VectorOps.log;
-```
-
-- const `addScalar`
-
-```zig
-pub const addScalar = VectorOps.addScalar;
-```
-
-- const `subScalar`
-
-```zig
-pub const subScalar = VectorOps.subScalar;
-```
-
-- const `l1Distance`
-
-```zig
-pub const l1Distance = VectorOps.l1Distance;
-```
-
-- const `linfDistance`
-
-```zig
-pub const linfDistance = VectorOps.linfDistance;
-```
-
-- const `sum`
-
-```zig
-pub const sum = VectorOps.sum;
-```
-
-- const `mean`
-
-```zig
-pub const mean = VectorOps.mean;
-```
-
-- const `variance`
-
-```zig
-pub const variance = VectorOps.variance;
-```
-
-- const `stddev`
-
-```zig
-pub const stddev = VectorOps.stddev;
-```
-
-- const `axpy`
-
-```zig
-pub const axpy = VectorOps.axpy;
-```
-
-- const `fma`
-
-```zig
-pub const fma = VectorOps.fma;
-```
-
-- const `matrixVectorMultiply`
-
-```zig
-pub const matrixVectorMultiply = MatrixOps.matrixVectorMultiply;
-```
-
-- const `matrixMultiply`
-
-```zig
-pub const matrixMultiply = MatrixOps.matrixMultiply;
-```
-
-- const `transpose`
-
-```zig
-pub const transpose = MatrixOps.transpose;
-```
-
 ## src\server\wdbx_http.zig
 
 - type `ServerConfig`
@@ -7928,93 +7305,180 @@ Export performance statistics
 pub fn exportStats(self: *Self, allocator: std.mem.Allocator) ![]const u8 {
 ```
 
-## src\core\simd.zig
+## src\core\mod.zig
 
-- type `Capabilities`
+- const `FrameworkError`
 
-SIMD capabilities detection
+Framework-wide error set for consistent error handling
 
 
 ```zig
-pub const Capabilities = struct {
+pub const FrameworkError = error{
 ```
 
-- fn `detect`
+- const `Allocator`
 
 ```zig
-pub fn detect() Capabilities {
+pub const Allocator = std.mem.Allocator;
 ```
 
-- fn `getVectorWidth`
+- const `ArrayList`
 
 ```zig
-pub fn getVectorWidth(self: Capabilities) usize {
+pub const ArrayList = std.ArrayList;
 ```
 
-- fn `print`
+- type `Vector`
+
+SIMD vector types with automatic detection
+
 
 ```zig
-pub fn print(self: Capabilities) void {
+pub const Vector = struct {
 ```
 
-- fn `capabilities`
+- const `f32x4`
+
+4-float SIMD vector
+
 
 ```zig
-pub fn capabilities() Capabilities {
+pub const f32x4 = if (@hasDecl(std.simd, "f32x4")) std.simd.f32x4 else @Vector(4, f32);
+```
+
+- const `f32x8`
+
+8-float SIMD vector
+
+
+```zig
+pub const f32x8 = if (@hasDecl(std.simd, "f32x8")) std.simd.f32x8 else @Vector(8, f32);
+```
+
+- const `f32x16`
+
+16-float SIMD vector
+
+
+```zig
+pub const f32x16 = if (@hasDecl(std.simd, "f32x16")) std.simd.f32x16 else @Vector(16, f32);
+```
+
+- fn `load`
+
+Load vector from slice (compatible with both std.simd and @Vector)
+
+
+```zig
+pub fn load(comptime T: type, data: []const f32) T {
+```
+
+- fn `store`
+
+Store vector to slice (compatible with both std.simd and @Vector)
+
+
+```zig
+pub fn store(data: []f32, vec: anytype) void {
+```
+
+- fn `splat`
+
+Create splat vector (compatible with both std.simd and @Vector)
+
+
+```zig
+pub fn splat(comptime T: type, value: f32) T {
+```
+
+- fn `isSimdAvailable`
+
+Check if SIMD is available for a given vector size
+
+
+```zig
+pub fn isSimdAvailable(comptime size: usize) bool {
+```
+
+- fn `getOptimalSize`
+
+Get optimal SIMD vector size for given dimension
+
+
+```zig
+pub fn getOptimalSize(dimension: usize) usize {
 ```
 
 - type `VectorOps`
 
-Vector operations with automatic SIMD dispatch
+SIMD-optimized vector operations
 
 
 ```zig
 pub const VectorOps = struct {
 ```
 
+- fn `distance`
+
+Calculate Euclidean distance between two vectors using SIMD
+
+
+```zig
+pub fn distance(a: []const f32, b: []const f32) f32 {
+```
+
+- fn `cosineSimilarity`
+
+Calculate cosine similarity between two vectors
+
+
+```zig
+pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
+```
+
 - fn `add`
 
-Add two vectors element-wise: result[i] = a[i] + b[i]
+Add two vectors using SIMD
 
 
 ```zig
 pub fn add(result: []f32, a: []const f32, b: []const f32) void {
 ```
 
-- fn `multiply`
-
-Multiply two vectors element-wise: result[i] = a[i] * b[i]
-
-
-```zig
-pub fn multiply(result: []f32, a: []const f32, b: []const f32) void {
-```
-
 - fn `dotProduct`
 
-Dot product of two vectors: sum(a[i] * b[i])
+Calculate dot product of two vectors
 
 
 ```zig
 pub fn dotProduct(a: []const f32, b: []const f32) f32 {
 ```
 
-- fn `squaredDistance`
-
-Squared Euclidean distance: sum((a[i] - b[i])^2)
-
-
-```zig
-pub fn squaredDistance(a: []const f32, b: []const f32) f32 {
-```
-
 - fn `scale`
 
-Scale vector by constant: result[i] = a[i] * scale
+Multiply vector by scalar using SIMD
 
 
 ```zig
-pub fn scale(result: []f32, a: []const f32, scalar: f32) void {
+pub fn scale(result: []f32, vector: []const f32, scalar: f32) void {
+```
+
+- fn `normalize`
+
+Normalize vector to unit length
+
+
+```zig
+pub fn normalize(result: []f32, vector: []const f32) void {
+```
+
+- type `MatrixOps`
+
+Matrix operations with SIMD acceleration
+
+
+```zig
+pub const MatrixOps = struct {
 ```
 
 - fn `matrixVectorMultiply`
@@ -8026,31 +7490,163 @@ Matrix-vector multiplication: result = matrix * vector
 pub fn matrixVectorMultiply(result: []f32, matrix: []const f32, vector: []const f32, rows: usize, cols: usize) void {
 ```
 
-- type `MatrixOps`
+- type `PerformanceMonitor`
 
-High-level matrix operations
+Performance monitoring for SIMD operations
 
 
 ```zig
-pub const MatrixOps = struct {
+pub const PerformanceMonitor = struct {
 ```
 
-- fn `multiply`
-
-Matrix multiplication: C = A * B
-
+- fn `recordOperation`
 
 ```zig
-pub fn multiply(c: []f32, a: []const f32, b: []const f32, m: usize, n: usize, k: usize) void {
+pub fn recordOperation(self: *PerformanceMonitor, duration_ns: u64, used_simd: bool) void {
 ```
 
-- fn `transpose`
+- fn `getAverageTime`
 
-Transpose matrix: B = A^T
+```zig
+pub fn getAverageTime(self: *const PerformanceMonitor) f64 {
+```
+
+- fn `getSimdUsageRate`
+
+```zig
+pub fn getSimdUsageRate(self: *const PerformanceMonitor) f64 {
+```
+
+- fn `printStats`
+
+```zig
+pub fn printStats(self: *const PerformanceMonitor) void {
+```
+
+- fn `getPerformanceMonitor`
+
+Get global performance monitor
 
 
 ```zig
-pub fn transpose(b: []f32, a: []const f32, rows: usize, cols: usize) void {
+pub fn getPerformanceMonitor() *PerformanceMonitor {
+```
+
+- type `Features`
+
+Compile-time feature detection
+
+
+```zig
+pub const Features = struct {
+```
+
+- const `has_simd`
+
+```zig
+pub const has_simd = @hasDecl(std.simd, "f32x4");
+```
+
+- const `has_avx`
+
+```zig
+pub const has_avx = @import("builtin").target.cpu.arch == .x86_64 and
+```
+
+- const `has_neon`
+
+```zig
+pub const has_neon = @import("builtin").target.cpu.arch == .aarch64 and
+```
+
+- type `Validation`
+
+Common validation utilities
+
+
+```zig
+pub const Validation = struct {
+```
+
+- fn `validateDimensions`
+
+Validate that dimensions match
+
+
+```zig
+pub fn validateDimensions(expected: usize, actual: usize) FrameworkError!void {
+```
+
+- fn `validateNonEmpty`
+
+Validate that slice is not empty
+
+
+```zig
+pub fn validateNonEmpty(slice: anytype) FrameworkError!void {
+```
+
+- fn `validateAlignment`
+
+Validate alignment requirements
+
+
+```zig
+pub fn validateAlignment(ptr: anytype, alignment: usize) FrameworkError!void {
+```
+
+- const `f32x4`
+
+```zig
+pub const f32x4 = Vector.f32x4;
+```
+
+- const `f32x8`
+
+```zig
+pub const f32x8 = Vector.f32x8;
+```
+
+- const `f32x16`
+
+```zig
+pub const f32x16 = Vector.f32x16;
+```
+
+- const `distance`
+
+```zig
+pub const distance = VectorOps.distance;
+```
+
+- const `cosineSimilarity`
+
+```zig
+pub const cosineSimilarity = VectorOps.cosineSimilarity;
+```
+
+- const `add`
+
+```zig
+pub const add = VectorOps.add;
+```
+
+- const `dotProduct`
+
+```zig
+pub const dotProduct = VectorOps.dotProduct;
+```
+
+- const `scale`
+
+```zig
+pub const scale = VectorOps.scale;
+```
+
+- const `matrixVectorMultiply`
+
+```zig
+pub const matrixVectorMultiply = MatrixOps.matrixVectorMultiply;
 ```
 
 ## src\connectors\mod.zig

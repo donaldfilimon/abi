@@ -5,7 +5,7 @@
 [![Database API](https://img.shields.io/badge/Database-API-blue.svg)](docs/api/database.md)
 [![Performance](https://img.shields.io/badge/Performance-2,777+%20ops%2Fsec-brightgreen.svg)]()
 
-The Vector Database module provides high-performance vector storage and similarity search capabilities optimized for AI and machine learning applications. It supports the custom WDBX-AI file format for efficient vector persistence.
+The Vector Database module provides high-performance vector storage and similarity search capabilities optimized for AI and machine learning applications. It supports the custom WDBX-AI file format for efficient vector persistence and is part of the Abi AI Framework.
 
 ## 📋 **Table of Contents**
 

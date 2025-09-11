@@ -5,7 +5,7 @@
 [![SIMD API](https://img.shields.io/badge/SIMD-API-blue.svg)](docs/api/simd_vector.md)
 [![Performance](https://img.shields.io/badge/Performance-10x%20faster-brightgreen.svg)]()
 
-The SIMD Vector module provides high-performance vector operations optimized with Single Instruction, Multiple Data (SIMD) instructions. It's designed for high-throughput text and vector processing in AI and machine learning applications.
+The SIMD Vector module provides high-performance vector operations optimized with Single Instruction, Multiple Data (SIMD) instructions. It's designed for high-throughput text and vector processing in AI and machine learning applications and is part of the Abi AI Framework's core module.
 
 ## 📋 **Table of Contents**
 
@@ -23,7 +23,7 @@ The SIMD Vector module provides high-performance vector operations optimized wit
 
 ## 🎯 **Overview**
 
-- **Module**: `src/simd/mod.zig`
+- **Module**: `src/core/mod.zig` (SIMD operations integrated into core)
 - **SIMD Width**: Auto-detected based on CPU capabilities
 - **Vector Types**: f32, f64 (configurable precision)
 - **Performance**: 10x faster than scalar operations
