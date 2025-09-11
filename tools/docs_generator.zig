@@ -814,6 +814,11 @@ fn generateSearchIndex(allocator: std.mem.Allocator) !void {
 
     for (files.items) |rel| {
         const full = try std.fs.path.join(a, &[_][]const u8{ "docs", rel });
+        // Normalize relative path for web (forward slashes)
+        var rel_web = try a.dupe(u8, rel);
+        for (rel_web) |*ch| {
+            if (ch.* == std.fs.path.sep) ch.* = '/';
+        }
         var title_buf: []const u8 = "";
         var excerpt_buf: []const u8 = "";
         getTitleAndExcerpt(a, full, &title_buf, &excerpt_buf) catch {
@@ -829,7 +834,7 @@ fn generateSearchIndex(allocator: std.mem.Allocator) !void {
         }
 
         try out.writeAll("  {\"file\": ");
-        try writeJsonString(out, rel);
+        try writeJsonString(out, rel_web);
         try out.writeAll(", \"title\": ");
         try writeJsonString(out, title_buf);
         try out.writeAll(", \"excerpt\": ");
