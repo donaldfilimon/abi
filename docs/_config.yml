@@ -1,8 +1,8 @@
 title: "ABI - Advanced AI Framework"
 description: "High-performance AI and vector database framework with GPU acceleration"
-baseurl: ""
-url: "https://abi-docs.example.com"
-repository: "your-username/abi"
+baseurl: "https://donaldfilimon.github.io/abi/"
+url: "https://donaldfilimon.github.io/abi/#"
+repository: "donaldfilimon/abi"
 
 # Build settings
 markdown: kramdown
@@ -35,6 +35,11 @@ exclude:
 # Include files
 include:
   - _pages
+  - _data
+  - _layouts
+  - assets
+  - generated
+  - zig-docs
 
 # Navigation
 navigation:
