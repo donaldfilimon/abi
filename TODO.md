@@ -127,6 +127,7 @@
 - [ ] Add inline documentation for all public APIs
 - [ ] Create video tutorials
 - [ ] Add interactive code examples
+- [ ] Automate GitHub Pages docs deploy verification (post-push health check)
 
 ### **Code Organization**
 - [x] ✅ Consolidate WDBX modules
@@ -142,6 +143,7 @@
 - [x] ✅ Add cross-platform verification step (`zig build cross-platform`)
 - [ ] Add release automation (In Progress)
 - [ ] Create dependency update automation (In Progress)
+- [ ] Add Makefile parity for all build.zig steps (done)
 
 ## 🔬 **Research & Exploration**
 

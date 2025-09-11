@@ -2,7 +2,7 @@
 
 > **Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency, advanced monitoring, and platform-optimized implementations for Zig development.**
 
-[![Zig Version](https://img.shields.io/badge/Zig-0.15.1%2B-orange.svg)](https://ziglang.org/)
+[![Zig Version](https://img.shields.io/badge/Zig-0.15.1%2B-orange.svg)](https://ziglang.org/) • [Docs](https://donaldfilimon.github.io/abi/) • [CI: Pages](.github/workflows/deploy_docs.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)](https://github.com/yourusername/abi)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
@@ -47,7 +47,7 @@
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
-- **Zig 0.15.1 or later** (required for latest features)
+- **Zig 0.15.1 or later** (GitHub Actions uses `mlugg/setup-zig@v2` with Zig 0.15.0)
 - GPU drivers (optional, for acceleration)
 - OpenAI API key (for AI agent features)
 
@@ -58,8 +58,17 @@
 git clone https://github.com/donaldfilimon/abi.git
 cd abi
 
-# Run tests (optimized)
-zig build test -Doptimize=ReleaseFast
+# Build
+zig build
+
+# Run tests
+zig build test
+
+# Docs (GitHub Pages)
+zig build docs
+
+# Benchmarks
+zig build bench-all
 
 # Run CLI
 zig build run
@@ -209,6 +218,7 @@ abi --memory-profile benchmark
 
 ## 📚 **Documentation**
 
+- **[Hosted Docs (GitHub Pages)](https://donaldfilimon.github.io/abi/)**
 - **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - Complete development workflow and architecture
 - **[API Reference](docs/api_reference.md)** - Complete API documentation
 - **[CLI Reference](docs/cli_reference.md)** - Command-line interface guide
@@ -217,6 +227,14 @@ abi --memory-profile benchmark
 - **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Deployment guide
 
 ## 🧪 **Testing & Quality**
+
+### Quick commands
+- Build: `zig build`
+- Test: `zig build test`
+- Bench: `zig build bench-all`
+- Docs: `zig build docs`
+- Static analysis: `zig build analyze`
+- Cross-platform: `zig build cross-platform`
 
 ### **Comprehensive Test Suite**
 ```bash
