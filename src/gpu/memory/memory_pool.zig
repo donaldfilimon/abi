@@ -8,7 +8,7 @@
 //! - Support different buffer types and sizes
 
 const std = @import("std");
-const gpu_renderer = @import("gpu_renderer.zig");
+const gpu_renderer = @import("../core/gpu_renderer.zig");
 
 /// GPU Memory Pool Configuration
 pub const MemoryPoolConfig = struct {
@@ -89,9 +89,9 @@ pub const MemoryPool = struct {
             .allocator = allocator,
             .renderer = renderer,
             .config = config,
-            .allocated_buffers = std.AutoHashMap(u32, BufferMetadata){},
-            .free_buffers = std.ArrayList(BufferMetadata){},
-            .size_buckets = std.AutoHashMap(usize, std.ArrayList(BufferMetadata)){},
+            .allocated_buffers = std.AutoHashMap(u32, BufferMetadata).init(allocator),
+            .free_buffers = try std.ArrayList(BufferMetadata).initCapacity(allocator, 0),
+            .size_buckets = std.AutoHashMap(usize, std.ArrayList(BufferMetadata)).init(allocator),
             .stats = .{},
             .last_cleanup = std.time.milliTimestamp(),
         };
@@ -114,11 +114,11 @@ pub const MemoryPool = struct {
         // Clean up size buckets
         var bucket_it = self.size_buckets.iterator();
         while (bucket_it.next()) |entry| {
-            entry.value_ptr.deinit();
+            entry.value_ptr.deinit(self.allocator);
         }
 
         self.allocated_buffers.deinit();
-        self.free_buffers.deinit();
+        self.free_buffers.deinit(self.allocator);
         self.size_buckets.deinit();
         self.allocator.destroy(self);
     }
@@ -230,14 +230,14 @@ pub const MemoryPool = struct {
 
             // Only pool buffers within size limits
             if (metadata.is_pooled and self.stats.total_buffers_free < self.config.max_free_buffers) {
-                try self.free_buffers.append(metadata);
+                try self.free_buffers.append(self.allocator, metadata);
 
                 // Add to size bucket for faster lookup
                 const bucket = try self.size_buckets.getOrPut(metadata.size);
                 if (!bucket.found_existing) {
-                    bucket.value_ptr.* = std.ArrayList(BufferMetadata).init(self.allocator);
+                    bucket.value_ptr.* = try std.ArrayList(BufferMetadata).initCapacity(self.allocator, 0);
                 }
-                try bucket.value_ptr.append(metadata);
+                try bucket.value_ptr.append(self.allocator, metadata);
 
                 self.stats.total_buffers_free += 1;
                 self.stats.total_memory_free += metadata.size;
@@ -274,19 +274,19 @@ pub const MemoryPool = struct {
         }
 
         // Clean up empty size buckets
-        var buckets_to_remove = std.ArrayList(usize).init(self.allocator);
-        defer buckets_to_remove.deinit();
+        var buckets_to_remove = try std.ArrayList(usize).initCapacity(self.allocator, 0);
+        defer buckets_to_remove.deinit(self.allocator);
 
         var it = self.size_buckets.iterator();
         while (it.next()) |entry| {
             if (entry.value_ptr.items.len == 0) {
-                try buckets_to_remove.append(entry.key_ptr.*);
+                try buckets_to_remove.append(self.allocator, entry.key_ptr.*);
             }
         }
 
         for (buckets_to_remove.items) |size| {
             if (self.size_buckets.fetchRemove(size)) |kv| {
-                kv.value.deinit();
+                @constCast(&kv.value).deinit(self.allocator);
             }
         }
     }

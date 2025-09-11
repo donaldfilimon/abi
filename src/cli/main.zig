@@ -34,6 +34,22 @@ pub fn main() !void {
         try runChatCommand(allocator, args);
         return;
     }
+    if (args.len > 1 and std.mem.eql(u8, args[1], "neural")) {
+        try runNeuralCommand(allocator, args);
+        return;
+    }
+    if (args.len > 1 and std.mem.eql(u8, args[1], "simd")) {
+        try runSimdCommand(allocator, args);
+        return;
+    }
+    if (args.len > 1 and std.mem.eql(u8, args[1], "plugin")) {
+        try runPluginCommand(allocator, args);
+        return;
+    }
+    if (args.len > 1 and std.mem.eql(u8, args[1], "server")) {
+        try runServerCommand(allocator, args);
+        return;
+    }
 
     // Configuration management command
     if (args.len > 1 and std.mem.eql(u8, args[1], "config")) {
@@ -72,8 +88,10 @@ pub fn main() !void {
         return;
     }
 
-    // Delegate to the main abi module for actual functionality
-    try abi.main();
+    // Unknown command
+    std.debug.print("Unknown command: {s}\n", .{args[1]});
+    std.debug.print("Use 'abi --help' for available commands.\n", .{});
+    std.process.exit(1);
 }
 
 fn parseBackend(allocator: std.mem.Allocator, name: []const u8) ?gpu.Backend {
@@ -108,9 +126,10 @@ fn runGpuCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
     //   abi gpu info [--backend <name>] [--no-webgpu-first]
     //   abi gpu run-examples [--backend <name>]
     //   abi gpu dot --a "1,2,3" --b "4,5,6"
+    //   abi gpu benchmark [--backend <name>] [--size <n>] [--iterations <n>]
 
     if (args.len < 3) {
-        std.debug.print("Usage: abi gpu <info|run-examples|dot> [flags]\n", .{});
+        std.debug.print("Usage: abi gpu <info|run-examples|dot|benchmark> [flags]\n", .{});
         return;
     }
 
@@ -213,6 +232,61 @@ fn runGpuCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
             std.debug.print("  {d}: id={d} score={d:.6}\n", .{ idx, r.index, r.score });
         }
         return;
+    } else if (std.mem.eql(u8, sub, "benchmark")) {
+        var backend: gpu.Backend = .auto;
+        var size: usize = 1024;
+        var iterations: usize = 100;
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--backend") and i + 1 < args.len) {
+                i += 1;
+                if (parseBackend(allocator, args[i])) |b| backend = b;
+            } else if (std.mem.eql(u8, args[i], "--size") and i + 1 < args.len) {
+                i += 1;
+                size = try std.fmt.parseInt(usize, args[i], 10);
+            } else if (std.mem.eql(u8, args[i], "--iterations") and i + 1 < args.len) {
+                i += 1;
+                iterations = try std.fmt.parseInt(usize, args[i], 10);
+            }
+        }
+
+        std.debug.print("Running GPU benchmark with backend={}, size={}, iterations={}\n", .{ backend, size, iterations });
+        const cfg = gpu.GPUConfig{ .backend = backend };
+        var renderer = try gpu.GPURenderer.init(allocator, cfg);
+        defer renderer.deinit();
+
+        // Create test vectors
+        const a = try allocator.alloc(f32, size);
+        defer allocator.free(a);
+        const b = try allocator.alloc(f32, size);
+        defer allocator.free(b);
+
+        // Fill with random data
+        var prng = std.Random.DefaultPrng.init(42);
+        const random = prng.random();
+        for (a) |*val| val.* = random.float(f32) * 2.0 - 1.0;
+        for (b) |*val| val.* = random.float(f32) * 2.0 - 1.0;
+
+        const ha = try renderer.createBufferWithData(f32, a, .{ .storage = true, .copy_src = true, .copy_dst = true });
+        const hb = try renderer.createBufferWithData(f32, b, .{ .storage = true, .copy_src = true, .copy_dst = true });
+
+        const start_time = @as(u64, @intCast(std.time.nanoTimestamp()));
+        for (0..iterations) |_| {
+            _ = try renderer.computeVectorDotBuffers(ha, hb, size);
+        }
+        const end_time = @as(u64, @intCast(std.time.nanoTimestamp()));
+
+        const elapsed_ns = @as(f64, @floatFromInt(end_time - start_time));
+        const elapsed_ms = elapsed_ns / 1_000_000.0;
+        const ops_per_sec = @as(f64, @floatFromInt(iterations)) / (elapsed_ms / 1000.0);
+        const flops = @as(f64, @floatFromInt(size * iterations * 2)) / (elapsed_ns / 1_000_000_000.0);
+
+        std.debug.print("Benchmark results:\n");
+        std.debug.print("  Total time: {d:.2}ms\n", .{elapsed_ms});
+        std.debug.print("  Operations/sec: {d:.0}\n", .{ops_per_sec});
+        std.debug.print("  FLOPS: {d:.2}G\n", .{flops / 1_000_000_000.0});
+
+        return;
     } else {
         std.debug.print("Unknown gpu subcommand: {s}\n", .{sub});
         return;
@@ -245,8 +319,10 @@ fn runDbCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
     //   abi db add --db <path> --vector "..."
     //   abi db query --db <path> --vector "..." [--k N]
     //   abi db stats --db <path>
+    //   abi db init --db <path> --dimension <N>
+    //   abi db optimize --db <path>
     if (args.len < 3) {
-        std.debug.print("Usage: abi db <add|query|stats> [flags]\n", .{});
+        std.debug.print("Usage: abi db <add|query|stats|init|optimize> [flags]\n", .{});
         return;
     }
     const sub = args[2];
@@ -325,6 +401,46 @@ fn runDbCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
         const stats = db.getStats();
         std.debug.print("Dimensions={d} Rows={d} Writes={d} Searches={d}\n", .{ db.getDimension(), db.getRowCount(), stats.write_count, stats.search_count });
         return;
+    } else if (std.mem.eql(u8, sub, "init")) {
+        var db_path: ?[]const u8 = null;
+        var dimension: ?usize = null;
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--db") and i + 1 < args.len) {
+                i += 1;
+                db_path = args[i];
+            } else if (std.mem.eql(u8, args[i], "--dimension") and i + 1 < args.len) {
+                i += 1;
+                dimension = try std.fmt.parseInt(usize, args[i], 10);
+            }
+        }
+        if (db_path == null or dimension == null) {
+            std.debug.print("db init requires --db and --dimension\n", .{});
+            return;
+        }
+        var db = try abi.database.Db.open(db_path.?, true);
+        defer db.close();
+        try db.init(@intCast(dimension.?));
+        std.debug.print("Initialized database with dimension={d}\n", .{dimension.?});
+        return;
+    } else if (std.mem.eql(u8, sub, "optimize")) {
+        var db_path: ?[]const u8 = null;
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--db") and i + 1 < args.len) {
+                i += 1;
+                db_path = args[i];
+            }
+        }
+        if (db_path == null) {
+            std.debug.print("db optimize requires --db <path>\n", .{});
+            return;
+        }
+        var db = try abi.database.Db.open(db_path.?, true);
+        defer db.close();
+        try db.optimize();
+        std.debug.print("Database optimization completed\n", .{});
+        return;
     } else {
         std.debug.print("Unknown db subcommand: {s}\n", .{sub});
     }
@@ -333,9 +449,15 @@ fn runDbCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
 fn runConfigCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
     // Usage:
     //   abi config [--file <path>] [--validate] [--summary]
+    //   abi config set <key> <value> [--file <path>]
+    //   abi config get <key> [--file <path>]
+    //   abi config list [--file <path>]
     var config_path: ?[]const u8 = null;
     var do_validate = false;
     var do_summary = true;
+    var action: ?[]const u8 = null;
+    var key: ?[]const u8 = null;
+    var value: ?[]const u8 = null;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -353,11 +475,49 @@ fn runConfigCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
             do_summary = true;
         } else if (std.mem.eql(u8, arg, "validate")) {
             do_validate = true;
+        } else if (std.mem.eql(u8, arg, "set") or std.mem.eql(u8, arg, "get") or std.mem.eql(u8, arg, "list")) {
+            action = arg;
+            if (std.mem.eql(u8, arg, "set") and i + 2 < args.len) {
+                i += 1;
+                key = args[i];
+                i += 1;
+                value = args[i];
+            } else if (std.mem.eql(u8, arg, "get") and i + 1 < args.len) {
+                i += 1;
+                key = args[i];
+            }
         }
     }
 
     var manager = try abi.wdbx.ConfigManager.init(allocator, config_path);
     defer manager.deinit();
+
+    if (action) |act| {
+        if (std.mem.eql(u8, act, "set")) {
+            if (key == null or value == null) {
+                std.debug.print("config set requires <key> and <value>\n", .{});
+                return;
+            }
+            try manager.setValue(key.?, value.?);
+            try manager.save();
+            std.debug.print("Set {s}={s}\n", .{ key.?, value.? });
+            return;
+        } else if (std.mem.eql(u8, act, "get")) {
+            if (key == null) {
+                std.debug.print("config get requires <key>\n", .{});
+                return;
+            }
+            if (manager.getValue(key.?)) |val| {
+                std.debug.print("{s}={s}\n", .{ key.?, val });
+            } else {
+                std.debug.print("Key '{s}' not found\n", .{key.?});
+            }
+            return;
+        } else if (std.mem.eql(u8, act, "list")) {
+            manager.listAll();
+            return;
+        }
+    }
 
     if (do_validate) {
         manager.validate() catch |err| {
@@ -374,6 +534,404 @@ fn runConfigCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
     }
 }
 
+fn runNeuralCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
+    // Usage:
+    //   abi neural train --data <path> [--output <path>] [--epochs N] [--lr RATE] [--batch-size N]
+    //   abi neural predict --model <path> --input "csv"
+    //   abi neural info --model <path>
+    //   abi neural benchmark [--size N] [--iterations N]
+    if (args.len < 3) {
+        std.debug.print("Usage: abi neural <train|predict|info|benchmark> [flags]\n", .{});
+        return;
+    }
+
+    const sub = args[2];
+    if (std.mem.eql(u8, sub, "train")) {
+        var data_path: ?[]const u8 = null;
+        var output_path: ?[]const u8 = null;
+        var epochs: usize = 100;
+        var learning_rate: f32 = 0.001;
+        var batch_size: usize = 32;
+
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--data") and i + 1 < args.len) {
+                data_path = args[i + 1];
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--output") and i + 1 < args.len) {
+                output_path = args[i + 1];
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--epochs") and i + 1 < args.len) {
+                epochs = try std.fmt.parseInt(usize, args[i + 1], 10);
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--lr") and i + 1 < args.len) {
+                learning_rate = try std.fmt.parseFloat(f32, args[i + 1]);
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--batch-size") and i + 1 < args.len) {
+                batch_size = try std.fmt.parseInt(usize, args[i + 1], 10);
+                i += 1;
+            }
+        }
+
+        if (data_path == null) {
+            std.debug.print("neural train requires --data <path>\n", .{});
+            return;
+        }
+
+        const final_output = output_path orelse "neural_model.bin";
+        std.debug.print("Training neural network on {s}...\n", .{data_path.?});
+
+        const training_data = try loadTrainingData(allocator, data_path.?);
+        defer training_data.deinit();
+
+        try trainNeuralNetwork(allocator, training_data, final_output, epochs, learning_rate, batch_size, false);
+        std.debug.print("Training completed. Model saved to: {s}\n", .{final_output});
+    } else if (std.mem.eql(u8, sub, "predict")) {
+        var model_path: ?[]const u8 = null;
+        var input_str: ?[]const u8 = null;
+
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--model") and i + 1 < args.len) {
+                model_path = args[i + 1];
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--input") and i + 1 < args.len) {
+                input_str = args[i + 1];
+                i += 1;
+            }
+        }
+
+        if (model_path == null or input_str == null) {
+            std.debug.print("neural predict requires --model and --input\n", .{});
+            return;
+        }
+
+        const input = try parseCsvFloats(allocator, input_str.?);
+        defer allocator.free(input);
+
+        var network = try abi.ai.neural.NeuralNetwork.loadFromFile(allocator, model_path.?);
+        defer network.deinit();
+
+        const output = try network.predict(input);
+        defer allocator.free(output);
+
+        std.debug.print("Prediction: ");
+        for (output, 0..) |val, idx| {
+            if (idx > 0) std.debug.print(", ");
+            std.debug.print("{d:.6}", .{val});
+        }
+        std.debug.print("\n", .{});
+    } else if (std.mem.eql(u8, sub, "info")) {
+        var model_path: ?[]const u8 = null;
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--model") and i + 1 < args.len) {
+                model_path = args[i + 1];
+                i += 1;
+            }
+        }
+
+        if (model_path == null) {
+            std.debug.print("neural info requires --model <path>\n", .{});
+            return;
+        }
+
+        var network = try abi.ai.neural.NeuralNetwork.loadFromFile(allocator, model_path.?);
+        defer network.deinit();
+
+        const info = network.getInfo();
+        std.debug.print("Neural Network Info:\n");
+        std.debug.print("  Input size: {}\n", .{info.input_size});
+        std.debug.print("  Output size: {}\n", .{info.output_size});
+        std.debug.print("  Layers: {}\n", .{info.layer_count});
+        std.debug.print("  Parameters: {}\n", .{info.parameter_count});
+    } else if (std.mem.eql(u8, sub, "benchmark")) {
+        var size: usize = 1000;
+        var iterations: usize = 1000;
+
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--size") and i + 1 < args.len) {
+                size = try std.fmt.parseInt(usize, args[i + 1], 10);
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--iterations") and i + 1 < args.len) {
+                iterations = try std.fmt.parseInt(usize, args[i + 1], 10);
+                i += 1;
+            }
+        }
+
+        std.debug.print("Running neural network benchmark...\n");
+        try runNeuralBenchmark(allocator, size, iterations);
+    } else {
+        std.debug.print("Unknown neural subcommand: {s}\n", .{sub});
+    }
+}
+
+fn runSimdCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
+    // Usage:
+    //   abi simd info
+    //   abi simd benchmark [--size N] [--iterations N]
+    //   abi simd dot --a "csv" --b "csv"
+    //   abi simd matrix --a "csv" --b "csv" [--rows N] [--cols N]
+    if (args.len < 3) {
+        std.debug.print("Usage: abi simd <info|benchmark|dot|matrix> [flags]\n", .{});
+        return;
+    }
+
+    const sub = args[2];
+    if (std.mem.eql(u8, sub, "info")) {
+        const features = abi.simd.CpuFeatures.detect();
+        std.debug.print("SIMD CPU Features:\n");
+        std.debug.print("  AVX: {}\n", .{features.avx});
+        std.debug.print("  AVX2: {}\n", .{features.avx2});
+        std.debug.print("  SSE4.1: {}\n", .{features.sse4_1});
+        std.debug.print("  NEON: {}\n", .{features.neon});
+        const throughput = abi.simd.VectorOps.getMeasuredThroughput();
+        std.debug.print("  Measured throughput: {d:.2} GB/s\n", .{throughput});
+    } else if (std.mem.eql(u8, sub, "benchmark")) {
+        var size: usize = 10000;
+        var iterations: usize = 1000;
+
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--size") and i + 1 < args.len) {
+                size = try std.fmt.parseInt(usize, args[i + 1], 10);
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--iterations") and i + 1 < args.len) {
+                iterations = try std.fmt.parseInt(usize, args[i + 1], 10);
+                i += 1;
+            }
+        }
+
+        std.debug.print("Running SIMD benchmark...\n");
+        try runSimdBenchmark(allocator, size, iterations);
+    } else if (std.mem.eql(u8, sub, "dot")) {
+        var a_str: ?[]const u8 = null;
+        var b_str: ?[]const u8 = null;
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--a") and i + 1 < args.len) {
+                i += 1;
+                a_str = args[i];
+            } else if (std.mem.eql(u8, args[i], "--b") and i + 1 < args.len) {
+                i += 1;
+                b_str = args[i];
+            }
+        }
+        if (a_str == null or b_str == null) {
+            std.debug.print("simd dot requires --a and --b CSV vectors\n", .{});
+            return;
+        }
+
+        const a_vals = try parseCsvFloats(allocator, a_str.?);
+        defer allocator.free(a_vals);
+        const b_vals = try parseCsvFloats(allocator, b_str.?);
+        defer allocator.free(b_vals);
+
+        const len = @min(a_vals.len, b_vals.len);
+        const dot = abi.simd.VectorOps.dotProduct(a_vals[0..len], b_vals[0..len]);
+        std.debug.print("SIMD dot product({d}): {d:.6}\n", .{ len, dot });
+    } else if (std.mem.eql(u8, sub, "matrix")) {
+        var a_str: ?[]const u8 = null;
+        var b_str: ?[]const u8 = null;
+        var rows: usize = 0;
+        var cols: usize = 0;
+
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--a") and i + 1 < args.len) {
+                i += 1;
+                a_str = args[i];
+            } else if (std.mem.eql(u8, args[i], "--b") and i + 1 < args.len) {
+                i += 1;
+                b_str = args[i];
+            } else if (std.mem.eql(u8, args[i], "--rows") and i + 1 < args.len) {
+                i += 1;
+                rows = try std.fmt.parseInt(usize, args[i], 10);
+            } else if (std.mem.eql(u8, args[i], "--cols") and i + 1 < args.len) {
+                i += 1;
+                cols = try std.fmt.parseInt(usize, args[i], 10);
+            }
+        }
+
+        if (a_str == null or b_str == null) {
+            std.debug.print("simd matrix requires --a and --b CSV matrices\n", .{});
+            return;
+        }
+
+        const a_vals = try parseCsvFloats(allocator, a_str.?);
+        defer allocator.free(a_vals);
+        const b_vals = try parseCsvFloats(allocator, b_str.?);
+        defer allocator.free(b_vals);
+
+        if (rows == 0) rows = @intFromFloat(@sqrt(@as(f64, @floatFromInt(a_vals.len))));
+        if (cols == 0) cols = rows;
+
+        std.debug.print("Matrix multiplication ({d}x{d}) with SIMD optimization\n", .{ rows, cols });
+        // TODO: Implement matrix multiplication with SIMD
+        std.debug.print("Matrix SIMD operations not yet implemented\n", .{});
+    } else {
+        std.debug.print("Unknown simd subcommand: {s}\n", .{sub});
+    }
+}
+
+fn runPluginCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
+    // Usage:
+    //   abi plugin list
+    //   abi plugin load <path>
+    //   abi plugin info <name>
+    //   abi plugin call <name> <function> [args...]
+    if (args.len < 3) {
+        std.debug.print("Usage: abi plugin <list|load|info|call> [args...]\n", .{});
+        return;
+    }
+
+    const sub = args[2];
+    if (std.mem.eql(u8, sub, "list")) {
+        var registry = try abi.plugins.createRegistry(allocator);
+        defer registry.deinit();
+
+        const plugins = registry.listPlugins();
+        std.debug.print("Loaded plugins:\n");
+        for (plugins) |plugin| {
+            std.debug.print("  {s} v{s} - {s}\n", .{ plugin.name, plugin.version, plugin.description });
+        }
+    } else if (std.mem.eql(u8, sub, "load")) {
+        if (args.len < 4) {
+            std.debug.print("plugin load requires <path>\n", .{});
+            return;
+        }
+
+        const path = args[3];
+        var registry = try abi.plugins.createRegistry(allocator);
+        defer registry.deinit();
+
+        try registry.loadPlugin(path);
+        std.debug.print("Plugin loaded from: {s}\n", .{path});
+    } else if (std.mem.eql(u8, sub, "info")) {
+        if (args.len < 4) {
+            std.debug.print("plugin info requires <name>\n", .{});
+            return;
+        }
+
+        const name = args[3];
+        var registry = try abi.plugins.createRegistry(allocator);
+        defer registry.deinit();
+
+        if (registry.getPlugin(name)) |plugin| {
+            std.debug.print("Plugin Info:\n");
+            std.debug.print("  Name: {s}\n", .{plugin.name});
+            std.debug.print("  Version: {s}\n", .{plugin.version});
+            std.debug.print("  Description: {s}\n", .{plugin.description});
+            std.debug.print("  Author: {s}\n", .{plugin.author});
+            std.debug.print("  Status: {s}\n", .{@tagName(plugin.status)});
+        } else {
+            std.debug.print("Plugin '{s}' not found\n", .{name});
+        }
+    } else if (std.mem.eql(u8, sub, "call")) {
+        if (args.len < 5) {
+            std.debug.print("plugin call requires <name> <function> [args...]\n", .{});
+            return;
+        }
+
+        const name = args[3];
+        const function = args[4];
+
+        var registry = try abi.plugins.createRegistry(allocator);
+        defer registry.deinit();
+
+        if (registry.getPlugin(name)) |_| {
+            std.debug.print("Calling {s}.{s}()...\n", .{ name, function });
+            // TODO: Implement plugin function calling
+            std.debug.print("Plugin function calling not yet implemented\n", .{});
+        } else {
+            std.debug.print("Plugin '{s}' not found\n", .{name});
+        }
+    } else {
+        std.debug.print("Unknown plugin subcommand: {s}\n", .{sub});
+    }
+}
+
+fn runServerCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
+    // Usage:
+    //   abi server start [--port N] [--host <ip>] [--config <path>]
+    //   abi server stop
+    //   abi server status
+    //   abi server test [--url <url>]
+    if (args.len < 3) {
+        std.debug.print("Usage: abi server <start|stop|status|test> [flags]\n", .{});
+        return;
+    }
+
+    const sub = args[2];
+    if (std.mem.eql(u8, sub, "start")) {
+        var port: u16 = 8080;
+        var host: []const u8 = "0.0.0.0";
+        var config_path: ?[]const u8 = null;
+
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--port") and i + 1 < args.len) {
+                port = @intCast(try std.fmt.parseInt(u16, args[i + 1], 10));
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--host") and i + 1 < args.len) {
+                host = args[i + 1];
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--config") and i + 1 < args.len) {
+                config_path = args[i + 1];
+                i += 1;
+            }
+        }
+
+        std.debug.print("Starting server on {s}:{d}...\n", .{ host, port });
+
+        const server_config = abi.server.ServerConfig{
+            .host = host,
+            .port = port,
+            .max_connections = 1000,
+            .timeout_ms = 30000,
+            .enable_cors = true,
+            .enable_compression = true,
+        };
+
+        var server = try abi.server.HttpServer.init(allocator, server_config);
+        defer server.deinit();
+
+        try server.start();
+        std.debug.print("Server started successfully on http://{s}:{d}\n", .{ host, port });
+
+        // Run server until interrupted
+        while (true) {
+            try server.processRequests();
+            std.Thread.sleep(1000000); // Sleep 1ms
+        }
+    } else if (std.mem.eql(u8, sub, "stop")) {
+        std.debug.print("Stopping server...\n", .{});
+        // TODO: Implement server stop functionality
+        std.debug.print("Server stop not yet implemented\n", .{});
+    } else if (std.mem.eql(u8, sub, "status")) {
+        std.debug.print("Checking server status...\n", .{});
+        // TODO: Implement server status check
+        std.debug.print("Server status check not yet implemented\n", .{});
+    } else if (std.mem.eql(u8, sub, "test")) {
+        var url: []const u8 = "http://localhost:8080";
+
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--url") and i + 1 < args.len) {
+                url = args[i + 1];
+                i += 1;
+            }
+        }
+
+        std.debug.print("Testing server at {s}...\n", .{url});
+        // TODO: Implement server testing
+        std.debug.print("Server testing not yet implemented\n", .{});
+    } else {
+        std.debug.print("Unknown server subcommand: {s}\n", .{sub});
+    }
+}
+
 fn printHelp() void {
     std.debug.print(
         \\
@@ -384,29 +942,65 @@ fn printHelp() void {
         \\
         \\📋 USAGE:
         \\   abi [options]
-        \\   abi gpu <info|run-examples|dot> [flags]
-        \\   abi db  <add|query|stats> [flags]
-        \\   abi llm <embed|query> [flags]
+        \\   abi gpu     <info|run-examples|dot|benchmark|search> [flags]
+        \\   abi db      <add|query|stats|init|optimize> [flags]
+        \\   abi llm     <embed|query|train> [flags]
+        \\   abi neural  <train|predict|info|benchmark> [flags]
+        \\   abi simd    <info|benchmark|dot|matrix> [flags]
+        \\   abi plugin  <list|load|info|call> [args...]
+        \\   abi server  <start|stop|status|test> [flags]
+        \\   abi weather <ingest|query> [flags]
+        \\   abi chat    [--persona <type>] [--interactive] [message]
+        \\   abi config  [--file <path>] [--validate] [set|get|list] [key] [value]
         \\   abi --help                    Show this help message
         \\   abi --version                 Show version information
-        \\   abi config [flags]           Manage and validate configuration
         \\
         \\   GPU commands:
         \\     gpu info [--backend <auto|webgpu|vulkan|metal|dx12|opengl|opencl|cuda|cpu>] [--no-webgpu-first]
         \\     gpu run-examples
         \\     gpu dot --a "csv" --b "csv"
         \\     gpu search --db <path> --vector "csv" [--k N]
+        \\     gpu benchmark [--backend <name>] [--size <n>] [--iterations <n>]
         \\
         \\   Database commands:
         \\     db add --db <path> --vector "csv"
         \\     db query --db <path> --vector "csv" [--k N]
         \\     db stats --db <path>
+        \\     db init --db <path> --dimension <N>
+        \\     db optimize --db <path>
+        \\
+        \\   Neural Network commands:
+        \\     neural train --data <path> [--output <path>] [--epochs N] [--lr RATE] [--batch-size N]
+        \\     neural predict --model <path> --input "csv"
+        \\     neural info --model <path>
+        \\     neural benchmark [--size N] [--iterations N]
+        \\
+        \\   SIMD commands:
+        \\     simd info
+        \\     simd benchmark [--size N] [--iterations N]
+        \\     simd dot --a "csv" --b "csv"
+        \\     simd matrix --a "csv" --b "csv" [--rows N] [--cols N]
+        \\
+        \\   Plugin commands:
+        \\     plugin list
+        \\     plugin load <path>
+        \\     plugin info <name>
+        \\     plugin call <name> <function> [args...]
+        \\
+        \\   Server commands:
+        \\     server start [--port N] [--host <ip>] [--config <path>]
+        \\     server stop
+        \\     server status
+        \\     server test [--url <url>]
         \\
         \\   Config flags:
         \\     --file <path>              Use a specific config file (default: .wdbx-config)
         \\     --validate                 Validate configuration and exit
         \\     --summary                  Print configuration summary (default)
         \\     --no-summary               Do not print summary
+        \\     set <key> <value>          Set configuration value
+        \\     get <key>                  Get configuration value
+        \\     list                       List all configuration values
         \\
         \\🎯 FEATURES:
         \\
@@ -423,6 +1017,7 @@ fn printHelp() void {
         \\     • Sub-millisecond inference performance
         \\     • Multiple activation functions and optimizers
         \\     • Model serialization and deployment
+        \\     • Training with configurable hyperparameters
         \\
         \\   ⚡ SIMD Operations
         \\     • Cross-platform SIMD optimization (x86_64, ARM)
@@ -484,6 +1079,15 @@ fn printHelp() void {
         \\   # Use alternate config path
         \\   abi config --file ./prod.wdbx-config --validate
         \\
+        \\   # Train a neural network
+        \\   abi neural train --data training.csv --epochs 100 --lr 0.001
+        \\
+        \\   # Start web server
+        \\   abi server start --port 8080 --host 0.0.0.0
+        \\
+        \\   # Run GPU benchmark
+        \\   abi gpu benchmark --backend vulkan --size 10000
+        \\
         \\🏗️  BUILD INFORMATION:
         \\   Target: {s}
         \\   Zig Version: {s}
@@ -531,8 +1135,6 @@ fn printVersion() void {
         \\
     , .{ CLI_NAME, CLI_VERSION, @import("builtin").zig_version_string, @tagName(@import("builtin").target.cpu.arch) });
 }
-
-// Configuration command handler will be implemented in future updates
 
 fn runWeatherCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
     // Usage:
@@ -634,7 +1236,7 @@ fn weatherToEmbedding(allocator: std.mem.Allocator, w: abi.WeatherData) ![]f32 {
     v[2] = @floatFromInt(w.humidity);
     v[3] = @floatFromInt(w.pressure);
     v[4] = w.wind_speed;
-    v[5] = @floatFromInt(w.wind_direction); // keep as-is; declared var is used
+    v[5] = @floatFromInt(w.wind_direction);
     v[6] = @floatFromInt(w.visibility);
     v[7] = @floatFromInt(w.timestamp % 100000);
     // simple hashed text features
@@ -673,6 +1275,11 @@ fn runLlmCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
     const sub = args[2];
     // Track env-provided API key for best-effort zeroization
     var api_key_owned: ?[]u8 = null;
+    defer if (api_key_owned) |buf| {
+        @memset(buf, 0);
+        allocator.free(buf);
+    };
+
     if (std.mem.eql(u8, sub, "embed")) {
         var db_path: ?[]const u8 = null;
         var provider: []const u8 = "ollama";
@@ -763,12 +1370,6 @@ fn runLlmCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
         if (db.getDimension() == 0) try db.init(@intCast(emb.len));
         const id = try db.addEmbedding(emb);
         std.debug.print("Embedded text added, id={d}, dim={d}\n", .{ id, emb.len });
-        // Best effort: zeroize env-provided API key before return
-        if (api_key_owned) |buf| {
-            @memset(buf, 0);
-            allocator.free(buf);
-            api_key_owned = null;
-        }
         return;
     } else if (std.mem.eql(u8, sub, "query")) {
         var db_path: ?[]const u8 = null;
@@ -801,12 +1402,6 @@ fn runLlmCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
         std.debug.print("Found {d} results for query\n", .{results.len});
         for (results, 0..) |r, iidx| {
             std.debug.print("  {d}: id={d} score={d:.6}\n", .{ iidx, r.index, r.score });
-        }
-        // Best effort: zeroize env-provided API key before return
-        if (api_key_owned) |buf| {
-            @memset(buf, 0);
-            allocator.free(buf);
-            api_key_owned = null;
         }
         return;
     } else if (std.mem.eql(u8, sub, "train")) {
@@ -865,8 +1460,8 @@ fn runLlmCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
         std.debug.print("Epochs: {}, Learning Rate: {}, Batch Size: {}, GPU: {}, Threads: {}\n", .{ final_epochs, final_lr, final_batch_size, use_gpu, final_threads });
 
         // Load training data
-        const training_data = try loadTrainingData(allocator, data_path.?);
-        defer allocator.free(training_data);
+        var training_data = try loadTrainingData(allocator, data_path.?);
+        defer training_data.deinit();
 
         // Create and train model
         if (std.mem.eql(u8, final_model_type, "neural")) {
@@ -908,8 +1503,8 @@ fn loadTrainingData(allocator: std.mem.Allocator, path: []const u8) !TrainingDat
     const file = try std.fs.cwd().openFile(path, .{});
     defer file.close();
 
-    var inputs = std.ArrayList([]const f32).init(allocator);
-    var targets = std.ArrayList([]const f32).init(allocator);
+    var inputs = try std.ArrayList([]const f32).initCapacity(allocator, 0);
+    var targets = try std.ArrayList([]const f32).initCapacity(allocator, 0);
     defer {
         for (inputs.items) |input| allocator.free(input);
         for (targets.items) |target| allocator.free(target);
@@ -924,7 +1519,7 @@ fn loadTrainingData(allocator: std.mem.Allocator, path: []const u8) !TrainingDat
         if (line.len == 0) continue;
 
         var parts = std.mem.splitScalar(u8, line, ',');
-        var values = std.ArrayList(f32).init(allocator);
+        var values = try std.ArrayList(f32).initCapacity(allocator, 0);
         defer values.deinit();
 
         while (parts.next()) |part| {
@@ -1038,7 +1633,7 @@ fn trainLinearModel(
 
 // Chat command implementation
 fn runChatCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
-    // Usage: abi chat [--persona <type>] [--backend <provider>] [--model <name>] [--interactive]
+    // Usage: abi chat [--persona <type>] [--backend <provider>] [--model <name>] [--interactive] [message]
     var persona: ?[]const u8 = null;
     var backend: ?[]const u8 = null;
     var model: ?[]const u8 = null;
@@ -1103,6 +1698,8 @@ fn runChatCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
                     std.debug.print("  quit/exit - Exit chat\n");
                     std.debug.print("  help - Show this help\n");
                     std.debug.print("  stats - Show agent statistics\n");
+                    std.debug.print("  clear - Clear conversation history\n");
+                    std.debug.print("  persona <type> - Change persona\n");
                     continue;
                 } else if (std.mem.eql(u8, trimmed, "stats")) {
                     const stats = agent.getPerformanceStats();
@@ -1111,6 +1708,15 @@ fn runChatCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
                     std.debug.print("  Successful requests: {}\n", .{stats.successful_requests});
                     std.debug.print("  Failed requests: {}\n", .{stats.failed_requests});
                     std.debug.print("  Average response time: {d:.2}ms\n", .{stats.average_response_time_ms});
+                    continue;
+                } else if (std.mem.eql(u8, trimmed, "clear")) {
+                    agent.clearHistory();
+                    std.debug.print("Conversation history cleared.\n", .{});
+                    continue;
+                } else if (std.mem.startsWith(u8, trimmed, "persona ")) {
+                    const new_persona = trimmed[8..];
+                    try agent.setPersona(new_persona);
+                    std.debug.print("Persona changed to: {s}\n", .{new_persona});
                     continue;
                 } else if (trimmed.len == 0) {
                     continue;
@@ -1132,4 +1738,272 @@ fn runChatCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
         std.debug.print("  --interactive: start interactive chat session\n");
         std.debug.print("  message: single message to send (if not interactive)\n");
     }
+}
+
+// Benchmark functions
+fn runNeuralBenchmark(allocator: std.mem.Allocator, size: usize, iterations: usize) !void {
+    std.debug.print("Neural benchmark: size={}, iterations={}\n", .{ size, iterations });
+
+    // Create a simple neural network for benchmarking
+    var network = try abi.ai.neural.NeuralNetwork.init(allocator, &[_]usize{size}, &[_]usize{1});
+    defer network.deinit();
+
+    try network.addLayer(.{
+        .type = .Dense,
+        .input_size = size,
+        .output_size = 64,
+        .activation = .ReLU,
+    });
+    try network.addLayer(.{
+        .type = .Dense,
+        .input_size = 64,
+        .output_size = 1,
+        .activation = .None,
+    });
+
+    // Generate random input data
+    const input = try allocator.alloc(f32, size);
+    defer allocator.free(input);
+    const target = try allocator.alloc(f32, 1);
+    defer allocator.free(target);
+
+    var prng = std.Random.DefaultPrng.init(42);
+    const random = prng.random();
+    for (input) |*val| {
+        val.* = random.float(f32) * 2.0 - 1.0;
+    }
+    target[0] = 0.0;
+
+    // Run benchmark
+    var timer = try std.time.Timer.start();
+    var i: usize = 0;
+    var total_loss: f32 = 0;
+    while (i < iterations) : (i += 1) {
+        const loss = try network.trainStep(input, target);
+        total_loss += loss[0];
+    }
+    const total = timer.read();
+    const avg = @as(f64, @floatFromInt(total)) / @as(f64, @floatFromInt(iterations));
+
+    std.debug.print("Neural benchmark completed. Avg loss: {d:.6}, Time: {d:.2}ms\n", .{ @as(f64, total_loss) / @as(f64, @floatFromInt(iterations)), avg / 1000000.0 });
+}
+
+fn runGpuBenchmark(allocator: std.mem.Allocator, size: usize, iterations: usize) !void {
+    std.debug.print("GPU benchmark: size={}, iterations={}\n", .{ size, iterations });
+
+    // Initialize GPU context
+    var gpu_context = try gpu.Context.init(allocator, .{});
+    defer gpu_context.deinit();
+
+    // Create GPU buffers for benchmarking
+    const input_data = try allocator.alloc(f32, size);
+    defer allocator.free(input_data);
+    const output_data = try allocator.alloc(f32, size);
+    defer allocator.free(output_data);
+
+    // Fill input with random data
+    var prng = std.Random.DefaultPrng.init(42);
+    const random = prng.random();
+    for (input_data) |*val| {
+        val.* = random.float(f32) * 2.0 - 1.0;
+    }
+
+    const input_buffer = try gpu_context.createBuffer(f32, size, .{ .usage = .{ .storage = true, .copy_dst = true } });
+    defer input_buffer.deinit();
+    const output_buffer = try gpu_context.createBuffer(f32, size, .{ .usage = .{ .storage = true, .copy_src = true } });
+    defer output_buffer.deinit();
+
+    // Upload data to GPU
+    try input_buffer.upload(input_data);
+
+    // Create compute shader for vector addition
+    const shader_source =
+        \\@group(0) @binding(0) var<storage, read> input: array<f32>;
+        \\@group(0) @binding(1) var<storage, read_write> output: array<f32>;
+        \\
+        \\@compute @workgroup_size(64)
+        \\fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+        \\    let index = global_id.x;
+        \\    if (index >= arrayLength(&input)) {
+        \\        return;
+        \\    }
+        \\    output[index] = input[index] * 2.0 + 1.0;
+        \\}
+    ;
+
+    const compute_pipeline = try gpu_context.createComputePipeline(shader_source);
+    defer compute_pipeline.deinit();
+
+    // Run benchmark
+    var timer = try std.time.Timer.start();
+    var i: usize = 0;
+    while (i < iterations) : (i += 1) {
+        var encoder = try gpu_context.createCommandEncoder();
+        defer encoder.deinit();
+
+        var pass = try encoder.beginComputePass();
+        defer pass.end();
+
+        pass.setPipeline(compute_pipeline);
+        pass.setBindGroup(0, try gpu_context.createBindGroup(.{
+            .layout = compute_pipeline.getBindGroupLayout(0),
+            .entries = &[_]gpu.BindGroupEntry{
+                .{ .binding = 0, .resource = .{ .buffer = input_buffer } },
+                .{ .binding = 1, .resource = .{ .buffer = output_buffer } },
+            },
+        }));
+
+        const workgroup_count = (size + 63) / 64;
+        pass.dispatchWorkgroups(workgroup_count, 1, 1);
+
+        try gpu_context.submit(encoder);
+        try gpu_context.waitIdle();
+    }
+    const total = timer.read();
+    const avg = @as(f64, @floatFromInt(total)) / @as(f64, @floatFromInt(iterations));
+
+    // Download and verify results
+    try output_buffer.download(output_data);
+
+    std.debug.print("GPU benchmark completed. Time: {d:.2}ms per iteration\n", .{avg / 1000000.0});
+    std.debug.print("First few results: {d:.3}, {d:.3}, {d:.3}...\n", .{ output_data[0], output_data[1], output_data[2] });
+}
+
+fn runSimdBenchmark(allocator: std.mem.Allocator, size: usize, iterations: usize) !void {
+    std.debug.print("SIMD benchmark: size={}, iterations={}\n", .{ size, iterations });
+
+    // Ensure size is aligned for SIMD operations
+    const aligned_size = (size + 15) & ~@as(usize, 15); // Align to 16 elements (64 bytes)
+
+    const input_a = try allocator.alignedAlloc(f32, 64, aligned_size);
+    defer allocator.free(input_a);
+    const input_b = try allocator.alignedAlloc(f32, 64, aligned_size);
+    defer allocator.free(input_b);
+    const output = try allocator.alignedAlloc(f32, 64, aligned_size);
+    defer allocator.free(output);
+
+    // Initialize data
+    var prng = std.Random.DefaultPrng.init(42);
+    const random = prng.random();
+    for (0..size) |i| {
+        input_a[i] = random.float(f32) * 2.0 - 1.0;
+        input_b[i] = random.float(f32) * 2.0 - 1.0;
+    }
+
+    // Run SIMD benchmark (vectorized addition and multiplication)
+    var timer = try std.time.Timer.start();
+    var i: usize = 0;
+    while (i < iterations) : (i += 1) {
+        // SIMD operations using @Vector
+        var j: usize = 0;
+        while (j < size) : (j += 16) {
+            const vec_a: @Vector(16, f32) = input_a[j .. j + 16][0..16].*;
+            const vec_b: @Vector(16, f32) = input_b[j .. j + 16][0..16].*;
+
+            // Fused multiply-add operation
+            const result = vec_a * vec_b + @as(@Vector(16, f32), @splat(1.0));
+
+            output[j .. j + 16][0..16].* = result;
+        }
+    }
+    const total = timer.read();
+    const avg = @as(f64, @floatFromInt(total)) / @as(f64, @floatFromInt(iterations));
+
+    // Calculate throughput
+    const ops_per_iteration = size * 2; // multiply + add
+    const total_ops = ops_per_iteration * iterations;
+    const ops_per_second = @as(f64, @floatFromInt(total_ops)) / (@as(f64, @floatFromInt(total)) / 1000000000.0);
+
+    std.debug.print("SIMD benchmark completed. Time: {d:.2}ms per iteration\n", .{avg / 1000000.0});
+    std.debug.print("Throughput: {d:.0} ops/sec\n", .{ops_per_second});
+    std.debug.print("First few results: {d:.3}, {d:.3}, {d:.3}...\n", .{ output[0], output[1], output[2] });
+}
+
+fn runMatrixBenchmark(allocator: std.mem.Allocator, size: usize, iterations: usize) !void {
+    std.debug.print("Matrix benchmark: {}x{} matrices, {} iterations\n", .{ size, size, iterations });
+
+    // Allocate matrices
+    const matrix_a = try allocator.alloc(f32, size * size);
+    defer allocator.free(matrix_a);
+    const matrix_b = try allocator.alloc(f32, size * size);
+    defer allocator.free(matrix_b);
+    const matrix_c = try allocator.alloc(f32, size * size);
+    defer allocator.free(matrix_c);
+
+    // Initialize matrices with random data
+    var prng = std.Random.DefaultPrng.init(42);
+    const random = prng.random();
+    for (matrix_a) |*val| val.* = random.float(f32) * 2.0 - 1.0;
+    for (matrix_b) |*val| val.* = random.float(f32) * 2.0 - 1.0;
+
+    // Run matrix multiplication benchmark
+    var timer = try std.time.Timer.start();
+    var iter: usize = 0;
+    while (iter < iterations) : (iter += 1) {
+        // Standard matrix multiplication C = A * B
+        for (0..size) |i| {
+            for (0..size) |j| {
+                var sum: f32 = 0.0;
+                for (0..size) |k| {
+                    sum += matrix_a[i * size + k] * matrix_b[k * size + j];
+                }
+                matrix_c[i * size + j] = sum;
+            }
+        }
+    }
+    const total = timer.read();
+    const avg = @as(f64, @floatFromInt(total)) / @as(f64, @floatFromInt(iterations));
+
+    // Calculate FLOPS (2 * size^3 operations per matrix multiplication)
+    const ops_per_iteration = 2 * size * size * size;
+    const total_ops = ops_per_iteration * iterations;
+    const flops = @as(f64, @floatFromInt(total_ops)) / (@as(f64, @floatFromInt(total)) / 1000000000.0);
+
+    std.debug.print("Matrix benchmark completed. Time: {d:.2}ms per iteration\n", .{avg / 1000000.0});
+    std.debug.print("Performance: {d:.2} GFLOPS\n", .{flops / 1000000000.0});
+    std.debug.print("Result sample: {d:.3}\n", .{matrix_c[0]});
+}
+
+fn runMemoryBenchmark(allocator: std.mem.Allocator, size: usize, iterations: usize) !void {
+    std.debug.print("Memory benchmark: {} bytes, {} iterations\n", .{ size, iterations });
+
+    const src_buffer = try allocator.alloc(u8, size);
+    defer allocator.free(src_buffer);
+    const dst_buffer = try allocator.alloc(u8, size);
+    defer allocator.free(dst_buffer);
+
+    // Initialize source buffer
+    var prng = std.Random.DefaultPrng.init(42);
+    const random = prng.random();
+    random.bytes(src_buffer);
+
+    // Sequential read/write benchmark
+    var timer = try std.time.Timer.start();
+    var iter: usize = 0;
+    while (iter < iterations) : (iter += 1) {
+        @memcpy(dst_buffer, src_buffer);
+    }
+    const copy_time = timer.read();
+
+    // Random access benchmark
+    timer = try std.time.Timer.start();
+    iter = 0;
+    while (iter < iterations) : (iter += 1) {
+        for (0..size / 8) |_| {
+            const idx = random.uintLessThan(usize, size);
+            dst_buffer[idx] = src_buffer[idx];
+        }
+    }
+    const random_time = timer.read();
+
+    const copy_avg = @as(f64, @floatFromInt(copy_time)) / @as(f64, @floatFromInt(iterations));
+    const random_avg = @as(f64, @floatFromInt(random_time)) / @as(f64, @floatFromInt(iterations));
+
+    // Calculate bandwidth (bytes per second)
+    const copy_bandwidth = @as(f64, @floatFromInt(size)) / (copy_avg / 1000000000.0);
+    const random_bandwidth = @as(f64, @floatFromInt(size / 8)) / (random_avg / 1000000000.0);
+
+    std.debug.print("Memory benchmark completed.\n");
+    std.debug.print("Sequential copy: {d:.2}ms, {d:.2} GB/s\n", .{ copy_avg / 1000000.0, copy_bandwidth / 1000000000.0 });
+    std.debug.print("Random access: {d:.2}ms, {d:.2} GB/s\n", .{ random_avg / 1000000.0, random_bandwidth / 1000000000.0 });
 }

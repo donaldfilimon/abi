@@ -1,140 +1,126 @@
----
-layout: documentation
-title: "WDBX-AI Documentation"
-description: "High-performance vector database with AI capabilities - Complete documentation"
-permalink: /
----
+# ABI Documentation
 
-# WDBX-AI Documentation
+This directory contains the documentation for the ABI (Advanced AI Framework) project.
 
-Welcome to the comprehensive documentation for WDBX-AI, a high-performance vector database with integrated AI capabilities.
+## Documentation Structure
 
-## 🚀 Quick Navigation
+```
+docs/
+├── _config.yml          # Jekyll configuration
+├── Gemfile             # Ruby dependencies
+├── index.md            # Home page
+├── getting-started.md  # Getting started guide
+├── api.md              # API reference
+├── performance.md      # Performance guide
+├── _layouts/           # Jekyll layouts
+├── _includes/          # Reusable content
+├── assets/             # CSS, JS, images
+└── generated/          # Auto-generated documentation
+```
 
-<div class="quick-nav">
-  <div class="nav-card">
-    <h3><a href="./generated/API_REFERENCE/">📘 API Reference</a></h3>
-    <p>Complete API documentation with examples and detailed function signatures.</p>
-  </div>
-  
-  <div class="nav-card">
-    <h3><a href="./generated/EXAMPLES/">💡 Examples</a></h3>
-    <p>Practical examples and tutorials to get you started quickly.</p>
-  </div>
-  
-  <div class="nav-card">
-    <h3><a href="./generated/MODULE_REFERENCE/">📦 Module Reference</a></h3>
-    <p>Detailed module documentation and architecture overview.</p>
-  </div>
-  
-  <div class="nav-card">
-    <h3><a href="./generated/PERFORMANCE_GUIDE/">⚡ Performance Guide</a></h3>
-    <p>Optimization tips, benchmarks, and performance best practices.</p>
-  </div>
-</div>
+## Building Documentation
 
-## 📖 What's Inside
+### Prerequisites
 
-### Core Documentation
-- **[API Reference](./generated/API_REFERENCE/)** - Complete function and type documentation
-- **[Module Reference](./generated/MODULE_REFERENCE/)** - Module structure and relationships
-- **[Examples](./generated/EXAMPLES/)** - Practical usage examples and tutorials
-- **[Performance Guide](./generated/PERFORMANCE_GUIDE/)** - Optimization and benchmarking
-- **[Definitions](./generated/DEFINITIONS_REFERENCE/)** - Comprehensive glossary and concepts
+- Ruby 2.7+
+- Bundler
+- Jekyll
 
-### Developer Resources
-- **[Code Index](./generated/CODE_API_INDEX/)** - Auto-generated API index from source
-- **[Native Docs](./native-docs/)** - Zig compiler-generated documentation
-- **[Search](./index.html)** - Interactive documentation browser
+### Local Development
 
-## 🔍 Features
+```bash
+# Install dependencies
+cd docs
+bundle install
 
-- **🚄 High Performance**: Optimized vector operations with SIMD support
-- **🧠 AI Integration**: Built-in neural networks and machine learning
-- **🗄️ Vector Database**: Efficient storage and similarity search
-- **🔌 Plugin System**: Extensible architecture for custom functionality
-- **📊 Analytics**: Performance monitoring and optimization tools
+# Serve documentation locally
+bundle exec jekyll serve
 
-## 🛠️ Getting Started
+# Build for production
+bundle exec jekyll build
+```
 
-1. **Installation**: Check the [Examples](./generated/EXAMPLES/) for setup instructions
-2. **Quick Start**: Follow the [basic usage examples](./generated/EXAMPLES/#quick-start)
-3. **API Learning**: Explore the [API Reference](./generated/API_REFERENCE/) for detailed function documentation
-4. **Optimization**: Read the [Performance Guide](./generated/PERFORMANCE_GUIDE/) for best practices
+The documentation will be available at `http://localhost:4000`.
 
-## 📚 Documentation Types
+## Documentation Guidelines
 
-This documentation is generated using multiple approaches:
+### Writing Style
 
-### Manual Documentation
-- Curated guides and examples
-- Performance analysis and optimization tips
-- Comprehensive concept explanations
-- Best practices and design patterns
+- Use clear, concise language
+- Include code examples for all major features
+- Provide both basic and advanced usage examples
+- Document all public APIs
+- Include performance considerations
 
-### Auto-Generated Documentation
-- Source code scanning for public APIs
-- Zig compiler documentation extraction
-- Type information and signatures
-- Cross-references and relationships
+### Code Examples
 
-## 🔗 External Resources
+- Use syntax highlighting for code blocks
+- Include imports and complete examples
+- Show error handling patterns
+- Provide both simple and complex examples
 
-- **[GitHub Repository](https://github.com/donaldfilimon/wdbx-ai)** - Source code and issues
-- **[Zig Language](https://ziglang.org/)** - Learn about the Zig programming language
-- **[Vector Databases](./generated/DEFINITIONS_REFERENCE/#vector-database)** - Learn about vector database concepts
+### API Documentation
 
-## 📧 Support
+- Document all public functions, types, and constants
+- Include parameter descriptions and return values
+- Show usage examples for each API
+- Document error conditions
 
-- **Issues**: [Report bugs or request features](https://github.com/donaldfilimon/abi/issues)
-- **Discussions**: [Join community discussions](https://github.com/donaldfilimon/abi/discussions)
-- **Documentation**: [Improve documentation](https://github.com/donaldfilimon/abi/issues/new?title=Documentation%20Improvement)
+## Auto-Generated Content
 
----
+Some documentation is auto-generated from the codebase:
 
-<style>
-.quick-nav {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  margin: 2rem 0;
-}
+- API reference from Zig doc comments
+- Performance benchmarks
+- Code examples from test files
 
-.nav-card {
-  border: 1px solid #e1e4e8;
-  border-radius: 8px;
-  padding: 1.5rem;
-  background: #f6f8fa;
-}
+To regenerate auto-generated content:
 
-.nav-card h3 {
-  margin-top: 0;
-  margin-bottom: 0.5rem;
-}
+```bash
+# Generate API documentation
+zig build docs
 
-.nav-card h3 a {
-  text-decoration: none;
-  color: #0366d6;
-}
+# Generate performance reports
+zig build perf-ci
 
-.nav-card p {
-  margin-bottom: 0;
-  color: #586069;
-  font-size: 0.9rem;
-}
+# Update examples
+zig build docs-examples
+```
 
-@media (prefers-color-scheme: dark) {
-  .nav-card {
-    border-color: #30363d;
-    background: #21262d;
-  }
-  
-  .nav-card h3 a {
-    color: #58a6ff;
-  }
-  
-  .nav-card p {
-    color: #8b949e;
-  }
-}
-</style>
+## Deployment
+
+The documentation is automatically deployed to GitHub Pages when changes are pushed to the main branch.
+
+### Manual Deployment
+
+```bash
+# Build the site
+cd docs
+bundle exec jekyll build --destination ../_site
+
+# The _site directory contains the built documentation
+```
+
+## Contributing to Documentation
+
+1. Make changes to the appropriate `.md` files
+2. Test locally with `bundle exec jekyll serve`
+3. Ensure all links are working
+4. Follow the established style guidelines
+5. Submit a pull request
+
+### Documentation Checklist
+
+- [ ] All public APIs documented
+- [ ] Code examples provided
+- [ ] Links are working
+- [ ] Consistent formatting
+- [ ] Performance considerations included
+- [ ] Error handling documented
+
+## Resources
+
+- [Jekyll Documentation](https://jekyllrb.com/docs/)
+- [GitHub Pages Documentation](https://docs.github.com/en/pages)
+- [Markdown Guide](https://www.markdownguide.org/)
+- [ABI Codebase](../src/) - Source code for reference

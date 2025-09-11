@@ -11,7 +11,7 @@
 //! - CPU Fallback (software rendering)
 
 const std = @import("std");
-const gpu_renderer = @import("gpu_renderer.zig");
+const gpu_renderer = @import("../core/gpu_renderer.zig");
 
 /// Supported GPU backends
 pub const Backend = enum {

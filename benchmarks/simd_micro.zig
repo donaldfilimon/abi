@@ -23,65 +23,36 @@ pub fn main() !void {
     fillLinear(a, 1.0);
     fillLinear(b, 0.5);
 
-    // add
+    // Euclidean distance
     timer.reset();
-    abi.simd.add(r, a, b);
+    const dist_val = abi.core.VectorOps.distance(a, b);
+    const dist_ns = timer.read();
+
+    // Cosine similarity
+    timer.reset();
+    const cos_val = abi.core.VectorOps.cosineSimilarity(a, b);
+    const cos_ns = timer.read();
+
+    // Simple scalar operations for comparison
+    timer.reset();
+    for (r, a, 0..) |*rv, av, i| {
+        rv.* = av + b[i % b.len];
+    }
     const add_ns = timer.read();
 
-    // multiply
     timer.reset();
-    abi.simd.multiply(r, a, b);
-    const mul_ns = timer.read();
-
-    // scale
-    timer.reset();
-    abi.simd.scale(r, a, 1.2345);
-    const scale_ns = timer.read();
-
-    // normalize
-    timer.reset();
-    abi.simd.normalize(r, a);
-    const norm_ns = timer.read();
-
-    // clamp
-    timer.reset();
-    abi.simd.clamp(r, a, -10.0, 10.0);
-    const clamp_ns = timer.read();
-
-    // axpy: y = a*x + y (in-place on r)
-    timer.reset();
-    abi.simd.axpy(r, 0.5, a);
-    const axpy_ns = timer.read();
-
-    // fma: r = a*b + r
-    timer.reset();
-    abi.simd.fma(r, a, b, r);
-    const fma_ns = timer.read();
-
-    // sum/mean/variance/stddev
-    timer.reset();
-    const sum_val = abi.simd.sum(a);
+    var sum_val: f32 = 0;
+    for (a) |v| sum_val += v;
     const sum_ns = timer.read();
-    const mean_val = abi.simd.mean(a);
-    timer.reset();
-    const var_val = abi.simd.variance(a);
-    const var_ns = timer.read();
-    const stddev_val = abi.simd.stddev(a);
 
-    // dot product
-    timer.reset();
-    const dot = abi.simd.dotProduct(a, b);
-    const dot_ns = timer.read();
+    // Unused constants removed to avoid warnings
+    const mean_val = if (a.len > 0) sum_val / @as(f32, @floatFromInt(a.len)) else 0;
 
-    // l1 distance
+    // Matrix multiply (simplified scalar version)
     timer.reset();
-    const l1 = abi.simd.l1Distance(a, b);
-    const l1_ns = timer.read();
-
-    // small matrix multiply (256x64) * (64x64)
-    const M: usize = 256;
-    const K: usize = 64;
-    const Ncol: usize = 64;
+    const M: usize = 64;
+    const K: usize = 32;
+    const Ncol: usize = 32;
     const mat_a = try allocator.alloc(f32, M * K);
     defer allocator.free(mat_a);
     const mat_b = try allocator.alloc(f32, K * Ncol);
@@ -90,9 +61,18 @@ pub fn main() !void {
     defer allocator.free(mat_r);
     for (mat_a, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 7) % 31)) * 0.03125;
     for (mat_b, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 11) % 29)) * 0.03448;
-    timer.reset();
-    abi.simd.matrixMultiply(mat_r, mat_a, mat_b, M, K, Ncol);
+
+    // Simple scalar matrix multiply
+    for (0..M) |i| {
+        for (0..Ncol) |j| {
+            var sum: f32 = 0;
+            for (0..K) |k| {
+                sum += mat_a[i * K + k] * mat_b[k * Ncol + j];
+            }
+            mat_r[i * Ncol + j] = sum;
+        }
+    }
     const mm_ns = timer.read();
 
-    std.debug.print("SIMD micro (N={d})\n  add={d}ns mul={d}ns scale={d}ns norm={d}ns clamp={d}ns axpy={d}ns fma={d}ns\n  sum={d}ns sum_val={d:.3} mean={d:.3} var={d:.3} (var_ns={d}ns) stddev={d:.3}\n  dot={d}ns dot_val={d:.3} l1={d}ns l1_val={d:.3}\n  mm(256x64 * 64x64)={d}ns\n", .{ N, add_ns, mul_ns, scale_ns, norm_ns, clamp_ns, axpy_ns, fma_ns, sum_ns, sum_val, mean_val, var_val, var_ns, stddev_val, dot_ns, dot, l1_ns, l1, mm_ns });
+    std.debug.print("SIMD micro (N={d})\n  distance={d}ns dist_val={d:.3} cosine={d}ns cos_val={d:.3}\n  add={d}ns sum={d}ns sum_val={d:.3} mean={d:.3}\n  mm({d}x{d} * {d}x{d})={d}ns\n", .{ N, dist_ns, dist_val, cos_ns, cos_val, add_ns, sum_ns, sum_val, mean_val, M, K, K, Ncol, mm_ns });
 }

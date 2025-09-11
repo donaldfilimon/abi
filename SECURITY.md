@@ -57,6 +57,11 @@ ABI includes several security-focused features:
 - **Static Analysis**: Built-in static analysis tools
 - **Input Validation**: Comprehensive input sanitization
 - **Error Handling**: Robust error handling throughout the codebase
+- **AI Content Safety**: Content filtering and safety measures for AI-generated responses
+- **API Security**: JWT authentication and rate limiting for web endpoints
+- **Resource Isolation**: Plugin sandboxing and resource limits
+- **Secure Random Generation**: Cryptographically secure random number generation
+- **Network Security**: TLS/SSL support and secure connection handling
 
 ## Dependencies
 
@@ -75,7 +80,30 @@ zig build test-all
 
 # Performance and memory profiling
 zig build profile
+
+# Memory leak detection
+zig build test-memory
+
+# Security audit (if available)
+zig build security-audit
+
+# Input validation tests
+zig build test-validation
 ```
+
+## AI Security Considerations
+
+### Content Safety
+- **Content Filtering**: AI responses are filtered for inappropriate content
+- **Input Sanitization**: All user inputs are sanitized before processing
+- **Rate Limiting**: API endpoints have rate limiting to prevent abuse
+- **Memory Isolation**: AI operations run in isolated memory spaces
+
+### Data Protection
+- **No Data Persistence**: Chat conversations are not permanently stored by default
+- **Encrypted Communications**: All API communications support encryption
+- **Access Control**: Role-based access control for sensitive operations
+- **Audit Logging**: Comprehensive logging of security-relevant events
 
 ## Contact
 

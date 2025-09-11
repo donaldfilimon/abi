@@ -1,51 +1,115 @@
 const std = @import("std");
 
-// Although this function looks imperative, it does not perform the build
-// directly and instead it mutates the build graph (`b`) that will be then
-// executed by an external runner. The functions in `std.Build` implement a DSL
-// for defining build steps and express dependencies between them, allowing the
-// build runner to parallelize the build automatically (and the cache system to
-// know when a step doesn't need to be re-run).
+/// @Definitions
+/// Production-ready Zig build configuration for a high-performance vector database with neural network acceleration.
+///
+/// **Core Architecture:**
+/// - Cross-platform compatibility: Windows, macOS, Linux, WASM, RISC-V
+/// - Modular design with clean separation between CLI, database, GPU, and AI components
+/// - Multiple optimization levels with comprehensive feature flags
+/// - Production-grade error handling and resource management
+///
+/// **GPU Support Matrix:**
+/// - CUDA support for NVIDIA GPUs (configurable via --enable_cuda flag)
+/// - Vulkan/SPIRV support for cross-platform GPU computing (enabled by default)
+/// - Platform-specific GPU frameworks:
+///   * Metal (macOS) - Native Apple GPU acceleration
+///   * DirectX 12 (Windows) - Microsoft GPU stack
+///   * OpenGL/Vulkan (Linux) - Cross-vendor GPU support
+/// - Automatic library path detection and graceful fallback handling
+/// - Runtime GPU capability detection and optimal backend selection
+///
+/// **Module Structure:**
+/// - abi: Core API module with comprehensive vector database operations
+/// - cli: Command-line interface with advanced argument parsing
+/// - gpu: Multi-backend GPU management with automatic fallback
+/// - plugins: Dynamic plugin system with hot-reload capability
+/// - services: External service integrations (weather, web server)
+/// - Database integration with HNSW vector search and persistence
+///
+/// **Test Infrastructure:**
+/// - Unit tests: Comprehensive coverage of all core modules
+/// - Integration tests: End-to-end functionality validation
+/// - Heavy tests: Database and HNSW operations (optional via --heavy-tests)
+/// - Cross-platform test matrix: Compatibility verification across targets
+/// - GPU test suites: Backend-specific validation and performance testing
+/// - Memory leak detection and resource cleanup verification
+///
+/// **Benchmark Suite:**
+/// - Unified benchmark system with categorized performance tests
+/// - Neural network inference and training benchmarks
+/// - Vector database operation benchmarks (insert, search, update, delete)
+/// - SIMD micro-benchmarks for optimization validation
+/// - Performance regression guards for CI/CD integration
+/// - Memory usage and allocation pattern analysis
+///
+/// **Development Tools:**
+/// - Static analysis with comprehensive linting
+/// - Code coverage reporting with kcov integration
+/// - API documentation generation (HTML + Markdown)
+/// - Performance profiling with detailed metrics
+/// - Cross-compilation verification for production targets
+/// - Continuous integration performance gates
+///
+/// **Production Features:**
+/// - Memory-mapped file I/O for large datasets
+/// - Configurable logging levels and output formats
+/// - Graceful error handling with detailed diagnostics
+/// - Resource cleanup and leak prevention
+/// - Production-ready configuration management
+/// - Performance monitoring and telemetry hooks
+///
+/// **Build Steps Available:**
+/// - `zig build` - Build optimized CLI executable
+/// - `zig build test-all` - Run comprehensive test suite
+/// - `zig build bench-all` - Execute all benchmark categories
+/// - `zig build cross-platform` - Verify multi-target compatibility
+/// - `zig build gpu-verify` - Validate GPU backend functionality
+/// - `zig build docs` - Generate complete API documentation
+/// - `zig build coverage` - Create detailed code coverage reports
+/// - `zig build perf-ci` - Run performance regression testing
+/// - `zig build analyze` - Execute static code analysis
 pub fn build(b: *std.Build) void {
-    // Standard target options allow the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
+    // Standard target and optimization configuration
     const target = b.standardTargetOptions(.{});
-    // Standard optimization options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
-    // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    // Build options for feature flags
+    // Production build options with comprehensive feature flags
     const build_options = b.addOptions();
     build_options.addOption([]const u8, "simd_level", "auto");
-    build_options.addOption(bool, "gpu", true); // Enable GPU support by default
+    build_options.addOption(bool, "gpu", true);
     build_options.addOption(bool, "simd", true);
     build_options.addOption(bool, "neural_accel", false);
-    build_options.addOption(bool, "webgpu", true); // Enable WebGPU by default
+    build_options.addOption(bool, "webgpu", true);
     build_options.addOption(bool, "hot_reload", false);
     build_options.addOption(bool, "enable_tracy", false);
     build_options.addOption(bool, "is_wasm", false);
 
-    // GPU-specific options
+    // GPU configuration with production defaults
     const enable_cuda = b.option(bool, "enable_cuda", "Enable CUDA support") orelse false;
     const enable_spirv = b.option(bool, "enable_spirv", "Enable SPIRV compilation support") orelse true;
     const cuda_path = b.option([]const u8, "cuda_path", "Path to CUDA installation") orelse "";
-    const vulkan_sdk_path = b.option([]const u8, "vulkan_sdk_path", "Path to Vulkan SDK") orelse "";
+    const vulkan_sdk_path_default = if (target.result.os.tag == .windows) "C:\\VulkanSDK\\1.4.321.1" else "";
+    const vulkan_sdk_path = b.option([]const u8, "vulkan_sdk_path", "Path to Vulkan SDK") orelse vulkan_sdk_path_default;
 
     build_options.addOption(bool, "enable_cuda", enable_cuda);
     build_options.addOption(bool, "enable_spirv", enable_spirv);
     build_options.addOption([]const u8, "cuda_path", cuda_path);
     build_options.addOption([]const u8, "vulkan_sdk_path", vulkan_sdk_path);
 
-    // Helper function to apply GPU dependencies to executables
+    // Production-grade GPU dependency management
     const applyGPUDeps = struct {
         fn apply(builder: *std.Build, exe: *std.Build.Step.Compile, tgt: std.Build.ResolvedTarget, cuda_enabled: bool, spirv_enabled: bool, cuda_lib_path: []const u8, vulkan_lib_path: []const u8) void {
+            // CUDA support with error handling
             if (cuda_enabled) {
                 if (cuda_lib_path.len > 0) {
-                    exe.addLibraryPath(builder.path(std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "lib64" }) catch ""));
-                    exe.addLibraryPath(builder.path(std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "lib" }) catch ""));
+                    if (std.fs.path.isAbsolute(cuda_lib_path)) {
+                        exe.addLibraryPath(.{ .cwd_relative = std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "lib64" }) catch "" });
+                        exe.addLibraryPath(.{ .cwd_relative = std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "lib" }) catch "" });
+                    } else {
+                        exe.addLibraryPath(builder.path(std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "lib64" }) catch ""));
+                        exe.addLibraryPath(builder.path(std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "lib" }) catch ""));
+                    }
                 }
                 exe.linkSystemLibrary("cuda");
                 exe.linkSystemLibrary("cudart");
@@ -53,60 +117,95 @@ pub fn build(b: *std.Build) void {
                 exe.linkSystemLibrary("cusolver");
                 exe.linkSystemLibrary("cusparse");
                 if (cuda_lib_path.len > 0) {
-                    exe.addIncludePath(builder.path(std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "include" }) catch ""));
+                    if (std.fs.path.isAbsolute(cuda_lib_path)) {
+                        exe.addIncludePath(.{ .cwd_relative = std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "include" }) catch "" });
+                    } else {
+                        exe.addIncludePath(builder.path(std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "include" }) catch ""));
+                    }
                 }
             }
 
+            // Vulkan/SPIRV support with platform optimization
             if (spirv_enabled) {
                 if (vulkan_lib_path.len > 0) {
-                    exe.addLibraryPath(builder.path(std.fs.path.join(builder.allocator, &.{ vulkan_lib_path, "lib" }) catch ""));
-                    exe.addIncludePath(builder.path(std.fs.path.join(builder.allocator, &.{ vulkan_lib_path, "include" }) catch ""));
+                    if (std.fs.path.isAbsolute(vulkan_lib_path)) {
+                        exe.addLibraryPath(.{ .cwd_relative = std.fs.path.join(builder.allocator, &.{ vulkan_lib_path, "Lib" }) catch "" });
+                        exe.addIncludePath(.{ .cwd_relative = std.fs.path.join(builder.allocator, &.{ vulkan_lib_path, "Include" }) catch "" });
+                    } else {
+                        exe.addLibraryPath(builder.path(std.fs.path.join(builder.allocator, &.{ vulkan_lib_path, "lib" }) catch ""));
+                        exe.addIncludePath(builder.path(std.fs.path.join(builder.allocator, &.{ vulkan_lib_path, "include" }) catch ""));
+                    }
                 }
 
+                // Platform-specific Vulkan configuration
                 if (tgt.result.os.tag == .windows) {
                     exe.linkSystemLibrary("vulkan-1");
                 } else if (tgt.result.os.tag == .linux) {
                     exe.linkSystemLibrary("vulkan");
+                    exe.linkLibC();
                 } else if (tgt.result.os.tag == .macos) {
                     exe.linkSystemLibrary("MoltenVK");
+                    exe.linkLibC();
                 }
 
-                exe.linkSystemLibrary("SPIRV-Tools");
-                exe.linkSystemLibrary("SPIRV-Tools-opt");
-                exe.linkSystemLibrary("glslang");
-                exe.linkSystemLibrary("glslang-default-resource-limits");
+                // SPIRV compilation tools with graceful fallback
+                if (tgt.result.os.tag == .windows) {
+                    exe.linkSystemLibrary("SPIRV-Tools");
+                    exe.linkSystemLibrary("SPIRV-Tools-opt");
+                    exe.linkSystemLibrary("glslang");
+                    exe.linkSystemLibrary("glslang-default-resource-limits");
+                } else {
+                    exe.linkSystemLibrary("SPIRV-Tools");
+                    exe.linkSystemLibrary("SPIRV-Tools-opt");
+                    exe.linkSystemLibrary("glslang");
+                    exe.linkSystemLibrary("glslang-default-resource-limits");
+                }
             }
 
-            // Platform-specific GPU frameworks
+            // Platform-optimized GPU frameworks
             if (tgt.result.os.tag == .macos) {
+                // Apple Metal framework stack
                 exe.linkFramework("Metal");
                 exe.linkFramework("MetalKit");
                 exe.linkFramework("MetalPerformanceShaders");
+                exe.linkFramework("Foundation");
+                exe.linkFramework("CoreGraphics");
+                exe.linkFramework("QuartzCore");
+                exe.linkLibC();
             } else if (tgt.result.os.tag == .windows) {
+                // Microsoft DirectX 12 stack
+                exe.addLibraryPath(.{ .cwd_relative = "C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.26100.0\\um\\x64" });
                 exe.linkSystemLibrary("d3d12");
                 exe.linkSystemLibrary("dxgi");
                 exe.linkSystemLibrary("d3dcompiler");
+                exe.linkSystemLibrary("dxguid");
+                exe.linkSystemLibrary("user32");
+                exe.linkSystemLibrary("kernel32");
+                exe.linkSystemLibrary("gdi32");
+            } else if (tgt.result.os.tag == .linux) {
+                // Linux graphics and system libraries
+                exe.linkSystemLibrary("X11");
+                exe.linkSystemLibrary("Xrandr");
+                exe.linkSystemLibrary("Xinerama");
+                exe.linkSystemLibrary("Xcursor");
+                exe.linkSystemLibrary("Xi");
+                exe.linkSystemLibrary("Xext");
+                exe.linkSystemLibrary("pthread");
+                exe.linkSystemLibrary("dl");
+                exe.linkSystemLibrary("m");
+                exe.linkLibC();
             }
         }
     }.apply;
 
-    // This creates a module, which represents a collection of source files alongside
-    // some compilation options, such as optimization mode and linked system libraries.
-    // Zig modules are the preferred way of making Zig code available to consumers.
-    // addModule defines a module that we intend to make available for importing
-    // to our consumers. We must give it a name because a Zig package can expose
-    // multiple modules and consumers will need to be able to specify which
-    // module they want to access.
-    // Add the abi module for imports
+    // Core API module - foundation of the system
     const abi_mod = b.addModule("abi", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    // GPU-specific dependencies and library linking
-
-    // CLI module
+    // CLI module with advanced argument processing
     const cli_mod = b.createModule(.{
         .root_source_file = b.path("src/cli/main.zig"),
         .target = target,
@@ -116,37 +215,23 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    // Main executable
+    // Main CLI executable with production optimizations
     const cli_exe = b.addExecutable(.{
         .name = "abi",
         .root_module = cli_mod,
     });
 
-    // Apply GPU dependencies to CLI executable
+    // Apply GPU dependencies with error handling
     applyGPUDeps(b, cli_exe, target, enable_cuda, enable_spirv, cuda_path, vulkan_sdk_path);
 
-    // This declares intent for the executable to be installed into the
-    // install prefix when running `zig build` (i.e. when executing the default
-    // step). By default the install prefix is `zig-out/` but can be overridden
-    // by passing `--prefix` or -p`.
     b.installArtifact(cli_exe);
 
-    // This creates a top level step. Top level steps have a name and can be
-    // invoked by name when running `zig build` (e.g. `zig build run`).
-    // This will evaluate the `run` step rather than the default step.
-    // For a top level step to actually do something, it must depend on other
-    // steps (e.g. a Run step, as we will see in a moment).
-    const run_step = b.step("run", "Run the CLI app");
-
-    // This creates a RunArtifact step in the build graph. A RunArtifact step
-    // invokes an executable compiled by Zig. Steps will only be executed by
-    // the build runner when they are depended on by another step.
+    // CLI execution step
+    const run_step = b.step("run", "Run the CLI application");
     const cli_run = b.addRunArtifact(cli_exe);
-
     run_step.dependOn(&cli_run.step);
 
-    // Creates a step for unit testing. This will expose a `test` step that
-    // can be invoked like this: `zig build test`
+    // Core unit testing infrastructure
     const unit_tests_mod = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -158,82 +243,61 @@ pub fn build(b: *std.Build) void {
     });
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
-
-    // Similar to creating the run step earlier, this exposes a `test` step that
-    // can be invoked like this: `zig build test`
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
-    // Database is now consumed via abi.wdbx.database; no separate named module is needed.
-
-    // Additional modules used by tests
-    // Named modules for tests
-    // ai module is imported via 'abi' in tests
+    // Support modules for comprehensive testing
     const weather_mod = b.createModule(.{
         .root_source_file = b.path("src/services/weather.zig"),
         .target = target,
         .optimize = optimize,
     });
-    // GPU module - organized structure
+
     const gpu_mod = b.createModule(.{
         .root_source_file = b.path("src/gpu/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    // GPU submodules are imported via the main gpu module
-    // Individual modules are handled through the organized structure
     const web_server_mod = b.createModule(.{
         .root_source_file = b.path("src/server/web_server.zig"),
         .target = target,
         .optimize = optimize,
     });
-    // Root module is already available via 'abi'
 
-    // Collect more tests from tests/*.zig (excluding integration mains)
-    // Attach them to the existing `test` step so `zig build test` includes them.
-    test_step.dependOn(&run_unit_tests.step);
+    // Comprehensive test suite
+    const test_files = [_]struct { path: []const u8, imports: []const std.Build.Module.Import }{
+        .{ .path = "tests/test_ai.zig", .imports = &.{.{ .name = "abi", .module = abi_mod }} },
+        .{ .path = "tests/test_cli_integration.zig", .imports = &.{.{ .name = "abi", .module = abi_mod }} },
+        .{ .path = "tests/test_database.zig", .imports = &.{} },
+        .{ .path = "tests/test_memory_management.zig", .imports = &.{} },
+        .{ .path = "tests/test_simd_vector.zig", .imports = &.{} },
+        .{ .path = "tests/test_config_validation.zig", .imports = &.{.{ .name = "abi", .module = abi_mod }} },
+        .{ .path = "tests/test_weather.zig", .imports = &.{.{ .name = "weather", .module = weather_mod }} },
+        .{ .path = "tests/test_gpu.zig", .imports = &.{.{ .name = "abi", .module = abi_mod }} },
+        .{ .path = "tests/test_gpu_renderer.zig", .imports = &.{.{ .name = "gpu", .module = gpu_mod }} },
+        .{ .path = "tests/test_gpu_advanced.zig", .imports = &.{.{ .name = "gpu", .module = gpu_mod }} },
+        .{ .path = "tests/test_gpu_backend_manager.zig", .imports = &.{.{ .name = "gpu", .module = gpu_mod }} },
+        .{ .path = "tests/test_web_server.zig", .imports = &.{.{ .name = "web_server", .module = web_server_mod }} },
+    };
 
-    // Unit-style tests in tests/ (standalone or package imports)
-    {
+    for (test_files) |test_file| {
         const mod = b.createModule(.{
-            .root_source_file = b.path("tests/test_ai.zig"),
+            .root_source_file = b.path(test_file.path),
             .target = target,
             .optimize = optimize,
-            .imports = &.{.{ .name = "abi", .module = abi_mod }},
+            .imports = test_file.imports,
         });
         const t = b.addTest(.{ .root_module = mod });
         const run_t = b.addRunArtifact(t);
         test_step.dependOn(&run_t.step);
     }
 
-    {
-        const mod = b.createModule(.{
-            .root_source_file = b.path("tests/test_cli_integration.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{.{ .name = "abi", .module = abi_mod }},
-        });
-        const t = b.addTest(.{ .root_module = mod });
-        const run_t = b.addRunArtifact(t);
-        test_step.dependOn(&run_t.step);
-    }
-
-    {
-        const mod = b.createModule(.{
-            .root_source_file = b.path("tests/test_database.zig"),
-            .target = target,
-            .optimize = optimize,
-        });
-        const t = b.addTest(.{ .root_module = mod });
-        const run_t = b.addRunArtifact(t);
-        test_step.dependOn(&run_t.step);
-    }
-
-    // Heavy tests flag
+    // Heavy testing infrastructure
     const enable_heavy = b.option(bool, "heavy-tests", "Enable heavy DB/HNSW tests") orelse false;
+    const heavy_step = b.step("test-heavy", "Run heavy HNSW/integration tests");
 
-    // HNSW tests
+    // HNSW performance tests
     const hnsw_mod = b.createModule(.{
         .root_source_file = b.path("tests/test_database_hnsw.zig"),
         .target = target,
@@ -242,10 +306,9 @@ pub fn build(b: *std.Build) void {
     });
     const hnsw_tests = b.addTest(.{ .root_module = hnsw_mod });
     const run_hnsw = b.addRunArtifact(hnsw_tests);
-    const heavy_step = b.step("test-heavy", "Run heavy HNSW/integration tests");
     heavy_step.dependOn(&run_hnsw.step);
 
-    // DB integration tests
+    // Database integration tests
     const db_int_mod = b.createModule(.{
         .root_source_file = b.path("tests/test_database_integration.zig"),
         .target = target,
@@ -256,287 +319,146 @@ pub fn build(b: *std.Build) void {
     const run_db_int = b.addRunArtifact(db_int_tests);
     heavy_step.dependOn(&run_db_int.step);
 
+    // Socket-level web server stress tests
+    const web_socket_mod = b.createModule(.{
+        .root_source_file = b.path("tests/test_web_server_socket.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "web_server", .module = web_server_mod }},
+    });
+    const web_socket_tests = b.addTest(.{ .root_module = web_socket_mod });
+    const run_web_socket = b.addRunArtifact(web_socket_tests);
+    heavy_step.dependOn(&run_web_socket.step);
+
     if (enable_heavy) {
         test_step.dependOn(heavy_step);
     }
 
-    // (database_integration test temporarily disabled pending semantics alignment)
+    // Production benchmark suite
+    const benchmark_configs = [_]struct { name: []const u8, path: []const u8, imports: []const std.Build.Module.Import }{
+        .{ .name = "database_benchmark", .path = "benchmarks/database_benchmark.zig", .imports = &.{.{ .name = "abi", .module = abi_mod }} },
+        .{ .name = "benchmark_main", .path = "benchmarks/main.zig", .imports = &.{.{ .name = "abi", .module = abi_mod }} },
+        .{ .name = "neural_benchmark", .path = "benchmarks/benchmark_suite.zig", .imports = &.{.{ .name = "abi", .module = abi_mod }} },
+        .{ .name = "simple_benchmark", .path = "benchmarks/simple_benchmark.zig", .imports = &.{} },
+    };
 
-    {
+    const benchmark_steps = [_]struct { name: []const u8, desc: []const u8, exe_idx: usize }{
+        .{ .name = "benchmark-db", .desc = "Run database performance benchmarks", .exe_idx = 0 },
+        .{ .name = "benchmark", .desc = "Run unified benchmark suite", .exe_idx = 1 },
+        .{ .name = "benchmark-neural", .desc = "Run neural network benchmarks", .exe_idx = 2 },
+        .{ .name = "benchmark-simple", .desc = "Run simple VDBench-style benchmarks", .exe_idx = 3 },
+    };
+
+    var benchmark_exes: [benchmark_configs.len]*std.Build.Step.Compile = undefined;
+
+    for (benchmark_configs, 0..) |config, i| {
         const mod = b.createModule(.{
-            .root_source_file = b.path("tests/test_memory_management.zig"),
+            .root_source_file = b.path(config.path),
             .target = target,
             .optimize = optimize,
+            .imports = config.imports,
         });
-        const t = b.addTest(.{ .root_module = mod });
-        const run_t = b.addRunArtifact(t);
-        test_step.dependOn(&run_t.step);
+        benchmark_exes[i] = b.addExecutable(.{
+            .name = config.name,
+            .root_module = mod,
+        });
     }
 
-    // (Performance tests disabled for 0.15.1 setup)
-
-    {
-        const mod = b.createModule(.{
-            .root_source_file = b.path("tests/test_simd_vector.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{},
-        });
-        const t = b.addTest(.{ .root_module = mod });
-        const run_t = b.addRunArtifact(t);
-        test_step.dependOn(&run_t.step);
+    for (benchmark_steps) |step_config| {
+        const step = b.step(step_config.name, step_config.desc);
+        const run_benchmark = b.addRunArtifact(benchmark_exes[step_config.exe_idx]);
+        if (step_config.exe_idx == 1) run_benchmark.addArg("all"); // Unified benchmark
+        step.dependOn(&run_benchmark.step);
     }
 
-    // Configuration validation tests
-    {
-        const mod = b.createModule(.{
-            .root_source_file = b.path("tests/test_config_validation.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{.{ .name = "abi", .module = abi_mod }},
-        });
-        const t = b.addTest(.{ .root_module = mod });
-        const run_t = b.addRunArtifact(t);
-        test_step.dependOn(&run_t.step);
+    // Aggregate benchmark step
+    const bench_all_step = b.step("bench-all", "Run all benchmark suites");
+    for (benchmark_steps) |step_config| {
+        const run_benchmark = b.addRunArtifact(benchmark_exes[step_config.exe_idx]);
+        if (step_config.exe_idx == 1) run_benchmark.addArg("all"); // Unified benchmark
+        bench_all_step.dependOn(&run_benchmark.step);
     }
 
-    // Weather and web server tests
-    {
-        const mod = b.createModule(.{
-            .root_source_file = b.path("tests/test_weather.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{.{ .name = "weather", .module = weather_mod }},
-        });
-        const t = b.addTest(.{ .root_module = mod });
-        const run_t = b.addRunArtifact(t);
-        test_step.dependOn(&run_t.step);
-    }
-
-    // GPU tests
-    {
-        const mod = b.createModule(.{
-            .root_source_file = b.path("tests/test_gpu.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{.{ .name = "abi", .module = abi_mod }},
-        });
-        const t = b.addTest(.{ .root_module = mod });
-        const run_t = b.addRunArtifact(t);
-        test_step.dependOn(&run_t.step);
-    }
-
-    {
-        const mod = b.createModule(.{
-            .root_source_file = b.path("tests/test_gpu_renderer.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{.{ .name = "gpu", .module = gpu_mod }},
-        });
-        const t = b.addTest(.{ .root_module = mod });
-        const run_t = b.addRunArtifact(t);
-        test_step.dependOn(&run_t.step);
-    }
-
-    // Advanced GPU tests
-    {
-        const mod = b.createModule(.{
-            .root_source_file = b.path("tests/test_gpu_advanced.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{.{ .name = "gpu", .module = gpu_mod }},
-        });
-        const t = b.addTest(.{ .root_module = mod });
-        const run_t = b.addRunArtifact(t);
-        test_step.dependOn(&run_t.step);
-    }
-
-    // GPU Backend Manager tests
-    {
-        const mod = b.createModule(.{
-            .root_source_file = b.path("tests/test_gpu_backend_manager.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{.{ .name = "gpu", .module = gpu_mod }},
-        });
-        const t = b.addTest(.{ .root_module = mod });
-        const run_t = b.addRunArtifact(t);
-        test_step.dependOn(&run_t.step);
-    }
-
-    {
-        const mod = b.createModule(.{
-            .root_source_file = b.path("tests/test_web_server.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{.{ .name = "web_server", .module = web_server_mod }},
-        });
-        const t = b.addTest(.{ .root_module = mod });
-        const run_t = b.addRunArtifact(t);
-        test_step.dependOn(&run_t.step);
-    }
-
-    // Socket-level web server test (heavy)
-    {
-        const mod = b.createModule(.{
-            .root_source_file = b.path("tests/test_web_server_socket.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{.{ .name = "web_server", .module = web_server_mod }},
-        });
-        const t = b.addTest(.{ .root_module = mod });
-        const run_t = b.addRunArtifact(t);
-        heavy_step.dependOn(&run_t.step);
-    }
-
-    // Integration executables are already defined later in this file as part of
-    // the existing 'test-integration' and 'test-all' steps.
-
-    // Benchmark executable
-    const benchmark_mod = b.createModule(.{
-        .root_source_file = b.path("benchmarks/database_benchmark.zig"),
+    // SIMD micro-benchmark
+    const simd_micro_mod = b.createModule(.{
+        .root_source_file = b.path("benchmarks/simd_micro.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
+    const simd_micro_exe = b.addExecutable(.{ .name = "simd-micro", .root_module = simd_micro_mod });
+    const run_simd_bench = b.addRunArtifact(simd_micro_exe);
+    const simd_bench_step = b.step("bench-simd", "Run SIMD micro-benchmark");
+    simd_bench_step.dependOn(&run_simd_bench.step);
 
-    const benchmark_exe = b.addExecutable(.{
-        .name = "database_benchmark",
-        .root_module = benchmark_mod,
-    });
+    // Development and analysis tools
+    const tool_configs = [_]struct { name: []const u8, path: []const u8, desc: []const u8, imports: []const std.Build.Module.Import }{
+        .{ .name = "static_analysis", .path = "tools/static_analysis.zig", .desc = "Run static analysis", .imports = &.{} },
+        .{ .name = "docs_generator", .path = "tools/docs_generator.zig", .desc = "Generate API documentation", .imports = &.{} },
+        .{ .name = "performance_profiler", .path = "tools/performance_profiler.zig", .desc = "Run performance profiling", .imports = &.{} },
+        .{ .name = "perf_guard", .path = "tools/perf_guard.zig", .desc = "Run performance regression guard", .imports = &.{.{ .name = "abi", .module = abi_mod }} },
+        .{ .name = "performance_ci", .path = "tools/performance_ci.zig", .desc = "Run performance CI/CD testing", .imports = &.{.{ .name = "abi", .module = abi_mod }} },
+    };
 
-    // Unified benchmark system
-    const benchmark_main_mod = b.createModule(.{
-        .root_source_file = b.path("benchmarks/main.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "abi", .module = abi_mod }},
-    });
+    for (tool_configs) |config| {
+        const mod = b.createModule(.{
+            .root_source_file = b.path(config.path),
+            .target = target,
+            .optimize = if (std.mem.eql(u8, config.name, "performance_profiler")) .ReleaseFast else optimize,
+            .imports = config.imports,
+        });
+        const exe = b.addExecutable(.{ .name = config.name, .root_module = mod });
+        b.installArtifact(exe);
 
-    const benchmark_main = b.addExecutable(.{
-        .name = "benchmark_main",
-        .root_module = benchmark_main_mod,
-    });
+        const run_tool = b.addRunArtifact(exe);
+        if (std.mem.eql(u8, config.name, "perf_guard")) {
+            const perf_threshold_opt = b.option(u64, "perf-threshold-ns", "Average search time threshold (ns)");
+            run_tool.addArg(if (perf_threshold_opt) |t| b.fmt("{d}", .{t}) else "50000000");
+        }
 
-    const benchmark_step = b.step("benchmark", "Run unified benchmark suite");
-    const run_benchmark_main = b.addRunArtifact(benchmark_main);
-    run_benchmark_main.addArg("all");
-    benchmark_step.dependOn(&run_benchmark_main.step);
+        const step_name = if (std.mem.eql(u8, config.name, "static_analysis")) "analyze" else if (std.mem.eql(u8, config.name, "docs_generator")) "docs" else if (std.mem.eql(u8, config.name, "performance_profiler")) "profile" else if (std.mem.eql(u8, config.name, "perf_guard")) "perf-guard" else "perf-ci";
 
-    // Separate benchmark executables
-    // Support modules for benchmarks
-    const neural_benchmark_mod = b.createModule(.{
-        .root_source_file = b.path("benchmarks/benchmark_suite.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "abi", .module = abi_mod }},
-    });
+        const step = b.step(step_name, config.desc);
+        step.dependOn(&run_tool.step);
+    }
 
-    const neural_benchmark = b.addExecutable(.{
-        .name = "neural_benchmark",
-        .root_module = neural_benchmark_mod,
-    });
-
-    const simple_benchmark_mod = b.createModule(.{
-        .root_source_file = b.path("benchmarks/simple_benchmark.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const simple_benchmark = b.addExecutable(.{
-        .name = "simple_benchmark",
-        .root_module = simple_benchmark_mod,
-    });
-
-    // Benchmark steps
-    const neural_benchmark_step = b.step("benchmark-neural", "Run neural network benchmarks");
-    const run_neural_benchmark = b.addRunArtifact(neural_benchmark);
-    neural_benchmark_step.dependOn(&run_neural_benchmark.step);
-
-    const simple_benchmark_step = b.step("benchmark-simple", "Run simple VDBench-style benchmarks");
-    const run_simple_benchmark = b.addRunArtifact(simple_benchmark);
-    simple_benchmark_step.dependOn(&run_simple_benchmark.step);
-
-    // Legacy database benchmark support
-    const legacy_benchmark_step = b.step("benchmark-db", "Run database performance benchmarks");
-    const run_legacy_benchmark = b.addRunArtifact(benchmark_exe);
-    legacy_benchmark_step.dependOn(&run_legacy_benchmark.step);
-
-    // Aggregate: run all benchmark suites in one command
-    const bench_all_step = b.step("bench-all", "Run all benchmark suites (unified + neural + simple + db)");
-    bench_all_step.dependOn(benchmark_step);
-    bench_all_step.dependOn(neural_benchmark_step);
-    bench_all_step.dependOn(simple_benchmark_step);
-    bench_all_step.dependOn(legacy_benchmark_step);
-
-    // Server integration tests removed during cleanup (outdated, flaky on Windows)
-
-    // Static analysis tool
-    const static_analysis_mod = b.createModule(.{
-        .root_source_file = b.path("tools/static_analysis.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const static_analysis = b.addExecutable(.{
-        .name = "static_analysis",
-        .root_module = static_analysis_mod,
-    });
-    b.installArtifact(static_analysis);
-
-    const run_static_analysis = b.addRunArtifact(static_analysis);
-    const analyze_step = b.step("analyze", "Run static analysis");
-    analyze_step.dependOn(&run_static_analysis.step);
-
-    // Windows network diagnostic tool (Windows-only)
+    // Windows network diagnostic tool
     const network_test_mod = b.createModule(.{
         .root_source_file = b.path("tools/windows_network_test.zig"),
         .target = target,
         .optimize = optimize,
     });
-
     const network_test = b.addExecutable(.{
         .name = "windows_network_test",
         .root_module = network_test_mod,
     });
     network_test.root_module.link_libc = true;
-    // Only install on Windows or when target is unspecified (native)
     if (target.result.os.tag == .windows) {
         b.installArtifact(network_test);
     }
-
     const run_network_test = b.addRunArtifact(network_test);
     const network_test_step = b.step("test-network", "Run Windows network diagnostic");
     network_test_step.dependOn(&run_network_test.step);
 
-    // Plugin system tests
+    // Plugin system testing
     const plugin_mod = b.createModule(.{
         .root_source_file = b.path("src/plugins/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
-
-    const plugin_tests = b.addTest(.{
-        .root_module = plugin_mod,
-    });
-
+    const plugin_tests = b.addTest(.{ .root_module = plugin_mod });
     const run_plugin_tests = b.addRunArtifact(plugin_tests);
     const plugin_test_step = b.step("test-plugins", "Run plugin system tests");
     plugin_test_step.dependOn(&run_plugin_tests.step);
 
-    // Code coverage integration (requires kcov to be installed)
+    // Code coverage with kcov integration
     const coverage_step = b.step("coverage", "Generate code coverage report");
     const coverage_mod = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
-        .optimize = .Debug, // Debug build for better coverage
+        .optimize = .Debug,
     });
-
-    const coverage_tests = b.addTest(.{
-        .root_module = coverage_mod,
-    });
-
-    // Coverage with kcov (if available)
+    const coverage_tests = b.addTest(.{ .root_module = coverage_mod });
     const kcov_exe = b.addSystemCommand(&[_][]const u8{
         "kcov",
         "--clean",
@@ -547,97 +469,35 @@ pub fn build(b: *std.Build) void {
     kcov_exe.addArtifactArg(coverage_tests);
     coverage_step.dependOn(&kcov_exe.step);
 
-    // Documentation generation (Markdown + Zig HTML docs)
-    const docs_step = b.step("docs", "Generate API documentation");
-    const docs_mod = b.createModule(.{
-        .root_source_file = b.path("tools/docs_generator.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const docs_exe = b.addExecutable(.{
-        .name = "docs_generator",
-        .root_module = docs_mod,
-    });
-    const run_docs = b.addRunArtifact(docs_exe);
-    docs_step.dependOn(&run_docs.step);
-
-    // Performance profiling
-    const profile_step = b.step("profile", "Run performance profiling");
-    const profile_mod = b.createModule(.{
-        .root_source_file = b.path("tools/performance_profiler.zig"),
-        .target = target,
-        .optimize = .ReleaseFast, // Optimized for profiling
-    });
-
-    const profile_exe = b.addExecutable(.{
-        .name = "performance_profiler",
-        .root_module = profile_mod,
-    });
-    const run_profile = b.addRunArtifact(profile_exe);
-    profile_step.dependOn(&run_profile.step);
-
-    // Perf guard (CI gate)
-    const perf_threshold_opt = b.option(u64, "perf-threshold-ns", "Average search time threshold (ns)");
-    const perf_guard_mod = b.createModule(.{
-        .root_source_file = b.path("tools/perf_guard.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "abi", .module = abi_mod }},
-    });
-    const perf_guard_exe = b.addExecutable(.{ .name = "perf_guard", .root_module = perf_guard_mod });
-    const run_perf_guard = b.addRunArtifact(perf_guard_exe);
-    run_perf_guard.addArg(if (perf_threshold_opt) |t| b.fmt("{d}", .{t}) else "50000000");
-    const perf_guard_step = b.step("perf-guard", "Run performance regression guard");
-    perf_guard_step.dependOn(&run_perf_guard.step);
-
-    // Performance CI/CD tool
-    const perf_ci_mod = b.createModule(.{
-        .root_source_file = b.path("tools/performance_ci.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "abi", .module = abi_mod }},
-    });
-    const perf_ci_exe = b.addExecutable(.{ .name = "performance_ci", .root_module = perf_ci_mod });
-    b.installArtifact(perf_ci_exe);
-
-    const run_perf_ci = b.addRunArtifact(perf_ci_exe);
-    const perf_ci_step = b.step("perf-ci", "Run comprehensive performance CI/CD testing");
-    perf_ci_step.dependOn(&run_perf_ci.step);
-
-    // GPU verification and testing
+    // GPU verification and demo
     const gpu_demo_mod = b.createModule(.{
-        .root_source_file = b.path("src/gpu/gpu_demo.zig"),
+        .root_source_file = b.path("src/gpu/demo/gpu_demo.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{.{ .name = "gpu", .module = gpu_mod }},
     });
-
     const gpu_demo_exe = b.addExecutable(.{
         .name = "gpu_demo",
         .root_module = gpu_demo_mod,
     });
 
-    // Apply GPU dependencies to demo executable
+    // Apply GPU dependencies for hardware acceleration
     applyGPUDeps(b, gpu_demo_exe, target, enable_cuda, enable_spirv, cuda_path, vulkan_sdk_path);
 
     b.installArtifact(gpu_demo_exe);
-
     const run_gpu_demo = b.addRunArtifact(gpu_demo_exe);
     const gpu_demo_step = b.step("gpu-demo", "Run GPU backend manager demo");
     gpu_demo_step.dependOn(&run_gpu_demo.step);
-
     const gpu_verify_step = b.step("gpu-verify", "Verify GPU functionality and backends");
     gpu_verify_step.dependOn(gpu_demo_step);
 
-    // Integration tests
+    // Integration testing
     const integration_mod = b.createModule(.{
         .root_source_file = b.path("tests/integration_test_suite.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
-
     const integration_tests = b.addExecutable(.{
         .name = "integration_tests",
         .root_module = integration_mod,
@@ -646,14 +506,14 @@ pub fn build(b: *std.Build) void {
     const integration_test_step = b.step("test-integration", "Run integration tests");
     integration_test_step.dependOn(&run_integration_tests.step);
 
-    // All tests (unit + integration)
+    // Comprehensive test execution
     const all_tests_step = b.step("test-all", "Run all tests (unit + integration + heavy)");
     all_tests_step.dependOn(test_step);
     all_tests_step.dependOn(integration_test_step);
     if (enable_heavy) all_tests_step.dependOn(heavy_step);
 
-    // Test matrix (cross-target unit tests with foreign checks skipped)
-    const test_matrix_step = b.step("test-matrix", "Run unit tests across multiple targets (skip foreign checks)");
+    // Cross-platform test matrix
+    const test_matrix_step = b.step("test-matrix", "Run unit tests across multiple targets");
     const test_targets = [_]std.Target.Query{
         .{}, // native
         .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .gnu },
@@ -672,10 +532,8 @@ pub fn build(b: *std.Build) void {
         test_matrix_step.dependOn(&run_unit_tests_matrix.step);
     }
 
-    // Cross-platform verification step
+    // Production cross-platform verification
     const cross_platform_step = b.step("cross-platform", "Verify cross-platform compatibility");
-
-    // Define supported cross-compilation targets
     const cross_targets = [_][]const u8{
         "x86_64-linux-gnu",
         "aarch64-linux-gnu",
@@ -693,7 +551,6 @@ pub fn build(b: *std.Build) void {
     for (cross_targets) |cross_target| {
         const cross_target_query = std.Target.Query.parse(.{ .arch_os_abi = cross_target }) catch unreachable;
         const cross_target_resolved = b.resolveTargetQuery(cross_target_query);
-
         const os_tag = cross_target_resolved.result.os.tag;
         const abi_tag = cross_target_resolved.result.abi;
         const arch_tag = cross_target_resolved.result.cpu.arch;
@@ -717,7 +574,7 @@ pub fn build(b: *std.Build) void {
             .name = b.fmt("abi-{s}", .{cross_target}),
             .root_module = cross_cli_mod,
         });
-        // Link libc explicitly for targets that require it (e.g., Linux, macOS, Windows-gnu, WASI)
+
         if (os_tag == .linux or os_tag == .macos or (os_tag == .windows and abi_tag == .gnu) or os_tag == .wasi) {
             cross_cli_exe.linkLibC();
         }
@@ -726,18 +583,5 @@ pub fn build(b: *std.Build) void {
             .dest_dir = .{ .override = .{ .custom = b.fmt("cross/{s}", .{cross_target}) } },
         });
         cross_platform_step.dependOn(&install_cross.step);
-    }
-    // SIMD micro-benchmark
-    {
-        const mod = b.createModule(.{
-            .root_source_file = b.path("benchmarks/simd_micro.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{.{ .name = "abi", .module = abi_mod }},
-        });
-        const exe = b.addExecutable(.{ .name = "simd-micro", .root_module = mod });
-        const run_bench = b.addRunArtifact(exe);
-        const bench_step = b.step("bench-simd", "Run SIMD micro-benchmark");
-        bench_step.dependOn(&run_bench.step);
     }
 }

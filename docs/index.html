@@ -76,7 +76,6 @@
   <script>
   async function fetchJSON(p) { const r = await fetch(p); return await r.json(); }
   async function fetchText(p) { const r = await fetch(p); return await r.text(); }
-  function normalizePath(p){ return p.replace(/\\\\/g,'/'); }
   function escapeHTML(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function mdToHtml(md) {
     const lines = md.split('\\n');
@@ -127,8 +126,7 @@
   async function init(){
     try { searchData = await fetchJSON('generated/search_index.json'); } catch(e){ console.error('search index', e); }
     renderNav(searchData);
-    const initialRaw = location.hash ? decodeURIComponent(location.hash.slice(1)) : (searchData[0]?.file || 'generated/API_REFERENCE.md');
-    const initial = normalizePath(initialRaw);
+    const initial = location.hash ? decodeURIComponent(location.hash.slice(1)) : (searchData[0]?.file || 'generated/API_REFERENCE.md');
     loadDoc(initial);
     document.getElementById('search').addEventListener('input', (e) => {
       const q = e.target.value.toLowerCase();
@@ -138,7 +136,6 @@
     document.getElementById('open_md').addEventListener('click', () => { if (currentPath) window.open(currentPath, '_blank'); });
   }
   async function loadDoc(path){
-    path = normalizePath(path);
     currentPath = path;
     location.hash = encodeURIComponent(path);
     const md = await fetchText(path);

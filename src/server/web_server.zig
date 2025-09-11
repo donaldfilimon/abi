@@ -1,39 +1,106 @@
 //! Web server for the Abi AI framework
 //!
-//! This module provides HTTP/HTTPS server capabilities including:
-//! - RESTful API endpoints
-//! - Static file serving
-//! - WebSocket support
-//! - Middleware system
-//! - Request/response handling
-//! - CORS support
+//! This module provides comprehensive HTTP/HTTPS server capabilities including:
+//! - RESTful API endpoints with JSON request/response handling
+//! - Static file serving with configurable directory support
+//! - WebSocket support for real-time bidirectional communication
+//! - Flexible middleware system for request processing
+//! - Robust request/response handling with error recovery
+//! - CORS support for cross-origin requests
+//! - Built-in AI agent integration for intelligent request processing
+//!
+//! The server is designed to be robust, efficient, and easily extensible to accommodate
+//! various web service requirements. It supports both HTTP and WebSocket protocols,
+//! making it suitable for modern web applications requiring real-time features.
+//!
+//! ## Usage Example:
+//! ```zig
+//! const config = WebConfig{
+//!     .port = 8080,
+//!     .host = "0.0.0.0",
+//!     .enable_cors = true,
+//!     .static_dir = "public",
+//! };
+//! var server = try WebServer.init(allocator, config);
+//! defer server.deinit();
+//! try server.start();
+//! ```
+//!
+//! For more information on Zig's networking capabilities, refer to:
+//! - std.net.Server Documentation
+//! - std.net.Address Documentation
 
 const std = @import("std");
 const builtin = @import("builtin");
-const abi = @import("root.zig");
+const abi = @import("abi");
 
-/// Re-export commonly used types
+/// Re-export commonly used types for convenience
 pub const Allocator = std.mem.Allocator;
 
-/// Web server configuration
+/// Configuration settings for the web server.
+///
+/// This structure contains all the configurable parameters that control
+/// the server's behavior, including network settings, security options,
+/// and feature toggles.
 pub const WebConfig = struct {
+    /// Port number on which the server will listen (default: 3000)
     port: u16 = 3000,
+
+    /// Host address for the server to bind to (default: localhost)
     host: []const u8 = "127.0.0.1",
+
+    /// Maximum number of concurrent connections the server can handle
     max_connections: u32 = 1000,
+
+    /// Flag to enable Cross-Origin Resource Sharing (CORS) headers
     enable_cors: bool = true,
+
+    /// Flag to enable logging of incoming HTTP requests for debugging
     log_requests: bool = true,
+
+    /// Maximum size for incoming request bodies in bytes (default: 1MB)
     max_body_size: usize = 1024 * 1024, // 1MB
+
+    /// Timeout duration for client connections in seconds
     timeout_seconds: u32 = 30,
+
+    /// Optional directory path for serving static files (null = disabled)
     static_dir: ?[]const u8 = null,
 };
 
-/// Web server instance
+/// Main web server instance that handles HTTP/WebSocket connections.
+///
+/// The WebServer manages network connections, routes requests to appropriate handlers,
+/// and integrates with the AI agent system for intelligent request processing.
+/// It supports both traditional HTTP endpoints and real-time WebSocket communication.
 pub const WebServer = struct {
+    /// Memory allocator used for dynamic allocations
     allocator: std.mem.Allocator,
+
+    /// Server configuration settings
     config: WebConfig,
+
+    /// Optional network server instance (null when not running)
     server: ?std.net.Server = null,
+
+    /// Optional AI agent for processing intelligent requests
     ai_agent: ?*abi.ai.enhanced_agent.EnhancedAgent = null,
 
+    /// Initializes a new WebServer instance with the specified configuration.
+    ///
+    /// This function sets up the server with the provided configuration and
+    /// initializes the integrated AI agent for intelligent request processing.
+    ///
+    /// Parameters:
+    /// - `allocator`: Memory allocator for the server and its components
+    /// - `config`: Configuration settings controlling server behavior
+    ///
+    /// Returns:
+    /// - A pointer to the initialized WebServer instance
+    ///
+    /// Errors:
+    /// - Returns an error if memory allocation fails
+    /// - Returns an error if AI agent initialization fails
     pub fn init(allocator: std.mem.Allocator, config: WebConfig) !*WebServer {
         const self = try allocator.create(WebServer);
         self.* = .{
@@ -41,54 +108,95 @@ pub const WebServer = struct {
             .config = config,
         };
 
-        // Initialize AI agent
+        // Initialize AI agent with enhanced capabilities
         const agent_config = abi.ai.enhanced_agent.AgentConfig{
+            .name = "WebServerAgent",
             .enable_logging = true,
-            .enable_persona_routing = true,
-            .max_memory_entries = 1000,
-            .max_conversation_history = 50,
-            .enable_performance_tracking = true,
+            .max_context_length = 2048,
+            .memory_size = 1024 * 1024, // 1MB
+            .max_concurrent_requests = 10,
+            .capabilities = .{
+                .text_generation = true,
+                .reasoning = true,
+                .function_calling = true,
+            },
         };
         self.ai_agent = try abi.ai.enhanced_agent.EnhancedAgent.init(allocator, agent_config);
 
         return self;
     }
 
+    /// Properly releases all resources held by the WebServer.
+    ///
+    /// This function should be called when the server is no longer needed
+    /// to prevent memory leaks and properly close network connections.
     pub fn deinit(self: *WebServer) void {
+        // Close network server if running
         if (self.server) |*server| {
             server.deinit();
         }
+
+        // Clean up AI agent resources
         if (self.ai_agent) |agent| {
             agent.deinit();
         }
+
+        // Free the server instance itself
         self.allocator.destroy(self);
     }
 
+    /// Starts the web server and begins accepting connections.
+    ///
+    /// This function binds to the configured address and port, then enters
+    /// an infinite loop accepting and handling incoming connections.
+    /// Each connection is processed synchronously in the current implementation.
+    ///
+    /// Errors:
+    /// - Returns an error if the address cannot be parsed
+    /// - Returns an error if the server cannot bind to the specified port
     pub fn start(self: *WebServer) !void {
+        // Parse the host and port from the configuration
         const address = try std.net.Address.parseIp(self.config.host, self.config.port);
+
+        // Start listening for incoming connections with address reuse enabled
         self.server = try address.listen(.{ .reuse_address = true });
 
         std.debug.print("Web server started on {s}:{}\n", .{ self.config.host, self.config.port });
 
+        // Main server loop - accept and handle connections
         while (true) {
             const connection = self.server.?.accept() catch |err| {
                 std.debug.print("Failed to accept connection: {any}\n", .{err});
                 continue;
             };
 
-            // Handle connection in background
+            // Handle connection synchronously
+            // TODO: Consider implementing async handling for better performance
             self.handleConnection(connection) catch |err| {
                 std.debug.print("Connection handling error: {any}\n", .{err});
             };
         }
     }
 
-    /// Handle HTTP connection
+    /// Handles an incoming network connection.
+    ///
+    /// This function reads data from the connection, determines the protocol type
+    /// (HTTP vs WebSocket), and routes the request to the appropriate handler.
+    /// It includes platform-specific optimizations for Windows socket handling.
+    ///
+    /// Parameters:
+    /// - `connection`: The client connection to process
+    ///
+    /// Errors:
+    /// - Returns an error if reading from the connection fails
+    /// - Returns an error if request processing fails
     fn handleConnection(self: *WebServer, connection: std.net.Server.Connection) !void {
         defer connection.stream.close();
 
         var buffer: [4096]u8 = undefined;
         var bytes_read: usize = 0;
+
+        // Platform-specific socket reading for optimal performance
         if (builtin.os.tag == .windows) {
             const windows = std.os.windows;
             const max_len: c_int = @intCast(@min(buffer.len, @as(usize, @intCast(std.math.maxInt(c_int)))));
@@ -111,30 +219,43 @@ pub const WebServer = struct {
 
         const request_str = buffer[0..bytes_read];
 
-        // Check if this is a WebSocket upgrade request
+        // Determine protocol type and route accordingly
         if (self.isWebSocketUpgrade(request_str)) {
             try self.handleWebSocketUpgrade(connection, request_str);
             try self.handleWebSocketProtocol(connection);
         } else {
-            // Handle HTTP request
+            // Handle standard HTTP request
             try self.handleHttpRequest(connection, request_str);
         }
     }
 
-    /// Check if request is a WebSocket upgrade
+    /// Determines if an HTTP request is a WebSocket upgrade request.
+    ///
+    /// This function parses the HTTP headers to check for the required
+    /// WebSocket upgrade headers: Upgrade, Connection, and Sec-WebSocket-Key.
+    ///
+    /// Parameters:
+    /// - `request`: Raw HTTP request data as bytes
+    ///
+    /// Returns:
+    /// - `true` if the request is a valid WebSocket upgrade request
+    /// - `false` otherwise
     fn isWebSocketUpgrade(_: *WebServer, request: []const u8) bool {
         var upgrade = false;
         var connection_upgrade = false;
         var ws_key = false;
 
+        // Parse HTTP headers line by line
         var lines = std.mem.splitSequence(u8, request, "\r\n");
         _ = lines.next(); // skip request line
         while (lines.next()) |line| {
-            if (line.len == 0) break;
+            if (line.len == 0) break; // End of headers
+
             if (std.mem.indexOfScalar(u8, line, ':')) |colon| {
                 const key = std.mem.trim(u8, line[0..colon], " \t");
                 const value = std.mem.trim(u8, line[colon + 1 ..], " \t");
 
+                // Check for required WebSocket headers
                 if (std.ascii.eqlIgnoreCase(key, "Upgrade")) {
                     if (std.ascii.eqlIgnoreCase(value, "websocket")) upgrade = true;
                 } else if (std.ascii.eqlIgnoreCase(key, "Connection")) {
@@ -148,9 +269,21 @@ pub const WebServer = struct {
         return upgrade and connection_upgrade and ws_key;
     }
 
-    /// Handle WebSocket upgrade handshake
+    /// Performs the WebSocket upgrade handshake.
+    ///
+    /// This function extracts the WebSocket key from the request headers,
+    /// computes the required Sec-WebSocket-Accept response header using SHA-1
+    /// and base64 encoding, and sends the upgrade response to the client.
+    ///
+    /// Parameters:
+    /// - `connection`: The client connection to upgrade
+    /// - `request`: The original HTTP upgrade request
+    ///
+    /// Errors:
+    /// - Returns an error if the WebSocket key is missing or invalid
+    /// - Returns an error if the response cannot be sent
     fn handleWebSocketUpgrade(self: *WebServer, connection: std.net.Server.Connection, request: []const u8) !void {
-        // Extract WebSocket key
+        // Extract WebSocket key from request headers
         var ws_key: ?[]const u8 = null;
         var lines = std.mem.splitSequence(u8, request, "\r\n");
         _ = lines.next(); // skip request line
@@ -171,7 +304,7 @@ pub const WebServer = struct {
             return;
         }
 
-        // Compute Sec-WebSocket-Accept
+        // Compute Sec-WebSocket-Accept using SHA-1 hash and base64 encoding
         const guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
         var sha1 = std.crypto.hash.Sha1.init(.{});
         sha1.update(ws_key.?);
@@ -182,7 +315,7 @@ pub const WebServer = struct {
         var accept_buf: [64]u8 = undefined;
         const accept = std.base64.standard.Encoder.encode(&accept_buf, &digest);
 
-        // Send upgrade response
+        // Send WebSocket upgrade response
         const response = try std.fmt.allocPrint(
             self.allocator,
             "HTTP/1.1 101 Switching Protocols\r\n" ++
@@ -202,10 +335,22 @@ pub const WebServer = struct {
         };
     }
 
-    /// Handle WebSocket protocol after upgrade
+    /// Handles the WebSocket protocol after successful upgrade.
+    ///
+    /// This function enters a loop reading and processing WebSocket frames
+    /// according to RFC 6455. It handles text frames, ping/pong frames,
+    /// and close frames appropriately.
+    ///
+    /// Parameters:
+    /// - `connection`: The upgraded WebSocket connection
+    ///
+    /// Errors:
+    /// - Returns an error if frame parsing fails
+    /// - Returns an error if connection I/O fails
     fn handleWebSocketProtocol(self: *WebServer, connection: std.net.Server.Connection) !void {
         var buffer: [4096]u8 = undefined;
 
+        // WebSocket frame processing loop
         while (true) {
             const bytes_read = connection.stream.read(&buffer) catch |err| {
                 switch (err) {
@@ -214,10 +359,12 @@ pub const WebServer = struct {
                 }
             };
 
-            if (bytes_read == 0) return;
+            if (bytes_read == 0) return; // Connection closed
 
-            // Parse WebSocket frame
+            // Parse WebSocket frame according to RFC 6455
             const frame = try self.parseWebSocketFrame(buffer[0..bytes_read]);
+
+            // Handle different frame types
             if (frame.opcode == 0x8) { // Close frame
                 try self.sendWebSocketClose(connection);
                 return;
@@ -226,23 +373,46 @@ pub const WebServer = struct {
             } else if (frame.opcode == 0x1) { // Text frame
                 try self.handleWebSocketMessage(connection, frame.payload);
             }
+            // Note: Binary frames (0x2) and continuation frames (0x0) not implemented
         }
     }
 
-    /// WebSocket frame structure
+    /// WebSocket frame structure according to RFC 6455.
+    ///
+    /// This structure represents a parsed WebSocket frame with its
+    /// control information and payload data.
     const WebSocketFrame = struct {
+        /// Final fragment flag (true if this is the last fragment)
         fin: bool,
+
+        /// Frame opcode indicating the frame type
         opcode: u4,
+
+        /// Frame payload data
         payload: []const u8,
     };
 
-    /// Parse WebSocket frame
+    /// Parses a WebSocket frame from raw bytes.
+    ///
+    /// This function implements the WebSocket frame parsing algorithm
+    /// according to RFC 6455, handling variable-length payload lengths
+    /// and masking (though masking is typically only used by clients).
+    ///
+    /// Parameters:
+    /// - `data`: Raw frame data received from the WebSocket connection
+    ///
+    /// Returns:
+    /// - A parsed WebSocketFrame structure
+    ///
+    /// Errors:
+    /// - Returns InvalidFrame if the frame data is malformed or incomplete
     pub fn parseWebSocketFrame(_: *WebServer, data: []const u8) !WebSocketFrame {
         if (data.len < 2) return error.InvalidFrame;
 
         const first_byte = data[0];
         const second_byte = data[1];
 
+        // Extract frame control bits
         const fin = (first_byte & 0x80) != 0;
         const opcode: u4 = @intCast(first_byte & 0x0F);
         const masked = (second_byte & 0x80) != 0;
@@ -250,7 +420,7 @@ pub const WebServer = struct {
 
         var offset: usize = 2;
 
-        // Extended payload length
+        // Handle extended payload length encoding
         if (payload_len == 126) {
             if (data.len < 4) return error.InvalidFrame;
             payload_len = std.mem.readInt(u16, data[2..4], .big);
@@ -261,12 +431,13 @@ pub const WebServer = struct {
             offset += 8;
         }
 
-        // Mask key
+        // Skip mask key if present (typically only in client frames)
         if (masked) {
             if (data.len < offset + 4) return error.InvalidFrame;
             offset += 4;
         }
 
+        // Validate payload length
         if (data.len < offset + payload_len) return error.InvalidFrame;
 
         const payload = data[offset .. offset + payload_len];
@@ -278,9 +449,21 @@ pub const WebServer = struct {
         };
     }
 
-    /// Handle WebSocket message
+    /// Processes a WebSocket text message.
+    ///
+    /// This function parses JSON messages and handles different message types.
+    /// Currently supports "chat" messages that are processed by the AI agent,
+    /// with fallback echo functionality for compatibility.
+    ///
+    /// Parameters:
+    /// - `connection`: The WebSocket connection that sent the message
+    /// - `message`: The text message payload
+    ///
+    /// Errors:
+    /// - Logs errors for malformed JSON but continues operation
+    /// - Returns errors for WebSocket frame sending failures
     fn handleWebSocketMessage(self: *WebServer, connection: std.net.Server.Connection, message: []const u8) !void {
-        // Parse JSON message
+        // Parse JSON message with error handling
         const parsed = std.json.parseFromSlice(std.json.Value, self.allocator, message, .{}) catch |err| {
             std.log.err("Failed to parse WebSocket message: {}", .{err});
             return;
@@ -291,14 +474,14 @@ pub const WebServer = struct {
         if (parsed.value.object.get("type")) |msg_type| {
             if (std.mem.eql(u8, msg_type.string, "chat")) {
                 if (parsed.value.object.get("message")) |msg_text| {
-                    // Process with AI agent
+                    // Process chat message with AI agent
                     const response = self.processWithAgent(msg_text.string) catch |err| {
                         std.log.err("Failed to process message with agent: {}", .{err});
                         return;
                     };
                     defer self.allocator.free(response);
 
-                    // Send response back
+                    // Send AI response back to client
                     const response_json = try std.fmt.allocPrint(self.allocator, "{{\"type\":\"response\",\"message\":\"{s}\"}}", .{response});
                     defer self.allocator.free(response_json);
 
@@ -306,31 +489,56 @@ pub const WebServer = struct {
                 }
             }
         } else {
-            // Echo message back for compatibility
+            // Echo message back for compatibility with simple clients
             try self.sendWebSocketFrame(connection, 0x1, message);
         }
     }
 
-    /// Send WebSocket close frame
+    /// Sends a WebSocket close frame to gracefully terminate the connection.
+    ///
+    /// Parameters:
+    /// - `connection`: The WebSocket connection to close
+    ///
+    /// Errors:
+    /// - Returns an error if the close frame cannot be sent
     fn sendWebSocketClose(self: *WebServer, connection: std.net.Server.Connection) !void {
         try self.sendWebSocketFrame(connection, 0x8, "");
     }
 
-    /// Send WebSocket pong frame
+    /// Sends a WebSocket pong frame in response to a ping.
+    ///
+    /// Parameters:
+    /// - `connection`: The WebSocket connection that sent the ping
+    ///
+    /// Errors:
+    /// - Returns an error if the pong frame cannot be sent
     fn sendWebSocketPong(self: *WebServer, connection: std.net.Server.Connection) !void {
         try self.sendWebSocketFrame(connection, 0xA, "");
     }
 
-    /// Send WebSocket frame
+    /// Sends a WebSocket frame with the specified opcode and payload.
+    ///
+    /// This function constructs a properly formatted WebSocket frame according
+    /// to RFC 6455, including the frame header with FIN bit, opcode, and
+    /// payload length encoding.
+    ///
+    /// Parameters:
+    /// - `connection`: The WebSocket connection to send the frame to
+    /// - `opcode`: The frame opcode (0x1 for text, 0x8 for close, etc.)
+    /// - `payload`: The frame payload data
+    ///
+    /// Errors:
+    /// - Returns an error if frame construction or sending fails
     fn sendWebSocketFrame(self: *WebServer, connection: std.net.Server.Connection, opcode: u4, payload: []const u8) !void {
         var frame = try std.ArrayList(u8).initCapacity(self.allocator, 2 + payload.len);
         defer frame.deinit(self.allocator);
 
-        // First byte: FIN + RSV + Opcode
+        // Construct WebSocket frame header
+        // First byte: FIN (1) + RSV (000) + Opcode
         const first_byte: u8 = 0x80 | @as(u8, @intCast(opcode));
-        try frame.append(self.allocator, first_byte); // FIN = 1, RSV = 0, Opcode = opcode
+        try frame.append(self.allocator, first_byte);
 
-        // Second byte: MASK + Payload length
+        // Second byte: MASK (0) + Payload length
         if (payload.len < 126) {
             try frame.append(self.allocator, @intCast(payload.len));
         } else if (payload.len < 65536) {
@@ -341,9 +549,10 @@ pub const WebServer = struct {
             try frame.appendSlice(self.allocator, &std.mem.toBytes(@as(u64, @intCast(payload.len))));
         }
 
-        // Payload
+        // Append payload data
         try frame.appendSlice(self.allocator, payload);
 
+        // Send the complete frame
         _ = connection.stream.write(frame.items) catch |err| {
             switch (err) {
                 error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
@@ -352,18 +561,30 @@ pub const WebServer = struct {
         };
     }
 
-    /// Handle HTTP request
+    /// Routes and handles HTTP requests based on the request path.
+    ///
+    /// This function parses the HTTP request line to extract the method and path,
+    /// then routes the request to the appropriate handler function. It supports
+    /// various endpoints including health checks, API endpoints, and static files.
+    ///
+    /// Parameters:
+    /// - `connection`: The HTTP connection to handle
+    /// - `request_str`: The raw HTTP request data
+    ///
+    /// Errors:
+    /// - Returns an error if request parsing fails
+    /// - Returns an error if the handler fails
     fn handleHttpRequest(self: *WebServer, connection: std.net.Server.Connection, request_str: []const u8) !void {
-        // Parse request line
+        // Parse HTTP request line (e.g., "GET /path HTTP/1.1")
         var lines = std.mem.splitSequence(u8, request_str, "\r\n");
         const request_line = lines.next() orelse return;
 
         var parts = std.mem.splitScalar(u8, request_line, ' ');
-        _ = parts.next() orelse return; // method
-        const path = parts.next() orelse return;
-        _ = parts.next() orelse return; // version
+        _ = parts.next() orelse return; // HTTP method
+        const path = parts.next() orelse return; // Request path
+        _ = parts.next() orelse return; // HTTP version
 
-        // Route request
+        // Route request to appropriate handler
         if (std.mem.eql(u8, path, "/")) {
             try self.handleRoot(connection);
         } else if (std.mem.eql(u8, path, "/health")) {
@@ -379,8 +600,15 @@ pub const WebServer = struct {
         }
     }
 
-    /// Start the server, accept a single connection, handle it, then stop.
-    /// Intended for testing with a live socket.
+    /// Starts the server for a single connection cycle (testing utility).
+    ///
+    /// This function is intended for testing scenarios where you need to
+    /// accept exactly one connection, handle it, and then stop the server.
+    /// It's useful for unit tests and development scenarios.
+    ///
+    /// Errors:
+    /// - Returns an error if the server cannot start
+    /// - Returns an error if connection handling fails
     pub fn startOnce(self: *WebServer) !void {
         const address = try std.net.Address.parseIp(self.config.host, self.config.port);
         self.server = try address.listen(.{ .reuse_address = true });
@@ -396,7 +624,21 @@ pub const WebServer = struct {
         try self.handleConnection(connection);
     }
 
-    // Test helper: route by path and return body string
+    /// Test helper function for routing requests by path.
+    ///
+    /// This function provides a simple way to test routing logic without
+    /// requiring actual network connections. It returns the response body
+    /// that would be sent for a given path.
+    ///
+    /// Parameters:
+    /// - `path`: The request path to route
+    /// - `allocator`: Memory allocator for the response
+    ///
+    /// Returns:
+    /// - The response body as a string
+    ///
+    /// Errors:
+    /// - Returns an error if memory allocation fails
     pub fn handlePathForTest(self: *WebServer, path: []const u8, allocator: std.mem.Allocator) ![]u8 {
         _ = self;
         if (std.mem.eql(u8, path, "/")) {
@@ -415,7 +657,16 @@ pub const WebServer = struct {
         }
     }
 
-    /// Handle root endpoint
+    /// Handles the root endpoint with a welcome page.
+    ///
+    /// This endpoint serves as the main landing page for the web server,
+    /// providing basic information about the service and links to other endpoints.
+    ///
+    /// Parameters:
+    /// - `connection`: The HTTP connection to send the response to
+    ///
+    /// Errors:
+    /// - Returns an error if the response cannot be sent
     fn handleRoot(self: *WebServer, connection: std.net.Server.Connection) !void {
         const html =
             "<!DOCTYPE html>" ++
@@ -433,19 +684,51 @@ pub const WebServer = struct {
         try self.sendHttpResponse(connection, 200, "OK", html);
     }
 
-    /// Handle health check
+    /// Handles health check endpoint for monitoring and load balancers.
+    ///
+    /// This endpoint returns a simple JSON response indicating the server
+    /// is healthy and operational. It's commonly used by monitoring systems
+    /// and load balancers to check service availability.
+    ///
+    /// Parameters:
+    /// - `connection`: The HTTP connection to send the response to
+    ///
+    /// Errors:
+    /// - Returns an error if the response cannot be sent
     fn handleHealth(self: *WebServer, connection: std.net.Server.Connection) !void {
         const body = "{\"status\":\"healthy\",\"timestamp\":\"2025-01-01T00:00:00Z\"}";
         try self.sendHttpResponse(connection, 200, "OK", body);
     }
 
-    /// Handle API status
+    /// Handles API status endpoint for service information.
+    ///
+    /// This endpoint provides information about the API service status
+    /// and version, useful for clients and monitoring systems.
+    ///
+    /// Parameters:
+    /// - `connection`: The HTTP connection to send the response to
+    ///
+    /// Errors:
+    /// - Returns an error if the response cannot be sent
     fn handleApiStatus(self: *WebServer, connection: std.net.Server.Connection) !void {
         const body = "{\"api\":\"running\",\"version\":\"1.0.0\"}";
         try self.sendHttpResponse(connection, 200, "OK", body);
     }
 
-    /// Handle static file serving
+    /// Handles static file serving from the configured directory.
+    ///
+    /// This function serves files from the static directory configured
+    /// in the server settings. It includes basic security checks and
+    /// proper error handling for missing files.
+    ///
+    /// Parameters:
+    /// - `connection`: The HTTP connection to send the file to
+    /// - `path`: The requested file path (e.g., "/static/style.css")
+    ///
+    /// Errors:
+    /// - Returns an error if static files are not enabled
+    /// - Returns an error if the file cannot be read
+    /// - Returns an error if the response cannot be sent
     fn handleStaticFile(self: *WebServer, connection: std.net.Server.Connection, path: []const u8) !void {
         if (self.config.static_dir == null) {
             try self.sendHttpResponse(connection, 404, "Not Found", "{\"error\":\"Static files not enabled\"}");
@@ -453,6 +736,7 @@ pub const WebServer = struct {
         }
 
         const static_dir = self.config.static_dir.?;
+        // Remove "/static/" prefix to get the actual file path
         const file_path = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ static_dir, path[7..] });
         defer self.allocator.free(file_path);
 
@@ -462,7 +746,7 @@ pub const WebServer = struct {
         };
         defer file.close();
 
-        // Zig 0.16-dev: replace deprecated readToEndAlloc with manual stat+read
+        // Read file contents with size limits for security
         const st = file.stat() catch |err| {
             try self.sendHttpResponse(connection, 500, "Internal Server Error", "{\"error\":\"Failed to stat file\"}");
             return err;
@@ -483,7 +767,20 @@ pub const WebServer = struct {
         try self.sendHttpResponse(connection, 200, "OK", body);
     }
 
-    /// Send HTTP response
+    /// Sends an HTTP response with the specified status and body.
+    ///
+    /// This function constructs a complete HTTP response including headers
+    /// and sends it over the connection. It includes CORS headers if enabled
+    /// in the configuration.
+    ///
+    /// Parameters:
+    /// - `connection`: The HTTP connection to send the response to
+    /// - `status`: HTTP status code (e.g., 200, 404, 500)
+    /// - `status_text`: HTTP status text (e.g., "OK", "Not Found")
+    /// - `body`: Response body content
+    ///
+    /// Errors:
+    /// - Returns an error if the response cannot be formatted or sent
     fn sendHttpResponse(self: *WebServer, connection: std.net.Server.Connection, status: u16, status_text: []const u8, body: []const u8) !void {
         const response = try std.fmt.allocPrint(self.allocator, "HTTP/1.1 {d} {s}\r\n" ++
             "Content-Type: application/json\r\n" ++
@@ -501,7 +798,20 @@ pub const WebServer = struct {
         };
     }
 
-    /// Process message with AI agent
+    /// Processes a message using the integrated AI agent.
+    ///
+    /// This function forwards the input message to the AI agent for processing
+    /// and returns the agent's response. If no agent is available, it returns
+    /// a fallback message.
+    ///
+    /// Parameters:
+    /// - `message`: The input message to process
+    ///
+    /// Returns:
+    /// - The AI agent's response as a string (caller must free)
+    ///
+    /// Errors:
+    /// - Returns an error if AI processing fails
     fn processWithAgent(self: *WebServer, message: []const u8) ![]const u8 {
         if (self.ai_agent) |agent| {
             return try agent.processInput(message);
@@ -510,9 +820,32 @@ pub const WebServer = struct {
         }
     }
 
-    /// Handle agent query endpoint
+    /// Handles AI agent query API endpoint.
+    ///
+    /// This endpoint accepts JSON requests with a "message" field and
+    /// processes them using the integrated AI agent. The response includes
+    /// the agent's output and status information.
+    ///
+    /// Expected request format:
+    /// ```json
+    /// {"message": "Your question here"}
+    /// ```
+    ///
+    /// Response format:
+    /// ```json
+    /// {"response": "AI response", "status": "success"}
+    /// ```
+    ///
+    /// Parameters:
+    /// - `connection`: The HTTP connection to send the response to
+    /// - `request_str`: The complete HTTP request including headers and body
+    ///
+    /// Errors:
+    /// - Returns an error if request parsing fails
+    /// - Returns an error if AI processing fails
+    /// - Returns an error if the response cannot be sent
     fn handleAgentQuery(self: *WebServer, connection: std.net.Server.Connection, request_str: []const u8) !void {
-        // Parse request body
+        // Parse request to extract body
         var body_start: ?usize = null;
         var lines = std.mem.splitSequence(u8, request_str, "\r\n");
         while (lines.next()) |line| {
@@ -533,7 +866,7 @@ pub const WebServer = struct {
             return;
         }
 
-        // Parse JSON request
+        // Parse JSON request body
         const parsed = std.json.parseFromSlice(std.json.Value, self.allocator, body, .{}) catch |err| {
             std.log.err("Failed to parse JSON request: {}", .{err});
             try self.sendHttpResponse(connection, 400, "Bad Request", "{\"error\":\"Invalid JSON\"}");

@@ -1916,6 +1916,8 @@ pub const Config = TrainingConfig;
 pub const Metrics = TrainingMetrics;
 pub const Loss = LossFunction;
 pub const Opt = Optimizer;
+pub const agent = @import("agent.zig");
+pub const enhanced_agent = @import("enhanced_agent.zig");
 
 // Utility functions
 pub fn createMLP(allocator: std.mem.Allocator, layer_sizes: []const usize, activations: []const Activation) !*NeuralNetwork {

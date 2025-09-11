@@ -537,6 +537,36 @@ pub const Backend = enum {
             .auto, .cpu_fallback => false,
         };
     }
+
+    /// Get priority score for backend selection (higher is better)
+    pub fn getPriority(self: Backend) u8 {
+        return switch (self) {
+            .auto => 0,
+            .cpu_fallback => 1,
+            .webgpu => 10,
+            .opengl => 20,
+            .opencl => 30,
+            .vulkan => 50,
+            .metal => 60,
+            .dx12 => 70,
+            .cuda => 100,
+        };
+    }
+
+    /// Convert backend to human-readable string
+    pub fn toString(self: Backend) []const u8 {
+        return switch (self) {
+            .auto => "Auto",
+            .vulkan => "Vulkan",
+            .metal => "Metal",
+            .dx12 => "DirectX 12",
+            .opengl => "OpenGL",
+            .opencl => "OpenCL",
+            .cuda => "CUDA",
+            .webgpu => "WebGPU",
+            .cpu_fallback => "CPU Fallback",
+        };
+    }
 };
 
 /// GPU buffer usage flags
