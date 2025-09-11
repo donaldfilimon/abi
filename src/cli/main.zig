@@ -30,6 +30,10 @@ pub fn main() !void {
         try runLlmCommand(allocator, args);
         return;
     }
+    if (args.len > 1 and std.mem.eql(u8, args[1], "chat")) {
+        try runChatCommand(allocator, args);
+        return;
+    }
 
     // Configuration management command
     if (args.len > 1 and std.mem.eql(u8, args[1], "config")) {
@@ -661,8 +665,9 @@ fn runLlmCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
     // Usage:
     //   abi llm embed --db <path> --provider <ollama|openai> [--host URL] [--model NAME] [--api-key KEY] --text "..."
     //   abi llm query --db <path> --text "..." --k N
+    //   abi llm train --data <path> [--output <path>] [--model <type>] [--epochs N] [--lr RATE] [--batch-size N] [--gpu] [--threads N]
     if (args.len < 3) {
-        std.debug.print("Usage: abi llm <embed|query> [flags]\n", .{});
+        std.debug.print("Usage: abi llm <embed|query|train> [flags]\n", .{});
         return;
     }
     const sub = args[2];
@@ -804,7 +809,327 @@ fn runLlmCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
             api_key_owned = null;
         }
         return;
+    } else if (std.mem.eql(u8, sub, "train")) {
+        // Parse arguments for train command
+        var data_path: ?[]const u8 = null;
+        var output_path: ?[]const u8 = null;
+        var model_type: ?[]const u8 = null;
+        var epochs: ?usize = null;
+        var learning_rate: ?f32 = null;
+        var batch_size: ?usize = null;
+        var use_gpu: bool = false;
+        var threads: ?usize = null;
+
+        var i: usize = 3;
+        while (i < args.len) : (i += 1) {
+            if (std.mem.eql(u8, args[i], "--data") and i + 1 < args.len) {
+                data_path = args[i + 1];
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--output") and i + 1 < args.len) {
+                output_path = args[i + 1];
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--model") and i + 1 < args.len) {
+                model_type = args[i + 1];
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--epochs") and i + 1 < args.len) {
+                epochs = try std.fmt.parseInt(usize, args[i + 1], 10);
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--lr") and i + 1 < args.len) {
+                learning_rate = try std.fmt.parseFloat(f32, args[i + 1]);
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--batch-size") and i + 1 < args.len) {
+                batch_size = try std.fmt.parseInt(usize, args[i + 1], 10);
+                i += 1;
+            } else if (std.mem.eql(u8, args[i], "--gpu")) {
+                use_gpu = true;
+            } else if (std.mem.eql(u8, args[i], "--threads") and i + 1 < args.len) {
+                threads = try std.fmt.parseInt(usize, args[i + 1], 10);
+                i += 1;
+            }
+        }
+
+        if (data_path == null) {
+            std.debug.print("Usage: abi llm train --data <path> [--output <path>] [--model <type>] [--epochs N] [--lr RATE] [--batch-size N] [--gpu] [--threads N]\n", .{});
+            return;
+        }
+
+        // Set defaults
+        const final_output = output_path orelse "model.bin";
+        const final_model_type = model_type orelse "neural";
+        const final_epochs = epochs orelse 100;
+        const final_lr = learning_rate orelse 0.001;
+        const final_batch_size = batch_size orelse 32;
+        const final_threads = threads orelse 1;
+
+        std.debug.print("Training {s} model on {s}...\n", .{ final_model_type, data_path.? });
+        std.debug.print("Epochs: {}, Learning Rate: {}, Batch Size: {}, GPU: {}, Threads: {}\n", .{ final_epochs, final_lr, final_batch_size, use_gpu, final_threads });
+
+        // Load training data
+        const training_data = try loadTrainingData(allocator, data_path.?);
+        defer allocator.free(training_data);
+
+        // Create and train model
+        if (std.mem.eql(u8, final_model_type, "neural")) {
+            try trainNeuralNetwork(allocator, training_data, final_output, final_epochs, final_lr, final_batch_size, use_gpu);
+        } else if (std.mem.eql(u8, final_model_type, "linear")) {
+            try trainLinearModel(allocator, training_data, final_output, final_epochs, final_lr);
+        } else {
+            std.debug.print("Unknown model type: {s}\n", .{final_model_type});
+            return;
+        }
+
+        std.debug.print("Training completed. Model saved to: {s}\n", .{final_output});
+        return;
     } else {
         std.debug.print("Unknown llm subcommand: {s}\n", .{sub});
+    }
+}
+
+// Training data structure
+const TrainingData = struct {
+    inputs: []const []const f32,
+    targets: []const []const f32,
+    allocator: std.mem.Allocator,
+
+    pub fn deinit(self: *TrainingData) void {
+        for (self.inputs) |input| {
+            self.allocator.free(input);
+        }
+        for (self.targets) |target| {
+            self.allocator.free(target);
+        }
+        self.allocator.free(self.inputs);
+        self.allocator.free(self.targets);
+    }
+};
+
+// Load training data from CSV file
+fn loadTrainingData(allocator: std.mem.Allocator, path: []const u8) !TrainingData {
+    const file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
+
+    var inputs = std.ArrayList([]const f32).init(allocator);
+    var targets = std.ArrayList([]const f32).init(allocator);
+    defer {
+        for (inputs.items) |input| allocator.free(input);
+        for (targets.items) |target| allocator.free(target);
+        inputs.deinit();
+        targets.deinit();
+    }
+
+    var buf: [1024]u8 = undefined;
+    var reader = file.reader();
+
+    while (try reader.readUntilDelimiterOrEof(&buf, '\n')) |line| {
+        if (line.len == 0) continue;
+
+        var parts = std.mem.splitScalar(u8, line, ',');
+        var values = std.ArrayList(f32).init(allocator);
+        defer values.deinit();
+
+        while (parts.next()) |part| {
+            const trimmed = std.mem.trim(u8, part, " \t\r\n");
+            if (trimmed.len > 0) {
+                const val = try std.fmt.parseFloat(f32, trimmed);
+                try values.append(val);
+            }
+        }
+
+        if (values.items.len >= 2) {
+            // Last value is target, rest are inputs
+            const input = try allocator.dupe(f32, values.items[0 .. values.items.len - 1]);
+            const target = try allocator.dupe(f32, values.items[values.items.len - 1 ..]);
+
+            try inputs.append(input);
+            try targets.append(target);
+        }
+    }
+
+    return TrainingData{
+        .inputs = try inputs.toOwnedSlice(),
+        .targets = try targets.toOwnedSlice(),
+        .allocator = allocator,
+    };
+}
+
+// Train neural network model
+fn trainNeuralNetwork(
+    allocator: std.mem.Allocator,
+    data: TrainingData,
+    output_path: []const u8,
+    epochs: usize,
+    learning_rate: f32,
+    batch_size: usize,
+    use_gpu: bool,
+) !void {
+    _ = use_gpu; // TODO: Implement GPU training
+
+    // Create neural network
+    const input_size = if (data.inputs.len > 0) data.inputs[0].len else 1;
+    const output_size = if (data.targets.len > 0) data.targets[0].len else 1;
+
+    var network = try abi.ai.neural.NeuralNetwork.init(allocator, &[_]usize{input_size}, &[_]usize{output_size});
+    defer network.deinit();
+
+    // Add layers
+    try network.addLayer(.{
+        .type = .Dense,
+        .input_size = input_size,
+        .output_size = @max(32, input_size * 2),
+        .activation = .ReLU,
+    });
+    try network.addLayer(.{
+        .type = .Dense,
+        .input_size = @max(32, input_size * 2),
+        .output_size = output_size,
+        .activation = .None,
+    });
+
+    // Training configuration
+    const config = abi.ai.neural.TrainingConfig{
+        .learning_rate = learning_rate,
+        .batch_size = batch_size,
+        .epochs = epochs,
+        .validation_split = 0.2,
+        .early_stopping_patience = 10,
+        .log_frequency = 10,
+    };
+
+    // Create trainer
+    const trainer = try abi.ai.mod.ModelTrainer.init(
+        allocator,
+        network,
+        config,
+        .adam,
+        .mse,
+    );
+    defer trainer.deinit();
+
+    // Train the model
+    const metrics = try trainer.train(data.inputs, data.targets);
+    defer {
+        for (metrics.items) |_| {}
+        metrics.deinit(allocator);
+    }
+
+    // Save model
+    try network.saveToFile(output_path);
+
+    std.debug.print("Neural network training completed. Final loss: {d:.6}\n", .{metrics.items[metrics.items.len - 1].loss});
+}
+
+// Train linear model
+fn trainLinearModel(
+    allocator: std.mem.Allocator,
+    data: TrainingData,
+    output_path: []const u8,
+    epochs: usize,
+    learning_rate: f32,
+) !void {
+    _ = allocator;
+    _ = data;
+    _ = output_path;
+    _ = epochs;
+    _ = learning_rate;
+
+    // TODO: Implement linear model training
+    std.debug.print("Linear model training not yet implemented\n", .{});
+}
+
+// Chat command implementation
+fn runChatCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
+    // Usage: abi chat [--persona <type>] [--backend <provider>] [--model <name>] [--interactive]
+    var persona: ?[]const u8 = null;
+    var backend: ?[]const u8 = null;
+    var model: ?[]const u8 = null;
+    var interactive: bool = false;
+    var message: ?[]const u8 = null;
+
+    var i: usize = 2;
+    while (i < args.len) : (i += 1) {
+        if (std.mem.eql(u8, args[i], "--persona") and i + 1 < args.len) {
+            persona = args[i + 1];
+            i += 1;
+        } else if (std.mem.eql(u8, args[i], "--backend") and i + 1 < args.len) {
+            backend = args[i + 1];
+            i += 1;
+        } else if (std.mem.eql(u8, args[i], "--model") and i + 1 < args.len) {
+            model = args[i + 1];
+            i += 1;
+        } else if (std.mem.eql(u8, args[i], "--interactive")) {
+            interactive = true;
+        } else if (i == 2 and !std.mem.startsWith(u8, args[i], "--")) {
+            // First non-flag argument is the message
+            message = args[i];
+        }
+    }
+
+    // Set defaults
+    const final_persona = persona orelse "creative";
+    const final_backend = backend orelse "openai";
+    const final_model = model orelse "gpt-3.5-turbo";
+
+    // Initialize AI agent
+    const agent_config = abi.ai.enhanced_agent.AgentConfig{
+        .enable_logging = true,
+        .enable_persona_routing = true,
+        .max_memory_entries = 1000,
+        .max_conversation_history = 50,
+        .enable_performance_tracking = true,
+    };
+
+    var agent = try abi.ai.enhanced_agent.EnhancedAgent.init(allocator, agent_config);
+    defer agent.deinit();
+
+    if (message) |msg| {
+        // Single message mode
+        const response = try agent.processInput(msg);
+        defer allocator.free(response);
+        std.debug.print("{s}\n", .{response});
+    } else if (interactive) {
+        // Interactive mode
+        std.debug.print("Chat mode (type 'quit' to exit, 'help' for commands)\n");
+        std.debug.print("Persona: {s}, Backend: {s}, Model: {s}\n", .{ final_persona, final_backend, final_model });
+
+        var input_buf: [1024]u8 = undefined;
+        while (true) {
+            std.debug.print("> ");
+            if (try std.io.getStdIn().readUntilDelimiterOrEof(&input_buf, '\n')) |input| {
+                const trimmed = std.mem.trim(u8, input, " \t\r\n");
+                if (std.mem.eql(u8, trimmed, "quit") or std.mem.eql(u8, trimmed, "exit")) {
+                    break;
+                } else if (std.mem.eql(u8, trimmed, "help")) {
+                    std.debug.print("Commands:\n");
+                    std.debug.print("  quit/exit - Exit chat\n");
+                    std.debug.print("  help - Show this help\n");
+                    std.debug.print("  stats - Show agent statistics\n");
+                    continue;
+                } else if (std.mem.eql(u8, trimmed, "stats")) {
+                    const stats = agent.getPerformanceStats();
+                    std.debug.print("Agent Statistics:\n");
+                    std.debug.print("  Total requests: {}\n", .{stats.total_requests});
+                    std.debug.print("  Successful requests: {}\n", .{stats.successful_requests});
+                    std.debug.print("  Failed requests: {}\n", .{stats.failed_requests});
+                    std.debug.print("  Average response time: {d:.2}ms\n", .{stats.average_response_time_ms});
+                    continue;
+                } else if (trimmed.len == 0) {
+                    continue;
+                }
+
+                const response = agent.processInput(trimmed) catch |err| {
+                    std.debug.print("Error processing input: {}\n", .{err});
+                    continue;
+                };
+                defer allocator.free(response);
+                std.debug.print("{s}\n", .{response});
+            }
+        }
+    } else {
+        std.debug.print("Usage: abi chat [--persona <type>] [--backend <provider>] [--model <name>] [--interactive] [message]\n", .{});
+        std.debug.print("  --persona: creative, analytical, helpful (default: creative)\n");
+        std.debug.print("  --backend: openai, ollama (default: openai)\n");
+        std.debug.print("  --model: model name (default: gpt-3.5-turbo)\n");
+        std.debug.print("  --interactive: start interactive chat session\n");
+        std.debug.print("  message: single message to send (if not interactive)\n");
     }
 }

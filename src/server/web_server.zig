@@ -10,6 +10,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const abi = @import("root.zig");
 
 /// Re-export commonly used types
 pub const Allocator = std.mem.Allocator;
@@ -31,6 +32,7 @@ pub const WebServer = struct {
     allocator: std.mem.Allocator,
     config: WebConfig,
     server: ?std.net.Server = null,
+    ai_agent: ?*abi.ai.enhanced_agent.EnhancedAgent = null,
 
     pub fn init(allocator: std.mem.Allocator, config: WebConfig) !*WebServer {
         const self = try allocator.create(WebServer);
@@ -38,12 +40,26 @@ pub const WebServer = struct {
             .allocator = allocator,
             .config = config,
         };
+
+        // Initialize AI agent
+        const agent_config = abi.ai.enhanced_agent.AgentConfig{
+            .enable_logging = true,
+            .enable_persona_routing = true,
+            .max_memory_entries = 1000,
+            .max_conversation_history = 50,
+            .enable_performance_tracking = true,
+        };
+        self.ai_agent = try abi.ai.enhanced_agent.EnhancedAgent.init(allocator, agent_config);
+
         return self;
     }
 
     pub fn deinit(self: *WebServer) void {
         if (self.server) |*server| {
             server.deinit();
+        }
+        if (self.ai_agent) |agent| {
+            agent.deinit();
         }
         self.allocator.destroy(self);
     }
@@ -264,8 +280,35 @@ pub const WebServer = struct {
 
     /// Handle WebSocket message
     fn handleWebSocketMessage(self: *WebServer, connection: std.net.Server.Connection, message: []const u8) !void {
-        // Echo message back for now
-        try self.sendWebSocketFrame(connection, 0x1, message);
+        // Parse JSON message
+        const parsed = std.json.parseFromSlice(std.json.Value, self.allocator, message, .{}) catch |err| {
+            std.log.err("Failed to parse WebSocket message: {}", .{err});
+            return;
+        };
+        defer parsed.deinit();
+
+        // Handle different message types
+        if (parsed.value.object.get("type")) |msg_type| {
+            if (std.mem.eql(u8, msg_type.string, "chat")) {
+                if (parsed.value.object.get("message")) |msg_text| {
+                    // Process with AI agent
+                    const response = self.processWithAgent(msg_text.string) catch |err| {
+                        std.log.err("Failed to process message with agent: {}", .{err});
+                        return;
+                    };
+                    defer self.allocator.free(response);
+
+                    // Send response back
+                    const response_json = try std.fmt.allocPrint(self.allocator, "{{\"type\":\"response\",\"message\":\"{s}\"}}", .{response});
+                    defer self.allocator.free(response_json);
+
+                    try self.sendWebSocketFrame(connection, 0x1, response_json);
+                }
+            }
+        } else {
+            // Echo message back for compatibility
+            try self.sendWebSocketFrame(connection, 0x1, message);
+        }
     }
 
     /// Send WebSocket close frame
@@ -327,6 +370,8 @@ pub const WebServer = struct {
             try self.handleHealth(connection);
         } else if (std.mem.eql(u8, path, "/api/status")) {
             try self.handleApiStatus(connection);
+        } else if (std.mem.eql(u8, path, "/api/agent/query")) {
+            try self.handleAgentQuery(connection, request_str);
         } else if (self.config.static_dir != null and std.mem.startsWith(u8, path, "/static/")) {
             try self.handleStaticFile(connection, path);
         } else {
@@ -454,5 +499,66 @@ pub const WebServer = struct {
                 else => return err,
             }
         };
+    }
+
+    /// Process message with AI agent
+    fn processWithAgent(self: *WebServer, message: []const u8) ![]const u8 {
+        if (self.ai_agent) |agent| {
+            return try agent.processInput(message);
+        } else {
+            return "AI agent not available";
+        }
+    }
+
+    /// Handle agent query endpoint
+    fn handleAgentQuery(self: *WebServer, connection: std.net.Server.Connection, request_str: []const u8) !void {
+        // Parse request body
+        var body_start: ?usize = null;
+        var lines = std.mem.splitSequence(u8, request_str, "\r\n");
+        while (lines.next()) |line| {
+            if (line.len == 0) {
+                body_start = lines.index;
+                break;
+            }
+        }
+
+        if (body_start == null) {
+            try self.sendHttpResponse(connection, 400, "Bad Request", "{\"error\":\"No request body\"}");
+            return;
+        }
+
+        const body = request_str[body_start.?..];
+        if (body.len == 0) {
+            try self.sendHttpResponse(connection, 400, "Bad Request", "{\"error\":\"Empty request body\"}");
+            return;
+        }
+
+        // Parse JSON request
+        const parsed = std.json.parseFromSlice(std.json.Value, self.allocator, body, .{}) catch |err| {
+            std.log.err("Failed to parse JSON request: {}", .{err});
+            try self.sendHttpResponse(connection, 400, "Bad Request", "{\"error\":\"Invalid JSON\"}");
+            return;
+        };
+        defer parsed.deinit();
+
+        // Extract message from request
+        const message = if (parsed.value.object.get("message")) |msg| msg.string else {
+            try self.sendHttpResponse(connection, 400, "Bad Request", "{\"error\":\"Missing message field\"}");
+            return;
+        };
+
+        // Process with AI agent
+        const response = self.processWithAgent(message) catch |err| {
+            std.log.err("Failed to process message with agent: {}", .{err});
+            try self.sendHttpResponse(connection, 500, "Internal Server Error", "{\"error\":\"Agent processing failed\"}");
+            return;
+        };
+        defer self.allocator.free(response);
+
+        // Create JSON response
+        const response_json = try std.fmt.allocPrint(self.allocator, "{{\"response\":\"{s}\",\"status\":\"success\"}}", .{response});
+        defer self.allocator.free(response_json);
+
+        try self.sendHttpResponse(connection, 200, "OK", response_json);
     }
 };
