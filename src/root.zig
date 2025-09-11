@@ -72,6 +72,7 @@ pub const LoggerConfig = logging.LoggerConfig;
 // Re-export weather types for convenience
 pub const WeatherService = weather_mod.WeatherService;
 pub const WeatherData = weather_mod.WeatherData;
+pub const WeatherConfig = weather_mod.WeatherConfig;
 
 /// Main application entry point
 pub fn main() !void {
