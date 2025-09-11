@@ -174,7 +174,7 @@ pub fn main() !void {
     };
     defer db.close();
 
-    try db.init(config.vector_dimension);
+    try db.init(@intCast(config.vector_dimension));
 
     // Run comprehensive performance tests
     try runSingleOperationTest(&db, config, test_allocator);
@@ -204,7 +204,7 @@ fn runSingleOperationTest(db: anytype, config: Config, allocator: std.mem.Alloca
 
     // Populate database
     for (vectors) |vec| {
-        _ = try db.addEmbedding(vec);
+        _ = try db.*.addEmbedding(vec);
     }
 
     // Measure search performance
@@ -215,7 +215,7 @@ fn runSingleOperationTest(db: anytype, config: Config, allocator: std.mem.Alloca
         const query_vec = vectors[i % vectors.len];
 
         const start = std.time.nanoTimestamp();
-        const results = try db.search(query_vec, 10, allocator);
+        const results = try db.*.search(query_vec, 10, allocator);
         const end = std.time.nanoTimestamp();
         allocator.free(results);
 
@@ -255,7 +255,7 @@ fn runBatchOperationTest(db: anytype, config: Config, allocator: std.mem.Allocat
 
     const start = std.time.nanoTimestamp();
     for (batch_vectors) |vec| {
-        _ = try db.addEmbedding(vec);
+        _ = try db.*.addEmbedding(vec);
     }
     const end = std.time.nanoTimestamp();
 
@@ -295,7 +295,7 @@ fn runConcurrentOperationTest(db: anytype, config: Config, allocator: std.mem.Al
             generateTestVector(query, ctx.thread_id * 1000, ctx.config.enable_simd);
 
             const start = std.time.nanoTimestamp();
-            const results = ctx.db.search(query, 5, ctx.allocator) catch return;
+            const results = ctx.db.*.search(query, 5, ctx.allocator) catch return;
             const end = std.time.nanoTimestamp();
             ctx.allocator.free(results);
 
@@ -357,7 +357,7 @@ fn runPercentileAnalysis(db: anytype, config: Config, allocator: std.mem.Allocat
 
     for (times) |*time| {
         const start = std.time.nanoTimestamp();
-        const results = try db.search(query, 10, allocator);
+        const results = try db.*.search(query, 10, allocator);
         const end = std.time.nanoTimestamp();
         allocator.free(results);
 
@@ -384,7 +384,7 @@ fn runPercentileAnalysis(db: anytype, config: Config, allocator: std.mem.Allocat
 
 /// Generate test vector with optional SIMD optimization
 fn generateTestVector(vector: []f32, seed: usize, enable_simd: bool) void {
-    var prng = std.rand.DefaultPrng.init(@intCast(seed));
+    var prng = std.Random.DefaultPrng.init(@intCast(seed));
     const random = prng.random();
 
     if (enable_simd and vector.len >= 4) {

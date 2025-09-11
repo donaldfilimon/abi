@@ -300,8 +300,7 @@ pub const StaticAnalyzer = struct {
             const is_loglevel = std.mem.indexOf(u8, line_lower, "std.debug.print") != null or std.mem.indexOf(u8, line_lower, "std.log.") != null;
             const is_header_construction = std.mem.indexOf(u8, line_lower, "authorization") != null or std.mem.indexOf(u8, line_lower, "bearer ") != null;
             const is_metadata_field = std.mem.indexOf(u8, line_lower, ".author") != null or std.mem.indexOf(u8, line_lower, ".description") != null;
-            if (has_pattern and is_assignment and !is_comment and !is_loglevel and !is_header_construction and !is_metadata_field)
-            {
+            if (has_pattern and is_assignment and !is_comment and !is_loglevel and !is_header_construction and !is_metadata_field) {
                 const severity: Severity = if (std.mem.indexOf(u8, line, "\"") != null) .critical else .err;
                 try self.addFinding(file_path, line_number, 1, severity, "Potential hardcoded credential", "security.hardcoded_secrets", line, "Use environment variables or secure configuration management", 0.9);
                 break;

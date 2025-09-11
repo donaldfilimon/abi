@@ -2,16 +2,19 @@ const std = @import("std");
 const abi = @import("abi");
 
 /// Documentation generator for WDBX-AI project
-/// Generates comprehensive API documentation from source code
+/// Generates comprehensive API documentation from source code with enhanced GitHub Pages support
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    std.log.info("📚 Generating WDBX-AI API Documentation", .{});
+    std.log.info("📚 Generating WDBX-AI API Documentation with GitHub Pages optimization", .{});
 
-    // Create docs directory
+    // Create comprehensive docs directory structure
     try std.fs.cwd().makePath("docs/generated");
+    try std.fs.cwd().makePath("docs/assets");
+    // Static site (no Jekyll)
+    try generateNoJekyll(allocator);
 
     // Generate module documentation
     try generateModuleDocs(allocator);
@@ -20,14 +23,707 @@ pub fn main() !void {
     try generatePerformanceGuide(allocator);
     try generateDefinitionsReference(allocator);
 
-    // NEW: Scan codebase for public declarations and doc comments
+    // Enhanced documentation features
     try generateCodeApiIndex(allocator);
-
-    // NEW: Build search index and a GitHub Pages-friendly index.html
     try generateSearchIndex(allocator);
-    try generateDocsIndexHtml(allocator);
 
-    std.log.info("✅ Documentation generation completed!", .{});
+    // GitHub Pages optimizations
+    try generateJekyllConfig(allocator);
+    try generateGitHubPagesLayout(allocator);
+    try generateNavigationData(allocator);
+    try generateSEOMetadata(allocator);
+    try generateDocsIndexHtml(allocator);
+    try generateReadmeRedirect(allocator);
+
+    // Generate Zig native documentation
+    try generateZigNativeDocs(allocator);
+
+    std.log.info("✅ GitHub Pages documentation generation completed!", .{});
+}
+
+/// Generate Jekyll configuration for GitHub Pages
+fn generateJekyllConfig(_: std.mem.Allocator) !void {
+    const file = try std.fs.cwd().createFile("docs/_config.yml", .{});
+    defer file.close();
+
+    const content =
+        \\# WDBX-AI Documentation - Jekyll Configuration
+        \\title: "WDBX-AI Documentation"
+        \\description: "High-performance vector database with AI capabilities"
+        \\url: "https://your-username.github.io"
+        \\baseurl: "/wdbx-ai"
+        \\
+        \\# GitHub Pages settings
+        \\remote_theme: pages-themes/minimal@v0.2.0
+        \\plugins:
+        \\  - jekyll-remote-theme
+        \\  - jekyll-sitemap
+        \\  - jekyll-feed
+        \\  - jekyll-seo-tag
+        \\
+        \\# Navigation structure
+        \\navigation:
+        \\  - title: "Home"
+        \\    url: "/"
+        \\  - title: "API Reference"
+        \\    url: "/generated/API_REFERENCE"
+        \\  - title: "Module Reference"
+        \\    url: "/generated/MODULE_REFERENCE"
+        \\  - title: "Examples"
+        \\    url: "/generated/EXAMPLES"
+        \\  - title: "Performance Guide"
+        \\    url: "/generated/PERFORMANCE_GUIDE"
+        \\  - title: "Definitions"
+        \\    url: "/generated/DEFINITIONS_REFERENCE"
+        \\  - title: "Code Index"
+        \\    url: "/generated/CODE_API_INDEX"
+        \\
+        \\# SEO and metadata
+        \\lang: en
+        \\author:
+        \\  name: "WDBX-AI Team"
+        \\  email: "team@wdbx-ai.dev"
+        \\
+        \\# GitHub repository
+        \\github:
+        \\  repository_url: "https://github.com/your-username/wdbx-ai"
+        \\  repository_name: "wdbx-ai"
+        \\  owner_name: "your-username"
+        \\
+        \\# Social media
+        \\social:
+        \\  type: "Organization"
+        \\  links:
+        \\    - "https://github.com/your-username/wdbx-ai"
+        \\
+        \\# Build settings
+        \\markdown: kramdown
+        \\highlighter: rouge
+        \\theme: minima
+        \\
+        \\# Exclude from build
+        \\exclude:
+        \\  - "*.zig"
+        \\  - "zig-*"
+        \\  - "build.zig"
+        \\  - "README.md"
+        \\
+        \\# Include in build
+        \\include:
+        \\  - "_redirects"
+        \\
+        \\# Kramdown settings
+        \\kramdown:
+        \\  input: GFM
+        \\  syntax_highlighter: rouge
+        \\  syntax_highlighter_opts:
+        \\    css_class: 'highlight'
+        \\    span:
+        \\      line_numbers: false
+        \\    block:
+        \\      line_numbers: true
+        \\
+        \\# Collections
+        \\collections:
+        \\  generated:
+        \\    output: true
+        \\    permalink: /:collection/:name/
+        \\
+        \\# Defaults
+        \\defaults:
+        \\  - scope:
+        \\      path: "generated"
+        \\      type: "generated"
+        \\    values:
+        \\      layout: "documentation"
+        \\      sitemap: true
+        \\
+    ;
+
+    try file.writeAll(content);
+}
+
+/// Generate GitHub Pages layout template
+fn generateGitHubPagesLayout(_: std.mem.Allocator) !void {
+    const file = try std.fs.cwd().createFile("docs/_layouts/documentation.html", .{});
+    defer file.close();
+
+    const content =
+        \\---
+        \\layout: default
+        \\---
+        \\
+        \\<!DOCTYPE html>
+        \\<html lang="{{ page.lang | default: site.lang | default: 'en' }}">
+        \\<head>
+        \\  <meta charset="utf-8">
+        \\  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        \\  <meta name="viewport" content="width=device-width, initial-scale=1">
+        \\  <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}">
+        \\  <link rel="stylesheet" href="{{ '/assets/css/documentation.css' | relative_url }}">
+        \\  
+        \\  <!-- SEO tags -->
+        \\  {% seo %}
+        \\  
+        \\  <!-- Syntax highlighting -->
+        \\  <link rel="stylesheet" href="{{ '/assets/css/syntax.css' | relative_url }}">
+        \\  
+        \\  <!-- Search functionality -->
+        \\  <script src="{{ '/assets/js/search.js' | relative_url }}" defer></script>
+        \\</head>
+        \\<body>
+        \\  <div class="wrapper">
+        \\    <header>
+        \\      <h1><a href="{{ '/' | relative_url }}">{{ site.title | default: site.github.repository_name }}</a></h1>
+        \\      <p>{{ site.description | default: site.github.project_tagline }}</p>
+        \\      
+        \\      <!-- Search box -->
+        \\      <div class="search-container">
+        \\        <input type="search" id="search-input" placeholder="Search documentation..." autocomplete="off">
+        \\        <div id="search-results" class="search-results hidden"></div>
+        \\      </div>
+        \\      
+        \\      <!-- Navigation -->
+        \\      <nav class="doc-navigation">
+        \\        <h3>Documentation</h3>
+        \\        <ul>
+        \\          {% for nav_item in site.navigation %}
+        \\          <li><a href="{{ nav_item.url | relative_url }}" {% if page.url == nav_item.url %}class="current"{% endif %}>{{ nav_item.title }}</a></li>
+        \\          {% endfor %}
+        \\        </ul>
+        \\      </nav>
+        \\      
+        \\      <!-- GitHub links -->
+        \\      {% if site.github.is_project_page %}
+        \\      <p class="view">
+        \\        <a href="{{ site.github.repository_url }}">View the Project on GitHub <small>{{ site.github.repository_nwo }}</small></a>
+        \\      </p>
+        \\      {% endif %}
+        \\      
+        \\      <!-- Download links -->
+        \\      {% if site.github.is_project_page %}
+        \\      <ul class="downloads">
+        \\        {% if site.github.zip_url %}
+        \\        <li><a href="{{ site.github.zip_url }}">Download <strong>ZIP File</strong></a></li>
+        \\        {% endif %}
+        \\        {% if site.github.tar_url %}
+        \\        <li><a href="{{ site.github.tar_url }}">Download <strong>TAR Ball</strong></a></li>
+        \\        {% endif %}
+        \\        <li><a href="{{ site.github.repository_url }}">View On <strong>GitHub</strong></a></li>
+        \\      </ul>
+        \\      {% endif %}
+        \\    </header>
+        \\    
+        \\    <section class="documentation-content">
+        \\      <!-- Table of contents -->
+        \\      <div id="toc" class="table-of-contents">
+        \\        <h4>Table of Contents</h4>
+        \\        <ul id="toc-list"></ul>
+        \\      </div>
+        \\      
+        \\      <!-- Main content -->
+        \\      <div class="content">
+        \\        {{ content }}
+        \\        
+        \\        <!-- Feedback section -->
+        \\        <div class="feedback-section">
+        \\          <h3>Feedback</h3>
+        \\          <p>Found an issue with this documentation? 
+        \\             <a href="{{ site.github.repository_url }}/issues/new?title=Documentation%20Issue&body=Page:%20{{ page.url }}">Report it on GitHub</a>
+        \\          </p>
+        \\        </div>
+        \\      </div>
+        \\    </section>
+        \\    
+        \\    <footer>
+        \\      {% if site.github.is_project_page %}
+        \\      <p>This project is maintained by <a href="{{ site.github.owner_url }}">{{ site.github.owner_name }}</a></p>
+        \\      {% endif %}
+        \\      <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+        \\      <p><small>Generated with Zig documentation tools</small></p>
+        \\    </footer>
+        \\  </div>
+        \\  
+        \\  <!-- JavaScript for enhanced functionality -->
+        \\  <script src="{{ '/assets/js/documentation.js' | relative_url }}"></script>
+        \\  <script src="{{ '/assets/js/scale.fix.js' | relative_url }}"></script>
+        \\  
+        \\  <!-- Analytics (if configured) -->
+        \\  {% if site.google_analytics %}
+        \\  <script>
+        \\    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        \\    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        \\    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        \\    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+        \\    ga('create', '{{ site.google_analytics }}', 'auto');
+        \\    ga('send', 'pageview');
+        \\  </script>
+        \\  {% endif %}
+        \\</body>
+        \\</html>
+        \\
+    ;
+
+    try file.writeAll(content);
+}
+
+/// Generate navigation data for enhanced site structure
+fn generateNavigationData(_: std.mem.Allocator) !void {
+    const file = try std.fs.cwd().createFile("docs/_data/navigation.yml", .{});
+    defer file.close();
+
+    const content =
+        \\# Main navigation structure
+        \\main:
+        \\  - title: "Getting Started"
+        \\    children:
+        \\      - title: "Quick Start"
+        \\        url: "/examples/#quick-start"
+        \\      - title: "Installation"
+        \\        url: "/examples/#installation"
+        \\      - title: "Basic Usage"
+        \\        url: "/examples/#basic-vector-database"
+        \\
+        \\  - title: "API Documentation"
+        \\    children:
+        \\      - title: "Database API"
+        \\        url: "/generated/API_REFERENCE/#database-api"
+        \\      - title: "AI API"
+        \\        url: "/generated/API_REFERENCE/#ai-api"
+        \\      - title: "SIMD API"
+        \\        url: "/generated/API_REFERENCE/#simd-api"
+        \\      - title: "Plugin API"
+        \\        url: "/generated/API_REFERENCE/#plugin-api"
+        \\
+        \\  - title: "Reference"
+        \\    children:
+        \\      - title: "Module Reference"
+        \\        url: "/generated/MODULE_REFERENCE/"
+        \\      - title: "Code Index"
+        \\        url: "/generated/CODE_API_INDEX/"
+        \\      - title: "Definitions"
+        \\        url: "/generated/DEFINITIONS_REFERENCE/"
+        \\
+        \\  - title: "Guides"
+        \\    children:
+        \\      - title: "Performance Guide"
+        \\        url: "/generated/PERFORMANCE_GUIDE/"
+        \\      - title: "Examples"
+        \\        url: "/generated/EXAMPLES/"
+        \\      - title: "Best Practices"
+        \\        url: "/generated/EXAMPLES/#performance-optimization"
+        \\
+        \\# Sidebar navigation for documentation pages
+        \\docs:
+        \\  - title: "Core Concepts"
+        \\    children:
+        \\      - title: "Vector Database"
+        \\        url: "/generated/DEFINITIONS_REFERENCE/#vector-database"
+        \\      - title: "Embeddings"
+        \\        url: "/generated/DEFINITIONS_REFERENCE/#embeddings"
+        \\      - title: "HNSW Index"
+        \\        url: "/generated/DEFINITIONS_REFERENCE/#hnsw-hierarchical-navigable-small-world"
+        \\
+        \\  - title: "AI & ML"
+        \\    children:
+        \\      - title: "Neural Networks"
+        \\        url: "/generated/DEFINITIONS_REFERENCE/#neural-network"
+        \\      - title: "Training"
+        \\        url: "/generated/DEFINITIONS_REFERENCE/#backpropagation"
+        \\      - title: "Agents"
+        \\        url: "/generated/DEFINITIONS_REFERENCE/#agent-based-systems"
+        \\
+        \\  - title: "Performance"
+        \\    children:
+        \\      - title: "SIMD Operations"
+        \\        url: "/generated/DEFINITIONS_REFERENCE/#simd-single-instruction-multiple-data"
+        \\      - title: "Memory Management"
+        \\        url: "/generated/DEFINITIONS_REFERENCE/#memory-management"
+        \\      - title: "Caching"
+        \\        url: "/generated/DEFINITIONS_REFERENCE/#caching-strategies"
+        \\
+    ;
+
+    try file.writeAll(content);
+}
+
+/// Generate SEO metadata and frontmatter for pages
+fn generateSEOMetadata(_: std.mem.Allocator) !void {
+    // Generate sitemap.xml
+    const sitemap_file = try std.fs.cwd().createFile("docs/sitemap.xml", .{});
+    defer sitemap_file.close();
+
+    const sitemap_content =
+        \\<?xml version="1.0" encoding="UTF-8"?>
+        \\<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+        \\  <url>
+        \\    <loc>https://your-username.github.io/wdbx-ai/</loc>
+        \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
+        \\    <changefreq>weekly</changefreq>
+        \\    <priority>1.0</priority>
+        \\  </url>
+        \\  <url>
+        \\    <loc>https://your-username.github.io/wdbx-ai/generated/API_REFERENCE/</loc>
+        \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
+        \\    <changefreq>weekly</changefreq>
+        \\    <priority>0.9</priority>
+        \\  </url>
+        \\  <url>
+        \\    <loc>https://your-username.github.io/wdbx-ai/generated/MODULE_REFERENCE/</loc>
+        \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
+        \\    <changefreq>weekly</changefreq>
+        \\    <priority>0.8</priority>
+        \\  </url>
+        \\  <url>
+        \\    <loc>https://your-username.github.io/wdbx-ai/generated/EXAMPLES/</loc>
+        \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
+        \\    <changefreq>weekly</changefreq>
+        \\    <priority>0.8</priority>
+        \\  </url>
+        \\  <url>
+        \\    <loc>https://your-username.github.io/wdbx-ai/generated/PERFORMANCE_GUIDE/</loc>
+        \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
+        \\    <changefreq>monthly</changefreq>
+        \\    <priority>0.7</priority>
+        \\  </url>
+        \\  <url>
+        \\    <loc>https://your-username.github.io/wdbx-ai/generated/DEFINITIONS_REFERENCE/</loc>
+        \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
+        \\    <changefreq>monthly</changefreq>
+        \\    <priority>0.7</priority>
+        \\  </url>
+        \\  <url>
+        \\    <loc>https://your-username.github.io/wdbx-ai/generated/CODE_API_INDEX/</loc>
+        \\    <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
+        \\    <changefreq>daily</changefreq>
+        \\    <priority>0.6</priority>
+        \\  </url>
+        \\</urlset>
+        \\
+    ;
+
+    try sitemap_file.writeAll(sitemap_content);
+
+    // Generate robots.txt
+    const robots_file = try std.fs.cwd().createFile("docs/robots.txt", .{});
+    defer robots_file.close();
+
+    const robots_content =
+        \\User-agent: *
+        \\Allow: /
+        \\Sitemap: https://your-username.github.io/wdbx-ai/sitemap.xml
+        \\
+        \\# Disallow build artifacts
+        \\Disallow: /zig-out/
+        \\Disallow: /zig-cache/
+        \\Disallow: /*.zig$
+        \\
+    ;
+
+    try robots_file.writeAll(robots_content);
+}
+
+/// Generate native Zig documentation using built-in tools
+fn generateZigNativeDocs(allocator: std.mem.Allocator) !void {
+    // Create directory for native docs
+    try std.fs.cwd().makePath("docs/zig-docs");
+
+    // Generate documentation using Zig's built-in doc generation
+    // This would typically be done via: zig build-lib -femit-docs src/main.zig
+    // For now, we'll create a placeholder script
+    const script_file = try std.fs.cwd().createFile("docs/generate_zig_docs.sh", .{});
+    defer script_file.close();
+
+    const script_content =
+        \\#!/bin/bash
+        \\# Generate native Zig documentation
+        \\echo "Generating native Zig documentation..."
+        \\
+        \\# Ensure we're in the project root
+        \\cd "$(dirname "$0")/.."
+        \\
+        \\# Generate documentation using Zig's built-in tools
+        \\if command -v zig &> /dev/null; then
+        \\    echo "Using Zig compiler to generate documentation..."
+        \\    zig build-lib -femit-docs=docs/zig-docs src/main.zig
+        \\    
+        \\    # Copy generated docs to GitHub Pages structure
+        \\    if [ -d "docs/zig-docs" ]; then
+        \\        echo "Native Zig documentation generated successfully!"
+        \\        echo "Documentation available at: docs/zig-docs/"
+        \\    else
+        \\        echo "Warning: Native documentation generation may have failed"
+        \\    fi
+        \\else
+        \\    echo "Zig compiler not found. Please install Zig to generate native documentation."
+        \\    echo "Visit: https://ziglang.org/download/"
+        \\fi
+        \\
+        \\# Generate integration with GitHub Pages
+        \\echo "Integrating with GitHub Pages structure..."
+        \\
+        \\# Create redirect page for native docs
+        \\cat > docs/native-docs.md << 'EOF'
+        \\---
+        \\layout: documentation
+        \\title: "Native Zig Documentation"
+        \\description: "Auto-generated documentation from Zig source code"
+        \\permalink: /native-docs/
+        \\---
+        \\
+        \\# Native Zig Documentation
+        \\
+        \\This section contains automatically generated documentation from the Zig source code using Zig's built-in documentation tools.
+        \\
+        \\## Features
+        \\
+        \\- **Auto-generated**: Documentation is automatically extracted from source code comments
+        \\- **Type information**: Complete type signatures and relationships
+        \\- **Cross-references**: Links between related functions and types
+        \\- **Examples**: Code examples from doc comments
+        \\
+        \\## Accessing the Documentation
+        \\
+        \\The native documentation is available in the following formats:
+        \\
+        \\- [Browse Online](./zig-docs/) - Interactive web interface
+        \\- [Source Integration](../generated/CODE_API_INDEX/) - Integrated with manual documentation
+        \\
+        \\## Generation Process
+        \\
+        \\The documentation is generated using:
+        \\
+        \\```bash
+        \\zig build-lib -femit-docs=docs/zig-docs src/main.zig
+        \\```
+        \\
+        \\This leverages Zig's built-in documentation generation capabilities that parse:
+        \\
+        \\- Doc comments (`///`)
+        \\- Public declarations
+        \\- Type information
+        \\- Function signatures
+        \\- Module structure
+        \\
+        \\## Integration
+        \\
+        \\The native documentation is integrated with our manual documentation through:
+        \\
+        \\- Cross-references in the [API Reference](../generated/API_REFERENCE/)
+        \\- Links from the [Code Index](../generated/CODE_API_INDEX/)
+        \\- Search integration in the main documentation site
+        \\
+        \\EOF
+        \\
+        \\echo "Documentation generation complete!"
+        \\
+    ;
+
+    try script_file.writeAll(script_content);
+
+    // Make script executable (on Unix systems)
+    if (std.builtin.os.tag != .windows) {
+        _ = std.fs.cwd().chmod("docs/generate_zig_docs.sh", 0o755) catch {};
+    }
+
+    // Create a README for the zig-docs directory
+    const readme_file = try std.fs.cwd().createFile("docs/zig-docs/README.md", .{});
+    defer readme_file.close();
+
+    const readme_content =
+        \\# Native Zig Documentation
+        \\
+        \\This directory contains automatically generated documentation from the Zig source code.
+        \\
+        \\## Generation
+        \\
+        \\To generate the documentation:
+        \\
+        \\```bash
+        \\cd docs
+        \\./generate_zig_docs.sh
+        \\```
+        \\
+        \\Or manually:
+        \\
+        \\```bash
+        \\zig build-lib -femit-docs=docs/zig-docs src/main.zig
+        \\```
+        \\
+        \\## Integration with GitHub Pages
+        \\
+        \\The generated documentation integrates with the main GitHub Pages site through:
+        \\
+        \\1. **Jekyll integration**: Documentation pages have proper frontmatter
+        \\2. **Navigation**: Links are included in the main site navigation
+        \\3. **Search**: Content is indexed by the site search functionality
+        \\4. **Cross-references**: Links between manual and generated documentation
+        \\
+        \\## Features
+        \\
+        \\- Complete API coverage from source code
+        \\- Interactive browsing
+        \\- Type information and signatures
+        \\- Cross-references between modules
+        \\- Example code from doc comments
+        \\
+    ;
+
+    try readme_file.writeAll(readme_content);
+
+    std.log.info("Native Zig documentation setup created. Run docs/generate_zig_docs.sh to generate.", .{});
+}
+
+/// Generate README redirect for GitHub
+fn generateReadmeRedirect(_: std.mem.Allocator) !void {
+    const file = try std.fs.cwd().createFile("docs/README.md", .{});
+    defer file.close();
+
+    const content =
+        \\---
+        \\layout: documentation
+        \\title: "WDBX-AI Documentation"
+        \\description: "High-performance vector database with AI capabilities - Complete documentation"
+        \\permalink: /
+        \\---
+        \\
+        \\# WDBX-AI Documentation
+        \\
+        \\Welcome to the comprehensive documentation for WDBX-AI, a high-performance vector database with integrated AI capabilities.
+        \\
+        \\## 🚀 Quick Navigation
+        \\
+        \\<div class="quick-nav">
+        \\  <div class="nav-card">
+        \\    <h3><a href="./generated/API_REFERENCE/">📘 API Reference</a></h3>
+        \\    <p>Complete API documentation with examples and detailed function signatures.</p>
+        \\  </div>
+        \\  
+        \\  <div class="nav-card">
+        \\    <h3><a href="./generated/EXAMPLES/">💡 Examples</a></h3>
+        \\    <p>Practical examples and tutorials to get you started quickly.</p>
+        \\  </div>
+        \\  
+        \\  <div class="nav-card">
+        \\    <h3><a href="./generated/MODULE_REFERENCE/">📦 Module Reference</a></h3>
+        \\    <p>Detailed module documentation and architecture overview.</p>
+        \\  </div>
+        \\  
+        \\  <div class="nav-card">
+        \\    <h3><a href="./generated/PERFORMANCE_GUIDE/">⚡ Performance Guide</a></h3>
+        \\    <p>Optimization tips, benchmarks, and performance best practices.</p>
+        \\  </div>
+        \\</div>
+        \\
+        \\## 📖 What's Inside
+        \\
+        \\### Core Documentation
+        \\- **[API Reference](./generated/API_REFERENCE/)** - Complete function and type documentation
+        \\- **[Module Reference](./generated/MODULE_REFERENCE/)** - Module structure and relationships
+        \\- **[Examples](./generated/EXAMPLES/)** - Practical usage examples and tutorials
+        \\- **[Performance Guide](./generated/PERFORMANCE_GUIDE/)** - Optimization and benchmarking
+        \\- **[Definitions](./generated/DEFINITIONS_REFERENCE/)** - Comprehensive glossary and concepts
+        \\
+        \\### Developer Resources
+        \\- **[Code Index](./generated/CODE_API_INDEX/)** - Auto-generated API index from source
+        \\- **[Native Docs](./native-docs/)** - Zig compiler-generated documentation
+        \\- **[Search](./index.html)** - Interactive documentation browser
+        \\
+        \\## 🔍 Features
+        \\
+        \\- **🚄 High Performance**: Optimized vector operations with SIMD support
+        \\- **🧠 AI Integration**: Built-in neural networks and machine learning
+        \\- **🗄️ Vector Database**: Efficient storage and similarity search
+        \\- **🔌 Plugin System**: Extensible architecture for custom functionality
+        \\- **📊 Analytics**: Performance monitoring and optimization tools
+        \\
+        \\## 🛠️ Getting Started
+        \\
+        \\1. **Installation**: Check the [Examples](./generated/EXAMPLES/) for setup instructions
+        \\2. **Quick Start**: Follow the [basic usage examples](./generated/EXAMPLES/#quick-start)
+        \\3. **API Learning**: Explore the [API Reference](./generated/API_REFERENCE/) for detailed function documentation
+        \\4. **Optimization**: Read the [Performance Guide](./generated/PERFORMANCE_GUIDE/) for best practices
+        \\
+        \\## 📚 Documentation Types
+        \\
+        \\This documentation is generated using multiple approaches:
+        \\
+        \\### Manual Documentation
+        \\- Curated guides and examples
+        \\- Performance analysis and optimization tips
+        \\- Comprehensive concept explanations
+        \\- Best practices and design patterns
+        \\
+        \\### Auto-Generated Documentation
+        \\- Source code scanning for public APIs
+        \\- Zig compiler documentation extraction
+        \\- Type information and signatures
+        \\- Cross-references and relationships
+        \\
+        \\## 🔗 External Resources
+        \\
+        \\- **[GitHub Repository](https://github.com/your-username/wdbx-ai)** - Source code and issues
+        \\- **[Zig Language](https://ziglang.org/)** - Learn about the Zig programming language
+        \\- **[Vector Databases](./generated/DEFINITIONS_REFERENCE/#vector-database)** - Learn about vector database concepts
+        \\
+        \\## 📧 Support
+        \\
+        \\- **Issues**: [Report bugs or request features](https://github.com/your-username/wdbx-ai/issues)
+        \\- **Discussions**: [Join community discussions](https://github.com/your-username/wdbx-ai/discussions)
+        \\- **Documentation**: [Improve documentation](https://github.com/your-username/wdbx-ai/issues/new?title=Documentation%20Improvement)
+        \\
+        \\---
+        \\
+        \\<style>
+        \\.quick-nav {
+        \\  display: grid;
+        \\  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        \\  gap: 1rem;
+        \\  margin: 2rem 0;
+        \\}
+        \\
+        \\.nav-card {
+        \\  border: 1px solid #e1e4e8;
+        \\  border-radius: 8px;
+        \\  padding: 1.5rem;
+        \\  background: #f6f8fa;
+        \\}
+        \\
+        \\.nav-card h3 {
+        \\  margin-top: 0;
+        \\  margin-bottom: 0.5rem;
+        \\}
+        \\
+        \\.nav-card h3 a {
+        \\  text-decoration: none;
+        \\  color: #0366d6;
+        \\}
+        \\
+        \\.nav-card p {
+        \\  margin-bottom: 0;
+        \\  color: #586069;
+        \\  font-size: 0.9rem;
+        \\}
+        \\
+        \\@media (prefers-color-scheme: dark) {
+        \\  .nav-card {
+        \\    border-color: #30363d;
+        \\    background: #21262d;
+        \\  }
+        \\  
+        \\  .nav-card h3 a {
+        \\    color: #58a6ff;
+        \\  }
+        \\  
+        \\  .nav-card p {
+        \\    color: #8b949e;
+        \\  }
+        \\}
+        \\</style>
+        \\
+    ;
+
+    try file.writeAll(content);
 }
 
 /// Generate comprehensive module documentation
@@ -36,6 +732,12 @@ fn generateModuleDocs(_: std.mem.Allocator) !void {
     defer file.close();
 
     const content =
+        \\---
+        \\layout: documentation
+        \\title: "Module Reference"
+        \\description: "Comprehensive reference for all WDBX-AI modules and components"
+        \\---
+        \\
         \\# WDBX-AI Module Reference
         \\
         \\## 📦 Core Modules
@@ -238,6 +940,12 @@ fn generateApiReference(_: std.mem.Allocator) !void {
     defer file.close();
 
     const content =
+        \\---
+        \\layout: documentation
+        \\title: "API Reference"
+        \\description: "Complete API reference for WDBX-AI with detailed function documentation"
+        \\---
+        \\
         \\# WDBX-AI API Reference
         \\
         \\## 🗄️ Database API
@@ -414,6 +1122,12 @@ fn generateExamples(_: std.mem.Allocator) !void {
     defer file.close();
 
     const content =
+        \\---
+        \\layout: documentation
+        \\title: "Examples & Tutorials"
+        \\description: "Practical examples and tutorials for using WDBX-AI effectively"
+        \\---
+        \\
         \\# WDBX-AI Usage Examples
         \\
         \\## 🚀 Quick Start
@@ -700,6 +1414,12 @@ fn generatePerformanceGuide(_: std.mem.Allocator) !void {
     defer file.close();
 
     const content =
+        \\---
+        \\layout: documentation
+        \\title: "Performance Guide"
+        \\description: "Comprehensive performance optimization guide with benchmarks and best practices"
+        \\---
+        \\
         \\# WDBX-AI Performance Guide
         \\
         \\## 🚀 Performance Characteristics
@@ -949,6 +1669,12 @@ fn generateDefinitionsReference(_: std.mem.Allocator) !void {
     defer file.close();
 
     const content =
+        \\---
+        \\layout: documentation
+        \\title: "Definitions Reference"
+        \\description: "Comprehensive glossary and concepts for WDBX-AI technology"
+        \\---
+        \\
         \\# WDBX-AI Definitions Reference
         \\
         \\## 📚 Core Concepts
