@@ -13,9 +13,9 @@
 
 const std = @import("std");
 const math = std.math;
-const abi = @import("root.zig");
-const core = @import("core/mod.zig");
-const memory_tracker = @import("memory_tracker.zig");
+const abi = @import("../root.zig");
+const core = @import("../core/mod.zig");
+const memory_tracker = @import("../monitoring/memory_tracker.zig");
 
 /// Re-export commonly used types
 pub const Allocator = std.mem.Allocator;

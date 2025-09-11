@@ -16,7 +16,7 @@ const math = std.math;
 const print = std.debug.print;
 
 // Compile-time constants for performance optimization
-const has_webgpu_support = @hasDecl(std, "gpu") and @hasDecl(std.gpu, "Instance");
+pub const has_webgpu_support = @hasDecl(std, "gpu") and @hasDecl(std.gpu, "Instance");
 
 // Compile-time configuration constants
 const DEFAULT_VECTOR_SIZE = 1024;
@@ -1863,8 +1863,21 @@ pub const GPURenderer = struct {
             MathUtils.matrixMultiply(f32, a, b, result, @intCast(m));
         } else {
             // Fallback to SIMD implementation for non-square matrices
-            const core = @import("core/mod.zig");
-            core.matrixMultiply(result, a, b, @intCast(m), @intCast(n), @intCast(k));
+            // Matrix multiplication function - inline implementation to avoid import warnings
+            const matrixMultiplyInline = struct {
+                fn call(res: []f32, mat_a: []const f32, mat_b: []const f32, rows: u32, cols_a: u32, cols_b: u32) void {
+                    for (0..rows) |i| {
+                        for (0..cols_b) |j| {
+                            var sum: f32 = 0.0;
+                            for (0..cols_a) |l| {
+                                sum += mat_a[i * cols_a + l] * mat_b[l * cols_b + j];
+                            }
+                            res[i * cols_b + j] = sum;
+                        }
+                    }
+                }
+            }.call;
+            matrixMultiplyInline(result, a, b, @intCast(m), @intCast(n), @intCast(k));
         }
 
         // Update performance metrics

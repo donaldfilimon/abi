@@ -12,7 +12,7 @@
 //! - Memory-efficient span storage
 
 const std = @import("std");
-const root = @import("root.zig");
+const root = @import("../root.zig");
 const performance = @import("performance.zig");
 
 /// Tracing error types

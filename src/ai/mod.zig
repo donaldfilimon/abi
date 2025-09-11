@@ -1905,6 +1905,12 @@ pub const ModelTrainer = struct {
 // Re-export commonly used types with enhanced aliases
 pub const Network = NeuralNetwork;
 pub const Embedding = EmbeddingGenerator;
+
+// Re-export additional AI components
+pub const Neural = @import("neural.zig");
+pub const LocalML = @import("localml.zig");
+pub const DynamicRouter = @import("dynamic.zig");
+pub const DataStructures = @import("data_structures/mod.zig");
 pub const Trainer = ModelTrainer;
 pub const Config = TrainingConfig;
 pub const Metrics = TrainingMetrics;

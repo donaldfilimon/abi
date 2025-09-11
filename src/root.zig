@@ -14,17 +14,13 @@ pub const database = @import("wdbx/database.zig");
 pub const ai = @import("ai/mod.zig");
 pub const wdbx = @import("wdbx/mod.zig");
 pub const plugins = @import("plugins/mod.zig");
-pub const tracing = @import("tracing.zig");
+pub const monitoring = @import("monitoring/mod.zig");
 pub const logging = @import("logging.zig");
-pub const neural = @import("neural.zig");
-pub const memory_tracker = @import("memory_tracker.zig");
 // Core utilities and framework types
 pub const core = @import("core/mod.zig");
-pub const localml = @import("localml.zig");
-pub const gpu = @import("gpu_renderer.zig");
-pub const backend = @import("backend.zig");
+pub const gpu = @import("gpu/mod.zig");
 pub const connectors = @import("connectors/mod.zig");
-const weather_mod = @import("weather.zig");
+pub const services = @import("services/mod.zig");
 
 // Re-export commonly used types and functions
 pub const Db = database.Db;
@@ -43,6 +39,7 @@ pub const EmbeddingGenerator = ai.EmbeddingGenerator;
 pub const ModelTrainer = ai.ModelTrainer;
 pub const Layer = ai.Layer;
 pub const Activation = ai.Activation;
+pub const DynamicPersonaRouter = ai.DynamicPersonaRouter;
 
 // Re-export standard library utilities
 pub const Allocator = std.mem.Allocator;
@@ -54,13 +51,7 @@ pub const Command = wdbx.Command;
 pub const WdbxOutputFormat = wdbx.OutputFormat;
 pub const WdbxLogLevel = wdbx.LogLevel;
 
-// Re-export tracing utilities
-pub const Tracer = tracing.Tracer;
-pub const TraceId = tracing.TraceId;
-pub const Span = tracing.Span;
-pub const SpanId = tracing.SpanId;
-pub const TraceContext = tracing.TraceContext;
-pub const TracingError = tracing.TracingError;
+// Old tracing imports removed - now available through monitoring module
 
 // Re-export logging utilities
 pub const Logger = logging.Logger;
@@ -68,10 +59,26 @@ pub const LogLevel = logging.LogLevel;
 pub const LogOutputFormat = logging.OutputFormat;
 pub const LoggerConfig = logging.LoggerConfig;
 
-// Re-export weather types for convenience
-pub const WeatherService = weather_mod.WeatherService;
-pub const WeatherData = weather_mod.WeatherData;
-pub const WeatherConfig = weather_mod.WeatherConfig;
+// Re-export GPU capabilities
+pub const GPURenderer = gpu.GPURenderer;
+pub const GpuBackend = gpu.GpuBackend;
+pub const GPUConfig = gpu.GPUConfig;
+pub const GpuError = gpu.GpuError;
+
+// Re-export monitoring capabilities
+pub const Tracer = monitoring.Tracer;
+pub const TraceId = monitoring.TraceId;
+pub const Span = monitoring.Span;
+pub const SpanId = monitoring.SpanId;
+pub const TraceContext = monitoring.TraceContext;
+pub const TracingError = monitoring.TracingError;
+pub const MemoryTracker = monitoring.MemoryTracker;
+pub const PerformanceProfiler = monitoring.PerformanceProfiler;
+
+// Re-export service capabilities
+pub const WeatherService = services.WeatherService;
+pub const WeatherData = services.WeatherData;
+pub const WeatherConfig = services.WeatherConfig;
 
 /// Main application entry point
 pub fn main() !void {
@@ -133,8 +140,8 @@ pub fn runSystemTest() !void {
         .max_active_spans = 100,
         .max_finished_spans = 1000,
     };
-    try tracing.initGlobalTracer(allocator, tracer_config);
-    defer tracing.deinitGlobalTracer();
+    try monitoring.tracing.initGlobalTracer(allocator, tracer_config);
+    defer monitoring.tracing.deinitGlobalTracer();
 
     // Initialize logging
     const logger_config = LoggerConfig{
@@ -147,15 +154,15 @@ pub fn runSystemTest() !void {
     defer logging.deinitGlobalLogger();
 
     // Start system test span
-    const system_test_span = try tracing.startSpan("system_test", .internal, null);
-    defer tracing.endSpan(system_test_span);
+    const system_test_span = try monitoring.tracing.startSpan("system_test", .internal, null);
+    defer monitoring.tracing.endSpan(system_test_span);
 
     // Test database operations
     const test_file = "test_system.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
 
-    const db_span = try tracing.startSpan("database_test", .internal, null);
-    defer tracing.endSpan(db_span);
+    const db_span = try monitoring.tracing.startSpan("database_test", .internal, null);
+    defer monitoring.tracing.endSpan(db_span);
 
     var db = try database.Db.open(test_file, true);
     defer db.close();
@@ -177,15 +184,15 @@ pub fn runSystemTest() !void {
     const vector_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const vector_b = [_]f32{ 2.0, 3.0, 4.0, 5.0 };
 
-    const simd_span = try tracing.startSpan("simd_test", .internal, null);
-    defer tracing.endSpan(simd_span);
+    const simd_span = try monitoring.tracing.startSpan("simd_test", .internal, null);
+    defer monitoring.tracing.endSpan(simd_span);
 
     const distance = core.distance(&vector_a, &vector_b);
     try testing.expect(distance > 0.0);
 
     // Test AI operations
-    const ai_span = try tracing.startSpan("ai_test", .internal, null);
-    defer tracing.endSpan(ai_span);
+    const ai_span = try monitoring.tracing.startSpan("ai_test", .internal, null);
+    defer monitoring.tracing.endSpan(ai_span);
 
     var network = try ai.NeuralNetwork.init(allocator, &[_]usize{4}, &[_]usize{2});
     defer network.deinit();
@@ -205,14 +212,14 @@ pub fn runSystemTest() !void {
     try testing.expectEqualStrings("test", trimmed);
 
     // Test tracing functionality
-    const trace_span = try tracing.startSpan("trace_test", .internal, null);
-    defer tracing.endSpan(trace_span);
+    const trace_span = try monitoring.tracing.startSpan("trace_test", .internal, null);
+    defer monitoring.tracing.endSpan(trace_span);
 
     try trace_span.setAttribute(allocator, "test_type", "system_test");
     try trace_span.addEvent(allocator, "test_completed");
 
     // Export trace data
-    const tracer = tracing.getGlobalTracer().?;
+    const tracer = monitoring.tracing.getGlobalTracer().?;
     const trace_json = try tracer.exportToJson(allocator);
     defer allocator.free(trace_json);
 

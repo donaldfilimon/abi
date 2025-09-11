@@ -20,13 +20,75 @@ pub fn build(b: *std.Build) void {
     // Build options for feature flags
     const build_options = b.addOptions();
     build_options.addOption([]const u8, "simd_level", "auto");
-    build_options.addOption(bool, "gpu", false);
+    build_options.addOption(bool, "gpu", true); // Enable GPU support by default
     build_options.addOption(bool, "simd", true);
     build_options.addOption(bool, "neural_accel", false);
-    build_options.addOption(bool, "webgpu", false);
+    build_options.addOption(bool, "webgpu", true); // Enable WebGPU by default
     build_options.addOption(bool, "hot_reload", false);
     build_options.addOption(bool, "enable_tracy", false);
     build_options.addOption(bool, "is_wasm", false);
+
+    // GPU-specific options
+    const enable_cuda = b.option(bool, "enable_cuda", "Enable CUDA support") orelse false;
+    const enable_spirv = b.option(bool, "enable_spirv", "Enable SPIRV compilation support") orelse true;
+    const cuda_path = b.option([]const u8, "cuda_path", "Path to CUDA installation") orelse "";
+    const vulkan_sdk_path = b.option([]const u8, "vulkan_sdk_path", "Path to Vulkan SDK") orelse "";
+
+    build_options.addOption(bool, "enable_cuda", enable_cuda);
+    build_options.addOption(bool, "enable_spirv", enable_spirv);
+    build_options.addOption([]const u8, "cuda_path", cuda_path);
+    build_options.addOption([]const u8, "vulkan_sdk_path", vulkan_sdk_path);
+
+    // Helper function to apply GPU dependencies to executables
+    const applyGPUDeps = struct {
+        fn apply(builder: *std.Build, exe: *std.Build.Step.Compile, tgt: std.Build.ResolvedTarget, cuda_enabled: bool, spirv_enabled: bool, cuda_lib_path: []const u8, vulkan_lib_path: []const u8) void {
+            if (cuda_enabled) {
+                if (cuda_lib_path.len > 0) {
+                    exe.addLibraryPath(builder.path(std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "lib64" }) catch ""));
+                    exe.addLibraryPath(builder.path(std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "lib" }) catch ""));
+                }
+                exe.linkSystemLibrary("cuda");
+                exe.linkSystemLibrary("cudart");
+                exe.linkSystemLibrary("cublas");
+                exe.linkSystemLibrary("cusolver");
+                exe.linkSystemLibrary("cusparse");
+                if (cuda_lib_path.len > 0) {
+                    exe.addIncludePath(builder.path(std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "include" }) catch ""));
+                }
+            }
+
+            if (spirv_enabled) {
+                if (vulkan_lib_path.len > 0) {
+                    exe.addLibraryPath(builder.path(std.fs.path.join(builder.allocator, &.{ vulkan_lib_path, "lib" }) catch ""));
+                    exe.addIncludePath(builder.path(std.fs.path.join(builder.allocator, &.{ vulkan_lib_path, "include" }) catch ""));
+                }
+
+                if (tgt.result.os.tag == .windows) {
+                    exe.linkSystemLibrary("vulkan-1");
+                } else if (tgt.result.os.tag == .linux) {
+                    exe.linkSystemLibrary("vulkan");
+                } else if (tgt.result.os.tag == .macos) {
+                    exe.linkSystemLibrary("MoltenVK");
+                }
+
+                exe.linkSystemLibrary("SPIRV-Tools");
+                exe.linkSystemLibrary("SPIRV-Tools-opt");
+                exe.linkSystemLibrary("glslang");
+                exe.linkSystemLibrary("glslang-default-resource-limits");
+            }
+
+            // Platform-specific GPU frameworks
+            if (tgt.result.os.tag == .macos) {
+                exe.linkFramework("Metal");
+                exe.linkFramework("MetalKit");
+                exe.linkFramework("MetalPerformanceShaders");
+            } else if (tgt.result.os.tag == .windows) {
+                exe.linkSystemLibrary("d3d12");
+                exe.linkSystemLibrary("dxgi");
+                exe.linkSystemLibrary("d3dcompiler");
+            }
+        }
+    }.apply;
 
     // This creates a module, which represents a collection of source files alongside
     // some compilation options, such as optimization mode and linked system libraries.
@@ -41,6 +103,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    // GPU-specific dependencies and library linking
 
     // CLI module
     const cli_mod = b.createModule(.{
@@ -57,6 +121,9 @@ pub fn build(b: *std.Build) void {
         .name = "abi",
         .root_module = cli_mod,
     });
+
+    // Apply GPU dependencies to CLI executable
+    applyGPUDeps(b, cli_exe, target, enable_cuda, enable_spirv, cuda_path, vulkan_sdk_path);
 
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default
@@ -103,10 +170,19 @@ pub fn build(b: *std.Build) void {
     // Named modules for tests
     // ai module is imported via 'abi' in tests
     const weather_mod = b.createModule(.{
-        .root_source_file = b.path("src/weather.zig"),
+        .root_source_file = b.path("src/services/weather.zig"),
         .target = target,
         .optimize = optimize,
     });
+    // GPU module - organized structure
+    const gpu_mod = b.createModule(.{
+        .root_source_file = b.path("src/gpu/mod.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // GPU submodules are imported via the main gpu module
+    // Individual modules are handled through the organized structure
     const web_server_mod = b.createModule(.{
         .root_source_file = b.path("src/server/web_server.zig"),
         .target = target,
@@ -231,6 +307,57 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
             .imports = &.{.{ .name = "weather", .module = weather_mod }},
+        });
+        const t = b.addTest(.{ .root_module = mod });
+        const run_t = b.addRunArtifact(t);
+        test_step.dependOn(&run_t.step);
+    }
+
+    // GPU tests
+    {
+        const mod = b.createModule(.{
+            .root_source_file = b.path("tests/test_gpu.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "abi", .module = abi_mod }},
+        });
+        const t = b.addTest(.{ .root_module = mod });
+        const run_t = b.addRunArtifact(t);
+        test_step.dependOn(&run_t.step);
+    }
+
+    {
+        const mod = b.createModule(.{
+            .root_source_file = b.path("tests/test_gpu_renderer.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "gpu", .module = gpu_mod }},
+        });
+        const t = b.addTest(.{ .root_module = mod });
+        const run_t = b.addRunArtifact(t);
+        test_step.dependOn(&run_t.step);
+    }
+
+    // Advanced GPU tests
+    {
+        const mod = b.createModule(.{
+            .root_source_file = b.path("tests/test_gpu_advanced.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "gpu", .module = gpu_mod }},
+        });
+        const t = b.addTest(.{ .root_module = mod });
+        const run_t = b.addRunArtifact(t);
+        test_step.dependOn(&run_t.step);
+    }
+
+    // GPU Backend Manager tests
+    {
+        const mod = b.createModule(.{
+            .root_source_file = b.path("tests/test_gpu_backend_manager.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "gpu", .module = gpu_mod }},
         });
         const t = b.addTest(.{ .root_module = mod });
         const run_t = b.addRunArtifact(t);
@@ -477,6 +604,31 @@ pub fn build(b: *std.Build) void {
     const run_perf_ci = b.addRunArtifact(perf_ci_exe);
     const perf_ci_step = b.step("perf-ci", "Run comprehensive performance CI/CD testing");
     perf_ci_step.dependOn(&run_perf_ci.step);
+
+    // GPU verification and testing
+    const gpu_demo_mod = b.createModule(.{
+        .root_source_file = b.path("src/gpu/gpu_demo.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "gpu", .module = gpu_mod }},
+    });
+
+    const gpu_demo_exe = b.addExecutable(.{
+        .name = "gpu_demo",
+        .root_module = gpu_demo_mod,
+    });
+
+    // Apply GPU dependencies to demo executable
+    applyGPUDeps(b, gpu_demo_exe, target, enable_cuda, enable_spirv, cuda_path, vulkan_sdk_path);
+
+    b.installArtifact(gpu_demo_exe);
+
+    const run_gpu_demo = b.addRunArtifact(gpu_demo_exe);
+    const gpu_demo_step = b.step("gpu-demo", "Run GPU backend manager demo");
+    gpu_demo_step.dependOn(&run_gpu_demo.step);
+
+    const gpu_verify_step = b.step("gpu-verify", "Verify GPU functionality and backends");
+    gpu_verify_step.dependOn(gpu_demo_step);
 
     // Integration tests
     const integration_mod = b.createModule(.{

@@ -9,8 +9,8 @@
 //! - Platform-specific optimizations
 
 const std = @import("std");
-const lockfree = @import("lockfree.zig");
-const platform = @import("platform.zig");
+const lockfree = @import("../ai/data_structures/lockfree.zig");
+const platform = @import("../platform.zig");
 const builtin = @import("builtin");
 
 /// Re-export commonly used types
