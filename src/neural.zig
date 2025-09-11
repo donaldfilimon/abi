@@ -14,7 +14,7 @@
 const std = @import("std");
 const math = std.math;
 const abi = @import("root.zig");
-const simd = @import("simd/mod.zig");
+const core = @import("core/mod.zig");
 const memory_tracker = @import("memory_tracker.zig");
 
 /// Re-export commonly used types

@@ -48,6 +48,17 @@ desktop.ini
 
 # Cell language build artifacts
 *.cell.out
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.obj
+*.o
+*.obj
+*.lib
+*.exp
+*.ilk
+*.pdb
 
 # AI model files
 *.onnx
@@ -60,10 +71,6 @@ desktop.ini
 *.prof
 *.tracy
 perf.data*
-
-# Core dumps
-core
-*.core
 
 # Binary executables
 abi

@@ -9,12 +9,7 @@
 
 const std = @import("std");
 
-// FIXME: Replace relative imports with proper module imports
-// const core = @import("core");
-// const simd = @import("simd");
-
 const core = @import("../core/mod.zig");
-const simd = @import("../core/simd.zig");
 
 const Allocator = std.mem.Allocator;
 const FrameworkError = core.FrameworkError;

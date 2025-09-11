@@ -275,7 +275,7 @@ fn getApi(api_name: [*:0]const u8) callconv(.c) ?*anyopaque {
 
     if (std.mem.eql(u8, name, "text_processor")) {
         // Return a function pointer to our text processing API
-        return @ptrCast(&processText);
+        return @constCast(@ptrCast(&processText));
     }
 
     return null; // API not found

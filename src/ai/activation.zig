@@ -5,10 +5,7 @@
 
 const std = @import("std");
 
-// FIXME: Replace relative import with proper module import
-// const simd = @import("simd");
-
-const simd = @import("../core/simd.zig"); // TODO: consider replacing with abi.simd if root re-exports capabilities
+const core = @import("../core/mod.zig");
 
 /// Available activation function types
 pub const ActivationType = enum {
@@ -151,9 +148,8 @@ pub const ActivationProcessor = struct {
     // Private implementation methods
 
     fn canUseSIMD(self: *const ActivationProcessor) bool {
-        const caps = simd.capabilities();
         _ = self;
-        return caps.has_sse or caps.has_neon;
+        return core.Features.has_simd;
     }
 
     fn activateBatchScalar(self: *const ActivationProcessor, output: []f32, input: []const f32) void {

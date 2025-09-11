@@ -10,7 +10,7 @@ const std = @import("std");
 
 // Import consolidated modules
 pub const database = @import("wdbx/database.zig");
-pub const simd = @import("simd/mod.zig");
+// SIMD functionality is now part of core
 pub const ai = @import("ai/mod.zig");
 pub const wdbx = @import("wdbx/mod.zig");
 pub const plugins = @import("plugins/mod.zig");
@@ -18,8 +18,8 @@ pub const tracing = @import("tracing.zig");
 pub const logging = @import("logging.zig");
 pub const neural = @import("neural.zig");
 pub const memory_tracker = @import("memory_tracker.zig");
-// Core utilities live under wdbx/core.zig
-pub const core = @import("wdbx/core.zig");
+// Core utilities and framework types
+pub const core = @import("core/mod.zig");
 pub const localml = @import("localml.zig");
 pub const gpu = @import("gpu_renderer.zig");
 pub const backend = @import("backend.zig");
@@ -32,11 +32,10 @@ pub const DbError = database.DbError;
 pub const Result = database.Result;
 pub const WdbxHeader = database.WdbxHeader;
 
-// Re-export SIMD operations
-pub const Vector = simd.Vector;
-pub const VectorOps = simd.VectorOps;
-pub const MatrixOps = simd.MatrixOps;
-pub const PerformanceMonitor = simd.PerformanceMonitor;
+// Re-export SIMD operations from core
+pub const Vector = core.Vector;
+pub const VectorOps = core.VectorOps;
+pub const MatrixOps = core.MatrixOps;
 
 // Re-export AI capabilities
 pub const NeuralNetwork = ai.NeuralNetwork;
@@ -117,9 +116,9 @@ pub fn getSystemInfo() struct {
             "Performance Monitoring",
         },
         .simd_support = .{
-            .f32x4 = simd.Vector.isSimdAvailable(4),
-            .f32x8 = simd.Vector.isSimdAvailable(8),
-            .f32x16 = simd.Vector.isSimdAvailable(16),
+            .f32x4 = core.Vector.isSimdAvailable(4),
+            .f32x8 = core.Vector.isSimdAvailable(8),
+            .f32x16 = core.Vector.isSimdAvailable(16),
         },
     };
 }
@@ -181,7 +180,7 @@ pub fn runSystemTest() !void {
     const simd_span = try tracing.startSpan("simd_test", .internal, null);
     defer tracing.endSpan(simd_span);
 
-    const distance = simd.distance(&vector_a, &vector_b);
+    const distance = core.distance(&vector_a, &vector_b);
     try testing.expect(distance > 0.0);
 
     // Test AI operations
@@ -253,7 +252,7 @@ test "Module integration" {
 
     // Test that all modules can be imported and used together
     try testing.expect(@TypeOf(database.Db) == @TypeOf(Db));
-    try testing.expect(@TypeOf(simd.Vector) == @TypeOf(Vector));
+    try testing.expect(@TypeOf(core.Vector) == @TypeOf(Vector));
     try testing.expect(@TypeOf(ai.NeuralNetwork) == @TypeOf(NeuralNetwork));
     try testing.expect(@TypeOf(std.mem.Allocator) == @TypeOf(Allocator));
 

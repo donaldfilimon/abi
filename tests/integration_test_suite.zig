@@ -109,8 +109,8 @@ fn testSIMDDatabaseIntegration(allocator: std.mem.Allocator) !void {
             v.* = @as(f32, @floatFromInt(j)) * 0.01;
         }
 
-        abi.simd.VectorOps.add(&processed_vector, &base_vector, &offset);
-        abi.simd.VectorOps.normalize(&normalized_vector, &processed_vector);
+        abi.VectorOps.add(&processed_vector, &base_vector, &offset);
+        abi.VectorOps.normalize(&normalized_vector, &processed_vector);
 
         // Store in database
         const id = try db.addEmbedding(&normalized_vector);
@@ -127,7 +127,7 @@ fn testSIMDDatabaseIntegration(allocator: std.mem.Allocator) !void {
 
     // Normalize query using SIMD
     var normalized_query: [vector_size]f32 = undefined;
-    abi.simd.VectorOps.normalize(&normalized_query, &query);
+    abi.VectorOps.normalize(&normalized_query, &query);
 
     const results = try db.search(&normalized_query, 10, allocator);
     defer allocator.free(results);
@@ -208,7 +208,7 @@ fn testEndToEndWorkflow(allocator: std.mem.Allocator) !void {
 
         // Apply SIMD operations
         var processed: [128]f32 = undefined;
-        abi.simd.VectorOps.normalize(&processed, embedding);
+        abi.VectorOps.normalize(&processed, embedding);
 
         // Store in database
         const id = try db.addEmbedding(&processed);
@@ -309,9 +309,9 @@ fn testPerformanceIntegration(allocator: std.mem.Allocator) !void {
     const simd_operations = 1000;
 
     for (0..simd_operations) |_| {
-        abi.simd.VectorOps.add(result, a, b);
-        abi.simd.VectorOps.scale(result, result, 2.0);
-        abi.simd.VectorOps.normalize(result, result);
+        abi.VectorOps.add(result, a, b);
+        abi.VectorOps.scale(result, result, 2.0);
+        abi.VectorOps.normalize(result, result);
     }
 
     const simd_time = std.time.nanoTimestamp() - simd_start;
@@ -329,7 +329,7 @@ fn testMemoryManagementIntegration(_: std.mem.Allocator) !void {
     std.log.info("💾 Testing Memory Management Integration", .{});
 
     // Test memory tracking using global performance monitor
-    const memory_tracker = abi.simd.getPerformanceMonitor();
+    const memory_tracker = abi.core.getPerformanceMonitor();
 
     // Perform memory-intensive operations
     const test_file = "test_memory_integration.wdbx";
@@ -411,7 +411,7 @@ fn testErrorHandlingIntegration(allocator: std.mem.Allocator) !void {
     var result_vec: [3]f32 = undefined;
 
     // This should handle size mismatch gracefully
-    abi.simd.VectorOps.add(&result_vec, &size_mismatch_a, &size_mismatch_b);
+    abi.VectorOps.add(&result_vec, &size_mismatch_a, &size_mismatch_b);
     std.log.info("  SIMD operations handle size mismatches gracefully", .{});
 
     std.log.info("✅ Error handling integration test passed", .{});
