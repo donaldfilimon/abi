@@ -1,3 +1,9 @@
+---
+layout: documentation
+title: "Examples & Tutorials"
+description: "Practical examples and tutorials for using WDBX-AI effectively"
+---
+
 # WDBX-AI Usage Examples
 
 ## 🚀 Quick Start

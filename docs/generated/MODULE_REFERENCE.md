@@ -1,3 +1,9 @@
+---
+layout: documentation
+title: "Module Reference"
+description: "Comprehensive reference for all WDBX-AI modules and components"
+---
+
 # WDBX-AI Module Reference
 
 ## 📦 Core Modules

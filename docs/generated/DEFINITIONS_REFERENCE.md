@@ -1,3 +1,9 @@
+---
+layout: documentation
+title: "Definitions Reference"
+description: "Comprehensive glossary and concepts for WDBX-AI technology"
+---
+
 # WDBX-AI Definitions Reference
 
 ## 📚 Core Concepts
