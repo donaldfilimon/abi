@@ -86,9 +86,10 @@ pub fn build(b: *std.Build) void {
     build_options.addOption(bool, "is_wasm", false);
 
     // GPU configuration with production defaults
-    const enable_cuda = b.option(bool, "enable_cuda", "Enable CUDA support") orelse false;
+    const enable_cuda = b.option(bool, "enable_cuda", "Enable CUDA support") orelse true;
     const enable_spirv = b.option(bool, "enable_spirv", "Enable SPIRV compilation support") orelse true;
-    const cuda_path = b.option([]const u8, "cuda_path", "Path to CUDA installation") orelse "";
+    const cuda_path_default = if (target.result.os.tag == .windows) "C:\\Users\\donald\\scoop\\apps\\cuda\\current" else "";
+    const cuda_path = b.option([]const u8, "cuda_path", "Path to CUDA installation") orelse cuda_path_default;
     const vulkan_sdk_path_default = if (target.result.os.tag == .windows) "C:\\VulkanSDK\\1.4.321.1" else "";
     const vulkan_sdk_path = b.option([]const u8, "vulkan_sdk_path", "Path to Vulkan SDK") orelse vulkan_sdk_path_default;
 
@@ -104,6 +105,7 @@ pub fn build(b: *std.Build) void {
             if (cuda_enabled) {
                 if (cuda_lib_path.len > 0) {
                     if (std.fs.path.isAbsolute(cuda_lib_path)) {
+                        exe.addLibraryPath(.{ .cwd_relative = std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "lib", "x64" }) catch "" });
                         exe.addLibraryPath(.{ .cwd_relative = std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "lib64" }) catch "" });
                         exe.addLibraryPath(.{ .cwd_relative = std.fs.path.join(builder.allocator, &.{ cuda_lib_path, "lib" }) catch "" });
                     } else {
@@ -481,8 +483,8 @@ pub fn build(b: *std.Build) void {
         .root_module = gpu_demo_mod,
     });
 
-    // Apply GPU dependencies for hardware acceleration
-    applyGPUDeps(b, gpu_demo_exe, target, enable_cuda, enable_spirv, cuda_path, vulkan_sdk_path);
+    // Apply GPU dependencies for hardware acceleration (temporarily disabled due to MSVC linking issues)
+    // applyGPUDeps(b, gpu_demo_exe, target, enable_cuda, enable_spirv, cuda_path, vulkan_sdk_path);
 
     b.installArtifact(gpu_demo_exe);
     const run_gpu_demo = b.addRunArtifact(gpu_demo_exe);
