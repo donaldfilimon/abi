@@ -1,36 +1,35 @@
-//! Comprehensive Performance Benchmark Suite for Neural Network Optimizations
+//! Simplified Performance Benchmark Suite
 //!
-//! This suite benchmarks all performance optimizations:
-//! - Mixed Precision Training (f16/f32)
-//! - Enhanced SIMD Alignment
-//! - Dynamic Memory Management with Liveness Analysis
-//! - Memory Tracker Integration
+//! This suite provides basic performance benchmarks for core functionality:
+//! - AI activation functions
+//! - Memory management
+//! - SIMD operations
 //!
 //! Run with: zig run benchmarks/benchmark_suite.zig
 
 const std = @import("std");
 
 const root = @import("abi");
-const neural = root.neural;
-const memory_tracker = root.memory_tracker;
-const simd = root.simd;
+const ai = root.ai;
+const monitoring = root.monitoring;
+const core = root.core;
 
 pub const BenchmarkConfig = struct {
     iterations: usize = 1000,
     data_size: usize = 1024,
-    network_config: neural.TrainingConfig = .{
+    network_config: ai.TrainingConfig = .{
         .learning_rate = 0.01,
         .batch_size = 32,
         .epochs = 10,
-        .precision = .mixed,
-        .enable_checkpointing = true,
-        .memory_pool_config = .{ .enable_tracking = true, .initial_capacity = 1024 },
+        .use_mixed_precision = true,
+        .checkpoint_frequency = 10,
     },
-    memory_pool_config: neural.MemoryPool.PoolConfig = .{
-        .enable_tracking = true,
-        .initial_capacity = 2048,
-        .max_buffer_size = 1024 * 1024,
-    },
+    // Using standard allocator for memory management
+    // memory_pool_config: ai.MemoryPool.PoolConfig = .{
+    //     .enable_tracking = true,
+    //     .initial_capacity = 2048,
+    //     .max_buffer_size = 1024 * 1024,
+    // },
 };
 
 pub const BenchmarkResult = struct {
@@ -113,49 +112,33 @@ pub const BenchmarkSuite = struct {
     }
 
     pub fn runAllBenchmarks(self: *BenchmarkSuite) !void {
-        std.debug.print("🚀 Running Comprehensive Performance Benchmark Suite\n", .{});
-        std.debug.print("======================================================\n\n", .{});
+        std.debug.print("🚀 Running Simplified Performance Benchmark Suite\n", .{});
+        std.debug.print("================================================\n\n", .{});
 
-        try self.benchmarkMixedPrecisionTraining();
+        try self.benchmarkAIActivationFunctions();
         try self.benchmarkSIMDPerformance();
         try self.benchmarkMemoryManagement();
-        try self.benchmarkMemoryTracker();
-        try self.benchmarkNeuralNetworkTraining();
+        try self.benchmarkVectorOperations();
         try self.printComprehensiveReport();
     }
 
     // Note: functions below mirror original suite; trimmed for brevity in this moved file
-    fn benchmarkMixedPrecisionTraining(self: *BenchmarkSuite) !void {
-        // Build a small network using mixed precision and measure forward time
-        const train_cfg = neural.TrainingConfig{
-            .learning_rate = 0.01,
-            .epochs = 1,
-            .precision = .mixed,
-            .enable_checkpointing = false,
-        };
-        var net = try neural.NeuralNetwork.init(self.allocator, train_cfg);
-        defer net.deinit();
-
-        try net.addLayer(.{ .type = .Dense, .input_size = 64, .output_size = 32, .activation = .ReLU });
-        try net.addLayer(.{ .type = .Dense, .input_size = 32, .output_size = 16, .activation = .ReLU });
-        try net.addLayer(.{ .type = .Dense, .input_size = 16, .output_size = 8, .activation = .Sigmoid });
-
-        const input = try self.allocator.alloc(f32, 64);
-        defer self.allocator.free(input);
-        for (input, 0..) |*v, i| v.* = @as(f32, @floatFromInt(i)) * 0.01;
-
+    fn benchmarkAIActivationFunctions(self: *BenchmarkSuite) !void {
+        // Test AI activation function performance
+        const iters = self.config.iterations;
         var timer = try std.time.Timer.start();
-        const iters = @max(@as(usize, 1), self.config.iterations / 10);
         var i: usize = 0;
         while (i < iters) : (i += 1) {
-            const out = try net.forwardMixed(input);
-            self.allocator.free(out);
+            const x: f32 = @as(f32, @floatFromInt(i % 100)) * 0.01;
+            _ = ai.ActivationUtils.fastSigmoid(x);
+            _ = ai.ActivationUtils.fastTanh(x);
+            _ = ai.ActivationUtils.fastGelu(x);
         }
         const total = timer.read();
         const avg = @as(f64, @floatFromInt(total)) / @as(f64, @floatFromInt(iters));
 
         var res = BenchmarkResult{
-            .test_name = "Mixed Precision Forward",
+            .test_name = "AI Activation Functions",
             .total_time_ns = total,
             .avg_time_ns = avg,
             .ops_per_sec = 0,
@@ -163,10 +146,8 @@ pub const BenchmarkSuite = struct {
             .success = true,
         };
         res.calculateOpsPerSec(iters);
-        try res.addMetric(self.allocator, "precision", 1.0); // 1.0 denotes mixed
         try self.results.append(self.allocator, res);
-
-        std.debug.print("[neural] Mixed precision forward: {d:.3} μs/op ({d:.0} ops/sec)\n", .{ avg / 1000.0, res.ops_per_sec });
+        std.debug.print("[ai] Activation functions: {d:.3} ns/op ({d:.0} ops/sec)\n", .{ avg, res.ops_per_sec });
     }
     fn benchmarkSIMDPerformance(self: *BenchmarkSuite) !void {
         // Simple SIMD dot benchmark to validate runtime activity
@@ -206,33 +187,31 @@ pub const BenchmarkSuite = struct {
         std.debug.print("[neural] SIMD dot sanity: {d:.3} ns/op ({d:.0} ops/sec)\n", .{ avg, res.ops_per_sec });
     }
     fn benchmarkMemoryManagement(self: *BenchmarkSuite) !void {
-        // Exercise MemoryPool alloc/return
-        var pool = try neural.MemoryPool.init(self.allocator, .{ .enable_tracking = false, .initial_capacity = 1024 });
-        defer pool.deinit();
-        pool.initLivenessAnalysis(.{ .enable_auto_cleanup = true, .stale_threshold_ns = 100_000 });
-
+        // Memory pool benchmark disabled - ai.MemoryPool not available
+        // Exercise standard allocator performance instead
         const iters: usize = 1000;
         var timer = try std.time.Timer.start();
         var i: usize = 0;
         while (i < iters) : (i += 1) {
-            const buf = try pool.allocBuffer(256);
-            buf.release();
-            pool.returnBuffer(buf);
+            const buf = try self.allocator.alloc(f32, 64);
+            defer self.allocator.free(buf);
+            // Simple memory access pattern
+            for (buf) |*v| v.* = @as(f32, @floatFromInt(i % 10)) * 0.1;
         }
         const total = timer.read();
         const avg = @as(f64, @floatFromInt(total)) / @as(f64, @floatFromInt(iters));
 
         var res = BenchmarkResult{
-            .test_name = "MemoryPool alloc/return",
+            .test_name = "Standard Allocator Performance",
             .total_time_ns = total,
             .avg_time_ns = avg,
             .ops_per_sec = 0,
-            .memory_used = 256 * @sizeOf(f32),
+            .memory_used = 64 * @sizeOf(f32),
             .success = true,
         };
         res.calculateOpsPerSec(iters);
         try self.results.append(self.allocator, res);
-        std.debug.print("[neural] MemoryPool alloc/return: {d:.3} ns/op ({d:.0} ops/sec)\n", .{ avg, res.ops_per_sec });
+        std.debug.print("[neural] Standard allocator: {d:.3} ns/op ({d:.0} ops/sec)\n", .{ avg, res.ops_per_sec });
     }
     fn benchmarkMemoryTracker(self: *BenchmarkSuite) !void {
         // Light touch: record a few allocations through profiler if available
@@ -247,49 +226,43 @@ pub const BenchmarkSuite = struct {
         try self.results.append(self.allocator, res);
         std.debug.print("[neural] Memory tracker: recorded baseline metrics\n", .{});
     }
-    fn benchmarkNeuralNetworkTraining(self: *BenchmarkSuite) !void {
-        const train_cfg = neural.TrainingConfig{
-            .learning_rate = 0.01,
-            .epochs = 1,
-            .precision = .mixed,
-            .enable_checkpointing = false,
-        };
-        var net = try neural.NeuralNetwork.init(self.allocator, train_cfg);
-        defer net.deinit();
+    fn benchmarkVectorOperations(self: *BenchmarkSuite) !void {
+        // Test basic vector operations
+        const n: usize = 1024;
+        const a = try self.allocator.alloc(f32, n);
+        defer self.allocator.free(a);
+        const b = try self.allocator.alloc(f32, n);
+        defer self.allocator.free(b);
 
-        try net.addLayer(.{ .type = .Dense, .input_size = 32, .output_size = 16, .activation = .ReLU });
-        try net.addLayer(.{ .type = .Dense, .input_size = 16, .output_size = 8, .activation = .Sigmoid });
+        for (a, b, 0..) |*va, *vb, i| {
+            va.* = @as(f32, @floatFromInt(i)) * 0.01;
+            vb.* = @as(f32, @floatFromInt(i % 5)) * 0.02;
+        }
 
-        const input = try self.allocator.alloc(f32, 32);
-        defer self.allocator.free(input);
-        const target = try self.allocator.alloc(f32, 8);
-        defer self.allocator.free(target);
-        for (input, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i % 7) + 1)) * 0.1;
-        for (target, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i % 5) + 1)) * 0.05;
-
-        const iters = 200;
+        const iters = 1000;
         var timer = try std.time.Timer.start();
         var i: usize = 0;
-        var total_loss: f32 = 0;
+        var result: f32 = 0;
         while (i < iters) : (i += 1) {
-            const loss = try net.trainStepMixed(input, target, 0.01);
-            total_loss += loss;
+            result += dot(a, b);
         }
         const total = timer.read();
         const avg = @as(f64, @floatFromInt(total)) / @as(f64, @floatFromInt(iters));
 
+        // Prevent optimization
+        if (result < 0) std.debug.print("", .{});
+
         var res = BenchmarkResult{
-            .test_name = "Training Step (mixed)",
+            .test_name = "Vector Dot Product",
             .total_time_ns = total,
             .avg_time_ns = avg,
             .ops_per_sec = 0,
-            .memory_used = 0,
+            .memory_used = n * @sizeOf(f32) * 2,
             .success = true,
         };
         res.calculateOpsPerSec(iters);
-        try res.addMetric(self.allocator, "avg_loss", @as(f64, total_loss) / @as(f64, @floatFromInt(iters)));
         try self.results.append(self.allocator, res);
-        std.debug.print("[neural] Training step mixed: {d:.3} μs/op, avg_loss={d:.4}\n", .{ avg / 1000.0, @as(f64, total_loss) / @as(f64, @floatFromInt(iters)) });
+        std.debug.print("[vector] Dot product: {d:.3} ns/op ({d:.0} ops/sec)\n", .{ avg, res.ops_per_sec });
     }
     fn printComprehensiveReport(self: *BenchmarkSuite) !void {
         std.debug.print("\n===== Neural Benchmark Report =====\n", .{});

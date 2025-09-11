@@ -248,15 +248,15 @@ test "GPU Backend Support - Detection" {
     defer backend_manager.deinit();
 
     // Detect available backends
-    var available_backends = try backend_manager.detectAvailableBackends();
-    defer available_backends.deinit();
+    const available_backends = try backend_manager.detectAvailableBackends();
+    defer allocator.free(available_backends);
 
     // Should always have at least WebGPU and CPU fallback
-    try testing.expect(available_backends.items.len >= 2);
+    try testing.expect(available_backends.len >= 2);
 
     // Check that WebGPU is available
     var has_webgpu = false;
-    for (available_backends.items) |backend| {
+    for (available_backends) |backend| {
         if (backend == .webgpu) {
             has_webgpu = true;
             break;
@@ -266,7 +266,7 @@ test "GPU Backend Support - Detection" {
 
     // Check that CPU fallback is available
     var has_cpu = false;
-    for (available_backends.items) |backend| {
+    for (available_backends) |backend| {
         if (backend == .cpu_fallback) {
             has_cpu = true;
             break;
@@ -321,7 +321,7 @@ test "GPU Performance Profiler - Basic Operations" {
 
     // Test timing operations
     try profiler.startTiming("test_operation");
-    std.time.sleep(1 * 1000 * 1000); // Sleep for 1ms
+    std.Thread.sleep(1 * 1000 * 1000); // Sleep for 1ms
     try profiler.endTiming();
 
     // Should have one measurement

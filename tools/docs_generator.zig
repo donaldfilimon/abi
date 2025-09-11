@@ -815,7 +815,7 @@ fn generateSearchIndex(allocator: std.mem.Allocator) !void {
     for (files.items) |rel| {
         const full = try std.fs.path.join(a, &[_][]const u8{ "docs", rel });
         // Normalize relative path for web (forward slashes)
-        var rel_web = try a.dupe(u8, rel);
+        const rel_web = try a.dupe(u8, rel);
         for (rel_web) |*ch| {
             if (ch.* == std.fs.path.sep) ch.* = '/';
         }
@@ -2680,312 +2680,913 @@ fn generateDefinitionsReference(_: std.mem.Allocator) !void {
         \\layout: documentation
         \\title: "Definitions Reference"
         \\description: "Comprehensive glossary and concepts for WDBX-AI technology"
+        \\keywords: ["vector database", "AI", "machine learning", "SIMD", "neural networks", "embeddings"]
         \\---
         \\
         \\# WDBX-AI Definitions Reference
         \\
-        \\## 📚 Core Concepts
+        \\<div class="definition-search">
+        \\  <input type="search" id="definition-search" placeholder="Search definitions..." autocomplete="off">
+        \\  <div class="definition-categories">
+        \\    <button class="category-filter active" data-category="all">All</button>
+        \\    <button class="category-filter" data-category="database">Database</button>
+        \\    <button class="category-filter" data-category="ai">AI/ML</button>
+        \\    <button class="category-filter" data-category="performance">Performance</button>
+        \\    <button class="category-filter" data-category="algorithms">Algorithms</button>
+        \\    <button class="category-filter" data-category="system">System</button>
+        \\  </div>
+        \\</div>
+        \\
+        \\## 📊 Quick Reference Index
+        \\
+        \\| Term | Category | Definition |
+        \\|------|----------|------------|
+        \\| [Vector Database](#vector-database) | Database | Specialized storage for high-dimensional vectors |
+        \\| [Embeddings](#embeddings) | AI/ML | Dense vector representations of data |
+        \\| [HNSW](#hnsw-hierarchical-navigable-small-world) | Algorithms | Graph-based indexing for similarity search |
+        \\| [Neural Network](#neural-network) | AI/ML | Computational model inspired by biological networks |
+        \\| [SIMD](#simd-single-instruction-multiple-data) | Performance | Parallel processing technique |
+        \\| [Cosine Similarity](#cosine-similarity) | Algorithms | Directional similarity metric |
+        \\| [Backpropagation](#backpropagation) | AI/ML | Neural network training algorithm |
+        \\| [Plugin Architecture](#plugin-architecture) | System | Extensible software design pattern |
+        \\
+        \\---
+        \\
+        \\## 🗄️ Database & Storage {#database}
         \\
         \\### Vector Database
-        \\A specialized database designed to store, index, and search high-dimensional vectors efficiently. Unlike traditional databases that store scalar values, vector databases are optimized for similarity search operations using metrics like cosine similarity, Euclidean distance, or dot product.
+        \\<div class="definition-card" data-category="database">
         \\
-        \\**Key characteristics:**
-        \\- **High-dimensional storage**: Handles vectors with hundreds or thousands of dimensions
-        \\- **Similarity search**: Finds vectors most similar to a query vector
-        \\- **Indexing algorithms**: Uses specialized indices like HNSW, IVF, or LSH for fast retrieval
-        \\- **Scalability**: Designed to handle millions or billions of vectors
+        \\A specialized database system designed to store, index, and search high-dimensional vectors efficiently. Unlike traditional relational databases that work with scalar values and structured data, vector databases are optimized for similarity search operations using various distance metrics.
+        \\
+        \\**Key Characteristics:**
+        \\- **High-dimensional storage**: Efficiently handles vectors with hundreds to thousands of dimensions
+        \\- **Similarity search**: Primary operation is finding vectors most similar to a query vector
+        \\- **Specialized indexing**: Uses algorithms like HNSW, IVF, or LSH for fast approximate nearest neighbor search
+        \\- **Scalability**: Designed to handle millions to billions of vectors with sub-linear search complexity
+        \\- **Metadata support**: Associates additional information with each vector for filtering and retrieval
+        \\
+        \\**Common Use Cases:**
+        \\- Semantic search in documents and images
+        \\- Recommendation systems
+        \\- Content-based filtering
+        \\- Duplicate detection and deduplication
+        \\- Anomaly detection in high-dimensional data
+        \\
+        \\**Performance Characteristics:**
+        \\- Insert: ~2.5ms per vector (128 dimensions)
+        \\- Search: ~13ms for k=10 in 10k vectors
+        \\- Memory: ~512 bytes per vector + index overhead
+        \\
+        \\</div>
         \\
         \\### Embeddings
-        \\Dense vector representations of data (text, images, audio, etc.) that capture semantic meaning in a continuous vector space. Embeddings are typically generated by machine learning models and enable similarity comparisons between different data points.
+        \\<div class="definition-card" data-category="ai database">
         \\
-        \\**Examples:**
-        \\- **Text embeddings**: "cat" and "kitten" have similar vector representations
-        \\- **Image embeddings**: Photos of similar objects cluster together in vector space
-        \\- **Audio embeddings**: Similar sounds or music pieces have nearby representations
+        \\Dense, fixed-size vector representations that capture semantic meaning and relationships in a continuous mathematical space. Embeddings are typically generated by machine learning models and enable mathematical operations on complex data types.
+        \\
+        \\**Types of Embeddings:**
+        \\- **Text embeddings**: Word2Vec, GloVe, BERT, sentence transformers
+        \\- **Image embeddings**: CNN features, CLIP, vision transformers
+        \\- **Audio embeddings**: Mel spectrograms, audio neural networks
+        \\- **Graph embeddings**: Node2Vec, GraphSAGE for network data
+        \\- **Multimodal embeddings**: CLIP, ALIGN for cross-modal understanding
+        \\
+        \\**Properties:**
+        \\- **Dimensionality**: Typically 128-1024 dimensions for most applications
+        \\- **Semantic similarity**: Similar concepts have similar vector representations
+        \\- **Arithmetic operations**: Support vector arithmetic (king - man + woman ≈ queen)
+        \\- **Transfer learning**: Pre-trained embeddings can be fine-tuned for specific tasks
+        \\
+        \\**Quality Metrics:**
+        \\- **Cosine similarity**: Measures directional similarity
+        \\- **Clustering coefficient**: How well similar items cluster together
+        \\- **Downstream task performance**: Effectiveness in specific applications
+        \\
+        \\</div>
+        \\
+        \\### Indexing Algorithms
+        \\<div class="definition-card" data-category="algorithms database">
+        \\
+        \\Specialized data structures and algorithms designed to accelerate similarity search in high-dimensional vector spaces. These algorithms trade exact accuracy for significant speed improvements.
+        \\
+        \\**Major Categories:**
+        \\
+        \\**Tree-based:**
+        \\- **KD-Tree**: Binary tree partitioning, effective in low dimensions
+        \\- **Ball Tree**: Hypersphere partitioning, better for higher dimensions
+        \\- **R-Tree**: Rectangle-based partitioning for spatial data
+        \\
+        \\**Hash-based:**
+        \\- **LSH (Locality Sensitive Hashing)**: Hash similar items to same buckets
+        \\- **Random Projection**: Reduce dimensionality while preserving distances
+        \\- **Product Quantization**: Divide vectors into subvectors for compression
+        \\
+        \\**Graph-based:**
+        \\- **HNSW**: Hierarchical navigable small world graphs
+        \\- **NSW**: Navigable small world graphs
+        \\- **SPTAG**: Space Partition Tree and Graph
+        \\
+        \\**Inverted File (IVF):**
+        \\- **IVF-Flat**: Partition space into Voronoi cells
+        \\- **IVF-PQ**: Combine IVF with product quantization
+        \\- **IVF-SQ**: Combine IVF with scalar quantization
+        \\
+        \\</div>
         \\
         \\### HNSW (Hierarchical Navigable Small World)
-        \\A graph-based indexing algorithm that builds a multi-layered network of connections between vectors. It provides excellent performance for approximate nearest neighbor search with logarithmic time complexity.
+        \\<div class="definition-card" data-category="algorithms database">
         \\
-        \\**Structure:**
-        \\- **Bottom layer**: Contains all vectors with short-range connections
-        \\- **Upper layers**: Contain subsets of vectors with long-range connections
-        \\- **Navigation**: Search starts from top layer and progressively moves down
+        \\A state-of-the-art graph-based indexing algorithm that builds a multi-layered network of connections between vectors. It provides excellent performance for approximate nearest neighbor search with logarithmic time complexity.
         \\
-        \\**Parameters:**
-        \\- `M`: Maximum number of connections per vector (typically 16-64)
-        \\- `efConstruction`: Size of candidate set during construction (typically 200-800)
-        \\- `efSearch`: Size of candidate set during search (affects recall vs speed trade-off)
+        \\**Architecture:**
+        \\- **Layer 0 (bottom)**: Contains all vectors with short-range connections to immediate neighbors
+        \\- **Upper layers**: Contain exponentially fewer vectors with long-range connections for fast navigation
+        \\- **Entry point**: Top-layer node where search begins
+        \\- **Greedy search**: Navigate from top to bottom, always moving to closer neighbors
         \\
-        \\## 🧠 AI & Machine Learning
+        \\**Key Parameters:**
+        \\- **M (max connections)**: Maximum edges per node (16-64 typical)
+        \\  - Higher M: Better recall, more memory usage
+        \\  - Lower M: Faster construction, potential recall degradation
+        \\- **efConstruction**: Candidate set size during index construction (200-800 typical)
+        \\  - Higher ef: Better index quality, slower construction
+        \\- **efSearch**: Candidate set size during search (varies by recall requirements)
+        \\  - Higher ef: Better recall, slower search
+        \\- **ml (level multiplier)**: Controls layer distribution (1/ln(2) ≈ 1.44)
         \\
-        \\### Neural Network
-        \\A computational model inspired by biological neural networks, consisting of interconnected nodes (neurons) organized in layers. Each connection has a weight that determines the strength of the signal passed between neurons.
-        \\
-        \\**Architecture components:**
-        \\- **Input layer**: Receives raw data features
-        \\- **Hidden layers**: Process and transform the input through weighted connections
-        \\- **Output layer**: Produces final predictions or classifications
-        \\- **Activation functions**: Non-linear functions that introduce complexity (ReLU, Sigmoid, Tanh)
-        \\
-        \\### Backpropagation
-        \\The fundamental algorithm for training neural networks. It calculates gradients of the loss function with respect to each weight by propagating errors backwards through the network, then updates weights to minimize the loss.
-        \\
-        \\**Process:**
-        \\1. **Forward pass**: Input flows through network to produce output
-        \\2. **Loss calculation**: Compare output to target, calculate error
-        \\3. **Backward pass**: Propagate error gradients back through layers
-        \\4. **Weight update**: Adjust weights using gradients and learning rate
-        \\
-        \\### Gradient Descent
-        \\An optimization algorithm that iteratively adjusts model parameters to minimize a loss function. It moves in the direction of steepest descent of the loss landscape.
-        \\
-        \\**Variants:**
-        \\- **Batch gradient descent**: Uses entire dataset for each update
-        \\- **Stochastic gradient descent (SGD)**: Uses one sample at a time
-        \\- **Mini-batch gradient descent**: Uses small batches (typically 32-256 samples)
-        \\
-        \\**Hyperparameters:**
-        \\- **Learning rate**: Step size for parameter updates (typically 0.001-0.1)
-        \\- **Momentum**: Helps overcome local minima and speeds convergence
-        \\- **Weight decay**: Regularization term to prevent overfitting
-        \\
-        \\### Agent-Based Systems
-        \\Autonomous software entities that perceive their environment, make decisions, and take actions to achieve specific goals. In AI systems, agents can be simple rule-based systems or complex neural networks.
-        \\
-        \\**Components:**
-        \\- **Perception**: Sensors to observe environment state
-        \\- **Decision making**: Logic or learned behavior to choose actions
-        \\- **Action**: Effectors to modify the environment
-        \\- **Memory**: Storage of past experiences and learned knowledge
-        \\
-        \\**Types:**
-        \\- **Reactive agents**: Respond directly to current perceptions
-        \\- **Deliberative agents**: Plan sequences of actions to achieve goals
-        \\- **Learning agents**: Improve performance through experience
-        \\- **Multi-agent systems**: Multiple agents cooperating or competing
-        \\
-        \\## ⚡ Performance & Optimization
-        \\
-        \\### SIMD (Single Instruction, Multiple Data)
-        \\A parallel computing technique where a single instruction operates on multiple data points simultaneously. Modern CPUs have SIMD units that can process multiple floating-point numbers in one cycle.
-        \\
-        \\**Benefits:**
-        \\- **Vectorized operations**: Process entire arrays in fewer CPU cycles
-        \\- **Memory bandwidth**: More efficient use of memory bandwidth
-        \\- **Energy efficiency**: Better performance per watt consumption
-        \\
-        \\**Common instruction sets:**
-        \\- **SSE (128-bit)**: 4 float32 or 2 float64 operations per instruction
-        \\- **AVX (256-bit)**: 8 float32 or 4 float64 operations per instruction
-        \\- **AVX-512 (512-bit)**: 16 float32 or 8 float64 operations per instruction
-        \\
-        \\### Memory Alignment
-        \\The practice of organizing data in memory so that it starts at addresses that are multiples of the data type size or cache line size. Proper alignment improves CPU access speed and enables SIMD optimizations.
-        \\
-        \\**Alignment requirements:**
-        \\- **Cache line alignment**: Data aligned to 64-byte boundaries (typical cache line size)
-        \\- **SIMD alignment**: Vectors aligned to 16, 32, or 64-byte boundaries
-        \\- **Page alignment**: Large allocations aligned to 4KB page boundaries
-        \\
-        \\### Batch Processing
-        \\The practice of grouping multiple operations together to improve throughput and reduce overhead. Batching amortizes the cost of setup operations across multiple data items.
+        \\**Performance Characteristics:**
+        \\- **Search complexity**: O(log N) on average
+        \\- **Construction complexity**: O(N log N) on average
+        \\- **Memory usage**: O(M × N) for connections
+        \\- **Recall**: 95-99% achievable with proper parameter tuning
         \\
         \\**Advantages:**
-        \\- **Reduced function call overhead**: Fewer individual operation calls
-        \\- **Better memory locality**: Sequential access patterns
-        \\- **SIMD utilization**: Process multiple items with vector instructions
-        \\- **Cache efficiency**: Better temporal and spatial locality
+        \\- High recall with fast search speed
+        \\- Supports dynamic insertions and deletions
+        \\- Good performance across various distance metrics
+        \\- Robust to different data distributions
         \\
-        \\## 📊 Distance Metrics
+        \\</div>
         \\
-        \\### Euclidean Distance
-        \\The straight-line distance between two points in multidimensional space. Most intuitive distance metric, corresponding to physical distance in 2D/3D space.
+        \\## 🧠 Artificial Intelligence & Machine Learning {#ai}
         \\
-        \\**Formula:** `√(Σ(a_i - b_i)²)`
+        \\### Neural Network
+        \\<div class="definition-card" data-category="ai">
         \\
-        \\**Properties:**
-        \\- **Range**: [0, ∞)
-        \\- **Symmetric**: d(a,b) = d(b,a)
-        \\- **Triangle inequality**: d(a,c) ≤ d(a,b) + d(b,c)
-        \\- **Best for**: Continuous features, image pixels, physical measurements
+        \\A computational model inspired by biological neural networks, consisting of interconnected processing units (neurons) organized in layers. Each connection has an associated weight that determines the strength and direction of signal transmission.
         \\
-        \\### Cosine Similarity
-        \\Measures the cosine of the angle between two vectors, effectively measuring their directional similarity regardless of magnitude. Widely used for text embeddings and recommendation systems.
+        \\**Architecture Components:**
+        \\- **Input layer**: Receives raw feature data (images, text, audio, etc.)
+        \\- **Hidden layers**: Process and transform input through weighted connections and activation functions
+        \\- **Output layer**: Produces final predictions, classifications, or generated content
+        \\- **Connections**: Weighted links between neurons that are learned during training
         \\
-        \\**Formula:** `(a·b) / (||a|| × ||b||)`
+        \\**Common Architectures:**
+        \\- **Feedforward**: Information flows in one direction from input to output
+        \\- **Convolutional (CNN)**: Specialized for image and spatial data processing
+        \\- **Recurrent (RNN/LSTM/GRU)**: Designed for sequential data with memory
+        \\- **Transformer**: Attention-based architecture for sequence modeling
+        \\- **Autoencoder**: Encoder-decoder structure for dimensionality reduction
+        \\- **Generative Adversarial (GAN)**: Two networks competing to generate realistic data
         \\
-        \\**Properties:**
-        \\- **Range**: [-1, 1] where 1 = identical direction, 0 = orthogonal, -1 = opposite
-        \\- **Magnitude invariant**: Only considers direction, not length
-        \\- **Best for**: Text embeddings, sparse features, normalized data
+        \\**Activation Functions:**
+        \\- **ReLU**: f(x) = max(0, x) - most common, prevents vanishing gradients
+        \\- **Sigmoid**: f(x) = 1/(1 + e^(-x)) - outputs between 0 and 1
+        \\- **Tanh**: f(x) = tanh(x) - outputs between -1 and 1
+        \\- **Softmax**: Converts logits to probability distribution
+        \\- **Swish/SiLU**: f(x) = x × sigmoid(x) - smooth, self-gating
         \\
-        \\### Manhattan Distance (L1)
-        \\The sum of absolute differences between corresponding elements. Named after the grid-like street pattern of Manhattan where you can only travel along grid lines.
+        \\</div>
         \\
-        \\**Formula:** `Σ|a_i - b_i|`
+        \\### Backpropagation
+        \\<div class="definition-card" data-category="ai algorithms">
         \\
-        \\**Properties:**
-        \\- **Range**: [0, ∞)
-        \\- **Robust to outliers**: Less sensitive than Euclidean distance
-        \\- **Sparsity promoting**: Tends to produce sparse solutions in optimization
-        \\- **Best for**: Sparse data, robustness to outliers, certain optimization problems
+        \\The fundamental algorithm for training neural networks by computing gradients of the loss function with respect to each parameter. It efficiently propagates error signals backwards through the network layers.
         \\
-        \\### Dot Product
-        \\The sum of products of corresponding elements. While not technically a distance metric, it's commonly used in neural networks and similarity calculations.
+        \\**Algorithm Steps:**
+        \\1. **Forward pass**: Input data flows through network to produce output
+        \\2. **Loss computation**: Compare network output to target using loss function
+        \\3. **Backward pass**: Compute gradients by applying chain rule from output to input
+        \\4. **Parameter update**: Adjust weights using gradients and learning rate
         \\
-        \\**Formula:** `Σ(a_i × b_i)`
+        \\**Mathematical Foundation:**
+        \\- **Chain rule**: ∂L/∂w = ∂L/∂y × ∂y/∂z × ∂z/∂w
+        \\- **Gradient computation**: Efficient recursive calculation of partial derivatives
+        \\- **Dynamic programming**: Reuses intermediate computations to avoid redundancy
         \\
-        \\**Properties:**
-        \\- **Range**: (-∞, ∞)
-        \\- **Not symmetric for distance**: Higher values indicate greater similarity
-        \\- **Computationally efficient**: Single pass through vectors
-        \\- **Best for**: Neural network computations, attention mechanisms
+        \\**Common Issues:**
+        \\- **Vanishing gradients**: Gradients become very small in deep networks
+        \\- **Exploding gradients**: Gradients become very large, causing instability
+        \\- **Dead neurons**: Neurons that always output zero (common with ReLU)
         \\
-        \\## 🔧 System Architecture
+        \\**Solutions:**
+        \\- **Gradient clipping**: Limit gradient magnitude to prevent explosion
+        \\- **Normalization**: Batch norm, layer norm to stabilize training
+        \\- **Skip connections**: ResNet-style shortcuts to help gradient flow
+        \\- **Learning rate scheduling**: Adaptive learning rates during training
         \\
-        \\### Plugin Architecture
-        \\A software design pattern that allows extending core functionality through dynamically loaded modules. Plugins are separate, compiled units that implement predefined interfaces.
+        \\</div>
+        \\
+        \\### Gradient Descent
+        \\<div class="definition-card" data-category="ai algorithms">
+        \\
+        \\An iterative optimization algorithm that minimizes a loss function by moving in the direction of steepest descent. It's the foundation for training most machine learning models.
+        \\
+        \\**Variants:**
+        \\- **Batch Gradient Descent**: Uses entire dataset for each update
+        \\  - Pros: Stable convergence, deterministic
+        \\  - Cons: Slow for large datasets, may get stuck in local minima
+        \\- **Stochastic Gradient Descent (SGD)**: Uses one sample at a time
+        \\  - Pros: Fast updates, can escape local minima
+        \\  - Cons: Noisy convergence, requires careful tuning
+        \\- **Mini-batch Gradient Descent**: Uses small batches (32-256 samples)
+        \\  - Pros: Good balance of speed and stability
+        \\  - Cons: Still requires hyperparameter tuning
+        \\
+        \\**Advanced Optimizers:**
+        \\- **Momentum**: Accumulates gradients to accelerate convergence
+        \\- **AdaGrad**: Adapts learning rate based on historical gradients
+        \\- **RMSprop**: Improves AdaGrad with exponential moving average
+        \\- **Adam**: Combines momentum and adaptive learning rates
+        \\- **AdamW**: Adam with decoupled weight decay
+        \\
+        \\**Hyperparameters:**
+        \\- **Learning rate (α)**: Step size for parameter updates (1e-4 to 1e-1)
+        \\- **Momentum (β)**: Exponential decay for gradient accumulation (0.9-0.99)
+        \\- **Weight decay**: L2 regularization to prevent overfitting (1e-5 to 1e-3)
+        \\- **Learning rate schedule**: Decay strategy over training epochs
+        \\
+        \\</div>
+        \\
+        \\### Transformer Architecture
+        \\<div class="definition-card" data-category="ai">
+        \\
+        \\A neural network architecture based entirely on attention mechanisms, revolutionizing natural language processing and extending to computer vision and other domains.
+        \\
+        \\**Key Components:**
+        \\- **Multi-Head Attention**: Parallel attention mechanisms focusing on different aspects
+        \\- **Position Encoding**: Adds positional information since attention is permutation-invariant
+        \\- **Feed-Forward Networks**: Point-wise fully connected layers
+        \\- **Layer Normalization**: Stabilizes training and improves convergence
+        \\- **Residual Connections**: Skip connections around each sub-layer
+        \\
+        \\**Attention Mechanism:**
+        \\- **Query (Q)**: What information are we looking for?
+        \\- **Key (K)**: What information is available?
+        \\- **Value (V)**: The actual information content
+        \\- **Attention(Q,K,V) = softmax(QK^T/√d_k)V**
+        \\
+        \\**Variants:**
+        \\- **BERT**: Bidirectional encoder for understanding tasks
+        \\- **GPT**: Autoregressive decoder for generation tasks
+        \\- **T5**: Text-to-text transfer transformer
+        \\- **Vision Transformer (ViT)**: Applies transformer to image patches
+        \\- **CLIP**: Contrastive learning of text and image representations
+        \\
+        \\</div>
+        \\
+        \\### Large Language Models (LLMs)
+        \\<div class="definition-card" data-category="ai">
+        \\
+        \\Neural networks with billions to trillions of parameters trained on vast text corpora to understand and generate human-like text. They demonstrate emergent capabilities as they scale.
+        \\
+        \\**Characteristics:**
+        \\- **Scale**: 1B to 175B+ parameters (GPT-3 has 175B parameters)
+        \\- **Training data**: Hundreds of gigabytes to terabytes of text
+        \\- **Emergent abilities**: Few-shot learning, reasoning, code generation
+        \\- **In-context learning**: Learning from examples in the prompt
+        \\
+        \\**Training Stages:**
+        \\1. **Pre-training**: Unsupervised learning on large text corpus
+        \\2. **Fine-tuning**: Supervised learning on specific tasks
+        \\3. **RLHF**: Reinforcement Learning from Human Feedback
+        \\4. **Constitutional AI**: Training for harmlessness and helpfulness
+        \\
+        \\**Capabilities:**
+        \\- Text generation and completion
+        \\- Question answering and reasoning
+        \\- Code generation and debugging
+        \\- Language translation
+        \\- Summarization and analysis
+        \\- Creative writing and ideation
+        \\
+        \\</div>
+        \\
+        \\### Agent-Based Systems
+        \\<div class="definition-card" data-category="ai system">
+        \\
+        \\Autonomous software entities that perceive their environment, make decisions, and take actions to achieve specific goals. Modern AI agents often incorporate large language models and various tools.
+        \\
+        \\**Agent Components:**
+        \\- **Perception**: Sensors and inputs to observe environment state
+        \\- **Decision making**: Logic, rules, or learned policies to choose actions
+        \\- **Action**: Effectors and outputs to modify the environment
+        \\- **Memory**: Storage of experiences, knowledge, and learned behaviors
+        \\- **Communication**: Ability to interact with other agents or humans
+        \\
+        \\**Agent Types:**
+        \\- **Reactive agents**: Respond directly to current perceptions without internal state
+        \\- **Deliberative agents**: Plan sequences of actions using internal world models
+        \\- **Learning agents**: Improve performance through experience and feedback
+        \\- **Hybrid agents**: Combine reactive and deliberative components
+        \\
+        \\**Modern AI Agents:**
+        \\- **Tool-using agents**: LLMs that can use external tools and APIs
+        \\- **Code agents**: Generate and execute code to solve problems
+        \\- **Conversational agents**: Chatbots and virtual assistants
+        \\- **Planning agents**: Decompose complex tasks into subtasks
+        \\- **Multi-agent systems**: Coordination between multiple AI agents
+        \\
+        \\**Design Patterns:**
+        \\- **ReAct**: Reasoning and Acting with language models
+        \\- **Chain of Thought**: Step-by-step reasoning prompts
+        \\- **Tree of Thoughts**: Exploring multiple reasoning paths
+        \\- **Reflection**: Self-evaluation and improvement mechanisms
+        \\
+        \\</div>
+        \\
+        \\## ⚡ Performance & Optimization {#performance}
+        \\
+        \\### SIMD (Single Instruction, Multiple Data)
+        \\<div class="definition-card" data-category="performance">
+        \\
+        \\A parallel computing technique where a single instruction operates on multiple data points simultaneously. Modern CPUs have dedicated SIMD units that can process multiple numbers in one clock cycle.
+        \\
+        \\**Instruction Sets:**
+        \\- **SSE (128-bit)**: 4 × float32 or 2 × float64 operations per instruction
+        \\- **AVX (256-bit)**: 8 × float32 or 4 × float64 operations per instruction
+        \\- **AVX-512 (512-bit)**: 16 × float32 or 8 × float64 operations per instruction
+        \\- **ARM NEON**: ARM's SIMD instruction set for mobile processors
         \\
         \\**Benefits:**
-        \\- **Modularity**: Core system remains lean, features added as needed
-        \\- **Extensibility**: Third-party developers can add functionality
-        \\- **Isolation**: Plugin failures don't crash the core system
-        \\- **Hot-swapping**: Plugins can be loaded/unloaded at runtime
+        \\- **Throughput**: 4-16x more operations per clock cycle
+        \\- **Memory bandwidth**: More efficient use of memory bus
+        \\- **Energy efficiency**: Better performance per watt
+        \\- **Cache efficiency**: Process more data with same cache footprint
         \\
-        \\**Implementation approaches:**
-        \\- **Dynamic libraries**: Shared objects (.so, .dll, .dylib) loaded at runtime
-        \\- **Process isolation**: Plugins run in separate processes with IPC
-        \\- **Scripting languages**: Embed interpreters for plugin languages
-        \\- **WebAssembly**: Sandboxed plugins with near-native performance
+        \\**Applications in Vector Databases:**
+        \\- Vector addition, subtraction, multiplication
+        \\- Dot product and cosine similarity calculations
+        \\- Distance metric computations (Euclidean, Manhattan)
+        \\- Matrix operations for neural networks
+        \\- Quantization and compression operations
         \\
-        \\### Memory Management
-        \\The practice of efficiently allocating, using, and deallocating memory in programs. Critical for performance and preventing memory leaks or corruption.
+        \\**Programming Considerations:**
+        \\- **Alignment**: Data must be aligned to vector width boundaries
+        \\- **Data layout**: Array of Structures vs Structure of Arrays
+        \\- **Compiler intrinsics**: Direct use of SIMD instructions
+        \\- **Auto-vectorization**: Compiler automatic SIMD optimization
         \\
-        \\**Allocation strategies:**
-        \\- **Stack allocation**: Fast, automatic cleanup, limited size
-        \\- **Heap allocation**: Flexible size, manual management required
-        \\- **Pool allocation**: Pre-allocate fixed-size blocks for efficiency
-        \\- **Arena allocation**: Bulk allocation with batch cleanup
+        \\</div>
         \\
-        \\**Best practices:**
-        \\- **RAII**: Resource Acquisition Is Initialization - tie resource lifetime to object lifetime
-        \\- **Reference counting**: Track object usage automatically
-        \\- **Garbage collection**: Automatic memory management (with performance trade-offs)
-        \\- **Custom allocators**: Optimize for specific usage patterns
+        \\### Memory Hierarchy & Optimization
+        \\<div class="definition-card" data-category="performance system">
         \\
-        \\### Caching Strategies
-        \\Techniques for storing frequently accessed data in faster storage layers to improve performance. Caches exploit temporal and spatial locality of access patterns.
+        \\The hierarchical organization of computer memory systems, from fast but small caches to large but slow storage, and techniques to optimize data access patterns.
         \\
-        \\**Cache types:**
-        \\- **CPU caches**: L1/L2/L3 caches built into processors
-        \\- **Memory caches**: Software caches in RAM
-        \\- **Disk caches**: SSD or fast disk storage for slower storage
-        \\- **Network caches**: CDNs and edge caches for distributed systems
+        \\**Memory Hierarchy (fastest to slowest):**
+        \\- **CPU Registers**: ~1 cycle access, 32-64 registers
+        \\- **L1 Cache**: ~1-3 cycles, 32-64KB per core, separate instruction/data
+        \\- **L2 Cache**: ~10-20 cycles, 256KB-1MB per core, unified
+        \\- **L3 Cache**: ~30-50 cycles, 8-64MB shared across cores
+        \\- **Main Memory (RAM)**: ~100-300 cycles, GBs to TBs
+        \\- **SSD Storage**: ~10-100μs, TBs capacity
+        \\- **HDD Storage**: ~1-10ms, TBs capacity
         \\
-        \\**Eviction policies:**
-        \\- **LRU (Least Recently Used)**: Remove oldest accessed items
-        \\- **LFU (Least Frequently Used)**: Remove least popular items
-        \\- **FIFO (First In, First Out)**: Simple queue-based removal
-        \\- **Random**: Simple but effective for many workloads
+        \\**Cache Properties:**
+        \\- **Cache line size**: Typically 64 bytes
+        \\- **Associativity**: Direct-mapped, set-associative, fully-associative
+        \\- **Replacement policies**: LRU, random, pseudo-LRU
+        \\- **Write policies**: Write-through, write-back
         \\
-        \\## 📈 Performance Metrics
+        \\**Optimization Techniques:**
+        \\- **Spatial locality**: Access nearby memory locations
+        \\- **Temporal locality**: Reuse recently accessed data
+        \\- **Prefetching**: Load data before it's needed
+        \\- **Cache blocking**: Restructure algorithms for cache efficiency
+        \\- **Memory alignment**: Align data structures to cache line boundaries
         \\
-        \\### Throughput
-        \\The number of operations completed per unit time. For vector databases, this typically measures insertions per second or queries per second.
+        \\</div>
         \\
-        \\**Measurement:**
-        \\- **Operations per second (OPS)**: Raw operation count
-        \\- **Requests per second (RPS)**: For client-server systems
-        \\- **Bandwidth**: Data processed per unit time (MB/s, GB/s)
+        \\### Batch Processing
+        \\<div class="definition-card" data-category="performance">
         \\
-        \\**Optimization factors:**
-        \\- **Parallelism**: Concurrent processing of multiple operations
-        \\- **Batching**: Group operations to reduce overhead
-        \\- **Pipeline depth**: Overlap different stages of processing
+        \\The practice of grouping multiple operations together to improve throughput and reduce per-operation overhead. Essential for achieving high performance in vector databases and machine learning.
         \\
-        \\### Latency
-        \\The time required to complete a single operation from start to finish. Low latency is critical for real-time applications and user experience.
+        \\**Benefits:**
+        \\- **Amortized overhead**: Function call and setup costs spread across multiple items
+        \\- **Better memory locality**: Sequential access patterns improve cache performance
+        \\- **SIMD utilization**: Process multiple items with vector instructions
+        \\- **Reduced context switching**: Fewer kernel calls and mode switches
+        \\- **Pipeline efficiency**: Keep execution units busy with continuous work
         \\
-        \\**Types:**
-        \\- **Mean latency**: Average response time across all operations
-        \\- **Percentile latency**: P50, P95, P99 latencies for understanding distribution
-        \\- **Tail latency**: Worst-case response times that affect user experience
+        \\**Optimal Batch Sizes:**
+        \\- **Database inserts**: 100-1000 vectors (balance memory and throughput)
+        \\- **Neural network training**: 32-512 samples (GPU memory dependent)
+        \\- **SIMD operations**: Multiples of vector width (4, 8, 16 elements)
+        \\- **I/O operations**: Page size multiples (4KB, 64KB blocks)
         \\
-        \\**Factors affecting latency:**
-        \\- **Algorithm complexity**: O(1) vs O(log n) vs O(n) operations
-        \\- **Memory hierarchy**: Cache hits vs misses vs disk access
-        \\- **Network delays**: Physical distance and congestion
-        \\- **Queueing delays**: Waiting time under high load
+        \\**Implementation Strategies:**
+        \\- **Buffering**: Accumulate items before processing
+        \\- **Pipelining**: Overlap different stages of processing
+        \\- **Work stealing**: Dynamic load balancing across threads
+        \\- **Adaptive batching**: Adjust batch size based on system conditions
         \\
-        \\### Recall and Precision
-        \\Metrics for evaluating the quality of search results, particularly important for approximate nearest neighbor search where exact results may be traded for speed.
+        \\</div>
         \\
-        \\**Recall:**
-        \\- **Definition**: Fraction of relevant results that were retrieved
-        \\- **Formula**: True Positives / (True Positives + False Negatives)
-        \\- **Range**: [0, 1] where 1 = perfect recall
+        \\### Quantization
+        \\<div class="definition-card" data-category="performance ai">
         \\
-        \\**Precision:**
-        \\- **Definition**: Fraction of retrieved results that are relevant
-        \\- **Formula**: True Positives / (True Positives + False Positives)
-        \\- **Range**: [0, 1] where 1 = perfect precision
+        \\Techniques for reducing the precision of numerical representations while preserving essential information. Critical for reducing memory usage and improving performance in large-scale systems.
         \\
-        \\**Trade-offs:**
-        \\- **Speed vs Accuracy**: Faster algorithms often sacrifice some recall
-        \\- **Memory vs Quality**: Larger indices typically provide better recall
-        \\- **Index parameters**: Tuning affects the recall-speed trade-off
+        \\**Types of Quantization:**
+        \\- **Scalar quantization**: Map continuous values to discrete levels
+        \\- **Vector quantization**: Group similar vectors and represent with centroids
+        \\- **Product quantization**: Decompose vectors into subvectors, quantize separately
+        \\- **Binary quantization**: Extreme compression to 1-bit representations
         \\
-        \\## 🔐 Data Types & Formats
+        \\**Precision Levels:**
+        \\- **INT8**: 8-bit integers, 4x memory reduction from FP32
+        \\- **INT4**: 4-bit integers, 8x memory reduction, requires careful calibration
+        \\- **INT1 (Binary)**: 1-bit representations, 32x reduction, significant accuracy loss
+        \\- **Mixed precision**: Different precisions for different layers/operations
         \\
-        \\### Floating Point Precision
-        \\Different levels of precision for storing real numbers, each with trade-offs between accuracy, memory usage, and computational speed.
-        \\
-        \\**Common formats:**
-        \\- **float16 (half)**: 16-bit, ±65504 range, ~3 decimal digits precision
-        \\- **float32 (single)**: 32-bit, ±3.4×10³⁸ range, ~7 decimal digits precision
-        \\- **float64 (double)**: 64-bit, ±1.8×10³⁰⁸ range, ~15 decimal digits precision
-        \\- **bfloat16**: 16-bit with float32 range but reduced precision, popular in ML
-        \\
-        \\**Usage considerations:**
-        \\- **ML inference**: float16 often sufficient, 2x memory savings
-        \\- **Scientific computing**: float64 needed for numerical stability
-        \\- **Vector embeddings**: float32 typically optimal balance
-        \\- **Storage optimization**: Consider quantization for large datasets
-        \\
-        \\### Vector Quantization
-        \\Techniques for reducing the memory footprint of high-dimensional vectors while preserving essential similarity relationships.
-        \\
-        \\**Methods:**
-        \\- **Scalar quantization**: Map float32 to int8/int16 with scale factors
-        \\- **Product quantization**: Divide vectors into subvectors, quantize each separately
-        \\- **Binary quantization**: Extreme compression to binary vectors (1 bit per dimension)
+        \\**Quantization Strategies:**
+        \\- **Post-training quantization**: Quantize after training with calibration data
+        \\- **Quantization-aware training**: Include quantization in training process
+        \\- **Dynamic quantization**: Adjust quantization parameters during inference
         \\- **Learned quantization**: Use neural networks to optimize quantization
         \\
+        \\**Trade-offs:**
+        \\- **Memory**: 2-32x reduction in storage requirements
+        \\- **Speed**: Faster integer operations, reduced memory bandwidth
+        \\- **Accuracy**: Some loss in precision, especially for aggressive quantization
+        \\- **Compatibility**: Requires specialized hardware or software support
+        \\
+        \\</div>
+        \\
+        \\## 📐 Distance Metrics & Similarity {#algorithms}
+        \\
+        \\### Euclidean Distance
+        \\<div class="definition-card" data-category="algorithms">
+        \\
+        \\The straight-line distance between two points in multidimensional space, corresponding to our intuitive notion of distance in physical space.
+        \\
+        \\**Mathematical Definition:**
+        \\- **Formula**: d(a,b) = √(Σᵢ(aᵢ - bᵢ)²)
+        \\- **Squared Euclidean**: Often used to avoid expensive square root: Σᵢ(aᵢ - bᵢ)²
+        \\
+        \\**Properties:**
+        \\- **Range**: [0, ∞), where 0 indicates identical vectors
+        \\- **Symmetry**: d(a,b) = d(b,a)
+        \\- **Triangle inequality**: d(a,c) ≤ d(a,b) + d(b,c)
+        \\- **Positive definiteness**: d(a,b) = 0 if and only if a = b
+        \\
+        \\**Best Use Cases:**
+        \\- **Image features**: Pixel values, color histograms
+        \\- **Continuous measurements**: Physical measurements, sensor data
+        \\- **Dense embeddings**: When magnitude matters (e.g., word embeddings)
+        \\- **Gaussian distributions**: When data follows normal distribution
+        \\
+        \\**Computational Complexity:**
+        \\- **Time**: O(d) where d is vector dimension
+        \\- **SIMD optimization**: Highly vectorizable operation
+        \\- **Memory access**: Sequential, cache-friendly
+        \\
+        \\</div>
+        \\
+        \\### Cosine Similarity
+        \\<div class="definition-card" data-category="algorithms">
+        \\
+        \\Measures the cosine of the angle between two vectors, focusing on direction rather than magnitude. Widely used in text analysis and recommendation systems.
+        \\
+        \\**Mathematical Definition:**
+        \\- **Formula**: similarity(a,b) = (a·b) / (||a|| × ||b||)
+        \\- **Cosine distance**: 1 - cosine_similarity(a,b)
+        \\- **Dot product**: a·b = Σᵢ(aᵢ × bᵢ)
+        \\- **Magnitude**: ||a|| = √(Σᵢaᵢ²)
+        \\
+        \\**Properties:**
+        \\- **Range**: [-1, 1] where 1 = same direction, 0 = orthogonal, -1 = opposite
+        \\- **Magnitude invariant**: Only considers direction, not length
+        \\- **Normalized vectors**: For unit vectors, cosine similarity equals dot product
+        \\- **Symmetry**: cosine_similarity(a,b) = cosine_similarity(b,a)
+        \\
+        \\**Best Use Cases:**
+        \\- **Text embeddings**: TF-IDF vectors, word/sentence embeddings
+        \\- **Sparse features**: High-dimensional sparse vectors
+        \\- **Recommendation systems**: User-item preferences
+        \\- **Document similarity**: When document length shouldn't matter
+        \\
+        \\**Optimization Techniques:**
+        \\- **Pre-normalization**: Store normalized vectors to simplify computation
+        \\- **SIMD dot product**: Vectorized multiplication and summation
+        \\- **Approximate methods**: Random sampling for very high dimensions
+        \\
+        \\</div>
+        \\
+        \\### Manhattan Distance (L1 Norm)
+        \\<div class="definition-card" data-category="algorithms">
+        \\
+        \\The sum of absolute differences between corresponding elements, named after Manhattan's grid-like street layout where you can only travel along perpendicular streets.
+        \\
+        \\**Mathematical Definition:**
+        \\- **Formula**: d(a,b) = Σᵢ|aᵢ - bᵢ|
+        \\- **Also known as**: L1 distance, taxicab distance, city block distance
+        \\
+        \\**Properties:**
+        \\- **Range**: [0, ∞), where 0 indicates identical vectors
+        \\- **Robustness**: Less sensitive to outliers than Euclidean distance
+        \\- **Sparsity inducing**: Tends to produce sparse solutions in optimization
+        \\- **Convex**: Forms diamond-shaped unit balls in 2D space
+        \\
+        \\**Best Use Cases:**
+        \\- **Sparse data**: High-dimensional sparse vectors
+        \\- **Robust statistics**: When outliers are present
+        \\- **Feature selection**: L1 regularization promotes sparsity
+        \\- **Discrete features**: Categorical or count data
+        \\
+        \\**Computational Advantages:**
+        \\- **No squares**: Avoids expensive multiplication operations
+        \\- **Integer arithmetic**: Can work with integer representations
+        \\- **Bounded gradients**: Useful for optimization algorithms
+        \\
+        \\</div>
+        \\
+        \\### Hamming Distance
+        \\<div class="definition-card" data-category="algorithms">
+        \\
+        \\The number of positions where corresponding elements differ, originally defined for binary strings but extended to other discrete alphabets.
+        \\
+        \\**Mathematical Definition:**
+        \\- **Binary vectors**: Number of bit positions where vectors differ
+        \\- **General case**: Number of positions where aᵢ ≠ bᵢ
+        \\- **Normalized**: Divide by vector length for similarity score
+        \\
+        \\**Properties:**
+        \\- **Range**: [0, d] where d is vector dimension
+        \\- **Discrete**: Only integer values possible
+        \\- **Symmetric**: Hamming(a,b) = Hamming(b,a)
+        \\- **Triangle inequality**: Forms valid metric space
+        \\
+        \\**Applications:**
+        \\- **Binary embeddings**: Locality sensitive hashing outputs
+        \\- **Error correction**: Coding theory and data transmission
+        \\- **Fingerprinting**: Perceptual hashing for duplicate detection
+        \\- **Genetics**: DNA sequence comparison
+        \\
+        \\**Computational Efficiency:**
+        \\- **Bit operations**: XOR followed by population count
+        \\- **Hardware support**: Many CPUs have POPCNT instruction
+        \\- **Parallel computation**: Highly parallelizable across bits
+        \\
+        \\</div>
+        \\
+        \\## 🏗️ System Architecture {#system}
+        \\
+        \\### Plugin Architecture
+        \\<div class="definition-card" data-category="system">
+        \\
+        \\A software design pattern that enables extending core functionality through dynamically loaded, modular components. Plugins are independent units that implement well-defined interfaces.
+        \\
+        \\**Core Components:**
+        \\- **Plugin interface**: Contract defining how plugins interact with the host
+        \\- **Plugin manager**: Loads, unloads, and manages plugin lifecycle
+        \\- **Host application**: Core system that provides plugin infrastructure
+        \\- **Plugin registry**: Catalog of available plugins and their capabilities
+        \\
+        \\**Implementation Approaches:**
+        \\- **Dynamic libraries**: Shared objects (.so, .dll, .dylib) loaded at runtime
+        \\- **Process isolation**: Plugins run in separate processes with IPC
+        \\- **Scripting engines**: Embed interpreters (Python, Lua, JavaScript)
+        \\- **WebAssembly**: Sandboxed plugins with near-native performance
+        \\- **Container-based**: Docker containers for maximum isolation
+        \\
         \\**Benefits:**
-        \\- **Memory reduction**: 4-32x compression possible
-        \\- **Faster search**: Integer operations faster than floating point
-        \\- **Cache efficiency**: More vectors fit in CPU cache
-        \\- **Storage cost**: Reduced disk and network transfer requirements
+        \\- **Modularity**: Keep core system lean, add features as needed
+        \\- **Extensibility**: Third-party developers can add functionality
+        \\- **Isolation**: Plugin failures don't crash the host system
+        \\- **Hot-swapping**: Load/unload plugins without system restart
+        \\- **Versioning**: Different plugin versions can coexist
         \\
-        \\### Sparse vs Dense Vectors
-        \\Two fundamental representations for high-dimensional data with different performance and storage characteristics.
+        \\**Challenges:**
+        \\- **Interface stability**: API changes can break existing plugins
+        \\- **Security**: Malicious plugins can compromise system
+        \\- **Performance**: Inter-plugin communication overhead
+        \\- **Dependency management**: Complex dependency graphs
         \\
-        \\**Dense vectors:**
-        \\- **Storage**: Every dimension explicitly stored (even zeros)
-        \\- **Memory**: Fixed memory usage regardless of sparsity
-        \\- **Computation**: Regular, predictable access patterns
-        \\- **Best for**: Neural network embeddings, image features, audio features
+        \\</div>
         \\
-        \\**Sparse vectors:**
-        \\- **Storage**: Only non-zero dimensions stored with indices
-        \\- **Memory**: Proportional to number of non-zero elements
-        \\- **Computation**: Irregular access patterns, potential cache misses
-        \\- **Best for**: Text features (TF-IDF), categorical features, user-item matrices
+        \\### Memory Management Strategies
+        \\<div class="definition-card" data-category="system performance">
         \\
-        \\**Hybrid approaches:**
-        \\- **Compressed sparse**: Further compress indices and values
-        \\- **Block sparse**: Sparse at block level, dense within blocks
-        \\- **Adaptive**: Switch between representations based on sparsity level
+        \\Techniques for efficiently allocating, using, and deallocating memory in high-performance applications, crucial for vector databases handling large datasets.
+        \\
+        \\**Allocation Strategies:**
+        \\- **Stack allocation**: Fast automatic cleanup, limited size, LIFO order
+        \\- **Heap allocation**: Flexible size, manual management, fragmentation risk
+        \\- **Pool allocation**: Pre-allocate fixed-size blocks, fast allocation/deallocation
+        \\- **Arena allocation**: Bulk allocation with batch cleanup, minimal overhead
+        \\- **Slab allocation**: Kernel-style allocator for objects of similar size
+        \\
+        \\**Memory Patterns:**
+        \\- **RAII (Resource Acquisition Is Initialization)**: Tie resource lifetime to object scope
+        \\- **Reference counting**: Automatic cleanup when no references remain
+        \\- **Garbage collection**: Automatic memory management with performance trade-offs
+        \\- **Copy-on-write**: Share memory until modification is needed
+        \\
+        \\**Optimization Techniques:**
+        \\- **Memory pools**: Reduce allocation overhead for frequent operations
+        \\- **Object recycling**: Reuse expensive-to-create objects
+        \\- **Alignment**: Ensure data alignment for optimal access patterns
+        \\- **Prefaulting**: Touch memory pages to ensure they're resident
+        \\
+        \\**Monitoring and Debugging:**
+        \\- **Memory profiling**: Track allocation patterns and leaks
+        \\- **Valgrind**: Memory error detection for C/C++ programs
+        \\- **AddressSanitizer**: Runtime memory error detector
+        \\- **Custom allocators**: Track application-specific memory usage
+        \\
+        \\</div>
+        \\
+        \\### Caching Strategies
+        \\<div class="definition-card" data-category="system performance">
+        \\
+        \\Techniques for storing frequently accessed data in faster storage layers to improve system performance by exploiting temporal and spatial locality.
+        \\
+        \\**Cache Hierarchies:**
+        \\- **CPU caches**: L1/L2/L3 hardware caches in processor
+        \\- **Application caches**: In-memory data structures (hash tables, trees)
+        \\- **Database caches**: Buffer pools for frequently accessed pages
+        \\- **Web caches**: CDNs and reverse proxies for distributed systems
+        \\- **Disk caches**: SSD tier for frequently accessed data
+        \\
+        \\**Replacement Policies:**
+        \\- **LRU (Least Recently Used)**: Evict items not accessed recently
+        \\- **LFU (Least Frequently Used)**: Evict items accessed infrequently
+        \\- **FIFO (First In, First Out)**: Simple queue-based eviction
+        \\- **Random**: Simple but often effective for uniform access patterns
+        \\- **ARC (Adaptive Replacement Cache)**: Adapts between recency and frequency
+        \\
+        \\**Cache Strategies:**
+        \\- **Write-through**: Immediately write to both cache and backing store
+        \\- **Write-back**: Delay writes to backing store, better performance
+        \\- **Write-around**: Skip cache for writes, avoid cache pollution
+        \\- **Refresh-ahead**: Proactively refresh expired entries
+        \\
+        \\**Performance Considerations:**
+        \\- **Hit ratio**: Percentage of requests served from cache
+        \\- **Miss penalty**: Cost of loading data from slower storage
+        \\- **Cache coherence**: Consistency across multiple cache instances
+        \\- **Working set size**: Amount of data actively accessed
+        \\
+        \\</div>
+        \\
+        \\## 📊 Performance Metrics & Evaluation {#performance}
+        \\
+        \\### Throughput vs Latency
+        \\<div class="definition-card" data-category="performance">
+        \\
+        \\Two fundamental performance metrics that often require trade-offs in system design. Understanding both is crucial for optimizing vector database performance.
+        \\
+        \\**Throughput:**
+        \\- **Definition**: Number of operations completed per unit time
+        \\- **Units**: Operations/second, requests/second, GB/second
+        \\- **Optimization**: Batching, pipelining, parallelism
+        \\- **Measurement**: Total operations / total time
+        \\
+        \\**Latency:**
+        \\- **Definition**: Time required to complete a single operation
+        \\- **Units**: Milliseconds, microseconds, nanoseconds
+        \\- **Types**: Mean, median, P95, P99, tail latency
+        \\- **Optimization**: Caching, indexing, algorithm optimization
+        \\
+        \\**Trade-offs:**
+        \\- **High throughput**: May increase individual operation latency
+        \\- **Low latency**: May reduce overall system throughput
+        \\- **Batch processing**: Improves throughput at cost of latency
+        \\- **Real-time systems**: Often prioritize latency over throughput
+        \\
+        \\**Little's Law:**
+        \\- **Formula**: Average latency = Average queue length / Average throughput
+        \\- **Application**: Helps understand system capacity and performance
+        \\
+        \\</div>
+        \\
+        \\### Recall and Precision in Vector Search
+        \\<div class="definition-card" data-category="algorithms performance">
+        \\
+        \\Quality metrics for evaluating approximate nearest neighbor search algorithms, measuring how well they find relevant results compared to exact search.
+        \\
+        \\**Recall:**
+        \\- **Definition**: Fraction of true nearest neighbors found by the algorithm
+        \\- **Formula**: Recall = |Retrieved ∩ Relevant| / |Relevant|
+        \\- **Range**: [0, 1] where 1 = perfect recall (found all true neighbors)
+        \\- **Trade-off**: Higher recall usually requires more computation
+        \\
+        \\**Precision:**
+        \\- **Definition**: Fraction of retrieved results that are true nearest neighbors
+        \\- **Formula**: Precision = |Retrieved ∩ Relevant| / |Retrieved|
+        \\- **Range**: [0, 1] where 1 = perfect precision (no false positives)
+        \\- **Context**: Less commonly used in k-NN search (fixed k)
+        \\
+        \\**Evaluation Methodology:**
+        \\- **Ground truth**: Exact k-NN results computed with brute force
+        \\- **Test queries**: Representative sample of real-world queries
+        \\- **Multiple k values**: Evaluate performance for different neighborhood sizes
+        \\- **Parameter sweeps**: Test different algorithm configurations
+        \\
+        \\**Practical Considerations:**
+        \\- **Acceptable recall**: Often 90-95% sufficient for most applications
+        \\- **Speed-accuracy trade-off**: Balance recall against query latency
+        \\- **Index parameters**: Tune to achieve target recall efficiently
+        \\
+        \\</div>
+        \\
+        \\---
+        \\
+        \\<style>
+        \\.definition-search {
+        \\  margin: 2rem 0;
+        \\  padding: 1.5rem;
+        \\  background: var(--color-canvas-subtle);
+        \\  border-radius: 8px;
+        \\  border: 1px solid var(--color-border-default);
+        \\}
+        \\
+        \\.definition-search input {
+        \\  width: 100%;
+        \\  padding: 0.75rem 1rem;
+        \\  border: 1px solid var(--color-border-default);
+        \\  border-radius: 6px;
+        \\  font-size: 1rem;
+        \\  margin-bottom: 1rem;
+        \\}
+        \\
+        \\.definition-categories {
+        \\  display: flex;
+        \\  gap: 0.5rem;
+        \\  flex-wrap: wrap;
+        \\}
+        \\
+        \\.category-filter {
+        \\  padding: 0.5rem 1rem;
+        \\  border: 1px solid var(--color-border-default);
+        \\  background: var(--color-canvas-default);
+        \\  border-radius: 4px;
+        \\  cursor: pointer;
+        \\  transition: all 0.2s ease;
+        \\}
+        \\
+        \\.category-filter:hover {
+        \\  background: var(--color-canvas-subtle);
+        \\}
+        \\
+        \\.category-filter.active {
+        \\  background: var(--color-accent-emphasis);
+        \\  color: white;
+        \\  border-color: var(--color-accent-emphasis);
+        \\}
+        \\
+        \\.definition-card {
+        \\  margin: 1.5rem 0;
+        \\  padding: 1.5rem;
+        \\  border: 1px solid var(--color-border-default);
+        \\  border-radius: 8px;
+        \\  background: var(--color-canvas-default);
+        \\  transition: box-shadow 0.2s ease;
+        \\}
+        \\
+        \\.definition-card:hover {
+        \\  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        \\}
+        \\
+        \\.definition-card h3 {
+        \\  margin-top: 0;
+        \\  color: var(--color-accent-fg);
+        \\  border-bottom: 2px solid var(--color-accent-emphasis);
+        \\  padding-bottom: 0.5rem;
+        \\}
+        \\
+        \\.definition-card strong {
+        \\  color: var(--color-fg-default);
+        \\}
+        \\
+        \\.definition-card ul, .definition-card ol {
+        \\  margin: 1rem 0;
+        \\  padding-left: 1.5rem;
+        \\}
+        \\
+        \\.definition-card li {
+        \\  margin: 0.5rem 0;
+        \\}
+        \\
+        \\.definition-card code {
+        \\  background: var(--color-canvas-subtle);
+        \\  padding: 0.2rem 0.4rem;
+        \\  border-radius: 3px;
+        \\  font-size: 0.9rem;
+        \\}
+        \\
+        \\@media (max-width: 768px) {
+        \\  .definition-categories {
+        \\    flex-direction: column;
+        \\  }
+        \\  
+        \\  .category-filter {
+        \\    text-align: center;
+        \\  }
+        \\  
+        \\  .definition-card {
+        \\    margin: 1rem -1rem;
+        \\    border-radius: 0;
+        \\    border-left: none;
+        \\    border-right: none;
+        \\  }
+        \\}
+        \\</style>
+        \\
+        \\<script>
+        \\document.addEventListener('DOMContentLoaded', function() {
+        \\  const searchInput = document.getElementById('definition-search');
+        \\  const categoryFilters = document.querySelectorAll('.category-filter');
+        \\  const definitionCards = document.querySelectorAll('.definition-card');
+        \\  
+        \\  let currentCategory = 'all';
+        \\  
+        \\  // Search functionality
+        \\  searchInput.addEventListener('input', function() {
+        \\    const query = this.value.toLowerCase();
+        \\    filterDefinitions(query, currentCategory);
+        \\  });
+        \\  
+        \\  // Category filtering
+        \\  categoryFilters.forEach(button => {
+        \\    button.addEventListener('click', function() {
+        \\      // Update active state
+        \\      categoryFilters.forEach(b => b.classList.remove('active'));
+        \\      this.classList.add('active');
+        \\      
+        \\      currentCategory = this.dataset.category;
+        \\      const query = searchInput.value.toLowerCase();
+        \\      filterDefinitions(query, currentCategory);
+        \\    });
+        \\  });
+        \\  
+        \\  function filterDefinitions(searchQuery, category) {
+        \\    definitionCards.forEach(card => {
+        \\      const text = card.textContent.toLowerCase();
+        \\      const categories = card.dataset.category ? card.dataset.category.split(' ') : [];
+        \\      
+        \\      const matchesSearch = !searchQuery || text.includes(searchQuery);
+        \\      const matchesCategory = category === 'all' || categories.includes(category);
+        \\      
+        \\      if (matchesSearch && matchesCategory) {
+        \\        card.style.display = 'block';
+        \\        // Highlight search terms
+        \\        if (searchQuery) {
+        \\          highlightSearchTerms(card, searchQuery);
+        \\        }
+        \\      } else {
+        \\        card.style.display = 'none';
+        \\      }
+        \\    });
+        \\  }
+        \\  
+        \\  function highlightSearchTerms(element, query) {
+        \\    // Simple highlighting implementation
+        \\    // In a real implementation, you'd want more sophisticated text highlighting
+        \\    const textNodes = getTextNodes(element);
+        \\    textNodes.forEach(node => {
+        \\      if (node.textContent.toLowerCase().includes(query)) {
+        \\        const parent = node.parentNode;
+        \\        const regex = new RegExp(`(${query})`, 'gi');
+        \\        const highlighted = node.textContent.replace(regex, '<mark>$1</mark>');
+        \\        const wrapper = document.createElement('span');
+        \\        wrapper.innerHTML = highlighted;
+        \\        parent.replaceChild(wrapper, node);
+        \\      }
+        \\    });
+        \\  }
+        \\  
+        \\  function getTextNodes(element) {
+        \\    const textNodes = [];
+        \\    const walker = document.createTreeWalker(
+        \\      element,
+        \\      NodeFilter.SHOW_TEXT,
+        \\      null,
+        \\      false
+        \\    );
+        \\    
+        \\    let node;
+        \\    while (node = walker.nextNode()) {
+        \\      textNodes.push(node);
+        \\    }
+        \\    return textNodes;
+        \\  }
+        \\});
+        \\</script>
         \\
     ;
 

@@ -153,27 +153,38 @@ pub const MemoryEntry = struct {
         }
     }
 };
-
-/// Custom pool allocator for enhanced performance
+/// Custom pool allocator with free list for enhanced performance and memory reuse
 const PoolAllocator = struct {
     base_allocator: Allocator,
     pool: []u8,
     next_free: usize,
+    free_list: ArrayList(FreeBlock),
     mutex: std.Thread.Mutex,
+    total_allocated: usize,
+    peak_allocated: usize,
 
     const Self = @This();
 
+    const FreeBlock = struct {
+        offset: usize,
+        size: usize,
+    };
+
     pub fn init(base_allocator: Allocator, pool_size: usize) !Self {
-        const pool = try base_allocator.alignedAlloc(u8, MEMORY_ALIGNMENT, pool_size);
+        const pool = try base_allocator.alignedAlloc(u8, std.mem.Alignment.fromByteUnits(@alignOf(u8)), pool_size);
         return Self{
             .base_allocator = base_allocator,
             .pool = pool,
             .next_free = 0,
+            .free_list = try ArrayList(FreeBlock).initCapacity(base_allocator, 0),
             .mutex = .{},
+            .total_allocated = 0,
+            .peak_allocated = 0,
         };
     }
 
     pub fn deinit(self: *Self) void {
+        self.free_list.deinit(self.base_allocator);
         self.base_allocator.free(self.pool);
     }
 
@@ -183,40 +194,184 @@ const PoolAllocator = struct {
             .vtable = &.{
                 .alloc = alloc,
                 .resize = resize,
+                .remap = undefined,
                 .free = free,
             },
         };
     }
 
-    fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
+    /// Get current memory usage statistics
+    pub fn getStats(self: *Self) struct { total_allocated: usize, peak_allocated: usize, free_blocks: usize } {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        return .{
+            .total_allocated = self.total_allocated,
+            .peak_allocated = self.peak_allocated,
+            .free_blocks = self.free_list.items.len,
+        };
+    }
+
+    fn alloc(ctx: *anyopaque, len: usize, ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         _ = ret_addr;
         const self: *Self = @ptrCast(@alignCast(ctx));
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const aligned_len = std.mem.alignForward(usize, len, ptr_align);
-        if (self.next_free + aligned_len > self.pool.len) return null;
+        const aligned_len = std.mem.alignForward(usize, len, @intFromEnum(ptr_align));
 
-        const result = self.pool[self.next_free .. self.next_free + aligned_len];
-        self.next_free += aligned_len;
-        return result.ptr;
+        // First, try to find a suitable block in the free list
+        for (self.free_list.items, 0..) |block, i| {
+            if (block.size >= aligned_len) {
+                // Found a suitable free block
+                const result_ptr = self.pool.ptr + block.offset;
+
+                // Align the result pointer
+                const aligned_ptr = std.mem.alignForward(usize, @intFromPtr(result_ptr), @intFromEnum(ptr_align));
+                const alignment_offset = aligned_ptr - @intFromPtr(result_ptr);
+
+                if (block.size >= aligned_len + alignment_offset) {
+                    // Remove this block from the free list
+                    _ = self.free_list.swapRemove(i);
+
+                    // If there's remaining space, add it back as a smaller free block
+                    const remaining_size = block.size - aligned_len - alignment_offset;
+                    if (remaining_size > 0) {
+                        const remaining_block = FreeBlock{
+                            .offset = block.offset + aligned_len + alignment_offset,
+                            .size = remaining_size,
+                        };
+                        self.free_list.append(self.base_allocator, remaining_block) catch {};
+                    }
+
+                    self.total_allocated += aligned_len;
+                    self.peak_allocated = @max(self.peak_allocated, self.total_allocated);
+                    return @ptrFromInt(aligned_ptr);
+                }
+            }
+        }
+
+        // No suitable free block found, allocate from the pool
+        const pool_start = @intFromPtr(self.pool.ptr);
+        const current_ptr = pool_start + self.next_free;
+        const aligned_ptr = std.mem.alignForward(usize, current_ptr, @intFromEnum(ptr_align));
+        const alignment_offset = aligned_ptr - current_ptr;
+        const total_needed = aligned_len + alignment_offset;
+
+        if (self.next_free + total_needed > self.pool.len) {
+            return null; // Out of memory
+        }
+
+        self.next_free += total_needed;
+        self.total_allocated += aligned_len;
+        self.peak_allocated = @max(self.peak_allocated, self.total_allocated);
+
+        return @ptrFromInt(aligned_ptr);
     }
 
-    fn resize(ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_addr: usize) bool {
+    fn resize(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
+        // Mark all parameters as intentionally unused
         _ = ctx;
         _ = buf;
         _ = buf_align;
         _ = new_len;
         _ = ret_addr;
-        return false; // Simple allocator doesn't support resize
+        return false; // Pool allocator doesn't support resize for simplicity
     }
 
-    fn free(ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) void {
-        _ = ctx;
-        _ = buf;
+    fn free(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, ret_addr: usize) void {
+        // Mark parameters as intentionally unused
         _ = buf_align;
         _ = ret_addr;
-        // Pool allocator doesn't free individual allocations
+        const self: *Self = @ptrCast(@alignCast(ctx));
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        // Validate that the buffer is within our pool
+        const pool_start = @intFromPtr(self.pool.ptr);
+        const pool_end = pool_start + self.pool.len;
+        const buf_start = @intFromPtr(buf.ptr);
+
+        if (buf_start < pool_start or buf_start + buf.len > pool_end) {
+            return; // Invalid buffer, ignore
+        }
+
+        // Calculate the offset and add to free list
+        const offset = buf_start - pool_start;
+        const free_block = FreeBlock{
+            .offset = offset,
+            .size = buf.len,
+        };
+
+        // Try to coalesce with adjacent free blocks
+        var coalesced = false;
+        for (self.free_list.items) |*block| {
+            // Check if this block is adjacent to the one being freed
+            if (block.offset + block.size == offset) {
+                // Extend the existing block
+                block.size += free_block.size;
+                coalesced = true;
+                break;
+            } else if (offset + free_block.size == block.offset) {
+                // Extend the block backward
+                block.offset = offset;
+                block.size += free_block.size;
+                coalesced = true;
+                break;
+            }
+        }
+
+        if (!coalesced) {
+            // Add as a new free block
+            self.free_list.append(self.base_allocator, free_block) catch return;
+        }
+
+        self.total_allocated = if (self.total_allocated >= buf.len)
+            self.total_allocated - buf.len
+        else
+            0;
+    }
+
+    /// Reset the allocator, freeing all allocations
+    pub fn reset(self: *Self) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        self.next_free = 0;
+        self.total_allocated = 0;
+        self.free_list.clearRetainingCapacity();
+    }
+
+    /// Defragment the free list by merging adjacent blocks
+    pub fn defragment(self: *Self) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        // Sort free blocks by offset
+        const items = self.free_list.items;
+        std.sort.insertion(FreeBlock, items, {}, struct {
+            fn lessThan(_: void, a: FreeBlock, b: FreeBlock) bool {
+                return a.offset < b.offset;
+            }
+        }.lessThan);
+
+        // Merge adjacent blocks
+        var write_index: usize = 0;
+        var i: usize = 0;
+        while (i < items.len) {
+            var current = items[i];
+
+            // Merge all adjacent blocks
+            while (i + 1 < items.len and current.offset + current.size == items[i + 1].offset) {
+                i += 1;
+                current.size += items[i].size;
+            }
+
+            items[write_index] = current;
+            write_index += 1;
+            i += 1;
+        }
+
+        self.free_list.shrinkRetainingCapacity(write_index);
     }
 };
 
@@ -293,8 +448,8 @@ pub const EnhancedAgent = struct {
             .allocator = agent_allocator,
             .pool_allocator = pool_allocator,
             .state = .idle,
-            .memory = ArrayList(MemoryEntry).init(agent_allocator),
-            .context = ArrayList(u8).init(agent_allocator),
+            .memory = try ArrayList(MemoryEntry).initCapacity(agent_allocator, 0),
+            .context = try ArrayList(u8).initCapacity(agent_allocator, 0),
             .capabilities = config.capabilities,
             .performance_stats = .{},
             .request_semaphore = .{ .permits = config.max_concurrent_requests },
@@ -318,10 +473,10 @@ pub const EnhancedAgent = struct {
         for (self.memory.items) |*entry| {
             entry.deinit(self.allocator);
         }
-        self.memory.deinit();
+        self.memory.deinit(self.allocator);
 
         // Free context
-        self.context.deinit();
+        self.context.deinit(self.allocator);
 
         // Cleanup custom allocator
         if (self.pool_allocator) |*pool| {

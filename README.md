@@ -16,6 +16,9 @@
 - **Reporting**: Multiple output formats, detailed analytics, optimization recommendations
 - **Security**: Vulnerability detection, secure random generation, input validation
 - **Platform Support**: Windows-specific optimizations, cross-platform compatibility
+- **Chat Integration**: Complete AI chat functionality with multiple personas and backends
+- **Model Training**: Full neural network training pipeline with CLI interface
+- **Web API**: RESTful endpoints and WebSocket support for AI interactions
 
 ## ✨ **Key Features**
 
@@ -28,7 +31,9 @@
 
 ### 🤖 **AI & Machine Learning**
 - **Multi-persona AI Agents**: 8 distinct personalities with OpenAI integration
+- **Interactive Chat System**: CLI-based chat with persona selection and backend support
 - **Neural Networks**: Feed-forward networks with SIMD-accelerated operations
+- **Model Training Pipeline**: Complete training infrastructure with CSV data support
 - **Vector Database**: Custom WDBX-AI format for high-dimensional embeddings
 - **Machine Learning**: Simple yet effective ML algorithms with memory safety
 
@@ -181,20 +186,27 @@ zig build run -- http 8080
 ## 🛠️ **Command Line Interface**
 
 ```bash
-# AI Chat
-abi chat --persona creative --backend openai
+# AI Chat (Interactive)
+abi chat --persona creative --backend openai --interactive
+
+# AI Chat (Single Message)
+abi chat "Hello, how can you help me?" --persona analytical
 
 # Model Training
-abi train data.txt --gpu --threads 8 --output model.bin
+abi llm train --data training_data.csv --output model.bin --epochs 100 --lr 0.001
 
-# Model Serving
-abi serve model.bin --port 8080 --gpu
+# Model Training with GPU
+abi llm train --data data.csv --gpu --threads 8 --batch-size 64
+
+# Vector Database Operations
+abi llm embed --db vectors.wdbx --text "Sample text for embedding"
+abi llm query --db vectors.wdbx --text "Query text" --k 5
+
+# Web Server
+abi web --port 8080
 
 # Performance Benchmarking
 abi benchmark --iterations 1000 --memory-track
-
-# Text Analysis
-abi analyze document.txt --format json --output analysis.json
 
 # Memory Profiling
 abi --memory-profile benchmark
@@ -276,9 +288,10 @@ abi web --port 8080
 **Available Endpoints:**
 - `GET /health` - Health check
 - `GET /api/status` - System status
-- `POST /api/agent/query` - Query AI agent
+- `POST /api/agent/query` - Query AI agent (JSON: `{"message": "your question"}`)
 - `POST /api/database/search` - Search vectors
 - `GET /api/database/info` - Database information
+- `WebSocket /ws` - Real-time chat with AI agent
 
 ## 🔌 **Plugin Development**
 

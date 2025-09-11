@@ -19,8 +19,43 @@
 
 const std = @import("std");
 
+// Conditional compilation based on GPU support
+const gpu_enabled = @import("root").abi.gpu;
+
 // Import and re-export from organized submodules
 pub const core = @import("core/mod.zig");
+
+// Direct exports for backward compatibility with tests
+pub const GPURenderer = core.GPURenderer;
+pub const GPUConfig = core.GPUConfig;
+pub const GpuError = core.GpuError;
+pub const GpuBackend = core.GpuBackend;
+pub const GpuBackendConfig = core.GpuBackendConfig;
+pub const GpuBackendError = core.GpuBackendError;
+pub const BatchConfig = core.BatchConfig;
+pub const BatchProcessor = core.BatchProcessor;
+pub const GpuStats = core.GpuStats;
+pub const Db = core.Db;
+pub const KernelManager = core.KernelManager;
+pub const GPUBackendManager = core.GPUBackendManager;
+pub const CUDADriver = core.CUDADriver;
+pub const SPIRVCompiler = core.SPIRVCompiler;
+pub const BackendType = core.BackendType;
+pub const HardwareCapabilities = core.HardwareCapabilities;
+pub const MemoryPool = core.MemoryPool;
+pub const BackendSupport = core.BackendSupport;
+pub const PerformanceProfiler = core.PerformanceProfiler;
+pub const MemoryBandwidthBenchmark = core.MemoryBandwidthBenchmark;
+pub const ComputeThroughputBenchmark = core.ComputeThroughputBenchmark;
+pub const Backend = core.Backend;
+pub const PowerPreference = core.PowerPreference;
+pub const has_webgpu_support = core.has_webgpu_support;
+pub const Color = core.Color;
+pub const GPUHandle = core.GPUHandle;
+
+// Convenience functions
+pub const initDefault = core.initDefault;
+pub const isGpuAvailable = core.isGpuAvailable;
 
 // Additional utilities and helpers
 pub const utils = struct {
@@ -30,7 +65,7 @@ pub const utils = struct {
     }
 
     /// Get recommended GPU configuration
-    pub fn getRecommendedConfig(allocator: std.mem.Allocator) !core.GPUConfig {
+    pub fn getRecommendedConfig(_: std.mem.Allocator) !core.GPUConfig {
         return .{
             .debug_validation = false,
             .power_preference = .high_performance,

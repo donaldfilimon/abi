@@ -8,7 +8,8 @@
 //! - Loss functions (MSE, Cross-entropy, Hinge)
 
 const std = @import("std");
-const gpu_renderer = @import("gpu_renderer.zig");
+const gpu_renderer = @import("../core/gpu_renderer.zig");
+const builtin = @import("builtin");
 
 /// Configuration for GPU kernel operations
 pub const KernelConfig = struct {
@@ -93,7 +94,7 @@ pub const KernelManager = struct {
             self.allocator.free(kernel.input_shape);
             self.allocator.free(kernel.output_shape);
         }
-        self.kernels.deinit();
+        self.kernels.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -162,7 +163,7 @@ pub const KernelManager = struct {
             .config = config,
         };
 
-        try self.kernels.append(kernel);
+        try self.kernels.append(self.allocator, kernel);
         return self.kernels.items.len - 1;
     }
 
@@ -173,14 +174,14 @@ pub const KernelManager = struct {
         const weights_data = try self.allocator.alloc(f32, count);
         defer self.allocator.free(weights_data);
 
-        var prng = std.rand.DefaultPrng.init(@as(u64, @bitCast(std.time.nanoTimestamp())));
+        var prng = std.Random.DefaultPrng.init(@as(u64, @intCast(std.time.nanoTimestamp())));
         const random = prng.random();
 
         for (weights_data) |*w| {
             // Normal distribution with mean 0, variance 1
             const u1_val = random.float(f32);
-            const u2 = random.float(f32);
-            const z = std.math.sqrt(-2.0 * std.math.ln(u1_val)) * std.math.cos(2.0 * std.math.pi * u2);
+            const u2_val = random.float(f32);
+            const z = std.math.sqrt(-2.0 * @log(u1_val)) * std.math.cos(2.0 * std.math.pi * u2_val);
             w.* = z * scale;
         }
 
@@ -238,8 +239,8 @@ pub const KernelManager = struct {
         input_channels: u32,
         output_channels: u32,
         kernel_size: u32,
-        stride: u32,
-        padding: u32,
+        _: u32,
+        _: u32,
         activation: ActivationType,
         optimizer: OptimizerType,
         config: KernelConfig,
@@ -297,7 +298,7 @@ pub const KernelManager = struct {
             .config = config,
         };
 
-        try self.kernels.append(kernel);
+        try self.kernels.append(self.allocator, kernel);
         return self.kernels.items.len - 1;
     }
 
@@ -306,7 +307,7 @@ pub const KernelManager = struct {
         self: *KernelManager,
         name: []const u8,
         embed_dim: u32,
-        num_heads: u32,
+        _: u32,
         seq_length: u32,
         optimizer: OptimizerType,
         config: KernelConfig,
@@ -352,13 +353,13 @@ pub const KernelManager = struct {
             .config = config,
         };
 
-        try self.kernels.append(kernel);
+        try self.kernels.append(self.allocator, kernel);
         return self.kernels.items.len - 1;
     }
 
     /// Perform matrix multiplication optimized for GPU
     pub fn matrixMultiplyGPU(
-        self: *KernelManager,
+        _: *KernelManager,
         a_handle: u32,
         b_handle: u32,
         result_handle: u32,
@@ -377,14 +378,11 @@ pub const KernelManager = struct {
         _ = a_handle;
         _ = b_handle;
         _ = result_handle;
-        _ = m;
-        _ = n;
-        _ = k;
     }
 
     /// Compute softmax activation function on GPU
     pub fn softmaxGPU(
-        self: *KernelManager,
+        _: *KernelManager,
         input_handle: u32,
         output_handle: u32,
         size: u32,
@@ -395,12 +393,11 @@ pub const KernelManager = struct {
         // This requires careful handling of numerical stability
         _ = input_handle;
         _ = output_handle;
-        _ = size;
     }
 
     /// Compute layer normalization on GPU
     pub fn layerNormGPU(
-        self: *KernelManager,
+        _: *KernelManager,
         input_handle: u32,
         output_handle: u32,
         gamma_handle: u32,
@@ -415,13 +412,11 @@ pub const KernelManager = struct {
         _ = output_handle;
         _ = gamma_handle;
         _ = beta_handle;
-        _ = size;
-        _ = epsilon;
     }
 
     /// Update weights using Adam optimizer on GPU
     pub fn adamUpdateGPU(
-        self: *KernelManager,
+        _: *KernelManager,
         weights_handle: u32,
         gradients_handle: u32,
         m_handle: u32,
@@ -441,12 +436,9 @@ pub const KernelManager = struct {
         _ = gradients_handle;
         _ = m_handle;
         _ = v_handle;
-        _ = size;
-        _ = learning_rate;
         _ = beta1;
         _ = beta2;
         _ = epsilon;
-        _ = t;
     }
 };
 
@@ -566,6 +558,8 @@ pub const MemoryPool = struct {
 
 /// GPU Backend Support for multiple APIs
 pub const BackendSupport = struct {
+    allocator: std.mem.Allocator,
+    current_backend: ?Backend = null,
     /// Supported GPU backends
     pub const Backend = enum {
         vulkan,
@@ -593,55 +587,110 @@ pub const BackendSupport = struct {
     /// Initialize backend support detection
     pub fn init(allocator: std.mem.Allocator) !*BackendSupport {
         const self = try allocator.create(BackendSupport);
-        self.* = .{};
+        self.* = .{
+            .allocator = allocator,
+        };
         return self;
     }
 
     pub fn deinit(self: *BackendSupport) void {
         // Cleanup resources
+        self.allocator.destroy(self);
+    }
+
+    /// Get priority score for backend selection
+    fn getBackendPriority(backend: Backend) u8 {
+        return switch (backend) {
+            .vulkan => 50,
+            .cuda => 100,
+            .metal => 60,
+            .dx12 => 70,
+            .opengl => 20,
+            .opencl => 30,
+            .webgpu => 10,
+            .cpu_fallback => 1,
+        };
+    }
+
+    /// Select the best available backend
+    pub fn selectBestBackend(self: *BackendSupport) ?Backend {
+        const available_backends = self.detectAvailableBackends() catch return null;
+        defer self.allocator.free(available_backends);
+
+        // Simple priority-based selection
+        var best_backend: ?Backend = null;
+        var best_priority: u8 = 0;
+
+        for (available_backends) |backend| {
+            const priority = getBackendPriority(backend);
+
+            if (priority > best_priority) {
+                best_backend = backend;
+                best_priority = priority;
+            }
+        }
+
+        self.current_backend = best_backend;
+        return best_backend;
+    }
+
+    /// Force selection of a specific backend
+    pub fn selectBackend(self: *BackendSupport, backend: Backend) !void {
+        // Check if backend is available
+        const available_backends = try self.detectAvailableBackends();
+        defer self.allocator.free(available_backends);
+
+        for (available_backends) |available| {
+            if (available == backend) {
+                self.current_backend = backend;
+                return;
+            }
+        }
+
+        return error.BackendNotAvailable;
     }
 
     /// Detect available GPU backends
-    pub fn detectAvailableBackends(self: *BackendSupport) !std.ArrayList(Backend) {
-        var backends = std.ArrayList(Backend).init(self.allocator);
+    pub fn detectAvailableBackends(self: *BackendSupport) ![]Backend {
+        var backends = try std.ArrayList(Backend).initCapacity(self.allocator, 0);
 
         // Detect Vulkan
         if (detectVulkan()) {
-            try backends.append(.vulkan);
+            try backends.append(self.allocator, .vulkan);
         }
 
         // Detect Metal (macOS/iOS)
         if (detectMetal()) {
-            try backends.append(.metal);
+            try backends.append(self.allocator, .metal);
         }
 
         // Detect DirectX 12 (Windows)
         if (detectDX12()) {
-            try backends.append(.dx12);
+            try backends.append(self.allocator, .dx12);
         }
 
         // Detect OpenGL
         if (detectOpenGL()) {
-            try backends.append(.opengl);
+            try backends.append(self.allocator, .opengl);
         }
 
         // Detect CUDA
         if (detectCUDA()) {
-            try backends.append(.cuda);
+            try backends.append(self.allocator, .cuda);
         }
 
         // Detect OpenCL
         if (detectOpenCL()) {
-            try backends.append(.opencl);
+            try backends.append(self.allocator, .opencl);
         }
 
         // WebGPU is always available (falls back to CPU if needed)
-        try backends.append(.webgpu);
+        try backends.append(self.allocator, .webgpu);
 
         // CPU fallback is always available
-        try backends.append(.cpu_fallback);
+        try backends.append(self.allocator, .cpu_fallback);
 
-        return backends;
+        return backends.toOwnedSlice(self.allocator);
     }
 
     /// Get capabilities for a specific backend
@@ -710,12 +759,12 @@ pub const BackendSupport = struct {
 
     fn detectMetal() bool {
         // Check for Metal framework (macOS/iOS only)
-        return std.builtin.os.tag == .macos;
+        return builtin.os.tag == .macos;
     }
 
     fn detectDX12() bool {
         // Check for DirectX 12 (Windows only)
-        return std.builtin.os.tag == .windows;
+        return builtin.os.tag == .windows;
     }
 
     fn detectOpenGL() bool {

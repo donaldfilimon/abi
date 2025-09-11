@@ -1,37 +1,157 @@
 //! Neural Network Activation Functions
 //!
 //! Comprehensive collection of activation functions with SIMD optimization.
-//! Provides both element-wise and batch activation functions.
+//! Provides both element-wise and batch activation functions with detailed
+//! mathematical definitions, derivatives, and properties for each function.
 
 const std = @import("std");
 
 const core = @import("../core/mod.zig");
 
-/// Available activation function types
+/// Available activation function types with detailed mathematical definitions
 pub const ActivationType = enum {
+    /// **Rectified Linear Unit (ReLU)**: f(x) = max(0, x)
+    /// - **Derivative**: f'(x) = 1 if x > 0, else 0
+    /// - **Properties**: Introduces non-linearity; computationally efficient; may cause "dying ReLU" problem where neurons become inactive.
+    /// - **Reference**: [Wikipedia - Activation function](https://en.wikipedia.org/wiki/Activation_function#Rectifier)
     relu,
+
+    /// **ReLU6**: f(x) = min(max(0, x), 6)
+    /// - **Derivative**: f'(x) = 1 if 0 < x < 6, else 0
+    /// - **Properties**: Similar to ReLU but caps the output at 6; used in mobile networks for quantization benefits.
+    /// - **Reference**: [TensorFlow - ReLU6](https://www.tensorflow.org/api_docs/python/tf/nn/relu6)
     relu6,
+
+    /// **Leaky ReLU**: f(x) = x if x > 0, else α * x
+    /// - **Derivative**: f'(x) = 1 if x > 0, else α
+    /// - **Properties**: Allows a small, non-zero gradient when x < 0 to mitigate "dying ReLU" problem; α is a small constant (e.g., 0.01).
+    /// - **Reference**: [Wikipedia - Activation function](https://en.wikipedia.org/wiki/Activation_function#Leaky_ReLU)
     leaky_relu,
+
+    /// **Parametric ReLU (PReLU)**: f(x) = x if x > 0, else α * x
+    /// - **Derivative**: f'(x) = 1 if x > 0, else α
+    /// - **Properties**: Similar to Leaky ReLU but α is a learnable parameter, allowing the network to adapt the activation function.
+    /// - **Reference**: [Wikipedia - Activation function](https://en.wikipedia.org/wiki/Activation_function#Parametric_ReLU)
     parametric_relu,
+
+    /// **Exponential Linear Unit (ELU)**: f(x) = x if x > 0, else α * (exp(x) - 1)
+    /// - **Derivative**: f'(x) = 1 if x > 0, else f(x) + α
+    /// - **Properties**: Smooth and differentiable; helps mitigate vanishing gradients; α is a positive constant.
+    /// - **Reference**: [Wikipedia - Activation function](https://en.wikipedia.org/wiki/Activation_function#ELU)
     elu,
+
+    /// **Scaled Exponential Linear Unit (SELU)**: f(x) = λ * (x if x > 0, else α * (exp(x) - 1))
+    /// - **Derivative**: f'(x) = λ if x > 0, else λ * α * exp(x)
+    /// - **Properties**: Self-normalizing; maintains mean and variance; λ and α are predefined constants.
+    /// - **Reference**: [Wikipedia - Activation function](https://en.wikipedia.org/wiki/Activation_function#SELU)
     selu,
+
+    /// **Continuously Differentiable Exponential Linear Unit (CELU)**: f(x) = x if x > 0, else α * (exp(x / α) - 1)
+    /// - **Derivative**: f'(x) = 1 if x > 0, else exp(x / α)
+    /// - **Properties**: Similar to ELU but ensures continuous differentiability; α is a positive constant.
+    /// - **Reference**: [CELU Paper](https://arxiv.org/abs/1704.07483)
     celu,
+
+    /// **Sigmoid**: f(x) = 1 / (1 + exp(-x))
+    /// - **Derivative**: f'(x) = f(x) * (1 - f(x))
+    /// - **Properties**: Outputs values between 0 and 1; prone to vanishing gradients; historically used in early neural networks.
+    /// - **Reference**: [Wikipedia - Activation function](https://en.wikipedia.org/wiki/Activation_function#Logistic)
     sigmoid,
+
+    /// **Hard Sigmoid**: f(x) = max(0, min(1, 0.2 * x + 0.5))
+    /// - **Derivative**: f'(x) = 0.2 if -2.5 < x < 2.5, else 0
+    /// - **Properties**: Computationally efficient approximation of sigmoid; used in resource-constrained environments.
+    /// - **Reference**: [Keras - Hard Sigmoid](https://keras.io/api/layers/activations/#hard_sigmoid-function)
     hard_sigmoid,
+
+    /// **Hyperbolic Tangent (Tanh)**: f(x) = tanh(x)
+    /// - **Derivative**: f'(x) = 1 - f(x)^2
+    /// - **Properties**: Outputs values between -1 and 1; zero-centered; can suffer from vanishing gradients.
+    /// - **Reference**: [Wikipedia - Activation function](https://en.wikipedia.org/wiki/Activation_function#Hyperbolic_tangent)
     tanh,
+
+    /// **Hard Tanh**: f(x) = max(-1, min(1, x))
+    /// - **Derivative**: f'(x) = 1 if -1 < x < 1, else 0
+    /// - **Properties**: Computationally efficient approximation of tanh; used in resource-constrained environments.
+    /// - **Reference**: [PyTorch - Hard Tanh](https://pytorch.org/docs/stable/generated/torch.nn.Hardtanh.html)
     hard_tanh,
+
+    /// **Softmax**: f(x_i) = exp(x_i) / Σ(exp(x_j) for j in inputs)
+    /// - **Derivative**: Complex; involves Jacobian matrix where ∂f_i/∂x_j = f_i * (δ_ij - f_j)
+    /// - **Properties**: Converts logits to probabilities; used in multi-class classification; outputs sum to 1.
+    /// - **Reference**: [Wikipedia - Activation function](https://en.wikipedia.org/wiki/Activation_function#Softmax)
     softmax,
+
+    /// **Log Softmax**: f(x_i) = log(exp(x_i) / Σ(exp(x_j) for j in inputs))
+    /// - **Derivative**: ∂f_i/∂x_j = δ_ij - exp(x_j - logsumexp(x))
+    /// - **Properties**: Numerically stable version of softmax; used in combination with negative log-likelihood loss.
+    /// - **Reference**: [PyTorch - Log Softmax](https://pytorch.org/docs/stable/generated/torch.nn.LogSoftmax.html)
     log_softmax,
+
+    /// **Softmin**: f(x_i) = exp(-x_i) / Σ(exp(-x_j) for j in inputs)
+    /// - **Derivative**: Complex; involves Jacobian matrix similar to softmax but with negated inputs
+    /// - **Properties**: Emphasizes smaller input values; less common in practice.
+    /// - **Reference**: [Wikipedia - Activation function](https://en.wikipedia.org/wiki/Activation_function#Softmin)
     softmin,
+
+    /// **Softplus**: f(x) = log(1 + exp(x))
+    /// - **Derivative**: f'(x) = 1 / (1 + exp(-x)) = sigmoid(x)
+    /// - **Properties**: Smooth approximation of ReLU; always positive; used in certain probabilistic models.
+    /// - **Reference**: [Wikipedia - Activation function](https://en.wikipedia.org/wiki/Activation_function#Softplus)
     softplus,
+
+    /// **Softsign**: f(x) = x / (1 + |x|)
+    /// - **Derivative**: f'(x) = 1 / (1 + |x|)^2
+    /// - **Properties**: Similar to tanh but computationally simpler; outputs between -1 and 1.
+    /// - **Reference**: [Wikipedia - Activation function](https://en.wikipedia.org/wiki/Activation_function#Softsign)
     softsign,
+
+    /// **Swish**: f(x) = x * sigmoid(β * x)
+    /// - **Derivative**: f'(x) = β * sigmoid(β * x) + x * β * sigmoid(β * x) * (1 - sigmoid(β * x))
+    /// - **Properties**: Smooth, non-monotonic; outperforms ReLU in some deep networks; β is a constant (often 1).
+    /// - **Reference**: [Swish Paper](https://arxiv.org/abs/1710.05941)
     swish,
+
+    /// **Hard Swish**: f(x) = x * max(0, min(1, (x + 3) / 6))
+    /// - **Derivative**: f'(x) = (x / 6) + 0.5 if -3 < x < 3, else 1 if x > 3, else 0
+    /// - **Properties**: Computationally efficient approximation of Swish; used in mobile networks.
+    /// - **Reference**: [MobileNetV3 Paper](https://arxiv.org/abs/1905.02244)
     hard_swish,
+
+    /// **Mish**: f(x) = x * tanh(softplus(x))
+    /// - **Derivative**: f'(x) = tanh(softplus(x)) + x * sigmoid(x) * (1 - tanh^2(softplus(x)))
+    /// - **Properties**: Smooth, non-monotonic; outperforms ReLU in some tasks.
+    /// - **Reference**: [Mish Paper](https://arxiv.org/abs/1908.08681)
     mish,
+
+    /// **Gaussian Error Linear Unit (GELU)**: f(x) = 0.5 * x * (1 + tanh(√(2/π) * (x + 0.044715 * x^3)))
+    /// - **Derivative**: Complex; f'(x) = 0.5 * (1 + tanh(√(2/π) * (x + 0.044715 * x^3))) + 0.5 * x * sech^2(...) * √(2/π) * (1 + 3 * 0.044715 * x^2)
+    /// - **Properties**: Smooth; used in Transformers and BERT; probabilistically motivated activation.
+    /// - **Reference**: [GELU Paper](https://arxiv.org/abs/1606.08415)
     gelu,
+
+    /// **Quick GELU**: f(x) = x * sigmoid(1.702 * x)
+    /// - **Derivative**: f'(x) = sigmoid(1.702 * x) + x * 1.702 * sigmoid(1.702 * x) * (1 - sigmoid(1.702 * x))
+    /// - **Properties**: Faster approximation of GELU; maintains similar performance with reduced computational cost.
+    /// - **Reference**: [Quick GELU approximation in various implementations]
     quick_gelu,
+
+    /// **Linear**: f(x) = x
+    /// - **Derivative**: f'(x) = 1
+    /// - **Properties**: Identity function; no non-linearity; used for output layers in regression tasks.
+    /// - **Reference**: [Wikipedia - Identity function](https://en.wikipedia.org/wiki/Identity_function)
     linear,
+
+    /// **Step**: f(x) = 1 if x > 0, else 0
+    /// - **Derivative**: f'(x) = 0 (undefined at x = 0)
+    /// - **Properties**: Binary activation; historically used in perceptrons; not differentiable.
+    /// - **Reference**: [Wikipedia - Heaviside step function](https://en.wikipedia.org/wiki/Heaviside_step_function)
     step,
+
+    /// **Threshold**: f(x) = x if x > threshold, else 0
+    /// - **Derivative**: f'(x) = 1 if x > threshold, else 0
+    /// - **Properties**: Generalized step function with learnable threshold; creates sparse activations.
+    /// - **Reference**: [Custom threshold activation for sparse neural networks]
     threshold,
 };
 
@@ -118,12 +238,45 @@ pub const ActivationProcessor = struct {
             .relu => if (x > 0.0) 1.0 else 0.0,
             .relu6 => if (x > 0.0 and x < 6.0) 1.0 else 0.0,
             .leaky_relu => if (x > 0.0) 1.0 else self.config.alpha,
+            .parametric_relu => if (x > 0.0) 1.0 else self.config.alpha,
+            .elu => if (x > 0.0) 1.0 else y + self.config.alpha,
+            .selu => blk: {
+                const alpha: f32 = 1.6732632423543772848170429916717;
+                const scale: f32 = 1.0507009873554804934193349852946;
+                if (x > 0.0) {
+                    break :blk scale;
+                } else {
+                    break :blk scale * alpha * @exp(x);
+                }
+            },
+            .celu => if (x > 0.0) 1.0 else @exp(x / self.config.alpha),
             .sigmoid => y * (1.0 - y),
+            .hard_sigmoid => if (x > -2.5 and x < 2.5) 0.2 else 0.0,
             .tanh => 1.0 - y * y,
+            .hard_tanh => if (x > -1.0 and x < 1.0) 1.0 else 0.0,
+            .softplus => 1.0 / (1.0 + @exp(-x)),
+            .softsign => {
+                const abs_x = @abs(x);
+                return 1.0 / ((1.0 + abs_x) * (1.0 + abs_x));
+            },
             .linear => 1.0,
+            .step => 0.0, // Derivative is 0 everywhere except at x=0 where it's undefined
+            .threshold => if (x > self.config.threshold) 1.0 else 0.0,
             .swish => {
                 const sigmoid_val = 1.0 / (1.0 + @exp(-self.config.beta * x));
                 return sigmoid_val + x * sigmoid_val * (1.0 - sigmoid_val) * self.config.beta;
+            },
+            .hard_swish => blk: {
+                if (x <= -3.0) break :blk 0.0;
+                if (x >= 3.0) break :blk 1.0;
+                break :blk (x / 6.0) + 0.5;
+            },
+            .mish => blk: {
+                const softplus_x = @log(1.0 + @exp(x));
+                const tanh_softplus = std.math.tanh(softplus_x);
+                const sigmoid_x = 1.0 / (1.0 + @exp(-x));
+                const sech2_softplus = 1.0 - tanh_softplus * tanh_softplus;
+                break :blk tanh_softplus + x * sigmoid_x * sech2_softplus;
             },
             .gelu => blk: {
                 const sqrt_2_pi = @sqrt(2.0 / std.math.pi);
@@ -131,6 +284,10 @@ pub const ActivationProcessor = struct {
                 const tanh_input = sqrt_2_pi * (x + 0.044715 * x * x * x);
                 const sech2 = 1.0 - std.math.tanh(tanh_input) * std.math.tanh(tanh_input);
                 break :blk 0.5 * (1.0 + std.math.tanh(tanh_input)) + 0.5 * x * sech2 * pdf_factor;
+            },
+            .quick_gelu => blk: {
+                const sigmoid_val = 1.0 / (1.0 + @exp(-1.702 * x));
+                break :blk sigmoid_val + x * 1.702 * sigmoid_val * (1.0 - sigmoid_val);
             },
             else => @panic("Derivative not implemented for this activation function"),
         };

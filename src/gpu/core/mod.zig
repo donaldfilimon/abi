@@ -50,7 +50,7 @@ pub const HardwareCapabilities = @import("../compute/gpu_backend_manager.zig").H
 pub const MemoryPool = @import("../memory/memory_pool.zig").MemoryPool;
 
 // Re-export backend support
-pub const BackendSupport = @import("../backends/backends.zig").BackendSupport;
+pub const BackendSupport = @import("../compute/kernels.zig").BackendSupport;
 
 // Re-export benchmarking tools
 pub const PerformanceProfiler = @import("../benchmark/benchmarks.zig").PerformanceProfiler;
