@@ -14,7 +14,7 @@ pub fn main() !void {
     try std.fs.cwd().makePath("docs/generated");
     try std.fs.cwd().makePath("docs/assets");
     // Static site (no Jekyll)
-    try generateNoJekyll(allocator);
+    try generateNoJekyll();
 
     // Generate module documentation
     try generateModuleDocs(allocator);
@@ -27,18 +27,20 @@ pub fn main() !void {
     try generateCodeApiIndex(allocator);
     try generateSearchIndex(allocator);
 
-    // GitHub Pages optimizations
-    try generateJekyllConfig(allocator);
-    try generateGitHubPagesLayout(allocator);
-    try generateNavigationData(allocator);
-    try generateSEOMetadata(allocator);
+    // Static index and assets
     try generateDocsIndexHtml(allocator);
     try generateReadmeRedirect(allocator);
 
     // Generate Zig native documentation
-    try generateZigNativeDocs(allocator);
+    try generateZigNativeDocs();
 
     std.log.info("✅ GitHub Pages documentation generation completed!", .{});
+}
+
+fn generateNoJekyll() !void {
+    // Ensure GitHub Pages does not run Jekyll
+    var file = try std.fs.cwd().createFile("docs/.nojekyll", .{});
+    defer file.close();
 }
 
 /// Generate Jekyll configuration for GitHub Pages
@@ -86,7 +88,7 @@ fn generateJekyllConfig(_: std.mem.Allocator) !void {
         \\
         \\# GitHub repository
         \\github:
-        \\  repository_url: "https://github.com/your-username/wdbx-ai"
+        \\  repository_url: "https://github.com/donaldfilimon/abi"
         \\  repository_name: "wdbx-ai"
         \\  owner_name: "your-username"
         \\
@@ -94,7 +96,7 @@ fn generateJekyllConfig(_: std.mem.Allocator) !void {
         \\social:
         \\  type: "Organization"
         \\  links:
-        \\    - "https://github.com/your-username/wdbx-ai"
+        \\    - "https://github.com/donaldfilimon/abi"
         \\
         \\# Build settings
         \\markdown: kramdown
@@ -424,154 +426,14 @@ fn generateSEOMetadata(_: std.mem.Allocator) !void {
 }
 
 /// Generate native Zig documentation using built-in tools
-fn generateZigNativeDocs(allocator: std.mem.Allocator) !void {
+fn generateZigNativeDocs() !void {
     // Create directory for native docs
     try std.fs.cwd().makePath("docs/zig-docs");
-
-    // Generate documentation using Zig's built-in doc generation
-    // This would typically be done via: zig build-lib -femit-docs src/main.zig
-    // For now, we'll create a placeholder script
-    const script_file = try std.fs.cwd().createFile("docs/generate_zig_docs.sh", .{});
-    defer script_file.close();
-
-    const script_content =
-        \\#!/bin/bash
-        \\# Generate native Zig documentation
-        \\echo "Generating native Zig documentation..."
-        \\
-        \\# Ensure we're in the project root
-        \\cd "$(dirname "$0")/.."
-        \\
-        \\# Generate documentation using Zig's built-in tools
-        \\if command -v zig &> /dev/null; then
-        \\    echo "Using Zig compiler to generate documentation..."
-        \\    zig build-lib -femit-docs=docs/zig-docs src/main.zig
-        \\    
-        \\    # Copy generated docs to GitHub Pages structure
-        \\    if [ -d "docs/zig-docs" ]; then
-        \\        echo "Native Zig documentation generated successfully!"
-        \\        echo "Documentation available at: docs/zig-docs/"
-        \\    else
-        \\        echo "Warning: Native documentation generation may have failed"
-        \\    fi
-        \\else
-        \\    echo "Zig compiler not found. Please install Zig to generate native documentation."
-        \\    echo "Visit: https://ziglang.org/download/"
-        \\fi
-        \\
-        \\# Generate integration with GitHub Pages
-        \\echo "Integrating with GitHub Pages structure..."
-        \\
-        \\# Create redirect page for native docs
-        \\cat > docs/native-docs.md << 'EOF'
-        \\---
-        \\layout: documentation
-        \\title: "Native Zig Documentation"
-        \\description: "Auto-generated documentation from Zig source code"
-        \\permalink: /native-docs/
-        \\---
-        \\
-        \\# Native Zig Documentation
-        \\
-        \\This section contains automatically generated documentation from the Zig source code using Zig's built-in documentation tools.
-        \\
-        \\## Features
-        \\
-        \\- **Auto-generated**: Documentation is automatically extracted from source code comments
-        \\- **Type information**: Complete type signatures and relationships
-        \\- **Cross-references**: Links between related functions and types
-        \\- **Examples**: Code examples from doc comments
-        \\
-        \\## Accessing the Documentation
-        \\
-        \\The native documentation is available in the following formats:
-        \\
-        \\- [Browse Online](./zig-docs/) - Interactive web interface
-        \\- [Source Integration](../generated/CODE_API_INDEX/) - Integrated with manual documentation
-        \\
-        \\## Generation Process
-        \\
-        \\The documentation is generated using:
-        \\
-        \\```bash
-        \\zig build-lib -femit-docs=docs/zig-docs src/main.zig
-        \\```
-        \\
-        \\This leverages Zig's built-in documentation generation capabilities that parse:
-        \\
-        \\- Doc comments (`///`)
-        \\- Public declarations
-        \\- Type information
-        \\- Function signatures
-        \\- Module structure
-        \\
-        \\## Integration
-        \\
-        \\The native documentation is integrated with our manual documentation through:
-        \\
-        \\- Cross-references in the [API Reference](../generated/API_REFERENCE/)
-        \\- Links from the [Code Index](../generated/CODE_API_INDEX/)
-        \\- Search integration in the main documentation site
-        \\
-        \\EOF
-        \\
-        \\echo "Documentation generation complete!"
-        \\
-    ;
-
-    try script_file.writeAll(script_content);
-
-    // Make script executable (on Unix systems)
-    if (std.builtin.os.tag != .windows) {
-        _ = std.fs.cwd().chmod("docs/generate_zig_docs.sh", 0o755) catch {};
-    }
-
-    // Create a README for the zig-docs directory
-    const readme_file = try std.fs.cwd().createFile("docs/zig-docs/README.md", .{});
-    defer readme_file.close();
-
-    const readme_content =
-        \\# Native Zig Documentation
-        \\
-        \\This directory contains automatically generated documentation from the Zig source code.
-        \\
-        \\## Generation
-        \\
-        \\To generate the documentation:
-        \\
-        \\```bash
-        \\cd docs
-        \\./generate_zig_docs.sh
-        \\```
-        \\
-        \\Or manually:
-        \\
-        \\```bash
-        \\zig build-lib -femit-docs=docs/zig-docs src/main.zig
-        \\```
-        \\
-        \\## Integration with GitHub Pages
-        \\
-        \\The generated documentation integrates with the main GitHub Pages site through:
-        \\
-        \\1. **Jekyll integration**: Documentation pages have proper frontmatter
-        \\2. **Navigation**: Links are included in the main site navigation
-        \\3. **Search**: Content is indexed by the site search functionality
-        \\4. **Cross-references**: Links between manual and generated documentation
-        \\
-        \\## Features
-        \\
-        \\- Complete API coverage from source code
-        \\- Interactive browsing
-        \\- Type information and signatures
-        \\- Cross-references between modules
-        \\- Example code from doc comments
-        \\
-    ;
-
-    try readme_file.writeAll(readme_content);
-
-    std.log.info("Native Zig documentation setup created. Run docs/generate_zig_docs.sh to generate.", .{});
+    // In a CI environment, you could run: zig build docs
+    // Here we create a placeholder index to avoid empty directory
+    var out = try std.fs.cwd().createFile("docs/zig-docs/index.html", .{ .truncate = true });
+    defer out.close();
+    try out.writeAll("<html><body><h1>Zig Native Docs</h1><p>Generated offline.</p></body></html>");
 }
 
 /// Generate README redirect for GitHub
