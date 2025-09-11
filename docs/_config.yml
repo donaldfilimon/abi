@@ -1,9 +1,9 @@
-# WDBX-AI Documentation - Jekyll Configuration
-title: "WDBX-AI Documentation"
+# ABI Documentation - Jekyll Configuration
+title: "ABI Documentation"
 description: "High-performance vector database with AI capabilities"
-url: "https://your-username.github.io"
-baseurl: "/wdbx-ai"
-
+url: "https://donaldfilimon.github.io/abi/"
+baseurl: "/abi"
+  
 # GitHub Pages settings
 remote_theme: pages-themes/minimal@v0.2.0
 plugins:
@@ -39,7 +39,7 @@ author:
 github:
   repository_url: "https://github.com/donaldfilimon/abi"
   repository_name: "wdbx-ai"
-  owner_name: "your-username"
+  owner_name: "donaldfilimon"
 
 # Social media
 social:

@@ -583,25 +583,51 @@ pub const PerformanceBenchmarkRunner = struct {
         for (b, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 3) % 97));
 
         var timer = try std.time.Timer.start();
-        timer.reset(); abi.simd.add(r, a, b); metrics.simd_add_ns = timer.read();
-        timer.reset(); abi.simd.multiply(r, a, b); metrics.simd_mul_ns = timer.read();
-        timer.reset(); abi.simd.scale(r, a, 1.2345); metrics.simd_scale_ns = timer.read();
-        timer.reset(); abi.simd.normalize(r, a); metrics.simd_norm_ns = timer.read();
-        timer.reset(); abi.simd.clamp(r, a, -10.0, 10.0); metrics.simd_clamp_ns = timer.read();
-        timer.reset(); abi.simd.axpy(r, 0.5, a); metrics.simd_axpy_ns = timer.read();
-        timer.reset(); abi.simd.fma(r, a, b, r); metrics.simd_fma_ns = timer.read();
-        timer.reset(); _ = abi.simd.sum(a); metrics.simd_sum_ns = timer.read();
-        timer.reset(); _ = abi.simd.variance(a); metrics.simd_var_ns = timer.read();
-        timer.reset(); _ = abi.simd.dotProduct(a, b); metrics.simd_dot_ns = timer.read();
-        timer.reset(); _ = abi.simd.l1Distance(a, b); metrics.simd_l1_ns = timer.read();
+        timer.reset();
+        abi.simd.add(r, a, b);
+        metrics.simd_add_ns = timer.read();
+        timer.reset();
+        abi.simd.multiply(r, a, b);
+        metrics.simd_mul_ns = timer.read();
+        timer.reset();
+        abi.simd.scale(r, a, 1.2345);
+        metrics.simd_scale_ns = timer.read();
+        timer.reset();
+        abi.simd.normalize(r, a);
+        metrics.simd_norm_ns = timer.read();
+        timer.reset();
+        abi.simd.clamp(r, a, -10.0, 10.0);
+        metrics.simd_clamp_ns = timer.read();
+        timer.reset();
+        abi.simd.axpy(r, 0.5, a);
+        metrics.simd_axpy_ns = timer.read();
+        timer.reset();
+        abi.simd.fma(r, a, b, r);
+        metrics.simd_fma_ns = timer.read();
+        timer.reset();
+        _ = abi.simd.sum(a);
+        metrics.simd_sum_ns = timer.read();
+        timer.reset();
+        _ = abi.simd.variance(a);
+        metrics.simd_var_ns = timer.read();
+        timer.reset();
+        _ = abi.simd.dotProduct(a, b);
+        metrics.simd_dot_ns = timer.read();
+        timer.reset();
+        _ = abi.simd.l1Distance(a, b);
+        metrics.simd_l1_ns = timer.read();
         // small matrix multiply
-        const M: usize = 256; const K: usize = 64; const NC: usize = 64;
+        const M: usize = 256;
+        const K: usize = 64;
+        const NC: usize = 64;
         const ma = try arena_allocator.alloc(f32, M * K);
         const mb = try arena_allocator.alloc(f32, K * NC);
         const mr = try arena_allocator.alloc(f32, M * NC);
         for (ma, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 7) % 31)) * 0.03125;
         for (mb, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 11) % 29)) * 0.03448;
-        timer.reset(); abi.simd.matrixMultiply(mr, ma, mb, M, K, NC); metrics.simd_mm_ns = timer.read();
+        timer.reset();
+        abi.simd.matrixMultiply(mr, ma, mb, M, K, NC);
+        metrics.simd_mm_ns = timer.read();
         metrics.simd_micro_n = @intCast(N);
     }
 
@@ -1056,7 +1082,3 @@ test "Regression detection algorithm accuracy" {
     try testing.expect(result.has_regression);
     try testing.expect(result.regression_percent > 15.0);
 }
-
-
-
-
