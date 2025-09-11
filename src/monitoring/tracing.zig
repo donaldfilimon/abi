@@ -1,4 +1,4 @@
-//! Distributed Tracing Module for WDBX-AI Framework
+//! Distributed Tracing Module for ABI Framework
 //!
 //! This module provides distributed tracing capabilities for monitoring,
 //! debugging, and performance analysis across the entire system.

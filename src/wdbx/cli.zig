@@ -203,7 +203,7 @@ pub const WdbxCLI = struct {
 
     fn showHelp(self: *Self) !void {
         const help_text =
-            \\WDBX-AI Vector Database CLI
+            \\ABI Vector Database CLI
             \\
             \\Usage: wdbx <command> [options]
             \\
@@ -238,7 +238,7 @@ pub const WdbxCLI = struct {
     }
 
     fn showVersion(self: *Self) !void {
-        try self.logger.info("WDBX-AI Vector Database v1.0.0", .{});
+        try self.logger.info("ABI Vector Database v1.0.0", .{});
     }
 
     fn addVectors(self: *Self) !void {

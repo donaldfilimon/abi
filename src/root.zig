@@ -1,6 +1,6 @@
-//! WDBX-AI Vector Database - Unified Root Module
+//! ABI Vector Database - Unified Root Module
 //!
-//! This module provides a unified interface to all WDBX-AI functionality:
+//! This module provides a unified interface to all ABI functionality:
 //! - Vector database operations (HNSW, parallel search, SIMD)
 //! - AI and machine learning capabilities
 //! - Core utilities and data structures
@@ -84,22 +84,22 @@ pub const WeatherConfig = services.WeatherConfig;
 pub fn main() !void {
     // Simple main function - I/O functions have changed in Zig 0.15.1
     // For now, just return successfully
-    std.log.info("WDBX-AI Vector Database initialized", .{});
+    std.log.info("ABI Vector Database initialized", .{});
 }
 
-/// Initialize the WDBX-AI system
+/// Initialize the ABI system
 pub fn init(allocator: std.mem.Allocator) !void {
     // Initialize core systems
     _ = allocator;
 
     // Log system initialization
-    std.log.info("WDBX-AI system initialized", .{});
+    std.log.info("ABI system initialized", .{});
 }
 
-/// Cleanup the WDBX-AI system
+/// Cleanup the ABI system
 pub fn deinit() void {
     // Cleanup resources
-    std.log.info("WDBX-AI system shutdown complete", .{});
+    std.log.info("ABI system shutdown complete", .{});
 }
 
 /// Get system information

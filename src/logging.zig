@@ -1,4 +1,4 @@
-//! Structured Logging Module for WDBX-AI Framework
+//! Structured Logging Module for ABI Framework
 //!
 //! This module provides structured logging capabilities with:
 //! - Multiple log levels (TRACE, DEBUG, INFO, WARN, ERROR, FATAL)

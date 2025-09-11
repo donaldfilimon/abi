@@ -1,10 +1,10 @@
 ---
 layout: documentation
 title: "API Reference"
-description: "Complete API reference for WDBX-AI with detailed function documentation"
+description: "Complete API reference for ABI with detailed function documentation"
 ---
 
-# WDBX-AI API Reference
+# ABI API Reference
 
 ## 🗄️ Database API
 

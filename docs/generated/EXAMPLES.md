@@ -1,10 +1,10 @@
 ---
 layout: documentation
 title: "Examples & Tutorials"
-description: "Practical examples and tutorials for using WDBX-AI effectively"
+description: "Practical examples and tutorials for using ABI effectively"
 ---
 
-# WDBX-AI Usage Examples
+# ABI Usage Examples
 
 ## 🚀 Quick Start
 

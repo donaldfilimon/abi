@@ -1,4 +1,4 @@
-//! Enhanced Performance Profiler for WDBX-AI Codebase
+//! Enhanced Performance Profiler for ABI Codebase
 //!
 //! This tool provides comprehensive performance profiling capabilities including:
 //! - Real-time performance monitoring with statistical analysis
@@ -723,7 +723,7 @@ pub fn main() !void {
     var profiler = PerformanceProfiler.init(allocator, config);
     defer profiler.deinit();
 
-    print("🎯 Enhanced Performance Profiler for WDBX-AI\n", .{});
+    print("🎯 Enhanced Performance Profiler for ABI\n", .{});
     print("=" ** 45 ++ "\n\n", .{});
 
     profiler.startProfiling();

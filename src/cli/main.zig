@@ -3,7 +3,7 @@ const abi = @import("abi");
 const gpu = abi.gpu;
 
 const CLI_VERSION = "1.0.0-alpha";
-const CLI_NAME = "WDBX-AI Framework CLI";
+const CLI_NAME = "ABI Framework CLI";
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -1004,7 +1004,7 @@ fn printHelp() void {
         \\
         \\🎯 FEATURES:
         \\
-        \\   📊 Vector Database (WDBX-AI)
+        \\   📊 Vector Database (ABI)
         \\     • High-performance vector storage and similarity search
         \\     • HNSW indexing for sub-linear search complexity
         \\     • SIMD-accelerated distance calculations (3GB/s+ throughput)
@@ -1122,7 +1122,7 @@ fn printVersion() void {
         \\
         \\📋 Component Status:
         \\   ✅ Core Framework      (100% - Production Ready)
-        \\   ✅ Vector Database     (100% - WDBX-AI format)
+        \\   ✅ Vector Database     (100% - ABI format)
         \\   ✅ Neural Networks     (100% - SIMD optimized)
         \\   ✅ Web Services        (100% - 99.98% uptime)
         \\   ✅ SIMD Operations     (100% - Cross-platform)

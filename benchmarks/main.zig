@@ -1,6 +1,6 @@
 const std = @import("std");
 
-/// Unified benchmark entry point for WDBX-AI
+/// Unified benchmark entry point for ABI
 /// Consolidates neural network, database, and performance benchmarks
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

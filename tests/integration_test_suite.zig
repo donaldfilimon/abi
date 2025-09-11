@@ -1,14 +1,14 @@
 const std = @import("std");
 const abi = @import("abi");
 
-/// Comprehensive integration test suite for WDBX-AI
+/// Comprehensive integration test suite for ABI
 /// Tests cross-module functionality and system integration
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    std.log.info("🧪 Running WDBX-AI Integration Test Suite", .{});
+    std.log.info("🧪 Running ABI Integration Test Suite", .{});
 
     // Run all integration tests
     try testDatabaseAIIntegration(allocator);

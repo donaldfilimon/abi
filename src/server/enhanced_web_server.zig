@@ -1052,7 +1052,7 @@ fn databaseInfoHandler(request: *Request, response: *Response) anyerror!void {
     _ = request;
 
     const db_info = DatabaseInfoResponse{
-        .name = "WDBX-AI",
+        .name = "ABI",
         .version = "1.0.0",
         .status = "operational",
         .timestamp = std.time.microTimestamp(),

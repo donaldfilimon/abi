@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Interactive Chat System**: CLI-based chat with persona selection and backend support
 - **Neural Networks**: Feed-forward networks with SIMD-accelerated operations
 - **Model Training Pipeline**: Complete training infrastructure with CSV data support
-- **Vector Database**: Custom WDBX-AI format for high-dimensional embeddings
+- **Vector Database**: Custom ABI format for high-dimensional embeddings
 - **Machine Learning**: Simple yet effective ML algorithms with memory safety
 - **LSP Server**: Sub-10ms completion responses
 - **Discord Bot Integration**: Self-learning bot with conversation memory
@@ -143,7 +143,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### **🚀 Core Framework**
 - **Initial Alpha Release**: First public release of the framework
 - **Core AI Agent System**: 8 personas with OpenAI integration
-- **WDBX-AI Vector Database**: Custom vector database format
+- **ABI Vector Database**: Custom vector database format
 - **Basic SIMD Operations**: Foundation for performance optimization
 - **Command-line Interface**: Basic CLI functionality
 - **Multi-platform Support**: Windows, Linux, macOS, iOS support
@@ -234,7 +234,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 |---------|---------|------------|-------|
 | **Core Framework** | ✅ Complete | 100% | Production-ready |
 | **AI Agents** | ✅ Complete | 100% | 8 personas implemented |
-| **Vector Database** | ✅ Complete | 100% | WDBX-AI format |
+| **Vector Database** | ✅ Complete | 100% | ABI format |
 | **SIMD Operations** | ✅ Complete | 100% | Cross-platform |
 | **Plugin System** | ✅ Complete | 100% | Extensible architecture |
 | **GPU Backend** | 🚧 In Progress | 75% | WebGPU + platform APIs |

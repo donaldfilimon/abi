@@ -1,4 +1,4 @@
-//! Enhanced Static Analysis Tool for WDBX-AI Codebase
+//! Enhanced Static Analysis Tool for ABI Codebase
 //!
 //! This tool performs comprehensive static analysis on the codebase to identify:
 //! - Code quality issues with severity classification

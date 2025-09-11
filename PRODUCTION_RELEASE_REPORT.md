@@ -63,7 +63,7 @@ zig build benchmark-simple -Doptimize=ReleaseFast
 1. **CLI Interface** - Production-ready command-line tools
 2. **AI Agent System** - Multi-persona AI agents with intelligent routing
 3. **Neural Networks** - Comprehensive ML/AI framework
-4. **Vector Database** - High-performance WDBX-AI storage
+4. **Vector Database** - High-performance ABI storage
 5. **Web Server** - Production HTTP/TCP server with WebSocket support
 6. **Plugin System** - Extensible architecture for custom features
 7. **GPU Acceleration** - Multi-backend GPU support (optional)

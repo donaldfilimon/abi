@@ -1,4 +1,4 @@
-//! Enhanced Windows Network Testing Suite for WDBX-AI
+//! Enhanced Windows Network Testing Suite for ABI
 //!
 //! This tool provides comprehensive Windows-specific network testing including:
 //! - TCP/UDP connection testing with performance metrics
@@ -270,7 +270,7 @@ pub const WindowsNetworkTester = struct {
     }
 
     pub fn runComprehensiveTests(self: *Self) !void {
-        std.debug.print("🌐 Windows Network Testing Suite for WDBX-AI\n", .{});
+        std.debug.print("🌐 Windows Network Testing Suite for ABI\n", .{});
         std.debug.print("{s}\n\n", .{"=" ** 45});
 
         self.test_start_time = std.time.milliTimestamp();
