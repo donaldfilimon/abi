@@ -739,7 +739,7 @@ pub fn main() !void {
 
 - fn `init`
 
-Initialize the WDBX-AI system
+Initialize the ABI system
 
 
 ```zig
@@ -748,7 +748,7 @@ pub fn init(allocator: std.mem.Allocator) !void {
 
 - fn `deinit`
 
-Cleanup the WDBX-AI system
+Cleanup the ABI system
 
 
 ```zig
@@ -1772,7 +1772,7 @@ pub const DatabaseError = error{
 
 - const `MAGIC`
 
-Magic identifier for WDBX-AI files (7 bytes + NUL)
+Magic identifier for ABI files (7 bytes + NUL)
 
 
 ```zig
@@ -6639,6 +6639,12 @@ pub fn integrateWithPerformance(tracer: *Tracer, perf_monitor: *performance.Perf
 pub const core = @import("core/mod.zig");
 ```
 
+- const `unified_memory`
+
+```zig
+pub const unified_memory = @import("unified_memory.zig");
+```
+
 - const `GPURenderer`
 
 ```zig
@@ -6795,6 +6801,30 @@ pub const Color = core.Color;
 pub const GPUHandle = core.GPUHandle;
 ```
 
+- const `UnifiedMemoryManager`
+
+```zig
+pub const UnifiedMemoryManager = unified_memory.UnifiedMemoryManager;
+```
+
+- const `UnifiedMemoryType`
+
+```zig
+pub const UnifiedMemoryType = unified_memory.UnifiedMemoryType;
+```
+
+- const `UnifiedMemoryConfig`
+
+```zig
+pub const UnifiedMemoryConfig = unified_memory.UnifiedMemoryConfig;
+```
+
+- const `UnifiedBuffer`
+
+```zig
+pub const UnifiedBuffer = unified_memory.UnifiedBuffer;
+```
+
 - const `initDefault`
 
 ```zig
@@ -6868,6 +6898,152 @@ pub const patch = 0;
 
 ```zig
 pub const string = std.fmt.comptimePrint("{}.{}.{}", .{ major, minor, patch });
+```
+
+## src\gpu\unified_memory.zig
+
+- type `UnifiedMemoryType`
+
+Unified Memory Architecture types
+
+
+```zig
+pub const UnifiedMemoryType = enum {
+```
+
+- type `UnifiedMemoryConfig`
+
+Unified Memory Configuration
+
+
+```zig
+pub const UnifiedMemoryConfig = struct {
+```
+
+- type `UnifiedMemoryManager`
+
+Unified Memory Manager
+
+
+```zig
+pub const UnifiedMemoryManager = struct {
+```
+
+- fn `init`
+
+Initialize the unified memory manager
+
+
+```zig
+pub fn init(allocator: std.mem.Allocator) !Self {
+```
+
+- fn `deinit`
+
+Deinitialize the unified memory manager
+
+
+```zig
+pub fn deinit(self: *Self) void {
+```
+
+- fn `allocateUnified`
+
+Allocate unified memory that can be accessed by both CPU and GPU
+
+
+```zig
+pub fn allocateUnified(self: *Self, size: usize, alignment: u29) ![]u8 {
+```
+
+- fn `freeUnified`
+
+Free unified memory
+
+
+```zig
+pub fn freeUnified(self: *Self, memory: []u8) void {
+```
+
+- fn `getPerformanceInfo`
+
+Get unified memory performance characteristics
+
+
+```zig
+pub fn getPerformanceInfo(self: *Self) struct {
+```
+
+- type `UnifiedBuffer`
+
+Unified Memory Buffer for zero-copy operations
+
+
+```zig
+pub const UnifiedBuffer = struct {
+```
+
+- fn `create`
+
+Create a new unified buffer
+
+
+```zig
+pub fn create(manager: *UnifiedMemoryManager, size: usize) !Self {
+```
+
+- fn `destroy`
+
+Destroy the unified buffer
+
+
+```zig
+pub fn destroy(self: *const Self) void {
+```
+
+- fn `getData`
+
+Get raw data pointer
+
+
+```zig
+pub fn getData(self: *Self) []u8 {
+```
+
+- fn `getSize`
+
+Get buffer size
+
+
+```zig
+pub fn getSize(self: *Self) usize {
+```
+
+- fn `isGpuAccessible`
+
+Check if buffer is GPU accessible
+
+
+```zig
+pub fn isGpuAccessible(self: *const Self) bool {
+```
+
+- fn `transferToGpu`
+
+Zero-copy data transfer (if supported)
+
+
+```zig
+pub fn transferToGpu(self: *Self) !void {
+```
+
+- fn `transferFromGpu`
+
+Zero-copy data transfer from GPU (if supported)
+
+
+```zig
+pub fn transferFromGpu(self: *Self) !void {
 ```
 
 ## src\gpu\memory\memory_pool.zig
@@ -6994,10 +7170,58 @@ pub fn getMemoryReport(self: *MemoryPool, allocator: std.mem.Allocator) ![]const
 
 ## src\gpu\demo\gpu_demo.zig
 
+- fn `format`
+
+```zig
+pub fn format(self: PerformanceMetrics, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+```
+
+- fn `fromTemperature`
+
+```zig
+pub fn fromTemperature(temp_c: f32) ThermalState {
+```
+
+- fn `detect`
+
+```zig
+pub fn detect() ArchitectureFeatures {
+```
+
+- fn `logFeatures`
+
+```zig
+pub fn logFeatures(self: ArchitectureFeatures) void {
+```
+
 - fn `main`
 
 ```zig
 pub fn main() !void {
+```
+
+- fn `update`
+
+```zig
+pub fn update(self: *HardwareMonitor) void {
+```
+
+- fn `checkThrottling`
+
+```zig
+pub fn checkThrottling(self: *ThermalMonitor) bool {
+```
+
+- fn `checkPowerLimit`
+
+```zig
+pub fn checkPowerLimit(self: *PowerMonitor) bool {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: ComprehensiveReportData) void {
 ```
 
 ## src\gpu\core\backend.zig
@@ -16194,367 +16418,5 @@ Calculate cosine similarity between two vectors
 
 ```zig
 pub fn cosineSimilarity(self: *Self, a: []const T, b: []const T) f32 {
-```
-
-## src\ai\agents\enhanced_agent.zig
-
-- type `EnhancedAgent`
-
-Enhanced AI Agent with production-ready features
-
-
-```zig
-pub const EnhancedAgent = struct {
-```
-
-- fn `init`
-
-Initialize the enhanced agent
-
-
-```zig
-pub fn init(allocator: std.mem.Allocator, agent_config: AgentConfig) FrameworkError!*Self {
-```
-
-- fn `deinit`
-
-Deinitialize the enhanced agent
-
-
-```zig
-pub fn deinit(self: *Self) void {
-```
-
-- fn `processInput`
-
-Process user input with enhanced capabilities
-
-
-```zig
-pub fn processInput(self: *Self, input: []const u8) FrameworkError![]const u8 {
-```
-
-- fn `storeMemory`
-
-Store information in agent memory with enhanced features
-
-
-```zig
-pub fn storeMemory(self: *Self, content: []const u8, importance: f32) FrameworkError!void {
-```
-
-- fn `getState`
-
-Get current agent state safely
-
-
-```zig
-pub fn getState(self: *const Self) AgentState {
-```
-
-- fn `getStats`
-
-Get performance statistics
-
-
-```zig
-pub fn getStats(self: *const Self) PerformanceStats {
-```
-
-- fn `setPersona`
-
-Set persona explicitly
-
-
-```zig
-pub fn setPersona(self: *Self, persona: PersonaType) void {
-```
-
-- fn `getPersona`
-
-Get current persona
-
-
-```zig
-pub fn getPersona(self: *const Self) PersonaType {
-```
-
-- fn `clearHistory`
-
-Clear conversation history
-
-
-```zig
-pub fn clearHistory(self: *Self) void {
-```
-
-- fn `clearMemory`
-
-Clear memory
-
-
-```zig
-pub fn clearMemory(self: *Self) void {
-```
-
-- fn `getMessageBus`
-
-Get message bus for inter-agent communication
-
-
-```zig
-pub fn getMessageBus(self: *Self) *MessageBus {
-```
-
-- fn `getEventSystem`
-
-Get event system for event handling
-
-
-```zig
-pub fn getEventSystem(self: *Self) *EventSystem {
-```
-
-- fn `getServiceRegistry`
-
-Get service registry for service discovery
-
-
-```zig
-pub fn getServiceRegistry(self: *Self) *ServiceRegistry {
-```
-
-- fn `getLoadBalancer`
-
-Get load balancer for request distribution
-
-
-```zig
-pub fn getLoadBalancer(self: *Self) *LoadBalancer {
-```
-
-- fn `getRouter`
-
-Get router for intelligent routing
-
-
-```zig
-pub fn getRouter(self: *Self) *AgentRouter {
-```
-
-- type `AgentState`
-
-Agent state with enhanced state management
-
-
-```zig
-pub const AgentState = enum(u8) {
-```
-
-- fn `canTransitionTo`
-
-Validate state transitions
-
-
-```zig
-pub fn canTransitionTo(from: AgentState, to: AgentState) bool {
-```
-
-- type `MessageRole`
-
-Message role in conversation
-
-
-```zig
-pub const MessageRole = enum {
-```
-
-- type `Message`
-
-Conversation message with metadata
-
-
-```zig
-pub const Message = struct {
-```
-
-- fn `init`
-
-```zig
-pub fn init(allocator: std.mem.Allocator, role: MessageRole, content: []const u8) !Message {
-```
-
-- fn `deinit`
-
-```zig
-pub fn deinit(self: Message, allocator: std.mem.Allocator) void {
-```
-
-- type `MemoryEntry`
-
-Advanced memory entry with vectorized operations
-
-
-```zig
-pub const MemoryEntry = struct {
-```
-
-- fn `init`
-
-```zig
-pub fn init(allocator: std.mem.Allocator, content: []const u8, importance: f32) !Self {
-```
-
-- fn `deinit`
-
-```zig
-pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
-```
-
-- fn `updateAccess`
-
-```zig
-pub fn updateAccess(self: *Self, enable_simd: bool) void {
-```
-
-- type `PerformanceStats`
-
-Performance statistics with comprehensive metrics
-
-
-```zig
-pub const PerformanceStats = struct {
-```
-
-- fn `updateResponseTime`
-
-```zig
-pub fn updateResponseTime(self: *PerformanceStats, response_time_ms: f64) void {
-```
-
-- fn `recordSuccess`
-
-```zig
-pub fn recordSuccess(self: *PerformanceStats, persona: PersonaType) void {
-```
-
-- fn `recordFailure`
-
-```zig
-pub fn recordFailure(self: *PerformanceStats) void {
-```
-
-- fn `getSuccessRate`
-
-```zig
-pub fn getSuccessRate(self: *const PerformanceStats) f32 {
-```
-
-- type `CapabilityRequirements`
-
-Capability requirements for input processing
-
-
-```zig
-pub const CapabilityRequirements = struct {
-```
-
-- type `PrimaryCapability`
-
-Primary capability types
-
-
-```zig
-pub const PrimaryCapability = enum {
-```
-
-- fn `init`
-
-```zig
-pub fn init(allocator: std.mem.Allocator) !*MessageBus {
-```
-
-- fn `deinit`
-
-```zig
-pub fn deinit(self: *MessageBus) void {
-```
-
-- fn `init`
-
-```zig
-pub fn init(allocator: std.mem.Allocator) !*EventSystem {
-```
-
-- fn `deinit`
-
-```zig
-pub fn deinit(self: *EventSystem) void {
-```
-
-- fn `emitEvent`
-
-```zig
-pub fn emitEvent(self: *EventSystem, event_type: EventType, data: anytype) void {
-```
-
-- fn `registerCallback`
-
-```zig
-pub fn registerCallback(self: *EventSystem, event_type: EventType, callback: anytype) !void {
-```
-
-- fn `init`
-
-```zig
-pub fn init(allocator: std.mem.Allocator) !*ServiceRegistry {
-```
-
-- fn `deinit`
-
-```zig
-pub fn deinit(self: *ServiceRegistry) void {
-```
-
-- fn `registerService`
-
-```zig
-pub fn registerService(self: *ServiceRegistry, name: []const u8, service: anytype, handler: anytype) !void {
-```
-
-- fn `init`
-
-```zig
-pub fn init(allocator: std.mem.Allocator) !*LoadBalancer {
-```
-
-- fn `deinit`
-
-```zig
-pub fn deinit(self: *LoadBalancer) void {
-```
-
-- fn `init`
-
-```zig
-pub fn init(allocator: std.mem.Allocator) !*AgentRouter {
-```
-
-- fn `deinit`
-
-```zig
-pub fn deinit(self: *AgentRouter) void {
-```
-
-- fn `selectPersona`
-
-```zig
-pub fn selectPersona(self: *AgentRouter, input: []const u8, current_persona: PersonaType) !PersonaType {
-```
-
-- fn `getDescription`
-
-```zig
-pub fn getDescription(persona: PersonaType) []const u8 {
 ```
 

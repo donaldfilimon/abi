@@ -34,7 +34,7 @@
 - **Interactive Chat System**: CLI-based chat with persona selection and backend support
 - **Neural Networks**: Feed-forward networks with SIMD-accelerated operations
 - **Model Training Pipeline**: Complete training infrastructure with CSV data support
-- **Vector Database**: Custom WDBX-AI format for high-dimensional embeddings
+- **Vector Database**: Custom ABI format for high-dimensional embeddings
 - **Machine Learning**: Simple yet effective ML algorithms with memory safety
 
 ### 🛡️ **Production-Ready Infrastructure**
@@ -131,7 +131,7 @@ defer allocator.free(results);
 
 ### **WDBX Vector Database Features**
 
-The WDBX-AI vector database provides enterprise-grade performance with:
+The ABI vector database provides enterprise-grade performance with:
 
 - **High Performance**: SIMD-optimized vector operations and efficient file I/O
 - **Vector Operations**: Add, query, and k-nearest neighbor search

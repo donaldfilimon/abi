@@ -31,7 +31,7 @@ A high-performance AI and vector database framework built with Zig, featuring GP
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/abi.git
+git clone https://github.com/donaldfilimon/abi.git
 cd abi
 zig build
 ```

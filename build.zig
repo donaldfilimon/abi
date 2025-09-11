@@ -88,6 +88,8 @@ pub fn build(b: *std.Build) void {
     // GPU configuration with production defaults
     const enable_cuda = b.option(bool, "enable_cuda", "Enable CUDA support") orelse true;
     const enable_spirv = b.option(bool, "enable_spirv", "Enable SPIRV compilation support") orelse true;
+    const enable_wasm = b.option(bool, "enable_wasm", "Enable WebAssembly support") orelse true;
+    const enable_cross_compilation = b.option(bool, "enable_cross_compilation", "Enable cross-compilation support") orelse true;
     const cuda_path_default = if (target.result.os.tag == .windows) "C:\\Users\\donald\\scoop\\apps\\cuda\\current" else "";
     const cuda_path = b.option([]const u8, "cuda_path", "Path to CUDA installation") orelse cuda_path_default;
     const vulkan_sdk_path_default = if (target.result.os.tag == .windows) "C:\\VulkanSDK\\1.4.321.1" else "";
@@ -95,6 +97,8 @@ pub fn build(b: *std.Build) void {
 
     build_options.addOption(bool, "enable_cuda", enable_cuda);
     build_options.addOption(bool, "enable_spirv", enable_spirv);
+    build_options.addOption(bool, "enable_wasm", enable_wasm);
+    build_options.addOption(bool, "enable_cross_compilation", enable_cross_compilation);
     build_options.addOption([]const u8, "cuda_path", cuda_path);
     build_options.addOption([]const u8, "vulkan_sdk_path", vulkan_sdk_path);
 
@@ -488,10 +492,153 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(gpu_demo_exe);
     const run_gpu_demo = b.addRunArtifact(gpu_demo_exe);
+
+    // Enhanced GPU demo with advanced library integration
+    const enhanced_gpu_demo_mod = b.createModule(.{
+        .root_source_file = b.path("src/gpu/demo/enhanced_gpu_demo.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "gpu", .module = gpu_mod }},
+    });
+    const enhanced_gpu_demo_exe = b.addExecutable(.{
+        .name = "enhanced_gpu_demo",
+        .root_module = enhanced_gpu_demo_mod,
+    });
+
+    b.installArtifact(enhanced_gpu_demo_exe);
+    const run_enhanced_gpu_demo = b.addRunArtifact(enhanced_gpu_demo_exe);
     const gpu_demo_step = b.step("gpu-demo", "Run GPU backend manager demo");
     gpu_demo_step.dependOn(&run_gpu_demo.step);
+
+    const enhanced_gpu_demo_step = b.step("enhanced-gpu-demo", "Run enhanced GPU demo with advanced library integration");
+    enhanced_gpu_demo_step.dependOn(&run_enhanced_gpu_demo.step);
+
+    // Advanced GPU demo with next-level features
+    const advanced_gpu_demo_mod = b.createModule(.{
+        .root_source_file = b.path("src/gpu/demo/advanced_gpu_demo.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "gpu", .module = gpu_mod }},
+    });
+    const advanced_gpu_demo_exe = b.addExecutable(.{
+        .name = "advanced_gpu_demo",
+        .root_module = advanced_gpu_demo_mod,
+    });
+
+    b.installArtifact(advanced_gpu_demo_exe);
+    const run_advanced_gpu_demo = b.addRunArtifact(advanced_gpu_demo_exe);
+
+    const advanced_gpu_demo_step = b.step("advanced-gpu-demo", "Run advanced GPU demo with next-level features");
+    advanced_gpu_demo_step.dependOn(&run_advanced_gpu_demo.step);
+
     const gpu_verify_step = b.step("gpu-verify", "Verify GPU functionality and backends");
     gpu_verify_step.dependOn(gpu_demo_step);
+
+    // WebAssembly compilation step
+    if (enable_wasm) {
+        const wasm_step = b.step("wasm", "Compile to WebAssembly");
+
+        // High-performance WASM build
+        const wasm_high_perf_mod = b.createModule(.{
+            .root_source_file = b.path("src/cli/main.zig"),
+            .target = b.resolveTargetQuery(.{
+                .cpu_arch = .wasm32,
+                .os_tag = .freestanding,
+            }),
+            .optimize = .ReleaseSmall,
+        });
+        const wasm_high_perf = b.addExecutable(.{
+            .name = "abi_high_perf",
+            .root_module = wasm_high_perf_mod,
+        });
+        wasm_high_perf.root_module.addOptions("abi", build_options);
+        wasm_step.dependOn(&wasm_high_perf.step);
+
+        // Size-optimized WASM build
+        const wasm_size_opt_mod = b.createModule(.{
+            .root_source_file = b.path("src/cli/main.zig"),
+            .target = b.resolveTargetQuery(.{
+                .cpu_arch = .wasm32,
+                .os_tag = .freestanding,
+            }),
+            .optimize = .ReleaseSmall,
+        });
+        const wasm_size_opt = b.addExecutable(.{
+            .name = "abi_size_opt",
+            .root_module = wasm_size_opt_mod,
+        });
+        wasm_size_opt.root_module.addOptions("abi", build_options);
+        wasm_step.dependOn(&wasm_size_opt.step);
+    }
+
+    // Cross-compilation step
+    if (enable_cross_compilation) {
+        const cross_compile_step = b.step("cross-compile", "Cross-compile for multiple architectures");
+
+        // ARM64 Linux build
+        const arm64_linux_mod = b.createModule(.{
+            .root_source_file = b.path("src/cli/main.zig"),
+            .target = b.resolveTargetQuery(.{
+                .cpu_arch = .aarch64,
+                .os_tag = .linux,
+            }),
+            .optimize = optimize,
+        });
+        const arm64_linux = b.addExecutable(.{
+            .name = "abi_arm64_linux",
+            .root_module = arm64_linux_mod,
+        });
+        arm64_linux.root_module.addOptions("abi", build_options);
+        cross_compile_step.dependOn(&arm64_linux.step);
+
+        // RISC-V Linux build
+        const riscv64_linux_mod = b.createModule(.{
+            .root_source_file = b.path("src/cli/main.zig"),
+            .target = b.resolveTargetQuery(.{
+                .cpu_arch = .riscv64,
+                .os_tag = .linux,
+            }),
+            .optimize = optimize,
+        });
+        const riscv64_linux = b.addExecutable(.{
+            .name = "abi_riscv64_linux",
+            .root_module = riscv64_linux_mod,
+        });
+        riscv64_linux.root_module.addOptions("abi", build_options);
+        cross_compile_step.dependOn(&riscv64_linux.step);
+
+        // ARM64 macOS build
+        const arm64_macos_mod = b.createModule(.{
+            .root_source_file = b.path("src/cli/main.zig"),
+            .target = b.resolveTargetQuery(.{
+                .cpu_arch = .aarch64,
+                .os_tag = .macos,
+            }),
+            .optimize = optimize,
+        });
+        const arm64_macos = b.addExecutable(.{
+            .name = "abi_arm64_macos",
+            .root_module = arm64_macos_mod,
+        });
+        arm64_macos.root_module.addOptions("abi", build_options);
+        cross_compile_step.dependOn(&arm64_macos.step);
+
+        // x86_64 Windows build
+        const x86_64_windows_mod = b.createModule(.{
+            .root_source_file = b.path("src/cli/main.zig"),
+            .target = b.resolveTargetQuery(.{
+                .cpu_arch = .x86_64,
+                .os_tag = .windows,
+            }),
+            .optimize = optimize,
+        });
+        const x86_64_windows = b.addExecutable(.{
+            .name = "abi_x86_64_windows",
+            .root_module = x86_64_windows_mod,
+        });
+        x86_64_windows.root_module.addOptions("abi", build_options);
+        cross_compile_step.dependOn(&x86_64_windows.step);
+    }
 
     // Integration testing
     const integration_mod = b.createModule(.{

@@ -25,6 +25,13 @@ const gpu_enabled = @import("root").abi.gpu;
 // Import and re-export from organized submodules
 pub const core = @import("core/mod.zig");
 pub const unified_memory = @import("unified_memory.zig");
+pub const hardware_detection = @import("hardware_detection.zig");
+pub const cross_compilation = @import("cross_compilation.zig");
+pub const wasm_support = @import("wasm_support.zig");
+pub const libraries = @import("libraries/mod.zig");
+pub const optimizations = @import("optimizations/mod.zig");
+pub const testing = @import("testing/mod.zig");
+pub const mobile = @import("mobile/mod.zig");
 
 // Direct exports for backward compatibility with tests
 pub const GPURenderer = core.GPURenderer;
@@ -41,7 +48,7 @@ pub const KernelManager = core.KernelManager;
 pub const GPUBackendManager = core.GPUBackendManager;
 pub const CUDADriver = core.CUDADriver;
 pub const SPIRVCompiler = core.SPIRVCompiler;
-pub const BackendType = core.BackendType;
+pub const CoreBackendType = core.BackendType;
 pub const HardwareCapabilities = core.HardwareCapabilities;
 pub const MemoryPool = core.MemoryPool;
 pub const BackendSupport = core.BackendSupport;
@@ -59,6 +66,70 @@ pub const UnifiedMemoryManager = unified_memory.UnifiedMemoryManager;
 pub const UnifiedMemoryType = unified_memory.UnifiedMemoryType;
 pub const UnifiedMemoryConfig = unified_memory.UnifiedMemoryConfig;
 pub const UnifiedBuffer = unified_memory.UnifiedBuffer;
+
+// Hardware Detection exports
+pub const GPUDetector = hardware_detection.GPUDetector;
+pub const RealGPUInfo = hardware_detection.RealGPUInfo;
+pub const GPUDetectionResult = hardware_detection.GPUDetectionResult;
+pub const BackendType = hardware_detection.BackendType;
+pub const PerformanceTier = hardware_detection.PerformanceTier;
+pub const SystemCapabilities = hardware_detection.SystemCapabilities;
+
+// Cross-Compilation exports
+pub const CrossCompilationManager = cross_compilation.CrossCompilationManager;
+pub const CrossCompilationTarget = cross_compilation.CrossCompilationTarget;
+pub const GPUBackend = cross_compilation.GPUBackend;
+pub const OptimizationLevel = cross_compilation.OptimizationLevel;
+pub const TargetFeatures = cross_compilation.TargetFeatures;
+pub const MemoryModel = cross_compilation.MemoryModel;
+pub const ThreadingModel = cross_compilation.ThreadingModel;
+pub const PredefinedTargets = cross_compilation.PredefinedTargets;
+pub const CrossCompilationUtils = cross_compilation.CrossCompilationUtils;
+
+// WebAssembly Support exports
+pub const WASMCompiler = wasm_support.WASMCompiler;
+pub const WASMRuntime = wasm_support.WASMRuntime;
+pub const WASMConfig = wasm_support.WASMConfig;
+pub const WASMArchitecture = wasm_support.WASMArchitecture;
+pub const WASMOptimizationLevel = wasm_support.WASMOptimizationLevel;
+pub const WASMMemoryModel = wasm_support.WASMMemoryModel;
+pub const WASMGPUBackend = wasm_support.WASMGPUBackend;
+pub const PredefinedWASMConfigs = wasm_support.PredefinedWASMConfigs;
+
+// GPU Libraries exports
+pub const GPULibraryManager = libraries.GPULibraryManager;
+pub const VulkanRenderer = libraries.VulkanRenderer;
+pub const VulkanCapabilities = libraries.VulkanCapabilities;
+pub const VulkanUtils = libraries.VulkanUtils;
+pub const AdvancedVulkanFeatures = libraries.AdvancedVulkanFeatures;
+pub const MachRenderer = libraries.MachRenderer;
+pub const MachCapabilities = libraries.MachCapabilities;
+pub const MachUtils = libraries.MachUtils;
+pub const CUDARenderer = libraries.CUDARenderer;
+pub const CUDACapabilities = libraries.CUDACapabilities;
+pub const CUDAUtils = libraries.CUDAUtils;
+pub const VectorTypes = libraries.VectorTypes;
+pub const SIMDMath = libraries.SIMDMath;
+pub const SIMDGraphics = libraries.SIMDGraphics;
+pub const SIMDCompute = libraries.SIMDCompute;
+pub const SIMDBenchmarks = libraries.SIMDBenchmarks;
+pub const GPULibraryError = libraries.GPULibraryError;
+
+// Optimizations exports
+pub const PlatformOptimizations = optimizations.PlatformOptimizations;
+pub const BackendDetector = optimizations.BackendDetector;
+pub const PlatformConfig = optimizations.PlatformConfig;
+pub const PlatformMetrics = optimizations.PlatformMetrics;
+pub const PlatformUtils = optimizations.PlatformUtils;
+
+// Testing exports
+pub const CrossPlatformTestSuite = testing.CrossPlatformTestSuite;
+
+// Mobile exports
+pub const MobilePlatformManager = mobile.MobilePlatformManager;
+pub const MobileCapabilities = mobile.MobileCapabilities;
+pub const PowerManagement = mobile.PowerManagement;
+pub const ThermalManagement = mobile.ThermalManagement;
 
 // Convenience functions
 pub const initDefault = core.initDefault;

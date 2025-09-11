@@ -1,10 +1,10 @@
 ---
 layout: documentation
 title: "Module Reference"
-description: "Comprehensive reference for all WDBX-AI modules and components"
+description: "Comprehensive reference for all ABI modules and components"
 ---
 
-# WDBX-AI Module Reference
+# ABI Module Reference
 
 ## 📦 Core Modules
 

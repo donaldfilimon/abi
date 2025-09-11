@@ -1,4 +1,4 @@
-# WDBX-AI Framework - TODO & Future Enhancements
+# ABI Framework - TODO & Future Enhancements
 
 > Last Updated: 2025-09-11 · Next Review: Weekly team sync
 

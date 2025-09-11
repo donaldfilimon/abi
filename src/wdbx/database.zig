@@ -1,11 +1,11 @@
-//! WDBX-AI Vector Database
+//! ABI Vector Database
 //!
 //! A high-performance, file-based vector database for storing and searching high-dimensional embeddings.
 //! Features a custom binary format, efficient memory management, SIMD-accelerated search, and extensible metadata.
 //!
 //! # File Format
 //!
-//! The WDBX-AI format consists of:
+//! The ABI format consists of:
 //! - **Header (4096 bytes)**: Magic bytes, version, row count, dimensionality, and offset pointers
 //! - **Records Section**: Densely packed float32 vectors, each record is `dim * sizeof(f32)` bytes
 //! - **(Future)**: Index and schema blocks for ANN search and metadata
@@ -53,7 +53,7 @@ pub const DatabaseError = error{
     ChecksumMismatch,
 };
 
-/// Magic identifier for WDBX-AI files (7 bytes + NUL)
+/// Magic identifier for ABI files (7 bytes + NUL)
 pub const MAGIC: [8]u8 = "WDBXAI\x00\x00".*;
 
 /// Current file format version

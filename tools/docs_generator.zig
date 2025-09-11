@@ -1,14 +1,14 @@
 const std = @import("std");
 const abi = @import("abi");
 
-/// Documentation generator for WDBX-AI project
+/// Documentation generator for ABI project
 /// Generates comprehensive API documentation from source code with enhanced GitHub Pages support
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    std.log.info("📚 Generating WDBX-AI API Documentation with GitHub Pages optimization", .{});
+    std.log.info("📚 Generating ABI API Documentation with GitHub Pages optimization", .{});
 
     // Create comprehensive docs directory structure
     try std.fs.cwd().makePath("docs/generated");
@@ -102,13 +102,13 @@ fn generateJekyllConfig(_: std.mem.Allocator) !void {
         \\# SEO and metadata
         \\lang: en
         \\author:
-        \\  name: "WDBX-AI Team"
-        \\  email: "team@wdbx-ai.dev"
+        \\  name: "ABI Team"
+        \\  email: "team@abi.dev"
         \\
         \\# GitHub repository
         \\github:
         \\  repository_url: "https://github.com/donaldfilimon/abi"
-        \\  repository_name: "wdbx-ai"
+        \\  repository_name: "abi"
         \\  owner_name: "donaldfilimon"
         \\
         \\# Social media
@@ -463,14 +463,14 @@ fn generateReadmeRedirect(_: std.mem.Allocator) !void {
     const content =
         \\---
         \\layout: documentation
-        \\title: "WDBX-AI Documentation"
+        \\title: "ABI Documentation"
         \\description: "High-performance vector database with AI capabilities - Complete documentation"
         \\permalink: /
         \\---
         \\
-        \\# WDBX-AI Documentation
+        \\# ABI Documentation
         \\
-        \\Welcome to the comprehensive documentation for WDBX-AI, a high-performance vector database with integrated AI capabilities.
+        \\Welcome to the comprehensive documentation for ABI, a high-performance vector database with integrated AI capabilities.
         \\
         \\## 🚀 Quick Navigation
         \\
@@ -543,7 +543,7 @@ fn generateReadmeRedirect(_: std.mem.Allocator) !void {
         \\
         \\## 🔗 External Resources
         \\
-        \\- **[GitHub Repository](https://github.com/donaldfilimon/wdbx-ai)** - Source code and issues
+        \\- **[GitHub Repository](https://github.com/donaldfilimon/abi/)** - Source code and issues
         \\- **[Zig Language](https://ziglang.org/)** - Learn about the Zig programming language
         \\- **[Vector Databases](./generated/DEFINITIONS_REFERENCE/#vector-database)** - Learn about vector database concepts
         \\
@@ -1742,10 +1742,10 @@ fn generateModuleDocs(_: std.mem.Allocator) !void {
         \\---
         \\layout: documentation
         \\title: "Module Reference"
-        \\description: "Comprehensive reference for all WDBX-AI modules and components"
+        \\description: "Comprehensive reference for all ABI modules and components"
         \\---
         \\
-        \\# WDBX-AI Module Reference
+        \\# ABI Module Reference
         \\
         \\## 📦 Core Modules
         \\
@@ -1950,10 +1950,10 @@ fn generateApiReference(_: std.mem.Allocator) !void {
         \\---
         \\layout: documentation
         \\title: "API Reference"
-        \\description: "Complete API reference for WDBX-AI with detailed function documentation"
+        \\description: "Complete API reference for ABI with detailed function documentation"
         \\---
         \\
-        \\# WDBX-AI API Reference
+        \\# ABI API Reference
         \\
         \\## 🗄️ Database API
         \\
@@ -2132,10 +2132,10 @@ fn generateExamples(_: std.mem.Allocator) !void {
         \\---
         \\layout: documentation
         \\title: "Examples & Tutorials"
-        \\description: "Practical examples and tutorials for using WDBX-AI effectively"
+        \\description: "Practical examples and tutorials for using ABI effectively"
         \\---
         \\
-        \\# WDBX-AI Usage Examples
+        \\# ABI Usage Examples
         \\
         \\## 🚀 Quick Start
         \\
@@ -2427,7 +2427,7 @@ fn generatePerformanceGuide(_: std.mem.Allocator) !void {
         \\description: "Comprehensive performance optimization guide with benchmarks and best practices"
         \\---
         \\
-        \\# WDBX-AI Performance Guide
+        \\# ABI Performance Guide
         \\
         \\## 🚀 Performance Characteristics
         \\
@@ -2679,11 +2679,11 @@ fn generateDefinitionsReference(_: std.mem.Allocator) !void {
         \\---
         \\layout: documentation
         \\title: "Definitions Reference"
-        \\description: "Comprehensive glossary and concepts for WDBX-AI technology"
+        \\description: "Comprehensive glossary and concepts for ABI technology"
         \\keywords: ["vector database", "AI", "machine learning", "SIMD", "neural networks", "embeddings"]
         \\---
         \\
-        \\# WDBX-AI Definitions Reference
+        \\# ABI Definitions Reference
         \\
         \\<div class="definition-search">
         \\  <input type="search" id="definition-search" placeholder="Search definitions..." autocomplete="off">

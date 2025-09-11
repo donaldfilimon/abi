@@ -1,4 +1,4 @@
-//! Enhanced Stress Testing Framework for WDBX-AI Codebase
+//! Enhanced Stress Testing Framework for ABI Codebase
 //!
 //! This tool provides comprehensive stress testing capabilities including:
 //! - Multi-threaded concurrent operations with configurable load patterns
@@ -779,7 +779,7 @@ pub fn main() !void {
     var stress_tester = StressTester.init(allocator, config);
     defer stress_tester.deinit();
 
-    print("🧪 Enhanced Stress Testing Framework for WDBX-AI\n");
+    print("🧪 Enhanced Stress Testing Framework for ABI\n");
     print("=" ** 45 ++ "\n\n");
 
     try stress_tester.runStressTest();

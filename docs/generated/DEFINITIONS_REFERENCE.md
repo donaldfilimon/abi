@@ -1,11 +1,11 @@
 ---
 layout: documentation
 title: "Definitions Reference"
-description: "Comprehensive glossary and concepts for WDBX-AI technology"
+description: "Comprehensive glossary and concepts for ABI technology"
 keywords: ["vector database", "AI", "machine learning", "SIMD", "neural networks", "embeddings"]
 ---
 
-# WDBX-AI Definitions Reference
+# ABI Definitions Reference
 
 <div class="definition-search">
   <input type="search" id="definition-search" placeholder="Search definitions..." autocomplete="off">
