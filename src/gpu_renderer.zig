@@ -976,7 +976,8 @@ pub const BufferManager = struct {
     /// Create a GPU buffer with specified type and usage
     pub fn createBuffer(self: BufferManager, comptime T: type, size: u64, usage: BufferUsage) !*MockGPU.Buffer {
         _ = usage;
-        return try self.device.createBuffer(size * @sizeOf(T), .{});
+        const byte_size: usize = @intCast(size * @as(u64, @sizeOf(T)));
+        return try self.device.createBuffer(byte_size, .{});
     }
 
     /// Write data to GPU buffer

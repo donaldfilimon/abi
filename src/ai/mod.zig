@@ -2066,5 +2066,3 @@ test "Enhanced model trainer" {
         try testing.expect(metric.accuracy >= 0.0 and metric.accuracy <= 1.0);
     }
 }
-
-

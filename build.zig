@@ -548,6 +548,11 @@ pub fn build(b: *std.Build) void {
             .name = b.fmt("abi-{s}", .{cross_target}),
             .root_module = cross_cli_mod,
         });
+        // Link libc explicitly for targets that require it (e.g., Linux, macOS)
+        const os_tag = cross_target_resolved.result.os.tag;
+        if (os_tag == .linux or os_tag == .macos) {
+            cross_cli_exe.linkLibC();
+        }
 
         const install_cross = b.addInstallArtifact(cross_cli_exe, .{
             .dest_dir = .{ .override = .{ .custom = b.fmt("cross/{s}", .{cross_target}) } },

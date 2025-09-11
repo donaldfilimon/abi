@@ -45,7 +45,7 @@ pub fn main() !void {
 
     // sum/mean/variance/stddev
     timer.reset();
-    var sum_val = abi.simd.sum(a);
+    const sum_val = abi.simd.sum(a);
     const sum_ns = timer.read();
     const mean_val = abi.simd.mean(a);
     timer.reset();
@@ -55,12 +55,12 @@ pub fn main() !void {
 
     // dot product
     timer.reset();
-    var dot = abi.simd.dotProduct(a, b);
+    const dot = abi.simd.dotProduct(a, b);
     const dot_ns = timer.read();
 
     // l1 distance
     timer.reset();
-    var l1 = abi.simd.l1Distance(a, b);
+    const l1 = abi.simd.l1Distance(a, b);
     const l1_ns = timer.read();
 
     // small matrix multiply (256x64) * (64x64)
@@ -71,7 +71,7 @@ pub fn main() !void {
     defer allocator.free(mat_a);
     const mat_b = try allocator.alloc(f32, K * Ncol);
     defer allocator.free(mat_b);
-    var mat_r = try allocator.alloc(f32, M * Ncol);
+    const mat_r = try allocator.alloc(f32, M * Ncol);
     defer allocator.free(mat_r);
     for (mat_a, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 7) % 31)) * 0.03125;
     for (mat_b, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 11) % 29)) * 0.03448;
@@ -79,10 +79,5 @@ pub fn main() !void {
     abi.simd.matrixMultiply(mat_r, mat_a, mat_b, M, K, Ncol);
     const mm_ns = timer.read();
 
-    std.debug.print(
-        "SIMD micro (N={d})\n  add={d}ns mul={d}ns scale={d}ns norm={d}ns\n  sum={d}ns sum_val={d:.3} mean={d:.3} var={d:.3} (var_ns={d}ns) stddev={d:.3}\n  dot={d}ns dot_val={d:.3} l1={d}ns l1_val={d:.3}\n  mm(256x64 * 64x64)={d}ns\n",
-        .{ N, add_ns, mul_ns, scale_ns, norm_ns, sum_ns, mean_val, var_val, var_ns, stddev_val, dot_ns, l1_ns, mm_ns },
-    );
+    std.debug.print("SIMD micro (N={d})\n  add={d}ns mul={d}ns scale={d}ns norm={d}ns\n  sum={d}ns sum_val={d:.3} mean={d:.3} var={d:.3} (var_ns={d}ns) stddev={d:.3}\n  dot={d}ns dot_val={d:.3} l1={d}ns l1_val={d:.3}\n  mm(256x64 * 64x64)={d}ns\n", .{ N, add_ns, mul_ns, scale_ns, norm_ns, sum_ns, sum_val, mean_val, var_val, var_ns, stddev_val, dot_ns, dot, l1_ns, l1, mm_ns });
 }
-
-

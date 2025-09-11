@@ -59,6 +59,20 @@ pub const WeatherConfig = struct {
     units: []const u8 = "metric",
     language: []const u8 = "en",
     timeout_seconds: u32 = 10,
+    max_response_bytes: usize = 1024 * 1024,
+
+    pub fn fromEnv(allocator: std.mem.Allocator, base: WeatherConfig) WeatherConfig {
+        var cfg = base;
+        if (std.process.getEnvVarOwned(allocator, "WEATHER_TIMEOUT_SECONDS")) |val| {
+            defer allocator.free(val);
+            cfg.timeout_seconds = std.fmt.parseInt(u32, val, 10) catch cfg.timeout_seconds;
+        } else |_| {}
+        if (std.process.getEnvVarOwned(allocator, "WEATHER_MAX_BYTES")) |val| {
+            defer allocator.free(val);
+            cfg.max_response_bytes = std.fmt.parseInt(usize, val, 10) catch cfg.max_response_bytes;
+        } else |_| {}
+        return cfg;
+    }
 };
 
 pub const WeatherService = struct {
@@ -123,7 +137,7 @@ pub const WeatherService = struct {
 
         // Timeout and size guards
         const max_ns: u64 = @as(u64, self.config.timeout_seconds) * 1_000_000_000;
-        const max_bytes: usize = 1024 * 1024; // 1 MiB cap
+        const max_bytes: usize = self.config.max_response_bytes; // 1 MiB cap
         var timer = try std.time.Timer.start();
 
         while (true) {
@@ -284,3 +298,5 @@ pub const WeatherUtils = struct {
         return "🌡️";
     }
 };
+
+
