@@ -1863,8 +1863,8 @@ pub const GPURenderer = struct {
             MathUtils.matrixMultiply(f32, a, b, result, @intCast(m));
         } else {
             // Fallback to SIMD implementation for non-square matrices
-            const simd = @import("simd/mod.zig");
-            simd.matrixMultiply(result, a, b, @intCast(m), @intCast(n), @intCast(k));
+            const core = @import("core/mod.zig");
+            core.matrixMultiply(result, a, b, @intCast(m), @intCast(n), @intCast(k));
         }
 
         // Update performance metrics

@@ -5,12 +5,7 @@
 
 const std = @import("std");
 
-// FIXME: Replace relative imports with proper module imports
-// const core = @import("core");
-// const simd = @import("simd");
-
 const core = @import("../core/mod.zig");
-const simd = @import("../core/simd.zig");
 const activation = @import("activation.zig");
 
 const Allocator = std.mem.Allocator;
@@ -482,11 +477,11 @@ pub const Layer = struct {
         }
 
         // Matrix-vector multiplication: output = weights * input + biases
-        simd.VectorOps.matrixVectorMultiply(output, weights, input, output_size, input_size);
+        core.matrixVectorMultiply(output, weights, input, output_size, input_size);
 
         // Add biases
         if (self.biases) |biases| {
-            simd.VectorOps.add(output, output, biases);
+            core.add(output, output, biases);
         }
 
         // Apply activation if specified

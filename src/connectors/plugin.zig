@@ -1,6 +1,7 @@
 const std = @import("std");
-const types = @import("../plugins/types.zig");
-const iface = @import("../plugins/interface.zig");
+const plugins = @import("../plugins/mod.zig");
+const types = plugins.types;
+const iface = plugins.interface;
 const connectors = @import("mod.zig");
 
 const PluginInfo = types.PluginInfo;

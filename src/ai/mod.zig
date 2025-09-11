@@ -14,7 +14,7 @@
 //! - Optimized inline activation functions with compile-time constants
 
 const std = @import("std");
-const simd = @import("../simd/mod.zig");
+const core = @import("../core/mod.zig");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Random = std.Random;
@@ -640,7 +640,7 @@ pub const Layer = struct {
         if (input.len != input_size or output.len != output_size) return error.InvalidDimensions;
 
         // Matrix-vector multiplication: output = weights * input + biases
-        simd.MatrixOps.matrixVectorMultiply(output, weights, input, output_size, input_size);
+        core.matrixVectorMultiply(output, weights, input, output_size, input_size);
 
         // Add biases
         if (self.biases) |b| {
