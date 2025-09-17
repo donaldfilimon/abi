@@ -199,7 +199,7 @@ pub const CPUProfiler = struct {
 
             self.samples.append(sample) catch continue;
 
-            std.time.sleep(interval_ns);
+            std.Thread.sleep(interval_ns);
         }
     }
 

@@ -181,7 +181,7 @@ test "memory pool - intelligent cleanup" {
     pool.returnBuffer(buffer2);
 
     // Force cleanup by waiting and triggering analysis
-    std.time.sleep(20_000); // 20μs
+    std.Thread.sleep(20_000); // 20μs
     pool.recordBufferAccess(buffer1); // This should trigger cleanup
 
     // Check that cleanup occurred

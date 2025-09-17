@@ -11,7 +11,7 @@
 const std = @import("std");
 const neural = @import("src/neural.zig");
 const memory_tracker = @import("src/memory_tracker.zig");
-const simd_vector = @import("src/simd_vector.zig");
+const simd = @import("src/simd/mod.zig");
 
 /// Benchmark configuration
 pub const BenchmarkConfig = struct {
@@ -260,25 +260,24 @@ pub const BenchmarkSuite = struct {
         }
 
         // Test aligned vs unaligned performance
-        const aligned_data = try simd_vector.SIMDAlignment.ensureAligned(self.allocator, data);
-        defer if (aligned_data.ptr != data.ptr) self.allocator.free(aligned_data);
+        const aligned_data = data; // unified SIMD module uses plain slices
 
         const start_time = std.time.nanoTimestamp();
         var operations: usize = 0;
 
-        const opts = simd_vector.SIMDOpts{};
+        // unified SIMD module does not require opts
 
         // Run SIMD operations
         for (0..self.config.iterations) |_| {
             // Test dot product
-            const dot_result = simd_vector.dotProductSIMD(aligned_data, aligned_data, opts);
+            const dot_result = simd.dotProduct(aligned_data, aligned_data);
             _ = dot_result;
 
             // Test vector addition
-            _ = simd_vector.vectorAddSIMD(aligned_data, aligned_data, result_buffer);
+            simd.add(result_buffer, aligned_data, aligned_data);
 
             // Test normalization
-            _ = simd_vector.normalizeSIMD(result_buffer, opts);
+            simd.normalize(result_buffer, result_buffer);
 
             operations += 3; // 3 operations per iteration
         }

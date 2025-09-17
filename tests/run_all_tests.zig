@@ -18,7 +18,7 @@ pub fn main() !void {
         },
         .{
             .name = "Server Integration Tests",
-            .command = &[_][]const u8{ "zig", "build", "test-plugins" },
+            .command = &[_][]const u8{ "zig", "build", "test-http" },
         },
         .{
             .name = "Performance Benchmarks",
@@ -107,7 +107,7 @@ pub fn testHttpServer() !void {
 
     // Start HTTP server
     var server_process = std.ChildProcess.init(
-        &[_][]const u8{ "zig", "run", "src/wdbx_cli.zig", "--", "server", "--http", "--port", "8080" },
+        &[_][]const u8{ "zig", "build", "run-server", "--", "--port", "8080" },
         allocator,
     );
 

@@ -19,7 +19,7 @@ const CurlResponse = struct {
     data: std.ArrayList(u8),
     headers: std.ArrayList(u8),
     status_code: c_long,
-    
+
     pub fn init(allocator: std.mem.Allocator) CurlResponse {
         return CurlResponse{
             .data = std.ArrayList(u8).init(allocator),
@@ -27,7 +27,7 @@ const CurlResponse = struct {
             .status_code = 0,
         };
     }
-    
+
     pub fn deinit(self: *CurlResponse) void {
         self.data.deinit();
         self.headers.deinit();
@@ -38,81 +38,81 @@ const CurlResponse = struct {
 pub const CurlHttpClient = struct {
     allocator: std.mem.Allocator,
     config: http_client.HttpClientConfig,
-    
+
     const Self = @This();
-    
+
     pub fn init(allocator: std.mem.Allocator, config: http_client.HttpClientConfig) !Self {
         if (!HAVE_LIBCURL) {
             return error.LibcurlNotAvailable;
         }
-        
+
         // Initialize libcurl globally
         if (curlGlobalInit() != 0) {
             return error.CurlInitFailed;
         }
-        
+
         return Self{
             .allocator = allocator,
             .config = config,
         };
     }
-    
+
     pub fn deinit(self: *Self) void {
         _ = self;
         if (HAVE_LIBCURL) {
             curlGlobalCleanup();
         }
     }
-    
+
     /// Make HTTP request using libcurl
     pub fn request(self: *Self, method: []const u8, url: []const u8, content_type: ?[]const u8, body: ?[]const u8) !http_client.HttpResponse {
         if (!HAVE_LIBCURL) {
             return error.LibcurlNotAvailable;
         }
-        
+
         const curl = curlEasyInit() orelse return error.CurlInitFailed;
         defer curlEasyCleanup(curl);
-        
+
         var response = CurlResponse.init(self.allocator);
         defer response.deinit();
-        
+
         // Set basic options
         try self.setCurlOptions(curl, method, url, &response);
-        
+
         // Set proxy if configured
         if (self.config.proxy_url) |proxy| {
             _ = curlEasySetopt(curl, CURLOPT_PROXY, proxy.ptr);
         }
-        
+
         // Set SSL options
         if (!self.config.verify_ssl) {
             _ = curlEasySetopt(curl, CURLOPT_SSL_VERIFYPEER, @as(c_long, 0));
             _ = curlEasySetopt(curl, CURLOPT_SSL_VERIFYHOST, @as(c_long, 0));
         }
-        
+
         if (self.config.ca_bundle_path) |ca_path| {
             _ = curlEasySetopt(curl, CURLOPT_CAINFO, ca_path.ptr);
         }
-        
+
         // Set timeouts
         _ = curlEasySetopt(curl, CURLOPT_CONNECTTIMEOUT_MS, @as(c_long, @intCast(self.config.connect_timeout_ms)));
         _ = curlEasySetopt(curl, CURLOPT_TIMEOUT_MS, @as(c_long, @intCast(self.config.read_timeout_ms)));
-        
+
         // Set redirects
         if (self.config.follow_redirects) {
             _ = curlEasySetopt(curl, CURLOPT_FOLLOWLOCATION, @as(c_long, 1));
             _ = curlEasySetopt(curl, CURLOPT_MAXREDIRS, @as(c_long, @intCast(self.config.max_redirects)));
         }
-        
+
         // Set user agent
         _ = curlEasySetopt(curl, CURLOPT_USERAGENT, self.config.user_agent.ptr);
-        
+
         // Set request body for POST/PUT
         if (body) |request_body| {
             _ = curlEasySetopt(curl, CURLOPT_POSTFIELDS, request_body.ptr);
             _ = curlEasySetopt(curl, CURLOPT_POSTFIELDSIZE, @as(c_long, @intCast(request_body.len)));
         }
-        
+
         // Set content type header if provided
         var headers: ?*std.c.void = null;
         if (content_type) |ct| {
@@ -122,7 +122,7 @@ pub const CurlHttpClient = struct {
             _ = curlEasySetopt(curl, CURLOPT_HTTPHEADER, headers);
         }
         defer if (headers) |h| curlSlistFreeAll(h);
-        
+
         // Perform the request
         const curl_code = curlEasyPerform(curl);
         if (curl_code != CURLE_OK) {
@@ -131,14 +131,14 @@ pub const CurlHttpClient = struct {
             }
             return error.CurlRequestFailed;
         }
-        
+
         // Get response code
         _ = curlEasyGetinfo(curl, CURLINFO_RESPONSE_CODE, &response.status_code);
-        
+
         // Parse headers
         var response_headers = std.StringHashMap([]const u8).init(self.allocator);
         try self.parseHeaders(response.headers.items, &response_headers);
-        
+
         // Create response
         return http_client.HttpResponse{
             .status_code = @intCast(response.status_code),
@@ -147,14 +147,14 @@ pub const CurlHttpClient = struct {
             .allocator = self.allocator,
         };
     }
-    
+
     /// Set curl options for the request
     fn setCurlOptions(self: *Self, curl: *std.c.void, method: []const u8, url: []const u8, response: *CurlResponse) !void {
         // Set URL
         const url_z = try self.allocator.dupeZ(u8, url);
         defer self.allocator.free(url_z);
         _ = curlEasySetopt(curl, CURLOPT_URL, url_z.ptr);
-        
+
         // Set HTTP method
         if (std.mem.eql(u8, method, "GET")) {
             _ = curlEasySetopt(curl, CURLOPT_HTTPGET, @as(c_long, 1));
@@ -165,30 +165,30 @@ pub const CurlHttpClient = struct {
         } else if (std.mem.eql(u8, method, "DELETE")) {
             _ = curlEasySetopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
         }
-        
+
         // Set callback functions
         _ = curlEasySetopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
         _ = curlEasySetopt(curl, CURLOPT_WRITEDATA, response);
         _ = curlEasySetopt(curl, CURLOPT_HEADERFUNCTION, headerCallback);
         _ = curlEasySetopt(curl, CURLOPT_HEADERDATA, response);
-        
+
         // Enable verbose output if requested
         if (self.config.verbose) {
             _ = curlEasySetopt(curl, CURLOPT_VERBOSE, @as(c_long, 1));
         }
     }
-    
+
     /// Parse HTTP headers from curl response
     fn parseHeaders(self: *Self, headers_data: []const u8, headers_map: *std.StringHashMap([]const u8)) !void {
         var lines = std.mem.split(u8, headers_data, "\r\n");
         while (lines.next()) |line| {
             if (line.len == 0) continue;
             if (std.mem.startsWith(u8, line, "HTTP/")) continue; // Skip status line
-            
+
             if (std.mem.indexOf(u8, line, ":")) |colon_pos| {
                 const name = std.mem.trim(u8, line[0..colon_pos], " \t");
-                const value = std.mem.trim(u8, line[colon_pos + 1..], " \t");
-                
+                const value = std.mem.trim(u8, line[colon_pos + 1 ..], " \t");
+
                 const name_owned = try self.allocator.dupe(u8, name);
                 const value_owned = try self.allocator.dupe(u8, value);
                 try headers_map.put(name_owned, value_owned);
@@ -201,7 +201,7 @@ pub const CurlHttpClient = struct {
 fn writeCallback(contents: [*c]u8, size: usize, nmemb: usize, userdata: ?*anyopaque) callconv(.C) usize {
     const real_size = size * nmemb;
     const response: *CurlResponse = @ptrCast(@alignCast(userdata));
-    
+
     response.data.appendSlice(contents[0..real_size]) catch return 0;
     return real_size;
 }
@@ -210,7 +210,7 @@ fn writeCallback(contents: [*c]u8, size: usize, nmemb: usize, userdata: ?*anyopa
 fn headerCallback(contents: [*c]u8, size: usize, nmemb: usize, userdata: ?*anyopaque) callconv(.C) usize {
     const real_size = size * nmemb;
     const response: *CurlResponse = @ptrCast(@alignCast(userdata));
-    
+
     response.headers.appendSlice(contents[0..real_size]) catch return 0;
     return real_size;
 }

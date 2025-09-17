@@ -492,8 +492,8 @@ pub const GPURenderer = struct {
     pub fn computeMatrixMultiply(self: *Self, a: []const f32, b: []const f32, result: []f32, m: u32, n: u32, k: u32) !void {
         // TODO: Implement GPU matrix multiplication
         // For now, fall back to CPU SIMD implementation
-        const simd_vector = @import("simd_vector.zig");
-        try simd_vector.matrixMultiplySIMD(a, b, result, m, n, k);
+        const simd = @import("simd/mod.zig");
+        simd.matrixMultiply(result, a, b, @intCast(m), @intCast(n), @intCast(k));
 
         // Update performance metrics
         self.frame_count += 1;

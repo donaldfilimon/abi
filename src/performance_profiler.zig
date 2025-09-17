@@ -607,7 +607,7 @@ pub const PerformanceProfiler = struct {
                 last_report_time = current_time;
             }
 
-            std.time.sleep(self.config.sampling_interval_ns);
+            std.Thread.sleep(self.config.sampling_interval_ns);
         }
     }
 

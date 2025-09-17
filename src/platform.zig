@@ -306,7 +306,7 @@ pub fn getTempDir(allocator: std.mem.Allocator) ![]const u8 {
 
 /// Platform-specific sleep function
 pub fn sleep(milliseconds: u64) void {
-    std.time.sleep(milliseconds * 1_000_000); // Convert to nanoseconds
+    std.Thread.sleep(milliseconds * 1_000_000); // Convert to nanoseconds
 }
 
 /// Get system information as a formatted string

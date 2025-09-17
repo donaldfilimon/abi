@@ -314,6 +314,12 @@ pub const WdbxCLI = struct {
         });
         defer server.deinit();
 
+        // Auto-open database if provided via --db
+        if (self.options.db_path) |db_path| {
+            try server.openDatabase(db_path);
+            try self.logger.info("Opened database: {s}", .{db_path});
+        }
+
         try self.logger.info("HTTP server started successfully", .{});
         try server.run();
     }
@@ -528,6 +534,10 @@ pub const WdbxCLI = struct {
     }
 };
 
+fn ensureServerRunningForTests(self: *WdbxCLI) void {
+    _ = self; // placeholder helper for future use
+}
+
 /// Logger implementation
 const Logger = struct {
     allocator: std.mem.Allocator,
@@ -599,7 +609,6 @@ pub fn main() !void {
     const command = Command.fromString(cmd_lower) orelse .help;
 
     var options = Options{ .command = command };
-    defer options.deinit(allocator);
 
     // Parse command line arguments
     while (args.next()) |arg| {
