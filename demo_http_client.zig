@@ -21,15 +21,15 @@ pub fn main() !void {
 
     // Create HTTP client with enhanced configuration
     var client = http_client.HttpClient.init(allocator, .{
-        .connect_timeout_ms = 10000,        // 10 second connection timeout
-        .read_timeout_ms = 15000,           // 15 second read timeout
-        .max_retries = 3,                   // Retry up to 3 times
-        .initial_backoff_ms = 1000,         // Start with 1 second backoff
-        .max_backoff_ms = 8000,             // Max 8 second backoff
+        .connect_timeout_ms = 10000, // 10 second connection timeout
+        .read_timeout_ms = 15000, // 15 second read timeout
+        .max_retries = 3, // Retry up to 3 times
+        .initial_backoff_ms = 1000, // Start with 1 second backoff
+        .max_backoff_ms = 8000, // Max 8 second backoff
         .user_agent = "WDBX-Enhanced-Demo/1.0",
         .follow_redirects = true,
         .verify_ssl = true,
-        .verbose = true,                    // Enable detailed logging
+        .verbose = true, // Enable detailed logging
     });
 
     // Test 1: Local WDBX server health check (if running)
@@ -61,23 +61,23 @@ pub fn main() !void {
 
 fn testWdbxHealth(client: *@import("abi").http_client.HttpClient) !void {
     const start_time = std.time.milliTimestamp();
-    
-    var response = client.testConnectivity("http://127.0.0.1:8080/health") catch |err| {
+
+    const response = client.testConnectivity("http://127.0.0.1:8080/health") catch |err| {
         return err;
     };
-    
+
     const elapsed = std.time.milliTimestamp() - start_time;
-    
+
     if (response) {
         std.debug.print("   ✅ WDBX server is healthy (took {d}ms)\n", .{elapsed});
-        
+
         // Try to get actual response data
         var health_response = client.get("http://127.0.0.1:8080/health") catch |err| {
             std.debug.print("   ⚠️ Could not get health details: {any}\n", .{err});
             return;
         };
         defer health_response.deinit();
-        
+
         std.debug.print("   📊 Health status: HTTP {d}\n", .{health_response.status_code});
         const preview_len = @min(100, health_response.body.len);
         std.debug.print("   📄 Response preview: {s}...\n", .{health_response.body[0..preview_len]});
@@ -89,16 +89,16 @@ fn testWdbxHealth(client: *@import("abi").http_client.HttpClient) !void {
 fn testExternalApi(client: *@import("abi").http_client.HttpClient) !void {
     std.debug.print("   Testing with httpbin.org (may retry on failure)...\n", .{});
     const start_time = std.time.milliTimestamp();
-    
+
     var response = client.get("http://httpbin.org/get") catch |err| {
         return err;
     };
     defer response.deinit();
-    
+
     const elapsed = std.time.milliTimestamp() - start_time;
     std.debug.print("   ✅ External API successful (took {d}ms)\n", .{elapsed});
     std.debug.print("   📊 Status: {d}, Body size: {d} bytes\n", .{ response.status_code, response.body.len });
-    
+
     // Check headers
     std.debug.print("   📋 Response headers: {d} total\n", .{response.headers.count()});
     var header_iter = response.headers.iterator();
@@ -116,10 +116,10 @@ fn testExternalApi(client: *@import("abi").http_client.HttpClient) !void {
 
 fn demoProxyConfig(allocator: std.mem.Allocator) void {
     std.debug.print("   Checking for proxy environment variables...\n", .{});
-    
+
     const proxy_vars = [_][]const u8{ "HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy" };
     var found_proxy = false;
-    
+
     for (proxy_vars) |var_name| {
         if (std.process.getEnvVarOwned(allocator, var_name)) |proxy_url| {
             defer allocator.free(proxy_url);
@@ -129,14 +129,14 @@ fn demoProxyConfig(allocator: std.mem.Allocator) void {
             // Environment variable not set
         }
     }
-    
+
     if (!found_proxy) {
         std.debug.print("   ℹ️ No proxy environment variables detected\n", .{});
         std.debug.print("   💡 To test proxy support, set HTTP_PROXY=http://proxy.example.com:8080\n", .{});
     } else {
         std.debug.print("   ✨ Proxy configuration detected - HTTP client will use it automatically\n", .{});
     }
-    
+
     std.debug.print("   📝 Proxy features supported:\n", .{});
     std.debug.print("      - HTTP and HTTPS proxy URLs\n", .{});
     std.debug.print("      - Automatic proxy detection from environment\n", .{});

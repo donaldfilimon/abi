@@ -1,18 +1,24 @@
-// ----------  wdbx.zig  ----------
-// This file unifies the four original modules:
-//
-//   * wdbx_cli.zig
-//   * wdbx_enhanced.zig
-//   * wdbx_http_server.zig
-//   * wdbx_production.zig
-//
-// All imports are consolidated at the top and duplicate type definitions are
-// removed.  The HTTP server and CLI refer to the `WdbxProduction` type via
-// an alias named `database.Db` so that the original code compiles unchanged.
-//
-// ---------------------------------------------------------------
-// 1. Imports & global constants
-// ---------------------------------------------------------------
+//! WDBX Vector Database - Unified Production Implementation
+//!
+//! This module consolidates all WDBX functionality into a single, high-performance
+//! implementation with:
+//! - Production-ready vector database operations
+//! - HTTP REST API server
+//! - CLI interface
+//! - SIMD-accelerated search
+//! - Comprehensive monitoring and metrics
+//! - Advanced compression and caching
+//! - Health monitoring and recovery
+//!
+//! Features:
+//! - HNSW indexing for fast approximate search
+//! - Parallel search capabilities
+//! - Advanced SIMD optimizations
+//! - Production-ready error handling
+//! - Comprehensive metrics and monitoring
+//! - Multi-level caching system
+//! - Automatic backup and recovery
+
 const std = @import("std");
 const builtin = @import("builtin");
 const simd = @import("simd/mod.zig");

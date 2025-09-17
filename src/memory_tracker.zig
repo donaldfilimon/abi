@@ -630,7 +630,7 @@ pub const MemoryMonitor = struct {
             }
 
             // Sleep for interval
-            std.time.sleep(self.interval_ns);
+            std.Thread.sleep(self.interval_ns);
         }
     }
 };

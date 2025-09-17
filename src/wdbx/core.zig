@@ -311,7 +311,7 @@ test "Config validation" {
 
 test "Timer functionality" {
     var timer = Timer.init();
-    std.time.sleep(1000000); // 1ms
+    std.Thread.sleep(1000000); // 1ms
     const elapsed = timer.elapsedUs();
     try std.testing.expect(elapsed >= 1000.0); // Should be at least 1000 microseconds
 }

@@ -58,11 +58,20 @@ pub fn build(b: *std.Build) void {
     build_options.addOption(bool, "enable_logging", b.option(bool, "enable_logging", "Enable detailed logging output") orelse true);
     build_options.addOption(bool, "enable_metrics", b.option(bool, "enable_metrics", "Enable performance metrics collection") orelse false);
 
+    // Memory management options
+    build_options.addOption(bool, "enable_memory_tracking", b.option(bool, "enable_memory_tracking", "Enable memory leak detection and tracking") orelse (optimize == .Debug));
+    build_options.addOption(bool, "enable_performance_profiling", b.option(bool, "enable_performance_profiling", "Enable performance profiling") orelse (optimize == .Debug));
+
     // Platform detection flags
     build_options.addOption(bool, "is_wasm", is_wasm);
     build_options.addOption(bool, "is_windows", is_windows);
     build_options.addOption(bool, "is_linux", is_linux);
     build_options.addOption(bool, "is_macos", is_macos);
+
+    // Optimization flags
+    build_options.addOption(bool, "enable_lto", b.option(bool, "enable_lto", "Enable Link Time Optimization") orelse (optimize == .ReleaseFast));
+    build_options.addOption(bool, "enable_strip", b.option(bool, "enable_strip", "Strip debug symbols") orelse (optimize == .ReleaseFast));
+    build_options.addOption(bool, "enable_single_threaded", b.option(bool, "enable_single_threaded", "Disable threading for single-threaded builds") orelse false);
 
     // Create reusable build options module
     const build_options_mod = build_options.createModule();
@@ -198,6 +207,9 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    // Set stack size for deep recursion (neural networks)
+    cli_exe.stack_size = 8 * 1024 * 1024; // 8MB
+
     // Platform-specific system library linking
     if (is_windows) {
         cli_exe.linkSystemLibrary("ws2_32"); // Windows Sockets 2
@@ -221,11 +233,11 @@ pub fn build(b: *std.Build) void {
         const wdbx_server_exe = b.addExecutable(.{
             .name = if (is_windows) "wdbx_server.exe" else "wdbx_server",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("src/wdbx_http_server.zig"),
+                .root_source_file = b.path("src/wdbx_unified.zig"),
                 .target = target,
                 .optimize = optimize,
                 .imports = &.{
-                    .{ .name = "abi", .module = abi_mod },
+                    .{ .name = "database", .module = database_mod },
                     .{ .name = "http", .module = http_mod },
                     .{ .name = "build_options", .module = build_options_mod },
                 },
@@ -355,6 +367,34 @@ pub fn build(b: *std.Build) void {
         analysis_step.dependOn(&run_analysis.step);
     }
 
+    // Continuous performance monitoring tool
+    if (!is_wasm) {
+        const continuous_monitor = b.addExecutable(.{
+            .name = if (is_windows) "continuous_monitor.exe" else "continuous_monitor",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("tools/continuous_monitor.zig"),
+                .target = target,
+                .optimize = optimize,
+                .imports = &.{
+                    .{ .name = "abi", .module = abi_mod },
+                    .{ .name = "build_options", .module = build_options_mod },
+                },
+            }),
+        });
+
+        if (is_windows) {
+            continuous_monitor.linkSystemLibrary("kernel32");
+        } else {
+            continuous_monitor.linkSystemLibrary("c");
+        }
+
+        b.installArtifact(continuous_monitor);
+
+        const monitor_step = b.step("monitor", "Run continuous performance monitoring");
+        const run_monitor = b.addRunArtifact(continuous_monitor);
+        monitor_step.dependOn(&run_monitor.step);
+    }
+
     // Enhanced HTTP client test
     if (!is_wasm) {
         const http_test_exe = b.addExecutable(.{
@@ -378,7 +418,6 @@ pub fn build(b: *std.Build) void {
         } else {
             http_test_exe.linkSystemLibrary("c");
         }
-
 
         const http_test_step = b.step("test-http-enhanced", "Test enhanced HTTP client with retry/backoff");
         const run_http_test = b.addRunArtifact(http_test_exe);
@@ -419,7 +458,7 @@ pub fn build(b: *std.Build) void {
         const network_test = b.addExecutable(.{
             .name = "windows_network_test.exe",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("windows_network_test.zig"),
+                .root_source_file = b.path("tests/test_windows_networking.zig"),
                 .target = target,
                 .optimize = optimize,
                 .imports = &.{
@@ -648,6 +687,18 @@ pub fn build(b: *std.Build) void {
     const ws_step = b.step("test-ws", "Run WebSocket /ws handshake test (server must be running)");
     ws_step.dependOn(&run_ws_tests.step);
 
+    // Rate limiting tests
+    const rate_limit_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/test_rate_limiting.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_rate_limit_tests = b.addRunArtifact(rate_limit_tests);
+    const rate_limit_step = b.step("test-rate-limit", "Run rate limiting tests");
+    rate_limit_step.dependOn(&run_rate_limit_tests.step);
+
     // HTTP smoke tool
     const http_smoke = b.addExecutable(.{
         .name = if (is_windows) "http_smoke.exe" else "http_smoke",
@@ -688,6 +739,7 @@ pub fn build(b: *std.Build) void {
     });
     docs.root_module.addImport("core", core_mod);
     docs.root_module.addImport("simd", simd_mod);
+    docs.root_module.addImport("ai", ai_mod);
     docs.root_module.addImport("database", database_mod);
     docs.root_module.addImport("http", http_mod);
     docs.root_module.addImport("plugins", plugins_mod);
@@ -699,6 +751,27 @@ pub fn build(b: *std.Build) void {
         .install_subdir = "docs",
     });
     docs_step.dependOn(&docs_install.step);
+
+    // Add API documentation extraction tool
+    const api_docs = b.addExecutable(.{
+        .name = if (is_windows) "generate_api_docs.exe" else "generate_api_docs",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/generate_api_docs.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = abi_mod },
+                .{ .name = "build_options", .module = build_options_mod },
+            },
+        }),
+    });
+    b.installArtifact(api_docs);
+
+    const api_docs_step = b.step("api-docs", "Generate markdown API documentation");
+    const run_api_docs = b.addRunArtifact(api_docs);
+    run_api_docs.addArg("--output");
+    run_api_docs.addArg("docs/api/");
+    api_docs_step.dependOn(&run_api_docs.step);
 
     // Cross-platform build artifact cleanup
     const clean_step = b.step("clean", "Remove all build artifacts");
@@ -737,7 +810,7 @@ pub fn build(b: *std.Build) void {
     test_all_step.dependOn(&run_plugin_tests.step);
     test_all_step.dependOn(&run_wdbx_tests.step);
     test_all_step.dependOn(&run_tcp_echo_tests.step);
-    test_all_step.dependOn(&run_ws_tests.step);
+    test_all_step.dependOn(&run_rate_limit_tests.step);
 
     // Run all benchmark suites (non-WASM targets only)
     if (!is_wasm) {

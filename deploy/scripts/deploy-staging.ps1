@@ -351,7 +351,7 @@ function Start-Deployment {
             }
         }
         catch {
-            Write-Log "  - $svc: LoadBalancer IP pending..."
+            Write-Log "  - ${svc}: LoadBalancer IP pending..."
         }
     }
     

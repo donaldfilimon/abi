@@ -5,41 +5,93 @@
 //! - AI and machine learning capabilities
 //! - Core utilities and data structures
 //! - Performance monitoring and optimization
+//!
+//! ## Features
+//! - High-performance vector similarity search
+//! - SIMD-accelerated operations
+//! - Neural network inference
+//! - Plugin system for extensibility
+//! - Cross-platform compatibility
+//! - Production-ready error handling
+//!
+//! ## Quick Start
+//! ```zig
+//! const abi = @import("abi");
+//! const allocator = std.heap.page_allocator;
+//!
+//! // Initialize the framework
+//! try abi.init(allocator);
+//! defer abi.deinit();
+//!
+//! // Create a vector database
+//! var db = try abi.Db.open("vectors.wdbx", true);
+//! defer db.close();
+//!
+//! // Add vectors and search
+//! try db.init(384);
+//! const embedding = [_]f32{0.1, 0.2, 0.3, ...};
+//! const row_id = try db.addEmbedding(&embedding);
+//! ```
 
 const std = @import("std");
+const builtin = @import("builtin");
 
-// Import consolidated modules
-pub const database = @import("database");
-pub const simd = @import("simd");
-pub const ai = @import("ai");
+// =============================================================================
+// CORE MODULE IMPORTS
+// =============================================================================
+
+// Core utilities and error handling
 pub const core = @import("core");
-pub const wdbx = @import("wdbx");
+pub const AbiError = core.AbiError;
+pub const Result = core.Result;
+
+// =============================================================================
+// FEATURE MODULES
+// =============================================================================
+
+// Database and storage
+pub const database = @import("database");
+pub const sharding = @import("database_sharding.zig");
+
+// SIMD and performance
+pub const simd = @import("simd");
+
+// AI and machine learning
+pub const ai = @import("ai");
+
+// WDBX utilities and CLI
+pub const wdbx = @import("wdbx_unified.zig");
+
+// Plugin system
 pub const plugins = @import("plugins");
 
-// Enhanced HTTP client modules
+// HTTP and networking
 pub const http_client = @import("http_client.zig");
 pub const curl_wrapper = @import("curl_wrapper.zig");
 
-// Re-export commonly used types and functions
+// =============================================================================
+// TYPE RE-EXPORTS
+// =============================================================================
+
+// Database types
 pub const Db = database.Db;
 pub const DbError = database.DbError;
-pub const Result = database.Result;
 pub const WdbxHeader = database.WdbxHeader;
 
-// Re-export SIMD operations
+// SIMD types
 pub const Vector = simd.Vector;
 pub const VectorOps = simd.VectorOps;
 pub const MatrixOps = simd.MatrixOps;
 pub const PerformanceMonitor = simd.PerformanceMonitor;
 
-// Re-export AI capabilities
+// AI types
 pub const NeuralNetwork = ai.NeuralNetwork;
 pub const EmbeddingGenerator = ai.EmbeddingGenerator;
 pub const ModelTrainer = ai.ModelTrainer;
 pub const Layer = ai.Layer;
 pub const Activation = ai.Activation;
 
-// Re-export core utilities
+// Core utilities
 pub const Allocator = core.Allocator;
 pub const ArrayList = core.ArrayList;
 pub const HashMap = core.HashMap;
@@ -49,33 +101,66 @@ pub const time = core.time;
 pub const log = core.log;
 pub const perf = core.performance;
 
-// Re-export WDBX utilities
+// WDBX utilities
 pub const Command = wdbx.Command;
 pub const OutputFormat = wdbx.OutputFormat;
 pub const LogLevel = wdbx.LogLevel;
 
+// =============================================================================
+// FRAMEWORK INITIALIZATION
+// =============================================================================
+
+/// Initialize the WDBX-AI framework
+/// Must be called before using any framework functionality
+pub fn init(allocator: Allocator) AbiError!void {
+    // Initialize core systems first
+    try core.init(allocator);
+
+    // Initialize other subsystems
+    // (AI, database, etc. can be initialized on-demand)
+
+    log.info("WDBX-AI framework initialized successfully", .{});
+}
+
+/// Deinitialize the WDBX-AI framework
+/// Should be called when shutting down the application
+pub fn deinit() void {
+    log.info("WDBX-AI framework shutting down", .{});
+
+    // Deinitialize core systems last
+    core.deinit();
+}
+
+/// Check if the framework is initialized
+pub fn isInitialized() bool {
+    return core.isInitialized();
+}
+
+// =============================================================================
+// APPLICATION ENTRY POINT
+// =============================================================================
+
 /// Main application entry point
 pub fn main() !void {
     const stdout = std.io.getStdOut().writer();
+
+    // Initialize framework
+    const allocator = std.heap.page_allocator;
+    try init(allocator);
+    defer deinit();
+
+    // Display welcome message
     try stdout.print("WDBX-AI Vector Database v1.0.0\n", .{});
     try stdout.print("Unified high-performance vector database with AI capabilities\n", .{});
-    try stdout.print("Use 'zig build test' to run tests\n", .{});
-    try stdout.print("Use 'zig build benchmark' to run benchmarks\n", .{});
-}
-
-/// Initialize the WDBX-AI system
-pub fn init(allocator: std.mem.Allocator) !void {
-    // Initialize core systems
-    _ = allocator;
-
-    // Log system initialization
-    log.info("WDBX-AI system initialized", .{});
-}
-
-/// Cleanup the WDBX-AI system
-pub fn deinit() void {
-    // Cleanup resources
-    log.info("WDBX-AI system shutdown complete", .{});
+    try stdout.print("Platform: {s} ({s})\n", .{ @tagName(builtin.target.os.tag), @tagName(builtin.target.cpu.arch) });
+    try stdout.print("SIMD Support: {}\n", .{builtin.target.cpu.features.has_sse2});
+    try stdout.print("Optimal SIMD Width: {}\n", .{if (builtin.target.cpu.features.has_avx2) 8 else 4});
+    try stdout.print("\n");
+    try stdout.print("Available commands:\n", .{});
+    try stdout.print("  zig build test        - Run test suite\n", .{});
+    try stdout.print("  zig build benchmark   - Run performance benchmarks\n", .{});
+    try stdout.print("  zig build run         - Start CLI application\n", .{});
+    try stdout.print("  zig build run-server  - Start HTTP server\n", .{});
 }
 
 /// Get system information
@@ -149,10 +234,11 @@ pub fn runSystemTest() !void {
     try network.forward(&vector_a, output);
 
     // Test core utilities
-    const random_val = core.random.int(u32, 1, 100);
+    const random_val = core.random.intRangeLessThan(u32, 1, 101);
     try testing.expect(random_val >= 1 and random_val <= 100);
 
-    const trimmed = core.string.trim("  test  ");
+    const trimmed = try core.string.trim(testing.allocator, "  test  ");
+    defer testing.allocator.free(trimmed);
     try testing.expectEqualStrings("test", trimmed);
 
     log.info("System test completed successfully", .{});
@@ -208,7 +294,7 @@ test "Module integration" {
     try network.forward(&vector, output);
 
     // Use core utilities
-    const random_val = core.random.int(u32, 1, 10);
+    const random_val = core.random.intRangeLessThan(u32, 1, 11);
     try testing.expect(random_val >= 1 and random_val <= 10);
 
     log.info("Module integration test completed", .{});

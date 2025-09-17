@@ -15,7 +15,7 @@ const std = @import("std");
 const math = std.math;
 const core = @import("core/mod.zig");
 const abi = @import("root.zig");
-const simd_vector = @import("simd_vector.zig");
+const simd = @import("simd/mod.zig");
 const memory_tracker = @import("memory_tracker.zig");
 
 /// Re-export commonly used types
@@ -753,10 +753,9 @@ pub const Layer = struct {
         while (i < self.output_size) : (i += 1) {
             const weights_start = i * self.input_size;
             const weights_end = weights_start + self.input_size;
-            output[i] = simd_vector.dotProductSIMD(
+            output[i] = simd.dotProduct(
                 input,
                 self.weights[weights_start..weights_end],
-                .{},
             ) + self.biases[i];
             output[i] = self.activation.apply(output[i]);
         }

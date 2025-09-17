@@ -102,7 +102,7 @@ pub const WeatherService = struct {
 
     fn fetchJson(self: *WeatherService, url: []const u8) ![]u8 {
         const http_client = @import("http_client.zig");
-        
+
         // Configure HTTP client with retries and timeouts
         var client = http_client.HttpClient.init(self.allocator, .{
             .connect_timeout_ms = 10000,
@@ -115,15 +115,15 @@ pub const WeatherService = struct {
             .verify_ssl = true,
             .verbose = false,
         });
-        
+
         const response = try client.get(url);
         defer response.deinit();
-        
+
         if (response.status_code != 200) {
             std.debug.print("Weather API error: HTTP {d}\n", .{response.status_code});
             return error.WeatherApiError;
         }
-        
+
         // Return a copy of the response body since response.deinit() will free it
         return try self.allocator.dupe(u8, response.body);
     }
