@@ -193,7 +193,7 @@ pub const ConfigValidator = struct {
         }
 
         // JWT secret validation when auth is enabled and JWT secret is explicitly set
-        if (server_config.enable_auth and server_config.jwt_secret.len > 0 and server_config.jwt_secret.len < 32) {
+        if (server_config.enable_auth and server_config.jwt_secret != null and server_config.jwt_secret.?.len < 32) {
             return ConfigValidationError.InvalidAuthConfig;
         }
     }
@@ -576,7 +576,7 @@ pub const WdbxConfig = struct {
         request_timeout_ms: u32 = 30000,
         enable_cors: bool = true,
         enable_auth: bool = true,
-        jwt_secret: []const u8 = "",
+        jwt_secret: ?[]const u8 = null,
 
         // Batch operations
         max_batch_size: u32 = 100,
@@ -877,6 +877,152 @@ pub const ConfigManager = struct {
         }
     }
 
+    /// Get configuration value by key path (e.g., "database.dimensions")
+    pub fn getValue(self: *Self, key: []const u8) !?[]const u8 {
+        return ConfigUtils.getValue(&self.config, key, self.allocator);
+    }
+
+    /// Set configuration value by key path (e.g., "database.dimensions=128")
+    pub fn setValue(self: *Self, key: []const u8, value: []const u8) !void {
+        var parts = std.mem.splitScalar(u8, key, '.');
+        const section = parts.next() orelse return core.WdbxError.InvalidConfiguration;
+        const field = parts.next() orelse return core.WdbxError.InvalidConfiguration;
+
+        if (std.mem.eql(u8, section, "database")) {
+            try self.setFieldValue(@TypeOf(self.config.database), &self.config.database, field, value);
+        } else if (std.mem.eql(u8, section, "server")) {
+            try self.setFieldValue(@TypeOf(self.config.server), &self.config.server, field, value);
+        } else if (std.mem.eql(u8, section, "performance")) {
+            try self.setFieldValue(@TypeOf(self.config.performance), &self.config.performance, field, value);
+        } else if (std.mem.eql(u8, section, "monitoring")) {
+            try self.setFieldValue(@TypeOf(self.config.monitoring), &self.config.monitoring, field, value);
+        } else if (std.mem.eql(u8, section, "security")) {
+            try self.setFieldValue(@TypeOf(self.config.security), &self.config.security, field, value);
+        } else if (std.mem.eql(u8, section, "logging")) {
+            try self.setFieldValue(@TypeOf(self.config.logging), &self.config.logging, field, value);
+        } else {
+            return core.WdbxError.InvalidConfiguration;
+        }
+    }
+
+    /// Helper function to set field value by name
+    fn setFieldValue(self: *Self, comptime T: type, obj: *T, field_name: []const u8, value_str: []const u8) !void {
+        inline for (std.meta.fields(T)) |field| {
+            if (std.mem.eql(u8, field.name, field_name)) {
+                const value = switch (field.type) {
+                    []const u8 => try self.allocator.dupe(u8, value_str),
+                    u32 => std.fmt.parseInt(u32, value_str, 10) catch return core.WdbxError.InvalidParameter,
+                    u16 => std.fmt.parseInt(u16, value_str, 10) catch return core.WdbxError.InvalidParameter,
+                    u8 => std.fmt.parseInt(u8, value_str, 10) catch return core.WdbxError.InvalidParameter,
+                    f32 => std.fmt.parseFloat(f32, value_str) catch return core.WdbxError.InvalidParameter,
+                    bool => std.mem.eql(u8, value_str, "true") or std.mem.eql(u8, value_str, "1"),
+                    else => return core.WdbxError.InvalidParameter,
+                };
+
+                // Free old string value if it exists
+                if (field.type == []const u8) {
+                    const current_value = @field(obj, field.name);
+                    if (current_value.len > 0) {
+                        self.allocator.free(current_value);
+                    }
+                }
+
+                @field(obj, field.name) = value;
+                return;
+            }
+        }
+        return core.WdbxError.InvalidConfiguration;
+    }
+
+    /// List all configuration values
+    pub fn listAll(self: *Self, allocator: std.mem.Allocator) ![]const u8 {
+        var buffer = try std.ArrayList(u8).initCapacity(allocator, 0);
+        defer buffer.deinit(allocator);
+
+        try buffer.appendSlice(allocator, "Configuration Values:\n");
+        try buffer.appendSlice(allocator, "====================\n");
+
+        // Database section
+        try buffer.appendSlice(allocator, "\n[Database]\n");
+        inline for (std.meta.fields(@TypeOf(self.config.database))) |field| {
+            const value = @field(self.config.database, field.name);
+            const line = try std.fmt.allocPrint(allocator, "{s} = ", .{field.name});
+            defer allocator.free(line);
+            try buffer.appendSlice(allocator, line);
+
+            switch (@TypeOf(value)) {
+                []const u8 => try buffer.appendSlice(allocator, value),
+                u32, u16, u8 => {
+                    const val_str = try std.fmt.allocPrint(allocator, "{}", .{value});
+                    defer allocator.free(val_str);
+                    try buffer.appendSlice(allocator, val_str);
+                },
+                f32 => {
+                    const val_str = try std.fmt.allocPrint(allocator, "{d:.2}", .{value});
+                    defer allocator.free(val_str);
+                    try buffer.appendSlice(allocator, val_str);
+                },
+                bool => try buffer.appendSlice(allocator, if (value) "true" else "false"),
+                else => try buffer.appendSlice(allocator, "<complex>"),
+            }
+            try buffer.appendSlice(allocator, "\n");
+        }
+
+        // Server section
+        try buffer.appendSlice(allocator, "\n[Server]\n");
+        inline for (std.meta.fields(@TypeOf(self.config.server))) |field| {
+            const value = @field(self.config.server, field.name);
+            const line = try std.fmt.allocPrint(allocator, "{s} = ", .{field.name});
+            defer allocator.free(line);
+            try buffer.appendSlice(allocator, line);
+
+            switch (@TypeOf(value)) {
+                []const u8 => try buffer.appendSlice(allocator, value),
+                u32, u16, u8 => {
+                    const val_str = try std.fmt.allocPrint(allocator, "{}", .{value});
+                    defer allocator.free(val_str);
+                    try buffer.appendSlice(allocator, val_str);
+                },
+                f32 => {
+                    const val_str = try std.fmt.allocPrint(allocator, "{d:.2}", .{value});
+                    defer allocator.free(val_str);
+                    try buffer.appendSlice(allocator, val_str);
+                },
+                bool => try buffer.appendSlice(allocator, if (value) "true" else "false"),
+                else => try buffer.appendSlice(allocator, "<complex>"),
+            }
+            try buffer.appendSlice(allocator, "\n");
+        }
+
+        // Performance section
+        try buffer.appendSlice(allocator, "\n[Performance]\n");
+        inline for (std.meta.fields(@TypeOf(self.config.performance))) |field| {
+            const value = @field(self.config.performance, field.name);
+            const line = try std.fmt.allocPrint(allocator, "{s} = ", .{field.name});
+            defer allocator.free(line);
+            try buffer.appendSlice(allocator, line);
+
+            switch (@TypeOf(value)) {
+                []const u8 => try buffer.appendSlice(allocator, value),
+                u32, u16, u8 => {
+                    const val_str = try std.fmt.allocPrint(allocator, "{}", .{value});
+                    defer allocator.free(val_str);
+                    try buffer.appendSlice(allocator, val_str);
+                },
+                f32 => {
+                    const val_str = try std.fmt.allocPrint(allocator, "{d:.2}", .{value});
+                    defer allocator.free(val_str);
+                    try buffer.appendSlice(allocator, val_str);
+                },
+                bool => try buffer.appendSlice(allocator, if (value) "true" else "false"),
+                else => try buffer.appendSlice(allocator, "<complex>"),
+            }
+            try buffer.appendSlice(allocator, "\n");
+        }
+
+        return try buffer.toOwnedSlice(allocator);
+    }
+
     /// Save current configuration to file
     pub fn save(self: *Self) !void {
         const file = try std.fs.cwd().createFile(self.config_path, .{});
@@ -906,7 +1052,7 @@ pub const ConfigManager = struct {
 pub const ConfigUtils = struct {
     /// Get configuration value by path (e.g., "database.hnsw_m")
     pub fn getValue(config: *const WdbxConfig, path: []const u8, allocator: std.mem.Allocator) !?[]const u8 {
-        var parts = std.mem.split(u8, path, ".");
+        var parts = std.mem.splitScalar(u8, path, '.');
 
         const section = parts.next() orelse return null;
         const key = parts.next() orelse return null;

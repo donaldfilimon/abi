@@ -698,7 +698,17 @@ fn scanFile(allocator: std.mem.Allocator, rel_path: []const u8, decls: *std.Arra
     const file = try std.fs.cwd().openFile(rel_path, .{});
     defer file.close();
 
-    const data = try file.readToEndAlloc(allocator, 1024 * 1024 * 4);
+    var buffer = std.array_list.Managed(u8).init(allocator);
+    defer buffer.deinit();
+
+    var reader = file.reader(&.{});
+    var buf: [4096]u8 = undefined;
+    while (true) {
+        const n = try reader.read(&buf);
+        if (n == 0) break;
+        try buffer.appendSlice(buf[0..n]);
+    }
+    const data = try buffer.toOwnedSlice();
     defer allocator.free(data);
 
     var it = std.mem.splitScalar(u8, data, '\n');
@@ -848,7 +858,17 @@ fn generateSearchIndex(allocator: std.mem.Allocator) !void {
 fn getTitleAndExcerpt(allocator: std.mem.Allocator, path: []const u8, title_out: *[]const u8, excerpt_out: *[]const u8) !void {
     const file = try std.fs.cwd().openFile(path, .{});
     defer file.close();
-    const data = try file.readToEndAlloc(allocator, 1024 * 1024 * 4);
+    var buffer = std.array_list.Managed(u8).init(allocator);
+    defer buffer.deinit();
+
+    var reader = file.reader(&.{});
+    var buf: [4096]u8 = undefined;
+    while (true) {
+        const n = try reader.read(&buf);
+        if (n == 0) break;
+        try buffer.appendSlice(buf[0..n]);
+    }
+    const data = try buffer.toOwnedSlice();
     defer allocator.free(data);
 
     var it = std.mem.splitScalar(u8, data, '\n');
@@ -2201,7 +2221,7 @@ fn generateExamples(_: std.mem.Allocator) !void {
         \\    defer network.deinit();
         \\
         \\    // Generate training data
-        \\    var training_data = std.ArrayList(abi.TrainingData).init(allocator);
+        \\    var training_data = std.array_list.Managed(abi.TrainingData).init(allocator);
         \\    defer training_data.deinit();
         \\
         \\    for (0..1000) |i| {
@@ -2286,7 +2306,7 @@ fn generateExamples(_: std.mem.Allocator) !void {
         \\    const input_slice = input[0..input_len];
         \\
         \\    // Example: convert to uppercase
-        \\    var result = std.ArrayList(u8).init(std.heap.page_allocator);
+        \\    var result = std.array_list.Managed(u8).init(std.heap.page_allocator);
         \\    defer result.deinit();
         \\
         \\    for (input_slice) |byte| {

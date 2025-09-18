@@ -402,7 +402,7 @@ pub const AdvancedCodeAnalyzer = struct {
 
     /// Generate comprehensive code quality report
     pub fn generateReport(self: *AdvancedCodeAnalyzer, allocator: std.mem.Allocator) ![]const u8 {
-        var report = std.ArrayList(u8).init(allocator);
+        var report = std.array_list.Managed(u8).init(allocator);
         errdefer report.deinit();
 
         try report.appendSlice("Advanced Code Quality Analysis Report\n");
@@ -446,7 +446,7 @@ pub const AdvancedCodeAnalyzer = struct {
 
     /// Export issues to JSON format
     pub fn exportToJson(self: *AdvancedCodeAnalyzer, allocator: std.mem.Allocator) ![]const u8 {
-        var json = std.ArrayList(u8).init(allocator);
+        var json = std.array_list.Managed(u8).init(allocator);
         errdefer json.deinit();
 
         try json.appendSlice("{\n");

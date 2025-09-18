@@ -100,7 +100,7 @@ pub const SimpleCodeAnalyzer = struct {
 
     /// Generate simple report
     pub fn generateReport(self: *SimpleCodeAnalyzer, allocator: std.mem.Allocator) ![]const u8 {
-        var report = std.ArrayList(u8).init(allocator);
+        var report = std.array_list.Managed(u8).init(allocator);
         errdefer report.deinit();
 
         try report.appendSlice("Simple Code Quality Analysis Report\n");

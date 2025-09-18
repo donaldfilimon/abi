@@ -6,13 +6,52 @@
 //! - Mobile platform support (iOS/Android) with Metal/Vulkan backends
 //! - Cross-platform GPU backend selection
 //! - Architecture-specific optimizations
+//! - Build system integration with error recovery
+//!
+//! ## Key Features
+//!
+//! - **Multi-Architecture Support**: ARM64, x86_64, RISC-V, WebAssembly
+//! - **Platform-Specific Optimization**: Tailored configurations for each target
+//! - **Backend Selection**: Automatic GPU backend selection per platform
+//! - **Build System Integration**: Seamless integration with Zig build system
+//! - **Error Recovery**: Robust error handling and fallback mechanisms
+//!
+//! ## Usage
+//!
+//! ```zig
+//! const cross_compile = @import("cross_compilation");
+//!
+//! var manager = try cross_compile.CrossCompilationManager.init(allocator);
+//! defer manager.deinit();
+//!
+//! // Register target platforms
+//! const wasm_target = try cross_compile.PredefinedTargets.wasmTarget(allocator);
+//! try manager.registerTarget(wasm_target);
+//!
+//! // Get build configuration
+//! const build_config = manager.getBuildConfig(.wasm32, .freestanding, .musl);
+//! ```
 //!
 //! Leverages Zig's -target flag for maximum compatibility
 
 const std = @import("std");
 const builtin = @import("builtin");
 
-/// Cross-compilation target configuration
+/// Cross-compilation specific errors
+pub const CrossCompilationError = error{
+    TargetNotSupported,
+    BuildConfigurationFailed,
+    CompilerNotFound,
+    LinkerError,
+    OptimizationNotSupported,
+    BackendNotCompatible,
+    MemoryModelMismatch,
+    ThreadingModelUnsupported,
+    FeatureNotAvailable,
+    InvalidTargetConfiguration,
+};
+
+/// Cross-compilation target configuration with validation and error handling
 pub const CrossCompilationTarget = struct {
     arch: std.Target.Cpu.Arch,
     os: std.Target.Os.Tag,
@@ -24,10 +63,128 @@ pub const CrossCompilationTarget = struct {
     threading_model: ThreadingModel,
     allocator: std.mem.Allocator,
 
+    /// Create a new cross-compilation target with validation
+    pub fn init(
+        arch: std.Target.Cpu.Arch,
+        os: std.Target.Os.Tag,
+        abi: std.Target.Abi,
+        gpu_backend: GPUBackend,
+        optimization_level: OptimizationLevel,
+        memory_model: MemoryModel,
+        threading_model: ThreadingModel,
+        allocator: std.mem.Allocator,
+    ) CrossCompilationError!CrossCompilationTarget {
+        // Validate target compatibility
+        try validateTargetCompatibility(arch, os, abi, gpu_backend);
+
+        const features = try TargetFeatures.init(arch, os, allocator);
+
+        return CrossCompilationTarget{
+            .arch = arch,
+            .os = os,
+            .abi = abi,
+            .gpu_backend = gpu_backend,
+            .optimization_level = optimization_level,
+            .features = features,
+            .memory_model = memory_model,
+            .threading_model = threading_model,
+            .allocator = allocator,
+        };
+    }
+
+    /// Safely deinitialize the target and free resources
     pub fn deinit(self: *CrossCompilationTarget) void {
         self.features.deinit();
     }
+
+    /// Validate the target configuration
+    pub fn validate(self: *const CrossCompilationTarget) CrossCompilationError!void {
+        try validateTargetCompatibility(self.arch, self.os, self.abi, self.gpu_backend);
+        try self.features.validate();
+    }
+
+    /// Get a human-readable description of the target
+    pub fn description(self: *const CrossCompilationTarget) []const u8 {
+        return std.fmt.allocPrint(
+            self.allocator,
+            "{s}-{s}-{s} ({s} backend)",
+            .{
+                @tagName(self.arch),
+                @tagName(self.os),
+                @tagName(self.abi),
+                @tagName(self.gpu_backend),
+            },
+        ) catch "Unknown target";
+    }
+
+    /// Check if this target supports a specific feature
+    pub fn supportsFeature(self: *const CrossCompilationTarget, feature: TargetFeature) bool {
+        return self.features.supportsFeature(feature);
+    }
 };
+
+/// Target feature enumeration
+pub const TargetFeature = enum {
+    gpu_compute,
+    unified_memory,
+    shared_memory,
+    atomic_operations,
+    threading,
+    async_operations,
+    fp16,
+    fp64,
+    int8,
+    int4,
+    raytracing,
+    mesh_shaders,
+    variable_rate_shading,
+    hardware_scheduling,
+    cooperative_groups,
+};
+
+/// Validate target compatibility across architecture, OS, ABI, and GPU backend
+fn validateTargetCompatibility(
+    arch: std.Target.Cpu.Arch,
+    os: std.Target.Os.Tag,
+    abi: std.Target.Abi,
+    gpu_backend: GPUBackend,
+) CrossCompilationError!void {
+    // WebAssembly specific validations
+    if (arch == .wasm32 or arch == .wasm64) {
+        if (os != .freestanding) {
+            return CrossCompilationError.TargetNotSupported;
+        }
+        if (gpu_backend != .wasm_webgpu and gpu_backend != .webgpu) {
+            return CrossCompilationError.BackendNotCompatible;
+        }
+    }
+
+    // macOS specific validations
+    if (os == .macos) {
+        if (gpu_backend == .directx12) {
+            return CrossCompilationError.BackendNotCompatible;
+        }
+    }
+
+    // Windows specific validations
+    if (os == .windows) {
+        if (gpu_backend == .metal) {
+            return CrossCompilationError.BackendNotCompatible;
+        }
+    }
+
+    // Linux specific validations
+    if (os == .linux) {
+        if (gpu_backend == .directx12) {
+            return CrossCompilationError.BackendNotCompatible;
+        }
+    }
+
+    // ABI compatibility checks
+    if ((arch == .wasm32 or arch == .wasm64) and abi != .musl) {
+        return CrossCompilationError.InvalidTargetConfiguration;
+    }
+}
 
 /// GPU backend selection for cross-compilation
 pub const GPUBackend = enum {
@@ -56,7 +213,7 @@ pub const OptimizationLevel = enum {
     performance_optimized,
 };
 
-/// Target-specific features
+/// Target-specific features with enhanced capability detection
 pub const TargetFeatures = struct {
     supports_simd: bool,
     supports_neon: bool,
@@ -71,14 +228,199 @@ pub const TargetFeatures = struct {
     supports_atomic_operations: bool,
     supports_threading: bool,
     supports_async_operations: bool,
+    supports_fp16: bool,
+    supports_fp64: bool,
+    supports_int8: bool,
+    supports_int4: bool,
+    supports_raytracing: bool,
+    supports_mesh_shaders: bool,
+    supports_variable_rate_shading: bool,
+    supports_hardware_scheduling: bool,
+    supports_cooperative_groups: bool,
     max_memory_size: u64,
     max_thread_count: u32,
     cache_line_size: u32,
     page_size: u32,
     allocator: std.mem.Allocator,
 
+    /// Initialize target features based on architecture and OS
+    pub fn init(
+        arch: std.Target.Cpu.Arch,
+        os: std.Target.Os.Tag,
+        allocator: std.mem.Allocator,
+    ) CrossCompilationError!TargetFeatures {
+        var features = TargetFeatures{
+            .supports_simd = false,
+            .supports_neon = false,
+            .supports_avx = false,
+            .supports_sse = false,
+            .supports_wasm_simd = false,
+            .supports_riscv_vector = false,
+            .supports_arm_sve = false,
+            .supports_gpu_compute = true, // Assume GPU compute unless proven otherwise
+            .supports_unified_memory = false,
+            .supports_shared_memory = false,
+            .supports_atomic_operations = true,
+            .supports_threading = true,
+            .supports_async_operations = true,
+            .supports_fp16 = false,
+            .supports_fp64 = false,
+            .supports_int8 = false,
+            .supports_int4 = false,
+            .supports_raytracing = false,
+            .supports_mesh_shaders = false,
+            .supports_variable_rate_shading = false,
+            .supports_hardware_scheduling = false,
+            .supports_cooperative_groups = false,
+            .max_memory_size = 4 * 1024 * 1024 * 1024, // 4GB default
+            .max_thread_count = 64,
+            .cache_line_size = 64,
+            .page_size = 4096,
+            .allocator = allocator,
+        };
+
+        // Configure features based on architecture
+        switch (arch) {
+            .aarch64 => {
+                features.supports_simd = true;
+                features.supports_neon = true;
+                features.supports_arm_sve = true;
+                features.supports_fp16 = true;
+                features.supports_fp64 = true;
+                features.supports_int8 = true;
+                features.max_memory_size = 16 * 1024 * 1024 * 1024; // 16GB
+                features.max_thread_count = 128;
+            },
+            .x86_64 => {
+                features.supports_simd = true;
+                features.supports_avx = true;
+                features.supports_sse = true;
+                features.supports_fp16 = true;
+                features.supports_fp64 = true;
+                features.supports_int8 = true;
+                features.max_memory_size = 128 * 1024 * 1024 * 1024; // 128GB
+                features.max_thread_count = 256;
+            },
+            .riscv64 => {
+                features.supports_simd = true;
+                features.supports_riscv_vector = true;
+                features.supports_fp64 = true;
+                features.max_memory_size = 32 * 1024 * 1024 * 1024; // 32GB
+                features.max_thread_count = 64;
+            },
+            .wasm32, .wasm64 => {
+                features.supports_simd = true;
+                features.supports_wasm_simd = true;
+                features.supports_fp64 = false;
+                features.max_memory_size = 4 * 1024 * 1024 * 1024; // 4GB
+                features.max_thread_count = 16;
+                features.page_size = 65536; // 64KB pages in WASM
+            },
+            else => {
+                // Minimal feature set for unknown architectures
+                features.supports_gpu_compute = false;
+                features.max_thread_count = 1;
+            },
+        }
+
+        // OS-specific adjustments
+        switch (os) {
+            .macos => {
+                features.supports_unified_memory = true;
+                features.supports_shared_memory = true;
+            },
+            .ios => {
+                features.supports_unified_memory = true;
+                features.supports_shared_memory = true;
+                features.max_memory_size = 8 * 1024 * 1024 * 1024; // 8GB
+            },
+            .freestanding => {
+                // WebAssembly or embedded
+                if (arch == .wasm32 or arch == .wasm64) {
+                    features.supports_raytracing = false;
+                    features.supports_mesh_shaders = false;
+                }
+            },
+            else => {
+                // Default settings for other OSes
+            },
+        }
+
+        return features;
+    }
+
+    /// Safely deinitialize target features
     pub fn deinit(self: *TargetFeatures) void {
-        _ = self;
+        _ = self; // No dynamic allocation currently
+    }
+
+    /// Validate feature configuration
+    pub fn validate(self: *const TargetFeatures) CrossCompilationError!void {
+        // Validate memory limits
+        if (self.max_memory_size == 0) {
+            return CrossCompilationError.InvalidTargetConfiguration;
+        }
+
+        // Validate thread count
+        if (self.max_thread_count == 0) {
+            return CrossCompilationError.InvalidTargetConfiguration;
+        }
+
+        // Validate SIMD configuration
+        if (self.supports_simd) {
+            const has_simd_backend = self.supports_neon or
+                self.supports_avx or
+                self.supports_sse or
+                self.supports_wasm_simd or
+                self.supports_riscv_vector or
+                self.supports_arm_sve;
+            if (!has_simd_backend) {
+                std.log.warn("SIMD enabled but no SIMD backend detected", .{});
+            }
+        }
+    }
+
+    /// Check if a specific feature is supported
+    pub fn supportsFeature(self: *const TargetFeatures, feature: TargetFeature) bool {
+        return switch (feature) {
+            .gpu_compute => self.supports_gpu_compute,
+            .unified_memory => self.supports_unified_memory,
+            .shared_memory => self.supports_shared_memory,
+            .atomic_operations => self.supports_atomic_operations,
+            .threading => self.supports_threading,
+            .async_operations => self.supports_async_operations,
+            .fp16 => self.supports_fp16,
+            .fp64 => self.supports_fp64,
+            .int8 => self.supports_int8,
+            .int4 => self.supports_int4,
+            .raytracing => self.supports_raytracing,
+            .mesh_shaders => self.supports_mesh_shaders,
+            .variable_rate_shading => self.supports_variable_rate_shading,
+            .hardware_scheduling => self.supports_hardware_scheduling,
+            .cooperative_groups => self.supports_cooperative_groups,
+        };
+    }
+
+    /// Get feature summary as a human-readable string
+    pub fn getFeatureSummary(self: *const TargetFeatures, allocator: std.mem.Allocator) ![]const u8 {
+        var summary = std.ArrayList(u8).init(allocator);
+        defer summary.deinit();
+
+        try summary.appendSlice("Target Features:\n");
+
+        if (self.supports_simd) try summary.appendSlice("  ✓ SIMD\n");
+        if (self.supports_gpu_compute) try summary.appendSlice("  ✓ GPU Compute\n");
+        if (self.supports_unified_memory) try summary.appendSlice("  ✓ Unified Memory\n");
+        if (self.supports_shared_memory) try summary.appendSlice("  ✓ Shared Memory\n");
+        if (self.supports_atomic_operations) try summary.appendSlice("  ✓ Atomic Operations\n");
+        if (self.supports_threading) try summary.appendSlice("  ✓ Threading\n");
+        if (self.supports_fp16) try summary.appendSlice("  ✓ FP16\n");
+        if (self.supports_fp64) try summary.appendSlice("  ✓ FP64\n");
+        if (self.supports_raytracing) try summary.appendSlice("  ✓ Ray Tracing\n");
+
+        try std.fmt.format(summary.writer(), "  Memory: {} MB max, {} threads max\n", .{ self.max_memory_size / (1024 * 1024), self.max_thread_count });
+
+        return summary.toOwnedSlice();
     }
 };
 
@@ -103,30 +445,83 @@ pub const ThreadingModel = enum {
     embedded_threaded,
 };
 
-/// Cross-compilation manager
+/// Cross-compilation manager with enhanced error handling and resource management
 pub const CrossCompilationManager = struct {
     allocator: std.mem.Allocator,
-    target_configs: std.HashMap(TargetKey, CrossCompilationTarget, TargetKey.hash, TargetKey.eql),
-    build_configs: std.HashMap(TargetKey, BuildConfig, TargetKey.hash, TargetKey.eql),
+    target_configs: std.AutoHashMap(TargetKey, CrossCompilationTarget),
+    build_configs: std.AutoHashMap(TargetKey, BuildConfig),
+    is_initialized: bool,
 
     const Self = @This();
 
-    /// Target key for hash map
+    /// Initialize the cross-compilation manager
+    pub fn init(allocator: std.mem.Allocator) !*Self {
+        const self = try allocator.create(Self);
+        errdefer allocator.destroy(self);
+
+        self.* = .{
+            .allocator = allocator,
+            .target_configs = std.AutoHashMap(TargetKey, CrossCompilationTarget).init(allocator),
+            .build_configs = std.AutoHashMap(TargetKey, BuildConfig).init(allocator),
+            .is_initialized = true,
+        };
+
+        std.log.info("🔧 Cross-compilation manager initialized", .{});
+        return self;
+    }
+
+    /// Deinitialize the manager and free all resources
+    pub fn deinit(self: *Self) void {
+        if (!self.is_initialized) return;
+
+        // Clean up all target configurations
+        var target_iter = self.target_configs.iterator();
+        while (target_iter.next()) |entry| {
+            entry.value_ptr.deinit();
+        }
+        self.target_configs.deinit();
+
+        // Clean up all build configurations
+        var build_iter = self.build_configs.iterator();
+        while (build_iter.next()) |entry| {
+            entry.value_ptr.deinit();
+        }
+        self.build_configs.deinit();
+
+        self.is_initialized = false;
+        self.allocator.destroy(self);
+
+        std.log.info("🔧 Cross-compilation manager deinitialized", .{});
+    }
+
+    /// Target key for hash map with improved hashing
     const TargetKey = struct {
         arch: std.Target.Cpu.Arch,
         os: std.Target.Os.Tag,
         abi: std.Target.Abi,
 
         pub fn hash(self: TargetKey) u64 {
+            // Use a more robust hashing approach
             var hasher = std.hash.Wyhash.init(0);
-            hasher.update(std.mem.asBytes(&self.arch));
-            hasher.update(std.mem.asBytes(&self.os));
-            hasher.update(std.mem.asBytes(&self.abi));
+            std.hash.autoHash(&hasher, self.arch);
+            std.hash.autoHash(&hasher, self.os);
+            std.hash.autoHash(&hasher, self.abi);
             return hasher.final();
         }
 
         pub fn eql(self: TargetKey, other: TargetKey) bool {
-            return self.arch == other.arch and self.os == other.os and self.abi == other.abi;
+            return self.arch == other.arch and
+                self.os == other.os and
+                self.abi == other.abi;
+        }
+
+        /// Create a human-readable string representation
+        pub fn format(self: TargetKey, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            try writer.print("{s}-{s}-{s}", .{
+                @tagName(self.arch),
+                @tagName(self.os),
+                @tagName(self.abi),
+            });
         }
     };
 
@@ -165,41 +560,62 @@ pub const CrossCompilationManager = struct {
         }
     };
 
-    pub fn init(allocator: std.mem.Allocator) Self {
-        return Self{
-            .allocator = allocator,
-            .target_configs = std.HashMap(TargetKey, CrossCompilationTarget, TargetKey.hash, TargetKey.eql).init(allocator),
-            .build_configs = std.HashMap(TargetKey, BuildConfig, TargetKey.hash, TargetKey.eql).init(allocator),
-        };
-    }
-
-    pub fn deinit(self: *Self) void {
-        var target_iterator = self.target_configs.iterator();
-        while (target_iterator.next()) |entry| {
-            entry.value_ptr.deinit();
+    /// Register a cross-compilation target with validation
+    pub fn registerTarget(self: *Self, target: CrossCompilationTarget) CrossCompilationError!void {
+        if (!self.is_initialized) {
+            return CrossCompilationError.InvalidTargetConfiguration;
         }
-        self.target_configs.deinit();
 
-        var build_iterator = self.build_configs.iterator();
-        while (build_iterator.next()) |entry| {
-            entry.value_ptr.deinit();
-        }
-        self.build_configs.deinit();
-    }
+        // Validate the target before registration
+        try target.validate();
 
-    /// Register a cross-compilation target
-    pub fn registerTarget(self: *Self, target: CrossCompilationTarget) !void {
         const key = TargetKey{
             .arch = target.arch,
             .os = target.os,
             .abi = target.abi,
         };
 
-        try self.target_configs.put(key, target);
+        // Check if target already exists
+        if (self.target_configs.contains(key)) {
+            std.log.warn("Target {} already registered, replacing", .{key});
+            // Clean up existing target
+            if (self.target_configs.getPtr(key)) |existing| {
+                existing.deinit();
+            }
+        }
 
-        // Generate build configuration for this target
-        const build_config = try self.generateBuildConfig(target);
+        // Create a copy of the target for storage
+        const target_copy = try self.createTargetCopy(target);
+
+        // Store the target
+        try self.target_configs.put(key, target_copy);
+
+        // Generate and store build configuration
+        const build_config = try self.generateBuildConfig(target_copy);
+        errdefer build_config.deinit();
+
         try self.build_configs.put(key, build_config);
+
+        std.log.info("✅ Registered cross-compilation target: {}", .{key});
+    }
+
+    /// Create a deep copy of a target for storage
+    fn createTargetCopy(self: *Self, target: CrossCompilationTarget) CrossCompilationError!CrossCompilationTarget {
+        // Create new target features
+        var features_copy = try TargetFeatures.init(target.arch, target.os, self.allocator);
+        errdefer features_copy.deinit();
+
+        return CrossCompilationTarget{
+            .arch = target.arch,
+            .os = target.os,
+            .abi = target.abi,
+            .gpu_backend = target.gpu_backend,
+            .optimization_level = target.optimization_level,
+            .features = features_copy,
+            .memory_model = target.memory_model,
+            .threading_model = target.threading_model,
+            .allocator = self.allocator,
+        };
     }
 
     /// Get cross-compilation target for architecture
@@ -474,6 +890,15 @@ pub const PredefinedTargets = struct {
                 .supports_atomic_operations = true,
                 .supports_threading = true,
                 .supports_async_operations = true,
+                .supports_fp16 = false,
+                .supports_fp64 = false,
+                .supports_int8 = false,
+                .supports_int4 = false,
+                .supports_raytracing = false,
+                .supports_mesh_shaders = false,
+                .supports_variable_rate_shading = false,
+                .supports_hardware_scheduling = false,
+                .supports_cooperative_groups = false,
                 .max_memory_size = 4 * 1024 * 1024 * 1024, // 4GB
                 .max_thread_count = 4,
                 .cache_line_size = 64,
@@ -508,6 +933,15 @@ pub const PredefinedTargets = struct {
                 .supports_atomic_operations = true,
                 .supports_threading = true,
                 .supports_async_operations = true,
+                .supports_fp16 = true,
+                .supports_fp64 = true,
+                .supports_int8 = true,
+                .supports_int4 = false,
+                .supports_raytracing = true,
+                .supports_mesh_shaders = true,
+                .supports_variable_rate_shading = true,
+                .supports_hardware_scheduling = true,
+                .supports_cooperative_groups = true,
                 .max_memory_size = 16 * 1024 * 1024 * 1024, // 16GB
                 .max_thread_count = 8,
                 .cache_line_size = 64,
@@ -542,6 +976,15 @@ pub const PredefinedTargets = struct {
                 .supports_atomic_operations = true,
                 .supports_threading = true,
                 .supports_async_operations = true,
+                .supports_fp16 = false,
+                .supports_fp64 = true,
+                .supports_int8 = true,
+                .supports_int4 = false,
+                .supports_raytracing = false,
+                .supports_mesh_shaders = false,
+                .supports_variable_rate_shading = false,
+                .supports_hardware_scheduling = false,
+                .supports_cooperative_groups = false,
                 .max_memory_size = 32 * 1024 * 1024 * 1024, // 32GB
                 .max_thread_count = 16,
                 .cache_line_size = 64,
@@ -580,6 +1023,15 @@ pub const PredefinedTargets = struct {
                 .supports_atomic_operations = true,
                 .supports_threading = true,
                 .supports_async_operations = true,
+                .supports_fp16 = true,
+                .supports_fp64 = true,
+                .supports_int8 = true,
+                .supports_int4 = true,
+                .supports_raytracing = true,
+                .supports_mesh_shaders = true,
+                .supports_variable_rate_shading = true,
+                .supports_hardware_scheduling = true,
+                .supports_cooperative_groups = true,
                 .max_memory_size = 64 * 1024 * 1024 * 1024, // 64GB
                 .max_thread_count = 32,
                 .cache_line_size = 64,

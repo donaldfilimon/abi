@@ -212,6 +212,52 @@ abi benchmark --iterations 1000 --memory-track
 abi --memory-profile benchmark
 ```
 
+## ⚙️ **Build Options**
+
+Configure features and targets via command-line flags:
+
+### **GPU & Acceleration**
+- `-Denable_cuda=true|false` (default: true) - Enable NVIDIA CUDA support
+- `-Denable_spirv=true|false` (default: true) - Enable Vulkan/SPIRV compilation
+- `-Denable_wasm=true|false` (default: true) - Enable WebAssembly compilation
+
+### **Optimization & Targets**
+- `-Dtarget=<triple>` - Cross-compilation target (e.g., `x86_64-linux-gnu`, `aarch64-macos`)
+- `-Doptimize=Debug|ReleaseSafe|ReleaseFast|ReleaseSmall` (default: Debug)
+
+### **Development Features**
+- `-Denable_cross_compilation=true|false` (default: true) - Enable cross-compilation support
+- `-Denable_heavy_tests=true|false` (default: false) - Run heavy database/HNSW tests
+
+### **Examples**
+
+```bash
+# Production build with CUDA acceleration
+zig build -Dtarget=x86_64-linux-gnu -Doptimize=ReleaseFast -Denable_cuda=true
+
+# Cross-compile for ARM64 macOS
+zig build -Dtarget=aarch64-macos -Doptimize=ReleaseSmall
+
+# Run with all tests including heavy ones
+zig build test-all -Denable_heavy_tests=true
+
+# Minimal build without GPU support
+zig build -Denable_cuda=false -Denable_spirv=false
+```
+
+### **Runtime Configuration**
+
+Build options are available at compile-time via the `options` module:
+
+```zig
+const options = @import("options");
+
+pub fn main() void {
+    std.log.info("CUDA: {}, SPIRV: {}", .{ options.enable_cuda, options.enable_spirv });
+    std.log.info("Target: {}", .{ options.target });
+}
+```
+
 ## 🏗️ **Architecture Overview**
 
 ```

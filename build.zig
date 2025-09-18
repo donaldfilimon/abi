@@ -212,7 +212,7 @@ pub fn build(b: *std.Build) void {
     });
 
     // CLI module with advanced argument processing
-    const cli_mod = b.createModule(.{
+    const cli_mod = b.addModule("cli", .{
         .root_source_file = b.path("src/cli/main.zig"),
         .target = target,
         .optimize = optimize,
@@ -226,6 +226,7 @@ pub fn build(b: *std.Build) void {
         .name = "abi",
         .root_module = cli_mod,
     });
+    cli_exe.root_module.addOptions("options", build_options);
 
     // Apply GPU dependencies with error handling
     applyGPUDeps(b, cli_exe, target, enable_cuda, enable_spirv, cuda_path, vulkan_sdk_path);
@@ -238,7 +239,7 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&cli_run.step);
 
     // Core unit testing infrastructure
-    const unit_tests_mod = b.createModule(.{
+    const unit_tests_mod = b.addModule("unit_tests", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
@@ -247,28 +248,32 @@ pub fn build(b: *std.Build) void {
     const unit_tests = b.addTest(.{
         .root_module = unit_tests_mod,
     });
+    unit_tests.root_module.addOptions("options", build_options);
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
     // Support modules for comprehensive testing
-    const weather_mod = b.createModule(.{
+    const weather_mod = b.addModule("weather", .{
         .root_source_file = b.path("src/services/weather.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    const gpu_mod = b.createModule(.{
+    const gpu_mod = b.addModule("gpu", .{
         .root_source_file = b.path("src/gpu/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    const web_server_mod = b.createModule(.{
+    const web_server_mod = b.addModule("web_server", .{
         .root_source_file = b.path("src/server/web_server.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "abi", .module = abi_mod },
+        },
     });
 
     // Comprehensive test suite
@@ -287,14 +292,16 @@ pub fn build(b: *std.Build) void {
         .{ .path = "tests/test_web_server.zig", .imports = &.{.{ .name = "web_server", .module = web_server_mod }} },
     };
 
-    for (test_files) |test_file| {
-        const mod = b.createModule(.{
+    for (test_files, 0..) |test_file, i| {
+        const module_name = b.fmt("test_{d}", .{i});
+        const mod = b.addModule(module_name, .{
             .root_source_file = b.path(test_file.path),
             .target = target,
             .optimize = optimize,
             .imports = test_file.imports,
         });
         const t = b.addTest(.{ .root_module = mod });
+        t.root_module.addOptions("options", build_options);
         const run_t = b.addRunArtifact(t);
         test_step.dependOn(&run_t.step);
     }
@@ -304,35 +311,38 @@ pub fn build(b: *std.Build) void {
     const heavy_step = b.step("test-heavy", "Run heavy HNSW/integration tests");
 
     // HNSW performance tests
-    const hnsw_mod = b.createModule(.{
+    const hnsw_mod = b.addModule("hnsw_tests", .{
         .root_source_file = b.path("tests/test_database_hnsw.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
     const hnsw_tests = b.addTest(.{ .root_module = hnsw_mod });
+    hnsw_tests.root_module.addOptions("options", build_options);
     const run_hnsw = b.addRunArtifact(hnsw_tests);
     heavy_step.dependOn(&run_hnsw.step);
 
     // Database integration tests
-    const db_int_mod = b.createModule(.{
+    const db_int_mod = b.addModule("db_int_tests", .{
         .root_source_file = b.path("tests/test_database_integration.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
     const db_int_tests = b.addTest(.{ .root_module = db_int_mod });
+    db_int_tests.root_module.addOptions("options", build_options);
     const run_db_int = b.addRunArtifact(db_int_tests);
     heavy_step.dependOn(&run_db_int.step);
 
     // Socket-level web server stress tests
-    const web_socket_mod = b.createModule(.{
+    const web_socket_mod = b.addModule("web_socket_tests", .{
         .root_source_file = b.path("tests/test_web_server_socket.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{.{ .name = "web_server", .module = web_server_mod }},
     });
     const web_socket_tests = b.addTest(.{ .root_module = web_socket_mod });
+    web_socket_tests.root_module.addOptions("options", build_options);
     const run_web_socket = b.addRunArtifact(web_socket_tests);
     heavy_step.dependOn(&run_web_socket.step);
 
@@ -358,7 +368,7 @@ pub fn build(b: *std.Build) void {
     var benchmark_exes: [benchmark_configs.len]*std.Build.Step.Compile = undefined;
 
     for (benchmark_configs, 0..) |config, i| {
-        const mod = b.createModule(.{
+        const mod = b.addModule(b.fmt("{s}_bench", .{config.name}), .{
             .root_source_file = b.path(config.path),
             .target = target,
             .optimize = optimize,
@@ -386,13 +396,14 @@ pub fn build(b: *std.Build) void {
     }
 
     // SIMD micro-benchmark
-    const simd_micro_mod = b.createModule(.{
+    const simd_micro_mod = b.addModule("simd_micro_bench", .{
         .root_source_file = b.path("benchmarks/simd_micro.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
     const simd_micro_exe = b.addExecutable(.{ .name = "simd-micro", .root_module = simd_micro_mod });
+    simd_micro_exe.root_module.addOptions("options", build_options);
     const run_simd_bench = b.addRunArtifact(simd_micro_exe);
     const simd_bench_step = b.step("bench-simd", "Run SIMD micro-benchmark");
     simd_bench_step.dependOn(&run_simd_bench.step);
@@ -406,14 +417,16 @@ pub fn build(b: *std.Build) void {
         .{ .name = "performance_ci", .path = "tools/performance_ci.zig", .desc = "Run performance CI/CD testing", .imports = &.{.{ .name = "abi", .module = abi_mod }} },
     };
 
-    for (tool_configs) |config| {
-        const mod = b.createModule(.{
+    for (tool_configs, 0..) |config, i| {
+        const module_name = b.fmt("tool_{d}_{s}", .{ i, config.name });
+        const mod = b.addModule(module_name, .{
             .root_source_file = b.path(config.path),
             .target = target,
             .optimize = if (std.mem.eql(u8, config.name, "performance_profiler")) .ReleaseFast else optimize,
             .imports = config.imports,
         });
         const exe = b.addExecutable(.{ .name = config.name, .root_module = mod });
+        exe.root_module.addOptions("options", build_options);
         b.installArtifact(exe);
 
         const run_tool = b.addRunArtifact(exe);
@@ -429,7 +442,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // Windows network diagnostic tool
-    const network_test_mod = b.createModule(.{
+    const network_test_mod = b.addModule("windows_network_test", .{
         .root_source_file = b.path("tools/windows_network_test.zig"),
         .target = target,
         .optimize = optimize,
@@ -438,6 +451,7 @@ pub fn build(b: *std.Build) void {
         .name = "windows_network_test",
         .root_module = network_test_mod,
     });
+    network_test.root_module.addOptions("options", build_options);
     network_test.root_module.link_libc = true;
     if (target.result.os.tag == .windows) {
         b.installArtifact(network_test);
@@ -447,24 +461,26 @@ pub fn build(b: *std.Build) void {
     network_test_step.dependOn(&run_network_test.step);
 
     // Plugin system testing
-    const plugin_mod = b.createModule(.{
+    const plugin_mod = b.addModule("plugin_tests", .{
         .root_source_file = b.path("src/plugins/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
     const plugin_tests = b.addTest(.{ .root_module = plugin_mod });
+    plugin_tests.root_module.addOptions("options", build_options);
     const run_plugin_tests = b.addRunArtifact(plugin_tests);
     const plugin_test_step = b.step("test-plugins", "Run plugin system tests");
     plugin_test_step.dependOn(&run_plugin_tests.step);
 
     // Code coverage with kcov integration
     const coverage_step = b.step("coverage", "Generate code coverage report");
-    const coverage_mod = b.createModule(.{
+    const coverage_mod = b.addModule("coverage", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = .Debug,
     });
     const coverage_tests = b.addTest(.{ .root_module = coverage_mod });
+    coverage_tests.root_module.addOptions("options", build_options);
     const kcov_exe = b.addSystemCommand(&[_][]const u8{
         "kcov",
         "--clean",
@@ -476,7 +492,7 @@ pub fn build(b: *std.Build) void {
     coverage_step.dependOn(&kcov_exe.step);
 
     // GPU verification and demo
-    const gpu_demo_mod = b.createModule(.{
+    const gpu_demo_mod = b.addModule("gpu_demo", .{
         .root_source_file = b.path("src/gpu/demo/gpu_demo.zig"),
         .target = target,
         .optimize = optimize,
@@ -486,6 +502,7 @@ pub fn build(b: *std.Build) void {
         .name = "gpu_demo",
         .root_module = gpu_demo_mod,
     });
+    gpu_demo_exe.root_module.addOptions("options", build_options);
 
     // Apply GPU dependencies for hardware acceleration (temporarily disabled due to MSVC linking issues)
     // applyGPUDeps(b, gpu_demo_exe, target, enable_cuda, enable_spirv, cuda_path, vulkan_sdk_path);
@@ -494,7 +511,7 @@ pub fn build(b: *std.Build) void {
     const run_gpu_demo = b.addRunArtifact(gpu_demo_exe);
 
     // Enhanced GPU demo with advanced library integration
-    const enhanced_gpu_demo_mod = b.createModule(.{
+    const enhanced_gpu_demo_mod = b.addModule("enhanced_gpu_demo", .{
         .root_source_file = b.path("src/gpu/demo/enhanced_gpu_demo.zig"),
         .target = target,
         .optimize = optimize,
@@ -504,6 +521,7 @@ pub fn build(b: *std.Build) void {
         .name = "enhanced_gpu_demo",
         .root_module = enhanced_gpu_demo_mod,
     });
+    enhanced_gpu_demo_exe.root_module.addOptions("options", build_options);
 
     b.installArtifact(enhanced_gpu_demo_exe);
     const run_enhanced_gpu_demo = b.addRunArtifact(enhanced_gpu_demo_exe);
@@ -514,7 +532,7 @@ pub fn build(b: *std.Build) void {
     enhanced_gpu_demo_step.dependOn(&run_enhanced_gpu_demo.step);
 
     // Advanced GPU demo with next-level features
-    const advanced_gpu_demo_mod = b.createModule(.{
+    const advanced_gpu_demo_mod = b.addModule("advanced_gpu_demo", .{
         .root_source_file = b.path("src/gpu/demo/advanced_gpu_demo.zig"),
         .target = target,
         .optimize = optimize,
@@ -524,6 +542,7 @@ pub fn build(b: *std.Build) void {
         .name = "advanced_gpu_demo",
         .root_module = advanced_gpu_demo_mod,
     });
+    advanced_gpu_demo_exe.root_module.addOptions("options", build_options);
 
     b.installArtifact(advanced_gpu_demo_exe);
     const run_advanced_gpu_demo = b.addRunArtifact(advanced_gpu_demo_exe);
@@ -539,7 +558,7 @@ pub fn build(b: *std.Build) void {
         const wasm_step = b.step("wasm", "Compile to WebAssembly");
 
         // High-performance WASM build
-        const wasm_high_perf_mod = b.createModule(.{
+        const wasm_high_perf_mod = b.addModule("wasm_high_perf", .{
             .root_source_file = b.path("src/cli/main.zig"),
             .target = b.resolveTargetQuery(.{
                 .cpu_arch = .wasm32,
@@ -555,7 +574,7 @@ pub fn build(b: *std.Build) void {
         wasm_step.dependOn(&wasm_high_perf.step);
 
         // Size-optimized WASM build
-        const wasm_size_opt_mod = b.createModule(.{
+        const wasm_size_opt_mod = b.addModule("wasm_size_opt", .{
             .root_source_file = b.path("src/cli/main.zig"),
             .target = b.resolveTargetQuery(.{
                 .cpu_arch = .wasm32,
@@ -576,7 +595,7 @@ pub fn build(b: *std.Build) void {
         const cross_compile_step = b.step("cross-compile", "Cross-compile for multiple architectures");
 
         // ARM64 Linux build
-        const arm64_linux_mod = b.createModule(.{
+        const arm64_linux_mod = b.addModule("arm64_linux", .{
             .root_source_file = b.path("src/cli/main.zig"),
             .target = b.resolveTargetQuery(.{
                 .cpu_arch = .aarch64,
@@ -592,7 +611,7 @@ pub fn build(b: *std.Build) void {
         cross_compile_step.dependOn(&arm64_linux.step);
 
         // RISC-V Linux build
-        const riscv64_linux_mod = b.createModule(.{
+        const riscv64_linux_mod = b.addModule("riscv64_linux", .{
             .root_source_file = b.path("src/cli/main.zig"),
             .target = b.resolveTargetQuery(.{
                 .cpu_arch = .riscv64,
@@ -608,7 +627,7 @@ pub fn build(b: *std.Build) void {
         cross_compile_step.dependOn(&riscv64_linux.step);
 
         // ARM64 macOS build
-        const arm64_macos_mod = b.createModule(.{
+        const arm64_macos_mod = b.addModule("arm64_macos", .{
             .root_source_file = b.path("src/cli/main.zig"),
             .target = b.resolveTargetQuery(.{
                 .cpu_arch = .aarch64,
@@ -624,7 +643,7 @@ pub fn build(b: *std.Build) void {
         cross_compile_step.dependOn(&arm64_macos.step);
 
         // x86_64 Windows build
-        const x86_64_windows_mod = b.createModule(.{
+        const x86_64_windows_mod = b.addModule("x86_64_windows", .{
             .root_source_file = b.path("src/cli/main.zig"),
             .target = b.resolveTargetQuery(.{
                 .cpu_arch = .x86_64,
@@ -641,7 +660,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // Integration testing
-    const integration_mod = b.createModule(.{
+    const integration_mod = b.addModule("integration_tests", .{
         .root_source_file = b.path("tests/integration_test_suite.zig"),
         .target = target,
         .optimize = optimize,
@@ -651,6 +670,7 @@ pub fn build(b: *std.Build) void {
         .name = "integration_tests",
         .root_module = integration_mod,
     });
+    integration_tests.root_module.addOptions("options", build_options);
     const run_integration_tests = b.addRunArtifact(integration_tests);
     const integration_test_step = b.step("test-integration", "Run integration tests");
     integration_test_step.dependOn(&run_integration_tests.step);
@@ -668,14 +688,16 @@ pub fn build(b: *std.Build) void {
         .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .gnu },
         .{ .cpu_arch = .aarch64, .os_tag = .macos },
     };
-    for (test_targets) |tq| {
+    for (test_targets, 0..) |tq, i| {
         const resolved = b.resolveTargetQuery(tq);
-        const unit_mod_matrix = b.createModule(.{
+        const module_name = b.fmt("test_matrix_{d}", .{i});
+        const unit_mod_matrix = b.addModule(module_name, .{
             .root_source_file = b.path("src/root.zig"),
             .target = resolved,
             .optimize = optimize,
         });
         const unit_tests_matrix = b.addTest(.{ .root_module = unit_mod_matrix });
+        unit_tests_matrix.root_module.addOptions("options", build_options);
         const run_unit_tests_matrix = b.addRunArtifact(unit_tests_matrix);
         run_unit_tests_matrix.skip_foreign_checks = true;
         test_matrix_step.dependOn(&run_unit_tests_matrix.step);
@@ -710,7 +732,8 @@ pub fn build(b: *std.Build) void {
             break :blk "src/cli/main.zig";
         };
 
-        const cross_cli_mod = b.createModule(.{
+        const module_name = b.fmt("cross_cli_{s}", .{cross_target});
+        const cross_cli_mod = b.addModule(module_name, .{
             .root_source_file = b.path(root_src_path),
             .target = cross_target_resolved,
             .optimize = optimize,

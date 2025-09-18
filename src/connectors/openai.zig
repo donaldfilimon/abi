@@ -8,6 +8,48 @@ pub const Error = error{
     NetworkError,
     InvalidResponse,
     OutOfMemory,
+    ConnectionRefused,
+    ConnectionTimedOut,
+    ConnectionResetByPeer,
+    NetworkUnreachable,
+    UnknownHostName,
+    TlsInitializationFailed,
+    UnsupportedUriScheme,
+    UriHostTooLong,
+    CertificateBundleLoadFailure,
+    UnexpectedConnectFailure,
+    NameServerFailure,
+    TemporaryNameServerFailure,
+    HostLacksNetworkAddresses,
+    UriMissingHost,
+    NoSpaceLeft,
+    WriteFailed,
+    ReadFailed,
+    HttpChunkInvalid,
+    HttpChunkTruncated,
+    HttpHeadersInvalid,
+    HttpHeadersOversize,
+    HttpRequestTruncated,
+    HttpConnectionClosing,
+    TooManyHttpRedirects,
+    RedirectRequiresResend,
+    HttpRedirectLocationMissing,
+    HttpRedirectLocationOversize,
+    HttpRedirectLocationInvalid,
+    HttpContentEncodingUnsupported,
+    Overflow,
+    InvalidEnumTag,
+    InvalidCharacter,
+    UnexpectedToken,
+    InvalidNumber,
+    DuplicateField,
+    UnknownField,
+    MissingField,
+    LengthMismatch,
+    SyntaxError,
+    UnexpectedEndOfInput,
+    BufferUnderrun,
+    ValueTooLong,
 };
 
 /// Embeds the given text using the OpenAI embeddings API
@@ -41,7 +83,8 @@ pub fn embedText(allocator: Allocator, base_url: []const u8, api_key: []const u8
     const body = try std.fmt.allocPrint(allocator, "{{\"model\":\"{s}\",\"input\":\"{s}\"}}", .{ model, text });
     defer allocator.free(body);
 
-    var req = try client.request(.POST, try std.Uri.parse(url), .{});
+    const uri = std.Uri.parse(url) catch return Error.NetworkError;
+    var req = try client.request(.POST, uri, .{});
     defer req.deinit();
 
     // Set headers manually (since extra_headers is not used elsewhere in repo)
@@ -56,8 +99,8 @@ pub fn embedText(allocator: Allocator, base_url: []const u8, api_key: []const u8
     var response = try req.receiveHead(&redirect_buf);
 
     if (response.head.status != .ok) return Error.NetworkError;
-    var list = std.array_list.Managed(u8).init(allocator);
-    defer list.deinit();
+    var list = try std.ArrayList(u8).initCapacity(allocator, 0);
+    defer list.deinit(allocator);
     var buf: [8192]u8 = undefined;
     const rdr = response.reader(&.{});
     while (true) {
@@ -68,9 +111,9 @@ pub fn embedText(allocator: Allocator, base_url: []const u8, api_key: []const u8
             error.EndOfStream => 0,
         };
         if (n == 0) break;
-        try list.appendSlice(buf[0..n]);
+        try list.appendSlice(allocator, buf[0..n]);
     }
-    const resp = try list.toOwnedSlice();
+    const resp = try list.toOwnedSlice(allocator);
     defer allocator.free(resp);
 
     // Expected shape: {"data":[{"embedding":[...]}]}

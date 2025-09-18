@@ -1,17 +1,87 @@
 //! GPU Backend Manager - Advanced Multi-Backend GPU Support
 //!
 //! This module provides comprehensive GPU backend management with:
-//! - CUDA driver integration
-//! - SPIRV compilation support
-//! - Multi-backend selection and failover
-//! - Hardware capability detection
-//! - Shader compilation and optimization
-//! - Memory management across backends
+//! - CUDA driver integration with modern CUDA features
+//! - SPIRV compilation support with optimization
+//! - Multi-backend selection and intelligent failover
+//! - Hardware capability detection and profiling
+//! - Shader compilation and advanced optimization
+//! - Memory management across backends with performance monitoring
+//! - Cross-platform compatibility and error recovery
+//!
+//! ## Key Features
+//!
+//! - **Multi-Backend Support**: Automatic backend selection with fallback
+//! - **Hardware Detection**: Real-time GPU capability assessment
+//! - **Performance Monitoring**: Built-in profiling and metrics collection
+//! - **Error Recovery**: Robust error handling with automatic recovery
+//! - **Memory Management**: Advanced memory allocation and optimization
+//! - **Shader Optimization**: Multi-stage shader compilation and optimization
+//!
+//! ## Usage Example
+//!
+//! ```zig
+//! const gpu_manager = @import("gpu_backend_manager");
+//!
+//! var manager = try gpu_manager.GPUBackendManager.init(allocator);
+//! defer manager.deinit();
+//!
+//! // Detect and select best available backend
+//! try manager.detectAvailableBackends();
+//! try manager.selectBestBackend();
+//!
+//! // Get hardware capabilities
+//! const capabilities = try manager.getBackendCapabilities(manager.current_backend.?);
+//!
+//! // Compile shader for current backend
+//! const shader_code = try manager.compileShader(source, .compute);
+//! ```
+//!
+//! Leverages Zig 0.15+ features for optimal performance and reliability
 
 const std = @import("std");
 const builtin = @import("builtin");
 
-/// GPU Backend Type
+/// GPU Backend Manager specific errors with detailed context
+pub const GPUBackendError = error{
+    // Initialization errors
+    InitializationFailed,
+    BackendNotAvailable,
+    DriverLoadFailed,
+    DeviceNotFound,
+
+    // Backend-specific errors
+    VulkanError,
+    CudaError,
+    MetalError,
+    DirectXError,
+    OpenCLError,
+    WebGPUError,
+
+    // Shader compilation errors
+    ShaderCompilationFailed,
+    ShaderValidationFailed,
+    SPIRVCompilationFailed,
+    MSLCompilationFailed,
+    PTXCompilationFailed,
+
+    // Memory management errors
+    MemoryAllocationFailed,
+    BufferCreationFailed,
+    TextureCreationFailed,
+
+    // Runtime errors
+    CommandSubmissionFailed,
+    SynchronizationFailed,
+    ResourceExhausted,
+
+    // Configuration errors
+    InvalidConfiguration,
+    UnsupportedFeature,
+    VersionMismatch,
+};
+
+/// GPU Backend Type with enhanced capabilities
 pub const BackendType = enum {
     vulkan,
     cuda,
@@ -22,6 +92,7 @@ pub const BackendType = enum {
     webgpu,
     cpu_fallback,
 
+    /// Get backend priority for automatic selection (higher = better)
     pub fn priority(self: BackendType) u8 {
         return switch (self) {
             .cuda => 100, // Highest priority - NVIDIA optimized
@@ -35,6 +106,7 @@ pub const BackendType = enum {
         };
     }
 
+    /// Get human-readable display name
     pub fn displayName(self: BackendType) []const u8 {
         return switch (self) {
             .vulkan => "Vulkan",
@@ -47,36 +119,198 @@ pub const BackendType = enum {
             .cpu_fallback => "CPU Fallback",
         };
     }
+
+    /// Check if backend supports compute operations
+    pub fn supportsCompute(self: BackendType) bool {
+        return switch (self) {
+            .vulkan, .cuda, .metal, .dx12, .opencl, .webgpu => true,
+            .opengl => false, // Limited compute support
+            .cpu_fallback => false,
+        };
+    }
+
+    /// Check if backend supports graphics operations
+    pub fn supportsGraphics(self: BackendType) bool {
+        return switch (self) {
+            .vulkan, .metal, .dx12, .opengl, .webgpu => true,
+            .cuda, .opencl => false, // Compute-only
+            .cpu_fallback => false,
+        };
+    }
+
+    /// Check if backend is cross-platform
+    pub fn isCrossPlatform(self: BackendType) bool {
+        return switch (self) {
+            .vulkan, .opengl, .opencl, .webgpu, .cpu_fallback => true,
+            .cuda, .metal, .dx12 => false, // Platform-specific
+        };
+    }
+
+    /// Get supported platforms for this backend
+    pub fn supportedPlatforms(self: BackendType) []const std.Target.Os.Tag {
+        return switch (self) {
+            .vulkan => &[_]std.Target.Os.Tag{ .windows, .linux, .macos, .android },
+            .cuda => &[_]std.Target.Os.Tag{ .windows, .linux },
+            .metal => &[_]std.Target.Os.Tag{ .macos, .ios, .tvos },
+            .dx12 => &[_]std.Target.Os.Tag{.windows},
+            .opengl => &[_]std.Target.Os.Tag{ .windows, .linux, .macos, .android, .ios },
+            .opencl => &[_]std.Target.Os.Tag{ .windows, .linux, .macos, .android },
+            .webgpu => &[_]std.Target.Os.Tag{.freestanding}, // WebAssembly
+            .cpu_fallback => &[_]std.Target.Os.Tag{ .windows, .linux, .macos, .android, .ios },
+        };
+    }
+
+    /// Check if backend is available on current platform
+    pub fn isAvailable(self: BackendType) bool {
+        const current_platform = builtin.target.os.tag;
+        const supported = self.supportedPlatforms();
+        for (supported) |platform| {
+            if (platform == current_platform) return true;
+        }
+        return false;
+    }
+
+    /// Get recommended shader language for backend
+    pub fn shaderLanguage(self: BackendType) []const u8 {
+        return switch (self) {
+            .vulkan => "GLSL/SPIR-V",
+            .cuda => "CUDA C++",
+            .metal => "Metal Shading Language",
+            .dx12 => "HLSL",
+            .opengl => "GLSL",
+            .opencl => "OpenCL C",
+            .webgpu => "WGSL",
+            .cpu_fallback => "N/A",
+        };
+    }
 };
 
-/// Hardware Capabilities
+/// Enhanced Hardware Capabilities with performance metrics and validation
 pub const HardwareCapabilities = struct {
+    allocator: std.mem.Allocator,
     name: []const u8 = "",
     vendor: []const u8 = "",
     version: []const u8 = "",
     driver_version: []const u8 = "",
+    device_id: u32 = 0,
+    vendor_id: u32 = 0,
 
     // Compute capabilities
     compute_units: u32 = 0,
     max_workgroup_size: u32 = 0,
     max_workgroup_count: [3]u32 = [_]u32{0} ** 3,
+    max_compute_units: u32 = 0,
+    shader_cores: u32 = 0,
+    tensor_cores: u32 = 0,
+    rt_cores: u32 = 0,
 
     // Memory capabilities
     total_memory_mb: u32 = 0,
     shared_memory_kb: u32 = 0,
     max_buffer_size_mb: u32 = 0,
+    memory_bus_width: u32 = 0,
+    memory_clock_mhz: u32 = 0,
+
+    // Clock speeds
+    base_clock_mhz: u32 = 0,
+    boost_clock_mhz: u32 = 0,
 
     // Feature support
     supports_fp16: bool = false,
     supports_fp64: bool = false,
     supports_int8: bool = false,
+    supports_int4: bool = false,
     supports_tensor_cores: bool = false,
     supports_ray_tracing: bool = false,
+    supports_mesh_shaders: bool = false,
+    supports_variable_rate_shading: bool = false,
+    supports_hardware_scheduling: bool = false,
+    supports_cooperative_groups: bool = false,
     supports_unified_memory: bool = false,
+    supports_async_compute: bool = false,
+    supports_multi_gpu: bool = false,
 
     // Performance metrics
     memory_bandwidth_gb_s: f32 = 0.0,
     peak_flops: f64 = 0.0,
+    memory_latency_ns: f32 = 0.0,
+    cache_line_size: u32 = 64,
+
+    // Power and thermal
+    tdp_watts: u32 = 0,
+    max_power_watts: u32 = 0,
+
+    /// Initialize hardware capabilities
+    pub fn init(allocator: std.mem.Allocator) HardwareCapabilities {
+        return HardwareCapabilities{
+            .allocator = allocator,
+        };
+    }
+
+    /// Deinitialize and free allocated memory
+    pub fn deinit(self: *HardwareCapabilities) void {
+        if (self.name.len > 0) self.allocator.free(self.name);
+        if (self.vendor.len > 0) self.allocator.free(self.vendor);
+        if (self.version.len > 0) self.allocator.free(self.version);
+        if (self.driver_version.len > 0) self.allocator.free(self.driver_version);
+    }
+
+    /// Calculate theoretical peak performance in GFLOPS
+    pub fn calculatePeakPerformance(self: HardwareCapabilities) f64 {
+        if (self.compute_units == 0 or self.boost_clock_mhz == 0) return 0.0;
+
+        // Estimate operations per clock cycle (simplified)
+        const ops_per_cycle = if (self.supports_fp64) 2.0 else if (self.supports_fp16) 4.0 else 2.0;
+        const clock_hz = @as(f64, @floatFromInt(self.boost_clock_mhz)) * 1_000_000.0;
+
+        return (@as(f64, @floatFromInt(self.compute_units)) * ops_per_cycle * clock_hz) / 1_000_000_000.0;
+    }
+
+    /// Calculate memory bandwidth in GB/s
+    pub fn calculateMemoryBandwidth(self: HardwareCapabilities) f32 {
+        if (self.memory_clock_mhz == 0 or self.memory_bus_width == 0) return 0.0;
+
+        // Simplified bandwidth calculation
+        const clock_hz = @as(f32, @floatFromInt(self.memory_clock_mhz)) * 1_000_000.0;
+        const bus_width_bytes = @as(f32, @floatFromInt(self.memory_bus_width)) / 8.0;
+
+        return (clock_hz * bus_width_bytes) / (1024.0 * 1024.0 * 1024.0);
+    }
+
+    /// Get performance tier classification
+    pub fn getPerformanceTier(self: HardwareCapabilities) PerformanceTier {
+        const peak_gflops = self.calculatePeakPerformance();
+
+        if (peak_gflops > 50000) return .datacenter;
+        if (peak_gflops > 20000) return .workstation;
+        if (peak_gflops > 10000) return .enthusiast;
+        if (peak_gflops > 5000) return .gaming;
+        if (peak_gflops > 1000) return .mainstream;
+        return .entry_level;
+    }
+
+    /// Check if hardware supports modern GPU features
+    pub fn supportsModernFeatures(self: HardwareCapabilities) bool {
+        return self.supports_fp16 and
+            self.supports_tensor_cores and
+            self.total_memory_mb >= 4096 and
+            self.compute_units >= 16;
+    }
+
+    /// Get efficiency score (performance per watt)
+    pub fn getEfficiencyScore(self: HardwareCapabilities) f32 {
+        if (self.tdp_watts == 0) return 0.0;
+        const peak_gflops = self.calculatePeakPerformance();
+        return @as(f32, @floatCast(peak_gflops)) / @as(f32, @floatFromInt(self.tdp_watts));
+    }
+
+    /// Validate hardware capabilities
+    pub fn validate(self: HardwareCapabilities) !void {
+        if (self.name.len == 0) return GPUBackendError.InvalidConfiguration;
+        if (self.vendor.len == 0) return GPUBackendError.InvalidConfiguration;
+        if (self.total_memory_mb == 0) return GPUBackendError.InvalidConfiguration;
+        if (self.compute_units == 0) return GPUBackendError.InvalidConfiguration;
+    }
 
     pub fn format(
         self: HardwareCapabilities,
@@ -84,19 +318,43 @@ pub const HardwareCapabilities = struct {
         _: std.fmt.FormatOptions,
         writer: anytype,
     ) !void {
-        try writer.print("GPU: {s} ({s})\n", .{ self.name, self.vendor });
+        try writer.print("GPU: {s} ({s}) - {s}\n", .{ self.name, self.vendor, @tagName(self.getPerformanceTier()) });
         try writer.print("Driver: {s}, Version: {s}\n", .{ self.driver_version, self.version });
-        try writer.print("Compute Units: {}, Max Workgroup: {}\n", .{ self.compute_units, self.max_workgroup_size });
-        try writer.print("Memory: {} MB total, {} GB/s bandwidth\n", .{ self.total_memory_mb, self.memory_bandwidth_gb_s });
-        try writer.print("Peak Performance: {d:.1} GFLOPS\n", .{self.peak_flops / 1_000_000_000.0});
+        try writer.print("Compute: {} CUs, {} Shader Cores, {} Tensor Cores, {} RT Cores\n", .{ self.compute_units, self.shader_cores, self.tensor_cores, self.rt_cores });
+        try writer.print("Clocks: {} MHz base, {} MHz boost, {} MHz memory\n", .{ self.base_clock_mhz, self.boost_clock_mhz, self.memory_clock_mhz });
+        try writer.print("Memory: {} MB ({} GB/s), {} KB shared, {} bit bus\n", .{ self.total_memory_mb, self.memory_bandwidth_gb_s, self.shared_memory_kb, self.memory_bus_width });
+        try writer.print("Performance: {d:.1} GFLOPS peak, {d:.2} GFLOPS/W efficiency\n", .{ self.calculatePeakPerformance(), self.getEfficiencyScore() });
         try writer.print("Features: ", .{});
         if (self.supports_fp16) try writer.print("FP16 ", .{});
         if (self.supports_fp64) try writer.print("FP64 ", .{});
         if (self.supports_int8) try writer.print("INT8 ", .{});
         if (self.supports_tensor_cores) try writer.print("TensorCores ", .{});
         if (self.supports_ray_tracing) try writer.print("RayTracing ", .{});
+        if (self.supports_mesh_shaders) try writer.print("MeshShaders ", .{});
         if (self.supports_unified_memory) try writer.print("UnifiedMem ", .{});
+        if (self.supportsModernFeatures()) try writer.print("[Modern] ", .{});
         try writer.print("\n", .{});
+    }
+};
+
+/// Performance tier classification
+pub const PerformanceTier = enum {
+    entry_level,
+    mainstream,
+    gaming,
+    enthusiast,
+    workstation,
+    datacenter,
+
+    pub fn displayName(self: PerformanceTier) []const u8 {
+        return switch (self) {
+            .entry_level => "Entry Level",
+            .mainstream => "Mainstream",
+            .gaming => "Gaming",
+            .enthusiast => "Enthusiast",
+            .workstation => "Workstation",
+            .datacenter => "Datacenter",
+        };
     }
 };
 
@@ -449,57 +707,141 @@ pub const SPIRVCompiler = struct {
         var text = try std.ArrayList(u8).initCapacity(self.allocator, 0);
         defer text.deinit(self.allocator);
 
-        try text.writer(self.allocator).print("; SPIRV Disassembly\n", .{});
-        try text.writer(self.allocator).print("; Magic: 0x{x}\n", .{spirv_code[0]});
-        try text.writer(self.allocator).print("; Version: {}\n", .{spirv_code[1]});
-        try text.writer(self.allocator).print("; Generator: {}\n", .{spirv_code[2]});
-        try text.writer(self.allocator).print("; Bound: {}\n", .{spirv_code[3]});
-        try text.writer(self.allocator).print("; Schema: {}\n", .{spirv_code[4]});
+        try text.appendSlice(self.allocator, "; SPIRV Disassembly\n");
+        const magic_str = try std.fmt.allocPrint(self.allocator, "; Magic: 0x{x}\n", .{spirv_code[0]});
+        defer self.allocator.free(magic_str);
+        try text.appendSlice(self.allocator, magic_str);
+
+        const version_str = try std.fmt.allocPrint(self.allocator, "; Version: {}\n", .{spirv_code[1]});
+        defer self.allocator.free(version_str);
+        try text.appendSlice(self.allocator, version_str);
+
+        const generator_str = try std.fmt.allocPrint(self.allocator, "; Generator: {}\n", .{spirv_code[2]});
+        defer self.allocator.free(generator_str);
+        try text.appendSlice(self.allocator, generator_str);
+
+        const bound_str = try std.fmt.allocPrint(self.allocator, "; Bound: {}\n", .{spirv_code[3]});
+        defer self.allocator.free(bound_str);
+        try text.appendSlice(self.allocator, bound_str);
+
+        const schema_str = try std.fmt.allocPrint(self.allocator, "; Schema: {}\n", .{spirv_code[4]});
+        defer self.allocator.free(schema_str);
+        try text.appendSlice(self.allocator, schema_str);
 
         return text.toOwnedSlice(self.allocator);
     }
 };
 
 /// GPU Backend Manager - Main interface for multi-backend GPU support
+/// Enhanced GPU Backend Manager with comprehensive error handling and resource management
 pub const GPUBackendManager = struct {
     allocator: std.mem.Allocator,
     available_backends: std.ArrayList(BackendType),
     current_backend: ?BackendType = null,
     cuda_driver: ?*CUDADriver = null,
     spirv_compiler: ?*SPIRVCompiler = null,
-    hardware_caps: HardwareCapabilities = .{},
+    hardware_caps: HardwareCapabilities,
+    is_initialized: bool = false,
+    backend_statistics: BackendStatistics,
 
+    /// Backend usage statistics
+    pub const BackendStatistics = struct {
+        backend_switches: u32 = 0,
+        shader_compilations: u32 = 0,
+        memory_allocations: usize = 0,
+        last_backend_switch: i64 = 0,
+        total_uptime_ms: u64 = 0,
+        initialization_time_ms: u64 = 0,
+    };
+
+    /// Initialize GPU Backend Manager with comprehensive setup
     pub fn init(allocator: std.mem.Allocator) !*GPUBackendManager {
+        const start_time = std.time.milliTimestamp();
+
         const self = try allocator.create(GPUBackendManager);
+        errdefer allocator.destroy(self);
+
         self.* = .{
             .allocator = allocator,
-            .available_backends = std.ArrayList(BackendType){},
+            .available_backends = try std.ArrayList(BackendType).initCapacity(allocator, 8),
             .current_backend = null,
             .cuda_driver = null,
             .spirv_compiler = null,
+            .hardware_caps = HardwareCapabilities.init(allocator),
+            .backend_statistics = BackendStatistics{},
         };
 
-        // Initialize backend detection
-        try self.detectAvailableBackends();
+        std.log.info("🔧 Initializing GPU Backend Manager...", .{});
 
-        // Initialize specialized drivers
-        try self.initializeDrivers();
+        // Initialize backend detection with error recovery
+        self.detectAvailableBackends() catch |err| {
+            std.log.warn("Backend detection failed: {}, continuing with basic setup", .{err});
+        };
 
-        // Select best backend
-        try self.selectBestBackend();
+        // Initialize specialized drivers with error recovery
+        self.initializeDrivers() catch |err| {
+            std.log.warn("Driver initialization failed: {}, some features may be unavailable", .{err});
+        };
+
+        // Select best backend with fallback
+        self.selectBestBackend() catch |err| {
+            std.log.warn("Backend selection failed: {}, using CPU fallback", .{err});
+            self.current_backend = .cpu_fallback;
+        };
+
+        const init_time = @as(u64, @intCast(std.time.milliTimestamp() - start_time));
+        self.backend_statistics.initialization_time_ms = init_time;
+        self.is_initialized = true;
+
+        std.log.info("✅ GPU Backend Manager initialized in {}ms", .{init_time});
+        std.log.info("  - Available backends: {}", .{self.available_backends.items.len});
+        std.log.info("  - Selected backend: {}", .{self.current_backend});
 
         return self;
     }
 
+    /// Safely deinitialize GPU Backend Manager with comprehensive cleanup
     pub fn deinit(self: *GPUBackendManager) void {
+        if (!self.is_initialized) return;
+
+        std.log.info("🔧 Deinitializing GPU Backend Manager...", .{});
+
+        // Clean up specialized drivers
         if (self.cuda_driver) |cuda| {
             cuda.deinit();
+            self.cuda_driver = null;
         }
+
         if (self.spirv_compiler) |spirv| {
             spirv.deinit();
+            self.spirv_compiler = null;
         }
-        self.available_backends.deinit(self.allocator);
+
+        // Clean up hardware capabilities
+        self.hardware_caps.deinit();
+
+        // Clean up available backends list
+        self.available_backends.deinit();
+
+        // Update statistics
+        self.backend_statistics.total_uptime_ms = @as(u64, @intCast(std.time.milliTimestamp())) - self.backend_statistics.initialization_time_ms;
+
+        std.log.info("✅ GPU Backend Manager deinitialized", .{});
+        std.log.info("  - Total uptime: {}ms", .{self.backend_statistics.total_uptime_ms});
+        std.log.info("  - Backend switches: {}", .{self.backend_statistics.backend_switches});
+
+        self.is_initialized = false;
         self.allocator.destroy(self);
+    }
+
+    /// Get backend statistics
+    pub fn getStatistics(self: *GPUBackendManager) BackendStatistics {
+        return self.backend_statistics;
+    }
+
+    /// Check if manager is properly initialized
+    pub fn isReady(self: *GPUBackendManager) bool {
+        return self.is_initialized and self.current_backend != null;
     }
 
     /// Detect available GPU backends
@@ -541,9 +883,33 @@ pub const GPUBackendManager = struct {
         try self.available_backends.append(self.allocator, .cpu_fallback);
 
         // Sort by priority
+        // TODO: Implement priority-based sorting when priority methods are available
         std.mem.sort(BackendType, self.available_backends.items, {}, struct {
             fn lessThan(_: void, a: BackendType, b: BackendType) bool {
-                return a.priority() > b.priority();
+                // Simple priority order (higher values = higher priority)
+                const priority_a: u32 = switch (a) {
+                    .cuda => 100,
+                    .vulkan => 90,
+                    .metal => 80,
+                    .dx12 => 70,
+                    .opencl => 60,
+                    .opengl => 50,
+                    .webgpu => 40,
+                    // .spirv => 30, // not in enum
+                    else => 20,
+                };
+                const priority_b: u32 = switch (b) {
+                    .cuda => 100,
+                    .vulkan => 90,
+                    .metal => 80,
+                    .dx12 => 70,
+                    .opencl => 60,
+                    .opengl => 50,
+                    .webgpu => 40,
+                    // .spirv => 30, // not in enum
+                    else => 20,
+                };
+                return priority_a > priority_b;
             }
         }.lessThan);
     }
@@ -575,18 +941,42 @@ pub const GPUBackendManager = struct {
         self.hardware_caps = try self.getBackendCapabilities(self.current_backend.?);
     }
 
-    /// Force selection of a specific backend
-    pub fn selectBackend(self: *GPUBackendManager, backend: BackendType) !void {
+    /// Force selection of a specific backend with validation and statistics
+    pub fn selectBackend(self: *GPUBackendManager, backend: BackendType) GPUBackendError!void {
+        if (!self.is_initialized) {
+            return GPUBackendError.InitializationFailed;
+        }
+
         // Check if backend is available
         if (!self.hasBackend(backend)) {
-            return error.BackendNotAvailable;
+            std.log.err("Backend {} is not available on this system", .{backend.displayName()});
+            return GPUBackendError.BackendNotAvailable;
         }
+
+        const old_backend = self.current_backend;
+        const start_time = std.time.milliTimestamp();
+
+        std.log.info("🔄 Switching to backend: {}", .{backend.displayName()});
 
         // Set the backend
         self.current_backend = backend;
 
         // Get hardware capabilities for the selected backend
-        self.hardware_caps = try self.getBackendCapabilities(backend);
+        self.hardware_caps = self.getBackendCapabilities(backend) catch |err| {
+            std.log.err("Failed to get capabilities for backend {}: {}", .{ backend.displayName(), err });
+            // Restore old backend on failure
+            self.current_backend = old_backend;
+            return GPUBackendError.InitializationFailed;
+        };
+
+        // Update statistics
+        self.backend_statistics.backend_switches += 1;
+        self.backend_statistics.last_backend_switch = std.time.milliTimestamp();
+
+        const switch_time = @as(u64, @intCast(std.time.milliTimestamp() - start_time));
+
+        std.log.info("✅ Backend switched to {} in {}ms", .{ backend.displayName(), switch_time });
+        std.log.info("  - Hardware capabilities: {}", .{self.hardware_caps});
     }
 
     /// Check if a specific backend is available
@@ -611,54 +1001,205 @@ pub const GPUBackendManager = struct {
         };
     }
 
-    /// Compile shader for current backend
+    /// Compile shader for current backend with comprehensive error handling
     pub fn compileShader(
         self: *GPUBackendManager,
         source: []const u8,
         shader_type: enum { vertex, fragment, compute },
-    ) ![]const u8 {
-        const backend = self.current_backend orelse return error.NoBackendSelected;
+    ) GPUBackendError![]const u8 {
+        if (!self.is_initialized) {
+            return GPUBackendError.InitializationFailed;
+        }
 
-        return switch (backend) {
-            .vulkan, .opencl => if (self.spirv_compiler) |compiler| {
-                const result = try compiler.compileToSPIRV(source, shader_type, .{});
-                defer result.deinit(self.allocator);
-                return std.mem.sliceAsBytes(result.spirv_code);
-            } else error.SPIRVCompilerNotAvailable,
+        if (source.len == 0) {
+            return GPUBackendError.ShaderCompilationFailed;
+        }
+
+        const backend = self.current_backend orelse {
+            std.log.err("No backend selected for shader compilation", .{});
+            return GPUBackendError.BackendNotAvailable;
+        };
+
+        const start_time = std.time.milliTimestamp();
+        self.backend_statistics.shader_compilations += 1;
+
+        std.log.info("🔧 Compiling {} shader for backend: {}", .{ @tagName(shader_type), backend.displayName() });
+        std.log.info("  - Source size: {} bytes", .{source.len});
+
+        const result = switch (backend) {
+            .vulkan, .opencl => blk: {
+                if (self.spirv_compiler) |compiler| {
+                    const compile_result = compiler.compileToSPIRV(source, shader_type, .{}) catch |err| {
+                        std.log.err("SPIRV compilation failed: {}", .{err});
+                        return GPUBackendError.SPIRVCompilationFailed;
+                    };
+                    defer compile_result.deinit(self.allocator);
+
+                    const spirv_bytes = std.mem.sliceAsBytes(compile_result.spirv_code);
+                    const output = try self.allocator.dupe(u8, spirv_bytes);
+                    break :blk output;
+                } else {
+                    std.log.err("SPIRV compiler not available for backend {}", .{backend.displayName()});
+                    return GPUBackendError.SPIRVCompilationFailed;
+                }
+            },
             .cuda => self.compileCUDAShader(source),
             .metal => self.compileMetalShader(source),
             .dx12 => self.compileDX12Shader(source),
             .opengl => self.compileOpenGLShader(source),
             .webgpu => self.compileWebGPUShader(source),
-            .cpu_fallback => error.ShaderCompilationNotSupported,
+            .cpu_fallback => {
+                std.log.err("Shader compilation not supported for CPU fallback backend", .{});
+                return GPUBackendError.ShaderCompilationFailed;
+            },
         };
+
+        const compile_time = @as(u64, @intCast(std.time.milliTimestamp() - start_time));
+        std.log.info("✅ Shader compilation completed in {}ms", .{compile_time});
+        std.log.info("  - Output size: {} bytes", .{result.len});
+
+        return result;
     }
 
-    /// Print system information
+    /// Print comprehensive system information with performance metrics
     pub fn printSystemInfo(self: *GPUBackendManager) void {
-        std.log.info("GPU Backend Manager System Information", .{});
-        std.log.info("=====================================", .{});
+        std.log.info("🎯 GPU Backend Manager System Information", .{});
+        std.log.info("==========================================", .{});
+        std.log.info("Status: {}", .{if (self.isReady()) "Ready" else "Not Ready"});
 
-        std.log.info("Available backends: {}", .{self.available_backends.items.len});
+        std.log.info("Available backends: {} ({})", .{ self.available_backends.items.len, if (self.available_backends.items.len > 1) "multi-backend" else "single-backend" });
         for (self.available_backends.items, 0..) |backend, i| {
-            std.log.info("  {}. {s} (priority: {})", .{ i + 1, backend.displayName(), backend.priority() });
+            const marker = if (self.current_backend != null and backend == self.current_backend.?) "▶" else " ";
+            std.log.info("  {}{}. {s} (priority: {}, compute: {}, graphics: {}, cross-platform: {})", .{ marker, i + 1, backend.displayName(), backend.priority(), backend.supportsCompute(), backend.supportsGraphics(), backend.isCrossPlatform() });
         }
 
         if (self.current_backend) |current| {
-            std.log.info("Selected backend: {s}", .{current.displayName()});
+            std.log.info("Selected backend: {s} ({s})", .{ current.displayName(), current.shaderLanguage() });
+            std.log.info("  - Platform support: {}", .{current.supportedPlatforms().len});
+            std.log.info("  - Current platform: {}", .{current.isAvailable()});
         }
 
-        if (self.cuda_driver != null) {
-            std.log.info("CUDA driver: Available ({} devices)", .{self.cuda_driver.?.getDeviceCount()});
+        std.log.info("Drivers and compilers:", .{});
+        if (self.cuda_driver) |cuda| {
+            std.log.info("  - CUDA: Available ({} devices)", .{cuda.getDeviceCount()});
+        } else {
+            std.log.info("  - CUDA: Not available", .{});
         }
 
-        if (self.spirv_compiler != null) {
-            std.log.info("SPIRV compiler: Available", .{});
+        if (self.spirv_compiler) |_| {
+            std.log.info("  - SPIRV Compiler: Available", .{});
+        } else {
+            std.log.info("  - SPIRV Compiler: Not available", .{});
         }
+
+        std.log.info("Performance metrics:", .{});
+        std.log.info("  - Initialization time: {}ms", .{self.backend_statistics.initialization_time_ms});
+        std.log.info("  - Total uptime: {}ms", .{self.backend_statistics.total_uptime_ms});
+        std.log.info("  - Backend switches: {}", .{self.backend_statistics.backend_switches});
+        std.log.info("  - Shader compilations: {}", .{self.backend_statistics.shader_compilations});
+        std.log.info("  - Memory allocations: {}", .{self.backend_statistics.memory_allocations});
 
         std.log.info("Hardware capabilities:", .{});
         std.log.info("{}", .{self.hardware_caps});
+
+        if (self.hardware_caps.supportsModernFeatures()) {
+            std.log.info("✅ Hardware supports modern GPU features", .{});
+        } else {
+            std.log.info("⚠️  Hardware may have limited modern GPU support", .{});
+        }
     }
+
+    /// Get system information as a formatted string
+    pub fn getSystemInfoString(self: *GPUBackendManager, allocator: std.mem.Allocator) ![]const u8 {
+        var info = std.ArrayList(u8).init(allocator);
+        defer info.deinit();
+        errdefer allocator.free(info.items);
+
+        try info.appendSlice("GPU Backend Manager System Report\n");
+        try info.appendSlice("=================================\n\n");
+
+        try std.fmt.format(info.writer(), "Status: {}\n", .{if (self.isReady()) "Ready" else "Not Ready"});
+        try std.fmt.format(info.writer(), "Available backends: {}\n", .{self.available_backends.items.len});
+
+        for (self.available_backends.items, 0..) |backend, i| {
+            const marker = if (self.current_backend != null and backend == self.current_backend.?) "▶" else " ";
+            try std.fmt.format(info.writer(), "  {}{}. {s} (priority: {})\n", .{ marker, i + 1, backend.displayName(), backend.priority() });
+        }
+
+        if (self.current_backend) |current| {
+            try std.fmt.format(info.writer(), "\nSelected backend: {s}\n", .{current.displayName()});
+            try std.fmt.format(info.writer(), "Platform support: {}\n", .{current.supportedPlatforms().len});
+            try std.fmt.format(info.writer(), "Cross-platform: {}\n", .{current.isCrossPlatform()});
+        }
+
+        try info.appendSlice("\nHardware capabilities:\n");
+        try std.fmt.format(info.writer(), "{}\n", .{self.hardware_caps});
+
+        return info.toOwnedSlice();
+    }
+
+    /// Validate current backend configuration
+    pub fn validateConfiguration(self: *GPUBackendManager) GPUBackendError!void {
+        if (!self.is_initialized) {
+            return GPUBackendError.InitializationFailed;
+        }
+
+        if (self.current_backend == null) {
+            return GPUBackendError.BackendNotAvailable;
+        }
+
+        // Validate hardware capabilities
+        try self.hardware_caps.validate();
+
+        // Validate backend availability
+        if (!self.hasBackend(self.current_backend.?)) {
+            return GPUBackendError.BackendNotAvailable;
+        }
+
+        std.log.info("✅ GPU Backend Manager configuration validated", .{});
+    }
+
+    /// Get recommended backend based on workload characteristics
+    pub fn getRecommendedBackendForWorkload(
+        self: *GPUBackendManager,
+        workload: WorkloadCharacteristics,
+    ) ?BackendType {
+        // Simple recommendation logic - can be enhanced
+        for (self.available_backends.items) |backend| {
+            switch (workload.type) {
+                .compute_intensive => {
+                    if (backend.supportsCompute() and backend.priority() >= 80) {
+                        return backend;
+                    }
+                },
+                .graphics_intensive => {
+                    if (backend.supportsGraphics() and backend.priority() >= 70) {
+                        return backend;
+                    }
+                },
+                .memory_intensive => {
+                    if (self.hardware_caps.total_memory_mb >= 4096) {
+                        return backend; // Any backend with sufficient memory
+                    }
+                },
+                .balanced => {
+                    if (backend.isCrossPlatform() and backend.priority() >= 60) {
+                        return backend;
+                    }
+                },
+            }
+        }
+        return null;
+    }
+
+    /// Workload characteristics for backend recommendation
+    pub const WorkloadCharacteristics = struct {
+        type: enum { compute_intensive, graphics_intensive, memory_intensive, balanced },
+        data_size_mb: u32 = 0,
+        compute_complexity: enum { low, medium, high } = .medium,
+        requires_raytracing: bool = false,
+        requires_tensor_cores: bool = false,
+    };
 
     /// Backend detection functions
     fn detectCUDA(self: *GPUBackendManager) bool {
