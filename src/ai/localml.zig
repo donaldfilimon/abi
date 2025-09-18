@@ -220,7 +220,7 @@ pub const Model = struct {
     pub fn toJson(self: Model, allocator: Allocator) ![]u8 {
         const json = std.json;
         var string = std.ArrayList(u8).init(allocator);
-        const writer = string.writer();
+        const writer = string.writer(&.{});
 
         try json.stringify(.{
             .weights = self.weights,
@@ -473,13 +473,13 @@ pub fn readDataset(allocator: std.mem.Allocator, path: []const u8) ![]DataRow {
     _ = try file.readAll(contents);
 
     var rows = std.ArrayList(DataRow).init(allocator);
-    var lines = std.mem.split(u8, contents, "\n");
+    var lines = std.mem.splitScalar(u8, contents, '\n');
 
     while (lines.next()) |line| {
         const trimmed_line = std.mem.trim(u8, line, " \t\r\n");
         if (trimmed_line.len == 0) continue;
 
-        var parts = std.mem.split(u8, trimmed_line, ",");
+        var parts = std.mem.splitScalar(u8, trimmed_line, ',');
         const x1_str = parts.next() orelse continue;
         const x2_str = parts.next() orelse continue;
         const label_str = parts.next() orelse continue;
@@ -503,7 +503,7 @@ pub fn saveDataset(path: []const u8, data: []const DataRow) !void {
     };
     defer file.close();
 
-    var writer = file.writer();
+    var writer = file.writer(&.{});
     for (data) |row| {
         try writer.print("{d},{d},{d}\n", .{ row.x1, row.x2, row.label });
     }
@@ -516,7 +516,7 @@ pub fn saveModel(path: []const u8, model: Model) !void {
     };
     defer file.close();
 
-    var writer = file.writer();
+    var writer = file.writer(&.{});
     try writer.print("{d} {d} {d} {} {d} {d}\n", .{ model.weights[0], model.weights[1], model.bias, model.is_trained, model.training_loss, model.training_epochs });
 }
 
@@ -529,8 +529,8 @@ pub fn loadModel(path: []const u8) !Model {
     defer file.close();
 
     var buf: [256]u8 = undefined;
-    const line = (try file.reader().readUntilDelimiterOrEof(&buf, '\n')) orelse return MLError.InvalidData;
-    var parts = std.mem.split(u8, line, " ");
+    const line = (try file.reader(&.{}).readUntilDelimiterOrEof(&buf, '\n')) orelse return MLError.InvalidData;
+    var parts = std.mem.splitScalar(u8, line, ' ');
 
     const w0 = std.fmt.parseFloat(f64, parts.next() orelse return MLError.InvalidData) catch return MLError.InvalidData;
     const w1 = std.fmt.parseFloat(f64, parts.next() orelse return MLError.InvalidData) catch return MLError.InvalidData;

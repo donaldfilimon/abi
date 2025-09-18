@@ -331,9 +331,9 @@ pub const PrometheusServer = struct {
         const request = buffer[0..bytes_read];
 
         // Simple HTTP request parsing
-        var lines = std.mem.split(u8, request, "\r\n");
+        var lines = std.mem.splitScalar(u8, request, '\n');
         const first_line = lines.next() orelse return;
-        var parts = std.mem.split(u8, first_line, " ");
+        var parts = std.mem.splitScalar(u8, first_line, ' ');
         _ = parts.next(); // method
         const path = parts.next() orelse return;
 

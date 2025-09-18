@@ -6,6 +6,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const database = @import("../wdbx/database.zig");
+const ArrayList = std.ArrayList;
 
 const version_string = "WDBX Vector Database v1.0.0";
 
@@ -17,7 +18,7 @@ pub const ServerConfig = struct {
     rate_limit: usize = 1000, // requests per minute
     enable_cors: bool = true,
     enable_auth: bool = true,
-    jwt_secret: []const u8 = "",
+    jwt_secret: ?[]const u8 = null,
     // Added to satisfy tests
     max_connections: u32 = 1024,
     request_timeout_ms: u32 = 5000,
@@ -522,7 +523,7 @@ pub const WdbxHttpServer = struct {
         defer self.allocator.free(results);
 
         // Format results
-        var neighbors = try std.ArrayList(NeighborResult).initCapacity(self.allocator, results.len);
+        var neighbors = try ArrayList(NeighborResult).initCapacity(self.allocator, results.len);
         defer neighbors.deinit(self.allocator);
 
         for (results) |result| {
@@ -583,32 +584,39 @@ pub const WdbxHttpServer = struct {
 
     /// Parse vector string
     fn parseVector(self: *Self, vector_str: []const u8) ![]f32 {
-        var list = try std.ArrayList(f32).initCapacity(self.allocator, 8);
-        defer list.deinit(self.allocator);
+        var parts = std.mem.splitScalar(u8, vector_str, ',');
+        var values = std.array_list.Managed(f32).init(self.allocator);
+        errdefer values.deinit();
 
-        var iter = std.mem.splitSequence(u8, vector_str, ",");
-        while (iter.next()) |part| {
-            const trimmed = std.mem.trim(u8, part, " \t\n\r");
-            if (trimmed.len > 0) {
-                const value = try std.fmt.parseFloat(f32, trimmed);
-                try list.append(self.allocator, value);
-            }
+        while (parts.next()) |part| {
+            const trimmed = std.mem.trim(u8, part, " \t\r\n");
+            if (trimmed.len == 0) continue;
+            const value = try std.fmt.parseFloat(f32, trimmed);
+            try values.append(value);
         }
 
-        return try list.toOwnedSlice(self.allocator);
+        return try values.toOwnedSlice();
     }
 
     /// Format neighbors array for JSON output
     fn formatNeighbors(self: *Self, neighbors: []const NeighborResult) ![]const u8 {
-        var buffer = try std.ArrayList(u8).initCapacity(self.allocator, 256);
-        defer buffer.deinit(self.allocator);
+        if (neighbors.len == 0) return self.allocator.dupe(u8, "");
 
-        for (neighbors, 0..) |neighbor, i| {
-            if (i > 0) try buffer.appendSlice(self.allocator, ",");
-            try buffer.writer(self.allocator).print("{{\"index\":{d},\"distance\":{d}}}", .{ neighbor.index, neighbor.distance });
+        var buffer = try std.array_list.Managed(u8).initCapacity(self.allocator, neighbors.len * 48);
+        errdefer buffer.deinit();
+
+        for (neighbors, 0..) |neighbor, index| {
+            if (index != 0) try buffer.append(',');
+            const chunk = try std.fmt.allocPrint(
+                self.allocator,
+                "{{\"index\":{d},\"distance\":{d}}}",
+                .{ neighbor.index, neighbor.distance },
+            );
+            defer self.allocator.free(chunk);
+            try buffer.appendSlice(chunk);
         }
 
-        return try buffer.toOwnedSlice(self.allocator);
+        return try buffer.toOwnedSlice();
     }
 
     /// Test basic connectivity - useful for diagnosing Windows networking issues
@@ -753,7 +761,7 @@ pub const WdbxHttpServer = struct {
         const end_idx = @min(start_idx + page_size, total_count);
 
         // Extract page results
-        var page_results = try std.ArrayList(NeighborResult).initCapacity(self.allocator, page_size);
+        var page_results = try ArrayList(NeighborResult).initCapacity(self.allocator, page_size);
         defer page_results.deinit(self.allocator);
 
         if (start_idx < total_count) {

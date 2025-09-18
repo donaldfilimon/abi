@@ -5,9 +5,48 @@
 //! - AMD: MI300A APU with unified physical memory
 //! - NVIDIA: Grace-Hopper architecture with cache-coherent memory
 //! - Generic: Cross-platform unified memory detection and optimization
+//! - Performance monitoring and memory management
+//!
+//! ## Key Features
+//!
+//! - **Multi-Platform Support**: Automatic detection of unified memory architectures
+//! - **Zero-Copy Operations**: Efficient data transfer between CPU and GPU
+//! - **Memory Pooling**: Advanced memory allocation and reuse strategies
+//! - **Performance Monitoring**: Memory bandwidth and latency tracking
+//! - **Error Recovery**: Robust error handling for memory operations
+//!
+//! ## Usage
+//!
+//! ```zig
+//! const unified_mem = @import("unified_memory");
+//!
+//! var manager = try unified_mem.UnifiedMemoryManager.init(allocator);
+//! defer manager.deinit();
+//!
+//! // Allocate unified memory
+//! const buffer = try manager.allocateUnified(size, alignment);
+//! defer manager.freeUnified(buffer);
+//!
+//! // Use unified buffer for zero-copy operations
+//! var unified_buffer = try unified_mem.UnifiedBuffer.create(&manager, size);
+//! defer unified_buffer.destroy();
+//! ```
 
 const std = @import("std");
 const builtin = @import("builtin");
+
+/// Unified memory specific errors
+pub const UnifiedMemoryError = error{
+    UnsupportedArchitecture,
+    MemoryAllocationFailed,
+    MemoryDeallocationFailed,
+    InitializationFailed,
+    BufferCreationFailed,
+    InvalidConfiguration,
+    OutOfMemory,
+    AlignmentError,
+    PlatformNotSupported,
+};
 
 /// Unified Memory Architecture types
 pub const UnifiedMemoryType = enum {
@@ -28,20 +67,39 @@ pub const UnifiedMemoryConfig = struct {
     performance_boost: f32,
 };
 
-/// Unified Memory Manager
+/// Unified Memory Manager with enhanced error handling and resource management
 pub const UnifiedMemoryManager = struct {
     allocator: std.mem.Allocator,
     config: UnifiedMemoryConfig,
     is_initialized: bool,
+    statistics: MemoryStatistics,
 
     const Self = @This();
 
-    /// Initialize the unified memory manager
-    pub fn init(allocator: std.mem.Allocator) !Self {
+    /// Memory usage statistics
+    pub const MemoryStatistics = struct {
+        total_allocated: usize = 0,
+        peak_allocated: usize = 0,
+        allocation_count: usize = 0,
+        deallocation_count: usize = 0,
+        failed_allocations: usize = 0,
+        average_allocation_size: usize = 0,
+        last_allocation_time: i64 = 0,
+    };
+
+    /// Initialize the unified memory manager with comprehensive setup
+    pub fn init(allocator: std.mem.Allocator) UnifiedMemoryError!Self {
+        // Detect unified memory architecture
+        const config = detectUnifiedMemory() catch |err| {
+            std.log.warn("Unified memory detection failed: {}, falling back to generic", .{err});
+            return UnifiedMemoryError.InitializationFailed;
+        };
+
         const manager = Self{
             .allocator = allocator,
-            .config = try detectUnifiedMemory(),
+            .config = config,
             .is_initialized = true,
+            .statistics = MemoryStatistics{},
         };
 
         std.log.info("🔧 Unified Memory Manager initialized", .{});
@@ -55,32 +113,89 @@ pub const UnifiedMemoryManager = struct {
         return manager;
     }
 
-    /// Deinitialize the unified memory manager
+    /// Safely deinitialize the unified memory manager with cleanup verification
     pub fn deinit(self: *Self) void {
-        self.is_initialized = false;
+        if (!self.is_initialized) return;
+
+        // Log final statistics
         std.log.info("🔧 Unified Memory Manager deinitialized", .{});
+        std.log.info("  - Total allocated: {} MB", .{self.statistics.total_allocated / (1024 * 1024)});
+        std.log.info("  - Peak usage: {} MB", .{self.statistics.peak_allocated / (1024 * 1024)});
+        std.log.info("  - Allocation count: {}", .{self.statistics.allocation_count});
+        std.log.info("  - Failed allocations: {}", .{self.statistics.failed_allocations});
+
+        // Check for memory leaks
+        if (self.statistics.total_allocated > 0) {
+            std.log.warn("⚠️  Potential memory leak detected: {} bytes still allocated", .{self.statistics.total_allocated});
+        }
+
+        self.is_initialized = false;
+    }
+
+    /// Get current memory statistics
+    pub fn getStatistics(self: *Self) MemoryStatistics {
+        return self.statistics;
+    }
+
+    /// Reset memory statistics (useful for benchmarking)
+    pub fn resetStatistics(self: *Self) void {
+        self.statistics = MemoryStatistics{};
     }
 
     /// Allocate unified memory that can be accessed by both CPU and GPU
-    pub fn allocateUnified(self: *Self, size: usize, alignment: u29) ![]u8 {
+    pub fn allocateUnified(self: *Self, size: usize, alignment: u29) UnifiedMemoryError![]u8 {
         if (!self.is_initialized) {
-            return error.UnifiedMemoryNotInitialized;
+            return UnifiedMemoryError.InitializationFailed;
+        }
+
+        if (size == 0) {
+            return UnifiedMemoryError.InvalidConfiguration;
+        }
+
+        if (alignment == 0 or !std.mem.isValidAlign(alignment)) {
+            return UnifiedMemoryError.AlignmentError;
         }
 
         const aligned_size = std.mem.alignForward(usize, size, alignment);
 
-        switch (self.config.memory_type) {
-            .apple_silicon => return self.allocateAppleSilicon(aligned_size, alignment),
-            .amd_mi300 => return self.allocateAMDMi300(aligned_size, alignment),
-            .nvidia_grace => return self.allocateNvidiaGrace(aligned_size, alignment),
-            .generic => return self.allocateGeneric(aligned_size, alignment),
-            .none => return self.allocateFallback(aligned_size, alignment),
+        // Check if allocation would exceed available memory
+        if (self.config.total_memory > 0 and
+            self.statistics.total_allocated + aligned_size > self.config.total_memory)
+        {
+            self.statistics.failed_allocations += 1;
+            return UnifiedMemoryError.OutOfMemory;
+        }
+
+        const result = switch (self.config.memory_type) {
+            .apple_silicon => self.allocateAppleSilicon(aligned_size, alignment),
+            .amd_mi300 => self.allocateAMDMi300(aligned_size, alignment),
+            .nvidia_grace => self.allocateNvidiaGrace(aligned_size, alignment),
+            .generic => self.allocateGeneric(aligned_size, alignment),
+            .none => self.allocateFallback(aligned_size, alignment),
+        };
+
+        if (result) |memory| {
+            // Update statistics
+            self.statistics.total_allocated += aligned_size;
+            self.statistics.peak_allocated = @max(self.statistics.peak_allocated, self.statistics.total_allocated);
+            self.statistics.allocation_count += 1;
+            self.statistics.average_allocation_size = self.statistics.total_allocated / self.statistics.allocation_count;
+            self.statistics.last_allocation_time = std.time.milliTimestamp();
+
+            std.log.debug("✅ Allocated {} bytes of unified memory (total: {} MB)", .{ aligned_size, self.statistics.total_allocated / (1024 * 1024) });
+            return memory;
+        } else |err| {
+            self.statistics.failed_allocations += 1;
+            std.log.warn("Failed to allocate {} bytes of unified memory: {}", .{ aligned_size, err });
+            return err;
         }
     }
 
-    /// Free unified memory
+    /// Free unified memory with statistics tracking
     pub fn freeUnified(self: *Self, memory: []u8) void {
         if (!self.is_initialized) return;
+
+        const size = memory.len;
 
         switch (self.config.memory_type) {
             .apple_silicon => self.freeAppleSilicon(memory),
@@ -89,6 +204,17 @@ pub const UnifiedMemoryManager = struct {
             .generic => self.freeGeneric(memory),
             .none => self.freeFallback(memory),
         }
+
+        // Update statistics
+        if (self.statistics.total_allocated >= size) {
+            self.statistics.total_allocated -= size;
+        } else {
+            std.log.warn("⚠️  Memory deallocation inconsistency detected", .{});
+            self.statistics.total_allocated = 0;
+        }
+        self.statistics.deallocation_count += 1;
+
+        std.log.debug("🗑️  Freed {} bytes of unified memory (remaining: {} MB)", .{ size, self.statistics.total_allocated / (1024 * 1024) });
     }
 
     /// Get unified memory performance characteristics

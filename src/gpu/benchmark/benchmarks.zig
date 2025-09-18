@@ -1,12 +1,76 @@
 //! GPU-Specific Benchmarks and Performance Profiling Tools
 //!
 //! This module provides comprehensive benchmarking and profiling capabilities:
-//! - GPU kernel performance benchmarks
-//! - Memory bandwidth measurements
-//! - Compute throughput tests
-//! - Latency measurements
-//! - Power consumption profiling
-//! - Comparative backend analysis
+//! - GPU kernel performance benchmarks with statistical analysis
+//! - Memory bandwidth measurements with access pattern analysis
+//! - Compute throughput tests with workload-specific optimizations
+//! - Latency measurements with precision timing
+//! - Power consumption profiling and thermal monitoring
+//! - Comparative backend analysis with performance regression detection
+//! - Automated performance testing and continuous integration support
+//!
+//! ## Key Features
+//!
+//! - **Statistical Analysis**: Mean, median, standard deviation, percentiles
+//! - **Memory Profiling**: Bandwidth, latency, access patterns, cache analysis
+//! - **Performance Regression**: Baseline comparison and trend analysis
+//! - **Multi-Backend Testing**: Cross-platform backend performance comparison
+//! - **Workload Characterization**: Compute, memory, graphics workload analysis
+//! - **Thermal Monitoring**: Temperature, power, and cooling capacity tracking
+//!
+//! ## Usage Example
+//!
+//! ```zig
+//! const benchmark = @import("benchmarks");
+//!
+//! var profiler = try benchmark.PerformanceProfiler.init(allocator, renderer);
+//! defer profiler.deinit();
+//!
+//! // Run comprehensive benchmark suite
+//! const config = benchmark.BenchmarkConfig{
+//!     .iterations = 100,
+//!     .workloads = &[_]benchmark.WorkloadType{ .matrix_mul, .attention },
+//! };
+//!
+//! try profiler.runBenchmarkSuite(config);
+//!
+//! // Generate performance report
+//! const report = try profiler.generateReport(allocator);
+//! defer allocator.free(report);
+//! ```
+//!
+//! Advanced performance profiling with statistical analysis and regression detection
+//!
+//! @Definitions
+//!
+//! ---
+//! # @Definitions
+//!
+//! The `@Definitions` annotation is a custom documentation directive used in this project to mark
+//! key types, structures, and configuration blocks that are intended for documentation extraction
+//! and web export. It is recognized by our documentation tooling, but is not a Zig language built-in.
+//!
+//! ## Usage
+//! - Place `@Definitions` above a type, struct, enum, or function to indicate it should be included
+//!   in the generated API documentation and web reference.
+//! - The documentation generator will extract all such marked items and render them in the web docs.
+//!
+//! ## Example
+//!
+//! ```zig
+//! /// Benchmark result with statistical analysis and performance metrics
+//! @Definitions
+//! pub const BenchmarkResult = struct { ... };
+//! ```
+//!
+//! ## Benefits
+//! - Ensures that all important API types and configuration options are discoverable in the docs.
+//! - Enables automated web documentation and API reference generation.
+//! - Provides a consistent way to mark public API surfaces for users and contributors.
+//!
+//! ---
+//!
+//! @Web
 
 const std = @import("std");
 const gpu_renderer = @import("../core/gpu_renderer.zig");
@@ -14,41 +78,9 @@ const kernels = @import("../compute/kernels.zig");
 const memory_pool = @import("../memory/memory_pool.zig");
 const backends = @import("../backends/backends.zig");
 
-/// Benchmark configuration
-pub const BenchmarkConfig = struct {
-    /// Number of iterations to run
-    iterations: u32 = 100,
-    /// Warmup iterations
-    warmup_iterations: u32 = 10,
-    /// Enable detailed timing
-    detailed_timing: bool = true,
-    /// Enable memory profiling
-    memory_profiling: bool = true,
-    /// Enable power profiling (if available)
-    power_profiling: bool = false,
-    /// Buffer sizes to test
-    buffer_sizes: []const usize = &[_]usize{ 1024, 8192, 65536, 524288, 4194304 },
-    /// Compute workloads to test
-    workloads: []const WorkloadType = &[_]WorkloadType{ .matrix_mul, .vector_add, .convolution, .attention },
-    /// Timeout for individual test operations in milliseconds
-    timeout_ms: u32 = 5000,
-    /// Minimum acceptable accuracy for computation results (for validation)
-    min_accuracy: f32 = 0.99,
-    /// Whether to validate computation results
-    validate_results: bool = true,
-    /// Output format for reports
-    output_format: OutputFormat = .text,
-    /// Directory to save benchmark results
-    output_directory: ?[]const u8 = null,
-};
-
-/// Output format for benchmark reports
-pub const OutputFormat = enum {
-    text,
-    json,
-    csv,
-    html,
-};
+// Note: The @Definitions annotation is a custom documentation directive for this project.
+// In Zig, documentation comments use /// for declarations and //! for modules. The @Definitions
+// marker is not a Zig built-in, but is recognized by our documentation tooling for web export.
 
 /// Types of compute workloads
 pub const WorkloadType = enum {
@@ -105,7 +137,162 @@ pub const WorkloadType = enum {
     }
 };
 
-/// Benchmark result with comprehensive metrics
+/// Output format for benchmark reports
+pub const OutputFormat = enum {
+    text,
+    json,
+    csv,
+    html,
+};
+
+/// Performance grade classification
+pub const PerformanceGrade = enum {
+    excellent,
+    good,
+    fair,
+    poor,
+
+    pub fn displayName(self: PerformanceGrade) []const u8 {
+        return switch (self) {
+            .excellent => "Excellent",
+            .good => "Good",
+            .fair => "Fair",
+            .poor => "Poor",
+        };
+    }
+
+    pub fn colorCode(self: PerformanceGrade) []const u8 {
+        return switch (self) {
+            .excellent => "🟢",
+            .good => "🟡",
+            .fair => "🟠",
+            .poor => "🔴",
+        };
+    }
+
+    pub fn toString(self: PerformanceGrade) []const u8 {
+        return self.displayName();
+    }
+};
+
+/// Enhanced benchmark configuration with comprehensive testing options
+pub const BenchmarkConfig = struct {
+    /// Number of iterations to run
+    iterations: u32 = 100,
+    /// Warmup iterations to stabilize performance
+    warmup_iterations: u32 = 10,
+    /// Enable detailed timing with nanosecond precision
+    detailed_timing: bool = true,
+    /// Enable memory profiling and leak detection
+    memory_profiling: bool = true,
+    /// Enable power consumption profiling (if available)
+    power_profiling: bool = false,
+    /// Enable thermal monitoring
+    thermal_monitoring: bool = true,
+    /// Buffer sizes to test (automatically scaled)
+    buffer_sizes: []const usize = &[_]usize{ 1024, 8192, 65536, 524288, 4194304 },
+    /// Compute workloads to test
+    workloads: []const WorkloadType = &[_]WorkloadType{ .matrix_mul, .vector_add, .convolution, .attention },
+    /// Timeout for individual test operations in milliseconds
+    timeout_ms: u32 = 5000,
+    /// Minimum acceptable accuracy for computation results (0.0 - 1.0)
+    min_accuracy: f32 = 0.99,
+    /// Whether to validate computation results
+    validate_results: bool = true,
+    /// Enable statistical analysis (percentiles, outliers)
+    statistical_analysis: bool = true,
+    /// Output format for reports
+    output_format: OutputFormat = .text,
+    /// Directory to save benchmark results
+    output_directory: ?[]const u8 = null,
+    /// Enable performance regression detection
+    regression_detection: bool = true,
+    /// Baseline file for regression comparison
+    baseline_file: ?[]const u8 = null,
+    /// Confidence level for statistical tests (0.0 - 1.0)
+    confidence_level: f32 = 0.95,
+    /// Enable memory access pattern analysis
+    memory_pattern_analysis: bool = false,
+    /// Enable cache performance analysis
+    cache_analysis: bool = false,
+    /// Maximum memory usage threshold (MB)
+    max_memory_threshold_mb: u32 = 8192,
+    /// Enable concurrent workload testing
+    concurrent_testing: bool = false,
+    /// Random seed for reproducible benchmarks
+    random_seed: u64 = 0x123456789ABCDEF0,
+
+    /// Validate configuration parameters
+    pub fn validate(self: *const BenchmarkConfig) !void {
+        if (self.iterations == 0) return error.InvalidConfiguration;
+        if (self.warmup_iterations > self.iterations) return error.InvalidConfiguration;
+        if (self.min_accuracy < 0.0 or self.min_accuracy > 1.0) return error.InvalidConfiguration;
+        if (self.confidence_level < 0.0 or self.confidence_level > 1.0) return error.InvalidConfiguration;
+        if (self.timeout_ms == 0) return error.InvalidConfiguration;
+        if (self.buffer_sizes.len == 0) return error.InvalidConfiguration;
+        if (self.workloads.len == 0) return error.InvalidConfiguration;
+    }
+
+    /// Get estimated runtime for benchmark suite
+    pub fn estimateRuntimeMs(self: *const BenchmarkConfig) u64 {
+        const total_iterations = self.iterations * @as(u64, self.workloads.len) * @as(u64, self.buffer_sizes.len);
+        const avg_time_per_iteration_ms = 10; // Conservative estimate
+        return total_iterations * avg_time_per_iteration_ms;
+    }
+
+    /// Create configuration for quick benchmarking
+    pub fn quick() BenchmarkConfig {
+        return BenchmarkConfig{
+            .iterations = 10,
+            .warmup_iterations = 2,
+            .detailed_timing = false,
+            .memory_profiling = false,
+            .power_profiling = false,
+            .thermal_monitoring = false,
+            .buffer_sizes = &[_]usize{ 8192, 65536 },
+            .workloads = &[_]WorkloadType{ .matrix_mul, .vector_add },
+            .statistical_analysis = false,
+            .regression_detection = false,
+        };
+    }
+
+    /// Create configuration for comprehensive benchmarking
+    pub fn comprehensive() BenchmarkConfig {
+        return BenchmarkConfig{
+            .iterations = 1000,
+            .warmup_iterations = 50,
+            .detailed_timing = true,
+            .memory_profiling = true,
+            .power_profiling = true,
+            .thermal_monitoring = true,
+            .buffer_sizes = &[_]usize{ 1024, 4096, 16384, 65536, 262144, 1048576 },
+            .workloads = &[_]WorkloadType{
+                .matrix_mul, .vector_add,    .convolution, .attention,
+                .pooling,    .normalization, .activation,  .fft,
+            },
+            .statistical_analysis = true,
+            .regression_detection = true,
+            .memory_pattern_analysis = true,
+            .cache_analysis = true,
+            .concurrent_testing = true,
+        };
+    }
+};
+
+/// Execution context information with hardware details
+pub const ExecutionContext = struct {
+    gpu_name: []const u8,
+    driver_version: []const u8,
+    compute_units: u32,
+    memory_size_mb: u32,
+    clock_speed_mhz: u32,
+    temperature_celsius: f32,
+    fan_speed_percent: f32,
+    gpu_utilization_percent: f32 = 0,
+    memory_utilization_percent: f32 = 0,
+};
+
+/// Benchmark result with statistical analysis and performance metrics
 pub const BenchmarkResult = struct {
     workload: WorkloadType,
     backend: backends.Backend,
@@ -132,34 +319,23 @@ pub const BenchmarkResult = struct {
     timestamp: i64,
     execution_context: ExecutionContext,
 
-    /// Execution context information
-    pub const ExecutionContext = struct {
-        gpu_name: []const u8,
-        driver_version: []const u8,
-        compute_units: u32,
-        memory_size_mb: u32,
-        clock_speed_mhz: u32,
-        temperature_celsius: f32,
-        fan_speed_percent: f32,
-    };
-
     /// Calculate efficiency score (throughput per watt)
-    pub fn efficiencyScore(self: BenchmarkResult) f32 {
+    pub fn calculateEfficiencyScore(self: *const BenchmarkResult) f32 {
         if (self.average_power_watts <= 0) return 0.0;
         return @as(f32, @floatCast(self.throughput_items_per_sec)) / self.average_power_watts;
     }
 
     /// Calculate performance stability (inverse of coefficient of variation)
-    pub fn stabilityScore(self: BenchmarkResult) f32 {
+    pub fn calculateStabilityScore(self: *const BenchmarkResult) f32 {
         if (self.avg_time_ns == 0) return 0.0;
         const cv = @as(f32, @floatFromInt(self.std_dev_ns)) / @as(f32, @floatFromInt(self.avg_time_ns));
         return 1.0 / (1.0 + cv);
     }
 
     /// Get performance grade based on multiple metrics
-    pub fn performanceGrade(self: BenchmarkResult) PerformanceGrade {
-        const efficiency = self.efficiencyScore();
-        const stability = self.stabilityScore();
+    pub fn getPerformanceGrade(self: *const BenchmarkResult) PerformanceGrade {
+        const efficiency = self.calculateEfficiencyScore();
+        const stability = self.calculateStabilityScore();
         const utilization = self.compute_utilization_percent / 100.0;
 
         const overall_score = (efficiency * 0.4 + stability * 0.3 + utilization * 0.3);
@@ -170,21 +346,63 @@ pub const BenchmarkResult = struct {
         return .poor;
     }
 
-    pub const PerformanceGrade = enum {
-        excellent,
-        good,
-        fair,
-        poor,
+    /// Calculate efficiency score (throughput per watt) - duplicate method for compatibility
+    pub fn efficiencyScore(self: *const BenchmarkResult) f32 {
+        return self.calculateEfficiencyScore();
+    }
 
-        pub fn toString(self: PerformanceGrade) []const u8 {
-            return switch (self) {
-                .excellent => "Excellent",
-                .good => "Good",
-                .fair => "Fair",
-                .poor => "Poor",
-            };
-        }
-    };
+    /// Calculate performance stability (inverse of coefficient of variation) - duplicate method for compatibility
+    pub fn stabilityScore(self: *const BenchmarkResult) f32 {
+        return self.calculateStabilityScore();
+    }
+
+    /// Get performance grade based on multiple metrics - duplicate method for compatibility
+    pub fn performanceGrade(self: *const BenchmarkResult) PerformanceGrade {
+        return self.getPerformanceGrade();
+    }
+
+    /// Calculate memory efficiency (bytes processed per second per MB used)
+    pub fn calculateMemoryEfficiency(self: *const BenchmarkResult) f64 {
+        if (self.memory_usage_mb <= 0) return 0.0;
+        return self.throughput_items_per_sec / @as(f64, @floatFromInt(self.memory_usage_mb * 1024 * 1024));
+    }
+
+    /// Calculate cache efficiency based on hit rate
+    pub fn calculateCacheEfficiency(self: *const BenchmarkResult) f32 {
+        return self.cache_hit_rate;
+    }
+
+    /// Get overall performance score combining multiple metrics
+    pub fn getOverallScore(self: *const BenchmarkResult) f32 {
+        const efficiency = self.calculateEfficiencyScore();
+        const stability = self.calculateStabilityScore();
+        const memory_efficiency = @as(f32, @floatCast(self.calculateMemoryEfficiency() / 1000000.0)); // Normalize
+        const cache_efficiency = self.calculateCacheEfficiency();
+
+        // Weighted combination of metrics
+        return (efficiency * 0.3) + (stability * 0.25) + (memory_efficiency * 0.25) + (cache_efficiency * 0.2);
+    }
+
+    /// Check if result meets minimum quality thresholds
+    pub fn meetsQualityThresholds(self: *const BenchmarkResult, config: BenchmarkConfig) bool {
+        if (!self.validation_passed) return false;
+        if (self.accuracy_score < config.min_accuracy) return false;
+        if (self.error_count > self.iterations / 10) return false; // More than 10% errors
+        return true;
+    }
+
+    /// Generate a summary string for quick overview
+    pub fn generateSummary(self: *const BenchmarkResult, allocator: std.mem.Allocator) ![]const u8 {
+        return std.fmt.allocPrint(allocator, "{} on {}: {d:.1}ms ± {d:.1}ms, {d:.0} items/sec, {} {s}", .{
+            self.workload.displayName(),
+            @tagName(self.backend),
+            @as(f64, @floatFromInt(self.avg_time_ns)) / 1_000_000.0,
+            @as(f64, @floatFromInt(self.std_dev_ns)) / 1_000_000.0,
+            self.throughput_items_per_sec,
+            self.getPerformanceGrade().displayName(),
+            self.getPerformanceGrade().colorCode(),
+        });
+    }
 
     pub fn format(
         self: BenchmarkResult,
@@ -217,10 +435,178 @@ pub const BenchmarkResult = struct {
         } else {
             try writer.print("  Validation: FAILED (accuracy: {d:.2}%)\n", .{self.accuracy_score * 100});
         }
-        try writer.print("  Performance Grade: {s}\n", .{self.performanceGrade().toString()});
+        try writer.print("  Performance Grade: {s}\n", .{self.getPerformanceGrade().toString()});
         if (self.thermal_throttling_detected) {
             try writer.print("  WARNING: Thermal throttling detected!\n", .{});
         }
+    }
+};
+
+/// Detailed timing measurement with hierarchical support
+pub const TimingMeasurement = struct {
+    name: []const u8,
+    start_time: i64,
+    end_time: i64,
+    memory_before: usize,
+    memory_after: usize,
+    gpu_time_ns: u64,
+    cpu_time_ns: u64,
+    synchronization_time_ns: u64,
+    parent_measurement: ?*TimingMeasurement,
+    child_measurements: std.ArrayList(TimingMeasurement),
+
+    pub fn duration_ns(self: TimingMeasurement) u64 {
+        return @as(u64, @intCast(self.end_time - self.start_time));
+    }
+
+    pub fn memory_delta(self: TimingMeasurement) i64 {
+        return @as(i64, @intCast(self.memory_after)) - @as(i64, @intCast(self.memory_before));
+    }
+};
+
+pub const PowerSample = struct {
+    timestamp: i64,
+    gpu_power_watts: f32,
+    memory_power_watts: f32,
+    total_power_watts: f32,
+    voltage: f32,
+    current: f32,
+    temperature: f32,
+};
+
+/// Power consumption monitoring
+pub const PowerMonitor = struct {
+    allocator: std.mem.Allocator,
+    samples: std.ArrayList(PowerSample),
+    sampling_interval_ms: u32,
+    last_sample_time: i64,
+
+    pub fn init(allocator: std.mem.Allocator, sampling_interval_ms: u32) !PowerMonitor {
+        return PowerMonitor{
+            .allocator = allocator,
+            .samples = std.ArrayList(PowerSample).init(allocator),
+            .sampling_interval_ms = sampling_interval_ms,
+            .last_sample_time = 0,
+        };
+    }
+
+    pub fn deinit(self: *PowerMonitor) void {
+        self.samples.deinit();
+    }
+
+    pub fn recordSample(self: *PowerMonitor, sample: PowerSample) !void {
+        try self.samples.append(sample);
+        self.last_sample_time = sample.timestamp;
+    }
+
+    pub fn getAveragePower(self: PowerMonitor) f32 {
+        if (self.samples.items.len == 0) return 0.0;
+
+        var total: f32 = 0.0;
+        for (self.samples.items) |sample| {
+            total += sample.total_power_watts;
+        }
+        return total / @as(f32, @floatFromInt(self.samples.items.len));
+    }
+
+    pub fn getPeakPower(self: PowerMonitor) f32 {
+        if (self.samples.items.len == 0) return 0.0;
+
+        var peak: f32 = 0.0;
+        for (self.samples.items) |sample| {
+            peak = @max(peak, sample.total_power_watts);
+        }
+        return peak;
+    }
+};
+
+pub const MemoryType = enum {
+    buffer,
+    texture,
+    uniform,
+    staging,
+    other,
+};
+
+pub const MemoryAllocation = struct {
+    timestamp: i64,
+    size: usize,
+    type: MemoryType,
+    freed: bool,
+};
+
+/// Memory usage tracking
+pub const MemoryTracker = struct {
+    allocator: std.mem.Allocator,
+    current_usage: usize,
+    peak_usage: usize,
+    allocations: std.ArrayList(MemoryAllocation),
+
+    pub fn init(allocator: std.mem.Allocator) !MemoryTracker {
+        return MemoryTracker{
+            .allocator = allocator,
+            .current_usage = 0,
+            .peak_usage = 0,
+            .allocations = std.ArrayList(MemoryAllocation).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *MemoryTracker) void {
+        self.allocations.deinit();
+    }
+
+    pub fn recordAllocation(self: *MemoryTracker, size: usize, memory_type: MemoryType) !void {
+        self.current_usage += size;
+        self.peak_usage = @max(self.peak_usage, self.current_usage);
+
+        try self.allocations.append(MemoryAllocation{
+            .timestamp = std.time.milliTimestamp(),
+            .size = size,
+            .type = memory_type,
+            .freed = false,
+        });
+    }
+
+    pub fn recordDeallocation(self: *MemoryTracker, size: usize) void {
+        self.current_usage = if (self.current_usage >= size) self.current_usage - size else 0;
+    }
+};
+
+/// Thermal monitoring for throttling detection
+pub const ThermalMonitor = struct {
+    allocator: std.mem.Allocator,
+    temperature_samples: std.ArrayList(f32),
+    throttling_threshold: f32,
+    throttling_detected: bool,
+
+    pub fn init(allocator: std.mem.Allocator, threshold: f32) !ThermalMonitor {
+        return ThermalMonitor{
+            .allocator = allocator,
+            .temperature_samples = std.ArrayList(f32).init(allocator),
+            .throttling_threshold = threshold,
+            .throttling_detected = false,
+        };
+    }
+
+    pub fn deinit(self: *ThermalMonitor) void {
+        self.temperature_samples.deinit();
+    }
+
+    pub fn recordTemperature(self: *ThermalMonitor, temperature: f32) !void {
+        try self.temperature_samples.append(temperature);
+        if (temperature > self.throttling_threshold) {
+            self.throttling_detected = true;
+        }
+    }
+
+    pub fn getAverageTemperature(self: ThermalMonitor) f32 {
+        if (self.temperature_samples.items.len == 0) return 0.0;
+
+        var total: f32 = 0.0;
+        for (self.temperature_samples.items) |temp| {
+            total += temp;
+        }
+        return total / @as(f32, @floatFromInt(self.temperature_samples.items.len));
     }
 };
 
@@ -236,182 +622,14 @@ pub const PerformanceProfiler = struct {
     memory_tracker: MemoryTracker,
     thermal_monitor: ThermalMonitor,
 
-    /// Detailed timing measurement with hierarchical support
-    pub const TimingMeasurement = struct {
-        name: []const u8,
-        start_time: i64,
-        end_time: i64,
-        memory_before: usize,
-        memory_after: usize,
-        gpu_time_ns: u64,
-        cpu_time_ns: u64,
-        synchronization_time_ns: u64,
-        parent_measurement: ?*TimingMeasurement,
-        child_measurements: std.ArrayList(TimingMeasurement),
-
-        pub fn duration_ns(self: TimingMeasurement) u64 {
-            return @as(u64, @intCast(self.end_time - self.start_time));
-        }
-
-        pub fn memory_delta(self: TimingMeasurement) i64 {
-            return @as(i64, @intCast(self.memory_after)) - @as(i64, @intCast(self.memory_before));
-        }
-    };
-
-    /// Power consumption monitoring
-    pub const PowerMonitor = struct {
-        allocator: std.mem.Allocator,
-        samples: std.ArrayList(PowerSample),
-        sampling_interval_ms: u32,
-        last_sample_time: i64,
-
-        pub const PowerSample = struct {
-            timestamp: i64,
-            gpu_power_watts: f32,
-            memory_power_watts: f32,
-            total_power_watts: f32,
-            voltage: f32,
-            current: f32,
-            temperature: f32,
-        };
-
-        pub fn init(allocator: std.mem.Allocator, sampling_interval_ms: u32) !PowerMonitor {
-            return PowerMonitor{
-                .allocator = allocator,
-                .samples = try std.ArrayList(PowerSample).initCapacity(allocator, 0),
-                .sampling_interval_ms = sampling_interval_ms,
-                .last_sample_time = 0,
-            };
-        }
-
-        pub fn deinit(self: *PowerMonitor) void {
-            self.samples.deinit(self.allocator);
-        }
-
-        pub fn recordSample(self: *PowerMonitor, sample: PowerSample) !void {
-            try self.samples.append(self.allocator, sample);
-            self.last_sample_time = sample.timestamp;
-        }
-
-        pub fn getAveragePower(self: PowerMonitor) f32 {
-            if (self.samples.items.len == 0) return 0.0;
-
-            var total: f32 = 0.0;
-            for (self.samples.items) |sample| {
-                total += sample.total_power_watts;
-            }
-            return total / @as(f32, @floatFromInt(self.samples.items.len));
-        }
-
-        pub fn getPeakPower(self: PowerMonitor) f32 {
-            if (self.samples.items.len == 0) return 0.0;
-
-            var peak: f32 = 0.0;
-            for (self.samples.items) |sample| {
-                peak = @max(peak, sample.total_power_watts);
-            }
-            return peak;
-        }
-    };
-
-    /// Memory usage tracking
-    pub const MemoryTracker = struct {
-        allocator: std.mem.Allocator,
-        current_usage: usize,
-        peak_usage: usize,
-        allocations: std.ArrayList(MemoryAllocation),
-
-        pub const MemoryAllocation = struct {
-            timestamp: i64,
-            size: usize,
-            type: MemoryType,
-            freed: bool,
-        };
-
-        pub const MemoryType = enum {
-            buffer,
-            texture,
-            uniform,
-            staging,
-            other,
-        };
-
-        pub fn init(allocator: std.mem.Allocator) !MemoryTracker {
-            return MemoryTracker{
-                .allocator = allocator,
-                .current_usage = 0,
-                .peak_usage = 0,
-                .allocations = try std.ArrayList(MemoryAllocation).initCapacity(allocator, 0),
-            };
-        }
-
-        pub fn deinit(self: *MemoryTracker) void {
-            self.allocations.deinit(self.allocator);
-        }
-
-        pub fn recordAllocation(self: *MemoryTracker, size: usize, memory_type: MemoryType) !void {
-            self.current_usage += size;
-            self.peak_usage = @max(self.peak_usage, self.current_usage);
-
-            try self.allocations.append(MemoryAllocation{
-                .timestamp = std.time.milliTimestamp(),
-                .size = size,
-                .type = memory_type,
-                .freed = false,
-            });
-        }
-
-        pub fn recordDeallocation(self: *MemoryTracker, size: usize) void {
-            self.current_usage = if (self.current_usage >= size) self.current_usage - size else 0;
-        }
-    };
-
-    /// Thermal monitoring for throttling detection
-    pub const ThermalMonitor = struct {
-        allocator: std.mem.Allocator,
-        temperature_samples: std.ArrayList(f32),
-        throttling_threshold: f32,
-        throttling_detected: bool,
-
-        pub fn init(allocator: std.mem.Allocator, threshold: f32) !ThermalMonitor {
-            return ThermalMonitor{
-                .allocator = allocator,
-                .temperature_samples = try std.ArrayList(f32).initCapacity(allocator, 0),
-                .throttling_threshold = threshold,
-                .throttling_detected = false,
-            };
-        }
-
-        pub fn deinit(self: *ThermalMonitor) void {
-            self.temperature_samples.deinit(self.allocator);
-        }
-
-        pub fn recordTemperature(self: *ThermalMonitor, temperature: f32) !void {
-            try self.temperature_samples.append(self.allocator, temperature);
-            if (temperature > self.throttling_threshold) {
-                self.throttling_detected = true;
-            }
-        }
-
-        pub fn getAverageTemperature(self: ThermalMonitor) f32 {
-            if (self.temperature_samples.items.len == 0) return 0.0;
-
-            var total: f32 = 0.0;
-            for (self.temperature_samples.items) |temp| {
-                total += temp;
-            }
-            return total / @as(f32, @floatFromInt(self.temperature_samples.items.len));
-        }
-    };
-
     pub fn init(allocator: std.mem.Allocator, renderer: *gpu_renderer.GPURenderer) !*PerformanceProfiler {
         const self = try allocator.create(PerformanceProfiler);
         self.* = .{
             .allocator = allocator,
             .renderer = renderer,
-            .results = try std.ArrayList(BenchmarkResult).initCapacity(allocator, 0),
+            .results = std.ArrayList(BenchmarkResult).init(allocator),
             .start_time = std.time.milliTimestamp(),
-            .measurements = try std.ArrayList(TimingMeasurement).initCapacity(allocator, 0),
+            .measurements = std.ArrayList(TimingMeasurement).init(allocator),
             .baseline_results = null,
             .power_monitor = null,
             .memory_tracker = try MemoryTracker.init(allocator),
@@ -424,16 +642,16 @@ pub const PerformanceProfiler = struct {
         for (self.results.items) |*result| {
             _ = result; // Results are owned by the profiler
         }
-        self.results.deinit(self.allocator);
+        self.results.deinit();
 
         for (self.measurements.items) |*measurement| {
             self.allocator.free(measurement.name);
-            measurement.child_measurements.deinit(self.allocator);
+            measurement.child_measurements.deinit();
         }
-        self.measurements.deinit(self.allocator);
+        self.measurements.deinit();
 
         if (self.baseline_results) |*baseline| {
-            baseline.deinit(self.allocator);
+            baseline.deinit();
         }
 
         if (self.power_monitor) |*monitor| {
@@ -469,9 +687,9 @@ pub const PerformanceProfiler = struct {
             .cpu_time_ns = 0,
             .synchronization_time_ns = 0,
             .parent_measurement = null,
-            .child_measurements = try std.ArrayList(TimingMeasurement).initCapacity(self.allocator, 0),
+            .child_measurements = std.ArrayList(TimingMeasurement).init(self.allocator),
         };
-        try self.measurements.append(self.allocator, measurement);
+        try self.measurements.append(measurement);
     }
 
     /// End timing for the current operation
@@ -499,152 +717,188 @@ pub const PerformanceProfiler = struct {
         std.log.info("Benchmark suite completed", .{});
     }
 
-    /// Run benchmark for specific workload with comprehensive metrics
-    pub fn runWorkloadBenchmark(
-        self: *PerformanceProfiler,
-        workload: WorkloadType,
-        data_size: usize,
-        config: BenchmarkConfig,
-    ) !void {
-        const iterations = config.iterations;
-        var times = try std.ArrayList(u64).initCapacity(self.allocator, 0);
-        defer times.deinit(self.allocator);
+    /// Generate comprehensive performance report with analysis
+    pub fn generatePerformanceReport(self: *PerformanceProfiler, allocator: std.mem.Allocator) ![]const u8 {
+        var report = std.ArrayList(u8).init(allocator);
+        defer report.deinit();
+        const writer = report.writer();
 
-        var total_time: u64 = 0;
-        var min_time: u64 = std.math.maxInt(u64);
-        var max_time: u64 = 0;
-        var error_count: u32 = 0;
-        var validation_failures: u32 = 0;
-        var accuracy_scores = try std.ArrayList(f32).initCapacity(self.allocator, 0);
-        defer accuracy_scores.deinit(self.allocator);
+        try writer.print("=== GPU Performance Benchmark Report ===\n\n", .{});
 
-        // Reset monitoring systems
-        if (self.power_monitor) |*monitor| {
-            monitor.samples.clearAndFree(self.allocator);
-        }
-        self.thermal_monitor.temperature_samples.clearAndFree(self.allocator);
-        self.thermal_monitor.throttling_detected = false;
+        // Summary statistics
+        try writer.print("📊 Summary:\n", .{});
+        try writer.print("  Total benchmarks run: {}\n", .{self.results.items.len});
+        try writer.print("  Total execution time: {}ms\n", .{std.time.milliTimestamp() - self.start_time});
 
-        // Warmup iterations
-        for (0..config.warmup_iterations) |_| {
-            _ = try self.runSingleIteration(workload, data_size, config);
-        }
+        if (self.results.items.len > 0) {
+            // Calculate aggregate statistics
+            var total_throughput: f64 = 0;
+            var total_efficiency: f32 = 0;
+            var best_result: ?*const BenchmarkResult = null;
+            var worst_result: ?*const BenchmarkResult = null;
 
-        // Benchmark iterations
-        for (0..iterations) |_| {
-            const start_time = std.time.nanoTimestamp();
-            const result = try self.runSingleIteration(workload, data_size, config);
-            const end_time = std.time.nanoTimestamp();
+            for (self.results.items) |*result| {
+                total_throughput += result.throughput_items_per_sec;
+                total_efficiency += result.calculateEfficiencyScore();
 
-            if (!result.success) {
-                error_count += 1;
-                continue;
+                if (best_result == null or result.getOverallScore() > best_result.?.getOverallScore()) {
+                    best_result = result;
+                }
+                if (worst_result == null or result.getOverallScore() < worst_result.?.getOverallScore()) {
+                    worst_result = result;
+                }
             }
 
-            if (!result.validation_passed) {
-                validation_failures += 1;
+            const avg_throughput = total_throughput / @as(f64, @floatFromInt(self.results.items.len));
+            const avg_efficiency = total_efficiency / @as(f32, @floatFromInt(self.results.items.len));
+
+            try writer.print("  Average throughput: {d:.0} items/sec\n", .{avg_throughput});
+            try writer.print("  Average efficiency: {d:.2}\n", .{avg_efficiency});
+
+            // Best and worst performers
+            if (best_result) |best| {
+                try writer.print("  Best performer: {} on {}\n", .{ best.workload.displayName(), @tagName(best.backend) });
             }
-
-            const iteration_time = end_time - start_time;
-            try times.append(self.allocator, @as(u64, @intCast(iteration_time)));
-            total_time += @as(u64, @intCast(iteration_time));
-            min_time = @min(min_time, @as(u64, @intCast(iteration_time)));
-            max_time = @max(max_time, @as(u64, @intCast(iteration_time)));
-            try accuracy_scores.append(self.allocator, result.accuracy);
-
-            // Simulate power and thermal monitoring
-            if (self.power_monitor) |*monitor| {
-                try monitor.recordSample(PowerMonitor.PowerSample{
-                    .timestamp = std.time.milliTimestamp(),
-                    .gpu_power_watts = 150.0 + @as(f32, @floatFromInt(std.crypto.random.int(u8) % 50)),
-                    .memory_power_watts = 25.0 + @as(f32, @floatFromInt(std.crypto.random.int(u8) % 10)),
-                    .total_power_watts = 175.0 + @as(f32, @floatFromInt(std.crypto.random.int(u8) % 60)),
-                    .voltage = 1.2,
-                    .current = 145.8,
-                    .temperature = 70.0 + @as(f32, @floatFromInt(std.crypto.random.int(u8) % 20)),
-                });
+            if (worst_result) |worst| {
+                try writer.print("  Worst performer: {} on {}\n", .{ worst.workload.displayName(), @tagName(worst.backend) });
             }
-
-            try self.thermal_monitor.recordTemperature(70.0 + @as(f32, @floatFromInt(std.crypto.random.int(u8) % 20)));
         }
 
-        const successful_iterations = iterations - error_count;
-        if (successful_iterations == 0) {
-            std.log.err("All iterations failed for workload {s}", .{@tagName(workload)});
+        try writer.print("\n📋 Detailed Results:\n", .{});
+        for (self.results.items, 0..) |*result, i| {
+            const summary = try result.generateSummary(allocator);
+            defer allocator.free(summary);
+            try writer.print("  {}. {}\n", .{ i + 1, summary });
+        }
+
+        // Recommendations
+        try writer.print("\n💡 Recommendations:\n", .{});
+        try self.generateRecommendations(writer);
+
+        return report.toOwnedSlice();
+    }
+
+    /// Generate performance recommendations based on results
+    fn generateRecommendations(self: *PerformanceProfiler, writer: anytype) !void {
+        if (self.results.items.len == 0) {
+            try writer.print("  - Run benchmarks to get recommendations\n", .{});
             return;
         }
 
-        const avg_time = total_time / successful_iterations;
+        // Analyze backend performance
+        var backend_scores = std.StringHashMap(f32).init(self.allocator);
+        defer backend_scores.deinit();
 
-        // Calculate standard deviation
-        var variance: u64 = 0;
-        for (times.items) |time| {
-            const diff = if (time > avg_time) time - avg_time else avg_time - time;
-            variance += diff * diff;
+        for (self.results.items) |*result| {
+            const backend_name = @tagName(result.backend);
+            const current_score = backend_scores.get(backend_name) orelse 0.0;
+            backend_scores.put(backend_name, current_score + result.getOverallScore()) catch {};
         }
-        const std_dev = @as(u64, @intFromFloat(@sqrt(@as(f64, @floatFromInt(variance / successful_iterations)))));
 
-        // Calculate median
-        std.sort.block(u64, times.items, {}, std.sort.asc(u64));
-        const median_time = if (times.items.len % 2 == 0)
-            (times.items[times.items.len / 2 - 1] + times.items[times.items.len / 2]) / 2
-        else
-            times.items[times.items.len / 2];
+        // Find best backend
+        var best_backend: ?[]const u8 = null;
+        var best_score: f32 = 0;
 
-        // Calculate average accuracy
-        var total_accuracy: f32 = 0;
-        for (accuracy_scores.items) |score| {
-            total_accuracy += score;
+        var it = backend_scores.iterator();
+        while (it.next()) |entry| {
+            if (best_backend == null or entry.value_ptr.* > best_score) {
+                best_backend = entry.key_ptr.*;
+                best_score = entry.value_ptr.*;
+            }
         }
-        const avg_accuracy = if (accuracy_scores.items.len > 0) total_accuracy / @as(f32, @floatFromInt(accuracy_scores.items.len)) else 0.0;
 
-        // Calculate performance metrics
-        const items_processed = try self.getWorkloadItemCount(workload, data_size);
-        const throughput = @as(f64, @floatFromInt(items_processed)) / (@as(f64, @floatFromInt(avg_time)) / 1_000_000_000.0);
+        if (best_backend) |backend| {
+            try writer.print("  - Recommended backend: {}\n", .{backend});
+        }
 
-        // Get power metrics
-        const avg_power = if (self.power_monitor) |monitor| monitor.getAveragePower() else 0.0;
-        const peak_power = if (self.power_monitor) |monitor| monitor.getPeakPower() else 0.0;
-        const energy_consumed = avg_power * (@as(f32, @floatFromInt(avg_time)) / 1_000_000_000.0);
+        // Check for thermal issues
+        var thermal_issues = false;
+        for (self.results.items) |*result| {
+            if (result.thermal_throttling_detected) {
+                thermal_issues = true;
+                break;
+            }
+        }
 
-        const result = BenchmarkResult{
-            .workload = workload,
-            .backend = .webgpu, // Current backend
-            .iterations = successful_iterations,
-            .total_time_ns = total_time,
-            .avg_time_ns = avg_time,
-            .min_time_ns = min_time,
-            .max_time_ns = max_time,
-            .std_dev_ns = std_dev,
-            .median_time_ns = median_time,
-            .throughput_items_per_sec = throughput,
-            .memory_bandwidth_gb_per_sec = try self.calculateMemoryBandwidth(workload, data_size, avg_time),
-            .compute_utilization_percent = 85.0, // Estimated
-            .memory_usage_mb = @as(f64, @floatFromInt(data_size)) / (1024.0 * 1024.0),
-            .peak_memory_usage_mb = @as(f64, @floatFromInt(self.memory_tracker.peak_usage)) / (1024.0 * 1024.0),
-            .power_consumption_watts = peak_power,
-            .average_power_watts = avg_power,
-            .energy_consumed_joules = energy_consumed,
-            .error_count = error_count,
-            .validation_passed = validation_failures == 0,
-            .accuracy_score = avg_accuracy,
-            .cache_hit_rate = 0.85, // Estimated
-            .thermal_throttling_detected = self.thermal_monitor.throttling_detected,
-            .timestamp = std.time.milliTimestamp(),
-            .execution_context = BenchmarkResult.ExecutionContext{
-                .gpu_name = "Simulated GPU",
-                .driver_version = "1.0.0",
-                .compute_units = 64,
-                .memory_size_mb = 8192,
-                .clock_speed_mhz = 1500,
-                .temperature_celsius = self.thermal_monitor.getAverageTemperature(),
-                .fan_speed_percent = 75.0,
-            },
+        if (thermal_issues) {
+            try writer.print("  - ⚠️  Thermal throttling detected - consider cooling improvements\n", .{});
+        }
+
+        // Memory efficiency recommendations
+        var avg_memory_efficiency: f64 = 0;
+        for (self.results.items) |*result| {
+            avg_memory_efficiency += result.calculateMemoryEfficiency();
+        }
+        avg_memory_efficiency /= @as(f64, @floatFromInt(self.results.items.len));
+
+        if (avg_memory_efficiency < 1000) {
+            try writer.print("  - Consider optimizing memory access patterns for better efficiency\n", .{});
+        }
+    }
+
+    /// Export results to different formats
+    pub fn exportResults(self: *PerformanceProfiler, allocator: std.mem.Allocator, format: OutputFormat) ![]const u8 {
+        return switch (format) {
+            .text => self.generatePerformanceReport(allocator),
+            .json => self.exportToJson(allocator),
+            .csv => self.exportToCsv(allocator),
+            .html => self.exportToHtml(allocator),
         };
+    }
 
-        try self.results.append(self.allocator, result);
+    /// Export results to CSV format
+    fn exportToCsv(self: *PerformanceProfiler, allocator: std.mem.Allocator) ![]const u8 {
+        var csv_output = std.ArrayList(u8).init(allocator);
+        defer csv_output.deinit();
 
-        std.log.info("Benchmark completed: {any}", .{result});
+        const writer = csv_output.writer();
+
+        // CSV header
+        try writer.print("Workload,Backend,Iterations,Avg_Time_ms,Std_Dev_ms,Throughput_items_sec,Efficiency,Grade,Validation_Passed\n", .{});
+
+        // CSV data
+        for (self.results.items) |*result| {
+            try writer.print("{},{},{},{d:.3},{d:.3},{},{d:.3},{},{}\n", .{
+                @tagName(result.workload),
+                @tagName(result.backend),
+                result.iterations,
+                @as(f64, @floatFromInt(result.avg_time_ns)) / 1_000_000.0,
+                @as(f64, @floatFromInt(result.std_dev_ns)) / 1_000_000.0,
+                result.throughput_items_per_sec,
+                result.calculateEfficiencyScore(),
+                @tagName(result.getPerformanceGrade()),
+                result.validation_passed,
+            });
+        }
+
+        return csv_output.toOwnedSlice();
+    }
+
+    /// Export results to HTML format
+    fn exportToHtml(self: *PerformanceProfiler, allocator: std.mem.Allocator) ![]const u8 {
+        var html_output = std.ArrayList(u8).init(allocator);
+        defer html_output.deinit();
+
+        const writer = html_output.writer();
+
+        try writer.print("<!DOCTYPE html>\n<html>\n<head>\n<title>GPU Benchmark Results</title>\n</head>\n<body>\n", .{});
+        try writer.print("<h1>GPU Performance Benchmark Results</h1>\n", .{});
+        try writer.print("<table border='1'>\n", .{});
+        try writer.print("<tr><th>Workload</th><th>Backend</th><th>Throughput</th><th>Efficiency</th><th>Grade</th></tr>\n", .{});
+
+        for (self.results.items) |*result| {
+            try writer.print("<tr><td>{}</td><td>{}</td><td>{d:.0}</td><td>{d:.3}</td><td>{}</td></tr>\n", .{
+                @tagName(result.workload),
+                @tagName(result.backend),
+                result.throughput_items_per_sec,
+                result.calculateEfficiencyScore(),
+                @tagName(result.getPerformanceGrade()),
+            });
+        }
+
+        try writer.print("</table>\n</body>\n</html>\n", .{});
+
+        return html_output.toOwnedSlice();
     }
 
     /// Enhanced single iteration with validation and accuracy measurement
@@ -725,14 +979,14 @@ pub const PerformanceProfiler = struct {
             .fft => {
                 const n = data_size / @sizeOf(f32);
                 const n_f64 = @as(f64, @floatFromInt(n));
-                return @as(u64, @intFromFloat(n_f64 * std.math.log(f64, std.math.e, n_f64)));
+                return @as(u64, @intFromFloat(n_f64 * @log(n_f64)));
             },
             .reduction, .pooling, .normalization, .activation => data_size / @sizeOf(f32),
             .scan => (data_size / @sizeOf(f32)) * 2, // Two passes typically
             .sort => {
                 const n = data_size / @sizeOf(f32);
                 const n_f64 = @as(f64, @floatFromInt(n));
-                return @as(u64, @intFromFloat(n_f64 * std.math.log(f64, std.math.e, n_f64)));
+                return @as(u64, @intFromFloat(n_f64 * @log(n_f64)));
             },
             .sparse_operations => data_size / @sizeOf(f32) / 10, // Assume 10% sparsity
             else => data_size / @sizeOf(f32),
@@ -759,6 +1013,154 @@ pub const PerformanceProfiler = struct {
         const time_seconds = @as(f64, @floatFromInt(avg_time_ns)) / 1_000_000_000.0;
         const bandwidth_bytes_per_sec = bytes_processed / time_seconds;
         return bandwidth_bytes_per_sec / (1024.0 * 1024.0 * 1024.0); // Convert to GB/s
+    }
+
+    /// Run benchmark for specific workload with comprehensive metrics
+    pub fn runWorkloadBenchmark(
+        self: *PerformanceProfiler,
+        workload: WorkloadType,
+        data_size: usize,
+        config: BenchmarkConfig,
+    ) !void {
+        const iterations = config.iterations;
+        var times = std.ArrayList(u64).init(self.allocator);
+        defer times.deinit();
+
+        var total_time: u64 = 0;
+        var min_time: u64 = std.math.maxInt(u64);
+        var max_time: u64 = 0;
+        var error_count: u32 = 0;
+        var validation_failures: u32 = 0;
+        var accuracy_scores = std.ArrayList(f32).init(self.allocator);
+        defer accuracy_scores.deinit();
+
+        // Reset monitoring systems
+        if (self.power_monitor) |*monitor| {
+            monitor.samples.clearAndFree();
+        }
+        self.thermal_monitor.temperature_samples.clearAndFree();
+        self.thermal_monitor.throttling_detected = false;
+
+        // Warmup iterations
+        for (0..config.warmup_iterations) |_| {
+            _ = try self.runSingleIteration(workload, data_size, config);
+        }
+
+        // Benchmark iterations
+        for (0..iterations) |_| {
+            const start_time = std.time.nanoTimestamp();
+            const result = try self.runSingleIteration(workload, data_size, config);
+            const end_time = std.time.nanoTimestamp();
+
+            if (!result.success) {
+                error_count += 1;
+                continue;
+            }
+
+            if (!result.validation_passed) {
+                validation_failures += 1;
+            }
+
+            const iteration_time = end_time - start_time;
+            try times.append(@as(u64, @intCast(iteration_time)));
+            total_time += @as(u64, @intCast(iteration_time));
+            min_time = @min(min_time, @as(u64, @intCast(iteration_time)));
+            max_time = @max(max_time, @as(u64, @intCast(iteration_time)));
+            try accuracy_scores.append(result.accuracy);
+
+            // Simulate power and thermal monitoring
+            if (self.power_monitor) |*monitor| {
+                try monitor.recordSample(PowerSample{
+                    .timestamp = std.time.milliTimestamp(),
+                    .gpu_power_watts = 150.0 + @as(f32, @floatFromInt(std.crypto.random.int(u8) % 50)),
+                    .memory_power_watts = 25.0 + @as(f32, @floatFromInt(std.crypto.random.int(u8) % 10)),
+                    .total_power_watts = 175.0 + @as(f32, @floatFromInt(std.crypto.random.int(u8) % 60)),
+                    .voltage = 1.2,
+                    .current = 145.8,
+                    .temperature = 70.0 + @as(f32, @floatFromInt(std.crypto.random.int(u8) % 20)),
+                });
+            }
+
+            try self.thermal_monitor.recordTemperature(70.0 + @as(f32, @floatFromInt(std.crypto.random.int(u8) % 20)));
+        }
+
+        const successful_iterations = iterations - error_count;
+        if (successful_iterations == 0) {
+            std.log.err("All iterations failed for workload {s}", .{@tagName(workload)});
+            return;
+        }
+
+        const avg_time = total_time / successful_iterations;
+
+        // Calculate standard deviation
+        var variance: u64 = 0;
+        for (times.items) |time| {
+            const diff = if (time > avg_time) time - avg_time else avg_time - time;
+            variance += diff * diff;
+        }
+        const std_dev = @as(u64, @intFromFloat(@sqrt(@as(f64, @floatFromInt(variance / successful_iterations)))));
+
+        // Calculate median
+        std.mem.sort(u64, times.items, {}, std.sort.asc(u64));
+        const median_time = if (times.items.len % 2 == 0)
+            (times.items[times.items.len / 2 - 1] + times.items[times.items.len / 2]) / 2
+        else
+            times.items[times.items.len / 2];
+
+        // Calculate average accuracy
+        var total_accuracy: f32 = 0;
+        for (accuracy_scores.items) |score| {
+            total_accuracy += score;
+        }
+        const avg_accuracy = if (accuracy_scores.items.len > 0) total_accuracy / @as(f32, @floatFromInt(accuracy_scores.items.len)) else 0.0;
+
+        // Calculate performance metrics
+        const items_processed = try self.getWorkloadItemCount(workload, data_size);
+        const throughput = @as(f64, @floatFromInt(items_processed)) / (@as(f64, @floatFromInt(avg_time)) / 1_000_000_000.0);
+
+        // Get power metrics
+        const avg_power = if (self.power_monitor) |monitor| monitor.getAveragePower() else 0.0;
+        const peak_power = if (self.power_monitor) |monitor| monitor.getPeakPower() else 0.0;
+        const energy_consumed = avg_power * (@as(f32, @floatFromInt(avg_time)) / 1_000_000_000.0);
+
+        const result = BenchmarkResult{
+            .workload = workload,
+            .backend = .webgpu, // Current backend
+            .iterations = successful_iterations,
+            .total_time_ns = total_time,
+            .avg_time_ns = avg_time,
+            .min_time_ns = min_time,
+            .max_time_ns = max_time,
+            .std_dev_ns = std_dev,
+            .median_time_ns = median_time,
+            .throughput_items_per_sec = throughput,
+            .memory_bandwidth_gb_per_sec = try self.calculateMemoryBandwidth(workload, data_size, avg_time),
+            .compute_utilization_percent = 85.0, // Estimated
+            .memory_usage_mb = @as(f64, @floatFromInt(data_size)) / (1024.0 * 1024.0),
+            .peak_memory_usage_mb = @as(f64, @floatFromInt(self.memory_tracker.peak_usage)) / (1024.0 * 1024.0),
+            .power_consumption_watts = peak_power,
+            .average_power_watts = avg_power,
+            .energy_consumed_joules = energy_consumed,
+            .error_count = error_count,
+            .validation_passed = validation_failures == 0,
+            .accuracy_score = avg_accuracy,
+            .cache_hit_rate = 0.85, // Estimated
+            .thermal_throttling_detected = self.thermal_monitor.throttling_detected,
+            .timestamp = std.time.milliTimestamp(),
+            .execution_context = ExecutionContext{
+                .gpu_name = "Simulated GPU",
+                .driver_version = "1.0.0",
+                .compute_units = 64,
+                .memory_size_mb = 8192,
+                .clock_speed_mhz = 1500,
+                .temperature_celsius = self.thermal_monitor.getAverageTemperature(),
+                .fan_speed_percent = 75.0,
+            },
+        };
+
+        try self.results.append(result);
+
+        std.log.info("Benchmark completed: {any}", .{result});
     }
 
     /// Generate comprehensive performance report with statistical analysis
@@ -805,7 +1207,7 @@ pub const PerformanceProfiler = struct {
         try report.appendSlice("\n");
 
         // Group results by workload
-        var workloads = std.AutoHashMap(WorkloadType, std.ArrayList(*const BenchmarkResult)).init(allocator);
+        var workloads = std.HashMap(WorkloadType, std.ArrayList(*const BenchmarkResult), std.hash_map.AutoContext(WorkloadType), std.hash_map.default_max_load_percentage).init(allocator);
         defer {
             var it = workloads.iterator();
             while (it.next()) |entry| {
@@ -893,7 +1295,7 @@ pub const PerformanceProfiler = struct {
     }
 
     /// Export results to JSON with comprehensive metadata
-    pub fn exportToJson(self: *PerformanceProfiler, allocator: std.mem.Allocator) ![]const u8 {
+    fn exportToJson(self: *PerformanceProfiler, allocator: std.mem.Allocator) ![]const u8 {
         var json = std.ArrayList(u8).init(allocator);
         errdefer json.deinit();
 
@@ -1028,36 +1430,36 @@ pub const PerformanceProfiler = struct {
     }
 };
 
+pub const AccessPattern = enum {
+    sequential,
+    random,
+    strided,
+    coalesced,
+    scattered,
+
+    pub fn toString(self: AccessPattern) []const u8 {
+        return switch (self) {
+            .sequential => "Sequential",
+            .random => "Random",
+            .strided => "Strided",
+            .coalesced => "Coalesced",
+            .scattered => "Scattered",
+        };
+    }
+};
+
+pub const MemoryBenchmarkResult = struct {
+    buffer_size: usize,
+    access_pattern: AccessPattern,
+    read_bandwidth_gb_per_sec: f64,
+    write_bandwidth_gb_per_sec: f64,
+};
+
 /// Memory bandwidth benchmark with enhanced capabilities
 pub const MemoryBandwidthBenchmark = struct {
     allocator: std.mem.Allocator,
     renderer: *gpu_renderer.GPURenderer,
     access_patterns: []const AccessPattern,
-
-    pub const AccessPattern = enum {
-        sequential,
-        random,
-        strided,
-        coalesced,
-        scattered,
-
-        pub fn toString(self: AccessPattern) []const u8 {
-            return switch (self) {
-                .sequential => "Sequential",
-                .random => "Random",
-                .strided => "Strided",
-                .coalesced => "Coalesced",
-                .scattered => "Scattered",
-            };
-        }
-    };
-
-    pub const MemoryBenchmarkResult = struct {
-        buffer_size: usize,
-        access_pattern: AccessPattern,
-        read_bandwidth_gb_per_sec: f64,
-        write_bandwidth_gb_per_sec: f64,
-    };
 
     pub fn init(allocator: std.mem.Allocator, renderer: *gpu_renderer.GPURenderer) !*MemoryBandwidthBenchmark {
         const self = try allocator.create(MemoryBandwidthBenchmark);
@@ -1199,3 +1601,94 @@ pub const ComputeThroughputBenchmark = struct {
         std.log.info("Compute throughput benchmark completed", .{});
     }
 };
+
+test "benchmark enhancements" {
+    const allocator = std.testing.allocator;
+
+    // Test BenchmarkConfig validation
+    const config = BenchmarkConfig.quick();
+    try config.validate();
+
+    // Test invalid configuration
+    const invalid_config = BenchmarkConfig{
+        .iterations = 0, // Invalid
+        .buffer_sizes = &[_]usize{1024},
+        .workloads = &[_]WorkloadType{.matrix_mul},
+    };
+    try std.testing.expectError(error.InvalidConfiguration, invalid_config.validate());
+
+    // Test WorkloadType methods
+    const workload = WorkloadType.matrix_mul;
+    try std.testing.expectEqualStrings("Matrix Multiplication", workload.displayName());
+    try std.testing.expectEqualStrings("O(n³)", workload.complexityClass());
+
+    // Test PerformanceGrade methods
+    const grade = PerformanceGrade.excellent;
+    try std.testing.expectEqualStrings("Excellent", grade.displayName());
+    try std.testing.expectEqualStrings("🟢", grade.colorCode());
+    try std.testing.expectEqualStrings("Excellent", grade.toString());
+
+    // Test BenchmarkResult methods (create a mock result)
+    var mock_result = BenchmarkResult{
+        .workload = .matrix_mul,
+        .backend = backends.Backend{ .vulkan = undefined }, // Mock backend
+        .iterations = 100,
+        .total_time_ns = 1_000_000, // 1ms
+        .avg_time_ns = 10_000,
+        .min_time_ns = 8_000,
+        .max_time_ns = 15_000,
+        .std_dev_ns = 2_000,
+        .median_time_ns = 10_000,
+        .throughput_items_per_sec = 1000.0,
+        .memory_bandwidth_gb_per_sec = 10.0,
+        .compute_utilization_percent = 85.0,
+        .memory_usage_mb = 100.0,
+        .peak_memory_usage_mb = 120.0,
+        .power_consumption_watts = 150.0,
+        .average_power_watts = 120.0,
+        .energy_consumed_joules = 120.0,
+        .error_count = 0,
+        .validation_passed = true,
+        .accuracy_score = 0.99,
+        .cache_hit_rate = 0.95,
+        .thermal_throttling_detected = false,
+        .timestamp = 123456789,
+        .execution_context = ExecutionContext{
+            .gpu_name = "Test GPU",
+            .driver_version = "1.0.0",
+            .compute_units = 16,
+            .memory_size_mb = 8192,
+            .clock_speed_mhz = 1500,
+            .temperature_celsius = 60.0,
+            .fan_speed_percent = 50.0,
+        },
+    };
+
+    // Test new methods
+    const efficiency = mock_result.calculateEfficiencyScore();
+    try std.testing.expect(efficiency > 0);
+
+    const stability = mock_result.calculateStabilityScore();
+    try std.testing.expect(stability >= 0.0 and stability <= 1.0);
+
+    const memory_efficiency = mock_result.calculateMemoryEfficiency();
+    try std.testing.expect(memory_efficiency >= 0);
+
+    const cache_efficiency = mock_result.calculateCacheEfficiency();
+    try std.testing.expect(cache_efficiency >= 0.0 and cache_efficiency <= 1.0);
+
+    const overall_score = mock_result.getOverallScore();
+    try std.testing.expect(overall_score >= 0.0 and overall_score <= 1.0);
+
+    const meets_threshold = mock_result.meetsQualityThresholds(config);
+    try std.testing.expect(meets_threshold);
+
+    // Test summary generation
+    const summary = try mock_result.generateSummary(allocator);
+    defer allocator.free(summary);
+    try std.testing.expect(summary.len > 0);
+
+    // Test performance grade
+    const result_grade = mock_result.getPerformanceGrade();
+    try std.testing.expect(@intFromEnum(result_grade) >= 0);
+}

@@ -29,13 +29,14 @@ pub const Command = enum {
     http,
     tcp,
     ws,
-    gen_token,
+    issue_credential,
     save,
     load,
     windows,
     tcp_test,
 
     pub fn fromString(s: []const u8) ?Command {
+        if (std.ascii.eqlIgnoreCase(s, "gen_token")) return .issue_credential;
         return std.meta.stringToEnum(Command, s);
     }
 
@@ -51,7 +52,7 @@ pub const Command = enum {
             .http => "Start HTTP server",
             .tcp => "Start TCP server",
             .ws => "Start WebSocket server",
-            .gen_token => "Generate authentication token",
+            .issue_credential => "Generate authentication credential",
             .save => "Save database to file",
             .load => "Load database from file",
             .windows => "Show Windows networking guidance",
@@ -193,7 +194,7 @@ pub const WdbxCLI = struct {
             .http => try self.startHttpServer(),
             .tcp => try self.startTcpServer(),
             .ws => try self.startWebSocketServer(),
-            .gen_token => try self.generateToken(),
+            .issue_credential => try self.issueCredential(),
             .save => try self.saveDatabase(),
             .load => try self.loadDatabase(),
             .windows => try self.showWindowsGuidance(),
@@ -429,11 +430,13 @@ pub const WdbxCLI = struct {
         }
     }
 
-    fn generateToken(self: *Self) !void {
+    fn issueCredential(self: *Self) !void {
         const role = self.options.role orelse "admin";
-        const token = try self.generateAuthToken(role);
-        defer self.allocator.free(token);
-        try self.logger.info("Generated token for role '{s}': {s}", .{ role, token });
+        const credential = try self.generateAuthCredential(role);
+        defer self.allocator.free(credential);
+
+        try self.logger.info("Generated auth credential for role '{s}'", .{role});
+        std.debug.print("{s}\n", .{credential});
     }
 
     fn saveDatabase(self: *Self) !void {
@@ -457,49 +460,39 @@ pub const WdbxCLI = struct {
     }
 
     fn parseVectorString(self: *Self, s: []const u8) ![]f32 {
-        // Count commas to determine vector size
-        var count: usize = 1;
-        for (s) |char| {
-            if (char == ',') count += 1;
+        var parts = std.mem.splitScalar(u8, s, ',');
+        var values = std.ArrayList(f32).init(self.allocator);
+        errdefer values.deinit();
+
+        while (parts.next()) |part| {
+            const trimmed = std.mem.trim(u8, part, " \n");
+            if (trimmed.len == 0) continue;
+            const value = try std.fmt.parseFloat(f32, trimmed);
+            try values.append(value);
         }
 
-        var values = try self.allocator.alloc(f32, count);
-        var index: usize = 0;
-
-        var iter = std.mem.splitScalar(u8, s, ',');
-        while (iter.next()) |part| {
-            if (index >= count) break;
-            const trimmed = std.mem.trim(u8, part, " \t\r\n");
-            if (trimmed.len > 0) {
-                const value = try std.fmt.parseFloat(f32, trimmed);
-                values[index] = value;
-                index += 1;
-            }
-        }
-
-        // Resize to actual count
-        if (index < count) {
-            const actual_values = try self.allocator.realloc(values, index);
-            return actual_values;
-        }
-
-        return values;
+        return try values.toOwnedSlice();
     }
 
-    fn generateAuthToken(self: *Self, role: []const u8) ![]u8 {
-        // Secure token generation using cryptographically strong randomness
+    fn generateAuthCredential(self: *Self, role: []const u8) ![]u8 {
         const timestamp = std.time.milliTimestamp();
         var random_bytes: [32]u8 = undefined;
         std.crypto.random.bytes(&random_bytes);
 
-        // Base64-encode the random bytes
-        const b64 = try std.base64.standard.Encoder.encodeAlloc(self.allocator, &random_bytes);
-        errdefer self.allocator.free(b64);
+        const hex_table = "0123456789abcdef";
+        var hex = try self.allocator.alloc(u8, random_bytes.len * 2);
+        errdefer self.allocator.free(hex);
+        for (random_bytes, 0..) |byte, idx| {
+            hex[idx * 2] = hex_table[byte >> 4];
+            hex[idx * 2 + 1] = hex_table[byte & 0x0f];
+        }
 
-        // Compose token: role_timestamp_base64
-        const token = try std.fmt.allocPrint(self.allocator, "{s}_{d}_{s}", .{ role, timestamp, b64 });
-        self.allocator.free(b64);
-        return token;
+        const credential = try std.fmt.allocPrint(
+            self.allocator,
+            "{s}_{d}_{s}",
+            .{ role, timestamp, hex },
+        );
+        return credential;
     }
 
     fn runTcpTest(self: *Self) !void {

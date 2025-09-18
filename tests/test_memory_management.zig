@@ -86,20 +86,20 @@ test "memory management - ArrayList capacity management" {
 
     // Test ArrayList capacity growth and memory efficiency
     {
-        var list = try std.ArrayList(u32).initCapacity(allocator, 4);
-        defer list.deinit(allocator);
+        var list = try std.array_list.Managed(u32).initCapacity(allocator, 4);
+        defer list.deinit();
 
         // Add elements to trigger capacity growth
         var i: u32 = 0;
         while (i < 100) : (i += 1) {
-            try list.append(allocator, i);
+            try list.append(i);
         }
 
         try testing.expectEqual(@as(usize, 100), list.items.len);
         try testing.expect(list.capacity >= list.items.len);
 
         // Test shrink operation
-        list.shrinkAndFree(allocator, 50);
+        list.shrinkAndFree(50);
         try testing.expectEqual(@as(usize, 50), list.items.len);
     }
 }
@@ -174,20 +174,20 @@ test "memory management - memory leak detection pattern" {
 
     // Test pattern for detecting potential memory leaks
     {
-        var allocations = try std.ArrayList([]u8).initCapacity(allocator, 0);
+        var allocations = try std.array_list.Managed([]u8).initCapacity(allocator, 0);
         defer {
             // Clean up all allocations
             for (allocations.items) |alloc| {
                 allocator.free(alloc);
             }
-            allocations.deinit(allocator);
+            allocations.deinit();
         }
 
         // Simulate some work with allocations
         for (0..10) |i| {
             const size = (i + 1) * 64;
             const data = try allocator.alloc(u8, size);
-            try allocations.append(allocator, data);
+            try allocations.append(data);
 
             // Fill with pattern
             for (data) |*val| {

@@ -164,7 +164,8 @@ pub const PluginLoader = struct {
     fn loadLibrary(self: *PluginLoader, path: []const u8) !LibraryHandle {
         switch (builtin.os.tag) {
             .windows => {
-                const wide_path = try std.unicode.utf8ToUtf16LeWithNull(self.allocator, path);
+                // Convert UTF-8 path to UTF-16 for Windows API
+                const wide_path = try std.unicode.utf8ToUtf16LeAllocZ(self.allocator, path);
                 defer self.allocator.free(wide_path);
 
                 const handle = std.os.windows.kernel32.LoadLibraryW(wide_path.ptr);
@@ -210,7 +211,7 @@ pub const PluginLoader = struct {
     fn getSymbol(self: *PluginLoader, handle: LibraryHandle, symbol_name: []const u8, comptime T: type) !T {
         switch (builtin.os.tag) {
             .windows => {
-                const symbol = std.os.windows.kernel32.GetProcAddress(handle, symbol_name.ptr);
+                const symbol = std.os.windows.kernel32.GetProcAddress(handle, @as([*:0]const u8, @ptrCast(symbol_name)));
                 if (symbol == null) {
                     return PluginError.SymbolNotFound;
                 }

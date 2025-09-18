@@ -176,7 +176,7 @@ const SystemInfo = struct {
         const content = buffer[0..bytes_read];
 
         // Parse first line: cpu  user nice system idle iowait irq softirq steal guest guest_nice
-        var lines = std.mem.split(u8, content, "\n");
+        var lines = std.mem.splitScalar(u8, content, '\n');
         const cpu_line = lines.next() orelse return 0.0;
 
         if (!std.mem.startsWith(u8, cpu_line, "cpu ")) return 0.0;
@@ -210,7 +210,7 @@ const SystemInfo = struct {
         var total: u64 = 0;
         var available: u64 = 0;
 
-        var lines = std.mem.split(u8, content, "\n");
+        var lines = std.mem.splitScalar(u8, content, '\n');
         while (lines.next()) |line| {
             if (std.mem.startsWith(u8, line, "MemTotal:")) {
                 var parts = std.mem.tokenize(u8, line, " ");

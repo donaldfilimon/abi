@@ -255,8 +255,8 @@ pub const WeatherService = struct {
         var response = try req.receiveHead(&redirect_buf);
 
         if (response.head.status != .ok) return error.WeatherApiError;
-        var list = std.array_list.Managed(u8).init(self.allocator);
-        errdefer list.deinit();
+        var list = try std.ArrayList(u8).initCapacity(self.allocator, 0);
+        errdefer list.deinit(self.allocator);
         var transfer_buf: [8192]u8 = undefined;
         const rdr = response.reader(&.{});
 
@@ -282,9 +282,9 @@ pub const WeatherService = struct {
             if (list.items.len + n > max_bytes) {
                 return error.ServiceUnavailable; // treat as invalid/oversized response
             }
-            try list.appendSlice(transfer_buf[0..n]);
+            try list.appendSlice(self.allocator, transfer_buf[0..n]);
         }
-        return try list.toOwnedSlice();
+        return try list.toOwnedSlice(self.allocator);
     }
 
     fn parseWeatherResponse(self: *WeatherService, json_str: []const u8) !WeatherData {

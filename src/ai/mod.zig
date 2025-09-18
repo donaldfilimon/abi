@@ -414,6 +414,126 @@ pub const Layer = struct {
         allocator.destroy(self);
     }
 
+    /// Save layer to file
+    pub fn saveToFile(self: *Layer, writer: anytype) !void {
+        // Write layer type
+        try writer.writeInt(u8, @intFromEnum(self.layer_type), .little);
+
+        // Write input/output shapes
+        try writer.writeInt(u32, self.input_shape.len, .little);
+        for (self.input_shape) |dim| {
+            try writer.writeInt(u32, dim, .little);
+        }
+        try writer.writeInt(u32, self.output_shape.len, .little);
+        for (self.output_shape) |dim| {
+            try writer.writeInt(u32, dim, .little);
+        }
+
+        // Write activation
+        const activation_val = if (self.activation) |act| @intFromEnum(act) else 255;
+        try writer.writeInt(u8, activation_val, .little);
+
+        // Write weights if they exist
+        const has_weights = self.weights != null;
+        try writer.writeInt(u8, if (has_weights) 1 else 0, .little);
+        if (has_weights) {
+            const weight_count = self.getWeightSize();
+            for (0..weight_count) |i| {
+                try writer.writeInt(u32, @bitCast(self.weights.?[i]), .little);
+            }
+        }
+
+        // Write biases if they exist
+        const has_biases = self.biases != null;
+        try writer.writeInt(u8, if (has_biases) 1 else 0, .little);
+        if (has_biases) {
+            const bias_count = if (self.needsBiases()) self.getOutputSize() else 0;
+            for (0..bias_count) |i| {
+                try writer.writeInt(u32, @bitCast(self.biases.?[i]), .little);
+            }
+        }
+    }
+
+    /// Load layer from file
+    pub fn loadFromFile(allocator: Allocator, reader: *std.fs.File.Reader) !*Layer {
+        // Read layer type
+        var layer_type_bytes: [1]u8 = undefined;
+        _ = try reader.read(&layer_type_bytes);
+        const layer_type = @as(LayerType, @enumFromInt(layer_type_bytes[0]));
+
+        // Read input shape
+        var input_shape_len_bytes: [4]u8 = undefined;
+        _ = try reader.read(&input_shape_len_bytes);
+        const input_shape_len = std.mem.readInt(u32, &input_shape_len_bytes, .little);
+        const input_shape = try allocator.alloc(usize, input_shape_len);
+        for (0..input_shape_len) |i| {
+            var dim_bytes: [4]u8 = undefined;
+            _ = try reader.read(&dim_bytes);
+            input_shape[i] = std.mem.readInt(u32, &dim_bytes, .little);
+        }
+
+        // Read output shape
+        var output_shape_len_bytes: [4]u8 = undefined;
+        _ = try reader.read(&output_shape_len_bytes);
+        const output_shape_len = std.mem.readInt(u32, &output_shape_len_bytes, .little);
+        const output_shape = try allocator.alloc(usize, output_shape_len);
+        for (0..output_shape_len) |i| {
+            var dim_bytes: [4]u8 = undefined;
+            _ = try reader.read(&dim_bytes);
+            output_shape[i] = std.mem.readInt(u32, &dim_bytes, .little);
+        }
+
+        // Create layer
+        const layer = try allocator.create(Layer);
+        layer.* = .{
+            .layer_type = layer_type,
+            .input_shape = input_shape,
+            .output_shape = output_shape,
+        };
+
+        // Read activation
+        var activation_bytes: [1]u8 = undefined;
+        _ = try reader.read(&activation_bytes);
+        const activation_val = activation_bytes[0];
+        layer.activation = if (activation_val != 255) @as(Activation, @enumFromInt(activation_val)) else null;
+
+        // Read weights if they exist
+        var has_weights_bytes: [1]u8 = undefined;
+        _ = try reader.read(&has_weights_bytes);
+        const has_weights = has_weights_bytes[0];
+        if (has_weights != 0) {
+            const weight_count = layer.getWeightSize();
+            layer.weights = try allocator.alloc(f32, weight_count);
+            for (0..weight_count) |i| {
+                var weight_bytes: [4]u8 = undefined;
+                _ = try reader.read(&weight_bytes);
+                const weight_bits = std.mem.readInt(u32, &weight_bytes, .little);
+                layer.weights.?[i] = @bitCast(weight_bits);
+            }
+            layer.weight_gradients = try allocator.alloc(f32, weight_count);
+            @memset(layer.weight_gradients.?, 0.0);
+        }
+
+        // Read biases if they exist
+        var has_biases_bytes: [1]u8 = undefined;
+        _ = try reader.read(&has_biases_bytes);
+        const has_biases = has_biases_bytes[0];
+        if (has_biases != 0) {
+            const bias_count = if (layer.needsBiases()) layer.getOutputSize() else 0;
+            layer.biases = try allocator.alloc(f32, bias_count);
+            for (0..bias_count) |i| {
+                var bias_bytes: [4]u8 = undefined;
+                _ = try reader.read(&bias_bytes);
+                const bias_bits = std.mem.readInt(u32, &bias_bytes, .little);
+                layer.biases.?[i] = @bitCast(bias_bits);
+            }
+            layer.bias_gradients = try allocator.alloc(f32, bias_count);
+            @memset(layer.bias_gradients.?, 0.0);
+        }
+
+        return layer;
+    }
+
     pub fn initializeWeights(self: *Layer, allocator: Allocator, rng: *Random) !void {
         if (self.layer_type == .input or self.layer_type == .dropout or self.layer_type == .flatten) return;
 
@@ -1087,7 +1207,7 @@ pub const TrainingMetrics = struct {
 
 /// Neural network model with enhanced capabilities
 pub const NeuralNetwork = struct {
-    layers: std.ArrayList(*Layer),
+    layers: ArrayList(*Layer),
     allocator: std.mem.Allocator,
     input_shape: []const usize,
     output_shape: []const usize,
@@ -1099,7 +1219,7 @@ pub const NeuralNetwork = struct {
     pub fn init(allocator: std.mem.Allocator, input_shape: []const usize, output_shape: []const usize) !*NeuralNetwork {
         const network = try allocator.create(NeuralNetwork);
         network.* = .{
-            .layers = try std.ArrayList(*Layer).initCapacity(allocator, 0),
+            .layers = try ArrayList(*Layer).initCapacity(allocator, 0),
             .allocator = allocator,
             .input_shape = try allocator.dupe(usize, input_shape),
             .output_shape = try allocator.dupe(usize, output_shape),
@@ -1118,6 +1238,187 @@ pub const NeuralNetwork = struct {
             self.allocator.free(name);
         }
         self.allocator.destroy(self);
+    }
+
+    /// Save neural network to file in binary format
+    pub fn saveToFile(self: *NeuralNetwork, file_path: []const u8) !void {
+        const file = try std.fs.cwd().createFile(file_path, .{});
+        defer file.close();
+
+        var writer = file.writer();
+
+        // Write magic number and version
+        try writer.writeAll("ZNNET");
+        try writer.writeInt(u32, self.version, .little);
+
+        // Write model metadata
+        const name_len = if (self.model_name) |name| name.len else 0;
+        try writer.writeInt(u32, name_len, .little);
+        if (self.model_name) |name| {
+            try writer.writeAll(name);
+
+            // Write input/output shapes
+            try writer.writeInt(u32, self.input_shape.len, .little);
+            for (self.input_shape) |dim| {
+                try writer.writeInt(u32, dim, .little);
+            }
+            try writer.writeInt(u32, self.output_shape.len, .little);
+            for (self.output_shape) |dim| {
+                try writer.writeInt(u32, dim, .little);
+            }
+
+            // Write layer count
+            try writer.writeInt(u32, self.layers.items.len, .little);
+
+            // Write each layer
+            for (self.layers.items) |layer| {
+                try layer.saveToFile(writer);
+            }
+
+            std.debug.print("Neural network saved to: {s}\n", .{file_path});
+        }
+    }
+
+    /// Train network on a single input-target pair
+    pub fn trainStep(self: *NeuralNetwork, input: []const f32, target: []const f32) !f32 {
+        if (input.len != self.input_shape[0] or target.len != self.output_shape[0]) {
+            return core.FrameworkError.InvalidDimensions;
+        }
+
+        // Forward pass
+        const predictions = try self.allocator.alloc(f32, self.output_shape[0]);
+        defer self.allocator.free(predictions);
+        try self.forward(input, predictions);
+
+        // Calculate loss (mean squared error)
+        var loss: f32 = 0.0;
+        for (predictions, target) |pred, targ| {
+            const diff = pred - targ;
+            loss += diff * diff;
+        }
+        loss /= @as(f32, @floatFromInt(target.len));
+
+        // Backward pass (simplified gradient descent)
+        try self.backwardPass(input, target, predictions);
+
+        return loss;
+    }
+
+    /// Backward pass for training
+    fn backwardPass(self: *NeuralNetwork, input: []const f32, target: []const f32, predictions: []const f32) !void {
+        // Simplified backpropagation implementation
+        // This is a basic implementation - in practice, you'd want more sophisticated optimization
+
+        const learning_rate = 0.01;
+        const output_size = self.output_shape[0];
+
+        // Calculate output layer gradients
+        var output_gradients = try self.allocator.alloc(f32, output_size);
+        defer self.allocator.free(output_gradients);
+
+        for (0..output_size) |i| {
+            output_gradients[i] = (predictions[i] - target[i]) * 2.0 / @as(f32, @floatFromInt(output_size));
+        }
+
+        // Update weights and biases for the last layer
+        if (self.layers.items.len > 0) {
+            const last_layer = self.layers.items[self.layers.items.len - 1];
+            if (last_layer.weights) |weights| {
+                const input_size = last_layer.input_shape[0];
+                for (0..output_size) |i| {
+                    for (0..input_size) |j| {
+                        const input_val = if (self.layers.items.len == 1) input[j] else 0.0; // Simplified
+                        weights[i * input_size + j] -= learning_rate * output_gradients[i] * input_val;
+                    }
+                }
+            }
+
+            if (last_layer.biases) |biases| {
+                for (0..output_size) |i| {
+                    biases[i] -= learning_rate * output_gradients[i];
+                }
+            }
+        }
+    }
+
+    /// Load neural network from file
+    pub fn loadFromFile(allocator: std.mem.Allocator, file_path: []const u8) !*NeuralNetwork {
+        const file = try std.fs.cwd().openFile(file_path, .{});
+        defer file.close();
+
+        var read_buf: [4096]u8 = undefined;
+        var reader = file.reader(&read_buf);
+
+        // Read and verify magic number
+        var magic: [5]u8 = undefined;
+        _ = try reader.read(&magic);
+        if (!std.mem.eql(u8, &magic, "ZNNET")) {
+            return core.FrameworkError.InvalidData;
+        }
+
+        // Read version
+        var version_bytes: [4]u8 = undefined;
+        _ = try reader.read(&version_bytes);
+        const version = std.mem.readInt(u32, &version_bytes, .little);
+
+        // Read model name length and name
+        var name_len_bytes: [4]u8 = undefined;
+        _ = try reader.read(&name_len_bytes);
+        const name_len = std.mem.readInt(u32, &name_len_bytes, .little);
+        const model_name = if (name_len > 0) blk: {
+            const name_buf = try allocator.alloc(u8, name_len);
+            _ = try reader.read(name_buf);
+            break :blk name_buf;
+        } else null;
+
+        // Read input shape
+        var input_shape_len_bytes: [4]u8 = undefined;
+        _ = try reader.read(&input_shape_len_bytes);
+        const input_shape_len = std.mem.readInt(u32, &input_shape_len_bytes, .little);
+        const input_shape = try allocator.alloc(usize, input_shape_len);
+        for (0..input_shape_len) |i| {
+            var dim_bytes: [4]u8 = undefined;
+            _ = try reader.read(&dim_bytes);
+            input_shape[i] = std.mem.readInt(u32, &dim_bytes, .little);
+        }
+
+        // Read output shape
+        var output_shape_len_bytes: [4]u8 = undefined;
+        _ = try reader.read(&output_shape_len_bytes);
+        const output_shape_len = std.mem.readInt(u32, &output_shape_len_bytes, .little);
+        const output_shape = try allocator.alloc(usize, output_shape_len);
+        for (0..output_shape_len) |i| {
+            var dim_bytes: [4]u8 = undefined;
+            _ = try reader.read(&dim_bytes);
+            output_shape[i] = std.mem.readInt(u32, &dim_bytes, .little);
+        }
+
+        // Create network
+        const network = try allocator.create(NeuralNetwork);
+        network.* = .{
+            .layers = try ArrayList(*Layer).initCapacity(allocator, 0),
+            .allocator = allocator,
+            .input_shape = input_shape,
+            .output_shape = output_shape,
+            .model_name = model_name,
+            .version = version,
+        };
+
+        // Read layer count
+        var layer_count_bytes: [4]u8 = undefined;
+        _ = try reader.read(&layer_count_bytes);
+        const layer_count = std.mem.readInt(u32, &layer_count_bytes, .little);
+
+        // Read layers
+        var i: usize = 0;
+        while (i < layer_count) : (i += 1) {
+            const layer = try Layer.loadFromFile(allocator, &reader);
+            try network.layers.append(network.allocator, layer);
+        }
+
+        network.is_compiled = true; // Assume loaded model is compiled
+        std.debug.print("Neural network loaded from: {s}\n", .{file_path});
+        return network;
     }
 
     pub fn setTraining(self: *NeuralNetwork, is_training: bool) void {
@@ -1538,8 +1839,8 @@ pub const ModelTrainer = struct {
         self: *ModelTrainer,
         inputs: []const []const f32,
         targets: []const []const f32,
-    ) !std.ArrayList(TrainingMetrics) {
-        var metrics = try std.ArrayList(TrainingMetrics).initCapacity(self.allocator, 0);
+    ) !ArrayList(TrainingMetrics) {
+        var metrics = try ArrayList(TrainingMetrics).initCapacity(self.allocator, 0);
 
         // Validate inputs
         if (inputs.len != targets.len) return error.InvalidDataSize;

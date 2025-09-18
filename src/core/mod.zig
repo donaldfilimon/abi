@@ -131,40 +131,21 @@ pub const VectorOps = struct {
         if (a.len != b.len) return std.math.inf(f32);
         if (a.len == 0) return 0.0;
 
-        const optimal_size = Vector.getOptimalSize(a.len);
         var acc: f32 = 0.0;
         var i: usize = 0;
 
-        // SIMD-optimized distance calculation
-        switch (optimal_size) {
-            16 => {
-                while (i + 16 <= a.len) : (i += 16) {
-                    const va = Vector.load(Vector.f32x16, a[i..][0..16]);
-                    const vb = Vector.load(Vector.f32x16, b[i..][0..16]);
+        // SIMD-optimized distance calculation with unified approach
+        const optimal_size = Vector.getOptimalSize(a.len);
+        inline for (.{ 16, 8, 4 }) |vec_size| {
+            if (optimal_size == vec_size) {
+                while (i + vec_size <= a.len) : (i += vec_size) {
+                    const va = @as(@Vector(vec_size, f32), a[i..][0..vec_size].*);
+                    const vb = @as(@Vector(vec_size, f32), b[i..][0..vec_size].*);
                     const diff = va - vb;
-                    const sq = diff * diff;
-                    acc += @reduce(.Add, sq);
+                    acc += @reduce(.Add, diff * diff);
                 }
-            },
-            8 => {
-                while (i + 8 <= a.len) : (i += 8) {
-                    const va = @as(@Vector(8, f32), a[i..][0..8].*);
-                    const vb = @as(@Vector(8, f32), b[i..][0..8].*);
-                    const diff = va - vb;
-                    const sq = diff * diff;
-                    acc += @reduce(.Add, sq);
-                }
-            },
-            4 => {
-                while (i + 4 <= a.len) : (i += 4) {
-                    const va = @as(@Vector(4, f32), a[i..][0..4].*);
-                    const vb = @as(@Vector(4, f32), b[i..][0..4].*);
-                    const diff = va - vb;
-                    const sq = diff * diff;
-                    acc += @reduce(.Add, sq);
-                }
-            },
-            else => {},
+                break;
+            }
         }
 
         // Handle remaining elements
@@ -188,39 +169,19 @@ pub const VectorOps = struct {
         const optimal_size = Vector.getOptimalSize(a.len);
         var i: usize = 0;
 
-        // SIMD-optimized calculations
-        switch (optimal_size) {
-            16 => {
-                while (i + 16 <= a.len) : (i += 16) {
-                    const va = @as(@Vector(16, f32), a[i..][0..16].*);
-                    const vb = @as(@Vector(16, f32), b[i..][0..16].*);
+        // SIMD-optimized calculations with unified approach
+        inline for (.{ 16, 8, 4 }) |vec_size| {
+            if (optimal_size == vec_size) {
+                while (i + vec_size <= a.len) : (i += vec_size) {
+                    const va = @as(@Vector(vec_size, f32), a[i..][0..vec_size].*);
+                    const vb = @as(@Vector(vec_size, f32), b[i..][0..vec_size].*);
 
                     dot_product += @reduce(.Add, va * vb);
                     norm_a += @reduce(.Add, va * va);
                     norm_b += @reduce(.Add, vb * vb);
                 }
-            },
-            8 => {
-                while (i + 8 <= a.len) : (i += 8) {
-                    const va = @as(@Vector(8, f32), a[i..][0..8].*);
-                    const vb = @as(@Vector(8, f32), b[i..][0..8].*);
-
-                    dot_product += @reduce(.Add, va * vb);
-                    norm_a += @reduce(.Add, va * va);
-                    norm_b += @reduce(.Add, vb * vb);
-                }
-            },
-            4 => {
-                while (i + 4 <= a.len) : (i += 4) {
-                    const va = @as(@Vector(4, f32), a[i..][0..4].*);
-                    const vb = @as(@Vector(4, f32), b[i..][0..4].*);
-
-                    dot_product += @reduce(.Add, va * vb);
-                    norm_a += @reduce(.Add, va * va);
-                    norm_b += @reduce(.Add, vb * vb);
-                }
-            },
-            else => {},
+                break;
+            }
         }
 
         // Handle remaining elements
@@ -242,32 +203,16 @@ pub const VectorOps = struct {
         const optimal_size = Vector.getOptimalSize(a.len);
         var i: usize = 0;
 
-        switch (optimal_size) {
-            16 => {
-                while (i + 16 <= a.len) : (i += 16) {
-                    const va = @as(@Vector(16, f32), a[i..][0..16].*);
-                    const vb = @as(@Vector(16, f32), b[i..][0..16].*);
+        inline for (.{ 16, 8, 4 }) |vec_size| {
+            if (optimal_size == vec_size) {
+                while (i + vec_size <= a.len) : (i += vec_size) {
+                    const va = @as(@Vector(vec_size, f32), a[i..][0..vec_size].*);
+                    const vb = @as(@Vector(vec_size, f32), b[i..][0..vec_size].*);
                     const s = va + vb;
-                    @memcpy(result[i..][0..16], @as([16]f32, s)[0..]);
+                    @memcpy(result[i..][0..vec_size], @as([vec_size]f32, s)[0..]);
                 }
-            },
-            8 => {
-                while (i + 8 <= a.len) : (i += 8) {
-                    const va = @as(@Vector(8, f32), a[i..][0..8].*);
-                    const vb = @as(@Vector(8, f32), b[i..][0..8].*);
-                    const s = va + vb;
-                    @memcpy(result[i..][0..8], @as([8]f32, s)[0..]);
-                }
-            },
-            4 => {
-                while (i + 4 <= a.len) : (i += 4) {
-                    const va = @as(@Vector(4, f32), a[i..][0..4].*);
-                    const vb = @as(@Vector(4, f32), b[i..][0..4].*);
-                    const s = va + vb;
-                    @memcpy(result[i..][0..4], @as([4]f32, s)[0..]);
-                }
-            },
-            else => {},
+                break;
+            }
         }
 
         // Handle remaining elements
@@ -284,29 +229,15 @@ pub const VectorOps = struct {
         const optimal_size = Vector.getOptimalSize(a.len);
         var i: usize = 0;
 
-        switch (optimal_size) {
-            16 => {
-                while (i + 16 <= a.len) : (i += 16) {
-                    const va = @as(@Vector(16, f32), a[i..][0..16].*);
-                    const vb = @as(@Vector(16, f32), b[i..][0..16].*);
+        inline for (.{ 16, 8, 4 }) |vec_size| {
+            if (optimal_size == vec_size) {
+                while (i + vec_size <= a.len) : (i += vec_size) {
+                    const va = @as(@Vector(vec_size, f32), a[i..][0..vec_size].*);
+                    const vb = @as(@Vector(vec_size, f32), b[i..][0..vec_size].*);
                     acc += @reduce(.Add, va * vb);
                 }
-            },
-            8 => {
-                while (i + 8 <= a.len) : (i += 8) {
-                    const va = @as(@Vector(8, f32), a[i..][0..8].*);
-                    const vb = @as(@Vector(8, f32), b[i..][0..8].*);
-                    acc += @reduce(.Add, va * vb);
-                }
-            },
-            4 => {
-                while (i + 4 <= a.len) : (i += 4) {
-                    const va = @as(@Vector(4, f32), a[i..][0..4].*);
-                    const vb = @as(@Vector(4, f32), b[i..][0..4].*);
-                    acc += @reduce(.Add, va * vb);
-                }
-            },
-            else => {},
+                break;
+            }
         }
 
         // Handle remaining elements
@@ -317,6 +248,22 @@ pub const VectorOps = struct {
         return acc;
     }
 
+    /// Matrix multiplication (simplified for vector ops)
+    pub fn matrixMultiply(result: []f32, a: []const f32, b: []const f32, m: usize, n: usize, p: usize) void {
+        // Simple matrix multiplication: result[m][p] = a[m][n] * b[n][p]
+        if (result.len != m * p or a.len != m * n or b.len != n * p) return;
+
+        for (0..m) |i| {
+            for (0..p) |j| {
+                var sum: f32 = 0.0;
+                for (0..n) |k| {
+                    sum += a[i * n + k] * b[k * p + j];
+                }
+                result[i * p + j] = sum;
+            }
+        }
+    }
+
     /// Multiply vector by scalar using SIMD
     pub fn scale(result: []f32, vector: []const f32, scalar: f32) void {
         if (result.len != vector.len) return;
@@ -324,32 +271,16 @@ pub const VectorOps = struct {
         const optimal_size = Vector.getOptimalSize(vector.len);
         var i: usize = 0;
 
-        switch (optimal_size) {
-            16 => {
-                const scale_vec = @as(@Vector(16, f32), @splat(scalar));
-                while (i + 16 <= vector.len) : (i += 16) {
-                    const v = @as(@Vector(16, f32), vector[i..][0..16].*);
+        inline for (.{ 16, 8, 4 }) |vec_size| {
+            if (optimal_size == vec_size) {
+                const scale_vec = @as(@Vector(vec_size, f32), @splat(scalar));
+                while (i + vec_size <= vector.len) : (i += vec_size) {
+                    const v = @as(@Vector(vec_size, f32), vector[i..][0..vec_size].*);
                     const scaled = v * scale_vec;
-                    @memcpy(result[i..][0..16], @as([16]f32, scaled)[0..]);
+                    @memcpy(result[i..][0..vec_size], @as([vec_size]f32, scaled)[0..]);
                 }
-            },
-            8 => {
-                const scale_vec = @as(@Vector(8, f32), @splat(scalar));
-                while (i + 8 <= vector.len) : (i += 8) {
-                    const v = @as(@Vector(8, f32), vector[i..][0..8].*);
-                    const scaled = v * scale_vec;
-                    @memcpy(result[i..][0..8], @as([8]f32, scaled)[0..]);
-                }
-            },
-            4 => {
-                const scale_vec = @as(@Vector(4, f32), @splat(scalar));
-                while (i + 4 <= vector.len) : (i += 4) {
-                    const v = @as(@Vector(4, f32), vector[i..][0..4].*);
-                    const scaled = v * scale_vec;
-                    @memcpy(result[i..][0..4], @as([4]f32, scaled)[0..]);
-                }
-            },
-            else => {},
+                break;
+            }
         }
 
         // Handle remaining elements
