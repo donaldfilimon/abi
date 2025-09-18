@@ -180,9 +180,7 @@ pub fn main() !void {
         const predicted_class: u32 = if (output_buf[0] > output_buf[1]) 0 else 1;
         const actual_class: u32 = if (target[0] > target[1]) 0 else 1;
 
-        std.debug.print("[{d:.0}, {d:.0}]\t[{d:.0}, {d:.0}]\t\t[{d:.3}, {d:.3}] -> {d} {s}\n",
-            .{ input[0], input[1], target[0], target[1], output_buf[0], output_buf[1], predicted_class,
-               if (predicted_class == actual_class) "✅" else "❌" });
+        std.debug.print("[{d:.0}, {d:.0}]\t[{d:.0}, {d:.0}]\t\t[{d:.3}, {d:.3}] -> {d} {s}\n", .{ input[0], input[1], target[0], target[1], output_buf[0], output_buf[1], predicted_class, if (predicted_class == actual_class) "✅" else "❌" });
     }
 
     std.debug.print("\n🎉 AI Framework Demo Complete!\n", .{});

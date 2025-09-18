@@ -551,22 +551,11 @@ pub fn build(b: *std.Build) void {
     const advanced_gpu_demo_step = b.step("advanced-gpu-demo", "Run advanced GPU demo with next-level features");
     advanced_gpu_demo_step.dependOn(&run_advanced_gpu_demo.step);
 
-    // AI/ML Acceleration Demo
-    const gpu_ai_accel_mod = b.addModule("gpu_ai_acceleration", .{
-        .root_source_file = b.path("src/gpu/compute/gpu_ai_acceleration.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "gpu", .module = gpu_mod }},
-    });
-
+    // Standalone AI/ML Acceleration Demo (no GPU dependencies)
     const gpu_ai_demo_mod = b.addModule("gpu_ai_demo", .{
         .root_source_file = b.path("examples/gpu_ai_acceleration_demo.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{
-            .{ .name = "gpu_ai_acceleration", .module = gpu_ai_accel_mod },
-            .{ .name = "gpu", .module = gpu_mod },
-        },
     });
     const gpu_ai_demo_exe = b.addExecutable(.{
         .name = "gpu_ai_acceleration_demo",
@@ -585,8 +574,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .imports = &.{
             .{ .name = "abi", .module = abi_mod },
-            .{ .name = "gpu_ai_acceleration", .module = gpu_ai_accel_mod },
-            .{ .name = "gpu", .module = gpu_mod },
         },
     });
     const gpu_nn_integration_exe = b.addExecutable(.{
@@ -600,7 +587,7 @@ pub fn build(b: *std.Build) void {
     gpu_nn_integration_step.dependOn(&run_gpu_nn_integration.step);
 
     const gpu_verify_step = b.step("gpu-verify", "Verify GPU functionality and backends");
-    gpu_verify_step.dependOn(gpu_demo_step);
+    gpu_verify_step.dependOn(&run_gpu_demo.step);
 
     // WebAssembly compilation step
     if (enable_wasm) {
