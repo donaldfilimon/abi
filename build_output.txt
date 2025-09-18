@@ -1,0 +1,99 @@
+test
++- run test
+   +- compile test Debug native 1 errors
+src\gpu\hardware_detection.zig:571:43: error: expected 'EOF', found '}'
+                .is_hpc_optimized = false,
+                                          ^
+error: the following command failed with 1 compilation errors:
+"C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\zig.exe" test -ODebug --dep gpu --dep options "-Mroot=F:\\Other\\abi\\tests\\test_gpu_backend_manager.zig" -ODebug "-Mgpu=F:\\Other\\abi\\src\\gpu\\mod.zig" "-Moptions=.zig-cache\\c\\de6007126af0ed27c877d76f1930e911\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name test --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\lib\\" --listen=-
+test
++- run test
+   +- compile test Debug native 1 errors
+src\gpu\hardware_detection.zig:571:43: error: expected 'EOF', found '}'
+                .is_hpc_optimized = false,
+                                          ^
+error: the following command failed with 1 compilation errors:
+"C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\zig.exe" test -ODebug --dep web_server --dep options "-Mroot=F:\\Other\\abi\\tests\\test_web_server.zig" -ODebug --dep abi "-Mweb_server=F:\\Other\\abi\\src\\server\\web_server.zig" "-Moptions=.zig-cache\\c\\de6007126af0ed27c877d76f1930e911\\options.zig" -ODebug "-Mabi=F:\\Other\\abi\\src\\root.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name test --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\lib\\" --listen=-
+test
++- run test
+   +- compile test Debug native 1 errors
+src\gpu\hardware_detection.zig:571:43: error: expected 'EOF', found '}'
+                .is_hpc_optimized = false,
+                                          ^
+error: the following command failed with 1 compilation errors:
+"C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\zig.exe" test -ODebug --dep abi --dep options "-Mroot=F:\\Other\\abi\\tests\\test_config_validation.zig" -ODebug "-Mabi=F:\\Other\\abi\\src\\root.zig" "-Moptions=.zig-cache\\c\\de6007126af0ed27c877d76f1930e911\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name test --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\lib\\" --listen=-
+test
++- run test
+   +- compile test Debug native 1 errors
+src\gpu\hardware_detection.zig:571:43: error: expected 'EOF', found '}'
+                .is_hpc_optimized = false,
+                                          ^
+error: the following command failed with 1 compilation errors:
+"C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\zig.exe" test -ODebug --dep abi --dep options "-Mroot=F:\\Other\\abi\\tests\\test_gpu.zig" -ODebug "-Mabi=F:\\Other\\abi\\src\\root.zig" "-Moptions=.zig-cache\\c\\de6007126af0ed27c877d76f1930e911\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name test --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\lib\\" --listen=-
+test
++- run test stderr
+Database performance: 100 vectors, 32 dimensions
+Insert time: 528700ns total, 5287ns per vector
+Search time: 17800ns for top 10 results
+Linear search: 50 vectors, 16 dimensions, 3600ns
+Best match: index 10, similarity 1.000
+test
++- run test
+   +- compile test Debug native 1 errors
+src\gpu\hardware_detection.zig:571:43: error: expected 'EOF', found '}'
+                .is_hpc_optimized = false,
+                                          ^
+error: the following command failed with 1 compilation errors:
+"C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\zig.exe" test -ODebug --dep abi --dep options "-Mroot=F:\\Other\\abi\\tests\\test_ai.zig" -ODebug "-Mabi=F:\\Other\\abi\\src\\root.zig" "-Moptions=.zig-cache\\c\\de6007126af0ed27c877d76f1930e911\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name test --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\lib\\" --listen=-
+test
++- run test stderr
+Scalar time: 1900ns, SIMD time: 2800ns, Speedup: 0.68x
+test
++- run test stderr
+Text: 'Hello world! This is a test.' -> 6 words
+test
++- run test
+   +- compile test Debug native 1 errors
+src\gpu\hardware_detection.zig:571:43: error: expected 'EOF', found '}'
+                .is_hpc_optimized = false,
+                                          ^
+error: the following command failed with 1 compilation errors:
+"C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\zig.exe" test -ODebug --dep gpu --dep options "-Mroot=F:\\Other\\abi\\tests\\test_gpu_advanced.zig" -ODebug "-Mgpu=F:\\Other\\abi\\src\\gpu\\mod.zig" "-Moptions=.zig-cache\\c\\de6007126af0ed27c877d76f1930e911\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name test --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\lib\\" --listen=-
+test
++- run test
+   +- compile test Debug native 1 errors
+src\gpu\hardware_detection.zig:571:43: error: expected 'EOF', found '}'
+                .is_hpc_optimized = false,
+                                          ^
+error: the following command failed with 1 compilation errors:
+"C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\zig.exe" test -ODebug --dep gpu --dep options "-Mroot=F:\\Other\\abi\\tests\\test_gpu_renderer.zig" -ODebug "-Mgpu=F:\\Other\\abi\\src\\gpu\\mod.zig" "-Moptions=.zig-cache\\c\\de6007126af0ed27c877d76f1930e911\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name test --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\lib\\" --listen=-
+test
++- run test
+   +- compile test Debug native 1 errors
+src\gpu\hardware_detection.zig:571:43: error: expected 'EOF', found '}'
+                .is_hpc_optimized = false,
+                                          ^
+error: the following command failed with 1 compilation errors:
+"C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\zig.exe" test -ODebug --dep options "-Mroot=F:\\Other\\abi\\src\\root.zig" "-Moptions=.zig-cache\\c\\de6007126af0ed27c877d76f1930e911\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name test --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Cursor\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.238+580b6d1fa\\lib\\" --listen=-
+
+Build Summary: 11/28 steps succeeded; 8 failed; 40/40 tests passed
+test transitive failure
++- run test transitive failure
+|  +- compile test Debug native 1 errors
++- run test transitive failure
+|  +- compile test Debug native 1 errors
++- run test transitive failure
+|  +- compile test Debug native 1 errors
++- run test transitive failure
+|  +- compile test Debug native 1 errors
++- run test transitive failure
+|  +- compile test Debug native 1 errors
++- run test transitive failure
+|  +- compile test Debug native 1 errors
++- run test transitive failure
+|  +- compile test Debug native 1 errors
++- run test transitive failure
+   +- compile test Debug native 1 errors
+
+error: the following build command failed with exit code 1:
+.zig-cache\o\389f6d421dfcdaaa2a2f37a7313983ec\build.exe C:\Users\donald\AppData\Roaming\Cursor\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.238+580b6d1fa\zig.exe C:\Users\donald\AppData\Roaming\Cursor\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.238+580b6d1fa\lib F:\Other\abi .zig-cache C:\Users\donald\AppData\Local\zig --seed 0x338b9531 -Zd06c7666f8d59cee test
