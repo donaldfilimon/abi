@@ -39,7 +39,7 @@ src/
 
 ### Networking Module (`net/`)
 - **Purpose**: HTTP client and communication
-- **Components**: HTTP client, curl wrapper, weather API
+- **Components**: HTTP client, curl wrapper
 - **Dependencies**: `core/`
 
 ### Performance Module (`perf/`)

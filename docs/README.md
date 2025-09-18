@@ -28,7 +28,6 @@ Comprehensive documentation for the Abi AI Framework - production-ready AI infra
 - **[PLUGIN_SYSTEM.md](PLUGIN_SYSTEM.md)** - Plugin development
 
 ### Integration
-- **[weather.md](weather.md)** - Weather API
 
 ## 📖 API Reference
 

@@ -66,7 +66,7 @@ pub const wdbx = @import("wdbx/unified.zig");
 pub const plugins = @import("plugins");
 
 // Organized modules (import directly when needed)
-// net/ - Networking: http_client.zig, curl_wrapper.zig, weather.zig
+// net/ - Networking: http_client.zig, curl_wrapper.zig
 // perf/ - Performance: performance.zig, performance_profiler.zig, memory_tracker.zig
 // gpu/ - GPU computing: gpu_renderer.zig, gpu_examples.zig
 // ml/ - Machine learning: neural.zig, localml.zig

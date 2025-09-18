@@ -469,7 +469,7 @@ pub const WdbxHttpServer = struct {
         defer self.allocator.free(results);
 
         if (results.len > 0) {
-            const body = try std.fmt.allocPrint(self.allocator, "{{\"success\":true,\"nearest_neighbor\":{{\"index\":{d},\"distance\":{d}}}}}", .{ results[0].index, results[0].score });
+            const body = try database.helpers.formatNearestNeighborResponse(self.allocator, results[0]);
             defer self.allocator.free(body);
 
             try self.sendHttpResponse(connection, 200, "OK", body);
@@ -512,18 +512,7 @@ pub const WdbxHttpServer = struct {
         const results = try db.search(vector, k, self.allocator);
         defer self.allocator.free(results);
 
-        // Format results
-        var neighbors = try std.ArrayList(NeighborResult).initCapacity(self.allocator, results.len);
-        defer neighbors.deinit(self.allocator);
-
-        for (results) |result| {
-            try neighbors.append(self.allocator, .{
-                .index = result.index,
-                .distance = result.score,
-            });
-        }
-
-        const body = try std.fmt.allocPrint(self.allocator, "{{\"success\":true,\"k\":{d},\"neighbors\":[{s}]}}", .{ k, try self.formatNeighbors(neighbors.items) });
+        const body = try database.helpers.formatKnnResponse(self.allocator, k, results);
         defer self.allocator.free(body);
 
         try self.sendHttpResponse(connection, 200, "OK", body);

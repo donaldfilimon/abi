@@ -32,6 +32,25 @@ pub const helpers = struct {
         };
     }
 
+    pub fn formatNearestNeighborResponse(allocator: std.mem.Allocator, result: Result) ![]u8 {
+        return std.fmt.allocPrint(
+            allocator,
+            "{\"success\":true,\"nearest_neighbor\":{\"index\":{d},\"distance\":{d}}}",
+            .{ result.index, result.score },
+        );
+    }
+
+    pub fn formatKnnResponse(allocator: std.mem.Allocator, k: usize, results: []const Result) ![]u8 {
+        const neighbors_json = try formatNeighborsJson(allocator, results);
+        defer allocator.free(neighbors_json);
+
+        return std.fmt.allocPrint(
+            allocator,
+            "{\"success\":true,\"k\":{d},\"neighbors\":[{s}]}",
+            .{ k, neighbors_json },
+        );
+    }
+
     fn parseJsonArray(allocator: std.mem.Allocator, items: []const json.Value) ![]f32 {
         var values = try std.ArrayList(f32).initCapacity(allocator, 0);
         errdefer values.deinit(allocator);
@@ -47,5 +66,25 @@ pub const helpers = struct {
         }
 
         return try values.toOwnedSlice(allocator);
+    }
+
+    fn formatNeighborsJson(allocator: std.mem.Allocator, results: []const Result) ![]u8 {
+        if (results.len == 0) return allocator.dupe(u8, "");
+
+        var buffer = try std.ArrayList(u8).initCapacity(allocator, results.len * 48);
+        errdefer buffer.deinit(allocator);
+
+        for (results, 0..) |res, idx| {
+            if (idx != 0) try buffer.appendSlice(allocator, ",");
+            const chunk = try std.fmt.allocPrint(
+                allocator,
+                "{\"index\":{d},\"distance\":{d}}",
+                .{ res.index, res.score },
+            );
+            defer allocator.free(chunk);
+            try buffer.appendSlice(allocator, chunk);
+        }
+
+        return try buffer.toOwnedSlice(allocator);
     }
 };
