@@ -357,6 +357,38 @@ pub const SPIRVCompiler = struct {
 
         return compiled;
     }
+
+    pub fn validateSPIRV(_self: *SPIRVCompiler, spirv_code: []const u8) !bool {
+        // Mock SPIR-V validation - in real implementation, this would:
+        // 1. Parse the SPIR-V binary format
+        // 2. Validate instruction encoding and operands
+        // 3. Check for structural correctness
+        // 4. Verify capability requirements
+        // 5. Return true if valid, false if invalid
+
+        _ = _self;
+
+        // Simple validation: check SPIR-V magic number
+        if (spirv_code.len < 8) return false;
+        const magic = std.mem.readInt(u32, spirv_code[0..4], .little);
+        return magic == 0x07230203; // SPIR-V magic number
+    }
+
+    pub fn disassembleSPIRV(self: *SPIRVCompiler, spirv_code: []const u8) ![]u8 {
+        // Mock SPIR-V disassembly - in real implementation, this would:
+        // 1. Parse the SPIR-V binary format
+        // 2. Generate human-readable disassembly
+        // 3. Include instruction mnemonics and operands
+        // 4. Format the output for debugging
+
+        _ = spirv_code;
+
+        const disassembly = try self.allocator.alloc(u8, 256);
+        @memcpy(disassembly[0.."OpCapability Shader\n".len], "OpCapability Shader\n");
+        @memcpy(disassembly["OpCapability Shader\n".len .. "OpMemoryModel Logical GLSL450\n".len + "OpCapability Shader\n".len], "OpMemoryModel Logical GLSL450\n");
+        @memcpy(disassembly["OpCapability Shader\nOpMemoryModel Logical GLSL450\n".len..], "OpEntryPoint GLCompute %main \"main\"\n");
+        return disassembly;
+    }
 };
 
 /// Metal Shading Language compiler for Apple platforms

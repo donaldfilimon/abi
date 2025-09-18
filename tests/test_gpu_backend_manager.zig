@@ -32,7 +32,7 @@ test "GPU Backend Manager - Backend Detection" {
     defer backend_manager.deinit();
 
     // Check that backends are properly sorted by priority
-    var highest_priority: u8 = 0;
+    var highest_priority: u32 = 0;
     for (backend_manager.available_backends.items) |backend| {
         const priority = backend.priority();
         try testing.expect(priority <= highest_priority or highest_priority == 0);
@@ -80,7 +80,7 @@ test "GPU Backend Manager - CUDA Driver" {
 
     if (backend_manager.cuda_driver) |cuda| {
         // Test CUDA device count
-        const device_count = cuda.getDeviceCount();
+        const device_count = try cuda.getDeviceCount();
         try testing.expect(device_count >= 0);
 
         // If devices are available, test device properties
@@ -104,19 +104,19 @@ test "GPU Backend Manager - SPIRV Compiler" {
 
     if (backend_manager.spirv_compiler) |spirv| {
         // Test SPIRV validation
-        const test_spirv = [_]u32{
-            0x07230203, // Magic number
-            0x00010000, // Version
-            0, // Generator
-            0, // Bound
-            0, // Schema
+        const test_spirv_bytes = [_]u8{
+            0x03, 0x02, 0x23, 0x07, // Magic number (LE)
+            0x00, 0x00, 0x01, 0x00, // Version (LE)
+            0x00, 0x00, 0x00, 0x00, // Generator
+            0x00, 0x00, 0x00, 0x00, // Bound
+            0x00, 0x00, 0x00, 0x00, // Schema
         };
 
-        const is_valid = try spirv.validateSPIRV(&test_spirv);
+        const is_valid = try spirv.validateSPIRV(&test_spirv_bytes);
         try testing.expect(is_valid);
 
         // Test SPIRV disassembly
-        const disassembly = try spirv.disassembleSPIRV(&test_spirv);
+        const disassembly = try spirv.disassembleSPIRV(&test_spirv_bytes);
         defer allocator.free(disassembly);
         try testing.expect(disassembly.len > 0);
     } else {

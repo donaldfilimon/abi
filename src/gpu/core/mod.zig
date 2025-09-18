@@ -41,10 +41,12 @@ pub const Db = @import("backend.zig").Db;
 // Re-export compute features
 pub const KernelManager = @import("../compute/kernels.zig").KernelManager;
 pub const GPUBackendManager = @import("../compute/gpu_backend_manager.zig").GPUBackendManager;
-pub const CUDADriver = @import("../compute/gpu_backend_manager.zig").CUDADriver;
 pub const SPIRVCompiler = @import("../compute/gpu_backend_manager.zig").SPIRVCompiler;
 pub const BackendType = @import("../compute/gpu_backend_manager.zig").BackendType;
 pub const HardwareCapabilities = @import("../compute/gpu_backend_manager.zig").HardwareCapabilities;
+pub const MemoryBandwidthBenchmark = @import("../compute/gpu_backend_manager.zig").MemoryBandwidthBenchmark;
+pub const ComputeThroughputBenchmark = @import("../compute/gpu_backend_manager.zig").ComputeThroughputBenchmark;
+pub const PerformanceProfiler = @import("../compute/gpu_backend_manager.zig").PerformanceProfiler;
 
 // Re-export memory management
 pub const MemoryPool = @import("../memory/memory_pool.zig").MemoryPool;
@@ -53,9 +55,10 @@ pub const MemoryPool = @import("../memory/memory_pool.zig").MemoryPool;
 pub const BackendSupport = @import("../compute/kernels.zig").BackendSupport;
 
 // Re-export benchmarking tools
-pub const PerformanceProfiler = @import("../benchmark/benchmarks.zig").PerformanceProfiler;
-pub const MemoryBandwidthBenchmark = @import("../benchmark/benchmarks.zig").MemoryBandwidthBenchmark;
-pub const ComputeThroughputBenchmark = @import("../benchmark/benchmarks.zig").ComputeThroughputBenchmark;
+pub const BenchmarkConfig = @import("../benchmark/benchmarks.zig").BenchmarkConfig;
+pub const WorkloadType = @import("../benchmark/benchmarks.zig").WorkloadType;
+pub const PerformanceGrade = @import("../benchmark/benchmarks.zig").PerformanceGrade;
+pub const BenchmarkResult = @import("../benchmark/benchmarks.zig").BenchmarkResult;
 
 // Re-export commonly used types
 pub const Allocator = std.mem.Allocator;

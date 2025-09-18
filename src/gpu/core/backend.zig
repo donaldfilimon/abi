@@ -130,6 +130,8 @@ pub const GpuBackend = struct {
         ShaderCompilationFailed,
         InvalidBufferSize,
         GpuOperationFailed,
+        InitializationFailed,
+        BackendNotAvailable,
     } || std.mem.Allocator.Error;
 
     /// Initialize the GPU backend with the given configuration.
