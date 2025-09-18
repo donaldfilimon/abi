@@ -9,10 +9,11 @@ The Abi AI Framework now includes comprehensive GPU acceleration for AI/ML opera
 ## 🎯 **Key Features**
 
 ### **Tensor Operations**
-- **GPU-accelerated matrix multiplication** with optimized memory layouts
+- **GPU-accelerated matrix multiplication** with optimized WGSL compute kernels
 - **Element-wise operations** (addition, multiplication, activation functions)
 - **Memory-efficient tensor management** with automatic CPU/GPU transfer
 - **Unified memory support** for seamless data movement
+- **Flexible kernel dispatch** with workgroup size optimization
 
 ### **Neural Network Acceleration**
 - **Dense layer operations** with configurable activation functions
@@ -32,12 +33,59 @@ The Abi AI Framework now includes comprehensive GPU acceleration for AI/ML opera
 
 ```
 src/gpu/compute/gpu_ai_acceleration.zig
-├── AIMLAcceleration          # Main acceleration manager
+├── AIMLAcceleration          # Main acceleration manager with backend verification
 ├── Tensor                     # GPU-accelerated tensor operations
-├── MatrixOps                  # Matrix operations (mul, add, transpose)
+├── MatrixOps                  # Matrix operations with GPU kernel dispatch
+│   ├── matmul()               # GPU-accelerated matrix multiplication
+│   ├── matmulGpu()            # GPU-specific implementation
+│   ├── dispatchMatmulKernel() # Kernel dispatch helper
+│   └── matmulCpu()            # CPU fallback implementation
 ├── NeuralNetworkOps           # Neural network layer operations
 └── TrainingAcceleration       # Training and optimization acceleration
 ```
+
+### **GPU Kernel Architecture**
+
+#### **Matrix Multiplication Kernel**
+- **WGSL Compute Shader**: Optimized for parallel execution on GPU
+- **Workgroup Size**: 16x16 threads for optimal occupancy
+- **Memory Layout**: Row-major storage with coalesced memory access
+- **Dispatch Strategy**: Dynamic workgroup dispatch based on matrix dimensions
+- **Fallback Support**: Automatic CPU fallback when GPU unavailable
+
+#### **Kernel Dispatch System**
+```zig
+// Automatic kernel dispatch with size optimization
+const workgroup_size = 16;
+const dispatch_x = (m + workgroup_size - 1) / workgroup_size;
+const dispatch_y = (p + workgroup_size - 1) / workgroup_size;
+
+// GPU kernel execution pipeline:
+// 1. Upload tensors to GPU buffers
+// 2. Set up bind groups and pipeline
+// 3. Dispatch compute workgroups
+// 4. Download results back to CPU
+```
+
+### **Backend Verification & Self-Check**
+
+#### **Initialization Safety**
+The `AIMLAcceleration` constructor includes comprehensive backend verification:
+
+```zig
+// Automatic backend capability detection
+const accel = try AIMLAcceleration.init(allocator, renderer);
+// - Verifies GPU backend support
+// - Checks compute shader availability
+// - Performs initialization self-test
+// - Falls back gracefully to CPU if needed
+```
+
+#### **Self-Check Process**
+1. **Backend Verification**: Confirms GPU/compute shader support
+2. **Tensor Operations**: Tests basic tensor creation and memory management
+3. **Matrix Operations**: Validates matrix multiplication correctness
+4. **Memory Safety**: Ensures proper GPU buffer allocation/deallocation
 
 ### **Integration Points**
 
@@ -133,7 +181,51 @@ try accel.matrix_ops.elementWiseMultiply(a, b, result);
 
 ## 🔧 **Advanced Usage**
 
-### **Custom GPU Kernels**
+### **GPU Kernel Implementation Details**
+
+#### **Matrix Multiplication Kernel Architecture**
+
+```zig
+// WGSL Compute Shader for Matrix Multiplication
+@group(0) @binding(0) var<storage, read> a: array<f32>;
+@group(0) @binding(1) var<storage, read> b: array<f32>;
+@group(0) @binding(2) var<storage, read_write> result: array<f32>;
+
+@compute @workgroup_size(16, 16)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let row = global_id.x;
+    let col = global_id.y;
+    let m = /* matrix A rows */;
+    let n = /* matrix A cols / matrix B rows */;
+    let p = /* matrix B cols */;
+
+    if (row >= m || col >= p) {
+        return;
+    }
+
+    var sum: f32 = 0.0;
+    for (var k = 0u; k < n; k++) {
+        sum += a[row * n + k] * b[k * p + col];
+    }
+
+    result[row * p + col] = sum;
+}
+```
+
+#### **Kernel Dispatch Optimization**
+
+```zig
+// Optimized dispatch calculation
+const workgroup_size = 16;
+const dispatch_x = (m + workgroup_size - 1) / workgroup_size;
+const dispatch_y = (p + workgroup_size - 1) / workgroup_size;
+
+// Dispatch compute workgroups
+// In real implementation: set up pipeline, bind groups, and dispatch
+try dispatchMatmulKernel(a_buffer, b_buffer, c_buffer, m, n, p);
+```
+
+#### **Custom GPU Kernels**
 
 ```zig
 // Using the GPU kernel system for custom operations
@@ -282,6 +374,22 @@ zig build test -- test_gpu_ai_acceleration "neural network"
 zig build test -- test_gpu_ai_acceleration "training"
 ```
 
+#### **GPU Matmul Equivalence Testing**
+
+```zig
+// Test GPU/CPU equivalence for various matrix sizes
+const test_sizes = [_][3]usize{
+    [_]usize{ 2, 3, 4 }, // m=2, n=3, p=4
+    [_]usize{ 4, 4, 4 }, // Square matrices
+    [_]usize{ 3, 2, 5 }, // Different dimensions
+};
+
+for (test_sizes) |size| {
+    // Create test matrices and compare GPU vs CPU results
+    // Ensures mathematical correctness across implementations
+}
+```
+
 ### **Run Performance Benchmarks**
 
 ```bash
@@ -293,6 +401,9 @@ zig build gpu-nn-integration
 
 # Run comprehensive benchmarks
 zig build benchmark-gpu-ai
+
+# Run GPU matmul equivalence tests
+zig build test -- test_gpu_ai_acceleration "GPU matmul equivalence"
 ```
 
 ## 🔍 **Debugging and Profiling**
