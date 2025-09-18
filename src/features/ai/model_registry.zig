@@ -101,8 +101,8 @@ pub const ModelEntry = struct {
             .deployment_version = null,
             .model_path = "",
             .checkpoint_path = null,
-            .tags = ArrayList([]const u8).init(allocator),
-            .categories = ArrayList([]const u8).init(allocator),
+            .tags = ArrayList([]const u8).initCapacity(allocator, 0),
+            .categories = ArrayList([]const u8).initCapacity(allocator, 0),
         };
     }
 
@@ -155,8 +155,8 @@ pub const ModelRegistry = struct {
         return ModelRegistry{
             .allocator = allocator,
             .models = StringHashMap(*ModelEntry).init(allocator),
-            .versions = StringHashMap(ArrayList(*ModelEntry)).init(allocator),
-            .metrics_history = StringHashMap(ArrayList(PerformanceMetrics)).init(allocator),
+            .versions = StringHashMap(ArrayList(*ModelEntry)).initCapacity(allocator, 0),
+            .metrics_history = StringHashMap(ArrayList(PerformanceMetrics)).initCapacity(allocator, 0),
         };
     }
 
@@ -194,7 +194,7 @@ pub const ModelRegistry = struct {
 
         const versions_entry = try self.versions.getOrPut(name_copy);
         if (!versions_entry.found_existing) {
-            versions_entry.value_ptr.* = ArrayList(*ModelEntry).init(self.allocator);
+            versions_entry.value_ptr.* = ArrayList(*ModelEntry).initCapacity(self.allocator, 0);
         }
         try versions_entry.value_ptr.*.append(entry);
 
@@ -202,7 +202,7 @@ pub const ModelRegistry = struct {
         const metrics_id_copy = try self.allocator.dupe(u8, entry.id);
         defer self.allocator.free(metrics_id_copy);
 
-        try self.metrics_history.put(metrics_id_copy, ArrayList(PerformanceMetrics).init(self.allocator));
+        try self.metrics_history.put(metrics_id_copy, ArrayList(PerformanceMetrics).initCapacity(self.allocator, 0));
 
         std.debug.print("Registered model: {} v{}\n", .{ entry.name, entry.version });
     }
@@ -292,7 +292,7 @@ pub const ModelRegistry = struct {
 
     /// Search models by tags
     pub fn searchByTags(self: *ModelRegistry, tags: []const []const u8) ![]*ModelEntry {
-        var results = ArrayList(*ModelEntry).init(self.allocator);
+        var results = ArrayList(*ModelEntry).initCapacity(self.allocator, 0);
         errdefer results.deinit();
 
         var model_it = self.models.iterator();

@@ -521,7 +521,7 @@ pub const Layer = struct {
     }
 
     /// Initialize weights and biases for the layer
-    pub fn initializeWeights(self: *Self, rng: *std.rand.Random) anyerror!void {
+    pub fn initializeWeights(self: *Self, rng: std.Random) anyerror!void {
         if (self.config.layer_type == .input or
             self.config.layer_type == .dropout or
             self.config.layer_type == .flatten or

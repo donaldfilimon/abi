@@ -75,10 +75,10 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 self.allocator.free(vectors.result);
             }
 
-            // Euclidean distance
-            const distance_context = struct {
-                fn euclideanDistance(context: @This()) !f32 {
-                    return abi.core.VectorOps.distance(context.a, context.b);
+            // Dot product
+            const dot_product_context = struct {
+                fn dotProduct(context: @This()) !f32 {
+                    return abi.simd.VectorOps.dotProduct(context.a, context.b);
                 }
                 a: []f32,
                 b: []f32,
@@ -88,18 +88,22 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
             };
 
             // Create wrapper function for benchmark framework
-            const euclidean_fn = struct {
-                fn call(ctx: @TypeOf(distance_context)) !f32 {
-                    return ctx.euclideanDistance();
+            const dot_product_fn = struct {
+                fn call(ctx: @TypeOf(dot_product_context)) !f32 {
+                    return ctx.dotProduct();
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Euclidean Distance ({} elements)", .{size}), "Vector", euclidean_fn, distance_context);
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Dot Product ({} elements)", .{size}), "Vector", dot_product_fn, dot_product_context);
 
             // Cosine similarity
             const cosine_context = struct {
                 fn cosineSimilarity(context: @This()) !f32 {
-                    return abi.core.VectorOps.cosineSimilarity(context.a, context.b);
+                    // Simple cosine similarity implementation
+                    const dot = abi.simd.VectorOps.dotProduct(context.a, context.b);
+                    const norm_a = abi.simd.VectorOps.dotProduct(context.a, context.a);
+                    const norm_b = abi.simd.VectorOps.dotProduct(context.b, context.b);
+                    return dot / (@sqrt(norm_a) * @sqrt(norm_b));
                 }
                 a: []f32,
                 b: []f32,

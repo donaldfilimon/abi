@@ -14,7 +14,7 @@ const framework = @import("benchmark_framework.zig");
 const utils = @import("abi").utils;
 
 const abi = @import("abi");
-const database = @import("wdbx");
+const database = abi.database;
 
 /// Enhanced database benchmark configuration
 pub const DatabaseBenchmarkConfig = struct {
@@ -70,8 +70,8 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
     }
 
     pub fn runAllBenchmarks(self: *EnhancedDatabaseBenchmarkSuite) !void {
-        std.log.info("🗄️ Running Enhanced Database Performance Benchmark Suite", .{});
-        std.log.info("========================================================", .{});
+        // // std.log.info("🗄️ Running Enhanced Database Performance Benchmark Suite", .{});
+        // // std.log.info("========================================================", .{});
 
         // Database initialization benchmarks
         try self.benchmarkDatabaseInitialization();
@@ -96,12 +96,12 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
     }
 
     fn benchmarkDatabaseInitialization(self: *EnhancedDatabaseBenchmarkSuite) !void {
-        std.log.info("🚀 Benchmarking Database Initialization", .{});
+        // std.log.info("🚀 Benchmarking Database Initialization", .{});
 
         for (self.config.vector_sizes) |dim| {
             const init_context = struct {
                 fn initDatabase(context: @This()) !void {
-                    var db = try database.Db.open(context.filename, true);
+                    var db = try database.database.Db.open(context.filename, true);
                     defer db.close();
                     try db.init(@as(u16, @intCast(context.dimensions)));
                 }
@@ -124,7 +124,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
     }
 
     fn benchmarkVectorOperations(self: *EnhancedDatabaseBenchmarkSuite) !void {
-        std.log.info("📐 Benchmarking Vector Operations", .{});
+        // std.log.info("📐 Benchmarking Vector Operations", .{});
 
         for (self.config.vector_sizes) |dim| {
             const test_file = try self.createTestFile(try std.fmt.allocPrint(self.allocator, "vectors_{d}D", .{dim}));
@@ -132,7 +132,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
             // Single vector insertion
             const single_context = struct {
                 fn singleInsert(context: @This()) !void {
-                    var db = try database.Db.open(context.filename, true);
+                    var db = try database.database.Db.open(context.filename, true);
                     defer db.close();
                     try db.init(@as(u16, @intCast(context.dimensions)));
 
@@ -166,7 +166,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
             // Batch vector insertion
             const batch_context = struct {
                 fn batchInsert(context: @This()) !void {
-                    var db = try database.Db.open(context.filename, true);
+                    var db = try database.database.Db.open(context.filename, true);
                     defer db.close();
                     try db.init(@as(u16, @intCast(context.dimensions)));
 
@@ -210,13 +210,13 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
     }
 
     fn benchmarkSearchPerformance(self: *EnhancedDatabaseBenchmarkSuite) !void {
-        std.log.info("🔍 Benchmarking Search Performance", .{});
+        // std.log.info("🔍 Benchmarking Search Performance", .{});
 
         for (self.config.vector_sizes) |dim| {
             const test_file = try self.createTestFile(try std.fmt.allocPrint(self.allocator, "search_{d}D", .{dim}));
 
             // Pre-populate database
-            var db = try database.Db.open(test_file, true);
+            var db = try database.database.Db.open(test_file, true);
             defer db.close();
             try db.init(@as(u16, @intCast(dim)));
 
@@ -235,7 +235,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
             for (self.config.search_queries) |top_k| {
                 const search_context = struct {
                     fn searchVectors(context: @This()) !void {
-                        var search_db = try database.Db.open(context.filename, true);
+                        var search_db = try database.database.Db.open(context.filename, true);
                         defer search_db.close();
 
                         const results = try search_db.search(context.query, context.top_k, context.allocator);
@@ -266,13 +266,13 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
     }
 
     fn benchmarkMemoryEfficiency(self: *EnhancedDatabaseBenchmarkSuite) !void {
-        std.log.info("💾 Benchmarking Memory Efficiency", .{});
+        // std.log.info("💾 Benchmarking Memory Efficiency", .{});
 
         const test_file = try self.createTestFile("memory_test");
 
         const memory_context = struct {
             fn memoryGrowth(context: @This()) !void {
-                var db = try database.Db.open(context.filename, true);
+                var db = try database.database.Db.open(context.filename, true);
                 defer db.close();
                 try db.init(128);
 
@@ -306,20 +306,20 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
     }
 
     fn benchmarkHNSWIndex(_: *EnhancedDatabaseBenchmarkSuite) !void {
-        std.log.info("🌲 Benchmarking HNSW Index (if available)", .{});
+        // std.log.info("🌲 Benchmarking HNSW Index (if available)", .{});
 
         // Note: This would require HNSW implementation in the database module
         // For now, we'll skip this benchmark
-        std.log.info("HNSW benchmarks skipped - implementation not available", .{});
+        // std.log.info("HNSW benchmarks skipped - implementation not available", .{});
     }
 
     fn benchmarkParallelOperations(self: *EnhancedDatabaseBenchmarkSuite) !void {
-        std.log.info("🔄 Benchmarking Parallel Operations", .{});
+        // std.log.info("🔄 Benchmarking Parallel Operations", .{});
 
         const test_file = try self.createTestFile("parallel_test");
 
         // Pre-populate database for parallel search
-        var db = try database.Db.open(test_file, true);
+        var db = try database.database.Db.open(test_file, true);
         defer db.close();
         try db.init(128);
 
@@ -339,7 +339,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
             const parallel_context = struct {
                 fn parallelSearch(context: @This()) !void {
                     // Simulate parallel search (would require actual parallel implementation)
-                    var search_db = try database.Db.open(context.filename, true);
+                    var search_db = try database.database.Db.open(context.filename, true);
                     defer search_db.close();
 
                     const results = try search_db.search(context.query, 10, context.allocator);

@@ -218,8 +218,7 @@ pub const Model = struct {
 
     /// Serializes the model to JSON format for persistence
     pub fn toJson(self: Model, allocator: Allocator) ![]u8 {
-        const json = std.json;
-        return json.stringifyAlloc(allocator, .{
+        return std.json.stringifyAlloc(allocator, .{
             .weights = self.weights,
             .bias = self.bias,
             .is_trained = self.is_trained,
@@ -282,7 +281,7 @@ pub const DataProcessor = struct {
         if (data.len == 0) return MLError.EmptyDataset;
         if (train_ratio <= 0 or train_ratio >= 1) return MLError.InvalidParameters;
 
-        var prng = std.rand.DefaultPrng.init(random_seed);
+        var prng = std.Random.DefaultPrng.init(random_seed);
         const random = prng.random();
         // Create shuffled indices
         const indices = try allocator.alloc(usize, data.len);

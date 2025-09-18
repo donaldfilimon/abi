@@ -124,7 +124,7 @@ pub const JsonOps = struct {
     /// Extract a value from a JSON object by key path (dot notation)
     pub fn getValue(json: JsonValue, path: []const u8) ?JsonValue {
         var current = json;
-        var path_iter = std.mem.split(u8, path, ".");
+        var path_iter = std.mem.splitSequence(u8, path, ".");
 
         while (path_iter.next()) |segment| {
             switch (current) {
