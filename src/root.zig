@@ -1,1 +1,1 @@
-pub const abi = @import("abi/mod.zig");
+pub const abi = @import("mod.zig");

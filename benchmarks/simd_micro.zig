@@ -87,7 +87,14 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 .b = vectors.b,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Euclidean Distance ({} elements)", .{size}), "Vector", distance_context.euclideanDistance, distance_context);
+            // Create wrapper function for benchmark framework
+            const euclidean_fn = struct {
+                fn call(ctx: @TypeOf(distance_context)) !f32 {
+                    return ctx.euclideanDistance();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Euclidean Distance ({} elements)", .{size}), "Vector", euclidean_fn, distance_context);
 
             // Cosine similarity
             const cosine_context = struct {
@@ -101,7 +108,14 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 .b = vectors.b,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Cosine Similarity ({} elements)", .{size}), "Vector", cosine_context.cosineSimilarity, cosine_context);
+            // Create wrapper function for benchmark framework
+            const cosine_fn = struct {
+                fn call(ctx: @TypeOf(cosine_context)) !f32 {
+                    return ctx.cosineSimilarity();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Cosine Similarity ({} elements)", .{size}), "Vector", cosine_fn, cosine_context);
 
             // Vector addition
             const add_context = struct {
@@ -119,7 +133,14 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 .result = vectors.result,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Addition ({} elements)", .{size}), "Vector", add_context.vectorAdd, add_context);
+            // Create wrapper function for benchmark framework
+            const add_fn = struct {
+                fn call(ctx: @TypeOf(add_context)) !void {
+                    return ctx.vectorAdd();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Addition ({} elements)", .{size}), "Vector", add_fn, add_context);
 
             // Vector sum
             const sum_context = struct {
@@ -133,7 +154,14 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 .a = vectors.a,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Sum ({} elements)", .{size}), "Vector", sum_context.vectorSum, sum_context);
+            // Create wrapper function for benchmark framework
+            const sum_fn = struct {
+                fn call(ctx: @TypeOf(sum_context)) !f32 {
+                    return ctx.vectorSum();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Sum ({} elements)", .{size}), "Vector", sum_fn, sum_context);
         }
     }
 
@@ -180,7 +208,14 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 .cols_b = size,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Matrix Multiply ({}x{})", .{ size, size }), "Matrix", mm_context.matrixMultiply, mm_context);
+            // Create wrapper function for benchmark framework
+            const mm_fn = struct {
+                fn call(ctx: @TypeOf(mm_context)) !void {
+                    return ctx.matrixMultiply();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Matrix Multiply ({}x{})", .{ size, size }), "Matrix", mm_fn, mm_context);
         }
     }
 
@@ -201,7 +236,14 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
         };
         defer self.allocator.free(math_context.data);
 
-        try self.framework_suite.runBenchmark("Mathematical Functions (sin, cos, sqrt)", "Math", math_context.mathOperations, math_context);
+        // Create wrapper function for benchmark framework
+        const math_fn = struct {
+            fn call(ctx: @TypeOf(math_context)) !f32 {
+                return ctx.mathOperations();
+            }
+        }.call;
+
+        try self.framework_suite.runBenchmark("Mathematical Functions (sin, cos, sqrt)", "Math", math_fn, math_context);
     }
 
     // Helper functions
