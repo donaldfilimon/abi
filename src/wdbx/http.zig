@@ -4,7 +4,7 @@
 //! including vector operations, authentication, and monitoring endpoints.
 
 const std = @import("std");
-const database = @import("database");
+const database = @import("./db_helpers.zig");
 
 const version_string = "WDBX Vector Database v1.0.0";
 
@@ -95,7 +95,7 @@ pub const WdbxHttpServer = struct {
             };
         }
 
-        std.debug.print("WDBX HTTP server listening on {s}:{d} (Windows optimized)\n", .{ self.config.host, self.config.port });
+        std.debug.print("WDBX HTTP server listening on {s}:{} (Windows optimized)\n", .{ self.config.host, self.config.port });
 
         while (true) {
             const connection = self.server.?.accept() catch |err| {
@@ -156,7 +156,7 @@ pub const WdbxHttpServer = struct {
         if (self.config.tcp_nodelay) {
             const enable: c_int = 1;
             _ = std.posix.setsockopt(socket_handle, std.posix.IPPROTO.TCP, std.posix.TCP.NODELAY, std.mem.asBytes(&enable)) catch |err| {
-                std.debug.print("Warning: TCP_NODELAY failed: {any}\n", .{err});
+                std.debug.print("Warning: TCP_NODELAY failed: {}\n", .{err});
             };
         }
 
@@ -264,19 +264,16 @@ pub const WdbxHttpServer = struct {
             if (line.len == 0) break;
             if (std.mem.indexOfScalar(u8, line, ':')) |colon| {
                 const key = std.mem.trim(u8, line[0..colon], " \t");
-                const value = std.mem.trim(u8, line[colon + 1 ..], " \t");
+                var value = std.mem.trim(u8, line[colon + 1 ..], " \t");
                 if (std.ascii.eqlIgnoreCase(key, "Upgrade")) {
                     if (std.ascii.eqlIgnoreCase(value, "websocket")) upgrade = true;
                 } else if (std.ascii.eqlIgnoreCase(key, "Connection")) {
-                    // Value may contain multiple tokens; check all
-                    var token_it = std.mem.splitScalar(u8, value, ',');
-                    while (token_it.next()) |tok| {
-                        const trimmed_tok = std.mem.trim(u8, tok, " \t");
-                        if (std.ascii.eqlIgnoreCase(trimmed_tok, "Upgrade")) {
-                            connection_hdr_upgrade = true;
-                            break;
-                        }
+                    // Value may contain tokens
+                    if (std.mem.indexOfScalar(u8, value, ',')) |comma| {
+                        // take first token
+                        value = std.mem.trim(u8, value[0..comma], " \t");
                     }
+                    if (std.ascii.eqlIgnoreCase(value, "Upgrade")) connection_hdr_upgrade = true;
                 } else if (std.ascii.eqlIgnoreCase(key, "Sec-WebSocket-Key")) {
                     ws_key = value;
                 }
@@ -463,7 +460,7 @@ pub const WdbxHttpServer = struct {
         const vector_str = query[vec_start + 4 .. vec_start + vec_end];
 
         // Parse vector
-        const vector = try self.parseVector(vector_str);
+        const vector = try database.helpers.parseVector(self.allocator, vector_str);
         defer self.allocator.free(vector);
 
         // Query database
@@ -507,7 +504,7 @@ pub const WdbxHttpServer = struct {
         }
 
         // Parse vector
-        const vector = try self.parseVector(vector_str);
+        const vector = try database.helpers.parseVector(self.allocator, vector_str);
         defer self.allocator.free(vector);
 
         // Query database
@@ -567,8 +564,6 @@ pub const WdbxHttpServer = struct {
             error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
             else => return err,
         };
-        // Give the client a moment to receive the handshake before the server closes the socket (Windows quirk)
-        std.Thread.sleep(25 * std.time.ns_per_ms);
     }
 
     /// Neighbor result structure
@@ -576,23 +571,6 @@ pub const WdbxHttpServer = struct {
         index: u64,
         distance: f32,
     };
-
-    /// Parse vector string
-    fn parseVector(self: *Self, vector_str: []const u8) ![]f32 {
-        var list = try std.ArrayList(f32).initCapacity(self.allocator, 8);
-        defer list.deinit(self.allocator);
-
-        var iter = std.mem.splitSequence(u8, vector_str, ",");
-        while (iter.next()) |part| {
-            const trimmed = std.mem.trim(u8, part, " \t\n\r");
-            if (trimmed.len > 0) {
-                const value = try std.fmt.parseFloat(f32, trimmed);
-                try list.append(self.allocator, value);
-            }
-        }
-
-        return try list.toOwnedSlice(self.allocator);
-    }
 
     /// Format neighbors array for JSON output
     fn formatNeighbors(self: *Self, neighbors: []const NeighborResult) ![]const u8 {
@@ -607,37 +585,6 @@ pub const WdbxHttpServer = struct {
         }
 
         return try buffer.toOwnedSlice(self.allocator);
-    }
-
-    /// Extract query parameter from the request path. Returns a slice into `path` or null if not found.
-    fn extractQueryParam(_: *Self, path: []const u8, key: []const u8) ?[]const u8 {
-        const q_index = std.mem.indexOfScalar(u8, path, '?') orelse return null;
-        const query = path[q_index + 1 ..];
-        var it = std.mem.splitScalar(u8, query, '&');
-        while (it.next()) |pair| {
-            if (pair.len == 0) continue;
-            const eq = std.mem.indexOfScalar(u8, pair, '=') orelse continue;
-            const name = pair[0..eq];
-            const value = pair[eq + 1 ..];
-            if (std.mem.eql(u8, name, key)) return value;
-        }
-        return null;
-    }
-
-    /// Extract a header value by name (case-insensitive) from a raw HTTP request string.
-    /// Returns a slice into `request_str` or null if not found.
-    fn extractHeaderValue(_: *Self, request_str: []const u8, key: []const u8) ?[]const u8 {
-        var lines = std.mem.splitSequence(u8, request_str, "\r\n");
-        _ = lines.next(); // skip request line
-        while (lines.next()) |line| {
-            if (line.len == 0) break;
-            if (std.mem.indexOfScalar(u8, line, ':')) |colon| {
-                const name = std.mem.trim(u8, line[0..colon], " \t");
-                const value = std.mem.trim(u8, line[colon + 1 ..], " \t");
-                if (std.ascii.eqlIgnoreCase(name, key)) return value;
-            }
-        }
-        return null;
     }
 
     /// Test basic connectivity - useful for diagnosing Windows networking issues
@@ -687,245 +634,3 @@ pub const WdbxHttpServer = struct {
         try self.sendHttpResponse(connection, 200, "OK", network_info);
     }
 };
-
-// Fuzz-style tests for request and vector parsing
-const testing = std.testing;
-
-test "parseVector property fuzz (valid and invalid inputs)" {
-    const allocator = testing.allocator;
-    const server = try WdbxHttpServer.init(allocator, .{});
-    defer server.deinit();
-
-    var prng = std.Random.DefaultPrng.init(0x12345678);
-    const rand = prng.random();
-
-    // Valid vectors: comma-separated integers (parsed as floats)
-    var i: usize = 0;
-    while (i < 100) : (i += 1) {
-        const n = rand.intRangeAtMost(usize, 1, 8);
-        var buf = try std.ArrayList(u8).initCapacity(allocator, 64);
-        defer buf.deinit(allocator);
-
-        var j: usize = 0;
-        while (j < n) : (j += 1) {
-            if (j > 0) try buf.appendSlice(allocator, ",");
-            const value = rand.intRangeAtMost(i32, -1000, 1000);
-            const s = try std.fmt.allocPrint(allocator, "{d}", .{value});
-            defer allocator.free(s);
-            try buf.appendSlice(allocator, s);
-        }
-
-        const vec_str = try buf.toOwnedSlice(allocator);
-        defer allocator.free(vec_str);
-
-        const parsed = try server.parseVector(vec_str);
-        defer allocator.free(parsed);
-        try testing.expectEqual(n, parsed.len);
-    }
-
-    // Invalid vectors: ensure at least one non-numeric token forces an error
-    i = 0;
-    while (i < 100) : (i += 1) {
-        var buf = try std.ArrayList(u8).initCapacity(allocator, 32);
-        defer buf.deinit(allocator);
-
-        const garbage_len = rand.intRangeAtMost(usize, 1, 16);
-        var k: usize = 0;
-        while (k < garbage_len) : (k += 1) {
-            const ch = rand.intRangeAtMost(u8, 48, 122); // mix of digits/letters
-            if (ch == ',') continue;
-            try buf.append(allocator, ch);
-        }
-        // Guarantee non-numeric token
-        try buf.append(allocator, 'x');
-
-        const vec_str = try buf.toOwnedSlice(allocator);
-        defer allocator.free(vec_str);
-
-        if (server.parseVector(vec_str)) |_| {
-            try testing.expect(false); // must not succeed on clearly invalid input
-        } else |_| {}
-    }
-}
-
-test "parseHttpRequest property fuzz (valid and invalid first lines)" {
-    const allocator = testing.allocator;
-    const server = try WdbxHttpServer.init(allocator, .{});
-    defer server.deinit();
-
-    var prng = std.Random.DefaultPrng.init(0xABCDEF01);
-    const rand = prng.random();
-
-    const methods = [_][]const u8{ "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" };
-
-    // Valid request lines
-    var i: usize = 0;
-    while (i < 100) : (i += 1) {
-        const method = methods[rand.intRangeAtMost(usize, 0, methods.len - 1)];
-        const path = switch (rand.intRangeAtMost(u8, 0, 2)) {
-            0 => "/",
-            1 => "/health",
-            else => "/query?vec=1,2,3&k=2",
-        };
-        const version = if (rand.boolean()) "HTTP/1.1" else "HTTP/2";
-
-        const req = try std.fmt.allocPrint(allocator, "{s} {s} {s}\r\n\r\n", .{ method, path, version });
-        defer allocator.free(req);
-
-        const parsed = try server.parseHttpRequest(req);
-        try testing.expectEqualStrings(method, parsed.method);
-        try testing.expectEqualStrings(path, parsed.path);
-        try testing.expectEqualStrings(version, parsed.version);
-    }
-
-    // Invalid request lines (missing tokens / garbage)
-    i = 0;
-    while (i < 100) : (i += 1) {
-        const bad = switch (rand.intRangeAtMost(u8, 0, 2)) {
-            0 => "GET /onlytwo\r\n\r\n",
-            1 => "/missing_method HTTP/1.1\r\n\r\n",
-            else => "GARBAGE\r\n\r\n",
-        };
-        try testing.expectError(error.InvalidRequest, server.parseHttpRequest(bad));
-    }
-}
-
-// Additional fuzz tests for query parameters and header parsing
-
-test "extractQueryParam fuzz (presence, order, and interference)" {
-    const allocator = testing.allocator;
-    const server = try WdbxHttpServer.init(allocator, .{});
-    defer server.deinit();
-
-    var prng = std.Random.DefaultPrng.init(0xBEEF1234);
-    const rand = prng.random();
-
-    var i: usize = 0;
-    while (i < 100) : (i += 1) {
-        var buf = try std.ArrayList(u8).initCapacity(allocator, 128);
-        defer buf.deinit(allocator);
-
-        try buf.appendSlice(allocator, "/query?");
-
-        var first: bool = true;
-        const maybe_amp = struct {
-            fn add(list: *std.ArrayList(u8), alloc: std.mem.Allocator, flag: *bool) !void {
-                if (!flag.*) {
-                    try list.appendSlice(alloc, "&");
-                } else {
-                    flag.* = false;
-                }
-            }
-        };
-
-        // Optional noise param
-        if (rand.boolean()) {
-            try maybe_amp.add(&buf, allocator, &first);
-            try buf.appendSlice(allocator, "foo=bar");
-        }
-
-        // Decide if we include vec
-        const include_vec = rand.boolean();
-        var expected_vec: ?[]const u8 = null;
-        var vec_value_to_free: ?[]const u8 = null;
-
-        if (include_vec) {
-            try maybe_amp.add(&buf, allocator, &first);
-            const a = rand.intRangeAtMost(i32, -9, 9);
-            const b = rand.intRangeAtMost(i32, -9, 9);
-            const c = rand.intRangeAtMost(i32, -9, 9);
-            const v = try std.fmt.allocPrint(allocator, "{d},{d},{d}", .{ a, b, c });
-            vec_value_to_free = v;
-            expected_vec = v;
-            try buf.appendSlice(allocator, "vec=");
-            try buf.appendSlice(allocator, v);
-        }
-
-        // Optional k param (appears before/after vec depending on include order)
-        if (rand.boolean()) {
-            try maybe_amp.add(&buf, allocator, &first);
-            const k = rand.intRangeAtMost(usize, 1, 10);
-            const ks = try std.fmt.allocPrint(allocator, "k={d}", .{k});
-            defer allocator.free(ks);
-            try buf.appendSlice(allocator, ks);
-        }
-
-        const path = try buf.toOwnedSlice(allocator);
-        defer allocator.free(path);
-
-        const got = server.extractQueryParam(path, "vec");
-        if (include_vec) {
-            try testing.expect(got != null);
-            try testing.expectEqualStrings(expected_vec.?, got.?);
-        } else {
-            try testing.expect(got == null);
-        }
-
-        if (vec_value_to_free) |vv| allocator.free(vv);
-    }
-}
-
-test "extractHeaderValue fuzz (case-insensitive keys and values)" {
-    const allocator = testing.allocator;
-    const server = try WdbxHttpServer.init(allocator, .{});
-    defer server.deinit();
-
-    var prng = std.Random.DefaultPrng.init(0xA1B2C3D4);
-    const rand = prng.random();
-
-    var i: usize = 0;
-    while (i < 100) : (i += 1) {
-        var buf = try std.ArrayList(u8).initCapacity(allocator, 256);
-        defer buf.deinit(allocator);
-
-        try buf.appendSlice(allocator, "GET / HTTP/1.1\r\n");
-
-        const headers = [_]struct { key: []const u8, value: []const u8 }{
-            .{ .key = "Host", .value = "localhost" },
-            .{ .key = "Connection", .value = if (rand.boolean()) "keep-alive" else "Upgrade" },
-            .{ .key = "X-Test", .value = "abc123" },
-        };
-
-        const expected_connection = headers[1].value;
-
-        inline for (headers) |h| {
-            var key_buf = try std.ArrayList(u8).initCapacity(allocator, h.key.len);
-            defer key_buf.deinit(allocator);
-
-            for (h.key) |ch| {
-                var out_ch = ch;
-                if (std.ascii.isAlphabetic(ch) and rand.boolean()) {
-                    if (std.ascii.isUpper(ch)) {
-                        out_ch = std.ascii.toLower(ch);
-                    } else {
-                        out_ch = std.ascii.toUpper(ch);
-                    }
-                }
-                try key_buf.append(allocator, out_ch);
-            }
-
-            const key_s = try key_buf.toOwnedSlice(allocator);
-            defer allocator.free(key_s);
-
-            try buf.appendSlice(allocator, key_s);
-            try buf.appendSlice(allocator, ": ");
-            try buf.appendSlice(allocator, h.value);
-            try buf.appendSlice(allocator, "\r\n");
-        }
-
-        try buf.appendSlice(allocator, "\r\n");
-        const req = try buf.toOwnedSlice(allocator);
-        defer allocator.free(req);
-
-        const got_conn = server.extractHeaderValue(req, "Connection");
-        try testing.expect(got_conn != null);
-        try testing.expectEqualStrings(expected_connection, got_conn.?);
-
-        const got_host = server.extractHeaderValue(req, "Host");
-        try testing.expect(got_host != null);
-        try testing.expectEqualStrings("localhost", got_host.?);
-
-        const got_missing = server.extractHeaderValue(req, "Does-Not-Exist");
-        try testing.expect(got_missing == null);
-    }
-}

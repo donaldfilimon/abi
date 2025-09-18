@@ -1,7 +1,8 @@
 const std = @import("std");
 const abi = @import("abi");
+const wdbx = abi.wdbx;
 
 pub fn main() !void {
-    // Delegate to the main function in wdbx.zig
-    try abi.wdbx.main();
+    // Run WDBX main (if it returns an error, propagate)
+    try wdbx.main();
 }

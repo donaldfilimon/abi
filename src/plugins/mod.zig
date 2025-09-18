@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const core = @import("core");
 
 pub const interface = @import("interface.zig");
 pub const loader = @import("loader.zig");
@@ -27,6 +28,7 @@ pub const createRegistry = registry.createRegistry;
 
 /// Initialize the plugin system
 pub fn init(allocator: std.mem.Allocator) !PluginRegistry {
+    core.log.info("Initializing plugin system", .{});
     return try PluginRegistry.init(allocator);
 }
 

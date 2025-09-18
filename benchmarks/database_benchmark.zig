@@ -554,3 +554,5 @@ fn benchmarkAdvancedSIMD(suite: *BenchmarkSuite, allocator: std.mem.Allocator) !
         });
     }
 }
+
+

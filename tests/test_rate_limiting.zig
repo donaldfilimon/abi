@@ -231,3 +231,5 @@ test "token bucket rate limiting" {
     // After 5 seconds, should have 5 new tokens
     try testing.expect(bucket.tryConsume(5.0, 5000));
 }
+
+

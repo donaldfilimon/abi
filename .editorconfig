@@ -1,0 +1,65 @@
+# EditorConfig for Zig projects
+# https://editorconfig.org/
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Zig-specific settings
+[*.zig]
+indent_style = space
+indent_size = 4
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+# YAML files
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# JSON files
+[*.json]
+indent_style = space
+indent_size = 2
+
+# Build files
+[build.zig]
+indent_style = space
+indent_size = 4
+
+# Zig package manifest
+[build.zig.zon]
+indent_style = space
+indent_size = 4
+
+# Git ignore
+[.gitignore]
+trim_trailing_whitespace = false
+
+# Makefiles
+[Makefile]
+indent_style = tab
+
+# Shell scripts
+[*.{sh,bash}]
+end_of_line = lf
+indent_style = space
+indent_size = 4
+
+# Windows batch files
+[*.{bat,cmd}]
+end_of_line = crlf
+
+# PowerShell scripts
+[*.ps1]
+end_of_line = crlf
+charset = utf-8-bom

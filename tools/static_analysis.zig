@@ -160,12 +160,24 @@ pub const StaticAnalyzer = struct {
             try self.addFinding(file_path, line_number, 1, .warning, "Unsafe pointer cast - verify type safety", "security.pointer_safety");
         }
 
-        // Check for hardcoded secrets/passwords
-        if (std.mem.indexOf(u8, line, "password") != null or
+        // Check for hardcoded secrets/passwords (more precise detection)
+        const has_secret_keyword = std.mem.indexOf(u8, line, "password") != null or
             std.mem.indexOf(u8, line, "secret") != null or
-            std.mem.indexOf(u8, line, "token") != null)
-        {
-            if (std.mem.indexOf(u8, line, "=") != null) {
+            std.mem.indexOf(u8, line, "token") != null or
+            std.mem.indexOf(u8, line, "key") != null;
+
+        if (has_secret_keyword) {
+            // Only flag if it looks like an assignment of a string literal
+            const has_equals = std.mem.indexOf(u8, line, "=") != null;
+            const has_string_literal = std.mem.indexOf(u8, line, "\"") != null;
+            const has_comment = std.mem.indexOf(u8, line, "//") != null;
+
+            // Avoid false positives for function calls, imports, and comments
+            if (has_equals and has_string_literal and !has_comment and
+                std.mem.indexOf(u8, line, "(") == null and
+                std.mem.indexOf(u8, line, ")") == null and
+                std.mem.indexOf(u8, line, "@import") == null)
+            {
                 try self.addFinding(file_path, line_number, 1, .err, "Potential hardcoded credential", "security.hardcoded_secrets");
             }
         }
@@ -322,3 +334,5 @@ pub fn main() !void {
     try analyzer.analyzeDirectory("src");
     try analyzer.generateReport();
 }
+
+

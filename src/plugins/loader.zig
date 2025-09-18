@@ -300,3 +300,5 @@ test "Library name construction" {
         else => try std.testing.expectEqualStrings("libmyplugin.so", lib_name),
     }
 }
+
+
