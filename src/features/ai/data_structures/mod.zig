@@ -13,9 +13,10 @@ const std = @import("std");
 
 // Re-export lock-free data structures
 pub const lockFreeQueue = @import("lockfree.zig").lockFreeQueue;
-pub const LockFreeStack = @import("lockfree.zig").LockFreeStack;
-pub const AtomicList = @import("lockfree.zig").AtomicList;
-pub const ConcurrentHashMap = @import("lockfree.zig").ConcurrentHashMap;
+pub const LockFreeStack = @import("lockfree.zig").lockFreeStack;
+pub const lockFreeHashMap = @import("lockfree.zig").lockFreeHashMap;
+pub const workStealingDeque = @import("lockfree.zig").workStealingDeque;
+pub const mpmcQueue = @import("lockfree.zig").mpmcQueue;
 
 // Re-export specialized AI data structures
 pub const CircularBuffer = @import("circular_buffer.zig").CircularBuffer;
@@ -117,8 +118,8 @@ pub fn createLockFreeStack(comptime T: type, allocator: std.mem.Allocator, capac
 }
 
 /// Initialize a concurrent hash map with the specified capacity
-pub fn createConcurrentHashMap(comptime K: type, comptime V: type, allocator: std.mem.Allocator, capacity: usize) !*ConcurrentHashMap(K, V) {
-    return ConcurrentHashMap(K, V).init(allocator, capacity);
+pub fn createLockFreeHashMap(comptime K: type, comptime V: type, allocator: std.mem.Allocator, capacity: usize) !*lockFreeHashMap(K, V) {
+    return lockFreeHashMap(K, V).init(allocator, capacity);
 }
 
 /// Initialize a circular buffer for time series data
@@ -200,8 +201,9 @@ test "Data structures module imports" {
     // Test that all main types are accessible
     _ = lockFreeQueue;
     _ = LockFreeStack;
-    _ = AtomicList;
-    _ = ConcurrentHashMap;
+    _ = lockFreeHashMap;
+    _ = workStealingDeque;
+    _ = mpmcQueue;
     _ = CircularBuffer;
     _ = BatchQueue;
     _ = MemoryPool;

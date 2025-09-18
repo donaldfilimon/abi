@@ -730,7 +730,7 @@ pub const EnhancedAgent = struct {
             return AgentError.CapabilityNotEnabled;
         }
 
-        var results = ArrayList(MemoryEntry).init(self.allocator);
+        var results = ArrayList(MemoryEntry).initCapacity(self.allocator, 0);
         defer results.deinit();
 
         // SIMD-optimized string search for large memory stores
@@ -786,7 +786,7 @@ pub const EnhancedAgent = struct {
 
     /// Health check for agent status
     pub fn healthCheck(self: *const Self) struct { healthy: bool, issues: []const []const u8 } {
-        var issues = ArrayList([]const u8).init(self.allocator);
+        var issues = ArrayList([]const u8).initCapacity(self.allocator, 0);
         defer issues.deinit();
 
         // Check memory usage

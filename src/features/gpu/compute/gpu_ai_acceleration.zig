@@ -501,7 +501,7 @@ pub const AIMLAcceleration = struct {
             .matrix_ops = MatrixOps.init(allocator, renderer),
             .nn_ops = NeuralNetworkOps.init(allocator, renderer),
             .training_accel = TrainingAcceleration.init(allocator, renderer),
-            .tensors = std.ArrayList(*Tensor).init(allocator),
+            .tensors = std.ArrayList(*Tensor).initCapacity(allocator, 0),
         };
 
         // Perform initialization self-check

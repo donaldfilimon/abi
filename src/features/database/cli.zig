@@ -209,7 +209,7 @@ pub const WdbxCLI = struct {
         }
     }
 
-    fn showHelp(self: *Self) !void {
+    pub fn showHelp(self: *Self) !void {
         const help_text =
             \\ABI Vector Database CLI
             \\

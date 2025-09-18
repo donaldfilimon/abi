@@ -30,12 +30,14 @@ pub const EnhancedBenchmarkConfig = struct {
     },
     data_sizes: []const usize = &[_]usize{ 64, 128, 256, 512, 1024, 2048 },
     vector_dimensions: []const u16 = &[_]u16{ 64, 128, 256, 512 },
-    network_config: ai.TrainingConfig = .{
+    network_config: ai.model_registry.ModelEntry.TrainingConfig = .{
         .learning_rate = 0.01,
         .batch_size = 32,
         .epochs = 10,
-        .use_mixed_precision = true,
-        .checkpoint_frequency = 10,
+        .optimizer = "adam",
+        .loss_function = "mse",
+        .dataset = "benchmark_data",
+        .total_samples = 1000,
     },
 };
 
@@ -63,8 +65,8 @@ pub const EnhancedBenchmarkSuite = struct {
     }
 
     pub fn runAllBenchmarks(self: *EnhancedBenchmarkSuite) !void {
-        std.log.info("🚀 Running Enhanced Performance Benchmark Suite", .{});
-        std.log.info("================================================", .{});
+        // std.log.info("🚀 Running Enhanced Performance Benchmark Suite", .{});
+        // std.log.info("================================================", .{});
 
         // AI and Neural Network Benchmarks
         try self.benchmarkAIActivationFunctions();
@@ -88,18 +90,19 @@ pub const EnhancedBenchmarkSuite = struct {
     }
 
     fn benchmarkAIActivationFunctions(self: *EnhancedBenchmarkSuite) !void {
-        std.log.info("🧠 Benchmarking AI Activation Functions", .{});
+        // std.log.info("🧠 Benchmarking AI Activation Functions", .{});
 
         // Benchmark individual activation functions
         const ActivationContext = struct {
             fn sigmoid(context: @This()) !f32 {
-                return ai.ActivationUtils.fastSigmoid(context.x);
+                return 1.0 / (1.0 + std.math.exp(-context.x));
             }
             fn tanh(context: @This()) !f32 {
-                return ai.ActivationUtils.fastTanh(context.x);
+                return std.math.tanh(context.x);
             }
             fn gelu(context: @This()) !f32 {
-                return ai.ActivationUtils.fastGelu(context.x);
+                const x = context.x;
+                return 0.5 * x * (1.0 + std.math.tanh(std.math.sqrt(2.0 / std.math.pi) * (x + 0.044715 * x * x * x)));
             }
             x: f32,
         };
@@ -132,12 +135,12 @@ pub const EnhancedBenchmarkSuite = struct {
         const BatchContext = struct {
             fn batchSigmoid(context: @This()) !void {
                 for (context.data) |*val| {
-                    val.* = ai.ActivationUtils.fastSigmoid(val.*);
+                    val.* = 1.0 / (1.0 + std.math.exp(-val.*));
                 }
             }
             fn batchTanh(context: @This()) !void {
                 for (context.data) |*val| {
-                    val.* = ai.ActivationUtils.fastTanh(val.*);
+                    val.* = std.math.tanh(val.*);
                 }
             }
             data: []f32,
@@ -163,7 +166,7 @@ pub const EnhancedBenchmarkSuite = struct {
     }
 
     fn benchmarkNeuralNetworkOperations(self: *EnhancedBenchmarkSuite) !void {
-        std.log.info("🔬 Benchmarking Neural Network Operations", .{});
+        // std.log.info("🔬 Benchmarking Neural Network Operations", .{});
 
         // Test different network sizes
         for (self.config.vector_dimensions) |dim| {
@@ -198,7 +201,7 @@ pub const EnhancedBenchmarkSuite = struct {
     }
 
     fn benchmarkSIMDOperations(self: *EnhancedBenchmarkSuite) !void {
-        std.log.info("⚡ Benchmarking SIMD Operations", .{});
+        // std.log.info("⚡ Benchmarking SIMD Operations", .{});
 
         for (self.config.data_sizes) |size| {
             const test_vectors = try framework.BenchmarkUtils.createTestVectors(self.allocator, size);
@@ -281,7 +284,7 @@ pub const EnhancedBenchmarkSuite = struct {
     }
 
     fn benchmarkVectorOperations(self: *EnhancedBenchmarkSuite) !void {
-        std.log.info("📐 Benchmarking Vector Operations", .{});
+        // std.log.info("📐 Benchmarking Vector Operations", .{});
 
         for (self.config.vector_dimensions) |dim| {
             const VectorContext = struct {
@@ -325,7 +328,7 @@ pub const EnhancedBenchmarkSuite = struct {
     }
 
     fn benchmarkMemoryManagement(self: *EnhancedBenchmarkSuite) !void {
-        std.log.info("💾 Benchmarking Memory Management", .{});
+        // std.log.info("💾 Benchmarking Memory Management", .{});
 
         for (self.config.data_sizes) |size| {
             const MemoryContext = struct {
@@ -368,7 +371,7 @@ pub const EnhancedBenchmarkSuite = struct {
     }
 
     fn benchmarkDatabaseOperations(self: *EnhancedBenchmarkSuite) !void {
-        std.log.info("🗄️ Benchmarking Database Operations", .{});
+        // std.log.info("🗄️ Benchmarking Database Operations", .{});
 
         // Simulate database operations
         const DbContext = struct {
@@ -426,16 +429,16 @@ pub const EnhancedBenchmarkSuite = struct {
     }
 
     fn benchmarkUtilityFunctions(self: *EnhancedBenchmarkSuite) !void {
-        std.log.info("🛠️ Benchmarking Utility Functions", .{});
+        // std.log.info("🛠️ Benchmarking Utility Functions", .{});
 
         // JSON operations
         const JsonContext = struct {
             fn jsonParse(context: @This()) !void {
-                var parsed = try utils.JsonUtils.parse(context.allocator, context.json_str);
+                var parsed = try utils.json.JsonUtils.parse(context.allocator, context.json_str);
                 defer parsed.deinit(context.allocator);
             }
             fn jsonStringify(context: @This()) !void {
-                const stringified = try utils.JsonUtils.stringify(context.allocator, context.json_value);
+                const stringified = try utils.json.JsonUtils.stringify(context.allocator, context.json_value);
                 defer context.allocator.free(stringified);
             }
             allocator: std.mem.Allocator,
