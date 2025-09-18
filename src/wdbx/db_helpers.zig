@@ -12,17 +12,17 @@ pub const DbStats = engine.Db.DbStats;
 pub const helpers = struct {
     pub fn parseVector(allocator: std.mem.Allocator, input: []const u8) ![]f32 {
         var parts = std.mem.splitScalar(u8, input, ',');
-        var values = std.ArrayList(f32).init(allocator);
-        errdefer values.deinit();
+        var values = try std.ArrayList(f32).initCapacity(allocator, 0);
+        errdefer values.deinit(allocator);
 
         while (parts.next()) |segment| {
             const trimmed = std.mem.trim(u8, segment, " \t\r\n");
             if (trimmed.len == 0) continue;
             const parsed = try std.fmt.parseFloat(f32, trimmed);
-            try values.append(parsed);
+            try values.append(allocator, parsed);
         }
 
-        return values.toOwnedSlice();
+        return try values.toOwnedSlice(allocator);
     }
 
     pub fn parseJsonVector(allocator: std.mem.Allocator, node: json.Value) ![]f32 {
@@ -33,19 +33,19 @@ pub const helpers = struct {
     }
 
     fn parseJsonArray(allocator: std.mem.Allocator, items: []const json.Value) ![]f32 {
-        var values = std.ArrayList(f32).init(allocator);
-        errdefer values.deinit();
+        var values = try std.ArrayList(f32).initCapacity(allocator, 0);
+        errdefer values.deinit(allocator);
 
         for (items) |item| {
             const parsed = switch (item) {
                 .float => |f| std.math.cast(f32, f) orelse return error.InvalidVectorPayload,
-                .integer => |i| @floatFromInt(f32, i),
+                .integer => |i| @as(f32, @floatFromInt(i)),
                 .number_string => |s| try std.fmt.parseFloat(f32, s),
                 else => return error.InvalidVectorPayload,
             };
-            try values.append(parsed);
+            try values.append(allocator, parsed);
         }
 
-        return values.toOwnedSlice();
+        return try values.toOwnedSlice(allocator);
     }
 };
