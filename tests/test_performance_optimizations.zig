@@ -136,7 +136,7 @@ test "string operations performance" {
     const iterations = 1000;
 
     std.debug.print("[DEBUG] Test string: {s} (length: {d})\n", .{ test_string, test_string.len });
-    std.debug.print("[DEBUG] Iterations: {d}\n", .{ iterations });
+    std.debug.print("[DEBUG] Iterations: {d}\n", .{iterations});
 
     std.debug.print("[DEBUG] Starting string operations performance test...\n", .{});
     var timer = try std.time.Timer.start();
@@ -159,9 +159,9 @@ test "string operations performance" {
     const elapsed = timer.read();
     const avg_time_per_iteration = @as(f64, @floatFromInt(elapsed)) / @as(f64, @floatFromInt(iterations));
 
-    std.debug.print("[DEBUG] String operations completed in {d} nanoseconds\n", .{ elapsed });
-    std.debug.print("[DEBUG] Average time per iteration: {d:.2} nanoseconds\n", .{ avg_time_per_iteration });
-    std.debug.print("[DEBUG] Total copies made: {d}\n", .{ total_copies });
+    std.debug.print("[DEBUG] String operations completed in {d} nanoseconds\n", .{elapsed});
+    std.debug.print("[DEBUG] Average time per iteration: {d:.2} nanoseconds\n", .{avg_time_per_iteration});
+    std.debug.print("[DEBUG] Total copies made: {d}\n", .{total_copies});
     std.debug.print("[DEBUG] Successful searches: {d}/{d}\n", .{ total_searches, iterations });
 
     try testing.expect(elapsed > 0);
@@ -368,5 +368,3 @@ test "data structure operations performance" {
     try testing.expect(list.items.len == iterations);
     try testing.expect(sum > 0.0);
 }
-
-

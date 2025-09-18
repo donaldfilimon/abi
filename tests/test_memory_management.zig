@@ -229,5 +229,3 @@ test "memory management - stack fallback allocation" {
         }
     }
 }
-
-

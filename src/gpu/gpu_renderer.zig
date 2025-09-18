@@ -561,5 +561,3 @@ test "GPU buffer creation" {
 
     renderer.destroyBuffer(buffer);
 }
-
-

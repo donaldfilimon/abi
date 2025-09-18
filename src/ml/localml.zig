@@ -330,5 +330,3 @@ test "Error handling" {
     try std.testing.expectError(MLError.InvalidParameters, model.train(&data, -0.1, 100));
     try std.testing.expectError(MLError.InvalidParameters, model.train(&data, 0.1, 0));
 }
-
-

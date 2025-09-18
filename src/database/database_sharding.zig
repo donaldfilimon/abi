@@ -134,5 +134,3 @@ test "sharded db basic insert and search" {
     defer allocator.free(results);
     try testing.expect(results.len > 0);
 }
-
-
