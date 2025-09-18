@@ -8,7 +8,8 @@
 //! - Export capabilities for CI/CD integration
 
 const std = @import("std");
-const utils = @import("../src/utils.zig");
+const builtin = @import("builtin");
+const utils = @import("abi").utils;
 
 /// Benchmark configuration with standardized settings
 pub const BenchmarkConfig = struct {
@@ -90,30 +91,52 @@ pub const BenchmarkResult = struct {
     }
 
     pub fn toJson(self: BenchmarkResult, allocator: std.mem.Allocator) ![]u8 {
-        var json = std.ArrayList(u8).init(allocator);
-        defer json.deinit();
+        var json = try std.ArrayList(u8).initCapacity(allocator, 0);
+        defer json.deinit(allocator);
 
         try json.appendSlice(allocator, "{\n");
-        try json.writer().print("  \"name\": \"{s}\",\n", .{self.name});
-        try json.writer().print("  \"category\": \"{s}\",\n", .{self.category});
-        try json.writer().print("  \"success\": {},\n", .{self.success});
-        try json.writer().print("  \"timestamp\": {},\n", .{self.timestamp});
-        try json.writer().print("  \"mean_time_ns\": {d:.2},\n", .{self.stats.mean_ns});
-        try json.writer().print("  \"throughput_ops_per_sec\": {d:.0},\n", .{self.stats.throughput_ops_per_sec});
-        try json.writer().print("  \"memory_usage_bytes\": {},\n", .{self.stats.memory_usage_bytes});
-        try json.writer().print("  \"std_deviation_ns\": {d:.2},\n", .{self.stats.std_deviation_ns});
-        try json.writer().print("  \"confidence_interval_95\": {{\n");
-        try json.writer().print("    \"lower\": {d:.2},\n", .{self.stats.confidence_interval_95.lower});
-        try json.writer().print("    \"upper\": {d:.2}\n", .{self.stats.confidence_interval_95.upper});
-        try json.appendSlice(allocator, "  },\n");
-        try json.writer().print("  \"platform\": {{\n");
-        try json.writer().print("    \"os\": \"{s}\",\n", .{self.platform_info.os});
-        try json.writer().print("    \"arch\": \"{s}\",\n", .{self.platform_info.arch});
-        try json.writer().print("    \"zig_version\": \"{s}\"\n", .{self.platform_info.zig_version});
-        try json.appendSlice(allocator, "  }\n");
+
+        // Format all fields directly
+        const json_content = try std.fmt.allocPrint(allocator,
+            \\  "name": "{s}",
+            \\  "category": "{s}",
+            \\  "success": {},
+            \\  "timestamp": {},
+            \\  "mean_time_ns": {d:.2},
+            \\  "throughput_ops_per_sec": {d:.0},
+            \\  "memory_usage_bytes": {},
+            \\  "std_deviation_ns": {d:.2},
+            \\  "confidence_interval_95": {{
+            \\    "lower": {d:.2},
+            \\    "upper": {d:.2}
+            \\  }},
+            \\  "platform": {{
+            \\    "os": "{s}",
+            \\    "arch": "{s}",
+            \\    "zig_version": "{s}"
+            \\  }}
+            \\
+        , .{
+            self.name,
+            self.category,
+            self.success,
+            self.timestamp,
+            self.stats.mean_ns,
+            self.stats.throughput_ops_per_sec,
+            self.stats.memory_usage_bytes,
+            self.stats.std_deviation_ns,
+            self.stats.confidence_interval_95.lower,
+            self.stats.confidence_interval_95.upper,
+            self.platform_info.os,
+            self.platform_info.arch,
+            self.platform_info.zig_version,
+        });
+        defer allocator.free(json_content);
+        try json.appendSlice(allocator, json_content);
+
         try json.appendSlice(allocator, "}");
 
-        return try json.toOwnedSlice();
+        return try json.toOwnedSlice(allocator);
     }
 };
 
@@ -126,10 +149,10 @@ pub const PlatformInfo = struct {
 
     pub fn init() PlatformInfo {
         return .{
-            .os = @tagName(std.builtin.os.tag),
-            .arch = @tagName(std.builtin.cpu.arch),
+            .os = @tagName(builtin.target.os.tag),
+            .arch = @tagName(builtin.cpu.arch),
             .zig_version = @import("builtin").zig_version_string,
-            .cpu_count = std.Thread.getCpuCount() catch 1,
+            .cpu_count = @as(u32, @intCast(std.Thread.getCpuCount() catch 1)),
         };
     }
 };
@@ -146,7 +169,7 @@ pub const BenchmarkSuite = struct {
         self.* = .{
             .allocator = allocator,
             .config = config,
-            .results = std.ArrayList(BenchmarkResult).init(allocator),
+            .results = try std.ArrayList(BenchmarkResult).initCapacity(allocator, 0),
             .platform_info = PlatformInfo.init(),
         };
         return self;
@@ -156,7 +179,7 @@ pub const BenchmarkSuite = struct {
         for (self.results.items) |*result| {
             result.deinit(self.allocator);
         }
-        self.results.deinit();
+        self.results.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -185,10 +208,8 @@ pub const BenchmarkSuite = struct {
             };
         }
 
-        // Force garbage collection if possible
-        if (self.allocator.rawResize) |resize_fn| {
-            _ = resize_fn;
-        }
+        // Force garbage collection/compaction if supported by allocator
+        // Note: rawResize was removed in newer Zig versions
 
         // Measurement phase
         var measurements = try self.allocator.alloc(u64, self.config.samples);
@@ -202,7 +223,7 @@ pub const BenchmarkSuite = struct {
                 iterations < self.config.measurement_iterations)
             {
                 const start_time = std.time.nanoTimestamp();
-                benchmark_fn(context) catch |err| {
+                _ = benchmark_fn(context) catch |err| {
                     const result = BenchmarkResult{
                         .name = name,
                         .category = category,
@@ -212,7 +233,7 @@ pub const BenchmarkSuite = struct {
                         .timestamp = std.time.milliTimestamp(),
                         .platform_info = self.platform_info,
                     };
-                    try self.results.append(result);
+                    try self.results.append(self.allocator, result);
                     return;
                 };
                 const end_time = std.time.nanoTimestamp();
@@ -254,7 +275,7 @@ pub const BenchmarkSuite = struct {
             .platform_info = self.platform_info,
         };
 
-        try self.results.append(result);
+        try self.results.append(self.allocator, result);
 
         // Log result
         std.log.info("✅ {s}: {d:.0} ops/sec ({d:.2}ns avg)", .{ name, stats.throughput_ops_per_sec, stats.mean_ns });
@@ -284,7 +305,7 @@ pub const BenchmarkSuite = struct {
         defer {
             var it = categories.iterator();
             while (it.next()) |entry| {
-                entry.value_ptr.deinit();
+                entry.value_ptr.deinit(self.allocator);
             }
             categories.deinit();
         }
@@ -292,9 +313,9 @@ pub const BenchmarkSuite = struct {
         for (self.results.items) |*result| {
             const entry = try categories.getOrPut(result.category);
             if (!entry.found_existing) {
-                entry.value_ptr.* = std.ArrayList(*BenchmarkResult).init(self.allocator);
+                entry.value_ptr.* = try std.ArrayList(*BenchmarkResult).initCapacity(self.allocator, 0);
             }
-            try entry.value_ptr.append(result);
+            try entry.value_ptr.append(self.allocator, result);
         }
 
         var it = categories.iterator();
@@ -356,16 +377,21 @@ pub const BenchmarkSuite = struct {
     }
 
     fn printJsonReport(self: *BenchmarkSuite) !void {
-        var json = std.ArrayList(u8).init(self.allocator);
-        defer json.deinit();
+        var json = try std.ArrayList(u8).initCapacity(self.allocator, 0);
+        defer json.deinit(self.allocator);
 
         try json.appendSlice(self.allocator, "{\n");
-        try json.writer().print("  \"platform\": {{\n");
-        try json.writer().print("    \"os\": \"{s}\",\n", .{self.platform_info.os});
-        try json.writer().print("    \"arch\": \"{s}\",\n", .{self.platform_info.arch});
-        try json.writer().print("    \"zig_version\": \"{s}\",\n", .{self.platform_info.zig_version});
-        try json.writer().print("    \"cpu_count\": {}\n", .{self.platform_info.cpu_count});
-        try json.appendSlice(self.allocator, "  },\n");
+
+        // Format platform info directly into the array
+        const platform_json = try std.fmt.allocPrint(self.allocator, "  \"platform\": {{\n    \"os\": \"{s}\",\n    \"arch\": \"{s}\",\n    \"zig_version\": \"{s}\",\n    \"cpu_count\": {}\n  }},\n", .{
+            self.platform_info.os,
+            self.platform_info.arch,
+            self.platform_info.zig_version,
+            self.platform_info.cpu_count,
+        });
+        defer self.allocator.free(platform_json);
+        try json.appendSlice(self.allocator, platform_json);
+
         try json.appendSlice(self.allocator, "  \"benchmarks\": [\n");
 
         for (self.results.items, 0..) |result, i| {
@@ -382,49 +408,55 @@ pub const BenchmarkSuite = struct {
         try json.appendSlice(self.allocator, "}\n");
 
         if (self.config.export_results) {
-            try std.fs.cwd().writeFile(self.config.export_path, json.items);
+            try std.fs.cwd().writeFile(.{ .sub_path = self.config.export_path, .data = json.items });
         } else {
             std.log.info("{s}", .{json.items});
         }
     }
 
     fn printCsvReport(self: *BenchmarkSuite) !void {
-        var csv = std.ArrayList(u8).init(self.allocator);
-        defer csv.deinit();
+        var csv = try std.ArrayList(u8).initCapacity(self.allocator, 0);
+        defer csv.deinit(self.allocator);
 
         // Header
         try csv.appendSlice(self.allocator, "name,category,mean_time_ns,throughput_ops_per_sec,memory_usage_bytes,std_deviation_ns,success\n");
 
         // Data rows
         for (self.results.items) |result| {
-            try csv.writer().print("{s},{s},{d:.2},{d:.0},{},{d:.2},{}\n", .{ result.name, result.category, result.stats.mean_ns, result.stats.throughput_ops_per_sec, result.stats.memory_usage_bytes, result.stats.std_deviation_ns, result.success });
+            const csv_row = try std.fmt.allocPrint(self.allocator, "{s},{s},{d:.2},{d:.0},{},{d:.2},{}\n", .{ result.name, result.category, result.stats.mean_ns, result.stats.throughput_ops_per_sec, result.stats.memory_usage_bytes, result.stats.std_deviation_ns, result.success });
+            defer self.allocator.free(csv_row);
+            try csv.appendSlice(self.allocator, csv_row);
         }
 
         if (self.config.export_results) {
-            try std.fs.cwd().writeFile(self.config.export_path, csv.items);
+            try std.fs.cwd().writeFile(.{ .sub_path = self.config.export_path, .data = csv.items });
         } else {
             std.log.info("{s}", .{csv.items});
         }
     }
 
     fn printMarkdownReport(self: *BenchmarkSuite) !void {
-        var md = std.ArrayList(u8).init(self.allocator);
-        defer md.deinit();
+        var md = try std.ArrayList(u8).initCapacity(self.allocator, 0);
+        defer md.deinit(self.allocator);
 
         try md.appendSlice(self.allocator, "# Benchmark Results\n\n");
-        try md.writer().print("**Platform:** {s} {s} (Zig {s})\n", .{ self.platform_info.os, self.platform_info.arch, self.platform_info.zig_version });
-        try md.writer().print("**CPU Cores:** {}\n", .{self.platform_info.cpu_count});
-        try md.appendSlice(self.allocator, "\n## Results\n\n");
 
+        const platform_md = try std.fmt.allocPrint(self.allocator, "**Platform:** {s} {s} (Zig {s})\n**CPU Cores:** {}\n", .{ self.platform_info.os, self.platform_info.arch, self.platform_info.zig_version, self.platform_info.cpu_count });
+        defer self.allocator.free(platform_md);
+        try md.appendSlice(self.allocator, platform_md);
+
+        try md.appendSlice(self.allocator, "\n## Results\n\n");
         try md.appendSlice(self.allocator, "| Name | Category | Throughput (ops/sec) | Mean Time (ns) | Memory (bytes) |\n");
         try md.appendSlice(self.allocator, "|------|----------|---------------------|----------------|----------------|\n");
 
         for (self.results.items) |result| {
-            try md.writer().print("| {s} | {s} | {d:.0} | {d:.2} | {} |\n", .{ result.name, result.category, result.stats.throughput_ops_per_sec, result.stats.mean_ns, result.stats.memory_usage_bytes });
+            const row_md = try std.fmt.allocPrint(self.allocator, "| {s} | {s} | {d:.0} | {d:.2} | {} |\n", .{ result.name, result.category, result.stats.throughput_ops_per_sec, result.stats.mean_ns, result.stats.memory_usage_bytes });
+            defer self.allocator.free(row_md);
+            try md.appendSlice(self.allocator, row_md);
         }
 
         if (self.config.export_results) {
-            try std.fs.cwd().writeFile(self.config.export_path, md.items);
+            try std.fs.cwd().writeFile(.{ .sub_path = self.config.export_path, .data = md.items });
         } else {
             std.log.info("{s}", .{md.items});
         }
@@ -501,12 +533,10 @@ fn calculateStats(
     @memcpy(sorted_measurements, measurements);
     std.mem.sort(u64, sorted_measurements, {}, std.sort.asc(u64));
 
-    const median = if (sorted_measurements.len % 2 == 0) {
+    const median = if (sorted_measurements.len % 2 == 0) blk: {
         const mid = sorted_measurements.len / 2;
-        @as(f64, @floatFromInt(sorted_measurements[mid - 1] + sorted_measurements[mid])) / 2.0;
-    } else {
-        @as(f64, @floatFromInt(sorted_measurements[sorted_measurements.len / 2]));
-    };
+        break :blk @as(f64, @floatFromInt(sorted_measurements[mid - 1] + sorted_measurements[mid])) / 2.0;
+    } else @as(f64, @floatFromInt(sorted_measurements[sorted_measurements.len / 2]));
 
     // Calculate 95% confidence interval (t-distribution approximation)
     const t_value_95 = 1.96; // Approximation for large samples
