@@ -4,13 +4,10 @@
 //! including vector operations, authentication, and monitoring endpoints.
 
 const std = @import("std");
-<<<<<<< HEAD:src/wdbx/http.zig
 const database = @import("./db_helpers.zig");
-=======
 const builtin = @import("builtin");
 const database = @import("../wdbx/database.zig");
 const ArrayList = std.ArrayList;
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b:src/server/wdbx_http.zig
 
 const version_string = "WDBX Vector Database v1.0.0";
 
@@ -224,7 +221,6 @@ pub const WdbxHttpServer = struct {
         var buffer = try self.allocator.alloc(u8, self.config.socket_buffer_size);
         defer self.allocator.free(buffer);
 
-<<<<<<< HEAD:src/wdbx/http.zig
         const bytes_read: usize = blk: {
             const builtin = @import("builtin");
             if (builtin.os.tag == .windows) {
@@ -271,7 +267,6 @@ pub const WdbxHttpServer = struct {
                     }
                 };
                 break :blk n;
-=======
         const bytes_read = connection.stream.read(buffer) catch |err| {
             switch (err) {
                 error.ConnectionResetByPeer, error.Unexpected => {
@@ -297,7 +292,6 @@ pub const WdbxHttpServer = struct {
                     std.debug.print("Unexpected read error: {}\n", .{err});
                     return err;
                 },
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b:src/server/wdbx_http.zig
             }
         };
 
@@ -346,7 +340,14 @@ pub const WdbxHttpServer = struct {
         try self.handleHttpRequest(connection, request);
     }
 
-    /// Parse HTTP request
+    // HTTP request structure
+    const HttpRequest = struct {
+        method: []const u8,
+        path: []const u8,
+        version: []const u8,
+    };
+
+    // Parse HTTP request
     fn parseHttpRequest(_: *Self, request_str: []const u8) !HttpRequest {
         var lines = std.mem.splitSequence(u8, request_str, "\r\n");
 
@@ -363,13 +364,6 @@ pub const WdbxHttpServer = struct {
             .version = version,
         };
     }
-
-    /// HTTP request structure
-    const HttpRequest = struct {
-        method: []const u8,
-        path: []const u8,
-        version: []const u8,
-    };
 
     /// Handle parsed HTTP request
     fn handleHttpRequest(self: *Self, connection: std.net.Server.Connection, request: HttpRequest) !void {
@@ -575,9 +569,7 @@ pub const WdbxHttpServer = struct {
         const results = try db.search(vector, k, self.allocator);
         defer self.allocator.free(results);
 
-<<<<<<< HEAD:src/wdbx/http.zig
         const body = try database.helpers.formatKnnResponse(self.allocator, k, results);
-=======
         // Format results
         var neighbors = try ArrayList(NeighborResult).initCapacity(self.allocator, results.len);
         defer neighbors.deinit(self.allocator);
@@ -590,7 +582,6 @@ pub const WdbxHttpServer = struct {
         }
 
         const body = try std.fmt.allocPrint(self.allocator, "{{\"success\":true,\"k\":{d},\"neighbors\":[{s}]}}", .{ k, try self.formatNeighbors(neighbors.items) });
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b:src/server/wdbx_http.zig
         defer self.allocator.free(body);
 
         try self.sendHttpResponse(connection, 200, "OK", body);
@@ -634,8 +625,6 @@ pub const WdbxHttpServer = struct {
     }
 
     /// Neighbor result structure
-<<<<<<< HEAD:src/wdbx/http.zig
-=======
     const NeighborResult = struct {
         index: u64,
         distance: f32,
@@ -657,18 +646,15 @@ pub const WdbxHttpServer = struct {
         return try values.toOwnedSlice();
     }
 
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b:src/server/wdbx_http.zig
     /// Format neighbors array for JSON output
     fn formatNeighbors(self: *Self, neighbors: []const NeighborResult) ![]const u8 {
         if (neighbors.len == 0) return self.allocator.dupe(u8, "");
 
-<<<<<<< HEAD:src/wdbx/http.zig
         for (neighbors, 0..) |neighbor, i| {
             if (i > 0) try buffer.appendSlice(self.allocator, ",");
             const item = try std.fmt.allocPrint(self.allocator, "{{\"index\":{d},\"distance\":{d}}}", .{ neighbor.index, neighbor.distance });
             defer self.allocator.free(item);
             try buffer.appendSlice(self.allocator, item);
-=======
         var buffer = try std.array_list.Managed(u8).initCapacity(self.allocator, neighbors.len * 48);
         errdefer buffer.deinit();
 
@@ -681,7 +667,6 @@ pub const WdbxHttpServer = struct {
             );
             defer self.allocator.free(chunk);
             try buffer.appendSlice(chunk);
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b:src/server/wdbx_http.zig
         }
 
         return try buffer.toOwnedSlice();

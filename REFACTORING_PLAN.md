@@ -498,13 +498,14 @@ pub const Encryption = struct {
 - **Storage**: Efficient vector storage with compression
 
 ## 🧪 **Testing Strategy**
+Refer to `docs/TESTING_STRATEGY.md` for detailed scope, tooling, and gating requirements.
 
 ### **Test Categories**
-1. **Unit Tests**: Individual component testing
-2. **Integration Tests**: Component interaction testing
-3. **Performance Tests**: Load and stress testing
-4. **Security Tests**: Vulnerability and penetration testing
-5. **End-to-End Tests**: Complete workflow testing
+1. **Unit Tests** - Validate pure logic, data structures, and error sets in `src/**` and mirrored `tests/` files; enforce >95% statement coverage and property-based cases; run via `zig build test`.
+2. **Integration Tests** - Exercise subsystem seams (agents with datastore, web server with plugins, GPU backends); run with feature flags such as `zig build test -Dgpu=true`; ensure connector and sharding contracts stay intact.
+3. **Performance Tests** - Stress throughput and latency targets for agents, vector search, web API, and plugin loading via `zig build -Doptimize=ReleaseFast perf`; fail CI on >5% regressions or unmet SLAs.
+4. **Security Tests** - Cover auth flows, validation, encryption, and dependency scanning using `tests/security/*`, fuzzers, and `zig build security-scan`; block merges on critical findings.
+5. **End-to-End Tests** - Simulate full agent lifecycles, plugin installs, and deployment flows with `zig build e2e`; assert telemetry, persistence, and rollback behavior.
 
 ### **Test Coverage**
 - **Code Coverage**: 95%+ for all modules

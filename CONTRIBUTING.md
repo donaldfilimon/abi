@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Contributing to Abi AI Framework
 
 Thank you for your interest in contributing to the Abi AI Framework! This document provides guidelines and instructions for contributing to the project.
@@ -219,7 +218,6 @@ Check the [issue tracker](https://github.com/donaldfilimon/abi/issues) for:
 - Check existing issues and PRs before starting work
 
 Thank you for contributing to Abi AI Framework!
-=======
 # 🤝 Contributing to Abi AI Framework
 
 > **Join us in building the future of high-performance AI development with Zig**
@@ -790,4 +788,3 @@ For feature requests:
 ---
 
 **Thank you for contributing to Abi AI Framework!**
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b

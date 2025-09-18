@@ -1,4 +1,3 @@
-<<<<<<< HEAD:src/database.zig
 //! WDBX-AI Vector Database - Production Implementation
 //!
 //! A high-performance, production-ready vector database with advanced features:
@@ -9,7 +8,6 @@
 //! - Comprehensive monitoring and metrics
 //! - Health monitoring and automatic recovery
 //! - Distributed sharding for horizontal scaling
-=======
 //! ABI Vector Database
 //!
 //! A high-performance, file-based vector database for storing and searching high-dimensional embeddings.
@@ -21,7 +19,6 @@
 //! - **Header (4096 bytes)**: Magic bytes, version, row count, dimensionality, and offset pointers
 //! - **Records Section**: Densely packed float32 vectors, each record is `dim * sizeof(f32)` bytes
 //! - **(Future)**: Index and schema blocks for ANN search and metadata
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b:src/wdbx/database.zig
 //!
 //! # Usage Example
 //!
@@ -498,7 +495,6 @@ pub const Db = struct {
             allocator.destroy(self);
             return DbError.UnsupportedVersion;
         }
-<<<<<<< HEAD:src/database.zig
         // Setup WAL (best-effort) and recover if needed
         self.db_path = allocator.dupe(u8, path) catch &[_]u8{};
         self.initWAL() catch |err| {
@@ -507,9 +503,7 @@ pub const Db = struct {
         self.recoverFromWAL() catch |err| {
             core.log.warn("WAL recovery failed: {any}", .{err});
         };
-=======
         try self.ensureReadBufferCapacity(@intCast(self.header.dim));
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b:src/wdbx/database.zig
         return self;
     }
 
@@ -1008,9 +1002,6 @@ pub const Db = struct {
     }
 };
 
-<<<<<<< HEAD:src/database.zig
-
-=======
 test "Db add/search round trip" {
     const path = "test_db_temp.wdbx";
     std.fs.cwd().deleteFile(path) catch {};
@@ -1077,4 +1068,3 @@ test "Db handles large dimensional embeddings" {
     try std.testing.expectEqual(@as(u64, 0), results[0].index);
     try std.testing.expect(results[0].score <= 1e-5);
 }
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b:src/wdbx/database.zig

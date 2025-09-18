@@ -9,13 +9,9 @@
 //! - Comprehensive error handling
 
 const std = @import("std");
-<<<<<<< HEAD
-const database = @import("./db_helpers.zig");
+const database = @import("database.zig");
 const wdbx_utils = @import("utils.zig");
 const core = @import("core");
-=======
-const database = @import("database.zig");
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
 
 /// Re-export database types for convenience
 pub const Db = database.Db;
@@ -142,13 +138,11 @@ pub const Options = struct {
     server_type: []const u8 = "http",
 
     pub fn deinit(self: *Options, allocator: std.mem.Allocator) void {
-<<<<<<< HEAD
         wdbx_utils.utils.freeOptional(allocator, self.db_path);
         wdbx_utils.utils.freeOptional(allocator, self.vector);
         wdbx_utils.utils.freeOptional(allocator, self.role);
         wdbx_utils.utils.freeOptional(allocator, self.config_file);
         wdbx_utils.utils.freeOptional(allocator, self.trace_file);
-=======
         // Free allocated memory safely
         if (self.db_path) |path| {
             allocator.free(path);
@@ -168,7 +162,6 @@ pub const Options = struct {
         if (self.host) |h| {
             allocator.free(h);
         }
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
     }
 };
 
@@ -359,17 +352,6 @@ pub const WdbxCLI = struct {
         try self.logger.info("HTTP server functionality moved to main framework CLI", .{});
         try self.logger.info("Use: abi config to manage server configuration", .{});
         return;
-
-<<<<<<< HEAD
-        // Auto-open database if provided via --db
-        if (self.options.db_path) |db_path| {
-            try server.openDatabase(db_path);
-            try self.logger.info("Opened database: {s}", .{db_path});
-        }
-
-        try self.logger.info("HTTP server started successfully", .{});
-        try server.run();
-=======
         // DISABLED: Server functionality moved to main CLI
         // const wdbx_http = @import("../server/wdbx_http.zig");
         // var server = try wdbx_http.WdbxHttpServer.init(self.allocator, .{
@@ -380,7 +362,6 @@ pub const WdbxCLI = struct {
         // defer server.deinit();
         // try self.logger.info("HTTP server started successfully", .{});
         // try server.run();
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
     }
 
     fn startTcpServer(self: *Self) !void {
@@ -484,10 +465,13 @@ pub const WdbxCLI = struct {
         try self.logger.info("Database loaded from: {s}", .{db_path});
     }
 
-<<<<<<< HEAD
     fn generateAuthToken(self: *Self, role: []const u8) ![]u8 {
         // Simple token generation - in production, use proper JWT
-=======
+        const timestamp = std.time.milliTimestamp();
+        const token = try std.fmt.allocPrint(self.allocator, "{s}_token_{d}", .{ role, timestamp });
+        return token;
+    }
+
     fn parseVectorString(self: *Self, s: []const u8) ![]f32 {
         var parts = std.mem.splitScalar(u8, s, ',');
         var values = std.ArrayList(f32).init(self.allocator);
@@ -504,7 +488,6 @@ pub const WdbxCLI = struct {
     }
 
     fn generateAuthCredential(self: *Self, role: []const u8) ![]u8 {
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
         const timestamp = std.time.milliTimestamp();
         var random_bytes: [32]u8 = undefined;
         std.crypto.random.bytes(&random_bytes);
@@ -682,11 +665,8 @@ pub fn main() !void {
     const command = Command.fromString(cmd_lower) orelse .help;
 
     var options = Options{ .command = command };
-<<<<<<< HEAD
-=======
     // NOTE: Deinit temporarily disabled due to memory issues
     // defer options.deinit(allocator);
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
 
     // Parse command line arguments
     while (args.next()) |arg| {

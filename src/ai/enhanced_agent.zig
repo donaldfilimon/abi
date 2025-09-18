@@ -886,9 +886,6 @@ test "enhanced agent memory management" {
     try testing.expect(agent.memory.items.len < 20);
 }
 
-<<<<<<< HEAD
-
-=======
 test "enhanced agent learning and search" {
     const testing = std.testing;
     const allocator = testing.allocator;
@@ -915,4 +912,3 @@ test "enhanced agent learning and search" {
     defer allocator.free(results);
     try testing.expect(results.len > 0);
 }
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b

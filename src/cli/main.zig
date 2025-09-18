@@ -1,12 +1,6 @@
 const std = @import("std");
 const abi = @import("abi");
-<<<<<<< HEAD
 const wdbx = abi.wdbx;
-
-pub fn main() !void {
-    // Run WDBX main (if it returns an error, propagate)
-    try wdbx.main();
-=======
 const gpu = abi.gpu;
 
 const CLI_VERSION = "1.0.0-alpha";
@@ -2213,5 +2207,4 @@ fn runMemoryBenchmark(allocator: std.mem.Allocator, size: usize, iterations: usi
     std.debug.print("Memory benchmark completed.\n");
     std.debug.print("Sequential copy: {d:.2}ms, {d:.2} GB/s\n", .{ copy_avg / 1000000.0, copy_bandwidth / 1000000000.0 });
     std.debug.print("Random access: {d:.2}ms, {d:.2} GB/s\n", .{ random_avg / 1000000.0, random_bandwidth / 1000000000.0 });
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
 }

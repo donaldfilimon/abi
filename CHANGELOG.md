@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Changelog
 
 All notable changes to the Abi AI Framework.
@@ -51,7 +50,6 @@ All notable changes to the Abi AI Framework.
 **Links:**
 - [Keep a Changelog](https://keepachangelog.com/)
 - [Semantic Versioning](https://semver.org/)
-=======
 # 📋 Changelog
 
 > **All notable changes to the Abi AI Framework will be documented in this file**
@@ -334,4 +332,3 @@ Each entry should include:
 **📋 This changelog is maintained by the Abi AI Framework team**
 
 **🚀 For the latest updates, check our [GitHub releases](https://github.com/yourusername/abi/releases)**
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
