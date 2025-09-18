@@ -1,0 +1,39 @@
+{
+  "timestamp": 1758202961061,
+  "test_duration_ms": 39,
+  "git_commit": "e68d0ee",
+  "platform": "windows-x86_64",
+  "performance": {
+    "avg_insert_time_ns": 85,
+    "avg_search_time_ns": 164,
+    "p50_search_time_ns": 200,
+    "p95_search_time_ns": 200,
+    "p99_search_time_ns": 200,
+    "std_dev_search_time_ns": 50.19,
+    "insert_qps": 8676036.79,
+    "search_qps": 4192872.12,
+    "coefficient_of_variation": 0.3060,
+    "stability_score": 69.4
+  },
+  "resources": {
+    "peak_memory_mb": 303,
+    "avg_memory_mb": 203,
+    "avg_cpu_percent": 58.0,
+    "cache_hit_rate": 97.00
+  },
+  "simd_micro": {
+    "n": 200000,
+    "add_ns": 356200,
+    "mul_ns": 100,
+    "scale_ns": 263100,
+    "norm_ns": 100,
+    "clamp_ns": 0,
+    "axpy_ns": 0,
+    "fma_ns": 0,
+    "sum_ns": 0,
+    "var_ns": 0,
+    "dot_ns": 535000,
+    "l1_ns": 0,
+    "mm_ns": 1000000
+  }
+}

@@ -586,6 +586,25 @@ pub fn build(b: *std.Build) void {
     const gpu_nn_integration_step = b.step("gpu-nn-integration", "Run GPU neural network integration demo");
     gpu_nn_integration_step.dependOn(&run_gpu_nn_integration.step);
 
+    // Transformer Architecture Example
+    const transformer_example_mod = b.addModule("transformer_example", .{
+        .root_source_file = b.path("examples/transformer_example.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "abi", .module = abi_mod },
+        },
+    });
+    const transformer_example_exe = b.addExecutable(.{
+        .name = "transformer_example",
+        .root_module = transformer_example_mod,
+    });
+    transformer_example_exe.root_module.addOptions("options", build_options);
+    b.installArtifact(transformer_example_exe);
+    const run_transformer_example = b.addRunArtifact(transformer_example_exe);
+    const transformer_example_step = b.step("transformer-example", "Run transformer architecture example");
+    transformer_example_step.dependOn(&run_transformer_example.step);
+
     const gpu_verify_step = b.step("gpu-verify", "Verify GPU functionality and backends");
     gpu_verify_step.dependOn(&run_gpu_demo.step);
 
