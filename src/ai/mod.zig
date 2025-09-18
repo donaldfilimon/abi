@@ -14,7 +14,7 @@
 //! - Optimized inline activation functions with compile-time constants
 
 const std = @import("std");
-const core = @import("../core/mod.zig");
+const core = @import("core");
 const simd = @import("simd");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
@@ -69,8 +69,18 @@ pub const ActivationUtils = struct {
         return @sqrt(x);
     }
 
-    /// Vectorized activation functions with manual loop unrolling
+    /// Vectorized ReLU activation with SIMD optimization
     pub inline fn vectorizedRelu(data: []f32) void {
+        // Use SIMD acceleration if available and beneficial
+        if (comptime std.simd.suggestVectorLength(f32)) |simd_len| {
+            if (simd_len >= 4 and data.len >= 8) {
+                if (simd.VectorOps.shouldUseSimd(data.len)) {
+                    return simd.VectorOps.vectorizedRelu(data);
+                }
+            }
+        }
+
+        // Fallback to scalar processing with loop unrolling
         var i: usize = 0;
         const len = data.len;
 
@@ -120,7 +130,18 @@ pub const ActivationUtils = struct {
         }
     }
 
+    /// Vectorized Leaky ReLU activation with SIMD optimization
     pub inline fn vectorizedLeakyRelu(data: []f32) void {
+        // Use SIMD acceleration if available and beneficial
+        if (comptime std.simd.suggestVectorLength(f32)) |simd_len| {
+            if (simd_len >= 4 and data.len >= 8) {
+                if (simd.VectorOps.shouldUseSimd(data.len)) {
+                    return simd.VectorOps.vectorizedLeakyRelu(data, LEAKY_RELU_SLOPE);
+                }
+            }
+        }
+
+        // Fallback to scalar processing with loop unrolling
         var i: usize = 0;
         const len = data.len;
 
@@ -1050,40 +1071,82 @@ pub const Layer = struct {
         return error.NotImplemented;
     }
 
-    fn forwardAttention(self: *Layer, _input: []const f32, _output: []f32) !void {
-        // Minimal pass-through to satisfy tests; real attention not implemented yet
-        _ = self;
-        @memcpy(_output, _input);
+    fn forwardAttention(self: *Layer, input: []const f32, output: []f32) !void {
+        if (self.weights == null) return error.WeightsNotInitialized;
+
+        const embed_dim = self.input_shape[1];
+        const num_heads = self.num_heads orelse 1;
+
+        // Use transformer module for attention computation
+        // Create temporary multi-head attention instance
+        var mha = try transformer.MultiHeadAttention.init(std.heap.page_allocator, embed_dim, num_heads);
+        defer mha.deinit(std.heap.page_allocator);
+
+        // For self-attention: query, key, and value are all the input
+        try mha.forward(input, input, input, output);
     }
 
-    fn forwardMultiHeadAttention(self: *Layer, _input: []const f32, _output: []f32) !void {
-        // Minimal pass-through to satisfy tests; real MHA not implemented yet
-        _ = self;
-        @memcpy(_output, _input);
+    fn forwardMultiHeadAttention(self: *Layer, input: []const f32, output: []f32) !void {
+        // Multi-head attention is handled by the transformer module
+        try self.forwardAttention(input, output);
     }
 
-    fn forwardTransformerBlock(self: *Layer, _input: []const f32, _output: []f32) !void {
-        // Transformer block implementation
-        _ = self;
-        _ = _input;
-        _ = _output;
-        return error.NotImplemented;
+    fn forwardTransformerBlock(self: *Layer, input: []const f32, output: []f32) !void {
+        if (self.weights == null) return error.WeightsNotInitialized;
+
+        // Create transformer block components
+        const embed_dim = self.input_shape[1];
+        const num_heads = self.num_heads orelse 8;
+        const ff_dim = embed_dim * 4; // Standard expansion factor
+
+        var block = try transformer.TransformerBlock.init(std.heap.page_allocator, embed_dim, num_heads, ff_dim, 0.1 // dropout rate
+        );
+        defer block.deinit(std.heap.page_allocator);
+
+        const seq_len = self.input_shape[0];
+        try block.forward(@constCast(input), seq_len);
+
+        // Copy result to output
+        @memcpy(output, input);
     }
 
-    fn forwardEmbedding(self: *Layer, _input: []const f32, _output: []f32) !void {
-        // Embedding layer implementation
-        _ = self;
-        _ = _input;
-        _ = _output;
-        return error.NotImplemented;
+    fn forwardEmbedding(self: *Layer, input: []const f32, output: []f32) !void {
+        if (self.weights == null) return error.WeightsNotInitialized;
+
+        const vocab_size = self.input_shape[0];
+        const embed_dim = self.output_shape[1];
+
+        // Create embedding layer
+        var embedding = try transformer.Embedding.init(std.heap.page_allocator, vocab_size, embed_dim);
+        defer embedding.deinit(std.heap.page_allocator);
+
+        // Copy weights from layer to embedding
+        if (self.weights.?.len >= vocab_size * embed_dim) {
+            @memcpy(embedding.weight_matrix, self.weights.?[0 .. vocab_size * embed_dim]);
+        }
+
+        // Convert float input to token indices (assuming they're already token indices)
+        const tokens = try std.heap.page_allocator.alloc(u32, input.len);
+        defer std.heap.page_allocator.free(tokens);
+
+        for (input, 0..) |val, i| {
+            tokens[i] = @intFromFloat(val); // Convert float to token index
+        }
+
+        try embedding.forward(tokens, output);
     }
 
-    fn forwardPositionalEncoding(self: *Layer, _input: []const f32, _output: []f32) !void {
-        // Positional encoding implementation
-        _ = self;
-        _ = _input;
-        _ = _output;
-        return error.NotImplemented;
+    fn forwardPositionalEncoding(self: *Layer, input: []const f32, output: []f32) !void {
+        const seq_len = self.input_shape[0];
+        const embed_dim = self.input_shape[1];
+
+        // Create positional encoding
+        var pos_encoding = try transformer.PositionalEncoding.init(std.heap.page_allocator, seq_len, embed_dim);
+        defer pos_encoding.deinit(std.heap.page_allocator);
+
+        // Copy input to output and add positional encoding
+        @memcpy(output, input);
+        pos_encoding.encode(output, seq_len);
     }
 
     fn forwardResidualConnection(self: *Layer, input: []const f32, output: []f32) !void {
@@ -1431,7 +1494,7 @@ pub const NeuralNetwork = struct {
     /// Train network on a single input-target pair
     pub fn trainStep(self: *NeuralNetwork, input: []const f32, target: []const f32) !f32 {
         if (input.len != self.input_shape[0] or target.len != self.output_shape[0]) {
-            return core.FrameworkError.InvalidDimensions;
+            return core.AbiError.InvalidInput;
         }
 
         // Forward pass
@@ -1502,7 +1565,7 @@ pub const NeuralNetwork = struct {
         var magic: [5]u8 = undefined;
         _ = try reader.read(&magic);
         if (!std.mem.eql(u8, &magic, "ZNNET")) {
-            return core.FrameworkError.InvalidData;
+            return core.AbiError.InvalidInput;
         }
 
         // Read version
@@ -2371,6 +2434,9 @@ pub const Loss = LossFunction;
 pub const Opt = Optimizer;
 pub const agent = @import("agent.zig");
 pub const enhanced_agent = @import("enhanced_agent.zig");
+pub const reinforcement_learning = @import("reinforcement_learning.zig");
+pub const distributed_training = @import("distributed_training.zig");
+pub const model_serialization = @import("model_serialization.zig");
 
 // Utility functions
 pub fn createMLP(allocator: std.mem.Allocator, layer_sizes: []const usize, activations: []const Activation) !*NeuralNetwork {

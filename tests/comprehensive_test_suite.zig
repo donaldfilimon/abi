@@ -375,7 +375,7 @@ fn testNeuralNetworkCreation() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const network = try neural_networks.NeuralNetwork.init(allocator, .{
+    const network = try ai_neural.NeuralNetwork.init(allocator, .{
         .input_size = 10,
         .hidden_sizes = &[_]u32{ 64, 32 },
         .output_size = 5,
@@ -392,7 +392,7 @@ fn testNeuralNetworkForwardPass() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const network = try neural_networks.NeuralNetwork.init(allocator, .{
+    const network = try ai_neural.NeuralNetwork.init(allocator, .{
         .input_size = 3,
         .hidden_sizes = &[_]u32{4},
         .output_size = 2,
@@ -417,7 +417,7 @@ fn testNeuralNetworkTraining() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const network = try neural_networks.NeuralNetwork.init(allocator, .{
+    const network = try ai_neural.NeuralNetwork.init(allocator, .{
         .input_size = 2,
         .hidden_sizes = &[_]u32{4},
         .output_size = 1,
@@ -588,7 +588,6 @@ fn testGPUBackendFallback() !void {
     defer backend.deinit();
 
     // Test fallback functionality
-    const is_gpu_available = backend.isGpuAvailable();
     // Should work regardless of GPU availability
     try testing.expect(true);
 }
@@ -732,7 +731,7 @@ fn testNeuralNetworkWithGPUBackend() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const network = try neural_networks.NeuralNetwork.init(allocator, .{
+    const network = try ai_neural.NeuralNetwork.init(allocator, .{
         .input_size = 10,
         .hidden_sizes = &[_]u32{ 64, 32 },
         .output_size = 5,
@@ -833,7 +832,7 @@ fn testEndToEndTrainingFlow() !void {
     const allocator = gpa.allocator();
 
     // Test complete training flow
-    const network = try neural_networks.NeuralNetwork.init(allocator, .{
+    const network = try ai_neural.NeuralNetwork.init(allocator, .{
         .input_size = 2,
         .hidden_sizes = &[_]u32{4},
         .output_size = 1,
@@ -900,7 +899,7 @@ fn testNeuralNetworkPerformance() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const network = try neural_networks.NeuralNetwork.init(allocator, .{
+    const network = try ai_neural.NeuralNetwork.init(allocator, .{
         .input_size = 100,
         .hidden_sizes = &[_]u32{ 200, 100 },
         .output_size = 50,
@@ -1065,10 +1064,6 @@ fn testInputValidation() !void {
 }
 
 fn testSQLInjectionProtection() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
     // Test SQL injection protection
     const malicious_input = "'; DROP TABLE users; --";
 
@@ -1077,10 +1072,6 @@ fn testSQLInjectionProtection() !void {
 }
 
 fn testXSSProtection() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
     // Test XSS protection
     const malicious_input = "<script>alert('xss')</script>";
 

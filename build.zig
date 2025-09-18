@@ -158,18 +158,111 @@ pub fn build(b: *std.Build) void {
     // MAIN APPLICATION MODULES
     // ========================================================================
 
-    // Root module - provides main ABI functionality
-    const root_mod = b.createModule(.{
-        .root_source_file = b.path("src/root.zig"),
+    // ========================================================================
+    // MODULE REGISTRATION
+    // ========================================================================
+
+    const core_mod = b.addModule("core", .{
+        .root_source_file = b.path("src/core/mod.zig"),
         .target = target,
     });
 
+    const simd_mod = b.addModule("simd", .{
+        .root_source_file = b.path("src/simd.zig"),
+        .target = target,
+    });
+
+    // AI module
+    const ai_mod = b.addModule("ai", .{
+        .root_source_file = b.path("src/ai/mod.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "core", .module = core_mod },
+            .{ .name = "simd", .module = simd_mod },
+        },
+    });
+
+    // GPU module
+    const gpu_mod = b.addModule("gpu", .{
+        .root_source_file = b.path("src/gpu/mod.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "core", .module = core_mod },
+            .{ .name = "simd", .module = simd_mod },
+        },
+    });
+
+    const abi_mod = b.addModule("abi", .{
+        .root_source_file = b.path("src/abi/mod.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "core", .module = core_mod },
+            .{ .name = "simd", .module = simd_mod },
+            .{ .name = "ai", .module = ai_mod },
+            .{ .name = "gpu", .module = gpu_mod },
+        },
+    });
+    abi_mod.addOptions("build_options", build_options);
+
+    // Services module
+    const services_mod = b.addModule("services", .{
+        .root_source_file = b.path("src/services/mod.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "core", .module = core_mod },
+        },
+    });
+
+    // Plugins module
+    const plugins_mod = b.addModule("plugins", .{
+        .root_source_file = b.path("src/plugins/mod.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "core", .module = core_mod },
+        },
+    });
+
+    // Connectors module
+    const connectors_mod = b.addModule("connectors", .{
+        .root_source_file = b.path("src/connectors/mod.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "core", .module = core_mod },
+            .{ .name = "plugins", .module = plugins_mod },
+        },
+    });
+
+    // WDBX database module
+    const wdbx_mod = b.addModule("wdbx", .{
+        .root_source_file = b.path("src/wdbx/mod.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "core", .module = core_mod },
+        },
+    });
+
+    const web_server_mod = b.addModule("web_server", .{
+        .root_source_file = b.path("src/server/web_server.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "abi", .module = abi_mod },
+        },
+    });
+
     // CLI module - provides command-line interface
-    const cli_mod = b.createModule(.{
+    const cli_mod = b.addModule("cli", .{
         .root_source_file = b.path("src/cli/main.zig"),
         .target = target,
         .imports = &.{
-            .{ .name = "abi", .module = root_mod },
+            .{ .name = "abi", .module = abi_mod },
+            .{ .name = "core", .module = core_mod },
+            .{ .name = "simd", .module = simd_mod },
+            .{ .name = "ai", .module = ai_mod },
+            .{ .name = "gpu", .module = gpu_mod },
+            .{ .name = "wdbx", .module = wdbx_mod },
+            .{ .name = "services", .module = services_mod },
+            .{ .name = "connectors", .module = connectors_mod },
+            .{ .name = "plugins", .module = plugins_mod },
         },
     });
 
@@ -220,10 +313,143 @@ pub fn build(b: *std.Build) void {
 
     // Test step
     const test_step = b.step("test", "Run unit tests");
-    const unit_tests = b.addTest(.{
-        .root_module = root_mod,
-    });
+    const unit_tests = b.addTest(.{ .root_module = abi_mod, .use_lld = true });
     unit_tests.root_module.addOptions("build_options", build_options);
+
+    const integration_mod = b.addModule("integration_tests", .{
+        .root_source_file = b.path("tests/main.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "abi", .module = abi_mod },
+        },
+    });
+    const integration_tests = b.addTest(.{
+        .root_module = integration_mod,
+    });
+    integration_tests.root_module.addOptions("build_options", build_options);
+    const run_integration_tests = b.addRunArtifact(integration_tests);
     const run_unit_tests = b.addRunArtifact(unit_tests);
     test_step.dependOn(&run_unit_tests.step);
+    test_step.dependOn(&run_integration_tests.step);
+
+    const bench_mod = b.addModule("benchmarks", .{
+        .root_source_file = b.path("benchmarks/main.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "abi", .module = abi_mod },
+        },
+    });
+    const bench_exe = b.addExecutable(.{
+        .name = "benchmarks",
+        .root_module = bench_mod,
+    });
+    bench_exe.root_module.addOptions("build_options", build_options);
+    const run_benchmarks = b.addRunArtifact(bench_exe);
+    const bench_step = b.step("bench", "Run benchmark suite");
+    bench_step.dependOn(&run_benchmarks.step);
+
+    const static_mod = b.addModule("static_analysis", .{
+        .root_source_file = b.path("tools/static_analysis.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "abi", .module = abi_mod },
+        },
+    });
+    const static_analyzer = b.addExecutable(.{
+        .name = "static_analysis",
+        .root_module = static_mod,
+    });
+    static_analyzer.root_module.addOptions("build_options", build_options);
+    const run_static = b.addRunArtifact(static_analyzer);
+    const static_step = b.step("static-analysis", "Run static analysis checks");
+    static_step.dependOn(&run_static.step);
+
+    const perf_mod = b.addModule("perf_guard", .{
+        .root_source_file = b.path("tools/perf_guard.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "abi", .module = abi_mod },
+        },
+    });
+    const perf_guard = b.addExecutable(.{
+        .name = "perf_guard",
+        .root_module = perf_mod,
+    });
+    perf_guard.root_module.addOptions("build_options", build_options);
+    const run_perf_guard = b.addRunArtifact(perf_guard);
+    const perf_step = b.step("perf-guard", "Run performance guard tool");
+    perf_step.dependOn(&run_perf_guard.step);
+
+    const docs_mod = b.addModule("docs_generator", .{
+        .root_source_file = b.path("tools/generate_api_docs.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "abi", .module = abi_mod },
+        },
+    });
+    const docs_exe = b.addExecutable(.{
+        .name = "generate_docs",
+        .root_module = docs_mod,
+    });
+    docs_exe.root_module.addOptions("build_options", build_options);
+    const run_docs = b.addRunArtifact(docs_exe);
+    const docs_step = b.step("docs", "Generate API documentation");
+    docs_step.dependOn(&run_docs.step);
+
+    const security_mod = b.addModule("security_scan", .{
+        .root_source_file = b.path("tools/advanced_code_analyzer.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "abi", .module = abi_mod },
+        },
+    });
+    const security_exe = b.addExecutable(.{
+        .name = "security_scan",
+        .root_module = security_mod,
+    });
+    security_exe.root_module.addOptions("build_options", build_options);
+    const run_security = b.addRunArtifact(security_exe);
+    const security_step = b.step("security-scan", "Run security analysis suite");
+    security_step.dependOn(&run_security.step);
+
+    const e2e_mod = b.addModule("e2e_tests", .{
+        .root_source_file = b.path("tests/test_web_server_e2e.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "abi", .module = abi_mod },
+            .{ .name = "web_server", .module = web_server_mod },
+        },
+    });
+    const e2e_tests = b.addTest(.{
+        .root_module = e2e_mod,
+    });
+    e2e_tests.root_module.addOptions("build_options", build_options);
+    const run_e2e = b.addRunArtifact(e2e_tests);
+    const e2e_step = b.step("e2e", "Run end-to-end test suite");
+    e2e_step.dependOn(&run_e2e.step);
+
+    const lint_cmd = b.addSystemCommand(&.{
+        b.graph.zig_exe,
+        "fmt",
+        "--check",
+        "build.zig",
+        "src/root.zig",
+        "src/abi/mod.zig",
+        "src/core/errors.zig",
+        "src/core/logging.zig",
+        "src/core/lifecycle.zig",
+        "src/core/mod.zig",
+    });
+    const lint_step = b.step("lint", "Run formatting lint checks");
+    lint_step.dependOn(&lint_cmd.step);
+
+    const ci_step = b.step("ci", "Run full CI pipeline");
+    ci_step.dependOn(test_step);
+    ci_step.dependOn(bench_step);
+    ci_step.dependOn(static_step);
+    ci_step.dependOn(perf_step);
+    ci_step.dependOn(security_step);
+    ci_step.dependOn(lint_step);
+    ci_step.dependOn(e2e_step);
+    ci_step.dependOn(docs_step);
 }

@@ -1,5 +1,5 @@
 const std = @import("std");
-const plugins = @import("../plugins/mod.zig");
+const plugins = @import("plugins");
 const types = plugins.types;
 const iface = plugins.interface;
 const connectors = @import("mod.zig");

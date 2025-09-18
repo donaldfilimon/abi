@@ -5,7 +5,6 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const abi = @import("../../root.zig");
 const Atomic = std.atomic.Value;
 
 /// Lock-free data structure errors

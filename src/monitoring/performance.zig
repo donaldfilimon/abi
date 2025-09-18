@@ -9,7 +9,7 @@
 //! - Platform-specific optimizations
 
 const std = @import("std");
-const core = @import("../core/mod.zig");
+const core = @import("core");
 const platform = @import("../platform.zig");
 const builtin = @import("builtin");
 const lockfree = @import("../ai/data_structures/lockfree.zig");

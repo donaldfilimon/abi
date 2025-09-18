@@ -13,9 +13,8 @@
 
 const std = @import("std");
 const math = std.math;
-const abi = @import("../root.zig");
-const core = @import("../core/mod.zig");
-const memory_tracker = @import("../monitoring/memory_tracker.zig");
+const core = @import("core");
+// Note: memory_tracker functionality moved to core module
 
 /// Re-export commonly used types
 pub const Allocator = std.mem.Allocator;
@@ -210,8 +209,7 @@ pub const MemoryPool = struct {
     config: PoolConfig,
     /// Parent allocator
     allocator: std.mem.Allocator,
-    /// Memory tracker (optional)
-    memory_tracker: ?*memory_tracker.MemoryProfiler = null,
+    /// Memory tracking disabled for now
     /// Liveness analysis state
     liveness_config: LivenessConfig = .{},
     /// Tracked buffers for liveness analysis - simplified
@@ -228,7 +226,6 @@ pub const MemoryPool = struct {
             .available_buffers = .{},
             .config = config,
             .allocator = allocator,
-            .memory_tracker = if (config.enable_tracking) memory_tracker.getGlobalProfiler() else null,
             .tracked_buffers = .{},
             .liveness_config = .{},
             .last_cleanup_time = 0,
@@ -281,17 +278,7 @@ pub const MemoryPool = struct {
         };
         buffer.in_use = true;
 
-        // Track allocation if enabled
-        if (self.memory_tracker) |tracker| {
-            _ = try tracker.recordAllocation(
-                @as(u64, @intCast(size * @sizeOf(f32))),
-                32, // Fixed alignment for now
-                @src().file,
-                @src().line,
-                "MemoryPool.allocBuffer",
-                null,
-            );
-        }
+        // Memory tracking disabled for now
 
         // Record access for liveness analysis
         self.recordBufferAccess(buffer);

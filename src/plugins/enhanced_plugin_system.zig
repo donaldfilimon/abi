@@ -11,7 +11,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const core = @import("../core/mod.zig");
+const core = @import("core");
 const config = @import("../core/config.zig");
 const errors = @import("../core/errors.zig");
 

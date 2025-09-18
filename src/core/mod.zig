@@ -26,70 +26,18 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+const errors = @import("errors.zig");
+const lifecycle = @import("lifecycle.zig");
+const logging_mod = @import("logging.zig");
+
 // =============================================================================
 // UNIFIED ERROR SYSTEM
 // =============================================================================
 
-/// Unified error types for the entire framework
-pub const AbiError = error{
-    // Core system errors
-    SystemNotInitialized,
-    SystemAlreadyInitialized,
-    InvalidConfiguration,
-    ResourceExhausted,
-
-    // Memory errors
-    OutOfMemory,
-    InvalidAllocation,
-    MemoryLeak,
-    BufferOverflow,
-    BufferUnderflow,
-
-    // I/O errors
-    FileNotFound,
-    PermissionDenied,
-    DiskFull,
-    NetworkError,
-    Timeout,
-
-    // Validation errors
-    InvalidInput,
-    InvalidState,
-    InvalidOperation,
-    DimensionMismatch,
-
-    // Performance errors
-    PerformanceThresholdExceeded,
-    ResourceLimitExceeded,
-    ConcurrencyError,
-
-    // AI/ML specific errors
-    ModelNotLoaded,
-    InvalidModel,
-    TrainingFailed,
-    InferenceFailed,
-
-    // Database errors
-    DatabaseError,
-    IndexError,
-    QueryError,
-    TransactionError,
-};
-
-/// Result type for operations that can fail
-pub fn Result(comptime T: type) type {
-    return std.meta.Result(T, AbiError);
-}
-
-/// Success result helper
-pub fn ok(comptime T: type, value: T) Result(T) {
-    return .{ .ok = value };
-}
-
-/// Error result helper
-pub fn err(comptime T: type, error_type: AbiError) Result(T) {
-    return .{ .err = error_type };
-}
+pub const AbiError = errors.AbiError;
+pub const Result = errors.Result;
+pub const ok = errors.ok;
+pub const err = errors.err;
 
 // =============================================================================
 // CORE TYPES AND UTILITIES
@@ -106,133 +54,21 @@ pub const AutoHashMap = std.AutoHashMap;
 // CORE SYSTEM INITIALIZATION
 // =============================================================================
 
-/// Core system state
-var core_initialized: bool = false;
-var global_allocator: ?Allocator = null;
-
 /// Initialize the core system
-/// Must be called before using any framework functionality
-pub fn init(allocator: Allocator) AbiError!void {
-    if (core_initialized) {
-        return AbiError.SystemAlreadyInitialized;
-    }
-
-    global_allocator = allocator;
-    core_initialized = true;
-
-    // Initialize logging system
-    try log.init(allocator);
-
-    log.info("Core system initialized", .{});
-}
-
+pub const init = lifecycle.init;
 /// Deinitialize the core system
-/// Should be called when shutting down the framework
-pub fn deinit() void {
-    if (!core_initialized) return;
-
-    log.info("Core system shutting down", .{});
-
-    // Cleanup logging
-    log.deinit();
-
-    global_allocator = null;
-    core_initialized = false;
-}
-
+pub const deinit = lifecycle.deinit;
 /// Get the global allocator
-/// Returns the allocator passed to init()
-pub fn getAllocator() Allocator {
-    if (global_allocator) |alloc| {
-        return alloc;
-    }
-    @panic("Core system not initialized. Call core.init() first.");
-}
-
+pub const getAllocator = lifecycle.getAllocator;
 /// Check if core system is initialized
-pub fn isInitialized() bool {
-    return core_initialized;
-}
+pub const isInitialized = lifecycle.isInitialized;
 
 // =============================================================================
 // LOGGING SYSTEM
 // =============================================================================
 
-/// Log levels
-pub const LogLevel = enum(u8) {
-    debug = 0,
-    info = 1,
-    warn = 2,
-    err = 3,
-    fatal = 4,
-
-    pub fn toString(self: LogLevel) []const u8 {
-        return switch (self) {
-            .debug => "DEBUG",
-            .info => "INFO",
-            .warn => "WARN",
-            .err => "ERROR",
-            .fatal => "FATAL",
-        };
-    }
-};
-
-/// Logging system
-pub const log = struct {
-    var allocator: ?Allocator = null;
-    var current_level: LogLevel = .info;
-    var enabled: bool = false;
-
-    /// Initialize logging system
-    pub fn init(alloc: Allocator) AbiError!void {
-        allocator = alloc;
-        enabled = true;
-    }
-
-    /// Deinitialize logging system
-    pub fn deinit() void {
-        enabled = false;
-        allocator = null;
-    }
-
-    /// Set log level
-    pub fn setLevel(level: LogLevel) void {
-        current_level = level;
-    }
-
-    /// Log a debug message
-    pub fn debug(comptime format: []const u8, args: anytype) void {
-        logMessage(.debug, format, args);
-    }
-
-    /// Log an info message
-    pub fn info(comptime format: []const u8, args: anytype) void {
-        logMessage(.info, format, args);
-    }
-
-    /// Log a warning message
-    pub fn warn(comptime format: []const u8, args: anytype) void {
-        logMessage(.warn, format, args);
-    }
-
-    /// Log an error message
-    pub fn err(comptime format: []const u8, args: anytype) void {
-        logMessage(.err, format, args);
-    }
-
-    /// Log a fatal message
-    pub fn fatal(comptime format: []const u8, args: anytype) void {
-        logMessage(.fatal, format, args);
-    }
-
-    /// Internal logging function
-    fn logMessage(level: LogLevel, comptime format: []const u8, args: anytype) void {
-        if (!enabled or @intFromEnum(level) < @intFromEnum(current_level)) return;
-
-        const timestamp = std.time.timestamp();
-        std.debug.print("[{}] {s}: " ++ format ++ "\n", .{ timestamp, level.toString() } ++ args);
-    }
-};
+pub const LogLevel = logging_mod.LogLevel;
+pub const log = logging_mod.log;
 
 // =============================================================================
 // RANDOM NUMBER GENERATION
@@ -382,8 +218,134 @@ pub const string = struct {
 };
 
 // =============================================================================
-// TIME UTILITIES
+// VECTOR & MATRIX OPERATIONS
 // =============================================================================
+
+pub const VectorOps = struct {
+    pub fn dotProduct(a: []const f32, b: []const f32) f32 {
+        const len = @min(a.len, b.len);
+        var acc: f32 = 0.0;
+        var i: usize = 0;
+        while (i < len) : (i += 1) {
+            acc += a[i] * b[i];
+        }
+        return acc;
+    }
+
+    pub fn add(result: []f32, a: []const f32, b: []const f32) void {
+        std.debug.assert(result.len == a.len and a.len == b.len);
+        for (result, a, b) |*r, av, bv| r.* = av + bv;
+    }
+
+    pub fn scale(result: []f32, input: []const f32, factor: f32) void {
+        std.debug.assert(result.len == input.len);
+        for (result, input) |*r, val| r.* = val * factor;
+    }
+
+    pub fn normalize(result: []f32, input: []const f32) void {
+        std.debug.assert(result.len == input.len);
+        const mag = l2Norm(input);
+        if (mag == 0.0) {
+            @memset(result, 0.0);
+            return;
+        }
+        const inv = 1.0 / mag;
+        for (result, input) |*r, val| r.* = val * inv;
+    }
+
+    pub fn vectorNormalize(result: []f32, input: []const f32) void {
+        normalize(result, input);
+    }
+
+    pub fn distance(a: []const f32, b: []const f32) f32 {
+        const len = @min(a.len, b.len);
+        var sum: f32 = 0.0;
+        var i: usize = 0;
+        while (i < len) : (i += 1) {
+            const diff = a[i] - b[i];
+            sum += diff * diff;
+        }
+        return std.math.sqrt(sum);
+    }
+
+    pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
+        const len = @min(a.len, b.len);
+        if (len == 0) return 0.0;
+        var dot: f32 = 0.0;
+        var mag_a: f32 = 0.0;
+        var mag_b: f32 = 0.0;
+        var i: usize = 0;
+        while (i < len) : (i += 1) {
+            const av = a[i];
+            const bv = b[i];
+            dot += av * bv;
+            mag_a += av * av;
+            mag_b += bv * bv;
+        }
+        if (mag_a == 0.0 or mag_b == 0.0) return 0.0;
+        return dot / (std.math.sqrt(mag_a) * std.math.sqrt(mag_b));
+    }
+
+    pub fn matrixMultiply(result: []f32, a: []const f32, b: []const f32, rows: usize, cols: usize, shared_dim: usize) void {
+        std.debug.assert(result.len >= rows * cols);
+        std.debug.assert(a.len >= rows * shared_dim);
+        std.debug.assert(b.len >= shared_dim * cols);
+        var row: usize = 0;
+        while (row < rows) : (row += 1) {
+            var col: usize = 0;
+            while (col < cols) : (col += 1) {
+                var acc: f32 = 0.0;
+                var k: usize = 0;
+                while (k < shared_dim) : (k += 1) {
+                    const a_idx = row * shared_dim + k;
+                    const b_idx = k * cols + col;
+                    acc += a[a_idx] * b[b_idx];
+                }
+                result[row * cols + col] = acc;
+            }
+        }
+    }
+
+    fn l2Norm(vec: []const f32) f32 {
+        var sum: f32 = 0.0;
+        for (vec) |v| sum += v * v;
+        return std.math.sqrt(sum);
+    }
+};
+
+pub fn matrixVectorMultiply(result: []f32, weights: []const f32, input: []const f32, rows: usize, cols: usize) void {
+    std.debug.assert(result.len >= rows);
+    std.debug.assert(weights.len >= rows * cols);
+    std.debug.assert(input.len >= cols);
+    var row: usize = 0;
+    while (row < rows) : (row += 1) {
+        var acc: f32 = 0.0;
+        var col: usize = 0;
+        while (col < cols) : (col += 1) {
+            acc += weights[row * cols + col] * input[col];
+        }
+        result[row] = acc;
+    }
+}
+
+pub fn matrixVectorMultiplyTranspose(result: []f32, weights: []const f32, input: []const f32, rows: usize, cols: usize) void {
+    std.debug.assert(result.len >= rows);
+    std.debug.assert(weights.len >= rows * cols);
+    std.debug.assert(input.len >= cols);
+    std.mem.set(f32, result, 0.0);
+    var col: usize = 0;
+    while (col < cols) : (col += 1) {
+        const input_val = input[col];
+        var row: usize = 0;
+        while (row < rows) : (row += 1) {
+            result[row] += weights[col * rows + row] * input_val;
+        }
+    }
+}
+
+// =============================================================================
+// TIME UTILITIES
+// =============================================================================// =============================================================================
 
 /// Time-related utilities
 pub const time = struct {

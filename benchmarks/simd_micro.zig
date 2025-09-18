@@ -1,5 +1,245 @@
+//! Enhanced SIMD Micro-benchmarks
+//!
+//! This benchmark provides detailed SIMD performance analysis:
+//! - Vector operations with statistical analysis
+//! - Cross-platform SIMD performance comparison
+//! - Memory access pattern optimization
+//! - Integration with the standardized benchmark framework
+
 const std = @import("std");
+const framework = @import("benchmark_framework.zig");
+const utils = @import("abi").utils;
 const abi = @import("abi");
+
+/// Enhanced SIMD micro-benchmark configuration
+pub const SIMDMicroBenchmarkConfig = struct {
+    framework_config: framework.BenchmarkConfig = .{
+        .warmup_iterations = 50,
+        .measurement_iterations = 1000,
+        .samples = 10,
+        .enable_memory_tracking = true,
+        .enable_detailed_stats = true,
+        .output_format = .console,
+    },
+    vector_sizes: []const usize = &[_]usize{ 100_000, 1_000_000, 10_000_000 },
+    matrix_sizes: []const usize = &[_]usize{ 32, 64, 128, 256 },
+};
+
+/// Enhanced SIMD micro-benchmark suite
+pub const EnhancedSIMDMicroBenchmarkSuite = struct {
+    framework_suite: *framework.BenchmarkSuite,
+    config: SIMDMicroBenchmarkConfig,
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator, config: SIMDMicroBenchmarkConfig) !*EnhancedSIMDMicroBenchmarkSuite {
+        const framework_suite = try framework.BenchmarkSuite.init(allocator, config.framework_config);
+        const self = try allocator.create(EnhancedSIMDMicroBenchmarkSuite);
+        self.* = .{
+            .framework_suite = framework_suite,
+            .config = config,
+            .allocator = allocator,
+        };
+        return self;
+    }
+
+    pub fn deinit(self: *EnhancedSIMDMicroBenchmarkSuite) void {
+        self.framework_suite.deinit();
+        self.allocator.destroy(self);
+    }
+
+    pub fn runAllBenchmarks(self: *EnhancedSIMDMicroBenchmarkSuite) !void {
+        std.log.info("⚡ Running Enhanced SIMD Micro-benchmarks", .{});
+        std.log.info("=========================================", .{});
+
+        // Vector operations
+        try self.benchmarkVectorOperations();
+
+        // Matrix operations
+        try self.benchmarkMatrixOperations();
+
+        // Mathematical functions
+        try self.benchmarkMathFunctions();
+
+        // Print comprehensive report
+        try self.framework_suite.printReport();
+    }
+
+    fn benchmarkVectorOperations(self: *EnhancedSIMDMicroBenchmarkSuite) !void {
+        std.log.info("📐 Benchmarking Vector Operations", .{});
+
+        for (self.config.vector_sizes) |size| {
+            const vectors = try self.createTestVectors(size);
+            defer {
+                self.allocator.free(vectors.a);
+                self.allocator.free(vectors.b);
+                self.allocator.free(vectors.result);
+            }
+
+            // Euclidean distance
+            const distance_context = struct {
+                fn euclideanDistance(context: @This()) !f32 {
+                    return abi.core.VectorOps.distance(context.a, context.b);
+                }
+                a: []f32,
+                b: []f32,
+            }{
+                .a = vectors.a,
+                .b = vectors.b,
+            };
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Euclidean Distance ({} elements)", .{size}), "Vector", distance_context.euclideanDistance, distance_context);
+
+            // Cosine similarity
+            const cosine_context = struct {
+                fn cosineSimilarity(context: @This()) !f32 {
+                    return abi.core.VectorOps.cosineSimilarity(context.a, context.b);
+                }
+                a: []f32,
+                b: []f32,
+            }{
+                .a = vectors.a,
+                .b = vectors.b,
+            };
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Cosine Similarity ({} elements)", .{size}), "Vector", cosine_context.cosineSimilarity, cosine_context);
+
+            // Vector addition
+            const add_context = struct {
+                fn vectorAdd(context: @This()) !void {
+                    for (context.result, context.a, 0..) |*rv, av, i| {
+                        rv.* = av + context.b[i % context.b.len];
+                    }
+                }
+                a: []f32,
+                b: []f32,
+                result: []f32,
+            }{
+                .a = vectors.a,
+                .b = vectors.b,
+                .result = vectors.result,
+            };
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Addition ({} elements)", .{size}), "Vector", add_context.vectorAdd, add_context);
+
+            // Vector sum
+            const sum_context = struct {
+                fn vectorSum(context: @This()) !f32 {
+                    var sum: f32 = 0;
+                    for (context.a) |v| sum += v;
+                    return sum;
+                }
+                a: []f32,
+            }{
+                .a = vectors.a,
+            };
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Sum ({} elements)", .{size}), "Vector", sum_context.vectorSum, sum_context);
+        }
+    }
+
+    fn benchmarkMatrixOperations(self: *EnhancedSIMDMicroBenchmarkSuite) !void {
+        std.log.info("🔢 Benchmarking Matrix Operations", .{});
+
+        for (self.config.matrix_sizes) |size| {
+            const matrices = try self.createTestMatrices(size, size, size);
+            defer {
+                self.allocator.free(matrices.a);
+                self.allocator.free(matrices.b);
+                self.allocator.free(matrices.result);
+            }
+
+            // Matrix multiplication
+            const mm_context = struct {
+                fn matrixMultiply(context: @This()) !void {
+                    const M = context.rows_a;
+                    const K = context.cols_a;
+                    const N = context.cols_b;
+
+                    for (0..M) |i| {
+                        for (0..N) |j| {
+                            var sum: f32 = 0;
+                            for (0..K) |k| {
+                                sum += context.a[i * K + k] * context.b[k * N + j];
+                            }
+                            context.result[i * N + j] = sum;
+                        }
+                    }
+                }
+                a: []f32,
+                b: []f32,
+                result: []f32,
+                rows_a: usize,
+                cols_a: usize,
+                cols_b: usize,
+            }{
+                .a = matrices.a,
+                .b = matrices.b,
+                .result = matrices.result,
+                .rows_a = size,
+                .cols_a = size,
+                .cols_b = size,
+            };
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Matrix Multiply ({}x{})", .{ size, size }), "Matrix", mm_context.matrixMultiply, mm_context);
+        }
+    }
+
+    fn benchmarkMathFunctions(self: *EnhancedSIMDMicroBenchmarkSuite) !void {
+        std.log.info("🧮 Benchmarking Mathematical Functions", .{});
+
+        const math_context = struct {
+            fn mathOperations(context: @This()) !f32 {
+                var result: f32 = 0.0;
+                for (context.data) |val| {
+                    result += @sin(val) + @cos(val) + @sqrt(if (val < 0) -val else val);
+                }
+                return result;
+            }
+            data: []f32,
+        }{
+            .data = try self.createTestData(10000),
+        };
+        defer self.allocator.free(math_context.data);
+
+        try self.framework_suite.runBenchmark("Mathematical Functions (sin, cos, sqrt)", "Math", math_context.mathOperations, math_context);
+    }
+
+    // Helper functions
+    fn createTestVectors(self: *EnhancedSIMDMicroBenchmarkSuite, size: usize) !struct { a: []f32, b: []f32, result: []f32 } {
+        const a = try self.allocator.alloc(f32, size);
+        const b = try self.allocator.alloc(f32, size);
+        const result = try self.allocator.alloc(f32, size);
+
+        fillLinear(a, 1.0);
+        fillLinear(b, 0.5);
+
+        return .{ .a = a, .b = b, .result = result };
+    }
+
+    fn createTestMatrices(self: *EnhancedSIMDMicroBenchmarkSuite, rows: usize, cols_a: usize, cols_b: usize) !struct { a: []f32, b: []f32, result: []f32 } {
+        const a = try self.allocator.alloc(f32, rows * cols_a);
+        const b = try self.allocator.alloc(f32, cols_a * cols_b);
+        const result = try self.allocator.alloc(f32, rows * cols_b);
+
+        for (a, 0..) |*val, i| {
+            val.* = @as(f32, @floatFromInt((i * 7) % 31)) * 0.03125;
+        }
+
+        for (b, 0..) |*val, i| {
+            val.* = @as(f32, @floatFromInt((i * 11) % 29)) * 0.03448;
+        }
+
+        return .{ .a = a, .b = b, .result = result };
+    }
+
+    fn createTestData(self: *EnhancedSIMDMicroBenchmarkSuite, size: usize) ![]f32 {
+        const data = try self.allocator.alloc(f32, size);
+        for (data, 0..) |*val, i| {
+            val.* = @as(f32, @floatFromInt(i % 1000)) * 0.001;
+        }
+        return data;
+    }
+};
 
 fn fillLinear(buf: []f32, mul: f32) void {
     for (buf, 0..) |*v, i| v.* = mul * @as(f32, @floatFromInt(i % 100));
@@ -10,69 +250,9 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var timer = try std.time.Timer.start();
+    const config = SIMDMicroBenchmarkConfig{};
+    var suite = try EnhancedSIMDMicroBenchmarkSuite.init(allocator, config);
+    defer suite.deinit();
 
-    const N = 1_000_000; // 1M elements
-    const a = try allocator.alloc(f32, N);
-    defer allocator.free(a);
-    const b = try allocator.alloc(f32, N);
-    defer allocator.free(b);
-    const r = try allocator.alloc(f32, N);
-    defer allocator.free(r);
-
-    fillLinear(a, 1.0);
-    fillLinear(b, 0.5);
-
-    // Euclidean distance
-    timer.reset();
-    const dist_val = abi.core.VectorOps.distance(a, b);
-    const dist_ns = timer.read();
-
-    // Cosine similarity
-    timer.reset();
-    const cos_val = abi.core.VectorOps.cosineSimilarity(a, b);
-    const cos_ns = timer.read();
-
-    // Simple scalar operations for comparison
-    timer.reset();
-    for (r, a, 0..) |*rv, av, i| {
-        rv.* = av + b[i % b.len];
-    }
-    const add_ns = timer.read();
-
-    timer.reset();
-    var sum_val: f32 = 0;
-    for (a) |v| sum_val += v;
-    const sum_ns = timer.read();
-
-    // Unused constants removed to avoid warnings
-    const mean_val = if (a.len > 0) sum_val / @as(f32, @floatFromInt(a.len)) else 0;
-
-    // Matrix multiply (simplified scalar version)
-    timer.reset();
-    const M: usize = 64;
-    const K: usize = 32;
-    const Ncol: usize = 32;
-    const mat_a = try allocator.alloc(f32, M * K);
-    defer allocator.free(mat_a);
-    const mat_b = try allocator.alloc(f32, K * Ncol);
-    defer allocator.free(mat_b);
-    const mat_r = try allocator.alloc(f32, M * Ncol);
-    defer allocator.free(mat_r);
-    for (mat_a, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 7) % 31)) * 0.03125;
-    for (mat_b, 0..) |*v, i| v.* = @as(f32, @floatFromInt((i * 11) % 29)) * 0.03448;
-
-    // Simple scalar matrix multiply
-    for (0..M) |i| {
-        for (0..Ncol) |j| {
-            var sum: f32 = 0;
-            for (0..K) |k| {
-                sum += mat_a[i * K + k] * mat_b[k * Ncol + j];
-            }
-            mat_r[i * Ncol + j] = sum;
-        }
-    }
-    const mm_ns = timer.read();
-
-    std.debug.print("SIMD micro (N={d})\n  distance={d}ns dist_val={d:.3} cosine={d}ns cos_val={d:.3}\n  add={d}ns sum={d}ns sum_val={d:.3} mean={d:.3}\n  mm({d}x{d} * {d}x{d})={d}ns\n", .{ N, dist_ns, dist_val, cos_ns, cos_val, add_ns, sum_ns, sum_val, mean_val, M, K, K, Ncol, mm_ns });
+    try suite.runAllBenchmarks();
 }

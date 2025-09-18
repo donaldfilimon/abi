@@ -12,3 +12,5 @@ pub const ServerConfig = wdbx_http.ServerConfig;
 
 // Re-export functions
 pub const createServer = wdbx_http.WdbxHttpServer.init;
+pub const HttpError = wdbx_http.HttpError;
+pub const Response = wdbx_http.Response;

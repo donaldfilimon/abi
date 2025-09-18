@@ -13,13 +13,9 @@
 
 const std = @import("std");
 const math = std.math;
-const core = @import("../core/mod.zig");
-const abi = @import("../root.zig");
+const abi = @import("abi");
 const simd = @import("../simd/mod.zig");
-const memory_tracker = @import("../perf/memory_tracker.zig");
-========
-const abi = @import("../root.zig");
-const core = @import("../core/mod.zig");
+const core = @import("core");
 const memory_tracker = @import("../monitoring/memory_tracker.zig");
 
 /// Re-export commonly used types
@@ -761,7 +757,7 @@ pub const Layer = struct {
                 input,
                 self.weights[weights_start..weights_end],
             ) + self.biases[i];
-========
+
             // Simple dot product implementation
             var sum: f32 = 0.0;
             for (input, self.weights[weights_start..weights_end]) |a, b| {
@@ -1224,6 +1220,3 @@ test "neural network basics" {
     const loss = try nn.trainStep(&input, &target, 0.1);
     try testing.expect(loss >= 0);
 }
-
-
-

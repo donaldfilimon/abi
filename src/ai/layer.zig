@@ -5,7 +5,7 @@
 
 const std = @import("std");
 
-const core = @import("../core/mod.zig");
+const core = @import("core");
 const activation = @import("activation.zig");
 
 const Allocator = std.mem.Allocator;
@@ -976,7 +976,6 @@ pub const Layer = struct {
     }
 
     fn applyInitializationScheme(self: *Self, weights: []f32, rng: *std.Random, input_size: usize, output_size: usize, init_type: WeightInit) void {
-        _ = self;
         switch (init_type) {
             .xavier_uniform, .glorot_uniform => {
                 const limit = @sqrt(6.0 / @as(f32, @floatFromInt(input_size + output_size)));
@@ -2200,7 +2199,7 @@ test "layer orthogonal initialization columns" {
     const allocator = std.testing.allocator;
     const rows: usize = 6;
     const cols: usize = 4;
-    var weights = try allocator.alloc(f32, rows * cols);
+    const weights = try allocator.alloc(f32, rows * cols);
     defer allocator.free(weights);
 
     var prng = std.Random.DefaultPrng.init(12345);
@@ -2233,7 +2232,7 @@ test "layer orthogonal initialization rows" {
     const allocator = std.testing.allocator;
     const rows: usize = 3;
     const cols: usize = 6;
-    var weights = try allocator.alloc(f32, rows * cols);
+    const weights = try allocator.alloc(f32, rows * cols);
     defer allocator.free(weights);
 
     var prng = std.Random.DefaultPrng.init(6789);

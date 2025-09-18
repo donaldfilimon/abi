@@ -9,9 +9,7 @@
 //! - Platform-specific optimizations
 
 const std = @import("std");
-const core = @import("../core/mod.zig");
-const lockfree = @import("../lockfree.zig");
-========
+const core = @import("core");
 const lockfree = @import("../ai/data_structures/lockfree.zig");
 const platform = @import("../platform.zig");
 const builtin = @import("builtin");
@@ -463,5 +461,3 @@ test "histogram percentiles" {
     try testing.expect(histogram.total_count == 5);
     try testing.expect(histogram.percentile(0.5) >= 0.01);
 }
-
-
