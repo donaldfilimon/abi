@@ -13,7 +13,6 @@
 
 const std = @import("std");
 const math = std.math;
-<<<<<<<< HEAD:src/ml/neural.zig
 const core = @import("../core/mod.zig");
 const abi = @import("../root.zig");
 const simd = @import("../simd/mod.zig");
@@ -22,7 +21,6 @@ const memory_tracker = @import("../perf/memory_tracker.zig");
 const abi = @import("../root.zig");
 const core = @import("../core/mod.zig");
 const memory_tracker = @import("../monitoring/memory_tracker.zig");
->>>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b:src/ai/neural.zig
 
 /// Re-export commonly used types
 pub const Allocator = std.mem.Allocator;
@@ -759,7 +757,6 @@ pub const Layer = struct {
         while (i < self.output_size) : (i += 1) {
             const weights_start = i * self.input_size;
             const weights_end = weights_start + self.input_size;
-<<<<<<<< HEAD:src/ml/neural.zig
             output[i] = simd.dotProduct(
                 input,
                 self.weights[weights_start..weights_end],
@@ -771,7 +768,6 @@ pub const Layer = struct {
                 sum += a * b;
             }
             output[i] = sum + self.biases[i];
->>>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b:src/ai/neural.zig
             output[i] = self.activation.apply(output[i]);
         }
 

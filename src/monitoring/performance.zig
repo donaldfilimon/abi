@@ -9,14 +9,10 @@
 //! - Platform-specific optimizations
 
 const std = @import("std");
-<<<<<<<< HEAD:src/perf/performance.zig
 const core = @import("../core/mod.zig");
-const lockfree = @import("../lockfree.zig");
-========
-const lockfree = @import("../ai/data_structures/lockfree.zig");
->>>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b:src/monitoring/performance.zig
 const platform = @import("../platform.zig");
 const builtin = @import("builtin");
+const lockfree = @import("../ai/data_structures/lockfree.zig");
 
 /// Re-export commonly used types
 pub const Allocator = std.mem.Allocator;
@@ -465,5 +461,3 @@ test "histogram percentiles" {
     try testing.expect(histogram.total_count == 5);
     try testing.expect(histogram.percentile(0.5) >= 0.01);
 }
-
-

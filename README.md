@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Abi AI Framework
 
 Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency, and platform-optimized implementations.
@@ -172,7 +171,6 @@ MIT License - see [LICENSE](LICENSE)
 
 - [Documentation](docs/)
 - [Issues](https://github.com/donaldfilimon/abi/issues)
-=======
 # 🚀 Abi AI Framework
 
 > **Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency, advanced monitoring, and platform-optimized implementations for Zig development.**
@@ -618,4 +616,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **⭐ Star this repository if you find it useful!**
 
 **🚀 Ready to build the future of AI with Zig? Get started with Abi AI Framework today!**
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b

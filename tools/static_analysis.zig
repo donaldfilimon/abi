@@ -180,12 +180,10 @@ pub const StaticAnalyzer = struct {
         };
         defer file.close();
 
-<<<<<<< HEAD
         const max_bytes: usize = 10 * 1024 * 1024;
         const file_size_u64 = file.getEndPos() catch 0;
         const to_read_u64 = if (file_size_u64 > @as(u64, max_bytes)) @as(u64, max_bytes) else file_size_u64;
         const to_read: usize = @intCast(to_read_u64);
-=======
         // Read file with efficient memory management
         const st = try file.stat();
         const max_bytes: usize = 10 * 1024 * 1024;
@@ -198,7 +196,6 @@ pub const StaticAnalyzer = struct {
         const buf = try arena_allocator.alloc(u8, to_read);
         const n = try file.readAll(buf);
         const content = buf[0..n];
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
 
         const content = try self.allocator.alloc(u8, to_read);
         errdefer self.allocator.free(content);
@@ -304,7 +301,6 @@ pub const StaticAnalyzer = struct {
             try self.addFinding(file_path, line_number, 1, .warning, "Unsafe pointer cast - verify type safety", "security.pointer_safety", line, "Ensure the cast is safe and consider using @alignCast if needed", 0.8);
         }
 
-<<<<<<< HEAD
         // Check for hardcoded secrets/passwords (more precise detection)
         const has_secret_keyword = std.mem.indexOf(u8, line, "password") != null or
             std.mem.indexOf(u8, line, "secret") != null or
@@ -324,7 +320,6 @@ pub const StaticAnalyzer = struct {
                 std.mem.indexOf(u8, line, "@import") == null)
             {
                 try self.addFinding(file_path, line_number, 1, .err, "Potential hardcoded credential", "security.hardcoded_secrets");
-=======
         // Enhanced secret detection (tuned to reduce false positives)
         const secret_patterns = [_][]const u8{ "password", "secret", "token", "api_key", "apikey", "private_key", "credentials" };
 
@@ -355,7 +350,6 @@ pub const StaticAnalyzer = struct {
                 const severity: Severity = if (std.mem.indexOf(u8, line, "\"") != null) .critical else .err;
                 try self.addFinding(file_path, line_number, 1, severity, "Potential hardcoded credential", "security.hardcoded_secrets", line, "Use environment variables or secure configuration management", 0.9);
                 break;
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
             }
         }
 

@@ -36,11 +36,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-<<<<<<< HEAD
 // =============================================================================
 // CORE MODULE IMPORTS
 // =============================================================================
-=======
 // Import consolidated modules
 pub const database = @import("wdbx/database.zig");
 // SIMD functionality is now part of core
@@ -54,32 +52,10 @@ pub const core = @import("core/mod.zig");
 pub const gpu = @import("gpu/mod.zig");
 pub const connectors = @import("connectors/mod.zig");
 pub const services = @import("services/mod.zig");
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
 
 // Core utilities and error handling
-pub const core = @import("core");
 pub const AbiError = core.AbiError;
 pub const Result = core.Result;
-
-// =============================================================================
-// FEATURE MODULES
-// =============================================================================
-
-// Database and storage
-pub const database = @import("database");
-pub const sharding = @import("database/database_sharding.zig");
-
-// SIMD and performance
-pub const simd = @import("simd");
-
-// AI and machine learning
-pub const ai = @import("ai");
-
-// WDBX utilities and CLI
-pub const wdbx = @import("wdbx/unified.zig");
-
-// Plugin system
-pub const plugins = @import("plugins");
 
 // Organized modules (import directly when needed)
 // net/ - Networking: http_client.zig, curl_wrapper.zig
@@ -100,17 +76,10 @@ pub const Db = database.Db;
 pub const DbError = database.DbError;
 pub const WdbxHeader = database.WdbxHeader;
 
-<<<<<<< HEAD
 // SIMD types
-pub const Vector = simd.Vector;
-pub const VectorOps = simd.VectorOps;
-pub const MatrixOps = simd.MatrixOps;
-=======
-// Re-export SIMD operations from core
 pub const Vector = core.Vector;
 pub const VectorOps = core.VectorOps;
 pub const MatrixOps = core.MatrixOps;
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
 
 // AI types
 pub const NeuralNetwork = ai.NeuralNetwork;
@@ -120,24 +89,17 @@ pub const Layer = ai.Layer;
 pub const Activation = ai.Activation;
 pub const DynamicPersonaRouter = ai.DynamicPersonaRouter;
 
-<<<<<<< HEAD
 // Organized module types (import modules directly when needed)
 
 // Core utilities
-pub const Allocator = core.Allocator;
-pub const ArrayList = core.ArrayList;
-pub const HashMap = core.HashMap;
+pub const Allocator = std.mem.Allocator;
+pub const ArrayList = std.ArrayList;
+pub const HashMap = std.HashMap;
 pub const random = core.random;
 pub const string = core.string;
 pub const time = core.time;
 pub const log = core.log;
 pub const performance_core = core.performance;
-=======
-// Re-export standard library utilities
-pub const Allocator = std.mem.Allocator;
-pub const ArrayList = std.ArrayList;
-pub const HashMap = std.HashMap;
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
 
 // WDBX utilities
 pub const Command = wdbx.Command;
@@ -209,7 +171,6 @@ pub fn isInitialized() bool {
 
 /// Main application entry point
 pub fn main() !void {
-<<<<<<< HEAD
     const stdout = std.io.getStdOut().writer();
 
     // Initialize framework
@@ -229,26 +190,9 @@ pub fn main() !void {
     try stdout.print("  zig build benchmark   - Run performance benchmarks\n", .{});
     try stdout.print("  zig build run         - Start CLI application\n", .{});
     try stdout.print("  zig build run-server  - Start HTTP server\n", .{});
-=======
     // Simple main function - I/O functions have changed in Zig 0.15.1
     // For now, just return successfully
     std.log.info("ABI Vector Database initialized", .{});
-}
-
-/// Initialize the ABI system
-pub fn init(allocator: std.mem.Allocator) !void {
-    // Initialize core systems
-    _ = allocator;
-
-    // Log system initialization
-    std.log.info("ABI system initialized", .{});
-}
-
-/// Cleanup the ABI system
-pub fn deinit() void {
-    // Cleanup resources
-    std.log.info("ABI system shutdown complete", .{});
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
 }
 
 /// Get system information
@@ -354,18 +298,10 @@ pub fn runSystemTest() !void {
     try network.forward(&vector_a, output);
 
     // Test core utilities
-<<<<<<< HEAD
-    const random_val = core.random.intRangeLessThan(u32, 1, 101);
-    try testing.expect(random_val >= 1 and random_val <= 100);
-
-    const trimmed = try core.string.trim(testing.allocator, "  test  ");
-    defer testing.allocator.free(trimmed);
-=======
     const random_val = @as(u32, @intCast(std.hash_map.hashString("test") % 100)) + 1;
     try testing.expect(random_val >= 1 and random_val <= 100);
 
     const trimmed = std.mem.trim(u8, "  test  ", " ");
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
     try testing.expectEqualStrings("test", trimmed);
 
     // Test tracing functionality
@@ -443,15 +379,9 @@ test "Module integration" {
     defer allocator.free(output);
     try network.forward(&vector, output);
 
-<<<<<<< HEAD
-    // Use core utilities
-    const random_val = core.random.intRangeLessThan(u32, 1, 11);
-=======
     // Use standard library utilities
     const random_val = @as(u32, @intCast(std.hash_map.hashString("integration") % 10)) + 1;
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
     try testing.expect(random_val >= 1 and random_val <= 10);
 
     std.log.info("Module integration test completed", .{});
 }
-

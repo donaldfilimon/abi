@@ -14,15 +14,11 @@
 //! - Optimized inline activation functions with compile-time constants
 
 const std = @import("std");
-<<<<<<< HEAD
-const core = @import("core");
-const simd = @import("simd");
-=======
 const core = @import("../core/mod.zig");
+const simd = @import("simd");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Random = std.Random;
->>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
 
 // Compile-time mathematical constants for optimized activation functions
 const EULER_CONSTANT = std.math.e;
