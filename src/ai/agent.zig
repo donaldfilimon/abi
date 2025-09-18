@@ -1419,4 +1419,3 @@ test "cache functionality" {
     const retrieved = cache.get(123);
     try testing.expect(retrieved != null);
     try testing.expectEqualStrings("test data", retrieved.?);
-}
