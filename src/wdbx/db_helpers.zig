@@ -1,6 +1,6 @@
 const std = @import("std");
 const json = std.json;
-const engine = @import("database");
+const engine = @import("./database.zig");
 
 pub const Db = engine.Db;
 pub const DatabaseError = engine.DatabaseError;

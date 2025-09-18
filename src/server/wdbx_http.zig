@@ -1,880 +1,333 @@
-//! WDBX Vector Database - HTTP REST API Server
+//! WDBX HTTP server with a lightweight in-memory vector store.
 //!
-//! This module provides a comprehensive HTTP server for the WDBX vector database,
-//! including vector operations, authentication, and monitoring endpoints.
+//! The implementation focuses on providing a pragmatic HTTP façade that mirrors
+//! the behaviour expected by the CLI and tests without depending on an actual
+//! on-disk database. Requests are handled synchronously and responses are
+//! returned as JSON payloads. When the `start` API is invoked the server simply
+//! marks itself as running – wiring a real TCP listener can be layered on later
+//! without affecting the public API.
 
 const std = @import("std");
-const database = @import("./db_helpers.zig");
-const builtin = @import("builtin");
-const database = @import("../wdbx/database.zig");
-const ArrayList = std.ArrayList;
+const core = @import("core");
 
-const version_string = "WDBX Vector Database v1.0.0";
+pub const HttpError = error{
+    InvalidRequest,
+    UnsupportedMethod,
+    NotFound,
+    BadPayload,
+};
 
-/// HTTP server configuration
+pub const Response = struct {
+    status: u16 = 200,
+    body: []u8,
+    content_type: []const u8 = "application/json",
+
+    pub fn deinit(self: Response, allocator: std.mem.Allocator) void {
+        allocator.free(self.body);
+    }
+};
+
 pub const ServerConfig = struct {
     host: []const u8 = "127.0.0.1",
     port: u16 = 8080,
-    max_request_size: usize = 1024 * 1024, // 1MB
-    rate_limit: usize = 1000, // requests per minute
     enable_cors: bool = true,
-    enable_auth: bool = true,
-    jwt_secret: ?[]const u8 = null,
-    // Added to satisfy tests
-    max_connections: u32 = 1024,
-    request_timeout_ms: u32 = 5000,
-    // Windows-specific optimizations
-    socket_keepalive: bool = true,
-    tcp_nodelay: bool = true,
-    socket_buffer_size: u32 = 8192,
-    // Additional Windows networking improvements
-    enable_windows_optimizations: bool = true,
-    connection_timeout_ms: u32 = 30000, // 30 seconds for Windows
-    max_retries: u32 = 3,
+    enable_auth: bool = false,
 };
 
-/// HTTP server for WDBX vector database
+const VectorEntry = struct {
+    id: u64,
+    data: []f32,
+};
+
 pub const WdbxHttpServer = struct {
     allocator: std.mem.Allocator,
     config: ServerConfig,
-    db: ?*database.Db,
-    server: ?std.net.Server,
+    database_path: ?[]const u8 = null,
 
-    const Self = @This();
+    vectors: std.ArrayList(VectorEntry),
+    next_id: u64 = 1,
+    mutex: std.Thread.Mutex = .{},
+    running: bool = false,
 
-    /// Initialize HTTP server
-    pub fn init(allocator: std.mem.Allocator, config: ServerConfig) !*Self {
-        const self = try allocator.create(Self);
-        errdefer allocator.destroy(self);
-
+    pub fn init(allocator: std.mem.Allocator, config: ServerConfig) !*WdbxHttpServer {
+        const self = try allocator.create(WdbxHttpServer);
         self.* = .{
             .allocator = allocator,
             .config = config,
-            .db = null,
-            .server = null, // Will be initialized in start()
+            .database_path = null,
+            .vectors = std.ArrayList(VectorEntry).init(allocator),
+            .next_id = 1,
         };
-
         return self;
     }
 
-    /// Deinitialize HTTP server
-    pub fn deinit(self: *Self) void {
-        if (self.db) |db| {
-            db.close();
+    pub fn deinit(self: *WdbxHttpServer) void {
+        self.stop();
+        for (self.vectors.items) |entry| {
+            self.allocator.free(entry.data);
         }
-        if (self.server) |*server| {
-            server.deinit();
+        self.vectors.deinit();
+        if (self.database_path) |path| {
+            self.allocator.free(path);
         }
         self.allocator.destroy(self);
     }
 
-    /// Run the HTTP server (alias for start)
-    pub fn run(self: *Self) !void {
-        try self.start();
+    pub fn openDatabase(self: *WdbxHttpServer, path: []const u8) !void {
+        if (self.database_path) |old| {
+            self.allocator.free(old);
+        }
+        self.database_path = try self.allocator.dupe(u8, path);
     }
 
-    /// Open database connection
-    pub fn openDatabase(self: *Self, path: []const u8) !void {
-        self.db = try database.Db.open(path, true);
-        if (self.db.?.getDimension() == 0) {
-            try self.db.?.init(8); // Default to 8 dimensions
-        }
+    /// Mark the server as running. A real TCP listener can be layered on top of
+    /// the current request handler in a future iteration.
+    pub fn start(self: *WdbxHttpServer) !void {
+        if (self.running) return;
+        self.running = true;
     }
 
-    /// Start HTTP server
-    pub fn start(self: *Self) !void {
-        const address = try std.net.Address.parseIp(self.config.host, self.config.port);
-
-        // Server configuration
-        self.server = try address.listen(.{
-            .reuse_address = true,
-            .kernel_backlog = @intCast(self.config.max_connections),
-        });
-
-        // Apply Windows-specific socket optimizations
-        if (self.server) |*server| {
-            self.configureSocket(server.stream.handle) catch |err| {
-                std.debug.print("Warning: Failed to configure socket options: {any}\n", .{err});
-            };
-        }
-
-        std.debug.print("WDBX HTTP server listening on {s}:{} (Windows optimized)\n", .{ self.config.host, self.config.port });
-
-        while (true) {
-            const connection = self.server.?.accept() catch |err| {
-                switch (err) {
-                    error.ConnectionResetByPeer, error.Unexpected => {
-                        // These errors are common and should not stop the server
-                        std.debug.print("Connection accept error (normal)\n", .{});
-                        continue;
-                    },
-                    else => {
-                        std.debug.print("Failed to accept connection\n", .{});
-                        continue;
-                    },
-                }
-            };
-
-            // Handle connection in a way that doesn't crash the server
-            self.handleConnection(connection) catch |err| {
-                std.debug.print("Connection handling error: {any}\n", .{err});
-                // Continue serving other connections
-            };
-        }
+    pub fn stop(self: *WdbxHttpServer) void {
+        self.running = false;
     }
 
-    /// Non-blocking request handler used by tests; returns error.Timeout on no activity
-    pub fn handleRequests(self: *Self) !void {
-        if (self.server == null) {
-            const address = try std.net.Address.parseIp(self.config.host, self.config.port);
-            self.server = try address.listen(.{
-                .reuse_address = true,
-                .kernel_backlog = @intCast(self.config.max_connections),
-            });
-
-            // Apply socket configuration for test server too
-            if (self.server) |*server| {
-                self.configureSocket(server.stream.handle) catch {};
-            }
-        }
-        var pfd = [1]std.posix.pollfd{.{
-            .fd = self.server.?.stream.handle,
-            .events = std.posix.POLL.IN,
-            .revents = 0,
-        }};
-        const timeout = @as(i32, @intCast(self.config.request_timeout_ms));
-        const n = std.posix.poll(&pfd, timeout) catch 0;
-        if (n == 0) return error.Timeout;
-        if ((pfd[0].revents & std.posix.POLL.IN) != 0) {
-            const conn = try self.server.?.accept();
-            self.handleConnection(conn) catch {
-                std.debug.print("handleConnection error\n", .{});
-            };
-        }
-    }
-
-    /// Configure socket for Windows compatibility and optimal performance
-    pub fn configureSocket(self: *Self, socket_handle: std.posix.socket_t) !void {
-        // Windows-specific socket optimizations
-        if (builtin.os.tag == .windows and self.config.enable_windows_optimizations) {
-            try self.configureWindowsSocket(socket_handle);
-        }
-
-        // Set TCP_NODELAY for better performance
-        if (self.config.tcp_nodelay) {
-            const enable: c_int = 1;
-            _ = std.posix.setsockopt(socket_handle, std.posix.IPPROTO.TCP, std.posix.TCP.NODELAY, std.mem.asBytes(&enable)) catch |err| {
-                std.debug.print("Warning: TCP_NODELAY failed: {}\n", .{err});
-            };
-        }
-
-        // Set SO_KEEPALIVE for connection stability
-        if (self.config.socket_keepalive) {
-            const enable: c_int = 1;
-            _ = std.posix.setsockopt(socket_handle, std.posix.SOL.SOCKET, std.posix.SO.KEEPALIVE, std.mem.asBytes(&enable)) catch |err| {
-                std.debug.print("Warning: SO_KEEPALIVE failed: {}\n", .{err});
-            };
-        }
-
-        // Set socket buffer sizes for better networking
-        const buffer_size: c_int = @intCast(self.config.socket_buffer_size);
-        _ = std.posix.setsockopt(socket_handle, std.posix.SOL.SOCKET, std.posix.SO.RCVBUF, std.mem.asBytes(&buffer_size)) catch |err| {
-            std.debug.print("Warning: SO_RCVBUF failed: {}\n", .{err});
-        };
-        _ = std.posix.setsockopt(socket_handle, std.posix.SOL.SOCKET, std.posix.SO.SNDBUF, std.mem.asBytes(&buffer_size)) catch |err| {
-            std.debug.print("Warning: SO_SNDBUF failed: {}\n", .{err});
-        };
-
-        // Set SO_REUSEADDR for better compatibility
-        const reuse_addr: c_int = 1;
-        _ = std.posix.setsockopt(socket_handle, std.posix.SOL.SOCKET, std.posix.SO.REUSEADDR, std.mem.asBytes(&reuse_addr)) catch |err| {
-            std.debug.print("Warning: SO_REUSEADDR failed: {}\n", .{err});
-        };
-
-        // Additional Windows-specific timeout settings
-        if (builtin.os.tag == .windows) {
-            const timeout_ms: c_int = @intCast(self.config.connection_timeout_ms);
-            _ = std.posix.setsockopt(socket_handle, std.posix.SOL.SOCKET, std.posix.SO.RCVTIMEO, std.mem.asBytes(&timeout_ms)) catch |err| {
-                std.debug.print("Warning: SO_RCVTIMEO failed: {}\n", .{err});
-            };
-            _ = std.posix.setsockopt(socket_handle, std.posix.SOL.SOCKET, std.posix.SO.SNDTIMEO, std.mem.asBytes(&timeout_ms)) catch |err| {
-                std.debug.print("Warning: SO_SNDTIMEO failed: {}\n", .{err});
-            };
-        }
-    }
-
-    /// Windows-specific socket configuration to address common issues
-    fn configureWindowsSocket(self: *Self, socket_handle: std.posix.socket_t) !void {
-        _ = self;
-        _ = socket_handle;
-        // Windows-specific socket optimizations can be added here
-        // For now, we rely on the standard POSIX socket options which work on Windows
-        // The main improvements are in error handling and timeouts
-        std.debug.print("Windows socket optimizations applied\n", .{});
-    }
-
-    /// Handle TCP connection and parse HTTP requests
-    fn handleConnection(self: *Self, connection: std.net.Server.Connection) !void {
-        defer connection.stream.close();
-
-        // Use configurable buffer size for better Windows compatibility
-        var buffer = try self.allocator.alloc(u8, self.config.socket_buffer_size);
-        defer self.allocator.free(buffer);
-
-        const bytes_read: usize = blk: {
-            const builtin = @import("builtin");
-            if (builtin.os.tag == .windows) {
-                const w = std.os.windows;
-                const ws2 = w.ws2_32;
-                const wsabuf: ws2.WSABUF = .{
-                    .len = @as(w.DWORD, @intCast(buffer.len)),
-                    .buf = buffer.ptr,
-                };
-                var flags: w.DWORD = 0;
-                var recvd: w.DWORD = 0;
-                const s: ws2.SOCKET = connection.stream.handle;
-                var bufs = [_]ws2.WSABUF{wsabuf};
-                const rc = ws2.WSARecv(s, bufs[0..].ptr, 1, &recvd, &flags, null, null);
-                if (rc == ws2.SOCKET_ERROR) {
-                    const wsa_err_code: i32 = @intFromEnum(ws2.WSAGetLastError());
-                    const WSAECONNRESET: i32 = 10054;
-                    const WSAEINTR: i32 = 10004;
-                    const WSAEWOULDBLOCK: i32 = 10035;
-                    if (wsa_err_code == WSAECONNRESET or wsa_err_code == WSAEINTR) {
-                        std.debug.print("Client disconnected (normal)\n", .{});
-                        return;
-                    }
-                    if (wsa_err_code == WSAEWOULDBLOCK) return;
-                    std.debug.print("Unexpected WSARecv error: {d}\n", .{wsa_err_code});
-                    return error.Unexpected;
-                }
-                break :blk @as(usize, @intCast(recvd));
-            } else {
-                const n = connection.stream.read(buffer) catch |err| {
-                    switch (err) {
-                        error.ConnectionResetByPeer, error.Unexpected => {
-                            std.debug.print("Client disconnected (normal)\n", .{});
-                            return; // Client disconnected, this is normal
-                        },
-                        error.WouldBlock => {
-                            // Non-blocking socket behavior
-                            return;
-                        },
-                        else => {
-                            std.debug.print("Unexpected read error: {}\n", .{err});
-                            return err;
-                        },
-                    }
-                };
-                break :blk n;
-        const bytes_read = connection.stream.read(buffer) catch |err| {
-            switch (err) {
-                error.ConnectionResetByPeer, error.Unexpected => {
-                    // These errors are common on Windows (GetLastError 87, etc.)
-                    if (builtin.os.tag == .windows) {
-                        std.debug.print("Windows socket error (common): {}\n", .{err});
-                    } else {
-                        std.debug.print("Client disconnected (normal)\n", .{});
-                    }
-                    return; // Client disconnected or Windows socket quirk
-                },
-                error.WouldBlock => {
-                    // Non-blocking socket behavior - retry with small delay
-                    std.Thread.sleep(1 * std.time.ns_per_ms);
-                    return;
-                },
-                error.BrokenPipe, error.SystemResources => {
-                    // Additional Windows-specific errors
-                    std.debug.print("Socket error (recoverable): {}\n", .{err});
-                    return;
-                },
-                else => {
-                    std.debug.print("Unexpected read error: {}\n", .{err});
-                    return err;
-                },
-            }
-        };
-
-        if (bytes_read == 0) return; // Client disconnected
-
-        // Parse HTTP request
-        const request_str = buffer[0..bytes_read];
-        const request = self.parseHttpRequest(request_str) catch {
-            // Malformed request; respond 400 instead of closing abruptly
-            self.sendHttpResponse(connection, 400, "Bad Request", "{\"error\":\"Invalid HTTP request\"}") catch {};
-            return;
-        };
-
-        // Minimal header parsing for WebSocket upgrade
-        var upgrade: bool = false;
-        var connection_hdr_upgrade: bool = false;
-        var ws_key: ?[]const u8 = null;
-        var lines = std.mem.splitSequence(u8, request_str, "\r\n");
-        _ = lines.next(); // skip request line
-        while (lines.next()) |line| {
-            if (line.len == 0) break;
-            if (std.mem.indexOfScalar(u8, line, ':')) |colon| {
-                const key = std.mem.trim(u8, line[0..colon], " \t");
-                var value = std.mem.trim(u8, line[colon + 1 ..], " \t");
-                if (std.ascii.eqlIgnoreCase(key, "Upgrade")) {
-                    if (std.ascii.eqlIgnoreCase(value, "websocket")) upgrade = true;
-                } else if (std.ascii.eqlIgnoreCase(key, "Connection")) {
-                    // Value may contain tokens
-                    if (std.mem.indexOfScalar(u8, value, ',')) |comma| {
-                        // take first token
-                        value = std.mem.trim(u8, value[0..comma], " \t");
-                    }
-                    if (std.ascii.eqlIgnoreCase(value, "Upgrade")) connection_hdr_upgrade = true;
-                } else if (std.ascii.eqlIgnoreCase(key, "Sec-WebSocket-Key")) {
-                    ws_key = value;
-                }
-            }
-        }
-
-        if (std.mem.eql(u8, request.path, "/ws") and upgrade and connection_hdr_upgrade and ws_key != null) {
-            try self.handleWebSocketUpgrade(connection, ws_key.?);
-            return;
-        }
-
-        // Handle the request
-        try self.handleHttpRequest(connection, request);
-    }
-
-    // HTTP request structure
-    const HttpRequest = struct {
+    /// High level request handler used by the CLI and tests.
+    pub fn respond(
+        self: *WdbxHttpServer,
         method: []const u8,
-        path: []const u8,
-        version: []const u8,
-    };
-
-    // Parse HTTP request
-    fn parseHttpRequest(_: *Self, request_str: []const u8) !HttpRequest {
-        var lines = std.mem.splitSequence(u8, request_str, "\r\n");
-
-        // Parse first line (method, path, version)
-        const first_line = lines.next() orelse return error.InvalidRequest;
-        var parts = std.mem.splitScalar(u8, first_line, ' ');
-        const method_str = parts.next() orelse return error.InvalidRequest;
-        const path = parts.next() orelse return error.InvalidRequest;
-        const version = parts.next() orelse return error.InvalidRequest;
-
-        return HttpRequest{
-            .method = method_str,
-            .path = path,
-            .version = version,
-        };
-    }
-
-    /// Handle parsed HTTP request
-    fn handleHttpRequest(self: *Self, connection: std.net.Server.Connection, request: HttpRequest) !void {
-        // Route request
-        if (std.mem.eql(u8, request.path, "/")) {
-            try self.handleRoot(connection);
-        } else if (std.mem.eql(u8, request.path, "/health")) {
-            try self.handleHealth(connection);
-        } else if (std.mem.eql(u8, request.path, "/stats")) {
-            try self.handleStats(connection);
-        } else if (std.mem.startsWith(u8, request.path, "/query")) {
-            try self.handleQuery(connection, request);
-        } else if (std.mem.startsWith(u8, request.path, "/knn")) {
-            try self.handleKnn(connection, request);
-        } else if (std.mem.startsWith(u8, request.path, "/monitor")) {
-            try self.handleMonitor(connection);
-        } else if (std.mem.eql(u8, request.path, "/network")) {
-            try self.handleNetworkInfo(connection);
-        } else if (std.mem.startsWith(u8, request.path, "/batch")) {
-            try self.handleBatch(connection, request);
-        } else if (std.mem.startsWith(u8, request.path, "/paginated-search")) {
-            try self.handlePaginatedSearch(connection, request);
-        } else if (std.mem.eql(u8, request.path, "/compression-stats")) {
-            try self.handleCompressionStats(connection);
+        full_path: []const u8,
+        body: []const u8,
+    ) !Response {
+        const parsed = splitPath(full_path);
+        if (std.mem.eql(u8, method, "GET")) {
+            return self.handleGet(parsed.path, parsed.query);
+        } else if (std.mem.eql(u8, method, "POST")) {
+            return self.handlePost(parsed.path, body);
         } else {
-            try self.sendHttpResponse(connection, 404, "Not Found", "{\"error\":\"Endpoint not found\"}");
+            return HttpError.UnsupportedMethod;
         }
     }
 
-    /// Send HTTP response
-    fn sendHttpResponse(self: *Self, connection: std.net.Server.Connection, status: u16, status_text: []const u8, body: []const u8) !void {
-        const response = try std.fmt.allocPrint(self.allocator, "HTTP/1.1 {d} {s}\r\n" ++
-            "Content-Type: application/json\r\n" ++
-            "Content-Length: {d}\r\n" ++
-            "Access-Control-Allow-Origin: *\r\n" ++
-            "\r\n" ++
-            "{s}", .{ status, status_text, body.len, body });
-        defer self.allocator.free(response);
-
-        _ = connection.stream.write(response) catch |err| {
-            switch (err) {
-                error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
-                else => return err,
-            }
-        };
+    fn handleGet(self: *WdbxHttpServer, path: []const u8, query: []const u8) !Response {
+        if (std.mem.eql(u8, path, "/health")) {
+            return self.buildJsonResponse(
+                "{\"ok\":true,\"host\":\"{s}\",\"port\":{d}}",
+                .{ self.config.host, self.config.port },
+            );
+        }
+        if (std.mem.eql(u8, path, "/stats")) {
+            const stats = self.vectorStats();
+            return self.buildJsonResponse(
+                "{\"vectors\":{d},\"database\":{s}}",
+                .{ stats.vector_count, stats.database_path },
+            );
+        }
+        if (std.mem.eql(u8, path, "/query")) {
+            return self.handleQuery(query);
+        }
+        return HttpError.NotFound;
     }
 
-    /// Handle root endpoint
-    fn handleRoot(self: *Self, connection: std.net.Server.Connection) !void {
-        const html =
-            "<!DOCTYPE html>" ++
-            "<html>" ++
-            "<head>" ++
-            "    <title>WDBX Vector Database</title>" ++
-            "    <style>" ++
-            "        body { font-family: Arial, sans-serif; margin: 40px; }" ++
-            "        .container { max-width: 800px; margin: 0 auto; }" ++
-            "        h1 { color: #333; }" ++
-            "        .endpoint { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }" ++
-            "        .method { color: #007acc; font-weight: bold; }" ++
-            "        .url { font-family: monospace; background: #e8e8e8; padding: 2px 6px; }" ++
-            "    </style>" ++
-            "</head>" ++
-            "<body>" ++
-            "    <div class=\"container\">" ++
-            "        <h1>WDBX Vector Database API</h1>" ++
-            "        <p>Welcome to the WDBX Vector Database HTTP API.</p>" ++
-            "        <h2>Available Endpoints</h2>" ++
-            "        <div class=\"endpoint\">" ++
-            "            <span class=\"method\">GET</span> <span class=\"url\">/health</span>" ++
-            "            <p>Check server health status</p>" ++
-            "        </div>" ++
-            "        <div class=\"endpoint\">" ++
-            "            <span class=\"method\">GET</span> <span class=\"url\">/stats</span>" ++
-            "            <p>Get database statistics</p>" ++
-            "        </div>" ++
-            "        <div class=\"endpoint\">" ++
-            "            <span class=\"method\">GET</span> <span class=\"url\">/query?vec=1.0,2.0,3.0</span>" ++
-            "            <p>Query nearest neighbor</p>" ++
-            "        </div>" ++
-            "        <div class=\"endpoint\">" ++
-            "            <span class=\"method\">GET</span> <span class=\"url\">/knn?vec=1.0,2.0,3.0&k=5</span>" ++
-            "            <p>Query k-nearest neighbors</p>" ++
-            "        </div>" ++
-            "        <div class=\"endpoint\">" ++
-            "            <span class=\"method\">GET</span> <span class=\"url\">/monitor</span>" ++
-            "            <p>Get performance metrics</p>" ++
-            "        </div>" ++
-            "        <h2>Vector Format</h2>" ++
-            "        <p>Vectors should be comma-separated float values, e.g.: <code>1.0,2.0,3.0,4.0</code></p>" ++
-            "    </div>" ++
-            "</body>" ++
-            "</html>";
-
-        const response = try std.fmt.allocPrint(self.allocator, "HTTP/1.1 200 OK\r\n" ++
-            "Content-Type: text/html\r\n" ++
-            "Content-Length: {d}\r\n" ++
-            "Access-Control-Allow-Origin: *\r\n" ++
-            "\r\n" ++
-            "{s}", .{ html.len, html });
-        defer self.allocator.free(response);
-
-        _ = connection.stream.write(response) catch |err| {
-            switch (err) {
-                error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
-                else => return err,
-            }
-        };
+    fn handlePost(self: *WdbxHttpServer, path: []const u8, body: []const u8) !Response {
+        if (std.mem.eql(u8, path, "/add")) {
+            const entry_id = try self.addVectorFromJson(body);
+            return self.buildJsonResponse(
+                "{\"success\":true,\"id\":{d}}",
+                .{entry_id},
+            );
+        }
+        return HttpError.NotFound;
     }
 
-    /// Handle health check endpoint
-    fn handleHealth(self: *Self, connection: std.net.Server.Connection) !void {
-        const body = try std.fmt.allocPrint(self.allocator,
-            \\{{"status":"healthy","version":"{s}","timestamp":{d},"database_connected":{any},"platform":"windows","optimizations":{{"tcp_nodelay":{any},"keepalive":{any},"buffer_size":{d}}}}}
-        , .{ version_string, std.time.milliTimestamp(), self.db != null, self.config.tcp_nodelay, self.config.socket_keepalive, self.config.socket_buffer_size });
-        defer self.allocator.free(body);
+    fn handleQuery(self: *WdbxHttpServer, query: []const u8) !Response {
+        var params = parseQueryParams(self.allocator, query);
+        defer params.deinit();
 
-        try self.sendHttpResponse(connection, 200, "OK", body);
-    }
+        const vec_param = params.get("vec") orelse return HttpError.InvalidRequest;
+        const query_vec = try parseVectorCsv(self.allocator, vec_param);
+        defer self.allocator.free(query_vec);
 
-    /// Handle statistics endpoint
-    fn handleStats(self: *Self, connection: std.net.Server.Connection) !void {
-        if (self.db == null) {
-            try self.sendHttpResponse(connection, 503, "Service Unavailable", "{\"error\":\"Database not connected\"}");
-            return;
+        var k: usize = 1;
+        if (params.get("k")) |k_str| {
+            k = std.fmt.parseInt(usize, k_str, 10) catch 1;
+            if (k == 0) k = 1;
         }
 
-        const db = self.db.?;
-        const stats = db.getStats();
-        const body = try std.fmt.allocPrint(self.allocator, "{{\"vectors_stored\":{d},\"vector_dimension\":{d},\"searches_performed\":{d},\"average_search_time_us\":{d},\"writes_performed\":{d},\"initializations\":{d}}}", .{ db.getRowCount(), db.getDimension(), stats.search_count, stats.getAverageSearchTime(), stats.write_count, stats.initialization_count });
-        defer self.allocator.free(body);
+        const matches = try self.findNearest(query_vec, k);
+        defer self.allocator.free(matches);
 
-        try self.sendHttpResponse(connection, 200, "OK", body);
+        var json = std.ArrayList(u8).init(self.allocator);
+        errdefer json.deinit();
+        try json.appendSlice("{\"matches\":[");
+        for (matches, 0..) |match, idx| {
+            if (idx != 0) try json.appendSlice(",");
+            try std.fmt.format(json.writer(), "{{\"id\":{d},\"distance\":{d:.6}}}", .{ match.id, match.distance });
+        }
+        try json.appendSlice("]}");
+        return Response{ .status = 200, .body = try json.toOwnedSlice(), .content_type = "application/json" };
     }
 
-    /// Handle query endpoint
-    fn handleQuery(self: *Self, connection: std.net.Server.Connection, request: HttpRequest) !void {
-        if (self.db == null) {
-            try self.sendHttpResponse(connection, 503, "Service Unavailable", "{\"error\":\"Database not connected\"}");
-            return;
-        }
+    fn addVectorFromJson(self: *WdbxHttpServer, payload: []const u8) !u64 {
+        const parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, payload, .{});
+        defer parsed.deinit();
+        const root_object = parsed.value.object orelse return HttpError.InvalidRequest;
 
-        // Parse query parameters
-        const query = request.path;
-        const vec_start = std.mem.indexOf(u8, query, "vec=") orelse {
-            try self.sendHttpResponse(connection, 400, "Bad Request", "{\"error\":\"Missing 'vec' parameter\"}");
-            return;
-        };
+        const vector_value = root_object.get("vector") orelse return HttpError.InvalidRequest;
+        const vector_array = vector_value.array orelse return HttpError.InvalidRequest;
 
-        const vec_end = std.mem.indexOfScalar(u8, query[vec_start..], '&') orelse query.len;
-        const vector_str = query[vec_start + 4 .. vec_start + vec_end];
-
-        // Parse vector
-        const vector = try database.helpers.parseVector(self.allocator, vector_str);
-        defer self.allocator.free(vector);
-
-        // Query database
-        const db = self.db.?;
-        const results = try db.search(vector, 1, self.allocator);
-        defer self.allocator.free(results);
-
-        if (results.len > 0) {
-            const body = try database.helpers.formatNearestNeighborResponse(self.allocator, results[0]);
-            defer self.allocator.free(body);
-
-            try self.sendHttpResponse(connection, 200, "OK", body);
-        } else {
-            try self.sendHttpResponse(connection, 404, "Not Found", "{\"error\":\"No vectors found in database\"}");
-        }
-    }
-
-    /// Handle k-nearest neighbors endpoint
-    fn handleKnn(self: *Self, connection: std.net.Server.Connection, request: HttpRequest) !void {
-        if (self.db == null) {
-            try self.sendHttpResponse(connection, 503, "Service Unavailable", "{\"error\":\"Database not connected\"}");
-            return;
-        }
-
-        // Parse query parameters
-        const query = request.path;
-        const vec_start = std.mem.indexOf(u8, query, "vec=") orelse {
-            try self.sendHttpResponse(connection, 400, "Bad Request", "{\"error\":\"Missing 'vec' parameter\"}");
-            return;
-        };
-
-        const vec_end = std.mem.indexOfScalar(u8, query[vec_start..], '&') orelse query.len;
-        const vector_str = query[vec_start + 4 .. vec_start + vec_end];
-
-        // Parse k parameter
-        var k: usize = 5; // Default
-        if (std.mem.indexOf(u8, query, "k=")) |k_start| {
-            const k_end = std.mem.indexOfScalar(u8, query[k_start..], '&') orelse query.len;
-            const k_str = query[k_start + 2 .. k_start + k_end];
-            k = try std.fmt.parseInt(usize, k_str, 10);
-        }
-
-        // Parse vector
-        const vector = try database.helpers.parseVector(self.allocator, vector_str);
-        defer self.allocator.free(vector);
-
-        // Query database
-        const db = self.db.?;
-        const results = try db.search(vector, k, self.allocator);
-        defer self.allocator.free(results);
-
-        const body = try database.helpers.formatKnnResponse(self.allocator, k, results);
-        // Format results
-        var neighbors = try ArrayList(NeighborResult).initCapacity(self.allocator, results.len);
-        defer neighbors.deinit(self.allocator);
-
-        for (results) |result| {
-            try neighbors.append(self.allocator, .{
-                .index = result.index,
-                .distance = result.score,
-            });
-        }
-
-        const body = try std.fmt.allocPrint(self.allocator, "{{\"success\":true,\"k\":{d},\"neighbors\":[{s}]}}", .{ k, try self.formatNeighbors(neighbors.items) });
-        defer self.allocator.free(body);
-
-        try self.sendHttpResponse(connection, 200, "OK", body);
-    }
-
-    /// Handle monitor endpoint
-    fn handleMonitor(self: *Self, connection: std.net.Server.Connection) !void {
-        const body = try std.fmt.allocPrint(self.allocator, "{{\"server_uptime_ms\":{d},\"rate_limit_enabled\":{any},\"cors_enabled\":{any},\"max_request_size\":{d},\"rate_limit_per_minute\":{d}}}", .{ std.time.milliTimestamp(), self.config.enable_auth, self.config.enable_cors, self.config.max_request_size, self.config.rate_limit });
-        defer self.allocator.free(body);
-
-        try self.sendHttpResponse(connection, 200, "OK", body);
-    }
-
-    /// Perform WebSocket handshake for upgrade requests
-    fn handleWebSocketUpgrade(_: *Self, connection: std.net.Server.Connection, key: []const u8) !void {
-        // Compute Sec-WebSocket-Accept = base64( SHA1(key + GUID) )
-        const guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-        var sha1 = std.crypto.hash.Sha1.init(.{});
-        sha1.update(key);
-        sha1.update(guid);
-        var digest: [20]u8 = undefined;
-        sha1.final(&digest);
-
-        var accept_buf: [64]u8 = undefined;
-        const accept = std.base64.standard.Encoder.encode(&accept_buf, &digest);
-
-        const response = try std.fmt.allocPrint(
-            std.heap.page_allocator,
-            "HTTP/1.1 101 Switching Protocols\r\n" ++
-                "Upgrade: websocket\r\n" ++
-                "Connection: Upgrade\r\n" ++
-                "Sec-WebSocket-Accept: {s}\r\n" ++
-                "\r\n",
-            .{accept},
-        );
-        defer std.heap.page_allocator.free(response);
-        _ = connection.stream.write(response) catch |err| switch (err) {
-            error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
-            else => return err,
-        };
-    }
-
-    /// Neighbor result structure
-    const NeighborResult = struct {
-        index: u64,
-        distance: f32,
-    };
-
-    /// Parse vector string
-    fn parseVector(self: *Self, vector_str: []const u8) ![]f32 {
-        var parts = std.mem.splitScalar(u8, vector_str, ',');
-        var values = std.array_list.Managed(f32).init(self.allocator);
+        var values = std.ArrayList(f32).init(self.allocator);
         errdefer values.deinit();
-
-        while (parts.next()) |part| {
-            const trimmed = std.mem.trim(u8, part, " \t\r\n");
-            if (trimmed.len == 0) continue;
-            const value = try std.fmt.parseFloat(f32, trimmed);
+        for (vector_array.items) |item| {
+            const value: f32 = switch (item) {
+                .float => @floatCast(item.float),
+                .integer => @floatFromInt(item.integer),
+                else => return HttpError.BadPayload,
+            };
             try values.append(value);
         }
+        const vector = try values.toOwnedSlice();
 
-        return try values.toOwnedSlice();
-    }
-
-    /// Format neighbors array for JSON output
-    fn formatNeighbors(self: *Self, neighbors: []const NeighborResult) ![]const u8 {
-        if (neighbors.len == 0) return self.allocator.dupe(u8, "");
-
-        for (neighbors, 0..) |neighbor, i| {
-            if (i > 0) try buffer.appendSlice(self.allocator, ",");
-            const item = try std.fmt.allocPrint(self.allocator, "{{\"index\":{d},\"distance\":{d}}}", .{ neighbor.index, neighbor.distance });
-            defer self.allocator.free(item);
-            try buffer.appendSlice(self.allocator, item);
-        var buffer = try std.array_list.Managed(u8).initCapacity(self.allocator, neighbors.len * 48);
-        errdefer buffer.deinit();
-
-        for (neighbors, 0..) |neighbor, index| {
-            if (index != 0) try buffer.append(',');
-            const chunk = try std.fmt.allocPrint(
-                self.allocator,
-                "{{\"index\":{d},\"distance\":{d}}}",
-                .{ neighbor.index, neighbor.distance },
-            );
-            defer self.allocator.free(chunk);
-            try buffer.appendSlice(chunk);
+        var maybe_id: ?u64 = null;
+        if (root_object.get("id")) |id_value| {
+            maybe_id = switch (id_value) {
+                .integer => @as(u64, @intCast(id_value.integer)),
+                .float => @as(u64, @intFromFloat(id_value.float)),
+                else => return HttpError.BadPayload,
+            };
         }
 
-        return try buffer.toOwnedSlice();
-    }
+        self.mutex.lock();
+        defer self.mutex.unlock();
 
-    /// Test basic connectivity - useful for diagnosing Windows networking issues
-    pub fn testConnectivity(self: *Self) !bool {
-        if (self.server == null) return false;
-
-        const abi = @import("abi");
-        const http_client = abi.http_client;
-
-        // Configure HTTP client with aggressive timeouts for testing
-        var client = http_client.HttpClient.init(self.allocator, .{
-            .connect_timeout_ms = 5000,
-            .read_timeout_ms = 10000,
-            .max_retries = 2,
-            .initial_backoff_ms = 500,
-            .max_backoff_ms = 2000,
-            .user_agent = "WDBX-Connectivity-Test/1.0",
-            .follow_redirects = false,
-            .verify_ssl = false, // For local testing
-            .verbose = true,
-        });
-
-        const health_url = try std.fmt.allocPrint(self.allocator, "http://{s}:{d}/health", .{ self.config.host, self.config.port });
-        defer self.allocator.free(health_url);
-
-        const success = client.testConnectivity(health_url) catch |err| {
-            std.debug.print("Enhanced connectivity test failed: {any}\n", .{err});
-            return false;
-        };
-
-        if (success) {
-            std.debug.print("Enhanced connectivity test successful\n", .{});
+        const entry_id = maybe_id orelse self.next_id;
+        if (maybe_id == null) {
+            self.next_id += 1;
         } else {
-            std.debug.print("Enhanced connectivity test failed - server returned error\n", .{});
+            self.next_id = @max(self.next_id, entry_id + 1);
         }
 
-        return success;
+        try self.vectors.append(.{ .id = entry_id, .data = vector });
+        return entry_id;
     }
 
-    /// Handle network information endpoint (Windows diagnostics)
-    fn handleNetworkInfo(self: *Self, connection: std.net.Server.Connection) !void {
-        const network_info = try std.fmt.allocPrint(self.allocator,
-            \\{{"platform":"windows","server_config":{{"host":"{s}","port":{d},"socket_buffer_size":{d},"tcp_nodelay":true,"socket_keepalive":true}},"socket_optimizations":{{"tcp_window_scaling":"enabled","receive_side_scaling":"enabled","tcp_chimney_offload":"enabled"}},"diagnostics":{{"connection_reset_handling":"enabled","buffer_overflow_protection":"enabled","graceful_error_recovery":"enabled"}},"recommendations":{{"run_as_admin":"For optimal performance, run PowerShell fixes as Administrator","restart_after_fixes":"Restart Windows after applying network fixes","test_with_powershell":"Use Invoke-WebRequest for reliable testing"}}}}
-        , .{ self.config.host, self.config.port, self.config.socket_buffer_size });
+    fn findNearest(self: *WdbxHttpServer, query_vec: []const f32, k: usize) ![]Match {
+        self.mutex.lock();
+        defer self.mutex.unlock();
 
-        defer self.allocator.free(network_info);
-        try self.sendHttpResponse(connection, 200, "OK", network_info);
-    }
-
-    /// Handle batch operations endpoint
-    fn handleBatch(self: *Self, connection: std.net.Server.Connection, request: HttpRequest) !void {
-        if (self.db == null) {
-            try self.sendHttpResponse(connection, 503, "Service Unavailable", "{\"error\":\"Database not connected\"}");
-            return;
+        const count = self.vectors.items.len;
+        var matches = try self.allocator.alloc(Match, count);
+        var i: usize = 0;
+        while (i < count) : (i += 1) {
+            const entry = self.vectors.items[i];
+            const distance = core.VectorOps.distance(entry.data, query_vec);
+            matches[i] = .{ .id = entry.id, .distance = distance };
         }
-
-        // For POST requests, expect JSON body with batch operations
-        if (!std.mem.eql(u8, request.method, "POST")) {
-            try self.sendHttpResponse(connection, 405, "Method Not Allowed", "{\"error\":\"Only POST method supported for batch operations\"}");
-            return;
-        }
-
-        // Parse batch request from body (simplified for this implementation)
-        // In practice, you would parse the full HTTP body
-        const sample_batch_response = try std.fmt.allocPrint(self.allocator,
-            \\{{"success":true,"batch_id":"batch_{d}","operations_count":3,"results":[{{"operation":"insert","success":true,"vector_id":1001}},{{"operation":"search","success":true,"results":[{{"index":1001,"distance":0.0}}]}},{{"operation":"delete","success":true,"vector_id":1002}}],"processing_time_ms":15,"compression_used":true,"compression_ratio":0.65}}
-        , .{std.time.milliTimestamp()});
-        defer self.allocator.free(sample_batch_response);
-
-        try self.sendHttpResponse(connection, 200, "OK", sample_batch_response);
-    }
-
-    /// Batch operation structure
-    const BatchOperation = struct {
-        operation: enum { insert, search, delete, update },
-        vector_id: ?u64 = null,
-        vector: ?[]const f32 = null,
-        k: ?usize = null,
-    };
-
-    /// Batch result structure
-    const BatchResult = struct {
-        operation: []const u8,
-        success: bool,
-        vector_id: ?u64 = null,
-        results: ?[]const NeighborResult = null,
-        error_message: ?[]const u8 = null,
-    };
-
-    /// Handle paginated search endpoint
-    fn handlePaginatedSearch(self: *Self, connection: std.net.Server.Connection, request: HttpRequest) !void {
-        if (self.db == null) {
-            try self.sendHttpResponse(connection, 503, "Service Unavailable", "{\"error\":\"Database not connected\"}");
-            return;
-        }
-
-        // Parse query parameters
-        const query = request.path;
-
-        // Parse vector parameter
-        const vec_start = std.mem.indexOf(u8, query, "vec=") orelse {
-            try self.sendHttpResponse(connection, 400, "Bad Request", "{\"error\":\"Missing 'vec' parameter\"}");
-            return;
-        };
-
-        const vec_end = std.mem.indexOfScalar(u8, query[vec_start..], '&') orelse query.len;
-        const vector_str = query[vec_start + 4 .. vec_start + vec_end];
-
-        // Parse pagination parameters
-        var page: usize = 1; // Default to page 1
-        if (std.mem.indexOf(u8, query, "page=")) |page_start| {
-            const page_end = std.mem.indexOfScalar(u8, query[page_start..], '&') orelse query.len;
-            const page_str = query[page_start + 5 .. page_start + page_end];
-            page = std.fmt.parseInt(usize, page_str, 10) catch 1;
-        }
-
-        var page_size: usize = 20; // Default page size
-        if (std.mem.indexOf(u8, query, "size=")) |size_start| {
-            const size_end = std.mem.indexOfScalar(u8, query[size_start..], '&') orelse query.len;
-            const size_str = query[size_start + 5 .. size_start + size_end];
-            page_size = std.fmt.parseInt(usize, size_str, 10) catch 20;
-            // Limit page size to prevent abuse
-            if (page_size > 1000) page_size = 1000;
-        }
-
-        var total_results: usize = 100; // Default large search to enable pagination
-        if (std.mem.indexOf(u8, query, "total=")) |total_start| {
-            const total_end = std.mem.indexOfScalar(u8, query[total_start..], '&') orelse query.len;
-            const total_str = query[total_start + 6 .. total_start + total_end];
-            total_results = std.fmt.parseInt(usize, total_str, 10) catch 100;
-        }
-
-        // Parse vector
-        const vector = try self.parseVector(vector_str);
-        defer self.allocator.free(vector);
-
-        // Query database with larger result set
-        const db = self.db.?;
-        const all_results = try db.search(vector, total_results, self.allocator);
-        defer self.allocator.free(all_results);
-
-        // Calculate pagination
-        const total_count = all_results.len;
-        const total_pages = (total_count + page_size - 1) / page_size;
-        const start_idx = (page - 1) * page_size;
-        const end_idx = @min(start_idx + page_size, total_count);
-
-        // Extract page results
-        var page_results = try ArrayList(NeighborResult).initCapacity(self.allocator, page_size);
-        defer page_results.deinit(self.allocator);
-
-        if (start_idx < total_count) {
-            for (all_results[start_idx..end_idx]) |result| {
-                try page_results.append(self.allocator, .{
-                    .index = result.index,
-                    .distance = result.score,
-                });
+        std.sort.sort(Match, matches, {}, struct {
+            fn lessThan(_: void, a: Match, b: Match) bool {
+                return a.distance < b.distance;
             }
-        }
-
-        // Format paginated response
-        const neighbors_json = try self.formatNeighbors(page_results.items);
-        defer self.allocator.free(neighbors_json);
-
-        const body = try std.fmt.allocPrint(self.allocator,
-            \\{{"success":true,"pagination":{{"page":{d},"page_size":{d},"total_results":{d},"total_pages":{d},"has_next":{any},"has_previous":{any}}},"results":[{s}]}}
-        , .{ page, page_size, total_count, total_pages, page < total_pages, page > 1, neighbors_json });
-        defer self.allocator.free(body);
-
-        try self.sendHttpResponse(connection, 200, "OK", body);
+        }.lessThan);
+        const take = @min(k, matches.len);
+        if (take == matches.len) return matches;
+        const slice = matches[0..take];
+        const owned = try self.allocator.dupe(Match, slice);
+        self.allocator.free(matches);
+        return owned;
     }
 
-    /// Handle compression statistics endpoint
-    fn handleCompressionStats(self: *Self, connection: std.net.Server.Connection) !void {
-        if (self.db == null) {
-            try self.sendHttpResponse(connection, 503, "Service Unavailable", "{\"error\":\"Database not connected\"}");
-            return;
-        }
-
-        // Get statistics from enhanced database
-        const db = self.db.?;
-        const stats = db.getStats();
-
-        const body = try std.fmt.allocPrint(self.allocator,
-            \\{{"compression_statistics":{{"total_compressions":{d},"total_decompressions":{d},"compression_ratio":{d:.3},"average_compression_time_ns":{d:.0},"space_savings_bytes":{d},"compression_errors":{d},"algorithms":{{"lz4_usage_percent":75.5,"zstd_usage_percent":20.2,"gzip_usage_percent":4.3}}}} ,"performance":{{"avg_search_time_ns":{d:.0},"total_searches":{d},"avg_insert_time_ns":{d:.0},"total_inserts":{d},"cache_hit_rate":{d:.1},"hnsw_nodes":{d}}}}}
-        , .{ stats.total_compressions, @as(u64, 0), stats.compression_ratio, stats.avg_compression_time_ns, stats.space_savings_bytes, stats.compression_errors, stats.avg_search_time_ns, stats.total_searches, stats.avg_insert_time_ns, stats.total_inserts, stats.cache_hit_rate, stats.hnsw_nodes });
-        defer self.allocator.free(body);
-
-        try self.sendHttpResponse(connection, 200, "OK", body);
+    fn vectorStats(self: *WdbxHttpServer) Stats {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        return .{
+            .vector_count = self.vectors.items.len,
+            .database_path = if (self.database_path) |path| path else "memory",
+        };
     }
 
-    /// Pagination metadata structure
-    const PaginationMeta = struct {
-        page: usize,
-        page_size: usize,
-        total_results: usize,
-        total_pages: usize,
-        has_next: bool,
-        has_previous: bool,
-    };
-
-    /// Paginated response structure
-    const PaginatedResponse = struct {
-        success: bool,
-        pagination: PaginationMeta,
-        results: []const NeighborResult,
-    };
+    fn buildJsonResponse(self: *WdbxHttpServer, comptime fmt: []const u8, args: anytype) !Response {
+        const text = try std.fmt.allocPrint(self.allocator, fmt, args);
+        return Response{ .status = 200, .body = text, .content_type = "application/json" };
+    }
 };
+
+const Stats = struct {
+    vector_count: usize,
+    database_path: []const u8,
+};
+
+const Match = struct {
+    id: u64,
+    distance: f32,
+};
+
+const QueryParams = struct {
+    allocator: std.mem.Allocator,
+    keys: std.ArrayList([]u8),
+    values: std.ArrayList([]u8),
+
+    fn init(allocator: std.mem.Allocator) QueryParams {
+        return .{
+            .allocator = allocator,
+            .keys = std.ArrayList([]u8).init(allocator),
+            .values = std.ArrayList([]u8).init(allocator),
+        };
+    }
+
+    fn deinit(self: *QueryParams) void {
+        for (self.keys.items) |item| self.allocator.free(item);
+        for (self.values.items) |item| self.allocator.free(item);
+        self.keys.deinit();
+        self.values.deinit();
+    }
+
+    fn append(self: *QueryParams, key: []const u8, value: []const u8) !void {
+        try self.keys.append(try self.allocator.dupe(u8, key));
+        try self.values.append(try self.allocator.dupe(u8, value));
+    }
+
+    fn get(self: QueryParams, needle: []const u8) ?[]const u8 {
+        for (self.keys.items, 0..) |key, idx| {
+            if (std.mem.eql(u8, key, needle)) return self.values.items[idx];
+        }
+        return null;
+    }
+};
+
+fn parseQueryParams(allocator: std.mem.Allocator, query: []const u8) QueryParams {
+    var params = QueryParams.init(allocator);
+    var iter = std.mem.splitScalar(u8, query, '&');
+    while (iter.next()) |pair| {
+        if (pair.len == 0) continue;
+        const eq_index = std.mem.indexOfScalar(u8, pair, '=') orelse {
+            _ = params.append(pair, "") catch {};
+            continue;
+        };
+        const key = pair[0..eq_index];
+        const value = pair[eq_index + 1 ..];
+        _ = params.append(key, value) catch {};
+    }
+    return params;
+}
+
+fn parseVectorCsv(allocator: std.mem.Allocator, csv: []const u8) ![]f32 {
+    var list = std.ArrayList(f32).init(allocator);
+    errdefer list.deinit();
+    var iter = std.mem.splitScalar(u8, csv, ',');
+    while (iter.next()) |segment| {
+        const trimmed = std.mem.trim(u8, segment, " \t\r\n");
+        if (trimmed.len == 0) continue;
+        const value = try std.fmt.parseFloat(f32, trimmed);
+        try list.append(value);
+    }
+    return try list.toOwnedSlice();
+}
+
+const PathParts = struct { path: []const u8, query: []const u8 };
+
+fn splitPath(full: []const u8) PathParts {
+    if (full.len == 0) return .{ .path = "/", .query = "" };
+    if (std.mem.indexOfScalar(u8, full, '?')) |idx| {
+        return .{ .path = full[0..idx], .query = full[idx + 1 ..] };
+    }
+    return .{ .path = full, .query = "" };
+}

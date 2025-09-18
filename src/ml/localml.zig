@@ -10,7 +10,7 @@
 //! - Memory-efficient streaming data processing
 
 const std = @import("std");
-const core = @import("core/mod.zig");
+const core = @import("core");
 
 /// Re-export commonly used types
 pub const Allocator = core.Allocator;

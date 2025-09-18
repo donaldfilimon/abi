@@ -6,7 +6,7 @@
 
 const std = @import("std");
 
-const core = @import("../core/mod.zig");
+const core = @import("core");
 
 /// Available activation function types with detailed mathematical definitions
 pub const ActivationType = enum {

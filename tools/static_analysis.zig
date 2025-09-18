@@ -180,10 +180,6 @@ pub const StaticAnalyzer = struct {
         };
         defer file.close();
 
-        const max_bytes: usize = 10 * 1024 * 1024;
-        const file_size_u64 = file.getEndPos() catch 0;
-        const to_read_u64 = if (file_size_u64 > @as(u64, max_bytes)) @as(u64, max_bytes) else file_size_u64;
-        const to_read: usize = @intCast(to_read_u64);
         // Read file with efficient memory management
         const st = try file.stat();
         const max_bytes: usize = 10 * 1024 * 1024;
@@ -193,19 +189,10 @@ pub const StaticAnalyzer = struct {
         const to_read: usize = @intCast(to_read_u64);
 
         const arena_allocator = self.arena.allocator();
-        const buf = try arena_allocator.alloc(u8, to_read);
-        const n = try file.readAll(buf);
-        const content = buf[0..n];
-
-        const content = try self.allocator.alloc(u8, to_read);
-        errdefer self.allocator.free(content);
-        _ = file.readAll(content) catch |err| {
-            print("Error reading file {s}: {}\n", .{ file_path, err });
-            return;
-        };
-
-        defer self.allocator.free(content);
-        try self.analyzeContent(file_path, content);
+        const content = try arena_allocator.alloc(u8, to_read);
+        const n = try file.readAll(content);
+        const actual_content = content[0..n];
+        try self.analyzeContent(file_path, actual_content);
         self.total_files += 1;
     }
 
@@ -319,7 +306,9 @@ pub const StaticAnalyzer = struct {
                 std.mem.indexOf(u8, line, ")") == null and
                 std.mem.indexOf(u8, line, "@import") == null)
             {
-                try self.addFinding(file_path, line_number, 1, .err, "Potential hardcoded credential", "security.hardcoded_secrets");
+                try self.addFinding(file_path, line_number, 1, .err, "Potential hardcoded credential", "security.hardcoded_secrets", line, "Use environment variables or secure configuration management", 0.9);
+            }
+        }
         // Enhanced secret detection (tuned to reduce false positives)
         const secret_patterns = [_][]const u8{ "password", "secret", "token", "api_key", "apikey", "private_key", "credentials" };
 
@@ -376,7 +365,6 @@ pub const StaticAnalyzer = struct {
     }
 
     fn checkPerformanceIssues(self: *Self, file_path: []const u8, line_number: usize, line: []const u8) !void {
-        self.performance_issues += 1;
 
         // Check for inefficient string operations
         if (std.mem.indexOf(u8, line, "std.fmt.allocPrint") != null and
@@ -881,5 +869,3 @@ pub fn main() !void {
     try analyzer.analyzeDirectory("benchmarks");
     try analyzer.generateReport();
 }
-
-

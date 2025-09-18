@@ -12,7 +12,7 @@
 //! ## Architecture
 //!
 //! The module is organized into several key subsystems:
-//! - `core/` - Core GPU functionality (renderer, backend interfaces)
+//! - `gpu_core/` - gpu_core GPU functionality (renderer, backend interfaces)
 //! - `compute/` - Compute operations and kernel management
 //! - `memory/` - Memory management and pooling systems
 //! - `backends/` - Multi-backend support and implementations
@@ -75,7 +75,7 @@ const is_wasm = builtin.target.cpu.arch == .wasm32 or builtin.target.cpu.arch ==
 
 /// Comprehensive GPU module error types
 pub const Error = error{
-    // Core initialization errors
+    // gpu_core initialization errors
     InitializationFailed,
     BackendNotAvailable,
     DeviceNotFound,
@@ -142,46 +142,46 @@ pub fn OptionalResult(comptime T: type) type {
 }
 
 // Import and re-export from organized submodules
-pub const core = @import("core/mod.zig");
+pub const gpu_core = @import("core/mod.zig");
 pub const unified_memory = @import("unified_memory.zig");
 pub const hardware_detection = @import("hardware_detection.zig");
 pub const cross_compilation = @import("cross_compilation.zig");
 pub const wasm_support = @import("wasm_support.zig");
-pub const libraries = @import("libraries/mod.zig");
+pub const libraries = @import("simd");
 pub const optimizations = @import("optimizations/mod.zig");
 pub const testing = @import("testing/mod.zig");
 pub const mobile = @import("mobile/mod.zig");
 
 // Direct exports for backward compatibility with tests
-pub const GPURenderer = core.GPURenderer;
-pub const GPUConfig = core.GPUConfig;
-pub const GpuError = core.GpuError;
-pub const GpuBackend = core.GpuBackend;
-pub const GpuBackendConfig = core.GpuBackendConfig;
-pub const GpuBackendError = core.GpuBackendError;
-pub const BatchConfig = core.BatchConfig;
-pub const BatchProcessor = core.BatchProcessor;
-pub const GpuStats = core.GpuStats;
-pub const Db = core.Db;
-pub const KernelManager = core.KernelManager;
-pub const GPUBackendManager = core.GPUBackendManager;
-pub const SPIRVCompiler = core.SPIRVCompiler;
-pub const CoreBackendType = core.BackendType;
-pub const HardwareCapabilities = core.HardwareCapabilities;
-pub const MemoryPool = core.MemoryPool;
-pub const BackendSupport = core.BackendSupport;
-pub const MemoryBandwidthBenchmark = core.MemoryBandwidthBenchmark;
-pub const ComputeThroughputBenchmark = core.ComputeThroughputBenchmark;
-pub const PerformanceProfiler = core.PerformanceProfiler;
-pub const BenchmarkConfig = core.BenchmarkConfig;
-pub const WorkloadType = core.WorkloadType;
-pub const PerformanceGrade = core.PerformanceGrade;
-pub const BenchmarkResult = core.BenchmarkResult;
-pub const Backend = core.Backend;
-pub const PowerPreference = core.PowerPreference;
-pub const has_webgpu_support = core.has_webgpu_support;
-pub const Color = core.Color;
-pub const GPUHandle = core.GPUHandle;
+pub const GPURenderer = gpu_core.GPURenderer;
+pub const GPUConfig = gpu_core.GPUConfig;
+pub const GpuError = gpu_core.GpuError;
+pub const GpuBackend = gpu_core.GpuBackend;
+pub const GpuBackendConfig = gpu_core.GpuBackendConfig;
+pub const GpuBackendError = gpu_core.GpuBackendError;
+pub const BatchConfig = gpu_core.BatchConfig;
+pub const BatchProcessor = gpu_core.BatchProcessor;
+pub const GpuStats = gpu_core.GpuStats;
+pub const Db = gpu_core.Db;
+pub const KernelManager = gpu_core.KernelManager;
+pub const GPUBackendManager = gpu_core.GPUBackendManager;
+pub const SPIRVCompiler = gpu_core.SPIRVCompiler;
+pub const gpu_coreBackendType = gpu_core.BackendType;
+pub const HardwareCapabilities = gpu_core.HardwareCapabilities;
+pub const MemoryPool = gpu_core.MemoryPool;
+pub const BackendSupport = gpu_core.BackendSupport;
+pub const MemoryBandwidthBenchmark = gpu_core.MemoryBandwidthBenchmark;
+pub const ComputeThroughputBenchmark = gpu_core.ComputeThroughputBenchmark;
+pub const PerformanceProfiler = gpu_core.PerformanceProfiler;
+pub const BenchmarkConfig = gpu_core.BenchmarkConfig;
+pub const WorkloadType = gpu_core.WorkloadType;
+pub const PerformanceGrade = gpu_core.PerformanceGrade;
+pub const BenchmarkResult = gpu_core.BenchmarkResult;
+pub const Backend = gpu_core.Backend;
+pub const PowerPreference = gpu_core.PowerPreference;
+pub const has_webgpu_support = gpu_core.has_webgpu_support;
+pub const Color = gpu_core.Color;
+pub const GPUHandle = gpu_core.GPUHandle;
 
 // Unified Memory exports
 pub const UnifiedMemoryManager = unified_memory.UnifiedMemoryManager;
@@ -254,18 +254,18 @@ pub const PowerManagement = mobile.PowerManagement;
 pub const ThermalManagement = mobile.ThermalManagement;
 
 // Convenience functions
-pub const initDefault = core.initDefault;
-pub const isGpuAvailable = core.isGpuAvailable;
+pub const initDefault = gpu_core.initDefault;
+pub const isGpuAvailable = gpu_core.isGpuAvailable;
 
 /// Enhanced utilities and helper functions for GPU operations
 pub const utils = struct {
     /// Check if any GPU acceleration is available
     pub fn isAccelerationAvailable() bool {
-        return core.isGpuAvailable();
+        return gpu_core.isGpuAvailable();
     }
 
     /// Get recommended GPU configuration based on platform and hardware
-    pub fn getRecommendedConfig(allocator: std.mem.Allocator) Result(core.GPUConfig) {
+    pub fn getRecommendedConfig(allocator: std.mem.Allocator) Result(gpu_core.GPUConfig) {
         // Try hardware detection for optimal configuration
         if (hardware_detection.isHardwareDetectionAvailable()) {
             return getHardwareBasedConfig(allocator);
@@ -276,13 +276,13 @@ pub const utils = struct {
     }
 
     /// Initialize GPU system with recommended settings and error handling
-    pub fn initRecommended(allocator: std.mem.Allocator) Result(*core.GPURenderer) {
+    pub fn initRecommended(allocator: std.mem.Allocator) Result(*gpu_core.GPURenderer) {
         const config = try getRecommendedConfig(allocator);
-        return core.GPURenderer.init(allocator, config);
+        return gpu_core.GPURenderer.init(allocator, config);
     }
 
     /// Initialize GPU system with hardware detection and automatic backend selection
-    pub fn initWithHardwareDetection(allocator: std.mem.Allocator) Result(*core.GPURenderer) {
+    pub fn initWithHardwareDetection(allocator: std.mem.Allocator) Result(*gpu_core.GPURenderer) {
         var detector = hardware_detection.GPUDetector.init(allocator);
         defer detector.deinit();
 
@@ -296,22 +296,22 @@ pub const utils = struct {
 
         // Select best backend based on detected hardware
         const config = try createConfigFromDetection(detection_result);
-        return core.GPURenderer.init(allocator, config);
+        return gpu_core.GPURenderer.init(allocator, config);
     }
 
     /// Initialize with CPU fallback when GPU is not available
-    pub fn initWithFallback(allocator: std.mem.Allocator) Result(*core.GPURenderer) {
-        const config = core.GPUConfig{
+    pub fn initWithFallback(allocator: std.mem.Allocator) Result(*gpu_core.GPURenderer) {
+        const config = gpu_core.GPUConfig{
             .debug_validation = false,
             .power_preference = .low_power,
             .backend = .cpu_fallback,
             .try_webgpu_first = false,
         };
-        return core.GPURenderer.init(allocator, config);
+        return gpu_core.GPURenderer.init(allocator, config);
     }
 
     /// Safely deinitialize GPU resources with comprehensive cleanup
-    pub fn safeDeinit(renderer: ?*core.GPURenderer, allocator: std.mem.Allocator) void {
+    pub fn safeDeinit(renderer: ?*gpu_core.GPURenderer, allocator: std.mem.Allocator) void {
         if (renderer) |r| {
             // Ensure all pending operations are completed before cleanup
             r.waitForIdle() catch |err| {
@@ -350,7 +350,7 @@ pub const utils = struct {
     }
 
     /// Validate GPU configuration against system capabilities
-    pub fn validateConfiguration(config: *const core.GPUConfig) Result(void) {
+    pub fn validateConfiguration(config: *const gpu_core.GPUConfig) Result(void) {
         if (!isAccelerationAvailable() and config.backend != .cpu_fallback) {
             return Error.BackendNotAvailable;
         }
@@ -373,7 +373,7 @@ pub const utils = struct {
 
     // Internal helper functions
 
-    fn getHardwareBasedConfig(allocator: std.mem.Allocator) Result(core.GPUConfig) {
+    fn getHardwareBasedConfig(allocator: std.mem.Allocator) Result(gpu_core.GPUConfig) {
         var detector = hardware_detection.GPUDetector.init(allocator);
         defer detector.deinit();
 
@@ -383,21 +383,21 @@ pub const utils = struct {
         return createConfigFromDetection(result);
     }
 
-    fn createConfigFromDetection(detection_result: *const hardware_detection.GPUDetectionResult) Result(core.GPUConfig) {
+    fn createConfigFromDetection(detection_result: *const hardware_detection.GPUDetectionResult) Result(gpu_core.GPUConfig) {
         const recommended_backend = detection_result.recommended_backend;
 
-        return core.GPUConfig{
+        return gpu_core.GPUConfig{
             .debug_validation = false,
             .power_preference = if (detection_result.system_capabilities.power_delivery_capacity > 500)
                 .high_performance
             else
                 .low_power,
-            .backend = backendTypeToCoreBackend(recommended_backend),
+            .backend = backendTypeTogpu_coreBackend(recommended_backend),
             .try_webgpu_first = recommended_backend == .webgpu,
         };
     }
 
-    fn backendTypeToCoreBackend(backend: hardware_detection.BackendType) core.Backend {
+    fn backendTypeTogpu_coreBackend(backend: hardware_detection.BackendType) gpu_core.Backend {
         return switch (backend) {
             .vulkan => .vulkan,
             .cuda => .cuda,
@@ -410,8 +410,8 @@ pub const utils = struct {
         };
     }
 
-    fn getPlatformDefaultConfig() Result(core.GPUConfig) {
-        const config = core.GPUConfig{
+    fn getPlatformDefaultConfig() Result(gpu_core.GPUConfig) {
+        const config = gpu_core.GPUConfig{
             .debug_validation = false,
             .power_preference = .high_performance,
             .backend = if (is_wasm)
@@ -504,12 +504,12 @@ test {
 
 test "GPU module organization" {
     // Test that all organized components are accessible
-    _ = core.GPURenderer;
-    _ = core.GpuBackend;
-    _ = core.KernelManager;
-    _ = core.MemoryPool;
-    _ = core.BackendSupport;
-    _ = core.PerformanceProfiler;
+    _ = gpu_core.GPURenderer;
+    _ = gpu_core.GpuBackend;
+    _ = gpu_core.KernelManager;
+    _ = gpu_core.MemoryPool;
+    _ = gpu_core.BackendSupport;
+    _ = gpu_core.PerformanceProfiler;
     _ = utils.isAccelerationAvailable;
 }
 
@@ -543,7 +543,7 @@ test "GPU error handling" {
 
 test "GPU configuration validation" {
     // Test platform-specific configuration validation
-    const config = core.GPUConfig{
+    const config = gpu_core.GPUConfig{
         .debug_validation = false,
         .power_preference = .high_performance,
         .backend = .vulkan,

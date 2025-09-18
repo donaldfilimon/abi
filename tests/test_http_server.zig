@@ -1,32 +1,39 @@
 const std = @import("std");
-const wdbx_http = @import("src/wdbx/http.zig");
-
+const testing = std.testing;
+const abi = @import("abi");
+const wdbx_http = abi.wdbx.http;
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
-
-    // Create HTTP server configuration
-    const config = wdbx_http.ServerConfig{
-        .host = "127.0.0.1",
-        .port = 8080,
-        .enable_cors = true,
-        .enable_auth = false, // Disable auth for testing
-    };
-
-    // Initialize server
+    const config = wdbx_http.ServerConfig{};
     var server = try wdbx_http.WdbxHttpServer.init(allocator, config);
     defer server.deinit();
-
-    // Open a test database
     try server.openDatabase("test_http.db");
-
-    std.debug.print("Starting HTTP server on http://{s}:{}\n", .{ config.host, config.port });
-    std.debug.print("Test endpoints:\n", .{});
-    std.debug.print("  GET  http://{s}:{}/health\n", .{ config.host, config.port });
-    std.debug.print("  GET  http://{s}:{}/stats\n", .{ config.host, config.port });
-    std.debug.print("  GET  http://{s}:{}/query?vec=1.0,2.0,3.0\n", .{ config.host, config.port });
-    std.debug.print("  POST http://{s}:{}/add\n", .{ config.host, config.port });
-    std.debug.print("\nPress Ctrl+C to stop the server\n", .{});
-
-    // Start the server
     try server.start();
+    std.debug.print("WDBX HTTP server ready at http://{s}:{d}\n", .{ config.host, config.port });
+    std.debug.print("This sample does not spin a network listener; use tests for request behaviour.\n", .{});
+}
+
+test "http server add and query" {
+    const allocator = testing.allocator;
+    var server = try wdbx_http.WdbxHttpServer.init(allocator, .{});
+    defer server.deinit();
+
+    const add_body = "{\"vector\":[1.0,2.0,3.0]}";
+    var response = try server.respond("POST", "/add", add_body);
+    defer response.deinit(allocator);
+    try testing.expectEqual(@as(u16, 200), response.status);
+
+    const query = try server.respond("GET", "/query?vec=1.0,2.0,3.0&k=1", "");
+    defer query.deinit(allocator);
+    try testing.expect(std.mem.indexOf(u8, query.body, "\"matches\"") != null);
+}
+
+test "http server stats" {
+    const allocator = testing.allocator;
+    var server = try wdbx_http.WdbxHttpServer.init(allocator, .{});
+    defer server.deinit();
+
+    const stats = try server.respond("GET", "/stats", "");
+    defer stats.deinit(allocator);
+    try testing.expect(std.mem.indexOf(u8, stats.body, "\"vectors\":0") != null);
 }

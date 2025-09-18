@@ -1,0 +1,167 @@
+version: '3.8'
+
+services:
+  abi-ai-framework:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    environment:
+      - ABI_CONFIG_FILE=/app/config/development.wdbx-config
+      - ABI_PORT=8080
+      - ABI_HOST=0.0.0.0
+      - ABI_DATABASE_PATH=/app/data/vectors.wdbx
+      - ABI_LOG_LEVEL=debug
+      - ABI_ENABLE_GPU=false
+      - ABI_ENABLE_SIMD=true
+      - ABI_WORKER_THREADS=4
+      - ABI_MEMORY_LIMIT_MB=2048
+    volumes:
+      - abi-data:/app/data
+      - abi-models:/app/models
+      - abi-logs:/app/logs
+      - ./config:/app/config:ro
+    networks:
+      - abi-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  abi-gpu-worker:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile.gpu
+    profiles: ["gpu"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - ABI_CONFIG_FILE=/app/config/gpu.wdbx-config
+      - ABI_PORT=8081
+      - ABI_HOST=0.0.0.0
+      - ABI_DATABASE_PATH=/app/data/vectors.wdbx
+      - ABI_LOG_LEVEL=info
+      - ABI_ENABLE_GPU=true
+      - ABI_ENABLE_SIMD=true
+      - ABI_WORKER_THREADS=8
+      - ABI_MEMORY_LIMIT_MB=8192
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - abi-data:/app/data
+      - abi-models:/app/models
+      - abi-logs:/app/logs
+      - ./config:/app/config:ro
+    networks:
+      - abi-network
+    depends_on:
+      - abi-ai-framework
+    restart: unless-stopped
+
+  abi-database:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=abi_metadata
+      - POSTGRES_USER=abi
+      - POSTGRES_PASSWORD=${ABI_DB_PASSWORD:-changeme123}
+    volumes:
+      - abi-postgres:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - abi-network
+    restart: unless-stopped
+
+  abi-redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - abi-redis:/data
+    networks:
+      - abi-network
+    restart: unless-stopped
+
+  abi-monitoring:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - abi-monitoring:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - abi-network
+    restart: unless-stopped
+
+  abi-grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${ABI_GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${ABI_GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - abi-grafana:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - abi-network
+    depends_on:
+      - abi-monitoring
+    restart: unless-stopped
+
+  abi-nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - abi-logs:/var/log/nginx
+    networks:
+      - abi-network
+    depends_on:
+      - abi-ai-framework
+      - abi-monitoring
+      - abi-grafana
+    restart: unless-stopped
+
+volumes:
+  abi-data:
+    driver: local
+  abi-models:
+    driver: local
+  abi-logs:
+    driver: local
+  abi-postgres:
+    driver: local
+  abi-redis:
+    driver: local
+  abi-monitoring:
+    driver: local
+  abi-grafana:
+    driver: local
+
+networks:
+  abi-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

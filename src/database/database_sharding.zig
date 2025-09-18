@@ -2,7 +2,7 @@
 //! Provides round-robin insertion and fan-out search across shards.
 
 const std = @import("std");
-const database = @import("database");
+const database = @import("../wdbx/database.zig");
 
 pub const GlobalResult = struct {
     shard: usize,
