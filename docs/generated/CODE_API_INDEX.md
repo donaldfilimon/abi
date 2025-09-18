@@ -1,6 +1,6 @@
 # Code API Index (Scanned)
 
-Scanned 97 Zig files under `src/`. This index lists public declarations discovered along with leading doc comments.
+Scanned 112 Zig files under `src/`. This index lists public declarations discovered along with leading doc comments.
 
 ## src\logging.zig
 
@@ -182,6 +182,14 @@ pub fn err(comptime message: []const u8, fields: anytype, src: std.builtin.Sourc
 
 ```zig
 pub fn fatal(comptime message: []const u8, fields: anytype, src: std.builtin.SourceLocation) !void {
+```
+
+## src\main.zig
+
+- fn `main`
+
+```zig
+pub fn main() !void {
 ```
 
 ## src\platform.zig
@@ -500,6 +508,66 @@ pub const connectors = @import("connectors/mod.zig");
 pub const services = @import("services/mod.zig");
 ```
 
+- const `core`
+
+```zig
+pub const core = @import("core");
+```
+
+- const `AbiError`
+
+```zig
+pub const AbiError = core.AbiError;
+```
+
+- const `Result`
+
+```zig
+pub const Result = core.Result;
+```
+
+- const `database`
+
+```zig
+pub const database = @import("database");
+```
+
+- const `sharding`
+
+```zig
+pub const sharding = @import("database/database_sharding.zig");
+```
+
+- const `simd`
+
+```zig
+pub const simd = @import("simd");
+```
+
+- const `ai`
+
+```zig
+pub const ai = @import("ai");
+```
+
+- const `wdbx`
+
+```zig
+pub const wdbx = @import("wdbx/unified.zig");
+```
+
+- const `plugins`
+
+```zig
+pub const plugins = @import("plugins");
+```
+
+- const `utils`
+
+```zig
+pub const utils = @import("utils.zig");
+```
+
 - const `Db`
 
 ```zig
@@ -512,16 +580,28 @@ pub const Db = database.Db;
 pub const DbError = database.DbError;
 ```
 
-- const `Result`
-
-```zig
-pub const Result = database.Result;
-```
-
 - const `WdbxHeader`
 
 ```zig
 pub const WdbxHeader = database.WdbxHeader;
+```
+
+- const `Vector`
+
+```zig
+pub const Vector = simd.Vector;
+```
+
+- const `VectorOps`
+
+```zig
+pub const VectorOps = simd.VectorOps;
+```
+
+- const `MatrixOps`
+
+```zig
+pub const MatrixOps = simd.MatrixOps;
 ```
 
 - const `Vector`
@@ -576,6 +656,54 @@ pub const Activation = ai.Activation;
 
 ```zig
 pub const DynamicPersonaRouter = ai.DynamicPersonaRouter;
+```
+
+- const `Allocator`
+
+```zig
+pub const Allocator = core.Allocator;
+```
+
+- const `ArrayList`
+
+```zig
+pub const ArrayList = core.ArrayList;
+```
+
+- const `HashMap`
+
+```zig
+pub const HashMap = core.HashMap;
+```
+
+- const `random`
+
+```zig
+pub const random = core.random;
+```
+
+- const `string`
+
+```zig
+pub const string = core.string;
+```
+
+- const `time`
+
+```zig
+pub const time = core.time;
+```
+
+- const `log`
+
+```zig
+pub const log = core.log;
+```
+
+- const `performance_core`
+
+```zig
+pub const performance_core = core.performance;
 ```
 
 - const `Allocator`
@@ -726,6 +854,35 @@ pub const WeatherData = services.WeatherData;
 
 ```zig
 pub const WeatherConfig = services.WeatherConfig;
+```
+
+- fn `init`
+
+Initialize the WDBX-AI framework
+Must be called before using any framework functionality
+
+
+```zig
+pub fn init(allocator: Allocator) AbiError!void {
+```
+
+- fn `deinit`
+
+Deinitialize the WDBX-AI framework
+Should be called when shutting down the application
+
+
+```zig
+pub fn deinit() void {
+```
+
+- fn `isInitialized`
+
+Check if the framework is initialized
+
+
+```zig
+pub fn isInitialized() bool {
 ```
 
 - fn `main`
@@ -1877,11 +2034,11 @@ pub fn reset(self: *MemoryStats) void {
 
 - const `DatabaseError`
 
-Database-specific error types
+Database-specific error types (extends core errors)
 
 
 ```zig
-pub const DatabaseError = error{
+pub const DatabaseError = core.AbiError || error{
 ```
 
 - const `MAGIC`
@@ -2142,6 +2299,71 @@ Parallel search using multiple threads for brute force search
 pub fn searchParallel(self: *Db, query: []const f32, top_k: usize, allocator: std.mem.Allocator, num_threads: u32) ![]Result {
 ```
 
+## src\wdbx\db_helpers.zig
+
+- const `Db`
+
+```zig
+pub const Db = engine.Db;
+```
+
+- const `DatabaseError`
+
+```zig
+pub const DatabaseError = engine.DatabaseError;
+```
+
+- const `WdbxHeader`
+
+```zig
+pub const WdbxHeader = engine.WdbxHeader;
+```
+
+- const `Result`
+
+```zig
+pub const Result = engine.Db.Result;
+```
+
+- const `DbStats`
+
+```zig
+pub const DbStats = engine.Db.DbStats;
+```
+
+- type `helpers`
+
+Shared helpers for manipulating vectors and database-oriented payloads.
+
+
+```zig
+pub const helpers = struct {
+```
+
+- fn `parseVector`
+
+```zig
+pub fn parseVector(allocator: std.mem.Allocator, input: []const u8) ![]f32 {
+```
+
+- fn `parseJsonVector`
+
+```zig
+pub fn parseJsonVector(allocator: std.mem.Allocator, node: json.Value) ![]f32 {
+```
+
+- fn `formatNearestNeighborResponse`
+
+```zig
+pub fn formatNearestNeighborResponse(allocator: std.mem.Allocator, result: Result) ![]u8 {
+```
+
+- fn `formatKnnResponse`
+
+```zig
+pub fn formatKnnResponse(allocator: std.mem.Allocator, k: usize, results: []const Result) ![]u8 {
+```
+
 ## src\wdbx\mod.zig
 
 - const `cli`
@@ -2160,6 +2382,18 @@ pub const http = @import("../server/wdbx_http.zig");
 
 ```zig
 pub const core = @import("core.zig");
+```
+
+- const `database`
+
+```zig
+pub const database = @import("./db_helpers.zig");
+```
+
+- const `unified`
+
+```zig
+pub const unified = @import("unified.zig");
 ```
 
 - const `config`
@@ -2234,6 +2468,188 @@ pub const ConfigUtils = config.ConfigUtils;
 pub const database = @import("database.zig");
 ```
 
+- const `WdbxError`
+
+```zig
+pub const WdbxError = core.WdbxError;
+```
+
+- const `VERSION`
+
+```zig
+pub const VERSION = core.VERSION;
+```
+
+- const `OutputFormat`
+
+```zig
+pub const OutputFormat = core.OutputFormat;
+```
+
+- const `LogLevel`
+
+```zig
+pub const LogLevel = core.LogLevel;
+```
+
+- const `Config`
+
+```zig
+pub const Config = core.Config;
+```
+
+- const `Timer`
+
+```zig
+pub const Timer = core.Timer;
+```
+
+- const `Logger`
+
+```zig
+pub const Logger = core.Logger;
+```
+
+- const `MemoryStats`
+
+```zig
+pub const MemoryStats = core.MemoryStats;
+```
+
+- const `Db`
+
+```zig
+pub const Db = database.Db;
+```
+
+- const `DatabaseError`
+
+```zig
+pub const DatabaseError = database.DatabaseError;
+```
+
+- const `WdbxHeader`
+
+```zig
+pub const WdbxHeader = database.WdbxHeader;
+```
+
+- const `main_cli`
+
+```zig
+pub const main_cli = cli.main;
+```
+
+- const `createServer`
+
+```zig
+pub const createServer = http.createServer;
+```
+
+- const `createCLI`
+
+```zig
+pub const createCLI = unified.createCLI;
+```
+
+- const `createHttpServer`
+
+```zig
+pub const createHttpServer = unified.createHttpServer;
+```
+
+- const `quickStart`
+
+```zig
+pub const quickStart = unified.quickStart;
+```
+
+- const `startHttpServer`
+
+```zig
+pub const startHttpServer = unified.startHttpServer;
+```
+
+## src\wdbx\unified.zig
+
+- const `WdbxCLI`
+
+```zig
+pub const WdbxCLI = cli.WdbxCLI;
+```
+
+- const `WdbxHttpServer`
+
+```zig
+pub const WdbxHttpServer = http.WdbxHttpServer;
+```
+
+- const `Command`
+
+```zig
+pub const Command = cli.Command;
+```
+
+- const `Options`
+
+```zig
+pub const Options = cli.Options;
+```
+
+- const `ServerConfig`
+
+```zig
+pub const ServerConfig = http.ServerConfig;
+```
+
+- const `WdbxError`
+
+```zig
+pub const WdbxError = wdbx_core.WdbxError;
+```
+
+- const `VERSION`
+
+```zig
+pub const VERSION = wdbx_core.VERSION;
+```
+
+- const `OutputFormat`
+
+```zig
+pub const OutputFormat = wdbx_core.OutputFormat;
+```
+
+- const `LogLevel`
+
+```zig
+pub const LogLevel = wdbx_core.LogLevel;
+```
+
+- const `Config`
+
+```zig
+pub const Config = wdbx_core.Config;
+```
+
+- const `Timer`
+
+```zig
+pub const Timer = wdbx_core.Timer;
+```
+
+- const `Logger`
+
+```zig
+pub const Logger = wdbx_core.Logger;
+```
+
+- const `MemoryStats`
+
+```zig
+pub const MemoryStats = wdbx_core.MemoryStats;
+```
+
 - const `main`
 
 ```zig
@@ -2244,6 +2660,132 @@ pub const main = cli.main;
 
 ```zig
 pub const createServer = http.createServer;
+```
+
+- type `wdbx`
+
+```zig
+pub const wdbx = struct {
+```
+
+- const `cli_module`
+
+```zig
+pub const cli_module = cli;
+```
+
+- const `core_module`
+
+```zig
+pub const core_module = wdbx_core;
+```
+
+- const `http_module`
+
+```zig
+pub const http_module = http;
+```
+
+- fn `createCLI`
+
+```zig
+pub fn createCLI(allocator: std.mem.Allocator, options: Options) !*WdbxCLI {
+```
+
+- fn `createHttpServer`
+
+```zig
+pub fn createHttpServer(allocator: std.mem.Allocator, config: ServerConfig) !*WdbxHttpServer {
+```
+
+- const `version`
+
+```zig
+pub const version = VERSION.string();
+```
+
+- const `version_major`
+
+```zig
+pub const version_major = VERSION.MAJOR;
+```
+
+- const `version_minor`
+
+```zig
+pub const version_minor = VERSION.MINOR;
+```
+
+- const `version_patch`
+
+```zig
+pub const version_patch = VERSION.PATCH;
+```
+
+- fn `quickStart`
+
+```zig
+pub fn quickStart(allocator: std.mem.Allocator) !void {
+```
+
+- fn `startHttpServer`
+
+```zig
+pub fn startHttpServer(allocator: std.mem.Allocator, port: u16) !*WdbxHttpServer {
+```
+
+## src\wdbx\utils.zig
+
+- type `utils`
+
+Utility helpers for the WDBX module.
+
+The primary purpose of this file is to provide small, reusable
+functions that are used across the WDBX codebase.  Currently we
+expose a single helper for freeing optional string slices.
+
+This module deliberately stays tiny; if more shared helpers are
+required in the future, they can be added here while keeping the
+implementation consistent and testable.
+
+
+```zig
+pub const utils = struct {
+```
+
+- pub `inline`
+
+Frees an optional slice if it is allocated.
+
+Zig's optional types can be `null` or a value.  In the
+WDBX code many structs own optional `[]const u8` strings that
+need to be freed when the struct is dropped.  This helper
+abstracts the pattern
+
+```zig
+if (opt) |ptr| allocator.free(ptr);
+```
+
+Usage:
+
+```zig
+utils.freeOptional(allocator, self.db_path);
+```
+
+# Parameters
+
+- `allocator`: the allocator that owns the memory.
+- `opt`: the optional slice to free, or `null`.
+
+# Panics
+
+Does not panic. If `opt` is not `null`, `allocator.free`
+is called with the slice; the slice must have been allocated
+from that allocator.
+
+
+```zig
+pub inline fn freeOptional(allocator: std.mem.Allocator, opt: ?[]const u8) void {
 ```
 
 ## src\services\mod.zig
@@ -4606,6 +5148,1189 @@ pub fn log(self: *PluginContext, level: u8, message: []const u8) void {
 pub fn getService(self: *PluginContext, service_name: []const u8) ?*anyopaque {
 ```
 
+## src\perf\memory_tracker.zig
+
+- type `AllocationRecord`
+
+Memory allocation record
+
+
+```zig
+pub const AllocationRecord = struct {
+```
+
+- fn `memoryUsage`
+
+Calculate memory usage for this allocation
+
+
+```zig
+pub fn memoryUsage(self: AllocationRecord) usize {
+```
+
+- fn `age`
+
+Get allocation age in nanoseconds
+
+
+```zig
+pub fn age(self: AllocationRecord, current_time: u64) u64 {
+```
+
+- fn `isPotentialLeak`
+
+Check if allocation is a potential leak
+
+
+```zig
+pub fn isPotentialLeak(self: AllocationRecord, current_time: u64, leak_threshold_ns: u64) bool {
+```
+
+- type `MemoryStats`
+
+Memory statistics snapshot
+
+
+```zig
+pub const MemoryStats = struct {
+```
+
+- fn `currentUsage`
+
+Calculate current memory usage
+
+
+```zig
+pub fn currentUsage(self: MemoryStats) usize {
+```
+
+- fn `efficiency`
+
+Calculate memory efficiency (1.0 = no waste, lower = more fragmentation)
+
+
+```zig
+pub fn efficiency(self: MemoryStats) f64 {
+```
+
+- fn `allocationSuccessRate`
+
+Get allocation success rate
+
+
+```zig
+pub fn allocationSuccessRate(self: MemoryStats) f64 {
+```
+
+- type `MemoryProfilerConfig`
+
+Memory profiler configuration
+
+
+```zig
+pub const MemoryProfilerConfig = struct {
+```
+
+- type `MemoryProfiler`
+
+Memory profiler main structure
+
+
+```zig
+pub const MemoryProfiler = struct {
+```
+
+- fn `init`
+
+Initialize memory profiler
+
+
+```zig
+pub fn init(allocator: std.mem.Allocator, config: MemoryProfilerConfig) !*MemoryProfiler {
+```
+
+- fn `deinit`
+
+Deinitialize memory profiler
+
+
+```zig
+pub fn deinit(self: *MemoryProfiler) void {
+```
+
+- fn `recordAllocation`
+
+Record a memory allocation
+
+
+```zig
+pub fn recordAllocation(
+```
+
+- fn `recordDeallocation`
+
+Record a memory deallocation
+
+
+```zig
+pub fn recordDeallocation(self: *MemoryProfiler, id: u64) void {
+```
+
+- fn `getStats`
+
+Get current memory statistics
+
+
+```zig
+pub fn getStats(self: *MemoryProfiler) MemoryStats {
+```
+
+- fn `getPotentialLeaks`
+
+Get potential memory leaks
+
+
+```zig
+pub fn getPotentialLeaks(self: *MemoryProfiler, allocator: std.mem.Allocator) ![]AllocationRecord {
+```
+
+- fn `generateReport`
+
+Generate memory usage report
+
+
+```zig
+pub fn generateReport(self: *MemoryProfiler, allocator: std.mem.Allocator) ![]u8 {
+```
+
+- fn `resetStats`
+
+Reset statistics
+
+
+```zig
+pub fn resetStats(self: *MemoryProfiler) void {
+```
+
+- fn `collectPeriodicStats`
+
+Collect periodic statistics
+
+
+```zig
+pub fn collectPeriodicStats(self: *MemoryProfiler) void {
+```
+
+- fn `initGlobalProfiler`
+
+Initialize global memory profiler
+
+
+```zig
+pub fn initGlobalProfiler(allocator: std.mem.Allocator, config: MemoryProfilerConfig) !void {
+```
+
+- fn `deinitGlobalProfiler`
+
+Deinitialize global memory profiler
+
+
+```zig
+pub fn deinitGlobalProfiler() void {
+```
+
+- fn `getGlobalProfiler`
+
+Get global memory profiler instance
+
+
+```zig
+pub fn getGlobalProfiler() ?*MemoryProfiler {
+```
+
+- type `TrackedAllocator`
+
+Tracked allocator that integrates with memory profiler
+
+
+```zig
+pub const TrackedAllocator = struct {
+```
+
+- fn `init`
+
+Initialize tracked allocator
+
+
+```zig
+pub fn init(parent_allocator: std.mem.Allocator, profiler: *MemoryProfiler) TrackedAllocator {
+```
+
+- fn `allocator`
+
+Get allocator interface
+
+
+```zig
+pub fn allocator(self: *TrackedAllocator) std.mem.Allocator {
+```
+
+- type `MemoryMonitor`
+
+Memory usage monitor
+
+
+```zig
+pub const MemoryMonitor = struct {
+```
+
+- fn `init`
+
+Initialize memory monitor
+
+
+```zig
+pub fn init(profiler: *MemoryProfiler) !*MemoryMonitor {
+```
+
+- fn `start`
+
+Start monitoring thread
+
+
+```zig
+pub fn start(self: *MemoryMonitor) !void {
+```
+
+- fn `stop`
+
+Stop monitoring
+
+
+```zig
+pub fn stop(self: *MemoryMonitor) void {
+```
+
+- fn `deinit`
+
+Deinitialize monitor
+
+
+```zig
+pub fn deinit(self: *MemoryMonitor) void {
+```
+
+- type `PerformanceMonitor`
+
+Performance monitoring utilities
+
+
+```zig
+pub const PerformanceMonitor = struct {
+```
+
+- fn `start`
+
+Start performance measurement
+
+
+```zig
+pub fn start(self: *PerformanceMonitor) void {
+```
+
+- fn `end`
+
+End performance measurement
+
+
+```zig
+pub fn end(self: *PerformanceMonitor) void {
+```
+
+- fn `elapsedTime`
+
+Get elapsed time in nanoseconds
+
+
+```zig
+pub fn elapsedTime(self: PerformanceMonitor) u64 {
+```
+
+- fn `memoryDelta`
+
+Get memory usage delta
+
+
+```zig
+pub fn memoryDelta(self: PerformanceMonitor) i64 {
+```
+
+- fn `generateReport`
+
+Generate performance report
+
+
+```zig
+pub fn generateReport(self: PerformanceMonitor, allocator: std.mem.Allocator, operation_name: []const u8) ![]u8 {
+```
+
+- type `utils`
+
+Utility functions for memory profiling
+
+
+```zig
+pub const utils = struct {
+```
+
+- fn `simpleConfig`
+
+Create a simple memory profiler configuration
+
+
+```zig
+pub fn simpleConfig() MemoryProfilerConfig {
+```
+
+- fn `developmentConfig`
+
+Create a development configuration with more detailed tracking
+
+
+```zig
+pub fn developmentConfig() MemoryProfilerConfig {
+```
+
+- fn `productionConfig`
+
+Create a production configuration with minimal overhead
+
+
+```zig
+pub fn productionConfig() MemoryProfilerConfig {
+```
+
+## src\perf\performance.zig
+
+- const `Allocator`
+
+Re-export commonly used types
+
+
+```zig
+pub const Allocator = std.mem.Allocator;
+```
+
+- const `PerformanceError`
+
+Performance monitoring specific error types
+
+
+```zig
+pub const PerformanceError = error{
+```
+
+- type `MetricType`
+
+Performance metric types
+
+
+```zig
+pub const MetricType = enum {
+```
+
+- const `MetricValue`
+
+Performance metric value
+
+
+```zig
+pub const MetricValue = union(MetricType) {
+```
+
+- type `HistogramData`
+
+Histogram data for latency measurements
+
+
+```zig
+pub const HistogramData = struct {
+```
+
+- fn `record`
+
+```zig
+pub fn record(self: *HistogramData, value: f64) void {
+```
+
+- fn `percentile`
+
+```zig
+pub fn percentile(self: *const HistogramData, p: f64) f64 {
+```
+
+- type `TimerData`
+
+Timer data for duration measurements
+
+
+```zig
+pub const TimerData = struct {
+```
+
+- fn `start`
+
+```zig
+pub fn start(self: *TimerData) void {
+```
+
+- fn `stop`
+
+```zig
+pub fn stop(self: *TimerData) void {
+```
+
+- fn `averageDuration`
+
+```zig
+pub fn averageDuration(self: *const TimerData) f64 {
+```
+
+- type `Metric`
+
+Performance metric entry
+
+
+```zig
+pub const Metric = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator, name: []const u8, value: MetricValue) !Metric {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *Metric, allocator: std.mem.Allocator) void {
+```
+
+- fn `addLabel`
+
+```zig
+pub fn addLabel(self: *Metric, allocator: std.mem.Allocator, key: []const u8, value: []const u8) !void {
+```
+
+- type `CPUProfiler`
+
+CPU profiler with sampling
+
+
+```zig
+pub const CPUProfiler = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator, sampling_rate: u32) CPUProfiler {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *CPUProfiler) void {
+```
+
+- fn `start`
+
+```zig
+pub fn start(self: *CPUProfiler) !void {
+```
+
+- fn `stop`
+
+```zig
+pub fn stop(self: *CPUProfiler) void {
+```
+
+- type `MemoryTracker`
+
+Memory allocation tracker
+
+
+```zig
+pub const MemoryTracker = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator) !MemoryTracker {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *MemoryTracker) void {
+```
+
+- fn `recordAllocation`
+
+```zig
+pub fn recordAllocation(self: *MemoryTracker, ptr: usize, size: usize) void {
+```
+
+- fn `recordDeallocation`
+
+```zig
+pub fn recordDeallocation(self: *MemoryTracker, ptr: usize) void {
+```
+
+- fn `getCurrentUsage`
+
+```zig
+pub fn getCurrentUsage(self: *const MemoryTracker) u64 {
+```
+
+- fn `getPeakUsage`
+
+```zig
+pub fn getPeakUsage(self: *const MemoryTracker) u64 {
+```
+
+- type `PerformanceMonitor`
+
+Global performance monitoring system
+
+
+```zig
+pub const PerformanceMonitor = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator) !*PerformanceMonitor {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *PerformanceMonitor) void {
+```
+
+- fn `recordMetric`
+
+```zig
+pub fn recordMetric(self: *PerformanceMonitor, name: []const u8, value: MetricValue) !void {
+```
+
+- fn `startProfiling`
+
+```zig
+pub fn startProfiling(self: *PerformanceMonitor) !void {
+```
+
+- fn `stopProfiling`
+
+```zig
+pub fn stopProfiling(self: *PerformanceMonitor) void {
+```
+
+- fn `getMetric`
+
+```zig
+pub fn getMetric(self: *PerformanceMonitor, name: []const u8) ?Metric {
+```
+
+- type `TracyProfiler`
+
+Tracy profiler integration (when enabled)
+
+
+```zig
+pub const TracyProfiler = struct {
+```
+
+- fn `zoneName`
+
+```zig
+pub fn zoneName(comptime name: []const u8) void {
+```
+
+- fn `zoneStart`
+
+```zig
+pub fn zoneStart() void {
+```
+
+- fn `zoneEnd`
+
+```zig
+pub fn zoneEnd() void {
+```
+
+- fn `plot`
+
+```zig
+pub fn plot(name: []const u8, value: f64) void {
+```
+
+- fn `init`
+
+```zig
+pub fn init() !void {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit() void {
+```
+
+- fn `recordMetric`
+
+```zig
+pub fn recordMetric(name: []const u8, value: f64) void {
+```
+
+- fn `recordCounter`
+
+```zig
+pub fn recordCounter(name: []const u8, value: u64) void {
+```
+
+- fn `recordLatency`
+
+```zig
+pub fn recordLatency(name: []const u8, duration_ns: u64) void {
+```
+
+- type `Timer`
+
+Timer utility for measuring execution time
+
+
+```zig
+pub const Timer = struct {
+```
+
+- fn `start`
+
+```zig
+pub fn start(comptime name: []const u8) Timer {
+```
+
+- fn `stop`
+
+```zig
+pub fn stop(self: Timer) void {
+```
+
+- fn `timed`
+
+Convenient macro for timing function execution
+
+
+```zig
+pub fn timed(comptime name: []const u8, func: anytype) @TypeOf(func()) {
+```
+
+## src\perf\performance_profiler.zig
+
+- type `ProfilingConfig`
+
+Performance profiling configuration
+
+
+```zig
+pub const ProfilingConfig = struct {
+```
+
+- type `CallRecord`
+
+Function call record (for call tracing and call tree)
+
+
+```zig
+pub const CallRecord = struct {
+```
+
+- fn `duration`
+
+Calculate call duration (nanoseconds)
+
+
+```zig
+pub fn duration(self: CallRecord) u64 {
+```
+
+- fn `isComplete`
+
+Check if call is complete (has exit time)
+
+
+```zig
+pub fn isComplete(self: CallRecord) bool {
+```
+
+- type `PerformanceCounter`
+
+Performance counter (for custom and built-in metrics)
+
+
+```zig
+pub const PerformanceCounter = struct {
+```
+
+- fn `increment`
+
+```zig
+pub fn increment(self: *PerformanceCounter) void {
+```
+
+- fn `add`
+
+```zig
+pub fn add(self: *PerformanceCounter, delta: u64) void {
+```
+
+- fn `set`
+
+```zig
+pub fn set(self: *PerformanceCounter, new_value: u64) void {
+```
+
+- fn `reset`
+
+```zig
+pub fn reset(self: *PerformanceCounter) void {
+```
+
+- type `PerformanceProfile`
+
+Performance profile data (per session)
+
+
+```zig
+pub const PerformanceProfile = struct {
+```
+
+- fn `duration`
+
+```zig
+pub fn duration(self: PerformanceProfile) u64 {
+```
+
+- fn `durationSeconds`
+
+```zig
+pub fn durationSeconds(self: PerformanceProfile) f64 {
+```
+
+- fn `cpuUtilization`
+
+```zig
+pub fn cpuUtilization(self: PerformanceProfile) f64 {
+```
+
+- type `FunctionProfiler`
+
+Function profiler for instrumenting and aggregating function stats
+
+
+```zig
+pub const FunctionProfiler = struct {
+```
+
+- fn `enter`
+
+```zig
+pub fn enter(self: *FunctionProfiler) u64 {
+```
+
+- fn `exit`
+
+```zig
+pub fn exit(self: *FunctionProfiler, entry_time: u64) void {
+```
+
+- fn `averageExecutionTime`
+
+```zig
+pub fn averageExecutionTime(self: FunctionProfiler) u64 {
+```
+
+- type `PerformanceProfiler`
+
+Main performance profiler
+
+
+```zig
+pub const PerformanceProfiler = struct {
+```
+
+- fn `init`
+
+Initialize performance profiler
+
+
+```zig
+pub fn init(allocator: std.mem.Allocator, config: ProfilingConfig) !*PerformanceProfiler {
+```
+
+- fn `deinit`
+
+Deinitialize performance profiler and free all resources
+
+
+```zig
+pub fn deinit(self: *PerformanceProfiler) void {
+```
+
+- fn `startSession`
+
+Start profiling session
+
+
+```zig
+pub fn startSession(self: *PerformanceProfiler, session_name: []const u8) !void {
+```
+
+- fn `endSession`
+
+End profiling session and return report
+
+
+```zig
+pub fn endSession(self: *PerformanceProfiler) ![]u8 {
+```
+
+- fn `startFunctionCall`
+
+Start function call (for call tracing)
+
+
+```zig
+pub fn startFunctionCall(self: *PerformanceProfiler, function_name: []const u8, file: []const u8, line: u32) !u64 {
+```
+
+- fn `endFunctionCall`
+
+End function call (for call tracing)
+
+
+```zig
+pub fn endFunctionCall(self: *PerformanceProfiler, entry_time: u64) void {
+```
+
+- fn `updateCounter`
+
+Update or create a performance counter
+
+
+```zig
+pub fn updateCounter(self: *PerformanceProfiler, name: []const u8, delta: u64) void {
+```
+
+- fn `getFunctionStats`
+
+Get function profiler statistics (sorted by total_time descending)
+
+
+```zig
+pub fn getFunctionStats(self: *PerformanceProfiler, allocator: std.mem.Allocator) ![]FunctionProfiler {
+```
+
+- fn `stop`
+
+Stop profiling thread
+
+
+```zig
+pub fn stop(self: *PerformanceProfiler) void {
+```
+
+- fn `setMemoryTracker`
+
+Integrate with memory tracker
+
+
+```zig
+pub fn setMemoryTracker(self: *PerformanceProfiler, tracker: *memory_tracker.MemoryProfiler) void {
+```
+
+- fn `createScope`
+
+Create performance scope for measuring code blocks
+
+
+```zig
+pub fn createScope(self: *PerformanceProfiler, name: []const u8) Scope {
+```
+
+- type `Scope`
+
+Performance measurement scope (RAII-style)
+
+
+```zig
+pub const Scope = struct {
+```
+
+- fn `end`
+
+End the scope and record measurements
+
+
+```zig
+pub fn end(self: Scope) void {
+```
+
+- fn `initGlobalProfiler`
+
+Initialize global performance profiler
+
+
+```zig
+pub fn initGlobalProfiler(allocator: std.mem.Allocator, config: ProfilingConfig) !void {
+```
+
+- fn `deinitGlobalProfiler`
+
+Deinitialize global performance profiler
+
+
+```zig
+pub fn deinitGlobalProfiler() void {
+```
+
+- fn `getGlobalProfiler`
+
+Get global performance profiler instance
+
+
+```zig
+pub fn getGlobalProfiler() ?*PerformanceProfiler {
+```
+
+- fn `startScope`
+
+Convenience function to start a performance scope
+
+
+```zig
+pub fn startScope(name: []const u8) ?Scope {
+```
+
+- fn `profileFunctionCall`
+
+Convenience function for profiling function calls (to be used with defer)
+
+
+```zig
+pub fn profileFunctionCall(profiler: ?*PerformanceProfiler, function_name: []const u8, file: []const u8, line: u32) FunctionCall {
+```
+
+- type `FunctionCall`
+
+Function call scope for automatic profiling (RAII-style)
+
+
+```zig
+pub const FunctionCall = struct {
+```
+
+- fn `end`
+
+```zig
+pub fn end(self: FunctionCall) void {
+```
+
+- type `utils`
+
+Performance monitoring utilities and presets
+
+
+```zig
+pub const utils = struct {
+```
+
+- fn `developmentConfig`
+
+Create a development profiling configuration
+
+
+```zig
+pub fn developmentConfig() ProfilingConfig {
+```
+
+- fn `productionConfig`
+
+Create a production profiling configuration
+
+
+```zig
+pub fn productionConfig() ProfilingConfig {
+```
+
+- fn `minimalConfig`
+
+Create a minimal profiling configuration
+
+
+```zig
+pub fn minimalConfig() ProfilingConfig {
+```
+
+## src\net\curl_wrapper.zig
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator) CurlResponse {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *CurlResponse) void {
+```
+
+- type `CurlHttpClient`
+
+Libcurl HTTP client implementation
+
+
+```zig
+pub const CurlHttpClient = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator, config: http_client.HttpClientConfig) !Self {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *Self) void {
+```
+
+- fn `request`
+
+Make HTTP request using libcurl
+
+
+```zig
+pub fn request(self: *Self, method: []const u8, url: []const u8, content_type: ?[]const u8, body: ?[]const u8) !http_client.HttpResponse {
+```
+
+## src\net\http_client.zig
+
+- type `HttpClientConfig`
+
+HTTP client configuration
+
+
+```zig
+pub const HttpClientConfig = struct {
+```
+
+- type `HttpResponse`
+
+HTTP response structure
+
+
+```zig
+pub const HttpResponse = struct {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *HttpResponse) void {
+```
+
+- type `HttpClient`
+
+HTTP client with libcurl integration and fallback
+
+
+```zig
+pub const HttpClient = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator, config: HttpClientConfig) Self {
+```
+
+- fn `get`
+
+Make HTTP GET request with retry and backoff
+
+
+```zig
+pub fn get(self: *Self, url: []const u8) !HttpResponse {
+```
+
+- fn `post`
+
+Make HTTP POST request with retry and backoff
+
+
+```zig
+pub fn post(self: *Self, url: []const u8, content_type: ?[]const u8, body: ?[]const u8) !HttpResponse {
+```
+
+- fn `request`
+
+Make HTTP request with automatic retry and exponential backoff
+
+
+```zig
+pub fn request(self: *Self, method: []const u8, url: []const u8, content_type: ?[]const u8, body: ?[]const u8) !HttpResponse {
+```
+
+- fn `testConnectivity`
+
+Test connectivity with enhanced diagnostics
+
+
+```zig
+pub fn testConnectivity(self: *Self, url: []const u8) !bool {
+```
+
+- type `ConnectivityTester`
+
+Enhanced connectivity tester with comprehensive diagnostics
+
+
+```zig
+pub const ConnectivityTester = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator, config: HttpClientConfig) Self {
+```
+
+- fn `runDiagnostics`
+
+Run comprehensive connectivity tests
+
+
+```zig
+pub fn runDiagnostics(self: *Self, base_url: []const u8) !void {
+```
+
 ## src\monitoring\health.zig
 
 - type `HealthStatus`
@@ -6745,6 +8470,553 @@ Integration with performance monitoring
 pub fn integrateWithPerformance(tracer: *Tracer, perf_monitor: *performance.PerformanceMonitor) void {
 ```
 
+## src\ml\localml.zig
+
+- const `Allocator`
+
+Re-export commonly used types
+
+
+```zig
+pub const Allocator = core.Allocator;
+```
+
+- const `MLError`
+
+LocalML-specific error types
+
+
+```zig
+pub const MLError = error{
+```
+
+- type `DataRow`
+
+```zig
+pub const DataRow = struct {
+```
+
+- fn `validate`
+
+```zig
+pub fn validate(self: DataRow) MLError!void {
+```
+
+- fn `fromArray`
+
+```zig
+pub fn fromArray(values: []const f64) MLError!DataRow {
+```
+
+- type `Model`
+
+```zig
+pub const Model = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init() Model {
+```
+
+- fn `predict`
+
+```zig
+pub fn predict(self: Model, row: DataRow) MLError!f64 {
+```
+
+- fn `train`
+
+```zig
+pub fn train(self: *Model, data: []const DataRow, learning_rate: f64, epochs: usize) MLError!void {
+```
+
+- fn `main`
+
+```zig
+pub fn main() !void {
+```
+
+## src\ml\neural.zig
+
+- const `Allocator`
+
+Re-export commonly used types
+
+
+```zig
+pub const Allocator = std.mem.Allocator;
+```
+
+- type `LayerType`
+
+Neural network layer types
+
+
+```zig
+pub const LayerType = enum {
+```
+
+- type `Activation`
+
+Activation functions with mixed precision support
+
+
+```zig
+pub const Activation = enum {
+```
+
+- fn `apply`
+
+Apply activation function to a f32 value
+
+
+```zig
+pub fn apply(self: Activation, x: f32) f32 {
+```
+
+- fn `applyF16`
+
+Apply activation function to a f16 value
+
+
+```zig
+pub fn applyF16(self: Activation, x: f16) f16 {
+```
+
+- fn `derivative`
+
+Derivative of activation function (f32)
+
+
+```zig
+pub fn derivative(self: Activation, x: f32) f32 {
+```
+
+- fn `derivativeF16`
+
+Derivative of activation function (f16)
+
+
+```zig
+pub fn derivativeF16(self: Activation, x: f16) f16 {
+```
+
+- type `Precision`
+
+Precision mode for computations
+
+
+```zig
+pub const Precision = enum {
+```
+
+- type `TrainingConfig`
+
+Neural network training configuration with enhanced memory options
+
+
+```zig
+pub const TrainingConfig = struct {
+```
+
+- type `LayerConfig`
+
+Layer configuration
+
+
+```zig
+pub const LayerConfig = struct {
+```
+
+- type `NetworkConfig`
+
+Complete neural network configuration
+
+
+```zig
+pub const NetworkConfig = struct {
+```
+
+- type `MemoryPool`
+
+Memory pool for efficient buffer reuse
+
+
+```zig
+pub const MemoryPool = struct {
+```
+
+- type `PoolConfig`
+
+Memory pool configuration
+
+
+```zig
+pub const PoolConfig = struct {
+```
+
+- type `PooledBuffer`
+
+Pooled buffer
+
+
+```zig
+pub const PooledBuffer = struct {
+```
+
+- fn `release`
+
+Return buffer to pool
+
+
+```zig
+pub fn release(self: *PooledBuffer) void {
+```
+
+- fn `slice`
+
+Get buffer as slice of requested size
+
+
+```zig
+pub fn slice(self: *PooledBuffer, size: usize) []f32 {
+```
+
+- type `TrackedBuffer`
+
+Enhanced buffer with liveness tracking
+
+
+```zig
+pub const TrackedBuffer = struct {
+```
+
+- fn `isStale`
+
+Check if buffer is stale (not accessed recently)
+
+
+```zig
+pub fn isStale(self: TrackedBuffer, current_time: u64, stale_threshold_ns: u64) bool {
+```
+
+- fn `markAccessed`
+
+Update access time
+
+
+```zig
+pub fn markAccessed(self: *TrackedBuffer, current_time: u64) void {
+```
+
+- type `LivenessConfig`
+
+Liveness analysis configuration
+
+
+```zig
+pub const LivenessConfig = struct {
+```
+
+- fn `init`
+
+Initialize memory pool
+
+
+```zig
+pub fn init(allocator: std.mem.Allocator, config: PoolConfig) !*MemoryPool {
+```
+
+- fn `deinit`
+
+Deinitialize memory pool
+
+
+```zig
+pub fn deinit(self: *MemoryPool) void {
+```
+
+- fn `allocBuffer`
+
+Allocate buffer from pool or create new one
+
+
+```zig
+pub fn allocBuffer(self: *MemoryPool, size: usize) !*PooledBuffer {
+```
+
+- fn `returnBuffer`
+
+Return buffer to pool for reuse
+
+
+```zig
+pub fn returnBuffer(self: *MemoryPool, buffer: *PooledBuffer) void {
+```
+
+- fn `getStats`
+
+Get pool statistics
+
+
+```zig
+pub fn getStats(self: *MemoryPool) struct {
+```
+
+- fn `initLivenessAnalysis`
+
+Initialize liveness analysis
+
+
+```zig
+pub fn initLivenessAnalysis(self: *MemoryPool, config: LivenessConfig) void {
+```
+
+- fn `recordBufferAccess`
+
+Record buffer access for liveness analysis
+
+
+```zig
+pub fn recordBufferAccess(self: *MemoryPool, buffer: *PooledBuffer) void {
+```
+
+- fn `performLivenessCleanup`
+
+Perform liveness-based cleanup
+
+
+```zig
+pub fn performLivenessCleanup(self: *MemoryPool, current_time: u64) void {
+```
+
+- fn `getLivenessStats`
+
+Get liveness statistics
+
+
+```zig
+pub fn getLivenessStats(self: *MemoryPool) struct {
+```
+
+- type `Layer`
+
+Neural network layer with enhanced memory safety and mixed precision support
+
+
+```zig
+pub const Layer = struct {
+```
+
+- fn `init`
+
+Initialize a new layer with memory pool support
+
+
+```zig
+pub fn init(allocator: std.mem.Allocator, config: LayerConfig, memory_pool: ?*MemoryPool) !*Layer {
+```
+
+- fn `initF16`
+
+Initialize f16 versions for mixed precision training
+
+
+```zig
+pub fn initF16(self: *Layer) !void {
+```
+
+- fn `syncToF32`
+
+Synchronize f16 weights/biases back to f32 after training
+
+
+```zig
+pub fn syncToF32(self: *Layer) void {
+```
+
+- fn `forwardMixed`
+
+Forward pass with mixed precision support
+
+
+```zig
+pub fn forwardMixed(self: *Layer, input: []const f32, use_f16: bool) ![]f32 {
+```
+
+- fn `backwardMixed`
+
+Backward pass with mixed precision support
+
+
+```zig
+pub fn backwardMixed(
+```
+
+- fn `allocBuffer`
+
+Allocate buffer using memory pool if available, fallback to allocator
+
+
+```zig
+pub fn allocBuffer(self: *Layer, size: usize) ![]f32 {
+```
+
+- fn `freeBuffer`
+
+Free buffer using memory pool if available, fallback to allocator
+
+
+```zig
+pub fn freeBuffer(self: *Layer, buffer: []f32) void {
+```
+
+- fn `deinit`
+
+Free layer resources with proper cleanup
+
+
+```zig
+pub fn deinit(self: *Layer) void {
+```
+
+- fn `forward`
+
+Forward pass through the layer with memory pool support
+
+
+```zig
+pub fn forward(self: *Layer, input: []const f32) ![]f32 {
+```
+
+- fn `backward`
+
+Backward pass through the layer with memory pool support
+
+
+```zig
+pub fn backward(
+```
+
+- type `CheckpointState`
+
+Gradient checkpointing state
+
+
+```zig
+pub const CheckpointState = struct {
+```
+
+- type `NeuralNetwork`
+
+Neural network for learning embeddings with enhanced memory safety
+
+
+```zig
+pub const NeuralNetwork = struct {
+```
+
+- fn `init`
+
+Initialize a new neural network with optional memory pool
+
+
+```zig
+pub fn init(allocator: std.mem.Allocator, config: TrainingConfig) !*NeuralNetwork {
+```
+
+- fn `initDefault`
+
+Initialize a new neural network with default configuration (backward compatibility)
+
+
+```zig
+pub fn initDefault(allocator: std.mem.Allocator) !*NeuralNetwork {
+```
+
+- fn `deinit`
+
+Free network resources with proper cleanup
+
+
+```zig
+pub fn deinit(self: *NeuralNetwork) void {
+```
+
+- fn `deinitEnhanced`
+
+Deinitialize with enhanced cleanup (for MemoryPool with liveness analysis)
+
+
+```zig
+pub fn deinitEnhanced(self: *MemoryPool) void {
+```
+
+- fn `addLayer`
+
+Add a layer to the network with memory pool support
+
+
+```zig
+pub fn addLayer(self: *NeuralNetwork, config: LayerConfig) !void {
+```
+
+- fn `saveToFile`
+
+Save network to file (basic implementation)
+
+
+```zig
+pub fn saveToFile(self: *NeuralNetwork, path: []const u8) !void {
+```
+
+- fn `loadFromFile`
+
+Load network from file (basic implementation)
+
+
+```zig
+pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) !*NeuralNetwork {
+```
+
+- fn `forward`
+
+Forward pass through the network with memory optimization
+
+
+```zig
+pub fn forward(self: *NeuralNetwork, input: []const f32) ![]f32 {
+```
+
+- fn `forwardMixed`
+
+Forward pass with mixed precision support
+
+
+```zig
+pub fn forwardMixed(self: *NeuralNetwork, input: []const f32) ![]f32 {
+```
+
+- fn `trainStep`
+
+Train the network on a single sample with memory optimization
+
+
+```zig
+pub fn trainStep(
+```
+
+- fn `trainStepMixed`
+
+Train the network on a single sample with mixed precision support
+
+
+```zig
+pub fn trainStepMixed(
+```
+
 ## src\gpu\cross_compilation.zig
 
 - const `CrossCompilationError`
@@ -7096,6 +9368,415 @@ Log cross-compilation target information
 
 ```zig
 pub fn logCrossCompilationTarget(target: *const CrossCompilationTarget) void {
+```
+
+## src\gpu\gpu_examples.zig
+
+- fn `init`
+
+Initialize GPU context with error handling
+
+
+```zig
+pub fn init() !GPUContext {
+```
+
+- fn `deinit`
+
+Clean up GPU resources
+
+
+```zig
+pub fn deinit(self: *GPUContext) void {
+```
+
+- fn `printDeviceInfo`
+
+Get device info for debugging
+
+
+```zig
+pub fn printDeviceInfo(self: *GPUContext) void {
+```
+
+- fn `init`
+
+Initialize compute pipeline with shader
+
+
+```zig
+pub fn init(device: *gpu.Device, shader_source: []const u8) !ComputePipeline {
+```
+
+- fn `deinit`
+
+Clean up pipeline resources
+
+
+```zig
+pub fn deinit(self: *ComputePipeline) void {
+```
+
+- fn `createBuffer`
+
+Create a GPU buffer with specified type and usage
+
+
+```zig
+pub fn createBuffer(self: BufferManager, comptime T: type, size: u64, usage: gpu.Buffer.Usage) !*gpu.Buffer {
+```
+
+- fn `writeBuffer`
+
+Write data to GPU buffer
+
+
+```zig
+pub fn writeBuffer(self: BufferManager, buffer: *gpu.Buffer, data: anytype) void {
+```
+
+- fn `readBuffer`
+
+Read data from GPU buffer with staging buffer
+
+
+```zig
+pub fn readBuffer(self: BufferManager, comptime T: type, buffer: *gpu.Buffer, size: u64, allocator: std.mem.Allocator) ![]T {
+```
+
+- fn `createBufferWithData`
+
+Create a buffer with initial data
+
+
+```zig
+pub fn createBufferWithData(self: BufferManager, comptime T: type, data: []const T, usage: gpu.Buffer.Usage) !*gpu.Buffer {
+```
+
+- fn `main`
+
+Main function demonstrating GPU compute capabilities
+
+
+```zig
+pub fn main() !void {
+```
+
+## src\gpu\gpu_renderer.zig
+
+- const `GpuError`
+
+GPU renderer errors
+
+
+```zig
+pub const GpuError = error{
+```
+
+- type `GPUConfig`
+
+GPU renderer configuration
+
+
+```zig
+pub const GPUConfig = struct {
+```
+
+- type `PowerPreference`
+
+Power preference for GPU selection
+
+
+```zig
+pub const PowerPreference = enum {
+```
+
+- type `Backend`
+
+GPU backend types with platform detection
+
+
+```zig
+pub const Backend = enum {
+```
+
+- fn `isAvailable`
+
+```zig
+pub fn isAvailable(self: Backend) bool {
+```
+
+- fn `getBest`
+
+```zig
+pub fn getBest() Backend {
+```
+
+- type `BufferUsage`
+
+GPU buffer usage flags with WebGPU compatibility
+
+
+```zig
+pub const BufferUsage = packed struct {
+```
+
+- fn `toWebGPU`
+
+```zig
+pub fn toWebGPU(self: BufferUsage) u32 {
+```
+
+- type `TextureFormat`
+
+GPU texture format with format translation
+
+
+```zig
+pub const TextureFormat = enum {
+```
+
+- fn `toWebGPU`
+
+```zig
+pub fn toWebGPU(self: TextureFormat) []const u8 {
+```
+
+- type `ShaderStage`
+
+Shader stage types
+
+
+```zig
+pub const ShaderStage = enum {
+```
+
+- fn `toWebGPU`
+
+```zig
+pub fn toWebGPU(self: ShaderStage) u32 {
+```
+
+- type `Color`
+
+Color for clearing operations
+
+
+```zig
+pub const Color = struct {
+```
+
+- type `GPUHandle`
+
+GPU resource handle with generation for safety
+
+
+```zig
+pub const GPUHandle = struct {
+```
+
+- fn `invalid`
+
+```zig
+pub fn invalid() GPUHandle {
+```
+
+- fn `isValid`
+
+```zig
+pub fn isValid(self: GPUHandle) bool {
+```
+
+- type `Buffer`
+
+GPU buffer resource with platform abstraction
+
+
+```zig
+pub const Buffer = struct {
+```
+
+- fn `map`
+
+```zig
+pub fn map(self: *Buffer) ![]u8 {
+```
+
+- fn `unmap`
+
+```zig
+pub fn unmap(self: *Buffer) void {
+```
+
+- type `Shader`
+
+Shader resource with cross-platform compilation
+
+
+```zig
+pub const Shader = struct {
+```
+
+- fn `compile`
+
+```zig
+pub fn compile(allocator: std.mem.Allocator, stage: ShaderStage, source: []const u8) !Shader {
+```
+
+- type `ComputePipeline`
+
+Compute pipeline for AI operations
+
+
+```zig
+pub const ComputePipeline = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator, compute_shader: Shader) Self {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *Self) void {
+```
+
+- fn `addBindGroup`
+
+```zig
+pub fn addBindGroup(self: *Self, bind_group: BindGroup) !void {
+```
+
+- type `BindGroup`
+
+Bind group for resource binding
+
+
+```zig
+pub const BindGroup = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator) Self {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *Self) void {
+```
+
+- fn `addBuffer`
+
+```zig
+pub fn addBuffer(self: *Self, buffer: Buffer) !void {
+```
+
+- type `GPURenderer`
+
+Main GPU renderer with cross-platform support
+
+
+```zig
+pub const GPURenderer = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator, config: GPUConfig) !*Self {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *Self) void {
+```
+
+- fn `createBuffer`
+
+Create a GPU buffer with specified usage
+
+
+```zig
+pub fn createBuffer(self: *Self, size: usize, usage: BufferUsage) !u32 {
+```
+
+- fn `beginFrame`
+
+Begin frame rendering
+
+
+```zig
+pub fn beginFrame(self: *Self) !void {
+```
+
+- fn `endFrame`
+
+End frame rendering
+
+
+```zig
+pub fn endFrame(self: *Self) !void {
+```
+
+- fn `clear`
+
+Clear the render target with specified color
+
+
+```zig
+pub fn clear(self: *Self, color: Color) !void {
+```
+
+- fn `renderNeuralNetwork`
+
+Render neural network visualization
+
+
+```zig
+pub fn renderNeuralNetwork(self: *Self, neural_engine: anytype) !void {
+```
+
+- fn `computeMatrixMultiply`
+
+Run matrix multiplication compute shader
+
+
+```zig
+pub fn computeMatrixMultiply(self: *Self, a: []const f32, b: []const f32, result: []f32, m: u32, n: u32, k: u32) !void {
+```
+
+- fn `computeNeuralInference`
+
+Run neural network inference on GPU
+
+
+```zig
+pub fn computeNeuralInference(self: *Self, input: []const f32, weights: []const f32, output: []f32) !void {
+```
+
+- fn `getFPS`
+
+Get current FPS
+
+
+```zig
+pub fn getFPS(self: *Self) f32 {
+```
+
+- fn `getFrameCount`
+
+Get frame count
+
+
+```zig
+pub fn getFrameCount(self: *Self) u64 {
 ```
 
 ## src\gpu\hardware_detection.zig
@@ -14033,6 +16714,56 @@ Compile shader source to backend-specific format
 pub fn compileShader(self: *ShaderCompiler, source: []const u8, shader_type: enum { vertex, fragment, compute }) ![]const u8 {
 ```
 
+## src\database\database_sharding.zig
+
+- type `GlobalResult`
+
+```zig
+pub const GlobalResult = struct {
+```
+
+- type `ShardedDb`
+
+```zig
+pub const ShardedDb = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator, paths: []const []const u8, dim: u16) !*Self {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *Self) void {
+```
+
+- fn `getDimension`
+
+```zig
+pub fn getDimension(self: *const Self) u16 {
+```
+
+- fn `getTotalRowCount`
+
+```zig
+pub fn getTotalRowCount(self: *const Self) u64 {
+```
+
+- fn `addEmbedding`
+
+```zig
+pub fn addEmbedding(self: *Self, embedding: []const f32) !struct { shard: usize, local_index: u64 } {
+```
+
+- fn `search`
+
+```zig
+pub fn search(self: *Self, query: []const f32, k: usize, allocator: std.mem.Allocator) ![]GlobalResult {
+```
+
 ## src\core\config.zig
 
 - type `FrameworkConfig`
@@ -15397,6 +18128,581 @@ pub fn update(self: *LifecycleStats, components: std.StringHashMap(ComponentLife
 
 ## src\core\mod.zig
 
+- const `AbiError`
+
+Unified error types for the entire framework
+
+
+```zig
+pub const AbiError = error{
+```
+
+- fn `Result`
+
+Result type for operations that can fail
+
+
+```zig
+pub fn Result(comptime T: type) type {
+```
+
+- fn `ok`
+
+Success result helper
+
+
+```zig
+pub fn ok(comptime T: type, value: T) Result(T) {
+```
+
+- fn `err`
+
+Error result helper
+
+
+```zig
+pub fn err(comptime T: type, error_type: AbiError) Result(T) {
+```
+
+- const `Allocator`
+
+```zig
+pub const Allocator = std.mem.Allocator;
+```
+
+- const `ArrayList`
+
+```zig
+pub const ArrayList = std.ArrayList;
+```
+
+- const `HashMap`
+
+```zig
+pub const HashMap = std.HashMap;
+```
+
+- const `StringHashMap`
+
+```zig
+pub const StringHashMap = std.StringHashMap;
+```
+
+- const `AutoHashMap`
+
+```zig
+pub const AutoHashMap = std.AutoHashMap;
+```
+
+- fn `init`
+
+Initialize the core system
+Must be called before using any framework functionality
+
+
+```zig
+pub fn init(allocator: Allocator) AbiError!void {
+```
+
+- fn `deinit`
+
+Deinitialize the core system
+Should be called when shutting down the framework
+
+
+```zig
+pub fn deinit() void {
+```
+
+- fn `getAllocator`
+
+Get the global allocator
+Returns the allocator passed to init()
+
+
+```zig
+pub fn getAllocator() Allocator {
+```
+
+- fn `isInitialized`
+
+Check if core system is initialized
+
+
+```zig
+pub fn isInitialized() bool {
+```
+
+- type `LogLevel`
+
+Log levels
+
+
+```zig
+pub const LogLevel = enum(u8) {
+```
+
+- fn `toString`
+
+```zig
+pub fn toString(self: LogLevel) []const u8 {
+```
+
+- type `log`
+
+Logging system
+
+
+```zig
+pub const log = struct {
+```
+
+- fn `init`
+
+Initialize logging system
+
+
+```zig
+pub fn init(alloc: Allocator) AbiError!void {
+```
+
+- fn `deinit`
+
+Deinitialize logging system
+
+
+```zig
+pub fn deinit() void {
+```
+
+- fn `setLevel`
+
+Set log level
+
+
+```zig
+pub fn setLevel(level: LogLevel) void {
+```
+
+- fn `debug`
+
+Log a debug message
+
+
+```zig
+pub fn debug(comptime format: []const u8, args: anytype) void {
+```
+
+- fn `info`
+
+Log an info message
+
+
+```zig
+pub fn info(comptime format: []const u8, args: anytype) void {
+```
+
+- fn `warn`
+
+Log a warning message
+
+
+```zig
+pub fn warn(comptime format: []const u8, args: anytype) void {
+```
+
+- fn `err`
+
+Log an error message
+
+
+```zig
+pub fn err(comptime format: []const u8, args: anytype) void {
+```
+
+- fn `fatal`
+
+Log a fatal message
+
+
+```zig
+pub fn fatal(comptime format: []const u8, args: anytype) void {
+```
+
+- type `random`
+
+Random number generation utilities
+
+
+```zig
+pub const random = struct {
+```
+
+- const `Random`
+
+```zig
+pub const Random = std.Random;
+```
+
+- const `DefaultPrng`
+
+```zig
+pub const DefaultPrng = std.Random.DefaultPrng;
+```
+
+- fn `getPrng`
+
+Get a thread-local random number generator
+
+
+```zig
+pub fn getPrng() DefaultPrng {
+```
+
+- fn `intRangeLessThan`
+
+Generate a random integer in range [min, max)
+
+
+```zig
+pub fn intRangeLessThan(comptime T: type, min: T, max: T) T {
+```
+
+- fn `float`
+
+Generate a random float in range [0, 1)
+
+
+```zig
+pub fn float(comptime T: type) T {
+```
+
+- fn `normal`
+
+Standard normal (mean 0, stddev 1) via Box-Muller
+
+
+```zig
+pub fn normal(comptime T: type) T {
+```
+
+- type `performance`
+
+Performance monitoring utilities
+
+
+```zig
+pub const performance = struct {
+```
+
+- type `Counter`
+
+Performance counter
+
+
+```zig
+pub const Counter = struct {
+```
+
+- fn `record`
+
+Record a timing measurement
+
+
+```zig
+pub fn record(self: *Counter, time_ns: u64) void {
+```
+
+- fn `average`
+
+Get average time
+
+
+```zig
+pub fn average(self: Counter) f64 {
+```
+
+- fn `reset`
+
+Reset counter
+
+
+```zig
+pub fn reset(self: *Counter) void {
+```
+
+- type `Timer`
+
+Timer for measuring execution time
+
+
+```zig
+pub const Timer = struct {
+```
+
+- fn `start`
+
+Start timing
+
+
+```zig
+pub fn start() Timer {
+```
+
+- fn `elapsed`
+
+Get elapsed time in nanoseconds
+
+
+```zig
+pub fn elapsed(self: Timer) u64 {
+```
+
+- fn `elapsedMs`
+
+Get elapsed time in milliseconds
+
+
+```zig
+pub fn elapsedMs(self: Timer) f64 {
+```
+
+- type `string`
+
+String manipulation utilities
+
+
+```zig
+pub const string = struct {
+```
+
+- fn `startsWith`
+
+Check if string starts with prefix
+
+
+```zig
+pub fn startsWith(haystack: []const u8, needle: []const u8) bool {
+```
+
+- fn `endsWith`
+
+Check if string ends with suffix
+
+
+```zig
+pub fn endsWith(haystack: []const u8, needle: []const u8) bool {
+```
+
+- fn `trim`
+
+Trim whitespace from string
+
+
+```zig
+pub fn trim(allocator: Allocator, s: []const u8) ![]u8 {
+```
+
+- fn `split`
+
+Split string by delimiter
+
+
+```zig
+pub fn split(allocator: Allocator, s: []const u8, delimiter: []const u8) ![][]u8 {
+```
+
+- fn `toString`
+
+Convert a value to string using the provided allocator
+Note: Consider using stack-allocated buffers for better performance
+
+
+```zig
+pub fn toString(allocator: Allocator, value: anytype) ![]u8 {
+```
+
+- type `time`
+
+Time-related utilities
+
+
+```zig
+pub const time = struct {
+```
+
+- fn `now`
+
+Get current timestamp in nanoseconds
+
+
+```zig
+pub fn now() u64 {
+```
+
+- fn `nowMs`
+
+Get current timestamp in milliseconds
+
+
+```zig
+pub fn nowMs() u64 {
+```
+
+- fn `sleep`
+
+Sleep for specified duration
+
+
+```zig
+pub fn sleep(duration_ns: u64) void {
+```
+
+- fn `formatDuration`
+
+Format duration as human-readable string
+Note: Multiple allocPrint calls could be optimized with a single buffer
+
+
+```zig
+pub fn formatDuration(duration_ns: u64) []const u8 {
+```
+
+- type `validation`
+
+Input validation utilities
+
+
+```zig
+pub const validation = struct {
+```
+
+- fn `inRange`
+
+Validate that a value is within a range
+
+
+```zig
+pub fn inRange(value: anytype, min: anytype, max: anytype) bool {
+```
+
+- fn `notEmpty`
+
+Validate that a string is not empty
+
+
+```zig
+pub fn notEmpty(s: []const u8) bool {
+```
+
+- fn `hasLength`
+
+Validate that a slice has the expected length
+
+
+```zig
+pub fn hasLength(s: []const u8, expected: usize) bool {
+```
+
+- fn `hasMinLength`
+
+Validate that a slice has at least the minimum length
+
+
+```zig
+pub fn hasMinLength(s: []const u8, min: usize) bool {
+```
+
+- fn `hasMaxLength`
+
+Validate that a slice has at most the maximum length
+
+
+```zig
+pub fn hasMaxLength(s: []const u8, max: usize) bool {
+```
+
+- type `platform`
+
+Platform-specific utilities
+
+
+```zig
+pub const platform = struct {
+```
+
+- fn `isWindows`
+
+Check if running on Windows
+
+
+```zig
+pub fn isWindows() bool {
+```
+
+- fn `isLinux`
+
+Check if running on Linux
+
+
+```zig
+pub fn isLinux() bool {
+```
+
+- fn `isMacOS`
+
+Check if running on macOS
+
+
+```zig
+pub fn isMacOS() bool {
+```
+
+- fn `isWasm`
+
+Check if running on WebAssembly
+
+
+```zig
+pub fn isWasm() bool {
+```
+
+- fn `name`
+
+Get platform name as string
+
+
+```zig
+pub fn name() []const u8 {
+```
+
+- fn `arch`
+
+Get architecture name as string
+
+
+```zig
+pub fn arch() []const u8 {
+```
+
+- fn `hasSimd`
+
+Check if SIMD is available
+
+
+```zig
+pub fn hasSimd() bool {
+```
+
+- fn `optimalSimdWidth`
+
+Get optimal SIMD width for current platform
+
+
+```zig
+pub fn optimalSimdWidth() u32 {
+```
+
 - const `FrameworkError`
 
 Framework-wide error set for consistent error handling
@@ -15889,10 +19195,24 @@ pub fn getInterface() *const iface.PluginInterface {
 pub fn main() !void {
 ```
 
+- fn `main`
+
+```zig
+pub fn main() !void {
+```
+
 - fn `deinit`
 
 ```zig
 pub fn deinit(self: *TrainingData) void {
+```
+
+## src\api\c_api.zig
+
+- type `WdbxResult`
+
+```zig
+pub const WdbxResult = extern struct {
 ```
 
 ## src\ai\activation.zig
@@ -16001,10 +19321,22 @@ pub fn get(self: *ActivationRegistry, name: []const u8) ?ActivationFn {
 
 ## src\ai\agent.zig
 
+- const `Allocator`
+
+Re-export core types for convenience
+
+
+```zig
+pub const Allocator = core.Allocator;
+```
+
+- const `ArrayList`
+
+```zig
+pub const ArrayList = core.ArrayList;
+```
+
 - const `AgentError`
-
-Agent-specific error types
-
 
 ```zig
 pub const AgentError = error{
@@ -16042,17 +19374,11 @@ pub fn validate(self: BackendConfig) AgentError!void {
 
 - type `PersonaType`
 
-Agent personas with enhanced characteristics
-
-
 ```zig
 pub const PersonaType = enum {
 ```
 
 - fn `getDescription`
-
-Get persona description
-
 
 ```zig
 pub fn getDescription(self: PersonaType) []const u8 {
@@ -16114,11 +19440,35 @@ pub fn validate(self: AgentCapabilities) bool {
 
 - type `MessageRole`
 
-Message role in conversation
+```zig
+pub const MessageRole = enum {
+```
+
+- type `Message`
+
+Structure representing a message in the conversation
 
 
 ```zig
-pub const MessageRole = enum {
+pub const Message = struct {
+```
+
+- fn `deinit`
+
+Deinitializes the message, freeing allocated resources
+
+
+```zig
+pub fn deinit(self: Message, allocator: std.mem.Allocator) void {
+```
+
+- type `AgentConfig`
+
+Configuration settings for the AI agent
+
+
+```zig
+pub const AgentConfig = struct {
 ```
 
 - type `Message`
@@ -16265,6 +19615,24 @@ Enhanced agent configuration
 pub const AgentConfig = struct {
 ```
 
+- type `Agent`
+
+Intelligent AI Agent with persona management and conversation handling
+
+
+```zig
+pub const Agent = struct {
+```
+
+- fn `init`
+
+Initializes a new AI agent with the given configuration
+
+
+```zig
+pub fn init(allocator: std.mem.Allocator, config: AgentConfig) !*Agent {
+```
+
 - fn `validate`
 
 ```zig
@@ -16405,8 +19773,71 @@ pub fn init(allocator: Allocator, config: AgentConfig) AgentError!*Self {
 
 - fn `deinit`
 
+Deinitializes the agent, freeing allocated resources
+
+
+```zig
+pub fn deinit(self: *Agent) void {
+```
+
+- fn `deinit`
+
 ```zig
 pub fn deinit(self: *Self) void {
+```
+
+- fn `setPersona`
+
+Sets the agent's persona
+
+
+```zig
+pub fn setPersona(self: *Agent, persona: PersonaType) void {
+```
+
+- fn `getPersona`
+
+Retrieves the current persona of the agent
+
+
+```zig
+pub fn getPersona(self: *const Agent) ?PersonaType {
+```
+
+- fn `start`
+
+Starts the agent (placeholder implementation)
+
+
+```zig
+pub fn start(self: *Agent) !void {
+```
+
+- fn `addMessage`
+
+Adds a message to the conversation history
+
+
+```zig
+pub fn addMessage(self: *Agent, role: MessageRole, content: []const u8) !void {
+```
+
+- fn `getHistory`
+
+Retrieves the conversation history
+
+
+```zig
+pub fn getHistory(self: *const Agent) []const Message {
+```
+
+- fn `clearHistory`
+
+Clears the conversation history
+
+
+```zig
+pub fn clearHistory(self: *Agent) void {
 ```
 
 - fn `processInput`

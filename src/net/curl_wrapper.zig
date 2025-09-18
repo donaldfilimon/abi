@@ -328,5 +328,3 @@ fn curlSlistFreeAll(list: *std.c.void) void {
         curl_slist_free_all(list);
     }
 }
-
-

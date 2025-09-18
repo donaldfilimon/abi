@@ -406,5 +406,3 @@ test "Plugin path management" {
     // Should not crash and return a list (may be empty)
     try std.testing.expect(discovered.items.len >= 0);
 }
-
-
