@@ -293,136 +293,327 @@ fn parseCsvFloats(allocator: std.mem.Allocator, csv: []const u8) ![]f32 {
 }
 
 fn runDbCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
-    // Usage:
-    //   abi db add --db <path> --vector "..."
-    //   abi db query --db <path> --vector "..." [--k N]
-    //   abi db stats --db <path>
-    //   abi db init --db <path> --dimension <N>
-    //   abi db optimize --db <path>
-    if (args.len < 3) {
-        std.debug.print("Usage: abi db <add|query|stats|init|optimize> [flags]\n", .{});
+    if (args.len < 3 or isHelpToken(args[2])) {
+        printDbHelp();
         return;
     }
+
     const sub = args[2];
-    if (std.mem.eql(u8, sub, "add")) {
-        var db_path: ?[]const u8 = null;
-        var vec_str: ?[]const u8 = null;
-        var i: usize = 3;
-        while (i < args.len) : (i += 1) {
-            if (std.mem.eql(u8, args[i], "--db") and i + 1 < args.len) {
-                i += 1;
-                db_path = args[i];
-            } else if (std.mem.eql(u8, args[i], "--vector") and i + 1 < args.len) {
-                i += 1;
-                vec_str = args[i];
-            }
-        }
-        if (db_path == null or vec_str == null) {
-            std.debug.print("db add requires --db and --vector\n", .{});
-            return;
-        }
-        const v = try parseCsvFloats(allocator, vec_str.?);
-        defer allocator.free(v);
-        var db = try abi.database.Db.open(db_path.?, true);
-        defer db.close();
-        if (db.header.dim == 0) try db.init(@intCast(v.len));
-        const id = try db.addEmbedding(v);
-        std.debug.print("Added vector id={d}\n", .{id});
+    if (std.mem.eql(u8, sub, "init") or std.mem.eql(u8, sub, "create")) {
+        try handleDbInit(args[3..]);
         return;
-    } else if (std.mem.eql(u8, sub, "query")) {
-        var db_path: ?[]const u8 = null;
-        var vec_str: ?[]const u8 = null;
-        var k: usize = 5;
-        var i: usize = 3;
-        while (i < args.len) : (i += 1) {
-            if (std.mem.eql(u8, args[i], "--db") and i + 1 < args.len) {
-                i += 1;
-                db_path = args[i];
-            } else if (std.mem.eql(u8, args[i], "--vector") and i + 1 < args.len) {
-                i += 1;
-                vec_str = args[i];
-            } else if (std.mem.eql(u8, args[i], "--k") and i + 1 < args.len) {
-                i += 1;
-                k = try std.fmt.parseInt(usize, args[i], 10);
-            }
-        }
-        if (db_path == null or vec_str == null) {
-            std.debug.print("db query requires --db and --vector\n", .{});
-            return;
-        }
-        const v = try parseCsvFloats(allocator, vec_str.?);
-        defer allocator.free(v);
-        var db = try abi.database.Db.open(db_path.?, false);
-        defer db.close();
-        const results = try db.search(v, k, allocator);
-        defer allocator.free(results);
-        std.debug.print("Found {d} results\n", .{results.len});
-        for (results, 0..) |r, iidx| {
-            std.debug.print("  {d}: id={d} score={d:.6}\n", .{ iidx, r.index, r.score });
-        }
-        return;
-    } else if (std.mem.eql(u8, sub, "stats")) {
-        var db_path: ?[]const u8 = null;
-        var i: usize = 3;
-        while (i < args.len) : (i += 1) {
-            if (std.mem.eql(u8, args[i], "--db") and i + 1 < args.len) {
-                i += 1;
-                db_path = args[i];
-            }
-        }
-        if (db_path == null) {
-            std.debug.print("db stats requires --db <path>\n", .{});
-            return;
-        }
-        var db = try abi.database.Db.open(db_path.?, false);
-        defer db.close();
-        const stats = db.getStats();
-        std.debug.print("Dimensions={d} Rows={d} Writes={d} Searches={d}\n", .{ db.getDimension(), db.getRowCount(), stats.write_count, stats.search_count });
-        return;
-    } else if (std.mem.eql(u8, sub, "init")) {
-        var db_path: ?[]const u8 = null;
-        var dimension: ?usize = null;
-        var i: usize = 3;
-        while (i < args.len) : (i += 1) {
-            if (std.mem.eql(u8, args[i], "--db") and i + 1 < args.len) {
-                i += 1;
-                db_path = args[i];
-            } else if (std.mem.eql(u8, args[i], "--dimension") and i + 1 < args.len) {
-                i += 1;
-                dimension = try std.fmt.parseInt(usize, args[i], 10);
-            }
-        }
-        if (db_path == null or dimension == null) {
-            std.debug.print("db init requires --db and --dimension\n", .{});
-            return;
-        }
-        var db = try abi.database.Db.open(db_path.?, true);
-        defer db.close();
-        try db.init(@intCast(dimension.?));
-        std.debug.print("Initialized database with dimension={d}\n", .{dimension.?});
-        return;
-    } else if (std.mem.eql(u8, sub, "optimize")) {
-        var db_path: ?[]const u8 = null;
-        var i: usize = 3;
-        while (i < args.len) : (i += 1) {
-            if (std.mem.eql(u8, args[i], "--db") and i + 1 < args.len) {
-                i += 1;
-                db_path = args[i];
-            }
-        }
-        if (db_path == null) {
-            std.debug.print("db optimize requires --db <path>\n", .{});
-            return;
-        }
-        var db = try abi.database.Db.open(db_path.?, true);
-        defer db.close();
-        // TODO: Implement database optimization
-        // try db.optimize();
-        std.debug.print("Database optimization completed\n", .{});
-        return;
-    } else {
-        std.debug.print("Unknown db subcommand: {s}\n", .{sub});
     }
+    if (std.mem.eql(u8, sub, "add")) {
+        try handleDbAdd(args[3..], allocator);
+        return;
+    }
+    if (std.mem.eql(u8, sub, "query") or std.mem.eql(u8, sub, "search")) {
+        try handleDbQuery(args[3..], allocator);
+        return;
+    }
+    if (std.mem.eql(u8, sub, "stats") or std.mem.eql(u8, sub, "status")) {
+        try handleDbStats(args[3..], allocator);
+        return;
+    }
+    if (std.mem.eql(u8, sub, "optimize")) {
+        try handleDbOptimize(args[3..], allocator);
+        return;
+    }
+
+    std.debug.print("Unknown db subcommand: {s}\n", .{sub});
+    printDbHelp();
+}
+
+fn isHelpToken(arg: []const u8) bool {
+    return std.mem.eql(u8, arg, "--help") or
+        std.mem.eql(u8, arg, "-h") or
+        std.mem.eql(u8, arg, "help");
+}
+
+fn handleDbInit(raw_args: [][:0]u8) !void {
+    var db_path: ?[]const u8 = null;
+    var dimension: ?usize = null;
+    var force = false;
+
+    var i: usize = 0;
+    while (i < raw_args.len) : (i += 1) {
+        const arg = raw_args[i];
+        if (isHelpToken(arg)) {
+            printDbHelp();
+            return;
+        } else if (std.mem.eql(u8, arg, "--db") and i + 1 < raw_args.len) {
+            i += 1;
+            db_path = raw_args[i];
+        } else if ((std.mem.eql(u8, arg, "--dimension") or std.mem.eql(u8, arg, "--dim")) and i + 1 < raw_args.len) {
+            i += 1;
+            dimension = std.fmt.parseInt(usize, raw_args[i], 10) catch {
+                std.debug.print("Invalid dimension value: {s}\n", .{raw_args[i]});
+                return;
+            };
+        } else if (std.mem.eql(u8, arg, "--force")) {
+            force = true;
+        }
+    }
+
+    if (db_path == null or dimension == null) {
+        std.debug.print("db init requires --db <path> and --dimension <N>\n", .{});
+        printDbHelp();
+        return;
+    }
+
+    const dim_value = dimension.?;
+    if (dim_value == 0) {
+        std.debug.print("Dimension must be greater than zero.\n", .{});
+        return;
+    }
+
+    const dim_u16 = std.math.cast(u16, dim_value) orelse {
+        std.debug.print("Dimension {d} exceeds supported range (u16).\n", .{dim_value});
+        return;
+    };
+
+    if (!force) {
+        if (std.fs.cwd().openFile(db_path.?, .{})) |file| {
+            defer file.close();
+            std.debug.print("Database '{s}' already exists. Use --force to overwrite.\n", .{db_path.?});
+            return;
+        } else |err| switch (err) {
+            error.FileNotFound => {},
+            else => return err,
+        }
+    }
+
+    const db = try abi.database.Db.open(db_path.?, true);
+    defer db.close();
+
+    db.init(dim_u16) catch |err| {
+        std.debug.print("Failed to initialise database: {any}\n", .{err});
+        return err;
+    };
+
+    std.debug.print("Initialised database '{s}' with dimension {d}.\n", .{ db_path.?, dim_u16 });
+}
+
+fn handleDbAdd(raw_args: [][:0]u8, allocator: std.mem.Allocator) !void {
+    var db_path: ?[]const u8 = null;
+    var vector_literal: ?[]const u8 = null;
+    var quiet = false;
+
+    var i: usize = 0;
+    while (i < raw_args.len) : (i += 1) {
+        const arg = raw_args[i];
+        if (isHelpToken(arg)) {
+            printDbHelp();
+            return;
+        } else if (std.mem.eql(u8, arg, "--db") and i + 1 < raw_args.len) {
+            i += 1;
+            db_path = raw_args[i];
+        } else if (std.mem.eql(u8, arg, "--vector") and i + 1 < raw_args.len) {
+            i += 1;
+            vector_literal = raw_args[i];
+        } else if (std.mem.eql(u8, arg, "--quiet")) {
+            quiet = true;
+        }
+    }
+
+    if (db_path == null or vector_literal == null) {
+        std.debug.print("db add requires --db <path> and --vector \"csv\"\n", .{});
+        printDbHelp();
+        return;
+    }
+
+    const values = try parseCsvFloats(allocator, vector_literal.?);
+    defer allocator.free(values);
+
+    if (values.len == 0) {
+        std.debug.print("Vector is empty; nothing to add.\n", .{});
+        return;
+    }
+
+    const db = abi.database.Db.open(db_path.?, false) catch |err| switch (err) {
+        error.FileNotFound => {
+            std.debug.print("Database '{s}' not found. Run 'abi db init --db {s} --dimension {d}' first.\n", .{ db_path.?, db_path.?, values.len });
+            return;
+        },
+        else => return err,
+    };
+    defer db.close();
+
+    const dim = db.getDimension();
+    if (dim == 0) {
+        std.debug.print("Database '{s}' is uninitialised. Run 'abi db init' first.\n", .{db_path.?});
+        return;
+    }
+    if (dim != values.len) {
+        std.debug.print("Dimension mismatch: database={d}, vector={d}.\n", .{ dim, values.len });
+        return;
+    }
+
+    const id = db.addEmbedding(values) catch |err| {
+        std.debug.print("Failed to add embedding: {any}\n", .{err});
+        return err;
+    };
+
+    if (!quiet) {
+        std.debug.print("Added vector id={d} (total rows={d}).\n", .{ id, db.getRowCount() });
+    }
+}
+
+fn handleDbQuery(raw_args: [][:0]u8, allocator: std.mem.Allocator) !void {
+    var db_path: ?[]const u8 = null;
+    var vector_literal: ?[]const u8 = null;
+    var top_k: usize = 5;
+
+    var i: usize = 0;
+    while (i < raw_args.len) : (i += 1) {
+        const arg = raw_args[i];
+        if (isHelpToken(arg)) {
+            printDbHelp();
+            return;
+        } else if (std.mem.eql(u8, arg, "--db") and i + 1 < raw_args.len) {
+            i += 1;
+            db_path = raw_args[i];
+        } else if (std.mem.eql(u8, arg, "--vector") and i + 1 < raw_args.len) {
+            i += 1;
+            vector_literal = raw_args[i];
+        } else if ((std.mem.eql(u8, arg, "--k") or std.mem.eql(u8, arg, "--top")) and i + 1 < raw_args.len) {
+            i += 1;
+            top_k = std.fmt.parseInt(usize, raw_args[i], 10) catch {
+                std.debug.print("Invalid value for --k: {s}\n", .{raw_args[i]});
+                return;
+            };
+        }
+    }
+
+    if (db_path == null or vector_literal == null) {
+        std.debug.print("db query requires --db <path> and --vector \"csv\"\n", .{});
+        printDbHelp();
+        return;
+    }
+
+    if (top_k == 0) top_k = 1;
+
+    const values = try parseCsvFloats(allocator, vector_literal.?);
+    defer allocator.free(values);
+
+    if (values.len == 0) {
+        std.debug.print("Vector is empty; nothing to search.\n", .{});
+        return;
+    }
+
+    const db = abi.database.Db.open(db_path.?, false) catch |err| switch (err) {
+        error.FileNotFound => {
+            std.debug.print("Database '{s}' not found.\n", .{db_path.?});
+            return;
+        },
+        else => return err,
+    };
+    defer db.close();
+
+    const dim = db.getDimension();
+    if (dim != values.len) {
+        std.debug.print("Dimension mismatch: database={d}, query={d}.\n", .{ dim, values.len });
+        return;
+    }
+
+    const results = db.search(values, top_k, allocator) catch |err| {
+        std.debug.print("Search failed: {any}\n", .{err});
+        return err;
+    };
+    defer allocator.free(results);
+
+    if (results.len == 0) {
+        std.debug.print("No results found.\n", .{});
+        return;
+    }
+
+    std.debug.print("Top {d} matches for dimension {d}:\n", .{ results.len, dim });
+    for (results, 0..) |res, idx| {
+        std.debug.print("  {d}: id={d} distance={d:.6}\n", .{ idx + 1, res.index, res.score });
+    }
+}
+
+fn handleDbStats(raw_args: [][:0]u8, allocator: std.mem.Allocator) !void {
+    _ = allocator;
+    var db_path: ?[]const u8 = null;
+
+    var i: usize = 0;
+    while (i < raw_args.len) : (i += 1) {
+        const arg = raw_args[i];
+        if (isHelpToken(arg)) {
+            printDbHelp();
+            return;
+        } else if (std.mem.eql(u8, arg, "--db") and i + 1 < raw_args.len) {
+            i += 1;
+            db_path = raw_args[i];
+        }
+    }
+
+    if (db_path == null) {
+        std.debug.print("db stats requires --db <path>\n", .{});
+        printDbHelp();
+        return;
+    }
+
+    const db = abi.database.Db.open(db_path.?, false) catch |err| switch (err) {
+        error.FileNotFound => {
+            std.debug.print("Database '{s}' not found.\n", .{db_path.?});
+            return;
+        },
+        else => return err,
+    };
+    defer db.close();
+
+    const stats = db.getStats();
+    std.debug.print("Database: {s}\n", .{db_path.?});
+    std.debug.print("  Dimension : {d}\n", .{db.getDimension()});
+    std.debug.print("  Rows      : {d}\n", .{db.getRowCount()});
+    std.debug.print("  Writes    : {d}\n", .{stats.write_count});
+    std.debug.print("  Searches  : {d}\n", .{stats.search_count});
+    std.debug.print("  Avg search: {d} us\n", .{stats.getAverageSearchTime()});
+}
+
+fn handleDbOptimize(raw_args: [][:0]u8, allocator: std.mem.Allocator) !void {
+    _ = allocator;
+    var db_path: ?[]const u8 = null;
+
+    var i: usize = 0;
+    while (i < raw_args.len) : (i += 1) {
+        const arg = raw_args[i];
+        if (isHelpToken(arg)) {
+            printDbHelp();
+            return;
+        } else if (std.mem.eql(u8, arg, "--db") and i + 1 < raw_args.len) {
+            i += 1;
+            db_path = raw_args[i];
+        }
+    }
+
+    if (db_path == null) {
+        std.debug.print("db optimize requires --db <path>\n", .{});
+        printDbHelp();
+        return;
+    }
+
+    const db = abi.database.Db.open(db_path.?, false) catch |err| switch (err) {
+        error.FileNotFound => {
+            std.debug.print("Database '{s}' not found.\n", .{db_path.?});
+            return;
+        },
+        else => return err,
+    };
+    defer db.close();
+
+    std.debug.print("Database optimisation is not implemented yet.\n", .{});
+}
+
+fn printDbHelp() void {
+    std.debug.print("\nDatabase commands:\n" ++
+        "  abi db init --db <path> --dimension <N> [--force]\n" ++
+        "  abi db add --db <path> --vector \"v1,v2,...\" [--quiet]\n" ++
+        "  abi db query --db <path> --vector \"v1,v2,...\" [--k N]\n" ++
+        "  abi db stats --db <path>\n" ++
+        "  abi db optimize --db <path>\n\n", .{});
 }
 
 fn runConfigCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
@@ -901,72 +1092,69 @@ fn runServerCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
 fn printHelp() void {
     std.debug.print(
         \\
-        \\🚀 {s} v{s}
+        \\{s} v{s}
         \\
-        \\   Enterprise-grade AI framework with vector database, neural networks,
-        \\   and high-performance computing capabilities.
+        \\Command overview:
+        \\  abi [options]
+        \\  abi gpu     <info|run-examples|dot|benchmark|search> [flags]
+        \\  abi db      <add|query|stats|init|optimize> [flags]
+        \\  abi llm     <embed|query|train> [flags]
+        \\  abi neural  <train|predict|info|benchmark> [flags]
+        \\  abi simd    <info|benchmark|dot|matrix> [flags]
+        \\  abi plugin  <list|load|info|call> [args...]
+        \\  abi server  <start|stop|status|test> [flags]
+        \\  abi weather <ingest|query> [flags]
+        \\  abi chat    [--persona <type>] [--interactive] [message]
+        \\  abi config  [--file <path>] [--validate] [set|get|list] [key] [value]
+        \\  abi --help                    Show this help message
+        \\  abi --version                 Show version information
         \\
-        \\📋 USAGE:
-        \\   abi [options]
-        \\   abi gpu     <info|run-examples|dot|benchmark|search> [flags]
-        \\   abi db      <add|query|stats|init|optimize> [flags]
-        \\   abi llm     <embed|query|train> [flags]
-        \\   abi neural  <train|predict|info|benchmark> [flags]
-        \\   abi simd    <info|benchmark|dot|matrix> [flags]
-        \\   abi plugin  <list|load|info|call> [args...]
-        \\   abi server  <start|stop|status|test> [flags]
-        \\   abi weather <ingest|query> [flags]
-        \\   abi chat    [--persona <type>] [--interactive] [message]
-        \\   abi config  [--file <path>] [--validate] [set|get|list] [key] [value]
-        \\   abi --help                    Show this help message
-        \\   abi --version                 Show version information
+        \\GPU commands:
+        \\  gpu info [--backend <auto|webgpu|vulkan|metal|dx12|opengl|opencl|cuda|cpu>] [--no-webgpu-first]
+        \\  gpu run-examples
+        \\  gpu dot --a "csv" --b "csv"
+        \\  gpu search --db <path> --vector "csv" [--k N]
+        \\  gpu benchmark [--backend <name>] [--size <n>] [--iterations <n>]
         \\
-        \\   GPU commands:
-        \\     gpu info [--backend <auto|webgpu|vulkan|metal|dx12|opengl|opencl|cuda|cpu>] [--no-webgpu-first]
-        \\     gpu run-examples
-        \\     gpu dot --a "csv" --b "csv"
-        \\     gpu search --db <path> --vector "csv" [--k N]
-        \\     gpu benchmark [--backend <name>] [--size <n>] [--iterations <n>]
+        \\Database commands:
+        \\  db init --db <path> --dimension <N> [--force]
+        \\  db add --db <path> --vector "csv" [--quiet]
+        \\  db query --db <path> --vector "csv" [--k N]
+        \\  db stats --db <path>
+        \\  db optimize --db <path>
         \\
-        \\   Database commands:
-        \\     db add --db <path> --vector "csv"
-        \\     db query --db <path> --vector "csv" [--k N]
-        \\     db stats --db <path>
-        \\     db init --db <path> --dimension <N>
-        \\     db optimize --db <path>
+        \\Neural network commands:
+        \\  neural train --data <path> [--output <path>] [--epochs N] [--lr RATE] [--batch-size N]
+        \\  neural predict --model <path> --input "csv"
+        \\  neural info --model <path>
+        \\  neural benchmark [--size N] [--iterations N]
         \\
-        \\   Neural Network commands:
-        \\     neural train --data <path> [--output <path>] [--epochs N] [--lr RATE] [--batch-size N]
-        \\     neural predict --model <path> --input "csv"
-        \\     neural info --model <path>
-        \\     neural benchmark [--size N] [--iterations N]
+        \\SIMD commands:
+        \\  simd info
+        \\  simd benchmark [--size N] [--iterations N]
+        \\  simd dot --a "csv" --b "csv"
+        \\  simd matrix --a "csv" --b "csv" [--rows N] [--cols N]
         \\
-        \\   SIMD commands:
-        \\     simd info
-        \\     simd benchmark [--size N] [--iterations N]
-        \\     simd dot --a "csv" --b "csv"
-        \\     simd matrix --a "csv" --b "csv" [--rows N] [--cols N]
+        \\Plugin commands:
+        \\  plugin list
+        \\  plugin load <path>
+        \\  plugin info <name>
+        \\  plugin call <name> <function> [args...]
         \\
-        \\   Plugin commands:
-        \\     plugin list
-        \\     plugin load <path>
-        \\     plugin info <name>
-        \\     plugin call <name> <function> [args...]
+        \\Server commands:
+        \\  server start [--port N] [--host <ip>] [--config <path>]
+        \\  server stop
+        \\  server status
+        \\  server test [--url <url>]
         \\
-        \\   Server commands:
-        \\     server start [--port N] [--host <ip>] [--config <path>]
-        \\     server stop
-        \\     server status
-        \\     server test [--url <url>]
-        \\
-        \\   Config flags:
-        \\     --file <path>              Use a specific config file (default: .wdbx-config)
-        \\     --validate                 Validate configuration and exit
-        \\     --summary                  Print configuration summary (default)
-        \\     --no-summary               Do not print summary
-        \\     set <key> <value>          Set configuration value
-        \\     get <key>                  Get configuration value
-        \\     list                       List all configuration values
+        \\Config flags:
+        \\  --file <path>              Use a specific config file (default: .wdbx-config)
+        \\  --validate                 Validate configuration and exit
+        \\  --summary                  Print configuration summary (default)
+        \\  --no-summary               Do not print summary
+        \\  set <key> <value>          Set configuration value
+        \\  get <key>                  Get configuration value
+        \\  list                       List all configuration values
         \\
         \\🎯 FEATURES:
         \\

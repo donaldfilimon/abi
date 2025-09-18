@@ -348,15 +348,86 @@ pub const ActivationProcessor = struct {
     }
 
     fn sigmoidSIMD(self: *const ActivationProcessor, output: []f32, input: []const f32) void {
-        // For now, fallback to scalar implementation
-        // TODO: Implement fast SIMD sigmoid approximation
-        self.activateBatchScalar(output, input);
+        if (!@hasDecl(std.simd, "f32x4")) {
+            return self.activateBatchScalar(output, input);
+        }
+
+        var index: usize = 0;
+        if (@hasDecl(std.simd, "f32x16")) {
+            index = self.sigmoidSimdApprox(output, input, index, std.simd.f32x16);
+        }
+        if (@hasDecl(std.simd, "f32x8")) {
+            index = self.sigmoidSimdApprox(output, input, index, std.simd.f32x8);
+        }
+        if (@hasDecl(std.simd, "f32x4")) {
+            index = self.sigmoidSimdApprox(output, input, index, std.simd.f32x4);
+        }
+
+        while (index < input.len) : (index += 1) {
+            output[index] = self.sigmoid(input[index]);
+        }
     }
 
     fn tanhSIMD(self: *const ActivationProcessor, output: []f32, input: []const f32) void {
-        // For now, fallback to scalar implementation
-        // TODO: Implement fast SIMD tanh approximation
-        self.activateBatchScalar(output, input);
+        if (!@hasDecl(std.simd, "f32x4")) {
+            return self.activateBatchScalar(output, input);
+        }
+
+        var index: usize = 0;
+        if (@hasDecl(std.simd, "f32x16")) {
+            index = self.tanhSimdApprox(output, input, index, std.simd.f32x16);
+        }
+        if (@hasDecl(std.simd, "f32x8")) {
+            index = self.tanhSimdApprox(output, input, index, std.simd.f32x8);
+        }
+        if (@hasDecl(std.simd, "f32x4")) {
+            index = self.tanhSimdApprox(output, input, index, std.simd.f32x4);
+        }
+
+        while (index < input.len) : (index += 1) {
+            output[index] = std.math.tanh(input[index]);
+        }
+    }
+
+    fn sigmoidSimdApprox(self: *const ActivationProcessor, output: []f32, input: []const f32, start: usize, comptime V: type) usize {
+        _ = self;
+        const lanes = @typeInfo(V).Vector.len;
+        var i = start;
+        while (i + lanes <= input.len) : (i += lanes) {
+            const slice = input[i .. i + lanes][0..lanes];
+            const in_vec: V = @as(V, slice.*);
+            const abs_vec: V = @abs(in_vec);
+            const ones: V = @splat(@as(f32, 1.0));
+            const half: V = @splat(@as(f32, 0.5));
+            const approx_vec: V = half * ((in_vec / (ones + abs_vec)) + ones);
+            var approx_arr = @as([lanes]f32, approx_vec);
+            for (approx_arr[0..]) |*val| {
+                val.* = std.math.clamp(val.*, 0.0, 1.0);
+            }
+            std.mem.copy(f32, output[i .. i + lanes], approx_arr[0..]);
+        }
+        return i;
+    }
+
+    fn tanhSimdApprox(self: *const ActivationProcessor, output: []f32, input: []const f32, start: usize, comptime V: type) usize {
+        _ = self;
+        const lanes = @typeInfo(V).Vector.len;
+        const c27: V = @splat(@as(f32, 27.0));
+        const c9: V = @splat(@as(f32, 9.0));
+        var i = start;
+        while (i + lanes <= input.len) : (i += lanes) {
+            const slice = input[i .. i + lanes][0..lanes];
+            const x: V = @as(V, slice.*);
+            const x2: V = x * x;
+            const numerator: V = x * (c27 + x2);
+            const denominator: V = c27 + (c9 * x2);
+            var approx_arr = @as([lanes]f32, numerator / denominator);
+            for (approx_arr[0..]) |*val| {
+                val.* = std.math.clamp(val.*, -1.0, 1.0);
+            }
+            std.mem.copy(f32, output[i .. i + lanes], approx_arr[0..]);
+        }
+        return i;
     }
 
     /// Scalar sigmoid helper used by certain activations (e.g., quick_gelu)
@@ -507,4 +578,38 @@ test "softmax activation" {
         try testing.expect(val <= 1.0);
     }
     try testing.expectApproxEqAbs(@as(f32, 1.0), sum, 0.001);
+}
+
+test "Activation sigmoid SIMD tracks scalar" {
+    const input = [_]f32{ -6.0, -3.5, -1.0, -0.5, -0.1, 0.0, 0.1, 0.5, 1.0, 2.0, 3.0, 5.0, -2.5, 4.0, -4.0, 0.25 };
+    var simd_output: [input.len]f32 = undefined;
+    var scalar_output: [input.len]f32 = undefined;
+
+    var simd_proc = ActivationProcessor.init(.{ .activation_type = .sigmoid, .enable_simd = true });
+    var scalar_proc = ActivationProcessor.init(.{ .activation_type = .sigmoid, .enable_simd = false });
+
+    simd_proc.activateBatch(simd_output[0..], input[0..]);
+    scalar_proc.activateBatch(scalar_output[0..], input[0..]);
+
+    const tolerance: f32 = 5.0e-2;
+    for (simd_output, scalar_output) |simd_val, scalar_val| {
+        try std.testing.expectApproxEqAbs(scalar_val, simd_val, tolerance);
+    }
+}
+
+test "Activation tanh SIMD tracks scalar" {
+    const input = [_]f32{ -5.0, -3.0, -1.5, -0.75, -0.1, 0.0, 0.1, 0.75, 1.5, 3.0, 5.0, -2.0, 2.0, -4.0, 4.0, 0.33 };
+    var simd_output: [input.len]f32 = undefined;
+    var scalar_output: [input.len]f32 = undefined;
+
+    var simd_proc = ActivationProcessor.init(.{ .activation_type = .tanh, .enable_simd = true });
+    var scalar_proc = ActivationProcessor.init(.{ .activation_type = .tanh, .enable_simd = false });
+
+    simd_proc.activateBatch(simd_output[0..], input[0..]);
+    scalar_proc.activateBatch(scalar_output[0..], input[0..]);
+
+    const tolerance: f32 = 5.0e-2;
+    for (simd_output, scalar_output) |simd_val, scalar_val| {
+        try std.testing.expectApproxEqAbs(scalar_val, simd_val, tolerance);
+    }
 }

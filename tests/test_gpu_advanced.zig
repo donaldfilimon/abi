@@ -322,7 +322,7 @@ test "GPU Performance Profiler - Basic Operations" {
     // Test timing operations
     try profiler.startTiming("test_operation");
     std.Thread.sleep(1 * 1000 * 1000); // Sleep for 1ms
-    try profiler.endTiming();
+    _ = try profiler.endTiming();
 
     // Should have one measurement
     try testing.expect(profiler.measurements.items.len == 1);
@@ -486,7 +486,7 @@ test "GPU Performance Profiler - Benchmark Results" {
     defer profiler.deinit();
 
     // Run a simple benchmark
-    try profiler.runWorkloadBenchmark(.vector_add, 1024, .{
+    _ = try profiler.runWorkloadBenchmark(.vector_add, 1024, .{
         .iterations = 5,
         .warmup_iterations = 1,
         .detailed_timing = false,
@@ -497,7 +497,7 @@ test "GPU Performance Profiler - Benchmark Results" {
 
     // Check result structure
     const result = profiler.results.items[0];
-    try testing.expect(result.workload == .vector_add);
+    try testing.expect(std.mem.eql(u8, result.workload, "vector_add"));
     try testing.expect(result.iterations > 0);
     try testing.expect(result.avg_time_ns > 0);
     try testing.expect(result.throughput_items_per_sec >= 0);

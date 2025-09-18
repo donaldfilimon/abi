@@ -360,7 +360,7 @@ pub fn main() !void {
         std.log.warn("❌ GPU initialization failed: {}. Falling back to CPU mode.", .{err});
         return demoCpuMode(allocator);
     };
-    defer cleanupGPUContext(gpu_context);
+    defer cleanupGPUContext(&gpu_context);
 
     // Phase 3: Comprehensive Memory Management and Hierarchy Testing
     try runAdvancedMemoryManagementPhase(allocator, gpu_context);
@@ -486,7 +486,8 @@ fn runAdvancedGPUInitializationPhase(allocator: std.mem.Allocator) !GPUContext {
     var unified_memory_manager = gpu.UnifiedMemoryManager.init(allocator) catch |err| {
         std.log.warn("❌ Unified Memory Manager initialization failed: {}", .{err});
         std.log.info("🔄 Attempting fallback to standard mode", .{});
-        return demoStandardMode(allocator);
+        try demoStandardMode(allocator);
+        return error.UnifiedMemoryInitFailed;
     };
 
     // Configure unified memory with advanced optimizations
@@ -509,19 +510,19 @@ fn runAdvancedGPUInitializationPhase(allocator: std.mem.Allocator) !GPUContext {
     std.log.info("✅ Advanced GPU renderer initialized successfully", .{});
 
     // Query comprehensive GPU capabilities with extended feature detection
-    const gpu_caps = try queryAdvancedGPUCapabilities(renderer.*);
+    const gpu_caps = try queryAdvancedGPUCapabilities(renderer);
     try logAdvancedGPUCapabilities(gpu_caps);
 
     // Validate advanced driver compatibility and feature support
-    try validateAdvancedDriverCompatibility(renderer.*);
+    try validateAdvancedDriverCompatibility(renderer);
 
     // Initialize hardware monitoring subsystems
-    const hardware_monitor = try initializeHardwareMonitoring(renderer.*);
-    const thermal_monitor = try initializeThermalMonitoring(renderer.*);
-    const power_monitor = try initializePowerMonitoring(renderer.*);
+    const hardware_monitor = try initializeHardwareMonitoring(renderer);
+    const thermal_monitor = try initializeThermalMonitoring(renderer);
+    const power_monitor = try initializePowerMonitoring(renderer);
 
     return GPUContext{
-        .renderer = renderer.*,
+        .renderer = renderer,
         .unified_memory_manager = unified_memory_manager,
         .capabilities = gpu_caps,
         .allocator = allocator,
@@ -967,7 +968,7 @@ const PowerMonitor = struct {
 };
 
 const GPUContext = struct {
-    renderer: gpu.GPURenderer,
+    renderer: *gpu.GPURenderer,
     unified_memory_manager: gpu.UnifiedMemoryManager,
     capabilities: AdvancedGPUCapabilities,
     allocator: std.mem.Allocator,
@@ -1131,7 +1132,7 @@ fn configureAdvancedUnifiedMemoryOptimizations(manager: *gpu.UnifiedMemoryManage
     _ = manager; // Suppress unused parameter warning
 }
 
-fn queryAdvancedGPUCapabilities(renderer: gpu.GPURenderer) !AdvancedGPUCapabilities {
+fn queryAdvancedGPUCapabilities(renderer: *gpu.GPURenderer) !AdvancedGPUCapabilities {
     _ = renderer; // Suppress unused parameter warning
 
     return AdvancedGPUCapabilities{
@@ -1183,12 +1184,12 @@ fn logAdvancedGPUCapabilities(caps: AdvancedGPUCapabilities) !void {
     std.log.info("  - Fillrates: {d:.1} GPix/s, {d:.1} GTex/s", .{ caps.pixel_fillrate_gpixels, caps.texture_fillrate_gtexels });
 }
 
-fn validateAdvancedDriverCompatibility(renderer: gpu.GPURenderer) !void {
+fn validateAdvancedDriverCompatibility(renderer: *gpu.GPURenderer) !void {
     _ = renderer; // Suppress unused parameter warning
     std.log.info("✅ Advanced driver compatibility validated", .{});
 }
 
-fn initializeHardwareMonitoring(renderer: gpu.GPURenderer) !HardwareMonitor {
+fn initializeHardwareMonitoring(renderer: *gpu.GPURenderer) !HardwareMonitor {
     _ = renderer; // Suppress unused parameter warning
     std.log.info("📊 Hardware monitoring subsystems initialized", .{});
     return HardwareMonitor{
@@ -1203,7 +1204,7 @@ fn initializeHardwareMonitoring(renderer: gpu.GPURenderer) !HardwareMonitor {
     };
 }
 
-fn initializeThermalMonitoring(renderer: gpu.GPURenderer) !ThermalMonitor {
+fn initializeThermalMonitoring(renderer: *gpu.GPURenderer) !ThermalMonitor {
     _ = renderer; // Suppress unused parameter warning
     return ThermalMonitor{
         .current_temp_c = 45.0,
@@ -1214,7 +1215,7 @@ fn initializeThermalMonitoring(renderer: gpu.GPURenderer) !ThermalMonitor {
     };
 }
 
-fn initializePowerMonitoring(renderer: gpu.GPURenderer) !PowerMonitor {
+fn initializePowerMonitoring(renderer: *gpu.GPURenderer) !PowerMonitor {
     _ = renderer; // Suppress unused parameter warning
     return PowerMonitor{
         .current_power_w = 250.0,
@@ -1226,8 +1227,8 @@ fn initializePowerMonitoring(renderer: gpu.GPURenderer) !PowerMonitor {
     };
 }
 
-fn cleanupGPUContext(context: GPUContext) void {
-    @constCast(&context.renderer).deinit();
+fn cleanupGPUContext(context: *const GPUContext) void {
+    context.renderer.deinit();
     @constCast(&context.unified_memory_manager).deinit();
     std.log.info("🧹 Advanced GPU context cleaned up successfully", .{});
 }
@@ -1801,7 +1802,8 @@ fn testSingleGPUOptimizations(allocator: std.mem.Allocator, detection_result: *c
     _ = allocator;
     std.log.info("🎯 Testing single GPU optimizations...", .{});
 
-    if (detection_result.primary_gpu) |primary_gpu| {
+    if (detection_result.gpus.len > 0) {
+        const primary_gpu = &detection_result.gpus[0];
         std.log.info("📱 Primary GPU: {s} ({s})", .{ primary_gpu.name, primary_gpu.vendor });
         std.log.info("  - Performance tier: {s}", .{@tagName(primary_gpu.performance_tier)});
         std.log.info("  - Available backends: {d}", .{primary_gpu.available_backends.len});
@@ -1827,10 +1829,6 @@ fn testSingleGPUOptimizations(allocator: std.mem.Allocator, detection_result: *c
             .entry_level => {
                 std.log.info("📱 Testing entry-level GPU features...", .{});
                 try testEntryLevelFeatures(primary_gpu);
-            },
-            else => {
-                std.log.info("🔧 Testing general GPU features...", .{});
-                try testGeneralFeatures(primary_gpu);
             },
         }
     }
@@ -2140,9 +2138,6 @@ fn demoStandardMode(allocator: std.mem.Allocator) !void {
         .power_preference = .high_performance,
         .backend = .auto,
         .try_webgpu_first = false,
-        .enable_gpu_based_validation = false,
-        .memory_heap_size = 256 * 1024 * 1024, // 256MB heap
-        .max_concurrent_operations = 32,
     };
 
     std.log.info("🔧 Initializing GPU renderer with standard memory...", .{});

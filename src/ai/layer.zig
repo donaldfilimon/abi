@@ -1042,18 +1042,11 @@ pub const Layer = struct {
                 }
             },
             .orthogonal => {
-                // Simplified orthogonal initialization
-                const std_dev = 1.0;
-                for (weights) |*weight| {
-                    weight.* = rng.floatNorm(f32) * std_dev;
-                }
-                // TODO: Implement proper orthogonal initialization with SVD
+                self.applyOrthogonalInitialization(weights, rng, input_size, output_size, 1.0);
             },
             .orthogonal_gain => {
                 const gain = @sqrt(2.0);
-                for (weights) |*weight| {
-                    weight.* = rng.floatNorm(f32) * gain;
-                }
+                self.applyOrthogonalInitialization(weights, rng, input_size, output_size, gain);
             },
             .uniform, .random_uniform => {
                 for (weights) |*weight| {
@@ -1184,6 +1177,107 @@ pub const Layer = struct {
                     weight.* = (rng.float(f32) * 2.0 - 1.0) * limit;
                 }
             },
+        }
+    }
+
+    fn applyOrthogonalInitialization(self: *Self, weights: []f32, rng: *std.Random, input_size: usize, output_size: usize, gain: f32) void {
+        _ = self;
+        const expected_len = input_size * output_size;
+        if (expected_len == 0 or weights.len != expected_len) {
+            for (weights) |*weight| {
+                weight.* = rng.floatNorm(f32) * gain;
+            }
+            return;
+        }
+
+        for (weights) |*weight| {
+            weight.* = rng.floatNorm(f32);
+        }
+
+        if (input_size >= output_size) {
+            orthonormalizeColumns(weights, input_size, output_size);
+        } else {
+            orthonormalizeRows(weights, input_size, output_size);
+        }
+
+        if (gain != 1.0) {
+            for (weights) |*weight| {
+                weight.* *= gain;
+            }
+        }
+    }
+
+    fn orthonormalizeColumns(weights: []f32, rows: usize, cols: usize) void {
+        if (rows == 0 or cols == 0) return;
+        const stride = cols;
+        const epsilon: f32 = 1e-6;
+
+        for (0..cols) |col| {
+            for (0..col) |prev| {
+                var dot: f32 = 0.0;
+                for (0..rows) |row| {
+                    dot += weights[row * stride + col] * weights[row * stride + prev];
+                }
+                for (0..rows) |row| {
+                    weights[row * stride + col] -= dot * weights[row * stride + prev];
+                }
+            }
+
+            var norm_sq: f32 = 0.0;
+            for (0..rows) |row| {
+                const val = weights[row * stride + col];
+                norm_sq += val * val;
+            }
+
+            if (norm_sq <= epsilon) {
+                for (0..rows) |row| {
+                    weights[row * stride + col] = 0.0;
+                }
+                const diag_row = if (rows > 0) col % rows else 0;
+                weights[diag_row * stride + col] = 1.0;
+            } else {
+                const inv_norm = 1.0 / @sqrt(norm_sq);
+                for (0..rows) |row| {
+                    weights[row * stride + col] *= inv_norm;
+                }
+            }
+        }
+    }
+
+    fn orthonormalizeRows(weights: []f32, rows: usize, cols: usize) void {
+        if (rows == 0 or cols == 0) return;
+        const stride = cols;
+        const epsilon: f32 = 1e-6;
+
+        for (0..rows) |row| {
+            for (0..row) |prev| {
+                var dot: f32 = 0.0;
+                for (0..cols) |col| {
+                    dot += weights[row * stride + col] * weights[prev * stride + col];
+                }
+                for (0..cols) |col| {
+                    weights[row * stride + col] -= dot * weights[prev * stride + col];
+                }
+            }
+
+            var norm_sq: f32 = 0.0;
+            for (0..cols) |col| {
+                const val = weights[row * stride + col];
+                norm_sq += val * val;
+            }
+
+            if (norm_sq <= epsilon) {
+                for (0..cols) |col| {
+                    weights[row * stride + col] = 0.0;
+                }
+                const diag_col = if (cols > 0) row % cols else 0;
+                weights[row * stride + diag_col] = 1.0;
+            } else {
+                const inv_norm = 1.0 / @sqrt(norm_sq);
+                for (0..cols) |col| {
+                    weights[row * stride + col] *= inv_norm;
+                }
+            }
         }
     }
 
@@ -2100,4 +2194,70 @@ test "layer memory management" {
     // Check parameter count
     const param_count = layer.getParameterCount();
     try testing.expectEqual(@as(usize, 100 * 50 + 50), param_count); // weights + biases
+}
+
+test "layer orthogonal initialization columns" {
+    const allocator = std.testing.allocator;
+    const rows: usize = 6;
+    const cols: usize = 4;
+    var weights = try allocator.alloc(f32, rows * cols);
+    defer allocator.free(weights);
+
+    var prng = std.Random.DefaultPrng.init(12345);
+    var random = prng.random();
+
+    var layer = std.mem.zeroes(Layer);
+    layer.applyOrthogonalInitialization(weights, &random, rows, cols, 1.0);
+
+    const stride = cols;
+    const tolerance: f32 = 1e-3;
+    for (0..cols) |col| {
+        var norm: f32 = 0.0;
+        for (0..rows) |row| {
+            const val = weights[row * stride + col];
+            norm += val * val;
+        }
+        try std.testing.expectApproxEqAbs(@as(f32, 1.0), norm, tolerance);
+
+        for (col + 1..cols) |other| {
+            var dot: f32 = 0.0;
+            for (0..rows) |row| {
+                dot += weights[row * stride + col] * weights[row * stride + other];
+            }
+            try std.testing.expectApproxEqAbs(@as(f32, 0.0), dot, tolerance);
+        }
+    }
+}
+
+test "layer orthogonal initialization rows" {
+    const allocator = std.testing.allocator;
+    const rows: usize = 3;
+    const cols: usize = 6;
+    var weights = try allocator.alloc(f32, rows * cols);
+    defer allocator.free(weights);
+
+    var prng = std.Random.DefaultPrng.init(6789);
+    var random = prng.random();
+
+    var layer = std.mem.zeroes(Layer);
+    layer.applyOrthogonalInitialization(weights, &random, rows, cols, 1.0);
+
+    const stride = cols;
+    const tolerance: f32 = 1e-3;
+    for (0..rows) |row| {
+        var norm: f32 = 0.0;
+        for (0..cols) |col| {
+            const val = weights[row * stride + col];
+            norm += val * val;
+        }
+        try std.testing.expectApproxEqAbs(@as(f32, 1.0), norm, tolerance);
+
+        for (row + 1..rows) |other| {
+            var dot: f32 = 0.0;
+            for (0..cols) |col| {
+                dot += weights[row * stride + col] * weights[other * stride + col];
+            }
+            try std.testing.expectApproxEqAbs(@as(f32, 0.0), dot, tolerance);
+        }
+    }
 }

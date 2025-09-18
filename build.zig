@@ -289,6 +289,7 @@ pub fn build(b: *std.Build) void {
         .{ .path = "tests/test_gpu_renderer.zig", .imports = &.{.{ .name = "gpu", .module = gpu_mod }} },
         .{ .path = "tests/test_gpu_advanced.zig", .imports = &.{.{ .name = "gpu", .module = gpu_mod }} },
         .{ .path = "tests/test_gpu_backend_manager.zig", .imports = &.{.{ .name = "gpu", .module = gpu_mod }} },
+        .{ .path = "tests/test_gpu_ai_acceleration.zig", .imports = &.{.{ .name = "gpu", .module = gpu_mod }} },
         .{ .path = "tests/test_web_server.zig", .imports = &.{.{ .name = "web_server", .module = web_server_mod }} },
     };
 
@@ -549,6 +550,54 @@ pub fn build(b: *std.Build) void {
 
     const advanced_gpu_demo_step = b.step("advanced-gpu-demo", "Run advanced GPU demo with next-level features");
     advanced_gpu_demo_step.dependOn(&run_advanced_gpu_demo.step);
+
+    // AI/ML Acceleration Demo
+    const gpu_ai_accel_mod = b.addModule("gpu_ai_acceleration", .{
+        .root_source_file = b.path("src/gpu/compute/gpu_ai_acceleration.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "gpu", .module = gpu_mod }},
+    });
+
+    const gpu_ai_demo_mod = b.addModule("gpu_ai_demo", .{
+        .root_source_file = b.path("examples/gpu_ai_acceleration_demo.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "gpu_ai_acceleration", .module = gpu_ai_accel_mod },
+            .{ .name = "gpu", .module = gpu_mod },
+        },
+    });
+    const gpu_ai_demo_exe = b.addExecutable(.{
+        .name = "gpu_ai_acceleration_demo",
+        .root_module = gpu_ai_demo_mod,
+    });
+    gpu_ai_demo_exe.root_module.addOptions("options", build_options);
+    b.installArtifact(gpu_ai_demo_exe);
+    const run_gpu_ai_demo = b.addRunArtifact(gpu_ai_demo_exe);
+    const gpu_ai_demo_step = b.step("gpu-ai-demo", "Run GPU AI/ML acceleration demo");
+    gpu_ai_demo_step.dependOn(&run_gpu_ai_demo.step);
+
+    // Neural Network Integration Demo
+    const gpu_nn_integration_mod = b.addModule("gpu_nn_integration", .{
+        .root_source_file = b.path("examples/gpu_neural_network_integration.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "abi", .module = abi_mod },
+            .{ .name = "gpu_ai_acceleration", .module = gpu_ai_accel_mod },
+            .{ .name = "gpu", .module = gpu_mod },
+        },
+    });
+    const gpu_nn_integration_exe = b.addExecutable(.{
+        .name = "gpu_neural_network_integration",
+        .root_module = gpu_nn_integration_mod,
+    });
+    gpu_nn_integration_exe.root_module.addOptions("options", build_options);
+    b.installArtifact(gpu_nn_integration_exe);
+    const run_gpu_nn_integration = b.addRunArtifact(gpu_nn_integration_exe);
+    const gpu_nn_integration_step = b.step("gpu-nn-integration", "Run GPU neural network integration demo");
+    gpu_nn_integration_step.dependOn(&run_gpu_nn_integration.step);
 
     const gpu_verify_step = b.step("gpu-verify", "Verify GPU functionality and backends");
     gpu_verify_step.dependOn(gpu_demo_step);

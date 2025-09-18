@@ -63,7 +63,7 @@ pub const FORMAT_VERSION: u16 = 1;
 pub const DEFAULT_PAGE_SIZE: u32 = 4096;
 
 /// File-header fixed at 4 KiB (4096 bytes)
-pub const WdbxHeader = struct {
+pub const WdbxHeader = extern struct {
     magic0: u8, // 'W'
     magic1: u8, // 'D'
     magic2: u8, // 'B'
@@ -79,7 +79,7 @@ pub const WdbxHeader = struct {
     index_off: u64, // Offset to index data
     records_off: u64, // Offset to records section
     freelist_off: u64, // Offset to freelist for deleted records
-    _reserved: [4072]u8, // Reserved space for future use
+    _reserved: [4032]u8, // Reserved space for future use
 
     pub fn validateMagic(self: *const WdbxHeader) bool {
         return self.magic0 == 'W' and
@@ -108,16 +108,22 @@ pub const WdbxHeader = struct {
             .index_off = 0,
             .records_off = 0,
             .freelist_off = 0,
-            ._reserved = [_]u8{0} ** 4072,
+            ._reserved = [_]u8{0} ** 4032,
         };
     }
 };
+
+comptime {
+    if (@sizeOf(WdbxHeader) != DEFAULT_PAGE_SIZE) {
+        @compileError("WdbxHeader must occupy exactly DEFAULT_PAGE_SIZE bytes");
+    }
+}
 
 pub const Db = struct {
     file: std.fs.File,
     header: WdbxHeader,
     allocator: std.mem.Allocator,
-    read_buffer: []u8,
+    read_buffer: []f32,
     stats: DbStats = .{},
     /// HNSW index instance for fast approximate search
     hnsw_index: ?*HNSWIndex = null,
@@ -151,6 +157,8 @@ pub const Db = struct {
         if (dim == 0 or dim > 4096)
             return DbError.DimensionMismatch;
 
+        try self.ensureReadBufferCapacity(@intCast(dim));
+
         self.header.dim = dim;
         self.header.records_off = DEFAULT_PAGE_SIZE;
 
@@ -175,7 +183,20 @@ pub const Db = struct {
     fn readHeader(self: *Db) DbError!void {
         try self.file.seekTo(0);
         const header_bytes = std.mem.asBytes(&self.header);
-        _ = try self.file.readAll(header_bytes);
+        const read_len = try self.file.readAll(header_bytes);
+        if (read_len != header_bytes.len) {
+            return DbError.CorruptedDatabase;
+        }
+    }
+
+    fn ensureReadBufferCapacity(self: *Db, required_dim: usize) DbError!void {
+        if (required_dim == 0) return;
+        if (required_dim <= self.read_buffer.len) return;
+
+        const new_capacity = @max(required_dim, self.read_buffer.len * 2);
+        const new_buffer = try self.allocator.alloc(f32, new_capacity);
+        self.allocator.free(self.read_buffer);
+        self.read_buffer = new_buffer;
     }
 
     pub fn addEmbedding(self: *Db, embedding: []const f32) DbError!u64 {
@@ -246,20 +267,21 @@ pub const Db = struct {
 
         const row_count_usize: usize = @intCast(row_count);
         const record_size: u64 = @as(u64, self.header.dim) * @sizeOf(f32);
+        const dim_usize: usize = @intCast(self.header.dim);
+
+        try self.ensureReadBufferCapacity(dim_usize);
+        const row_values = self.read_buffer[0..dim_usize];
+        const row_bytes = std.mem.sliceAsBytes(row_values);
 
         var all = try allocator.alloc(Result, row_count_usize);
         defer allocator.free(all);
 
-        const buf_size = @min(record_size, self.read_buffer.len);
-        const buf = self.read_buffer[0..buf_size];
-
         for (0..row_count_usize) |row| {
             const offset: u64 = self.header.records_off + @as(u64, row) * record_size;
-            try self.file.seekTo(offset);
-            _ = try self.file.readAll(buf);
+            _ = try self.file.preadAll(row_bytes, offset);
 
             var dist: f32 = 0;
-            const row_data = std.mem.bytesAsSlice(f32, buf);
+            const row_data = row_values;
 
             if (self.header.dim >= 16 and @hasDecl(std.simd, "f32x16")) {
                 var i: usize = 0;
@@ -346,7 +368,7 @@ pub const Db = struct {
         const self = try allocator.create(Db);
         errdefer allocator.destroy(self);
 
-        const read_buffer = try allocator.alloc(u8, DEFAULT_PAGE_SIZE);
+        const read_buffer = try allocator.alloc(f32, DEFAULT_PAGE_SIZE / @sizeOf(f32));
         errdefer allocator.free(read_buffer);
 
         self.* = .{
@@ -370,6 +392,7 @@ pub const Db = struct {
             allocator.destroy(self);
             return DbError.UnsupportedVersion;
         }
+        try self.ensureReadBufferCapacity(@intCast(self.header.dim));
         return self;
     }
 
@@ -785,18 +808,20 @@ pub const Db = struct {
         defer self.allocator.free(chunk_results);
 
         const record_size: u64 = @as(u64, self.header.dim) * @sizeOf(f32);
+        const dim_usize: usize = @intCast(self.header.dim);
         // Use a per-thread buffer to avoid concurrent access to self.read_buffer
-        const buf = try self.allocator.alloc(u8, @intCast(record_size));
-        defer self.allocator.free(buf);
+        const row_values = try self.allocator.alloc(f32, dim_usize);
+        defer self.allocator.free(row_values);
+        const row_bytes = std.mem.sliceAsBytes(row_values);
 
         var result_index: usize = 0;
         var row: u64 = start_row;
         while (row < end_row) : (row += 1) {
             const offset: u64 = self.header.records_off + row * record_size;
-            _ = try self.file.preadAll(buf, offset);
+            _ = try self.file.preadAll(row_bytes, offset);
 
             var dist: f32 = 0;
-            const row_data = std.mem.bytesAsSlice(f32, buf);
+            const row_data = row_values;
 
             // SIMD-optimized distance calculation
             if (self.header.dim >= 16 and @hasDecl(std.simd, "f32x16")) {
@@ -861,3 +886,70 @@ pub const Db = struct {
         return final_results;
     }
 };
+
+test "Db add/search round trip" {
+    const path = "test_db_temp.wdbx";
+    std.fs.cwd().deleteFile(path) catch {};
+    defer std.fs.cwd().deleteFile(path) catch {};
+
+    {
+        var db = try Db.open(path, true);
+        defer db.close();
+        try db.init(4);
+
+        const vec_a = [_]f32{ 0.1, 0.2, 0.3, 0.4 };
+        const vec_b = [_]f32{ 0.2, 0.1, 0.4, 0.3 };
+
+        const id_a = try db.addEmbedding(&vec_a);
+        const id_b = try db.addEmbedding(&vec_b);
+        try std.testing.expectEqual(@as(u64, 0), id_a);
+        try std.testing.expectEqual(@as(u64, 1), id_b);
+
+        const allocator = std.testing.allocator;
+        const results = try db.search(&vec_a, 2, allocator);
+        defer allocator.free(results);
+
+        try std.testing.expect(results.len >= 1);
+        try std.testing.expectEqual(@as(u64, 0), results[0].index);
+        if (results.len > 1) {
+            try std.testing.expect(results[0].score <= results[1].score);
+        }
+    }
+
+    {
+        var reopened = try Db.open(path, false);
+        defer reopened.close();
+
+        try std.testing.expectEqual(@as(u16, 4), reopened.getDimension());
+        try std.testing.expectEqual(@as(u64, 2), reopened.getRowCount());
+    }
+}
+
+test "Db handles large dimensional embeddings" {
+    const path = "test_db_large_temp.wdbx";
+    std.fs.cwd().deleteFile(path) catch {};
+    defer std.fs.cwd().deleteFile(path) catch {};
+
+    var db = try Db.open(path, true);
+    defer db.close();
+
+    const dim: u16 = 1536;
+    try db.init(dim);
+
+    const allocator = std.testing.allocator;
+    const vector = try allocator.alloc(f32, dim);
+    defer allocator.free(vector);
+
+    for (vector, 0..) |*val, idx| {
+        val.* = @as(f32, @floatFromInt(idx % 11)) / 11.0;
+    }
+
+    _ = try db.addEmbedding(vector);
+
+    const results = try db.search(vector, 1, allocator);
+    defer allocator.free(results);
+
+    try std.testing.expectEqual(@as(usize, 1), results.len);
+    try std.testing.expectEqual(@as(u64, 0), results[0].index);
+    try std.testing.expect(results[0].score <= 1e-5);
+}
