@@ -1209,7 +1209,7 @@ pub const GPURenderer = struct {
         try self.initializeBackend();
         try self.createDefaultResources();
 
-        std.log.info("GPU Renderer initialized with backend: {}", .{self.backend});
+        std.log.info("GPU Renderer initialized with backend: {s}", .{self.backend.toString()});
         return self;
     }
 
@@ -1677,7 +1677,7 @@ pub const GPURenderer = struct {
         if (self.gpu_context == null or self.buffer_manager == null) return GpuError.InitializationFailed;
 
         const size = DEFAULT_VECTOR_SIZE;
-        print("Running optimized vector addition on {} backend...\n", .{self.backend});
+        print("Running optimized vector addition on {s} backend...\n", .{self.backend.toString()});
 
         // Use stack allocation for small arrays when possible, otherwise heap
         const use_stack = comptime size <= 4096; // 16KB threshold for stack usage
@@ -1742,7 +1742,7 @@ pub const GPURenderer = struct {
         if (self.gpu_context == null or self.buffer_manager == null) return GpuError.InitializationFailed;
 
         const size = DEFAULT_MATRIX_SIZE;
-        print("Running optimized matrix multiplication on {} backend...\n", .{self.backend});
+        print("Running optimized matrix multiplication on {s} backend...\n", .{self.backend.toString()});
 
         // Use stack allocation for smaller matrices to avoid heap overhead
         const matrix_size_bytes = size * size * @sizeOf(f32);
@@ -1809,7 +1809,7 @@ pub const GPURenderer = struct {
 
         const width = DEFAULT_IMAGE_SIZE;
         const height = DEFAULT_IMAGE_SIZE;
-        print("Running optimized image processing on {} backend...\n", .{self.backend});
+        print("Running optimized image processing on {s} backend...\n", .{self.backend.toString()});
 
         // Use stack allocation for small images
         const image_size_bytes = width * height * 4;
@@ -1975,7 +1975,7 @@ pub const GPURenderer = struct {
         }
 
         print("\n🚀 === Optimized GPU Examples with Performance Monitoring ===\n", .{});
-        print("Backend: {}, Optimizations: comptime + inline + stack allocation\n", .{self.backend});
+        print("Backend: {s}, Optimizations: comptime + inline + stack allocation\n", .{self.backend.toString()});
 
         // Performance tracking
         const start_time = std.time.nanoTimestamp();

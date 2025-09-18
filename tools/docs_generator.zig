@@ -704,7 +704,10 @@ fn scanFile(allocator: std.mem.Allocator, rel_path: []const u8, decls: *std.Arra
     var reader = file.reader(&.{});
     var buf: [4096]u8 = undefined;
     while (true) {
-        const n = try reader.read(&buf);
+        const n = reader.read(&buf) catch |err| {
+            if (err == error.EndOfStream) break;
+            return err;
+        };
         if (n == 0) break;
         try buffer.appendSlice(buf[0..n]);
     }

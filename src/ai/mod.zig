@@ -780,12 +780,68 @@ pub const Layer = struct {
         }
     }
 
-    fn forwardConv2D(self: *Layer, _input: []const f32, _output: []f32) !void {
-        // Enhanced 2D convolution implementation
-        _ = self;
-        _ = _input;
-        _ = _output;
-        return error.NotImplemented;
+    fn forwardConv2D(self: *Layer, input: []const f32, output: []f32) !void {
+        if (self.weights == null) return error.WeightsNotInitialized;
+
+        // Convolutional layer parameters
+        const batch_size = self.input_shape[0];
+        const input_height = self.input_shape[1];
+        const input_width = self.input_shape[2];
+        const input_channels = self.input_shape[3];
+
+        const output_height = self.output_shape[1];
+        const output_width = self.output_shape[2];
+        const output_channels = self.output_shape[3];
+
+        // Get kernel size from weights shape (assuming square kernels)
+        const kernel_size = self.weights.?.len / (input_channels * output_channels);
+        const kernel_side = std.math.sqrt(kernel_size);
+
+        // Convolution operation
+        for (0..batch_size) |b| {
+            for (0..output_height) |oh| {
+                for (0..output_width) |ow| {
+                    for (0..output_channels) |oc| {
+                        var sum: f32 = 0.0;
+
+                        // Convolve over input channels and kernel spatial dimensions
+                        for (0..input_channels) |ic| {
+                            for (0..kernel_side) |kh| {
+                                for (0..kernel_side) |kw| {
+                                    const ih = oh + kh;
+                                    const iw = ow + kw;
+
+                                    if (ih < input_height and iw < input_width) {
+                                        const input_idx = ((b * input_height + ih) * input_width + iw) * input_channels + ic;
+                                        const weight_idx = ((oc * input_channels + ic) * kernel_side + kh) * kernel_side + kw;
+
+                                        if (input_idx < input.len and weight_idx < self.weights.?.len) {
+                                            sum += input[input_idx] * self.weights.?[weight_idx];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Add bias
+                        if (self.biases) |biases| {
+                            sum += biases[oc];
+                        }
+
+                        // Store result
+                        const output_idx = ((b * output_height + oh) * output_width + ow) * output_channels + oc;
+                        if (output_idx < output.len) {
+                            output[output_idx] = sum;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Apply activation function
+        if (self.activation) |activation| {
+            try self.applyActivation(output, activation);
+        }
     }
 
     fn forwardConv1D(self: *Layer, _input: []const f32, _output: []f32) !void {
@@ -877,12 +933,104 @@ pub const Layer = struct {
         @memcpy(output, input);
     }
 
-    fn forwardLSTM(self: *Layer, _input: []const f32, _output: []f32) !void {
-        // Enhanced LSTM implementation
-        _ = self;
-        _ = _input;
-        _ = _output;
-        return error.NotImplemented;
+    fn forwardLSTM(self: *Layer, input: []const f32, output: []f32) !void {
+        if (self.weights == null) return error.WeightsNotInitialized;
+
+        // LSTM parameters
+        const batch_size = self.input_shape[0];
+        const seq_length = self.input_shape[1];
+        const input_size = self.input_shape[2];
+        const hidden_size = self.output_shape[2];
+
+        // LSTM weights: [input_size + hidden_size, 4 * hidden_size] for gates
+        const total_weights = (input_size + hidden_size) * 4 * hidden_size;
+        if (self.weights.?.len != total_weights) return error.InvalidWeightsShape;
+
+        // Get allocator from the network (assuming it's stored in the network structure)
+        // For now, use a simple page allocator approach
+        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        defer arena.deinit();
+        const allocator = arena.allocator();
+
+        // Initialize cell state and hidden state
+        var cell_state = try allocator.alloc(f32, batch_size * hidden_size);
+        defer allocator.free(cell_state);
+        var hidden_state = try allocator.alloc(f32, batch_size * hidden_size);
+        defer allocator.free(hidden_state);
+
+        @memset(cell_state, 0.0);
+        @memset(hidden_state, 0.0);
+
+        // Process sequence
+        for (0..seq_length) |t| {
+            for (0..batch_size) |b| {
+                // Get input for this time step
+                const input_offset = (b * seq_length + t) * input_size;
+                const input_slice = input[input_offset .. input_offset + input_size];
+
+                // Concatenate input and previous hidden state
+                var combined_input = try allocator.alloc(f32, input_size + hidden_size);
+                defer allocator.free(combined_input);
+
+                @memcpy(combined_input[0..input_size], input_slice);
+                const hidden_offset = b * hidden_size;
+                @memcpy(combined_input[input_size..], hidden_state[hidden_offset .. hidden_offset + hidden_size]);
+
+                // Compute gates: forget, input, output, candidate
+                for (0..hidden_size) |h| {
+                    // Forget gate
+                    var forget_gate: f32 = 0.0;
+                    for (0..input_size + hidden_size) |i| {
+                        const weight_idx = (i * 4 * hidden_size) + (h * 4);
+                        forget_gate += combined_input[i] * self.weights.?[weight_idx];
+                    }
+                    forget_gate = sigmoid(forget_gate);
+
+                    // Input gate
+                    var input_gate: f32 = 0.0;
+                    for (0..input_size + hidden_size) |i| {
+                        const weight_idx = (i * 4 * hidden_size) + (h * 4) + 1;
+                        input_gate += combined_input[i] * self.weights.?[weight_idx];
+                    }
+                    input_gate = sigmoid(input_gate);
+
+                    // Output gate
+                    var output_gate: f32 = 0.0;
+                    for (0..input_size + hidden_size) |i| {
+                        const weight_idx = (i * 4 * hidden_size) + (h * 4) + 2;
+                        output_gate += combined_input[i] * self.weights.?[weight_idx];
+                    }
+                    output_gate = sigmoid(output_gate);
+
+                    // Candidate values
+                    var candidate: f32 = 0.0;
+                    for (0..input_size + hidden_size) |i| {
+                        const weight_idx = (i * 4 * hidden_size) + (h * 4) + 3;
+                        candidate += combined_input[i] * self.weights.?[weight_idx];
+                    }
+                    candidate = tanh(candidate);
+
+                    // Update cell state and hidden state
+                    const cell_idx = b * hidden_size + h;
+                    cell_state[cell_idx] = forget_gate * cell_state[cell_idx] + input_gate * candidate;
+                    hidden_state[cell_idx] = output_gate * tanh(cell_state[cell_idx]);
+                }
+
+                // Copy hidden state to output
+                const output_offset = (b * seq_length + t) * hidden_size;
+                @memcpy(output[output_offset .. output_offset + hidden_size], hidden_state[b * hidden_size .. (b + 1) * hidden_size]);
+            }
+        }
+    }
+
+    // Helper functions for LSTM
+    fn sigmoid(x: f32) f32 {
+        return 1.0 / (1.0 + std.math.exp(-x));
+    }
+
+    fn tanh(x: f32) f32 {
+        const exp_2x = std.math.exp(2.0 * x);
+        return (exp_2x - 1.0) / (exp_2x + 1.0);
     }
 
     fn forwardGRU(self: *Layer, _input: []const f32, _output: []f32) !void {
@@ -2206,6 +2354,9 @@ pub const ModelTrainer = struct {
 // Re-export commonly used types with enhanced aliases
 pub const Network = NeuralNetwork;
 pub const Embedding = EmbeddingGenerator;
+
+// Transformer Architecture
+pub const transformer = @import("transformer.zig");
 
 // Re-export additional AI components
 pub const Neural = @import("neural.zig");

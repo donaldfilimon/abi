@@ -110,6 +110,194 @@ pub const SIMDMath = struct {
             mat4MulVec4(a, b[3]),
         };
     }
+
+    /// Advanced SIMD operations for AI/ML workloads
+    /// SIMD fused multiply-add (FMA) operation
+    pub fn fma(a: anytype, b: anytype, c: anytype) @TypeOf(a) {
+        return a * b + c;
+    }
+
+    /// SIMD horizontal sum (sum all elements in vector)
+    pub fn horizontalSum(v: anytype) std.meta.Child(@TypeOf(v)) {
+        return @reduce(.Add, v);
+    }
+
+    /// SIMD horizontal maximum (find max element in vector)
+    pub fn horizontalMax(v: anytype) std.meta.Child(@TypeOf(v)) {
+        return @reduce(.Max, v);
+    }
+
+    /// SIMD horizontal minimum (find min element in vector)
+    pub fn horizontalMin(v: anytype) std.meta.Child(@TypeOf(v)) {
+        return @reduce(.Min, v);
+    }
+
+    /// SIMD element-wise maximum
+    pub fn max(a: anytype, b: anytype) @TypeOf(a) {
+        return @max(a, b);
+    }
+
+    /// SIMD element-wise minimum
+    pub fn min(a: anytype, b: anytype) @TypeOf(a) {
+        return @min(a, b);
+    }
+
+    /// SIMD element-wise absolute value
+    pub fn abs(v: anytype) @TypeOf(v) {
+        return @abs(v);
+    }
+
+    /// SIMD element-wise square root
+    pub fn sqrt(v: anytype) @TypeOf(v) {
+        return @sqrt(v);
+    }
+
+    /// SIMD element-wise reciprocal square root
+    pub fn rsqrt(v: anytype) @TypeOf(v) {
+        return @rsqrt(v);
+    }
+
+    /// SIMD element-wise exponential
+    pub fn exp(v: anytype) @TypeOf(v) {
+        // Taylor series approximation for exp
+        const x2 = v * v;
+        const x3 = x2 * v;
+        const x4 = x3 * v;
+        const x5 = x4 * v;
+        return @as(@TypeOf(v), @splat(1.0)) + v + x2 / @as(@TypeOf(v), @splat(2.0)) +
+            x3 / @as(@TypeOf(v), @splat(6.0)) + x4 / @as(@TypeOf(v), @splat(24.0)) +
+            x5 / @as(@TypeOf(v), @splat(120.0));
+    }
+
+    /// SIMD element-wise logarithm (natural log)
+    pub fn log(v: anytype) @TypeOf(v) {
+        // Approximation using log(1+x) = x - x²/2 + x³/3 - x⁴/4 + ...
+        const x = v - @as(@TypeOf(v), @splat(1.0));
+        const x2 = x * x;
+        const x3 = x2 * x;
+        const x4 = x3 * x;
+        return x - x2 / @as(@TypeOf(v), @splat(2.0)) + x3 / @as(@TypeOf(v), @splat(3.0)) -
+            x4 / @as(@TypeOf(v), @splat(4.0));
+    }
+
+    /// SIMD element-wise sigmoid activation
+    pub fn sigmoid(v: anytype) @TypeOf(v) {
+        const neg_v = -v;
+        const exp_neg_v = exp(neg_v);
+        return @as(@TypeOf(v), @splat(1.0)) / (@as(@TypeOf(v), @splat(1.0)) + exp_neg_v);
+    }
+
+    /// SIMD element-wise tanh activation
+    pub fn tanh(v: anytype) @TypeOf(v) {
+        const exp_2v = exp(v * @as(@TypeOf(v), @splat(2.0)));
+        return (exp_2v - @as(@TypeOf(v), @splat(1.0))) / (exp_2v + @as(@TypeOf(v), @splat(1.0)));
+    }
+
+    /// SIMD element-wise ReLU activation
+    pub fn relu(v: anytype) @TypeOf(v) {
+        return max(v, @as(@TypeOf(v), @splat(0.0)));
+    }
+
+    /// SIMD element-wise Leaky ReLU activation
+    pub fn leakyRelu(v: anytype, alpha: std.meta.Child(@TypeOf(v))) @TypeOf(v) {
+        const alpha_vec = @as(@TypeOf(v), @splat(alpha));
+        return max(v, v * alpha_vec);
+    }
+
+    /// SIMD element-wise GELU activation (approximation)
+    pub fn gelu(v: anytype) @TypeOf(v) {
+        const sqrt_2_over_pi = @as(@TypeOf(v), @splat(@sqrt(2.0 / std.math.pi)));
+        const coeff = v * sqrt_2_over_pi;
+        return v * sigmoid(coeff * @as(@TypeOf(v), @splat(1.702)));
+    }
+
+    /// SIMD matrix multiplication (optimized for small matrices)
+    pub fn matMulSIMD(a: []const f32, b: []const f32, c: []f32, m: usize, n: usize, p: usize) void {
+        // Optimized matrix multiplication using SIMD
+        const Vec4f = @Vector(4, f32);
+        const Vec8f = @Vector(8, f32);
+
+        var i: usize = 0;
+        while (i < m) : (i += 1) {
+            var j: usize = 0;
+            while (j < p) : (j += 4) {
+                if (j + 4 <= p) {
+                    // Process 4 output elements at once
+                    var sum = @as(Vec4f, @splat(0.0));
+                    var k: usize = 0;
+                    while (k < n) : (k += 1) {
+                        const a_val = @as(Vec4f, @splat(a[i * n + k]));
+                        const b_vals = Vec4f{
+                            b[k * p + j],
+                            b[k * p + j + 1],
+                            b[k * p + j + 2],
+                            b[k * p + j + 3],
+                        };
+                        sum += a_val * b_vals;
+                    }
+                    c[i * p + j] = sum[0];
+                    c[i * p + j + 1] = sum[1];
+                    c[i * p + j + 2] = sum[2];
+                    c[i * p + j + 3] = sum[3];
+                } else {
+                    // Handle remaining elements
+                    for (0..p - j) |jj| {
+                        var sum: f32 = 0.0;
+                        for (0..n) |k| {
+                            sum += a[i * n + k] * b[k * p + j + jj];
+                        }
+                        c[i * p + j + jj] = sum;
+                    }
+                }
+            }
+        }
+    }
+
+    /// SIMD vectorized softmax (numerically stable)
+    pub fn softmaxSIMD(input: []f32, output: []f32) void {
+        // Find maximum for numerical stability
+        var max_val: f32 = -std.math.inf(f32);
+        for (input) |val| {
+            max_val = @max(max_val, val);
+        }
+
+        // Compute exp(x - max) and sum
+        var sum: f32 = 0.0;
+        for (input, 0..) |val, i| {
+            const exp_val = std.math.exp(val - max_val);
+            output[i] = exp_val;
+            sum += exp_val;
+        }
+
+        // Normalize
+        const sum_vec = @as(@Vector(input.len, f32), @splat(sum));
+        const output_vec = @as(@Vector(input.len, f32), output[0..].*) / sum_vec;
+        @memcpy(output, std.mem.sliceAsBytes(output_vec[0..]));
+    }
+
+    /// SIMD batch normalization (vectorized)
+    pub fn batchNormSIMD(input: []f32, output: []f32, gamma: f32, beta: f32, epsilon: f32) void {
+        // Compute mean
+        var mean: f32 = 0.0;
+        for (input) |val| {
+            mean += val;
+        }
+        mean /= @as(f32, @floatFromInt(input.len));
+
+        // Compute variance
+        var variance: f32 = 0.0;
+        for (input) |val| {
+            const diff = val - mean;
+            variance += diff * diff;
+        }
+        variance /= @as(f32, @floatFromInt(input.len));
+
+        // Normalize
+        const inv_std = 1.0 / @sqrt(variance + epsilon);
+        for (input, 0..) |val, i| {
+            output[i] = gamma * (val - mean) * inv_std + beta;
+        }
+    }
 };
 
 /// SIMD graphics operations
