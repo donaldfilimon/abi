@@ -75,10 +75,10 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 self.allocator.free(vectors.result);
             }
 
-            // Euclidean distance
-            const distance_context = struct {
-                fn euclideanDistance(context: @This()) !f32 {
-                    return abi.core.VectorOps.distance(context.a, context.b);
+            // Dot product
+            const dot_product_context = struct {
+                fn dotProduct(context: @This()) !f32 {
+                    return abi.simd.VectorOps.dotProduct(context.a, context.b);
                 }
                 a: []f32,
                 b: []f32,
@@ -87,12 +87,23 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 .b = vectors.b,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Euclidean Distance ({} elements)", .{size}), "Vector", distance_context.euclideanDistance, distance_context);
+            // Create wrapper function for benchmark framework
+            const dot_product_fn = struct {
+                fn call(ctx: @TypeOf(dot_product_context)) !f32 {
+                    return ctx.dotProduct();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Dot Product ({} elements)", .{size}), "Vector", dot_product_fn, dot_product_context);
 
             // Cosine similarity
             const cosine_context = struct {
                 fn cosineSimilarity(context: @This()) !f32 {
-                    return abi.core.VectorOps.cosineSimilarity(context.a, context.b);
+                    // Simple cosine similarity implementation
+                    const dot = abi.simd.VectorOps.dotProduct(context.a, context.b);
+                    const norm_a = abi.simd.VectorOps.dotProduct(context.a, context.a);
+                    const norm_b = abi.simd.VectorOps.dotProduct(context.b, context.b);
+                    return dot / (@sqrt(norm_a) * @sqrt(norm_b));
                 }
                 a: []f32,
                 b: []f32,
@@ -101,7 +112,14 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 .b = vectors.b,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Cosine Similarity ({} elements)", .{size}), "Vector", cosine_context.cosineSimilarity, cosine_context);
+            // Create wrapper function for benchmark framework
+            const cosine_fn = struct {
+                fn call(ctx: @TypeOf(cosine_context)) !f32 {
+                    return ctx.cosineSimilarity();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Cosine Similarity ({} elements)", .{size}), "Vector", cosine_fn, cosine_context);
 
             // Vector addition
             const add_context = struct {
@@ -119,7 +137,14 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 .result = vectors.result,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Addition ({} elements)", .{size}), "Vector", add_context.vectorAdd, add_context);
+            // Create wrapper function for benchmark framework
+            const add_fn = struct {
+                fn call(ctx: @TypeOf(add_context)) !void {
+                    return ctx.vectorAdd();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Addition ({} elements)", .{size}), "Vector", add_fn, add_context);
 
             // Vector sum
             const sum_context = struct {
@@ -133,7 +158,14 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 .a = vectors.a,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Sum ({} elements)", .{size}), "Vector", sum_context.vectorSum, sum_context);
+            // Create wrapper function for benchmark framework
+            const sum_fn = struct {
+                fn call(ctx: @TypeOf(sum_context)) !f32 {
+                    return ctx.vectorSum();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Sum ({} elements)", .{size}), "Vector", sum_fn, sum_context);
         }
     }
 
@@ -180,7 +212,14 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 .cols_b = size,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Matrix Multiply ({}x{})", .{ size, size }), "Matrix", mm_context.matrixMultiply, mm_context);
+            // Create wrapper function for benchmark framework
+            const mm_fn = struct {
+                fn call(ctx: @TypeOf(mm_context)) !void {
+                    return ctx.matrixMultiply();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Matrix Multiply ({}x{})", .{ size, size }), "Matrix", mm_fn, mm_context);
         }
     }
 
@@ -201,7 +240,14 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
         };
         defer self.allocator.free(math_context.data);
 
-        try self.framework_suite.runBenchmark("Mathematical Functions (sin, cos, sqrt)", "Math", math_context.mathOperations, math_context);
+        // Create wrapper function for benchmark framework
+        const math_fn = struct {
+            fn call(ctx: @TypeOf(math_context)) !f32 {
+                return ctx.mathOperations();
+            }
+        }.call;
+
+        try self.framework_suite.runBenchmark("Mathematical Functions (sin, cos, sqrt)", "Math", math_fn, math_context);
     }
 
     // Helper functions

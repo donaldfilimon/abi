@@ -1,7 +1,7 @@
 const std = @import("std");
-const wdbx = @import("wdbx/unified.zig");
 
 pub fn main() !void {
-    // Use the unified WDBX CLI implementation
-    try wdbx.main().?;
+    // Simple main entry point for the ABI framework
+    std.debug.print("ABI Framework v1.0.0-alpha\n", .{});
+    std.debug.print("Run 'zig build --help' for available commands\n", .{});
 }

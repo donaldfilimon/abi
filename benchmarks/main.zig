@@ -7,6 +7,7 @@
 //! - Export capabilities for CI/CD integration
 
 const std = @import("std");
+const builtin = @import("builtin");
 const framework = @import("benchmark_framework.zig");
 
 /// Unified benchmark entry point for ABI
@@ -154,10 +155,10 @@ fn exportBenchmarkResults(format: framework.BenchmarkConfig.OutputFormat, path: 
             try file.writeAll("\",\n");
             try file.writeAll("  \"platform\": {\n");
             try file.writeAll("    \"os\": \"");
-            try file.writeAll(@tagName(std.builtin.os.tag));
+            try file.writeAll(@tagName(builtin.target.os.tag));
             try file.writeAll("\",\n");
             try file.writeAll("    \"arch\": \"");
-            try file.writeAll(@tagName(std.builtin.cpu.arch));
+            try file.writeAll(@tagName(builtin.target.cpu.arch));
             try file.writeAll("\"\n");
             try file.writeAll("  }\n");
             try file.writeAll("}\n");
@@ -167,18 +168,18 @@ fn exportBenchmarkResults(format: framework.BenchmarkConfig.OutputFormat, path: 
             try file.writeAll("abi_benchmarks,completed,");
             try file.writeAll(try std.fmt.allocPrint(std.heap.page_allocator, "{d}", .{std.time.milliTimestamp()}));
             try file.writeAll(",");
-            try file.writeAll(@tagName(std.builtin.os.tag));
+            try file.writeAll(@tagName(builtin.target.os.tag));
             try file.writeAll(",");
-            try file.writeAll(@tagName(std.builtin.cpu.arch));
+            try file.writeAll(@tagName(builtin.target.cpu.arch));
             try file.writeAll("\n");
         },
         .markdown => {
             try file.writeAll("# ABI Benchmark Results\n\n");
             try file.writeAll("**Status:** Completed\n");
             try file.writeAll("**Platform:** ");
-            try file.writeAll(@tagName(std.builtin.os.tag));
+            try file.writeAll(@tagName(builtin.target.os.tag));
             try file.writeAll(" ");
-            try file.writeAll(@tagName(std.builtin.cpu.arch));
+            try file.writeAll(@tagName(builtin.target.cpu.arch));
             try file.writeAll("\n");
             try file.writeAll("**Timestamp:** ");
             try file.writeAll(try std.fmt.allocPrint(std.heap.page_allocator, "{d}", .{std.time.milliTimestamp()}));
@@ -190,9 +191,9 @@ fn exportBenchmarkResults(format: framework.BenchmarkConfig.OutputFormat, path: 
             try file.writeAll("====================\n\n");
             try file.writeAll("Status: Completed\n");
             try file.writeAll("Platform: ");
-            try file.writeAll(@tagName(std.builtin.os.tag));
+            try file.writeAll(@tagName(builtin.target.os.tag));
             try file.writeAll(" ");
-            try file.writeAll(@tagName(std.builtin.cpu.arch));
+            try file.writeAll(@tagName(builtin.target.cpu.arch));
             try file.writeAll("\n");
             try file.writeAll("Timestamp: ");
             try file.writeAll(try std.fmt.allocPrint(std.heap.page_allocator, "{d}", .{std.time.milliTimestamp()}));
