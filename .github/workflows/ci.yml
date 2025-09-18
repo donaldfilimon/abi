@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        zig: [ 0.15.1, 0.16.0-dev.280, master ]
+        zig: [ 0.15.1 ]
         os: [ ubuntu-latest, ubuntu-20.04, ubuntu-18.04, windows-latest, windows-2019, macos-latest, macos-13 ]
         arch: [ x86_64, aarch64 ]
     runs-on: ${{ matrix.os }}
