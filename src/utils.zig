@@ -15,6 +15,14 @@ pub const VERSION = .{
     .pre_release = "alpha",
 };
 
+/// Render version as semantic version string: "major.minor.patch[-pre]"
+pub fn versionString(allocator: std.mem.Allocator) ![]u8 {
+    if (VERSION.pre_release.len > 0) {
+        return std.fmt.allocPrint(allocator, "{d}.{d}.{d}-{s}", .{ VERSION.major, VERSION.minor, VERSION.patch, VERSION.pre_release });
+    }
+    return std.fmt.allocPrint(allocator, "{d}.{d}.{d}", .{ VERSION.major, VERSION.minor, VERSION.patch });
+}
+
 /// Common configuration struct
 pub const Config = struct {
     name: []const u8 = "abi-ai",
@@ -103,6 +111,36 @@ pub const HttpStatus = enum(u16) {
             .gateway_timeout => "Gateway Timeout",
         };
     }
+
+    /// Numeric code accessor
+    pub fn code(self: HttpStatus) u16 {
+        return @intFromEnum(self);
+    }
+
+    /// Classification helpers
+    pub fn isSuccess(self: HttpStatus) bool {
+        const c = @intFromEnum(self);
+        return c >= 200 and c < 300;
+    }
+
+    pub fn isRedirect(self: HttpStatus) bool {
+        const c = @intFromEnum(self);
+        return c >= 300 and c < 400;
+    }
+
+    pub fn isClientError(self: HttpStatus) bool {
+        const c = @intFromEnum(self);
+        return c >= 400 and c < 500;
+    }
+
+    pub fn isServerError(self: HttpStatus) bool {
+        const c = @intFromEnum(self);
+        return c >= 500 and c < 600;
+    }
+
+    pub fn isError(self: HttpStatus) bool {
+        return self.isClientError() or self.isServerError();
+    }
 };
 
 /// HTTP method types
@@ -143,6 +181,30 @@ pub const HttpMethod = enum {
             .CONNECT => "CONNECT",
         };
     }
+
+    /// RFC 7231 safe methods (do not modify server state)
+    pub fn isSafe(self: HttpMethod) bool {
+        return switch (self) {
+            .GET, .HEAD, .OPTIONS, .TRACE => true,
+            else => false,
+        };
+    }
+
+    /// RFC 7231 idempotent methods
+    pub fn isIdempotent(self: HttpMethod) bool {
+        return switch (self) {
+            .GET, .PUT, .DELETE, .HEAD, .OPTIONS, .TRACE => true,
+            else => false,
+        };
+    }
+
+    /// Whether a request method typically allows a body
+    pub fn allowsBody(self: HttpMethod) bool {
+        return switch (self) {
+            .POST, .PUT, .PATCH, .DELETE => true,
+            else => false,
+        };
+    }
 };
 
 /// HTTP header management
@@ -171,6 +233,11 @@ pub const Headers = struct {
 
     pub fn remove(self: *Headers, name: []const u8) bool {
         return self.map.remove(name);
+    }
+
+    /// Get a header or return a provided default
+    pub fn getOr(self: *Headers, name: []const u8, default_value: []const u8) []const u8 {
+        return self.get(name) orelse default_value;
     }
 };
 

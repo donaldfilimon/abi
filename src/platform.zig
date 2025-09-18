@@ -55,11 +55,9 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const abi = @import("root.zig");
-const core = @import("core/mod.zig");
 
 /// Re-export commonly used types
-pub const Allocator = core.Allocator;
+pub const Allocator = std.mem.Allocator;
 
 /// Platform capabilities and configuration
 pub const PlatformInfo = struct {
@@ -75,7 +73,7 @@ pub const PlatformInfo = struct {
             .os = builtin.os.tag,
             .arch = builtin.cpu.arch,
             .supports_ansi_colors = detectAnsiSupport(),
-            .supports_simd = abi.features.has_simd,
+            .supports_simd = true, // Assume SIMD support for now
             .max_threads = detectMaxThreads(),
             .cache_line_size = detectCacheLineSize(),
         };

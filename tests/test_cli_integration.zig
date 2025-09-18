@@ -72,7 +72,7 @@ test "CLI file operations - temporary file cleanup" {
         const temp_path = "test_temp_file.bin";
         defer std.fs.cwd().deleteFile(temp_path) catch {};
 
-        // Create a test file with WDBX-AI magic bytes
+        // Create a test file with ABI magic bytes
         const file = try std.fs.cwd().createFile(temp_path, .{});
         defer file.close();
 
@@ -80,7 +80,7 @@ test "CLI file operations - temporary file cleanup" {
         try file.writeAll(magic_bytes);
 
         const detected_format = try detectModelFormat(temp_path);
-        try testing.expectEqualStrings("wdbx-ai", detected_format);
+        try testing.expectEqualStrings("abi", detected_format);
     }
 }
 
@@ -169,7 +169,7 @@ fn detectModelFormat(file_path: []const u8) ![]const u8 {
     const bytes_read = try file.read(&buffer);
 
     if (bytes_read >= 8 and std.mem.eql(u8, buffer[0..6], "WDBXAI")) {
-        return "wdbx-ai";
+        return "abi";
     }
 
     return "unknown";
