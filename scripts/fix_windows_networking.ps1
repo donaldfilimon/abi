@@ -22,7 +22,7 @@ Write-Host "✅ Running as Administrator" -ForegroundColor Green
 Write-Host ""
 
 # Function to run command and report result
-function Run-NetworkCommand {
+function Invoke-NetworkCommand {
     param(
         [string]$Command,
         [string]$Description
@@ -44,20 +44,20 @@ function Run-NetworkCommand {
 
 # Step 1: Reset TCP/IP Stack
 Write-Host "=== Step 1: Resetting TCP/IP Stack ===" -ForegroundColor Magenta
-Run-NetworkCommand "netsh winsock reset" "Resetting Winsock catalog"
-Run-NetworkCommand "netsh int ip reset" "Resetting IP stack"
+Invoke-NetworkCommand "netsh winsock reset" "Resetting Winsock catalog"
+Invoke-NetworkCommand "netsh int ip reset" "Resetting IP stack"
 
 # Step 2: Release and renew IP configuration
 Write-Host "=== Step 2: Refreshing IP Configuration ===" -ForegroundColor Magenta
-Run-NetworkCommand "ipconfig /release" "Releasing IP configuration"
-Run-NetworkCommand "ipconfig /renew" "Renewing IP configuration"
-Run-NetworkCommand "ipconfig /flushdns" "Flushing DNS cache"
+Invoke-NetworkCommand "ipconfig /release" "Releasing IP configuration"
+Invoke-NetworkCommand "ipconfig /renew" "Renewing IP configuration"
+Invoke-NetworkCommand "ipconfig /flushdns" "Flushing DNS cache"
 
 # Step 3: Reset Windows Firewall (optional - user choice)
 Write-Host "=== Step 3: Windows Firewall Reset (Optional) ===" -ForegroundColor Magenta
 $resetFirewall = Read-Host "Reset Windows Firewall to defaults? This will remove custom rules. (y/N)"
 if ($resetFirewall -eq "y" -or $resetFirewall -eq "Y") {
-    Run-NetworkCommand "netsh advfirewall reset" "Resetting Windows Firewall"
+    Invoke-NetworkCommand "netsh advfirewall reset" "Resetting Windows Firewall"
 } else {
     Write-Host "⏭️  Skipping firewall reset" -ForegroundColor Yellow
 }
@@ -65,9 +65,9 @@ Write-Host ""
 
 # Step 4: Clear additional network caches
 Write-Host "=== Step 4: Clearing Network Caches ===" -ForegroundColor Magenta
-Run-NetworkCommand "netsh int tcp reset" "Resetting TCP settings"
-Run-NetworkCommand "netsh int ipv4 reset" "Resetting IPv4 settings"
-Run-NetworkCommand "netsh int ipv6 reset" "Resetting IPv6 settings"
+Invoke-NetworkCommand "netsh int tcp reset" "Resetting TCP settings"
+Invoke-NetworkCommand "netsh int ipv4 reset" "Resetting IPv4 settings"
+Invoke-NetworkCommand "netsh int ipv6 reset" "Resetting IPv6 settings"
 
 # Step 5: Optimize TCP settings for development
 Write-Host "=== Step 5: Optimizing TCP Settings for Development ===" -ForegroundColor Magenta

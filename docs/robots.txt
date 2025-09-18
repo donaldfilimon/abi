@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Sitemap: https://donaldfilimon.github.io/abi/sitemap.xml
+
+# Disallow build artifacts
+Disallow: /zig-out/
+Disallow: /zig-cache/
+Disallow: /*.zig$

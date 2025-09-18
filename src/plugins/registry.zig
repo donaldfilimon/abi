@@ -130,6 +130,41 @@ pub const PluginRegistry = struct {
         try self.unloadPluginInternal(plugin_name);
     }
 
+    /// Register a plugin interface that is built into the process (no dynamic library)
+    pub fn registerBuiltinInterface(self: *PluginRegistry, plugin_interface: *const interface.PluginInterface) !void {
+        if (!plugin_interface.isValid()) {
+            return PluginError.InvalidPlugin;
+        }
+
+        // Create plugin wrapper
+        const plugin = try interface.createPlugin(self.allocator, plugin_interface);
+        errdefer interface.destroyPlugin(self.allocator, plugin);
+
+        // Get plugin info
+        const info = plugin.getInfo();
+
+        // Check if already registered
+        if (self.plugins.contains(info.name)) {
+            return PluginError.AlreadyRegistered;
+        }
+
+        // Create plugin entry
+        const load_order = self.load_order_counter;
+        self.load_order_counter += 1;
+
+        var entry = PluginEntry.init(self.allocator, plugin, load_order);
+        errdefer entry.deinit(self.allocator);
+
+        // Check dependencies
+        try self.validateDependencies(info);
+
+        // Register the plugin
+        try self.plugins.put(try self.allocator.dupe(u8, info.name), entry);
+
+        // Update dependency graph
+        try self.updateDependencyGraph(info.name, info.dependencies);
+    }
+
     /// Initialize a plugin with configuration
     pub fn initializePlugin(self: *PluginRegistry, plugin_name: []const u8, config: ?*PluginConfig) !void {
         const entry = self.plugins.getPtr(plugin_name) orelse return PluginError.PluginNotFound;

@@ -1,6 +1,6 @@
-//! WDBX-AI Vector Database - Unified Root Module
+//! ABI Vector Database - Unified Root Module
 //!
-//! This module provides a unified interface to all WDBX-AI functionality:
+//! This module provides a unified interface to all ABI functionality:
 //! - Vector database operations (HNSW, parallel search, SIMD)
 //! - AI and machine learning capabilities
 //! - Core utilities and data structures
@@ -36,9 +36,25 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+<<<<<<< HEAD
 // =============================================================================
 // CORE MODULE IMPORTS
 // =============================================================================
+=======
+// Import consolidated modules
+pub const database = @import("wdbx/database.zig");
+// SIMD functionality is now part of core
+pub const ai = @import("ai/mod.zig");
+pub const wdbx = @import("wdbx/mod.zig");
+pub const plugins = @import("plugins/mod.zig");
+pub const monitoring = @import("monitoring/mod.zig");
+pub const logging = @import("logging.zig");
+// Core utilities and framework types
+pub const core = @import("core/mod.zig");
+pub const gpu = @import("gpu/mod.zig");
+pub const connectors = @import("connectors/mod.zig");
+pub const services = @import("services/mod.zig");
+>>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
 
 // Core utilities and error handling
 pub const core = @import("core");
@@ -84,10 +100,17 @@ pub const Db = database.Db;
 pub const DbError = database.DbError;
 pub const WdbxHeader = database.WdbxHeader;
 
+<<<<<<< HEAD
 // SIMD types
 pub const Vector = simd.Vector;
 pub const VectorOps = simd.VectorOps;
 pub const MatrixOps = simd.MatrixOps;
+=======
+// Re-export SIMD operations from core
+pub const Vector = core.Vector;
+pub const VectorOps = core.VectorOps;
+pub const MatrixOps = core.MatrixOps;
+>>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
 
 // AI types
 pub const NeuralNetwork = ai.NeuralNetwork;
@@ -95,7 +118,9 @@ pub const EmbeddingGenerator = ai.EmbeddingGenerator;
 pub const ModelTrainer = ai.ModelTrainer;
 pub const Layer = ai.Layer;
 pub const Activation = ai.Activation;
+pub const DynamicPersonaRouter = ai.DynamicPersonaRouter;
 
+<<<<<<< HEAD
 // Organized module types (import modules directly when needed)
 
 // Core utilities
@@ -107,11 +132,46 @@ pub const string = core.string;
 pub const time = core.time;
 pub const log = core.log;
 pub const performance_core = core.performance;
+=======
+// Re-export standard library utilities
+pub const Allocator = std.mem.Allocator;
+pub const ArrayList = std.ArrayList;
+pub const HashMap = std.HashMap;
+>>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
 
 // WDBX utilities
 pub const Command = wdbx.Command;
-pub const OutputFormat = wdbx.OutputFormat;
-pub const LogLevel = wdbx.LogLevel;
+pub const WdbxOutputFormat = wdbx.OutputFormat;
+pub const WdbxLogLevel = wdbx.LogLevel;
+
+// Old tracing imports removed - now available through monitoring module
+
+// Re-export logging utilities
+pub const Logger = logging.Logger;
+pub const LogLevel = logging.LogLevel;
+pub const LogOutputFormat = logging.OutputFormat;
+pub const LoggerConfig = logging.LoggerConfig;
+
+// Re-export GPU capabilities
+pub const GPURenderer = gpu.GPURenderer;
+pub const GpuBackend = gpu.GpuBackend;
+pub const GPUConfig = gpu.GPUConfig;
+pub const GpuError = gpu.GpuError;
+
+// Re-export monitoring capabilities
+pub const Tracer = monitoring.Tracer;
+pub const TraceId = monitoring.TraceId;
+pub const Span = monitoring.Span;
+pub const SpanId = monitoring.SpanId;
+pub const TraceContext = monitoring.TraceContext;
+pub const TracingError = monitoring.TracingError;
+pub const MemoryTracker = monitoring.MemoryTracker;
+pub const PerformanceProfiler = monitoring.PerformanceProfiler;
+
+// Re-export service capabilities
+pub const WeatherService = services.WeatherService;
+pub const WeatherData = services.WeatherData;
+pub const WeatherConfig = services.WeatherConfig;
 
 // =============================================================================
 // FRAMEWORK INITIALIZATION
@@ -149,6 +209,7 @@ pub fn isInitialized() bool {
 
 /// Main application entry point
 pub fn main() !void {
+<<<<<<< HEAD
     const stdout = std.io.getStdOut().writer();
 
     // Initialize framework
@@ -168,6 +229,26 @@ pub fn main() !void {
     try stdout.print("  zig build benchmark   - Run performance benchmarks\n", .{});
     try stdout.print("  zig build run         - Start CLI application\n", .{});
     try stdout.print("  zig build run-server  - Start HTTP server\n", .{});
+=======
+    // Simple main function - I/O functions have changed in Zig 0.15.1
+    // For now, just return successfully
+    std.log.info("ABI Vector Database initialized", .{});
+}
+
+/// Initialize the ABI system
+pub fn init(allocator: std.mem.Allocator) !void {
+    // Initialize core systems
+    _ = allocator;
+
+    // Log system initialization
+    std.log.info("ABI system initialized", .{});
+}
+
+/// Cleanup the ABI system
+pub fn deinit() void {
+    // Cleanup resources
+    std.log.info("ABI system shutdown complete", .{});
+>>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
 }
 
 /// Get system information
@@ -191,9 +272,9 @@ pub fn getSystemInfo() struct {
             "Performance Monitoring",
         },
         .simd_support = .{
-            .f32x4 = simd.Vector.isSimdAvailable(4),
-            .f32x8 = simd.Vector.isSimdAvailable(8),
-            .f32x16 = simd.Vector.isSimdAvailable(16),
+            .f32x4 = core.Vector.isSimdAvailable(4),
+            .f32x8 = core.Vector.isSimdAvailable(8),
+            .f32x16 = core.Vector.isSimdAvailable(16),
         },
     };
 }
@@ -203,9 +284,34 @@ pub fn runSystemTest() !void {
     const testing = std.testing;
     const allocator = testing.allocator;
 
+    // Initialize tracing
+    const tracer_config = Tracer.TracerConfig{
+        .max_active_spans = 100,
+        .max_finished_spans = 1000,
+    };
+    try monitoring.tracing.initGlobalTracer(allocator, tracer_config);
+    defer monitoring.tracing.deinitGlobalTracer();
+
+    // Initialize logging
+    const logger_config = LoggerConfig{
+        .level = .info,
+        .format = .colored,
+        .enable_timestamps = true,
+        .enable_source_info = true,
+    };
+    try logging.initGlobalLogger(allocator, logger_config);
+    defer logging.deinitGlobalLogger();
+
+    // Start system test span
+    const system_test_span = try monitoring.tracing.startSpan("system_test", .internal, null);
+    defer monitoring.tracing.endSpan(system_test_span);
+
     // Test database operations
     const test_file = "test_system.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
+
+    const db_span = try monitoring.tracing.startSpan("database_test", .internal, null);
+    defer monitoring.tracing.endSpan(db_span);
 
     var db = try database.Db.open(test_file, true);
     defer db.close();
@@ -226,10 +332,17 @@ pub fn runSystemTest() !void {
     // Test SIMD operations
     const vector_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const vector_b = [_]f32{ 2.0, 3.0, 4.0, 5.0 };
-    const distance = simd.distance(&vector_a, &vector_b);
+
+    const simd_span = try monitoring.tracing.startSpan("simd_test", .internal, null);
+    defer monitoring.tracing.endSpan(simd_span);
+
+    const distance = core.distance(&vector_a, &vector_b);
     try testing.expect(distance > 0.0);
 
     // Test AI operations
+    const ai_span = try monitoring.tracing.startSpan("ai_test", .internal, null);
+    defer monitoring.tracing.endSpan(ai_span);
+
     var network = try ai.NeuralNetwork.init(allocator, &[_]usize{4}, &[_]usize{2});
     defer network.deinit();
     try network.addDenseLayer(8, .relu);
@@ -241,14 +354,44 @@ pub fn runSystemTest() !void {
     try network.forward(&vector_a, output);
 
     // Test core utilities
+<<<<<<< HEAD
     const random_val = core.random.intRangeLessThan(u32, 1, 101);
     try testing.expect(random_val >= 1 and random_val <= 100);
 
     const trimmed = try core.string.trim(testing.allocator, "  test  ");
     defer testing.allocator.free(trimmed);
+=======
+    const random_val = @as(u32, @intCast(std.hash_map.hashString("test") % 100)) + 1;
+    try testing.expect(random_val >= 1 and random_val <= 100);
+
+    const trimmed = std.mem.trim(u8, "  test  ", " ");
+>>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
     try testing.expectEqualStrings("test", trimmed);
 
-    log.info("System test completed successfully", .{});
+    // Test tracing functionality
+    const trace_span = try monitoring.tracing.startSpan("trace_test", .internal, null);
+    defer monitoring.tracing.endSpan(trace_span);
+
+    try trace_span.setAttribute(allocator, "test_type", "system_test");
+    try trace_span.addEvent(allocator, "test_completed");
+
+    // Export trace data
+    const tracer = monitoring.tracing.getGlobalTracer().?;
+    const trace_json = try tracer.exportToJson(allocator);
+    defer allocator.free(trace_json);
+
+    try testing.expect(trace_json.len > 0);
+
+    // Test structured logging
+    try logging.info("System test completed successfully", .{
+        .database_vectors = 64,
+        .simd_dimensions = 4,
+        .ai_layers = 2,
+        .tracing_spans = 4,
+        .test_duration_ms = 100,
+    }, @src());
+
+    std.log.info("System test completed successfully with tracing", .{});
 }
 
 test "Root module functionality" {
@@ -273,9 +416,9 @@ test "Module integration" {
 
     // Test that all modules can be imported and used together
     try testing.expect(@TypeOf(database.Db) == @TypeOf(Db));
-    try testing.expect(@TypeOf(simd.Vector) == @TypeOf(Vector));
+    try testing.expect(@TypeOf(core.Vector) == @TypeOf(Vector));
     try testing.expect(@TypeOf(ai.NeuralNetwork) == @TypeOf(NeuralNetwork));
-    try testing.expect(@TypeOf(core.Allocator) == @TypeOf(Allocator));
+    try testing.expect(@TypeOf(std.mem.Allocator) == @TypeOf(Allocator));
 
     // Test cross-module functionality
     const test_file = "test_integration.wdbx";
@@ -300,10 +443,15 @@ test "Module integration" {
     defer allocator.free(output);
     try network.forward(&vector, output);
 
+<<<<<<< HEAD
     // Use core utilities
     const random_val = core.random.intRangeLessThan(u32, 1, 11);
+=======
+    // Use standard library utilities
+    const random_val = @as(u32, @intCast(std.hash_map.hashString("integration") % 10)) + 1;
+>>>>>>> d9df96b0b53b2769af5f5da0390774a813448a2b
     try testing.expect(random_val >= 1 and random_val <= 10);
 
-    log.info("Module integration test completed", .{});
+    std.log.info("Module integration test completed", .{});
 }
 

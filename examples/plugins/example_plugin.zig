@@ -122,8 +122,8 @@ const PLUGIN_INFO = PluginInfo{
     .abi_version = PluginVersion.init(1, 0, 0),
     .provides = &[_][]const u8{ "text_uppercase", "text_lowercase", "text_reverse" },
     .license = "MIT",
-    .homepage = "https://github.com/abi-ai/plugins",
-    .repository = "https://github.com/abi-ai/plugins/tree/main/examples",
+    .homepage = "https://github.com/donaldfilimon/abi/docs/plugins.md",
+    .repository = "https://github.com/donaldfilimon/abi.git",
 };
 
 /// Text processing input/output structures
@@ -275,7 +275,7 @@ fn getApi(api_name: [*:0]const u8) callconv(.c) ?*anyopaque {
 
     if (std.mem.eql(u8, name, "text_processor")) {
         // Return a function pointer to our text processing API
-        return @ptrCast(&processText);
+        return @ptrCast(@constCast(&processText));
     }
 
     return null; // API not found

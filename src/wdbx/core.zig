@@ -8,48 +8,284 @@ const std = @import("std");
 // CORE TYPES
 // =============================================================================
 
-/// WDBX error types
+/// WDBX standardized error codes with numeric IDs for consistent error handling
 pub const WdbxError = error{
-    // Database errors
-    AlreadyInitialized,
-    NotInitialized,
-    InvalidState,
-    CorruptedDatabase,
-    DimensionMismatch,
-    VectorNotFound,
-    IndexOutOfBounds,
+    // Database errors (1000-1999)
+    AlreadyInitialized, // 1001
+    NotInitialized, // 1002
+    InvalidState, // 1003
+    CorruptedDatabase, // 1004
+    DimensionMismatch, // 1005
+    VectorNotFound, // 1006
+    IndexOutOfBounds, // 1007
+    DatabaseLocked, // 1008
+    IndexCorrupted, // 1009
+    SchemaVersionMismatch, // 1010
 
-    // Compression errors
-    CompressionFailed,
-    DecompressionFailed,
-    InvalidCompressedData,
+    // Compression errors (2000-2999)
+    CompressionFailed, // 2001
+    DecompressionFailed, // 2002
+    InvalidCompressedData, // 2003
+    CompressionNotSupported, // 2004
+    CompressionRatioTooLow, // 2005
 
-    // I/O errors
-    OutOfMemory,
-    FileBusy,
-    DiskFull,
-    BackupFailed,
-    RestoreFailed,
+    // I/O errors (3000-3999)
+    OutOfMemory, // 3001
+    FileBusy, // 3002
+    DiskFull, // 3003
+    BackupFailed, // 3004
+    RestoreFailed, // 3005
+    FilePermissionDenied, // 3006
+    DirectoryNotFound, // 3007
+    InvalidFilePath, // 3008
 
-    // Configuration errors
-    InvalidConfiguration,
-    ConfigurationValidationFailed,
-    UnsupportedVersion,
+    // Configuration errors (4000-4999)
+    InvalidConfiguration, // 4001
+    ConfigurationValidationFailed, // 4002
+    UnsupportedVersion, // 4003
+    ConfigurationNotFound, // 4004
+    InvalidConfigurationFormat, // 4005
+    EnvironmentVariableError, // 4006
 
-    // Network errors
-    ConnectionFailed,
-    Timeout,
-    InvalidRequest,
-    RequestTooLarge,
+    // Network errors (5000-5999)
+    ConnectionFailed, // 5001
+    Timeout, // 5002
+    InvalidRequest, // 5003
+    RequestTooLarge, // 5004
+    NetworkNotAvailable, // 5005
+    PortInUse, // 5006
+    BindFailed, // 5007
+    SocketError, // 5008
 
-    // Authentication errors
-    AuthenticationFailed,
-    RateLimitExceeded,
+    // Authentication errors (6000-6999)
+    AuthenticationFailed, // 6001
+    RateLimitExceeded, // 6002
+    TokenExpired, // 6003
+    InvalidCredentials, // 6004
+    PermissionDenied, // 6005
+    InvalidApiKey, // 6006
 
-    // CLI errors
-    InvalidCommand,
-    MissingArgument,
-    InvalidParameter,
+    // CLI errors (7000-7999)
+    InvalidCommand, // 7001
+    MissingArgument, // 7002
+    InvalidParameter, // 7003
+    CommandNotFound, // 7004
+    InvalidOptionValue, // 7005
+    ConflictingOptions, // 7006
+
+    // Performance errors (8000-8999)
+    PerformanceThresholdExceeded, // 8001
+    ResourceExhausted, // 8002
+    ThreadPoolFull, // 8003
+    CacheOverflow, // 8004
+    MemoryFragmentation, // 8005
+    CpuThrottling, // 8006
+
+    // Plugin errors (9000-9999)
+    PluginNotFound, // 9001
+    PluginLoadFailed, // 9002
+    PluginVersionMismatch, // 9003
+    PluginInitializationFailed, // 9004
+    PluginExecutionFailed, // 9005
+    InvalidPluginInterface, // 9006
+};
+
+/// Error code mapping for consistent error handling across modules
+pub const ErrorCodes = struct {
+    pub fn getErrorCode(err: WdbxError) u32 {
+        return switch (err) {
+            // Database errors (1000-1999)
+            .AlreadyInitialized => 1001,
+            .NotInitialized => 1002,
+            .InvalidState => 1003,
+            .CorruptedDatabase => 1004,
+            .DimensionMismatch => 1005,
+            .VectorNotFound => 1006,
+            .IndexOutOfBounds => 1007,
+            .DatabaseLocked => 1008,
+            .IndexCorrupted => 1009,
+            .SchemaVersionMismatch => 1010,
+
+            // Compression errors (2000-2999)
+            .CompressionFailed => 2001,
+            .DecompressionFailed => 2002,
+            .InvalidCompressedData => 2003,
+            .CompressionNotSupported => 2004,
+            .CompressionRatioTooLow => 2005,
+
+            // I/O errors (3000-3999)
+            .OutOfMemory => 3001,
+            .FileBusy => 3002,
+            .DiskFull => 3003,
+            .BackupFailed => 3004,
+            .RestoreFailed => 3005,
+            .FilePermissionDenied => 3006,
+            .DirectoryNotFound => 3007,
+            .InvalidFilePath => 3008,
+
+            // Configuration errors (4000-4999)
+            .InvalidConfiguration => 4001,
+            .ConfigurationValidationFailed => 4002,
+            .UnsupportedVersion => 4003,
+            .ConfigurationNotFound => 4004,
+            .InvalidConfigurationFormat => 4005,
+            .EnvironmentVariableError => 4006,
+
+            // Network errors (5000-5999)
+            .ConnectionFailed => 5001,
+            .Timeout => 5002,
+            .InvalidRequest => 5003,
+            .RequestTooLarge => 5004,
+            .NetworkNotAvailable => 5005,
+            .PortInUse => 5006,
+            .BindFailed => 5007,
+            .SocketError => 5008,
+
+            // Authentication errors (6000-6999)
+            .AuthenticationFailed => 6001,
+            .RateLimitExceeded => 6002,
+            .TokenExpired => 6003,
+            .InvalidCredentials => 6004,
+            .PermissionDenied => 6005,
+            .InvalidApiKey => 6006,
+
+            // CLI errors (7000-7999)
+            .InvalidCommand => 7001,
+            .MissingArgument => 7002,
+            .InvalidParameter => 7003,
+            .CommandNotFound => 7004,
+            .InvalidOptionValue => 7005,
+            .ConflictingOptions => 7006,
+
+            // Performance errors (8000-8999)
+            .PerformanceThresholdExceeded => 8001,
+            .ResourceExhausted => 8002,
+            .ThreadPoolFull => 8003,
+            .CacheOverflow => 8004,
+            .MemoryFragmentation => 8005,
+            .CpuThrottling => 8006,
+
+            // Plugin errors (9000-9999)
+            .PluginNotFound => 9001,
+            .PluginLoadFailed => 9002,
+            .PluginVersionMismatch => 9003,
+            .PluginInitializationFailed => 9004,
+            .PluginExecutionFailed => 9005,
+            .InvalidPluginInterface => 9006,
+        };
+    }
+
+    pub fn getErrorDescription(err: WdbxError) []const u8 {
+        return switch (err) {
+            // Database errors
+            .AlreadyInitialized => "Database has already been initialized",
+            .NotInitialized => "Database has not been initialized",
+            .InvalidState => "Database is in an invalid state",
+            .CorruptedDatabase => "Database file is corrupted",
+            .DimensionMismatch => "Vector dimensions do not match",
+            .VectorNotFound => "Vector not found in database",
+            .IndexOutOfBounds => "Index is out of bounds",
+            .DatabaseLocked => "Database is locked by another process",
+            .IndexCorrupted => "Index data is corrupted",
+            .SchemaVersionMismatch => "Database schema version mismatch",
+
+            // Compression errors
+            .CompressionFailed => "Data compression failed",
+            .DecompressionFailed => "Data decompression failed",
+            .InvalidCompressedData => "Invalid compressed data format",
+            .CompressionNotSupported => "Compression algorithm not supported",
+            .CompressionRatioTooLow => "Compression ratio below threshold",
+
+            // I/O errors
+            .OutOfMemory => "Insufficient memory available",
+            .FileBusy => "File is busy or locked",
+            .DiskFull => "Disk is full",
+            .BackupFailed => "Backup operation failed",
+            .RestoreFailed => "Restore operation failed",
+            .FilePermissionDenied => "File permission denied",
+            .DirectoryNotFound => "Directory not found",
+            .InvalidFilePath => "Invalid file path",
+
+            // Configuration errors
+            .InvalidConfiguration => "Invalid configuration",
+            .ConfigurationValidationFailed => "Configuration validation failed",
+            .UnsupportedVersion => "Unsupported version",
+            .ConfigurationNotFound => "Configuration file not found",
+            .InvalidConfigurationFormat => "Invalid configuration file format",
+            .EnvironmentVariableError => "Environment variable error",
+
+            // Network errors
+            .ConnectionFailed => "Network connection failed",
+            .Timeout => "Operation timed out",
+            .InvalidRequest => "Invalid request",
+            .RequestTooLarge => "Request too large",
+            .NetworkNotAvailable => "Network not available",
+            .PortInUse => "Port already in use",
+            .BindFailed => "Failed to bind to address",
+            .SocketError => "Socket operation failed",
+
+            // Authentication errors
+            .AuthenticationFailed => "Authentication failed",
+            .RateLimitExceeded => "Rate limit exceeded",
+            .TokenExpired => "Authentication token expired",
+            .InvalidCredentials => "Invalid credentials",
+            .PermissionDenied => "Permission denied",
+            .InvalidApiKey => "Invalid API key",
+
+            // CLI errors
+            .InvalidCommand => "Invalid command",
+            .MissingArgument => "Missing required argument",
+            .InvalidParameter => "Invalid parameter",
+            .CommandNotFound => "Command not found",
+            .InvalidOptionValue => "Invalid option value",
+            .ConflictingOptions => "Conflicting command options",
+
+            // Performance errors
+            .PerformanceThresholdExceeded => "Performance threshold exceeded",
+            .ResourceExhausted => "System resources exhausted",
+            .ThreadPoolFull => "Thread pool is full",
+            .CacheOverflow => "Cache overflow",
+            .MemoryFragmentation => "Memory fragmentation detected",
+            .CpuThrottling => "CPU throttling active",
+
+            // Plugin errors
+            .PluginNotFound => "Plugin not found",
+            .PluginLoadFailed => "Failed to load plugin",
+            .PluginVersionMismatch => "Plugin version mismatch",
+            .PluginInitializationFailed => "Plugin initialization failed",
+            .PluginExecutionFailed => "Plugin execution failed",
+            .InvalidPluginInterface => "Invalid plugin interface",
+        };
+    }
+
+    pub fn getErrorCategory(err: WdbxError) []const u8 {
+        const code = getErrorCode(err);
+        return switch (code / 1000) {
+            1 => "Database",
+            2 => "Compression",
+            3 => "I/O",
+            4 => "Configuration",
+            5 => "Network",
+            6 => "Authentication",
+            7 => "CLI",
+            8 => "Performance",
+            9 => "Plugin",
+            else => "Unknown",
+        };
+    }
+
+    /// Format error for logging and display
+    pub fn formatError(allocator: std.mem.Allocator, err: WdbxError, context: ?[]const u8) ![]const u8 {
+        const code = getErrorCode(err);
+        const category = getErrorCategory(err);
+        const description = getErrorDescription(err);
+
+        if (context) |ctx| {
+            return try std.fmt.allocPrint(allocator, "[{s}:{d}] {s}: {s} (Context: {s})", .{ category, code, @errorName(err), description, ctx });
+        } else {
+            return try std.fmt.allocPrint(allocator, "[{s}:{d}] {s}: {s}", .{ category, code, @errorName(err), description });
+        }
+    }
 };
 
 /// WDBX version information

@@ -25,6 +25,7 @@ pub const PluginConfig = types.PluginConfig;
 // Re-export main functions
 pub const createLoader = loader.createLoader;
 pub const createRegistry = registry.createRegistry;
+pub const registerBuiltinInterface = registry.registerBuiltinInterface;
 
 /// Initialize the plugin system
 pub fn init(allocator: std.mem.Allocator) !PluginRegistry {
