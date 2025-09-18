@@ -30,4 +30,4 @@ jobs:
         run: zig build test-all
       - name: Test WebSocket (optional)
         if: ${{ github.event.inputs.run_ws_tests == 'true' }}
-        run: zig build test-ws
+        run: zig build test
