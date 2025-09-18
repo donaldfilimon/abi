@@ -307,3 +307,5 @@ test "vector search performance" {
     try testing.expect(best_index > 0);
     try testing.expect(best_similarity >= -1.0 and best_similarity <= 1.0);
 }
+
+

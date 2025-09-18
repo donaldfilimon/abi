@@ -1,6 +1,6 @@
 # API Reference
 
-This document provides comprehensive API documentation for the Abi AI Framework, including all public modules, functions, and types with usage examples.
+Comprehensive API documentation for the Abi AI Framework with usage examples.
 
 ## Table of Contents
 
@@ -15,23 +15,17 @@ This document provides comprehensive API documentation for the Abi AI Framework,
 
 ### `root.zig` - Framework Initialization
 
-The root module provides framework initialization and configuration.
+Framework initialization and configuration.
 
 #### `Config` - Framework Configuration
 
 ```zig
 const Config = struct {
-    /// Memory management configuration
     memory: MemoryConfig,
-    /// Performance configuration
     performance: PerformanceConfig,
-    /// AI model configuration
     ai: AIConfig,
-    /// Network configuration
     network: NetworkConfig,
-    /// Logging configuration
     logging: LoggingConfig,
-    /// Security configuration
     security: SecurityConfig,
 };
 ```
@@ -43,20 +37,9 @@ const Context = struct {
     allocator: std.mem.Allocator,
     config: Config,
 
-    /// Initialize the framework context
-    pub fn init(allocator: std.mem.Allocator, config: Config) !*Context {
-        // Implementation
-    }
-
-    /// Deinitialize the framework
-    pub fn deinit(self: *Context) void {
-        // Implementation
-    }
-
-    /// Get or create the global context
-    pub fn global() !*Context {
-        // Implementation
-    }
+    pub fn init(allocator: std.mem.Allocator, config: Config) !*Context
+    pub fn deinit(self: *Context) void
+    pub fn global() !*Context
 };
 ```
 
@@ -65,11 +48,9 @@ const Context = struct {
 ```zig
 const abi = @import("abi");
 
-// Initialize with default configuration
 var context = try abi.Context.init(std.heap.page_allocator, .{});
 defer context.deinit();
 
-// Use the global context
 const global_ctx = try abi.Context.global();
 ```
 
@@ -81,42 +62,16 @@ const global_ctx = try abi.Context.global();
 
 ```zig
 pub const Agent = struct {
-    /// Agent configuration
     config: AgentConfig,
-    /// AI context
     context: *Context,
-    /// Memory allocator
     allocator: std.mem.Allocator,
 
-    /// Initialize a new AI agent
-    pub fn init(allocator: std.mem.Allocator, persona: PersonaType) !*Agent {
-        // Implementation
-    }
-
-    /// Deinitialize the agent
-    pub fn deinit(self: *Agent) void {
-        // Implementation
-    }
-
-    /// Generate a response from the AI
-    pub fn generate(self: *Agent, prompt: []const u8, options: GenerationOptions) !GenerationResult {
-        // Implementation
-    }
-
-    /// Set the AI persona
-    pub fn setPersona(self: *Agent, persona: PersonaType) void {
-        // Implementation
-    }
-
-    /// Clear conversation history
-    pub fn clearHistory(self: *Agent) void {
-        // Implementation
-    }
-
-    /// Get system prompt for current persona
-    pub fn getSystemPrompt(self: *Agent) []const u8 {
-        // Implementation
-    }
+    pub fn init(allocator: std.mem.Allocator, persona: PersonaType) !*Agent
+    pub fn deinit(self: *Agent) void
+    pub fn generate(self: *Agent, prompt: []const u8, options: GenerationOptions) !GenerationResult
+    pub fn setPersona(self: *Agent, persona: PersonaType) void
+    pub fn clearHistory(self: *Agent) void
+    pub fn getSystemPrompt(self: *Agent) []const u8
 };
 ```
 
@@ -124,24 +79,11 @@ pub const Agent = struct {
 
 ```zig
 pub const PersonaType = enum {
-    adaptive,
-    creative,
-    analytical,
-    technical,
-    conversational,
-    educational,
-    professional,
-    casual,
+    adaptive, creative, analytical, technical,
+    conversational, educational, professional, casual,
 
-    /// Get description of the persona
-    pub fn getDescription(self: PersonaType) []const u8 {
-        // Implementation
-    }
-
-    /// Get system prompt for the persona
-    pub fn getSystemPrompt(self: PersonaType) []const u8 {
-        // Implementation
-    }
+    pub fn getDescription(self: PersonaType) []const u8
+    pub fn getSystemPrompt(self: PersonaType) []const u8
 };
 ```
 
@@ -149,19 +91,12 @@ pub const PersonaType = enum {
 
 ```zig
 pub const GenerationOptions = struct {
-    /// Stream callback for real-time responses
     stream_callback: ?*const fn ([]const u8) void = null,
-    /// Maximum tokens to generate
     max_tokens: ?usize = null,
-    /// Temperature for randomness (0.0-1.0)
     temperature: ?f32 = null,
-    /// Top-p sampling parameter
     top_p: ?f32 = null,
-    /// Stop sequences
     stop_sequences: ?[][]const u8 = null,
-    /// Enable safety filters
     enable_safety: ?bool = null,
-    /// Custom system prompt
     system_prompt: ?[]const u8 = null,
 };
 ```
@@ -170,13 +105,9 @@ pub const GenerationOptions = struct {
 
 ```zig
 pub const GenerationResult = struct {
-    /// Generated content
     content: []const u8,
-    /// Usage statistics
     usage: ?UsageStats,
-    /// Finish reason
     finish_reason: FinishReason,
-    /// Model information
     model: []const u8,
 };
 ```
@@ -186,11 +117,9 @@ pub const GenerationResult = struct {
 ```zig
 const ai = @import("ai");
 
-// Initialize agent with creative persona
 var agent = try ai.Agent.init(allocator, .creative);
 defer agent.deinit();
 
-// Generate response
 const result = try agent.generate("Write a creative story about AI", .{
     .max_tokens = 500,
     .temperature = 0.8,
@@ -198,8 +127,6 @@ const result = try agent.generate("Write a creative story about AI", .{
 defer allocator.free(result.content);
 
 std.debug.print("AI Response: {s}\n", .{result.content});
-
-// Change persona
 agent.setPersona(.technical);
 ```
 
@@ -209,50 +136,16 @@ agent.setPersona(.technical);
 
 ```zig
 pub const NeuralNetwork = struct {
-    /// Network layers
-    layers: std.ArrayList(*Layer),
-    /// Memory allocator
+    layers: std.array_list.Managed(*Layer),
     allocator: std.mem.Allocator,
 
-    /// Initialize a new neural network
-    pub fn init(allocator: std.mem.Allocator) !*NeuralNetwork {
-        // Implementation
-    }
-
-    /// Deinitialize the network
-    pub fn deinit(self: *NeuralNetwork) void {
-        // Implementation
-    }
-
-    /// Add a layer to the network
-    pub fn addLayer(self: *NeuralNetwork, config: LayerConfig) !void {
-        // Implementation
-    }
-
-    /// Forward pass through the network
-    pub fn forward(self: *NeuralNetwork, input: []const f32) ![]f32 {
-        // Implementation
-    }
-
-    /// Train the network on a single sample
-    pub fn trainStep(
-        self: *NeuralNetwork,
-        input: []const f32,
-        target: []const f32,
-        learning_rate: f32,
-    ) !f32 {
-        // Implementation
-    }
-
-    /// Save network to file
-    pub fn saveToFile(self: *NeuralNetwork, path: []const u8) !void {
-        // Implementation
-    }
-
-    /// Load network from file
-    pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) !*NeuralNetwork {
-        // Implementation
-    }
+    pub fn init(allocator: std.mem.Allocator) !*NeuralNetwork
+    pub fn deinit(self: *NeuralNetwork) void
+    pub fn addLayer(self: *NeuralNetwork, config: LayerConfig) !void
+    pub fn forward(self: *NeuralNetwork, input: []const f32) ![]f32
+    pub fn trainStep(self: *NeuralNetwork, input: []const f32, target: []const f32, learning_rate: f32) !f32
+    pub fn saveToFile(self: *NeuralNetwork, path: []const u8) !void
+    pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) !*NeuralNetwork
 };
 ```
 
@@ -260,47 +153,18 @@ pub const NeuralNetwork = struct {
 
 ```zig
 pub const Layer = struct {
-    /// Layer type
     layer_type: LayerType,
-    /// Weights matrix
     weights: []f32,
-    /// Bias vector
     biases: []f32,
-    /// Activation function
     activation: Activation,
-    /// Input size
     input_size: usize,
-    /// Output size
     output_size: usize,
-    /// Memory allocator
     allocator: std.mem.Allocator,
 
-    /// Initialize a new layer
-    pub fn init(allocator: std.mem.Allocator, config: LayerConfig) !*Layer {
-        // Implementation
-    }
-
-    /// Deinitialize the layer
-    pub fn deinit(self: *Layer) void {
-        // Implementation
-    }
-
-    /// Forward pass through the layer
-    pub fn forward(self: *Layer, input: []const f32, allocator: std.mem.Allocator) ![]f32 {
-        // Implementation
-    }
-
-    /// Backward pass through the layer
-    pub fn backward(
-        self: *Layer,
-        input: []const f32,
-        output: []const f32,
-        output_gradient: []const f32,
-        learning_rate: f32,
-        allocator: std.mem.Allocator,
-    ) ![]f32 {
-        // Implementation
-    }
+    pub fn init(allocator: std.mem.Allocator, config: LayerConfig) !*Layer
+    pub fn deinit(self: *Layer) void
+    pub fn forward(self: *Layer, input: []const f32, allocator: std.mem.Allocator) ![]f32
+    pub fn backward(self: *Layer, input: []const f32, output: []const f32, output_gradient: []const f32, learning_rate: f32, allocator: std.mem.Allocator) ![]f32
 };
 ```
 
@@ -308,17 +172,11 @@ pub const Layer = struct {
 
 ```zig
 pub const LayerConfig = struct {
-    /// Layer type
     layer_type: LayerType,
-    /// Input dimension
     input_size: usize,
-    /// Output dimension
     output_size: usize,
-    /// Activation function
     activation: Activation = .ReLU,
-    /// Dropout rate (0.0-1.0)
     dropout_rate: f32 = 0.0,
-    /// Weight initialization scale
     weight_init_scale: f32 = 1.0,
 };
 ```
@@ -345,15 +203,8 @@ pub const Activation = enum {
     Softmax,
     None,
 
-    /// Apply activation function
-    pub fn apply(self: Activation, x: f32) f32 {
-        // Implementation
-    }
-
-    /// Compute derivative of activation function
-    pub fn derivative(self: Activation, x: f32) f32 {
-        // Implementation
-    }
+    pub fn apply(self: Activation, x: f32) f32
+    pub fn derivative(self: Activation, x: f32) f32
 };
 ```
 
@@ -400,15 +251,10 @@ const loss = try network.trainStep(&input, &target, 0.01);
 ```zig
 /// SIMD configuration
 pub const SIMDConfig = struct {
-    /// Optimal SIMD vector width for f32 operations
     width_f32: comptime_int,
-    /// Optimal SIMD vector width for f64 operations
     width_f64: comptime_int,
-    /// Optimal SIMD vector width for i32 operations
     width_i32: comptime_int,
-    /// Maximum SIMD width supported
     max_width: comptime_int,
-    /// Architecture name
     arch_name: []const u8,
 };
 
@@ -417,70 +263,24 @@ pub const simd_config: SIMDConfig = // Architecture-specific configuration
 
 /// Text processing operations
 pub const text = struct {
-    /// Count occurrences of a byte in text
-    pub fn countByte(haystack: []const u8, needle: u8) usize {
-        // Implementation
-    }
-
-    /// Find first occurrence of byte
-    pub fn findByte(haystack: []const u8, needle: u8) ?usize {
-        // Implementation
-    }
-
-    /// Convert ASCII to lowercase
-    pub fn toLowerAscii(dst: []u8, src: []const u8) void {
-        // Implementation
-    }
+    pub fn countByte(haystack: []const u8, needle: u8) usize
+    pub fn findByte(haystack: []const u8, needle: u8) ?usize
+    pub fn toLowerAscii(dst: []u8, src: []const u8) void
 };
 
 /// Vector operations
 pub const vector = struct {
-    /// Compute dot product of two vectors
-    pub fn dotProduct(a: []const f32, b: []const f32) f32 {
-        // Implementation
-    }
-
-    /// Compute Euclidean distance between vectors
-    pub fn distance(a: []const f32, b: []const f32) f32 {
-        // Implementation
-    }
-
-    /// Normalize vector in place
-    pub fn normalize(vector: []f32) void {
-        // Implementation
-    }
-
-    /// Add two vectors: result = a + b
-    pub fn add(a: []const f32, b: []const f32, result: []f32) void {
-        // Implementation
-    }
-
-    /// Scale vector by scalar: result = vector * scalar
-    pub fn scale(vector: []const f32, scalar: f32, result: []f32) void {
-        // Implementation
-    }
+    pub fn dotProduct(a: []const f32, b: []const f32) f32
+    pub fn distance(a: []const f32, b: []const f32) f32
+    pub fn normalize(vector: []f32) void
+    pub fn add(a: []const f32, b: []const f32, result: []f32) void
+    pub fn scale(vector: []const f32, scalar: f32, result: []f32) void
 };
 
 /// Matrix operations
 pub const matrix = struct {
-    /// Matrix multiplication: result = a * b
-    pub fn multiply(
-        a: []const f32,
-        b: []const f32,
-        result: []f32,
-        m: u32, n: u32, k: u32
-    ) !void {
-        // Implementation
-    }
-
-    /// Matrix transpose
-    pub fn transpose(
-        input: []const f32,
-        output: []f32,
-        rows: usize, cols: usize
-    ) void {
-        // Implementation
-    }
+    pub fn multiply(a: []const f32, b: []const f32, result: []f32, m: u32, n: u32, k: u32) !void
+    pub fn transpose(input: []const f32, output: []f32, rows: usize, cols: usize) void
 };
 ```
 
@@ -517,49 +317,16 @@ vector.normalize(&result);
 
 ```zig
 pub const MemoryProfiler = struct {
-    /// Configuration
     config: MemoryProfilerConfig,
-    /// Memory allocator
     allocator: std.mem.Allocator,
-    /// Current statistics
     stats: MemoryStats,
 
-    /// Initialize memory profiler
-    pub fn init(allocator: std.mem.Allocator, config: MemoryProfilerConfig) !*MemoryProfiler {
-        // Implementation
-    }
-
-    /// Deinitialize profiler
-    pub fn deinit(self: *MemoryProfiler) void {
-        // Implementation
-    }
-
-    /// Record memory allocation
-    pub fn recordAllocation(
-        self: *MemoryProfiler,
-        size: usize,
-        alignment: u29,
-        file: []const u8,
-        line: u32,
-        function: []const u8,
-    ) !u64 {
-        // Implementation
-    }
-
-    /// Record memory deallocation
-    pub fn recordDeallocation(self: *MemoryProfiler, id: u64) void {
-        // Implementation
-    }
-
-    /// Get current memory statistics
-    pub fn getStats(self: *MemoryProfiler) MemoryStats {
-        // Implementation
-    }
-
-    /// Generate memory usage report
-    pub fn generateReport(self: *MemoryProfiler, allocator: std.mem.Allocator) ![]u8 {
-        // Implementation
-    }
+    pub fn init(allocator: std.mem.Allocator, config: MemoryProfilerConfig) !*MemoryProfiler
+    pub fn deinit(self: *MemoryProfiler) void
+    pub fn recordAllocation(self: *MemoryProfiler, size: usize, alignment: u29, file: []const u8, line: u32, function: []const u8) !u64
+    pub fn recordDeallocation(self: *MemoryProfiler, id: u64) void
+    pub fn getStats(self: *MemoryProfiler) MemoryStats
+    pub fn generateReport(self: *MemoryProfiler, allocator: std.mem.Allocator) ![]u8
 };
 ```
 
@@ -567,20 +334,11 @@ pub const MemoryProfiler = struct {
 
 ```zig
 pub const TrackedAllocator = struct {
-    /// Parent allocator
     parent_allocator: std.mem.Allocator,
-    /// Memory profiler
     profiler: *MemoryProfiler,
 
-    /// Initialize tracked allocator
-    pub fn init(parent_allocator: std.mem.Allocator, profiler: *MemoryProfiler) TrackedAllocator {
-        // Implementation
-    }
-
-    /// Get allocator interface
-    pub fn allocator(self: *TrackedAllocator) std.mem.Allocator {
-        // Implementation
-    }
+    pub fn init(parent_allocator: std.mem.Allocator, profiler: *MemoryProfiler) TrackedAllocator
+    pub fn allocator(self: *TrackedAllocator) std.mem.Allocator
 };
 ```
 
@@ -612,40 +370,14 @@ defer allocator.free(report);
 
 ```zig
 pub const PerformanceProfiler = struct {
-    /// Configuration
     config: ProfilingConfig,
-    /// Function profilers
     function_profilers: std.StringHashMap(FunctionProfiler),
 
-    /// Initialize performance profiler
-    pub fn init(allocator: std.mem.Allocator, config: ProfilingConfig) !*PerformanceProfiler {
-        // Implementation
-    }
-
-    /// Start profiling session
-    pub fn startSession(self: *PerformanceProfiler, session_name: []const u8) !void {
-        // Implementation
-    }
-
-    /// End profiling session
-    pub fn endSession(self: *PerformanceProfiler) ![]u8 {
-        // Implementation
-    }
-
-    /// Start function call
-    pub fn startFunctionCall(
-        self: *PerformanceProfiler,
-        function_name: []const u8,
-        file: []const u8,
-        line: u32
-    ) !u64 {
-        // Implementation
-    }
-
-    /// End function call
-    pub fn endFunctionCall(self: *PerformanceProfiler, entry_time: u64) void {
-        // Implementation
-    }
+    pub fn init(allocator: std.mem.Allocator, config: ProfilingConfig) !*PerformanceProfiler
+    pub fn startSession(self: *PerformanceProfiler, session_name: []const u8) !void
+    pub fn endSession(self: *PerformanceProfiler) ![]u8
+    pub fn startFunctionCall(self: *PerformanceProfiler, function_name: []const u8, file: []const u8, line: u32) !u64
+    pub fn endFunctionCall(self: *PerformanceProfiler, entry_time: u64) void
 };
 ```
 
@@ -653,32 +385,17 @@ pub const PerformanceProfiler = struct {
 
 ```zig
 pub const FunctionProfiler = struct {
-    /// Function name
     function_name: []const u8,
-    /// File name
     file_name: []const u8,
-    /// Line number
     line_number: u32,
-    /// Call count
     call_count: u64,
-    /// Total execution time
     total_time: u64,
-    /// Minimum execution time
     min_time: u64,
-    /// Maximum execution time
     max_time: u64,
-    /// Average execution time
     average_time: f64,
 
-    /// Record function entry
-    pub fn enter(self: *FunctionProfiler) u64 {
-        // Implementation
-    }
-
-    /// Record function exit
-    pub fn exit(self: *FunctionProfiler, entry_time: u64) void {
-        // Implementation
-    }
+    pub fn enter(self: *FunctionProfiler) u64
+    pub fn exit(self: *FunctionProfiler, entry_time: u64) void
 };
 ```
 
@@ -708,21 +425,11 @@ defer allocator.free(report);
 
 ```zig
 pub const Benchmark = struct {
-    /// Benchmark name
     name: []const u8,
-    /// Benchmark function
     function: *const BenchmarkFn,
-    /// Benchmark description
     description: []const u8,
 
-    /// Run benchmark
-    pub fn run(
-        self: *Benchmark,
-        allocator: std.mem.Allocator,
-        config: BenchmarkConfig
-    ) !BenchmarkResult {
-        // Implementation
-    }
+    pub fn run(self: *Benchmark, allocator: std.mem.Allocator, config: BenchmarkConfig) !BenchmarkResult
 };
 ```
 
@@ -730,20 +437,11 @@ pub const Benchmark = struct {
 
 ```zig
 pub const BenchmarkSuite = struct {
-    /// Suite name
     name: []const u8,
-    /// Benchmarks in suite
-    benchmarks: std.ArrayList(Benchmark),
+    benchmarks: std.array_list.Managed(Benchmark),
 
-    /// Initialize benchmark suite
-    pub fn init(allocator: std.mem.Allocator, name: []const u8, config: BenchmarkConfig) !*BenchmarkSuite {
-        // Implementation
-    }
-
-    /// Run all benchmarks
-    pub fn run(self: *BenchmarkSuite, allocator: std.mem.Allocator) ![]BenchmarkResult {
-        // Implementation
-    }
+    pub fn init(allocator: std.mem.Allocator, name: []const u8, config: BenchmarkConfig) !*BenchmarkSuite
+    pub fn run(self: *BenchmarkSuite, allocator: std.mem.Allocator) ![]BenchmarkResult
 };
 ```
 
@@ -782,40 +480,12 @@ std.debug.print("Benchmark result: {d:.2} ns/op\n", .{result.timing.mean});
 
 ```zig
 pub const Db = struct {
-    /// Initialize database with dimension
-    pub fn init(self: *Db, dimension: usize) !void {
-        // Implementation
-    }
-
-    /// Add embedding to database
-    pub fn addEmbedding(self: *Db, vector: []const f32) !RowId {
-        // Implementation
-    }
-
-    /// Search for similar vectors
-    pub fn search(
-        self: *Db,
-        query: []const f32,
-        k: usize,
-        allocator: std.mem.Allocator
-    ) ![]SearchResult {
-        // Implementation
-    }
-
-    /// Get database statistics
-    pub fn getStats(self: *Db) DatabaseStats {
-        // Implementation
-    }
-
-    /// Optimize database
-    pub fn optimize(self: *Db) !void {
-        // Implementation
-    }
-
-    /// Close database
-    pub fn close(self: *Db) void {
-        // Implementation
-    }
+    pub fn init(self: *Db, dimension: usize) !void
+    pub fn addEmbedding(self: *Db, vector: []const f32) !RowId
+    pub fn search(self: *Db, query: []const f32, k: usize, allocator: std.mem.Allocator) ![]SearchResult
+    pub fn getStats(self: *Db) DatabaseStats
+    pub fn optimize(self: *Db) !void
+    pub fn close(self: *Db) void
 };
 ```
 
@@ -984,3 +654,4 @@ pub fn trainModel(allocator: std.mem.Allocator, data_path: []const u8) !void {
 ```
 
 This API reference covers the main components and usage patterns. For more detailed information about specific functions and advanced usage, see the inline documentation in the source code or run `zig doc` on the individual modules.
+

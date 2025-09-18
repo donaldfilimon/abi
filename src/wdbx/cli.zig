@@ -9,7 +9,8 @@
 //! - Comprehensive error handling
 
 const std = @import("std");
-const database = @import("database");
+const database = @import("./db_helpers.zig");
+const wdbx_utils = @import("utils.zig");
 const core = @import("core");
 
 /// Re-export database types for convenience
@@ -133,11 +134,11 @@ pub const Options = struct {
     trace_file: ?[]const u8 = null,
 
     pub fn deinit(self: *Options, allocator: std.mem.Allocator) void {
-        if (self.db_path) |path| allocator.free(path);
-        if (self.vector) |vec| allocator.free(vec);
-        if (self.role) |r| allocator.free(r);
-        if (self.config_file) |cfg| allocator.free(cfg);
-        if (self.trace_file) |trace| allocator.free(trace);
+        wdbx_utils.utils.freeOptional(allocator, self.db_path);
+        wdbx_utils.utils.freeOptional(allocator, self.vector);
+        wdbx_utils.utils.freeOptional(allocator, self.role);
+        wdbx_utils.utils.freeOptional(allocator, self.config_file);
+        wdbx_utils.utils.freeOptional(allocator, self.trace_file);
     }
 };
 
@@ -235,7 +236,7 @@ pub const WdbxCLI = struct {
         const db_path = self.options.db_path.?;
 
         // Parse vector data
-        const vector_data = try self.parseVectorString(vector_str);
+        const vector_data = try database.helpers.parseVector(self.allocator, vector_str);
         defer self.allocator.free(vector_data);
 
         // Open database
@@ -260,7 +261,7 @@ pub const WdbxCLI = struct {
         const vector_str = self.options.vector.?;
         const db_path = self.options.db_path.?;
 
-        const vector_data = try self.parseVectorString(vector_str);
+        const vector_data = try database.helpers.parseVector(self.allocator, vector_str);
         defer self.allocator.free(vector_data);
 
         var db = try database.Db.open(db_path, false);
@@ -299,7 +300,7 @@ pub const WdbxCLI = struct {
         try self.logger.info("  Searches: {d}", .{stats.search_count});
         if (stats.search_count > 0) {
             const avg_time = stats.getAverageSearchTime();
-            try self.logger.info("  Avg Search Time: {d} μs", .{avg_time});
+            try self.logger.info("  Avg Search Time: {d} ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¼s", .{avg_time});
         }
     }
 
@@ -414,36 +415,6 @@ pub const WdbxCLI = struct {
 
         const db_path = self.options.db_path.?;
         try self.logger.info("Database loaded from: {s}", .{db_path});
-    }
-
-    fn parseVectorString(self: *Self, s: []const u8) ![]f32 {
-        // Count commas to determine vector size
-        var count: usize = 1;
-        for (s) |char| {
-            if (char == ',') count += 1;
-        }
-
-        var values = try self.allocator.alloc(f32, count);
-        var index: usize = 0;
-
-        var iter = std.mem.splitScalar(u8, s, ',');
-        while (iter.next()) |part| {
-            if (index >= count) break;
-            const trimmed = std.mem.trim(u8, part, " \t\r\n");
-            if (trimmed.len > 0) {
-                const value = try std.fmt.parseFloat(f32, trimmed);
-                values[index] = value;
-                index += 1;
-            }
-        }
-
-        // Resize to actual count
-        if (index < count) {
-            const actual_values = try self.allocator.realloc(values, index);
-            return actual_values;
-        }
-
-        return values;
     }
 
     fn generateAuthToken(self: *Self, role: []const u8) ![]u8 {
@@ -669,7 +640,7 @@ test "Vector string parsing" {
     defer cli.deinit();
 
     const vector_str = "1.0, 2.0, 3.0, 4.0";
-    const vector_data = try cli.parseVectorString(vector_str);
+    const vector_data = try database.helpers.parseVector(cli.allocator, vector_str);
     defer testing.allocator.free(vector_data);
 
     try testing.expectEqual(@as(usize, 4), vector_data.len);

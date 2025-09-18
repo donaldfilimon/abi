@@ -10,6 +10,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const core = @import("core");
 
 /// SIMD vector types with automatic detection
 pub const Vector = struct {
@@ -212,7 +213,7 @@ pub const VectorOps = struct {
                     const va = @as(@Vector(16, f32), a[i..][0..16].*);
                     const vb = @as(@Vector(16, f32), b[i..][0..16].*);
                     const sum = va + vb;
-                    @memcpy(result[i..][0..16], @as([16]f32, sum)[0..]);
+                    @memcpy(result[i..][0..16], @as([16]f32, sum)[0..]); // Bounds checked by loop condition
                 }
             },
             8 => {
@@ -220,7 +221,7 @@ pub const VectorOps = struct {
                     const va = @as(@Vector(8, f32), a[i..][0..8].*);
                     const vb = @as(@Vector(8, f32), b[i..][0..8].*);
                     const sum = va + vb;
-                    @memcpy(result[i..][0..8], @as([8]f32, sum)[0..]);
+                    @memcpy(result[i..][0..8], @as([8]f32, sum)[0..]); // Bounds checked by loop condition
                 }
             },
             4 => {
@@ -228,7 +229,7 @@ pub const VectorOps = struct {
                     const va = @as(@Vector(4, f32), a[i..][0..4].*);
                     const vb = @as(@Vector(4, f32), b[i..][0..4].*);
                     const sum = va + vb;
-                    @memcpy(result[i..][0..4], @as([4]f32, sum)[0..]);
+                    @memcpy(result[i..][0..4], @as([4]f32, sum)[0..]); // Bounds checked by loop condition
                 }
             },
             else => {},
@@ -253,7 +254,7 @@ pub const VectorOps = struct {
                     const va = @as(@Vector(16, f32), a[i..][0..16].*);
                     const vb = @as(@Vector(16, f32), b[i..][0..16].*);
                     const diff = va - vb;
-                    @memcpy(result[i..][0..16], @as([16]f32, diff)[0..]);
+                    @memcpy(result[i..][0..16], @as([16]f32, diff)[0..]); // Bounds checked by loop condition
                 }
             },
             8 => {
@@ -261,7 +262,7 @@ pub const VectorOps = struct {
                     const va = @as(@Vector(8, f32), a[i..][0..8].*);
                     const vb = @as(@Vector(8, f32), b[i..][0..8].*);
                     const diff = va - vb;
-                    @memcpy(result[i..][0..8], @as([8]f32, diff)[0..]);
+                    @memcpy(result[i..][0..8], @as([8]f32, diff)[0..]); // Bounds checked by loop condition
                 }
             },
             4 => {
@@ -269,7 +270,7 @@ pub const VectorOps = struct {
                     const va = @as(@Vector(4, f32), a[i..][0..4].*);
                     const vb = @as(@Vector(4, f32), b[i..][0..4].*);
                     const diff = va - vb;
-                    @memcpy(result[i..][0..4], @as([4]f32, diff)[0..]);
+                    @memcpy(result[i..][0..4], @as([4]f32, diff)[0..]); // Bounds checked by loop condition
                 }
             },
             else => {},
@@ -294,7 +295,7 @@ pub const VectorOps = struct {
                 while (i + 16 <= vector.len) : (i += 16) {
                     const v = @as(@Vector(16, f32), vector[i..][0..16].*);
                     const scaled = v * scale_vec;
-                    @memcpy(result[i..][0..16], @as([16]f32, scaled)[0..]);
+                    @memcpy(result[i..][0..16], @as([16]f32, scaled)[0..]); // Bounds checked by loop condition
                 }
             },
             8 => {
@@ -302,7 +303,7 @@ pub const VectorOps = struct {
                 while (i + 8 <= vector.len) : (i += 8) {
                     const v = @as(@Vector(8, f32), vector[i..][0..8].*);
                     const scaled = v * scale_vec;
-                    @memcpy(result[i..][0..8], @as([8]f32, scaled)[0..]);
+                    @memcpy(result[i..][0..8], @as([8]f32, scaled)[0..]); // Bounds checked by loop condition
                 }
             },
             4 => {
@@ -310,7 +311,7 @@ pub const VectorOps = struct {
                 while (i + 4 <= vector.len) : (i += 4) {
                     const v = @as(@Vector(4, f32), vector[i..][0..4].*);
                     const scaled = v * scale_vec;
-                    @memcpy(result[i..][0..4], @as([4]f32, scaled)[0..]);
+                    @memcpy(result[i..][0..4], @as([4]f32, scaled)[0..]); // Bounds checked by loop condition
                 }
             },
             else => {},
@@ -547,12 +548,12 @@ pub const PerformanceMonitor = struct {
     }
 
     pub fn printStats(self: *const PerformanceMonitor) void {
-        std.debug.print("SIMD Performance Statistics:\n", .{});
-        std.debug.print("  Total Operations: {d}\n", .{self.operation_count});
-        std.debug.print("  Average Time: {d:.3} ns\n", .{self.getAverageTime()});
-        std.debug.print("  SIMD Usage Rate: {d:.1}%\n", .{self.getSimdUsageRate() * 100.0});
-        std.debug.print("  SIMD Operations: {d}\n", .{self.simd_usage_count});
-        std.debug.print("  Scalar Fallbacks: {d}\n", .{self.scalar_fallback_count});
+        core.log.info("SIMD Performance Statistics:", .{});
+        core.log.info("  Total Operations: {d}", .{self.operation_count});
+        core.log.info("  Average Time: {d:.3} ns", .{self.getAverageTime()});
+        core.log.info("  SIMD Usage Rate: {d:.1}%", .{self.getSimdUsageRate() * 100.0});
+        core.log.info("  SIMD Operations: {d}", .{self.simd_usage_count});
+        core.log.info("  Scalar Fallbacks: {d}", .{self.scalar_fallback_count});
     }
 };
 

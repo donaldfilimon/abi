@@ -1,6 +1,6 @@
 const std = @import("std");
 const abi = @import("abi");
-const http_client = abi.http_client;
+const http_client = @import("http_client");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

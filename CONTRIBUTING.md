@@ -16,7 +16,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
 1. **Fork the Repository**
 
    ```bash
-   git clone https://github.com/yourusername/abi.git
+   git clone https://github.com/donaldfilimon/abi.git
    cd abi
    ```
 
@@ -177,7 +177,7 @@ git push origin feature/your-feature-name
 
 ### Bug Fixes
 
-Check the [issue tracker](https://github.com/yourusername/abi/issues) for:
+Check the [issue tracker](https://github.com/donaldfilimon/abi/issues) for:
 
 - Bugs labeled "good first issue"
 - Performance improvements

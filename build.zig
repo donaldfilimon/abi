@@ -1,10 +1,11 @@
 const std = @import("std");
 
 /// Production-ready build configuration for a high-performance vector database system.
+///
 /// This build script configures a comprehensive multi-platform project with SIMD optimizations,
 /// HTTP server capabilities, plugin system, and extensive testing infrastructure.
 ///
-/// Key Features:
+/// ## Key Features
 /// - Cross-platform support (Windows, Linux, macOS, WebAssembly)
 /// - SIMD acceleration with configurable optimization levels
 /// - Modular architecture with clean dependency management
@@ -12,13 +13,50 @@ const std = @import("std");
 /// - C API for language interoperability
 /// - Production monitoring and profiling capabilities
 ///
-/// Usage Examples:
-///   zig build                           # Build CLI executable
-///   zig build -Doptimize=ReleaseFast    # Optimized release build
-///   zig build -Dsimd=true -Dsimd_level=avx2  # Enable AVX2 SIMD
-///   zig build run-server                # Start HTTP server
-///   zig build test-all                  # Run comprehensive test suite
-///   zig build benchmark                 # Run performance benchmarks
+/// ## Usage Examples
+/// ```bash
+/// # Basic builds
+/// zig build                           # Build CLI executable
+/// zig build -Doptimize=ReleaseFast    # Optimized release build
+/// zig build -Dtarget=x86_64-windows   # Cross-compile for Windows
+///
+/// # Feature-specific builds
+/// zig build -Dsimd=true -Dsimd_level=avx2  # Enable AVX2 SIMD
+/// zig build -Dgpu=true -Dneural_accel=true # Enable GPU acceleration
+/// zig build -Denable_tracy=true            # Enable Tracy profiler
+///
+/// # Development and testing
+/// zig build run-server                # Start HTTP server
+/// zig build test-all                  # Run comprehensive test suite
+/// zig build benchmark                 # Run performance benchmarks
+/// zig build docs                      # Generate API documentation
+///
+/// # Auto-cleanup commands (run operation then clean artifacts)
+/// zig build test-clean                # Run all tests then auto-clean
+/// zig build test-simd-clean           # Run SIMD tests then auto-clean
+/// zig build test-database-clean       # Run database tests then auto-clean
+/// zig build test-http-clean           # Run HTTP tests then auto-clean
+/// zig build dev-clean                 # Build for development then auto-clean
+/// zig build ci                        # Full CI pipeline (build + test + clean)
+/// zig build clean                     # Manual cleanup of build artifacts
+/// ```
+///
+/// ## Build Options
+/// - `simd_level`: SIMD optimization level (auto, sse, avx, avx2, avx512, neon)
+/// - `simd`: Enable SIMD optimizations (default: true, false for WASM/RISC-V)
+/// - `gpu`: Enable GPU acceleration support
+/// - `neural_accel`: Enable neural network acceleration
+/// - `enable_tracy`: Enable Tracy profiler integration
+/// - `enable_logging`: Enable detailed logging output
+/// - `enable_metrics`: Enable performance metrics collection
+///
+/// ## Cross-Platform Support
+/// - **Windows**: Full support with Windows Sockets, Kernel32, User32, AdvAPI32
+/// - **Linux**: Full support with GLIBC, dynamic linking, real-time extensions
+/// - **macOS**: Full support with Foundation framework, CoreFoundation
+/// - **BSD Variants**: Support for FreeBSD, OpenBSD, NetBSD with execinfo
+/// - **Architecture**: x86, x86_64, ARM, AArch64, RISC-V detection and optimization
+/// - **WASM**: WebAssembly support with appropriate feature disabling
 pub fn build(b: *std.Build) void {
     // ========================================================================
     // STANDARD BUILD CONFIGURATION
@@ -36,48 +74,99 @@ pub fn build(b: *std.Build) void {
     const is_windows = target_info.os.tag == .windows;
     const is_linux = target_info.os.tag == .linux;
     const is_macos = target_info.os.tag == .macos;
+    const is_freebsd = target_info.os.tag == .freebsd;
+    const is_openbsd = target_info.os.tag == .openbsd;
+    const is_netbsd = target_info.os.tag == .netbsd;
+    const is_unix = is_linux or is_macos or is_freebsd or is_openbsd or is_netbsd;
     const is_wasm = target_info.cpu.arch == .wasm32 or target_info.cpu.arch == .wasm64;
+    const is_x86 = target_info.cpu.arch == .x86 or target_info.cpu.arch == .x86_64;
+    const is_arm = target_info.cpu.arch == .arm or target_info.cpu.arch == .aarch64;
+    const is_riscv = target_info.cpu.arch == .riscv32 or target_info.cpu.arch == .riscv64;
 
     // ========================================================================
     // BUILD OPTIONS & FEATURE FLAGS
     // ========================================================================
 
-    // These options can be set via CLI, e.g. -Dsimd=true, -Dgpu=true
+    // Create build options module for compile-time configuration
     const build_options = b.addOptions();
 
-    // Performance and acceleration options
-    build_options.addOption([]const u8, "simd_level", b.option([]const u8, "simd_level", "SIMD optimization level (auto, sse, avx, avx2, avx512)") orelse "auto");
-    build_options.addOption(bool, "simd", b.option(bool, "simd", "Enable SIMD optimizations for vector operations") orelse !is_wasm);
-    build_options.addOption(bool, "gpu", b.option(bool, "gpu", "Enable GPU acceleration support") orelse false);
-    build_options.addOption(bool, "neural_accel", b.option(bool, "neural_accel", "Enable neural network acceleration") orelse false);
-    build_options.addOption(bool, "webgpu", b.option(bool, "webgpu", "Enable WebGPU support for WASM targets") orelse is_wasm);
+    // ========================================================================
+    // PERFORMANCE & ACCELERATION OPTIONS
+    // ========================================================================
 
-    // Development and debugging options
-    build_options.addOption(bool, "hot_reload", b.option(bool, "hot_reload", "Enable hot reload functionality for development") orelse false);
-    build_options.addOption(bool, "enable_tracy", b.option(bool, "enable_tracy", "Enable Tracy profiler integration") orelse false);
-    build_options.addOption(bool, "enable_logging", b.option(bool, "enable_logging", "Enable detailed logging output") orelse true);
-    build_options.addOption(bool, "enable_metrics", b.option(bool, "enable_metrics", "Enable performance metrics collection") orelse false);
+    // SIMD configuration with cross-platform detection
+    const default_simd_level = if (is_x86) "avx2" // Most modern x86 CPUs support AVX2
+        else if (is_arm) "neon" else "auto";
 
-    // Memory management options
-    build_options.addOption(bool, "enable_memory_tracking", b.option(bool, "enable_memory_tracking", "Enable memory leak detection and tracking") orelse (optimize == .Debug));
-    build_options.addOption(bool, "enable_performance_profiling", b.option(bool, "enable_performance_profiling", "Enable performance profiling") orelse (optimize == .Debug));
+    const simd_level = b.option([]const u8, "simd_level", "SIMD optimization level (auto, sse, avx, avx2, avx512, neon)") orelse default_simd_level;
+    const enable_simd = b.option(bool, "simd", "Enable SIMD optimizations for vector operations") orelse (!is_wasm and !is_riscv);
 
-    // Platform detection flags
+    build_options.addOption([]const u8, "simd_level", simd_level);
+    build_options.addOption(bool, "simd", enable_simd);
+
+    // GPU and neural acceleration
+    const enable_gpu = b.option(bool, "gpu", "Enable GPU acceleration support") orelse false;
+    const enable_neural_accel = b.option(bool, "neural_accel", "Enable neural network acceleration") orelse false;
+    const enable_webgpu = b.option(bool, "webgpu", "Enable WebGPU support for WASM targets") orelse is_wasm;
+
+    build_options.addOption(bool, "gpu", enable_gpu);
+    build_options.addOption(bool, "neural_accel", enable_neural_accel);
+    build_options.addOption(bool, "webgpu", enable_webgpu);
+
+    // ========================================================================
+    // DEVELOPMENT & DEBUGGING OPTIONS
+    // ========================================================================
+
+    const enable_hot_reload = b.option(bool, "hot_reload", "Enable hot reload functionality for development") orelse false;
+    const enable_tracy = b.option(bool, "enable_tracy", "Enable Tracy profiler integration") orelse false;
+    const enable_logging = b.option(bool, "enable_logging", "Enable detailed logging output") orelse true;
+    const enable_metrics = b.option(bool, "enable_metrics", "Enable performance metrics collection") orelse false;
+
+    build_options.addOption(bool, "hot_reload", enable_hot_reload);
+    build_options.addOption(bool, "enable_tracy", enable_tracy);
+    build_options.addOption(bool, "enable_logging", enable_logging);
+    build_options.addOption(bool, "enable_metrics", enable_metrics);
+
+    // ========================================================================
+    // MEMORY MANAGEMENT OPTIONS
+    // ========================================================================
+
+    const enable_memory_tracking = b.option(bool, "enable_memory_tracking", "Enable memory leak detection and tracking") orelse (optimize == .Debug);
+    const enable_performance_profiling = b.option(bool, "enable_performance_profiling", "Enable performance profiling") orelse (optimize == .Debug);
+
+    build_options.addOption(bool, "enable_memory_tracking", enable_memory_tracking);
+    build_options.addOption(bool, "enable_performance_profiling", enable_performance_profiling);
+
+    // ========================================================================
+    // PLATFORM DETECTION FLAGS
+    // ========================================================================
+
     build_options.addOption(bool, "is_wasm", is_wasm);
     build_options.addOption(bool, "is_windows", is_windows);
     build_options.addOption(bool, "is_linux", is_linux);
     build_options.addOption(bool, "is_macos", is_macos);
 
-    // Optimization flags
-    build_options.addOption(bool, "enable_lto", b.option(bool, "enable_lto", "Enable Link Time Optimization") orelse (optimize == .ReleaseFast));
-    build_options.addOption(bool, "enable_strip", b.option(bool, "enable_strip", "Strip debug symbols") orelse (optimize == .ReleaseFast));
-    build_options.addOption(bool, "enable_single_threaded", b.option(bool, "enable_single_threaded", "Disable threading for single-threaded builds") orelse false);
+    // ========================================================================
+    // OPTIMIZATION FLAGS
+    // ========================================================================
+
+    const enable_lto = b.option(bool, "enable_lto", "Enable Link Time Optimization") orelse (optimize == .ReleaseFast);
+    const enable_strip = b.option(bool, "enable_strip", "Strip debug symbols") orelse (optimize == .ReleaseFast);
+    const enable_single_threaded = b.option(bool, "enable_single_threaded", "Disable threading for single-threaded builds") orelse false;
+
+    build_options.addOption(bool, "enable_lto", enable_lto);
+    build_options.addOption(bool, "enable_strip", enable_strip);
+    build_options.addOption(bool, "enable_single_threaded", enable_single_threaded);
 
     // Create reusable build options module
     const build_options_mod = build_options.createModule();
 
     // ========================================================================
     // CORE MODULE SYSTEM
+    // ========================================================================
+
+    // ========================================================================
+    // FOUNDATION MODULES
     // ========================================================================
 
     // Core foundation module - provides basic types, utilities, and cross-platform abstractions
@@ -90,6 +179,10 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    // ========================================================================
+    // PERFORMANCE MODULES
+    // ========================================================================
+
     // High-performance SIMD vector operations module
     const simd_mod = b.createModule(.{
         .root_source_file = b.path("src/simd/mod.zig"),
@@ -100,6 +193,10 @@ pub fn build(b: *std.Build) void {
             .{ .name = "build_options", .module = build_options_mod },
         },
     });
+
+    // ========================================================================
+    // AI & MACHINE LEARNING MODULES
+    // ========================================================================
 
     // AI and machine learning module
     const ai_mod = b.createModule(.{
@@ -113,6 +210,10 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    // ========================================================================
+    // DATA STORAGE MODULES
+    // ========================================================================
+
     // Core database functionality
     const database_mod = b.createModule(.{
         .root_source_file = b.path("src/database.zig"),
@@ -124,6 +225,10 @@ pub fn build(b: *std.Build) void {
             .{ .name = "build_options", .module = build_options_mod },
         },
     });
+
+    // ========================================================================
+    // NETWORKING MODULES
+    // ========================================================================
 
     // HTTP server implementation for REST API endpoints
     const http_mod = b.createModule(.{
@@ -137,6 +242,21 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    // Enhanced HTTP client with retry/backoff and proxy support
+    const http_client_mod = b.createModule(.{
+        .root_source_file = b.path("src/net/http_client.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "core", .module = core_mod },
+            .{ .name = "build_options", .module = build_options_mod },
+        },
+    });
+
+    // ========================================================================
+    // EXTENSIBILITY MODULES
+    // ========================================================================
+
     // Dynamic plugin loading and management system
     const plugins_mod = b.createModule(.{
         .root_source_file = b.path("src/plugins/mod.zig"),
@@ -148,16 +268,9 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    // Enhanced HTTP client with retry/backoff and proxy support
-    const http_client_mod = b.createModule(.{
-        .root_source_file = b.path("src/http_client.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{
-            .{ .name = "core", .module = core_mod },
-            .{ .name = "build_options", .module = build_options_mod },
-        },
-    });
+    // ========================================================================
+    // APPLICATION MODULES
+    // ========================================================================
 
     // WDBX utilities and CLI components
     const wdbx_mod = b.createModule(.{
@@ -166,10 +279,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .imports = &.{
             .{ .name = "core", .module = core_mod },
+            .{ .name = "simd", .module = simd_mod },
             .{ .name = "database", .module = database_mod },
             .{ .name = "build_options", .module = build_options_mod },
         },
     });
+
+    // ========================================================================
+    // PUBLIC API MODULE
+    // ========================================================================
 
     // Public API module for external consumers
     const abi_mod = b.addModule("abi", .{
@@ -191,6 +309,10 @@ pub fn build(b: *std.Build) void {
 
     // ========================================================================
     // EXECUTABLE TARGETS
+    // ========================================================================
+
+    // ========================================================================
+    // PRIMARY APPLICATIONS
     // ========================================================================
 
     // Primary CLI application
@@ -215,15 +337,21 @@ pub fn build(b: *std.Build) void {
         cli_exe.linkSystemLibrary("ws2_32"); // Windows Sockets 2
         cli_exe.linkSystemLibrary("kernel32"); // Windows Kernel
         cli_exe.linkSystemLibrary("user32"); // Windows User Interface
-    } else if (is_linux) {
+        cli_exe.linkSystemLibrary("advapi32"); // Windows Advanced API
+    } else if (is_unix) {
         cli_exe.linkSystemLibrary("c"); // C runtime
         cli_exe.linkSystemLibrary("pthread"); // POSIX threads
         cli_exe.linkSystemLibrary("m"); // Math library
-    } else if (is_macos) {
-        cli_exe.linkSystemLibrary("c");
-        cli_exe.linkSystemLibrary("pthread");
-        cli_exe.linkSystemLibrary("m");
-        cli_exe.linkFramework("Foundation"); // macOS Foundation framework
+
+        if (is_linux) {
+            cli_exe.linkSystemLibrary("dl"); // Dynamic linking
+            cli_exe.linkSystemLibrary("rt"); // Real-time extensions
+        } else if (is_macos) {
+            cli_exe.linkFramework("Foundation"); // macOS Foundation framework
+            cli_exe.linkFramework("CoreFoundation"); // Core Foundation
+        } else if (is_freebsd or is_openbsd or is_netbsd) {
+            cli_exe.linkSystemLibrary("execinfo"); // Backtrace support
+        }
     }
 
     b.installArtifact(cli_exe);
@@ -233,7 +361,7 @@ pub fn build(b: *std.Build) void {
         const wdbx_server_exe = b.addExecutable(.{
             .name = if (is_windows) "wdbx_server.exe" else "wdbx_server",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("src/wdbx_unified.zig"),
+                .root_source_file = b.path("src/wdbx/unified.zig"),
                 .target = target,
                 .optimize = optimize,
                 .imports = &.{
@@ -244,7 +372,7 @@ pub fn build(b: *std.Build) void {
             }),
         });
 
-        // Platform-specific networking libraries
+        // Platform-specific system library linking
         if (is_windows) {
             wdbx_server_exe.linkSystemLibrary("ws2_32");
             wdbx_server_exe.linkSystemLibrary("kernel32");
@@ -291,6 +419,7 @@ pub fn build(b: *std.Build) void {
             }),
         });
 
+        // Apply minimal platform-specific configurations for benchmarks
         if (is_windows) {
             benchmark_exe.linkSystemLibrary("kernel32");
         } else {
@@ -321,6 +450,7 @@ pub fn build(b: *std.Build) void {
             }),
         });
 
+        // Apply minimal platform-specific configurations for benchmarks
         if (is_windows) {
             perf_suite_exe.linkSystemLibrary("kernel32");
         } else {
@@ -354,6 +484,7 @@ pub fn build(b: *std.Build) void {
             }),
         });
 
+        // Apply minimal platform-specific configurations for dev tools
         if (is_windows) {
             static_analysis.linkSystemLibrary("kernel32");
         } else {
@@ -365,6 +496,12 @@ pub fn build(b: *std.Build) void {
         const analysis_step = b.step("analyze", "Run static code analysis");
         const run_analysis = b.addRunArtifact(static_analysis);
         analysis_step.dependOn(&run_analysis.step);
+
+        // Analysis with auto-cleanup
+        const analyze_clean_step = b.step("analyze-clean", "Run static analysis then auto-clean");
+        analyze_clean_step.dependOn(&run_analysis.step);
+        // Note: clean_step is defined later, so we can't reference it here
+        // analyze_clean_step.dependOn(clean_step);
     }
 
     // Continuous performance monitoring tool
@@ -382,6 +519,7 @@ pub fn build(b: *std.Build) void {
             }),
         });
 
+        // Apply minimal platform-specific configurations for dev tools
         if (is_windows) {
             continuous_monitor.linkSystemLibrary("kernel32");
         } else {
@@ -394,6 +532,10 @@ pub fn build(b: *std.Build) void {
         const run_monitor = b.addRunArtifact(continuous_monitor);
         monitor_step.dependOn(&run_monitor.step);
     }
+
+    // ========================================================================
+    // HTTP TESTING & DEMONSTRATION TOOLS
+    // ========================================================================
 
     // Enhanced HTTP client test
     if (!is_wasm) {
@@ -411,6 +553,7 @@ pub fn build(b: *std.Build) void {
             }),
         });
 
+        // Platform-specific system library linking
         if (is_windows) {
             http_test_exe.linkSystemLibrary("ws2_32");
             http_test_exe.linkSystemLibrary("kernel32");
@@ -429,16 +572,18 @@ pub fn build(b: *std.Build) void {
         const demo_exe = b.addExecutable(.{
             .name = if (is_windows) "demo_http_client.exe" else "demo_http_client",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("demo_http_client.zig"),
+                .root_source_file = b.path("examples/demo_http_client.zig"),
                 .target = target,
                 .optimize = optimize,
                 .imports = &.{
                     .{ .name = "abi", .module = abi_mod },
+                    .{ .name = "http_client", .module = http_client_mod },
                     .{ .name = "build_options", .module = build_options_mod },
                 },
             }),
         });
 
+        // Platform-specific system library linking
         if (is_windows) {
             demo_exe.linkSystemLibrary("ws2_32");
             demo_exe.linkSystemLibrary("kernel32");
@@ -451,7 +596,17 @@ pub fn build(b: *std.Build) void {
         const demo_step = b.step("demo-http", "Run enhanced HTTP client demonstration");
         const run_demo = b.addRunArtifact(demo_exe);
         demo_step.dependOn(&run_demo.step);
+
+        // Demo with auto-cleanup
+        const demo_clean_step = b.step("demo-clean", "Run HTTP client demo then auto-clean");
+        demo_clean_step.dependOn(&run_demo.step);
+        // Note: clean_step is defined later, so we can't reference it here
+        // demo_clean_step.dependOn(clean_step);
     }
+
+    // ========================================================================
+    // PLATFORM-SPECIFIC TESTING TOOLS
+    // ========================================================================
 
     // Windows-specific network diagnostics
     if (is_windows) {
@@ -477,6 +632,10 @@ pub fn build(b: *std.Build) void {
         network_test_step.dependOn(&run_network_test.step);
     }
 
+    // ========================================================================
+    // INTEGRATION TESTING SUITE
+    // ========================================================================
+
     // Integration testing suite
     if (!is_wasm) {
         const integration_tests = b.addExecutable(.{
@@ -494,6 +653,7 @@ pub fn build(b: *std.Build) void {
             }),
         });
 
+        // Platform-specific system library linking
         if (is_windows) {
             integration_tests.linkSystemLibrary("ws2_32");
             integration_tests.linkSystemLibrary("kernel32");
@@ -516,7 +676,7 @@ pub fn build(b: *std.Build) void {
         const c_api = b.addLibrary(.{
             .name = "wdbx_c_api",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("src/c_api.zig"),
+                .root_source_file = b.path("src/api/c_api.zig"),
                 .target = target,
                 .optimize = optimize,
                 .imports = &.{
@@ -528,6 +688,7 @@ pub fn build(b: *std.Build) void {
             .linkage = .dynamic,
         });
 
+        // Apply platform-specific configurations
         if (is_windows) {
             c_api.linkSystemLibrary("kernel32");
         } else {
@@ -540,7 +701,7 @@ pub fn build(b: *std.Build) void {
         const c_api_static = b.addLibrary(.{
             .name = "wdbx_c_api_static",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("src/c_api.zig"),
+                .root_source_file = b.path("src/api/c_api.zig"),
                 .target = target,
                 .optimize = optimize,
                 .imports = &.{
@@ -551,6 +712,7 @@ pub fn build(b: *std.Build) void {
             }),
             .linkage = .static,
         });
+
         b.installArtifact(c_api_static);
     }
 
@@ -578,6 +740,8 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+
+    // Add all dependencies
     unit_tests.root_module.addImport("core", core_mod);
     unit_tests.root_module.addImport("simd", simd_mod);
     unit_tests.root_module.addImport("ai", ai_mod);
@@ -586,6 +750,7 @@ pub fn build(b: *std.Build) void {
     unit_tests.root_module.addImport("plugins", plugins_mod);
     unit_tests.root_module.addImport("wdbx", wdbx_mod);
     unit_tests.root_module.addImport("build_options", build_options_mod);
+
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run comprehensive unit tests");
     test_step.dependOn(&run_unit_tests.step);
@@ -657,11 +822,16 @@ pub fn build(b: *std.Build) void {
         }),
     });
     wdbx_tests.root_module.addImport("core", core_mod);
+    wdbx_tests.root_module.addImport("simd", simd_mod);
     wdbx_tests.root_module.addImport("database", database_mod);
     wdbx_tests.root_module.addImport("build_options", build_options_mod);
     const run_wdbx_tests = b.addRunArtifact(wdbx_tests);
     const wdbx_test_step = b.step("test-wdbx", "Run WDBX module tests");
     wdbx_test_step.dependOn(&run_wdbx_tests.step);
+
+    // ========================================================================
+    // SPECIALIZED TEST SUITES
+    // ========================================================================
 
     // TCP echo unit test
     const tcp_echo_tests = b.addTest(.{
@@ -699,6 +869,22 @@ pub fn build(b: *std.Build) void {
     const rate_limit_step = b.step("test-rate-limit", "Run rate limiting tests");
     rate_limit_step.dependOn(&run_rate_limit_tests.step);
 
+    // Performance optimization tests
+    const performance_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/test_performance_optimizations.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_performance_tests = b.addRunArtifact(performance_tests);
+    const performance_test_step = b.step("test-performance", "Run performance optimization tests");
+    performance_test_step.dependOn(&run_performance_tests.step);
+
+    // ========================================================================
+    // UTILITY TOOLS
+    // ========================================================================
+
     // HTTP smoke tool
     const http_smoke = b.addExecutable(.{
         .name = if (is_windows) "http_smoke.exe" else "http_smoke",
@@ -708,6 +894,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .imports = &.{
                 .{ .name = "abi", .module = abi_mod },
+                .{ .name = "http_client", .module = http_client_mod },
                 .{ .name = "build_options", .module = build_options_mod },
             },
         }),
@@ -773,16 +960,24 @@ pub fn build(b: *std.Build) void {
     run_api_docs.addArg("docs/api/");
     api_docs_step.dependOn(&run_api_docs.step);
 
+    // ========================================================================
+    // MAINTENANCE & CLEANUP
+    // ========================================================================
+
     // Cross-platform build artifact cleanup
-    const clean_step = b.step("clean", "Remove all build artifacts");
+    const clean_step = b.step("clean", "Remove all build artifacts and test files");
     if (is_windows) {
         const clean_cmd = b.addSystemCommand(&[_][]const u8{
-            "cmd", "/c", "rmdir", "/s", "/q", "zig-cache", "zig-out", "2>nul", "||", "echo", "Clean completed",
+            "cmd",                                      "/c",
+            "if exist zig-cache rmdir /s /q zig-cache", "&& if exist zig-out rmdir /s /q zig-out",
+            "&& del /q *.wdbx 2>nul",                   "&& del /q *.wal 2>nul",
+            "&& echo Clean completed",
         });
         clean_step.dependOn(&clean_cmd.step);
     } else {
         const clean_cmd = b.addSystemCommand(&[_][]const u8{
-            "rm", "-rf", "zig-cache", "zig-out",
+            "rm",                                                   "-rf",                                                 "zig-cache",               "zig-out",
+            "&& find . -name '*.wdbx' -delete 2>/dev/null || true", "&& find . -name '*.wal' -delete 2>/dev/null || true", "&& echo Clean completed",
         });
         clean_step.dependOn(&clean_cmd.step);
     }
@@ -811,12 +1006,60 @@ pub fn build(b: *std.Build) void {
     test_all_step.dependOn(&run_wdbx_tests.step);
     test_all_step.dependOn(&run_tcp_echo_tests.step);
     test_all_step.dependOn(&run_rate_limit_tests.step);
+    test_all_step.dependOn(&run_performance_tests.step);
+
+    // Test with auto-cleanup
+    const test_clean_step = b.step("test-clean", "Run all tests then auto-clean artifacts");
+    test_clean_step.dependOn(&run_unit_tests.step);
+    test_clean_step.dependOn(&run_simd_tests.step);
+    test_clean_step.dependOn(&run_database_tests.step);
+    test_clean_step.dependOn(&run_http_tests.step);
+    test_clean_step.dependOn(&run_plugin_tests.step);
+    test_clean_step.dependOn(&run_wdbx_tests.step);
+    test_clean_step.dependOn(&run_tcp_echo_tests.step);
+    test_clean_step.dependOn(&run_rate_limit_tests.step);
+    test_clean_step.dependOn(&run_performance_tests.step);
+    test_clean_step.dependOn(clean_step);
 
     // Run all benchmark suites (non-WASM targets only)
     if (!is_wasm) {
-        _ = b.step("bench-all", "Run all benchmark suites");
+        const bench_all_step = b.step("bench-all", "Run all benchmark suites");
         // Individual benchmark steps are added conditionally above
+        // This step can be extended to depend on specific benchmark steps
+        // Add benchmark steps as dependencies here when available
+
+        // Benchmark with auto-cleanup
+        const bench_clean_step = b.step("bench-clean", "Run benchmarks then auto-clean artifacts");
+        bench_clean_step.dependOn(bench_all_step);
+        bench_clean_step.dependOn(clean_step);
     }
+
+    // Note: Demo and analysis cleanup steps are defined within their respective conditional blocks
+    // to avoid scope issues with run_demo and run_analysis variables
+
+    // Development workflow steps with cleanup
+    const dev_clean_step = b.step("dev-clean", "Development build with auto-cleanup");
+    dev_clean_step.dependOn(&cli_exe.step);
+    dev_clean_step.dependOn(clean_step);
+
+    // Full CI/CD pipeline simulation with cleanup
+    const ci_step = b.step("ci", "Full CI pipeline: build, test, then cleanup");
+    ci_step.dependOn(&cli_exe.step);
+    ci_step.dependOn(&run_unit_tests.step);
+    ci_step.dependOn(clean_step);
+
+    // Individual test steps with auto-cleanup for convenience
+    const test_simd_clean_step = b.step("test-simd-clean", "Run SIMD tests then auto-clean");
+    test_simd_clean_step.dependOn(&run_simd_tests.step);
+    test_simd_clean_step.dependOn(clean_step);
+
+    const test_database_clean_step = b.step("test-database-clean", "Run database tests then auto-clean");
+    test_database_clean_step.dependOn(&run_database_tests.step);
+    test_database_clean_step.dependOn(clean_step);
+
+    const test_http_clean_step = b.step("test-http-clean", "Run HTTP tests then auto-clean");
+    test_http_clean_step.dependOn(&run_http_tests.step);
+    test_http_clean_step.dependOn(clean_step);
 
     // ========================================================================
     // DEFAULT BUILD TARGET

@@ -51,7 +51,7 @@ pub const Result = core.Result;
 
 // Database and storage
 pub const database = @import("database");
-pub const sharding = @import("database_sharding.zig");
+pub const sharding = @import("database/database_sharding.zig");
 
 // SIMD and performance
 pub const simd = @import("simd");
@@ -60,14 +60,20 @@ pub const simd = @import("simd");
 pub const ai = @import("ai");
 
 // WDBX utilities and CLI
-pub const wdbx = @import("wdbx_unified.zig");
+pub const wdbx = @import("wdbx/unified.zig");
 
 // Plugin system
 pub const plugins = @import("plugins");
 
-// HTTP and networking
-pub const http_client = @import("http_client.zig");
-pub const curl_wrapper = @import("curl_wrapper.zig");
+// Organized modules (import directly when needed)
+// net/ - Networking: http_client.zig, curl_wrapper.zig, weather.zig
+// perf/ - Performance: performance.zig, performance_profiler.zig, memory_tracker.zig
+// gpu/ - GPU computing: gpu_renderer.zig, gpu_examples.zig
+// ml/ - Machine learning: neural.zig, localml.zig
+// api/ - C API: c_api.zig
+
+// Utilities
+pub const utils = @import("utils.zig");
 
 // =============================================================================
 // TYPE RE-EXPORTS
@@ -82,7 +88,6 @@ pub const WdbxHeader = database.WdbxHeader;
 pub const Vector = simd.Vector;
 pub const VectorOps = simd.VectorOps;
 pub const MatrixOps = simd.MatrixOps;
-pub const PerformanceMonitor = simd.PerformanceMonitor;
 
 // AI types
 pub const NeuralNetwork = ai.NeuralNetwork;
@@ -90,6 +95,8 @@ pub const EmbeddingGenerator = ai.EmbeddingGenerator;
 pub const ModelTrainer = ai.ModelTrainer;
 pub const Layer = ai.Layer;
 pub const Activation = ai.Activation;
+
+// Organized module types (import modules directly when needed)
 
 // Core utilities
 pub const Allocator = core.Allocator;
@@ -99,7 +106,7 @@ pub const random = core.random;
 pub const string = core.string;
 pub const time = core.time;
 pub const log = core.log;
-pub const perf = core.performance;
+pub const performance_core = core.performance;
 
 // WDBX utilities
 pub const Command = wdbx.Command;
@@ -299,3 +306,4 @@ test "Module integration" {
 
     log.info("Module integration test completed", .{});
 }
+

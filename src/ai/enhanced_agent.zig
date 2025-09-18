@@ -365,3 +365,5 @@ test "enhanced agent memory management" {
     // Memory should be pruned
     try testing.expect(agent.memory.items.len < 20);
 }
+
+

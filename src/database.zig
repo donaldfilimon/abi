@@ -23,9 +23,10 @@
 //! ```
 
 const std = @import("std");
+const core = @import("core");
 
-/// Database-specific error types
-pub const DatabaseError = error{
+/// Database-specific error types (extends core errors)
+pub const DatabaseError = core.AbiError || error{
     // File format errors
     InvalidFileFormat,
     CorruptedData,
@@ -267,7 +268,7 @@ pub const Db = struct {
         // Write-ahead log before committing to main file
         self.walAppendEmbedding(embedding) catch |err| {
             // Non-fatal: keep going but warn
-            std.debug.print("WAL append failed (continuing): {any}\n", .{err});
+            core.log.warn("WAL append failed (continuing): {any}", .{err});
         };
 
         const row_index = self.header.row_count;
@@ -295,14 +296,14 @@ pub const Db = struct {
 
         // Commit succeeded; truncate WAL
         self.walTruncate() catch |err| {
-            std.debug.print("WAL truncate failed: {any}\n", .{err});
+            core.log.warn("WAL truncate failed: {any}", .{err});
         };
 
         // Add to HNSW index if available
         if (self.hnsw_index != null) {
             self.addToHNSW(row_index, embedding) catch |err| {
                 // Log error but don't fail the operation
-                std.debug.print("Warning: Failed to add to HNSW index: {any}\n", .{err});
+                core.log.warn("Failed to add to HNSW index: {any}", .{err});
             };
         }
 
@@ -415,7 +416,7 @@ pub const Db = struct {
     };
 
     pub fn open(path: []const u8, create_if_missing: bool) DbError!*Db {
-        const allocator = std.heap.page_allocator;
+        const allocator = if (core.isInitialized()) core.getAllocator() else std.heap.page_allocator;
 
         const file = std.fs.cwd().openFile(path, .{ .mode = .read_write }) catch |err| blk: {
             if (create_if_missing and err == error.FileNotFound) {
@@ -464,10 +465,10 @@ pub const Db = struct {
         // Setup WAL (best-effort) and recover if needed
         self.db_path = allocator.dupe(u8, path) catch &[_]u8{};
         self.initWAL() catch |err| {
-            std.debug.print("WAL init failed: {any}\n", .{err});
+            core.log.warn("WAL init failed: {any}", .{err});
         };
         self.recoverFromWAL() catch |err| {
-            std.debug.print("WAL recovery failed: {any}\n", .{err});
+            core.log.warn("WAL recovery failed: {any}", .{err});
         };
         return self;
     }
@@ -950,3 +951,5 @@ pub const Db = struct {
         return final_results;
     }
 };
+
+
