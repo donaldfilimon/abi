@@ -846,34 +846,6 @@ pub const PerformanceProfiler = struct {
         };
     }
 
-    /// Export results to CSV format
-    fn exportToCsv(self: *PerformanceProfiler, allocator: std.mem.Allocator) ![]const u8 {
-        var csv_output = std.ArrayList(u8).init(allocator);
-        defer csv_output.deinit();
-
-        const writer = csv_output.writer();
-
-        // CSV header
-        try writer.print("Workload,Backend,Iterations,Avg_Time_ms,Std_Dev_ms,Throughput_items_sec,Efficiency,Grade,Validation_Passed\n", .{});
-
-        // CSV data
-        for (self.results.items) |*result| {
-            try writer.print("{},{},{},{d:.3},{d:.3},{},{d:.3},{},{}\n", .{
-                @tagName(result.workload),
-                @tagName(result.backend),
-                result.iterations,
-                @as(f64, @floatFromInt(result.avg_time_ns)) / 1_000_000.0,
-                @as(f64, @floatFromInt(result.std_dev_ns)) / 1_000_000.0,
-                result.throughput_items_per_sec,
-                result.calculateEfficiencyScore(),
-                @tagName(result.getPerformanceGrade()),
-                result.validation_passed,
-            });
-        }
-
-        return csv_output.toOwnedSlice();
-    }
-
     /// Export results to HTML format
     fn exportToHtml(self: *PerformanceProfiler, allocator: std.mem.Allocator) ![]const u8 {
         var html_output = std.ArrayList(u8).init(allocator);
