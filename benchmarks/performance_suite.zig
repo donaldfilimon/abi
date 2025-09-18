@@ -101,9 +101,22 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
                 .b = test_vectors.b,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "SIMD Dot Product ({} elements)", .{size}), "SIMD", simd_context.simdDot, simd_context);
+            // Create wrapper functions for benchmark framework
+            const simd_dot_fn = struct {
+                fn call(ctx: @TypeOf(simd_context)) !f32 {
+                    return ctx.simdDot();
+                }
+            }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Scalar Dot Product ({} elements)", .{size}), "SIMD", simd_context.scalarDot, simd_context);
+            const scalar_dot_fn = struct {
+                fn call(ctx: @TypeOf(simd_context)) !f32 {
+                    return ctx.scalarDot();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "SIMD Dot Product ({} elements)", .{size}), "SIMD", simd_dot_fn, simd_context);
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Scalar Dot Product ({} elements)", .{size}), "SIMD", scalar_dot_fn, simd_context);
 
             // SIMD vector addition
             const add_context = struct {
@@ -124,9 +137,22 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
                 .result = test_vectors.result,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "SIMD Vector Add ({} elements)", .{size}), "SIMD", add_context.simdAdd, add_context);
+            // Create wrapper functions for benchmark framework
+            const simd_add_fn = struct {
+                fn call(ctx: @TypeOf(add_context)) !void {
+                    return ctx.simdAdd();
+                }
+            }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Scalar Vector Add ({} elements)", .{size}), "SIMD", add_context.scalarAdd, add_context);
+            const scalar_add_fn = struct {
+                fn call(ctx: @TypeOf(add_context)) !void {
+                    return ctx.scalarAdd();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "SIMD Vector Add ({} elements)", .{size}), "SIMD", simd_add_fn, add_context);
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Scalar Vector Add ({} elements)", .{size}), "SIMD", scalar_add_fn, add_context);
         }
     }
 
@@ -137,7 +163,7 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
             const dimensions = 128;
 
             // Create test vectors
-            var vectors = try self.allocator.alloc([dimensions]f32, db_size);
+            const vectors = try self.allocator.alloc([dimensions]f32, db_size);
             defer self.allocator.free(vectors);
 
             // Initialize with test data
@@ -149,7 +175,7 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
 
             // Create query vector
             var query: [dimensions]f32 = undefined;
-            for (query, 0..) |*val, i| {
+            for (&query, 0..) |*val, i| {
                 val.* = @sin(@as(f32, @floatFromInt(i)) / 10.0);
             }
 
@@ -175,7 +201,14 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
                 .query = &query,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Similarity Search ({} vectors)", .{db_size}), "Database", search_context.vectorSearch, search_context);
+            // Create wrapper function for benchmark framework
+            const vector_search_fn = struct {
+                fn call(ctx: @TypeOf(search_context)) !usize {
+                    return ctx.vectorSearch();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Similarity Search ({} vectors)", .{db_size}), "Database", vector_search_fn, search_context);
 
             // Benchmark vector insertion simulation
             const insert_context = struct {
@@ -191,7 +224,14 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
                 .vector_size = dimensions,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Insertion ({}D)", .{dimensions}), "Database", insert_context.vectorInsertion, insert_context);
+            // Create wrapper function for benchmark framework
+            const vector_insert_fn = struct {
+                fn call(ctx: @TypeOf(insert_context)) !void {
+                    return ctx.vectorInsertion();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Insertion ({}D)", .{dimensions}), "Database", vector_insert_fn, insert_context);
         }
     }
 
@@ -211,8 +251,21 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
             }
         }{};
 
-        try self.framework_suite.runBenchmark("Atomic Increment", "Concurrency", atomic_context.atomicIncrement, atomic_context);
-        try self.framework_suite.runBenchmark("Compare-and-Swap", "Concurrency", atomic_context.compareAndSwap, atomic_context);
+        // Create wrapper functions for benchmark framework
+        const atomic_inc_fn = struct {
+            fn call(ctx: @TypeOf(atomic_context)) !u64 {
+                return ctx.atomicIncrement();
+            }
+        }.call;
+
+        const cas_fn = struct {
+            fn call(ctx: @TypeOf(atomic_context)) !bool {
+                return ctx.compareAndSwap();
+            }
+        }.call;
+
+        try self.framework_suite.runBenchmark("Atomic Increment", "Concurrency", atomic_inc_fn, atomic_context);
+        try self.framework_suite.runBenchmark("Compare-and-Swap", "Concurrency", cas_fn, atomic_context);
 
         // Lock-free queue simulation
         const queue_context = struct {
@@ -224,7 +277,14 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
             }
         }{};
 
-        try self.framework_suite.runBenchmark("Lock-free Queue Operations", "Concurrency", queue_context.lockFreeQueue, queue_context);
+        // Create wrapper function for benchmark framework
+        const queue_fn = struct {
+            fn call(ctx: @TypeOf(queue_context)) !void {
+                return ctx.lockFreeQueue();
+            }
+        }.call;
+
+        try self.framework_suite.runBenchmark("Lock-free Queue Operations", "Concurrency", queue_fn, queue_context);
     }
 
     fn benchmarkTextProcessing(self: *EnhancedPerformanceBenchmarkSuite) !void {
@@ -262,11 +322,30 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
                 .text = text,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Text Tokenization ({} bytes)", .{size}), "Text", text_context.tokenize, text_context);
+            // Create wrapper functions for benchmark framework
+            const tokenize_fn = struct {
+                fn call(ctx: @TypeOf(text_context)) !usize {
+                    return ctx.tokenize();
+                }
+            }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Text Search ({} bytes)", .{size}), "Text", text_context.search, text_context);
+            const search_fn = struct {
+                fn call(ctx: @TypeOf(text_context)) !?usize {
+                    return ctx.search();
+                }
+            }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Text Hashing ({} bytes)", .{size}), "Text", text_context.hash, text_context);
+            const hash_fn = struct {
+                fn call(ctx: @TypeOf(text_context)) !u64 {
+                    return ctx.hash();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Text Tokenization ({} bytes)", .{size}), "Text", tokenize_fn, text_context);
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Text Search ({} bytes)", .{size}), "Text", search_fn, text_context);
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Text Hashing ({} bytes)", .{size}), "Text", hash_fn, text_context);
         }
     }
 
@@ -288,7 +367,14 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
                 .size = size,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Memory Allocation ({} bytes)", .{size}), "Memory", alloc_context.memoryAllocation, alloc_context);
+            // Create wrapper function for benchmark framework
+            const alloc_fn = struct {
+                fn call(ctx: @TypeOf(alloc_context)) !void {
+                    return ctx.memoryAllocation();
+                }
+            }.call;
+
+            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Memory Allocation ({} bytes)", .{size}), "Memory", alloc_fn, alloc_context);
         }
     }
 };
@@ -372,7 +458,7 @@ pub fn main() !void {
         },
     };
 
-    var suite = EnhancedPerformanceBenchmarkSuite.init(allocator, config);
+    var suite = try EnhancedPerformanceBenchmarkSuite.init(allocator, config);
     defer suite.deinit();
 
     try suite.runAllBenchmarks();
