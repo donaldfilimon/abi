@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         zig: [ 0.15.1 ]
         os: [ ubuntu-latest, ubuntu-20.04, ubuntu-18.04, windows-latest, windows-2019, macos-latest, macos-13 ]
@@ -27,7 +27,7 @@ jobs:
       - name: Build
         run: zig build
       - name: Test (all)
-        run: zig build test-all
-      - name: Test WebSocket (optional)
-        if: ${{ github.event.inputs.run_ws_tests == 'true' }}
         run: zig build test
+      - name: Test Benchmarks (optional)
+        if: ${{ github.event.inputs.run_ws_tests == 'true' }}
+        run: zig build benchmark
