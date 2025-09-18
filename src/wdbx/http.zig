@@ -556,11 +556,6 @@ pub const WdbxHttpServer = struct {
     }
 
     /// Neighbor result structure
-    const NeighborResult = struct {
-        index: u64,
-        distance: f32,
-    };
-
     /// Format neighbors array for JSON output
     fn formatNeighbors(self: *Self, neighbors: []const NeighborResult) ![]const u8 {
         var buffer = try std.ArrayList(u8).initCapacity(self.allocator, 256);
