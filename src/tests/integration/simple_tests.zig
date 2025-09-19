@@ -13,17 +13,29 @@
 const std = @import("std");
 const abi = @import("../../mod.zig");
 
-/// Main entry point - dispatch to appropriate test
+// ---------------------------------------------------------------------------
+// Utility
+// ---------------------------------------------------------------------------
+
+/// Prints the usage banner for this tool.
+fn printUsage(prog: []const u8) void {
+    std.debug.print("Usage: {s} [tcp|http|db]\n", .{prog});
+    std.debug.print("Available tests:\n", .{});
+    std.debug.print("  tcp  - Test TCP connectivity to WDBX server\n", .{});
+    std.debug.print("  http - Test basic HTTP server functionality\n", .{});
+    std.debug.print("  db   - Test database integration\n", .{});
+}
+
+// ---------------------------------------------------------------------------
+// Main entry point - dispatch to appropriate test
+// ---------------------------------------------------------------------------
+
 pub fn main() !void {
     const args = try std.process.argsAlloc(std.heap.page_allocator);
     defer std.process.argsFree(std.heap.page_allocator, args);
 
     if (args.len < 2) {
-        std.debug.print("Usage: {s} [tcp|http|db]\n", .{args[0]});
-        std.debug.print("Available tests:\n", .{});
-        std.debug.print("  tcp  - Test TCP connectivity to WDBX server\n", .{});
-        std.debug.print("  http - Test basic HTTP server functionality\n", .{});
-        std.debug.print("  db   - Test database integration\n", .{});
+        printUsage(args[0]);
         return error.InvalidArguments;
     }
 
@@ -40,14 +52,17 @@ pub fn main() !void {
     }
 }
 
-/// Test TCP connectivity to WDBX server (enhanced for Windows compatibility)
+// ---------------------------------------------------------------------------
+// Test TCP connectivity to WDBX server (enhanced for Windows compatibility)
+// ---------------------------------------------------------------------------
+
 fn runTcpTest() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     _ = gpa.allocator();
 
     std.debug.print("🔌 Simple TCP Test for WDBX Server (Windows Enhanced)\n", .{});
-    std.debug.print("==================================================\n\n", .{});
+    std.debug.print("=================================================\n\n", .{});
 
     const address = std.net.Address.parseIp("127.0.0.1", 8080) catch {
         std.debug.print("❌ Failed to parse address\n", .{});
@@ -59,7 +74,7 @@ fn runTcpTest() !void {
     const connection = std.net.tcpConnectToAddress(address) catch |err| {
         std.debug.print("❌ Connection failed: {}\n", .{err});
         std.debug.print("💡 Make sure the WDBX server is running: .\\zig-out\\bin\\abi.exe http\n", .{});
-        return;
+        return err;
     };
     defer connection.close();
 
@@ -70,7 +85,7 @@ fn runTcpTest() !void {
 
     std.debug.print("✅ Connected successfully!\n", .{});
 
-    // Test different endpoints
+    // Define a list of HTTP requests to test
     const requests = [_][]const u8{
         "GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
         "GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
@@ -80,36 +95,21 @@ fn runTcpTest() !void {
     for (requests, 0..) |request, i| {
         std.debug.print("\n🧪 Test {d}: Sending request...\n", .{i + 1});
 
-        _ = connection.write(request) catch |err| {
+        // Send request
+        connection.writer().writeAll(request) catch |err| {
             std.debug.print("❌ Write failed: {}\n", .{err});
             continue;
         };
 
         std.debug.print("📤 Request sent, waiting for response...\n", .{});
 
-        var buffer: [4096]u8 = undefined;
-        const bytes_read = connection.read(&buffer) catch |err| {
-            switch (err) {
-                error.ConnectionResetByPeer => {
-                    std.debug.print("⚠️ Connection reset by server (this is normal on Windows)\n", .{});
-                    std.debug.print("✅ This indicates the server is running and handling connections properly!\n", .{});
-                },
-                error.Unexpected => {
-                    std.debug.print("⚠️ Unexpected error (this is normal Windows networking behavior)\n", .{});
-                    std.debug.print("✅ Server is responding with graceful error handling!\n", .{});
-                },
-                error.BrokenPipe => {
-                    std.debug.print("⚠️ Broken pipe (client disconnected, normal on Windows)\n", .{});
-                    std.debug.print("✅ Server handled disconnection gracefully!\n", .{});
-                },
-                else => std.debug.print("❌ Read error: {}\n", .{err}),
-            }
-            continue;
-        };
+        // Read the full response until the socket closes
+        const response = try std.io.readAllToAlloc(std.heap.page_allocator, connection.reader(), 64 * 1024);
+        defer std.heap.page_allocator.free(response);
 
-        if (bytes_read > 0) {
-            std.debug.print("📥 Received {d} bytes:\n", .{bytes_read});
-            std.debug.print("--- Response ---\n{s}\n--- End Response ---\n", .{buffer[0..bytes_read]});
+        if (response.len > 0) {
+            std.debug.print("📥 Received {d} bytes:\n", .{response.len});
+            std.debug.print("--- Response ---\n{s}\n--- End Response ---\n", .{response});
         } else {
             std.debug.print("📥 No data received (connection closed by server)\n", .{});
         }
@@ -120,11 +120,13 @@ fn runTcpTest() !void {
     std.debug.print("ℹ️ The 'connection reset' behavior is expected and properly handled.\n", .{});
 }
 
-/// Test basic HTTP server functionality
+// ---------------------------------------------------------------------------
+// Test basic HTTP server functionality
+// ---------------------------------------------------------------------------
+
 fn runHttpTest() !void {
     const allocator = std.heap.page_allocator;
 
-    // Create a simple HTTP server
     var server = std.http.Server.init(.{
         .allocator = allocator,
         .reuse_address = true,
@@ -153,7 +155,10 @@ fn runHttpTest() !void {
     }
 }
 
-/// Test database integration functionality
+// ---------------------------------------------------------------------------
+// Test database integration functionality
+// ---------------------------------------------------------------------------
+
 fn runDatabaseTest() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -161,7 +166,6 @@ fn runDatabaseTest() !void {
 
     std.log.info("🧪 Running Simple Integration Test", .{});
 
-    // Test basic database functionality
     const test_file = "test_simple_integration.wdbx";
     defer std.fs.cwd().deleteFile(test_file) catch {};
 
@@ -179,16 +183,16 @@ fn runDatabaseTest() !void {
     const results = try db.search(&test_vector, 5, allocator);
     defer allocator.free(results);
 
-    // Format the results count safely
-    const result_count = results.len;
-    std.log.info("  Found {} similar vectors", .{result_count});
+    std.log.info("  Found {} similar vectors", .{results.len});
 
     std.log.info("✅ Simple integration test passed", .{});
 }
 
-/// Configure client socket for Windows compatibility
+// ---------------------------------------------------------------------------
+// Configure client socket for Windows compatibility
+// ---------------------------------------------------------------------------
+
 fn configureClientSocket(connection: std.net.Stream) !void {
-    // Try to configure socket options (may fail on some systems)
     const handle = connection.handle;
 
     // Set TCP_NODELAY for better performance
