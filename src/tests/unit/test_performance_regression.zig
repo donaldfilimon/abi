@@ -150,15 +150,14 @@ test "SIMD performance regression - vector operations" {
             va.* = @as(f32, @floatFromInt(std.crypto.random.int(u8))) / 255.0;
             vb.* = @as(f32, @floatFromInt(std.crypto.random.int(u8))) / 255.0;
         }
-
-        const opts = root.simd.SIMDOpts{};
-
+        const simd = @import("simd");
+        const opts = simd.SIMDOpts{};
         // Benchmark dot product
         var timer = try std.time.Timer.start();
         const iterations = 1000;
 
         for (0..iterations) |_| {
-            _ = root.simd.dotProductSIMD(a, b, opts);
+            _ = simd.dotProductSIMD(a, b, opts);
         }
 
         const dot_time = timer.read();
@@ -167,7 +166,7 @@ test "SIMD performance regression - vector operations" {
         // Benchmark vector addition
         timer.reset();
         for (0..iterations) |_| {
-            _ = root.simd.vectorAddSIMD(a, b, result);
+            _ = simd.vectorAddSIMD(a, b, result);
         }
 
         const add_time = timer.read();
@@ -217,9 +216,10 @@ test "SIMD performance regression - text operations" {
         var timer = try std.time.Timer.start();
         const iterations = 1000;
 
+        const simd = @import("simd");
         for (0..iterations) |_| {
-            _ = root.simd.text.countByte(test_case.text, 'e');
-            _ = root.simd.text.findByte(test_case.text, 'e');
+            _ = simd.text.countByte(test_case.text, 'e');
+            _ = simd.text.findByte(test_case.text, 'e');
         }
 
         const total_time = timer.read();
@@ -393,7 +393,7 @@ test "benchmark baseline establishment" {
         const iterations = 1000;
 
         for (0..iterations) |_| {
-            _ = root.simd.dotProductSIMD(a, b, .{});
+            _ = @import("simd").dotProductSIMD(a, b, .{});
         }
 
         const time_ns = timer.read() / iterations;

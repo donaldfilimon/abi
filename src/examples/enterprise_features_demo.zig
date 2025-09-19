@@ -9,9 +9,10 @@
 //! - Scalability and reliability features
 
 const std = @import("std");
+
 const ai = @import("ai");
-const monitoring = @import("monitoring");
 const model_registry = @import("ai").model_registry;
+const monitoring = @import("monitoring");
 
 /// Enterprise ML Platform
 pub const EnterpriseMLPlatform = struct {
@@ -132,7 +133,7 @@ pub const EnterpriseMLPlatform = struct {
 
         const output_size = model_entry.output_shape[0];
 
-        for (test_data, test_labels) |input, label| {
+        for (test_data, test_labels) |_, label| {
             // Forward pass (simplified)
             const prediction = try self.allocator.alloc(f32, output_size);
             defer self.allocator.free(prediction);
@@ -162,6 +163,7 @@ pub const EnterpriseMLPlatform = struct {
         defer self.allocator.free(perf_metrics);
 
         const avg_loss = total_loss / @as(f32, @floatFromInt(test_data.len));
+        _ = avg_loss; // autofix
         const avg_accuracy = total_accuracy / @as(f32, @floatFromInt(test_data.len));
         const avg_precision = total_precision / @as(f32, @floatFromInt(test_data.len));
         const avg_recall = total_recall / @as(f32, @floatFromInt(test_data.len));
@@ -352,7 +354,7 @@ pub const SecurityAuditor = struct {
     }
 
     pub fn logEvent(self: *SecurityAuditor, event: AuditEvent) !void {
-        var logged_event = AuditEvent{
+        const logged_event = AuditEvent{
             .timestamp = event.timestamp,
             .event_type = event.event_type,
             .user = try self.allocator.dupe(u8, event.user),

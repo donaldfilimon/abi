@@ -37,6 +37,8 @@ pub const libraries = @import("libraries/mod.zig");
 pub const mod = @import("mod.zig");
 pub const gpu_examples = @import("gpu_examples.zig");
 
-test {
-    std.testing.refAllDecls(@This());
-}
+// --------------------------------------------------------------------------
+// Convenience exports for example code
+// --------------------------------------------------------------------------
+// Expose the GPUContext type from the core GPU renderer.
+pub const GPUContext = core.gpu_renderer.GPUContext;

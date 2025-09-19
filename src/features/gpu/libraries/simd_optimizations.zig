@@ -154,7 +154,9 @@ pub const SIMDMath = struct {
 
     /// SIMD element-wise reciprocal square root
     pub fn rsqrt(v: anytype) @TypeOf(v) {
-        return @rsqrt(v);
+        // Compute reciprocal square root as 1.0 / sqrt(v)
+        const one = @as(@TypeOf(v), @splat(1.0));
+        return one / @sqrt(v);
     }
 
     /// SIMD element-wise exponential
@@ -216,6 +218,7 @@ pub const SIMDMath = struct {
         // Optimized matrix multiplication using SIMD
         const Vec4f = @Vector(4, f32);
         const Vec8f = @Vector(8, f32);
+        _ = Vec8f; // autofix
 
         var i: usize = 0;
         while (i < m) : (i += 1) {
