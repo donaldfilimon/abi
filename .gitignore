@@ -36,6 +36,7 @@ logs/
 # Database files
 *.wdbx
 *.wdbx.wal
+*.wal
 *.db
 *.sqlite
 

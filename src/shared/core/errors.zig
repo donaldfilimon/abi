@@ -44,7 +44,13 @@ pub const AbiError = error{
     IndexError,
     QueryError,
     TransactionError,
+
+    // Miscellaneous
+    OperationFailed, // Generic operation failure used by legacy modules
 };
+
+/// Alias for legacy compatibility.
+pub const FrameworkError = AbiError;
 
 /// Result type for operations that can fail.
 pub fn Result(comptime T: type) type {

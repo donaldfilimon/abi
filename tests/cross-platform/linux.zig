@@ -6,7 +6,6 @@ test "Linux file operations" {
     if (builtin.os.tag != .linux) return error.SkipZigTest;
 
     // Test Linux-specific file operations
-    const allocator = std.testing.allocator;
 
     // Test /proc filesystem access
     const proc_stat = std.fs.openFileAbsolute("/proc/stat", .{}) catch |err| {
