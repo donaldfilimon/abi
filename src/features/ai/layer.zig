@@ -2115,7 +2115,7 @@ test "layer creation and initialization" {
 
     // Initialize weights
     var rng = std.Random.DefaultPrng.init(42);
-    try layer.initializeWeights(&rng.random());
+    try layer.initializeWeights(rng.random());
 
     // Check that weights were allocated
     try testing.expect(layer.weights != null);
@@ -2137,7 +2137,7 @@ test "dense layer forward pass" {
 
     // Initialize with known weights for testing
     var rng = std.Random.DefaultPrng.init(42);
-    try layer.initializeWeights(&rng.random());
+    try layer.initializeWeights(rng.random());
 
     // Test forward pass
     const input = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
@@ -2170,7 +2170,7 @@ test "batch normalization layer" {
     defer layer.deinit();
 
     var rng = std.Random.DefaultPrng.init(42);
-    try layer.initializeWeights(&rng.random());
+    try layer.initializeWeights(rng.random());
 
     const input = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0 };
     var output = [_]f32{0} ** 10;
@@ -2201,7 +2201,7 @@ test "layer memory management" {
     defer layer.deinit();
 
     var rng = std.Random.DefaultPrng.init(42);
-    try layer.initializeWeights(&rng.random());
+    try layer.initializeWeights(rng.random());
 
     // Check memory usage calculation
     const memory_usage = layer.getMemoryUsage();

@@ -1975,7 +1975,7 @@ pub const GPURenderer = struct {
         }
 
         print("\n🚀 === Optimized GPU Examples with Performance Monitoring ===\n", .{});
-        print("Backend: {s}, Optimizations: comptime + inline + stack allocation\n", .{self.backend.toString()});
+        print("Backend: {any}, Optimizations: comptime + inline + stack allocation\n", .{self.backend});
 
         // Performance tracking
         const start_time = std.time.nanoTimestamp();

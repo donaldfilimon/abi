@@ -1,6 +1,6 @@
 const std = @import("std");
 const gpu_renderer = @import("gpu_renderer");
-const backends = @import("backends");
+const backends = @import("../backends/mod.zig");
 const math = @import("math");
 const crypto = @import("crypto");
 

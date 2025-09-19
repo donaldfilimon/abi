@@ -1935,7 +1935,7 @@ fn runChatCommand(allocator: std.mem.Allocator, args: [][:0]u8) !void {
     } else if (interactive) {
         // Interactive mode
         std.debug.print("Chat mode (type 'quit' to exit, 'help' for commands)\n", .{});
-        std.debug.print("Persona: {s}, Backend: {s}, Model: {s}\n", .{ final_persona, final_backend, final_model });
+        std.debug.print("Persona: {s}, Backend: {any}, Model: {any}\n", .{ final_persona, final_backend, final_model });
 
         // Interactive chat mode (basic implementation)
         std.debug.print("Interactive Chat Mode - Type 'quit' to exit, 'help' for commands\n", .{});
