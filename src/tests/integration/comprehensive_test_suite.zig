@@ -34,6 +34,11 @@ const TestConfig = struct {
     pub fn init(allocator: std.mem.Allocator) TestConfig {
         return .{
             .allocator = allocator,
+            .test_timeout_ms = 30000,
+            .memory_limit_mb = 512,
+            .enable_performance_tests = true,
+            .enable_integration_tests = true,
+            .enable_security_tests = true,
         };
     }
 };

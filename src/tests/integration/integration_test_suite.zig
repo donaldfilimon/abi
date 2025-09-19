@@ -42,6 +42,10 @@ fn testDatabaseAIIntegration(allocator: std.mem.Allocator) !void {
     try network.addDenseLayer(128, .relu);
     try network.compile();
 
+    // Allocate output buffer once and reuse for each forward pass
+    const output = try allocator.alloc(f32, 128);
+    defer allocator.free(output);
+
     // Generate embeddings and store in database
     for (0..50) |i| {
         var input: [128]f32 = undefined;
@@ -50,8 +54,6 @@ fn testDatabaseAIIntegration(allocator: std.mem.Allocator) !void {
         }
 
         // Generate embedding using trained network
-        const output = try allocator.alloc(f32, 128);
-        defer allocator.free(output);
         try network.forward(&input, output);
 
         // Store in database
@@ -92,6 +94,16 @@ fn testSIMDDatabaseIntegration(allocator: std.mem.Allocator) !void {
     const vector_count = 100;
     const vector_size = 128;
 
+    // Allocate offset buffer once; it is constant across iterations
+    var offset: [vector_size]f32 = undefined;
+    for (&offset, 0..) |*v, j| {
+        v.* = @as(f32, @floatFromInt(j)) * 0.01;
+    }
+
+    // Allocate reusable buffers for processed and normalized vectors
+    var processed_vector: [vector_size]f32 = undefined;
+    var normalized_vector: [vector_size]f32 = undefined;
+
     for (0..vector_count) |i| {
         // Create base vector
         var base_vector: [vector_size]f32 = undefined;
@@ -100,15 +112,6 @@ fn testSIMDDatabaseIntegration(allocator: std.mem.Allocator) !void {
         }
 
         // Apply SIMD operations
-        var processed_vector: [vector_size]f32 = undefined;
-        var normalized_vector: [vector_size]f32 = undefined;
-
-        // Add some offset
-        var offset: [vector_size]f32 = undefined;
-        for (&offset, 0..) |*v, j| {
-            v.* = @as(f32, @floatFromInt(j)) * 0.01;
-        }
-
         abi.VectorOps.add(&processed_vector, &base_vector, &offset);
         abi.VectorOps.normalize(&normalized_vector, &processed_vector);
 
@@ -192,6 +195,10 @@ fn testEndToEndWorkflow(allocator: std.mem.Allocator) !void {
     try network.addDenseLayer(128, .relu);
     try network.compile();
 
+    // Allocate embedding buffer once and reuse
+    const embedding = try allocator.alloc(f32, 128);
+    defer allocator.free(embedding);
+
     // Step 3: Generate and process data
     const data_count = 200;
     for (0..data_count) |i| {
@@ -202,8 +209,6 @@ fn testEndToEndWorkflow(allocator: std.mem.Allocator) !void {
         }
 
         // Process with AI
-        const embedding = try allocator.alloc(f32, 128);
-        defer allocator.free(embedding);
         try network.forward(&raw_data, embedding);
 
         // Apply SIMD operations

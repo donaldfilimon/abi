@@ -12,6 +12,7 @@ pub const SimpleMetrics = struct {
     struct_count: u32 = 0,
     comment_lines: u32 = 0,
     complexity_score: u32 = 0,
+    simd_function_count: u32 = 0,
 
     pub fn format(
         self: SimpleMetrics,
@@ -25,6 +26,7 @@ pub const SimpleMetrics = struct {
         try writer.print("Simple Code Quality Metrics:\n", .{});
         try writer.print("  Lines of Code: {}\n", .{self.lines_of_code});
         try writer.print("  Functions: {}\n", .{self.function_count});
+        try writer.print("  SIMD Functions: {}\n", .{self.simd_function_count});
         try writer.print("  Structs: {}\n", .{self.struct_count});
         try writer.print("  Comment Lines: {}\n", .{self.comment_lines});
         try writer.print("  Complexity Score: {}\n", .{self.complexity_score});
@@ -70,12 +72,25 @@ pub const SimpleCodeAnalyzer = struct {
     fn analyzeContent(self: *SimpleCodeAnalyzer, content: []const u8) !void {
         var lines = std.mem.splitScalar(u8, content, '\n');
 
+        // State variables for SIMD detection
+        var in_function = false;
+        var simd_detected_this_function = false;
+
         while (lines.next()) |line| {
             self.metrics.lines_of_code += 1;
 
             // Count functions
             if (std.mem.indexOf(u8, line, "fn ") != null) {
                 self.metrics.function_count += 1;
+
+                // End previous function's SIMD detection
+                if (in_function and simd_detected_this_function) {
+                    self.metrics.simd_function_count += 1;
+                }
+
+                // Start new function
+                in_function = true;
+                simd_detected_this_function = false;
             }
 
             // Count structs
@@ -88,13 +103,24 @@ pub const SimpleCodeAnalyzer = struct {
                 self.metrics.comment_lines += 1;
             }
 
-            // Simple complexity scoring
-            if (std.mem.indexOf(u8, line, "if ") != null or
+            // Simple complexity scoring – ignore SIMD vector operations
+            if ((std.mem.indexOf(u8, line, "if ") != null or
                 std.mem.indexOf(u8, line, "while ") != null or
-                std.mem.indexOf(u8, line, "for ") != null)
+                std.mem.indexOf(u8, line, "for ") != null) and
+                std.mem.indexOf(u8, line, "@Vector") == null)
             {
                 self.metrics.complexity_score += 1;
             }
+
+            // Detect SIMD usage inside a function
+            if (in_function and std.mem.indexOf(u8, line, "@Vector") != null) {
+                simd_detected_this_function = true;
+            }
+        }
+
+        // Handle last function's SIMD detection
+        if (in_function and simd_detected_this_function) {
+            self.metrics.simd_function_count += 1;
         }
     }
 
@@ -104,7 +130,7 @@ pub const SimpleCodeAnalyzer = struct {
         errdefer report.deinit();
 
         try report.appendSlice("Simple Code Quality Analysis Report\n");
-        try report.appendSlice("==================================\n\n");
+        try report.appendSlice("================================\n\n");
 
         try std.fmt.format(report.writer(), "{}\n", .{self.metrics});
 
@@ -122,7 +148,7 @@ pub fn main() !void {
     defer analyzer.deinit();
 
     std.log.info("🔍 Simple Code Quality Analyzer", .{});
-    std.log.info("=================================", .{});
+    std.log.info("================================", .{});
 
     // Analyze source files
     const source_dirs = [_][]const u8{ "src", "tests", "tools" };
