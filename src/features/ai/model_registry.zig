@@ -101,8 +101,8 @@ pub const ModelEntry = struct {
             .deployment_version = null,
             .model_path = "",
             .checkpoint_path = null,
-            .tags = ArrayList([]const u8).initCapacity(allocator, 0),
-            .categories = ArrayList([]const u8).initCapacity(allocator, 0),
+            .tags = ArrayList([]const u8).initCapacity(allocator, 0) catch return error.OutOfMemory,
+            .categories = ArrayList([]const u8).initCapacity(allocator, 0) catch return error.OutOfMemory,
         };
     }
 
@@ -155,8 +155,8 @@ pub const ModelRegistry = struct {
         return ModelRegistry{
             .allocator = allocator,
             .models = StringHashMap(*ModelEntry).init(allocator),
-            .versions = StringHashMap(ArrayList(*ModelEntry)).initCapacity(allocator, 0),
-            .metrics_history = StringHashMap(ArrayList(PerformanceMetrics)).initCapacity(allocator, 0),
+            .versions = StringHashMap(ArrayList(*ModelEntry)).init(allocator),
+            .metrics_history = StringHashMap(ArrayList(PerformanceMetrics)).init(allocator),
         };
     }
 

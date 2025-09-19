@@ -157,7 +157,7 @@ pub const CPUProfiler = struct {
 
     pub fn init(allocator: std.mem.Allocator, sampling_rate: u32) CPUProfiler {
         return CPUProfiler{
-            .samples = std.ArrayList(Sample).initCapacity(allocator, 0),
+            .samples = std.ArrayList(Sample).initCapacity(allocator, 0) catch return error.OutOfMemory,
             .sampling_rate = sampling_rate,
             .running = std.atomic.Value(bool).init(false),
         };
@@ -442,7 +442,7 @@ test "performance monitoring" {
 
     // Test timer
     const timer = Timer.start("test_timer");
-    std.time.sleep_ns(1_000_000); // 1ms
+    std.time.sleep(1_000_000); // 1ms
     timer.stop();
 }
 

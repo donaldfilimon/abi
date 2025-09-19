@@ -218,13 +218,16 @@ pub const Model = struct {
 
     /// Serializes the model to JSON format for persistence
     pub fn toJson(self: Model, allocator: Allocator) ![]u8 {
-        return std.json.stringifyAlloc(allocator, .{
+        var buffer = std.ArrayList(u8).init(allocator);
+        defer buffer.deinit();
+        try std.json.stringify(.{
             .weights = self.weights,
             .bias = self.bias,
             .is_trained = self.is_trained,
             .training_loss = self.training_loss,
             .training_epochs = self.training_epochs,
-        }, .{});
+        }, .{}, buffer.writer());
+        return buffer.toOwnedSlice();
     }
 
     /// Deserializes a model from JSON format
