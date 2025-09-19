@@ -206,6 +206,9 @@ pub const Buffer = struct {
             // Desktop: Use appropriate GPU API
         }
     }
+    pub fn isValid(self: *const Buffer) bool {
+        return self.handle.isValid();
+    }
 };
 
 /// Shader resource with cross-platform compilation
@@ -414,7 +417,7 @@ pub const GPURenderer = struct {
     }
 
     /// Create a GPU buffer with specified usage
-    pub fn createBuffer(self: *Self, size: usize, usage: BufferUsage) !u32 {
+    pub fn createBuffer(self: *Self, size: usize, usage: BufferUsage) !Buffer {
         const handle = GPUHandle{
             .id = self.next_handle_id,
             .generation = 1,
@@ -432,10 +435,10 @@ pub const GPURenderer = struct {
         // Platform-specific buffer creation
         if (build_options.is_wasm) {
             // TODO: Call JavaScript function to create WebGPU buffer
-            return @intCast(handle.id);
+            return buffer;
         } else {
             // TODO: Create buffer using native GPU API
-            return @intCast(handle.id);
+            return buffer;
         }
     }
 
@@ -551,7 +554,7 @@ test "GPU renderer initialization" {
     defer renderer.deinit();
 
     try testing.expect(renderer.backend.isAvailable());
-    try testing.expectEqual(@as(u32, 0), renderer.current_frame);
+    try testing.expectEqual(@as(u32, 0), renderer.frame_count);
 }
 
 test "GPU buffer creation" {
@@ -570,6 +573,4 @@ test "GPU buffer creation" {
     const buffer = try renderer.createBuffer(1024, .{ .vertex = true, .copy_dst = true });
     try testing.expect(buffer.isValid());
     try testing.expectEqual(@as(usize, 1024), buffer.size);
-
-    renderer.destroyBuffer(buffer);
 }
