@@ -1,4 +1,43 @@
-//! SIMD-accelerated operations for high-performance computing
+/// SIMD-accelerated operations for high-performance computing
+// Simple utility functions for tests and basic API
+// Distance between two equal-length slices
+pub fn distance(a: []const f32, b: []const f32) f32 {
+    if (a.len != b.len) {
+        @panic("distance requires equal-length slices");
+    }
+    var sum: f32 = 0.0;
+    for (a, b) |va, vb| {
+        const diff = va - vb;
+        sum += diff * diff;
+    }
+    return std.math.sqrt(sum);
+}
+
+// Cosine similarity between two equal-length slices
+pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
+    if (a.len != b.len) {
+        @panic("cosineSimilarity requires equal-length slices");
+    }
+    var dot: f32 = 0.0;
+    var normA: f32 = 0.0;
+    var normB: f32 = 0.0;
+    for (a, b) |va, vb| {
+        dot += va * vb;
+        normA += va * va;
+        normB += vb * vb;
+    }
+    const denom = std.math.sqrt(normA) * std.math.sqrt(normB);
+    if (denom == 0.0) return 0.0;
+    return dot / denom;
+}
+
+// Dummy performance monitor struct for tests
+pub const PerformanceMonitor = struct {};
+pub fn getPerformanceMonitor() PerformanceMonitor { return .{}; }
+pub const SIMDOpts = struct {
+    // Add SIMD options here
+    // TODO: Implement SIMD options
+};
 //! Provides vectorized operations for AI/ML workloads
 
 const std = @import("std");
