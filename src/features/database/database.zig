@@ -260,13 +260,15 @@ pub const Db = struct {
             return;
         }
         const num = wal_len / record_size;
-        const tmp = try self.allocator.alloc(u8, @as(usize, @intCast(record_size)));
+        const dim: usize = @intCast(self.header.dim);
+        const tmp = try self.allocator.alloc(f32, dim);
         defer self.allocator.free(tmp);
+        const tmp_bytes = std.mem.sliceAsBytes(tmp);
         try self.wal_file.?.seekTo(0);
         var i: u64 = 0;
         while (i < num) : (i += 1) {
-            _ = try self.wal_file.?.readAll(tmp);
-            const embedding: []const f32 = @ptrCast(@alignCast(std.mem.bytesAsSlice(f32, tmp)));
+            _ = try self.wal_file.?.readAll(tmp_bytes);
+            const embedding: []const f32 = tmp;
             // Append to main file at current row_count
             const row_index = self.header.row_count;
             const offset: u64 = self.header.records_off + row_index * record_size;
@@ -388,15 +390,29 @@ pub const Db = struct {
 
             if (self.header.dim >= 16 and @hasDecl(std.simd, "f32x16")) {
                 var i: usize = 0;
+                const Vec = std.simd.f32x16;
                 while (i + 16 <= row_data.len) : (i += 16) {
-                    const a = std.simd.f32x16.load(row_data[i..][0..16]);
-                    const b = std.simd.f32x16.load(query[i..][0..16]);
+                    const a: Vec = row_data[i .. i + 16][0..16].*;
+                    const b: Vec = query[i .. i + 16][0..16].*;
                     const diff = a - b;
-                    dist += std.simd.f32x16.reduce_add(diff * diff);
+                    dist += @reduce(.Add, diff * diff);
                 }
                 while (i < row_data.len) : (i += 1) {
                     const d = row_data[i] - query[i];
                     dist += d * d;
+                }
+            } else if (self.header.dim >= 8 and @hasDecl(std.simd, "f32x8")) {
+                var i: usize = 0;
+                const Vec = std.simd.f32x8;
+                while (i + 8 <= row_data.len) : (i += 8) {
+                    const a: Vec = row_data[i .. i + 8][0..8].*;
+                    const b: Vec = query[i .. i + 8][0..8].*;
+                    const diff = a - b;
+                    dist += @reduce(.Add, diff * diff);
+                }
+                while (i < row_data.len) : (i += 1) {
+                    const diff = row_data[i] - query[i];
+                    dist += diff * diff;
                 }
             } else if (self.header.dim > 8) {
                 var i: usize = 0;
@@ -785,12 +801,13 @@ pub const Db = struct {
             // SIMD-optimized distance calculation
             if (a.len >= 16 and @hasDecl(std.simd, "f32x16")) {
                 var i: usize = 0;
+                const Vec = std.simd.f32x16;
                 while (i + 16 <= a.len) : (i += 16) {
-                    const va = std.simd.f32x16.load(a[i..][0..16]);
-                    const vb = std.simd.f32x16.load(b[i..][0..16]);
+                    const va: Vec = a[i .. i + 16][0..16].*;
+                    const vb: Vec = b[i .. i + 16][0..16].*;
                     const diff = va - vb;
                     const sq = diff * diff;
-                    sum += std.simd.f32x16.reduce_add(sq);
+                    sum += @reduce(.Add, sq);
                 }
                 while (i < a.len) : (i += 1) {
                     const diff = a[i] - b[i];
@@ -798,12 +815,13 @@ pub const Db = struct {
                 }
             } else if (a.len >= 8 and @hasDecl(std.simd, "f32x8")) {
                 var i: usize = 0;
+                const Vec = std.simd.f32x8;
                 while (i + 8 <= a.len) : (i += 8) {
-                    const va = std.simd.f32x8.load(a[i..][0..8]);
-                    const vb = std.simd.f32x8.load(b[i..][0..8]);
+                    const va: Vec = a[i .. i + 8][0..8].*;
+                    const vb: Vec = b[i .. i + 8][0..8].*;
                     const diff = va - vb;
                     const sq = diff * diff;
-                    sum += std.simd.f32x8.reduce_add(sq);
+                    sum += @reduce(.Add, sq);
                 }
                 while (i < a.len) : (i += 1) {
                     const diff = a[i] - b[i];
@@ -941,12 +959,13 @@ pub const Db = struct {
             // SIMD-optimized distance calculation
             if (self.header.dim >= 16 and @hasDecl(std.simd, "f32x16")) {
                 var i: usize = 0;
+                const Vec = std.simd.f32x16;
                 while (i + 16 <= row_data.len) : (i += 16) {
-                    const va = std.simd.f32x16.load(row_data[i..][0..16]);
-                    const vb = std.simd.f32x16.load(query[i..][0..16]);
+                    const va: Vec = row_data[i .. i + 16][0..16].*;
+                    const vb: Vec = query[i .. i + 16][0..16].*;
                     const diff = va - vb;
                     const sq = diff * diff;
-                    dist += std.simd.f32x16.reduce_add(sq);
+                    dist += @reduce(.Add, sq);
                 }
                 while (i < row_data.len) : (i += 1) {
                     const diff = row_data[i] - query[i];
@@ -954,12 +973,13 @@ pub const Db = struct {
                 }
             } else if (self.header.dim >= 8 and @hasDecl(std.simd, "f32x8")) {
                 var i: usize = 0;
+                const Vec = std.simd.f32x8;
                 while (i + 8 <= row_data.len) : (i += 8) {
-                    const va = std.simd.f32x8.load(row_data[i..][0..8]);
-                    const vb = std.simd.f32x8.load(query[i..][0..8]);
+                    const va: Vec = row_data[i .. i + 8][0..8].*;
+                    const vb: Vec = query[i .. i + 8][0..8].*;
                     const diff = va - vb;
                     const sq = diff * diff;
-                    dist += std.simd.f32x8.reduce_add(sq);
+                    dist += @reduce(.Add, sq);
                 }
                 while (i < row_data.len) : (i += 1) {
                     const diff = row_data[i] - query[i];
