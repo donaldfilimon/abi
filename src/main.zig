@@ -1,7 +1,17 @@
 const std = @import("std");
+const abi = @import("abi");
 
 pub fn main() !void {
-    // Simple main entry point for the ABI framework
-    std.debug.print("ABI Framework v1.0.0-alpha\n", .{});
-    std.debug.print("Run 'zig build --help' for available commands\n", .{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var framework = try abi.init(gpa.allocator(), .{});
+    defer framework.deinit();
+
+    var buffer: [768]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buffer);
+    try framework.writeSummary(stream.writer());
+
+    const summary = stream.getWritten();
+    std.debug.print("ABI Framework bootstrap complete\n{s}\n", .{summary});
 }
