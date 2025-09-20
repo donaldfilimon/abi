@@ -5,6 +5,9 @@
 //! coordinates feature toggles, plugin discovery, and lifecycle management.
 
 const std = @import("std");
+const framework = @import("framework/mod.zig");
+const core = @import("shared/core/core.zig");
+const lifecycle_mod = @import("shared/core/lifecycle.zig");
 
 // =============================================================================
 // FEATURE AND FRAMEWORK MODULES
