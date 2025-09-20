@@ -71,7 +71,7 @@ fn generateJekyllConfig(_: std.mem.Allocator) !void {
         \\# ABI Documentation - Jekyll Configuration
         \\title: "ABI Documentation"
         \\description: "High-performance vector database with AI capabilities"
-        \\url: "https://donaldfilimon.github.io/abi/"
+        \\url: "https://donaldfilimon.github.io"
         \\baseurl: "/abi"
         \\  
         \\# GitHub Pages settings
@@ -190,9 +190,10 @@ fn generateGitHubPagesLayout(_: std.mem.Allocator) !void {
         \\  <link rel="stylesheet" href="{{ '/assets/css/syntax.css' | relative_url }}">
         \\  
         \\  <!-- Search functionality -->
+        \\  <script>window.__DOCS_BASEURL = {{ site.baseurl | default: '' | jsonify }};</script>
         \\  <script src="{{ '/assets/js/search.js' | relative_url }}" defer></script>
         \\</head>
-        \\<body>
+        \\<body data-baseurl="{{ site.baseurl | default: '' }}">
         \\  <div class="wrapper">
         \\    <header>
         \\      <h1><a href="{{ '/' | relative_url }}">{{ site.title | default: site.github.repository_name }}</a></h1>
@@ -509,7 +510,7 @@ fn generateReadmeRedirect(_: std.mem.Allocator) !void {
         \\
         \\### Developer Resources
         \\- **[Code Index](./generated/CODE_API_INDEX/)** - Auto-generated API index from source
-        \\- **[Native Docs](./native-docs/)** - Zig compiler-generated documentation
+        \\- **[Native Docs](./zig-docs/)** - Zig compiler-generated documentation
         \\- **[Search](./index.html)** - Interactive documentation browser
         \\
         \\## 🔍 Features
@@ -1445,71 +1446,129 @@ fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
         \\(function() {
         \\  'use strict';
         \\
+        \\  const baseUrl = resolveBaseUrl();
+        \\
         \\  // Generate table of contents
         \\  function generateTOC() {
         \\    const content = document.querySelector('.documentation-content .content');
         \\    const tocList = document.getElementById('toc-list');
-        \\    
+        \\
         \\    if (!content || !tocList) return;
         \\
         \\    const headings = content.querySelectorAll('h2, h3, h4');
         \\    if (headings.length === 0) {
-        \\      document.getElementById('toc').style.display = 'none';
+        \\      const toc = document.getElementById('toc');
+        \\      if (toc) toc.style.display = 'none';
         \\      return;
         \\    }
         \\
         \\    headings.forEach((heading, index) => {
         \\      const id = heading.id || `heading-${index}`;
         \\      heading.id = id;
-        \\      
+        \\
         \\      const li = document.createElement('li');
         \\      const a = document.createElement('a');
         \\      a.href = `#${id}`;
         \\      a.textContent = heading.textContent;
         \\      a.className = `toc-${heading.tagName.toLowerCase()}`;
-        \\      
+        \\
         \\      li.appendChild(a);
         \\      tocList.appendChild(li);
         \\    });
+        \\  }
+        \\
+        \\  function resolveBaseUrl() {
+        \\    const fromWindow = typeof window !== 'undefined' && typeof window.__DOCS_BASEURL === 'string'
+        \\      ? window.__DOCS_BASEURL
+        \\      : '';
+        \\    const fromBody = document.body ? (document.body.getAttribute('data-baseurl') || '') : '';
+        \\    const raw = fromBody || fromWindow || '';
+        \\    if (!raw || raw === '/') return '';
+        \\    return raw.endsWith('/') ? raw.slice(0, -1) : raw;
+        \\  }
+        \\
+        \\  function buildUrl(path) {
+        \\    if (!path) return baseUrl || '';
+        \\    const normalized = path.startsWith('/') ? path : `/${path}`;
+        \\    return `${baseUrl}${normalized}`;
+        \\  }
+        \\
+        \\  function escapeHtml(text) {
+        \\    return String(text)
+        \\      .replace(/&/g, '&amp;')
+        \\      .replace(/</g, '&lt;')
+        \\      .replace(/>/g, '&gt;')
+        \\      .replace(/"/g, '&quot;')
+        \\      .replace(/'/g, '&#39;');
+        \\  }
+        \\
+        \\  function escapeAttribute(text) {
+        \\    return escapeHtml(text).replace(/`/g, '&#96;');
+        \\  }
+        \\
+        \\  function escapeRegExp(text) {
+        \\    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         \\  }
         \\
         \\  // Search functionality
         \\  function initializeSearch() {
         \\    const searchInput = document.getElementById('search-input');
         \\    const searchResults = document.getElementById('search-results');
-        \\    
+        \\
         \\    if (!searchInput || !searchResults) return;
         \\
         \\    let searchData = [];
-        \\    
-        \\    // Load search index
-        \\    fetch('/generated/search_index.json')
-        \\      .then(response => response.json())
-        \\      .then(data => {
-        \\        searchData = data;
-        \\      })
-        \\      .catch(error => {
-        \\        console.warn('Search index not available:', error);
-        \\      });
+        \\
+        \\    if (typeof window !== 'undefined' && Array.isArray(window.__ABI_SEARCH_DATA)) {
+        \\      searchData = window.__ABI_SEARCH_DATA.slice();
+        \\    } else {
+        \\      fetch(buildUrl('/generated/search_index.json'))
+        \\        .then(response => response.json())
+        \\        .then(data => {
+        \\          if (Array.isArray(data)) {
+        \\            searchData = data;
+        \\            window.__ABI_SEARCH_DATA = data;
+        \\          }
+        \\        })
+        \\        .catch(error => {
+        \\          console.warn('Search index not available:', error);
+        \\        });
+        \\    }
         \\
         \\    let searchTimeout;
         \\    searchInput.addEventListener('input', function() {
         \\      clearTimeout(searchTimeout);
         \\      const query = this.value.trim().toLowerCase();
-        \\      
+        \\
         \\      if (query.length < 2) {
         \\        searchResults.classList.add('hidden');
         \\        return;
         \\      }
         \\
         \\      searchTimeout = setTimeout(() => {
-        \\        const results = searchData.filter(item => 
-        \\          item.title.toLowerCase().includes(query) || 
+        \\        const results = searchData.filter(item =>
+        \\          item.title.toLowerCase().includes(query) ||
         \\          item.excerpt.toLowerCase().includes(query)
         \\        ).slice(0, 10);
         \\
         \\        displaySearchResults(results, query);
         \\      }, 200);
+        \\    });
+        \\
+        \\    searchResults.addEventListener('click', function(event) {
+        \\      const target = event.target.closest('.search-result-item');
+        \\      if (!target) return;
+        \\
+        \\      if (target.dataset.file) {
+        \\        navigateToPage(target.dataset.file);
+        \\        searchResults.classList.add('hidden');
+        \\        return;
+        \\      }
+        \\
+        \\      if (target.dataset.suggestion) {
+        \\        applySuggestion(target.dataset.suggestion, searchInput);
+        \\        searchResults.classList.add('hidden');
+        \\      }
         \\    });
         \\
         \\    // Hide search results when clicking outside
@@ -1525,27 +1584,42 @@ fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
         \\    if (!searchResults) return;
         \\
         \\    if (results.length === 0) {
-        \\      searchResults.innerHTML = '<div class="search-result-item">No results found</div>';
+        \\      searchResults.innerHTML = '<div class="search-result-item" data-empty="true">No results found</div>';
         \\    } else {
-        \\      searchResults.innerHTML = results.map(result => 
-        \\        `<div class="search-result-item" onclick="navigateToPage('${result.file}')">
-        \\          <div class="search-result-title">${highlightText(result.title, query)}</div>
-        \\          <div class="search-result-excerpt">${highlightText(result.excerpt, query)}</div>
-        \\        </div>`
-        \\      ).join('');
+        \\      const safeQuery = query ? escapeRegExp(query) : '';
+        \\      searchResults.innerHTML = results.map(result => {
+        \\        const file = escapeAttribute(result.file);
+        \\        const title = highlightText(result.title, safeQuery);
+        \\        const excerpt = highlightText(result.excerpt, safeQuery);
+        \\        return `
+        \\          <div class="search-result-item" data-file="${file}">
+        \\            <div class="search-result-title">${title}</div>
+        \\            <div class="search-result-excerpt">${excerpt}</div>
+        \\          </div>
+        \\        `;
+        \\      }).join('');
         \\    }
-        \\    
+        \\
         \\    searchResults.classList.remove('hidden');
         \\  }
         \\
-        \\  function highlightText(text, query) {
-        \\    if (!query) return text;
-        \\    const regex = new RegExp(`(${query})`, 'gi');
-        \\    return text.replace(regex, '<strong>$1</strong>');
+        \\  function highlightText(text, escapedQuery) {
+        \\    const safeText = escapeHtml(text);
+        \\    if (!escapedQuery) return safeText;
+        \\    const regex = new RegExp(`(${escapedQuery})`, 'gi');
+        \\    return safeText.replace(regex, '<strong>$1</strong>');
         \\  }
         \\
         \\  function navigateToPage(file) {
-        \\    window.location.href = `/${file}`;
+        \\    if (!file) return;
+        \\    window.location.href = buildUrl(file);
+        \\  }
+        \\
+        \\  function applySuggestion(suggestion, input) {
+        \\    if (!input) return;
+        \\    input.value = suggestion;
+        \\    input.dispatchEvent(new Event('input', { bubbles: true }));
+        \\    input.focus();
         \\  }
         \\
         \\  // Smooth scrolling for anchor links
@@ -1555,13 +1629,13 @@ fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
         \\        e.preventDefault();
         \\        const targetId = e.target.getAttribute('href').substring(1);
         \\        const targetElement = document.getElementById(targetId);
-        \\        
+        \\
         \\        if (targetElement) {
         \\          targetElement.scrollIntoView({
         \\            behavior: 'smooth',
         \\            block: 'start'
         \\          });
-        \\          
+        \\
         \\          // Update URL without triggering navigation
         \\          history.pushState(null, null, `#${targetId}`);
         \\        }
@@ -1572,7 +1646,7 @@ fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
         \\  // Copy code functionality
         \\  function addCopyButtons() {
         \\    const codeBlocks = document.querySelectorAll('pre code');
-        \\    
+        \\
         \\    codeBlocks.forEach(function(codeBlock) {
         \\      const pre = codeBlock.parentElement;
         \\      const button = document.createElement('button');
@@ -1590,10 +1664,10 @@ fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
         \\        cursor: pointer;
         \\        color: var(--color-fg-default);
         \\      `;
-        \\      
+        \\
         \\      pre.style.position = 'relative';
         \\      pre.appendChild(button);
-        \\      
+        \\
         \\      button.addEventListener('click', function() {
         \\        navigator.clipboard.writeText(codeBlock.textContent).then(function() {
         \\          button.textContent = 'Copied!';
@@ -1610,9 +1684,11 @@ fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
         \\    if ('performance' in window) {
         \\      window.addEventListener('load', function() {
         \\        setTimeout(function() {
-        \\          const perfData = performance.getEntriesByType('navigation')[0];
+        \\          const entries = performance.getEntriesByType('navigation');
+        \\          if (!entries || entries.length === 0) return;
+        \\          const perfData = entries[0];
         \\          const loadTime = perfData.loadEventEnd - perfData.loadEventStart;
-        \\          
+        \\
         \\          if (loadTime > 0) {
         \\            console.log(`Page load time: ${loadTime}ms`);
         \\          }
@@ -1628,9 +1704,13 @@ fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
         \\    initializeSmoothScrolling();
         \\    addCopyButtons();
         \\    trackPerformance();
-        \\    
+        \\
         \\    // Add performance badges to relevant sections
-        \\    const performanceMarkers = document.querySelectorAll('code:contains("~"), code:contains("ms"), code:contains("μs")');
+        \\    const performanceMarkers = Array.from(document.querySelectorAll('code')).filter(code => {
+        \\      const text = code.textContent || '';
+        \\      return text.includes('~') || text.includes('ms') || text.includes('μs');
+        \\    });
+        \\
         \\    performanceMarkers.forEach(function(marker) {
         \\      if (marker.textContent.includes('~')) {
         \\        const badge = document.createElement('span');
@@ -1639,6 +1719,7 @@ fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
         \\        marker.parentElement.insertBefore(badge, marker.nextSibling);
         \\      }
         \\    });
+        \\
         \\  }
         \\
         \\  // DOM ready check
@@ -1649,7 +1730,7 @@ fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
         \\  }
         \\
         \\})();
-        \\
+        \\n
     ;
 
     try js_file.writeAll(js_content);
@@ -1663,103 +1744,137 @@ fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
         \\(function() {
         \\  'use strict';
         \\
+        \\  const baseUrl = resolveBaseUrl();
         \\  let searchIndex = [];
-        \\  let searchWorker;
         \\
-        \\  // Initialize search with web worker for better performance
+        \\  function resolveBaseUrl() {
+        \\    const fromWindow = typeof window !== 'undefined' && typeof window.__DOCS_BASEURL === 'string'
+        \\      ? window.__DOCS_BASEURL
+        \\      : '';
+        \\    const fromBody = document.body ? (document.body.getAttribute('data-baseurl') || '') : '';
+        \\    const raw = fromBody || fromWindow || '';
+        \\    if (!raw || raw === '/') return '';
+        \\    return raw.endsWith('/') ? raw.slice(0, -1) : raw;
+        \\  }
+        \\
+        \\  function buildUrl(path) {
+        \\    if (!path) return baseUrl || '';
+        \\    const normalized = path.startsWith('/') ? path : `/${path}`;
+        \\    return `${baseUrl}${normalized}`;
+        \\  }
+        \\
         \\  function initializeAdvancedSearch() {
-        \\    // Load search index
-        \\    fetch('/generated/search_index.json')
+        \\    const existingData = Array.isArray(window.__ABI_SEARCH_DATA) ? window.__ABI_SEARCH_DATA : null;
+        \\    if (existingData) {
+        \\      searchIndex = existingData;
+        \\      setupSearchInterface();
+        \\      return;
+        \\    }
+        \\
+        \\    fetch(buildUrl('/generated/search_index.json'))
         \\      .then(response => response.json())
         \\      .then(data => {
-        \\        searchIndex = data;
+        \\        searchIndex = Array.isArray(data) ? data : [];
+        \\        if (searchIndex.length > 0) {
+        \\          window.__ABI_SEARCH_DATA = searchIndex;
+        \\        }
         \\        setupSearchInterface();
         \\      })
         \\      .catch(error => {
         \\        console.warn('Search functionality unavailable:', error);
+        \\        setupSearchInterface();
         \\      });
         \\  }
         \\
         \\  function setupSearchInterface() {
         \\    const searchInput = document.getElementById('search-input');
-        \\    if (!searchInput) return;
+        \\    const searchResults = document.getElementById('search-results');
+        \\    if (!searchInput || !searchResults) return;
         \\
-        \\    // Add keyboard shortcuts
         \\    document.addEventListener('keydown', function(e) {
-        \\      // Ctrl/Cmd + K to focus search
         \\      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         \\        e.preventDefault();
         \\        searchInput.focus();
         \\        searchInput.select();
         \\      }
-        \\      
-        \\      // Escape to clear search
+        \\
         \\      if (e.key === 'Escape' && document.activeElement === searchInput) {
         \\        searchInput.value = '';
-        \\        hideSearchResults();
+        \\        hideSearchResults(searchResults);
         \\      }
         \\    });
         \\
-        \\    // Add search suggestions
         \\    searchInput.addEventListener('focus', function() {
         \\      if (this.value.trim() === '') {
-        \\        showSearchSuggestions();
+        \\        showSearchSuggestions(searchResults);
+        \\      }
+        \\    });
+        \\
+        \\    searchInput.addEventListener('input', function() {
+        \\      if (this.value.trim() === '') {
+        \\        showSearchSuggestions(searchResults);
+        \\      }
+        \\    });
+        \\
+        \\    searchResults.addEventListener('mousedown', function(event) {
+        \\      if (event.target.closest('.search-result-item')) {
+        \\        event.preventDefault();
         \\      }
         \\    });
         \\  }
         \\
-        \\  function showSearchSuggestions() {
-        \\    const suggestions = [
-        \\      'database API',
-        \\      'neural networks',
-        \\      'SIMD operations',
-        \\      'performance guide',
-        \\      'plugin system',
-        \\      'vector search',
-        \\      'machine learning'
-        \\    ];
-        \\
-        \\    const searchResults = document.getElementById('search-results');
-        \\    if (!searchResults) return;
-        \\
-        \\    searchResults.innerHTML = suggestions.map(suggestion =>
-        \\      `<div class="search-result-item suggestion" onclick="searchFor('${suggestion}')">
-        \\        <div class="search-result-title">💡 ${suggestion}</div>
-        \\        <div class="search-result-excerpt">Search suggestion</div>
-        \\      </div>`
-        \\    ).join('');
-        \\    
-        \\    searchResults.classList.remove('hidden');
-        \\  }
-        \\
-        \\  function searchFor(query) {
-        \\    const searchInput = document.getElementById('search-input');
-        \\    if (searchInput) {
-        \\      searchInput.value = query;
-        \\      searchInput.dispatchEvent(new Event('input'));
+        \\  function hideSearchResults(container) {
+        \\    if (container) {
+        \\      container.classList.add('hidden');
         \\    }
         \\  }
         \\
-        \\  function hideSearchResults() {
-        \\    const searchResults = document.getElementById('search-results');
-        \\    if (searchResults) {
-        \\      searchResults.classList.add('hidden');
+        \\  function showSearchSuggestions(container) {
+        \\    if (!container) return;
+        \\
+        \\    const suggestions = buildSuggestionList();
+        \\    container.innerHTML = suggestions.map(suggestion => `
+        \\      <div class="search-result-item suggestion" data-suggestion="${escapeHtml(suggestion)}">
+        \\        <div class="search-result-title">💡 ${escapeHtml(suggestion)}</div>
+        \\        <div class="search-result-excerpt">Press Enter to search</div>
+        \\      </div>
+        \\    `).join('');
+        \\
+        \\    container.classList.remove('hidden');
+        \\  }
+        \\
+        \\  function buildSuggestionList() {
+        \\    if (!Array.isArray(searchIndex) || searchIndex.length === 0) {
+        \\      return [
+        \\        'database API',
+        \\        'neural networks',
+        \\        'SIMD operations',
+        \\        'performance guide',
+        \\        'plugin system',
+        \\        'vector search',
+        \\        'machine learning'
+        \\      ];
         \\    }
+        \\
+        \\    const titles = [];
+        \\    for (const item of searchIndex) {
+        \\      if (item && item.title && !titles.includes(item.title)) {
+        \\        titles.push(item.title);
+        \\      }
+        \\      if (titles.length >= 7) break;
+        \\    }
+        \\    return titles;
         \\  }
         \\
-        \\  // Fuzzy search implementation
-        \\  function fuzzySearch(query, items) {
-        \\    const fuse = new Fuse(items, {
-        \\      keys: ['title', 'excerpt'],
-        \\      threshold: 0.4,
-        \\      distance: 100,
-        \\      includeScore: true
-        \\    });
-        \\    
-        \\    return fuse.search(query).map(result => result.item);
+        \\  function escapeHtml(text) {
+        \\    return String(text)
+        \\      .replace(/&/g, '&amp;')
+        \\      .replace(/</g, '&lt;')
+        \\      .replace(/>/g, '&gt;')
+        \\      .replace(/"/g, '&quot;')
+        \\      .replace(/'/g, '&#39;');
         \\  }
         \\
-        \\  // Initialize when DOM is ready
         \\  if (document.readyState === 'loading') {
         \\    document.addEventListener('DOMContentLoaded', initializeAdvancedSearch);
         \\  } else {
@@ -1767,7 +1882,7 @@ fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
         \\  }
         \\
         \\})();
-        \\
+        \\n
     ;
 
     try search_js_file.writeAll(search_js_content);

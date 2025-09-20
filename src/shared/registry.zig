@@ -21,16 +21,14 @@ const PluginEntry = struct {
     plugin: *Plugin,
     config: PluginConfig,
     load_order: u32,
-    dependencies: std.ArrayList([]const u8),
-    dependents: std.ArrayList([]const u8),
+    dependencies: std.ArrayListUnmanaged([]u8) = .{},
+    dependents: std.ArrayListUnmanaged([]u8) = .{},
 
     pub fn init(allocator: std.mem.Allocator, plugin: *Plugin, load_order: u32) PluginEntry {
         return .{
             .plugin = plugin,
             .config = PluginConfig.init(allocator),
             .load_order = load_order,
-            .dependencies = std.ArrayList([]const u8){},
-            .dependents = std.ArrayList([]const u8){},
         };
     }
 
@@ -53,7 +51,7 @@ pub const PluginRegistry = struct {
     loader: PluginLoader,
     plugins: std.StringHashMap(PluginEntry),
     load_order_counter: u32 = 0,
-    event_handlers: std.ArrayList(EventHandler),
+    event_handlers: std.ArrayListUnmanaged(EventHandler) = .{},
 
     const EventHandler = struct {
         event_type: u32,
@@ -65,7 +63,6 @@ pub const PluginRegistry = struct {
             .allocator = allocator,
             .loader = loader.createLoader(allocator),
             .plugins = std.StringHashMap(PluginEntry).init(allocator),
-            .event_handlers = std.ArrayList(EventHandler){},
         };
     }
 
@@ -87,7 +84,7 @@ pub const PluginRegistry = struct {
     }
 
     /// Discover plugins in search paths
-    pub fn discoverPlugins(self: *PluginRegistry) !std.ArrayList([]const u8) {
+    pub fn discoverPlugins(self: *PluginRegistry) !std.ArrayList([]u8) {
         return try self.loader.discoverPlugins();
     }
 
@@ -190,17 +187,17 @@ pub const PluginRegistry = struct {
     /// Start all plugins in dependency order
     pub fn startAllPlugins(self: *PluginRegistry) !void {
         // Get plugins sorted by load order
-        var plugin_list = std.ArrayList(PluginEntry){};
-        defer plugin_list.deinit(self.allocator);
+        var plugin_list = std.ArrayList(*PluginEntry).init(self.allocator);
+        defer plugin_list.deinit();
 
         var iterator = self.plugins.valueIterator();
         while (iterator.next()) |entry| {
-            try plugin_list.append(self.allocator, entry.*);
+            try plugin_list.append(entry);
         }
 
         // Sort by load order
-        std.sort.insertion(PluginEntry, plugin_list.items, {}, struct {
-            fn lessThan(_: void, a: PluginEntry, b: PluginEntry) bool {
+        std.sort.insertion(*PluginEntry, plugin_list.items, {}, struct {
+            fn lessThan(_: void, a: *PluginEntry, b: *PluginEntry) bool {
                 return a.load_order < b.load_order;
             }
         }.lessThan);
@@ -214,17 +211,17 @@ pub const PluginRegistry = struct {
     /// Stop all plugins in reverse order
     pub fn stopAllPlugins(self: *PluginRegistry) !void {
         // Get plugins sorted by reverse load order
-        var plugin_list = std.ArrayList(PluginEntry){};
-        defer plugin_list.deinit(self.allocator);
+        var plugin_list = std.ArrayList(*PluginEntry).init(self.allocator);
+        defer plugin_list.deinit();
 
         var iterator = self.plugins.valueIterator();
         while (iterator.next()) |entry| {
-            try plugin_list.append(self.allocator, entry.*);
+            try plugin_list.append(entry);
         }
 
         // Sort by reverse load order
-        std.sort.insertion(PluginEntry, plugin_list.items, {}, struct {
-            fn lessThan(_: void, a: PluginEntry, b: PluginEntry) bool {
+        std.sort.insertion(*PluginEntry, plugin_list.items, {}, struct {
+            fn lessThan(_: void, a: *PluginEntry, b: *PluginEntry) bool {
                 return a.load_order > b.load_order;
             }
         }.lessThan);
@@ -243,13 +240,14 @@ pub const PluginRegistry = struct {
 
     /// Get plugins by type
     pub fn getPluginsByType(self: *PluginRegistry, plugin_type: PluginType) !std.ArrayList(*Plugin) {
-        var result = std.ArrayList(*Plugin){};
+        var result = std.ArrayList(*Plugin).init(self.allocator);
+        errdefer result.deinit();
 
         var iterator = self.plugins.valueIterator();
         while (iterator.next()) |entry| {
             const info = entry.plugin.getInfo();
             if (info.plugin_type == plugin_type) {
-                try result.append(self.allocator, entry.plugin);
+                try result.append(entry.plugin);
             }
         }
 
@@ -257,12 +255,20 @@ pub const PluginRegistry = struct {
     }
 
     /// Get all plugin names
-    pub fn getPluginNames(self: *PluginRegistry) !std.ArrayList([]const u8) {
-        var names = std.ArrayList([]const u8){};
+    pub fn getPluginNames(self: *PluginRegistry) !std.ArrayList([]u8) {
+        var names = std.ArrayList([]u8).init(self.allocator);
+        errdefer {
+            for (names.items) |name| {
+                self.allocator.free(name);
+            }
+            names.deinit();
+        }
 
         var iterator = self.plugins.keyIterator();
         while (iterator.next()) |name| {
-            try names.append(self.allocator, try self.allocator.dupe(u8, name.*));
+            const owned = try self.allocator.dupe(u8, name.*);
+            errdefer self.allocator.free(owned);
+            try names.append(owned);
         }
 
         return names;
@@ -400,7 +406,7 @@ test "Plugin path management" {
         for (discovered.items) |path| {
             std.testing.allocator.free(path);
         }
-        discovered.deinit(std.testing.allocator);
+        discovered.deinit();
     }
 
     // Should not crash and return a list (may be empty)
