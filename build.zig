@@ -4,6 +4,10 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const enable_vulkan = b.option(bool, "enable-vulkan", "Link Vulkan loader for GPU compute backends") orelse false;
+    const enable_cuda = b.option(bool, "enable-cuda", "Link CUDA driver/runtime for GPU acceleration") orelse false;
+    const enable_metal = b.option(bool, "enable-metal", "Link Apple Metal frameworks for GPU acceleration") orelse false;
+
     const abi_mod = b.addModule("abi", .{
         .root_source_file = b.path("src/mod.zig"),
         .target = target,
@@ -26,6 +30,29 @@ pub fn build(b: *std.Build) void {
     const unit_tests = b.addTest(.{
         .root_module = main_module,
     });
+
+    if (enable_vulkan) {
+        exe.linkSystemLibrary("vulkan");
+        unit_tests.linkSystemLibrary("vulkan");
+    }
+
+    if (enable_cuda) {
+        const cuda_lib = if (target.result.os.tag == .windows) "nvcuda" else "cuda";
+        exe.linkSystemLibrary(cuda_lib);
+        unit_tests.linkSystemLibrary(cuda_lib);
+    }
+
+    if (enable_metal) {
+        switch (target.result.os.tag) {
+            .macos, .ios, .tvos, .watchos => {
+                exe.linkFramework("Metal");
+                exe.linkFramework("MetalKit");
+                unit_tests.linkFramework("Metal");
+                unit_tests.linkFramework("MetalKit");
+            },
+            else => {},
+        }
+    }
 
     const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&unit_tests.step);
