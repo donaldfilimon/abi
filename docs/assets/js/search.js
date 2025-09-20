@@ -2,13 +2,30 @@
 (function() {
   'use strict';
 
+  function buildUrl(path) {
+    const baseUrl = document.body ? (document.body.dataset.baseurl || '') : '';
+
+    if (!path) {
+      return baseUrl || '/';
+    }
+
+    if (/^https?:\/\//i.test(path)) {
+      return path;
+    }
+
+    const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+    return `${normalizedBase}${normalizedPath}` || normalizedPath;
+  }
+
   let searchIndex = [];
   let searchWorker;
 
   // Initialize search with web worker for better performance
   function initializeAdvancedSearch() {
     // Load search index
-    fetch('/generated/search_index.json')
+    fetch(buildUrl('/generated/search_index.json'))
       .then(response => response.json())
       .then(data => {
         searchIndex = data;
@@ -104,5 +121,7 @@
   } else {
     initializeAdvancedSearch();
   }
+
+  window.searchFor = searchFor;
 
 })();
