@@ -635,8 +635,6 @@ fn generateCodeApiIndex(allocator: std.mem.Allocator) !void {
         }
     }.lessThan);
 
-    std.sort.block([]u8, files.items, {}, docPathLessThan);
-
     std.sort.block([]const u8, files.items, {}, docPathLessThan);
 
     var out = try std.fs.cwd().createFile("docs/generated/CODE_API_INDEX.md", .{ .truncate = true });
