@@ -17,8 +17,8 @@ The ABI Framework is a high-performance, cross-platform Zig application that sup
 - ✅ **ARM64** (AArch64)
 
 ### Zig Versions
-- ✅ **0.15.1** (Latest Stable - Recommended)
-- ⚠️ **0.16.0-dev** (Development - Use with caution)
+- ✅ **0.16.0-dev.254+6dd0270a1** (current toolchain—match `.zigversion` on every environment)
+- ⚠️ **Legacy 0.15.x notes** remain later in this guide for maintainers of historical deployments; they are no longer part of the supported matrix.
 
 ## 🏗️ Build Requirements
 
@@ -63,10 +63,11 @@ winget install LLVM.LLVM
 
 #### Option 1: Official Installer (Recommended)
 ```bash
-# Download and install Zig 0.15.1
-wget https://ziglang.org/download/0.15.1/zig-linux-x86_64-0.15.1.tar.xz
-tar -xf zig-linux-x86_64-0.15.1.tar.xz
-sudo mv zig-linux-x86_64-0.15.1 /usr/local/zig
+# Download and install the repository's required Zig toolchain
+ZIG_VERSION=0.16.0-dev.254+6dd0270a1
+wget "https://ziglang.org/builds/zig-linux-x86_64-${ZIG_VERSION}.tar.xz"
+tar -xf "zig-linux-x86_64-${ZIG_VERSION}.tar.xz"
+sudo mv "zig-linux-x86_64-${ZIG_VERSION}" /usr/local/zig
 export PATH="/usr/local/zig:$PATH"
 ```
 
@@ -74,13 +75,15 @@ export PATH="/usr/local/zig:$PATH"
 ```bash
 git clone https://github.com/ziglang/zig
 cd zig
-git checkout 0.15.1
+git checkout 0.16.0-dev.254+6dd0270a1
 mkdir build
 cd build
 cmake ..
 make -j$(nproc)
 sudo make install
 ```
+
+> **Verification:** Run `zig version` and compare the output to `.zigversion` after installation to ensure the toolchain matches the repository expectation.
 
 ## 🔨 Build Instructions
 
@@ -218,8 +221,9 @@ RUN apt update && apt install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Zig
-RUN curl -L https://ziglang.org/download/0.15.1/zig-linux-x86_64-0.15.1.tar.xz | tar -xJ && \
-    mv zig-linux-x86_64-0.15.1 /usr/local/zig && \
+ARG ZIG_VERSION=0.16.0-dev.254+6dd0270a1
+RUN curl -L "https://ziglang.org/builds/zig-linux-x86_64-${ZIG_VERSION}.tar.xz" | tar -xJ && \
+    mv "zig-linux-x86_64-${ZIG_VERSION}" /usr/local/zig && \
     ln -s /usr/local/zig/zig /usr/local/bin/zig
 
 # Set working directory
