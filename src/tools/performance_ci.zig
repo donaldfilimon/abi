@@ -16,6 +16,9 @@ const std = @import("std");
 const abi = @import("abi");
 const builtin = @import("builtin");
 
+const HEADER_RULE_60 = [_]u8{'='} ** 60;
+const HEADER_RULE_50 = [_]u8{'='} ** 50;
+
 inline fn print(comptime fmt: []const u8, args: anytype) void {
     std.debug.print(fmt, args);
 }
@@ -416,7 +419,7 @@ pub const PerformanceBenchmarkRunner = struct {
     /// Execute comprehensive performance benchmark suite with statistical analysis
     pub fn runBenchmarkSuite(self: *Self) !PerformanceMetrics {
         print("🚀 Starting Enhanced Performance Benchmark Suite\n", .{});
-        print("=" ** 60 ++ "\n\n", .{});
+        print("{s}\n\n", .{HEADER_RULE_60[0..]});
 
         var metrics = PerformanceMetrics.init(self.allocator);
         metrics.timestamp = std.time.milliTimestamp();
@@ -732,7 +735,7 @@ pub const PerformanceBenchmarkRunner = struct {
     /// Generate comprehensive performance report with detailed analysis
     fn generatePerformanceReport(self: *Self, metrics: *const PerformanceMetrics, regression_result: RegressionResult) !void {
         print("\n📈 Enhanced Performance Report\n", .{});
-        print("=" ** 50 ++ "\n", .{});
+        print("{s}\n", .{HEADER_RULE_50[0..]});
         print("Commit: {s} | Platform: {s}\n", .{ metrics.git_commit, metrics.platform_info });
         print("Duration: {d}ms | Stability Score: {d:.1}/100\n", .{ metrics.test_duration_ms, metrics.performance_stability_score });
         print("\n", .{});
