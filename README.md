@@ -1,6 +1,5 @@
 # Abi AI Framework
-
-Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency, and platform-optimized implementations.
+> Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency, and platform-optimized implementations.
 
 [![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev-orange.svg)](https://ziglang.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
