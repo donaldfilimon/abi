@@ -260,13 +260,15 @@ pub const Db = struct {
             return;
         }
         const num = wal_len / record_size;
-        const tmp = try self.allocator.alloc(u8, @as(usize, @intCast(record_size)));
+        const dim: usize = @intCast(self.header.dim);
+        const tmp = try self.allocator.alloc(f32, dim);
         defer self.allocator.free(tmp);
+        const tmp_bytes = std.mem.sliceAsBytes(tmp);
         try self.wal_file.?.seekTo(0);
         var i: u64 = 0;
         while (i < num) : (i += 1) {
-            _ = try self.wal_file.?.readAll(tmp);
-            const embedding: []const f32 = @ptrCast(@alignCast(std.mem.bytesAsSlice(f32, tmp)));
+            _ = try self.wal_file.?.readAll(tmp_bytes);
+            const embedding: []const f32 = tmp;
             // Append to main file at current row_count
             const row_index = self.header.row_count;
             const offset: u64 = self.header.records_off + row_index * record_size;
