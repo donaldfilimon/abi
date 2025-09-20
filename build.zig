@@ -16,6 +16,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
+    main_module.addImport("abi", abi_mod);
 
     const exe = b.addExecutable(.{
         .name = "abi",
