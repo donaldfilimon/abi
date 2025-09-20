@@ -24,10 +24,10 @@ test "Linux epoll" {
     if (builtin.os.tag != .linux) return error.SkipZigTest;
 
     // Test Linux epoll API
-    const os = std.os;
+    const posix = std.posix;
 
-    const epfd = try os.epoll_create1(0);
-    defer os.close(epfd);
+    const epfd = try posix.epoll_create1(0);
+    defer posix.close(epfd);
 
     try std.testing.expect(epfd > 0);
 }

@@ -7,10 +7,14 @@ test "macOS file operations" {
 
     // Test macOS-specific file operations
     // Note: allocator is not needed in this test block
-    // const allocator = std.testing.allocator;
+    const allocator = std.testing.allocator;
 
     // Test macOS path conventions
-    const home_dir = std.os.getenv("HOME") orelse return error.SkipZigTest;
+    const home_dir = std.process.getEnvVarOwned(allocator, "HOME") catch |err| switch (err) {
+        error.EnvironmentVariableNotFound => return error.SkipZigTest,
+        else => return err,
+    };
+    defer allocator.free(home_dir);
 
     try std.testing.expect(std.mem.startsWith(u8, home_dir, "/Users/"));
 }

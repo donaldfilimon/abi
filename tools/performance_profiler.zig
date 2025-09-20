@@ -14,6 +14,9 @@ const std = @import("std");
 const builtin = @import("builtin");
 const print = std.debug.print;
 
+const HEADER_RULE_50 = [_]u8{'='} ** 50;
+const HEADER_RULE_45 = [_]u8{'='} ** 45;
+
 /// Enhanced profiling configuration with comprehensive options
 const ProfilerConfig = struct {
     enable_memory_tracking: bool = true,
@@ -600,7 +603,7 @@ pub const PerformanceProfiler = struct {
 
     pub fn generateDetailedReport(self: *Self) !void {
         print("📈 Detailed Performance Profiling Report\n", .{});
-        print("=" ** 50 ++ "\n\n", .{});
+        print("{s}\n\n", .{HEADER_RULE_50[0..]});
 
         // Overall summary
         print("Profiling Duration: {d}ms\n", .{self.end_time - self.start_time});
@@ -724,7 +727,7 @@ pub fn main() !void {
     defer profiler.deinit();
 
     print("🎯 Enhanced Performance Profiler for ABI\n", .{});
-    print("=" ** 45 ++ "\n\n", .{});
+    print("{s}\n\n", .{HEADER_RULE_45[0..]});
 
     profiler.startProfiling();
 
