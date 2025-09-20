@@ -1,130 +1,235 @@
 const std = @import("std");
-const feature_manager = @import("feature_manager.zig");
-const catalog = @import("catalog.zig");
-const state = @import("state.zig");
-const lifecycle_mod = @import("../shared/core/lifecycle.zig");
-const core_logging = @import("../shared/core/logging.zig");
+const config = @import("config.zig");
+const registry_mod = @import("../shared/registry.zig");
+const types = @import("../shared/types.zig");
 
-const FeatureManager = feature_manager.FeatureManager;
-const Lifecycle = lifecycle_mod.Lifecycle;
-const RuntimeOptions = state.RuntimeOptions;
-const RuntimeState = state.RuntimeState;
-
-/// Aggregated runtime responsible for configuring core services and feature modules.
-pub const Runtime = struct {
-    gpa: std.mem.Allocator,
-    arena: std.heap.ArenaAllocator,
+/// Orchestrates feature toggles, plugin discovery, and lifecycle management.
+pub const Framework = struct {
     allocator: std.mem.Allocator,
-    lifecycle: Lifecycle,
-    features: FeatureManager,
-    state: *RuntimeState,
+    toggles: config.FeatureToggles,
+    registry: registry_mod.PluginRegistry,
+    plugin_paths: std.ArrayListUnmanaged([]u8) = .{},
+    discovered_plugins: std.ArrayListUnmanaged([]u8) = .{},
+    auto_discover_plugins: bool,
+    auto_register_plugins: bool,
+    auto_start_plugins: bool,
 
-    pub const Options = RuntimeOptions;
+    pub fn init(allocator: std.mem.Allocator, options: config.FrameworkOptions) !Framework {
+        var registry = try registry_mod.createRegistry(allocator);
+        errdefer registry.deinit();
 
-    /// Instantiate a runtime using the provided allocator and options.
-    pub fn init(allocator: std.mem.Allocator, options: Options) !Runtime {
-        var arena = std.heap.ArenaAllocator.init(allocator);
-        errdefer arena.deinit();
-
-        const scoped_allocator = arena.allocator();
-        var lifecycle = try Lifecycle.init(scoped_allocator, .{ .reserve_observers = 8 });
-        errdefer lifecycle.deinit();
-
-        const state_ptr = try scoped_allocator.create(RuntimeState);
-        state_ptr.* = RuntimeState.init(scoped_allocator, options);
-
-        var manager = try FeatureManager.init(
-            scoped_allocator,
-            .{ .allocator = scoped_allocator, .context = state_ptr },
-            &catalog.descriptors,
-        );
-        errdefer manager.deinit();
-
-        var runtime = Runtime{
-            .gpa = allocator,
-            .arena = arena,
-            .allocator = scoped_allocator,
-            .lifecycle = lifecycle,
-            .features = manager,
-            .state = state_ptr,
+        var framework = Framework{
+            .allocator = allocator,
+            .toggles = config.deriveFeatureToggles(options),
+            .registry = registry,
+            .plugin_paths = .{},
+            .discovered_plugins = .{},
+            .auto_discover_plugins = options.auto_discover_plugins,
+            .auto_register_plugins = options.auto_register_plugins,
+            .auto_start_plugins = options.auto_start_plugins,
         };
 
-        try runtime.lifecycle.addObserver(.{
-            .name = "lifecycle-logger",
-            .stages = lifecycle_mod.StageMask{ .running = true, .shutting_down = true, .terminated = true },
-            .priority = 5,
-            .callback = lifecycleEventLogger,
-        });
+        errdefer framework.deinit();
 
-        try runtime.lifecycle.advance(.bootstrapping);
+        try framework.setPluginPaths(options.plugin_paths);
 
-        if (options.ensure_core) try runtime.features.ensure("core.kernel");
-        try runtime.features.ensure("core.lifecycle");
-        if (options.ensure_logging) {
-            try runtime.features.ensure("core.logging.bootstrap");
-            try runtime.features.ensure("core.logging.structured");
-        }
-        if (options.ensure_plugin_system) {
-            try runtime.features.ensure("shared.plugins");
+        if (framework.auto_discover_plugins) {
+            try framework.refreshPlugins();
         }
 
-        for (options.enable_features) |feature_name| {
-            try runtime.features.ensure(feature_name);
-        }
-
-        for (options.enable_categories) |category| {
-            try runtime.features.ensureCategory(category);
-        }
-
-        if (options.enable_all_features) {
-            try runtime.features.ensureAll();
-        }
-
-        try runtime.lifecycle.advance(.running);
-
-        return runtime;
+        return framework;
     }
 
-    /// Shut down the runtime, reversing feature initialization order.
-    pub fn deinit(self: *Runtime) void {
-        if (self.lifecycle.currentStage() == .running) {
-            self.lifecycle.advance(.shutting_down) catch {};
+    pub fn deinit(self: *Framework) void {
+        if (self.auto_start_plugins) {
+            self.registry.stopAllPlugins() catch {};
+        }
+        self.registry.deinit();
+        self.clearDiscovered();
+        self.discovered_plugins.deinit(self.allocator);
+        self.clearPluginPaths();
+        self.plugin_paths.deinit(self.allocator);
+    }
+
+    pub fn pluginRegistry(self: *Framework) *registry_mod.PluginRegistry {
+        return &self.registry;
+    }
+
+    pub fn features(self: *const Framework) config.FeatureIterator {
+        return self.toggles.iterator();
+    }
+
+    pub fn featureCount(self: *const Framework) usize {
+        return self.toggles.count();
+    }
+
+    pub fn isFeatureEnabled(self: *const Framework, feature: config.Feature) bool {
+        return self.toggles.isEnabled(feature);
+    }
+
+    pub fn setFeature(self: *Framework, feature: config.Feature, enabled: bool) bool {
+        const previous = self.toggles.isEnabled(feature);
+        if (previous == enabled) return false;
+        self.toggles.set(feature, enabled);
+        return true;
+    }
+
+    pub fn enableFeature(self: *Framework, feature: config.Feature) bool {
+        return self.setFeature(feature, true);
+    }
+
+    pub fn disableFeature(self: *Framework, feature: config.Feature) bool {
+        return self.setFeature(feature, false);
+    }
+
+    pub fn addPluginPath(self: *Framework, path: []const u8) !void {
+        const owned = try self.allocator.dupe(u8, path);
+        errdefer self.allocator.free(owned);
+        try self.plugin_paths.append(self.allocator, owned);
+        try self.registry.addPluginPath(path);
+    }
+
+    pub fn setPluginPaths(self: *Framework, paths: []const []const u8) !void {
+        self.clearPluginPaths();
+        for (paths) |path| {
+            try self.addPluginPath(path);
+        }
+    }
+
+    pub fn pluginPathCount(self: *const Framework) usize {
+        return self.plugin_paths.items.len;
+    }
+
+    pub fn pluginPath(self: *const Framework, index: usize) []const u8 {
+        return self.plugin_paths.items[index];
+    }
+
+    pub fn refreshPlugins(self: *Framework) !void {
+        var discovered = try self.registry.discoverPlugins();
+        defer {
+            for (discovered.items) |path| {
+                self.allocator.free(path);
+            }
+            discovered.deinit();
         }
 
-        self.features.shutdown();
-        self.features.deinit();
+        self.clearDiscovered();
 
-        if (self.lifecycle.currentStage() != .terminated) {
-            self.lifecycle.advance(.terminated) catch {};
+        for (discovered.items) |path| {
+            const owned = try self.allocator.dupe(u8, path);
+            errdefer self.allocator.free(owned);
+            try self.discovered_plugins.append(self.allocator, owned);
         }
 
-        self.lifecycle.deinit();
-        self.state.deinit();
-        self.arena.deinit();
-        self.* = undefined;
+        if (self.auto_register_plugins) {
+            try self.loadDiscoveredPlugins();
+        }
+
+        if (self.auto_start_plugins) {
+            try self.registry.startAllPlugins();
+        }
     }
 
-    pub fn getLifecycle(self: *Runtime) *Lifecycle {
-        return &self.lifecycle;
+    pub fn loadDiscoveredPlugins(self: *Framework) !void {
+        for (self.discovered_plugins.items) |path| {
+            self.registry.loadPlugin(path) catch |err| switch (err) {
+                types.PluginError.AlreadyRegistered => continue,
+                else => return err,
+            };
+        }
     }
 
-    pub fn getFeatureManager(self: *Runtime) *FeatureManager {
-        return &self.features;
+    pub fn discoveredPluginCount(self: *const Framework) usize {
+        return self.discovered_plugins.items.len;
     }
 
-    pub fn options(self: Runtime) Options {
-        return self.state.options;
+    pub fn discoveredPlugin(self: *const Framework, index: usize) []const u8 {
+        return self.discovered_plugins.items[index];
     }
 
-    pub fn allocator(self: Runtime) std.mem.Allocator {
-        return self.allocator;
+    pub fn writeSummary(self: *const Framework, writer: anytype) !void {
+        try writer.print("Features enabled ({d}):\n", .{self.featureCount()});
+        var iter = self.features();
+        while (iter.next()) |feature| {
+            try writer.print("  - {s}: {s}\n", .{ config.featureLabel(feature), config.featureDescription(feature) });
+        }
+
+        if (self.plugin_paths.items.len > 0) {
+            try writer.print("Plugin search paths ({d}):\n", .{self.plugin_paths.items.len});
+            for (self.plugin_paths.items) |path| {
+                try writer.print("  - {s}\n", .{path});
+            }
+        } else {
+            try writer.print("Plugin search paths: none configured\n", .{});
+        }
+
+        try writer.print("Registered plugins: {d}\n", .{self.registry.getPluginCount()});
+        try writer.print("Discovered plugins awaiting load: {d}\n", .{self.discovered_plugins.items.len});
     }
 
-    fn lifecycleEventLogger(transition: lifecycle_mod.Transition, _: *Lifecycle) anyerror!void {
-        core_logging.log.info(
-            "lifecycle transition {s} -> {s}",
-            .{ @tagName(transition.from), @tagName(transition.to) },
-        );
+    fn clearDiscovered(self: *Framework) void {
+        for (self.discovered_plugins.items) |path| {
+            self.allocator.free(path);
+        }
+        self.discovered_plugins.clearRetainingCapacity();
+    }
+
+    fn clearPluginPaths(self: *Framework) void {
+        for (self.plugin_paths.items) |path| {
+            self.allocator.free(path);
+        }
+        self.plugin_paths.clearRetainingCapacity();
     }
 };
 
+test "framework initialises with defaults" {
+    var framework = try Framework.init(std.testing.allocator, .{});
+    defer framework.deinit();
+
+    try std.testing.expect(framework.isFeatureEnabled(.ai));
+    try std.testing.expect(framework.isFeatureEnabled(.database));
+    try std.testing.expect(framework.isFeatureEnabled(.web));
+    try std.testing.expect(framework.isFeatureEnabled(.monitoring));
+    try std.testing.expect(framework.isFeatureEnabled(.simd));
+    try std.testing.expect(!framework.isFeatureEnabled(.gpu));
+    try std.testing.expectEqual(@as(usize, 0), framework.pluginPathCount());
+}
+
+test "framework respects custom feature selection" {
+    var framework = try Framework.init(std.testing.allocator, .{
+        .enabled_features = &.{ .gpu, .connectors },
+        .disabled_features = &.{ .connectors },
+    });
+    defer framework.deinit();
+
+    try std.testing.expect(framework.isFeatureEnabled(.gpu));
+    try std.testing.expect(!framework.isFeatureEnabled(.connectors));
+    try std.testing.expectEqual(@as(usize, 1), framework.featureCount());
+}
+
+test "framework manages plugin search paths" {
+    var framework = try Framework.init(std.testing.allocator, .{});
+    defer framework.deinit();
+
+    try framework.addPluginPath("./plugins");
+    try framework.addPluginPath("./more-plugins");
+    try std.testing.expectEqual(@as(usize, 2), framework.pluginPathCount());
+    try std.testing.expectEqualStrings("./plugins", framework.pluginPath(0));
+    try std.testing.expectEqualStrings("./more-plugins", framework.pluginPath(1));
+}
+
+test "framework summary reports configured state" {
+    var framework = try Framework.init(std.testing.allocator, .{
+        .enable_gpu = true,
+        .plugin_paths = &.{ "./plugins" },
+    });
+    defer framework.deinit();
+
+    var buffer: [512]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buffer);
+    try framework.writeSummary(stream.writer());
+
+    const written = stream.getWritten();
+    try std.testing.expect(std.mem.indexOf(u8, written, "GPU Acceleration") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "plugins") != null);
+}
