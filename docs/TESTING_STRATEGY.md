@@ -25,7 +25,7 @@
 - Location: `tests/*integration*`, `tests/test_web_server_*.zig`, `tests/test_plugin_*.zig`.
 - Scope: subsystem seams (agent routing + datastore, web server + plugins, GPU manager + kernels).
 - Tooling: `zig test` with feature flags (`-Dgpu=true`, `-Dsimd=true`, `-Denable_metrics=true`).
-- Requirements: cover cross-module behaviors, contract tests for connectors (`src/connectors`), regression harness for database sharding.
+- Requirements: cover cross-module behaviors, contract tests for connectors (`src/features/connectors`), regression harness for database sharding.
 - Data: use in-repo fixtures under `tests/fixtures/` (create as needed) and deterministic mocks.
 
 ### Performance & Load Tests
@@ -39,7 +39,7 @@
 - Location: dedicated suite `tests/security/` (to be created) plus fuzzers under `tools/`.
 - Scope: auth flows, schema validation, input sanitization, encryption, dependency scanning.
 - Tooling: static analysis (`zig build security-scan` target), fuzzing via `zig test --fuzz`, third-party scanners integrated in CI (e.g., cargo `cargo-audit` style equivalent for Zig packages when available).
-- Requirements: ensure every security-sensitive module (`src/security`, `src/plugins`, `src/server`) has both positive and negative tests; run dependency and secret scanners on every merge.
+- Requirements: ensure every security-sensitive module (`src/framework`, `src/shared/enhanced_plugin_system.zig`, `src/features/web`) has both positive and negative tests; run dependency and secret scanners on every merge.
 
 ### End-to-End Tests
 - Location: `tests/test_web_server_e2e.zig`, CLI workflow tests, scripted flows in `examples/` promoted to tests when stable.
@@ -49,14 +49,14 @@
 
 ## Coverage & Quality Metrics
 - **Code coverage**: compile tests with `-fprofile-instr-generate -fcoverage-mapping`; aggregate via `llvm-profdata`/`llvm-cov` and publish HTML under `zig-out/coverage/`.
-- **Branch coverage**: collect from `llvm-cov report`; enforce 90%+ for `src/core`, `src/server`, `src/plugins`, `src/database`.
+- **Branch coverage**: collect from `llvm-cov report`; enforce 90%+ for `src/shared/core`, `src/framework`, `src/features/web`, `src/features/database`, and `src/features/connectors`.
 - **Mutation sampling**: quarterly run with `tools/mutagen.zig` (to implement) on critical modules.
 - **Static checks**: treat `zig fmt --check .` and `zig build lint` (add target) as mandatory gates.
 
 ## Environments
 - **Local**: developers run `zig build test`, targeted `zig test path`, and `zig build perf -- --quick` for smoke performance.
 - **CI**: matrix across targets (Linux, Windows), feature flags (`-Dgpu`, `-Dsimd`, `-Dhot_reload`), nightly extended runs with `--fuzz` and performance benchmarks.
-- **Pre-production**: weekly soak tests using `deploy/staging` scripts, capturing telemetry via Prometheus exporters in `src/monitoring`.
+- **Pre-production**: weekly soak tests using `deploy/staging` scripts, capturing telemetry via Prometheus exporters in `src/features/monitoring`.
 
 ## Test Data & Fixtures
 - Centralize fixtures under `tests/fixtures/` with subfolders (`agents/`, `plugins/`, `http/`, `database/`).

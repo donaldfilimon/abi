@@ -25,6 +25,8 @@ By participating in this project, you agree to abide by our Code of Conduct:
    - Install Bun (recommended): `curl -fsSL https://bun.sh/install | bash`
    - Set up your editor with Zig language support
 
+> **Compatibility:** Older setup notes targeting Zig 0.15.x remain later in this guide for reference only. They are no longer part of the supported toolchain but can help teams migrating legacy branches.
+
 3. **Build the Project**
 
    ```bash

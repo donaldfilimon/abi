@@ -83,6 +83,8 @@ sudo make install
 zig version  # verify the installed compiler matches 0.16.0-dev.254+6dd0270a1
 ```
 
+> **Verification:** Run `zig version` and compare the output to `.zigversion` after installation to ensure the toolchain matches the repository expectation.
+
 ## 🔨 Build Instructions
 
 ### Standard Build

@@ -10,6 +10,10 @@
     if (!baseUrl || baseUrl === '/') {
       return normalizedPath;
     }
+    return `${baseUrl.replace(/\/$/, '')}${normalizedPath}`;
+  }
+
+  let searchIndex = [];
 
     return `${baseUrl.replace(/\/$/, '')}${normalizedPath}`;
   }
