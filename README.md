@@ -122,11 +122,16 @@ The current executable boots the framework and prints a bootstrap summary. Run i
 build system:
 
 ```bash
-zig build run
+abi help                    # Show commands
+abi chat                    # AI chat session
+abi train <data>           # Train neural network
+./zig-out/bin/abi wdbx server --http   # Start HTTP server
+abi benchmark              # Performance tests
+abi analyze <file>         # Text analysis
 
-# Or install the binary then execute it directly
-zig build
-./zig-out/bin/abi
+# With options
+abi --memory-track --gpu benchmark
+abi --verbose --debug chat
 ```
 
 ## API
