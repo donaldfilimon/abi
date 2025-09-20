@@ -1,88 +1,80 @@
 # Abi Framework Module Organization
 
-Structured overview of the feature-oriented layout that powers the Abi AI Framework.
+Updated map of the reorganised Abi source tree. The new layout pivots around
+feature-oriented directories and shared runtime layers that are orchestrated via
+`src/mod.zig`.
 
 ## 📁 Module Architecture
 
 ```
 src/
-├── mod.zig              # Primary library surface
-├── main.zig             # CLI/bootstrap entrypoint
-├── framework/           # Runtime orchestration and feature management
-│   ├── config.zig       # Feature toggles and public options
-│   ├── runtime.zig      # Framework bootstrap and lifecycle
-│   ├── feature_manager.zig  # Feature discovery and activation helpers
-│   ├── catalog.zig      # Metadata exposed to tooling and docs
-│   └── state.zig        # Long-lived runtime state container
-├── features/            # Domain feature families surfaced to users
-│   ├── ai/              # Agents, ML pipelines, training/inference helpers
-│   ├── database/        # Vector storage, indexing, and query APIs
-│   ├── web/             # HTTP servers, gateways, protocol adapters
-│   ├── monitoring/      # Metrics, telemetry, and health probes
-│   ├── gpu/             # GPU backends, kernels, and device orchestration
-│   └── connectors/      # Third-party integrations and adapters
-├── shared/              # Cross-cutting subsystems reused everywhere
-│   ├── core/            # Configuration, lifecycle, and error types
-│   ├── logging/         # Structured logging sinks and formatters
-│   ├── platform/        # Host detection and capability probing
-│   ├── utils/           # Common helpers (fs/http/json/crypto/math)
-│   ├── simd.zig         # SIMD primitives exported to features
-│   ├── types.zig        # Shared type aliases and option sets
-│   ├── registry.zig     # Service registry used by the framework
-│   └── enhanced_plugin_system.zig # Plugin runtime and hot-reload orchestration
-├── examples/            # Runnable samples demonstrating the API
-├── tests/               # In-tree unit and integration harnesses
-└── tools/               # Developer tooling compiled as part of the build
-```
+├── mod.zig               # Top-level entrypoint that wires framework + features
+├── main.zig              # Legacy CLI entry
+├── root.zig              # Compatibility exports
+├── features/             # Feature families exported via src/features/mod.zig
+│   ├── ai/               # Agents, model registry, training loops
+│   ├── database/         # Vector store, sharding, HTTP adapters
+│   ├── gpu/              # GPU compute backends, memory and demos
+│   ├── web/              # HTTP/TCP servers, clients and bindings
+│   ├── monitoring/       # Telemetry, profiling and regression tooling
+│   └── connectors/       # Third-party API integrations and plugin bridges
+├── framework/            # Runtime orchestrator, feature registry, lifecycle
+│   ├── config.zig
+│   ├── feature_manager.zig
+│   ├── runtime.zig
+│   └── state.zig
+├── shared/               # Cross-cutting utilities reused everywhere
+│   ├── core/             # Error handling, lifecycle helpers, registry
+│   ├── utils/            # HTTP/JSON/math helpers
+│   ├── platform/         # OS abstractions and platform introspection
+│   ├── logging/          # Structured logging backends
+│   └── simd.zig          # Re-exported SIMD helpers
+└── simd.zig              # Legacy SIMD entry point (re-exported in shared)```
 
 ## 🔧 Module Details
 
-### Framework Layer (`framework/`)
-- **Purpose**: Central orchestration layer that interprets `FrameworkOptions`, derives feature toggles, and coordinates lifecycle hooks.
-- **Components**: `config.zig`, `runtime.zig`, `catalog.zig`, `feature_manager.zig`, `state.zig`.
-- **Dependencies**: Relies on `shared/core`, `shared/utils`, logging, and the plugin system to manage feature wiring.
-
-### Shared Layer (`shared/`)
-- **Purpose**: Provides foundational services that every feature builds upon.
+### Feature Modules (`features/`)
+- **Purpose**: House capability-specific logic grouped by feature families.
 - **Components**:
-  - `core/` for configuration management, lifecycle primitives, and error types.
-  - `logging/` for structured logging and sinks.
-  - `platform/` for OS/runtime detection.
-  - `utils/` for reusable helpers (filesystem, HTTP, JSON, crypto, math, encoding, networking).
-  - `simd.zig`, `types.zig`, and `registry.zig` for cross-feature data structures.
-  - `enhanced_plugin_system.zig` for dynamic plugin discovery, hot reload, and lifecycle management.
-- **Dependencies**: Minimal external dependencies; consumed by the framework and every feature module.
+  - `ai/`: agents, transformers, reinforcement learning, data structures.
+  - `database/`: WDBX vector database, sharding, HTTP façade.
+  - `gpu/`: compute kernels, backend detection, memory pools, demos.
+  - `web/`: HTTP client/server stacks, C bindings, weather demo.
+  - `monitoring/`: metrics, tracing, regression analysis, Prometheus exports.
+  - `connectors/`: OpenAI/Ollama bridges and plugin-facing adapters.
+- **Dependencies**: Heavily reuse `shared/*` utilities and are orchestrated via
+  `framework/`.
 
-### Feature Families (`features/*`)
-Each feature family is independent, exporting a `mod.zig` with public APIs and relying on shared utilities for cross-cutting concerns.
+### Framework Runtime (`framework/`)
+- **Purpose**: Central coordination layer used by `abi.init`/`abi.shutdown`.
+- **Components**: Runtime state machine, feature discovery/catalogue,
+  configuration parsing, lifecycle management.
+- **Dependencies**: Consumes feature registries from `features/mod.zig` and core
+  primitives from `shared/core` and `shared/logging`.
 
-- **`features/ai/`**: Agents, neural network layers, reinforcement learning, model registries, and serialization.
-- **`features/database/`**: Vector database kernels, sharding, persistence, and query planning.
-- **`features/web/`**: HTTP servers, gateway orchestration, WebSocket support, and client adapters.
-- **`features/monitoring/`**: Metrics pipelines, telemetry exporters, health checks, and diagnostics.
-- **`features/gpu/`**: GPU backend detection, compute kernels, optimization passes, and testing utilities.
-- **`features/connectors/`**: Integrations with third-party services, protocol bridges, and connector registries.
+### Shared Libraries (`shared/`)
+- **Purpose**: Foundation utilities and cross-cutting services shared by both
+  framework and features.
+- **Components**: Core lifecycle helpers, platform abstractions, logging
+  backends, utility collections, SIMD helpers.
+- **Dependencies**: Standalone where possible; some modules (e.g. logging)
+  depend on `shared/core`.
 
-### Entry Points (`mod.zig` & `main.zig`)
-- **Purpose**: Provide the public ABI surface (`src/mod.zig`) and the CLI runtime (`src/main.zig`) that consumers interact with.
-- **Dependencies**: Delegate orchestration to `framework/runtime.zig` and consume shared utilities for bootstrapping.
-
-### Tests & Examples (`src/tests/`, `src/examples/`)
-- **Purpose**: House unit/integration harnesses mirroring the feature layout and runnable examples demonstrating best practices.
-- **Dependencies**: Import feature modules through `src/mod.zig` and exercise shared infrastructure.
-
+### Legacy Entrypoints (`mod.zig`, `main.zig`, `root.zig`, `simd.zig`)
+- **Purpose**: Provide compatibility layers for existing consumers while the new
+  feature-first architecture settles.
+- **Components**: Public API surface (`mod.zig`), CLI entry (`main.zig`), legacy
+  exports (`root.zig`), SIMD convenience wrapper (`simd.zig`).
+- **Dependencies**: Bridge between external callers and the framework/feature
+  modules.
 ## 🔗 Dependencies
 
 ```
-shared/* ─┬────────────┬──────────────┐
-         │            │              │
-         ▼            ▼              ▼
-   framework/   features/*      src/tests/, src/examples/
-         │            │              │
-         └────┬───────┴─────┬────────┘
-              ▼             ▼
-     enhanced plugin   Framework runtime
-     system & registry orchestrate feature lifecycles
+features/* ─┐
+            ├─▶ framework/runtime ─▶ shared/core
+shared/utils ─┘                     ├─▶ shared/logging
+                                   ├─▶ shared/platform
+                                   └─▶ shared/utils & shared/simd
 ```
 
 - `shared/*` delivers the reusable building blocks consumed across the stack.
@@ -92,29 +84,36 @@ shared/* ─┬────────────┬────────�
 
 ## 🏗️ Build Integration
 
-- Module wiring lives in `src/mod.zig`, which re-exports the framework, shared utilities, and feature families.
-- `build.zig` compiles the feature modules conditionally based on toggles exposed in `FrameworkOptions`.
-- Tests under `src/tests/` and `tests/` mirror the feature hierarchy for clarity.
-- Generated documentation references `features/*`, `shared/*`, and `framework/` to match the runtime layout.
+- Feature families are grouped under `src/features/mod.zig` for easy re-exports.
+- `src/mod.zig` exposes `abi.features` and `abi.framework` to callers.
+- Shared libraries live under `src/shared/*` and are imported where needed.
+- Build orchestration in `build.zig` pulls feature modules via the framework
+  runtime.
 
 ## 📚 Usage
 
 ```zig
 const abi = @import("abi");
-const framework = try abi.init(allocator, .{ .enable_gpu = true, .enable_monitoring = true });
+const framework = try abi.init(allocator, .{ .enable_gpu = true });
 defer framework.deinit();
+
+// Opt into a specific feature namespace
+const ai = abi.features.ai;
+const agent = try ai.Agent.init(allocator, .adaptive);
+```
 
 // Opt-in feature modules are available under `abi.features.*`
 var agent = try abi.features.ai.enhanced_agent.Agent.init(allocator, .{});
 defer agent.deinit();
 
-// Shared utilities remain accessible through `abi.shared.*`
-abi.shared.logging.global_logger.info("GPU feature online", .{});
-```
+1. Inspect `src/features/mod.zig` for the list of available feature families.
+2. Explore `src/framework/` for runtime orchestration and lifecycle flows.
+3. Consult `src/shared/` for reusable utilities and platform abstractions.
+4. Browse generated docs in `docs/generated/` for symbol-level details.
 
 ## 🎯 Benefits
 
-- Feature-based layout mirrors runtime toggles and clarifies ownership boundaries.
-- Shared primitives live in a single place, reducing duplication and easing audits.
-- Framework orchestration separates configuration from feature logic, simplifying testing.
-- Documentation, examples, and tests align with the in-tree structure, improving discoverability.
+- Feature-centric layout that mirrors the runtime configuration surface.
+- Clear separation between orchestration (`framework/`) and shared utilities.
+- Easier discoverability through a consistent namespace (`abi.features.*`).
+- Explicit imports make it straightforward to reason about dependencies.
