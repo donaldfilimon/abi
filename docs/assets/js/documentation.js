@@ -18,7 +18,7 @@
   function generateTOC() {
     const content = document.querySelector('.documentation-content .content');
     const tocList = document.getElementById('toc-list');
-    
+
     if (!content || !tocList) return;
 
     tocList.innerHTML = '';
@@ -35,23 +35,56 @@
     headings.forEach((heading, index) => {
       const id = heading.id || `heading-${index}`;
       heading.id = id;
-      
+
       const li = document.createElement('li');
       const a = document.createElement('a');
       a.href = `#${id}`;
       a.textContent = heading.textContent;
       a.className = `toc-${heading.tagName.toLowerCase()}`;
-      
+
       li.appendChild(a);
       tocList.appendChild(li);
     });
+  }
+
+  function resolveBaseUrl() {
+    const fromWindow = typeof window !== 'undefined' && typeof window.__DOCS_BASEURL === 'string'
+      ? window.__DOCS_BASEURL
+      : '';
+    const fromBody = document.body ? (document.body.getAttribute('data-baseurl') || '') : '';
+    const raw = fromBody || fromWindow || '';
+    if (!raw || raw === '/') return '';
+    return raw.endsWith('/') ? raw.slice(0, -1) : raw;
+  }
+
+  function buildUrl(path) {
+    if (!path) return baseUrl || '';
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return `${baseUrl}${normalized}`;
+  }
+
+  function escapeHtml(text) {
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function escapeAttribute(text) {
+    return escapeHtml(text).replace(/`/g, '&#96;');
+  }
+
+  function escapeRegExp(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   // Search functionality
   function initializeSearch() {
     const searchInput = document.getElementById('search-input');
     const searchResults = document.getElementById('search-results');
-    
+
     if (!searchInput || !searchResults) return;
 
     let searchData = [];
@@ -70,7 +103,7 @@
     searchInput.addEventListener('input', function() {
       clearTimeout(searchTimeout);
       const query = this.value.trim().toLowerCase();
-      
+
       if (query.length < 2) {
         searchResults.classList.add('hidden');
         searchResults.innerHTML = '';
@@ -78,13 +111,29 @@
       }
 
       searchTimeout = setTimeout(() => {
-        const results = searchData.filter(item => 
-          item.title.toLowerCase().includes(query) || 
+        const results = searchData.filter(item =>
+          item.title.toLowerCase().includes(query) ||
           item.excerpt.toLowerCase().includes(query)
         ).slice(0, 10);
 
         displaySearchResults(results, query);
       }, 200);
+    });
+
+    searchResults.addEventListener('click', function(event) {
+      const target = event.target.closest('.search-result-item');
+      if (!target) return;
+
+      if (target.dataset.file) {
+        navigateToPage(target.dataset.file);
+        searchResults.classList.add('hidden');
+        return;
+      }
+
+      if (target.dataset.suggestion) {
+        applySuggestion(target.dataset.suggestion, searchInput);
+        searchResults.classList.add('hidden');
+      }
     });
 
     // Hide search results when clicking outside
@@ -133,10 +182,11 @@
     searchResults.classList.remove('hidden');
   }
 
-  function highlightText(text, query) {
-    if (!query) return text;
-    const regex = new RegExp(`(${query})`, 'gi');
-    return text.replace(regex, '<strong>$1</strong>');
+  function highlightText(text, escapedQuery) {
+    const safeText = escapeHtml(text);
+    if (!escapedQuery) return safeText;
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
+    return safeText.replace(regex, '<strong>$1</strong>');
   }
 
   function navigateToPage(file) {
@@ -153,13 +203,13 @@
         e.preventDefault();
         const targetId = e.target.getAttribute('href').substring(1);
         const targetElement = document.getElementById(targetId);
-        
+
         if (targetElement) {
           targetElement.scrollIntoView({
             behavior: 'smooth',
             block: 'start'
           });
-          
+
           // Update URL without triggering navigation
           history.pushState(null, null, `#${targetId}`);
         }
@@ -170,7 +220,7 @@
   // Copy code functionality
   function addCopyButtons() {
     const codeBlocks = document.querySelectorAll('pre code');
-    
+
     codeBlocks.forEach(function(codeBlock) {
       const pre = codeBlock.parentElement;
       const button = document.createElement('button');
@@ -188,10 +238,10 @@
         cursor: pointer;
         color: var(--color-fg-default);
       `;
-      
+
       pre.style.position = 'relative';
       pre.appendChild(button);
-      
+
       button.addEventListener('click', function() {
         if (!navigator.clipboard || !navigator.clipboard.writeText) {
           return;
@@ -245,7 +295,7 @@
     initializeSmoothScrolling();
     addCopyButtons();
     trackPerformance();
-    
+
     // Add performance badges to relevant sections
     const performanceMarkers = document.querySelectorAll('code');
     performanceMarkers.forEach(function(marker) {
@@ -266,6 +316,7 @@
       badge.textContent = 'PERF';
       marker.parentElement.insertBefore(badge, marker.nextSibling);
     });
+
   }
 
   // DOM ready check
@@ -274,5 +325,7 @@
   } else {
     initialize();
   }
+
+  window.navigateToPage = navigateToPage;
 
 })();

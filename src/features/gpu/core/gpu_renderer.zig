@@ -14,6 +14,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const math = std.math;
 const print = std.debug.print;
+const DynLib = std.DynLib;
 
 // Compile-time constants for performance optimization
 pub const has_webgpu_support = @hasDecl(std, "gpu") and @hasDecl(std.gpu, "Instance");
@@ -1123,7 +1124,7 @@ pub const Shader = struct {
 /// Bind group for resource binding
 pub const BindGroup = struct {
     handle: GPUHandle,
-    buffers: std.ArrayList(Buffer),
+    buffer_handles: std.ArrayList(u32),
     allocator: std.mem.Allocator,
 
     const Self = @This();
@@ -1131,21 +1132,22 @@ pub const BindGroup = struct {
     pub fn init(allocator: std.mem.Allocator, id: u64) Self {
         return .{
             .handle = GPUHandle{ .id = id, .generation = 1 },
-            .buffers = std.ArrayList(Buffer){},
+            .buffer_handles = std.ArrayList(u32){},
             .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *Self) void {
-        for (self.buffers.items) |*buffer| {
-            buffer.deinit();
-        }
-        self.buffers.deinit(self.allocator);
+        self.buffer_handles.deinit(self.allocator);
     }
 
-    pub fn addBuffer(self: *Self, buffer: Buffer) !void {
-        try self.buffers.append(self.allocator, buffer);
+    pub fn addBufferHandle(self: *Self, handle: u32) !void {
+        try self.buffer_handles.append(self.allocator, handle);
     }
+};
+
+pub const BindGroupDesc = struct {
+    buffers: []const u32 = &[_]u32{},
 };
 
 /// Lightweight renderer statistics
@@ -1161,6 +1163,74 @@ pub const RendererStats = struct {
     last_operation_time_ns: u64 = 0,
     shaders_compiled: u64 = 0,
     compilation_time_ns: u64 = 0,
+};
+
+/// Compute dispatch metadata shared with CPU fallbacks
+pub const ComputeDispatchInfo = struct {
+    workgroups: [3]u32,
+    push_constants: []const u8,
+};
+
+pub const CpuFallbackFn = *const fn (
+    *GPURenderer,
+    []const u32,
+    ComputeDispatchInfo,
+    ?*anyopaque,
+) anyerror!void;
+
+/// Compute pipeline description used during creation
+pub const ComputePipelineDesc = struct {
+    label: []const u8 = "",
+    shader_source: []const u8,
+    entry_point: []const u8 = "main",
+    workgroup_size: [3]u32 = .{ 1, 1, 1 },
+    cpu_fallback: ?CpuFallbackFn = null,
+    cpu_fallback_ctx: ?*anyopaque = null,
+};
+
+/// Runtime compute pipeline representation
+const ComputePipeline = struct {
+    handle: GPUHandle,
+    label: []const u8,
+    shader_source: []const u8,
+    entry_point: []const u8,
+    workgroup_size: [3]u32,
+    cpu_fallback: ?CpuFallbackFn,
+    cpu_fallback_ctx: ?*anyopaque,
+
+    fn init(allocator: std.mem.Allocator, desc: ComputePipelineDesc, id: u64) !ComputePipeline {
+        const label = try allocator.dupe(u8, desc.label);
+        errdefer allocator.free(label);
+        const shader_source = try allocator.dupe(u8, desc.shader_source);
+        errdefer allocator.free(shader_source);
+        const entry_point = try allocator.dupe(u8, desc.entry_point);
+        errdefer allocator.free(entry_point);
+
+        return .{
+            .handle = .{ .id = id, .generation = 1 },
+            .label = label,
+            .shader_source = shader_source,
+            .entry_point = entry_point,
+            .workgroup_size = desc.workgroup_size,
+            .cpu_fallback = desc.cpu_fallback,
+            .cpu_fallback_ctx = desc.cpu_fallback_ctx,
+        };
+    }
+
+    fn deinit(self: *ComputePipeline, allocator: std.mem.Allocator) void {
+        allocator.free(self.label);
+        allocator.free(self.shader_source);
+        allocator.free(self.entry_point);
+    }
+};
+
+pub const ComputeDispatch = struct {
+    pipeline: u32,
+    bind_group: u32,
+    workgroups_x: u32,
+    workgroups_y: u32,
+    workgroups_z: u32,
+    push_constants: []const u8 = &[_]u8{},
 };
 
 /// Main GPU renderer with cross-platform support and CPU fallbacks
@@ -1182,6 +1252,7 @@ pub const GPURenderer = struct {
     buffers: std.ArrayList(Buffer),
     shaders: std.ArrayList(Shader),
     bind_groups: std.ArrayList(BindGroup),
+    compute_pipelines: std.ArrayList(ComputePipeline),
     next_handle_id: u64 = 1,
 
     // Performance metrics
@@ -1203,6 +1274,7 @@ pub const GPURenderer = struct {
             .buffers = std.ArrayList(Buffer){},
             .shaders = std.ArrayList(Shader){},
             .bind_groups = std.ArrayList(BindGroup){},
+            .compute_pipelines = std.ArrayList(ComputePipeline){},
             .last_fps_time = std.time.milliTimestamp(),
         };
 
@@ -1229,6 +1301,11 @@ pub const GPURenderer = struct {
             bind_group.deinit();
         }
         self.bind_groups.deinit(self.allocator);
+
+        for (self.compute_pipelines.items) |*pipeline| {
+            pipeline.deinit(self.allocator);
+        }
+        self.compute_pipelines.deinit(self.allocator);
 
         for (self.shaders.items) |*shader| {
             shader.deinit();
@@ -1310,6 +1387,15 @@ pub const GPURenderer = struct {
     fn initVulkan(self: *Self) !void {
         std.log.info("Initializing Vulkan backend with SPIR-V compilation", .{});
 
+        if (!detectVulkanSupport()) {
+            std.log.warn("Vulkan loader not detected - switching to CPU fallback", .{});
+            if (self.config.backend == .vulkan) {
+                self.backend = .cpu_fallback;
+                return self.initCPUFallback();
+            }
+            return GpuError.DeviceNotFound;
+        }
+
         // Zig's SPIR-V backend enables targeting Vulkan platforms
         // Using self-hosted SPIR-V backend by default, LLVM backend available with -fllvm
         self.gpu_context = try GPUContext.initVulkan(self.allocator);
@@ -1326,6 +1412,15 @@ pub const GPURenderer = struct {
 
     fn initMetal(self: *Self) !void {
         std.log.info("Initializing Metal backend", .{});
+
+        if (!detectMetalSupport()) {
+            std.log.warn("Metal framework unavailable on this platform - switching to CPU fallback", .{});
+            if (self.config.backend == .metal) {
+                self.backend = .cpu_fallback;
+                return self.initCPUFallback();
+            }
+            return GpuError.DeviceNotFound;
+        }
 
         // Metal Shading Language (MSL) compilation from Zig source
         self.gpu_context = try GPUContext.initMetal(self.allocator);
@@ -1391,6 +1486,15 @@ pub const GPURenderer = struct {
     fn initCUDA(self: *Self) !void {
         std.log.info("Initializing CUDA backend with PTX compilation", .{});
 
+        if (!detectCUDASupport()) {
+            std.log.warn("CUDA runtime not detected - switching to CPU fallback", .{});
+            if (self.config.backend == .cuda) {
+                self.backend = .cpu_fallback;
+                return self.initCPUFallback();
+            }
+            return GpuError.DeviceNotFound;
+        }
+
         // CUDA uses PTX (Parallel Thread Execution) as intermediate representation
         self.gpu_context = try GPUContext.initCUDA(self.allocator);
         self.buffer_manager = BufferManager{ .device = self.gpu_context.?.device };
@@ -1402,6 +1506,40 @@ pub const GPURenderer = struct {
         if (self.gpu_context) |*ctx| {
             ctx.printDeviceInfo();
         }
+    }
+
+    fn detectVulkanSupport() bool {
+        const candidates = switch (builtin.os.tag) {
+            .windows => &[_][]const u8{"vulkan-1.dll"},
+            .linux => &[_][]const u8{ "libvulkan.so.1", "libvulkan.so" },
+            else => &[_][]const u8{},
+        };
+        return tryOpenDriver(candidates);
+    }
+
+    fn detectMetalSupport() bool {
+        return switch (builtin.os.tag) {
+            .macos, .ios, .tvos, .watchos => true,
+            else => false,
+        };
+    }
+
+    fn detectCUDASupport() bool {
+        const candidates = switch (builtin.os.tag) {
+            .windows => &[_][]const u8{"nvcuda.dll"},
+            .linux => &[_][]const u8{ "libcuda.so", "libcuda.so.1" },
+            else => &[_][]const u8{},
+        };
+        return tryOpenDriver(candidates);
+    }
+
+    fn tryOpenDriver(names: []const []const u8) bool {
+        for (names) |name| {
+            var lib = DynLib.openZ(name) catch continue;
+            defer lib.close();
+            return true;
+        }
+        return false;
     }
 
     fn initSPIRVCompiler(self: *Self, target_backend: Backend) !void {
@@ -1509,7 +1647,7 @@ pub const GPURenderer = struct {
         const handle_id = self.next_handle_id;
         self.next_handle_id += 1;
 
-        const gpu_buffer = try self.buffer_manager.?.createBuffer(u8, size, usage);
+        const gpu_buffer = try self.buffer_manager.?.createBuffer(u8, @intCast(u64, size), usage);
         const buffer = Buffer.init(gpu_buffer, size, usage, handle_id);
 
         try self.buffers.append(self.allocator, buffer);
@@ -1544,6 +1682,91 @@ pub const GPURenderer = struct {
         }
         self.stats.bytes_written += @as(u64, @intCast(size_bytes));
         return @intCast(handle_id);
+    }
+
+    /// Create or cache a compute pipeline for GPU execution
+    pub fn createComputePipeline(self: *Self, desc: ComputePipelineDesc) !u32 {
+        if (desc.shader_source.len == 0) return GpuError.ValidationFailed;
+
+        const start = std.time.nanoTimestamp();
+        const handle_id = self.next_handle_id;
+        self.next_handle_id += 1;
+
+        var pipeline = try ComputePipeline.init(self.allocator, desc, handle_id);
+        errdefer pipeline.deinit(self.allocator);
+
+        try self.compute_pipelines.append(self.allocator, pipeline);
+
+        self.stats.shaders_compiled += 1;
+        self.stats.compilation_time_ns += @intCast(std.time.nanoTimestamp() - start);
+        return @intCast(handle_id);
+    }
+
+    /// Destroy a compute pipeline by handle
+    pub fn destroyComputePipeline(self: *Self, handle: u32) !void {
+        if (self.findComputePipelineIndex(handle)) |idx| {
+            var pipeline = self.compute_pipelines.items[idx];
+            pipeline.deinit(self.allocator);
+            _ = self.compute_pipelines.orderedRemove(idx);
+        } else {
+            return GpuError.HandleNotFound;
+        }
+    }
+
+    /// Create a bind group referencing GPU buffers
+    pub fn createBindGroup(self: *Self, desc: BindGroupDesc) !u32 {
+        const handle_id = self.next_handle_id;
+        self.next_handle_id += 1;
+
+        var bind_group = BindGroup.init(self.allocator, handle_id);
+        errdefer bind_group.deinit();
+
+        for (desc.buffers) |buffer_handle| {
+            if (self.findBuffer(buffer_handle) == null) return GpuError.HandleNotFound;
+            try bind_group.addBufferHandle(buffer_handle);
+        }
+
+        try self.bind_groups.append(self.allocator, bind_group);
+        return @intCast(handle_id);
+    }
+
+    /// Destroy a bind group and release its resources
+    pub fn destroyBindGroup(self: *Self, handle: u32) !void {
+        if (self.findBindGroupIndex(handle)) |idx| {
+            var bind_group = self.bind_groups.items[idx];
+            bind_group.deinit();
+            _ = self.bind_groups.orderedRemove(idx);
+        } else {
+            return GpuError.HandleNotFound;
+        }
+    }
+
+    fn findComputePipelineIndex(self: *Self, handle: u32) ?usize {
+        for (self.compute_pipelines.items, 0..) |pipeline, i| {
+            if (pipeline.handle.id == handle) return i;
+        }
+        return null;
+    }
+
+    fn getComputePipeline(self: *Self, handle: u32) ?*ComputePipeline {
+        if (self.findComputePipelineIndex(handle)) |idx| {
+            return &self.compute_pipelines.items[idx];
+        }
+        return null;
+    }
+
+    fn findBindGroupIndex(self: *Self, handle: u32) ?usize {
+        for (self.bind_groups.items, 0..) |group, i| {
+            if (group.handle.id == handle) return i;
+        }
+        return null;
+    }
+
+    fn getBindGroup(self: *Self, handle: u32) ?*BindGroup {
+        if (self.findBindGroupIndex(handle)) |idx| {
+            return &self.bind_groups.items[idx];
+        }
+        return null;
     }
 
     fn findBufferIndex(self: *Self, handle: u32) ?usize {
@@ -1593,6 +1816,56 @@ pub const GPURenderer = struct {
         self.stats.bytes_read += @as(u64, @intCast(out.len));
         self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
         return out;
+    }
+
+    /// Directly map a buffer into CPU address space for read/write operations
+    pub fn getBufferSlice(self: *Self, handle: u32, comptime T: type, count: usize) ![]T {
+        const buf = self.findBuffer(handle) orelse return GpuError.HandleNotFound;
+        const required = count * @sizeOf(T);
+        if (required > buf.size) return GpuError.ValidationFailed;
+        return buf.gpu_buffer.getMappedRange(T, 0, count) orelse GpuError.BufferMappingFailed;
+    }
+
+    /// Determine whether the renderer is currently backed by real GPU hardware
+    pub fn isHardwareAvailable(self: *Self) bool {
+        return self.backend != .cpu_fallback and self.gpu_context != null and self.buffer_manager != null;
+    }
+
+    /// Dispatch a compute workload using the currently selected backend
+    pub fn dispatchCompute(self: *Self, dispatch: ComputeDispatch) !void {
+        const pipeline = self.getComputePipeline(dispatch.pipeline) orelse return GpuError.HandleNotFound;
+        const bind_group = self.getBindGroup(dispatch.bind_group) orelse return GpuError.HandleNotFound;
+
+        const info = ComputeDispatchInfo{
+            .workgroups = .{ dispatch.workgroups_x, dispatch.workgroups_y, dispatch.workgroups_z },
+            .push_constants = dispatch.push_constants,
+        };
+
+        const start = std.time.nanoTimestamp();
+
+        if (self.isHardwareAvailable()) {
+            std.log.info(
+                "Submitting compute dispatch on {s}: workgroups=({d},{d},{d}) label={s}",
+                .{ self.backend.toString(), dispatch.workgroups_x, dispatch.workgroups_y, dispatch.workgroups_z, pipeline.label },
+            );
+            if (self.gpu_context) |*ctx| {
+                ctx.queue.submit();
+            }
+            if (pipeline.cpu_fallback) |fallback| {
+                try fallback(self, bind_group.buffer_handles.items, info, pipeline.cpu_fallback_ctx);
+            }
+        } else if (pipeline.cpu_fallback) |fallback| {
+            std.log.info(
+                "GPU backend unavailable; executing CPU fallback for compute pipeline {s}",
+                .{pipeline.label},
+            );
+            try fallback(self, bind_group.buffer_handles.items, info, pipeline.cpu_fallback_ctx);
+        } else {
+            return GpuError.UnsupportedBackend;
+        }
+
+        self.stats.compute_operations += 1;
+        self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
     }
 
     /// Copy contents from src to dst (copies min(src.size, dst.size) bytes)

@@ -10,64 +10,61 @@
     if (!baseUrl || baseUrl === '/') {
       return normalizedPath;
     }
-
     return `${baseUrl.replace(/\/$/, '')}${normalizedPath}`;
   }
 
   let searchIndex = [];
 
-  // Initialize search with web worker for better performance
+    return `${baseUrl.replace(/\/$/, '')}${normalizedPath}`;
+  }
+
+  let searchIndex = [];
   function initializeAdvancedSearch() {
     // Load search index
     fetch(withBase('generated/search_index.json'))
       .then(response => response.json())
       .then(data => {
-        searchIndex = data;
+        searchIndex = Array.isArray(data) ? data : [];
+        if (searchIndex.length > 0) {
+          window.__ABI_SEARCH_DATA = searchIndex;
+        }
         setupSearchInterface();
       })
       .catch(error => {
         console.warn('Search functionality unavailable:', error);
+        setupSearchInterface();
       });
   }
 
   function setupSearchInterface() {
     const searchInput = document.getElementById('search-input');
-    if (!searchInput) return;
+    const searchResults = document.getElementById('search-results');
+    if (!searchInput || !searchResults) return;
 
-    // Add keyboard shortcuts
     document.addEventListener('keydown', function(e) {
-      // Ctrl/Cmd + K to focus search
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         searchInput.focus();
         searchInput.select();
       }
-      
-      // Escape to clear search
+
       if (e.key === 'Escape' && document.activeElement === searchInput) {
         searchInput.value = '';
-        hideSearchResults();
+        hideSearchResults(searchResults);
       }
     });
 
-    // Add search suggestions
     searchInput.addEventListener('focus', function() {
       if (this.value.trim() === '') {
-        showSearchSuggestions();
+        showSearchSuggestions(searchResults);
       }
     });
-  }
 
-  function showSearchSuggestions() {
-    const suggestions = [
-      'database API',
-      'neural networks',
-      'SIMD operations',
-      'performance guide',
-      'plugin system',
-      'vector search',
-      'machine learning'
-    ];
+    searchInput.addEventListener('input', function() {
+      if (this.value.trim() === '') {
+        showSearchSuggestions(searchResults);
+      }
+    });
 
     const searchResults = document.getElementById('search-results');
     if (!searchResults) return;
@@ -99,11 +96,9 @@
     searchResults.classList.remove('hidden');
   }
 
-  function searchFor(query) {
-    const searchInput = document.getElementById('search-input');
-    if (searchInput) {
-      searchInput.value = query;
-      searchInput.dispatchEvent(new Event('input'));
+  function hideSearchResults(container) {
+    if (container) {
+      container.classList.add('hidden');
     }
   }
 
@@ -139,5 +134,7 @@
   } else {
     initializeAdvancedSearch();
   }
+
+  window.searchFor = searchFor;
 
 })();
