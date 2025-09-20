@@ -44,6 +44,7 @@ zig build test
 abi/
 ├── src/                          # Source code
 │   ├── core/                     # Core utilities
+│   ├── framework/                # Runtime orchestration and lifecycle
 │   ├── ai/                       # AI/ML components
 │   ├── database/                 # Vector database
 │   ├── net/                      # Networking
@@ -95,6 +96,7 @@ const results = try db.search(&embedding, 10, allocator);
 ## Modules
 
 - **`core/`**: Core utilities and framework foundation
+- **`framework/`**: Runtime orchestrator that wires features and plugins together
 - **`ai/`**: AI agents and machine learning components
 - **`database/`**: WDBX-AI vector database with HNSW indexing
 - **`net/`**: HTTP/TCP servers and client libraries
