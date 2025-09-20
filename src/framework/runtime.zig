@@ -85,8 +85,10 @@ pub const Framework = struct {
     pub fn addPluginPath(self: *Framework, path: []const u8) !void {
         const owned = try self.allocator.dupe(u8, path);
         errdefer self.allocator.free(owned);
+        try self.registry.addPluginPath(owned);
+        errdefer self.registry.loader.removePluginPath(owned);
+
         try self.plugin_paths.append(self.allocator, owned);
-        try self.registry.addPluginPath(path);
     }
 
     pub fn setPluginPaths(self: *Framework, paths: []const []const u8) !void {
