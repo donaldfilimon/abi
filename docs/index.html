@@ -74,82 +74,166 @@
     <div id="content"></div>
   </main>
   <script>
-  async function fetchJSON(p) { const r = await fetch(p); return await r.json(); }
-  async function fetchText(p) { const r = await fetch(p); return await r.text(); }
-  function escapeHTML(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  async function fetchJSON(path) {
+    const response = await fetch(path);
+    return await response.json();
+  }
+
+  async function fetchText(path) {
+    const response = await fetch(path);
+    return await response.text();
+  }
+
+  function escapeHTML(value) {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
   function mdToHtml(md) {
-    const lines = md.split('\\n');
+    const lines = md.split('\n');
     let html = '';
-    let inCode = false; let codeLang = '';
-    for (let i=0;i<lines.length;i++){
+    let inCode = false;
+    let codeLang = '';
+
+    for (let i = 0; i < lines.length; i++) {
       let line = lines[i];
+
       if (line.startsWith('```')) {
-        if (!inCode) { inCode = true; codeLang = line.slice(3).trim(); html += '<pre><code class="lang-'+escapeHTML(codeLang)+'">'; }
-        else { inCode = false; html += '</code></pre>'; }
+        if (!inCode) {
+          inCode = true;
+          codeLang = line.slice(3).trim();
+          html += '<pre><code class="lang-' + escapeHTML(codeLang) + '">';
+        } else {
+          inCode = false;
+          html += '</code></pre>';
+        }
         continue;
       }
-      if (inCode) { html += escapeHTML(line)+'\\n'; continue; }
+
+      if (inCode) {
+        html += escapeHTML(line) + '\n';
+        continue;
+      }
+
       if (line.startsWith('#')) {
-        const m = line.match(/^#+/); const level = m ? m[0].length : 1;
+        const match = line.match(/^#+/);
+        const level = match ? match[0].length : 1;
         const text = line.slice(level).trim();
-        const id = text.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+        const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
         html += `<h${level} id="${id}">${inline(text)}</h${level}>`;
         continue;
       }
-      if (/^\\s*[-*] /.test(line)) {
-        let items = []; let j=i;
-        while (j<lines.length && /^\\s*[-*] /.test(lines[j])) { items.push(lines[j].replace(/^\\s*[-*] /,'')); j++; }
+
+      if (/^\s*[-*] /.test(line)) {
+        const items = [];
+        let j = i;
+        while (j < lines.length && /^\s*[-*] /.test(lines[j])) {
+          items.push(lines[j].replace(/^\s*[-*] /, ''));
+          j++;
+        }
         html += '<ul>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ul>';
-        i = j-1; continue;
+        i = j - 1;
+        continue;
       }
-      if (/^\\s*[0-9]+\\. /.test(line)) {
-        let items=[]; let j=i;
-        while (j<lines.length && /^\\s*[0-9]+\\. /.test(lines[j])) { items.push(lines[j].replace(/^\\s*[0-9]+\\. /,'')); j++; }
+
+      if (/^\s*[0-9]+\. /.test(line)) {
+        const items = [];
+        let j = i;
+        while (j < lines.length && /^\s*[0-9]+\. /.test(lines[j])) {
+          items.push(lines[j].replace(/^\s*[0-9]+\. /, ''));
+          j++;
+        }
         html += '<ol>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ol>';
-        i = j-1; continue;
+        i = j - 1;
+        continue;
       }
-      if (line.trim() === '') { html += ''; continue; }
+
+      if (line.trim() === '') {
+        continue;
+      }
+
       html += `<p>${inline(line)}</p>`;
     }
+
     return html;
-    function inline(t) {
-      t = t.replace(/`([^`]+)`/g,'<code>$1</code>');
-      t = t.replace(/\\*\\*([^*]+)\\*\\*/g,'<strong>$1</strong>');
-      t = t.replace(/\\*([^*]+)\\*/g,'<em>$1</em>');
-      t = t.replace(/\\!\\[([^\\]]*)\\]\\(([^)]+)\\)/g,'<img alt="$1" src="$2" />');
-      t = t.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g,(m,txt,url) => {\n        \\        if (url.startsWith('http') || url.startsWith('mailto:') || url.startsWith('#')) return `<a href=\"${url}\" target=\"_blank\" rel=\"noopener\">${txt}</a>`;\n        \\        if (url.endsWith('.md')) return `<a href=\"#${url}\" onclick=\"loadDoc('${url}'); return false;\">${txt}</a>`;\n        \\        return `<a href=\"${url}\" target=\"_blank\" rel=\"noopener\">${txt}</a>`;\n        \\      });
-      return t;
+
+    function inline(text) {
+      text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+      text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" />');
+      text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, label, url) => {
+        if (url.startsWith('http') || url.startsWith('mailto:') || url.startsWith('#')) {
+          return `<a href="${url}" target="_blank" rel="noopener">${label}</a>`;
+        }
+        if (url.endsWith('.md')) {
+          return `<a href="#${url}" onclick="loadDoc('${url}'); return false;">${label}</a>`;
+        }
+        return `<a href="${url}" target="_blank" rel="noopener">${label}</a>`;
+      });
+      return text;
     }
   }
+
   let searchData = [];
   let currentPath = '';
-  async function init(){
-    try { searchData = await fetchJSON('generated/search_index.json'); } catch(e){ console.error('search index', e); }
+
+  async function init() {
+    try {
+      searchData = await fetchJSON('generated/search_index.json');
+    } catch (error) {
+      console.error('search index', error);
+    }
+
     renderNav(searchData);
-    const initial = location.hash ? decodeURIComponent(location.hash.slice(1)) : (searchData[0]?.file || 'generated/API_REFERENCE.md');
+    const initial = location.hash
+      ? decodeURIComponent(location.hash.slice(1))
+      : (searchData[0]?.file || 'generated/API_REFERENCE.md');
     loadDoc(initial);
-    document.getElementById('search').addEventListener('input', (e) => {
-      const q = e.target.value.toLowerCase();
-      const results = searchData.filter(it => it.title.toLowerCase().includes(q) || it.excerpt.toLowerCase().includes(q));
+
+    document.getElementById('search').addEventListener('input', (event) => {
+      const query = event.target.value.toLowerCase();
+      const results = searchData.filter(item =>
+        item.title.toLowerCase().includes(query) ||
+        item.excerpt.toLowerCase().includes(query)
+      );
       renderNav(results);
     });
-    document.getElementById('open_md').addEventListener('click', () => { if (currentPath) window.open(currentPath, '_blank'); });
+
+    document.getElementById('open_md').addEventListener('click', () => {
+      if (currentPath) {
+        window.open(currentPath, '_blank');
+      }
+    });
   }
-  async function loadDoc(path){
+
+  async function loadDoc(path) {
     currentPath = path;
     location.hash = encodeURIComponent(path);
     const md = await fetchText(path);
     document.getElementById('content').innerHTML = mdToHtml(md);
-    window.scrollTo(0,0);
+    window.scrollTo(0, 0);
   }
-  function renderNav(list){
+
+  function renderNav(list) {
     const nav = document.getElementById('nav');
-    nav.innerHTML = list.map(it => `<div class="nav-item"><a href="#${encodeURIComponent(it.file)}" onclick="loadDoc('${it.file}'); return false;">${it.title}</a><div class="nav-excerpt">${escapeHTML(it.excerpt)}</div></div>`).join('');
+    nav.innerHTML = list.map(item => (
+      `<div class="nav-item">` +
+        `<a href="#${encodeURIComponent(item.file)}" onclick="loadDoc('${item.file}'); return false;">${item.title}</a>` +
+        `<div class="nav-excerpt">${escapeHTML(item.excerpt)}</div>` +
+      `</div>`
+    )).join('');
   }
+
   window.addEventListener('hashchange', () => {
-    const p = decodeURIComponent(location.hash.slice(1));
-    if (p) loadDoc(p);
+    const path = decodeURIComponent(location.hash.slice(1));
+    if (path) {
+      loadDoc(path);
+    }
   });
+
   init();
   </script>
 </body>

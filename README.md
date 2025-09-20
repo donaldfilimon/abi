@@ -28,6 +28,11 @@
 - GPU drivers (optional, for acceleration)
 - OpenAI API key (for AI features)
 
+### Compatibility
+
+- **Current Toolchain**: Zig 0.16.0-dev.254+6dd0270a1. This repository's `.zigversion` file is the authoritative reference—match it exactly when installing Zig.
+- **Legacy Notes**: Historical guidance for Zig 0.15.x (including CI setups using `mlugg/setup-zig@v2` with Zig 0.15.0) remains in older sections below for teams maintaining legacy deployments. These paths are not part of the active test matrix.
+
 ### Quick Start
 ```bash
 git clone https://github.com/donaldfilimon/abi.git
@@ -56,40 +61,49 @@ abi/
 ├── docs/                         # Documentation
 ├── examples/                     # Usage examples
 └── tools/                        # Development tools
-```
 
 ## Quick Start
 
 ### Basic Usage
 ```zig
+const std = @import("std");
 const abi = @import("abi");
 
 pub fn main() !void {
-    var framework = try abi.init(std.heap.page_allocator, .{
-        .enable_gpu = true,
-        .enable_simd = true,
-    });
-    defer framework.deinit();
+    const allocator = std.heap.page_allocator;
 
-    // Create AI agent
-    var agent = try abi.ai.Agent.init(std.heap.page_allocator, .adaptive);
+    // Create AI agent using the exported AgentConfig
+    var agent = try abi.features.ai.agent.Agent.init(allocator, .{ .name = "QuickStart" });
     defer agent.deinit();
 
-    // Generate response
-    const response = try agent.generate("Hello!", .{});
-    defer std.heap.page_allocator.free(response.content);
+    // Process a message
+    const response = try agent.process("Hello!", allocator);
+    defer allocator.free(response);
 }
 ```
+
+> `Agent.process` duplicates its reply into the allocator you provide, so callers must free the returned buffer once they're
+> done with it.
 
 ### Vector Database
 ```zig
 // Open database
-var db = try abi.database.Db.open("vectors.wdbx", true);
+var db = try abi.features.database.database.Db.open("vectors.wdbx", true);
 defer db.close();
 
 // Add and search vectors
 const embedding = [_]f32{0.1, 0.2, 0.3};
 const results = try db.search(&embedding, 10, allocator);
+```
+
+### WDBX CLI
+
+```bash
+# Inspect available subcommands
+wdbx help
+
+# Launch the lightweight HTTP API (Ctrl+C to stop)
+wdbx http --host 0.0.0.0 --port 8080
 ```
 
 ## Modules
@@ -106,11 +120,14 @@ const results = try db.search(&embedding, 10, allocator);
 
 ## CLI
 
+The current executable boots the framework and prints a bootstrap summary. Run it with Zig's
+build system:
+
 ```bash
 abi help                    # Show commands
 abi chat                    # AI chat session
 abi train <data>           # Train neural network
-abi serve <model>          # Start server
+./zig-out/bin/abi wdbx server --http   # Start HTTP server
 abi benchmark              # Performance tests
 abi analyze <file>         # Text analysis
 
@@ -146,10 +163,18 @@ abi --memory-track --gpu        # Monitor performance
 ## Testing
 
 ```bash
-zig test tests/test_memory_management.zig    # Memory tests
-zig test tests/test_performance_regression.zig  # Performance tests
-zig test tests/test_cli_integration.zig      # CLI tests
+# Run all tests registered in build.zig (currently exercises src/main.zig)
+zig build test
+
+# Targeted test files
+zig test tests/test_create.zig
+zig test tests/cross-platform/linux.zig
+zig test tests/cross-platform/macos.zig
+zig test tests/cross-platform/windows.zig
 ```
+
+The cross-platform tests gracefully skip when run on unsupported operating systems, so it's
+safe to invoke the full list from any development environment.
 
 **Quality Metrics:**
 - Memory Safety: Zero leaks
@@ -305,9 +330,11 @@ const row_id = try db.addEmbedding(&embedding);
 
 // Search for similar vectors
 const query = [_]f32{0.15, 0.25, 0.35, /* ... */};
-const results = try db.search(&query, 10, allocator);
-defer allocator.free(results);
+const matches = try db.search(&query, 10, allocator);
+defer abi.features.database.database.Db.freeResults(matches, allocator);
 ```
+
+> **Note:** Always release search metadata with `Db.freeResults` when you're done to reclaim allocator-backed resources.
 
 ### **WDBX Vector Database Features**
 
@@ -324,16 +351,16 @@ The ABI vector database provides enterprise-grade performance with:
 
 ```bash
 # Query k-nearest neighbors
-zig build run -- knn "1.1,2.1,3.1,4.1,5.1,6.1,7.1,8.1" 5
+./zig-out/bin/abi wdbx knn "1.1,2.1,3.1,4.1,5.1,6.1,7.1,8.1" 5
 
 # Query nearest neighbor
-zig build run -- query "1.1,2.1,3.1,4.1,5.1,6.1,7.1,8.1"
+./zig-out/bin/abi wdbx query "1.1,2.1,3.1,4.1,5.1,6.1,7.1,8.1"
 
 # Add vector to database
-zig build run -- add "1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0"
+./zig-out/bin/abi wdbx add "1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0"
 
 # Start HTTP REST API server
-zig build run -- http 8080
+./zig-out/bin/abi wdbx http 8080
 ```
 
 #### **HTTP REST API**
@@ -341,7 +368,7 @@ zig build run -- http 8080
 Start the server and access endpoints:
 
 ```bash
-zig build run -- http 8080
+./zig-out/bin/abi wdbx http 8080
 ```
 
 **API Endpoints:**
@@ -454,15 +481,15 @@ pub fn main() void {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 📚 **Documentation**
+## 📚 **Further Reading**
 
-- **[Hosted Docs (GitHub Pages)](https://donaldfilimon.github.io/abi/)**
-- **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - Complete development workflow and architecture
-- **[API Reference](docs/api_reference.md)** - Complete API documentation
-- **[CLI Reference](docs/cli_reference.md)** - Command-line interface guide
-- **[Database Guide](docs/database_usage_guide.md)** - Vector database usage
-- **[Plugin System](docs/PLUGIN_SYSTEM.md)** - Plugin development guide
-- **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Deployment guide
+- **[Documentation Portal](docs/README.md)** - Landing page that links to generated and manual guides
+- **[Module Organization](docs/MODULE_ORGANIZATION.md)** - Current source tree and dependency overview
+- **[GPU Acceleration Guide](docs/GPU_AI_ACCELERATION.md)** - Feature deep dive for GPU-backed workloads
+- **[Testing Strategy](docs/TESTING_STRATEGY.md)** - Quality gates, coverage expectations, and tooling
+- **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Deployment runbooks and environment guidance
+- **[API Reference](docs/api_reference.md)** - Hand-authored API summary with links to generated docs
+- **[Generated Documentation](docs/generated/)** - Auto-generated API, module, and example references
 
 ## 🧪 **Testing & Quality**
 
@@ -539,7 +566,7 @@ pub const ExamplePlugin = struct {
 };
 ```
 
-See [Plugin System Documentation](docs/PLUGIN_SYSTEM.md) for detailed development guide.
+See the [Module Organization guide](docs/MODULE_ORGANIZATION.md) and generated module reference for plugin entry points.
 
 ## 🚀 **Production Deployment**
 
