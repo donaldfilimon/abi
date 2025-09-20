@@ -338,9 +338,11 @@ const row_id = try db.addEmbedding(&embedding);
 
 // Search for similar vectors
 const query = [_]f32{0.15, 0.25, 0.35, /* ... */};
-const results = try db.search(&query, 10, allocator);
-defer allocator.free(results);
+const matches = try db.search(&query, 10, allocator);
+defer abi.features.database.database.Db.freeResults(matches, allocator);
 ```
+
+> **Note:** Always release search metadata with `Db.freeResults` when you're done to reclaim allocator-backed resources.
 
 ### **WDBX Vector Database Features**
 
