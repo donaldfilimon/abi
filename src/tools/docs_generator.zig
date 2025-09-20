@@ -331,6 +331,8 @@ fn generateNavigationData(_: std.mem.Allocator) !void {
         \\        url: "/generated/PERFORMANCE_GUIDE/"
         \\      - title: "Examples"
         \\        url: "/generated/EXAMPLES/"
+        \\      - title: "Testing Strategy"
+        \\        url: "/TESTING_STRATEGY/"
         \\      - title: "Best Practices"
         \\        url: "/generated/EXAMPLES/#performance-optimization"
         \\
@@ -704,7 +706,7 @@ fn scanFile(allocator: std.mem.Allocator, rel_path: []const u8, decls: *std.Arra
     const file = try std.fs.cwd().openFile(rel_path, .{});
     defer file.close();
 
-    var buffer = std.array_list.Managed(u8).init(allocator);
+    var buffer = std.ArrayList(u8).init(allocator);
     defer buffer.deinit();
 
     var reader = file.reader();
@@ -717,7 +719,7 @@ fn scanFile(allocator: std.mem.Allocator, rel_path: []const u8, decls: *std.Arra
         if (n == 0) break;
         try buffer.appendSlice(buf[0..n]);
     }
-    const data = try buffer.toOwnedSlice(allocator);
+    const data = try buffer.toOwnedSlice();
     defer allocator.free(data);
 
     var it = std.mem.splitScalar(u8, data, '\n');
@@ -869,7 +871,7 @@ fn generateSearchIndex(allocator: std.mem.Allocator) !void {
 fn getTitleAndExcerpt(allocator: std.mem.Allocator, path: []const u8, title_out: *[]const u8, excerpt_out: *[]const u8) !void {
     const file = try std.fs.cwd().openFile(path, .{});
     defer file.close();
-    var buffer = std.array_list.Managed(u8).init(allocator);
+    var buffer = std.ArrayList(u8).init(allocator);
     defer buffer.deinit();
 
     var reader = file.reader();
@@ -879,7 +881,7 @@ fn getTitleAndExcerpt(allocator: std.mem.Allocator, path: []const u8, title_out:
         if (n == 0) break;
         try buffer.appendSlice(buf[0..n]);
     }
-    const data = try buffer.toOwnedSlice(allocator);
+    const data = try buffer.toOwnedSlice();
     defer allocator.free(data);
 
     var it = std.mem.splitScalar(u8, data, '\n');
