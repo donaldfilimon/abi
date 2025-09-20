@@ -615,6 +615,10 @@ const Declaration = struct {
     doc: []u8,
 };
 
+fn docPathLessThan(_: void, lhs: []const u8, rhs: []const u8) bool {
+    return std.mem.order(u8, lhs, rhs) == .lt;
+}
+
 fn generateCodeApiIndex(allocator: std.mem.Allocator) !void {
     // Use an arena for all temporary allocations in scanning to avoid leaks and simplify ownership
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -625,6 +629,8 @@ fn generateCodeApiIndex(allocator: std.mem.Allocator) !void {
     defer files.deinit(a);
 
     try collectZigFiles(a, "src", &files);
+
+    std.sort.block([]u8, files.items, {}, docPathLessThan);
 
     var out = try std.fs.cwd().createFile("docs/generated/CODE_API_INDEX.md", .{ .truncate = true });
     defer out.close();
@@ -818,6 +824,8 @@ fn generateSearchIndex(allocator: std.mem.Allocator) !void {
             try files.append(a, rel);
         }
     }
+
+    std.sort.block([]const u8, files.items, {}, docPathLessThan);
 
     var out = try std.fs.cwd().createFile("docs/generated/search_index.json", .{ .truncate = true });
     defer out.close();
