@@ -23,27 +23,23 @@ const LibraryHandle = switch (builtin.os.tag) {
 /// Cross-platform plugin loader
 pub const PluginLoader = struct {
     allocator: std.mem.Allocator,
-    loaded_libraries: std.ArrayList(LoadedLibrary),
-    plugin_paths: std.ArrayList([]const u8),
+    loaded_libraries: std.ArrayListUnmanaged(LoadedLibrary) = .{},
+    plugin_paths: std.ArrayListUnmanaged([]u8) = .{},
 
     const LoadedLibrary = struct {
-        path: []const u8,
+        path: []u8,
         handle: LibraryHandle,
         factory_fn: PluginFactoryFn,
         interface: ?*const PluginInterface = null,
     };
 
     pub fn init(allocator: std.mem.Allocator) PluginLoader {
-        return .{
-            .allocator = allocator,
-            .loaded_libraries = std.ArrayList(LoadedLibrary){},
-            .plugin_paths = std.ArrayList([]const u8){},
-        };
+        return .{ .allocator = allocator };
     }
 
     pub fn deinit(self: *PluginLoader) void {
         // Unload all libraries
-        for (self.loaded_libraries.items) |*lib| {
+        for (self.loaded_libraries.items) |lib| {
             self.unloadLibrary(lib.handle) catch {};
             self.allocator.free(lib.path);
         }
@@ -59,6 +55,7 @@ pub const PluginLoader = struct {
     /// Add a directory to search for plugins
     pub fn addPluginPath(self: *PluginLoader, path: []const u8) !void {
         const owned_path = try self.allocator.dupe(u8, path);
+        errdefer self.allocator.free(owned_path);
         try self.plugin_paths.append(self.allocator, owned_path);
     }
 
@@ -74,8 +71,14 @@ pub const PluginLoader = struct {
     }
 
     /// Discover plugins in the search paths
-    pub fn discoverPlugins(self: *PluginLoader) !std.ArrayList([]const u8) {
-        var discovered_plugins = std.ArrayList([]const u8){};
+    pub fn discoverPlugins(self: *PluginLoader) !std.ArrayList([]u8) {
+        var discovered_plugins = std.ArrayList([]u8).init(self.allocator);
+        errdefer {
+            for (discovered_plugins.items) |plugin_path| {
+                self.allocator.free(plugin_path);
+            }
+            discovered_plugins.deinit();
+        }
 
         for (self.plugin_paths.items) |search_path| {
             try self.discoverPluginsInPath(search_path, &discovered_plugins);
@@ -85,7 +88,7 @@ pub const PluginLoader = struct {
     }
 
     /// Discover plugins in a specific directory
-    fn discoverPluginsInPath(self: *PluginLoader, path: []const u8, plugins: *std.ArrayList([]const u8)) !void {
+    fn discoverPluginsInPath(self: *PluginLoader, path: []const u8, plugins: *std.ArrayList([]u8)) !void {
         var dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch |err| switch (err) {
             error.FileNotFound => return, // Path doesn't exist, skip
             error.NotDir => return, // Not a directory, skip
@@ -100,7 +103,8 @@ pub const PluginLoader = struct {
             const extension = getLibraryExtension();
             if (std.mem.endsWith(u8, entry.name, extension)) {
                 const full_path = try std.fs.path.join(self.allocator, &[_][]const u8{ path, entry.name });
-                try plugins.append(self.allocator, full_path);
+                errdefer self.allocator.free(full_path);
+                try plugins.append(full_path);
             }
         }
     }
@@ -108,7 +112,7 @@ pub const PluginLoader = struct {
     /// Load a plugin from a file path
     pub fn loadPlugin(self: *PluginLoader, plugin_path: []const u8) !*const PluginInterface {
         // Check if already loaded
-        for (self.loaded_libraries.items) |*lib| {
+        for (self.loaded_libraries.items) |lib| {
             if (std.mem.eql(u8, lib.path, plugin_path)) {
                 if (lib.interface) |existing_interface| {
                     return existing_interface;
@@ -132,8 +136,11 @@ pub const PluginLoader = struct {
         }
 
         // Store the loaded library
+        const owned_path = try self.allocator.dupe(u8, plugin_path);
+        errdefer self.allocator.free(owned_path);
+
         try self.loaded_libraries.append(self.allocator, .{
-            .path = try self.allocator.dupe(u8, plugin_path),
+            .path = owned_path,
             .handle = handle,
             .factory_fn = factory_fn,
             .interface = plugin_interface,
@@ -211,17 +218,20 @@ pub const PluginLoader = struct {
     fn getSymbol(self: *PluginLoader, handle: LibraryHandle, symbol_name: []const u8, comptime T: type) !T {
         switch (builtin.os.tag) {
             .windows => {
-                const symbol = std.os.windows.kernel32.GetProcAddress(handle, @as([*:0]const u8, @ptrCast(symbol_name)));
+                const symbol_name_z = try self.allocator.dupeZ(u8, symbol_name);
+                defer self.allocator.free(symbol_name_z);
+
+                const symbol = std.os.windows.kernel32.GetProcAddress(handle, symbol_name_z.ptr);
                 if (symbol == null) {
                     return PluginError.SymbolNotFound;
                 }
                 return @ptrCast(symbol);
             },
             .linux, .macos, .freebsd, .openbsd, .netbsd, .dragonfly => {
-                const c_symbol_name = try self.allocator.dupeZ(u8, symbol_name);
-                defer self.allocator.free(c_symbol_name);
+                const symbol_name_z = try self.allocator.dupeZ(u8, symbol_name);
+                defer self.allocator.free(symbol_name_z);
 
-                const symbol = std.c.dlsym(handle, c_symbol_name);
+                const symbol = std.c.dlsym(handle, symbol_name_z);
                 if (symbol == null) {
                     return PluginError.SymbolNotFound;
                 }
