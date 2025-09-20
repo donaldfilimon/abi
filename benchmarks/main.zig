@@ -9,6 +9,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const framework = @import("benchmark_framework.zig");
+const separator_line = "============================================================";
 
 /// Unified benchmark entry point for ABI
 /// Consolidates all benchmark suites with enhanced reporting
@@ -65,27 +66,27 @@ pub fn main() !void {
     } else if (std.mem.eql(u8, bench, "all")) {
         std.log.info("🎯 Running All Available Benchmarks", .{});
 
-        std.log.info("\n{'='**60}", .{});
+        std.log.info("\n{s}", .{separator_line});
         std.log.info("🧠 AI/NEURAL NETWORK BENCHMARKS", .{});
-        std.log.info("{'='**60}", .{});
+        std.log.info("{s}", .{separator_line});
         const benchmark_suite = @import("benchmark_suite.zig");
         try benchmark_suite.main();
 
-        std.log.info("\n{'='**60}", .{});
+        std.log.info("\n{s}", .{separator_line});
         std.log.info("🗄️ DATABASE BENCHMARKS", .{});
-        std.log.info("{'='**60}", .{});
+        std.log.info("{s}", .{separator_line});
         const db_bench = @import("database_benchmark.zig");
         try db_bench.main();
 
-        std.log.info("\n{'='**60}", .{});
+        std.log.info("\n{s}", .{separator_line});
         std.log.info("⚡ PERFORMANCE BENCHMARKS", .{});
-        std.log.info("{'='**60}", .{});
+        std.log.info("{s}", .{separator_line});
         const perf_bench = @import("performance_suite.zig");
         try perf_bench.main();
 
-        std.log.info("\n{'='**60}", .{});
+        std.log.info("\n{s}", .{separator_line});
         std.log.info("📐 SIMD MICRO-BENCHMARKS", .{});
-        std.log.info("{'='**60}", .{});
+        std.log.info("{s}", .{separator_line});
         const simd_bench = @import("simd_micro.zig");
         try simd_bench.main();
 
