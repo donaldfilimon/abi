@@ -2,13 +2,24 @@
 (function() {
   'use strict';
 
+  const baseUrl = (document.body && document.body.dataset.baseurl) || '';
+
+  function withBase(path) {
+    if (!path) return baseUrl || '';
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    if (!baseUrl || baseUrl === '/') {
+      return normalizedPath;
+    }
+
+    return `${baseUrl.replace(/\/$/, '')}${normalizedPath}`;
+  }
+
   let searchIndex = [];
-  let searchWorker;
 
   // Initialize search with web worker for better performance
   function initializeAdvancedSearch() {
     // Load search index
-    fetch('/generated/search_index.json')
+    fetch(withBase('generated/search_index.json'))
       .then(response => response.json())
       .then(data => {
         searchIndex = data;
@@ -61,13 +72,30 @@
     const searchResults = document.getElementById('search-results');
     if (!searchResults) return;
 
-    searchResults.innerHTML = suggestions.map(suggestion =>
-      `<div class="search-result-item suggestion" onclick="searchFor('${suggestion}')">
-        <div class="search-result-title">💡 ${suggestion}</div>
-        <div class="search-result-excerpt">Search suggestion</div>
-      </div>`
-    ).join('');
-    
+    searchResults.innerHTML = '';
+
+    suggestions.forEach(suggestion => {
+      const item = document.createElement('div');
+      item.className = 'search-result-item suggestion';
+
+      const title = document.createElement('div');
+      title.className = 'search-result-title';
+      title.textContent = `💡 ${suggestion}`;
+
+      const excerpt = document.createElement('div');
+      excerpt.className = 'search-result-excerpt';
+      excerpt.textContent = 'Search suggestion';
+
+      item.appendChild(title);
+      item.appendChild(excerpt);
+
+      item.addEventListener('click', function() {
+        searchFor(suggestion);
+      });
+
+      searchResults.appendChild(item);
+    });
+
     searchResults.classList.remove('hidden');
   }
 
@@ -83,20 +111,27 @@
     const searchResults = document.getElementById('search-results');
     if (searchResults) {
       searchResults.classList.add('hidden');
+      searchResults.innerHTML = '';
     }
   }
 
   // Fuzzy search implementation
   function fuzzySearch(query, items) {
-    const fuse = new Fuse(items, {
-      keys: ['title', 'excerpt'],
-      threshold: 0.4,
-      distance: 100,
-      includeScore: true
-    });
-    
-    return fuse.search(query).map(result => result.item);
+    const normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.length === 0) return [];
+
+    return items
+      .map(item => {
+        const haystack = `${item.title} ${item.excerpt}`.toLowerCase();
+        const index = haystack.indexOf(normalizedQuery);
+        return index === -1 ? null : { item, score: index };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.score - b.score)
+      .map(result => result.item);
   }
+
+  window.searchFor = searchFor;
 
   // Initialize when DOM is ready
   if (document.readyState === 'loading') {
