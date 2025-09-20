@@ -25,7 +25,7 @@
 - Location: `tests/*integration*`, `tests/test_web_server_*.zig`, `tests/test_plugin_*.zig`.
 - Scope: subsystem seams (agent routing + datastore, web server + plugins, GPU manager + kernels).
 - Tooling: `zig test` with feature flags (`-Dgpu=true`, `-Dsimd=true`, `-Denable_metrics=true`).
-- Requirements: cover cross-module behaviors, contract tests for connectors (`src/connectors`), regression harness for database sharding.
+- Requirements: cover cross-module behaviors, contract tests for connectors (`src/features/connectors`), regression harness for database sharding.
 - Data: use in-repo fixtures under `tests/fixtures/` (create as needed) and deterministic mocks.
 
 ### Performance & Load Tests
@@ -56,7 +56,7 @@
 ## Environments
 - **Local**: developers run `zig build test`, targeted `zig test path`, and `zig build perf -- --quick` for smoke performance.
 - **CI**: matrix across targets (Linux, Windows), feature flags (`-Dgpu`, `-Dsimd`, `-Dhot_reload`), nightly extended runs with `--fuzz` and performance benchmarks.
-- **Pre-production**: weekly soak tests using `deploy/staging` scripts, capturing telemetry via Prometheus exporters in `src/monitoring`.
+- **Pre-production**: weekly soak tests using `deploy/staging` scripts, capturing telemetry via Prometheus exporters in `src/features/monitoring`.
 
 ## Test Data & Fixtures
 - Centralize fixtures under `tests/fixtures/` with subfolders (`agents/`, `plugins/`, `http/`, `database/`).

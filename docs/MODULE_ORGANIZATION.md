@@ -29,8 +29,7 @@ src/
 │   ├── platform/         # OS abstractions and platform introspection
 │   ├── logging/          # Structured logging backends
 │   └── simd.zig          # Re-exported SIMD helpers
-└── simd.zig              # Legacy SIMD entry point (re-exported in shared)
-```
+└── simd.zig              # Legacy SIMD entry point (re-exported in shared)```
 
 ## 🔧 Module Details
 
@@ -68,7 +67,6 @@ src/
   exports (`root.zig`), SIMD convenience wrapper (`simd.zig`).
 - **Dependencies**: Bridge between external callers and the framework/feature
   modules.
-
 ## 🔗 Dependencies
 
 ```
@@ -78,6 +76,11 @@ shared/utils ─┘                     ├─▶ shared/logging
                                    ├─▶ shared/platform
                                    └─▶ shared/utils & shared/simd
 ```
+
+- `shared/*` delivers the reusable building blocks consumed across the stack.
+- `framework/` activates features based on `FrameworkOptions`, using the plugin system and registry to wire dependencies.
+- `features/*` provide vertical capabilities and lean on shared utilities for storage, logging, SIMD, and platform access.
+- Tests and examples depend on the same public exports, ensuring parity with consumer usage.
 
 ## 🏗️ Build Integration
 
@@ -99,7 +102,9 @@ const ai = abi.features.ai;
 const agent = try ai.Agent.init(allocator, .adaptive);
 ```
 
-## 🔍 Module Discovery
+// Opt-in feature modules are available under `abi.features.*`
+var agent = try abi.features.ai.enhanced_agent.Agent.init(allocator, .{});
+defer agent.deinit();
 
 1. Inspect `src/features/mod.zig` for the list of available feature families.
 2. Explore `src/framework/` for runtime orchestration and lifecycle flows.
