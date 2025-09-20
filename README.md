@@ -106,17 +106,15 @@ const results = try db.search(&embedding, 10, allocator);
 
 ## CLI
 
-```bash
-abi help                    # Show commands
-abi chat                    # AI chat session
-abi train <data>           # Train neural network
-abi serve <model>          # Start server
-abi benchmark              # Performance tests
-abi analyze <file>         # Text analysis
+The current executable boots the framework and prints a bootstrap summary. Run it with Zig's
+build system:
 
-# With options
-abi --memory-track --gpu benchmark
-abi --verbose --debug chat
+```bash
+zig build run
+
+# Or install the binary then execute it directly
+zig build
+./zig-out/bin/abi
 ```
 
 ## API
@@ -146,10 +144,18 @@ abi --memory-track --gpu        # Monitor performance
 ## Testing
 
 ```bash
-zig test tests/test_memory_management.zig    # Memory tests
-zig test tests/test_performance_regression.zig  # Performance tests
-zig test tests/test_cli_integration.zig      # CLI tests
+# Run all tests registered in build.zig (currently exercises src/main.zig)
+zig build test
+
+# Targeted test files
+zig test tests/test_create.zig
+zig test tests/cross-platform/linux.zig
+zig test tests/cross-platform/macos.zig
+zig test tests/cross-platform/windows.zig
 ```
+
+The cross-platform tests gracefully skip when run on unsupported operating systems, so it's
+safe to invoke the full list from any development environment.
 
 **Quality Metrics:**
 - Memory Safety: Zero leaks
