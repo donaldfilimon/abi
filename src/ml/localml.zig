@@ -12,6 +12,8 @@
 const std = @import("std");
 const core = @import("core");
 
+const log = std.log.scoped(.localml);
+
 /// Re-export commonly used types
 pub const Allocator = core.Allocator;
 
@@ -167,10 +169,10 @@ fn train(data: []const DataRow, iterations: u32, lr: f64) !struct { w: [2]f64, b
 
         loss /= n;
         if (@mod(i, 100) == 0) {
-            std.log.info("iteration {d}: loss = {d:.6}", .{ i, loss });
+            log.info("iteration {d}: loss = {d:.6}", .{ i, loss });
         }
         if (@abs(loss - prev_loss) < 1e-7) {
-            std.log.info("converged at iteration {d}", .{i});
+            log.info("converged at iteration {d}", .{i});
             break;
         }
         prev_loss = loss;
@@ -209,17 +211,17 @@ pub fn main() !void {
     _ = args.next(); // skip executable name
 
     const cmd = args.next() orelse {
-        std.log.err("Usage: localml [train|predict] [args...]", .{});
+        log.err("Usage: localml [train|predict] [args...]", .{});
         return error.InvalidUsage;
     };
 
     if (std.mem.eql(u8, cmd, "train")) {
         const data_path = args.next() orelse {
-            std.log.err("Usage: localml train <data.csv> <model.txt>", .{});
+            log.err("Usage: localml train <data.csv> <model.txt>", .{});
             return error.InvalidUsage;
         };
         const model_path = args.next() orelse {
-            std.log.err("Usage: localml train <data.csv> <model.txt>", .{});
+            log.err("Usage: localml train <data.csv> <model.txt>", .{});
             return error.InvalidUsage;
         };
 
@@ -242,18 +244,18 @@ pub fn main() !void {
         // Train model
         const model = try train(data.items, 1000, 0.1);
         try saveModel(model_path, model.w, model.b);
-        std.log.info("Model saved to {s}", .{model_path});
+        log.info("Model saved to {s}", .{model_path});
     } else if (std.mem.eql(u8, cmd, "predict")) {
         const model_path = args.next() orelse {
-            std.log.err("Usage: localml predict <model.txt> <x1> <x2>", .{});
+            log.err("Usage: localml predict <model.txt> <x1> <x2>", .{});
             return error.InvalidUsage;
         };
         const x1_str = args.next() orelse {
-            std.log.err("Usage: localml predict <model.txt> <x1> <x2>", .{});
+            log.err("Usage: localml predict <model.txt> <x1> <x2>", .{});
             return error.InvalidUsage;
         };
         const x2_str = args.next() orelse {
-            std.log.err("Usage: localml predict <model.txt> <x1> <x2>", .{});
+            log.err("Usage: localml predict <model.txt> <x1> <x2>", .{});
             return error.InvalidUsage;
         };
 
@@ -263,9 +265,9 @@ pub fn main() !void {
 
         const z = model.w[0] * x1 + model.w[1] * x2 + model.b;
         const prob = 1.0 / (1.0 + std.math.exp(-z));
-        std.log.info("Probability: {d:.6}", .{prob});
+        log.info("Probability: {d:.6}", .{prob});
     } else {
-        std.log.err("Unknown command: {s}", .{cmd});
+        log.err("Unknown command: {s}", .{cmd});
         return error.InvalidCommand;
     }
 }

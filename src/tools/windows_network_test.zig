@@ -14,6 +14,9 @@ const std = @import("std");
 const builtin = @import("builtin");
 const print = std.debug.print;
 
+const HEADER_RULE_45 = [_]u8{'='} ** 45;
+const HEADER_RULE_50 = [_]u8{'='} ** 50;
+
 // Windows-specific imports (conditionally compiled)
 const windows = if (builtin.os.tag == .windows) std.os.windows else struct {};
 
@@ -271,7 +274,7 @@ pub const WindowsNetworkTester = struct {
 
     pub fn runComprehensiveTests(self: *Self) !void {
         std.debug.print("🌐 Windows Network Testing Suite for ABI\n", .{});
-        std.debug.print("{s}\n\n", .{"=" ** 45});
+        std.debug.print("{s}\n\n", .{HEADER_RULE_45[0..]});
 
         self.test_start_time = std.time.milliTimestamp();
 
@@ -688,7 +691,7 @@ pub const WindowsNetworkTester = struct {
 
     fn generateNetworkTestReport(self: *Self) !void {
         std.debug.print("📊 Comprehensive Network Test Report\n", .{});
-        std.debug.print("{s}", .{"=" ** 50 ++ "\n\n"});
+        std.debug.print("{s}\n\n", .{HEADER_RULE_50[0..]});
 
         const test_duration = self.test_end_time - self.test_start_time;
 
