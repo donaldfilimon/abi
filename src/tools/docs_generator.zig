@@ -625,7 +625,7 @@ fn generateCodeApiIndex(allocator: std.mem.Allocator) !void {
     defer arena.deinit();
     const a = arena.allocator();
 
-    var files = std.ArrayListUnmanaged([]const u8){};
+    var files = std.ArrayListUnmanaged([]u8){};
     defer files.deinit(a);
 
     try collectZigFiles(a, "src", &files);
@@ -636,8 +636,6 @@ fn generateCodeApiIndex(allocator: std.mem.Allocator) !void {
     }.lessThan);
 
     std.sort.block([]u8, files.items, {}, docPathLessThan);
-
-    std.sort.block([]const u8, files.items, {}, docPathLessThan);
 
     var out = try std.fs.cwd().createFile("docs/generated/CODE_API_INDEX.md", .{ .truncate = true });
     defer out.close();
@@ -674,7 +672,7 @@ fn generateCodeApiIndex(allocator: std.mem.Allocator) !void {
     }
 }
 
-fn collectZigFiles(allocator: std.mem.Allocator, dir_path: []const u8, out_files: *std.ArrayListUnmanaged([]const u8)) !void {
+fn collectZigFiles(allocator: std.mem.Allocator, dir_path: []const u8, out_files: *std.ArrayListUnmanaged([]u8)) !void {
     var stack = std.ArrayListUnmanaged([]u8){};
     defer {
         for (stack.items) |p| allocator.free(p);
