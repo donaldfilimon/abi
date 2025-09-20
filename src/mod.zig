@@ -1,91 +1,61 @@
+//! ABI Framework - Main Module Interface
+//!
+//! High level entrypoints and curated re-exports for the reorganised framework
+//! runtime. The new `framework` module exposes the orchestration layer that
+//! coordinates feature toggles, plugin discovery, and lifecycle management.
+
 const std = @import("std");
 const framework = @import("framework/mod.zig");
 const core = @import("shared/core/core.zig");
 const lifecycle_mod = @import("shared/core/lifecycle.zig");
 
+// =============================================================================
+// FEATURE AND FRAMEWORK MODULES
+// =============================================================================
+
+/// Grouped feature modules mirroring the documentation structure.
 pub const features = @import("features/mod.zig");
-pub const shared = @import("shared/mod.zig");
+
+/// Framework orchestration layer that coordinates features and plugins.
+pub const framework = @import("framework/mod.zig");
+
+// =============================================================================
+// SHARED MODULES
+// =============================================================================
+
 pub const utils = @import("shared/utils/mod.zig");
+pub const core = @import("shared/core/mod.zig");
+pub const platform = @import("shared/platform/mod.zig");
+pub const logging = @import("shared/logging/mod.zig");
+pub const simd = @import("shared/simd.zig");
+pub const main = @import("main.zig");
+pub const root = @import("root.zig");
 
-pub const FeatureCategory = framework.feature_manager.FeatureCategory;
-pub const Runtime = framework.runtime.Runtime;
-pub const RuntimeOptions = Runtime.Options;
+// =============================================================================
+// PUBLIC API
+// =============================================================================
 
-const RuntimeInitError = std.mem.Allocator.Error || framework.feature_manager.Error || core.AbiError;
+pub const Feature = framework.Feature;
+pub const Framework = framework.Framework;
+pub const FrameworkOptions = framework.FrameworkOptions;
 
-pub const InitError = (error{
-    AlreadyInitialized,
-    NotInitialized,
-}) || RuntimeInitError;
-
-var global_runtime: ?*Runtime = null;
-
-/// Initialize the ABI framework with default runtime options.
-pub fn init(allocator: std.mem.Allocator) InitError!void {
-    return initWithOptions(allocator, .{});
+/// Initialise the ABI framework and return the orchestration handle. Call
+/// `Framework.deinit` (or `abi.shutdown`) when finished.
+pub fn init(allocator: std.mem.Allocator, options: FrameworkOptions) !Framework {
+    return try framework.runtime.Framework.init(allocator, options);
 }
 
-/// Initialize the ABI framework using explicit runtime options.
-pub fn initWithOptions(allocator: std.mem.Allocator, options: RuntimeOptions) InitError!void {
-    if (global_runtime != null) return InitError.AlreadyInitialized;
-    const instance = try allocator.create(Runtime);
-    errdefer allocator.destroy(instance);
-    instance.* = try Runtime.init(allocator, options);
-    global_runtime = instance;
+/// Convenience wrapper around `Framework.deinit` for callers that prefer the
+/// legacy function-style shutdown.
+pub fn shutdown(instance: *Framework) void {
+    instance.deinit();
 }
 
-/// Retrieve the global runtime instance.
-pub fn runtime() InitError!*Runtime {
-    if (global_runtime) |instance| {
-        return instance;
-    }
-    return InitError.NotInitialized;
-}
-
-/// Shut down the global runtime instance if it exists.
-pub fn deinit() void {
-    if (global_runtime) |instance| {
-        const allocator = instance.gpa;
-        instance.deinit();
-        allocator.destroy(instance);
-        global_runtime = null;
-    }
-    core.deinit();
-}
-
-/// Return framework semantic version.
+/// Get framework version information.
 pub fn version() []const u8 {
-    return "2.0.0-alpha";
+    return "1.0.0-alpha";
 }
 
-/// Convenience accessor for the feature manager.
-pub fn featuresManager() InitError!*framework.feature_manager.FeatureManager {
-    return runtime().getFeatureManager();
-}
-
-/// Convenience accessor for the lifecycle controller.
-pub fn lifecycle() InitError!*lifecycle_mod.Lifecycle {
-    return runtime().getLifecycle();
-}
-
-/// Ensure all registered features are initialized.
-pub fn ensureAllFeatures() InitError!void {
-    try runtime().getFeatureManager().ensureAll();
-}
-
-/// Ensure a specific feature group is initialized.
-pub fn ensureCategory(category: FeatureCategory) InitError!void {
-    try runtime().getFeatureManager().ensureCategory(category);
-}
-
-test "framework bootstraps runtime" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-
-    try init(arena.allocator());
-    defer deinit();
-
-    const manager = try featuresManager();
-    try manager.ensure("feature.ai");
-    try manager.ensure("feature.web");
+test {
+    std.testing.refAllDecls(@This());
 }
