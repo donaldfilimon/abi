@@ -631,6 +631,13 @@ fn generateCodeApiIndex(allocator: std.mem.Allocator) !void {
     defer files.deinit(a);
 
     try collectZigFiles(a, "src", &files);
+    std.mem.sort([]u8, files.items, {}, struct {
+        fn lessThan(_: void, lhs: []u8, rhs: []u8) bool {
+            return std.mem.lessThan(u8, lhs, rhs);
+        }
+    }.lessThan);
+
+    std.sort.block([]u8, files.items, {}, docPathLessThan);
 
     std.sort.block([]const u8, files.items, {}, docPathLessThan);
 
@@ -683,7 +690,7 @@ fn collectZigFiles(allocator: std.mem.Allocator, dir_path: []const u8, out_files
         _ = stack.pop();
         defer allocator.free(path);
 
-        var dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch continue;
+        var dir = std.fs.cwd().openIterableDir(path, .{}) catch continue;
         defer dir.close();
 
         var it = dir.iterate();
@@ -810,7 +817,7 @@ fn generateSearchIndex(allocator: std.mem.Allocator) !void {
     try std.fs.cwd().makePath("docs/generated");
 
     // Collect Markdown files in docs/generated
-    var dir = std.fs.cwd().openDir("docs/generated", .{ .iterate = true }) catch |err| switch (err) {
+    var dir = std.fs.cwd().openIterableDir("docs/generated", .{}) catch |err| switch (err) {
         error.FileNotFound => return, // nothing to index yet
         else => return err,
     };

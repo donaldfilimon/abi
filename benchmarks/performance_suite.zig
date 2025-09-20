@@ -114,9 +114,9 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "SIMD Dot Product ({} elements)", .{size}), "SIMD", simd_dot_fn, simd_context);
+            try self.framework_suite.runBenchmarkFmt("SIMD Dot Product ({} elements)", .{size}, "SIMD", simd_dot_fn, simd_context);
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Scalar Dot Product ({} elements)", .{size}), "SIMD", scalar_dot_fn, simd_context);
+            try self.framework_suite.runBenchmarkFmt("Scalar Dot Product ({} elements)", .{size}, "SIMD", scalar_dot_fn, simd_context);
 
             // SIMD vector addition
             const add_context = struct {
@@ -150,9 +150,9 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "SIMD Vector Add ({} elements)", .{size}), "SIMD", simd_add_fn, add_context);
+            try self.framework_suite.runBenchmarkFmt("SIMD Vector Add ({} elements)", .{size}, "SIMD", simd_add_fn, add_context);
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Scalar Vector Add ({} elements)", .{size}), "SIMD", scalar_add_fn, add_context);
+            try self.framework_suite.runBenchmarkFmt("Scalar Vector Add ({} elements)", .{size}, "SIMD", scalar_add_fn, add_context);
         }
     }
 
@@ -208,7 +208,7 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Similarity Search ({} vectors)", .{db_size}), "Database", vector_search_fn, search_context);
+            try self.framework_suite.runBenchmarkFmt("Vector Similarity Search ({} vectors)", .{db_size}, "Database", vector_search_fn, search_context);
 
             // Benchmark vector insertion simulation
             const insert_context = struct {
@@ -231,7 +231,7 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Insertion ({}D)", .{dimensions}), "Database", vector_insert_fn, insert_context);
+            try self.framework_suite.runBenchmarkFmt("Vector Insertion ({}D)", .{dimensions}, "Database", vector_insert_fn, insert_context);
         }
     }
 
@@ -341,11 +341,11 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Text Tokenization ({} bytes)", .{size}), "Text", tokenize_fn, text_context);
+            try self.framework_suite.runBenchmarkFmt("Text Tokenization ({} bytes)", .{size}, "Text", tokenize_fn, text_context);
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Text Search ({} bytes)", .{size}), "Text", search_fn, text_context);
+            try self.framework_suite.runBenchmarkFmt("Text Search ({} bytes)", .{size}, "Text", search_fn, text_context);
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Text Hashing ({} bytes)", .{size}), "Text", hash_fn, text_context);
+            try self.framework_suite.runBenchmarkFmt("Text Hashing ({} bytes)", .{size}, "Text", hash_fn, text_context);
         }
     }
 
@@ -374,7 +374,7 @@ pub const EnhancedPerformanceBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Memory Allocation ({} bytes)", .{size}), "Memory", alloc_fn, alloc_context);
+            try self.framework_suite.runBenchmarkFmt("Memory Allocation ({} bytes)", .{size}, "Memory", alloc_fn, alloc_context);
         }
     }
 };
