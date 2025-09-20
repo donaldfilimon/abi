@@ -88,6 +88,8 @@ pub const BenchmarkResult = struct {
     platform_info: PlatformInfo,
 
     pub fn deinit(self: *BenchmarkResult, allocator: std.mem.Allocator) void {
+        allocator.free(self.name);
+        allocator.free(self.category);
         if (self.error_message) |msg| {
             allocator.free(msg);
         }
@@ -268,9 +270,15 @@ pub const BenchmarkSuite = struct {
             memory_peak,
         );
 
+        const name_copy = try self.allocator.dupe(u8, name);
+        errdefer self.allocator.free(name_copy);
+
+        const category_copy = try self.allocator.dupe(u8, category);
+        errdefer self.allocator.free(category_copy);
+
         const result = BenchmarkResult{
-            .name = name,
-            .category = category,
+            .name = name_copy,
+            .category = category_copy,
             .stats = stats,
             .success = true,
             .error_message = null,
@@ -282,6 +290,19 @@ pub const BenchmarkSuite = struct {
 
         // Log result
         std.log.info("✅ {s}: {d:.0} ops/sec ({d:.2}ns avg)", .{ name, stats.throughput_ops_per_sec, stats.mean_ns });
+    }
+
+    pub fn runBenchmarkFmt(
+        self: *BenchmarkSuite,
+        comptime fmt: []const u8,
+        args: anytype,
+        category: []const u8,
+        benchmark_fn: anytype,
+        context: anytype,
+    ) !void {
+        const formatted_name = try std.fmt.allocPrint(self.allocator, fmt, args);
+        defer self.allocator.free(formatted_name);
+        try self.runBenchmark(formatted_name, category, benchmark_fn, context);
     }
 
     /// Print comprehensive results report
