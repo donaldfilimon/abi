@@ -1,6 +1,8 @@
-/// SIMD-accelerated operations for high-performance computing
-// Simple utility functions for tests and basic API
-// Distance between two equal-length slices
+const std = @import("std");
+
+/// SIMD-accelerated operations for high‑performance computing
+/// Simple utility functions for tests and basic API
+/// Distance between two equal‑length slices
 pub fn distance(a: []const f32, b: []const f32) f32 {
     if (a.len != b.len) {
         @panic("distance requires equal-length slices");
@@ -13,7 +15,7 @@ pub fn distance(a: []const f32, b: []const f32) f32 {
     return std.math.sqrt(sum);
 }
 
-// Cosine similarity between two equal-length slices
+/// Cosine similarity between two equal‑length slices
 pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
     if (a.len != b.len) {
         @panic("cosineSimilarity requires equal-length slices");
@@ -31,18 +33,19 @@ pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
     return dot / denom;
 }
 
-// Dummy performance monitor struct for tests
+/// Dummy performance monitor struct for tests
 pub const PerformanceMonitor = struct {};
-pub fn getPerformanceMonitor() PerformanceMonitor { return .{}; }
+
+pub fn getPerformanceMonitor() PerformanceMonitor {
+    return .{};
+}
+
 pub const SIMDOpts = struct {
     // Add SIMD options here
     // TODO: Implement SIMD options
 };
-//! Provides vectorized operations for AI/ML workloads
 
-const std = @import("std");
-
-/// SIMD vector width (4 for most architectures, can be optimized per platform)
+/// Provides vectorized operations for AI/ML workloads
 const SIMD_WIDTH = 4;
 
 /// SIMD-accelerated vector operations
@@ -68,7 +71,7 @@ pub const VectorOps = struct {
         return sum;
     }
 
-    /// SIMD-accelerated matrix-vector multiplication
+    /// SIMD-accelerated matrix‑vector multiplication
     pub fn matrixVectorMultiply(matrix: []const f32, vector: []const f32, result: []f32, rows: usize, cols: usize) void {
         for (0..rows) |i| {
             const row_start = i * cols;
@@ -119,7 +122,7 @@ pub const VectorOps = struct {
         }
     }
 
-    /// SIMD-accelerated element-wise maximum
+    /// SIMD-accelerated element‑wise maximum
     pub fn vectorMax(a: []const f32, b: []const f32, result: []f32) void {
         var i: usize = 0;
 
@@ -135,7 +138,7 @@ pub const VectorOps = struct {
         }
     }
 
-    /// SIMD-accelerated element-wise addition
+    /// SIMD-accelerated element‑wise addition
     pub fn vectorAdd(a: []const f32, b: []const f32, result: []f32) void {
         var i: usize = 0;
 
@@ -151,7 +154,7 @@ pub const VectorOps = struct {
         }
     }
 
-    /// SIMD-accelerated element-wise multiplication
+    /// SIMD-accelerated element‑wise multiplication
     pub fn vectorMul(a: []const f32, b: []const f32, result: []f32) void {
         var i: usize = 0;
 
@@ -169,7 +172,6 @@ pub const VectorOps = struct {
 
     /// SIMD-accelerated vector normalization (L2 norm)
     pub fn normalize(data: []f32, result: []f32) void {
-        // Calculate L2 norm (magnitude)
         var sum_sq: f32 = 0.0;
         var i: usize = 0;
 
@@ -205,14 +207,7 @@ pub const VectorOps = struct {
     }
 
     /// SIMD-accelerated matrix multiplication (basic implementation)
-    /// result: output matrix (rows x cols)
-    /// a: first matrix (rows x cols)
-    /// b: second matrix (cols x cols)
-    /// rows: number of rows in result
-    /// cols: number of columns in result and rows in b
-    /// inner_dim: number of columns in a and rows in b
     pub fn matrixMultiply(result: []f32, a: []const f32, b: []const f32, rows: usize, cols: usize, inner_dim: usize) void {
-        // Basic matrix multiplication - can be optimized with SIMD
         for (0..rows) |i| {
             for (0..cols) |j| {
                 var sum: f32 = 0.0;
