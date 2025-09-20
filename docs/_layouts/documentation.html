@@ -20,7 +20,7 @@ layout: default
   <!-- Search functionality -->
   <script src="{{ '/assets/js/search.js' | relative_url }}" defer></script>
 </head>
-<body>
+<body data-baseurl="{{ site.baseurl | default: '' }}">
   <div class="wrapper">
     <header>
       <h1><a href="{{ '/' | relative_url }}">{{ site.title | default: site.github.repository_name }}</a></h1>

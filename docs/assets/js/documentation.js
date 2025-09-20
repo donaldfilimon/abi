@@ -2,6 +2,45 @@
 (function() {
   'use strict';
 
+  function buildUrl(path) {
+    const baseUrl = document.body ? (document.body.dataset.baseurl || '') : '';
+
+    if (!path) {
+      return baseUrl || '/';
+    }
+
+    if (/^https?:\/\//i.test(path)) {
+      return path;
+    }
+
+    const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+    return `${normalizedBase}${normalizedPath}` || normalizedPath;
+  }
+
+  function normalizeDocPath(file) {
+    if (!file) {
+      return buildUrl('/');
+    }
+
+    let normalized = file.trim();
+
+    if (normalized.endsWith('.md')) {
+      normalized = normalized.slice(0, -3);
+    }
+
+    if (!normalized.startsWith('/')) {
+      normalized = `/${normalized}`;
+    }
+
+    if (!normalized.endsWith('/') && !normalized.endsWith('.html')) {
+      normalized = `${normalized}/`;
+    }
+
+    return buildUrl(normalized);
+  }
+
   // Generate table of contents
   function generateTOC() {
     const content = document.querySelector('.documentation-content .content');
@@ -40,7 +79,7 @@
     let searchData = [];
     
     // Load search index
-    fetch('/generated/search_index.json')
+    fetch(buildUrl('/generated/search_index.json'))
       .then(response => response.json())
       .then(data => {
         searchData = data;
@@ -102,7 +141,7 @@
   }
 
   function navigateToPage(file) {
-    window.location.href = `/${file}`;
+    window.location.href = normalizeDocPath(file);
   }
 
   // Smooth scrolling for anchor links
@@ -204,5 +243,7 @@
   } else {
     initialize();
   }
+
+  window.navigateToPage = navigateToPage;
 
 })();
