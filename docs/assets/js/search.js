@@ -2,7 +2,23 @@
 (function() {
   'use strict';
 
-  const baseUrl = resolveBaseUrl();
+  function buildUrl(path) {
+    const baseUrl = document.body ? (document.body.dataset.baseurl || '') : '';
+
+    if (!path) {
+      return baseUrl || '/';
+    }
+
+    if (/^https?:\/\//i.test(path)) {
+      return path;
+    }
+
+    const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+    return `${normalizedBase}${normalizedPath}` || normalizedPath;
+  }
+
   let searchIndex = [];
   function resolveBaseUrl() {
     const fromWindow = typeof window !== 'undefined' && typeof window.__DOCS_BASEURL === 'string'
@@ -21,13 +37,7 @@
   }
 
   function initializeAdvancedSearch() {
-    const existingData = Array.isArray(window.__ABI_SEARCH_DATA) ? window.__ABI_SEARCH_DATA : null;
-    if (existingData) {
-      searchIndex = existingData;
-      setupSearchInterface();
-      return;
-    }
-
+    // Load search index
     fetch(buildUrl('/generated/search_index.json'))
       .then(response => response.json())
       .then(data => {
@@ -135,5 +145,7 @@
   } else {
     initializeAdvancedSearch();
   }
+
+  window.searchFor = searchFor;
 
 })();

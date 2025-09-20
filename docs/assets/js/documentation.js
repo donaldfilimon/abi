@@ -2,7 +2,44 @@
 (function() {
   'use strict';
 
-  const baseUrl = resolveBaseUrl();
+  function buildUrl(path) {
+    const baseUrl = document.body ? (document.body.dataset.baseurl || '') : '';
+
+    if (!path) {
+      return baseUrl || '/';
+    }
+
+    if (/^https?:\/\//i.test(path)) {
+      return path;
+    }
+
+    const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+    return `${normalizedBase}${normalizedPath}` || normalizedPath;
+  }
+
+  function normalizeDocPath(file) {
+    if (!file) {
+      return buildUrl('/');
+    }
+
+    let normalized = file.trim();
+
+    if (normalized.endsWith('.md')) {
+      normalized = normalized.slice(0, -3);
+    }
+
+    if (!normalized.startsWith('/')) {
+      normalized = `/${normalized}`;
+    }
+
+    if (!normalized.endsWith('/') && !normalized.endsWith('.html')) {
+      normalized = `${normalized}/`;
+    }
+
+    return buildUrl(normalized);
+  }
 
   // Generate table of contents
   function generateTOC() {
@@ -76,22 +113,16 @@
     if (!searchInput || !searchResults) return;
 
     let searchData = [];
-
-    if (typeof window !== 'undefined' && Array.isArray(window.__ABI_SEARCH_DATA)) {
-      searchData = window.__ABI_SEARCH_DATA.slice();
-    } else {
-      fetch(buildUrl('/generated/search_index.json'))
-        .then(response => response.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            searchData = data;
-            window.__ABI_SEARCH_DATA = data;
-          }
-        })
-        .catch(error => {
-          console.warn('Search index not available:', error);
-        });
-    }
+    
+    // Load search index
+    fetch(buildUrl('/generated/search_index.json'))
+      .then(response => response.json())
+      .then(data => {
+        searchData = data;
+      })
+      .catch(error => {
+        console.warn('Search index not available:', error);
+      });
 
     let searchTimeout;
     searchInput.addEventListener('input', function() {
@@ -200,15 +231,7 @@
   }
 
   function navigateToPage(file) {
-    if (!file) return;
-    window.location.href = buildUrl(file);
-  }
-
-  function applySuggestion(suggestion, input) {
-    if (!input) return;
-    input.value = suggestion;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.focus();
+    window.location.href = normalizeDocPath(file);
   }
 
   // Smooth scrolling for anchor links
@@ -354,5 +377,7 @@
   } else {
     initialize();
   }
+
+  window.navigateToPage = navigateToPage;
 
 })();
