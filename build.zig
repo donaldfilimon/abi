@@ -24,7 +24,7 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(exe);
 
     const unit_tests = b.addTest(.{
-        .root_module = abi_mod,
+        .root_module = main_module,
     });
 
     const test_step = b.step("test", "Run all tests");
