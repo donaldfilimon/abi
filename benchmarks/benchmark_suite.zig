@@ -196,7 +196,7 @@ pub const EnhancedBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Neural Forward Pass ({}D)", .{dim}), "AI", forward_pass_fn, network_context);
+            try self.framework_suite.runBenchmarkFmt("Neural Forward Pass ({}D)", .{dim}, "AI", forward_pass_fn, network_context);
         }
     }
 
@@ -240,9 +240,9 @@ pub const EnhancedBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "SIMD Dot Product ({} elements)", .{size}), "SIMD", simd_dot_fn, simd_context);
+            try self.framework_suite.runBenchmarkFmt("SIMD Dot Product ({} elements)", .{size}, "SIMD", simd_dot_fn, simd_context);
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Scalar Dot Product ({} elements)", .{size}), "SIMD", scalar_dot_fn, simd_context);
+            try self.framework_suite.runBenchmarkFmt("Scalar Dot Product ({} elements)", .{size}, "SIMD", scalar_dot_fn, simd_context);
 
             // SIMD vector addition
             const AddContext = struct {
@@ -277,9 +277,9 @@ pub const EnhancedBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "SIMD Vector Add ({} elements)", .{size}), "SIMD", simd_add_fn, add_context);
+            try self.framework_suite.runBenchmarkFmt("SIMD Vector Add ({} elements)", .{size}, "SIMD", simd_add_fn, add_context);
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Scalar Vector Add ({} elements)", .{size}), "SIMD", scalar_add_fn, add_context);
+            try self.framework_suite.runBenchmarkFmt("Scalar Vector Add ({} elements)", .{size}, "SIMD", scalar_add_fn, add_context);
         }
     }
 
@@ -321,9 +321,9 @@ pub const EnhancedBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Cosine Similarity ({}D)", .{dim}), "Vector", cosine_similarity_fn, vector_context);
+            try self.framework_suite.runBenchmarkFmt("Cosine Similarity ({}D)", .{dim}, "Vector", cosine_similarity_fn, vector_context);
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Euclidean Distance ({}D)", .{dim}), "Vector", euclidean_distance_fn, vector_context);
+            try self.framework_suite.runBenchmarkFmt("Euclidean Distance ({}D)", .{dim}, "Vector", euclidean_distance_fn, vector_context);
         }
     }
 
@@ -364,9 +364,9 @@ pub const EnhancedBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Standard Allocation ({} elements)", .{size}), "Memory", standard_alloc_fn, memory_context);
+            try self.framework_suite.runBenchmarkFmt("Standard Allocation ({} elements)", .{size}, "Memory", standard_alloc_fn, memory_context);
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Safe Allocation ({} elements)", .{size}), "Memory", safe_alloc_fn, memory_context);
+            try self.framework_suite.runBenchmarkFmt("Safe Allocation ({} elements)", .{size}, "Memory", safe_alloc_fn, memory_context);
         }
     }
 

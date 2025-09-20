@@ -82,7 +82,7 @@ pub const SimpleBenchmarkSuite = struct {
                 .self = self,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Array Allocation ({} elements)", .{size}), "Basic", alloc_context.allocateArray, alloc_context);
+            try self.framework_suite.runBenchmarkFmt("Array Allocation ({} elements)", .{size}, "Basic", alloc_context.allocateArray, alloc_context);
 
             // Array sum
             const sum_context = struct {
@@ -98,7 +98,7 @@ pub const SimpleBenchmarkSuite = struct {
                 .size = size,
             };
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Array Sum ({} elements)", .{size}), "Basic", sum_context.arraySum, sum_context);
+            try self.framework_suite.runBenchmarkFmt("Array Sum ({} elements)", .{size}, "Basic", sum_context.arraySum, sum_context);
         }
     }
 

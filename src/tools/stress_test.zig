@@ -14,6 +14,10 @@ const std = @import("std");
 const builtin = @import("builtin");
 const print = std.debug.print;
 
+const HEADER_RULE_40 = [_]u8{'='} ** 40;
+const HEADER_RULE_45 = [_]u8{'='} ** 45;
+const HEADER_RULE_50 = [_]u8{'='} ** 50;
+
 /// Enhanced stress test configuration with adaptive parameters
 const StressTestConfig = struct {
     // Thread and concurrency settings
@@ -404,7 +408,7 @@ pub const StressTester = struct {
 
     pub fn runStressTest(self: *Self) !void {
         print("🔥 Starting Enhanced Stress Test Suite\n");
-        print("=" ** 40 ++ "\n\n");
+        print("{s}\n\n", .{HEADER_RULE_40[0..]});
 
         self.metrics.test_start_time = std.time.milliTimestamp();
 
@@ -527,7 +531,7 @@ pub const StressTester = struct {
     }
     fn generateStressTestReport(self: *Self) !void {
         print("📋 Comprehensive Stress Test Report\n");
-        print("=" ** 50 ++ "\n\n");
+        print("{s}\n\n", .{HEADER_RULE_50[0..]});
 
         const total_duration = self.metrics.test_end_time - self.metrics.test_start_time;
         const total_ops = self.metrics.total_operations.load(.acquire);
@@ -780,7 +784,7 @@ pub fn main() !void {
     defer stress_tester.deinit();
 
     print("🧪 Enhanced Stress Testing Framework for ABI\n");
-    print("=" ** 45 ++ "\n\n");
+    print("{s}\n\n", .{HEADER_RULE_45[0..]});
 
     try stress_tester.runStressTest();
 }
