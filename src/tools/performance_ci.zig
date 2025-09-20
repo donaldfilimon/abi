@@ -44,7 +44,7 @@ pub const PerformanceThresholds = struct {
     // SIMD and optimization settings
     enable_simd: bool = true,
     enable_parallel_benchmark: bool = true,
-    benchmark_warmup_iterations: u32 = 10,
+    benchmark_warmup_iterations: u32 = 42,
 
     /// Load performance thresholds from environment variables with comprehensive validation
     pub fn loadFromEnv(allocator: std.mem.Allocator) !PerformanceThresholds {

@@ -371,7 +371,7 @@ test "benchmark baseline establishment" {
         timestamp: u64,
     };
 
-    var results = std.array_list.Managed(BaselineResult).initCapacity(testing.allocator, 16);
+    var results = try std.array_list.Managed(BaselineResult).initCapacity(testing.allocator, 16);
     defer results.deinit();
 
     const timestamp = std.time.nanoTimestamp();
