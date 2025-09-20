@@ -62,6 +62,7 @@ abi/
 
 ### Basic Usage
 ```zig
+const std = @import("std");
 const abi = @import("abi");
 
 pub fn main() !void {
@@ -72,14 +73,22 @@ pub fn main() !void {
     defer framework.deinit();
 
     // Create AI agent
-    var agent = try abi.ai.Agent.init(std.heap.page_allocator, .adaptive);
+    var agent = try abi.ai.Agent.init(std.heap.page_allocator, .{
+        .name = "demo",
+        .persona = .adaptive,
+    });
     defer agent.deinit();
 
-    // Generate response
-    const response = try agent.generate("Hello!", .{});
-    defer std.heap.page_allocator.free(response.content);
+    // Process user input and manage the duplicated reply buffer
+    var reply = try agent.process("Hello!", std.heap.page_allocator);
+    defer std.heap.page_allocator.free(reply);
+
+    std.debug.print("Agent: {s}\n", .{reply});
 }
 ```
+
+> `Agent.process` duplicates its reply into the allocator you provide, so callers must free the returned buffer once they're
+> done with it.
 
 ### Vector Database
 ```zig
