@@ -56,6 +56,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
         // Clean up test files
         for (self.test_files.items) |file| {
             std.fs.cwd().deleteFile(file) catch {};
+            self.allocator.free(file);
         }
         self.test_files.deinit(self.allocator);
 
@@ -67,6 +68,12 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
         const filename = try std.fmt.allocPrint(self.allocator, "{s}{s}.wdbx", .{ self.config.test_file_prefix, suffix });
         try self.test_files.append(self.allocator, filename);
         return filename;
+    }
+
+    fn createFormattedTestFile(self: *EnhancedDatabaseBenchmarkSuite, comptime fmt: []const u8, args: anytype) ![]const u8 {
+        const suffix = try std.fmt.allocPrint(self.allocator, fmt, args);
+        defer self.allocator.free(suffix);
+        return self.createTestFile(suffix);
     }
 
     pub fn runAllBenchmarks(self: *EnhancedDatabaseBenchmarkSuite) !void {
@@ -108,7 +115,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
                 filename: []const u8,
                 dimensions: usize,
             }{
-                .filename = try self.createTestFile(try std.fmt.allocPrint(self.allocator, "init_{d}D", .{dim})),
+                .filename = try self.createFormattedTestFile("init_{d}D", .{dim}),
                 .dimensions = dim,
             };
 
@@ -119,7 +126,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Database Init ({}D)", .{dim}), "Database", init_db_fn, init_context);
+            try self.framework_suite.runBenchmarkFmt("Database Init ({}D)", .{dim}, "Database", init_db_fn, init_context);
         }
     }
 
@@ -127,7 +134,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
         // std.log.info("📐 Benchmarking Vector Operations", .{});
 
         for (self.config.vector_sizes) |dim| {
-            const test_file = try self.createTestFile(try std.fmt.allocPrint(self.allocator, "vectors_{d}D", .{dim}));
+            const test_file = try self.createFormattedTestFile("vectors_{d}D", .{dim});
 
             // Single vector insertion
             const single_context = struct {
@@ -161,7 +168,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Single Vector Insert ({}D)", .{dim}), "Database", single_insert_fn, single_context);
+            try self.framework_suite.runBenchmarkFmt("Single Vector Insert ({}D)", .{dim}, "Database", single_insert_fn, single_context);
 
             // Batch vector insertion
             const batch_context = struct {
@@ -205,7 +212,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Batch Vector Insert ({}D, 100 vectors)", .{dim}), "Database", batch_insert_fn, batch_context);
+            try self.framework_suite.runBenchmarkFmt("Batch Vector Insert ({}D, 100 vectors)", .{dim}, "Database", batch_insert_fn, batch_context);
         }
     }
 
@@ -213,7 +220,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
         // std.log.info("🔍 Benchmarking Search Performance", .{});
 
         for (self.config.vector_sizes) |dim| {
-            const test_file = try self.createTestFile(try std.fmt.allocPrint(self.allocator, "search_{d}D", .{dim}));
+            const test_file = try self.createFormattedTestFile("search_{d}D", .{dim});
 
             // Pre-populate database
             var db = try database.database.Db.open(test_file, true);
@@ -260,7 +267,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
                     }
                 }.call;
 
-                try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Search ({}D, top-{})", .{ dim, top_k }), "Database", search_fn, search_context);
+                try self.framework_suite.runBenchmarkFmt("Vector Search ({}D, top-{})", .{ dim, top_k }, "Database", search_fn, search_context);
             }
         }
     }
@@ -367,7 +374,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Parallel Search ({} threads)", .{thread_count}), "Database", parallel_fn, parallel_context);
+            try self.framework_suite.runBenchmarkFmt("Parallel Search ({} threads)", .{thread_count}, "Database", parallel_fn, parallel_context);
         }
     }
 
