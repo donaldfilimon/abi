@@ -173,7 +173,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Restructured AI Components**: Dedicated AI module with enhanced capabilities
 
 #### **⚡ Performance Improvements**
-- **Updated to Zig 0.15.x Compatibility**: Requires 0.15.0 or later (tested on 0.15.1)
+- **Updated to Zig 0.15.x Compatibility**: Historical note; current releases require Zig 0.16.0-dev.254+6dd0270a1
 - **Modern Error Handling**: Proper resource cleanup and error propagation
 - **Zero-copy Operations**: Where applicable for maximum efficiency
 - **Enhanced SIMD Alignment**: Memory alignment optimizations

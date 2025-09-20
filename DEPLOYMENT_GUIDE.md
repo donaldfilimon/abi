@@ -17,8 +17,7 @@ The ABI Framework is a high-performance, cross-platform Zig application that sup
 - ✅ **ARM64** (AArch64)
 
 ### Zig Versions
-- ✅ **0.15.1** (Latest Stable - Recommended)
-- ⚠️ **0.16.0-dev** (Development - Use with caution)
+- ✅ **0.16.0-dev.254+6dd0270a1** (Required; matches `.zigversion`)
 
 ## 🏗️ Build Requirements
 
@@ -61,25 +60,27 @@ winget install LLVM.LLVM
 
 ### Zig Installation
 
-#### Option 1: Official Installer (Recommended)
+#### Option 1: Official Build (Recommended)
 ```bash
-# Download and install Zig 0.15.1
-wget https://ziglang.org/download/0.15.1/zig-linux-x86_64-0.15.1.tar.xz
-tar -xf zig-linux-x86_64-0.15.1.tar.xz
-sudo mv zig-linux-x86_64-0.15.1 /usr/local/zig
+# Download and install Zig 0.16.0-dev.254+6dd0270a1
+wget https://ziglang.org/builds/zig-linux-x86_64-0.16.0-dev.254+6dd0270a1.tar.xz
+tar -xf zig-linux-x86_64-0.16.0-dev.254+6dd0270a1.tar.xz
+sudo mv zig-linux-x86_64-0.16.0-dev.254+6dd0270a1 /usr/local/zig
 export PATH="/usr/local/zig:$PATH"
+zig version  # should report 0.16.0-dev.254+6dd0270a1
 ```
 
 #### Option 2: From Source
 ```bash
 git clone https://github.com/ziglang/zig
 cd zig
-git checkout 0.15.1
+git checkout 6dd0270a1
 mkdir build
 cd build
 cmake ..
 make -j$(nproc)
 sudo make install
+zig version  # verify the installed compiler matches 0.16.0-dev.254+6dd0270a1
 ```
 
 ## 🔨 Build Instructions
@@ -218,8 +219,8 @@ RUN apt update && apt install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Zig
-RUN curl -L https://ziglang.org/download/0.15.1/zig-linux-x86_64-0.15.1.tar.xz | tar -xJ && \
-    mv zig-linux-x86_64-0.15.1 /usr/local/zig && \
+RUN curl -L https://ziglang.org/builds/zig-linux-x86_64-0.16.0-dev.254+6dd0270a1.tar.xz | tar -xJ && \
+    mv zig-linux-x86_64-0.16.0-dev.254+6dd0270a1 /usr/local/zig && \
     ln -s /usr/local/zig/zig /usr/local/bin/zig
 
 # Set working directory
