@@ -42,16 +42,15 @@ zig build test
 ```
 abi/
 ├── src/                          # Source code
-│   ├── core/                     # Core utilities
+│   ├── features/                 # High-level feature modules
+│   │   ├── ai/                   # Agents, personas, and AI tooling
+│   │   ├── gpu/                  # GPU runtimes and kernels
+│   │   ├── database/             # Vector storage and retrieval
+│   │   ├── web/                  # HTTP/WebSocket integrations
+│   │   ├── monitoring/           # Observability and metrics
+│   │   └── connectors/           # External service connectors
 │   ├── framework/                # Runtime orchestration and lifecycle
-│   ├── ai/                       # AI/ML components
-│   ├── database/                 # Vector database
-│   ├── net/                      # Networking
-│   ├── perf/                     # Performance monitoring
-│   ├── gpu/                      # GPU acceleration
-│   ├── ml/                       # ML algorithms
-│   ├── simd/                     # SIMD operations
-│   └── wdbx/                     # CLI interface
+│   └── shared/                   # Cross-feature utilities
 ├── tests/                        # Test suite
 ├── docs/                         # Documentation
 ├── examples/                     # Usage examples
@@ -65,26 +64,22 @@ abi/
 const abi = @import("abi");
 
 pub fn main() !void {
-    var framework = try abi.init(std.heap.page_allocator, .{
-        .enable_gpu = true,
-        .enable_simd = true,
-    });
-    defer framework.deinit();
+    const allocator = std.heap.page_allocator;
 
-    // Create AI agent
-    var agent = try abi.ai.Agent.init(std.heap.page_allocator, .adaptive);
+    // Create AI agent using the exported AgentConfig
+    var agent = try abi.features.ai.agent.Agent.init(allocator, .{ .name = "QuickStart" });
     defer agent.deinit();
 
-    // Generate response
-    const response = try agent.generate("Hello!", .{});
-    defer std.heap.page_allocator.free(response.content);
+    // Process a message
+    const response = try agent.process("Hello!", allocator);
+    defer allocator.free(response);
 }
 ```
 
 ### Vector Database
 ```zig
 // Open database
-var db = try abi.database.Db.open("vectors.wdbx", true);
+var db = try abi.features.database.database.Db.open("vectors.wdbx", true);
 defer db.close();
 
 // Add and search vectors
@@ -94,15 +89,14 @@ const results = try db.search(&embedding, 10, allocator);
 
 ## Modules
 
-- **`core/`**: Core utilities and framework foundation
+- **`features/ai/`**: Agents, personas, and AI tooling
+- **`features/database/`**: Vector storage, retrieval, and database tooling
+- **`features/gpu/`**: GPU runtimes, kernels, and compute features
+- **`features/web/`**: HTTP/WebSocket integrations and web endpoints
+- **`features/monitoring/`**: Observability, metrics, and tracing
+- **`features/connectors/`**: External service connectors and adapters
 - **`framework/`**: Runtime orchestrator that wires features and plugins together
-- **`ai/`**: AI agents and machine learning components
-- **`database/`**: WDBX-AI vector database with HNSW indexing
-- **`net/`**: HTTP/TCP servers and client libraries
-- **`simd/`**: SIMD-accelerated operations
-- **`perf/`**: Performance monitoring and profiling
-- **`gpu/`**: GPU acceleration and rendering
-- **`ml/`**: Machine learning algorithms
+- **`shared/`**: Core utilities, platform code, and reusable components
 
 ## CLI
 
