@@ -1,126 +1,119 @@
 # Abi Framework Module Organization
 
-Organized module structure with clear separation of concerns for the Abi AI Framework.
+Updated map of the reorganised Abi source tree. The new layout pivots around
+feature-oriented directories and shared runtime layers that are orchestrated via
+`src/mod.zig`.
 
 ## 📁 Module Architecture
 
 ```
 src/
-├── root.zig          # Main module interface
-├── core/             # Foundation utilities
-├── ai/               # AI/ML functionality
-├── database/         # Vector database
-├── net/              # Networking
-├── perf/             # Performance monitoring
-├── gpu/              # GPU computing
-├── ml/               # ML algorithms
-├── api/              # C API bindings
-├── simd/             # SIMD operations
-├── plugins/          # Plugin system
-└── wdbx/             # CLI interface
-```
+├── mod.zig               # Top-level entrypoint that wires framework + features
+├── main.zig              # Legacy CLI entry
+├── root.zig              # Compatibility exports
+├── features/             # Feature families exported via src/features/mod.zig
+│   ├── ai/               # Agents, model registry, training loops
+│   ├── database/         # Vector store, sharding, HTTP adapters
+│   ├── gpu/              # GPU compute backends, memory and demos
+│   ├── web/              # HTTP/TCP servers, clients and bindings
+│   ├── monitoring/       # Telemetry, profiling and regression tooling
+│   └── connectors/       # Third-party API integrations and plugin bridges
+├── framework/            # Runtime orchestrator, feature registry, lifecycle
+│   ├── config.zig
+│   ├── feature_manager.zig
+│   ├── runtime.zig
+│   └── state.zig
+├── shared/               # Cross-cutting utilities reused everywhere
+│   ├── core/             # Error handling, lifecycle helpers, registry
+│   ├── utils/            # HTTP/JSON/math helpers
+│   ├── platform/         # OS abstractions and platform introspection
+│   ├── logging/          # Structured logging backends
+│   └── simd.zig          # Re-exported SIMD helpers
+└── simd.zig              # Legacy SIMD entry point (re-exported in shared)```
 
 ## 🔧 Module Details
 
-### Core Module (`core/`)
-- **Purpose**: Framework foundation
-- **Components**: Memory management, error handling, cross-platform utilities
-- **Dependencies**: None
+### Feature Modules (`features/`)
+- **Purpose**: House capability-specific logic grouped by feature families.
+- **Components**:
+  - `ai/`: agents, transformers, reinforcement learning, data structures.
+  - `database/`: WDBX vector database, sharding, HTTP façade.
+  - `gpu/`: compute kernels, backend detection, memory pools, demos.
+  - `web/`: HTTP client/server stacks, C bindings, weather demo.
+  - `monitoring/`: metrics, tracing, regression analysis, Prometheus exports.
+  - `connectors/`: OpenAI/Ollama bridges and plugin-facing adapters.
+- **Dependencies**: Heavily reuse `shared/*` utilities and are orchestrated via
+  `framework/`.
 
-### AI Module (`ai/`)
-- **Purpose**: AI capabilities
-- **Components**: Neural networks, agents, embeddings
-- **Dependencies**: `core/`, `simd/`
+### Framework Runtime (`framework/`)
+- **Purpose**: Central coordination layer used by `abi.init`/`abi.shutdown`.
+- **Components**: Runtime state machine, feature discovery/catalogue,
+  configuration parsing, lifecycle management.
+- **Dependencies**: Consumes feature registries from `features/mod.zig` and core
+  primitives from `shared/core` and `shared/logging`.
 
-### Database Module (`database/`)
-- **Purpose**: Vector database operations
-- **Components**: HNSW indexing, vector storage, query optimization
-- **Dependencies**: `core/`, `simd/`
+### Shared Libraries (`shared/`)
+- **Purpose**: Foundation utilities and cross-cutting services shared by both
+  framework and features.
+- **Components**: Core lifecycle helpers, platform abstractions, logging
+  backends, utility collections, SIMD helpers.
+- **Dependencies**: Standalone where possible; some modules (e.g. logging)
+  depend on `shared/core`.
 
-### Networking Module (`net/`)
-- **Purpose**: HTTP client and communication
-- **Components**: HTTP client, curl wrapper
-- **Dependencies**: `core/`
-
-### Performance Module (`perf/`)
-- **Purpose**: Performance monitoring
-- **Components**: Metrics, profiling, memory tracking
-- **Dependencies**: `core/`
-
-### GPU Module (`gpu/`)
-- **Purpose**: GPU acceleration
-- **Components**: Buffer management, shaders, matrix ops
-- **Dependencies**: `core/`, `simd/`
-
-### ML Module (`ml/`)
-- **Purpose**: Machine learning algorithms
-- **Components**: Training, inference, optimization
-- **Dependencies**: `core/`, `simd/`, `perf/`
-
-### API Module (`api/`)
-- **Purpose**: C bindings
-- **Components**: C API, foreign interfaces
-- **Dependencies**: `core/`, `database/`
-
-### SIMD Module (`simd/`)
-- **Purpose**: Vector operations
-- **Components**: Vector math, SIMD instructions
-- **Dependencies**: None
-
-### Plugins Module (`plugins/`)
-- **Purpose**: Extensibility
-- **Components**: Plugin loading, registry
-- **Dependencies**: `core/`
-
-### WDBX Module (`wdbx/`)
-- **Purpose**: CLI interface
-- **Components**: CLI processing, servers, configuration
-- **Dependencies**: All modules
-
+### Legacy Entrypoints (`mod.zig`, `main.zig`, `root.zig`, `simd.zig`)
+- **Purpose**: Provide compatibility layers for existing consumers while the new
+  feature-first architecture settles.
+- **Components**: Public API surface (`mod.zig`), CLI entry (`main.zig`), legacy
+  exports (`root.zig`), SIMD convenience wrapper (`simd.zig`).
+- **Dependencies**: Bridge between external callers and the framework/feature
+  modules.
 ## 🔗 Dependencies
 
 ```
-core/ ←─┬─ ai/ ←─┬─ ml/
-        │       │
-        ├─ net/ │
-        ├─ perf/┼─┬─ gpu/
-        ├─ api/─┼─┼─┬─ plugins/
-        ├─ simd/┼─┼─┼─┬─ wdbx/
-        └─ database/ ┼─┼─┼─┘
+features/* ─┐
+            ├─▶ framework/runtime ─▶ shared/core
+shared/utils ─┘                     ├─▶ shared/logging
+                                   ├─▶ shared/platform
+                                   └─▶ shared/utils & shared/simd
 ```
+
+- `shared/*` delivers the reusable building blocks consumed across the stack.
+- `framework/` activates features based on `FrameworkOptions`, using the plugin system and registry to wire dependencies.
+- `features/*` provide vertical capabilities and lean on shared utilities for storage, logging, SIMD, and platform access.
+- Tests and examples depend on the same public exports, ensuring parity with consumer usage.
 
 ## 🏗️ Build Integration
 
-- Module definitions in each subdirectory
-- Dependency resolution in build.zig
-- Platform-specific compilation
-- Comprehensive test coverage
+- Feature families are grouped under `src/features/mod.zig` for easy re-exports.
+- `src/mod.zig` exposes `abi.features` and `abi.framework` to callers.
+- Shared libraries live under `src/shared/*` and are imported where needed.
+- Build orchestration in `build.zig` pulls feature modules via the framework
+  runtime.
 
 ## 📚 Usage
 
 ```zig
-// Import modules
 const abi = @import("abi");
-const db = abi.database.Db.init(allocator);
+const framework = try abi.init(allocator, .{ .enable_gpu = true });
+defer framework.deinit();
 
-// Cross-module communication
-const perf = abi.perf.PerformanceMonitor.init();
-perf.startOperation("query");
-const results = try db.search(query_vector, 10);
-perf.endOperation();
+// Opt into a specific feature namespace
+const ai = abi.features.ai;
+const agent = try ai.Agent.init(allocator, .adaptive);
 ```
 
-## 🔍 Module Discovery
+// Opt-in feature modules are available under `abi.features.*`
+var agent = try abi.features.ai.enhanced_agent.Agent.init(allocator, .{});
+defer agent.deinit();
 
-1. Check `mod.zig` files for documentation
-2. Run tests: `zig build test-[module]`
-3. View examples in `examples/`
-4. Generated API docs in `docs/api/`
+1. Inspect `src/features/mod.zig` for the list of available feature families.
+2. Explore `src/framework/` for runtime orchestration and lifecycle flows.
+3. Consult `src/shared/` for reusable utilities and platform abstractions.
+4. Browse generated docs in `docs/generated/` for symbol-level details.
 
 ## 🎯 Benefits
 
-- Clear separation of concerns
-- Minimal coupling between modules
-- Easy maintenance and testing
-- Scalable architecture
-- Intuitive navigation
+- Feature-centric layout that mirrors the runtime configuration surface.
+- Clear separation between orchestration (`framework/`) and shared utilities.
+- Easier discoverability through a consistent namespace (`abi.features.*`).
+- Explicit imports make it straightforward to reason about dependencies.

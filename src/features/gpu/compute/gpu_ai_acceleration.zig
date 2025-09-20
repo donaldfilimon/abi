@@ -44,10 +44,8 @@ pub const Tensor = struct {
     /// Upload tensor to GPU
     pub fn uploadToGpu(self: *Tensor, renderer: *gpu_renderer.GPURenderer) !void {
         if (self.gpu_buffer == null) {
-            self.gpu_buffer = try renderer.createBuffer(.{
-                .size = @as(u64, @intCast(self.data.len * @sizeOf(f32))),
-                .usage = .{ .storage = true, .copy_dst = true },
-            });
+            const size_bytes = self.data.len * @sizeOf(f32);
+            self.gpu_buffer = try renderer.createBuffer(size_bytes, .{ .storage = true, .copy_dst = true });
         }
 
         // Upload data to GPU
@@ -90,11 +88,20 @@ pub const Tensor = struct {
 pub const MatrixOps = struct {
     allocator: std.mem.Allocator,
     renderer: *gpu_renderer.GPURenderer,
+    matmul_pipeline: ?u32 = null,
+
+    const MatmulPushConstants = extern struct {
+        m: u32,
+        n: u32,
+        p: u32,
+        _padding: u32 = 0,
+    };
 
     pub fn init(allocator: std.mem.Allocator, renderer: *gpu_renderer.GPURenderer) MatrixOps {
         return .{
             .allocator = allocator,
             .renderer = renderer,
+            .matmul_pipeline = null,
         };
     }
 
@@ -119,10 +126,8 @@ pub const MatrixOps = struct {
         if (!a.is_on_gpu) try a.uploadToGpu(self.renderer);
         if (!b.is_on_gpu) try b.uploadToGpu(self.renderer);
         if (!c.is_on_gpu) {
-            c.gpu_buffer = try self.renderer.createBuffer(.{
-                .size = @as(u64, @intCast(c.data.len * @sizeOf(f32))),
-                .usage = .{ .storage = true, .copy_src = true },
-            });
+            const c_size = c.data.len * @sizeOf(f32);
+            c.gpu_buffer = try self.renderer.createBuffer(c_size, .{ .storage = true, .copy_src = true });
             c.is_on_gpu = true;
         }
 
@@ -131,33 +136,95 @@ pub const MatrixOps = struct {
         const p = b.shape[1];
 
         // Dispatch optimized kernel based on matrix size
-        try self.dispatchMatmulKernel(a.gpu_buffer.?, b.gpu_buffer.?, c.gpu_buffer.?, m, n, p);
+        self.dispatchMatmulKernel(a.gpu_buffer.?, b.gpu_buffer.?, c.gpu_buffer.?, m, n, p) catch |err| {
+            switch (err) {
+                gpu_renderer.GpuError.UnsupportedBackend, gpu_renderer.GpuError.InitializationFailed, gpu_renderer.GpuError.DeviceNotFound => return false,
+                else => return err,
+            }
+        };
         return true;
     }
 
     /// Dispatch optimized matrix multiplication kernel
     fn dispatchMatmulKernel(self: *MatrixOps, a_buffer: u32, b_buffer: u32, c_buffer: u32, m: usize, n: usize, p: usize) !void {
-        // Use workgroup size optimized for the target GPU
-        const workgroup_size = 16; // 16x16 workgroups for good occupancy
+        const pipeline_handle = try self.ensureMatmulPipeline();
 
-        // Calculate dispatch dimensions
-        const dispatch_x = (m + workgroup_size - 1) / workgroup_size;
-        const dispatch_y = (p + workgroup_size - 1) / workgroup_size;
-        _ = dispatch_x;
-        _ = dispatch_y;
+        const tile = @intCast(usize, kernels.matmul_workgroup_size);
 
-        // For now, use CPU implementation since we don't have full WebGPU compute pipeline
-        // In a complete implementation, this would dispatch the WGSL compute shader
-        std.log.info("Dispatching GPU matmul kernel: {}x{} * {}x{} -> {}x{}", .{ m, n, n, p, m, p });
+        const dispatch_x = @intCast(u32, (p + tile - 1) / tile);
+        const dispatch_y = @intCast(u32, (m + tile - 1) / tile);
 
-        // Simulate GPU dispatch by calling optimized CPU implementation
-        // In real GPU implementation, this would be:
-        // - Set up bind group with buffers
-        // - Create compute pass
-        // - Dispatch workgroups
-        // - Submit command buffer
+        const params = MatmulPushConstants{
+            .m = @intCast(u32, m),
+            .n = @intCast(u32, n),
+            .p = @intCast(u32, p),
+        };
 
-        try self.matmulCpuOptimized(a_buffer, b_buffer, c_buffer, m, n, p);
+        const params_handle = try self.renderer.createBuffer(@sizeOf(MatmulPushConstants), .{
+            .uniform = true,
+            .copy_dst = true,
+        });
+        defer self.renderer.destroyBuffer(params_handle) catch {};
+
+        const params_bytes = std.mem.asBytes(&params);
+        try self.renderer.writeBuffer(params_handle, params_bytes);
+
+        const bind_group = try self.renderer.createBindGroup(.{
+            .buffers = &[_]u32{ a_buffer, b_buffer, c_buffer, params_handle },
+        });
+        defer self.renderer.destroyBindGroup(bind_group) catch {};
+
+        const dispatch_info = gpu_renderer.ComputeDispatch{
+            .pipeline = pipeline_handle,
+            .bind_group = bind_group,
+            .workgroups_x = dispatch_x,
+            .workgroups_y = dispatch_y,
+            .workgroups_z = 1,
+            .push_constants = params_bytes,
+        };
+
+        try self.renderer.dispatchCompute(dispatch_info);
+    }
+
+    fn ensureMatmulPipeline(self: *MatrixOps) !u32 {
+        if (self.matmul_pipeline) |handle| return handle;
+
+        const pipeline = try self.renderer.createComputePipeline(.{
+            .label = "matrix-matmul",
+            .shader_source = kernels.matmul_shader_source,
+            .workgroup_size = .{ kernels.matmul_workgroup_size, kernels.matmul_workgroup_size, 1 },
+            .cpu_fallback = matmulCpuFallback,
+            .cpu_fallback_ctx = @ptrCast(self),
+        });
+        self.matmul_pipeline = pipeline;
+        return pipeline;
+    }
+
+    fn matmulCpuFallback(
+        renderer: *gpu_renderer.GPURenderer,
+        buffers: []const u32,
+        info: gpu_renderer.ComputeDispatchInfo,
+        ctx: ?*anyopaque,
+    ) !void {
+        if (buffers.len < 3) return gpu_renderer.GpuError.ValidationFailed;
+        if (ctx == null) return gpu_renderer.GpuError.ValidationFailed;
+        if (info.push_constants.len < @sizeOf(MatmulPushConstants)) return gpu_renderer.GpuError.ValidationFailed;
+
+        var params = MatmulPushConstants{ .m = 0, .n = 0, .p = 0, ._padding = 0 };
+        const src = info.push_constants[0..@sizeOf(MatmulPushConstants)];
+        @memcpy(std.mem.asBytes(&params), src);
+
+        const matrix_ops: *MatrixOps = @ptrCast(@alignCast(ctx.?));
+        try matrix_ops.matmulCpuOptimized(
+            buffers[0],
+            buffers[1],
+            buffers[2],
+            @intCast(usize, params.m),
+            @intCast(usize, params.n),
+            @intCast(usize, params.p),
+        );
+
+        _ = renderer; // renderer updates happen via matrix_ops.matmulCpuOptimized
     }
 
     /// CPU fallback for matrix multiplication
@@ -179,17 +246,29 @@ pub const MatrixOps = struct {
 
     /// Optimized CPU matrix multiplication (simulates GPU kernel behavior)
     fn matmulCpuOptimized(self: *MatrixOps, a_buffer: u32, b_buffer: u32, c_buffer: u32, m: usize, n: usize, p: usize) !void {
-        _ = self; // Not used in CPU implementation
-        _ = a_buffer; // In real GPU implementation, these would be used to read from GPU buffers
-        _ = b_buffer;
-        _ = c_buffer;
+        const start = std.time.nanoTimestamp();
 
-        // For now, this is a placeholder. In a complete implementation, this would:
-        // 1. Read data from GPU buffers
-        // 2. Perform optimized matrix multiplication
-        // 3. Write results back to GPU buffer
+        const a_slice = try self.renderer.getBufferSlice(a_buffer, f32, m * n);
+        const b_slice = try self.renderer.getBufferSlice(b_buffer, f32, n * p);
+        var c_slice = try self.renderer.getBufferSlice(c_buffer, f32, m * p);
 
-        std.log.info("GPU kernel simulation: Optimized matmul {}x{} * {}x{} -> {}x{}", .{ m, n, n, p, m, p });
+        @memset(c_slice, 0.0);
+
+        var row: usize = 0;
+        while (row < m) : (row += 1) {
+            var col: usize = 0;
+            while (col < p) : (col += 1) {
+                var acc: f32 = 0;
+                var k: usize = 0;
+                while (k < n) : (k += 1) {
+                    acc += a_slice[row * n + k] * b_slice[k * p + col];
+                }
+                c_slice[row * p + col] = acc;
+            }
+        }
+
+        self.renderer.stats.bytes_written += @intCast(u64, c_slice.len * @sizeOf(f32));
+        self.renderer.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
     }
 
     /// Matrix transpose

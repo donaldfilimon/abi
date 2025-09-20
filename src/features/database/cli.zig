@@ -10,6 +10,7 @@
 
 const std = @import("std");
 const database = @import("database.zig");
+const http = @import("http.zig");
 const wdbx_utils = @import("utils.zig");
 // Note: core functionality is now imported through module dependencies
 
@@ -30,7 +31,6 @@ pub const Command = enum {
     server,
     http,
     tcp,
-    ws,
     issue_credential,
     save,
     load,
@@ -50,10 +50,9 @@ pub const Command = enum {
             .query => "Query database with vector",
             .knn => "Find k-nearest neighbors",
             .stats => "Show database statistics",
-            .server => "Start server (HTTP/TCP/WebSocket)",
+            .server => "Start server (HTTP/TCP)",
             .http => "Start HTTP server",
             .tcp => "Start TCP server",
-            .ws => "Start WebSocket server",
             .issue_credential => "Generate authentication credential",
             .save => "Save database to file",
             .load => "Load database from file",
@@ -200,7 +199,6 @@ pub const WdbxCLI = struct {
             .server => try self.startGenericServer(),
             .http => try self.startHttpServer(),
             .tcp => try self.startTcpServer(),
-            .ws => try self.startWebSocketServer(),
             .issue_credential => try self.issueCredential(),
             .save => try self.saveDatabase(),
             .load => try self.loadDatabase(),
@@ -222,10 +220,9 @@ pub const WdbxCLI = struct {
             \\  query          Query database with vector
             \\  knn            Find k-nearest neighbors
             \\  stats          Show database statistics
-            \\  server         Start server (use --http, --tcp, or --ws)
+            \\  server         Start server (use --http or --tcp)
             \\  http           Start HTTP server
             \\  tcp            Start TCP server
-            \\  ws             Start WebSocket server
             \\  windows        Show Windows networking guidance
             \\  tcp_test       Run enhanced TCP client test
             \\
@@ -237,7 +234,6 @@ pub const WdbxCLI = struct {
             \\  --host <host>  Server host (default: 127.0.0.1)
             \\  --http         Use HTTP server (default for server command)
             \\  --tcp          Use TCP server (for server command)
-            \\  --ws           Use WebSocket server (for server command)
             \\  --verbose      Enable verbose output
             \\  --quiet        Suppress output
             \\
@@ -337,8 +333,6 @@ pub const WdbxCLI = struct {
             try self.startHttpServer();
         } else if (std.mem.eql(u8, self.options.server_type, "tcp")) {
             try self.startTcpServer();
-        } else if (std.mem.eql(u8, self.options.server_type, "ws")) {
-            try self.startWebSocketServer();
         } else {
             try self.logger.err("Unknown server type: {s}", .{self.options.server_type});
         }
@@ -346,22 +340,24 @@ pub const WdbxCLI = struct {
 
     fn startHttpServer(self: *Self) !void {
         const host = self.options.host orelse "127.0.0.1";
-        try self.logger.info("Starting HTTP server on {s}:{d}", .{ host, self.options.port });
+        const config = http.ServerConfig{
+            .host = host,
+            .port = self.options.port,
+            .enable_auth = true,
+            .enable_cors = true,
+        };
 
-        // NOTE: HTTP server functionality requires full framework - use main CLI
-        try self.logger.info("HTTP server functionality moved to main framework CLI", .{});
-        try self.logger.info("Use: abi config to manage server configuration", .{});
-        return;
-        // DISABLED: Server functionality moved to main CLI
-        // const wdbx_http = @import("../server/wdbx_http.zig");
-        // var server = try wdbx_http.WdbxHttpServer.init(self.allocator, .{
-        //     .port = self.options.port,
-        //     .host = host,
-        //     .enable_auth = true,
-        // });
-        // defer server.deinit();
-        // try self.logger.info("HTTP server started successfully", .{});
-        // try server.run();
+        var server = try http.createServer(self.allocator, config);
+        defer server.deinit();
+
+        if (self.options.db_path) |path| {
+            try server.openDatabase(path);
+        }
+
+        try self.logger.info("Starting HTTP server on {s}:{d}", .{ host, self.options.port });
+        try server.start();
+        try self.logger.info("HTTP server running. Press Ctrl+C to stop.", .{});
+        try server.run();
     }
 
     fn startTcpServer(self: *Self) !void {
@@ -379,28 +375,6 @@ pub const WdbxCLI = struct {
             const thread = try std.Thread.spawn(.{}, handleTcpConnection, .{ self, connection });
             thread.detach();
         }
-    }
-
-    fn startWebSocketServer(self: *Self) !void {
-        const host = self.options.host orelse "127.0.0.1";
-        try self.logger.info("Starting WebSocket server on {s}:{d}", .{ host, self.options.port });
-
-        // WebSocket functionality requires full framework
-        try self.logger.info("WebSocket server functionality moved to main framework CLI", .{});
-        try self.logger.info("Use: abi config to manage server configuration", .{});
-        return;
-
-        // DISABLED: WebSocket functionality moved to main CLI
-        // For now, use HTTP server with WebSocket upgrade support
-        // const wdbx_http = @import("../server/wdbx_http.zig");
-        // var server = try wdbx_http.WdbxHttpServer.init(self.allocator, .{
-        //     .port = self.options.port,
-        //     .host = self.options.host,
-        //     .enable_auth = true,
-        // });
-        // defer server.deinit();
-        // try self.logger.info("WebSocket server started successfully", .{});
-        // try server.run();
     }
 
     fn handleTcpConnection(self: *Self, connection: std.net.Server.Connection) !void {
@@ -728,8 +702,6 @@ pub fn main() !void {
             options.server_type = "http";
         } else if (std.mem.eql(u8, arg, "--tcp")) {
             options.server_type = "tcp";
-        } else if (std.mem.eql(u8, arg, "--ws")) {
-            options.server_type = "ws";
         }
     }
 
