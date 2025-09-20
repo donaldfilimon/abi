@@ -11,6 +11,8 @@
 
     if (!content || !tocList) return;
 
+    tocList.innerHTML = '';
+
     const headings = content.querySelectorAll('h2, h3, h4');
     if (headings.length === 0) {
       const toc = document.getElementById('toc');
@@ -98,6 +100,7 @@
 
       if (query.length < 2) {
         searchResults.classList.add('hidden');
+        searchResults.innerHTML = '';
         return;
       }
 
@@ -139,6 +142,8 @@
     const searchResults = document.getElementById('search-results');
     if (!searchResults) return;
 
+    searchResults.innerHTML = '';
+
     if (results.length === 0) {
       searchResults.innerHTML = '<div class="search-result-item" data-empty="true">No results found</div>';
     } else {
@@ -155,6 +160,34 @@
         `;
       }).join('');
     }
+
+      const emptyState = document.createElement('div');
+      emptyState.className = 'search-result-item';
+      emptyState.textContent = 'No results found';
+      searchResults.appendChild(emptyState);
+      searchResults.classList.remove('hidden');
+      return;
+    }
+
+    results.forEach(result => {
+      const item = document.createElement('div');
+      item.className = 'search-result-item';
+
+      const title = document.createElement('div');
+      title.className = 'search-result-title';
+      title.innerHTML = highlightText(result.title, query);
+
+      const excerpt = document.createElement('div');
+      excerpt.className = 'search-result-excerpt';
+      excerpt.innerHTML = highlightText(result.excerpt, query);
+
+      item.appendChild(title);
+      item.appendChild(excerpt);
+
+      item.addEventListener('click', () => navigateToPage(result.file));
+
+      searchResults.appendChild(item);
+    });
 
     searchResults.classList.remove('hidden');
   }
@@ -225,6 +258,10 @@
       pre.appendChild(button);
 
       button.addEventListener('click', function() {
+        if (!navigator.clipboard || !navigator.clipboard.writeText) {
+          return;
+        }
+
         navigator.clipboard.writeText(codeBlock.textContent).then(function() {
           button.textContent = 'Copied!';
           setTimeout(function() {
@@ -251,6 +288,30 @@
         }, 0);
       });
     }
+
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        const navigationEntries = performance.getEntriesByType
+          ? performance.getEntriesByType('navigation')
+          : [];
+
+        const perfData = navigationEntries && navigationEntries.length > 0
+          ? navigationEntries[0]
+          : performance.timing;
+
+        if (!perfData) {
+          return;
+        }
+
+        const start = perfData.loadEventStart || perfData.domComplete || 0;
+        const end = perfData.loadEventEnd || perfData.domComplete || 0;
+        const loadTime = end - start;
+
+        if (loadTime > 0) {
+          console.log(`Page load time: ${loadTime}ms`);
+        }
+      }, 0);
+    });
   }
 
   // Initialize all functionality when DOM is ready
@@ -266,14 +327,23 @@
       const text = code.textContent || '';
       return text.includes('~') || text.includes('ms') || text.includes('μs');
     });
-
     performanceMarkers.forEach(function(marker) {
-      if (marker.textContent.includes('~')) {
-        const badge = document.createElement('span');
-        badge.className = 'performance-badge';
-        badge.textContent = 'PERF';
-        marker.parentElement.insertBefore(badge, marker.nextSibling);
+      if (!marker || !marker.textContent) {
+        return;
       }
+
+      if (!/[~≈]|\bms\b|µs|μs/.test(marker.textContent)) {
+        return;
+      }
+
+      if (!marker.parentElement || marker.parentElement.querySelector('.performance-badge')) {
+        return;
+      }
+
+      const badge = document.createElement('span');
+      badge.className = 'performance-badge';
+      badge.textContent = 'PERF';
+      marker.parentElement.insertBefore(badge, marker.nextSibling);
     });
 
   }

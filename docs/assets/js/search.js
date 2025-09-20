@@ -4,7 +4,6 @@
 
   const baseUrl = resolveBaseUrl();
   let searchIndex = [];
-
   function resolveBaseUrl() {
     const fromWindow = typeof window !== 'undefined' && typeof window.__DOCS_BASEURL === 'string'
       ? window.__DOCS_BASEURL
@@ -131,9 +130,7 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
-  }
-
-  if (document.readyState === 'loading') {
+  }  if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeAdvancedSearch);
   } else {
     initializeAdvancedSearch();

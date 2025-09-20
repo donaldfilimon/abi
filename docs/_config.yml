@@ -50,7 +50,6 @@ social:
 # Build settings
 markdown: kramdown
 highlighter: rouge
-theme: minima
 
 # Exclude from build
 exclude:

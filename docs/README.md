@@ -13,22 +13,22 @@ Welcome to the comprehensive documentation for ABI, a high-performance vector da
 
 <div class="quick-nav">
   <div class="nav-card">
-    <h3><a href="./generated/API_REFERENCE/">📘 API Reference</a></h3>
+    <h3><a href="{{ '/generated/API_REFERENCE/' | relative_url }}">📘 API Reference</a></h3>
     <p>Complete API documentation with examples and detailed function signatures.</p>
   </div>
-  
+
   <div class="nav-card">
-    <h3><a href="./generated/EXAMPLES/">💡 Examples</a></h3>
+    <h3><a href="{{ '/generated/EXAMPLES/' | relative_url }}">💡 Examples</a></h3>
     <p>Practical examples and tutorials to get you started quickly.</p>
   </div>
-  
+
   <div class="nav-card">
-    <h3><a href="./generated/MODULE_REFERENCE/">📦 Module Reference</a></h3>
+    <h3><a href="{{ '/generated/MODULE_REFERENCE/' | relative_url }}">📦 Module Reference</a></h3>
     <p>Detailed module documentation and architecture overview.</p>
   </div>
-  
+
   <div class="nav-card">
-    <h3><a href="./generated/PERFORMANCE_GUIDE/">⚡ Performance Guide</a></h3>
+    <h3><a href="{{ '/generated/PERFORMANCE_GUIDE/' | relative_url }}">⚡ Performance Guide</a></h3>
     <p>Optimization tips, benchmarks, and performance best practices.</p>
   </div>
 </div>
@@ -36,11 +36,11 @@ Welcome to the comprehensive documentation for ABI, a high-performance vector da
 ## 📖 What's Inside
 
 ### Core Documentation
-- **[API Reference](./generated/API_REFERENCE/)** - Complete function and type documentation
-- **[Module Reference](./generated/MODULE_REFERENCE/)** - Module structure and relationships
-- **[Examples](./generated/EXAMPLES/)** - Practical usage examples and tutorials
-- **[Performance Guide](./generated/PERFORMANCE_GUIDE/)** - Optimization and benchmarking
-- **[Definitions](./generated/DEFINITIONS_REFERENCE/)** - Comprehensive glossary and concepts
+- **[API Reference]({{ '/generated/API_REFERENCE/' | relative_url }})** - Complete function and type documentation
+- **[Module Reference]({{ '/generated/MODULE_REFERENCE/' | relative_url }})** - Module structure and relationships
+- **[Examples]({{ '/generated/EXAMPLES/' | relative_url }})** - Practical usage examples and tutorials
+- **[Performance Guide]({{ '/generated/PERFORMANCE_GUIDE/' | relative_url }})** - Optimization and benchmarking
+- **[Definitions]({{ '/generated/DEFINITIONS_REFERENCE/' | relative_url }})** - Comprehensive glossary and concepts
 
 ### Developer Resources
 - **[Code Index](./generated/CODE_API_INDEX/)** - Auto-generated API index from source
@@ -57,10 +57,10 @@ Welcome to the comprehensive documentation for ABI, a high-performance vector da
 
 ## 🛠️ Getting Started
 
-1. **Installation**: Check the [Examples](./generated/EXAMPLES/) for setup instructions
-2. **Quick Start**: Follow the [basic usage examples](./generated/EXAMPLES/#quick-start)
-3. **API Learning**: Explore the [API Reference](./generated/API_REFERENCE/) for detailed function documentation
-4. **Optimization**: Read the [Performance Guide](./generated/PERFORMANCE_GUIDE/) for best practices
+1. **Installation**: Check the [Examples]({{ '/generated/EXAMPLES/' | relative_url }}) for setup instructions
+2. **Quick Start**: Follow the [basic usage examples]({{ '/generated/EXAMPLES/' | relative_url }}#quick-start)
+3. **API Learning**: Explore the [API Reference]({{ '/generated/API_REFERENCE/' | relative_url }}) for detailed function documentation
+4. **Optimization**: Read the [Performance Guide]({{ '/generated/PERFORMANCE_GUIDE/' | relative_url }}) for best practices
 
 ## 📚 Documentation Types
 
@@ -82,7 +82,7 @@ This documentation is generated using multiple approaches:
 
 - **[GitHub Repository](https://github.com/donaldfilimon/abi/)** - Source code and issues
 - **[Zig Language](https://ziglang.org/)** - Learn about the Zig programming language
-- **[Vector Databases](./generated/DEFINITIONS_REFERENCE/#vector-database)** - Learn about vector database concepts
+- **[Vector Databases]({{ '/generated/DEFINITIONS_REFERENCE/' | relative_url }}#vector-database)** - Learn about vector database concepts
 
 ## 📧 Support
 
