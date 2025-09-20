@@ -1,4 +1,3 @@
-//! High-level runtime orchestration utilities for the ABI framework.
 const std = @import("std");
 
 pub const config = @import("config.zig");
@@ -11,10 +10,6 @@ pub const Framework = runtime.Framework;
 
 pub const featureLabel = config.featureLabel;
 pub const featureDescription = config.featureDescription;
-
-pub const feature_manager = @import("feature_manager.zig");
-pub const catalog = @import("catalog.zig");
-pub const state = @import("state.zig");
 
 pub fn deriveFeatureToggles(options: FrameworkOptions) config.FeatureToggles {
     return config.deriveFeatureToggles(options);
