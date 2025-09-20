@@ -42,16 +42,18 @@ zig build test
 ```
 abi/
 ├── src/                          # Source code
-│   ├── core/                     # Core utilities
+│   ├── features/                 # Feature families exported by abi.features
+│   │   ├── ai/                   # Agents, training loops, data structures
+│   │   ├── database/             # Vector store, sharding, HTTP façade
+│   │   ├── gpu/                  # Compute backends, kernels, demos
+│   │   ├── web/                  # HTTP/TCP servers, clients, bindings
+│   │   ├── monitoring/           # Metrics, tracing, regression tooling
+│   │   └── connectors/           # Third-party APIs and plugin bridges
 │   ├── framework/                # Runtime orchestration and lifecycle
-│   ├── ai/                       # AI/ML components
-│   ├── database/                 # Vector database
-│   ├── net/                      # Networking
-│   ├── perf/                     # Performance monitoring
-│   ├── gpu/                      # GPU acceleration
-│   ├── ml/                       # ML algorithms
-│   ├── simd/                     # SIMD operations
-│   └── wdbx/                     # CLI interface
+│   ├── shared/                   # Core utilities, platform, logging, SIMD
+│   ├── main.zig                  # CLI entry point
+│   ├── mod.zig                   # Public API surface
+│   └── root.zig                  # Legacy exports/compatibility layer
 ├── tests/                        # Test suite
 ├── docs/                         # Documentation
 ├── examples/                     # Usage examples
@@ -94,15 +96,15 @@ const results = try db.search(&embedding, 10, allocator);
 
 ## Modules
 
-- **`core/`**: Core utilities and framework foundation
-- **`framework/`**: Runtime orchestrator that wires features and plugins together
-- **`ai/`**: AI agents and machine learning components
-- **`database/`**: WDBX-AI vector database with HNSW indexing
-- **`net/`**: HTTP/TCP servers and client libraries
-- **`simd/`**: SIMD-accelerated operations
-- **`perf/`**: Performance monitoring and profiling
-- **`gpu/`**: GPU acceleration and rendering
-- **`ml/`**: Machine learning algorithms
+- **`features/ai/`**: AI agents, model registry, transformers, RL pipelines
+- **`features/database/`**: WDBX-AI vector database, sharding, unified clients
+- **`features/gpu/`**: GPU backend detection, compute kernels, unified memory
+- **`features/web/`**: HTTP/TCP servers, clients, and C bindings
+- **`features/monitoring/`**: Metrics, tracing, regression analysis, profiling
+- **`features/connectors/`**: External service adapters and plugin bridges
+- **`framework/`**: Runtime orchestrator coordinating feature lifecycles
+- **`shared/`**: Core utilities, logging, platform abstractions, SIMD helpers
+- **`ml/`**: Legacy ML compatibility layer (incrementally migrated into features)
 
 ## CLI
 
@@ -454,15 +456,15 @@ pub fn main() void {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 📚 **Documentation**
+## 📚 **Further Reading**
 
-- **[Hosted Docs (GitHub Pages)](https://donaldfilimon.github.io/abi/)**
-- **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - Complete development workflow and architecture
-- **[API Reference](docs/api_reference.md)** - Complete API documentation
-- **[CLI Reference](docs/cli_reference.md)** - Command-line interface guide
-- **[Database Guide](docs/database_usage_guide.md)** - Vector database usage
-- **[Plugin System](docs/PLUGIN_SYSTEM.md)** - Plugin development guide
-- **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Deployment guide
+- **[Documentation Portal](docs/README.md)** - Landing page that links to generated and manual guides
+- **[Module Organization](docs/MODULE_ORGANIZATION.md)** - Current source tree and dependency overview
+- **[GPU Acceleration Guide](docs/GPU_AI_ACCELERATION.md)** - Feature deep dive for GPU-backed workloads
+- **[Testing Strategy](docs/TESTING_STRATEGY.md)** - Quality gates, coverage expectations, and tooling
+- **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Deployment runbooks and environment guidance
+- **[API Reference](docs/api_reference.md)** - Hand-authored API summary with links to generated docs
+- **[Generated Documentation](docs/generated/)** - Auto-generated API, module, and example references
 
 ## 🧪 **Testing & Quality**
 
@@ -539,7 +541,7 @@ pub const ExamplePlugin = struct {
 };
 ```
 
-See [Plugin System Documentation](docs/PLUGIN_SYSTEM.md) for detailed development guide.
+See the [Module Organization guide](docs/MODULE_ORGANIZATION.md) and generated module reference for plugin entry points.
 
 ## 🚀 **Production Deployment**
 
