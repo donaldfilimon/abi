@@ -10,29 +10,21 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const exe_root = b.createModule(.{
+    const main_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "abi", .module = abi_mod }},
     });
     main_module.addImport("abi", abi_mod);
 
     const exe = b.addExecutable(.{
         .name = "abi",
-        .root_module = exe_root,
+        .root_module = main_module,
     });
     b.installArtifact(exe);
 
-    const test_root = b.createModule(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "abi", .module = abi_mod }},
-    });
-
     const unit_tests = b.addTest(.{
-        .root_module = test_root,
+        .root_module = main_module,
     });
 
     const test_step = b.step("test", "Run all tests");
