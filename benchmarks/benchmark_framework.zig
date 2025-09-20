@@ -11,6 +11,9 @@ const std = @import("std");
 const builtin = @import("builtin");
 const utils = @import("abi").utils;
 
+const separator_line = "================================================================================";
+const subsection_line = "------------------------------------------------------------";
+
 /// Benchmark configuration with standardized settings
 pub const BenchmarkConfig = struct {
     /// Number of warmup iterations to perform before measurement
@@ -85,6 +88,8 @@ pub const BenchmarkResult = struct {
     platform_info: PlatformInfo,
 
     pub fn deinit(self: *BenchmarkResult, allocator: std.mem.Allocator) void {
+        allocator.free(self.name);
+        allocator.free(self.category);
         if (self.error_message) |msg| {
             allocator.free(msg);
         }
@@ -265,9 +270,15 @@ pub const BenchmarkSuite = struct {
             memory_peak,
         );
 
+        const name_copy = try self.allocator.dupe(u8, name);
+        errdefer self.allocator.free(name_copy);
+
+        const category_copy = try self.allocator.dupe(u8, category);
+        errdefer self.allocator.free(category_copy);
+
         const result = BenchmarkResult{
-            .name = name,
-            .category = category,
+            .name = name_copy,
+            .category = category_copy,
             .stats = stats,
             .success = true,
             .error_message = null,
@@ -281,6 +292,19 @@ pub const BenchmarkSuite = struct {
         std.log.info("✅ {s}: {d:.0} ops/sec ({d:.2}ns avg)", .{ name, stats.throughput_ops_per_sec, stats.mean_ns });
     }
 
+    pub fn runBenchmarkFmt(
+        self: *BenchmarkSuite,
+        comptime fmt: []const u8,
+        args: anytype,
+        category: []const u8,
+        benchmark_fn: anytype,
+        context: anytype,
+    ) !void {
+        const formatted_name = try std.fmt.allocPrint(self.allocator, fmt, args);
+        defer self.allocator.free(formatted_name);
+        try self.runBenchmark(formatted_name, category, benchmark_fn, context);
+    }
+
     /// Print comprehensive results report
     pub fn printReport(self: *BenchmarkSuite) !void {
         switch (self.config.output_format) {
@@ -292,13 +316,13 @@ pub const BenchmarkSuite = struct {
     }
 
     fn printConsoleReport(self: *BenchmarkSuite) !void {
-        std.log.info("\n{'='**80}", .{});
+        std.log.info("\n{s}", .{separator_line});
         std.log.info("🚀 BENCHMARK RESULTS REPORT", .{});
-        std.log.info("{'='**80}", .{});
+        std.log.info("{s}", .{separator_line});
         std.log.info("Platform: {s} {s} (Zig {s})", .{ self.platform_info.os, self.platform_info.arch, self.platform_info.zig_version });
         std.log.info("CPU Cores: {}", .{self.platform_info.cpu_count});
         std.log.info("Total Benchmarks: {}", .{self.results.items.len});
-        std.log.info("{'='**80}", .{});
+        std.log.info("{s}", .{separator_line});
 
         // Group by category
         var categories = std.StringHashMap(std.ArrayList(*BenchmarkResult)).init(self.allocator);
@@ -321,7 +345,7 @@ pub const BenchmarkSuite = struct {
         var it = categories.iterator();
         while (it.next()) |entry| {
             std.log.info("\n📊 Category: {s}", .{entry.key_ptr.*});
-            std.log.info("{'-'**60}", .{});
+            std.log.info("{s}", .{subsection_line});
 
             for (entry.value_ptr.items) |result| {
                 std.log.info("  {s:<30} {d:>8.0} ops/sec  {d:>8.2}ns avg", .{ result.name, result.stats.throughput_ops_per_sec, result.stats.mean_ns });
@@ -362,7 +386,7 @@ pub const BenchmarkSuite = struct {
         }
 
         std.log.info("\n🏆 PERFORMANCE SUMMARY", .{});
-        std.log.info("{'-'**60}", .{});
+        std.log.info("{s}", .{subsection_line});
         std.log.info("Average Throughput: {d:.0} ops/sec", .{total_throughput / @as(f64, @floatFromInt(self.results.items.len))});
 
         if (fastest_benchmark) |fastest| {

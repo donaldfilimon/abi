@@ -94,7 +94,7 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Dot Product ({} elements)", .{size}), "Vector", dot_product_fn, dot_product_context);
+            try self.framework_suite.runBenchmarkFmt("Dot Product ({} elements)", .{size}, "Vector", dot_product_fn, dot_product_context);
 
             // Cosine similarity
             const cosine_context = struct {
@@ -119,7 +119,7 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Cosine Similarity ({} elements)", .{size}), "Vector", cosine_fn, cosine_context);
+            try self.framework_suite.runBenchmarkFmt("Cosine Similarity ({} elements)", .{size}, "Vector", cosine_fn, cosine_context);
 
             // Vector addition
             const add_context = struct {
@@ -144,7 +144,7 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Addition ({} elements)", .{size}), "Vector", add_fn, add_context);
+            try self.framework_suite.runBenchmarkFmt("Vector Addition ({} elements)", .{size}, "Vector", add_fn, add_context);
 
             // Vector sum
             const sum_context = struct {
@@ -165,7 +165,7 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Vector Sum ({} elements)", .{size}), "Vector", sum_fn, sum_context);
+            try self.framework_suite.runBenchmarkFmt("Vector Sum ({} elements)", .{size}, "Vector", sum_fn, sum_context);
         }
     }
 
@@ -219,7 +219,7 @@ pub const EnhancedSIMDMicroBenchmarkSuite = struct {
                 }
             }.call;
 
-            try self.framework_suite.runBenchmark(try std.fmt.allocPrint(self.allocator, "Matrix Multiply ({}x{})", .{ size, size }), "Matrix", mm_fn, mm_context);
+            try self.framework_suite.runBenchmarkFmt("Matrix Multiply ({}x{})", .{ size, size }, "Matrix", mm_fn, mm_context);
         }
     }
 
