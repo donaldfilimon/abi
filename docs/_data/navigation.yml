@@ -35,8 +35,6 @@ main:
         url: "/generated/PERFORMANCE_GUIDE/"
       - title: "Examples"
         url: "/generated/EXAMPLES/"
-      - title: "Testing Strategy"
-        url: "/TESTING_STRATEGY/"
       - title: "Best Practices"
         url: "/generated/EXAMPLES/#performance-optimization"
 
