@@ -324,16 +324,16 @@ The ABI vector database provides enterprise-grade performance with:
 
 ```bash
 # Query k-nearest neighbors
-zig build run -- knn "1.1,2.1,3.1,4.1,5.1,6.1,7.1,8.1" 5
+./zig-out/bin/abi wdbx knn "1.1,2.1,3.1,4.1,5.1,6.1,7.1,8.1" 5
 
 # Query nearest neighbor
-zig build run -- query "1.1,2.1,3.1,4.1,5.1,6.1,7.1,8.1"
+./zig-out/bin/abi wdbx query "1.1,2.1,3.1,4.1,5.1,6.1,7.1,8.1"
 
 # Add vector to database
-zig build run -- add "1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0"
+./zig-out/bin/abi wdbx add "1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0"
 
 # Start HTTP REST API server
-zig build run -- http 8080
+./zig-out/bin/abi wdbx http 8080
 ```
 
 #### **HTTP REST API**
@@ -341,7 +341,7 @@ zig build run -- http 8080
 Start the server and access endpoints:
 
 ```bash
-zig build run -- http 8080
+./zig-out/bin/abi wdbx http 8080
 ```
 
 **API Endpoints:**
