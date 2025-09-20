@@ -30,6 +30,7 @@ pub fn build(b: *std.Build) void {
     const unit_tests = b.addTest(.{
         .root_module = main_module,
     });
+    const run_unit_tests = b.addRunArtifact(unit_tests);
 
     if (enable_vulkan) {
         exe.linkSystemLibrary("vulkan");
@@ -55,5 +56,5 @@ pub fn build(b: *std.Build) void {
     }
 
     const test_step = b.step("test", "Run all tests");
-    test_step.dependOn(&unit_tests.step);
+    test_step.dependOn(&run_unit_tests.step);
 }
