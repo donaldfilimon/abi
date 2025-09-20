@@ -1,7 +1,7 @@
 # Abi AI Framework
 > Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency, and platform-optimized implementations.
 
-[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev-orange.svg)](https://ziglang.org/)
+[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev.254%2B6dd0270a1-orange.svg)](https://ziglang.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)]()
 
@@ -24,9 +24,14 @@
 ## Installation
 
 ### Prerequisites
-- **Zig 0.16.0-dev** or later
+- **Zig 0.16.0-dev.254+6dd0270a1** (verify with `zig version` and the `.zigversion` file)
 - GPU drivers (optional, for acceleration)
 - OpenAI API key (for AI features)
+
+### Compatibility
+
+- **Current Toolchain**: Zig 0.16.0-dev.254+6dd0270a1. This repository's `.zigversion` file is the authoritative reference—match it exactly when installing Zig.
+- **Legacy Notes**: Historical guidance for Zig 0.15.x (including CI setups using `mlugg/setup-zig@v2` with Zig 0.15.0) remains in older sections below for teams maintaining legacy deployments. These paths are not part of the active test matrix.
 
 ### Quick Start
 ```bash
@@ -176,7 +181,7 @@ MIT License - see [LICENSE](LICENSE)
 
 > **Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency, advanced monitoring, and platform-optimized implementations for Zig development.**
 
-[![Zig Version](https://img.shields.io/badge/Zig-0.15.1%2B-orange.svg)](https://ziglang.org/) • [Docs](https://donaldfilimon.github.io/abi/) • [CI: Pages](.github/workflows/deploy_docs.yml)
+[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev.254%2B6dd0270a1-orange.svg)](https://ziglang.org/) • [Docs](https://donaldfilimon.github.io/abi/) • [CI: Pages](.github/workflows/deploy_docs.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)](https://github.com/yourusername/abi)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
@@ -232,7 +237,7 @@ MIT License - see [LICENSE](LICENSE)
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
-- **Zig 0.15.1 or later** (GitHub Actions uses `mlugg/setup-zig@v2` with Zig 0.15.0)
+- **Zig 0.16.0-dev.254+6dd0270a1** (match `.zigversion`; see compatibility notes above for legacy branches)
 - GPU drivers (optional, for acceleration)
 - OpenAI API key (for AI agent features)
 
@@ -552,7 +557,7 @@ The framework includes production-ready deployment configurations:
 
 See [Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT.md) for complete deployment instructions.
 
-## 🌍 **Cross-Platform Guide (Zig 0.16-dev)**
+## 🌍 **Cross-Platform Guide (Zig 0.16.0-dev.254+6dd0270a1)**
 
 ### **Targets**
 ```bash
