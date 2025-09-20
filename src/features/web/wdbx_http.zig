@@ -10,6 +10,8 @@
 const std = @import("std");
 // Note: core functionality is now imported through module dependencies
 
+const max_header_size = 16 * 1024;
+
 pub const HttpError = error{
     InvalidRequest,
     UnsupportedMethod,
@@ -91,6 +93,36 @@ pub const WdbxHttpServer = struct {
         self.running = false;
     }
 
+    /// Start a blocking TCP listener that serves HTTP requests using the
+    /// existing request handler. The server processes connections
+    /// sequentially to keep the implementation simple and predictable.
+    pub fn run(self: *WdbxHttpServer) !void {
+        if (!self.running) try self.start();
+
+        const address = try std.net.Address.parseIp(self.config.host, self.config.port);
+        var listener = try address.listen(.{ .reuse_address = true });
+        defer listener.deinit();
+
+        while (self.running) {
+            var connection = listener.accept() catch |err| {
+                if (!self.running) break;
+                std.log.err("WDBX HTTP accept failed: {any}", .{err});
+                continue;
+            };
+
+            self.handleHttpConnection(connection) catch |err| {
+                switch (err) {
+                    error.OutOfMemory => return err,
+                    else => {
+                        std.log.warn("WDBX HTTP connection error: {any}", .{err});
+                    },
+                }
+            };
+        }
+
+        self.running = false;
+    }
+
     /// High level request handler used by the CLI and tests.
     pub fn respond(
         self: *WdbxHttpServer,
@@ -106,6 +138,117 @@ pub const WdbxHttpServer = struct {
         } else {
             return HttpError.UnsupportedMethod;
         }
+    }
+
+    fn handleHttpConnection(self: *WdbxHttpServer, connection: std.net.Server.Connection) !void {
+        defer connection.stream.close();
+
+        var buffer = std.ArrayList(u8).init(self.allocator);
+        defer buffer.deinit();
+
+        var header_end: ?usize = null;
+        var temp: [1024]u8 = undefined;
+
+        while (true) {
+            const bytes_read = connection.stream.read(&temp) catch |err| {
+                switch (err) {
+                    error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
+                    else => return err,
+                }
+            };
+
+            if (bytes_read == 0) {
+                return;
+            }
+
+            try buffer.appendSlice(temp[0..bytes_read]);
+
+            if (header_end == null) {
+                if (std.mem.indexOf(u8, buffer.items, "\r\n\r\n")) |idx| {
+                    header_end = idx + 4;
+                }
+            }
+
+            if (header_end != null) break;
+
+            if (buffer.items.len > max_header_size) {
+                try self.sendError(&connection, 431, "headers_too_large");
+                return;
+            }
+        }
+
+        const header_bytes = buffer.items[0..header_end.?];
+        var lines = std.mem.splitScalar(u8, header_bytes, '\n');
+        const request_line_raw = lines.next() orelse {
+            try self.sendError(&connection, 400, "invalid_request_line");
+            return;
+        };
+        const request_line = std.mem.trim(u8, request_line_raw, " \r");
+        if (request_line.len == 0) {
+            try self.sendError(&connection, 400, "invalid_request_line");
+            return;
+        }
+
+        var tokens = std.mem.splitScalar(u8, request_line, ' ');
+        const method = tokens.next() orelse {
+            try self.sendError(&connection, 400, "invalid_method");
+            return;
+        };
+        const target = tokens.next() orelse {
+            try self.sendError(&connection, 400, "invalid_target");
+            return;
+        };
+
+        var content_length: usize = 0;
+        while (lines.next()) |line_raw| {
+            const line = std.mem.trim(u8, line_raw, " \r");
+            if (line.len == 0) continue;
+            if (std.ascii.startsWithIgnoreCase(line, "Content-Length:")) {
+                const value = std.mem.trim(u8, line["Content-Length:".len..], " ");
+                content_length = std.fmt.parseInt(usize, value, 10) catch 0;
+            }
+        }
+
+        const body_start = header_end.?;
+        if (buffer.items.len < body_start + content_length) {
+            const remaining = body_start + content_length - buffer.items.len;
+            var total_read: usize = 0;
+            while (total_read < remaining) {
+                const bytes_read = connection.stream.read(&temp) catch |err| {
+                    switch (err) {
+                        error.ConnectionResetByPeer, error.BrokenPipe, error.Unexpected => return,
+                        else => return err,
+                    }
+                };
+                if (bytes_read == 0) break;
+                try buffer.appendSlice(temp[0..bytes_read]);
+                total_read += bytes_read;
+            }
+        }
+
+        const available = buffer.items.len - body_start;
+        const slice_len = if (content_length > available) available else content_length;
+        const body_slice = buffer.items[body_start .. body_start + slice_len];
+
+        var response = self.respond(method, target, body_slice) catch |err| switch (err) {
+            HttpError.InvalidRequest => try self.buildErrorResponse(400, "invalid_request"),
+            HttpError.UnsupportedMethod => try self.buildErrorResponse(405, "unsupported_method"),
+            HttpError.NotFound => try self.buildErrorResponse(404, "not_found"),
+            HttpError.BadPayload => try self.buildErrorResponse(400, "bad_payload"),
+            else => blk: {
+                std.log.err("WDBX HTTP handler failure: {any}", .{err});
+                break :blk try self.buildErrorResponse(500, "internal_error");
+            },
+        };
+        defer response.deinit(self.allocator);
+
+        try self.writeHttpResponse(&connection, response);
+    }
+
+    fn sendError(self: *WdbxHttpServer, connection: *const std.net.Server.Connection, status: u16, message: []const u8) !void {
+        var response = try self.buildErrorResponse(status, message);
+        defer response.deinit(self.allocator);
+        try self.writeHttpResponse(connection, response);
     }
 
     fn handleGet(self: *WdbxHttpServer, path: []const u8, query: []const u8) !Response {
@@ -248,7 +391,34 @@ pub const WdbxHttpServer = struct {
         const text = try std.fmt.allocPrint(self.allocator, fmt, args);
         return Response{ .status = 200, .body = text, .content_type = "application/json" };
     }
+
+    fn buildErrorResponse(self: *WdbxHttpServer, status: u16, message: []const u8) !Response {
+        const text = try std.fmt.allocPrint(self.allocator, "{\"error\":\"{s}\"}", .{message});
+        return Response{ .status = status, .body = text, .content_type = "application/json" };
+    }
+
+    fn writeHttpResponse(self: *WdbxHttpServer, connection: *const std.net.Server.Connection, response: Response) !void {
+        var writer = connection.stream.writer();
+        try writer.print("HTTP/1.1 {d} {s}\r\n", .{ response.status, statusText(response.status) });
+        try writer.print("Content-Type: {s}\r\n", .{ response.content_type });
+        try writer.print("Content-Length: {d}\r\n", .{ response.body.len });
+        try writer.writeAll("Connection: close\r\n\r\n");
+        try writer.writeAll(response.body);
+    }
 };
+
+fn statusText(status: u16) []const u8 {
+    return switch (status) {
+        200 => "OK",
+        201 => "Created",
+        400 => "Bad Request",
+        404 => "Not Found",
+        405 => "Method Not Allowed",
+        431 => "Request Header Fields Too Large",
+        500 => "Internal Server Error",
+        else => "OK",
+    };
+}
 
 const Stats = struct {
     vector_count: usize,

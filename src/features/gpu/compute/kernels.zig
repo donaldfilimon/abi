@@ -11,6 +11,36 @@ const std = @import("std");
 const gpu_renderer = @import("../core/gpu_renderer.zig");
 const builtin = @import("builtin");
 
+pub const matmul_workgroup_size: u32 = 16;
+
+pub const matmul_shader_source =
+    \\struct MatmulParams {
+    \\    m: u32;
+    \\    n: u32;
+    \\    p: u32;
+    \\    pad: u32;
+    \\};
+    \\@group(0) @binding(0) var<storage, read> matrix_a: array<f32>;
+    \\@group(0) @binding(1) var<storage, read> matrix_b: array<f32>;
+    \\@group(0) @binding(2) var<storage, read_write> matrix_c: array<f32>;
+    \\@group(0) @binding(3) var<uniform> params: MatmulParams;
+    \\@compute @workgroup_size(16, 16, 1)
+    \\fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+    \\    let row = gid.y;
+    \\    let col = gid.x;
+    \\    if (row >= params.m || col >= params.p) {
+    \\        return;
+    \\    }
+    \\    var sum: f32 = 0.0;
+    \\    for (var k: u32 = 0u; k < params.n; k = k + 1u) {
+    \\        let a_idx = row * params.n + k;
+    \\        let b_idx = k * params.p + col;
+    \\        sum = sum + matrix_a[a_idx] * matrix_b[b_idx];
+    \\    }
+    \\    matrix_c[row * params.p + col] = sum;
+    \\};
+;
+
 /// Configuration for GPU kernel operations
 pub const KernelConfig = struct {
     workgroup_size: u32 = 256,
@@ -282,7 +312,7 @@ pub const KernelManager = struct {
         });
 
         // Create bind group (simplified for now)
-        const bind_group = try self.renderer.createBindGroup(pipeline);
+        const bind_group = try self.renderer.createBindGroup(.{});
 
         // Use parameters in dummy operations to satisfy compiler
         const dummy1 = input_handle + output_handle;
@@ -378,7 +408,7 @@ pub const KernelManager = struct {
         });
 
         // Create bind group (simplified for now)
-        const bind_group = try self.renderer.createBindGroup(pipeline);
+        const bind_group = try self.renderer.createBindGroup(.{});
 
         // Use parameters in dummy operations to satisfy compiler
         const dummy1 = input_handle + grad_output_handle + grad_input_handle;

@@ -494,6 +494,19 @@ const multi_gpu_config = gpu_accel.MultiGPUConfig{
 4. **Advanced Features**: Experiment with convolution operations and custom kernels
 5. **Production Deployment**: Set up monitoring and error handling for production use
 
+## 🧩 Backend & Toolchain Requirements
+
+- **Runtime library detection**
+  - Linux/Windows builds try to load the Vulkan loader (`libvulkan.so.1`/`vulkan-1.dll`) and the CUDA driver (`libcuda.so`/`nvcuda.dll`). If either library is missing, the renderer now logs a warning and automatically drops back to the CPU backend to keep execution safe.
+  - Apple targets verify Metal availability before creating GPU contexts. When the framework cannot be accessed (for example when running headless CI on Linux), the renderer immediately switches to CPU execution.
+- **Zig build flags**
+  - Use `-Denable-vulkan=true` to link the Vulkan loader when deploying to Linux/Windows machines that have the runtime installed.
+  - Use `-Denable-cuda=true` to link against the CUDA driver (or `nvcuda` on Windows) when NVIDIA GPUs are present.
+  - Use `-Denable-metal=true` on macOS/iOS/tvOS/watchOS to link the Metal and MetalKit frameworks.
+  - Leave these flags off for development environments that lack the corresponding SDKs; the renderer will fall back to CPU compute without failing to load.
+- **Runtime fallbacks**
+  - Compute dispatches always provide CPU fallbacks for critical kernels (e.g., matrix multiplication) so that the new pipeline/bind group infrastructure still produces results even when GPU hardware is absent.
+
 ## 🆘 **Troubleshooting**
 
 ### **Common Issues**
