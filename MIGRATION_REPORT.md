@@ -30,13 +30,11 @@ This document tracks the ABI AI Framework’s migration to Zig 0.16.0-dev and th
 | `zig run --dep abi -Mroot=benchmarks/main.zig -Mabi=src/mod.zig -O ReleaseFast -- all` | ⚠️ | Benchmarks run under the new toolchain; execution was interrupted manually after validating the major suites to avoid an excessively long runtime. |
 
 ## Documentation Updates
-
 - Cross-platform testing guide now lists `0.16.0-dev.254` as the baseline Zig version.
 - `scripts/enhance_cross_platform_testing.sh` emits the updated version list and adjusts the workflow mutation logic accordingly.
 - Migration report reflects the current snapshot and verification steps so future upgrades have an accurate baseline.
 
 ## Follow-up Items
-
 - Monitor upstream Zig changes and refresh the pinned snapshot as new breaking changes land.
 - Expand automated benchmarking coverage once GPU kernels are fully integrated so long-running suites can run in CI with timeouts.
 - Track availability of a stable 0.16.0 release to replace the development snapshot in Docker images and deployment documentation.
