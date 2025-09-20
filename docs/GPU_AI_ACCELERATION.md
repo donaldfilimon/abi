@@ -32,7 +32,7 @@ The Abi AI Framework now includes comprehensive GPU acceleration for AI/ML opera
 ### **Core Components**
 
 ```
-src/gpu/compute/gpu_ai_acceleration.zig
+src/features/gpu/compute/gpu_ai_acceleration.zig
 ├── AIMLAcceleration          # Main acceleration manager with backend verification
 ├── Tensor                     # GPU-accelerated tensor operations
 ├── MatrixOps                  # Matrix operations with GPU kernel dispatch
@@ -102,8 +102,8 @@ The GPU acceleration integrates seamlessly with existing AI components:
 
 ```zig
 const std = @import("std");
-const gpu_accel = @import("../src/gpu/compute/gpu_ai_acceleration.zig");
-const gpu_renderer = @import("../src/gpu/core/gpu_renderer.zig");
+const gpu_accel = @import("../src/features/gpu/compute/gpu_ai_acceleration.zig");
+const gpu_renderer = @import("../src/features/gpu/core/gpu_renderer.zig");
 
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -229,7 +229,7 @@ try dispatchMatmulKernel(a_buffer, b_buffer, c_buffer, m, n, p);
 
 ```zig
 // Using the GPU kernel system for custom operations
-const kernels = @import("../src/gpu/compute/kernels.zig");
+const kernels = @import("../src/features/gpu/compute/kernels.zig");
 
 // Create custom kernel configuration
 const config = kernels.KernelConfig{
