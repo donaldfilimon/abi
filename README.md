@@ -110,7 +110,7 @@ const results = try db.search(&embedding, 10, allocator);
 abi help                    # Show commands
 abi chat                    # AI chat session
 abi train <data>           # Train neural network
-abi serve <model>          # Start server
+./zig-out/bin/abi wdbx server --http   # Start HTTP server
 abi benchmark              # Performance tests
 abi analyze <file>         # Text analysis
 
