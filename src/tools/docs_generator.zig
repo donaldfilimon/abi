@@ -625,6 +625,11 @@ fn generateCodeApiIndex(allocator: std.mem.Allocator) !void {
     defer files.deinit(a);
 
     try collectZigFiles(a, "src", &files);
+    std.mem.sort([]u8, files.items, {}, struct {
+        fn lessThan(_: void, lhs: []u8, rhs: []u8) bool {
+            return std.mem.lessThan(u8, lhs, rhs);
+        }
+    }.lessThan);
 
     var out = try std.fs.cwd().createFile("docs/generated/CODE_API_INDEX.md", .{ .truncate = true });
     defer out.close();
