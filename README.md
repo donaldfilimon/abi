@@ -41,21 +41,33 @@ zig build test
 
 ```
 abi/
-├── src/                          # Source code
-│   ├── core/                     # Core utilities
-│   ├── framework/                # Runtime orchestration and lifecycle
-│   ├── ai/                       # AI/ML components
-│   ├── database/                 # Vector database
-│   ├── net/                      # Networking
-│   ├── perf/                     # Performance monitoring
-│   ├── gpu/                      # GPU acceleration
-│   ├── ml/                       # ML algorithms
-│   ├── simd/                     # SIMD operations
-│   └── wdbx/                     # CLI interface
-├── tests/                        # Test suite
-├── docs/                         # Documentation
-├── examples/                     # Usage examples
-└── tools/                        # Development tools
+├── src/                              # Framework implementation and public entrypoints
+│   ├── mod.zig                       # Library surface re-exported by dependents
+│   ├── main.zig                      # CLI/bootstrap wiring
+│   ├── framework/                    # Runtime orchestration (feature toggles, lifecycle, state)
+│   ├── features/                     # Feature families managed by the framework
+│   │   ├── ai/                       # Agents, training loops, and ML utilities
+│   │   ├── database/                 # Vector database storage and indexing
+│   │   ├── web/                      # HTTP servers, gateways, and protocol adapters
+│   │   ├── monitoring/               # Telemetry, metrics, and health probes
+│   │   ├── gpu/                      # GPU compute backends and kernels
+│   │   └── connectors/               # Third-party integrations and adapters
+│   ├── shared/                       # Cross-cutting subsystems reused by every feature
+│   │   ├── core/                     # Configuration, lifecycle, and error handling
+│   │   ├── logging/                  # Structured logging and sinks
+│   │   ├── platform/                 # Platform detection and host capabilities
+│   │   ├── utils/                    # Common helpers (fs/http/json/crypto/math)
+│   │   ├── simd.zig                  # SIMD primitives exposed to features
+│   │   └── enhanced_plugin_system.zig  # Dynamic plugin loader/runtime
+│   ├── tests/                        # In-tree unit/integration harnesses (mirrors features)
+│   ├── examples/                     # Feature-focused runnable samples
+│   └── tools/                        # Developer tooling compiled into the framework build
+├── tests/                            # Standalone integration and regression suites
+├── docs/                             # Documentation site, guides, and generated references
+├── benchmarks/                       # Performance harnesses and reports
+├── deploy/                           # Deployment scripts and staging manifests
+├── scripts/                          # CI and automation helpers
+└── tools/                            # Repository-level utilities (lint, coverage, etc.)
 ```
 
 ## Quick Start
