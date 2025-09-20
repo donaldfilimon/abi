@@ -688,7 +688,7 @@ pub const WindowsNetworkTester = struct {
 
     fn generateNetworkTestReport(self: *Self) !void {
         std.debug.print("📊 Comprehensive Network Test Report\n", .{});
-        std.debug.print("{s}\n\n", .{"=" ** 50 ++ "\n\n"});
+        std.debug.print("{s}", .{"=" ** 50 ++ "\n\n"});
 
         const test_duration = self.test_end_time - self.test_start_time;
 
