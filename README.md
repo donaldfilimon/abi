@@ -47,18 +47,15 @@ zig build test
 ```
 abi/
 ├── src/                          # Source code
-│   ├── features/                 # Feature families exported by abi.features
-│   │   ├── ai/                   # Agents, training loops, data structures
-│   │   ├── database/             # Vector store, sharding, HTTP façade
-│   │   ├── gpu/                  # Compute backends, kernels, demos
-│   │   ├── web/                  # HTTP/TCP servers, clients, bindings
-│   │   ├── monitoring/           # Metrics, tracing, regression tooling
-│   │   └── connectors/           # Third-party APIs and plugin bridges
+│   ├── features/                 # High-level feature modules
+│   │   ├── ai/                   # Agents, personas, and AI tooling
+│   │   ├── gpu/                  # GPU runtimes and kernels
+│   │   ├── database/             # Vector storage and retrieval
+│   │   ├── web/                  # HTTP/WebSocket integrations
+│   │   ├── monitoring/           # Observability and metrics
+│   │   └── connectors/           # External service connectors
 │   ├── framework/                # Runtime orchestration and lifecycle
-│   ├── shared/                   # Core utilities, platform, logging, SIMD
-│   ├── main.zig                  # CLI entry point
-│   ├── mod.zig                   # Public API surface
-│   └── root.zig                  # Legacy exports/compatibility layer
+│   └── shared/                   # Cross-feature utilities
 ├── tests/                        # Test suite
 ├── docs/                         # Documentation
 ├── examples/                     # Usage examples
@@ -72,24 +69,15 @@ const std = @import("std");
 const abi = @import("abi");
 
 pub fn main() !void {
-    var framework = try abi.init(std.heap.page_allocator, .{
-        .enable_gpu = true,
-        .enable_simd = true,
-    });
-    defer framework.deinit();
+    const allocator = std.heap.page_allocator;
 
-    // Create AI agent
-    var agent = try abi.ai.Agent.init(std.heap.page_allocator, .{
-        .name = "demo",
-        .persona = .adaptive,
-    });
+    // Create AI agent using the exported AgentConfig
+    var agent = try abi.features.ai.agent.Agent.init(allocator, .{ .name = "QuickStart" });
     defer agent.deinit();
 
-    // Process user input and manage the duplicated reply buffer
-    var reply = try agent.process("Hello!", std.heap.page_allocator);
-    defer std.heap.page_allocator.free(reply);
-
-    std.debug.print("Agent: {s}\n", .{reply});
+    // Process a message
+    const response = try agent.process("Hello!", allocator);
+    defer allocator.free(response);
 }
 ```
 
@@ -99,7 +87,7 @@ pub fn main() !void {
 ### Vector Database
 ```zig
 // Open database
-var db = try abi.database.Db.open("vectors.wdbx", true);
+var db = try abi.features.database.database.Db.open("vectors.wdbx", true);
 defer db.close();
 
 // Add and search vectors
@@ -119,15 +107,14 @@ wdbx http --host 0.0.0.0 --port 8080
 
 ## Modules
 
-- **`features/ai/`**: AI agents, model registry, transformers, RL pipelines
-- **`features/database/`**: WDBX-AI vector database, sharding, unified clients
-- **`features/gpu/`**: GPU backend detection, compute kernels, unified memory
-- **`features/web/`**: HTTP/TCP servers, clients, and C bindings
-- **`features/monitoring/`**: Metrics, tracing, regression analysis, profiling
-- **`features/connectors/`**: External service adapters and plugin bridges
-- **`framework/`**: Runtime orchestrator coordinating feature lifecycles
-- **`shared/`**: Core utilities, logging, platform abstractions, SIMD helpers
-- **`ml/`**: Legacy ML compatibility layer (incrementally migrated into features)
+- **`features/ai/`**: Agents, personas, and AI tooling
+- **`features/database/`**: Vector storage, retrieval, and database tooling
+- **`features/gpu/`**: GPU runtimes, kernels, and compute features
+- **`features/web/`**: HTTP/WebSocket integrations and web endpoints
+- **`features/monitoring/`**: Observability, metrics, and tracing
+- **`features/connectors/`**: External service connectors and adapters
+- **`framework/`**: Runtime orchestrator that wires features and plugins together
+- **`shared/`**: Core utilities, platform code, and reusable components
 
 ## CLI
 
