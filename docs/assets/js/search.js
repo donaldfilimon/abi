@@ -2,43 +2,22 @@
 (function() {
   'use strict';
 
-  function buildUrl(path) {
-    const baseUrl = document.body ? (document.body.dataset.baseurl || '') : '';
+  const baseUrl = (document.body && document.body.dataset.baseurl) || '';
 
-    if (!path) {
-      return baseUrl || '/';
-    }
-
-    if (/^https?:\/\//i.test(path)) {
-      return path;
-    }
-
-    const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  function withBase(path) {
+    if (!path) return baseUrl || '';
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    if (!baseUrl || baseUrl === '/') {
+      return normalizedPath;
+    }
 
-    return `${normalizedBase}${normalizedPath}` || normalizedPath;
+    return `${baseUrl.replace(/\/$/, '')}${normalizedPath}`;
   }
 
   let searchIndex = [];
-  function resolveBaseUrl() {
-    const fromWindow = typeof window !== 'undefined' && typeof window.__DOCS_BASEURL === 'string'
-      ? window.__DOCS_BASEURL
-      : '';
-    const fromBody = document.body ? (document.body.getAttribute('data-baseurl') || '') : '';
-    const raw = fromBody || fromWindow || '';
-    if (!raw || raw === '/') return '';
-    return raw.endsWith('/') ? raw.slice(0, -1) : raw;
-  }
-
-  function buildUrl(path) {
-    if (!path) return baseUrl || '';
-    const normalized = path.startsWith('/') ? path : `/${path}`;
-    return `${baseUrl}${normalized}`;
-  }
-
   function initializeAdvancedSearch() {
     // Load search index
-    fetch(buildUrl('/generated/search_index.json'))
+    fetch(withBase('generated/search_index.json'))
       .then(response => response.json())
       .then(data => {
         searchIndex = Array.isArray(data) ? data : [];
@@ -83,11 +62,34 @@
       }
     });
 
-    searchResults.addEventListener('mousedown', function(event) {
-      if (event.target.closest('.search-result-item')) {
-        event.preventDefault();
-      }
+    const searchResults = document.getElementById('search-results');
+    if (!searchResults) return;
+
+    searchResults.innerHTML = '';
+
+    suggestions.forEach(suggestion => {
+      const item = document.createElement('div');
+      item.className = 'search-result-item suggestion';
+
+      const title = document.createElement('div');
+      title.className = 'search-result-title';
+      title.textContent = `💡 ${suggestion}`;
+
+      const excerpt = document.createElement('div');
+      excerpt.className = 'search-result-excerpt';
+      excerpt.textContent = 'Search suggestion';
+
+      item.appendChild(title);
+      item.appendChild(excerpt);
+
+      item.addEventListener('click', function() {
+        searchFor(suggestion);
+      });
+
+      searchResults.appendChild(item);
     });
+
+    searchResults.classList.remove('hidden');
   }
 
   function hideSearchResults(container) {
@@ -96,51 +98,34 @@
     }
   }
 
-  function showSearchSuggestions(container) {
-    if (!container) return;
-
-    const suggestions = buildSuggestionList();
-    container.innerHTML = suggestions.map(suggestion => `
-      <div class="search-result-item suggestion" data-suggestion="${escapeHtml(suggestion)}">
-        <div class="search-result-title">💡 ${escapeHtml(suggestion)}</div>
-        <div class="search-result-excerpt">Press Enter to search</div>
-      </div>
-    `).join('');
-
-    container.classList.remove('hidden');
+  function hideSearchResults() {
+    const searchResults = document.getElementById('search-results');
+    if (searchResults) {
+      searchResults.classList.add('hidden');
+      searchResults.innerHTML = '';
+    }
   }
 
-  function buildSuggestionList() {
-    if (!Array.isArray(searchIndex) || searchIndex.length === 0) {
-      return [
-        'database API',
-        'neural networks',
-        'SIMD operations',
-        'performance guide',
-        'plugin system',
-        'vector search',
-        'machine learning'
-      ];
-    }
+  // Fuzzy search implementation
+  function fuzzySearch(query, items) {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.length === 0) return [];
 
-    const titles = [];
-    for (const item of searchIndex) {
-      if (item && item.title && !titles.includes(item.title)) {
-        titles.push(item.title);
-      }
-      if (titles.length >= 7) break;
-    }
-    return titles;
+    return items
+      .map(item => {
+        const haystack = `${item.title} ${item.excerpt}`.toLowerCase();
+        const index = haystack.indexOf(normalizedQuery);
+        return index === -1 ? null : { item, score: index };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.score - b.score)
+      .map(result => result.item);
   }
 
-  function escapeHtml(text) {
-    return String(text)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }  if (document.readyState === 'loading') {
+  window.searchFor = searchFor;
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeAdvancedSearch);
   } else {
     initializeAdvancedSearch();

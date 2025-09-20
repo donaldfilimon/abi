@@ -2,43 +2,16 @@
 (function() {
   'use strict';
 
-  function buildUrl(path) {
-    const baseUrl = document.body ? (document.body.dataset.baseurl || '') : '';
+  const baseUrl = (document.body && document.body.dataset.baseurl) || '';
 
-    if (!path) {
-      return baseUrl || '/';
-    }
-
-    if (/^https?:\/\//i.test(path)) {
-      return path;
-    }
-
-    const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  function withBase(path) {
+    if (!path) return baseUrl || '';
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-
-    return `${normalizedBase}${normalizedPath}` || normalizedPath;
-  }
-
-  function normalizeDocPath(file) {
-    if (!file) {
-      return buildUrl('/');
+    if (!baseUrl || baseUrl === '/') {
+      return normalizedPath;
     }
 
-    let normalized = file.trim();
-
-    if (normalized.endsWith('.md')) {
-      normalized = normalized.slice(0, -3);
-    }
-
-    if (!normalized.startsWith('/')) {
-      normalized = `/${normalized}`;
-    }
-
-    if (!normalized.endsWith('/') && !normalized.endsWith('.html')) {
-      normalized = `${normalized}/`;
-    }
-
-    return buildUrl(normalized);
+    return `${baseUrl.replace(/\/$/, '')}${normalizedPath}`;
   }
 
   // Generate table of contents
@@ -53,7 +26,9 @@
     const headings = content.querySelectorAll('h2, h3, h4');
     if (headings.length === 0) {
       const toc = document.getElementById('toc');
-      if (toc) toc.style.display = 'none';
+      if (toc) {
+        toc.style.display = 'none';
+      }
       return;
     }
 
@@ -115,7 +90,7 @@
     let searchData = [];
     
     // Load search index
-    fetch(buildUrl('/generated/search_index.json'))
+    fetch(withBase('generated/search_index.json'))
       .then(response => response.json())
       .then(data => {
         searchData = data;
@@ -176,22 +151,6 @@
     searchResults.innerHTML = '';
 
     if (results.length === 0) {
-      searchResults.innerHTML = '<div class="search-result-item" data-empty="true">No results found</div>';
-    } else {
-      const safeQuery = query ? escapeRegExp(query) : '';
-      searchResults.innerHTML = results.map(result => {
-        const file = escapeAttribute(result.file);
-        const title = highlightText(result.title, safeQuery);
-        const excerpt = highlightText(result.excerpt, safeQuery);
-        return `
-          <div class="search-result-item" data-file="${file}">
-            <div class="search-result-title">${title}</div>
-            <div class="search-result-excerpt">${excerpt}</div>
-          </div>
-        `;
-      }).join('');
-    }
-
       const emptyState = document.createElement('div');
       emptyState.className = 'search-result-item';
       emptyState.textContent = 'No results found';
@@ -231,7 +190,10 @@
   }
 
   function navigateToPage(file) {
-    window.location.href = normalizeDocPath(file);
+    if (!file) return;
+    const normalized = file.replace(/\.md$/i, '/');
+    const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    window.location.href = withBase(cleanPath);
   }
 
   // Smooth scrolling for anchor links
@@ -297,19 +259,8 @@
 
   // Performance monitoring
   function trackPerformance() {
-    if ('performance' in window) {
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          const entries = performance.getEntriesByType('navigation');
-          if (!entries || entries.length === 0) return;
-          const perfData = entries[0];
-          const loadTime = perfData.loadEventEnd - perfData.loadEventStart;
-
-          if (loadTime > 0) {
-            console.log(`Page load time: ${loadTime}ms`);
-          }
-        }, 0);
-      });
+    if (!('performance' in window)) {
+      return;
     }
 
     window.addEventListener('load', function() {
@@ -346,10 +297,7 @@
     trackPerformance();
 
     // Add performance badges to relevant sections
-    const performanceMarkers = Array.from(document.querySelectorAll('code')).filter(code => {
-      const text = code.textContent || '';
-      return text.includes('~') || text.includes('ms') || text.includes('μs');
-    });
+    const performanceMarkers = document.querySelectorAll('code');
     performanceMarkers.forEach(function(marker) {
       if (!marker || !marker.textContent) {
         return;
