@@ -92,6 +92,16 @@ const embedding = [_]f32{0.1, 0.2, 0.3};
 const results = try db.search(&embedding, 10, allocator);
 ```
 
+### WDBX CLI
+
+```bash
+# Inspect available subcommands
+wdbx help
+
+# Launch the lightweight HTTP API (Ctrl+C to stop)
+wdbx http --host 0.0.0.0 --port 8080
+```
+
 ## Modules
 
 - **`core/`**: Core utilities and framework foundation
