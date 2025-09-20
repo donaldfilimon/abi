@@ -24,7 +24,7 @@
 ## Installation
 
 ### Prerequisites
-- **Zig 0.16.0-dev.254+6dd0270a1** (verify with `zig version` and the `.zigversion` file)
+- **Zig 0.16.0-dev.254+6dd0270a1** (see `.zigversion` and verify with `zig version`)
 - GPU drivers (optional, for acceleration)
 - OpenAI API key (for AI features)
 
@@ -257,7 +257,7 @@ MIT License - see [LICENSE](LICENSE)
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
-- **Zig 0.16.0-dev.254+6dd0270a1** (match `.zigversion`; see compatibility notes above for legacy branches)
+- **Zig 0.16.0-dev.254+6dd0270a1** (GitHub Actions uses `mlugg/setup-zig@v2` pinned to this version)
 - GPU drivers (optional, for acceleration)
 - OpenAI API key (for AI agent features)
 
