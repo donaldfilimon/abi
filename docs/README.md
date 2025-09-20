@@ -43,9 +43,9 @@ Welcome to the comprehensive documentation for ABI, a high-performance vector da
 - **[Definitions]({{ '/generated/DEFINITIONS_REFERENCE/' | relative_url }})** - Comprehensive glossary and concepts
 
 ### Developer Resources
-- **[Code Index]({{ '/generated/CODE_API_INDEX/' | relative_url }})** - Auto-generated API index from source
-- **[Native Docs]({{ '/zig-docs/' | relative_url }})** - Zig compiler-generated documentation
-- **[Search]({{ '/index.html' | relative_url }})** - Interactive documentation browser
+- **[Code Index](./generated/CODE_API_INDEX/)** - Auto-generated API index from source
+- **[Native Docs](./zig-docs/)** - Zig compiler-generated documentation
+- **[Search](./index.html)** - Interactive documentation browser
 
 ## 🔍 Features
 

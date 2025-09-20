@@ -18,6 +18,7 @@ layout: default
   <link rel="stylesheet" href="{{ '/assets/css/syntax.css' | relative_url }}">
   
   <!-- Search functionality -->
+  <script>window.__DOCS_BASEURL = {{ site.baseurl | default: '' | jsonify }};</script>
   <script src="{{ '/assets/js/search.js' | relative_url }}" defer></script>
 </head>
 <body data-baseurl="{{ site.baseurl | default: '' }}">
