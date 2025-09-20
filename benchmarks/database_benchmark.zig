@@ -235,7 +235,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
             for (self.config.search_queries) |top_k| {
                 const search_context = struct {
                     fn searchVectors(context: @This()) !void {
-                        var search_db = try database.database.Db.open(context.filename, true);
+                        var search_db = try database.database.Db.open(context.filename, false);
                         defer search_db.close();
 
                         const results = try search_db.search(context.query, context.top_k, context.allocator);
@@ -339,7 +339,7 @@ pub const EnhancedDatabaseBenchmarkSuite = struct {
             const parallel_context = struct {
                 fn parallelSearch(context: @This()) !void {
                     // Simulate parallel search (would require actual parallel implementation)
-                    var search_db = try database.database.Db.open(context.filename, true);
+                    var search_db = try database.database.Db.open(context.filename, false);
                     defer search_db.close();
 
                     const results = try search_db.search(context.query, 10, context.allocator);
