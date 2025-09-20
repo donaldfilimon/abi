@@ -44,7 +44,7 @@ Welcome to the comprehensive documentation for ABI, a high-performance vector da
 
 ### Developer Resources
 - **[Code Index](./generated/CODE_API_INDEX/)** - Auto-generated API index from source
-- **[Native Docs](./native-docs/)** - Zig compiler-generated documentation
+- **[Native Docs](./zig-docs/)** - Zig compiler-generated documentation
 - **[Search](./index.html)** - Interactive documentation browser
 
 ## 🔍 Features
