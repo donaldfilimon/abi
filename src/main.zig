@@ -1,7 +1,18 @@
 const std = @import("std");
+const abi = @import("mod.zig");
 
 pub fn main() !void {
-    // Simple main entry point for the ABI framework
-    std.debug.print("ABI Framework v1.0.0-alpha\n", .{});
-    std.debug.print("Run 'zig build --help' for available commands\n", .{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    const allocator = gpa.allocator();
+    try abi.init(allocator);
+    defer abi.deinit();
+
+    try abi.ensureCategory(.ai);
+    try abi.ensureCategory(.web);
+
+    const manager = try abi.featuresManager();
+    std.debug.print("ABI Framework {s} ready\n", .{abi.version()});
+    std.debug.print("Initialized features: {d}\n", .{manager.initializedCount()});
 }
