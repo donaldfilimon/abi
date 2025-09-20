@@ -1,102 +1,91 @@
-//! ABI Framework - Main Module Interface
-//!
-//! Feature-based modular architecture providing:
-//! - AI/ML functionality
-//! - GPU acceleration
-//! - Vector databases
-//! - Web services
-//! - Monitoring and observability
-//! - External service connectors
-
 const std = @import("std");
+const framework = @import("framework/mod.zig");
+const core = @import("shared/core/core.zig");
+const lifecycle_mod = @import("shared/core/lifecycle.zig");
 
-// =============================================================================
-// FEATURE MODULES
-// =============================================================================
-
-/// AI/ML functionality and neural networks
-pub const ai = @import("features/ai/mod.zig");
-
-/// GPU acceleration and compute
-pub const gpu = @import("features/gpu/mod.zig");
-
-/// Vector databases and data persistence
-pub const database = @import("features/database/mod.zig");
-
-/// Web servers, HTTP clients, and services
-pub const web = @import("features/web/mod.zig");
-
-/// System monitoring and observability
-pub const monitoring = @import("features/monitoring/mod.zig");
-
-/// External service integrations
-pub const connectors = @import("features/connectors/mod.zig");
-
-// =============================================================================
-// SHARED MODULES
-// =============================================================================
-
-/// Cross-cutting utilities and helpers
+pub const features = @import("features/mod.zig");
+pub const shared = @import("shared/mod.zig");
 pub const utils = @import("shared/utils/mod.zig");
 
-/// Core system functionality
-pub const core = @import("shared/core/mod.zig");
+pub const FeatureCategory = framework.feature_manager.FeatureCategory;
+pub const Runtime = framework.runtime.Runtime;
+pub const RuntimeOptions = Runtime.Options;
 
-/// Platform-specific abstractions
-pub const platform = @import("shared/platform/mod.zig");
+const RuntimeInitError = std.mem.Allocator.Error || framework.feature_manager.Error || core.AbiError;
 
-/// Logging and telemetry
-pub const logging = @import("shared/logging/mod.zig");
+pub const InitError = (error{
+    AlreadyInitialized,
+    NotInitialized,
+}) || RuntimeInitError;
 
-// =============================================================================
-// LEGACY COMPATIBILITY
-// =============================================================================
+var global_runtime: ?*Runtime = null;
 
-/// SIMD operations (moved to shared)
-pub const simd = @import("shared/simd.zig");
-
-/// Main application entry point
-pub const main = @import("main.zig");
-
-/// Root configuration
-pub const root = @import("root.zig");
-
-// =============================================================================
-// UTILITY FUNCTIONS
-// =============================================================================
-
-/// Initialize the entire ABI framework
-pub fn init(allocator: std.mem.Allocator) !void {
-    // Initialize shared modules first
-    try core.lifecycle.init(allocator);
-    try logging.logging.init();
-
-    // Initialize features as needed
-    try ai.init();
-    try database.init();
-    try web.init();
-    try monitoring.init();
+/// Initialize the ABI framework with default runtime options.
+pub fn init(allocator: std.mem.Allocator) InitError!void {
+    return initWithOptions(allocator, .{});
 }
 
-/// Shutdown the entire ABI framework
+/// Initialize the ABI framework using explicit runtime options.
+pub fn initWithOptions(allocator: std.mem.Allocator, options: RuntimeOptions) InitError!void {
+    if (global_runtime != null) return InitError.AlreadyInitialized;
+    const instance = try allocator.create(Runtime);
+    errdefer allocator.destroy(instance);
+    instance.* = try Runtime.init(allocator, options);
+    global_runtime = instance;
+}
+
+/// Retrieve the global runtime instance.
+pub fn runtime() InitError!*Runtime {
+    if (global_runtime) |instance| {
+        return instance;
+    }
+    return InitError.NotInitialized;
+}
+
+/// Shut down the global runtime instance if it exists.
 pub fn deinit() void {
-    // Shutdown features in reverse order
-    monitoring.deinit();
-    web.deinit();
-    database.deinit();
-    ai.deinit();
-
-    // Shutdown shared modules
-    logging.logging.deinit();
-    core.lifecycle.deinit();
+    if (global_runtime) |instance| {
+        const allocator = instance.gpa;
+        instance.deinit();
+        allocator.destroy(instance);
+        global_runtime = null;
+    }
+    core.deinit();
 }
 
-/// Get framework version information
+/// Return framework semantic version.
 pub fn version() []const u8 {
-    return "1.0.0-alpha";
+    return "2.0.0-alpha";
 }
 
-test {
-    // Run comprehensive framework tests
-    std.testing.refAllDecls(@This());
+/// Convenience accessor for the feature manager.
+pub fn featuresManager() InitError!*framework.feature_manager.FeatureManager {
+    return runtime().getFeatureManager();
+}
+
+/// Convenience accessor for the lifecycle controller.
+pub fn lifecycle() InitError!*lifecycle_mod.Lifecycle {
+    return runtime().getLifecycle();
+}
+
+/// Ensure all registered features are initialized.
+pub fn ensureAllFeatures() InitError!void {
+    try runtime().getFeatureManager().ensureAll();
+}
+
+/// Ensure a specific feature group is initialized.
+pub fn ensureCategory(category: FeatureCategory) InitError!void {
+    try runtime().getFeatureManager().ensureCategory(category);
+}
+
+test "framework bootstraps runtime" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    try init(arena.allocator());
+    defer deinit();
+
+    const manager = try featuresManager();
+    try manager.ensure("feature.ai");
+    try manager.ensure("feature.web");
 }

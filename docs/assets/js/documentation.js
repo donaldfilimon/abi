@@ -2,6 +2,18 @@
 (function() {
   'use strict';
 
+  const baseUrl = (document.body && document.body.dataset.baseurl) || '';
+
+  function withBase(path) {
+    if (!path) return baseUrl || '';
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    if (!baseUrl || baseUrl === '/') {
+      return normalizedPath;
+    }
+
+    return `${baseUrl.replace(/\/$/, '')}${normalizedPath}`;
+  }
+
   // Generate table of contents
   function generateTOC() {
     const content = document.querySelector('.documentation-content .content');
@@ -9,9 +21,14 @@
     
     if (!content || !tocList) return;
 
+    tocList.innerHTML = '';
+
     const headings = content.querySelectorAll('h2, h3, h4');
     if (headings.length === 0) {
-      document.getElementById('toc').style.display = 'none';
+      const toc = document.getElementById('toc');
+      if (toc) {
+        toc.style.display = 'none';
+      }
       return;
     }
 
@@ -40,7 +57,7 @@
     let searchData = [];
     
     // Load search index
-    fetch('/generated/search_index.json')
+    fetch(withBase('generated/search_index.json'))
       .then(response => response.json())
       .then(data => {
         searchData = data;
@@ -56,6 +73,7 @@
       
       if (query.length < 2) {
         searchResults.classList.add('hidden');
+        searchResults.innerHTML = '';
         return;
       }
 
@@ -81,17 +99,37 @@
     const searchResults = document.getElementById('search-results');
     if (!searchResults) return;
 
+    searchResults.innerHTML = '';
+
     if (results.length === 0) {
-      searchResults.innerHTML = '<div class="search-result-item">No results found</div>';
-    } else {
-      searchResults.innerHTML = results.map(result => 
-        `<div class="search-result-item" onclick="navigateToPage('${result.file}')">
-          <div class="search-result-title">${highlightText(result.title, query)}</div>
-          <div class="search-result-excerpt">${highlightText(result.excerpt, query)}</div>
-        </div>`
-      ).join('');
+      const emptyState = document.createElement('div');
+      emptyState.className = 'search-result-item';
+      emptyState.textContent = 'No results found';
+      searchResults.appendChild(emptyState);
+      searchResults.classList.remove('hidden');
+      return;
     }
-    
+
+    results.forEach(result => {
+      const item = document.createElement('div');
+      item.className = 'search-result-item';
+
+      const title = document.createElement('div');
+      title.className = 'search-result-title';
+      title.innerHTML = highlightText(result.title, query);
+
+      const excerpt = document.createElement('div');
+      excerpt.className = 'search-result-excerpt';
+      excerpt.innerHTML = highlightText(result.excerpt, query);
+
+      item.appendChild(title);
+      item.appendChild(excerpt);
+
+      item.addEventListener('click', () => navigateToPage(result.file));
+
+      searchResults.appendChild(item);
+    });
+
     searchResults.classList.remove('hidden');
   }
 
@@ -102,7 +140,10 @@
   }
 
   function navigateToPage(file) {
-    window.location.href = `/${file}`;
+    if (!file) return;
+    const normalized = file.replace(/\.md$/i, '/');
+    const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    window.location.href = withBase(cleanPath);
   }
 
   // Smooth scrolling for anchor links
@@ -152,6 +193,10 @@
       pre.appendChild(button);
       
       button.addEventListener('click', function() {
+        if (!navigator.clipboard || !navigator.clipboard.writeText) {
+          return;
+        }
+
         navigator.clipboard.writeText(codeBlock.textContent).then(function() {
           button.textContent = 'Copied!';
           setTimeout(function() {
@@ -164,18 +209,33 @@
 
   // Performance monitoring
   function trackPerformance() {
-    if ('performance' in window) {
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          const perfData = performance.getEntriesByType('navigation')[0];
-          const loadTime = perfData.loadEventEnd - perfData.loadEventStart;
-          
-          if (loadTime > 0) {
-            console.log(`Page load time: ${loadTime}ms`);
-          }
-        }, 0);
-      });
+    if (!('performance' in window)) {
+      return;
     }
+
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        const navigationEntries = performance.getEntriesByType
+          ? performance.getEntriesByType('navigation')
+          : [];
+
+        const perfData = navigationEntries && navigationEntries.length > 0
+          ? navigationEntries[0]
+          : performance.timing;
+
+        if (!perfData) {
+          return;
+        }
+
+        const start = perfData.loadEventStart || perfData.domComplete || 0;
+        const end = perfData.loadEventEnd || perfData.domComplete || 0;
+        const loadTime = end - start;
+
+        if (loadTime > 0) {
+          console.log(`Page load time: ${loadTime}ms`);
+        }
+      }, 0);
+    });
   }
 
   // Initialize all functionality when DOM is ready
@@ -187,14 +247,24 @@
     trackPerformance();
     
     // Add performance badges to relevant sections
-    const performanceMarkers = document.querySelectorAll('code:contains("~"), code:contains("ms"), code:contains("μs")');
+    const performanceMarkers = document.querySelectorAll('code');
     performanceMarkers.forEach(function(marker) {
-      if (marker.textContent.includes('~')) {
-        const badge = document.createElement('span');
-        badge.className = 'performance-badge';
-        badge.textContent = 'PERF';
-        marker.parentElement.insertBefore(badge, marker.nextSibling);
+      if (!marker || !marker.textContent) {
+        return;
       }
+
+      if (!/[~≈]|\bms\b|µs|μs/.test(marker.textContent)) {
+        return;
+      }
+
+      if (!marker.parentElement || marker.parentElement.querySelector('.performance-badge')) {
+        return;
+      }
+
+      const badge = document.createElement('span');
+      badge.className = 'performance-badge';
+      badge.textContent = 'PERF';
+      marker.parentElement.insertBefore(badge, marker.nextSibling);
     });
   }
 
