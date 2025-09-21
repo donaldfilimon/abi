@@ -100,11 +100,13 @@ const results = try db.search(&embedding, 10, allocator);
 
 ```bash
 # Inspect available subcommands
-wdbx help
+./zig-out/bin/abi wdbx help
 
 # Launch the lightweight HTTP API (Ctrl+C to stop)
-wdbx http --host 0.0.0.0 --port 8080
+./zig-out/bin/abi wdbx http --host 0.0.0.0 --port 8080
 ```
+
+> If you install `abi` into your `PATH`, you can drop the `./zig-out/bin/` prefix and run commands like `abi wdbx http …` directly.
 
 ## Modules
 
