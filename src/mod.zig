@@ -7,6 +7,10 @@
 const std = @import("std");
 const build_options = @import("build_options");
 
+comptime {
+    _ = @import("compat.zig");
+}
+
 // =============================================================================
 // FEATURE AND FRAMEWORK MODULES
 // =============================================================================
