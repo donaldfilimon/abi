@@ -1,3 +1,10 @@
+---
+layout: documentation
+title: "Testing Strategy"
+description: "Unified approach for validating ABI across functionality, performance, and reliability."
+permalink: /testing-strategy/
+---
+
 # Testing Strategy
 
 ## Purpose

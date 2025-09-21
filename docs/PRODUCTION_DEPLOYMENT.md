@@ -1,3 +1,10 @@
+---
+layout: documentation
+title: "Production Deployment"
+description: "Checklist and best practices for deploying ABI safely into production environments."
+permalink: /production-deployment/
+---
+
 # WDBX Production Deployment Guide
 
 ## 🎯 Performance Metrics

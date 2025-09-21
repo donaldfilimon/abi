@@ -1,3 +1,10 @@
+---
+layout: documentation
+title: "Windows zig std Docs Pipeline"
+description: "Automated pipeline and CLI helpers for restoring Zig standard library docs on Windows."
+permalink: /windows-zig-std-docs-fix/
+---
+
 # Unified Pipeline & Dynamic Interactive CLI/UX for `zig std` on Windows
 
 **Complete End-to-End Pipeline with Integrated CLI Interfaces and Interactive UX Module**
