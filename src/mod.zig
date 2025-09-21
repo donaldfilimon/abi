@@ -5,8 +5,8 @@
 //! coordinates feature toggles, plugin discovery, and lifecycle management.
 
 const std = @import("std");
-const framework = @import("framework/mod.zig");
-const core = @import("shared/core/core.zig");
+const framework_mod = @import("framework/mod.zig");
+const core_internal = @import("shared/core/core.zig");
 const lifecycle_mod = @import("shared/core/lifecycle.zig");
 
 // =============================================================================
@@ -35,14 +35,14 @@ pub const root = @import("root.zig");
 // PUBLIC API
 // =============================================================================
 
-pub const Feature = framework.Feature;
-pub const Framework = framework.Framework;
-pub const FrameworkOptions = framework.FrameworkOptions;
+pub const Feature = framework_mod.Feature;
+pub const Framework = framework_mod.Framework;
+pub const FrameworkOptions = framework_mod.FrameworkOptions;
 
 /// Initialise the ABI framework and return the orchestration handle. Call
 /// `Framework.deinit` (or `abi.shutdown`) when finished.
 pub fn init(allocator: std.mem.Allocator, options: FrameworkOptions) !Framework {
-    return try framework.runtime.Framework.init(allocator, options);
+    return try framework_mod.runtime.Framework.init(allocator, options);
 }
 
 /// Convenience wrapper around `Framework.deinit` for callers that prefer the
@@ -53,7 +53,7 @@ pub fn shutdown(instance: *Framework) void {
 
 /// Get framework version information.
 pub fn version() []const u8 {
-    return "1.0.0-alpha";
+    return "0.1.0a";
 }
 
 test {

@@ -290,13 +290,13 @@ pub const ErrorCodes = struct {
 
 /// WDBX version information
 pub const VERSION = struct {
-    pub const MAJOR = 1;
-    pub const MINOR = 0;
+    pub const MAJOR = 0;
+    pub const MINOR = 1;
     pub const PATCH = 0;
-    pub const PRE_RELEASE = "alpha";
+    pub const PRE_RELEASE = "0.1.0a";
 
     pub fn string() []const u8 {
-        return "1.0.0-alpha";
+        return "0.1.0a";
     }
 
     pub fn isCompatible(major: u32, minor: u32) bool {
