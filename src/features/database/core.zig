@@ -520,9 +520,10 @@ pub const MemoryStats = struct {
 // =============================================================================
 
 test "VERSION compatibility" {
-    try std.testing.expect(VERSION.isCompatible(1, 0));
-    try std.testing.expect(!VERSION.isCompatible(2, 0));
-    try std.testing.expect(!VERSION.isCompatible(1, 1));
+    try std.testing.expect(VERSION.isCompatible(0, 1));
+    try std.testing.expect(VERSION.isCompatible(0, 0));
+    try std.testing.expect(!VERSION.isCompatible(0, 2));
+    try std.testing.expect(!VERSION.isCompatible(1, 0));
 }
 
 test "OutputFormat parsing" {
