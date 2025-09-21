@@ -19,7 +19,6 @@
 ## 🔁 Option A — Switch Zig Version on Windows
 
 Keep multiple Zig versions side-by-side and toggle your `PATH`. Suggested layout:
-
 ```
 C:\tools\zig\0.14.1\zig.exe
 C:\tools\zig\0.15.1\zig.exe
