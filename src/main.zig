@@ -1,6 +1,6 @@
 const std = @import("std");
 const abi = @import("abi");
-// Ensure the repository is built with Zig 0.15.x
+// Ensure the repository is built with Zig 0.16.x
 _ = @import("compat");
 
 pub fn main() !void {
