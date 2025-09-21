@@ -7039,13 +7039,13 @@ pub const VERSION = struct {
 - const `MAJOR`
 
 ```zig
-pub const MAJOR = 1;
+pub const MAJOR = 0;
 ```
 
 - const `MINOR`
 
 ```zig
-pub const MINOR = 0;
+pub const MINOR = 1;
 ```
 
 - const `PATCH`
@@ -7057,7 +7057,7 @@ pub const PATCH = 0;
 - const `PRE_RELEASE`
 
 ```zig
-pub const PRE_RELEASE = "alpha";
+pub const PRE_RELEASE = "a";
 ```
 
 - fn `string`
@@ -20899,13 +20899,13 @@ pub const VERSION = struct {
 - const `MAJOR`
 
 ```zig
-pub const MAJOR = 1;
+pub const MAJOR = 0;
 ```
 
 - const `MINOR`
 
 ```zig
-pub const MINOR = 0;
+pub const MINOR = 1;
 ```
 
 - const `PATCH`
