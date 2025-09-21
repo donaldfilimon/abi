@@ -21,7 +21,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
    ```
 
 2. **Set Up Development Environment**
-   - Install Zig 0.16.0-dev.254+6dd0270a1 (see `.zigversion`; confirm with `zig version`)
+   - Install Zig 0.16.0-dev (master) (see `.zigversion`; confirm with `zig version`)
    - Install Bun (recommended): `curl -fsSL https://bun.sh/install | bash`
    - Set up your editor with Zig language support
 
@@ -287,7 +287,7 @@ Violations will be addressed by the project maintainers. We reserve the right to
 
 ### **Prerequisites**
 
-- **Zig 0.16.0-dev.254+6dd0270a1** (required and enforced in CI)
+- **Zig 0.16.0-dev (master)** (required and enforced in CI)
 - **Git** for version control
 - **Basic understanding** of systems programming concepts
 - **Enthusiasm** for AI/ML and high-performance computing
