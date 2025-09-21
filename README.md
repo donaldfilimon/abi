@@ -129,7 +129,7 @@ build system:
 abi help                    # Show commands
 abi chat                    # AI chat session
 abi train <data>           # Train neural network
-./zig-out/bin/abi wdbx server --http   # Start HTTP server
+./zig-out/bin/abi wdbx http --host 0.0.0.0 --port 8080   # Start HTTP server
 abi benchmark              # Performance tests
 abi analyze <file>         # Text analysis
 
@@ -362,7 +362,7 @@ The ABI vector database provides enterprise-grade performance with:
 ./zig-out/bin/abi wdbx add "1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0"
 
 # Start HTTP REST API server
-./zig-out/bin/abi wdbx http 8080
+./zig-out/bin/abi wdbx http --port 8080
 ```
 
 #### **HTTP REST API**
@@ -370,7 +370,7 @@ The ABI vector database provides enterprise-grade performance with:
 Start the server and access endpoints:
 
 ```bash
-./zig-out/bin/abi wdbx http 8080
+./zig-out/bin/abi wdbx http --port 8080
 ```
 
 **API Endpoints:**
