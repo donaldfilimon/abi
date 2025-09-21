@@ -53,7 +53,7 @@ pub fn shutdown(instance: *Framework) void {
 
 /// Get framework version information.
 pub fn version() []const u8 {
-    return "1.0.0-alpha";
+    return "0.1.0a";
 }
 
 test {

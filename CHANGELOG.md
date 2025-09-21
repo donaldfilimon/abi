@@ -54,7 +54,7 @@ All notable changes to the Abi AI Framework.
 
 > **All notable changes to the Abi AI Framework will be documented in this file**
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.0a-blue.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -63,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 📋 **Table of Contents**
 
 - [Unreleased](#unreleased)
-- [0.1.0-alpha](#010-alpha)
+- [0.1.0a](#010a)
 - [Roadmap](#roadmap)
 
 ---
@@ -214,7 +214,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## 🎯 **[0.1.0-alpha] - 2025-01-01**
+## 🎯 **[0.1.0a] - 2025-01-01**
 
 > **Initial alpha release with core functionality**
 
@@ -325,8 +325,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 🔗 **Links**
 
-- **[Unreleased]**: [Compare v0.1.0-alpha...HEAD](https://github.com/yourusername/abi/compare/v0.1.0-alpha...HEAD)
-- **[0.1.0-alpha]**: [Release v0.1.0-alpha](https://github.com/yourusername/abi/releases/tag/v0.1.0-alpha)
+- **[Unreleased]**: [Compare v0.1.0a...HEAD](https://github.com/yourusername/abi/compare/v0.1.0a...HEAD)
+- **[0.1.0a]**: [Release v0.1.0a](https://github.com/yourusername/abi/releases/tag/v0.1.0a)
 
 ---
 
