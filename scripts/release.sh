@@ -104,7 +104,7 @@ generate_docs() {
 
 # Create release archive
 create_archive() {
-    local version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+    local version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0a")
     local archive_name="abi-framework-${version#v}-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)"
 
     print_status "Creating release archive: $archive_name.tar.gz"
@@ -137,7 +137,7 @@ create_archive() {
 
 # Show release information
 show_release_info() {
-    local version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+    local version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0a")
 
     echo
     echo "🎉 Release Build Complete!"

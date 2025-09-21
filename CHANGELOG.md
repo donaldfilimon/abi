@@ -2,7 +2,23 @@
 
 All notable changes to the Abi AI Framework.
 
-## [1.0.0] - 2025-01-18
+<a id="010a"></a>
+
+## [0.1.0a] - 2025-09-21
+
+### Added
+- **Framework bootstrap API**: `abi.init` now constructs the `Framework` orchestration layer with sensible defaults and exposes lifecycle helpers such as `shutdown()` for orderly teardown.
+- **Feature toggle system**: `FrameworkOptions` and `FeatureToggles` allow callers to enable/disable AI, database, web, monitoring, SIMD, and GPU functionality at runtime.
+- **Plugin registry**: Dynamic plugin discovery, registration, and lifecycle management via `PluginRegistry`, including dependency tracking and safe unload/deinit handling.
+- **Operational summary output**: `Framework.writeSummary` produces a human-readable snapshot of enabled features, plugin search paths, and registry state for CLI tools.
+
+### Tooling
+- Release automation via `scripts/release.(sh|ps1)` builds, tests, and packages the framework with consistent fallback metadata.
+
+<a id="100-planned"></a>
+
+## [1.0.0] - 2025-01-18 *(Planned – not yet released)*
+> **Status:** Roadmap goals for a future stable milestone. The features below describe intent and remain unreleased.
 
 ### 🎉 Production-Ready Release
 
@@ -40,7 +56,10 @@ All notable changes to the Abi AI Framework.
 - Network: 99.98% success rate
 - Memory: 4.096KB per vector, zero leaks
 
-## [1.0.0-alpha] - 2024-01-01
+<a id="100-alpha-planned"></a>
+
+## [1.0.0-alpha] - 2024-01-01 *(Planned – not yet released)*
+> **Status:** Early roadmap concepts for 1.x development; these capabilities are aspirational and still under construction.
 - Initial release with core AI functionality
 - Basic vector database and CLI
 - Foundation for cross-platform support
@@ -54,7 +73,7 @@ All notable changes to the Abi AI Framework.
 
 > **All notable changes to the Abi AI Framework will be documented in this file**
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.0a-blue.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -62,13 +81,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 📋 **Table of Contents**
 
-- [Unreleased](#unreleased)
+- [0.1.0a](#010a)
+- [1.0.0 (planned)](#100-planned)
+- [1.0.0-alpha (planned)](#100-alpha-planned)
+- [Unreleased roadmap](#unreleased-roadmap)
 - [0.1.0-alpha](#010-alpha)
 - [Roadmap](#roadmap)
 
 ---
 
+<a id="unreleased-roadmap"></a>
+
 ## 🚀 **[Unreleased]**
+
+> **Status:** Work in progress. The items below map to planned 1.x milestones and are not yet available in a released build.
 
 > **Latest development version with cutting-edge features - Major Refactoring Complete!**
 
@@ -251,6 +277,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 🗺️ **Roadmap**
 
+> **Status:** Long-term planning for future 1.x and beyond releases; completion states reflect aspirations rather than shipped functionality.
+
 ### **Version 1.0.0 (Target: Q3 2025)**
 
 #### **🎯 Core Objectives**
@@ -325,7 +353,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 🔗 **Links**
 
-- **[Unreleased]**: [Compare v0.1.0-alpha...HEAD](https://github.com/yourusername/abi/compare/v0.1.0-alpha...HEAD)
+- **[Unreleased]**: [Compare v0.1.0a...HEAD](https://github.com/yourusername/abi/compare/v0.1.0a...HEAD)
+- **[0.1.0a]**: [Release v0.1.0a](https://github.com/yourusername/abi/releases/tag/v0.1.0a)
 - **[0.1.0-alpha]**: [Release v0.1.0-alpha](https://github.com/yourusername/abi/releases/tag/v0.1.0-alpha)
 
 ---

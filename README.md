@@ -559,7 +559,7 @@ Create custom plugins for the framework:
 // Example plugin
 pub const ExamplePlugin = struct {
     pub const name = "example_plugin";
-    pub const version = "1.0.0";
+    pub const version = "0.1.0a";
     
     pub fn init(allocator: std.mem.Allocator) !*@This() {
         // Plugin initialization
