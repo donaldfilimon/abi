@@ -1,5 +1,10 @@
 const std = @import("std");
 const abi = @import("abi");
+const compat = @import("compat.zig");
+
+comptime {
+    _ = compat;
+}
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
