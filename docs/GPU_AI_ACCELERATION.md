@@ -96,6 +96,17 @@ The GPU acceleration integrates seamlessly with existing AI components:
 - **Training Pipelines**: GPU-accelerated training loops
 - **Inference**: GPU-accelerated model inference
 
+## ⚙️ **Runtime Considerations & Caveats**
+
+- **Backend Linking**: Enable the appropriate build options when targeting native GPUs:
+  - `-Denable-vulkan` links `vulkan-1` on Windows and `libvulkan` on Unix-like platforms.
+  - `-Denable-metal` links `Metal`, `MetalKit`, and `QuartzCore` frameworks on Apple platforms.
+  - `-Denable-cuda` links `nvcuda`/`cuda` depending on the host OS.
+- **Driver Availability**: Hardware pipelines are created at runtime. If the driver or runtime cannot be loaded the renderer automatically reverts to the CPU fallback to preserve correctness.
+- **Uniform Push Constants**: Workloads use small uniform buffers for dispatch parameters so that the same WGSL shader can execute on Vulkan, Metal, or WebGPU without backend-specific push-constant semantics.
+- **Staging Copies**: Downloading buffers on discrete GPUs incurs an extra copy through a staging buffer. Large transfers should therefore be batched to amortize the cost.
+- **Unsupported Backends**: CUDA dispatch currently routes through the optimized CPU fallback unless native kernels are provided.
+
 ## 🚀 **Quick Start**
 
 ### **1. Basic GPU AI Acceleration**
