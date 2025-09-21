@@ -1,3 +1,6 @@
+//! Lifecycle coordinator defining runtime stages, transitions, and observer
+//! registration for the core framework.
+
 const std = @import("std");
 
 /// High-level phases the runtime travels through during its lifetime.

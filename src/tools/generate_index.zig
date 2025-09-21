@@ -1,3 +1,6 @@
+//! Repository tree indexer that emits a plain-text summary for documentation
+//! search and navigation tooling.
+
 const std = @import("std");
 
 // Generates a tree-like index of the repository.

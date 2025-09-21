@@ -1,3 +1,6 @@
+//! Defines the ABI workspace build graph including the library, examples, tools,
+//! and GPU feature toggles exposed through `zig build`.
+
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {

@@ -1,3 +1,6 @@
+//! Entry point for launching the integration test harness when built as a
+//! standalone executable.
+
 const std = @import("std");
 
 pub fn main() !void {

@@ -1,3 +1,5 @@
+//! Unit tests for the Connectors component.
+
 const std = @import("std");
 const connectors = @import("../src/connectors/mod.zig");
 

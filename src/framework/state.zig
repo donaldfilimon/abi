@@ -1,3 +1,6 @@
+//! Shared runtime state container holding logging handles, plugin registries,
+//! and initialization options consumed by feature callbacks.
+
 const std = @import("std");
 const logging = @import("../shared/logging/logging.zig");
 const plugin = @import("../shared/mod.zig");

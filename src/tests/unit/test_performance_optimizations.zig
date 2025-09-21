@@ -1,3 +1,5 @@
+//! Unit tests for the Performance Optimizations component.
+
 const std = @import("std");
 const testing = std.testing;
 

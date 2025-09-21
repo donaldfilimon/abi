@@ -1,3 +1,6 @@
+//! Multifunction CLI that wires together GPU diagnostics, database utilities,
+//! LLM helpers, and other developer tooling shipped with ABI.
+
 const std = @import("std");
 const abi = @import("abi");
 const core = @import("core");

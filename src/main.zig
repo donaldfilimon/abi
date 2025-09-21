@@ -1,3 +1,6 @@
+//! Command-line entry point that boots the framework, writes a runtime summary,
+//! and prints it for quick diagnostics.
+
 const std = @import("std");
 const abi = @import("abi");
 

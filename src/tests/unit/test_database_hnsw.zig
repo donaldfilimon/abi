@@ -1,3 +1,5 @@
+//! Unit tests for the Database HNSW component.
+
 const std = @import("std");
 const testing = std.testing;
 const abi = @import("abi");

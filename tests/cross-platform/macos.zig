@@ -1,3 +1,6 @@
+//! macOS-specific sanity checks covering filesystem conventions and networking
+//! APIs to keep parity with Apple targets.
+
 // macOS cross-platform tests
 const std = @import("std");
 const builtin = @import("builtin");

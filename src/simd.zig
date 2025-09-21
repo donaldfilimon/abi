@@ -1,3 +1,6 @@
+//! Public facade for the shared SIMD module that forwards optimized vector
+//! operations to consumers outside the shared namespace.
+
 const shared = @import("shared/simd");
 
 pub const SIMDOpts = shared.SIMDOpts;

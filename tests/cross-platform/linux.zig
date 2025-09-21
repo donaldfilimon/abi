@@ -1,3 +1,6 @@
+//! Linux-focused smoke tests that guard ABI's platform abstractions on kernels
+//! where procfs and epoll semantics matter.
+
 // Linux-specific cross-platform tests
 const std = @import("std");
 const builtin = @import("builtin");

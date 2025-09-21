@@ -1,3 +1,6 @@
+//! Comprehensive integration harness that exercises vector DB, AI, SIMD, plugin
+//! discovery, and performance flows end-to-end.
+
 const std = @import("std");
 const abi = @import("abi");
 

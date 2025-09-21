@@ -1,3 +1,6 @@
+//! Enumerates GPU backend capabilities and provides heuristics for selecting the
+//! best accelerator available on the host platform.
+
 const std = @import("std");
 const builtin = @import("builtin");
 

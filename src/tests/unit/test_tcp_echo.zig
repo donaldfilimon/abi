@@ -1,3 +1,5 @@
+//! Unit tests for the TCP Echo component.
+
 const std = @import("std");
 const builtin = @import("builtin");
 

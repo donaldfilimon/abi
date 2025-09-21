@@ -1,3 +1,5 @@
+//! Unit tests for the Performance Regression component.
+
 const std = @import("std");
 const testing = std.testing;
 

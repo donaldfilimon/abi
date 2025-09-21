@@ -1,3 +1,6 @@
+//! Embedding connector plugin shim that adapts the OpenAI/Ollama providers to
+//! the ABI dynamic plugin ABI for external processes.
+
 const std = @import("std");
 const plugins = @import("plugins");
 const types = plugins.types;

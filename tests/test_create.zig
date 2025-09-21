@@ -1,3 +1,5 @@
+//! Smoke tests for project creation workflows.
+
 const std = @import("std");
 
 test "example test" {

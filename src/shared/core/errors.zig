@@ -1,3 +1,6 @@
+//! Centralized error taxonomy for the ABI runtime along with helpers for the
+//! legacy result type wrappers still used across subsystems.
+
 const std = @import("std");
 
 /// Unified error types for the entire framework.

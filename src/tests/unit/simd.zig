@@ -1,3 +1,6 @@
+//! SIMD-focused unit test entry point mirroring the public facade for local
+//! experimentation and host-specific validation.
+
 const shared = @import("../../shared/simd");
 
 pub const SIMDOpts = shared.SIMDOpts;

@@ -1,3 +1,6 @@
+//! Barrel module that exposes the runtime configuration and orchestration
+//! surface area used by applications embedding ABI.
+
 const std = @import("std");
 
 pub const config = @import("config.zig");

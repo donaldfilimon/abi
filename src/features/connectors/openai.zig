@@ -1,3 +1,6 @@
+//! REST connector for OpenAI embeddings covering HTTP wiring, error mapping,
+//! and response parsing shared across the ABI stack.
+
 const std = @import("std");
 
 pub const Allocator = std.mem.Allocator;

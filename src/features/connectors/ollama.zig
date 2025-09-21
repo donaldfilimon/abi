@@ -1,3 +1,6 @@
+//! HTTP client integration for Ollama embeddings, providing JSON helpers used
+//! by both the runtime and plugin bridge.
+
 const std = @import("std");
 
 pub const Allocator = std.mem.Allocator;

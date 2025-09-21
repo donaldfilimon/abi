@@ -1,3 +1,6 @@
+//! CLI that produces static documentation assets, GitHub Pages scaffolding, and
+//! Zig-native docs for the ABI project.
+
 const std = @import("std");
 const abi = @import("abi");
 

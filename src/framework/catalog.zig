@@ -1,3 +1,6 @@
+//! Static catalog describing every runtime feature, its dependencies, and the
+//! init/deinit hooks used by the framework bootstrapper.
+
 const feature_manager = @import("feature_manager.zig");
 const state = @import("state.zig");
 

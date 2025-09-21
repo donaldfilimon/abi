@@ -1,3 +1,6 @@
+//! Helper routines for the WDBX vector database including parsing utilities,
+//! response formatting, and JSON conversions shared by multiple entry points.
+
 const std = @import("std");
 const json = std.json;
 const engine = @import("./database.zig");

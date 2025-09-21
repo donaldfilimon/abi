@@ -1,3 +1,6 @@
+//! Micro-utilities that support the WDBX database implementation, primarily
+//! focused on safe memory management helpers.
+
 const std = @import("std");
 
 /// Utility helpers for the WDBX module.

@@ -1,3 +1,6 @@
+//! High-level runtime that bootstraps the plugin registry, applies feature
+//! toggles, and manages plugin discovery for ABI applications.
+
 const std = @import("std");
 const config = @import("config.zig");
 const registry_mod = @import("../shared/registry.zig");

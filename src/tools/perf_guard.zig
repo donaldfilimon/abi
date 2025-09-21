@@ -1,3 +1,6 @@
+//! Performance regression guard CLI that stress-tests SIMD paths and validates
+//! latency thresholds before deployments.
+
 const std = @import("std");
 
 /// Performance Guard - Regression Detection Tool

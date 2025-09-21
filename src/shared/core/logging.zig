@@ -1,3 +1,6 @@
+//! Bootstrap logging facilities used before the structured logging subsystem is
+//! available, including level filtering and convenience helpers.
+
 const std = @import("std");
 const errors = @import("errors.zig");
 

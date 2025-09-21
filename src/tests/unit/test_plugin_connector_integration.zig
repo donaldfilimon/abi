@@ -1,3 +1,5 @@
+//! Unit tests for the Plugin Connector Integration component.
+
 const std = @import("std");
 const plugins = @import("src/plugins/mod.zig");
 const connectors = @import("src/connectors/mod.zig");

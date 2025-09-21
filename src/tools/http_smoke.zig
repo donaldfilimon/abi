@@ -1,3 +1,6 @@
+//! Command-line smoke tester that pings common ABI HTTP endpoints to validate
+//! deployments and local development setups.
+
 const std = @import("std");
 const abi = @import("abi");
 const http_client = @import("http_client");

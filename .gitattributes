@@ -61,3 +61,7 @@ zig-out/ -diff -merge
 # Test artifacts
 *_test binary
 test_* binary
+
+# Zig tests should remain textual for review
+tests/**/*.zig text eol=lf diff=zig
+src/tests/**/*.zig text eol=lf diff=zig

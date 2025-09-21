@@ -1,3 +1,6 @@
+//! Core feature orchestration layer that resolves dependencies, initializes
+//! modules, and tears them down during shutdown.
+
 const std = @import("std");
 
 /// Categories used to group framework features.

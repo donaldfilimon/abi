@@ -1,3 +1,6 @@
+//! Types and helpers for configuring the ABI runtime, including feature toggles
+//! and user-facing option parsing.
+
 const std = @import("std");
 
 /// Enumerates the coarse feature families that can be toggled at runtime.

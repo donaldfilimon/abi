@@ -1,3 +1,6 @@
+//! Foreign-function wrapper that exposes the WDBX database server operations to
+//! C callers for integration with native services.
+
 const std = @import("std");
 const abi = @import("../../mod.zig");
 

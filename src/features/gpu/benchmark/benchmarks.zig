@@ -1,3 +1,6 @@
+//! Suite of synthetic GPU workloads and configurations used by the benchmarking
+//! CLI to compare compute backends.
+
 const std = @import("std");
 const gpu_renderer = @import("gpu_renderer");
 const backends = @import("../backends/mod.zig");

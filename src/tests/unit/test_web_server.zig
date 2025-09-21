@@ -1,3 +1,5 @@
+//! Unit tests for the Web Server component.
+
 const std = @import("std");
 const testing = std.testing;
 const web_server = @import("web_server");

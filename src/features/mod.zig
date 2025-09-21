@@ -1,3 +1,6 @@
+//! Central feature registry that re-exports major ABI capability groups and
+//! offers compile-time iteration helpers.
+
 const std = @import("std");
 
 /// Symbolic identifiers for the high level feature families exposed by the

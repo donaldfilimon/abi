@@ -1,3 +1,5 @@
+//! Unit tests for the AI component.
+
 const std = @import("std");
 const testing = std.testing;
 const abi = @import("abi");

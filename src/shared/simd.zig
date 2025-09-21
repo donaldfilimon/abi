@@ -1,3 +1,6 @@
+//! Core SIMD primitives, performance monitors, and text/vector utilities that
+//! back the high-level math helpers exposed by ABI.
+
 const std = @import("std");
 const builtin = @import("builtin");
 

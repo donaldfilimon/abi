@@ -1,3 +1,6 @@
+//! Simple monitoring stub used by tutorials to show how custom modules plug
+//! into the ABI example harness.
+
 const std = @import("std");
 
 pub const Monitoring = struct {

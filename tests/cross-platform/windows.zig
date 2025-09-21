@@ -1,3 +1,6 @@
+//! Windows-hosted compatibility tests ensuring path handling and Winsock usage
+//! align with ABI's cross-platform guarantees.
+
 // Windows-specific cross-platform tests
 const std = @import("std");
 const builtin = @import("builtin");

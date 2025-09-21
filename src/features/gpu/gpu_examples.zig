@@ -1,3 +1,6 @@
+//! Shared WebGPU helpers used by tutorials and smoke tests to exercise ABI's
+//! compute pipelines without duplicating setup boilerplate.
+
 const std = @import("std");
 const gpu = std.gpu;
 const math = std.math;

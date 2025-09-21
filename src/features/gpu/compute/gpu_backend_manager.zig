@@ -1,3 +1,6 @@
+//! Runtime manager responsible for discovering GPU capabilities and routing
+//! workloads to the appropriate backend implementation.
+
 const std = @import("std");
 const builtin = @import("builtin");
 
