@@ -631,7 +631,8 @@ We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) 
 3. **Memory Safety**: Verify no leaks in your changes
 4. **Performance**: Run performance tests to ensure no regressions
 5. **Documentation**: Update docs for new features
-6. **Submit PR**: Create pull request with comprehensive coverage
+6. **Doc Comment Audit**: `scripts/check_zig_doc_comments.py` ensures every Zig file starts with a module summary
+7. **Submit PR**: Create pull request with comprehensive coverage
 
 ## 📄 **License**
 
