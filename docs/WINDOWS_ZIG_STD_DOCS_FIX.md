@@ -160,21 +160,3 @@ zig std --no-open-browser
 
 # Serve from WSL explicitly
 wsl zig std --no-open-browser
-```
-
-Use these snippets when scripting CI jobs or when running on machines where you cannot persist state.
-
----
-
-## Browser & Security Considerations
-
-* Launch the docs in private/incognito mode to bypass extensions.
-* Add `zig.exe` to antivirus and firewall allow-lists if connections keep resetting.
-* If loopback traffic is blocked, use the WSL-reported IP address instead of `127.0.0.1`.
-* Hardware acceleration toggles and clean browser profiles remain effective when the SPA shell loads but fails to retrieve `sources.tar`.
-
----
-
-## Conclusion
-
-With the unified pipeline and interactive CLI/UX module, `zig std` on Windows evolves from a brittle workflow into a guided, stateful experience. The module adapts to repeated failures, keeps comprehensive logs, and offers a one-command automated recovery, ensuring you can always reach the Zig standard library documentation with minimal friction.

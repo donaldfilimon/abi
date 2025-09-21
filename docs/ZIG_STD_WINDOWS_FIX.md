@@ -1,107 +1,165 @@
-# 🛠️ Fix: `zig std` Not Showing in Browser on Windows
+# Fixing `zig std` Documentation Loading Issues on Windows
 
-> **Get Zig standard library docs working again when Windows builds open a blank browser tab.**
+> Comprehensive strategies to restore access to Zig standard library docs when the bundled server opens but browsers show a blank page, endless spinner, or connection errors.
 
 ---
 
-## ⚡ TL;DR (Fastest Path)
+## Table of Contents
 
-1. **Use a known-good Zig build** for Windows (e.g., `0.14.1`) **or** a newer build that includes the fix (`0.15.2+` when available).
-2. Launch docs manually:
+1. [Quick Fix — TL;DR](#quick-fix--tldr)
+2. [Pre-flight Checklist](#pre-flight-checklist)
+3. [Option A — Switch Zig Version on Windows](#option-a--switch-zig-version-on-windows)
+   * [Temporary PATH Switch](#temporary-path-switch)
+   * [Reusable PowerShell Function](#reusable-powershell-function)
+   * [Permanent PATH Update](#permanent-path-update)
+   * [Checksum Verification](#checksum-verification)
+4. [Option B — Serve Docs from WSL](#option-b--serve-docs-from-wsl)
+   * [Install Zig in WSL](#install-zig-in-wsl)
+   * [Run the Documentation Server](#run-the-documentation-server)
+   * [Open Docs from Windows](#open-docs-from-windows)
+   * [Fixing Localhost Issues](#fixing-localhost-issues)
+5. [Option C — Generate Local Project Docs](#option-c--generate-local-project-docs)
+6. [Diagnostics Toolkit](#diagnostics-toolkit)
+   * [CLI Probes](#cli-probes)
+   * [Network Checks](#network-checks)
+   * [Browser DevTools](#browser-devtools)
+7. [Common Error Patterns](#common-error-patterns)
+8. [Browser and OS Adjustments](#browser-and-os-adjustments)
+9. [Security and Firewall Interference](#security-and-firewall-interference)
+10. [When to Upgrade](#when-to-upgrade)
+11. [Appendix A — Helper Scripts](#appendix-a--helper-scripts)
+12. [Appendix B — Glossary](#appendix-b--glossary)
+
+---
+
+## Quick Fix — TL;DR
+
+1. Use a **known-good Zig build** (e.g., `0.14.1`) or upgrade to a Windows release that contains the fix.
+2. Launch the docs manually:
    ```powershell
    zig std --no-open-browser
    ```
    Copy the printed `http://127.0.0.1:<port>/` into your browser.
-3. If you must stay on a broken Windows build, run `zig std` from WSL and open the URL in your Windows browser.
+3. If you cannot change versions, run `zig std` **inside WSL** and open the docs from your Windows browser.
 
 ---
 
-## 🔁 Option A — Switch Zig Version on Windows
+## Pre-flight Checklist
 
-Keep multiple Zig versions side-by-side and toggle your `PATH`. Suggested layout:
-```
-C:\tools\zig\0.14.1\zig.exe
-C:\tools\zig\0.15.1\zig.exe
-C:\tools\zig\dev\zig.exe
-```
-
-### One-Shot PATH Switch (Current PowerShell Session)
+Before applying fixes, confirm your setup:
 
 ```powershell
-# Set to your actual install dir for the working version
+zig version
+zig env
+```
+
+* **Error clues:** Note if the console mentions `sources.tar`, `ConnectionResetByPeer`, or `ERR_EMPTY_RESPONSE`.
+* **Browser:** Test with Chrome, Edge, or Firefox. Try incognito/private mode to bypass extensions.
+* **Ports:** Ensure nothing else uses the printed port.
+* **PATH:** Confirm `where zig` resolves to the expected binary.
+
+---
+
+## Option A — Switch Zig Version on Windows
+
+Running multiple Zig versions in parallel is safe and provides reliable fallback options.
+
+### Temporary PATH Switch
+
+```powershell
 $zigDir = 'C:\tools\zig\0.14.1'
 if (!(Test-Path "$zigDir\zig.exe")) { throw "zig.exe not found in $zigDir" }
 
-# Remove any existing zig entries from PATH, then prepend the chosen one
-$cleanPath = ($env:Path -split ';' | Where-Object { $_ -and ($_ -notlike '*\zig\*') }) -join ';'
+$cleanPath = ($env:Path -split ';' | Where-Object { $_ -and ($_ -notlike '*\\zig\\*') }) -join ';'
 $env:Path = "$zigDir;" + $cleanPath
 
 zig version
-zig std --no-open-browser  # copy the printed http://127.0.0.1:<port>/ into your browser
+zig std --no-open-browser
 ```
 
-### Reusable PATH Switcher Function
-
-Save as `zig-switch.ps1` and dot-source it in your profile, or run it ad-hoc:
+### Reusable PowerShell Function
 
 ```powershell
 function Use-Zig {
-  param(
-    [Parameter(Mandatory=$true)][string]$Dir
-  )
+  param([Parameter(Mandatory=$true)][string]$Dir)
   if (!(Test-Path "$Dir\zig.exe")) { throw "zig.exe not found in $Dir" }
-  $cleanPath = ($env:Path -split ';' | Where-Object { $_ -and ($_ -notlike '*\zig\*') }) -join ';'
+  $cleanPath = ($env:Path -split ';' | Where-Object { $_ -and ($_ -notlike '*\\zig\\*') }) -join ';'
   $env:Path = "$Dir;" + $cleanPath
   Write-Host "Using Zig:" -ForegroundColor Cyan
   & "$Dir\zig.exe" version
 }
-
-# Examples:
-# Use-Zig 'C:\tools\zig\0.14.1'
-# Use-Zig 'C:\tools\zig\0.15.1'
 ```
 
-> **Tip:** The helper strips older `\zig\` entries before inserting the requested one to avoid PATH confusion.
+### Permanent PATH Update
+
+```powershell
+$zigDir = 'C:\tools\zig\0.14.1'
+setx PATH ("$zigDir;" + $env:PATH)
+```
+
+### Checksum Verification
+
+```powershell
+Get-FileHash 'C:\tools\zig\0.14.1\zig.exe' -Algorithm SHA256
+```
+
+Compare the hash with the official checksum before trusting the binary.
 
 ---
 
-## 🐧 Option B — Stay on Your Build but Serve Docs from WSL
+## Option B — Serve Docs from WSL
 
-`zig std`'s HTTP server behaves correctly on Linux, so use WSL as a shim.
+Because WSL uses a Linux userland, the `zig std` server runs reliably.
 
-1. **Install Zig in WSL (Ubuntu example):**
-   ```bash
-   sudo apt update
-   sudo apt install zig -y
-   # Alternatively, download a tarball from ziglang.org and extract to ~/zig
-   ```
-2. **Run the docs server in WSL:**
-   ```bash
-   zig std --no-open-browser
-   ```
-   Copy the printed `http://127.0.0.1:<port>/`.
-3. **Open from Windows:**
-   - Paste the URL into Edge/Chrome/Firefox on Windows.
-   - Or run `wslview http://127.0.0.1:<port>/` to launch your default Windows browser directly.
+### Install Zig in WSL
 
-> Modern Windows/WSL forwards localhost automatically. If it fails, substitute the WSL IP (e.g., `hostname -I`).
+```bash
+sudo apt update
+sudo apt install zig -y
+```
+
+For `wslview` integration:
+
+```bash
+sudo apt install wslu -y
+```
+
+### Run the Documentation Server
+
+```bash
+zig std --no-open-browser
+```
+
+### Open Docs from Windows
+
+* Copy the URL to Chrome, Edge, or Firefox.
+* Or run: `wslview http://127.0.0.1:<port>/`
+
+### Fixing Localhost Issues
+
+If WSL does not forward localhost properly:
+
+```bash
+hostname -I
+```
+
+Use the listed IP address instead of `127.0.0.1`.
 
 ---
 
-## 📦 Option C — Generate Project Docs as a Fallback
-
-While not a substitute for stdlib docs, you can browse your project API offline:
+## Option C — Generate Local Project Docs
 
 ```bash
 zig build -femit-docs
-# Open the generated docs under zig-out/
 ```
+
+Browse the generated documentation under `zig-out/`.
 
 ---
 
-## 🧪 Diagnostics Checklist
+## Diagnostics Toolkit
 
-Confirm you're hitting the known failure mode before switching versions.
+### CLI Probes
 
 ```powershell
 zig version
@@ -109,44 +167,92 @@ zig env
 zig std --no-open-browser
 ```
 
-- **Symptom:** Browser stays blank or spins; terminal may log an error while serving `sources.tar` or a connection reset.
-- **Check local port:**
-  ```powershell
-  # Replace 127.0.0.1:PORT with the printed address
-  iwr http://127.0.0.1:PORT/ -UseBasicParsing | select -Expand Content | sls '<title' -SimpleMatch
-  iwr http://127.0.0.1:PORT/sources.tar -UseBasicParsing -OutFile $env:TEMP\zig_sources.tar
-  ```
-  If the `sources.tar` download fails with a reset, you're on the buggy path.
-- **Browser bypass:** Always try the manual URL (`--no-open-browser`) to avoid protocol handler issues.
-- **Security software:** Temporarily disable or whitelist third-party antivirus/firewall utilities. The docs server binds to `127.0.0.1` only.
+To confirm connection resets, test resource downloads:
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:PORT/sources.tar -OutFile $env:TEMP\zig_sources.tar
+```
+
+### Network Checks
+
+```powershell
+netstat -ano | Select-String ':PORT'
+Get-Process -Id <PID>
+```
+
+### Browser DevTools
+
+Use DevTools to inspect requests. Failure to load `/sources.tar` is a hallmark of this bug.
 
 ---
 
-## ⏭️ When to Upgrade Again
+## Common Error Patterns
 
-As soon as a Windows build ships with the fix (e.g., `0.15.2+`), switch back via the PATH helper and re-test `zig std`. Keep the WSL fallback ready for demos or travel scenarios.
+* **Connection reset:** Switch to another Zig version or WSL.
+* **Blank page:** Launch with `--no-open-browser` and copy the URL manually.
+* **Browser mismatch:** Try another browser or disable extensions.
+* **Port conflict:** Restart until a different port is assigned.
 
 ---
 
-## 🧰 Appendix — Tiny One-Liner Doc Launcher
+## Browser and OS Adjustments
 
-Add to your PowerShell profile for convenience:
+* Use private/incognito mode.
+* Perform a hard reload (Ctrl+F5).
+* Toggle hardware acceleration.
+* Create a clean browser profile for testing.
+
+---
+
+## Security and Firewall Interference
+
+* Antivirus software may block streams. Temporarily exclude the Zig folder.
+* Firewalls can block loopback traffic — whitelist `zig.exe`.
+* Controlled Folder Access in Windows Security may block execution — explicitly allow Zig.
+
+---
+
+## When to Upgrade
+
+Watch for new Zig releases. Once Windows builds integrate the fix, upgrade to the latest stable release and test again.
+
+---
+
+## Appendix A — Helper Scripts
+
+### PowerShell Doc Launcher
 
 ```powershell
 function Zig-Docs {
   param([string]$ZigExe = "zig")
   & $ZigExe std --no-open-browser | ForEach-Object {
-    $_
     if ($_ -match 'http://127\.0\.0\.1:\d+/') {
-      $url = $Matches[0]
-      Start-Process $url
+      Start-Process $Matches[0]
     }
   }
 }
-
-# Usage:
-# Zig-Docs                  # uses zig on PATH
-# Zig-Docs 'C:\\tools\\zig\\0.14.1\\zig.exe'
 ```
 
-This launches the docs server, captures the printed URL, and opens it in your default browser without relying on the shell's auto-open behavior.
+### CMD Zig Switcher
+
+```bat
+@echo off
+set ZIGDIR=C:\tools\zig\0.14.1
+set PATH=%ZIGDIR%;%PATH%
+zig version
+zig std --no-open-browser
+```
+
+---
+
+## Appendix B — Glossary
+
+* **SPA (Single-Page Application):** A web app that loads once and fetches resources dynamically.
+* **sources.tar:** The archive served by `zig std` containing standard library documentation.
+* **Localhost (127.0.0.1):** The loopback network interface; traffic never leaves your machine.
+* **WSL:** Windows Subsystem for Linux, enabling Linux tools inside Windows.
+* **PATH:** A list of directories where executables are searched.
+
+---
+
+**Conclusion:** With version switching, WSL fallback, and diagnostics in place, you can reliably access `zig std` documentation on Windows and keep your workflow uninterrupted.
