@@ -5,6 +5,7 @@
 //! coordinates feature toggles, plugin discovery, and lifecycle management.
 
 const std = @import("std");
+const build_options = @import("build_options");
 
 // =============================================================================
 // FEATURE AND FRAMEWORK MODULES
@@ -57,9 +58,13 @@ pub fn shutdown(instance: *Framework) void {
 
 /// Get framework version information.
 pub fn version() []const u8 {
-    return "1.0.0-alpha";
+    return build_options.package_version;
 }
 
 test {
     std.testing.refAllDecls(@This());
+}
+
+test "abi.version returns build package version" {
+    try std.testing.expectEqualStrings(build_options.package_version, version());
 }

@@ -1,8 +1,33 @@
 const std = @import("std");
 
+const VersionParseError = error{
+    MissingVersion,
+    MalformedVersion,
+};
+
+fn readPackageVersion(allocator: std.mem.Allocator) ![]const u8 {
+    const contents = try std.fs.cwd().readFileAlloc(allocator, "build.zig.zon", 4 * 1024);
+    defer allocator.free(contents);
+
+    const prefix = ".version = \"";
+    const start_index = std.mem.indexOf(u8, contents, prefix) orelse return VersionParseError.MissingVersion;
+    const after_prefix = contents[start_index + prefix.len ..];
+    const end_index = std.mem.indexOfScalar(u8, after_prefix, '"') orelse return VersionParseError.MalformedVersion;
+    const version_slice = after_prefix[0..end_index];
+
+    return try allocator.dupe(u8, version_slice);
+}
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    const package_version = readPackageVersion(b.allocator) catch |err| {
+        std.debug.panic("failed to read package version: {s}", .{@errorName(err)});
+    };
+
+    const build_options = b.addOptions();
+    build_options.addOption([]const u8, "package_version", package_version);
 
     const enable_vulkan = b.option(bool, "enable-vulkan", "Link Vulkan loader for GPU compute backends") orelse false;
     const enable_cuda = b.option(bool, "enable-cuda", "Link CUDA driver/runtime for GPU acceleration") orelse false;
@@ -13,6 +38,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    abi_mod.addOptions("build_options", build_options);
 
     const main_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -20,6 +46,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     main_module.addImport("abi", abi_mod);
+    main_module.addOptions("build_options", build_options);
 
     const exe = b.addExecutable(.{
         .name = "abi",
