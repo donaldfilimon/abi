@@ -78,7 +78,7 @@ pub fn main() !void {
 
     // Process a message
     const response = try agent.process("Hello!", allocator);
-    defer allocator.free(response);
+    defer allocator.free(@constCast(response));
 }
 ```
 
