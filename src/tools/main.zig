@@ -9,7 +9,7 @@ const services = @import("services");
 const connectors = @import("connectors");
 const plugins = @import("plugins");
 
-const CLI_VERSION = "1.0.0-alpha";
+const CLI_VERSION = "0.1.0a";
 const CLI_NAME = "ABI Framework CLI";
 
 pub fn main() !void {
