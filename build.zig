@@ -94,6 +94,42 @@ pub fn build(b: *std.Build) void {
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
 
+    const docs_module = b.createModule(.{
+        .root_source_file = b.path("src/tools/docs_generator.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    docs_module.addImport("abi", abi_mod);
+    docs_module.addOptions("build_options", build_options);
+
+    const docs_exe = b.addExecutable(.{
+        .name = "abi-docs", 
+        .root_module = docs_module,
+    });
+
+    const run_docs = b.addRunArtifact(docs_exe);
+
+    const api_docs_module = b.createModule(.{
+        .root_source_file = b.path("src/tools/generate_api_docs.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    api_docs_module.addImport("abi", abi_mod);
+    api_docs_module.addOptions("build_options", build_options);
+
+    const api_docs_exe = b.addExecutable(.{
+        .name = "abi-api-docs",
+        .root_module = api_docs_module,
+    });
+
+    const run_api_docs = b.addRunArtifact(api_docs_exe);
+    run_api_docs.addArg("--output");
+    run_api_docs.addArg("docs/api");
+
+    const docs_step = b.step("docs", "Generate all documentation artifacts");
+    docs_step.dependOn(&run_docs.step);
+    docs_step.dependOn(&run_api_docs.step);
+
     const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&run_unit_tests.step);
 }

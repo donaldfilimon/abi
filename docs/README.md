@@ -79,6 +79,14 @@ This documentation is generated using multiple approaches:
 - Type information and signatures
 - Cross-references and relationships
 
+```bash
+zig build docs
+```
+
+Run the command above to regenerate the complete documentation portal, including the Zig-native
+reference and the markdown API catalog, ensuring the published site always reflects the current
+source tree.
+
 ## 🔗 External Resources
 
 - **[GitHub Repository](https://github.com/donaldfilimon/abi/)** - Source code and issues
