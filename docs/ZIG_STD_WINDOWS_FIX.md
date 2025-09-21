@@ -21,7 +21,6 @@ This guide gets your **Zig standard library docs** working again on Windows when
 ## Option A — Switch Zig version on Windows (temporary but reliable)
 
 Keep multiple Zig versions side-by-side and toggle your PATH. Example folder layout:
-
 ```
 C:\tools\zig\0.14.1\zig.exe
 C:\tools\zig\0.15.1\zig.exe

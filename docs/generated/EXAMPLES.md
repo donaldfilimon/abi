@@ -18,14 +18,12 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    // Initialize database
-    const config = abi.DatabaseConfig{
-        .max_vectors = 10000,
-        .vector_dimension = 128,
-        .enable_caching = true,
-    };
-    var db = try abi.database.init(allocator, config);
-    defer db.deinit();
+    const database = abi.features.database;
+    var db = try database.database.Db.open("vectors.wdbx", true);
+    defer db.close();
+
+    // Initialise storage
+    try db.init(128);
 
     // Insert sample vectors
     for (0..100) |i| {
@@ -33,13 +31,13 @@ pub fn main() !void {
         for (&vector, 0..) |*v, j| {
             v.* = @as(f32, @floatFromInt(i + j)) * 0.1;
         }
-        const id = try db.insert(&vector, "vector_{}");
-        std.log.info("Inserted vector with ID: {}", .{id});
+        const id = try db.addEmbedding(&vector);
+        std.log.info("Stored vector with ID: {}", .{id});
     }
 
     // Search for similar vectors
     const query = [_]f32{1.0} ** 128;
-    const results = try db.search(&query, 5);
+    const results = try db.search(&query, 5, allocator);
     defer allocator.free(results);
 
     std.log.info("Found {} similar vectors:", .{results.len});
@@ -53,55 +51,35 @@ pub fn main() !void {
 
 ### Neural Network Training
 ```zig
-pub fn trainModel() !void {
+pub fn buildModel() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    // Create network
-    const config = abi.NetworkConfig{
-        .input_size = 128,
-        .hidden_sizes = &[_]usize{64, 32},
-        .output_size = 10,
+    const ai = abi.features.ai;
+    var network = try ai.neural.NeuralNetwork.init(allocator, .{
         .learning_rate = 0.01,
         .batch_size = 32,
-    };
-    var network = try abi.ai.createNetwork(allocator, config);
+    });
     defer network.deinit();
 
-    // Generate training data
-    var training_data = std.array_list.Managed(abi.TrainingData).init(allocator);
-    defer training_data.deinit();
+    try network.addLayer(.{
+        .type = .Dense,
+        .input_size = 128,
+        .output_size = 64,
+        .activation = .ReLU,
+    });
+    try network.addLayer(.{
+        .type = .Dense,
+        .input_size = 64,
+        .output_size = 10,
+    });
 
-    for (0..1000) |i| {
-        var input: [128]f32 = undefined;
-        var output: [10]f32 = undefined;
+    const sample = [_]f32{0.5} ** 128;
+    const logits = try network.forward(&sample);
+    defer allocator.free(logits);
 
-        // Generate random input
-        for (&input) |*v| {
-            v.* = std.rand.DefaultPrng.init(@as(u64, i)).random().float(f32);
-        }
-
-        // Generate target output (one-hot encoding)
-        @memset(&output, 0);
-        output[i % 10] = 1.0;
-
-        try training_data.append(abi.TrainingData{
-            .input = &input,
-            .output = &output,
-        });
-    }
-
-    // Train network
-    const loss = try network.train(training_data.items);
-    std.log.info("Training completed with loss: {}", .{loss});
-
-    // Test prediction
-    const test_input = [_]f32{0.5} ** 128;
-    const prediction = try network.predict(&test_input);
-    defer allocator.free(prediction);
-
-    std.log.info("Prediction: {any}", .{prediction});
+    std.log.info("Forward pass complete with {} outputs", .{logits.len});
 }
 ```
 
@@ -178,20 +156,17 @@ export fn process_data(input: [*c]const u8, input_len: usize, output: [*c]u8, ou
 
 // Using the plugin
 pub fn usePlugin() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    var framework = try abi.init(std.heap.page_allocator, .{
+        .plugin_paths = &.{ "./plugins" },
+        .auto_discover_plugins = true,
+        .auto_register_plugins = true,
+    });
+    defer framework.deinit();
 
-    // Load plugin
-    const plugin = try abi.plugins.loadPlugin("plugin_example.zig");
-    defer plugin.deinit();
+    try framework.refreshPlugins();
 
-    // Execute plugin function
-    const input = "hello world";
-    const result = try abi.plugins.executePlugin(plugin, "process_data", input);
-    defer allocator.free(result);
-
-    std.log.info("Plugin result: {s}", .{result});
+    const registry = framework.pluginRegistry();
+    std.log.info("Loaded plugins: {d}", .{registry.getPluginCount()});
 }
 ```
 
@@ -204,37 +179,32 @@ pub fn batchOperations() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var db = try abi.database.init(allocator, abi.DatabaseConfig{});
-    defer db.deinit();
+    const database = abi.features.database;
+    var db = try database.database.Db.open("vectors.wdbx", true);
+    defer db.close();
+    try db.init(128);
 
-    // Batch insert
-    const batch_size = 1000;
-    var vectors = try allocator.alloc([]f32, batch_size);
-    defer {
-        for (vectors) |vec| allocator.free(vec);
-        allocator.free(vectors);
-    }
+    const batch_size = 512;
+    var vectors = try allocator.alloc([128]f32, batch_size);
+    defer allocator.free(vectors);
 
-    // Generate batch data
     for (vectors, 0..) |*vec, i| {
-        vec.* = try allocator.alloc(f32, 128);
         for (vec.*, 0..) |*v, j| {
             v.* = @as(f32, @floatFromInt(i + j)) * 0.01;
         }
     }
 
-    // Insert batch
     const start_time = std.time.nanoTimestamp();
     for (vectors) |vec| {
-        _ = try db.insert(vec, null);
+        _ = try db.addEmbedding(&vec);
     }
     const end_time = std.time.nanoTimestamp();
 
-    const duration = @as(f64, @floatFromInt(end_time - start_time)) / 1000.0; // Convert to milliseconds
-    const throughput = @as(f64, @floatFromInt(batch_size)) / (duration / 1000.0);
+    const duration_ms = @as(f64, @floatFromInt(end_time - start_time)) / 1_000_000.0;
+    const throughput = @as(f64, @floatFromInt(batch_size)) / (duration_ms / 1000.0);
 
-    std.log.info("Batch insert: {} vectors in {}ms", .{ batch_size, duration });
-    std.log.info("Throughput: {} vectors/sec", .{throughput});
+    std.log.info("Batch insert: {} vectors in {d:.2}ms", .{ batch_size, duration_ms });
+    std.log.info("Throughput: {d:.2} vectors/sec", .{throughput});
 }
 ```
 
@@ -247,29 +217,29 @@ pub fn robustOperations() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var db = abi.database.init(allocator, abi.DatabaseConfig{}) catch |err| switch (err) {
+    const database = abi.features.database;
+    var db = database.database.Db.open("vectors.wdbx", true) catch |err| switch (err) {
         error.OutOfMemory => {
             std.log.err("Failed to allocate memory for database");
             return;
         },
-        error.InvalidConfig => {
-            std.log.err("Invalid database configuration");
+        else => return err,
+    };
+    defer db.close();
+
+    db.init(128) catch |err| switch (err) {
+        database.database.Db.DbError.DimensionMismatch => {
+            std.log.err("Invalid dimensionality");
             return;
         },
         else => return err,
     };
-    defer db.deinit();
 
-    // Safe vector operations
     const vector = [_]f32{1.0, 2.0, 3.0} ** 43; // 128 dimensions
 
-    const id = db.insert(&vector, "test") catch |err| switch (err) {
-        error.VectorDimensionMismatch => {
+    const id = db.addEmbedding(&vector) catch |err| switch (err) {
+        database.database.Db.DbError.DimensionMismatch => {
             std.log.err("Vector dimension mismatch");
-            return;
-        },
-        error.StorageError => {
-            std.log.err("Storage operation failed");
             return;
         },
         else => return err,
