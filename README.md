@@ -487,6 +487,9 @@ pub fn main() void {
 
 - **[Documentation Portal](docs/README.md)** - Landing page that links to generated and manual guides
 - **[Module Organization](docs/MODULE_ORGANIZATION.md)** - Current source tree and dependency overview
+- **[Architecture & Feature Reference](docs/generated/MODULE_REFERENCE.md)** - Generated inventory of feature modules wired through `src/mod.zig`
+- **[Vector Database Guide](docs/api/database.md)** - WDBX storage engine configuration, sharding, and HTTP surfaces
+- **[AI Agent Guide](docs/api/ai.md)** - Agent personas, enhanced pipelines, and training utilities
 - **[GPU Acceleration Guide](docs/GPU_AI_ACCELERATION.md)** - Feature deep dive for GPU-backed workloads
 - **[Testing Strategy](docs/TESTING_STRATEGY.md)** - Quality gates, coverage expectations, and tooling
 - **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Deployment runbooks and environment guidance
