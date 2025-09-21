@@ -28,6 +28,22 @@ navigation:
     url: "/generated/DEFINITIONS_REFERENCE"
   - title: "Code Index"
     url: "/generated/CODE_API_INDEX"
+  - title: "Production Deployment"
+    url: "/production-deployment/"
+  - title: "Testing Strategy"
+    url: "/testing-strategy/"
+  - title: "Module Organization"
+    url: "/module-organization/"
+  - title: "GPU AI Acceleration"
+    url: "/gpu-ai-acceleration/"
+  - title: "Manual API Reference"
+    url: "/manual-api-reference/"
+  - title: "zig std Windows Fix"
+    url: "/zig-std-windows-fix/"
+  - title: "Windows zig std Docs Pipeline"
+    url: "/windows-zig-std-docs-fix/"
+  - title: "zig std Windows Regression"
+    url: "/zig-std-windows-bug/"
 
 # SEO and metadata
 lang: en

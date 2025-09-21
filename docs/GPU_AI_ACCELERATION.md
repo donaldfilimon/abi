@@ -1,3 +1,10 @@
+---
+layout: documentation
+title: "GPU AI Acceleration"
+description: "How to configure ABI for high-throughput GPU-accelerated inference and training workloads."
+permalink: /gpu-ai-acceleration/
+---
+
 # 🚀 GPU AI/ML Acceleration Guide
 
 > **Harness the power of GPU acceleration for high-performance AI and machine learning workloads**

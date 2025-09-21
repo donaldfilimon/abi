@@ -45,7 +45,7 @@ Welcome to the comprehensive documentation for ABI, a high-performance vector da
 ### Developer Resources
 - **[Code Index]({{ '/generated/CODE_API_INDEX/' | relative_url }})** - Auto-generated API index from source
 - **[Native Docs]({{ '/zig-docs/' | relative_url }})** - Zig compiler-generated documentation
-- **[Windows Zig std Troubleshooting]({{ '/docs/ZIG_STD_WINDOWS_FIX.html' | relative_url }})** - Workarounds when the stdlib docs fail to load on Windows
+- **[Windows Zig std Troubleshooting]({{ '/zig-std-windows-fix/' | relative_url }})** - Workarounds when the stdlib docs fail to load on Windows
 - **[Search]({{ '/index.html' | relative_url }})** - Interactive documentation browser
 
 ## 🔍 Features

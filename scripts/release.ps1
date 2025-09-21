@@ -144,9 +144,9 @@ function New-ReleaseArchive {
 
     try {
         $version = & git describe --tags --abbrev=0 2>$null
-        if ($LASTEXITCODE -ne 0) { $version = "v1.0.0" }
+        if ($LASTEXITCODE -ne 0) { $version = "v0.1.0a" }
     } catch {
-        $version = "v1.0.0"
+        $version = "v0.1.0a"
     }
 
     $archiveName = "abi-framework-$($version -replace '^v')-windows-$($env:PROCESSOR_ARCHITECTURE.ToLower())"
@@ -182,9 +182,9 @@ function New-ReleaseArchive {
 function Show-ReleaseInfo {
     try {
         $version = & git describe --tags --abbrev=0 2>$null
-        if ($LASTEXITCODE -ne 0) { $version = "v1.0.0" }
+        if ($LASTEXITCODE -ne 0) { $version = "v0.1.0a" }
     } catch {
-        $version = "v1.0.0"
+        $version = "v0.1.0a"
     }
 
     Write-Host ""

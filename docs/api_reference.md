@@ -1,3 +1,10 @@
+---
+layout: documentation
+title: "Manual API Reference"
+description: "Hand-authored ABI API notes that complement the generated reference materials."
+permalink: /manual-api-reference/
+---
+
 # API Reference
 
 Comprehensive API documentation for the Abi AI Framework with usage examples.

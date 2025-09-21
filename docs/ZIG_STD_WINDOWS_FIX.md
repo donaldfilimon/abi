@@ -1,3 +1,10 @@
+---
+layout: documentation
+title: "Fix zig std on Windows"
+description: "Step-by-step recovery guide for Zig standard library documentation failures on Windows."
+permalink: /zig-std-windows-fix/
+---
+
 # Fixing `zig std` Documentation Loading Issues on Windows
 
 > Comprehensive strategies to restore access to Zig standard library docs when the bundled server opens but browsers show a blank page, endless spinner, or connection errors.

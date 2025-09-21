@@ -290,13 +290,13 @@ pub const ErrorCodes = struct {
 
 /// WDBX version information
 pub const VERSION = struct {
-    pub const MAJOR = 1;
-    pub const MINOR = 0;
+    pub const MAJOR = 0;
+    pub const MINOR = 1;
     pub const PATCH = 0;
-    pub const PRE_RELEASE = "alpha";
+    pub const PRE_RELEASE = "a";
 
     pub fn string() []const u8 {
-        return "1.0.0-alpha";
+        return "0.1.0a";
     }
 
     pub fn isCompatible(major: u32, minor: u32) bool {
@@ -520,9 +520,15 @@ pub const MemoryStats = struct {
 // =============================================================================
 
 test "VERSION compatibility" {
-    try std.testing.expect(VERSION.isCompatible(1, 0));
-    try std.testing.expect(!VERSION.isCompatible(2, 0));
-    try std.testing.expect(!VERSION.isCompatible(1, 1));
+<<<<<<< HEAD
+    try std.testing.expect(VERSION.isCompatible(0, 1));
+    try std.testing.expect(VERSION.isCompatible(0, 0));
+=======
+    try std.testing.expect(VERSION.isCompatible(0, 0));
+    try std.testing.expect(VERSION.isCompatible(0, 1));
+>>>>>>> origin/codex/update-version-identifier-to-0.1.0a
+    try std.testing.expect(!VERSION.isCompatible(0, 2));
+    try std.testing.expect(!VERSION.isCompatible(1, 0));
 }
 
 test "OutputFormat parsing" {
