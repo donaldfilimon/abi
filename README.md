@@ -3,7 +3,7 @@
 
 [![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev.254%2B6dd0270a1-orange.svg)](https://ziglang.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)]()
+[![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)](#platform-support)
 
 ## 🚀 Features
 
@@ -205,10 +205,10 @@ MIT License - see [LICENSE](LICENSE)
 
 [![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev.254%2B6dd0270a1-orange.svg)](https://ziglang.org/) • [Docs](https://donaldfilimon.github.io/abi/) • [CI: Pages](.github/workflows/deploy_docs.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)](https://github.com/yourusername/abi)
-[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)]()
-[![Performance](https://img.shields.io/badge/Performance-2,777+%20ops%2Fsec-brightgreen.svg)]()
+[![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)](https://github.com/donaldfilimon/abi)
+[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)](.github/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)](tests/)
+[![Performance](https://img.shields.io/badge/Performance-2,777+%20ops%2Fsec-brightgreen.svg)](benchmarks/)
 
 ## ✅ **Key Improvements**
 - **Performance**: SIMD optimizations, arena allocators, statistical analysis
@@ -640,7 +640,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🆘 **Support**
 
 - **📖 Documentation**: [docs/](docs/)
-- **🐛 Issues**: [GitHub Issues](https://github.com/yourusername/abi/issues)
+- **🐛 Issues**: [GitHub Issues](https://github.com/donaldfilimon/abi/issues)
 - **💬 Discord**: [Join our server](https://discord.gg/yourinvite)
 - **📧 Email**: support@abi-framework.org
 

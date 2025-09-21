@@ -325,8 +325,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 🔗 **Links**
 
-- **[Unreleased]**: [Compare v0.1.0-alpha...HEAD](https://github.com/yourusername/abi/compare/v0.1.0-alpha...HEAD)
-- **[0.1.0-alpha]**: [Release v0.1.0-alpha](https://github.com/yourusername/abi/releases/tag/v0.1.0-alpha)
+- **[Unreleased]**: [Compare v0.1.0-alpha...HEAD](https://github.com/donaldfilimon/abi/compare/v0.1.0-alpha...HEAD)
+- **[0.1.0-alpha]**: [Release v0.1.0-alpha](https://github.com/donaldfilimon/abi/releases/tag/v0.1.0-alpha)
 
 ---
 
@@ -359,4 +359,4 @@ Each entry should include:
 
 **📋 This changelog is maintained by the Abi AI Framework team**
 
-**🚀 For the latest updates, check our [GitHub releases](https://github.com/yourusername/abi/releases)**
+**🚀 For the latest updates, check our [GitHub releases](https://github.com/donaldfilimon/abi/releases)**
