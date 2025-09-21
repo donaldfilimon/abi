@@ -96,7 +96,7 @@ test "WDBX module initialization" {
 }
 
 test "Version information" {
-    try std.testing.expectEqualStrings("0.1.0a", version);
+    try std.testing.expectEqualStrings("0.1.0-alpha", version);
     try std.testing.expectEqual(@as(u32, 0), version_major);
     try std.testing.expectEqual(@as(u32, 1), version_minor);
     try std.testing.expectEqual(@as(u32, 0), version_patch);
