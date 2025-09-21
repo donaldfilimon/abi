@@ -334,7 +334,7 @@ const matches = try db.search(&query, 10, allocator);
 defer abi.features.database.database.Db.freeResults(matches, allocator);
 ```
 
-> **Note:** Always release search metadata with `Db.freeResults` when you're done to reclaim allocator-backed resources.
+> **Note:** Always release search metadata with `Db.freeResults(matches, allocator)` when you're done so allocator-backed metadata gets reclaimed.
 
 ### **WDBX Vector Database Features**
 
