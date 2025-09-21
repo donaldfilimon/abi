@@ -528,11 +528,12 @@ pub fn main() !void {
     defer context.deinit();
 
     // Initialize AI agent
-    var agent = try abi.ai.Agent.init(std.heap.page_allocator, .creative);
+    const ai = abi.features.ai;
+    var agent = try ai.agent.Agent.init(std.heap.page_allocator, .{ .name = "Creative", .persona = .creative });
     defer agent.deinit();
 
     // Initialize neural network
-    var network = try abi.neural.NeuralNetwork.init(std.heap.page_allocator);
+    var network = try ai.neural.NeuralNetwork.init(std.heap.page_allocator, .{});
     defer network.deinit();
 
     // Add layers

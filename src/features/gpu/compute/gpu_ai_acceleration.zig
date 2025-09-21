@@ -45,7 +45,11 @@ pub const Tensor = struct {
     pub fn uploadToGpu(self: *Tensor, renderer: *gpu_renderer.GPURenderer) !void {
         if (self.gpu_buffer == null) {
             const size_bytes = self.data.len * @sizeOf(f32);
-            self.gpu_buffer = try renderer.createBuffer(size_bytes, .{ .storage = true, .copy_dst = true });
+            self.gpu_buffer = try renderer.createBuffer(size_bytes, .{
+                .storage = true,
+                .copy_dst = true,
+                .copy_src = true,
+            });
         }
 
         const bytes = std.mem.sliceAsBytes(self.data);
@@ -353,6 +357,10 @@ pub const NeuralNetworkOps = struct {
 
         // Linear transformation: input * weights
         try self.matrix_ops.matmul(input, weights, linear_output);
+
+        if (linear_output.is_on_gpu) {
+            try linear_output.downloadFromGpu(self.renderer);
+        }
 
         // Add biases: linear_output + biases (broadcasting)
         for (0..batch_size) |batch| {
@@ -771,4 +779,238 @@ fn printTensor(tensor: *Tensor) void {
             std.debug.print("\n", .{});
         }
     }
+}
+
+fn fillDeterministic(values: []f32, seed: u64) void {
+    var prng = std.rand.DefaultPrng.init(seed);
+    var random = prng.random();
+    for (values) |*value| {
+        value.* = random.float(f32) * 2.0 - 1.0;
+    }
+}
+
+fn referenceMatmul(out: []f32, a: []const f32, b: []const f32, m: usize, n: usize, p: usize) void {
+    std.debug.assert(out.len == m * p);
+    std.debug.assert(a.len == m * n);
+    std.debug.assert(b.len == n * p);
+
+    var row: usize = 0;
+    while (row < m) : (row += 1) {
+        var col: usize = 0;
+        while (col < p) : (col += 1) {
+            var acc: f32 = 0;
+            var k: usize = 0;
+            while (k < n) : (k += 1) {
+                acc += a[row * n + k] * b[k * p + col];
+            }
+            out[row * p + col] = acc;
+        }
+    }
+}
+
+fn expectSliceApproxEq(actual: []const f32, expected: []const f32, tolerance: f32) !void {
+    std.debug.assert(actual.len == expected.len);
+    for (actual, expected) |a, e| {
+        try std.testing.expectApproxEqAbs(e, a, tolerance);
+    }
+}
+
+fn applyActivationTest(x: f32, activation: kernels.ActivationType) f32 {
+    return switch (activation) {
+        .relu => if (x > 0) x else 0,
+        .sigmoid => 1.0 / (1.0 + @exp(-x)),
+        .tanh => std.math.tanh(x),
+        .softmax => x,
+        .leaky_relu => if (x > 0) x else 0.01 * x,
+        .elu => if (x > 0) x else @exp(x) - 1,
+        .swish => x / (1.0 + @exp(-x)),
+    };
+}
+
+fn runDenseForwardScenario(renderer: *gpu_renderer.GPURenderer, allocator: std.mem.Allocator, tolerance: f32) !void {
+    var nn_ops = NeuralNetworkOps.init(allocator, renderer);
+
+    var input = try Tensor.create(allocator, &[_]usize{ 2, 3 });
+    defer input.deinit();
+    var weights = try Tensor.create(allocator, &[_]usize{ 3, 2 });
+    defer weights.deinit();
+    var biases = try Tensor.create(allocator, &[_]usize{ 1, 2 });
+    defer biases.deinit();
+    var output = try Tensor.create(allocator, &[_]usize{ 2, 2 });
+    defer output.deinit();
+
+    fillDeterministic(input.data, 0xA1B2_C3D4_E5F6_0718);
+    fillDeterministic(weights.data, 0x1020_3040_5060_7080);
+    fillDeterministic(biases.data, 0xFFE0_D0C0_B0A0_9080);
+    @memset(output.data, 0);
+
+    try nn_ops.denseForward(input, weights, biases, output, .relu);
+
+    const batch_size = input.shape[0];
+    const input_features = input.shape[1];
+    const output_features = weights.shape[1];
+    std.debug.assert(output.data.len == batch_size * output_features);
+
+    var expected = try allocator.alloc(f32, output.data.len);
+    defer allocator.free(expected);
+
+    for (0..batch_size) |batch| {
+        for (0..output_features) |feature| {
+            var sum: f32 = biases.data[feature];
+            for (0..input_features) |k| {
+                sum += input.data[batch * input_features + k] * weights.data[k * output_features + feature];
+            }
+            expected[batch * output_features + feature] = applyActivationTest(sum, .relu);
+        }
+    }
+
+    try expectSliceApproxEq(output.data, expected, tolerance);
+}
+
+fn runSgdStepScenario(renderer: *gpu_renderer.GPURenderer, allocator: std.mem.Allocator, tolerance: f32) !void {
+    _ = renderer;
+    var training = TrainingAcceleration.init(allocator, renderer);
+
+    var weights = try Tensor.create(allocator, &[_]usize{ 3, 2 });
+    defer weights.deinit();
+    var biases = try Tensor.create(allocator, &[_]usize{ 1, 2 });
+    defer biases.deinit();
+    var weights_grad = try Tensor.create(allocator, &[_]usize{ 3, 2 });
+    defer weights_grad.deinit();
+    var biases_grad = try Tensor.create(allocator, &[_]usize{ 1, 2 });
+    defer biases_grad.deinit();
+
+    fillDeterministic(weights.data, 0x0123_4567_89AB_CDEF);
+    fillDeterministic(biases.data, 0x1357_9BDF_0246_8ACE);
+    fillDeterministic(weights_grad.data, 0xCAFEBABE_DEADC0DE);
+    fillDeterministic(biases_grad.data, 0x1122_3344_5566_7788);
+
+    const learning_rate: f32 = 0.05;
+
+    var expected_weights = try allocator.alloc(f32, weights.data.len);
+    defer allocator.free(expected_weights);
+    std.mem.copyForwards(f32, expected_weights, weights.data);
+
+    var expected_biases = try allocator.alloc(f32, biases.data.len);
+    defer allocator.free(expected_biases);
+    std.mem.copyForwards(f32, expected_biases, biases.data);
+
+    for (expected_weights, weights_grad.data) |*w, grad| {
+        w.* -= learning_rate * grad;
+    }
+    for (expected_biases, biases_grad.data) |*b, grad| {
+        b.* -= learning_rate * grad;
+    }
+
+    training.sgdStep(weights, biases, weights_grad, biases_grad, learning_rate);
+
+    try expectSliceApproxEq(weights.data, expected_weights, tolerance);
+    try expectSliceApproxEq(biases.data, expected_biases, tolerance);
+}
+
+fn initHardwareRenderer(allocator: std.mem.Allocator) !?*gpu_renderer.GPURenderer {
+    const candidates = [_]gpu_renderer.Backend{ .vulkan, .metal, .dx12, .cuda, .opengl, .opencl, .webgpu };
+    for (candidates) |backend| {
+        if (!backend.isAvailable()) continue;
+
+        var renderer = gpu_renderer.GPURenderer.init(allocator, .{
+            .backend = backend,
+            .try_webgpu_first = false,
+            .debug_validation = false,
+        }) catch {
+            continue;
+        };
+
+        if (renderer.isHardwareAvailable()) {
+            return renderer;
+        }
+
+        renderer.deinit();
+    }
+
+    return null;
+}
+
+test "gpu_ai_acceleration matmul and training remain deterministic on CPU" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var renderer = try gpu_renderer.GPURenderer.init(allocator, .{
+        .backend = .cpu_fallback,
+        .try_webgpu_first = false,
+        .debug_validation = false,
+    });
+    defer renderer.deinit();
+
+    var matrix_ops = MatrixOps.init(allocator, renderer);
+
+    var tensor_a = try Tensor.create(allocator, &[_]usize{ 2, 3 });
+    defer tensor_a.deinit();
+    var tensor_b = try Tensor.create(allocator, &[_]usize{ 3, 2 });
+    defer tensor_b.deinit();
+    var tensor_c = try Tensor.create(allocator, &[_]usize{ 2, 2 });
+    defer tensor_c.deinit();
+
+    fillDeterministic(tensor_a.data, 0x1234_5678_9ABC_DEF0);
+    fillDeterministic(tensor_b.data, 0x0FED_CBA9_8765_4321);
+    @memset(tensor_c.data, 0);
+
+    try tensor_a.uploadToGpu(renderer);
+    try tensor_b.uploadToGpu(renderer);
+    try matrix_ops.matmul(tensor_a, tensor_b, tensor_c);
+    try tensor_c.downloadFromGpu(renderer);
+
+    var expected = try allocator.alloc(f32, tensor_c.data.len);
+    defer allocator.free(expected);
+    referenceMatmul(expected, tensor_a.data, tensor_b.data, 2, 3, 2);
+
+    try expectSliceApproxEq(tensor_c.data, expected, 1e-5);
+
+    try runDenseForwardScenario(renderer, allocator, 1e-5);
+    try runSgdStepScenario(renderer, allocator, 1e-6);
+}
+
+test "gpu_ai_acceleration matmul validates hardware backends" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    const maybe_renderer = try initHardwareRenderer(allocator);
+    if (maybe_renderer == null) {
+        return error.SkipZigTest;
+    }
+
+    var renderer = maybe_renderer.?;
+    defer renderer.deinit();
+
+    if (!renderer.isHardwareAvailable()) {
+        return error.SkipZigTest;
+    }
+
+    var matrix_ops = MatrixOps.init(allocator, renderer);
+
+    var tensor_a = try Tensor.create(allocator, &[_]usize{ 2, 3 });
+    defer tensor_a.deinit();
+    var tensor_b = try Tensor.create(allocator, &[_]usize{ 3, 2 });
+    defer tensor_b.deinit();
+    var tensor_c = try Tensor.create(allocator, &[_]usize{ 2, 2 });
+    defer tensor_c.deinit();
+
+    fillDeterministic(tensor_a.data, 0x1111_2222_3333_4444);
+    fillDeterministic(tensor_b.data, 0x5555_6666_7777_8888);
+    @memset(tensor_c.data, 0);
+
+    try tensor_a.uploadToGpu(renderer);
+    try tensor_b.uploadToGpu(renderer);
+    try matrix_ops.matmul(tensor_a, tensor_b, tensor_c);
+    try tensor_c.downloadFromGpu(renderer);
+
+    var expected = try allocator.alloc(f32, tensor_c.data.len);
+    defer allocator.free(expected);
+    referenceMatmul(expected, tensor_a.data, tensor_b.data, 2, 3, 2);
+
+    try expectSliceApproxEq(tensor_c.data, expected, 1e-4);
+
+    try runDenseForwardScenario(renderer, allocator, 1e-4);
 }
