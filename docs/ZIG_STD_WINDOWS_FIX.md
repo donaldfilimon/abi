@@ -6,13 +6,15 @@
 
 ## ⚡ TL;DR (Fastest Path)
 
-1. **Use a known-good Zig build** for Windows (e.g., `0.14.1`) **or** a newer build that includes the fix (`0.15.2+` when available).
-2. Launch docs manually:
+1. **Pick a known-good Zig build** (Windows `0.14.1` or any build with the fix such as `0.15.2+`).
+2. Launch docs manually so you control the URL:
    ```powershell
    zig std --no-open-browser
    ```
    Copy the printed `http://127.0.0.1:<port>/` into your browser.
-3. If you must stay on a broken Windows build, run the docs server from WSL and open the printed URL in your Windows browser.
+3. Stuck on a broken build? **Serve the docs from WSL** instead and open the printed URL in Windows.
+
+> **Affected versions:** Windows builds between `0.15.0` and the fixed `0.15.2+` have been reported to hit this issue. `zig std` on Linux (including WSL) continues to work normally.
 
 ---
 
@@ -62,7 +64,7 @@ function Use-Zig {
 # Use-Zig 'C:\tools\zig\0.15.1'
 ```
 
-> **Tip:** The helper strips older `\zig\` entries before inserting the requested one to avoid PATH confusion.
+> **Tip:** The helper strips older `\zig\` entries before inserting the requested one to avoid PATH confusion. Run `Use-Zig` again with your preferred default version once Windows builds regain the fix.
 
 ---
 
@@ -84,8 +86,13 @@ function Use-Zig {
 3. **Open from Windows:**
    - Paste the URL into Edge/Chrome/Firefox on Windows.
    - Or run `wslview http://127.0.0.1:<port>/` to launch your default Windows browser directly.
+4. **Optional — expose a stable port:**
+   ```bash
+   zig std --listen 0.0.0.0 --port 9000 --no-open-browser
+   ```
+   Using an explicit port avoids re-copying the URL every run; just adjust firewall rules if prompted.
 
-> Modern Windows/WSL forwards localhost automatically. If it fails, substitute the WSL IP (e.g., `hostname -I`).
+> Modern Windows/WSL forwards localhost automatically. If it fails, substitute the WSL IP (e.g., `hostname -I`) or `localhost` on the Windows side.
 
 ---
 
@@ -120,6 +127,11 @@ zig std --no-open-browser
   If the `sources.tar` download fails with a reset, you're on the buggy path.
 - **Browser bypass:** Always try the manual URL (`--no-open-browser`) to avoid protocol handler issues.
 - **Security software:** Temporarily disable or whitelist third-party antivirus/firewall utilities. The docs server binds to `127.0.0.1` only.
+- **Confirm the process is running:**
+  ```powershell
+  Get-NetTCPConnection -LocalPort PORT -OwningProcess (Get-Process zig).Id
+  ```
+  If no listener is present, the embedded HTTP server may have crashed—restart `zig std` and check for panic output.
 
 ---
 
@@ -150,4 +162,4 @@ function Zig-Docs {
 # Zig-Docs 'C:\\tools\\zig\\0.14.1\\zig.exe'
 ```
 
-This launches the docs server, captures the printed URL, and opens it in your default browser without relying on the shell's auto-open behavior.
+This launches the docs server, captures the printed URL, and opens it in your default browser without relying on the shell's auto-open behavior. Combine it with the PATH switcher to quickly swap versions, start the server, and restore your preferred default.
