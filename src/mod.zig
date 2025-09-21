@@ -5,9 +5,6 @@
 //! coordinates feature toggles, plugin discovery, and lifecycle management.
 
 const std = @import("std");
-const framework = @import("framework/mod.zig");
-const core = @import("shared/core/core.zig");
-const lifecycle_mod = @import("shared/core/lifecycle.zig");
 
 // =============================================================================
 // FEATURE AND FRAMEWORK MODULES
@@ -15,6 +12,14 @@ const lifecycle_mod = @import("shared/core/lifecycle.zig");
 
 /// Grouped feature modules mirroring the documentation structure.
 pub const features = @import("features/mod.zig");
+
+/// Re-export feature modules for convenient access via `abi.<feature>`.
+pub const ai = features.ai;
+pub const gpu = features.gpu;
+pub const database = features.database;
+pub const web = features.web;
+pub const monitoring = features.monitoring;
+pub const connectors = features.connectors;
 
 /// Framework orchestration layer that coordinates features and plugins.
 pub const framework = @import("framework/mod.zig");
@@ -28,7 +33,6 @@ pub const core = @import("shared/core/mod.zig");
 pub const platform = @import("shared/platform/mod.zig");
 pub const logging = @import("shared/logging/mod.zig");
 pub const simd = @import("shared/simd.zig");
-pub const main = @import("main.zig");
 pub const root = @import("root.zig");
 
 // =============================================================================
