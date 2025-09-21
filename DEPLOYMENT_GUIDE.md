@@ -17,7 +17,7 @@ The ABI Framework is a high-performance, cross-platform Zig application that sup
 - ✅ **ARM64** (AArch64)
 
 ### Zig Versions
-- ✅ **0.16.0-dev.254+6dd0270a1** (Required; matches `.zigversion`)
+- ✅ **0.16.0-dev (master)** (Required; matches `.zigversion`)
 
 ## 🏗️ Build Requirements
 
@@ -26,18 +26,18 @@ The ABI Framework is a high-performance, cross-platform Zig application that sup
 #### Ubuntu/Debian
 ```bash
 sudo apt update
-sudo apt install -y build-essential clang llvm
+sudo apt install -y build-essential clang llvm python3
 ```
 
 #### CentOS/RHEL/Fedora
 ```bash
 # CentOS/RHEL
 sudo yum groupinstall "Development Tools"
-sudo yum install clang llvm
+sudo yum install clang llvm python3
 
 # Fedora
 sudo dnf groupinstall "Development Tools"
-sudo dnf install clang llvm
+sudo dnf install clang llvm python3
 ```
 
 #### macOS
@@ -46,41 +46,48 @@ sudo dnf install clang llvm
 xcode-select --install
 
 # Install via Homebrew (recommended)
-brew install llvm clang
+brew install llvm clang python
 ```
 
 #### Windows
 ```powershell
 # Using Chocolatey
-choco install llvm git
+choco install llvm git python
 
 # Using winget
-winget install LLVM.LLVM
+winget install LLVM.LLVM Python.Python.3
 ```
 
 ### Zig Installation
 
 #### Option 1: Official Build (Recommended)
 ```bash
-# Download and install Zig 0.16.0-dev.254+6dd0270a1
-wget https://ziglang.org/builds/zig-linux-x86_64-0.16.0-dev.254+6dd0270a1.tar.xz
-tar -xf zig-linux-x86_64-0.16.0-dev.254+6dd0270a1.tar.xz
-sudo mv zig-linux-x86_64-0.16.0-dev.254+6dd0270a1 /usr/local/zig
+# Download and install Zig 0.16.0-dev (master)
+ZIG_TARBALL=$(python3 - <<'PY'
+import json, urllib.request
+with urllib.request.urlopen("https://ziglang.org/builds/index.json") as response:
+    data = json.load(response)
+print(data["master"]["x86_64-linux"]["tarball"])
+PY
+)
+curl -L "https://ziglang.org${ZIG_TARBALL}" -o zig-master.tar.xz
+tar -xf zig-master.tar.xz
+sudo mv zig-linux-x86_64-0.16.0-dev* /usr/local/zig
 export PATH="/usr/local/zig:$PATH"
-zig version  # should report 0.16.0-dev.254+6dd0270a1
+zig version  # should report 0.16.0-dev.<build-id>
 ```
 
 #### Option 2: From Source
 ```bash
 git clone https://github.com/ziglang/zig
 cd zig
-git checkout 6dd0270a1
+git checkout master
 mkdir build
 cd build
 cmake ..
 make -j$(nproc)
 sudo make install
-zig version  # verify the installed compiler matches 0.16.0-dev.254+6dd0270a1
+zig version  # verify the installed compiler matches 0.16.0-dev
 ```
 
 > **Verification:** Run `zig version` and compare the output to `.zigversion` after installation to ensure the toolchain matches the repository expectation.
@@ -218,11 +225,20 @@ RUN apt update && apt install -y \
     clang \
     llvm \
     curl \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Zig
-RUN curl -L https://ziglang.org/builds/zig-linux-x86_64-0.16.0-dev.254+6dd0270a1.tar.xz | tar -xJ && \
-    mv zig-linux-x86_64-0.16.0-dev.254+6dd0270a1 /usr/local/zig && \
+# Install Zig master build
+RUN ZIG_TARBALL=$(python3 - <<'PY'
+import json, urllib.request
+with urllib.request.urlopen("https://ziglang.org/builds/index.json") as response:
+    data = json.load(response)
+print(data["master"]["x86_64-linux"]["tarball"])
+PY
+) && \
+    curl -L "https://ziglang.org${ZIG_TARBALL}" -o zig-master.tar.xz && \
+    tar -xf zig-master.tar.xz && \
+    mv zig-linux-x86_64-0.16.0-dev* /usr/local/zig && \
     ln -s /usr/local/zig/zig /usr/local/bin/zig
 
 # Set working directory

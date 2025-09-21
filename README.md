@@ -1,7 +1,7 @@
 # Abi AI Framework
 > Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency, and platform-optimized implementations.
 
-[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev.254%2B6dd0270a1-orange.svg)](https://ziglang.org/)
+[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev-orange.svg)](https://ziglang.org/builds/)
 [![Docs](https://img.shields.io/badge/Docs-Latest-blue.svg)](https://donaldfilimon.github.io/abi/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)]()
@@ -62,7 +62,7 @@ bundled CLI.
 
 ## Installation
 ### Prerequisites
-- **Zig 0.16.0-dev.254+6dd0270a1** (see `.zigversion` to match the toolchain).
+- **Zig 0.16.0-dev (master)** (see `.zigversion` to match the toolchain).
 - GPU drivers (optional, required for CUDA/WebGPU backends).
 - OpenAI API key (for hosted LLM/persona integrations).
 
@@ -75,8 +75,7 @@ zig build -Doptimize=ReleaseFast
 
 ### Compatibility Notes
 - `.zigversion` pins the supported compiler. Align CI and local toolchains with that version.
-- Historical instructions for Zig 0.15.x live in legacy documentation. They are not part of the active CI matrix but may be
-  useful for long-lived branches.
+- Historical instructions for Zig 0.16-dev experiments remain in the migration playbook for future workstreams.
 
 ---
 
