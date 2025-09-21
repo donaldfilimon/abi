@@ -485,15 +485,15 @@ pub fn main() void {
 
 ## 📚 **Further Reading**
 
-- **[Documentation Portal](docs/README.md)** - Landing page that links to generated and manual guides
-- **[Module Organization](docs/MODULE_ORGANIZATION.md)** - Current source tree and dependency overview
+- **[Documentation Portal](https://donaldfilimon.github.io/abi/)** - Landing page that links to generated and manual guides
+- **[Module Organization](https://donaldfilimon.github.io/abi/module-organization/)** - Current source tree and dependency overview
 - **[Architecture & Feature Reference](docs/generated/MODULE_REFERENCE.md)** - Generated inventory of feature modules wired through `src/mod.zig`
 - **[Vector Database Guide](docs/api/database.md)** - WDBX storage engine configuration, sharding, and HTTP surfaces
 - **[AI Agent Guide](docs/api/ai.md)** - Agent personas, enhanced pipelines, and training utilities
-- **[GPU Acceleration Guide](docs/GPU_AI_ACCELERATION.md)** - Feature deep dive for GPU-backed workloads
-- **[Testing Strategy](docs/TESTING_STRATEGY.md)** - Quality gates, coverage expectations, and tooling
-- **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Deployment runbooks and environment guidance
-- **[API Reference](docs/api_reference.md)** - Hand-authored API summary with links to generated docs
+- **[GPU Acceleration Guide](https://donaldfilimon.github.io/abi/gpu-ai-acceleration/)** - Feature deep dive for GPU-backed workloads
+- **[Testing Strategy](https://donaldfilimon.github.io/abi/testing-strategy/)** - Quality gates, coverage expectations, and tooling
+- **[Production Deployment](https://donaldfilimon.github.io/abi/production-deployment/)** - Deployment runbooks and environment guidance
+- **[API Reference](https://donaldfilimon.github.io/abi/manual-api-reference/)** - Hand-authored API summary with links to generated docs
 - **[Generated Documentation](docs/generated/)** - Auto-generated API, module, and example references
 
 ## 🧪 **Testing & Quality**
@@ -571,7 +571,7 @@ pub const ExamplePlugin = struct {
 };
 ```
 
-See the [Module Organization guide](docs/MODULE_ORGANIZATION.md) and generated module reference for plugin entry points.
+See the [Module Organization guide](https://donaldfilimon.github.io/abi/module-organization/) and generated module reference for plugin entry points.
 
 ## 🚀 **Production Deployment**
 
@@ -582,7 +582,7 @@ The framework includes production-ready deployment configurations:
 - **Performance Validation**: 2,777+ ops/sec with 99.98% uptime
 - **Automated Scripts**: Windows (PowerShell) and Linux deployment scripts
 
-See [Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT.md) for complete deployment instructions.
+See [Production Deployment Guide](https://donaldfilimon.github.io/abi/production-deployment/) for complete deployment instructions.
 
 ## 🌍 **Cross-Platform Guide (Zig 0.16.0-dev.254+6dd0270a1)**
 
