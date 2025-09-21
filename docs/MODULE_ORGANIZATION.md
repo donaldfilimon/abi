@@ -8,28 +8,71 @@ feature-oriented directories and shared runtime layers that are orchestrated via
 
 ```
 src/
-├── mod.zig               # Top-level entrypoint that wires framework + features
-├── main.zig              # Legacy CLI entry
-├── root.zig              # Compatibility exports
-├── features/             # Feature families exported via src/features/mod.zig
-│   ├── ai/               # Agents, model registry, training loops
-│   ├── database/         # Vector store, sharding, HTTP adapters
-│   ├── gpu/              # GPU compute backends, memory and demos
-│   ├── web/              # HTTP/TCP servers, clients and bindings
-│   ├── monitoring/       # Telemetry, profiling and regression tooling
-│   └── connectors/       # Third-party API integrations and plugin bridges
-├── framework/            # Runtime orchestrator, feature registry, lifecycle
+├── mod.zig                   # Public entrypoint exporting framework, features, and shared layers
+├── main.zig                  # Legacy CLI entry
+├── root.zig                  # Compatibility exports
+├── simd.zig                  # Legacy SIMD entry point (re-exported via shared)
+├── features/                 # Feature families exported via src/features/mod.zig
+│   ├── mod.zig               # Aggregates feature namespaces
+│   ├── ai/                   # Agents, transformers, registries, training loops
+│   │   ├── mod.zig
+│   │   ├── agent.zig
+│   │   ├── enhanced_agent.zig
+│   │   ├── transformer.zig
+│   │   ├── reinforcement_learning.zig
+│   │   └── data_structures/
+│   ├── database/             # Vector store engine, sharding, HTTP/CLI adapters
+│   │   ├── mod.zig
+│   │   ├── database.zig
+│   │   ├── config.zig
+│   │   ├── http.zig
+│   │   └── utils.zig
+│   ├── gpu/                  # GPU compute backends, memory, demos, benchmarking
+│   │   ├── mod.zig
+│   │   ├── core/
+│   │   ├── compute/
+│   │   ├── memory/
+│   │   ├── backends/
+│   │   ├── libraries/
+│   │   └── optimizations.zig
+│   ├── web/                  # HTTP/TCP servers, clients, bindings, demos
+│   │   ├── mod.zig
+│   │   ├── http_client.zig
+│   │   ├── web_server.zig
+│   │   └── weather.zig
+│   ├── monitoring/           # Telemetry, profiling, regression tooling
+│   │   └── mod.zig
+│   └── connectors/           # Third-party API integrations and plugin bridges
+│       ├── mod.zig
+│       └── plugin.zig
+├── framework/                # Runtime orchestrator, feature registry, lifecycle
+│   ├── mod.zig
+│   ├── catalog.zig
 │   ├── config.zig
 │   ├── feature_manager.zig
 │   ├── runtime.zig
 │   └── state.zig
-├── shared/               # Cross-cutting utilities reused everywhere
-│   ├── core/             # Error handling, lifecycle helpers, registry
-│   ├── utils/            # HTTP/JSON/math helpers
-│   ├── platform/         # OS abstractions and platform introspection
-│   ├── logging/          # Structured logging backends
-│   └── simd.zig          # Re-exported SIMD helpers
-└── simd.zig              # Legacy SIMD entry point (re-exported in shared)```
+└── shared/                   # Cross-cutting utilities reused everywhere
+    ├── mod.zig               # Plugin system façade
+    ├── core/                 # Error handling, lifecycle helpers, config, framework glue
+    │   ├── mod.zig
+    │   ├── core.zig
+    │   ├── config.zig
+    │   ├── framework.zig
+    │   └── lifecycle.zig
+    ├── utils/                # HTTP/JSON/math/crypto/net helpers
+    │   ├── mod.zig
+    │   ├── json/
+    │   ├── math/
+    │   ├── crypto/
+    │   ├── net/
+    │   └── http/
+    ├── logging/              # Structured logging backends
+    │   └── mod.zig
+    ├── platform/             # OS abstractions and platform introspection
+    │   └── mod.zig
+    └── simd.zig              # Re-exported SIMD helpers shared across features
+```
 
 ## 🔧 Module Details
 
