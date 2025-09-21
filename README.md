@@ -78,7 +78,7 @@ pub fn main() !void {
 
     // Process a message
     const response = try agent.process("Hello!", allocator);
-    defer allocator.free(response);
+    defer allocator.free(@constCast(response));
 }
 ```
 
@@ -100,11 +100,13 @@ const results = try db.search(&embedding, 10, allocator);
 
 ```bash
 # Inspect available subcommands
-wdbx help
+./zig-out/bin/abi wdbx help
 
 # Launch the lightweight HTTP API (Ctrl+C to stop)
-wdbx http --host 0.0.0.0 --port 8080
+./zig-out/bin/abi wdbx http --host 0.0.0.0 --port 8080
 ```
+
+> If you install `abi` into your `PATH`, you can drop the `./zig-out/bin/` prefix and run commands like `abi wdbx http …` directly.
 
 ## Modules
 
@@ -127,7 +129,7 @@ build system:
 abi help                    # Show commands
 abi chat                    # AI chat session
 abi train <data>           # Train neural network
-./zig-out/bin/abi wdbx server --http   # Start HTTP server
+./zig-out/bin/abi wdbx http --host 0.0.0.0 --port 8080   # Start HTTP server
 abi benchmark              # Performance tests
 abi analyze <file>         # Text analysis
 
@@ -334,7 +336,7 @@ const matches = try db.search(&query, 10, allocator);
 defer abi.features.database.database.Db.freeResults(matches, allocator);
 ```
 
-> **Note:** Always release search metadata with `Db.freeResults` when you're done to reclaim allocator-backed resources.
+> **Note:** Always release search metadata with `Db.freeResults(matches, allocator)` when you're done so allocator-backed metadata gets reclaimed.
 
 ### **WDBX Vector Database Features**
 
@@ -360,7 +362,7 @@ The ABI vector database provides enterprise-grade performance with:
 ./zig-out/bin/abi wdbx add "1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0"
 
 # Start HTTP REST API server
-./zig-out/bin/abi wdbx http 8080
+./zig-out/bin/abi wdbx http --port 8080
 ```
 
 #### **HTTP REST API**
@@ -368,7 +370,7 @@ The ABI vector database provides enterprise-grade performance with:
 Start the server and access endpoints:
 
 ```bash
-./zig-out/bin/abi wdbx http 8080
+./zig-out/bin/abi wdbx http --port 8080
 ```
 
 **API Endpoints:**
@@ -485,6 +487,9 @@ pub fn main() void {
 
 - **[Documentation Portal](docs/README.md)** - Landing page that links to generated and manual guides
 - **[Module Organization](docs/MODULE_ORGANIZATION.md)** - Current source tree and dependency overview
+- **[Architecture & Feature Reference](docs/generated/MODULE_REFERENCE.md)** - Generated inventory of feature modules wired through `src/mod.zig`
+- **[Vector Database Guide](docs/api/database.md)** - WDBX storage engine configuration, sharding, and HTTP surfaces
+- **[AI Agent Guide](docs/api/ai.md)** - Agent personas, enhanced pipelines, and training utilities
 - **[GPU Acceleration Guide](docs/GPU_AI_ACCELERATION.md)** - Feature deep dive for GPU-backed workloads
 - **[Testing Strategy](docs/TESTING_STRATEGY.md)** - Quality gates, coverage expectations, and tooling
 - **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Deployment runbooks and environment guidance

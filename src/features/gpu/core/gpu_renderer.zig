@@ -12,6 +12,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const gpu = std.gpu;
 const math = std.math;
 const print = std.debug.print;
 const DynLib = std.DynLib;
@@ -939,7 +940,58 @@ const MockGPU = struct {
     };
 };
 
-/// Extended GPU context with compiler support
+/// Hardware GPU context backed by std.gpu for native backends
+const HardwareContext = struct {
+    instance: *gpu.Instance,
+    adapter: *gpu.Adapter,
+    device: *gpu.Device,
+    queue: *gpu.Queue,
+
+    fn init(backend: Backend) !HardwareContext {
+        var backends = gpu.Instance.Backends{};
+        switch (backend) {
+            .vulkan => backends.vulkan = true,
+            .metal => backends.metal = true,
+            .dx12 => backends.dx12 = true,
+            .opengl => backends.gl = true,
+            .webgpu => backends.webgpu = true,
+            else => backends = gpu.Instance.Backends.primary,
+        }
+
+        const instance = gpu.Instance.create(.{
+            .backends = backends,
+            .dx12_shader_compiler = .fxc,
+        }) orelse return GpuError.GpuInstanceCreationFailed;
+
+        const adapter = instance.requestAdapter(.{
+            .power_preference = .high_performance,
+            .force_fallback_adapter = false,
+        }) orelse return GpuError.NoSuitableAdapter;
+
+        const device = adapter.requestDevice(.{
+            .label = "abi-gpu-device",
+            .required_features = .{},
+            .required_limits = .{},
+        }) orelse return GpuError.DeviceCreationFailed;
+
+        const queue = device.queue;
+
+        return .{
+            .instance = instance,
+            .adapter = adapter,
+            .device = device,
+            .queue = queue,
+        };
+    }
+
+    fn deinit(self: *HardwareContext) void {
+        self.device.deinit();
+        self.adapter.deinit();
+        self.instance.deinit();
+    }
+};
+
+/// Extended GPU context with compiler support for CPU fallback
 pub const GPUContext = struct {
     instance: *MockGPU.Instance,
     adapter: *MockGPU.Adapter,
@@ -1032,64 +1084,174 @@ pub const GPUContext = struct {
     }
 };
 
-/// Buffer manager for simplified GPU buffer operations
+/// Buffer manager that can operate on CPU or hardware GPU resources
 pub const BufferManager = struct {
-    device: *MockGPU.Device,
+    device: Device,
+    queue: Queue,
 
-    /// Create a GPU buffer with specified type and usage
-    pub fn createBuffer(self: BufferManager, comptime T: type, size: u64, usage: BufferUsage) !*MockGPU.Buffer {
-        _ = usage;
-        const byte_size: usize = @intCast(size * @as(u64, @sizeOf(T)));
-        return try self.device.createBuffer(byte_size, .{});
+    const Device = union(enum) {
+        mock: *MockGPU.Device,
+        hardware: *gpu.Device,
+    };
+
+    const Queue = union(enum) {
+        mock: *MockGPU.Queue,
+        hardware: *gpu.Queue,
+    };
+
+    fn toGpuUsage(usage: BufferUsage) gpu.Buffer.Usage {
+        return .{
+            .map_read = usage.map_read,
+            .map_write = usage.map_write,
+            .copy_src = usage.copy_src,
+            .copy_dst = usage.copy_dst,
+            .storage = usage.storage,
+            .uniform = usage.uniform,
+            .vertex = usage.vertex,
+            .index = usage.index,
+        };
     }
 
-    /// Write data to GPU buffer
-    pub fn writeBuffer(self: BufferManager, buffer: *MockGPU.Buffer, data: anytype) void {
-        self.device.queue.writeBuffer(buffer, std.mem.sliceAsBytes(data));
+    pub fn createBuffer(self: BufferManager, comptime T: type, size: u64, usage: BufferUsage) !Buffer.Resource {
+        return switch (self.device) {
+            .mock => |device| blk: {
+                const byte_size = size * @sizeOf(T);
+                const buffer = try device.createBuffer(@intCast(byte_size), usage);
+                break :blk Buffer.Resource{ .mock = buffer };
+            },
+            .hardware => |device| blk: {
+                const buffer = device.createBuffer(.{
+                    .label = @typeName(T) ++ " Buffer",
+                    .size = size * @sizeOf(T),
+                    .usage = toGpuUsage(usage),
+                    .mapped_at_creation = false,
+                }) orelse return GpuError.BufferCreationFailed;
+                break :blk Buffer.Resource{ .hardware = buffer };
+            },
+        };
     }
 
-    /// Read data from GPU buffer
-    pub fn readBuffer(self: BufferManager, comptime T: type, buffer: *MockGPU.Buffer, size: u64, allocator: std.mem.Allocator) ![]T {
-        _ = self;
-        const mapped_range = buffer.getMappedRange(T, 0, size) orelse return GpuError.BufferMappingFailed;
-        return try allocator.dupe(T, mapped_range);
+    pub fn writeBuffer(self: BufferManager, buffer: *Buffer, data: []const u8) void {
+        switch (buffer.resource) {
+            .mock => |mock_buf| switch (self.queue) {
+                .mock => |queue| queue.writeBuffer(mock_buf, data),
+                else => {},
+            },
+            .hardware => |hw_buf| switch (self.queue) {
+                .hardware => |queue| queue.writeBuffer(hw_buf, 0, data),
+                else => {},
+            },
+        }
     }
 
-    /// Create a buffer with initial data
-    pub fn createBufferWithData(self: BufferManager, comptime T: type, data: []const T, usage: BufferUsage) !*MockGPU.Buffer {
-        const buffer = try self.createBuffer(T, data.len, usage);
-        self.writeBuffer(buffer, data);
-        return buffer;
+    pub fn readBuffer(
+        self: BufferManager,
+        comptime T: type,
+        buffer: *Buffer,
+        size: u64,
+        allocator: std.mem.Allocator,
+    ) ![]T {
+        return switch (buffer.resource) {
+            .mock => |mock_buf| blk: {
+                const mapped_range = mock_buf.getMappedRange(T, 0, @intCast(size)) orelse return GpuError.BufferMappingFailed;
+                break :blk try allocator.dupe(T, mapped_range);
+            },
+            .hardware => |hw_buf| blk: {
+                const device = switch (self.device) {
+                    .hardware => |dev| dev,
+                    else => return GpuError.UnsupportedBackend,
+                };
+
+                const staging = device.createBuffer(.{
+                    .label = "abi-staging-buffer",
+                    .size = size * @sizeOf(T),
+                    .usage = .{ .copy_dst = true, .map_read = true },
+                    .mapped_at_creation = false,
+                }) orelse return GpuError.BufferCreationFailed;
+                defer staging.deinit();
+
+                const encoder = device.createCommandEncoder(.{ .label = "abi-readback-encoder" }) orelse return GpuError.CommandEncoderCreationFailed;
+                defer encoder.deinit();
+
+                encoder.copyBufferToBuffer(hw_buf, 0, staging, 0, size * @sizeOf(T));
+
+                const command = encoder.finish(.{ .label = "abi-readback-cmd" }) orelse return GpuError.CommandCreationFailed;
+                defer command.deinit();
+
+                switch (self.queue) {
+                    .hardware => |queue| {
+                        queue.submit(&[_]*gpu.CommandBuffer{command});
+                        queue.onSubmittedWorkDone(null, null);
+                    },
+                    else => return GpuError.UnsupportedBackend,
+                }
+
+                const mapped = staging.getMappedRange(T, 0, @intCast(size)) orelse return GpuError.BufferMappingFailed;
+                const copy = try allocator.dupe(T, mapped);
+                staging.unmap();
+                break :blk copy;
+            },
+        };
+    }
+
+    pub fn createBufferWithData(self: BufferManager, comptime T: type, data: []const T, usage: BufferUsage) !Buffer.Resource {
+        const resource = try self.createBuffer(T, data.len, usage);
+        var tmp = Buffer.init(resource, data.len * @sizeOf(T), usage, 0);
+        self.writeBuffer(&tmp, std.mem.sliceAsBytes(data));
+        return resource;
     }
 };
 
 /// GPU buffer resource with platform abstraction
 pub const Buffer = struct {
     handle: GPUHandle,
-    gpu_buffer: *MockGPU.Buffer,
+    resource: Resource,
     size: usize,
     usage: BufferUsage,
 
-    pub fn init(gpu_buffer: *MockGPU.Buffer, size: usize, usage: BufferUsage, id: u64) Buffer {
+    pub const Resource = union(enum) {
+        mock: *MockGPU.Buffer,
+        hardware: *gpu.Buffer,
+    };
+
+    pub fn init(resource: Resource, size: usize, usage: BufferUsage, id: u64) Buffer {
         return .{
             .handle = GPUHandle{ .id = id, .generation = 1 },
-            .gpu_buffer = gpu_buffer,
+            .resource = resource,
             .size = size,
             .usage = usage,
         };
     }
 
     pub fn deinit(self: *Buffer) void {
-        self.gpu_buffer.deinit();
+        switch (self.resource) {
+            .mock => |buf| buf.deinit(),
+            .hardware => |buf| buf.deinit(),
+        }
     }
 
     pub fn map(self: *Buffer, allocator: std.mem.Allocator) ![]u8 {
-        const mapped_range = self.gpu_buffer.getMappedRange(u8, 0, self.size) orelse return GpuError.BufferMappingFailed;
-        return try allocator.dupe(u8, mapped_range);
+        return switch (self.resource) {
+            .mock => |buf| blk: {
+                const mapped_range = buf.getMappedRange(u8, 0, self.size) orelse return GpuError.BufferMappingFailed;
+                break :blk try allocator.dupe(u8, mapped_range);
+            },
+            .hardware => return GpuError.UnsupportedBackend,
+        };
     }
 
     pub fn unmap(self: *Buffer) void {
-        self.gpu_buffer.unmap();
+        switch (self.resource) {
+            .mock => |buf| buf.unmap(),
+            .hardware => |buf| buf.unmap(),
+        }
+    }
+
+    pub fn getHardware(self: *const Buffer) ?*gpu.Buffer {
+        return switch (self.resource) {
+            .hardware => |buf| buf,
+            else => null,
+        };
     }
 };
 
@@ -1197,6 +1359,17 @@ const ComputePipeline = struct {
     workgroup_size: [3]u32,
     cpu_fallback: ?CpuFallbackFn,
     cpu_fallback_ctx: ?*anyopaque,
+    hardware: ?HardwareState = null,
+
+    const HardwareState = struct {
+        pipeline: *gpu.ComputePipeline,
+        layout: *gpu.BindGroupLayout,
+
+        fn deinit(self: *HardwareState) void {
+            self.layout.deinit();
+            self.pipeline.deinit();
+        }
+    };
 
     fn init(allocator: std.mem.Allocator, desc: ComputePipelineDesc, id: u64) !ComputePipeline {
         const label = try allocator.dupe(u8, desc.label);
@@ -1221,6 +1394,7 @@ const ComputePipeline = struct {
         allocator.free(self.label);
         allocator.free(self.shader_source);
         allocator.free(self.entry_point);
+        if (self.hardware) |*hw| hw.deinit();
     }
 };
 
@@ -1241,6 +1415,7 @@ pub const GPURenderer = struct {
 
     // Core GPU context
     gpu_context: ?GPUContext = null,
+    hardware_context: ?HardwareContext = null,
     buffer_manager: ?BufferManager = null,
 
     // Compiler infrastructure
@@ -1317,6 +1492,9 @@ pub const GPURenderer = struct {
         }
         self.buffers.deinit(self.allocator);
 
+        if (self.hardware_context) |*ctx| {
+            ctx.deinit();
+        }
         if (self.gpu_context) |*ctx| {
             ctx.deinit();
         }
@@ -1363,20 +1541,23 @@ pub const GPURenderer = struct {
             return self.initCPUFallback();
         }
 
-        // Initialize real WebGPU context when available
-        self.gpu_context = try GPUContext.init(self.allocator);
-        self.buffer_manager = BufferManager{ .device = self.gpu_context.?.device };
+        self.hardware_context = try HardwareContext.init(.webgpu);
+        self.buffer_manager = BufferManager{
+            .device = .{ .hardware = self.hardware_context.?.device },
+            .queue = .{ .hardware = self.hardware_context.?.queue },
+        };
 
         std.log.info("WebGPU initialized successfully", .{});
-        if (self.gpu_context) |*ctx| {
-            ctx.printDeviceInfo();
-        }
     }
 
     fn initCPUFallback(self: *Self) !void {
         // Initialize CPU fallback context
         self.gpu_context = try GPUContext.init(self.allocator);
-        self.buffer_manager = BufferManager{ .device = self.gpu_context.?.device };
+        self.hardware_context = null;
+        self.buffer_manager = BufferManager{
+            .device = .{ .mock = self.gpu_context.?.device },
+            .queue = .{ .mock = self.gpu_context.?.queue },
+        };
 
         std.log.info("CPU Fallback initialized successfully", .{});
         if (self.gpu_context) |*ctx| {
@@ -1396,18 +1577,16 @@ pub const GPURenderer = struct {
             return GpuError.DeviceNotFound;
         }
 
-        // Zig's SPIR-V backend enables targeting Vulkan platforms
-        // Using self-hosted SPIR-V backend by default, LLVM backend available with -fllvm
-        self.gpu_context = try GPUContext.initVulkan(self.allocator);
-        self.buffer_manager = BufferManager{ .device = self.gpu_context.?.device };
+        self.hardware_context = try HardwareContext.init(.vulkan);
+        self.buffer_manager = BufferManager{
+            .device = .{ .hardware = self.hardware_context.?.device },
+            .queue = .{ .hardware = self.hardware_context.?.queue },
+        };
 
         // Initialize SPIR-V shader compilation pipeline
         try self.initSPIRVCompiler(.vulkan);
 
         std.log.info("Vulkan backend initialized with SPIR-V support", .{});
-        if (self.gpu_context) |*ctx| {
-            ctx.printDeviceInfo();
-        }
     }
 
     fn initMetal(self: *Self) !void {
@@ -1422,17 +1601,16 @@ pub const GPURenderer = struct {
             return GpuError.DeviceNotFound;
         }
 
-        // Metal Shading Language (MSL) compilation from Zig source
-        self.gpu_context = try GPUContext.initMetal(self.allocator);
-        self.buffer_manager = BufferManager{ .device = self.gpu_context.?.device };
+        self.hardware_context = try HardwareContext.init(.metal);
+        self.buffer_manager = BufferManager{
+            .device = .{ .hardware = self.hardware_context.?.device },
+            .queue = .{ .hardware = self.hardware_context.?.queue },
+        };
 
         // Initialize Metal shader compilation pipeline
         try self.initMetalCompiler();
 
         std.log.info("Metal backend initialized successfully (macOS/iOS)", .{});
-        if (self.gpu_context) |*ctx| {
-            ctx.printDeviceInfo();
-        }
     }
 
     fn initDX12(self: *Self) !void {
@@ -1440,7 +1618,11 @@ pub const GPURenderer = struct {
 
         // DirectX 12 can use SPIR-V as intermediate representation
         self.gpu_context = try GPUContext.initDX12(self.allocator);
-        self.buffer_manager = BufferManager{ .device = self.gpu_context.?.device };
+        self.hardware_context = null;
+        self.buffer_manager = BufferManager{
+            .device = .{ .mock = self.gpu_context.?.device },
+            .queue = .{ .mock = self.gpu_context.?.queue },
+        };
 
         // Initialize SPIR-V to HLSL compilation pipeline
         try self.initSPIRVCompiler(.dx12);
@@ -1456,7 +1638,11 @@ pub const GPURenderer = struct {
 
         // Modern OpenGL can consume SPIR-V shaders via GL_ARB_gl_spirv
         self.gpu_context = try GPUContext.initOpenGL(self.allocator);
-        self.buffer_manager = BufferManager{ .device = self.gpu_context.?.device };
+        self.hardware_context = null;
+        self.buffer_manager = BufferManager{
+            .device = .{ .mock = self.gpu_context.?.device },
+            .queue = .{ .mock = self.gpu_context.?.queue },
+        };
 
         // Initialize SPIR-V shader compilation for OpenGL
         try self.initSPIRVCompiler(.opengl);
@@ -1472,7 +1658,11 @@ pub const GPURenderer = struct {
 
         // OpenCL 2.1+ supports SPIR-V as intermediate representation
         self.gpu_context = try GPUContext.initOpenCL(self.allocator);
-        self.buffer_manager = BufferManager{ .device = self.gpu_context.?.device };
+        self.hardware_context = null;
+        self.buffer_manager = BufferManager{
+            .device = .{ .mock = self.gpu_context.?.device },
+            .queue = .{ .mock = self.gpu_context.?.queue },
+        };
 
         // Initialize SPIR-V kernel compilation for OpenCL compute
         try self.initSPIRVCompiler(.opencl);
@@ -1496,8 +1686,12 @@ pub const GPURenderer = struct {
         }
 
         // CUDA uses PTX (Parallel Thread Execution) as intermediate representation
+        self.hardware_context = null;
         self.gpu_context = try GPUContext.initCUDA(self.allocator);
-        self.buffer_manager = BufferManager{ .device = self.gpu_context.?.device };
+        self.buffer_manager = BufferManager{
+            .device = .{ .mock = self.gpu_context.?.device },
+            .queue = .{ .mock = self.gpu_context.?.queue },
+        };
 
         // Initialize PTX kernel compilation for CUDA compute
         try self.initPTXCompiler();
@@ -1695,6 +1889,12 @@ pub const GPURenderer = struct {
         var pipeline = try ComputePipeline.init(self.allocator, desc, handle_id);
         errdefer pipeline.deinit(self.allocator);
 
+        if (self.hardware_context != null) {
+            self.ensureHardwarePipeline(&pipeline) catch |err| {
+                std.log.warn("Failed to build hardware pipeline {s}: {}", .{ desc.label, err });
+            };
+        }
+
         try self.compute_pipelines.append(self.allocator, pipeline);
 
         self.stats.shaders_compiled += 1;
@@ -1711,6 +1911,60 @@ pub const GPURenderer = struct {
         } else {
             return GpuError.HandleNotFound;
         }
+    }
+
+    fn ensureHardwarePipeline(self: *Self, pipeline: *ComputePipeline) !*ComputePipeline.HardwareState {
+        if (pipeline.hardware) |*hw| return hw;
+        const ctx = self.hardware_context orelse return GpuError.UnsupportedBackend;
+
+        const shader_module = ctx.device.createShaderModule(.{
+            .label = pipeline.label,
+            .code = .{ .wgsl = pipeline.shader_source },
+        }) orelse return GpuError.ShaderCompilationFailed;
+        defer shader_module.deinit();
+
+        const compute_pipeline = ctx.device.createComputePipeline(.{
+            .label = pipeline.label,
+            .compute = .{
+                .module = shader_module,
+                .entry_point = pipeline.entry_point,
+            },
+        }) orelse return GpuError.PipelineCreationFailed;
+
+        const layout = compute_pipeline.getBindGroupLayout(0);
+        pipeline.hardware = ComputePipeline.HardwareState{
+            .pipeline = compute_pipeline,
+            .layout = layout,
+        };
+        return &pipeline.hardware.?;
+    }
+
+    fn createHardwareBindGroup(self: *Self, pipeline: *ComputePipeline, bind_group: *BindGroup) !*gpu.BindGroup {
+        const ctx = self.hardware_context orelse return GpuError.UnsupportedBackend;
+        const hardware = try self.ensureHardwarePipeline(pipeline);
+
+        const count = bind_group.buffer_handles.items.len;
+        const entries = try self.allocator.alloc(gpu.BindGroup.Entry, count);
+        defer self.allocator.free(entries);
+
+        for (bind_group.buffer_handles.items, 0..) |handle, idx| {
+            const buffer = self.findBuffer(handle) orelse return GpuError.HandleNotFound;
+            const hw_buffer = buffer.getHardware() orelse return GpuError.UnsupportedBackend;
+            entries[idx] = .{
+                .binding = @intCast(u32, idx),
+                .resource = .{ .buffer = .{
+                    .buffer = hw_buffer,
+                    .offset = 0,
+                    .size = @intCast(u64, buffer.size),
+                } },
+            };
+        }
+
+        return ctx.device.createBindGroup(.{
+            .label = pipeline.label,
+            .layout = hardware.layout,
+            .entries = entries,
+        }) orelse return GpuError.BindGroupCreationFailed;
     }
 
     /// Create a bind group referencing GPU buffers
@@ -1799,11 +2053,12 @@ pub const GPURenderer = struct {
     }
 
     /// Write raw bytes into a buffer
-    pub fn writeBuffer(self: *Self, handle: u32, data: []const u8) !void {
+    pub fn writeBuffer(self: *Self, handle: u32, data: anytype) !void {
         const start = std.time.nanoTimestamp();
         const buf = self.findBuffer(handle) orelse return GpuError.HandleNotFound;
-        const to_write = @min(buf.size, data.len);
-        self.buffer_manager.?.writeBuffer(buf.gpu_buffer, data[0..to_write]);
+        const bytes = std.mem.sliceAsBytes(data);
+        const to_write = @min(buf.size, bytes.len);
+        self.buffer_manager.?.writeBuffer(buf, bytes[0..to_write]);
         self.stats.bytes_written += @as(u64, @intCast(to_write));
         self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
     }
@@ -1812,7 +2067,7 @@ pub const GPURenderer = struct {
     pub fn readBuffer(self: *Self, handle: u32, allocator: std.mem.Allocator) ![]u8 {
         const start = std.time.nanoTimestamp();
         const buf = self.findBuffer(handle) orelse return GpuError.HandleNotFound;
-        const out = try self.buffer_manager.?.readBuffer(u8, buf.gpu_buffer, @intCast(buf.size), allocator);
+        const out = try self.buffer_manager.?.readBuffer(u8, buf, @intCast(buf.size), allocator);
         self.stats.bytes_read += @as(u64, @intCast(out.len));
         self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
         return out;
@@ -1823,12 +2078,15 @@ pub const GPURenderer = struct {
         const buf = self.findBuffer(handle) orelse return GpuError.HandleNotFound;
         const required = count * @sizeOf(T);
         if (required > buf.size) return GpuError.ValidationFailed;
-        return buf.gpu_buffer.getMappedRange(T, 0, count) orelse GpuError.BufferMappingFailed;
+        return switch (buf.resource) {
+            .mock => |mock_buf| mock_buf.getMappedRange(T, 0, count) orelse GpuError.BufferMappingFailed,
+            else => GpuError.UnsupportedBackend,
+        };
     }
 
     /// Determine whether the renderer is currently backed by real GPU hardware
     pub fn isHardwareAvailable(self: *Self) bool {
-        return self.backend != .cpu_fallback and self.gpu_context != null and self.buffer_manager != null;
+        return self.hardware_context != null and self.buffer_manager != null;
     }
 
     /// Dispatch a compute workload using the currently selected backend
@@ -1848,12 +2106,28 @@ pub const GPURenderer = struct {
                 "Submitting compute dispatch on {s}: workgroups=({d},{d},{d}) label={s}",
                 .{ self.backend.toString(), dispatch.workgroups_x, dispatch.workgroups_y, dispatch.workgroups_z, pipeline.label },
             );
-            if (self.gpu_context) |*ctx| {
-                ctx.queue.submit();
-            }
-            if (pipeline.cpu_fallback) |fallback| {
-                try fallback(self, bind_group.buffer_handles.items, info, pipeline.cpu_fallback_ctx);
-            }
+
+            const ctx = self.hardware_context.?;
+            const hw_bind_group = try self.createHardwareBindGroup(pipeline, bind_group);
+            defer hw_bind_group.deinit();
+
+            const encoder = ctx.device.createCommandEncoder(.{ .label = pipeline.label }) orelse return GpuError.CommandEncoderCreationFailed;
+            defer encoder.deinit();
+
+            const pass = encoder.beginComputePass(.{ .label = pipeline.label });
+            defer pass.deinit();
+
+            const hw_pipeline = try self.ensureHardwarePipeline(pipeline);
+            pass.setPipeline(hw_pipeline.pipeline);
+            pass.setBindGroup(0, hw_bind_group);
+            pass.dispatchWorkgroups(dispatch.workgroups_x, dispatch.workgroups_y, dispatch.workgroups_z);
+            pass.end();
+
+            const command = encoder.finish(.{ .label = pipeline.label }) orelse return GpuError.CommandCreationFailed;
+            defer command.deinit();
+
+            ctx.queue.submit(&[_]*gpu.CommandBuffer{command});
+            ctx.queue.onSubmittedWorkDone(null, null);
         } else if (pipeline.cpu_fallback) |fallback| {
             std.log.info(
                 "GPU backend unavailable; executing CPU fallback for compute pipeline {s}",
@@ -1874,11 +2148,13 @@ pub const GPURenderer = struct {
         const src = self.findBuffer(src_handle) orelse return GpuError.HandleNotFound;
         const dst = self.findBuffer(dst_handle) orelse return GpuError.HandleNotFound;
         const len = @min(src.size, dst.size);
-        const src_bytes = src.gpu_buffer.getMappedRange(u8, 0, len) orelse return GpuError.BufferMappingFailed;
-        self.buffer_manager.?.writeBuffer(dst.gpu_buffer, src_bytes);
-        self.stats.bytes_copied += @as(u64, @intCast(len));
+        const temp = try self.buffer_manager.?.readBuffer(u8, src, len, self.allocator);
+        defer self.allocator.free(temp);
+
+        self.buffer_manager.?.writeBuffer(dst, temp);
+        self.stats.bytes_copied += @as(u64, @intCast(temp.len));
         self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
-        return len;
+        return temp.len;
     }
 
     /// Compute vector dot product directly on buffers (length in f32 elements)
@@ -1892,8 +2168,10 @@ pub const GPURenderer = struct {
         const count = @min(length, @min(avail_a, avail_b));
         if (count == 0) return GpuError.ValidationFailed;
 
-        const a_slice = a_buf.gpu_buffer.getMappedRange(f32, 0, count) orelse return GpuError.BufferMappingFailed;
-        const b_slice = b_buf.gpu_buffer.getMappedRange(f32, 0, count) orelse return GpuError.BufferMappingFailed;
+        const a_slice = try self.buffer_manager.?.readBuffer(f32, a_buf, count, self.allocator);
+        defer self.allocator.free(a_slice);
+        const b_slice = try self.buffer_manager.?.readBuffer(f32, b_buf, count, self.allocator);
+        defer self.allocator.free(b_slice);
 
         var sum: f32 = 0.0;
         var i: usize = 0;
