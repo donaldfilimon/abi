@@ -244,7 +244,7 @@ Watch for new Zig releases. Once Windows builds integrate the fix, upgrade to th
 function Zig-Docs {
   param([string]$ZigExe = "zig")
   & $ZigExe std --no-open-browser | ForEach-Object {
-    if ($_ -match 'http://127\\.0\\.0\\.1:\d+/') {
+    if ($_ -match 'http://127\.0\.0\.1:\d+/') {
       Start-Process $Matches[0]
     }
   }
