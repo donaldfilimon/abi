@@ -178,6 +178,7 @@ pub const Framework = struct {
 
     fn clearPluginPaths(self: *Framework) void {
         for (self.plugin_paths.items) |path| {
+            self.registry.loader.removePluginPath(path);
             self.allocator.free(path);
         }
         self.plugin_paths.clearRetainingCapacity();
@@ -213,11 +214,19 @@ test "framework manages plugin search paths" {
     var framework = try Framework.init(std.testing.allocator, .{});
     defer framework.deinit();
 
-    try framework.addPluginPath("./plugins");
-    try framework.addPluginPath("./more-plugins");
+    try framework.setPluginPaths(&.{ "./plugins", "./more-plugins" });
     try std.testing.expectEqual(@as(usize, 2), framework.pluginPathCount());
     try std.testing.expectEqualStrings("./plugins", framework.pluginPath(0));
     try std.testing.expectEqualStrings("./more-plugins", framework.pluginPath(1));
+    try std.testing.expectEqual(@as(usize, 2), framework.registry.loader.plugin_paths.items.len);
+    try std.testing.expectEqualStrings("./plugins", framework.registry.loader.plugin_paths.items[0]);
+    try std.testing.expectEqualStrings("./more-plugins", framework.registry.loader.plugin_paths.items[1]);
+
+    try framework.setPluginPaths(&.{ "./fresh-plugins" });
+    try std.testing.expectEqual(@as(usize, 1), framework.pluginPathCount());
+    try std.testing.expectEqualStrings("./fresh-plugins", framework.pluginPath(0));
+    try std.testing.expectEqual(@as(usize, 1), framework.registry.loader.plugin_paths.items.len);
+    try std.testing.expectEqualStrings("./fresh-plugins", framework.registry.loader.plugin_paths.items[0]);
 }
 
 test "framework summary reports configured state" {
