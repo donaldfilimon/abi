@@ -32,12 +32,21 @@ pub fn build(b: *std.Build) void {
     });
 
     if (enable_vulkan) {
-        exe.linkSystemLibrary("vulkan");
-        unit_tests.linkSystemLibrary("vulkan");
+        const vulkan_lib = switch (target.result.os.tag) {
+            .windows => "vulkan-1",
+            .macos => "vulkan",
+            else => "vulkan",
+        };
+        exe.linkSystemLibrary(vulkan_lib);
+        unit_tests.linkSystemLibrary(vulkan_lib);
     }
 
     if (enable_cuda) {
-        const cuda_lib = if (target.result.os.tag == .windows) "nvcuda" else "cuda";
+        const cuda_lib = switch (target.result.os.tag) {
+            .windows => "nvcuda",
+            .macos => "cuda",
+            else => "cuda",
+        };
         exe.linkSystemLibrary(cuda_lib);
         unit_tests.linkSystemLibrary(cuda_lib);
     }
@@ -47,8 +56,10 @@ pub fn build(b: *std.Build) void {
             .macos, .ios, .tvos, .watchos => {
                 exe.linkFramework("Metal");
                 exe.linkFramework("MetalKit");
+                exe.linkFramework("QuartzCore");
                 unit_tests.linkFramework("Metal");
                 unit_tests.linkFramework("MetalKit");
+                unit_tests.linkFramework("QuartzCore");
             },
             else => {},
         }

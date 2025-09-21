@@ -61,12 +61,12 @@ pub const Tensor = struct {
     pub fn downloadFromGpu(self: *Tensor, renderer: *gpu_renderer.GPURenderer) !void {
         if (!self.is_on_gpu or self.gpu_buffer == null) return;
 
-        const raw_bytes = try renderer.readBuffer(self.gpu_buffer.?, self.allocator);
-        defer self.allocator.free(raw_bytes);
+        const raw = try renderer.readBuffer(self.gpu_buffer.?, self.allocator);
+        defer self.allocator.free(raw);
 
-        const dest_bytes = std.mem.sliceAsBytes(self.data);
-        std.debug.assert(dest_bytes.len == raw_bytes.len);
-        std.mem.copyForwards(u8, dest_bytes, raw_bytes);
+        const values = std.mem.bytesAsSlice(f32, raw);
+        std.debug.assert(values.len == self.data.len);
+        @memcpy(self.data, values);
         self.is_on_gpu = false;
     }
 
@@ -224,16 +224,26 @@ pub const MatrixOps = struct {
         @memcpy(std.mem.asBytes(&params), src);
 
         const matrix_ops: *MatrixOps = @ptrCast(@alignCast(ctx.?));
-        try matrix_ops.matmulCpuOptimized(
-            buffers[0],
-            buffers[1],
-            buffers[2],
-            @intCast(usize, params.m),
-            @intCast(usize, params.n),
-            @intCast(usize, params.p),
-        );
+        const allocator = matrix_ops.allocator;
+        const m = @intCast(usize, params.m);
+        const n = @intCast(usize, params.n);
+        const p = @intCast(usize, params.p);
 
-        _ = renderer; // renderer updates happen via matrix_ops.matmulCpuOptimized
+        const a_bytes = try renderer.readBuffer(buffers[0], allocator);
+        defer allocator.free(a_bytes);
+        const b_bytes = try renderer.readBuffer(buffers[1], allocator);
+        defer allocator.free(b_bytes);
+
+        const a_slice = std.mem.bytesAsSlice(f32, a_bytes);
+        const b_slice = std.mem.bytesAsSlice(f32, b_bytes);
+
+        var c_values = try allocator.alloc(f32, m * p);
+        defer allocator.free(c_values);
+
+        matrix_ops.matmulCpuOptimizedSlices(a_slice, b_slice, c_values, m, n, p);
+
+        const c_bytes = std.mem.sliceAsBytes(c_values);
+        try renderer.writeBuffer(buffers[2], c_bytes);
     }
 
     /// CPU fallback for matrix multiplication
@@ -254,14 +264,11 @@ pub const MatrixOps = struct {
     }
 
     /// Optimized CPU matrix multiplication (simulates GPU kernel behavior)
-    fn matmulCpuOptimized(self: *MatrixOps, a_buffer: u32, b_buffer: u32, c_buffer: u32, m: usize, n: usize, p: usize) !void {
+    fn matmulCpuOptimizedSlices(self: *MatrixOps, a: []const f32, b: []const f32, c: []f32, m: usize, n: usize, p: usize) void {
+        _ = self;
         const start = std.time.nanoTimestamp();
 
-        const a_slice = try self.renderer.getBufferSlice(a_buffer, f32, m * n);
-        const b_slice = try self.renderer.getBufferSlice(b_buffer, f32, n * p);
-        var c_slice = try self.renderer.getBufferSlice(c_buffer, f32, m * p);
-
-        @memset(c_slice, 0.0);
+        @memset(c, 0.0);
 
         var row: usize = 0;
         while (row < m) : (row += 1) {
@@ -270,13 +277,13 @@ pub const MatrixOps = struct {
                 var acc: f32 = 0;
                 var k: usize = 0;
                 while (k < n) : (k += 1) {
-                    acc += a_slice[row * n + k] * b_slice[k * p + col];
+                    acc += a[row * n + k] * b[k * p + col];
                 }
-                c_slice[row * p + col] = acc;
+                c[row * p + col] = acc;
             }
         }
 
-        self.renderer.stats.bytes_written += @intCast(u64, c_slice.len * @sizeOf(f32));
+        self.renderer.stats.bytes_written += @intCast(u64, c.len * @sizeOf(f32));
         self.renderer.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
     }
 
