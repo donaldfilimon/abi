@@ -36,15 +36,18 @@ const std = @import("std");
 
 /// Project version information
 pub const VERSION = .{
-    .major = 1,
-    .minor = 0,
+    .major = 0,
+    .minor = 1,
     .patch = 0,
-    .pre_release = "alpha",
+    .pre_release = "0.1.0a",
 };
 
 /// Render version as semantic version string: "major.minor.patch[-pre]"
 pub fn versionString(allocator: std.mem.Allocator) ![]u8 {
     if (VERSION.pre_release.len > 0) {
+        if (std.ascii.isDigit(VERSION.pre_release[0])) {
+            return std.fmt.allocPrint(allocator, "{s}", .{VERSION.pre_release});
+        }
         return std.fmt.allocPrint(allocator, "{d}.{d}.{d}-{s}", .{ VERSION.major, VERSION.minor, VERSION.patch, VERSION.pre_release });
     }
     return std.fmt.allocPrint(allocator, "{d}.{d}.{d}", .{ VERSION.major, VERSION.minor, VERSION.patch });
@@ -134,7 +137,7 @@ test "Utilities module integration" {
     // Test version functionality
     const version_str = try versionString(testing.allocator);
     defer testing.allocator.free(version_str);
-    try testing.expect(std.mem.indexOf(u8, version_str, "1.0.0") != null);
+    try testing.expect(std.mem.indexOf(u8, version_str, "0.1.0a") != null);
 
     // Test config
     const config = Config.init("test");

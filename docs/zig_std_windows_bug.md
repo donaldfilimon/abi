@@ -1,3 +1,10 @@
+---
+layout: documentation
+title: "zig std Windows Regression"
+description: "Impact analysis of the Zig 0.15.x Windows documentation regression and mitigation tactics."
+permalink: /zig-std-windows-bug/
+---
+
 # Zig `zig std` Windows Regression (0.15.x)
 
 ## Issue Summary and Manifestation

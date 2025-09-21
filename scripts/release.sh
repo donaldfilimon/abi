@@ -52,6 +52,36 @@ check_prerequisites() {
     print_success "Prerequisites check passed"
 }
 
+show_latest_changelog_entry() {
+    if [[ ! -f CHANGELOG.md ]]; then
+        print_error "CHANGELOG.md not found"
+        exit 1
+    fi
+
+    local entry
+    entry=$(awk '
+        BEGIN { section = 0 }
+        /^## \[/ {
+            if ($0 ~ /^## \[Unreleased\]/) {
+                next
+            }
+            if (section == 1) {
+                exit
+            }
+            section = 1
+        }
+        section == 1 { print }
+    ' CHANGELOG.md)
+
+    if [[ -z "$entry" ]]; then
+        print_error "No release entries found in CHANGELOG.md"
+        exit 1
+    fi
+
+    print_status "Latest changelog entry:"
+    printf '%s\n' "$entry"
+}
+
 # Clean build artifacts
 clean_build() {
     print_status "Cleaning previous build artifacts..."
@@ -104,7 +134,7 @@ generate_docs() {
 
 # Create release archive
 create_archive() {
-    local version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+    local version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0a")
     local archive_name="abi-framework-${version#v}-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)"
 
     print_status "Creating release archive: $archive_name.tar.gz"
@@ -137,7 +167,7 @@ create_archive() {
 
 # Show release information
 show_release_info() {
-    local version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+    local version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0a")
 
     echo
     echo "🎉 Release Build Complete!"
@@ -164,6 +194,7 @@ main() {
     echo
 
     check_prerequisites
+    show_latest_changelog_entry
     clean_build
     run_tests
     build_release

@@ -1,3 +1,10 @@
+---
+layout: documentation
+title: "Windows zig std Docs Pipeline"
+description: "Automated pipeline and CLI helpers for restoring Zig standard library docs on Windows."
+permalink: /windows-zig-std-docs-fix/
+---
+
 # Unified Pipeline & Dynamic Interactive CLI/UX for `zig std` on Windows
 
 **Complete End-to-End Pipeline with Integrated CLI Interfaces and Interactive UX Module**
@@ -69,7 +76,11 @@ The optional `-ZigCandidates` parameter seeds the selector with known installati
 
 1. **Run docs server with last known good version** – Replays the configuration that succeeded most recently, including PATH rewrites and browser launch parameters.
 2. **Try all versions automatically** – Rotates through detected Zig builds, skipping those that exceeded the failure threshold until one succeeds.
-3. **Choose a version manually** – Presents the ranked list, lets you launch any candidate immediately, and provides options to add or rescan install paths.
+<<<<<<< HEAD
+3. **Choose a version manually** – Presents the ranked list, lets you launch any candidate immediately, and opens a mini-menu where **A** adds new folders/executables, **D** removes stale entries (including their failure counters), **R** rescans auto-detected paths, and **Enter** returns to the top-level menu.
+=======
+3. **Choose a version manually** – Presents the ranked list, lets you launch any candidate immediately, and opens a mini-menu where **A** adds new folders/executables, **D** removes stale entries (including their failure counters), **R** rescans auto-detected paths, and **Enter** returns to the top-level menu.
+>>>>>>> origin/codex/implement-cli-pipeline-improvements
 4. **Run in WSL fallback** – Invokes Zig inside WSL, detects mirrored networking vs. bridged IPs, and launches the docs URL from Windows.
 5. **Show health dashboard** – Displays success/failure statistics, per-version counters, preferred browser configuration, and allows adjusting the failure threshold.
 6. **Exit** – Saves state and quits.
@@ -80,7 +91,7 @@ After each action the module updates its history pane, and the summary banner pr
 
 ## PowerShell Module Internals
 
-The script is implemented in `tools/zig_docs_interactive.ps1` and is designed for PowerShell 5.1+ or PowerShell 7.x on Windows.
+The script is implemented in `tools/zig_docs_interactive.ps1` and is designed for PowerShell 5.1+ or PowerShell 7.x on Windows. Candidate discovery now avoids the PowerShell 7-only `Get-ChildItem -Depth` flag by performing a bounded breadth-first scan, so auto-detection works even on stock Windows 10 shells.
 
 ```powershell
 # tools/zig_docs_interactive.ps1 (excerpt)

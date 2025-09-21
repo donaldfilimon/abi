@@ -226,7 +226,7 @@ Thank you for contributing to Abi AI Framework!
 
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](CONTRIBUTING.md)
 [![Code of Conduct](https://img.shields.io/badge/code%20of%20conduct-1.0.0-ff69b4.svg)](CODE_OF_CONDUCT.md)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/yourusername/abi/pulls)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/donaldfilimon/abi/pulls)
 
 ## 📋 **Table of Contents**
 
@@ -296,14 +296,14 @@ Violations will be addressed by the project maintainers. We reserve the right to
 
 ```bash
 # 1. Fork the repository
-# Go to https://github.com/yourusername/abi and click "Fork"
+# Go to https://github.com/donaldfilimon/abi and click "Fork"
 
 # 2. Clone your fork
-git clone https://github.com/yourusername/abi.git
+git clone https://github.com/donaldfilimon/abi.git
 cd abi
 
 # 3. Add upstream remote
-git remote add upstream https://github.com/original-owner/abi.git
+git remote add upstream https://github.com/donaldfilimon/abi.git
 
 # 4. Install dependencies
 # Zig should be in your PATH

@@ -151,6 +151,98 @@ function Get-ZigDocsLocale {
   }
 }
 
+function Get-ZigDocsLimitedDepthFiles {
+  param(
+    [string]$Root,
+    [string]$TargetName,
+    [int]$MaxDepth = 2
+  )
+
+  if (-not $Root) { return @() }
+
+  $resolvedRoot = $null
+  try {
+    $resolvedRoot = (Resolve-Path -LiteralPath $Root -ErrorAction Stop).Path
+  } catch {
+    $resolvedRoot = $Root
+  }
+
+  $queue = New-Object System.Collections.Queue
+  $queue.Enqueue([pscustomobject]@{ Path = $resolvedRoot; Depth = 0 })
+  $seen = @{}
+  $matches = @()
+
+  while ($queue.Count -gt 0) {
+    $current = $queue.Dequeue()
+    if (-not $current.Path) { continue }
+    if ($seen.ContainsKey($current.Path)) { continue }
+    $seen[$current.Path] = $true
+
+    try {
+      $children = Get-ChildItem -LiteralPath $current.Path -Force -ErrorAction Stop
+    } catch {
+      continue
+    }
+
+    foreach ($child in $children) {
+      if ($child.PSIsContainer) {
+        if ($current.Depth -lt $MaxDepth) {
+          $queue.Enqueue([pscustomobject]@{ Path = $child.FullName; Depth = $current.Depth + 1 })
+        }
+        continue
+      }
+
+      if ($child.Name -and $TargetName -and ($child.Name -ieq $TargetName)) {
+        $matches += $child.FullName
+      }
+    }
+  }
+
+  return $matches
+}
+
+function Get-ZigDocsBinaryMatches {
+  param(
+    [string]$Root,
+    [string]$BinaryName,
+    [int]$MaxDepth = 2
+  )
+
+  if (-not $Root) { return @() }
+
+  $items = @()
+  $hasWildcards = $Root -match '[\*\?]'
+
+  if ($hasWildcards) {
+    try {
+      $items = Get-ChildItem -Path $Root -Force -ErrorAction Stop
+    } catch {
+      return @()
+    }
+  } elseif (Test-Path $Root) {
+    try {
+      $items = @(Get-Item -LiteralPath $Root -Force -ErrorAction Stop)
+    } catch {
+      return @()
+    }
+  } else {
+    return @()
+  }
+
+  $matches = @()
+
+  foreach ($item in $items) {
+    if (-not $item) { continue }
+    if ($item.PSIsContainer) {
+      $matches += Get-ZigDocsLimitedDepthFiles -Root $item.FullName -TargetName $BinaryName -MaxDepth $MaxDepth
+    } elseif ($item.Name -and ($item.Name -ieq $BinaryName)) {
+      $matches += $item.FullName
+    }
+  }
+
+  return $matches
+}
+
 function Add-ZigDocsHistory {
   param(
     [pscustomobject]$State,
@@ -285,6 +377,8 @@ function Find-ZigDocsInstallations {
         if (-not (Test-Path $root)) { continue }
         $items = Get-ChildItem -Path $root -Filter $binaryName -File -Recurse -Depth 2 -ErrorAction SilentlyContinue
         foreach ($item in $items) { $results.Add($item.FullName) }
+        $matches = Get-ZigDocsBinaryMatches -Root $root -BinaryName $binaryName -MaxDepth 2
+        foreach ($match in $matches) { $results.Add($match) }
       } catch {}
     }
   } else {
@@ -303,6 +397,34 @@ function Find-ZigDocsInstallations {
   }
 
   return $results.ToArray() | Where-Object { $_ } | Select-Object -Unique
+}
+
+function Remove-ZigDocsCandidate {
+  param(
+    [pscustomobject]$State,
+    [pscustomobject]$Candidate
+  )
+
+  if (-not $State -or -not $Candidate) { return }
+
+  $key = $Candidate.Key
+  if (-not $key) { return }
+
+  $State.zigCandidates = @(
+    $State.zigCandidates | ForEach-Object {
+      $resolved = Resolve-ZigCandidatePath -Candidate $_
+      $candidateKey = Get-ZigDocsCandidateKey -Path $resolved
+      if ($candidateKey -ne $key) { $_ }
+    }
+  )
+
+  if ($State.versionFailures.ContainsKey($key)) { $State.versionFailures.Remove($key) }
+  if ($State.versionMetadata.ContainsKey($key)) { $State.versionMetadata.Remove($key) }
+
+  if ($State.lastSuccessfulVersion -eq $key) {
+    $State.lastSuccessfulVersion = $null
+    $State.lastSuccessfulPath = $null
+  }
 }
 
 function Get-ZigDocsCandidates {
@@ -1032,6 +1154,95 @@ function Zig-DocsInteractive {
           }
         }
         Wait-ZigDocsUser
+        $manualLoop = $true
+        while ($manualLoop) {
+          $manualCandidates = Sort-ZigDocsCandidates -State $state -Candidates (Get-ZigDocsCandidates -State $state -AdditionalCandidates $ZigCandidates)
+          if (-not $manualCandidates -or $manualCandidates.Count -eq 0) {
+            Write-Warning "No Zig versions available."
+            Wait-ZigDocsUser
+            break
+          }
+
+          Clear-Host
+          Write-Host "Manual Candidate Selection" -ForegroundColor Cyan
+          Write-Host "=========================="
+          for ($i = 0; $i -lt $manualCandidates.Count; $i++) {
+            $candidate = $manualCandidates[$i]
+            $indicator = if ($candidate.Skip) { "(skipped)" } elseif ($candidate.Key -eq $state.lastSuccessfulVersion) { "(last good)" } else { "" }
+            $versionLabel = if ($candidate.Version) { $candidate.Version } else { "unknown" }
+            Write-Host "[$($i + 1)] $versionLabel — $($candidate.Path) $indicator"
+          }
+          Write-Host "[A] Add new location" -ForegroundColor Cyan
+          Write-Host "[D] Delete a location" -ForegroundColor Cyan
+          Write-Host "[R] Refresh detection" -ForegroundColor Cyan
+          Write-Host "[Enter] Return to main menu" -ForegroundColor Cyan
+
+          $manual = Read-Host "Select version"
+          $choiceValue = $manual.ToUpperInvariant()
+
+          if ([string]::IsNullOrWhiteSpace($manual)) {
+            $manualLoop = $false
+            break
+          } elseif ($choiceValue -eq 'A') {
+            $newPath = (Read-Host "Enter full path to Zig folder or executable").Trim()
+            if (-not [string]::IsNullOrWhiteSpace($newPath)) {
+              $state.zigCandidates = @($newPath) + ($state.zigCandidates | Where-Object { $_ -ne $newPath })
+              $resolved = Resolve-ZigCandidatePath -Candidate $newPath
+              $key = Get-ZigDocsCandidateKey -Path $resolved
+              if ($resolved -and $key) {
+                $info = Get-ZigVersionInfo -ZigPath $resolved
+                if ($info) {
+                  $state.versionMetadata[$key] = @{ path = $resolved; version = $info.Raw }
+                }
+              }
+              Write-ZigDocsLog -LogPath $storage.LogPath -Message "Added manual Zig candidate $newPath" -Level "INFO"
+              Add-ZigDocsHistory -State $state -Action "Candidate-Add" -Success $true -Details $newPath -RecordStats:$false
+              Write-Host "Candidate added." -ForegroundColor Green
+              Wait-ZigDocsUser
+            }
+          } elseif ($choiceValue -eq 'D') {
+            $removeInput = Read-Host "Enter the number of the candidate to delete"
+            if ($removeInput -as [int]) {
+              $removeIndex = [int]$removeInput - 1
+              if ($removeIndex -ge 0 -and $removeIndex -lt $manualCandidates.Count) {
+                $target = $manualCandidates[$removeIndex]
+                Remove-ZigDocsCandidate -State $state -Candidate $target
+                Write-ZigDocsLog -LogPath $storage.LogPath -Message "Removed Zig candidate $($target.Path)" -Level "INFO"
+                Add-ZigDocsHistory -State $state -Action "Candidate-Remove" -Success $true -Details $target.Path -RecordStats:$false
+                Write-Host "Candidate removed." -ForegroundColor Yellow
+              } else {
+                Write-Warning "Invalid selection for removal."
+              }
+            } else {
+              Write-Warning "Removal requires a numeric selection."
+            }
+            Wait-ZigDocsUser
+          } elseif ($choiceValue -eq 'R') {
+            Write-Host "Candidate list refreshed." -ForegroundColor Cyan
+            Wait-ZigDocsUser
+          } elseif ($manual -as [int]) {
+            $index = [int]$manual - 1
+            if ($index -ge 0 -and $index -lt $manualCandidates.Count) {
+              $candidate = $manualCandidates[$index]
+              if ($candidate.Skip) {
+                Write-Warning "Version skipped after repeated failures. Adjust threshold in dashboard to retry."
+              } else {
+                $result = Invoke-ZigDocsWindowsSession -State $state -Candidate $candidate -LogPath $storage.LogPath
+                if ($result.success) {
+                  Write-Host $result.message -ForegroundColor Green
+                } else {
+                  Write-Host $result.message -ForegroundColor Yellow
+                }
+              }
+            } else {
+              Write-Warning "Invalid selection."
+            }
+            Wait-ZigDocsUser
+          } else {
+            Write-Warning "Unrecognized selection."
+            Wait-ZigDocsUser
+          }
+        }
       }
       '4' {
         $success = Invoke-ZigDocsServerWsl -State $state -LogPath $storage.LogPath

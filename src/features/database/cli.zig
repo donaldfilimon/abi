@@ -242,7 +242,7 @@ pub const WdbxCLI = struct {
     }
 
     fn showVersion(self: *Self) !void {
-        try self.logger.info("ABI Vector Database v1.0.0", .{});
+        try self.logger.info("ABI Vector Database v0.1.0a", .{});
     }
 
     fn addVectors(self: *Self) !void {

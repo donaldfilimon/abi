@@ -1,3 +1,10 @@
+---
+layout: documentation
+title: "Module Organization"
+description: "Recommended structure and design patterns for arranging ABI's modules."
+permalink: /module-organization/
+---
+
 # Abi Framework Module Organization
 
 Updated map of the reorganised Abi source tree. The new layout pivots around
