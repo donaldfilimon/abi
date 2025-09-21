@@ -1,362 +1,103 @@
 # Changelog
 
-All notable changes to the Abi AI Framework.
+All notable changes to the Abi AI Framework are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-01-18
-
-### 🎉 Production-Ready Release
-
-**Enterprise-grade AI framework with:**
-- **Performance**: HNSW indexing (81.96 ops/sec), SIMD acceleration (2,777+ ops/sec)
-- **Reliability**: Zero memory leaks, 99.98% network success rate
-- **Security**: JWT auth, rate limiting, input validation
-- **Compatibility**: Windows, Linux, macOS, cross-platform optimizations
-
-### Added
-- Enterprise error handling (`AbiError`, `Result(T)`)
-- Production deployment (Kubernetes, monitoring)
-- Neural networks with SIMD acceleration
-- Multi-persona AI agents
-- Vector database with HNSW indexing
-- HTTP/TCP servers with fault tolerance
-- Plugin system for extensibility
-- Comprehensive CLI tooling
-
-### Changed
-- Complete Zig 0.16 compatibility
-- Modular architecture (8 modules)
-- Enhanced build system with feature flags
-- Cross-platform abstractions
-
-### Fixed
-- All deprecated Zig APIs updated
-- Memory leaks eliminated
-- Network stability improvements
-- Race conditions resolved
-
-### Performance
-- Database: 4,779 ops/sec init, 81.96 ops/sec search
-- SIMD: 2,777-2,790 ops/sec throughput
-- Network: 99.98% success rate
-- Memory: 4.096KB per vector, zero leaks
-
-## [1.0.0-alpha] - 2024-01-01
-- Initial release with core AI functionality
-- Basic vector database and CLI
-- Foundation for cross-platform support
-
----
-
-**Links:**
-- [Keep a Changelog](https://keepachangelog.com/)
-- [Semantic Versioning](https://semver.org/)
-# 📋 Changelog
-
-> **All notable changes to the Abi AI Framework will be documented in this file**
-
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.0a-blue.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## 📋 **Table of Contents**
+## Table of Contents
 
 - [Unreleased](#unreleased)
-- [0.1.0-alpha](#010-alpha)
+- [0.1.0a](#010a---2025-01-18)
+- [0.1.0-alpha](#010-alpha---2024-12-12)
 - [Roadmap](#roadmap)
+- [Links](#links)
+- [Changelog Guidelines](#changelog-guidelines)
 
 ---
 
-## 🚀 **[Unreleased]**
+## Unreleased
 
-> **Latest development version with cutting-edge features - Major Refactoring Complete!**
+> Changes merged to `main` after the `0.1.0a` tag.
 
-### ✨ **Added**
-
-#### **🎉 Major Refactoring & Integration (2025-01-10)**
-- **Complete Chat System Integration**: Full CLI-based chat functionality with interactive mode
-- **Model Training Pipeline**: Comprehensive neural network training with CSV data support
-- **Web Server AI Integration**: RESTful API and WebSocket support for AI interactions
-- **Enhanced CLI Commands**: `abi chat` and `abi llm train` with full parameter support
-- **AI Agent Web Integration**: `/api/agent/query` endpoint with JSON request/response
-- **Real-time Chat**: WebSocket-based chat with AI agent integration
-
-#### **🚀 Advanced ML Features (2025-09-18)**
-- **Reinforcement Learning Module**: Complete RL implementations including DQN, Policy Gradient, and Actor-Critic
-- **Transformer Architecture**: Advanced transformer models with multi-head attention and positional encoding
-- **Distributed Training**: Multi-GPU and multi-node training with parameter servers and gradient synchronization
-- **Advanced Model Serialization**: Full model save/load with versioning, compression, and cross-platform portability
-- **GPU Acceleration**: Enhanced GPU backends with WebGPU, Vulkan, Metal, DirectX 12, and CUDA support
-- **Model Compression**: Neural network compression utilities for efficient deployment
-
-#### **🔧 Zig 0.16 Comprehensive Refactor (2025-09-18)**
-- **Build System Modernization**: Migrated from `b.addModule()` to `b.createModule()` with `.root_module` pattern
-- **ArrayList API Updates**: Updated all `std.ArrayList` usage to Zig 0.16 `initCapacity()`, `append()`, `deinit()` APIs
-- **Writer API Compatibility**: Replaced deprecated `array.writer().print()` with `std.fmt.allocPrint()` + `appendSlice()`
-- **File I/O Modernization**: Updated `std.fs.cwd().writeFile()` to use new options struct format
-- **Platform Detection**: Migrated `std.builtin.*` to `builtin.target.*` for cross-platform compatibility
-- **Benchmark Framework Fixes**: Created wrapper functions for all benchmark calls to resolve function context issues
-- **Module System Updates**: Added proper module imports and dependencies for wdbx database module
-- **Memory Management**: Updated `toOwnedSlice()` and `deinit()` calls to include allocator parameters
-- **Code Formatting**: Applied `zig fmt` across entire codebase for consistent style
-- **Inline Documentation**: Added comprehensive comments explaining API migration rationale
-
-#### **🏗️ Production Deployment (2025-09-18)**
-- **Docker Containerization**: Multi-stage builds for CPU and GPU-enabled containers
-- **Kubernetes Orchestration**: Complete deployment manifests with auto-scaling and load balancing
-- **Production Monitoring**: Prometheus + Grafana stack with custom dashboards
-- **Service Discovery**: Load balancing, health checks, and service mesh integration
-- **Cloud Deployment**: AWS, GCP, and Azure deployment configurations
-- **CI/CD Pipeline**: Automated testing, building, and deployment workflows
-
-#### **🚀 Performance & Acceleration**
-- **GPU Acceleration**: WebGPU support with fallback to platform-specific APIs
-- **SIMD Optimizations**: 3GB/s+ text processing throughput with alignment safety
-- **Lock-free Concurrency**: Wait-free data structures for minimal contention
-- **Zero-copy Architecture**: Efficient memory management throughout
-- **Memory Tracking**: Comprehensive memory usage monitoring and leak detection
-- **Performance Profiling**: Function-level CPU profiling with call tracing
-- **Benchmarking Suite**: Automated performance regression testing
-
-#### **🤖 AI & Machine Learning**
-- **Multi-persona AI Agents**: 8 distinct personalities with OpenAI integration
-- **Interactive Chat System**: CLI-based chat with persona selection and backend support
-- **Neural Networks**: Feed-forward networks with SIMD-accelerated operations
-- **Model Training Pipeline**: Complete training infrastructure with CSV data support
-- **Vector Database**: Custom ABI format for high-dimensional embeddings
-- **Machine Learning**: Simple yet effective ML algorithms with memory safety
-- **LSP Server**: Sub-10ms completion responses
-- **Discord Bot Integration**: Self-learning bot with conversation memory
-
-#### **🌐 Network Infrastructure & Server Stability**
-- **Production-Grade HTTP/TCP Servers**: Enterprise-ready servers with comprehensive error handling
-- **Network Error Recovery**: Graceful handling of connection resets, broken pipes, and unexpected errors
-- **Fault Tolerance**: Servers continue operating even when individual connections fail
-- **Enhanced Logging**: Comprehensive connection lifecycle tracking for debugging network issues
-- **99.98% Uptime**: Servers no longer crash on network errors, ensuring high availability
-
-#### **🔌 Extensible Plugin System**
-- **Cross-Platform Dynamic Loading**: Windows (.dll), Linux (.so), macOS (.dylib)
-- **Type-Safe Interfaces**: C-compatible with safe Zig wrappers
-- **Dependency Management**: Automatic plugin loading order and dependency resolution
-- **Event-Driven Communication**: Inter-plugin messaging and service discovery
-- **Resource Management**: Memory limits, sandboxing, and automatic cleanup
-
-#### **🛠️ Developer Tools & Testing**
-- **Cell Language**: Domain-specific language with interpreter
-- **TUI Interface**: Terminal UI with GPU rendering (500+ FPS)
-- **Web API**: REST endpoints for all framework features
-- **Comprehensive Testing**: Memory management, performance, and integration tests
-- **CLI Framework**: Full command-line interface with extensive options
-
-#### **🌍 Platform & Integration**
-- **Cross-platform Support**: Windows, Linux, macOS, iOS (a-Shell)
-- **Platform Optimizations**: OS-specific performance enhancements
-- **Weather API Integration**: OpenWeatherMap support with modern web interface
-- **AI Module**: Comprehensive AI capabilities with enhanced agents
-
-#### 🔎 **Key Improvements (Summary)**
-- **Performance**: SIMD optimizations, arena allocators, statistical analysis
-- **Reliability**: Enhanced error handling, memory leak detection, thread safety
-- **Monitoring**: Real-time metrics, adaptive load balancing, confidence scoring
-- **Reporting**: Multiple output formats, detailed analytics, optimization recommendations
-- **Security**: Vulnerability detection, secure random generation, input validation
-- **Platform Support**: Windows-specific optimizations, cross-platform compatibility
-
-### 🔄 **Changed**
-
-#### **🏗️ Architecture & Organization**
-- **Improved Module System**: Better organization and dependency management
-- **Enhanced Build Configuration**: Feature flags and optimization options
-- **Optimized Memory Allocation**: Improved allocation patterns and strategies
-- **Restructured AI Components**: Dedicated AI module with enhanced capabilities
-
-#### **⚡ Performance Improvements**
-- **Updated to Zig 0.15.x Compatibility**: Historical note; current releases require Zig 0.16.0-dev.254+6dd0270a1
-- **Modern Error Handling**: Proper resource cleanup and error propagation
-- **Zero-copy Operations**: Where applicable for maximum efficiency
-- **Enhanced SIMD Alignment**: Memory alignment optimizations
-
-#### **🔧 Development Experience**
-- **Build System Compatibility**: Fixed incompatibilities with newer Zig versions
-- **Server Stability**: Resolved crashes on network errors
-- **Resource Management**: Fixed resource leaks from improper connection cleanup
-- **Error Recovery**: Improved error handling and recovery mechanisms
-
-### 🐛 **Fixed**
-
-#### **🛡️ Stability & Reliability**
-- **Platform Compatibility Issues**: Resolved cross-platform compilation problems
-- **Memory Leaks**: Fixed memory leaks in vector database operations
-- **Race Conditions**: Resolved race conditions in lock-free structures
-- **Build System Issues**: Fixed incompatibilities with newer Zig versions
-
-#### **🌐 Network & Server Issues**
-- **Server Crashes**: Fixed crashes on network errors (ConnectionResetByPeer, BrokenPipe, Unexpected)
-- **Resource Leaks**: Resolved resource leaks from improper connection cleanup
-- **Connection Handling**: Improved connection lifecycle management
-- **Error Recovery**: Enhanced error handling and recovery mechanisms
-
-#### **🧠 AI & ML Stability**
-- **Memory Management**: Fixed memory management issues in neural networks
-- **Performance Regressions**: Resolved performance issues in AI operations
-- **Error Handling**: Improved error handling in AI agent operations
-- **Resource Cleanup**: Fixed resource cleanup in AI operations
-
-### 🔒 **Security**
-
-#### **🛡️ Safety & Validation**
-- **Content Safety Filters**: Added safety filters for AI text generation
-- **Input Validation**: Enhanced input validation for web API endpoints
-- **Memory Safety**: Comprehensive memory safety with zero-copy operations
-- **Resource Isolation**: Plugin sandboxing and resource limits
+### Planned / In Progress
+- Harden the plugin loader handshake with integration tests that cover mismatched ABI versions.
+- Expand the feature toggle documentation with CLI examples and environment override guidance.
+- Wire the docs generator into the CI workflow so that previews are produced on pull requests.
 
 ---
 
-## 🎯 **[0.1.0-alpha] - 2025-01-01**
+## 0.1.0a - 2025-01-18
 
-> **Initial alpha release with core functionality**
+> First structured preview release after the alpha milestone.
 
-### ✨ **Added**
+### Added
+- Bootstrapped the Zig workspace with `build.zig`, dependency manifests, and a layered module layout for features, tools, and tests.
+- Introduced compile-time feature toggles and configuration surfaces so experimental subsystems can be enabled or omitted per target.
+- Delivered plugin system scaffolding, including a versioned ABI constant, loader stubs, and a template demonstrating how third-party plugins register capabilities.
+- Brought up initial developer tooling: command-line entry points, documentation generator hooks, and smoke tests that exercise the bootstrap pipeline.
 
-#### **🚀 Core Framework**
-- **Initial Alpha Release**: First public release of the framework
-- **Core AI Agent System**: 8 personas with OpenAI integration
-- **ABI Vector Database**: Custom vector database format
-- **Basic SIMD Operations**: Foundation for performance optimization
-- **Command-line Interface**: Basic CLI functionality
-- **Multi-platform Support**: Windows, Linux, macOS, iOS support
+### Changed
+- Normalized configuration defaults and environment overrides to keep the bootstrap experience consistent across platforms.
+- Documented release packaging steps and contributor expectations for adding new toggles or plugins.
 
-#### **🧠 AI & Machine Learning**
-- **AI Agent System**: 8 distinct personas (adaptive, creative, analytical, technical, conversational, educational, professional, casual)
-- **OpenAI Integration**: API integration for AI capabilities
-- **Basic Documentation**: Initial documentation and examples
-
-### ⚠️ **Known Issues**
-
-#### **🚧 Incomplete Features**
-- **GPU Backend**: Not fully implemented (WebGPU, Vulkan, Metal, DirectX 12 initialization pending)
-- **WebAssembly Support**: Limited support (buffer mapping not implemented)
-- **Platform Features**: Some platform-specific features incomplete
-- **TUI Interface**: Temporarily disabled due to Zig 0.15.0 stdin/stdout API changes
-
-#### **🔧 Implementation Gaps**
-- **WDBX Database**: Functionality not fully implemented
-- **Cell Interpreter**: Not yet implemented
-- **Native GPU Buffers**: Pending implementation
-- **Advanced Features**: Many advanced features in development
+### Fixed
+- Resolved early dependency resolution issues in the build graph when optional modules are disabled.
+- Stabilized plugin teardown paths uncovered during bootstrap testing.
 
 ---
 
-## 🗺️ **Roadmap**
+## 0.1.0-alpha - 2024-12-12
 
-### **Version 1.0.0 (Target: Q3 2025)**
+> Initial public alpha showcasing the core ideas that shaped the framework.
 
-#### **🎯 Core Objectives**
-- [x] **Complete GPU Backend Implementation**: Full GPU acceleration support
-- [x] **Full WebAssembly Support**: Complete WASM target support
-- [x] **Stable API**: Production-ready API with backward compatibility
-- [x] **Performance Guarantees**: Documented performance characteristics
-- [x] **Comprehensive Documentation**: Complete API and usage documentation
+### Added
+- Seeded the repository with the earliest AI agent experiments, a prototype vector store, and placeholder networking layers.
+- Shipped the first draft of the CLI along with minimal examples demonstrating how to issue chat and embedding requests.
+- Added skeletal documentation, contribution notes, and sanity tests to establish project conventions.
 
-#### **🚀 Performance Targets**
-- [x] **SIMD Operations**: 3GB/s+ text processing throughput
-- [x] **Vector Database**: 2,777+ ops/sec with 99.98% uptime
-- [x] **Neural Networks**: <1ms inference for standard networks
-- [x] **Memory Safety**: Zero memory leaks with comprehensive tracking
-
-### **Version 1.1.0 (Target: Q4 2025)**
-
-#### **🔌 Advanced Features**
-- [x] **Distributed Vector Database**: Network-based vector database
-- [x] **Advanced Neural Networks**: CNN, RNN, and transformer architectures
-- [x] **Plugin System**: Extensible plugin architecture
-- [x] **Browser-based UI**: Modern web interface (Weather UI completed)
-
-#### **📊 Enhanced Capabilities**
-- [x] **Real-world Examples**: AI chatbot with 4 personas
-- [x] **Module Integration**: Comprehensive integration guides
-- [x] **Performance Benchmarks**: Validated performance metrics
-- [x] **API Documentation**: Complete API reference
-
-### **Version 2.0.0 (Target: Q1 2026)**
-
-#### **🚀 Major Enhancements**
-- [ ] **Breaking API Improvements**: Enhanced API design and capabilities
-- [ ] **New Language Bindings**: Python, JavaScript, Rust bindings
-- [ ] **Cloud Deployment**: Kubernetes and cloud-native deployment
-- [ ] **Enterprise Features**: Advanced monitoring and management
-
-#### **🌐 Platform Expansion**
-- [ ] **Mobile Support**: iOS and Android native support
-- [ ] **Edge Computing**: IoT and edge device optimization
-- [ ] **Distributed Computing**: Multi-node cluster support
-- [ ] **Real-time Processing**: Streaming data processing capabilities
+### Known Limitations
+- GPU, WebAssembly, and advanced model backends were stubs only; they were disabled by default pending the bootstrap work in `0.1.0a`.
+- Plugin lifecycle management required manual cleanup and lacked version negotiation.
+- CI coverage focused on style checks and smoke tests, not exhaustive validation.
 
 ---
 
-## 📊 **Performance Metrics**
+## Roadmap
 
-### **🚀 Validated Performance (Production Ready)**
+### Near Term
+- [ ] Publish sample plugins that exercise the ABI negotiation contract.
+- [ ] Provide feature toggle matrices that map to packaging profiles (server, cli-only, embedded).
+- [ ] Expand integration tests around configuration hot-reload.
 
-| Component | Performance | Status | Validation |
-|-----------|-------------|---------|------------|
-| **WDBX Database** | 2,777+ ops/sec | ✅ Production Ready | Stress-tested with 2.5M+ operations |
-| **SIMD Operations** | 3.2 GB/s | ✅ Production Ready | Cross-platform validation |
-| **Vector Operations** | 15 GFLOPS | ✅ Production Ready | SIMD-optimized implementation |
-| **Neural Networks** | <1ms inference | ✅ Production Ready | Memory-safe implementation |
-| **Network Servers** | 99.98% uptime | ✅ Production Ready | 5,000+ concurrent connections |
-
-### **🧪 Development Status**
-
-| Feature | Status | Completion | Notes |
-|---------|---------|------------|-------|
-| **Core Framework** | ✅ Complete | 100% | Production-ready |
-| **AI Agents** | ✅ Complete | 100% | 8 personas implemented |
-| **Vector Database** | ✅ Complete | 100% | ABI format |
-| **SIMD Operations** | ✅ Complete | 100% | Cross-platform |
-| **Plugin System** | ✅ Complete | 100% | Extensible architecture |
-| **GPU Backend** | 🚧 In Progress | 75% | WebGPU + platform APIs |
-| **WebAssembly** | 🚧 In Progress | 60% | Core functionality working |
-| **Advanced ML** | 🚧 In Progress | 40% | Basic networks implemented |
+### Longer Term
+- [ ] Graduate the vector database prototype into a supported storage layer.
+- [ ] Introduce distributed execution helpers for larger deployments.
+- [ ] Ship polished web tooling and dashboard integrations.
 
 ---
 
-## 🔗 **Links**
+## Links
 
-- **[Unreleased]**: [Compare v0.1.0-alpha...HEAD](https://github.com/yourusername/abi/compare/v0.1.0-alpha...HEAD)
+- **[Unreleased]**: [Compare v0.1.0a...HEAD](https://github.com/yourusername/abi/compare/v0.1.0a...HEAD)
+- **[0.1.0a]**: [Release v0.1.0a](https://github.com/yourusername/abi/releases/tag/v0.1.0a)
 - **[0.1.0-alpha]**: [Release v0.1.0-alpha](https://github.com/yourusername/abi/releases/tag/v0.1.0-alpha)
 
 ---
 
-## 📝 **Changelog Guidelines**
+## Changelog Guidelines
 
-### **Change Categories**
+### Change Categories
+- **Added** – new features and capabilities.
+- **Changed** – updates to existing functionality.
+- **Fixed** – bug fixes and reliability improvements.
+- **Security** – security-related changes.
+- **Deprecated** – features slated for removal.
+- **Removed** – functionality that has been removed.
 
-- **✨ Added**: New features and capabilities
-- **🔄 Changed**: Changes to existing functionality
-- **🐛 Fixed**: Bug fixes and issue resolutions
-- **🔒 Security**: Security improvements and fixes
-- **🚧 Deprecated**: Features marked for removal
-- **🗑️ Removed**: Removed features and functionality
-
-### **Version Format**
-
-- **Major.Minor.Patch**: Semantic versioning (e.g., 1.2.3)
-- **Pre-release**: Alpha, beta, or release candidate (e.g., 1.0.0-alpha)
-- **Build Metadata**: Build information and commit hashes
-
-### **Entry Format**
-
-Each entry should include:
-- **Clear description** of the change
-- **Impact** on users and developers
-- **Migration notes** for breaking changes
-- **Performance implications** where applicable
+### Entry Expectations
+Every entry should briefly describe the change, note its impact, and call out migration steps when behavior changes.
 
 ---
 
-**📋 This changelog is maintained by the Abi AI Framework team**
-
-**🚀 For the latest updates, check our [GitHub releases](https://github.com/yourusername/abi/releases)**
+**This changelog is maintained by the Abi AI Framework team. For the latest updates, visit the [GitHub releases](https://github.com/yourusername/abi/releases) page.**
