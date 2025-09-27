@@ -1,7 +1,6 @@
 # Vector Database API
 
-This document provides comprehensive API documentation for the `abi.features.database`
-namespace that exposes the WDBX vector database feature family.
+This document provides comprehensive API documentation for the `database` module.
 
 ## Table of Contents
 
@@ -62,17 +61,15 @@ const std = @import("std");
 const abi = @import("abi");
 
 pub fn main() !void {
-    const database = abi.features.database;
-    var db = try database.database.Db.open("vectors.wdbx", true);
+    var db = try abi.database.Db.open("vectors.wdbx", true);
     defer db.close();
 
-    // Initialise the store for 384-dimensional vectors
+    // Initialize with 384-dimensional vectors
     try db.init(384);
 
     // Add a vector
     const embedding = [_]f32{0.1, 0.2, 0.3} ++ ([_]f32{0.0} ** 381);
     const id = try db.addEmbedding(&embedding);
-    std.log.info("Stored embedding id: {}", .{id});
 }
 ```
 

@@ -2,17 +2,7 @@
 (function() {
   'use strict';
 
-  const baseUrl = (document.body && document.body.dataset.baseurl) || '';
-
-  function withBase(path) {
-    if (!path) return baseUrl || '';
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    if (!baseUrl || baseUrl === '/') {
-      return normalizedPath;
-    }
-
-    return `${baseUrl.replace(/\/$/, '')}${normalizedPath}`;
-  }
+  const baseUrl = resolveBaseUrl();
 
   // Generate table of contents
   function generateTOC() {
@@ -21,14 +11,10 @@
 
     if (!content || !tocList) return;
 
-    tocList.innerHTML = '';
-
     const headings = content.querySelectorAll('h2, h3, h4');
     if (headings.length === 0) {
       const toc = document.getElementById('toc');
-      if (toc) {
-        toc.style.display = 'none';
-      }
+      if (toc) toc.style.display = 'none';
       return;
     }
 
@@ -88,16 +74,22 @@
     if (!searchInput || !searchResults) return;
 
     let searchData = [];
-    
-    // Load search index
-    fetch(withBase('generated/search_index.json'))
-      .then(response => response.json())
-      .then(data => {
-        searchData = data;
-      })
-      .catch(error => {
-        console.warn('Search index not available:', error);
-      });
+
+    if (typeof window !== 'undefined' && Array.isArray(window.__ABI_SEARCH_DATA)) {
+      searchData = window.__ABI_SEARCH_DATA.slice();
+    } else {
+      fetch(buildUrl('/generated/search_index.json'))
+        .then(response => response.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            searchData = data;
+            window.__ABI_SEARCH_DATA = data;
+          }
+        })
+        .catch(error => {
+          console.warn('Search index not available:', error);
+        });
+    }
 
     let searchTimeout;
     searchInput.addEventListener('input', function() {
@@ -106,7 +98,6 @@
 
       if (query.length < 2) {
         searchResults.classList.add('hidden');
-        searchResults.innerHTML = '';
         return;
       }
 
@@ -148,36 +139,22 @@
     const searchResults = document.getElementById('search-results');
     if (!searchResults) return;
 
-    searchResults.innerHTML = '';
-
     if (results.length === 0) {
-      const emptyState = document.createElement('div');
-      emptyState.className = 'search-result-item';
-      emptyState.textContent = 'No results found';
-      searchResults.appendChild(emptyState);
-      searchResults.classList.remove('hidden');
-      return;
+      searchResults.innerHTML = '<div class="search-result-item" data-empty="true">No results found</div>';
+    } else {
+      const safeQuery = query ? escapeRegExp(query) : '';
+      searchResults.innerHTML = results.map(result => {
+        const file = escapeAttribute(result.file);
+        const title = highlightText(result.title, safeQuery);
+        const excerpt = highlightText(result.excerpt, safeQuery);
+        return `
+          <div class="search-result-item" data-file="${file}">
+            <div class="search-result-title">${title}</div>
+            <div class="search-result-excerpt">${excerpt}</div>
+          </div>
+        `;
+      }).join('');
     }
-
-    results.forEach(result => {
-      const item = document.createElement('div');
-      item.className = 'search-result-item';
-
-      const title = document.createElement('div');
-      title.className = 'search-result-title';
-      title.innerHTML = highlightText(result.title, query);
-
-      const excerpt = document.createElement('div');
-      excerpt.className = 'search-result-excerpt';
-      excerpt.innerHTML = highlightText(result.excerpt, query);
-
-      item.appendChild(title);
-      item.appendChild(excerpt);
-
-      item.addEventListener('click', () => navigateToPage(result.file));
-
-      searchResults.appendChild(item);
-    });
 
     searchResults.classList.remove('hidden');
   }
@@ -191,9 +168,14 @@
 
   function navigateToPage(file) {
     if (!file) return;
-    const normalized = file.replace(/\.md$/i, '/');
-    const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
-    window.location.href = withBase(cleanPath);
+    window.location.href = buildUrl(file);
+  }
+
+  function applySuggestion(suggestion, input) {
+    if (!input) return;
+    input.value = suggestion;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
   }
 
   // Smooth scrolling for anchor links
@@ -243,10 +225,6 @@
       pre.appendChild(button);
 
       button.addEventListener('click', function() {
-        if (!navigator.clipboard || !navigator.clipboard.writeText) {
-          return;
-        }
-
         navigator.clipboard.writeText(codeBlock.textContent).then(function() {
           button.textContent = 'Copied!';
           setTimeout(function() {
@@ -259,33 +237,20 @@
 
   // Performance monitoring
   function trackPerformance() {
-    if (!('performance' in window)) {
-      return;
+    if ('performance' in window) {
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          const entries = performance.getEntriesByType('navigation');
+          if (!entries || entries.length === 0) return;
+          const perfData = entries[0];
+          const loadTime = perfData.loadEventEnd - perfData.loadEventStart;
+
+          if (loadTime > 0) {
+            console.log(`Page load time: ${loadTime}ms`);
+          }
+        }, 0);
+      });
     }
-
-    window.addEventListener('load', function() {
-      setTimeout(function() {
-        const navigationEntries = performance.getEntriesByType
-          ? performance.getEntriesByType('navigation')
-          : [];
-
-        const perfData = navigationEntries && navigationEntries.length > 0
-          ? navigationEntries[0]
-          : performance.timing;
-
-        if (!perfData) {
-          return;
-        }
-
-        const start = perfData.loadEventStart || perfData.domComplete || 0;
-        const end = perfData.loadEventEnd || perfData.domComplete || 0;
-        const loadTime = end - start;
-
-        if (loadTime > 0) {
-          console.log(`Page load time: ${loadTime}ms`);
-        }
-      }, 0);
-    });
   }
 
   // Initialize all functionality when DOM is ready
@@ -297,24 +262,18 @@
     trackPerformance();
 
     // Add performance badges to relevant sections
-    const performanceMarkers = document.querySelectorAll('code');
+    const performanceMarkers = Array.from(document.querySelectorAll('code')).filter(code => {
+      const text = code.textContent || '';
+      return text.includes('~') || text.includes('ms') || text.includes('μs');
+    });
+
     performanceMarkers.forEach(function(marker) {
-      if (!marker || !marker.textContent) {
-        return;
+      if (marker.textContent.includes('~')) {
+        const badge = document.createElement('span');
+        badge.className = 'performance-badge';
+        badge.textContent = 'PERF';
+        marker.parentElement.insertBefore(badge, marker.nextSibling);
       }
-
-      if (!/[~≈]|\bms\b|µs|μs/.test(marker.textContent)) {
-        return;
-      }
-
-      if (!marker.parentElement || marker.parentElement.querySelector('.performance-badge')) {
-        return;
-      }
-
-      const badge = document.createElement('span');
-      badge.className = 'performance-badge';
-      badge.textContent = 'PERF';
-      marker.parentElement.insertBefore(badge, marker.nextSibling);
     });
 
   }
@@ -326,6 +285,5 @@
     initialize();
   }
 
-  window.navigateToPage = navigateToPage;
-
 })();
+n

@@ -1,8 +1,8 @@
 # Code API Index (Scanned)
 
-Scanned 205 Zig files under `src/`. This index lists public declarations discovered along with leading doc comments.
+Scanned 213 Zig files under `src/`. This index lists public declarations discovered along with leading doc comments.
 
-## src/examples/advanced_zig_gpu.zig
+## src\examples\advanced_zig_gpu.zig
 
 - type `SpirvShader`
 
@@ -226,7 +226,7 @@ Main demonstration function
 pub fn main() !void {
 ```
 
-## src/examples/ai.zig
+## src\examples\ai.zig
 
 - const `ai`
 
@@ -234,7 +234,7 @@ pub fn main() !void {
 pub const ai = @import("../features/ai/mod.zig");
 ```
 
-## src/examples/ai_demo.zig
+## src\examples\ai_demo.zig
 
 - type `DenseLayer`
 
@@ -314,7 +314,7 @@ pub fn forward(self: *SimpleNN, input: []const f32, output: []f32) void {
 pub fn main() !void {
 ```
 
-## src/examples/demo_http_client.zig
+## src\examples\demo_http_client.zig
 
 - fn `main`
 
@@ -322,7 +322,7 @@ pub fn main() !void {
 pub fn main() !void {
 ```
 
-## src/examples/enterprise_features_demo.zig
+## src\examples\enterprise_features_demo.zig
 
 - type `EnterpriseMLPlatform`
 
@@ -441,7 +441,7 @@ Main demonstration function
 pub fn main() !void {
 ```
 
-## src/examples/gpu.zig
+## src\examples\gpu.zig
 
 - const `gpu`
 
@@ -449,7 +449,7 @@ pub fn main() !void {
 pub const gpu = @import("../features/gpu/mod.zig");
 ```
 
-## src/examples/gpu_acceleration_demo.zig
+## src\examples\gpu_acceleration_demo.zig
 
 - type `GPUTrainer`
 
@@ -481,7 +481,7 @@ Train with GPU acceleration and distributed processing
 pub fn trainDistributed(
 ```
 
-## src/examples/gpu_ai_acceleration_demo.zig
+## src\examples\gpu_ai_acceleration_demo.zig
 
 - fn `create`
 
@@ -549,7 +549,7 @@ Main demonstration function
 pub fn main() !void {
 ```
 
-## src/examples/gpu_neural_network_integration.zig
+## src\examples\gpu_neural_network_integration.zig
 
 - type `DenseLayer`
 
@@ -617,7 +617,7 @@ pub fn forward(self: *NeuralNetwork, input: []const f32, output: []f32) !void {
 pub fn main() !void {
 ```
 
-## src/examples/monitoring.zig
+## src\examples\monitoring.zig
 
 - type `Monitoring`
 
@@ -631,7 +631,7 @@ pub const Monitoring = struct {
 pub fn printHello() void {
 ```
 
-## src/examples/plugins/example_plugin.zig
+## src\examples\plugins\example_plugin.zig
 
 - fn `isCompatible`
 
@@ -669,7 +669,7 @@ pub fn deinit(self: *PluginConfig) void {
 pub fn log(self: *PluginContext, level: u8, message: []const u8) void {
 ```
 
-## src/examples/rl_complete_example.zig
+## src\examples\rl_complete_example.zig
 
 - type `SimpleEnvironment`
 
@@ -707,7 +707,7 @@ Complete RL training demonstration
 pub fn main() !void {
 ```
 
-## src/examples/showcase_optimizations.zig
+## src\examples\showcase_optimizations.zig
 
 - pub `inline`
 
@@ -778,7 +778,7 @@ Main function to run the optimization showcase
 pub fn main() !void {
 ```
 
-## src/examples/transformer_complete_example.zig
+## src\examples\transformer_complete_example.zig
 
 - type `CompleteTransformer`
 
@@ -828,7 +828,7 @@ Demonstration of complete transformer capabilities
 pub fn main() !void {
 ```
 
-## src/examples/transformer_example.zig
+## src\examples\transformer_example.zig
 
 - fn `main`
 
@@ -836,7 +836,7 @@ pub fn main() !void {
 pub fn main() !void {
 ```
 
-## src/examples/utilities_demo.zig
+## src\examples\utilities_demo.zig
 
 - fn `main`
 
@@ -844,7 +844,7 @@ pub fn main() !void {
 pub fn main() !void {
 ```
 
-## src/examples/zig_gpu_build_demo.zig
+## src\examples\zig_gpu_build_demo.zig
 
 - type `GpuBackend`
 
@@ -945,7 +945,7 @@ Main demonstration function
 pub fn main() !void {
 ```
 
-## src/features/ai/activation.zig
+## src\features\ai\activation.zig
 
 - type `ActivationType`
 
@@ -1049,7 +1049,7 @@ pub fn register(self: *ActivationRegistry, name: []const u8, func: ActivationFn)
 pub fn get(self: *ActivationRegistry, name: []const u8) ?ActivationFn {
 ```
 
-## src/features/ai/agent.zig
+## src\features\ai\agent.zig
 
 - const `Allocator`
 
@@ -1160,7 +1160,7 @@ pub fn setPersona(self: *Agent, persona: PersonaType) void {
 pub fn name(self: *const Agent) []const u8 {
 ```
 
-## src/features/ai/ai_core.zig
+## src\features\ai\ai_core.zig
 
 - type `ActivationUtils`
 
@@ -1759,7 +1759,7 @@ pub fn createMLP(allocator: std.mem.Allocator, layer_sizes: []const usize, activ
 pub fn createCNN(allocator: std.mem.Allocator, input_shape: []const usize, num_classes: usize) !*NeuralNetwork {
 ```
 
-## src/features/ai/data_structures/batch_queue.zig
+## src\features\ai\data_structures\batch_queue.zig
 
 - type `BatchQueue`
 
@@ -1806,7 +1806,7 @@ Get the next batch if available
 pub fn dequeueBatch(self: *Self) ?[]u8 {
 ```
 
-## src/features/ai/data_structures/bloom_filter.zig
+## src\features\ai\data_structures\bloom_filter.zig
 
 - type `BloomFilter`
 
@@ -1853,7 +1853,7 @@ Check if an item might be in the filter
 pub fn contains(self: *Self, data: []const u8) bool {
 ```
 
-## src/features/ai/data_structures/cache.zig
+## src\features\ai\data_structures\cache.zig
 
 - fn `ThreadSafeCache`
 
@@ -1945,7 +1945,7 @@ Put a value in the cache
 pub fn put(self: *Self, key: K, value: V) !void {
 ```
 
-## src/features/ai/data_structures/circular_buffer.zig
+## src\features\ai\data_structures\circular_buffer.zig
 
 - fn `CircularBuffer`
 
@@ -2001,7 +2001,7 @@ Alias for CircularBuffer - RingBuffer is the same implementation
 pub fn RingBuffer(comptime T: type) type {
 ```
 
-## src/features/ai/data_structures/compressed_vector.zig
+## src\features\ai\data_structures\compressed_vector.zig
 
 - type `CompressedVector`
 
@@ -2075,7 +2075,7 @@ Add another compressed vector to this one
 pub fn add(self: *Self, other: *const Self) !void {
 ```
 
-## src/features/ai/data_structures/dense_matrix.zig
+## src\features\ai\data_structures\dense_matrix.zig
 
 - type `DenseMatrix`
 
@@ -2167,7 +2167,7 @@ Scalar multiplication
 pub fn mulScalar(self: *Self, scalar: f32) void {
 ```
 
-## src/features/ai/data_structures/graph.zig
+## src\features\ai\data_structures\graph.zig
 
 - type `Graph`
 
@@ -2358,7 +2358,7 @@ Get vertices in set B
 pub fn getSetB(self: *Self) std.ArrayList(usize) {
 ```
 
-## src/features/ai/data_structures/lockfree.zig
+## src\features\ai\data_structures\lockfree.zig
 
 - const `LockFreeError`
 
@@ -2555,7 +2555,7 @@ pub fn enqueue(self: *Self, item: T) bool {
 pub fn dequeue(self: *Self) ?T {
 ```
 
-## src/features/ai/data_structures/memory_pool.zig
+## src\features\ai\data_structures\memory_pool.zig
 
 - fn `MemoryPool`
 
@@ -2602,7 +2602,7 @@ Return an object to the pool
 pub fn put(self: *Self, object: *T) void {
 ```
 
-## src/features/ai/data_structures/mod.zig
+## src\features\ai\data_structures\mod.zig
 
 - const `lockFreeQueue`
 
@@ -2958,7 +2958,7 @@ Get current statistics
 pub fn getStats(self: DataStructureFactory) DataStructureStats {
 ```
 
-## src/features/ai/data_structures/object_pool.zig
+## src\features\ai\data_structures\object_pool.zig
 
 - fn `ObjectPool`
 
@@ -3005,7 +3005,7 @@ Return an object to the pool
 pub fn release(self: *Self, object: *T) void {
 ```
 
-## src/features/ai/data_structures/probabilistic.zig
+## src\features\ai\data_structures\probabilistic.zig
 
 - type `CountMinSketch`
 
@@ -3097,7 +3097,7 @@ Estimate the cardinality
 pub fn estimate(self: *Self) usize {
 ```
 
-## src/features/ai/data_structures/sliding_window.zig
+## src\features\ai\data_structures\sliding_window.zig
 
 - type `SlidingWindow`
 
@@ -3216,7 +3216,7 @@ Get all values as a slice
 pub fn getAll(self: *Self) []f32 {
 ```
 
-## src/features/ai/data_structures/sparse_matrix.zig
+## src\features\ai\data_structures\sparse_matrix.zig
 
 - fn `SparseMatrix`
 
@@ -3272,7 +3272,7 @@ Get the number of non-zero elements
 pub fn nnz(self: *Self) usize {
 ```
 
-## src/features/ai/data_structures/spatial.zig
+## src\features\ai\data_structures\spatial.zig
 
 - fn `KDTree`
 
@@ -3427,7 +3427,7 @@ Query approximate nearest neighbors
 pub fn query(self: *Self, query_point: []const f32, k: usize) !std.ArrayList([]f32) {
 ```
 
-## src/features/ai/data_structures/statistics.zig
+## src\features\ai\data_structures\statistics.zig
 
 - type `ExponentialMovingAverage`
 
@@ -3681,7 +3681,7 @@ Reset the calculator
 pub fn reset(self: *Self) void {
 ```
 
-## src/features/ai/data_structures/time_series.zig
+## src\features\ai\data_structures\time_series.zig
 
 - type `TimeSeriesPoint`
 
@@ -3782,7 +3782,7 @@ Time series data structure (alias for TimeSeriesBuffer for backward compatibilit
 pub const TimeSeries = TimeSeriesBuffer;
 ```
 
-## src/features/ai/data_structures/vector_store.zig
+## src\features\ai\data_structures\vector_store.zig
 
 - fn `VectorStore`
 
@@ -3838,7 +3838,7 @@ Calculate cosine similarity between two vectors
 pub fn cosineSimilarity(self: *Self, a: []const T, b: []const T) f32 {
 ```
 
-## src/features/ai/distributed_training.zig
+## src\features\ai\distributed_training.zig
 
 - type `DistributedConfig`
 
@@ -4113,7 +4113,7 @@ pub fn unscaleGradients(self: LossScaler, gradients: []f32) void {
 pub fn update(self: *LossScaler, has_overflow: bool) void {
 ```
 
-## src/features/ai/dynamic.zig
+## src\features\ai\dynamic.zig
 
 - const `Allocator`
 
@@ -4214,7 +4214,7 @@ Example usage of the router.
 pub fn example() !void {
 ```
 
-## src/features/ai/enhanced_agent.zig
+## src\features\ai\enhanced_agent.zig
 
 - type `AgentState`
 
@@ -4468,7 +4468,7 @@ Health check for agent status
 pub fn healthCheck(self: *const Self) struct { healthy: bool, issues: []const []const u8 } {
 ```
 
-## src/features/ai/layer.zig
+## src\features\ai\layer.zig
 
 - type `LayerType`
 
@@ -4671,7 +4671,7 @@ Get parameter count
 pub fn getParameterCount(self: *const Self) usize {
 ```
 
-## src/features/ai/localml.zig
+## src\features\ai\localml.zig
 
 - const `Allocator`
 
@@ -4959,7 +4959,7 @@ Loads a trained model from file
 pub fn loadModel(path: []const u8) !Model {
 ```
 
-## src/features/ai/mod.zig
+## src\features\ai\mod.zig
 
 - const `neural`
 
@@ -5045,7 +5045,7 @@ pub const data_structures = @import("data_structures/mod.zig");
 pub const ai_core = @import("ai_core.zig");
 ```
 
-## src/features/ai/model_registry.zig
+## src\features\ai\model_registry.zig
 
 - type `ModelEntry`
 
@@ -5251,7 +5251,7 @@ pub fn showModelDetails(self: RegistryCLI, model_id: []const u8) !void {
 pub fn compareModelsCLI(self: RegistryCLI, id1: []const u8, id2: []const u8) !void {
 ```
 
-## src/features/ai/model_serialization.zig
+## src\features\ai\model_serialization.zig
 
 - type `FormatVersion`
 
@@ -5496,7 +5496,7 @@ Load registry from disk
 pub fn loadFromFile(self: *ModelRegistry, path: []const u8) !void {
 ```
 
-## src/features/ai/neural.zig
+## src\features\ai\neural.zig
 
 - const `Allocator`
 
@@ -5975,7 +5975,7 @@ Train the network on a single sample with mixed precision support
 pub fn trainStepMixed(
 ```
 
-## src/features/ai/reinforcement_learning.zig
+## src\features\ai\reinforcement_learning.zig
 
 - type `Environment`
 
@@ -6238,7 +6238,7 @@ pub const ExplorationStrategy = union(enum) {
 pub fn selectAction(self: ExplorationStrategy, q_values: []const f32, rng: Random) usize {
 ```
 
-## src/features/ai/transformer.zig
+## src\features\ai\transformer.zig
 
 - type `MultiHeadAttention`
 
@@ -6432,7 +6432,7 @@ pub fn deinit(self: *Embedding, allocator: std.mem.Allocator) void {
 pub fn forward(self: *Embedding, tokens: []const u32, output: []f32) !void {
 ```
 
-## src/features/connectors/mod.zig
+## src\features\connectors\mod.zig
 
 - const `openai`
 
@@ -6458,7 +6458,7 @@ pub const plugin = @import("plugin.zig");
 pub const mod = @import("mod.zig");
 ```
 
-## src/features/connectors/ollama.zig
+## src\features\connectors\ollama.zig
 
 - const `Allocator`
 
@@ -6472,7 +6472,7 @@ pub const Allocator = std.mem.Allocator;
 pub fn embedText(allocator: Allocator, host: []const u8, model: []const u8, text: []const u8) ![]f32 {
 ```
 
-## src/features/connectors/openai.zig
+## src\features\connectors\openai.zig
 
 - const `Allocator`
 
@@ -6515,7 +6515,7 @@ Errors:
 pub fn embedText(allocator: Allocator, base_url: []const u8, api_key: []const u8, model: []const u8, text: []const u8) Error![]f32 {
 ```
 
-## src/features/connectors/plugin.zig
+## src\features\connectors\plugin.zig
 
 - type `EmbeddingApi`
 
@@ -6541,7 +6541,7 @@ pub fn abi_plugin_create() callconv(.c) ?*const iface.PluginInterface {
 pub fn getInterface() *const iface.PluginInterface {
 ```
 
-## src/features/database/cli.zig
+## src\features\database\cli.zig
 
 - const `Db`
 
@@ -6738,7 +6738,7 @@ Main entry point
 pub fn main() !void {
 ```
 
-## src/features/database/config.zig
+## src\features\database\config.zig
 
 - const `ConfigValidationError`
 
@@ -6980,7 +6980,7 @@ Print configuration summary
 pub fn printSummary(config: *const WdbxConfig) void {
 ```
 
-## src/features/database/core.zig
+## src\features\database\core.zig
 
 - const `WdbxError`
 
@@ -7039,13 +7039,13 @@ pub const VERSION = struct {
 - const `MAJOR`
 
 ```zig
-pub const MAJOR = 0;
+pub const MAJOR = 1;
 ```
 
 - const `MINOR`
 
 ```zig
-pub const MINOR = 1;
+pub const MINOR = 0;
 ```
 
 - const `PATCH`
@@ -7057,7 +7057,7 @@ pub const PATCH = 0;
 - const `PRE_RELEASE`
 
 ```zig
-pub const PRE_RELEASE = "a";
+pub const PRE_RELEASE = "alpha";
 ```
 
 - fn `string`
@@ -7270,7 +7270,7 @@ pub fn deallocate(self: *MemoryStats, size: usize) void {
 pub fn reset(self: *MemoryStats) void {
 ```
 
-## src/features/database/database.zig
+## src\features\database\database.zig
 
 - const `DatabaseError`
 
@@ -7539,7 +7539,7 @@ Parallel search using multiple threads for brute force search
 pub fn searchParallel(self: *Db, query: []const f32, top_k: usize, allocator: std.mem.Allocator, num_threads: u32) ![]Result {
 ```
 
-## src/features/database/database_sharding.zig
+## src\features\database\database_sharding.zig
 
 - type `GlobalResult`
 
@@ -7589,7 +7589,7 @@ pub fn addEmbedding(self: *Self, embedding: []const f32) !struct { shard: usize,
 pub fn search(self: *Self, query: []const f32, k: usize, allocator: std.mem.Allocator) ![]GlobalResult {
 ```
 
-## src/features/database/db_helpers.zig
+## src\features\database\db_helpers.zig
 
 - const `Db`
 
@@ -7654,7 +7654,7 @@ pub fn formatNearestNeighborResponse(allocator: std.mem.Allocator, result: Resul
 pub fn formatKnnResponse(allocator: std.mem.Allocator, k: usize, results: []const Result) ![]u8 {
 ```
 
-## src/features/database/http.zig
+## src\features\database\http.zig
 
 - const `WdbxHttpServer`
 
@@ -7686,7 +7686,7 @@ pub const HttpError = wdbx_http.HttpError;
 pub const Response = wdbx_http.Response;
 ```
 
-## src/features/database/mod.zig
+## src\features\database\mod.zig
 
 - const `database`
 
@@ -7748,7 +7748,7 @@ pub const cli = @import("cli.zig");
 pub const mod = @import("mod.zig");
 ```
 
-## src/features/database/unified.zig
+## src\features\database\unified.zig
 
 - const `WdbxCLI`
 
@@ -7912,7 +7912,7 @@ pub fn quickStart(allocator: std.mem.Allocator) !void {
 pub fn startHttpServer(allocator: std.mem.Allocator, port: u16) !*WdbxHttpServer {
 ```
 
-## src/features/database/utils.zig
+## src\features\database\utils.zig
 
 - type `utils`
 
@@ -7966,7 +7966,7 @@ from that allocator.
 pub inline fn freeOptional(allocator: std.mem.Allocator, opt: ?[]const u8) void {
 ```
 
-## src/features/gpu/backends/backends.zig
+## src\features\gpu\backends\backends.zig
 
 - type `Backend`
 
@@ -8190,7 +8190,7 @@ Compile shader source to backend-specific format
 pub fn compileShader(self: *ShaderCompiler, source: []const u8, shader_type: enum { vertex, fragment, compute }) ![]const u8 {
 ```
 
-## src/features/gpu/backends/mod.zig
+## src\features\gpu\backends\mod.zig
 
 - const `backends`
 
@@ -8198,7 +8198,7 @@ pub fn compileShader(self: *ShaderCompiler, source: []const u8, shader_type: enu
 pub const backends = @import("backends.zig");
 ```
 
-## src/features/gpu/benchmark/benchmarks.zig
+## src\features\gpu\benchmark\benchmarks.zig
 
 - type `BenchmarkConfig`
 
@@ -8266,7 +8266,7 @@ pub const ExecutionContext = struct {
 pub const BenchmarkResult = struct {
 ```
 
-## src/features/gpu/benchmark/mod.zig
+## src\features\gpu\benchmark\mod.zig
 
 - const `benchmarks`
 
@@ -8274,7 +8274,7 @@ pub const BenchmarkResult = struct {
 pub const benchmarks = @import("benchmarks.zig");
 ```
 
-## src/features/gpu/compute/gpu_ai_acceleration.zig
+## src\features\gpu\compute\gpu_ai_acceleration.zig
 
 - type `Tensor`
 
@@ -8528,7 +8528,7 @@ Example usage and demonstration
 pub fn demo() !void {
 ```
 
-## src/features/gpu/compute/gpu_backend_manager.zig
+## src\features\gpu\compute\gpu_backend_manager.zig
 
 - type `HardwareCapabilities`
 
@@ -8827,7 +8827,19 @@ Workload characteristics for backend recommendation
 pub const WorkloadCharacteristics = struct {
 ```
 
-## src/features/gpu/compute/kernels.zig
+## src\features\gpu\compute\kernels.zig
+
+- const `matmul_workgroup_size`
+
+```zig
+pub const matmul_workgroup_size: u32 = 16;
+```
+
+- const `matmul_shader_source`
+
+```zig
+pub const matmul_shader_source =
+```
 
 - type `KernelConfig`
 
@@ -9132,7 +9144,7 @@ pub const GPURenderer = gpu_renderer.GPURenderer;
 pub const GpuError = gpu_renderer.GpuError;
 ```
 
-## src/features/gpu/compute/mod.zig
+## src\features\gpu\compute\mod.zig
 
 - const `kernels`
 
@@ -9152,7 +9164,7 @@ pub const gpu_backend_manager = @import("gpu_backend_manager.zig");
 pub const gpu_ai_acceleration = @import("gpu_ai_acceleration.zig");
 ```
 
-## src/features/gpu/core/backend.zig
+## src\features\gpu\core\backend.zig
 
 - type `Db`
 
@@ -9353,7 +9365,7 @@ pub fn getAverageOperationTime(self: *const GpuStats) u64 {
 pub fn print(self: *const GpuStats) void {
 ```
 
-## src/features/gpu/core/gpu_renderer.zig
+## src\features\gpu\core\gpu_renderer.zig
 
 - const `has_webgpu_support`
 
@@ -10047,7 +10059,7 @@ pub fn unmap(self: *MockGPU.Buffer) void {
 
 - type `GPUContext`
 
-Extended GPU context with compiler support
+Extended GPU context with compiler support for CPU fallback
 
 
 ```zig
@@ -10137,7 +10149,7 @@ pub fn printDeviceInfo(self: *GPUContext) void {
 
 - type `BufferManager`
 
-Buffer manager for simplified GPU buffer operations
+Buffer manager that can operate on CPU or hardware GPU resources
 
 
 ```zig
@@ -10146,38 +10158,26 @@ pub const BufferManager = struct {
 
 - fn `createBuffer`
 
-Create a GPU buffer with specified type and usage
-
-
 ```zig
-pub fn createBuffer(self: BufferManager, comptime T: type, size: u64, usage: BufferUsage) !*MockGPU.Buffer {
+pub fn createBuffer(self: BufferManager, comptime T: type, size: u64, usage: BufferUsage) !Buffer.Resource {
 ```
 
 - fn `writeBuffer`
 
-Write data to GPU buffer
-
-
 ```zig
-pub fn writeBuffer(self: BufferManager, buffer: *MockGPU.Buffer, data: anytype) void {
+pub fn writeBuffer(self: BufferManager, buffer: *Buffer, data: []const u8) void {
 ```
 
 - fn `readBuffer`
 
-Read data from GPU buffer
-
-
 ```zig
-pub fn readBuffer(self: BufferManager, comptime T: type, buffer: *MockGPU.Buffer, size: u64, allocator: std.mem.Allocator) ![]T {
+pub fn readBuffer(
 ```
 
 - fn `createBufferWithData`
 
-Create a buffer with initial data
-
-
 ```zig
-pub fn createBufferWithData(self: BufferManager, comptime T: type, data: []const T, usage: BufferUsage) !*MockGPU.Buffer {
+pub fn createBufferWithData(self: BufferManager, comptime T: type, data: []const T, usage: BufferUsage) !Buffer.Resource {
 ```
 
 - type `Buffer`
@@ -10189,10 +10189,16 @@ GPU buffer resource with platform abstraction
 pub const Buffer = struct {
 ```
 
+- const `Resource`
+
+```zig
+pub const Resource = union(enum) {
+```
+
 - fn `init`
 
 ```zig
-pub fn init(gpu_buffer: *MockGPU.Buffer, size: usize, usage: BufferUsage, id: u64) Buffer {
+pub fn init(resource: Resource, size: usize, usage: BufferUsage, id: u64) Buffer {
 ```
 
 - fn `deinit`
@@ -10211,6 +10217,12 @@ pub fn map(self: *Buffer, allocator: std.mem.Allocator) ![]u8 {
 
 ```zig
 pub fn unmap(self: *Buffer) void {
+```
+
+- fn `getHardware`
+
+```zig
+pub fn getHardware(self: *const Buffer) ?*gpu.Buffer {
 ```
 
 - type `Shader`
@@ -10255,10 +10267,16 @@ pub fn init(allocator: std.mem.Allocator, id: u64) Self {
 pub fn deinit(self: *Self) void {
 ```
 
-- fn `addBuffer`
+- fn `addBufferHandle`
 
 ```zig
-pub fn addBuffer(self: *Self, buffer: Buffer) !void {
+pub fn addBufferHandle(self: *Self, handle: u32) !void {
+```
+
+- type `BindGroupDesc`
+
+```zig
+pub const BindGroupDesc = struct {
 ```
 
 - type `RendererStats`
@@ -10268,6 +10286,36 @@ Lightweight renderer statistics
 
 ```zig
 pub const RendererStats = struct {
+```
+
+- type `ComputeDispatchInfo`
+
+Compute dispatch metadata shared with CPU fallbacks
+
+
+```zig
+pub const ComputeDispatchInfo = struct {
+```
+
+- const `CpuFallbackFn`
+
+```zig
+pub const CpuFallbackFn = *const fn (
+```
+
+- type `ComputePipelineDesc`
+
+Compute pipeline description used during creation
+
+
+```zig
+pub const ComputePipelineDesc = struct {
+```
+
+- type `ComputeDispatch`
+
+```zig
+pub const ComputeDispatch = struct {
 ```
 
 - type `GPURenderer`
@@ -10309,6 +10357,42 @@ Convenience: create a buffer initialized with data
 pub fn createBufferWithData(self: *Self, comptime T: type, data: []const T, usage: BufferUsage) !u32 {
 ```
 
+- fn `createComputePipeline`
+
+Create or cache a compute pipeline for GPU execution
+
+
+```zig
+pub fn createComputePipeline(self: *Self, desc: ComputePipelineDesc) !u32 {
+```
+
+- fn `destroyComputePipeline`
+
+Destroy a compute pipeline by handle
+
+
+```zig
+pub fn destroyComputePipeline(self: *Self, handle: u32) !void {
+```
+
+- fn `createBindGroup`
+
+Create a bind group referencing GPU buffers
+
+
+```zig
+pub fn createBindGroup(self: *Self, desc: BindGroupDesc) !u32 {
+```
+
+- fn `destroyBindGroup`
+
+Destroy a bind group and release its resources
+
+
+```zig
+pub fn destroyBindGroup(self: *Self, handle: u32) !void {
+```
+
 - fn `destroyBuffer`
 
 Destroy a buffer by handle
@@ -10324,7 +10408,7 @@ Write raw bytes into a buffer
 
 
 ```zig
-pub fn writeBuffer(self: *Self, handle: u32, data: []const u8) !void {
+pub fn writeBuffer(self: *Self, handle: u32, data: anytype) !void {
 ```
 
 - fn `readBuffer`
@@ -10334,6 +10418,33 @@ Read raw bytes from a buffer (copies into a new slice)
 
 ```zig
 pub fn readBuffer(self: *Self, handle: u32, allocator: std.mem.Allocator) ![]u8 {
+```
+
+- fn `getBufferSlice`
+
+Directly map a buffer into CPU address space for read/write operations
+
+
+```zig
+pub fn getBufferSlice(self: *Self, handle: u32, comptime T: type, count: usize) ![]T {
+```
+
+- fn `isHardwareAvailable`
+
+Determine whether the renderer is currently backed by real GPU hardware
+
+
+```zig
+pub fn isHardwareAvailable(self: *Self) bool {
+```
+
+- fn `dispatchCompute`
+
+Dispatch a compute workload using the currently selected backend
+
+
+```zig
+pub fn dispatchCompute(self: *Self, dispatch: ComputeDispatch) !void {
 ```
 
 - fn `copyBuffer`
@@ -10489,7 +10600,7 @@ Main function for running the combined GPU examples
 pub fn main() !void {
 ```
 
-## src/features/gpu/core/mod.zig
+## src\features\gpu\core\mod.zig
 
 - const `GPURenderer`
 
@@ -10689,7 +10800,7 @@ Check if GPU acceleration is available
 pub fn isGpuAvailable() bool {
 ```
 
-## src/features/gpu/cross_compilation.zig
+## src\features\gpu\cross_compilation.zig
 
 - const `CrossCompilationError`
 
@@ -11042,7 +11153,7 @@ Log cross-compilation target information
 pub fn logCrossCompilationTarget(target: *const CrossCompilationTarget) void {
 ```
 
-## src/features/gpu/demo/advanced_gpu_demo.zig
+## src\features\gpu\demo\advanced_gpu_demo.zig
 
 - fn `main`
 
@@ -11050,7 +11161,7 @@ pub fn logCrossCompilationTarget(target: *const CrossCompilationTarget) void {
 pub fn main() !void {
 ```
 
-## src/features/gpu/demo/enhanced_gpu_demo.zig
+## src\features\gpu\demo\enhanced_gpu_demo.zig
 
 - fn `main`
 
@@ -11058,7 +11169,7 @@ pub fn main() !void {
 pub fn main() !void {
 ```
 
-## src/features/gpu/demo/gpu_demo.zig
+## src\features\gpu\demo\gpu_demo.zig
 
 - fn `format`
 
@@ -11114,7 +11225,7 @@ pub fn checkPowerLimit(self: *PowerMonitor) bool {
 pub fn deinit(self: ComprehensiveReportData) void {
 ```
 
-## src/features/gpu/demo/mod.zig
+## src\features\gpu\demo\mod.zig
 
 - const `gpu_demo`
 
@@ -11140,7 +11251,7 @@ pub const advanced_gpu_demo = @import("advanced_gpu_demo.zig");
 pub const test_shader = @embedFile("test_shader.glsl");
 ```
 
-## src/features/gpu/gpu_examples.zig
+## src\features\gpu\gpu_examples.zig
 
 - fn `init`
 
@@ -11232,7 +11343,7 @@ Main function demonstrating GPU compute capabilities
 pub fn main() !void {
 ```
 
-## src/features/gpu/gpu_renderer.zig
+## src\features\gpu\gpu_renderer.zig
 
 - const `GpuError`
 
@@ -11555,7 +11666,7 @@ Get frame count
 pub fn getFrameCount(self: *Self) u64 {
 ```
 
-## src/features/gpu/hardware_detection.zig
+## src\features\gpu\hardware_detection.zig
 
 - type `BackendType`
 
@@ -11755,7 +11866,7 @@ Convenience helper used by demos to print a concise summary.
 pub fn logGPUDetectionResults(result: *const GPUDetectionResult) void {
 ```
 
-## src/features/gpu/libraries/cuda_integration.zig
+## src\features\gpu\libraries\cuda_integration.zig
 
 - type `CUDACapabilities`
 
@@ -11916,7 +12027,7 @@ Destroy CUDA stream
 pub fn destroyStream(stream: *anyopaque) void {
 ```
 
-## src/features/gpu/libraries/mach_gpu_integration.zig
+## src\features\gpu\libraries\mach_gpu_integration.zig
 
 - type `MachDeviceType`
 
@@ -12089,7 +12200,7 @@ pub fn compileGLSLToWGSL(glsl_source: []const u8, shader_type: ShaderType) ![]co
 pub const ShaderType = enum {
 ```
 
-## src/features/gpu/libraries/mod.zig
+## src\features\gpu\libraries\mod.zig
 
 - const `vulkan_bindings`
 
@@ -12307,7 +12418,7 @@ Error types for GPU library operations
 pub const GPULibraryError = error{
 ```
 
-## src/features/gpu/libraries/simd_optimizations.zig
+## src\features\gpu\libraries\simd_optimizations.zig
 
 - type `VectorTypes`
 
@@ -12850,7 +12961,7 @@ Benchmark matrix operations
 pub fn benchmarkMatrixOperations(allocator: std.mem.Allocator) !void {
 ```
 
-## src/features/gpu/libraries/simd_optimizations_minimal.zig
+## src\features\gpu\libraries\simd_optimizations_minimal.zig
 
 - type `VectorTypes`
 
@@ -13122,7 +13233,7 @@ Benchmark matrix operations
 pub fn benchmarkMatrixOperations(allocator: std.mem.Allocator) !void {
 ```
 
-## src/features/gpu/libraries/simd_optimizations_simple.zig
+## src\features\gpu\libraries\simd_optimizations_simple.zig
 
 - type `VectorTypes`
 
@@ -13493,7 +13604,7 @@ Benchmark matrix operations
 pub fn benchmarkMatrixOperations(allocator: std.mem.Allocator) !void {
 ```
 
-## src/features/gpu/libraries/vulkan_bindings.zig
+## src\features\gpu\libraries\vulkan_bindings.zig
 
 - type `VulkanVersion`
 
@@ -13813,7 +13924,7 @@ pub fn isSupported(device: *VulkanRenderer) bool {
 pub fn createMultiViewRenderPass(device: *VulkanRenderer, view_count: u32) !*anyopaque {
 ```
 
-## src/features/gpu/memory/memory_pool.zig
+## src\features\gpu\memory\memory_pool.zig
 
 - type `MemoryPoolConfig`
 
@@ -13935,7 +14046,7 @@ Get memory usage report
 pub fn getMemoryReport(self: *MemoryPool, allocator: std.mem.Allocator) ![]const u8 {
 ```
 
-## src/features/gpu/memory/mod.zig
+## src\features\gpu\memory\mod.zig
 
 - const `memory_pool`
 
@@ -13943,7 +14054,7 @@ pub fn getMemoryReport(self: *MemoryPool, allocator: std.mem.Allocator) ![]const
 pub const memory_pool = @import("memory_pool.zig");
 ```
 
-## src/features/gpu/mobile/mobile_platform_support.zig
+## src\features\gpu\mobile\mobile_platform_support.zig
 
 - type `MobilePlatformManager`
 
@@ -14110,7 +14221,7 @@ Get recommended GPU settings for thermal state
 pub fn getThermalGPUSettings(self: *Self) PowerManagement.GPUSettings {
 ```
 
-## src/features/gpu/mobile/mod.zig
+## src\features\gpu\mobile\mod.zig
 
 - const `mobile_platform_support`
 
@@ -14142,7 +14253,7 @@ pub const PowerManagement = mobile_platform_support.PowerManagement;
 pub const ThermalManagement = mobile_platform_support.ThermalManagement;
 ```
 
-## src/features/gpu/mod.zig
+## src\features\gpu\mod.zig
 
 - const `gpu_renderer`
 
@@ -14246,7 +14357,7 @@ pub const gpu_examples = @import("gpu_examples.zig");
 pub const GPUContext = core.gpu_renderer.GPUContext;
 ```
 
-## src/features/gpu/optimizations/backend_detection.zig
+## src\features\gpu\optimizations\backend_detection.zig
 
 - type `BackendDetector`
 
@@ -14338,7 +14449,7 @@ Check if a specific backend is available
 pub fn isBackendAvailable(self: *Self, backend_type: BackendType) bool {
 ```
 
-## src/features/gpu/optimizations/mod.zig
+## src\features\gpu\optimizations\mod.zig
 
 - const `platform_optimizations`
 
@@ -14382,7 +14493,7 @@ pub const PlatformUtils = platform_optimizations.PlatformUtils;
 pub const BackendDetector = backend_detection.BackendDetector;
 ```
 
-## src/features/gpu/optimizations/platform_optimizations.zig
+## src\features\gpu\optimizations\platform_optimizations.zig
 
 - type `PlatformOptimizations`
 
@@ -14528,7 +14639,7 @@ pub fn supportsFeature(platform: PlatformOptimizations.TargetPlatform, feature: 
 pub const PlatformFeature = enum {
 ```
 
-## src/features/gpu/testing/cross_platform_tests.zig
+## src\features\gpu\testing\cross_platform_tests.zig
 
 - type `CrossPlatformTestSuite`
 
@@ -14587,7 +14698,7 @@ Run all tests across all platforms
 pub fn runAllTests(self: *Self) !void {
 ```
 
-## src/features/gpu/testing/mod.zig
+## src\features\gpu\testing\mod.zig
 
 - const `cross_platform_tests`
 
@@ -14601,7 +14712,7 @@ pub const cross_platform_tests = @import("cross_platform_tests.zig");
 pub const CrossPlatformTestSuite = cross_platform_tests.CrossPlatformTestSuite;
 ```
 
-## src/features/gpu/unified_memory.zig
+## src\features\gpu\unified_memory.zig
 
 - const `UnifiedMemoryError`
 
@@ -14783,7 +14894,7 @@ Zero-copy data transfer from GPU (if supported)
 pub fn transferFromGpu(self: *Self) !void {
 ```
 
-## src/features/gpu/wasm_support.zig
+## src\features\gpu\wasm_support.zig
 
 - const `WASMError`
 
@@ -15097,7 +15208,68 @@ Log WebAssembly configuration
 pub fn logWASMConfig(config: *const WASMConfig) void {
 ```
 
-## src/features/monitoring/health.zig
+## src\features\mod.zig
+
+- type `FeatureTag`
+
+Symbolic identifiers for the high level feature families exposed by the
+framework module. Keeping the enum local avoids circular dependencies with
+`framework/config.zig` while still enabling compile-time iteration.
+
+
+```zig
+pub const FeatureTag = enum { ai, gpu, database, web, monitoring, connectors };
+```
+
+- const `ai`
+
+Public feature modules grouped for discoverability.
+
+
+```zig
+pub const ai = @import("ai/mod.zig");
+```
+
+- const `gpu`
+
+```zig
+pub const gpu = @import("gpu/mod.zig");
+```
+
+- const `database`
+
+```zig
+pub const database = @import("database/mod.zig");
+```
+
+- const `web`
+
+```zig
+pub const web = @import("web/mod.zig");
+```
+
+- const `monitoring`
+
+```zig
+pub const monitoring = @import("monitoring/mod.zig");
+```
+
+- const `connectors`
+
+```zig
+pub const connectors = @import("connectors/mod.zig");
+```
+
+- fn `forEachFeature`
+
+Invoke the visitor for every feature module re-exported by this file.
+
+
+```zig
+pub fn forEachFeature(ctx: anytype, visitor: anytype) void {
+```
+
+## src\features\monitoring\health.zig
 
 - type `HealthStatus`
 
@@ -15237,7 +15409,7 @@ Export health status as JSON
 pub fn exportHealthStatus(self: *Self, allocator: std.mem.Allocator) ![]const u8 {
 ```
 
-## src/features/monitoring/memory_tracker.zig
+## src\features\monitoring\memory_tracker.zig
 
 - type `AllocationRecord`
 
@@ -15599,7 +15771,7 @@ Create a production configuration with minimal overhead
 pub fn productionConfig() MemoryProfilerConfig {
 ```
 
-## src/features/monitoring/mod.zig
+## src\features\monitoring\mod.zig
 
 - const `health`
 
@@ -15655,7 +15827,7 @@ pub const regression = @import("regression.zig");
 pub const mod = @import("mod.zig");
 ```
 
-## src/features/monitoring/performance.zig
+## src\features\monitoring\performance.zig
 
 - const `Allocator`
 
@@ -15984,7 +16156,7 @@ Convenient macro for timing function execution
 pub fn timed(comptime name: []const u8, func: anytype) @TypeOf(func()) {
 ```
 
-## src/features/monitoring/performance_profiler.zig
+## src\features\monitoring\performance_profiler.zig
 
 - type `ProfilingConfig`
 
@@ -16331,7 +16503,7 @@ Create a minimal profiling configuration
 pub fn minimalConfig() ProfilingConfig {
 ```
 
-## src/features/monitoring/prometheus.zig
+## src\features\monitoring\prometheus.zig
 
 - type `MetricType`
 
@@ -16492,7 +16664,7 @@ pub fn deinit(self: *Self) void {
 pub fn start(self: *Self) !void {
 ```
 
-## src/features/monitoring/regression.zig
+## src\features\monitoring\regression.zig
 
 - type `RegressionSensitivity`
 
@@ -16671,7 +16843,7 @@ Force update all baselines (useful for testing)
 pub fn updateAllBaselines(self: *Self) !void {
 ```
 
-## src/features/monitoring/sampling.zig
+## src\features\monitoring\sampling.zig
 
 - type `PerformanceSample`
 
@@ -16817,7 +16989,7 @@ Export performance statistics
 pub fn exportStats(self: *Self, allocator: std.mem.Allocator) ![]const u8 {
 ```
 
-## src/features/monitoring/tracing.zig
+## src\features\monitoring\tracing.zig
 
 - const `TracingError`
 
@@ -17158,7 +17330,7 @@ Integration with performance monitoring
 pub fn integrateWithPerformance(tracer: *Tracer, perf_monitor: *performance.PerformanceMonitor) void {
 ```
 
-## src/features/web/c_api.zig
+## src\features\web\c_api.zig
 
 - type `WdbxResult`
 
@@ -17166,7 +17338,7 @@ pub fn integrateWithPerformance(tracer: *Tracer, perf_monitor: *performance.Perf
 pub const WdbxResult = extern struct {
 ```
 
-## src/features/web/curl_wrapper.zig
+## src\features\web\curl_wrapper.zig
 
 - fn `init`
 
@@ -17210,7 +17382,7 @@ Make HTTP request using libcurl
 pub fn request(self: *Self, method: []const u8, url: []const u8, content_type: ?[]const u8, body: ?[]const u8) !http_client.HttpResponse {
 ```
 
-## src/features/web/enhanced_web_server.zig
+## src\features\web\enhanced_web_server.zig
 
 - type `EnhancedWebServer`
 
@@ -17857,7 +18029,7 @@ pub fn stop(self: *ClusterManager) void {
 pub fn healthCheck(self: *const ClusterManager) ComponentHealth {
 ```
 
-## src/features/web/http_client.zig
+## src\features\web\http_client.zig
 
 - type `HttpClientConfig`
 
@@ -17958,7 +18130,7 @@ Run comprehensive connectivity tests
 pub fn runDiagnostics(self: *Self, base_url: []const u8) !void {
 ```
 
-## src/features/web/mod.zig
+## src\features\web\mod.zig
 
 - const `web_server`
 
@@ -18008,7 +18180,7 @@ pub const c_api = @import("c_api.zig");
 pub const mod = @import("mod.zig");
 ```
 
-## src/features/web/wdbx_http.zig
+## src\features\web\wdbx_http.zig
 
 - const `HttpError`
 
@@ -18074,6 +18246,17 @@ pub fn start(self: *WdbxHttpServer) !void {
 pub fn stop(self: *WdbxHttpServer) void {
 ```
 
+- fn `run`
+
+Start a blocking TCP listener that serves HTTP requests using the
+existing request handler. The server processes connections
+sequentially to keep the implementation simple and predictable.
+
+
+```zig
+pub fn run(self: *WdbxHttpServer) !void {
+```
+
 - fn `respond`
 
 High level request handler used by the CLI and tests.
@@ -18083,7 +18266,7 @@ High level request handler used by the CLI and tests.
 pub fn respond(
 ```
 
-## src/features/web/weather.zig
+## src\features\web\weather.zig
 
 - const `Allocator`
 
@@ -18205,7 +18388,7 @@ pub fn formatWeatherJson(weather: WeatherData, allocator: std.mem.Allocator) ![]
 pub fn getWeatherEmoji(icon: []const u8) []const u8 {
 ```
 
-## src/features/web/web_server.zig
+## src\features\web\web_server.zig
 
 - const `Allocator`
 
@@ -18356,7 +18539,541 @@ Errors:
 pub fn handlePathForTest(self: *WebServer, path: []const u8, allocator: std.mem.Allocator) ![]u8 {
 ```
 
-## src/main.zig
+## src\framework\catalog.zig
+
+- const `descriptors`
+
+Static catalog describing every feature exposed by the framework runtime.
+
+
+```zig
+pub const descriptors = [_]FeatureDescriptor{
+```
+
+- fn `featureCount`
+
+```zig
+pub fn featureCount() usize {
+```
+
+## src\framework\config.zig
+
+- type `Feature`
+
+Enumerates the coarse feature families that can be toggled at runtime.
+
+
+```zig
+pub const Feature = enum(u3) {
+```
+
+- const `feature_count`
+
+```zig
+pub const feature_count = @typeInfo(Feature).Enum.fields.len;
+```
+
+- type `FeatureToggles`
+
+Bit-set backed feature selection utility used by the framework runtime.
+
+
+```zig
+pub const FeatureToggles = struct {
+```
+
+- fn `enable`
+
+```zig
+pub fn enable(self: *FeatureToggles, feature: Feature) void {
+```
+
+- fn `disable`
+
+```zig
+pub fn disable(self: *FeatureToggles, feature: Feature) void {
+```
+
+- fn `set`
+
+```zig
+pub fn set(self: *FeatureToggles, feature: Feature, value: bool) void {
+```
+
+- fn `enableMany`
+
+```zig
+pub fn enableMany(self: *FeatureToggles, features: []const Feature) void {
+```
+
+- fn `disableMany`
+
+```zig
+pub fn disableMany(self: *FeatureToggles, features: []const Feature) void {
+```
+
+- fn `isEnabled`
+
+```zig
+pub fn isEnabled(self: FeatureToggles, feature: Feature) bool {
+```
+
+- fn `count`
+
+```zig
+pub fn count(self: FeatureToggles) usize {
+```
+
+- fn `clear`
+
+```zig
+pub fn clear(self: *FeatureToggles) void {
+```
+
+- fn `iterator`
+
+```zig
+pub fn iterator(self: FeatureToggles) FeatureIterator {
+```
+
+- fn `toOwnedSlice`
+
+```zig
+pub fn toOwnedSlice(self: FeatureToggles, allocator: std.mem.Allocator) ![]Feature {
+```
+
+- type `FeatureIterator`
+
+Iterator used to traverse enabled features.
+
+
+```zig
+pub const FeatureIterator = struct {
+```
+
+- fn `next`
+
+```zig
+pub fn next(self: *FeatureIterator) ?Feature {
+```
+
+- fn `featureLabel`
+
+Human readable name for a feature.
+
+
+```zig
+pub fn featureLabel(feature: Feature) []const u8 {
+```
+
+- fn `featureDescription`
+
+Short description describing the role of each feature for summary output.
+
+
+```zig
+pub fn featureDescription(feature: Feature) []const u8 {
+```
+
+- type `FrameworkOptions`
+
+Configuration supplied when bootstrapping the framework.
+
+
+```zig
+pub const FrameworkOptions = struct {
+```
+
+- fn `deriveFeatureToggles`
+
+Compute the feature toggles implied by the provided options.
+
+
+```zig
+pub fn deriveFeatureToggles(options: FrameworkOptions) FeatureToggles {
+```
+
+## src\framework\feature_manager.zig
+
+- type `FeatureCategory`
+
+Categories used to group framework features.
+
+
+```zig
+pub const FeatureCategory = enum {
+```
+
+- type `Environment`
+
+Execution context passed to feature callbacks.
+
+
+```zig
+pub const Environment = struct {
+```
+
+- fn `contextAs`
+
+Attempt to reinterpret the opaque context pointer as the requested type.
+
+
+```zig
+pub fn contextAs(self: Environment, comptime T: type) ?*T {
+```
+
+- const `InitFn`
+
+Initialization routine for a feature.
+
+
+```zig
+pub const InitFn = *const fn (Environment) anyerror!void;
+```
+
+- const `DeinitFn`
+
+Shutdown routine for a feature.
+
+
+```zig
+pub const DeinitFn = *const fn (Environment) void;
+```
+
+- type `FeatureDescriptor`
+
+Static metadata describing an available feature.
+
+
+```zig
+pub const FeatureDescriptor = struct {
+```
+
+- const `Error`
+
+Error set returned by the feature manager.
+
+
+```zig
+pub const Error = error{
+```
+
+- type `FeatureManager`
+
+Orchestrates feature initialization and shutdown with dependency management.
+
+
+```zig
+pub const FeatureManager = struct {
+```
+
+- fn `init`
+
+Construct a manager for a static descriptor set.
+
+
+```zig
+pub fn init(
+```
+
+- fn `deinit`
+
+Release memory owned by the manager. The caller must call `shutdown` first.
+
+
+```zig
+pub fn deinit(self: *FeatureManager) void {
+```
+
+- fn `ensure`
+
+Ensure a feature and its dependencies are initialized.
+
+
+```zig
+pub fn ensure(self: *FeatureManager, name: []const u8) anyerror!void {
+```
+
+- fn `ensureCategory`
+
+Ensure an entire category of features is initialized.
+
+
+```zig
+pub fn ensureCategory(self: *FeatureManager, category: FeatureCategory) anyerror!void {
+```
+
+- fn `ensureAll`
+
+Ensure all descriptors are initialized in dependency order.
+
+
+```zig
+pub fn ensureAll(self: *FeatureManager) anyerror!void {
+```
+
+- fn `isInitialized`
+
+Return whether a feature has already been initialized.
+
+
+```zig
+pub fn isInitialized(self: FeatureManager, name: []const u8) bool {
+```
+
+- fn `initializedCount`
+
+Number of features that have been initialized.
+
+
+```zig
+pub fn initializedCount(self: FeatureManager) usize {
+```
+
+- fn `shutdown`
+
+Shut down initialized features in reverse order.
+
+
+```zig
+pub fn shutdown(self: *FeatureManager) void {
+```
+
+## src\framework\mod.zig
+
+- const `config`
+
+```zig
+pub const config = @import("config.zig");
+```
+
+- const `runtime`
+
+```zig
+pub const runtime = @import("runtime.zig");
+```
+
+- const `Feature`
+
+```zig
+pub const Feature = config.Feature;
+```
+
+- const `FeatureToggles`
+
+```zig
+pub const FeatureToggles = config.FeatureToggles;
+```
+
+- const `FrameworkOptions`
+
+```zig
+pub const FrameworkOptions = config.FrameworkOptions;
+```
+
+- const `Framework`
+
+```zig
+pub const Framework = runtime.Framework;
+```
+
+- const `featureLabel`
+
+```zig
+pub const featureLabel = config.featureLabel;
+```
+
+- const `featureDescription`
+
+```zig
+pub const featureDescription = config.featureDescription;
+```
+
+- fn `deriveFeatureToggles`
+
+```zig
+pub fn deriveFeatureToggles(options: FrameworkOptions) config.FeatureToggles {
+```
+
+## src\framework\runtime.zig
+
+- type `Framework`
+
+Orchestrates feature toggles, plugin discovery, and lifecycle management.
+
+
+```zig
+pub const Framework = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator, options: config.FrameworkOptions) !Framework {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *Framework) void {
+```
+
+- fn `pluginRegistry`
+
+```zig
+pub fn pluginRegistry(self: *Framework) *registry_mod.PluginRegistry {
+```
+
+- fn `features`
+
+```zig
+pub fn features(self: *const Framework) config.FeatureIterator {
+```
+
+- fn `featureCount`
+
+```zig
+pub fn featureCount(self: *const Framework) usize {
+```
+
+- fn `isFeatureEnabled`
+
+```zig
+pub fn isFeatureEnabled(self: *const Framework, feature: config.Feature) bool {
+```
+
+- fn `setFeature`
+
+```zig
+pub fn setFeature(self: *Framework, feature: config.Feature, enabled: bool) bool {
+```
+
+- fn `enableFeature`
+
+```zig
+pub fn enableFeature(self: *Framework, feature: config.Feature) bool {
+```
+
+- fn `disableFeature`
+
+```zig
+pub fn disableFeature(self: *Framework, feature: config.Feature) bool {
+```
+
+- fn `addPluginPath`
+
+```zig
+pub fn addPluginPath(self: *Framework, path: []const u8) !void {
+```
+
+- fn `setPluginPaths`
+
+```zig
+pub fn setPluginPaths(self: *Framework, paths: []const []const u8) !void {
+```
+
+- fn `pluginPathCount`
+
+```zig
+pub fn pluginPathCount(self: *const Framework) usize {
+```
+
+- fn `pluginPath`
+
+```zig
+pub fn pluginPath(self: *const Framework, index: usize) []const u8 {
+```
+
+- fn `refreshPlugins`
+
+```zig
+pub fn refreshPlugins(self: *Framework) !void {
+```
+
+- fn `loadDiscoveredPlugins`
+
+```zig
+pub fn loadDiscoveredPlugins(self: *Framework) !void {
+```
+
+- fn `discoveredPluginCount`
+
+```zig
+pub fn discoveredPluginCount(self: *const Framework) usize {
+```
+
+- fn `discoveredPlugin`
+
+```zig
+pub fn discoveredPlugin(self: *const Framework, index: usize) []const u8 {
+```
+
+- fn `writeSummary`
+
+```zig
+pub fn writeSummary(self: *const Framework, writer: anytype) !void {
+```
+
+## src\framework\state.zig
+
+- type `RuntimeOptions`
+
+Runtime configuration toggles supplied by callers when bootstrapping the framework.
+
+
+```zig
+pub const RuntimeOptions = struct {
+```
+
+- type `LoggingOptions`
+
+Structured logging configuration.
+
+
+```zig
+pub const LoggingOptions = struct {
+```
+
+- type `RuntimeState`
+
+Mutable state shared across feature initialization callbacks.
+
+
+```zig
+pub const RuntimeState = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator, options: RuntimeOptions) RuntimeState {
+```
+
+- fn `setLogger`
+
+```zig
+pub fn setLogger(self: *RuntimeState, logger: ?*logging.Logger) void {
+```
+
+- fn `setPluginRegistry`
+
+```zig
+pub fn setPluginRegistry(self: *RuntimeState, registry: plugin.PluginRegistry) void {
+```
+
+- fn `clearLogger`
+
+```zig
+pub fn clearLogger(self: *RuntimeState) void {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *RuntimeState) void {
+```
+
+## src\main.zig
 
 - fn `main`
 
@@ -18364,7 +19081,7 @@ pub fn handlePathForTest(self: *WebServer, path: []const u8, allocator: std.mem.
 pub fn main() !void {
 ```
 
-## src/ml/localml.zig
+## src\ml\localml.zig
 
 - const `Allocator`
 
@@ -18432,7 +19149,7 @@ pub fn train(self: *Model, data: []const DataRow, learning_rate: f64, epochs: us
 pub fn main() !void {
 ```
 
-## src/ml/neural.zig
+## src\ml\neural.zig
 
 - const `Allocator`
 
@@ -18911,66 +19628,66 @@ Train the network on a single sample with mixed precision support
 pub fn trainStepMixed(
 ```
 
-## src/mod.zig
+## src\mod.zig
 
-- const `ai`
+- const `features`
 
-AI/ML functionality and neural networks
+Grouped feature modules mirroring the documentation structure.
 
 
 ```zig
-pub const ai = @import("features/ai/mod.zig");
+pub const features = @import("features/mod.zig");
+```
+
+- const `ai`
+
+Re-export feature modules for convenient access via `abi.<feature>`.
+
+
+```zig
+pub const ai = features.ai;
 ```
 
 - const `gpu`
 
-GPU acceleration and compute
-
-
 ```zig
-pub const gpu = @import("features/gpu/mod.zig");
+pub const gpu = features.gpu;
 ```
 
 - const `database`
 
-Vector databases and data persistence
-
-
 ```zig
-pub const database = @import("features/database/mod.zig");
+pub const database = features.database;
 ```
 
 - const `web`
 
-Web servers, HTTP clients, and services
-
-
 ```zig
-pub const web = @import("features/web/mod.zig");
+pub const web = features.web;
 ```
 
 - const `monitoring`
 
-System monitoring and observability
-
-
 ```zig
-pub const monitoring = @import("features/monitoring/mod.zig");
+pub const monitoring = features.monitoring;
 ```
 
 - const `connectors`
 
-External service integrations
+```zig
+pub const connectors = features.connectors;
+```
+
+- const `framework`
+
+Framework orchestration layer that coordinates features and plugins.
 
 
 ```zig
-pub const connectors = @import("features/connectors/mod.zig");
+pub const framework = @import("framework/mod.zig");
 ```
 
 - const `utils`
-
-Cross-cutting utilities and helpers
-
 
 ```zig
 pub const utils = @import("shared/utils/mod.zig");
@@ -18978,17 +19695,11 @@ pub const utils = @import("shared/utils/mod.zig");
 
 - const `core`
 
-Core system functionality
-
-
 ```zig
 pub const core = @import("shared/core/mod.zig");
 ```
 
 - const `platform`
-
-Platform-specific abstractions
-
 
 ```zig
 pub const platform = @import("shared/platform/mod.zig");
@@ -18996,68 +19707,70 @@ pub const platform = @import("shared/platform/mod.zig");
 
 - const `logging`
 
-Logging and telemetry
-
-
 ```zig
 pub const logging = @import("shared/logging/mod.zig");
 ```
 
 - const `simd`
 
-SIMD operations (moved to shared)
-
-
 ```zig
 pub const simd = @import("shared/simd.zig");
 ```
 
-- const `main`
-
-Main application entry point
-
-
-```zig
-pub const main = @import("main.zig");
-```
-
 - const `root`
-
-Root configuration
-
 
 ```zig
 pub const root = @import("root.zig");
 ```
 
-- fn `init`
-
-Initialize the entire ABI framework
-
+- const `Feature`
 
 ```zig
-pub fn init(allocator: std.mem.Allocator) !void {
+pub const Feature = framework.Feature;
 ```
 
-- fn `deinit`
+- const `Framework`
 
-Shutdown the entire ABI framework
+```zig
+pub const Framework = framework.Framework;
+```
+
+- const `FrameworkOptions`
+
+```zig
+pub const FrameworkOptions = framework.FrameworkOptions;
+```
+
+- fn `init`
+
+Initialise the ABI framework and return the orchestration handle. Call
+`Framework.deinit` (or `abi.shutdown`) when finished.
 
 
 ```zig
-pub fn deinit() void {
+pub fn init(allocator: std.mem.Allocator, options: FrameworkOptions) !Framework {
+```
+
+- fn `shutdown`
+
+Convenience wrapper around `Framework.deinit` for callers that prefer the
+legacy function-style shutdown.
+
+
+```zig
+pub fn shutdown(instance: *Framework) void {
 ```
 
 - fn `version`
 
-Get framework version information
+Get framework version information.
 
 
 ```zig
 pub fn version() []const u8 {
 ```
 
-## src/root.zig
+## src\root.zig
 
 - const `abi`
 
@@ -19065,7 +19778,13 @@ pub fn version() []const u8 {
 pub const abi = @import("mod.zig");
 ```
 
-## src/shared/core/config.zig
+- const `framework`
+
+```zig
+pub const framework = @import("framework/mod.zig");
+```
+
+## src\shared\core\config.zig
 
 - type `FrameworkConfig`
 
@@ -19271,7 +19990,7 @@ Save agent configuration to JSON file
 pub fn saveAgentConfig(self: *Self, config: AgentConfig, path: []const u8) !void {
 ```
 
-## src/shared/core/core.zig
+## src\shared\core\core.zig
 
 - const `AbiError`
 
@@ -19309,7 +20028,7 @@ pub fn isInitialized() bool {
 pub fn getAllocator() std.mem.Allocator {
 ```
 
-## src/shared/core/errors.zig
+## src\shared\core\errors.zig
 
 - const `AbiError`
 
@@ -19356,7 +20075,7 @@ Error result helper.
 pub fn err(comptime T: type, error_type: AbiError) Result(T) {
 ```
 
-## src/shared/core/framework.zig
+## src\shared\core\framework.zig
 
 - type `Framework`
 
@@ -19676,7 +20395,114 @@ pub fn init(allocator: std.mem.Allocator) !*MemoryTracker {
 pub fn init(allocator: std.mem.Allocator) !*PerformanceProfiler {
 ```
 
-## src/shared/core/logging.zig
+## src\shared\core\lifecycle.zig
+
+- type `Stage`
+
+High-level phases the runtime travels through during its lifetime.
+
+
+```zig
+pub const Stage = enum(u3) {
+```
+
+- fn `next`
+
+```zig
+pub fn next(self: Stage) ?Stage {
+```
+
+- type `Transition`
+
+Transition metadata provided to lifecycle observers.
+
+
+```zig
+pub const Transition = struct {
+```
+
+- type `Observer`
+
+Callback executed when a lifecycle transition occurs.
+
+
+```zig
+pub const Observer = struct {
+```
+
+- type `StageMask`
+
+Bit mask describing the stages an observer is interested in.
+
+
+```zig
+pub const StageMask = packed struct(u5) {
+```
+
+- fn `all`
+
+```zig
+pub fn all() StageMask {
+```
+
+- fn `contains`
+
+```zig
+pub fn contains(self: StageMask, stage: Stage) bool {
+```
+
+- const `Error`
+
+```zig
+pub const Error = error{
+```
+
+- type `Lifecycle`
+
+Lightweight lifecycle coordinator used by the runtime.
+
+
+```zig
+pub const Lifecycle = struct {
+```
+
+- type `Options`
+
+```zig
+pub const Options = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init(allocator: std.mem.Allocator, options: Options) !Lifecycle {
+```
+
+- fn `deinit`
+
+```zig
+pub fn deinit(self: *Lifecycle) void {
+```
+
+- fn `currentStage`
+
+```zig
+pub fn currentStage(self: Lifecycle) Stage {
+```
+
+- fn `addObserver`
+
+```zig
+pub fn addObserver(self: *Lifecycle, observer: Observer) !void {
+```
+
+- fn `advance`
+
+```zig
+pub fn advance(self: *Lifecycle, to: Stage) Error!void {
+```
+
+## src\shared\core\logging.zig
 
 - type `LogLevel`
 
@@ -19774,7 +20600,7 @@ Log a fatal message.
 pub fn fatal(comptime format: []const u8, args: anytype) void {
 ```
 
-## src/shared/core/mod.zig
+## src\shared\core\mod.zig
 
 - const `core`
 
@@ -19818,7 +20644,7 @@ pub const logging = @import("logging.zig");
 pub const mod = @import("mod.zig");
 ```
 
-## src/shared/enhanced_plugin_system.zig
+## src\shared\enhanced_plugin_system.zig
 
 - type `EnhancedPluginSystem`
 
@@ -20333,7 +21159,7 @@ pub fn deinit(self: *PerformanceMonitor) void {
 pub fn validatePlugin(self: *PerformanceMonitor, plugin: *Plugin) !void {
 ```
 
-## src/shared/interface.zig
+## src\shared\interface.zig
 
 - type `PluginInterface`
 
@@ -20501,7 +21327,7 @@ Destroy a plugin instance
 pub fn destroyPlugin(allocator: std.mem.Allocator, plugin: *Plugin) void {
 ```
 
-## src/shared/loader.zig
+## src\shared\loader.zig
 
 - type `PluginLoader`
 
@@ -20548,7 +21374,7 @@ Discover plugins in the search paths
 
 
 ```zig
-pub fn discoverPlugins(self: *PluginLoader) !std.ArrayList([]const u8) {
+pub fn discoverPlugins(self: *PluginLoader) !std.ArrayList([]u8) {
 ```
 
 - fn `loadPlugin`
@@ -20596,7 +21422,7 @@ Create a plugin loader instance
 pub fn createLoader(allocator: std.mem.Allocator) PluginLoader {
 ```
 
-## src/shared/logging/logging.zig
+## src\shared\logging\logging.zig
 
 - type `LogLevel`
 
@@ -20778,7 +21604,7 @@ pub fn err(comptime message: []const u8, fields: anytype, src: std.builtin.Sourc
 pub fn fatal(comptime message: []const u8, fields: anytype, src: std.builtin.SourceLocation) !void {
 ```
 
-## src/shared/logging/mod.zig
+## src\shared\logging\mod.zig
 
 - const `logging`
 
@@ -20786,7 +21612,7 @@ pub fn fatal(comptime message: []const u8, fields: anytype, src: std.builtin.Sou
 pub const logging = @import("logging.zig");
 ```
 
-## src/shared/mod.zig
+## src\shared\mod.zig
 
 - const `interface`
 
@@ -20899,13 +21725,13 @@ pub const VERSION = struct {
 - const `MAJOR`
 
 ```zig
-pub const MAJOR = 0;
+pub const MAJOR = 1;
 ```
 
 - const `MINOR`
 
 ```zig
-pub const MINOR = 1;
+pub const MINOR = 0;
 ```
 
 - const `PATCH`
@@ -20926,7 +21752,7 @@ pub fn string() []const u8 {
 pub fn isCompatible(major: u32, minor: u32) bool {
 ```
 
-## src/shared/platform/mod.zig
+## src\shared\platform\mod.zig
 
 - const `platform`
 
@@ -20934,7 +21760,7 @@ pub fn isCompatible(major: u32, minor: u32) bool {
 pub const platform = @import("platform.zig");
 ```
 
-## src/shared/platform/platform.zig
+## src\shared\platform\platform.zig
 
 - const `Allocator`
 
@@ -21188,7 +22014,7 @@ Get system information as a formatted string
 pub fn getSystemInfo(allocator: std.mem.Allocator) ![]const u8 {
 ```
 
-## src/shared/registry.zig
+## src\shared\registry.zig
 
 - fn `init`
 
@@ -21238,7 +22064,7 @@ Discover plugins in search paths
 
 
 ```zig
-pub fn discoverPlugins(self: *PluginRegistry) !std.ArrayList([]const u8) {
+pub fn discoverPlugins(self: *PluginRegistry) !std.ArrayList([]u8) {
 ```
 
 - fn `loadPlugin`
@@ -21337,7 +22163,7 @@ Get all plugin names
 
 
 ```zig
-pub fn getPluginNames(self: *PluginRegistry) !std.ArrayList([]const u8) {
+pub fn getPluginNames(self: *PluginRegistry) !std.ArrayList([]u8) {
 ```
 
 - fn `getPluginCount`
@@ -21394,41 +22220,12 @@ Create a plugin registry instance
 pub fn createRegistry(allocator: std.mem.Allocator) !PluginRegistry {
 ```
 
-## src/shared/simd.zig
+## src\shared\simd.zig
 
-- fn `distance`
-
-SIMD-accelerated operations for high‑performance computing
-Simple utility functions for tests and basic API
-Distance between two equal‑length slices
-
+- const `SIMD_WIDTH`
 
 ```zig
-pub fn distance(a: []const f32, b: []const f32) f32 {
-```
-
-- fn `cosineSimilarity`
-
-Cosine similarity between two equal‑length slices
-
-
-```zig
-pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
-```
-
-- type `PerformanceMonitor`
-
-Dummy performance monitor struct for tests
-
-
-```zig
-pub const PerformanceMonitor = struct {};
-```
-
-- fn `getPerformanceMonitor`
-
-```zig
-pub fn getPerformanceMonitor() PerformanceMonitor {
+pub const SIMD_WIDTH = default_simd_width;
 ```
 
 - type `SIMDOpts`
@@ -21437,19 +22234,61 @@ pub fn getPerformanceMonitor() PerformanceMonitor {
 pub const SIMDOpts = struct {
 ```
 
+- fn `shouldUseSimd`
+
+```zig
+pub fn shouldUseSimd(self: SIMDOpts, len: usize) bool {
+```
+
+- type `PerformanceMonitorDetails`
+
+```zig
+pub const PerformanceMonitorDetails = struct {
+```
+
+- type `PerformanceMonitor`
+
+```zig
+pub const PerformanceMonitor = struct {
+```
+
+- fn `init`
+
+```zig
+pub fn init() PerformanceMonitor {
+```
+
+- fn `recordOperation`
+
+```zig
+pub fn recordOperation(self: *PerformanceMonitor, duration_ns: u64, used_simd: bool) void {
+```
+
+- fn `reset`
+
+```zig
+pub fn reset(self: *PerformanceMonitor) void {
+```
+
+- fn `details`
+
+```zig
+pub fn details(self: *PerformanceMonitor) PerformanceMonitorDetails {
+```
+
 - type `VectorOps`
-
-SIMD-accelerated vector operations
-
 
 ```zig
 pub const VectorOps = struct {
 ```
 
+- fn `shouldUseSimd`
+
+```zig
+pub fn shouldUseSimd(len: usize) bool {
+```
+
 - fn `dotProduct`
-
-SIMD-accelerated dot product
-
 
 ```zig
 pub fn dotProduct(a: []const f32, b: []const f32) f32 {
@@ -21457,17 +22296,17 @@ pub fn dotProduct(a: []const f32, b: []const f32) f32 {
 
 - fn `matrixVectorMultiply`
 
-SIMD-accelerated matrix‑vector multiplication
+```zig
+pub fn matrixVectorMultiply(result: []f32, matrix: []const f32, vector: []const f32, rows: usize, cols: usize) void {
+```
 
+- fn `matrixMultiply`
 
 ```zig
-pub fn matrixVectorMultiply(matrix: []const f32, vector: []const f32, result: []f32, rows: usize, cols: usize) void {
+pub fn matrixMultiply(result: []f32, a: []const f32, b: []const f32, rows: usize, cols: usize, inner_dim: usize) void {
 ```
 
 - fn `vectorizedRelu`
-
-SIMD-accelerated ReLU activation
-
 
 ```zig
 pub fn vectorizedRelu(data: []f32) void {
@@ -21475,68 +22314,173 @@ pub fn vectorizedRelu(data: []f32) void {
 
 - fn `vectorizedLeakyRelu`
 
-SIMD-accelerated Leaky ReLU activation
-
-
 ```zig
 pub fn vectorizedLeakyRelu(data: []f32, slope: f32) void {
 ```
 
 - fn `vectorMax`
 
-SIMD-accelerated element‑wise maximum
-
-
 ```zig
-pub fn vectorMax(a: []const f32, b: []const f32, result: []f32) void {
+pub fn vectorMax(result: []f32, a: []const f32, b: []const f32) void {
 ```
 
 - fn `vectorAdd`
 
-SIMD-accelerated element‑wise addition
+```zig
+pub fn vectorAdd(result: []f32, a: []const f32, b: []const f32) void {
+```
 
+- fn `add`
 
 ```zig
-pub fn vectorAdd(a: []const f32, b: []const f32, result: []f32) void {
+pub fn add(result: []f32, a: []const f32, b: []const f32) void {
 ```
 
 - fn `vectorMul`
 
-SIMD-accelerated element‑wise multiplication
+```zig
+pub fn vectorMul(result: []f32, a: []const f32, b: []const f32) void {
+```
 
+- fn `multiply`
 
 ```zig
-pub fn vectorMul(a: []const f32, b: []const f32, result: []f32) void {
+pub fn multiply(result: []f32, a: []const f32, b: []const f32) void {
+```
+
+- fn `scale`
+
+```zig
+pub fn scale(result: []f32, input: []const f32, scalar: f32) void {
 ```
 
 - fn `normalize`
 
-SIMD-accelerated vector normalization (L2 norm)
+```zig
+pub fn normalize(result: []f32, input: []const f32) void {
+```
 
+- fn `vectorNormalize`
 
 ```zig
-pub fn normalize(data: []f32, result: []f32) void {
+pub fn vectorNormalize(result: []f32, input: []const f32) void {
+```
+
+- fn `distance`
+
+```zig
+pub fn distance(a: []const f32, b: []const f32) f32 {
+```
+
+- fn `cosineSimilarity`
+
+```zig
+pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
+```
+
+- fn `dotProduct`
+
+```zig
+pub fn dotProduct(a: []const f32, b: []const f32) f32 {
+```
+
+- fn `add`
+
+```zig
+pub fn add(result: []f32, a: []const f32, b: []const f32) void {
+```
+
+- fn `subtract`
+
+```zig
+pub fn subtract(result: []f32, a: []const f32, b: []const f32) void {
+```
+
+- fn `multiply`
+
+```zig
+pub fn multiply(result: []f32, a: []const f32, b: []const f32) void {
+```
+
+- fn `scale`
+
+```zig
+pub fn scale(result: []f32, input: []const f32, scalar: f32) void {
+```
+
+- fn `normalize`
+
+```zig
+pub fn normalize(result: []f32, input: []const f32) void {
+```
+
+- fn `matrixVectorMultiply`
+
+```zig
+pub fn matrixVectorMultiply(result: []f32, matrix: []const f32, vector: []const f32, rows: usize, cols: usize) void {
 ```
 
 - fn `matrixMultiply`
-
-SIMD-accelerated matrix multiplication (basic implementation)
-
 
 ```zig
 pub fn matrixMultiply(result: []f32, a: []const f32, b: []const f32, rows: usize, cols: usize, inner_dim: usize) void {
 ```
 
-- fn `shouldUseSimd`
-
-Check if SIMD is available and beneficial for given size
-
+- fn `dotProductSIMD`
 
 ```zig
-pub fn shouldUseSimd(size: usize) bool {
+pub fn dotProductSIMD(a: []const f32, b: []const f32, opts: SIMDOpts) f32 {
 ```
 
-## src/shared/types.zig
+- fn `vectorAddSIMD`
+
+```zig
+pub fn vectorAddSIMD(a: []const f32, b: []const f32, result: []f32) void {
+```
+
+- fn `getPerformanceMonitor`
+
+```zig
+pub fn getPerformanceMonitor() *PerformanceMonitor {
+```
+
+- fn `getPerformanceMonitorDetails`
+
+```zig
+pub fn getPerformanceMonitorDetails() PerformanceMonitorDetails {
+```
+
+- fn `getVectorOps`
+
+```zig
+pub fn getVectorOps() VectorOps {
+```
+
+- type `text`
+
+```zig
+pub const text = struct {
+```
+
+- fn `countByte`
+
+```zig
+pub fn countByte(haystack: []const u8, needle: u8) usize {
+```
+
+- fn `findByte`
+
+```zig
+pub fn findByte(haystack: []const u8, needle: u8) ?usize {
+```
+
+- fn `contains`
+
+```zig
+pub fn contains(haystack: []const u8, needle: u8) bool {
+```
+
+## src\shared\types.zig
 
 - const `PluginError`
 
@@ -21685,7 +22629,7 @@ pub fn log(self: *PluginContext, level: u8, message: []const u8) void {
 pub fn getService(self: *PluginContext, service_name: []const u8) ?*anyopaque {
 ```
 
-## src/shared/utils/http/mod.zig
+## src\shared\utils\http\mod.zig
 
 - type `HttpStatus`
 
@@ -21968,7 +22912,7 @@ Set Content-Type to text/html
 pub fn setHtml(self: *HttpResponse) !void {
 ```
 
-## src/shared/utils/json/mod.zig
+## src\shared\utils\json\mod.zig
 
 - const `JsonValue`
 
@@ -22078,7 +23022,7 @@ Get a boolean value from JSON by path
 pub fn getBool(json: JsonValue, path: []const u8) ?bool {
 ```
 
-## src/shared/utils/math/mod.zig
+## src\shared\utils\math\mod.zig
 
 - type `MathUtils`
 
@@ -22395,7 +23339,7 @@ Shuffle slice in place
 pub fn shuffle(comptime T: type, random: std.rand.Random, items: []T) void {
 ```
 
-## src/shared/utils/mod.zig
+## src\shared\utils\mod.zig
 
 - const `http`
 
@@ -22451,7 +23395,7 @@ pub const crypto = @import("crypto/mod.zig");
 pub const utils = @import("utils.zig");
 ```
 
-## src/shared/utils/string/mod.zig
+## src\shared\utils\string\mod.zig
 
 - type `StringUtils`
 
@@ -22669,7 +23613,7 @@ Parse duration string (e.g., "1.5s", "500ms", "30μs")
 pub fn parseDuration(duration_str: []const u8) !u64 {
 ```
 
-## src/shared/utils/utils.zig
+## src\shared\utils\utils.zig
 
 - const `VERSION`
 
@@ -22833,7 +23777,7 @@ Legacy math utilities - redirect to new modules
 pub const MathUtils = math.MathUtils;
 ```
 
-## src/simd.zig
+## src\simd.zig
 
 - const `SIMDOpts`
 
@@ -22877,7 +23821,7 @@ pub fn dotProductSIMD(a: []const f32, b: []const f32, opts: shared.SIMDOpts) f32
 pub fn vectorAddSIMD(a: []const f32, b: []const f32, result: []f32) void {
 ```
 
-## src/tests/integration/comprehensive_test_suite.zig
+## src\tests\integration\comprehensive_test_suite.zig
 
 - fn `init`
 
@@ -22966,7 +23910,7 @@ Main test function
 pub fn main() !void {
 ```
 
-## src/tests/integration/integration_test_suite.zig
+## src\tests\integration\integration_test_suite.zig
 
 - fn `main`
 
@@ -22978,7 +23922,7 @@ Tests cross-module functionality and system integration
 pub fn main() !void {
 ```
 
-## src/tests/integration/main.zig
+## src\tests\integration\main.zig
 
 - fn `main`
 
@@ -22986,7 +23930,7 @@ pub fn main() !void {
 pub fn main() !void {
 ```
 
-## src/tests/integration/simple_tests.zig
+## src\tests\integration\simple_tests.zig
 
 - fn `main`
 
@@ -22994,7 +23938,7 @@ pub fn main() !void {
 pub fn main() !void {
 ```
 
-## src/tests/mod.zig
+## src\tests\mod.zig
 
 - fn `main`
 
@@ -23005,7 +23949,7 @@ Main test entry point
 pub fn main() !void {
 ```
 
-## src/tests/unit/simd.zig
+## src\tests\unit\simd.zig
 
 - const `SIMDOpts`
 
@@ -23049,7 +23993,7 @@ pub fn dotProductSIMD(a: []const f32, b: []const f32, opts: shared.SIMDOpts) f32
 pub fn vectorAddSIMD(a: []const f32, b: []const f32, result: []f32) void {
 ```
 
-## src/tests/unit/test_http_server.zig
+## src\tests\unit\test_http_server.zig
 
 - fn `main`
 
@@ -23057,7 +24001,7 @@ pub fn vectorAddSIMD(a: []const f32, b: []const f32, result: []f32) void {
 pub fn main() !void {
 ```
 
-## src/tests/unit/test_refactoring.zig
+## src\tests\unit\test_refactoring.zig
 
 - const `core`
 
@@ -23140,7 +24084,7 @@ Get system information
 pub fn getSystemInfo() SystemInfo {
 ```
 
-## src/tests/unit/test_windows_networking.zig
+## src\tests\unit\test_windows_networking.zig
 
 - fn `main`
 
@@ -23148,7 +24092,7 @@ pub fn getSystemInfo() SystemInfo {
 pub fn main() !void {
 ```
 
-## src/tools/advanced_code_analyzer.zig
+## src\tools\advanced_code_analyzer.zig
 
 - type `CodeQualityMetrics`
 
@@ -23279,7 +24223,7 @@ Main function for command-line usage
 pub fn main() !void {
 ```
 
-## src/tools/basic_code_analyzer.zig
+## src\tools\basic_code_analyzer.zig
 
 - type `BasicMetrics`
 
@@ -23344,7 +24288,7 @@ Main function for command-line usage
 pub fn main() !void {
 ```
 
-## src/tools/continuous_monitor.zig
+## src\tools\continuous_monitor.zig
 
 - fn `main`
 
@@ -23352,7 +24296,7 @@ pub fn main() !void {
 pub fn main() !void {
 ```
 
-## src/tools/docs_generator.zig
+## src\tools\docs_generator.zig
 
 - fn `main`
 
@@ -23364,7 +24308,7 @@ Generates comprehensive API documentation from source code with enhanced GitHub 
 pub fn main() !void {
 ```
 
-## src/tools/generate_api_docs.zig
+## src\tools\generate_api_docs.zig
 
 - fn `main`
 
@@ -23372,7 +24316,7 @@ pub fn main() !void {
 pub fn main() !void {
 ```
 
-## src/tools/generate_index.zig
+## src\tools\generate_index.zig
 
 - fn `main`
 
@@ -23380,7 +24324,7 @@ pub fn main() !void {
 pub fn main() !void {
 ```
 
-## src/tools/http_smoke.zig
+## src\tools\http_smoke.zig
 
 - fn `main`
 
@@ -23388,7 +24332,7 @@ pub fn main() !void {
 pub fn main() !void {
 ```
 
-## src/tools/main.zig
+## src\tools\main.zig
 
 - fn `main`
 
@@ -23402,7 +24346,7 @@ pub fn main() !void {
 pub fn deinit(self: *TrainingData) void {
 ```
 
-## src/tools/memory_tracker.zig
+## src\tools\memory_tracker.zig
 
 - type `AllocationRecord`
 
@@ -23764,7 +24708,7 @@ Create a production configuration with minimal overhead
 pub fn productionConfig() MemoryProfilerConfig {
 ```
 
-## src/tools/perf_guard.zig
+## src\tools\perf_guard.zig
 
 - fn `main`
 
@@ -23772,7 +24716,7 @@ pub fn productionConfig() MemoryProfilerConfig {
 pub fn main() !void {
 ```
 
-## src/tools/performance.zig
+## src\tools\performance.zig
 
 - const `Allocator`
 
@@ -24101,7 +25045,7 @@ Convenient macro for timing function execution
 pub fn timed(comptime name: []const u8, func: anytype) @TypeOf(func()) {
 ```
 
-## src/tools/performance_ci.zig
+## src\tools\performance_ci.zig
 
 - type `PerformanceThresholds`
 
@@ -24247,7 +25191,7 @@ Enhanced main entry point with comprehensive error handling and configuration
 pub fn main() !void {
 ```
 
-## src/tools/performance_profiler.zig
+## src\tools\performance_profiler.zig
 
 - type `ProfilingConfig`
 
@@ -24594,7 +25538,7 @@ Create a minimal profiling configuration
 pub fn minimalConfig() ProfilingConfig {
 ```
 
-## src/tools/simple_code_analyzer.zig
+## src\tools\simple_code_analyzer.zig
 
 - type `SimpleMetrics`
 
@@ -24659,7 +25603,7 @@ Main function for command-line usage
 pub fn main() !void {
 ```
 
-## src/tools/static_analysis.zig
+## src\tools\static_analysis.zig
 
 - fn `toString`
 
@@ -24742,7 +25686,7 @@ pub fn analyzeDirectory(self: *Self, dir_path: []const u8) !void {
 pub fn main() !void {
 ```
 
-## src/tools/stress_test.zig
+## src\tools\stress_test.zig
 
 - fn `fromEnv`
 
@@ -24867,7 +25811,7 @@ pub fn runStressTest(self: *Self) !void {
 pub fn main() !void {
 ```
 
-## src/tools/windows_network_test.zig
+## src\tools\windows_network_test.zig
 
 - fn `fromEnv`
 
