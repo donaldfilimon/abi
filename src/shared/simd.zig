@@ -107,7 +107,7 @@ inline fn finishTiming(start: i128, used_simd: bool) void {
 
 inline fn loadVector(slice: []const f32) FloatVector {
     std.debug.assert(slice.len >= SIMD_WIDTH);
-    const ptr = @ptrCast(*const [SIMD_WIDTH]f32, slice.ptr);
+    const ptr: *const [SIMD_WIDTH]f32 = @ptrCast(slice.ptr);
     return @as(FloatVector, ptr.*);
 }
 
@@ -119,7 +119,7 @@ inline fn storeVector(vec: FloatVector, slice: []f32) void {
 
 inline fn loadByteVector(slice: []const u8) ByteVector {
     std.debug.assert(slice.len >= TextSimdWidth);
-    const ptr = @ptrCast(*const [TextSimdWidth]u8, slice.ptr);
+    const ptr: *const [TextSimdWidth]u8 = @ptrCast(slice.ptr);
     return @as(ByteVector, ptr.*);
 }
 
@@ -321,7 +321,7 @@ fn matrixVectorMultiplyInternal(result: []f32, matrix: []const f32, vector: []co
         const start_idx = row * cols;
         const slice = matrix[start_idx .. start_idx + cols];
         result[row] = dotProductInternal(slice, vector, .{});
-        used_simd = used_simd or SIMDOpts{}.shouldUseSimd(cols);
+        used_simd = used_simd or (SIMDOpts{}).shouldUseSimd(cols);
     }
 
     return used_simd;
@@ -346,7 +346,7 @@ fn matrixMultiplyInternal(result: []f32, a: []const f32, b: []const f32, rows: u
                     for (0..SIMD_WIDTH) |offset| {
                         col_buf[offset] = b[(k + offset) * cols + j];
                     }
-                    const vb = @bitCast(FloatVector, col_buf);
+                    const vb: FloatVector = @bitCast(col_buf);
                     sum += @reduce(.Add, va * vb);
                 }
                 used_simd = used_simd or simd_end != 0;
@@ -365,7 +365,7 @@ fn matrixMultiplyInternal(result: []f32, a: []const f32, b: []const f32, rows: u
 
 pub const VectorOps = struct {
     pub fn shouldUseSimd(len: usize) bool {
-        return SIMDOpts{}.shouldUseSimd(len);
+        return (SIMDOpts{}).shouldUseSimd(len);
     }
 
     pub fn dotProduct(a: []const f32, b: []const f32) f32 {
@@ -431,7 +431,7 @@ pub const VectorOps = struct {
     }
 
     pub fn vectorNormalize(result: []f32, input: []const f32) void {
-        normalize(result, input);
+        @This().normalize(result, input);
     }
 };
 

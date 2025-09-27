@@ -46,9 +46,9 @@ const MathUtils = struct {
     pub inline fn fastSqrt(x: f32) f32 {
         if (x <= 0.0) return 0.0;
         // Quake III style fast inverse square root
-        const bits = @as(u32, @bitCast(x));
+        const bits: u32 = @bitCast(x);
         const magic = 0x5f3759df - (bits >> 1);
-        const y = @as(f32, @bitCast(magic));
+        const y: f32 = @bitCast(magic);
         return x * y * (1.5 - 0.5 * x * y * y);
     }
 

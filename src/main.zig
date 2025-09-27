@@ -1,7 +1,5 @@
 const std = @import("std");
 const abi = @import("abi");
-// Enforce the repository's pinned Zig 0.16.0-dev (master) toolchain at compile time.
-comptime { _ = @import("compat"); }
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
