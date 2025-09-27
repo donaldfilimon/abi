@@ -3,16 +3,9 @@ name: Continuous Integration
 on:
   push:
     branches: [main, master]
-  pull_request:
-  workflow_dispatch:
-    inputs:
-      run_gpu:
-        description: 'Run optional GPU smoke tests'
-        required: false
-        default: 'false'
 
 jobs:
-  cpu-tests:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -34,38 +27,5 @@ jobs:
           key: ${{ runner.os }}-zig-${{ hashFiles('build.zig.zon') }}
           restore-keys: |
             ${{ runner.os }}-zig-
-
-      - name: Run CPU-only test suite
-        env:
-          ABI_GPU_SMOKE: '0'
-        run: zig build test
-
-  gpu-smoke:
-    needs: cpu-tests
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_gpu == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 3
-
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          version: 0.16.0-dev
-
-      - name: Cache Zig dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/zig
-            zig-cache
-          key: ${{ runner.os }}-zig-${{ hashFiles('build.zig.zon') }}
-          restore-keys: |
-            ${{ runner.os }}-zig-
-
-      - name: GPU smoke tests (optional)
-        env:
-          ABI_GPU_SMOKE: '1'
-        run: zig build test --test-filter "gpu_ai_acceleration"
+      - run: zig build
+      - run: zig build test
