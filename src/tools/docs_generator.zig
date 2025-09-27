@@ -1140,11 +1140,13 @@ fn generateDocsIndexHtml(_: std.mem.Allocator) !void {
         \\    return html;
         \\  
         \\    function inline(text) {
+        \\      const imageRegex = new RegExp('!\\[([^\\]]*)\\]\\(([^)]+)\\)', 'g');
+        \\      const linkRegex = new RegExp('\\[([^\\]]+)\\]\\(([^)]+)\\)', 'g');
         \\      text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
         \\      text = text.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>');
         \\      text = text.replace(/\\*([^*]+)\\*/g, '<em>$1</em>');
-        \\      text = text.replace(/!\\[([^\\]]*)\\]\\(([^)]+)\\)/g, '<img alt=\"$1\" src=\"$2\" />');
-        \\      text = text.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, (match, label, url) => {
+        \\      text = text.replace(imageRegex, '<img alt=\"$1\" src=\"$2\" />');
+        \\      text = text.replace(linkRegex, (match, label, url) => {
         \\        if (url.startsWith('http') || url.startsWith('mailto:') || url.startsWith('#')) {
         \\          return `<a href=\"${url}\" target=\"_blank\" rel=\"noopener\">${label}</a>`;
         \\        }
