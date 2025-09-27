@@ -6,7 +6,7 @@ const VersionParseError = error{
 };
 
 fn readPackageVersion(allocator: std.mem.Allocator) ![]const u8 {
-    const contents = try std.fs.cwd().readFileAlloc(allocator, "build.zig.zon", 4 * 1024);
+    const contents = try std.fs.cwd().readFileAlloc("build.zig.zon", allocator, std.Io.Limit.limited(4 * 1024));
     defer allocator.free(contents);
 
     const prefix = ".version = \"";
