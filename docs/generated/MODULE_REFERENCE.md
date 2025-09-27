@@ -6,177 +6,191 @@ description: "Comprehensive reference for all ABI modules and components"
 
 # ABI Module Reference
 
-## 🚩 Entrypoint
+## 📦 Core Modules
 
-### `abi` — Main Module
-Central import that wires the framework runtime, feature namespaces, and shared
-libraries. The file `src/mod.zig` exposes curated accessors instead of direct
-path imports so consumers can stay aligned with internal refactors.
+### `abi` - Main Module
+The primary module containing all core functionality.
 
-#### Key Exports
-- `abi.features` — grouped feature families (`ai`, `database`, `gpu`, `web`,
-  `monitoring`, `connectors`)
-- `abi.framework` — runtime orchestration, feature toggles, and lifecycle APIs
-- `abi.utils` / `abi.core` / `abi.logging` / `abi.platform` — shared utility
-  layers
-- `abi.simd` — SIMD helpers re-exported from `src/shared/simd.zig`
+#### Key Components:
+- **Database Engine**: High-performance vector database with HNSW indexing
+- **AI System**: Neural networks and machine learning capabilities
+- **SIMD Operations**: Optimized vector operations
+- **Plugin System**: Extensible architecture for custom functionality
 
-## 🧩 Feature Namespaces (`abi.features.*`)
+### `abi.database` - Database Module
+Vector database operations and management.
 
-### `abi.features.ai`
-Comprehensive AI toolkit including agents, enhanced transformer pipelines,
-distributed training, and model registries. Major files:
-
-- `agent.zig` / `enhanced_agent.zig` — persona-driven assistants with history
-  management
-- `transformer.zig`, `reinforcement_learning.zig`, `neural.zig` — model
-  implementations
-- `model_registry.zig`, `model_serialization.zig` — lifecycle management for AI
-  assets
-
-Usage:
-
+#### Functions:
 ```zig
-const ai = abi.features.ai;
-var agent = try ai.agent.Agent.init(allocator, .{ .name = "Helper" });
-defer agent.deinit();
+// Initialize database
+pub fn init(allocator: Allocator, config: DatabaseConfig) !Database
+
+// Insert vector
+pub fn insert(self: *Database, vector: []const f32, metadata: ?[]const u8) !u64
+
+// Search vectors
+pub fn search(self: *Database, query: []const f32, k: usize) ![]SearchResult
+
+// Update vector
+pub fn update(self: *Database, id: u64, vector: []const f32) !void
+
+// Delete vector
+pub fn delete(self: *Database, id: u64) !void
 ```
 
-### `abi.features.database`
-WDBX vector database engine and surrounding tooling.
+### `abi.ai` - AI Module
+Artificial intelligence and machine learning capabilities.
 
-- `database.zig` — storage engine with SIMD-accelerated search
-- `config.zig` — `WdbxConfig` parsing/validation
-- `http.zig` / `cli.zig` — service surfaces layered on the core engine
-- `database_sharding.zig` / `unified.zig` — distributed operations
-
-Usage:
-
+#### Functions:
 ```zig
-const database = abi.features.database;
-var db = try database.database.Db.open("vectors.wdbx", true);
-defer db.close();
-try db.init(768);
+// Create neural network
+pub fn createNetwork(allocator: Allocator, config: NetworkConfig) !NeuralNetwork
+
+// Train network
+pub fn train(self: *NeuralNetwork, data: []const TrainingData) !f32
+
+// Predict/Infer
+pub fn predict(self: *NeuralNetwork, input: []const f32) ![]f32
+
+// Enhanced agent operations
+pub fn createAgent(allocator: Allocator, config: AgentConfig) !EnhancedAgent
 ```
 
-### `abi.features.gpu`
-GPU accelerators, memory orchestration, backend selection, and benchmarking.
-Subdirectories include `compute/`, `memory/`, `backends/`, `libraries/`, and
-`testing/` for platform-specific functionality.
+### `abi.simd` - SIMD Module
+SIMD-optimized vector operations.
 
-### `abi.features.web`
-HTTP clients/servers, C bindings, and demos that surface ABI functionality over
-the network. Core files: `http_client.zig`, `web_server.zig`, `wdbx_http.zig`,
-and `weather.zig`.
-
-### `abi.features.monitoring`
-Telemetry, profiling, regression tooling, and metrics exporters consolidated in
-`monitoring/mod.zig` and supporting files.
-
-### `abi.features.connectors`
-Bridges to third-party APIs and plugin wrappers (e.g. `plugin.zig`) that let the
-runtime load external capability providers.
-
-## 🧠 Framework Runtime (`abi.framework.*`)
-
-The framework namespace coordinates features, plugin discovery, and lifecycle
-management.
-
-- `config.zig` — `FrameworkOptions`, feature toggles, labels, and descriptions
-- `runtime.zig` — `Framework` struct with methods such as `refreshPlugins`,
-  `enableFeature`, and `writeSummary`
-- `feature_manager.zig`, `catalog.zig`, `state.zig` — advanced orchestration and
-  registry plumbing
-
-Initialization example:
-
+#### Functions:
 ```zig
-var framework = try abi.init(std.heap.page_allocator, .{
-    .auto_discover_plugins = true,
-    .plugin_paths = &.{ "./plugins" },
-});
-defer framework.deinit();
+// Vector addition
+pub fn add(result: []f32, a: []const f32, b: []const f32) void
 
-try framework.refreshPlugins();
+// Vector subtraction
+pub fn subtract(result: []f32, a: []const f32, b: []const f32) void
+
+// Vector multiplication
+pub fn multiply(result: []f32, a: []const f32, b: []const f32) void
+
+// Vector normalization
+pub fn normalize(result: []f32, input: []const f32) void
 ```
 
-## 🛠 Shared Libraries (`abi.core`, `abi.utils`, `abi.logging`, `abi.platform`)
+### `abi.plugins` - Plugin System
+Extensible plugin architecture.
 
-- `abi.core` → `src/shared/core/mod.zig` (error types, lifecycle, framework
-  glue)
-- `abi.utils` → `src/shared/utils/mod.zig` (JSON, math, crypto, HTTP, FS, and
-  string helpers)
-- `abi.logging` → `src/shared/logging/mod.zig` (structured logging backends)
-- `abi.platform` → `src/shared/platform/mod.zig` (OS/platform detection and
-  capability reporting)
-- `abi.simd` → `src/shared/simd.zig` (SIMD intrinsics surfaced to features)
-- `src/shared/mod.zig` — plugin façade exposing `PluginRegistry`, loader, and
-  interface types used by the framework
-
-## 🔌 Plugin System
-
-Plugins are coordinated by the framework but implemented in the shared layer:
-
-- Use `abi.init` with `FrameworkOptions` to configure discovery/registration
-- Call `framework.pluginRegistry()` to access the shared registry API
-- Plugin metadata/types live under `abi.shared.types` (via
-  `@import("shared/types.zig")` inside the runtime)
-
-Example snippet:
-
+#### Functions:
 ```zig
-const registry = framework.pluginRegistry();
-try registry.loadPlugin("./plugins/example_plugin.so");
-std.log.info("Plugins ready: {d}", .{registry.getPluginCount()});
+// Load plugin
+pub fn loadPlugin(path: []const u8) !Plugin
+
+// Register plugin
+pub fn registerPlugin(plugin: Plugin) !void
+
+// Execute plugin function
+pub fn executePlugin(plugin: Plugin, function: []const u8, args: []const u8) ![]u8
 ```
 
-## 🚀 Usage Patterns
+## 🔧 Configuration Types
 
-### Feature-Oriented Workflow
-
+### DatabaseConfig
 ```zig
+pub const DatabaseConfig = struct {
+    max_vectors: usize = 1000000,
+    vector_dimension: usize = 128,
+    index_type: IndexType = .hnsw,
+    storage_path: ?[]const u8 = null,
+    enable_caching: bool = true,
+    cache_size: usize = 1024 * 1024, // 1MB
+};
+```
+
+### NetworkConfig
+```zig
+pub const NetworkConfig = struct {
+    input_size: usize,
+    hidden_sizes: []const usize,
+    output_size: usize,
+    activation: ActivationType = .relu,
+    learning_rate: f32 = 0.01,
+    batch_size: usize = 32,
+};
+```
+
+## 📊 Performance Characteristics
+
+| Operation | Performance | Memory Usage |
+|-----------|-------------|--------------|
+| Vector Insert | ~2.5ms (1000 vectors) | ~512 bytes/vector |
+| Vector Search | ~13ms (10k vectors, k=10) | ~160 bytes/result |
+| Neural Training | ~30μs/iteration | ~1MB/network |
+| SIMD Operations | ~3μs (2048 elements) | ~16KB/batch |
+
+## 🚀 Usage Examples
+
+### Basic Database Usage
+```zig
+const std = @import("std");
 const abi = @import("abi");
 
-var framework = try abi.init(std.heap.page_allocator, .{});
-defer framework.deinit();
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-const ai = abi.features.ai;
-var agent = try ai.agent.Agent.init(std.heap.page_allocator, .{ .name = "Ops" });
-defer agent.deinit();
+    // Initialize database
+    const config = abi.DatabaseConfig{
+        .max_vectors = 10000,
+        .vector_dimension = 128,
+    };
+    var db = try abi.database.init(allocator, config);
+    defer db.deinit();
 
-const reply = try agent.process("status", std.heap.page_allocator);
-defer std.heap.page_allocator.free(reply);
+    // Insert vectors
+    const vector = [_]f32{1.0, 2.0, 3.0} ** 43; // 128 dimensions
+    const id = try db.insert(&vector, "sample_data");
+
+    // Search for similar vectors
+    const results = try db.search(&vector, 10);
+    defer allocator.free(results);
+
+    std.log.info("Found {} similar vectors", .{results.len});
+}
 ```
 
-### Database & HTTP Integration
-
+### Neural Network Training
 ```zig
-const abi = @import("abi");
+const config = abi.NetworkConfig{
+    .input_size = 128,
+    .hidden_sizes = &[_]usize{64, 32},
+    .output_size = 10,
+    .learning_rate = 0.01,
+};
 
-const database = abi.features.database;
-var db = try database.database.Db.open("vectors.wdbx", true);
-defer db.close();
-try db.init(512);
+var network = try abi.ai.createNetwork(allocator, config);
+defer network.deinit();
 
-const web = abi.features.web;
-var client = try web.http_client.HttpClient.init(std.heap.page_allocator, .{});
-defer client.deinit();
+// Training data
+const training_data = [_]abi.TrainingData{
+    .{ .input = &input1, .output = &output1 },
+    .{ .input = &input2, .output = &output2 },
+};
+
+// Train network
+const loss = try network.train(&training_data);
+std.log.info("Training loss: {}", .{loss});
 ```
 
-### SIMD Helpers
+## 🔍 Error Handling
 
-```zig
-var buffer = try allocator.alloc(f32, 1024);
-defer allocator.free(buffer);
-abi.simd.normalize(buffer, buffer);
-```
+All functions return appropriate error types:
+- `DatabaseError` - Database-specific errors
+- `AIError` - AI/ML operation errors
+- `SIMDError` - SIMD operation errors
+- `PluginError` - Plugin system errors
 
-## 🎯 Benefits of the Feature-Centric Layout
+## 📈 Performance Tips
 
-- Aligns documentation with the actual `src/features/*` directory structure
-- Keeps shared utilities clearly separated from orchestration concerns
-- Encourages consumers to adopt `abi.features.*` namespaces, reducing churn
-  during refactors
-- Simplifies discovery: inspect `src/features/mod.zig` for feature families,
-  `src/framework/` for lifecycle management, and `src/shared/` for reusable
-  building blocks
+1. **Use appropriate vector dimensions** - 128-512 dimensions typically optimal
+2. **Batch operations** - Group multiple operations for better performance
+3. **Enable caching** - Significant performance improvement for repeated queries
+4. **SIMD optimization** - Automatically enabled for supported operations
+5. **Memory management** - Use arena allocators for bulk operations

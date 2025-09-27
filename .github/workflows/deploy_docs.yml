@@ -6,6 +6,8 @@ on:
     paths:
       - 'src/**'
       - 'docs/**'
+      - 'tools/docs_generator.zig'
+      - '.github/workflows/deploy_docs.yml'
   pull_request:
     branches: [main, master]
     paths:
@@ -32,12 +34,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 3
+          fetch-depth: 0
 
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.16.0-dev
+          version: 0.16.0-dev.254+6dd0270a1
 
       - name: Cache Zig dependencies
         uses: actions/cache@v3
