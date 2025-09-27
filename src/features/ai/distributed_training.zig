@@ -488,7 +488,7 @@ pub const MixedPrecision = struct {
         const fp16_exp_bias: i32 = 15;
         const fp16_mant_bits = 10;
 
-        const bits = @as(u32, @bitCast(abs_value));
+        const bits: u32 = @bitCast(abs_value);
         const exp = @as(i32, @intCast((bits >> 23) & 0xFF)) - exp_bias;
         const mant = bits & 0x7FFFFF;
 

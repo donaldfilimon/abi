@@ -158,15 +158,15 @@ pub const MatrixOps = struct {
     fn dispatchMatmulKernel(self: *MatrixOps, a_buffer: u32, b_buffer: u32, c_buffer: u32, m: usize, n: usize, p: usize) !void {
         const pipeline_handle = try self.ensureMatmulPipeline();
 
-        const tile = @intCast(usize, kernels.matmul_workgroup_size);
+        const tile: usize = @intCast(kernels.matmul_workgroup_size);
 
-        const dispatch_x = @intCast(u32, (p + tile - 1) / tile);
-        const dispatch_y = @intCast(u32, (m + tile - 1) / tile);
+        const dispatch_x: u32 = @intCast((p + tile - 1) / tile);
+        const dispatch_y: u32 = @intCast((m + tile - 1) / tile);
 
         const params = MatmulPushConstants{
-            .m = @intCast(u32, m),
-            .n = @intCast(u32, n),
-            .p = @intCast(u32, p),
+            .m = @intCast(m),
+            .n = @intCast(n),
+            .p = @intCast(p),
         };
 
         const params_handle = try self.renderer.createBuffer(@sizeOf(MatmulPushConstants), .{
@@ -225,9 +225,9 @@ pub const MatrixOps = struct {
 
         const matrix_ops: *MatrixOps = @ptrCast(@alignCast(ctx.?));
         const allocator = matrix_ops.allocator;
-        const m = @intCast(usize, params.m);
-        const n = @intCast(usize, params.n);
-        const p = @intCast(usize, params.p);
+        const m: usize = @intCast(params.m);
+        const n: usize = @intCast(params.n);
+        const p: usize = @intCast(params.p);
 
         const a_bytes = try renderer.readBuffer(buffers[0], allocator);
         defer allocator.free(a_bytes);
@@ -237,7 +237,7 @@ pub const MatrixOps = struct {
         const a_slice = std.mem.bytesAsSlice(f32, a_bytes);
         const b_slice = std.mem.bytesAsSlice(f32, b_bytes);
 
-        var c_values = try allocator.alloc(f32, m * p);
+        const c_values = try allocator.alloc(f32, m * p);
         defer allocator.free(c_values);
 
         matrix_ops.matmulCpuOptimizedSlices(a_slice, b_slice, c_values, m, n, p);
@@ -265,7 +265,6 @@ pub const MatrixOps = struct {
 
     /// Optimized CPU matrix multiplication (simulates GPU kernel behavior)
     fn matmulCpuOptimizedSlices(self: *MatrixOps, a: []const f32, b: []const f32, c: []f32, m: usize, n: usize, p: usize) void {
-        _ = self;
         const start = std.time.nanoTimestamp();
 
         @memset(c, 0.0);
@@ -283,8 +282,8 @@ pub const MatrixOps = struct {
             }
         }
 
-        self.renderer.stats.bytes_written += @intCast(u64, c.len * @sizeOf(f32));
-        self.renderer.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
+        self.renderer.stats.bytes_written += @intCast(c.len * @sizeOf(f32));
+        self.renderer.stats.last_operation_time_ns = @intCast(std.time.nanoTimestamp() - start);
     }
 
     /// Matrix transpose
@@ -868,7 +867,6 @@ fn runDenseForwardScenario(renderer: *gpu_renderer.GPURenderer, allocator: std.m
 }
 
 fn runSgdStepScenario(renderer: *gpu_renderer.GPURenderer, allocator: std.mem.Allocator, tolerance: f32) !void {
-    _ = renderer;
     var training = TrainingAcceleration.init(allocator, renderer);
 
     var weights = try Tensor.create(allocator, &[_]usize{ 3, 2 });
@@ -887,11 +885,11 @@ fn runSgdStepScenario(renderer: *gpu_renderer.GPURenderer, allocator: std.mem.Al
 
     const learning_rate: f32 = 0.05;
 
-    var expected_weights = try allocator.alloc(f32, weights.data.len);
+    const expected_weights = try allocator.alloc(f32, weights.data.len);
     defer allocator.free(expected_weights);
     std.mem.copyForwards(f32, expected_weights, weights.data);
 
-    var expected_biases = try allocator.alloc(f32, biases.data.len);
+    const expected_biases = try allocator.alloc(f32, biases.data.len);
     defer allocator.free(expected_biases);
     std.mem.copyForwards(f32, expected_biases, biases.data);
 
@@ -961,7 +959,7 @@ test "gpu_ai_acceleration matmul and training remain deterministic on CPU" {
     try matrix_ops.matmul(tensor_a, tensor_b, tensor_c);
     try tensor_c.downloadFromGpu(renderer);
 
-    var expected = try allocator.alloc(f32, tensor_c.data.len);
+    const expected = try allocator.alloc(f32, tensor_c.data.len);
     defer allocator.free(expected);
     referenceMatmul(expected, tensor_a.data, tensor_b.data, 2, 3, 2);
 
@@ -1006,7 +1004,7 @@ test "gpu_ai_acceleration matmul validates hardware backends" {
     try matrix_ops.matmul(tensor_a, tensor_b, tensor_c);
     try tensor_c.downloadFromGpu(renderer);
 
-    var expected = try allocator.alloc(f32, tensor_c.data.len);
+    const expected = try allocator.alloc(f32, tensor_c.data.len);
     defer allocator.free(expected);
     referenceMatmul(expected, tensor_a.data, tensor_b.data, 2, 3, 2);
 

@@ -124,6 +124,35 @@ pub const Lifecycle = struct {
     }
 };
 
+var lifecycle_test_calls: ?*std.ArrayList([]const u8) = null;
+
+fn recordLifecycleTestCall(value: []const u8) !void {
+    const list = lifecycle_test_calls orelse unreachable;
+    try list.append(value);
+}
+
+fn lifecycleTestFirstObserver(transition: Transition, context: *Lifecycle) anyerror!void {
+    _ = context;
+    const label = switch (transition.to) {
+        .bootstrapping => "first:boot",
+        .running => "first:run",
+        .shutting_down => "first:down",
+        .terminated => "first:end",
+        .cold => "first:cold",
+    };
+    try recordLifecycleTestCall(label);
+}
+
+fn lifecycleTestSecondObserver(transition: Transition, context: *Lifecycle) anyerror!void {
+    _ = context;
+    const label = switch (transition.to) {
+        .running => "second:run",
+        .shutting_down => "second:down",
+        else => "second:other",
+    };
+    try recordLifecycleTestCall(label);
+}
+
 const testing = std.testing;
 
 test "lifecycle enforces forward-only transitions" {
@@ -147,37 +176,20 @@ test "lifecycle observers receive ordered callbacks" {
     var calls = std.ArrayList([]const u8).init(testing.allocator);
     defer calls.deinit();
 
+    lifecycle_test_calls = &calls;
+    defer lifecycle_test_calls = null;
+
     try lifecycle.addObserver(.{
         .name = "first",
         .priority = 10,
-        .callback = struct {
-            fn call(transition: Transition, context: *Lifecycle) anyerror!void {
-                _ = context;
-                try calls.append(switch (transition.to) {
-                    .bootstrapping => "first:boot",
-                    .running => "first:run",
-                    .shutting_down => "first:down",
-                    .terminated => "first:end",
-                    .cold => "first:cold",
-                });
-            }
-        }.call,
+        .callback = lifecycleTestFirstObserver,
     });
 
     try lifecycle.addObserver(.{
         .name = "second",
         .priority = 0,
         .stages = StageMask{ .running = true, .shutting_down = true },
-        .callback = struct {
-            fn call(transition: Transition, context: *Lifecycle) anyerror!void {
-                _ = context;
-                try calls.append(switch (transition.to) {
-                    .running => "second:run",
-                    .shutting_down => "second:down",
-                    else => "second:other",
-                });
-            }
-        }.call,
+        .callback = lifecycleTestSecondObserver,
     });
 
     try lifecycle.advance(.bootstrapping);
