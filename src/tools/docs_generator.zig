@@ -664,13 +664,13 @@ fn generateCodeApiIndex(allocator: std.mem.Allocator) !void {
     defer files.deinit(a);
 
     try collectZigFiles(a, "src", &files);
-    std.mem.sort([]u8, files.items, {}, struct {
-        fn lessThan(_: void, lhs: []u8, rhs: []u8) bool {
+    std.mem.sort([]const u8, files.items, {}, struct {
+        fn lessThan(_: void, lhs: []const u8, rhs: []const u8) bool {
             return std.mem.lessThan(u8, lhs, rhs);
         }
     }.lessThan);
 
-    std.sort.block([]u8, files.items, {}, docPathLessThan);
+    std.sort.block([]const u8, files.items, {}, docPathLessThan);
 
     std.sort.block([]const u8, files.items, {}, docPathLessThan);
 
@@ -723,7 +723,7 @@ fn collectZigFiles(allocator: std.mem.Allocator, dir_path: []const u8, out_files
         _ = stack.pop();
         defer allocator.free(path);
 
-        var dir = std.fs.cwd().openIterableDir(path, .{}) catch continue;
+        var dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch continue;
         defer dir.close();
 
         var it = dir.iterate();
@@ -746,25 +746,13 @@ fn scanFile(allocator: std.mem.Allocator, rel_path: []const u8, decls: *std.Arra
     const file = try std.fs.cwd().openFile(rel_path, .{});
     defer file.close();
 
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
-
-    var reader = file.reader();
-    var buf: [4096]u8 = undefined;
-    while (true) {
-        const n = reader.read(&buf) catch |err| {
-            if (err == error.EndOfStream) break;
-            return err;
-        };
-        if (n == 0) break;
-        try buffer.appendSlice(buf[0..n]);
-    }
-    const data = try buffer.toOwnedSlice();
+    const max_bytes: usize = 16 * 1024 * 1024;
+    const data = try std.fs.cwd().readFileAlloc(rel_path, allocator, std.Io.Limit.limited(max_bytes));
     defer allocator.free(data);
 
     var it = std.mem.splitScalar(u8, data, '\n');
 
-    var doc_buf = std.ArrayListUnmanaged(u8){};
+    var doc_buf: std.ArrayListUnmanaged(u8) = .empty;
     defer doc_buf.deinit(allocator);
 
     while (it.next()) |line| {
@@ -850,7 +838,7 @@ fn generateSearchIndex(allocator: std.mem.Allocator) !void {
     try std.fs.cwd().makePath("docs/generated");
 
     // Collect Markdown files in docs/generated
-    var dir = std.fs.cwd().openIterableDir("docs/generated", .{}) catch |err| switch (err) {
+    var dir = std.fs.cwd().openDir("docs/generated", .{ .iterate = true }) catch |err| switch (err) {
         error.FileNotFound => return, // nothing to index yet
         else => return err,
     };
@@ -911,17 +899,8 @@ fn generateSearchIndex(allocator: std.mem.Allocator) !void {
 fn getTitleAndExcerpt(allocator: std.mem.Allocator, path: []const u8, title_out: *[]const u8, excerpt_out: *[]const u8) !void {
     const file = try std.fs.cwd().openFile(path, .{});
     defer file.close();
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
-
-    var reader = file.reader();
-    var buf: [4096]u8 = undefined;
-    while (true) {
-        const n = try reader.read(&buf);
-        if (n == 0) break;
-        try buffer.appendSlice(buf[0..n]);
-    }
-    const data = try buffer.toOwnedSlice();
+    const max_bytes: usize = 16 * 1024 * 1024;
+    const data = try std.fs.cwd().readFileAlloc(path, allocator, std.Io.Limit.limited(max_bytes));
     defer allocator.free(data);
 
     var it = std.mem.splitScalar(u8, data, '\n');
@@ -929,7 +908,7 @@ fn getTitleAndExcerpt(allocator: std.mem.Allocator, path: []const u8, title_out:
     var first_heading: ?[]const u8 = null;
     var in_code = false;
 
-    var excerpt = std.ArrayListUnmanaged(u8){};
+    var excerpt: std.ArrayListUnmanaged(u8) = .empty;
     defer excerpt.deinit(allocator);
 
     while (it.next()) |line| {
