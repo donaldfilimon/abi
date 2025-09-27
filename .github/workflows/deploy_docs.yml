@@ -37,7 +37,7 @@ jobs:
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: master
+          version: 0.16.0-dev
 
       - name: Cache Zig dependencies
         uses: actions/cache@v3
