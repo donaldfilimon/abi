@@ -234,6 +234,7 @@ performance regressions under 5% across releases.
 ---
 
 ## Contributing
+Review [`AGENTS.md`](AGENTS.md) for contributor workflows and required checks before submitting changes.
 1. Fork the repository and create a feature branch.
 2. Run `zig build`, `zig build test`, and relevant benchmarks before submitting changes.
 3. Update documentation when modifying public APIs or behavior.
@@ -250,3 +251,4 @@ performance regressions under 5% across releases.
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ⭐ **Star the project if Abi helps accelerate your AI workloads!**
+
