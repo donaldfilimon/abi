@@ -6,8 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ## [Unreleased]
 
-### Added
-- Nothing yet.
+### Changed
+- Retargeted the build guard, metadata, and deployment docs to require Zig 0.16.0-dev (master).
 
 ## [0.1.0a] - 2025-09-20
 

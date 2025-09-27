@@ -75,9 +75,9 @@ generate_enhanced_matrix() {
     echo "" >> /tmp/enhanced_matrix.md
 
     echo "### Recommended Zig Versions:" >> /tmp/enhanced_matrix.md
-    echo "- 0.16.0-dev.254 (current baseline)" >> /tmp/enhanced_matrix.md
-    echo "- 0.16.0 (stable, when available)" >> /tmp/enhanced_matrix.md
-    echo "- master (nightly)" >> /tmp/enhanced_matrix.md
+    echo "- 0.16.0-dev (current master baseline)" >> /tmp/enhanced_matrix.md
+    echo "- master (nightly auto-update)" >> /tmp/enhanced_matrix.md
+    echo "- 0.16.x release candidate (when available)" >> /tmp/enhanced_matrix.md
     echo "" >> /tmp/enhanced_matrix.md
 
     echo "### Recommended Operating Systems:" >> /tmp/enhanced_matrix.md
@@ -114,7 +114,7 @@ update_ci_workflow() {
     cp "$CI_WORKFLOW_FILE" "${CI_WORKFLOW_FILE}.backup"
 
     # Update Zig versions
-    sed -i 's/zig: \[ 0\.16\.0-dev\.252, 0\.16\.0-dev\.280, master \]/zig: [ 0.16.0-dev.254, 0.16.0, master ]/' "$CI_WORKFLOW_FILE"
+    sed -i 's/zig: \[[^]]*\]/zig: [ 0.16.0-dev, master ]/' "$CI_WORKFLOW_FILE"
 
     # Update OS matrix
     sed -i 's/os: \[ ubuntu-latest, windows-latest, macos-latest, ubuntu-20\.04, macos-13 \]/os: [ ubuntu-latest, ubuntu-20.04, ubuntu-18.04, windows-latest, windows-2019, macos-latest, macos-13 ]/' "$CI_WORKFLOW_FILE"
