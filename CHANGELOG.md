@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Added
 - Nothing yet.
 
+### Changed
+- Restored the Zig 0.16.0-dev toolchain guard, documentation, and deployment assets.
+
 ## [0.1.0a] - 2025-09-20
 
 ### Added
