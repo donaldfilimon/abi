@@ -2,6 +2,7 @@ const std = @import("std");
 const common = @import("common.zig");
 
 pub const command = common.Command{
+    .id = .server,
     .name = "server",
     .summary = "Manage the WDBX HTTP server",
     .usage = "abi server <start|stop|status|test> [flags]",
