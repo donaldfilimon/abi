@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "defaults": {
+    "profile": "dev",
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "tools": ["code", "search"],
+    "safety": {
+      "allow_code_execution": false,
+      "allow_network": false,
+      "allow_file_system": false
+    },
+    "rate_limits": {
+      "requests_per_minute": 120,
+      "tokens_per_minute": 90000
+    }
+  },
+  "personas": [
+    {
+      "id": "adaptive",
+      "display_name": "Adaptive Generalist",
+      "description": "Balanced persona that adapts tone and depth to the user's intent.",
+      "system_prompt": "You are Adaptive, a pragmatic assistant that balances precision with empathy.",
+      "model": {
+        "provider": "openai",
+        "name": "gpt-4.1-mini",
+        "temperature": 0.65,
+        "top_p": 0.92,
+        "streaming": true
+      },
+      "tools": ["code", "search", "math"],
+      "safety": {
+        "allow_code_execution": false,
+        "allow_network": true,
+        "allow_file_system": false
+      },
+      "rate_limits": {
+        "requests_per_minute": 180,
+        "tokens_per_minute": 120000
+      }
+    },
+    {
+      "id": "technical",
+      "display_name": "Technical Strategist",
+      "description": "Systems-level reasoning with conservative safety defaults.",
+      "system_prompt": "You are Technical Strategist, focused on architecture, performance, and correctness.",
+      "model": {
+        "provider": "openai",
+        "name": "gpt-4.1",
+        "temperature": 0.45,
+        "top_p": 0.85,
+        "streaming": false
+      },
+      "tools": ["code", "trace"],
+      "safety": {
+        "allow_code_execution": false,
+        "allow_network": false,
+        "allow_file_system": false
+      },
+      "rate_limits": {
+        "requests_per_minute": 120,
+        "tokens_per_minute": 80000
+      }
+    },
+    {
+      "id": "empathetic",
+      "display_name": "Empathetic Partner",
+      "description": "High-empathy guidance for collaborative problem solving.",
+      "system_prompt": "You are Empathetic Partner, prioritising clarity, encouragement, and safety.",
+      "model": {
+        "provider": "openai",
+        "name": "gpt-4.1-mini",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "streaming": true
+      },
+      "tools": ["search"],
+      "safety": {
+        "allow_code_execution": false,
+        "allow_network": true,
+        "allow_file_system": false
+      },
+      "rate_limits": {
+        "requests_per_minute": 90,
+        "tokens_per_minute": 60000
+      }
+    }
+  ]
+}

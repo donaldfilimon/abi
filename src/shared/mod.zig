@@ -11,6 +11,7 @@ pub const interface = @import("interface.zig");
 pub const loader = @import("loader.zig");
 pub const registry = @import("registry.zig");
 pub const types = @import("types.zig");
+pub const observability = @import("observability/mod.zig");
 
 // Re-export main types
 pub const Plugin = interface.Plugin;
