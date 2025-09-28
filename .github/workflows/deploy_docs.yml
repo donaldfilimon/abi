@@ -29,7 +29,7 @@ concurrency:
 jobs:
   # Build documentation
   build:
-    runs-on: self.hosted
+    runs-on: windows
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
