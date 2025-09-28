@@ -1,6 +1,23 @@
+---
+layout: page
+title: "Engineering Status Overview"
+description: "Framework module ownership, automation coverage, and key build targets"
+permalink: /reports/engineering-status/
+---
+
 # Engineering Status Overview
 
-This overview replaces the sprawling status reports with a concise reference that reflects the current repository layout, the active feature modules, and the supporting automation.
+_Last updated: {{ "now" | date: "%Y-%m-%d" }}_
+
+This report replaces the sprawling status documents with a concise snapshot of the repository layout, the active feature modules,
+and the supporting automation that keeps the build healthy.
+
+## At a Glance
+- **Runtime & Lifecycle** – Feature toggles, plugin discovery, and graceful startup/teardown flow managed by the runtime core.【F:src/framework/runtime.zig†L7-L116】
+- **Feature Families** – Toggleable AI, database, web, monitoring, GPU, connector, and SIMD bundles governed through `FeatureToggles`.【F:src/framework/config.zig†L4-L110】
+- **Automation** – CI workflows execute builds, tests, docs, and formatting across Linux, macOS, and Windows with the pinned Zig toolchain.【F:.github/workflows/ci.yml†L1-L33】
+
+---
 
 ## Framework Snapshot
 - The framework runtime owns feature toggles, plugin discovery, and lifecycle management, including optional automatic discovery, registration, and start-up of plugins when the corresponding switches are enabled in the provided options structure.【F:src/framework/runtime.zig†L7-L116】
@@ -27,3 +44,7 @@ The framework aggregates functionality into dedicated feature bundles to keep im
 ## Documentation
 - Project documentation, including this report, lives under `docs/` with the static site published via the `zig build docs` pipeline described in the CI workflow.【F:build.zig†L55-L74】【F:.github/workflows/ci.yml†L17-L33】
 - Additional deep dives—such as deployment guidance and module-level walkthroughs—remain available alongside this overview in the `docs/` tree for teams that need the extended narrative.【F:docs/README.md†L1-L36】
+
+---
+
+For change history, consult the commit log or the [legacy status summaries](../../CROSS_PLATFORM_TESTING_GUIDE.md) retained for archival reference.

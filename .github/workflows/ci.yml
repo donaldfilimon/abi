@@ -23,7 +23,7 @@ jobs:
       - name: Documentation
         run: zig build docs --summary all
       - name: Formatting
-        run: zig fmt --check src tests
+        run: zig fmt --check src tests build.zig
       - name: Upload docs
         if: always()
         uses: actions/upload-artifact@v4
