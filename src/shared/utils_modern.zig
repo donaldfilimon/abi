@@ -60,42 +60,36 @@ pub const memory = struct {
         return struct {
             const Self = @This();
 
-            backing_allocator: std.mem.Allocator,
+            allocator: std.mem.Allocator,
+            pool: []T,
             free_list: collections.ArrayList(*T),
 
-            pub fn init(allocator: std.mem.Allocator, initial_capacity: usize) !Self {
-                var pool = Self{
-                    .backing_allocator = allocator,
-                    .free_list = collections.ArrayList(*T).init(allocator),
+            pub fn create(allocator: std.mem.Allocator, capacity: usize) !Self {
+                return .{
+                    .allocator = allocator,
+                    .pool = try allocator.alloc(T, capacity),
+                    .free_list = collections.ArrayList(*T){},
                 };
-
-                // Pre-allocate some items
-                for (0..initial_capacity) |_| {
-                    const item = try allocator.create(T);
-                    try pool.free_list.append(allocator, item);
-                }
-
-                return pool;
             }
 
             pub fn deinit(self: *Self) void {
-                for (self.free_list.items()) |item| {
-                    self.backing_allocator.destroy(item);
+                for (self.free_list.items) |item| {
+                    self.allocator.destroy(item);
                 }
-                self.free_list.deinit();
+                self.free_list.deinit(self.allocator);
             }
 
             pub fn acquire(self: *Self) !*T {
-                if (self.free_list.len() > 0) {
-                    return self.free_list.swapRemove(self.free_list.len() - 1);
+                if (self.free_list.items.len > 0) {
+                    return self.free_list.swapRemove(self.free_list.items.len - 1);
                 }
-                return try self.backing_allocator.create(T);
+                return try self.allocator.create(T);
             }
 
             pub fn release(self: *Self, item: *T) void {
-                self.free_list.append(self.backing_allocator, item) catch {
+                self.free_list.append(self.allocator, item) catch {
                     // If we can't add to free list, just destroy it
-                    self.backing_allocator.destroy(item);
+                    self.allocator.destroy(item);
                 };
             }
         };
@@ -116,13 +110,18 @@ pub const config = struct {
         }
 
         pub fn deinit(self: *Config) void {
-            collections.utils.cleanupStringMap(&self.values, self.allocator);
+            var it = self.values.iterator();
+            while (it.next()) |entry| {
+                self.allocator.free(entry.key_ptr.*);
+                self.allocator.free(entry.value_ptr.*);
+            }
+            self.values.deinit();
         }
 
         pub fn set(self: *Config, key: []const u8, value: []const u8) !void {
             const key_copy = try self.allocator.dupe(u8, key);
             const value_copy = try self.allocator.dupe(u8, value);
-            try self.values.put(self.allocator, key_copy, value_copy);
+            try self.values.put(key_copy, value_copy);
         }
 
         pub fn get(self: *const Config, key: []const u8) ?[]const u8 {
@@ -139,4 +138,21 @@ test "modernized utilities" {
 
     try cfg.set("key", "value");
     try testing.expectEqualStrings("value", cfg.get("key").?);
+}
+
+test "shared utils - memory pool" {
+    const testing = std.testing;
+
+    var pool = memory.MemoryPool(u32).create(testing.allocator, 10) catch @panic("failed to create pool");
+    defer pool.deinit();
+
+    const item1 = try pool.acquire();
+    const item2 = try pool.acquire();
+
+    pool.release(item1);
+    pool.release(item2);
+
+    const item3 = try pool.acquire();
+    // item3 is guaranteed to be non-null since acquire() returns !*T, not ?*T
+    try testing.expect(@intFromPtr(item3) != 0);
 }

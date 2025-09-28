@@ -10,12 +10,9 @@ pub const collections = @import("core/collections.zig");
 
 // Framework components
 pub const runtime = @import("framework/runtime_modern.zig");
-
-// ML components
 pub const ml = @import("ml/ml_modern.zig");
-
-// Shared utilities (modernized)
 pub const utils = @import("shared/utils_modern.zig");
+pub const memory = utils.memory;
 
 // Legacy plugin system (maintained for compatibility)
 pub const plugins = @import("shared/mod.zig");
@@ -38,6 +35,8 @@ pub const abi = struct {
         }
     };
 
+    pub const ai = @import("features/ai/mod.zig");
+
     /// Framework initialization
     pub fn init(allocator: std.mem.Allocator, config: runtime.RuntimeConfig) !runtime.Runtime {
         return try runtime.createRuntime(allocator, config);
@@ -54,8 +53,8 @@ pub const abi = struct {
     }
 
     /// Create a memory pool for specific type
-    pub fn createMemoryPool(comptime T: type, allocator: std.mem.Allocator, initial_capacity: usize) !utils.memory.MemoryPool(T) {
-        return try utils.memory.MemoryPool(T).init(allocator, initial_capacity);
+    pub fn createMemoryPool(comptime T: type, allocator: std.mem.Allocator, initial_capacity: usize) !memory.MemoryPool(T) {
+        return try utils.memory.MemoryPool(T).create(allocator, initial_capacity);
     }
 
     /// Create configuration manager
@@ -139,18 +138,20 @@ test "abi root - memory pool creation" {
     pool.release(item);
 }
 
-test "abi root - collections" {
+test "root module - modern collections aliases" {
     const testing = std.testing;
-
-    var list = ArrayList(i32).init(testing.allocator);
-    defer list.deinit();
+    var list = std.ArrayList(i32){};
+    defer list.deinit(testing.allocator);
 
     try list.append(testing.allocator, 42);
-    try testing.expectEqual(@as(usize, 1), list.len());
+    try testing.expectEqual(@as(usize, 1), list.items.len);
+    try testing.expectEqual(@as(i32, 42), list.items[0]);
 
-    var map = StringHashMap(i32).init(testing.allocator);
+    var map = std.StringHashMap(u32).init(testing.allocator);
     defer map.deinit();
 
-    try map.put(testing.allocator, "key", 100);
-    try testing.expectEqual(@as(?i32, 100), map.get("key"));
+    try map.put("answer", 42);
+    const value = map.get("answer");
+    try testing.expect(value != null);
+    try testing.expectEqual(@as(u32, 42), value.?);
 }

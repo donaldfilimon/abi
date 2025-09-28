@@ -9,7 +9,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const agent_subsystem = abi.abi.ai.agent_subsystem;
+const agent_subsystem = abi.ai.agent_subsystem;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

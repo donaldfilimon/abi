@@ -4,17 +4,38 @@
 //! summary using the new output layer.
 
 const std = @import("std");
-const abi = @import("abi").abi;
+const abi = @import("abi");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    const stdout = std.debug;
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
 
-    var framework = try abi.init(gpa.allocator(), .{});
-    defer framework.deinit();
+    const stdout = std.io.getStdOut().writer();
 
-    // For now, just print success since we can't use the old io APIs
-    stdout.print("ABI Framework bootstrap complete\n", .{});
+    if (args.len < 2) {
+        try stdout.print("Usage: abi [version|run]\n", .{});
+        return;
+    }
+
+    const command = args[1];
+
+    if (std.mem.eql(u8, command, "version")) {
+        try stdout.print("ABI Framework Version: {s}\n", .{abi.version});
+    } else if (std.mem.eql(u8, command, "run")) {
+        try stdout.print("Initializing ABI Framework...\n", .{});
+        var framework = try abi.initFramework(allocator, null);
+        defer framework.deinit();
+
+        try framework.start();
+        try stdout.print("Framework started. Running for 2 seconds...\n", .{});
+        std.time.sleep(2 * std.time.ns_per_s);
+        framework.stop();
+        try stdout.print("Framework stopped.\n", .{});
+    } else {
+        try stdout.print("Unknown command: {s}\n", .{command});
+    }
 }
