@@ -306,7 +306,7 @@ const SIMDAnalyzer = struct {
         var random = prng.random();
 
         for (test_vectors_a, test_vectors_b) |*a, *b| {
-            for (0..VectorSize) |i| {
+            inline for (0..VectorSize) |i| {
                 a.*[i] = random.float(f32) * 100.0;
                 b.*[i] = random.float(f32) * 100.0;
             }

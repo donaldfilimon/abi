@@ -21,13 +21,13 @@ const DynLib = std.DynLib;
 pub const has_webgpu_support = @hasDecl(std, "gpu") and @hasDecl(std.gpu, "Instance");
 
 // Compile-time configuration constants
-const DEFAULT_VECTOR_SIZE = 1024;
-const DEFAULT_MATRIX_SIZE = 64;
-const DEFAULT_IMAGE_SIZE = 128;
-const WORKGROUP_SIZE_1D = 64;
-const WORKGROUP_SIZE_2D = 16;
-const MAX_VERIFICATION_SAMPLES = 10;
-const EPSILON = 0.001;
+pub const DEFAULT_VECTOR_SIZE = 1024;
+pub const DEFAULT_MATRIX_SIZE = 64;
+pub const DEFAULT_IMAGE_SIZE = 128;
+pub const WORKGROUP_SIZE_1D = 64;
+pub const WORKGROUP_SIZE_2D = 16;
+pub const MAX_VERIFICATION_SAMPLES = 10;
+pub const EPSILON = 0.001;
 
 // Compile-time math constants
 const PI = math.pi;
@@ -808,4 +808,3 @@ pub const MathUtils = struct {
         return @abs(a - b) < EPSILON;
     }
 };
-

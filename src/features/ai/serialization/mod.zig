@@ -5,7 +5,7 @@ pub const FormatVersion = serializer.FormatVersion;
 pub const ModelMetadata = serializer.ModelMetadata;
 pub const ModelSerializer = serializer.ModelSerializer;
 
-pub usingnamespace serializer;
+// usingnamespace serializer;  // omitted
 
 test {
     std.testing.refAllDecls(@This());

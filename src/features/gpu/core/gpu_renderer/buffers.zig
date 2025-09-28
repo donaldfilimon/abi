@@ -1,4 +1,5 @@
 const std = @import("std");
+const print = std.debug.print;
 const gpu = std.gpu;
 
 const config = @import("config.zig");
@@ -454,4 +455,4 @@ pub const Buffer = struct {
     }
 };
 
-/// Shader resource
+// Shader resource
