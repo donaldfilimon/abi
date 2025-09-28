@@ -34,14 +34,14 @@ fn makeCtx() common.Context {
 }
 
 fn runCommand(command: anytype, list: []const []const u8) !void {
-    var args = try makeArgs(list);
+    const args = try makeArgs(list);
     defer freeArgs(args);
     var ctx = makeCtx();
     try command.run(&ctx, args);
 }
 
 test "router prints global help" {
-    var args = try makeArgs(&.{ "abi", "--help" });
+    const args = try makeArgs(&.{ "abi", "--help" });
     defer freeArgs(args);
     var ctx = makeCtx();
     try router.run(&ctx, args);
