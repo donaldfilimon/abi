@@ -8,6 +8,7 @@ const std = @import("std");
 pub const core = @import("core.zig");
 pub const framework = @import("framework.zig");
 pub const config = @import("config.zig");
+pub const profile = @import("profile.zig");
 
 // System utilities
 pub const lifecycle = @import("lifecycle.zig");

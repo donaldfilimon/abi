@@ -22,3 +22,20 @@ pub fn initialize(args: types.InitArgs) !types.BackendResources {
 pub fn isSupported() bool {
     return true;
 }
+
+test "cpu backend returns fallback resources" {
+    const testing = std.testing;
+    var resources = try initialize(.{ .allocator = testing.allocator, .config = .{} });
+    defer {
+        if (resources.gpu_context) |*ctx| ctx.deinit();
+        if (resources.hardware_context) |*ctx| ctx.deinit();
+    }
+
+    try testing.expect(resources.backend == .cpu_fallback);
+    try testing.expect(resources.gpu_context != null);
+    try testing.expect(resources.hardware_context == null);
+    try testing.expect(switch (resources.buffer_manager.device) {
+        .mock => true,
+        else => false,
+    });
+}

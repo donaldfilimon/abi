@@ -1,6 +1,7 @@
 const std = @import("std");
 const testing = std.testing;
 
+const config = @import("config.zig");
 const module_docs = @import("generators/module_docs.zig");
 const api_reference = @import("generators/api_reference.zig");
 const examples = @import("generators/examples.zig");
@@ -60,6 +61,94 @@ fn writeFile(path: []const u8, contents: []const u8) !void {
 
 fn readFileAlloc(path: []const u8) ![]u8 {
     return try std.fs.cwd().readFileAlloc(testing.allocator, path, 1 << 20);
+}
+
+test "config generator disables jekyll" {
+    var env = try setupTempEnv();
+    defer env.cleanup();
+    try ensureBaseLayout();
+
+    try config.generateNoJekyll(testing.allocator);
+    var file = try std.fs.cwd().openFile("docs/.nojekyll", .{});
+    defer file.close();
+}
+
+test "config generator writes jekyll config" {
+    var env = try setupTempEnv();
+    defer env.cleanup();
+    try ensureBaseLayout();
+
+    try config.generateJekyllConfig(testing.allocator);
+    const data = try readFileAlloc("docs/_config.yml");
+    defer testing.allocator.free(data);
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "title: \"ABI Documentation\""));
+}
+
+test "config generator emits github pages layout" {
+    var env = try setupTempEnv();
+    defer env.cleanup();
+    try ensureBaseLayout();
+
+    try config.generateGitHubPagesLayout(testing.allocator);
+    const data = try readFileAlloc("docs/_layouts/documentation.html");
+    defer testing.allocator.free(data);
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "<!DOCTYPE html>"));
+}
+
+test "config generator writes navigation data" {
+    var env = try setupTempEnv();
+    defer env.cleanup();
+    try ensureBaseLayout();
+
+    try config.generateNavigationData(testing.allocator);
+    const data = try readFileAlloc("docs/_data/navigation.yml");
+    defer testing.allocator.free(data);
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "main:"));
+}
+
+test "config generator writes seo metadata" {
+    var env = try setupTempEnv();
+    defer env.cleanup();
+    try ensureBaseLayout();
+
+    try config.generateSEOMetadata(testing.allocator);
+    const sitemap = try readFileAlloc("docs/sitemap.xml");
+    defer testing.allocator.free(sitemap);
+    try testing.expect(std.mem.containsAtLeast(u8, sitemap, 1, "<urlset"));
+
+    const robots = try readFileAlloc("docs/robots.txt");
+    defer testing.allocator.free(robots);
+    try testing.expect(std.mem.containsAtLeast(u8, robots, 1, "User-agent: *"));
+}
+
+test "config generator writes github pages assets" {
+    var env = try setupTempEnv();
+    defer env.cleanup();
+    try ensureBaseLayout();
+
+    try config.generateGitHubPagesAssets(testing.allocator);
+    const css = try readFileAlloc("docs/assets/css/documentation.css");
+    defer testing.allocator.free(css);
+    try testing.expect(std.mem.containsAtLeast(u8, css, 1, "Documentation Styles"));
+
+    const js = try readFileAlloc("docs/assets/js/documentation.js");
+    defer testing.allocator.free(js);
+    try testing.expect(std.mem.containsAtLeast(u8, js, 1, "generateTOC"));
+
+    const search_js = try readFileAlloc("docs/assets/js/search.js");
+    defer testing.allocator.free(search_js);
+    try testing.expect(std.mem.containsAtLeast(u8, search_js, 1, "Search index"));
+}
+
+test "config generator writes github actions workflow" {
+    var env = try setupTempEnv();
+    defer env.cleanup();
+    try ensureBaseLayout();
+
+    try config.generateGitHubActionsWorkflow(testing.allocator);
+    const data = try readFileAlloc(".github/workflows/deploy_docs.yml");
+    defer testing.allocator.free(data);
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "Deploy Documentation to GitHub Pages"));
 }
 
 test "module docs generator emits header" {
