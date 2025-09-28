@@ -559,3 +559,25 @@ pub const MixedPrecision = struct {
         }
     };
 };
+
+test "parameter server synchronization" {
+    const testing = std.testing;
+    var server = try ParameterServer.init(testing.allocator, 2);
+    defer server.deinit();
+
+    const params = [_][]const f32{ &[_]f32{ 1.0, 2.0 }, &[_]f32{ 3.0 } };
+    try server.registerParameters(params[0..]);
+
+    const gradients = [_][]const f32{ &[_]f32{ 0.1, 0.2 }, &[_]f32{ 0.3 } };
+    try server.pushGradients(0, gradients[0..]);
+    try server.applyGradients(0.01);
+
+    const pulled = try server.pullParameters(0);
+    defer testing.allocator.free(pulled);
+    defer {
+        for (pulled) |param| testing.allocator.free(param);
+    }
+
+    try testing.expectApproxEqAbs(0.999, pulled[0][0], 0.01);
+    try testing.expectApproxEqAbs(1.998, pulled[0][1], 0.01);
+}

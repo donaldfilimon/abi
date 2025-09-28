@@ -15,208 +15,14 @@
 
 const std = @import("std");
 // Note: core functionality is now imported through module dependencies
-const simd = @import("../../shared/simd.zig");
+const activations = @import("activations/mod.zig");
+const interfaces = @import("interfaces.zig");
+const optimizers = @import("optimizers/mod.zig");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Random = std.Random;
 
-// Compile-time mathematical constants for optimized activation functions
-const EULER_CONSTANT = std.math.e;
-const PI = std.math.pi;
-const SQRT_2_PI = @sqrt(2.0 / PI);
-const SQRT_2 = @sqrt(2.0);
-const LN_2 = @log(2.0);
-
-// Optimized activation function constants
-const SELU_ALPHA = 1.6732632423543772848170429916717;
-const SELU_SCALE = 1.0507009873554804934193349852946;
-const LEAKY_RELU_SLOPE = 0.01;
-const SWISH_BETA = 1.0;
-const GELU_SQRT_2 = 0.7978845608028654; // sqrt(2/pi)
-const EPSILON = 1e-8;
-
-/// High-performance activation function utilities
-pub const ActivationUtils = struct {
-    /// Inline fast approximation functions for better performance
-    pub inline fn fastSigmoid(x: f32) f32 {
-        // Fast sigmoid approximation using tanh
-        return 0.5 * (std.math.tanh(0.5 * x) + 1.0);
-    }
-
-    pub inline fn fastTanh(x: f32) f32 {
-        // Fast tanh approximation
-        if (x > 3.0) return 1.0;
-        if (x < -3.0) return -1.0;
-        const x2 = x * x;
-        return x * (27.0 + x2) / (27.0 + 9.0 * x2);
-    }
-
-    pub inline fn fastExp(x: f32) f32 {
-        // Fast exp approximation for activation functions
-        if (x > 10.0) return std.math.exp(10.0);
-        if (x < -10.0) return std.math.exp(-10.0);
-        return std.math.exp(x);
-    }
-
-    pub inline fn fastGelu(x: f32) f32 {
-        // Fast GELU approximation
-        return 0.5 * x * (1.0 + fastTanh(GELU_SQRT_2 * (x + 0.044715 * x * x * x)));
-    }
-
-    pub inline fn fastSqrt(x: f32) f32 {
-        // Fast square root for normalization functions
-        if (x <= 0.0) return 0.0;
-        return @sqrt(x);
-    }
-
-    /// Vectorized ReLU activation with SIMD optimization
-    pub inline fn vectorizedRelu(data: []f32) void {
-        // Use SIMD acceleration if available and beneficial
-        if (comptime std.simd.suggestVectorLength(f32)) |simd_len| {
-            if (simd_len >= 4 and data.len >= 8) {
-                if (simd.VectorOps.shouldUseSimd(data.len)) {
-                    return simd.VectorOps.vectorizedRelu(data);
-                }
-            }
-        }
-
-        // Fallback to scalar processing with loop unrolling
-        var i: usize = 0;
-        const len = data.len;
-
-        // Process 4 elements at a time for better performance
-        while (i + 4 <= len) : (i += 4) {
-            data[i] = @max(0.0, data[i]);
-            data[i + 1] = @max(0.0, data[i + 1]);
-            data[i + 2] = @max(0.0, data[i + 2]);
-            data[i + 3] = @max(0.0, data[i + 3]);
-        }
-
-        // Handle remaining elements
-        while (i < len) : (i += 1) {
-            data[i] = @max(0.0, data[i]);
-        }
-    }
-
-    pub inline fn vectorizedSigmoid(data: []f32) void {
-        var i: usize = 0;
-        const len = data.len;
-
-        while (i + 4 <= len) : (i += 4) {
-            data[i] = fastSigmoid(data[i]);
-            data[i + 1] = fastSigmoid(data[i + 1]);
-            data[i + 2] = fastSigmoid(data[i + 2]);
-            data[i + 3] = fastSigmoid(data[i + 3]);
-        }
-
-        while (i < len) : (i += 1) {
-            data[i] = fastSigmoid(data[i]);
-        }
-    }
-
-    pub inline fn vectorizedTanh(data: []f32) void {
-        var i: usize = 0;
-        const len = data.len;
-
-        while (i + 4 <= len) : (i += 4) {
-            data[i] = fastTanh(data[i]);
-            data[i + 1] = fastTanh(data[i + 1]);
-            data[i + 2] = fastTanh(data[i + 2]);
-            data[i + 3] = fastTanh(data[i + 3]);
-        }
-
-        while (i < len) : (i += 1) {
-            data[i] = fastTanh(data[i]);
-        }
-    }
-
-    /// Vectorized Leaky ReLU activation with SIMD optimization
-    pub inline fn vectorizedLeakyRelu(data: []f32) void {
-        // Use SIMD acceleration if available and beneficial
-        if (comptime std.simd.suggestVectorLength(f32)) |simd_len| {
-            if (simd_len >= 4 and data.len >= 8) {
-                if (simd.VectorOps.shouldUseSimd(data.len)) {
-                    return simd.VectorOps.vectorizedLeakyRelu(data, LEAKY_RELU_SLOPE);
-                }
-            }
-        }
-
-        // Fallback to scalar processing with loop unrolling
-        var i: usize = 0;
-        const len = data.len;
-
-        while (i + 4 <= len) : (i += 4) {
-            data[i] = if (data[i] > 0.0) data[i] else LEAKY_RELU_SLOPE * data[i];
-            data[i + 1] = if (data[i + 1] > 0.0) data[i + 1] else LEAKY_RELU_SLOPE * data[i + 1];
-            data[i + 2] = if (data[i + 2] > 0.0) data[i + 2] else LEAKY_RELU_SLOPE * data[i + 2];
-            data[i + 3] = if (data[i + 3] > 0.0) data[i + 3] else LEAKY_RELU_SLOPE * data[i + 3];
-        }
-
-        while (i < len) : (i += 1) {
-            data[i] = if (data[i] > 0.0) data[i] else LEAKY_RELU_SLOPE * data[i];
-        }
-    }
-
-    pub inline fn vectorizedGelu(data: []f32) void {
-        var i: usize = 0;
-        const len = data.len;
-
-        while (i + 4 <= len) : (i += 4) {
-            data[i] = fastGelu(data[i]);
-            data[i + 1] = fastGelu(data[i + 1]);
-            data[i + 2] = fastGelu(data[i + 2]);
-            data[i + 3] = fastGelu(data[i + 3]);
-        }
-
-        while (i < len) : (i += 1) {
-            data[i] = fastGelu(data[i]);
-        }
-    }
-
-    /// Optimized softmax with numerical stability
-    pub inline fn stableSoftmax(data: []f32) void {
-        if (data.len == 0) return;
-
-        // Find maximum for numerical stability
-        var max_val = data[0];
-        for (data[1..]) |val| {
-            max_val = @max(max_val, val);
-        }
-
-        // Compute exponentials and sum
-        var sum: f32 = 0.0;
-        for (data) |*val| {
-            val.* = fastExp(val.* - max_val);
-            sum += val.*;
-        }
-
-        // Normalize with epsilon for numerical stability
-        const inv_sum = 1.0 / (sum + EPSILON);
-        for (data) |*val| {
-            val.* *= inv_sum;
-        }
-    }
-
-    /// Optimized log softmax with numerical stability
-    pub inline fn stableLogSoftmax(data: []f32) void {
-        if (data.len == 0) return;
-
-        var max_val = data[0];
-        for (data[1..]) |val| {
-            max_val = @max(max_val, val);
-        }
-
-        var sum: f32 = 0.0;
-        for (data) |val| {
-            sum += fastExp(val - max_val);
-        }
-
-        const log_sum = @log(sum + EPSILON) + max_val;
-        for (data) |*val| {
-            val.* = val.* - log_sum;
-        }
-    }
-};
+const tensor_ops = interfaces.createBasicTensorOps();
 
 /// Neural network layer types with enhanced coverage
 pub const LayerType = enum {
@@ -256,48 +62,7 @@ pub const LayerType = enum {
 };
 
 /// Enhanced activation functions with optimized implementations
-pub const Activation = enum {
-    relu,
-    relu6,
-    leaky_relu,
-    parametric_relu,
-    elu,
-    selu,
-    celu,
-    sigmoid,
-    hard_sigmoid,
-    tanh,
-    hard_tanh,
-    softmax,
-    log_softmax,
-    softmin,
-    softplus,
-    softsign,
-    swish,
-    hard_swish,
-    mish,
-    gelu,
-    quick_gelu,
-    linear,
-    step,
-    threshold,
-
-    /// Inline function for quick activation checks
-    pub inline fn isNonlinear(self: Activation) bool {
-        return switch (self) {
-            .linear => false,
-            else => true,
-        };
-    }
-
-    /// Inline function for gradient requirements
-    pub inline fn requiresGradient(self: Activation) bool {
-        return switch (self) {
-            .step, .threshold => false,
-            else => true,
-        };
-    }
-};
+pub const Activation = activations.ActivationType;
 
 /// Comprehensive weight initialization strategies
 pub const WeightInit = enum {
@@ -1171,103 +936,10 @@ pub const Layer = struct {
         }
     }
 
-    /// High-performance activation function implementation using optimized utilities
+    /// High-performance activation function implementation using shared tensor operations
     fn applyActivation(self: *Layer, data: []f32, activation: Activation) !void {
         _ = self;
-        switch (activation) {
-            .relu => ActivationUtils.vectorizedRelu(data),
-            .sigmoid => ActivationUtils.vectorizedSigmoid(data),
-            .tanh => ActivationUtils.vectorizedTanh(data),
-            .softmax => ActivationUtils.stableSoftmax(data),
-            .log_softmax => ActivationUtils.stableLogSoftmax(data),
-            .leaky_relu => ActivationUtils.vectorizedLeakyRelu(data),
-            .gelu => ActivationUtils.vectorizedGelu(data),
-            .parametric_relu => {
-                // Optimized parametric ReLU with configurable alpha
-                const alpha = 0.1; // Could be made configurable
-                var i: usize = 0;
-                while (i + 4 <= data.len) : (i += 4) {
-                    data[i] = if (data[i] > 0.0) data[i] else alpha * data[i];
-                    data[i + 1] = if (data[i + 1] > 0.0) data[i + 1] else alpha * data[i + 1];
-                    data[i + 2] = if (data[i + 2] > 0.0) data[i + 2] else alpha * data[i + 2];
-                    data[i + 3] = if (data[i + 3] > 0.0) data[i + 3] else alpha * data[i + 3];
-                }
-                while (i < data.len) : (i += 1) {
-                    data[i] = if (data[i] > 0.0) data[i] else alpha * data[i];
-                }
-            },
-            .elu => {
-                // Optimized ELU with vectorization
-                var i: usize = 0;
-                while (i + 4 <= data.len) : (i += 4) {
-                    data[i] = if (data[i] > 0.0) data[i] else ActivationUtils.fastExp(data[i]) - 1.0;
-                    data[i + 1] = if (data[i + 1] > 0.0) data[i + 1] else ActivationUtils.fastExp(data[i + 1]) - 1.0;
-                    data[i + 2] = if (data[i + 2] > 0.0) data[i + 2] else ActivationUtils.fastExp(data[i + 2]) - 1.0;
-                    data[i + 3] = if (data[i + 3] > 0.0) data[i + 3] else ActivationUtils.fastExp(data[i + 3]) - 1.0;
-                }
-                while (i < data.len) : (i += 1) {
-                    data[i] = if (data[i] > 0.0) data[i] else ActivationUtils.fastExp(data[i]) - 1.0;
-                }
-            },
-            .selu => {
-                // Optimized SELU with vectorization
-                var i: usize = 0;
-                while (i + 4 <= data.len) : (i += 4) {
-                    data[i] = if (data[i] > 0.0) SELU_SCALE * data[i] else SELU_SCALE * SELU_ALPHA * (ActivationUtils.fastExp(data[i]) - 1.0);
-                    data[i + 1] = if (data[i + 1] > 0.0) SELU_SCALE * data[i + 1] else SELU_SCALE * SELU_ALPHA * (ActivationUtils.fastExp(data[i + 1]) - 1.0);
-                    data[i + 2] = if (data[i + 2] > 0.0) SELU_SCALE * data[i + 2] else SELU_SCALE * SELU_ALPHA * (ActivationUtils.fastExp(data[i + 2]) - 1.0);
-                    data[i + 3] = if (data[i + 3] > 0.0) SELU_SCALE * data[i + 3] else SELU_SCALE * SELU_ALPHA * (ActivationUtils.fastExp(data[i + 3]) - 1.0);
-                }
-                while (i < data.len) : (i += 1) {
-                    data[i] = if (data[i] > 0.0) SELU_SCALE * data[i] else SELU_SCALE * SELU_ALPHA * (ActivationUtils.fastExp(data[i]) - 1.0);
-                }
-            },
-            .swish => {
-                for (data) |*val| {
-                    val.* = val.* / (1.0 + @exp(-val.*));
-                }
-            },
-            .mish => {
-                // Optimized Mish with vectorization
-                var i: usize = 0;
-                while (i + 4 <= data.len) : (i += 4) {
-                    data[i] = data[i] * ActivationUtils.fastTanh(@log(1.0 + ActivationUtils.fastExp(data[i])));
-                    data[i + 1] = data[i + 1] * ActivationUtils.fastTanh(@log(1.0 + ActivationUtils.fastExp(data[i + 1])));
-                    data[i + 2] = data[i + 2] * ActivationUtils.fastTanh(@log(1.0 + ActivationUtils.fastExp(data[i + 2])));
-                    data[i + 3] = data[i + 3] * ActivationUtils.fastTanh(@log(1.0 + ActivationUtils.fastExp(data[i + 3])));
-                }
-                while (i < data.len) : (i += 1) {
-                    data[i] = data[i] * ActivationUtils.fastTanh(@log(1.0 + ActivationUtils.fastExp(data[i])));
-                }
-            },
-            .hard_swish => {
-                for (data) |*val| {
-                    if (val.* <= -3.0) {
-                        val.* = 0.0;
-                    } else if (val.* >= 3.0) {
-                        val.* = val.*;
-                    } else {
-                        val.* = val.* * (val.* + 3.0) / 6.0;
-                    }
-                }
-            },
-            .linear => {
-                // No transformation needed
-            },
-            .softplus => {
-                for (data) |*val| {
-                    val.* = @log(1.0 + @exp(val.*));
-                }
-            },
-            .softsign => {
-                for (data) |*val| {
-                    val.* = val.* / (1.0 + @abs(val.*));
-                }
-            },
-            else => {
-                // Unsupported/unused activations are treated as linear
-            },
-        }
+        try tensor_ops.applyActivation(activation, data);
     }
 };
 
@@ -1291,35 +963,10 @@ pub const LossFunction = enum {
 };
 
 /// Optimizers with state-of-the-art algorithms
-pub const Optimizer = enum {
-    sgd,
-    momentum_sgd,
-    nesterov_sgd,
-    adam,
-    adamw,
-    adamax,
-    nadam,
-    rmsprop,
-    adagrad,
-    adadelta,
-    adambound,
-    radam,
-    lookahead,
-    lamb,
-};
+pub const Optimizer = optimizers.OptimizerType;
 
 /// Learning rate scheduling strategies
-pub const LRScheduler = enum {
-    constant,
-    step_decay,
-    exponential_decay,
-    polynomial_decay,
-    cosine_annealing,
-    cosine_annealing_warm_restarts,
-    reduce_on_plateau,
-    cyclic,
-    one_cycle,
-};
+pub const LRScheduler = optimizers.SchedulerType;
 
 /// Data augmentation techniques
 pub const DataAugmentation = struct {
@@ -1342,34 +989,16 @@ pub const DataAugmentation = struct {
 /// Model training configuration with advanced options
 pub const TrainingConfig = struct {
     // Basic training parameters
-    learning_rate: f32 = 0.001,
     batch_size: usize = 32,
     epochs: usize = 100,
     validation_split: f32 = 0.2,
+    optimizer: optimizers.OptimizerConfig = .{},
 
     // Early stopping and checkpointing
     early_stopping_patience: usize = 10,
     early_stopping_min_delta: f32 = 0.001,
     save_best_only: bool = true,
     checkpoint_frequency: usize = 10,
-
-    // Optimizer configuration
-    use_momentum: bool = true,
-    momentum: f32 = 0.9,
-    weight_decay: f32 = 0.0001,
-    nesterov: bool = false,
-
-    // Adam-specific parameters
-    beta1: f32 = 0.9,
-    beta2: f32 = 0.999,
-    epsilon: f32 = 1e-8,
-    amsgrad: bool = false,
-
-    // Learning rate scheduling
-    lr_scheduler: LRScheduler = .constant,
-    lr_decay_rate: f32 = 0.1,
-    lr_decay_steps: usize = 1000,
-    lr_warmup_steps: usize = 0,
 
     // Regularization
     gradient_clipping: ?f32 = null,
@@ -2229,22 +1858,34 @@ pub const ModelTrainer = struct {
 
     fn getCurrentLearningRate(self: *const ModelTrainer) f32 {
         // Implement learning rate scheduling
-        var lr = self.config.learning_rate;
+        var lr = self.config.optimizer.learning_rate;
+        const scheduler = self.config.optimizer.scheduler;
 
-        switch (self.config.lr_scheduler) {
+        if (scheduler.warmup_steps > 0 and self.current_step < scheduler.warmup_steps) {
+            const progress = @as(f32, @floatFromInt(self.current_step + 1)) / @as(f32, @floatFromInt(scheduler.warmup_steps));
+            lr *= progress;
+        }
+
+        switch (scheduler.kind) {
             .constant => {},
             .step_decay => {
-                const decay_factor = std.math.pow(f32, self.config.lr_decay_rate, @as(f32, @floatFromInt(self.current_step / self.config.lr_decay_steps)));
-                lr *= decay_factor;
+                if (scheduler.decay_steps > 0) {
+                    const exponent = @as(f32, @floatFromInt(self.current_step / scheduler.decay_steps));
+                    lr *= std.math.pow(f32, scheduler.decay_rate, exponent);
+                }
             },
             .exponential_decay => {
-                lr *= std.math.pow(f32, self.config.lr_decay_rate, @as(f32, @floatFromInt(self.current_step)));
+                lr *= std.math.pow(f32, scheduler.decay_rate, @as(f32, @floatFromInt(self.current_step)));
             },
             .cosine_annealing => {
                 const progress = @as(f32, @floatFromInt(self.current_epoch)) / @as(f32, @floatFromInt(self.config.epochs));
                 lr *= 0.5 * (1.0 + @cos(std.math.pi * progress));
             },
             else => {},
+        }
+
+        if (lr < scheduler.minimum_learning_rate) {
+            return scheduler.minimum_learning_rate;
         }
 
         return lr;
@@ -2434,6 +2075,8 @@ pub const Neural = @import("neural.zig");
 pub const LocalML = @import("localml.zig");
 pub const DynamicRouter = @import("dynamic.zig");
 pub const DataStructures = @import("data_structures/mod.zig");
+pub const Activations = @import("activations/mod.zig");
+pub const Optimizers = @import("optimizers/mod.zig");
 pub const Trainer = ModelTrainer;
 pub const Config = TrainingConfig;
 pub const Metrics = TrainingMetrics;
@@ -2442,8 +2085,10 @@ pub const Opt = Optimizer;
 pub const agent = @import("agent.zig");
 pub const enhanced_agent = @import("enhanced_agent.zig");
 pub const reinforcement_learning = @import("reinforcement_learning.zig");
-pub const distributed_training = @import("distributed_training.zig");
-pub const model_serialization = @import("model_serialization.zig");
+pub const distributed = @import("distributed/mod.zig");
+pub const distributed_training = distributed;
+pub const serialization = @import("serialization/mod.zig");
+pub const model_serialization = serialization;
 
 // Utility functions
 pub fn createMLP(allocator: std.mem.Allocator, layer_sizes: []const usize, activations: []const Activation) !*NeuralNetwork {
@@ -2561,10 +2206,10 @@ test "Enhanced model trainer" {
 
     // Create training configuration
     const config = TrainingConfig{
-        .learning_rate = 0.01,
         .batch_size = 2,
         .epochs = 5,
         .validation_split = 0.2,
+        .optimizer = optimizers.OptimizerConfig{ .learning_rate = 0.01 },
         .early_stopping_patience = 3,
     };
 
