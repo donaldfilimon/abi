@@ -157,4 +157,4 @@ pub const ComputeDispatch = struct {
     push_constants: []const u8 = &[_]u8{},
 };
 
-/// Main GPU renderer with cross-platform support and CPU fallbacks
+// Main GPU renderer with cross-platform support and CPU fallbacks
