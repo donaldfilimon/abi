@@ -75,7 +75,7 @@ generate_enhanced_matrix() {
     echo "" >> /tmp/enhanced_matrix.md
 
     echo "### Recommended Zig Versions:" >> /tmp/enhanced_matrix.md
-    echo "- 0.16.0-dev (current master baseline)" >> /tmp/enhanced_matrix.md
+    echo "- 0.16.0-dev.427+86077fe6b (current pinned baseline)" >> /tmp/enhanced_matrix.md
     echo "- master (nightly auto-update)" >> /tmp/enhanced_matrix.md
     echo "- 0.16.x release candidate (when available)" >> /tmp/enhanced_matrix.md
     echo "" >> /tmp/enhanced_matrix.md
@@ -260,7 +260,7 @@ This guide covers the comprehensive cross-platform testing strategy for the ABI 
 - **aarch64**: ARM64 support (especially macOS Apple Silicon)
 
 ### Zig Versions
-- **0.16.0-dev.254**: Current baseline
+- **0.16.0-dev.427+86077fe6b**: Current baseline
 - **0.16.0**: Stable release (when available)
 - **master**: Nightly builds
 

@@ -39,7 +39,7 @@ jobs:
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.16.0-dev.393+dd4be26f5
+          version: 0.16.0-dev.427+86077fe6b
 
       - name: Build project
         run: zig build --summary all
