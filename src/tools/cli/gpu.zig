@@ -3,6 +3,7 @@ const gpu = @import("gpu");
 const common = @import("common.zig");
 
 pub const command = common.Command{
+    .id = .gpu,
     .name = "gpu",
     .summary = "GPU diagnostics and vector utilities",
     .usage = "abi gpu <info|run-examples|dot|search|benchmark> [options]",
