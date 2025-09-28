@@ -1,10 +1,12 @@
 //! Minimal AI Agent module used for basic testing and infrastructure wiring.
 //!
-//! This version intentionally keeps behaviour small and well bounded while the
-//! wider refactor is in flight. We provide just enough surface area for the
-//! build to succeed and for higher level components to depend on a stable API.
+//! This implementation now incorporates persona manifests, sampling controls,
+//! and telemetry hooks while keeping the public surface stable for ongoing
+//! refactors.
 
 const std = @import("std");
+const persona_manifest = @import("persona_manifest.zig");
+const observability = @import("../../shared/observability/mod.zig");
 
 const persona_manifest = @import("../../shared/core/persona_manifest.zig");
 const metrics = @import("../../shared/observability/metrics.zig");
@@ -18,12 +20,8 @@ pub const AgentError = error{
     OutOfMemory,
 };
 
-/// Simple set of personas that are safe to use across the codebase.
-pub const PersonaType = enum {
-    adaptive,
-    technical,
-    empathetic,
-};
+pub const PersonaType = persona_manifest.PersonaArchetype;
+pub const PersonaManifest = persona_manifest.PersonaManifest;
 
 /// Capabilities flag set – kept small for now, can expand later without
 /// breaking the ABI.
@@ -38,14 +36,22 @@ pub const AgentConfig = struct {
     name: []const u8,
     persona: PersonaType = .adaptive,
     enable_history: bool = true,
+    enable_streaming: bool = true,
+    enable_function_calling: bool = true,
     max_history_items: usize = 64,
     capabilities: AgentCapabilities = .{},
     temperature: f32 = 0.7,
     top_p: f32 = 0.9,
+    rate_limit_per_minute: u32 = 60,
+    tools: []const []const u8 = &.{},
+    safety_filters: []const []const u8 = &.{},
 
     pub fn validate(self: AgentConfig) AgentError!void {
         if (self.name.len == 0) return AgentError.InvalidConfiguration;
         if (self.max_history_items == 0) return AgentError.InvalidConfiguration;
+        if (self.temperature < 0 or self.temperature > 2.0) return AgentError.InvalidConfiguration;
+        if (self.top_p < 0 or self.top_p > 1) return AgentError.InvalidConfiguration;
+        if (self.rate_limit_per_minute == 0) return AgentError.InvalidConfiguration;
     }
 
     pub fn personaString(self: AgentConfig) []const u8 {
@@ -53,15 +59,20 @@ pub const AgentConfig = struct {
     }
 };
 
-/// Minimal Agent implementation – tracks persona and a simple message history.
+/// Minimal Agent implementation – tracks persona, sampling controls, telemetry,
+/// and a simple message history.
 pub const Agent = struct {
     allocator: Allocator,
     config: AgentConfig,
     history: std.ArrayListUnmanaged([]const u8),
-    persona_settings: PersonaSettings,
-    system_prompt: []const u8,
-    owns_prompt: bool,
-    metrics_registry: ?*metrics.MetricsRegistry = null,
+    tools: std.ArrayListUnmanaged([]const u8),
+    safety_filters: std.ArrayListUnmanaged([]const u8),
+    temperature: f32,
+    top_p: f32,
+    rate_limit_per_minute: u32,
+    streaming: bool,
+    function_calling: bool,
+    telemetry: ?*observability.TelemetrySink = null,
 
     pub fn init(allocator: Allocator, config: AgentConfig) AgentError!*Agent {
         try config.validate();
@@ -71,24 +82,33 @@ pub const Agent = struct {
             .allocator = allocator,
             .config = config,
             .history = .{},
-            .persona_settings = .{},
-            .system_prompt = "",
-            .owns_prompt = false,
+            .tools = .{},
+            .safety_filters = .{},
+            .temperature = config.temperature,
+            .top_p = config.top_p,
+            .rate_limit_per_minute = config.rate_limit_per_minute,
+            .streaming = config.enable_streaming,
+            .function_calling = config.enable_function_calling,
+            .telemetry = null,
         };
-        self.persona_settings.temperature = config.temperature;
-        self.persona_settings.top_p = config.top_p;
+
+        self.config.tools = &.{};
+        self.config.safety_filters = &.{};
+        try self.replaceStringList(&self.tools, config.tools);
+        try self.replaceStringList(&self.safety_filters, config.safety_filters);
+        self.config.tools = self.tools.items;
+        self.config.safety_filters = self.safety_filters.items;
+
         return self;
     }
 
     pub fn deinit(self: *Agent) void {
-        self.clearTools();
-        if (self.owns_prompt and self.system_prompt.len > 0) {
-            self.allocator.free(self.system_prompt);
-        }
-        for (self.history.items) |entry| {
-            self.allocator.free(entry);
-        }
+        clearStringList(&self.history, self.allocator);
         self.history.deinit(self.allocator);
+        clearStringList(&self.tools, self.allocator);
+        self.tools.deinit(self.allocator);
+        clearStringList(&self.safety_filters, self.allocator);
+        self.safety_filters.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -96,10 +116,15 @@ pub const Agent = struct {
     pub fn process(self: *Agent, input: []const u8, allocator: Allocator) AgentError![]const u8 {
         if (input.len == 0) return AgentError.InvalidQuery;
 
-        const start = std.time.nanoTimestamp();
-        var success = false;
-        defer if (self.metrics_registry) |registry| {
-            registry.recordCall(personaToString(self.config.persona), std.time.nanoTimestamp() - start, success) catch {};
+        const persona_label = persona_manifest.archetypeToString(self.getPersona());
+        const telemetry_sink = self.telemetry;
+        var start_ts: i128 = 0;
+        if (telemetry_sink) |_| {
+            start_ts = std.time.nanoTimestamp();
+        }
+        errdefer if (telemetry_sink) |sink| {
+            const latency = computeLatencyNs(start_ts, std.time.nanoTimestamp());
+            _ = sink.record(persona_label, latency, .error, "agent_error") catch {};
         };
 
         if (self.config.enable_history) {
@@ -111,20 +136,26 @@ pub const Agent = struct {
                 self.history.items.len -= 1;
                 self.allocator.free(oldest);
             }
-            const stored = try self.allocator.dupe(u8, input);
+            const stored = self.allocator.dupe(u8, input) catch return AgentError.OutOfMemory;
             errdefer self.allocator.free(stored);
-            try self.history.append(self.allocator, stored);
+            self.history.append(self.allocator, stored) catch {
+                self.allocator.free(stored);
+                return AgentError.OutOfMemory;
+            };
         }
 
-        const duplicated = try allocator.dupe(u8, input);
-        success = true;
-        return duplicated;
+        const response = allocator.dupe(u8, input) catch return AgentError.OutOfMemory;
+
+        if (telemetry_sink) |sink| {
+            const latency = computeLatencyNs(start_ts, std.time.nanoTimestamp());
+            _ = sink.record(persona_label, latency, .success, null) catch {};
+        }
+
+        return response;
     }
 
     pub fn clearHistory(self: *Agent) void {
-        for (self.history.items) |entry| {
-            self.allocator.free(entry);
-        }
+        clearStringList(&self.history, self.allocator);
         self.history.clearRetainingCapacity();
     }
 
@@ -202,36 +233,61 @@ pub const Agent = struct {
     pub fn name(self: *const Agent) []const u8 {
         return self.config.name;
     }
+
+    pub fn attachTelemetry(self: *Agent, sink: *observability.TelemetrySink) void {
+        self.telemetry = sink;
+    }
+
+    pub fn applyManifest(self: *Agent, manifest: *const PersonaManifest) AgentError!void {
+        self.setPersona(manifest.archetype);
+        self.temperature = manifest.temperature;
+        self.top_p = manifest.top_p;
+        self.rate_limit_per_minute = manifest.rate_limit_per_minute;
+        self.streaming = manifest.streaming;
+        self.function_calling = manifest.function_calling;
+        self.config.temperature = manifest.temperature;
+        self.config.top_p = manifest.top_p;
+        self.config.rate_limit_per_minute = manifest.rate_limit_per_minute;
+        self.config.enable_streaming = manifest.streaming;
+        self.config.enable_function_calling = manifest.function_calling;
+        try self.replaceStringList(&self.tools, manifest.toolsSlice());
+        try self.replaceStringList(&self.safety_filters, manifest.safetyFiltersSlice());
+        self.config.tools = self.tools.items;
+        self.config.safety_filters = self.safety_filters.items;
+    }
+
+    pub fn toolsSlice(self: *const Agent) []const []const u8 {
+        return self.tools.items;
+    }
+
+    pub fn safetyFiltersSlice(self: *const Agent) []const []const u8 {
+        return self.safety_filters.items;
+    }
+
+    fn replaceStringList(self: *Agent, list: *std.ArrayListUnmanaged([]const u8), values: []const []const u8) AgentError!void {
+        clearStringList(list, self.allocator);
+        for (values) |value| {
+            const copy = self.allocator.dupe(u8, value) catch return AgentError.OutOfMemory;
+            errdefer self.allocator.free(copy);
+            list.append(self.allocator, copy) catch {
+                self.allocator.free(copy);
+                return AgentError.OutOfMemory;
+            };
+        }
+    }
 };
 
-pub const PersonaSettings = struct {
-    temperature: f32 = 0.7,
-    top_p: f32 = 0.9,
-    tools: std.ArrayListUnmanaged([]const u8) = .{},
-    safety: persona_manifest.SafetyConfig = .{},
-};
-
-pub const PersonaSettingsView = struct {
-    temperature: f32,
-    top_p: f32,
-    tools: []const []const u8,
-    safety: persona_manifest.SafetyConfig,
-    system_prompt: []const u8,
-};
-
-pub fn personaTypeFromId(id: []const u8) ?PersonaType {
-    if (std.mem.eql(u8, id, "adaptive")) return .adaptive;
-    if (std.mem.eql(u8, id, "technical")) return .technical;
-    if (std.mem.eql(u8, id, "empathetic")) return .empathetic;
-    return null;
+fn clearStringList(list: *std.ArrayListUnmanaged([]const u8), allocator: Allocator) void {
+    for (list.items) |item| {
+        allocator.free(item);
+    }
+    list.items.len = 0;
 }
 
-pub fn personaToString(persona: PersonaType) []const u8 {
-    return switch (persona) {
-        .adaptive => "adaptive",
-        .technical => "technical",
-        .empathetic => "empathetic",
-    };
+fn computeLatencyNs(start: i128, end: i128) u64 {
+    const delta = end - start;
+    if (delta <= 0) return 0;
+    return @intCast(u64, delta);
 }
 
 // -----------------------------------------------------------------------------
@@ -266,7 +322,6 @@ test "agent records history when processing input" {
     defer testing.allocator.free(response2);
     try testing.expectEqual(@as(usize, 2), agent.historyCount());
 
-    // Exceed history cap – oldest element is dropped.
     const response3 = try agent.process("again", testing.allocator);
     defer testing.allocator.free(response3);
     try testing.expectEqual(@as(usize, 2), agent.historyCount());
@@ -281,31 +336,49 @@ test "agent rejects empty input" {
     try testing.expectError(AgentError.InvalidQuery, agent.process("", testing.allocator));
 }
 
-test "agent applies persona definition and updates settings" {
+test "agent applies manifest configuration" {
     const testing = std.testing;
+    const json =
+        "{\n" ++
+        "  \"name\": \"coder\",\n" ++
+        "  \"system_prompt\": \"Write precise code\",\n" ++
+        "  \"temperature\": 0.4,\n" ++
+        "  \"top_p\": 0.7,\n" ++
+        "  \"rate_limit_per_minute\": 42,\n" ++
+        "  \"streaming\": false,\n" ++
+        "  \"function_calling\": true,\n" ++
+        "  \"archetype\": \"technical\",\n" ++
+        "  \"tools\": [\"editor\"],\n" ++
+        "  \"safety_filters\": [\"toxicity\"]\n" ++
+        "}\n";
+    var manifest = try persona_manifest.loadManifestFromSlice(testing.allocator, json, .json);
+    defer manifest.deinit();
 
-    var agent = try Agent.init(testing.allocator, .{ .name = "persona" });
+    var agent = try Agent.init(testing.allocator, .{ .name = "manifest" });
     defer agent.deinit();
 
-    const definition = persona_manifest.PersonaDefinition{
-        .id = "technical",
-        .display_name = "Technical",
-        .description = "desc",
-        .system_prompt = "system prompt",
-        .model = .{ .provider = "mock", .name = "mock", .temperature = 0.55, .top_p = 0.8, .streaming = false },
-        .tools = &.{ "code", "trace" },
-        .safety = .{ .allow_code_execution = false, .allow_network = true, .allow_file_system = false },
-        .rate_limits = .{},
-    };
-
-    try agent.applyPersonaDefinition(definition);
+    try agent.applyManifest(&manifest);
     try testing.expectEqual(PersonaType.technical, agent.getPersona());
+    try testing.expectEqual(@as(f32, 0.4), agent.temperature);
+    try testing.expectEqual(@as(f32, 0.7), agent.top_p);
+    try testing.expectEqual(@as(u32, 42), agent.rate_limit_per_minute);
+    try testing.expectEqual(@as(bool, false), agent.streaming);
+    try testing.expectEqual(@as(usize, 1), agent.toolsSlice().len);
+}
 
-    const view = agent.personaSettings();
-    try testing.expectApproxEqAbs(@as(f32, 0.55), view.temperature, 0.0001);
-    try testing.expectApproxEqAbs(@as(f32, 0.8), view.top_p, 0.0001);
-    try testing.expectEqual(@as(usize, 2), view.tools.len);
-    try testing.expect(std.mem.eql(u8, view.tools[0], "code"));
-    try testing.expect(std.mem.eql(u8, view.tools[1], "trace"));
-    try testing.expectEqualStrings("system prompt", view.system_prompt);
+test "agent emits telemetry metrics" {
+    const testing = std.testing;
+    var sink = observability.TelemetrySink.init(testing.allocator);
+    defer sink.deinit();
+
+    var agent = try Agent.init(testing.allocator, .{ .name = "telemetry" });
+    defer agent.deinit();
+    agent.attachTelemetry(&sink);
+
+    const response = try agent.process("ping", testing.allocator);
+    defer testing.allocator.free(response);
+
+    var snapshot = try sink.snapshot(testing.allocator);
+    defer snapshot.deinit(testing.allocator);
+    try testing.expectEqual(@as(usize, 1), snapshot.total_calls);
 }
