@@ -1,18 +1,21 @@
 # Changelog
 
-All notable changes to this project are documented in this file.
+All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
+follows [Semantic Versioning](https://semver.org/) while it remains in the `0.y` phase.
 
 ## [Unreleased]
 
-### Changed
-- Retargeted the build guard, metadata, and deployment docs to require Zig 0.16.0-dev (master).
-
-## [0.1.0a] - 2025-09-20
-
+## [0.1.0a] - 2025-09-21
 ### Added
-- Framework runtime that derives feature toggles, manages plugin search paths, and coordinates plugin lifecycle operations.
-- Cross-platform plugin loader and registry for discovering, loading, and managing plugins.
-- Minimal AI agent implementation with persona management, bounded history, and validation helpers for safe message processing.
-- File-backed WDBX vector database with WAL support, header validation, and HNSW indexing scaffolding for approximate search.
+- Re-exported feature modules at the root (`abi.ai`, `abi.database`, `abi.gpu`, etc.) for a consistent public API.
+- Introduced an `abi.wdbx` compatibility namespace that surfaces the vector database helpers and HTTP/CLI front-ends.
+- Documented the intended usage of the library module and the bootstrap executable in the README.
+
+### Changed
+- Updated all version strings (library, CLI, and WDBX metadata) to report `0.1.0a`.
+- Rewrote the changelog to describe the 0.1.0a prerelease instead of fabricated 1.x milestones.
+
+### Removed
+- Prior claims about fully featured CLIs, REST services, and production benchmarks that are not present in this prerelease.

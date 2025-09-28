@@ -1,62 +1,53 @@
-# ABI Framework
-> A Zig runtime that focuses on feature toggles, plugin discovery, and a
-> lightweight bootstrap executable.
+# Abi Framework
+> Experimental Zig framework that provides a bootstrap runtime and a curated set of feature modules for AI experiments.
 
 [![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev-orange.svg)](https://ziglang.org/builds/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/Version-0.1.0a-purple.svg)](CHANGELOG.md)
 
-ABI provides a small but structured runtime for orchestrating feature flags and
-plugins. The library is written entirely in Zig and is designed to be embedded
-into other applications or exercised through the bundled CLI. Rather than
-marketing a large feature set, the goal is to offer well-tested building blocks
-that demonstrate how to wire together allocators, plugin registries, and the new
-Zig streaming writer APIs.
+## Project status
 
----
+`abi` is not a full-stack product yet. The current executable initialises the framework, emits a textual summary of the configured
+modules, and exits. The value of the repository lies in the reusable modules under `src/` that you can import from your own
+applications.
 
-## Features
+The `0.1.0a` prerelease focuses on:
 
-- **Runtime orchestration** – Enable or disable feature groups at runtime and
-  iterate over the active set for diagnostics.
-- **Plugin registry** – Track search paths, discover shared objects, and lazily
-  load them into the running process.
-- **Bootstrap CLI** – A tiny executable that initialises the framework and
-  prints a summary using the streaming writer introduced in Zig 0.16.
-- **Documentation-ready build** – `zig build docs` emits compiler generated
-  documentation that mirrors the source layout.
+- providing consistent imports such as `@import("abi").ai` and `@import("abi").database`
+- documenting the bootstrap CLI accurately
+- establishing a truthful changelog for the initial prerelease
 
-These pieces intentionally stay modest and heavily commented so they can serve
-as reference material for other Zig projects.
+## Getting started
 
----
+### Prerequisites
 
-## Getting Started
+- **Zig** `0.16.0-dev.254+6dd0270a1` (see `.zigversion` for the authoritative toolchain)
+- A C++ compiler for Zig's build dependencies
 
-### Tooling
-- Install the Zig version listed in [`.zigversion`](.zigversion) (currently
-  `0.16.0-dev.393+dd4be26f5`).
-- A recent LLVM toolchain is required when building on Windows.
+### Clone and build
 
-### Clone & Build
 ```bash
 git clone https://github.com/donaldfilimon/abi.git
 cd abi
 zig build
+zig build test
 ```
 
-### Helpful Targets
+The default build produces `zig-out/bin/abi`. Running the executable prints a summary of enabled features:
+
 ```bash
-zig build test        # run the unit test suite
-zig build run         # execute the bootstrap binary
-zig build docs        # write compiler docs to zig-out/docs
-zig build fmt         # format source files in place
+./zig-out/bin/abi
 ```
 
-The resulting executable lives at `zig-out/bin/abi`.
+Sample output:
 
----
+```
+ABI Framework bootstrap complete
+• Features: ai, database, gpu, monitoring, web, connectors
+• Plugins: discovery disabled (configure via abi.framework)
+```
 
-## Usage Overview
+### Using the library from Zig
 
 ```zig
 const std = @import("std");
@@ -66,60 +57,40 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework = try abi.init(gpa.allocator(), .{ .auto_discover_plugins = false });
-    defer framework.deinit();
+    var framework = try abi.init(gpa.allocator(), .{});
+    defer abi.shutdown(&framework);
 
-    try framework.writeSummary(std.io.getStdOut().writer());
+    // Load the lightweight agent prototype.
+    const Agent = abi.ai.agent.Agent;
+    var agent = try Agent.init(gpa.allocator(), .{ .name = "QuickStart" });
+    defer agent.deinit();
+
+    const reply = try agent.process("Hello", gpa.allocator());
+    defer gpa.allocator().free(@constCast(reply));
 }
 ```
 
-The runtime exposes helpers for managing plugin search paths, loading
-discovered artefacts, and toggling features:
+The top-level module now re-exports the major feature namespaces for convenience:
 
-```zig
-const feature = abi.framework.config.Feature.distributed_tracing;
-if (!framework.isFeatureEnabled(feature)) {
-    _ = framework.enableFeature(feature);
-}
+- `abi.ai` – experimental agents and model helpers
+- `abi.database` – WDBX vector database components and HTTP/CLI front-ends
+- `abi.gpu` – GPU utilities (currently CPU-backed stubs)
+- `abi.web` – minimal HTTP scaffolding used by the WDBX demo
+- `abi.monitoring` – logging and metrics helpers shared across modules
+- `abi.connectors` – placeholder for third-party integrations
+- `abi.wdbx` – compatibility namespace exposing the database module and helpers
+- `abi.VectorOps` – SIMD helpers re-exported from `abi.simd`
 
-try framework.addPluginPath("./plugins");
-try framework.refreshPlugins();
-```
+Refer to the `docs/` directory for API references that are generated from the Zig sources.
 
----
+## Development workflow
 
-## Project Layout
+- Format code with `zig fmt .`
+- Run the full test suite with `zig build test`
+- Use `zig build run` to execute the bootstrap binary under the debug configuration
 
-```text
-abi/
-├── src/            # Library code and CLI entrypoint
-├── tests/          # Unit tests
-├── docs/           # Static documentation site (Jekyll compatible)
-├── tools/          # Developer utilities
-└── zig-out/        # Build artefacts and generated docs
-```
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting issues and proposing changes.
 
-Cross-platform suites gracefully skip on unsupported hosts. Debug builds enable leak detection by default; aim to keep
-performance regressions under 5% across releases.
+## License
 
----
-
-## Documentation & Resources
-- [`docs/`](docs/) – Landing page for manuals, deployment guides, and generated references.
-- [`docs/reports/engineering_status.md`](docs/reports/engineering_status.md) – Consolidated quality, benchmarking, and migration status.
-- [`docs/reports/engineering_status.md#full-deployment-guide`](docs/reports/engineering_status.md#full-deployment-guide) – Step-by-step install, build, and rollout instructions relocated from the root deployment guide.
-- [`docs/reports/cross_platform_testing.md`](docs/reports/cross_platform_testing.md) – Supported matrix, automation notes, and troubleshooting tips.
-- [`docs/PRODUCTION_DEPLOYMENT.md`](docs/PRODUCTION_DEPLOYMENT.md) – Detailed production rollout guide and environment checklists.
-- CI generates fresh API docs via `zig build docs` and publishes them with GitHub Pages once the main branch passes.
-
----
-
-## Contributing
-
-Issues and pull requests are welcome. Please run `zig build test` and
-`zig fmt src tests build.zig` before submitting changes so CI stays green. For
-documentation tweaks, `zig build docs` regenerates the compiler output inside
-`zig-out/docs` which can be previewed locally with a static file server.
-
-The project is released under the [MIT license](LICENSE).
-
+MIT License – see [LICENSE](LICENSE).
