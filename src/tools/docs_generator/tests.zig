@@ -11,6 +11,7 @@ const search_index = @import("generators/search_index.zig");
 const docs_index = @import("generators/docs_index.zig");
 const readme_redirect = @import("generators/readme_redirect.zig");
 const native_docs = @import("generators/native_docs.zig");
+const planner = @import("planner.zig");
 
 const TempEnv = struct {
     tmp: testing.TmpDir,
@@ -172,4 +173,39 @@ test "native docs generator writes output" {
     const data = try readFileAlloc("docs/zig-docs/index.html");
     defer testing.allocator.free(data);
     try testing.expect(std.mem.containsAtLeast(u8, data, 1, "Zig Native Docs"));
+}
+
+test "planner default plan orders steps by category" {
+    const plan = planner.buildDefaultPlan(testing.allocator);
+    const expected_names = [_][]const u8{
+        "Disable Jekyll",
+        "Write Jekyll Config",
+        "Write Documentation Layout",
+        "Write Navigation Data",
+        "Write SEO Metadata",
+        "Generate Module Docs",
+        "Generate API Reference",
+        "Generate Examples",
+        "Generate Performance Guide",
+        "Generate Definitions Reference",
+        "Generate Code API Index",
+        "Generate Search Index",
+        "Write GitHub Pages Assets",
+        "Write Docs Index",
+        "Write README Redirect",
+        "Write GitHub Actions Workflow",
+        "Generate Zig Native Docs",
+    };
+
+    try testing.expectEqual(@as(usize, expected_names.len), plan.steps.len);
+
+    for (expected_names, plan.steps) |expected_name, step| {
+        try testing.expect(std.mem.eql(u8, expected_name, step.name));
+    }
+
+    try testing.expect(plan.steps[0].category == planner.StepCategory.configuration);
+    try testing.expect(plan.steps[5].category == planner.StepCategory.content);
+    try testing.expect(plan.steps[12].category == planner.StepCategory.assets);
+    try testing.expect(plan.steps[15].category == planner.StepCategory.workflow);
+    try testing.expect(plan.steps[16].category == planner.StepCategory.native_docs);
 }
