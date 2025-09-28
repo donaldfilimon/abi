@@ -1,4 +1,4 @@
-AGENTS.md – Comprehensive Code-Centric Refactor Playbook
+# AGENTS.md – Comprehensive Code-Centric Refactor Playbook
 
 Overview
 This document serves as a highly structured and code-oriented guide intended for all agents contributing to the ABI Repository. The playbook focuses on executing a comprehensive refactoring effort to align with Zig 0.16.0-dev.393+dd4be26f5, ensuring reproducible, stable, and maintainable code practices. Each agent role has defined objectives and responsibilities to modernize the repository, enforce strong typing, and support a sustainable development lifecycle.
