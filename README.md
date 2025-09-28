@@ -87,6 +87,9 @@ zig build test
 # Launch the default executable
 zig build run
 
+# Ensure formatting is up to date
+zig build fmt
+
 # Inspect the CLI helper
 ./zig-out/bin/abi --help
 
@@ -99,6 +102,7 @@ Additional targets:
 - `zig build bench-simd` – SIMD micro-benchmarks.
 - `zig build cross-platform` – Build the supported target matrix.
 - `zig build -Denable_heavy_tests=true test` – Include long-running suites.
+- `zig build summary` – Format, document, and test in one step.
 
 ---
 
@@ -179,6 +183,9 @@ Tune features with Zig build options:
 - `-Denable_cuda=true|false` – Toggle CUDA acceleration (default: true).
 - `-Denable_spirv=true|false` – Compile Vulkan/SPIR-V shaders (default: true).
 - `-Denable_wasm=true|false` – Emit WebAssembly artifacts (default: true).
+- `-Denable-ansi=true|false` – Enable ANSI colour codes in CLI output (default: true).
+- `-Dstrict-io=true|false` – Abort on first detected writer error (default: false).
+- `-Dexperimental=true|false` – Opt into experimental feature gates (default: false).
 - `-Dtarget=<triple>` – Cross-compile (e.g., `x86_64-linux-gnu`, `aarch64-macos`).
 - `-Doptimize=Debug|ReleaseSafe|ReleaseFast|ReleaseSmall` – Build profile selection.
 - `-Denable_heavy_tests=true` – Include long-running performance and HNSW suites.
@@ -230,6 +237,7 @@ performance regressions under 5% across releases.
 - [`CROSS_PLATFORM_TESTING_GUIDE.md`](CROSS_PLATFORM_TESTING_GUIDE.md) – Supported matrix and CI configuration.
 - [`UTILITIES_IMPLEMENTATION_SUMMARY.md`](UTILITIES_IMPLEMENTATION_SUMMARY.md) – Overview of developer tooling.
 - [`MIGRATION_REPORT.md`](MIGRATION_REPORT.md) – Upgrade notes across releases.
+- CI generates fresh API docs via `zig build docs` and publishes them with GitHub Pages once the main branch passes.
 
 ---
 
