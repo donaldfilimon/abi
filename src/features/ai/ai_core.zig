@@ -2091,14 +2091,14 @@ pub const serialization = @import("serialization/mod.zig");
 pub const model_serialization = serialization;
 
 // Utility functions
-pub fn createMLP(allocator: std.mem.Allocator, layer_sizes: []const usize, activation_list: []const Activation) !*NeuralNetwork {
+pub fn createMLP(allocator: std.mem.Allocator, layer_sizes: []const usize, activation_plan: []const Activation) !*NeuralNetwork {
     if (layer_sizes.len < 2) return error.InvalidArchitecture;
-    if (activation_list.len != layer_sizes.len - 1) return error.MismatchedActivations;
+    if (activation_plan.len != layer_sizes.len - 1) return error.MismatchedActivations;
 
     const network = try NeuralNetwork.init(allocator, &[_]usize{layer_sizes[0]}, &[_]usize{layer_sizes[layer_sizes.len - 1]});
 
     for (1..layer_sizes.len) |i| {
-        try network.addDenseLayer(layer_sizes[i], activation_list[i - 1]);
+        try network.addDenseLayer(layer_sizes[i], activation_plan[i - 1]);
     }
 
     try network.compile();
