@@ -6,7 +6,7 @@
 const std = @import("std");
 
 // Note: core functionality is now imported through module dependencies
-const activation = @import("activation.zig");
+const activation = @import("activations/mod.zig");
 
 const Allocator = std.mem.Allocator;
 const ActivationType = activation.ActivationType;
