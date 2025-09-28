@@ -99,6 +99,18 @@ abi/
 └── zig-out/        # Build artefacts and generated docs
 ```
 
+Cross-platform suites gracefully skip on unsupported hosts. Debug builds enable leak detection by default; aim to keep
+performance regressions under 5% across releases.
+
+---
+
+## Documentation & Resources
+- [`docs/`](docs/) – Landing page for manuals, deployment guides, and generated references.
+- [`docs/reports/engineering_status.md`](docs/reports/engineering_status.md) – Consolidated quality, benchmarking, and migration status.
+- [`docs/reports/cross_platform_testing.md`](docs/reports/cross_platform_testing.md) – Supported matrix, automation notes, and troubleshooting tips.
+- [`docs/PRODUCTION_DEPLOYMENT.md`](docs/PRODUCTION_DEPLOYMENT.md) – Detailed production rollout guide and environment checklists.
+- CI generates fresh API docs via `zig build docs` and publishes them with GitHub Pages once the main branch passes.
+
 ---
 
 ## Contributing
