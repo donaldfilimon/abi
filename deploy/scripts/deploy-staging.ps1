@@ -89,8 +89,8 @@ FROM alpine:3.19 AS builder
 
 # Install Zig
 RUN apk add --no-cache curl xz
-RUN curl -L https://ziglang.org/builds/zig-linux-x86_64-0.16.0-dev.254+6dd0270a1.tar.xz | tar -xJ -C /opt
-ENV PATH="/opt/zig-linux-x86_64-0.16.0-dev.254+6dd0270a1:$PATH"
+RUN curl -L https://ziglang.org/builds/zig-linux-x86_64-0.16.0-dev.427+86077fe6b.tar.xz | tar -xJ -C /opt
+ENV PATH="/opt/zig-linux-x86_64-0.16.0-dev.427+86077fe6b:$PATH"
 
 WORKDIR /build
 COPY . .
