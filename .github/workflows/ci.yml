@@ -20,8 +20,8 @@ jobs:
           version-file: .zigversion
       - name: Build
         run: zig build --summary all
-      - name: Unit tests
-        run: zig build test --summary all
+      - name: Unit tests (warnings as errors)
+        run: zig build test -Werror --summary all
       - name: Documentation
         run: zig build docs --summary all
       - name: Formatting

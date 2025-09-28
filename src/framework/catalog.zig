@@ -186,7 +186,7 @@ fn deinitStructuredLogger(env: Environment) void {
 fn initPluginRuntime(env: Environment) anyerror!void {
     const state_ptr = try runtimeState(env);
     if (!state_ptr.options.ensure_plugin_system) return;
-    var registry = try plugins.PluginRegistry.init(env.allocator);
+    const registry = try plugins.PluginRegistry.init(env.allocator);
     state_ptr.setPluginRegistry(registry);
 }
 
