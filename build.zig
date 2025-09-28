@@ -82,7 +82,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    
+
     b.installArtifact(exe);
 
     // This creates a top level step. Top level steps have a name and can be
@@ -133,20 +133,9 @@ pub fn build(b: *std.Build) void {
     });
     const run_docgen_tests = b.addRunArtifact(docgen_tests);
 
-    const docgen_exe = b.addExecutable(.{
-        .name = "docs_generator",
-        .root_source_file = b.path("src/tools/docs_generator.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    const run_docgen = b.addRunArtifact(docgen_exe);
-
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_tests.step);
     test_step.dependOn(&run_docgen_tests.step);
-
-    const docgen_step = b.step("docgen", "Generate site documentation");
-    docgen_step.dependOn(&run_docgen.step);
 
     // Creates an executable that will run `test` blocks from the executable's
     // root module. Note that test executables only test one module at a time,
@@ -169,5 +158,5 @@ pub fn build(b: *std.Build) void {
     summary.dependOn(docs_step);
     summary.dependOn(fmt_step);
     summary.dependOn(test_step);
-    summary.dependOn(docgen_step);
+
 }

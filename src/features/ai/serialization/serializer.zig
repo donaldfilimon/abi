@@ -607,3 +607,26 @@ pub const ModelRegistry = struct {
         }
     }
 };
+
+test "model metadata custom field" {
+    const testing = std.testing;
+    var metadata = ModelMetadata.init(testing.allocator, "test", &[_]usize{ 1 }, &[_]usize{ 1 });
+    defer metadata.deinit(testing.allocator);
+
+    try metadata.addCustomField(testing.allocator, "key", "value");
+    try testing.expect(metadata.custom_metadata.contains("key"));
+}
+
+test "model serializer checksum" {
+    const testing = std.testing;
+    var metadata = ModelMetadata.init(testing.allocator, "unit", &[_]usize{ 1 }, &[_]usize{ 1 });
+    defer metadata.deinit(testing.allocator);
+
+    var serializer = ModelSerializer.init(testing.allocator, .{});
+    var buffer = std.ArrayList(u8).init(testing.allocator);
+    defer buffer.deinit();
+
+    const writer = buffer.writer();
+    try serializer.serializeMetadata(metadata, writer);
+    try testing.expect(buffer.items.len > 0);
+}

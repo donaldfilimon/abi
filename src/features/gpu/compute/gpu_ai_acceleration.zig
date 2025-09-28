@@ -210,11 +210,12 @@ pub const MatrixOps = struct {
     }
 
     fn matmulCpuFallback(
-        renderer: *gpu_renderer.GPURenderer,
+        renderer_ptr: *anyopaque,
         buffers: []const u32,
         info: gpu_renderer.ComputeDispatchInfo,
         ctx: ?*anyopaque,
     ) !void {
+        const renderer = @as(*gpu_renderer.GPURenderer, @ptrCast(renderer_ptr));
         if (buffers.len < 3) return gpu_renderer.GpuError.ValidationFailed;
         if (ctx == null) return gpu_renderer.GpuError.ValidationFailed;
         if (info.push_constants.len < @sizeOf(MatmulPushConstants)) return gpu_renderer.GpuError.ValidationFailed;
