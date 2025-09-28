@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [self.hosted]
+        os: [windows]
         zig-version: ["master"]
 
     steps:
