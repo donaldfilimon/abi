@@ -20,8 +20,7 @@ pub const sampling = @import("sampling.zig");
 pub const prometheus = @import("prometheus.zig");
 pub const regression = @import("regression.zig");
 
-// Legacy compatibility
-pub const mod = @import("mod.zig");
+// Legacy compatibility removed - circular import fixed
 
 test {
     std.testing.refAllDecls(@This());

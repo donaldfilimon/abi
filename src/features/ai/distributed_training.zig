@@ -42,8 +42,8 @@ pub const ParameterServer = struct {
 
     pub fn init(allocator: Allocator, worker_count: usize) !ParameterServer {
         return ParameterServer{
-            .parameters = ArrayList([]f32).init(allocator),
-            .gradients = ArrayList([]f32).init(allocator),
+            .parameters = ArrayList([]f32){},
+            .gradients = ArrayList([]f32){},
             .worker_count = worker_count,
             .mutex = std.Thread.Mutex{},
             .allocator = allocator,
@@ -190,7 +190,7 @@ pub const DistributedTrainer = struct {
 
     pub fn init(allocator: Allocator, config: DistributedConfig, model_factory: *const fn (Allocator) anyerror!*anyopaque) !DistributedTrainer {
         const parameter_server = try ParameterServer.init(allocator, config.num_workers);
-        var workers = ArrayList(Worker).init(allocator);
+        var workers = ArrayList(Worker){};
 
         // Create workers
         for (0..config.num_workers) |i| {

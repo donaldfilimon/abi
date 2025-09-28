@@ -74,7 +74,7 @@ pub const ExperienceReplay = struct {
     pub fn init(allocator: Allocator, capacity: usize) !ExperienceReplay {
         return ExperienceReplay{
             .capacity = capacity,
-            .buffer = ArrayList(Experience).init(allocator),
+            .buffer = ArrayList(Experience){},
             .rng = Random.DefaultPrng.init(@as(u64, @intCast(std.time.nanoTimestamp()))),
         };
     }
@@ -344,10 +344,10 @@ pub const PolicyGradient = struct {
 
         pub fn init(allocator: Allocator) Trajectory {
             return Trajectory{
-                .states = ArrayList([]f32).init(allocator),
-                .actions = ArrayList(usize).init(allocator),
-                .rewards = ArrayList(f32).init(allocator),
-                .log_probs = ArrayList(f32).init(allocator),
+                .states = ArrayList([]f32){},
+                .actions = ArrayList(usize){},
+                .rewards = ArrayList(f32){},
+                .log_probs = ArrayList(f32){},
             };
         }
 
@@ -367,7 +367,7 @@ pub const PolicyGradient = struct {
             .policy_network = policy_network,
             .learning_rate = learning_rate,
             .gamma = gamma,
-            .trajectories = ArrayList(Trajectory).init(allocator),
+            .trajectories = ArrayList(Trajectory){},
         };
     }
 

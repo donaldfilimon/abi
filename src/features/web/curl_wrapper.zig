@@ -20,17 +20,17 @@ const CurlResponse = struct {
     headers: std.ArrayList(u8),
     status_code: c_long,
 
-    pub fn init(allocator: std.mem.Allocator) CurlResponse {
+    pub fn init(_: std.mem.Allocator) CurlResponse {
         return CurlResponse{
-            .data = std.ArrayList(u8).init(allocator),
-            .headers = std.ArrayList(u8).init(allocator),
+            .data = std.ArrayList(u8){},
+            .headers = std.ArrayList(u8){},
             .status_code = 0,
         };
     }
 
-    pub fn deinit(self: *CurlResponse) void {
-        self.data.deinit();
-        self.headers.deinit();
+    pub fn deinit(self: *CurlResponse, allocator: std.mem.Allocator) void {
+        self.data.deinit(allocator);
+        self.headers.deinit(allocator);
     }
 };
 
@@ -143,7 +143,7 @@ pub const CurlHttpClient = struct {
         return http_client.HttpResponse{
             .status_code = @intCast(response.status_code),
             .headers = response_headers,
-            .body = try response.data.toOwnedSlice(),
+            .body = try response.data.toOwnedSlice(self.allocator),
             .allocator = self.allocator,
         };
     }

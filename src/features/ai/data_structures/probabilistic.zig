@@ -21,21 +21,21 @@ pub const CountMinSketch = struct {
     allocator: std.mem.Allocator,
 
     /// Initialize a new Count-Min Sketch
-    pub fn init(allocator: std.mem.Allocator, depth: usize, width: usize) !*Self {
+    pub fn init(allocator: std.mem.Allocator, depth: u32, width: u32) !*Self {
         const sketch = try allocator.create(Self);
         sketch.* = Self{
-            .data = std.ArrayList(std.ArrayList(u32)).init(allocator),
+            .data = std.ArrayList(std.ArrayList(u32)){},
             .depth = depth,
             .width = width,
             .allocator = allocator,
         };
 
-        // Initialize the matrix
-        try sketch.data.ensureTotalCapacity(depth);
+        // Initialize sketch rows
         for (0..depth) |_| {
-            var row = try std.ArrayList(u32).initCapacity(allocator, width);
-            try row.appendNTimes(0, width);
-            try sketch.data.append(row);
+            var row = std.ArrayList(u32){};
+            try row.ensureUnusedCapacity(allocator, width);
+            try row.appendNTimes(allocator, 0, width);
+            try sketch.data.append(allocator, row);
         }
 
         return sketch;

@@ -19,8 +19,7 @@ pub const weather = @import("weather.zig");
 // API interfaces
 pub const c_api = @import("c_api.zig");
 
-// Legacy compatibility
-pub const mod = @import("mod.zig");
+// Legacy compatibility removed - circular import fixed
 
 test {
     std.testing.refAllDecls(@This());

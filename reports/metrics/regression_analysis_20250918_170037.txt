@@ -1,8 +1,0 @@
-Performance Regression Analysis - Thu Sep 18 17:00:40 EDT 2025
-========================================
-
-Previous Metrics: /mnt/f/Other/abi/reports/metrics/build_metrics_20250918_170037.txt
-Current Metrics: /mnt/f/Other/abi/reports/metrics/*_metrics_20250918_170037.txt
-
-Note: Automated regression detection requires historical data analysis.
-Consider implementing statistical analysis for more accurate regression detection.

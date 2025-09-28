@@ -1,19 +1,38 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-`src/` hosts the runtime (`framework/`), feature modules (including `features/gpu/` kernels), and CLI entrypoints. `tests/` mirrors those packages with focused suites; integration matrices for OS targets live under `tests/cross-platform/`. Static documentation and generated API references resolve to `docs/`, while `docs/api/` is overwritten by the generators. Automation lives in `tools/` (Zig helpers) and `scripts/` (bash/PowerShell) and should be updated alongside new targets.
+- Source lives in `src/` (runtime in `src/framework/`; feature modules under `src/features/` such as `src/features/gpu/`).
+- GPU kernels stay in `src/features/gpu/` with `_kernels.zig` suffix; shared helpers in `src/features/gpu/shared/`.
+- CLI entrypoints are under `src/`.
+- Tests mirror modules in `tests/`; cross‑platform matrices live in `tests/cross-platform/`.
+- Static docs live in `docs/`; `docs/api/` is generated and should not be edited.
+- Automation: `tools/` (Zig helpers) and `scripts/` (bash/PowerShell).
 
 ## Build, Test, and Development Commands
-Run `zig build` for a debug binary in `zig-out/bin/abi`. `zig build test` executes the curated suite configured in `build.zig`. `zig build docs` orchestrates both docs generators and refreshes `docs/`. For incremental API docs during authoring, call `zig run tools/docs_generator.zig`. Performance checks land behind `zig build bench-all`; pass `-Doptimize=ReleaseFast` when validating release builds. Always honor `.zigversion` (Zig 0.16.0-dev); CI mirrors that configuration via `.github/workflows/ci.yml`.
+- Use Zig `0.16.0-dev` as pinned by `.zigversion` (verify with `zig version`).
+- `zig build` → builds debug binary at `zig-out/bin/abi`.
+- `zig build test` → runs the curated suite from `build.zig`.
+- `zig build docs` → regenerates static site into `docs/`.
+- `zig run tools/docs_generator.zig` → incremental API docs while authoring.
+- `zig build bench-all -Doptimize=ReleaseFast` → performance checks in release mode.
 
 ## Coding Style & Naming Conventions
-Source files are formatted with `zig fmt src tests` (four-space indentation). Modules and files prefer snake_case, public types stay PascalCase, and compile-time constants use UPPER_SNAKE. Keep GPU kernels under `src/features/gpu/` with suffix `_kernels.zig` and pair helpers in `shared/`. Avoid introducing lint tools outside the Zig toolchain without discussion.
+- Format with `zig fmt src tests` (four-space indentation) before committing.
+- Filenames/modules: snake_case. Public types: PascalCase. Compile‑time constants: UPPER_SNAKE.
+- Keep GPU kernels under `src/features/gpu/` and use `_kernels.zig` suffix.
+- Avoid non-Zig linters; rely on Zig tooling.
 
 ## Testing Guidelines
-Extend or add tests under `tests/` using `std.testing`. Name new files `test_<domain>.zig` and ensure exported test blocks describe behavior, e.g., `test "gpu matmul handles strides"`. Top-level execution stays `zig build test`; for GPU smoke runs, set `ABI_GPU_SMOKE=1 zig build test --test-filter "gpu_ai_acceleration"`. Include regression cases whenever touching `framework/` allocators or GPU memory paths.
+- Write tests with `std.testing`; mirror source layout under `tests/`.
+- Name files `test_<domain>.zig`; describe behavior, e.g., `test "gpu matmul handles strides"`.
+- GPU smoke: `ABI_GPU_SMOKE=1 zig build test --test-filter "gpu_ai_acceleration"`.
+- Add regression tests whenever touching `framework/` allocators or GPU memory paths.
 
 ## Commit & Pull Request Guidelines
-Commit subjects follow concise Title Case (see history: "Align docs workflow Zig version"). Reference tickets in the body when applicable and group related changes per commit. Pull requests must list validation commands, note whether docs were regenerated, and link screenshots or profiles for UI or performance shifts. Update documentation or comments whenever public APIs change.
+- Commit subject: concise Title Case (e.g., "Align Docs Workflow Zig Version").
+- Group related changes; reference tickets in bodies.
+- PRs must list validation commands, note if docs were regenerated, and include screenshots or profiles for UI/perf changes.
 
 ## Documentation & Pages
-Docs in `docs/` must stay static assets compatible with GitHub Pages. Before pushing, run `zig build docs` and spot-check `docs/index.html` plus key `.js` bundles in `docs/assets/js/`. The `deploy_docs.yml` workflow publishes from `docs/`, so never commit partially generated artifacts.
+- Run `zig build docs` before pushing; spot‑check `docs/index.html` and `docs/assets/js/`.
+- `deploy_docs.yml` publishes from `docs/`; never commit partially generated artifacts.

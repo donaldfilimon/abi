@@ -179,11 +179,10 @@ test "feature toggles enable and disable entries" {
 test "deriveFeatureToggles respects overrides" {
     const overrides = FrameworkOptions{
         .enabled_features = &.{ .ai, .gpu },
-        .disabled_features = &.{ .gpu },
+        .disabled_features = &.{.gpu},
     };
     const toggles = deriveFeatureToggles(overrides);
     try std.testing.expect(toggles.isEnabled(.ai));
     try std.testing.expect(!toggles.isEnabled(.gpu));
     try std.testing.expect(!toggles.isEnabled(.database));
 }
-

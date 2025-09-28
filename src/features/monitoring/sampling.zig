@@ -305,7 +305,7 @@ pub const PerformanceSampler = struct {
         self.* = .{
             .allocator = allocator,
             .config = config,
-            .samples = std.ArrayList(PerformanceSample).init(allocator),
+            .samples = std.ArrayList(PerformanceSample){},
             .running = std.atomic.Value(bool).init(false),
             .thread = null,
             .process_start_time = std.time.timestamp(),
@@ -385,15 +385,15 @@ pub const PerformanceSampler = struct {
     }
 
     pub fn getSamplesInRange(self: *Self, start_time: i64, end_time: i64, allocator: std.mem.Allocator) ![]PerformanceSample {
-        var result = std.ArrayList(PerformanceSample).init(allocator);
+        var result = std.ArrayList(PerformanceSample){};
 
         for (self.samples.items) |sample| {
             if (sample.timestamp >= start_time and sample.timestamp <= end_time) {
-                try result.append(sample);
+                try result.append(allocator, sample);
             }
         }
 
-        return try result.toOwnedSlice();
+        return try result.toOwnedSlice(allocator);
     }
 
     fn samplingLoop(self: *Self) void {
