@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Added
 - Nothing yet.
 
+### Changed
+- Hardened the Zig 0.16.0-dev toolchain guard with semantic version enforcement and library-wide import coverage.
+
 ## [0.1.0a] - 2025-09-20
 
 ### Added

@@ -6,6 +6,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+_ = @import("compat"); // Enforce Zig toolchain compatibility for library consumers.
 
 // =============================================================================
 // FEATURE AND FRAMEWORK MODULES
