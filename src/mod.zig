@@ -77,6 +77,7 @@ pub const utils = @import("shared/utils/mod.zig");
 pub const core = @import("shared/core/mod.zig");
 pub const platform = @import("shared/platform/mod.zig");
 pub const logging = @import("shared/logging/mod.zig");
+pub const observability = @import("shared/observability/mod.zig");
 pub const simd = @import("shared/simd.zig");
 pub const VectorOps = simd.VectorOps;
 pub const root = @import("root.zig");
