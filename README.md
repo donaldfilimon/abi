@@ -1,7 +1,7 @@
 # Abi Framework
 > Experimental Zig framework that provides a bootstrap runtime and a curated set of feature modules for AI experiments.
 
-[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev.254%2B6dd0270a1-orange.svg)](https://ziglang.org/)
+[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev-orange.svg)](https://ziglang.org/builds/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/badge/Version-0.1.0a-purple.svg)](CHANGELOG.md)
 

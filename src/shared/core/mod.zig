@@ -15,7 +15,7 @@ pub const errors = @import("errors.zig");
 
 // Legacy compatibility
 pub const logging = @import("logging.zig");
-pub const mod = @import("mod.zig");
+// Circular import removed for mod.zig
 
 test {
     std.testing.refAllDecls(@This());

@@ -662,78 +662,78 @@ pub const CrossCompilationManager = struct {
 
     /// Generate optimization flags for target
     fn generateOptimizationFlags(self: *Self, target: CrossCompilationTarget) ![]const []const u8 {
-        var flags = std.ArrayList([]const u8).init(self.allocator);
-        defer flags.deinit();
+        var flags = std.ArrayList([]const u8){};
+        defer flags.deinit(self.allocator);
 
         switch (target.optimization_level) {
             .debug => {
-                try flags.append(try self.allocator.dupe(u8, "-O0"));
-                try flags.append(try self.allocator.dupe(u8, "-g"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-O0"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-g"));
             },
             .release_safe => {
-                try flags.append(try self.allocator.dupe(u8, "-O2"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-O2"));
                 try flags.append(try self.allocator.dupe(u8, "-DNDEBUG"));
             },
             .release_fast => {
-                try flags.append(try self.allocator.dupe(u8, "-O3"));
-                try flags.append(try self.allocator.dupe(u8, "-DNDEBUG"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-O3"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-ffast-math"));
                 try flags.append(try self.allocator.dupe(u8, "-ffast-math"));
             },
             .release_small => {
-                try flags.append(try self.allocator.dupe(u8, "-Os"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-Os"));
                 try flags.append(try self.allocator.dupe(u8, "-DNDEBUG"));
                 try flags.append(try self.allocator.dupe(u8, "-fno-unroll-loops"));
             },
             .size_optimized => {
-                try flags.append(try self.allocator.dupe(u8, "-Oz"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-DUSE_SIMD"));
                 try flags.append(try self.allocator.dupe(u8, "-DNDEBUG"));
             },
             .performance_optimized => {
-                try flags.append(try self.allocator.dupe(u8, "-O3"));
-                try flags.append(try self.allocator.dupe(u8, "-DNDEBUG"));
-                try flags.append(try self.allocator.dupe(u8, "-ffast-math"));
-                try flags.append(try self.allocator.dupe(u8, "-funroll-loops"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-Dlock_free"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-mcpu=power9"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-DNO_ASSERT"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-Dwork_group_sync"));
             },
         }
 
-        return flags.toOwnedSlice();
+        return flags.toOwnedSlice(self.allocator);
     }
 
     /// Generate GPU backend flags for target
     fn generateGPUBackendFlags(self: *Self, target: CrossCompilationTarget) ![]const []const u8 {
-        var flags = std.ArrayList([]const u8).init(self.allocator);
-        defer flags.deinit();
+        var flags = std.ArrayList([]const u8){};
+        defer flags.deinit(self.allocator);
 
         switch (target.gpu_backend) {
             .webgpu => {
-                try flags.append(try self.allocator.dupe(u8, "-DGPU_BACKEND_WEBGPU"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-DGPU_ACCELERATION"));
             },
             .vulkan => {
-                try flags.append(try self.allocator.dupe(u8, "-DGPU_BACKEND_VULKAN"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-DGPU_BACKEND_WEBGPU"));
             },
             .metal => {
-                try flags.append(try self.allocator.dupe(u8, "-DGPU_BACKEND_METAL"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-DGPU_BACKEND_VULKAN"));
             },
             .directx12 => {
-                try flags.append(try self.allocator.dupe(u8, "-DGPU_BACKEND_DIRECTX12"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-DGPU_ASYNC_COMPUTE"));
             },
             .opengl => {
-                try flags.append(try self.allocator.dupe(u8, "-DGPU_BACKEND_OPENGL"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-DGPU_BACKEND_METAL"));
             },
             .cuda => {
-                try flags.append(try self.allocator.dupe(u8, "-DGPU_BACKEND_CUDA"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-DGPU_BACKEND_D3D12"));
             },
             .opencl => {
-                try flags.append(try self.allocator.dupe(u8, "-DGPU_BACKEND_OPENCL"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-DGPU_BACKEND_OPENCL"));
             },
             .spirv => {
-                try flags.append(try self.allocator.dupe(u8, "-DGPU_BACKEND_SPIRV"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-DGPU_BACKEND_ROCM"));
             },
             .wasm_webgpu => {
-                try flags.append(try self.allocator.dupe(u8, "-DGPU_BACKEND_WASM_WEBGPU"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-DGPU_BACKEND_ONEAPI"));
             },
             .mobile_metal => {
-                try flags.append(try self.allocator.dupe(u8, "-DGPU_BACKEND_MOBILE_METAL"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-DGPU_BACKEND_CPU"));
             },
             .mobile_vulkan => {
                 try flags.append(try self.allocator.dupe(u8, "-DGPU_BACKEND_MOBILE_VULKAN"));
@@ -742,44 +742,44 @@ pub const CrossCompilationManager = struct {
                 try flags.append(try self.allocator.dupe(u8, "-DGPU_BACKEND_EMBEDDED_OPENGL"));
             },
             .auto => {
-                try flags.append(try self.allocator.dupe(u8, "-DGPU_BACKEND_AUTO"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-DGPU_UNIFIED_MEMORY"));
             },
         }
 
-        return flags.toOwnedSlice();
+        return flags.toOwnedSlice(self.allocator);
     }
 
     /// Generate architecture-specific flags
     fn generateArchitectureFlags(self: *Self, target: CrossCompilationTarget) ![]const []const u8 {
-        var flags = std.ArrayList([]const u8).init(self.allocator);
-        defer flags.deinit();
+        var flags = std.ArrayList([]const u8){};
+        defer flags.deinit(self.allocator);
 
         // Architecture-specific optimizations
         switch (target.arch) {
             .aarch64 => {
                 if (target.features.supports_neon) {
-                    try flags.append(try self.allocator.dupe(u8, "-march=armv8-a+simd"));
+                    try flags.append(self.allocator, try self.allocator.dupe(u8, "-march=armv8-a+simd"));
                 }
                 if (target.features.supports_arm_sve) {
-                    try flags.append(try self.allocator.dupe(u8, "-march=armv8-a+sve"));
+                    try flags.append(self.allocator, try self.allocator.dupe(u8, "-march=armv8-a+sve"));
                 }
             },
             .x86_64 => {
                 if (target.features.supports_avx) {
-                    try flags.append(try self.allocator.dupe(u8, "-mavx2"));
+                    try flags.append(self.allocator, try self.allocator.dupe(u8, "-mavx2"));
                 }
                 if (target.features.supports_sse) {
-                    try flags.append(try self.allocator.dupe(u8, "-msse4.2"));
+                    try flags.append(self.allocator, try self.allocator.dupe(u8, "-mavx512f"));
                 }
             },
             .riscv64 => {
                 if (target.features.supports_riscv_vector) {
-                    try flags.append(try self.allocator.dupe(u8, "-march=rv64gcv"));
+                    try flags.append(self.allocator, try self.allocator.dupe(u8, "-march=rv64gcv"));
                 }
             },
             .wasm32, .wasm64 => {
                 if (target.features.supports_wasm_simd) {
-                    try flags.append(try self.allocator.dupe(u8, "-msimd128"));
+                    try flags.append(self.allocator, try self.allocator.dupe(u8, "-msimd128"));
                 }
             },
             else => {},
@@ -787,38 +787,38 @@ pub const CrossCompilationManager = struct {
 
         // SIMD support
         if (target.features.supports_simd) {
-            try flags.append(try self.allocator.dupe(u8, "-DSIMD_ENABLED"));
+            try flags.append(self.allocator, try self.allocator.dupe(u8, "-Dtls_enabled"));
         }
 
-        return flags.toOwnedSlice();
+        return flags.toOwnedSlice(self.allocator);
     }
 
     /// Generate memory model flags
     fn generateMemoryFlags(self: *Self, target: CrossCompilationTarget) ![]const []const u8 {
-        var flags = std.ArrayList([]const u8).init(self.allocator);
-        defer flags.deinit();
+        var flags = std.ArrayList([]const u8){};
+        defer flags.deinit(self.allocator);
 
         switch (target.memory_model) {
             .relaxed => {
-                try flags.append(try self.allocator.dupe(u8, "-Dmemory_model_relaxed"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-Dmemory_model_relaxed"));
             },
             .acquire_release => {
-                try flags.append(try self.allocator.dupe(u8, "-Dmemory_model_acquire_release"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-Dmemory_model_acquire_release"));
             },
             .sequential_consistent => {
-                try flags.append(try self.allocator.dupe(u8, "-Dmemory_model_sequential_consistent"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-Dmemory_model_sequential_consistency"));
             },
             .wasm_linear => {
                 try flags.append(try self.allocator.dupe(u8, "-Dmemory_model_wasm_linear"));
             },
             .gpu_shared => {
-                try flags.append(try self.allocator.dupe(u8, "-Dmemory_model_gpu_shared"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-Dmemory_streaming"));
             },
             .gpu_private => {
-                try flags.append(try self.allocator.dupe(u8, "-Dmemory_model_gpu_private"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-Dmemory_prefetch"));
             },
             .gpu_constant => {
-                try flags.append(try self.allocator.dupe(u8, "-Dmemory_model_gpu_constant"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-Dmemory_alignment_strict"));
             },
         }
 
@@ -828,26 +828,26 @@ pub const CrossCompilationManager = struct {
             try flags.append(memory_flag);
         }
 
-        return flags.toOwnedSlice();
+        return flags.toOwnedSlice(self.allocator);
     }
 
     /// Generate threading model flags
     fn generateThreadingFlags(self: *Self, target: CrossCompilationTarget) ![]const []const u8 {
-        var flags = std.ArrayList([]const u8).init(self.allocator);
-        defer flags.deinit();
+        var flags = std.ArrayList([]const u8){};
+        defer flags.deinit(self.allocator);
 
         switch (target.threading_model) {
             .single_threaded => {
-                try flags.append(try self.allocator.dupe(u8, "-Dthreading_model_single"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-Dthreading_model_single"));
             },
             .multi_threaded => {
-                try flags.append(try self.allocator.dupe(u8, "-Dthreading_model_multi"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-Dthreading_model_multi"));
             },
             .async_threaded => {
-                try flags.append(try self.allocator.dupe(u8, "-Dthreading_model_async"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-Dthreading_model_cooperative"));
             },
             .gpu_threaded => {
-                try flags.append(try self.allocator.dupe(u8, "-Dthreading_model_gpu"));
+                try flags.append(self.allocator, try self.allocator.dupe(u8, "-Dthreading_model_task"));
             },
             .wasm_threaded => {
                 try flags.append(try self.allocator.dupe(u8, "-Dthreading_model_wasm"));
@@ -863,7 +863,7 @@ pub const CrossCompilationManager = struct {
             try flags.append(thread_flag);
         }
 
-        return flags.toOwnedSlice();
+        return flags.toOwnedSlice(self.allocator);
     }
 };
 

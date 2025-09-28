@@ -21,7 +21,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
    ```
 
 2. **Set Up Development Environment**
-   - Install Zig 0.16.0-dev.254+6dd0270a1 (see `.zigversion`; confirm with `zig version`)
+   - Install Zig 0.16.0-dev (master) (see `.zigversion`; confirm with `zig version`)
    - Install Bun (recommended): `curl -fsSL https://bun.sh/install | bash`
    - Set up your editor with Zig language support
 
@@ -32,7 +32,11 @@ By participating in this project, you agree to abide by our Code of Conduct:
    ```bash
    zig build -Doptimize=Debug
    zig build test
+   zig build fmt
+   zig build docs
    ```
+
+   Run `zig build summary` before submitting to execute formatting, documentation, and unit tests together.
 
 ## Development Workflow
 
@@ -48,6 +52,7 @@ git checkout -b feature/your-feature-name
 - Add tests for new functionality
 - Update documentation as needed
 - Ensure all tests pass
+- Keep formatting clean by running `zig build fmt`
 
 ### 3. Code Style Guidelines
 
@@ -154,10 +159,12 @@ git push origin feature/your-feature-name
    - Explain why the changes are needed
    - List any breaking changes
    - Reference related issues
+   - Document the commands you ran (e.g., `zig build summary`, `zig fmt`) and whether docs were regenerated
 
 ### 4. PR Review Process
 
 - Maintainers will review your PR
+- GitHub Actions executes the multi-OS matrix in `.github/workflows/ci.yml`; ensure it passes before requesting review
 - Address any feedback or requested changes
 - Once approved, your PR will be merged
 
@@ -287,7 +294,7 @@ Violations will be addressed by the project maintainers. We reserve the right to
 
 ### **Prerequisites**
 
-- **Zig 0.16.0-dev.254+6dd0270a1** (required and enforced in CI)
+- **Zig 0.16.0-dev (master)** (required and enforced in CI)
 - **Git** for version control
 - **Basic understanding** of systems programming concepts
 - **Enthusiasm** for AI/ML and high-performance computing

@@ -581,8 +581,8 @@ pub const ModelRegistry = struct {
             _ = try file.read(version);
 
             const num_tags = try file.readInt(u32, .little);
-            var tags = ArrayList([]const u8).init(self.allocator);
-            errdefer tags.deinit();
+            var tags = ArrayList([]const u8){};
+            errdefer tags.deinit(self.allocator);
 
             for (0..num_tags) |_| {
                 const tag_len = try file.readInt(u32, .little);

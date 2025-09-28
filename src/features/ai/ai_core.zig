@@ -1438,7 +1438,7 @@ pub const NeuralNetwork = struct {
     pub fn init(allocator: std.mem.Allocator, input_shape: []const usize, output_shape: []const usize) !*NeuralNetwork {
         const network = try allocator.create(NeuralNetwork);
         network.* = .{
-            .layers = try ArrayList(*Layer).initCapacity(allocator, 0),
+            .layers = ArrayList(*Layer){},
             .allocator = allocator,
             .input_shape = try allocator.dupe(usize, input_shape),
             .output_shape = try allocator.dupe(usize, output_shape),
@@ -1615,7 +1615,7 @@ pub const NeuralNetwork = struct {
         // Create network
         const network = try allocator.create(NeuralNetwork);
         network.* = .{
-            .layers = try ArrayList(*Layer).initCapacity(allocator, 0),
+            .layers = ArrayList(*Layer){},
             .allocator = allocator,
             .input_shape = input_shape,
             .output_shape = output_shape,
@@ -2059,7 +2059,7 @@ pub const ModelTrainer = struct {
         inputs: []const []const f32,
         targets: []const []const f32,
     ) !ArrayList(TrainingMetrics) {
-        var metrics = try ArrayList(TrainingMetrics).initCapacity(self.allocator, 0);
+        var metrics = ArrayList(TrainingMetrics){};
 
         // Validate inputs
         if (inputs.len != targets.len) return error.InvalidDataSize;

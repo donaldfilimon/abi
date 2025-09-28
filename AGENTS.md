@@ -1,47 +1,155 @@
-# Repository Guidelines
+# AGENTS.md – Comprehensive Code-Centric Refactor Playbook
 
-This repo is a Zig project with a Makefile wrapper. Source lives in `src/`, examples in `examples/`, benchmarks in `benchmarks/`, tests in `tests/`, and build artifacts in `zig-out/`. Build configuration is defined in `build.zig` and dependencies in `build.zig.zon`.
+Overview
+This document serves as a highly structured and code-oriented guide intended for all agents contributing to the ABI Repository. The playbook focuses on executing a comprehensive refactoring effort to align with Zig 0.16.0-dev.393+dd4be26f5, ensuring reproducible, stable, and maintainable code practices. Each agent role has defined objectives and responsibilities to modernize the repository, enforce strong typing, and support a sustainable development lifecycle.
 
-## Project Structure & Module Organization
+The goals of this playbook include:
+Modernizing the build system and repository structure.
+Enforcing safe and explicit I/O boundaries.
+Building a typed, ergonomic, and testable CLI.
+Implementing a high-performance, safe parsing subsystem.
+Establishing reproducible, cross-platform CI/CD pipelines.
 
-- `src/` — library and app code; keep modules small and cohesive (e.g., `src/net/`, `src/util/`).
-- `tests/` — unit and integration tests mirror `src/` layout (e.g., `tests/net/…`).
-- `examples/` — minimal runnable samples demonstrating public APIs.
-- `benchmarks/` — micro/throughput benchmarks; isolate external effects.
-- `tools/` — helper scripts; keep cross‑platform where possible.
+Following these guidelines will result in a fully modernized ABI repository with long-term maintainability and deterministic builds.
 
-## Build, Test, and Development Commands
+---
 
-- `zig version` — confirm toolchain (also see `.zigversion`).
-- `zig build` — default build; produces artifacts under `zig-out/`.
-- `zig build test` — compile and run all tests.
-- `zig build run` — run the default executable (if defined in `build.zig`).
-- `zig build -Doptimize=ReleaseFast` — optimized build for benchmarks.
+Agent Roles & Responsibilities
 
-## Coding Style & Naming Conventions
+1. Build Agent
+Objective: Maintain a robust and modernized Zig build pipeline.
 
-- Indentation: 4 spaces; no tabs. Line length ~100 chars.
-- Zig style: prefer explicit types at public boundaries; use `const` where possible.
-- Naming: `PascalCase` for types, `camelCase` for functions/vars, `SCREAMING_SNAKE_CASE` for compile‑time constants.
-- Errors: return typed error sets; avoid `catch |e|` that masks context.
-- Formatting: run `zig fmt .` before committing.
+Core Responsibilities:
+Refactor build.zig to leverage b.root_module and b.createModule for modularity.
+Configure common target settings and optimization flags for Debug, ReleaseFast, and ReleaseSmall.
+Provide standardized build steps for:
+zig build run
+zig build test
+zig build docs
+zig build fmt
+zig build bench
+Ensure deterministic builds with consistent artifact naming across platforms.
+Integrate caching where possible to reduce build times without compromising reproducibility.
 
-## Testing Guidelines
+Deliverables:
+Updated build.zig with modularized tasks.
+Documented build commands in README.md.
+Verified reproducibility on all supported platforms.
 
-- Framework: Zig’s built‑in test runner (`test "name" { … }`).
-- Layout: place tests beside code with `test` blocks or under `tests/` mirroring `src/`.
-- Naming: describe behavior, e.g., `test "parser handles empty input" {}`.
-- Coverage: add tests for new features and bug fixes; include edge cases and error paths.
-- Run: `zig build test` (CI expects zero failures).
+---
 
-## Commit & Pull Request Guidelines
+2. I/O Agent
+Objective: Transition all I/O operations toward an explicit and recoverable boundary-based architecture.
 
-- Commits: present‑tense, scope-first messages, e.g., `net: fix timeout handling`.
-- Keep changes focused; include rationale in the body when non‑obvious.
-- PRs: include summary, linked issues, usage notes, and before/after benchmarks when performance‑related. Add repro steps for fixes and update `examples/` when APIs change.
+Core Responsibilities:
+Replace all direct stdout/stderr usage with injected writer objects.
+Enforce strict separation between:
+Human-readable logs → stderr
+Machine-readable outputs → stdout
+Use explicit formatting specifiers for all messages to avoid implicit conversions.
+Implement file I/O via adapter layers to facilitate error handling and safe recovery.
+Provide error-handling patterns for partial reads/writes and support graceful degradation.
 
-## Security & Configuration Tips
+Deliverables:
+I/O abstraction layer with adapters.
+Tests demonstrating recoverable I/O scenarios.
+Logging and output behavior documented for developers and CI usage.
 
-- Avoid unchecked `@ptrCast`/`@intCast`; validate sizes and alignment.
-- Prefer bounded operations; assert invariants in debug builds.
-- Respect platform differences; gate OS‑specific code via `std.builtin.os`.
+---
+
+3. CLI Agent
+Objective: Provide a clear, typed, and ergonomic command-line interface.
+
+Core Responsibilities:
+Implement entrypoints fully compatible with zig build run.
+Add subcommands for structured operations:
+parse
+version
+lint
+check
+Deliver comprehensive --help output with usage examples.
+Generate meaningful typed error messages instead of raw strings.
+Conduct smoke tests for all major CLI flows to ensure stability.
+
+Deliverables:
+A fully functional CLI with typed commands and structured options.
+CLI integration tests for all subcommands.
+Updated user documentation for command usage.
+
+---
+
+4. Parser Agent
+Objective: Modernize the parsing subsystem for safety, performance, and maintainability.
+
+Core Responsibilities:
+Replace pointer arithmetic with safe, slice-based APIs.
+Use std.ArrayList and streaming reads for efficient handling of large files.
+Integrate a Diagnostics system to report recoverable parsing errors without premature termination.
+Maintain golden tests to ensure behavior consistency during future refactors.
+Run performance benchmarks on large inputs to validate optimizations.
+
+Deliverables:
+Refactored parser with slice-based data handling.
+Diagnostics framework for error reporting.
+Performance benchmark results and golden test snapshots.
+
+---
+
+5. CI/CD Agent
+Objective: Guarantee reproducible, multi-platform automation and enforce repository consistency.
+
+Core Responsibilities:
+Configure CI pipelines for Linux, macOS, and Windows using Zig 0.16.
+Automate the generation and publication of documentation artifacts.
+Enforce formatting and style checks as part of the CI pipeline.
+Provide reproducible build artifacts validated through CI.
+Optionally deploy generated HTML documentation to GitHub Pages.
+
+Deliverables:
+Multi-OS CI pipeline configuration with reproducible builds.
+Automated artifact uploads and optional documentation deployments.
+Style and format enforcement integrated into CI checks.
+
+---
+
+Lifecycle & Collaboration
+
+Phased Delivery
+Refactor efforts are delivered in sequential phases:
+Build Agent
+I/O Agent
+CLI Agent
+Parser Agent
+CI/CD Agent
+
+Each phase must:
+Be submitted as a separate PR.
+Pass CI validation.
+Include documentation updates and migration notes.
+
+Rollback & Safety
+Maintain fallback paths for each agent scope.
+Provide adapter layers to bridge breaking changes during migration.
+Document rollback procedures and known limitations.
+
+Documentation & Artifacts
+Keep README.md and CONTRIBUTING.md continuously updated.
+Ensure consistent logging, reproducible tests, and generated documentation.
+Maintain a clear artifacts directory for all CI outputs.
+
+---
+
+Expected Outcomes
+Fully modernized ABI repository compatible with Zig 0.16-dev.
+Deterministic multi-platform builds with validated CI pipelines.
+Strongly typed errors and explicit I/O boundaries.
+Maintainable, code-focused collaboration model supporting long-term development.
+
+---
+
+References
+Build Modernization: b.root_module, b.createModule
+I/O Boundaries: Injected writers, adapter layers
+CLI Ergonomics: Typed errors, stdout/stderr separation
+Parser Internals: std.ArrayList, streaming APIs, diagnostics
+CI/CD Best Practices: Multi-OS pipelines, docs generation, formatting enforcement

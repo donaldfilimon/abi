@@ -114,7 +114,7 @@ pub const descriptors = [_]FeatureDescriptor{
         .name = "feature.connectors",
         .display_name = "External Connectors",
         .category = .connectors,
-        .dependencies = &.{"core.logging.structured", "shared.plugins"},
+        .dependencies = &.{ "core.logging.structured", "shared.plugins" },
         .description = "Registers OpenAI, Ollama, and plugin bridge connectors.",
         .init = initConnectorsFeature,
         .deinit = deinitConnectorsFeature,
@@ -290,4 +290,3 @@ fn logFeatureActivation(state_ptr: *RuntimeState, feature: []const u8, event: []
 pub fn featureCount() usize {
     return descriptors.len;
 }
-

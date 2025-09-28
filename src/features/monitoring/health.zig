@@ -98,7 +98,7 @@ pub const SystemHealth = struct {
     pub fn init(allocator: std.mem.Allocator) SystemHealth {
         return SystemHealth{
             .overall_status = .unknown,
-            .checks = std.ArrayList(HealthCheck).init(allocator),
+            .checks = std.ArrayList(HealthCheck){},
             .last_updated = std.time.timestamp(),
             .uptime_seconds = 0,
             .total_checks = 0,

@@ -104,7 +104,7 @@ pub const WdbxHttpServer = struct {
         defer listener.deinit();
 
         while (self.running) {
-            var connection = listener.accept() catch |err| {
+            const connection = listener.accept() catch |err| {
                 if (!self.running) break;
                 std.log.err("WDBX HTTP accept failed: {any}", .{err});
                 continue;
@@ -242,13 +242,13 @@ pub const WdbxHttpServer = struct {
         };
         defer response.deinit(self.allocator);
 
-        try self.writeHttpResponse(&connection, response);
+        try writeHttpResponse(&connection, response);
     }
 
     fn sendError(self: *WdbxHttpServer, connection: *const std.net.Server.Connection, status: u16, message: []const u8) !void {
         var response = try self.buildErrorResponse(status, message);
         defer response.deinit(self.allocator);
-        try self.writeHttpResponse(connection, response);
+        try writeHttpResponse(connection, response);
     }
 
     fn handleGet(self: *WdbxHttpServer, path: []const u8, query: []const u8) !Response {
@@ -396,17 +396,16 @@ pub const WdbxHttpServer = struct {
         const text = try std.fmt.allocPrint(self.allocator, "{\"error\":\"{s}\"}", .{message});
         return Response{ .status = status, .body = text, .content_type = "application/json" };
     }
-
-    fn writeHttpResponse(self: *WdbxHttpServer, connection: *const std.net.Server.Connection, response: Response) !void {
-        var writer = connection.stream.writer();
-        try writer.print("HTTP/1.1 {d} {s}\r\n", .{ response.status, statusText(response.status) });
-        try writer.print("Content-Type: {s}\r\n", .{ response.content_type });
-        try writer.print("Content-Length: {d}\r\n", .{ response.body.len });
-        try writer.writeAll("Connection: close\r\n\r\n");
-        try writer.writeAll(response.body);
-    }
 };
 
+fn writeHttpResponse(connection: *const std.net.Server.Connection, response: Response) !void {
+    var writer = connection.stream.writer();
+    try writer.print("HTTP/1.1 {d} {s}\r\n", .{ response.status, statusText(response.status) });
+    try writer.print("Content-Type: {s}\r\n", .{response.content_type});
+    try writer.print("Content-Length: {d}\r\n", .{response.body.len});
+    try writer.writeAll("Connection: close\r\n\r\n");
+    try writer.writeAll(response.body);
+}
 fn statusText(status: u16) []const u8 {
     return switch (status) {
         200 => "OK",

@@ -4,69 +4,80 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const enable_vulkan = b.option(bool, "enable-vulkan", "Link Vulkan loader for GPU compute backends") orelse false;
-    const enable_cuda = b.option(bool, "enable-cuda", "Link CUDA driver/runtime for GPU acceleration") orelse false;
-    const enable_metal = b.option(bool, "enable-metal", "Link Apple Metal frameworks for GPU acceleration") orelse false;
+    const enable_ansi = b.option(bool, "enable-ansi", "Enable ANSI formatting in CLI output") orelse true;
+    const strict_io = b.option(bool, "strict-io", "Exit on first I/O error encountered") orelse false;
+    const experimental = b.option(bool, "experimental", "Enable experimental feature set") orelse false;
 
-    const abi_mod = b.addModule("abi", .{
+    const build_options = b.addOptions();
+    build_options.addOption([]const u8, "package_version", "0.1.0");
+    build_options.addOption(bool, "enable_ansi", enable_ansi);
+    build_options.addOption(bool, "strict_io", strict_io);
+    build_options.addOption(bool, "experimental", experimental);
+
+    const abi_module = b.createModule(.{
         .root_source_file = b.path("src/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
+    abi_module.addOptions("build_options", build_options);
 
-    const main_module = b.createModule(.{
+    const lib = b.addLibrary(.{
+        .name = "abi",
+        .root_module = abi_module,
+        .linkage = .static,
+    });
+    b.installArtifact(lib);
+
+    const cli_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-    main_module.addImport("abi", abi_mod);
+    cli_module.addImport("abi", abi_module);
+    cli_module.addOptions("build_options", build_options);
 
     const exe = b.addExecutable(.{
         .name = "abi",
-        .root_module = main_module,
+        .root_module = cli_module,
     });
+    exe.strip = optimize != .Debug;
     b.installArtifact(exe);
 
-    const unit_tests = b.addTest(.{
-        .root_module = main_module,
+    const run_cmd = b.addRunArtifact(exe);
+    if (b.args) |args| {
+        run_cmd.addArgs(args);
+    }
+    const run_step = b.step("run", "Run the ABI CLI");
+    run_step.dependOn(&run_cmd.step);
+
+    const test_module = b.createModule(.{
+        .root_source_file = b.path("tests/test_create.zig"),
+        .target = target,
+        .optimize = optimize,
     });
+    test_module.addImport("abi", abi_module);
 
-    if (enable_vulkan) {
-        const vulkan_lib = switch (target.result.os.tag) {
-            .windows => "vulkan-1",
-            .macos => "vulkan",
-            else => "vulkan",
-        };
-        exe.linkSystemLibrary(vulkan_lib);
-        unit_tests.linkSystemLibrary(vulkan_lib);
-    }
+    const unit_tests = b.addTest(.{
+        .root_module = test_module,
+    });
+    const run_tests = b.addRunArtifact(unit_tests);
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_tests.step);
 
-    if (enable_cuda) {
-        const cuda_lib = switch (target.result.os.tag) {
-            .windows => "nvcuda",
-            .macos => "cuda",
-            else => "cuda",
-        };
-        exe.linkSystemLibrary(cuda_lib);
-        unit_tests.linkSystemLibrary(cuda_lib);
-    }
+    const docs_install = b.addInstallDirectory(.{
+        .source_dir = lib.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs",
+    });
+    const docs_step = b.step("docs", "Generate ABI documentation");
+    docs_step.dependOn(&docs_install.step);
 
-    if (enable_metal) {
-        switch (target.result.os.tag) {
-            .macos, .ios, .tvos, .watchos => {
-                exe.linkFramework("Metal");
-                exe.linkFramework("MetalKit");
-                exe.linkFramework("QuartzCore");
-                unit_tests.linkFramework("Metal");
-                unit_tests.linkFramework("MetalKit");
-                unit_tests.linkFramework("QuartzCore");
-            },
-            else => {},
-        }
-    }
+    const fmt = b.addFmt(.{ .paths = &.{ "src", "tests", "build.zig" } });
+    const fmt_step = b.step("fmt", "Format ABI sources");
+    fmt_step.dependOn(&fmt.step);
 
-    const run_unit_tests = b.addRunArtifact(unit_tests);
-
-    const test_step = b.step("test", "Run all tests");
-    test_step.dependOn(&run_unit_tests.step);
+    const summary = b.step("summary", "Run docs, fmt, and tests");
+    summary.dependOn(&docs_step.step);
+    summary.dependOn(&fmt_step.step);
+    summary.dependOn(&test_step.step);
 }

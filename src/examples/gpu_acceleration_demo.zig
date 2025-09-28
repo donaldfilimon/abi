@@ -115,16 +115,16 @@ pub const GPUTrainer = struct {
         defer param_server.deinit();
 
         // Register network parameters
-        var params = std.ArrayList([]const f32).init(self.allocator);
-        defer params.deinit();
+        var params = std.ArrayList([]const f32){};
+        defer params.deinit(self.allocator);
 
         // Collect all network parameters
         for (self.network.layers.items) |layer| {
             if (layer.weights) |weights| {
-                try params.append(weights);
+                try params.append(self.allocator, weights);
             }
             if (layer.biases) |biases| {
-                try params.append(biases);
+                try params.append(self.allocator, biases);
             }
         }
 
@@ -163,8 +163,8 @@ pub const GPUTrainer = struct {
         // Compute gradients (simplified)
 
         // Compute gradients (simplified)
-        var gradients = std.ArrayList([]const f32).init(_self.allocator);
-        defer gradients.deinit();
+        var gradients = std.ArrayList([]const f32){};
+        defer gradients.deinit(_self.allocator);
 
         for (params) |param| {
             const grad = try _self.allocator.alloc(f32, param.len);
@@ -172,7 +172,7 @@ pub const GPUTrainer = struct {
             for (grad, 0..) |*g, i| {
                 g.* = 0.01 * std.math.sin(@as(f32, @floatFromInt(i + worker_id))); // Dummy gradient
             }
-            try gradients.append(grad);
+            try gradients.append(_self.allocator, grad);
         }
 
         // Push gradients to parameter server

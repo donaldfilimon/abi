@@ -5,9 +5,12 @@
 //! coordinates feature toggles, plugin discovery, and lifecycle management.
 
 const std = @import("std");
-const framework = @import("framework/mod.zig");
-const core = @import("shared/core/core.zig");
-const lifecycle_mod = @import("shared/core/lifecycle.zig");
+const build_options = @import("build_options");
+const compat = @import("compat.zig");
+
+comptime {
+    _ = compat;
+}
 
 // =============================================================================
 // FEATURE AND FRAMEWORK MODULES
@@ -79,4 +82,8 @@ pub fn version() []const u8 {
 
 test {
     std.testing.refAllDecls(@This());
+}
+
+test "abi.version returns build package version" {
+    try std.testing.expectEqualStrings(build_options.package_version, version());
 }

@@ -562,10 +562,10 @@ pub const Response = struct {
         self.setContentType("application/json");
 
         // Convert data to JSON
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        defer buffer.deinit();
+        var buffer = std.ArrayList(u8){};
+        defer buffer.deinit(self.allocator);
         try std.json.stringify(data, .{}, buffer.writer());
-        const json_string = try buffer.toOwnedSlice();
+        const json_string = try buffer.toOwnedSlice(self.allocator);
         defer self.allocator.free(json_string);
 
         self.setBody(json_string);
@@ -582,10 +582,10 @@ pub const Response = struct {
             .timestamp = std.time.microTimestamp(),
         };
 
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        defer buffer.deinit();
+        var buffer = std.ArrayList(u8){};
+        defer buffer.deinit(self.allocator);
         try std.json.stringify(error_response, .{}, buffer.writer());
-        const json_string = try buffer.toOwnedSlice();
+        const json_string = try buffer.toOwnedSlice(self.allocator);
         defer self.allocator.free(json_string);
 
         self.setBody(json_string);
