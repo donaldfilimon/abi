@@ -243,7 +243,7 @@ pub const Runtime = struct {
 
         const start_time = std.time.nanoTimestamp();
 
-        for (self.components.items()) |component| {
+        for (self.components.items) |component| {
             component.update(delta_time) catch {};
         }
 

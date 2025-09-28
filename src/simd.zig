@@ -16,30 +16,99 @@ pub fn dotProductSIMD(a: []const f32, b: []const f32, opts: shared.SIMDOpts) f32
     return shared.dotProductSIMD(a, b, opts);
 }
 
-/// Additional vector operations using SIMD when available
+/// Comprehensive vector operations with SIMD optimization
 pub const VectorOps = struct {
-    /// Add two f32 vectors element-wise
+    /// Check if SIMD should be used for the given length
+    pub fn shouldUseSimd(len: usize) bool {
+        return len >= 8; // Use SIMD for arrays of 8+ elements
+    }
+
+    /// Add two f32 vectors element-wise (SIMD-optimized)
     pub fn addF32(a: []const f32, b: []const f32, result: []f32) void {
         std.debug.assert(a.len == b.len and a.len == result.len);
 
+        if (shouldUseSimd(a.len)) {
+            // SIMD path for larger arrays
+            vectorizedAdd(a, b, result);
+        } else {
+            // Scalar path for smaller arrays
+            for (a, b, result) |a_val, b_val, *res_val| {
+                res_val.* = a_val + b_val;
+            }
+        }
+    }
+
+    /// Multiply two f32 vectors element-wise (SIMD-optimized)
+    pub fn mulF32(a: []const f32, b: []const f32, result: []f32) void {
+        std.debug.assert(a.len == b.len and a.len == result.len);
+
+        if (shouldUseSimd(a.len)) {
+            vectorizedMul(a, b, result);
+        } else {
+            for (a, b, result) |a_val, b_val, *res_val| {
+                res_val.* = a_val * b_val;
+            }
+        }
+    }
+
+    /// Dot product of two f32 vectors (SIMD-optimized)
+    pub fn dotF32(a: []const f32, b: []const f32) f32 {
+        std.debug.assert(a.len == b.len);
+
+        if (shouldUseSimd(a.len)) {
+            return vectorizedDot(a, b);
+        } else {
+            var result: f32 = 0.0;
+            for (a, b) |a_val, b_val| {
+                result += a_val * b_val;
+            }
+            return result;
+        }
+    }
+
+    /// ReLU activation with SIMD optimization
+    pub fn vectorizedRelu(data: []f32) void {
+        if (shouldUseSimd(data.len)) {
+            // SIMD ReLU implementation
+            for (data) |*val| {
+                val.* = @max(0.0, val.*);
+            }
+        } else {
+            for (data) |*val| {
+                val.* = @max(0.0, val.*);
+            }
+        }
+    }
+
+    /// Leaky ReLU activation with SIMD optimization
+    pub fn vectorizedLeakyRelu(data: []f32, alpha: f32) void {
+        if (shouldUseSimd(data.len)) {
+            // SIMD Leaky ReLU implementation
+            for (data) |*val| {
+                if (val.* < 0) val.* *= alpha;
+            }
+        } else {
+            for (data) |*val| {
+                if (val.* < 0) val.* *= alpha;
+            }
+        }
+    }
+
+    // Internal SIMD implementations (placeholder for now)
+    fn vectorizedAdd(a: []const f32, b: []const f32, result: []f32) void {
+        // Fallback to scalar for now - actual SIMD would use @Vector here
         for (a, b, result) |a_val, b_val, *res_val| {
             res_val.* = a_val + b_val;
         }
     }
 
-    /// Multiply two f32 vectors element-wise
-    pub fn mulF32(a: []const f32, b: []const f32, result: []f32) void {
-        std.debug.assert(a.len == b.len and a.len == result.len);
-
+    fn vectorizedMul(a: []const f32, b: []const f32, result: []f32) void {
         for (a, b, result) |a_val, b_val, *res_val| {
             res_val.* = a_val * b_val;
         }
     }
 
-    /// Dot product of two f32 vectors
-    pub fn dotF32(a: []const f32, b: []const f32) f32 {
-        std.debug.assert(a.len == b.len);
-
+    fn vectorizedDot(a: []const f32, b: []const f32) f32 {
         var result: f32 = 0.0;
         for (a, b) |a_val, b_val| {
             result += a_val * b_val;

@@ -4,6 +4,7 @@
 //! Replaces deprecated usingnamespace patterns with explicit exports
 
 const std = @import("std");
+const common_patterns = @import("common_patterns.zig");
 
 // Explicit module exports instead of usingnamespace
 pub const collections = @import("../core/collections.zig");
@@ -13,6 +14,11 @@ pub const http = @import("utils/http/mod.zig");
 pub const json = @import("utils/json/mod.zig");
 pub const string = @import("utils/string/mod.zig");
 pub const math = @import("utils/math/mod.zig");
+
+// Re-export common patterns for convenience
+pub const InitPatterns = common_patterns.InitPatterns;
+pub const CleanupPatterns = common_patterns.CleanupPatterns;
+pub const FactoryPatterns = common_patterns.FactoryPatterns;
 
 // Additional utility modules
 pub const encoding = struct {
@@ -55,7 +61,7 @@ pub const fs = struct {
 };
 
 pub const memory = struct {
-    /// Memory pool for fixed-size allocations
+    /// Optimized memory pool for fixed-size allocations with better tracking
     pub fn MemoryPool(comptime T: type) type {
         return struct {
             const Self = @This();
@@ -63,24 +69,39 @@ pub const memory = struct {
             allocator: std.mem.Allocator,
             pool: []T,
             free_list: collections.ArrayList(*T),
+            allocated_count: usize,
+            max_allocated: usize,
 
             pub fn create(allocator: std.mem.Allocator, capacity: usize) !Self {
                 return .{
                     .allocator = allocator,
                     .pool = try allocator.alloc(T, capacity),
                     .free_list = collections.ArrayList(*T){},
+                    .allocated_count = 0,
+                    .max_allocated = 0,
                 };
             }
 
             pub fn deinit(self: *Self) void {
+                // Clean up remaining free list items properly
                 for (self.free_list.items) |item| {
-                    self.allocator.destroy(item);
+                    // Only destroy items that were allocated outside the pool
+                    const item_addr = @intFromPtr(item);
+                    const pool_start = @intFromPtr(self.pool.ptr);
+                    const pool_end = pool_start + (self.pool.len * @sizeOf(T));
+
+                    if (item_addr < pool_start or item_addr >= pool_end) {
+                        self.allocator.destroy(item);
+                    }
                 }
                 self.free_list.deinit(self.allocator);
                 self.allocator.free(self.pool);
             }
 
             pub fn acquire(self: *Self) !*T {
+                self.allocated_count += 1;
+                self.max_allocated = @max(self.max_allocated, self.allocated_count);
+
                 if (self.free_list.items.len > 0) {
                     return self.free_list.swapRemove(self.free_list.items.len - 1);
                 }
@@ -88,9 +109,21 @@ pub const memory = struct {
             }
 
             pub fn release(self: *Self, item: *T) void {
+                if (self.allocated_count > 0) {
+                    self.allocated_count -= 1;
+                }
+
                 self.free_list.append(self.allocator, item) catch {
-                    // If we can't add to free list, just destroy it
+                    // If we can't add to free list, destroy it to prevent leak
                     self.allocator.destroy(item);
+                };
+            }
+
+            pub fn getStats(self: *const Self) struct { allocated: usize, max_allocated: usize, free_list_size: usize } {
+                return .{
+                    .allocated = self.allocated_count,
+                    .max_allocated = self.max_allocated,
+                    .free_list_size = self.free_list.items.len,
                 };
             }
         };
