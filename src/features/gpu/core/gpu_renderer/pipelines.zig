@@ -158,3 +158,46 @@ pub const ComputeDispatch = struct {
 };
 
 // Main GPU renderer with cross-platform support and CPU fallbacks
+
+test "shader compile generates deterministic handle" {
+    const testing = std.testing;
+    const shader = try Shader.compile(testing.allocator, .compute, "@compute fn main() {}\n");
+    defer shader.deinit();
+
+    try testing.expect(shader.handle.id != 0);
+    try testing.expect(shader.handle.generation == 1);
+    try testing.expect(shader.stage == .compute);
+}
+
+test "bind group collects buffer handles" {
+    const testing = std.testing;
+    var group = BindGroup.init(testing.allocator, 99);
+    defer group.deinit();
+
+    try testing.expectEqual(@as(u64, 99), group.handle.id);
+    try group.addBufferHandle(1);
+    try group.addBufferHandle(7);
+    try testing.expectEqual(@as(usize, 2), group.buffer_handles.items.len);
+    try testing.expectEqual(@as(u32, 7), group.buffer_handles.items[1]);
+}
+
+test "compute pipeline init copies descriptor data" {
+    const testing = std.testing;
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var pipeline = try ComputePipeline.init(allocator, .{
+        .label = "layer-0",
+        .shader_source = "// mock shader",
+        .entry_point = "main_cs",
+        .workgroup_size = .{ 4, 8, 1 },
+    }, 17);
+    defer pipeline.deinit(allocator);
+
+    try testing.expectEqual(@as(u64, 17), pipeline.handle.id);
+    try testing.expectEqualStrings("layer-0", pipeline.label);
+    try testing.expectEqualStrings("main_cs", pipeline.entry_point);
+    try testing.expectEqual(@as(u32, 4), pipeline.workgroup_size[0]);
+    try testing.expect(pipeline.hardware == null);
+}
