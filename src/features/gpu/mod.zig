@@ -5,7 +5,7 @@
 const std = @import("std");
 
 // Core GPU components
-pub const gpu_renderer = @import("gpu_renderer.zig");
+pub const gpu_renderer = @import("core/gpu_renderer.zig");
 pub const unified_memory = @import("unified_memory.zig");
 pub const hardware_detection = @import("hardware_detection.zig");
 
