@@ -16,6 +16,7 @@ pub const transformer = @import("transformer.zig");
 pub const reinforcement_learning = @import("reinforcement_learning.zig");
 pub const enhanced_agent = @import("enhanced_agent.zig");
 pub const agent = @import("agent.zig");
+pub const agent_subsystem = @import("agent_subsystem.zig");
 
 // Infrastructure
 pub const serialization = @import("serialization/mod.zig");
