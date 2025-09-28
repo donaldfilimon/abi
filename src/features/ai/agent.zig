@@ -8,6 +8,9 @@ const std = @import("std");
 const persona_manifest = @import("persona_manifest.zig");
 const observability = @import("../../shared/observability/mod.zig");
 
+const persona_manifest = @import("../../shared/core/persona_manifest.zig");
+const metrics = @import("../../shared/observability/metrics.zig");
+
 pub const Allocator = std.mem.Allocator;
 
 /// Errors that an agent operation can produce.
@@ -49,6 +52,10 @@ pub const AgentConfig = struct {
         if (self.temperature < 0 or self.temperature > 2.0) return AgentError.InvalidConfiguration;
         if (self.top_p < 0 or self.top_p > 1) return AgentError.InvalidConfiguration;
         if (self.rate_limit_per_minute == 0) return AgentError.InvalidConfiguration;
+    }
+
+    pub fn personaString(self: AgentConfig) []const u8 {
+        return personaToString(self.persona);
     }
 };
 
@@ -162,6 +169,65 @@ pub const Agent = struct {
 
     pub fn setPersona(self: *Agent, persona: PersonaType) void {
         self.config.persona = persona;
+    }
+
+    pub fn setMetricsRegistry(self: *Agent, registry: *metrics.MetricsRegistry) void {
+        self.metrics_registry = registry;
+    }
+
+    pub fn applyPersonaDefinition(self: *Agent, definition: persona_manifest.PersonaDefinition) AgentError!void {
+        if (personaTypeFromId(definition.id)) |persona_type| {
+            self.setPersona(persona_type);
+        }
+
+        try self.setSystemPrompt(definition.system_prompt);
+
+        self.persona_settings.temperature = definition.model.temperature;
+        self.persona_settings.top_p = definition.model.top_p;
+        self.persona_settings.safety = definition.safety;
+
+        self.clearTools();
+        errdefer self.clearTools();
+
+        try self.persona_settings.tools.ensureTotalCapacity(self.allocator, definition.tools.len);
+        for (definition.tools) |tool| {
+            const duplicated_tool = try self.allocator.dupe(u8, tool);
+            errdefer self.allocator.free(duplicated_tool);
+            try self.persona_settings.tools.append(self.allocator, duplicated_tool);
+        }
+    }
+
+    pub fn setSystemPrompt(self: *Agent, prompt: []const u8) AgentError!void {
+        if (self.owns_prompt and self.system_prompt.len > 0) {
+            self.allocator.free(self.system_prompt);
+        }
+
+        if (prompt.len == 0) {
+            self.system_prompt = "";
+            self.owns_prompt = false;
+            return;
+        }
+
+        const duplicated_prompt = self.allocator.dupe(u8, prompt) catch return AgentError.OutOfMemory;
+        self.system_prompt = duplicated_prompt;
+        self.owns_prompt = true;
+    }
+
+    pub fn personaSettings(self: *const Agent) PersonaSettingsView {
+        return PersonaSettingsView{
+            .temperature = self.persona_settings.temperature,
+            .top_p = self.persona_settings.top_p,
+            .tools = self.persona_settings.tools.items,
+            .safety = self.persona_settings.safety,
+            .system_prompt = self.system_prompt,
+        };
+    }
+
+    fn clearTools(self: *Agent) void {
+        for (self.persona_settings.tools.items) |tool| {
+            self.allocator.free(tool);
+        }
+        self.persona_settings.tools.clearRetainingCapacity();
     }
 
     pub fn name(self: *const Agent) []const u8 {

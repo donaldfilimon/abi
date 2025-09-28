@@ -96,7 +96,7 @@ pub const ComprehensiveTestRunner = struct {
         self.* = .{
             .config = config,
             .stats = .{},
-            .test_results = std.ArrayList(TestResult).init(config.allocator),
+            .test_results = std.ArrayList(TestResult){},
         };
         return self;
     }
@@ -108,7 +108,7 @@ pub const ComprehensiveTestRunner = struct {
                 self.config.allocator.free(msg);
             }
         }
-        self.test_results.deinit();
+        self.test_results.deinit(self.config.allocator);
         self.config.allocator.destroy(self);
     }
 
@@ -279,8 +279,8 @@ pub const ComprehensiveTestRunner = struct {
 
     /// Generate comprehensive test report
     fn generateTestReport(self: *ComprehensiveTestRunner) !void {
-        var report = std.ArrayList(u8).init(self.config.allocator);
-        defer report.deinit();
+        var report = std.ArrayList(u8){};
+        defer report.deinit(self.config.allocator);
 
         try report.appendSlice("# Comprehensive Test Report\n");
         try report.appendSlice("==========================\n\n");

@@ -59,7 +59,7 @@ fn writeFile(path: []const u8, contents: []const u8) !void {
 }
 
 fn readFileAlloc(path: []const u8) ![]u8 {
-    return try std.fs.cwd().readFileAlloc(path, testing.allocator, std.Io.Limit.limited(1 << 20));
+    return try std.fs.cwd().readFileAlloc(testing.allocator, path, 1 << 20);
 }
 
 test "module docs generator emits header" {

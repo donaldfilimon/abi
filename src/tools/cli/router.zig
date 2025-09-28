@@ -33,15 +33,22 @@ pub fn printGlobalHelp() !void {
     std.debug.print("Usage: abi <command> [options]\n\n", .{});
     std.debug.print("Available commands:\n", .{});
 
-    var buffer = std.ArrayList(u8).init(std.heap.page_allocator);
-    defer buffer.deinit();
-    const writer = buffer.writer();
-    try registry.formatSummary(writer);
-    std.debug.print("{s}\n", .{buffer.items});
+    // Print commands directly
+    const commands = registry.all();
+    var longest: usize = 0;
+    for (commands) |cmd| {
+        longest = @max(longest, cmd.name.len);
+        for (cmd.aliases) |alias| {
+            longest = @max(longest, alias.len);
+        }
+    }
 
-    std.debug.print("Use 'abi <command> --help' for detailed information.\n", .{});
+    for (commands) |cmd| {
+        std.debug.print("  {s}  {s}\n", .{ cmd.name, cmd.summary });
+    }
+
+    std.debug.print("\nUse 'abi <command> --help' for detailed information.\n", .{});
 }
-
 pub fn printVersion() void {
     std.debug.print("{s} {s}\n", .{ common.CLI_NAME, common.CLI_VERSION });
 }

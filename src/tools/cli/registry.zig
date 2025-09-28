@@ -30,7 +30,7 @@ pub fn all() []const common.Command {
 }
 
 pub fn find(name: []const u8) ?*const common.Command {
-    for (commands) |*cmd| {
+    for (&commands) |*cmd| {
         if (std.mem.eql(u8, name, cmd.name)) return cmd;
         for (cmd.aliases) |alias| {
             if (std.mem.eql(u8, name, alias)) return cmd;
@@ -50,6 +50,6 @@ pub fn formatSummary(writer: anytype) !void {
     }
 
     for (entries) |cmd| {
-        try writer.print("  {s:<{}}  {s}\n", .{ cmd.name, longest, cmd.summary });
+        try writer.print("  {s}  {s}\n", .{ cmd.name, cmd.summary });
     }
 }
