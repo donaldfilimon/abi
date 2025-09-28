@@ -12,12 +12,17 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-// Note: core functionality is now imported through module dependencies
-const config_webserv = @import("../../shared/core/config.zig");
-const errors = @import("../../shared/core/errors.zig");
+// TODO: These shared dependencies need to be restructured for proper Zig 0.16 module imports
+// For now, commenting out to fix compilation - features need dependency injection
+// const config_webserv = @import("../../shared/core/config.zig");
+// const errors = @import("../../shared/core/errors.zig");
 
-const FrameworkError = errors.FrameworkError;
-const WebServerConfig = config_webserv.WebServerConfig;
+// Temporary placeholder types to fix compilation
+const FrameworkError = error{NotImplemented};
+const WebServerConfig = struct {
+    port: u16 = 8080,
+    enable_ssl: bool = false,
+};
 
 /// Enhanced web server with production-ready features
 pub const EnhancedWebServer = struct {

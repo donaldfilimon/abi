@@ -102,7 +102,7 @@ fn scanFile(allocator: std.mem.Allocator, rel_path: []const u8, decls: *std.Arra
     defer file.close();
 
     const max_bytes: usize = 16 * 1024 * 1024;
-    const data = try std.fs.cwd().readFileAlloc(rel_path, allocator, std.Io.Limit.limited(max_bytes));
+    const data = try std.fs.cwd().readFileAlloc(allocator, rel_path, max_bytes);
     defer allocator.free(data);
 
     var it = std.mem.splitScalar(u8, data, '\n');

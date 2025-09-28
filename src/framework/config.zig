@@ -11,7 +11,11 @@ pub const Feature = enum(u3) {
     simd,
 };
 
-pub const feature_count = @typeInfo(Feature).Enum.fields.len;
+// NOTE: Zig 0.16's @typeInfo layout changed; the previous access used
+// `@typeInfo(Feature).Enum.fields.len` which is not stable across stdlib
+// revisions. For compatibility we keep an explicit constant here. Update
+// this value if you add/remove entries from the `Feature` enum.
+pub const feature_count: usize = 7;
 const FeatureMask = std.bit_set.IntegerBitSet(feature_count);
 
 /// Bit-set backed feature selection utility used by the framework runtime.

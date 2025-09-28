@@ -610,7 +610,7 @@ pub const ModelRegistry = struct {
 
 test "model metadata custom field" {
     const testing = std.testing;
-    var metadata = ModelMetadata.init(testing.allocator, "test", &[_]usize{ 1 }, &[_]usize{ 1 });
+    var metadata = ModelMetadata.init(testing.allocator, "test", &[_]usize{1}, &[_]usize{1});
     defer metadata.deinit(testing.allocator);
 
     try metadata.addCustomField(testing.allocator, "key", "value");
@@ -619,7 +619,7 @@ test "model metadata custom field" {
 
 test "model serializer checksum" {
     const testing = std.testing;
-    var metadata = ModelMetadata.init(testing.allocator, "unit", &[_]usize{ 1 }, &[_]usize{ 1 });
+    var metadata = ModelMetadata.init(testing.allocator, "unit", &[_]usize{1}, &[_]usize{1});
     defer metadata.deinit(testing.allocator);
 
     var serializer = ModelSerializer.init(testing.allocator, .{});
