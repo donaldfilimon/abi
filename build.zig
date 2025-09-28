@@ -89,6 +89,22 @@ pub fn build(b: *std.Build) void {
     // by passing `--prefix` or `-p`.
     b.installArtifact(exe);
 
+    // Add metrics exporter executable
+    const metrics_exe = b.addExecutable(.{
+        .name = "metrics",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/metrics.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    b.installArtifact(metrics_exe);
+    // Optionally expose a run step for the metrics exporter
+    const metrics_run_step = b.step("metrics-run", "Run the metrics exporter");
+    const metrics_run_cmd = b.addRunArtifact(metrics_exe);
+    metrics_run_step.dependOn(&metrics_run_cmd.step);
+    metrics_run_cmd.step.dependOn(b.getInstallStep());
+
     // This creates a top level step. Top level steps have a name and can be
     // invoked by name when running `zig build` (e.g. `zig build run`).
     // This will evaluate the `run` step rather than the default step.
