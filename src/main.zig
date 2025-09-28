@@ -10,8 +10,7 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var stdout_adapter = std.io.getStdOut().writer().adaptToNewApi(&.{});
-    const stdout_writer = stdout_adapter.new_interface;
+    const stdout = std.io.getStdOut().writer();
 
     var framework = try abi.init(gpa.allocator(), .{});
     defer framework.deinit();
@@ -21,5 +20,5 @@ pub fn main() !void {
     try framework.writeSummary(stream.writer());
 
     const summary = stream.getWritten();
-    try stdout_writer.print("ABI Framework bootstrap complete\n{s}\n", .{summary});
+    try stdout.print("ABI Framework bootstrap complete\n{s}\n", .{summary});
 }
