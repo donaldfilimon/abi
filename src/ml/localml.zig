@@ -115,7 +115,8 @@ fn readDataset(allocator: std.mem.Allocator, path: []const u8) ![]DataRow {
     var file = try std.fs.cwd().openFile(path, .{});
     defer file.close();
     var reader = file.reader();
-    var rows = std.ArrayList(DataRow).init(allocator);
+    var rows = std.ArrayList(DataRow){};
+    defer rows.deinit(allocator);
     var buf: [256]u8 = undefined;
     while (true) {
         const line = (try reader.readUntilDelimiterOrEof(&buf, '\n')) orelse break;
@@ -225,8 +226,8 @@ pub fn main() !void {
             return error.InvalidUsage;
         };
 
-        var data = std.ArrayList(DataRow).init(alloc);
-        defer data.deinit();
+        var data = std.ArrayList(DataRow){};
+        defer data.deinit(alloc);
 
         // Load training data
         const data_contents = try std.fs.cwd().readFileAlloc(alloc, data_path, 1024 * 1024);

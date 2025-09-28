@@ -35,7 +35,7 @@ pub fn build(b: *std.Build) void {
         // intend to expose to consumers that were defined in other files part
         // of this module, you will have to make sure to re-export them from
         // the root file.
-        .root_source_file = b.path("src/root.zig"),
+        .root_source_file = b.path("src/modern.zig"),
         // Later on we'll use this module as the root module of a test executable
         // which requires us to specify a target.
         .target = target,
@@ -104,6 +104,39 @@ pub fn build(b: *std.Build) void {
     const metrics_run_cmd = b.addRunArtifact(metrics_exe);
     metrics_run_step.dependOn(&metrics_run_cmd.step);
     metrics_run_cmd.step.dependOn(b.getInstallStep());
+
+    // Add agent subsystem demo executable
+    const agent_demo_exe = b.addExecutable(.{
+        .name = "agent_demo",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/examples/agent_subsystem_demo.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "abi", .module = mod },
+            },
+        }),
+    });
+    b.installArtifact(agent_demo_exe);
+    const agent_demo_run_step = b.step("agent-demo", "Run the agent subsystem demo");
+    const agent_demo_run_cmd = b.addRunArtifact(agent_demo_exe);
+    agent_demo_run_step.dependOn(&agent_demo_run_cmd.step);
+    agent_demo_run_cmd.step.dependOn(b.getInstallStep());
+
+    // Add interactive CLI executable
+    const interactive_cli_exe = b.addExecutable(.{
+        .name = "interactive_cli",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/tools/interactive_cli.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    b.installArtifact(interactive_cli_exe);
+    const interactive_cli_run_step = b.step("cli", "Run the interactive CLI");
+    const interactive_cli_run_cmd = b.addRunArtifact(interactive_cli_exe);
+    interactive_cli_run_step.dependOn(&interactive_cli_run_cmd.step);
+    interactive_cli_run_cmd.step.dependOn(b.getInstallStep());
 
     // This creates a top level step. Top level steps have a name and can be
     // invoked by name when running `zig build` (e.g. `zig build run`).
