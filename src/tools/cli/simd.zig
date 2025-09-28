@@ -6,11 +6,10 @@ pub const command = common.Command{
     .name = "simd",
     .summary = "CPU SIMD utilities and benchmarks",
     .usage = "abi simd <info|benchmark|dot|matrix> [options]",
-    .details =
-    "  info       Inspect SIMD capabilities\n" ++
-    "  benchmark  Run SIMD benchmark suite\n" ++
-    "  dot        Compute dot product using SIMD\n" ++
-    "  matrix     Multiply matrices with SIMD\n",
+    .details = "  info       Inspect SIMD capabilities\n" ++
+        "  benchmark  Run SIMD benchmark suite\n" ++
+        "  dot        Compute dot product using SIMD\n" ++
+        "  matrix     Multiply matrices with SIMD\n",
     .run = run,
 };
 

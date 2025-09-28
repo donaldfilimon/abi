@@ -6,12 +6,11 @@ pub const command = common.Command{
     .name = "gpu",
     .summary = "GPU diagnostics and vector utilities",
     .usage = "abi gpu <info|run-examples|dot|search|benchmark> [options]",
-    .details =
-    "  info           Inspect available GPU backends\n" ++
-    "  run-examples   Execute GPU sample workloads\n" ++
-    "  dot            Compute dot product between vectors\n" ++
-    "  search         Run GPU-accelerated vector search demo\n" ++
-    "  benchmark      Measure GPU performance\n",
+    .details = "  info           Inspect available GPU backends\n" ++
+        "  run-examples   Execute GPU sample workloads\n" ++
+        "  dot            Compute dot product between vectors\n" ++
+        "  search         Run GPU-accelerated vector search demo\n" ++
+        "  benchmark      Measure GPU performance\n",
     .run = run,
 };
 

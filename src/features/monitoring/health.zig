@@ -96,6 +96,7 @@ pub const SystemHealth = struct {
     unknown_checks: u32,
 
     pub fn init(allocator: std.mem.Allocator) SystemHealth {
+        _ = allocator;
         return SystemHealth{
             .overall_status = .unknown,
             .checks = std.ArrayList(HealthCheck){},

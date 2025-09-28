@@ -6,11 +6,10 @@ pub const command = common.Command{
     .name = "plugin",
     .summary = "Manage ABI plugin registry",
     .usage = "abi plugin <list|load|info|call> [args...]",
-    .details =
-    "  list            Show registered plugins\n" ++
-    "  load <path>     Load plugin from path\n" ++
-    "  info <name>     Display plugin information\n" ++
-    "  call <name> <function> Invoke plugin function\n",
+    .details = "  list            Show registered plugins\n" ++
+        "  load <path>     Load plugin from path\n" ++
+        "  info <name>     Display plugin information\n" ++
+        "  call <name> <function> Invoke plugin function\n",
     .run = run,
 };
 

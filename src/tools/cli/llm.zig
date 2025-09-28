@@ -9,10 +9,9 @@ pub const command = common.Command{
     .name = "llm",
     .summary = "Work with language model embeddings and training",
     .usage = "abi llm <embed|query|train> [flags]",
-    .details =
-    "  embed   Generate embeddings for text\n" ++
-    "  query   Search embeddings database\n" ++
-    "  train   Train local ML models\n",
+    .details = "  embed   Generate embeddings for text\n" ++
+        "  query   Search embeddings database\n" ++
+        "  train   Train local ML models\n",
     .run = run,
 };
 

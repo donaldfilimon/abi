@@ -6,13 +6,12 @@ pub const command = common.Command{
     .name = "config",
     .summary = "Inspect and modify ABI configuration files",
     .usage = "abi config [set|get|list|validate|show] [options]",
-    .details =
-    "  --file <path>   Specify configuration file\n" ++
-    "  set <key> <value>   Update a configuration entry\n" ++
-    "  get <key>           Read a configuration entry\n" ++
-    "  list                Print full configuration\n" ++
-    "  --validate          Validate configuration schema\n" ++
-    "  --summary/--no-summary  Toggle summary output\n",
+    .details = "  --file <path>   Specify configuration file\n" ++
+        "  set <key> <value>   Update a configuration entry\n" ++
+        "  get <key>           Read a configuration entry\n" ++
+        "  list                Print full configuration\n" ++
+        "  --validate          Validate configuration schema\n" ++
+        "  --summary/--no-summary  Toggle summary output\n",
     .run = run,
 };
 

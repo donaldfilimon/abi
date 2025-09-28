@@ -4,15 +4,14 @@ const common = @import("common.zig");
 
 pub const command = common.Command{
     .name = "db",
-    .aliases = &.{ "wdbx" },
+    .aliases = &.{"wdbx"},
     .summary = "Manage vector databases",
     .usage = "abi db <init|add|query|stats|optimize> [options]",
-    .details =
-    "  init      Create a new database\n" ++
-    "  add       Insert a vector entry\n" ++
-    "  query     Search for nearest vectors\n" ++
-    "  stats     Display database statistics\n" ++
-    "  optimize  Optimize the database store\n",
+    .details = "  init      Create a new database\n" ++
+        "  add       Insert a vector entry\n" ++
+        "  query     Search for nearest vectors\n" ++
+        "  stats     Display database statistics\n" ++
+        "  optimize  Optimize the database store\n",
     .run = run,
 };
 
