@@ -34,7 +34,7 @@ as reference material for other Zig projects.
 
 ### Tooling
 - Install the Zig version listed in [`.zigversion`](.zigversion) (currently
-  `0.16.0-dev.393+dd4be26f5`).
+  `0.16.0-dev.427+86077fe6b`).
 - A recent LLVM toolchain is required when building on Windows.
 
 ### Clone & Build
