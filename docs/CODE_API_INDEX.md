@@ -1750,7 +1750,7 @@ pub const model_serialization = @import("model_serialization.zig");
 - fn `createMLP`
 
 ```zig
-pub fn createMLP(allocator: std.mem.Allocator, layer_sizes: []const usize, activations: []const Activation) !*NeuralNetwork {
+pub fn createMLP(allocator: std.mem.Allocator, layer_sizes: []const usize, activation_plan: []const Activation) !*NeuralNetwork {
 ```
 
 - fn `createCNN`

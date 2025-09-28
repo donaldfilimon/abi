@@ -170,7 +170,7 @@ pub const ActivationConstants = struct {
     pub const leaky_relu_slope = LEAKY_RELU_SLOPE;
 };
 
-/// Basic regression tests for the activation utilities.
+// Basic regression tests for the activation utilities.
 test "activation utils stable softmax" {
     var values = [_]f32{ 1.0, 2.0, 3.0 };
     ActivationUtils.stableSoftmax(values[0..]);
