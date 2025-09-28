@@ -1,7 +1,6 @@
 const std = @import("std");
 const print = std.debug.print;
 const gpu = std.gpu;
-const print = std.debug.print;
 
 const config = @import("config.zig");
 
@@ -457,3 +456,44 @@ pub const Buffer = struct {
 };
 
 // Shader resource
+
+test "mock GPU context initializes expected resources" {
+    const testing = std.testing;
+    var ctx = try GPUContext.init(testing.allocator);
+    defer ctx.deinit();
+
+    try testing.expectEqualStrings("CPU Fallback Renderer", ctx.adapter.getName());
+    try testing.expect(@intFromPtr(ctx.device.queue) == @intFromPtr(ctx.queue));
+    ctx.queue.submit();
+}
+
+test "buffer manager round-trips data on CPU backend" {
+    const testing = std.testing;
+    var ctx = try GPUContext.init(testing.allocator);
+    defer ctx.deinit();
+
+    const usage = BufferUsage{
+        .storage = true,
+        .copy_dst = true,
+        .copy_src = true,
+        .map_read = true,
+    };
+
+    var manager = BufferManager{
+        .device = .{ .mock = ctx.device },
+        .queue = .{ .mock = ctx.queue },
+    };
+
+    const seed = [_]f32{ 1.0, 2.0, 3.5, -4.25 };
+    const resource = try manager.createBufferWithData(f32, &seed, usage);
+    var buffer = Buffer.init(resource, seed.len * @sizeOf(f32), usage, 42);
+    defer buffer.deinit();
+
+    const updated = [_]f32{ 9.0, -1.0, 0.5, 32.75 };
+    manager.writeBuffer(&buffer, std.mem.sliceAsBytes(&updated));
+
+    const copy = try manager.readBuffer(f32, &buffer, @intCast(u64, updated.len), testing.allocator);
+    defer testing.allocator.free(copy);
+
+    try testing.expectEqualSlices(f32, &updated, copy);
+}
