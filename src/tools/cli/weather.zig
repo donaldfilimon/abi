@@ -5,6 +5,7 @@ const wdbx = @import("wdbx");
 const common = @import("common.zig");
 
 pub const command = common.Command{
+    .id = .weather,
     .name = "weather",
     .summary = "Ingest and query weather embeddings",
     .usage = "abi weather <ingest|query> [flags]",

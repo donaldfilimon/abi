@@ -3,6 +3,7 @@ const wdbx = @import("wdbx");
 const common = @import("common.zig");
 
 pub const command = common.Command{
+    .id = .db,
     .name = "db",
     .aliases = &.{"wdbx"},
     .summary = "Manage vector databases",
