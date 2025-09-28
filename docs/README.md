@@ -42,6 +42,10 @@ Welcome to the comprehensive documentation for ABI, a high-performance vector da
 - **[Performance Guide](./generated/PERFORMANCE_GUIDE/)** - Optimization and benchmarking
 - **[Definitions](./generated/DEFINITIONS_REFERENCE/)** - Comprehensive glossary and concepts
 
+### Status & Testing Reports
+- **[Engineering Status Overview](./reports/engineering_status.md)** - Current framework snapshot, module map, and automation coverage.
+- **[Cross-Platform Testing Reference](./reports/cross_platform_testing.md)** - Supported operating systems, run commands, and generated smoke-test catalog.
+
 ### Developer Resources
 - **[Code Index](./generated/CODE_API_INDEX/)** - Auto-generated API index from source
 - **[Native Docs](./zig-docs/)** - Zig compiler-generated documentation
