@@ -82,11 +82,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-
-    // This declares intent for the executable to be installed into the
-    // install prefix when running `zig build` (i.e. when executing the default
-    // step). By default the install prefix is `zig-out/` but can be overridden
-    // by passing `--prefix` or `-p`.
+    
     b.installArtifact(exe);
 
     // This creates a top level step. Top level steps have a name and can be
@@ -122,8 +118,35 @@ pub fn build(b: *std.Build) void {
         .root_module = mod,
     });
 
-    // A run step that will run the test executable.
-    const run_mod_tests = b.addRunArtifact(mod_tests);
+    const unit_tests = b.addTest(.{
+        .root_module = test_module,
+    });
+    const run_tests = b.addRunArtifact(unit_tests);
+
+    const docgen_test_module = b.createModule(.{
+        .root_source_file = b.path("src/tools/docs_generator/tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const docgen_tests = b.addTest(.{
+        .root_module = docgen_test_module,
+    });
+    const run_docgen_tests = b.addRunArtifact(docgen_tests);
+
+    const docgen_exe = b.addExecutable(.{
+        .name = "docs_generator",
+        .root_source_file = b.path("src/tools/docs_generator.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const run_docgen = b.addRunArtifact(docgen_exe);
+
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_tests.step);
+    test_step.dependOn(&run_docgen_tests.step);
+
+    const docgen_step = b.step("docgen", "Generate site documentation");
+    docgen_step.dependOn(&run_docgen.step);
 
     // Creates an executable that will run `test` blocks from the executable's
     // root module. Note that test executables only test one module at a time,
@@ -142,15 +165,9 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_exe_tests.step);
 
-    // Just like flags, top level steps are also listed in the `--help` menu.
-    //
-    // The Zig build system is entirely implemented in userland, which means
-    // that it cannot hook into private compiler APIs. All compilation work
-    // orchestrated by the build system will result in other Zig compiler
-    // subcommands being invoked with the right flags defined. You can observe
-    // these invocations when one fails (or you pass a flag to increase
-    // verbosity) to validate assumptions and diagnose problems.
-    //
-    // Lastly, the Zig build system is relatively simple and self-contained,
-    // and reading its source code will allow you to master it.
+    const summary = b.step("summary", "Run docs, fmt, and tests");
+    summary.dependOn(docs_step);
+    summary.dependOn(fmt_step);
+    summary.dependOn(test_step);
+    summary.dependOn(docgen_step);
 }
