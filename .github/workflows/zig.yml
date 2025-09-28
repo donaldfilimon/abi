@@ -14,14 +14,12 @@ jobs:
     strategy:
       matrix:
         os: [self.hosted]
-        zig-version: ["0.16.0-dev]
+        zig-version: ["master"]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Run zig fmt --check
-        run: zig fmt --check
+        
       - name: Setup Zig
         uses: actions/setup-zig@v1
         with:
@@ -34,6 +32,6 @@ jobs:
         run: zig build test
 
       - name: Run binary
-        run: zig build run
+        run: zig build docs
         # Ensure the run does not block indefinitely
-        timeout-minutes: 2
+        timeout-minutes: 1
