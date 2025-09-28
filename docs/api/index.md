@@ -4,19 +4,17 @@ Welcome to the comprehensive API documentation for the ABI AI Framework.
 
 ## Modules
 
-### Feature Namespaces (`abi.features.*`)
+### Core Modules
 
-- [**AI & Agents**](ai.md) — `abi.features.ai.*` personas, enhanced pipelines, and training utilities
-- [**Vector Database**](database.md) — `abi.features.database.*` storage engine, configuration, and HTTP/CLI front-ends
-- [**GPU Tooling**](../GPU_AI_ACCELERATION.md) — `abi.features.gpu.*` compute kernels, backends, and profiling suites
-- [**Web & Connectors**](http_client.md) — `abi.features.web.*` networking clients/servers plus connector bridges
+- [**Database API**](database.md) - Vector database operations
+- [**AI/ML API**](ai.md) - AI agents and neural networks
+- [**SIMD API**](simd.md) - SIMD-accelerated operations
 
-### Framework & Shared Layers
+### Infrastructure
 
-- [**Framework Runtime**](../MODULE_ORGANIZATION.md#-module-architecture) — `abi.framework.*` feature toggles, lifecycle, plugin coordination
-- [**Plugin System**](plugins.md) — `abi.shared.*` registries, loaders, and interfaces used by the runtime
-- [**SIMD & Utilities**](simd.md) — `abi.simd` helpers alongside `abi.utils`/`abi.platform`
-- [**WDBX Utilities**](wdbx.md) — Operational helpers layered on top of the database feature
+- [**HTTP Client**](http_client.md) - Enhanced HTTP client
+- [**Plugin System**](plugins.md) - Extensibility framework
+- [**WDBX Utilities**](wdbx.md) - Database management tools
 
 ## Quick Start
 

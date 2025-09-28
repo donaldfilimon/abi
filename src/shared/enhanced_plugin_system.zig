@@ -40,7 +40,7 @@ pub const EnhancedPluginSystem = struct {
         self.* = .{
             .allocator = allocator,
             .plugins = std.StringHashMap(*Plugin).init(allocator),
-            .plugin_loaders = std.ArrayList(*PluginLoader).init(allocator),
+            .plugin_loaders = std.ArrayList(*PluginLoader){},
             .plugin_registry = try PluginRegistry.init(allocator),
             .plugin_watcher = try PluginWatcher.init(allocator),
             .plugin_manager = try PluginManager.init(allocator),
@@ -83,7 +83,7 @@ pub const EnhancedPluginSystem = struct {
         for (self.plugin_loaders.items) |loader| {
             loader.deinit();
         }
-        self.plugin_loaders.deinit();
+        self.plugin_loaders.deinit(self.allocator);
 
         // Clean up plugins
         self.plugins.deinit();
@@ -169,15 +169,15 @@ pub const EnhancedPluginSystem = struct {
 
     /// List all loaded plugins
     pub fn listPlugins(self: *const Self) []const []const u8 {
-        var names = std.ArrayList([]const u8).init(self.allocator);
-        defer names.deinit();
+        var names = std.ArrayList([]const u8){};
+        defer names.deinit(self.allocator);
 
         var iterator = self.plugins.iterator();
         while (iterator.next()) |entry| {
-            names.append(entry.key_ptr.*) catch continue;
+            names.append(self.allocator, entry.key_ptr.*) catch continue;
         }
 
-        return names.toOwnedSlice() catch &[_][]const u8{};
+        return names.toOwnedSlice(self.allocator) catch &[_][]const u8{};
     }
 
     /// Get plugin statistics
@@ -380,8 +380,8 @@ pub const Plugin = struct {
                 .settings = std.StringHashMap([]const u8).init(std.heap.page_allocator),
             },
             .state = .unloaded,
-            .services = std.ArrayList(PluginService).init(std.heap.page_allocator),
-            .dependencies = std.ArrayList([]const u8).init(std.heap.page_allocator),
+            .services = std.ArrayList(PluginService){},
+            .dependencies = std.ArrayList([]const u8){},
             .memory_usage = 0,
             .performance_metrics = PluginPerformanceMetrics{},
             .security_context = undefined, // Will be set during initialization
@@ -389,8 +389,8 @@ pub const Plugin = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.services.deinit();
-        self.dependencies.deinit();
+        self.services.deinit(std.heap.page_allocator);
+        self.dependencies.deinit(std.heap.page_allocator);
         self.config.settings.deinit();
     }
 

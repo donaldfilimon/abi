@@ -96,7 +96,8 @@ pub const BenchmarkResult = struct {
     }
 
     pub fn toJson(self: BenchmarkResult, allocator: std.mem.Allocator) ![]u8 {
-        var json = try std.ArrayList(u8).initCapacity(allocator, 0);
+        var json = std.ArrayList(u8){};
+        try json.ensureUnusedCapacity(allocator, 1024);
         defer json.deinit(allocator);
 
         try json.appendSlice(allocator, "{\n");
@@ -174,7 +175,7 @@ pub const BenchmarkSuite = struct {
         self.* = .{
             .allocator = allocator,
             .config = config,
-            .results = try std.ArrayList(BenchmarkResult).initCapacity(allocator, 0),
+            .results = std.ArrayList(BenchmarkResult){},
             .platform_info = PlatformInfo.init(),
         };
         return self;
@@ -337,7 +338,7 @@ pub const BenchmarkSuite = struct {
         for (self.results.items) |*result| {
             const entry = try categories.getOrPut(result.category);
             if (!entry.found_existing) {
-                entry.value_ptr.* = try std.ArrayList(*BenchmarkResult).initCapacity(self.allocator, 0);
+                entry.value_ptr.* = std.ArrayList(*BenchmarkResult){};
             }
             try entry.value_ptr.append(self.allocator, result);
         }
@@ -401,7 +402,8 @@ pub const BenchmarkSuite = struct {
     }
 
     fn printJsonReport(self: *BenchmarkSuite) !void {
-        var json = try std.ArrayList(u8).initCapacity(self.allocator, 0);
+        var json = std.ArrayList(u8){};
+        try json.ensureUnusedCapacity(self.allocator, 4096);
         defer json.deinit(self.allocator);
 
         try json.appendSlice(self.allocator, "{\n");
@@ -439,7 +441,8 @@ pub const BenchmarkSuite = struct {
     }
 
     fn printCsvReport(self: *BenchmarkSuite) !void {
-        var csv = try std.ArrayList(u8).initCapacity(self.allocator, 0);
+        var csv = std.ArrayList(u8){};
+        try csv.ensureUnusedCapacity(self.allocator, 2048);
         defer csv.deinit(self.allocator);
 
         // Header
@@ -460,7 +463,8 @@ pub const BenchmarkSuite = struct {
     }
 
     fn printMarkdownReport(self: *BenchmarkSuite) !void {
-        var md = try std.ArrayList(u8).initCapacity(self.allocator, 0);
+        var md = std.ArrayList(u8){};
+        try md.ensureUnusedCapacity(self.allocator, 4096);
         defer md.deinit(self.allocator);
 
         try md.appendSlice(self.allocator, "# Benchmark Results\n\n");

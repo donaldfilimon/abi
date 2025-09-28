@@ -1,7 +1,6 @@
 # AI and Machine Learning API
 
-This document provides comprehensive API documentation for the `abi.features.ai`
-namespace that is re-exported from `src/mod.zig`.
+This document provides comprehensive API documentation for the `ai` module.
 
 ## Table of Contents
 
@@ -25,22 +24,9 @@ The AI module provides multi-persona agents, neural networks, and machine learni
 ## Examples
 
 ```zig
-const std = @import("std");
-const abi = @import("abi");
+var agent = try abi.ai.Agent.init(allocator, .creative);
+defer agent.deinit();
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    const ai = abi.features.ai;
-    var agent = try ai.agent.Agent.init(allocator, .{ .name = "Storyteller", .persona = .creative });
-    defer agent.deinit();
-
-    const reply = try agent.process("Tell me a story", allocator);
-    defer allocator.free(reply);
-
-    std.log.info("Agent reply: {s}", .{reply});
-}
+const response = try agent.generate("Tell me a story", .{});
 ```
 

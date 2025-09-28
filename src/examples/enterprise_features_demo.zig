@@ -337,7 +337,7 @@ pub const SecurityAuditor = struct {
     pub fn init(allocator: std.mem.Allocator) SecurityAuditor {
         return SecurityAuditor{
             .allocator = allocator,
-            .audit_log = std.ArrayList(AuditEvent).init(allocator),
+            .audit_log = std.ArrayList(AuditEvent){},
         };
     }
 
@@ -350,7 +350,7 @@ pub const SecurityAuditor = struct {
                 self.allocator.free(details);
             }
         }
-        self.audit_log.deinit();
+        self.audit_log.deinit(self.allocator);
     }
 
     pub fn logEvent(self: *SecurityAuditor, event: AuditEvent) !void {
@@ -364,7 +364,7 @@ pub const SecurityAuditor = struct {
             .details = if (event.details) |d| try self.allocator.dupe(u8, d) else null,
         };
 
-        try self.audit_log.append(logged_event);
+        try self.audit_log.append(self.allocator, logged_event);
 
         // Log to console for demonstration
         std.debug.print("[AUDIT] {} - User: {s}, Action: {s}, Resource: {s}, Success: {}\n", .{ @tagName(event.event_type), event.user, event.action, event.resource, event.success });

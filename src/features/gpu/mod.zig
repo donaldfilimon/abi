@@ -33,8 +33,7 @@ pub const optimizations = @import("optimizations/mod.zig");
 pub const libraries = @import("libraries/mod.zig");
 // Note: demo modules are available via direct import from demo/ directory
 
-// Legacy compatibility
-pub const mod = @import("mod.zig");
+// Legacy compatibility - examples module
 pub const gpu_examples = @import("gpu_examples.zig");
 
 // --------------------------------------------------------------------------

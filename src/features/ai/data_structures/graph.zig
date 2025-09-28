@@ -27,16 +27,17 @@ pub const Graph = struct {
     pub fn init(allocator: std.mem.Allocator, vertices: usize, directed: bool) !*Self {
         const graph = try allocator.create(Self);
         graph.* = Self{
-            .adjacency_list = try std.ArrayList(std.ArrayList(usize)).initCapacity(allocator, vertices),
+            .adjacency_list = std.ArrayList(std.ArrayList(usize)){},
             .vertices = vertices,
             .edges = 0,
             .directed = directed,
             .allocator = allocator,
         };
+        try graph.adjacency_list.ensureUnusedCapacity(allocator, vertices);
 
         // Initialize adjacency lists
         for (0..vertices) |_| {
-            try graph.adjacency_list.append(std.ArrayList(usize).init(allocator));
+            try graph.adjacency_list.append(allocator, std.ArrayList(usize){});
         }
 
         return graph;
@@ -55,11 +56,11 @@ pub const Graph = struct {
     pub fn addEdge(self: *Self, from: usize, to: usize) !void {
         if (from >= self.vertices or to >= self.vertices) return error.InvalidVertex;
 
-        try self.adjacency_list.items[from].append(to);
+        try self.adjacency_list.items[from].append(self.allocator, to);
         self.edges += 1;
 
         if (!self.directed and from != to) {
-            try self.adjacency_list.items[to].append(from);
+            try self.adjacency_list.items[to].append(self.allocator, from);
         }
     }
 
@@ -101,10 +102,10 @@ pub const Graph = struct {
         var visited = try std.DynamicBitSet.initEmpty(self.allocator, self.vertices);
         defer visited.deinit();
 
-        var queue = std.ArrayList(usize).init(self.allocator);
-        defer queue.deinit();
+        var queue = std.ArrayList(usize){};
+        defer queue.deinit(self.allocator);
 
-        try queue.append(start);
+        try queue.append(self.allocator, start);
         visited.set(start);
 
         while (queue.items.len > 0) {
@@ -114,7 +115,7 @@ pub const Graph = struct {
             for (self.adjacency_list.items[current].items) |neighbor| {
                 if (!visited.isSet(neighbor)) {
                     visited.set(neighbor);
-                    try queue.append(neighbor);
+                    try queue.append(self.allocator, neighbor);
                 }
             }
         }
@@ -176,12 +177,12 @@ pub const DirectedGraph = struct {
 
     /// Get reverse neighbors (incoming edges)
     pub fn getReverseNeighbors(self: *Self, vertex: usize) !std.ArrayList(usize) {
-        var reverse = std.ArrayList(usize).init(self.graph.allocator);
+        var reverse = std.ArrayList(usize){};
         for (0..self.graph.vertices) |i| {
             if (self.graph.getNeighbors(i)) |neighbors| {
                 for (neighbors) |neighbor| {
                     if (neighbor == vertex) {
-                        try reverse.append(i);
+                        try reverse.append(self.graph.allocator, i);
                     }
                 }
             }
@@ -262,11 +263,11 @@ pub const BipartiteGraph = struct {
 
     /// Get vertices in set A
     pub fn getSetA(self: *Self) std.ArrayList(usize) {
-        var result = std.ArrayList(usize).init(self.allocator);
+        var result = std.ArrayList(usize){};
         var i: usize = 0;
         while (i < self.graph.vertices) : (i += 1) {
             if (self.set_a.isSet(i)) {
-                result.append(i) catch {};
+                result.append(self.allocator, i) catch {};
             }
         }
         return result;
@@ -274,11 +275,11 @@ pub const BipartiteGraph = struct {
 
     /// Get vertices in set B
     pub fn getSetB(self: *Self) std.ArrayList(usize) {
-        var result = std.ArrayList(usize).init(self.allocator);
+        var result = std.ArrayList(usize){};
         var i: usize = 0;
         while (i < self.graph.vertices) : (i += 1) {
             if (self.set_b.isSet(i)) {
-                result.append(i) catch {};
+                result.append(self.allocator, i) catch {};
             }
         }
         return result;

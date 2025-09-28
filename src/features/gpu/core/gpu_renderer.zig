@@ -797,9 +797,9 @@ pub const MathUtils = struct {
     pub inline fn fastSqrt(x: f32) f32 {
         // Fast inverse square root approximation (Quake III style)
         if (x <= 0.0) return 0.0;
-        const bits = @as(u32, @bitCast(x));
+        const bits: u32 = @bitCast(x);
         const magic = 0x5f3759df - (bits >> 1);
-        const y = @as(f32, @bitCast(magic));
+        const y: f32 = @bitCast(magic);
         return x * y * (1.5 - 0.5 * x * y * y);
     }
 
@@ -1841,7 +1841,7 @@ pub const GPURenderer = struct {
         const handle_id = self.next_handle_id;
         self.next_handle_id += 1;
 
-        const gpu_buffer = try self.buffer_manager.?.createBuffer(u8, @intCast(u64, size), usage);
+        const gpu_buffer = try self.buffer_manager.?.createBuffer(u8, @as(u64, @intCast(size)), usage);
         const buffer = Buffer.init(gpu_buffer, size, usage, handle_id);
 
         try self.buffers.append(self.allocator, buffer);
@@ -1951,11 +1951,11 @@ pub const GPURenderer = struct {
             const buffer = self.findBuffer(handle) orelse return GpuError.HandleNotFound;
             const hw_buffer = buffer.getHardware() orelse return GpuError.UnsupportedBackend;
             entries[idx] = .{
-                .binding = @intCast(u32, idx),
+                .binding = @as(u32, @intCast(idx)),
                 .resource = .{ .buffer = .{
                     .buffer = hw_buffer,
                     .offset = 0,
-                    .size = @intCast(u64, buffer.size),
+                    .size = @as(u64, @intCast(buffer.size)),
                 } },
             };
         }

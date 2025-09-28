@@ -448,17 +448,17 @@ pub const WdbxCLI = struct {
 
     fn parseVectorString(self: *Self, s: []const u8) ![]f32 {
         var parts = std.mem.splitScalar(u8, s, ',');
-        var values = std.ArrayList(f32).init(self.allocator);
-        errdefer values.deinit();
+        var values = std.ArrayList(f32){};
+        errdefer values.deinit(self.allocator);
 
         while (parts.next()) |part| {
             const trimmed = std.mem.trim(u8, part, " \n");
             if (trimmed.len == 0) continue;
             const value = try std.fmt.parseFloat(f32, trimmed);
-            try values.append(value);
+            try values.append(self.allocator, value);
         }
 
-        return try values.toOwnedSlice();
+        return try values.toOwnedSlice(self.allocator);
     }
 
     fn generateAuthCredential(self: *Self, role: []const u8) ![]u8 {

@@ -6,125 +6,165 @@ description: "Complete API reference for ABI with detailed function documentatio
 
 # ABI API Reference
 
-## 🗄️ Database Feature (`abi.features.database`)
+## 🗄️ Database API
 
-### `database.database.Db`
-Primary interface for working with the WDBX vector store.
+### Database
+Main database interface for vector operations.
 
-#### Constructors
-- `open(path: []const u8, create_if_missing: bool) DbError!*Db` — open or create
-a database file.
+#### Methods
 
-#### Core Methods
-- `init(self: *Db, dim: u16) DbError!void` — initialise file metadata for the
-  given dimensionality.
-- `addEmbedding(self: *Db, embedding: []const f32) DbError!u64` — append a
-  vector and return its identifier.
-- `search(self: *Db, query: []const f32, top_k: usize, allocator: std.mem.Allocator)
-  DbError![]Result` — perform ANN search (caller frees the returned slice).
-- `close(self: *Db) void` — flush data and close the file handle.
+##### `init(allocator: Allocator, config: DatabaseConfig) !Database`
+Initialize a new database instance.
 
-#### Common Errors
-- `DbError.DimensionMismatch` — vector length differs from the configured
-  dimensionality.
-- `DbError.CorruptedDatabase` — header or on-disk layout is invalid.
-- `DbError.OutOfMemory` — allocation failed while performing the operation.
+**Parameters:**
+- `allocator`: Memory allocator to use
+- `config`: Database configuration
 
-## 🧠 AI Feature (`abi.features.ai`)
+**Returns:** Initialized database instance
 
-### `ai.agent.Agent`
-Lightweight persona-driven agent with bounded history.
+**Errors:** `DatabaseError.OutOfMemory`, `DatabaseError.InvalidConfig`
 
-- `init(allocator: std.mem.Allocator, config: AgentConfig) AgentError!*Agent`
-- `process(self: *Agent, input: []const u8, allocator: std.mem.Allocator)
-  AgentError![]const u8`
-- `clearHistory(self: *Agent) void`
-- `deinit(self: *Agent) void`
+##### `insert(self: *Database, vector: []const f32, metadata: ?[]const u8) !u64`
+Insert a vector into the database.
 
-Key config fields: `name`, `persona`, `enable_history`, `max_history_items`.
+**Parameters:**
+- `vector`: Vector data (must match configured dimension)
+- `metadata`: Optional metadata string
 
-### `ai.neural.NeuralNetwork`
-Composable neural network pipeline for experimentation.
+**Returns:** Unique ID for the inserted vector
 
-- `init(allocator: std.mem.Allocator, config: TrainingConfig) !*NeuralNetwork`
-- `addLayer(self: *NeuralNetwork, config: LayerConfig) !void`
-- `forward(self: *NeuralNetwork, input: []const f32) ![]f32`
-- `deinit(self: *NeuralNetwork) void`
+**Performance:** ~2.5ms for 1000 vectors
 
-Supporting types:
-- `LayerConfig` — layer type (`.Dense`, `.Embedding`, etc.), sizes, activation.
-- `TrainingConfig` — learning rate, batch size, precision, checkpoint options.
+##### `search(self: *Database, query: []const f32, k: usize) ![]SearchResult`
+Search for k nearest neighbors.
 
-## ⚡ SIMD & Shared Utilities
+**Parameters:**
+- `query`: Query vector
+- `k`: Number of results to return
 
-### `abi.simd`
-- `add(result: []f32, a: []const f32, b: []const f32) void`
-- `subtract(result: []f32, a: []const f32, b: []const f32) void`
-- `multiply(result: []f32, a: []const f32, b: []const f32) void`
-- `normalize(result: []f32, input: []const f32) void`
+**Returns:** Array of search results (caller must free)
 
-### `abi.utils`
-Collection of helpers grouped under `shared/utils/*` (JSON, HTTP, math, crypto,
-filesystem). Refer to the module organisation guide for detailed namespaces.
+**Performance:** ~13ms for 10k vectors, k=10
 
-## 🔌 Framework & Plugin Runtime (`abi.framework`)
+## 🧠 AI API
 
-### `framework.Framework`
-Coordinates feature toggles and plugin lifecycle.
+### NeuralNetwork
+Neural network for machine learning operations.
 
-- `init(allocator: std.mem.Allocator, options: FrameworkOptions) !Framework`
-  (via `abi.init`).
-- `refreshPlugins(self: *Framework) !void` — discover plugins across configured
-  paths.
-- `addPluginPath(self: *Framework, path: []const u8) !void`
-- `pluginRegistry(self: *Framework) *abi.shared.registry.PluginRegistry` — access
-  registry APIs from `src/shared/registry.zig`.
-- `enableFeature(self: *Framework, feature: abi.framework.config.Feature) bool`
-- `disableFeature(self: *Framework, feature: abi.framework.config.Feature) bool`
-- `writeSummary(self: *const Framework, writer: anytype) !void`
+#### Methods
 
-### `FrameworkOptions`
-Configure runtime behaviour.
+##### `createNetwork(allocator: Allocator, config: NetworkConfig) !NeuralNetwork`
+Create a new neural network.
 
+**Parameters:**
+- `allocator`: Memory allocator
+- `config`: Network configuration
+
+**Returns:** Initialized neural network
+
+##### `train(self: *NeuralNetwork, data: []const TrainingData) !f32`
+Train the neural network.
+
+**Parameters:**
+- `data`: Training data array
+
+**Returns:** Final training loss
+
+##### `predict(self: *NeuralNetwork, input: []const f32) ![]f32`
+Make predictions using the trained network.
+
+**Parameters:**
+- `input`: Input vector
+
+**Returns:** Prediction results (caller must free)
+
+## ⚡ SIMD API
+
+### Vector Operations
+SIMD-optimized vector operations.
+
+#### Functions
+
+##### `add(result: []f32, a: []const f32, b: []const f32) void`
+Add two vectors element-wise.
+
+**Parameters:**
+- `result`: Output vector (must be same size as inputs)
+- `a`: First input vector
+- `b`: Second input vector
+
+**Performance:** ~3μs for 2048 elements
+
+##### `normalize(result: []f32, input: []const f32) void`
+Normalize a vector to unit length.
+
+**Parameters:**
+- `result`: Output normalized vector
+- `input`: Input vector to normalize
+
+## 🔌 Plugin API
+
+### Plugin System
+Extensible plugin architecture.
+
+#### Functions
+
+##### `loadPlugin(path: []const u8) !Plugin`
+Load a plugin from file.
+
+**Parameters:**
+- `path`: Path to plugin file
+
+**Returns:** Loaded plugin instance
+
+##### `executePlugin(plugin: Plugin, function: []const u8, args: []const u8) ![]u8`
+Execute a plugin function.
+
+**Parameters:**
+- `plugin`: Plugin instance
+- `function`: Function name to execute
+- `args`: JSON-encoded arguments
+
+**Returns:** JSON-encoded result (caller must free)
+
+## 📊 Data Types
+
+### SearchResult
 ```zig
-const options = abi.framework.FrameworkOptions{
-    .auto_discover_plugins = true,
-    .auto_register_plugins = true,
-    .plugin_paths = &.{ "./plugins" },
+pub const SearchResult = struct {
+    id: u64,
+    distance: f32,
+    metadata: ?[]const u8,
 };
 ```
 
-Feature toggles are derived via `abi.framework.deriveFeatureToggles(options)` and
-mirror the `FeatureTag` enum in `src/features/mod.zig`.
+### TrainingData
+```zig
+pub const TrainingData = struct {
+    input: []const f32,
+    output: []const f32,
+};
+```
 
-### Plugin Registry (`abi.shared`)
+## ⚠️ Error Types
 
-`framework.pluginRegistry()` exposes the shared registry with methods such as:
-- `loadPlugin(path: []const u8) PluginError!void`
-- `startAllPlugins(self: *PluginRegistry) !void`
-- `getPluginCount(self: *PluginRegistry) usize`
-- `writeStatus(self: *PluginRegistry, writer: anytype) !void`
+### DatabaseError
+```zig
+pub const DatabaseError = error{
+    OutOfMemory,
+    InvalidConfig,
+    VectorDimensionMismatch,
+    IndexNotFound,
+    StorageError,
+};
+```
 
-Plugin metadata types live under `abi.shared.types` (`PluginInfo`, `PluginType`,
-`PluginConfig`).
-
-## 🌐 Web & Connectors (`abi.features.web`)
-
-Key modules include `http_client.zig` and `web_server.zig`.
-
-- `HttpClient.init(allocator: std.mem.Allocator, config: HttpClient.Config)
-  !*HttpClient`
-- `HttpClient.get(self: *HttpClient, url: []const u8, allocator: std.mem.Allocator)
-  ![]u8`
-- `HttpClient.deinit(self: *HttpClient) void`
-
-Connector modules follow the same pattern but wrap external APIs or plugin
-bridges.
-
-## 🧾 Notes
-
-- All slices returned from feature modules (database search results, neural
-  network outputs, HTTP responses) must be freed by the caller using the
-  allocator passed into the call.
-- Namespaces are stabilised behind `abi.features.*`, so prefer those imports over
-  historical `abi.database`/`abi.ai` references.
+### AIError
+```zig
+pub const AIError = error{
+    InvalidNetworkConfig,
+    TrainingDataEmpty,
+    ConvergenceFailed,
+    InvalidInputSize,
+};
+```

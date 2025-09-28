@@ -404,7 +404,7 @@ pub const ActivationProcessor = struct {
             for (approx_arr[0..]) |*val| {
                 val.* = std.math.clamp(val.*, 0.0, 1.0);
             }
-            std.mem.copy(f32, output[i .. i + lanes], approx_arr[0..]);
+            @memcpy(output[i .. i + lanes], approx_arr[0..]);
         }
         return i;
     }
@@ -425,7 +425,7 @@ pub const ActivationProcessor = struct {
             for (approx_arr[0..]) |*val| {
                 val.* = std.math.clamp(val.*, -1.0, 1.0);
             }
-            std.mem.copy(f32, output[i .. i + lanes], approx_arr[0..]);
+            @memcpy(output[i .. i + lanes], approx_arr[0..]);
         }
         return i;
     }

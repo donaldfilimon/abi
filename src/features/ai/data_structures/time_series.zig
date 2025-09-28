@@ -99,10 +99,10 @@ pub const TimeSeriesBuffer = struct {
 
     /// Get values in time range
     pub fn getValuesInRange(self: *Self, start_time: i64, end_time: i64) !std.ArrayList(TimeSeriesPoint) {
-        var result = std.ArrayList(TimeSeriesPoint).init(self.allocator);
+        var result = std.ArrayList(TimeSeriesPoint){};
         for (self.points.items) |point| {
             if (point.timestamp >= start_time and point.timestamp <= end_time) {
-                try result.append(point);
+                try result.append(self.allocator, point);
             }
         }
         return result;
@@ -111,7 +111,7 @@ pub const TimeSeriesBuffer = struct {
     /// Calculate simple moving average
     pub fn simpleMovingAverage(self: *Self, window_size: usize) !std.ArrayList(f32) {
         if (window_size == 0 or self.points.items.len < window_size) {
-            return std.ArrayList(f32).init(self.allocator);
+            return std.ArrayList(f32){};
         }
 
         var result = try std.ArrayList(f32).initCapacity(self.allocator, self.points.items.len - window_size + 1);
