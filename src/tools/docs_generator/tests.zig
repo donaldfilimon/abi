@@ -52,17 +52,17 @@ fn ensureBaseLayout() !void {
     try std.fs.cwd().makePath(".github/workflows");
 }
 
+fn readFileAlloc(path: []const u8) ![]u8 {
+    return try std.fs.cwd().readFileAlloc(path, testing.allocator, std.math.maxInt(u32));
+}
+
 fn writeFile(path: []const u8, contents: []const u8) !void {
     var file = try std.fs.cwd().createFile(path, .{ .truncate = true });
     defer file.close();
     try file.writeAll(contents);
 }
 
-fn readFileAlloc(path: []const u8) ![]u8 {
-    return try std.fs.cwd().readFileAlloc(path, testing.allocator, std.Io.Limit.limited(1 << 20));
-}
-
-test "module docs generator emits header" {
+test "module docs generator emits module list" {
     var env = try setupTempEnv();
     defer env.cleanup();
     try ensureBaseLayout();
@@ -71,9 +71,10 @@ test "module docs generator emits header" {
     const data = try readFileAlloc("docs/generated/MODULE_REFERENCE.md");
     defer testing.allocator.free(data);
     try testing.expect(std.mem.containsAtLeast(u8, data, 1, "# ABI Module Reference"));
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "abi.database"));
 }
 
-test "api reference generator emits section" {
+test "api reference generator emits signatures" {
     var env = try setupTempEnv();
     defer env.cleanup();
     try ensureBaseLayout();
@@ -81,10 +82,11 @@ test "api reference generator emits section" {
     try api_reference.generateApiReference(testing.allocator);
     const data = try readFileAlloc("docs/generated/API_REFERENCE.md");
     defer testing.allocator.free(data);
-    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "## 🗄️ Database API"));
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "layout: documentation"));
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "fn search"));
 }
 
-test "examples generator emits quick start" {
+test "examples generator writes quick start code" {
     var env = try setupTempEnv();
     defer env.cleanup();
     try ensureBaseLayout();
@@ -92,10 +94,10 @@ test "examples generator emits quick start" {
     try examples.generateExamples(testing.allocator);
     const data = try readFileAlloc("docs/generated/EXAMPLES.md");
     defer testing.allocator.free(data);
-    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "Quick Start"));
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "## Quick Start"));
 }
 
-test "performance guide generator emits optimization section" {
+test "performance guide lists optimisation tips" {
     var env = try setupTempEnv();
     defer env.cleanup();
     try ensureBaseLayout();
@@ -103,10 +105,10 @@ test "performance guide generator emits optimization section" {
     try performance_guide.generatePerformanceGuide(testing.allocator);
     const data = try readFileAlloc("docs/generated/PERFORMANCE_GUIDE.md");
     defer testing.allocator.free(data);
-    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "## ⚡ Optimization Strategies"));
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "Optimization Strategies"));
 }
 
-test "definitions reference generator emits glossary" {
+test "definitions reference renders glossary" {
     var env = try setupTempEnv();
     defer env.cleanup();
     try ensureBaseLayout();
@@ -114,10 +116,10 @@ test "definitions reference generator emits glossary" {
     try definitions_reference.generateDefinitionsReference(testing.allocator);
     const data = try readFileAlloc("docs/generated/DEFINITIONS_REFERENCE.md");
     defer testing.allocator.free(data);
-    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "## 📊 Quick Reference Index"));
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "### Embedding"));
 }
 
-test "code index generator scans sample source" {
+test "code index generator inspects Zig files" {
     var env = try setupTempEnv();
     defer env.cleanup();
     try ensureBaseLayout();
@@ -127,22 +129,24 @@ test "code index generator scans sample source" {
     try code_index.generateCodeApiIndex(testing.allocator);
     const data = try readFileAlloc("docs/generated/CODE_API_INDEX.md");
     defer testing.allocator.free(data);
-    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "# Code API Index"));
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "sample.zig"));
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "pub fn sample"));
 }
 
-test "search index generator emits json" {
+test "search index generator emits json entries" {
     var env = try setupTempEnv();
     defer env.cleanup();
     try ensureBaseLayout();
-    try writeFile("docs/generated/SAMPLE.md", "# Sample\n\nSome docs content.\n");
+    try writeFile("docs/generated/SAMPLE.md", "# Sample\n\nBody\n");
 
     try search_index.generateSearchIndex(testing.allocator);
     const data = try readFileAlloc("docs/generated/search_index.json");
     defer testing.allocator.free(data);
     try testing.expect(std.mem.containsAtLeast(u8, data, 1, "\"file\""));
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "Sample"));
 }
 
-test "docs index generator emits html" {
+test "docs index generator writes landing page" {
     var env = try setupTempEnv();
     defer env.cleanup();
     try ensureBaseLayout();
@@ -150,10 +154,10 @@ test "docs index generator emits html" {
     try docs_index.generateDocsIndexHtml(testing.allocator);
     const data = try readFileAlloc("docs/index.html");
     defer testing.allocator.free(data);
-    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "<!DOCTYPE html>"));
+    try testing.expect(std.mem.containsAtLeast(u8, data, 1, "<title>ABI Documentation"));
 }
 
-test "readme redirect generator emits landing page" {
+test "readme redirect generator writes navigation" {
     var env = try setupTempEnv();
     defer env.cleanup();
     try ensureBaseLayout();
@@ -164,7 +168,7 @@ test "readme redirect generator emits landing page" {
     try testing.expect(std.mem.containsAtLeast(u8, data, 1, "# ABI Documentation"));
 }
 
-test "native docs generator writes output" {
+test "native docs generator creates placeholder html" {
     var env = try setupTempEnv();
     defer env.cleanup();
     try ensureBaseLayout();
@@ -175,7 +179,7 @@ test "native docs generator writes output" {
     try testing.expect(std.mem.containsAtLeast(u8, data, 1, "Zig Native Docs"));
 }
 
-test "planner default plan orders steps by category" {
+test "planner default plan keeps expected order" {
     const plan = planner.buildDefaultPlan(testing.allocator);
     const expected_names = [_][]const u8{
         "Disable Jekyll",
@@ -198,11 +202,9 @@ test "planner default plan orders steps by category" {
     };
 
     try testing.expectEqual(@as(usize, expected_names.len), plan.steps.len);
-
     for (expected_names, plan.steps) |expected_name, step| {
         try testing.expect(std.mem.eql(u8, expected_name, step.name));
     }
-
     try testing.expect(plan.steps[0].category == planner.StepCategory.configuration);
     try testing.expect(plan.steps[5].category == planner.StepCategory.content);
     try testing.expect(plan.steps[12].category == planner.StepCategory.assets);

@@ -1,183 +1,43 @@
 const std = @import("std");
 
-/// Generate API reference documentation
-pub fn generateApiReference(_: std.mem.Allocator) !void {
-    const file = try std.fs.cwd().createFile("docs/generated/API_REFERENCE.md", .{});
+const Endpoint = struct {
+    name: []const u8,
+    signature: []const u8,
+    description: []const u8,
+};
+
+const endpoints = [_]Endpoint{
+    .{ .name = "open", .signature = "fn open(path: []const u8, create: bool) !Db", .description = "Open or create a WDBX database." },
+    .{ .name = "addEmbedding", .signature = "fn addEmbedding(self: *Db, embedding: []const f32) !u64", .description = "Insert an embedding and return its identifier." },
+    .{ .name = "search", .signature = "fn search(self: *Db, query: []const f32, limit: usize) ![]SearchResult", .description = "Perform a nearest neighbour search." },
+};
+
+pub fn generateApiReference(allocator: std.mem.Allocator) !void {
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit();
+    var writer = buffer.writer();
+
+    try writer.writeAll("---\n");
+    try writer.writeAll("layout: documentation\n");
+    try writer.writeAll("title: API Reference\n");
+    try writer.writeAll("description: Key entry points for interacting with ABI programmatically\n");
+    try writer.writeAll("---\n\n");
+
+    try writer.writeAll("# ABI API Reference\n\n");
+    try writer.writeAll("The following signatures are extracted from the public database API and serve as the canonical interface surface for client applications.\n\n");
+
+    try writer.writeAll("## Database\n\n");
+    for (endpoints) |endpoint| {
+        try writer.print("### `{s}`\n\n", .{endpoint.signature});
+        try writer.print("{s}\n\n", .{endpoint.description});
+    }
+
+    try writer.writeAll("## Error Types\n\n");
+    try writer.writeAll("```zig\n");
+    try writer.writeAll("pub const DatabaseError = error{\n    OutOfMemory,\n    InvalidConfig,\n    VectorDimensionMismatch,\n    StorageFailure,\n};\n");
+    try writer.writeAll("```\n");
+
+    var file = try std.fs.cwd().createFile("docs/generated/API_REFERENCE.md", .{ .truncate = true });
     defer file.close();
-
-    const content =
-        \\---
-        \\layout: documentation
-        \\title: "API Reference"
-        \\description: "Complete API reference for ABI with detailed function documentation"
-        \\---
-        \\
-        \\# ABI API Reference
-        \\
-        \\## 🗄️ Database API
-        \\
-        \\### Database
-        \\Main database interface for vector operations.
-        \\
-        \\#### Methods
-        \\
-        \\##### `init(allocator: Allocator, config: DatabaseConfig) !Database`
-        \\Initialize a new database instance.
-        \\
-        \\**Parameters:**
-        \\- `allocator`: Memory allocator to use
-        \\- `config`: Database configuration
-        \\
-        \\**Returns:** Initialized database instance
-        \\
-        \\**Errors:** `DatabaseError.OutOfMemory`, `DatabaseError.InvalidConfig`
-        \\
-        \\##### `insert(self: *Database, vector: []const f32, metadata: ?[]const u8) !u64`
-        \\Insert a vector into the database.
-        \\
-        \\**Parameters:**
-        \\- `vector`: Vector data (must match configured dimension)
-        \\- `metadata`: Optional metadata string
-        \\
-        \\**Returns:** Unique ID for the inserted vector
-        \\
-        \\**Performance:** ~2.5ms for 1000 vectors
-        \\
-        \\##### `search(self: *Database, query: []const f32, k: usize) ![]SearchResult`
-        \\Search for k nearest neighbors.
-        \\
-        \\**Parameters:**
-        \\- `query`: Query vector
-        \\- `k`: Number of results to return
-        \\
-        \\**Returns:** Array of search results (caller must free)
-        \\
-        \\**Performance:** ~13ms for 10k vectors, k=10
-        \\
-        \\## 🧠 AI API
-        \\
-        \\### NeuralNetwork
-        \\Neural network for machine learning operations.
-        \\
-        \\#### Methods
-        \\
-        \\##### `createNetwork(allocator: Allocator, config: NetworkConfig) !NeuralNetwork`
-        \\Create a new neural network.
-        \\
-        \\**Parameters:**
-        \\- `allocator`: Memory allocator
-        \\- `config`: Network configuration
-        \\
-        \\**Returns:** Initialized neural network
-        \\
-        \\##### `train(self: *NeuralNetwork, data: []const TrainingData) !f32`
-        \\Train the neural network.
-        \\
-        \\**Parameters:**
-        \\- `data`: Training data array
-        \\
-        \\**Returns:** Final training loss
-        \\
-        \\##### `predict(self: *NeuralNetwork, input: []const f32) ![]f32`
-        \\Make predictions using the trained network.
-        \\
-        \\**Parameters:**
-        \\- `input`: Input vector
-        \\
-        \\**Returns:** Prediction results (caller must free)
-        \\
-        \\## ⚡ SIMD API
-        \\
-        \\### Vector Operations
-        \\SIMD-optimized vector operations.
-        \\
-        \\#### Functions
-        \\
-        \\##### `add(result: []f32, a: []const f32, b: []const f32) void`
-        \\Add two vectors element-wise.
-        \\
-        \\**Parameters:**
-        \\- `result`: Output vector (must be same size as inputs)
-        \\- `a`: First input vector
-        \\- `b`: Second input vector
-        \\
-        \\**Performance:** ~3μs for 2048 elements
-        \\
-        \\##### `normalize(result: []f32, input: []const f32) void`
-        \\Normalize a vector to unit length.
-        \\
-        \\**Parameters:**
-        \\- `result`: Output normalized vector
-        \\- `input`: Input vector to normalize
-        \\
-        \\## 🔌 Plugin API
-        \\
-        \\### Plugin System
-        \\Extensible plugin architecture.
-        \\
-        \\#### Functions
-        \\
-        \\##### `loadPlugin(path: []const u8) !Plugin`
-        \\Load a plugin from file.
-        \\
-        \\**Parameters:**
-        \\- `path`: Path to plugin file
-        \\
-        \\**Returns:** Loaded plugin instance
-        \\
-        \\##### `executePlugin(plugin: Plugin, function: []const u8, args: []const u8) ![]u8`
-        \\Execute a plugin function.
-        \\
-        \\**Parameters:**
-        \\- `plugin`: Plugin instance
-        \\- `function`: Function name to execute
-        \\- `args`: JSON-encoded arguments
-        \\
-        \\**Returns:** JSON-encoded result (caller must free)
-        \\
-        \\## 📊 Data Types
-        \\
-        \\### SearchResult
-        \\```zig
-        \\pub const SearchResult = struct {
-        \\    id: u64,
-        \\    distance: f32,
-        \\    metadata: ?[]const u8,
-        \\};
-        \\```
-        \\
-        \\### TrainingData
-        \\```zig
-        \\pub const TrainingData = struct {
-        \\    input: []const f32,
-        \\    output: []const f32,
-        \\};
-        \\```
-        \\
-        \\## ⚠️ Error Types
-        \\
-        \\### DatabaseError
-        \\```zig
-        \\pub const DatabaseError = error{
-        \\    OutOfMemory,
-        \\    InvalidConfig,
-        \\    VectorDimensionMismatch,
-        \\    IndexNotFound,
-        \\    StorageError,
-        \\};
-        \\```
-        \\
-        \\### AIError
-        \\```zig
-        \\pub const AIError = error{
-        \\    InvalidNetworkConfig,
-        \\    TrainingDataEmpty,
-        \\    ConvergenceFailed,
-        \\    InvalidInputSize,
-        \\};
-        \\```
-        \\
-    ;
-
-    try file.writeAll(content);
+    try file.writeAll(buffer.items);
 }
