@@ -180,4 +180,5 @@ pub fn generateApiReference(_: std.mem.Allocator) !void {
     ;
 
     try file.writeAll(content);
+
 }

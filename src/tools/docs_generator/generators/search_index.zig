@@ -144,4 +144,5 @@ fn writeJsonString(out: std.fs.File, s: []const u8) !void {
         }
     }
     try out.writeAll("\"");
+
 }
