@@ -18,6 +18,8 @@ tests that make up the runtime.
   library module.
 - **[API Reference](./generated/API_REFERENCE/)** – High level index produced by
   the historical doc generator (kept for convenience).
+- **Deployment status** – Documentation updates are now deployed exclusively
+  by the dedicated GitHub Pages workflow to keep CI fast and deterministic.
 - **[Module Overview](./generated/MODULE_REFERENCE/)** – Describes how the
   runtime is organised and where to find feature toggles, plugin management, and
   shared utilities.
