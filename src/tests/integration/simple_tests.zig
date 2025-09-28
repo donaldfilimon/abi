@@ -104,7 +104,7 @@ fn runTcpTest() !void {
         std.debug.print("📤 Request sent, waiting for response...\n", .{});
 
         // Read the full response until the socket closes
-    const response = try std.Io.readAllToAlloc(std.heap.page_allocator, connection.reader(), 64 * 1024);
+        const response = try std.Io.readAllToAlloc(std.heap.page_allocator, connection.reader(), 64 * 1024);
         defer std.heap.page_allocator.free(response);
 
         if (response.len > 0) {
