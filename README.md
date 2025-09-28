@@ -1,229 +1,102 @@
-# Abi AI Framework
-> Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency, and platform-optimized implementations.
+# ABI Framework
+> A Zig runtime that focuses on feature toggles, plugin discovery, and a
+> lightweight bootstrap executable.
 
 [![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev-orange.svg)](https://ziglang.org/builds/)
-[![Docs](https://img.shields.io/badge/Docs-Latest-blue.svg)](https://donaldfilimon.github.io/abi/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)]()
 
-Abi couples a high-throughput runtime, GPU-accelerated AI primitives, and a production-ready vector database into a cohesive
-toolkit for building latency-sensitive agents, analytics pipelines, and services that must scale from embedded targets to
-cloud fleets.
-
----
-
-## Table of Contents
-- [Overview](#overview)
-- [Key Capabilities](#key-capabilities)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Project Layout](#project-layout)
-- [Usage Examples](#usage-examples)
-- [Vector Database](#vector-database)
-- [Build & Configuration](#build--configuration)
-- [Performance & Benchmarking](#performance--benchmarking)
-- [Testing](#testing)
-- [Documentation & Resources](#documentation--resources)
-- [Contributing](#contributing)
-- [License](#license)
+ABI provides a small but structured runtime for orchestrating feature flags and
+plugins. The library is written entirely in Zig and is designed to be embedded
+into other applications or exercised through the bundled CLI. Rather than
+marketing a large feature set, the goal is to offer well-tested building blocks
+that demonstrate how to wire together allocators, plugin registries, and the new
+Zig streaming writer APIs.
 
 ---
 
-## Overview
-Abi is organized into three collaborating planes:
-- **Runtime Plane** – Schedules workloads, manages lock-free concurrency primitives, and bridges CPU/GPU execution paths.
-- **AI & Data Plane** – Hosts persona-driven agents, neural network training, and the WDBX vector database for embeddings.
-- **Operations Plane** – Exposes CLI tooling, HTTP/WebSocket services, and observability pipelines for production readiness.
+## Features
 
-Each plane is implemented in Zig modules under `src/` and can be embedded into existing Zig applications or driven through the
-bundled CLI.
+- **Runtime orchestration** – Enable or disable feature groups at runtime and
+  iterate over the active set for diagnostics.
+- **Plugin registry** – Track search paths, discover shared objects, and lazily
+  load them into the running process.
+- **Bootstrap CLI** – A tiny executable that initialises the framework and
+  prints a summary using the streaming writer introduced in Zig 0.16.
+- **Documentation-ready build** – `zig build docs` emits compiler generated
+  documentation that mirrors the source layout.
 
----
-
-## Key Capabilities
-### Core Framework
-- GPU acceleration via WebGPU with platform-specific fallbacks.
-- SIMD-optimized text processing (3 GB/s+ throughput) and neural network primitives.
-- Lock-free queues, wait-free messaging, and zero-copy allocators for low-latency pipelines.
-- Production-grade HTTP/TCP servers with adaptive load-balancing and fault tolerance.
-
-### AI & Tooling
-- Multi-persona chat agents with OpenAI integration and persona presets.
-- Complete neural network training stack (FFN, CNN, RNN, Transformer) supporting distributed execution modes.
-- Plugin system for cross-platform dynamic loading (`.dll`/`.so`/`.dylib`) with type-safe Zig wrappers.
-- Observability hooks: Prometheus metrics, performance profiling, memory tracking, and debug tooling.
-
-### Platform Support
-- Cross-platform support for Linux, macOS, Windows, and embedded targets.
-- Deployment recipes covering Docker, Kubernetes, and standalone binaries.
-- Legacy Zig 0.15.x notes are retained for teams maintaining older deployments.
+These pieces intentionally stay modest and heavily commented so they can serve
+as reference material for other Zig projects.
 
 ---
 
-## Installation
-### Prerequisites
-- **Zig 0.16.0-dev (master)** (see `.zigversion` to match the toolchain).
-- GPU drivers (optional, required for CUDA/WebGPU backends).
-- OpenAI API key (for hosted LLM/persona integrations).
+## Getting Started
+
+### Tooling
+- Install the Zig version listed in [`.zigversion`](.zigversion) (currently
+  `0.16.0-dev.393+dd4be26f5`).
+- A recent LLVM toolchain is required when building on Windows.
 
 ### Clone & Build
 ```bash
 git clone https://github.com/donaldfilimon/abi.git
 cd abi
-zig build -Doptimize=ReleaseFast
+zig build
 ```
 
-### Compatibility Notes
-- `.zigversion` pins the supported compiler. Align CI and local toolchains with that version.
-- Historical instructions for Zig 0.16-dev experiments remain in the migration playbook for future workstreams.
-
----
-
-## Quick Start
+### Helpful Targets
 ```bash
-# Run tests registered in build.zig
-zig build test
-
-# Launch the default executable
-zig build run
-
-# Ensure formatting is up to date
-zig build fmt
-
-# Inspect the CLI helper
-./zig-out/bin/abi --help
-
-# Generate docs and benchmarks
-zig build docs
-zig build bench-all
+zig build test        # run the unit test suite
+zig build run         # execute the bootstrap binary
+zig build docs        # write compiler docs to zig-out/docs
+zig build fmt         # format source files in place
 ```
 
-Additional targets:
-- `zig build bench-simd` – SIMD micro-benchmarks.
-- `zig build cross-platform` – Build the supported target matrix.
-- `zig build -Denable_heavy_tests=true test` – Include long-running suites.
-- `zig build summary` – Format, document, and test in one step.
+The resulting executable lives at `zig-out/bin/abi`.
 
 ---
 
-## Project Layout
-```text
-abi/
-├── src/                # Core framework, AI modules, GPU backends
-├── tests/              # Unit, integration, and platform-specific suites
-├── docs/               # Manual + generated documentation portal
-├── examples/           # Minimal runnable samples
-├── tools/              # Developer utilities and automation helpers
-└── zig-out/            # Build artifacts (generated)
-```
+## Usage Overview
 
----
-
-## Usage Examples
-### Bootstrap the Framework
 ```zig
 const std = @import("std");
 const abi = @import("abi");
 
 pub fn main() !void {
-    const allocator = std.heap.page_allocator;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
 
-    var agent = try abi.features.ai.agent.Agent.init(allocator, .{ .name = "QuickStart" });
-    defer agent.deinit();
+    var framework = try abi.init(gpa.allocator(), .{ .auto_discover_plugins = false });
+    defer framework.deinit();
 
-    const response = try agent.process("Hello!", allocator);
-    defer allocator.free(@constCast(response));
+    try framework.writeSummary(std.io.getStdOut().writer());
 }
 ```
 
-### CLI Commands
-```bash
-abi help                         # Overview of available subcommands
-abi chat --persona creative      # Interactive chat session
-abi llm train data.csv           # Model training pipeline
-abi wdbx http --host 0.0.0.0     # Start HTTP server for the vector DB
-abi benchmark --memory-track     # Performance + memory benchmarks
-```
+The runtime exposes helpers for managing plugin search paths, loading
+discovered artefacts, and toggling features:
 
-### REST & WebSocket Endpoints
-- `GET /health` – Service health probe.
-- `GET /api/status` – Framework status snapshot.
-- `POST /api/agent/query` – AI agent request (JSON payload).
-- `POST /api/database/search` – Vector similarity search.
-- `WebSocket /ws` – Bi-directional chat stream.
-
----
-
-## Vector Database
-The WDBX storage engine powers embeddings and similarity search while preserving allocator safety.
-
-**Highlights**
-- SIMD-accelerated insert/search paths validated at **2,777+ ops/sec**.
-- K-nearest neighbor queries via CLI, HTTP REST, and WebSocket APIs.
-- Metadata lifecycle helpers (e.g., `Db.freeResults`) for deterministic resource cleanup.
-
-**Example**
 ```zig
-const std = @import("std");
-const abi = @import("abi");
+const feature = abi.framework.config.Feature.distributed_tracing;
+if (!framework.isFeatureEnabled(feature)) {
+    _ = framework.enableFeature(feature);
+}
 
-var db = try abi.features.database.database.Db.open("vectors.wdbx", true);
-defer db.close();
-
-const allocator = std.heap.page_allocator;
-const embedding = [_]f32{ 0.1, 0.2, 0.3 };
-const matches = try db.search(&embedding, 10, allocator);
-defer abi.features.database.database.Db.freeResults(matches, allocator);
+try framework.addPluginPath("./plugins");
+try framework.refreshPlugins();
 ```
 
 ---
 
-## Build & Configuration
-Tune features with Zig build options:
-- `-Denable_cuda=true|false` – Toggle CUDA acceleration (default: true).
-- `-Denable_spirv=true|false` – Compile Vulkan/SPIR-V shaders (default: true).
-- `-Denable_wasm=true|false` – Emit WebAssembly artifacts (default: true).
-- `-Denable-ansi=true|false` – Enable ANSI colour codes in CLI output (default: true).
-- `-Dstrict-io=true|false` – Abort on first detected writer error (default: false).
-- `-Dexperimental=true|false` – Opt into experimental feature gates (default: false).
-- `-Dtarget=<triple>` – Cross-compile (e.g., `x86_64-linux-gnu`, `aarch64-macos`).
-- `-Doptimize=Debug|ReleaseSafe|ReleaseFast|ReleaseSmall` – Build profile selection.
-- `-Denable_heavy_tests=true` – Include long-running performance and HNSW suites.
+## Project Layout
 
-Compile-time settings surface through the `options` module:
-```zig
-const options = @import("options");
-std.log.info("CUDA enabled? {}", .{ options.enable_cuda });
-```
-
----
-
-## Performance & Benchmarking
-| Component            | Performance Target           | Notes                                      |
-|----------------------|------------------------------|--------------------------------------------|
-| Text processing      | ≥3.2 GB/s SIMD throughput    | Alignment-safe, zero-copy message passing. |
-| Vector operations    | ≥2,777 ops/sec               | Validated via WDBX micro-benchmarks.       |
-| Neural inference     | <1 ms for 32×32 networks     | SIMD + GPU acceleration where available.   |
-| Lock-free queue      | 10M ops/sec                  | Single producer/consumer benchmark.        |
-
-Common workflows:
-- `zig build bench-all` – Run the full benchmark suite.
-- `zig build bench-simd` – Stress text/vector SIMD kernels.
-- `abi benchmark --memory-track` – Runtime profiling with memory tracking enabled.
-
----
-
-## Testing
-```bash
-# Run all tests registered in build.zig
-zig build test
-
-# Target specific suites
-zig test tests/test_memory_management.zig
-zig test tests/test_cli_integration.zig
-zig test tests/cross-platform/linux.zig
-zig test tests/cross-platform/macos.zig
-zig test tests/cross-platform/windows.zig
+```text
+abi/
+├── src/            # Library code and CLI entrypoint
+├── tests/          # Unit tests
+├── docs/           # Static documentation site (Jekyll compatible)
+├── tools/          # Developer utilities
+└── zig-out/        # Build artefacts and generated docs
 ```
 
 Cross-platform suites gracefully skip on unsupported hosts. Debug builds enable leak detection by default; aim to keep
@@ -242,21 +115,11 @@ performance regressions under 5% across releases.
 ---
 
 ## Contributing
-Review [`AGENTS.md`](AGENTS.md) for contributor workflows and required checks before submitting changes.
-1. Fork the repository and create a feature branch.
-2. Run `zig build`, `zig build test`, and relevant benchmarks before submitting changes.
-3. Update documentation when modifying public APIs or behavior.
-4. Open a pull request with a clear summary, reproduction steps for fixes, and benchmark deltas when relevant.
 
-**Need help?**
-- Documentation portal: [`docs/`](docs/)
-- GitHub Issues: <https://github.com/donaldfilimon/abi/issues>
-- Community channels (Discord/email): see the documentation landing page.
+Issues and pull requests are welcome. Please run `zig build test` and
+`zig fmt src tests build.zig` before submitting changes so CI stays green. For
+documentation tweaks, `zig build docs` regenerates the compiler output inside
+`zig-out/docs` which can be previewed locally with a static file server.
 
----
-
-## License
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
-⭐ **Star the project if Abi helps accelerate your AI workloads!**
+The project is released under the [MIT license](LICENSE).
 
