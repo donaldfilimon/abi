@@ -75,7 +75,7 @@ fn getTitleAndExcerpt(allocator: std.mem.Allocator, path: []const u8, title_out:
     const file = try std.fs.cwd().openFile(path, .{});
     defer file.close();
     const max_bytes: usize = 16 * 1024 * 1024;
-    const data = try std.fs.cwd().readFileAlloc(path, allocator, std.Io.Limit.limited(max_bytes));
+    const data = try std.fs.cwd().readFileAlloc(allocator, path, max_bytes);
     defer allocator.free(data);
 
     var it = std.mem.splitScalar(u8, data, '\n');
@@ -144,5 +144,4 @@ fn writeJsonString(out: std.fs.File, s: []const u8) !void {
         }
     }
     try out.writeAll("\"");
-
 }

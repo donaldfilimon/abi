@@ -9,7 +9,7 @@ pub const OptimizerOps = config.OptimizerOps;
 
 pub const createStatelessOps = config.createStatelessOps;
 
-pub usingnamespace config;
+// usingnamespace config;  // omitted to avoid usingnamespace top-level in this Zig version
 
 test {
     std.testing.refAllDecls(@This());

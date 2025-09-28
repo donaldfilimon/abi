@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const config = @import("config.zig");
+const gpu_cfg = @import("config.zig");
 const buffers = @import("buffers.zig");
 const pipelines = @import("pipelines.zig");
 const backends = @import("backends.zig");
@@ -8,17 +8,17 @@ const types = @import("types.zig");
 
 const gpu = std.gpu;
 
-const GPUConfig = config.GPUConfig;
-const Backend = config.Backend;
-const BufferUsage = config.BufferUsage;
-const GpuError = config.GpuError;
-const ShaderStage = config.ShaderStage;
-const TextureFormat = config.TextureFormat;
-const Color = config.Color;
-const GPUHandle = config.GPUHandle;
-const SPIRVCompiler = config.SPIRVCompiler;
-const MSLCompiler = config.MSLCompiler;
-const PTXCompiler = config.PTXCompiler;
+const GPUConfig = gpu_cfg.GPUConfig;
+const Backend = gpu_cfg.Backend;
+const BufferUsage = gpu_cfg.BufferUsage;
+const GpuError = gpu_cfg.GpuError;
+const ShaderStage = gpu_cfg.ShaderStage;
+const TextureFormat = gpu_cfg.TextureFormat;
+const Color = gpu_cfg.Color;
+const GPUHandle = gpu_cfg.GPUHandle;
+const SPIRVCompiler = gpu_cfg.SPIRVCompiler;
+const MSLCompiler = gpu_cfg.MSLCompiler;
+const PTXCompiler = gpu_cfg.PTXCompiler;
 
 const BufferManager = buffers.BufferManager;
 const Buffer = buffers.Buffer;
@@ -34,6 +34,19 @@ const ComputeDispatch = pipelines.ComputeDispatch;
 const ComputeDispatchInfo = pipelines.ComputeDispatchInfo;
 const RendererStats = pipelines.RendererStats;
 const CpuFallbackFn = pipelines.CpuFallbackFn;
+
+// Local aliases for option structs and utility constants from config module
+const SPIRVCompilerOptions = gpu_cfg.SPIRVCompilerOptions;
+const MSLCompilerOptions = gpu_cfg.MSLCompilerOptions;
+const PTXCompilerOptions = gpu_cfg.PTXCompilerOptions;
+const MathUtils = gpu_cfg.MathUtils;
+const DEFAULT_VECTOR_SIZE = gpu_cfg.DEFAULT_VECTOR_SIZE;
+const DEFAULT_MATRIX_SIZE = gpu_cfg.DEFAULT_MATRIX_SIZE;
+const DEFAULT_IMAGE_SIZE = gpu_cfg.DEFAULT_IMAGE_SIZE;
+const MAX_VERIFICATION_SAMPLES = gpu_cfg.MAX_VERIFICATION_SAMPLES;
+
+// Local convenience print function
+const print = std.debug.print;
 
 pub const GPURenderer = struct {
     allocator: std.mem.Allocator,
@@ -237,7 +250,6 @@ pub const GPURenderer = struct {
     fn initCUDA(self: *Self) !void {
         try self.initBackend(.cuda);
     }
-
 
     fn initSPIRVCompiler(self: *Self, target_backend: Backend) !void {
         // Initialize Zig's SPIR-V compilation pipeline

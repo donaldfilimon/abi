@@ -1,1 +1,1 @@
-pub usingnamespace @import("gpu_renderer/mod.zig");
+pub const GPURenderer = @import("gpu_renderer/mod.zig").GPURenderer;
