@@ -233,9 +233,15 @@ performance regressions under 5% across releases.
 
 ## Documentation & Resources
 - [`docs/`](docs/) – Landing page for manuals, deployment guides, and generated references.
-- [`docs/reports/engineering_status.md`](docs/reports/engineering_status.md) – Current framework snapshot, module map, and automation overview.
+- [`docs/reports/engineering_status.md`](docs/reports/engineering_status.md) – Up-to-date framework snapshot, module map, and automation overview.
 - [`docs/reports/cross_platform_testing.md`](docs/reports/cross_platform_testing.md) – Supported matrix, run commands, and generated smoke-test catalog.
 - [`docs/PRODUCTION_DEPLOYMENT.md`](docs/PRODUCTION_DEPLOYMENT.md) – Detailed production rollout guide and environment checklists.
+- [`docs/generated/API_REFERENCE/`](docs/generated/API_REFERENCE/) – Generated API reference updated via `zig build docs`.
+- [`docs/generated/MODULE_REFERENCE/`](docs/generated/MODULE_REFERENCE/) – Architecture documentation by module.
+- [`docs/generated/PERFORMANCE_GUIDE/`](docs/generated/PERFORMANCE_GUIDE/) – Optimization and benchmarking playbooks.
+- [`docs/generated/DEFINITIONS_REFERENCE/`](docs/generated/DEFINITIONS_REFERENCE/) – Glossary of terminology and core concepts.
+- [`CROSS_PLATFORM_TESTING_GUIDE.md`](CROSS_PLATFORM_TESTING_GUIDE.md) – Legacy consolidated reference retained for historical context.
+- [`MIGRATION_REPORT.md`](MIGRATION_REPORT.md) – Release-to-release upgrade notes for long-lived deployments.
 - CI generates fresh API docs via `zig build docs` and publishes them with GitHub Pages once the main branch passes.
 
 ---
