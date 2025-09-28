@@ -3,6 +3,7 @@ const wdbx = @import("wdbx");
 const common = @import("common.zig");
 
 pub const command = common.Command{
+    .id = .config,
     .name = "config",
     .summary = "Inspect and modify ABI configuration files",
     .usage = "abi config [set|get|list|validate|show] [options]",

@@ -34,16 +34,9 @@ pub fn printGlobalHelp() !void {
     std.debug.print("Available commands:\n", .{});
 
     // Print commands directly
-    const commands = registry.all();
-    var longest: usize = 0;
-    for (commands) |cmd| {
-        longest = @max(longest, cmd.name.len);
-        for (cmd.aliases) |alias| {
-            longest = @max(longest, alias.len);
-        }
-    }
-
-    for (commands) |cmd| {
+    const entries = registry.iter();
+    for (entries) |entry| {
+        const cmd = entry.command;
         std.debug.print("  {s}  {s}\n", .{ cmd.name, cmd.summary });
     }
 
