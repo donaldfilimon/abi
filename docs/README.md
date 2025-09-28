@@ -43,8 +43,11 @@ Welcome to the comprehensive documentation for ABI, a high-performance vector da
 - **[Definitions](./generated/DEFINITIONS_REFERENCE/)** - Comprehensive glossary and concepts
 
 ### Status & Testing Reports
+Stay aligned with the current implementation and platform coverage using the focused status reports below. Legacy consolidated
+summaries remain available at the repository root for archival purposes when teams need the previous single-page overview.
+
 - **[Engineering Status Overview](./reports/engineering_status.md)** - Current framework snapshot, module map, and automation coverage.
-- **[Cross-Platform Testing Reference](./reports/cross_platform_testing.md)** - Supported operating systems, run commands, and generated smoke-test catalog.
+- **[Cross-Platform Testing Reference](./reports/cross_platform_testing.md)** - Supported operating systems, run commands, and generated smoke-test catalog maintained via [`scripts/enhance_cross_platform_testing.sh`](../scripts/enhance_cross_platform_testing.sh).
 
 ### Developer Resources
 - **[Code Index](./generated/CODE_API_INDEX/)** - Auto-generated API index from source
