@@ -1,5 +1,7 @@
 const std = @import("std");
 const abi = @import("abi");
+const training = abi.ai.training;
+const ai_core = abi.ai.ai_core;
 
 pub const TrainingData = struct {
     inputs: []const []const f32,
@@ -108,7 +110,7 @@ pub fn trainNeuralNetwork(
 
     try network.compile();
 
-    const config = abi.ai.TrainingConfig{
+    const config = training.Config{
         .learning_rate = learning_rate,
         .batch_size = batch_size,
         .epochs = epochs,
@@ -117,13 +119,7 @@ pub fn trainNeuralNetwork(
         .log_frequency = 10,
     };
 
-    const trainer = try abi.ai.ModelTrainer.init(
-        allocator,
-        network,
-        config,
-        .adam,
-        .mean_squared_error,
-    );
+    const trainer = try ai_core.createTrainer(allocator, network, config, .adam, training.LossFunction.mean_squared_error);
     defer trainer.deinit();
 
     var metrics = try trainer.train(data.inputs, data.targets);
