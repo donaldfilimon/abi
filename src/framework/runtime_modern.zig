@@ -27,26 +27,105 @@ pub const RuntimeConfig = struct {
 pub const Component = struct {
     name: []const u8,
     version: []const u8,
-    init_fn: ?*const fn (allocator: std.mem.Allocator, config: *const RuntimeConfig) anyerror!void = null,
-    deinit_fn: ?*const fn () void = null,
-    update_fn: ?*const fn (delta_time: f64) void = null,
+    init_fn: ?*const fn (std.mem.Allocator, *const RuntimeConfig) anyerror!void = null,
+    deinit_fn: ?*const fn () anyerror!void = null,
+    update_fn: ?*const fn (f64) anyerror!void = null,
 
     pub fn init(self: *const Component, allocator: std.mem.Allocator, config: *const RuntimeConfig) !void {
-        if (self.init_fn) |func| {
-            try func(allocator, config);
+        if (self.init_fn) |init_func| {
+            try init_func(allocator, config);
         }
     }
 
-    pub fn deinit(self: *const Component) void {
-        if (self.deinit_fn) |func| {
-            func();
+    pub fn deinit(self: *const Component) !void {
+        if (self.deinit_fn) |deinit_func| {
+            try deinit_func();
         }
     }
 
-    pub fn update(self: *const Component, delta_time: f64) void {
-        if (self.update_fn) |func| {
-            func(delta_time);
+    pub fn update(self: *const Component, delta_time: f64) !void {
+        if (self.update_fn) |update_func| {
+            try update_func(delta_time);
         }
+    }
+};
+
+pub const ComponentRegistry = struct {
+    const Self = @This();
+
+    components: collections.StringHashMap(Component),
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) Self {
+        return Self{
+            .components = collections.StringHashMap(Component).init(allocator),
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.components.deinit();
+    }
+
+    pub fn register(self: *Self, name: []const u8, component: Component) !void {
+        try self.components.put(name, component);
+    }
+
+    pub fn get(self: *const Self, name: []const u8) ?Component {
+        return self.components.get(name);
+    }
+};
+
+pub const AtomicState = struct {
+    const Self = @This();
+
+    map: collections.StringHashMap(u64),
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) Self {
+        return Self{
+            .map = collections.StringHashMap(u64).init(allocator),
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.map.deinit();
+    }
+
+    pub fn set(self: *Self, key: []const u8, value: u64) !void {
+        try self.map.put(key, value);
+    }
+
+    pub fn get(self: *const Self, key: []const u8) u64 {
+        return self.map.get(key) orelse 0;
+    }
+};
+
+pub const Stats = struct {
+    const Self = @This();
+
+    counters: collections.StringHashMap(u64),
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) Self {
+        return Self{
+            .counters = collections.StringHashMap(u64).init(allocator),
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.counters.deinit();
+    }
+
+    pub fn increment(self: *Self, key: []const u8) !void {
+        const value = self.counters.get(key) orelse 0;
+        try self.counters.put(key, value + 1);
+    }
+
+    pub fn get(self: *const Self, key: []const u8) u64 {
+        return self.counters.get(key) orelse 0;
     }
 };
 
@@ -82,7 +161,7 @@ pub const Runtime = struct {
     allocator: std.mem.Allocator,
     config: RuntimeConfig,
     components: collections.ArrayList(Component),
-    component_registry: collections.StringHashMap(u32), // name -> index
+    component_registry: collections.StringHashMap(Component), // name -> index
     stats: RuntimeStats,
     running: std.atomic.Value(bool),
 
@@ -90,8 +169,8 @@ pub const Runtime = struct {
         return Self{
             .allocator = allocator,
             .config = config,
-            .components = collections.ArrayList(Component).init(allocator),
-            .component_registry = collections.StringHashMap(u32).init(allocator),
+            .components = collections.ArrayList(Component){},
+            .component_registry = collections.StringHashMap(Component).init(allocator),
             .stats = RuntimeStats.init(),
             .running = std.atomic.Value(bool).init(false),
         };
@@ -102,13 +181,13 @@ pub const Runtime = struct {
         self.stop();
 
         // Deinitialize all components in reverse order
-        var i = self.components.len();
+        var i = self.components.items.len;
         while (i > 0) {
             i -= 1;
-            self.components.items()[i].deinit();
+            self.components.items[i].deinit() catch {};
         }
 
-        self.components.deinit();
+        self.components.deinit(self.allocator);
         self.component_registry.deinit();
     }
 
@@ -117,25 +196,23 @@ pub const Runtime = struct {
             return error.ComponentAlreadyRegistered;
         }
 
-        const index = @as(u32, @intCast(self.components.len()));
         try self.components.append(self.allocator, component);
-        try self.component_registry.put(self.allocator, component.name, index);
+        try self.component_registry.put(component.name, component);
 
         self.stats.total_components += 1;
     }
 
     pub fn initializeComponent(self: *Self, name: []const u8) !void {
-        const index = self.component_registry.get(name) orelse return error.ComponentNotFound;
-        const component = &self.components.itemsMut()[index];
+        var component = self.component_registry.getPtr(name) orelse return error.ComponentNotFound;
         try component.init(self.allocator, &self.config);
         self.stats.active_components += 1;
     }
 
     pub fn initializeAllComponents(self: *Self) !void {
-        for (self.components.itemsMut()) |*component| {
+        for (self.components.items) |*component| {
             try component.init(self.allocator, &self.config);
         }
-        self.stats.active_components = self.stats.total_components;
+        self.stats.active_components = @intCast(self.components.items.len);
     }
 
     pub fn start(self: *Self) !void {
@@ -163,8 +240,8 @@ pub const Runtime = struct {
 
         const start_time = std.time.nanoTimestamp();
 
-        for (self.components.items()) |*component| {
-            component.update(delta_time);
+        for (self.components.items()) |component| {
+            component.update(delta_time) catch {};
         }
 
         const end_time = std.time.nanoTimestamp();
@@ -181,8 +258,7 @@ pub const Runtime = struct {
     }
 
     pub fn getComponent(self: *Self, name: []const u8) ?*Component {
-        const index = self.component_registry.get(name) orelse return null;
-        return &self.components.itemsMut()[index];
+        return self.component_registry.getPtr(name);
     }
 
     /// Write runtime summary to a writer interface
@@ -253,7 +329,7 @@ test "framework runtime - component lifecycle" {
             TestState.init_called = true;
         }
 
-        fn testDeinit() void {
+        fn testDeinit() !void {
             TestState.deinit_called = true;
         }
     };
@@ -270,5 +346,39 @@ test "framework runtime - component lifecycle" {
 
     try testing.expect(TestState.init_called);
 
-    // Note: deinit_called will be true after runtime.deinit() is called
+    runtime.deinit();
+    try testing.expect(TestState.deinit_called);
+}
+
+test "component registry - basic operations" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+    var registry = ComponentRegistry.init(allocator);
+    defer registry.deinit();
+
+    const dummy_component = Component{ .name = "dummy", .version = "1.0" };
+    try registry.register("dummy", dummy_component);
+
+    const retrieved = registry.get("dummy");
+    try std.testing.expect(retrieved != null);
+    try std.testing.expect(std.mem.eql(u8, "dummy", retrieved.?.name));
+}
+
+test "atomic state" {
+    const allocator = std.testing.allocator;
+    var state = AtomicState.init(allocator);
+    defer state.deinit();
+
+    try state.set("key1", 123);
+    try std.testing.expect(state.get("key1") == 123);
+}
+
+test "stats" {
+    const allocator = std.testing.allocator;
+    var stats = Stats.init(allocator);
+    defer stats.deinit();
+
+    try stats.increment("counter1");
+    try stats.increment("counter1");
+    try std.testing.expect(stats.get("counter1") == 2);
 }

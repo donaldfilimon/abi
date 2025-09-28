@@ -144,16 +144,16 @@ pub const NeuralNetwork = struct {
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
-            .layers = collections.ArrayList(Layer).init(allocator),
+            .layers = collections.ArrayList(Layer){},
             .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *Self) void {
-        for (self.layers.itemsMut()) |*layer| {
+        for (self.layers.items) |*layer| {
             layer.deinit();
         }
-        self.layers.deinit();
+        self.layers.deinit(self.allocator);
     }
 
     pub fn addLayer(self: *Self, config: LayerConfig) !void {
@@ -162,19 +162,18 @@ pub const NeuralNetwork = struct {
     }
 
     pub fn forward(self: *const Self, input: []const f32, output: []f32) !void {
-        if (self.layers.len() == 0) return error.NoLayers;
+        if (self.layers.items.len == 0) return error.NoLayers;
 
-        const layers = self.layers.items();
-
-        // Allocate intermediate buffers
+        // Setup arena for intermediate buffers
         var arena = std.heap.ArenaAllocator.init(self.allocator);
         defer arena.deinit();
         const arena_allocator = arena.allocator();
 
         var current_input = input;
-        var buffers = collections.ArrayList([]f32).init(arena_allocator);
-        defer buffers.deinit();
+        var buffers = collections.ArrayList([]f32){};
+        defer buffers.deinit(arena_allocator);
 
+        const layers = self.layers.items;
         for (layers) |*layer| {
             const buffer = try arena_allocator.alloc(f32, layer.config.output_size);
             try buffers.append(arena_allocator, buffer);
@@ -184,18 +183,18 @@ pub const NeuralNetwork = struct {
         }
 
         // Copy final output
-        const final_output = buffers.items()[buffers.len() - 1];
+        const final_output = buffers.items[buffers.items.len - 1];
         @memcpy(output[0..final_output.len], final_output);
     }
 
     pub fn getInputSize(self: *const Self) ?u32 {
-        const layers = self.layers.items();
+        const layers = self.layers.items;
         if (layers.len == 0) return null;
         return layers[0].config.input_size;
     }
 
     pub fn getOutputSize(self: *const Self) ?u32 {
-        const layers = self.layers.items();
+        const layers = self.layers.items;
         if (layers.len == 0) return null;
         return layers[layers.len - 1].config.output_size;
     }
@@ -291,16 +290,16 @@ pub const DataStructures = struct {
 
         pub fn init(allocator: std.mem.Allocator) Dataset {
             return .{
-                .examples = collections.ArrayList(TrainingExample).init(allocator),
+                .examples = collections.ArrayList(TrainingExample){},
                 .allocator = allocator,
             };
         }
 
         pub fn deinit(self: *Dataset) void {
-            for (self.examples.itemsMut()) |*example| {
+            for (self.examples.items) |*example| {
                 example.deinit();
             }
-            self.examples.deinit();
+            self.examples.deinit(self.allocator);
         }
 
         pub fn addExample(self: *Dataset, input: []const f32, target: []const f32) !void {
@@ -309,12 +308,12 @@ pub const DataStructures = struct {
         }
 
         pub fn size(self: *const Dataset) usize {
-            return self.examples.len();
+            return self.examples.items.len;
         }
 
-        pub fn get(self: *const Dataset, index: usize) ?*const TrainingExample {
-            const items = self.examples.items();
-            if (index >= items.len) return null;
+        pub fn get(self: *const Dataset, index: usize) *TrainingExample {
+            const items = self.examples.items;
+            if (index >= items.len) @panic("Index out of bounds");
             return &items[index];
         }
     };
