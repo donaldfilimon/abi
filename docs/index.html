@@ -1,242 +1,381 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ABI Documentation</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-      color-scheme: light dark;
-      --bg: #0b0d10;
-      --fg: #e6edf3;
-      --muted: #9aa4b2;
-      --accent: #5eb1ff;
-      --panel: #111418;
-      background: var(--bg);
-      color: var(--fg);
-      display: grid;
-      grid-template-columns: 320px 1fr;
-      height: 100svh;
-      overflow: hidden;
-    }
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>ABI Documentation</title>
+        <style>
+            body {
+                margin: 0;
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    Segoe UI,
+                    Roboto,
+                    Ubuntu,
+                    Cantarell,
+                    Noto Sans,
+                    Arial,
+                    "Apple Color Emoji",
+                    "Segoe UI Emoji";
+                color-scheme: light dark;
+                --bg: #0b0d10;
+                --fg: #e6edf3;
+                --muted: #9aa4b2;
+                --accent: #5eb1ff;
+                --panel: #111418;
+                background: var(--bg);
+                color: var(--fg);
+                display: grid;
+                grid-template-columns: 320px 1fr;
+                height: 100svh;
+                overflow: hidden;
+            }
 
-    aside {
-      background: var(--panel);
-      border-right: 1px solid #1f2328;
-      display: flex;
-      flex-direction: column;
-      padding: 16px;
-      overflow: hidden;
-    }
+            aside {
+                background: var(--panel);
+                border-right: 1px solid #1f2328;
+                display: flex;
+                flex-direction: column;
+                padding: 16px;
+                overflow: hidden;
+            }
 
-    main {
-      overflow: auto;
-      padding: 24px 32px;
-    }
+            main {
+                overflow: auto;
+                padding: 24px 32px;
+            }
 
-    #brand { font-weight: 700; letter-spacing: 0.2px; margin-bottom: 8px; }
-    #desc { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
-    #search { padding: 10px 12px; border-radius: 8px; border: 1px solid #2a2f36; background: #0f1216; color: var(--fg); outline: none; width: 100%; box-sizing: border-box; }
-    #nav { overflow: auto; margin-top: 12px; padding-right: 6px; }
-    .nav-item { padding: 10px 8px; border-radius: 8px; }
-    .nav-item:hover { background: rgba(94, 177, 255, 0.12); }
-    .nav-item a { color: var(--fg); text-decoration: none; font-weight: 600; }
-    .nav-excerpt { color: var(--muted); font-size: 12px; margin-top: 4px; line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+            #brand {
+                font-weight: 700;
+                letter-spacing: 0.2px;
+                margin-bottom: 8px;
+            }
+            #desc {
+                color: var(--muted);
+                font-size: 13px;
+                margin-bottom: 12px;
+            }
+            #search {
+                padding: 10px 12px;
+                border-radius: 8px;
+                border: 1px solid #2a2f36;
+                background: #0f1216;
+                color: var(--fg);
+                outline: none;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            #nav {
+                overflow: auto;
+                margin-top: 12px;
+                padding-right: 6px;
+            }
+            .nav-item {
+                padding: 10px 8px;
+                border-radius: 8px;
+            }
+            .nav-item:hover {
+                background: rgba(94, 177, 255, 0.12);
+            }
+            .nav-item a {
+                color: var(--fg);
+                text-decoration: none;
+                font-weight: 600;
+            }
+            .nav-excerpt {
+                color: var(--muted);
+                font-size: 12px;
+                margin-top: 4px;
+                line-height: 1.35;
+                display: -webkit-box;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+                overflow: hidden;
+            }
 
-    /* Content styling */
-    #content { max-width: 1100px; margin: 0 auto; line-height: 1.6; }
-    #content h1, #content h2, #content h3 { margin-top: 26px; scroll-margin-top: 80px; }
-    #content pre { background: #0f1216; padding: 14px; border-radius: 8px; overflow: auto; }
-    #content code { background: #0f1216; padding: 2px 4px; border-radius: 4px; }
-    #content a { color: var(--accent); }
-    #topbar { display: flex; align-items: center; justify-content: space-between; }
-    #topbar .right { display: flex; gap: 8px; align-items: center; }
-    button.small { background: #0f1216; border: 1px solid #2a2f36; color: var(--fg); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
-    button.small:hover { border-color: var(--accent); }
-  </style>
-</head>
-<body>
-  <aside>
-    <div id="brand">ABI Docs</div>
-    <div id="desc">Search and browse documentation generated from the codebase.</div>
-    <input id="search" type="search" placeholder="Search docs..." />
-    <div id="nav"></div>
-  </aside>
-  <main>
-    <div id="topbar">
-      <div></div>
-      <div class="right">
-        <button class="small" id="open_md">Open in raw Markdown</button>
-      </div>
-    </div>
-    <div id="content"></div>
-  </main>
-  <script>
-  async function fetchJSON(path) {
-    const response = await fetch(path);
-    return await response.json();
-  }
-  
-  async function fetchText(path) {
-    const response = await fetch(path);
-    return await response.text();
-  }
-  
-  function escapeHTML(value) {
-    return value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-  }
-  
-  function mdToHtml(md) {
-    const lines = md.split('\\n');
-    let html = '';
-    let inCode = false;
-    let codeLang = '';
-  
-    for (let i = 0; i < lines.length; i++) {
-      let line = lines[i];
-  
-      if (line.startsWith('```')) {
-        if (!inCode) {
-          inCode = true;
-          codeLang = line.slice(3).trim();
-          html += '<pre><code class=\"lang-' + escapeHTML(codeLang) + '\">';
-        } else {
-          inCode = false;
-          html += '</code></pre>';
-        }
-        continue;
-      }
-  
-      if (inCode) {
-        html += escapeHTML(line) + '\\n';
-        continue;
-      }
-  
-      if (line.startsWith('#')) {
-        const match = line.match(/^#+/);
-        const level = match ? match[0].length : 1;
-        const text = line.slice(level).trim();
-        const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        html += `<h${level} id=\"${id}\">${inline(text)}</h${level}>`;
-        continue;
-      }
-  
-      if (/^\\s*[-*] /.test(line)) {
-        const items = [];
-        let j = i;
-        while (j < lines.length && /^\\s*[-*] /.test(lines[j])) {
-          items.push(lines[j].replace(/^\\s*[-*] /, ''));
-          j++;
-        }
-        html += '<ul>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ul>';
-        i = j - 1;
-        continue;
-      }
-  
-      if (/^\\s*[0-9]+\\. /.test(line)) {
-        const items = [];
-        let j = i;
-        while (j < lines.length && /^\\s*[0-9]+\\. /.test(lines[j])) {
-          items.push(lines[j].replace(/^\\s*[0-9]+\\. /, ''));
-          j++;
-        }
-        html += '<ol>' + items.map(it => `<li>${inline(it)}</li>`).join('') + '</ol>';
-        i = j - 1;
-        continue;
-      }
-  
-      if (line.trim() === '') {
-        continue;
-      }
-  
-      html += `<p>${inline(line)}</p>`;
-    }
-  
-    return html;
-  
-    function inline(text) {
-      const imageRegex = new RegExp('!\[([^\]]*)\]\(([^)]+)\)', 'g');
-      const linkRegex = new RegExp('\[([^\]]+)\]\(([^)]+)\)', 'g');
-      text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-      text = text.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>');
-      text = text.replace(/\\*([^*]+)\\*/g, '<em>$1</em>');
-      text = text.replace(imageRegex, '<img alt="$1" src="$2" />');
-      text = text.replace(linkRegex, (match, label, url) => {
-        if (url.startsWith('http') || url.startsWith('mailto:') || url.startsWith('#')) {
-          return `<a href=\"${url}\" target=\"_blank\" rel=\"noopener\">${label}</a>`;
-        }
-        if (url.endsWith('.md')) {
-          return `<a href=\"#${url}\" onclick=\"loadDoc('${url}'); return false;\">${label}</a>`;
-        }
-        return `<a href=\"${url}\" target=\"_blank\" rel=\"noopener\">${label}</a>`;
-      });
-      return text;
-    }
-  }
-  
-  let searchData = [];
-  let currentPath = '';
-  
-  async function init() {
-    try {
-      searchData = await fetchJSON('generated/search_index.json');
-    } catch (error) {
-      console.error('search index', error);
-    }
-  
-    renderNav(searchData);
-    const initial = location.hash
-      ? decodeURIComponent(location.hash.slice(1))
-      : (searchData[0]?.file || 'generated/API_REFERENCE.md');
-    loadDoc(initial);
-  
-    document.getElementById('search').addEventListener('input', (event) => {
-      const query = event.target.value.toLowerCase();
-      const results = searchData.filter(item =>
-        item.title.toLowerCase().includes(query) ||
-        item.excerpt.toLowerCase().includes(query)
-      );
-      renderNav(results);
-    });
-  
-    document.getElementById('open_md').addEventListener('click', () => {
-      if (currentPath) {
-        window.open(currentPath, '_blank');
-      }
-    });
-  }
-  
-  async function loadDoc(path) {
-    currentPath = path;
-    location.hash = encodeURIComponent(path);
-    const md = await fetchText(path);
-    document.getElementById('content').innerHTML = mdToHtml(md);
-    window.scrollTo(0, 0);
-  }
-  
-  function renderNav(list) {
-    const nav = document.getElementById('nav');
-    nav.innerHTML = list.map(item => (
-      `<div class=\"nav-item\">` +
-        `<a href=\"#${encodeURIComponent(item.file)}\" onclick=\"loadDoc('${item.file}'); return false;\">${item.title}</a>` +
-        `<div class=\"nav-excerpt\">${escapeHTML(item.excerpt)}</div>` +
-      `</div>`
-    )).join('');
-  }
-  
-  window.addEventListener('hashchange', () => {
-    const path = decodeURIComponent(location.hash.slice(1));
-    if (path) {
-      loadDoc(path);
-    }
-  });
-  
-  init();
-  </script>
-</body>
+            /* Content styling */
+            #content {
+                max-width: 1100px;
+                margin: 0 auto;
+                line-height: 1.6;
+            }
+            #content h1,
+            #content h2,
+            #content h3 {
+                margin-top: 26px;
+                scroll-margin-top: 80px;
+            }
+            #content pre {
+                background: #0f1216;
+                padding: 14px;
+                border-radius: 8px;
+                overflow: auto;
+            }
+            #content code {
+                background: #0f1216;
+                padding: 2px 4px;
+                border-radius: 4px;
+            }
+            #content a {
+                color: var(--accent);
+            }
+            #topbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            #topbar .right {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+            }
+            button.small {
+                background: #0f1216;
+                border: 1px solid #2a2f36;
+                color: var(--fg);
+                border-radius: 8px;
+                padding: 6px 10px;
+                cursor: pointer;
+            }
+            button.small:hover {
+                border-color: var(--accent);
+            }
+        </style>
+    </head>
+    <body>
+        <aside>
+            <div id="brand">ABI Docs</div>
+            <div id="desc">
+                Search and browse documentation generated from the codebase.
+            </div>
+            <input id="search" type="search" placeholder="Search docs..." />
+            <div id="nav"></div>
+        </aside>
+        <main>
+            <div id="topbar">
+                <div></div>
+                <div class="right">
+                    <button class="small" id="open_md">
+                        Open in raw Markdown
+                    </button>
+                </div>
+            </div>
+            <div id="content"></div>
+        </main>
+        <script>
+            async function fetchJSON(path) {
+                const response = await fetch(path);
+                return await response.json();
+            }
+
+            async function fetchText(path) {
+                const response = await fetch(path);
+                return await response.text();
+            }
+
+            function escapeHTML(value) {
+                return value
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
+            }
+
+            function mdToHtml(md) {
+                const lines = md.split("\\n");
+                let html = "";
+                let inCode = false;
+                let codeLang = "";
+
+                for (let i = 0; i < lines.length; i++) {
+                    let line = lines[i];
+
+                    if (line.startsWith("```")) {
+                        if (!inCode) {
+                            inCode = true;
+                            codeLang = line.slice(3).trim();
+                            html +=
+                                '<pre><code class=\"lang-' +
+                                escapeHTML(codeLang) +
+                                '\">';
+                        } else {
+                            inCode = false;
+                            html += "</code></pre>";
+                        }
+                        continue;
+                    }
+
+                    if (inCode) {
+                        html += escapeHTML(line) + "\\n";
+                        continue;
+                    }
+
+                    if (line.startsWith("#")) {
+                        const match = line.match(/^#+/);
+                        const level = match ? match[0].length : 1;
+                        const text = line.slice(level).trim();
+                        const id = text
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]+/g, "-")
+                            .replace(/(^-|-$)/g, "");
+                        html += `<h${level} id=\"${id}\">${inline(text)}</h${level}>`;
+                        continue;
+                    }
+
+                    if (/^\\s*[-*] /.test(line)) {
+                        const items = [];
+                        let j = i;
+                        while (
+                            j < lines.length &&
+                            /^\\s*[-*] /.test(lines[j])
+                        ) {
+                            items.push(lines[j].replace(/^\\s*[-*] /, ""));
+                            j++;
+                        }
+                        html +=
+                            "<ul>" +
+                            items
+                                .map((it) => `<li>${inline(it)}</li>`)
+                                .join("") +
+                            "</ul>";
+                        i = j - 1;
+                        continue;
+                    }
+
+                    if (/^\\s*[0-9]+\\. /.test(line)) {
+                        const items = [];
+                        let j = i;
+                        while (
+                            j < lines.length &&
+                            /^\\s*[0-9]+\\. /.test(lines[j])
+                        ) {
+                            items.push(lines[j].replace(/^\\s*[0-9]+\\. /, ""));
+                            j++;
+                        }
+                        html +=
+                            "<ol>" +
+                            items
+                                .map((it) => `<li>${inline(it)}</li>`)
+                                .join("") +
+                            "</ol>";
+                        i = j - 1;
+                        continue;
+                    }
+
+                    if (line.trim() === "") {
+                        continue;
+                    }
+
+                    html += `<p>${inline(line)}</p>`;
+                }
+
+                return html;
+
+                function inline(text) {
+                    const imageRegex = new RegExp(
+                        "!\[([^\]]*)\]\(([^)]+)\)",
+                        "g",
+                    );
+                    const linkRegex = new RegExp(
+                        "\[([^\]]+)\]\(([^)]+)\)",
+                        "g",
+                    );
+                    text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
+                    text = text.replace(
+                        /\\*\\*([^*]+)\\*\\*/g,
+                        "<strong>$1</strong>",
+                    );
+                    text = text.replace(/\\*([^*]+)\\*/g, "<em>$1</em>");
+                    text = text.replace(
+                        imageRegex,
+                        '<img alt="$1" src="$2" />',
+                    );
+                    text = text.replace(linkRegex, (match, label, url) => {
+                        if (
+                            url.startsWith("http") ||
+                            url.startsWith("mailto:") ||
+                            url.startsWith("#")
+                        ) {
+                            return `<a href=\"${url}\" target=\"_blank\" rel=\"noopener\">${label}</a>`;
+                        }
+                        if (url.endsWith(".md")) {
+                            return `<a href=\"#${url}\" onclick=\"loadDoc('${url}'); return false;\">${label}</a>`;
+                        }
+                        return `<a href=\"${url}\" target=\"_blank\" rel=\"noopener\">${label}</a>`;
+                    });
+                    return text;
+                }
+            }
+
+            let searchData = [];
+            let currentPath = "";
+
+            async function init() {
+                try {
+                    searchData = await fetchJSON("generated/search_index.json");
+                } catch (error) {
+                    console.error("search index", error);
+                }
+
+                renderNav(searchData);
+                const initial = location.hash
+                    ? decodeURIComponent(location.hash.slice(1))
+                    : searchData[0]?.file || "generated/API_REFERENCE.md";
+                loadDoc(initial);
+
+                document
+                    .getElementById("search")
+                    .addEventListener("input", (event) => {
+                        const query = event.target.value.toLowerCase();
+                        const results = searchData.filter(
+                            (item) =>
+                                item.title.toLowerCase().includes(query) ||
+                                item.excerpt.toLowerCase().includes(query),
+                        );
+                        renderNav(results);
+                    });
+
+                document
+                    .getElementById("open_md")
+                    .addEventListener("click", () => {
+                        if (currentPath) {
+                            window.open(currentPath, "_blank");
+                        }
+                    });
+            }
+
+            async function loadDoc(path) {
+                currentPath = path;
+                location.hash = encodeURIComponent(path);
+                const md = await fetchText(path);
+                document.getElementById("content").innerHTML = mdToHtml(md);
+                window.scrollTo(0, 0);
+            }
+
+            function renderNav(list) {
+                const nav = document.getElementById("nav");
+                nav.innerHTML = list
+                    .map(
+                        (item) =>
+                            `<div class=\"nav-item\">` +
+                            `<a href=\"#${encodeURIComponent(item.file)}\" onclick=\"loadDoc('${item.file}'); return false;\">${item.title}</a>` +
+                            `<div class=\"nav-excerpt\">${escapeHTML(item.excerpt)}</div>` +
+                            `</div>`,
+                    )
+                    .join("");
+            }
+
+            window.addEventListener("hashchange", () => {
+                const path = decodeURIComponent(location.hash.slice(1));
+                if (path) {
+                    loadDoc(path);
+                }
+            });
+
+            init();
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+        <script src="search.js"></script>
+    </body>
 </html>
