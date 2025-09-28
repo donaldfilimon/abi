@@ -40,7 +40,6 @@ pub fn build(b: *std.Build) void {
         .name = "abi",
         .root_module = cli_module,
     });
-    exe.strip = optimize != .Debug;
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -61,8 +60,20 @@ pub fn build(b: *std.Build) void {
         .root_module = test_module,
     });
     const run_tests = b.addRunArtifact(unit_tests);
+
+    const docgen_test_module = b.createModule(.{
+        .root_source_file = b.path("src/tools/docs_generator/tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const docgen_tests = b.addTest(.{
+        .root_module = docgen_test_module,
+    });
+    const run_docgen_tests = b.addRunArtifact(docgen_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_tests.step);
+    test_step.dependOn(&run_docgen_tests.step);
 
     const docs_install = b.addInstallDirectory(.{
         .source_dir = lib.getEmittedDocs(),
@@ -77,7 +88,7 @@ pub fn build(b: *std.Build) void {
     fmt_step.dependOn(&fmt.step);
 
     const summary = b.step("summary", "Run docs, fmt, and tests");
-    summary.dependOn(&docs_step.step);
-    summary.dependOn(&fmt_step.step);
-    summary.dependOn(&test_step.step);
+    summary.dependOn(docs_step);
+    summary.dependOn(fmt_step);
+    summary.dependOn(test_step);
 }
