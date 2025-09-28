@@ -263,7 +263,8 @@ pub const GpuMemoryPool = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, total_size: usize) !GpuMemoryPool {
-        var free_blocks = std.ArrayList(MemoryBlock).initCapacity(allocator, 16) catch unreachable;
+        var free_blocks = std.ArrayList(MemoryBlock){};
+        free_blocks.ensureTotalCapacity(allocator, 16) catch unreachable;
         free_blocks.append(allocator, .{
             .offset = 0,
             .size = total_size,

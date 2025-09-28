@@ -5,13 +5,20 @@
 
 const std = @import("std");
 
-// Core modernized modules
-pub const collections = @import("core/collections.zig");
-
-// Framework components
-pub const runtime = @import("framework/runtime_modern.zig");
+// Core framework exports
+pub const framework = @import("framework/runtime_modern.zig");
 pub const ml = @import("ml/ml_modern.zig");
 pub const utils = @import("shared/utils_modern.zig");
+pub const collections = @import("core/collections.zig");
+pub const metrics = @import("metrics.zig");
+pub const simd = @import("simd.zig");
+
+// Feature exports
+pub const ai = @import("features/ai/mod.zig");
+pub const gpu = @import("features/gpu/mod.zig");
+pub const database = @import("features/database/mod.zig");
+pub const web = @import("features/web/mod.zig");
+pub const connectors = @import("features/connectors/mod.zig");
 pub const memory = utils.memory;
 
 // Legacy plugin system (maintained for compatibility)
@@ -38,13 +45,13 @@ pub const abi = struct {
     pub const ai = @import("features/ai/mod.zig");
 
     /// Framework initialization
-    pub fn init(allocator: std.mem.Allocator, config: runtime.RuntimeConfig) !runtime.Runtime {
-        return try runtime.createRuntime(allocator, config);
+    pub fn init(allocator: std.mem.Allocator, config: framework.RuntimeConfig) !framework.Runtime {
+        return try framework.createRuntime(allocator, config);
     }
 
     /// Default configuration
-    pub fn defaultConfig() runtime.RuntimeConfig {
-        return runtime.defaultConfig();
+    pub fn defaultConfig() framework.RuntimeConfig {
+        return framework.defaultConfig();
     }
 
     /// Create a new neural network
@@ -69,9 +76,9 @@ pub const StringHashMap = collections.StringHashMap;
 pub const AutoHashMap = collections.AutoHashMap;
 pub const ArenaAllocator = collections.ArenaAllocator;
 
-pub const Runtime = runtime.Runtime;
-pub const RuntimeConfig = runtime.RuntimeConfig;
-pub const Component = runtime.Component;
+pub const Runtime = framework.Runtime;
+pub const RuntimeConfig = framework.RuntimeConfig;
+pub const Component = framework.Component;
 
 pub const NeuralNetwork = ml.NeuralNetwork;
 pub const Layer = ml.Layer;
@@ -97,16 +104,16 @@ test "abi root - version info" {
 test "abi root - framework initialization" {
     const testing = std.testing;
 
-    var framework = try initFramework(testing.allocator, null);
-    defer framework.deinit();
+    var runtime_instance = try initFramework(testing.allocator, null);
+    defer runtime_instance.deinit();
 
-    try testing.expect(!framework.isRunning());
+    try testing.expect(!runtime_instance.isRunning());
 
-    try framework.start();
-    try testing.expect(framework.isRunning());
+    try runtime_instance.start();
+    try testing.expect(runtime_instance.isRunning());
 
-    framework.stop();
-    try testing.expect(!framework.isRunning());
+    runtime_instance.stop();
+    try testing.expect(!runtime_instance.isRunning());
 }
 
 test "abi root - neural network creation" {
@@ -137,7 +144,6 @@ test "abi root - memory pool creation" {
 
     pool.release(item);
 }
-
 test "root module - modern collections aliases" {
     const testing = std.testing;
     var list = std.ArrayList(i32){};

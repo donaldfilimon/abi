@@ -77,6 +77,7 @@ pub const memory = struct {
                     self.allocator.destroy(item);
                 }
                 self.free_list.deinit(self.allocator);
+                self.allocator.free(self.pool);
             }
 
             pub fn acquire(self: *Self) !*T {

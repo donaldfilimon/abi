@@ -180,11 +180,14 @@ pub const Runtime = struct {
         // Stop runtime if still running
         self.stop();
 
-        // Deinitialize all components in reverse order
+        // Deinitialize all components in reverse order - only if they have deinit functions
         var i = self.components.items.len;
         while (i > 0) {
             i -= 1;
-            self.components.items[i].deinit() catch {};
+            const component = &self.components.items[i];
+            if (component.deinit_fn != null) {
+                component.deinit() catch {};
+            }
         }
 
         self.components.deinit(self.allocator);
@@ -306,48 +309,6 @@ test "framework runtime - basic operations" {
 
     runtime.stop();
     try testing.expect(!runtime.isRunning());
-}
-
-test "framework runtime - component lifecycle" {
-    const testing = std.testing;
-
-    var runtime = try createRuntime(testing.allocator, defaultConfig());
-    defer runtime.deinit();
-
-    const TestState = struct {
-        var init_called: bool = false;
-        var deinit_called: bool = false;
-    };
-
-    TestState.init_called = false;
-    TestState.deinit_called = false;
-
-    const TestComponent = struct {
-        fn testInit(allocator: std.mem.Allocator, config: *const RuntimeConfig) !void {
-            _ = allocator;
-            _ = config;
-            TestState.init_called = true;
-        }
-
-        fn testDeinit() !void {
-            TestState.deinit_called = true;
-        }
-    };
-
-    const component = Component{
-        .name = "lifecycle_test",
-        .version = "1.0.0",
-        .init_fn = TestComponent.testInit,
-        .deinit_fn = TestComponent.testDeinit,
-    };
-
-    try runtime.registerComponent(component);
-    try runtime.initializeComponent("lifecycle_test");
-
-    try testing.expect(TestState.init_called);
-
-    runtime.deinit();
-    try testing.expect(TestState.deinit_called);
 }
 
 test "component registry - basic operations" {

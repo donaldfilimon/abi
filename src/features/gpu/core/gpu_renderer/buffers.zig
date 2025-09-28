@@ -1,7 +1,6 @@
 const std = @import("std");
 const print = std.debug.print;
 const gpu = std.gpu;
-const print = std.debug.print;
 
 const config = @import("config.zig");
 
