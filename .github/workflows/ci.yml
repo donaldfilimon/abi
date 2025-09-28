@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0-dev.393+dd4be26f5
+      - name: Build
+        run: zig build --summary all
+      - name: Unit tests
+        run: zig build test --summary all
+      - name: Documentation
+        run: zig build docs --summary all
+      - name: Formatting
+        run: zig fmt --check src tests
+      - name: Upload docs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abi-docs-${{ runner.os }}
+          path: zig-out/docs
+  pages:
+    if: github.ref == 'refs/heads/main'
+    needs: build-test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0-dev.393+dd4be26f5
+      - run: zig build docs --summary all
+      - uses: actions/configure-pages@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: zig-out/docs
+      - id: deployment
+        uses: actions/deploy-pages@v4
