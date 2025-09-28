@@ -116,7 +116,8 @@ pub const SimpleNN = struct {
 
     pub fn forward(self: *SimpleNN, input: []const f32, output: []f32) void {
         // Allocate temporary buffer for hidden layer
-        var hidden = std.ArrayList(f32).initCapacity(self.allocator, self.hidden_size) catch unreachable;
+        var hidden = std.ArrayList(f32){};
+        hidden.ensureTotalCapacity(self.allocator, self.hidden_size) catch unreachable;
         defer hidden.deinit(self.allocator);
         hidden.expandToCapacity();
 
