@@ -120,7 +120,7 @@ pub const Metric = struct {
             .name = try allocator.dupe(u8, name),
             .value = value,
             .timestamp = std.time.nanoTimestamp(),
-            .labels = std.StringHashMap([]const u8).init(allocator),
+            .labels = std.StringHashMap([]const u8){},
         };
     }
 
@@ -131,13 +131,13 @@ pub const Metric = struct {
             allocator.free(entry.key_ptr.*);
             allocator.free(entry.value_ptr.*);
         }
-        self.labels.deinit();
+        self.labels.deinit(allocator);
     }
 
     pub fn addLabel(self: *Metric, allocator: std.mem.Allocator, key: []const u8, value: []const u8) !void {
         const key_copy = try allocator.dupe(u8, key);
         const value_copy = try allocator.dupe(u8, value);
-        try self.labels.put(key_copy, value_copy);
+        try self.labels.put(allocator, key_copy, value_copy);
     }
 };
 

@@ -98,11 +98,12 @@ pub const CompleteTransformer = struct {
 
     /// Generate text using the transformer
     pub fn generate(self: *CompleteTransformer, prompt: []const u32, max_length: usize) ![]u32 {
-        var result = try std.ArrayList(u32).initCapacity(self.allocator, prompt.len + max_length);
-        defer result.deinit();
+        var result = std.ArrayList(u32){};
+        try result.ensureTotalCapacity(self.allocator, prompt.len + max_length);
+        defer result.deinit(self.allocator);
 
         // Add initial prompt
-        try result.appendSlice(prompt);
+        try result.appendSlice(self.allocator, prompt);
 
         // Generate tokens one by one
         while (result.items.len < max_length) {
@@ -128,7 +129,7 @@ pub const CompleteTransformer = struct {
                 }
             }
 
-            try result.append(best_token);
+            try result.append(self.allocator, best_token);
         }
 
         return result.toOwnedSlice();
