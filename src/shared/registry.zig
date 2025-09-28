@@ -59,10 +59,11 @@ pub const PluginRegistry = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator) !PluginRegistry {
+        const plugins = std.StringHashMap(PluginEntry).init(allocator);
         return .{
             .allocator = allocator,
             .loader = loader.createLoader(allocator),
-            .plugins = std.StringHashMap(PluginEntry).init(allocator),
+            .plugins = plugins,
         };
     }
 
@@ -187,12 +188,12 @@ pub const PluginRegistry = struct {
     /// Start all plugins in dependency order
     pub fn startAllPlugins(self: *PluginRegistry) !void {
         // Get plugins sorted by load order
-        var plugin_list = std.ArrayList(*PluginEntry).init(self.allocator);
-        defer plugin_list.deinit();
+        var plugin_list = std.ArrayList(*PluginEntry){};
+        defer plugin_list.deinit(self.allocator);
 
         var iterator = self.plugins.valueIterator();
         while (iterator.next()) |entry| {
-            try plugin_list.append(entry);
+            try plugin_list.append(self.allocator, entry);
         }
 
         // Sort by load order
@@ -211,12 +212,12 @@ pub const PluginRegistry = struct {
     /// Stop all plugins in reverse order
     pub fn stopAllPlugins(self: *PluginRegistry) !void {
         // Get plugins sorted by reverse load order
-        var plugin_list = std.ArrayList(*PluginEntry).init(self.allocator);
-        defer plugin_list.deinit();
+        var plugin_list = std.ArrayList(*PluginEntry){};
+        defer plugin_list.deinit(self.allocator);
 
         var iterator = self.plugins.valueIterator();
         while (iterator.next()) |entry| {
-            try plugin_list.append(entry);
+            try plugin_list.append(self.allocator, entry);
         }
 
         // Sort by reverse load order
@@ -240,14 +241,14 @@ pub const PluginRegistry = struct {
 
     /// Get plugins by type
     pub fn getPluginsByType(self: *PluginRegistry, plugin_type: PluginType) !std.ArrayList(*Plugin) {
-        var result = std.ArrayList(*Plugin).init(self.allocator);
-        errdefer result.deinit();
+        var result = std.ArrayList(*Plugin){};
+        errdefer result.deinit(self.allocator);
 
         var iterator = self.plugins.valueIterator();
         while (iterator.next()) |entry| {
             const info = entry.plugin.getInfo();
             if (info.plugin_type == plugin_type) {
-                try result.append(entry.plugin);
+                try result.append(self.allocator, entry.plugin);
             }
         }
 
@@ -256,19 +257,19 @@ pub const PluginRegistry = struct {
 
     /// Get all plugin names
     pub fn getPluginNames(self: *PluginRegistry) !std.ArrayList([]u8) {
-        var names = std.ArrayList([]u8).init(self.allocator);
+        var names = std.ArrayList([]u8){};
         errdefer {
             for (names.items) |name| {
                 self.allocator.free(name);
             }
-            names.deinit();
+            names.deinit(self.allocator);
         }
 
         var iterator = self.plugins.keyIterator();
         while (iterator.next()) |name| {
             const owned = try self.allocator.dupe(u8, name.*);
             errdefer self.allocator.free(owned);
-            try names.append(owned);
+            try names.append(self.allocator, owned);
         }
 
         return names;

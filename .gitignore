@@ -71,7 +71,8 @@ perf.data*
 *.dll
 *.so
 *.dylib
-
+*.pdb
+*.pdb.*
 # Backup files
 *.bak
 *.backup

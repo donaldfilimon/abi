@@ -112,7 +112,7 @@ pub const Framework = struct {
             for (discovered.items) |path| {
                 self.allocator.free(path);
             }
-            discovered.deinit();
+            discovered.deinit(self.allocator);
         }
 
         self.clearDiscovered();

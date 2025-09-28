@@ -44,6 +44,19 @@ const ComputeDispatchInfo = pipelines.ComputeDispatchInfo;
 const RendererStats = pipelines.RendererStats;
 const CpuFallbackFn = pipelines.CpuFallbackFn;
 
+// Local aliases for option structs and utility constants from config module
+const SPIRVCompilerOptions = gpu_cfg.SPIRVCompilerOptions;
+const MSLCompilerOptions = gpu_cfg.MSLCompilerOptions;
+const PTXCompilerOptions = gpu_cfg.PTXCompilerOptions;
+const MathUtils = gpu_cfg.MathUtils;
+const DEFAULT_VECTOR_SIZE = gpu_cfg.DEFAULT_VECTOR_SIZE;
+const DEFAULT_MATRIX_SIZE = gpu_cfg.DEFAULT_MATRIX_SIZE;
+const DEFAULT_IMAGE_SIZE = gpu_cfg.DEFAULT_IMAGE_SIZE;
+const MAX_VERIFICATION_SAMPLES = gpu_cfg.MAX_VERIFICATION_SAMPLES;
+
+// Local convenience print function
+const print = std.debug.print;
+
 pub const GPURenderer = struct {
     allocator: std.mem.Allocator,
     config: GPUConfig,
