@@ -10,7 +10,7 @@ pub const layer = @import("layer.zig");
 pub const activations = @import("activations/mod.zig");
 pub const activation = activations; // Legacy alias
 pub const localml = @import("localml.zig");
-pub const persona_manifest = @import("persona_manifest.zig");
+pub const training = @import("training/mod.zig");
 
 // Advanced AI features
 pub const transformer = @import("transformer.zig");

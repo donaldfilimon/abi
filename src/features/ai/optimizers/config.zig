@@ -67,17 +67,36 @@ pub const OptimizerOps = struct {
     update_learning_rate: fn (ctx: *anyopaque, step: usize) f32,
 };
 
+/// Runtime handle that pairs an optimizer implementation with its backing state.
+pub const OptimizerHandle = struct {
+    ops: OptimizerOps,
+    context: *anyopaque,
+    cleanup: ?fn (*anyopaque) void = null,
+
+    pub fn deinit(self: OptimizerHandle) void {
+        if (self.cleanup) |cleanup_fn| {
+            cleanup_fn(self.context);
+        }
+    }
+};
+
 const StatelessContext = struct {
+    allocator: std.mem.Allocator,
     learning_rate: f32,
     weight_decay: f32,
 };
 
+fn destroyStateless(ctx_ptr: *anyopaque) void {
+    const ctx: *StatelessContext = @ptrCast(@alignCast(ctx_ptr));
+    const allocator = ctx.allocator;
+    allocator.destroy(ctx);
+}
+
 /// Lightweight stateless optimizer implementation useful for tests and fallbacks.
-pub fn createStatelessOps(config: OptimizerConfig) struct {
-    ops: OptimizerOps,
-    context: StatelessContext,
-} {
-    const context = StatelessContext{
+pub fn createStatelessHandle(allocator: std.mem.Allocator, config: OptimizerConfig) !OptimizerHandle {
+    const context = try allocator.create(StatelessContext);
+    context.* = .{
+        .allocator = allocator,
         .learning_rate = config.learning_rate,
         .weight_decay = config.weight_decay,
     };
@@ -100,7 +119,16 @@ pub fn createStatelessOps(config: OptimizerConfig) struct {
         }.update,
     };
 
-    return .{ .ops = ops, .context = context };
+    return OptimizerHandle{
+        .ops = ops,
+        .context = context,
+        .cleanup = destroyStateless,
+    };
+}
+
+/// Backwards-compatible helper retained for legacy call sites.
+pub fn createStatelessOps(allocator: std.mem.Allocator, config: OptimizerConfig) !OptimizerHandle {
+    return createStatelessHandle(allocator, config);
 }
 
 test "optimizer config adjustments" {
@@ -112,14 +140,15 @@ test "optimizer config adjustments" {
 
 test "stateless optimizer ops update" {
     const config = OptimizerConfig{ .learning_rate = 0.1, .weight_decay = 0.05 };
-    var bundle = createStatelessOps(config);
+    var handle = try createStatelessHandle(std.testing.allocator, config);
+    defer handle.deinit();
 
     var params = [_]f32{ 1.0, 2.0 };
     const grads = [_]f32{ 0.5, 1.0 };
-    try bundle.ops.apply_gradients(@ptrCast(&bundle.context), params[0..], grads[0..]);
+    try handle.ops.apply_gradients(handle.context, params[0..], grads[0..]);
     try std.testing.expect(params[0] < 1.0);
     try std.testing.expect(params[1] < 2.0);
 
-    const lr = bundle.ops.update_learning_rate(@ptrCast(&bundle.context), 5);
+    const lr = handle.ops.update_learning_rate(handle.context, 5);
     try std.testing.expect(lr < config.learning_rate);
 }

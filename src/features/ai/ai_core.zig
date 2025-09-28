@@ -18,6 +18,7 @@ const std = @import("std");
 const activations = @import("activations/mod.zig");
 const interfaces = @import("interfaces.zig");
 const optimizers = @import("optimizers/mod.zig");
+const training = @import("training/mod.zig");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Random = std.Random;
@@ -943,25 +944,6 @@ pub const Layer = struct {
     }
 };
 
-/// Loss functions with comprehensive coverage
-pub const LossFunction = enum {
-    mean_squared_error,
-    mean_absolute_error,
-    cross_entropy,
-    binary_cross_entropy,
-    categorical_cross_entropy,
-    sparse_categorical_cross_entropy,
-    huber,
-    hinge,
-    squared_hinge,
-    cosine_similarity,
-    kullback_leibler_divergence,
-    focal_loss,
-    dice_loss,
-    contrastive_loss,
-    triplet_loss,
-};
-
 /// Optimizers with state-of-the-art algorithms
 pub const Optimizer = optimizers.OptimizerType;
 
@@ -969,89 +951,7 @@ pub const Optimizer = optimizers.OptimizerType;
 pub const LRScheduler = optimizers.SchedulerType;
 
 /// Data augmentation techniques
-pub const DataAugmentation = struct {
-    horizontal_flip: bool = false,
-    vertical_flip: bool = false,
-    rotation_range: f32 = 0.0,
-    width_shift_range: f32 = 0.0,
-    height_shift_range: f32 = 0.0,
-    brightness_range: ?[2]f32 = null,
-    zoom_range: f32 = 0.0,
-    channel_shift_range: f32 = 0.0,
-    fill_mode: enum { constant, nearest, reflect, wrap } = .constant,
-    gaussian_noise_std: f32 = 0.0,
-    cutout_probability: f32 = 0.0,
-    cutout_size: ?[2]usize = null,
-    mixup_alpha: f32 = 0.0,
-    cutmix_alpha: f32 = 0.0,
-};
-
-/// Model training configuration with advanced options
-pub const TrainingConfig = struct {
-    // Basic training parameters
-    batch_size: usize = 32,
-    epochs: usize = 100,
-    validation_split: f32 = 0.2,
-    optimizer: optimizers.OptimizerConfig = .{},
-
-    // Early stopping and checkpointing
-    early_stopping_patience: usize = 10,
-    early_stopping_min_delta: f32 = 0.001,
-    save_best_only: bool = true,
-    checkpoint_frequency: usize = 10,
-
-    // Regularization
-    gradient_clipping: ?f32 = null,
-    gradient_clipping_norm: enum { l1, l2, inf } = .l2,
-
-    // Data augmentation
-    data_augmentation: ?DataAugmentation = null,
-
-    // Distributed training
-    use_mixed_precision: bool = false,
-    accumulate_gradients: usize = 1,
-    sync_batch_norm: bool = false,
-
-    // Monitoring and logging
-    log_frequency: usize = 100,
-    validate_frequency: usize = 1,
-    tensorboard_logging: bool = false,
-    profiling_enabled: bool = false,
-};
-
-/// Comprehensive training metrics
-pub const TrainingMetrics = struct {
-    // Basic metrics
-    loss: f32,
-    accuracy: f32 = 0.0,
-    val_loss: ?f32 = null,
-    val_accuracy: ?f32 = null,
-
-    // Additional metrics
-    precision: ?f32 = null,
-    recall: ?f32 = null,
-    f1_score: ?f32 = null,
-    auc_roc: ?f32 = null,
-
-    // Training progress
-    epoch: usize,
-    step: usize = 0,
-    training_time_ms: u64,
-    inference_time_ms: ?u64 = null,
-
-    // Performance metrics
-    throughput_samples_per_sec: f32 = 0.0,
-    memory_usage_mb: f32 = 0.0,
-    gpu_utilization: ?f32 = null,
-
-    // Learning dynamics
-    learning_rate: f32,
-    gradient_norm: ?f32 = null,
-    weight_norm: ?f32 = null,
-
-    // Custom metrics
-    custom_metrics: ?std.StringHashMap(f32) = null,
-};
+pub const DataAugmentation = training.DataAugmentation;
 
 /// Neural network model with enhanced capabilities
 pub const NeuralNetwork = struct {
@@ -1612,457 +1512,6 @@ pub const EmbeddingGenerator = struct {
     }
 };
 
-/// Enhanced model trainer with comprehensive optimization support
-pub const ModelTrainer = struct {
-    model: *NeuralNetwork,
-    config: TrainingConfig,
-    allocator: std.mem.Allocator,
-    optimizer: Optimizer,
-    loss_function: LossFunction,
-
-    // Optimizer state
-    momentum_buffers: ?[][]f32 = null,
-    velocity_buffers: ?[][]f32 = null,
-    adam_m_buffers: ?[][]f32 = null,
-    adam_v_buffers: ?[][]f32 = null,
-
-    // Training state
-    current_epoch: usize = 0,
-    current_step: usize = 0,
-    best_val_loss: f32 = std.math.inf(f32),
-    patience_counter: usize = 0,
-
-    pub fn init(
-        allocator: std.mem.Allocator,
-        model: *NeuralNetwork,
-        config: TrainingConfig,
-        optimizer: Optimizer,
-        loss_function: LossFunction,
-    ) !*ModelTrainer {
-        const trainer = try allocator.create(ModelTrainer);
-        trainer.* = .{
-            .model = model,
-            .config = config,
-            .allocator = allocator,
-            .optimizer = optimizer,
-            .loss_function = loss_function,
-        };
-
-        try trainer.initializeOptimizerState();
-        return trainer;
-    }
-
-    pub fn deinit(self: *ModelTrainer) void {
-        self.cleanupOptimizerState();
-        self.allocator.destroy(self);
-    }
-
-    fn initializeOptimizerState(self: *ModelTrainer) !void {
-        // Initialize optimizer-specific state buffers
-        switch (self.optimizer) {
-            .momentum_sgd, .nesterov_sgd => {
-                // Initialize momentum buffers
-            },
-            .adam, .adamw, .nadam => {
-                // Initialize Adam buffers
-            },
-            .rmsprop => {
-                // Initialize RMSprop buffers
-            },
-            else => {},
-        }
-    }
-
-    fn cleanupOptimizerState(self: *ModelTrainer) void {
-        if (self.momentum_buffers) |buffers| {
-            for (buffers) |buffer| {
-                self.allocator.free(buffer);
-            }
-            self.allocator.free(buffers);
-        }
-        // Cleanup other buffers similarly
-    }
-
-    pub fn train(
-        self: *ModelTrainer,
-        inputs: []const []const f32,
-        targets: []const []const f32,
-    ) !ArrayList(TrainingMetrics) {
-        var metrics = ArrayList(TrainingMetrics){};
-
-        // Validate inputs
-        if (inputs.len != targets.len) return error.InvalidDataSize;
-        if (inputs.len == 0) return error.EmptyDataset;
-
-        // Split data into training and validation sets
-        const validation_size = @as(usize, @intFromFloat(@as(f32, @floatFromInt(inputs.len)) * self.config.validation_split));
-        const train_size = inputs.len - validation_size;
-
-        const train_inputs = inputs[0..train_size];
-        const train_targets = targets[0..train_size];
-        const val_inputs = if (validation_size > 0) inputs[train_size..] else &[_][]const f32{};
-        const val_targets = if (validation_size > 0) targets[train_size..] else &[_][]const f32{};
-
-        // Training loop
-        for (0..self.config.epochs) |epoch| {
-            self.current_epoch = epoch;
-            const start_time = std.time.milliTimestamp();
-
-            // Training phase
-            self.model.setTraining(true);
-            const train_metrics = try self.trainEpoch(train_inputs, train_targets);
-
-            // Validation phase
-            var val_metrics: ?TrainingMetrics = null;
-            if (val_inputs.len > 0 and epoch % self.config.validate_frequency == 0) {
-                self.model.setTraining(false);
-                val_metrics = try self.validateEpoch(val_inputs, val_targets);
-            }
-
-            const end_time = std.time.milliTimestamp();
-
-            // Create combined metrics
-            var epoch_metrics = train_metrics;
-            epoch_metrics.epoch = epoch;
-            epoch_metrics.training_time_ms = @as(u64, @intCast(end_time - start_time));
-
-            if (val_metrics) |vm| {
-                epoch_metrics.val_loss = vm.loss;
-                epoch_metrics.val_accuracy = vm.accuracy;
-            }
-
-            try metrics.append(self.allocator, epoch_metrics);
-
-            // Early stopping check
-            if (self.shouldEarlyStop(epoch_metrics)) {
-                std.debug.print("Early stopping at epoch {}\n", .{epoch});
-                break;
-            }
-
-            // Logging
-            if (epoch % self.config.log_frequency == 0) {
-                self.logMetrics(epoch_metrics);
-            }
-        }
-
-        return metrics;
-    }
-
-    fn trainEpoch(self: *ModelTrainer, inputs: []const []const f32, targets: []const []const f32) !TrainingMetrics {
-        var total_loss: f32 = 0.0;
-        var total_accuracy: f32 = 0.0;
-        const num_batches = (inputs.len + self.config.batch_size - 1) / self.config.batch_size;
-
-        for (0..num_batches) |batch_idx| {
-            const start_idx = batch_idx * self.config.batch_size;
-            const end_idx = @min(start_idx + self.config.batch_size, inputs.len);
-
-            const batch_inputs = inputs[start_idx..end_idx];
-            const batch_targets = targets[start_idx..end_idx];
-
-            const batch_metrics = try self.trainBatch(batch_inputs, batch_targets);
-            total_loss += batch_metrics.loss;
-            total_accuracy += batch_metrics.accuracy;
-
-            self.current_step += 1;
-        }
-
-        return TrainingMetrics{
-            .loss = total_loss / @as(f32, @floatFromInt(num_batches)),
-            .accuracy = total_accuracy / @as(f32, @floatFromInt(num_batches)),
-            .epoch = self.current_epoch,
-            .step = self.current_step,
-            .training_time_ms = 0, // Will be set by caller
-            .learning_rate = self.getCurrentLearningRate(),
-        };
-    }
-
-    fn trainBatch(self: *ModelTrainer, inputs: []const []const f32, targets: []const []const f32) !TrainingMetrics {
-        // Forward pass
-        const output_size = self.model.getOutputSize();
-        const predictions = try self.allocator.alloc(f32, output_size * inputs.len);
-        defer self.allocator.free(predictions);
-
-        var batch_loss: f32 = 0.0;
-        var batch_accuracy: f32 = 0.0;
-
-        for (inputs, 0..) |input, i| {
-            const pred_slice = predictions[i * output_size .. (i + 1) * output_size];
-            try self.model.forward(input, pred_slice);
-
-            // Compute loss
-            const sample_loss = self.computeLoss(pred_slice, targets[i]);
-            batch_loss += sample_loss;
-
-            // Compute accuracy (if applicable)
-            const sample_accuracy = self.computeAccuracy(pred_slice, targets[i]);
-            batch_accuracy += sample_accuracy;
-        }
-
-        // Backward pass (placeholder - would implement backpropagation)
-        try self.backwardPass(inputs, targets, predictions);
-
-        // Update weights
-        try self.updateWeights();
-
-        return TrainingMetrics{
-            .loss = batch_loss / @as(f32, @floatFromInt(inputs.len)),
-            .accuracy = batch_accuracy / @as(f32, @floatFromInt(inputs.len)),
-            .epoch = self.current_epoch,
-            .step = self.current_step,
-            .training_time_ms = 0,
-            .learning_rate = self.getCurrentLearningRate(),
-        };
-    }
-
-    fn validateEpoch(self: *ModelTrainer, inputs: []const []const f32, targets: []const []const f32) !TrainingMetrics {
-        var total_loss: f32 = 0.0;
-        var total_accuracy: f32 = 0.0;
-
-        const output_size = self.model.getOutputSize();
-        const predictions = try self.allocator.alloc(f32, output_size);
-        defer self.allocator.free(predictions);
-
-        for (inputs, 0..) |input, i| {
-            try self.model.predict(input, predictions);
-
-            const sample_loss = self.computeLoss(predictions, targets[i]);
-            total_loss += sample_loss;
-
-            const sample_accuracy = self.computeAccuracy(predictions, targets[i]);
-            total_accuracy += sample_accuracy;
-        }
-
-        return TrainingMetrics{
-            .loss = total_loss / @as(f32, @floatFromInt(inputs.len)),
-            .accuracy = total_accuracy / @as(f32, @floatFromInt(inputs.len)),
-            .epoch = self.current_epoch,
-            .step = self.current_step,
-            .training_time_ms = 0,
-            .learning_rate = self.getCurrentLearningRate(),
-        };
-    }
-
-    fn backwardPass(self: *ModelTrainer, _inputs: []const []const f32, _targets: []const []const f32, _predictions: []const f32) !void {
-        // Placeholder for backpropagation implementation
-        _ = self;
-        _ = _inputs;
-        _ = _targets;
-        _ = _predictions;
-    }
-
-    fn updateWeights(self: *ModelTrainer) !void {
-        // Placeholder for weight update implementation
-        _ = self;
-    }
-
-    fn getCurrentLearningRate(self: *const ModelTrainer) f32 {
-        // Implement learning rate scheduling
-        var lr = self.config.optimizer.learning_rate;
-        const scheduler = self.config.optimizer.scheduler;
-
-        if (scheduler.warmup_steps > 0 and self.current_step < scheduler.warmup_steps) {
-            const progress = @as(f32, @floatFromInt(self.current_step + 1)) / @as(f32, @floatFromInt(scheduler.warmup_steps));
-            lr *= progress;
-        }
-
-        switch (scheduler.kind) {
-            .constant => {},
-            .step_decay => {
-                if (scheduler.decay_steps > 0) {
-                    const exponent = @as(f32, @floatFromInt(self.current_step / scheduler.decay_steps));
-                    lr *= std.math.pow(f32, scheduler.decay_rate, exponent);
-                }
-            },
-            .exponential_decay => {
-                lr *= std.math.pow(f32, scheduler.decay_rate, @as(f32, @floatFromInt(self.current_step)));
-            },
-            .cosine_annealing => {
-                const progress = @as(f32, @floatFromInt(self.current_epoch)) / @as(f32, @floatFromInt(self.config.epochs));
-                lr *= 0.5 * (1.0 + @cos(std.math.pi * progress));
-            },
-            else => {},
-        }
-
-        if (lr < scheduler.minimum_learning_rate) {
-            return scheduler.minimum_learning_rate;
-        }
-
-        return lr;
-    }
-
-    fn shouldEarlyStop(self: *ModelTrainer, metrics: TrainingMetrics) bool {
-        if (metrics.val_loss) |val_loss| {
-            if (val_loss < self.best_val_loss - self.config.early_stopping_min_delta) {
-                self.best_val_loss = val_loss;
-                self.patience_counter = 0;
-                return false;
-            } else {
-                self.patience_counter += 1;
-                return self.patience_counter >= self.config.early_stopping_patience;
-            }
-        }
-        return false;
-    }
-
-    fn logMetrics(self: *const ModelTrainer, metrics: TrainingMetrics) void {
-        _ = self;
-        std.debug.print("Epoch {}: loss={d:.6}, acc={d:.4}", .{ metrics.epoch, metrics.loss, metrics.accuracy });
-        if (metrics.val_loss) |val_loss| {
-            std.debug.print(", val_loss={d:.6}", .{val_loss});
-        }
-        if (metrics.val_accuracy) |val_acc| {
-            std.debug.print(", val_acc={d:.4}", .{val_acc});
-        }
-        std.debug.print(", lr={d:.6}\n", .{metrics.learning_rate});
-    }
-
-    fn computeLoss(self: *const ModelTrainer, predictions: []const f32, targets: []const f32) f32 {
-        switch (self.loss_function) {
-            .mean_squared_error => return self.meanSquaredError(predictions, targets),
-            .mean_absolute_error => return self.meanAbsoluteError(predictions, targets),
-            .cross_entropy => return self.crossEntropy(predictions, targets),
-            .binary_cross_entropy => return self.binaryCrossEntropy(predictions, targets),
-            .categorical_cross_entropy => return self.categoricalCrossEntropy(predictions, targets),
-            .huber => return self.huberLoss(predictions, targets),
-            .hinge => return self.hingeLoss(predictions, targets),
-            .focal_loss => return self.focalLoss(predictions, targets),
-            else => return 0.0,
-        }
-    }
-
-    fn computeAccuracy(self: *const ModelTrainer, predictions: []const f32, targets: []const f32) f32 {
-        _ = self;
-        if (predictions.len != targets.len) return 0.0;
-
-        // For classification: find max prediction and compare with target
-        var pred_class: usize = 0;
-        var target_class: usize = 0;
-        var max_pred: f32 = predictions[0];
-        var max_target: f32 = targets[0];
-
-        for (predictions, 0..) |pred, i| {
-            if (pred > max_pred) {
-                max_pred = pred;
-                pred_class = i;
-            }
-            if (targets[i] > max_target) {
-                max_target = targets[i];
-                target_class = i;
-            }
-        }
-
-        return if (pred_class == target_class) 1.0 else 0.0;
-    }
-
-    /// Mean squared error loss
-    fn meanSquaredError(self: *const ModelTrainer, predictions: []const f32, targets: []const f32) f32 {
-        _ = self;
-        if (predictions.len != targets.len) return std.math.inf(f32);
-
-        var sum: f32 = 0.0;
-        for (predictions, 0..) |pred, i| {
-            const diff = pred - targets[i];
-            sum += diff * diff;
-        }
-        return sum / @as(f32, @floatFromInt(predictions.len));
-    }
-
-    /// Mean absolute error loss
-    fn meanAbsoluteError(self: *const ModelTrainer, predictions: []const f32, targets: []const f32) f32 {
-        _ = self;
-        if (predictions.len != targets.len) return std.math.inf(f32);
-
-        var sum: f32 = 0.0;
-        for (predictions, 0..) |pred, i| {
-            sum += @abs(pred - targets[i]);
-        }
-        return sum / @as(f32, @floatFromInt(predictions.len));
-    }
-
-    /// Cross-entropy loss
-    fn crossEntropy(self: *const ModelTrainer, predictions: []const f32, targets: []const f32) f32 {
-        _ = self;
-        if (predictions.len != targets.len) return std.math.inf(f32);
-
-        var loss: f32 = 0.0;
-        for (predictions, 0..) |pred, i| {
-            const clipped_pred = @max(@min(pred, 1.0 - 1e-7), 1e-7);
-            loss -= targets[i] * @log(clipped_pred);
-        }
-        return loss;
-    }
-
-    /// Binary cross-entropy loss
-    fn binaryCrossEntropy(self: *const ModelTrainer, predictions: []const f32, targets: []const f32) f32 {
-        _ = self;
-        if (predictions.len != targets.len) return std.math.inf(f32);
-
-        var loss: f32 = 0.0;
-        for (predictions, 0..) |pred, i| {
-            const clipped_pred = @max(@min(pred, 1.0 - 1e-7), 1e-7);
-            loss -= targets[i] * @log(clipped_pred) + (1.0 - targets[i]) * @log(1.0 - clipped_pred);
-        }
-        return loss / @as(f32, @floatFromInt(predictions.len));
-    }
-
-    /// Categorical cross-entropy loss
-    fn categoricalCrossEntropy(self: *const ModelTrainer, predictions: []const f32, targets: []const f32) f32 {
-        return self.crossEntropy(predictions, targets);
-    }
-
-    /// Huber loss
-    fn huberLoss(self: *const ModelTrainer, predictions: []const f32, targets: []const f32) f32 {
-        _ = self;
-        if (predictions.len != targets.len) return std.math.inf(f32);
-
-        const delta: f32 = 1.0;
-        var loss: f32 = 0.0;
-
-        for (predictions, 0..) |pred, i| {
-            const diff = @abs(pred - targets[i]);
-            if (diff <= delta) {
-                loss += 0.5 * diff * diff;
-            } else {
-                loss += delta * (diff - 0.5 * delta);
-            }
-        }
-        return loss / @as(f32, @floatFromInt(predictions.len));
-    }
-
-    /// Hinge loss
-    fn hingeLoss(self: *const ModelTrainer, predictions: []const f32, targets: []const f32) f32 {
-        _ = self;
-        if (predictions.len != targets.len) return std.math.inf(f32);
-
-        var loss: f32 = 0.0;
-        for (predictions, 0..) |pred, i| {
-            loss += @max(0.0, 1.0 - targets[i] * pred);
-        }
-        return loss / @as(f32, @floatFromInt(predictions.len));
-    }
-
-    /// Focal loss for handling class imbalance
-    fn focalLoss(self: *const ModelTrainer, predictions: []const f32, targets: []const f32) f32 {
-        _ = self;
-        if (predictions.len != targets.len) return std.math.inf(f32);
-
-        const alpha: f32 = 0.25;
-        const gamma: f32 = 2.0;
-        var loss: f32 = 0.0;
-
-        for (predictions, 0..) |pred, i| {
-            const clipped_pred = @max(@min(pred, 1.0 - 1e-7), 1e-7);
-            const pt = if (targets[i] == 1.0) clipped_pred else 1.0 - clipped_pred;
-            const alpha_t = if (targets[i] == 1.0) alpha else 1.0 - alpha;
-
-            loss -= alpha_t * std.math.pow(f32, 1.0 - pt, gamma) * @log(pt);
-        }
-
-        return loss / @as(f32, @floatFromInt(predictions.len));
-    }
-};
-
 // Re-export commonly used types with enhanced aliases
 pub const Network = NeuralNetwork;
 pub const Embedding = EmbeddingGenerator;
@@ -2077,10 +1526,10 @@ pub const DynamicRouter = @import("dynamic.zig");
 pub const DataStructures = @import("data_structures/mod.zig");
 pub const Activations = @import("activations/mod.zig");
 pub const Optimizers = @import("optimizers/mod.zig");
-pub const Trainer = ModelTrainer;
-pub const Config = TrainingConfig;
-pub const Metrics = TrainingMetrics;
-pub const Loss = LossFunction;
+pub const Trainer = training.ModelTrainer;
+pub const Config = training.Config;
+pub const Metrics = training.Metrics;
+pub const Loss = training.LossFunction;
 pub const Opt = Optimizer;
 pub const agent = @import("agent.zig");
 pub const enhanced_agent = @import("enhanced_agent.zig");
@@ -2089,6 +1538,75 @@ pub const distributed = @import("distributed/mod.zig");
 pub const distributed_training = distributed;
 pub const serialization = @import("serialization/mod.zig");
 pub const model_serialization = serialization;
+
+pub fn createModelHandle(model: *NeuralNetwork) training.ModelHandle {
+    return training.ModelHandle{
+        .context = model,
+        .ops = training.ModelOps{
+            .set_training = struct {
+                fn set(ctx: *anyopaque, is_training: bool) void {
+                    const typed: *NeuralNetwork = @ptrCast(@alignCast(ctx));
+                    typed.setTraining(is_training);
+                }
+            }.set,
+            .get_output_size = struct {
+                fn get(ctx: *anyopaque) usize {
+                    const typed: *NeuralNetwork = @ptrCast(@alignCast(ctx));
+                    return typed.getOutputSize();
+                }
+            }.get,
+            .forward = struct {
+                fn forward(ctx: *anyopaque, input: []const f32, output: []f32) anyerror!void {
+                    const typed: *NeuralNetwork = @ptrCast(@alignCast(ctx));
+                    try typed.forward(input, output);
+                }
+            }.forward,
+            .apply_gradients = struct {
+                fn apply(ctx: *anyopaque, optimizer: training.OptimizerHandle) anyerror!void {
+                    const typed: *NeuralNetwork = @ptrCast(@alignCast(ctx));
+                    for (typed.layers.items) |layer_ptr| {
+                        const layer = layer_ptr.*;
+                        if (layer.weights) |weights| {
+                            if (layer.weight_gradients) |grads| {
+                                if (grads.len == weights.len) {
+                                    try optimizer.ops.apply_gradients(optimizer.context, weights, grads);
+                                }
+                            }
+                        }
+                        if (layer.biases) |biases| {
+                            if (layer.bias_gradients) |grads| {
+                                if (grads.len == biases.len) {
+                                    try optimizer.ops.apply_gradients(optimizer.context, biases, grads);
+                                }
+                            }
+                        }
+                    }
+                }
+            }.apply,
+        },
+    };
+}
+
+pub fn createTrainer(
+    allocator: std.mem.Allocator,
+    model: *NeuralNetwork,
+    config_value: training.Config,
+    optimizer: Optimizer,
+    loss_function: training.LossFunction,
+) !*training.ModelTrainer {
+    _ = optimizer; // Specific optimizers will be wired through dedicated adapters.
+    var optimizer_handle = try optimizers.createStatelessHandle(allocator, config_value.optimizer);
+    errdefer optimizer_handle.deinit();
+
+    return try training.ModelTrainer.init(
+        allocator,
+        createModelHandle(model),
+        config_value,
+        loss_function,
+        optimizer_handle,
+        .{},
+    );
+}
 
 // Utility functions
 pub fn createMLP(allocator: std.mem.Allocator, layer_sizes: []const usize, activation_plan: []const Activation) !*NeuralNetwork {
@@ -2205,7 +1723,7 @@ test "Enhanced model trainer" {
     defer network.deinit();
 
     // Create training configuration
-    const config = TrainingConfig{
+    const config = Config{
         .batch_size = 2,
         .epochs = 5,
         .validation_split = 0.2,
@@ -2214,7 +1732,7 @@ test "Enhanced model trainer" {
     };
 
     // Create trainer
-    var trainer = try ModelTrainer.init(allocator, network, config, .adam, .categorical_cross_entropy);
+    var trainer = try createTrainer(allocator, network, config, .adam, Loss.categorical_cross_entropy);
     defer trainer.deinit();
 
     // Create dummy training data
