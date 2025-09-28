@@ -4,6 +4,7 @@ const common = @import("common.zig");
 const persona_manifest = abi.ai.persona_manifest;
 
 pub const command = common.Command{
+    .id = .chat,
     .name = "chat",
     .summary = "Interact with the ABI conversational agent",
     .usage = "abi chat [--persona <type>] [--backend <provider>] [--model <name>] [--persona-manifest <path>] [--profile <name>] [--interactive] [message]",
