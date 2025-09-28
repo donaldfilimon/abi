@@ -12,7 +12,8 @@
 //! - Memory-efficient span storage
 
 const std = @import("std");
-const root = @import("../../root.zig");
+// TODO: Fix module import for Zig 0.16
+// const root = @import("../../root.zig");
 const performance = @import("performance.zig");
 
 /// Tracing error types

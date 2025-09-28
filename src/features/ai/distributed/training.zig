@@ -565,10 +565,10 @@ test "parameter server synchronization" {
     var server = try ParameterServer.init(testing.allocator, 2);
     defer server.deinit();
 
-    const params = [_][]const f32{ &[_]f32{ 1.0, 2.0 }, &[_]f32{ 3.0 } };
+    const params = [_][]const f32{ &[_]f32{ 1.0, 2.0 }, &[_]f32{3.0} };
     try server.registerParameters(params[0..]);
 
-    const gradients = [_][]const f32{ &[_]f32{ 0.1, 0.2 }, &[_]f32{ 0.3 } };
+    const gradients = [_][]const f32{ &[_]f32{ 0.1, 0.2 }, &[_]f32{0.3} };
     try server.pushGradients(0, gradients[0..]);
     try server.applyGradients(0.01);
 
