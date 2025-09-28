@@ -22,7 +22,7 @@ pub const Environment = struct {
     /// Attempt to reinterpret the opaque context pointer as the requested type.
     pub fn contextAs(self: Environment, comptime T: type) ?*T {
         if (self.context) |ptr| {
-            return @as(*T, @ptrCast(@alignCast(@alignOf(T), ptr)));
+            return @as(*T, @ptrCast(ptr));
         }
         return null;
     }
@@ -73,7 +73,7 @@ pub const FeatureManager = struct {
         var index_by_name = std.StringHashMap(usize).init(allocator);
         errdefer index_by_name.deinit();
 
-        var states = try allocator.alloc(InitState, descriptors.len);
+        const states = try allocator.alloc(InitState, descriptors.len);
         errdefer allocator.free(states);
         @memset(states, InitState.dormant);
 
