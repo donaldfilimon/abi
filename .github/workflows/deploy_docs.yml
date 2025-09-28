@@ -39,31 +39,18 @@ jobs:
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.16.0-dev
+          version: 0.16.0-dev.393+dd4be26f5
 
-      - name: Cache Zig dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/zig
-            zig-cache
-          key: ${{ runner.os }}-zig-${{ hashFiles('build.zig.zon') }}
-          restore-keys: |
-            ${{ runner.os }}-zig-
+      - name: Build documentation
+        run: zig build docs --summary all
 
-      - name: Build project
-        run: zig build
-
-      - name: Generate documentation
-        run: zig run tools/docs_generator.zig
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
+      - name: Configure Pages
+        uses: actions/configure-pages@v4
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: './docs'
+          path: zig-out/docs
 
   # Deploy to GitHub Pages
   deploy:
@@ -76,4 +63,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2
+        uses: actions/deploy-pages@v4
