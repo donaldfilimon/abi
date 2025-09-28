@@ -78,9 +78,9 @@ pub const Lifecycle = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, options: Options) !Lifecycle {
-        var observers = std.ArrayList(Observer).init(allocator);
+        var observers = std.ArrayList(Observer){};
         if (options.reserve_observers > 0) {
-            try observers.ensureTotalCapacity(options.reserve_observers);
+            try observers.ensureTotalCapacity(allocator, options.reserve_observers);
         }
         return .{
             .allocator = allocator,
@@ -88,8 +88,8 @@ pub const Lifecycle = struct {
         };
     }
 
-    pub fn deinit(self: *Lifecycle) void {
-        self.observers.deinit();
+    pub fn deinit(self: *Lifecycle, allocator: std.mem.Allocator) void {
+        self.observers.deinit(allocator);
         self.* = undefined;
     }
 
@@ -97,8 +97,8 @@ pub const Lifecycle = struct {
         return self.stage;
     }
 
-    pub fn addObserver(self: *Lifecycle, observer: Observer) !void {
-        try self.observers.append(observer);
+    pub fn addObserver(self: *Lifecycle, allocator: std.mem.Allocator, observer: Observer) !void {
+        try self.observers.append(allocator, observer);
         std.sort.heap(Observer, self.observers.items, {}, observerLessThan);
     }
 
@@ -128,7 +128,8 @@ var lifecycle_test_calls: ?*std.ArrayList([]const u8) = null;
 
 fn recordLifecycleTestCall(value: []const u8) !void {
     const list = lifecycle_test_calls orelse unreachable;
-    try list.append(value);
+
+    try list.append(std.testing.allocator, value);
 }
 
 fn lifecycleTestFirstObserver(transition: Transition, context: *Lifecycle) anyerror!void {
@@ -157,7 +158,7 @@ const testing = std.testing;
 
 test "lifecycle enforces forward-only transitions" {
     var lifecycle = try Lifecycle.init(testing.allocator, .{});
-    defer lifecycle.deinit();
+    defer lifecycle.deinit(testing.allocator);
 
     try testing.expectEqual(Stage.cold, lifecycle.currentStage());
     try lifecycle.advance(.bootstrapping);
@@ -171,21 +172,21 @@ test "lifecycle enforces forward-only transitions" {
 
 test "lifecycle observers receive ordered callbacks" {
     var lifecycle = try Lifecycle.init(testing.allocator, .{ .reserve_observers = 2 });
-    defer lifecycle.deinit();
+    defer lifecycle.deinit(testing.allocator);
 
-    var calls = std.ArrayList([]const u8).init(testing.allocator);
-    defer calls.deinit();
+    var calls = std.ArrayList([]const u8){};
+    defer calls.deinit(testing.allocator);
 
     lifecycle_test_calls = &calls;
     defer lifecycle_test_calls = null;
 
-    try lifecycle.addObserver(.{
+    try lifecycle.addObserver(testing.allocator, .{
         .name = "first",
         .priority = 10,
         .callback = lifecycleTestFirstObserver,
     });
 
-    try lifecycle.addObserver(.{
+    try lifecycle.addObserver(testing.allocator, .{
         .name = "second",
         .priority = 0,
         .stages = StageMask{ .running = true, .shutting_down = true },

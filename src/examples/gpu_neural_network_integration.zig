@@ -66,7 +66,7 @@ pub const NeuralNetwork = struct {
         const nn = try allocator.create(NeuralNetwork);
         nn.* = .{
             .allocator = allocator,
-            .layers = std.ArrayList(*DenseLayer).init(allocator),
+            .layers = std.ArrayList(*DenseLayer){},
             .use_gpu = use_gpu,
         };
         return nn;
@@ -82,7 +82,7 @@ pub const NeuralNetwork = struct {
 
     pub fn addLayer(self: *NeuralNetwork, input_size: usize, output_size: usize) !void {
         const layer = try DenseLayer.init(self.allocator, input_size, output_size);
-        try self.layers.append(layer);
+        try self.layers.append(self.allocator, layer);
     }
 
     pub fn forward(self: *NeuralNetwork, input: []const f32, output: []f32) !void {

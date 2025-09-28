@@ -21,8 +21,7 @@ pub const database_sharding = @import("database_sharding.zig");
 pub const http = @import("http.zig");
 pub const cli = @import("cli.zig");
 
-// Legacy compatibility
-pub const mod = @import("mod.zig");
+// Legacy compatibility removed - circular import fixed
 
 test {
     std.testing.refAllDecls(@This());

@@ -114,7 +114,7 @@ inline fn loadVector(slice: []const f32) FloatVector {
 inline fn storeVector(vec: FloatVector, slice: []f32) void {
     std.debug.assert(slice.len >= SIMD_WIDTH);
     const arr = @as([SIMD_WIDTH]f32, vec);
-    std.mem.copy(f32, slice[0..SIMD_WIDTH], arr[0..]);
+    @memcpy(slice[0..SIMD_WIDTH], arr[0..]);
 }
 
 inline fn loadByteVector(slice: []const u8) ByteVector {
@@ -304,7 +304,7 @@ fn normalizeInternal(result: []f32, input: []const f32) bool {
     std.debug.assert(result.len == input.len);
     const magnitude_sq = dotProductInternal(input, input, .{});
     if (magnitude_sq == 0.0) {
-        std.mem.copy(f32, result, input);
+        @memcpy(result, input);
         return false;
     }
     const magnitude = std.math.sqrt(magnitude_sq);

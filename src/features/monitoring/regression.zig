@@ -209,7 +209,7 @@ pub const RegressionDetector = struct {
             .config = config,
             .baselines = std.StringHashMap(PerformanceBaseline).init(allocator),
             .metrics_history = std.StringHashMap(std.ArrayList(PerformanceMetric)).init(allocator),
-            .recent_alerts = std.ArrayList(RegressionAlert).init(allocator),
+            .recent_alerts = std.ArrayList(RegressionAlert){},
             .last_alert_time = std.StringHashMap(i64).init(allocator),
             .regression_callback = null,
         };
@@ -260,7 +260,7 @@ pub const RegressionDetector = struct {
         // Store metric in history
         const result = try self.metrics_history.getOrPut(metric.name);
         if (!result.found_existing) {
-            result.value_ptr.* = std.ArrayList(PerformanceMetric).init(self.allocator);
+            result.value_ptr.* = std.ArrayList(PerformanceMetric){};
         }
 
         try result.value_ptr.append(metric);

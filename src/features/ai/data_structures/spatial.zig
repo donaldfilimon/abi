@@ -393,7 +393,7 @@ pub const LSHForest = struct {
             const hash = self.hashPoint(point, table == &self.tables.items[0]);
             const gop = try table.getOrPut(hash);
             if (!gop.found_existing) {
-                gop.value_ptr.* = std.ArrayList([]f32).init(self.allocator);
+                gop.value_ptr.* = std.ArrayList([]f32){};
             }
             try gop.value_ptr.*.append(point_copy);
         }
@@ -401,8 +401,8 @@ pub const LSHForest = struct {
 
     /// Query approximate nearest neighbors
     pub fn query(self: *Self, query_point: []const f32, k: usize) !std.ArrayList([]f32) {
-        var candidates = std.ArrayList([]f32).init(self.allocator);
-        defer candidates.deinit();
+        var candidates = std.ArrayList([]f32){};
+        defer candidates.deinit(self.allocator);
 
         // Collect candidates from all tables
         for (self.tables.items) |*table| {
@@ -410,7 +410,7 @@ pub const LSHForest = struct {
             if (table.get(hash)) |bucket| {
                 for (bucket.items) |point| {
                     const copy = try self.allocator.dupe(f32, point);
-                    try candidates.append(copy);
+                    try candidates.append(self.allocator, copy);
                 }
             }
         }

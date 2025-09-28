@@ -406,7 +406,7 @@ test "Plugin path management" {
         for (discovered.items) |path| {
             std.testing.allocator.free(path);
         }
-        discovered.deinit();
+        discovered.deinit(std.testing.allocator);
     }
 
     // Should not crash and return a list (may be empty)

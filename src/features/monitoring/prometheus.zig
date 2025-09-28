@@ -234,8 +234,8 @@ pub const MetricsCollector = struct {
 
     /// Export metrics in Prometheus format
     pub fn exportPrometheusFormat(self: *Self, allocator: std.mem.Allocator) ![]const u8 {
-        var output = std.ArrayList(u8).init(allocator);
-        defer output.deinit();
+        var output = std.ArrayList(u8){};
+        defer output.deinit(allocator);
 
         var iter = self.metrics.iterator();
         while (iter.next()) |entry| {
@@ -263,7 +263,7 @@ pub const MetricsCollector = struct {
             try output.writer().print(" {d}\n\n", .{metric.value});
         }
 
-        return try output.toOwnedSlice();
+        return try output.toOwnedSlice(allocator);
     }
 };
 

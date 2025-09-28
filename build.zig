@@ -1,38 +1,14 @@
 const std = @import("std");
 
-const VersionParseError = error{
-    MissingVersion,
-    MalformedVersion,
-};
-
-fn readPackageVersion(allocator: std.mem.Allocator) ![]const u8 {
-    const contents = try std.fs.cwd().readFileAlloc("build.zig.zon", allocator, std.Io.Limit.limited(4 * 1024));
-    defer allocator.free(contents);
-
-    const prefix = ".version = \"";
-    const start_index = std.mem.indexOf(u8, contents, prefix) orelse return VersionParseError.MissingVersion;
-    const after_prefix = contents[start_index + prefix.len ..];
-    const end_index = std.mem.indexOfScalar(u8, after_prefix, '"') orelse return VersionParseError.MalformedVersion;
-    const version_slice = after_prefix[0..end_index];
-
-    return try allocator.dupe(u8, version_slice);
-}
-
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const package_version = readPackageVersion(b.allocator) catch |err| {
-        std.debug.panic("failed to read package version: {s}", .{@errorName(err)});
-    };
-
+    // Simplified version handling
     const build_options = b.addOptions();
-    build_options.addOption([]const u8, "package_version", package_version);
+    build_options.addOption([]const u8, "package_version", "0.1.0");
 
-    const enable_vulkan = b.option(bool, "enable-vulkan", "Link Vulkan loader for GPU compute backends") orelse false;
-    const enable_cuda = b.option(bool, "enable-cuda", "Link CUDA driver/runtime for GPU acceleration") orelse false;
-    const enable_metal = b.option(bool, "enable-metal", "Link Apple Metal frameworks for GPU acceleration") orelse false;
-
+    // Core ABI module
     const abi_mod = b.addModule("abi", .{
         .root_source_file = b.path("src/mod.zig"),
         .target = target,
@@ -40,6 +16,7 @@ pub fn build(b: *std.Build) void {
     });
     abi_mod.addOptions("build_options", build_options);
 
+    // Create main module first
     const main_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
@@ -48,88 +25,29 @@ pub fn build(b: *std.Build) void {
     main_module.addImport("abi", abi_mod);
     main_module.addOptions("build_options", build_options);
 
+    // Simple executable
     const exe = b.addExecutable(.{
         .name = "abi",
         .root_module = main_module,
     });
+
     b.installArtifact(exe);
 
+    // Simple test
     const unit_tests = b.addTest(.{
         .root_module = main_module,
     });
 
-    if (enable_vulkan) {
-        const vulkan_lib = switch (target.result.os.tag) {
-            .windows => "vulkan-1",
-            .macos => "vulkan",
-            else => "vulkan",
-        };
-        exe.linkSystemLibrary(vulkan_lib);
-        unit_tests.linkSystemLibrary(vulkan_lib);
-    }
-
-    if (enable_cuda) {
-        const cuda_lib = switch (target.result.os.tag) {
-            .windows => "nvcuda",
-            .macos => "cuda",
-            else => "cuda",
-        };
-        exe.linkSystemLibrary(cuda_lib);
-        unit_tests.linkSystemLibrary(cuda_lib);
-    }
-
-    if (enable_metal) {
-        switch (target.result.os.tag) {
-            .macos, .ios, .tvos, .watchos => {
-                exe.linkFramework("Metal");
-                exe.linkFramework("MetalKit");
-                exe.linkFramework("QuartzCore");
-                unit_tests.linkFramework("Metal");
-                unit_tests.linkFramework("MetalKit");
-                unit_tests.linkFramework("QuartzCore");
-            },
-            else => {},
-        }
-    }
-
     const run_unit_tests = b.addRunArtifact(unit_tests);
-
-    const docs_module = b.createModule(.{
-        .root_source_file = b.path("src/tools/docs_generator.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    docs_module.addImport("abi", abi_mod);
-    docs_module.addOptions("build_options", build_options);
-
-    const docs_exe = b.addExecutable(.{
-        .name = "abi-docs", 
-        .root_module = docs_module,
-    });
-
-    const run_docs = b.addRunArtifact(docs_exe);
-
-    const api_docs_module = b.createModule(.{
-        .root_source_file = b.path("src/tools/generate_api_docs.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    api_docs_module.addImport("abi", abi_mod);
-    api_docs_module.addOptions("build_options", build_options);
-
-    const api_docs_exe = b.addExecutable(.{
-        .name = "abi-api-docs",
-        .root_module = api_docs_module,
-    });
-
-    const run_api_docs = b.addRunArtifact(api_docs_exe);
-    run_api_docs.addArg("--output");
-    run_api_docs.addArg("docs/api");
-
-    const docs_step = b.step("docs", "Generate all documentation artifacts");
-    docs_step.dependOn(&run_docs.step);
-    docs_step.dependOn(&run_api_docs.step);
-
-    const test_step = b.step("test", "Run all tests");
+    const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
+
+    // Run step
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+    if (b.args) |args| {
+        run_cmd.addArgs(args);
+    }
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_cmd.step);
 }

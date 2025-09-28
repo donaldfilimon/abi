@@ -201,7 +201,7 @@ test "framework initialises with defaults" {
 test "framework respects custom feature selection" {
     var framework = try Framework.init(std.testing.allocator, .{
         .enabled_features = &.{ .gpu, .connectors },
-        .disabled_features = &.{ .connectors },
+        .disabled_features = &.{.connectors},
     });
     defer framework.deinit();
 
@@ -222,7 +222,7 @@ test "framework manages plugin search paths" {
     try std.testing.expectEqualStrings("./plugins", framework.registry.loader.plugin_paths.items[0]);
     try std.testing.expectEqualStrings("./more-plugins", framework.registry.loader.plugin_paths.items[1]);
 
-    try framework.setPluginPaths(&.{ "./fresh-plugins" });
+    try framework.setPluginPaths(&.{"./fresh-plugins"});
     try std.testing.expectEqual(@as(usize, 1), framework.pluginPathCount());
     try std.testing.expectEqualStrings("./fresh-plugins", framework.pluginPath(0));
     try std.testing.expectEqual(@as(usize, 1), framework.registry.loader.plugin_paths.items.len);
@@ -232,7 +232,7 @@ test "framework manages plugin search paths" {
 test "framework summary reports configured state" {
     var framework = try Framework.init(std.testing.allocator, .{
         .enable_gpu = true,
-        .plugin_paths = &.{ "./plugins" },
+        .plugin_paths = &.{"./plugins"},
     });
     defer framework.deinit();
 

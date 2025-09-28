@@ -218,8 +218,8 @@ pub const Model = struct {
 
     /// Serializes the model to JSON format for persistence
     pub fn toJson(self: Model, allocator: Allocator) ![]u8 {
-        var buffer = std.ArrayList(u8).init(allocator);
-        defer buffer.deinit();
+        var buffer = std.ArrayList(u8){};
+        defer buffer.deinit(allocator);
         try std.json.stringify(.{
             .weights = self.weights,
             .bias = self.bias,
@@ -227,7 +227,7 @@ pub const Model = struct {
             .training_loss = self.training_loss,
             .training_epochs = self.training_epochs,
         }, .{}, buffer.writer());
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 
     /// Deserializes a model from JSON format
