@@ -3893,7 +3893,7 @@ fn generateGitHubActionsWorkflow(allocator: std.mem.Allocator) !void {
         \\      - name: Setup Zig
         \\        uses: mlugg/setup-zig@v2
         \\        with:
-        \\          version: 0.16.0-dev.254+6dd0270a1
+        \\          version: 0.16.0-dev.427+86077fe6b
         \\
         \\      - name: Cache Zig dependencies
         \\        uses: actions/cache@v3
