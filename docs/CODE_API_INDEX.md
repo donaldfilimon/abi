@@ -1750,7 +1750,7 @@ pub const model_serialization = @import("model_serialization.zig");
 - fn `createMLP`
 
 ```zig
-pub fn createMLP(allocator: std.mem.Allocator, layer_sizes: []const usize, activations: []const Activation) !*NeuralNetwork {
+pub fn createMLP(allocator: std.mem.Allocator, layer_sizes: []const usize, activation_plan: []const Activation) !*NeuralNetwork {
 ```
 
 - fn `createCNN`
@@ -25906,3 +25906,41 @@ pub fn runComprehensiveTests(self: *Self) !void {
 pub fn main() !void {
 ```
 
+
+### shared/core/persona_manifest.zig
+
+- type `PersonaManifest`
+
+Runtime representation of a persona manifest loaded from JSON.
+
+```zig
+pub const PersonaManifest = struct {
+```
+
+- fn `loadFromFile`
+
+```zig
+pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) ManifestError!PersonaManifest {
+```
+
+- fn `findPersona`
+
+```zig
+pub fn findPersona(manifest: *const PersonaManifest, id: []const u8) ?PersonaDefinition {
+```
+
+### shared/core/profiles.zig
+
+- type `ProfileConfig`
+
+Predefined runtime profile configuration for dev/test/prod usage.
+
+```zig
+pub const ProfileConfig = struct {
+```
+
+- fn `resolve`
+
+```zig
+pub fn resolve(kind: ProfileKind) ProfileConfig {
+```

@@ -77,7 +77,7 @@ pub fn createStatelessOps(config: OptimizerConfig) struct {
     ops: OptimizerOps,
     context: StatelessContext,
 } {
-    var context = StatelessContext{
+    const context = StatelessContext{
         .learning_rate = config.learning_rate,
         .weight_decay = config.weight_decay,
     };

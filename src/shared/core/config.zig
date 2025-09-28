@@ -7,6 +7,9 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 const errors = @import("errors.zig");
+const persona_manifest = @import("persona_manifest.zig");
+const profiles = @import("profiles.zig");
+const metrics = @import("../observability/metrics.zig");
 
 const FrameworkError = errors.FrameworkError;
 
@@ -32,6 +35,8 @@ pub const FrameworkConfig = struct {
     log_level: std.log.Level = .info,
     log_file: ?[]const u8 = null,
     enable_structured_logging: bool = true,
+    profile: profiles.ProfileKind = .dev,
+    persona_manifest_path: []const u8 = "config/personas/default.json",
 
     // Performance
     enable_compression: bool = true,
@@ -105,6 +110,19 @@ pub const FrameworkConfig = struct {
         }
     }
 
+    pub fn resolveProfile(self: FrameworkConfig) profiles.ProfileConfig {
+        return profiles.resolve(self.profile);
+    }
+
+    pub fn loadPersonaManifest(self: FrameworkConfig, allocator: std.mem.Allocator) persona_manifest.ManifestError!persona_manifest.PersonaManifest {
+        return persona_manifest.loadFromFile(allocator, self.persona_manifest_path);
+    }
+
+    pub fn initMetricsRegistry(self: FrameworkConfig, allocator: std.mem.Allocator) metrics.MetricsRegistry {
+        _ = self;
+        return metrics.MetricsRegistry.init(allocator);
+    }
+
     /// Create a default configuration
     pub fn default() FrameworkConfig {
         return FrameworkConfig{};
@@ -125,6 +143,8 @@ pub const FrameworkConfig = struct {
             .max_plugins = 5,
             .log_level = .debug,
             .enable_structured_logging = false,
+            .profile = .test,
+            .persona_manifest_path = "config/personas/default.json",
             .enable_compression = false,
             .enable_caching = false,
             .cache_size_mb = 1,
@@ -160,6 +180,8 @@ pub const FrameworkConfig = struct {
             .log_level = .info,
             .log_file = "/var/log/abi/framework.log",
             .enable_structured_logging = true,
+            .profile = .prod,
+            .persona_manifest_path = "/etc/abi/personas.json",
             .enable_compression = true,
             .enable_caching = true,
             .cache_size_mb = 1024,
