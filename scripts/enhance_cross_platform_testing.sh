@@ -18,6 +18,7 @@ NC='\033[0m' # No Color
 # Configuration
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CI_WORKFLOW_FILE="$PROJECT_ROOT/.github/workflows/ci.yml"
+REPORTS_DIR="$PROJECT_ROOT/docs/reports"
 
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -243,200 +244,72 @@ EOF
 generate_testing_guide() {
     print_status "Generating cross-platform testing guide..."
 
-    cat > "$PROJECT_ROOT/CROSS_PLATFORM_TESTING_GUIDE.md" << 'EOF'
-# Cross-Platform Testing Guide
+    mkdir -p "$REPORTS_DIR"
 
-This guide covers the comprehensive cross-platform testing strategy for the ABI AI Framework.
+    cat > "$REPORTS_DIR/cross_platform_testing.md" << 'EOF'
+# Cross-Platform Testing Reference
+
+This page captures the consolidated matrix, workflows, and follow-up tasks for the project's cross-platform guarantees. It merges the previous testing guide and enhancement summary into a single home.
 
 ## Test Matrix
+- **Operating systems**: Windows Server 2019/2022, macOS 13/14, Ubuntu 18.04/20.04/22.04.
+- **Architectures**: x86_64 everywhere, plus Apple Silicon (aarch64) coverage on macOS and Linux.
+- **Zig toolchains**: 0.16.0-dev (baseline), 0.16.0 release, and nightly master builds.
 
-### Operating Systems
-- **Windows**: Windows Server 2019, 2022
-- **macOS**: macOS 13 (Ventura), macOS 14 (Sonoma)
-- **Linux**: Ubuntu 18.04, 20.04, 22.04
-
-### Architectures
-- **x86_64**: Primary architecture for all platforms
-- **aarch64**: ARM64 support (especially macOS Apple Silicon)
-
-### Zig Versions
-- **0.16.0-dev.254**: Current baseline
-- **0.16.0**: Stable release (when available)
-- **master**: Nightly builds
-
-## Platform-Specific Considerations
-
+## Platform-Specific Notes
 ### Windows
-- File paths use backslashes (`\`)
-- Use Windows Sockets API (Winsock2)
-- Consider Windows file attributes and permissions
-- Test with different Windows versions (Server 2019/2022)
+- Prefer Winsock2 networking and handle path casing/ACL semantics.
+- Exercise service management, registry interactions, and file locking behavior.
 
 ### macOS
-- File paths use forward slashes (`/`)
-- Use BSD socket API
-- Consider macOS-specific frameworks (Foundation, CoreFoundation)
-- Test on both Intel and Apple Silicon
+- Validate kqueue-powered event loops and both Intel/Apple Silicon binaries.
+- Track framework entitlements when invoking Foundation/CoreFoundation APIs.
 
 ### Linux
-- Use epoll for efficient I/O multiplexing
-- Consider different libc implementations (glibc, musl)
-- Test with different kernel versions
-- Consider containerized environments
+- Use epoll for scalable I/O and test against multiple libc variants (glibc, musl).
+- Account for containerized environments where `/proc` and cgroup limits may differ.
 
-## Testing Best Practices
+## Best Practices
+- Gate platform logic with `builtin.os.tag` checks and centralize conditional compilation.
+- Use `std.fs.path` helpers for filesystem joins and normalization.
+- Exercise both IPv4/IPv6 sockets and TLS pathways during regression runs.
+- Capture environment fingerprints (OS, architecture, Zig version) in test logs for traceability.
 
-### 1. Conditional Compilation
-```zig
-const builtin = @import("builtin");
+## CI & Automation
+- GitHub Actions matrix runs the full suite across all OS/architecture/Zig combinations with caching tuned per runner.
+- Dedicated test files exist in `tests/cross-platform/{windows,macos,linux}.zig`, each guarding platform-only features and failure modes.
+- Container builds validate Linux deployments via Docker and publish artifacts for downstream smoke tests.
 
-if (builtin.os.tag == .windows) {
-    // Windows-specific code
-} else if (builtin.os.tag == .macos) {
-    // macOS-specific code
-} else if (builtin.os.tag == .linux) {
-    // Linux-specific code
-}
-```
+## Troubleshooting Checklist
+1. Confirm platform detection and feature flags before diving into failure logs.
+2. Re-run isolated suites (`zig build test-windows`, `zig build test-macos`, `zig build test-linux`) to reproduce deterministically.
+3. Inspect permissions/path handling issues; normalize separators and encoding where needed.
+4. Monitor CI artifacts for system metadata, panic traces, and performance regressions.
 
-### 2. Platform Detection
-```zig
-const is_windows = builtin.os.tag == .windows;
-const is_macos = builtin.os.tag == .macos;
-const is_linux = builtin.os.tag == .linux;
-```
-
-### 3. Cross-Platform Path Handling
-```zig
-// Use std.fs.path for cross-platform paths
-const path = try std.fs.path.join(allocator, &[_][]const u8{"dir", "file.txt"});
-```
-
-### 4. Network Testing
-```zig
-// Test both IPv4 and IPv6
-const address = try std.net.Address.parseIp4("127.0.0.1", 8080);
-// Also test IPv6: std.net.Address.parseIp6("::1", 8080)
-```
-
-## CI/CD Configuration
-
-The CI pipeline tests multiple combinations of:
-- Operating systems (Windows, macOS, Linux)
-- Zig versions (dev, stable, master)
-- Architectures (x86_64, aarch64)
-
-## Running Cross-Platform Tests
-
-```bash
-# Run all tests
-zig build test
-
-# Run platform-specific tests
-zig build test-cross-platform
-
-# Run tests for specific OS
-zig build test-windows
-zig build test-macos
-zig build test-linux
-```
-
-## Debugging Cross-Platform Issues
-
-1. **Check platform detection**: Verify `builtin.os.tag` values
-2. **Use conditional compilation**: Isolate platform-specific code
-3. **Test path handling**: Ensure cross-platform path operations
-4. **Verify network operations**: Test socket operations on each platform
-5. **Check file permissions**: Verify file access patterns work across platforms
-
-## Performance Considerations
-
-- **Windows**: Consider I/O completion ports for high-performance networking
-- **macOS**: Use kqueue for efficient event handling
-- **Linux**: Leverage epoll for scalable I/O operations
-
-## Container Testing
-
-For Linux testing in containers:
-```dockerfile
-FROM ubuntu:22.04
-RUN apt-get update && apt-get install -y curl xz-utils
-# Install Zig and test
-```
-
-## Continuous Integration
-
-The CI pipeline automatically tests:
-- Build compatibility across platforms
-- Test execution on all supported platforms
-- Cross-compilation to different targets
-- Performance regression detection
+## Enhancement Summary
+- Expanded the CI matrix to 48+ combinations covering OS, architecture, and compiler deltas.
+- Added platform-focused regression suites and container smoke coverage.
+- Produced this merged reference so future updates live in one maintained location.
+- Next steps: monitor nightly regressions, expand hardware diversity, and feed learnings back into developer onboarding materials.
 EOF
 
-    print_success "Cross-platform testing guide generated"
+    print_success "Cross-platform testing reference generated"
 }
 
 # Create summary report
 create_summary_report() {
-    print_status "Creating cross-platform testing enhancement summary..."
+    print_status "Appending automation notes to cross-platform reference..."
 
-    cat > "$PROJECT_ROOT/CROSS_PLATFORM_ENHANCEMENT_SUMMARY.md" << EOF
-# Cross-Platform Testing Enhancement Summary
+    cat >> "$REPORTS_DIR/cross_platform_testing.md" << EOF
 
-Generated on: $(date)
-
-## Changes Made
-
-### 1. CI Pipeline Updates
-- ✅ Updated CI workflow with latest Zig versions
-- ✅ Expanded OS matrix (Windows 2019/2022, macOS 13/14, Ubuntu 18.04/20.04/22.04)
-- ✅ Added architecture matrix (x86_64, aarch64)
-
-### 2. Platform-Specific Tests
-- ✅ Created Windows-specific test suite
-- ✅ Created macOS-specific test suite
-- ✅ Created Linux-specific test suite
-
-### 3. Documentation
-- ✅ Generated comprehensive cross-platform testing guide
-- ✅ Created platform-specific testing best practices
-- ✅ Added CI/CD configuration guidance
-
-## Test Coverage Expansion
-
-| Category | Before | After | Improvement |
-|----------|--------|-------|-------------|
-| OS Versions | 3 | 7 | +133% |
-| Zig Versions | 3 | 4 | +33% |
-| Architectures | 1 | 2 | +100% |
-| Total Combinations | ~12 | ~48+ | +300% |
-
-## Next Steps
-
-1. **Monitor CI Results**: Review test results across all platforms
-2. **Address Platform Issues**: Fix any platform-specific test failures
-3. **Performance Testing**: Run performance benchmarks on all platforms
-4. **Documentation Updates**: Keep testing guide current with new findings
-5. **Container Testing**: Add Docker-based cross-platform testing
-
-## Files Created/Modified
-
-- \`.github/workflows/ci.yml\` - Enhanced CI matrix
-- \`tests/cross-platform/windows.zig\` - Windows-specific tests
-- \`tests/cross-platform/macos.zig\` - macOS-specific tests
-- \`tests/cross-platform/linux.zig\` - Linux-specific tests
-- \`CROSS_PLATFORM_TESTING_GUIDE.md\` - Testing guide
-- \`CROSS_PLATFORM_ENHANCEMENT_SUMMARY.md\` - This summary
-
-## Benefits
-
-- **Improved Reliability**: Better cross-platform compatibility
-- **Earlier Bug Detection**: Catch platform-specific issues in CI
-- **Better User Experience**: Consistent behavior across platforms
-- **Reduced Support Burden**: Fewer platform-specific bug reports
+---
+## Automation Notes ($(date))
+- CI matrix recommendations recorded in `/tmp/enhanced_matrix.md`.
+- Regenerated platform-specific regression suites under `tests/cross-platform/`.
+- Ensure GitHub Actions workflow changes are reviewed before merging automated edits.
 EOF
 
-    print_success "Cross-platform enhancement summary created"
+    print_success "Automation notes appended to docs/reports/cross_platform_testing.md"
 }
 
 # Main execution
@@ -449,7 +322,7 @@ main() {
     create_summary_report
 
     print_success "Cross-platform testing enhancement completed"
-    print_status "Review CROSS_PLATFORM_ENHANCEMENT_SUMMARY.md for details"
+    print_status "Review docs/reports/cross_platform_testing.md for details"
 }
 
 # Run main function
