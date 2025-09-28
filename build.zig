@@ -40,7 +40,7 @@ pub fn build(b: *std.Build) void {
         .name = "abi",
         .root_module = cli_module,
     });
-    exe.strip = optimize != .Debug;
+    exe.root_module.strip = optimize != .Debug;
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -77,7 +77,7 @@ pub fn build(b: *std.Build) void {
     fmt_step.dependOn(&fmt.step);
 
     const summary = b.step("summary", "Run docs, fmt, and tests");
-    summary.dependOn(&docs_step.step);
-    summary.dependOn(&fmt_step.step);
-    summary.dependOn(&test_step.step);
+    summary.dependOn(docs_step);
+    summary.dependOn(fmt_step);
+    summary.dependOn(test_step);
 }
