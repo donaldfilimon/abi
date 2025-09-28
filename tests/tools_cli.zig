@@ -48,10 +48,15 @@ test "router prints global help" {
 }
 
 test "registry finds commands" {
-    const cmds = registry.all();
-    try std.testing.expect(cmds.len > 0);
-    try std.testing.expect(registry.find("gpu") != null);
-    try std.testing.expect(registry.find("wdbx") != null);
+    const entries = registry.iter();
+    try std.testing.expect(entries.len == std.meta.fields(common.CommandId).len);
+
+    const reg = registry.global;
+    try std.testing.expect(reg.find("gpu") != null);
+    try std.testing.expect(reg.find("wdbx") != null);
+
+    const db_command = registry.byId(.db);
+    try std.testing.expectEqualStrings("db", db_command.name);
 }
 
 test "gpu command displays help" {

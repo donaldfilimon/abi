@@ -3,11 +3,25 @@ const std = @import("std");
 pub const CLI_NAME = "ABI Framework CLI";
 pub const CLI_VERSION = "0.1.0a";
 
+pub const CommandId = enum {
+    gpu,
+    db,
+    config,
+    neural,
+    simd,
+    plugin,
+    server,
+    weather,
+    llm,
+    chat,
+};
+
 pub const Context = struct {
     allocator: std.mem.Allocator,
 };
 
 pub const Command = struct {
+    id: CommandId,
     name: []const u8,
     aliases: []const []const u8 = &.{},
     summary: []const u8,

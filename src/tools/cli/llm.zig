@@ -6,6 +6,7 @@ const common = @import("common.zig");
 const ml = @import("ml_support.zig");
 
 pub const command = common.Command{
+    .id = .llm,
     .name = "llm",
     .summary = "Work with language model embeddings and training",
     .usage = "abi llm <embed|query|train> [flags]",

@@ -3,6 +3,7 @@ const plugins = @import("plugins");
 const common = @import("common.zig");
 
 pub const command = common.Command{
+    .id = .plugin,
     .name = "plugin",
     .summary = "Manage ABI plugin registry",
     .usage = "abi plugin <list|load|info|call> [args...]",
