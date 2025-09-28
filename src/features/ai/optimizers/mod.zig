@@ -8,7 +8,9 @@ pub const SchedulerType = config.SchedulerType;
 pub const SchedulerConfig = config.SchedulerConfig;
 pub const OptimizerConfig = config.OptimizerConfig;
 pub const OptimizerOps = config.OptimizerOps;
+pub const OptimizerHandle = config.OptimizerHandle;
 
+pub const createStatelessHandle = config.createStatelessHandle;
 pub const createStatelessOps = config.createStatelessOps;
 
 test {
