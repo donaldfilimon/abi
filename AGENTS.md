@@ -1,4 +1,4 @@
-# AGENTS.md – Comprehensive Code-Centric Refactor Playbook
+# AGENTS.md - Comprehensive Code-Centric Refactor Playbook
 
 Overview
 This document serves as a highly structured and code-oriented guide intended for all agents contributing to the ABI Repository. The playbook focuses on executing a comprehensive refactoring effort to align with Zig 0.16.0-dev.427+86077fe6b, ensuring reproducible, stable, and maintainable code practices. Each agent role has defined objectives and responsibilities to modernize the repository, enforce strong typing, and support a sustainable development lifecycle.
@@ -11,6 +11,33 @@ Implementing a high-performance, safe parsing subsystem.
 Establishing reproducible, cross-platform CI/CD pipelines.
 
 Following these guidelines will result in a fully modernized ABI repository with long-term maintainability and deterministic builds.
+
+## 0) Project Purpose & Scope (ABI Agent + WDBX)
+
+**What ABI is for:** A lightning-fast AI/ML stack in Zig that powers an ABI agent and a custom WDBX vector database. It targets GPU/WebGPU acceleration, SIMD-optimized kernels, and lock-free concurrency with a production-grade server and CLI surface. In short: low-latency inference and training orchestration with an embedded vector store, portable across Windows, macOS, and Linux.
+
+**Primary capabilities (purpose-critical):**
+- GPU acceleration (WebGPU backends plus CPU fallback), SIMD math, and zero-copy hot paths.
+- WDBX vector database for embeddings (custom file and record layout; high-throughput insert and search).
+- Agent runtime (CLI/TUI and server) with plugin and dynamic-loading hooks.
+- Cross-platform build on Zig 0.16-dev, emphasizing reliability and reproducibility.
+
+**Purpose-aware constraints for refactors:**
+- No performance regression on hot paths: core kernels, I/O pipelines, vector search, and the agent message loop.
+- Preserve WDBX on-disk layout and memory-layout assumptions (ABI and FFI expectations, alignment).
+- Maintain lock-free invariants (do not introduce contention through cleanups).
+- Keep GPU/WebGPU compatibility intact across supported platforms.
+
+**Module map (inferred):**
+- `agent/` (runtime and skills)
+- `wdbx/` (vector database)
+- `gpu/` (WebGPU and kernels)
+- `server/` (HTTP and TCP surfaces)
+- `cli/` (CLI and TUI)
+- `tools/` (analyzer and gates)
+- `build.zig` (top-level build orchestration)
+
+_Source: repo tagline and README excerpt referenced from the Zigistry GitHub mirror._
 
 ---
 
@@ -44,8 +71,8 @@ Objective: Transition all I/O operations toward an explicit and recoverable boun
 Core Responsibilities:
 Replace all direct stdout/stderr usage with injected writer objects.
 Enforce strict separation between:
-Human-readable logs → stderr
-Machine-readable outputs → stdout
+Human-readable logs -> stderr
+Machine-readable outputs -> stdout
 Use explicit formatting specifiers for all messages to avoid implicit conversions.
 Implement file I/O via adapter layers to facilitate error handling and safe recovery.
 Provide error-handling patterns for partial reads/writes and support graceful degradation.
@@ -114,6 +141,8 @@ Style and format enforcement integrated into CI checks.
 
 Lifecycle & Collaboration
 
+> **Acceptance Criteria:** All CI gates green, analyzer metrics at or better than targets; no public API diffs; no behavior changes in tests; zero shadowing and zero unused discards; canonical module order across the repository; no performance regression on purpose-critical paths (agent loop, WDBX operations, GPU kernels).
+
 Phased Delivery
 Refactor efforts are delivered in sequential phases:
 Build Agent
@@ -136,6 +165,42 @@ Documentation & Artifacts
 Keep README.md and CONTRIBUTING.md continuously updated.
 Ensure consistent logging, reproducible tests, and generated documentation.
 Maintain a clear artifacts directory for all CI outputs.
+
+### 5.5 Metrics Summary
+
+| Metric | Before | After (target) |
+|---|---:|---:|
+| Total lines | TBD | -15% |
+| Avg function length (LOC) | TBD | -10% to -25% |
+| Functions > 200 lines | TBD | 0 |
+| Avg cyclomatic complexity | TBD | <= configured threshold |
+| Max cyclomatic complexity | TBD | -30% to -50% |
+| Files violating 100-char rule | TBD | 0 |
+| Shadowing occurrences | TBD | 0 |
+| Unused discards (`var _`) | TBD | 0 |
+| Nested type depth > 3 | TBD | <= 3 |
+| **Inference latency P50/P99 (ms)** | TBD | <= baseline |
+| **Vector DB search throughput (qps)** | TBD | >= baseline |
+| **GPU kernel throughput (GB/s or it/s)** | TBD | >= baseline |
+
+*Note:* Keep this table updated as instrumentation improves. Ensure improvements do not sacrifice ABI and WDBX layout guarantees or hot-path performance.
+
+### 5.7 PR Template (Quality Sprint)
+
+**Checklist**
+- [ ] zig fmt --check passes
+- [ ] Analyzer clean vs `.code-quality-config.json`
+- [ ] No variable shadowing
+- [ ] No `var _ = ...` discards
+- [ ] Functions >200 lines split
+- [ ] Error handling explicit and consistent
+- [ ] Canonical file layout (imports -> consts -> types -> funcs -> tests)
+- [ ] Build.zig uses current APIs (modules, root modules, targets/opts)
+- [ ] WDBX on-disk/memory layouts unchanged
+- [ ] No perf regression on agent loop / vector search / GPU kernels (bench CI attached)
+
+**Testing**
+- Benchmarks: `zig build bench` (attach P50/P99 & throughput deltas)
 
 ---
 
