@@ -1,24 +1,33 @@
 const std = @import("std");
 
-const gpu_cfg = @import("config.zig");
+const config_mod = @import("config.zig");
 const buffers = @import("buffers.zig");
 const pipelines = @import("pipelines.zig");
 const backends = @import("backends.zig");
 const types = @import("types.zig");
 
 const gpu = std.gpu;
+const print = std.debug.print;
 
-const GPUConfig = gpu_cfg.GPUConfig;
-const Backend = gpu_cfg.Backend;
-const BufferUsage = gpu_cfg.BufferUsage;
-const GpuError = gpu_cfg.GpuError;
-const ShaderStage = gpu_cfg.ShaderStage;
-const TextureFormat = gpu_cfg.TextureFormat;
-const Color = gpu_cfg.Color;
-const GPUHandle = gpu_cfg.GPUHandle;
-const SPIRVCompiler = gpu_cfg.SPIRVCompiler;
-const MSLCompiler = gpu_cfg.MSLCompiler;
-const PTXCompiler = gpu_cfg.PTXCompiler;
+const GPUConfig = config_mod.GPUConfig;
+const Backend = config_mod.Backend;
+const BufferUsage = config_mod.BufferUsage;
+const GpuError = config_mod.GpuError;
+const ShaderStage = config_mod.ShaderStage;
+const TextureFormat = config_mod.TextureFormat;
+const Color = config_mod.Color;
+const GPUHandle = config_mod.GPUHandle;
+const SPIRVCompiler = config_mod.SPIRVCompiler;
+const SPIRVCompilerOptions = config_mod.SPIRVCompilerOptions;
+const MSLCompiler = config_mod.MSLCompiler;
+const MSLCompilerOptions = config_mod.MSLCompilerOptions;
+const PTXCompiler = config_mod.PTXCompiler;
+const PTXCompilerOptions = config_mod.PTXCompilerOptions;
+const MathUtils = config_mod.MathUtils;
+const DEFAULT_VECTOR_SIZE = config_mod.DEFAULT_VECTOR_SIZE;
+const DEFAULT_MATRIX_SIZE = config_mod.DEFAULT_MATRIX_SIZE;
+const DEFAULT_IMAGE_SIZE = config_mod.DEFAULT_IMAGE_SIZE;
+const MAX_VERIFICATION_SAMPLES = config_mod.MAX_VERIFICATION_SAMPLES;
 
 const BufferManager = buffers.BufferManager;
 const Buffer = buffers.Buffer;
