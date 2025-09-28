@@ -79,7 +79,7 @@ pub const platform = @import("shared/platform/mod.zig");
 pub const logging = @import("shared/logging/mod.zig");
 pub const simd = @import("shared/simd.zig");
 pub const VectorOps = simd.VectorOps;
-npub const root = @import("root.zig");
+pub const root = @import("root.zig");
 
 // =============================================================================
 // PUBLIC API
@@ -113,4 +113,3 @@ test {
 test "abi.version returns build package version" {
     try std.testing.expectEqualStrings(build_options.package_version, version());
 }
-

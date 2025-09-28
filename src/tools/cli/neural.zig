@@ -7,11 +7,10 @@ pub const command = common.Command{
     .name = "neural",
     .summary = "Train and inspect neural network models",
     .usage = "abi neural <train|predict|info|benchmark> [options]",
-    .details =
-    "  train      Train a neural model from CSV data\n" ++
-    "  predict    Run inference with a saved model\n" ++
-    "  info       Inspect saved model metadata\n" ++
-    "  benchmark  Execute neural benchmark\n",
+    .details = "  train      Train a neural model from CSV data\n" ++
+        "  predict    Run inference with a saved model\n" ++
+        "  info       Inspect saved model metadata\n" ++
+        "  benchmark  Execute neural benchmark\n",
     .run = run,
 };
 
@@ -169,7 +168,7 @@ fn runNeuralBenchmark(allocator: std.mem.Allocator, size: usize, iterations: usi
     for (input) |*val| {
         val.* = random.float(f32) * 2.0 - 1.0;
     }
-    target[0] = 0.0f32;
+    target[0] = f32(0.0);
 
     var timer = try std.time.Timer.start();
     var i: usize = 0;

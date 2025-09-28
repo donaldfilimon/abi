@@ -8,9 +8,8 @@ pub const command = common.Command{
     .name = "weather",
     .summary = "Ingest and query weather embeddings",
     .usage = "abi weather <ingest|query> [flags]",
-    .details =
-    "  ingest  Fetch weather data and store embedding\n" ++
-    "  query   Search nearest weather entries\n",
+    .details = "  ingest  Fetch weather data and store embedding\n" ++
+        "  query   Search nearest weather entries\n",
     .run = run,
 };
 

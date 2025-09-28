@@ -72,6 +72,7 @@ pub const ExperienceReplay = struct {
     };
 
     pub fn init(allocator: Allocator, capacity: usize) !ExperienceReplay {
+        _ = allocator;
         return ExperienceReplay{
             .capacity = capacity,
             .buffer = ArrayList(Experience){},
@@ -343,6 +344,7 @@ pub const PolicyGradient = struct {
         log_probs: ArrayList(f32),
 
         pub fn init(allocator: Allocator) Trajectory {
+            _ = allocator;
             return Trajectory{
                 .states = ArrayList([]f32){},
                 .actions = ArrayList(usize){},
@@ -363,6 +365,7 @@ pub const PolicyGradient = struct {
     };
 
     pub fn init(allocator: Allocator, policy_network: *anyopaque, learning_rate: f32, gamma: f32) !PolicyGradient {
+        _ = allocator;
         return PolicyGradient{
             .policy_network = policy_network,
             .learning_rate = learning_rate,

@@ -35,7 +35,7 @@ pub fn printGlobalHelp() !void {
 
     var buffer = std.ArrayList(u8).init(std.heap.page_allocator);
     defer buffer.deinit();
-    var writer = buffer.writer();
+    const writer = buffer.writer();
     try registry.formatSummary(writer);
     std.debug.print("{s}\n", .{buffer.items});
 

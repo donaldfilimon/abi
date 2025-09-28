@@ -5,11 +5,10 @@ pub const command = common.Command{
     .name = "server",
     .summary = "Manage the WDBX HTTP server",
     .usage = "abi server <start|stop|status|test> [flags]",
-    .details =
-    "  start   Launch the server with optional host/port\n" ++
-    "  stop    Stop the running server\n" ++
-    "  status  Display server status\n" ++
-    "  test    Run endpoint smoke test\n",
+    .details = "  start   Launch the server with optional host/port\n" ++
+        "  stop    Stop the running server\n" ++
+        "  status  Display server status\n" ++
+        "  test    Run endpoint smoke test\n",
     .run = run,
 };
 

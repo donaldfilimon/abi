@@ -6,11 +6,10 @@ pub const command = common.Command{
     .name = "chat",
     .summary = "Interact with the ABI conversational agent",
     .usage = "abi chat [--persona <type>] [--backend <provider>] [--model <name>] [--interactive] [message]",
-    .details =
-    "  --persona      Select persona (creative, analytical, helpful)\n" ++
-    "  --backend      Choose backend provider (openai, ollama)\n" ++
-    "  --model        Model identifier\n" ++
-    "  --interactive  Start interactive chat session\n",
+    .details = "  --persona      Select persona (creative, analytical, helpful)\n" ++
+        "  --backend      Choose backend provider (openai, ollama)\n" ++
+        "  --model        Model identifier\n" ++
+        "  --interactive  Start interactive chat session\n",
     .run = run,
 };
 
