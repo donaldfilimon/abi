@@ -15,6 +15,11 @@ on:
       - 'docs/**'
       - 'tools/docs_generator.zig'
   workflow_dispatch:
+    inputs:
+      zig-version:
+        description: 'Override the Zig toolchain version (e.g. master)'
+        required: false
+        default: '0.16.0-dev.427+86077fe6b'
 
 permissions:
   contents: read
@@ -30,6 +35,8 @@ jobs:
   # Build documentation
   build:
     runs-on: ubuntu-latest
+    env:
+      ZIG_VERSION: ${{ github.event.inputs['zig-version'] || '0.16.0-dev.427+86077fe6b' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -39,7 +46,7 @@ jobs:
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.16.0-dev.427+86077fe6b
+          version: ${{ env.ZIG_VERSION }}
 
       - name: Build project
         run: zig build --summary all
