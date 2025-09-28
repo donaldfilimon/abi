@@ -99,8 +99,8 @@ pub const JsonUtils = struct {
                 return JsonValue{ .array = items };
             },
             .object => |obj| {
-                var map = std.StringHashMap(JsonValue).init(allocator);
-                errdefer map.deinit();
+                var map = std.StringHashMap(JsonValue){};
+                errdefer map.deinit(allocator);
                 var it = obj.iterator();
                 while (it.next()) |entry| {
                     const key = try allocator.dupe(u8, entry.key_ptr.*);
@@ -205,18 +205,18 @@ test "JsonOps path access" {
     const allocator = std.testing.allocator;
 
     // Create a test object: {"user": {"name": "Alice", "age": 30}}
-    var obj = std.StringHashMap(JsonValue).init(allocator);
+    var obj = std.StringHashMap(JsonValue){};
     defer {
         var it = obj.iterator();
         while (it.next()) |entry| {
             allocator.free(entry.key_ptr.*);
             entry.value_ptr.deinit(allocator);
         }
-        obj.deinit();
+        obj.deinit(allocator);
     }
 
-    var user_obj = std.StringHashMap(JsonValue).init(allocator);
-    errdefer user_obj.deinit();
+    var user_obj = std.StringHashMap(JsonValue){};
+    errdefer user_obj.deinit(allocator);
 
     try user_obj.put(try allocator.dupe(u8, "name"), .{ .string = try allocator.dupe(u8, "Alice") });
     try user_obj.put(try allocator.dupe(u8, "age"), .{ .int = 30 });
