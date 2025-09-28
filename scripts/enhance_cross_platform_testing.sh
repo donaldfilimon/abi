@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
@@ -8,12 +8,18 @@ TEST_DIR="$PROJECT_ROOT/tests/cross-platform"
 MARKER_BEGIN="<!-- BEGIN: cross-platform-test-catalog -->"
 MARKER_END="<!-- END: cross-platform-test-catalog -->"
 
+MODE="update"
+if [[ ${1-} == "--check" ]]; then
+    MODE="check"
+    shift
+fi
+
 if [ ! -d "$TEST_DIR" ]; then
     echo "cross-platform test directory not found: $TEST_DIR" >&2
     exit 1
 fi
 
-python3 - "$PROJECT_ROOT" "$DOC_PATH" "$MARKER_BEGIN" "$MARKER_END" <<'PY'
+UPDATED_CONTENT=$(python3 - "$PROJECT_ROOT" "$DOC_PATH" "$MARKER_BEGIN" "$MARKER_END" <<'PY'
 import pathlib
 import re
 import sys
@@ -65,7 +71,23 @@ catalog = "\n".join(lines).strip()
 replacement = f"{marker_begin}\n\n{catalog}\n{marker_end}"
 
 updated = text[:start] + replacement + text[end + len(marker_end):]
-doc_path.write_text(updated)
+if not updated.endswith("\n"):
+    updated += "\n"
+sys.stdout.write(updated)
 PY
+)
 
-echo "Updated cross-platform test catalog in $DOC_PATH"
+if [[ $UPDATED_CONTENT != *$'\n' ]]; then
+    UPDATED_CONTENT+=$'\n'
+fi
+
+if [[ "$MODE" == "check" ]]; then
+    if ! diff -u --label "$DOC_PATH (expected)" --label "$DOC_PATH (actual)" <(printf '%s' "$UPDATED_CONTENT") "$DOC_PATH" >/dev/null; then
+        echo "cross-platform test catalog is stale" >&2
+        exit 1
+    fi
+    echo "Cross-platform test catalog is up to date."
+else
+    printf '%s' "$UPDATED_CONTENT" > "$DOC_PATH"
+    echo "Updated cross-platform test catalog in $DOC_PATH"
+fi
