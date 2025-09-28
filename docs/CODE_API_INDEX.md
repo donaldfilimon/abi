@@ -4214,6 +4214,56 @@ Example usage of the router.
 pub fn example() !void {
 ```
 
+## src\features\ai\persona_manifest.zig
+
+- const `ManifestError`
+
+Error set covering validation and parsing failures when loading persona manifests.
+
+```zig
+pub const ManifestError = error{
+```
+
+- type `RateLimits`
+
+Declarative rate limit configuration applied to personas.
+
+```zig
+pub const RateLimits = struct {
+```
+
+- type `PersonaProfile`
+
+Runtime persona definition loaded from JSON or TOML manifests.
+
+```zig
+pub const PersonaProfile = struct {
+```
+
+- type `EnvironmentProfile`
+
+Profile-level toggles for streaming, function calling, and log sinks.
+
+```zig
+pub const EnvironmentProfile = struct {
+```
+
+- type `PersonaManifest`
+
+Aggregates personas and environment profiles backed by an arena allocator.
+
+```zig
+pub const PersonaManifest = struct {
+```
+
+- fn `loadFromFile`
+
+Load a manifest from disk, supporting both JSON and TOML schemas.
+
+```zig
+pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) LoadError!PersonaManifest {
+```
+
 ## src\features\ai\enhanced_agent.zig
 
 - type `AgentState`
