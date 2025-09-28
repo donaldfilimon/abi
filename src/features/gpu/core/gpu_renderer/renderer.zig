@@ -1,24 +1,33 @@
 const std = @import("std");
 
-const config = @import("config.zig");
+const config_mod = @import("config.zig");
 const buffers = @import("buffers.zig");
 const pipelines = @import("pipelines.zig");
 const backends = @import("backends.zig");
 const types = @import("types.zig");
 
 const gpu = std.gpu;
+const print = std.debug.print;
 
-const GPUConfig = config.GPUConfig;
-const Backend = config.Backend;
-const BufferUsage = config.BufferUsage;
-const GpuError = config.GpuError;
-const ShaderStage = config.ShaderStage;
-const TextureFormat = config.TextureFormat;
-const Color = config.Color;
-const GPUHandle = config.GPUHandle;
-const SPIRVCompiler = config.SPIRVCompiler;
-const MSLCompiler = config.MSLCompiler;
-const PTXCompiler = config.PTXCompiler;
+const GPUConfig = config_mod.GPUConfig;
+const Backend = config_mod.Backend;
+const BufferUsage = config_mod.BufferUsage;
+const GpuError = config_mod.GpuError;
+const ShaderStage = config_mod.ShaderStage;
+const TextureFormat = config_mod.TextureFormat;
+const Color = config_mod.Color;
+const GPUHandle = config_mod.GPUHandle;
+const SPIRVCompiler = config_mod.SPIRVCompiler;
+const SPIRVCompilerOptions = config_mod.SPIRVCompilerOptions;
+const MSLCompiler = config_mod.MSLCompiler;
+const MSLCompilerOptions = config_mod.MSLCompilerOptions;
+const PTXCompiler = config_mod.PTXCompiler;
+const PTXCompilerOptions = config_mod.PTXCompilerOptions;
+const MathUtils = config_mod.MathUtils;
+const DEFAULT_VECTOR_SIZE = config_mod.DEFAULT_VECTOR_SIZE;
+const DEFAULT_MATRIX_SIZE = config_mod.DEFAULT_MATRIX_SIZE;
+const DEFAULT_IMAGE_SIZE = config_mod.DEFAULT_IMAGE_SIZE;
+const MAX_VERIFICATION_SAMPLES = config_mod.MAX_VERIFICATION_SAMPLES;
 
 const BufferManager = buffers.BufferManager;
 const Buffer = buffers.Buffer;
@@ -237,7 +246,6 @@ pub const GPURenderer = struct {
     fn initCUDA(self: *Self) !void {
         try self.initBackend(.cuda);
     }
-
 
     fn initSPIRVCompiler(self: *Self, target_backend: Backend) !void {
         // Initialize Zig's SPIR-V compilation pipeline
