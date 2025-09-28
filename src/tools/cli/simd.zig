@@ -3,6 +3,7 @@ const abi = @import("abi");
 const common = @import("common.zig");
 
 pub const command = common.Command{
+    .id = .simd,
     .name = "simd",
     .summary = "CPU SIMD utilities and benchmarks",
     .usage = "abi simd <info|benchmark|dot|matrix> [options]",

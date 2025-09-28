@@ -4,6 +4,7 @@ const common = @import("common.zig");
 const ml = @import("ml_support.zig");
 
 pub const command = common.Command{
+    .id = .neural,
     .name = "neural",
     .summary = "Train and inspect neural network models",
     .usage = "abi neural <train|predict|info|benchmark> [options]",

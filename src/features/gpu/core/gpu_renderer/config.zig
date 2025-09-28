@@ -808,3 +808,48 @@ pub const MathUtils = struct {
         return @abs(a - b) < EPSILON;
     }
 };
+
+test "buffer usage helpers report readability and writability" {
+    const usage = BufferUsage{
+        .copy_src = true,
+        .map_write = true,
+    };
+    try std.testing.expect(usage.isReadable());
+    try std.testing.expect(usage.isWritable());
+}
+
+test "texture format metadata is exposed" {
+    try std.testing.expectEqual(@as(u32, 4), TextureFormat.rgba8_unorm.getBytesPerPixel());
+    try std.testing.expectEqualStrings("DirectX 12", Backend.dx12.toString());
+}
+
+test "color helpers support lerp and packing" {
+    const a = Color.fromRGB(1.0, 0.0, 0.0);
+    const b = Color.fromRGB(0.0, 0.0, 1.0);
+    const mid = Color.lerp(a, b, 0.5);
+    try std.testing.expect(MathUtils.approxEqual(mid.r, 0.5));
+    try std.testing.expect(MathUtils.approxEqual(mid.b, 0.5));
+    try std.testing.expect(mid.toPackedRGBA() != 0);
+}
+
+test "math utils implement vector and matrix operations" {
+    const testing = std.testing;
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var lhs = [_]f32{ 1, 2, 3, 4 };
+    var rhs = [_]f32{ 5, 6, 7, 8 };
+    var result = [_]f32{ 0, 0, 0, 0 };
+    MathUtils.vectorAdd(f32, &lhs, &rhs, &result);
+    try testing.expectEqualSlices(f32, &[_]f32{ 6, 8, 10, 12 }, &result);
+
+    const mat_a = [_]f32{ 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+    const mat_b = [_]f32{ 9, 8, 7, 6, 5, 4, 3, 2, 1 };
+    var mat_result = try allocator.alloc(f32, mat_a.len);
+    defer allocator.free(mat_result);
+    MathUtils.matrixMultiply(f32, &mat_a, &mat_b, mat_result, 3);
+
+    try testing.expect(MathUtils.approxEqual(mat_result[0], 30.0));
+    try testing.expect(MathUtils.approxEqual(mat_result[4], 69.0));
+}
