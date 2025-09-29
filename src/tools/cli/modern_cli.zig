@@ -144,17 +144,17 @@ pub const ParsedArgs = struct {
     pub fn init(allocator: Allocator) ParsedArgs {
         return .{
             .allocator = allocator,
-            .command_path = std.ArrayList([]const u8).init(allocator),
+            .command_path = std.ArrayList([]const u8).empty,
             .options = std.StringHashMap(ParsedValue).init(allocator),
-            .arguments = std.ArrayList(ParsedValue).init(allocator),
+            .arguments = std.ArrayList(ParsedValue).empty,
             .raw_args = &.{},
         };
     }
 
     pub fn deinit(self: *ParsedArgs) void {
-        self.command_path.deinit();
+        self.command_path.deinit(self.allocator);
         self.options.deinit();
-        self.arguments.deinit();
+        self.arguments.deinit(self.allocator);
     }
 
     /// Get option value by name
@@ -243,10 +243,23 @@ pub const Context = struct {
         return switch (self.color_mode) {
             .always => true,
             .never => false,
-            .auto => builtin.os.tag != .windows,
+            .auto => detectColorSupport(),
         };
     }
 };
+
+fn detectColorSupport() bool {
+    if (builtin.os.tag == .windows) {
+        const windows = std.os.windows;
+        const handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE);
+        if (handle == null or handle == windows.INVALID_HANDLE_VALUE) return false;
+        var mode: windows.DWORD = 0;
+        if (windows.kernel32.GetConsoleMode(handle, &mode) == 0) return false;
+        return (mode & windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0;
+    } else {
+        return std.posix.isatty(std.posix.STDOUT_FILENO);
+    }
+}
 
 /// CLI parser with comprehensive error handling
 pub const Parser = struct {
@@ -364,7 +377,6 @@ pub const Parser = struct {
 
                 const arg_def = cmd.arguments[positional_index];
                 const value = try self.parseValue(arg, arg_def.arg_type);
-                try parsed.arguments.append(parsed.allocator, value);
                 try parsed.arguments.append(parsed.allocator, value);
                 positional_index += 1;
             }
