@@ -2,9 +2,8 @@
 name: Deploy Jekyll with GitHub Pages dependencies preinstalled
 
 on:
-  # Runs on pushes targeting the default branch
   push:
-    branches: ["main"]
+    branches: [main, master]
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
@@ -21,7 +20,7 @@ concurrency:
 jobs:
   # Build job
   build:
-    runs-on: self.runner
+    runs-on: alienware
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,7 +39,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: self.runner
+    runs-on: alienware
     needs: build
     steps:
       - name: Deploy to GitHub Pages
