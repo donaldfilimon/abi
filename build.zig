@@ -187,6 +187,12 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(core_tests).step);
 
     addStandaloneTest(b, test_step, target, optimize, abi_mod, "src/tools/cli/modern_cli.zig");
+    addStandaloneTest(b, test_step, target, optimize, abi_mod, "src/tests/unit/test_ai.zig");
+    addStandaloneTest(b, test_step, target, optimize, abi_mod, "src/tests/unit/test_database_hnsw.zig");
+    addStandaloneTest(b, test_step, target, optimize, abi_mod, "src/tests/unit/test_gpu.zig");
+    addStandaloneTest(b, test_step, target, optimize, abi_mod, "src/tests/unit/test_logging.zig");
+    addStandaloneTest(b, test_step, target, optimize, abi_mod, "src/tests/unit/test_utils.zig");
+    addStandaloneTest(b, test_step, target, optimize, abi_mod, "src/tests/unit/test_plugin_connector_integration.zig");
 
     const perf_tests = b.addTest(.{
         .root_module = b.createModule(.{
