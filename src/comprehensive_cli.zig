@@ -1,648 +1,904 @@
 const std = @import("std");
-const modern_cli = @import("tools/cli/modern_cli.zig");
-const modern_server = @import("tools/http/modern_server.zig");
-const working_benchmark = @import("tools/benchmark/working_benchmark.zig");
+const abi = @import("abi");
 
-const Command = modern_cli.Command;
-const Context = modern_cli.Context;
-const Parser = modern_cli.Parser;
-const HelpFormatter = modern_cli.HelpFormatter;
-const ParsedArgs = modern_cli.ParsedArgs;
+const Framework = abi.framework.runtime.Framework;
+const FrameworkOptions = abi.framework.config.FrameworkOptions;
+const Feature = abi.framework.config.Feature;
+const Agent = abi.ai.agent.Agent;
+const AgentConfig = abi.ai.agent.AgentConfig;
+const db_helpers = abi.database.db_helpers.helpers;
 
-// Command handlers
-fn versionHandler(ctx: *Context, args: *ParsedArgs) anyerror!void {
-    _ = args;
-    std.debug.print("{s} v{s}\n", .{ ctx.program_name, ctx.version });
-    std.debug.print("Built with Zig {s}\n", .{@import("builtin").zig_version_string});
+pub const ExitCode = enum(u8) {
+    success = 0,
+    usage = 1,
+    config = 2,
+    runtime = 3,
+    io = 4,
+    backend_missing = 5,
+};
+
+pub const Channels = struct {
+    out: std.io.AnyWriter,
+    err: std.io.AnyWriter,
+};
+
+pub fn printJson(out: std.io.AnyWriter, comptime fmt: []const u8, args: anytype) !void {
+    try out.print(fmt, args);
+    try out.print("\n", .{});
 }
 
-fn serverHandler(ctx: *Context, args: *ParsedArgs) anyerror!void {
-    const port = @as(u16, @intCast(args.getInteger("port", 8080)));
-    const host = args.getString("host", "127.0.0.1");
-
-    std.debug.print("🚀 Starting ABI HTTP server...\n", .{});
-    std.debug.print("📡 Host: {s}:{d}\n", .{ host, port });
-
-    const config = modern_server.ServerConfig{
-        .host = host,
-        .port = port,
-        .enable_cors = true,
-        .enable_logging = true,
+pub const Logger = struct {
+    pub const Level = enum(u8) {
+        error = 1,
+        warn = 2,
+        info = 3,
+        debug = 4,
+        trace = 5,
     };
 
-    var server = try modern_server.HttpServer.init(ctx.allocator, config);
-    defer server.deinit();
+    level: Level,
+    writer: std.io.AnyWriter,
 
-    // Add AI-specific routes
-    try server.addRoute(.POST, "/api/v1/chat", chatApiHandler);
-    try server.addRoute(.POST, "/api/v1/embeddings", embeddingsApiHandler);
-    try server.addRoute(.POST, "/api/v1/completions", completionsApiHandler);
-    try server.addRoute(.GET, "/api/v1/models", modelsApiHandler);
-    try server.addRoute(.POST, "/api/v1/database/search", databaseSearchHandler);
-    try server.addRoute(.POST, "/api/v1/database/insert", databaseInsertHandler);
+    fn allows(self: Logger, target: Level) bool {
+        return @intFromEnum(target) <= @intFromEnum(self.level);
+    }
 
-    std.debug.print("🔗 Available endpoints:\n", .{});
-    std.debug.print("  POST /api/v1/chat          # Chat completion\n", .{});
-    std.debug.print("  POST /api/v1/embeddings    # Generate embeddings\n", .{});
-    std.debug.print("  POST /api/v1/completions   # Text completion\n", .{});
-    std.debug.print("  GET  /api/v1/models        # List available models\n", .{});
-    std.debug.print("  POST /api/v1/database/search # Vector search\n", .{});
-    std.debug.print("  POST /api/v1/database/insert # Insert vectors\n", .{});
-    std.debug.print("  GET  /health               # Health check\n", .{});
-    std.debug.print("  GET  /metrics              # Metrics\n", .{});
+    pub fn log(self: Logger, level: Level, comptime fmt: []const u8, args: anytype) !void {
+        if (!self.allows(level)) return;
+        try self.writer.print(fmt, args);
+    }
 
-    try server.start();
-}
+    pub fn info(self: Logger, comptime fmt: []const u8, args: anytype) !void {
+        try self.log(.info, fmt, args);
+    }
 
-fn chatHandler(ctx: *Context, args: *ParsedArgs) anyerror!void {
-    _ = ctx;
-    const interactive = args.hasFlag("interactive");
-    const model = args.getString("model", "abi-default");
+    pub fn warn(self: Logger, comptime fmt: []const u8, args: anytype) !void {
+        try self.log(.warn, fmt, args);
+    }
 
-    std.debug.print("💬 ABI Chat Interface\n", .{});
-    std.debug.print("Model: {s}\n", .{model});
+    pub fn err(self: Logger, comptime fmt: []const u8, args: anytype) !void {
+        try self.log(.error, fmt, args);
+    }
+};
 
-    if (interactive) {
-        std.debug.print("🔄 Interactive mode (type 'exit' to quit)\n\n", .{});
+const SessionDatabase = struct {
+    allocator: std.mem.Allocator,
+    dim: ?usize = null,
+    next_id: u64 = 1,
+    entries: std.ArrayList(VectorEntry),
 
-        // Simulate interactive chat
-        const messages = [_][]const u8{
-            "User: Hello, what can you do?",
-            "ABI: I'm ABI, your AI assistant. I can help with AI/ML tasks, code generation, data analysis, vector search, and more!",
-            "User: How do I use the vector database?",
-            "ABI: You can use the vector database through the REST API endpoints like /api/v1/database/search and /api/v1/database/insert, or through the CLI commands.",
-            "User: Show me an example",
-            "ABI: Sure! Try: `abi database insert --vector \"[1,2,3,4]\" --metadata '{\"id\": \"doc1\"}'`",
-            "User: exit",
-            "ABI: Goodbye! Have a great day!",
+    const VectorEntry = struct {
+        id: u64,
+        values: []f32,
+        metadata: []u8,
+    };
+
+    pub const SearchResult = struct {
+        id: u64,
+        distance: f32,
+    };
+
+    pub const Error = error{
+        Empty,
+        InvalidVector,
+        DimensionMismatch,
+        InvalidK,
+        OutOfMemory,
+    };
+
+    pub fn init(allocator: std.mem.Allocator) SessionDatabase {
+        return .{
+            .allocator = allocator,
+            .entries = std.ArrayList(VectorEntry).init(allocator),
         };
+    }
 
-        for (messages) |msg| {
-            std.debug.print("{s}\n", .{msg});
-            std.Thread.sleep(800 * std.time.ns_per_ms);
+    pub fn deinit(self: *SessionDatabase) void {
+        for (self.entries.items) |entry| {
+            self.allocator.free(entry.values);
+            self.allocator.free(entry.metadata);
         }
-    } else {
-        std.debug.print("🤖 Single message mode\n", .{});
-        const message = args.getString("message", "Hello");
-        std.debug.print("Input: {s}\n", .{message});
-        std.debug.print("ABI: I received your message: '{s}'. This is a demo response.\n", .{message});
-    }
-}
-
-fn benchmarkHandler(ctx: *Context, args: *ParsedArgs) anyerror!void {
-    const suite_type = args.getString("suite", "all");
-    const iterations = @as(u32, @intCast(args.getInteger("iterations", 1000)));
-
-    std.debug.print("⚡ ABI Performance Benchmark Suite\n", .{});
-    std.debug.print("Suite: {s}, Iterations: {d}\n\n", .{ suite_type, iterations });
-
-    var suite = working_benchmark.BenchmarkSuite.init(ctx.allocator);
-    defer suite.deinit();
-
-    if (std.mem.eql(u8, suite_type, "all") or std.mem.eql(u8, suite_type, "cpu")) {
-        std.debug.print("🧮 CPU Performance Tests:\n", .{});
-        try suite.benchmark("Vector Addition 10K", vectorAdd10K, .{});
-        try suite.benchmark("Vector Addition 100K", vectorAdd100K, .{});
-        try suite.benchmark("Vector Dot Product 10K", vectorDot10K, .{});
+        self.entries.deinit();
     }
 
-    if (std.mem.eql(u8, suite_type, "all") or std.mem.eql(u8, suite_type, "memory")) {
-        std.debug.print("🧠 Memory Performance Tests:\n", .{});
-        try suite.benchmarkFallible("ArrayList Operations", arrayListBench, .{ ctx.allocator, iterations });
-        try suite.benchmarkFallible("HashMap Operations", hashMapBench, .{ ctx.allocator, iterations });
-    }
-
-    if (std.mem.eql(u8, suite_type, "all") or std.mem.eql(u8, suite_type, "ai")) {
-        std.debug.print("🤖 AI/ML Performance Tests:\n", .{});
-        try suite.benchmark("Matrix Multiply 128x128", matrixMultiply128, .{});
-        try suite.benchmark("Neural Network Forward Pass", neuralForwardPass, .{});
-        try suite.benchmark("Embedding Distance Calculation", embeddingDistance, .{});
-    }
-
-    suite.printResults();
-
-    std.debug.print("\n📊 Benchmark Analysis:\n", .{});
-    std.debug.print("• Vector operations leverage SIMD optimizations\n", .{});
-    std.debug.print("• Memory allocations scale efficiently with dataset size\n", .{});
-    std.debug.print("• AI workloads show optimal performance characteristics\n", .{});
-}
-
-fn databaseHandler(ctx: *Context, args: *ParsedArgs) anyerror!void {
-    _ = ctx;
-    const operation = args.getString("operation", "status");
-
-    std.debug.print("🗄️  ABI Vector Database\n", .{});
-    std.debug.print("Operation: {s}\n", .{operation});
-
-    if (std.mem.eql(u8, operation, "status")) {
-        std.debug.print("\n📊 Database Status:\n", .{});
-        std.debug.print("  Status: Online\n", .{});
-        std.debug.print("  Documents: 1,234,567\n", .{});
-        std.debug.print("  Dimensions: 768\n", .{});
-        std.debug.print("  Index Type: HNSW\n", .{});
-        std.debug.print("  Memory Usage: 2.5 GB\n", .{});
-    } else if (std.mem.eql(u8, operation, "search")) {
-        const query = args.getString("query", "[0.1, 0.2, 0.3]");
-        const limit = args.getInteger("limit", 10);
-        std.debug.print("\n🔍 Vector Search:\n", .{});
-        std.debug.print("  Query: {s}\n", .{query});
-        std.debug.print("  Limit: {d}\n", .{limit});
-        std.debug.print("  Results:\n", .{});
-
-        // Simulate search results
-        var i: i64 = 0;
-        while (i < limit and i < 5) : (i += 1) {
-            const score = 0.95 - (@as(f64, @floatFromInt(i)) * 0.1);
-            std.debug.print("    {d}: doc_{d} (score: {d:.3})\n", .{ i + 1, 1000 + i, score });
+    pub fn insert(self: *SessionDatabase, vector: []const f32, metadata: ?[]const u8) Error!u64 {
+        if (vector.len == 0) return Error.InvalidVector;
+        if (self.dim) |dim| {
+            if (vector.len != dim) return Error.DimensionMismatch;
+        } else {
+            self.dim = vector.len;
         }
-    } else if (std.mem.eql(u8, operation, "insert")) {
-        const vector = args.getString("vector", "[0.1, 0.2, 0.3]");
-        const metadata = args.getString("metadata", "{}");
-        std.debug.print("\n📝 Vector Insert:\n", .{});
-        std.debug.print("  Vector: {s}\n", .{vector});
-        std.debug.print("  Metadata: {s}\n", .{metadata});
-        std.debug.print("  ✅ Inserted successfully with ID: vec_12345\n", .{});
-    }
-}
 
-// API handlers for HTTP server
-fn chatApiHandler(request: *modern_server.Request, response: *modern_server.Response) anyerror!void {
-    _ = request;
+        const stored = try self.allocator.dupe(f32, vector);
+        errdefer self.allocator.free(stored);
 
-    const chat_response = .{
-        .id = "chat_123",
-        .model = "abi-default",
-        .choices = .{
-            .{
-                .message = .{
-                    .role = "assistant",
-                    .content = "Hello! I'm ABI, your AI assistant. How can I help you today?",
-                },
-                .finish_reason = "stop",
-            },
-        },
-        .usage = .{
-            .prompt_tokens = 10,
-            .completion_tokens = 15,
-            .total_tokens = 25,
-        },
-    };
+        var stored_meta: []u8 = &[_]u8{};
+        if (metadata) |meta| {
+            stored_meta = try self.allocator.dupe(u8, meta);
+        }
 
-    _ = try response.json(chat_response);
-}
-
-fn embeddingsApiHandler(request: *modern_server.Request, response: *modern_server.Response) anyerror!void {
-    _ = request;
-
-    const embeddings_response = .{
-        .object = "list",
-        .model = "abi-embeddings",
-        .data = .{
-            .{
-                .object = "embedding",
-                .index = 0,
-                .embedding = &[_]f32{ 0.1, 0.2, 0.3, 0.4, 0.5 },
-            },
-        },
-        .usage = .{
-            .prompt_tokens = 5,
-            .total_tokens = 5,
-        },
-    };
-
-    _ = try response.json(embeddings_response);
-}
-
-fn completionsApiHandler(request: *modern_server.Request, response: *modern_server.Response) anyerror!void {
-    _ = request;
-
-    const completion_response = .{
-        .id = "cmpl_123",
-        .model = "abi-default",
-        .choices = .{
-            .{
-                .text = "This is a completion from ABI.",
-                .index = 0,
-                .finish_reason = "stop",
-            },
-        },
-        .usage = .{
-            .prompt_tokens = 8,
-            .completion_tokens = 7,
-            .total_tokens = 15,
-        },
-    };
-
-    _ = try response.json(completion_response);
-}
-
-fn modelsApiHandler(request: *modern_server.Request, response: *modern_server.Response) anyerror!void {
-    _ = request;
-
-    const models_response = .{
-        .object = "list",
-        .data = .{
-            .{
-                .id = "abi-default",
-                .object = "model",
-                .created = 1699000000,
-                .owned_by = "abi",
-            },
-            .{
-                .id = "abi-embeddings",
-                .object = "model",
-                .created = 1699000000,
-                .owned_by = "abi",
-            },
-        },
-    };
-
-    _ = try response.json(models_response);
-}
-
-fn databaseSearchHandler(request: *modern_server.Request, response: *modern_server.Response) anyerror!void {
-    _ = request;
-
-    const search_response = .{
-        .results = .{
-            .{
-                .id = "doc_1",
-                .score = 0.95,
-                .metadata = .{ .title = "Document 1" },
-            },
-            .{
-                .id = "doc_2",
-                .score = 0.89,
-                .metadata = .{ .title = "Document 2" },
-            },
-        },
-        .query_time_ms = 12,
-        .total_results = 2,
-    };
-
-    _ = try response.json(search_response);
-}
-
-fn databaseInsertHandler(request: *modern_server.Request, response: *modern_server.Response) anyerror!void {
-    _ = request;
-
-    const insert_response = .{
-        .id = "vec_12345",
-        .status = "inserted",
-        .timestamp = std.time.timestamp(),
-    };
-
-    _ = try response.json(insert_response);
-}
-
-// Benchmark functions
-fn vectorAdd10K() u64 {
-    var sum: f32 = 0;
-    for (0..10000) |i| {
-        sum += @as(f32, @floatFromInt(i));
-    }
-    return 10000;
-}
-
-fn vectorAdd100K() u64 {
-    var sum: f32 = 0;
-    for (0..100000) |i| {
-        sum += @as(f32, @floatFromInt(i));
-    }
-    return 100000;
-}
-
-fn vectorDot10K() u64 {
-    var result: f32 = 0;
-    for (0..10000) |i| {
-        const a = @as(f32, @floatFromInt(i));
-        const b = @as(f32, @floatFromInt(i + 1));
-        result += a * b;
-    }
-    return 10000;
-}
-
-fn arrayListBench(allocator: std.mem.Allocator, size: u32) !u64 {
-    var list = std.ArrayList(u32){};
-    defer list.deinit(allocator);
-
-    var i: u32 = 0;
-    while (i < size) : (i += 1) {
-        try list.append(allocator, i);
+        const id = self.next_id;
+        self.next_id += 1;
+        try self.entries.append(.{ .id = id, .values = stored, .metadata = stored_meta });
+        return id;
     }
 
-    return size;
-}
-
-fn hashMapBench(allocator: std.mem.Allocator, size: u32) !u64 {
-    var map = std.HashMap(u32, u32, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator);
-    defer map.deinit();
-
-    var i: u32 = 0;
-    while (i < size) : (i += 1) {
-        try map.put(i, i * 2);
+    pub fn count(self: *const SessionDatabase) usize {
+        return self.entries.items.len;
     }
 
-    return size;
-}
+    pub fn search(self: *SessionDatabase, query: []const f32, k: usize) Error![]SearchResult {
+        if (self.dim == null or self.entries.items.len == 0) return Error.Empty;
+        if (query.len == 0) return Error.InvalidVector;
+        if (query.len != self.dim.?) return Error.DimensionMismatch;
+        if (k == 0) return Error.InvalidK;
 
-fn matrixMultiply128() u64 {
-    const size = 128;
-    var result: f32 = 0;
+        var results = try std.ArrayList(SearchResult).initCapacity(self.allocator, self.entries.items.len);
+        defer results.deinit();
 
-    var i: usize = 0;
-    while (i < size) : (i += 1) {
-        var j: usize = 0;
-        while (j < size) : (j += 1) {
-            var k: usize = 0;
-            while (k < size) : (k += 1) {
-                const a = @as(f32, @floatFromInt(i + k));
-                const b = @as(f32, @floatFromInt(k + j));
-                result += a * b;
+        for (self.entries.items) |entry| {
+            var sum: f32 = 0.0;
+            var idx: usize = 0;
+            while (idx < query.len) : (idx += 1) {
+                const diff = query[idx] - entry.values[idx];
+                sum += diff * diff;
+            }
+            const dist = std.math.sqrt(sum);
+            try results.append(.{ .id = entry.id, .distance = dist });
+        }
+
+        std.sort.heap(SearchResult, results.items, {}, struct {
+            fn lessThan(_: void, a: SearchResult, b: SearchResult) bool {
+                if (a.distance == b.distance) return a.id < b.id;
+                return a.distance < b.distance;
+            }
+        }.lessThan);
+
+        const total = @min(results.items.len, k);
+        var owned = try self.allocator.alloc(SearchResult, total);
+        @memcpy(owned, results.items[0..total]);
+        return owned;
+    }
+};
+
+pub const Cli = struct {
+    allocator: std.mem.Allocator,
+    channels: Channels,
+    logger: Logger,
+    framework: Framework,
+    database: SessionDatabase,
+    json_mode: bool,
+
+    pub fn init(
+        allocator: std.mem.Allocator,
+        channels: Channels,
+        json_mode: bool,
+        log_level: Logger.Level,
+    ) !Cli {
+        var framework = try Framework.init(allocator, FrameworkOptions{});
+        return .{
+            .allocator = allocator,
+            .channels = channels,
+            .logger = Logger{ .level = log_level, .writer = channels.err },
+            .framework = framework,
+            .database = SessionDatabase.init(allocator),
+            .json_mode = json_mode,
+        };
+    }
+
+    pub fn deinit(self: *Cli) void {
+        self.database.deinit();
+        self.framework.deinit();
+    }
+
+    pub fn dispatch(self: *Cli, args: [][]const u8) !ExitCode {
+        if (args.len == 0) {
+            try self.printHelp();
+            return .usage;
+        }
+
+        const command = args[0];
+        const tail = args[1..];
+
+        if (std.mem.eql(u8, command, "help")) {
+            try self.printHelp();
+            return .success;
+        } else if (std.mem.eql(u8, command, "features")) {
+            return try self.handleFeatures(tail);
+        } else if (std.mem.eql(u8, command, "agent")) {
+            return try self.handleAgent(tail);
+        } else if (std.mem.eql(u8, command, "db")) {
+            return try self.handleDatabase(tail);
+        } else if (std.mem.eql(u8, command, "gpu")) {
+            return try self.handleGpu(tail);
+        }
+
+        try self.logger.err("Unknown command: {s}\n", .{command});
+        return .usage;
+    }
+
+    fn handleFeatures(self: *Cli, args: [][]const u8) !ExitCode {
+        if (args.len == 0 or isHelp(args)) {
+            try self.printFeaturesHelp();
+            return .success;
+        }
+
+        const sub = args[0];
+        const tail = args[1..];
+
+        if (std.mem.eql(u8, sub, "list")) {
+            if (tail.len != 0) {
+                try self.logger.err("features list does not accept extra arguments\n", .{});
+                return .usage;
+            }
+            try self.emitFeatureList();
+            return .success;
+        }
+
+        if (std.mem.eql(u8, sub, "enable")) {
+            return try self.toggleFeatures(tail, true);
+        }
+
+        if (std.mem.eql(u8, sub, "disable")) {
+            return try self.toggleFeatures(tail, false);
+        }
+
+        try self.logger.err("Unknown features subcommand: {s}\n", .{sub});
+        return .usage;
+    }
+
+    fn emitFeatureList(self: *Cli) !void {
+        if (self.json_mode) {
+            var buffer = std.ArrayList(u8).init(self.allocator);
+            defer buffer.deinit();
+
+            try buffer.appendSlice("{\"features\":{");
+            var first = true;
+            inline for (std.meta.fields(Feature)) |field| {
+                const feature = @as(Feature, @enumFromInt(field.value));
+                const enabled = self.framework.isFeatureEnabled(feature);
+                if (!first) try buffer.appendSlice(",");
+                first = false;
+                try buffer.writer().print("\"{s}\":{s}", .{ field.name, if (enabled) "true" else "false" });
+            }
+            try buffer.appendSlice("}}");
+            try printJson(self.channels.out, "{s}", .{buffer.items});
+        } else {
+            try self.logger.info("Enabled features ({d}):\n", .{self.framework.featureCount()});
+            inline for (std.meta.fields(Feature)) |field| {
+                const feature = @as(Feature, @enumFromInt(field.value));
+                const enabled = self.framework.isFeatureEnabled(feature);
+                try self.logger.info(
+                    "  - {s}: {s}\n",
+                    .{ field.name, if (enabled) "enabled" else "disabled" },
+                );
             }
         }
     }
 
-    return size * size * size;
-}
-
-fn neuralForwardPass() u64 {
-    const input_size = 784;
-    const hidden_size = 128;
-    const output_size = 10;
-
-    var operations: u64 = 0;
-
-    // Input to hidden layer
-    for (0..hidden_size) |h| {
-        var sum: f32 = 0;
-        for (0..input_size) |i| {
-            const weight = @as(f32, @floatFromInt(h + i)) / 1000.0;
-            const input = @as(f32, @floatFromInt(i)) / 255.0;
-            sum += weight * input;
-            operations += 1;
+    fn toggleFeatures(self: *Cli, args: [][]const u8, enabled: bool) !ExitCode {
+        if (args.len == 0) {
+            try self.logger.err("Specify at least one feature to toggle\n", .{});
+            return .usage;
         }
-        // ReLU activation
-        if (sum < 0) sum = 0;
+
+        var changed = std.ArrayList([]const u8).init(self.allocator);
+        defer changed.deinit();
+
+        for (args) |token| {
+            const feature = parseFeature(token) orelse {
+                try self.logger.err("Unknown feature: {s}\n", .{token});
+                return .usage;
+            };
+            const modified = if (enabled)
+                self.framework.enableFeature(feature)
+            else
+                self.framework.disableFeature(feature);
+            if (modified) try changed.append(token);
+        }
+
+        if (self.json_mode) {
+            var list_buffer = std.ArrayList(u8).init(self.allocator);
+            defer list_buffer.deinit();
+            try list_buffer.appendSlice("[");
+            for (changed.items, 0..) |name, idx| {
+                if (idx != 0) try list_buffer.appendSlice(",");
+                try list_buffer.writer().print("\"{s}\"", .{name});
+            }
+            try list_buffer.appendSlice("]");
+            try printJson(
+                self.channels.out,
+                "{\"status\":\"ok\",\"action\":\"{s}\",\"updated\":{s}}",
+                .{ if (enabled) "enable" else "disable", list_buffer.items },
+            );
+        } else {
+            const label = if (enabled) "enabled" else "disabled";
+            if (changed.items.len == 0) {
+                try self.logger.warn("No features were {s}\n", .{label});
+            } else {
+                const action_word = if (enabled) "Enabled" else "Disabled";
+                try self.logger.info("{s} {d} feature(s)\n", .{ action_word, changed.items.len });
+            }
+        }
+
+        return .success;
     }
 
-    // Hidden to output layer
-    for (0..output_size) |o| {
-        var sum: f32 = 0;
-        for (0..hidden_size) |h| {
-            const weight = @as(f32, @floatFromInt(o + h)) / 1000.0;
-            const hidden = @as(f32, @floatFromInt(h)) / 100.0;
-            sum += weight * hidden;
-            operations += 1;
+    fn handleAgent(self: *Cli, args: [][]const u8) !ExitCode {
+        if (args.len == 0 or isHelp(args)) {
+            try self.printAgentHelp();
+            return .success;
         }
+
+        if (!std.mem.eql(u8, args[0], "run")) {
+            try self.logger.err("Unknown agent subcommand: {s}\n", .{args[0]});
+            return .usage;
+        }
+
+        var name: []const u8 = "EchoAgent";
+        var message: ?[]const u8 = null;
+
+        var idx: usize = 1;
+        while (idx < args.len) : (idx += 1) {
+            const token = args[idx];
+            if (std.mem.eql(u8, token, "--name")) {
+                idx += 1;
+                if (idx >= args.len) {
+                    try self.logger.err("--name requires a value\n", .{});
+                    return .usage;
+                }
+                name = args[idx];
+            } else if (std.mem.eql(u8, token, "--message")) {
+                idx += 1;
+                if (idx >= args.len) {
+                    try self.logger.err("--message requires a value\n", .{});
+                    return .usage;
+                }
+                message = args[idx];
+            } else {
+                try self.logger.err("Unknown agent flag: {s}\n", .{token});
+                return .usage;
+            }
+        }
+
+        var agent = try Agent.init(self.allocator, AgentConfig{ .name = name });
+        defer agent.deinit();
+
+        const input = try self.readAgentInput(message);
+        defer self.allocator.free(@constCast(input));
+
+        const reply = try agent.process(input, self.allocator);
+        defer self.allocator.free(@constCast(reply));
+
+        if (self.json_mode) {
+            try printJson(self.channels.out, "{\"status\":\"ok\",\"reply\":\"{s}\"}", .{reply});
+        } else {
+            try self.logger.info("Agent {s} replied: {s}\n", .{ name, reply });
+        }
+
+        return .success;
     }
 
-    return operations;
-}
-
-fn embeddingDistance() u64 {
-    const embedding_size = 768;
-    const num_comparisons = 1000;
-
-    var operations: u64 = 0;
-
-    for (0..num_comparisons) |i| {
-        var distance: f32 = 0;
-        for (0..embedding_size) |j| {
-            const a = @as(f32, @floatFromInt(i + j)) / 1000.0;
-            const b = @as(f32, @floatFromInt(j)) / 1000.0;
-            const diff = a - b;
-            distance += diff * diff;
-            operations += 1;
+    fn readAgentInput(self: *Cli, explicit: ?[]const u8) ![]const u8 {
+        if (explicit) |value| {
+            return try self.allocator.dupe(u8, value);
         }
+
+        var reader = std.io.getStdIn().reader();
+        var buffer = std.ArrayList(u8).init(self.allocator);
+        errdefer buffer.deinit();
+
+        var temp: [256]u8 = undefined;
+        while (true) {
+            const read_bytes = try reader.read(&temp);
+            if (read_bytes == 0) break;
+            try buffer.appendSlice(temp[0..read_bytes]);
+        }
+
+        return try buffer.toOwnedSlice();
     }
 
-    return operations;
+    fn handleDatabase(self: *Cli, args: [][]const u8) !ExitCode {
+        if (args.len == 0 or isHelp(args)) {
+            try self.printDatabaseHelp();
+            return .success;
+        }
+
+        const sub = args[0];
+        const tail = args[1..];
+
+        if (std.mem.eql(u8, sub, "insert")) {
+            return try self.databaseInsert(tail);
+        }
+        if (std.mem.eql(u8, sub, "search")) {
+            return try self.databaseSearch(tail);
+        }
+
+        try self.logger.err("Unknown db subcommand: {s}\n", .{sub});
+        return .usage;
+    }
+
+    const VectorSource = union(enum) {
+        inline: []const u8,
+        file: []const u8,
+    };
+
+    fn databaseInsert(self: *Cli, args: [][]const u8) !ExitCode {
+        if (args.len == 0) {
+            try self.logger.err("db insert requires arguments\n", .{});
+            return .usage;
+        }
+
+        var source: ?VectorSource = null;
+        var metadata: ?[]const u8 = null;
+
+        var idx: usize = 0;
+        while (idx < args.len) : (idx += 1) {
+            const token = args[idx];
+            if (std.mem.eql(u8, token, "--vec")) {
+                idx += 1;
+                if (idx >= args.len) {
+                    try self.logger.err("--vec requires a value\n", .{});
+                    return .usage;
+                }
+                source = .{ .inline = args[idx] };
+            } else if (std.mem.eql(u8, token, "--vec-file")) {
+                idx += 1;
+                if (idx >= args.len) {
+                    try self.logger.err("--vec-file requires a path\n", .{});
+                    return .usage;
+                }
+                source = .{ .file = args[idx] };
+            } else if (std.mem.eql(u8, token, "--meta")) {
+                idx += 1;
+                if (idx >= args.len) {
+                    try self.logger.err("--meta requires a value\n", .{});
+                    return .usage;
+                }
+                metadata = args[idx];
+            } else {
+                try self.logger.err("Unknown db flag: {s}\n", .{token});
+                return .usage;
+            }
+        }
+
+        if (source == null) {
+            try self.logger.err("Provide a vector using --vec or --vec-file\n", .{});
+            return .usage;
+        }
+
+        const vector = try self.loadVector(source.?);
+        defer self.allocator.free(vector);
+
+        const id = self.database.insert(vector, metadata) catch |err| {
+            return switch (err) {
+                SessionDatabase.Error.DimensionMismatch => blk: {
+                    try self.logger.err("Vector dimension mismatch\n", .{});
+                    break :blk ExitCode.config;
+                },
+                SessionDatabase.Error.InvalidVector => blk: {
+                    try self.logger.err("Invalid vector payload\n", .{});
+                    break :blk ExitCode.usage;
+                },
+                SessionDatabase.Error.OutOfMemory => blk: {
+                    try self.logger.err("Out of memory handling vector\n", .{});
+                    break :blk ExitCode.runtime;
+                },
+                else => blk: {
+                    try self.logger.err("Database error\n", .{});
+                    break :blk ExitCode.runtime;
+                },
+            };
+        };
+
+        if (self.json_mode) {
+            try printJson(
+                self.channels.out,
+                "{\"status\":\"ok\",\"id\":{d},\"count\":{d}}",
+                .{ id, self.database.count() },
+            );
+        } else {
+            try self.logger.info("Inserted vector {d} (dim={d})\n", .{ id, vector.len });
+        }
+
+        return .success;
+    }
+
+    fn databaseSearch(self: *Cli, args: [][]const u8) !ExitCode {
+        if (args.len == 0) {
+            try self.logger.err("db search requires arguments\n", .{});
+            return .usage;
+        }
+
+        var source: ?VectorSource = null;
+        var k: usize = 5;
+
+        var idx: usize = 0;
+        while (idx < args.len) : (idx += 1) {
+            const token = args[idx];
+            if (std.mem.eql(u8, token, "--vec")) {
+                idx += 1;
+                if (idx >= args.len) {
+                    try self.logger.err("--vec requires a value\n", .{});
+                    return .usage;
+                }
+                source = .{ .inline = args[idx] };
+            } else if (std.mem.eql(u8, token, "--vec-file")) {
+                idx += 1;
+                if (idx >= args.len) {
+                    try self.logger.err("--vec-file requires a path\n", .{});
+                    return .usage;
+                }
+                source = .{ .file = args[idx] };
+            } else if (std.mem.eql(u8, token, "-k") or std.mem.eql(u8, token, "--k")) {
+                idx += 1;
+                if (idx >= args.len) {
+                    try self.logger.err("--k requires an integer\n", .{});
+                    return .usage;
+                }
+                k = std.fmt.parseUnsigned(usize, args[idx], 10) catch {
+                    try self.logger.err("Invalid value for k\n", .{});
+                    return .usage;
+                };
+            } else {
+                try self.logger.err("Unknown db flag: {s}\n", .{token});
+                return .usage;
+            }
+        }
+
+        if (source == null) {
+            try self.logger.err("Provide a vector using --vec or --vec-file\n", .{});
+            return .usage;
+        }
+
+        const vector = try self.loadVector(source.?);
+        defer self.allocator.free(vector);
+
+        const results = self.database.search(vector, k) catch |err| {
+            return switch (err) {
+                SessionDatabase.Error.Empty => blk: {
+                    try self.logger.err("Database has no vectors\n", .{});
+                    break :blk ExitCode.runtime;
+                },
+                SessionDatabase.Error.DimensionMismatch => blk: {
+                    try self.logger.err("Vector dimension mismatch\n", .{});
+                    break :blk ExitCode.config;
+                },
+                SessionDatabase.Error.InvalidVector, SessionDatabase.Error.InvalidK => blk: {
+                    try self.logger.err("Invalid search parameters\n", .{});
+                    break :blk ExitCode.usage;
+                },
+                SessionDatabase.Error.OutOfMemory => blk: {
+                    try self.logger.err("Out of memory processing search\n", .{});
+                    break :blk ExitCode.runtime;
+                },
+            };
+        };
+        defer self.allocator.free(results);
+
+        if (self.json_mode) {
+            var buffer = std.ArrayList(u8).init(self.allocator);
+            defer buffer.deinit();
+            try buffer.appendSlice("{\"results\":[");
+            for (results, 0..) |res, idx| {
+                if (idx != 0) try buffer.appendSlice(",");
+                try buffer.writer().print("{\"id\":{d},\"distance\":{d:.6}}", .{ res.id, res.distance });
+            }
+            try buffer.appendSlice("]}");
+            try printJson(self.channels.out, "{s}", .{buffer.items});
+        } else {
+            if (results.len == 0) {
+                try self.logger.warn("No neighbors found\n", .{});
+            } else {
+                try self.logger.info("Top {d} neighbors:\n", .{results.len});
+                for (results) |res| {
+                    try self.logger.info("  - id={d} distance={d:.4}\n", .{ res.id, res.distance });
+                }
+            }
+        }
+
+        return .success;
+    }
+
+    fn loadVector(self: *Cli, source: VectorSource) ![]f32 {
+        return switch (source) {
+            .inline => |text| blk: {
+                const trimmed = std.mem.trim(u8, text, "[] \t\r\n");
+                break :blk try db_helpers.parseVector(self.allocator, trimmed);
+            },
+            .file => |path| blk: {
+                const file = try std.fs.cwd().openFile(path, .{});
+                defer file.close();
+                const data = try file.readToEndAlloc(self.allocator, std.math.maxInt(usize));
+                defer self.allocator.free(data);
+                const trimmed = std.mem.trim(u8, data, "[] \t\r\n");
+                break :blk try db_helpers.parseVector(self.allocator, trimmed);
+            },
+        };
+    }
+
+    fn handleGpu(self: *Cli, args: [][]const u8) !ExitCode {
+        if (args.len == 0 or isHelp(args)) {
+            try self.printGpuHelp();
+            return .success;
+        }
+
+        if (!std.mem.eql(u8, args[0], "bench")) {
+            try self.logger.err("Unknown gpu subcommand: {s}\n", .{args[0]});
+            return .usage;
+        }
+
+        var size = MatSize{ .m = 32, .n = 32, .p = 32 };
+        var repeats: usize = 1;
+
+        var idx: usize = 1;
+        while (idx < args.len) : (idx += 1) {
+            const token = args[idx];
+            if (std.mem.eql(u8, token, "--size")) {
+                idx += 1;
+                if (idx >= args.len) {
+                    try self.logger.err("--size requires MxN or MxNxP\n", .{});
+                    return .usage;
+                }
+                size = parseMatSize(args[idx]) catch {
+                    try self.logger.err("Invalid --size value\n", .{});
+                    return .usage;
+                };
+            } else if (std.mem.eql(u8, token, "--repeats")) {
+                idx += 1;
+                if (idx >= args.len) {
+                    try self.logger.err("--repeats requires an integer\n", .{});
+                    return .usage;
+                }
+                repeats = std.fmt.parseUnsigned(usize, args[idx], 10) catch {
+                    try self.logger.err("Invalid repeats count\n", .{});
+                    return .usage;
+                };
+            } else {
+                try self.logger.err("Unknown gpu flag: {s}\n", .{token});
+                return .usage;
+            }
+        }
+
+        const stats = try runCpuBench(self.allocator, size, repeats);
+        defer self.allocator.free(stats.output);
+
+        if (self.json_mode) {
+            try printJson(
+                self.channels.out,
+                "{\"cpu_ms\":{d:.3},\"gpu\":\"unavailable\",\"size\":{\"m\":{d},\"n\":{d},\"p\":{d}}}",
+                .{ stats.cpu_ms, size.m, size.n, size.p },
+            );
+        } else {
+            try self.logger.info("CPU fallback completed in {d:.3} ms (repeats={d})\n", .{ stats.cpu_ms, repeats });
+            try self.logger.warn("GPU backend unavailable; used CPU fallback\n", .{});
+        }
+
+        return .success;
+    }
+
+    fn printHelp(self: *Cli) !void {
+        const message = "Usage: abi <command> [options]\n\nCommands:\n  features   list|enable|disable\n  agent      run\n  db         insert|search\n  gpu        bench\n";
+        try self.logger.info("{s}", .{message});
+    }
+
+    fn printFeaturesHelp(self: *Cli) !void {
+        const text = "features <list|enable|disable> [feature...]\nFeatures: ai, database, gpu, web, monitoring, connectors, simd\n";
+        try self.logger.info("{s}", .{text});
+    }
+
+    fn printAgentHelp(self: *Cli) !void {
+        const text = "agent run [--name <str>] [--message <str>]\nReads stdin when --message is omitted.\n";
+        try self.logger.info("{s}", .{text});
+    }
+
+    fn printDatabaseHelp(self: *Cli) !void {
+        const text =
+            "db insert --vec <comma-values>|--vec-file <path> [--meta <json>]\n" ++
+            "db search --vec <comma-values>|--vec-file <path> [-k <n>]\n";
+        try self.logger.info("{s}", .{text});
+    }
+
+    fn printGpuHelp(self: *Cli) !void {
+        const text = "gpu bench [--size MxN(xP)] [--repeats <n>]\n";
+        try self.logger.info("{s}", .{text});
+    }
+
+    const MatSize = struct {
+        m: usize,
+        n: usize,
+        p: usize,
+    };
+
+    const CpuBenchResult = struct {
+        cpu_ms: f64,
+        output: []f32,
+    };
+
+    fn parseMatSize(text: []const u8) !MatSize {
+        var parts = std.mem.splitScalar(u8, text, 'x');
+        var values: [3]usize = .{0, 0, 0};
+        var count: usize = 0;
+        while (parts.next()) |piece| {
+            if (count >= values.len) return error.InvalidSize;
+            values[count] = std.fmt.parseUnsigned(usize, piece, 10) catch return error.InvalidSize;
+            count += 1;
+        }
+        if (count < 2) return error.InvalidSize;
+        if (count == 2) values[2] = values[1];
+        return .{ .m = values[0], .n = values[1], .p = values[2] };
+    }
+
+    fn runCpuBench(allocator: std.mem.Allocator, size: MatSize, repeats: usize) !CpuBenchResult {
+        const total = size.m * size.p;
+        var output = try allocator.alloc(f32, total);
+        errdefer allocator.free(output);
+
+        var a = try allocator.alloc(f32, size.m * size.n);
+        defer allocator.free(a);
+        var b = try allocator.alloc(f32, size.n * size.p);
+        defer allocator.free(b);
+
+        for (a, 0..) |*item, idx| item.* = @floatFromInt((idx % 7) + 1);
+        for (b, 0..) |*item, idx| item.* = @floatFromInt((idx % 5) + 1);
+
+        const start = std.time.microTimestamp();
+        var repeat_idx: usize = 0;
+        while (repeat_idx < repeats) : (repeat_idx += 1) {
+            matmul(output, a, b, size.m, size.n, size.p);
+        }
+        const elapsed = std.time.microTimestamp() - start;
+        const ms = @as(f64, @floatFromInt(elapsed)) / 1000.0;
+
+        return .{ .cpu_ms = ms, .output = output };
+    }
+};
+
+fn matmul(out: []f32, a: []const f32, b: []const f32, m: usize, n: usize, p: usize) void {
+    var i: usize = 0;
+    while (i < m) : (i += 1) {
+        var k: usize = 0;
+        while (k < p) : (k += 1) {
+            var sum: f32 = 0.0;
+            var j: usize = 0;
+            while (j < n) : (j += 1) {
+                sum += a[i * n + j] * b[j * p + k];
+            }
+            out[i * p + k] = sum;
+        }
+    }
+}
+fn parseFeature(name: []const u8) ?Feature {
+    inline for (std.meta.fields(Feature)) |field| {
+        if (std.ascii.eqlIgnoreCase(name, field.name)) {
+            return @as(Feature, @enumFromInt(field.value));
+        }
+    }
+    return null;
 }
 
-// Command definitions
-const server_cmd = Command{
-    .name = "server",
-    .description = "Start the ABI HTTP server with REST API endpoints",
-    .handler = serverHandler,
-    .category = "Network",
-    .options = &.{
-        .{
-            .name = "port",
-            .long = "port",
-            .short = 'p',
-            .description = "Server port number",
-            .arg_type = .integer,
-            .default_value = "8080",
-        },
-        .{
-            .name = "host",
-            .long = "host",
-            .short = 'h',
-            .description = "Server host address",
-            .arg_type = .string,
-            .default_value = "127.0.0.1",
-        },
-    },
-    .examples = &.{
-        "abi server --port 3000",
-        "abi server --host 0.0.0.0 --port 8080",
-    },
-};
-
-const chat_cmd = Command{
-    .name = "chat",
-    .description = "Interactive chat with ABI AI assistant",
-    .handler = chatHandler,
-    .category = "AI",
-    .options = &.{
-        .{
-            .name = "interactive",
-            .long = "interactive",
-            .short = 'i',
-            .description = "Start interactive chat session",
-            .arg_type = .boolean,
-        },
-        .{
-            .name = "model",
-            .long = "model",
-            .short = 'm',
-            .description = "AI model to use",
-            .arg_type = .string,
-            .default_value = "abi-default",
-        },
-        .{
-            .name = "message",
-            .long = "message",
-            .description = "Single message to send",
-            .arg_type = .string,
-        },
-    },
-    .examples = &.{
-        "abi chat --interactive",
-        "abi chat --message \"Hello, how are you?\"",
-        "abi chat --model abi-large --interactive",
-    },
-};
-
-const benchmark_cmd = Command{
-    .name = "benchmark",
-    .description = "Run comprehensive performance benchmarks",
-    .handler = benchmarkHandler,
-    .category = "Performance",
-    .aliases = &.{"bench"},
-    .options = &.{
-        .{
-            .name = "suite",
-            .long = "suite",
-            .short = 's',
-            .description = "Benchmark suite to run (all, cpu, memory, ai)",
-            .arg_type = .string,
-            .default_value = "all",
-        },
-        .{
-            .name = "iterations",
-            .long = "iterations",
-            .short = 'n',
-            .description = "Number of iterations",
-            .arg_type = .integer,
-            .default_value = "1000",
-        },
-    },
-    .examples = &.{
-        "abi benchmark --suite cpu",
-        "abi benchmark --suite memory --iterations 5000",
-        "abi bench --suite ai",
-    },
-};
-
-const database_cmd = Command{
-    .name = "database",
-    .description = "Vector database operations and management",
-    .handler = databaseHandler,
-    .category = "Database",
-    .aliases = &.{"db"},
-    .options = &.{
-        .{
-            .name = "operation",
-            .long = "operation",
-            .short = 'o',
-            .description = "Database operation (status, search, insert)",
-            .arg_type = .string,
-            .default_value = "status",
-        },
-        .{
-            .name = "query",
-            .long = "query",
-            .short = 'q',
-            .description = "Query vector for search",
-            .arg_type = .string,
-        },
-        .{
-            .name = "vector",
-            .long = "vector",
-            .short = 'v',
-            .description = "Vector to insert",
-            .arg_type = .string,
-        },
-        .{
-            .name = "metadata",
-            .long = "metadata",
-            .description = "Metadata JSON for insert",
-            .arg_type = .string,
-        },
-        .{
-            .name = "limit",
-            .long = "limit",
-            .short = 'l',
-            .description = "Maximum results for search",
-            .arg_type = .integer,
-            .default_value = "10",
-        },
-    },
-    .examples = &.{
-        "abi database --operation status",
-        "abi db --operation search --query \"[0.1,0.2,0.3]\" --limit 5",
-        "abi database --operation insert --vector \"[1,2,3]\" --metadata '{\"id\":\"doc1\"}'",
-    },
-};
-
-const version_cmd = Command{
-    .name = "version",
-    .description = "Show version information",
-    .handler = versionHandler,
-    .aliases = &.{ "--version", "-V" },
-};
-
-// Root command
-const root_cmd = Command{
-    .name = "abi",
-    .description = "ABI - High-performance AI framework and vector database",
-    .subcommands = &.{ &server_cmd, &chat_cmd, &benchmark_cmd, &database_cmd, &version_cmd },
-};
+fn isHelp(args: [][]const u8) bool {
+    if (args.len == 0) return false;
+    return std.mem.eql(u8, args[0], "--help") or std.mem.eql(u8, args[0], "-h");
+}
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const raw_args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, raw_args);
 
-    var ctx = Context.init(allocator, &root_cmd);
-    ctx.program_name = "abi";
-    ctx.version = "1.0.0";
-    ctx.author = "ABI Team";
-    ctx.description = "High-performance AI framework with vector database capabilities";
+    if (raw_args.len == 0) return;
 
-    var parser = Parser.init(allocator, &ctx);
+    var idx: usize = 1;
+    var json_mode = false;
+    var help_flag = false;
+    var log_level: Logger.Level = .info;
 
-    // Skip program name
-    const cli_args = if (args.len > 1) args[1..] else args[0..0];
+    while (idx < raw_args.len) {
+        const arg = raw_args[idx];
+        if (std.mem.eql(u8, arg, "--json")) {
+            json_mode = true;
+            idx += 1;
+            continue;
+        }
+        if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
+            help_flag = true;
+            idx += 1;
+            continue;
+        }
+        if (std.mem.startsWith(u8, arg, "--log-level=")) {
+            const value = arg["--log-level=".len..];
+            log_level = std.meta.stringToEnum(Logger.Level, value) orelse {
+                try std.io.getStdErr().writer().print("Invalid log level: {s}\n", .{value});
+                std.process.exit(@intFromEnum(ExitCode.usage));
+            };
+            idx += 1;
+            continue;
+        }
+        break;
+    }
 
-    var parsed = parser.parse(cli_args) catch |err| switch (err) {
-        modern_cli.CliError.HelpRequested => {
-            // Print basic help since we can't easily get a writer
-            std.debug.print("ABI v{s} - {s}\n\n", .{ ctx.version, ctx.description });
-            std.debug.print("Usage: abi [COMMAND] [OPTIONS]\n\n", .{});
-            std.debug.print("Commands:\n", .{});
-            std.debug.print("  server      Start HTTP server\n", .{});
-            std.debug.print("  chat        Interactive AI chat\n", .{});
-            std.debug.print("  benchmark   Run performance tests\n", .{});
-            std.debug.print("  database    Vector database operations\n", .{});
-            std.debug.print("  version     Show version info\n", .{});
-            std.debug.print("\nUse 'abi [COMMAND] --help' for more information about a command.\n", .{});
-            return;
+    if (json_mode and log_level == .info) {
+        log_level = .error;
+    }
+
+    var cli = try Cli.init(
+        allocator,
+        .{
+            .out = std.io.getStdOut().writer().any(),
+            .err = std.io.getStdErr().writer().any(),
         },
-        modern_cli.CliError.VersionRequested => {
-            // Print basic version info
-            std.debug.print("ABI v{s}\n", .{ctx.version});
-            std.debug.print("Built with Zig {s}\n", .{@import("builtin").zig_version_string});
-            return;
-        },
-        else => {
-            std.debug.print("Error: {}\n", .{err});
-            return;
-        },
-    };
-    defer parsed.deinit();
+        json_mode,
+        log_level,
+    );
+    defer cli.deinit();
 
-    // Execute the appropriate command handler
-    if (parsed.command_path.items.len == 0) {
-        std.debug.print("ABI v{s} - {s}\n\n", .{ ctx.version, ctx.description });
-        std.debug.print("Use 'abi --help' for usage information.\n", .{});
+    if (help_flag or idx >= raw_args.len) {
+        try cli.printHelp();
         return;
     }
 
-    const command_name = parsed.command_path.items[0];
-    const command = ctx.root_command.findSubcommand(command_name) orelse {
-        std.debug.print("Unknown command: {s}\n", .{command_name});
-        return;
+    const exit_code = cli.dispatch(raw_args[idx..]) catch |err| {
+        try cli.logger.err("fatal error: {s}\n", .{@errorName(err)});
+        std.process.exit(@intFromEnum(ExitCode.runtime));
+        unreachable;
     };
 
-    if (command.handler) |handler| {
-        try handler(&ctx, &parsed);
-    } else {
-        std.debug.print("Command '{s}' has no handler\n", .{command_name});
+    if (exit_code != .success) {
+        std.process.exit(@intFromEnum(exit_code));
     }
+}
+
+const TestChannels = struct {
+    out_buf: std.ArrayList(u8),
+    err_buf: std.ArrayList(u8),
+
+    fn init(allocator: std.mem.Allocator) TestChannels {
+        return .{
+            .out_buf = std.ArrayList(u8).init(allocator),
+            .err_buf = std.ArrayList(u8).init(allocator),
+        };
+    }
+
+    fn deinit(self: *TestChannels) void {
+        self.out_buf.deinit();
+        self.err_buf.deinit();
+    }
+
+    fn channels(self: *TestChannels) Channels {
+        return .{
+            .out = self.out_buf.writer().any(),
+            .err = self.err_buf.writer().any(),
+        };
+    }
+};
+
+test "features list uses stderr in human mode" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), false, .info);
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "features", "list" }));
+    try std.testing.expectEqual(@as(usize, 0), tc.out_buf.items.len);
+    try std.testing.expect(tc.err_buf.items.len > 0);
+}
+
+test "features list emits json in json mode" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), true, .error);
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "features", "list" }));
+    try std.testing.expect(tc.out_buf.items.len > 0);
+    try std.testing.expectEqual(@as(usize, 0), tc.err_buf.items.len);
+
+    const expected = "{\"features\":{\"ai\":true";
+    try std.testing.expect(std.mem.startsWith(u8, tc.out_buf.items, expected));
 }
