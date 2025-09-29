@@ -175,7 +175,6 @@ pub fn build(b: *std.Build) void {
             "src",
             "benchmarks",
             "docs",
-            "test",
             "tests",
         },
     });
