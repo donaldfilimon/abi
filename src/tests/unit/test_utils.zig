@@ -1,7 +1,7 @@
 //! Comprehensive tests for the utils module
 
 const std = @import("std");
-const utils = @import("../src/utils.zig");
+const utils = @import("abi").utils.utils;
 
 test "Config initialization" {
     const testing = std.testing;

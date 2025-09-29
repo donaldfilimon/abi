@@ -1,8 +1,7 @@
 //! Comprehensive tests for the logging module
 
 const std = @import("std");
-const root = @import("../src/root.zig");
-const logging = root.logging;
+const logging = @import("abi").logging;
 
 test "Structured logging basic functionality" {
     const testing = std.testing;

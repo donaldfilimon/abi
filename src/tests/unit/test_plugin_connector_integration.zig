@@ -1,6 +1,7 @@
 const std = @import("std");
-const plugins = @import("src/plugins/mod.zig");
-const connectors = @import("src/connectors/mod.zig");
+const abi = @import("abi");
+const plugins = abi.plugins;
+const connectors = abi.connectors;
 
 // Import the specific types we need
 const PluginContext = plugins.types.PluginContext;
