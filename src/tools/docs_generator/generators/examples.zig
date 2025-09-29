@@ -2,7 +2,7 @@ const std = @import("std");
 
 /// Generate usage examples
 pub fn generateExamples(_: std.mem.Allocator) !void {
-    const file = try std.fs.cwd().createFile("docs/generated/EXAMPLES.md", .{});
+    const file = try std.fs.cwd().createFile("docs/generated/EXAMPLES.md", .{ .truncate = true });
     defer file.close();
 
     const content =

@@ -2,7 +2,7 @@ const std = @import("std");
 
 /// Generate performance guide
 pub fn generatePerformanceGuide(_: std.mem.Allocator) !void {
-    const file = try std.fs.cwd().createFile("docs/generated/PERFORMANCE_GUIDE.md", .{});
+    const file = try std.fs.cwd().createFile("docs/generated/PERFORMANCE_GUIDE.md", .{ .truncate = true });
     defer file.close();
 
     const content =

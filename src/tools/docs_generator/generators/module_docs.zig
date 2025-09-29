@@ -2,7 +2,7 @@ const std = @import("std");
 
 /// Generate comprehensive module documentation
 pub fn generateModuleDocs(_: std.mem.Allocator) !void {
-    const file = try std.fs.cwd().createFile("docs/generated/MODULE_REFERENCE.md", .{});
+    const file = try std.fs.cwd().createFile("docs/generated/MODULE_REFERENCE.md", .{ .truncate = true });
     defer file.close();
 
     const content =

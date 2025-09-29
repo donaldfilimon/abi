@@ -2,7 +2,7 @@ const std = @import("std");
 
 /// Generate README redirect for GitHub
 pub fn generateReadmeRedirect(_: std.mem.Allocator) !void {
-    const file = try std.fs.cwd().createFile("docs/README.md", .{});
+    const file = try std.fs.cwd().createFile("docs/README.md", .{ .truncate = true });
     defer file.close();
 
     const content =
