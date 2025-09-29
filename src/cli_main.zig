@@ -1,5 +1,6 @@
 const std = @import("std");
-const simple_cli = @import("tools/cli/simple_cli.zig");
+const cli = @import("cli");
+const simple_cli = cli.simple_cli;
 const working_benchmark = @import("tools/benchmark/working_benchmark.zig");
 const simple_server = @import("tools/http/simple_server.zig");
 
