@@ -144,9 +144,9 @@ pub const ParsedArgs = struct {
     pub fn init(allocator: Allocator) ParsedArgs {
         return .{
             .allocator = allocator,
-            .command_path = std.ArrayList([]const u8){},
+            .command_path = std.ArrayList([]const u8).init(allocator),
             .options = std.StringHashMap(ParsedValue).init(allocator),
-            .arguments = std.ArrayList(ParsedValue){},
+            .arguments = std.ArrayList(ParsedValue).init(allocator),
             .raw_args = &.{},
         };
     }
@@ -451,84 +451,84 @@ pub const Parser = struct {
 /// Help formatter for generating usage and help text
 pub const HelpFormatter = struct {
     context: *const Context,
-    writer: anytype,
 
-    pub fn init(context: *const Context, writer: anytype) HelpFormatter {
+    pub fn init(context: *const Context) HelpFormatter {
         return .{
             .context = context,
-            .writer = writer,
         };
     }
 
     /// Print help for a command
-    pub fn printHelp(self: *HelpFormatter, cmd: *const Command, command_path: []const []const u8) !void {
+    pub fn printHelp(self: *HelpFormatter, writer: anytype, cmd: *const Command, command_path: []const []const u8) !void {
         // Program header
-        try self.context.printColored(self.writer, "1;36", self.context.program_name);
-        try self.writer.print(" v{s}\n", .{self.context.version});
-        try self.writer.print("{s}\n\n", .{self.context.description});
+        try self.context.printColored(writer, "1;36", self.context.program_name);
+        try writer.print(" v{s}\n", .{self.context.version});
+        try writer.print("{s}\n\n", .{self.context.description});
 
         // Usage
-        try self.context.printColored(self.writer, "1;33", "USAGE:");
-        try self.writer.writeAll("\n    ");
-        try self.printCommandPath(command_path);
-        try cmd.generateUsage(self.writer, "");
-        try self.writer.writeAll("\n\n");
+        try self.context.printColored(writer, "1;33", "USAGE:");
+        try writer.writeAll("\n    ");
+        try self.printCommandPath(writer, command_path);
+        try cmd.generateUsage(writer, "");
+        try writer.writeAll("\n\n");
 
         // Description
         if (cmd.description.len > 0) {
-            try self.writer.print("{s}\n\n", .{cmd.description});
+            try writer.print("{s}\n\n", .{cmd.description});
         }
 
         // Arguments
         if (cmd.arguments.len > 0) {
-            try self.context.printColored(self.writer, "1;33", "ARGUMENTS:");
-            try self.writer.writeAll("\n");
+            try self.context.printColored(writer, "1;33", "ARGUMENTS:");
+            try writer.writeAll("\n");
             for (cmd.arguments) |arg| {
-                try self.writer.print("    ");
-                try self.context.printColored(self.writer, "1;32", arg.name);
-                try self.writer.print("    {s}", .{arg.description});
+                try writer.print("    ");
+                try self.context.printColored(writer, "1;32", arg.name);
+                try writer.print("    {s}", .{arg.description});
                 if (!arg.required) {
-                    try self.writer.writeAll(" [optional]");
+                    try writer.writeAll(" [optional]");
                 }
-                try self.writer.writeAll("\n");
+                try writer.writeAll("\n");
             }
-            try self.writer.writeAll("\n");
+            try writer.writeAll("\n");
         }
 
         // Options
         if (cmd.options.len > 0) {
-            try self.context.printColored(self.writer, "1;33", "OPTIONS:");
-            try self.writer.writeAll("\n");
+            try self.context.printColored(writer, "1;33", "OPTIONS:");
+            try writer.writeAll("\n");
             for (cmd.options) |option| {
-                try self.writer.writeAll("    ");
+                try writer.writeAll("    ");
                 if (option.short) |short| {
-                    try self.writer.print("-{c}, ", .{short});
+                    try writer.print("-{c}, ", .{short});
                 }
-                try self.context.printColored(self.writer, "1;32", try std.fmt.allocPrint(self.context.allocator, "--{s}", .{option.long}));
+                const option_name = try std.fmt.allocPrint(self.context.allocator, "--{s}", .{option.long});
+                defer self.context.allocator.free(option_name);
+                try self.context.printColored(writer, "1;32", option_name);
 
                 if (option.arg_type != .boolean) {
-                    try self.writer.print(" <{s}>", .{@tagName(option.arg_type)});
+                    try writer.print(" <{s}>", .{@tagName(option.arg_type)});
                 }
 
-                try self.writer.print("    {s}", .{option.description});
+                try writer.print("    {s}", .{option.description});
 
                 if (option.default_value) |default| {
-                    try self.writer.print(" [default: {s}]", .{default});
+                    try writer.print(" [default: {s}]", .{default});
                 }
 
                 if (option.required) {
-                    try self.writer.writeAll(" [required]");
+                    try writer.writeAll(" [required]");
                 }
 
-                try self.writer.writeAll("\n");
+                try writer.writeAll("\n");
             }
-            try self.writer.writeAll("\n");
+            try writer.writeAll("\n");
         }
 
         // Subcommands
         if (cmd.subcommands.len > 0) {
-            try self.context.printColored(self.writer, "1;33", "COMMANDS:");
-            try self.writer.writeAll("\n");
+            try self.context.printColored(writer, "1;33", "COMMANDS:");
+            try writer.writeAll("\n");
 
             // Group commands by category
             var categories = std.StringHashMap(std.ArrayList(*const Command)).init(self.context.allocator);
@@ -545,61 +545,61 @@ pub const HelpFormatter = struct {
 
                 const category = sub.category orelse "General";
                 var list = categories.get(category) orelse std.ArrayList(*const Command).init(self.context.allocator);
-                try list.append(sub);
+                try list.append(self.context.allocator, sub);
                 try categories.put(category, list);
             }
 
             var cat_it = categories.iterator();
             while (cat_it.next()) |entry| {
                 if (!std.mem.eql(u8, entry.key_ptr.*, "General")) {
-                    try self.writer.print("\n  {s}:\n", .{entry.key_ptr.*});
+                    try writer.print("\n  {s}:\n", .{entry.key_ptr.*});
                 }
 
                 for (entry.value_ptr.items) |sub| {
-                    try self.writer.writeAll("    ");
-                    try self.context.printColored(self.writer, "1;32", sub.name);
-                    try self.writer.print("    {s}", .{sub.description});
+                    try writer.writeAll("    ");
+                    try self.context.printColored(writer, "1;32", sub.name);
+                    try writer.print("    {s}", .{sub.description});
                     if (sub.aliases.len > 0) {
-                        try self.writer.writeAll(" (aliases: ");
+                        try writer.writeAll(" (aliases: ");
                         for (sub.aliases, 0..) |alias, i| {
-                            if (i > 0) try self.writer.writeAll(", ");
-                            try self.writer.writeAll(alias);
+                            if (i > 0) try writer.writeAll(", ");
+                            try writer.writeAll(alias);
                         }
-                        try self.writer.writeAll(")");
+                        try writer.writeAll(")");
                     }
-                    try self.writer.writeAll("\n");
+                    try writer.writeAll("\n");
                 }
             }
-            try self.writer.writeAll("\n");
+            try writer.writeAll("\n");
         }
 
         // Examples
         if (cmd.examples.len > 0) {
-            try self.context.printColored(self.writer, "1;33", "EXAMPLES:");
-            try self.writer.writeAll("\n");
+            try self.context.printColored(writer, "1;33", "EXAMPLES:");
+            try writer.writeAll("\n");
             for (cmd.examples) |example| {
-                try self.writer.print("    {s}\n", .{example});
+                try writer.print("    {s}\n", .{example});
             }
-            try self.writer.writeAll("\n");
+            try writer.writeAll("\n");
         }
     }
 
-    fn printCommandPath(self: *HelpFormatter, path: []const []const u8) !void {
-        try self.writer.writeAll(self.context.program_name);
+    fn printCommandPath(self: *HelpFormatter, writer: anytype, path: []const []const u8) !void {
+        try writer.writeAll(self.context.program_name);
         for (path) |cmd| {
-            try self.writer.print(" {s}", .{cmd});
+            try writer.print(" {s}", .{cmd});
         }
     }
 
     /// Print version information
-    pub fn printVersion(self: *HelpFormatter) !void {
-        try self.writer.print("{s} {s}\n", .{ self.context.program_name, self.context.version });
-        try self.writer.print("Author: {s}\n", .{self.context.author});
+    pub fn printVersion(self: *HelpFormatter, writer: anytype) !void {
+        try writer.print("{s} {s}\n", .{ self.context.program_name, self.context.version });
+        try writer.print("Author: {s}\n", .{self.context.author});
 
         // Build information
-        try self.writer.print("Built with Zig {s}\n", .{builtin.zig_version_string});
-        try self.writer.print("Target: {s}\n", .{@tagName(builtin.target.cpu.arch)});
-        try self.writer.print("Mode: {s}\n", .{@tagName(builtin.mode)});
+        try writer.print("Built with Zig {s}\n", .{builtin.zig_version_string});
+        try writer.print("Target: {s}\n", .{@tagName(builtin.target.cpu.arch)});
+        try writer.print("Mode: {s}\n", .{@tagName(builtin.mode)});
     }
 };
 
@@ -703,16 +703,19 @@ test "help generation" {
         },
     };
 
-    var output = std.ArrayList(u8){};
-    defer output.deinit(testing.allocator);
-
     var ctx = Context.init(testing.allocator, &root_cmd);
-    var formatter = HelpFormatter.init(&ctx, output.writer().any());
+    var formatter = HelpFormatter.init(&ctx);
 
-    try formatter.printHelp(&root_cmd, &.{});
+    var output = std.ArrayList(u8).init(testing.allocator);
+    defer output.deinit();
+
+    var writer = output.writer();
+    try formatter.printHelp(writer.any(), &root_cmd, &.{});
 
     const help_text = output.items;
+    try testing.expect(root_cmd.subcommands.len == 2);
     try testing.expect(std.mem.indexOf(u8, help_text, "ABI AI Framework CLI") != null);
     try testing.expect(std.mem.indexOf(u8, help_text, "USAGE:") != null);
-    try testing.expect(std.mem.indexOf(u8, help_text, "COMMANDS:") != null);
+    try testing.expect(std.mem.indexOf(u8, help_text, "OPTIONS:") != null);
+    try testing.expect(std.mem.indexOf(u8, help_text, "chat") != null);
 }

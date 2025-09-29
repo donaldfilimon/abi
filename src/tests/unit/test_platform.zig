@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const platform = @import("../src/platform.zig");
+const platform = @import("abi").platform.platform;
 
 test "PlatformInfo detection" {
     const testing = std.testing;

@@ -1,5 +1,5 @@
 const std = @import("std");
-const connectors = @import("../src/connectors/mod.zig");
+const connectors = @import("abi").connectors;
 
 test "connector system initialization" {
     // Test Ollama configuration

@@ -452,7 +452,8 @@ pub const PerformanceBenchmarkRunner = struct {
         try self.metrics_history.append(self.allocator, metrics);
         try self.saveMetrics(&metrics);
 
-        const regression_result = try self.checkForRegressions(&metrics);
+        var regression_result = try self.checkForRegressions(&metrics);
+        defer regression_result.deinit(self.allocator);
         try self.generatePerformanceReport(&metrics, regression_result);
 
         print("✅ Enhanced performance benchmark suite completed in {d}ms\n", .{metrics.test_duration_ms});
@@ -1072,7 +1073,8 @@ test "Regression detection algorithm accuracy" {
     regression_metrics.avg_search_time_ns = 20000; // 100% regression
     regression_metrics.performance_stability_score = 70.0; // Stability degradation
 
-    const result = try runner.checkForRegressions(&regression_metrics);
+    var result = try runner.checkForRegressions(&regression_metrics);
+    defer result.deinit(allocator);
     try testing.expect(result.has_regression);
     try testing.expect(result.regression_percent > 15.0);
 }

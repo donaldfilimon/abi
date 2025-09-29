@@ -196,6 +196,8 @@ The ABI Framework now has:
 ✅ **Cross-platform Compatibility** (Windows, macOS, Linux)  
 ✅ **Production-ready Performance** with GPU acceleration up to 12x speedup  
 
+For a repository-wide view of remaining modernization tasks and open TODO markers, refer to `MODERNIZATION_STATUS.md` (kept in sync with automated PowerShell audits).
+
 **🚀 The framework is ready for production use with full interactive CLI and GPU acceleration support!**
 
 ---

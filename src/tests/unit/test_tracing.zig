@@ -1,8 +1,7 @@
 //! Tests for the distributed tracing module
 
 const std = @import("std");
-const root = @import("../src/root.zig");
-const tracing = root.tracing;
+const tracing = @import("abi").monitoring.tracing;
 
 test "Distributed tracing basic functionality" {
     const testing = std.testing;

@@ -3,9 +3,7 @@
     .version = "0.1.0",
     .fingerprint = 0xd5f1a8dcdc096843,
     .minimum_zig_version = "0.16.0-dev.427+86077fe6b",
-    .dependencies = .{
-        // Add external dependencies here; all builds currently resolve locally.
-    },
+    .dependencies = .{},
     .paths = .{
         "",
         "AGENTS.md",
