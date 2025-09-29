@@ -144,9 +144,9 @@ pub const ParsedArgs = struct {
     pub fn init(allocator: Allocator) ParsedArgs {
         return .{
             .allocator = allocator,
-            .command_path = std.ArrayList([]const u8).empty,
+            .command_path = std.ArrayList([]const u8).init(allocator),
             .options = std.StringHashMap(ParsedValue).init(allocator),
-            .arguments = std.ArrayList(ParsedValue).empty,
+            .arguments = std.ArrayList(ParsedValue).init(allocator),
             .raw_args = &.{},
         };
     }
@@ -243,23 +243,10 @@ pub const Context = struct {
         return switch (self.color_mode) {
             .always => true,
             .never => false,
-            .auto => detectColorSupport(),
+            .auto => std.io.tty.detectConfig(std.io.getStdOut()).escape_codes != .no_color,
         };
     }
 };
-
-fn detectColorSupport() bool {
-    if (builtin.os.tag == .windows) {
-        const windows = std.os.windows;
-        const handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE);
-        if (handle == null or handle == windows.INVALID_HANDLE_VALUE) return false;
-        var mode: windows.DWORD = 0;
-        if (windows.kernel32.GetConsoleMode(handle, &mode) == 0) return false;
-        return (mode & windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0;
-    } else {
-        return std.posix.isatty(std.posix.STDOUT_FILENO);
-    }
-}
 
 /// CLI parser with comprehensive error handling
 pub const Parser = struct {
@@ -495,7 +482,7 @@ pub const HelpFormatter = struct {
             try self.context.printColored(writer, "1;33", "ARGUMENTS:");
             try writer.writeAll("\n");
             for (cmd.arguments) |arg| {
-                try writer.writeAll("    ");
+                try writer.print("    ");
                 try self.context.printColored(writer, "1;32", arg.name);
                 try writer.print("    {s}", .{arg.description});
                 if (!arg.required) {
@@ -548,7 +535,7 @@ pub const HelpFormatter = struct {
             defer {
                 var it = categories.iterator();
                 while (it.next()) |entry| {
-                    entry.value_ptr.deinit(self.context.allocator);
+                    entry.value_ptr.deinit();
                 }
                 categories.deinit();
             }
@@ -557,7 +544,7 @@ pub const HelpFormatter = struct {
                 if (sub.hidden) continue;
 
                 const category = sub.category orelse "General";
-                var list = categories.get(category) orelse std.ArrayList(*const Command).empty;
+                var list = categories.get(category) orelse std.ArrayList(*const Command).init(self.context.allocator);
                 try list.append(self.context.allocator, sub);
                 try categories.put(category, list);
             }
@@ -719,28 +706,11 @@ test "help generation" {
     var ctx = Context.init(testing.allocator, &root_cmd);
     var formatter = HelpFormatter.init(&ctx);
 
-    var output = std.ArrayList(u8).empty;
-    defer output.deinit(testing.allocator);
+    var output = std.ArrayList(u8).init(testing.allocator);
+    defer output.deinit();
 
-    const BufferWriter = struct {
-        allocator: std.mem.Allocator,
-        list: *std.ArrayList(u8),
-
-        const Self = @This();
-
-        pub fn writeAll(self: *Self, bytes: []const u8) !void {
-            try self.list.appendSlice(self.allocator, bytes);
-        }
-
-        pub fn print(self: *Self, comptime fmt: []const u8, args: anytype) !void {
-            const rendered = try std.fmt.allocPrint(self.allocator, fmt, args);
-            defer self.allocator.free(rendered);
-            try self.list.appendSlice(self.allocator, rendered);
-        }
-    };
-
-    var writer = BufferWriter{ .allocator = testing.allocator, .list = &output };
-    try formatter.printHelp(&writer, &root_cmd, &.{});
+    var writer = output.writer();
+    try formatter.printHelp(writer.any(), &root_cmd, &.{});
 
     const help_text = output.items;
     try testing.expect(root_cmd.subcommands.len == 2);
