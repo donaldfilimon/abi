@@ -3,7 +3,7 @@ title: "ABI Documentation"
 description: "High-performance vector database with AI capabilities"
 url: "https://donaldfilimon.github.io"
 baseurl: "/abi"
-  
+
 # GitHub Pages settings
 remote_theme: pages-themes/minimal@v0.2.0
 plugins:
@@ -17,17 +17,17 @@ navigation:
   - title: "Home"
     url: "/"
   - title: "API Reference"
-    url: "/generated/API_REFERENCE"
+    url: "/index.html#generated/API_REFERENCE.md"
   - title: "Module Reference"
-    url: "/generated/MODULE_REFERENCE"
+    url: "/index.html#generated/MODULE_REFERENCE.md"
   - title: "Examples"
-    url: "/generated/EXAMPLES"
+    url: "/index.html#generated/EXAMPLES.md"
   - title: "Performance Guide"
-    url: "/generated/PERFORMANCE_GUIDE"
+    url: "/index.html#generated/PERFORMANCE_GUIDE.md"
   - title: "Definitions"
-    url: "/generated/DEFINITIONS_REFERENCE"
+    url: "/index.html#generated/DEFINITIONS_REFERENCE.md"
   - title: "Code Index"
-    url: "/generated/CODE_API_INDEX"
+    url: "/index.html#generated/CODE_API_INDEX.md"
 
 # SEO and metadata
 lang: en
@@ -68,7 +68,7 @@ kramdown:
   input: GFM
   syntax_highlighter: rouge
   syntax_highlighter_opts:
-    css_class: 'highlight'
+    css_class: "highlight"
     span:
       line_numbers: false
     block:
