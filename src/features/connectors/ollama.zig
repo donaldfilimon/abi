@@ -25,8 +25,8 @@ pub fn embedText(allocator: Allocator, host: []const u8, model: []const u8, text
     var response = try req.receiveHead(&redirect_buf);
 
     if (response.head.status != .ok) return error.NetworkError;
-    var list = try std.ArrayList(u8).initCapacity(allocator, 0);
-    defer list.deinit(allocator);
+    var list = std.ArrayList(u8).init(allocator);
+    defer list.deinit();
     var buf: [8192]u8 = undefined;
     const rdr = response.reader(&.{});
     while (true) {
@@ -37,9 +37,9 @@ pub fn embedText(allocator: Allocator, host: []const u8, model: []const u8, text
             error.EndOfStream => 0,
         };
         if (n == 0) break;
-        try list.appendSlice(allocator, buf[0..n]);
+        try list.appendSlice(buf[0..n]);
     }
-    const resp = try list.toOwnedSlice(allocator);
+    const resp = try list.toOwnedSlice();
 
     // Expected minimal shape: {"embedding":[...]} or {"data":[{"embedding":[...]}]}
     var parsed = try std.json.parseFromSlice(std.json.Value, allocator, resp, .{});

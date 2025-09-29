@@ -1,7 +1,7 @@
 //! Comprehensive tests for the logging module
 
 const std = @import("std");
-const logging = @import("abi").logging;
+const logging = @import("abi").logging.logging;
 
 test "Structured logging basic functionality" {
     const testing = std.testing;
