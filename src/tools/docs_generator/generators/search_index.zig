@@ -1,7 +1,27 @@
 const std = @import("std");
 
-fn docPathLessThan(_: void, lhs: []const u8, rhs: []const u8) bool {
-    return std.mem.lessThan(u8, lhs, rhs);
+const DocEntry = struct {
+    os_path: []const u8,
+    web_path: []const u8,
+};
+
+fn docPathLessThan(_: void, lhs: DocEntry, rhs: DocEntry) bool {
+    return std.mem.lessThan(u8, lhs.web_path, rhs.web_path);
+}
+
+fn shouldSkipPath(rel_web: []const u8) bool {
+    if (std.mem.startsWith(u8, rel_web, "generated/")) return false;
+
+    const allowlist = [_][]const u8{
+        "AGENTS_EXECUTIVE_SUMMARY.md",
+    };
+
+    for (allowlist) |allowed| {
+        if (std.mem.eql(u8, rel_web, allowed)) return false;
+    }
+
+    // Skip everything else to avoid surfacing legacy Markdown duplicates.
+    return true;
 }
 
 pub fn generateSearchIndex(allocator: std.mem.Allocator) !void {
@@ -9,28 +29,37 @@ pub fn generateSearchIndex(allocator: std.mem.Allocator) !void {
     defer arena.deinit();
     const a = arena.allocator();
 
-    // Ensure output dir exists
+    // Ensure output dir exists even if no Markdown files were produced yet.
     try std.fs.cwd().makePath("docs/generated");
 
-    // Collect Markdown files in docs/generated
-    var dir = std.fs.cwd().openDir("docs/generated", .{ .iterate = true }) catch |err| switch (err) {
-        error.FileNotFound => return, // nothing to index yet
-        else => return err,
-    };
-    defer dir.close();
-
-    var files = std.ArrayListUnmanaged([]const u8){};
+    var files = std.ArrayListUnmanaged(DocEntry){};
     defer files.deinit(a);
 
-    var it = dir.iterate();
-    while (it.next() catch null) |entry| {
-        if (entry.kind == .file and std.mem.endsWith(u8, entry.name, ".md")) {
-            const rel = try std.fs.path.join(a, &[_][]const u8{ "generated", entry.name });
-            try files.append(a, rel);
+    var docs_dir = std.fs.cwd().openDir("docs", .{ .iterate = true }) catch |err| switch (err) {
+        error.FileNotFound => return,
+        else => return err,
+    };
+    defer docs_dir.close();
+
+    var walker = try docs_dir.walk(a);
+    defer walker.deinit();
+
+    while (try walker.next()) |entry| {
+        if (entry.kind != .file) continue;
+        if (!std.mem.endsWith(u8, entry.path, ".md")) continue;
+
+        const os_rel = try a.dupe(u8, entry.path);
+        var web_rel = try a.dupe(u8, os_rel);
+        for (web_rel) |*ch| {
+            if (ch.* == std.fs.path.sep) ch.* = '/';
         }
+
+        if (shouldSkipPath(web_rel)) continue;
+
+        try files.append(a, .{ .os_path = os_rel, .web_path = web_rel });
     }
 
-    std.sort.block([]const u8, files.items, {}, docPathLessThan);
+    std.sort.block(DocEntry, files.items, {}, docPathLessThan);
 
     var out = try std.fs.cwd().createFile("docs/generated/search_index.json", .{ .truncate = true });
     defer out.close();
@@ -38,18 +67,12 @@ pub fn generateSearchIndex(allocator: std.mem.Allocator) !void {
     try out.writeAll("[\n");
     var first = true;
 
-    for (files.items) |rel| {
-        const full = try std.fs.path.join(a, &[_][]const u8{ "docs", rel });
-        // Normalize relative path for web (forward slashes)
-        const rel_web = try a.dupe(u8, rel);
-        for (rel_web) |*ch| {
-            if (ch.* == std.fs.path.sep) ch.* = '/';
-        }
+    for (files.items) |entry| {
+        const full = try std.fs.path.join(a, &[_][]const u8{ "docs", entry.os_path });
         var title_buf: []const u8 = "";
         var excerpt_buf: []const u8 = "";
         getTitleAndExcerpt(a, full, &title_buf, &excerpt_buf) catch {
-            // Fallbacks
-            title_buf = std.fs.path.basename(rel);
+            title_buf = std.fs.path.basename(entry.os_path);
             excerpt_buf = "";
         };
 
@@ -60,7 +83,7 @@ pub fn generateSearchIndex(allocator: std.mem.Allocator) !void {
         }
 
         try out.writeAll("  {\"file\": ");
-        try writeJsonString(out, rel_web);
+        try writeJsonString(out, entry.web_path);
         try out.writeAll(", \"title\": ");
         try writeJsonString(out, title_buf);
         try out.writeAll(", \"excerpt\": ");
@@ -82,12 +105,35 @@ fn getTitleAndExcerpt(allocator: std.mem.Allocator, path: []const u8, title_out:
 
     var first_heading: ?[]const u8 = null;
     var in_code = false;
+    var in_front_matter = false;
+    var front_matter_processed = false;
 
     var excerpt: std.ArrayListUnmanaged(u8) = .empty;
     defer excerpt.deinit(allocator);
 
     while (it.next()) |line| {
         const trimmed = std.mem.trim(u8, line, " \t\r");
+
+        if (!front_matter_processed) {
+            if (trimmed.len == 0 and !in_front_matter) {
+                continue;
+            }
+
+            if (std.mem.eql(u8, trimmed, "---")) {
+                in_front_matter = !in_front_matter;
+                if (!in_front_matter) {
+                    front_matter_processed = true;
+                }
+                continue;
+            }
+
+            if (!in_front_matter) {
+                front_matter_processed = true;
+            }
+        }
+
+        if (in_front_matter) continue;
+
         if (std.mem.startsWith(u8, trimmed, "```")) {
             in_code = !in_code;
             continue;
@@ -105,8 +151,9 @@ fn getTitleAndExcerpt(allocator: std.mem.Allocator, path: []const u8, title_out:
         if (trimmed.len == 0) continue;
         if (trimmed[0] == '#') continue; // skip headings in excerpt
         if (trimmed[0] == '|') continue; // skip tables
+        if (trimmed[0] == '<') continue; // skip HTML scaffolding
+        if (std.mem.eql(u8, trimmed, "---")) continue; // skip horizontal rules
 
-        // Append to excerpt up to ~300 chars
         if (excerpt.items.len > 0) try excerpt.append(allocator, ' ');
         var k: usize = 0;
         while (k < trimmed.len and excerpt.items.len < 300) : (k += 1) {

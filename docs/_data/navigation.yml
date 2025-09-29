@@ -1,5 +1,9 @@
 # Main navigation structure
 main:
+  - title: "Project Overview"
+    children:
+      - title: "Executive Summary"
+        url: "/index.html#AGENTS_EXECUTIVE_SUMMARY.md"
   - title: "Getting Started"
     children:
       - title: "Quick Start"
