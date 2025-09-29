@@ -67,11 +67,11 @@ pub fn generateDocsIndexHtml(_: std.mem.Allocator) !void {
         \\  </style>
         \\</head>
         \\<body>
-        \\  <aside>
+        \\  <aside role="complementary">
         \\    <div id="brand">ABI Docs</div>
         \\    <div id="desc">Search and browse documentation generated from the codebase.</div>
-        \\    <input id="search" type="search" placeholder="Search docs..." />
-        \\    <div id="nav"></div>
+        \\    <input id="search" type="search" placeholder="Search docs..." aria-label="Search documentation" />
+        \\    <div id="nav" role="navigation" aria-label="Document navigation"></div>
         \\  </aside>
         \\  <main>
         \\    <div id="topbar">
@@ -83,13 +83,21 @@ pub fn generateDocsIndexHtml(_: std.mem.Allocator) !void {
         \\    <div id="content"></div>
         \\  </main>
         \\  <script>
+        \\  function resolve(path) {
+        \\    try {
+        \\      return new URL(path, window.location.href).toString();
+        \\    } catch (_) {
+        \\      return path;
+        \\    }
+        \\  }
+        \\
         \\  async function fetchJSON(path) {
-        \\    const response = await fetch(path);
+        \\    const response = await fetch(resolve(path));
         \\    return await response.json();
         \\  }
         \\  
         \\  async function fetchText(path) {
-        \\    const response = await fetch(path);
+        \\    const response = await fetch(resolve(path));
         \\    return await response.text();
         \\  }
         \\  
@@ -215,7 +223,7 @@ pub fn generateDocsIndexHtml(_: std.mem.Allocator) !void {
         \\  
         \\    document.getElementById('open_md').addEventListener('click', () => {
         \\      if (currentPath) {
-        \\        window.open(currentPath, '_blank');
+        \\        window.open(resolve(currentPath), '_blank');
         \\      }
         \\    });
         \\  }

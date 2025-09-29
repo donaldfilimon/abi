@@ -4,7 +4,6 @@
 //! comprehensive markdown API documentation.
 
 const std = @import("std");
-const abi = @import("abi");
 
 const Config = struct {
     output_dir: []const u8 = "docs/api",
@@ -34,42 +33,55 @@ pub fn main() !void {
         }
     }
 
-    std.debug.print("🚀 Generating API documentation...\n", .{});
-    std.debug.print("   Output directory: {s}\n", .{config.output_dir});
+    std.debug.print("Generating API documentation...\n", .{});
+    std.debug.print("Output directory: {s}\n", .{config.output_dir});
 
-    // Create output directory
-    try std.fs.cwd().makePath(config.output_dir);
+    // Ensure output directory exists and is clean to avoid stale artifacts
+    try ensureCleanOutputDirectory(config.output_dir);
 
     // Generate documentation for each module
-    try generateModuleDocs(allocator, config, "database", "Vector Database API");
-    try generateModuleDocs(allocator, config, "ai", "AI and Machine Learning API");
-    try generateModuleDocs(allocator, config, "simd", "SIMD Operations API");
-    try generateModuleDocs(allocator, config, "http_client", "HTTP Client API");
-    try generateModuleDocs(allocator, config, "plugins", "Plugin System API");
-    try generateModuleDocs(allocator, config, "wdbx", "WDBX Utilities API");
+    try generateModuleDocs(allocator, config, "database", "Vector Database API", generateDatabaseDocs);
+    std.debug.print("[ok] module: {s}\n", .{"database"});
+    try generateModuleDocs(allocator, config, "ai", "AI and Machine Learning API", generateAIDocs);
+    std.debug.print("[ok] module: {s}\n", .{"ai"});
+    try generateModuleDocs(allocator, config, "simd", "SIMD Operations API", generateSIMDDocs);
+    std.debug.print("[ok] module: {s}\n", .{"simd"});
+    try generateModuleDocs(allocator, config, "http_client", "HTTP Client API", generateHTTPClientDocs);
+    std.debug.print("[ok] module: {s}\n", .{"http_client"});
+    try generateModuleDocs(allocator, config, "plugins", "Plugin System API", generatePluginDocs);
+    std.debug.print("[ok] module: {s}\n", .{"plugins"});
+    try generateModuleDocs(allocator, config, "wdbx", "WDBX Utilities API", generateWDBXDocs);
+    std.debug.print("[ok] module: {s}\n", .{"wdbx"});
 
     // Generate index file
     try generateIndexFile(allocator, config);
-
-    std.debug.print("✅ API documentation generated successfully!\n", .{});
+    std.debug.print("[ok] index: index.md\n", .{});
+    std.debug.print("API documentation generated successfully.\n", .{});
 }
 
-fn generateModuleDocs(allocator: std.mem.Allocator, config: Config, module_name: []const u8, title: []const u8) !void {
+fn generateModuleDocs(
+    allocator: std.mem.Allocator,
+    config: Config,
+    module_name: []const u8,
+    title: []const u8,
+    comptime generator: fn (anytype, Config) anyerror!void,
+) !void {
     const file_path = try std.fmt.allocPrint(allocator, "{s}/{s}.md", .{ config.output_dir, module_name });
     defer allocator.free(file_path);
 
-    const file = try std.fs.cwd().createFile(file_path, .{});
+    const file = try std.fs.cwd().createFile(file_path, .{ .truncate = true });
     defer file.close();
 
     var writer = file;
 
     // Write header
-    try writer.writeAll("# ");
-    try writer.writeAll(title);
-    try writer.writeAll("\n\n");
-    try writer.writeAll("This document provides comprehensive API documentation for the `");
-    try writer.writeAll(module_name);
-    try writer.writeAll("` module.\n\n");
+    const intro = try std.fmt.allocPrint(
+        allocator,
+        "# {s}\n\nThis document provides comprehensive API documentation for the `{s}` module.\n\n",
+        .{ title, module_name },
+    );
+    defer allocator.free(intro);
+    try writer.writeAll(intro);
 
     // Generate table of contents
     try writer.writeAll("## Table of Contents\n\n");
@@ -83,23 +95,25 @@ fn generateModuleDocs(allocator: std.mem.Allocator, config: Config, module_name:
     try writer.writeAll("\n");
 
     // Module-specific documentation
-    if (std.mem.eql(u8, module_name, "database")) {
-        try generateDatabaseDocs(writer, config);
-    } else if (std.mem.eql(u8, module_name, "ai")) {
-        try generateAIDocs(writer, config);
-    } else if (std.mem.eql(u8, module_name, "simd")) {
-        try generateSIMDDocs(writer, config);
-    } else if (std.mem.eql(u8, module_name, "http_client")) {
-        try generateHTTPClientDocs(writer, config);
-    } else if (std.mem.eql(u8, module_name, "plugins")) {
-        try generatePluginDocs(writer, config);
-    } else if (std.mem.eql(u8, module_name, "wdbx")) {
-        try generateWDBXDocs(writer, config);
+    try generator(writer, config);
+}
+
+fn ensureCleanOutputDirectory(path: []const u8) !void {
+    if (path.len == 0 or std.mem.eql(u8, path, ".") or std.mem.eql(u8, path, "./") or std.mem.eql(u8, path, ".\\")) {
+        return error.InvalidOutputDirectory;
     }
 
-    // No flush required for std.fs.File
+    const cwd = std.fs.cwd();
+    cwd.access(path, .{}) catch |err| switch (err) {
+        error.FileNotFound => {
+            try cwd.makePath(path);
+            return;
+        },
+        else => return err,
+    };
 
-    std.debug.print("   ✓ Generated {s}\n", .{file_path});
+    try cwd.deleteTree(path);
+    try cwd.makePath(path);
 }
 
 fn generateDatabaseDocs(writer: anytype, config: Config) !void {
@@ -237,7 +251,7 @@ fn generateIndexFile(allocator: std.mem.Allocator, config: Config) !void {
     const file_path = try std.fmt.allocPrint(allocator, "{s}/index.md", .{config.output_dir});
     defer allocator.free(file_path);
 
-    const file = try std.fs.cwd().createFile(file_path, .{});
+    const file = try std.fs.cwd().createFile(file_path, .{ .truncate = true });
     defer file.close();
 
     var writer = file;
@@ -275,6 +289,4 @@ fn generateIndexFile(allocator: std.mem.Allocator, config: Config) !void {
 
     try writer.writeAll("## License\n\n");
     try writer.writeAll("Apache License 2.0 - see LICENSE file for details.\n");
-
-    // No flush needed for std.fs.File
 }

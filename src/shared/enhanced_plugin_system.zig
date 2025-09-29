@@ -1,195 +1,183 @@
-//! Enhanced Plugin System - Production-ready plugin architecture with hot-reloading
-//!
-//! This module provides a comprehensive plugin system for the Abi AI Framework with:
-//! - Dynamic plugin loading and unloading
-//! - Hot-reloading capabilities
-//! - Plugin dependencies and versioning
-//! - Service discovery and communication
-//! - Security and sandboxing
-//! - Performance monitoring and metrics
-
 const std = @import("std");
-const builtin = @import("builtin");
-
-const core = @import("core");
 const config = @import("../core/config.zig");
 const errors = @import("../core/errors.zig");
 
 const FrameworkError = errors.FrameworkError;
 const PluginConfig = config.PluginConfig;
 
-/// Enhanced plugin system with production-ready features
+/// Plugin system configuration shared across the runtime.
+pub const PluginSystemConfig = struct {
+    plugin_directory: []const u8 = "plugins/",
+    enable_hot_reload: bool = true,
+    max_plugins: u32 = 100,
+    plugin_timeout_ms: u32 = 30_000,
+    enable_sandboxing: bool = true,
+    enable_performance_monitoring: bool = true,
+    enable_security_validation: bool = true,
+
+    pub fn validate(self: PluginSystemConfig) FrameworkError!void {
+        if (self.max_plugins == 0) return FrameworkError.InvalidConfiguration;
+        if (self.plugin_timeout_ms == 0) return FrameworkError.InvalidConfiguration;
+        if (self.plugin_directory.len == 0) return FrameworkError.InvalidConfiguration;
+    }
+};
+
+/// Primary entry point for managing plugins at runtime.
 pub const EnhancedPluginSystem = struct {
     allocator: std.mem.Allocator,
+    config: PluginSystemConfig,
     plugins: std.StringHashMap(*Plugin),
-    plugin_loaders: std.ArrayList(*PluginLoader),
-    plugin_registry: *PluginRegistry,
-    plugin_watcher: *PluginWatcher,
-    plugin_manager: *PluginManager,
-    service_discovery: *ServiceDiscovery,
-    security_manager: *SecurityManager,
-    performance_monitor: *PerformanceMonitor,
+    plugin_registry: PluginRegistry,
+    plugin_watcher: PluginWatcher,
+    plugin_manager: PluginManager,
+    service_discovery: ServiceDiscovery,
+    security_manager: SecurityManager,
+    performance_monitor: PerformanceMonitor,
 
     const Self = @This();
 
-    /// Initialize the enhanced plugin system
-    pub fn init(allocator: std.mem.Allocator) FrameworkError!*Self {
+    pub fn init(allocator: std.mem.Allocator, system_config: PluginSystemConfig) FrameworkError!*Self {
+        try system_config.validate();
+
         const self = try allocator.create(Self);
         errdefer allocator.destroy(self);
 
         self.* = .{
             .allocator = allocator,
+            .config = system_config,
             .plugins = std.StringHashMap(*Plugin).init(allocator),
-            .plugin_loaders = std.ArrayList(*PluginLoader){},
-            .plugin_registry = try PluginRegistry.init(allocator),
-            .plugin_watcher = try PluginWatcher.init(allocator),
-            .plugin_manager = try PluginManager.init(allocator),
-            .service_discovery = try ServiceDiscovery.init(allocator),
-            .security_manager = try SecurityManager.init(allocator),
-            .performance_monitor = try PerformanceMonitor.init(allocator),
+            .plugin_registry = PluginRegistry.init(allocator),
+            .plugin_watcher = PluginWatcher.init(allocator),
+            .plugin_manager = PluginManager.init(system_config.max_plugins),
+            .service_discovery = ServiceDiscovery.init(allocator),
+            .security_manager = SecurityManager.init(system_config.plugin_directory),
+            .performance_monitor = PerformanceMonitor.init(allocator),
         };
 
-        // Initialize plugin loaders
-        try self.initializePluginLoaders();
-
-        // Initialize plugin watcher if hot-reloading is enabled
-        if (config.enable_hot_reload) {
-            try self.plugin_watcher.start(config.plugin_directory);
+        if (system_config.enable_hot_reload) {
+            try self.plugin_watcher.start(system_config.plugin_directory);
         }
 
-        // Load initial plugins
-        try self.loadInitialPlugins(config.plugin_directory);
+        self.loadInitialPlugins(system_config.plugin_directory) catch |err| {
+            std.log.warn("plugin bootstrap deferred: {}", .{err});
+        };
 
         return self;
     }
 
-    /// Deinitialize the enhanced plugin system
     pub fn deinit(self: *Self) void {
-        // Stop plugin watcher
-        self.plugin_watcher.stop();
+        if (self.config.enable_hot_reload) {
+            self.plugin_watcher.stop();
+        }
 
-        // Unload all plugins
         self.unloadAllPlugins();
 
-        // Clean up components
         self.plugin_registry.deinit();
-        self.plugin_watcher.deinit();
-        self.plugin_manager.deinit();
         self.service_discovery.deinit();
         self.security_manager.deinit();
         self.performance_monitor.deinit();
-
-        // Clean up plugin loaders
-        for (self.plugin_loaders.items) |loader| {
-            loader.deinit();
-        }
-        self.plugin_loaders.deinit(self.allocator);
-
-        // Clean up plugins
         self.plugins.deinit();
 
         self.allocator.destroy(self);
     }
 
-    /// Load a plugin from file
     pub fn loadPlugin(self: *Self, path: []const u8) FrameworkError!*Plugin {
-        // Security check
         try self.security_manager.validatePluginPath(path);
 
-        // Load plugin using appropriate loader
-        const loader = try self.getPluginLoader(path);
-        const plugin = try loader.loadPlugin(path);
+        const name_hint = derivePluginName(path);
+        if (self.plugins.contains(name_hint)) {
+            return FrameworkError.InvalidOperation;
+        }
 
-        // Validate plugin
+        try self.plugin_manager.register();
+        errdefer self.plugin_manager.unregister();
+
+        const plugin = try Plugin.create(self.allocator, name_hint, "0.1.0", "auto discovered plugin", path);
+        var plugin_ready = false;
+        errdefer {
+            if (!plugin_ready) plugin.destroy();
+        }
+
         try self.validatePlugin(plugin);
-
-        // Check dependencies
         try self.checkPluginDependencies(plugin);
-
-        // Initialize plugin
         try plugin.initialize(self.allocator);
 
-        // Register plugin
+        var inserted = false;
+        errdefer {
+            if (inserted) {
+                _ = self.plugins.remove(plugin.name);
+            }
+        }
+
         try self.plugins.put(plugin.name, plugin);
+        inserted = true;
+
         try self.plugin_registry.registerPlugin(plugin);
-
-        // Register services
         try self.registerPluginServices(plugin);
-
-        // Start plugin
         try plugin.start();
 
-        // Emit plugin loaded event
         self.emitPluginEvent(.plugin_loaded, plugin, null);
 
+        plugin_ready = true;
         return plugin;
     }
 
-    /// Unload a plugin
     pub fn unloadPlugin(self: *Self, name: []const u8) FrameworkError!void {
-        const plugin = self.plugins.get(name) orelse return FrameworkError.PluginNotFound;
+        const plugin = self.plugins.get(name) orelse return FrameworkError.InvalidOperation;
 
-        // Stop plugin
-        try plugin.stop();
+        if (plugin.state == .running) {
+            try plugin.stop();
+        }
 
-        // Unregister services
         try self.unregisterPluginServices(plugin);
-
-        // Unregister plugin
         try self.plugin_registry.unregisterPlugin(name);
 
-        // Remove from plugins map
-        _ = self.plugins.remove(name);
+        if (!self.plugins.remove(name)) {
+            return FrameworkError.InvalidOperation;
+        }
 
-        // Deinitialize plugin
+        self.plugin_manager.unregister();
+
         plugin.deinitialize();
-
-        // Emit plugin unloaded event
         self.emitPluginEvent(.plugin_unloaded, plugin, null);
+        plugin.destroy();
     }
 
-    /// Reload a plugin
     pub fn reloadPlugin(self: *Self, name: []const u8) FrameworkError!void {
-        const plugin = self.plugins.get(name) orelse return FrameworkError.PluginNotFound;
+        const plugin = self.plugins.get(name) orelse return FrameworkError.InvalidOperation;
+        const path_copy = try self.allocator.dupe(u8, plugin.path);
+        defer self.allocator.free(path_copy);
 
-        // Get plugin path
-        const path = plugin.path;
-
-        // Unload plugin
         try self.unloadPlugin(name);
-
-        // Load plugin again
-        _ = try self.loadPlugin(path);
+        _ = try self.loadPlugin(path_copy);
     }
 
-    /// Get a plugin by name
     pub fn getPlugin(self: *Self, name: []const u8) ?*Plugin {
         return self.plugins.get(name);
     }
 
-    /// List all loaded plugins
     pub fn listPlugins(self: *const Self) []const []const u8 {
-        var names = std.ArrayList([]const u8){};
+        var names = std.ArrayList([]const u8).init(self.allocator);
         defer names.deinit(self.allocator);
 
         var iterator = self.plugins.iterator();
         while (iterator.next()) |entry| {
-            names.append(self.allocator, entry.key_ptr.*) catch continue;
+            names.append(self.allocator, entry.key_ptr.*) catch {
+                std.log.warn("failed to collect plugin name {s}", .{entry.key_ptr.*});
+                break;
+            };
         }
 
         return names.toOwnedSlice(self.allocator) catch &[_][]const u8{};
     }
 
-    /// Get plugin statistics
     pub fn getPluginStats(self: *const Self) PluginStats {
         var stats = PluginStats{};
-
         stats.total_plugins = @as(u32, @intCast(self.plugins.count()));
 
         var iterator = self.plugins.iterator();
         while (iterator.next()) |entry| {
             const plugin = entry.value_ptr.*;
-
             switch (plugin.state) {
                 .loaded => stats.loaded_plugins += 1,
                 .running => stats.running_plugins += 1,
@@ -204,12 +192,11 @@ pub const EnhancedPluginSystem = struct {
         return stats;
     }
 
-    /// Health check for all plugins
     pub fn healthCheck(self: *const Self) PluginHealthStatus {
-        var status = PluginHealthStatus{.{
+        var status = PluginHealthStatus{
             .overall = .healthy,
             .plugins = std.StringHashMap(PluginHealth).init(self.allocator),
-        }};
+        };
 
         var iterator = self.plugins.iterator();
         while (iterator.next()) |entry| {
@@ -217,10 +204,11 @@ pub const EnhancedPluginSystem = struct {
             const health = plugin.healthCheck();
 
             status.plugins.put(entry.key_ptr.*, health) catch {
+                status.overall = .degraded;
                 continue;
             };
 
-            if (health.status != .healthy) {
+            if (health.status != .healthy and status.overall == .healthy) {
                 status.overall = .degraded;
             }
         }
@@ -228,69 +216,39 @@ pub const EnhancedPluginSystem = struct {
         return status;
     }
 
-    // Private methods
-
-    fn initializePluginLoaders(self: *Self) FrameworkError!void {
-        // Initialize native plugin loader
-        const native_loader = try NativePluginLoader.init(self.allocator);
-        try self.plugin_loaders.append(native_loader);
-
-        // Initialize script plugin loader
-        const script_loader = try ScriptPluginLoader.init(self.allocator);
-        try self.plugin_loaders.append(script_loader);
-
-        // Initialize web plugin loader
-        const web_loader = try WebPluginLoader.init(self.allocator);
-        try self.plugin_loaders.append(web_loader);
-    }
-
-    fn getPluginLoader(self: *Self, path: []const u8) FrameworkError!*PluginLoader {
-        const extension = std.fs.path.extension(path);
-        if (std.mem.eql(u8, extension, ".dll") or
-            std.mem.eql(u8, extension, ".so") or
-            std.mem.eql(u8, extension, ".dylib"))
-        {
-            return &self.plugin_loaders.items[0]; // Native loader
-        } else if (std.mem.eql(u8, extension, ".js") or
-            std.mem.eql(u8, extension, ".py") or
-            std.mem.eql(u8, extension, ".lua"))
-        {
-            return &self.plugin_loaders.items[1]; // Script loader
-        } else if (std.mem.eql(u8, extension, ".wasm")) {
-            return &self.plugin_loaders.items[2]; // Web loader
-        } else {
-            return FrameworkError.UnsupportedOperation;
-        }
-    }
-
     fn validatePlugin(self: *Self, plugin: *Plugin) FrameworkError!void {
-        // Validate plugin configuration
         try plugin.config.validate();
 
-        // Security validation
-        try self.security_manager.validatePlugin(plugin);
+        if (self.config.enable_security_validation) {
+            try self.security_manager.validatePlugin(plugin);
+        }
 
-        // Performance validation
-        try self.performance_monitor.validatePlugin(plugin);
+        if (self.config.enable_performance_monitoring) {
+            try self.performance_monitor.validatePlugin(plugin);
+        }
     }
 
     fn checkPluginDependencies(self: *Self, plugin: *Plugin) FrameworkError!void {
         for (plugin.config.dependencies) |dependency| {
             if (!self.plugins.contains(dependency)) {
-                return FrameworkError.PluginNotFound;
+                return FrameworkError.InvalidOperation;
             }
         }
     }
 
     fn registerPluginServices(self: *Self, plugin: *Plugin) FrameworkError!void {
-        for (plugin.services.items) |service| {
-            try self.service_discovery.registerService(service);
+        var index: usize = 0;
+        while (index < plugin.services.items.len) : (index += 1) {
+            const service_ptr = &plugin.services.items[index];
+            try self.service_discovery.registerService(plugin, service_ptr);
         }
     }
 
     fn unregisterPluginServices(self: *Self, plugin: *Plugin) FrameworkError!void {
-        for (plugin.services.items) |service| {
-            try self.service_discovery.unregisterService(service.name);
+        var index: usize = 0;
+        while (index < plugin.services.items.len) : (index += 1) {
+            const name = plugin.services.items[index].name;
+            try self.service_discovery.unregisterService(name);
         }
     }
 
@@ -300,23 +258,36 @@ pub const EnhancedPluginSystem = struct {
 
         var iterator = dir.iterate();
         while (try iterator.next()) |entry| {
-            if (entry.kind == .file) {
-                const plugin_path = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ plugin_directory, entry.name });
-                defer self.allocator.free(plugin_path);
+            if (entry.kind != .file) continue;
 
-                self.loadPlugin(plugin_path) catch |err| {
-                    std.log.warn("Failed to load plugin {s}: {}", .{ plugin_path, err });
-                    continue;
-                };
-            }
+            const plugin_path = std.fs.path.join(self.allocator, &.{ plugin_directory, entry.name }) catch {
+                continue;
+            };
+            defer self.allocator.free(plugin_path);
+
+            self.loadPlugin(plugin_path) catch |err| {
+                std.log.warn("failed to load plugin {s}: {}", .{ plugin_path, err });
+            };
         }
     }
 
     fn unloadAllPlugins(self: *Self) void {
+        if (self.plugins.count() == 0) return;
+
+        var names = std.ArrayList([]const u8).init(self.allocator);
+        defer names.deinit(self.allocator);
+
         var iterator = self.plugins.iterator();
         while (iterator.next()) |entry| {
-            self.unloadPlugin(entry.key_ptr.*) catch |err| {
-                std.log.warn("Failed to unload plugin {s}: {}", .{ entry.key_ptr.*, err });
+            names.append(self.allocator, entry.key_ptr.*) catch {
+                std.log.warn("failed to queue plugin {s} for shutdown", .{entry.key_ptr.*});
+                break;
+            };
+        }
+
+        for (names.items) |plugin_name| {
+            self.unloadPlugin(plugin_name) catch |err| {
+                std.log.warn("failed to unload plugin {s}: {}", .{ plugin_name, err });
             };
         }
     }
@@ -326,151 +297,163 @@ pub const EnhancedPluginSystem = struct {
         _ = event_type;
         _ = plugin;
         _ = data;
-        // Emit plugin event
     }
 };
 
-/// Plugin system configuration
-pub const PluginSystemConfig = struct {
-    plugin_directory: []const u8 = "plugins/",
-    enable_hot_reload: bool = true,
-    max_plugins: u32 = 100,
-    plugin_timeout_ms: u32 = 30000,
-    enable_sandboxing: bool = true,
-    enable_performance_monitoring: bool = true,
-    enable_security_validation: bool = true,
-
-    pub fn validate(self: PluginSystemConfig) FrameworkError!void {
-        if (self.max_plugins == 0) {
-            return FrameworkError.InvalidConfiguration;
-        }
-
-        if (self.plugin_timeout_ms == 0) {
-            return FrameworkError.InvalidConfiguration;
-        }
+fn derivePluginName(path: []const u8) []const u8 {
+    const base = std.fs.path.basename(path);
+    if (std.mem.lastIndexOfScalar(u8, base, '.')) |dot_index| {
+        return base[0..dot_index];
     }
-};
+    return base;
+}
 
-/// Enhanced plugin with production-ready features
 pub const Plugin = struct {
+    allocator: std.mem.Allocator,
     name: []const u8,
     version: []const u8,
     description: []const u8,
     path: []const u8,
     config: PluginConfig,
-    state: PluginState,
+    state: PluginState = .unloaded,
     services: std.ArrayList(PluginService),
     dependencies: std.ArrayList([]const u8),
-    memory_usage: usize,
-    performance_metrics: PluginPerformanceMetrics,
-    security_context: *SecurityContext,
+    memory_usage: usize = 0,
+    performance_metrics: PluginPerformanceMetrics = .{},
+    security_context: ?*SecurityContext = null,
 
-    const Self = @This();
+    pub fn create(allocator: std.mem.Allocator, name: []const u8, version: []const u8, description: []const u8, path: []const u8) FrameworkError!*Plugin {
+        const self = try allocator.create(Plugin);
+        errdefer allocator.destroy(self);
 
-    pub fn init(name: []const u8, version: []const u8, description: []const u8, path: []const u8) Self {
-        return Self{
-            .name = name,
-            .version = version,
-            .description = description,
-            .path = path,
+        const name_copy = try allocator.dupe(u8, name);
+        errdefer allocator.free(name_copy);
+
+        const version_copy = try allocator.dupe(u8, version);
+        errdefer allocator.free(version_copy);
+
+        const description_copy = try allocator.dupe(u8, description);
+        errdefer allocator.free(description_copy);
+
+        const path_copy = try allocator.dupe(u8, path);
+        errdefer allocator.free(path_copy);
+
+        self.* = .{
+            .allocator = allocator,
+            .name = name_copy,
+            .version = version_copy,
+            .description = description_copy,
+            .path = path_copy,
             .config = PluginConfig{
-                .name = name,
-                .version = version,
-                .description = description,
-                .settings = std.StringHashMap([]const u8).init(std.heap.page_allocator),
+                .name = name_copy,
+                .version = version_copy,
+                .description = description_copy,
+                .settings = std.StringHashMap([]const u8).init(allocator),
             },
-            .state = .unloaded,
-            .services = std.ArrayList(PluginService){},
-            .dependencies = std.ArrayList([]const u8){},
+            .services = std.ArrayList(PluginService).init(allocator),
+            .dependencies = std.ArrayList([]const u8).init(allocator),
             .memory_usage = 0,
             .performance_metrics = PluginPerformanceMetrics{},
-            .security_context = undefined, // Will be set during initialization
+            .security_context = null,
         };
+
+        errdefer self.config.settings.deinit();
+
+        return self;
     }
 
-    pub fn deinit(self: *Self) void {
-        self.services.deinit(std.heap.page_allocator);
-        self.dependencies.deinit(std.heap.page_allocator);
+    pub fn destroy(self: *Plugin) void {
+        var index: usize = 0;
+        while (index < self.services.items.len) : (index += 1) {
+            var service = &self.services.items[index];
+            service.deinit();
+        }
+        self.services.deinit(self.allocator);
+
+        for (self.dependencies.items) |dependency| {
+            self.allocator.free(dependency);
+        }
+        self.dependencies.deinit(self.allocator);
+
         self.config.settings.deinit();
+
+        if (self.security_context) |ctx| {
+            ctx.deinit();
+        }
+
+        self.allocator.free(self.name);
+        self.allocator.free(self.version);
+        self.allocator.free(self.description);
+        self.allocator.free(self.path);
+
+        self.allocator.destroy(self);
     }
 
-    pub fn initialize(self: *Self, allocator: std.mem.Allocator) FrameworkError!void {
+    pub fn initialize(self: *Plugin, allocator: std.mem.Allocator) FrameworkError!void {
         _ = allocator;
+        if (!self.state.canTransitionTo(.loaded)) return FrameworkError.InvalidState;
 
-        if (!self.state.canTransitionTo(.loaded)) {
-            return FrameworkError.OperationFailed;
+        if (self.security_context == null) {
+            self.security_context = try SecurityContext.create(self.allocator);
         }
 
         self.state = .loaded;
-
-        // Initialize plugin-specific resources
-        // This would be implemented by the specific plugin
     }
 
-    pub fn start(self: *Self) FrameworkError!void {
-        if (!self.state.canTransitionTo(.running)) {
-            return FrameworkError.OperationFailed;
-        }
-
+    pub fn start(self: *Plugin) FrameworkError!void {
+        if (!self.state.canTransitionTo(.running)) return FrameworkError.InvalidState;
         self.state = .running;
-
-        // Start plugin-specific services
-        // This would be implemented by the specific plugin
     }
 
-    pub fn stop(self: *Self) FrameworkError!void {
-        if (!self.state.canTransitionTo(.stopped)) {
-            return FrameworkError.OperationFailed;
-        }
-
+    pub fn stop(self: *Plugin) FrameworkError!void {
+        if (!self.state.canTransitionTo(.stopped)) return FrameworkError.InvalidState;
         self.state = .stopped;
-
-        // Stop plugin-specific services
-        // This would be implemented by the specific plugin
     }
 
-    pub fn deinitialize(self: *Self) void {
+    pub fn deinitialize(self: *Plugin) void {
         self.state = .unloaded;
-
-        // Clean up plugin-specific resources
-        // This would be implemented by the specific plugin
+        if (self.security_context) |ctx| {
+            ctx.deinit();
+            self.security_context = null;
+        }
     }
 
-    pub fn healthCheck(self: *const Self) PluginHealth {
+    pub fn healthCheck(self: *const Plugin) PluginHealth {
+        const timestamp = std.time.microTimestamp();
         return PluginHealth{
-            .status = if (self.state == .running) .healthy else .unhealthy,
-            .message = "Plugin is healthy",
-            .last_check = std.time.microTimestamp(),
+            .status = if (self.state == .running) .healthy else .degraded,
+            .message = "plugin heartbeat",
+            .last_check = @as(i64, @intCast(timestamp)),
             .memory_usage = self.memory_usage,
             .performance_metrics = self.performance_metrics,
         };
     }
 
-    pub fn addService(self: *Self, service: PluginService) FrameworkError!void {
-        try self.services.append(service);
+    pub fn addService(self: *Plugin, service: PluginService) FrameworkError!void {
+        try self.services.append(self.allocator, service);
     }
 
-    pub fn removeService(self: *Self, service_name: []const u8) bool {
-        for (self.services.items, 0..) |service, i| {
-            if (std.mem.eql(u8, service.name, service_name)) {
-                _ = self.services.swapRemove(i);
+    pub fn removeService(self: *Plugin, name: []const u8) bool {
+        for (self.services.items, 0..) |service, idx| {
+            if (std.mem.eql(u8, service.name, name)) {
+                const removed = self.services.swapRemove(idx);
+                removed.deinit();
                 return true;
             }
         }
         return false;
     }
 
-    pub fn getService(self: *const Self, service_name: []const u8) ?PluginService {
-        for (self.services.items) |service| {
-            if (std.mem.eql(u8, service.name, service_name)) {
-                return service;
+    pub fn getService(self: *Plugin, name: []const u8) ?*PluginService {
+        for (self.services.items, 0..) |service, idx| {
+            if (std.mem.eql(u8, service.name, name)) {
+                return &self.services.items[idx];
             }
         }
         return null;
     }
 };
 
-/// Plugin state management
 pub const PluginState = enum {
     unloaded,
     loaded,
@@ -489,32 +472,28 @@ pub const PluginState = enum {
     }
 };
 
-/// Plugin service definition
 pub const PluginService = struct {
-    name: []const u8, // Service name
+    name: []const u8,
     version: []const u8,
     description: []const u8,
     capabilities: PluginCapabilities,
-    handler: *const fn (input: []const u8) anyerror![]const u8,
-    metadata: std.StringHashMap([]const u8),
+    handler: *const fn ([]const u8) anyerror![]const u8,
 
     pub fn init(name: []const u8, version: []const u8, description: []const u8, capabilities: PluginCapabilities, handler: *const fn ([]const u8) anyerror![]const u8) PluginService {
-        return PluginService{
+        return .{
             .name = name,
             .version = version,
             .description = description,
             .capabilities = capabilities,
             .handler = handler,
-            .metadata = std.StringHashMap([]const u8).init(std.heap.page_allocator),
         };
     }
 
     pub fn deinit(self: *PluginService) void {
-        self.metadata.deinit();
+        _ = self;
     }
 };
 
-/// Plugin capabilities
 pub const PluginCapabilities = struct {
     text_processing: bool = false,
     image_processing: bool = false,
@@ -528,7 +507,6 @@ pub const PluginCapabilities = struct {
     caching: bool = false,
 };
 
-/// Plugin performance metrics
 pub const PluginPerformanceMetrics = struct {
     total_requests: u64 = 0,
     successful_requests: u64 = 0,
@@ -567,7 +545,6 @@ pub const PluginPerformanceMetrics = struct {
     }
 };
 
-/// Plugin health status
 pub const PluginHealth = struct {
     status: HealthStatus,
     message: []const u8,
@@ -576,14 +553,12 @@ pub const PluginHealth = struct {
     performance_metrics: PluginPerformanceMetrics,
 };
 
-/// Health status levels
 pub const HealthStatus = enum {
     healthy,
     degraded,
     unhealthy,
 };
 
-/// Plugin statistics
 pub const PluginStats = struct {
     total_plugins: u32 = 0,
     loaded_plugins: u32 = 0,
@@ -593,7 +568,6 @@ pub const PluginStats = struct {
     total_memory_usage: usize = 0,
 };
 
-/// Plugin health status for all plugins
 pub const PluginHealthStatus = struct {
     overall: HealthStatus,
     plugins: std.StringHashMap(PluginHealth),
@@ -603,7 +577,6 @@ pub const PluginHealthStatus = struct {
     }
 };
 
-/// Plugin event types
 pub const PluginEventType = enum {
     plugin_loaded,
     plugin_unloaded,
@@ -614,204 +587,149 @@ pub const PluginEventType = enum {
     service_unregistered,
 };
 
-// Placeholder types for components (to be implemented in separate modules)
-
-const PluginLoader = struct {
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator) !*PluginLoader {
-        const self = try allocator.create(PluginLoader);
-        self.* = .{ .allocator = allocator };
-        return self;
-    }
-
-    pub fn deinit(self: *PluginLoader) void {
-        self.allocator.destroy(self);
-    }
-
-    pub fn loadPlugin(self: *PluginLoader, path: []const u8) !*Plugin {
-        _ = self;
-        _ = path;
-        return undefined;
-    }
-};
-
-const NativePluginLoader = struct {
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator) !*NativePluginLoader {
-        const self = try allocator.create(NativePluginLoader);
-        self.* = .{ .allocator = allocator };
-        return self;
-    }
-
-    pub fn deinit(self: *NativePluginLoader) void {
-        self.allocator.destroy(self);
-    }
-
-    pub fn loadPlugin(self: *NativePluginLoader, path: []const u8) !*Plugin {
-        _ = self;
-        _ = path;
-        return undefined;
-    }
-};
-
-const ScriptPluginLoader = struct {
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator) !*ScriptPluginLoader {
-        const self = try allocator.create(ScriptPluginLoader);
-        self.* = .{ .allocator = allocator };
-        return self;
-    }
-
-    pub fn deinit(self: *ScriptPluginLoader) void {
-        self.allocator.destroy(self);
-    }
-
-    pub fn loadPlugin(self: *ScriptPluginLoader, path: []const u8) !*Plugin {
-        _ = self;
-        _ = path;
-        return undefined;
-    }
-};
-
-const WebPluginLoader = struct {
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator) !*WebPluginLoader {
-        const self = try allocator.create(WebPluginLoader);
-        self.* = .{ .allocator = allocator };
-        return self;
-    }
-
-    pub fn deinit(self: *WebPluginLoader) void {
-        self.allocator.destroy(self);
-    }
-
-    pub fn loadPlugin(self: *WebPluginLoader, path: []const u8) !*Plugin {
-        _ = self;
-        _ = path;
-        return undefined;
-    }
-};
-
 const PluginRegistry = struct {
+    entries: std.StringHashMap(RegistryEntry),
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) !*PluginRegistry {
-        const self = try allocator.create(PluginRegistry);
-        self.* = .{ .allocator = allocator };
-        return self;
+    const RegistryEntry = struct {
+        version: []const u8,
+        path: []const u8,
+    };
+
+    pub fn init(allocator: std.mem.Allocator) PluginRegistry {
+        return .{
+            .entries = std.StringHashMap(RegistryEntry).init(allocator),
+            .allocator = allocator,
+        };
     }
 
     pub fn deinit(self: *PluginRegistry) void {
-        self.allocator.destroy(self);
+        self.entries.deinit();
     }
 
-    pub fn registerPlugin(self: *PluginRegistry, plugin: *Plugin) !void {
-        _ = self;
-        _ = plugin;
+    pub fn registerPlugin(self: *PluginRegistry, plugin: *Plugin) FrameworkError!void {
+        try self.entries.put(plugin.name, .{ .version = plugin.version, .path = plugin.path });
     }
 
-    pub fn unregisterPlugin(self: *PluginRegistry, name: []const u8) !void {
-        _ = self;
-        _ = name;
+    pub fn unregisterPlugin(self: *PluginRegistry, name: []const u8) FrameworkError!void {
+        if (!self.entries.remove(name)) {
+            return FrameworkError.InvalidOperation;
+        }
     }
 };
 
 const PluginWatcher = struct {
     allocator: std.mem.Allocator,
+    running: bool = false,
 
-    pub fn init(allocator: std.mem.Allocator) !*PluginWatcher {
-        const self = try allocator.create(PluginWatcher);
-        self.* = .{ .allocator = allocator };
-        return self;
+    pub fn init(allocator: std.mem.Allocator) PluginWatcher {
+        return .{ .allocator = allocator, .running = false };
     }
 
-    pub fn deinit(self: *PluginWatcher) void {
-        self.allocator.destroy(self);
-    }
-
-    pub fn start(self: *PluginWatcher, directory: []const u8) !void {
-        _ = self;
+    pub fn start(self: *PluginWatcher, directory: []const u8) FrameworkError!void {
         _ = directory;
+        self.running = true;
     }
 
     pub fn stop(self: *PluginWatcher) void {
-        _ = self;
+        self.running = false;
     }
 };
 
 const PluginManager = struct {
-    allocator: std.mem.Allocator,
+    max_plugins: u32,
+    active_plugins: u32 = 0,
 
-    pub fn init(allocator: std.mem.Allocator) !*PluginManager {
-        const self = try allocator.create(PluginManager);
-        self.* = .{ .allocator = allocator };
-        return self;
+    pub fn init(max_plugins: u32) PluginManager {
+        return .{ .max_plugins = max_plugins, .active_plugins = 0 };
     }
 
-    pub fn deinit(self: *PluginManager) void {
-        self.allocator.destroy(self);
+    pub fn register(self: *PluginManager) FrameworkError!void {
+        if (self.active_plugins >= self.max_plugins) {
+            return FrameworkError.ResourceLimitExceeded;
+        }
+        self.active_plugins += 1;
+    }
+
+    pub fn unregister(self: *PluginManager) void {
+        if (self.active_plugins > 0) {
+            self.active_plugins -= 1;
+        }
     }
 };
 
 const ServiceDiscovery = struct {
     allocator: std.mem.Allocator,
+    services: std.StringHashMap(ServiceRecord),
 
-    pub fn init(allocator: std.mem.Allocator) !*ServiceDiscovery {
-        const self = try allocator.create(ServiceDiscovery);
-        self.* = .{ .allocator = allocator };
-        return self;
+    const ServiceRecord = struct {
+        plugin_name: []const u8,
+        version: []const u8,
+        capabilities: PluginCapabilities,
+    };
+
+    pub fn init(allocator: std.mem.Allocator) ServiceDiscovery {
+        return .{
+            .allocator = allocator,
+            .services = std.StringHashMap(ServiceRecord).init(allocator),
+        };
     }
 
     pub fn deinit(self: *ServiceDiscovery) void {
-        self.allocator.destroy(self);
+        self.services.deinit();
     }
 
-    pub fn registerService(self: *ServiceDiscovery, service: PluginService) !void {
-        _ = self;
-        _ = service;
+    pub fn registerService(self: *ServiceDiscovery, plugin: *Plugin, service: *const PluginService) FrameworkError!void {
+        try self.services.put(service.name, .{
+            .plugin_name = plugin.name,
+            .version = service.version,
+            .capabilities = service.capabilities,
+        });
     }
 
-    pub fn unregisterService(self: *ServiceDiscovery, name: []const u8) !void {
-        _ = self;
-        _ = name;
+    pub fn unregisterService(self: *ServiceDiscovery, name: []const u8) FrameworkError!void {
+        if (!self.services.remove(name)) {
+            return FrameworkError.InvalidOperation;
+        }
     }
 };
 
 const SecurityManager = struct {
-    allocator: std.mem.Allocator,
+    root_directory: []const u8,
 
-    pub fn init(allocator: std.mem.Allocator) !*SecurityManager {
-        const self = try allocator.create(SecurityManager);
-        self.* = .{ .allocator = allocator };
-        return self;
+    pub fn init(root_directory: []const u8) SecurityManager {
+        return .{ .root_directory = root_directory };
     }
 
     pub fn deinit(self: *SecurityManager) void {
-        self.allocator.destroy(self);
+        _ = self;
     }
 
-    pub fn validatePluginPath(self: *SecurityManager, path: []const u8) !void {
-        _ = self;
-        _ = path;
+    pub fn validatePluginPath(self: *SecurityManager, path: []const u8) FrameworkError!void {
+        if (path.len == 0) return FrameworkError.InvalidInput;
+        if (std.fs.path.isAbsolute(path)) return FrameworkError.InvalidInput;
+        if (std.mem.indexOf(u8, path, "..")) |_| {
+            return FrameworkError.InvalidInput;
+        }
+
+        _ = self.root_directory; // Future directory scoping.
     }
 
-    pub fn validatePlugin(self: *SecurityManager, plugin: *Plugin) !void {
-        _ = self;
-        _ = plugin;
+    pub fn validatePlugin(self: *SecurityManager, plugin: *Plugin) FrameworkError!void {
+        try self.validatePluginPath(plugin.path);
+        if (plugin.config.name.len == 0) {
+            return FrameworkError.InvalidConfiguration;
+        }
     }
 };
 
 const SecurityContext = struct {
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) !*SecurityContext {
-        const self = try allocator.create(SecurityContext);
-        self.* = .{ .allocator = allocator };
-        return self;
+    pub fn create(allocator: std.mem.Allocator) FrameworkError!*SecurityContext {
+        const ctx = try allocator.create(SecurityContext);
+        ctx.* = .{ .allocator = allocator };
+        return ctx;
     }
 
     pub fn deinit(self: *SecurityContext) void {
@@ -822,19 +740,19 @@ const SecurityContext = struct {
 const PerformanceMonitor = struct {
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) !*PerformanceMonitor {
-        const self = try allocator.create(PerformanceMonitor);
-        self.* = .{ .allocator = allocator };
-        return self;
+    pub fn init(allocator: std.mem.Allocator) PerformanceMonitor {
+        return .{ .allocator = allocator };
     }
 
     pub fn deinit(self: *PerformanceMonitor) void {
-        self.allocator.destroy(self);
+        _ = self;
     }
 
-    pub fn validatePlugin(self: *PerformanceMonitor, plugin: *Plugin) !void {
+    pub fn validatePlugin(self: *PerformanceMonitor, plugin: *Plugin) FrameworkError!void {
         _ = self;
-        _ = plugin;
+        if (plugin.performance_metrics.cpu_usage_percent > 100.0) {
+            return FrameworkError.InvalidState;
+        }
     }
 };
 
@@ -847,11 +765,10 @@ test "enhanced plugin system initialization" {
         .max_plugins = 10,
     };
 
-    var test_plugin_system = try EnhancedPluginSystem.init(testing.allocator, test_config);
-    defer test_plugin_system.deinit();
+    var system = try EnhancedPluginSystem.init(testing.allocator, test_config);
+    defer system.deinit();
 
-    // Test plugin system initialization
-    try testing.expectEqual(@as(usize, 0), test_plugin_system.plugins.count());
+    try testing.expectEqual(@as(usize, 0), system.plugins.count());
 }
 
 test "plugin system statistics" {
@@ -863,11 +780,10 @@ test "plugin system statistics" {
         .max_plugins = 10,
     };
 
-    var test_plugin_system = try EnhancedPluginSystem.init(testing.allocator, test_config);
-    defer test_plugin_system.deinit();
+    var system = try EnhancedPluginSystem.init(testing.allocator, test_config);
+    defer system.deinit();
 
-    // Test plugin statistics
-    const stats = test_plugin_system.getPluginStats();
+    const stats = system.getPluginStats();
     try testing.expectEqual(@as(u32, 0), stats.total_plugins);
     try testing.expectEqual(@as(u32, 0), stats.loaded_plugins);
     try testing.expectEqual(@as(u32, 0), stats.running_plugins);
@@ -882,11 +798,10 @@ test "plugin system health check" {
         .max_plugins = 10,
     };
 
-    var test_plugin_system = try EnhancedPluginSystem.init(testing.allocator, test_config);
-    defer test_plugin_system.deinit();
+    var system = try EnhancedPluginSystem.init(testing.allocator, test_config);
+    defer system.deinit();
 
-    // Test health check
-    const health = test_plugin_system.healthCheck();
+    const health = system.healthCheck();
     defer health.deinit();
 
     try testing.expectEqual(HealthStatus.healthy, health.overall);
