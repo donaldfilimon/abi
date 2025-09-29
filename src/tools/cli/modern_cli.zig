@@ -451,9 +451,9 @@ pub const Parser = struct {
 /// Help formatter for generating usage and help text
 pub const HelpFormatter = struct {
     context: *const Context,
-    writer: std.io.AnyWriter,
+    writer: anytype,
 
-    pub fn init(context: *const Context, writer: std.io.AnyWriter) HelpFormatter {
+    pub fn init(context: *const Context, writer: anytype) HelpFormatter {
         return .{
             .context = context,
             .writer = writer,
