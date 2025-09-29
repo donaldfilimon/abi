@@ -21,7 +21,7 @@ concurrency:
 jobs:
   # Build job
   build:
-    runs-on: self-runner
+    runs-on: ALIENWARE
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,7 +40,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: self-runner
+    runs-on: ALIENWARE
     needs: build
     steps:
       - name: Deploy to GitHub Pages
