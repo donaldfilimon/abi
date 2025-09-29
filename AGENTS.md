@@ -39,7 +39,7 @@ Mission: Ship a production-grade refactor of ABI—an experimental Zig framework
 	•	No Perf Regressions: Hot paths — WDBX insert/search, agent process, SIMD/GPU kernels — meet or beat baseline P50/P95.
 	•	Allocator Discipline: No hidden allocations. Every heap use goes through a caller-provided std.mem.Allocator. Ownership is explicit.
 	•	Cross-Platform: Linux, macOS, Windows. WASM/WebGPU behind -Denable-web.
-	•	Deterministic Builds: Pinned .zigversion to 0.16.0-dev.254+6dd0270a1. Reproducible zig build. No net fetch at build.
+	•	Deterministic Builds: Pinned .zigversion to 0.16.0-dev.457+f90510b08. Reproducible zig build. No net fetch at build.
 	•	Typed Errors: Use error{...} sets; avoid sentinel returns.
 	•	Observability: Structured logs at all layers; metrics opt-in without code changes.
 	•	Repository Alignment: Build on existing modules (abi.ai, abi.database, abi.gpu, abi.web, abi.monitoring, abi.connectors, abi.VectorOps from abi.simd); expand GPU from CPU-backed stubs to full backends, inspired by production ML stacks like ZML for tensor ops 14 .
@@ -49,7 +49,7 @@ Mission: Ship a production-grade refactor of ABI—an experimental Zig framework
 	•	SemVer (pre-release): 0.1.0-alpha.N → 0.1.0-beta.N → 0.1.0. Stable surface targets 0.2.x; plan for 1.0 alignment with Zig 1.0 (TBD, est. post-2025 per community discussions 15 ).
 	•	Deprecations: Announce in CHANGELOG, provide shims for 1 minor, include migration notes.
 	•	Artifacts: CLI binary, optional lib, docs site, benchmark JSON, SBOM, Docker images.
-	•	Zig Support: .zigversion pins a known-good 0.16-dev snapshot (0.16.0-dev.254+6dd0270a1); automate updates via CI with regression tests.
+	•	Zig Support: .zigversion pins a known-good 0.16-dev snapshot (0.16.0-dev.457+f90510b08); automate updates via CI with regression tests.
 	•	Release Automation: Use semantic-release in CI for tagging, changelog gen, and GitHub releases.
 
 3) Architecture Overview
