@@ -1,16 +1,16 @@
 const std = @import("std");
-const common = @import("common.zig");
 
-const gpu = @import("gpu.zig");
-const db = @import("db.zig");
+const chat = @import("chat.zig");
+const common = @import("common.zig");
 const config = @import("config.zig");
+const db = @import("db.zig");
+const gpu = @import("gpu.zig");
+const llm = @import("llm.zig");
 const neural = @import("neural.zig");
-const simd = @import("simd.zig");
 const plugin = @import("plugin.zig");
 const server = @import("server.zig");
+const simd = @import("simd.zig");
 const weather = @import("weather.zig");
-const llm = @import("llm.zig");
-const chat = @import("chat.zig");
 
 pub const CommandRegistry = struct {
     pub const Entry = struct {
@@ -18,13 +18,11 @@ pub const CommandRegistry = struct {
         command: *const common.Command,
     };
 
-    entries: []const Entry,
-
-    pub inline fn init(comptime entries: []const Entry) CommandRegistry {
+    pub inline fn init(comptime entries_comptime: []const Entry) CommandRegistry {
         comptime {
             const all_ids = std.meta.fields(common.CommandId);
             var seen = [_]bool{false} ** all_ids.len;
-            inline for (entries) |entry| {
+            for (entries_comptime) |entry| {
                 const idx = @intFromEnum(entry.id);
                 if (idx >= seen.len) {
                     @compileError("Command id out of range");
@@ -38,7 +36,7 @@ pub const CommandRegistry = struct {
                 seen[idx] = true;
             }
 
-            inline for (seen, 0..) |was_seen, idx| {
+            for (seen, 0..) |was_seen, idx| {
                 if (!was_seen) {
                     const field = all_ids[idx];
                     @compileError("Command registry missing entry for " ++ field.name);
