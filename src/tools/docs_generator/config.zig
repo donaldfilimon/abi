@@ -2,13 +2,13 @@ const std = @import("std");
 
 pub fn generateNoJekyll(_: std.mem.Allocator) !void {
     // Ensure GitHub Pages does not run Jekyll
-    var file = try std.fs.cwd().createFile("docs/.nojekyll", .{});
+    var file = try std.fs.cwd().createFile("docs/.nojekyll", .{ .truncate = true });
     defer file.close();
 }
 
 /// Generate Jekyll configuration for GitHub Pages
 pub fn generateJekyllConfig(_: std.mem.Allocator) !void {
-    const file = try std.fs.cwd().createFile("docs/_config.yml", .{});
+    const file = try std.fs.cwd().createFile("docs/_config.yml", .{ .truncate = true });
     defer file.close();
 
     const content =
@@ -110,7 +110,17 @@ pub fn generateJekyllConfig(_: std.mem.Allocator) !void {
 
 /// Generate GitHub Pages layout template
 pub fn generateGitHubPagesLayout(_: std.mem.Allocator) !void {
-    const file = try std.fs.cwd().createFile("docs/_layouts/documentation.html", .{});
+    const cwd = std.fs.cwd();
+    const layout_path = "docs/_layouts/documentation.html";
+
+    if (cwd.access(layout_path, .{})) |_| {
+        return;
+    } else |err| switch (err) {
+        error.FileNotFound => {},
+        else => return err,
+    }
+
+    const file = try cwd.createFile(layout_path, .{ .truncate = true });
     defer file.close();
 
     const content =
@@ -235,7 +245,7 @@ pub fn generateGitHubPagesLayout(_: std.mem.Allocator) !void {
 
 /// Generate navigation data for enhanced site structure
 pub fn generateNavigationData(_: std.mem.Allocator) !void {
-    const file = try std.fs.cwd().createFile("docs/_data/navigation.yml", .{});
+    const file = try std.fs.cwd().createFile("docs/_data/navigation.yml", .{ .truncate = true });
     defer file.close();
 
     const content =
@@ -318,7 +328,7 @@ pub fn generateNavigationData(_: std.mem.Allocator) !void {
 /// Generate SEO metadata and frontmatter for pages
 pub fn generateSEOMetadata(_: std.mem.Allocator) !void {
     // Generate sitemap.xml
-    const sitemap_file = try std.fs.cwd().createFile("docs/sitemap.xml", .{});
+    const sitemap_file = try std.fs.cwd().createFile("docs/sitemap.xml", .{ .truncate = true });
     defer sitemap_file.close();
 
     const sitemap_content =
@@ -373,7 +383,7 @@ pub fn generateSEOMetadata(_: std.mem.Allocator) !void {
     try sitemap_file.writeAll(sitemap_content);
 
     // Generate robots.txt
-    const robots_file = try std.fs.cwd().createFile("docs/robots.txt", .{});
+    const robots_file = try std.fs.cwd().createFile("docs/robots.txt", .{ .truncate = true });
     defer robots_file.close();
 
     const robots_content =
@@ -396,7 +406,7 @@ pub fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
     _ = allocator;
 
     // Generate enhanced CSS
-    const css_file = try std.fs.cwd().createFile("docs/assets/css/documentation.css", .{});
+    const css_file = try std.fs.cwd().createFile("docs/assets/css/documentation.css", .{ .truncate = true });
     defer css_file.close();
 
     const css_content =
@@ -701,7 +711,7 @@ pub fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
     try css_file.writeAll(css_content);
 
     // Generate JavaScript for enhanced functionality
-    const js_file = try std.fs.cwd().createFile("docs/assets/js/documentation.js", .{});
+    const js_file = try std.fs.cwd().createFile("docs/assets/js/documentation.js", .{ .truncate = true });
     defer js_file.close();
 
     const js_content =
@@ -999,7 +1009,7 @@ pub fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
     try js_file.writeAll(js_content);
 
     // Generate search JavaScript
-    const search_js_file = try std.fs.cwd().createFile("docs/assets/js/search.js", .{});
+    const search_js_file = try std.fs.cwd().createFile("docs/assets/js/search.js", .{ .truncate = true });
     defer search_js_file.close();
 
     const search_js_content =
@@ -1154,7 +1164,7 @@ pub fn generateGitHubPagesAssets(allocator: std.mem.Allocator) !void {
 /// Generate GitHub Actions workflow for automated documentation deployment
 pub fn generateGitHubActionsWorkflow(allocator: std.mem.Allocator) !void {
     _ = allocator;
-    const file = try std.fs.cwd().createFile(".github/workflows/deploy_docs.yml", .{});
+    const file = try std.fs.cwd().createFile(".github/workflows/deploy_docs.yml", .{ .truncate = true });
     defer file.close();
 
     const content =

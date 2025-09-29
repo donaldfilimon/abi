@@ -2,7 +2,7 @@ const std = @import("std");
 
 /// Generate comprehensive definitions reference documentation
 pub fn generateDefinitionsReference(_: std.mem.Allocator) !void {
-    const file = try std.fs.cwd().createFile("docs/generated/DEFINITIONS_REFERENCE.md", .{});
+    const file = try std.fs.cwd().createFile("docs/generated/DEFINITIONS_REFERENCE.md", .{ .truncate = true });
     defer file.close();
 
     const content =

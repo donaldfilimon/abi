@@ -2,7 +2,7 @@ const std = @import("std");
 
 /// Generate API reference documentation
 pub fn generateApiReference(_: std.mem.Allocator) !void {
-    const file = try std.fs.cwd().createFile("docs/generated/API_REFERENCE.md", .{});
+    const file = try std.fs.cwd().createFile("docs/generated/API_REFERENCE.md", .{ .truncate = true });
     defer file.close();
 
     const content =
