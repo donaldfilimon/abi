@@ -1,6 +1,6 @@
 const std = @import("std");
-const abi = @import("abi");
 
+const abi = @import("abi");
 const Framework = abi.framework.runtime.Framework;
 const FrameworkOptions = abi.framework.config.FrameworkOptions;
 const Feature = abi.framework.config.Feature;
@@ -29,7 +29,7 @@ pub fn printJson(out: std.io.AnyWriter, comptime fmt: []const u8, args: anytype)
 
 pub const Logger = struct {
     pub const Level = enum(u8) {
-        error = 1,
+        @"error" = 1,
         warn = 2,
         info = 3,
         debug = 4,
@@ -57,7 +57,7 @@ pub const Logger = struct {
     }
 
     pub fn err(self: Logger, comptime fmt: []const u8, args: anytype) !void {
-        try self.log(.error, fmt, args);
+        try self.log(.@"error", fmt, args);
     }
 };
 
@@ -155,7 +155,7 @@ const SessionDatabase = struct {
         }.lessThan);
 
         const total = @min(results.items.len, k);
-        var owned = try self.allocator.alloc(SearchResult, total);
+        const owned = try self.allocator.alloc(SearchResult, total);
         @memcpy(owned, results.items[0..total]);
         return owned;
     }
@@ -175,7 +175,7 @@ pub const Cli = struct {
         json_mode: bool,
         log_level: Logger.Level,
     ) !Cli {
-        var framework = try Framework.init(allocator, FrameworkOptions{});
+        const framework = try Framework.init(allocator, FrameworkOptions{});
         return .{
             .allocator = allocator,
             .channels = channels,
@@ -419,7 +419,7 @@ pub const Cli = struct {
     }
 
     const VectorSource = union(enum) {
-        inline: []const u8,
+        @"inline": []const u8,
         file: []const u8,
     };
 
@@ -441,7 +441,7 @@ pub const Cli = struct {
                     try self.logger.err("--vec requires a value\n", .{});
                     return .usage;
                 }
-                source = .{ .inline = args[idx] };
+                source = .{ .@"inline" = args[idx] };
             } else if (std.mem.eql(u8, token, "--vec-file")) {
                 idx += 1;
                 if (idx >= args.len) {
@@ -522,7 +522,7 @@ pub const Cli = struct {
                     try self.logger.err("--vec requires a value\n", .{});
                     return .usage;
                 }
-                source = .{ .inline = args[idx] };
+                source = .{ .@"inline" = args[idx] };
             } else if (std.mem.eql(u8, token, "--vec-file")) {
                 idx += 1;
                 if (idx >= args.len) {
@@ -580,8 +580,8 @@ pub const Cli = struct {
             var buffer = std.ArrayList(u8).init(self.allocator);
             defer buffer.deinit();
             try buffer.appendSlice("{\"results\":[");
-            for (results, 0..) |res, idx| {
-                if (idx != 0) try buffer.appendSlice(",");
+            for (results, 0..) |res, idx_other| {
+                if (idx_other != 0) try buffer.appendSlice(",");
                 try buffer.writer().print("{\"id\":{d},\"distance\":{d:.6}}", .{ res.id, res.distance });
             }
             try buffer.appendSlice("]}");
@@ -602,7 +602,7 @@ pub const Cli = struct {
 
     fn loadVector(self: *Cli, source: VectorSource) ![]f32 {
         return switch (source) {
-            .inline => |text| blk: {
+            .@"inline" => |text| blk: {
                 const trimmed = std.mem.trim(u8, text, "[] \t\r\n");
                 break :blk try db_helpers.parseVector(self.allocator, trimmed);
             },
@@ -717,7 +717,7 @@ pub const Cli = struct {
 
     fn parseMatSize(text: []const u8) !MatSize {
         var parts = std.mem.splitScalar(u8, text, 'x');
-        var values: [3]usize = .{0, 0, 0};
+        var values: [3]usize = .{ 0, 0, 0 };
         var count: usize = 0;
         while (parts.next()) |piece| {
             if (count >= values.len) return error.InvalidSize;
@@ -731,12 +731,12 @@ pub const Cli = struct {
 
     fn runCpuBench(allocator: std.mem.Allocator, size: MatSize, repeats: usize) !CpuBenchResult {
         const total = size.m * size.p;
-        var output = try allocator.alloc(f32, total);
+        const output = try allocator.alloc(f32, total);
         errdefer allocator.free(output);
 
-        var a = try allocator.alloc(f32, size.m * size.n);
+        const a = try allocator.alloc(f32, size.m * size.n);
         defer allocator.free(a);
-        var b = try allocator.alloc(f32, size.n * size.p);
+        const b = try allocator.alloc(f32, size.n * size.p);
         defer allocator.free(b);
 
         for (a, 0..) |*item, idx| item.* = @floatFromInt((idx % 7) + 1);
@@ -822,7 +822,7 @@ pub fn main() !void {
     }
 
     if (json_mode and log_level == .info) {
-        log_level = .error;
+        log_level = .@"error";
     }
 
     var cli = try Cli.init(
@@ -892,7 +892,7 @@ test "features list emits json in json mode" {
     var tc = TestChannels.init(std.testing.allocator);
     defer tc.deinit();
 
-    var cli = try Cli.init(std.testing.allocator, tc.channels(), true, .error);
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), true, .@"error");
     defer cli.deinit();
 
     try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "features", "list" }));
