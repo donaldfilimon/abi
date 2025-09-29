@@ -65,4 +65,3 @@ test "trace context generates ids" {
     try std.testing.expect(!std.mem.eql(u8, &ctx.span_id, &child.span_id));
     try std.testing.expectEqualSlices(u8, &ctx.trace_id, &child.trace_id);
 }
-

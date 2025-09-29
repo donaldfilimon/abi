@@ -10,6 +10,7 @@
 //! - Cache-friendly layouts for better performance
 
 const std = @import("std");
+const shared_utils = @import("../../../shared/utils_modern.zig");
 
 // Re-export lock-free data structures
 pub const lockFreeQueue = @import("lockfree.zig").lockFreeQueue;
@@ -22,7 +23,7 @@ pub const mpmcQueue = @import("lockfree.zig").mpmcQueue;
 pub const CircularBuffer = @import("circular_buffer.zig").CircularBuffer;
 pub const RingBuffer = @import("circular_buffer.zig").RingBuffer;
 pub const BatchQueue = @import("batch_queue.zig").BatchQueue;
-pub const MemoryPool = @import("memory_pool.zig").MemoryPool;
+pub const MemoryPool = shared_utils.memory.MemoryPool;
 pub const ObjectPool = @import("object_pool.zig").ObjectPool;
 pub const ThreadSafeCache = @import("cache.zig").ThreadSafeCache;
 pub const LRUCache = @import("cache.zig").LRUCache;
@@ -128,8 +129,8 @@ pub fn createCircularBuffer(comptime T: type, allocator: std.mem.Allocator, capa
 }
 
 /// Initialize a memory pool for object reuse
-pub fn createMemoryPool(comptime T: type, allocator: std.mem.Allocator, pool_size: usize) !*MemoryPool(T) {
-    return MemoryPool(T).init(allocator, pool_size);
+pub fn createMemoryPool(comptime T: type, allocator: std.mem.Allocator, pool_size: usize) !MemoryPool(T) {
+    return try MemoryPool(T).create(allocator, pool_size);
 }
 
 /// Initialize a thread-safe LRU cache

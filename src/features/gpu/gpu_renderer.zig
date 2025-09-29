@@ -11,4 +11,9 @@
 //! Projects migrating to the modular layout are encouraged to import
 //! `features.gpu.core.gpu_renderer` directly.
 
-pub usingnamespace @import("core/gpu_renderer.zig");
+// Bring the core renderer symbols into this module for local convenience.
+const gpu_renderer = @import("core/gpu_renderer.zig");
+
+// Also expose the imported module publicly so downstream code importing the
+// legacy path can access the modern module via `.core`.
+pub const core = gpu_renderer;

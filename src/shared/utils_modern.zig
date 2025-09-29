@@ -69,14 +69,23 @@ pub const memory = struct {
             allocator: std.mem.Allocator,
             pool: []T,
             free_list: collections.ArrayList(*T),
+            next_index: usize,
             allocated_count: usize,
             max_allocated: usize,
 
             pub fn create(allocator: std.mem.Allocator, capacity: usize) !Self {
+                var pool_mem = try allocator.alloc(T, capacity);
+                var free_list = try collections.ArrayList(*T).initCapacity(allocator, capacity);
+                var index: usize = 0;
+                while (index < capacity) : (index += 1) {
+                    free_list.appendAssumeCapacity(&pool_mem[index]);
+                }
+
                 return .{
                     .allocator = allocator,
-                    .pool = try allocator.alloc(T, capacity),
-                    .free_list = collections.ArrayList(*T){},
+                    .pool = pool_mem,
+                    .free_list = free_list,
+                    .next_index = 0,
                     .allocated_count = 0,
                     .max_allocated = 0,
                 };
@@ -86,11 +95,7 @@ pub const memory = struct {
                 // Clean up remaining free list items properly
                 for (self.free_list.items) |item| {
                     // Only destroy items that were allocated outside the pool
-                    const item_addr = @intFromPtr(item);
-                    const pool_start = @intFromPtr(self.pool.ptr);
-                    const pool_end = pool_start + (self.pool.len * @sizeOf(T));
-
-                    if (item_addr < pool_start or item_addr >= pool_end) {
+                    if (!self.isFromPool(item)) {
                         self.allocator.destroy(item);
                     }
                 }
@@ -99,18 +104,29 @@ pub const memory = struct {
             }
 
             pub fn acquire(self: *Self) !*T {
+                var item: *T = undefined;
+                if (self.free_list.items.len > 0) {
+                    item = self.free_list.swapRemove(self.free_list.items.len - 1);
+                } else if (self.next_index < self.pool.len) {
+                    item = &self.pool[self.next_index];
+                    self.next_index += 1;
+                } else {
+                    return error.OutOfMemory;
+                }
+
                 self.allocated_count += 1;
                 self.max_allocated = @max(self.max_allocated, self.allocated_count);
-
-                if (self.free_list.items.len > 0) {
-                    return self.free_list.swapRemove(self.free_list.items.len - 1);
-                }
-                return try self.allocator.create(T);
+                return item;
             }
 
             pub fn release(self: *Self, item: *T) void {
                 if (self.allocated_count > 0) {
                     self.allocated_count -= 1;
+                }
+
+                if (!self.isFromPool(item)) {
+                    self.allocator.destroy(item);
+                    return;
                 }
 
                 self.free_list.append(self.allocator, item) catch {
@@ -125,6 +141,14 @@ pub const memory = struct {
                     .max_allocated = self.max_allocated,
                     .free_list_size = self.free_list.items.len,
                 };
+            }
+
+            fn isFromPool(self: *const Self, item: *T) bool {
+                if (self.pool.len == 0) return false;
+                const addr = @intFromPtr(item);
+                const start = @intFromPtr(self.pool.ptr);
+                const end = start + self.pool.len * @sizeOf(T);
+                return addr >= start and addr < end;
             }
         };
     }
@@ -187,6 +211,7 @@ test "shared utils - memory pool" {
     pool.release(item2);
 
     const item3 = try pool.acquire();
+    defer pool.release(item3);
     // item3 is guaranteed to be non-null since acquire() returns !*T, not ?*T
     try testing.expect(@intFromPtr(item3) != 0);
 }

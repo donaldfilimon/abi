@@ -143,7 +143,7 @@ pub fn loadFromBytes(allocator: std.mem.Allocator, bytes: []const u8) ManifestEr
 }
 
 fn buildManifestData(allocator: std.mem.Allocator, json: ManifestJson) !ManifestData {
-    const defaults = try copyDefaults(allocator, json.defaults);
+    const defaults_value = try copyDefaults(allocator, json.defaults);
 
     var personas = try allocator.alloc(PersonaDefinition, json.personas.len);
     for (json.personas, 0..) |persona_json, idx| {
@@ -152,14 +152,14 @@ fn buildManifestData(allocator: std.mem.Allocator, json: ManifestJson) !Manifest
 
     return ManifestData{
         .version = json.version,
-        .defaults = defaults,
+        .defaults = defaults_value,
         .personas = personas,
     };
 }
 
-fn copyDefaults(allocator: std.mem.Allocator, defaults: PersonaDefaultsJson) !PersonaDefaults {
-    var tools = try allocator.alloc([]const u8, defaults.tools.len);
-    for (defaults.tools, 0..) |tool, idx| {
+fn copyDefaults(allocator: std.mem.Allocator, persona_defaults: PersonaDefaultsJson) !PersonaDefaults {
+    var tools = try allocator.alloc([]const u8, persona_defaults.tools.len);
+    for (persona_defaults.tools, 0..) |tool, idx| {
         tools[idx] = try std.mem.dupe(allocator, u8, tool);
     }
 
@@ -223,7 +223,7 @@ test "manifest loads personas" {
     const json_bytes = "{\n" ++
         "  \"version\": 1,\n" ++
         "  \"defaults\": {\n" ++
-        "    \"profile\": \"test\",\n" ++
+        "    \"profile\": \"testing\",\n" ++
         "    \"temperature\": 0.5,\n" ++
         "    \"top_p\": 0.8,\n" ++
         "    \"tools\": [\"code\"],\n" ++
@@ -239,7 +239,7 @@ test "manifest loads personas" {
         "  },\n" ++
         "  \"personas\": [\n" ++
         "    {\n" ++
-        "      \"id\": \"test\",\n" ++
+        "      \"id\": \"testing\",\n" ++
         "      \"display_name\": \"Test Persona\",\n" ++
         "      \"description\": \"desc\",\n" ++
         "      \"system_prompt\": \"prompt\",\n" ++
@@ -268,10 +268,10 @@ test "manifest loads personas" {
     defer manifest.deinit();
 
     try std.testing.expectEqual(@as(u32, 1), manifest.data.version);
-    try std.testing.expectEqualStrings("test", manifest.data.defaults.profile);
+    try std.testing.expectEqualStrings("testing", manifest.data.defaults.profile);
     try std.testing.expectEqual(@as(usize, 1), manifest.data.personas.len);
 
     const persona = manifest.data.personas[0];
-    try std.testing.expectEqualStrings("test", persona.id);
+    try std.testing.expectEqualStrings("testing", persona.id);
     try std.testing.expectEqual(@as(usize, 2), persona.tools.len);
 }

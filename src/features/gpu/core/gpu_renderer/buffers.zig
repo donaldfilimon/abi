@@ -492,7 +492,7 @@ test "buffer manager round-trips data on CPU backend" {
     const updated = [_]f32{ 9.0, -1.0, 0.5, 32.75 };
     manager.writeBuffer(&buffer, std.mem.sliceAsBytes(&updated));
 
-    const copy = try manager.readBuffer(f32, &buffer, @intCast(u64, updated.len), testing.allocator);
+    const copy = try manager.readBuffer(f32, &buffer, @as(u64, @intCast(updated.len)), testing.allocator);
     defer testing.allocator.free(copy);
 
     try testing.expectEqualSlices(f32, &updated, copy);

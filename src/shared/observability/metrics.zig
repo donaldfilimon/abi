@@ -113,4 +113,3 @@ test "registry tracks persona counts" {
     try std.testing.expectEqual(@as(u64, 1), snapshot.total_errors);
     try std.testing.expectEqual(@as(u64, 200), snapshot.averageLatencyNs());
 }
-

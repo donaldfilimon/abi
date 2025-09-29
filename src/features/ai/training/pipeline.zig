@@ -234,7 +234,7 @@ pub const ModelTrainer = struct {
         _ = _targets;
         if (predictions.len > 0) {
             // Light-touch operation to exercise tensor interface for downstream extensions.
-            var buffer = try self.allocator.alloc(f32, predictions.len);
+            const buffer = try self.allocator.alloc(f32, predictions.len);
             defer self.allocator.free(buffer);
             @memcpy(buffer, predictions);
             try self.tensor_ops.scale(buffer, 1.0);
@@ -293,9 +293,11 @@ pub const ModelTrainer = struct {
     }
 
     fn logMetrics(self: *const ModelTrainer, metrics_value: metrics_mod.Metrics) void {
+        _ = self;
+        const metrics = metrics_value;
         std.debug.print(
             "Epoch {} - loss: {d:.6}, acc: {d:.3}, lr: {d:.6}\n",
-            .{ metrics_value.epoch, metrics_value.loss, metrics_value.accuracy, metrics_value.learning_rate },
+            .{ metrics.epoch, metrics.loss, metrics.accuracy, metrics.learning_rate },
         );
     }
 
@@ -304,6 +306,7 @@ pub const ModelTrainer = struct {
     }
 
     fn computeAccuracy(self: *const ModelTrainer, predictions: []const f32, targets: []const f32) f32 {
+        _ = self;
         if (predictions.len == 0 or targets.len == 0) return 0.0;
 
         if (predictions.len == 1) {
@@ -562,8 +565,8 @@ test "model trainer executes training loop with model handle" {
     );
     defer trainer.deinit();
 
-    const inputs = [_][]const f32{ &[_]f32{ 1.0 } };
-    const targets = [_][]const f32{ &[_]f32{ 0.0 } };
+    const inputs = [_][]const f32{&[_]f32{1.0}};
+    const targets = [_][]const f32{&[_]f32{0.0}};
 
     var metrics = try trainer.train(&inputs, &targets);
     defer metrics.deinit(std.testing.allocator);
