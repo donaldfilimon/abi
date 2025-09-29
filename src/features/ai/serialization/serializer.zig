@@ -480,12 +480,21 @@ pub const ModelRegistry = struct {
         };
     }
 
+    const registry_header = "ABIREG\n";
+
     pub fn deinit(self: *ModelRegistry) void {
         var it = self.models.iterator();
         while (it.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
             self.allocator.free(entry.value_ptr.model_path);
             self.allocator.free(entry.value_ptr.version);
+
+            var metadata_ptr = &entry.value_ptr.metadata;
+            metadata_ptr.deinit(self.allocator);
+
+            for (entry.value_ptr.tags.items) |tag| {
+                self.allocator.free(tag);
+            }
             entry.value_ptr.tags.deinit();
         }
         self.models.deinit();
@@ -521,7 +530,7 @@ pub const ModelRegistry = struct {
         const file = try fs.cwd().createFile(path, .{});
         defer file.close();
 
-        try file.writeAll("ABIREG\n");
+        try file.writeAll(registry_header);
         try file.writeInt(u32, @as(u32, @intCast(self.models.count())), .little);
 
         var it = self.models.iterator();
@@ -553,9 +562,9 @@ pub const ModelRegistry = struct {
         const file = try fs.cwd().openFile(path, .{});
         defer file.close();
 
-        var magic_buf: [7]u8 = undefined;
-        _ = try file.read(&magic_buf);
-        if (!std.mem.eql(u8, &magic_buf, "ABIREG")) {
+        var magic_buf: [registry_header.len]u8 = undefined;
+        try file.readNoEof(magic_buf[0..]);
+        if (!std.mem.eql(u8, magic_buf[0..], registry_header)) {
             return error.InvalidRegistryFile;
         }
 
@@ -629,4 +638,51 @@ test "model serializer checksum" {
     const writer = buffer.writer();
     try serializer.serializeMetadata(metadata, writer);
     try testing.expect(buffer.items.len > 0);
+}
+
+test "model registry save and load roundtrip" {
+    const testing = std.testing;
+    const model_name = "roundtrip-model";
+
+    var registry = ModelRegistry.init(testing.allocator);
+    defer registry.deinit();
+
+    var metadata = ModelMetadata.init(testing.allocator, "demo-net", &[_]usize{1, 3, 224, 224}, &[_]usize{1, 1000});
+    metadata.num_parameters = 1024;
+    metadata.num_layers = 12;
+
+    var tags = ArrayList([]const u8).init(testing.allocator);
+    try tags.append(try testing.allocator.dupe(u8, "vision"));
+
+    const entry = ModelRegistry.ModelEntry{
+        .metadata = metadata,
+        .model_path = try testing.allocator.dupe(u8, "model.bin"),
+        .created_at = 42,
+        .version = try testing.allocator.dupe(u8, "1.0.0"),
+        .tags = tags,
+    };
+    try registry.registerModel(model_name, entry);
+
+    var tmp_dir = std.testing.tmpDir(.{});
+    defer tmp_dir.cleanup();
+
+    var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+    const dir_path = try tmp_dir.dir.realpath(".", &path_buf);
+    const file_path = try std.fmt.allocPrint(testing.allocator, "{s}/registry.bin", .{dir_path});
+    defer testing.allocator.free(file_path);
+
+    try registry.saveToFile(file_path);
+
+    var loaded_registry = ModelRegistry.init(testing.allocator);
+    defer loaded_registry.deinit();
+
+    try loaded_registry.loadFromFile(file_path);
+    try testing.expectEqual(@as(usize, 1), loaded_registry.models.count());
+
+    const loaded_entry = loaded_registry.getModel(model_name) orelse return error.TestUnexpectedResult;
+    try testing.expectEqual(@as(u64, 42), loaded_entry.created_at);
+    try testing.expect(std.mem.eql(u8, loaded_entry.model_path, "model.bin"));
+    try testing.expect(std.mem.eql(u8, loaded_entry.version, "1.0.0"));
+    try testing.expectEqual(@as(usize, 1), loaded_entry.tags.items.len);
+    try testing.expect(std.mem.eql(u8, loaded_entry.tags.items[0], "vision"));
 }
