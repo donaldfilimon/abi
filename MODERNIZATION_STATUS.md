@@ -44,10 +44,11 @@ The following table lists the top sources of remaining TODO comments gathered on
   ```powershell
   Get-ChildItem -Path src/tools -Filter *.zig -Recurse | Select-String -Pattern 'TODO'
   ```
-- **Ensure documentation summaries stay synced:**
+- **Check for reintroduced legacy CLI summary files:**
   ```powershell
-  Get-Content CLI_SERVICES_IMPLEMENTATION_SUMMARY.md, FULL_FUNCTIONALITY_IMPLEMENTATION_SUMMARY.md | Select-String -Pattern 'TODO'
+  Get-ChildItem -Path . -Filter 'CLI_*SUMMARY.md' -Recurse
   ```
+  > The historical CLI/GPU summary exports have been removed from the repository; this command should return no matches.
 
 ## Next Actions
 
@@ -55,6 +56,6 @@ The following table lists the top sources of remaining TODO comments gathered on
 2. **Testing coverage:** Replace placeholder GPU cross-platform tests with failing tests that describe the desired behaviour, then implement the supporting code.
 3. **Parser phase kick-off:** Draft a migration plan for the parser subsystem, covering diagnostics, slice-first APIs, and golden tests.
 4. **CI/CD uplift:** Wire reproducible builds and documentation publishing into CI so modernization progress is automatically validated.
-5. **Documentation hygiene:** After each feature lands, update this dashboard plus the component summaries to keep TODO status transparent.
+5. **Documentation hygiene:** Keep this dashboard and the canonical docs up to date, and ensure obsolete one-off summary exports stay out of the tree so contributors always land in the authoritative references.
 
 Maintaining this dashboard ensures the modernization effort stays evidence-based and prevents TODO drift as the codebase evolves.
