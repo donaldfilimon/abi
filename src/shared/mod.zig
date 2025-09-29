@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const core = @import("core");
+const core = @import("core/mod.zig");
 
 pub const interface = @import("interface.zig");
 pub const loader = @import("loader.zig");

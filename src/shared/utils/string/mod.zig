@@ -96,7 +96,7 @@ pub const ArrayUtils = struct {
     /// Check if array contains element
     pub fn contains(comptime T: type, haystack: []const T, needle: T) bool {
         for (haystack) |item| {
-            if (item == needle) return true;
+            if (std.meta.eql(item, needle)) return true;
         }
         return false;
     }
@@ -104,7 +104,7 @@ pub const ArrayUtils = struct {
     /// Find index of element in array
     pub fn indexOf(comptime T: type, haystack: []const T, needle: T) ?usize {
         for (haystack, 0..) |item, i| {
-            if (item == needle) return i;
+            if (std.meta.eql(item, needle)) return i;
         }
         return null;
     }
@@ -143,7 +143,7 @@ pub const ArrayUtils = struct {
     pub fn count(comptime T: type, array: []const T, value: T) usize {
         var result: usize = 0;
         for (array) |item| {
-            if (item == value) result += 1;
+            if (std.meta.eql(item, value)) result += 1;
         }
         return result;
     }
@@ -167,7 +167,14 @@ pub const TimeUtils = struct {
 
     /// Get current timestamp in nanoseconds
     pub fn nowNs() i64 {
-        return std.time.nanoTimestamp();
+        const ts = std.time.nanoTimestamp();
+        return std.math.cast(i64, ts) catch {
+            if (ts >= 0) {
+                return std.math.maxInt(i64);
+            } else {
+                return std.math.minInt(i64);
+            }
+        };
     }
 
     /// Format duration in human readable format

@@ -12,7 +12,7 @@
 const std = @import("std");
 const testing = std.testing;
 const abi = @import("abi");
-const gpu = abi.gpu;
+const gpu = abi.gpu.core;
 
 test "GPU module imports" {
     // Test that all GPU components are accessible
