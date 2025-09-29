@@ -191,7 +191,20 @@
       let inCode = false;
       let codeLang = '';
 
-      for (let i = 0; i < lines.length; i++) {
+      let startIndex = 0;
+      if (lines.length > 0 && lines[0].trim() === '---') {
+        startIndex = 1;
+        while (startIndex < lines.length && lines[startIndex].trim() !== '---') {
+          startIndex++;
+        }
+        if (startIndex < lines.length) {
+          startIndex++;
+        } else {
+          startIndex = 0;
+        }
+      }
+
+      for (let i = startIndex; i < lines.length; i++) {
         let line = lines[i];
 
         if (line.startsWith('```')) {
