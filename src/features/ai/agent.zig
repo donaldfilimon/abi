@@ -7,9 +7,25 @@
 const std = @import("std");
 const persona_manifest = @import("persona_manifest.zig");
 const observability = @import("../../shared/observability/mod.zig");
-
-const persona_manifest = @import("../../shared/core/persona_manifest.zig");
 const metrics = @import("../../shared/observability/metrics.zig");
+const PersonaDefinition = persona_manifest.PersonaDefinition;
+const PersonaSafety = std.meta.FieldType(PersonaDefinition, .safety);
+const PersonaToolList = std.meta.FieldType(PersonaDefinition, .tools);
+
+pub const PersonaSettingsView = struct {
+    temperature: f32,
+    top_p: f32,
+    tools: PersonaToolList,
+    safety: ?PersonaSafety,
+    system_prompt: []const u8,
+};
+
+const PersonaSettingsState = struct {
+    temperature: f32,
+    top_p: f32,
+    tools: std.ArrayListUnmanaged([]const u8) = .{},
+    safety: ?PersonaSafety = null,
+};
 
 pub const Allocator = std.mem.Allocator;
 
@@ -22,6 +38,10 @@ pub const AgentError = error{
 
 pub const PersonaType = persona_manifest.PersonaArchetype;
 pub const PersonaManifest = persona_manifest.PersonaManifest;
+
+fn personaTypeFromId(id: []const u8) ?PersonaType {
+    return persona_manifest.parseArchetype(id);
+}
 
 /// Capabilities flag set – kept small for now, can expand later without
 /// breaking the ABI.
@@ -55,7 +75,7 @@ pub const AgentConfig = struct {
     }
 
     pub fn personaString(self: AgentConfig) []const u8 {
-        return personaToString(self.persona);
+        return persona_manifest.archetypeToString(self.persona);
     }
 };
 
@@ -73,6 +93,10 @@ pub const Agent = struct {
     streaming: bool,
     function_calling: bool,
     telemetry: ?*observability.TelemetrySink = null,
+    metrics_registry: ?*metrics.MetricsRegistry = null,
+    persona_settings: PersonaSettingsState,
+    system_prompt: []const u8,
+    owns_prompt: bool,
 
     pub fn init(allocator: Allocator, config: AgentConfig) AgentError!*Agent {
         try config.validate();
@@ -90,6 +114,15 @@ pub const Agent = struct {
             .streaming = config.enable_streaming,
             .function_calling = config.enable_function_calling,
             .telemetry = null,
+            .metrics_registry = null,
+            .persona_settings = .{
+                .temperature = config.temperature,
+                .top_p = config.top_p,
+                .tools = .{},
+                .safety = null,
+            },
+            .system_prompt = "",
+            .owns_prompt = false,
         };
 
         self.config.tools = &.{};
@@ -109,6 +142,11 @@ pub const Agent = struct {
         self.tools.deinit(self.allocator);
         clearStringList(&self.safety_filters, self.allocator);
         self.safety_filters.deinit(self.allocator);
+        self.clearTools();
+        self.persona_settings.tools.deinit(self.allocator);
+        if (self.owns_prompt and self.system_prompt.len > 0) {
+            self.allocator.free(self.system_prompt);
+        }
         self.allocator.destroy(self);
     }
 
@@ -124,7 +162,7 @@ pub const Agent = struct {
         }
         errdefer if (telemetry_sink) |sink| {
             const latency = computeLatencyNs(start_ts, std.time.nanoTimestamp());
-            _ = sink.record(persona_label, latency, .error, "agent_error") catch {};
+            _ = sink.record(persona_label, latency, .failure, "agent_error") catch {};
         };
 
         if (self.config.enable_history) {
@@ -287,7 +325,7 @@ fn clearStringList(list: *std.ArrayListUnmanaged([]const u8), allocator: Allocat
 fn computeLatencyNs(start: i128, end: i128) u64 {
     const delta = end - start;
     if (delta <= 0) return 0;
-    return @intCast(u64, delta);
+    return std.math.cast(u64, delta) orelse std.math.maxInt(u64);
 }
 
 // -----------------------------------------------------------------------------

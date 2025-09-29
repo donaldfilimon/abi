@@ -366,24 +366,16 @@ fn parseTomlInt(raw: []const u8) PersonaManifestError!u32 {
 test "load manifest from json" {
     const testing = std.testing;
     const json =
-        "{
-" ++
-        "  "name": "creative",
-" ++
-        "  "system_prompt": "You are creative",
-" ++
-        "  "temperature": 0.8,
-" ++
-        "  "top_p": 0.85,
-" ++
-        "  "rate_limit_per_minute": 120,
-" ++
-        "  "tools": ["search", "code"],
-" ++
-        "  "safety_filters": ["toxicity"]
-" ++
-        "}
-";
+        \\{
+        \\  "name": "creative",
+        \\  "system_prompt": "You are creative",
+        \\  "temperature": 0.8,
+        \\  "top_p": 0.85,
+        \\  "rate_limit_per_minute": 120,
+        \\  "tools": ["search", "code"],
+        \\  "safety_filters": ["toxicity"]
+        \\}
+    ;
     var manifest = try loadManifestFromSlice(testing.allocator, json, .json);
     defer manifest.deinit();
     try testing.expectEqualStrings("creative", manifest.name);
@@ -396,20 +388,14 @@ test "load manifest from json" {
 test "load manifest from toml" {
     const testing = std.testing;
     const toml =
-        "name = "empathetic"
-" ++
-        "system_prompt = "Respond with care"
-" ++
-        "temperature = 0.6
-" ++
-        "top_p = 0.9
-" ++
-        "rate_limit_per_minute = 30
-" ++
-        "tools = ["memory"]
-" ++
-        "safety_filters = ["toxicity", "bias"]
-";
+        \\name = "empathetic"
+        \\system_prompt = "Respond with care"
+        \\temperature = 0.6
+        \\top_p = 0.9
+        \\rate_limit_per_minute = 30
+        \\tools = ["memory"]
+        \\safety_filters = ["toxicity", "bias"]
+    ;
     var manifest = try loadManifestFromSlice(testing.allocator, toml, .toml);
     defer manifest.deinit();
     try testing.expectEqualStrings("empathetic", manifest.name);

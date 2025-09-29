@@ -7,9 +7,9 @@ const std = @import("std");
 
 pub const Allocator = std.mem.Allocator;
 
-pub const LogLevel = enum { debug, info, warn, error };
+pub const LogLevel = enum { debug, info, warn, err };
 
-pub const CallStatus = enum { success, throttled, error };
+pub const CallStatus = enum { success, throttled, failure };
 
 pub const TraceId = struct {
     bytes: [16]u8,
@@ -108,7 +108,7 @@ fn levelToString(level: LogLevel) []const u8 {
         .debug => "debug",
         .info => "info",
         .warn => "warn",
-        .error => "error",
+        .err => "error",
     };
 }
 
@@ -116,7 +116,7 @@ fn callStatusToString(status: CallStatus) []const u8 {
     return switch (status) {
         .success => "success",
         .throttled => "throttled",
-        .error => "error",
+        .failure => "error",
     };
 }
 
@@ -132,7 +132,7 @@ fn writeStringField(writer: anytype, first: *bool, key: []const u8, value: []con
     try writeComma(writer, first);
     try writer.writeByte('"');
     try writer.writeAll(key);
-    try writer.writeAll("":"");
+    try writer.writeAll("\":\"");
     try std.json.escapeString(value, .{}, writer);
     try writer.writeByte('"');
 }
@@ -141,7 +141,7 @@ fn writeNumberField(writer: anytype, first: *bool, key: []const u8, value: anyty
     try writeComma(writer, first);
     try writer.writeByte('"');
     try writer.writeAll(key);
-    try writer.writeAll("":");
+    try writer.writeAll("\":");
     try writer.print("{}", .{value});
 }
 
@@ -340,7 +340,7 @@ test "telemetry sink aggregates metrics" {
     defer sink.deinit();
 
     try sink.record("creative", 100, .success, null);
-    try sink.record("creative", 200, .error, "timeout");
+    try sink.record("creative", 200, .failure, "timeout");
     try sink.record("analytical", 300, .throttled, "rate_limit");
 
     var snapshot = try sink.snapshot(testing.allocator);

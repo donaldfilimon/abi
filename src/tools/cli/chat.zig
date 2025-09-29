@@ -148,7 +148,7 @@ pub fn run(ctx: *common.Context, args: [][:0]u8) !void {
                 }
                 std.debug.print("\n", .{});
             }
-            std.debug.print("  • Rate limit: {d} rpm\n", .{ profile.rate_limits.requests_per_minute });
+            std.debug.print("  • Rate limit: {d} rpm\n", .{profile.rate_limits.requests_per_minute});
         }
         if (selected_environment_profile) |profile| {
             std.debug.print("Environment profile: {s}\n", .{profile.name});

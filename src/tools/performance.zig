@@ -13,6 +13,8 @@ const core = @import("core");
 const lockfree = @import("../ai/data_structures/lockfree.zig");
 const platform = @import("../platform.zig");
 const builtin = @import("builtin");
+const collections = @import("../core/collections.zig");
+const common_patterns = @import("../shared/common_patterns.zig");
 
 /// Re-export commonly used types
 pub const Allocator = std.mem.Allocator;
@@ -113,25 +115,20 @@ pub const Metric = struct {
     name: []const u8,
     value: MetricValue,
     timestamp: i128,
-    labels: std.StringHashMap([]const u8),
+    labels: collections.StringHashMap([]const u8),
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8, value: MetricValue) !Metric {
         return Metric{
             .name = try allocator.dupe(u8, name),
             .value = value,
             .timestamp = std.time.nanoTimestamp(),
-            .labels = std.StringHashMap([]const u8){},
+            .labels = common_patterns.InitPatterns.stringHashMap([]const u8, allocator),
         };
     }
 
     pub fn deinit(self: *Metric, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
-        var iterator = self.labels.iterator();
-        while (iterator.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
-            allocator.free(entry.value_ptr.*);
-        }
-        self.labels.deinit(allocator);
+        common_patterns.CleanupPatterns.stringHashMapWithAllocatedStrings(&self.labels, allocator);
     }
 
     pub fn addLabel(self: *Metric, allocator: std.mem.Allocator, key: []const u8, value: []const u8) !void {

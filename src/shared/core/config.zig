@@ -8,7 +8,7 @@ const builtin = @import("builtin");
 
 const errors = @import("errors.zig");
 const persona_manifest = @import("persona_manifest.zig");
-const profiles = @import("profiles.zig");
+const profile = @import("profile.zig");
 const metrics = @import("../observability/metrics.zig");
 
 const FrameworkError = errors.FrameworkError;
@@ -35,7 +35,7 @@ pub const FrameworkConfig = struct {
     log_level: std.log.Level = .info,
     log_file: ?[]const u8 = null,
     enable_structured_logging: bool = true,
-    profile: profiles.ProfileKind = .dev,
+    profile: profile.ProfileKind = .dev,
     persona_manifest_path: []const u8 = "config/personas/default.json",
 
     // Performance
@@ -110,8 +110,8 @@ pub const FrameworkConfig = struct {
         }
     }
 
-    pub fn resolveProfile(self: FrameworkConfig) profiles.ProfileConfig {
-        return profiles.resolve(self.profile);
+    pub fn resolveProfile(self: FrameworkConfig) profile.ProfileConfig {
+        return profile.resolve(self.profile);
     }
 
     pub fn loadPersonaManifest(self: FrameworkConfig, allocator: std.mem.Allocator) persona_manifest.ManifestError!persona_manifest.PersonaManifest {
@@ -143,7 +143,7 @@ pub const FrameworkConfig = struct {
             .max_plugins = 5,
             .log_level = .debug,
             .enable_structured_logging = false,
-            .profile = .test,
+            .profile = .testing,
             .persona_manifest_path = "config/personas/default.json",
             .enable_compression = false,
             .enable_caching = false,

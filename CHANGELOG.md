@@ -7,6 +7,9 @@ follows [Semantic Versioning](https://semver.org/) while it remains in the `0.y`
 
 ## [Unreleased]
 
+### Deprecated
+- `shared/core/profiles.zig` is now a legacy shim around `shared/core/profile.zig` and emits a compile-time notice when imported. Downstream users should migrate to the new module before the next release.
+
 ## [0.1.0a] - 2025-09-21
 ### Added
 - Re-exported feature modules at the root (`abi.ai`, `abi.database`, `abi.gpu`, etc.) for a consistent public API.
