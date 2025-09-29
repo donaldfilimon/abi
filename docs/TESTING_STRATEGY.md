@@ -1,3 +1,10 @@
+---
+layout: documentation
+title: "Testing Strategy"
+description: "Comprehensive validation plan for the ABI AI framework."
+permalink: /TESTING_STRATEGY/
+---
+
 # Testing Strategy
 
 ## Purpose

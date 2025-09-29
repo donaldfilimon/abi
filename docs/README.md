@@ -13,22 +13,22 @@ Welcome to the comprehensive documentation for ABI, a high-performance vector da
 
 <div class="quick-nav">
   <div class="nav-card">
-    <h3><a href="./generated/API_REFERENCE/">📘 API Reference</a></h3>
+  <h3><a href="./index.html#generated/API_REFERENCE.md">📘 API Reference</a></h3>
     <p>Complete API documentation with examples and detailed function signatures.</p>
   </div>
   
   <div class="nav-card">
-    <h3><a href="./generated/EXAMPLES/">💡 Examples</a></h3>
+  <h3><a href="./index.html#generated/EXAMPLES.md">💡 Examples</a></h3>
     <p>Practical examples and tutorials to get you started quickly.</p>
   </div>
   
   <div class="nav-card">
-    <h3><a href="./generated/MODULE_REFERENCE/">📦 Module Reference</a></h3>
+  <h3><a href="./index.html#generated/MODULE_REFERENCE.md">📦 Module Reference</a></h3>
     <p>Detailed module documentation and architecture overview.</p>
   </div>
   
   <div class="nav-card">
-    <h3><a href="./generated/PERFORMANCE_GUIDE/">⚡ Performance Guide</a></h3>
+  <h3><a href="./index.html#generated/PERFORMANCE_GUIDE.md">⚡ Performance Guide</a></h3>
     <p>Optimization tips, benchmarks, and performance best practices.</p>
   </div>
 </div>
@@ -36,14 +36,14 @@ Welcome to the comprehensive documentation for ABI, a high-performance vector da
 ## 📖 What's Inside
 
 ### Core Documentation
-- **[API Reference](./generated/API_REFERENCE/)** - Complete function and type documentation
-- **[Module Reference](./generated/MODULE_REFERENCE/)** - Module structure and relationships
-- **[Examples](./generated/EXAMPLES/)** - Practical usage examples and tutorials
-- **[Performance Guide](./generated/PERFORMANCE_GUIDE/)** - Optimization and benchmarking
-- **[Definitions](./generated/DEFINITIONS_REFERENCE/)** - Comprehensive glossary and concepts
+- **[API Reference](./index.html#generated/API_REFERENCE.md)** - Complete function and type documentation
+- **[Module Reference](./index.html#generated/MODULE_REFERENCE.md)** - Module structure and relationships
+- **[Examples](./index.html#generated/EXAMPLES.md)** - Practical usage examples and tutorials
+- **[Performance Guide](./index.html#generated/PERFORMANCE_GUIDE.md)** - Optimization and benchmarking
+- **[Definitions](./index.html#generated/DEFINITIONS_REFERENCE.md)** - Comprehensive glossary and concepts
 
 ### Developer Resources
-- **[Code Index](./generated/CODE_API_INDEX/)** - Auto-generated API index from source
+- **[Code Index](./index.html#generated/CODE_API_INDEX.md)** - Auto-generated API index from source
 - **[Native Docs](./zig-docs/)** - Zig compiler-generated documentation
 - **[Search](./index.html)** - Interactive documentation browser
 
@@ -57,10 +57,10 @@ Welcome to the comprehensive documentation for ABI, a high-performance vector da
 
 ## 🛠️ Getting Started
 
-1. **Installation**: Check the [Examples](./generated/EXAMPLES/) for setup instructions
-2. **Quick Start**: Follow the [basic usage examples](./generated/EXAMPLES/#quick-start)
-3. **API Learning**: Explore the [API Reference](./generated/API_REFERENCE/) for detailed function documentation
-4. **Optimization**: Read the [Performance Guide](./generated/PERFORMANCE_GUIDE/) for best practices
+1. **Installation**: Check the [Examples](./index.html#generated/EXAMPLES.md) for setup instructions
+2. **Quick Start**: Follow the [basic usage examples](./index.html#generated/EXAMPLES.md%23quick-start)
+3. **API Learning**: Explore the [API Reference](./index.html#generated/API_REFERENCE.md) for detailed function documentation
+4. **Optimization**: Read the [Performance Guide](./index.html#generated/PERFORMANCE_GUIDE.md) for best practices
 
 ## 📚 Documentation Types
 
@@ -82,7 +82,7 @@ This documentation is generated using multiple approaches:
 
 - **[GitHub Repository](https://github.com/donaldfilimon/abi/)** - Source code and issues
 - **[Zig Language](https://ziglang.org/)** - Learn about the Zig programming language
-- **[Vector Databases](./generated/DEFINITIONS_REFERENCE/#vector-database)** - Learn about vector database concepts
+- **[Vector Databases](./index.html#generated/DEFINITIONS_REFERENCE.md%23vector-database)** - Learn about vector database concepts
 
 ## 📧 Support
 

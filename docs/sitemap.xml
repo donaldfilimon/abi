@@ -7,37 +7,37 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://donaldfilimon.github.io/abi/generated/API_REFERENCE/</loc>
+  <loc>https://donaldfilimon.github.io/abi/index.html#generated/API_REFERENCE.md</loc>
     <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://donaldfilimon.github.io/abi/generated/MODULE_REFERENCE/</loc>
+  <loc>https://donaldfilimon.github.io/abi/index.html#generated/MODULE_REFERENCE.md</loc>
     <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://donaldfilimon.github.io/abi/generated/EXAMPLES/</loc>
+  <loc>https://donaldfilimon.github.io/abi/index.html#generated/EXAMPLES.md</loc>
     <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://donaldfilimon.github.io/abi/generated/PERFORMANCE_GUIDE/</loc>
+  <loc>https://donaldfilimon.github.io/abi/index.html#generated/PERFORMANCE_GUIDE.md</loc>
     <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://donaldfilimon.github.io/abi/generated/DEFINITIONS_REFERENCE/</loc>
+  <loc>https://donaldfilimon.github.io/abi/index.html#generated/DEFINITIONS_REFERENCE.md</loc>
     <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://donaldfilimon.github.io/abi/generated/CODE_API_INDEX/</loc>
+  <loc>https://donaldfilimon.github.io/abi/index.html#generated/CODE_API_INDEX.md</loc>
     <lastmod>{{ site.time | date_to_xmlschema }}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
