@@ -1004,27 +1004,27 @@ pub const NeuralNetwork = struct {
         try writer.writeInt(u32, name_len, .little);
         if (self.model_name) |name| {
             try writer.writeAll(name);
-
-            // Write input/output shapes
-            try writer.writeInt(u32, self.input_shape.len, .little);
-            for (self.input_shape) |dim| {
-                try writer.writeInt(u32, dim, .little);
-            }
-            try writer.writeInt(u32, self.output_shape.len, .little);
-            for (self.output_shape) |dim| {
-                try writer.writeInt(u32, dim, .little);
-            }
-
-            // Write layer count
-            try writer.writeInt(u32, self.layers.items.len, .little);
-
-            // Write each layer
-            for (self.layers.items) |layer| {
-                try layer.saveToFile(writer);
-            }
-
-            std.debug.print("Neural network saved to: {s}\n", .{file_path});
         }
+
+        // Write input/output shapes
+        try writer.writeInt(u32, self.input_shape.len, .little);
+        for (self.input_shape) |dim| {
+            try writer.writeInt(u32, dim, .little);
+        }
+        try writer.writeInt(u32, self.output_shape.len, .little);
+        for (self.output_shape) |dim| {
+            try writer.writeInt(u32, dim, .little);
+        }
+
+        // Write layer count
+        try writer.writeInt(u32, self.layers.items.len, .little);
+
+        // Write each layer
+        for (self.layers.items) |layer| {
+            try layer.saveToFile(writer);
+        }
+
+        std.debug.print("Neural network saved to: {s}\n", .{file_path});
     }
 
     /// Train network on a single input-target pair
@@ -1638,6 +1638,112 @@ pub fn createCNN(allocator: std.mem.Allocator, input_shape: []const usize, num_c
 
     try network.compile();
     return network;
+}
+
+test "Neural network serialization without name writes layers" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var network = try NeuralNetwork.init(allocator, &[_]usize{4}, &[_]usize{2});
+    defer network.deinit();
+
+    var layer = try Layer.init(allocator, .dense, &[_]usize{4}, &[_]usize{2});
+    const weights_data = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0 };
+    const bias_data = [_]f32{ 0.5, -0.25 };
+    layer.weights = try allocator.dupe(f32, &weights_data);
+    layer.biases = try allocator.dupe(f32, &bias_data);
+
+    try network.addLayer(layer);
+    try network.compile();
+
+    const dir_path = try tmp.dir.realpathAlloc(allocator, ".");
+    defer allocator.free(dir_path);
+    const file_path = try std.fs.path.join(allocator, &[_][]const u8{ dir_path, "model.znn" });
+    defer allocator.free(file_path);
+
+    try network.saveToFile(file_path);
+
+    const file_bytes = try std.fs.cwd().readFileAlloc(allocator, file_path, 16 * 1024);
+    defer allocator.free(file_bytes);
+
+    var stream = std.io.fixedBufferStream(file_bytes);
+    var reader = stream.reader();
+
+    var magic: [5]u8 = undefined;
+    try reader.readNoEof(&magic);
+    try testing.expect(std.mem.eql(u8, &magic, "ZNNET"));
+
+    var u32_buf: [4]u8 = undefined;
+    try reader.readNoEof(&u32_buf);
+    try testing.expectEqual(@as(u32, 1), std.mem.readInt(u32, &u32_buf, .little));
+
+    try reader.readNoEof(&u32_buf);
+    try testing.expectEqual(@as(u32, 0), std.mem.readInt(u32, &u32_buf, .little));
+
+    try reader.readNoEof(&u32_buf);
+    try testing.expectEqual(@as(u32, 1), std.mem.readInt(u32, &u32_buf, .little));
+    try reader.readNoEof(&u32_buf);
+    try testing.expectEqual(@as(u32, 4), std.mem.readInt(u32, &u32_buf, .little));
+
+    try reader.readNoEof(&u32_buf);
+    try testing.expectEqual(@as(u32, 1), std.mem.readInt(u32, &u32_buf, .little));
+    try reader.readNoEof(&u32_buf);
+    try testing.expectEqual(@as(u32, 2), std.mem.readInt(u32, &u32_buf, .little));
+
+    try reader.readNoEof(&u32_buf);
+    try testing.expectEqual(@as(u32, 1), std.mem.readInt(u32, &u32_buf, .little));
+
+    var u8_buf: [1]u8 = undefined;
+    try reader.readNoEof(&u8_buf);
+    try testing.expectEqual(@as(u8, @intFromEnum(LayerType.dense)), u8_buf[0]);
+
+    try reader.readNoEof(&u32_buf);
+    try testing.expectEqual(@as(u32, 1), std.mem.readInt(u32, &u32_buf, .little));
+    try reader.readNoEof(&u32_buf);
+    try testing.expectEqual(@as(u32, 4), std.mem.readInt(u32, &u32_buf, .little));
+
+    try reader.readNoEof(&u32_buf);
+    try testing.expectEqual(@as(u32, 1), std.mem.readInt(u32, &u32_buf, .little));
+    try reader.readNoEof(&u32_buf);
+    try testing.expectEqual(@as(u32, 2), std.mem.readInt(u32, &u32_buf, .little));
+
+    try reader.readNoEof(&u8_buf);
+    try testing.expectEqual(@as(u8, 255), u8_buf[0]);
+
+    try reader.readNoEof(&u8_buf);
+    try testing.expectEqual(@as(u8, 1), u8_buf[0]);
+    for (weights_data) |expected| {
+        try reader.readNoEof(&u32_buf);
+        const actual_bits = std.mem.readInt(u32, &u32_buf, .little);
+        const actual_value: f32 = @bitCast(actual_bits);
+        try testing.expectEqual(expected, actual_value);
+    }
+
+    try reader.readNoEof(&u8_buf);
+    try testing.expectEqual(@as(u8, 1), u8_buf[0]);
+    for (bias_data) |expected| {
+        try reader.readNoEof(&u32_buf);
+        const actual_bits = std.mem.readInt(u32, &u32_buf, .little);
+        const actual_value: f32 = @bitCast(actual_bits);
+        try testing.expectEqual(expected, actual_value);
+    }
+
+    try testing.expectEqual(file_bytes.len, stream.pos);
+
+    var loaded = try NeuralNetwork.loadFromFile(allocator, file_path);
+    defer loaded.deinit();
+
+    try testing.expect(loaded.model_name == null);
+    try testing.expectEqual(@as(usize, 1), loaded.layers.items.len);
+    const loaded_layer = loaded.layers.items[0];
+    try testing.expectEqual(LayerType.dense, loaded_layer.layer_type);
+    try testing.expect(loaded_layer.weights != null);
+    try testing.expect(loaded_layer.biases != null);
+    try testing.expect(std.mem.eql(f32, loaded_layer.weights.?, &weights_data));
+    try testing.expect(std.mem.eql(f32, loaded_layer.biases.?, &bias_data));
 }
 
 test "Enhanced neural network operations" {
