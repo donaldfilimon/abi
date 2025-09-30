@@ -908,6 +908,24 @@ const TestChannels = struct {
     }
 };
 
+test "SessionDatabase deinit handles entries without metadata" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer {
+        const leaked = gpa.detectLeaks();
+        gpa.deinit();
+        std.testing.expect(!leaked) catch @panic("unexpected allocator leak");
+    }
+
+    const allocator = gpa.allocator();
+    var db = SessionDatabase.init(allocator);
+
+    const vector = [_]f32{ 0.0, 1.0, 2.0 };
+    try std.testing.expectEqual(@as(u64, 1), try db.insert(&vector, null));
+    try std.testing.expectEqual(@as(usize, 1), db.count());
+
+    db.deinit();
+}
+
 test "features list uses stderr in human mode" {
     var tc = TestChannels.init(std.testing.allocator);
     defer tc.deinit();
