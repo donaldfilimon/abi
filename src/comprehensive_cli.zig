@@ -70,7 +70,7 @@ const SessionDatabase = struct {
     const VectorEntry = struct {
         id: u64,
         values: []f32,
-        metadata: []u8,
+        metadata: ?[]u8,
     };
 
     pub const SearchResult = struct {
@@ -96,7 +96,9 @@ const SessionDatabase = struct {
     pub fn deinit(self: *SessionDatabase) void {
         for (self.entries.items) |entry| {
             self.allocator.free(entry.values);
-            self.allocator.free(entry.metadata);
+            if (entry.metadata) |meta| {
+                self.allocator.free(meta);
+            }
         }
         self.entries.deinit();
     }
@@ -112,9 +114,10 @@ const SessionDatabase = struct {
         const stored = try self.allocator.dupe(f32, vector);
         errdefer self.allocator.free(stored);
 
-        var stored_meta: []u8 = &[_]u8{};
+        var stored_meta: ?[]u8 = null;
         if (metadata) |meta| {
             stored_meta = try self.allocator.dupe(u8, meta);
+            errdefer self.allocator.free(stored_meta.?);
         }
 
         const id = self.next_id;
@@ -875,6 +878,24 @@ const TestChannels = struct {
         };
     }
 };
+
+test "SessionDatabase deinit handles entries without metadata" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer {
+        const leaked = gpa.detectLeaks();
+        gpa.deinit();
+        std.testing.expect(!leaked) catch @panic("unexpected allocator leak");
+    }
+
+    const allocator = gpa.allocator();
+    var db = SessionDatabase.init(allocator);
+
+    const vector = [_]f32{ 0.0, 1.0, 2.0 };
+    try std.testing.expectEqual(@as(u64, 1), try db.insert(&vector, null));
+    try std.testing.expectEqual(@as(usize, 1), db.count());
+
+    db.deinit();
+}
 
 test "features list uses stderr in human mode" {
     var tc = TestChannels.init(std.testing.allocator);
