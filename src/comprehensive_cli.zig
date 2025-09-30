@@ -112,18 +112,23 @@ const SessionDatabase = struct {
         }
 
         const stored = try self.allocator.dupe(f32, vector);
-        errdefer self.allocator.free(stored);
+        var stored_needs_free = true;
+        errdefer if (stored_needs_free) self.allocator.free(stored);
 
-        var stored_meta: ?[]u8 = null;
+        var stored_meta: []u8 = &[_]u8{};
+        var stored_meta_needs_free = false;
         if (metadata) |meta| {
-            const duplicated = try self.allocator.dupe(u8, meta);
-            errdefer self.allocator.free(duplicated);
-            stored_meta = duplicated;
+            stored_meta = try self.allocator.dupe(u8, meta);
+            stored_meta_needs_free = true;
         }
+        errdefer if (stored_meta_needs_free) self.allocator.free(stored_meta);
 
         const id = self.next_id;
         self.next_id += 1;
         try self.entries.append(.{ .id = id, .values = stored, .metadata = stored_meta });
+        stored_needs_free = false;
+        stored_meta_needs_free = false;
+
         return id;
     }
 
@@ -951,4 +956,22 @@ test "features list emits json in json mode" {
 
     const expected = "{\"features\":{\"ai\":true";
     try std.testing.expect(std.mem.startsWith(u8, tc.out_buf.items, expected));
+}
+
+test "SessionDatabase insert frees metadata on append failure" {
+    var failing_state = std.testing.FailingAllocator.init(std.testing.allocator, .{
+        .fail_index = 2,
+    });
+    const failing_alloc = failing_state.allocator();
+
+    var db = SessionDatabase.init(failing_alloc);
+    defer db.deinit();
+
+    const vector = [_]f32{ 1.0, 2.0, 3.0 };
+    const metadata = "{\"label\":\"test\"}";
+
+    try std.testing.expectError(SessionDatabase.Error.OutOfMemory, db.insert(&vector, metadata));
+    try std.testing.expectEqual(@as(usize, 0), db.entries.items.len);
+    try std.testing.expect(failing_state.has_induced_failure);
+    try std.testing.expectEqual(failing_state.allocated_bytes, failing_state.freed_bytes);
 }
