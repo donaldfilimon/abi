@@ -116,8 +116,9 @@ const SessionDatabase = struct {
 
         var stored_meta: ?[]u8 = null;
         if (metadata) |meta| {
-            stored_meta = try self.allocator.dupe(u8, meta);
-            errdefer self.allocator.free(stored_meta.?);
+            const duplicated = try self.allocator.dupe(u8, meta);
+            errdefer self.allocator.free(duplicated);
+            stored_meta = duplicated;
         }
 
         const id = self.next_id;
@@ -853,6 +854,34 @@ pub fn main() !void {
     if (exit_code != .success) {
         std.process.exit(@intFromEnum(exit_code));
     }
+}
+
+test "session database handles missing metadata without invalid free" {
+    var db = SessionDatabase.init(std.testing.allocator);
+    defer db.deinit();
+
+    const vector = [_]f32{ 1.0, 2.0, 3.0 };
+    try std.testing.expectEqual(@as(u64, 1), try db.insert(vector[0..], null));
+    try std.testing.expectEqual(@as(usize, 1), db.count());
+}
+
+test "session database frees metadata when append fails" {
+    var backing: [96]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&backing);
+
+    {
+        var db = SessionDatabase.init(fba.allocator());
+        defer db.deinit();
+
+        const vector = [_]f32{ 1.0, 2.0, 3.0 };
+        const metadata = "meta";
+
+        try std.testing.expectError(SessionDatabase.Error.OutOfMemory, db.insert(vector[0..], metadata));
+        try std.testing.expectEqual(@as(usize, 0), db.count());
+        try std.testing.expectEqual(@as(usize, 0), fba.end_index);
+    }
+
+    try std.testing.expectEqual(@as(usize, 0), fba.end_index);
 }
 
 const TestChannels = struct {
