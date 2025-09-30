@@ -7,6 +7,10 @@ follows [Semantic Versioning](https://semver.org/) while it remains in the `0.y`
 
 ## [Unreleased]
 
+### Fixed
+- Ensure `SessionDatabase.insert` releases duplicated metadata when an append fails so temporary allocations are not leaked.
+- Track metadata ownership for `SessionDatabase` entries so teardown skips freeing slices that were never allocated.
+
 ### Deprecated
 - `shared/core/profiles.zig` is now a legacy shim around `shared/core/profile.zig` and emits a compile-time notice when imported. Downstream users should migrate to the new module before the next release.
 
