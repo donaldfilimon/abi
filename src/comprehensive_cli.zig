@@ -70,7 +70,7 @@ const SessionDatabase = struct {
     const VectorEntry = struct {
         id: u64,
         values: []f32,
-        metadata: []u8,
+        metadata: ?[]u8,
     };
 
     pub const SearchResult = struct {
@@ -96,7 +96,9 @@ const SessionDatabase = struct {
     pub fn deinit(self: *SessionDatabase) void {
         for (self.entries.items) |entry| {
             self.allocator.free(entry.values);
-            self.allocator.free(entry.metadata);
+            if (entry.metadata) |meta| {
+                self.allocator.free(meta);
+            }
         }
         self.entries.deinit();
     }
@@ -113,13 +115,14 @@ const SessionDatabase = struct {
         var stored_needs_free = true;
         errdefer if (stored_needs_free) self.allocator.free(stored);
 
-        var stored_meta: []u8 = &[_]u8{};
+        var stored_meta: ?[]u8 = null;
         var stored_meta_needs_free = false;
         if (metadata) |meta| {
-            stored_meta = try self.allocator.dupe(u8, meta);
+            const duplicated = try self.allocator.dupe(u8, meta);
+            stored_meta = duplicated;
             stored_meta_needs_free = true;
         }
-        errdefer if (stored_meta_needs_free) self.allocator.free(stored_meta);
+        errdefer if (stored_meta_needs_free) self.allocator.free(stored_meta.?);
 
         const id = self.next_id;
         self.next_id += 1;
