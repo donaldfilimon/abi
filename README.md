@@ -16,6 +16,7 @@ The `0.1.0a` prerelease focuses on:
 - providing consistent imports such as `@import("abi").ai` and `@import("abi").database`
 - documenting the bootstrap CLI accurately
 - establishing a truthful changelog for the initial prerelease
+- capturing the broader modernization roadmap documented in [`docs/MODERNIZATION_BLUEPRINT.md`](docs/MODERNIZATION_BLUEPRINT.md)
 
 ## Getting started
 
