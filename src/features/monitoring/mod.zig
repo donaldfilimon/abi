@@ -19,6 +19,8 @@ pub const sampling = @import("sampling.zig");
 // Metrics and monitoring
 pub const prometheus = @import("prometheus.zig");
 pub const regression = @import("regression.zig");
+pub const metrics = @import("metrics.zig");
+pub const logging = @import("logging.zig");
 
 // Legacy compatibility removed - circular import fixed
 

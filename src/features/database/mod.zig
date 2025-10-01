@@ -13,6 +13,10 @@ pub const config = @import("config.zig");
 pub const utils = @import("utils.zig");
 pub const db_helpers = @import("db_helpers.zig");
 pub const unified = @import("unified.zig");
+pub const wdbx_adapter = @import("wdbx_adapter.zig");
+pub const tools = struct {
+    pub const vector_search = @import("tools/vector_search.zig");
+};
 
 // Advanced database features
 pub const database_sharding = @import("database_sharding.zig");
