@@ -76,7 +76,7 @@ generate_enhanced_matrix() {
     echo "" >> /tmp/enhanced_matrix.md
 
     echo "### Recommended Zig Versions:" >> /tmp/enhanced_matrix.md
-    echo "- 0.16.0-dev (current master baseline)" >> /tmp/enhanced_matrix.md
+    echo "- 0.16.0-dev.254+6dd0270a1 (pinned baseline)" >> /tmp/enhanced_matrix.md
     echo "- master (nightly auto-update)" >> /tmp/enhanced_matrix.md
     echo "- 0.16.x release candidate (when available)" >> /tmp/enhanced_matrix.md
     echo "" >> /tmp/enhanced_matrix.md
@@ -115,7 +115,7 @@ update_ci_workflow() {
     cp "$CI_WORKFLOW_FILE" "${CI_WORKFLOW_FILE}.backup"
 
     # Update Zig versions
-    sed -i 's/zig: \[[^]]*\]/zig: [ 0.16.0-dev, master ]/' "$CI_WORKFLOW_FILE"
+    sed -i 's/zig: \[[^]]*\]/zig: [ 0.16.0-dev.254+6dd0270a1, master ]/' "$CI_WORKFLOW_FILE"
 
     # Update OS matrix
     sed -i 's/os: \[ ubuntu-latest, windows-latest, macos-latest, ubuntu-20\.04, macos-13 \]/os: [ ubuntu-latest, ubuntu-20.04, ubuntu-18.04, windows-latest, windows-2019, macos-latest, macos-13 ]/' "$CI_WORKFLOW_FILE"
@@ -270,7 +270,7 @@ This consolidated reference merges the former testing guide, enhancement summary
 - **aarch64**: ARM64 support (especially macOS Apple Silicon)
 
 ##### Zig Versions
-- **0.16.0-dev (master)**: Current baseline
+- **0.16.0-dev.254+6dd0270a1**: Current baseline
 - **Master nightly**: Tracks upstream commits for regression detection
 - **master**: Nightly builds
 
