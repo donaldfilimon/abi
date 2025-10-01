@@ -15,7 +15,7 @@ fn parseSize(text: []const u8) errors.CommandError!Size {
     if (trimmed.len == 0) return errors.CommandError.InvalidArgument;
 
     var parts = std.mem.splitScalar(u8, trimmed, 'x');
-    var values: [3]usize = .{0, 0, 0};
+    var values: [3]usize = .{ 0, 0, 0 };
     var count: usize = 0;
     while (parts.next()) |segment| {
         if (count >= values.len) return errors.CommandError.InvalidArgument;
@@ -56,8 +56,8 @@ fn runCpuBenchmark(allocator: std.mem.Allocator, size: Size, iterations: usize) 
     const c = allocator.alloc(f32, rows * cols) catch return errors.CommandError.RuntimeFailure;
     defer allocator.free(c);
 
-    for (a, 0..) |*value, i| value.* = @floatFromInt((i % 97) + 1) / 97.0;
-    for (b, 0..) |*value, i| value.* = @floatFromInt((i % 53) + 1) / 53.0;
+    for (a, 0..) |*value, i| value.* = @as(f32, @floatFromInt((i % 97) + 1)) / 97.0;
+    for (b, 0..) |*value, i| value.* = @as(f32, @floatFromInt((i % 53) + 1)) / 53.0;
 
     var total: f128 = 0;
     var min_ns: u64 = std.math.maxInt(u64);
@@ -66,9 +66,12 @@ fn runCpuBenchmark(allocator: std.mem.Allocator, size: Size, iterations: usize) 
     var iter: usize = 0;
     while (iter < iterations) : (iter += 1) {
         std.mem.set(f32, c, 0);
-        var timer = std.time.Timer.start() catch return errors.CommandError.RuntimeFailure;\n        matmul(rows, cols, shared, a, b, c);\n        const elapsed = timer.read();\n        if (elapsed < min_ns) min_ns = elapsed;
+        var timer = std.time.Timer.start() catch return errors.CommandError.RuntimeFailure;
+        matmul(rows, cols, shared, a, b, c);
+        const elapsed = timer.read();
+        if (elapsed < min_ns) min_ns = elapsed;
         if (elapsed > max_ns) max_ns = elapsed;
-        total += @floatFromInt(elapsed);
+        total += @as(f128, @floatFromInt(elapsed));
     }
 
     return .{
@@ -192,5 +195,5 @@ pub const bench_command = modern_cli.Command{
 pub const command = modern_cli.Command{
     .name = "gpu",
     .description = "GPU demos and benchmarks",
-    .subcommands = &.{ &bench_command },
+    .subcommands = &.{&bench_command},
 };
