@@ -600,6 +600,10 @@ jobs:
     {"name":"check_deps","parameters":{"type":"object","properties":{"code":{"type":"string"}}}}
   ]
 }
+<<<<<<< HEAD
+Master Orchestration Prompt
+Role: Senior Zig engineer.Goal: Apply Phases A–H with zero regression. Produce patches + tests + docs.Inputs: current tree, baselines, this AGENTS.md.Rules: explicit allocators; no public API breaks; JSON/human I/O split; add tests/docs; align with production practices (e.g., security scans, container builds).Output: unified diffs + new files; updated build.zig; CI YAML; rationale for every change.
+=======
 ```
 
 **Master Orchestration Prompt**
@@ -627,6 +631,7 @@ Introduce a Logger façade and channel separation (stdout JSON, stderr logs). Re
 Create comprehensive_cli.zig with subcommands: features list|enable|disable, agent run, db insert|search, gpu bench, deps list|update. Implement `--help` autogen and robust validation errors with exit codes. Provide golden-output tests for human and JSON modes. Expand from current bootstrap summary; add rate-limiting.
 
 **Database Agent (WDBX) – Concurrency & Persistence**  
+>>>>>>> 6170f270f50817df9b0ea279cfd40ca2ac7fd9ba
 
 Implement thread-safe insert/search/update/delete with typed errors. Provide a stable on-disk layout and version header. Add property tests (random vectors) measuring recall@k and latency. Include a minimal HTTP façade behind a feature flag. Build on existing vector components and front-ends; add encryption for metadata.
 
