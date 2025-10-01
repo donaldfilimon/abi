@@ -43,7 +43,7 @@ test "VectorStore insert frees metadata on append failure" {
     defer store.deinit();
 
     const values = [_]f32{ 1.0, 2.0, 3.0 };
-    const metadata = "{"label":"test"}";
+    const metadata = "{\"label\":\"test\"}";
 
     try std.testing.expectError(error.OutOfMemory, store.insert(&values, metadata));
     try std.testing.expectEqual(@as(usize, 0), store.records.items.len);
