@@ -8,6 +8,16 @@ const Agent = abi.ai.agent.Agent;
 const AgentConfig = abi.ai.agent.AgentConfig;
 const db_helpers = abi.database.db_helpers.helpers;
 
+const DependencyInfo = struct {
+    name: []const u8,
+    url: ?[]const u8 = null,
+    hash: ?[]const u8 = null,
+};
+
+const ManifestParseError = error{ InvalidManifest };
+
+const max_manifest_size: usize = 1024 * 1024;
+
 pub const ExitCode = enum(u8) {
     success = 0,
     usage = 1,
@@ -220,6 +230,8 @@ pub const Cli = struct {
             return try self.handleDatabase(tail);
         } else if (std.mem.eql(u8, command, "gpu")) {
             return try self.handleGpu(tail);
+        } else if (std.mem.eql(u8, command, "deps")) {
+            return try self.handleDeps(tail);
         }
 
         try self.logger.err("Unknown command: {s}\n", .{command});
@@ -331,6 +343,71 @@ pub const Cli = struct {
         }
 
         return .success;
+    }
+
+    fn handleDeps(self: *Cli, args: [][]const u8) !ExitCode {
+        if (args.len == 0 or isHelp(args)) {
+            try self.printDepsHelp();
+            return .success;
+        }
+
+        const sub = args[0];
+        const tail = args[1..];
+
+        if (std.mem.eql(u8, sub, "list")) {
+            if (tail.len != 0) {
+                try self.logger.err("deps list does not accept extra arguments\n", .{});
+                return .usage;
+            }
+
+            const deps = self.loadDependencies() catch |err| {
+                return switch (err) {
+                    error.FileNotFound, error.AccessDenied => blk: {
+                        try self.logger.err("unable to read dependency manifest\n", .{});
+                        break :blk ExitCode.io;
+                    },
+                    error.ManifestTooLarge => blk: {
+                        try self.logger.err("dependency manifest exceeds maximum supported size\n", .{});
+                        break :blk ExitCode.config;
+                    },
+                    ManifestParseError.InvalidManifest => blk: {
+                        try self.logger.err("dependency manifest is invalid\n", .{});
+                        break :blk ExitCode.config;
+                    },
+                    else => blk: {
+                        try self.logger.err("unexpected error loading dependencies\n", .{});
+                        break :blk ExitCode.runtime;
+                    },
+                };
+            };
+            defer freeDependencyList(self.allocator, deps);
+
+            try self.emitDependencyList(deps);
+            return .success;
+        }
+
+        if (std.mem.eql(u8, sub, "update")) {
+            if (tail.len != 0) {
+                try self.logger.err("deps update does not accept extra arguments\n", .{});
+                return .usage;
+            }
+
+            if (self.json_mode) {
+                try printJson(
+                    self.channels.out,
+                    "{\"status\":\"error\",\"message\":\"automated dependency updates are not yet implemented\"}",
+                    .{},
+                );
+            } else {
+                try self.logger.warn("Automated dependency updates are not yet implemented\n", .{});
+                try self.logger.info("Run `zig fetch` and update build.zig.zon manually.\n", .{});
+            }
+
+            return .runtime;
+        }
+
+        try self.logger.err("Unknown deps subcommand: {s}\n", .{sub});
+        return .usage;
     }
 
     fn handleAgent(self: *Cli, args: [][]const u8) !ExitCode {
@@ -687,7 +764,13 @@ pub const Cli = struct {
     }
 
     fn printHelp(self: *Cli) !void {
-        const message = "Usage: abi <command> [options]\n\nCommands:\n  features   list|enable|disable\n  agent      run\n  db         insert|search\n  gpu        bench\n";
+        const message =
+            "Usage: abi <command> [options]\n\nCommands:\n" ++
+            "  features   list|enable|disable\n" ++
+            "  agent      run\n" ++
+            "  db         insert|search\n" ++
+            "  gpu        bench\n" ++
+            "  deps       list|update\n";
         try self.logger.info("{s}", .{message});
     }
 
@@ -711,6 +794,52 @@ pub const Cli = struct {
     fn printGpuHelp(self: *Cli) !void {
         const text = "gpu bench [--size MxN(xP)] [--repeats <n>]\n";
         try self.logger.info("{s}", .{text});
+    }
+
+    fn printDepsHelp(self: *Cli) !void {
+        const text =
+            "deps list\n" ++
+            "deps update\n" ++
+            "Set ABI_DEPS_MANIFEST to override the manifest path.\n";
+        try self.logger.info("{s}", .{text});
+    }
+
+    fn emitDependencyList(self: *Cli, deps: []const DependencyInfo) !void {
+        if (self.json_mode) {
+            var buffer = std.ArrayList(u8).init(self.allocator);
+            defer buffer.deinit();
+
+            const payload = struct {
+                dependencies: []const DependencyInfo,
+            }{ .dependencies = deps };
+
+            try std.json.stringify(payload, .{}, buffer.writer());
+            try printJson(self.channels.out, "{s}", .{buffer.items});
+            return;
+        }
+
+        if (deps.len == 0) {
+            try self.logger.warn("No dependencies defined in build.zig.zon\n", .{});
+            return;
+        }
+
+        try self.logger.info("Dependencies ({d}):\n", .{deps.len});
+        for (deps) |dep| {
+            try self.logger.info("  - {s}\n", .{dep.name});
+            if (dep.url) try self.logger.info("    url: {s}\n", .{dep.url.?});
+            if (dep.hash) try self.logger.info("    hash: {s}\n", .{dep.hash.?});
+        }
+    }
+
+    fn loadDependencies(self: *Cli) ![]DependencyInfo {
+        const env_override = std.process.getEnvVarOwned(self.allocator, "ABI_DEPS_MANIFEST") catch |err| switch (err) {
+            error.OutOfMemory => return err,
+            error.EnvironmentVariableNotFound => null,
+        };
+        defer if (env_override) |value| self.allocator.free(value);
+
+        const path = if (env_override) |value| value else "build.zig.zon";
+        return loadDependencyManifest(self.allocator, path);
     }
 
     const MatSize = struct {
@@ -777,6 +906,130 @@ fn matmul(out: []f32, a: []const f32, b: []const f32, m: usize, n: usize, p: usi
         }
     }
 }
+
+fn freeDependencyEntry(allocator: std.mem.Allocator, entry: DependencyInfo) void {
+    allocator.free(@constCast(entry.name));
+    if (entry.url) allocator.free(@constCast(entry.url.?));
+    if (entry.hash) allocator.free(@constCast(entry.hash.?));
+}
+
+fn freeDependencyList(allocator: std.mem.Allocator, entries: []DependencyInfo) void {
+    for (entries) |entry| freeDependencyEntry(allocator, entry);
+    allocator.free(entries);
+}
+
+fn parseOptionalZonString(allocator: std.mem.Allocator, line: []const u8) ManifestParseError!?[]const u8 {
+    const eq_index = std.mem.indexOfScalar(u8, line, '=') orelse return ManifestParseError.InvalidManifest;
+    var rest = std.mem.trim(u8, line[eq_index + 1 ..], " \t\r");
+    if (rest.len == 0) return ManifestParseError.InvalidManifest;
+    if (rest[rest.len - 1] == ',') rest = rest[0 .. rest.len - 1];
+    rest = std.mem.trim(u8, rest, " \t\r");
+    if (rest.len == 0) return ManifestParseError.InvalidManifest;
+    if (std.mem.eql(u8, rest, "null")) return null;
+    if (rest[0] != '"') return ManifestParseError.InvalidManifest;
+    const closing_rel = std.mem.indexOfScalar(u8, rest[1..], '"') orelse return ManifestParseError.InvalidManifest;
+    const value = rest[1 .. 1 + closing_rel];
+    return try allocator.dupe(u8, value);
+}
+
+fn parseDependencies(allocator: std.mem.Allocator, manifest: []const u8) ManifestParseError![]DependencyInfo {
+    var list = std.ArrayList(DependencyInfo).init(allocator);
+    errdefer {
+        for (list.items) |entry| freeDependencyEntry(allocator, entry);
+        list.deinit();
+    }
+
+    var in_block = false;
+    var current: ?DependencyInfo = null;
+    defer if (current) |entry| freeDependencyEntry(allocator, entry);
+    var iter = std.mem.splitScalar(u8, manifest, '\n');
+    while (iter.next()) |line| {
+        const trimmed = std.mem.trim(u8, line, " \t\r,");
+        if (trimmed.len == 0) continue;
+
+        if (!in_block) {
+            if (std.mem.startsWith(u8, trimmed, ".dependencies")) {
+                if (std.mem.indexOf(u8, trimmed, ".{}") != null) {
+                    return list.toOwnedSlice();
+                }
+                in_block = true;
+            }
+            continue;
+        }
+
+        if (trimmed[0] == '}') {
+            if (current) |entry| {
+                try list.append(entry);
+                current = null;
+                continue;
+            }
+            break;
+        }
+
+        if (trimmed[0] == '.' and std.mem.indexOfScalar(u8, trimmed, '=') != null) {
+            if (current) |entry| {
+                try list.append(entry);
+                current = null;
+            }
+
+            const eq_index = std.mem.indexOfScalar(u8, trimmed, '=') orelse unreachable;
+            const name_slice = std.mem.trim(u8, trimmed[1..eq_index], " \t");
+            if (name_slice.len == 0) {
+                return ManifestParseError.InvalidManifest;
+            }
+
+            const name_copy = try allocator.dupe(u8, name_slice);
+            var entry = DependencyInfo{ .name = name_copy };
+
+            if (std.mem.indexOfScalar(u8, trimmed, '{') == null) {
+                freeDependencyEntry(allocator, entry);
+                return ManifestParseError.InvalidManifest;
+            }
+
+            if (std.mem.endsWith(u8, trimmed, ".{}")) {
+                try list.append(entry);
+            } else {
+                current = entry;
+            }
+            continue;
+        }
+
+        if (current == null) {
+            return ManifestParseError.InvalidManifest;
+        }
+
+        if (std.mem.startsWith(u8, trimmed, ".url")) {
+            current.?.url = try parseOptionalZonString(allocator, trimmed);
+            continue;
+        }
+
+        if (std.mem.startsWith(u8, trimmed, ".hash")) {
+            current.?.hash = try parseOptionalZonString(allocator, trimmed);
+            continue;
+        }
+    }
+
+    if (current) |entry| {
+        try list.append(entry);
+        current = null;
+    }
+
+    return list.toOwnedSlice();
+}
+
+fn loadDependencyManifest(allocator: std.mem.Allocator, path: []const u8) ![]DependencyInfo {
+    var file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
+
+    const size = try file.getEndPos();
+    if (size > max_manifest_size) return error.ManifestTooLarge;
+
+    const contents = try file.readToEndAlloc(allocator, max_manifest_size);
+    defer allocator.free(contents);
+
+    return parseDependencies(allocator, contents);
+}
+
 fn parseFeature(name: []const u8) ?Feature {
     inline for (std.meta.fields(Feature)) |field| {
         if (std.ascii.eqlIgnoreCase(name, field.name)) {
@@ -974,4 +1227,65 @@ test "SessionDatabase insert frees metadata on append failure" {
     try std.testing.expectEqual(@as(usize, 0), db.entries.items.len);
     try std.testing.expect(failing_state.has_induced_failure);
     try std.testing.expectEqual(failing_state.allocated_bytes, failing_state.freed_bytes);
+}
+
+test "parseDependencies handles empty dependencies" {
+    const manifest =
+        ".{\n" ++
+        "    .dependencies = .{},\n" ++
+        "}\n";
+
+    const deps = try parseDependencies(std.testing.allocator, manifest);
+    defer freeDependencyList(std.testing.allocator, deps);
+
+    try std.testing.expectEqual(@as(usize, 0), deps.len);
+}
+
+test "parseDependencies captures url and hash" {
+    const manifest =
+        ".{\n" ++
+        "    .dependencies = .{\n" ++
+        "        .ggml_zig = .{\n" ++
+        "            .url = \"git+https://example.com/repo#v1\",\n" ++
+        "            .hash = \"sha256-abcdef\",\n" ++
+        "        },\n" ++
+        "    },\n" ++
+        "}\n";
+
+    const deps = try parseDependencies(std.testing.allocator, manifest);
+    defer freeDependencyList(std.testing.allocator, deps);
+
+    try std.testing.expectEqual(@as(usize, 1), deps.len);
+    try std.testing.expectEqualStrings("ggml_zig", deps[0].name);
+    try std.testing.expect(deps[0].url != null);
+    try std.testing.expect(deps[0].hash != null);
+    try std.testing.expectEqualStrings("git+https://example.com/repo#v1", deps[0].url.?);
+    try std.testing.expectEqualStrings("sha256-abcdef", deps[0].hash.?);
+}
+
+test "deps list warns when manifest is empty" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), false, .info);
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "deps", "list" }));
+    try std.testing.expectEqual(@as(usize, 0), tc.out_buf.items.len);
+    try std.testing.expect(std.mem.indexOf(u8, tc.err_buf.items, "No dependencies defined") != null);
+}
+
+test "deps list outputs json payload" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), true, .@"error");
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "deps", "list" }));
+    try std.testing.expectEqual(@as(usize, 0), tc.err_buf.items.len);
+    try std.testing.expect(tc.out_buf.items.len > 0);
+
+    const output = std.mem.trimRight(u8, tc.out_buf.items, "\n");
+    try std.testing.expectEqualStrings("{\"dependencies\":[]}", output);
 }
