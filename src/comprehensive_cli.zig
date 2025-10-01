@@ -17,7 +17,7 @@ const DependencyInfo = struct {
     hash: ?[]const u8 = null,
 };
 
-const ManifestParseError = error{ InvalidManifest };
+const ManifestParseError = error{InvalidManifest};
 
 const max_manifest_size: usize = 1024 * 1024;
 
