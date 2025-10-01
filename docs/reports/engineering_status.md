@@ -1139,7 +1139,7 @@ The ABI Framework is a high-performance, cross-platform Zig application that sup
 - ✅ **ARM64** (AArch64)
 
 #### Zig Versions
-- ✅ **0.16.0-dev (master)** (Required; matches `.zigversion`)
+- ✅ **0.16.0-dev.254+6dd0270a1** (Required; matches `.zigversion`)
 
 ### 🏗️ Build Requirements
 
@@ -1184,32 +1184,25 @@ winget install LLVM.LLVM Python.Python.3
 
 ##### Option 1: Official Build (Recommended)
 ```bash
-# Download and install Zig 0.16.0-dev (master)
-ZIG_TARBALL=$(python3 - <<'PY'
-import json, urllib.request
-with urllib.request.urlopen("https://ziglang.org/builds/index.json") as response:
-    data = json.load(response)
-print(data["master"]["x86_64-linux"]["tarball"])
-PY
-)
-curl -L "https://ziglang.org${ZIG_TARBALL}" -o zig-master.tar.xz
-tar -xf zig-master.tar.xz
-sudo mv zig-linux-x86_64-0.16.0-dev* /usr/local/zig
+# Download and install Zig 0.16.0-dev.254+6dd0270a1 (pinned snapshot)
+curl -L "https://ziglang.org/builds/zig-linux-x86_64-0.16.0-dev.254+6dd0270a1.tar.xz" -o zig-0.16.0-dev.254+6dd0270a1.tar.xz
+tar -xf zig-0.16.0-dev.254+6dd0270a1.tar.xz
+sudo mv zig-linux-x86_64-0.16.0-dev.254+6dd0270a1 /usr/local/zig
 export PATH="/usr/local/zig:$PATH"
-zig version  # should report 0.16.0-dev.<build-id>
+zig version  # should report 0.16.0-dev.254+6dd0270a1
 ```
 
 ##### Option 2: From Source
 ```bash
 git clone https://github.com/ziglang/zig
 cd zig
-git checkout master
+git checkout 6dd0270a1
 mkdir build
 cd build
 cmake ..
 make -j$(nproc)
 sudo make install
-zig version  # verify the installed compiler matches 0.16.0-dev
+zig version  # verify the installed compiler matches 0.16.0-dev.254+6dd0270a1
 ```
 
 > **Verification:** Run `zig version` and compare the output to `.zigversion` after installation to ensure the toolchain matches the repository expectation.
