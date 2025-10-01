@@ -22,7 +22,7 @@ The `0.1.0a` prerelease focuses on:
 
 ### Prerequisites
 
-- **Zig** `0.16.0-dev.457+f90510b08` (see `.zigversion` for the authoritative toolchain)
+- **Zig** `0.16.0-dev.254+6dd0270a1` (see `.zigversion` for the authoritative toolchain)
 - A C++ compiler for Zig's build dependencies
 
 ### Clone and build
