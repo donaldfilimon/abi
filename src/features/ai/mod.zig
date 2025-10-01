@@ -18,6 +18,10 @@ pub const reinforcement_learning = @import("reinforcement_learning.zig");
 pub const enhanced_agent = @import("enhanced_agent.zig");
 pub const agent = @import("agent.zig");
 pub const persona_manifest = @import("persona_manifest.zig");
+pub const tools = struct {
+    pub const summarize = @import("tools/summarize.zig");
+    pub const embed = @import("tools/embed.zig");
+};
 
 // Infrastructure
 pub const serialization = @import("serialization/mod.zig");
