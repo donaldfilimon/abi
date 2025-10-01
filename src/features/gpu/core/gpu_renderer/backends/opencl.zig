@@ -5,7 +5,7 @@ const buffers = @import("../buffers.zig");
 const types = @import("../types.zig");
 
 pub fn initialize(args: types.InitArgs) !types.BackendResources {
-    var ctx = try buffers.GPUContext.initOpenCL(args.allocator);
+    const ctx = try buffers.GPUContext.initOpenCL(args.allocator);
     const buffer_manager = buffers.BufferManager{
         .device = .{ .mock = ctx.device },
         .queue = .{ .mock = ctx.queue },
