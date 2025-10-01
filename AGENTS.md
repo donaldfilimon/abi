@@ -1,6 +1,6 @@
-# ABI Zig 0.16-dev Project — AGENTS.md (Production-Ready Finalized)
+# ABI Zig 0.16-dev Project — AGENTS.md (Production-Ready Finalized, Expanded)
 
-> **Mission**: Ship a production-grade refactor of ABI—an experimental Zig framework providing a bootstrap runtime and curated feature modules for AI experiments—on Zig 0.16-dev.254+6dd0270a1 (pinned for reproducibility; monitor for 0.16 stable or 1.0 progression per Zig Software Foundation updates), preserving public APIs while optimizing performance, reliability, and developer ergonomics. This playbook standardizes build, I/O, CLI, GPU/CPU compute, database (WDBX), agents, tests, CI/CD, security, deployment, and observability. Incorporate the current repository’s focus on reusable modules (e.g., `abi.ai`, `abi.database` for WDBX), bootstrap CLI for feature summary, and stubs for GPU utilities. Elevate to a lightning-fast, fully optimized AI and ML training stack with enhanced agent runtime, WDBX database (including concurrency), and inline prompts for automated code generation and review. The current executable initializes the framework, emits a textual summary of configured modules, and exits; expand to full CLI subcommands and demos. Non-Goals: Selecting a single ML architecture, locking to one GPU backend, or shipping proprietary model weights. This document defines a framework for rapid, safe iteration without regressions, aligned with production Zig best practices like explicit memory management, cross-compilation, and comprehensive testing.
+> **Mission**: Ship a production-grade refactor of ABI—an experimental Zig framework providing a bootstrap runtime and curated feature modules for AI experiments—on Zig 0.16-dev.254+6dd0270a1 (pinned for reproducibility; monitor for 0.16 stable or 1.0 progression per Zig Software Foundation updates, with 0.15.1 as the latest stable release as of August 2025 per official downloads), preserving public APIs while optimizing performance, reliability, and developer ergonomics. This playbook standardizes build, I/O, CLI, GPU/CPU compute, database (WDBX), agents, tests, CI/CD, security, deployment, observability, and dependency management. Incorporate the current repository’s focus on reusable modules (e.g., `abi.ai`, `abi.database` for WDBX), bootstrap CLI for feature summary, and stubs for GPU utilities. Elevate to a lightning-fast, fully optimized AI and ML training stack with enhanced agent runtime, WDBX database (including concurrency), and inline prompts for automated code generation and review. The current executable initializes the framework, emits a textual summary of configured modules, and exits; expand to full CLI subcommands and demos. Non-Goals: Selecting a single ML architecture, locking to one GPU backend, or shipping proprietary model weights. This document defines a framework for rapid, safe iteration without regressions, aligned with production Zig best practices like explicit memory management, cross-compilation, comprehensive testing, and mixed Zig/C codebases for legacy integration.
 
 ---
 
@@ -18,24 +18,26 @@
 10. GPU Acceleration (Backends, Fallbacks, Kernels)  
 11. Agents Runtime (Pipelines, Middleware, Timeouts)  
 12. Web & Connectors (HTTP façade, Plugins)  
-13. Testing Strategy (Unit, Property, Fuzz, Soak)  
-14. Benchmark Suite & Metrics Schema  
-15. CI/CD (GitHub Actions, Gates, Artifacts)  
-16. Security, Privacy & Supply Chain  
-17. Performance Budgets & SLOs  
-18. Risk Register & Mitigations  
-19. LLM Collaboration (Codex/Tool-Calling Playbook)  
-20. Agent-Specific Prompts (Inline)  
-21. Patch Templates & PR Hygiene  
-22. Migration Guide (Old → New Layout)  
-23. Quick Reference Snippets  
-24. Acceptance Checklist (Ship-Ready)  
-25. Deployment & Orchestration  
-26. Observability & Monitoring  
-27. Contribution Guidelines & Code of Conduct  
-28. Appendix A — Example Diffs & Golden Outputs  
-29. Appendix B — Thresholds & Config Files  
-30. Appendix C — Glossary  
+13. Dependency Management & Supply Chain  
+14. Testing Strategy (Unit, Property, Fuzz, Soak)  
+15. Benchmark Suite & Metrics Schema  
+16. CI/CD (GitHub Actions, Gates, Artifacts)  
+17. Security, Privacy & Supply Chain  
+18. Performance Budgets & SLOs  
+19. Risk Register & Mitigations  
+20. LLM Collaboration (Codex/Tool-Calling Playbook)  
+21. Agent-Specific Prompts (Inline)  
+22. Patch Templates & PR Hygiene  
+23. Migration Guide (Old → New Layout)  
+24. Quick Reference Snippets  
+25. Acceptance Checklist (Ship-Ready)  
+26. Deployment & Orchestration  
+27. Observability & Monitoring  
+28. Contribution Guidelines & Code of Conduct  
+29. Appendix A — Example Diffs & Golden Outputs  
+30. Appendix B — Thresholds & Config Files  
+31. Appendix C — Glossary  
+32. Appendix D — Zig Best Practices Integration  
 
 ---
 
@@ -50,7 +52,7 @@
 - **Typed Errors**: Use `error{...}` sets; avoid sentinel returns.
 - **Observability**: Structured logs at all layers; metrics opt-in without code changes.
 - **Repository Alignment**: Build on existing modules (`abi.ai`, `abi.database`, `abi.gpu`, `abi.web`, `abi.monitoring`, `abi.connectors`, `abi.VectorOps` from `abi.simd`); expand GPU from CPU-backed stubs to full backends, inspired by production ML stacks like ZML for tensor ops.
-- **Production Readiness**: Align with Zig's emphasis on robustness (no UB, explicit errors) and integrate ML-specific libs like ggml-zig for tensor acceleration where feasible.
+- **Production Readiness**: Align with Zig's emphasis on robustness (no UB, explicit errors) and integrate ML-specific libs like ggml-zig for tensor acceleration always feasible; follow mixed Zig/C best practices for gradual migration of legacy code.
 
 ---
 
@@ -59,8 +61,8 @@
 - **SemVer (pre-release)**: 0.1.0-alpha.N → 0.1.0-beta.N → 0.1.0. Stable surface targets 0.2.x; plan for 1.0 alignment with Zig 1.0 (TBD, est. post-2025 per community discussions).
 - **Deprecations**: Announce in CHANGELOG, provide shims for 1 minor, include migration notes.
 - **Artifacts**: CLI binary, optional lib, docs site, benchmark JSON, SBOM, Docker images.
-- **Zig Support**: `.zigversion` pins a known-good 0.16-dev snapshot (0.16.0-dev.254+6dd0270a1); automate updates via CI with regression tests.
-- **Release Automation**: Use semantic-release in CI for tagging, changelog gen, and GitHub releases.
+- **Zig Support**: `.zigversion` pins a known-good 0.16-dev snapshot (0.16.0-dev.254+6dd0270a1); automate updates via CI with regression tests; prepare for 0.15.1 stable upgrades as per 2025 patches.
+- **Release Automation**: Use semantic-release in CI for tagging, changelog gen, and GitHub releases; include SBOM signing.
 
 ---
 
@@ -86,6 +88,12 @@
 |   Observability    | <-- |   Deployment Layer  | <-- |   ML Integrations|
 | (Prometheus/OTEL)  |     |  (Docker/K8s Helm)  |     | (ggml-zig/ZML)   |
 +--------------------+     +---------------------+     +------------------+
+                                |
+                                v
++--------------------+
+|   Dependencies     |
+| (Managed via Zig)  |
++--------------------+
 ```
 
 ---
@@ -165,6 +173,7 @@ docs/
 ├── EXAMPLES.md               # Working code samples (include README example)
 ├── GPU_AI_ACCELERATION.md    # GPU setup and usage (note current CPU stubs)
 ├── DEPLOYMENT.md             # Containerization and orchestration
+├── DEPENDENCY_MANAGEMENT.md  # Best practices for deps
 └── TESTING_STRATEGY.md       # Test approach and coverage
 
 scripts/
@@ -173,7 +182,12 @@ scripts/
 
 tests/
 └── <mirror feature tree with *_test.zig files>
+
+deps/
+└── <managed via Zig package manager or git submodules>
 ```
+
+- **Expansion Note**: Added `docs/DEPENDENCY_MANAGEMENT.md` and `deps/` for production dependency handling.
 
 ---
 
@@ -212,11 +226,14 @@ pub fn build(b: *std.Build) void {
     // add benchmark executables
 
     const docs_step = b.step("docs", "Generate docs");
-    // attach doc generation; integrate zig docgen
+    // attach doc generation
+
+    const sbom_step = b.step("sbom", "Generate SBOM");
+    // integrate syft or custom SBOM gen
 }
 ```
 
-- **Production Note**: Enable cross-compilation for deployment targets; use `zig build -Dtarget=aarch64-linux-gnu` for ARM servers.
+- **Production Note**: Enable cross-compilation for deployment targets; use `zig build -Dtarget=aarch64-linux-gnu` for ARM servers; add SBOM generation step.
 
 ---
 
@@ -240,6 +257,7 @@ pub const FrameworkOptions = struct {
     plugin_paths: []const []const u8 = &.{},
     log_level: enum { error, warn, info, debug, trace } = .info,
     metrics_export: ?[]const u8 = null, // e.g., "prometheus:9090"
+    dep_versions: std.StringHashMap([]const u8) = .{}, // For pinned deps
 };
 ```
 
@@ -248,6 +266,8 @@ Usage:
 ```zig
 var fw = try abi.init(alloc, .{ .features = .{ .gpu = true, .database = true }, .log_level = .debug, .metrics_export = "prometheus:9090" });
 ```
+
+- **Expansion Note**: Added `dep_versions` for production dep pinning.
 
 ---
 
@@ -277,6 +297,7 @@ pub const Logger = struct {
 
 - **Channel Separation**: stdout for machine-readable JSON; stderr for human logs. `--json` forces structured output.
 - **Structured Events**: Prefer `{ "ts": ..., "level": ..., "msg": ..., "fields": { ... } }`; integrate OTEL spans for tracing.
+- **Production Note**: Rate-limit logs to prevent floods; rotate files for long-running processes.
 
 ---
 
@@ -288,9 +309,10 @@ pub const Logger = struct {
 - `db insert --vec <file|inline> [--meta <json>]` — add vectors.
 - `db search --vec <file|inline> -k <N>` — k-NN query.
 - `gpu bench [--size MxN, ...]` — run dense-layer demo with CPU/GPU compare.
+- `deps list|update` — manage dependencies (new for production).
 
 **Error Codes**
-- 0 success; 1 usage; 2 config; 3 runtime; 4 I/O; 5 backend missing.
+- 0 success; 1 usage; 2 config; 3 runtime; 4 I/O; 5 backend missing; 6 dep conflict.
 
 **Help Sketch**
 
@@ -305,11 +327,12 @@ COMMANDS:
   agent      run demo agents
   db         insert/search vectors (WDBX)
   gpu        run GPU/CPU demos and benchmarks
+  deps       list|update dependencies
 
 Run 'abi <command> --help' for details.
 ```
 
-- **Production Note**: Validate inputs per OWASP API Security Top 10; rate-limit CLI for scripted abuse.
+- **Production Note**: Validate inputs per OWASP API Security Top 10; rate-limit CLI for scripted abuse; add deps subcommand for production.
 
 ---
 
@@ -352,15 +375,15 @@ pub const Database = struct {
 **Recall/Precision Gates**
 - IVF-Flat: recall@10 ≥ 0.95 on Gaussian synthetic sets with D∈{64,128}, N∈{10k,100k}.
 
-- **Production Note**: Encrypt sensitive metadata at rest; support sharding across nodes for horizontal scaling.
+- **Production Note**: Encrypt sensitive metadata at rest; support sharding across nodes for horizontal scaling; integrate with distributed systems like Raft for replication.
 
 ---
 
 ## 10) GPU Acceleration (Backends, Fallbacks, Kernels)
 
 - **Backends**: Vulkan, Metal, WebGPU (CUDA future work; integrate ZML for MLIR-based kernels).
-- **Fallback**: Tuned CPU SIMD path always available.
-- **Kernels**: Matmul, add/mul, activation (ReLU/GELU), reduce.
+- **Fallback**: Tuned CPU SIMD fallback always available.
+- **Kernels**: Matmul, add/mul, activation (ReLU/GELU), reduce; add custom ML kernels like convolution.
 - **Self-Check**: At init, dispatch tiny kernel, verify correctness, enable backend.
 
 **CPU Fallback Sketch**
@@ -380,7 +403,7 @@ fn matmul(out: []f32, a: []const f32, b: []const f32, m: usize, n: usize, p: usi
 }
 ```
 
-- **Production Note**: Resource limits (VRAM caps); graceful degradation on OOM.
+- **Production Note**: Resource limits (VRAM caps); graceful degradation on OOM; multi-GPU support via Zig's async.
 
 ---
 
@@ -389,7 +412,7 @@ fn matmul(out: []f32, a: []const f32, b: []const f32, m: usize, n: usize, p: usi
 - **API**: init/process/deinit with typed config; pass allocator.
 - **Middleware**: Pre/post hooks for logging, metrics, auth, tracing; optional retries.
 - **Cancellation & Timeouts**: Optional deadline/context handle.
-- **Examples**: EchoAgent (echo), TransformAgent (uppercase), PipelineAgent (compose); extend with LLM inference via zig-ml.
+- **Examples**: EchoAgent (echo), TransformAgent (uppercase), PipelineAgent (compose); extend with LLM inference via zig-ml; add distributed agents for scale.
 
 ```zig
 pub const Agent = struct {
@@ -400,6 +423,8 @@ pub const Agent = struct {
 };
 ```
 
+- **Production Note**: Async processing for concurrency; fault isolation with arenas.
+
 ---
 
 ## 12) Web & Connectors (HTTP façade, Plugins)
@@ -407,11 +432,23 @@ pub const Agent = struct {
 - **HTTP Server**: Feature-gated minimal server exposing `/db/insert`, `/db/search`, `/agent/run` with JSON payloads; use Zap for high-perf routing.
 - **Plugins**: Load plugins via shared objects or Zig modules registered in `FrameworkOptions.plugin_paths`; support dynamic reloading for zero-downtime.
 
-- **Production Note**: TLS termination, CORS, JWT auth; rate limiting with token buckets.
+- **Production Note**: TLS termination, CORS, JWT auth; rate limiting with token buckets; gRPC support for connectors.
 
 ---
 
-## 13) Testing Strategy (Unit, Property, Fuzz, Soak)
+## 13) Dependency Management & Supply Chain
+
+- **Zig Package Manager**: Use `zig fetch` for deps; pin in `build.zig.zon`.
+- **Best Practices**: No global deps; explicit imports; audit with `zig ast-check`; follow mixed Zig/C guidelines for C libs (e.g., translate.h for headers).
+- **Pinning**: Version locks in `build.zig`; CI verifies reproducibility.
+- **Updates**: Semantic versioning checks; automated dep upgrades via dependabot.
+- **Supply Chain**: SBOM for deps; vulnerability scans on PRs.
+
+- **Expansion Note**: New section for production dep handling, per 2025 best practices.
+
+---
+
+## 14) Testing Strategy (Unit, Property, Fuzz, Soak)
 
 - **Unit**: Each public fn has positive/negative tests; `std.testing.refAllDecls` anchors coverage.
 - **Property**: Random vectors for DB; invariants (idempotent delete, monotonic IDs, recall bounds).
@@ -419,17 +456,18 @@ pub const Agent = struct {
 - **Soak/Stress**: Concurrency (N writers, M readers) for WDBX; GPU self-checks in loop.
 - **Golden Files**: Stable JSON outputs for CLI subcommands.
 - **Conformance**: ML-specific tests against ONNX runtime benchmarks; end-to-end with Docker Compose.
+- **Integration**: Dep injection tests; mock backends.
 
-- **Production Note**: Achieve 90%+ branch coverage; mutate tests for resilience.
+- **Production Note**: Achieve 90%+ branch coverage; mutate tests for resilience; add dep-related tests.
 
 ---
 
-## 14) Benchmark Suite & Metrics Schema
+## 15) Benchmark Suite & Metrics Schema
 
 - **DB**: insert N, search k → ops/s, P50/P95/P99, recall@k.
 - **SIMD**: vector ops times; numeric epsilon checks; integrate with `abi.VectorOps`.
 - **GPU**: dense forward grid; CPU vs GPU speedup; tolerance; start from current stubs.
-- **Scalability**: Multi-node WDBX sharding benchmarks.
+- **Scalability**: Multi-node WDBX sharding benchmarks; dep impact measurements.
 
 **Metrics JSON**
 
@@ -443,9 +481,13 @@ pub const Agent = struct {
 }
 ```
 
+- **Production Note**: CI-integrated; historical trending.
+
 ---
 
-## 15) CI/CD (GitHub Actions, Gates, Artifacts)
+## 16) CI/CD (GitHub Actions, Gates, Artifacts)
+
+Expanded YAML with dep scans and depabot.
 
 ```yaml
 name: abi-ci
@@ -467,6 +509,8 @@ jobs:
       - name: Security Scan
         uses: aquasecurity/trivy-action@master
         with: { scan-type: 'fs', format: 'sarif', output: 'trivy-results.sarif' }
+      - name: Dep Scan
+        run: zig deps check  # Custom script for dep auditing
   benchmarks:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -489,35 +533,38 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
 
-**Gates**: PRs may not regress perf beyond thresholds; fail on build/test/lint/security scans.
+**Gates**: PRs may not regress perf beyond thresholds; fail on build/test/lint/security/dep scans.
 
-- **Production Note**: Multi-stage Docker builds; vulnerability gating with Trivy.
+- **Production Note**: Multi-stage Docker builds; vulnerability gating with Trivy; depabot for auto-updates.
 
 ---
 
-## 16) Security, Privacy & Supply Chain
+## 17) Security, Privacy & Supply Chain
 
 - **SBOM**: Generate SBOM per release via `syft` or Zig build hooks; no opaque blobs in repo.
 - **Secrets**: No tokens in code; use env/CI secrets; scan with GitHub Secret Scanning.
 - **HTTP Inputs**: Validate sizes and JSON schema; sane timeouts; OWASP API Sec Top 10 compliance.
 - **Sandbox**: GPU backend runtime-check; deny by default when missing; seccomp profiles for containers.
-- **Supply Chain**: Pin deps; sign releases with cosign; audit third-party ML libs (e.g., ggml-zig).
+- **Supply Chain**: SBOM for deps; vulnerability scans on PRs; pin deps in `build.zig.zon`.
+
+- **Expansion Note**: Added dep pinning details.
 
 ---
 
-## 17) Performance Budgets & SLOs
+## 18) Performance Budgets & SLOs
 
 - **DB Insert**: ≥ 50k ops/s on 8-core desktop @ D=128.
 - **Search P95**: ≤ 10 ms for k=10 @ N=100k (IVF-Flat baseline).
 - **Agent process**: ≤ 1 ms echo; ≤ 5 ms with middleware.
 - **GPU Dense Forward**: ≥ 5× CPU speedup for 32×784 • 784×128 on mid-tier GPU (or clean fallback).
 - **SLOs**: 99.9% uptime for HTTP endpoints; <100ms p99 latency under load.
+- **Dep Impact**: Benchmarks pre/post dep updates.
 
-- **Production Note**: Profile with Zig's built-in tools or perf; set alerts on SLO breaches.
+- **Production Note**: Profile with Zig's built-in tools or perf; set alerts on SLO breaches; monitor dep perf.
 
 ---
 
-## 18) Risk Register & Mitigations
+## 19) Risk Register & Mitigations
 
 - **Zig dev churn** → Pin `.zigversion`; isolate std-dependent shims; CI canary builds on master.
 - **GPU variance** → Mandatory CPU fallback; init self-test; clear errors. Expand from current stubs carefully.
@@ -525,16 +572,18 @@ jobs:
 - **API drift** → Shims + deprecations; doc sync; example compile checks in CI.
 - **Perf regressions** → Bench gates; thresholds JSON; trend graphs in CI artifacts.
 - **Supply Chain Attacks** → SBOM verification; dep pinning; reproducible builds.
+- **Dep Conflicts** → Zon pinning; CI dep scans.
 
 ---
 
-## 19) LLM Collaboration (Codex/Tool-Calling Playbook)
+## 20) LLM Collaboration (Codex/Tool-Calling Playbook)
 
 - **Operating Mode**: LLM acts as change proposer. Must emit unified diffs or full files plus tests & docs.
 - **Safety Rails**:
   - Don’t delete public APIs without shims + tests.
   - Update docs/examples with code.
   - Include rationale/trade-offs.
+  - Validate deps in patches.
 - **Artifacts**: Patches, tests, docs, benchmark updates in one response per PR.
 
 **Tool Schema (example)**
@@ -547,7 +596,8 @@ jobs:
     {"name":"run_tests","parameters":{"type":"object","properties":{}}},
     {"name":"run_benchmarks","parameters":{"type":"object","properties":{}}},
     {"name":"lint_code","parameters":{"type":"object","properties":{"code":{"type":"string"}}}},
-    {"name":"format_code","parameters":{"type":"object","properties":{"code":{"type":"string"}}}}
+    {"name":"format_code","parameters":{"type":"object","properties":{"code":{"type":"string"}}}},
+    {"name":"check_deps","parameters":{"type":"object","properties":{"code":{"type":"string"}}}}
   ]
 }
 ```
@@ -557,16 +607,16 @@ jobs:
 **Role**: Senior Zig engineer.  
 **Goal**: Apply Phases A–H with zero regression. Produce patches + tests + docs.  
 **Inputs**: current tree, baselines, this AGENTS.md.  
-**Rules**: explicit allocators; no public API breaks; JSON/human I/O split; add tests/docs; align with production practices (e.g., security scans, container builds).  
+**Rules**: explicit allocators; no public API breaks; JSON/human I/O split; add tests/docs; align with production practices (e.g., security scans, container builds, dep pinning).  
 **Output**: unified diffs + new files; updated build.zig; CI YAML; rationale for every change.
 
 ---
 
-## 20) Agent-Specific Prompts (Inline)
+## 21) Agent-Specific Prompts (Inline)
 
 **Build Agent – build.zig**  
 
-Refactor build.zig to Zig 0.16-dev. Define module imports for framework, features/*, shared. Add `-Denable-gpu`/`-web`/`-monitoring`. Produce abi CLI at zig-out/bin/abi and a unit-test step. Return the complete build.zig and a one-paragraph rationale. Integrate existing `abi.simd`; add Docker multi-stage support.
+Refactor build.zig to Zig 0.16-dev. Define module imports for framework, features/*, shared. Add `-Denable-gpu`/`-web`/`-monitoring`. Produce abi CLI at zig-out/bin/abi and a unit-test step. Return the complete build.zig and a one-paragraph rationale. Integrate existing `abi.simd`; add Docker multi-stage support; pin deps in zon.
 
 **I/O Agent – Writers**  
 
@@ -574,7 +624,7 @@ Introduce a Logger façade and channel separation (stdout JSON, stderr logs). Re
 
 **CLI Agent – Subcommands**  
 
-Create comprehensive_cli.zig with subcommands: features list|enable|disable, agent run, db insert|search, gpu bench. Implement `--help` autogen and robust validation errors with exit codes. Provide golden-output tests for human and JSON modes. Expand from current bootstrap summary; add rate-limiting.
+Create comprehensive_cli.zig with subcommands: features list|enable|disable, agent run, db insert|search, gpu bench, deps list|update. Implement `--help` autogen and robust validation errors with exit codes. Provide golden-output tests for human and JSON modes. Expand from current bootstrap summary; add rate-limiting.
 
 **Database Agent (WDBX) – Concurrency & Persistence**  
 
@@ -590,15 +640,15 @@ Define Agent API (init/process/deinit) with typed config and middleware. Ship Ec
 
 **Tests/CI Agent – Matrix + Gates**  
 
-Add GH Actions matrix (linux/macos/windows). Cache Zig. Run zig fmt --check, build, test, and upload docs/bench artifacts. Set performance gates via a JSON thresholds file and fail PRs on regression; add Trivy security scans and SBOM gen.
+Add GH Actions matrix (linux/macos/windows). Cache Zig. Run zig fmt --check, build, test, and upload docs/bench artifacts. Set performance gates via a JSON thresholds file and fail PRs on regression; add Trivy security scans, SBOM gen, and dep checks.
 
 **Docs Agent – Single Source of Truth**  
 
-Update docs/EXAMPLES.md, MODULE_ORGANIZATION.md, and MODULE_REFERENCE.md so samples compile against final APIs. Add quick-start, configuration flags, troubleshooting, and benchmark methodology sections. Ensure MODULE_REFERENCE.md matches public APIs; generate from Zig sources as in current repo; include deployment guides.
+Update docs/EXAMPLES.md, MODULE_ORGANIZATION.md, and MODULE_REFERENCE.md so samples compile against final APIs. Add quick-start, configuration flags, troubleshooting, benchmark methodology, and dependency management sections. Ensure MODULE_REFERENCE.md matches public APIs; generate from Zig sources as in current repo; include deployment guides.
 
 ---
 
-## 21) Patch Templates & PR Hygiene
+## 22) Patch Templates & PR Hygiene
 
 **Conventional Commits**: feat:, fix:, perf:, refactor:, docs:, test:, chore:, ci:.
 
@@ -628,19 +678,23 @@ Update docs/EXAMPLES.md, MODULE_ORGANIZATION.md, and MODULE_REFERENCE.md so samp
 ### Security/Compliance  
 <scans passed; SBOM updates>
 
+### Dep Changes  
+<new/updated deps; rationale>
+
 ---
 
-## 22) Migration Guide (Old → New Layout)
+## 23) Migration Guide (Old → New Layout)
 
 - **Imports**: `@import("abi").ai.agent.Agent` unchanged; if relocating types, add re-exports in src/mod.zig.
 - **build.zig**: Legacy scripts continue to work; new flags optional.
 - **CLI**: main.zig remains; comprehensive_cli.zig is the modern entry.
 - **Docs**: Examples updated; old paths listed with deprecation badges.
 - **Deployment**: New Docker/K8s configs; migrate via docker-compose up.
+- **Deps**: Move to zon pinning; update scripts accordingly.
 
 ---
 
-## 23) Quick Reference Snippets
+## 24) Quick Reference Snippets
 
 **Agent usage** (From repository README)
 
@@ -682,14 +736,29 @@ WORKDIR /app
 COPY . .
 RUN zig build -Drelease-safe -Dtarget=x86_64-linux-gnu
 
-FROM alpine:latest
+FROM gcr.io/distroless/base:latest
 COPY --from=builder /app/zig-out/bin/abi /usr/local/bin/abi
 CMD ["abi", "features", "list"]
 ```
 
+**Dep Pinning in build.zig.zon**
+
+```zig
+.{
+    .name = "abi",
+    .version = "0.1.0",
+    .dependencies = .{
+        .ggml_zig = .{
+            .url = "git+https://github.com/example/ggml-zig#v1.2.3",
+            .hash = "sha256-...",
+        },
+    },
+}
+```
+
 ---
 
-## 24) Acceptance Checklist (Ship-Ready)
+## 25) Acceptance Checklist (Ship-Ready)
 
 - [ ] zig build clean; CI matrix green; zig fmt passes; security scans clean.
 - [ ] abi features list prints coherent enabled features in human/JSON modes, aligning with current repo summary.
@@ -699,16 +768,18 @@ CMD ["abi", "features", "list"]
 - [ ] Docs updated; examples compile; CHANGELOG includes refactor notes.
 - [ ] Docker image builds/runs; K8s manifests validate.
 - [ ] SBOM generated; release artifacts published.
+- [ ] Deps pinned and scanned.
 
 ---
 
-## 25) Deployment & Orchestration
+## 26) Deployment & Orchestration
 
 - **Containerization**: Multi-stage Dockerfiles for slim images (<50MB); use distroless base for security.
 - **Orchestration**: Helm charts for K8s; support auto-scaling based on CPU/GPU metrics.
 - **CI Integration**: Build/push images on tag; scan with Trivy in pipeline.
 - **Zero-Downtime**: Health checks (`/healthz` endpoint); rolling updates with readiness probes.
 - **Configs**: Env vars for FrameworkOptions; secrets via K8s Secrets or Vault.
+- **Scaling**: Horizontal pod autoscaler; GPU scheduling with node affinity.
 
 **Example Helm Values**
 
@@ -720,19 +791,23 @@ image:
 resources:
   limits:
     nvidia.com/gpu: 1  # For GPU workloads
+service:
+  type: LoadBalancer
+  port: 80
 ```
 
-- **Production Note**: Support serverless (e.g., Knative) for bursty ML inference.
+- **Production Note**: Support serverless (e.g., Knative) for bursty ML inference; Terraform for infra as code.
 
 ---
 
-## 26) Observability & Monitoring
+## 27) Observability & Monitoring
 
 - **Metrics**: Prometheus exporter in `monitoring/sinks/prometheus.zig`; expose `/metrics` endpoint.
 - **Tracing**: OTEL integration for distributed traces; sample at 1% for prod.
 - **Logging**: Structured JSON to stdout; aggregate with Fluentd/ELK.
 - **Alerting**: SLO breaches trigger PagerDuty; dashboards in Grafana for latency/recall.
 - **Profiling**: Continuous profiling with Zig's async I/O hooks; export to Pyroscope.
+- **Dep Monitoring**: Track dep perf in benchmarks.
 
 **Prometheus Metrics Example**
 
@@ -742,23 +817,24 @@ resources:
 abi_db_insert_duration_seconds_bucket{le="0.005"} 100
 ```
 
-- **Production Note**: Golden signals (latency, traffic, errors, saturation); integrate with existing monitoring helpers.
+- **Production Note**: Golden signals (latency, traffic, errors, saturation); integrate with existing monitoring helpers; dep impact alerts.
 
 ---
 
-## 27) Contribution Guidelines & Code of Conduct
+## 28) Contribution Guidelines & Code of Conduct
 
-- **Guidelines**: Fork/PR model; DCO 1.1 sign-off; small PRs (<400 LOC).
+- **Guidelines**: Fork/PR model; DCO 1.1 sign-off; small PRs (<400 LOC); dep updates in separate PRs.
 - **Code of Conduct**: Adopt Contributor Covenant; enforce via CLA bot.
 - **Onboarding**: CONTRIBUTING.md with setup, phases from this doc, and LLM prompt templates.
 - **Reviews**: Require 2 approvals; lint/security gates; post-merge benchmarks.
 - **Community**: Discord/Slack for discussions; monthly office hours.
+- **Dep Contributions**: Propose new deps with SBOM and perf data.
 
 - **Production Note**: Maintain audit trail for compliance (e.g., SOC 2 if enterprise).
 
 ---
 
-## 28) Appendix A — Example Diffs & Golden Outputs
+## 29) Appendix A — Example Diffs & Golden Outputs
 
 **Unified diff — writer channel separation (illustrative)**
 
@@ -787,14 +863,15 @@ abi_db_insert_duration_seconds_bucket{le="0.005"} 100
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
   "components": [
-    {"type": "library", "name": "zig-std", "version": "0.16-dev"}
+    {"type": "library", "name": "zig-std", "version": "0.16-dev"},
+    {"type": "library", "name": "ggml-zig", "version": "1.2.3"}
   ]
 }
 ```
 
 ---
 
-## 29) Appendix B — Thresholds & Config Files
+## 30) Appendix B — Thresholds & Config Files
 
 **bench_thresholds.json**
 
@@ -834,9 +911,28 @@ services:
       - "9090:9090"
 ```
 
+**build.zig.zon Example**
+
+```zig
+.{
+    .name = "abi",
+    .version = "0.1.0",
+    .dependencies = .{
+        .ggml_zig = .{
+            .url = "git+https://github.com/example/ggml-zig#v1.2.3",
+            .hash = "sha256-...",
+        },
+        .zap = .{
+            .url = "git+https://github.com/zigzap/zap#v0.1.7-pre",
+            .hash = "sha256-...",
+        },
+    },
+}
+```
+
 ---
 
-## 30) Appendix C — Glossary
+## 31) Appendix C — Glossary
 
 - **ABI**: Application Binary Interface (here: also name of the framework).
 - **WDBX**: Native vector database component.
@@ -847,7 +943,19 @@ services:
 - **SLO**: Service Level Objective.
 - **SBOM**: Software Bill of Materials.
 - **OTEL**: OpenTelemetry.
+- **Zon**: Zig package manifest file.
 
 ---
 
-**End of AGENTS.md (Production-Ready Finalized)**. Treat this as the SSOT for the refactor sprint. Assign owners per phase, stage PRs incrementally, and enforce quality gates. Default to allocator clarity, measurable performance, and API stability. For enterprise adoption, monitor Zig 1.0 progress and integrate with mature ML stacks like ZML.
+## 32) Appendix D — Zig Best Practices Integration
+
+- **Structuring Projects**: Use modules for separation; explicit deps in zon; avoid globals.
+- **Mixed Zig/C**: Use translate-c for headers; gradual migration with safety checks.
+- **Error Handling**: Union error sets; exhaustive switches; no panics in prod.
+- **Performance**: Comptime where possible; profile hot paths; SIMD opts.
+- **Deps**: Pin hashes; audit regularly; prefer Zig-native libs.
+- **2025 Trends**: Async I/O for servers; MLIR integration for ML; container-first deploys.
+
+---
+
+**End of AGENTS.md (Production-Ready Finalized, Expanded)**. Treat this as the SSOT for the refactor sprint. Assign owners per phase, stage PRs incrementally, and enforce quality gates. Default to allocator clarity, measurable performance, and API stability. For enterprise adoption, monitor Zig 1.0 progress and integrate with mature ML stacks like ZML.
