@@ -1,6 +1,9 @@
 const std = @import("std");
 
 const abi = @import("abi");
+const manifest = @import("../build.zig.zon");
+const ManifestDependencies = @TypeOf(manifest.dependencies);
+const manifest_dependency_fields = std.meta.fields(ManifestDependencies);
 const Framework = abi.framework.runtime.Framework;
 const FrameworkOptions = abi.framework.config.FrameworkOptions;
 const Feature = abi.framework.config.Feature;
@@ -359,55 +362,202 @@ pub const Cli = struct {
                 try self.logger.err("deps list does not accept extra arguments\n", .{});
                 return .usage;
             }
-
-            const deps = self.loadDependencies() catch |err| {
-                return switch (err) {
-                    error.FileNotFound, error.AccessDenied => blk: {
-                        try self.logger.err("unable to read dependency manifest\n", .{});
-                        break :blk ExitCode.io;
-                    },
-                    error.ManifestTooLarge => blk: {
-                        try self.logger.err("dependency manifest exceeds maximum supported size\n", .{});
-                        break :blk ExitCode.config;
-                    },
-                    ManifestParseError.InvalidManifest => blk: {
-                        try self.logger.err("dependency manifest is invalid\n", .{});
-                        break :blk ExitCode.config;
-                    },
-                    else => blk: {
-                        try self.logger.err("unexpected error loading dependencies\n", .{});
-                        break :blk ExitCode.runtime;
-                    },
-                };
-            };
-            defer freeDependencyList(self.allocator, deps);
-
-            try self.emitDependencyList(deps);
+            try self.emitDependencyList();
             return .success;
         }
 
         if (std.mem.eql(u8, sub, "update")) {
-            if (tail.len != 0) {
-                try self.logger.err("deps update does not accept extra arguments\n", .{});
-                return .usage;
-            }
-
-            if (self.json_mode) {
-                try printJson(
-                    self.channels.out,
-                    "{\"status\":\"error\",\"message\":\"automated dependency updates are not yet implemented\"}",
-                    .{},
-                );
-            } else {
-                try self.logger.warn("Automated dependency updates are not yet implemented\n", .{});
-                try self.logger.info("Run `zig fetch` and update build.zig.zon manually.\n", .{});
-            }
-
-            return .runtime;
+            return try self.handleDependencyUpdate(tail);
         }
 
         try self.logger.err("Unknown deps subcommand: {s}\n", .{sub});
         return .usage;
+    }
+
+    fn emitDependencyList(self: *Cli) !void {
+        if (self.json_mode) {
+            var buffer = std.ArrayList(u8).init(self.allocator);
+            defer buffer.deinit();
+
+            try buffer.appendSlice("{\"status\":\"ok\",\"action\":\"list\",\"dependencies\":");
+            try appendDependencyJsonArray(buffer.writer());
+            try buffer.appendSlice("}");
+
+            try printJson(self.channels.out, "{s}", .{buffer.items});
+        } else {
+            try self.logDependencySummary();
+        }
+    }
+
+    fn handleDependencyUpdate(self: *Cli, args: [][]const u8) !ExitCode {
+        var mode: enum { dry_run, apply } = .dry_run;
+
+        for (args) |token| {
+            if (std.mem.eql(u8, token, "--dry-run")) {
+                mode = .dry_run;
+            } else if (std.mem.eql(u8, token, "--apply")) {
+                mode = .apply;
+            } else {
+                try self.logger.err("Unknown deps update flag: {s}\n", .{token});
+                return .usage;
+            }
+        }
+
+        const mode_label = switch (mode) {
+            .dry_run => "dry-run",
+            .apply => "apply",
+        };
+
+        if (mode == .dry_run or manifest_dependency_fields.len == 0) {
+            if (self.json_mode) {
+                var buffer = std.ArrayList(u8).init(self.allocator);
+                defer buffer.deinit();
+
+                try buffer.appendSlice("{\"status\":\"ok\",\"action\":\"update\",\"mode\":");
+                try writeJsonString(buffer.writer(), mode_label);
+                try buffer.appendSlice(",\"dependencies\":");
+                try appendDependencyJsonArray(buffer.writer());
+                try buffer.appendSlice("}");
+
+                try printJson(self.channels.out, "{s}", .{buffer.items});
+            } else {
+                if (manifest_dependency_fields.len == 0) {
+                    try self.logger.info("No dependencies declared in build.zig.zon\n", .{});
+                } else {
+                    try self.logger.info(
+                        "Dependency update ({s}) would process the following entries:\n",
+                        .{mode_label},
+                    );
+                    try self.logDependencySummary();
+                }
+            }
+            return .success;
+        }
+
+        const exec_result = std.ChildProcess.exec(.{
+            .allocator = self.allocator,
+            .argv = &.{ "zig", "fetch" },
+        }) catch |err| {
+            if (self.json_mode) {
+                try printJson(
+                    self.channels.out,
+                    "{\"status\":\"error\",\"action\":\"update\",\"mode\":\"apply\",\"error\":\"{s}\"}",
+                    .{@errorName(err)},
+                );
+            } else {
+                try self.logger.err("Failed to execute zig fetch: {s}\n", .{@errorName(err)});
+            }
+            return .runtime;
+        };
+        defer self.allocator.free(exec_result.stdout);
+        defer self.allocator.free(exec_result.stderr);
+
+        switch (exec_result.term) {
+            .Exited => |code| {
+                if (code != 0) {
+                    if (self.json_mode) {
+                        var buffer = std.ArrayList(u8).init(self.allocator);
+                        defer buffer.deinit();
+
+                        try buffer.appendSlice("{\"status\":\"error\",\"action\":\"update\",\"mode\":\"apply\",\"code\":");
+                        try buffer.writer().print("{d}", .{code});
+                        try buffer.appendSlice(",\"stderr\":");
+                        try writeJsonString(buffer.writer(), exec_result.stderr);
+                        try buffer.appendSlice("}");
+                        try printJson(self.channels.out, "{s}", .{buffer.items});
+                    } else {
+                        try self.logger.err("zig fetch exited with code {d}\n", .{code});
+                        if (exec_result.stderr.len != 0) {
+                            try self.logger.err("{s}", .{exec_result.stderr});
+                        }
+                    }
+                    return .runtime;
+                }
+
+                if (self.json_mode) {
+                    var buffer = std.ArrayList(u8).init(self.allocator);
+                    defer buffer.deinit();
+
+                    try buffer.appendSlice("{\"status\":\"ok\",\"action\":\"update\",\"mode\":\"apply\",\"code\":0");
+                    if (exec_result.stdout.len != 0) {
+                        try buffer.appendSlice(",\"stdout\":");
+                        try writeJsonString(buffer.writer(), exec_result.stdout);
+                    }
+                    if (exec_result.stderr.len != 0) {
+                        try buffer.appendSlice(",\"stderr\":");
+                        try writeJsonString(buffer.writer(), exec_result.stderr);
+                    }
+                    try buffer.appendSlice("}");
+                    try printJson(self.channels.out, "{s}", .{buffer.items});
+                } else {
+                    try self.logger.info("zig fetch completed successfully\n", .{});
+                    if (exec_result.stdout.len != 0) {
+                        try self.logger.info("{s}", .{exec_result.stdout});
+                    }
+                    if (exec_result.stderr.len != 0) {
+                        try self.logger.warn("{s}", .{exec_result.stderr});
+                    }
+                }
+
+                return .success;
+            },
+            .Signal => {
+                if (self.json_mode) {
+                    try printJson(
+                        self.channels.out,
+                        "{\"status\":\"error\",\"action\":\"update\",\"mode\":\"apply\",\"error\":\"terminated by signal\"}",
+                        .{},
+                    );
+                } else {
+                    try self.logger.err("zig fetch terminated by signal\n", .{});
+                }
+                return .runtime;
+            },
+            else => {
+                if (self.json_mode) {
+                    try printJson(
+                        self.channels.out,
+                        "{\"status\":\"error\",\"action\":\"update\",\"mode\":\"apply\",\"error\":\"unexpected termination\"}",
+                        .{},
+                    );
+                } else {
+                    try self.logger.err("zig fetch terminated unexpectedly\n", .{});
+                }
+                return .runtime;
+            },
+        }
+        unreachable;
+    }
+
+    fn logDependencySummary(self: *Cli) !void {
+        if (manifest_dependency_fields.len == 0) {
+            try self.logger.info("No dependencies declared in build.zig.zon\n", .{});
+            return;
+        }
+
+        try self.logger.info("Dependencies ({d}):\n", .{manifest_dependency_fields.len});
+        inline for (manifest_dependency_fields) |field| {
+            const dep = @field(manifest.dependencies, field.name);
+            try self.logger.info("  - {s}\n", .{field.name});
+            if (@hasField(@TypeOf(dep), "url")) {
+                try self.logger.info("      url: {s}\n", .{dep.url});
+            }
+            if (@hasField(@TypeOf(dep), "path")) {
+                try self.logger.info("      path: {s}\n", .{dep.path});
+            }
+            if (@hasField(@TypeOf(dep), "hash")) {
+                try self.logger.info("      hash: {s}\n", .{dep.hash});
+            }
+            if (@hasField(@TypeOf(dep), "tag")) {
+                try self.logger.info("      tag: {s}\n", .{dep.tag});
+            }
+            if (@hasField(@TypeOf(dep), "rev")) {
+                try self.logger.info("      rev: {s}\n", .{dep.rev});
+            }
+            if (@hasField(@TypeOf(dep), "branch")) {
+                try self.logger.info("      branch: {s}\n", .{dep.branch});
+            }
+        }
     }
 
     fn handleAgent(self: *Cli, args: [][]const u8) !ExitCode {
@@ -765,7 +915,8 @@ pub const Cli = struct {
 
     fn printHelp(self: *Cli) !void {
         const message =
-            "Usage: abi <command> [options]\n\nCommands:\n" ++
+            "Usage: abi <command> [options]\n\n" ++
+            "Commands:\n" ++
             "  features   list|enable|disable\n" ++
             "  agent      run\n" ++
             "  db         insert|search\n" ++
@@ -799,49 +950,11 @@ pub const Cli = struct {
     fn printDepsHelp(self: *Cli) !void {
         const text =
             "deps list\n" ++
-            "deps update\n" ++
-            "Set ABI_DEPS_MANIFEST to override the manifest path.\n";
+            "deps update [--dry-run|--apply]\n" ++
+            "  --dry-run   Summarise dependencies without running zig fetch (default)\n" ++
+            "  --apply     Execute 'zig fetch' to update pinned dependencies\n";
         try self.logger.info("{s}", .{text});
     }
-
-    fn emitDependencyList(self: *Cli, deps: []const DependencyInfo) !void {
-        if (self.json_mode) {
-            var buffer = std.ArrayList(u8).init(self.allocator);
-            defer buffer.deinit();
-
-            const payload = struct {
-                dependencies: []const DependencyInfo,
-            }{ .dependencies = deps };
-
-            try std.json.stringify(payload, .{}, buffer.writer());
-            try printJson(self.channels.out, "{s}", .{buffer.items});
-            return;
-        }
-
-        if (deps.len == 0) {
-            try self.logger.warn("No dependencies defined in build.zig.zon\n", .{});
-            return;
-        }
-
-        try self.logger.info("Dependencies ({d}):\n", .{deps.len});
-        for (deps) |dep| {
-            try self.logger.info("  - {s}\n", .{dep.name});
-            if (dep.url) try self.logger.info("    url: {s}\n", .{dep.url.?});
-            if (dep.hash) try self.logger.info("    hash: {s}\n", .{dep.hash.?});
-        }
-    }
-
-    fn loadDependencies(self: *Cli) ![]DependencyInfo {
-        const env_override = std.process.getEnvVarOwned(self.allocator, "ABI_DEPS_MANIFEST") catch |err| switch (err) {
-            error.OutOfMemory => return err,
-            error.EnvironmentVariableNotFound => null,
-        };
-        defer if (env_override) |value| self.allocator.free(value);
-
-        const path = if (env_override) |value| value else "build.zig.zon";
-        return loadDependencyManifest(self.allocator, path);
-    }
-
     const MatSize = struct {
         m: usize,
         n: usize,
@@ -891,6 +1004,79 @@ pub const Cli = struct {
         return .{ .cpu_ms = ms, .output = output };
     }
 };
+
+fn appendDependencyJsonArray(writer: anytype) !void {
+    try writer.writeByte('[');
+    var first = true;
+    inline for (manifest_dependency_fields) |field| {
+        const dep = @field(manifest.dependencies, field.name);
+        if (!first) try writer.writeByte(',');
+        first = false;
+
+        try writer.writeByte('{');
+        try writer.writeAll("\"name\":");
+        try writeJsonString(writer, field.name);
+
+        if (@hasField(@TypeOf(dep), "url")) {
+            try writer.writeAll(",\"url\":");
+            try writeJsonString(writer, dep.url);
+        }
+        if (@hasField(@TypeOf(dep), "path")) {
+            try writer.writeAll(",\"path\":");
+            try writeJsonString(writer, dep.path);
+        }
+        if (@hasField(@TypeOf(dep), "hash")) {
+            try writer.writeAll(",\"hash\":");
+            try writeJsonString(writer, dep.hash);
+        }
+        if (@hasField(@TypeOf(dep), "tag")) {
+            try writer.writeAll(",\"tag\":");
+            try writeJsonString(writer, dep.tag);
+        }
+        if (@hasField(@TypeOf(dep), "rev")) {
+            try writer.writeAll(",\"rev\":");
+            try writeJsonString(writer, dep.rev);
+        }
+        if (@hasField(@TypeOf(dep), "branch")) {
+            try writer.writeAll(",\"branch\":");
+            try writeJsonString(writer, dep.branch);
+        }
+
+        try writer.writeByte('}');
+    }
+    try writer.writeByte(']');
+}
+
+fn writeJsonString(writer: anytype, text: []const u8) !void {
+    try writer.writeByte('"');
+    for (text) |ch| {
+        switch (ch) {
+            '"' => try writer.writeAll("\\\""),
+            '\\' => try writer.writeAll("\\\\"),
+            '/' => try writer.writeAll("\\/"),
+            '\b' => try writer.writeAll("\\b"),
+            '\f' => try writer.writeAll("\\f"),
+            '\n' => try writer.writeAll("\\n"),
+            '\r' => try writer.writeAll("\\r"),
+            '\t' => try writer.writeAll("\\t"),
+            else => {
+                if (ch < 0x20) {
+                    var buf: [6]u8 = .{ '\\', 'u', '0', '0', 0, 0 };
+                    buf[4] = hexDigit(ch >> 4);
+                    buf[5] = hexDigit(ch & 0x0f);
+                    try writer.writeAll(&buf);
+                } else {
+                    try writer.writeByte(ch);
+                }
+            },
+        }
+    }
+    try writer.writeByte('"');
+}
+
+fn hexDigit(value: u8) u8 {
+    return "0123456789abcdef"[value & 0x0f];
+}
 
 fn matmul(out: []f32, a: []const f32, b: []const f32, m: usize, n: usize, p: usize) void {
     var i: usize = 0;
@@ -1208,6 +1394,57 @@ test "features list emits json in json mode" {
     try std.testing.expectEqual(@as(usize, 0), tc.err_buf.items.len);
 
     const expected = "{\"features\":{\"ai\":true";
+    try std.testing.expect(std.mem.startsWith(u8, tc.out_buf.items, expected));
+}
+
+test "deps list emits empty dependency array in json mode" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), true, .@"error");
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "deps", "list" }));
+    try std.testing.expectEqual(@as(usize, 0), tc.err_buf.items.len);
+
+    const expected = "{\"status\":\"ok\",\"action\":\"list\",\"dependencies\":[]}";
+    try std.testing.expect(std.mem.startsWith(u8, tc.out_buf.items, expected));
+}
+
+test "deps list logs message when manifest has no dependencies" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), false, .info);
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "deps", "list" }));
+    try std.testing.expectEqual(@as(usize, 0), tc.out_buf.items.len);
+    try std.testing.expect(std.mem.indexOf(u8, tc.err_buf.items, "No dependencies") != null);
+}
+
+test "deps update defaults to dry run when manifest is empty" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), false, .info);
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "deps", "update" }));
+    try std.testing.expect(std.mem.indexOf(u8, tc.err_buf.items, "No dependencies") != null);
+}
+
+test "deps update apply emits json summary when no dependencies" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), true, .@"error");
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "deps", "update", "--apply" }));
+    try std.testing.expectEqual(@as(usize, 0), tc.err_buf.items.len);
+
+    const expected = "{\"status\":\"ok\",\"action\":\"update\",\"mode\":\"apply\",\"dependencies\":[]}";
     try std.testing.expect(std.mem.startsWith(u8, tc.out_buf.items, expected));
 }
 
