@@ -846,7 +846,7 @@ test "math utils implement vector and matrix operations" {
 
     const mat_a = [_]f32{ 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     const mat_b = [_]f32{ 9, 8, 7, 6, 5, 4, 3, 2, 1 };
-    var mat_result = try allocator.alloc(f32, mat_a.len);
+    const mat_result = try allocator.alloc(f32, mat_a.len);
     defer allocator.free(mat_result);
     MathUtils.matrixMultiply(f32, &mat_a, &mat_b, mat_result, 3);
 
