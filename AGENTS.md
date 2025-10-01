@@ -437,7 +437,7 @@ Tool Schema (example)
   ]
 }
 Master Orchestration Prompt
-Role: Senior Zig engineer. Goal: Apply Phases A–H with zero regression. Produce patches + tests + docs. Inputs: current tree, baselines, this AGENTS.md. Rules: explicit allocators; no public API breaks; JSON/human I/O split; add tests/docs; align with production practices (e.g., security scans, container builds). Output: unified diffs + new files; updated build.zig; CI YAML; rationale for every change.
+Role: Senior Zig engineer.Goal: Apply Phases A–H with zero regression. Produce patches + tests + docs.Inputs: current tree, baselines, this AGENTS.md.Rules: explicit allocators; no public API breaks; JSON/human I/O split; add tests/docs; align with production practices (e.g., security scans, container builds).Output: unified diffs + new files; updated build.zig; CI YAML; rationale for every change.
 
 20) Agent-Specific Prompts (Inline)
 Build Agent – build.zig
