@@ -17,33 +17,41 @@ pub fn build(b: *std.Build) void {
     build_options.addOption(bool, "enable_tracy", enable_tracy);
 
     const abi_mod = b.addModule("abi", .{
-        .root_source_file = .{ .path = "src/mod.zig" },
+        .root_source_file = b.path("src/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
     abi_mod.addOptions("build_options", build_options);
 
-    const exe = b.addExecutable(.{
-        .name = "abi",
-        .root_source_file = .{ .path = "src/comprehensive_cli.zig" },
+    const cli_module = b.createModule(.{
+        .root_source_file = b.path("src/cli_main.zig"),
         .target = target,
         .optimize = optimize,
     });
-    exe.root_module.addImport("abi", abi_mod);
-    exe.root_module.addOptions("build_options", build_options);
+    cli_module.addImport("abi", abi_mod);
+    cli_module.addOptions("build_options", build_options);
+
+    const exe = b.addExecutable(.{
+        .name = "abi",
+        .root_module = cli_module,
+    });
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
     const run_step = b.step("run", "Run the ABI CLI");
     run_step.dependOn(&run_cmd.step);
 
-    const tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/tests/mod.zig" },
+    const tests_module = b.createModule(.{
+        .root_source_file = b.path("src/tests/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
-    tests.root_module.addImport("abi", abi_mod);
-    tests.root_module.addOptions("build_options", build_options);
+    tests_module.addImport("abi", abi_mod);
+    tests_module.addOptions("build_options", build_options);
+
+    const tests = b.addTest(.{
+        .root_module = tests_module,
+    });
 
     const run_tests = b.addRunArtifact(tests);
     run_tests.skip_foreign_checks = true;
