@@ -11,7 +11,7 @@ pub fn initialize(args: types.InitArgs) !types.BackendResources {
         return config.GpuError.DeviceNotFound;
     }
 
-    var hardware = try buffers.HardwareContext.init(.metal);
+    const hardware = try buffers.HardwareContext.init(.metal);
     const buffer_manager = buffers.BufferManager{
         .device = .{ .hardware = hardware.device },
         .queue = .{ .hardware = hardware.queue },

@@ -149,7 +149,7 @@ pub const PersonaRegistry = struct {
             removed.deinit();
         }
 
-        var gop = try self.index.getOrPut(self.manifests.items[idx].name);
+        const gop = try self.index.getOrPut(self.manifests.items[idx].name);
         if (gop.found_existing) {
             var removed = self.manifests.pop();
             removed.deinit();

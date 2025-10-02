@@ -12,7 +12,7 @@ pub fn initialize(args: types.InitArgs) !types.BackendResources {
         return config.GpuError.DeviceNotFound;
     }
 
-    var ctx = try buffers.GPUContext.initCUDA(args.allocator);
+    const ctx = try buffers.GPUContext.initCUDA(args.allocator);
     const buffer_manager = buffers.BufferManager{
         .device = .{ .mock = ctx.device },
         .queue = .{ .mock = ctx.queue },
