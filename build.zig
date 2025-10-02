@@ -17,7 +17,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-<<<<<<< HEAD
     // CLI executable
     const exe = b.addExecutable(.{
         .name = "abi",
@@ -26,7 +25,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.root_module.addImport("abi", abi_mod);
-=======
+
     const cli_module = b.createModule(.{
         .root_source_file = b.path("src/cli_main.zig"),
         .target = target,
@@ -39,7 +38,6 @@ pub fn build(b: *std.Build) void {
         .name = "abi",
         .root_module = cli_module,
     });
->>>>>>> a2b63365b817a190f4e5938b2b24240c5cbea742
     b.installArtifact(exe);
 
     // Run step

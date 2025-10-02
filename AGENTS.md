@@ -6,38 +6,38 @@
 
 ## 0) Table of Contents
 
-1. Guardrails (Hard Constraints)  
-2. Versioning & Release Policy  
-3. Architecture Overview  
-4. Target Repository Layout (Authoritative)  
-5. Build & Configuration (Zig 0.16-dev)  
-6. Feature Flags & Framework Options  
-7. I/O & Logging (Writers, Channels, JSON)  
-8. CLI Specification (Subcommands, Error Codes)  
-9. WDBX Database (Data Model, Concurrency, File Format)  
-10. GPU Acceleration (Backends, Fallbacks, Kernels)  
-11. Agents Runtime (Pipelines, Middleware, Timeouts)  
-12. Web & Connectors (HTTP façade, Plugins)  
-13. Dependency Management & Supply Chain  
-14. Testing Strategy (Unit, Property, Fuzz, Soak)  
-15. Benchmark Suite & Metrics Schema  
-16. CI/CD (GitHub Actions, Gates, Artifacts)  
-17. Security, Privacy & Supply Chain  
-18. Performance Budgets & SLOs  
-19. Risk Register & Mitigations  
-20. LLM Collaboration (Codex/Tool-Calling Playbook)  
-21. Agent-Specific Prompts (Inline)  
-22. Patch Templates & PR Hygiene  
-23. Migration Guide (Old → New Layout)  
-24. Quick Reference Snippets  
-25. Acceptance Checklist (Ship-Ready)  
-26. Deployment & Orchestration  
-27. Observability & Monitoring  
-28. Contribution Guidelines & Code of Conduct  
-29. Appendix A — Example Diffs & Golden Outputs  
-30. Appendix B — Thresholds & Config Files  
-31. Appendix C — Glossary  
-32. Appendix D — Zig Best Practices Integration  
+1. Guardrails (Hard Constraints)
+2. Versioning & Release Policy
+3. Architecture Overview
+4. Target Repository Layout (Authoritative)
+5. Build & Configuration (Zig 0.16-dev)
+6. Feature Flags & Framework Options
+7. I/O & Logging (Writers, Channels, JSON)
+8. CLI Specification (Subcommands, Error Codes)
+9. WDBX Database (Data Model, Concurrency, File Format)
+10. GPU Acceleration (Backends, Fallbacks, Kernels)
+11. Agents Runtime (Pipelines, Middleware, Timeouts)
+12. Web & Connectors (HTTP façade, Plugins)
+13. Dependency Management & Supply Chain
+14. Testing Strategy (Unit, Property, Fuzz, Soak)
+15. Benchmark Suite & Metrics Schema
+16. CI/CD (GitHub Actions, Gates, Artifacts)
+17. Security, Privacy & Supply Chain
+18. Performance Budgets & SLOs
+19. Risk Register & Mitigations
+20. LLM Collaboration (Codex/Tool-Calling Playbook)
+21. Agent-Specific Prompts (Inline)
+22. Patch Templates & PR Hygiene
+23. Migration Guide (Old → New Layout)
+24. Quick Reference Snippets
+25. Acceptance Checklist (Ship-Ready)
+26. Deployment & Orchestration
+27. Observability & Monitoring
+28. Contribution Guidelines & Code of Conduct
+29. Appendix A — Example Diffs & Golden Outputs
+30. Appendix B — Thresholds & Config Files
+31. Appendix C — Glossary
+32. Appendix D — Zig Best Practices Integration
 
 ---
 
@@ -600,54 +600,53 @@ jobs:
     {"name":"check_deps","parameters":{"type":"object","properties":{"code":{"type":"string"}}}}
   ]
 }
-<<<<<<< HEAD
+
 Master Orchestration Prompt
 Role: Senior Zig engineer.Goal: Apply Phases A–H with zero regression. Produce patches + tests + docs.Inputs: current tree, baselines, this AGENTS.md.Rules: explicit allocators; no public API breaks; JSON/human I/O split; add tests/docs; align with production practices (e.g., security scans, container builds).Output: unified diffs + new files; updated build.zig; CI YAML; rationale for every change.
-=======
 ```
 
 **Master Orchestration Prompt**
 
-**Role**: Senior Zig engineer.  
-**Goal**: Apply Phases A–H with zero regression. Produce patches + tests + docs.  
-**Inputs**: current tree, baselines, this AGENTS.md.  
-**Rules**: explicit allocators; no public API breaks; JSON/human I/O split; add tests/docs; align with production practices (e.g., security scans, container builds, dep pinning).  
+**Role**: Senior Zig engineer.
+**Goal**: Apply Phases A–H with zero regression. Produce patches + tests + docs.
+**Inputs**: current tree, baselines, this AGENTS.md.
+**Rules**: explicit allocators; no public API breaks; JSON/human I/O split; add tests/docs; align with production practices (e.g., security scans, container builds, dep pinning).
 **Output**: unified diffs + new files; updated build.zig; CI YAML; rationale for every change.
 
 ---
 
 ## 21) Agent-Specific Prompts (Inline)
 
-**Build Agent – build.zig**  
+**Build Agent – build.zig**
 
 Refactor build.zig to Zig 0.16-dev. Define module imports for framework, features/*, shared. Add `-Denable-gpu`/`-web`/`-monitoring`. Produce abi CLI at zig-out/bin/abi and a unit-test step. Return the complete build.zig and a one-paragraph rationale. Integrate existing `abi.simd`; add Docker multi-stage support; pin deps in zon.
 
-**I/O Agent – Writers**  
+**I/O Agent – Writers**
 
 Introduce a Logger façade and channel separation (stdout JSON, stderr logs). Replace std.debug.print. Provide unit tests asserting no interleaving and correct JSON under `--json`. Integrate with existing monitoring helpers; add OTEL tracing hooks.
 
-**CLI Agent – Subcommands**  
+**CLI Agent – Subcommands**
 
 Create comprehensive_cli.zig with subcommands: features list|enable|disable, agent run, db insert|search, gpu bench, deps list|update. Implement `--help` autogen and robust validation errors with exit codes. Provide golden-output tests for human and JSON modes. Expand from current bootstrap summary; add rate-limiting.
 
-**Database Agent (WDBX) – Concurrency & Persistence**  
+**Database Agent (WDBX) – Concurrency & Persistence**
 >>>>>>> 6170f270f50817df9b0ea279cfd40ca2ac7fd9ba
 
 Implement thread-safe insert/search/update/delete with typed errors. Provide a stable on-disk layout and version header. Add property tests (random vectors) measuring recall@k and latency. Include a minimal HTTP façade behind a feature flag. Build on existing vector components and front-ends; add encryption for metadata.
 
-**GPU Agent – Tensor Core + Fallback**  
+**GPU Agent – Tensor Core + Fallback**
 
 Add matmul/add/mul/activation with CPU SIMD fallback. Implement backend detection (vulkan/metal/webgpu) and a self-check routine. Provide a dense-forward demo and a test comparing CPU vs GPU outputs within epsilon. Expand from current CPU stubs; integrate ggml-zig for advanced tensors.
 
-**AI Agent – Runtime & Middleware**  
+**AI Agent – Runtime & Middleware**
 
 Define Agent API (init/process/deinit) with typed config and middleware. Ship EchoAgent and TransformAgent. Add lifecycle tests and allocator-ownership documentation. Expand existing lightweight prototype; support LLM inference via zig-ml.
 
-**Tests/CI Agent – Matrix + Gates**  
+**Tests/CI Agent – Matrix + Gates**
 
 Add GH Actions matrix (linux/macos/windows). Cache Zig. Run zig fmt --check, build, test, and upload docs/bench artifacts. Set performance gates via a JSON thresholds file and fail PRs on regression; add Trivy security scans, SBOM gen, and dep checks.
 
-**Docs Agent – Single Source of Truth**  
+**Docs Agent – Single Source of Truth**
 
 Update docs/EXAMPLES.md, MODULE_ORGANIZATION.md, and MODULE_REFERENCE.md so samples compile against final APIs. Add quick-start, configuration flags, troubleshooting, benchmark methodology, and dependency management sections. Ensure MODULE_REFERENCE.md matches public APIs; generate from Zig sources as in current repo; include deployment guides.
 
@@ -659,31 +658,31 @@ Update docs/EXAMPLES.md, MODULE_ORGANIZATION.md, and MODULE_REFERENCE.md so samp
 
 **PR Body Template**
 
-### Summary  
+### Summary
 <what changed>
 
-### Motivation  
+### Motivation
 <why this is needed>
 
-### Public API  
+### Public API
 <unchanged | list changes + shims>
 
-### Tests  
+### Tests
 <list new/updated tests>
 
-### Performance  
+### Performance
 <before vs after numbers; attach JSON>
 
-### Docs  
+### Docs
 <updated files>
 
-### Risks  
+### Risks
 <what could go wrong + mitigations>
 
-### Security/Compliance  
+### Security/Compliance
 <scans passed; SBOM updates>
 
-### Dep Changes  
+### Dep Changes
 <new/updated deps; rationale>
 
 ---
