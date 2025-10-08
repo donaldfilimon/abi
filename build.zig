@@ -45,4 +45,16 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run the ABI test suite");
     test_step.dependOn(&run_tests.step);
+
+    // Documentation generator
+    const docs_gen = b.addExecutable(.{
+        .name = "docs_generator",
+        .root_source_file = b.path("src/tools/docs_generator.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    docs_gen.root_module.addImport("abi", abi_mod);
+
+    const docs_step = b.step("docs", "Generate API documentation");
+    docs_step.dependOn(&b.addRunArtifact(docs_gen).step);
 }

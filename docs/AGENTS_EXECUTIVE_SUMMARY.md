@@ -27,7 +27,7 @@ This one-page brief distills the authoritative `AGENTS.md` so new collaborators 
 ## Authoritative Repository Layout
 ```
 src/
-  mod.zig, root.zig, comprehensive_cli.zig
+  mod.zig, comprehensive_cli.zig
   framework/{mod,config,runtime}
   features/{ai,database,gpu,web,monitoring,connectors}
 shared/, core/, examples/, benchmarks/, docs/, tests/

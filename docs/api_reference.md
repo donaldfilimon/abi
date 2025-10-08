@@ -13,9 +13,9 @@ Comprehensive API documentation for the Abi AI Framework with usage examples.
 
 ## Core Framework
 
-### `root.zig` - Framework Initialization
+### `mod.zig` - Framework Entry Point
 
-Framework initialization and configuration.
+Main module that re-exports all public APIs and provides the framework initialization.
 
 #### `Config` - Framework Configuration
 
