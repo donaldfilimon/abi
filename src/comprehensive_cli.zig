@@ -79,6 +79,7 @@ const SessionDatabase = struct {
     dim: ?usize = null,
     next_id: u64 = 1,
     entries: std.ArrayList(VectorEntry),
+    mutex: std.Thread.Mutex = .{},
 
     const VectorEntry = struct {
         id: u64,
@@ -118,6 +119,10 @@ const SessionDatabase = struct {
 
     pub fn insert(self: *SessionDatabase, vector: []const f32, metadata: ?[]const u8) Error!u64 {
         if (vector.len == 0) return Error.InvalidVector;
+        
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        
         if (self.dim) |dim| {
             if (vector.len != dim) return Error.DimensionMismatch;
         } else {
@@ -145,7 +150,9 @@ const SessionDatabase = struct {
         return id;
     }
 
-    pub fn count(self: *const SessionDatabase) usize {
+    pub fn count(self: *SessionDatabase) usize {
+        self.mutex.lock();
+        defer self.mutex.unlock();
         return self.entries.items.len;
     }
 
@@ -154,6 +161,9 @@ const SessionDatabase = struct {
         if (query.len == 0) return Error.InvalidVector;
         if (query.len != self.dim.?) return Error.DimensionMismatch;
         if (k == 0) return Error.InvalidK;
+
+        self.mutex.lock();
+        defer self.mutex.unlock();
 
         var results = try std.ArrayList(SearchResult).initCapacity(self.allocator, self.entries.items.len);
         defer results.deinit();
