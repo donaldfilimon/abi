@@ -198,11 +198,10 @@ const result = operation() catch |err| {
 
 ## 📚 Key Documentation
 
-1. **[REDESIGN_COMPLETE.md](REDESIGN_COMPLETE.md)** - Complete redesign report
-2. **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture
-3. **[docs/MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md)** - Migration instructions
-4. **[docs/guides/GETTING_STARTED.md](docs/guides/GETTING_STARTED.md)** - Getting started
-5. **[README_NEW.md](README_NEW.md)** - Updated project README
+1. **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture
+2. **[docs/MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md)** - Migration instructions
+3. **[docs/guides/GETTING_STARTED.md](docs/guides/GETTING_STARTED.md)** - Getting started
+4. **[README.md](README.md)** - Updated project README
 
 ## ✅ Success Criteria - All Met
 
