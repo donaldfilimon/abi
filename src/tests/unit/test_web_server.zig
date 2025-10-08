@@ -345,7 +345,7 @@ test "web server socket responds to /health" {
 
         // Receive response using socket-specific recv
         var buf: [1024]u8 = undefined;
-        const max_len: c_int = @intCast(@min(buf.len, @as(usize, @intCast(std.math.maxInt(c_int)))));
+        const max_len: c_int = @intCast(@min(buf.len, std.math.maxInt(c_int)));
         const n_recv: c_int = windows.ws2_32.recv(conn.handle, @ptrCast(&buf[0]), max_len, 0);
         try testing.expect(n_recv != windows.ws2_32.SOCKET_ERROR);
 
