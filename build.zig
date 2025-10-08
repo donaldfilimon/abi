@@ -57,4 +57,21 @@ pub fn build(b: *std.Build) void {
 
     const docs_step = b.step("docs", "Generate API documentation");
     docs_step.dependOn(&b.addRunArtifact(docs_gen).step);
+
+    // Tools CLI (aggregates utilities under src/tools)
+    const tools_exe = b.addExecutable(.{
+        .name = "abi-tools",
+        .root_source_file = b.path("src/tools/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    tools_exe.root_module.addImport("abi", abi_mod);
+    b.installArtifact(tools_exe);
+
+    const tools_step = b.step("tools", "Build the ABI tools CLI");
+    tools_step.dependOn(&tools_exe.step);
+
+    const run_tools = b.addRunArtifact(tools_exe);
+    const tools_run_step = b.step("tools-run", "Run the ABI tools CLI");
+    tools_run_step.dependOn(&run_tools.step);
 }
