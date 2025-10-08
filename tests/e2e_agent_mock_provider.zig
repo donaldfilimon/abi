@@ -1,8 +1,9 @@
 const std = @import("std");
+
 const Agent = @import("../../src/agent/mod.zig");
 const Policy = @import("../../src/agent/policy.zig");
-const Mock = @import("../../src/connectors/mock.zig");
 const Schema = @import("../../src/agent/schema.zig");
+const Mock = @import("../../src/connectors/mock.zig");
 
 test "agent summarizes with mock provider" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

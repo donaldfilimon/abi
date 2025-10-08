@@ -262,7 +262,7 @@ fn computePercentiles(allocator: Allocator, samples: []const u64) !PercentileRes
         return PercentileResult{ .p50 = 0, .p95 = 0, .p99 = 0 };
     }
 
-    var sorted = try allocator.dupe(u64, samples);
+    const sorted = try allocator.dupe(u64, samples);
     defer allocator.free(sorted);
     std.sort.sort(u64, sorted, {}, std.sort.asc(u64));
 

@@ -18,7 +18,7 @@ pub const CallResult = struct {
 
 pub const Connector = struct {
     name: []const u8,
-    init: *const fn (allocator: std.mem.Allocator) !void,
-    call: *const fn (allocator: std.mem.Allocator, req: CallRequest) !CallResult,
+    init: *const fn (allocator: std.mem.Allocator) anyerror!void,
+    call: *const fn (allocator: std.mem.Allocator, req: CallRequest) anyerror!CallResult,
     health: *const fn () bool,
 };

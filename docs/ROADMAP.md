@@ -6,8 +6,8 @@
 - Capture baseline performance metrics for WDBX operations.
 
 ## Mid-term
-- Implement GPU backends guarded by `-Denable_gpu`.
-- Add WASM/Web bindings behind `-Denable_web`.
+- Implement GPU backends guarded by `-Denable-gpu`.
+- Add WASM/Web bindings behind `-Denable-web`.
 - Expand database tooling with richer vector search operations.
 
 ## Long-term

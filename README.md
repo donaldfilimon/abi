@@ -22,7 +22,7 @@ The `0.1.0a` prerelease focuses on:
 
 ### Prerequisites
 
-- **Zig** `0.16.0-dev.457+f90510b08` (see `.zigversion` for the authoritative toolchain)
+- **Zig** `0.16.0-dev.254+6dd0270a1` (see `.zigversion` for the authoritative toolchain)
 - A C++ compiler for Zig's build dependencies
 
 ### Clone and build
@@ -34,10 +34,14 @@ zig build
 zig build test
 ```
 
-The default build produces `zig-out/bin/abi`. Running the executable prints a summary of enabled features:
+The default build produces `zig-out/bin/abi`. This executable now implements a full sub‑command based CLI. Use `abi --help` to view available commands and `abi <subcommand> --help` for detailed usage.
 
 ```bash
-./zig-out/bin/abi
+# Show help (lists all sub‑commands)
+./zig-out/bin/abi --help
+
+# Example: list enabled features in JSON mode
+./zig-out/bin/abi features list --json
 ```
 
 Sample output:
@@ -71,7 +75,7 @@ pub fn main() !void {
 }
 ```
 
-The top-level module now re-exports the major feature namespaces for convenience:
+The top‑level module still re‑exports the major feature namespaces for convenience, and the new CLI provides runtime control of these features:
 
 - `abi.ai` – experimental agents and model helpers
 - `abi.database` – WDBX vector database components and HTTP/CLI front-ends
@@ -82,7 +86,9 @@ The top-level module now re-exports the major feature namespaces for convenience
 - `abi.wdbx` – compatibility namespace exposing the database module and helpers
 - `abi.VectorOps` – SIMD helpers re-exported from `abi.simd`
 
-Refer to the `docs/` directory for API references that are generated from the Zig sources.
+- **CLI documentation** – see `docs/CLI_USAGE.md` for a comprehensive list of sub‑commands, flags, and examples.  
+- **API references** – see `docs/MODULE_REFERENCE.md` (generated from the Zig sources).  
+- **Project structure** – see `docs/PROJECT_STRUCTURE.md` for an overview of the repository layout.
 
 ## Development workflow
 

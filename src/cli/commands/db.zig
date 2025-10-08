@@ -133,7 +133,7 @@ fn searchHandler(ctx: *modern_cli.Context, args: *modern_cli.ParsedArgs) errors.
             return;
         }
         try stdout.print("Top {d} matches:\n", .{results.len});
-        for (results) |res, idx| {
+        for (results, 0..) |res, idx| {
             try stdout.print(
                 "  {d}) id={d} distance={d:.4}\n",
                 .{ idx + 1, res.id, res.distance },
