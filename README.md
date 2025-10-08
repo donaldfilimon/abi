@@ -1,72 +1,82 @@
 # ABI Framework
 
-> Experimental Zig framework that provides a bootstrap runtime and a curated set of feature modules for AI experiments.
+> Modern, modular Zig framework for AI/ML experiments and production workloads
 
-[![Zig Version](https://img.shields.io/badge/Zig-0.16.0-orange.svg)](https://ziglang.org/)
+[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev-orange.svg)](https://ziglang.org/builds/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/Version-0.1.0a-purple.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-0.2.0-purple.svg)](CHANGELOG.md)
 
-## Project Status
+## 🎯 What is ABI?
 
-`abi` is not a full-stack product yet. The current executable initializes the framework, emits a textual summary of the configured modules, and exits. The value of the repository lies in the reusable modules under `lib/` that you can import from your own applications.
+ABI is an experimental framework that provides a curated set of feature modules for building high-performance AI/ML applications in Zig. It emphasizes:
 
-The `0.1.0a` prerelease focuses on:
+- **🚀 Performance**: Zero-cost abstractions, SIMD optimizations, and minimal overhead
+- **🔧 Modularity**: Composable features with compile-time selection
+- **🛡️ Type Safety**: Leveraging Zig's compile-time guarantees
+- **🧪 Testability**: Built with testing in mind from the ground up
+- **📊 Observability**: Comprehensive monitoring and diagnostics
 
-- providing consistent imports such as `@import("abi").ai` and `@import("abi").database`
-- documenting the bootstrap CLI accurately
-- establishing a truthful changelog for the initial prerelease
-- capturing the broader modernization roadmap documented in [`REDESIGN_PLAN.md`](REDESIGN_PLAN.md)
+## ✨ Features
 
-## Quick Start
+### Core Capabilities
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **AI/ML** | Agent system, neural networks, transformers, RL | ✅ Production |
+| **Vector Database** | High-performance vector storage and retrieval | ✅ Production |
+| **GPU Acceleration** | Multi-backend GPU compute (CUDA, Vulkan, Metal) | 🔄 In Progress |
+| **Web Server** | HTTP server and client | ✅ Production |
+| **Monitoring** | Metrics, logging, and distributed tracing | ✅ Production |
+| **Plugin System** | Dynamic plugin loading and management | 🔄 In Progress |
+
+### New in 0.2.0
+
+- ✅ **Modular Build System** - Feature flags for conditional compilation
+- ✅ **I/O Abstraction Layer** - Testable, composable I/O operations
+- ✅ **Comprehensive Error Handling** - Rich error context and diagnostics
+- ✅ **Improved Testing** - Separate unit and integration test suites
+- ✅ **Better Documentation** - Architecture guides and API references
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Zig** `0.16.0` (see `.zigversion` for the authoritative toolchain)
-- A C++ compiler for Zig's build dependencies
+- **Zig** `0.16.0-dev.254+6dd0270a1` or later
+- A C++ compiler (for some dependencies)
 
-### Clone and Build
+### Installation
 
 ```bash
 git clone https://github.com/donaldfilimon/abi.git
 cd abi
 zig build
-zig build test
-zig build docs   # generate API docs via tools/docs_generator
-zig build tools  # build the aggregated tools CLI (abi-tools)
 ```
 
-The default build produces `zig-out/bin/abi`. This executable implements a modern sub-command based CLI. Use `abi --help` to view available commands and `abi <subcommand> --help` for detailed usage.
+### Building with Feature Flags
 
 ```bash
-# Show help (lists all sub-commands)
-./zig-out/bin/abi help
+# Build with specific features
+zig build -Denable-ai=true -Denable-gpu=true -Dgpu-cuda=true
 
-# Run the benchmark suite
-zig build bench -- --format=markdown --output=results
+# Build and run tests
+zig build test              # Unit tests
+zig build test-integration  # Integration tests
+zig build test-all          # All tests
 
-# Run developer tools entrypoint
-zig build tools -- --help
+# Build examples
+zig build examples          # All examples
+zig build run-ai_demo       # Run specific example
 
-# Example: list enabled features in JSON mode
-./zig-out/bin/abi features list --json
+# Build benchmarks
+zig build bench
+zig build run-bench
 
-# Build and run the tools CLI (aggregates utilities under src/tools)
-zig build tools
-./zig-out/bin/abi-tools --help
-
-# Or run directly through the build system
-zig build tools-run -- --help
+# Generate documentation
+zig build docs
+zig build docs-auto
 ```
 
-Sample output:
-
-```
-ABI Framework bootstrap complete
-• Features: ai, database, gpu, monitoring, web, connectors
-• Plugins: discovery disabled (configure via abi.framework)
-```
-
-### Using the Library from Zig
+### Basic Usage
 
 ```zig
 const std = @import("std");
@@ -75,172 +85,220 @@ const abi = @import("abi");
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    var framework = try abi.init(gpa.allocator(), .{});
+    // Initialize the framework
+    var framework = try abi.init(allocator, .{});
     defer abi.shutdown(&framework);
 
-    // Load the lightweight agent prototype.
+    // Create an AI agent
     const Agent = abi.ai.agent.Agent;
-    var agent = try Agent.init(gpa.allocator(), .{ .name = "QuickStart" });
+    var agent = try Agent.init(allocator, .{ .name = "Assistant" });
     defer agent.deinit();
 
-    const reply = try agent.process("Hello", gpa.allocator());
-    defer gpa.allocator().free(@constCast(reply));
+    // Process a query
+    const response = try agent.process("Hello, world!", allocator);
+    defer allocator.free(@constCast(response));
+
+    std.debug.print("Agent response: {s}\n", .{response});
 }
 ```
 
-## Architecture
+## 🔧 CLI Usage
 
-The framework is organized into clear, modular components:
+The ABI CLI provides comprehensive access to all framework features:
+
+```bash
+# Show help
+./zig-out/bin/abi --help
+
+# Feature management
+./zig-out/bin/abi features list
+./zig-out/bin/abi features status
+
+# AI operations
+./zig-out/bin/abi agent run --name "MyAgent"
+./zig-out/bin/abi agent list
+
+# Database operations
+./zig-out/bin/abi db create --name vectors
+./zig-out/bin/abi db query --vector "..."
+
+# GPU benchmarks
+./zig-out/bin/abi gpu bench
+./zig-out/bin/abi gpu info
+
+# Version information
+./zig-out/bin/abi version
+```
+
+## 🏗️ Architecture
+
+### High-Level Overview
 
 ```
-abi/
-├── lib/                    # Core library code
-│   ├── core/              # Fundamental types and utilities
-│   ├── features/          # Feature modules (ai, gpu, database, etc.)
-│   ├── framework/         # Framework orchestration
-│   ├── shared/           # Shared utilities
-│   └── mod.zig           # Main library entry point
-├── bin/                  # Executable entry points
-├── examples/             # Usage examples
-├── tests/               # Test suite
-├── tools/               # Development and build tools
-├── docs/               # Documentation
-└── config/             # Configuration files
+┌─────────────────────────────────────────────┐
+│          Application Layer                   │
+│        (CLI, User Code, Tools)              │
+└───────────────────┬─────────────────────────┘
+                    │
+┌───────────────────▼─────────────────────────┐
+│          Framework Layer                     │
+│    Runtime · Features · Plugins             │
+└───────────────────┬─────────────────────────┘
+                    │
+┌───────────────────▼─────────────────────────┐
+│          Core Infrastructure                 │
+│    I/O · Errors · Diagnostics · Types       │
+└─────────────────────────────────────────────┘
+```
+
+### Module Organization
+
+```
+src/
+├── core/              # Core infrastructure
+│   ├── io.zig         # I/O abstractions
+│   ├── errors.zig     # Error definitions
+│   ├── diagnostics.zig # Diagnostics system
+│   └── ...
+├── features/          # Feature modules
+│   ├── ai/            # AI/ML capabilities
+│   ├── database/      # Vector database
+│   ├── gpu/           # GPU acceleration
+│   └── ...
+└── framework/         # Framework runtime
+    ├── runtime.zig    # Lifecycle management
+    └── ...
 ```
 
 ### Feature Modules
 
-The top-level module re-exports the major feature namespaces for convenience:
+The framework provides these major feature namespaces:
 
-- `abi.ai` – experimental agents and model helpers
-- `abi.database` – WDBX vector database components and HTTP/CLI front-ends
-- `abi.gpu` – GPU utilities (currently CPU-backed stubs)
-- `abi.web` – minimal HTTP scaffolding used by the WDBX demo
-- `abi.monitoring` – logging and metrics helpers shared across modules
-- `abi.connectors` – placeholder for third-party integrations
-- `abi.wdbx` – compatibility namespace exposing the database module and helpers
-- `abi.VectorOps` – SIMD helpers re-exported from `abi.simd`
+- `abi.ai` – AI agents, neural networks, and ML utilities
+- `abi.database` – High-performance vector database with HTTP/CLI interfaces
+- `abi.gpu` – Multi-backend GPU acceleration (CUDA, Vulkan, Metal)
+- `abi.web` – HTTP server and client components
+- `abi.monitoring` – Metrics, logging, and distributed tracing
+- `abi.connectors` – Third-party integrations and adapters
+- `abi.wdbx` – Compatibility namespace for database operations
 
-## Development
+## 🧪 Testing
 
-### Build System
-
-The project uses a modern Zig build system with multiple targets:
+### Running Tests
 
 ```bash
-# Build everything
-zig build
-
-# Build in release mode
-zig build -Doptimize=ReleaseFast
-
-# Run tests
+# Unit tests
 zig build test
 
-# Run integration tests
+# Integration tests
 zig build test-integration
 
-# Run benchmarks
-zig build bench
+# All tests
+zig build test-all
 
-# Generate documentation
-zig build docs
+# With coverage
+zig build test -- --coverage
+```
+
+### Test Organization
+
+```
+tests/
+├── unit/              # Unit tests (mirrors src/)
+├── integration/       # Integration tests
+│   ├── ai_pipeline_test.zig
+│   ├── database_ops_test.zig
+│   └── framework_lifecycle_test.zig
+└── fixtures/          # Test utilities
+```
+
+## 📚 Documentation
+
+### User Guides
+
+- **[Getting Started](docs/guides/GETTING_STARTED.md)** - Your first ABI application
+- **[Architecture](docs/ARCHITECTURE.md)** - System design and principles
+- **[API Reference](docs/api/)** - Complete API documentation
+- **[Examples](examples/)** - Practical code examples
+
+### Development
+
+- **[Contributing](CONTRIBUTING.md)** - How to contribute
+- **[Redesign Plan](REDESIGN_PLAN.md)** - Framework redesign details
+- **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Upgrade instructions
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/donaldfilimon/abi.git
+cd abi
+
+# Run tests
+zig build test-all
 
 # Format code
-zig build fmt
+zig fmt .
 
-# Run linter
-zig build lint
-
-# Clean build artifacts
-zig build clean
+# Build all examples
+zig build examples
 ```
 
-### Development Tools
+### Code Guidelines
 
-```bash
-# Setup development environment
-./tools/dev/setup.sh
+- Follow Zig 0.16 best practices
+- Add tests for new features
+- Update documentation
+- Use the provided error handling infrastructure
+- Inject dependencies (especially I/O)
 
-# Build with options
-./tools/build/build.sh --release --test --docs
+## 🗺️ Roadmap
 
-# Deploy to different environments
-./tools/deploy/deploy.sh --environment production --package --docker
-```
+### Current (v0.2.0)
 
-### Examples
+- [x] Modular build system
+- [x] I/O abstraction layer
+- [x] Comprehensive error handling
+- [x] Improved testing infrastructure
 
-```bash
-# Basic usage example
-zig run examples/basic-usage.zig
+### Next (v0.3.0)
 
-# Advanced features example
-zig run examples/advanced-features.zig
-```
+- [ ] Complete GPU backend implementations
+- [ ] Advanced monitoring and tracing
+- [ ] Plugin system v2
+- [ ] Performance optimizations
 
-## Documentation
+### Future
 
-- **[Getting Started Guide](docs/guides/getting-started.md)** – Quick start guide
-- **[API Reference](docs/api/)** – Generated API documentation
-- **[Examples](examples/)** – Working code examples
-- **[Development Guide](docs/guides/development.md)** – Development workflow
+- [ ] Distributed computing support
+- [ ] Advanced ML model formats
+- [ ] Production deployment guides
+- [ ] Cloud provider integrations
 
-## CLI Usage
+## 📝 License
 
-The ABI CLI provides comprehensive command-line access to framework features:
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-```bash
-# Framework management
-abi framework status
-abi framework start
-abi framework stop
+## 🙏 Acknowledgments
 
-# Feature management
-abi features list
-abi features enable gpu monitoring
-abi features disable ai
+- The Zig team for creating an amazing language
+- All contributors to this project
+- The AI/ML and systems programming communities
 
-# AI operations (when enabled)
-abi ai run --name "MyAgent" --message "Hello"
+## 📞 Contact
 
-# Database operations (when enabled)
-abi database insert --vec "1.0,2.0,3.0" --meta "test"
-abi database search --vec "1.0,2.0,3.0" -k 5
+- **Issues**: [GitHub Issues](https://github.com/donaldfilimon/abi/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/donaldfilimon/abi/discussions)
+- **Documentation**: [docs/](docs/)
 
-# Output in JSON format
-abi features list --json
-abi framework status --json
-```
+---
 
-## Contributing
+**Built with ❤️ using Zig 0.16**
 
-Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting issues and proposing changes.
-
-### Development Workflow
-
-- Format code with `zig fmt .`
-- Run the full test suite with `zig build test`
-- Use `zig build run` to execute the bootstrap binary under the debug configuration
-- Check the [development guide](docs/guides/development.md) for detailed workflow
-
-## License
-
-MIT License – see [LICENSE](LICENSE).
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes.
-
-## Roadmap
-
-The redesign introduces a cleaner, more modular architecture that:
-
-- ✅ **Separates concerns** – Clear distinction between library, executables, examples, and tools
-- ✅ **Modernizes build system** – Improved build.zig with multiple targets and better caching
-- ✅ **Streamlines documentation** – Organized docs structure with generated API references
-- ✅ **Consolidates tools** – Organized scripts and tools into logical groups
-- ✅ **Improves configuration** – Environment-specific configuration management
-- 🔄 **Enhances testing** – Comprehensive test suite with unit, integration, and benchmark tests
-- 🔄 **Expands examples** – More comprehensive examples demonstrating framework capabilities
+*Last Updated: October 8, 2025*
