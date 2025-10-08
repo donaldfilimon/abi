@@ -32,34 +32,7 @@ pub const connectors = features.connectors;
 /// `abi.wdbx.*` directly, so we surface the unified helpers alongside the
 /// underlying database module.
 pub const wdbx = struct {
-    const _unified = features.database.unified;
-
-    pub const unified = _unified;
-    pub const WdbxCLI = _unified.WdbxCLI;
-    pub const WdbxHttpServer = _unified.WdbxHttpServer;
-    pub const Command = _unified.Command;
-    pub const Options = _unified.Options;
-    pub const ServerConfig = _unified.ServerConfig;
-    pub const WdbxError = _unified.WdbxError;
-    pub const VERSION = _unified.VERSION;
-    pub const OutputFormat = _unified.OutputFormat;
-    pub const LogLevel = _unified.LogLevel;
-    pub const Config = _unified.Config;
-    pub const Timer = _unified.Timer;
-    pub const Logger = _unified.Logger;
-    pub const MemoryStats = _unified.MemoryStats;
-    pub const main = _unified.main;
-    pub const createServer = _unified.createServer;
-    pub const wdbx = _unified.wdbx;
-    pub const version = _unified.version;
-    pub const version_major = _unified.version_major;
-    pub const version_minor = _unified.version_minor;
-    pub const version_patch = _unified.version_patch;
-    pub const createCLI = _unified.createCLI;
-    pub const createHttpServer = _unified.createHttpServer;
-    pub const quickStart = _unified.quickStart;
-    pub const startHttpServer = _unified.startHttpServer;
-
+    pub usingnamespace features.database.unified;
     pub const database = features.database.database;
     pub const helpers = features.database.db_helpers;
     pub const cli = features.database.cli;
@@ -81,7 +54,6 @@ pub const observability = @import("shared/observability/mod.zig");
 pub const plugins = @import("shared/mod.zig");
 pub const simd = @import("shared/simd.zig");
 pub const VectorOps = simd.VectorOps;
-pub const root = @import("root.zig");
 
 // =============================================================================
 // PUBLIC API

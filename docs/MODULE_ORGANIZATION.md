@@ -9,8 +9,7 @@ feature-oriented directories and shared runtime layers that are orchestrated via
 ```
 src/
 ├── mod.zig                   # Public entrypoint exporting framework, features, and shared layers
-├── main.zig                  # Legacy CLI entry
-├── root.zig                  # Compatibility exports
+├── comprehensive_cli.zig     # Modern CLI entry with subcommands
 ├── simd.zig                  # Legacy SIMD entry point (re-exported via shared)
 ├── features/                 # Feature families exported via src/features/mod.zig
 │   ├── mod.zig               # Aggregates feature namespaces
@@ -103,11 +102,10 @@ src/
 - **Dependencies**: Standalone where possible; some modules (e.g. logging)
   depend on `shared/core`.
 
-### Legacy Entrypoints (`mod.zig`, `main.zig`, `root.zig`, `simd.zig`)
-- **Purpose**: Provide compatibility layers for existing consumers while the new
-  feature-first architecture settles.
-- **Components**: Public API surface (`mod.zig`), CLI entry (`main.zig`), legacy
-  exports (`root.zig`), SIMD convenience wrapper (`simd.zig`).
+### Core Entrypoints (`mod.zig`, `comprehensive_cli.zig`, `simd.zig`)
+- **Purpose**: Provide the main API surface and CLI for the framework.
+- **Components**: Public API surface (`mod.zig`), modern CLI entry (`comprehensive_cli.zig`),
+  SIMD convenience wrapper (`simd.zig`).
 - **Dependencies**: Bridge between external callers and the framework/feature
   modules.
 ## 🔗 Dependencies
