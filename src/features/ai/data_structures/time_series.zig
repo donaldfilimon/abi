@@ -84,7 +84,10 @@ pub const TimeSeriesBuffer = struct {
             }
         }
 
-        if (prev_point == null) return next_point.?.value;
+        if (prev_point == null) {
+            if (next_point == null) return null;
+            return next_point.?.value;
+        }
         if (next_point == null) return prev_point.?.value;
 
         // Linear interpolation
