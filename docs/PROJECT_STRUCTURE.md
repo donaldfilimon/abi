@@ -44,7 +44,7 @@ abi/
 ├── tests/                  # High‑level integration tests (imports `src/...`)
 ├── .gitattributes
 ├── .gitignore
-├── .zigversion             # Pinned Zig version (0.16‑dev)
+├── .zigversion             # Pinned Zig version (0.16.0)
 ├── AGENTS.md               # High‑level production playbook
 ├── CHANGELOG.md            # Release notes
 ├── CODE_OF_CONDUCT.md
