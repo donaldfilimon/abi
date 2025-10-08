@@ -1133,11 +1133,11 @@ fn parseDependencies(allocator: std.mem.Allocator, manifest: []const u8) Manifes
     errdefer {
         for (list.items) |entry| freeDependencyEntry(allocator, entry);
         list.deinit();
+        if (current) |entry| freeDependencyEntry(allocator, entry);
     }
 
     var in_block = false;
     var current: ?DependencyInfo = null;
-    defer if (current) |entry| freeDependencyEntry(allocator, entry);
     var iter = std.mem.splitScalar(u8, manifest, '\n');
     while (iter.next()) |line| {
         const trimmed = std.mem.trim(u8, line, " \t\r,");
