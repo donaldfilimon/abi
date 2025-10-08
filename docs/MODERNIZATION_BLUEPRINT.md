@@ -17,7 +17,7 @@ This document distills the modernization charter for the ABI framework into an a
 4. Separate installation outputs: binaries land in `zig-out/bin`, libraries in `zig-out/lib`, documentation artefacts in `zig-out/share`.
 
 ## Code Organisation & Readability
-- Preserve backwards compatibility via `src/root.zig`, but reorganise modules beneath `src/framework`, `src/features`, and `src/util`.
+- Preserve backwards compatibility via `abi.wdbx` namespace, but reorganise modules beneath `src/framework`, `src/features`, and `src/shared`.
 - Remove dead code and replace TODO blocks with tracked issues.
 - Adopt Zig doc comments (`///`) for all public entry points.
 - Factor long functions into helpers with early exits to reduce nesting.
