@@ -58,19 +58,7 @@ pub fn build(b: *std.Build) void {
     const docs_step = b.step("docs", "Generate API documentation");
     docs_step.dependOn(&b.addRunArtifact(docs_gen).step);
 
-    // Benchmarks executable
-    const bench = b.addExecutable(.{
-        .name = "abi-bench",
-        .root_source_file = b.path("benchmarks/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    bench.root_module.addImport("abi", abi_mod);
-
-    const bench_step = b.step("bench", "Run the benchmark suite");
-    bench_step.dependOn(&b.addRunArtifact(bench).step);
-
-    // Developer tools executable
+    // Tools CLI (aggregates utilities under src/tools)
     const tools_exe = b.addExecutable(.{
         .name = "abi-tools",
         .root_source_file = b.path("src/tools/main.zig"),
@@ -78,17 +66,12 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     tools_exe.root_module.addImport("abi", abi_mod);
+    b.installArtifact(tools_exe);
 
-    const tools_step = b.step("tools", "Run developer tools entrypoint");
-    tools_step.dependOn(&b.addRunArtifact(tools_exe).step);
+    const tools_step = b.step("tools", "Build the ABI tools CLI");
+    tools_step.dependOn(&tools_exe.step);
 
-    // Formatting step
-    const fmt_step = b.step("fmt", "Format Zig sources");
-    const fmt = b.addFmt(&[_][]const u8{"."});
-    fmt_step.dependOn(&fmt.step);
-
-    // Aggregate check step: format + tests
-    const check = b.step("check", "Run formatting and tests");
-    check.dependOn(&fmt.step);
-    check.dependOn(test_step);
+    const run_tools = b.addRunArtifact(tools_exe);
+    const tools_run_step = b.step("tools-run", "Run the ABI tools CLI");
+    tools_run_step.dependOn(&run_tools.step);
 }

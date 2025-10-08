@@ -1,9 +1,3 @@
-[
-  {"file": "AGENTS_EXECUTIVE_SUMMARY.md", "title": "ABI Zig 0.16-dev — Executive Summary", "excerpt": "This one-page brief distills the authoritative AGENTS.md so new collaborators can orient quickly, uphold the guardrails, and start contributing with confidence."},
-  {"file": "generated/API_REFERENCE.md", "title": "ABI API Reference", "excerpt": "Main database interface for vector operations. Initialize a new database instance. **Parameters:** - allocator: Memory allocator to use - config: Database configuration - metadata: Optional metadata string"},
-  {"file": "generated/CODE_API_INDEX.md", "title": "Code API Index (Scanned)", "excerpt": "Scanned 264 Zig files under src/. This index lists public declarations discovered along with leading doc comments."},
-  {"file": "generated/DEFINITIONS_REFERENCE.md", "title": "ABI Definitions Reference", "excerpt": "A specialized database system designed to store, index, and search high-dimensional vectors efficiently. Unlike traditional relational databases that work with scalar values and structured data, vector databases are optimized for similarity search operations using various distance metrics."},
-  {"file": "generated/EXAMPLES.md", "title": "ABI Usage Examples", "excerpt": ""},
-  {"file": "generated/MODULE_REFERENCE.md", "title": "ABI Module Reference", "excerpt": "The primary module containing all core functionality."},
-  {"file": "generated/PERFORMANCE_GUIDE.md", "title": "ABI Performance Guide", "excerpt": ""}
-]
+{
+  "entries": []
+}
