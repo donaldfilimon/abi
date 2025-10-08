@@ -166,7 +166,7 @@ pub const Agent = struct {
         };
 
         if (self.config.enable_history) {
-            if (self.history.items.len == self.config.max_history_items and self.history.items.len > 0) {
+            if (self.history.items.len == self.config.max_history_items) {
                 const oldest = self.history.items[0];
                 if (self.history.items.len > 1) {
                     std.mem.copyForwards([]const u8, self.history.items[0 .. self.history.items.len - 1], self.history.items[1..]);
