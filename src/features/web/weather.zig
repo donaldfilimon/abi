@@ -136,7 +136,6 @@
 //! Replace `"your_api_key_here"` with your actual API key. Ensure that the `deinit` methods are called to free allocated memory and prevent leaks.
 
 const std = @import("std");
-const root = @import("root");
 
 /// Re-export commonly used types
 pub const Allocator = std.mem.Allocator;

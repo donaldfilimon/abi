@@ -81,7 +81,6 @@ pub const observability = @import("shared/observability/mod.zig");
 pub const plugins = @import("shared/mod.zig");
 pub const simd = @import("shared/simd.zig");
 pub const VectorOps = simd.VectorOps;
-pub const root = @import("root.zig");
 
 // =============================================================================
 // PUBLIC API
