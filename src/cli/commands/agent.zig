@@ -79,5 +79,5 @@ pub const run_command = modern_cli.Command{
 pub const command = modern_cli.Command{
     .name = "agent",
     .description = "Agent runtime entry points",
-    .subcommands = &.{ &run_command },
+    .subcommands = &.{&run_command},
 };

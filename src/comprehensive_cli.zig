@@ -1,12 +1,25 @@
 const std = @import("std");
 
 const abi = @import("abi");
+const manifest = @import("../build.zig.zon");
+const ManifestDependencies = @TypeOf(manifest.dependencies);
+const manifest_dependency_fields = std.meta.fields(ManifestDependencies);
 const Framework = abi.framework.runtime.Framework;
 const FrameworkOptions = abi.framework.config.FrameworkOptions;
 const Feature = abi.framework.config.Feature;
 const Agent = abi.ai.agent.Agent;
 const AgentConfig = abi.ai.agent.AgentConfig;
 const db_helpers = abi.database.db_helpers.helpers;
+
+const DependencyInfo = struct {
+    name: []const u8,
+    url: ?[]const u8 = null,
+    hash: ?[]const u8 = null,
+};
+
+const ManifestParseError = error{InvalidManifest};
+
+const max_manifest_size: usize = 1024 * 1024;
 
 pub const ExitCode = enum(u8) {
     success = 0,
@@ -220,6 +233,8 @@ pub const Cli = struct {
             return try self.handleDatabase(tail);
         } else if (std.mem.eql(u8, command, "gpu")) {
             return try self.handleGpu(tail);
+        } else if (std.mem.eql(u8, command, "deps")) {
+            return try self.handleDeps(tail);
         }
 
         try self.logger.err("Unknown command: {s}\n", .{command});
@@ -331,6 +346,218 @@ pub const Cli = struct {
         }
 
         return .success;
+    }
+
+    fn handleDeps(self: *Cli, args: [][]const u8) !ExitCode {
+        if (args.len == 0 or isHelp(args)) {
+            try self.printDepsHelp();
+            return .success;
+        }
+
+        const sub = args[0];
+        const tail = args[1..];
+
+        if (std.mem.eql(u8, sub, "list")) {
+            if (tail.len != 0) {
+                try self.logger.err("deps list does not accept extra arguments\n", .{});
+                return .usage;
+            }
+            try self.emitDependencyList();
+            return .success;
+        }
+
+        if (std.mem.eql(u8, sub, "update")) {
+            return try self.handleDependencyUpdate(tail);
+        }
+
+        try self.logger.err("Unknown deps subcommand: {s}\n", .{sub});
+        return .usage;
+    }
+
+    fn emitDependencyList(self: *Cli) !void {
+        if (self.json_mode) {
+            var buffer = std.ArrayList(u8).init(self.allocator);
+            defer buffer.deinit();
+
+            try buffer.appendSlice("{\"status\":\"ok\",\"action\":\"list\",\"dependencies\":");
+            try appendDependencyJsonArray(buffer.writer());
+            try buffer.appendSlice("}");
+
+            try printJson(self.channels.out, "{s}", .{buffer.items});
+        } else {
+            try self.logDependencySummary();
+        }
+    }
+
+    fn handleDependencyUpdate(self: *Cli, args: [][]const u8) !ExitCode {
+        var mode: enum { dry_run, apply } = .dry_run;
+
+        for (args) |token| {
+            if (std.mem.eql(u8, token, "--dry-run")) {
+                mode = .dry_run;
+            } else if (std.mem.eql(u8, token, "--apply")) {
+                mode = .apply;
+            } else {
+                try self.logger.err("Unknown deps update flag: {s}\n", .{token});
+                return .usage;
+            }
+        }
+
+        const mode_label = switch (mode) {
+            .dry_run => "dry-run",
+            .apply => "apply",
+        };
+
+        if (mode == .dry_run or manifest_dependency_fields.len == 0) {
+            if (self.json_mode) {
+                var buffer = std.ArrayList(u8).init(self.allocator);
+                defer buffer.deinit();
+
+                try buffer.appendSlice("{\"status\":\"ok\",\"action\":\"update\",\"mode\":");
+                try writeJsonString(buffer.writer(), mode_label);
+                try buffer.appendSlice(",\"dependencies\":");
+                try appendDependencyJsonArray(buffer.writer());
+                try buffer.appendSlice("}");
+
+                try printJson(self.channels.out, "{s}", .{buffer.items});
+            } else {
+                if (manifest_dependency_fields.len == 0) {
+                    try self.logger.info("No dependencies declared in build.zig.zon\n", .{});
+                } else {
+                    try self.logger.info(
+                        "Dependency update ({s}) would process the following entries:\n",
+                        .{mode_label},
+                    );
+                    try self.logDependencySummary();
+                }
+            }
+            return .success;
+        }
+
+        const exec_result = std.ChildProcess.exec(.{
+            .allocator = self.allocator,
+            .argv = &.{ "zig", "fetch" },
+        }) catch |err| {
+            if (self.json_mode) {
+                try printJson(
+                    self.channels.out,
+                    "{\"status\":\"error\",\"action\":\"update\",\"mode\":\"apply\",\"error\":\"{s}\"}",
+                    .{@errorName(err)},
+                );
+            } else {
+                try self.logger.err("Failed to execute zig fetch: {s}\n", .{@errorName(err)});
+            }
+            return .runtime;
+        };
+        defer self.allocator.free(exec_result.stdout);
+        defer self.allocator.free(exec_result.stderr);
+
+        switch (exec_result.term) {
+            .Exited => |code| {
+                if (code != 0) {
+                    if (self.json_mode) {
+                        var buffer = std.ArrayList(u8).init(self.allocator);
+                        defer buffer.deinit();
+
+                        try buffer.appendSlice("{\"status\":\"error\",\"action\":\"update\",\"mode\":\"apply\",\"code\":");
+                        try buffer.writer().print("{d}", .{code});
+                        try buffer.appendSlice(",\"stderr\":");
+                        try writeJsonString(buffer.writer(), exec_result.stderr);
+                        try buffer.appendSlice("}");
+                        try printJson(self.channels.out, "{s}", .{buffer.items});
+                    } else {
+                        try self.logger.err("zig fetch exited with code {d}\n", .{code});
+                        if (exec_result.stderr.len != 0) {
+                            try self.logger.err("{s}", .{exec_result.stderr});
+                        }
+                    }
+                    return .runtime;
+                }
+
+                if (self.json_mode) {
+                    var buffer = std.ArrayList(u8).init(self.allocator);
+                    defer buffer.deinit();
+
+                    try buffer.appendSlice("{\"status\":\"ok\",\"action\":\"update\",\"mode\":\"apply\",\"code\":0");
+                    if (exec_result.stdout.len != 0) {
+                        try buffer.appendSlice(",\"stdout\":");
+                        try writeJsonString(buffer.writer(), exec_result.stdout);
+                    }
+                    if (exec_result.stderr.len != 0) {
+                        try buffer.appendSlice(",\"stderr\":");
+                        try writeJsonString(buffer.writer(), exec_result.stderr);
+                    }
+                    try buffer.appendSlice("}");
+                    try printJson(self.channels.out, "{s}", .{buffer.items});
+                } else {
+                    try self.logger.info("zig fetch completed successfully\n", .{});
+                    if (exec_result.stdout.len != 0) {
+                        try self.logger.info("{s}", .{exec_result.stdout});
+                    }
+                    if (exec_result.stderr.len != 0) {
+                        try self.logger.warn("{s}", .{exec_result.stderr});
+                    }
+                }
+
+                return .success;
+            },
+            .Signal => {
+                if (self.json_mode) {
+                    try printJson(
+                        self.channels.out,
+                        "{\"status\":\"error\",\"action\":\"update\",\"mode\":\"apply\",\"error\":\"terminated by signal\"}",
+                        .{},
+                    );
+                } else {
+                    try self.logger.err("zig fetch terminated by signal\n", .{});
+                }
+                return .runtime;
+            },
+            else => {
+                if (self.json_mode) {
+                    try printJson(
+                        self.channels.out,
+                        "{\"status\":\"error\",\"action\":\"update\",\"mode\":\"apply\",\"error\":\"unexpected termination\"}",
+                        .{},
+                    );
+                } else {
+                    try self.logger.err("zig fetch terminated unexpectedly\n", .{});
+                }
+                return .runtime;
+            },
+        }
+        unreachable;
+    }
+
+    fn logDependencySummary(self: *Cli) !void {
+        if (manifest_dependency_fields.len == 0) {
+            try self.logger.info("No dependencies declared in build.zig.zon\n", .{});
+            return;
+        }
+
+        try self.logger.info("Dependencies ({d}):\n", .{manifest_dependency_fields.len});
+        inline for (manifest_dependency_fields) |field| {
+            const dep = @field(manifest.dependencies, field.name);
+            try self.logger.info("  - {s}\n", .{field.name});
+            if (@hasField(@TypeOf(dep), "url")) {
+                try self.logger.info("      url: {s}\n", .{dep.url});
+            }
+            if (@hasField(@TypeOf(dep), "path")) {
+                try self.logger.info("      path: {s}\n", .{dep.path});
+            }
+            if (@hasField(@TypeOf(dep), "hash")) {
+                try self.logger.info("      hash: {s}\n", .{dep.hash});
+            }
+            if (@hasField(@TypeOf(dep), "tag")) {
+                try self.logger.info("      tag: {s}\n", .{dep.tag});
+            }
+            if (@hasField(@TypeOf(dep), "rev")) {
+                try self.logger.info("      rev: {s}\n", .{dep.rev});
+            }
+            if (@hasField(@TypeOf(dep), "branch")) {
+                try self.logger.info("      branch: {s}\n", .{dep.branch});
+            }
+        }
     }
 
     fn handleAgent(self: *Cli, args: [][]const u8) !ExitCode {
@@ -687,7 +914,14 @@ pub const Cli = struct {
     }
 
     fn printHelp(self: *Cli) !void {
-        const message = "Usage: abi <command> [options]\n\nCommands:\n  features   list|enable|disable\n  agent      run\n  db         insert|search\n  gpu        bench\n";
+        const message =
+            "Usage: abi <command> [options]\n\n" ++
+            "Commands:\n" ++
+            "  features   list|enable|disable\n" ++
+            "  agent      run\n" ++
+            "  db         insert|search\n" ++
+            "  gpu        bench\n" ++
+            "  deps       list|update\n";
         try self.logger.info("{s}", .{message});
     }
 
@@ -713,6 +947,14 @@ pub const Cli = struct {
         try self.logger.info("{s}", .{text});
     }
 
+    fn printDepsHelp(self: *Cli) !void {
+        const text =
+            "deps list\n" ++
+            "deps update [--dry-run|--apply]\n" ++
+            "  --dry-run   Summarise dependencies without running zig fetch (default)\n" ++
+            "  --apply     Execute 'zig fetch' to update pinned dependencies\n";
+        try self.logger.info("{s}", .{text});
+    }
     const MatSize = struct {
         m: usize,
         n: usize,
@@ -763,6 +1005,79 @@ pub const Cli = struct {
     }
 };
 
+fn appendDependencyJsonArray(writer: anytype) !void {
+    try writer.writeByte('[');
+    var first = true;
+    inline for (manifest_dependency_fields) |field| {
+        const dep = @field(manifest.dependencies, field.name);
+        if (!first) try writer.writeByte(',');
+        first = false;
+
+        try writer.writeByte('{');
+        try writer.writeAll("\"name\":");
+        try writeJsonString(writer, field.name);
+
+        if (@hasField(@TypeOf(dep), "url")) {
+            try writer.writeAll(",\"url\":");
+            try writeJsonString(writer, dep.url);
+        }
+        if (@hasField(@TypeOf(dep), "path")) {
+            try writer.writeAll(",\"path\":");
+            try writeJsonString(writer, dep.path);
+        }
+        if (@hasField(@TypeOf(dep), "hash")) {
+            try writer.writeAll(",\"hash\":");
+            try writeJsonString(writer, dep.hash);
+        }
+        if (@hasField(@TypeOf(dep), "tag")) {
+            try writer.writeAll(",\"tag\":");
+            try writeJsonString(writer, dep.tag);
+        }
+        if (@hasField(@TypeOf(dep), "rev")) {
+            try writer.writeAll(",\"rev\":");
+            try writeJsonString(writer, dep.rev);
+        }
+        if (@hasField(@TypeOf(dep), "branch")) {
+            try writer.writeAll(",\"branch\":");
+            try writeJsonString(writer, dep.branch);
+        }
+
+        try writer.writeByte('}');
+    }
+    try writer.writeByte(']');
+}
+
+fn writeJsonString(writer: anytype, text: []const u8) !void {
+    try writer.writeByte('"');
+    for (text) |ch| {
+        switch (ch) {
+            '"' => try writer.writeAll("\\\""),
+            '\\' => try writer.writeAll("\\\\"),
+            '/' => try writer.writeAll("\\/"),
+            '\b' => try writer.writeAll("\\b"),
+            '\f' => try writer.writeAll("\\f"),
+            '\n' => try writer.writeAll("\\n"),
+            '\r' => try writer.writeAll("\\r"),
+            '\t' => try writer.writeAll("\\t"),
+            else => {
+                if (ch < 0x20) {
+                    var buf: [6]u8 = .{ '\\', 'u', '0', '0', 0, 0 };
+                    buf[4] = hexDigit(ch >> 4);
+                    buf[5] = hexDigit(ch & 0x0f);
+                    try writer.writeAll(&buf);
+                } else {
+                    try writer.writeByte(ch);
+                }
+            },
+        }
+    }
+    try writer.writeByte('"');
+}
+
+fn hexDigit(value: u8) u8 {
+    return "0123456789abcdef"[value & 0x0f];
+}
+
 fn matmul(out: []f32, a: []const f32, b: []const f32, m: usize, n: usize, p: usize) void {
     var i: usize = 0;
     while (i < m) : (i += 1) {
@@ -777,6 +1092,130 @@ fn matmul(out: []f32, a: []const f32, b: []const f32, m: usize, n: usize, p: usi
         }
     }
 }
+
+fn freeDependencyEntry(allocator: std.mem.Allocator, entry: DependencyInfo) void {
+    allocator.free(@constCast(entry.name));
+    if (entry.url) allocator.free(@constCast(entry.url.?));
+    if (entry.hash) allocator.free(@constCast(entry.hash.?));
+}
+
+fn freeDependencyList(allocator: std.mem.Allocator, entries: []DependencyInfo) void {
+    for (entries) |entry| freeDependencyEntry(allocator, entry);
+    allocator.free(entries);
+}
+
+fn parseOptionalZonString(allocator: std.mem.Allocator, line: []const u8) ManifestParseError!?[]const u8 {
+    const eq_index = std.mem.indexOfScalar(u8, line, '=') orelse return ManifestParseError.InvalidManifest;
+    var rest = std.mem.trim(u8, line[eq_index + 1 ..], " \t\r");
+    if (rest.len == 0) return ManifestParseError.InvalidManifest;
+    if (rest[rest.len - 1] == ',') rest = rest[0 .. rest.len - 1];
+    rest = std.mem.trim(u8, rest, " \t\r");
+    if (rest.len == 0) return ManifestParseError.InvalidManifest;
+    if (std.mem.eql(u8, rest, "null")) return null;
+    if (rest[0] != '"') return ManifestParseError.InvalidManifest;
+    const closing_rel = std.mem.indexOfScalar(u8, rest[1..], '"') orelse return ManifestParseError.InvalidManifest;
+    const value = rest[1 .. 1 + closing_rel];
+    return try allocator.dupe(u8, value);
+}
+
+fn parseDependencies(allocator: std.mem.Allocator, manifest: []const u8) ManifestParseError![]DependencyInfo {
+    var list = std.ArrayList(DependencyInfo).init(allocator);
+    errdefer {
+        for (list.items) |entry| freeDependencyEntry(allocator, entry);
+        list.deinit();
+    }
+
+    var in_block = false;
+    var current: ?DependencyInfo = null;
+    defer if (current) |entry| freeDependencyEntry(allocator, entry);
+    var iter = std.mem.splitScalar(u8, manifest, '\n');
+    while (iter.next()) |line| {
+        const trimmed = std.mem.trim(u8, line, " \t\r,");
+        if (trimmed.len == 0) continue;
+
+        if (!in_block) {
+            if (std.mem.startsWith(u8, trimmed, ".dependencies")) {
+                if (std.mem.indexOf(u8, trimmed, ".{}") != null) {
+                    return list.toOwnedSlice();
+                }
+                in_block = true;
+            }
+            continue;
+        }
+
+        if (trimmed[0] == '}') {
+            if (current) |entry| {
+                try list.append(entry);
+                current = null;
+                continue;
+            }
+            break;
+        }
+
+        if (trimmed[0] == '.' and std.mem.indexOfScalar(u8, trimmed, '=') != null) {
+            if (current) |entry| {
+                try list.append(entry);
+                current = null;
+            }
+
+            const eq_index = std.mem.indexOfScalar(u8, trimmed, '=') orelse unreachable;
+            const name_slice = std.mem.trim(u8, trimmed[1..eq_index], " \t");
+            if (name_slice.len == 0) {
+                return ManifestParseError.InvalidManifest;
+            }
+
+            const name_copy = try allocator.dupe(u8, name_slice);
+            var entry = DependencyInfo{ .name = name_copy };
+
+            if (std.mem.indexOfScalar(u8, trimmed, '{') == null) {
+                freeDependencyEntry(allocator, entry);
+                return ManifestParseError.InvalidManifest;
+            }
+
+            if (std.mem.endsWith(u8, trimmed, ".{}")) {
+                try list.append(entry);
+            } else {
+                current = entry;
+            }
+            continue;
+        }
+
+        if (current == null) {
+            return ManifestParseError.InvalidManifest;
+        }
+
+        if (std.mem.startsWith(u8, trimmed, ".url")) {
+            current.?.url = try parseOptionalZonString(allocator, trimmed);
+            continue;
+        }
+
+        if (std.mem.startsWith(u8, trimmed, ".hash")) {
+            current.?.hash = try parseOptionalZonString(allocator, trimmed);
+            continue;
+        }
+    }
+
+    if (current) |entry| {
+        try list.append(entry);
+        current = null;
+    }
+
+    return list.toOwnedSlice();
+}
+
+fn loadDependencyManifest(allocator: std.mem.Allocator, path: []const u8) ![]DependencyInfo {
+    var file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
+
+    const size = try file.getEndPos();
+    if (size > max_manifest_size) return error.ManifestTooLarge;
+
+    const contents = try file.readToEndAlloc(allocator, max_manifest_size);
+    defer allocator.free(contents);
+
+    return parseDependencies(allocator, contents);
+}
+
 fn parseFeature(name: []const u8) ?Feature {
     inline for (std.meta.fields(Feature)) |field| {
         if (std.ascii.eqlIgnoreCase(name, field.name)) {
@@ -958,6 +1397,57 @@ test "features list emits json in json mode" {
     try std.testing.expect(std.mem.startsWith(u8, tc.out_buf.items, expected));
 }
 
+test "deps list emits empty dependency array in json mode" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), true, .@"error");
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "deps", "list" }));
+    try std.testing.expectEqual(@as(usize, 0), tc.err_buf.items.len);
+
+    const expected = "{\"status\":\"ok\",\"action\":\"list\",\"dependencies\":[]}";
+    try std.testing.expect(std.mem.startsWith(u8, tc.out_buf.items, expected));
+}
+
+test "deps list logs message when manifest has no dependencies" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), false, .info);
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "deps", "list" }));
+    try std.testing.expectEqual(@as(usize, 0), tc.out_buf.items.len);
+    try std.testing.expect(std.mem.indexOf(u8, tc.err_buf.items, "No dependencies") != null);
+}
+
+test "deps update defaults to dry run when manifest is empty" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), false, .info);
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "deps", "update" }));
+    try std.testing.expect(std.mem.indexOf(u8, tc.err_buf.items, "No dependencies") != null);
+}
+
+test "deps update apply emits json summary when no dependencies" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), true, .@"error");
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "deps", "update", "--apply" }));
+    try std.testing.expectEqual(@as(usize, 0), tc.err_buf.items.len);
+
+    const expected = "{\"status\":\"ok\",\"action\":\"update\",\"mode\":\"apply\",\"dependencies\":[]}";
+    try std.testing.expect(std.mem.startsWith(u8, tc.out_buf.items, expected));
+}
+
 test "SessionDatabase insert frees metadata on append failure" {
     var failing_state = std.testing.FailingAllocator.init(std.testing.allocator, .{
         .fail_index = 2,
@@ -974,4 +1464,65 @@ test "SessionDatabase insert frees metadata on append failure" {
     try std.testing.expectEqual(@as(usize, 0), db.entries.items.len);
     try std.testing.expect(failing_state.has_induced_failure);
     try std.testing.expectEqual(failing_state.allocated_bytes, failing_state.freed_bytes);
+}
+
+test "parseDependencies handles empty dependencies" {
+    const manifest =
+        ".{\n" ++
+        "    .dependencies = .{},\n" ++
+        "}\n";
+
+    const deps = try parseDependencies(std.testing.allocator, manifest);
+    defer freeDependencyList(std.testing.allocator, deps);
+
+    try std.testing.expectEqual(@as(usize, 0), deps.len);
+}
+
+test "parseDependencies captures url and hash" {
+    const manifest =
+        ".{\n" ++
+        "    .dependencies = .{\n" ++
+        "        .ggml_zig = .{\n" ++
+        "            .url = \"git+https://example.com/repo#v1\",\n" ++
+        "            .hash = \"sha256-abcdef\",\n" ++
+        "        },\n" ++
+        "    },\n" ++
+        "}\n";
+
+    const deps = try parseDependencies(std.testing.allocator, manifest);
+    defer freeDependencyList(std.testing.allocator, deps);
+
+    try std.testing.expectEqual(@as(usize, 1), deps.len);
+    try std.testing.expectEqualStrings("ggml_zig", deps[0].name);
+    try std.testing.expect(deps[0].url != null);
+    try std.testing.expect(deps[0].hash != null);
+    try std.testing.expectEqualStrings("git+https://example.com/repo#v1", deps[0].url.?);
+    try std.testing.expectEqualStrings("sha256-abcdef", deps[0].hash.?);
+}
+
+test "deps list warns when manifest is empty" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), false, .info);
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "deps", "list" }));
+    try std.testing.expectEqual(@as(usize, 0), tc.out_buf.items.len);
+    try std.testing.expect(std.mem.indexOf(u8, tc.err_buf.items, "No dependencies defined") != null);
+}
+
+test "deps list outputs json payload" {
+    var tc = TestChannels.init(std.testing.allocator);
+    defer tc.deinit();
+
+    var cli = try Cli.init(std.testing.allocator, tc.channels(), true, .@"error");
+    defer cli.deinit();
+
+    try std.testing.expectEqual(ExitCode.success, try cli.dispatch(&.{ "deps", "list" }));
+    try std.testing.expectEqual(@as(usize, 0), tc.err_buf.items.len);
+    try std.testing.expect(tc.out_buf.items.len > 0);
+
+    const output = std.mem.trimRight(u8, tc.out_buf.items, "\n");
+    try std.testing.expectEqualStrings("{\"dependencies\":[]}", output);
 }

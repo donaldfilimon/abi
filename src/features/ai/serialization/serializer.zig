@@ -647,7 +647,7 @@ test "model registry save and load roundtrip" {
     var registry = ModelRegistry.init(testing.allocator);
     defer registry.deinit();
 
-    var metadata = ModelMetadata.init(testing.allocator, "demo-net", &[_]usize{1, 3, 224, 224}, &[_]usize{1, 1000});
+    var metadata = ModelMetadata.init(testing.allocator, "demo-net", &[_]usize{ 1, 3, 224, 224 }, &[_]usize{ 1, 1000 });
     metadata.num_parameters = 1024;
     metadata.num_layers = 12;
 

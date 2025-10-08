@@ -20,7 +20,7 @@ This guide covers the comprehensive cross-platform testing strategy for the ABI 
 - **aarch64**: ARM64 support (especially macOS Apple Silicon)
 
 ##### Zig Versions
-- **0.16.0-dev (master)**: Current baseline
+- **0.16.0-dev.254+6dd0270a1**: Current baseline
 - **Master nightly**: Tracks upstream commits for regression detection
 - **master**: Nightly builds
 

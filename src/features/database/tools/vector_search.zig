@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const Input = struct {
     query: []const f32,
     k: u16 = 10,
