@@ -2,7 +2,7 @@
 
 > Experimental Zig framework that provides a bootstrap runtime and a curated set of feature modules for AI experiments.
 
-[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev-orange.svg)](https://ziglang.org/builds/)
+[![Zig Version](https://img.shields.io/badge/Zig-0.16.0-orange.svg)](https://ziglang.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/badge/Version-0.1.0a-purple.svg)](CHANGELOG.md)
 
@@ -21,7 +21,7 @@ The `0.1.0a` prerelease focuses on:
 
 ### Prerequisites
 
-- **Zig** `0.16.0-dev.463+f624191f9` or later
+- **Zig** `0.16.0` (see `.zigversion` for the authoritative toolchain)
 - A C++ compiler for Zig's build dependencies
 
 ### Clone and Build
@@ -31,6 +31,8 @@ git clone https://github.com/donaldfilimon/abi.git
 cd abi
 zig build
 zig build test
+zig build docs   # generate API docs via tools/docs_generator
+zig build tools  # build the aggregated tools CLI (abi-tools)
 ```
 
 The default build produces `zig-out/bin/abi`. This executable implements a modern sub-command based CLI. Use `abi --help` to view available commands and `abi <subcommand> --help` for detailed usage.
@@ -39,8 +41,21 @@ The default build produces `zig-out/bin/abi`. This executable implements a moder
 # Show help (lists all sub-commands)
 ./zig-out/bin/abi help
 
+# Run the benchmark suite
+zig build bench -- --format=markdown --output=results
+
+# Run developer tools entrypoint
+zig build tools -- --help
+
 # Example: list enabled features in JSON mode
 ./zig-out/bin/abi features list --json
+
+# Build and run the tools CLI (aggregates utilities under src/tools)
+zig build tools
+./zig-out/bin/abi-tools --help
+
+# Or run directly through the build system
+zig build tools-run -- --help
 ```
 
 Sample output:
