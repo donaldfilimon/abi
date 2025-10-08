@@ -166,6 +166,9 @@ pub const Agent = struct {
         };
 
         if (self.config.enable_history) {
+            const stored = self.allocator.dupe(u8, input) catch return AgentError.OutOfMemory;
+            errdefer self.allocator.free(stored);
+            
             if (self.history.items.len == self.config.max_history_items and self.history.items.len > 0) {
                 const oldest = self.history.items[0];
                 if (self.history.items.len > 1) {
@@ -174,8 +177,7 @@ pub const Agent = struct {
                 self.history.items.len -= 1;
                 self.allocator.free(oldest);
             }
-            const stored = self.allocator.dupe(u8, input) catch return AgentError.OutOfMemory;
-            errdefer self.allocator.free(stored);
+            
             self.history.append(self.allocator, stored) catch {
                 self.allocator.free(stored);
                 return AgentError.OutOfMemory;

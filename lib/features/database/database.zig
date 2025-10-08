@@ -259,7 +259,16 @@ pub const Db = struct {
             try self.walTruncate();
             return;
         }
+        
+        // Prevent integer overflow and excessive memory allocation
+        const max_reasonable_records = 1_000_000; // Reasonable upper limit
         const num = wal_len / record_size;
+        if (num > max_reasonable_records) {
+            std.log.warn("WAL contains too many records ({d}), truncating to prevent memory issues", .{num});
+            try self.walTruncate();
+            return;
+        }
+        
         const dim: usize = @intCast(self.header.dim);
         const tmp = try self.allocator.alloc(f32, dim);
         defer self.allocator.free(tmp);
