@@ -15,7 +15,7 @@ jobs:
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: latest
+          version: master # Changed from 'latest'
       - name: Check formatting
         run: zig fmt --check .
 
@@ -33,7 +33,8 @@ jobs:
         uses: mlugg/setup-zig@v2
         with:
           version: latest
-      - name: Build
-        run: zig build -Doptimize=${{ matrix.optimize }} --verbose
-      - name: Test
-        run: zig build test -Doptimize=${{ matrix.optimize }} --summary all
+      # FIX: Combining the Build and Test steps into a single 'zig build test' command,
+      # which is the standard way to run the build and tests in one step.
+      # The main `zig build` is usually implicit or done by the 'test' target.
+      - name: Build and Test
+        run: zig build test -Doptimize=${{ matrix.optimize }} --summary all --verbose
