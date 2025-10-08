@@ -262,7 +262,7 @@ pub const Db = struct {
         const num = wal_len / record_size;
         const dim: usize = @intCast(self.header.dim);
         const tmp = try self.allocator.alloc(f32, dim);
-        defer self.allocator.free(tmp);
+        errdefer self.allocator.free(tmp);
         const tmp_bytes = std.mem.sliceAsBytes(tmp);
         try self.wal_file.?.seekTo(0);
         var i: u64 = 0;
@@ -604,8 +604,9 @@ pub const Db = struct {
             distance: f32,
 
             pub fn compare(_: void, a: SearchResult, b: SearchResult) std.math.Order {
-                if (a.distance < b.distance) return .lt;
-                if (a.distance > b.distance) return .gt;
+                // Maintain a max-heap by considering larger distance as "less"
+                if (a.distance > b.distance) return .lt;
+                if (a.distance < b.distance) return .gt;
                 return .eq;
             }
         };
@@ -692,14 +693,15 @@ pub const Db = struct {
                 try self.searchLayer(query, current_layer, &candidates, &visited, &results, top_k);
             }
 
-            // Convert results to array
+            // Convert results to array (in ascending distance order)
             const result_count = @min(top_k, results.count());
             const search_results = try self.allocator.alloc(SearchResult, result_count);
 
-            var i: usize = 0;
-            while (i < result_count) : (i += 1) {
+            // Extract results in reverse order since we're using a max-heap
+            var i: usize = result_count;
+            while (i > 0) : (i -= 1) {
                 const entry = results.remove();
-                search_results[i] = .{ .id = entry.id, .distance = entry.distance };
+                search_results[i - 1] = .{ .id = entry.id, .distance = entry.distance };
             }
 
             return search_results;
