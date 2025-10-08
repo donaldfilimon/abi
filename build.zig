@@ -87,50 +87,20 @@ pub fn build(b: *std.Build) void {
     const docs_step = b.step("docs", "Generate API documentation");
     docs_step.dependOn(&b.addRunArtifact(docs_gen).step);
 
-    // Format step
-    const fmt_step = b.step("fmt", "Format source code");
-    const fmt_cmd = b.addFmt(.{
-        .paths = &.{ "lib", "bin", "tests", "tools" },
-    });
-    fmt_step.dependOn(&fmt_cmd.step);
-
-    // Lint step
-    const lint_step = b.step("lint", "Run linter");
-    const lint_cmd = b.addExecutable(.{
-        .name = "zig_lint",
-        .root_source_file = b.path("tools/dev/linter.zig"),
+    // Tools CLI (aggregates utilities under src/tools)
+    const tools_exe = b.addExecutable(.{
+        .name = "abi-tools",
+        .root_source_file = b.path("src/tools/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-    lint_cmd.root_module.addImport("abi", abi_lib);
-    lint_step.dependOn(&b.addRunArtifact(lint_cmd).step);
+    tools_exe.root_module.addImport("abi", abi_mod);
+    b.installArtifact(tools_exe);
 
-    // Clean step
-    const clean_step = b.step("clean", "Clean build artifacts");
-    const clean_cmd = b.addSystemCommand(&[_][]const u8{"rm", "-rf", "zig-out", "zig-cache"});
-    clean_step.dependOn(&clean_cmd.step);
+    const tools_step = b.step("tools", "Build the ABI tools CLI");
+    tools_step.dependOn(&tools_exe.step);
 
-    // All tests step
-    const test_all_step = b.step("test-all", "Run all tests");
-    test_all_step.dependOn(test_step);
-    test_all_step.dependOn(integration_test_step);
-
-    // Development step (format + lint + test)
-    const dev_step = b.step("dev", "Run development checks (format + lint + test)");
-    dev_step.dependOn(fmt_step);
-    dev_step.dependOn(lint_step);
-    dev_step.dependOn(test_all_step);
-
-    // Install step for library
-    const install_lib_step = b.step("install-lib", "Install ABI library");
-    const lib_artifact = b.addStaticLibrary(.{
-        .name = "abi",
-        .root_source_file = b.path("lib/mod.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    lib_artifact.root_module.addImport("abi", abi_lib);
-    lib_artifact.root_module.addOptions("build_options", build_options);
-    b.installArtifact(lib_artifact);
-    install_lib_step.dependOn(&lib_artifact.step);
+    const run_tools = b.addRunArtifact(tools_exe);
+    const tools_run_step = b.step("tools-run", "Run the ABI tools CLI");
+    tools_run_step.dependOn(&run_tools.step);
 }
