@@ -32,11 +32,8 @@ git clone https://github.com/donaldfilimon/abi.git
 cd abi
 zig build
 zig build test
-zig build fmt     # format sources
-zig build docs    # generate docs
-zig build bench   # run benchmarks
-zig build tools   # run developer tools entrypoint
-zig build check   # format + tests aggregate
+zig build docs   # generate API docs via tools/docs_generator
+zig build tools  # build the aggregated tools CLI (abi-tools)
 ```
 
 The default build produces `zig-out/bin/abi`. This executable now implements a full sub‑command based CLI. Use `abi --help` to view available commands and `abi <subcommand> --help` for detailed usage.
@@ -53,6 +50,13 @@ zig build tools -- --help
 
 # Example: list enabled features in JSON mode
 ./zig-out/bin/abi features list --json
+
+# Build and run the tools CLI (aggregates utilities under src/tools)
+zig build tools
+./zig-out/bin/abi-tools --help
+
+# Or run directly through the build system
+zig build tools-run -- --help
 ```
 
 Sample output:
