@@ -7,7 +7,7 @@ This document provides a quick reference for contributors working on the **ABI**
 ```
 src/          # Public Zig modules (abi.*)
 │   mod.zig   # Re‑exports for the `abi` namespace
-│   root.zig  # Compatibility shims
+│   comprehensive_cli.zig  # Modern CLI implementation
 │
 framework/    # Core runtime, configuration, and state
 features/     # Feature sub‑packages: ai, database, gpu, web, monitoring, connectors

@@ -38,15 +38,13 @@ abi/
 │   ├── shared/             # Cross‑cutting utilities (logging, platform, simd)
 │   ├── tests/              # Test suite mirroring the feature tree (`*_test.zig`)
 │   ├── tools/              # Auxiliary tools (benchmark harness, docs generator, etc.)
-│   ├── cli_main.zig        # **Removed** – superseded by `comprehensive_cli.zig`
 │   ├── comprehensive_cli.zig # Modern, sub‑command based CLI entry point
 │   ├── mod.zig             # Public façade – re‑exports all public APIs
-│   ├── root.zig            # Compatibility shim layer for deprecated symbols
 │   └── simd.zig            # SIMD helpers (`VectorOps`) re‑exported from `shared`
 ├── tests/                  # High‑level integration tests (imports `src/...`)
 ├── .gitattributes
 ├── .gitignore
-├── .zigversion             # Pinned Zig version (0.16‑dev)
+├── .zigversion             # Pinned Zig version (0.16.0)
 ├── AGENTS.md               # High‑level production playbook
 ├── CHANGELOG.md            # Release notes
 ├── CODE_OF_CONDUCT.md
@@ -70,7 +68,7 @@ abi/
 | **Cross‑platform**       | The layout works on Windows, macOS, Linux, and (optionally) WASM/WebGPU (`-Denable-web`). |
 | **Testing parity**       | Each feature directory contains a matching `*_test.zig` in `src/tests/`. `zig build test` runs the full suite. |
 | **Documentation**        | `docs/` contains generated API reference, module organization, and a quick‑start guide. The `PROJECT_STRUCTURE.md` you are reading lives here. |
-| **Backward compatibility** | Legacy symbols are shimmed in `src/root.zig` and re‑exported under `abi.wdbx` to keep older examples working. |
+| **Backward compatibility** | Legacy symbols are re‑exported under `abi.wdbx` to keep older examples working. |
 
 ## How to Navigate
 
