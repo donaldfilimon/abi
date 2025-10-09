@@ -1,16 +1,16 @@
 const std = @import("std");
 
 const abi = @import("abi");
-const manifest = @import("../build.zig.zon");
-const ManifestDependencies = @TypeOf(manifest.dependencies);
-const manifest_dependency_fields = std.meta.fields(ManifestDependencies);
 const Framework = abi.framework.runtime.Framework;
 const FrameworkOptions = abi.framework.config.FrameworkOptions;
 const Feature = abi.framework.config.Feature;
 const Agent = abi.ai.agent.Agent;
 const AgentConfig = abi.ai.agent.AgentConfig;
 const db_helpers = abi.database.db_helpers.helpers;
+const manifest = @import("../build.zig.zon");
 
+const ManifestDependencies = @TypeOf(manifest.dependencies);
+const manifest_dependency_fields = std.meta.fields(ManifestDependencies);
 const DependencyInfo = struct {
     name: []const u8,
     url: ?[]const u8 = null,

@@ -1,21 +1,13 @@
-const mod = @import("mod.zig");
+// Compatibility shim to preserve legacy imports such as
+// `@import("abi").ai.agent.Agent`.
+const abi = @import("mod.zig");
 
-/// Backwards-compatible access to the legacy aggregate namespace.
-pub const abi = mod;
-
-/// Re-export commonly used namespaces for callers that depend on direct
-/// access via `@import("abi").foo`.
-pub const ai = mod.ai;
-pub const gpu = mod.gpu;
-pub const database = mod.database;
-pub const connectors = mod.connectors;
-pub const monitoring = mod.monitoring;
-pub const wdbx = mod.wdbx;
-pub const utils = mod.utils;
-pub const core = mod.core;
-pub const platform = mod.platform;
-pub const logging = mod.logging;
-pub const observability = mod.observability;
-pub const simd = mod.simd;
-pub const framework = mod.framework;
-pub const plugins = mod.plugins;
+pub const ai = abi.ai;
+pub const database = abi.database;
+pub const gpu = abi.gpu;
+pub const web = abi.web;
+pub const monitoring = abi.monitoring;
+pub const connectors = abi.connectors;
+pub const VectorOps = abi.VectorOps;
+pub const framework = abi.framework;
+pub const cli = abi.cli;
