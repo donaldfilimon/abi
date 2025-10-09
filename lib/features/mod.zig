@@ -21,7 +21,7 @@ pub const connectors = @import("connectors/mod.zig");
 pub const config = struct {
     /// Feature enablement flags
     pub const FeatureFlags = std.StaticBitSet(6);
-    
+
     /// Creates feature flags from enabled features
     pub fn createFlags(enabled_features: []const FeatureTag) FeatureFlags {
         var flags = FeatureFlags.initEmpty();
@@ -38,7 +38,7 @@ pub const config = struct {
         }
         return flags;
     }
-    
+
     /// Gets the name of a feature tag
     pub fn getName(tag: FeatureTag) []const u8 {
         return switch (tag) {
@@ -50,7 +50,7 @@ pub const config = struct {
             .connectors => "connectors",
         };
     }
-    
+
     /// Gets the description of a feature tag
     pub fn getDescription(tag: FeatureTag) []const u8 {
         return switch (tag) {
@@ -89,7 +89,7 @@ pub const lifecycle = struct {
             }
         }
     }
-    
+
     /// Deinitializes all enabled features
     pub fn deinitFeatures(enabled_features: []const FeatureTag) void {
         for (enabled_features) |feature| {
@@ -127,14 +127,14 @@ test "feature registry exposes all modules" {
 test "feature configuration" {
     const enabled = [_]FeatureTag{ .ai, .database, .web };
     const flags = config.createFlags(&enabled);
-    
+
     try std.testing.expect(flags.isSet(0)); // ai
     try std.testing.expect(!flags.isSet(1)); // gpu
     try std.testing.expect(flags.isSet(2)); // database
     try std.testing.expect(flags.isSet(3)); // web
     try std.testing.expect(!flags.isSet(4)); // monitoring
     try std.testing.expect(!flags.isSet(5)); // connectors
-    
+
     try std.testing.expectEqualStrings("ai", config.getName(.ai));
     try std.testing.expectEqualStrings("GPU acceleration and compute", config.getDescription(.gpu));
 }

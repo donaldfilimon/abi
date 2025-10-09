@@ -11,8 +11,8 @@
 //! - Hotspot identification and optimization recommendations
 
 const std = @import("std");
-const builtin = @import("builtin");
 const print = std.debug.print;
+const builtin = @import("builtin");
 
 const HEADER_RULE_50 = [_]u8{'='} ** 50;
 const HEADER_RULE_45 = [_]u8{'='} ** 45;

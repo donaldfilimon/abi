@@ -105,7 +105,7 @@ pub const Framework = struct {
             };
             enabled_features.set(idx);
         }
-        
+
         // Remove disabled features
         for (config.disabled_features) |feature| {
             const idx = switch (feature) {
@@ -180,10 +180,7 @@ pub const Framework = struct {
         // Initialize all components first
         try self.initializeAllComponents();
 
-        std.log.info("Framework started with {} components and {} features", .{ 
-            self.stats.total_components, 
-            self.stats.enabled_features 
-        });
+        std.log.info("Framework started with {} components and {} features", .{ self.stats.total_components, self.stats.enabled_features });
     }
 
     pub fn stop(self: *Self) void {
@@ -264,7 +261,7 @@ pub const Framework = struct {
         try writer.print("Features: {}\n", .{self.stats.enabled_features});
         try writer.print("Uptime: {}ms\n", .{self.stats.uptime()});
         try writer.print("Updates: {}\n", .{self.stats.update_count});
-        
+
         if (self.stats.update_count > 0) {
             try writer.print("Last Update: {}ns\n", .{self.stats.last_update_duration_ns});
         }
@@ -274,10 +271,7 @@ pub const Framework = struct {
         const feature_tags = [_]features.FeatureTag{ .ai, .gpu, .database, .web, .monitoring, .connectors };
         for (feature_tags, 0..) |feature, idx| {
             if (self.enabled_features.isSet(idx)) {
-                try writer.print("  - {s}: {s}\n", .{ 
-                    features.config.getName(feature), 
-                    features.config.getDescription(feature) 
-                });
+                try writer.print("  - {s}: {s}\n", .{ features.config.getName(feature), features.config.getDescription(feature) });
             }
         }
     }
@@ -311,7 +305,7 @@ test "framework runtime - basic operations" {
     // Test feature management
     try testing.expect(framework.isFeatureEnabled(.ai));
     try testing.expect(!framework.isFeatureEnabled(.gpu));
-    
+
     framework.enableFeature(.gpu);
     try testing.expect(framework.isFeatureEnabled(.gpu));
 
@@ -325,7 +319,7 @@ test "framework runtime - basic operations" {
 
 test "framework - feature configuration" {
     const testing = std.testing;
-    
+
     const config = RuntimeConfig{
         .enabled_features = &[_]features.FeatureTag{ .ai, .gpu },
         .disabled_features = &[_]features.FeatureTag{.gpu},
