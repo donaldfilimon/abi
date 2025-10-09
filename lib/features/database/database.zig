@@ -245,7 +245,7 @@ pub const Db = struct {
     fn walTruncate(self: *Db) DbError!void {
         if (!self.wal_enabled or self.wal_file == null) return;
         try self.wal_file.?.seekTo(0);
-        self.wal_file.?.setEndPos(0) catch return error.Unexpected;
+        self.wal_file.?.setEndPos(0) catch return DbError.InvalidState;
         try self.wal_file.?.sync();
     }
 
@@ -259,16 +259,7 @@ pub const Db = struct {
             try self.walTruncate();
             return;
         }
-        
-        // Prevent integer overflow and excessive memory allocation
-        const max_reasonable_records = 1_000_000; // Reasonable upper limit
         const num = wal_len / record_size;
-        if (num > max_reasonable_records) {
-            std.log.warn("WAL contains too many records ({d}), truncating to prevent memory issues", .{num});
-            try self.walTruncate();
-            return;
-        }
-        
         const dim: usize = @intCast(self.header.dim);
         const tmp = try self.allocator.alloc(f32, dim);
         defer self.allocator.free(tmp);
