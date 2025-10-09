@@ -212,6 +212,7 @@ pub const Db = struct {
 
         const new_capacity = @max(required_dim, self.read_buffer.len * 2);
         const new_buffer = try self.allocator.alloc(f32, new_capacity);
+        errdefer self.allocator.free(new_buffer);
         self.allocator.free(self.read_buffer);
         self.read_buffer = new_buffer;
     }
@@ -245,7 +246,7 @@ pub const Db = struct {
     fn walTruncate(self: *Db) DbError!void {
         if (!self.wal_enabled or self.wal_file == null) return;
         try self.wal_file.?.seekTo(0);
-        self.wal_file.?.setEndPos(0) catch return error.Unexpected;
+        self.wal_file.?.setEndPos(0) catch return DbError.InvalidState;
         try self.wal_file.?.sync();
     }
 
@@ -441,6 +442,7 @@ pub const Db = struct {
 
         const result_len = @min(top_k, all.len);
         const out = try allocator.alloc(Result, result_len);
+        errdefer allocator.free(out);
         @memcpy(out, all[0..result_len]);
         return out;
     }
@@ -512,7 +514,15 @@ pub const Db = struct {
             return DbError.UnsupportedVersion;
         }
         // Setup WAL (best-effort) and recover if needed
-        self.db_path = allocator.dupe(u8, path) catch &[_]u8{};
+        self.db_path = allocator.dupe(u8, path) catch |err| {
+            self.file.close();
+            allocator.free(self.read_buffer);
+            allocator.destroy(self);
+            return switch (err) {
+                error.OutOfMemory => DbError.InsufficientMemory,
+                else => DbError.FileSystemError,
+            };
+        };
         self.initWAL() catch |err| {
             std.log.warn("WAL init failed: {any}", .{err});
         };
@@ -1018,6 +1028,7 @@ pub const Db = struct {
         // Return top_k results
         const result_count = @min(top_k, all_results.items.len);
         const final_results = try allocator.alloc(Result, result_count);
+        errdefer allocator.free(final_results);
         @memcpy(final_results, all_results.items[0..result_count]);
 
         return final_results;
