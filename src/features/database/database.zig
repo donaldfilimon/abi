@@ -212,6 +212,7 @@ pub const Db = struct {
 
         const new_capacity = @max(required_dim, self.read_buffer.len * 2);
         const new_buffer = try self.allocator.alloc(f32, new_capacity);
+        errdefer self.allocator.free(new_buffer);
         self.allocator.free(self.read_buffer);
         self.read_buffer = new_buffer;
     }
@@ -245,7 +246,7 @@ pub const Db = struct {
     fn walTruncate(self: *Db) DbError!void {
         if (!self.wal_enabled or self.wal_file == null) return;
         try self.wal_file.?.seekTo(0);
-        self.wal_file.?.setEndPos(0) catch return error.Unexpected;
+        self.wal_file.?.setEndPos(0) catch return DbError.InvalidState;
         try self.wal_file.?.sync();
     }
 
@@ -262,7 +263,7 @@ pub const Db = struct {
         const num = wal_len / record_size;
         const dim: usize = @intCast(self.header.dim);
         const tmp = try self.allocator.alloc(f32, dim);
-        defer self.allocator.free(tmp);
+        errdefer self.allocator.free(tmp);
         const tmp_bytes = std.mem.sliceAsBytes(tmp);
         try self.wal_file.?.seekTo(0);
         var i: u64 = 0;
@@ -441,6 +442,7 @@ pub const Db = struct {
 
         const result_len = @min(top_k, all.len);
         const out = try allocator.alloc(Result, result_len);
+        errdefer allocator.free(out);
         @memcpy(out, all[0..result_len]);
         return out;
     }
@@ -512,7 +514,15 @@ pub const Db = struct {
             return DbError.UnsupportedVersion;
         }
         // Setup WAL (best-effort) and recover if needed
-        self.db_path = allocator.dupe(u8, path) catch &[_]u8{};
+        self.db_path = allocator.dupe(u8, path) catch |err| {
+            self.file.close();
+            allocator.free(self.read_buffer);
+            allocator.destroy(self);
+            return switch (err) {
+                error.OutOfMemory => DbError.InsufficientMemory,
+                else => DbError.FileSystemError,
+            };
+        };
         self.initWAL() catch |err| {
             std.log.warn("WAL init failed: {any}", .{err});
         };
@@ -604,8 +614,9 @@ pub const Db = struct {
             distance: f32,
 
             pub fn compare(_: void, a: SearchResult, b: SearchResult) std.math.Order {
-                if (a.distance < b.distance) return .lt;
-                if (a.distance > b.distance) return .gt;
+                // Maintain a max-heap by considering larger distance as "less"
+                if (a.distance > b.distance) return .lt;
+                if (a.distance < b.distance) return .gt;
                 return .eq;
             }
         };
@@ -692,14 +703,15 @@ pub const Db = struct {
                 try self.searchLayer(query, current_layer, &candidates, &visited, &results, top_k);
             }
 
-            // Convert results to array
+            // Convert results to array (in ascending distance order)
             const result_count = @min(top_k, results.count());
             const search_results = try self.allocator.alloc(SearchResult, result_count);
 
-            var i: usize = 0;
-            while (i < result_count) : (i += 1) {
+            // Extract results in reverse order since we're using a max-heap
+            var i: usize = result_count;
+            while (i > 0) : (i -= 1) {
                 const entry = results.remove();
-                search_results[i] = .{ .id = entry.id, .distance = entry.distance };
+                search_results[i - 1] = .{ .id = entry.id, .distance = entry.distance };
             }
 
             return search_results;
@@ -1016,6 +1028,7 @@ pub const Db = struct {
         // Return top_k results
         const result_count = @min(top_k, all_results.items.len);
         const final_results = try allocator.alloc(Result, result_count);
+        errdefer allocator.free(final_results);
         @memcpy(final_results, all_results.items[0..result_count]);
 
         return final_results;

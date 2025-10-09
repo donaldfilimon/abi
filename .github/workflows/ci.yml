@@ -1,39 +1,33 @@
-name: CI
+name: ci
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
 
 jobs:
-  fmt:
-    name: Format check
+  build-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Zig
-        uses: mlugg/setup-zig@v2
+        uses: goto-bus-stop/setup-zig@v2
         with:
-          version: latest
-      - name: Check formatting
+          zig-version: master
+
+      - name: Show Zig version
+        run: zig version
+
+      - name: Format check
         run: zig fmt --check .
 
-  build-and-test:
-    name: Build & Test matrix
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        optimize: [Debug, ReleaseSafe]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          version: latest
       - name: Build
-        run: zig build -Doptimize=${{ matrix.optimize }} --verbose
-      - name: Test
-        run: zig build test -Doptimize=${{ matrix.optimize }} --summary all
+        run: zig build
+
+      - name: Run tests
+        run: zig build test
+
+      - name: Run check aggregate
+        run: zig build check
