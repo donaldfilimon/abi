@@ -1,3 +1,0 @@
-LIBRARY "RoMetadata.dll"
-EXPORTS
-MetaDataGetDispenser@12

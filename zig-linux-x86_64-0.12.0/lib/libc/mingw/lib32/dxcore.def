@@ -1,5 +1,0 @@
-LIBRARY dxcore
-
-EXPORTS
-
-DXCoreCreateAdapterFactory@8

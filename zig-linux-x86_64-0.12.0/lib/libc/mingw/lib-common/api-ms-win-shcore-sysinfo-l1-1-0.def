@@ -1,7 +1,0 @@
-LIBRARY api-ms-win-shcore-sysinfo-l1-1-0
-
-EXPORTS
-
-GetCurrentProcessExplicitAppUserModelID
-IsOS
-SetCurrentProcessExplicitAppUserModelID

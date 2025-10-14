@@ -1,5 +1,0 @@
-LIBRARY api-ms-win-core-xstate-l1-1-2
-
-EXPORTS
-
-RtlLocateExtendedFeature2@16

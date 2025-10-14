@@ -1,7 +1,0 @@
-LIBRARY api-ms-win-shcore-scaling-l1-1-0
-
-EXPORTS
-
-GetScaleFactorForDevice
-RegisterScaleChangeNotifications
-RevokeScaleChangeNotifications

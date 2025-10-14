@@ -1,5 +1,0 @@
-LIBRARY api-ms-win-core-localization-l1-2-1
-
-EXPORTS
-
-EnumSystemLocalesEx@16

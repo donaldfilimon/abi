@@ -1,7 +1,0 @@
-LIBRARY api-ms-win-core-memory-l1-1-5
-
-EXPORTS
-
-MapViewOfFileNuma2
-UnmapViewOfFile2
-VirtualUnlockEx

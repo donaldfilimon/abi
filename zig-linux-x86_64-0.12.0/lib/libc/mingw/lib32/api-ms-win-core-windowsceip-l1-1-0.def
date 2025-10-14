@@ -1,5 +1,0 @@
-LIBRARY api-ms-win-core-windowsceip-l1-1-0
-
-EXPORTS
-
-CeipIsOptedIn@0

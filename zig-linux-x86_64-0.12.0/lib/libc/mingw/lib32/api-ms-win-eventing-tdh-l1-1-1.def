@@ -1,6 +1,0 @@
-LIBRARY api-ms-win-eventing-tdh-l1-1-1
-
-EXPORTS
-
-TdhLoadManifestFromMemory@8
-TdhUnloadManifestFromMemory@8

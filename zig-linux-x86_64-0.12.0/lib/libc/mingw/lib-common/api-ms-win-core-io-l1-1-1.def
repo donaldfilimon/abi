@@ -1,7 +1,0 @@
-LIBRARY api-ms-win-core-io-l1-1-1
-
-EXPORTS
-
-CancelIo
-CancelSynchronousIo
-GetOverlappedResultEx

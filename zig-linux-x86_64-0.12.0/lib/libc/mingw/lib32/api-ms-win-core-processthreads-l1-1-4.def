@@ -1,6 +1,0 @@
-LIBRARY api-ms-win-core-processthreads-l1-1-4
-
-EXPORTS
-
-SetProcessDynamicEHContinuationTargets@12
-SetProcessDynamicEnforcedCetCompatibleRanges@12
