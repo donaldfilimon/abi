@@ -98,20 +98,12 @@ fn createBuildOptions(b: *std.Build, config: BuildConfig) *std.Build.Step.Option
     return options;
 }
 
-<<<<<<< HEAD
-    const build_options = b.addOptions(.{
-        .name = "build_options",
-    });
-
-    // ABI module
-=======
 fn createAbiModule(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     build_options: *std.Build.Step.Options,
 ) *std.Build.Module {
->>>>>>> b17de21c4567850c62ba3b2a072d76ef36b80aa3
     const abi_mod = b.addModule("abi", .{
         .root_source_file = b.path("src/mod.zig"),
         .target = target,
@@ -123,30 +115,6 @@ fn createAbiModule(
     return abi_mod;
 }
 
-<<<<<<< HEAD
-    // CLI module
-    const cli_module = b.createModule(.{
-        .root_source_file = b.path("src/cli_main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    cli_module.addImport("abi", abi_mod);
-    cli_module.addOptions("build_options", build_options);
-
-    // CLI executable
-    const cli_exe = b.addExecutable(.{
-        .name = "abi",
-        .root_module = cli_module,
-    });
-    b.installArtifact(cli_exe);
-
-    // Run step
-    const run_step = b.step("run", "Run the ABI CLI");
-    run_step.dependOn(&b.addRunArtifact(cli_exe).step);
-
-    // Test module
-    const tests_module = b.createModule(.{
-=======
 fn buildCLI(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
@@ -161,6 +129,14 @@ fn buildCLI(
     });
 
     exe.root_module.addImport("abi", abi_module);
+    
+    // Performance optimizations
+    exe.link_function_sections = true;
+    exe.link_data_sections = true;
+    if (optimize != .Debug) {
+        exe.strip = true;
+        exe.link_gc_sections = true;
+    }
 
     return exe;
 }
@@ -175,25 +151,10 @@ fn buildTests(
     // Main test suite
     const main_tests = b.addTest(.{
         .name = "abi_tests",
->>>>>>> b17de21c4567850c62ba3b2a072d76ef36b80aa3
         .root_source_file = b.path("src/tests/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
-<<<<<<< HEAD
-    tests_module.addImport("abi", abi_mod);
-    tests_module.addOptions("build_options", build_options);
-
-    const tests = b.addTest(.{
-        .root_module = tests_module,
-    });
-
-    const run_tests = b.addRunArtifact(tests);
-    run_tests.skip_foreign_checks = true;
-
-    const test_step = b.step("test", "Run the ABI test suite");
-    test_step.dependOn(&run_tests.step);
-=======
     main_tests.root_module.addImport("abi", abi_module);
     main_tests.root_module.addOptions("build_options", build_options);
 
@@ -248,6 +209,12 @@ fn buildExamples(
             .optimize = optimize,
         });
         exe.root_module.addImport("abi", abi_module);
+        
+        // Apply optimizations to examples
+        if (optimize != .Debug) {
+            exe.strip = true;
+            exe.link_gc_sections = true;
+        }
 
         const install_exe = b.addInstallArtifact(exe, .{
             .dest_dir = .{ .override = .{ .custom = "examples" } },
@@ -360,5 +327,4 @@ fn buildTools(
 
     const tools_step = b.step("tools", "Build development tools");
     tools_step.dependOn(&install_profiler.step);
->>>>>>> b17de21c4567850c62ba3b2a072d76ef36b80aa3
 }
