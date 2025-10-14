@@ -1,4 +1,5 @@
 const std = @import("std");
+const build_options = @import("build_options");
 
 /// Symbolic identifiers for the high level feature families exposed by the
 /// framework module. Keeping the enum local avoids circular dependencies with
@@ -6,11 +7,12 @@ const std = @import("std");
 pub const FeatureTag = enum { ai, gpu, database, web, monitoring, connectors };
 
 /// Public feature modules grouped for discoverability.
-pub const ai = @import("ai/mod.zig");
-pub const gpu = @import("gpu/mod.zig");
-pub const database = @import("database/mod.zig");
-pub const web = @import("web/mod.zig");
-pub const monitoring = @import("monitoring/mod.zig");
+/// These are conditionally compiled based on build options to reduce bundle size.
+pub const ai = if (build_options.enable_ai) @import("ai/mod.zig") else struct {};
+pub const gpu = if (build_options.enable_gpu) @import("gpu/mod.zig") else struct {};
+pub const database = if (build_options.enable_database) @import("database/mod.zig") else struct {};
+pub const web = if (build_options.enable_web) @import("web/mod.zig") else struct {};
+pub const monitoring = if (build_options.enable_monitoring) @import("monitoring/mod.zig") else struct {};
 pub const connectors = @import("connectors/mod.zig");
 
 /// Invoke the visitor for every feature module re-exported by this file.

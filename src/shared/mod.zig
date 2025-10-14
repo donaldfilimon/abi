@@ -12,6 +12,7 @@ pub const loader = @import("loader.zig");
 pub const registry = @import("registry.zig");
 pub const types = @import("types.zig");
 pub const observability = @import("observability/mod.zig");
+pub const performance = @import("performance.zig");
 
 // Re-export main types
 pub const Plugin = interface.Plugin;

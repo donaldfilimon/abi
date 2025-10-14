@@ -1,15 +1,3 @@
-<<<<<<< HEAD
-// Public ABI re‑exports – this is what users import as `@import("abi")`.
-pub const ai = @import("features/ai/mod.zig");
-pub const database = @import("features/database/mod.zig");
-pub const gpu = @import("features/gpu/mod.zig");
-pub const web = @import("features/web/mod.zig");
-pub const monitoring = @import("features/monitoring/mod.zig");
-pub const connectors = @import("features/connectors/mod.zig");
-pub const VectorOps = @import("shared/simd.zig");
-pub const framework = @import("framework/mod.zig");
-pub const cli = @import("cli/mod.zig");
-=======
 //! ABI Framework - Main Module Interface
 //!
 //! High level entrypoints and curated re-exports for the reorganised framework
@@ -89,7 +77,7 @@ pub fn shutdown(instance: *Framework) void {
 
 /// Get framework version information.
 pub fn version() []const u8 {
-    return "0.1.0a";
+    return build_options.package_version;
 }
 
 test {
@@ -99,4 +87,3 @@ test {
 test "abi.version returns build package version" {
     try std.testing.expectEqualStrings(build_options.package_version, version());
 }
->>>>>>> b17de21c4567850c62ba3b2a072d76ef36b80aa3
