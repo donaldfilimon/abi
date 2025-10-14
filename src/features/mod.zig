@@ -1,4 +1,5 @@
 const std = @import("std");
+const build_options = @import("build_options");
 
 /// Symbolic identifiers for the high level feature families exposed by the
 /// framework module. Keeping the enum local avoids circular dependencies with
@@ -6,12 +7,35 @@ const std = @import("std");
 pub const FeatureTag = enum { ai, gpu, database, web, monitoring, connectors };
 
 /// Public feature modules grouped for discoverability.
-pub const ai = @import("ai/mod.zig");
-pub const gpu = @import("gpu/mod.zig");
-pub const database = @import("database/mod.zig");
-pub const web = @import("web/mod.zig");
-pub const monitoring = @import("monitoring/mod.zig");
-pub const connectors = @import("connectors/mod.zig");
+pub const ai = if (!@hasDecl(build_options, "enable_ai") or build_options.enable_ai)
+    @import("ai/mod.zig")
+else
+    struct {};
+
+pub const gpu = if (!@hasDecl(build_options, "enable_gpu") or build_options.enable_gpu)
+    @import("gpu/mod.zig")
+else
+    struct {};
+
+pub const database = if (!@hasDecl(build_options, "enable_database") or build_options.enable_database)
+    @import("database/mod.zig")
+else
+    struct {};
+
+pub const web = if (!@hasDecl(build_options, "enable_web") or build_options.enable_web)
+    @import("web/mod.zig")
+else
+    struct {};
+
+pub const monitoring = if (!@hasDecl(build_options, "enable_monitoring") or build_options.enable_monitoring)
+    @import("monitoring/mod.zig")
+else
+    struct {};
+
+pub const connectors = if (!@hasDecl(build_options, "enable_connectors") or build_options.enable_connectors)
+    @import("connectors/mod.zig")
+else
+    struct {};
 
 /// Invoke the visitor for every feature module re-exported by this file.
 pub fn forEachFeature(ctx: anytype, visitor: anytype) void {
