@@ -46,15 +46,56 @@ pub fn MemoryPool(comptime T: type) type {
 
         /// Get an object from the pool
         pub fn get(self: *Self) ?*T {
-            if (self.available.items.len == 0) return null;
+            if (self.available.items.len == 0) {
+                // Try to expand pool if possible
+                if (self.pool.items.len < self.pool.capacity) {
+                    const new_index = self.pool.items.len;
+                    self.pool.items.len += 1;
+                    return &self.pool.items[new_index];
+                }
+                return null;
+            }
             const index = self.available.pop();
             return &self.pool.items[index];
         }
 
         /// Return an object to the pool
         pub fn put(self: *Self, object: *T) void {
-            const index = @intFromPtr(object) - @intFromPtr(&self.pool.items[0]);
-            self.available.append(index) catch {};
+            const pool_start = @intFromPtr(self.pool.items.ptr);
+            const object_ptr = @intFromPtr(object);
+            
+            // Bounds check for safety
+            if (object_ptr < pool_start or object_ptr >= pool_start + (@sizeOf(T) * self.pool.items.len)) {
+                return; // Object not from this pool
+            }
+            
+            const index = (object_ptr - pool_start) / @sizeOf(T);
+            self.available.append(index) catch {
+                // If we can't add to available list, just ignore
+                // This prevents memory leaks in error conditions
+            };
+        }
+
+        /// Get multiple objects at once (batch operation)
+        pub fn getBatch(self: *Self, count: usize) []T {
+            const actual_count = @min(count, self.available.items.len);
+            if (actual_count == 0) return &[_]T{};
+            
+            const start_idx = self.available.items.len - actual_count;
+            const indices = self.available.items[start_idx..];
+            self.available.items.len = start_idx;
+            
+            var result: []T = undefined;
+            result.ptr = @ptrCast(&self.pool.items[indices[0]]);
+            result.len = actual_count;
+            return result;
+        }
+
+        /// Return multiple objects at once (batch operation)
+        pub fn putBatch(self: *Self, objects: []T) void {
+            for (objects) |object| {
+                self.put(&object);
+            }
         }
     };
 }

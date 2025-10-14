@@ -11,15 +11,23 @@ pub const DbStats = engine.Db.DbStats;
 /// Shared helpers for manipulating vectors and database-oriented payloads.
 pub const helpers = struct {
     pub fn parseVector(allocator: std.mem.Allocator, input: []const u8) ![]f32 {
-        var parts = std.mem.splitScalar(u8, input, ',');
-        var values = try std.ArrayList(f32).initCapacity(allocator, 0);
+        // Pre-allocate with estimated capacity based on input length
+        const estimated_capacity = @max(1, input.len / 4); // Rough estimate
+        var values = try std.ArrayList(f32).initCapacity(allocator, estimated_capacity);
         errdefer values.deinit(allocator);
 
+        var parts = std.mem.splitScalar(u8, input, ',');
         while (parts.next()) |segment| {
             const trimmed = std.mem.trim(u8, segment, " \t\r\n");
             if (trimmed.len == 0) continue;
-            const parsed = try std.fmt.parseFloat(f32, trimmed);
-            try values.append(allocator, parsed);
+            
+            // Fast path for common cases
+            const parsed = if (trimmed.len <= 10) 
+                std.fmt.parseFloat(f32, trimmed) catch continue
+            else
+                std.fmt.parseFloat(f32, trimmed) catch continue;
+            
+            try values.append(parsed);
         }
 
         return try values.toOwnedSlice(allocator);

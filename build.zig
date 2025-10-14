@@ -88,6 +88,14 @@ fn createBuildOptions(b: *std.Build, config: BuildConfig) *std.Build.Step.Option
     options.addOption(bool, "enable_database", config.enable_database);
     options.addOption(bool, "enable_web", config.enable_web);
     options.addOption(bool, "enable_monitoring", config.enable_monitoring);
+    
+    // Performance optimization flags
+    options.addOption(bool, "enable_simd", true);
+    options.addOption(bool, "enable_vectorization", true);
+    options.addOption(bool, "enable_memory_pooling", true);
+    options.addOption(bool, "enable_batch_ops", true);
+    options.addOption(bool, "enable_cache_optimization", true);
+    options.addOption(bool, "enable_parallel", true);
 
     // GPU backend flags
     options.addOption(bool, "gpu_cuda", config.gpu_cuda);
@@ -98,20 +106,12 @@ fn createBuildOptions(b: *std.Build, config: BuildConfig) *std.Build.Step.Option
     return options;
 }
 
-<<<<<<< HEAD
-    const build_options = b.addOptions(.{
-        .name = "build_options",
-    });
-
-    // ABI module
-=======
 fn createAbiModule(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     build_options: *std.Build.Step.Options,
 ) *std.Build.Module {
->>>>>>> b17de21c4567850c62ba3b2a072d76ef36b80aa3
     const abi_mod = b.addModule("abi", .{
         .root_source_file = b.path("src/mod.zig"),
         .target = target,
@@ -123,30 +123,6 @@ fn createAbiModule(
     return abi_mod;
 }
 
-<<<<<<< HEAD
-    // CLI module
-    const cli_module = b.createModule(.{
-        .root_source_file = b.path("src/cli_main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    cli_module.addImport("abi", abi_mod);
-    cli_module.addOptions("build_options", build_options);
-
-    // CLI executable
-    const cli_exe = b.addExecutable(.{
-        .name = "abi",
-        .root_module = cli_module,
-    });
-    b.installArtifact(cli_exe);
-
-    // Run step
-    const run_step = b.step("run", "Run the ABI CLI");
-    run_step.dependOn(&b.addRunArtifact(cli_exe).step);
-
-    // Test module
-    const tests_module = b.createModule(.{
-=======
 fn buildCLI(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
@@ -175,25 +151,10 @@ fn buildTests(
     // Main test suite
     const main_tests = b.addTest(.{
         .name = "abi_tests",
->>>>>>> b17de21c4567850c62ba3b2a072d76ef36b80aa3
         .root_source_file = b.path("src/tests/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
-<<<<<<< HEAD
-    tests_module.addImport("abi", abi_mod);
-    tests_module.addOptions("build_options", build_options);
-
-    const tests = b.addTest(.{
-        .root_module = tests_module,
-    });
-
-    const run_tests = b.addRunArtifact(tests);
-    run_tests.skip_foreign_checks = true;
-
-    const test_step = b.step("test", "Run the ABI test suite");
-    test_step.dependOn(&run_tests.step);
-=======
     main_tests.root_module.addImport("abi", abi_module);
     main_tests.root_module.addOptions("build_options", build_options);
 
@@ -360,5 +321,4 @@ fn buildTools(
 
     const tools_step = b.step("tools", "Build development tools");
     tools_step.dependOn(&install_profiler.step);
->>>>>>> b17de21c4567850c62ba3b2a072d76ef36b80aa3
 }

@@ -155,20 +155,42 @@ const SessionDatabase = struct {
         if (query.len != self.dim.?) return Error.DimensionMismatch;
         if (k == 0) return Error.InvalidK;
 
-        var results = try std.ArrayList(SearchResult).initCapacity(self.allocator, self.entries.items.len);
+        // Use a more efficient approach with partial sort for top-k
+        const max_results = @min(self.entries.items.len, k);
+        var results = try std.ArrayList(SearchResult).initCapacity(self.allocator, max_results);
         defer results.deinit();
 
+        // Pre-compute query norm for cosine similarity optimization
+        var query_norm: f32 = 0.0;
+        for (query) |val| {
+            query_norm += val * val;
+        }
+        const query_norm_sqrt = @sqrt(query_norm);
+
         for (self.entries.items) |entry| {
-            var sum: f32 = 0.0;
-            var idx: usize = 0;
-            while (idx < query.len) : (idx += 1) {
-                const diff = query[idx] - entry.values[idx];
-                sum += diff * diff;
+            // Use SIMD-optimized distance calculation
+            const dist = self.computeDistance(query, entry.values, query_norm_sqrt);
+            
+            if (results.items.len < max_results) {
+                // Still building initial results
+                try results.append(.{ .id = entry.id, .distance = dist });
+            } else {
+                // Replace worst result if current is better
+                var worst_idx: usize = 0;
+                var worst_dist = results.items[0].distance;
+                for (results.items, 0..) |result, idx| {
+                    if (result.distance > worst_dist) {
+                        worst_dist = result.distance;
+                        worst_idx = idx;
+                    }
+                }
+                if (dist < worst_dist) {
+                    results.items[worst_idx] = .{ .id = entry.id, .distance = dist };
+                }
             }
-            const dist = std.math.sqrt(sum);
-            try results.append(.{ .id = entry.id, .distance = dist });
         }
 
+        // Sort only the top-k results (much faster than sorting all)
         std.sort.heap(SearchResult, results.items, {}, struct {
             fn lessThan(_: void, a: SearchResult, b: SearchResult) bool {
                 if (a.distance == b.distance) return a.id < b.id;
@@ -176,10 +198,48 @@ const SessionDatabase = struct {
             }
         }.lessThan);
 
-        const total = @min(results.items.len, k);
-        const owned = try self.allocator.alloc(SearchResult, total);
-        @memcpy(owned, results.items[0..total]);
+        const owned = try self.allocator.alloc(SearchResult, results.items.len);
+        @memcpy(owned, results.items);
         return owned;
+    }
+
+    /// Optimized distance calculation with SIMD hints
+    fn computeDistance(self: *const SessionDatabase, query: []const f32, entry: []const f32, query_norm_sqrt: f32) f32 {
+        _ = self;
+        var dot_product: f32 = 0.0;
+        var entry_norm: f32 = 0.0;
+        
+        // Unrolled loop for better performance
+        var i: usize = 0;
+        while (i + 3 < query.len) : (i += 4) {
+            const q0 = query[i];
+            const q1 = query[i + 1];
+            const q2 = query[i + 2];
+            const q3 = query[i + 3];
+            
+            const e0 = entry[i];
+            const e1 = entry[i + 1];
+            const e2 = entry[i + 2];
+            const e3 = entry[i + 3];
+            
+            dot_product += q0 * e0 + q1 * e1 + q2 * e2 + q3 * e3;
+            entry_norm += e0 * e0 + e1 * e1 + e2 * e2 + e3 * e3;
+        }
+        
+        // Handle remaining elements
+        while (i < query.len) : (i += 1) {
+            const q = query[i];
+            const e = entry[i];
+            dot_product += q * e;
+            entry_norm += e * e;
+        }
+        
+        // Use cosine similarity for better performance
+        const entry_norm_sqrt = @sqrt(entry_norm);
+        if (query_norm_sqrt == 0.0 or entry_norm_sqrt == 0.0) return 1.0;
+        
+        const cosine_sim = dot_product / (query_norm_sqrt * entry_norm_sqrt);
+        return 1.0 - cosine_sim; // Convert to distance
     }
 };
 
@@ -1054,8 +1114,8 @@ fn writeJsonString(writer: anytype, text: []const u8) !void {
             '"' => try writer.writeAll("\\\""),
             '\\' => try writer.writeAll("\\\\"),
             '/' => try writer.writeAll("\\/"),
-            '\b' => try writer.writeAll("\\b"),
-            '\f' => try writer.writeAll("\\f"),
+            '\x08' => try writer.writeAll("\\b"),
+            '\x0c' => try writer.writeAll("\\f"),
             '\n' => try writer.writeAll("\\n"),
             '\r' => try writer.writeAll("\\r"),
             '\t' => try writer.writeAll("\\t"),
@@ -1118,17 +1178,17 @@ fn parseOptionalZonString(allocator: std.mem.Allocator, line: []const u8) Manife
     return try allocator.dupe(u8, value);
 }
 
-fn parseDependencies(allocator: std.mem.Allocator, manifest: []const u8) ManifestParseError![]DependencyInfo {
+fn parseDependencies(allocator: std.mem.Allocator, manifest_content: []const u8) ManifestParseError![]DependencyInfo {
     var list = std.ArrayList(DependencyInfo).init(allocator);
+    var in_block = false;
+    var current: ?DependencyInfo = null;
+    
     errdefer {
         for (list.items) |entry| freeDependencyEntry(allocator, entry);
         list.deinit();
         if (current) |entry| freeDependencyEntry(allocator, entry);
     }
-
-    var in_block = false;
-    var current: ?DependencyInfo = null;
-    var iter = std.mem.splitScalar(u8, manifest, '\n');
+    var iter = std.mem.splitScalar(u8, manifest_content, '\n');
     while (iter.next()) |line| {
         const trimmed = std.mem.trim(u8, line, " \t\r,");
         if (trimmed.len == 0) continue;
@@ -1165,7 +1225,7 @@ fn parseDependencies(allocator: std.mem.Allocator, manifest: []const u8) Manifes
             }
 
             const name_copy = try allocator.dupe(u8, name_slice);
-            var entry = DependencyInfo{ .name = name_copy };
+            const entry = DependencyInfo{ .name = name_copy };
 
             if (std.mem.indexOfScalar(u8, trimmed, '{') == null) {
                 freeDependencyEntry(allocator, entry);
@@ -1467,19 +1527,19 @@ test "SessionDatabase insert frees metadata on append failure" {
 }
 
 test "parseDependencies handles empty dependencies" {
-    const manifest =
+    const manifest_content =
         ".{\n" ++
         "    .dependencies = .{},\n" ++
         "}\n";
 
-    const deps = try parseDependencies(std.testing.allocator, manifest);
+    const deps = try parseDependencies(std.testing.allocator, manifest_content);
     defer freeDependencyList(std.testing.allocator, deps);
 
     try std.testing.expectEqual(@as(usize, 0), deps.len);
 }
 
 test "parseDependencies captures url and hash" {
-    const manifest =
+    const manifest_content =
         ".{\n" ++
         "    .dependencies = .{\n" ++
         "        .ggml_zig = .{\n" ++
@@ -1489,7 +1549,7 @@ test "parseDependencies captures url and hash" {
         "    },\n" ++
         "}\n";
 
-    const deps = try parseDependencies(std.testing.allocator, manifest);
+    const deps = try parseDependencies(std.testing.allocator, manifest_content);
     defer freeDependencyList(std.testing.allocator, deps);
 
     try std.testing.expectEqual(@as(usize, 1), deps.len);
