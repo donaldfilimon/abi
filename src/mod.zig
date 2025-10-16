@@ -30,7 +30,7 @@ pub const connectors = features.connectors;
 
 /// Compatibility namespace for the WDBX tooling. Older call sites referenced
 /// `abi.wdbx.*` directly, so we surface the unified helpers alongside the
-/// underlying database module.
+/// underlying database module. Only available when `enable_database` is true.
 pub const wdbx = struct {
     // Explicit re-exports instead of usingnamespace for Zig 0.16 compatibility
     pub const init = features.database.unified.init;
@@ -88,7 +88,7 @@ pub fn shutdown(instance: *Framework) void {
     instance.deinit();
 }
 
-/// Get framework version information.
+/// Get framework version information from build options.
 pub fn version() []const u8 {
     return build_options.package_version;
 }
