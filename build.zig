@@ -105,7 +105,7 @@ fn createAbiModule(
     build_options: *std.Build.Step.Options,
 ) *std.Build.Module {
     const abi_mod = b.addModule("abi", .{
-        .root_source_file = b.path("src/mod.zig"),
+        .root_source_file = b.path("lib/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -291,7 +291,7 @@ fn buildDocs(
     // Zig's built-in documentation
     const lib_step = b.addSharedLibrary(.{
         .name = "abi",
-        .root_source_file = b.path("src/mod.zig"),
+        .root_source_file = b.path("lib/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
