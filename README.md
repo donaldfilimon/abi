@@ -140,24 +140,54 @@ zig build docs-auto
 └─────────────────────────────────────────────┘
 ```
 
-### Module Organization
+### Repository Structure (Post-Refactor)
+
+The codebase follows a clear separation between library and application code:
 
 ```
-lib/
-├── core/              # Core infrastructure
-│   ├── io.zig         # I/O abstractions
-│   ├── errors.zig     # Error definitions
-│   ├── diagnostics.zig # Diagnostics system
+abi/
+├── lib/               # 📚 Core Library (Primary)
+│   ├── core/          # Core infrastructure
+│   │   ├── allocators.zig
+│   │   ├── collections.zig
+│   │   ├── diagnostics.zig
+│   │   ├── errors.zig
+│   │   ├── io.zig
+│   │   ├── types.zig
+│   │   ├── utils.zig
+│   │   └── mod.zig
+│   ├── features/      # Feature modules
+│   │   ├── ai/        # AI/ML capabilities
+│   │   ├── database/  # Vector database
+│   │   ├── gpu/       # GPU acceleration
+│   │   ├── monitoring/
+│   │   ├── web/
+│   │   └── mod.zig
+│   ├── framework/     # Framework runtime
+│   │   ├── runtime.zig
+│   │   ├── config.zig
+│   │   └── mod.zig
+│   ├── shared/        # Shared utilities
+│   │   └── ...
+│   └── mod.zig        # 🎯 Main library entry point
+├── src/               # 🛠️ Application Code
+│   ├── comprehensive_cli.zig  # Main CLI
+│   ├── tools/         # Development tools
+│   ├── examples/      # Example programs
 │   └── ...
-├── features/          # Feature modules
-│   ├── ai/            # AI/ML capabilities
-│   ├── database/      # Vector database
-│   ├── gpu/           # GPU acceleration
-│   └── ...
-└── framework/         # Framework runtime
-    ├── runtime.zig    # Lifecycle management
-    └── ...
+├── tests/             # Test suites
+├── benchmarks/        # Performance benchmarks
+├── examples/          # Standalone examples
+└── build.zig          # Build system
 ```
+
+**Key Points:**
+- `lib/mod.zig` is the **main library entry point** (used via `@import("abi")`)
+- All core functionality lives in `lib/`
+- Application-specific code stays in `src/` and other directories
+- Single source of truth - no duplicate modules
+
+> 📝 See [REFACTOR_NOTES.md](REFACTOR_NOTES.md) for details on the recent consolidation refactor.
 
 ## 🔧 CLI Usage
 
