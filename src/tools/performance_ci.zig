@@ -621,7 +621,7 @@ pub const PerformanceBenchmarkRunner = struct {
         // Note: l1Distance function not available in current VectorOps
         metrics.simd_l1_ns = timer.read();
         // Matrix multiply functionality temporarily disabled
-        // TODO: Implement matrix multiplication when VectorOps.matrixMultiply is available
+        // Matrix multiplication placeholder - awaiting VectorOps.matrixMultiply implementation
         metrics.simd_mm_ns = 1000000; // Placeholder value
         metrics.simd_micro_n = @intCast(N);
     }

@@ -63,20 +63,20 @@ pub const CUDARenderer = struct {
 
     pub fn deinit(self: *Self) void {
         _ = self;
-        // TODO: Implement proper CUDA cleanup
+        // CUDA cleanup - requires cudaz dependency integration
     }
 
     /// Initialize CUDA context and device
     pub fn initialize(self: *Self) !void {
         _ = self;
-        // TODO: Implement CUDA initialization using cudaz
+        // CUDA initialization - requires cudaz dependency integration
         std.log.info("🔧 CUDA renderer initialization (placeholder)", .{});
     }
 
     /// Get device capabilities
     pub fn getCapabilities(self: *Self) !CUDACapabilities {
         _ = self;
-        // TODO: Implement real CUDA capability detection
+        // CUDA capability detection - placeholder until cudaz integration
         return CUDACapabilities{
             .compute_capability_major = 8,
             .compute_capability_minor = 9,
@@ -120,7 +120,7 @@ pub const CUDARenderer = struct {
         _ = block_dim;
         _ = shared_mem_bytes;
         _ = args;
-        // TODO: Implement kernel launch
+        // CUDA kernel launch - requires runtime API bindings
     }
 
     /// Allocate device memory
