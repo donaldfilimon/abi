@@ -1,45 +1,63 @@
-//! AI Feature Module
-//!
-//! Comprehensive AI/ML functionality
-
 const std = @import("std");
+const Schema = @import("schema.zig");
+const Conn = @import("../connectors/mod.zig");
+const Retry = @import("retry.zig");
+const Policy = @import("policy.zig");
+const Wdbx = @import("../features/database/wdbx_adapter.zig");
 
-// Core AI components
-pub const neural = @import("neural.zig");
-pub const layer = @import("layer.zig");
-pub const activations = @import("activations/mod.zig");
-pub const activation = activations; // Legacy alias
-pub const localml = @import("localml.zig");
-pub const training = @import("training/mod.zig");
-
-// Advanced AI features
-pub const transformer = @import("transformer.zig");
-pub const reinforcement_learning = @import("reinforcement_learning.zig");
-pub const enhanced_agent = @import("enhanced_agent.zig");
-pub const agent = @import("agent.zig");
-pub const persona_manifest = @import("persona_manifest.zig");
-pub const tools = struct {
-    pub const summarize = @import("tools/summarize.zig");
-    pub const embed = @import("tools/embed.zig");
+pub const Envelope = struct {
+    id: []const u8,
+    intent: []const u8,
+    payload: []const u8,
+    sensitivity: enum { low, medium, high } = .low,
 };
 
-// Infrastructure
-pub const serialization = @import("serialization/mod.zig");
-pub const model_serialization = serialization;
-pub const model_registry = @import("model_registry.zig");
-pub const distributed = @import("distributed/mod.zig");
-pub const distributed_training = distributed;
-pub const dynamic = @import("dynamic.zig");
+pub const Controller = struct {
+    allocator: std.mem.Allocator,
+    policy: Policy.Policy,
+    connector: Conn.Connector,
 
-pub const optimizers = @import("optimizers/mod.zig");
-pub const interfaces = @import("interfaces.zig");
+    pub fn init(allocator: std.mem.Allocator, policy: Policy.Policy, connector: Conn.Connector) !Controller {
+        try connector.init(allocator);
+        return .{ .allocator = allocator, .policy = policy, .connector = connector };
+    }
 
-// Data structures
-pub const data_structures = @import("data_structures/mod.zig");
+    pub fn summarize(self: *Controller, input: Schema.SummarizeInput) !Schema.SummarizeOutput {
+        try input.validate();
 
-// Legacy compatibility - unified AI core
-pub const ai_core = @import("ai_core.zig");
+        const doc = try Wdbx.getDocument(self.allocator, input.doc_id);
+        defer self.allocator.free(doc);
 
-test {
-    std.testing.refAllDecls(@This());
-}
+        const prompt = try std.fmt.allocPrint(self.allocator, "Summarize:\n{s}\n", .{doc});
+        defer self.allocator.free(prompt);
+
+        var attempt: u8 = 0;
+        while (true) {
+            const res = try self.connector.call(self.allocator, .{
+                .model = "gpt-oss-default",
+                .prompt = prompt,
+                .max_tokens = input.max_tokens,
+            });
+            defer if (res.ok and res.content.len > 0) self.allocator.free(res.content);
+
+            if (res.ok) {
+                const summary_copy = try std.mem.dupe(self.allocator, u8, res.content);
+                var out = Schema.SummarizeOutput{
+                    .summary = summary_copy,
+                    .tokens_used = res.tokens_in + res.tokens_out,
+                };
+                errdefer self.allocator.free(summary_copy);
+                try out.validate();
+                try Wdbx.persistSummary(self.allocator, input.doc_id, out.summary);
+                return out;
+            }
+
+            attempt += 1;
+            if (attempt >= self.policy.retry.max_attempts) {
+                return error.ModelFailed;
+            }
+            const delay = Retry.backoff_ms(attempt, self.policy.retry.base_ms, self.policy.retry.factor);
+            std.time.sleep(@as(u64, delay) * std.time.ns_per_ms);
+        }
+    }
+};

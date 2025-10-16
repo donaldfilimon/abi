@@ -5,6 +5,12 @@
 //! coordinates feature toggles, plugin discovery, and lifecycle management.
 
 const std = @import("std");
+const build_options = @import("build_options");
+const compat = @import("compat.zig");
+
+comptime {
+    _ = compat;
+}
 
 // =============================================================================
 // CORE MODULES
@@ -33,11 +39,26 @@ pub const connectors = features.connectors;
 /// `abi.wdbx.*` directly, so we surface the unified helpers alongside the
 /// underlying database module.
 pub const wdbx = struct {
-    pub usingnamespace features.database.unified;
+    // Explicit exports instead of usingnamespace
     pub const database = features.database.database;
     pub const helpers = features.database.db_helpers;
     pub const cli = features.database.cli;
     pub const http = features.database.http;
+    
+    // Re-export unified functions explicitly
+    pub const createDatabase = features.database.unified.createDatabase;
+    pub const connectDatabase = features.database.unified.connectDatabase;
+    pub const closeDatabase = features.database.unified.closeDatabase;
+    pub const insertVector = features.database.unified.insertVector;
+    pub const searchVectors = features.database.unified.searchVectors;
+    pub const deleteVector = features.database.unified.deleteVector;
+    pub const updateVector = features.database.unified.updateVector;
+    pub const getVector = features.database.unified.getVector;
+    pub const listVectors = features.database.unified.listVectors;
+    pub const getStats = features.database.unified.getStats;
+    pub const optimize = features.database.unified.optimize;
+    pub const backup = features.database.unified.backup;
+    pub const restore = features.database.unified.restore;
 };
 
 // =============================================================================
@@ -82,7 +103,7 @@ pub fn shutdown(instance: *Framework) void {
 
 /// Get framework version information.
 pub fn version() []const u8 {
-    return "0.1.0a";
+    return build_options.package_version;
 }
 
 /// Create a framework with default configuration

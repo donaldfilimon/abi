@@ -105,7 +105,7 @@ fn createAbiModule(
     build_options: *std.Build.Step.Options,
 ) *std.Build.Module {
     const abi_mod = b.addModule("abi", .{
-        .root_source_file = b.path("src/mod.zig"),
+        .root_source_file = b.path("lib/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -123,7 +123,7 @@ fn buildCLI(
 ) *std.Build.Step.Compile {
     const exe = b.addExecutable(.{
         .name = "abi",
-        .root_source_file = b.path("src/comprehensive_cli.zig"),
+        .root_source_file = b.path("tools/cli/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -151,7 +151,7 @@ fn buildTests(
     // Main test suite
     const main_tests = b.addTest(.{
         .name = "abi_tests",
-        .root_source_file = b.path("src/tests/mod.zig"),
+        .root_source_file = b.path("tests/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -194,11 +194,11 @@ fn buildExamples(
     abi_module: *std.Build.Module,
 ) void {
     const examples = [_]struct { name: []const u8, path: []const u8 }{
-        .{ .name = "ai_demo", .path = "src/examples/ai_demo.zig" },
-        .{ .name = "agent_demo", .path = "src/examples/agent_subsystem_demo.zig" },
-        .{ .name = "gpu_demo", .path = "src/examples/gpu_acceleration_demo.zig" },
-        .{ .name = "transformer", .path = "src/examples/transformer_complete_example.zig" },
-        .{ .name = "rl_example", .path = "src/examples/rl_complete_example.zig" },
+        .{ .name = "ai_demo", .path = "examples/ai_demo.zig" },
+        .{ .name = "agent_demo", .path = "examples/agent_subsystem_demo.zig" },
+        .{ .name = "gpu_demo", .path = "examples/gpu_acceleration_demo.zig" },
+        .{ .name = "transformer", .path = "examples/transformer_complete_example.zig" },
+        .{ .name = "rl_example", .path = "examples/rl_complete_example.zig" },
     };
 
     for (examples) |example| {

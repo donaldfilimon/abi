@@ -1,741 +1,763 @@
-//! Enhanced Performance Profiler for ABI Codebase
+//! Performance Profiling Infrastructure
 //!
-//! This tool provides comprehensive performance profiling capabilities including:
-//! - Real-time performance monitoring with statistical analysis
-//! - Memory allocation tracking and heap profiling
-//! - SIMD operation benchmarking and optimization analysis
-//! - CPU instruction profiling with cycle counting
-//! - Database operation performance analysis
-//! - Multi-threaded performance impact analysis
-//! - Performance regression detection
-//! - Hotspot identification and optimization recommendations
+//! This module provides comprehensive and extensible performance profiling capabilities including:
+//! - CPU performance monitoring (sampling and counters)
+//! - Function call tracing and call tree analysis
+//! - Performance counters (custom and built-in)
+//! - Hot path and bottleneck analysis
+//! - Integration with memory tracking
+//! - Thread-aware profiling
+//! - Flexible configuration for development and production
 
 const std = @import("std");
-const print = std.debug.print;
-const builtin = @import("builtin");
+const memory_tracker = @import("memory_tracker.zig");
 
-const HEADER_RULE_50 = [_]u8{'='} ** 50;
-const HEADER_RULE_45 = [_]u8{'='} ** 45;
-
-/// Enhanced profiling configuration with comprehensive options
-const ProfilerConfig = struct {
-    enable_memory_tracking: bool = true,
-    enable_simd_profiling: bool = true,
+/// Performance profiling configuration
+pub const ProfilingConfig = struct {
+    /// Enable CPU profiling (sampling and counters)
     enable_cpu_profiling: bool = true,
-    enable_database_profiling: bool = true,
-    enable_thread_profiling: bool = true,
-    enable_realtime_monitoring: bool = false,
+    /// Enable function call tracing (call stacks, call tree)
+    enable_call_tracing: bool = false,
+    /// Enable performance counters (custom and built-in)
+    enable_counters: bool = true,
+    /// Sampling interval (nanoseconds) for periodic sampling
+    sampling_interval_ns: u64 = 1_000_000, // 1ms
+    /// Maximum number of call stack frames to record
+    max_stack_depth: usize = 64,
+    /// Enable memory integration (track allocations/deallocations)
+    enable_memory_integration: bool = true,
+    /// Performance report output interval (nanoseconds)
+    report_interval_ns: u64 = 10_000_000_000, // 10 seconds
+    /// Maximum number of function profilers to keep
+    max_function_profilers: usize = 1024,
+    /// Maximum number of call records to keep in a session
+    max_call_records: usize = 10_000,
+};
 
-    // Sampling and measurement options
-    sample_interval_ms: u64 = 10,
-    measurement_duration_s: u64 = 60,
-    warmup_iterations: usize = 100,
-    benchmark_iterations: usize = 1000,
-    min_execution_time_ns: u64 = 1000,
+/// Function call record (for call tracing and call tree)
+pub const CallRecord = struct {
+    function_name: []const u8,
+    file: []const u8,
+    line: u32,
+    entry_time: u64,
+    exit_time: u64 = 0,
+    depth: u32,
+    parent_id: ?u64,
+    call_id: u64,
+    thread_id: std.Thread.Id,
 
-    // Memory tracking options
-    track_allocations: bool = true,
-    track_deallocations: bool = true,
-    allocation_stack_depth: usize = 8,
-    memory_leak_detection: bool = true,
+    /// Calculate call duration (nanoseconds)
+    pub fn duration(self: CallRecord) u64 {
+        if (self.exit_time == 0) return 0;
+        return self.exit_time - self.entry_time;
+    }
 
-    // Output options
-    output_format: OutputFormat = .detailed_text,
-    output_file: ?[]const u8 = null,
-    enable_json_export: bool = false,
-    enable_csv_export: bool = false,
-    enable_flamegraph: bool = false,
-
-    const OutputFormat = enum {
-        detailed_text,
-        compact_text,
-        json,
-        csv,
-        flamegraph,
-    };
-
-    pub fn fromEnv(allocator: std.mem.Allocator) !ProfilerConfig {
-        var config = ProfilerConfig{};
-
-        if (std.process.getEnvVarOwned(allocator, "PROFILER_MEMORY_TRACKING")) |val| {
-            defer allocator.free(val);
-            config.enable_memory_tracking = std.mem.eql(u8, val, "true") or std.mem.eql(u8, val, "1");
-        } else |_| {}
-
-        if (std.process.getEnvVarOwned(allocator, "PROFILER_SIMD")) |val| {
-            defer allocator.free(val);
-            config.enable_simd_profiling = std.mem.eql(u8, val, "true") or std.mem.eql(u8, val, "1");
-        } else |_| {}
-
-        if (std.process.getEnvVarOwned(allocator, "PROFILER_DURATION")) |val| {
-            defer allocator.free(val);
-            config.measurement_duration_s = std.fmt.parseInt(u64, val, 10) catch config.measurement_duration_s;
-        } else |_| {}
-
-        if (std.process.getEnvVarOwned(allocator, "PROFILER_FORMAT")) |val| {
-            defer allocator.free(val);
-            config.output_format = std.meta.stringToEnum(OutputFormat, val) orelse .detailed_text;
-        } else |_| {}
-
-        return config;
+    /// Check if call is complete (has exit time)
+    pub fn isComplete(self: CallRecord) bool {
+        return self.exit_time != 0;
     }
 };
 
-/// Enhanced performance metrics with statistical analysis
-const PerformanceMetrics = struct {
-    operation_name: []const u8,
-    total_executions: usize,
-    total_time_ns: u64,
-    min_time_ns: u64,
-    max_time_ns: u64,
-    avg_time_ns: f64,
-    median_time_ns: u64,
-    p95_time_ns: u64,
-    p99_time_ns: u64,
-    std_dev_ns: f64,
-    coefficient_of_variation: f64,
+/// Performance counter (for custom and built-in metrics)
+pub const PerformanceCounter = struct {
+    name: []const u8,
+    value: u64 = 0,
+    unit: []const u8,
+    description: []const u8,
+    last_update: u64 = 0,
 
-    // Memory metrics
-    total_allocations: usize,
-    total_deallocations: usize,
-    peak_memory_usage: usize,
-    average_memory_usage: f64,
-    memory_leak_count: usize,
-
-    // CPU metrics
-    cpu_cycles_avg: u64,
-    instructions_per_cycle: f64,
-    cache_miss_rate: f64,
-
-    // SIMD metrics
-    simd_operations_count: usize,
-    simd_efficiency_score: f64,
-    vectorization_ratio: f64,
-
-    pub fn init(operation_name: []const u8) PerformanceMetrics {
-        return .{
-            .operation_name = operation_name,
-            .total_executions = 0,
-            .total_time_ns = 0,
-            .min_time_ns = std.math.maxInt(u64),
-            .max_time_ns = 0,
-            .avg_time_ns = 0.0,
-            .median_time_ns = 0,
-            .p95_time_ns = 0,
-            .p99_time_ns = 0,
-            .std_dev_ns = 0.0,
-            .coefficient_of_variation = 0.0,
-            .total_allocations = 0,
-            .total_deallocations = 0,
-            .peak_memory_usage = 0,
-            .average_memory_usage = 0.0,
-            .memory_leak_count = 0,
-            .cpu_cycles_avg = 0,
-            .instructions_per_cycle = 0.0,
-            .cache_miss_rate = 0.0,
-            .simd_operations_count = 0,
-            .simd_efficiency_score = 0.0,
-            .vectorization_ratio = 0.0,
-        };
+    pub fn increment(self: *PerformanceCounter) void {
+        self.value += 1;
+        self.last_update = std.time.nanoTimestamp();
     }
 
-    pub fn calculateStatistics(self: *PerformanceMetrics, measurements: []const u64) void {
-        if (measurements.len == 0) return;
-
-        self.total_executions = measurements.len;
-
-        // Calculate basic statistics
-        var sum: u64 = 0;
-        self.min_time_ns = std.math.maxInt(u64);
-        self.max_time_ns = 0;
-
-        for (measurements) |measurement| {
-            sum += measurement;
-            self.min_time_ns = @min(self.min_time_ns, measurement);
-            self.max_time_ns = @max(self.max_time_ns, measurement);
-        }
-
-        self.total_time_ns = sum;
-        self.avg_time_ns = @as(f64, @floatFromInt(sum)) / @as(f64, @floatFromInt(measurements.len));
-
-        // Calculate percentiles
-        var sorted_measurements = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-        defer sorted_measurements.deinit();
-        const arena_allocator = sorted_measurements.allocator();
-
-        const sorted = arena_allocator.dupe(u64, measurements) catch return;
-        std.mem.sort(u64, sorted, {}, std.sort.asc(u64));
-
-        self.median_time_ns = sorted[sorted.len / 2];
-        self.p95_time_ns = sorted[@min(sorted.len - 1, (sorted.len * 95) / 100)];
-        self.p99_time_ns = sorted[@min(sorted.len - 1, (sorted.len * 99) / 100)];
-
-        // Calculate standard deviation
-        var variance_sum: f64 = 0.0;
-        for (measurements) |measurement| {
-            const diff = @as(f64, @floatFromInt(measurement)) - self.avg_time_ns;
-            variance_sum += diff * diff;
-        }
-
-        const variance = variance_sum / @as(f64, @floatFromInt(measurements.len));
-        self.std_dev_ns = @sqrt(variance);
-        self.coefficient_of_variation = if (self.avg_time_ns > 0) self.std_dev_ns / self.avg_time_ns else 0.0;
+    pub fn add(self: *PerformanceCounter, delta: u64) void {
+        self.value += delta;
+        self.last_update = std.time.nanoTimestamp();
     }
 
-    pub fn toJson(self: PerformanceMetrics, allocator: std.mem.Allocator) ![]u8 {
-        return std.fmt.allocPrint(allocator,
-            \\{{
-            \\  "operation": "{s}",
-            \\  "executions": {d},
-            \\  "total_time_ns": {d},
-            \\  "avg_time_ns": {d:.2},
-            \\  "min_time_ns": {d},
-            \\  "max_time_ns": {d},
-            \\  "median_time_ns": {d},
-            \\  "p95_time_ns": {d},
-            \\  "p99_time_ns": {d},
-            \\  "std_dev_ns": {d:.2},
-            \\  "coefficient_of_variation": {d:.4},
-            \\  "allocations": {d},
-            \\  "deallocations": {d},
-            \\  "peak_memory": {d},
-            \\  "memory_leaks": {d},
-            \\  "simd_ops": {d},
-            \\  "simd_efficiency": {d:.4},
-            \\  "vectorization_ratio": {d:.4}
-            \\}}
-        , .{ self.operation_name, self.total_executions, self.total_time_ns, self.avg_time_ns, self.min_time_ns, self.max_time_ns, self.median_time_ns, self.p95_time_ns, self.p99_time_ns, self.std_dev_ns, self.coefficient_of_variation, self.total_allocations, self.total_deallocations, self.peak_memory_usage, self.memory_leak_count, self.simd_operations_count, self.simd_efficiency_score, self.vectorization_ratio });
+    pub fn set(self: *PerformanceCounter, new_value: u64) void {
+        self.value = new_value;
+        self.last_update = std.time.nanoTimestamp();
+    }
+
+    pub fn reset(self: *PerformanceCounter) void {
+        self.value = 0;
+        self.last_update = std.time.nanoTimestamp();
     }
 };
 
-/// Memory allocation tracker for heap profiling
-const MemoryTracker = struct {
+/// Performance profile data (per session)
+pub const PerformanceProfile = struct {
+    total_time: u64 = 0,
+    cpu_time: u64 = 0,
+    allocations: u64 = 0,
+    deallocations: u64 = 0,
+    peak_memory: usize = 0,
+    call_records: std.ArrayListUnmanaged(CallRecord),
+    counters: std.StringHashMapUnmanaged(PerformanceCounter),
+    start_time: u64,
+    end_time: u64 = 0,
+    session_name: []const u8 = "",
+
+    pub fn duration(self: PerformanceProfile) u64 {
+        if (self.end_time == 0) return std.time.nanoTimestamp() - self.start_time;
+        return self.end_time - self.start_time;
+    }
+
+    pub fn durationSeconds(self: PerformanceProfile) f64 {
+        return @as(f64, @floatFromInt(self.duration())) / 1_000_000_000.0;
+    }
+
+    pub fn cpuUtilization(self: PerformanceProfile) f64 {
+        const total_duration = self.duration();
+        if (total_duration == 0) return 0.0;
+        return @as(f64, @floatFromInt(self.cpu_time)) / @as(f64, @floatFromInt(total_duration));
+    }
+};
+
+/// Function profiler for instrumenting and aggregating function stats
+pub const FunctionProfiler = struct {
+    function_name: []const u8,
+    file_name: []const u8,
+    line_number: u32,
+    call_count: u64 = 0,
+    total_time: u64 = 0,
+    min_time: u64 = std.math.maxInt(u64),
+    max_time: u64 = 0,
+    average_time: f64 = 0,
+    last_call_time: u64 = 0,
+
+    pub fn enter(self: *FunctionProfiler) u64 {
+        const entry_time = std.time.nanoTimestamp();
+        self.call_count += 1;
+        self.last_call_time = entry_time;
+        return entry_time;
+    }
+
+    pub fn exit(self: *FunctionProfiler, entry_time: u64) void {
+        const exit_time = std.time.nanoTimestamp();
+        const duration = exit_time - entry_time;
+
+        self.total_time += duration;
+
+        if (duration < self.min_time) self.min_time = duration;
+        if (duration > self.max_time) self.max_time = duration;
+
+        // Exponential moving average for average_time
+        if (self.call_count == 1) {
+            self.average_time = @as(f64, @floatFromInt(duration));
+        } else {
+            const alpha = 0.1;
+            self.average_time = self.average_time * (1.0 - alpha) + @as(f64, @floatFromInt(duration)) * alpha;
+        }
+    }
+
+    pub fn averageExecutionTime(self: FunctionProfiler) u64 {
+        if (self.call_count == 0) return 0;
+        return @intFromFloat(self.average_time);
+    }
+};
+
+/// Main performance profiler
+pub const PerformanceProfiler = struct {
+    config: ProfilingConfig,
     allocator: std.mem.Allocator,
-    tracked_allocations: std.AutoHashMapUnmanaged(usize, AllocationInfo),
-    total_allocated: usize,
-    total_freed: usize,
-    peak_usage: usize,
-    current_usage: usize,
-    allocation_count: usize,
-    deallocation_count: usize,
+    function_profilers: std.StringHashMapUnmanaged(FunctionProfiler),
+    current_profile: ?PerformanceProfile = null,
+    call_stack: std.ArrayListUnmanaged(CallRecord),
+    counters: std.StringHashMapUnmanaged(PerformanceCounter),
+    next_call_id: u64 = 1,
+    memory_tracker: ?*memory_tracker.MemoryProfiler = null,
+    mutex: std.Thread.Mutex = .{},
+    profiling_thread: ?std.Thread = null,
+    stop_profiling: bool = false,
 
-    const AllocationInfo = struct {
-        size: usize,
-        timestamp: i64,
-        stack_trace: [8]usize, // Simplified stack trace
-    };
+    /// Initialize performance profiler
+    pub fn init(allocator: std.mem.Allocator, config: ProfilingConfig) !*PerformanceProfiler {
+        const self = try allocator.create(PerformanceProfiler);
+        errdefer allocator.destroy(self);
 
-    pub fn init(allocator: std.mem.Allocator) MemoryTracker {
-        return .{
+        self.* = .{
+            .config = config,
             .allocator = allocator,
-            .tracked_allocations = .{},
-            .total_allocated = 0,
-            .total_freed = 0,
-            .peak_usage = 0,
-            .current_usage = 0,
-            .allocation_count = 0,
-            .deallocation_count = 0,
-        };
-    }
-
-    pub fn deinit(self: *MemoryTracker) void {
-        self.tracked_allocations.deinit(self.allocator);
-    }
-
-    pub fn trackAllocation(self: *MemoryTracker, ptr: usize, size: usize) !void {
-        const info = AllocationInfo{
-            .size = size,
-            .timestamp = std.time.milliTimestamp(),
-            .stack_trace = [_]usize{0} ** 8, // Simplified - would need actual stack trace
+            .function_profilers = std.StringHashMapUnmanaged(FunctionProfiler){},
+            .call_stack = try std.ArrayListUnmanaged(CallRecord).initCapacity(allocator, config.max_stack_depth),
+            .counters = std.StringHashMapUnmanaged(PerformanceCounter){},
         };
 
-        try self.tracked_allocations.put(self.allocator, ptr, info);
-        self.total_allocated += size;
-        self.current_usage += size;
-        self.allocation_count += 1;
-        self.peak_usage = @max(self.peak_usage, self.current_usage);
+        try self.initDefaultCounters();
+        return self;
     }
 
-    pub fn trackDeallocation(self: *MemoryTracker, ptr: usize) void {
-        if (self.tracked_allocations.fetchRemove(ptr)) |kv| {
-            self.total_freed += kv.value.size;
-            self.current_usage -= kv.value.size;
-            self.deallocation_count += 1;
+    /// Deinitialize performance profiler and free all resources
+    pub fn deinit(self: *PerformanceProfiler) void {
+        self.stop();
+
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        // Clean up function profilers
+        var profiler_iter = self.function_profilers.iterator();
+        while (profiler_iter.next()) |entry| {
+            self.allocator.free(entry.key_ptr.*);
+            self.allocator.free(entry.value_ptr.function_name);
+            self.allocator.free(entry.value_ptr.file_name);
+        }
+        self.function_profilers.deinit(self.allocator);
+
+        // Clean up current profile
+        if (self.current_profile) |*profile| {
+            profile.call_records.deinit(self.allocator);
+            var counter_iter = profile.counters.iterator();
+            while (counter_iter.next()) |entry| {
+                self.allocator.free(entry.key_ptr.*);
+            }
+            profile.counters.deinit(self.allocator);
+            if (profile.session_name.len > 0) self.allocator.free(profile.session_name);
+        }
+
+        // Clean up call stack
+        for (self.call_stack.items) |record| {
+            self.allocator.free(record.function_name);
+            self.allocator.free(record.file);
+        }
+        self.call_stack.deinit(self.allocator);
+
+        // Clean up counters
+        var counter_iter = self.counters.iterator();
+        while (counter_iter.next()) |entry| {
+            self.allocator.free(entry.key_ptr.*);
+        }
+        self.counters.deinit(self.allocator);
+
+        self.allocator.destroy(self);
+    }
+
+    /// Initialize default performance counters
+    fn initDefaultCounters(self: *PerformanceProfiler) !void {
+        const default_counters = [_]struct {
+            name: []const u8,
+            unit: []const u8,
+            description: []const u8,
+        }{
+            .{ .name = "cpu_cycles", .unit = "cycles", .description = "CPU cycles consumed" },
+            .{ .name = "instructions", .unit = "instructions", .description = "Instructions executed" },
+            .{ .name = "cache_misses", .unit = "misses", .description = "Cache misses" },
+            .{ .name = "branch_misses", .unit = "misses", .description = "Branch prediction misses" },
+            .{ .name = "allocations", .unit = "count", .description = "Memory allocations" },
+            .{ .name = "deallocations", .unit = "count", .description = "Memory deallocations" },
+            .{ .name = "function_calls", .unit = "count", .description = "Function calls" },
+            .{ .name = "cpu_time", .unit = "ns", .description = "CPU time measured" },
+        };
+
+        for (default_counters) |counter_def| {
+            const name_copy = try self.allocator.dupe(u8, counter_def.name);
+            const unit_copy = try self.allocator.dupe(u8, counter_def.unit);
+            const desc_copy = try self.allocator.dupe(u8, counter_def.description);
+
+            try self.counters.put(self.allocator, name_copy, .{
+                .name = name_copy,
+                .unit = unit_copy,
+                .description = desc_copy,
+            });
         }
     }
 
-    pub fn getMemoryLeaks(self: *MemoryTracker) usize {
-        return self.tracked_allocations.count();
+    /// Start profiling session
+    pub fn startSession(self: *PerformanceProfiler, session_name: []const u8) !void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        if (self.current_profile != null) {
+            return error.ProfilingAlreadyActive;
+        }
+
+        const start_time = std.time.nanoTimestamp();
+        const session_name_copy = try self.allocator.dupe(u8, session_name);
+
+        self.current_profile = .{
+            .call_records = try std.ArrayListUnmanaged(CallRecord).initCapacity(self.allocator, self.config.max_call_records),
+            .counters = std.StringHashMapUnmanaged(PerformanceCounter){},
+            .start_time = start_time,
+            .session_name = session_name_copy,
+        };
+
+        // Copy current counters to profile
+        var counter_iter = self.counters.iterator();
+        while (counter_iter.next()) |entry| {
+            const name_copy = try self.allocator.dupe(u8, entry.key_ptr.*);
+            try self.current_profile.?.counters.put(self.allocator, name_copy, entry.value_ptr.*);
+        }
+
+        std.log.info("Started performance profiling session: {s}", .{session_name});
+
+        if (self.config.enable_cpu_profiling) {
+            self.startProfilingThread();
+        }
     }
 
-    pub fn generateReport(self: *MemoryTracker, allocator: std.mem.Allocator) ![]u8 {
-        return std.fmt.allocPrint(allocator,
-            \\Memory Tracking Report:
-            \\  Total Allocated: {d} bytes
-            \\  Total Freed: {d} bytes
-            \\  Peak Usage: {d} bytes
-            \\  Current Usage: {d} bytes
-            \\  Allocations: {d}
-            \\  Deallocations: {d}
-            \\  Memory Leaks: {d}
-            \\  Efficiency: {d:.2}%
-        , .{ self.total_allocated, self.total_freed, self.peak_usage, self.current_usage, self.allocation_count, self.deallocation_count, self.getMemoryLeaks(), if (self.total_allocated > 0) (@as(f64, @floatFromInt(self.total_freed)) / @as(f64, @floatFromInt(self.total_allocated))) * 100.0 else 0.0 });
+    /// End profiling session and return report
+    pub fn endSession(self: *PerformanceProfiler) ![]u8 {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        if (self.current_profile == null) {
+            return error.NoActiveProfilingSession;
+        }
+
+        var profile = self.current_profile.?;
+        profile.end_time = std.time.nanoTimestamp();
+
+        // Calculate profile statistics
+        profile.total_time = profile.duration();
+
+        // Calculate CPU time from call records
+        var total_cpu_time: u64 = 0;
+        for (profile.call_records.items) |record| {
+            if (record.isComplete()) {
+                total_cpu_time += record.duration();
+            }
+        }
+        profile.cpu_time = total_cpu_time;
+
+        // Get memory statistics if integrated
+        if (self.memory_tracker) |tracker| {
+            const stats = tracker.getStats();
+            profile.peak_memory = stats.peak_usage;
+            profile.allocations = stats.total_allocation_count;
+            profile.deallocations = stats.total_deallocation_count;
+        }
+
+        // Generate report
+        const report = try self.generateProfileReport(&profile);
+
+        // Clean up profile
+        for (profile.call_records.items) |record| {
+            self.allocator.free(record.function_name);
+            self.allocator.free(record.file);
+        }
+        profile.call_records.deinit(self.allocator);
+        var counter_iter = profile.counters.iterator();
+        while (counter_iter.next()) |entry| {
+            self.allocator.free(entry.key_ptr.*);
+        }
+        profile.counters.deinit(self.allocator);
+        if (profile.session_name.len > 0) self.allocator.free(profile.session_name);
+
+        self.current_profile = null;
+
+        return report;
     }
-};
 
-/// SIMD operations analyzer and benchmark suite
-const SIMDAnalyzer = struct {
-    const VectorSize = 8;
-    const FloatVector = @Vector(VectorSize, f32);
+    /// Start function call (for call tracing)
+    pub fn startFunctionCall(self: *PerformanceProfiler, function_name: []const u8, file: []const u8, line: u32) !u64 {
+        if (!self.config.enable_call_tracing) return 0;
 
-    pub fn benchmarkVectorOperations(allocator: std.mem.Allocator, iterations: usize) !PerformanceMetrics {
-        var metrics = PerformanceMetrics.init("SIMD Vector Operations");
-        const measurements = try allocator.alloc(u64, iterations);
-        defer allocator.free(measurements);
+        self.mutex.lock();
+        defer self.mutex.unlock();
 
-        // Generate test data
-        var arena = std.heap.ArenaAllocator.init(allocator);
-        defer arena.deinit();
-        const arena_allocator = arena.allocator();
+        const entry_time = std.time.nanoTimestamp();
+        const call_id = self.next_call_id;
+        self.next_call_id += 1;
 
-        const test_vectors_a = try arena_allocator.alloc(FloatVector, 1000);
-        const test_vectors_b = try arena_allocator.alloc(FloatVector, 1000);
+        const parent_id = if (self.call_stack.items.len > 0)
+            self.call_stack.items[self.call_stack.items.len - 1].call_id
+        else
+            null;
 
-        // Initialize with random data
-        var prng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
-        var random = prng.random();
+        const record = CallRecord{
+            .function_name = try self.allocator.dupe(u8, function_name),
+            .file = try self.allocator.dupe(u8, file),
+            .line = line,
+            .entry_time = entry_time,
+            .depth = @intCast(self.call_stack.items.len),
+            .parent_id = parent_id,
+            .call_id = call_id,
+            .thread_id = std.Thread.getCurrentId(),
+        };
 
-        for (test_vectors_a, test_vectors_b) |*a, *b| {
-            inline for (0..VectorSize) |i| {
-                a.*[i] = random.float(f32) * 100.0;
-                b.*[i] = random.float(f32) * 100.0;
+        try self.call_stack.append(self.allocator, record);
+
+        // Update function profiler
+        const key = try std.fmt.allocPrint(self.allocator, "{s}:{s}:{d}", .{ function_name, file, line });
+        defer self.allocator.free(key);
+
+        const gop = try self.function_profilers.getOrPut(self.allocator, key);
+        if (!gop.found_existing) {
+            gop.value_ptr.* = .{
+                .function_name = try self.allocator.dupe(u8, function_name),
+                .file_name = try self.allocator.dupe(u8, file),
+                .line_number = line,
+            };
+        }
+
+        const profiler_entry_time = gop.value_ptr.enter();
+
+        // Add to current profile if active
+        if (self.current_profile) |*profile| {
+            try profile.call_records.append(self.allocator, record);
+        }
+
+        // Update function calls counter
+        if (self.counters.getPtr("function_calls")) |counter| {
+            counter.increment();
+        }
+
+        return profiler_entry_time;
+    }
+
+    /// End function call (for call tracing)
+    pub fn endFunctionCall(self: *PerformanceProfiler, entry_time: u64) void {
+        if (!self.config.enable_call_tracing) return;
+
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        if (self.call_stack.items.len == 0) return;
+
+        const record = self.call_stack.pop();
+        const exit_time = std.time.nanoTimestamp();
+
+        // Update record in current profile
+        if (self.current_profile) |*profile| {
+            for (profile.call_records.items) |*rec| {
+                if (rec.call_id == record.call_id) {
+                    rec.exit_time = exit_time;
+                    break;
+                }
             }
         }
 
-        // Benchmark vector operations
-        for (measurements, 0..) |*measurement, i| {
-            const start = std.time.nanoTimestamp();
+        // Update function profiler
+        const key = std.fmt.allocPrint(self.allocator, "{s}:{s}:{d}", .{ record.function_name, record.file, record.line }) catch return;
+        defer self.allocator.free(key);
 
-            // Perform various SIMD operations
-            for (test_vectors_a, test_vectors_b) |a, b| {
-                const add_result = a + b;
-                const mul_result = a * b;
-                const dot_product = @reduce(.Add, add_result * mul_result);
+        if (self.function_profilers.getPtr(key)) |profiler| {
+            profiler.exit(entry_time);
+        }
 
-                // Prevent optimization
-                if (dot_product < 0) {
-                    @breakpoint();
+        // Clean up record strings
+        self.allocator.free(record.function_name);
+        self.allocator.free(record.file);
+    }
+
+    /// Update or create a performance counter
+    pub fn updateCounter(self: *PerformanceProfiler, name: []const u8, delta: u64) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        if (self.counters.getPtr(name)) |counter| {
+            counter.add(delta);
+        } else if (self.config.enable_counters) {
+            const name_copy = self.allocator.dupe(u8, name) catch return;
+            const counter = PerformanceCounter{
+                .name = name_copy,
+                .value = delta,
+                .unit = "count",
+                .description = "Auto-generated counter",
+                .last_update = std.time.nanoTimestamp(),
+            };
+
+            self.counters.put(self.allocator, name_copy, counter) catch {
+                self.allocator.free(name_copy);
+                return;
+            };
+        }
+    }
+
+    /// Get function profiler statistics (sorted by total_time descending)
+    pub fn getFunctionStats(self: *PerformanceProfiler, allocator: std.mem.Allocator) ![]FunctionProfiler {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        var stats = std.ArrayListUnmanaged(FunctionProfiler){};
+        errdefer stats.deinit(allocator);
+
+        var iter = self.function_profilers.iterator();
+        while (iter.next()) |entry| {
+            try stats.append(allocator, entry.value_ptr.*);
+        }
+
+        // Sort by total_time descending
+        std.sort.insertion(FunctionProfiler, stats.items, {}, struct {
+            fn lessThan(_: void, a: FunctionProfiler, b: FunctionProfiler) bool {
+                return a.total_time > b.total_time;
+            }
+        }.lessThan);
+
+        return try stats.toOwnedSlice(allocator);
+    }
+
+    /// Generate profiling report (returns owned slice)
+    fn generateProfileReport(self: *PerformanceProfiler, profile: *PerformanceProfile) ![]u8 {
+        var report = std.ArrayListUnmanaged(u8){};
+        errdefer report.deinit(self.allocator);
+
+        const writer = report.writer(self.allocator);
+
+        try writer.print("=== Performance Profile Report ===\n", .{});
+        if (profile.session_name.len > 0)
+            try writer.print("Session: {s}\n", .{profile.session_name});
+        try writer.print("Duration: {d:.3} seconds\n", .{profile.durationSeconds()});
+        try writer.print("Total CPU Time: {d} ns\n", .{profile.cpu_time});
+        try writer.print("CPU Utilization: {d:.1}%\n", .{profile.cpuUtilization() * 100.0});
+
+        if (self.memory_tracker != null) {
+            try writer.print("Peak Memory Usage: {d} bytes\n", .{profile.peak_memory});
+            try writer.print("Memory Allocations: {d}\n", .{profile.allocations});
+            try writer.print("Memory Deallocations: {d}\n", .{profile.deallocations});
+        }
+
+        try writer.print("Function Calls Recorded: {d}\n", .{profile.call_records.items.len});
+
+        // Performance counters
+        try writer.print("\n=== Performance Counters ===\n", .{});
+        var counter_iter = profile.counters.iterator();
+        while (counter_iter.next()) |entry| {
+            try writer.print("  {s}: {d} {s} - {s}\n", .{
+                entry.value_ptr.name,
+                entry.value_ptr.value,
+                entry.value_ptr.unit,
+                entry.value_ptr.description,
+            });
+        }
+
+        // Top functions by execution time
+        try writer.print("\n=== Top Functions by Execution Time ===\n", .{});
+        const function_stats = try self.getFunctionStats(self.allocator);
+        defer self.allocator.free(function_stats);
+
+        const top_count = @min(10, function_stats.len);
+        for (function_stats[0..top_count], 0..) |func, i| {
+            const total_ms = @as(f64, @floatFromInt(func.total_time)) / 1_000_000.0;
+            const avg_ns = func.averageExecutionTime();
+            try writer.print("  {d}. {s} ({s}:{d})\n", .{ i + 1, func.function_name, func.file_name, func.line_number });
+            try writer.print("     Calls: {d}, Total: {d:.3}ms, Avg: {d}ns, Min: {d}ns, Max: {d}ns\n", .{
+                func.call_count, total_ms, avg_ns, func.min_time, func.max_time,
+            });
+        }
+
+        // Call tree analysis (simplified)
+        if (profile.call_records.items.len > 0) {
+            try writer.print("\n=== Call Tree Analysis ===\n", .{});
+            try writer.print("Total function calls: {d}\n", .{profile.call_records.items.len});
+
+            var completed_calls: usize = 0;
+            var total_call_time: u64 = 0;
+
+            for (profile.call_records.items) |record| {
+                if (record.isComplete()) {
+                    completed_calls += 1;
+                    total_call_time += record.duration();
                 }
             }
 
-            const end = std.time.nanoTimestamp();
-            measurement.* = @intCast(end - start);
-
-            if (i % 100 == 0) {
-                metrics.simd_operations_count += VectorSize * 3; // add, mul, reduce
-            }
+            try writer.print("Completed calls: {d}\n", .{completed_calls});
+            try writer.print("Average call duration: {d} ns\n", .{if (completed_calls > 0) total_call_time / completed_calls else 0});
         }
 
-        metrics.calculateStatistics(measurements);
-        metrics.simd_efficiency_score = calculateSIMDEfficiency(measurements);
-        metrics.vectorization_ratio = 1.0; // Perfect vectorization for this test
+        try writer.print("\n=== End Report ===\n", .{});
 
-        return metrics;
+        return try report.toOwnedSlice(self.allocator);
     }
 
-    pub fn benchmarkScalarOperations(allocator: std.mem.Allocator, iterations: usize) !PerformanceMetrics {
-        var metrics = PerformanceMetrics.init("Scalar Operations");
-        const measurements = try allocator.alloc(u64, iterations);
-        defer allocator.free(measurements);
+    /// Start profiling thread for periodic sampling/reporting
+    fn startProfilingThread(self: *PerformanceProfiler) void {
+        if (self.profiling_thread != null) return;
 
-        // Generate test data
-        var arena = std.heap.ArenaAllocator.init(allocator);
-        defer arena.deinit();
-        const arena_allocator = arena.allocator();
-
-        const test_data_a = try arena_allocator.alloc(f32, 1000 * VectorSize);
-        const test_data_b = try arena_allocator.alloc(f32, 1000 * VectorSize);
-
-        // Initialize with random data
-        var prng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
-        var random = prng.random();
-
-        for (test_data_a, test_data_b) |*a, *b| {
-            a.* = random.float(f32) * 100.0;
-            b.* = random.float(f32) * 100.0;
-        }
-
-        // Benchmark scalar operations
-        for (measurements) |*measurement| {
-            const start = std.time.nanoTimestamp();
-
-            var dot_product: f32 = 0.0;
-            for (test_data_a, test_data_b) |a, b| {
-                const add_result = a + b;
-                const mul_result = a * b;
-                dot_product += add_result * mul_result;
-            }
-
-            // Prevent optimization
-            if (dot_product < 0) {
-                @breakpoint();
-            }
-
-            const end = std.time.nanoTimestamp();
-            measurement.* = @intCast(end - start);
-        }
-
-        metrics.calculateStatistics(measurements);
-        metrics.vectorization_ratio = 0.0; // No vectorization
-
-        return metrics;
+        self.stop_profiling = false;
+        self.profiling_thread = std.Thread.spawn(.{}, profilingLoop, .{self}) catch null;
     }
 
-    fn calculateSIMDEfficiency(measurements: []const u64) f64 {
-        // Calculate SIMD efficiency based on performance consistency
-        if (measurements.len == 0) return 0.0;
-
-        var sum: u64 = 0;
-        var min_val: u64 = std.math.maxInt(u64);
-        for (measurements) |m| {
-            sum += m;
-            min_val = @min(min_val, m);
+    /// Stop profiling thread
+    pub fn stop(self: *PerformanceProfiler) void {
+        if (self.profiling_thread) |thread| {
+            self.stop_profiling = true;
+            thread.join();
+            self.profiling_thread = null;
         }
+    }
 
-        const avg = @as(f64, @floatFromInt(sum)) / @as(f64, @floatFromInt(measurements.len));
-        const efficiency = @as(f64, @floatFromInt(min_val)) / avg;
+    /// Profiling thread loop (periodic sampling/reporting)
+    fn profilingLoop(self: *PerformanceProfiler) void {
+        var last_report_time = std.time.nanoTimestamp();
+        var last_sample_time = last_report_time;
 
-        return @min(efficiency, 1.0);
+        while (!self.stop_profiling) {
+            const now = std.time.nanoTimestamp();
+            const delta = now - last_sample_time;
+            last_sample_time = now;
+
+            // Periodic CPU sampling (approximate)
+            if (self.config.enable_cpu_profiling and self.config.enable_counters) {
+                if (self.counters.getPtr("cpu_cycles")) |counter| counter.add(delta);
+                if (self.counters.getPtr("instructions")) |counter| counter.add(delta / 2);
+            }
+
+            // Generate periodic reports
+            const current_time = now;
+            if (current_time - last_report_time >= self.config.report_interval_ns) {
+                if (self.current_profile) |*profile| {
+                    const report = self.generateProfileReport(profile) catch continue;
+                    defer self.allocator.free(report);
+
+                    std.log.info("Periodic performance report:\n{s}", .{report});
+                }
+                last_report_time = current_time;
+            }
+
+            std.Thread.sleep(self.config.sampling_interval_ns);
+        }
+    }
+
+    /// Integrate with memory tracker
+    pub fn setMemoryTracker(self: *PerformanceProfiler, tracker: *memory_tracker.MemoryProfiler) void {
+        self.memory_tracker = tracker;
+    }
+
+    /// Create performance scope for measuring code blocks
+    pub fn createScope(self: *PerformanceProfiler, name: []const u8) Scope {
+        return .{
+            .profiler = self,
+            .name = name,
+            .start_time = std.time.nanoTimestamp(),
+            .memory_start = if (self.memory_tracker) |tracker| tracker.getStats().currentUsage() else 0,
+        };
     }
 };
 
-/// Enhanced performance profiler with comprehensive analysis
-pub const PerformanceProfiler = struct {
-    allocator: std.mem.Allocator,
-    arena: std.heap.ArenaAllocator,
-    config: ProfilerConfig,
-    memory_tracker: MemoryTracker,
-    metrics: std.ArrayListUnmanaged(PerformanceMetrics),
-    simd_analyzer: SIMDAnalyzer,
+/// Performance measurement scope (RAII-style)
+pub const Scope = struct {
+    profiler: *PerformanceProfiler,
+    name: []const u8,
+    start_time: u64,
+    memory_start: usize,
 
-    // Profiling state
-    profiling_active: bool,
-    start_time: i64,
-    end_time: i64,
+    /// End the scope and record measurements
+    pub fn end(self: Scope) void {
+        const end_time = std.time.nanoTimestamp();
+        const duration = end_time - self.start_time;
 
-    const Self = @This();
+        // Update performance counters
+        self.profiler.updateCounter("cpu_time", duration);
 
-    pub fn init(allocator: std.mem.Allocator, config: ProfilerConfig) Self {
+        // Log scope information
+        std.log.debug("Performance scope '{s}': {d} ns", .{ self.name, duration });
+
+        // Memory tracking
+        if (self.profiler.memory_tracker) |tracker| {
+            const memory_end = tracker.getStats().currentUsage();
+            const memory_delta = if (memory_end > self.memory_start) memory_end - self.memory_start else 0;
+            if (memory_delta > 0) {
+                std.log.debug("  Memory delta: +{d} bytes", .{memory_delta});
+            }
+        }
+    }
+};
+
+/// Global performance profiler instance (singleton)
+var global_profiler: ?*PerformanceProfiler = null;
+
+/// Initialize global performance profiler
+pub fn initGlobalProfiler(allocator: std.mem.Allocator, config: ProfilingConfig) !void {
+    if (global_profiler != null) {
+        deinitGlobalProfiler();
+    }
+    global_profiler = try PerformanceProfiler.init(allocator, config);
+}
+
+/// Deinitialize global performance profiler
+pub fn deinitGlobalProfiler() void {
+    if (global_profiler) |profiler| {
+        profiler.deinit();
+        global_profiler = null;
+    }
+}
+
+/// Get global performance profiler instance
+pub fn getGlobalProfiler() ?*PerformanceProfiler {
+    return global_profiler;
+}
+
+/// Convenience function to start a performance scope
+pub fn startScope(name: []const u8) ?Scope {
+    if (global_profiler) |profiler| {
+        return profiler.createScope(name);
+    }
+    return null;
+}
+
+/// Convenience function for profiling function calls (to be used with defer)
+pub fn profileFunctionCall(profiler: ?*PerformanceProfiler, function_name: []const u8, file: []const u8, line: u32) FunctionCall {
+    return .{
+        .profiler = profiler,
+        .function_name = function_name,
+        .file = file,
+        .line = line,
+        .entry_time = if (profiler) |p| p.startFunctionCall(function_name, file, line) catch 0 else 0,
+    };
+}
+
+/// Function call scope for automatic profiling (RAII-style)
+pub const FunctionCall = struct {
+    profiler: ?*PerformanceProfiler,
+    function_name: []const u8,
+    file: []const u8,
+    line: u32,
+    entry_time: u64,
+
+    pub fn end(self: FunctionCall) void {
+        if (self.profiler) |profiler| {
+            profiler.endFunctionCall(self.entry_time);
+        }
+    }
+};
+
+/// Performance monitoring utilities and presets
+pub const utils = struct {
+    /// Create a development profiling configuration
+    pub fn developmentConfig() ProfilingConfig {
         return .{
-            .allocator = allocator,
-            .arena = std.heap.ArenaAllocator.init(allocator),
-            .config = config,
-            .memory_tracker = MemoryTracker.init(allocator),
-            .metrics = .{},
-            .simd_analyzer = .{},
-            .profiling_active = false,
-            .start_time = 0,
-            .end_time = 0,
+            .enable_cpu_profiling = true,
+            .enable_call_tracing = true,
+            .enable_counters = true,
+            .sampling_interval_ns = 100_000, // 100μs
+            .max_stack_depth = 64,
+            .enable_memory_integration = true,
+            .report_interval_ns = 5_000_000_000, // 5 seconds
+            .max_function_profilers = 2048,
+            .max_call_records = 100_000,
         };
     }
 
-    pub fn deinit(self: *Self) void {
-        // metric.operation_name is not owned; no need to free
-        self.metrics.deinit(self.allocator);
-        self.memory_tracker.deinit();
-        self.arena.deinit();
+    /// Create a production profiling configuration
+    pub fn productionConfig() ProfilingConfig {
+        return .{
+            .enable_cpu_profiling = false,
+            .enable_call_tracing = false,
+            .enable_counters = true,
+            .sampling_interval_ns = 10_000_000, // 10ms
+            .max_stack_depth = 32,
+            .enable_memory_integration = true,
+            .report_interval_ns = 60_000_000_000, // 60 seconds
+            .max_function_profilers = 512,
+            .max_call_records = 10_000,
+        };
     }
 
-    pub fn startProfiling(self: *Self) void {
-        self.profiling_active = true;
-        self.start_time = std.time.milliTimestamp();
-        print("🚀 Performance profiling started at {d}\n", .{self.start_time});
-    }
-
-    pub fn stopProfiling(self: *Self) void {
-        self.profiling_active = false;
-        self.end_time = std.time.milliTimestamp();
-        print("⏹️  Performance profiling stopped at {d} (duration: {d}ms)\n", .{ self.end_time, self.end_time - self.start_time });
-    }
-
-    pub fn profileFunction(self: *Self, comptime name: []const u8, function: anytype, args: anytype) !@TypeOf(@call(.auto, function, args)) {
-        if (!self.profiling_active) {
-            return @call(.auto, function, args);
-        }
-
-        const start = std.time.nanoTimestamp();
-        const result = @call(.auto, function, args);
-        const end = std.time.nanoTimestamp();
-
-        const duration = @as(u64, @intCast(end - start));
-        try self.recordMeasurement(name, duration);
-
-        return result;
-    }
-
-    fn recordMeasurement(self: *Self, operation_name: []const u8, duration_ns: u64) !void {
-        // Find or create metrics for this operation
-        for (self.metrics.items) |*metric| {
-            if (std.mem.eql(u8, metric.operation_name, operation_name)) {
-                // Update existing metric
-                metric.total_executions += 1;
-                metric.total_time_ns += duration_ns;
-                metric.min_time_ns = @min(metric.min_time_ns, duration_ns);
-                metric.max_time_ns = @max(metric.max_time_ns, duration_ns);
-                metric.avg_time_ns = @as(f64, @floatFromInt(metric.total_time_ns)) / @as(f64, @floatFromInt(metric.total_executions));
-                return;
-            }
-        }
-
-        // Create new metric
-        var new_metric = PerformanceMetrics.init(try self.allocator.dupe(u8, operation_name));
-        new_metric.total_executions = 1;
-        new_metric.total_time_ns = duration_ns;
-        new_metric.min_time_ns = duration_ns;
-        new_metric.max_time_ns = duration_ns;
-        new_metric.avg_time_ns = @floatFromInt(duration_ns);
-
-        try self.metrics.append(self.allocator, new_metric);
-    }
-
-    pub fn runBenchmarkSuite(self: *Self) !void {
-        print("🔬 Running comprehensive benchmark suite...\n\n", .{});
-
-        // SIMD vs Scalar comparison
-        if (self.config.enable_simd_profiling) {
-            print("📊 SIMD Performance Analysis:\n", .{});
-
-            const simd_metrics = try SIMDAnalyzer.benchmarkVectorOperations(self.allocator, self.config.benchmark_iterations);
-            const scalar_metrics = try SIMDAnalyzer.benchmarkScalarOperations(self.allocator, self.config.benchmark_iterations);
-
-            try self.metrics.append(self.allocator, simd_metrics);
-            try self.metrics.append(self.allocator, scalar_metrics);
-
-            const speedup = scalar_metrics.avg_time_ns / simd_metrics.avg_time_ns;
-            print("  SIMD Speedup: {d:.2}x\n", .{speedup});
-            print("  SIMD Efficiency: {d:.2}%\n", .{simd_metrics.simd_efficiency_score * 100.0});
-            print("\n", .{});
-        }
-
-        // Memory allocation benchmarks
-        if (self.config.enable_memory_tracking) {
-            print("💾 Memory Performance Analysis:\n", .{});
-            try self.benchmarkMemoryOperations();
-            print("\n", .{});
-        }
-
-        // Database operation benchmarks
-        if (self.config.enable_database_profiling) {
-            print("🗄️  Database Performance Analysis:\n", .{});
-            try self.benchmarkDatabaseOperations();
-            print("\n", .{});
-        }
-    }
-
-    fn benchmarkMemoryOperations(self: *Self) !void {
-        const measurements = try self.allocator.alloc(u64, self.config.benchmark_iterations);
-        defer self.allocator.free(measurements);
-
-        // Benchmark different allocation patterns
-        const allocation_sizes = [_]usize{ 32, 128, 1024, 4096, 16384 };
-
-        for (allocation_sizes) |size| {
-            for (measurements) |*measurement| {
-                const start = std.time.nanoTimestamp();
-
-                const ptr = self.allocator.alloc(u8, size) catch continue;
-                defer self.allocator.free(ptr);
-
-                // Touch the memory to ensure it's actually allocated
-                @memset(ptr, 0x42);
-
-                const end = std.time.nanoTimestamp();
-                measurement.* = @intCast(end - start);
-            }
-
-            var metrics = PerformanceMetrics.init("Memory Allocation");
-            metrics.calculateStatistics(measurements);
-
-            print("  Allocation Size {d}B: avg={d:.2}ns, min={d}ns, max={d}ns\n", .{ size, metrics.avg_time_ns, metrics.min_time_ns, metrics.max_time_ns });
-        }
-    }
-
-    fn benchmarkDatabaseOperations(self: *Self) !void {
-        // Simulate database operations with mock data
-        const measurements = try self.allocator.alloc(u64, 100);
-        defer self.allocator.free(measurements);
-
-        // Mock database insert operations
-        for (measurements) |*measurement| {
-            const start = std.time.nanoTimestamp();
-
-            // Simulate database work with array operations
-            const data = try self.allocator.alloc(f32, 512);
-            defer self.allocator.free(data);
-
-            for (data, 0..) |*val, i| {
-                val.* = @as(f32, @floatFromInt(i)) * 1.5;
-            }
-
-            // Simulate index lookup
-            var sum: f32 = 0;
-            for (data) |val| {
-                sum += val * val;
-            }
-
-            // Prevent optimization
-            if (sum < 0) @breakpoint();
-
-            const end = std.time.nanoTimestamp();
-            measurement.* = @intCast(end - start);
-        }
-
-        var metrics = PerformanceMetrics.init("Database Insert");
-        metrics.calculateStatistics(measurements);
-
-        print("  Insert Operations: avg={d:.2}ns, p95={d}ns, p99={d}ns\n", .{ metrics.avg_time_ns, metrics.p95_time_ns, metrics.p99_time_ns });
-
-        // Estimate QPS (Queries Per Second)
-        const avg_time_s = metrics.avg_time_ns / 1_000_000_000.0;
-        const qps = if (avg_time_s > 0) 1.0 / avg_time_s else 0.0;
-        print("  Estimated QPS: {d:.0}\n", .{qps});
-    }
-
-    pub fn generateDetailedReport(self: *Self) !void {
-        print("📈 Detailed Performance Profiling Report\n", .{});
-        print("{s}\n\n", .{HEADER_RULE_50[0..]});
-
-        // Overall summary
-        print("Profiling Duration: {d}ms\n", .{self.end_time - self.start_time});
-        print("Total Operations Profiled: {d}\n", .{self.metrics.items.len});
-        print("\n", .{});
-
-        // Individual operation metrics
-        for (self.metrics.items) |metric| {
-            print("🔍 Operation: {s}\n", .{metric.operation_name});
-            print("  Executions: {d}\n", .{metric.total_executions});
-            print("  Total Time: {d}ns ({d:.2}ms)\n", .{ metric.total_time_ns, @as(f64, @floatFromInt(metric.total_time_ns)) / 1_000_000.0 });
-            print("  Average: {d:.2}ns\n", .{metric.avg_time_ns});
-            print("  Min: {d}ns\n", .{metric.min_time_ns});
-            print("  Max: {d}ns\n", .{metric.max_time_ns});
-            print("  Median: {d}ns\n", .{metric.median_time_ns});
-            print("  P95: {d}ns\n", .{metric.p95_time_ns});
-            print("  P99: {d}ns\n", .{metric.p99_time_ns});
-            print("  Std Dev: {d:.2}ns\n", .{metric.std_dev_ns});
-            print("  CV: {d:.4}\n", .{metric.coefficient_of_variation});
-
-            if (metric.simd_operations_count > 0) {
-                print("  SIMD Ops: {d}\n", .{metric.simd_operations_count});
-                print("  SIMD Efficiency: {d:.2}%\n", .{metric.simd_efficiency_score * 100.0});
-                print("  Vectorization: {d:.2}%\n", .{metric.vectorization_ratio * 100.0});
-            }
-
-            print("\n", .{});
-        }
-
-        // Memory tracking report
-        if (self.config.enable_memory_tracking) {
-            const memory_report = try self.memory_tracker.generateReport(self.allocator);
-            defer self.allocator.free(memory_report);
-            print("💾 {s}\n\n", .{memory_report});
-        }
-
-        // Performance recommendations
-        try self.generateRecommendations();
-
-        // Export reports if requested
-        if (self.config.enable_json_export) {
-            try self.exportJsonReport();
-        }
-
-        if (self.config.enable_csv_export) {
-            try self.exportCsvReport();
-        }
-    }
-
-    fn generateRecommendations(self: *Self) !void {
-        print("🔧 Performance Optimization Recommendations:\n", .{});
-
-        for (self.metrics.items) |metric| {
-            if (metric.coefficient_of_variation > 0.3) {
-                print("  • {s}: High variability (CV={d:.3}) - consider optimizing for consistency\n", .{ metric.operation_name, metric.coefficient_of_variation });
-            }
-
-            if (metric.avg_time_ns > 1_000_000) { // > 1ms
-                print("  • {s}: Slow operation (avg={d:.2}ms) - investigate bottlenecks\n", .{ metric.operation_name, metric.avg_time_ns / 1_000_000.0 });
-            }
-
-            if (metric.vectorization_ratio < 0.5 and metric.simd_operations_count == 0) {
-                print("  • {s}: Consider SIMD optimization for vector operations\n", .{metric.operation_name});
-            }
-        }
-
-        if (self.memory_tracker.getMemoryLeaks() > 0) {
-            print("  • 🚨 Memory leaks detected: {d} allocations not freed\n", .{self.memory_tracker.getMemoryLeaks()});
-        }
-
-        print("\n", .{});
-    }
-
-    fn exportJsonReport(self: *Self) !void {
-        const file = try std.fs.cwd().createFile("performance_profile.json", .{});
-        defer file.close();
-
-        try file.writeAll("{\n  \"metrics\": [\n");
-
-        for (self.metrics.items, 0..) |metric, i| {
-            const json = try metric.toJson(self.allocator);
-            defer self.allocator.free(json);
-
-            try file.writeAll("    ");
-            try file.writeAll(json);
-            if (i < self.metrics.items.len - 1) {
-                try file.writeAll(",");
-            }
-            try file.writeAll("\n");
-        }
-
-        try file.writeAll("  ]\n}\n");
-        print("📄 JSON report exported to performance_profile.json\n", .{});
-    }
-
-    fn exportCsvReport(self: *Self) !void {
-        const file = try std.fs.cwd().createFile("performance_profile.csv", .{});
-        defer file.close();
-
-        // CSV header
-        try file.writeAll("operation,executions,total_time_ns,avg_time_ns,min_time_ns,max_time_ns,median_time_ns,p95_time_ns,p99_time_ns,std_dev_ns,cv\n");
-
-        // CSV data
-        for (self.metrics.items) |metric| {
-            const line = try std.fmt.allocPrint(self.allocator, "{s},{d},{d},{d:.2},{d},{d},{d},{d},{d},{d:.2},{d:.4}\n", .{ metric.operation_name, metric.total_executions, metric.total_time_ns, metric.avg_time_ns, metric.min_time_ns, metric.max_time_ns, metric.median_time_ns, metric.p95_time_ns, metric.p99_time_ns, metric.std_dev_ns, metric.coefficient_of_variation });
-            defer self.allocator.free(line);
-            try file.writeAll(line);
-        }
-
-        print("📊 CSV report exported to performance_profile.csv\n", .{});
+    /// Create a minimal profiling configuration
+    pub fn minimalConfig() ProfilingConfig {
+        return .{
+            .enable_cpu_profiling = false,
+            .enable_call_tracing = false,
+            .enable_counters = false,
+            .sampling_interval_ns = 1_000_000_000, // 1 second
+            .max_stack_depth = 8,
+            .enable_memory_integration = false,
+            .report_interval_ns = 300_000_000_000, // 5 minutes
+            .max_function_profilers = 64,
+            .max_call_records = 100,
+        };
     }
 };
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    const config = try ProfilerConfig.fromEnv(allocator);
-    var profiler = PerformanceProfiler.init(allocator, config);
-    defer profiler.deinit();
-
-    print("🎯 Enhanced Performance Profiler for ABI\n", .{});
-    print("{s}\n\n", .{HEADER_RULE_45[0..]});
-
-    profiler.startProfiling();
-
-    // Run comprehensive benchmark suite
-    try profiler.runBenchmarkSuite();
-
-    profiler.stopProfiling();
-
-    // Generate detailed performance report
-    try profiler.generateDetailedReport();
-}

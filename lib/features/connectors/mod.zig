@@ -1,19 +1,24 @@
-//! Connectors Feature Module
-//!
-//! External service integrations and plugin system
-
 const std = @import("std");
 
-// AI service connectors
-pub const openai = @import("openai.zig");
-pub const ollama = @import("ollama.zig");
-pub const agent_connectors = @import("../../connectors/mod.zig");
+pub const CallRequest = struct {
+    model: []const u8,
+    prompt: []const u8,
+    max_tokens: u16,
+    temperature: f32 = 0.2,
+};
 
-// Plugin system
-pub const plugin = @import("plugin.zig");
+pub const CallResult = struct {
+    ok: bool,
+    content: []const u8,
+    tokens_in: u32 = 0,
+    tokens_out: u32 = 0,
+    status_code: u16 = 200,
+    err_msg: ?[]const u8 = null,
+};
 
-// Legacy compatibility removed - circular import fixed
-
-test {
-    std.testing.refAllDecls(@This());
-}
+pub const Connector = struct {
+    name: []const u8,
+    init: *const fn (allocator: std.mem.Allocator) anyerror!void,
+    call: *const fn (allocator: std.mem.Allocator, req: CallRequest) anyerror!CallResult,
+    health: *const fn () bool,
+};
