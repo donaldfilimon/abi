@@ -212,8 +212,10 @@ pub const WeatherService = struct {
     }
 
     pub fn getCurrentWeather(self: *WeatherService, city: []const u8) !WeatherData {
-        const url = try std.fmt.allocPrint(self.allocator, "{s}/weather?q={s}&appid={s}&units={s}&lang={s}", .{ self.config.base_url, city, self.config.api_key, self.config.units, self.config.language });
-        defer self.allocator.free(url);
+        var url_buf = std.ArrayList(u8).init(self.allocator);
+        defer url_buf.deinit();
+        try url_buf.writer().print("{s}/weather?q={s}&appid={s}&units={s}&lang={s}", .{ self.config.base_url, city, self.config.api_key, self.config.units, self.config.language });
+        const url = url_buf.items;
 
         const json = try self.fetchJson(url);
         defer self.allocator.free(json);
@@ -222,8 +224,10 @@ pub const WeatherService = struct {
     }
 
     fn getCurrentWeatherByCoords(self: *WeatherService, lat: f32, lon: f32) !WeatherData {
-        const url = try std.fmt.allocPrint(self.allocator, "{s}/weather?lat={d}&lon={d}&appid={s}&units={s}&lang={s}", .{ self.config.base_url, lat, lon, self.config.api_key, self.config.units, self.config.language });
-        defer self.allocator.free(url);
+        var url_buf = std.ArrayList(u8).init(self.allocator);
+        defer url_buf.deinit();
+        try url_buf.writer().print("{s}/weather?lat={d}&lon={d}&appid={s}&units={s}&lang={s}", .{ self.config.base_url, lat, lon, self.config.api_key, self.config.units, self.config.language });
+        const url = url_buf.items;
 
         const json = try self.fetchJson(url);
         defer self.allocator.free(json);
@@ -232,8 +236,10 @@ pub const WeatherService = struct {
     }
 
     fn getForecast(self: *WeatherService, city: []const u8) ![]WeatherData {
-        const url = try std.fmt.allocPrint(self.allocator, "{s}/forecast?q={s}&appid={s}&units={s}&lang={s}", .{ self.config.base_url, city, self.config.api_key, self.config.units, self.config.language });
-        defer self.allocator.free(url);
+        var url_buf = std.ArrayList(u8).init(self.allocator);
+        defer url_buf.deinit();
+        try url_buf.writer().print("{s}/forecast?q={s}&appid={s}&units={s}&lang={s}", .{ self.config.base_url, city, self.config.api_key, self.config.units, self.config.language });
+        const url = url_buf.items;
 
         const json = try self.fetchJson(url);
         defer self.allocator.free(json);
@@ -254,8 +260,8 @@ pub const WeatherService = struct {
         var response = try req.receiveHead(&redirect_buf);
 
         if (response.head.status != .ok) return error.WeatherApiError;
-        var list = try std.ArrayList(u8).initCapacity(self.allocator, 0);
-        errdefer list.deinit(self.allocator);
+        var list = std.ArrayList(u8).init(self.allocator);
+        errdefer list.deinit();
         var transfer_buf: [8192]u8 = undefined;
         const rdr = response.reader(&.{});
 
@@ -281,9 +287,9 @@ pub const WeatherService = struct {
             if (list.items.len + n > max_bytes) {
                 return error.ServiceUnavailable; // treat as invalid/oversized response
             }
-            try list.appendSlice(self.allocator, transfer_buf[0..n]);
+            try list.appendSlice(transfer_buf[0..n]);
         }
-        return try list.toOwnedSlice(self.allocator);
+        return try list.toOwnedSlice();
     }
 
     fn parseWeatherResponse(self: *WeatherService, json_str: []const u8) !WeatherData {
@@ -380,30 +386,47 @@ pub const WeatherUtils = struct {
     }
 
     pub fn formatWeatherJson(weather: WeatherData, allocator: std.mem.Allocator) ![]u8 {
-        // Minimal JSON formatter for tests without using fmt placeholders for braces
-        const temp_str = try std.fmt.allocPrint(allocator, "{d}", .{weather.temperature});
-        defer allocator.free(temp_str);
-        const feels_str = try std.fmt.allocPrint(allocator, "{d}", .{weather.feels_like});
-        defer allocator.free(feels_str);
-        const hum_str = try std.fmt.allocPrint(allocator, "{d}", .{weather.humidity});
-        defer allocator.free(hum_str);
-        const pres_str = try std.fmt.allocPrint(allocator, "{d}", .{weather.pressure});
-        defer allocator.free(pres_str);
-        const ws_str = try std.fmt.allocPrint(allocator, "{d}", .{weather.wind_speed});
-        defer allocator.free(ws_str);
-        const wd_str = try std.fmt.allocPrint(allocator, "{d}", .{weather.wind_direction});
-        defer allocator.free(wd_str);
-        const vis_str = try std.fmt.allocPrint(allocator, "{d}", .{weather.visibility});
-        defer allocator.free(vis_str);
-        const sr_str = try std.fmt.allocPrint(allocator, "{d}", .{weather.sunrise});
-        defer allocator.free(sr_str);
-        const ss_str = try std.fmt.allocPrint(allocator, "{d}", .{weather.sunset});
-        defer allocator.free(ss_str);
-        const ts_str = try std.fmt.allocPrint(allocator, "{d}", .{weather.timestamp});
-        defer allocator.free(ts_str);
+        var buf = std.ArrayList(u8).init(allocator);
+        errdefer buf.deinit();
+        var w = buf.writer();
 
-        // Minimal JSON with the fields used in tests
-        return std.fmt.allocPrint(allocator, "{{\"temperature\":{s},\"humidity\":{s},\"city\":\"{s}\"}}", .{ temp_str, hum_str, weather.city });
+        try w.writeAll("{");
+        try w.writeAll("\"temperature\":");
+        try w.print("{d}", .{weather.temperature});
+        try w.writeAll(",\"humidity\":");
+        try w.print("{d}", .{weather.humidity});
+        try w.writeAll(",\"city\":");
+        try writeJsonString(w, weather.city);
+        try w.writeAll("}");
+
+        return try buf.toOwnedSlice();
+    }
+
+    fn writeJsonString(writer: anytype, text: []const u8) !void {
+        try writer.writeByte('"');
+        for (text) |ch| {
+            switch (ch) {
+                '"' => try writer.writeAll("\\\""),
+                '\\' => try writer.writeAll("\\\\"),
+                '/' => try writer.writeAll("\\/"),
+                '\\b' => try writer.writeAll("\\b"),
+                '\\f' => try writer.writeAll("\\f"),
+                '\\n' => try writer.writeAll("\\n"),
+                '\\r' => try writer.writeAll("\\r"),
+                '\\t' => try writer.writeAll("\\t"),
+                else => {
+                    if (ch < 0x20) {
+                        var esc: [6]u8 = .{ '\\', 'u', '0', '0', 0, 0 };
+                        esc[4] = "0123456789abcdef"[(ch >> 4) & 0x0f];
+                        esc[5] = "0123456789abcdef"[ch & 0x0f];
+                        try writer.writeAll(&esc);
+                    } else {
+                        try writer.writeByte(ch);
+                    }
+                },
+            }
+        }
+        try writer.writeByte('"');
     }
 
     pub fn getWeatherEmoji(icon: []const u8) []const u8 {

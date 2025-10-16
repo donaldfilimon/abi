@@ -116,9 +116,14 @@ pub const CurlHttpClient = struct {
         // Set content type header if provided
         var headers: ?*std.c.void = null;
         if (content_type) |ct| {
-            const content_type_header = try std.fmt.allocPrintZ(self.allocator, "Content-Type: {s}", .{ct});
-            defer self.allocator.free(content_type_header);
-            headers = curlSlistAppend(headers, content_type_header.ptr);
+            const header_prefix = "Content-Type: ";
+            const total_len = header_prefix.len + ct.len + 1; // +1 for nul
+            const buf = try self.allocator.alloc(u8, total_len);
+            defer self.allocator.free(buf);
+            @memcpy(buf[0..header_prefix.len], header_prefix);
+            @memcpy(buf[header_prefix.len .. header_prefix.len + ct.len], ct);
+            buf[total_len - 1] = 0; // nul-terminate
+            headers = curlSlistAppend(headers, @ptrCast(buf.ptr));
             _ = curlEasySetopt(curl, CURLOPT_HTTPHEADER, headers);
         }
         defer if (headers) |h| curlSlistFreeAll(h);

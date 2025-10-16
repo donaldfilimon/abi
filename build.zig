@@ -8,6 +8,7 @@ const BuildConfig = struct {
     enable_database: bool = true,
     enable_web: bool = true,
     enable_monitoring: bool = true,
+    enable_connectors: bool = true,
 
     // GPU backend toggles
     gpu_cuda: bool = false,
@@ -25,6 +26,7 @@ const BuildConfig = struct {
             .enable_database = b.option(bool, "enable-database", "Enable database features") orelse true,
             .enable_web = b.option(bool, "enable-web", "Enable web server") orelse true,
             .enable_monitoring = b.option(bool, "enable-monitoring", "Enable monitoring") orelse true,
+            .enable_connectors = b.option(bool, "enable-connectors", "Enable connectors") orelse true,
             .gpu_cuda = b.option(bool, "gpu-cuda", "Enable CUDA support") orelse false,
             .gpu_vulkan = b.option(bool, "gpu-vulkan", "Enable Vulkan support") orelse false,
             .gpu_metal = b.option(bool, "gpu-metal", "Enable Metal support") orelse false,
@@ -46,33 +48,31 @@ pub fn build(b: *std.Build) void {
     const abi_module = createAbiModule(b, target, optimize, build_options);
 
     // CLI executable
-    const cli_exe = buildCLI(b, target, optimize, abi_module);
+    const cli_exe = buildCLI(b, target, optimize, abi_module, build_options);
     b.installArtifact(cli_exe);
 
     // Run step for CLI
     const run_cli = b.addRunArtifact(cli_exe);
     run_cli.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cli.addArgs(args);
-    }
+    if (b.args) |args| run_cli.addArgs(args);
 
     const run_step = b.step("run", "Run the ABI CLI");
     run_step.dependOn(&run_cli.step);
 
-    // Test suite
+    // Test suites
     buildTests(b, target, optimize, abi_module, build_options);
 
     // Examples
-    buildExamples(b, target, optimize, abi_module);
+    buildExamples(b, target, optimize, abi_module, build_options);
 
     // Benchmarks
-    buildBenchmarks(b, target, optimize, abi_module);
+    buildBenchmarks(b, target, optimize, abi_module, build_options);
 
     // Documentation
-    buildDocs(b, target, optimize, abi_module);
+    buildDocs(b, target, optimize, abi_module, build_options);
 
     // Additional tools
-    buildTools(b, target, optimize, abi_module);
+    buildTools(b, target, optimize, abi_module, build_options);
 }
 
 fn createBuildOptions(b: *std.Build, config: BuildConfig) *std.Build.Step.Options {
@@ -88,6 +88,7 @@ fn createBuildOptions(b: *std.Build, config: BuildConfig) *std.Build.Step.Option
     options.addOption(bool, "enable_database", config.enable_database);
     options.addOption(bool, "enable_web", config.enable_web);
     options.addOption(bool, "enable_monitoring", config.enable_monitoring);
+    options.addOption(bool, "enable_connectors", config.enable_connectors);
 
     // GPU backend flags
     options.addOption(bool, "gpu_cuda", config.gpu_cuda);
@@ -111,7 +112,6 @@ fn createAbiModule(
     });
 
     abi_mod.addOptions("build_options", build_options);
-
     return abi_mod;
 }
 
@@ -120,6 +120,7 @@ fn buildCLI(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     abi_module: *std.Build.Module,
+    build_options: *std.Build.Step.Options,
 ) *std.Build.Step.Compile {
     const exe = b.addExecutable(.{
         .name = "abi",
@@ -127,16 +128,10 @@ fn buildCLI(
         .target = target,
         .optimize = optimize,
     });
+    exe.strip = optimize != .Debug; // reduce binary size by default in non-Debug
 
     exe.root_module.addImport("abi", abi_module);
-    
-    // Performance optimizations
-    exe.link_function_sections = true;
-    exe.link_data_sections = true;
-    if (optimize != .Debug) {
-        exe.strip = true;
-        exe.link_gc_sections = true;
-    }
+    exe.root_module.addOptions("build_options", build_options);
 
     return exe;
 }
@@ -161,7 +156,6 @@ fn buildTests(
     const run_main_tests = b.addRunArtifact(main_tests);
     run_main_tests.skip_foreign_checks = true;
 
-    // Unit tests step
     const unit_test_step = b.step("test", "Run unit tests");
     unit_test_step.dependOn(&run_main_tests.step);
 
@@ -181,7 +175,7 @@ fn buildTests(
     const integration_test_step = b.step("test-integration", "Run integration tests");
     integration_test_step.dependOn(&run_integration_tests.step);
 
-    // All tests step
+    // All tests aggregator
     const all_test_step = b.step("test-all", "Run all tests");
     all_test_step.dependOn(&run_main_tests.step);
     all_test_step.dependOn(&run_integration_tests.step);
@@ -192,6 +186,7 @@ fn buildExamples(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     abi_module: *std.Build.Module,
+    build_options: *std.Build.Step.Options,
 ) void {
     const examples = [_]struct { name: []const u8, path: []const u8 }{
         .{ .name = "ai_demo", .path = "src/examples/ai_demo.zig" },
@@ -208,39 +203,24 @@ fn buildExamples(
             .target = target,
             .optimize = optimize,
         });
+        exe.strip = optimize != .Debug;
         exe.root_module.addImport("abi", abi_module);
-        
-        // Apply optimizations to examples
-        if (optimize != .Debug) {
-            exe.strip = true;
-            exe.link_gc_sections = true;
-        }
+        exe.root_module.addOptions("build_options", build_options);
 
-        const install_exe = b.addInstallArtifact(exe, .{
-            .dest_dir = .{ .override = .{ .custom = "examples" } },
-        });
+        const install_exe = b.addInstallArtifact(exe, .{ .dest_dir = .{ .override = .{ .custom = "examples" } } });
 
-        const example_step = b.step(
-            b.fmt("example-{s}", .{example.name}),
-            b.fmt("Build {s} example", .{example.name}),
-        );
-        example_step.dependOn(&install_exe.step);
+        const build_step = b.step(b.fmt("example-{s}", .{example.name}), b.fmt("Build {s} example", .{example.name}));
+        build_step.dependOn(&install_exe.step);
 
         const run_example = b.addRunArtifact(exe);
-        const run_step = b.step(
-            b.fmt("run-{s}", .{example.name}),
-            b.fmt("Run {s} example", .{example.name}),
-        );
+        const run_step = b.step(b.fmt("run-{s}", .{example.name}), b.fmt("Run {s} example", .{example.name}));
         run_step.dependOn(&run_example.step);
     }
 
-    // Build all examples step
     const all_examples_step = b.step("examples", "Build all examples");
     for (examples) |example| {
         const step_name = b.fmt("example-{s}", .{example.name});
-        if (b.top_level_steps.get(step_name)) |step| {
-            all_examples_step.dependOn(&step.step);
-        }
+        if (b.top_level_steps.get(step_name)) |step| all_examples_step.dependOn(&step.step);
     }
 }
 
@@ -249,6 +229,7 @@ fn buildBenchmarks(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     abi_module: *std.Build.Module,
+    build_options: *std.Build.Step.Options,
 ) void {
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
@@ -256,11 +237,11 @@ fn buildBenchmarks(
         .target = target,
         .optimize = optimize,
     });
+    bench_exe.strip = optimize != .Debug;
     bench_exe.root_module.addImport("abi", abi_module);
+    bench_exe.root_module.addOptions("build_options", build_options);
 
-    const install_bench = b.addInstallArtifact(bench_exe, .{
-        .dest_dir = .{ .override = .{ .custom = "bench" } },
-    });
+    const install_bench = b.addInstallArtifact(bench_exe, .{ .dest_dir = .{ .override = .{ .custom = "bench" } } });
 
     const bench_step = b.step("bench", "Build benchmarks");
     bench_step.dependOn(&install_bench.step);
@@ -275,6 +256,7 @@ fn buildDocs(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     abi_module: *std.Build.Module,
+    build_options: *std.Build.Step.Options,
 ) void {
     const docs_exe = b.addExecutable(.{
         .name = "docs_generator",
@@ -282,19 +264,23 @@ fn buildDocs(
         .target = target,
         .optimize = optimize,
     });
+    docs_exe.strip = optimize != .Debug;
     docs_exe.root_module.addImport("abi", abi_module);
+    docs_exe.root_module.addOptions("build_options", build_options);
 
     const run_docs = b.addRunArtifact(docs_exe);
     const docs_step = b.step("docs", "Generate API documentation");
     docs_step.dependOn(&run_docs.step);
 
-    // Zig's built-in documentation
+    // Built-in documentation for the abi library
     const lib_step = b.addSharedLibrary(.{
         .name = "abi",
         .root_source_file = b.path("lib/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
+    lib_step.strip = optimize != .Debug;
+    lib_step.root_module.addOptions("build_options", build_options);
 
     const install_docs = b.addInstallDirectory(.{
         .source_dir = lib_step.getEmittedDocs(),
@@ -311,6 +297,7 @@ fn buildTools(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     abi_module: *std.Build.Module,
+    build_options: *std.Build.Step.Options,
 ) void {
     // Performance profiler
     const profiler_exe = b.addExecutable(.{
@@ -319,11 +306,11 @@ fn buildTools(
         .target = target,
         .optimize = optimize,
     });
+    profiler_exe.strip = optimize != .Debug;
     profiler_exe.root_module.addImport("abi", abi_module);
+    profiler_exe.root_module.addOptions("build_options", build_options);
 
-    const install_profiler = b.addInstallArtifact(profiler_exe, .{
-        .dest_dir = .{ .override = .{ .custom = "tools" } },
-    });
+    const install_profiler = b.addInstallArtifact(profiler_exe, .{ .dest_dir = .{ .override = .{ .custom = "tools" } } });
 
     const tools_step = b.step("tools", "Build development tools");
     tools_step.dependOn(&install_profiler.step);
