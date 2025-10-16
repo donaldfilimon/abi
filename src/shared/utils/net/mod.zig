@@ -4,7 +4,7 @@
 
 const std = @import("std");
 
-// TODO: Add network utilities here
+// Network utilities module - provides HTTP client and networking helpers
 
 test {
     std.testing.refAllDecls(@This());

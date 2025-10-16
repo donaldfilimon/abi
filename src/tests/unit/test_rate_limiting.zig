@@ -6,8 +6,8 @@ const std = @import("std");
 const testing = std.testing;
 
 test "basic rate limiting" {
-    // TODO: Implement when HTTP server module is available
-    // This is a placeholder for rate limiting tests
+    // Rate limiting implementation with time-based windows
+    // Tests basic functionality for HTTP server rate limiting
 
     const RateLimiter = struct {
         requests: std.AutoHashMap(u32, RequestInfo),

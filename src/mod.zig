@@ -30,9 +30,15 @@ pub const connectors = features.connectors;
 
 /// Compatibility namespace for the WDBX tooling. Older call sites referenced
 /// `abi.wdbx.*` directly, so we surface the unified helpers alongside the
-/// underlying database module.
+/// underlying database module. Only available when `enable_database` is true.
 pub const wdbx = struct {
-    pub usingnamespace features.database.unified;
+    // Explicit re-exports instead of usingnamespace for Zig 0.16 compatibility
+    pub const init = features.database.unified.init;
+    pub const deinit = features.database.unified.deinit;
+    pub const insert = features.database.unified.insert;
+    pub const search = features.database.unified.search;
+    pub const count = features.database.unified.count;
+    
     pub const database = features.database.database;
     pub const helpers = features.database.db_helpers;
     pub const cli = features.database.cli;
@@ -56,6 +62,13 @@ pub const simd = @import("shared/simd.zig");
 pub const VectorOps = simd.VectorOps;
 
 // =============================================================================
+// CLI AND TOOLS
+// =============================================================================
+
+/// Command-line interface and development tools
+pub const cli = @import("cli/mod.zig");
+
+// =============================================================================
 // PUBLIC API
 // =============================================================================
 
@@ -75,7 +88,7 @@ pub fn shutdown(instance: *Framework) void {
     instance.deinit();
 }
 
-/// Get framework version information.
+/// Get framework version information from build options.
 pub fn version() []const u8 {
     return build_options.package_version;
 }

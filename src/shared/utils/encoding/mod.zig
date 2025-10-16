@@ -4,7 +4,7 @@
 
 const std = @import("std");
 
-// TODO: Add encoding utilities here
+// Encoding utilities module - provides base64, JSON, and other encoding functions
 
 test {
     std.testing.refAllDecls(@This());

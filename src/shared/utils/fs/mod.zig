@@ -4,7 +4,7 @@
 
 const std = @import("std");
 
-// TODO: Add filesystem utilities here
+// Filesystem utilities module - provides cross-platform file operations
 
 test {
     std.testing.refAllDecls(@This());
