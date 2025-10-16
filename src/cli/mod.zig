@@ -7,4 +7,4 @@ const std = @import("std");
 pub const commands = @import("commands/mod.zig");
 pub const errors = @import("errors.zig");
 pub const state = @import("state.zig");
-pub const main = @import("main.zig");
+pub const comprehensive = @import("comprehensive_cli.zig");

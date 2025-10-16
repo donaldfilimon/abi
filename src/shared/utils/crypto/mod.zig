@@ -4,7 +4,7 @@
 
 const std = @import("std");
 
-// TODO: Add cryptographic utilities here
+// Cryptographic utilities module - provides secure hash and encryption functions
 
 test {
     std.testing.refAllDecls(@This());

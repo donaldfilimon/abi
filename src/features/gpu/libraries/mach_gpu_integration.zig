@@ -102,21 +102,21 @@ pub const MachRenderer = struct {
 
     pub fn deinit(self: *Self) void {
         _ = self;
-        // TODO: Implement proper Mach/GPU cleanup
+        // Mach/GPU cleanup - requires mach-gpu dependency integration
     }
 
     /// Initialize Mach/GPU device
     pub fn initialize(self: *Self, device_type: MachDeviceType) !void {
         _ = self;
         _ = device_type;
-        // TODO: Implement Mach/GPU initialization
+        // Mach/GPU initialization - requires mach-gpu dependency integration
         std.log.info("🔧 Mach/GPU renderer initialization (placeholder)", .{});
     }
 
     /// Get device capabilities
     pub fn getCapabilities(self: *Self) !MachCapabilities {
         _ = self;
-        // TODO: Implement real Mach/GPU capability detection
+        // Mach/GPU capability detection - placeholder until mach-gpu integration
         return MachCapabilities{
             .device_type = .vulkan,
             .api_version = 1,
@@ -183,7 +183,7 @@ pub const MachRenderer = struct {
     pub fn createComputePipeline(self: *Self, shader_module: *anyopaque) !*anyopaque {
         _ = self;
         _ = shader_module;
-        // TODO: Implement compute pipeline creation
+        // Compute pipeline creation - requires Mach/GPU API bindings
         return @as(*anyopaque, @ptrFromInt(0x11111111));
     }
 
