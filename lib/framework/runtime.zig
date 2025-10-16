@@ -1,334 +1,246 @@
-//! Framework Runtime - Unified Implementation
-//!
-//! This module provides the core runtime system with proper initialization patterns
-//! and memory management compatible with Zig 0.16-dev
-
 const std = @import("std");
-const core = @import("../core/mod.zig");
-const features = @import("../features/mod.zig");
+const config = @import("config.zig");
+const registry_mod = @import("../shared/registry.zig");
+const types = @import("../shared/types.zig");
 
-/// Framework runtime configuration
-pub const RuntimeConfig = struct {
-    max_plugins: u32 = 128,
-    enable_hot_reload: bool = false,
-    enable_profiling: bool = false,
-    memory_limit_mb: ?u32 = null,
-    log_level: LogLevel = .info,
-    enabled_features: []const features.FeatureTag = &[_]features.FeatureTag{ .ai, .database, .web, .monitoring },
-    disabled_features: []const features.FeatureTag = &[_]features.FeatureTag{},
-
-    pub const LogLevel = enum {
-        debug,
-        info,
-        warn,
-        err,
-    };
-};
-
-/// Component interface for the runtime system
-pub const Component = struct {
-    name: []const u8,
-    version: []const u8,
-    init_fn: ?*const fn (std.mem.Allocator, *const RuntimeConfig) anyerror!void = null,
-    deinit_fn: ?*const fn () anyerror!void = null,
-    update_fn: ?*const fn (f64) anyerror!void = null,
-
-    pub fn init(self: *const Component, allocator: std.mem.Allocator, config: *const RuntimeConfig) !void {
-        if (self.init_fn) |init_func| {
-            try init_func(allocator, config);
-        }
-    }
-
-    pub fn deinit(self: *const Component) !void {
-        if (self.deinit_fn) |deinit_func| {
-            try deinit_func();
-        }
-    }
-
-    pub fn update(self: *const Component, delta_time: f64) !void {
-        if (self.update_fn) |update_func| {
-            try update_func(delta_time);
-        }
-    }
-};
-
-/// Runtime statistics
-pub const RuntimeStats = struct {
-    start_time: i64,
-    total_components: u32,
-    active_components: u32,
-    memory_usage_bytes: usize,
-    update_count: u64,
-    last_update_duration_ns: u64,
-    enabled_features: usize,
-
-    pub fn init(enabled_features: usize) RuntimeStats {
-        return .{
-            .start_time = std.time.milliTimestamp(),
-            .total_components = 0,
-            .active_components = 0,
-            .memory_usage_bytes = 0,
-            .update_count = 0,
-            .last_update_duration_ns = 0,
-            .enabled_features = enabled_features,
-        };
-    }
-
-    pub fn uptime(self: *const RuntimeStats) i64 {
-        return std.time.milliTimestamp() - self.start_time;
-    }
-};
-
-/// Main framework runtime system
+/// Orchestrates feature toggles, plugin discovery, and lifecycle management.
 pub const Framework = struct {
-    const Self = @This();
-
     allocator: std.mem.Allocator,
-    config: RuntimeConfig,
-    components: core.ArrayList(Component),
-    component_registry: core.StringHashMap(Component),
-    stats: RuntimeStats,
-    running: std.atomic.Value(bool),
-    enabled_features: std.StaticBitSet(6),
+    toggles: config.FeatureToggles,
+    registry: registry_mod.PluginRegistry,
+    plugin_paths: std.ArrayListUnmanaged([]u8) = .{},
+    discovered_plugins: std.ArrayListUnmanaged([]u8) = .{},
+    auto_discover_plugins: bool,
+    auto_register_plugins: bool,
+    auto_start_plugins: bool,
 
-    pub fn init(allocator: std.mem.Allocator, config: RuntimeConfig) !Self {
-        // Calculate enabled features
-        var enabled_features = std.StaticBitSet(6).initEmpty();
-        for (config.enabled_features) |feature| {
-            const idx = switch (feature) {
-                .ai => 0,
-                .gpu => 1,
-                .database => 2,
-                .web => 3,
-                .monitoring => 4,
-                .connectors => 5,
-            };
-            enabled_features.set(idx);
-        }
+    pub fn init(allocator: std.mem.Allocator, options: config.FrameworkOptions) !Framework {
+        var registry = try registry_mod.createRegistry(allocator);
+        errdefer registry.deinit();
 
-        // Remove disabled features
-        for (config.disabled_features) |feature| {
-            const idx = switch (feature) {
-                .ai => 0,
-                .gpu => 1,
-                .database => 2,
-                .web => 3,
-                .monitoring => 4,
-                .connectors => 5,
-            };
-            enabled_features.unset(idx);
-        }
-
-        return Self{
+        var framework = Framework{
             .allocator = allocator,
-            .config = config,
-            .components = core.ArrayList(Component).init(allocator),
-            .component_registry = core.StringHashMap(Component).init(allocator),
-            .stats = RuntimeStats.init(enabled_features.count()),
-            .running = std.atomic.Value(bool).init(false),
-            .enabled_features = enabled_features,
+            .toggles = config.deriveFeatureToggles(options),
+            .registry = registry,
+            .plugin_paths = .{},
+            .discovered_plugins = .{},
+            .auto_discover_plugins = options.auto_discover_plugins,
+            .auto_register_plugins = options.auto_register_plugins,
+            .auto_start_plugins = options.auto_start_plugins,
         };
-    }
 
-    pub fn deinit(self: *Self) void {
-        // Stop runtime if still running
-        self.stop();
+        errdefer framework.deinit();
 
-        // Deinitialize all components in reverse order
-        var i = self.components.items.len;
-        while (i > 0) {
-            i -= 1;
-            const component = &self.components.items[i];
-            component.deinit() catch {};
+        try framework.setPluginPaths(options.plugin_paths);
+
+        if (framework.auto_discover_plugins) {
+            try framework.refreshPlugins();
         }
 
-        self.components.deinit();
-        self.component_registry.deinit();
+        return framework;
     }
 
-    pub fn registerComponent(self: *Self, component: Component) !void {
-        if (self.component_registry.contains(component.name)) {
-            return core.Error.AlreadyExists;
+    pub fn deinit(self: *Framework) void {
+        if (self.auto_start_plugins) {
+            self.registry.stopAllPlugins() catch {};
         }
-
-        try self.components.append(component);
-        try self.component_registry.put(component.name, component);
-
-        self.stats.total_components += 1;
+        self.registry.deinit();
+        self.clearDiscovered();
+        self.discovered_plugins.deinit(self.allocator);
+        self.clearPluginPaths();
+        self.plugin_paths.deinit(self.allocator);
     }
 
-    pub fn initializeComponent(self: *Self, name: []const u8) !void {
-        var component = self.component_registry.getPtr(name) orelse return core.Error.NotFound;
-        try component.init(self.allocator, &self.config);
-        self.stats.active_components += 1;
+    pub fn pluginRegistry(self: *Framework) *registry_mod.PluginRegistry {
+        return &self.registry;
     }
 
-    pub fn initializeAllComponents(self: *Self) !void {
-        for (self.components.items) |*component| {
-            try component.init(self.allocator, &self.config);
+    pub fn features(self: *const Framework) config.FeatureIterator {
+        return self.toggles.iterator();
+    }
+
+    pub fn featureCount(self: *const Framework) usize {
+        return self.toggles.count();
+    }
+
+    pub fn isFeatureEnabled(self: *const Framework, feature: config.Feature) bool {
+        return self.toggles.isEnabled(feature);
+    }
+
+    pub fn setFeature(self: *Framework, feature: config.Feature, enabled: bool) bool {
+        const previous = self.toggles.isEnabled(feature);
+        if (previous == enabled) return false;
+        self.toggles.set(feature, enabled);
+        return true;
+    }
+
+    pub fn enableFeature(self: *Framework, feature: config.Feature) bool {
+        return self.setFeature(feature, true);
+    }
+
+    pub fn disableFeature(self: *Framework, feature: config.Feature) bool {
+        return self.setFeature(feature, false);
+    }
+
+    pub fn addPluginPath(self: *Framework, path: []const u8) !void {
+        const owned = try self.allocator.dupe(u8, path);
+        errdefer self.allocator.free(owned);
+        try self.registry.addPluginPath(owned);
+        errdefer self.registry.loader.removePluginPath(owned);
+
+        try self.plugin_paths.append(self.allocator, owned);
+    }
+
+    pub fn setPluginPaths(self: *Framework, paths: []const []const u8) !void {
+        self.clearPluginPaths();
+        for (paths) |path| {
+            try self.addPluginPath(path);
         }
-        self.stats.active_components = @intCast(self.components.items.len);
     }
 
-    pub fn start(self: *Self) !void {
-        if (self.running.load(.acquire)) {
-            return core.Error.AlreadyExists;
-        }
-
-        self.running.store(true, .release);
-
-        // Initialize all components first
-        try self.initializeAllComponents();
-
-        std.log.info("Framework started with {} components and {} features", .{ self.stats.total_components, self.stats.enabled_features });
+    pub fn pluginPathCount(self: *const Framework) usize {
+        return self.plugin_paths.items.len;
     }
 
-    pub fn stop(self: *Self) void {
-        if (!self.running.load(.acquire)) return;
-
-        self.running.store(false, .release);
-        std.log.info("Framework stopped after {} updates", .{self.stats.update_count});
+    pub fn pluginPath(self: *const Framework, index: usize) []const u8 {
+        return self.plugin_paths.items[index];
     }
 
-    pub fn update(self: *Self, delta_time: f64) void {
-        if (!self.running.load(.acquire)) return;
-
-        const start_time = std.time.nanoTimestamp();
-
-        for (self.components.items) |component| {
-            component.update(delta_time) catch {};
-        }
-
-        const end_time = std.time.nanoTimestamp();
-        self.stats.last_update_duration_ns = @intCast(end_time - start_time);
-        self.stats.update_count += 1;
-    }
-
-    pub fn isRunning(self: *const Self) bool {
-        return self.running.load(.acquire);
-    }
-
-    pub fn getStats(self: *const Self) RuntimeStats {
-        return self.stats;
-    }
-
-    pub fn getComponent(self: *Self, name: []const u8) ?*Component {
-        return self.component_registry.getPtr(name);
-    }
-
-    pub fn isFeatureEnabled(self: *const Self, feature: features.FeatureTag) bool {
-        const idx = switch (feature) {
-            .ai => 0,
-            .gpu => 1,
-            .database => 2,
-            .web => 3,
-            .monitoring => 4,
-            .connectors => 5,
-        };
-        return self.enabled_features.isSet(idx);
-    }
-
-    pub fn enableFeature(self: *Self, feature: features.FeatureTag) void {
-        const idx = switch (feature) {
-            .ai => 0,
-            .gpu => 1,
-            .database => 2,
-            .web => 3,
-            .monitoring => 4,
-            .connectors => 5,
-        };
-        self.enabled_features.set(idx);
-    }
-
-    pub fn disableFeature(self: *Self, feature: features.FeatureTag) void {
-        const idx = switch (feature) {
-            .ai => 0,
-            .gpu => 1,
-            .database => 2,
-            .web => 3,
-            .monitoring => 4,
-            .connectors => 5,
-        };
-        self.enabled_features.unset(idx);
-    }
-
-    /// Write framework summary to a writer interface
-    pub fn writeSummary(self: *const Self, writer: anytype) !void {
-        try writer.print("ABI Framework Summary\n");
-        try writer.print("=====================\n");
-        try writer.print("Status: {s}\n", .{if (self.isRunning()) "Running" else "Stopped"});
-        try writer.print("Components: {}/{}\n", .{ self.stats.active_components, self.stats.total_components });
-        try writer.print("Features: {}\n", .{self.stats.enabled_features});
-        try writer.print("Uptime: {}ms\n", .{self.stats.uptime()});
-        try writer.print("Updates: {}\n", .{self.stats.update_count});
-
-        if (self.stats.update_count > 0) {
-            try writer.print("Last Update: {}ns\n", .{self.stats.last_update_duration_ns});
-        }
-
-        // List enabled features
-        try writer.print("Enabled Features:\n");
-        const feature_tags = [_]features.FeatureTag{ .ai, .gpu, .database, .web, .monitoring, .connectors };
-        for (feature_tags, 0..) |feature, idx| {
-            if (self.enabled_features.isSet(idx)) {
-                try writer.print("  - {s}: {s}\n", .{ features.config.getName(feature), features.config.getDescription(feature) });
+    pub fn refreshPlugins(self: *Framework) !void {
+        var discovered = try self.registry.discoverPlugins();
+        defer {
+            for (discovered.items) |path| {
+                self.allocator.free(path);
             }
+            discovered.deinit(self.allocator);
         }
+
+        self.clearDiscovered();
+
+        for (discovered.items) |path| {
+            const owned = try self.allocator.dupe(u8, path);
+            errdefer self.allocator.free(owned);
+            try self.discovered_plugins.append(self.allocator, owned);
+        }
+
+        if (self.auto_register_plugins) {
+            try self.loadDiscoveredPlugins();
+        }
+
+        if (self.auto_start_plugins) {
+            try self.registry.startAllPlugins();
+        }
+    }
+
+    pub fn loadDiscoveredPlugins(self: *Framework) !void {
+        for (self.discovered_plugins.items) |path| {
+            self.registry.loadPlugin(path) catch |err| switch (err) {
+                types.PluginError.AlreadyRegistered => continue,
+                else => return err,
+            };
+        }
+    }
+
+    pub fn discoveredPluginCount(self: *const Framework) usize {
+        return self.discovered_plugins.items.len;
+    }
+
+    pub fn discoveredPlugin(self: *const Framework, index: usize) []const u8 {
+        return self.discovered_plugins.items[index];
+    }
+
+    pub fn writeSummary(self: *const Framework, writer: anytype) !void {
+        try writer.print("Features enabled ({d}):\n", .{self.featureCount()});
+        var iter = self.features();
+        while (iter.next()) |feature| {
+            try writer.print("  - {s}: {s}\n", .{ config.featureLabel(feature), config.featureDescription(feature) });
+        }
+
+        if (self.plugin_paths.items.len > 0) {
+            try writer.print("Plugin search paths ({d}):\n", .{self.plugin_paths.items.len});
+            for (self.plugin_paths.items) |path| {
+                try writer.print("  - {s}\n", .{path});
+            }
+        } else {
+            try writer.print("Plugin search paths: none configured\n", .{});
+        }
+
+        try writer.print("Registered plugins: {d}\n", .{self.registry.getPluginCount()});
+        try writer.print("Discovered plugins awaiting load: {d}\n", .{self.discovered_plugins.items.len});
+    }
+
+    fn clearDiscovered(self: *Framework) void {
+        for (self.discovered_plugins.items) |path| {
+            self.allocator.free(path);
+        }
+        self.discovered_plugins.clearRetainingCapacity();
+    }
+
+    fn clearPluginPaths(self: *Framework) void {
+        for (self.plugin_paths.items) |path| {
+            self.registry.loader.removePluginPath(path);
+            self.allocator.free(path);
+        }
+        self.plugin_paths.clearRetainingCapacity();
     }
 };
 
-/// Factory function for creating framework instances
-pub fn createFramework(allocator: std.mem.Allocator, config: RuntimeConfig) !Framework {
-    return try Framework.init(allocator, config);
-}
-
-/// Default framework configuration
-pub fn defaultConfig() RuntimeConfig {
-    return RuntimeConfig{};
-}
-
-test "framework runtime - basic operations" {
-    const testing = std.testing;
-
-    var framework = try createFramework(testing.allocator, defaultConfig());
+test "framework initialises with defaults" {
+    var framework = try Framework.init(std.testing.allocator, .{});
     defer framework.deinit();
 
-    // Test component registration
-    const test_component = Component{
-        .name = "test",
-        .version = "1.0.0",
-    };
-
-    try framework.registerComponent(test_component);
-    try testing.expectEqual(@as(u32, 1), framework.stats.total_components);
-
-    // Test feature management
-    try testing.expect(framework.isFeatureEnabled(.ai));
-    try testing.expect(!framework.isFeatureEnabled(.gpu));
-
-    framework.enableFeature(.gpu);
-    try testing.expect(framework.isFeatureEnabled(.gpu));
-
-    // Test runtime start/stop
-    try framework.start();
-    try testing.expect(framework.isRunning());
-
-    framework.stop();
-    try testing.expect(!framework.isRunning());
+    try std.testing.expect(framework.isFeatureEnabled(.ai));
+    try std.testing.expect(framework.isFeatureEnabled(.database));
+    try std.testing.expect(framework.isFeatureEnabled(.web));
+    try std.testing.expect(framework.isFeatureEnabled(.monitoring));
+    try std.testing.expect(framework.isFeatureEnabled(.simd));
+    try std.testing.expect(!framework.isFeatureEnabled(.gpu));
+    try std.testing.expectEqual(@as(usize, 0), framework.pluginPathCount());
 }
 
-test "framework - feature configuration" {
-    const testing = std.testing;
-
-    const config = RuntimeConfig{
-        .enabled_features = &[_]features.FeatureTag{ .ai, .gpu },
-        .disabled_features = &[_]features.FeatureTag{.gpu},
-    };
-
-    var framework = try createFramework(testing.allocator, config);
+test "framework respects custom feature selection" {
+    var framework = try Framework.init(std.testing.allocator, .{
+        .enabled_features = &.{ .gpu, .connectors },
+        .disabled_features = &.{.connectors},
+    });
     defer framework.deinit();
 
-    try testing.expect(framework.isFeatureEnabled(.ai));
-    try testing.expect(!framework.isFeatureEnabled(.gpu)); // Disabled overrides enabled
-    try testing.expect(!framework.isFeatureEnabled(.database));
+    try std.testing.expect(framework.isFeatureEnabled(.gpu));
+    try std.testing.expect(!framework.isFeatureEnabled(.connectors));
+    try std.testing.expectEqual(@as(usize, 1), framework.featureCount());
+}
+
+test "framework manages plugin search paths" {
+    var framework = try Framework.init(std.testing.allocator, .{});
+    defer framework.deinit();
+
+    try framework.setPluginPaths(&.{ "./plugins", "./more-plugins" });
+    try std.testing.expectEqual(@as(usize, 2), framework.pluginPathCount());
+    try std.testing.expectEqualStrings("./plugins", framework.pluginPath(0));
+    try std.testing.expectEqualStrings("./more-plugins", framework.pluginPath(1));
+    try std.testing.expectEqual(@as(usize, 2), framework.registry.loader.plugin_paths.items.len);
+    try std.testing.expectEqualStrings("./plugins", framework.registry.loader.plugin_paths.items[0]);
+    try std.testing.expectEqualStrings("./more-plugins", framework.registry.loader.plugin_paths.items[1]);
+
+    try framework.setPluginPaths(&.{"./fresh-plugins"});
+    try std.testing.expectEqual(@as(usize, 1), framework.pluginPathCount());
+    try std.testing.expectEqualStrings("./fresh-plugins", framework.pluginPath(0));
+    try std.testing.expectEqual(@as(usize, 1), framework.registry.loader.plugin_paths.items.len);
+    try std.testing.expectEqualStrings("./fresh-plugins", framework.registry.loader.plugin_paths.items[0]);
+}
+
+test "framework summary reports configured state" {
+    var framework = try Framework.init(std.testing.allocator, .{
+        .enable_gpu = true,
+        .plugin_paths = &.{"./plugins"},
+    });
+    defer framework.deinit();
+
+    var buffer: [512]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buffer);
+    try framework.writeSummary(stream.writer());
+
+    const written = stream.getWritten();
+    try std.testing.expect(std.mem.indexOf(u8, written, "GPU Acceleration") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "plugins") != null);
 }
