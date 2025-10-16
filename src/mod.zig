@@ -32,7 +32,13 @@ pub const connectors = features.connectors;
 /// `abi.wdbx.*` directly, so we surface the unified helpers alongside the
 /// underlying database module. Only available when `enable_database` is true.
 pub const wdbx = struct {
-    pub usingnamespace features.database.unified;
+    // Explicit re-exports instead of usingnamespace for Zig 0.16 compatibility
+    pub const init = features.database.unified.init;
+    pub const deinit = features.database.unified.deinit;
+    pub const insert = features.database.unified.insert;
+    pub const search = features.database.unified.search;
+    pub const count = features.database.unified.count;
+    
     pub const database = features.database.database;
     pub const helpers = features.database.db_helpers;
     pub const cli = features.database.cli;
@@ -54,6 +60,13 @@ pub const observability = @import("shared/observability/mod.zig");
 pub const plugins = @import("shared/mod.zig");
 pub const simd = @import("shared/simd.zig");
 pub const VectorOps = simd.VectorOps;
+
+// =============================================================================
+// CLI AND TOOLS
+// =============================================================================
+
+/// Command-line interface and development tools
+pub const cli = @import("cli/mod.zig");
 
 // =============================================================================
 // PUBLIC API

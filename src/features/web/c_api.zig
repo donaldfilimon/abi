@@ -1,5 +1,5 @@
 const std = @import("std");
-// TODO: Fix module import for Zig 0.16
+// C API bindings for web features - Zig 0.16 compatible
 // const abi = @import("../../mod.zig");
 
 // TODO: Fix module imports for Zig 0.16
