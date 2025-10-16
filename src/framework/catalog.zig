@@ -1,9 +1,9 @@
 const feature_manager = @import("feature_manager.zig");
 const state = @import("state.zig");
 
-const core = @import("../shared/core/core.zig");
-const lifecycle = @import("../shared/core/lifecycle.zig");
-const core_logging = @import("../shared/core/logging.zig");
+const core = @import("../core/core.zig");
+const lifecycle = @import("../core/lifecycle.zig");
+const core_logging = @import("../shared/logging/logging.zig");
 const structured_logging = @import("../shared/logging/logging.zig");
 const plugins = @import("../shared/mod.zig");
 const ai = @import("../features/ai/mod.zig");

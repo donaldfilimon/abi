@@ -2,7 +2,7 @@
 //!
 //! Default configuration for the ABI framework
 
-const abi = @import("../lib/mod.zig");
+const abi = @import("../src/mod.zig");
 
 pub const default_config = abi.framework.RuntimeConfig{
     .max_plugins = 128,

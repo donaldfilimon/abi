@@ -3,7 +3,12 @@
 //! Demonstrates basic usage of the ABI framework
 
 const std = @import("std");
-const abi = @import("../lib/mod.zig");
+const abi = @import("../src/mod.zig");
+
+fn demoOperation() !u32 {
+    // Simulate some operation that might fail
+    return 42;
+}
 
 pub fn main() !void {
     std.log.info("ABI Framework Basic Usage Example", .{});
@@ -14,8 +19,8 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     // Initialize the framework with default configuration
-    var framework = try abi.createDefaultFramework(allocator);
-    defer framework.deinit();
+    var framework = try abi.init(allocator, .{});
+    defer abi.shutdown(framework);
 
     // Check which features are enabled
     std.log.info("Enabled features:", .{});
@@ -63,25 +68,27 @@ pub fn main() !void {
         std.log.info("Retrieved component: {s} v{s}", .{ comp.name, comp.version });
     }
 
-    // Demonstrate memory management
-    std.log.info("\nMemory management demo:", .{});
-    var tracked = abi.core.allocators.AllocatorFactory.createTracked(allocator, 1024 * 1024); // 1MB limit
-    const tracked_allocator = tracked.allocator();
-
-    // Allocate some memory
-    const memory = try tracked_allocator.alloc(u8, 1024);
-    defer tracked_allocator.free(memory);
-
-    const memory_stats = tracked.getStats();
-    std.log.info("Memory stats:", .{});
-    std.log.info("  - Allocated: {d} bytes", .{memory_stats.bytes_allocated});
-    std.log.info("  - Freed: {d} bytes", .{memory_stats.bytes_freed});
-    std.log.info("  - Current usage: {d} bytes", .{memory_stats.currentUsage()});
-    std.log.info("  - Peak usage: {d} bytes", .{memory_stats.peak_usage});
+    // Demonstrate I/O abstraction
+    std.log.info("\nI/O abstraction demo:", .{});
+    const writer = abi.core.Writer.stdout();
+    try writer.print("Using the new I/O abstraction layer!\n");
+    
+    // Demonstrate error handling
+    std.log.info("\nError handling demo:", .{});
+    const result = demoOperation() catch |err| {
+        const ctx = abi.core.ErrorContext.init(err, "Demo operation failed")
+            .withLocation(abi.core.here())
+            .withContext("This is a demonstration of rich error context");
+        
+        std.log.err("Error occurred: {}", .{ctx});
+        return err;
+    };
+    
+    std.log.info("Operation result: {d}", .{result});
 
     // Demonstrate collections
     std.log.info("\nCollections demo:", .{});
-    var list = abi.core.utils.createArrayList(u32, allocator);
+    var list = std.ArrayList(u32).init(allocator);
     defer list.deinit();
 
     for (0..10) |i| {

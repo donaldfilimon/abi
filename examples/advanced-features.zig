@@ -3,7 +3,7 @@
 //! Demonstrates advanced usage patterns of the ABI framework
 
 const std = @import("std");
-const abi = @import("../lib/mod.zig");
+const abi = @import("../src/mod.zig");
 
 pub fn main() !void {
     std.log.info("ABI Framework Advanced Features Example", .{});

@@ -26,8 +26,28 @@ jobs:
       - name: Build
         run: zig build
 
+      - name: Build with features
+        run: |
+          zig build -Denable-ai=true -Denable-gpu=true -Denable-database=true
+          zig build -Denable-web=true -Denable-monitoring=true
+
       - name: Run tests
         run: zig build test
+
+      - name: Run unit tests
+        run: zig build test-unit
+
+      - name: Run integration tests
+        run: zig build test-integration
+
+      - name: Run core benchmarks
+        run: zig build bench-core
+
+      - name: Build examples
+        run: zig build examples
+
+      - name: Build documentation
+        run: zig build docs
 
       - name: Run check aggregate
         run: zig build check
