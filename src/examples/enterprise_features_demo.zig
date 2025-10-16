@@ -10,9 +10,10 @@
 
 const std = @import("std");
 
-const ai = @import("ai");
-const model_registry = @import("ai").model_registry;
-const monitoring = @import("monitoring");
+const abi = @import("../mod.zig");
+const ai = abi.features.ai;
+const model_registry = abi.features.ai.model_registry;
+const monitoring = abi.features.monitoring;
 
 /// Enterprise ML Platform
 pub const EnterpriseMLPlatform = struct {

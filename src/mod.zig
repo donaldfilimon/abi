@@ -32,7 +32,8 @@ pub const connectors = features.connectors;
 /// `abi.wdbx.*` directly, so we surface the unified helpers alongside the
 /// underlying database module.
 pub const wdbx = struct {
-    pub usingnamespace features.database.unified;
+    // Explicit re-exports instead of usingnamespace
+    pub const unified = features.database.unified;
     pub const database = features.database.database;
     pub const helpers = features.database.db_helpers;
     pub const cli = features.database.cli;
@@ -47,7 +48,7 @@ pub const framework = @import("framework/mod.zig");
 // =============================================================================
 
 pub const utils = @import("shared/utils/mod.zig");
-pub const core = @import("shared/core/mod.zig");
+pub const core = @import("core/mod_new.zig");
 pub const platform = @import("shared/platform/mod.zig");
 pub const logging = @import("shared/logging/mod.zig");
 pub const observability = @import("shared/observability/mod.zig");

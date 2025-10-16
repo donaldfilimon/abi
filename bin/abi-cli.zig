@@ -3,7 +3,7 @@
 //! Modern command-line interface for the ABI framework
 
 const std = @import("std");
-const abi = @import("../lib/mod.zig");
+const abi = @import("../src/mod.zig");
 
 /// Exit codes for the CLI
 pub const ExitCode = enum(u8) {

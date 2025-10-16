@@ -73,6 +73,9 @@ pub fn build(b: *std.Build) void {
 
     // Additional tools
     buildTools(b, target, optimize, abi_module);
+    
+    // Core infrastructure benchmarks
+    buildCoreBenchmarks(b, target, optimize, abi_module);
 }
 
 fn createBuildOptions(b: *std.Build, config: BuildConfig) *std.Build.Step.Options {
@@ -134,7 +137,6 @@ fn buildCLI(
     exe.link_function_sections = true;
     exe.link_data_sections = true;
     if (optimize != .Debug) {
-        exe.strip = true;
         exe.link_gc_sections = true;
     }
 
@@ -151,7 +153,7 @@ fn buildTests(
     // Main test suite
     const main_tests = b.addTest(.{
         .name = "abi_tests",
-        .root_source_file = b.path("src/tests/mod.zig"),
+        .root_source_file = b.path("tests/unit/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -212,7 +214,6 @@ fn buildExamples(
         
         // Apply optimizations to examples
         if (optimize != .Debug) {
-            exe.strip = true;
             exe.link_gc_sections = true;
         }
 
@@ -321,10 +322,53 @@ fn buildTools(
     });
     profiler_exe.root_module.addImport("abi", abi_module);
 
+    // Code quality analyzer
+    const quality_analyzer = b.addExecutable(.{
+        .name = "code_quality_analyzer",
+        .root_source_file = b.path("tools/code_quality_analyzer.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    quality_analyzer.root_module.addImport("abi", abi_module);
+
     const install_profiler = b.addInstallArtifact(profiler_exe, .{
+        .dest_dir = .{ .override = .{ .custom = "tools" } },
+    });
+    
+    const install_analyzer = b.addInstallArtifact(quality_analyzer, .{
         .dest_dir = .{ .override = .{ .custom = "tools" } },
     });
 
     const tools_step = b.step("tools", "Build development tools");
     tools_step.dependOn(&install_profiler.step);
+    tools_step.dependOn(&install_analyzer.step);
+    
+    // Run code quality analysis
+    const run_quality_analysis = b.addRunArtifact(quality_analyzer);
+    const quality_step = b.step("quality", "Run code quality analysis");
+    quality_step.dependOn(&run_quality_analysis.step);
+}
+
+fn buildCoreBenchmarks(
+    b: *std.Build,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    abi_module: *std.Build.Module,
+) void {
+    // Core infrastructure benchmarks
+    const core_benchmarks = b.addExecutable(.{
+        .name = "abi-core-benchmarks",
+        .root_source_file = b.path("benchmarks/core_infrastructure.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    core_benchmarks.root_module.addImport("abi", abi_module);
+    b.installArtifact(core_benchmarks);
+    
+    // Run step for core benchmarks
+    const run_core_benchmarks = b.addRunArtifact(core_benchmarks);
+    run_core_benchmarks.step.dependOn(b.getInstallStep());
+    
+    const core_bench_step = b.step("bench-core", "Run core infrastructure benchmarks");
+    core_bench_step.dependOn(&run_core_benchmarks.step);
 }

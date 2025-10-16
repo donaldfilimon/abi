@@ -36,6 +36,8 @@ Abi is an experimental framework that provides a curated set of feature modules 
 - ✅ **Comprehensive Error Handling** - Rich error context and diagnostics
 - ✅ **Improved Testing** - Separate unit and integration test suites
 - ✅ **Better Documentation** - Architecture guides and API references
+- ✅ **Consolidated Architecture** - Removed duplicate code, unified module structure
+- ✅ **Modern Core Infrastructure** - New core modules with Zig 0.16 best practices
 
 ## 🚀 Quick Start
 
@@ -143,19 +145,24 @@ zig build docs-auto
 ### Module Organization
 
 ```
-lib/
-├── core/              # Core infrastructure
-│   ├── io.zig         # I/O abstractions
-│   ├── errors.zig     # Error definitions
-│   ├── diagnostics.zig # Diagnostics system
-│   └── ...
+src/
+├── core/              # Modern core infrastructure
+│   ├── io.zig         # I/O abstractions for testable output
+│   ├── errors.zig     # Comprehensive error handling system
+│   ├── diagnostics.zig # Rich diagnostic messages and context
+│   ├── mod_new.zig    # New core module structure
+│   └── ...            # Other core utilities
 ├── features/          # Feature modules
 │   ├── ai/            # AI/ML capabilities
 │   ├── database/      # Vector database
 │   ├── gpu/           # GPU acceleration
 │   └── ...
-└── framework/         # Framework runtime
-    ├── runtime.zig    # Lifecycle management
+├── framework/         # Framework runtime
+│   ├── runtime.zig    # Lifecycle management
+│   └── ...
+└── shared/            # Cross-cutting utilities
+    ├── logging/       # Structured logging
+    ├── platform/      # Platform abstractions
     └── ...
 ```
 

@@ -24,7 +24,12 @@ abi/
 │   ├── agent/              # Agent‑related prototypes and middleware
 │   ├── cli/                # Legacy CLI helpers (now superseded by `comprehensive_cli.zig`)
 │   ├── connectors/         # External service connectors (e.g., Ollama)
-│   ├── core/               # Low‑level building blocks (collections, error types)
+│   ├── core/               # Modern core infrastructure (I/O, errors, diagnostics)
+│   │   ├── io.zig          # I/O abstraction layer for testable output
+│   │   ├── errors.zig      # Comprehensive error handling system
+│   │   ├── diagnostics.zig # Rich diagnostic messages and context
+│   │   ├── mod_new.zig     # New core module structure
+│   │   └── ...             # Other core utilities
 │   ├── examples/           # Small runnable examples for each feature
 │   ├── features/           # Public feature modules (ai, database, gpu, web, …)
 │   │   ├── ai/               # Agent, model, training utilities
@@ -36,12 +41,14 @@ abi/
 │   ├── framework/          # Runtime orchestration, feature toggles, plugin loader
 │   ├── ml/                 # Machine‑learning utilities (future extensions)
 │   ├── shared/             # Cross‑cutting utilities (logging, platform, simd)
-│   ├── tests/              # Test suite mirroring the feature tree (`*_test.zig`)
 │   ├── tools/              # Auxiliary tools (benchmark harness, docs generator, etc.)
 │   ├── comprehensive_cli.zig # Modern, sub‑command based CLI entry point
 │   ├── mod.zig             # Public façade – re‑exports all public APIs
 │   └── simd.zig            # SIMD helpers (`VectorOps`) re‑exported from `shared`
-├── tests/                  # High‑level integration tests (imports `src/...`)
+├── tests/                  # Comprehensive test suite
+│   ├── unit/               # Unit tests for individual components
+│   ├── integration/        # Integration tests for feature interactions
+│   └── benchmarks/         # Performance tests
 ├── .gitattributes
 ├── .gitignore
 ├── .zigversion             # Pinned Zig version (0.16.0)
@@ -66,7 +73,7 @@ abi/
 | **Feature flags**        | Compile‑time flags (`-Denable-gpu`, `-Denable-web`, …) are collected in `framework/config.zig`. The CLI can query/toggle them at runtime. |
 | **Allocator discipline** | Every allocation receives an explicit `std.mem.Allocator`. Ownership is clear and deallocation is always performed. |
 | **Cross‑platform**       | The layout works on Windows, macOS, Linux, and (optionally) WASM/WebGPU (`-Denable-web`). |
-| **Testing parity**       | Each feature directory contains a matching `*_test.zig` in `src/tests/`. `zig build test` runs the full suite. |
+| **Testing parity**       | Tests are organized in `tests/` with unit and integration test suites. `zig build test` runs the full suite. |
 | **Documentation**        | `docs/` contains generated API reference, module organization, and a quick‑start guide. The `PROJECT_STRUCTURE.md` you are reading lives here. |
 | **Backward compatibility** | Legacy symbols are re‑exported under `abi.wdbx` to keep older examples working. |
 

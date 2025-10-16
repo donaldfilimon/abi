@@ -4,7 +4,7 @@
 //! safety filters, sampling parameters, and runtime toggles.
 
 const std = @import("std");
-const profile = @import("../../shared/core/profile.zig");
+const profile = @import("../../core/profile.zig");
 
 pub const Allocator = std.mem.Allocator;
 

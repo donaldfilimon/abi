@@ -9,7 +9,8 @@
 const std = @import("std");
 
 // Import our enhanced HTTP client
-const http_client = @import("http_client");
+const abi = @import("../mod.zig");
+const http_client = abi.features.web.http_client;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
