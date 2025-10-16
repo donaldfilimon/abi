@@ -5,6 +5,7 @@
 //! coordinates feature toggles, plugin discovery, and lifecycle management.
 
 const std = @import("std");
+const build_options = @import("build_options");
 
 // =============================================================================
 // CORE MODULES
@@ -82,7 +83,7 @@ pub fn shutdown(instance: *Framework) void {
 
 /// Get framework version information.
 pub fn version() []const u8 {
-    return "0.1.0a";
+    return build_options.package_version;
 }
 
 /// Create a framework with default configuration
@@ -100,7 +101,7 @@ test {
 }
 
 test "abi.version returns build package version" {
-    try std.testing.expectEqualStrings("0.1.0a", version());
+    try std.testing.expectEqualStrings(build_options.package_version, version());
 }
 
 test "framework initialization" {

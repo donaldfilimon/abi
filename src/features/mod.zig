@@ -7,13 +7,35 @@ const build_options = @import("build_options");
 pub const FeatureTag = enum { ai, gpu, database, web, monitoring, connectors };
 
 /// Public feature modules grouped for discoverability.
-/// These are conditionally compiled based on build options to reduce bundle size.
-pub const ai = if (build_options.enable_ai) @import("ai/mod.zig") else struct {};
-pub const gpu = if (build_options.enable_gpu) @import("gpu/mod.zig") else struct {};
-pub const database = if (build_options.enable_database) @import("database/mod.zig") else struct {};
-pub const web = if (build_options.enable_web) @import("web/mod.zig") else struct {};
-pub const monitoring = if (build_options.enable_monitoring) @import("monitoring/mod.zig") else struct {};
-pub const connectors = @import("connectors/mod.zig");
+pub const ai = if (!@hasDecl(build_options, "enable_ai") or build_options.enable_ai)
+    @import("ai/mod.zig")
+else
+    struct {};
+
+pub const gpu = if (!@hasDecl(build_options, "enable_gpu") or build_options.enable_gpu)
+    @import("gpu/mod.zig")
+else
+    struct {};
+
+pub const database = if (!@hasDecl(build_options, "enable_database") or build_options.enable_database)
+    @import("database/mod.zig")
+else
+    struct {};
+
+pub const web = if (!@hasDecl(build_options, "enable_web") or build_options.enable_web)
+    @import("web/mod.zig")
+else
+    struct {};
+
+pub const monitoring = if (!@hasDecl(build_options, "enable_monitoring") or build_options.enable_monitoring)
+    @import("monitoring/mod.zig")
+else
+    struct {};
+
+pub const connectors = if (!@hasDecl(build_options, "enable_connectors") or build_options.enable_connectors)
+    @import("connectors/mod.zig")
+else
+    struct {};
 
 /// Invoke the visitor for every feature module re-exported by this file.
 pub fn forEachFeature(ctx: anytype, visitor: anytype) void {
