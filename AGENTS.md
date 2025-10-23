@@ -1,4 +1,4 @@
-Repository Guidelines
+[Repository Guidelines
 =====================
 
 This file is a living reference that contributors should read before making changes.  It reflects the
@@ -23,7 +23,7 @@ All public APIs live behind the re‑export in `src/mod.zig`; keep external impo
 
 ## Build, Test, and Development Commands
 
-```sh
+```
 zig build -Doptimize=ReleaseSafe
 zig build test
 zig fmt --check
@@ -66,3 +66,4 @@ Run `zig fmt` after edits.
 
 ---
 For additional questions, open an issue or reach out on the project Slack.
+](https://github.com/donaldfilimon/abi)
