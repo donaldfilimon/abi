@@ -107,11 +107,7 @@ inline fn finishTiming(start: i128, used_simd: bool) void {
 
 inline fn loadVector(slice: []const f32) FloatVector {
     std.debug.assert(slice.len >= SIMD_WIDTH);
-<<<<<<< HEAD:src/shared/simd.zig
     const ptr = @as(*const [SIMD_WIDTH]f32, @ptrCast(slice.ptr));
-=======
-    const ptr: *const [SIMD_WIDTH]f32 = @ptrCast(slice.ptr);
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/shared/simd.zig
     return @as(FloatVector, ptr.*);
 }
 
@@ -123,11 +119,7 @@ inline fn storeVector(vec: FloatVector, slice: []f32) void {
 
 inline fn loadByteVector(slice: []const u8) ByteVector {
     std.debug.assert(slice.len >= TextSimdWidth);
-<<<<<<< HEAD:src/shared/simd.zig
     const ptr = @as(*ByteVector, @ptrCast(slice.ptr));
-=======
-    const ptr: *const [TextSimdWidth]u8 = @ptrCast(slice.ptr);
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/shared/simd.zig
     return @as(ByteVector, ptr.*);
 }
 
@@ -354,11 +346,7 @@ fn matrixMultiplyInternal(result: []f32, a: []const f32, b: []const f32, rows: u
                     for (0..SIMD_WIDTH) |offset| {
                         col_buf[offset] = b[(k + offset) * cols + j];
                     }
-<<<<<<< HEAD:src/shared/simd.zig
                     const vb = @as(FloatVector, @bitCast(col_buf));
-=======
-                    const vb: FloatVector = @bitCast(col_buf);
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/shared/simd.zig
                     sum += @reduce(.Add, va * vb);
                 }
                 used_simd = used_simd or simd_end != 0;
@@ -443,11 +431,7 @@ pub const VectorOps = struct {
     }
 
     pub fn vectorNormalize(result: []f32, input: []const f32) void {
-<<<<<<< HEAD:src/shared/simd.zig
         VectorOps.normalize(result, input);
-=======
-        @This().normalize(result, input);
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/shared/simd.zig
     }
 };
 

@@ -158,7 +158,6 @@ pub const MatrixOps = struct {
     fn dispatchMatmulKernel(self: *MatrixOps, a_buffer: u32, b_buffer: u32, c_buffer: u32, m: usize, n: usize, p: usize) !void {
         const pipeline_handle = try self.ensureMatmulPipeline();
 
-<<<<<<< HEAD:src/features/gpu/compute/gpu_ai_acceleration.zig
         const tile = @as(usize, @intCast(kernels.matmul_workgroup_size));
 
         const dispatch_x = @as(u32, @intCast((p + tile - 1) / tile));
@@ -168,17 +167,6 @@ pub const MatrixOps = struct {
             .m = @as(u32, @intCast(m)),
             .n = @as(u32, @intCast(n)),
             .p = @as(u32, @intCast(p)),
-=======
-        const tile: usize = @intCast(kernels.matmul_workgroup_size);
-
-        const dispatch_x: u32 = @intCast((p + tile - 1) / tile);
-        const dispatch_y: u32 = @intCast((m + tile - 1) / tile);
-
-        const params = MatmulPushConstants{
-            .m = @intCast(m),
-            .n = @intCast(n),
-            .p = @intCast(p),
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/features/gpu/compute/gpu_ai_acceleration.zig
         };
 
         const params_handle = try self.renderer.createBuffer(@sizeOf(MatmulPushConstants), .{
@@ -237,21 +225,10 @@ pub const MatrixOps = struct {
         @memcpy(std.mem.asBytes(&params), src);
 
         const matrix_ops: *MatrixOps = @ptrCast(@alignCast(ctx.?));
-<<<<<<< HEAD:src/features/gpu/compute/gpu_ai_acceleration.zig
-        try matrix_ops.matmulCpuOptimized(
-            buffers[0],
-            buffers[1],
-            buffers[2],
-            @as(usize, @intCast(params.m)),
-            @as(usize, @intCast(params.n)),
-            @as(usize, @intCast(params.p)),
-        );
-=======
         const allocator = matrix_ops.allocator;
-        const m: usize = @intCast(params.m);
-        const n: usize = @intCast(params.n);
-        const p: usize = @intCast(params.p);
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/features/gpu/compute/gpu_ai_acceleration.zig
+        const m = @as(usize, @intCast(params.m));
+        const n = @as(usize, @intCast(params.n));
+        const p = @as(usize, @intCast(params.p));
 
         const a_bytes = try renderer.readBuffer(buffers[0], allocator);
         defer allocator.free(a_bytes);
@@ -306,13 +283,8 @@ pub const MatrixOps = struct {
             }
         }
 
-<<<<<<< HEAD:src/features/gpu/compute/gpu_ai_acceleration.zig
         self.renderer.stats.bytes_written += @as(u64, @intCast(c_slice.len * @sizeOf(f32)));
         self.renderer.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
-=======
-        self.renderer.stats.bytes_written += @intCast(c.len * @sizeOf(f32));
-        self.renderer.stats.last_operation_time_ns = @intCast(std.time.nanoTimestamp() - start);
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/features/gpu/compute/gpu_ai_acceleration.zig
     }
 
     /// Matrix transpose

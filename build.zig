@@ -278,7 +278,7 @@ fn buildDocs(
 ) void {
     const docs_exe = b.addExecutable(.{
         .name = "docs_generator",
-        .root_source_file = b.path("src/tools/docs_generator.zig"),
+        .root_source_file = b.path("tools/docs_generator.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -291,7 +291,7 @@ fn buildDocs(
     // Zig's built-in documentation
     const lib_step = b.addSharedLibrary(.{
         .name = "abi",
-        .root_source_file = b.path("src/mod.zig"),
+        .root_source_file = b.path("lib/mod.zig"),
         .target = target,
         .optimize = optimize,
     });

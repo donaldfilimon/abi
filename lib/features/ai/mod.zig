@@ -3,7 +3,7 @@ const Schema = @import("schema.zig");
 const Conn = @import("../connectors/mod.zig");
 const Retry = @import("retry.zig");
 const Policy = @import("policy.zig");
-const Wdbx = @import("../features/database/wdbx_adapter.zig");
+const Wdbx = @import("../database/wdbx_adapter.zig");
 
 pub const Envelope = struct {
     id: []const u8,
