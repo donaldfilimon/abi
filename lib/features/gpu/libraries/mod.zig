@@ -6,7 +6,7 @@
 pub const vulkan_bindings = @import("vulkan_bindings.zig");
 pub const mach_gpu_integration = @import("mach_gpu_integration.zig");
 pub const cuda_integration = @import("cuda_integration.zig");
-pub const simd_optimizations = @import("simd_optimizations_minimal.zig");
+pub const simd_optimizations = @import("simd_optimizations.zig");
 
 // Re-export key types and functions
 pub const VulkanRenderer = vulkan_bindings.VulkanRenderer;

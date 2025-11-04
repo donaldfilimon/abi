@@ -54,7 +54,7 @@ pub const Writer = struct {
     }
 
     /// Create a null Writer that discards all output
-    pub fn null() Writer {
+    pub fn @"null"() Writer {
         const impl = struct {
             fn writeFn(_: *anyopaque, bytes: []const u8) anyerror!usize {
                 return bytes.len;
