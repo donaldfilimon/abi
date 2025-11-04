@@ -36,10 +36,10 @@ pub fn main() !void {
 
     var lines = std.mem.split(u8, content, "\n");
     var line_number: u32 = 0;
-    
+
     while (lines.next()) |line| {
         line_number += 1;
-        
+
         if (std.mem.indexOf(u8, line, "std.debug.print") != null) {
             // Replace with writer.print
             const new_line = std.mem.replaceOwned(u8, allocator, line, "std.debug.print", "writer.print") catch |err| {
@@ -47,7 +47,7 @@ pub fn main() !void {
                 continue;
             };
             defer allocator.free(new_line);
-            
+
             try output.appendSlice(new_line);
             try output.append('\n');
         } else {

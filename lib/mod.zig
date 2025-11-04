@@ -44,7 +44,7 @@ pub const wdbx = struct {
     pub const helpers = features.database.db_helpers;
     pub const cli = features.database.cli;
     pub const http = features.database.http;
-    
+
     // Re-export unified functions explicitly
     pub const createDatabase = features.database.unified.createDatabase;
     pub const connectDatabase = features.database.unified.connectDatabase;

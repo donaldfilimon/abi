@@ -1,5 +1,5 @@
 //! Modern CLI Module
-//! 
+//!
 //! This module provides a clean command-line interface for the ABI framework.
 
 const std = @import("std");

@@ -1,78 +1,54 @@
-## Repository Guidelines
+# Repository Guidelines
 
-### 1. Project Structure & Module Organization
+## 1. Project layout
 
-The repository follows a simple `src/` + `tests/` layout.
+- **src/** – Zig source modules
+- **tests/** – unit tests (filename ends with `_test.zig`)
+- **examples/** – runnable demos
+- **assets/** – static files used by examples
 
+Every module lives under **src/** and is imported with
 ```
-src/          – Production code (Zig modules)
-tests/        – Unit‑and‑integration tests
-assets/       – Static files used by the examples
-examples/     – runnable demo binaries
-```
-
-All library files are located under `src/` and should be imported with
-`@import("../src/<module>.zig")`. Test files live next to the module they
-exercise, e.g. `src/foo/bar.zig` ⇒ `tests/foo/bar_test.zig`.
-
-### 2. Build, Test, and Development Commands
-
-All development is performed with Zig’s own tooling:
-
-- `zig build` – Compile the library and example binaries.
-- `zig build run` – Build and run the default example in `examples/`.
-- `zig test` – Execute the test suite defined under `tests/`.
-- `zig fmt -w .` – Run the formatter on the whole repository.
-
-The project targets Zig 0.12+.  Ensure your local Zig installation matches
-`zig --version | grep 0.12`.
-
-### 3. Coding Style & Naming Conventions
-
-* Indentation: **4 spaces** (no tabs).
-* Types: `PascalCase` (e.g. `MyStruct`).
-* Functions & variables: `snake_case` (`calculate_sum`).
-* Constants: `ALL_CAPS` with underscores.
-* Modules: filename matches the module name, all lowercase.
-* Formatting: run `zig fmt -w .` to keep code tidy – no `.editorconfig`
-  needed.
-
-### 4. Testing Guidelines
-
-The repository uses Zig’s built‑in test framework.  A test file must end
-with `_test.zig` and contain `test "description" { … }` blocks.
-Run the suite with `zig test`.  Coverage is not enforced during CI but
-aim for ~80% for new features.  Each test file should reside in the same
-directory as the code it tests.
-
-### 5. Commit & Pull Request Guidelines
-
-Adopt conventional‑commits format:
-
-```
-<type>[optional scope]: <short description>
-
-[optional body]
+@import("../src/<module>.zig")
 ```
 
-Where `<type>` is e.g. `feat`, `fix`, `docs`, `test`, or `style`.
+## 2. Build & test commands
+
+| Command | Purpose |
+|---------|---------|
+| `zig build` | Compile library and demos |
+| `zig test` | Run all tests |
+| `zig fmt -w .` | Apply the standard Zig formatter |
+
+The repo targets Zig 0.12+ – run `zig --version` to confirm.
+
+## 3. Code style
+
+* **Indent**: 4 spaces, no tabs
+* **Types**: `PascalCase`
+* **Funcs/vars**: `snake_case`
+* **Constants**: `ALL_CAPS`
+* **Files**: lowercase, match module name
+* Run `zig fmt -w .` before committing
+
+## 4. Testing
+
+Use Zig’s built‑in framework.  Test files must end with `_test.zig` and
+be in the same directory as the code they exercise.  Run with
+`zig test`.  Aim for ~80 % coverage on new features.
+
+## 5. Commit & PR style
+
+Adopt **conventional‑commits**: `type(scope): short subject`.  Typical
+types: `feat`, `fix`, `docs`, `test`, `style`.
 
 Pull requests should:
 
-* reference a related issue (`Closes #123`).
-* contain a clear description of the change.
-* include examples or screenshots for UI changes.
-* have been formatted (`zig fmt`) and pass `zig test`.
-
-### 6. Security & Configuration Tips
-
-* Keep external dependencies minimal – the project only relies on the Zig
-  stdlib.
-* All configuration is via a `config.zig` file; do not hard‑code paths.
-* Run tests on all supported architectures (`zig test --arch=x86_64`),
-  especially when using SIMD or GPU backends.
+1. Reference a GitHub issue (`Closes #123`).
+2. Include a clear description.
+3. Pass formatting and tests.
 
 ---
 
-Happy contributing! 🎉
+Happy hacking! 🎉
 
