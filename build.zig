@@ -129,7 +129,7 @@ fn buildCLI(
     });
 
     exe.root_module.addImport("abi", abi_module);
-    
+
     // Performance optimizations
     exe.link_function_sections = true;
     exe.link_data_sections = true;
@@ -209,7 +209,7 @@ fn buildExamples(
             .optimize = optimize,
         });
         exe.root_module.addImport("abi", abi_module);
-        
+
         // Apply optimizations to examples
         if (optimize != .Debug) {
             exe.strip = true;
