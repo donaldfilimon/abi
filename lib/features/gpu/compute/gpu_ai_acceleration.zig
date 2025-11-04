@@ -283,7 +283,7 @@ pub const MatrixOps = struct {
             }
         }
 
-        self.renderer.stats.bytes_written += @as(u64, @intCast(c_slice.len * @sizeOf(f32)));
+        self.renderer.stats.bytes_written += @as(u64, @intCast(c.len * @sizeOf(f32)));
         self.renderer.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
     }
 

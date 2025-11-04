@@ -49,7 +49,7 @@ pub fn GenericResult(comptime T: type) type {
         error_message: []const u8 = "",
 
         /// Creates a successful result
-        pub fn success(value: T) Self {
+        pub fn makeSuccess(value: T) Self {
             return Self{
                 .value = value,
                 .success = true,
@@ -57,7 +57,7 @@ pub fn GenericResult(comptime T: type) type {
         }
 
         /// Creates a failed result
-        pub fn failure(error_message: []const u8) Self {
+        pub fn makeFailure(error_message: []const u8) Self {
             return Self{
                 .value = undefined,
                 .success = false,
