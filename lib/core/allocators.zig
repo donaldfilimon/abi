@@ -90,8 +90,8 @@ pub const TrackedAllocator = struct {
             return null;
         }
 
-        const result = self.parent_allocator.rawAlloc(len, log2_ptr_align, ret_addr);
-        if (result) |ptr| {
+        const result = self.parent_allocator.alloc(len, log2_ptr_align, ret_addr);
+        if (result) |_| {
             self.stats.bytes_allocated += len;
             self.stats.active_allocations += 1;
             if (self.stats.currentUsage() > self.stats.peak_usage) {
@@ -105,7 +105,7 @@ pub const TrackedAllocator = struct {
         const self: *Self = @ptrCast(@alignCast(ctx));
         const old_len = buf.len;
 
-        const result = self.parent_allocator.rawResize(buf, log2_buf_align, new_len, ret_addr);
+        const result = self.parent_allocator.resize(buf, log2_buf_align, new_len, ret_addr);
         if (result) {
             if (new_len > old_len) {
                 self.stats.bytes_allocated += new_len - old_len;
@@ -124,7 +124,7 @@ pub const TrackedAllocator = struct {
             self.stats.active_allocations -= 1;
         }
 
-        self.parent_allocator.rawFree(buf, log2_buf_align, ret_addr);
+        self.parent_allocator.free(buf, log2_buf_align, ret_addr);
     }
 };
 

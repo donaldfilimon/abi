@@ -53,7 +53,7 @@ pub const ErrorContext = struct {
     source: ?[]const u8 = null,
     /// Optional additional data
     data: ?[]const u8 = null,
-    
+
     /// Creates a new error context
     pub fn init(code: types.ErrorCode, message: []const u8) ErrorContext {
         return ErrorContext{
@@ -61,7 +61,7 @@ pub const ErrorContext = struct {
             .message = message,
         };
     }
-    
+
     /// Creates an error context with source location
     pub fn initWithSource(code: types.ErrorCode, message: []const u8, source: []const u8) ErrorContext {
         return ErrorContext{
@@ -70,7 +70,7 @@ pub const ErrorContext = struct {
             .source = source,
         };
     }
-    
+
     /// Formats the error context as a string
     pub fn format(self: ErrorContext, allocator: std.mem.Allocator) ![]u8 {
         if (self.source) |src| {
@@ -85,10 +85,10 @@ pub const ErrorContext = struct {
 pub fn ErrorHandler(comptime T: type) type {
     return struct {
         const Self = @This();
-        
+
         /// Handles an error and returns a result
         handle: fn (self: *Self, err: Error, context: ?ErrorContext) T,
-        
+
         /// Default error handler that returns the error
         pub fn default() Self {
             return Self{
@@ -101,7 +101,7 @@ pub fn ErrorHandler(comptime T: type) type {
                 }.handle,
             };
         }
-        
+
         /// Logging error handler that logs and returns error
         pub fn logging(logger: *std.log.Logger) Self {
             return Self{
@@ -124,12 +124,12 @@ pub fn ErrorHandler(comptime T: type) type {
 /// Utility functions for error handling
 pub const utils = struct {
     /// Ensures a value is not empty
-    pub fn ensureNonEmpty(name: []const u8, value: []const u8) !void {
+    pub fn ensureNonEmpty(_: []const u8, value: []const u8) !void {
         if (value.len == 0) {
             return Error.Empty;
         }
     }
-    
+
     /// Ensures a value is not null
     pub fn ensureNotNull(comptime T: type, name: []const u8, value: ?T) !void {
         _ = name; // Parameter name for documentation
@@ -137,7 +137,7 @@ pub const utils = struct {
             return Error.InvalidParameter;
         }
     }
-    
+
     /// Converts a Zig error to an error code
     pub fn errorToCode(err: Error) types.ErrorCode {
         return switch (err) {
@@ -160,7 +160,7 @@ pub const utils = struct {
             Error.InternalError => .internal_error,
         };
     }
-    
+
     /// Creates an error context from a Zig error
     pub fn createContext(err: Error, message: []const u8) ErrorContext {
         return ErrorContext.init(errorToCode(err), message);
@@ -171,7 +171,7 @@ test "errors - error context" {
     const context = ErrorContext.init(.invalid_request, "test error");
     const formatted = try context.format(std.testing.allocator);
     defer std.testing.allocator.free(formatted);
-    
+
     try std.testing.expectEqualStrings("[invalid_request] test error", formatted);
 }
 
@@ -179,17 +179,17 @@ test "errors - error context with source" {
     const context = ErrorContext.initWithSource(.not_found, "resource not found", "database");
     const formatted = try context.format(std.testing.allocator);
     defer std.testing.allocator.free(formatted);
-    
+
     try std.testing.expectEqualStrings("[not_found] database: resource not found", formatted);
 }
 
 test "errors - utils" {
     try utils.ensureNonEmpty("name", "test");
     try std.testing.expectError(Error.Empty, utils.ensureNonEmpty("name", ""));
-    
+
     const value: ?u32 = 42;
     try utils.ensureNotNull("value", value);
-    
+
     const null_value: ?u32 = null;
     try std.testing.expectError(Error.InvalidParameter, utils.ensureNotNull("value", null_value));
 }
