@@ -49,7 +49,6 @@ pub const JsonUtils = struct {
     pub fn parse(allocator: std.mem.Allocator, json_str: []const u8) !JsonValue {
         var tree = try std.json.parseFromSlice(std.json.Value, allocator, json_str, .{});
         defer tree.deinit();
-
         return try jsonValueFromTree(allocator, tree.value);
     }
 
@@ -70,7 +69,6 @@ pub const JsonUtils = struct {
     pub fn parseInto(allocator: std.mem.Allocator, comptime T: type, json_str: []const u8) !T {
         var tree = try std.json.parseFromSlice(std.json.Value, allocator, json_str, .{});
         defer tree.deinit();
-
         return try std.json.parseFromValueLeaky(T, allocator, tree.value, .{});
     }
 

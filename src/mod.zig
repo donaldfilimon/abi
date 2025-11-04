@@ -30,7 +30,7 @@ pub const connectors = features.connectors;
 
 /// Compatibility namespace for the WDBX tooling. Older call sites referenced
 /// `abi.wdbx.*` directly, so we surface the unified helpers alongside the
-/// underlying database module.
+/// underlying database module. Only available when `enable_database` is true.
 pub const wdbx = struct {
     pub usingnamespace features.database.unified;
     pub const database = features.database.database;
@@ -75,9 +75,9 @@ pub fn shutdown(instance: *Framework) void {
     instance.deinit();
 }
 
-/// Get framework version information.
+/// Get framework version information from build options.
 pub fn version() []const u8 {
-    return "0.1.0a";
+    return build_options.package_version;
 }
 
 test {
