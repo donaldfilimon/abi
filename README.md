@@ -1,130 +1,392 @@
+<<<<<<< HEAD
 # 🚀 Abi AI Framework
+=======
+# Abi Framework
 
-> **Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency, advanced monitoring, and platform-optimized implementations for Zig development.**
+> **Modern, modular Zig framework for AI/ML experiments and production workloads**
 
-[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev.1225%2Bbf9082518-orange.svg)](https://ziglang.org/) • [Docs](https://donaldfilimon.github.io/abi/) • [CI: Pages](.github/workflows/deploy_docs.yml)
+[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev-orange.svg)](https://ziglang.org/builds/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)](https://github.com/yourusername/abi)
-[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)]()
-[![Performance](https://img.shields.io/badge/Performance-2,777+%20ops%2Fsec-brightgreen.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.2.0-purple.svg)](CHANGELOG.md)
 
-## ✅ **Key Improvements**
-- **Performance**: SIMD optimizations, arena allocators, statistical analysis
-- **Reliability**: Enhanced error handling, memory leak detection, thread safety
-- **Monitoring**: Real-time metrics, adaptive load balancing, confidence scoring
-- **Reporting**: Multiple output formats, detailed analytics, optimization recommendations
-- **Security**: Vulnerability detection, secure random generation, input validation
-- **Platform Support**: Windows-specific optimizations, cross-platform compatibility
-- **Chat Integration**: Complete AI chat functionality with multiple personas and backends
-- **Model Training**: Full neural network training pipeline with CLI interface
-- **Web API**: RESTful endpoints and WebSocket support for AI interactions
+## 🎯 What is Abi?
 
-## ✨ **Key Features**
+Abi is an experimental framework that provides a curated set of feature modules for building high-performance AI/ML applications in Zig. It emphasizes:
 
-### 🚀 **Performance & Acceleration**
-- **GPU Acceleration**: WebGPU support with fallback to platform-specific APIs
-- **SIMD Optimizations**: 3GB/s+ text processing throughput with alignment safety
-- **Lock-free Concurrency**: Wait-free data structures for minimal contention
-- **Zero-copy Architecture**: Efficient memory management throughout
-- **Performance Monitoring**: Real-time profiling with sub-microsecond precision
+- **🚀 Performance**: Zero-cost abstractions, SIMD optimizations, and minimal overhead
+- **🔧 Modularity**: Composable features with compile-time selection
+- **🛡️ Type Safety**: Leveraging Zig's compile-time guarantees
+- **🧪 Testability**: Built with testing in mind from the ground up
+- **📊 Observability**: Comprehensive monitoring and diagnostics
 
-### 🤖 **AI & Machine Learning**
-- **Multi-persona AI Agents**: 8 distinct personalities with OpenAI integration
-- **Interactive Chat System**: CLI-based chat with persona selection and backend support
-- **Advanced Neural Networks**: Feed-forward, CNN, RNN, and Transformer architectures
-- **Reinforcement Learning**: DQN, Policy Gradient, and Actor-Critic implementations
-- **Model Training Pipeline**: Complete training infrastructure with CSV data support
-- **Distributed Training**: Multi-GPU and multi-node training with parameter servers
-- **Vector Database**: Custom ABI format for high-dimensional embeddings
-- **Advanced ML Algorithms**: Transformer models, federated learning, online learning
-- **Model Serialization**: Full model save/load with versioning and compression
+## ✨ Features
 
-### 🛡️ **Production-Ready Infrastructure**
-- **Production-Grade Servers**: Enterprise-ready HTTP/TCP servers with 99.98% uptime
-- **Network Error Recovery**: Graceful handling of connection failures and errors
-- **Fault Tolerance**: Servers continue operating even when individual connections fail
-- **Enhanced Monitoring**: Comprehensive observability with Prometheus + Grafana
-- **Production Deployment**: Docker containers, Kubernetes manifests, and cloud deployment
-- **Distributed Systems**: Multi-node deployment with load balancing and service discovery
-- **GPU Orchestration**: Kubernetes GPU resource management and scheduling
+### Core Capabilities
 
-### 🔌 **Extensible Plugin System**
-- **Cross-Platform Loading**: Windows (.dll), Linux (.so), macOS (.dylib)
-- **Type-Safe Interfaces**: C-compatible with safe Zig wrappers
-- **Dependency Management**: Automatic plugin loading and dependency resolution
-- **Event-Driven Architecture**: Inter-plugin messaging and service discovery
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **AI/ML** | Agent system, neural networks, transformers, RL | ✅ Production |
+| **Vector Database** | High-performance vector storage and retrieval | ✅ Production |
+| **GPU Acceleration** | Multi-backend GPU compute (CUDA, Vulkan, Metal) | 🔄 In Progress |
+| **Web Server** | HTTP server and client | ✅ Production |
+| **Monitoring** | Metrics, logging, and distributed tracing | ✅ Production |
+| **Plugin System** | Dynamic plugin loading and management | 🔄 In Progress |
 
-## 🚀 **Quick Start**
+### New in 0.2.0
 
-### **Prerequisites**
-- **Zig 0.16.0-dev.1225+bf9082518** (GitHub Actions uses `mlugg/setup-zig@v2` pinned to this version)
-- GPU drivers (optional, for acceleration)
-- OpenAI API key (for AI agent features)
+- ✅ **Modular Build System** - Feature flags for conditional compilation
+- ✅ **I/O Abstraction Layer** - Testable, composable I/O operations
+- ✅ **Comprehensive Error Handling** - Rich error context and diagnostics
+- ✅ **Improved Testing** - Separate unit and integration test suites
+- ✅ **Better Documentation** - Architecture guides and API references
+- ✅ **Mega Refactor Complete** - Clean architecture with zero duplication
+- ✅ **Modern Patterns** - Zig 0.16 best practices throughout
 
-### **Installation**
+## 🏗️ New Architecture (v0.2.0)
 
-```bash
-# Clone the repository
-git clone https://github.com/donaldfilimon/abi.git
-cd abi
+The ABI Framework has been completely refactored with a clean, modern architecture:
 
-# Build
-zig build
-
-# Run tests
-zig build test
-
-# Docs (GitHub Pages)
-zig build docs
-
-# Benchmarks
-zig build bench-all
-
-# Run CLI
-zig build run
-
-# Run SIMD micro-benchmark
-zig build bench-simd
+```
+abi/
+├── lib/                    # Primary library source
+│   ├── core/              # Core utilities (I/O, diagnostics, collections)
+│   ├── features/          # Feature modules (AI, GPU, Database, Web)
+│   ├── framework/         # Framework infrastructure
+│   └── shared/            # Shared utilities
+├── tools/                 # Development tools and CLI
+├── examples/             # Standalone examples
+├── tests/                # Comprehensive test suite
+└── benchmarks/           # Performance tests
 ```
 
-### **Basic Usage**
+### Key Improvements
+
+- **Zero Duplication**: Single source of truth in `lib/` directory
+- **Modern I/O**: Injectable writer pattern for better testing
+- **Rich Diagnostics**: Comprehensive error reporting with context
+- **Clean Exports**: Explicit module exports (no `usingnamespace`)
+- **Modular Build**: Feature flags for conditional compilation
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Zig** `0.16.0-dev.254+6dd0270a1` or later
+- A C++ compiler (for some dependencies)
+
+### Installation
+
+```bash
+git clone https://github.com/donaldfilimon/abi.git
+cd abi
+zig build
+```
+
+### Basic Usage
 
 ```zig
 const std = @import("std");
 const abi = @import("abi");
 
 pub fn main() !void {
-    // Initialize framework with monitoring
-    var framework = try abi.init(std.heap.page_allocator, .{
-        .enable_gpu = true,
-        .enable_simd = true,
-        .enable_memory_tracking = true,
-        .enable_performance_profiling = true,
-    });
-    defer framework.deinit();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    // Create AI agent
-    var agent = try abi.ai.Agent.init(std.heap.page_allocator, .creative);
+    // Initialize the framework
+    var framework = try abi.init(allocator, .{});
+    defer abi.shutdown(&framework);
+
+    // Create an AI agent
+    const Agent = abi.ai.agent.Agent;
+    var agent = try Agent.init(allocator, .{ .name = "Assistant" });
     defer agent.deinit();
 
-    // Generate response
-    const response = try agent.generate("Hello, how can you help me?", .{});
-    defer std.heap.page_allocator.free(response.content);
+    // Process a query
+    const response = try agent.process("Hello, world!", allocator);
+    defer allocator.free(@constCast(response));
 
-    std.debug.print("🤖 Agent: {s}\n", .{response.content});
+    std.debug.print("Agent response: {s}\n", .{response});
 }
 ```
 
-### **Vector Database Example**
+### Building with Feature Flags
+
+```bash
+# Build with specific features
+zig build -Denable-ai=true -Denable-gpu=true -Dgpu-cuda=true
+
+# Build and run tests
+zig build test              # Unit tests
+zig build test-integration  # Integration tests
+zig build test-all          # All tests
+
+# Build examples
+zig build examples          # All examples
+zig build run-ai_demo       # Run specific example
+
+# Build benchmarks
+zig build bench
+zig build run-bench
+
+# Generate documentation
+zig build docs
+zig build docs-auto
+```
+
+## 📖 Documentation
+
+### User Guides
+
+- **[Getting Started](docs/guides/GETTING_STARTED.md)** - Your first Abi application
+- **[Architecture](docs/ARCHITECTURE.md)** - System design and principles
+- **[API Reference](docs/api/)** - Complete API documentation
+- **[Examples](examples/)** - Practical code examples
+
+### Development
+
+- **[Contributing](CONTRIBUTING.md)** - How to contribute
+- **[Redesign Plan](REDESIGN_PLAN.md)** - Framework redesign details
+- **[Redesign Summary](REDESIGN_SUMMARY_FINAL.md)** - What's new in 0.2.0
+
+## 🏗️ Architecture
+
+### High-Level Overview
+
+```
+┌─────────────────────────────────────────────┐
+│          Application Layer                   │
+│        (CLI, User Code, Tools)              │
+└───────────────────┬─────────────────────────┘
+                    │
+┌───────────────────▼─────────────────────────┐
+│          Framework Layer                     │
+│    Runtime · Features · Plugins             │
+└───────────────────┬─────────────────────────┘
+                    │
+┌───────────────────▼─────────────────────────┐
+│          Core Infrastructure                 │
+│    I/O · Errors · Diagnostics · Types       │
+└─────────────────────────────────────────────┘
+```
+
+### Module Organization
+
+```
+lib/
+├── core/              # Core infrastructure
+│   ├── io.zig         # I/O abstractions
+│   ├── errors.zig     # Error definitions
+│   ├── diagnostics.zig # Diagnostics system
+│   └── ...
+├── features/          # Feature modules
+│   ├── ai/            # AI/ML capabilities
+│   ├── database/      # Vector database
+│   ├── gpu/           # GPU acceleration
+│   └── ...
+└── framework/         # Framework runtime
+    ├── runtime.zig    # Lifecycle management
+    └── ...
+```
+
+## 🔧 CLI Usage
+
+The Abi CLI provides comprehensive access to all framework features:
+
+```bash
+# Show help
+./zig-out/bin/abi --help
+
+# Feature management
+./zig-out/bin/abi features list
+./zig-out/bin/abi features status
+
+# AI operations
+./zig-out/bin/abi agent run --name "MyAgent"
+./zig-out/bin/abi agent list
+
+# Database operations
+./zig-out/bin/abi db create --name vectors
+./zig-out/bin/abi db query --vector "..."
+
+# GPU benchmarks
+./zig-out/bin/abi gpu bench
+./zig-out/bin/abi gpu info
+
+# Version information
+./zig-out/bin/abi version
+```
+
+## 🧪 Testing
+
+### Running Tests
+
+```bash
+# Unit tests
+zig build test
+
+# Integration tests
+zig build test-integration
+
+# All tests
+zig build test-all
+
+# With coverage
+zig build test -- --coverage
+```
+
+### Test Organization
+
+```
+tests/
+├── unit/              # Unit tests (mirrors lib/)
+├── integration/       # Integration tests
+│   ├── ai_pipeline_test.zig
+│   ├── database_ops_test.zig
+│   └── framework_lifecycle_test.zig
+└── fixtures/          # Test utilities
+```
+
+### Writing Tests
 
 ```zig
-// Create vector database
-var db = try abi.database.Db.open("vectors.wdbx", true);
-defer db.close();
+const std = @import("std");
+const abi = @import("abi");
+const testing = std.testing;
 
-try db.init(384); // 384-dimensional vectors
+test "AI agent processes input correctly" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    
+    var framework = try abi.init(allocator, .{});
+    defer abi.shutdown(&framework);
+    
+    const Agent = abi.ai.agent.Agent;
+    var agent = try Agent.init(allocator, .{ .name = "Test" });
+    defer agent.deinit();
+    
+    const response = try agent.process("test", allocator);
+    defer allocator.free(@constCast(response));
+    
+    try testing.expect(response.len > 0);
+}
+```
 
+## 📊 Examples
+
+### AI Agent
+
+```zig
+const abi = @import("abi");
+>>>>>>> 08cbda559b270a4426611f5b6c970439485a216a
+
+var agent = try abi.ai.agent.Agent.init(allocator, .{
+    .name = "Assistant",
+    .max_retries = 3,
+});
+defer agent.deinit();
+
+<<<<<<< HEAD
+[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev.1225%2Bbf9082518-orange.svg)](https://ziglang.org/) • [Docs](https://donaldfilimon.github.io/abi/) • [CI: Pages](.github/workflows/deploy_docs.yml)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)](https://github.com/yourusername/abi)
+[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)]()
+[![Performance](https://img.shields.io/badge/Performance-2,777+%20ops%2Fsec-brightgreen.svg)]()
+=======
+const response = try agent.process("Explain quantum computing", allocator);
+defer allocator.free(@constCast(response));
+```
+>>>>>>> 08cbda559b270a4426611f5b6c970439485a216a
+
+### Vector Database
+
+```zig
+const db = abi.database;
+
+var vector_db = try db.VectorDB.init(allocator, .{
+    .dimension = 128,
+    .metric = .cosine,
+});
+defer vector_db.deinit();
+
+try vector_db.insert("doc1", embedding);
+const results = try vector_db.search(query, 10);
+```
+
+### GPU Compute
+
+```zig
+const gpu = abi.gpu;
+
+var backend = try gpu.selectBackend(allocator);
+defer backend.deinit();
+
+<<<<<<< HEAD
+### **Prerequisites**
+- **Zig 0.16.0-dev.1225+bf9082518** (GitHub Actions uses `mlugg/setup-zig@v2` pinned to this version)
+- GPU drivers (optional, for acceleration)
+- OpenAI API key (for AI agent features)
+=======
+const kernel = try gpu.loadKernel("matrix_mul");
+try backend.execute(kernel, .{ .a = a, .b = b, .result = result });
+```
+>>>>>>> 08cbda559b270a4426611f5b6c970439485a216a
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/donaldfilimon/abi.git
+cd abi
+
+# Run tests
+zig build test-all
+
+# Format code
+zig fmt .
+
+# Build all examples
+zig build examples
+```
+
+### Code Guidelines
+
+- Follow Zig 0.16 best practices
+- Add tests for new features
+- Update documentation
+- Use the provided error handling infrastructure
+- Inject dependencies (especially I/O)
+
+## 🗺️ Roadmap
+
+### Current (v0.2.0)
+
+- [x] Modular build system
+- [x] I/O abstraction layer
+- [x] Comprehensive error handling
+- [x] Improved testing infrastructure
+
+### Next (v0.3.0)
+
+- [ ] Complete GPU backend implementations
+- [ ] Advanced monitoring and tracing
+- [ ] Plugin system v2
+- [ ] Performance optimizations
+
+### Future
+
+- [ ] Distributed computing support
+- [ ] Advanced ML model formats
+- [ ] Production deployment guides
+- [ ] Cloud provider integrations
+
+<<<<<<< HEAD
 // Add embeddings
 const embedding = [_]f32{0.1, 0.2, 0.3, /* ... */};
 const row_id = try db.addEmbedding(&embedding);
@@ -433,24 +695,30 @@ We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) 
 6. **Submit PR**: Create pull request with comprehensive coverage
 
 ## 📄 **License**
+=======
+## 📝 License
+>>>>>>> 08cbda559b270a4426611f5b6c970439485a216a
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 **Support**
+## 🙏 Acknowledgments
 
-- **📖 Documentation**: [docs/](docs/)
-- **🐛 Issues**: [GitHub Issues](https://github.com/yourusername/abi/issues)
-- **💬 Discord**: [Join our server](https://discord.gg/yourinvite)
-- **📧 Email**: support@abi-framework.org
+- The Zig team for creating an amazing language
+- All contributors to this project
+- The AI/ML and systems programming communities
 
-## 🙏 **Acknowledgments**
+## 📞 Contact
 
-- [Zig programming language](https://ziglang.org/) team
-- [WebGPU specification](https://www.w3.org/TR/webgpu/) contributors
-- Open source community contributors
+- **Issues**: [GitHub Issues](https://github.com/donaldfilimon/abi/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/donaldfilimon/abi/discussions)
+- **Documentation**: [docs/](docs/)
 
 ---
 
-**⭐ Star this repository if you find it useful!**
+**Built with ❤️ using Zig 0.16**
 
+<<<<<<< HEAD
 **🚀 Ready to build the future of AI with Zig? Get started with Abi AI Framework today!**
+=======
+*Last Updated: October 8, 2025*
+>>>>>>> 08cbda559b270a4426611f5b6c970439485a216a

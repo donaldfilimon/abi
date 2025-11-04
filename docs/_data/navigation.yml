@@ -1,68 +1,7 @@
-# Main navigation structure
 main:
-  - title: "Getting Started"
-    children:
-      - title: "Quick Start"
-        url: "/examples/#quick-start"
-      - title: "Installation"
-        url: "/examples/#installation"
-      - title: "Basic Usage"
-        url: "/examples/#basic-vector-database"
-
-  - title: "API Documentation"
-    children:
-      - title: "Database API"
-        url: "/generated/API_REFERENCE/#database-api"
-      - title: "AI API"
-        url: "/generated/API_REFERENCE/#ai-api"
-      - title: "SIMD API"
-        url: "/generated/API_REFERENCE/#simd-api"
-      - title: "Plugin API"
-        url: "/generated/API_REFERENCE/#plugin-api"
-
-  - title: "Reference"
-    children:
-      - title: "Module Reference"
-        url: "/generated/MODULE_REFERENCE/"
-      - title: "Code Index"
-        url: "/generated/CODE_API_INDEX/"
-      - title: "Definitions"
-        url: "/generated/DEFINITIONS_REFERENCE/"
-
-  - title: "Guides"
-    children:
-      - title: "Performance Guide"
-        url: "/generated/PERFORMANCE_GUIDE/"
-      - title: "Examples"
-        url: "/generated/EXAMPLES/"
-      - title: "Best Practices"
-        url: "/generated/EXAMPLES/#performance-optimization"
-
-# Sidebar navigation for documentation pages
-docs:
-  - title: "Core Concepts"
-    children:
-      - title: "Vector Database"
-        url: "/generated/DEFINITIONS_REFERENCE/#vector-database"
-      - title: "Embeddings"
-        url: "/generated/DEFINITIONS_REFERENCE/#embeddings"
-      - title: "HNSW Index"
-        url: "/generated/DEFINITIONS_REFERENCE/#hnsw-hierarchical-navigable-small-world"
-
-  - title: "AI & ML"
-    children:
-      - title: "Neural Networks"
-        url: "/generated/DEFINITIONS_REFERENCE/#neural-network"
-      - title: "Training"
-        url: "/generated/DEFINITIONS_REFERENCE/#backpropagation"
-      - title: "Agents"
-        url: "/generated/DEFINITIONS_REFERENCE/#agent-based-systems"
-
-  - title: "Performance"
-    children:
-      - title: "SIMD Operations"
-        url: "/generated/DEFINITIONS_REFERENCE/#simd-single-instruction-multiple-data"
-      - title: "Memory Management"
-        url: "/generated/DEFINITIONS_REFERENCE/#memory-management"
-      - title: "Caching"
-        url: "/generated/DEFINITIONS_REFERENCE/#caching-strategies"
+  - title: "Home"
+    url: "/"
+  - title: "API Reference"
+    url: "/generated/API_REFERENCE"
+  - title: "Examples"
+    url: "/generated/EXAMPLES"
