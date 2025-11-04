@@ -188,11 +188,7 @@ pub const PluginRegistry = struct {
     /// Start all plugins in dependency order
     pub fn startAllPlugins(self: *PluginRegistry) !void {
         // Get plugins sorted by load order
-<<<<<<< HEAD:src/shared/registry.zig
         var plugin_list = try std.ArrayList(*PluginEntry).initCapacity(self.allocator, 0);
-=======
-        var plugin_list = std.ArrayList(*PluginEntry){};
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/shared/registry.zig
         defer plugin_list.deinit(self.allocator);
 
         var iterator = self.plugins.valueIterator();
@@ -216,11 +212,7 @@ pub const PluginRegistry = struct {
     /// Stop all plugins in reverse order
     pub fn stopAllPlugins(self: *PluginRegistry) !void {
         // Get plugins sorted by reverse load order
-<<<<<<< HEAD:src/shared/registry.zig
         var plugin_list = try std.ArrayList(*PluginEntry).initCapacity(self.allocator, 0);
-=======
-        var plugin_list = std.ArrayList(*PluginEntry){};
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/shared/registry.zig
         defer plugin_list.deinit(self.allocator);
 
         var iterator = self.plugins.valueIterator();

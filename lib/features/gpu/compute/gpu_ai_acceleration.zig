@@ -158,7 +158,6 @@ pub const MatrixOps = struct {
     fn dispatchMatmulKernel(self: *MatrixOps, a_buffer: u32, b_buffer: u32, c_buffer: u32, m: usize, n: usize, p: usize) !void {
         const pipeline_handle = try self.ensureMatmulPipeline();
 
-<<<<<<< HEAD:src/features/gpu/compute/gpu_ai_acceleration.zig
         const tile = @as(usize, @intCast(kernels.matmul_workgroup_size));
 
         const dispatch_x = @as(u32, @intCast((p + tile - 1) / tile));
@@ -168,17 +167,6 @@ pub const MatrixOps = struct {
             .m = @as(u32, @intCast(m)),
             .n = @as(u32, @intCast(n)),
             .p = @as(u32, @intCast(p)),
-=======
-        const tile: usize = @intCast(kernels.matmul_workgroup_size);
-
-        const dispatch_x: u32 = @intCast((p + tile - 1) / tile);
-        const dispatch_y: u32 = @intCast((m + tile - 1) / tile);
-
-        const params = MatmulPushConstants{
-            .m = @intCast(m),
-            .n = @intCast(n),
-            .p = @intCast(p),
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/features/gpu/compute/gpu_ai_acceleration.zig
         };
 
         const params_handle = try self.renderer.createBuffer(@sizeOf(MatmulPushConstants), .{

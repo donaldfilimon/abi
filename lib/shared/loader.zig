@@ -72,11 +72,7 @@ pub const PluginLoader = struct {
 
     /// Discover plugins in the search paths
     pub fn discoverPlugins(self: *PluginLoader) !std.ArrayList([]u8) {
-<<<<<<< HEAD:src/shared/loader.zig
         var discovered_plugins = try std.ArrayList([]u8).initCapacity(self.allocator, 0);
-=======
-        var discovered_plugins = std.ArrayList([]u8){};
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/shared/loader.zig
         errdefer {
             for (discovered_plugins.items) |plugin_path| {
                 self.allocator.free(plugin_path);
