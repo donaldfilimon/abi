@@ -184,7 +184,6 @@ test "lifecycle observers receive ordered callbacks" {
     try lifecycle.addObserver(testing.allocator, .{
         .name = "first",
         .priority = 10,
-<<<<<<< HEAD:src/shared/core/lifecycle.zig
         .callback = struct {
             fn call(transition: Transition, context: *Lifecycle, calls_ctx_opaque: ?*anyopaque) anyerror!void {
                 _ = context;
@@ -199,16 +198,12 @@ test "lifecycle observers receive ordered callbacks" {
             }
         }.call,
         .context = &calls,
-=======
-        .callback = lifecycleTestFirstObserver,
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/shared/core/lifecycle.zig
     });
 
     try lifecycle.addObserver(testing.allocator, .{
         .name = "second",
         .priority = 0,
         .stages = StageMask{ .running = true, .shutting_down = true },
-<<<<<<< HEAD:src/shared/core/lifecycle.zig
         .callback = struct {
             fn call(transition: Transition, context: *Lifecycle, calls_ctx_opaque: ?*anyopaque) anyerror!void {
                 _ = context;
@@ -221,9 +216,6 @@ test "lifecycle observers receive ordered callbacks" {
             }
         }.call,
         .context = &calls,
-=======
-        .callback = lifecycleTestSecondObserver,
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/shared/core/lifecycle.zig
     });
 
     try lifecycle.advance(.bootstrapping);

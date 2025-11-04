@@ -22,11 +22,7 @@ pub const Environment = struct {
     /// Attempt to reinterpret the opaque context pointer as the requested type.
     pub fn contextAs(self: Environment, comptime T: type) ?*T {
         if (self.context) |ptr| {
-<<<<<<< HEAD:src/framework/feature_manager.zig
             return @as(*T, @alignCast(ptr));
-=======
-            return @as(*T, @ptrCast(ptr));
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/framework/feature_manager.zig
         }
         return null;
     }

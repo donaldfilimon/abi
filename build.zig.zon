@@ -23,5 +23,5 @@
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
 
-    .paths = .{ "build.zig", "build.zig.zon", "src", "*" },
+    .paths = .{ "build.zig", "build.zig.zon", "lib", "*" },
 }

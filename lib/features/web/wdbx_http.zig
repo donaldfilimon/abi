@@ -396,7 +396,6 @@ pub const WdbxHttpServer = struct {
         const text = try std.fmt.allocPrint(self.allocator, "{\"error\":\"{s}\"}", .{message});
         return Response{ .status = status, .body = text, .content_type = "application/json" };
     }
-<<<<<<< HEAD:src/features/web/wdbx_http.zig
 
     fn writeHttpResponse(_: *WdbxHttpServer, connection: *const std.net.Server.Connection, response: Response) !void {
         var writer = connection.stream.writer();
@@ -406,8 +405,6 @@ pub const WdbxHttpServer = struct {
         try writer.writeAll("Connection: close\r\n\r\n");
         try writer.writeAll(response.body);
     }
-=======
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a:lib/features/web/wdbx_http.zig
 };
 
 fn writeHttpResponse(connection: *const std.net.Server.Connection, response: Response) !void {

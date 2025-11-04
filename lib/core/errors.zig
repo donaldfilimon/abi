@@ -131,7 +131,8 @@ pub const utils = struct {
     }
     
     /// Ensures a value is not null
-    pub fn ensureNotNull(name: []const u8, value: ?anytype) !void {
+    pub fn ensureNotNull(comptime T: type, name: []const u8, value: ?T) !void {
+        _ = name; // Parameter name for documentation
         if (value == null) {
             return Error.InvalidParameter;
         }
