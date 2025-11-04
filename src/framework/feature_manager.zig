@@ -22,7 +22,7 @@ pub const Environment = struct {
     /// Attempt to reinterpret the opaque context pointer as the requested type.
     pub fn contextAs(self: Environment, comptime T: type) ?*T {
         if (self.context) |ptr| {
-            return @ptrCast(*T, @alignCast(@alignOf(T), ptr));
+            return @as(*T, @alignCast(ptr));
         }
         return null;
     }
@@ -238,4 +238,3 @@ fn deinitTracker(name: []const u8, sequence: *std.ArrayList([]const u8)) DeinitF
         }
     }.deinit;
 }
-

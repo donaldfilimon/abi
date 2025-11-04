@@ -5,8 +5,6 @@
 //! coordinates feature toggles, plugin discovery, and lifecycle management.
 
 const std = @import("std");
-const framework = @import("framework/mod.zig");
-const core = @import("shared/core/core.zig");
 const lifecycle_mod = @import("shared/core/lifecycle.zig");
 
 // =============================================================================
@@ -28,7 +26,6 @@ pub const core = @import("shared/core/mod.zig");
 pub const platform = @import("shared/platform/mod.zig");
 pub const logging = @import("shared/logging/mod.zig");
 pub const simd = @import("shared/simd.zig");
-pub const main = @import("main.zig");
 pub const root = @import("root.zig");
 
 // =============================================================================

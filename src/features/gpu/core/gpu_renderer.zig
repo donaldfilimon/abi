@@ -1647,7 +1647,7 @@ pub const GPURenderer = struct {
         const handle_id = self.next_handle_id;
         self.next_handle_id += 1;
 
-        const gpu_buffer = try self.buffer_manager.?.createBuffer(u8, @intCast(u64, size), usage);
+        const gpu_buffer = try self.buffer_manager.?.createBuffer(u8, @as(u64, @intCast(size)), usage);
         const buffer = Buffer.init(gpu_buffer, size, usage, handle_id);
 
         try self.buffers.append(self.allocator, buffer);

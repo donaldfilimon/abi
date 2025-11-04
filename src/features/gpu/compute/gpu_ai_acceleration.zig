@@ -149,15 +149,15 @@ pub const MatrixOps = struct {
     fn dispatchMatmulKernel(self: *MatrixOps, a_buffer: u32, b_buffer: u32, c_buffer: u32, m: usize, n: usize, p: usize) !void {
         const pipeline_handle = try self.ensureMatmulPipeline();
 
-        const tile = @intCast(usize, kernels.matmul_workgroup_size);
+        const tile = @as(usize, @intCast(kernels.matmul_workgroup_size));
 
-        const dispatch_x = @intCast(u32, (p + tile - 1) / tile);
-        const dispatch_y = @intCast(u32, (m + tile - 1) / tile);
+        const dispatch_x = @as(u32, @intCast((p + tile - 1) / tile));
+        const dispatch_y = @as(u32, @intCast((m + tile - 1) / tile));
 
         const params = MatmulPushConstants{
-            .m = @intCast(u32, m),
-            .n = @intCast(u32, n),
-            .p = @intCast(u32, p),
+            .m = @as(u32, @intCast(m)),
+            .n = @as(u32, @intCast(n)),
+            .p = @as(u32, @intCast(p)),
         };
 
         const params_handle = try self.renderer.createBuffer(@sizeOf(MatmulPushConstants), .{
@@ -219,9 +219,9 @@ pub const MatrixOps = struct {
             buffers[0],
             buffers[1],
             buffers[2],
-            @intCast(usize, params.m),
-            @intCast(usize, params.n),
-            @intCast(usize, params.p),
+            @as(usize, @intCast(params.m)),
+            @as(usize, @intCast(params.n)),
+            @as(usize, @intCast(params.p)),
         );
 
         _ = renderer; // renderer updates happen via matrix_ops.matmulCpuOptimized
@@ -267,7 +267,7 @@ pub const MatrixOps = struct {
             }
         }
 
-        self.renderer.stats.bytes_written += @intCast(u64, c_slice.len * @sizeOf(f32));
+        self.renderer.stats.bytes_written += @as(u64, @intCast(c_slice.len * @sizeOf(f32)));
         self.renderer.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
     }
 

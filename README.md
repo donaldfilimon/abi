@@ -1,207 +1,8 @@
-# Abi AI Framework
-> Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency, and platform-optimized implementations.
-
-[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev.254%2B6dd0270a1-orange.svg)](https://ziglang.org/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)]()
-
-## 🚀 Features
-
-### Core Capabilities
-- **GPU Acceleration**: WebGPU with platform-specific fallbacks
-- **SIMD Optimizations**: 3GB/s+ throughput with alignment safety
-- **Lock-free Concurrency**: Wait-free data structures
-- **Vector Database**: Custom WDBX-AI format for embeddings
-- **Neural Networks**: SIMD-accelerated operations
-- **Plugin System**: Cross-platform dynamic loading
-- **Production Servers**: HTTP/TCP with fault tolerance
-
-### Platform Support
-- **Cross-platform**: Windows, Linux, macOS, iOS
-- **Platform Optimizations**: OS-specific enhancements
-- **Discord Integration**: Bot framework with gateway support
-
-## Installation
-
-### Prerequisites
-- **Zig 0.16.0-dev.254+6dd0270a1** (see `.zigversion` and verify with `zig version`)
-- GPU drivers (optional, for acceleration)
-- OpenAI API key (for AI features)
-
-### Compatibility
-
-- **Current Toolchain**: Zig 0.16.0-dev.254+6dd0270a1. This repository's `.zigversion` file is the authoritative reference—match it exactly when installing Zig.
-- **Legacy Notes**: Historical guidance for Zig 0.15.x (including CI setups using `mlugg/setup-zig@v2` with Zig 0.15.0) remains in older sections below for teams maintaining legacy deployments. These paths are not part of the active test matrix.
-
-### Quick Start
-```bash
-git clone https://github.com/donaldfilimon/abi.git
-cd abi
-zig build -Doptimize=ReleaseFast
-zig build test
-./zig-out/bin/abi --help
-```
-
-## 📁 Project Structure
-
-```
-abi/
-├── src/                          # Source code
-│   ├── core/                     # Core utilities
-│   ├── framework/                # Runtime orchestration and lifecycle
-│   ├── ai/                       # AI/ML components
-│   ├── database/                 # Vector database
-│   ├── net/                      # Networking
-│   ├── perf/                     # Performance monitoring
-│   ├── gpu/                      # GPU acceleration
-│   ├── ml/                       # ML algorithms
-│   ├── simd/                     # SIMD operations
-│   └── wdbx/                     # CLI interface
-├── tests/                        # Test suite
-├── docs/                         # Documentation
-├── examples/                     # Usage examples
-└── tools/                        # Development tools
-
-## Quick Start
-
-### Basic Usage
-```zig
-const std = @import("std");
-const abi = @import("abi");
-
-pub fn main() !void {
-    const allocator = std.heap.page_allocator;
-
-    // Create AI agent using the exported AgentConfig
-    var agent = try abi.features.ai.agent.Agent.init(allocator, .{ .name = "QuickStart" });
-    defer agent.deinit();
-
-    // Process a message
-    const response = try agent.process("Hello!", allocator);
-    defer allocator.free(response);
-}
-```
-
-> `Agent.process` duplicates its reply into the allocator you provide, so callers must free the returned buffer once they're
-> done with it.
-
-### Vector Database
-```zig
-// Open database
-var db = try abi.features.database.database.Db.open("vectors.wdbx", true);
-defer db.close();
-
-// Add and search vectors
-const embedding = [_]f32{0.1, 0.2, 0.3};
-const results = try db.search(&embedding, 10, allocator);
-```
-
-### WDBX CLI
-
-```bash
-# Inspect available subcommands
-wdbx help
-
-# Launch the lightweight HTTP API (Ctrl+C to stop)
-wdbx http --host 0.0.0.0 --port 8080
-```
-
-## Modules
-
-- **`core/`**: Core utilities and framework foundation
-- **`framework/`**: Runtime orchestrator that wires features and plugins together
-- **`ai/`**: AI agents and machine learning components
-- **`database/`**: WDBX-AI vector database with HNSW indexing
-- **`net/`**: HTTP/TCP servers and client libraries
-- **`simd/`**: SIMD-accelerated operations
-- **`perf/`**: Performance monitoring and profiling
-- **`gpu/`**: GPU acceleration and rendering
-- **`ml/`**: Machine learning algorithms
-
-## CLI
-
-The current executable boots the framework and prints a bootstrap summary. Run it with Zig's
-build system:
-
-```bash
-abi help                    # Show commands
-abi chat                    # AI chat session
-abi train <data>           # Train neural network
-./zig-out/bin/abi wdbx server --http   # Start HTTP server
-abi benchmark              # Performance tests
-abi analyze <file>         # Text analysis
-
-# With options
-abi --memory-track --gpu benchmark
-abi --verbose --debug chat
-```
-
-## API
-
-```bash
-abi web                    # Start web server
-```
-
-**Endpoints:**
-- `GET /health` - Health check
-- `POST /api/agent/query` - AI queries
-- `POST /api/database/search` - Vector search
-
-## Performance
-
-**Benchmarks:**
-- **Text Processing**: 3.2 GB/s SIMD throughput
-- **Vector Operations**: 15 GFLOPS
-- **Neural Networks**: <1ms inference
-- **Memory Tracking**: <1% overhead
-
-```bash
-abi benchmark --memory-track    # Run benchmarks
-abi --memory-track --gpu        # Monitor performance
-```
-
-## Testing
-
-```bash
-# Run all tests registered in build.zig (currently exercises src/main.zig)
-zig build test
-
-# Targeted test files
-zig test tests/test_create.zig
-zig test tests/cross-platform/linux.zig
-zig test tests/cross-platform/macos.zig
-zig test tests/cross-platform/windows.zig
-```
-
-The cross-platform tests gracefully skip when run on unsupported operating systems, so it's
-safe to invoke the full list from any development environment.
-
-**Quality Metrics:**
-- Memory Safety: Zero leaks
-- Performance: <5% regression tolerance
-- Test Coverage: 95%+
-- Build Success: 99%+
-
-## Contributing
-
-1. Fork and create feature branch
-2. Run tests: `zig build test`
-3. Check memory: `zig build test-memory`
-4. Submit PR with tests
-
-## License
-
-MIT License - see [LICENSE](LICENSE)
-
-## Links
-
-- [Documentation](docs/)
-- [Issues](https://github.com/donaldfilimon/abi/issues)
 # 🚀 Abi AI Framework
 
 > **Ultra-high-performance AI framework with GPU acceleration, lock-free concurrency, advanced monitoring, and platform-optimized implementations for Zig development.**
 
-[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev.254%2B6dd0270a1-orange.svg)](https://ziglang.org/) • [Docs](https://donaldfilimon.github.io/abi/) • [CI: Pages](.github/workflows/deploy_docs.yml)
+[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev.1225%2Bbf9082518-orange.svg)](https://ziglang.org/) • [Docs](https://donaldfilimon.github.io/abi/) • [CI: Pages](.github/workflows/deploy_docs.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)](https://github.com/yourusername/abi)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
@@ -257,7 +58,7 @@ MIT License - see [LICENSE](LICENSE)
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
-- **Zig 0.16.0-dev.254+6dd0270a1** (GitHub Actions uses `mlugg/setup-zig@v2` pinned to this version)
+- **Zig 0.16.0-dev.1225+bf9082518** (GitHub Actions uses `mlugg/setup-zig@v2` pinned to this version)
 - GPU drivers (optional, for acceleration)
 - OpenAI API key (for AI agent features)
 
@@ -468,17 +269,17 @@ pub fn main() void {
 ## 🏗️ **Architecture Overview**
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Abi AI Framework                        │
-├─────────────────────────────────────────────────────────────┤
-│  🤖 AI Agents    🧠 Neural Nets    🗄️ Vector Database    │
-├─────────────────────────────────────────────────────────────┤
-│  🚀 SIMD Ops     🔒 Lock-free      🌐 Network Servers    │
-├─────────────────────────────────────────────────────────────┤
-│  📊 Monitoring   🔍 Profiling      🧪 Testing Suite      │
-├─────────────────────────────────────────────────────────────┤
-│  🔌 Plugin Sys   📱 CLI Interface  🌍 Platform Ops      │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Abi AI Framework                               │
+├─────────────────────────────────────────────────────────────────────┤
+│  🤖 AI Agents    🧠 Neural Nets    🗄️ Vector Database               │
+├─────────────────────────────────────────────────────────────────────┤
+│  🚀 SIMD Ops     🔒 Lock-free      🌐 Network Servers              │
+├─────────────────────────────────────────────────────────────────────┤
+│  📊 Monitoring   🔍 Profiling      🧪 Testing Suite                 │
+├─────────────────────────────────────────────────────────────────────┤
+│  🔌 Plugin Sys   📱 CLI Interface  🌍 Platform Ops                 │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ## 📚 **Further Reading**
@@ -502,6 +303,7 @@ pub fn main() void {
 - Cross-platform: `zig build cross-platform`
 
 ### **Comprehensive Test Suite**
+
 ```bash
 # Run all tests
 zig build test
@@ -555,11 +357,11 @@ Create custom plugins for the framework:
 pub const ExamplePlugin = struct {
     pub const name = "example_plugin";
     pub const version = "1.0.0";
-    
+
     pub fn init(allocator: std.mem.Allocator) !*@This() {
         // Plugin initialization
     }
-    
+
     pub fn deinit(self: *@This()) void {
         // Plugin cleanup
     }
@@ -571,7 +373,6 @@ See the [Module Organization guide](docs/MODULE_ORGANIZATION.md) and generated m
 ## 🚀 **Production Deployment**
 
 The framework includes production-ready deployment configurations:
-
 - **Kubernetes Manifests**: Complete staging and production deployments
 - **Monitoring Stack**: Prometheus + Grafana with validated thresholds
 - **Performance Validation**: 2,777+ ops/sec with 99.98% uptime
@@ -579,9 +380,10 @@ The framework includes production-ready deployment configurations:
 
 See [Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT.md) for complete deployment instructions.
 
-## 🌍 **Cross-Platform Guide (Zig 0.16.0-dev.254+6dd0270a1)**
+## 🌍 **Cross-Platform Guide (Zig 0.16.0-dev.1225+bf9082518)**
 
 ### **Targets**
+
 ```bash
 # Examples
 zig build -Dtarget=x86_64-linux-gnu
@@ -592,6 +394,7 @@ zig build -Dtarget=wasm32-wasi
 ```
 
 ### **Conditional Compilation**
+
 ```zig
 const builtin = @import("builtin");
 
@@ -607,6 +410,7 @@ pub fn main() void {
 ```
 
 ### **Cross-Platform Build Step**
+
 ```bash
 zig build cross-platform   # builds CLI for multiple targets into zig-out/cross/
 ```

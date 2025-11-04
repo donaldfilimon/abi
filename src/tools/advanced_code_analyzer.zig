@@ -27,7 +27,7 @@ pub const CodeQualityMetrics = struct {
     pub fn format(
         self: CodeQualityMetrics,
         comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
+        options: anytype,
         writer: anytype,
     ) !void {
         _ = fmt;
@@ -191,17 +191,24 @@ pub const AdvancedCodeAnalyzer = struct {
 
     /// Analyze a Zig source file for code quality issues
     pub fn analyzeFile(self: *AdvancedCodeAnalyzer, file_path: []const u8) !void {
-        const file = std.fs.cwd().openFile(file_path, .{}) catch |err| {
-            std.log.warn("Could not open file {s}: {}", .{ file_path, err });
-            return;
-        };
+        var file = try std.fs.cwd().openFile(file_path, .{});
         defer file.close();
 
-        const content = file.readToEndAllocOptions(self.allocator, 1024 * 1024, null, @alignOf(u8), 0) catch |err| {
-            std.log.warn("Could not read file {s}: {}", .{ file_path, err });
+        const stat = try file.stat();
+        if (stat.size > 1024 * 1024) {
+            std.log.warn("File {s} is too large, skipping", .{file_path});
             return;
-        };
+        }
+
+        const content = try self.allocator.alloc(u8, @as(usize, @intCast(stat.size)));
+        errdefer self.allocator.free(content);
         defer self.allocator.free(content);
+
+        const bytes_read = try file.read(content);
+        if (bytes_read != stat.size) {
+            std.log.warn("Could not read entire file {s}", .{file_path});
+            return;
+        }
 
         try self.analyzeContent(file_path, content);
     }
@@ -409,13 +416,17 @@ pub const AdvancedCodeAnalyzer = struct {
         try report.appendSlice("=====================================\n\n");
 
         // Metrics section
-        try std.fmt.format(report.writer(), "{}\n\n", .{self.metrics});
+        var buf: [1024]u8 = undefined;
+        const metrics_str = try std.fmt.bufPrint(&buf, "{any}\n\n", .{self.metrics});
+        try report.appendSlice(metrics_str);
 
         // Issues summary
         try report.appendSlice("Issues Summary:\n");
         try report.appendSlice("===============\n");
 
-        try std.fmt.format(report.writer(), "  Total Issues Found: {}\n\n", .{self.issue_count});
+        var buf2: [128]u8 = undefined;
+        const issues_str = try std.fmt.bufPrint(&buf2, "  Total Issues Found: {}\n\n", .{self.issue_count});
+        try report.appendSlice(issues_str);
 
         // Detailed issues
         if (self.issue_count > 0) {
@@ -441,7 +452,7 @@ pub const AdvancedCodeAnalyzer = struct {
             try report.appendSlice("- Improve code maintainability\n");
         }
 
-        return report.toOwnedSlice(allocator);
+        return report.toOwnedSlice();
     }
 
     /// Export issues to JSON format
@@ -452,24 +463,48 @@ pub const AdvancedCodeAnalyzer = struct {
         try json.appendSlice("{\n");
         try json.appendSlice("  \"code_quality_analysis\": {\n");
         try json.appendSlice("    \"metrics\": {\n");
-        try std.fmt.format(json.writer(), "      \"cyclomatic_complexity\": {},\n", .{self.metrics.cyclomatic_complexity});
-        try std.fmt.format(json.writer(), "      \"cognitive_complexity\": {},\n", .{self.metrics.cognitive_complexity});
-        try std.fmt.format(json.writer(), "      \"lines_of_code\": {},\n", .{self.metrics.lines_of_code});
-        try std.fmt.format(json.writer(), "      \"comment_density\": {d:.2},\n", .{self.metrics.comment_density});
-        try std.fmt.format(json.writer(), "      \"function_count\": {},\n", .{self.metrics.function_count});
-        try std.fmt.format(json.writer(), "      \"class_count\": {},\n", .{self.metrics.class_count});
-        try std.fmt.format(json.writer(), "      \"test_coverage\": {d:.2},\n", .{self.metrics.test_coverage});
-        try std.fmt.format(json.writer(), "      \"security_issues\": {},\n", .{self.metrics.security_issues});
-        try std.fmt.format(json.writer(), "      \"performance_issues\": {},\n", .{self.metrics.performance_issues});
-        try std.fmt.format(json.writer(), "      \"maintainability_index\": {d:.2}\n", .{self.metrics.maintainability_index});
+
+        var buf3: [128]u8 = undefined;
+        const cc_str = try std.fmt.bufPrint(&buf3, "      \"cyclomatic_complexity\": {},\n", .{self.metrics.cyclomatic_complexity});
+        try json.appendSlice(cc_str);
+
+        const cog_str = try std.fmt.bufPrint(&buf3, "      \"cognitive_complexity\": {},\n", .{self.metrics.cognitive_complexity});
+        try json.appendSlice(cog_str);
+
+        const loc_str = try std.fmt.bufPrint(&buf3, "      \"lines_of_code\": {},\n", .{self.metrics.lines_of_code});
+        try json.appendSlice(loc_str);
+
+        const cd_str = try std.fmt.bufPrint(&buf3, "      \"comment_density\": {d:.2},\n", .{self.metrics.comment_density});
+        try json.appendSlice(cd_str);
+
+        const fc_str = try std.fmt.bufPrint(&buf3, "      \"function_count\": {},\n", .{self.metrics.function_count});
+        try json.appendSlice(fc_str);
+
+        const cl_str = try std.fmt.bufPrint(&buf3, "      \"class_count\": {},\n", .{self.metrics.class_count});
+        try json.appendSlice(cl_str);
+
+        const tc_str = try std.fmt.bufPrint(&buf3, "      \"test_coverage\": {d:.2},\n", .{self.metrics.test_coverage});
+        try json.appendSlice(tc_str);
+
+        const si_str = try std.fmt.bufPrint(&buf3, "      \"security_issues\": {},\n", .{self.metrics.security_issues});
+        try json.appendSlice(si_str);
+
+        const pi_str = try std.fmt.bufPrint(&buf3, "      \"performance_issues\": {},\n", .{self.metrics.performance_issues});
+        try json.appendSlice(pi_str);
+
+        const mi_str = try std.fmt.bufPrint(&buf3, "      \"maintainability_index\": {d:.2}\n", .{self.metrics.maintainability_index});
+        try json.appendSlice(mi_str);
+
         try json.appendSlice("    },\n");
         try json.appendSlice("    \"issues\": {\n");
-        try std.fmt.format(json.writer(), "      \"total_count\": {}\n", .{self.issue_count});
+
+        const ic_str = try std.fmt.bufPrint(&buf3, "      \"total_count\": {}\n", .{self.issue_count});
+        try json.appendSlice(ic_str);
         try json.appendSlice("    }\n");
         try json.appendSlice("  }\n");
         try json.appendSlice("}\n");
 
-        return json.toOwnedSlice(allocator);
+        return json.toOwnedSlice();
     }
 };
 

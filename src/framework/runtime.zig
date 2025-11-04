@@ -112,7 +112,7 @@ pub const Framework = struct {
             for (discovered.items) |path| {
                 self.allocator.free(path);
             }
-            discovered.deinit();
+            discovered.deinit(self.allocator);
         }
 
         self.clearDiscovered();
@@ -200,7 +200,7 @@ test "framework initialises with defaults" {
 test "framework respects custom feature selection" {
     var framework = try Framework.init(std.testing.allocator, .{
         .enabled_features = &.{ .gpu, .connectors },
-        .disabled_features = &.{ .connectors },
+        .disabled_features = &.{.connectors},
     });
     defer framework.deinit();
 
@@ -223,7 +223,7 @@ test "framework manages plugin search paths" {
 test "framework summary reports configured state" {
     var framework = try Framework.init(std.testing.allocator, .{
         .enable_gpu = true,
-        .plugin_paths = &.{ "./plugins" },
+        .plugin_paths = &.{"./plugins"},
     });
     defer framework.deinit();
 

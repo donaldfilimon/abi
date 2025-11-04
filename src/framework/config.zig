@@ -11,7 +11,7 @@ pub const Feature = enum(u3) {
     simd,
 };
 
-pub const feature_count = @typeInfo(Feature).Enum.fields.len;
+pub const feature_count = std.enums.values(Feature).len;
 const FeatureMask = std.bit_set.IntegerBitSet(feature_count);
 
 /// Bit-set backed feature selection utility used by the framework runtime.
@@ -179,11 +179,10 @@ test "feature toggles enable and disable entries" {
 test "deriveFeatureToggles respects overrides" {
     const overrides = FrameworkOptions{
         .enabled_features = &.{ .ai, .gpu },
-        .disabled_features = &.{ .gpu },
+        .disabled_features = &.{.gpu},
     };
     const toggles = deriveFeatureToggles(overrides);
     try std.testing.expect(toggles.isEnabled(.ai));
     try std.testing.expect(!toggles.isEnabled(.gpu));
     try std.testing.expect(!toggles.isEnabled(.database));
 }
-

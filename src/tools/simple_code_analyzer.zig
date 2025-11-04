@@ -17,7 +17,7 @@ pub const SimpleMetrics = struct {
     pub fn format(
         self: SimpleMetrics,
         comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
+        options: anytype,
         writer: anytype,
     ) !void {
         _ = fmt;
@@ -53,17 +53,24 @@ pub const SimpleCodeAnalyzer = struct {
 
     /// Analyze a Zig source file
     pub fn analyzeFile(self: *SimpleCodeAnalyzer, file_path: []const u8) !void {
-        const file = std.fs.cwd().openFile(file_path, .{}) catch |err| {
-            std.log.warn("Could not open file {s}: {}", .{ file_path, err });
-            return;
-        };
+        var file = try std.fs.cwd().openFile(file_path, .{});
         defer file.close();
 
-        const content = file.readToEndAlloc(self.allocator, 1024 * 1024) catch |err| {
-            std.log.warn("Could not read file {s}: {}", .{ file_path, err });
+        const stat = try file.stat();
+        if (stat.size > 1024 * 1024) {
+            std.log.warn("File {s} is too large, skipping", .{file_path});
             return;
-        };
+        }
+
+        const content = try self.allocator.alloc(u8, @as(usize, @intCast(stat.size)));
+        errdefer self.allocator.free(content);
         defer self.allocator.free(content);
+
+        const bytes_read = try file.read(content);
+        if (bytes_read != stat.size) {
+            std.log.warn("Could not read entire file {s}", .{file_path});
+            return;
+        }
 
         try self.analyzeContent(content);
     }
@@ -132,9 +139,11 @@ pub const SimpleCodeAnalyzer = struct {
         try report.appendSlice("Simple Code Quality Analysis Report\n");
         try report.appendSlice("================================\n\n");
 
-        try std.fmt.format(report.writer(), "{}\n", .{self.metrics});
+        var buf: [1024]u8 = undefined;
+        const metrics_str = try std.fmt.bufPrint(&buf, "{any}\n", .{self.metrics});
+        try report.appendSlice(metrics_str);
 
-        return report.toOwnedSlice(allocator);
+        return report.toOwnedSlice();
     }
 };
 

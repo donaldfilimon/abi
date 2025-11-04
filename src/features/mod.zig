@@ -14,20 +14,20 @@ pub const monitoring = @import("monitoring/mod.zig");
 pub const connectors = @import("connectors/mod.zig");
 
 /// Invoke the visitor for every feature module re-exported by this file.
-pub fn forEachFeature(visitor: anytype) void {
-    visitor(.ai, "features/ai/mod.zig");
-    visitor(.gpu, "features/gpu/mod.zig");
-    visitor(.database, "features/database/mod.zig");
-    visitor(.web, "features/web/mod.zig");
-    visitor(.monitoring, "features/monitoring/mod.zig");
-    visitor(.connectors, "features/connectors/mod.zig");
+pub fn forEachFeature(visitor: anytype, context: anytype) void {
+    visitor(.ai, "features/ai/mod.zig", context);
+    visitor(.gpu, "features/gpu/mod.zig", context);
+    visitor(.database, "features/database/mod.zig", context);
+    visitor(.web, "features/web/mod.zig", context);
+    visitor(.monitoring, "features/monitoring/mod.zig", context);
+    visitor(.connectors, "features/connectors/mod.zig", context);
 }
 
 test "feature registry exposes all modules" {
     const FeatureMask = std.bit_set.IntegerBitSet(6);
     var features_seen = FeatureMask.initEmpty();
     forEachFeature(struct {
-        fn visit(kind: FeatureTag, _: []const u8) void {
+        fn visit(kind: FeatureTag, _: []const u8, ctx: *FeatureMask) void {
             const idx = switch (kind) {
                 .ai => 0,
                 .gpu => 1,
@@ -36,8 +36,8 @@ test "feature registry exposes all modules" {
                 .monitoring => 4,
                 .connectors => 5,
             };
-            features_seen.set(idx);
+            ctx.set(idx);
         }
-    }.visit);
+    }.visit, &features_seen);
     try std.testing.expectEqual(@as(usize, 6), features_seen.count());
 }

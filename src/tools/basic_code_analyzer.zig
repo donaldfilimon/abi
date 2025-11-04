@@ -42,17 +42,24 @@ pub const BasicCodeAnalyzer = struct {
 
     /// Analyze a Zig source file
     pub fn analyzeFile(self: *BasicCodeAnalyzer, file_path: []const u8) !void {
-        const file = std.fs.cwd().openFile(file_path, .{}) catch |err| {
-            std.log.warn("Could not open file {s}: {}", .{ file_path, err });
-            return;
-        };
+        var file = try std.fs.cwd().openFile(file_path, .{});
         defer file.close();
 
-        const content = file.readToEndAlloc(self.allocator, 1024 * 1024) catch |err| {
-            std.log.warn("Could not read file {s}: {}", .{ file_path, err });
+        const stat = try file.stat();
+        if (stat.size > 1024 * 1024) {
+            std.log.warn("File {s} is too large, skipping", .{file_path});
             return;
-        };
+        }
+
+        const content = try self.allocator.alloc(u8, @as(usize, @intCast(stat.size)));
+        errdefer self.allocator.free(content);
         defer self.allocator.free(content);
+
+        const bytes_read = try file.read(content);
+        if (bytes_read != stat.size) {
+            std.log.warn("Could not read entire file {s}", .{file_path});
+            return;
+        }
 
         try self.analyzeContent(content);
     }

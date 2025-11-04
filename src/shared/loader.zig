@@ -72,12 +72,12 @@ pub const PluginLoader = struct {
 
     /// Discover plugins in the search paths
     pub fn discoverPlugins(self: *PluginLoader) !std.ArrayList([]u8) {
-        var discovered_plugins = std.ArrayList([]u8).init(self.allocator);
+        var discovered_plugins = try std.ArrayList([]u8).initCapacity(self.allocator, 0);
         errdefer {
             for (discovered_plugins.items) |plugin_path| {
                 self.allocator.free(plugin_path);
             }
-            discovered_plugins.deinit();
+            discovered_plugins.deinit(self.allocator);
         }
 
         for (self.plugin_paths.items) |search_path| {
@@ -104,7 +104,7 @@ pub const PluginLoader = struct {
             if (std.mem.endsWith(u8, entry.name, extension)) {
                 const full_path = try std.fs.path.join(self.allocator, &[_][]const u8{ path, entry.name });
                 errdefer self.allocator.free(full_path);
-                try plugins.append(full_path);
+                try plugins.append(self.allocator, full_path);
             }
         }
     }
