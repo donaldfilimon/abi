@@ -199,7 +199,7 @@ pub const WebServer = struct {
         // Platform-specific socket reading for optimal performance
         if (builtin.os.tag == .windows) {
             const windows = std.os.windows;
-            const max_len: c_int = @intCast(@min(buffer.len, @as(usize, @intCast(std.math.maxInt(c_int)))));
+            const max_len: c_int = @intCast(@min(buffer.len, std.math.maxInt(c_int)));
             const n: c_int = windows.ws2_32.recv(connection.stream.handle, @ptrCast(&buffer[0]), max_len, 0);
             if (n == windows.ws2_32.SOCKET_ERROR) {
                 // Treat as client disconnect or transient error; ignore

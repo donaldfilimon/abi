@@ -143,7 +143,7 @@ pub const ErrorClass = enum {
     monitoring,
     system,
     unknown,
-    
+
     pub fn fromError(err: anyerror) ErrorClass {
         return switch (err) {
             // Framework errors
@@ -155,7 +155,7 @@ pub const ErrorClass = enum {
             error.InvalidConfiguration,
             error.ResourceLimitExceeded,
             => .framework,
-            
+
             // AI errors
             error.ModelNotFound,
             error.InvalidModelFormat,
@@ -165,7 +165,7 @@ pub const ErrorClass = enum {
             error.InvalidInputDimensions,
             error.AgentInitFailed,
             => .ai,
-            
+
             // Database errors
             error.ConnectionFailed,
             error.QueryFailed,
@@ -175,7 +175,7 @@ pub const ErrorClass = enum {
             error.TransactionFailed,
             error.IndexCreationFailed,
             => .database,
-            
+
             // GPU errors
             error.NoGPUAvailable,
             error.GPUInitFailed,
@@ -185,7 +185,7 @@ pub const ErrorClass = enum {
             error.DriverError,
             error.InsufficientComputeCapability,
             => .gpu,
-            
+
             // Network errors
             error.ConnectionTimeout,
             error.InvalidURL,
@@ -194,7 +194,7 @@ pub const ErrorClass = enum {
             error.AuthenticationFailed,
             error.RateLimitExceeded,
             => .network,
-            
+
             // Plugin errors
             error.PluginNotFound,
             error.PluginLoadFailed,
@@ -202,14 +202,14 @@ pub const ErrorClass = enum {
             error.PluginInitFailed,
             error.IncompatiblePluginVersion,
             => .plugin,
-            
+
             // Monitoring errors
             error.MetricsCollectionFailed,
             error.InvalidMetric,
             error.TraceExportFailed,
             error.LoggerInitFailed,
             => .monitoring,
-            
+
             // System errors
             error.OutOfMemory,
             error.FileNotFound,
@@ -218,11 +218,11 @@ pub const ErrorClass = enum {
             error.NotDir,
             error.InvalidUtf8,
             => .system,
-            
+
             else => .unknown,
         };
     }
-    
+
     pub fn toString(self: ErrorClass) []const u8 {
         return switch (self) {
             .framework => "Framework",
@@ -248,14 +248,14 @@ pub fn isRecoverable(err: anyerror) bool {
         error.RecordNotFound,
         error.NoGPUAvailable,
         => true,
-        
+
         // Non-recoverable errors
         error.OutOfMemory,
         error.AlreadyInitialized,
         error.InvalidConfiguration,
         error.InsufficientComputeCapability,
         => false,
-        
+
         else => false,
     };
 }
@@ -271,7 +271,7 @@ pub fn getMessage(err: anyerror) []const u8 {
         error.FeatureAlreadyRegistered => "Feature already registered",
         error.InvalidConfiguration => "Invalid configuration",
         error.ResourceLimitExceeded => "Resource limit exceeded",
-        
+
         // AI
         error.ModelNotFound => "Model not found",
         error.InvalidModelFormat => "Invalid model format",
@@ -280,7 +280,7 @@ pub fn getMessage(err: anyerror) []const u8 {
         error.TrainingFailed => "Training failed",
         error.InvalidInputDimensions => "Invalid input dimensions",
         error.AgentInitFailed => "Agent initialization failed",
-        
+
         // Database
         error.ConnectionFailed => "Database connection failed",
         error.QueryFailed => "Query execution failed",
@@ -289,7 +289,7 @@ pub fn getMessage(err: anyerror) []const u8 {
         error.DuplicateKey => "Duplicate key constraint violation",
         error.TransactionFailed => "Transaction failed",
         error.IndexCreationFailed => "Index creation failed",
-        
+
         // GPU
         error.NoGPUAvailable => "No GPU available",
         error.GPUInitFailed => "GPU initialization failed",
@@ -298,7 +298,7 @@ pub fn getMessage(err: anyerror) []const u8 {
         error.DeviceNotSupported => "Device not supported",
         error.DriverError => "GPU driver error",
         error.InsufficientComputeCapability => "Insufficient GPU compute capability",
-        
+
         // Network
         error.ConnectionTimeout => "Connection timeout",
         error.InvalidURL => "Invalid URL",
@@ -306,32 +306,32 @@ pub fn getMessage(err: anyerror) []const u8 {
         error.InvalidResponse => "Invalid response",
         error.AuthenticationFailed => "Authentication failed",
         error.RateLimitExceeded => "Rate limit exceeded",
-        
+
         // Plugin
         error.PluginNotFound => "Plugin not found",
         error.PluginLoadFailed => "Plugin load failed",
         error.InvalidPlugin => "Invalid plugin",
         error.PluginInitFailed => "Plugin initialization failed",
         error.IncompatiblePluginVersion => "Incompatible plugin version",
-        
+
         // Monitoring
         error.MetricsCollectionFailed => "Metrics collection failed",
         error.InvalidMetric => "Invalid metric",
         error.TraceExportFailed => "Trace export failed",
         error.LoggerInitFailed => "Logger initialization failed",
-        
+
         // System
         error.OutOfMemory => "Out of memory",
         error.FileNotFound => "File not found",
         error.AccessDenied => "Access denied",
-        
+
         else => "Unknown error",
     };
 }
 
 test "ErrorClass: classification" {
     const testing = std.testing;
-    
+
     try testing.expectEqual(ErrorClass.framework, ErrorClass.fromError(error.InitializationFailed));
     try testing.expectEqual(ErrorClass.ai, ErrorClass.fromError(error.ModelNotFound));
     try testing.expectEqual(ErrorClass.database, ErrorClass.fromError(error.QueryFailed));
@@ -340,7 +340,7 @@ test "ErrorClass: classification" {
 
 test "Error: recoverability check" {
     const testing = std.testing;
-    
+
     try testing.expect(isRecoverable(error.ConnectionTimeout));
     try testing.expect(isRecoverable(error.RecordNotFound));
     try testing.expect(!isRecoverable(error.OutOfMemory));
@@ -349,10 +349,10 @@ test "Error: recoverability check" {
 
 test "Error: user-friendly messages" {
     const testing = std.testing;
-    
+
     const msg = getMessage(error.ModelNotFound);
     try testing.expectEqualStrings("Model not found", msg);
-    
+
     const msg2 = getMessage(error.GPUInitFailed);
     try testing.expectEqualStrings("GPU initialization failed", msg2);
 }
