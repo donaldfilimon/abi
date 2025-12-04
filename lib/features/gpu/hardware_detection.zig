@@ -1,28 +1,45 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-/// GPU backend options supported by the framework.
+/// Accelerator backend options supported by the framework.
+/// Covers GPU (CUDA, Vulkan, Metal, DX12, OpenCL, OpenGL, WebGPU),
+/// AI accelerators (TPU, NPU), and CPU fallbacks (SIMD, scalar).
 pub const BackendType = enum {
+    // GPU backends
     cuda,
+    vulkan,
     metal,
     directx12,
-    vulkan,
     opencl,
     opengl,
     webgpu,
-    cpu_fallback,
+    rocm, // AMD ROCm
+
+    // AI/ML accelerators
+    tpu, // Google TPU / Coral Edge TPU
+    npu, // Neural Processing Units (Apple Neural Engine, Qualcomm Hexagon, etc)
+    sycl, // Intel oneAPI SYCL
+
+    // CPU backends
+    cpu_simd, // Optimized SIMD (AVX-512, AVX2, NEON)
+    cpu_fallback, // Basic scalar CPU
 
     /// Get the priority value for backend selection (higher = better)
     pub fn priority(self: BackendType) u32 {
         return switch (self) {
-            .cuda => 100, // Highest priority - NVIDIA CUDA
-            .vulkan => 90, // Cross-platform GPU acceleration
-            .metal => 85, // Apple GPU acceleration
-            .directx12 => 80, // Microsoft DirectX 12
-            .opencl => 70, // OpenCL for older GPUs
-            .opengl => 60, // OpenGL fallback
-            .webgpu => 50, // WebGPU for web compatibility
-            .cpu_fallback => 0, // Lowest priority - CPU fallback
+            .tpu => 110, // AI-optimized hardware
+            .npu => 105, // Neural processing unit
+            .cuda => 100, // NVIDIA CUDA
+            .rocm => 95, // AMD ROCm
+            .vulkan => 90, // Cross-platform GPU
+            .metal => 85, // Apple GPU
+            .sycl => 82, // Intel oneAPI
+            .directx12 => 80, // Windows GPU
+            .opencl => 70, // Legacy GPU compute
+            .opengl => 60, // Legacy graphics
+            .webgpu => 50, // Web compatibility
+            .cpu_simd => 20, // Optimized CPU
+            .cpu_fallback => 0, // Basic CPU
         };
     }
 
@@ -36,6 +53,11 @@ pub const BackendType = enum {
             .opencl => "OpenCL",
             .opengl => "OpenGL",
             .webgpu => "WebGPU",
+            .rocm => "AMD ROCm",
+            .tpu => "TPU",
+            .npu => "NPU",
+            .sycl => "Intel SYCL",
+            .cpu_simd => "CPU SIMD",
             .cpu_fallback => "CPU Fallback",
         };
     }
@@ -43,70 +65,50 @@ pub const BackendType = enum {
     /// Check if backend supports compute operations
     pub fn supportsCompute(self: BackendType) bool {
         return switch (self) {
-            .cuda => true,
-            .vulkan => true,
-            .metal => true,
-            .directx12 => true,
-            .opencl => true,
-            .opengl => false, // Limited compute support
-            .webgpu => true,
-            .cpu_fallback => true, // CPU can do compute
+            .cuda, .vulkan, .metal, .directx12, .opencl, .webgpu => true,
+            .rocm, .tpu, .npu, .sycl => true,
+            .cpu_simd, .cpu_fallback => true,
+            .opengl => false,
+        };
+    }
+
+    /// Check if backend supports neural network training
+    pub fn supportsTraining(self: BackendType) bool {
+        return switch (self) {
+            .cuda, .rocm, .tpu, .npu, .sycl => true,
+            .vulkan, .metal, .directx12, .opencl => true,
+            .cpu_simd, .cpu_fallback => true,
+            .opengl, .webgpu => false,
+        };
+    }
+
+    /// Check if backend supports tensor operations
+    pub fn supportsTensors(self: BackendType) bool {
+        return switch (self) {
+            .cuda, .rocm, .tpu, .npu, .sycl => true, // Native tensor support
+            .vulkan, .metal, .directx12 => true, // Via compute shaders
+            .opencl, .cpu_simd, .cpu_fallback => true,
+            .opengl, .webgpu => false,
         };
     }
 
     /// Check if backend supports graphics operations
     pub fn supportsGraphics(self: BackendType) bool {
         return switch (self) {
-            .cuda => false, // CUDA is compute-only
-            .vulkan => true,
-            .metal => true,
-            .directx12 => true,
-            .opencl => false, // Limited graphics support
-            .opengl => true,
-            .webgpu => true,
-            .cpu_fallback => false, // No GPU graphics
+            .vulkan, .metal, .directx12, .opengl, .webgpu => true,
+            .cuda, .rocm, .opencl, .tpu, .npu, .sycl => false,
+            .cpu_simd, .cpu_fallback => false,
         };
     }
 
     /// Check if backend is cross-platform
     pub fn isCrossPlatform(self: BackendType) bool {
         return switch (self) {
-            .cuda => false, // NVIDIA only
-            .vulkan => true,
-            .metal => false, // Apple only
-            .directx12 => false, // Windows only
-            .opencl => true,
-            .opengl => true,
-            .webgpu => true,
-            .cpu_fallback => true,
-        };
-    }
-
-    /// Get the shader language used by this backend
-    pub fn shaderLanguage(self: BackendType) []const u8 {
-        return switch (self) {
-            .cuda => "CUDA C++",
-            .vulkan => "SPIR-V/GLSL",
-            .metal => "Metal Shading Language",
-            .directx12 => "HLSL",
-            .opencl => "OpenCL C",
-            .opengl => "GLSL",
-            .webgpu => "WGSL",
-            .cpu_fallback => "None",
-        };
-    }
-
-    /// Get supported platforms for this backend
-    pub fn supportedPlatforms(self: BackendType) []const []const u8 {
-        return switch (self) {
-            .cuda => &[_][]const u8{ "Windows", "Linux" },
-            .vulkan => &[_][]const u8{ "Windows", "Linux", "macOS", "Android", "iOS" },
-            .metal => &[_][]const u8{ "macOS", "iOS", "tvOS", "watchOS" },
-            .directx12 => &[_][]const u8{"Windows"},
-            .opencl => &[_][]const u8{ "Windows", "Linux", "macOS", "Android" },
-            .opengl => &[_][]const u8{ "Windows", "Linux", "macOS" },
-            .webgpu => &[_][]const u8{ "Web", "Windows", "Linux", "macOS" },
-            .cpu_fallback => &[_][]const u8{"Any"},
+            .vulkan, .opencl, .opengl, .webgpu => true,
+            .cpu_simd, .cpu_fallback => true,
+            .cuda, .rocm => false, // Vendor specific
+            .metal, .directx12 => false, // OS specific
+            .tpu, .npu, .sycl => false, // Hardware specific
         };
     }
 
@@ -114,13 +116,30 @@ pub const BackendType = enum {
     pub fn isAvailable(self: BackendType) bool {
         return switch (self) {
             .cuda => builtin.os.tag == .windows or builtin.os.tag == .linux,
+            .rocm => builtin.os.tag == .linux,
             .vulkan => builtin.os.tag == .linux or builtin.os.tag == .windows,
             .metal => builtin.os.tag == .macos or builtin.os.tag == .ios,
             .directx12 => builtin.os.tag == .windows,
-            .opencl => true, // OpenCL is widely available
-            .opengl => true, // OpenGL is widely available
-            .webgpu => true, // WebGPU has broad support
-            .cpu_fallback => true, // Always available
+            .sycl => builtin.os.tag == .linux or builtin.os.tag == .windows,
+            .tpu => false, // Requires specific hardware detection
+            .npu => builtin.os.tag == .macos or builtin.os.tag == .ios, // Apple Neural Engine
+            .opencl, .opengl, .webgpu => true,
+            .cpu_simd, .cpu_fallback => true,
+        };
+    }
+
+    /// Get SIMD width for this backend (in f32 elements)
+    pub fn simdWidth(self: BackendType) u32 {
+        return switch (self) {
+            .cpu_simd => switch (builtin.cpu.arch) {
+                .x86_64 => if (std.Target.x86.featureSetHas(builtin.cpu.features, .avx512f)) 16 else if (std.Target.x86.featureSetHas(builtin.cpu.features, .avx2)) 8 else 4,
+                .aarch64 => 4, // NEON
+                else => 4,
+            },
+            .cuda, .rocm => 32, // Warp size
+            .tpu => 128, // TPU vector width
+            .npu => 64, // Typical NPU width
+            else => 1,
         };
     }
 };

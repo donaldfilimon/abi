@@ -120,48 +120,34 @@ fn benchHandler(ctx: *modern_cli.Context, args: *modern_cli.ParsedArgs) errors.C
 
     const gpu_available = detection.total_gpus > 0 and detection.available_backends.len > 0;
 
-    const stdout = std.io.getStdOut().writer();
     const avg_ms = stats.avg_ns / 1_000_000.0;
     const min_ms = @as(f64, @floatFromInt(stats.min_ns)) / 1_000_000.0;
     const max_ms = @as(f64, @floatFromInt(stats.max_ns)) / 1_000_000.0;
 
     if (args.hasFlag("json")) {
-        var backends_json = std.ArrayList([]const u8).init(state.allocator);
-        defer backends_json.deinit();
-        for (detection.available_backends) |backend| {
-            try backends_json.append(@tagName(backend));
+        std.debug.print("{{\"size\":[{d},{d},{d}],\"iterations\":{d},", .{ size.m, size.n, size.p, iterations });
+        std.debug.print("\"cpu_ms\":{{\"avg\":{d:.3},\"min\":{d:.3},\"max\":{d:.3}}},", .{ avg_ms, min_ms, max_ms });
+        std.debug.print("\"gpu_available\":{s},\"available_backends\":[", .{if (gpu_available) "true" else "false"});
+        for (detection.available_backends, 0..) |backend, idx| {
+            if (idx != 0) std.debug.print(",", .{});
+            std.debug.print("\"{s}\"", .{@tagName(backend)});
         }
-
-        var buffer = std.ArrayList(u8).init(state.allocator);
-        defer buffer.deinit();
-        try std.json.stringify(
-            .{
-                .size = .{ size.m, size.n, size.p },
-                .iterations = iterations,
-                .cpu_ms = .{ .avg = avg_ms, .min = min_ms, .max = max_ms },
-                .gpu_available = gpu_available,
-                .available_backends = backends_json.items,
-            },
-            .{},
-            buffer.writer(),
-        );
-        try stdout.writeAll(buffer.items);
-        try stdout.writeByte('\n');
+        std.debug.print("]}}\n", .{});
     } else {
-        try stdout.print(
+        std.debug.print(
             "CPU benchmark for {d}x{d}x{d} over {d} iterations\n",
             .{ size.m, size.n, size.p, iterations },
         );
-        try stdout.print("  avg: {d:.3} ms  min: {d:.3} ms  max: {d:.3} ms\n", .{ avg_ms, min_ms, max_ms });
+        std.debug.print("  avg: {d:.3} ms  min: {d:.3} ms  max: {d:.3} ms\n", .{ avg_ms, min_ms, max_ms });
         if (gpu_available) {
-            try stdout.writeAll("GPU backends detected: ");
+            std.debug.print("GPU backends detected: ", .{});
             for (detection.available_backends, 0..) |backend, idx| {
-                if (idx != 0) try stdout.writeAll(", ");
-                try stdout.writeAll(@tagName(backend));
+                if (idx != 0) std.debug.print(", ", .{});
+                std.debug.print("{s}", .{@tagName(backend)});
             }
-            try stdout.writeAll("\n");
+            std.debug.print("\n", .{});
         } else {
-            try stdout.writeAll("No GPU backend detected, CPU fallback used.\n");
+            std.debug.print("No GPU backend detected, CPU fallback used.\n", .{});
         }
     }
 }

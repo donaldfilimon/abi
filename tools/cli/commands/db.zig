@@ -31,7 +31,7 @@ fn insertHandler(ctx: *modern_cli.Context, args: *modern_cli.ParsedArgs) errors.
     const vector_raw = args.getString("vec", "");
     if (vector_raw.len == 0) return errors.CommandError.MissingArgument;
 
-    var vector = try parseVectorInput(state.allocator, vector_raw);
+    const vector = try parseVectorInput(state.allocator, vector_raw);
     defer state.allocator.free(vector);
 
     const metadata_raw = args.getString("meta", "");
@@ -48,24 +48,11 @@ fn insertHandler(ctx: *modern_cli.Context, args: *modern_cli.ParsedArgs) errors.
 
     const dimension = state.vector_store.dimension.?;
     const count = state.vector_store.records.items.len;
-    const stdout = std.io.getStdOut().writer();
 
     if (args.hasFlag("json")) {
-        var buffer = std.ArrayList(u8).init(state.allocator);
-        defer buffer.deinit();
-        try std.json.stringify(
-            .{
-                .id = id,
-                .dimension = dimension,
-                .count = count,
-            },
-            .{},
-            buffer.writer(),
-        );
-        try stdout.writeAll(buffer.items);
-        try stdout.writeByte('\n');
+        std.debug.print("{{\"id\":{d},\"dimension\":{d},\"count\":{d}}}\n", .{ id, dimension, count });
     } else {
-        try stdout.print(
+        std.debug.print(
             "Inserted vector id={d} (dimension {d}). Total stored: {d}.\n",
             .{ id, dimension, count },
         );
@@ -79,7 +66,7 @@ fn searchHandler(ctx: *modern_cli.Context, args: *modern_cli.ParsedArgs) errors.
     const vector_raw = args.getString("vec", "");
     if (vector_raw.len == 0) return errors.CommandError.MissingArgument;
 
-    var query = try parseVectorInput(state.allocator, vector_raw);
+    const query = try parseVectorInput(state.allocator, vector_raw);
     defer state.allocator.free(query);
 
     const k_value = args.getInteger("k", 5);
@@ -96,50 +83,30 @@ fn searchHandler(ctx: *modern_cli.Context, args: *modern_cli.ParsedArgs) errors.
     };
     defer state.allocator.free(results);
 
-    const stdout = std.io.getStdOut().writer();
-
     if (args.hasFlag("json")) {
-        var json_results = std.ArrayList(struct {
-            id: u64,
-            distance: f32,
-            metadata: ?[]const u8,
-        }).init(state.allocator);
-        defer json_results.deinit();
-
-        for (results) |res| {
-            try json_results.append(.{
-                .id = res.id,
-                .distance = res.distance,
-                .metadata = res.metadata,
-            });
+        std.debug.print("{{\"count\":{d},\"requested\":{d},\"results\":[", .{ results.len, k });
+        for (results, 0..) |res, idx| {
+            if (idx != 0) std.debug.print(",", .{});
+            if (res.metadata) |meta| {
+                std.debug.print("{{\"id\":{d},\"distance\":{d:.4},\"metadata\":\"{s}\"}}", .{ res.id, res.distance, meta });
+            } else {
+                std.debug.print("{{\"id\":{d},\"distance\":{d:.4}}}", .{ res.id, res.distance });
+            }
         }
-
-        var buffer = std.ArrayList(u8).init(state.allocator);
-        defer buffer.deinit();
-        try std.json.stringify(
-            .{
-                .count = results.len,
-                .requested = k,
-                .results = json_results.items,
-            },
-            .{},
-            buffer.writer(),
-        );
-        try stdout.writeAll(buffer.items);
-        try stdout.writeByte('\n');
+        std.debug.print("]}}\n", .{});
     } else {
         if (results.len == 0) {
-            try stdout.writeAll("No vectors stored yet.\n");
+            std.debug.print("No vectors stored yet.\n", .{});
             return;
         }
-        try stdout.print("Top {d} matches:\n", .{results.len});
+        std.debug.print("Top {d} matches:\n", .{results.len});
         for (results, 0..) |res, idx| {
-            try stdout.print(
+            std.debug.print(
                 "  {d}) id={d} distance={d:.4}\n",
                 .{ idx + 1, res.id, res.distance },
             );
             if (res.metadata) |meta| {
-                try stdout.print("      metadata: {s}\n", .{meta});
+                std.debug.print("      metadata: {s}\n", .{meta});
             }
         }
     }

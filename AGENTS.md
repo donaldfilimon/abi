@@ -1,44 +1,48 @@
-# Repository Guidelines
+# ABI Framework - Agent Guidelines
 
-## 1. Project layout
+## Project Overview
+High-performance AI framework with vector database, GPU/TPU/NPU acceleration, and neural network training.
 
-- **lib/** – Core library modules (main source code)
-- **tests/** – Test suites (unit/, integration/, benchmarks/)
-- **examples/** – Runnable demos and examples
-- **tools/** – Development tools and CLI utilities
-- **benchmarks/** – Performance benchmarks
+**Zig Version**: `0.16.0-dev` (use `std.debug.print` instead of `std.io.getStdOut`)
 
-Main library entry point: `lib/mod.zig` imported as `abi`
+## Directory Structure
+```
+lib/           Core library (import as "abi")
+├── core/      Types, errors, memory, I/O
+├── features/  AI, GPU, database, web, monitoring
+├── framework/ Runtime orchestration
+└── shared/    Utils, platform, logging
 
-## 2. Build & test commands
+tools/cli/     Command-line interface
+tests/         Test suite
+examples/      basic-usage.zig
+```
 
-| Command | Purpose |
-|---------|---------|
-| `zig build` | Build library and CLI |
-| `zig build test` | Run unit tests |
-| `zig build test-integration` | Run integration tests |
-| `zig build test-all` | Run all tests |
-| `zig test <file>` | Run single test file |
-| `zig build examples` | Build all examples |
-| `zig build run-<example>` | Run specific example |
-| `zig fmt -w .` | Format all code |
+## Build Commands
+```bash
+zig build              # Build library + CLI
+zig build test         # Run tests
+zig build run          # Run CLI
+```
 
-## 3. Code style
+## Code Style
+- **Indent**: 4 spaces
+- **Types**: `PascalCase`
+- **Functions/vars**: `snake_case`
+- **Docs**: `//!` module, `///` public API
 
-* **Indent**: 4 spaces, no tabs
-* **Types**: `PascalCase` 
-* **Functions/vars**: `snake_case`
-* **Constants**: `ALL_CAPS`
-* **Files**: lowercase, use underscores
-* **Imports**: Use `@import("std")` and module aliases
-* **Error handling**: Use `!T` return types, propagate with `try`
-* **Documentation**: Use `//!` for module docs, `///` for public APIs
+## Zig 0.16 Notes
+- `std.io.getStdOut()` unavailable → use `std.debug.print`
+- Use `vtable.*` not `rawAlloc/rawResize/rawFree` for custom allocators
+- Async I/O coming in stable 0.16
 
-## 4. Testing patterns
+## Key Modules
+| Module | Purpose |
+|--------|---------|
+| `abi.gpu.accelerator` | Unified GPU/TPU/NPU/CPU |
+| `abi.database` | Vector database |
+| `abi.ai` | Neural networks |
+| `abi.features` | Feature toggles |
 
-Test files end with `_test.zig`. Use `testing.allocator` for allocators. Structure tests with `try` for error handling and `defer` for cleanup. Import main library as `const abi = @import("abi");`
-
-## 5. Build configuration
-
-Feature flags controlled via build options: `enable-ai`, `enable-gpu`, `enable-database`, `enable-web`, `enable-monitoring`. Use build.zig for conditional compilation.
-
+## Feature Flags
+`zig build -Denable-gpu=true -Denable-ai=true`

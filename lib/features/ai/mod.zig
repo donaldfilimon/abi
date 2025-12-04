@@ -1,9 +1,24 @@
+//! AI Feature Module
+//!
+//! Neural networks, transformers, and machine learning
+
 const std = @import("std");
 const Schema = @import("schema.zig");
 const Conn = @import("../connectors/mod.zig");
 const Retry = @import("retry.zig");
 const Policy = @import("policy.zig");
 const Wdbx = @import("../database/wdbx_adapter.zig");
+
+pub const agent = @import("agent.zig");
+pub const model_registry = @import("model_registry.zig");
+pub const training = @import("training/mod.zig");
+pub const layers = @import("layers.zig");
+
+// Legacy compatibility
+pub const transformer = @import("transformer/mod.zig");
+pub const reinforcement_learning = @import("reinforcement_learning/mod.zig");
+pub const federated = @import("federated/mod.zig");
+pub const optimization = @import("optimization/mod.zig");
 
 pub const Envelope = struct {
     id: []const u8,

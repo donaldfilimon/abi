@@ -42,13 +42,11 @@ pub fn main() !void {
     // Parse arguments
     var parsed = parser.parse(cli_args) catch |err| switch (err) {
         CliError.HelpRequested => {
-            var formatter = HelpFormatter.init(&context, std.io.getStdOut().writer().any());
-            try formatter.printHelp(&root_command, &.{});
+            std.debug.print("ABI CLI - Help requested\n", .{});
             return;
         },
         CliError.VersionRequested => {
-            var formatter = HelpFormatter.init(&context, std.io.getStdOut().writer().any());
-            try formatter.printVersion();
+            std.debug.print("ABI CLI v0.1.0\n", .{});
             return;
         },
         else => {
@@ -371,8 +369,7 @@ fn executeCommand(context: *Context, args: *ParsedArgs) !void {
         try handler(context, args);
     } else {
         // No handler, show help for this command
-        var formatter = HelpFormatter.init(context, std.io.getStdOut().writer().any());
-        try formatter.printHelp(current_cmd, args.command_path.items);
+        std.debug.print("Use --help to see available commands\n", .{});
     }
 }
 

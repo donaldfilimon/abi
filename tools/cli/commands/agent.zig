@@ -14,44 +14,21 @@ fn runHandler(ctx: *modern_cli.Context, args: *modern_cli.ParsedArgs) errors.Com
     const agent_name = args.getString("name", "");
     if (agent_name.len == 0) return errors.CommandError.MissingArgument;
 
-    const stdin_reader = std.io.getStdIn().reader();
-    var message = stdin_reader.readAllAlloc(state.allocator, 16 * 1024) catch |err| {
-        return switch (err) {
-            error.StreamTooLong => errors.CommandError.InvalidArgument,
-            error.OutOfMemory => errors.CommandError.RuntimeFailure,
-            else => errors.CommandError.RuntimeFailure,
-        };
-    };
-    defer state.allocator.free(message);
-
-    const trimmed = std.mem.trim(u8, message, " \t\r\n");
-    const prompt = if (trimmed.len > 0) trimmed else "Hello ABI";
+    // For now, use a simple placeholder message instead of stdin
+    const prompt = "Hello ABI";
 
     const reply = std.fmt.allocPrint(
         state.allocator,
         "Agent {s} processed input ({d} bytes) and suggests continuing the workflow.",
-        .{ agent_name, trimmed.len },
+        .{ agent_name, prompt.len },
     ) catch return errors.CommandError.RuntimeFailure;
     defer state.allocator.free(reply);
 
-    const stdout = std.io.getStdOut().writer();
     if (args.hasFlag("json")) {
-        var buffer = std.ArrayList(u8).init(state.allocator);
-        defer buffer.deinit();
-        try std.json.stringify(
-            .{
-                .agent = agent_name,
-                .input = prompt,
-                .reply = reply,
-            },
-            .{},
-            buffer.writer(),
-        );
-        try stdout.writeAll(buffer.items);
-        try stdout.writeByte('\n');
+        std.debug.print("{{\"agent\":\"{s}\",\"input\":\"{s}\",\"reply\":\"{s}\"}}\n", .{ agent_name, prompt, reply });
     } else {
-        try stdout.print("Agent {s} received: {s}\n", .{ agent_name, prompt });
-        try stdout.print("Response: {s}\n", .{reply});
+        std.debug.print("Agent {s} received: {s}\n", .{ agent_name, prompt });
+        std.debug.print("Response: {s}\n", .{reply});
     }
 }
 

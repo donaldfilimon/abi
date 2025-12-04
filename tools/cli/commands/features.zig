@@ -25,7 +25,6 @@ fn listHandler(ctx: *modern_cli.Context, args: *modern_cli.ParsedArgs) errors.Co
     const state = try requireState(ctx);
     try state.consumeBudget();
 
-    const stdout = std.io.getStdOut().writer();
     const all = std.meta.tags(config.Feature);
 
     var enabled_count: usize = 0;
@@ -34,24 +33,24 @@ fn listHandler(ctx: *modern_cli.Context, args: *modern_cli.ParsedArgs) errors.Co
     }
 
     if (args.hasFlag("json")) {
-        try stdout.writeAll("{\"features\":{");
+        std.debug.print("{{\"features\":{{", .{});
         for (all, 0..) |feature, idx| {
-            if (idx != 0) try stdout.writeAll(",");
+            if (idx != 0) std.debug.print(",", .{});
             const status = if (state.framework.isFeatureEnabled(feature)) "true" else "false";
-            try stdout.print("\"{s}\":{s}", .{ @tagName(feature), status });
+            std.debug.print("\"{s}\":{s}", .{ @tagName(feature), status });
         }
-        try stdout.writeAll("}}\n");
+        std.debug.print("}}}}\n", .{});
         return;
     }
 
-    try stdout.print("Features ({d} enabled / {d} total)\n", .{ enabled_count, all.len });
+    std.debug.print("Features ({d} enabled / {d} total)\n", .{ enabled_count, all.len });
     for (all) |feature| {
         const name = @tagName(feature);
         const label = config.featureLabel(feature);
         const description = config.featureDescription(feature);
         const enabled = state.framework.isFeatureEnabled(feature);
-        try stdout.print("  {s:<12} {s:<22} [{s}]\n", .{ name, label, formatStatus(enabled) });
-        try stdout.print("      {s}\n", .{description});
+        std.debug.print("  {s:<12} {s:<22} [{s}]\n", .{ name, label, formatStatus(enabled) });
+        std.debug.print("      {s}\n", .{description});
     }
 }
 
@@ -68,12 +67,11 @@ fn toggleHandler(ctx: *modern_cli.Context, args: *modern_cli.ParsedArgs, enable:
 
     const feature = try parseFeature(feature_name);
     const changed = if (enable) state.framework.enableFeature(feature) else state.framework.disableFeature(feature);
-    const stdout = std.io.getStdOut().writer();
     const current = state.framework.isFeatureEnabled(feature);
 
     if (args.hasFlag("json")) {
-        try stdout.print(
-            "{\"feature\":\"{s}\",\"status\":\"{s}\",\"changed\":{s}}\n",
+        std.debug.print(
+            "{{\"feature\":\"{s}\",\"status\":\"{s}\",\"changed\":{s}}}\n",
             .{
                 @tagName(feature),
                 formatStatus(current),
@@ -84,9 +82,9 @@ fn toggleHandler(ctx: *modern_cli.Context, args: *modern_cli.ParsedArgs, enable:
     }
 
     if (changed) {
-        try stdout.print("Feature '{s}' {s}.\n", .{ @tagName(feature), formatStatus(current) });
+        std.debug.print("Feature '{s}' {s}.\n", .{ @tagName(feature), formatStatus(current) });
     } else {
-        try stdout.print("Feature '{s}' already {s}.\n", .{ @tagName(feature), formatStatus(current) });
+        std.debug.print("Feature '{s}' already {s}.\n", .{ @tagName(feature), formatStatus(current) });
     }
 }
 

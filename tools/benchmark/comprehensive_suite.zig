@@ -189,7 +189,7 @@ pub const TrackingAllocator = struct {
     fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
 
-        const result = self.parent.rawAlloc(len, ptr_align, ret_addr);
+        const result = self.parent.vtable.alloc(self.parent.ptr, len, ptr_align, ret_addr);
         if (result) |ptr| {
             _ = ptr;
             _ = self.stats.total_allocated.fetchAdd(len, .monotonic);
@@ -214,7 +214,7 @@ pub const TrackingAllocator = struct {
     fn resize(ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_addr: usize) bool {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
 
-        if (self.parent.rawResize(buf, buf_align, new_len, ret_addr)) {
+        if (self.parent.vtable.resize(self.parent.ptr, buf, buf_align, new_len, ret_addr)) {
             const old_len = buf.len;
             if (new_len > old_len) {
                 const diff = new_len - old_len;
@@ -233,7 +233,7 @@ pub const TrackingAllocator = struct {
     fn free(ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) void {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
 
-        self.parent.rawFree(buf, buf_align, ret_addr);
+        self.parent.vtable.free(self.parent.ptr, buf, buf_align, ret_addr);
 
         _ = self.stats.total_freed.fetchAdd(buf.len, .monotonic);
         _ = self.stats.current_usage.fetchSub(buf.len, .monotonic);

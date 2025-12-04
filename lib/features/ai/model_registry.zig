@@ -408,7 +408,13 @@ pub const RegistryCLI = struct {
 
     pub fn compareModelsCLI(self: RegistryCLI, id1: []const u8, id2: []const u8) !void {
         const comparison = try self.registry.compareModels(id1, id2);
-        try comparison.format("", .{}, std.io.getStdOut().writer());
+        std.debug.print("Model Comparison:\n", .{});
+        std.debug.print("  Model 1: {s}\n", .{comparison.model1_id});
+        std.debug.print("  Model 2: {s}\n", .{comparison.model2_id});
+        std.debug.print("  Parameter difference: {}\n", .{comparison.parameter_difference});
+        std.debug.print("  Accuracy difference: {d:.4}\n", .{comparison.accuracy_difference});
+        std.debug.print("  Size difference: {} bytes\n", .{comparison.size_difference_bytes});
+        std.debug.print("  Architecture changed: {}\n", .{comparison.architecture_changed});
     }
 };
 

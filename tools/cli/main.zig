@@ -1,5 +1,5 @@
 const std = @import("std");
-const abi = @import("../mod.zig");
+const abi = @import("abi");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -8,7 +8,9 @@ pub fn main() !void {
 
     _ = allocator;
 
-    var stdout = std.io.getStdOut().writer();
-    try stdout.print("ABI CLI placeholder\n", .{});
-    try stdout.print("Framework version: {s}\n", .{abi.version()});
+    std.debug.print("ABI Framework CLI\n", .{});
+    std.debug.print("Version: {s}\n", .{abi.version()});
+    std.debug.print("\nAvailable commands:\n", .{});
+    std.debug.print("  --help    Show this help message\n", .{});
+    std.debug.print("  --version Show version information\n", .{});
 }

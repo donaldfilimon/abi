@@ -6,22 +6,16 @@ const builtin = @import("builtin");
 
 fn versionHandler(ctx: *modern_cli.Context, args: *modern_cli.ParsedArgs) errors.CommandError!void {
     _ = ctx;
-    const stdout = std.io.getStdOut().writer();
     if (args.hasFlag("json")) {
-        try std.json.stringify(
-            .{
-                .version = build_options.package_version,
-                .zig = builtin.zig_version_string,
-                .target = builtin.target,
-            },
-            .{},
-            stdout,
-        );
-        try stdout.writeByte('\n');
+        std.debug.print("{{\"version\":\"{s}\",\"zig\":\"{s}\",\"target\":\"{s}\"}}\n", .{
+            build_options.package_version,
+            builtin.zig_version_string,
+            @tagName(builtin.target.cpu.arch),
+        });
     } else {
-        try stdout.print("ABI {s}\n", .{build_options.package_version});
-        try stdout.print("Zig {s}\n", .{builtin.zig_version_string});
-        try stdout.print("Target {s}\n", .{@tagName(builtin.target.cpu.arch)});
+        std.debug.print("ABI {s}\n", .{build_options.package_version});
+        std.debug.print("Zig {s}\n", .{builtin.zig_version_string});
+        std.debug.print("Target {s}\n", .{@tagName(builtin.target.cpu.arch)});
     }
 }
 

@@ -243,7 +243,7 @@ pub const Context = struct {
         return switch (self.color_mode) {
             .always => true,
             .never => false,
-            .auto => std.io.tty.detectConfig(std.io.getStdOut()).escape_codes != .no_color,
+            .auto => false, // Default to no color since we can't detect terminal capabilities
         };
     }
 };

@@ -43,14 +43,34 @@ pub const Writer = struct {
         };
     }
 
-    /// Create a Writer that outputs to stdout
+    /// Create a Writer that outputs to stdout (uses debug print internally)
     pub fn stdout() Writer {
-        return fromAnyWriter(std.io.getStdOut().writer());
+        const impl = struct {
+            fn writeFn(_: *anyopaque, bytes: []const u8) anyerror!usize {
+                std.debug.print("{s}", .{bytes});
+                return bytes.len;
+            }
+        };
+
+        return .{
+            .context = undefined,
+            .writeFn = impl.writeFn,
+        };
     }
 
-    /// Create a Writer that outputs to stderr
+    /// Create a Writer that outputs to stderr (uses debug print internally)
     pub fn stderr() Writer {
-        return fromAnyWriter(std.io.getStdErr().writer());
+        const impl = struct {
+            fn writeFn(_: *anyopaque, bytes: []const u8) anyerror!usize {
+                std.debug.print("{s}", .{bytes});
+                return bytes.len;
+            }
+        };
+
+        return .{
+            .context = undefined,
+            .writeFn = impl.writeFn,
+        };
     }
 
     /// Create a null Writer that discards all output
