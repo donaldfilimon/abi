@@ -1,0 +1,5 @@
+# ABI Documentation - Jekyll Configuration
+title: "ABI Documentation"
+description: "High-performance AI/ML framework in Zig"
+url: "https://donaldfilimon.github.io"
+baseurl: "/abi"
