@@ -1,0 +1,7 @@
+main:
+  - title: "Home"
+    url: "/"
+  - title: "API Reference"
+    url: "/generated/API_REFERENCE"
+  - title: "Examples"
+    url: "/generated/EXAMPLES"
