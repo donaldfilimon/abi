@@ -53,229 +53,42 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the ABI CLI");
     run_step.dependOn(&b.addRunArtifact(cli_exe).step);
 
-    // Build all components
-    buildTests(b, target, optimize, abi_module, build_options);
-    buildExamples(b, target, optimize, abi_module);
-    buildBenchmarks(b, target, optimize, abi_module);
-    buildDocs(b, target, optimize, abi_module);
-    buildTools(b, target, optimize, abi_module);
-}
-
-fn createBuildOptions(b: *std.Build, config: BuildConfig) *std.Build.Step.Options {
-    const options = b.addOptions();
-    
-    // Package metadata
-    options.addOption([]const u8, "package_version", config.package_version);
-    options.addOption([]const u8, "package_name", "abi");
-    
-    // Feature flags
-    options.addOption(bool, "enable_ai", config.enable_ai);
-    options.addOption(bool, "enable_gpu", config.enable_gpu);
-    options.addOption(bool, "enable_database", config.enable_database);
-    options.addOption(bool, "enable_web", config.enable_web);
-    options.addOption(bool, "enable_monitoring", config.enable_monitoring);
-    
-    // GPU backend flags
-    options.addOption(bool, "gpu_cuda", config.gpu_cuda);
-    options.addOption(bool, "gpu_vulkan", config.gpu_vulkan);
-    options.addOption(bool, "gpu_metal", config.gpu_metal);
-    options.addOption(bool, "gpu_webgpu", config.gpu_webgpu);
-    
-    return options;
-}
-
-fn createAbiModule(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    build_options: *std.Build.Step.Options,
-) *std.Build.Module {
-    const abi_mod = b.addModule("abi", .{
-        .root_source_file = b.path("src/mod.zig"),
+    // Core library module
+    const abi_module = b.addModule("abi", .{
+        .root_source_file = b.path("lib/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
-    
-    abi_mod.addOptions("build_options", build_options);
-    
-    return abi_mod;
-}
 
-fn buildCLI(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    abi_module: *std.Build.Module,
-) *std.Build.Step.Compile {
+    // CLI executable
     const exe = b.addExecutable(.{
         .name = "abi",
-        .root_source_file = b.path("src/comprehensive_cli.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = abi_module,
     });
-    
-    exe.root_module.addImport("abi", abi_module);
-    
-    return exe;
-}
+    exe.addSourceFile(.{ .path = "tools/cli/main.zig" });
+    b.installArtifact(exe);
 
-fn buildTests(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    abi_module: *std.Build.Module,
-    build_options: *std.Build.Step.Options,
-) void {
-    // Main test suite
+    // Run step for CLI
+    const run_cli = b.addRunArtifact(exe);
+    run_cli.step.dependOn(b.getInstallStep());
+    if (b.args) |args| {
+        run_cli.addArgs(args);
+    }
+
+    const run_step = b.step("run", "Run the ABI CLI");
+    run_step.dependOn(&run_cli.step);
+
+    // Test suite
     const main_tests = b.addTest(.{
-        .name = "abi_tests",
-        .root_source_file = b.path("src/tests/mod.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = abi_module,
     });
-    main_tests.root_module.addImport("abi", abi_module);
-    main_tests.root_module.addOptions("build_options", build_options);
-    
+    main_tests.addSourceFile(.{ .path = "tests/mod.zig" });
+
     const run_main_tests = b.addRunArtifact(main_tests);
     run_main_tests.skip_foreign_checks = true;
-    
-    // Unit tests step
-    const unit_test_step = b.step("test", "Run unit tests");
-    unit_test_step.dependOn(&run_main_tests.step);
-    
-    // Integration tests
-    const integration_tests = b.addTest(.{
-        .name = "integration_tests",
-        .root_source_file = b.path("tests/integration/mod.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    integration_tests.root_module.addImport("abi", abi_module);
-    integration_tests.root_module.addOptions("build_options", build_options);
-    
-    const run_integration_tests = b.addRunArtifact(integration_tests);
-    run_integration_tests.skip_foreign_checks = true;
-    
-    const integration_test_step = b.step("test-integration", "Run integration tests");
-    integration_test_step.dependOn(&run_integration_tests.step);
-    
-    // All tests step
-    const all_test_step = b.step("test-all", "Run all tests");
-    all_test_step.dependOn(&run_main_tests.step);
-    all_test_step.dependOn(&run_integration_tests.step);
-}
 
-fn buildExamples(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    abi_module: *std.Build.Module,
-) void {
-    const examples = [_]struct { name: []const u8, path: []const u8 }{
-        .{ .name = "ai_demo", .path = "src/examples/ai_demo.zig" },
-        .{ .name = "agent_demo", .path = "src/examples/agent_subsystem_demo.zig" },
-        .{ .name = "gpu_demo", .path = "src/examples/gpu_acceleration_demo.zig" },
-        .{ .name = "transformer", .path = "src/examples/transformer_complete_example.zig" },
-        .{ .name = "rl_example", .path = "src/examples/rl_complete_example.zig" },
-    };
-    
-    for (examples) |example| {
-        const exe = b.addExecutable(.{
-            .name = example.name,
-            .root_source_file = b.path(example.path),
-            .target = target,
-            .optimize = optimize,
-        });
-        exe.root_module.addImport("abi", abi_module);
-        
-        const install_exe = b.addInstallArtifact(exe, .{
-            .dest_dir = .{ .override = .{ .custom = "examples" } },
-        });
-        
-        const example_step = b.step(
-            b.fmt("example-{s}", .{example.name}),
-            b.fmt("Build {s} example", .{example.name}),
-        );
-        example_step.dependOn(&install_exe.step);
-        
-        const run_example = b.addRunArtifact(exe);
-        const run_step = b.step(
-            b.fmt("run-{s}", .{example.name}),
-            b.fmt("Run {s} example", .{example.name}),
-        );
-        run_step.dependOn(&run_example.step);
-    }
-    
-    // Build all examples step
-    const all_examples_step = b.step("examples", "Build all examples");
-    for (examples) |example| {
-        const step_name = b.fmt("example-{s}", .{example.name});
-        if (b.top_level_steps.get(step_name)) |step| {
-            all_examples_step.dependOn(&step.step);
-        }
-    }
-}
-
-fn buildBenchmarks(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    abi_module: *std.Build.Module,
-) void {
-    const bench_exe = b.addExecutable(.{
-        .name = "benchmark",
-        .root_source_file = b.path("benchmarks/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    bench_exe.root_module.addImport("abi", abi_module);
-    
-    const install_bench = b.addInstallArtifact(bench_exe, .{
-        .dest_dir = .{ .override = .{ .custom = "bench" } },
-    });
-    
-    const bench_step = b.step("bench", "Build benchmarks");
-    bench_step.dependOn(&install_bench.step);
-    
-    const run_bench = b.addRunArtifact(bench_exe);
-    const run_bench_step = b.step("run-bench", "Run benchmarks");
-    run_bench_step.dependOn(&run_bench.step);
-}
-
-fn buildDocs(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    abi_module: *std.Build.Module,
-) void {
-    const docs_exe = b.addExecutable(.{
-        .name = "docs_generator",
-        .root_source_file = b.path("src/tools/docs_generator.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    docs_exe.root_module.addImport("abi", abi_module);
-    
-    const run_docs = b.addRunArtifact(docs_exe);
-    const docs_step = b.step("docs", "Generate API documentation");
-    docs_step.dependOn(&run_docs.step);
-    
-    // Zig's built-in documentation
-    const lib_step = b.addSharedLibrary(.{
-        .name = "abi",
-        .root_source_file = b.path("src/mod.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    
-    const install_docs = b.addInstallDirectory(.{
-        .source_dir = lib_step.getEmittedDocs(),
-        .install_dir = .prefix,
-        .install_subdir = "docs/api",
-    });
-    
-    const docs_auto_step = b.step("docs-auto", "Generate Zig autodocs");
-    docs_auto_step.dependOn(&install_docs.step);
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_main_tests.step);
 }
 
 fn buildTools(

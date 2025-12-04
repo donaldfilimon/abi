@@ -83,3 +83,7 @@ dist/
 release/
 *.tar.gz
 *.zip
+
+.nx/installation
+.nx/cache
+.nx/workspace-data

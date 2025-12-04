@@ -1,0 +1,4 @@
+Simple Code Quality Analysis Report
+================================
+
+.{ .lines_of_code = 83296, .function_count = 3509, .struct_count = 803, .comment_lines = 10232, .complexity_score = 6334, .simd_function_count = 12 }

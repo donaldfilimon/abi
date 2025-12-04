@@ -245,7 +245,7 @@ pub const Db = struct {
     fn walTruncate(self: *Db) DbError!void {
         if (!self.wal_enabled or self.wal_file == null) return;
         try self.wal_file.?.seekTo(0);
-        self.wal_file.?.setEndPos(0) catch return error.Unexpected;
+        self.wal_file.?.setEndPos(0) catch return DbError.InvalidState;
         try self.wal_file.?.sync();
     }
 

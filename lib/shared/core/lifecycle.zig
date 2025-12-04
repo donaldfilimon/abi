@@ -30,7 +30,8 @@ pub const Observer = struct {
     name: []const u8,
     stages: StageMask = StageMask.all(),
     priority: i32 = 0,
-    callback: *const fn (Transition, *Lifecycle) anyerror!void,
+    callback: *const fn (Transition, *Lifecycle, ?*anyopaque) anyerror!void,
+    context: ?*anyopaque = null,
 };
 
 /// Bit mask describing the stages an observer is interested in.
@@ -110,7 +111,7 @@ pub const Lifecycle = struct {
         const transition = Transition{ .from = self.stage, .to = to };
         for (self.observers.items) |observer| {
             if (!observer.stages.contains(to)) continue;
-            observer.callback(transition, self) catch |err| {
+            observer.callback(transition, self, observer.context) catch |err| {
                 std.log.err("lifecycle observer '{s}' failed: {s}", .{ observer.name, @errorName(err) });
             };
         }
@@ -183,14 +184,38 @@ test "lifecycle observers receive ordered callbacks" {
     try lifecycle.addObserver(testing.allocator, .{
         .name = "first",
         .priority = 10,
-        .callback = lifecycleTestFirstObserver,
+        .callback = struct {
+            fn call(transition: Transition, context: *Lifecycle, calls_ctx_opaque: ?*anyopaque) anyerror!void {
+                _ = context;
+                const calls_ctx = @as(*std.ArrayList([]const u8), @alignCast(calls_ctx_opaque.?));
+                try calls_ctx.append(switch (transition.to) {
+                    .bootstrapping => "first:boot",
+                    .running => "first:run",
+                    .shutting_down => "first:down",
+                    .terminated => "first:end",
+                    .cold => "first:cold",
+                });
+            }
+        }.call,
+        .context = &calls,
     });
 
     try lifecycle.addObserver(testing.allocator, .{
         .name = "second",
         .priority = 0,
         .stages = StageMask{ .running = true, .shutting_down = true },
-        .callback = lifecycleTestSecondObserver,
+        .callback = struct {
+            fn call(transition: Transition, context: *Lifecycle, calls_ctx_opaque: ?*anyopaque) anyerror!void {
+                _ = context;
+                const calls_ctx = @as(*std.ArrayList([]const u8), @alignCast(calls_ctx_opaque.?));
+                try calls_ctx.append(switch (transition.to) {
+                    .running => "second:run",
+                    .shutting_down => "second:down",
+                    else => "second:other",
+                });
+            }
+        }.call,
+        .context = &calls,
     });
 
     try lifecycle.advance(.bootstrapping);

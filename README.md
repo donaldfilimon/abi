@@ -1,14 +1,14 @@
-# ABI Framework
+# Abi Framework
 
-> Modern, modular Zig framework for AI/ML experiments and production workloads
+> **Modern, modular Zig framework for AI/ML experiments and production workloads**
 
 [![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev-orange.svg)](https://ziglang.org/builds/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-0.2.0-purple.svg)](CHANGELOG.md)
 
-## 🎯 What is ABI?
+## 🎯 What is Abi?
 
-ABI is an experimental framework that provides a curated set of feature modules for building high-performance AI/ML applications in Zig. It emphasizes:
+Abi is an experimental framework that provides a curated set of feature modules for building high-performance AI/ML applications in Zig. It emphasizes:
 
 - **🚀 Performance**: Zero-cost abstractions, SIMD optimizations, and minimal overhead
 - **🔧 Modularity**: Composable features with compile-time selection
@@ -36,6 +36,33 @@ ABI is an experimental framework that provides a curated set of feature modules 
 - ✅ **Comprehensive Error Handling** - Rich error context and diagnostics
 - ✅ **Improved Testing** - Separate unit and integration test suites
 - ✅ **Better Documentation** - Architecture guides and API references
+- ✅ **Mega Refactor Complete** - Clean architecture with zero duplication
+- ✅ **Modern Patterns** - Zig 0.16 best practices throughout
+
+## 🏗️ New Architecture (v0.2.0)
+
+The ABI Framework has been completely refactored with a clean, modern architecture:
+
+```
+abi/
+├── lib/                    # Primary library source
+│   ├── core/              # Core utilities (I/O, diagnostics, collections)
+│   ├── features/          # Feature modules (AI, GPU, Database, Web)
+│   ├── framework/         # Framework infrastructure
+│   └── shared/            # Shared utilities
+├── tools/                 # Development tools and CLI
+├── examples/             # Standalone examples
+├── tests/                # Comprehensive test suite
+└── benchmarks/           # Performance tests
+```
+
+### Key Improvements
+
+- **Zero Duplication**: Single source of truth in `lib/` directory
+- **Modern I/O**: Injectable writer pattern for better testing
+- **Rich Diagnostics**: Comprehensive error reporting with context
+- **Clean Exports**: Explicit module exports (no `usingnamespace`)
+- **Modular Build**: Feature flags for conditional compilation
 
 ## 🚀 Quick Start
 
@@ -50,30 +77,6 @@ ABI is an experimental framework that provides a curated set of feature modules 
 git clone https://github.com/donaldfilimon/abi.git
 cd abi
 zig build
-```
-
-### Building with Feature Flags
-
-```bash
-# Build with specific features
-zig build -Denable-ai=true -Denable-gpu=true -Dgpu-cuda=true
-
-# Build and run tests
-zig build test              # Unit tests
-zig build test-integration  # Integration tests
-zig build test-all          # All tests
-
-# Build examples
-zig build examples          # All examples
-zig build run-ai_demo       # Run specific example
-
-# Build benchmarks
-zig build bench
-zig build run-bench
-
-# Generate documentation
-zig build docs
-zig build docs-auto
 ```
 
 ### Basic Usage
@@ -104,33 +107,44 @@ pub fn main() !void {
 }
 ```
 
-## 🔧 CLI Usage
-
-The ABI CLI provides comprehensive access to all framework features:
+### Building with Feature Flags
 
 ```bash
-# Show help
-./zig-out/bin/abi --help
+# Build with specific features
+zig build -Denable-ai=true -Denable-gpu=true -Dgpu-cuda=true
 
-# Feature management
-./zig-out/bin/abi features list
-./zig-out/bin/abi features status
+# Build and run tests
+zig build test              # Unit tests
+zig build test-integration  # Integration tests
+zig build test-all          # All tests
 
-# AI operations
-./zig-out/bin/abi agent run --name "MyAgent"
-./zig-out/bin/abi agent list
+# Build examples
+zig build examples          # All examples
+zig build run-ai_demo       # Run specific example
 
-# Database operations
-./zig-out/bin/abi db create --name vectors
-./zig-out/bin/abi db query --vector "..."
+# Build benchmarks
+zig build bench
+zig build run-bench
 
-# GPU benchmarks
-./zig-out/bin/abi gpu bench
-./zig-out/bin/abi gpu info
-
-# Version information
-./zig-out/bin/abi version
+# Generate documentation
+zig build docs
+zig build docs-auto
 ```
+
+## 📖 Documentation
+
+### User Guides
+
+- **[Getting Started](docs/guides/GETTING_STARTED.md)** - Your first Abi application
+- **[Architecture](docs/ARCHITECTURE.md)** - System design and principles
+- **[API Reference](docs/api/)** - Complete API documentation
+- **[Examples](examples/)** - Practical code examples
+
+### Development
+
+- **[Contributing](CONTRIBUTING.md)** - How to contribute
+- **[Redesign Plan](REDESIGN_PLAN.md)** - Framework redesign details
+- **[Redesign Summary](REDESIGN_SUMMARY_FINAL.md)** - What's new in 0.2.0
 
 ## 🏗️ Architecture
 
@@ -156,7 +170,7 @@ The ABI CLI provides comprehensive access to all framework features:
 ### Module Organization
 
 ```
-src/
+lib/
 ├── core/              # Core infrastructure
 │   ├── io.zig         # I/O abstractions
 │   ├── errors.zig     # Error definitions
@@ -172,17 +186,33 @@ src/
     └── ...
 ```
 
-### Feature Modules
+## 🔧 CLI Usage
 
-The framework provides these major feature namespaces:
+The Abi CLI provides comprehensive access to all framework features:
 
-- `abi.ai` – AI agents, neural networks, and ML utilities
-- `abi.database` – High-performance vector database with HTTP/CLI interfaces
-- `abi.gpu` – Multi-backend GPU acceleration (CUDA, Vulkan, Metal)
-- `abi.web` – HTTP server and client components
-- `abi.monitoring` – Metrics, logging, and distributed tracing
-- `abi.connectors` – Third-party integrations and adapters
-- `abi.wdbx` – Compatibility namespace for database operations
+```bash
+# Show help
+./zig-out/bin/abi --help
+
+# Feature management
+./zig-out/bin/abi features list
+./zig-out/bin/abi features status
+
+# AI operations
+./zig-out/bin/abi agent run --name "MyAgent"
+./zig-out/bin/abi agent list
+
+# Database operations
+./zig-out/bin/abi db create --name vectors
+./zig-out/bin/abi db query --vector "..."
+
+# GPU benchmarks
+./zig-out/bin/abi gpu bench
+./zig-out/bin/abi gpu info
+
+# Version information
+./zig-out/bin/abi version
+```
 
 ## 🧪 Testing
 
@@ -206,7 +236,7 @@ zig build test -- --coverage
 
 ```
 tests/
-├── unit/              # Unit tests (mirrors src/)
+├── unit/              # Unit tests (mirrors lib/)
 ├── integration/       # Integration tests
 │   ├── ai_pipeline_test.zig
 │   ├── database_ops_test.zig
@@ -214,20 +244,75 @@ tests/
 └── fixtures/          # Test utilities
 ```
 
-## 📚 Documentation
+### Writing Tests
 
-### User Guides
+```zig
+const std = @import("std");
+const abi = @import("abi");
+const testing = std.testing;
 
-- **[Getting Started](docs/guides/GETTING_STARTED.md)** - Your first ABI application
-- **[Architecture](docs/ARCHITECTURE.md)** - System design and principles
-- **[API Reference](docs/api/)** - Complete API documentation
-- **[Examples](examples/)** - Practical code examples
+test "AI agent processes input correctly" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    
+    var framework = try abi.init(allocator, .{});
+    defer abi.shutdown(&framework);
+    
+    const Agent = abi.ai.agent.Agent;
+    var agent = try Agent.init(allocator, .{ .name = "Test" });
+    defer agent.deinit();
+    
+    const response = try agent.process("test", allocator);
+    defer allocator.free(@constCast(response));
+    
+    try testing.expect(response.len > 0);
+}
+```
 
-### Development
+## 📊 Examples
 
-- **[Contributing](CONTRIBUTING.md)** - How to contribute
-- **[Redesign Plan](REDESIGN_PLAN.md)** - Framework redesign details
-- **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Upgrade instructions
+### AI Agent
+
+```zig
+const abi = @import("abi");
+
+var agent = try abi.ai.agent.Agent.init(allocator, .{
+    .name = "Assistant",
+    .max_retries = 3,
+});
+defer agent.deinit();
+
+const response = try agent.process("Explain quantum computing", allocator);
+defer allocator.free(@constCast(response));
+```
+
+### Vector Database
+
+```zig
+const db = abi.database;
+
+var vector_db = try db.VectorDB.init(allocator, .{
+    .dimension = 128,
+    .metric = .cosine,
+});
+defer vector_db.deinit();
+
+try vector_db.insert("doc1", embedding);
+const results = try vector_db.search(query, 10);
+```
+
+### GPU Compute
+
+```zig
+const gpu = abi.gpu;
+
+var backend = try gpu.selectBackend(allocator);
+defer backend.deinit();
+
+const kernel = try gpu.loadKernel("matrix_mul");
+try backend.execute(kernel, .{ .a = a, .b = b, .result = result });
+```
 
 ## 🤝 Contributing
 

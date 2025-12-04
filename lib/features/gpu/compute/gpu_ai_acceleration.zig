@@ -158,15 +158,15 @@ pub const MatrixOps = struct {
     fn dispatchMatmulKernel(self: *MatrixOps, a_buffer: u32, b_buffer: u32, c_buffer: u32, m: usize, n: usize, p: usize) !void {
         const pipeline_handle = try self.ensureMatmulPipeline();
 
-        const tile: usize = @intCast(kernels.matmul_workgroup_size);
+        const tile = @as(usize, @intCast(kernels.matmul_workgroup_size));
 
-        const dispatch_x: u32 = @intCast((p + tile - 1) / tile);
-        const dispatch_y: u32 = @intCast((m + tile - 1) / tile);
+        const dispatch_x = @as(u32, @intCast((p + tile - 1) / tile));
+        const dispatch_y = @as(u32, @intCast((m + tile - 1) / tile));
 
         const params = MatmulPushConstants{
-            .m = @intCast(m),
-            .n = @intCast(n),
-            .p = @intCast(p),
+            .m = @as(u32, @intCast(m)),
+            .n = @as(u32, @intCast(n)),
+            .p = @as(u32, @intCast(p)),
         };
 
         const params_handle = try self.renderer.createBuffer(@sizeOf(MatmulPushConstants), .{
@@ -226,9 +226,9 @@ pub const MatrixOps = struct {
 
         const matrix_ops: *MatrixOps = @ptrCast(@alignCast(ctx.?));
         const allocator = matrix_ops.allocator;
-        const m: usize = @intCast(params.m);
-        const n: usize = @intCast(params.n);
-        const p: usize = @intCast(params.p);
+        const m = @as(usize, @intCast(params.m));
+        const n = @as(usize, @intCast(params.n));
+        const p = @as(usize, @intCast(params.p));
 
         const a_bytes = try renderer.readBuffer(buffers[0], allocator);
         defer allocator.free(a_bytes);
@@ -283,8 +283,8 @@ pub const MatrixOps = struct {
             }
         }
 
-        self.renderer.stats.bytes_written += @intCast(c.len * @sizeOf(f32));
-        self.renderer.stats.last_operation_time_ns = @intCast(std.time.nanoTimestamp() - start);
+        self.renderer.stats.bytes_written += @as(u64, @intCast(c.len * @sizeOf(f32)));
+        self.renderer.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
     }
 
     /// Matrix transpose
