@@ -32,7 +32,7 @@ pub const VectorSearchGPU = struct {
     pub fn insert(self: *VectorSearchGPU, vector: []const f32) !u64 {
         if (vector.len != self.dimension) return error.DimensionMismatch;
 
-        var mem = try self.accel.alloc(vector.len * @sizeOf(f32));
+        const mem = try self.accel.alloc(vector.len * @sizeOf(f32));
         try self.accel.copyToDevice(mem, std.mem.sliceAsBytes(vector));
         try self.vectors.append(mem);
 
@@ -57,7 +57,7 @@ pub const VectorSearchGPU = struct {
         if (k > self.vectors.items.len) return error.InvalidK;
 
         // Upload query to device
-        var query_mem = try self.accel.alloc(query.len * @sizeOf(f32));
+        const query_mem = try self.accel.alloc(query.len * @sizeOf(f32));
         defer self.accel.free(&query_mem);
         try self.accel.copyToDevice(query_mem, std.mem.sliceAsBytes(query));
 
@@ -110,7 +110,7 @@ test "gpu vector search" {
     defer search.deinit();
 
     // Insert vectors
-    var vec = try testing.allocator.alloc(f32, 128);
+    const vec = try testing.allocator.alloc(f32, 128);
     defer testing.allocator.free(vec);
     @memset(vec, 0.5);
 

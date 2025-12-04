@@ -205,7 +205,7 @@ pub const Sequential = struct {
 
 // Helper functions
 fn randomInit(accel: *accelerator.Accelerator, mem: *accelerator.DeviceMemory, count: usize, scale: f32) !void {
-    var data = try accel.allocator.alloc(f32, count);
+    const data = try accel.allocator.alloc(f32, count);
     defer accel.allocator.free(data);
 
     var prng = std.rand.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
@@ -219,7 +219,7 @@ fn randomInit(accel: *accelerator.Accelerator, mem: *accelerator.DeviceMemory, c
 }
 
 fn zeroInit(accel: *accelerator.Accelerator, mem: *accelerator.DeviceMemory, count: usize) !void {
-    var data = try accel.allocator.alloc(f32, count);
+    const data = try accel.allocator.alloc(f32, count);
     defer accel.allocator.free(data);
     @memset(data, 0);
     try accel.copyToDevice(mem.*, std.mem.sliceAsBytes(data));
@@ -233,7 +233,7 @@ test "dense layer forward" {
     defer dense.deinit();
 
     // Input: 1 sample, 3 features
-    var input_mem = try accel.alloc(3 * @sizeOf(f32));
+    const input_mem = try accel.alloc(3 * @sizeOf(f32));
     defer accel.free(&input_mem);
 
     const input_data = [_]f32{ 1.0, 2.0, 3.0 };
