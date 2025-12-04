@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Contributing to Abi AI Framework
 
 Thank you for your interest in contributing to the Abi AI Framework! This document provides guidelines and instructions for contributing to the project.
@@ -21,7 +22,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
    ```
 
 2. **Set Up Development Environment**
-   - Install Zig 0.16.0-dev (master) (see `.zigversion`; confirm with `zig version`)
+   - Install Zig 0.16.0-dev.1225+bf9082518 (see `.zigversion`; confirm with `zig version`)
    - Install Bun (recommended): `curl -fsSL https://bun.sh/install | bash`
    - Set up your editor with Zig language support
 
@@ -32,11 +33,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
    ```bash
    zig build -Doptimize=Debug
    zig build test
-   zig build fmt
-   zig build docs
    ```
-
-   Run `zig build summary` before submitting to execute formatting, documentation, and unit tests together.
 
 ## Development Workflow
 
@@ -52,7 +49,6 @@ git checkout -b feature/your-feature-name
 - Add tests for new functionality
 - Update documentation as needed
 - Ensure all tests pass
-- Keep formatting clean by running `zig build fmt`
 
 ### 3. Code Style Guidelines
 
@@ -159,12 +155,10 @@ git push origin feature/your-feature-name
    - Explain why the changes are needed
    - List any breaking changes
    - Reference related issues
-   - Document the commands you ran (e.g., `zig build summary`, `zig fmt`) and whether docs were regenerated
 
 ### 4. PR Review Process
 
 - Maintainers will review your PR
-- GitHub Actions executes the multi-OS matrix in `.github/workflows/ci.yml`; ensure it passes before requesting review
 - Address any feedback or requested changes
 - Once approved, your PR will be merged
 
@@ -294,7 +288,7 @@ Violations will be addressed by the project maintainers. We reserve the right to
 
 ### **Prerequisites**
 
-- **Zig 0.16.0-dev (master)** (required and enforced in CI)
+- **Zig 0.16.0-dev.1225+bf9082518** (required and enforced in CI)
 - **Git** for version control
 - **Basic understanding** of systems programming concepts
 - **Enthusiasm** for AI/ML and high-performance computing
@@ -797,3 +791,35 @@ For feature requests:
 ---
 
 **Thank you for contributing to Abi AI Framework!**
+=======
+# Contributing to ABI
+
+## Quick start
+- Install Zig (same version as CI).
+- Clone & test:
+  ```bash
+  git clone https://github.com/donaldfilimon/abi.git && cd abi
+  zig build test
+  ```
+- Format: `zig fmt .`
+
+## Style
+- 4-space indent; snake_case `.zig` filenames; camelCase for funcs.
+- Public APIs have `///` doc comments.
+
+## Tests
+- Per-feature unit tests in `src/features/<name>/tests/mod.zig`.
+- Integration tests in `tests/integration/` (use mock connector).
+- CI must pass fmt + build + tests.
+
+## Commits & PRs
+- Branch: `feat/...`, `fix/...`, `refactor/...`.
+- Message: short summary (<=72 chars), then details.
+- PR checklist: fmt ✓, tests ✓, docs ✓, benchmarks (if perf-critical) ✓.
+
+## Security
+- No secrets in code or logs. Use env/CI secrets.
+
+## Performance
+- Include before/after benchmarks for perf-sensitive changes.
+>>>>>>> 08cbda559b270a4426611f5b6c970439485a216a
