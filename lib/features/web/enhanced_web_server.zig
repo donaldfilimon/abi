@@ -12,16 +12,25 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-// Shared dependencies for proper Zig 0.16 module imports
 const errors = @import("../../shared/core/errors.zig");
 const FrameworkError = errors.FrameworkError;
 
+// Shared dependencies for proper Zig 0.16 module imports
 const WebServerConfig = struct {
     port: u16 = 8080,
     enable_ssl: bool = false,
 };
 
 /// Enhanced web server with production‑ready features
+const ServerState = enum {
+    initializing,
+    ready,
+    starting,
+    running,
+    stopping,
+    stopped,
+};
+
 pub const EnhancedWebServer = struct {
     allocator: std.mem.Allocator,
     config: WebServerConfig,
@@ -395,5 +404,3 @@ pub const EnhancedWebServer = struct {
         try self.performance_monitor.registerCallback(perf_callback);
     }
 };
-
-/// Server state management

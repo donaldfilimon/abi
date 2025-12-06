@@ -112,7 +112,7 @@ pub fn main() !void {
     defer vec_search.deinit();
 
     // Insert embeddings
-    var embedding = try allocator.alloc(f32, 128);
+    const embedding = try allocator.alloc(f32, 128);
     defer allocator.free(embedding);
     for (embedding) |*e| e.* = random.float(f32);
 
