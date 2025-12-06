@@ -30,12 +30,17 @@ const ServerState = enum {
     stopping,
     stopped,
 };
+const ClientState = enum {
+    connecting,
+    connected,
+    err,
+};
 
 pub const EnhancedWebServer = struct {
     allocator: std.mem.Allocator,
     config: WebServerConfig,
     state: ServerState,
-    http_server: *HttpServer,
+    http_server: HttpServer,
     websocket_server: *WebSocketServer,
     middleware_stack: std.ArrayList(Middleware),
     route_registry: *RouteRegistry,
