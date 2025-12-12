@@ -325,7 +325,7 @@ defer backend.deinit();
 
 <<<<<<< HEAD
 ### **Prerequisites**
-- **Zig 0.16.0-dev.1225+bf9082518** (GitHub Actions uses `mlugg/setup-zig@v2` pinned to this version)
+- **Zig 0.16.0-dev.1484+d0ba6642b** (GitHub Actions uses `mlugg/setup-zig@v2` pinned to this version)
 - GPU drivers (optional, for acceleration)
 - OpenAI API key (for AI agent features)
 =======

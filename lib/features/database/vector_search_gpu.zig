@@ -3,19 +3,21 @@
 //! HNSW index with GPU batch processing for maximum throughput.
 
 const std = @import("std");
+
 const accelerator = @import("../gpu/accelerator.zig");
+const Tensor = accelerator.Tensor;
 
 /// GPU-accelerated vector search engine
 pub const VectorSearchGPU = struct {
     accel: *accelerator.Accelerator,
-    vectors: std.ArrayList(accelerator.DeviceMemory),
+    vectors: std.ArrayList(Tensor),
     dimension: usize,
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, accel: *accelerator.Accelerator, dimension: usize) VectorSearchGPU {
         return .{
             .accel = accel,
-            .vectors = std.ArrayList(accelerator.DeviceMemory).init(allocator),
+            .vectors = std.ArrayList(Tensor){},
             .dimension = dimension,
             .allocator = allocator,
         };
@@ -23,7 +25,7 @@ pub const VectorSearchGPU = struct {
 
     pub fn deinit(self: *VectorSearchGPU) void {
         for (self.vectors.items) |*vec| {
-            self.accel.free(vec);
+            vec.deinit(self.accel);
         }
         self.vectors.deinit();
     }
@@ -32,9 +34,9 @@ pub const VectorSearchGPU = struct {
     pub fn insert(self: *VectorSearchGPU, vector: []const f32) !u64 {
         if (vector.len != self.dimension) return error.DimensionMismatch;
 
-        const mem = try self.accel.alloc(vector.len * @sizeOf(f32));
-        try self.accel.copyToDevice(mem, std.mem.sliceAsBytes(vector));
-        try self.vectors.append(mem);
+        var t = try Tensor.init(self.allocator, self.accel, &[_]usize{vector.len}, .f32);
+        try self.accel.copyToDevice(t.data, std.mem.sliceAsBytes(vector));
+        try self.vectors.append(t);
 
         return self.vectors.items.len - 1;
     }
@@ -57,22 +59,23 @@ pub const VectorSearchGPU = struct {
         if (k > self.vectors.items.len) return error.InvalidK;
 
         // Upload query to device
-        const query_mem = try self.accel.alloc(query.len * @sizeOf(f32));
-        defer self.accel.free(&query_mem);
-        try self.accel.copyToDevice(query_mem, std.mem.sliceAsBytes(query));
+        var query_tensor = try Tensor.init(self.allocator, self.accel, &[_]usize{query.len}, .f32);
+        defer query_tensor.deinit(self.accel);
+        try self.accel.copyToDevice(query_tensor.data, std.mem.sliceAsBytes(query));
 
         // Compute distances on GPU
-        var distances = try self.allocator.alloc(f32, self.vectors.items.len);
+        const distances = try self.allocator.alloc(f32, self.vectors.items.len);
         defer self.allocator.free(distances);
 
         var ops = accelerator.TensorOps.init(self.accel);
         for (self.vectors.items, 0..) |vec, i| {
-            distances[i] = ops.dotProduct(query_mem, vec, self.dimension);
+            // Dot product (similarity)
+            distances[i] = ops.dotProduct(query_tensor, vec);
         }
 
         // Sort and get top k
         const IndexDist = struct { idx: usize, dist: f32 };
-        var pairs = try self.allocator.alloc(IndexDist, distances.len);
+        const pairs = try self.allocator.alloc(IndexDist, distances.len);
         defer self.allocator.free(pairs);
 
         for (distances, 0..) |d, i| {
@@ -85,7 +88,7 @@ pub const VectorSearchGPU = struct {
             }
         }.lessThan);
 
-        var results = try self.allocator.alloc(SearchResult, k);
+        const results = try self.allocator.alloc(SearchResult, k);
         for (0..k) |i| {
             results[i] = .{
                 .id = pairs[i].idx,

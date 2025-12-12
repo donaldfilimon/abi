@@ -17,7 +17,7 @@ The ABI Framework is a high-performance, cross-platform Zig application that sup
 - ✅ **ARM64** (AArch64)
 
 ### Zig Versions
-- ✅ **0.16.0-dev.1225+bf9082518** (Required; matches `.zigversion`)
+- ✅ **0.16.0-dev.1484+d0ba6642b** (Required; matches `.zigversion`)
 
 ## 🏗️ Build Requirements
 
@@ -62,12 +62,12 @@ winget install LLVM.LLVM
 
 #### Option 1: Official Build (Recommended)
 ```bash
-# Download and install Zig 0.16.0-dev.1225+bf9082518
-wget https://ziglang.org/builds/zig-linux-x86_64-0.16.0-dev.1225+bf9082518.tar.xz
-tar -xf zig-linux-x86_64-0.16.0-dev.1225+bf9082518.tar.xz
-sudo mv zig-linux-x86_64-0.16.0-dev.1225+bf9082518 /usr/local/zig
+# Download and install Zig 0.16.0-dev.1484+d0ba6642b
+wget https://ziglang.org/builds/zig-linux-x86_64-0.16.0-dev.1484+d0ba6642b.tar.xz
+tar -xf zig-linux-x86_64-0.16.0-dev.1484+d0ba6642b.tar.xz
+sudo mv zig-linux-x86_64-0.16.0-dev.1484+d0ba6642b /usr/local/zig
 export PATH="/usr/local/zig:$PATH"
-zig version  # should report 0.16.0-dev.1225+bf9082518
+zig version  # should report 0.16.0-dev.1484+d0ba6642b
 ```
 
 #### Option 2: From Source
@@ -80,7 +80,7 @@ cd build
 cmake ..
 make -j$(nproc)
 sudo make install
-zig version  # verify the installed compiler matches 0.16.0-dev.1225+bf9082518
+zig version  # verify the installed compiler matches 0.16.0-dev.1484+d0ba6642b
 ```
 
 > **Verification:** Run `zig version` and compare the output to `.zigversion` after installation to ensure the toolchain matches the repository expectation.

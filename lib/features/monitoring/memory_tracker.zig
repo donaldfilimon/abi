@@ -516,24 +516,24 @@ pub const TrackedAllocator = struct {
             .vtable = &.{
                 .alloc = alloc,
                 .resize = resize,
+                .remap = remap,
                 .free = free,
             },
         };
     }
 
     /// Allocation function
-    fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
+    fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
-        const alignment = @as(u29, 1) << @as(u5, @intCast(ptr_align));
 
         // Perform actual allocation
-        const result = self.parent_allocator.alloc(len, ptr_align, ret_addr);
+        const result = self.parent_allocator.rawAlloc(len, alignment, ret_addr);
         if (result == null) return null;
 
         // Record allocation (simplified - in real implementation, we'd extract file/line info)
         const id = self.profiler.recordAllocation(
             len,
-            alignment,
+            @intCast(@as(usize, 1) << @intFromEnum(alignment)),
             "unknown", // Would extract from debug info
             0, // Would extract from debug info
             "unknown", // Would extract from debug info
@@ -551,13 +551,19 @@ pub const TrackedAllocator = struct {
     }
 
     /// Resize function
-    fn resize(ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_addr: usize) bool {
+    fn resize(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
-        return self.parent_allocator.resize(buf, buf_align, new_len, ret_addr);
+        return self.parent_allocator.rawResize(buf, alignment, new_len, ret_addr);
+    }
+
+    /// Remap function
+    fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+        const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
+        return self.parent_allocator.rawRemap(memory, alignment, new_len, ret_addr);
     }
 
     /// Free function
-    fn free(ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) void {
+    fn free(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
 
         // Record deallocation
@@ -565,7 +571,7 @@ pub const TrackedAllocator = struct {
         // For now, we skip the deallocation recording as it requires more complex tracking
 
         // Perform actual free
-        self.parent_allocator.free(buf, buf_align, ret_addr);
+        self.parent_allocator.rawFree(buf, alignment, ret_addr);
     }
 };
 

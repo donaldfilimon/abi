@@ -181,15 +181,16 @@ pub const TrackingAllocator = struct {
             .vtable = &.{
                 .alloc = alloc,
                 .resize = resize,
+                .remap = remap,
                 .free = free,
             },
         };
     }
 
-    fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
+    fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
 
-        const result = self.parent.vtable.alloc(self.parent.ptr, len, ptr_align, ret_addr);
+        const result = self.parent.rawAlloc(len, alignment, ret_addr);
         if (result) |ptr| {
             _ = ptr;
             _ = self.stats.total_allocated.fetchAdd(len, .monotonic);
@@ -211,10 +212,10 @@ pub const TrackingAllocator = struct {
         return result;
     }
 
-    fn resize(ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_addr: usize) bool {
+    fn resize(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
 
-        if (self.parent.vtable.resize(self.parent.ptr, buf, buf_align, new_len, ret_addr)) {
+        if (self.parent.rawResize(buf, alignment, new_len, ret_addr)) {
             const old_len = buf.len;
             if (new_len > old_len) {
                 const diff = new_len - old_len;
@@ -230,7 +231,12 @@ pub const TrackingAllocator = struct {
         return false;
     }
 
-    fn free(ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) void {
+    fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+        const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
+        return self.parent.rawRemap(memory, alignment, new_len, ret_addr);
+    }
+
+    fn free(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
 
         self.parent.vtable.free(self.parent.ptr, buf, buf_align, ret_addr);

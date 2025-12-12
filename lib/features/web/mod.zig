@@ -5,7 +5,7 @@
 const std = @import("std");
 
 // Web servers
-pub const enhanced_web_server = @import("enhanced_web_server.zig");
+// pub const enhanced_web_server = @import("enhanced_web_server.zig"); // TODO: implement
 
 // HTTP clients and utilities
 pub const http_client = @import("http_client.zig");

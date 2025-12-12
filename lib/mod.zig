@@ -6,7 +6,36 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+
+/// Hardware acceleration layer
+pub const accelerator = @import("accelerator");
+
 const compat = @import("compat.zig");
+/// Core utilities and fundamental types
+pub const core = @import("core/mod.zig");
+/// Feature modules grouped for discoverability
+pub const features = @import("features/mod.zig");
+/// Individual feature namespaces re-exported at the root for ergonomic
+/// imports (`abi.ai`, `abi.database`, etc.).
+pub const ai = features.ai;
+pub const gpu = features.gpu;
+pub const database = features.database;
+pub const web = features.web;
+pub const monitoring = features.monitoring;
+pub const connectors = features.connectors;
+/// Framework orchestration layer that coordinates features and plugins.
+pub const framework = @import("framework/mod.zig");
+pub const Feature = framework.Feature;
+pub const Framework = framework.Framework;
+pub const FrameworkOptions = framework.FrameworkOptions;
+pub const RuntimeConfig = framework.RuntimeConfig;
+pub const logging = @import("shared/logging/mod.zig");
+pub const plugins = @import("shared/mod.zig");
+pub const observability = @import("shared/observability/mod.zig");
+pub const platform = @import("shared/platform/mod.zig");
+pub const simd = @import("shared/simd.zig");
+pub const VectorOps = simd.VectorOps;
+pub const utils = @import("shared/utils/mod.zig");
 
 comptime {
     _ = compat;
@@ -16,24 +45,9 @@ comptime {
 // CORE MODULES
 // =============================================================================
 
-/// Core utilities and fundamental types
-pub const core = @import("core/mod.zig");
-
 // =============================================================================
 // FEATURE MODULES
 // =============================================================================
-
-/// Feature modules grouped for discoverability
-pub const features = @import("features/mod.zig");
-
-/// Individual feature namespaces re-exported at the root for ergonomic
-/// imports (`abi.ai`, `abi.database`, etc.).
-pub const ai = features.ai;
-pub const gpu = features.gpu;
-pub const database = features.database;
-pub const web = features.web;
-pub const monitoring = features.monitoring;
-pub const connectors = features.connectors;
 
 /// Compatibility namespace for the WDBX tooling. Older call sites referenced
 /// `abi.wdbx.*` directly, so we surface the unified helpers alongside the
@@ -65,29 +79,13 @@ pub const wdbx = struct {
 // FRAMEWORK MODULE
 // =============================================================================
 
-/// Framework orchestration layer that coordinates features and plugins.
-pub const framework = @import("framework/mod.zig");
-
 // =============================================================================
 // SHARED MODULES
 // =============================================================================
 
-pub const utils = @import("shared/utils/mod.zig");
-pub const platform = @import("shared/platform/mod.zig");
-pub const logging = @import("shared/logging/mod.zig");
-pub const observability = @import("shared/observability/mod.zig");
-pub const plugins = @import("shared/mod.zig");
-pub const simd = @import("shared/simd.zig");
-pub const VectorOps = simd.VectorOps;
-
 // =============================================================================
 // PUBLIC API
 // =============================================================================
-
-pub const Feature = framework.Feature;
-pub const Framework = framework.Framework;
-pub const FrameworkOptions = framework.FrameworkOptions;
-pub const RuntimeConfig = framework.RuntimeConfig;
 
 /// Initialise the ABI framework and return the orchestration handle. Call
 /// `Framework.deinit` (or `abi.shutdown`) when finished.

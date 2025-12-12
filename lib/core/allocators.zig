@@ -80,17 +80,18 @@ pub const TrackedAllocator = struct {
     const vtable = std.mem.Allocator.VTable{
         .alloc = alloc,
         .resize = resize,
+        .remap = remap,
         .free = free,
     };
 
-    fn alloc(ctx: *anyopaque, len: usize, log2_ptr_align: u8, ret_addr: usize) ?[*]u8 {
+    fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
         if (self.max_memory > 0 and self.stats.currentUsage() + len > self.max_memory) {
             return null;
         }
 
-        const result = self.parent_allocator.alloc(len, log2_ptr_align, ret_addr);
+        const result = self.parent_allocator.vtable.alloc(self.parent_allocator.ptr, len, alignment, ret_addr);
         if (result) |_| {
             self.stats.bytes_allocated += len;
             self.stats.active_allocations += 1;
@@ -101,11 +102,11 @@ pub const TrackedAllocator = struct {
         return result;
     }
 
-    fn resize(ctx: *anyopaque, buf: []u8, log2_buf_align: u8, new_len: usize, ret_addr: usize) bool {
+    fn resize(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *Self = @ptrCast(@alignCast(ctx));
         const old_len = buf.len;
 
-        const result = self.parent_allocator.resize(buf, log2_buf_align, new_len, ret_addr);
+        const result = self.parent_allocator.vtable.resize(self.parent_allocator.ptr, buf, alignment, new_len, ret_addr);
         if (result) {
             if (new_len > old_len) {
                 self.stats.bytes_allocated += new_len - old_len;
@@ -116,7 +117,29 @@ pub const TrackedAllocator = struct {
         return result;
     }
 
-    fn free(ctx: *anyopaque, buf: []u8, log2_buf_align: u8, ret_addr: usize) void {
+    fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+        const self: *Self = @ptrCast(@alignCast(ctx));
+
+        if (self.max_memory > 0 and self.stats.currentUsage() - memory.len + new_len > self.max_memory) {
+            return null;
+        }
+
+        const result = self.parent_allocator.vtable.remap(self.parent_allocator.ptr, memory, alignment, new_len, ret_addr);
+        if (result) |_| {
+            const old_len = memory.len;
+            if (new_len > old_len) {
+                self.stats.bytes_allocated += new_len - old_len;
+            } else {
+                self.stats.bytes_freed += old_len - new_len;
+            }
+            if (self.stats.currentUsage() > self.stats.peak_usage) {
+                self.stats.peak_usage = self.stats.currentUsage();
+            }
+        }
+        return result;
+    }
+
+    fn free(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
         self.stats.bytes_freed += buf.len;
@@ -124,7 +147,7 @@ pub const TrackedAllocator = struct {
             self.stats.active_allocations -= 1;
         }
 
-        self.parent_allocator.free(buf, log2_buf_align, ret_addr);
+        self.parent_allocator.vtable.free(self.parent_allocator.ptr, buf, alignment, ret_addr);
     }
 };
 
@@ -178,5 +201,5 @@ test "allocators - memory limit" {
 
     // This should fail due to memory limit
     const memory2 = allocator.alloc(u8, 30);
-    try std.testing.expect(memory2 == null);
+    try std.testing.expectError(error.OutOfMemory, memory2);
 }

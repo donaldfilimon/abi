@@ -1,0 +1,33 @@
+install
++- install abi
+   +- compile exe abi Debug native 1 errors
+lib\accelerator\backends\cpu_driver.zig:1:1: error: file exists in modules 'accelerator' and 'abi'
+lib\accelerator\backends\cpu_driver.zig:1:1: note: files must belong to only one module
+lib\accelerator\mod.zig:6:28: note: file is imported here by the root of module 'accelerator'
+pub const driver = @import("driver.zig");
+                           ^~~~~~~~~~~~
+lib\accelerator\backends\cpu_driver.zig:7:24: note: file is imported here
+const driver = @import("../driver.zig");
+                       ^~~~~~~~~~~~~~~
+lib\features\ai\layers.zig:245:31: note: which is imported here
+    const CpuDriver = @import("../../accelerator/backends/cpu_driver.zig").CpuDriver;
+                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+lib\features\ai\mod.zig:15:28: note: which is imported here
+pub const layers = @import("layers.zig");
+                           ^~~~~~~~~~~~
+lib\features\mod.zig:13:24: note: which is imported here
+pub const ai = @import("ai/mod.zig");
+                       ^~~~~~~~~~~~
+lib\mod.zig:17:30: note: which is imported here by the root of module 'abi'
+pub const features = @import("features/mod.zig");
+                             ^~~~~~~~~~~~~~~~~~
+error: 1 compilation errors
+failed command: "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1484+d0ba6642b\\zig.exe" build-exe -ODebug --dep abi "-Mroot=C:\\Users\\donald\\abi\\tools\\cli\\main.zig" -ODebug --dep build_options --dep accelerator "-Mabi=C:\\Users\\donald\\abi\\lib\\mod.zig" "-Mbuild_options=.zig-cache\\c\\3a7d921129c2b66941febb189f7b7809\\options.zig" -ODebug --dep build_options "-Maccelerator=C:\\Users\\donald\\abi\\lib\\accelerator\\mod.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name abi --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1484+d0ba6642b\\lib\\" --listen=-
+
+Build Summary: 1/4 steps succeeded (1 failed)
+install transitive failure
++- install abi transitive failure
+   +- compile exe abi Debug native 1 errors
+
+error: the following build command failed with exit code 1:
+.zig-cache\o\2b51c623da3485ba360e0f5597b3605c\build.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1484+d0ba6642b\zig.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1484+d0ba6642b\lib C:\Users\donald\abi .zig-cache C:\Users\donald\AppData\Local\zig --seed 0xdac9898f -Z0d1c27706b361337 --color off

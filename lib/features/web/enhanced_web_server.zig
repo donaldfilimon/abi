@@ -15,6 +15,69 @@ const builtin = @import("builtin");
 const errors = @import("../../shared/core/errors.zig");
 const FrameworkError = errors.FrameworkError;
 
+// Import HTTP server implementation
+const wdbx_http = @import("wdbx_http.zig");
+const HttpServer = wdbx_http.WdbxHttpServer;
+
+// Placeholder types for enhanced web server (TODO: implement)
+const WebSocketServer = struct {
+    pub fn init(_: std.mem.Allocator, _: WebServerConfig) !*WebSocketServer {
+        // Placeholder implementation
+        return error.NotImplemented;
+    }
+};
+const Middleware = struct {}; // Placeholder
+const RouteRegistry = struct {
+    pub fn init(_: std.mem.Allocator) !*RouteRegistry {
+        return error.NotImplemented;
+    }
+};
+const RequestPool = struct {
+    pub fn init(_: std.mem.Allocator) !*RequestPool {
+        return error.NotImplemented;
+    }
+};
+const ResponsePool = struct {
+    pub fn init(_: std.mem.Allocator) !*ResponsePool {
+        return error.NotImplemented;
+    }
+};
+const AgentRouter = struct {
+    pub fn init(_: std.mem.Allocator) !*AgentRouter {
+        return error.NotImplemented;
+    }
+};
+const AuthManager = struct {
+    pub fn init(_: std.mem.Allocator) !*AuthManager {
+        return error.NotImplemented;
+    }
+};
+const RateLimiter = struct {
+    pub fn init(_: std.mem.Allocator) !*RateLimiter {
+        return error.NotImplemented;
+    }
+};
+const SecurityManager = struct {
+    pub fn init(_: std.mem.Allocator) !*SecurityManager {
+        return error.NotImplemented;
+    }
+};
+const PerformanceMonitor = struct {
+    pub fn init(_: std.mem.Allocator) !*PerformanceMonitor {
+        return error.NotImplemented;
+    }
+};
+const LoadBalancer = struct {
+    pub fn init(_: std.mem.Allocator) !*LoadBalancer {
+        return error.NotImplemented;
+    }
+};
+const ClusterManager = struct {
+    pub fn init(_: std.mem.Allocator) !*ClusterManager {
+        return error.NotImplemented;
+    }
+};
+
 // Shared dependencies for proper Zig 0.16 module imports
 const WebServerConfig = struct {
     port: u16 = 8080,
@@ -40,19 +103,19 @@ pub const EnhancedWebServer = struct {
     allocator: std.mem.Allocator,
     config: WebServerConfig,
     state: ServerState,
-    http_server: HttpServer,
-    websocket_server: *WebSocketServer,
+    http_server: *HttpServer,
+    websocket_server: WebSocketServer, // Changed to non-pointer for placeholder
     middleware_stack: std.ArrayList(Middleware),
-    route_registry: *RouteRegistry,
-    request_pool: *RequestPool,
-    response_pool: *ResponsePool,
-    agent_router: *AgentRouter,
-    auth_manager: *AuthManager,
-    rate_limiter: *RateLimiter,
-    security_manager: *SecurityManager,
-    performance_monitor: *PerformanceMonitor,
-    load_balancer: *LoadBalancer,
-    cluster_manager: *ClusterManager,
+    route_registry: RouteRegistry, // Changed to non-pointer for placeholder
+    request_pool: RequestPool, // Changed to non-pointer for placeholder
+    response_pool: ResponsePool, // Changed to non-pointer for placeholder
+    agent_router: AgentRouter, // Changed to non-pointer for placeholder
+    auth_manager: AuthManager, // Changed to non-pointer for placeholder
+    rate_limiter: RateLimiter, // Changed to non-pointer for placeholder
+    security_manager: SecurityManager, // Changed to non-pointer for placeholder
+    performance_monitor: PerformanceMonitor, // Changed to non-pointer for placeholder
+    load_balancer: LoadBalancer, // Changed to non-pointer for placeholder
+    cluster_manager: ClusterManager, // Changed to non-pointer for placeholder
 
     const Self = @This();
 
@@ -67,19 +130,24 @@ pub const EnhancedWebServer = struct {
             .allocator = allocator,
             .config = server_config,
             .state = .initializing,
-            .http_server = try HttpServer.init(allocator, server_config),
-            .websocket_server = try WebSocketServer.init(allocator, server_config),
+            .http_server = try HttpServer.init(allocator, .{
+                .host = "127.0.0.1",
+                .port = server_config.port,
+                .enable_cors = true,
+                .enable_auth = false,
+            }),
+            .websocket_server = WebSocketServer{}, // Placeholder
             .middleware_stack = std.ArrayList(Middleware).initCapacity(allocator, 0),
-            .route_registry = try RouteRegistry.init(allocator),
-            .request_pool = try RequestPool.init(allocator),
-            .response_pool = try ResponsePool.init(allocator),
-            .agent_router = try AgentRouter.init(allocator),
-            .auth_manager = try AuthManager.init(allocator),
-            .rate_limiter = try RateLimiter.init(allocator),
-            .security_manager = try SecurityManager.init(allocator),
-            .performance_monitor = try PerformanceMonitor.init(allocator),
-            .load_balancer = try LoadBalancer.init(allocator),
-            .cluster_manager = try ClusterManager.init(allocator),
+            .route_registry = RouteRegistry{}, // Placeholder
+            .request_pool = RequestPool{}, // Placeholder
+            .response_pool = ResponsePool{}, // Placeholder
+            .agent_router = AgentRouter{}, // Placeholder
+            .auth_manager = AuthManager{}, // Placeholder
+            .rate_limiter = RateLimiter{}, // Placeholder
+            .security_manager = SecurityManager{}, // Placeholder
+            .performance_monitor = PerformanceMonitor{}, // Placeholder
+            .load_balancer = LoadBalancer{}, // Placeholder
+            .cluster_manager = ClusterManager{}, // Placeholder
         };
 
         // Initialize default middleware

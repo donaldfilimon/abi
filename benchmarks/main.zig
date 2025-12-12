@@ -11,7 +11,8 @@ const builtin = @import("builtin");
 
 const framework = @import("benchmark_framework.zig");
 
-const separator_line = \\============================================================
+const separator_line =
+    \\============================================================
 ;
 
 /// Unified benchmark entry point for ABI

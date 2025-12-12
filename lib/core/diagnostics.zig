@@ -4,6 +4,7 @@
 //! error reporting, context propagation, and debugging.
 
 const std = @import("std");
+
 const io = @import("io.zig");
 
 /// Severity levels for diagnostic messages
@@ -35,6 +36,27 @@ pub const Severity = enum {
     }
 };
 
+/// Component source of the diagnostic
+pub const Component = enum {
+    general,
+    accelerator,
+    database,
+    network,
+    ai,
+    filesystem,
+
+    pub fn toString(self: Component) []const u8 {
+        return switch (self) {
+            .general => "GENERAL",
+            .accelerator => "ACCELERATOR",
+            .database => "DATABASE",
+            .network => "NETWORK",
+            .ai => "AI",
+            .filesystem => "FILESYSTEM",
+        };
+    }
+};
+
 /// Source location information
 pub const SourceLocation = struct {
     file: []const u8,
@@ -59,6 +81,8 @@ pub const Diagnostic = struct {
     message: []const u8,
     location: ?SourceLocation = null,
     context: ?[]const u8 = null,
+    component: Component = .general,
+    error_code: ?i32 = null, // Backend specific error code
     timestamp: i64,
 
     pub fn init(severity: Severity, message: []const u8) Diagnostic {
@@ -81,6 +105,18 @@ pub const Diagnostic = struct {
         return diag;
     }
 
+    pub fn withComponent(self: Diagnostic, component: Component) Diagnostic {
+        var diag = self;
+        diag.component = component;
+        return diag;
+    }
+
+    pub fn withErrorCode(self: Diagnostic, code: i32) Diagnostic {
+        var diag = self;
+        diag.error_code = code;
+        return diag;
+    }
+
     pub fn format(
         self: Diagnostic,
         comptime fmt: []const u8,
@@ -95,6 +131,11 @@ pub const Diagnostic = struct {
         try writer.writeAll(self.severity.toString());
         try writer.writeAll("\x1b[0m: ");
 
+        // Component prefix
+        if (self.component != .general) {
+            try writer.print("[{s}] ", .{self.component.toString()});
+        }
+
         // Location if available
         if (self.location) |loc| {
             try writer.print("{} - ", .{loc});
@@ -102,6 +143,11 @@ pub const Diagnostic = struct {
 
         // Message
         try writer.writeAll(self.message);
+
+        // Error code if available
+        if (self.error_code) |code| {
+            try writer.print(" (Code: {d})", .{code});
+        }
 
         // Context if available
         if (self.context) |ctx| {

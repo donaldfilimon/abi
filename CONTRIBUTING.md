@@ -22,7 +22,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
    ```
 
 2. **Set Up Development Environment**
-   - Install Zig 0.16.0-dev.1225+bf9082518 (see `.zigversion`; confirm with `zig version`)
+   - Install Zig 0.16.0-dev.1484+d0ba6642b (see `.zigversion`; confirm with `zig version`)
    - Install Bun (recommended): `curl -fsSL https://bun.sh/install | bash`
    - Set up your editor with Zig language support
 

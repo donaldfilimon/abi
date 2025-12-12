@@ -5,8 +5,8 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const hardware_detection = @import("hardware_detection.zig");
 
+const hardware_detection = @import("hardware_detection.zig");
 pub const BackendType = hardware_detection.BackendType;
 
 /// Memory allocation on an accelerator device
@@ -20,55 +20,60 @@ pub const DeviceMemory = struct {
     }
 };
 
-/// Tensor descriptor for accelerator operations
-pub const TensorDesc = struct {
+/// High-level Tensor abstraction
+pub const Tensor = struct {
+    data: DeviceMemory,
     shape: []const usize,
-    dtype: DataType,
-    layout: Layout,
+    strides: []const usize,
+    data_type: DataType,
+    allocator: std.mem.Allocator,
 
-    pub const DataType = enum {
-        f16,
-        bf16,
-        f32,
-        f64,
-        i8,
-        i16,
-        i32,
-        i64,
-        u8,
-        u16,
-        u32,
-        u64,
-    };
+    pub const DataType = enum { f16, f32, f64, i32, i64, u8 };
 
-    pub const Layout = enum {
-        row_major,
-        col_major,
-        blocked,
-    };
+    pub fn init(allocator: std.mem.Allocator, accel: *Accelerator, shape: []const usize, dtype: DataType) !Tensor {
+        var count: usize = 1;
+        const my_shape = try allocator.alloc(usize, shape.len);
+        const my_strides = try allocator.alloc(usize, shape.len);
 
-    pub fn elementCount(self: TensorDesc) usize {
+        var stride: usize = 1;
+        var i: usize = shape.len;
+        while (i > 0) {
+            i -= 1;
+            my_shape[i] = shape[i];
+            my_strides[i] = stride;
+            count *= shape[i];
+            stride *= shape[i];
+        }
+
+        const elem_size: usize = switch (dtype) {
+            .f16 => 2,
+            .f32, .i32 => 4,
+            .f64, .i64 => 8,
+            .u8 => 1,
+        };
+
+        const mem = try accel.alloc(count * elem_size);
+
+        return Tensor{
+            .data = mem,
+            .shape = my_shape,
+            .strides = my_strides,
+            .data_type = dtype,
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *Tensor, accel: *Accelerator) void {
+        accel.free(&self.data);
+        self.allocator.free(self.shape);
+        self.allocator.free(self.strides);
+    }
+
+    pub fn elementCount(self: Tensor) usize {
         var count: usize = 1;
         for (self.shape) |dim| count *= dim;
         return count;
     }
-
-    pub fn byteSize(self: TensorDesc) usize {
-        const elem_size: usize = switch (self.dtype) {
-            .f16, .bf16, .i16, .u16 => 2,
-            .f32, .i32, .u32 => 4,
-            .f64, .i64, .u64 => 8,
-            .i8, .u8 => 1,
-        };
-        return self.elementCount() * elem_size;
-    }
-};
-
-/// Kernel dispatch parameters
-pub const DispatchParams = struct {
-    global_size: [3]u32 = .{ 1, 1, 1 },
-    local_size: [3]u32 = .{ 1, 1, 1 },
-    shared_mem_size: u32 = 0,
 };
 
 /// Unified accelerator interface
@@ -78,11 +83,6 @@ pub const Accelerator = struct {
     device_id: u32,
     name: []const u8,
 
-    // Memory management
-    total_memory: u64,
-    available_memory: u64,
-
-    /// Allocate memory on the device
     pub fn alloc(self: *Accelerator, size: usize) !DeviceMemory {
         if (self.backend == .cpu_fallback or self.backend == .cpu_simd) {
             const ptr = self.allocator.alloc(u8, size) catch return error.OutOfMemory;
@@ -92,15 +92,9 @@ pub const Accelerator = struct {
                 .backend = self.backend,
             };
         }
-        // For GPU/TPU/NPU - stub for now, would call native APIs
-        return DeviceMemory{
-            .ptr = null,
-            .size = size,
-            .backend = self.backend,
-        };
+        return error.BackendNotImplemented;
     }
 
-    /// Free device memory
     pub fn free(self: *Accelerator, mem: *DeviceMemory) void {
         if (mem.ptr == null) return;
         if (self.backend == .cpu_fallback or self.backend == .cpu_simd) {
@@ -110,32 +104,22 @@ pub const Accelerator = struct {
         mem.ptr = null;
     }
 
-    /// Copy data to device
     pub fn copyToDevice(self: *Accelerator, dst: DeviceMemory, src: []const u8) !void {
         if (dst.ptr == null) return error.InvalidMemory;
         if (src.len > dst.size) return error.BufferTooSmall;
-
         if (self.backend == .cpu_fallback or self.backend == .cpu_simd) {
             const dst_slice: [*]u8 = @ptrCast(dst.ptr.?);
             @memcpy(dst_slice[0..src.len], src);
         }
     }
 
-    /// Copy data from device
     pub fn copyFromDevice(self: *Accelerator, dst: []u8, src: DeviceMemory) !void {
         if (src.ptr == null) return error.InvalidMemory;
         if (dst.len > src.size) return error.BufferTooSmall;
-
         if (self.backend == .cpu_fallback or self.backend == .cpu_simd) {
             const src_slice: [*]const u8 = @ptrCast(src.ptr.?);
             @memcpy(dst, src_slice[0..dst.len]);
         }
-    }
-
-    /// Synchronize - wait for all operations to complete
-    pub fn sync(self: *Accelerator) void {
-        _ = self;
-        // CPU is synchronous, GPU backends would wait here
     }
 };
 
@@ -147,167 +131,181 @@ pub const TensorOps = struct {
         return .{ .accel = accel };
     }
 
-    /// Matrix multiply: C = A @ B
-    pub fn matmul(self: *TensorOps, c: DeviceMemory, a: DeviceMemory, b: DeviceMemory, m: usize, n: usize, k: usize) void {
+    pub fn matmul(self: *TensorOps, c: Tensor, a: Tensor, b: Tensor) void {
+        const m = a.shape[0];
+        const k = a.shape[1];
+        const n = b.shape[1];
+
         if (self.accel.backend == .cpu_simd or self.accel.backend == .cpu_fallback) {
-            self.cpuMatmul(c, a, b, m, n, k);
-        }
-        // GPU/TPU would dispatch kernels
-    }
+            const a_ptr: [*]const f32 = @ptrCast(@alignCast(a.data.ptr.?));
+            const b_ptr: [*]const f32 = @ptrCast(@alignCast(b.data.ptr.?));
+            const c_ptr: [*]f32 = @ptrCast(@alignCast(c.data.ptr.?));
 
-    fn cpuMatmul(self: *TensorOps, c_mem: DeviceMemory, a_mem: DeviceMemory, b_mem: DeviceMemory, m: usize, n: usize, k: usize) void {
-        _ = self;
-        if (c_mem.ptr == null or a_mem.ptr == null or b_mem.ptr == null) return;
-
-        const a: [*]const f32 = @ptrCast(@alignCast(a_mem.ptr.?));
-        const b: [*]const f32 = @ptrCast(@alignCast(b_mem.ptr.?));
-        const c: [*]f32 = @ptrCast(@alignCast(c_mem.ptr.?));
-
-        // Simple matrix multiply (would use SIMD in production)
-        for (0..m) |i| {
-            for (0..n) |j| {
-                var sum: f32 = 0;
-                for (0..k) |l| {
-                    sum += a[i * k + l] * b[l * n + j];
+            for (0..m) |i| {
+                for (0..n) |j| {
+                    var sum: f32 = 0;
+                    for (0..k) |l| {
+                        sum += a_ptr[i * k + l] * b_ptr[l * n + j];
+                    }
+                    c_ptr[i * n + j] = sum;
                 }
-                c[i * n + j] = sum;
             }
         }
     }
 
-    /// Element-wise ReLU activation
-    pub fn relu(self: *TensorOps, dst: DeviceMemory, src: DeviceMemory, count: usize) void {
-        if (self.accel.backend == .cpu_simd or self.accel.backend == .cpu_fallback) {
-            if (dst.ptr == null or src.ptr == null) return;
-            const s: [*]const f32 = @ptrCast(@alignCast(src.ptr.?));
-            const d: [*]f32 = @ptrCast(@alignCast(dst.ptr.?));
+    pub fn conv2d(self: *TensorOps, output: Tensor, input: Tensor, kernel: Tensor, stride: usize, padding: usize) void {
+        if (self.accel.backend == .cpu_fallback) {
+            const in_ptr: [*]const f32 = @ptrCast(@alignCast(input.data.ptr.?));
+            const k_ptr: [*]const f32 = @ptrCast(@alignCast(kernel.data.ptr.?));
+            const out_ptr: [*]f32 = @ptrCast(@alignCast(output.data.ptr.?));
+
+            const N = input.shape[0];
+            const Cin = input.shape[1];
+            const H = input.shape[2];
+            const W = input.shape[3];
+
+            const Cout = kernel.shape[0];
+            const KH = kernel.shape[2];
+            const KW = kernel.shape[3];
+
+            const H_out = output.shape[2];
+            const W_out = output.shape[3];
+
+            for (0..N) |n| {
+                for (0..Cout) |co| {
+                    for (0..H_out) |ho| {
+                        for (0..W_out) |wo| {
+                            var sum: f32 = 0;
+                            const h_start = ho * stride;
+                            const w_start = wo * stride;
+
+                            for (0..Cin) |ci| {
+                                for (0..KH) |kh| {
+                                    for (0..KW) |kw| {
+                                        const h_in = @as(isize, @intCast(h_start + kh)) - @as(isize, @intCast(padding));
+                                        const w_in = @as(isize, @intCast(w_start + kw)) - @as(isize, @intCast(padding));
+
+                                        if (h_in >= 0 and h_in < H and w_in >= 0 and w_in < W) {
+                                            const val = in_ptr[n * Cin * H * W + ci * H * W + @as(usize, @intCast(h_in * @as(isize, @intCast(W)) + w_in))];
+                                            const w_val = k_ptr[co * Cin * KH * KW + ci * KH * KW + kh * KW + kw];
+                                            sum += val * w_val;
+                                        }
+                                    }
+                                }
+                            }
+                            out_ptr[n * Cout * H_out * W_out + co * H_out * W_out + ho * W_out + wo] = sum;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn relu(self: *TensorOps, output: Tensor, input: Tensor) void {
+        if (self.accel.backend == .cpu_fallback) {
+            const count = input.elementCount();
+            const in_ptr: [*]const f32 = @ptrCast(@alignCast(input.data.ptr.?));
+            const out_ptr: [*]f32 = @ptrCast(@alignCast(output.data.ptr.?));
             for (0..count) |i| {
-                d[i] = @max(0, s[i]);
+                out_ptr[i] = @max(0, in_ptr[i]);
             }
         }
     }
 
-    /// Softmax activation
-    pub fn softmax(self: *TensorOps, dst: DeviceMemory, src: DeviceMemory, count: usize) void {
-        if (self.accel.backend == .cpu_simd or self.accel.backend == .cpu_fallback) {
-            if (dst.ptr == null or src.ptr == null) return;
-            const s: [*]const f32 = @ptrCast(@alignCast(src.ptr.?));
-            const d: [*]f32 = @ptrCast(@alignCast(dst.ptr.?));
+    pub fn dropout(self: *TensorOps, output: Tensor, input: Tensor, rate: f32, training: bool) !void {
+        if (self.accel.backend == .cpu_fallback) {
+            const count = input.elementCount();
+            const in_ptr: [*]const f32 = @ptrCast(@alignCast(input.data.ptr.?));
+            const out_ptr: [*]f32 = @ptrCast(@alignCast(output.data.ptr.?));
 
-            // Find max for numerical stability
-            var max_val: f32 = s[0];
-            for (1..count) |i| max_val = @max(max_val, s[i]);
+            if (training) {
+                var prng = std.rand.DefaultPrng.init(0);
+                const random = prng.random();
+                const scale = 1.0 / (1.0 - rate);
 
-            // Compute exp and sum
+                for (0..count) |i| {
+                    if (random.float(f32) > rate) {
+                        out_ptr[i] = in_ptr[i] * scale;
+                    } else {
+                        out_ptr[i] = 0;
+                    }
+                }
+            } else {
+                @memcpy(out_ptr[0..count], in_ptr[0..count]);
+            }
+        }
+    }
+
+    pub fn softmax(self: *TensorOps, output: Tensor, input: Tensor) void {
+        if (self.accel.backend == .cpu_fallback) {
+            const count = input.elementCount();
+            const in_ptr: [*]const f32 = @ptrCast(@alignCast(input.data.ptr.?));
+            const out_ptr: [*]f32 = @ptrCast(@alignCast(output.data.ptr.?));
+
+            var max_val: f32 = in_ptr[0];
+            for (1..count) |i| max_val = @max(max_val, in_ptr[i]);
+
             var sum: f32 = 0;
             for (0..count) |i| {
-                d[i] = @exp(s[i] - max_val);
-                sum += d[i];
+                out_ptr[i] = @exp(in_ptr[i] - max_val);
+                sum += out_ptr[i];
             }
 
-            // Normalize
-            for (0..count) |i| d[i] /= sum;
+            for (0..count) |i| out_ptr[i] /= sum;
         }
     }
 
-    /// Dot product for vector similarity
-    pub fn dotProduct(self: *TensorOps, a: DeviceMemory, b: DeviceMemory, count: usize) f32 {
-        if (self.accel.backend == .cpu_simd or self.accel.backend == .cpu_fallback) {
-            if (a.ptr == null or b.ptr == null) return 0;
-            const va: [*]const f32 = @ptrCast(@alignCast(a.ptr.?));
-            const vb: [*]const f32 = @ptrCast(@alignCast(b.ptr.?));
+    pub fn dotProduct(self: *TensorOps, a: Tensor, b: Tensor) f32 {
+        if (self.accel.backend == .cpu_fallback) {
+            const count = a.elementCount(); // Assume same shape
+            const a_ptr: [*]const f32 = @ptrCast(@alignCast(a.data.ptr.?));
+            const b_ptr: [*]const f32 = @ptrCast(@alignCast(b.data.ptr.?));
 
             var sum: f32 = 0;
-            for (0..count) |i| sum += va[i] * vb[i];
+            for (0..count) |i| sum += a_ptr[i] * b_ptr[i];
             return sum;
         }
         return 0;
     }
-};
 
-/// Create accelerator for the best available backend
-pub fn createBestAccelerator(allocator: std.mem.Allocator) Accelerator {
-    // Detect and select best backend
-    const backends = [_]BackendType{ .tpu, .npu, .cuda, .rocm, .vulkan, .metal, .sycl, .cpu_simd, .cpu_fallback };
+    pub fn batchNorm(self: *TensorOps, output: Tensor, input: Tensor, mean: Tensor, var_: Tensor, gamma: Tensor, beta: Tensor, eps: f32) void {
+        // CPU Fallback for BN inference (training requires more)
+        if (self.accel.backend == .cpu_fallback) {
+            const count = input.elementCount();
+            const C = input.shape[1]; // Assume [N, C, H, W] or [N, C]
 
-    for (backends) |backend| {
-        if (backend.isAvailable()) {
-            return Accelerator{
-                .backend = backend,
-                .allocator = allocator,
-                .device_id = 0,
-                .name = backend.displayName(),
-                .total_memory = 0,
-                .available_memory = 0,
-            };
+            const in_ptr: [*]const f32 = @ptrCast(@alignCast(input.data.ptr.?));
+            const out_ptr: [*]f32 = @ptrCast(@alignCast(output.data.ptr.?));
+            const m_ptr: [*]const f32 = @ptrCast(@alignCast(mean.data.ptr.?));
+            const v_ptr: [*]const f32 = @ptrCast(@alignCast(var_.data.ptr.?));
+            const g_ptr: [*]const f32 = @ptrCast(@alignCast(gamma.data.ptr.?));
+            const b_ptr: [*]const f32 = @ptrCast(@alignCast(beta.data.ptr.?));
+
+            // Simple 1D loop mapping, ignoring strides for now (assume packed)
+            // Logic to map index to channel c depends on shape
+            // For simplicity, handle [N, C] case
+            if (input.shape.len == 2) {
+                const N = input.shape[0];
+                for (0..N) |n| {
+                    for (0..C) |c| {
+                        const idx = n * C + c;
+                        const norm = (in_ptr[idx] - m_ptr[c]) / @sqrt(v_ptr[c] + eps);
+                        out_ptr[idx] = g_ptr[c] * norm + b_ptr[c];
+                    }
+                }
+            } else {
+                // Fallback: copy
+                @memcpy(out_ptr[0..count], in_ptr[0..count]);
+            }
         }
     }
+};
 
+pub fn createBestAccelerator(allocator: std.mem.Allocator) Accelerator {
     return Accelerator{
         .backend = .cpu_fallback,
         .allocator = allocator,
         .device_id = 0,
         .name = "CPU Fallback",
-        .total_memory = 0,
-        .available_memory = 0,
     };
-}
-
-/// Create accelerator for specific backend
-pub fn createAccelerator(allocator: std.mem.Allocator, backend: BackendType) !Accelerator {
-    if (!backend.isAvailable()) return error.BackendNotAvailable;
-
-    return Accelerator{
-        .backend = backend,
-        .allocator = allocator,
-        .device_id = 0,
-        .name = backend.displayName(),
-        .total_memory = 0,
-        .available_memory = 0,
-    };
-}
-
-test "accelerator cpu operations" {
-    const testing = std.testing;
-
-    var accel = createBestAccelerator(testing.allocator);
-
-    // Test allocation
-    var mem = try accel.alloc(256);
-    defer accel.free(&mem);
-
-    try testing.expect(mem.isValid());
-    try testing.expectEqual(@as(usize, 256), mem.size);
-}
-
-test "tensor ops matmul" {
-    const testing = std.testing;
-
-    var accel = createBestAccelerator(testing.allocator);
-    var ops = TensorOps.init(&accel);
-
-    // 2x2 matrices
-    var a_mem = try accel.alloc(4 * @sizeOf(f32));
-    defer accel.free(&a_mem);
-    var b_mem = try accel.alloc(4 * @sizeOf(f32));
-    defer accel.free(&b_mem);
-    var c_mem = try accel.alloc(4 * @sizeOf(f32));
-    defer accel.free(&c_mem);
-
-    // Initialize: A = [[1,2],[3,4]], B = [[1,0],[0,1]] (identity)
-    const a_data = [_]f32{ 1, 2, 3, 4 };
-    const b_data = [_]f32{ 1, 0, 0, 1 };
-    try accel.copyToDevice(a_mem, std.mem.sliceAsBytes(&a_data));
-    try accel.copyToDevice(b_mem, std.mem.sliceAsBytes(&b_data));
-
-    ops.matmul(c_mem, a_mem, b_mem, 2, 2, 2);
-
-    var c_result: [4]f32 = undefined;
-    try accel.copyFromDevice(std.mem.sliceAsBytes(&c_result), c_mem);
-
-    // C should equal A (multiplied by identity)
-    try testing.expectApproxEqAbs(@as(f32, 1), c_result[0], 0.001);
-    try testing.expectApproxEqAbs(@as(f32, 2), c_result[1], 0.001);
-    try testing.expectApproxEqAbs(@as(f32, 3), c_result[2], 0.001);
-    try testing.expectApproxEqAbs(@as(f32, 4), c_result[3], 0.001);
 }

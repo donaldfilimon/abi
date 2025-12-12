@@ -3,7 +3,9 @@
 //! Demonstrates training a simple MLP on synthetic data using GPU/TPU acceleration.
 
 const std = @import("std");
+
 const abi = @import("abi");
+const Tensor = abi.gpu.accelerator.Tensor;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -25,7 +27,7 @@ pub fn main() !void {
 
     // Create accelerator
     var accel = abi.gpu.accelerator.createBestAccelerator(allocator);
-    std.debug.print("{}Using backend: {s}{}{s}\n\n", .{
+    std.debug.print("{s}Using backend: {s}{s}{s}\n\n", .{
         abi.plugins.tui.ansi.bright_green,
         accel.backend.displayName(),
         abi.plugins.tui.ansi.dim,
@@ -36,7 +38,7 @@ pub fn main() !void {
     std.debug.print("Building neural network...\n", .{});
     var layer1 = try abi.ai.layers.Dense.init(allocator, &accel, 784, 128);
     defer layer1.deinit();
-    var activation1 = abi.ai.layers.ReLU.init(&accel);
+    var activation1 = abi.ai.layers.ReLU.init(allocator, &accel);
     defer activation1.deinit();
     var layer2 = try abi.ai.layers.Dense.init(allocator, &accel, 128, 10);
     defer layer2.deinit();
@@ -48,12 +50,12 @@ pub fn main() !void {
     const batch_size = 32;
     const num_batches = 10;
 
-    var input_data = try allocator.alloc(f32, batch_size * 784);
+    const input_data = try allocator.alloc(f32, batch_size * 784);
     defer allocator.free(input_data);
-    var target_data = try allocator.alloc(f32, batch_size * 10);
+    const target_data = try allocator.alloc(f32, batch_size * 10);
     defer allocator.free(target_data);
 
-    var prng = std.rand.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+    var prng = std.Random.DefaultPrng.init(std.crypto.random.int(u64));
     const random = prng.random();
 
     // Training loop
@@ -69,23 +71,26 @@ pub fn main() !void {
             target_data[i * 10 + label] = 1.0;
         }
 
-        // Upload to device
-        var input_mem = try accel.alloc(input_data.len * @sizeOf(f32));
-        defer accel.free(&input_mem);
-        try accel.copyToDevice(input_mem, std.mem.sliceAsBytes(input_data));
+        // Upload to device wrapped in Tensor
+        var input_tensor = try Tensor.init(allocator, &accel, &[_]usize{ batch_size, 784 }, .f32);
+        defer input_tensor.deinit(&accel);
+        try accel.copyToDevice(input_tensor.data, std.mem.sliceAsBytes(input_data));
 
         // Forward pass
-        const h1 = try layer1.forward(input_mem, batch_size);
-        defer accel.free(@constCast(&h1));
-        const a1 = try activation1.forward(h1, batch_size * 128);
-        defer accel.free(@constCast(&a1));
-        const output = try layer2.forward(a1, batch_size);
-        defer accel.free(@constCast(&output));
+        // Forward pass
+        var h1 = try layer1.forward(input_tensor, batch_size);
+        defer h1.deinit(&accel);
+
+        var a1 = try activation1.forward(h1, batch_size * 128);
+        defer a1.deinit(&accel);
+
+        var output = try layer2.forward(a1, batch_size);
+        defer output.deinit(&accel);
 
         // Simple loss (would compute cross-entropy in production)
-        var output_cpu = try allocator.alloc(f32, batch_size * 10);
+        const output_cpu = try allocator.alloc(f32, batch_size * 10);
         defer allocator.free(output_cpu);
-        try accel.copyFromDevice(std.mem.sliceAsBytes(output_cpu), output);
+        try accel.copyFromDevice(std.mem.sliceAsBytes(output_cpu), output.data);
 
         var loss: f32 = 0;
         for (0..batch_size * 10) |i| {
@@ -99,7 +104,7 @@ pub fn main() !void {
         progress.render();
 
         if (epoch == num_batches - 1) {
-            std.debug.print("\n{}Final Loss: {d:.4}{s}\n", .{ abi.plugins.tui.ansi.bright_green, loss, abi.plugins.tui.ansi.reset });
+            std.debug.print("\n{s}Final Loss: {d:.4}{s}\n", .{ abi.plugins.tui.ansi.bright_green, loss, abi.plugins.tui.ansi.reset });
         }
     }
 
