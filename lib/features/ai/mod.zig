@@ -7,19 +7,18 @@ const std = @import("std");
 const Conn = @import("../connectors/mod.zig");
 const Wdbx = @import("../database/wdbx_adapter.zig");
 pub const agent = @import("agent.zig");
+pub const federated = @import("federated/mod.zig");
 pub const layers = @import("layers.zig");
 pub const model_registry = @import("model_registry.zig");
+pub const optimization = @import("optimization/mod.zig");
 const Policy = @import("policy.zig");
+pub const reinforcement_learning = @import("reinforcement_learning.zig");
 const Retry = @import("retry.zig");
 const Schema = @import("schema.zig");
 pub const training = @import("training/mod.zig");
+pub const transformer = @import("transformer.zig");
 
 // Legacy compatibility
-// pub const transformer = @import("transformer/mod.zig");
-// pub const reinforcement_learning = @import("reinforcement_learning/mod.zig");
-// pub const federated = @import("federated/mod.zig");
-// pub const optimization = @import("optimization/mod.zig");
-
 pub const Envelope = struct {
     id: []const u8,
     intent: []const u8,

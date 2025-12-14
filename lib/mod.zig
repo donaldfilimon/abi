@@ -7,9 +7,6 @@
 const std = @import("std");
 const build_options = @import("build_options");
 
-/// Hardware acceleration layer
-pub const accelerator = @import("accelerator");
-
 const compat = @import("compat.zig");
 /// Core utilities and fundamental types
 pub const core = @import("core/mod.zig");

@@ -2,6 +2,7 @@ const std = @import("std");
 const framework_runtime = @import("../framework/runtime.zig");
 const framework_config = @import("../framework/config.zig");
 const errors = @import("errors.zig");
+const ArrayList = std.array_list.Managed;
 pub const SearchResult = struct {
     id: u64,
     distance: f32,
@@ -17,13 +18,13 @@ pub const VectorRecord = struct {
 };
 pub const VectorStore = struct {
     allocator: std.mem.Allocator,
-    records: std.ArrayList(VectorRecord),
+    records: ArrayList(VectorRecord),
     dimension: ?usize = null,
     next_id: u64 = 1,
     pub fn init(allocator: std.mem.Allocator) VectorStore {
         return .{
             .allocator = allocator,
-            .records = std.ArrayList(VectorRecord).init(allocator),
+            .records = ArrayList(VectorRecord).init(allocator),
         };
     }
     pub fn deinit(self: *VectorStore) void {

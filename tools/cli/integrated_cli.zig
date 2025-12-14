@@ -14,6 +14,7 @@ const http_server = @import("../http/modern_server.zig");
 const benchmark_suite = @import("../benchmark/comprehensive_suite.zig");
 
 const Allocator = std.mem.Allocator;
+const ArrayList = std.array_list.Managed;
 const Command = modern_cli.Command;
 const Option = modern_cli.Option;
 const Argument = modern_cli.Argument;
@@ -708,7 +709,7 @@ fn addBenchmarksForSuite(suite: *benchmark_suite.BenchmarkSuite, suite_name: []c
     }
 }
 
-fn outputBenchmarkResults(results: *const std.ArrayList(benchmark_suite.Metrics), format: []const u8, allocator: Allocator) !void {
+fn outputBenchmarkResults(results: *const ArrayList(benchmark_suite.Metrics), format: []const u8, allocator: Allocator) !void {
     _ = allocator;
 
     if (std.mem.eql(u8, format, "json")) {
@@ -741,7 +742,7 @@ fn outputBenchmarkResults(results: *const std.ArrayList(benchmark_suite.Metrics)
 fn benchmarkStringOps(allocator: Allocator, input: ?*anyopaque) !void {
     _ = input;
 
-    var strings = std.ArrayList([]u8).init(allocator);
+    var strings = ArrayList([]u8).init(allocator);
     defer {
         for (strings.items) |str| {
             allocator.free(str);
@@ -775,7 +776,7 @@ fn benchmarkHashMapOps(allocator: Allocator, input: ?*anyopaque) !void {
 fn benchmarkAllocations(allocator: Allocator, input: ?*anyopaque) !void {
     _ = input;
 
-    var allocations = std.ArrayList([]u8).init(allocator);
+    var allocations = ArrayList([]u8).init(allocator);
     defer {
         for (allocations.items) |allocation| {
             allocator.free(allocation);

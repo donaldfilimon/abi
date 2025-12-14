@@ -12,6 +12,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
 const Allocator = std.mem.Allocator;
+const ArrayList = std.array_list.Managed;
 
 /// CLI framework errors
 pub const CliError = error{
@@ -136,25 +137,25 @@ pub const ParsedValue = union(ArgType) {
 /// Container for parsed arguments and options
 pub const ParsedArgs = struct {
     allocator: Allocator,
-    command_path: std.ArrayList([]const u8),
+    command_path: ArrayList([]const u8),
     options: std.StringHashMap(ParsedValue),
-    arguments: std.ArrayList(ParsedValue),
+    arguments: ArrayList(ParsedValue),
     raw_args: []const []const u8,
 
     pub fn init(allocator: Allocator) ParsedArgs {
         return .{
             .allocator = allocator,
-            .command_path = std.ArrayList([]const u8).init(allocator),
+            .command_path = ArrayList([]const u8).init(allocator),
             .options = std.StringHashMap(ParsedValue).init(allocator),
-            .arguments = std.ArrayList(ParsedValue).init(allocator),
+            .arguments = ArrayList(ParsedValue).init(allocator),
             .raw_args = &.{},
         };
     }
 
     pub fn deinit(self: *ParsedArgs) void {
-        self.command_path.deinit(self.allocator);
+        self.command_path.deinit();
         self.options.deinit();
-        self.arguments.deinit(self.allocator);
+        self.arguments.deinit();
     }
 
     /// Get option value by name
@@ -288,7 +289,7 @@ pub const Parser = struct {
 
             // Check for subcommand
             if (current_cmd.findSubcommand(arg)) |sub_cmd| {
-                try parsed.command_path.append(parsed.allocator, arg);
+                try parsed.command_path.append(arg);
                 current_cmd = sub_cmd;
                 arg_index += 1;
                 continue;
@@ -364,7 +365,7 @@ pub const Parser = struct {
 
                 const arg_def = cmd.arguments[positional_index];
                 const value = try self.parseValue(arg, arg_def.arg_type);
-                try parsed.arguments.append(parsed.allocator, value);
+                try parsed.arguments.append(value);
                 positional_index += 1;
             }
 
@@ -531,7 +532,7 @@ pub const HelpFormatter = struct {
             try writer.writeAll("\n");
 
             // Group commands by category
-            var categories = std.StringHashMap(std.ArrayList(*const Command)).init(self.context.allocator);
+            var categories = std.StringHashMap(ArrayList(*const Command)).init(self.context.allocator);
             defer {
                 var it = categories.iterator();
                 while (it.next()) |entry| {
@@ -544,8 +545,8 @@ pub const HelpFormatter = struct {
                 if (sub.hidden) continue;
 
                 const category = sub.category orelse "General";
-                var list = categories.get(category) orelse std.ArrayList(*const Command).init(self.context.allocator);
-                try list.append(self.context.allocator, sub);
+                var list = categories.get(category) orelse ArrayList(*const Command).init(self.context.allocator);
+                try list.append(sub);
                 try categories.put(category, list);
             }
 
@@ -706,7 +707,7 @@ test "help generation" {
     var ctx = Context.init(testing.allocator, &root_cmd);
     var formatter = HelpFormatter.init(&ctx);
 
-    var output = std.ArrayList(u8).init(testing.allocator);
+    var output = ArrayList(u8).init(testing.allocator);
     defer output.deinit();
 
     var writer = output.writer();

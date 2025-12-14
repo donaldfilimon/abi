@@ -13,6 +13,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
 const Allocator = std.mem.Allocator;
+const ArrayList = std.array_list.Managed;
 
 /// Benchmark framework errors
 pub const BenchmarkError = error{
@@ -276,7 +277,7 @@ pub const TrackingAllocator = struct {
 
 /// CPU profiler for sampling-based profiling
 pub const CpuProfiler = struct {
-    samples: std.ArrayList(Sample),
+    samples: ArrayList(Sample),
     sampling_rate_hz: u32,
     running: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     thread: ?std.Thread = null,
@@ -293,7 +294,7 @@ pub const CpuProfiler = struct {
 
     pub fn init(allocator: Allocator, sampling_rate_hz: u32) CpuProfiler {
         return .{
-            .samples = std.ArrayList(Sample).init(allocator),
+            .samples = ArrayList(Sample).init(allocator),
             .sampling_rate_hz = sampling_rate_hz,
             .allocator = allocator,
         };
@@ -465,7 +466,7 @@ pub const Benchmark = struct {
             null;
         defer if (cpu_profiler) |*profiler| profiler.deinit();
 
-        var samples = std.ArrayList(u64).init(allocator);
+        var samples = ArrayList(u64).init(allocator);
         defer samples.deinit();
 
         const start_time = std.time.milliTimestamp();
@@ -562,14 +563,14 @@ pub const Benchmark = struct {
 /// Benchmark suite for running multiple benchmarks
 pub const BenchmarkSuite = struct {
     name: []const u8,
-    benchmarks: std.ArrayList(Benchmark),
+    benchmarks: ArrayList(Benchmark),
     config: BenchmarkConfig,
     allocator: Allocator,
 
     pub fn init(allocator: Allocator, name: []const u8, config: BenchmarkConfig) BenchmarkSuite {
         return .{
             .name = name,
-            .benchmarks = std.ArrayList(Benchmark).init(allocator),
+            .benchmarks = ArrayList(Benchmark).init(allocator),
             .config = config,
             .allocator = allocator,
         };
@@ -588,8 +589,8 @@ pub const BenchmarkSuite = struct {
         try self.benchmarks.append(benchmark);
     }
 
-    pub fn run(self: *BenchmarkSuite) !std.ArrayList(Metrics) {
-        var results = std.ArrayList(Metrics).init(self.allocator);
+    pub fn run(self: *BenchmarkSuite) !ArrayList(Metrics) {
+        var results = ArrayList(Metrics).init(self.allocator);
         errdefer results.deinit();
 
         for (self.benchmarks.items) |*benchmark| {
@@ -651,7 +652,7 @@ fn percentile(sorted_samples: []const u64, p: u8) u64 {
 fn benchmarkStringConcatenation(allocator: Allocator, input: ?*anyopaque) !void {
     _ = input;
 
-    var str = std.ArrayList(u8).init(allocator);
+    var str = ArrayList(u8).init(allocator);
     defer str.deinit();
 
     for (0..1000) |i| {

@@ -28,14 +28,6 @@ pub fn build(b: *std.Build) void {
     // Create build options module
     const build_options_module = createBuildOptions(b);
 
-    // Accelerator module
-    const accelerator_module = b.addModule("accelerator", .{
-        .root_source_file = b.path("lib/accelerator/mod.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    accelerator_module.addImport("build_options", build_options_module);
-
     // Core library module
     const abi_module = b.addModule("abi", .{
         .root_source_file = b.path("lib/mod.zig"),
@@ -43,7 +35,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     abi_module.addImport("build_options", build_options_module);
-    abi_module.addImport("accelerator", accelerator_module);
 
     // CLI executable
     const exe = b.addExecutable(.{
@@ -67,22 +58,6 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the ABI CLI");
     run_step.dependOn(&run_cli.step);
 
-    // Neural Network Training Example
-    const nn_training_exe = b.addExecutable(.{
-        .name = "neural-network-training",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("examples/neural_network_training.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    nn_training_exe.root_module.addImport("abi", abi_module);
-    b.installArtifact(nn_training_exe);
-
-    const run_nn_training = b.addRunArtifact(nn_training_exe);
-    const run_nn_training_step = b.step("run-nn-training", "Run neural network training example");
-    run_nn_training_step.dependOn(&run_nn_training.step);
-
     // Test suite
     const main_tests = b.addTest(.{
         .root_module = b.createModule(.{
@@ -93,21 +68,9 @@ pub fn build(b: *std.Build) void {
     });
     main_tests.root_module.addImport("abi", abi_module);
 
-    const abi_tests = b.addTest(.{
-        .root_module = abi_module,
-    });
-
-    const accelerator_tests = b.addTest(.{
-        .root_module = accelerator_module,
-    });
-
     const run_main_tests = b.addRunArtifact(main_tests);
     run_main_tests.skip_foreign_checks = true;
-    const run_abi_tests = b.addRunArtifact(abi_tests);
-    const run_accelerator_tests = b.addRunArtifact(accelerator_tests);
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_main_tests.step);
-    test_step.dependOn(&run_abi_tests.step);
-    test_step.dependOn(&run_accelerator_tests.step);
 }

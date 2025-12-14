@@ -1,122 +1,110 @@
-//! GPU-Accelerated Vector Search
+//! GPU-accelerated vector search (CPU fallback stub)
 //!
-//! HNSW index with GPU batch processing for maximum throughput.
+//! Minimal implementation to keep examples compiling on Zig 0.16. The current
+//! backend stores vectors in CPU memory and performs a brute-force L2 search.
+//! The API is intentionally small to match the example in
+//! `examples/neural_network_training.zig`.
 
 const std = @import("std");
-
 const accelerator = @import("../gpu/accelerator.zig");
-const Tensor = accelerator.Tensor;
 
-/// GPU-accelerated vector search engine
+pub const Error = error{
+    InvalidDimension,
+};
+
+const VectorEntry = struct {
+    id: usize,
+    values: []f32,
+};
+
 pub const VectorSearchGPU = struct {
-    accel: *accelerator.Accelerator,
-    vectors: std.ArrayList(Tensor),
-    dimension: usize,
     allocator: std.mem.Allocator,
+    accel: *accelerator.Accelerator,
+    dim: usize,
+    next_id: usize = 0,
+    vectors: std.ArrayList(VectorEntry),
 
-    pub fn init(allocator: std.mem.Allocator, accel: *accelerator.Accelerator, dimension: usize) VectorSearchGPU {
+    pub fn init(allocator: std.mem.Allocator, accel: *accelerator.Accelerator, dim: usize) VectorSearchGPU {
         return .{
-            .accel = accel,
-            .vectors = std.ArrayList(Tensor){},
-            .dimension = dimension,
             .allocator = allocator,
+            .accel = accel,
+            .dim = dim,
+            .vectors = std.ArrayList(VectorEntry){},
         };
     }
 
     pub fn deinit(self: *VectorSearchGPU) void {
-        for (self.vectors.items) |*vec| {
-            vec.deinit(self.accel);
+        for (self.vectors.items) |entry| {
+            self.allocator.free(entry.values);
         }
-        self.vectors.deinit();
+        self.vectors.deinit(self.allocator);
     }
 
-    /// Insert vector into index
-    pub fn insert(self: *VectorSearchGPU, vector: []const f32) !u64 {
-        if (vector.len != self.dimension) return error.DimensionMismatch;
+    pub fn insert(self: *VectorSearchGPU, embedding: []const f32) !usize {
+        if (embedding.len != self.dim) return Error.InvalidDimension;
 
-        var t = try Tensor.init(self.allocator, self.accel, &[_]usize{vector.len}, .f32);
-        try self.accel.copyToDevice(t.data, std.mem.sliceAsBytes(vector));
-        try self.vectors.append(t);
+        const copy = try self.allocator.alloc(f32, self.dim);
+        @memcpy(copy, embedding);
 
-        return self.vectors.items.len - 1;
+        const id = self.next_id;
+        self.next_id += 1;
+
+        try self.vectors.append(self.allocator, .{ .id = id, .values = copy });
+        return id;
     }
 
-    /// Batch insert for efficiency
-    pub fn insertBatch(self: *VectorSearchGPU, vectors: []const []const f32) ![]u64 {
-        var ids = try self.allocator.alloc(u64, vectors.len);
-        errdefer self.allocator.free(ids);
+    pub fn search(self: *VectorSearchGPU, query: []const f32, k: usize) ![]usize {
+        if (query.len != self.dim) return Error.InvalidDimension;
+        if (self.vectors.items.len == 0) return try self.allocator.alloc(usize, 0);
 
-        for (vectors, 0..) |vec, i| {
-            ids[i] = try self.insert(vec);
-        }
-
-        return ids;
-    }
-
-    /// Search for k nearest neighbors using GPU
-    pub fn search(self: *VectorSearchGPU, query: []const f32, k: usize) ![]SearchResult {
-        if (query.len != self.dimension) return error.DimensionMismatch;
-        if (k > self.vectors.items.len) return error.InvalidK;
-
-        // Upload query to device
-        var query_tensor = try Tensor.init(self.allocator, self.accel, &[_]usize{query.len}, .f32);
-        defer query_tensor.deinit(self.accel);
-        try self.accel.copyToDevice(query_tensor.data, std.mem.sliceAsBytes(query));
-
-        // Compute distances on GPU
-        const distances = try self.allocator.alloc(f32, self.vectors.items.len);
+        const Temp = struct { idx: usize, dist: f32 };
+        var distances = try self.allocator.alloc(Temp, self.vectors.items.len);
         defer self.allocator.free(distances);
 
-        var ops = accelerator.TensorOps.init(self.accel);
-        for (self.vectors.items, 0..) |vec, i| {
-            // Dot product (similarity)
-            distances[i] = ops.dotProduct(query_tensor, vec);
+        for (self.vectors.items, 0..) |entry, i| {
+            distances[i] = .{ .idx = i, .dist = l2(query, entry.values) };
         }
 
-        // Sort and get top k
-        const IndexDist = struct { idx: usize, dist: f32 };
-        const pairs = try self.allocator.alloc(IndexDist, distances.len);
-        defer self.allocator.free(pairs);
-
-        for (distances, 0..) |d, i| {
-            pairs[i] = .{ .idx = i, .dist = d };
-        }
-
-        std.sort.pdq(IndexDist, pairs, {}, struct {
-            fn lessThan(_: void, a: IndexDist, b: IndexDist) bool {
-                return a.dist > b.dist; // Descending for dot product (higher = more similar)
+        std.sort.block(Temp, distances, {}, struct {
+            fn lessThan(_: void, a: Temp, b: Temp) bool {
+                return a.dist < b.dist;
             }
         }.lessThan);
 
-        const results = try self.allocator.alloc(SearchResult, k);
-        for (0..k) |i| {
-            results[i] = .{
-                .id = pairs[i].idx,
-                .score = pairs[i].dist,
-            };
+        const count = @min(k, distances.len);
+        const results = try self.allocator.alloc(usize, count);
+        for (results, 0..) |*dst, i| {
+            dst.* = self.vectors.items[distances[i].idx].id;
         }
-
         return results;
     }
-
-    pub const SearchResult = struct {
-        id: usize,
-        score: f32,
-    };
 };
 
-test "gpu vector search" {
+fn l2(a: []const f32, b: []const f32) f32 {
+    var sum: f32 = 0;
+    for (a, 0..) |v, i| {
+        const diff = v - b[i];
+        sum += diff * diff;
+    }
+    return @sqrt(sum);
+}
+
+test "vector search insert and search" {
     const testing = std.testing;
-
     var accel = accelerator.createBestAccelerator(testing.allocator);
-    var search = VectorSearchGPU.init(testing.allocator, &accel, 128);
-    defer search.deinit();
+    var searcher = VectorSearchGPU.init(testing.allocator, &accel, 4);
+    defer searcher.deinit();
 
-    // Insert vectors
-    const vec = try testing.allocator.alloc(f32, 128);
-    defer testing.allocator.free(vec);
-    @memset(vec, 0.5);
+    const v0 = [_]f32{ 0, 0, 0, 0 };
+    const v1 = [_]f32{ 1, 0, 0, 0 };
+    const v2 = [_]f32{ 0, 1, 0, 0 };
 
-    _ = try search.insert(vec);
-    try testing.expectEqual(@as(usize, 1), search.vectors.items.len);
+    try testing.expectEqual(@as(usize, 0), try searcher.insert(&v0));
+    try testing.expectEqual(@as(usize, 1), try searcher.insert(&v1));
+    try testing.expectEqual(@as(usize, 2), try searcher.insert(&v2));
+
+    const res = try searcher.search(&[_]f32{ 0.9, 0, 0, 0 }, 2);
+    defer testing.allocator.free(res);
+
+    try testing.expectEqual(@as(usize, 1), res[0]);
 }

@@ -91,7 +91,7 @@ pub const TrackedAllocator = struct {
             return null;
         }
 
-        const result = self.parent_allocator.vtable.alloc(self.parent_allocator.ptr, len, alignment, ret_addr);
+        const result = self.parent_allocator.rawAlloc(len, alignment, ret_addr);
         if (result) |_| {
             self.stats.bytes_allocated += len;
             self.stats.active_allocations += 1;
@@ -106,7 +106,7 @@ pub const TrackedAllocator = struct {
         const self: *Self = @ptrCast(@alignCast(ctx));
         const old_len = buf.len;
 
-        const result = self.parent_allocator.vtable.resize(self.parent_allocator.ptr, buf, alignment, new_len, ret_addr);
+        const result = self.parent_allocator.rawResize(buf, alignment, new_len, ret_addr);
         if (result) {
             if (new_len > old_len) {
                 self.stats.bytes_allocated += new_len - old_len;
@@ -124,7 +124,7 @@ pub const TrackedAllocator = struct {
             return null;
         }
 
-        const result = self.parent_allocator.vtable.remap(self.parent_allocator.ptr, memory, alignment, new_len, ret_addr);
+        const result = self.parent_allocator.rawRemap(memory, alignment, new_len, ret_addr);
         if (result) |_| {
             const old_len = memory.len;
             if (new_len > old_len) {
@@ -147,7 +147,7 @@ pub const TrackedAllocator = struct {
             self.stats.active_allocations -= 1;
         }
 
-        self.parent_allocator.vtable.free(self.parent_allocator.ptr, buf, alignment, ret_addr);
+        self.parent_allocator.rawFree(buf, alignment, ret_addr);
     }
 };
 
