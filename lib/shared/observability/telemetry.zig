@@ -4,6 +4,7 @@
 //! counters that can be shared between the CLI, TUI, and service layers.
 
 const std = @import("std");
+const ArrayList = std.array_list.Managed;
 
 pub const Allocator = std.mem.Allocator;
 
@@ -66,7 +67,7 @@ pub const StructuredLogger = struct {
     }
 
     pub fn logEvent(self: *StructuredLogger, allocator: Allocator, event: StructuredEvent) !void {
-        var buffer = std.ArrayList(u8).init(allocator);
+        var buffer = ArrayList(u8).init(allocator);
         defer buffer.deinit();
 
         var writer = buffer.writer();
@@ -202,7 +203,7 @@ pub const TelemetrySink = struct {
     }
 
     pub fn snapshot(self: *TelemetrySink, allocator: Allocator) !TelemetrySnapshot {
-        var persona_counts = std.ArrayList(PersonaCount).init(allocator);
+        var persona_counts = ArrayList(PersonaCount).init(allocator);
         errdefer persona_counts.deinit();
 
         var persona_it = self.persona_usage.iterator();
@@ -317,7 +318,7 @@ fn expectSnapshot(snapshot: TelemetrySnapshot, expected_calls: usize, expected_e
 
 test "structured logger writes JSON line" {
     const testing = std.testing;
-    var buffer = std.ArrayList(u8).init(testing.allocator);
+    var buffer = ArrayList(u8).init(testing.allocator);
     defer buffer.deinit();
     var logger = StructuredLogger.init(buffer.writer().any());
     defer logger.deinit();
