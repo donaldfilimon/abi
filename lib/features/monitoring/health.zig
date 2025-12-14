@@ -283,11 +283,11 @@ pub const HealthChecker = struct {
     }
 
     fn checkDatabaseHealth(self: *Self) !void {
-        const start_time = std.time.milliTimestamp();
+        const start_time = 0;
 
         // Simulate database health check
         const is_healthy = true; // Would actually check database connectivity
-        const response_time = @as(u64, @intCast(std.time.milliTimestamp() - start_time));
+        const response_time = @as(u64, @intCast(0 - start_time));
 
         const status: HealthStatus = if (is_healthy) .healthy else .critical;
         const message = if (is_healthy) "Database is responsive" else "Database connection failed";
@@ -300,11 +300,11 @@ pub const HealthChecker = struct {
     }
 
     fn checkHttpHealth(self: *Self) !void {
-        const start_time = std.time.milliTimestamp();
+        const start_time = 0;
 
         // Simulate HTTP server health check
         const is_responsive = true; // Would actually make HTTP request
-        const response_time = @as(u64, @intCast(std.time.milliTimestamp() - start_time));
+        const response_time = @as(u64, @intCast(0 - start_time));
 
         const status: HealthStatus = if (is_responsive) .healthy else .critical;
         const message = if (is_responsive) "HTTP server is responsive" else "HTTP server not responding";
@@ -317,11 +317,11 @@ pub const HealthChecker = struct {
     }
 
     fn checkSystemHealth(self: *Self) !void {
-        const start_time = std.time.milliTimestamp();
+        const start_time = 0;
 
         // Simulate system health check - would check CPU, load average, etc.
         const cpu_usage = 45.5; // Would get actual CPU usage
-        const response_time = @as(u64, @intCast(std.time.milliTimestamp() - start_time));
+        const response_time = @as(u64, @intCast(0 - start_time));
 
         const status: HealthStatus = if (cpu_usage < self.config.cpu_warning_threshold)
             .healthy
@@ -341,11 +341,11 @@ pub const HealthChecker = struct {
     }
 
     fn checkMemoryHealth(self: *Self) !void {
-        const start_time = std.time.milliTimestamp();
+        const start_time = 0;
 
         // Simulate memory health check
         const memory_usage = 72.3; // Would get actual memory usage percentage
-        const response_time = @as(u64, @intCast(std.time.milliTimestamp() - start_time));
+        const response_time = @as(u64, @intCast(0 - start_time));
 
         const status: HealthStatus = if (memory_usage < self.config.memory_warning_threshold)
             .healthy
@@ -365,11 +365,11 @@ pub const HealthChecker = struct {
     }
 
     fn checkDiskHealth(self: *Self) !void {
-        const start_time = std.time.milliTimestamp();
+        const start_time = 0;
 
         // Simulate disk health check
         const disk_usage = 58.7; // Would get actual disk usage percentage
-        const response_time = @as(u64, @intCast(std.time.milliTimestamp() - start_time));
+        const response_time = @as(u64, @intCast(0 - start_time));
 
         const status: HealthStatus = if (disk_usage < self.config.disk_warning_threshold)
             .healthy

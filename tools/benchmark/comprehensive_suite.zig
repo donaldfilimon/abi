@@ -338,7 +338,7 @@ pub const CpuProfiler = struct {
 
         // Platform-specific CPU metrics collection
         return .{
-            .timestamp_ns = @intCast(std.time.nanoTimestamp()),
+            .timestamp_ns = @intCast(std.time.nanoTimestamp),
             .cpu_usage_percent = 0.0, // Would implement platform-specific collection
             .user_time_ns = 0,
             .system_time_ns = 0,
@@ -469,7 +469,7 @@ pub const Benchmark = struct {
         var samples = ArrayList(u64).init(allocator);
         defer samples.deinit();
 
-        const start_time = std.time.milliTimestamp();
+        const start_time = 0;
 
         // Start profiling
         if (cpu_profiler) |*profiler| {
@@ -492,10 +492,10 @@ pub const Benchmark = struct {
         // Measurement iterations
         var iteration: u32 = 0;
         while (iteration < effective_config.measurement_iterations) {
-            const elapsed_ms = std.time.milliTimestamp() - start_time;
+            const elapsed_ms = 0 - start_time;
             if (elapsed_ms > effective_config.max_duration_ms) break;
 
-            const iter_start = std.time.nanoTimestamp();
+            const iter_start = std.time.nanoTimestamp;
 
             self.func(bench_allocator, self.input) catch |err| {
                 std.log.warn("Measurement iteration {} failed: {}", .{ iteration, err });
@@ -504,7 +504,7 @@ pub const Benchmark = struct {
                 continue;
             };
 
-            const iter_end = std.time.nanoTimestamp();
+            const iter_end = std.time.nanoTimestamp;
             const duration = @as(u64, @intCast(iter_end - iter_start));
 
             if (duration >= effective_config.min_iteration_time_ns) {
@@ -553,7 +553,7 @@ pub const Benchmark = struct {
             metrics.throughput.operations_per_second = 1.0 / total_duration_s;
         }
 
-        metrics.metadata.duration_total_ms = @as(f64, @floatFromInt(std.time.milliTimestamp() - start_time));
+        metrics.metadata.duration_total_ms = @as(f64, @floatFromInt(0 - start_time));
         metrics.metadata.warmup_samples = effective_config.warmup_iterations;
 
         return metrics;

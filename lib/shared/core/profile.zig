@@ -6,6 +6,7 @@
 //! implicit global state so higher layers can compose behaviour per profile.
 
 const std = @import("std");
+const ArrayList = std.array_list.Managed;
 
 const TestError = error{InvalidTestValue};
 
@@ -218,7 +219,7 @@ test "profile resolve matches defaults" {
 }
 
 test "profile describe output" {
-    var buffer = std.ArrayList(u8).init(std.testing.allocator);
+    var buffer = ArrayList(u8).init(std.testing.allocator);
     defer buffer.deinit();
 
     const profile = ProfileConfig.defaults(.dev);

@@ -117,7 +117,7 @@ pub const Span = struct {
             .parent_span_id = null,
             .name = name_copy,
             .kind = kind,
-            .start_time = std.time.nanoTimestamp(),
+            .start_time = std.time.nanoTimestamp,
             .end_time = null,
             .status = .unset,
             .attributes = std.StringHashMapUnmanaged([]const u8){},
@@ -149,7 +149,7 @@ pub const Span = struct {
 
     /// End the span
     pub fn end(self: *Span) void {
-        self.end_time = std.time.nanoTimestamp();
+        self.end_time = std.time.nanoTimestamp;
     }
 
     /// Set span status
@@ -175,7 +175,7 @@ pub const Span = struct {
 
         const event = SpanEvent{
             .name = event_name,
-            .timestamp = std.time.nanoTimestamp(),
+            .timestamp = std.time.nanoTimestamp,
             .attributes = std.StringHashMapUnmanaged([]const u8){},
         };
 
@@ -290,7 +290,7 @@ pub const Tracer = struct {
                 .never => false,
                 .probability => |p| std.crypto.random.float(f32) < p,
                 .rate_limiting => |*rl| blk: {
-                    const now = std.time.nanoTimestamp();
+                    const now = std.time.nanoTimestamp;
                     const elapsed = now - rl.last_reset;
                     if (elapsed >= std.time.ns_per_s) {
                         rl.current_count = 0;

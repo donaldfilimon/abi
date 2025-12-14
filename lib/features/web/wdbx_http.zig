@@ -8,6 +8,7 @@
 //! without affecting the public API.
 
 const std = @import("std");
+const ArrayList = std.array_list.Managed;
 // Note: core functionality is now imported through module dependencies
 
 const max_header_size = 16 * 1024;
@@ -46,7 +47,7 @@ pub const WdbxHttpServer = struct {
     config: ServerConfig,
     database_path: ?[]const u8 = null,
 
-    vectors: std.ArrayList(VectorEntry),
+    vectors: ArrayList(VectorEntry),
     next_id: u64 = 1,
     mutex: std.Thread.Mutex = .{},
     running: bool = false,
@@ -57,7 +58,7 @@ pub const WdbxHttpServer = struct {
             .allocator = allocator,
             .config = config,
             .database_path = null,
-            .vectors = std.ArrayList(VectorEntry).init(allocator),
+            .vectors = ArrayList(VectorEntry).init(allocator),
             .next_id = 1,
         };
         return self;
@@ -143,7 +144,7 @@ pub const WdbxHttpServer = struct {
     fn handleHttpConnection(self: *WdbxHttpServer, connection: std.net.Server.Connection) !void {
         defer connection.stream.close();
 
-        var buffer = std.ArrayList(u8).init(self.allocator);
+        var buffer = ArrayList(u8).init(self.allocator);
         defer buffer.deinit();
 
         var header_end: ?usize = null;
@@ -299,7 +300,7 @@ pub const WdbxHttpServer = struct {
         const matches = try self.findNearest(query_vec, k);
         defer self.allocator.free(matches);
 
-        var json = std.ArrayList(u8).init(self.allocator);
+        var json = ArrayList(u8).init(self.allocator);
         errdefer json.deinit();
         try json.appendSlice("{\"matches\":[");
         for (matches, 0..) |match, idx| {
@@ -318,7 +319,7 @@ pub const WdbxHttpServer = struct {
         const vector_value = root_object.get("vector") orelse return HttpError.InvalidRequest;
         const vector_array = vector_value.array orelse return HttpError.InvalidRequest;
 
-        var values = std.ArrayList(f32).init(self.allocator);
+        var values = ArrayList(f32).init(self.allocator);
         errdefer values.deinit();
         for (vector_array.items) |item| {
             const value: f32 = switch (item) {
@@ -432,14 +433,14 @@ const Match = struct {
 
 const QueryParams = struct {
     allocator: std.mem.Allocator,
-    keys: std.ArrayList([]u8),
-    values: std.ArrayList([]u8),
+    keys: ArrayList([]u8),
+    values: ArrayList([]u8),
 
     fn init(allocator: std.mem.Allocator) QueryParams {
         return .{
             .allocator = allocator,
-            .keys = std.ArrayList([]u8).init(allocator),
-            .values = std.ArrayList([]u8).init(allocator),
+            .keys = ArrayList([]u8).init(allocator),
+            .values = ArrayList([]u8).init(allocator),
         };
     }
 
@@ -480,7 +481,7 @@ fn parseQueryParams(allocator: std.mem.Allocator, query: []const u8) QueryParams
 }
 
 fn parseVectorCsv(allocator: std.mem.Allocator, csv: []const u8) ![]f32 {
-    var list = std.ArrayList(f32).init(allocator);
+    var list = ArrayList(f32).init(allocator);
     errdefer list.deinit();
     var iter = std.mem.splitScalar(u8, csv, ',');
     while (iter.next()) |segment| {

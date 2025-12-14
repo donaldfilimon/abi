@@ -4,6 +4,7 @@
 //! error reporting, context propagation, and debugging.
 
 const std = @import("std");
+const ArrayList = std.array_list.Managed;
 
 const io = @import("io.zig");
 
@@ -66,7 +67,7 @@ pub const Diagnostic = struct {
         return .{
             .severity = severity,
             .message = message,
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = 0,
         };
     }
 
@@ -113,14 +114,14 @@ pub const Diagnostic = struct {
 
 /// Diagnostic collector for aggregating messages
 pub const DiagnosticCollector = struct {
-    diagnostics: std.ArrayList(Diagnostic),
+    diagnostics: ArrayList(Diagnostic),
     max_errors: usize,
     error_count: usize,
     warning_count: usize,
 
     pub fn init(allocator: std.mem.Allocator) DiagnosticCollector {
         return .{
-            .diagnostics = std.ArrayList(Diagnostic).init(allocator),
+            .diagnostics = ArrayList(Diagnostic).init(allocator),
             .max_errors = 100,
             .error_count = 0,
             .warning_count = 0,

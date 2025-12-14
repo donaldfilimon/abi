@@ -68,22 +68,22 @@ pub const PerformanceCounter = struct {
 
     pub fn increment(self: *PerformanceCounter) void {
         self.value += 1;
-        self.last_update = std.time.nanoTimestamp();
+        self.last_update = std.time.nanoTimestamp;
     }
 
     pub fn add(self: *PerformanceCounter, delta: u64) void {
         self.value += delta;
-        self.last_update = std.time.nanoTimestamp();
+        self.last_update = std.time.nanoTimestamp;
     }
 
     pub fn set(self: *PerformanceCounter, new_value: u64) void {
         self.value = new_value;
-        self.last_update = std.time.nanoTimestamp();
+        self.last_update = std.time.nanoTimestamp;
     }
 
     pub fn reset(self: *PerformanceCounter) void {
         self.value = 0;
-        self.last_update = std.time.nanoTimestamp();
+        self.last_update = std.time.nanoTimestamp;
     }
 };
 
@@ -101,7 +101,7 @@ pub const PerformanceProfile = struct {
     session_name: []const u8 = "",
 
     pub fn duration(self: PerformanceProfile) u64 {
-        if (self.end_time == 0) return std.time.nanoTimestamp() - self.start_time;
+        if (self.end_time == 0) return std.time.nanoTimestamp - self.start_time;
         return self.end_time - self.start_time;
     }
 
@@ -129,14 +129,14 @@ pub const FunctionProfiler = struct {
     last_call_time: u64 = 0,
 
     pub fn enter(self: *FunctionProfiler) u64 {
-        const entry_time = std.time.nanoTimestamp();
+        const entry_time = std.time.nanoTimestamp;
         self.call_count += 1;
         self.last_call_time = entry_time;
         return entry_time;
     }
 
     pub fn exit(self: *FunctionProfiler, entry_time: u64) void {
-        const exit_time = std.time.nanoTimestamp();
+        const exit_time = std.time.nanoTimestamp;
         const duration = exit_time - entry_time;
 
         self.total_time += duration;
@@ -273,7 +273,7 @@ pub const PerformanceProfiler = struct {
             return error.ProfilingAlreadyActive;
         }
 
-        const start_time = std.time.nanoTimestamp();
+        const start_time = std.time.nanoTimestamp;
         const session_name_copy = try self.allocator.dupe(u8, session_name);
 
         self.current_profile = .{
@@ -307,7 +307,7 @@ pub const PerformanceProfiler = struct {
         }
 
         var profile = self.current_profile.?;
-        profile.end_time = std.time.nanoTimestamp();
+        profile.end_time = std.time.nanoTimestamp;
 
         // Calculate profile statistics
         profile.total_time = profile.duration();
@@ -357,7 +357,7 @@ pub const PerformanceProfiler = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const entry_time = std.time.nanoTimestamp();
+        const entry_time = std.time.nanoTimestamp;
         const call_id = self.next_call_id;
         self.next_call_id += 1;
 
@@ -417,7 +417,7 @@ pub const PerformanceProfiler = struct {
         if (self.call_stack.items.len == 0) return;
 
         const record = self.call_stack.pop();
-        const exit_time = std.time.nanoTimestamp();
+        const exit_time = std.time.nanoTimestamp;
 
         // Update record in current profile
         if (self.current_profile) |*profile| {
@@ -456,7 +456,7 @@ pub const PerformanceProfiler = struct {
                 .value = delta,
                 .unit = "count",
                 .description = "Auto-generated counter",
-                .last_update = std.time.nanoTimestamp(),
+                .last_update = std.time.nanoTimestamp,
             };
 
             self.counters.put(self.allocator, name_copy, counter) catch {
@@ -581,11 +581,11 @@ pub const PerformanceProfiler = struct {
 
     /// Profiling thread loop (periodic sampling/reporting)
     fn profilingLoop(self: *PerformanceProfiler) void {
-        var last_report_time = std.time.nanoTimestamp();
+        var last_report_time = std.time.nanoTimestamp;
         var last_sample_time = last_report_time;
 
         while (!self.stop_profiling) {
-            const now = std.time.nanoTimestamp();
+            const now = std.time.nanoTimestamp;
             const delta = now - last_sample_time;
             last_sample_time = now;
 
@@ -621,7 +621,7 @@ pub const PerformanceProfiler = struct {
         return .{
             .profiler = self,
             .name = name,
-            .start_time = std.time.nanoTimestamp(),
+            .start_time = std.time.nanoTimestamp,
             .memory_start = if (self.memory_tracker) |tracker| tracker.getStats().currentUsage() else 0,
         };
     }
@@ -636,7 +636,7 @@ pub const Scope = struct {
 
     /// End the scope and record measurements
     pub fn end(self: Scope) void {
-        const end_time = std.time.nanoTimestamp();
+        const end_time = std.time.nanoTimestamp;
         const duration = end_time - self.start_time;
 
         // Update performance counters

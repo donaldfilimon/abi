@@ -11,7 +11,7 @@ pub const TraceContext = struct {
         var trace = TraceContext{
             .trace_id = undefined,
             .span_id = undefined,
-            .start_ns = std.time.nanoTimestamp(),
+            .start_ns = std.time.nanoTimestamp,
         };
         random.bytes(&trace.trace_id);
         random.bytes(&trace.span_id);
@@ -22,7 +22,7 @@ pub const TraceContext = struct {
         var child_ctx = TraceContext{
             .trace_id = self.trace_id,
             .span_id = undefined,
-            .start_ns = std.time.nanoTimestamp(),
+            .start_ns = std.time.nanoTimestamp,
         };
         random.bytes(&child_ctx.span_id);
         return child_ctx;
@@ -41,7 +41,7 @@ pub const TraceContext = struct {
     }
 
     pub fn elapsedNs(self: TraceContext) u64 {
-        return std.time.nanoTimestamp() - self.start_ns;
+        return std.time.nanoTimestamp - self.start_ns;
     }
 };
 
@@ -58,7 +58,7 @@ pub fn formatSpanId(trace: TraceContext, allocator: std.mem.Allocator) ![]u8 {
 // -----------------------------------------------------------------------------
 
 test "trace context generates ids" {
-    var prng = std.rand.DefaultPrng.init(0xdeadbeef);
+    var prng = std.Random.DefaultPrng.init(0xdeadbeef);
     const random = prng.random();
     const ctx = TraceContext.init(random);
     const child = ctx.child(random);

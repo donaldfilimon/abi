@@ -158,10 +158,10 @@ pub const Agent = struct {
         const telemetry_sink = self.telemetry;
         var start_ts: i128 = 0;
         if (telemetry_sink) |_| {
-            start_ts = std.time.nanoTimestamp();
+            start_ts = std.time.nanoTimestamp;
         }
         errdefer if (telemetry_sink) |sink| {
-            const latency = computeLatencyNs(start_ts, std.time.nanoTimestamp());
+            const latency = computeLatencyNs(start_ts, std.time.nanoTimestamp);
             _ = sink.record(persona_label, latency, .failure, "agent_error") catch {};
         };
 
@@ -185,7 +185,7 @@ pub const Agent = struct {
         const response = allocator.dupe(u8, input) catch return AgentError.OutOfMemory;
 
         if (telemetry_sink) |sink| {
-            const latency = computeLatencyNs(start_ts, std.time.nanoTimestamp());
+            const latency = computeLatencyNs(start_ts, std.time.nanoTimestamp);
             _ = sink.record(persona_label, latency, .success, null) catch {};
         }
 

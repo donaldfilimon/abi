@@ -76,7 +76,7 @@ pub const ExperienceReplay = struct {
         return ExperienceReplay{
             .capacity = capacity,
             .buffer = ArrayList(Experience){},
-            .rng = Random.DefaultPrng.init(@as(u64, @intCast(std.time.nanoTimestamp()))),
+            .rng = Random.DefaultPrng.init(@as(u64, @intCast(std.time.nanoTimestamp))),
         };
     }
 

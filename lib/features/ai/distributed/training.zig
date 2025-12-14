@@ -356,7 +356,7 @@ fn workerTrainingLoop(
             worker.stats.steps_completed += 1;
             worker.stats.loss_sum += loss;
             worker.stats.samples_processed += batch_data.len;
-            worker.stats.last_update = @as(u64, @intCast(std.time.nanoTimestamp()));
+            worker.stats.last_update = @as(u64, @intCast(std.time.nanoTimestamp));
 
             // Synchronize with parameter server
             try synchronizeWithParameterServer(worker, trainer);

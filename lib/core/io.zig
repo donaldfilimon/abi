@@ -4,6 +4,7 @@
 //! direct stdout/stderr usage and enable better testing and composition.
 
 const std = @import("std");
+const ArrayList = std.array_list.Managed;
 
 /// Writer abstraction that can be injected throughout the framework
 pub const Writer = struct {
@@ -90,12 +91,12 @@ pub const Writer = struct {
 
 /// Buffered writer for performance-critical paths
 pub const BufferedWriter = struct {
-    buffer: std.ArrayList(u8),
+    buffer: ArrayList(u8),
     backing_writer: Writer,
 
     pub fn init(allocator: std.mem.Allocator, backing_writer: Writer) BufferedWriter {
         return .{
-            .buffer = std.ArrayList(u8).init(allocator),
+            .buffer = ArrayList(u8).init(allocator),
             .backing_writer = backing_writer,
         };
     }
@@ -131,11 +132,11 @@ pub const BufferedWriter = struct {
 
 /// Test writer that captures output for testing
 pub const TestWriter = struct {
-    buffer: std.ArrayList(u8),
+    buffer: ArrayList(u8),
 
     pub fn init(allocator: std.mem.Allocator) TestWriter {
         return .{
-            .buffer = std.ArrayList(u8).init(allocator),
+            .buffer = ArrayList(u8).init(allocator),
         };
     }
 

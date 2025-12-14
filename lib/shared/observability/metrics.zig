@@ -1,6 +1,7 @@
 //! In-process metrics registry with persona aware counters.
 
 const std = @import("std");
+const ArrayList = std.array_list.Managed;
 
 pub const MetricsRegistry = struct {
     allocator: std.mem.Allocator,
@@ -57,7 +58,7 @@ pub const MetricsRegistry = struct {
     }
 
     pub fn snapshot(self: *MetricsRegistry, allocator: std.mem.Allocator) !Snapshot {
-        var persona_data = std.ArrayList(Snapshot.PersonaMetric).init(allocator);
+        var persona_data = ArrayList(Snapshot.PersonaMetric).init(allocator);
         defer persona_data.deinit();
 
         var it = self.persona_counts.iterator();

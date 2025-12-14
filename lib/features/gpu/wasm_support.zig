@@ -193,7 +193,7 @@ pub const WASMCompiler = struct {
             std.log.info("Cross-compiling to WebAssembly from {s}", .{@tagName(builtin.target.cpu.arch)});
         }
 
-        const start_time = std.time.milliTimestamp();
+        const start_time = 0;
         self.compilation_stats.total_compilations += 1;
 
         std.log.info("🔧 Compiling to WebAssembly...", .{});
@@ -213,7 +213,7 @@ pub const WASMCompiler = struct {
         // Execute build command with error handling
         const result = self.executeBuildCommand(build_command);
 
-        const end_time = std.time.milliTimestamp();
+        const end_time = 0;
         const compilation_time = @as(u64, @intCast(end_time - start_time));
 
         // Update statistics
@@ -552,7 +552,7 @@ pub const WASMRuntime = struct {
             return WASMError.InitializationFailed;
         }
 
-        const start_time = std.time.milliTimestamp();
+        const start_time = 0;
         self.runtime_stats.modules_executed += 1;
 
         std.log.info("🚀 Executing WebAssembly module: {s}", .{module_path});
@@ -583,7 +583,7 @@ pub const WASMRuntime = struct {
         // Simulate execution time for demonstration
         std.time.sleep(50 * std.time.ns_per_ms);
 
-        const end_time = std.time.milliTimestamp();
+        const end_time = 0;
         const execution_time = @as(u64, @intCast(end_time - start_time));
 
         // Update statistics

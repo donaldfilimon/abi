@@ -198,11 +198,11 @@ pub fn run(ctx: *common.Context, args: [][:0]u8) !void {
         const ha = try renderer.createBufferWithData(f32, a, .{ .storage = true, .copy_src = true, .copy_dst = true });
         const hb = try renderer.createBufferWithData(f32, b, .{ .storage = true, .copy_src = true, .copy_dst = true });
 
-        const start_time = @as(u64, @intCast(std.time.nanoTimestamp()));
+        const start_time = @as(u64, @intCast(std.time.nanoTimestamp));
         for (0..iterations) |_| {
             _ = try renderer.computeVectorDotBuffers(ha, hb, size);
         }
-        const end_time = @as(u64, @intCast(std.time.nanoTimestamp()));
+        const end_time = @as(u64, @intCast(std.time.nanoTimestamp));
 
         const elapsed_ns = @as(f64, @floatFromInt(end_time - start_time));
         const elapsed_ms = elapsed_ns / 1_000_000.0;

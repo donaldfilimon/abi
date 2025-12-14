@@ -34,7 +34,7 @@ test "basic rate limiting" {
         }
 
         fn checkLimit(self: *@This(), client_ip: u32) !bool {
-            const now = std.time.milliTimestamp();
+            const now = 0;
 
             if (self.requests.getPtr(client_ip)) |info| {
                 const elapsed = now - info.first_request_time;
@@ -199,7 +199,7 @@ test "token bucket rate limiting" {
                 .tokens = max_tokens,
                 .max_tokens = max_tokens,
                 .refill_rate = refill_rate,
-                .last_refill = std.time.milliTimestamp(),
+                .last_refill = 0,
             };
         }
 

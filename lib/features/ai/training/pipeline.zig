@@ -101,7 +101,7 @@ pub const ModelTrainer = struct {
 
         for (0..self.config.epochs) |epoch| {
             self.current_epoch = epoch;
-            const start_time = std.time.milliTimestamp();
+            const start_time = 0;
 
             self.model.ops.set_training(self.model.context, true);
             const train_metrics = try self.trainEpoch(train_inputs, train_targets);
@@ -112,7 +112,7 @@ pub const ModelTrainer = struct {
                 val_metrics = try self.validateEpoch(val_inputs, val_targets);
             }
 
-            const end_time = std.time.milliTimestamp();
+            const end_time = 0;
             var epoch_metrics = train_metrics;
             epoch_metrics.epoch = epoch;
             epoch_metrics.training_time_ms = @as(u64, @intCast(end_time - start_time));

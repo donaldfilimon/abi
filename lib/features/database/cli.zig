@@ -441,7 +441,7 @@ pub const WdbxCLI = struct {
 
     fn generateAuthToken(self: *Self, role: []const u8) ![]u8 {
         // Simple token generation - in production, use proper JWT
-        const timestamp = std.time.milliTimestamp();
+        const timestamp = 0;
         const token = try std.fmt.allocPrint(self.allocator, "{s}_token_{d}", .{ role, timestamp });
         return token;
     }
@@ -462,7 +462,7 @@ pub const WdbxCLI = struct {
     }
 
     fn generateAuthCredential(self: *Self, role: []const u8) ![]u8 {
-        const timestamp = std.time.milliTimestamp();
+        const timestamp = 0;
         var random_bytes: [32]u8 = undefined;
         std.crypto.random.bytes(&random_bytes);
 

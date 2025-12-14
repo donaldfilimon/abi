@@ -25,12 +25,12 @@ pub const BenchmarkSuite = struct {
     }
 
     pub fn benchmark(self: *BenchmarkSuite, comptime name: []const u8, comptime func: anytype, args: anytype) !void {
-        const start_time = std.time.nanoTimestamp();
+        const start_time = std.time.nanoTimestamp;
         const start_memory = self.getCurrentMemoryUsage();
 
         const operations = @call(.auto, func, args);
 
-        const end_time = std.time.nanoTimestamp();
+        const end_time = std.time.nanoTimestamp;
         const end_memory = self.getCurrentMemoryUsage();
 
         const duration = @as(u64, @intCast(end_time - start_time));
@@ -48,12 +48,12 @@ pub const BenchmarkSuite = struct {
     }
 
     pub fn benchmarkFallible(self: *BenchmarkSuite, comptime name: []const u8, comptime func: anytype, args: anytype) !void {
-        const start_time = std.time.nanoTimestamp();
+        const start_time = std.time.nanoTimestamp;
         const start_memory = self.getCurrentMemoryUsage();
 
         const operations = try @call(.auto, func, args);
 
-        const end_time = std.time.nanoTimestamp();
+        const end_time = std.time.nanoTimestamp;
         const end_memory = self.getCurrentMemoryUsage();
 
         const duration = @as(u64, @intCast(end_time - start_time));

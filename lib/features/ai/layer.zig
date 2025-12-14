@@ -454,7 +454,7 @@ pub const Layer = struct {
         try self.validateConfig(config);
 
         // Generate unique layer ID
-        var rng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+        var rng = std.Random.DefaultPrng.init(@intCast(0));
         const layer_id = rng.next();
 
         self.* = .{
@@ -593,9 +593,9 @@ pub const Layer = struct {
 
     /// Forward pass through the layer
     pub fn forward(self: *Self, input: []const f32, output: []f32, temp_buffer: ?[]f32) anyerror!void {
-        const start_time = std.time.nanoTimestamp();
+        const start_time = std.time.nanoTimestamp;
         defer {
-            const end_time = std.time.nanoTimestamp();
+            const end_time = std.time.nanoTimestamp;
             self.forward_time = @as(f64, @floatFromInt(end_time - start_time)) / 1e9;
             self.operation_count += 1;
         }
@@ -673,9 +673,9 @@ pub const Layer = struct {
     pub fn backward(self: *Self, grad_output: []const f32, grad_input: []f32, temp_buffer: ?[]f32) anyerror!void {
         if (self.is_frozen) return;
 
-        const start_time = std.time.nanoTimestamp();
+        const start_time = std.time.nanoTimestamp;
         defer {
-            const end_time = std.time.nanoTimestamp();
+            const end_time = std.time.nanoTimestamp;
             self.backward_time = @as(f64, @floatFromInt(end_time - start_time)) / 1e9;
         }
 

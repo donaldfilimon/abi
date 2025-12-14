@@ -228,7 +228,7 @@ pub const BenchmarkSuite = struct {
             while (total_time < self.config.min_measurement_time_ns and
                 iterations < self.config.measurement_iterations)
             {
-                const start_time = std.time.nanoTimestamp();
+                const start_time = std.time.nanoTimestamp;
                 _ = benchmark_fn(context) catch |err| {
                     const result = BenchmarkResult{
                         .name = name,
@@ -236,13 +236,13 @@ pub const BenchmarkSuite = struct {
                         .stats = undefined,
                         .success = false,
                         .error_message = try std.fmt.allocPrint(self.allocator, "Benchmark failed: {}", .{err}),
-                        .timestamp = std.time.milliTimestamp(),
+                        .timestamp = 0,
                         .platform_info = self.platform_info,
                     };
                     try self.results.append(self.allocator, result);
                     return;
                 };
-                const end_time = std.time.nanoTimestamp();
+                const end_time = std.time.nanoTimestamp;
 
                 total_time += @as(u64, @intCast(end_time - start_time));
                 iterations += 1;
@@ -283,7 +283,7 @@ pub const BenchmarkSuite = struct {
             .stats = stats,
             .success = true,
             .error_message = null,
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = 0,
             .platform_info = self.platform_info,
         };
 

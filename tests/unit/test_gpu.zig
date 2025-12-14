@@ -394,10 +394,10 @@ test "GPU backend performance comparison" {
     }
 
     // Measure search performance
-    const start_time = std.time.nanoTimestamp();
+    const start_time = std.time.nanoTimestamp;
     const results = try backend.searchSimilar(&db, &query, 10);
     defer allocator.free(results);
-    const end_time = std.time.nanoTimestamp();
+    const end_time = std.time.nanoTimestamp;
 
     const search_time_ns = end_time - start_time;
     const search_time_ms = @as(f64, @floatFromInt(search_time_ns)) / 1_000_000.0;

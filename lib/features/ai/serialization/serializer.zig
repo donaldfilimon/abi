@@ -10,7 +10,7 @@
 
 const std = @import("std");
 const math = std.math;
-const ArrayList = std.ArrayList;
+const ArrayList = std.array_list.Managed;
 const Allocator = std.mem.Allocator;
 const fs = std.fs;
 
@@ -52,8 +52,8 @@ pub const ModelMetadata = struct {
         return ModelMetadata{
             .format_version = FormatVersion.current(),
             .architecture = allocator.dupe(u8, architecture) catch "",
-            .created_at = @as(u64, @intCast(std.time.nanoTimestamp())),
-            .modified_at = @as(u64, @intCast(std.time.nanoTimestamp())),
+            .created_at = @as(u64, @intCast(std.time.nanoTimestamp)),
+            .modified_at = @as(u64, @intCast(std.time.nanoTimestamp)),
             .input_shape = allocator.dupe(usize, input_shape) catch &[_]usize{},
             .output_shape = allocator.dupe(usize, output_shape) catch &[_]usize{},
             .num_parameters = 0,
@@ -590,8 +590,8 @@ pub const ModelRegistry = struct {
             _ = try file.read(version);
 
             const num_tags = try file.readInt(u32, .little);
-            var tags = ArrayList([]const u8){};
-            errdefer tags.deinit(self.allocator);
+            var tags = ArrayList([]const u8).init(self.allocator);
+            errdefer tags.deinit();
 
             for (0..num_tags) |_| {
                 const tag_len = try file.readInt(u32, .little);
@@ -632,7 +632,7 @@ test "model serializer checksum" {
     defer metadata.deinit(testing.allocator);
 
     var serializer = ModelSerializer.init(testing.allocator, .{});
-    var buffer = std.ArrayList(u8).init(testing.allocator);
+    var buffer = ArrayList(u8).init(testing.allocator);
     defer buffer.deinit();
 
     const writer = buffer.writer();

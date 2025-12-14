@@ -100,7 +100,7 @@ pub const GPURenderer = struct {
             .shaders = std.ArrayList(Shader){},
             .bind_groups = std.ArrayList(BindGroup){},
             .compute_pipelines = std.ArrayList(ComputePipeline){},
-            .last_fps_time = std.time.milliTimestamp(),
+            .last_fps_time = 0,
         };
 
         try self.initializeBackend();
@@ -393,7 +393,7 @@ pub const GPURenderer = struct {
     pub fn createComputePipeline(self: *Self, desc: ComputePipelineDesc) !u32 {
         if (desc.shader_source.len == 0) return GpuError.ValidationFailed;
 
-        const start = std.time.nanoTimestamp();
+        const start = std.time.nanoTimestamp;
         const handle_id = self.next_handle_id;
         self.next_handle_id += 1;
 
@@ -409,7 +409,7 @@ pub const GPURenderer = struct {
         try self.compute_pipelines.append(self.allocator, pipeline);
 
         self.stats.shaders_compiled += 1;
-        self.stats.compilation_time_ns += @intCast(std.time.nanoTimestamp() - start);
+        self.stats.compilation_time_ns += @intCast(std.time.nanoTimestamp - start);
         return @intCast(handle_id);
     }
 
@@ -565,22 +565,22 @@ pub const GPURenderer = struct {
 
     /// Write raw bytes into a buffer
     pub fn writeBuffer(self: *Self, handle: u32, data: anytype) !void {
-        const start = std.time.nanoTimestamp();
+        const start = std.time.nanoTimestamp;
         const buf = self.findBuffer(handle) orelse return GpuError.HandleNotFound;
         const bytes = std.mem.sliceAsBytes(data);
         const to_write = @min(buf.size, bytes.len);
         self.buffer_manager.?.writeBuffer(buf, bytes[0..to_write]);
         self.stats.bytes_written += @as(u64, @intCast(to_write));
-        self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
+        self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp - start));
     }
 
     /// Read raw bytes from a buffer (copies into a new slice)
     pub fn readBuffer(self: *Self, handle: u32, allocator: std.mem.Allocator) ![]u8 {
-        const start = std.time.nanoTimestamp();
+        const start = std.time.nanoTimestamp;
         const buf = self.findBuffer(handle) orelse return GpuError.HandleNotFound;
         const out = try self.buffer_manager.?.readBuffer(u8, buf, @intCast(buf.size), allocator);
         self.stats.bytes_read += @as(u64, @intCast(out.len));
-        self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
+        self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp - start));
         return out;
     }
 
@@ -610,7 +610,7 @@ pub const GPURenderer = struct {
             .push_constants = dispatch.push_constants,
         };
 
-        const start = std.time.nanoTimestamp();
+        const start = std.time.nanoTimestamp;
 
         if (self.isHardwareAvailable()) {
             std.log.info(
@@ -650,12 +650,12 @@ pub const GPURenderer = struct {
         }
 
         self.stats.compute_operations += 1;
-        self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
+        self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp - start));
     }
 
     /// Copy contents from src to dst (copies min(src.size, dst.size) bytes)
     pub fn copyBuffer(self: *Self, src_handle: u32, dst_handle: u32) !usize {
-        const start = std.time.nanoTimestamp();
+        const start = std.time.nanoTimestamp;
         const src = self.findBuffer(src_handle) orelse return GpuError.HandleNotFound;
         const dst = self.findBuffer(dst_handle) orelse return GpuError.HandleNotFound;
         const len = @min(src.size, dst.size);
@@ -664,13 +664,13 @@ pub const GPURenderer = struct {
 
         self.buffer_manager.?.writeBuffer(dst, temp);
         self.stats.bytes_copied += @as(u64, @intCast(temp.len));
-        self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
+        self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp - start));
         return temp.len;
     }
 
     /// Compute vector dot product directly on buffers (length in f32 elements)
     pub fn computeVectorDotBuffers(self: *Self, a_handle: u32, b_handle: u32, length: usize) !f32 {
-        const start = std.time.nanoTimestamp();
+        const start = std.time.nanoTimestamp;
         const a_buf = self.findBuffer(a_handle) orelse return GpuError.HandleNotFound;
         const b_buf = self.findBuffer(b_handle) orelse return GpuError.HandleNotFound;
 
@@ -697,7 +697,7 @@ pub const GPURenderer = struct {
         }
 
         self.stats.compute_operations += 1;
-        self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
+        self.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp - start));
         return sum;
     }
 
@@ -706,7 +706,7 @@ pub const GPURenderer = struct {
         self.frame_count += 1;
 
         // Update FPS counter
-        const current_time = std.time.milliTimestamp();
+        const current_time = 0;
         if (current_time - self.last_fps_time >= 1000) {
             const frames_in_second = self.frame_count;
             self.fps = @as(f32, @floatFromInt(frames_in_second)) * 1000.0 / @as(f32, @floatFromInt(current_time - self.last_fps_time));
@@ -1040,28 +1040,28 @@ pub const GPURenderer = struct {
         print("Backend: {any}, Optimizations: comptime + inline + stack allocation\n", .{self.backend});
 
         // Performance tracking
-        const start_time = std.time.nanoTimestamp();
+        const start_time = std.time.nanoTimestamp;
         var operation_count: u32 = 0;
 
         print("\n⚡ === Vector Addition Example ===\n", .{});
-        const vec_start = std.time.nanoTimestamp();
+        const vec_start = std.time.nanoTimestamp;
         try self.vectorAdd(allocator);
-        const vec_time = std.time.nanoTimestamp() - vec_start;
+        const vec_time = std.time.nanoTimestamp - vec_start;
         operation_count += 1;
 
         print("\n🔢 === Matrix Multiplication Example ===\n", .{});
-        const mat_start = std.time.nanoTimestamp();
+        const mat_start = std.time.nanoTimestamp;
         try self.matrixMultiply(allocator);
-        const mat_time = std.time.nanoTimestamp() - mat_start;
+        const mat_time = std.time.nanoTimestamp - mat_start;
         operation_count += 1;
 
         print("\n🖼️ === Image Processing Example ===\n", .{});
-        const img_start = std.time.nanoTimestamp();
+        const img_start = std.time.nanoTimestamp;
         try self.imageProcessing(allocator);
-        const img_time = std.time.nanoTimestamp() - img_start;
+        const img_time = std.time.nanoTimestamp - img_start;
         operation_count += 1;
 
-        const total_time = std.time.nanoTimestamp() - start_time;
+        const total_time = std.time.nanoTimestamp - start_time;
 
         // Performance summary
         print("\n📊 === Performance Summary ===\n", .{});

@@ -3,6 +3,7 @@
 //! Interactive terminal UI with widgets, colors, and keyboard handling.
 
 const std = @import("std");
+const ArrayList = std.array_list.Managed;
 const builtin = @import("builtin");
 
 /// ANSI escape codes for terminal control
@@ -192,7 +193,7 @@ pub const Spinner = struct {
 /// Table widget for data display
 pub const Table = struct {
     headers: []const []const u8,
-    rows: std.ArrayList([]const []const u8),
+    rows: ArrayList([]const []const u8),
     col_widths: []u16,
     theme: Theme = Theme.default,
     allocator: std.mem.Allocator,
@@ -204,7 +205,7 @@ pub const Table = struct {
         }
         return .{
             .headers = headers,
-            .rows = std.ArrayList([]const []const u8).init(allocator),
+            .rows = ArrayList([]const []const u8).init(allocator),
             .col_widths = widths,
             .allocator = allocator,
         };

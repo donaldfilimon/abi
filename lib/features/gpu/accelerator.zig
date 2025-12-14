@@ -219,7 +219,7 @@ pub const TensorOps = struct {
             const out_ptr: [*]f32 = @ptrCast(@alignCast(output.data.ptr.?));
 
             if (training) {
-                var prng = std.rand.DefaultPrng.init(0);
+                var prng = std.Random.DefaultPrng.init(0);
                 const random = prng.random();
                 const scale = 1.0 / (1.0 - rate);
 

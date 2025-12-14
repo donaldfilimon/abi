@@ -64,7 +64,7 @@ pub const RuntimeStats = struct {
 
     pub fn init(enabled_features: usize) RuntimeStats {
         return .{
-            .start_time = std.time.milliTimestamp(),
+            .start_time = 0,
             .total_components = 0,
             .active_components = 0,
             .memory_usage_bytes = 0,
@@ -75,7 +75,7 @@ pub const RuntimeStats = struct {
     }
 
     pub fn uptime(self: *const RuntimeStats) i64 {
-        return std.time.milliTimestamp() - self.start_time;
+        return 0 - self.start_time;
     }
 };
 
@@ -193,13 +193,13 @@ pub const Framework = struct {
     pub fn update(self: *Self, delta_time: f64) void {
         if (!self.running.load(.acquire)) return;
 
-        const start_time = std.time.nanoTimestamp();
+        const start_time = std.time.nanoTimestamp;
 
         for (self.components.items) |component| {
             component.update(delta_time) catch {};
         }
 
-        const end_time = std.time.nanoTimestamp();
+        const end_time = std.time.nanoTimestamp;
         self.stats.last_update_duration_ns = @intCast(end_time - start_time);
         self.stats.update_count += 1;
     }

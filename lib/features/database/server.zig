@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const ArrayList = std.array_list.Managed;
 
 /// Post-quantum cryptography primitives (stubs - would use real implementations)
 pub const crypto = struct {
@@ -20,9 +21,9 @@ pub const crypto = struct {
             var sk: SecretKey = undefined;
             if (seed) |s| {
                 // Deterministic generation
-                var prng = std.rand.DefaultPrng.init(@bitCast(s[0..8].*));
-                prng.fill(&pk);
-                prng.fill(&sk);
+                var prng = std.Random.DefaultPrng.init(@bitCast(s[0..8].*));
+                prng.random().bytes(&pk);
+                prng.random().bytes(&sk);
             } else {
                 std.crypto.random.bytes(&pk);
                 std.crypto.random.bytes(&sk);
@@ -169,14 +170,14 @@ pub const Request = struct {
 pub const Response = struct {
     status: u16,
     headers: std.StringHashMap([]const u8),
-    body: std.ArrayList(u8),
+    body: ArrayList(u8),
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) Response {
         return .{
             .status = 200,
             .headers = std.StringHashMap([]const u8).init(allocator),
-            .body = std.ArrayList(u8).init(allocator),
+            .body = ArrayList(u8).init(allocator),
             .allocator = allocator,
         };
     }

@@ -413,11 +413,11 @@ pub const Timer = struct {
     start_time: i64,
 
     pub fn init() Timer {
-        return .{ .start_time = std.time.nanoTimestamp() };
+        return .{ .start_time = std.time.nanoTimestamp };
     }
 
     pub fn elapsed(self: *const Timer) u64 {
-        const end_time = std.time.nanoTimestamp();
+        const end_time = std.time.nanoTimestamp;
         return @intCast(end_time - self.start_time);
     }
 
@@ -430,7 +430,7 @@ pub const Timer = struct {
     }
 
     pub fn restart(self: *Timer) void {
-        self.start_time = std.time.nanoTimestamp();
+        self.start_time = std.time.nanoTimestamp;
     }
 };
 
@@ -454,7 +454,7 @@ pub const Logger = struct {
     pub fn log(self: *Logger, level: LogLevel, comptime fmt: []const u8, args: anytype) !void {
         if (level.toInt() < self.level.toInt()) return;
 
-        const timestamp = std.time.milliTimestamp();
+        const timestamp = 0;
         const level_str = level.toString();
 
         std.debug.print("[{d}] [{s}] " ++ fmt ++ "\n", .{ timestamp, level_str } ++ args);

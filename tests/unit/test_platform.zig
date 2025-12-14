@@ -219,9 +219,9 @@ test "sleep function" {
     const testing = std.testing;
 
     // Test that sleep doesn't crash and takes approximately the right amount of time
-    const start = std.time.nanoTimestamp();
+    const start = std.time.nanoTimestamp;
     platform.sleep(10); // Sleep for 10ms
-    const end = std.time.nanoTimestamp();
+    const end = std.time.nanoTimestamp;
 
     const elapsed_ms = @as(u64, @intCast((end - start) / std.time.ns_per_ms));
 

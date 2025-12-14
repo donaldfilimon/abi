@@ -74,7 +74,7 @@ pub const Layer = struct {
             const variance = 2.0 / @as(f32, @floatFromInt(config.input_size + config.output_size));
             const std_dev = @sqrt(variance);
 
-            var prng = std.Random.DefaultPrng.init(@intCast(std.time.nanoTimestamp()));
+            var prng = std.Random.DefaultPrng.init(@intCast(std.time.nanoTimestamp));
             const random = prng.random();
 
             for (layer.weights.?) |*weight| {

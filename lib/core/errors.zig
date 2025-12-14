@@ -188,8 +188,8 @@ test "errors - utils" {
     try std.testing.expectError(Error.Empty, utils.ensureNonEmpty("name", ""));
 
     const value: ?u32 = 42;
-    try utils.ensureNotNull("value", value);
+    try utils.ensureNotNull(u32, "value", value);
 
     const null_value: ?u32 = null;
-    try std.testing.expectError(Error.InvalidParameter, utils.ensureNotNull("value", null_value));
+    try std.testing.expectError(Error.InvalidParameter, utils.ensureNotNull(u32, "value", null_value));
 }

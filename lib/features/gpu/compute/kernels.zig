@@ -204,7 +204,7 @@ pub const KernelManager = struct {
         const weights_data = try self.allocator.alloc(f32, count);
         defer self.allocator.free(weights_data);
 
-        var prng = std.Random.DefaultPrng.init(@as(u64, @intCast(std.time.nanoTimestamp())));
+        var prng = std.Random.DefaultPrng.init(@as(u64, @intCast(std.time.nanoTimestamp)));
         const random = prng.random();
 
         for (weights_data) |*w| {
@@ -684,7 +684,7 @@ pub const MemoryPool = struct {
                 const buffer_info = buffer.*;
                 _ = self.free_buffers.swapRemove(i);
 
-                buffer_info.last_used = std.time.milliTimestamp();
+                buffer_info.last_used = 0;
                 try self.allocated_buffers.put(handle, buffer_info);
 
                 return handle;
@@ -698,7 +698,7 @@ pub const MemoryPool = struct {
             .handle = handle,
             .size = size,
             .usage = usage,
-            .last_used = std.time.milliTimestamp(),
+            .last_used = 0,
         };
 
         try self.allocated_buffers.put(handle, buffer_info);
@@ -709,14 +709,14 @@ pub const MemoryPool = struct {
     pub fn freeBuffer(self: *MemoryPool, handle: u32) !void {
         if (self.allocated_buffers.fetchRemove(handle)) |kv| {
             var buffer_info = kv.value;
-            buffer_info.last_used = std.time.milliTimestamp();
+            buffer_info.last_used = 0;
             try self.free_buffers.append(self.allocator, buffer_info);
         }
     }
 
     /// Clean up old unused buffers to free memory
     pub fn cleanup(self: *MemoryPool, max_age_ms: i64) !void {
-        const current_time = std.time.milliTimestamp();
+        const current_time = 0;
 
         var i = self.free_buffers.items.len;
         while (i > 0) {

@@ -62,7 +62,7 @@ pub const FeatureManager = struct {
     descriptors: []const FeatureDescriptor,
     index_by_name: std.StringHashMap(usize),
     states: []InitState,
-    init_order: std.ArrayList(usize),
+    init_order: std.array_list.Managed(usize),
 
     /// Construct a manager for a static descriptor set.
     pub fn init(
@@ -90,7 +90,7 @@ pub const FeatureManager = struct {
             .descriptors = descriptors,
             .index_by_name = index_by_name,
             .states = states,
-            .init_order = std.ArrayList(usize).init(allocator),
+            .init_order = std.array_list.Managed(usize).init(allocator),
         };
     }
 
@@ -189,7 +189,7 @@ test "feature manager initializes dependencies once" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
 
-    var init_sequence = std.ArrayList([]const u8).init(arena.allocator());
+    var init_sequence = std.array_list.Managed([]const u8).init(arena.allocator());
 
     const descriptors = [_]FeatureDescriptor{
         .{

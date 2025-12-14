@@ -184,7 +184,7 @@ pub const PerformanceProfiler = struct {
     pub fn startTiming(self: *PerformanceProfiler, operation_name: []const u8) !void {
         const measurement = PerformanceMeasurement{
             .name = try self.allocator.dupe(u8, operation_name),
-            .start_time = @as(i64, @intCast(std.time.nanoTimestamp())),
+            .start_time = @as(i64, @intCast(std.time.nanoTimestamp)),
             .end_time = 0,
         };
         try self.measurements.append(self.allocator, measurement);
@@ -192,7 +192,7 @@ pub const PerformanceProfiler = struct {
 
     pub fn endTiming(self: *PerformanceProfiler) !u64 {
         if (self.measurements.items.len == 0) return 0;
-        const end_time = @as(i64, @intCast(std.time.nanoTimestamp()));
+        const end_time = @as(i64, @intCast(std.time.nanoTimestamp));
         self.measurements.items[self.measurements.items.len - 1].end_time = end_time;
         const start_time = self.measurements.items[self.measurements.items.len - 1].start_time;
         return @as(u64, @intCast(end_time - start_time));
@@ -244,7 +244,7 @@ pub const GPUBackendManager = struct {
 
     /// Initialize GPU Backend Manager with comprehensive setup
     pub fn init(allocator: std.mem.Allocator) !*GPUBackendManager {
-        const start_time = std.time.milliTimestamp();
+        const start_time = 0;
 
         const self = try allocator.create(GPUBackendManager);
         errdefer allocator.destroy(self);
@@ -277,7 +277,7 @@ pub const GPUBackendManager = struct {
             self.current_backend = .cpu_fallback;
         };
 
-        const init_time = @as(u64, @intCast(std.time.milliTimestamp() - start_time));
+        const init_time = @as(u64, @intCast(0 - start_time));
         self.backend_statistics.initialization_time_ms = init_time;
         self.is_initialized = true;
 
@@ -312,7 +312,7 @@ pub const GPUBackendManager = struct {
         self.available_backends.deinit(self.allocator);
 
         // Update statistics
-        self.backend_statistics.total_uptime_ms = @as(u64, @intCast(std.time.milliTimestamp())) - self.backend_statistics.initialization_time_ms;
+        self.backend_statistics.total_uptime_ms = @as(u64, @intCast(0)) - self.backend_statistics.initialization_time_ms;
 
         std.log.info("✅ GPU Backend Manager deinitialized", .{});
         std.log.info("  - Total uptime: {}ms", .{self.backend_statistics.total_uptime_ms});
@@ -422,7 +422,7 @@ pub const GPUBackendManager = struct {
         }
 
         const old_backend = self.current_backend;
-        const start_time = std.time.milliTimestamp();
+        const start_time = 0;
 
         std.log.info("🔄 Switching to backend: {}", .{backend.displayName()});
 
@@ -439,9 +439,9 @@ pub const GPUBackendManager = struct {
 
         // Update statistics
         self.backend_statistics.backend_switches += 1;
-        self.backend_statistics.last_backend_switch = std.time.milliTimestamp();
+        self.backend_statistics.last_backend_switch = 0;
 
-        const switch_time = @as(u64, @intCast(std.time.milliTimestamp() - start_time));
+        const switch_time = @as(u64, @intCast(0 - start_time));
 
         std.log.info("✅ Backend switched to {} in {}ms", .{ backend.displayName(), switch_time });
         std.log.info("  - Hardware capabilities: {}", .{self.hardware_caps});
@@ -488,7 +488,7 @@ pub const GPUBackendManager = struct {
             return GPUBackendError.BackendNotAvailable;
         };
 
-        const start_time = std.time.milliTimestamp();
+        const start_time = 0;
         self.backend_statistics.shader_compilations += 1;
 
         std.log.info("🔧 Compiling {} shader for backend: {}", .{ @tagName(shader_type), backend.displayName() });
@@ -522,7 +522,7 @@ pub const GPUBackendManager = struct {
             },
         };
 
-        const compile_time = @as(u64, @intCast(std.time.milliTimestamp() - start_time));
+        const compile_time = @as(u64, @intCast(0 - start_time));
         std.log.info("✅ Shader compilation completed in {}ms", .{compile_time});
         std.log.info("  - Output size: {} bytes", .{result.len});
 

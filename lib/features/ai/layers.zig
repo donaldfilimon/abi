@@ -5,6 +5,7 @@
 const std = @import("std");
 
 const accelerator = @import("../gpu/accelerator.zig");
+const ArrayList = std.array_list.Managed;
 
 /// Parameter storage with gradients
 pub const Parameter = struct {
@@ -46,14 +47,14 @@ pub const Parameter = struct {
 pub const Layer = struct {
     forward_fn: *const fn (*Layer, accelerator.DeviceMemory) accelerator.DeviceMemory,
     backward_fn: *const fn (*Layer, accelerator.DeviceMemory) void,
-    params: std.ArrayList(Parameter),
+    params: ArrayList(Parameter),
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) Layer {
         return .{
             .forward_fn = undefined,
             .backward_fn = undefined,
-            .params = std.ArrayList(Parameter).init(allocator),
+            .params = ArrayList(Parameter).init(allocator),
             .allocator = allocator,
         };
     }
@@ -111,7 +112,7 @@ pub const Dense = struct {
         const output = try self.accel.alloc(batch_size * self.output_size * @sizeOf(f32));
 
         // Compute y = Wx + b
-        var ops = accelerator.TensorOps.init(self.accel);
+        const ops = accelerator.TensorOps.init(self.accel);
         ops.matmul(output, self.weight.data, input, self.output_size, batch_size, self.input_size);
 
         // Add bias (broadcasted)
@@ -127,7 +128,7 @@ pub const Dense = struct {
 
     pub fn backward(self: *Dense, grad_output: accelerator.DeviceMemory, batch_size: usize) !accelerator.DeviceMemory {
         // Compute gradient w.r.t. weights: dW = grad_output^T @ input
-        var ops = accelerator.TensorOps.init(self.accel);
+        const ops = accelerator.TensorOps.init(self.accel);
         if (self.weight.grad) |weight_grad| {
             if (self.last_input) |input| {
                 ops.matmul(weight_grad, grad_output, input, self.output_size, self.input_size, batch_size);
@@ -157,7 +158,7 @@ pub const ReLU = struct {
 
     pub fn forward(self: *ReLU, input: accelerator.DeviceMemory, size: usize) !accelerator.DeviceMemory {
         const output = try self.accel.alloc(size * @sizeOf(f32));
-        var ops = accelerator.TensorOps.init(self.accel);
+        const ops = accelerator.TensorOps.init(self.accel);
         ops.relu(output, input, size);
 
         // Save for backward
@@ -189,12 +190,12 @@ pub const ReLU = struct {
 
 /// Sequential model container
 pub const Sequential = struct {
-    layers: std.ArrayList(*anyopaque),
+    layers: ArrayList(*anyopaque),
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) Sequential {
         return .{
-            .layers = std.ArrayList(*anyopaque).init(allocator),
+            .layers = ArrayList(*anyopaque).init(allocator),
             .allocator = allocator,
         };
     }
@@ -209,7 +210,7 @@ fn randomInit(accel: *accelerator.Accelerator, mem: *accelerator.DeviceMemory, c
     const data = try accel.allocator.alloc(f32, count);
     defer accel.allocator.free(data);
 
-    var prng = std.rand.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+    var prng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp));
     const random = prng.random();
 
     for (data) |*d| {

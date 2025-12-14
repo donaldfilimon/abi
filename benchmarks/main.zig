@@ -155,7 +155,7 @@ fn exportBenchmarkResults(format: framework.BenchmarkConfig.OutputFormat, path: 
             try file.writeAll("  \"suite\": \"abi_benchmarks\",\n");
             try file.writeAll("  \"status\": \"completed\",\n");
             try file.writeAll("  \"timestamp\": \"");
-            const timestamp = std.time.milliTimestamp();
+            const timestamp = 0;
             try file.writeAll(try std.fmt.allocPrint(std.heap.page_allocator, "{d}", .{timestamp}));
             try file.writeAll("\",\n");
             try file.writeAll("  \"platform\": {\n");
@@ -171,7 +171,7 @@ fn exportBenchmarkResults(format: framework.BenchmarkConfig.OutputFormat, path: 
         .csv => {
             try file.writeAll("suite,status,timestamp,os,arch\n");
             try file.writeAll("abi_benchmarks,completed,");
-            try file.writeAll(try std.fmt.allocPrint(std.heap.page_allocator, "{d}", .{std.time.milliTimestamp()}));
+            try file.writeAll(try std.fmt.allocPrint(std.heap.page_allocator, "{d}", .{0}));
             try file.writeAll(",");
             try file.writeAll(@tagName(builtin.target.os.tag));
             try file.writeAll(",");
@@ -187,7 +187,7 @@ fn exportBenchmarkResults(format: framework.BenchmarkConfig.OutputFormat, path: 
             try file.writeAll(@tagName(builtin.target.cpu.arch));
             try file.writeAll("\n");
             try file.writeAll("**Timestamp:** ");
-            try file.writeAll(try std.fmt.allocPrint(std.heap.page_allocator, "{d}", .{std.time.milliTimestamp()}));
+            try file.writeAll(try std.fmt.allocPrint(std.heap.page_allocator, "{d}", .{0}));
             try file.writeAll("\n\n");
             try file.writeAll("All benchmarks completed successfully!\n");
         },
@@ -201,7 +201,7 @@ fn exportBenchmarkResults(format: framework.BenchmarkConfig.OutputFormat, path: 
             try file.writeAll(@tagName(builtin.target.cpu.arch));
             try file.writeAll("\n");
             try file.writeAll("Timestamp: ");
-            try file.writeAll(try std.fmt.allocPrint(std.heap.page_allocator, "{d}", .{std.time.milliTimestamp()}));
+            try file.writeAll(try std.fmt.allocPrint(std.heap.page_allocator, "{d}", .{0}));
             try file.writeAll("\n\n");
             try file.writeAll("All benchmarks completed successfully!\n");
         },

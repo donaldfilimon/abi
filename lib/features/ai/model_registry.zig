@@ -87,8 +87,8 @@ pub const ModelEntry = struct {
             .version = version_copy,
             .architecture = "",
             .framework = "ABI",
-            .created_at = @as(u64, @intCast(std.time.nanoTimestamp())),
-            .updated_at = @as(u64, @intCast(std.time.nanoTimestamp())),
+            .created_at = @as(u64, @intCast(std.time.nanoTimestamp)),
+            .updated_at = @as(u64, @intCast(std.time.nanoTimestamp)),
             .author = "",
             .description = "",
             .input_shape = &[_]usize{},
@@ -204,7 +204,7 @@ pub const ModelRegistry = struct {
 
         try self.metrics_history.put(metrics_id_copy, ArrayList(PerformanceMetrics).initCapacity(self.allocator, 0));
 
-        std.debug.print("Registered model: {} v{}\n", .{ entry.name, entry.version });
+        std.debug.print("Registered model: {s} v{s}\n", .{ entry.name, entry.version });
     }
 
     /// Get model by ID
@@ -263,7 +263,7 @@ pub const ModelRegistry = struct {
     pub fn promoteToProduction(self: *ModelRegistry, model_id: []const u8) !void {
         const model = self.getModel(model_id) orelse return error.ModelNotFound;
         model.deployment_status = .production;
-        model.updated_at = @as(u64, @intCast(std.time.nanoTimestamp()));
+        model.updated_at = @as(u64, @intCast(std.time.nanoTimestamp));
 
         // Set deployment version
         if (model.deployment_version) |dv| {
@@ -271,7 +271,7 @@ pub const ModelRegistry = struct {
         }
         model.deployment_version = try self.allocator.dupe(u8, model.version);
 
-        std.debug.print("Promoted model {} to production\n", .{model.name});
+        std.debug.print("Promoted model {s} to production\n", .{model.name});
     }
 
     /// Archive old model versions
@@ -284,10 +284,10 @@ pub const ModelRegistry = struct {
         // Archive older versions
         for (versions[keep_versions..]) |model| {
             model.deployment_status = .archived;
-            model.updated_at = @as(u64, @intCast(std.time.nanoTimestamp()));
+            model.updated_at = @as(u64, @intCast(std.time.nanoTimestamp));
         }
 
-        std.debug.print("Archived {} old versions of model {}\n", .{ versions.len - keep_versions, model_name });
+        std.debug.print("Archived {} old versions of model {s}\n", .{ versions.len - keep_versions, model_name });
     }
 
     /// Search models by tags

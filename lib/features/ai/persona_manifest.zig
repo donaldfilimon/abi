@@ -4,6 +4,7 @@
 //! safety filters, sampling parameters, and runtime toggles.
 
 const std = @import("std");
+const ArrayList = std.array_list.Managed;
 const profile = @import("../../shared/core/profile.zig");
 
 pub const Allocator = std.mem.Allocator;
@@ -118,13 +119,13 @@ pub const PersonaManifest = struct {
 
 pub const PersonaRegistry = struct {
     allocator: Allocator,
-    manifests: std.ArrayList(PersonaManifest),
+    manifests: ArrayList(PersonaManifest),
     index: std.StringHashMap(usize),
 
     pub fn init(allocator: Allocator) PersonaRegistry {
         return .{
             .allocator = allocator,
-            .manifests = std.ArrayList(PersonaManifest).init(allocator),
+            .manifests = ArrayList(PersonaManifest).init(allocator),
             .index = std.StringHashMap(usize).init(allocator),
         };
     }

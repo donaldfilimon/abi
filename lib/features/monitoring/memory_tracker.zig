@@ -140,7 +140,7 @@ pub const MemoryProfiler = struct {
             .records = try std.ArrayListUnmanaged(AllocationRecord).initCapacity(allocator, config.max_records / 4),
             .stats = .{},
             .timer = if (config.enable_periodic_stats) try std.time.Timer.start() else null,
-            .last_stats_time = @as(u64, @intCast(std.time.nanoTimestamp())),
+            .last_stats_time = @as(u64, @intCast(std.time.nanoTimestamp)),
         };
 
         return self;
@@ -201,7 +201,7 @@ pub const MemoryProfiler = struct {
         self.next_id += 1;
 
         // Fix timestamp issue: Use monotonic time source for consistent timestamps
-        const timestamp = if (self.timer) |*timer| timer.read() else std.time.nanoTimestamp();
+        const timestamp = if (self.timer) |*timer| timer.read() else std.time.nanoTimestamp;
 
         // Create allocation record
         const record = AllocationRecord{
@@ -303,7 +303,7 @@ pub const MemoryProfiler = struct {
         for (self.records.items) |*record| {
             if (record.id == id and !record.freed) {
                 record.freed = true;
-                record.freed_timestamp = @as(u64, @intCast(if (self.timer) |*timer| timer.read() else std.time.nanoTimestamp()));
+                record.freed_timestamp = @as(u64, @intCast(if (self.timer) |*timer| timer.read() else std.time.nanoTimestamp));
 
                 // Update statistics
                 self.stats.total_freed += record.size;
@@ -321,7 +321,7 @@ pub const MemoryProfiler = struct {
         defer self.mutex.unlock();
 
         var stats = self.stats;
-        stats.timestamp = @as(u64, @intCast(if (self.timer) |*timer| timer.read() else std.time.nanoTimestamp()));
+        stats.timestamp = @as(u64, @intCast(if (self.timer) |*timer| timer.read() else std.time.nanoTimestamp));
         return stats;
     }
 
@@ -330,7 +330,7 @@ pub const MemoryProfiler = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const current_time = std.time.nanoTimestamp();
+        const current_time = std.time.nanoTimestamp;
         var leaks = std.ArrayListUnmanaged(AllocationRecord){};
 
         for (self.records.items) |record| {
@@ -348,7 +348,7 @@ pub const MemoryProfiler = struct {
         defer self.mutex.unlock();
 
         const stats = self.getStats();
-        const current_time = std.time.nanoTimestamp();
+        const current_time = std.time.nanoTimestamp;
 
         var report = std.ArrayListUnmanaged(u8){};
         errdefer report.deinit(allocator);
@@ -656,7 +656,7 @@ pub const PerformanceMonitor = struct {
 
     /// Start performance measurement
     pub fn start(self: *PerformanceMonitor) void {
-        self.start_time = std.time.nanoTimestamp();
+        self.start_time = std.time.nanoTimestamp;
         if (self.profiler) |profiler| {
             self.start_memory = profiler.getStats().currentUsage();
         }
@@ -664,7 +664,7 @@ pub const PerformanceMonitor = struct {
 
     /// End performance measurement
     pub fn end(self: *PerformanceMonitor) void {
-        self.end_time = std.time.nanoTimestamp();
+        self.end_time = std.time.nanoTimestamp;
         if (self.profiler) |profiler| {
             self.end_memory = profiler.getStats().currentUsage();
         }

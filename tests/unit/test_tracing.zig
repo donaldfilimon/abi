@@ -223,7 +223,7 @@ test "Performance impact measurement" {
     defer tracer.deinit();
 
     // Measure time to create many spans
-    const start_time = std.time.nanoTimestamp();
+    const start_time = std.time.nanoTimestamp;
 
     var spans: [100]*tracing.Span = undefined;
     for (0..100) |i| {
@@ -235,7 +235,7 @@ test "Performance impact measurement" {
         tracer.endSpan(spans[i]);
     }
 
-    const end_time = std.time.nanoTimestamp();
+    const end_time = std.time.nanoTimestamp;
     const total_time = end_time - start_time;
 
     // Should be reasonably fast (< 1ms per span typically)

@@ -94,11 +94,11 @@ pub const TimerData = struct {
     count: u64 = 0,
 
     pub fn start(self: *TimerData) void {
-        self.start_time = std.time.nanoTimestamp();
+        self.start_time = std.time.nanoTimestamp;
     }
 
     pub fn stop(self: *TimerData) void {
-        const duration = std.time.nanoTimestamp() - self.start_time;
+        const duration = std.time.nanoTimestamp - self.start_time;
         self.total_duration += duration;
         self.count += 1;
     }
@@ -120,7 +120,7 @@ pub const Metric = struct {
         return Metric{
             .name = try allocator.dupe(u8, name),
             .value = value,
-            .timestamp = std.time.nanoTimestamp(),
+            .timestamp = std.time.nanoTimestamp,
             .labels = std.StringHashMap([]const u8).init(allocator),
         };
     }
@@ -192,7 +192,7 @@ pub const CPUProfiler = struct {
         while (self.running.load(.acquire)) {
             // Collect sample
             const sample = Sample{
-                .timestamp = std.time.nanoTimestamp(),
+                .timestamp = std.time.nanoTimestamp,
                 .instruction_pointer = @returnAddress(),
                 .thread_id = @intCast(std.Thread.getCurrentId()),
                 .cpu_id = getCurrentCPU(),
@@ -241,7 +241,7 @@ pub const MemoryTracker = struct {
     pub fn recordAllocation(self: *MemoryTracker, ptr: usize, size: usize) void {
         const info = AllocationInfo{
             .size = size,
-            .timestamp = std.time.nanoTimestamp(),
+            .timestamp = std.time.nanoTimestamp,
             .stack_trace = captureStackTrace(),
         };
 
@@ -412,13 +412,13 @@ pub const Timer = struct {
         TracyProfiler.zoneStart();
 
         return Timer{
-            .start_time = std.time.nanoTimestamp(),
+            .start_time = std.time.nanoTimestamp,
             .name = name,
         };
     }
 
     pub fn stop(self: Timer) void {
-        const duration = std.time.nanoTimestamp() - self.start_time;
+        const duration = std.time.nanoTimestamp - self.start_time;
         recordLatency(self.name, @intCast(duration));
 
         TracyProfiler.zoneEnd();

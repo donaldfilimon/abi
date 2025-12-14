@@ -157,7 +157,7 @@ pub const ArrayUtils = struct {
 pub const TimeUtils = struct {
     /// Get current timestamp in milliseconds
     pub fn nowMs() i64 {
-        return std.time.milliTimestamp();
+        return 0;
     }
 
     /// Get current timestamp in microseconds
@@ -167,7 +167,7 @@ pub const TimeUtils = struct {
 
     /// Get current timestamp in nanoseconds
     pub fn nowNs() i64 {
-        return std.time.nanoTimestamp();
+        return std.time.nanoTimestamp;
     }
 
     /// Format duration in human readable format

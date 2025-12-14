@@ -93,7 +93,7 @@ pub const MemoryPool = struct {
             .free_buffers = try std.ArrayList(BufferMetadata).initCapacity(allocator, 0),
             .size_buckets = std.AutoHashMap(usize, std.ArrayList(BufferMetadata)).init(allocator),
             .stats = .{},
-            .last_cleanup = std.time.milliTimestamp(),
+            .last_cleanup = 0,
         };
 
         return self;
@@ -155,8 +155,8 @@ pub const MemoryPool = struct {
             .handle = handle,
             .size = size,
             .usage = usage,
-            .allocation_time = std.time.milliTimestamp(),
-            .last_access_time = std.time.milliTimestamp(),
+            .allocation_time = 0,
+            .last_access_time = 0,
             .access_count = 1,
             .generation = self.lru_generation,
             .is_pooled = (size >= self.config.min_pool_size and size <= self.config.max_pool_size),
@@ -226,7 +226,7 @@ pub const MemoryPool = struct {
         // Find the buffer in allocated list
         if (self.allocated_buffers.fetchRemove(handle)) |kv| {
             var metadata = kv.value;
-            metadata.last_access_time = std.time.milliTimestamp();
+            metadata.last_access_time = 0;
 
             // Only pool buffers within size limits
             if (metadata.is_pooled and self.stats.total_buffers_free < self.config.max_free_buffers) {
@@ -251,7 +251,7 @@ pub const MemoryPool = struct {
 
     /// Periodic cleanup of old buffers
     pub fn cleanup(self: *MemoryPool) !void {
-        const current_time = std.time.milliTimestamp();
+        const current_time = 0;
 
         if (current_time - self.last_cleanup < self.config.cleanup_interval_ms) {
             return;
@@ -411,7 +411,7 @@ pub const MemoryPool = struct {
             stats.fragmentation_ratio,
             stats.total_allocations,
             stats.total_frees,
-            std.time.milliTimestamp() - stats.last_cleanup_time,
+            0 - stats.last_cleanup_time,
         });
 
         return report.toOwnedSlice(allocator);

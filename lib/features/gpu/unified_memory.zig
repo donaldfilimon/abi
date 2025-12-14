@@ -180,7 +180,7 @@ pub const UnifiedMemoryManager = struct {
             self.statistics.peak_allocated = @max(self.statistics.peak_allocated, self.statistics.total_allocated);
             self.statistics.allocation_count += 1;
             self.statistics.average_allocation_size = self.statistics.total_allocated / self.statistics.allocation_count;
-            self.statistics.last_allocation_time = std.time.milliTimestamp();
+            self.statistics.last_allocation_time = 0;
 
             std.log.debug("✅ Allocated {} bytes of unified memory (total: {} MB)", .{ aligned_size, self.statistics.total_allocated / (1024 * 1024) });
             return memory;

@@ -374,7 +374,7 @@ test "benchmark baseline establishment" {
     var results = try std.array_list.Managed(BaselineResult).initCapacity(testing.allocator, 16);
     defer results.deinit();
 
-    const timestamp = std.time.nanoTimestamp();
+    const timestamp = std.time.nanoTimestamp;
 
     // Benchmark 1: Simple SIMD dot product
     {

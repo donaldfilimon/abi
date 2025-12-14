@@ -249,18 +249,18 @@ test "Performance logging" {
     defer logger.deinit();
 
     // Measure logging performance
-    const start_time = std.time.nanoTimestamp();
+    const start_time = std.time.nanoTimestamp;
 
     // Log many messages
     var i: usize = 0;
     while (i < 100) : (i += 1) {
         try logger.info("Performance test", .{
             .iteration = i,
-            .timestamp = std.time.nanoTimestamp(),
+            .timestamp = std.time.nanoTimestamp,
         }, @src());
     }
 
-    const end_time = std.time.nanoTimestamp();
+    const end_time = std.time.nanoTimestamp;
     const total_time = end_time - start_time;
     const avg_time_per_log = total_time / 100;
 

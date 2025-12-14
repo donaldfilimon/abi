@@ -266,7 +266,7 @@ pub const MatrixOps = struct {
 
     /// Optimized CPU matrix multiplication (simulates GPU kernel behavior)
     fn matmulCpuOptimizedSlices(self: *MatrixOps, a: []const f32, b: []const f32, c: []f32, m: usize, n: usize, p: usize) void {
-        const start = std.time.nanoTimestamp();
+        const start = std.time.nanoTimestamp;
 
         @memset(c, 0.0);
 
@@ -284,7 +284,7 @@ pub const MatrixOps = struct {
         }
 
         self.renderer.stats.bytes_written += @as(u64, @intCast(c.len * @sizeOf(f32)));
-        self.renderer.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp() - start));
+        self.renderer.stats.last_operation_time_ns = @as(u64, @intCast(std.time.nanoTimestamp - start));
     }
 
     /// Matrix transpose
@@ -782,7 +782,7 @@ fn printTensor(tensor: *Tensor) void {
 }
 
 fn fillDeterministic(values: []f32, seed: u64) void {
-    var prng = std.rand.DefaultPrng.init(seed);
+    var prng = std.Random.DefaultPrng.init(seed);
     var random = prng.random();
     for (values) |*value| {
         value.* = random.float(f32) * 2.0 - 1.0;

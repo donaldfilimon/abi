@@ -158,7 +158,7 @@ pub const Logger = struct {
         defer allocator.free(msg_str);
         try buffer.appendSlice(allocator, msg_str);
 
-        const timestamp_str = try std.fmt.allocPrint(allocator, "\"timestamp\":{},", .{std.time.nanoTimestamp()});
+        const timestamp_str = try std.fmt.allocPrint(allocator, "\"timestamp\":{},", .{std.time.nanoTimestamp});
         defer allocator.free(timestamp_str);
         try buffer.appendSlice(allocator, timestamp_str);
 

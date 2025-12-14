@@ -5,8 +5,8 @@
 
 const std = @import("std");
 
-/// Standardized ArrayList type alias
-pub const ArrayList = std.ArrayList;
+/// Standardized ArrayList type alias (managed variant keeps allocator on the instance)
+pub const ArrayList = std.array_list.Managed;
 
 /// Standardized StringHashMap type alias
 pub const StringHashMap = std.StringHashMap;

@@ -21,14 +21,14 @@ fn benchmarkFrameworkInitialization() !void {
     std.log.info("Benchmarking framework initialization...", .{});
 
     const iterations = 1000;
-    const start_time = std.time.nanoTimestamp();
+    const start_time = std.time.nanoTimestamp;
 
     for (0..iterations) |_| {
         var framework = try abi.createDefaultFramework(std.heap.page_allocator);
         defer framework.deinit();
     }
 
-    const end_time = std.time.nanoTimestamp();
+    const end_time = std.time.nanoTimestamp;
     const total_time = end_time - start_time;
     const avg_time = total_time / iterations;
 
@@ -42,7 +42,7 @@ fn benchmarkFeatureManagement() !void {
     defer framework.deinit();
 
     const iterations = 10000;
-    const start_time = std.time.nanoTimestamp();
+    const start_time = std.time.nanoTimestamp;
 
     for (0..iterations) |_| {
         framework.enableFeature(.gpu);
@@ -51,7 +51,7 @@ fn benchmarkFeatureManagement() !void {
         framework.disableFeature(.connectors);
     }
 
-    const end_time = std.time.nanoTimestamp();
+    const end_time = std.time.nanoTimestamp;
     const total_time = end_time - start_time;
     const avg_time = total_time / iterations;
 
@@ -65,7 +65,7 @@ fn benchmarkMemoryAllocation() !void {
     const allocator = tracked.allocator();
 
     const iterations = 1000;
-    const start_time = std.time.nanoTimestamp();
+    const start_time = std.time.nanoTimestamp;
 
     for (0..iterations) |_| {
         var list = abi.core.utils.createArrayList(u32, allocator);
@@ -82,7 +82,7 @@ fn benchmarkMemoryAllocation() !void {
         }
     }
 
-    const end_time = std.time.nanoTimestamp();
+    const end_time = std.time.nanoTimestamp;
     const total_time = end_time - start_time;
     const avg_time = total_time / iterations;
 
@@ -98,7 +98,7 @@ fn benchmarkComponentRegistration() !void {
     defer framework.deinit();
 
     const iterations = 1000;
-    const start_time = std.time.nanoTimestamp();
+    const start_time = std.time.nanoTimestamp;
 
     for (0..iterations) |i| {
         const component = abi.framework.Component{
@@ -110,7 +110,7 @@ fn benchmarkComponentRegistration() !void {
         try framework.registerComponent(component);
     }
 
-    const end_time = std.time.nanoTimestamp();
+    const end_time = std.time.nanoTimestamp;
     const total_time = end_time - start_time;
     const avg_time = total_time / iterations;
 
@@ -138,12 +138,12 @@ fn benchmarkRuntimeOperations() !void {
     const iterations = 100;
 
     // Benchmark start/stop cycle
-    const start_stop_start = std.time.nanoTimestamp();
+    const start_stop_start = std.time.nanoTimestamp;
     for (0..iterations) |_| {
         try framework.start();
         framework.stop();
     }
-    const start_stop_time = std.time.nanoTimestamp() - start_stop_start;
+    const start_stop_time = std.time.nanoTimestamp - start_stop_start;
     const start_stop_avg = start_stop_time / iterations;
 
     std.log.info("Start/stop cycle: {}ns per iteration ({} total)", .{ start_stop_avg, start_stop_time });
@@ -152,21 +152,21 @@ fn benchmarkRuntimeOperations() !void {
     try framework.start();
     defer framework.stop();
 
-    const update_start = std.time.nanoTimestamp();
+    const update_start = std.time.nanoTimestamp;
     for (0..iterations * 10) |_| {
         framework.update(0.016); // ~60 FPS
     }
-    const update_time = std.time.nanoTimestamp() - update_start;
+    const update_time = std.time.nanoTimestamp - update_start;
     const update_avg = update_time / (iterations * 10);
 
     std.log.info("Runtime updates: {}ns per iteration ({} total)", .{ update_avg, update_time });
 
     // Benchmark stats collection
-    const stats_start = std.time.nanoTimestamp();
+    const stats_start = std.time.nanoTimestamp;
     for (0..iterations) |_| {
         _ = framework.getStats();
     }
-    const stats_time = std.time.nanoTimestamp() - stats_start;
+    const stats_time = std.time.nanoTimestamp - stats_start;
     const stats_avg = stats_time / iterations;
 
     std.log.info("Stats collection: {}ns per iteration ({} total)", .{ stats_avg, stats_time });
@@ -178,7 +178,7 @@ fn benchmarkCollectionOperations() !void {
     const iterations = 10000;
 
     // Benchmark ArrayList operations
-    const list_start = std.time.nanoTimestamp();
+    const list_start = std.time.nanoTimestamp;
     for (0..iterations) |_| {
         var list = abi.core.utils.createArrayList(u32, std.testing.allocator);
         defer list.deinit();
@@ -192,13 +192,13 @@ fn benchmarkCollectionOperations() !void {
             if (item == 50) break;
         }
     }
-    const list_time = std.time.nanoTimestamp() - list_start;
+    const list_time = std.time.nanoTimestamp - list_start;
     const list_avg = list_time / iterations;
 
     std.log.info("ArrayList operations: {}ns per iteration ({} total)", .{ list_avg, list_time });
 
     // Benchmark StringHashMap operations
-    const map_start = std.time.nanoTimestamp();
+    const map_start = std.time.nanoTimestamp;
     for (0..iterations) |_| {
         var map = abi.core.utils.createStringHashMap(u32, std.testing.allocator);
         defer map.deinit();
@@ -214,7 +214,7 @@ fn benchmarkCollectionOperations() !void {
         const lookup_key = "key_50";
         _ = map.get(lookup_key);
     }
-    const map_time = std.time.nanoTimestamp() - map_start;
+    const map_time = std.time.nanoTimestamp - map_start;
     const map_avg = map_time / iterations;
 
     std.log.info("StringHashMap operations: {}ns per iteration ({} total)", .{ map_avg, map_time });

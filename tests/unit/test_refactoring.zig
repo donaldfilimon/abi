@@ -245,13 +245,13 @@ test "SIMD matrix operations" {
 
 test "SIMD performance monitoring" {
     const monitor = simd.getPerformanceMonitor();
-    const start_time = std.time.nanoTimestamp();
+    const start_time = std.time.nanoTimestamp;
 
     const a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const b = [_]f32{ 2.0, 3.0, 4.0, 5.0 };
     _ = simd.distance(&a, &b);
 
-    const end_time = std.time.nanoTimestamp();
+    const end_time = std.time.nanoTimestamp;
     const duration = @as(u64, @intCast(end_time - start_time));
 
     monitor.recordOperation(duration, true);

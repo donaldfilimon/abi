@@ -75,7 +75,7 @@ pub const Version = struct {
 
     /// Creates a version from string
     pub fn fromString(version_string: []const u8) !Version {
-        var parts = std.mem.split(u8, version_string, ".");
+        var parts = std.mem.splitScalar(u8, version_string, '.');
         const major_str = parts.next() orelse return error.InvalidVersion;
         const minor_str = parts.next() orelse return error.InvalidVersion;
         const patch_str = parts.next() orelse return error.InvalidVersion;
@@ -104,11 +104,11 @@ pub const Version = struct {
 const std = @import("std");
 
 test "types - result" {
-    const result = GenericResult(u32).success(42);
+    const result = GenericResult(u32).makeSuccess(42);
     try std.testing.expect(result.success);
     try std.testing.expectEqual(@as(u32, 42), result.value);
 
-    const failure = GenericResult(u32).failure("test error");
+    const failure = GenericResult(u32).makeFailure("test error");
     try std.testing.expect(!failure.success);
     try std.testing.expectEqualStrings("test error", failure.error_message);
 }

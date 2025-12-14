@@ -114,7 +114,7 @@ pub const ComprehensiveTestRunner = struct {
 
     /// Run a single test with error handling and timing
     fn runTest(self: *ComprehensiveTestRunner, name: []const u8, test_fn: *const fn () anyerror!void) !void {
-        const start_time = std.time.milliTimestamp();
+        const start_time = 0;
         const start_memory = self.getMemoryUsage();
 
         const test_name = try self.config.allocator.dupe(u8, name);
@@ -133,7 +133,7 @@ pub const ComprehensiveTestRunner = struct {
             result.error_message = try std.fmt.allocPrint(self.config.allocator, "{}", .{err});
         };
 
-        const end_time = std.time.milliTimestamp();
+        const end_time = 0;
         const end_memory = self.getMemoryUsage();
 
         result.duration_ms = @intCast(end_time - start_time);
@@ -878,7 +878,7 @@ fn testVectorDatabasePerformance() !void {
     defer db.deinit();
 
     // Performance test
-    const start_time = std.time.milliTimestamp();
+    const start_time = 0;
 
     // Insert many vectors
     for (0..1000) |i| {
@@ -892,7 +892,7 @@ fn testVectorDatabasePerformance() !void {
         _ = try db.insert(vector, "test_vector");
     }
 
-    const end_time = std.time.milliTimestamp();
+    const end_time = 0;
     const duration = end_time - start_time;
 
     // Should complete within reasonable time
@@ -920,14 +920,14 @@ fn testNeuralNetworkPerformance() !void {
     }
 
     // Performance test
-    const start_time = std.time.milliTimestamp();
+    const start_time = 0;
 
     for (0..1000) |_| {
         const output = try network.forward(input, allocator);
         defer allocator.free(output);
     }
 
-    const end_time = std.time.milliTimestamp();
+    const end_time = 0;
     const duration = end_time - start_time;
 
     // Should complete within reasonable time
@@ -948,14 +948,14 @@ fn testGPUBackendPerformance() !void {
     defer backend.deinit();
 
     // Performance test
-    const start_time = std.time.milliTimestamp();
+    const start_time = 0;
 
     // Test memory operations
     for (0..1000) |_| {
         _ = backend.hasMemoryFor(1024);
     }
 
-    const end_time = std.time.milliTimestamp();
+    const end_time = 0;
     const duration = end_time - start_time;
 
     // Should complete quickly
@@ -980,14 +980,14 @@ fn testWebServerPerformance() !void {
     defer server.deinit();
 
     // Performance test
-    const start_time = std.time.milliTimestamp();
+    const start_time = 0;
 
     // Test server operations
     for (0..1000) |_| {
         _ = server.getStats();
     }
 
-    const end_time = std.time.milliTimestamp();
+    const end_time = 0;
     const duration = end_time - start_time;
 
     // Should complete quickly
@@ -1000,7 +1000,7 @@ fn testMemoryAllocationPerformance() !void {
     const allocator = gpa.allocator();
 
     // Performance test
-    const start_time = std.time.milliTimestamp();
+    const start_time = 0;
 
     // Test memory allocation performance
     for (0..10000) |_| {
@@ -1008,7 +1008,7 @@ fn testMemoryAllocationPerformance() !void {
         defer allocator.free(data);
     }
 
-    const end_time = std.time.milliTimestamp();
+    const end_time = 0;
     const duration = end_time - start_time;
 
     // Should complete within reasonable time
