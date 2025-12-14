@@ -51,7 +51,7 @@ fn testBasicConnectivity(_: std.mem.Allocator) !void {
                 error.ConnectionRefused => std.debug.print("❌ Connection refused (port closed)\n", .{}),
                 error.ConnectionResetByPeer => std.debug.print("⚠️ Connection reset by peer\n", .{}),
                 error.Unexpected => std.debug.print("⚠️ Unexpected error (normal on Windows)\n", .{}),
-                else => std.debug.print("❌ Other error: {}\n", .{err}),
+                else => std.debug.print("❌ Other error: {s}\n", .{@errorName(err)}),
             }
             continue;
         };
