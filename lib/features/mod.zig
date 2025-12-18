@@ -7,7 +7,8 @@ const std = @import("std");
 /// Symbolic identifiers for the high level feature families exposed by the
 /// framework module. Keeping the enum local avoids circular dependencies with
 /// `framework/config.zig` while still enabling compile-time iteration.
-pub const FeatureTag = enum { ai, gpu, database, web, monitoring, connectors };
+pub const FeatureTag = enum { ai, gpu, database, web, monitoring, connectors, simd };
+pub const feature_count = std.enums.values(FeatureTag).len;
 
 /// Public feature modules grouped for discoverability.
 pub const ai = @import("ai/mod.zig");
@@ -51,6 +52,7 @@ pub const config = struct {
             .web => "web",
             .monitoring => "monitoring",
             .connectors => "connectors",
+            .simd => "simd",
         };
     }
 
@@ -63,6 +65,7 @@ pub const config = struct {
             .web => "Web services and HTTP",
             .monitoring => "Observability and metrics",
             .connectors => "External service connectors",
+            .simd => "SIMD acceleration and vectorized math",
         };
     }
 };
@@ -75,6 +78,7 @@ pub fn forEachFeature(ctx: anytype, visitor: anytype) void {
     visitor(ctx, .web, "features/web/mod.zig");
     visitor(ctx, .monitoring, "features/monitoring/mod.zig");
     visitor(ctx, .connectors, "features/connectors/mod.zig");
+    visitor(ctx, .simd, "shared/simd.zig");
 }
 
 /// Feature initialization and lifecycle management
@@ -89,6 +93,7 @@ pub const lifecycle = struct {
                 .web => try web.init(allocator),
                 .monitoring => try monitoring.init(allocator),
                 .connectors => try connectors.init(allocator),
+                .simd => {},
             }
         }
     }
@@ -103,6 +108,7 @@ pub const lifecycle = struct {
                 .web => web.deinit(),
                 .monitoring => monitoring.deinit(),
                 .connectors => connectors.deinit(),
+                .simd => {},
             }
         }
     }

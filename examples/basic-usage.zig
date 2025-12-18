@@ -19,7 +19,7 @@ pub fn main() !void {
 
     // Check which features are enabled
     std.log.info("Enabled features:", .{});
-    const features = [_]abi.features.FeatureTag{ .ai, .gpu, .database, .web, .monitoring, .connectors };
+    const features = [_]abi.features.FeatureTag{ .ai, .gpu, .database, .web, .monitoring, .connectors, .simd };
     for (features) |feature| {
         const enabled = framework.isFeatureEnabled(feature);
         const status = if (enabled) "enabled" else "disabled";

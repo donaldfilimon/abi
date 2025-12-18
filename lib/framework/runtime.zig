@@ -14,7 +14,7 @@ pub const RuntimeConfig = struct {
     enable_profiling: bool = false,
     memory_limit_mb: ?u32 = null,
     log_level: LogLevel = .info,
-    enabled_features: []const features.FeatureTag = &[_]features.FeatureTag{ .ai, .database, .web, .monitoring },
+    enabled_features: []const features.FeatureTag = &[_]features.FeatureTag{ .ai, .database, .web, .monitoring, .simd },
     disabled_features: []const features.FeatureTag = &[_]features.FeatureTag{},
 
     pub const LogLevel = enum {
@@ -264,6 +264,7 @@ test "framework runtime - basic operations" {
 
     // Test feature management
     try testing.expect(framework.isFeatureEnabled(.ai));
+    try testing.expect(framework.isFeatureEnabled(.simd));
     try testing.expect(!framework.isFeatureEnabled(.gpu));
 
     framework.enableFeature(.gpu);
@@ -291,6 +292,7 @@ test "framework - feature configuration" {
     try testing.expect(framework.isFeatureEnabled(.ai));
     try testing.expect(!framework.isFeatureEnabled(.gpu)); // Disabled overrides enabled
     try testing.expect(!framework.isFeatureEnabled(.database));
+    try testing.expect(!framework.isFeatureEnabled(.simd));
 }
 
 test "runtime feature bitset stays aligned with feature flags mapping" {
