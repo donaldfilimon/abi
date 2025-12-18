@@ -67,7 +67,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     // Initialize the framework
-    var framework = try abi.init(allocator, .{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     // Print framework version
@@ -104,7 +104,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     // Initialize framework
-    var framework = try abi.init(allocator, .{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     // Create an AI agent
@@ -146,7 +146,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, .{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     // Create a vector (embedding)
@@ -218,7 +218,7 @@ test "framework initialization" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, .{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     try testing.expect(framework.state == .initialized);
@@ -229,7 +229,7 @@ test "agent creation and processing" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, .{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     const Agent = abi.ai.agent.Agent;

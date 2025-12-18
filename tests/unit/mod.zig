@@ -49,6 +49,7 @@ test "features configuration" {
     try std.testing.expect(!flags.isSet(1)); // gpu
     try std.testing.expect(flags.isSet(2)); // database
     try std.testing.expect(flags.isSet(3)); // web
+    try std.testing.expect(!flags.isSet(6)); // simd
 }
 
 test "framework initialization" {
@@ -58,6 +59,7 @@ test "framework initialization" {
     try std.testing.expect(!framework.isRunning());
     try std.testing.expect(framework.isFeatureEnabled(.ai));
     try std.testing.expect(framework.isFeatureEnabled(.database));
+    try std.testing.expect(framework.isFeatureEnabled(.simd));
 }
 
 test "framework feature management" {
