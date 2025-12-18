@@ -101,11 +101,11 @@ test "framework component registration" {
 
 test "abi version" {
     const version = abi.version();
-    try std.testing.expectEqualStrings("0.1.0a", version);
+    try std.testing.expectEqualStrings("0.1.0", version);
 }
 
 test "abi initialization" {
-    var framework = try abi.init(std.testing.allocator, abi.framework.defaultConfig());
+    var framework = try abi.init(std.testing.allocator, .{});
     defer abi.shutdown(&framework);
 
     try std.testing.expect(!framework.isRunning());

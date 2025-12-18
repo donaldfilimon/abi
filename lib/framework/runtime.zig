@@ -25,6 +25,24 @@ pub const RuntimeConfig = struct {
     };
 };
 
+fn normalizeConfig(allocator: std.mem.Allocator, config: RuntimeConfig) !RuntimeConfig {
+    const enabled_features = try allocator.dupe(features.FeatureTag, config.enabled_features);
+    errdefer allocator.free(enabled_features);
+
+    const disabled_features = try allocator.dupe(features.FeatureTag, config.disabled_features);
+    errdefer allocator.free(disabled_features);
+
+    return RuntimeConfig{
+        .max_plugins = config.max_plugins,
+        .enable_hot_reload = config.enable_hot_reload,
+        .enable_profiling = config.enable_profiling,
+        .memory_limit_mb = config.memory_limit_mb,
+        .log_level = config.log_level,
+        .enabled_features = enabled_features,
+        .disabled_features = disabled_features,
+    };
+}
+
 /// Component interface for the runtime system
 pub const Component = struct {
     name: []const u8,
@@ -92,9 +110,15 @@ pub const Framework = struct {
     enabled_features: std.StaticBitSet(6),
 
     pub fn init(allocator: std.mem.Allocator, config: RuntimeConfig) !Self {
+        const normalized_config = try normalizeConfig(allocator, config);
+        errdefer {
+            allocator.free(normalized_config.enabled_features);
+            allocator.free(normalized_config.disabled_features);
+        };
+
         // Calculate enabled features
         var enabled_features = std.StaticBitSet(6).initEmpty();
-        for (config.enabled_features) |feature| {
+        for (normalized_config.enabled_features) |feature| {
             const idx = switch (feature) {
                 .ai => 0,
                 .gpu => 1,
@@ -107,7 +131,7 @@ pub const Framework = struct {
         }
 
         // Remove disabled features
-        for (config.disabled_features) |feature| {
+        for (normalized_config.disabled_features) |feature| {
             const idx = switch (feature) {
                 .ai => 0,
                 .gpu => 1,
@@ -121,7 +145,7 @@ pub const Framework = struct {
 
         return Self{
             .allocator = allocator,
-            .config = config,
+            .config = normalized_config,
             .components = core.ArrayList(Component).init(allocator),
             .component_registry = core.StringHashMap(Component).init(allocator),
             .stats = RuntimeStats.init(enabled_features.count()),
@@ -144,6 +168,8 @@ pub const Framework = struct {
 
         self.components.deinit();
         self.component_registry.deinit();
+        self.allocator.free(self.config.enabled_features);
+        self.allocator.free(self.config.disabled_features);
     }
 
     pub fn registerComponent(self: *Self, component: Component) !void {

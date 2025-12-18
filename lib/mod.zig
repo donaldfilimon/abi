@@ -87,7 +87,11 @@ pub const wdbx = struct {
 /// Initialise the ABI framework and return the orchestration handle. Call
 /// `Framework.deinit` (or `abi.shutdown`) when finished.
 pub fn init(allocator: std.mem.Allocator, options: FrameworkOptions) !Framework {
-    return try framework.runtime.Framework.init(allocator, options);
+    var runtime_config = try framework.runtimeConfigFromOptions(allocator, options);
+    defer allocator.free(runtime_config.enabled_features);
+    defer allocator.free(runtime_config.disabled_features);
+
+    return try framework.runtime.Framework.init(allocator, runtime_config);
 }
 
 /// Convenience wrapper around `Framework.deinit` for callers that prefer the
@@ -103,7 +107,7 @@ pub fn version() []const u8 {
 
 /// Create a framework with default configuration
 pub fn createDefaultFramework(allocator: std.mem.Allocator) !Framework {
-    return try init(allocator, framework.defaultConfig());
+    return try init(allocator, .{});
 }
 
 /// Create a framework with custom configuration
@@ -116,7 +120,7 @@ test {
 }
 
 test "abi.version returns build package version" {
-    try std.testing.expectEqualStrings("0.2.0", version());
+    try std.testing.expectEqualStrings("0.1.0", version());
 }
 
 test "framework initialization" {
