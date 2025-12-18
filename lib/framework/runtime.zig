@@ -7,6 +7,8 @@ const std = @import("std");
 const core = @import("../core/mod.zig");
 const features = @import("../features/mod.zig");
 
+const feature_tag_count = std.enums.values(features.FeatureTag).len;
+
 /// Framework runtime configuration
 pub const RuntimeConfig = struct {
     max_plugins: u32 = 128,
@@ -16,12 +18,44 @@ pub const RuntimeConfig = struct {
     log_level: LogLevel = .info,
     enabled_features: []const features.FeatureTag = &[_]features.FeatureTag{ .ai, .database, .web, .monitoring },
     disabled_features: []const features.FeatureTag = &[_]features.FeatureTag{},
+    plugin_paths: []const []const u8 = &[_][]const u8{},
+    auto_discover_plugins: bool = false,
+    auto_register_plugins: bool = false,
+    auto_start_plugins: bool = false,
+    feature_storage: FeatureStorage = .{},
 
     pub const LogLevel = enum {
         debug,
         info,
         warn,
         err,
+    };
+
+    pub const FeatureStorage = struct {
+        enabled: [feature_tag_count]features.FeatureTag = undefined,
+        disabled: [feature_tag_count]features.FeatureTag = undefined,
+        enabled_len: usize = 0,
+        disabled_len: usize = 0,
+
+        pub fn setEnabled(self: *FeatureStorage, feature_list: []const features.FeatureTag) void {
+            std.debug.assert(feature_list.len <= feature_tag_count);
+            std.mem.copy(features.FeatureTag, self.enabled[0..feature_list.len], feature_list);
+            self.enabled_len = feature_list.len;
+        }
+
+        pub fn setDisabled(self: *FeatureStorage, feature_list: []const features.FeatureTag) void {
+            std.debug.assert(feature_list.len <= feature_tag_count);
+            std.mem.copy(features.FeatureTag, self.disabled[0..feature_list.len], feature_list);
+            self.disabled_len = feature_list.len;
+        }
+
+        pub fn enabledSlice(self: *const FeatureStorage) []const features.FeatureTag {
+            return self.enabled[0..self.enabled_len];
+        }
+
+        pub fn disabledSlice(self: *const FeatureStorage) []const features.FeatureTag {
+            return self.disabled[0..self.disabled_len];
+        }
     };
 };
 
