@@ -93,11 +93,14 @@ pub const Framework = struct {
 
     pub fn init(allocator: std.mem.Allocator, config: RuntimeConfig) !Self {
         // Calculate enabled features
-        var enabled_features = features.config.createFlags(config.enabled_features);
+        var enabled_features = features.config.FeatureFlags.initEmpty();
+        for (config.enabled_features) |feature| {
+            enabled_features.set(features.config.tagIndex(feature));
+        }
 
         // Remove disabled features
         for (config.disabled_features) |feature| {
-            enabled_features.unset(@intFromEnum(feature));
+            enabled_features.unset(features.config.tagIndex(feature));
         }
 
         return Self{
@@ -198,15 +201,15 @@ pub const Framework = struct {
     }
 
     pub fn isFeatureEnabled(self: *const Self, feature: features.FeatureTag) bool {
-        return self.enabled_features.isSet(@intFromEnum(feature));
+        return self.enabled_features.isSet(features.config.tagIndex(feature));
     }
 
     pub fn enableFeature(self: *Self, feature: features.FeatureTag) void {
-        self.enabled_features.set(@intFromEnum(feature));
+        self.enabled_features.set(features.config.tagIndex(feature));
     }
 
     pub fn disableFeature(self: *Self, feature: features.FeatureTag) void {
-        self.enabled_features.unset(@intFromEnum(feature));
+        self.enabled_features.unset(features.config.tagIndex(feature));
     }
 
     /// Write framework summary to a writer interface
@@ -225,11 +228,11 @@ pub const Framework = struct {
 
         // List enabled features
         try writer.print("Enabled Features:\n");
-        for (std.enums.values(features.FeatureTag)) |feature| {
-            const idx = @intFromEnum(feature);
-            if (!self.enabled_features.isSet(idx)) continue;
-
-            try writer.print("  - {s}: {s}\n", .{ features.config.getName(feature), features.config.getDescription(feature) });
+        const feature_tags = features.config.allTags();
+        for (feature_tags, 0..) |feature, idx| {
+            if (self.enabled_features.isSet(idx)) {
+                try writer.print("  - {s}: {s}\n", .{ features.config.getName(feature), features.config.getDescription(feature) });
+            }
         }
     }
 };
@@ -290,4 +293,37 @@ test "framework - feature configuration" {
     try testing.expect(!framework.isFeatureEnabled(.gpu)); // Disabled overrides enabled
     try testing.expect(!framework.isFeatureEnabled(.database));
     try testing.expect(!framework.isFeatureEnabled(.simd));
+}
+
+test "runtime feature bitset stays aligned with feature flags mapping" {
+    const testing = std.testing;
+    const all_features = [_]features.FeatureTag{
+        .ai,
+        .gpu,
+        .database,
+        .web,
+        .monitoring,
+        .connectors,
+    };
+
+    var framework = try createFramework(
+        testing.allocator,
+        .{ .enabled_features = &all_features },
+    );
+    defer framework.deinit();
+
+    const expected_flags = features.config.createFlags(&all_features);
+    const bit_length = expected_flags.bit_length;
+    var idx: usize = 0;
+    while (idx < bit_length) : (idx += 1) {
+        try testing.expectEqual(
+            expected_flags.isSet(idx),
+            framework.enabled_features.isSet(idx),
+        );
+    }
+
+    framework.disableFeature(.web);
+    try testing.expect(!framework.isFeatureEnabled(.web));
+    framework.enableFeature(.web);
+    try testing.expect(framework.isFeatureEnabled(.web));
 }

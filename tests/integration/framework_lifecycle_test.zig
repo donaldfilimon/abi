@@ -7,7 +7,7 @@ test "Framework: initialization and shutdown" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, .{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     try testing.expect(framework.state == .initialized);
@@ -20,21 +20,21 @@ test "Framework: multiple init/shutdown cycles" {
 
     // First cycle
     {
-        var framework = try abi.init(allocator, .{});
+        var framework = try abi.init(allocator, abi.FrameworkOptions{});
         defer abi.shutdown(&framework);
         try testing.expect(framework.state == .initialized);
     }
 
     // Second cycle
     {
-        var framework = try abi.init(allocator, .{});
+        var framework = try abi.init(allocator, abi.FrameworkOptions{});
         defer abi.shutdown(&framework);
         try testing.expect(framework.state == .initialized);
     }
 
     // Third cycle
     {
-        var framework = try abi.init(allocator, .{});
+        var framework = try abi.init(allocator, abi.FrameworkOptions{});
         defer abi.shutdown(&framework);
         try testing.expect(framework.state == .initialized);
     }
@@ -45,7 +45,7 @@ test "Framework: feature availability" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, .{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     // Check that features are available

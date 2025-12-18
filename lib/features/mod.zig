@@ -20,14 +20,25 @@ pub const connectors = @import("connectors/mod.zig");
 
 /// Feature configuration and management
 pub const config = struct {
+    pub const tag_count = std.enums.values(FeatureTag).len;
     /// Feature enablement flags
-    pub const FeatureFlags = std.StaticBitSet(feature_count);
+    pub const FeatureFlags = std.StaticBitSet(tag_count);
+
+    /// Convert a feature tag into its bitset index
+    pub fn tagIndex(tag: FeatureTag) usize {
+        return @intFromEnum(tag);
+    }
+
+    /// Get all declared feature tags in declaration order
+    pub fn allTags() []const FeatureTag {
+        return std.enums.values(FeatureTag);
+    }
 
     /// Creates feature flags from enabled features
     pub fn createFlags(enabled_features: []const FeatureTag) FeatureFlags {
         var flags = FeatureFlags.initEmpty();
         for (enabled_features) |feature| {
-            flags.set(@intFromEnum(feature));
+            flags.set(tagIndex(feature));
         }
         return flags;
     }
@@ -104,27 +115,26 @@ pub const lifecycle = struct {
 };
 
 test "feature registry exposes all modules" {
-    const FeatureMask = std.bit_set.IntegerBitSet(feature_count);
+    const FeatureMask = std.bit_set.IntegerBitSet(config.tag_count);
     var features_seen = FeatureMask.initEmpty();
     forEachFeature(&features_seen, struct {
         fn visit(mask: *FeatureMask, kind: FeatureTag, _: []const u8) void {
-            mask.set(@intFromEnum(kind));
+            mask.set(config.tagIndex(kind));
         }
     }.visit);
-    try std.testing.expectEqual(@as(usize, 7), features_seen.count());
+    try std.testing.expectEqual(@as(usize, config.tag_count), features_seen.count());
 }
 
 test "feature configuration" {
     const enabled = [_]FeatureTag{ .ai, .database, .web };
     const flags = config.createFlags(&enabled);
 
-    try std.testing.expect(flags.isSet(0)); // ai
-    try std.testing.expect(!flags.isSet(1)); // gpu
-    try std.testing.expect(flags.isSet(2)); // database
-    try std.testing.expect(flags.isSet(3)); // web
-    try std.testing.expect(!flags.isSet(4)); // monitoring
-    try std.testing.expect(!flags.isSet(5)); // connectors
-    try std.testing.expect(!flags.isSet(6)); // simd
+    try std.testing.expect(flags.isSet(config.tagIndex(.ai)));
+    try std.testing.expect(!flags.isSet(config.tagIndex(.gpu)));
+    try std.testing.expect(flags.isSet(config.tagIndex(.database)));
+    try std.testing.expect(flags.isSet(config.tagIndex(.web)));
+    try std.testing.expect(!flags.isSet(config.tagIndex(.monitoring)));
+    try std.testing.expect(!flags.isSet(config.tagIndex(.connectors)));
 
     try std.testing.expectEqualStrings("ai", config.getName(.ai));
     try std.testing.expectEqualStrings("GPU acceleration and compute", config.getDescription(.gpu));
