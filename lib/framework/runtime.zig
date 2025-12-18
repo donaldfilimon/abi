@@ -292,3 +292,36 @@ test "framework - feature configuration" {
     try testing.expect(!framework.isFeatureEnabled(.gpu)); // Disabled overrides enabled
     try testing.expect(!framework.isFeatureEnabled(.database));
 }
+
+test "runtime feature bitset stays aligned with feature flags mapping" {
+    const testing = std.testing;
+    const all_features = [_]features.FeatureTag{
+        .ai,
+        .gpu,
+        .database,
+        .web,
+        .monitoring,
+        .connectors,
+    };
+
+    var framework = try createFramework(
+        testing.allocator,
+        .{ .enabled_features = &all_features },
+    );
+    defer framework.deinit();
+
+    const expected_flags = features.config.createFlags(&all_features);
+    const bit_length = expected_flags.bit_length;
+    var idx: usize = 0;
+    while (idx < bit_length) : (idx += 1) {
+        try testing.expectEqual(
+            expected_flags.isSet(idx),
+            framework.enabled_features.isSet(idx),
+        );
+    }
+
+    framework.disableFeature(.web);
+    try testing.expect(!framework.isFeatureEnabled(.web));
+    framework.enableFeature(.web);
+    try testing.expect(framework.isFeatureEnabled(.web));
+}
