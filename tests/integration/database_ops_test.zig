@@ -7,7 +7,7 @@ test "Database: vector storage and retrieval" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, .{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     // Test database operations
@@ -31,7 +31,7 @@ test "Database: concurrent operations" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, .{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     // Test concurrent database access

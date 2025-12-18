@@ -85,9 +85,11 @@ pub const wdbx = struct {
 // =============================================================================
 
 /// Initialise the ABI framework and return the orchestration handle. Call
-/// `Framework.deinit` (or `abi.shutdown`) when finished.
-pub fn init(allocator: std.mem.Allocator, options: FrameworkOptions) !Framework {
-    return try framework.runtime.Framework.init(allocator, options);
+/// `Framework.deinit` (or `abi.shutdown`) when finished. Accepts either a
+/// `RuntimeConfig` or `FrameworkOptions` which will be converted automatically.
+pub fn init(allocator: std.mem.Allocator, config_or_options: anytype) !Framework {
+    const runtime_config = try resolveRuntimeConfig(allocator, config_or_options);
+    return try framework.runtime.Framework.init(allocator, runtime_config);
 }
 
 /// Convenience wrapper around `Framework.deinit` for callers that prefer the
@@ -107,8 +109,73 @@ pub fn createDefaultFramework(allocator: std.mem.Allocator) !Framework {
 }
 
 /// Create a framework with custom configuration
-pub fn createFramework(allocator: std.mem.Allocator, config: RuntimeConfig) !Framework {
-    return try framework.createFramework(allocator, config);
+pub fn createFramework(
+    allocator: std.mem.Allocator,
+    config_or_options: anytype,
+) !Framework {
+    const runtime_config = try resolveRuntimeConfig(allocator, config_or_options);
+    return try framework.createFramework(allocator, runtime_config);
+}
+
+fn resolveRuntimeConfig(
+    allocator: std.mem.Allocator,
+    config_or_options: anytype,
+) !RuntimeConfig {
+    return switch (@TypeOf(config_or_options)) {
+        RuntimeConfig => config_or_options,
+        FrameworkOptions => try runtimeConfigFromOptions(allocator, config_or_options),
+        else => @compileError("Unsupported configuration type for abi.init"),
+    };
+}
+
+fn runtimeConfigFromOptions(
+    allocator: std.mem.Allocator,
+    options: FrameworkOptions,
+) !RuntimeConfig {
+    var runtime_config = framework.defaultConfig();
+
+    var enabled_list = std.ArrayList(features.FeatureTag).init(allocator);
+    errdefer enabled_list.deinit();
+
+    var toggles = framework.deriveFeatureToggles(options);
+    var iter = toggles.iterator();
+    while (iter.next()) |feature| {
+        if (featureToTag(feature)) |tag| {
+            try enabled_list.append(tag);
+        }
+    }
+    const enabled_features = try enabled_list.toOwnedSlice();
+    errdefer allocator.free(enabled_features);
+
+    var disabled_list = std.ArrayList(features.FeatureTag).init(allocator);
+    errdefer disabled_list.deinit();
+
+    for (options.disabled_features) |feature| {
+        if (featureToTag(feature)) |tag| {
+            try disabled_list.append(tag);
+        }
+    }
+    const disabled_features = disabled_list.toOwnedSlice() catch |err| {
+        allocator.free(enabled_features);
+        return err;
+    };
+
+    runtime_config.enabled_features = enabled_features;
+    runtime_config.disabled_features = disabled_features;
+
+    return runtime_config;
+}
+
+fn featureToTag(feature: framework.Feature) ?features.FeatureTag {
+    return switch (feature) {
+        .ai => .ai,
+        .database => .database,
+        .web => .web,
+        .monitoring => .monitoring,
+        .gpu => .gpu,
+        .connectors => .connectors,
+        .simd => null,
+    };
 }
 
 test {
