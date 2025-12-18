@@ -259,6 +259,20 @@ pub const Framework = struct {
         try writer.print("Status: {s}\n", .{if (self.isRunning()) "Running" else "Stopped"});
         try writer.print("Components: {}/{}\n", .{ self.stats.active_components, self.stats.total_components });
         try writer.print("Features: {}\n", .{self.stats.enabled_features});
+        const log_level_name = switch (self.config.log_level) {
+            .debug => "debug",
+            .info => "info",
+            .warn => "warn",
+            .err => "err",
+        };
+        try writer.print("Log Level: {s}\n", .{log_level_name});
+        if (self.config.memory_limit_mb) |limit_mb| {
+            try writer.print("Memory Limit: {}MB\n", .{limit_mb});
+        } else {
+            try writer.print("Memory Limit: unlimited\n", .{});
+        }
+        try writer.print("Hot Reload: {s}\n", .{if (self.config.enable_hot_reload) "enabled" else "disabled"});
+        try writer.print("Profiling: {s}\n", .{if (self.config.enable_profiling) "enabled" else "disabled"});
         try writer.print("Uptime: {}ms\n", .{self.stats.uptime()});
         try writer.print("Updates: {}\n", .{self.stats.update_count});
 
@@ -331,4 +345,44 @@ test "framework - feature configuration" {
     try testing.expect(framework.isFeatureEnabled(.ai));
     try testing.expect(!framework.isFeatureEnabled(.gpu)); // Disabled overrides enabled
     try testing.expect(!framework.isFeatureEnabled(.database));
+}
+
+test "framework summary includes configuration details" {
+    const testing = std.testing;
+
+    const config = RuntimeConfig{
+        .enable_hot_reload = true,
+        .enable_profiling = true,
+        .memory_limit_mb = 1024,
+        .log_level = .debug,
+        .enabled_features = &[_]features.FeatureTag{ .ai, .web, .connectors },
+        .disabled_features = &[_]features.FeatureTag{.web},
+    };
+
+    var framework = try createFramework(testing.allocator, config);
+    defer framework.deinit();
+
+    var buffer = std.ArrayList(u8).init(testing.allocator);
+    defer buffer.deinit();
+
+    try framework.writeSummary(buffer.writer());
+
+    const expected =
+        \\ABI Framework Summary
+        \\=====================
+        \\Status: Stopped
+        \\Components: 0/0
+        \\Features: 2
+        \\Log Level: debug
+        \\Memory Limit: 1024MB
+        \\Hot Reload: enabled
+        \\Profiling: enabled
+        \\Uptime: 0ms
+        \\Updates: 0
+        \\Enabled Features:
+        \\  - ai: Artificial Intelligence and Machine Learning
+        \\  - connectors: External service connectors
+        \\;
+
+    try testing.expectEqualStrings(expected, buffer.items);
 }
