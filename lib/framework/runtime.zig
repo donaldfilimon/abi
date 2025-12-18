@@ -7,6 +7,14 @@ const std = @import("std");
 const core = @import("../core/mod.zig");
 const features = @import("../features/mod.zig");
 
+const feature_tags = std.enums.values(features.FeatureTag);
+const feature_count = feature_tags.len;
+const FeatureBitSet = std.StaticBitSet(feature_count);
+
+inline fn featureIndex(feature: features.FeatureTag) usize {
+    return @intFromEnum(feature);
+}
+
 /// Framework runtime configuration
 pub const RuntimeConfig = struct {
     max_plugins: u32 = 128,
@@ -14,7 +22,7 @@ pub const RuntimeConfig = struct {
     enable_profiling: bool = false,
     memory_limit_mb: ?u32 = null,
     log_level: LogLevel = .info,
-    enabled_features: []const features.FeatureTag = &[_]features.FeatureTag{ .ai, .database, .web, .monitoring },
+    enabled_features: []const features.FeatureTag = &[_]features.FeatureTag{ .ai, .database, .web, .monitoring, .simd },
     disabled_features: []const features.FeatureTag = &[_]features.FeatureTag{},
 
     pub const LogLevel = enum {
@@ -89,35 +97,15 @@ pub const Framework = struct {
     component_registry: core.StringHashMap(Component),
     stats: RuntimeStats,
     running: std.atomic.Value(bool),
-    enabled_features: std.StaticBitSet(6),
+    enabled_features: FeatureBitSet,
 
     pub fn init(allocator: std.mem.Allocator, config: RuntimeConfig) !Self {
         // Calculate enabled features
-        var enabled_features = std.StaticBitSet(6).initEmpty();
-        for (config.enabled_features) |feature| {
-            const idx = switch (feature) {
-                .ai => 0,
-                .gpu => 1,
-                .database => 2,
-                .web => 3,
-                .monitoring => 4,
-                .connectors => 5,
-            };
-            enabled_features.set(idx);
-        }
+        var enabled_features = FeatureBitSet.initEmpty();
+        for (config.enabled_features) |feature| enabled_features.set(featureIndex(feature));
 
         // Remove disabled features
-        for (config.disabled_features) |feature| {
-            const idx = switch (feature) {
-                .ai => 0,
-                .gpu => 1,
-                .database => 2,
-                .web => 3,
-                .monitoring => 4,
-                .connectors => 5,
-            };
-            enabled_features.unset(idx);
-        }
+        for (config.disabled_features) |feature| enabled_features.unset(featureIndex(feature));
 
         return Self{
             .allocator = allocator,
@@ -217,39 +205,15 @@ pub const Framework = struct {
     }
 
     pub fn isFeatureEnabled(self: *const Self, feature: features.FeatureTag) bool {
-        const idx = switch (feature) {
-            .ai => 0,
-            .gpu => 1,
-            .database => 2,
-            .web => 3,
-            .monitoring => 4,
-            .connectors => 5,
-        };
-        return self.enabled_features.isSet(idx);
+        return self.enabled_features.isSet(featureIndex(feature));
     }
 
     pub fn enableFeature(self: *Self, feature: features.FeatureTag) void {
-        const idx = switch (feature) {
-            .ai => 0,
-            .gpu => 1,
-            .database => 2,
-            .web => 3,
-            .monitoring => 4,
-            .connectors => 5,
-        };
-        self.enabled_features.set(idx);
+        self.enabled_features.set(featureIndex(feature));
     }
 
     pub fn disableFeature(self: *Self, feature: features.FeatureTag) void {
-        const idx = switch (feature) {
-            .ai => 0,
-            .gpu => 1,
-            .database => 2,
-            .web => 3,
-            .monitoring => 4,
-            .connectors => 5,
-        };
-        self.enabled_features.unset(idx);
+        self.enabled_features.unset(featureIndex(feature));
     }
 
     /// Write framework summary to a writer interface
@@ -268,7 +232,6 @@ pub const Framework = struct {
 
         // List enabled features
         try writer.print("Enabled Features:\n");
-        const feature_tags = [_]features.FeatureTag{ .ai, .gpu, .database, .web, .monitoring, .connectors };
         for (feature_tags, 0..) |feature, idx| {
             if (self.enabled_features.isSet(idx)) {
                 try writer.print("  - {s}: {s}\n", .{ features.config.getName(feature), features.config.getDescription(feature) });
@@ -304,10 +267,15 @@ test "framework runtime - basic operations" {
 
     // Test feature management
     try testing.expect(framework.isFeatureEnabled(.ai));
+    try testing.expect(framework.isFeatureEnabled(.simd));
     try testing.expect(!framework.isFeatureEnabled(.gpu));
 
     framework.enableFeature(.gpu);
     try testing.expect(framework.isFeatureEnabled(.gpu));
+    framework.disableFeature(.simd);
+    try testing.expect(!framework.isFeatureEnabled(.simd));
+    framework.enableFeature(.simd);
+    try testing.expect(framework.isFeatureEnabled(.simd));
 
     // Test runtime start/stop
     try framework.start();
@@ -321,7 +289,7 @@ test "framework - feature configuration" {
     const testing = std.testing;
 
     const config = RuntimeConfig{
-        .enabled_features = &[_]features.FeatureTag{ .ai, .gpu },
+        .enabled_features = &[_]features.FeatureTag{ .ai, .gpu, .simd },
         .disabled_features = &[_]features.FeatureTag{.gpu},
     };
 
@@ -330,5 +298,6 @@ test "framework - feature configuration" {
 
     try testing.expect(framework.isFeatureEnabled(.ai));
     try testing.expect(!framework.isFeatureEnabled(.gpu)); // Disabled overrides enabled
+    try testing.expect(framework.isFeatureEnabled(.simd));
     try testing.expect(!framework.isFeatureEnabled(.database));
 }

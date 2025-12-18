@@ -3,10 +3,10 @@ const std = @import("std");
 /// Enumerates the coarse feature families that can be toggled at runtime.
 pub const Feature = enum(u3) {
     ai,
+    gpu,
     database,
     web,
     monitoring,
-    gpu,
     connectors,
     simd,
 };

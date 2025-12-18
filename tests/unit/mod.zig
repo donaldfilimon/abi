@@ -42,13 +42,14 @@ test "core allocators" {
 }
 
 test "features configuration" {
-    const enabled = [_]abi.features.FeatureTag{ .ai, .database, .web };
+    const enabled = [_]abi.features.FeatureTag{ .ai, .database, .web, .simd };
     const flags = abi.features.config.createFlags(&enabled);
 
-    try std.testing.expect(flags.isSet(0)); // ai
-    try std.testing.expect(!flags.isSet(1)); // gpu
-    try std.testing.expect(flags.isSet(2)); // database
-    try std.testing.expect(flags.isSet(3)); // web
+    try std.testing.expect(flags.isSet(@intFromEnum(abi.features.FeatureTag.ai))); // ai
+    try std.testing.expect(!flags.isSet(@intFromEnum(abi.features.FeatureTag.gpu))); // gpu
+    try std.testing.expect(flags.isSet(@intFromEnum(abi.features.FeatureTag.database))); // database
+    try std.testing.expect(flags.isSet(@intFromEnum(abi.features.FeatureTag.web))); // web
+    try std.testing.expect(flags.isSet(@intFromEnum(abi.features.FeatureTag.simd))); // simd
 }
 
 test "framework initialization" {
@@ -58,6 +59,7 @@ test "framework initialization" {
     try std.testing.expect(!framework.isRunning());
     try std.testing.expect(framework.isFeatureEnabled(.ai));
     try std.testing.expect(framework.isFeatureEnabled(.database));
+    try std.testing.expect(framework.isFeatureEnabled(.simd));
 }
 
 test "framework feature management" {
