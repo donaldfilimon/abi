@@ -75,7 +75,10 @@ pub const RuntimeStats = struct {
     }
 
     pub fn uptime(self: *const RuntimeStats) i64 {
-        return 0 - self.start_time;
+        if (self.start_time == 0) return 0;
+
+        const now_ms = std.time.milliTimestamp();
+        return now_ms - self.start_time;
     }
 };
 
@@ -139,7 +142,9 @@ pub const Framework = struct {
         while (i > 0) {
             i -= 1;
             const component = &self.components.items[i];
-            component.deinit() catch {};
+            component.deinit() catch |err| {
+                std.log.err("Failed to deinitialize component '{s}': {}", .{ component.name, err });
+            };
         }
 
         self.components.deinit();
@@ -159,13 +164,19 @@ pub const Framework = struct {
 
     pub fn initializeComponent(self: *Self, name: []const u8) !void {
         var component = self.component_registry.getPtr(name) orelse return core.Error.NotFound;
-        try component.init(self.allocator, &self.config);
+        component.init(self.allocator, &self.config) catch |err| {
+            std.log.err("Failed to initialize component '{s}': {}", .{ name, err });
+            return err;
+        };
         self.stats.active_components += 1;
     }
 
     pub fn initializeAllComponents(self: *Self) !void {
         for (self.components.items) |*component| {
-            try component.init(self.allocator, &self.config);
+            component.init(self.allocator, &self.config) catch |err| {
+                std.log.err("Failed to initialize component '{s}': {}", .{ component.name, err });
+                return err;
+            };
         }
         self.stats.active_components = @intCast(self.components.items.len);
     }
@@ -175,11 +186,13 @@ pub const Framework = struct {
             return core.Error.AlreadyExists;
         }
 
+        errdefer self.running.store(false, .release);
         self.running.store(true, .release);
 
         // Initialize all components first
         try self.initializeAllComponents();
 
+        self.stats.start_time = std.time.milliTimestamp();
         std.log.info("Framework started with {} components and {} features", .{ self.stats.total_components, self.stats.enabled_features });
     }
 
@@ -238,6 +251,7 @@ pub const Framework = struct {
             .connectors => 5,
         };
         self.enabled_features.set(idx);
+        self.stats.enabled_features = self.enabled_features.count();
     }
 
     pub fn disableFeature(self: *Self, feature: features.FeatureTag) void {
@@ -250,6 +264,7 @@ pub const Framework = struct {
             .connectors => 5,
         };
         self.enabled_features.unset(idx);
+        self.stats.enabled_features = self.enabled_features.count();
     }
 
     /// Write framework summary to a writer interface
@@ -258,6 +273,11 @@ pub const Framework = struct {
         try writer.print("=====================\n");
         try writer.print("Status: {s}\n", .{if (self.isRunning()) "Running" else "Stopped"});
         try writer.print("Components: {}/{}\n", .{ self.stats.active_components, self.stats.total_components });
+        const enabled_feature_count = self.enabled_features.count();
+        if (self.stats.enabled_features != enabled_feature_count) {
+            // Keep stats in sync with runtime feature toggles for accurate summaries.
+            @constCast(&self.stats).enabled_features = enabled_feature_count;
+        }
         try writer.print("Features: {}\n", .{self.stats.enabled_features});
         try writer.print("Uptime: {}ms\n", .{self.stats.uptime()});
         try writer.print("Updates: {}\n", .{self.stats.update_count});
