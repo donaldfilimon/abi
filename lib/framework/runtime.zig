@@ -92,9 +92,21 @@ pub const Framework = struct {
     enabled_features: std.StaticBitSet(6),
 
     pub fn init(allocator: std.mem.Allocator, config: RuntimeConfig) !Self {
+        const normalized_enabled = try allocator.alloc(features.FeatureTag, config.enabled_features.len);
+        errdefer allocator.free(normalized_enabled);
+        std.mem.copyForwards(features.FeatureTag, normalized_enabled, config.enabled_features);
+
+        const normalized_disabled = try allocator.alloc(features.FeatureTag, config.disabled_features.len);
+        errdefer allocator.free(normalized_disabled);
+        std.mem.copyForwards(features.FeatureTag, normalized_disabled, config.disabled_features);
+
+        var normalized_config = config;
+        normalized_config.enabled_features = normalized_enabled;
+        normalized_config.disabled_features = normalized_disabled;
+
         // Calculate enabled features
         var enabled_features = std.StaticBitSet(6).initEmpty();
-        for (config.enabled_features) |feature| {
+        for (normalized_config.enabled_features) |feature| {
             const idx = switch (feature) {
                 .ai => 0,
                 .gpu => 1,
@@ -107,7 +119,7 @@ pub const Framework = struct {
         }
 
         // Remove disabled features
-        for (config.disabled_features) |feature| {
+        for (normalized_config.disabled_features) |feature| {
             const idx = switch (feature) {
                 .ai => 0,
                 .gpu => 1,
@@ -121,7 +133,7 @@ pub const Framework = struct {
 
         return Self{
             .allocator = allocator,
-            .config = config,
+            .config = normalized_config,
             .components = core.ArrayList(Component).init(allocator),
             .component_registry = core.StringHashMap(Component).init(allocator),
             .stats = RuntimeStats.init(enabled_features.count()),
@@ -144,6 +156,8 @@ pub const Framework = struct {
 
         self.components.deinit();
         self.component_registry.deinit();
+        self.allocator.free(self.config.enabled_features);
+        self.allocator.free(self.config.disabled_features);
     }
 
     pub fn registerComponent(self: *Self, component: Component) !void {

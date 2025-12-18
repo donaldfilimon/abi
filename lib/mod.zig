@@ -86,8 +86,23 @@ pub const wdbx = struct {
 
 /// Initialise the ABI framework and return the orchestration handle. Call
 /// `Framework.deinit` (or `abi.shutdown`) when finished.
-pub fn init(allocator: std.mem.Allocator, options: FrameworkOptions) !Framework {
-    return try framework.runtime.Framework.init(allocator, options);
+pub fn init(allocator: std.mem.Allocator, config: anytype) !Framework {
+    const ConfigType = @TypeOf(config);
+
+    if (ConfigType == RuntimeConfig) {
+        return try framework.runtime.Framework.init(allocator, config);
+    }
+
+    if (ConfigType == FrameworkOptions) {
+        const runtime_config = try frameworkOptionsToRuntimeConfig(allocator, config);
+        defer {
+            allocator.free(runtime_config.enabled_features);
+            allocator.free(runtime_config.disabled_features);
+        }
+        return try framework.runtime.Framework.init(allocator, runtime_config);
+    }
+
+    @compileError("init expects RuntimeConfig or FrameworkOptions");
 }
 
 /// Convenience wrapper around `Framework.deinit` for callers that prefer the
@@ -103,12 +118,53 @@ pub fn version() []const u8 {
 
 /// Create a framework with default configuration
 pub fn createDefaultFramework(allocator: std.mem.Allocator) !Framework {
-    return try init(allocator, framework.defaultConfig());
+    return try init(allocator, FrameworkOptions{});
 }
 
 /// Create a framework with custom configuration
-pub fn createFramework(allocator: std.mem.Allocator, config: RuntimeConfig) !Framework {
-    return try framework.createFramework(allocator, config);
+pub fn createFramework(allocator: std.mem.Allocator, config: anytype) !Framework {
+    return try init(allocator, config);
+}
+
+fn frameworkOptionsToRuntimeConfig(allocator: std.mem.Allocator, options: FrameworkOptions) !RuntimeConfig {
+    const toggles = framework.deriveFeatureToggles(options);
+
+    var enabled = std.ArrayList(features.FeatureTag).init(allocator);
+    defer enabled.deinit();
+
+    var disabled = std.ArrayList(features.FeatureTag).init(allocator);
+    defer disabled.deinit();
+
+    var iterator = toggles.iterator();
+    while (iterator.next()) |feature| {
+        if (featureToRuntimeTag(feature)) |tag| {
+            try enabled.append(tag);
+        }
+    }
+
+    for (options.disabled_features) |feature| {
+        if (featureToRuntimeTag(feature)) |tag| {
+            try disabled.append(tag);
+        }
+    }
+
+    var config: RuntimeConfig = RuntimeConfig{};
+    config.enabled_features = try enabled.toOwnedSlice();
+    config.disabled_features = try disabled.toOwnedSlice();
+
+    return config;
+}
+
+fn featureToRuntimeTag(feature: Feature) ?features.FeatureTag {
+    return switch (feature) {
+        .ai => .ai,
+        .database => .database,
+        .web => .web,
+        .monitoring => .monitoring,
+        .gpu => .gpu,
+        .connectors => .connectors,
+        .simd => null,
+    };
 }
 
 test {
@@ -128,5 +184,37 @@ test "framework initialization" {
 
     try std.testing.expect(!framework_instance.isRunning());
     try std.testing.expect(framework_instance.isFeatureEnabled(.ai));
+    try std.testing.expect(framework_instance.isFeatureEnabled(.database));
+}
+
+test "framework initialization from runtime config" {
+    const runtime_config = RuntimeConfig{
+        .enabled_features = &[_]features.FeatureTag{ .database, .web, .monitoring },
+        .disabled_features = &[_]features.FeatureTag{.web},
+    };
+
+    var framework_instance = try createFramework(std.testing.allocator, runtime_config);
+    defer framework_instance.deinit();
+
+    try std.testing.expect(framework_instance.isFeatureEnabled(.database));
+    try std.testing.expect(!framework_instance.isFeatureEnabled(.web));
+    try std.testing.expect(!framework_instance.isFeatureEnabled(.ai));
+}
+
+test "framework initialization from framework options" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    const options = FrameworkOptions{
+        .enable_ai = true,
+        .enable_gpu = true,
+        .disabled_features = &.{ .ai, .gpu },
+    };
+
+    var framework_instance = try init(gpa.allocator(), options);
+    defer framework_instance.deinit();
+
+    try std.testing.expect(!framework_instance.isFeatureEnabled(.ai));
+    try std.testing.expect(!framework_instance.isFeatureEnabled(.gpu));
     try std.testing.expect(framework_instance.isFeatureEnabled(.database));
 }
