@@ -1,17 +1,10 @@
 const std = @import("std");
+const features = @import("../features/mod.zig");
 
 /// Enumerates the coarse feature families that can be toggled at runtime.
-pub const Feature = enum(u3) {
-    ai,
-    database,
-    web,
-    monitoring,
-    gpu,
-    connectors,
-    simd,
-};
+pub const Feature = features.FeatureTag;
 
-pub const feature_count = std.enums.values(Feature).len;
+pub const feature_count = features.feature_count;
 const FeatureMask = std.bit_set.IntegerBitSet(feature_count);
 
 /// Bit-set backed feature selection utility used by the framework runtime.
