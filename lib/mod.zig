@@ -116,7 +116,7 @@ test {
 }
 
 test "abi.version returns build package version" {
-    try std.testing.expectEqualStrings("0.1.0a", version());
+    try std.testing.expectEqualStrings("0.2.0", version());
 }
 
 test "framework initialization" {
