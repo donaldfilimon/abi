@@ -5,7 +5,7 @@ fn createBuildOptions(b: *std.Build) *std.Build.Module {
     const build_options = b.addOptions();
 
     // Package version
-    build_options.addOption([]const u8, "package_version", "0.2.0");
+    build_options.addOption([]const u8, "package_version", "0.1.0a");
 
     // Feature flags - all default to true for full functionality
     const enable_gpu = b.option(bool, "enable-gpu", "Enable GPU support") orelse true;
