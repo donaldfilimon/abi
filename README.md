@@ -94,7 +94,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     // Initialize the framework
-    var framework = try abi.init(allocator, .{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     // Create an AI agent
@@ -259,7 +259,7 @@ test "AI agent processes input correctly" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
     
-    var framework = try abi.init(allocator, .{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
     
     const Agent = abi.ai.agent.Agent;
