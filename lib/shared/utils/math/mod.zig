@@ -275,34 +275,9 @@ pub const Angles = struct {
 /// Random number generation utilities
 pub const Random = struct {
     /// Generate random integer in range [min, max)
-    pub fn intRange(random: std.rand.Random, min: i64, max: i64) i64 {
+    pub fn intRange(random: std.Random.Random, min: i64, max: i64) i64 {
         if (min >= max) return min;
         return min + @as(i64, @intCast(random.uintLessThan(@as(u64, @intCast(max - min)))));
-    }
-
-    /// Generate random float in range [min, max)
-    pub fn floatRange(random: std.rand.Random, min: f64, max: f64) f64 {
-        if (min >= max) return min;
-        return min + (max - min) * random.float(f64);
-    }
-
-    /// Generate random boolean with given probability
-    pub fn boolean(random: std.rand.Random, probability: f64) bool {
-        return random.float(f64) < MathUtils.clamp(f64, probability, 0.0, 1.0);
-    }
-
-    /// Select random element from slice
-    pub fn choice(comptime T: type, random: std.rand.Random, items: []const T) ?T {
-        if (items.len == 0) return null;
-        return items[random.uintLessThan(items.len)];
-    }
-
-    /// Shuffle slice in place
-    pub fn shuffle(comptime T: type, random: std.rand.Random, items: []T) void {
-        for (0..items.len) |i| {
-            const j = random.uintLessThan(items.len - i) + i;
-            std.mem.swap(T, &items[i], &items[j]);
-        }
     }
 };
 

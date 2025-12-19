@@ -94,15 +94,15 @@ test "HNSW vs brute force search comparison" {
     }
 
     // Benchmark both search methods
-    const hnsw_start = std.time.nanoTimestamp;
+    const hnsw_start = std.time.nanoTimestamp();
     const hnsw_results = try db.searchHNSW(query, 10, testing.allocator);
     defer testing.allocator.free(hnsw_results);
-    const hnsw_time = std.time.nanoTimestamp - hnsw_start;
+    const hnsw_time = std.time.nanoTimestamp() - hnsw_start;
 
-    const brute_start = std.time.nanoTimestamp;
+    const brute_start = std.time.nanoTimestamp();
     const brute_results = try db.search(query, 10, testing.allocator);
     defer testing.allocator.free(brute_results);
-    const brute_time = std.time.nanoTimestamp - brute_start;
+    const brute_time = std.time.nanoTimestamp() - brute_start;
 
     // HNSW may be faster for large datasets, but allow flexibility across environments
     _ = hnsw_time;
@@ -195,16 +195,16 @@ test "parallel search performance improvement" {
     }
 
     // Benchmark single-threaded
-    const single_start = std.time.nanoTimestamp;
+    const single_start = std.time.nanoTimestamp();
     const single_results = try db.search(query, 10, testing.allocator);
     defer testing.allocator.free(single_results);
-    const single_time = std.time.nanoTimestamp - single_start;
+    const single_time = std.time.nanoTimestamp() - single_start;
 
     // Benchmark parallel (4 threads)
-    const parallel_start = std.time.nanoTimestamp;
+    const parallel_start = std.time.nanoTimestamp();
     const parallel_results = try db.searchParallel(query, 10, testing.allocator, 4);
     defer testing.allocator.free(parallel_results);
-    const parallel_time = std.time.nanoTimestamp - parallel_start;
+    const parallel_time = std.time.nanoTimestamp() - parallel_start;
 
     // On multi-core systems, allow some overhead tolerance. Avoid failing on noisy CI or power-limited environments.
     if (std.Thread.getCpuCount() catch 1 > 1) {

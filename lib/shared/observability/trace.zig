@@ -7,18 +7,16 @@ pub const TraceContext = struct {
     span_id: [8]u8,
     start_ns: u64,
 
-    pub fn init(random: std.rand.Random) TraceContext {
-        var trace = TraceContext{
-            .trace_id = undefined,
-            .span_id = undefined,
-            .start_ns = std.time.nanoTimestamp,
+    pub fn init(random: std.Random.Random) TraceContext {
+        var buf: [16]u8 = undefined;
+        random.bytes(&buf);
+        return .{
+            .trace_id = std.fmt.bytesToHex(buf[0..8], .lower),
+            .span_id = std.fmt.bytesToHex(buf[8..16], .lower),
         };
-        random.bytes(&trace.trace_id);
-        random.bytes(&trace.span_id);
-        return trace;
     }
 
-    pub fn child(self: TraceContext, random: std.rand.Random) TraceContext {
+    pub fn child(self: TraceContext, random: std.Random.Random) TraceContext {
         var child_ctx = TraceContext{
             .trace_id = self.trace_id,
             .span_id = undefined,

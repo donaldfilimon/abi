@@ -8,7 +8,7 @@ const std = @import("std");
 pub const gpu_renderer = @import("core/gpu_renderer.zig");
 pub const unified_memory = @import("unified_memory.zig");
 pub const hardware_detection = @import("hardware_detection.zig");
-pub const accelerator = @import("accelerator.zig");
+pub const accelerator = @import("../../accelerator/accelerator.zig");
 
 // GPU backends and compute
 pub const backends = @import("backends/mod.zig");
@@ -42,3 +42,6 @@ pub const gpu_examples = @import("gpu_examples.zig");
 // --------------------------------------------------------------------------
 // Expose the GPUContext type from the core GPU renderer.
 pub const GPUContext = core.gpu_renderer.GPUContext;
+
+// Vector search GPU implementation
+pub const vector_search_gpu = @import("vector_search_gpu.zig");

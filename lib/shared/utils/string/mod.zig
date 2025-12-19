@@ -167,7 +167,7 @@ pub const TimeUtils = struct {
 
     /// Get current timestamp in nanoseconds
     pub fn nowNs() i64 {
-        return std.time.nanoTimestamp;
+        return std.time.nanoTimestamp();
     }
 
     /// Format duration in human readable format

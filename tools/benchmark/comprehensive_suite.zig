@@ -240,7 +240,7 @@ pub const TrackingAllocator = struct {
     fn free(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
 
-        self.parent.vtable.free(self.parent.ptr, buf, buf_align, ret_addr);
+        self.parent.vtable.free(self.parent.ptr, buf, alignment, ret_addr);
 
         _ = self.stats.total_freed.fetchAdd(buf.len, .monotonic);
         _ = self.stats.current_usage.fetchSub(buf.len, .monotonic);
@@ -338,7 +338,7 @@ pub const CpuProfiler = struct {
 
         // Platform-specific CPU metrics collection
         return .{
-            .timestamp_ns = @intCast(std.time.nanoTimestamp),
+            .timestamp_ns = @intCast(std.time.nanoTimestamp()),
             .cpu_usage_percent = 0.0, // Would implement platform-specific collection
             .user_time_ns = 0,
             .system_time_ns = 0,

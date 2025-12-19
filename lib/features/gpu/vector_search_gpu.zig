@@ -6,10 +6,11 @@
 //! `examples/neural_network_training.zig`.
 
 const std = @import("std");
-const accelerator = @import("../gpu/accelerator.zig");
+const accelerator = @import("../../accelerator/accelerator.zig");
 
 pub const Error = error{
     InvalidDimension,
+    InputTooLarge,
 };
 
 const VectorEntry = struct {
@@ -24,6 +25,11 @@ pub const VectorSearchGPU = struct {
     next_id: usize = 0,
     vectors: std.ArrayList(VectorEntry),
 
+    /// Initialize vector search with GPU acceleration.
+    /// @param allocator: Memory allocator
+    /// @param accel: GPU accelerator
+    /// @param dim: Vector dimension
+    /// @return: Initialized VectorSearchGPU
     pub fn init(allocator: std.mem.Allocator, accel: *accelerator.Accelerator, dim: usize) VectorSearchGPU {
         return .{
             .allocator = allocator,
@@ -40,10 +46,15 @@ pub const VectorSearchGPU = struct {
         self.vectors.deinit(self.allocator);
     }
 
+    /// Insert a vector embedding.
+    /// @param embedding: Vector to insert
+    /// @return: ID of inserted vector
     pub fn insert(self: *VectorSearchGPU, embedding: []const f32) !usize {
         if (embedding.len != self.dim) return Error.InvalidDimension;
+        if (embedding.len > 10000) return Error.InputTooLarge; // Rate limiting
 
         const copy = try self.allocator.alloc(f32, self.dim);
+        errdefer self.allocator.free(copy);
         @memcpy(copy, embedding);
 
         const id = self.next_id;
@@ -53,8 +64,13 @@ pub const VectorSearchGPU = struct {
         return id;
     }
 
+    /// Search for k nearest neighbors.
+    /// @param query: Query vector
+    /// @param k: Number of neighbors to return
+    /// @return: Array of neighbor IDs
     pub fn search(self: *VectorSearchGPU, query: []const f32, k: usize) ![]usize {
         if (query.len != self.dim) return Error.InvalidDimension;
+        if (k > 100) return error.InvalidParameter; // Limit k for security
         if (self.vectors.items.len == 0) return try self.allocator.alloc(usize, 0);
 
         const Temp = struct { idx: usize, dist: f32 };
@@ -73,6 +89,7 @@ pub const VectorSearchGPU = struct {
 
         const count = @min(k, distances.len);
         const results = try self.allocator.alloc(usize, count);
+        errdefer self.allocator.free(results);
         for (results, 0..) |*dst, i| {
             dst.* = self.vectors.items[distances[i].idx].id;
         }

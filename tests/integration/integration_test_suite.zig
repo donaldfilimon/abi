@@ -259,7 +259,7 @@ fn testPerformanceIntegration(allocator: std.mem.Allocator) !void {
 
     // Performance test: Batch insert
     const batch_size = 1000;
-    const start_time = std.time.nanoTimestamp;
+    const start_time = std.time.nanoTimestamp();
 
     for (0..batch_size) |i| {
         var vector: [128]f32 = undefined;
@@ -269,7 +269,7 @@ fn testPerformanceIntegration(allocator: std.mem.Allocator) !void {
         _ = try db.addEmbedding(&vector);
     }
 
-    const insert_time = std.time.nanoTimestamp - start_time;
+    const insert_time = std.time.nanoTimestamp() - start_time;
     const insert_duration_ms = @as(f64, @floatFromInt(insert_time)) / 1_000_000.0;
     const throughput = @as(f64, @floatFromInt(batch_size)) / (insert_duration_ms / 1000.0);
 
@@ -278,7 +278,7 @@ fn testPerformanceIntegration(allocator: std.mem.Allocator) !void {
 
     // Performance test: Batch search
     const search_count = 100;
-    const search_start = std.time.nanoTimestamp;
+    const search_start = std.time.nanoTimestamp();
 
     for (0..search_count) |i| {
         var query: [128]f32 = undefined;
@@ -290,7 +290,7 @@ fn testPerformanceIntegration(allocator: std.mem.Allocator) !void {
         defer allocator.free(results);
     }
 
-    const search_time = std.time.nanoTimestamp - search_start;
+    const search_time = std.time.nanoTimestamp() - search_start;
     const search_duration_ms = @as(f64, @floatFromInt(search_time)) / 1_000_000.0;
     const search_throughput = @as(f64, @floatFromInt(search_count)) / (search_duration_ms / 1000.0);
 
@@ -310,7 +310,7 @@ fn testPerformanceIntegration(allocator: std.mem.Allocator) !void {
     for (a, 0..) |*v, i| v.* = @as(f32, @floatFromInt(i));
     for (b, 0..) |*v, i| v.* = @as(f32, @floatFromInt(i * 2));
 
-    const simd_start = std.time.nanoTimestamp;
+    const simd_start = std.time.nanoTimestamp();
     const simd_operations = 1000;
 
     for (0..simd_operations) |_| {
@@ -319,7 +319,7 @@ fn testPerformanceIntegration(allocator: std.mem.Allocator) !void {
         abi.VectorOps.normalize(result, result);
     }
 
-    const simd_time = std.time.nanoTimestamp - simd_start;
+    const simd_time = std.time.nanoTimestamp() - simd_start;
     const simd_duration_ms = @as(f64, @floatFromInt(simd_time)) / 1_000_000.0;
     const simd_throughput = @as(f64, @floatFromInt(simd_operations * 3)) / (simd_duration_ms / 1000.0);
 

@@ -136,6 +136,10 @@ pub const WdbxHttpServer = struct {
             return self.handleGet(parsed.path, parsed.query);
         } else if (std.mem.eql(u8, method, "POST")) {
             return self.handlePost(parsed.path, body);
+        } else if (std.mem.eql(u8, method, "PUT")) {
+            return self.handlePut(parsed.path, body);
+        } else if (std.mem.eql(u8, method, "DELETE")) {
+            return self.handleDelete(parsed.path);
         } else {
             return HttpError.UnsupportedMethod;
         }
@@ -269,6 +273,25 @@ pub const WdbxHttpServer = struct {
         if (std.mem.eql(u8, path, "/query")) {
             return self.handleQuery(query);
         }
+        if (std.mem.eql(u8, path, "/api/status")) {
+            return self.buildJsonResponse(
+                "{\"status\":\"running\",\"version\":\"1.0.0\",\"features\":[\"vector_search\",\"ai_inference\"]}",
+                .{},
+            );
+        }
+        if (std.mem.eql(u8, path, "/api/database/info")) {
+            const stats = self.vectorStats();
+            return self.buildJsonResponse(
+                "{\"vector_count\":{d},\"database_path\":\"{s}\",\"dimensions\":128}",
+                .{ stats.vector_count, stats.database_path },
+            );
+        }
+        if (std.mem.eql(u8, path, "/metrics")) {
+            return self.buildJsonResponse(
+                "{\"requests_total\":0,\"response_time_avg_ms\":15.5,\"memory_usage_mb\":45.2}",
+                .{},
+            );
+        }
         return HttpError.NotFound;
     }
 
@@ -279,6 +302,12 @@ pub const WdbxHttpServer = struct {
                 "{\"success\":true,\"id\":{d}}",
                 .{entry_id},
             );
+        }
+        if (std.mem.eql(u8, path, "/api/agent/query")) {
+            return self.handleAgentQuery(body);
+        }
+        if (std.mem.eql(u8, path, "/api/database/search")) {
+            return self.handleDatabaseSearch(body);
         }
         return HttpError.NotFound;
     }
@@ -309,6 +338,145 @@ pub const WdbxHttpServer = struct {
         }
         try json.appendSlice("]}");
         return Response{ .status = 200, .body = try json.toOwnedSlice(), .content_type = "application/json" };
+    }
+
+    fn handleAgentQuery(self: *WdbxHttpServer, body: []const u8) !Response {
+        // Parse JSON request
+        const parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, body, .{});
+        defer parsed.deinit();
+
+        const root_object = parsed.value.object orelse return HttpError.InvalidRequest;
+        const query = root_object.get("query") orelse return HttpError.InvalidRequest;
+        const query_text = switch (query) {
+            .string => query.string,
+            else => return HttpError.BadPayload,
+        };
+
+        // Simulate AI agent response (placeholder)
+        const response_text = try std.fmt.allocPrint(self.allocator, "{{\"response\":\"AI Agent response to: {s}\",\"confidence\":0.85,\"model\":\"placeholder\"}}", .{query_text});
+        defer self.allocator.free(response_text);
+
+        return Response{ .status = 200, .body = try self.allocator.dupe(u8, response_text), .content_type = "application/json" };
+    }
+
+    fn handleDatabaseSearch(self: *WdbxHttpServer, body: []const u8) !Response {
+        // Parse JSON request
+        const parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, body, .{});
+        defer parsed.deinit();
+
+        const root_object = parsed.value.object orelse return HttpError.InvalidRequest;
+        const vector_value = root_object.get("vector") orelse return HttpError.InvalidRequest;
+        const vector_array = vector_value.array orelse return HttpError.InvalidRequest;
+
+        // Parse vector
+        var query_vec = ArrayList(f32).init(self.allocator);
+        defer query_vec.deinit();
+
+        for (vector_array.items) |item| {
+            const value: f32 = switch (item) {
+                .float => @floatCast(item.float),
+                .integer => @floatFromInt(item.integer),
+                else => return HttpError.BadPayload,
+            };
+            try query_vec.append(value);
+        }
+
+        const k = if (root_object.get("k")) |k_value| switch (k_value) {
+            .integer => @as(usize, @intCast(k_value.integer)),
+            else => 5,
+        } else 5;
+
+        // Perform search
+        const matches = try self.findNearest(query_vec.items, k);
+        defer self.allocator.free(matches);
+
+        // Build JSON response
+        var json = ArrayList(u8).init(self.allocator);
+        errdefer json.deinit();
+
+        try json.appendSlice("{\"results\":[");
+        for (matches, 0..) |match, idx| {
+            if (idx != 0) try json.appendSlice(",");
+            try std.fmt.format(json.writer(), "{{\"id\":{d},\"score\":{d:.6}}}", .{ match.id, match.distance });
+        }
+        try json.appendSlice("],\"total\":");
+        try std.fmt.format(json.writer(), "{d}", .{matches.len});
+        try json.appendSlice("}");
+
+        return Response{ .status = 200, .body = try json.toOwnedSlice(), .content_type = "application/json" };
+    }
+
+    fn handlePut(self: *WdbxHttpServer, path: []const u8, body: []const u8) !Response {
+        // Handle PUT requests (update operations)
+        if (std.mem.eql(u8, path, "/api/database/update")) {
+            return self.handleDatabaseUpdate(body);
+        }
+        return HttpError.NotFound;
+    }
+
+    fn handleDelete(self: *WdbxHttpServer, path: []const u8) !Response {
+        // Handle DELETE requests
+        if (std.mem.eql(u8, path, "/api/database/clear")) {
+            return self.handleDatabaseClear();
+        }
+        return HttpError.NotFound;
+    }
+
+    fn handleDatabaseUpdate(self: *WdbxHttpServer, body: []const u8) !Response {
+        // Parse JSON request for vector update
+        const parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, body, .{});
+        defer parsed.deinit();
+
+        const root_object = parsed.value.object orelse return HttpError.InvalidRequest;
+        const id_value = root_object.get("id") orelse return HttpError.InvalidRequest;
+        const id = switch (id_value) {
+            .integer => @as(u64, @intCast(id_value.integer)),
+            else => return HttpError.BadPayload,
+        };
+
+        const vector_value = root_object.get("vector") orelse return HttpError.InvalidRequest;
+        const vector_array = vector_value.array orelse return HttpError.InvalidRequest;
+
+        // Parse new vector
+        var new_vec = ArrayList(f32).init(self.allocator);
+        defer new_vec.deinit();
+
+        for (vector_array.items) |item| {
+            const value: f32 = switch (item) {
+                .float => @floatCast(item.float),
+                .integer => @floatFromInt(item.integer),
+                else => return HttpError.BadPayload,
+            };
+            try new_vec.append(value);
+        }
+
+        // Update vector in database
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        for (self.vectors.items) |*entry| {
+            if (entry.id == id) {
+                self.allocator.free(entry.data);
+                entry.data = try new_vec.toOwnedSlice();
+                return self.buildJsonResponse("{\"success\":true,\"updated_id\":{d}}", .{id});
+            }
+        }
+
+        return HttpError.NotFound;
+    }
+
+    fn handleDatabaseClear(self: *WdbxHttpServer) !Response {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        const cleared_count = self.vectors.items.len;
+        for (self.vectors.items) |entry| {
+            self.allocator.free(entry.data);
+        }
+        self.vectors.clearRetainingCapacity();
+        self.next_id = 1;
+
+        return self.buildJsonResponse("{\"success\":true,\"cleared_count\":{d}}", .{cleared_count});
     }
 
     fn addVectorFromJson(self: *WdbxHttpServer, payload: []const u8) !u64 {

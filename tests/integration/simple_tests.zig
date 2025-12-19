@@ -72,7 +72,7 @@ fn runTcpTest() !void {
     std.debug.print("📡 Connecting to 127.0.0.1:8080...\n", .{});
 
     const connection = std.net.tcpConnectToAddress(address) catch |err| {
-        std.debug.print("❌ Connection failed: {}\n", .{err});
+        std.debug.print("❌ Connection failed: {s}\n", .{@errorName(err)});
         std.debug.print("💡 Make sure the WDBX server is running: .\\zig-out\\bin\\abi.exe http\n", .{});
         return err;
     };
@@ -80,7 +80,7 @@ fn runTcpTest() !void {
 
     // Configure socket for Windows compatibility
     configureClientSocket(connection) catch |err| {
-        std.debug.print("⚠️ Socket configuration warning: {} (continuing anyway)\n", .{err});
+        std.debug.print("⚠️ Socket configuration warning: {s} (continuing anyway)\n", .{@errorName(err)});
     };
 
     std.debug.print("✅ Connected successfully!\n", .{});
@@ -97,7 +97,7 @@ fn runTcpTest() !void {
 
         // Send request
         connection.writer().writeAll(request) catch |err| {
-            std.debug.print("❌ Write failed: {}\n", .{err});
+            std.debug.print("❌ Write failed: {s}\n", .{@errorName(err)});
             continue;
         };
 
@@ -198,15 +198,15 @@ fn configureClientSocket(connection: std.net.Stream) !void {
     // Set TCP_NODELAY for better performance
     const enable: c_int = 1;
     _ = std.posix.setsockopt(handle, std.posix.IPPROTO.TCP, std.posix.TCP.NODELAY, std.mem.asBytes(&enable)) catch |err| {
-        std.debug.print("Warning: TCP_NODELAY failed: {}\n", .{err});
+        std.debug.print("Warning: TCP_NODELAY failed: {s}\n", .{@errorName(err)});
     };
 
     // Set socket buffer sizes
     const buffer_size: c_int = 8192;
     _ = std.posix.setsockopt(handle, std.posix.SOL.SOCKET, std.posix.SO.RCVBUF, std.mem.asBytes(&buffer_size)) catch |err| {
-        std.debug.print("Warning: SO_RCVBUF failed: {}\n", .{err});
+        std.debug.print("Warning: SO_RCVBUF failed: {s}\n", .{@errorName(err)});
     };
     _ = std.posix.setsockopt(handle, std.posix.SOL.SOCKET, std.posix.SO.SNDBUF, std.mem.asBytes(&buffer_size)) catch |err| {
-        std.debug.print("Warning: SO_SNDBUF failed: {}\n", .{err});
+        std.debug.print("Warning: SO_SNDBUF failed: {s}\n", .{@errorName(err)});
     };
 }

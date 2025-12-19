@@ -68,7 +68,7 @@ fn testHttpServer(_: std.mem.Allocator) !void {
     };
 
     const connection = std.net.tcpConnectToAddress(address) catch |err| {
-        std.debug.print("  ❌ Cannot connect to WDBX server on port 8080: {}\n", .{err});
+        std.debug.print("  ❌ Cannot connect to WDBX server on port 8080: {s}\n", .{@errorName(err)});
         std.debug.print("  💡 Make sure to start the server with: zig build run -- http\n", .{});
         return;
     };
@@ -87,7 +87,7 @@ fn testHttpServer(_: std.mem.Allocator) !void {
         std.debug.print("  Testing endpoint {d}... ", .{i + 1});
 
         _ = connection.write(request) catch |err| {
-            std.debug.print("❌ Write failed: {}\n", .{err});
+            std.debug.print("❌ Write failed: {s}\n", .{@errorName(err)});
             continue;
         };
 
@@ -96,7 +96,7 @@ fn testHttpServer(_: std.mem.Allocator) !void {
             switch (err) {
                 error.ConnectionResetByPeer => std.debug.print("⚠️ Connection reset (normal)\n", .{}),
                 error.Unexpected => std.debug.print("⚠️ Unexpected error (Windows networking)\n", .{}),
-                else => std.debug.print("❌ Read failed: {}\n", .{err}),
+                else => std.debug.print("❌ Read failed: {s}\n", .{@errorName(err)}),
             }
             continue;
         };
@@ -163,7 +163,7 @@ fn testWindowsErrorHandling(_: std.mem.Allocator) !void {
         const reconnect = std.net.tcpConnectToAddress(address) catch |err| {
             switch (err) {
                 error.ConnectionResetByPeer, error.Unexpected => std.debug.print("⚠️ Handled gracefully\n", .{}),
-                else => std.debug.print("❌ Reconnect failed: {}\n", .{err}),
+                else => std.debug.print("❌ Reconnect failed: {s}\n", .{@errorName(err)}),
             }
             continue;
         };
@@ -192,7 +192,7 @@ fn testNetworkDiagnostics(_: std.mem.Allocator) !void {
     // Test socket creation
     std.debug.print("  Socket creation test... ", .{});
     const sock = std.posix.socket(std.posix.AF.INET, std.posix.SOCK.STREAM, std.posix.IPPROTO.TCP) catch |err| {
-        std.debug.print("❌ Failed: {}\n", .{err});
+        std.debug.print("❌ Failed: {s}\n", .{@errorName(err)});
         return;
     };
     defer std.posix.close(sock);
@@ -204,12 +204,12 @@ fn testNetworkDiagnostics(_: std.mem.Allocator) !void {
     // Test TCP_NODELAY
     const enable: c_int = 1;
     _ = std.posix.setsockopt(sock, std.posix.IPPROTO.TCP, std.posix.TCP.NODELAY, std.mem.asBytes(&enable)) catch |err| {
-        std.debug.print("⚠️ TCP_NODELAY failed: {} (may not be critical)\n", .{err});
+        std.debug.print("⚠️ TCP_NODELAY failed: {s} (may not be critical)\n", .{@errorName(err)});
     };
 
     // Test SO_KEEPALIVE
     _ = std.posix.setsockopt(sock, std.posix.SOL.SOCKET, std.posix.SO.KEEPALIVE, std.mem.asBytes(&enable)) catch |err| {
-        std.debug.print("⚠️ SO_KEEPALIVE failed: {} (may not be critical)\n", .{err});
+        std.debug.print("⚠️ SO_KEEPALIVE failed: {s} (may not be critical)\n", .{@errorName(err)});
     };
 
     std.debug.print("✅ Socket options configured\n", .{});

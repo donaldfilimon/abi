@@ -10,7 +10,7 @@
 //! - Cache-friendly layouts for better performance
 
 const std = @import("std");
-const shared_utils = @import("../../../shared/utils_modern.zig");
+const shared_utils = @import("../../../shared/utils/mod.zig");
 
 // Re-export lock-free data structures
 pub const lockFreeQueue = @import("lockfree.zig").lockFreeQueue;

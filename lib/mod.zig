@@ -174,12 +174,10 @@ fn resolveRuntimeConfig(
     };
 }
 
-fn runtimeConfigFromOptions(
+fn runtimeConfigFromOptionsWithAllocator(
     allocator: std.mem.Allocator,
     options: FrameworkOptions,
 ) !RuntimeConfig {
-    var runtime_config = framework.defaultConfig();
-
     var enabled_list = std.ArrayList(features.FeatureTag).init(allocator);
     errdefer enabled_list.deinit();
 
@@ -201,15 +199,17 @@ fn runtimeConfigFromOptions(
             try disabled_list.append(tag);
         }
     }
-    const disabled_features = disabled_list.toOwnedSlice() catch |err| {
-        allocator.free(enabled_features);
-        return err;
+    const disabled_features = try disabled_list.toOwnedSlice();
+    errdefer allocator.free(disabled_features);
+
+    return RuntimeConfig{
+        .plugin_paths = options.plugin_paths,
+        .auto_discover_plugins = options.auto_discover_plugins,
+        .auto_register_plugins = options.auto_register_plugins,
+        .auto_start_plugins = options.auto_start_plugins,
+        .enabled_features = enabled_features,
+        .disabled_features = disabled_features,
     };
-
-    runtime_config.enabled_features = enabled_features;
-    runtime_config.disabled_features = disabled_features;
-
-    return runtime_config;
 }
 
 fn featureToTag(feature: framework.Feature) ?features.FeatureTag {
@@ -249,7 +249,7 @@ test "framework options convert to runtime config" {
         .enable_ai = false,
         .enable_gpu = true,
         .disabled_features = &.{.gpu},
-        .plugin_paths = &.{ "/opt/abi/plugins" },
+        .plugin_paths = &.{"/opt/abi/plugins"},
         .auto_discover_plugins = true,
     };
 

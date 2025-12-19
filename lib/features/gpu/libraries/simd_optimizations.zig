@@ -533,16 +533,16 @@ pub const SIMDBenchmarks = struct {
         }
 
         // Benchmark scalar addition
-        const scalar_start = std.time.nanoTimestamp;
+        const scalar_start = std.time.nanoTimestamp();
         for (a, b, 0..) |a_val, b_val, i| {
             result[i] = a_val + b_val;
         }
-        const scalar_time = std.time.nanoTimestamp - scalar_start;
+        const scalar_time = std.time.nanoTimestamp() - scalar_start;
 
         // Benchmark SIMD addition
-        const simd_start = std.time.nanoTimestamp;
+        const simd_start = std.time.nanoTimestamp();
         SIMDCompute.addArrays(a, b, result);
-        const simd_time = std.time.nanoTimestamp - simd_start;
+        const simd_time = std.time.nanoTimestamp() - simd_start;
 
         std.log.info("📊 SIMD Performance Benchmark (Array Size: {})", .{array_size});
         std.log.info("  - Scalar Time: {} ns", .{scalar_time});
@@ -565,12 +565,12 @@ pub const SIMDBenchmarks = struct {
         };
         const vec = VectorTypes.Vec4f{ 1, 2, 3, 4 };
 
-        const start = std.time.nanoTimestamp;
+        const start = std.time.nanoTimestamp();
         var i: u32 = 0;
         while (i < iterations) : (i += 1) {
             _ = SIMDMath.mat4MulVec4(mat, vec);
         }
-        const time = std.time.nanoTimestamp - start;
+        const time = std.time.nanoTimestamp() - start;
 
         std.log.info("📊 Matrix-Vector Multiplication Benchmark", .{});
         std.log.info("  - Iterations: {}", .{iterations});

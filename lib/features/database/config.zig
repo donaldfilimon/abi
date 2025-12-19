@@ -832,7 +832,7 @@ pub const ConfigManager = struct {
 
         // Perform comprehensive validation
         validator.validateConfig(&self.config) catch |err| {
-            std.debug.print("⚠️ Configuration validation failed: {}\n", .{err});
+            std.debug.print("⚠️ Configuration validation failed: {s}\n", .{@errorName(err)});
             switch (err) {
                 ConfigValidationError.InvalidDatabasePath => {
                     std.debug.print("❌ Database path cannot be empty\n", .{});
@@ -853,7 +853,7 @@ pub const ConfigManager = struct {
                     std.debug.print("❌ Resource overallocation detected (memory or CPU)\n", .{});
                 },
                 else => {
-                    std.debug.print("❌ Validation error: {}\n", .{err});
+                    std.debug.print("❌ Validation error: {s}\n", .{@errorName(err)});
                 },
             }
             return core.WdbxError.ConfigurationValidationFailed;
@@ -867,7 +867,7 @@ pub const ConfigManager = struct {
         // Generate and optionally display validation report
         if (std.process.getEnvVarOwned(self.allocator, "WDBX_VERBOSE_CONFIG")) |_| {
             const report = validator.generateValidationReport(&self.config) catch |err| {
-                std.debug.print("Failed to generate validation report: {}\n", .{err});
+                std.debug.print("Failed to generate validation report: {s}\n", .{@errorName(err)});
                 return;
             };
             defer self.allocator.free(report);

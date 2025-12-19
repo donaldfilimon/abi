@@ -183,7 +183,7 @@ pub const CrossPlatformTestSuite = struct {
 
     /// Run a single test
     fn runTest(self: *Self, platform: TargetPlatform, test_name: []const u8, test_func: *const fn () anyerror!void) !void {
-        const start_time = std.time.nanoTimestamp;
+        const start_time = std.time.nanoTimestamp();
         const start_memory = self.getMemoryUsage();
 
         var result = TestResult{
@@ -199,7 +199,7 @@ pub const CrossPlatformTestSuite = struct {
             result.error_message = try self.allocator.dupe(u8, @errorName(err));
         };
 
-        result.execution_time = std.time.nanoTimestamp - start_time;
+        result.execution_time = std.time.nanoTimestamp() - start_time;
         result.memory_usage = self.getMemoryUsage() - start_memory;
 
         self.test_results.append(self.allocator, result) catch return error.OutOfMemory;

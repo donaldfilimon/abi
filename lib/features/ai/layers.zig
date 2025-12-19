@@ -4,7 +4,7 @@
 
 const std = @import("std");
 
-const accelerator = @import("../gpu/accelerator.zig");
+const accelerator = @import("../../accelerator/accelerator.zig");
 const ArrayList = std.array_list.Managed;
 
 /// Parameter storage with gradients
@@ -75,14 +75,33 @@ pub const Dense = struct {
     accel: *accelerator.Accelerator,
     last_input: ?accelerator.DeviceMemory = null,
 
+    /// Initialize a dense layer.
+    /// @param allocator: Memory allocator for internal structures
+    /// @param accel: GPU accelerator for computations
+    /// @param input_size: Number of input features
+    /// @param output_size: Number of output features
+    /// @return: Initialized Dense layer
     pub fn init(allocator: std.mem.Allocator, accel: *accelerator.Accelerator, input_size: usize, output_size: usize) !Dense {
+        if (input_size == 0 or output_size == 0) return error.InvalidParameter;
+        if (input_size == 0 or output_size == 0) return error.InvalidParameter;
+
         var weight = try Parameter.init(accel, &[_]usize{ output_size, input_size });
+        errdefer weight.deinit(accel);
         var bias = try Parameter.init(accel, &[_]usize{output_size});
+        errdefer bias.deinit(accel);
 
         // Xavier initialization
         const scale = @sqrt(2.0 / @as(f32, @floatFromInt(input_size)));
-        try randomInit(accel, &weight.data, weight.elementCount(), scale);
-        try zeroInit(accel, &bias.data, bias.elementCount());
+        randomInit(accel, &weight.data, weight.elementCount(), scale) catch |err| {
+            weight.deinit(accel);
+            bias.deinit(accel);
+            return err;
+        };
+        zeroInit(accel, &bias.data, bias.elementCount()) catch |err| {
+            weight.deinit(accel);
+            bias.deinit(accel);
+            return err;
+        };
 
         return .{
             .layer = Layer.init(allocator),
@@ -100,16 +119,22 @@ pub const Dense = struct {
         if (self.last_input) |*inp| self.accel.free(inp);
     }
 
+    /// Forward pass through the dense layer.
+    /// @param input: Input device memory
+    /// @param batch_size: Number of samples in batch
+    /// @return: Output device memory
     pub fn forward(self: *Dense, input: accelerator.DeviceMemory, batch_size: usize) !accelerator.DeviceMemory {
         // Save input for backward pass
         if (self.last_input) |*old| self.accel.free(old);
         const input_size = batch_size * self.input_size * @sizeOf(f32);
         self.last_input = try self.accel.alloc(input_size);
+        errdefer if (self.last_input) |*li| self.accel.free(li);
         const src_slice: [*]const u8 = @ptrCast(input.ptr.?);
         try self.accel.copyToDevice(self.last_input.?, src_slice[0..input_size]);
 
         // Allocate output
         const output = try self.accel.alloc(batch_size * self.output_size * @sizeOf(f32));
+        errdefer self.accel.free(&output);
 
         // Compute y = Wx + b
         const ops = accelerator.TensorOps.init(self.accel);
@@ -126,6 +151,10 @@ pub const Dense = struct {
         return output;
     }
 
+    /// Backward pass through the dense layer.
+    /// @param grad_output: Gradient of output
+    /// @param batch_size: Number of samples in batch
+    /// @return: Gradient of input
     pub fn backward(self: *Dense, grad_output: accelerator.DeviceMemory, batch_size: usize) !accelerator.DeviceMemory {
         // Compute gradient w.r.t. weights: dW = grad_output^T @ input
         const ops = accelerator.TensorOps.init(self.accel);
@@ -137,6 +166,7 @@ pub const Dense = struct {
 
         // Compute gradient w.r.t. input: grad_input = W^T @ grad_output
         const grad_input = try self.accel.alloc(batch_size * self.input_size * @sizeOf(f32));
+        errdefer self.accel.free(&grad_input);
         ops.matmul(grad_input, self.weight.data, grad_output, self.input_size, batch_size, self.output_size);
 
         return grad_input;
@@ -205,12 +235,16 @@ pub const Sequential = struct {
     }
 };
 
-// Helper functions
+// Helper functions using proper memory management
 fn randomInit(accel: *accelerator.Accelerator, mem: *accelerator.DeviceMemory, count: usize, scale: f32) !void {
-    const data = try accel.allocator.alloc(f32, count);
-    defer accel.allocator.free(data);
+    // Use arena allocator for temporary data generation
+    var arena = std.heap.ArenaAllocator.init(accel.allocator);
+    defer arena.deinit();
+    const temp_allocator = arena.allocator();
 
-    var prng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp));
+    const data = try temp_allocator.alloc(f32, count);
+
+    var prng = std.Random.DefaultPrng.init(@intCast(std.time.nanoTimestamp() / 1_000_000));
     const random = prng.random();
 
     for (data) |*d| {
@@ -221,8 +255,12 @@ fn randomInit(accel: *accelerator.Accelerator, mem: *accelerator.DeviceMemory, c
 }
 
 fn zeroInit(accel: *accelerator.Accelerator, mem: *accelerator.DeviceMemory, count: usize) !void {
-    const data = try accel.allocator.alloc(f32, count);
-    defer accel.allocator.free(data);
+    // Use arena allocator for temporary buffer
+    var arena = std.heap.ArenaAllocator.init(accel.allocator);
+    defer arena.deinit();
+    const temp_allocator = arena.allocator();
+
+    const data = try temp_allocator.alloc(f32, count);
     @memset(data, 0);
     try accel.copyToDevice(mem.*, std.mem.sliceAsBytes(data));
 }
@@ -230,7 +268,8 @@ fn zeroInit(accel: *accelerator.Accelerator, mem: *accelerator.DeviceMemory, cou
 test "dense layer forward" {
     const testing = std.testing;
 
-    var accel = accelerator.createBestAccelerator(testing.allocator);
+    var accel = try accelerator.createBestAccelerator(testing.allocator);
+    defer accel.deinit(&accel);
     var dense = try Dense.init(testing.allocator, &accel, 3, 2);
     defer dense.deinit();
 

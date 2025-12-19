@@ -27,14 +27,14 @@ pub const FeatureToggles = struct {
         }
     }
 
-    pub fn enableMany(self: *FeatureToggles, features: []const Feature) void {
-        for (features) |feature| {
+    pub fn enableMany(self: *FeatureToggles, feature_list: []const Feature) void {
+        for (feature_list) |feature| {
             self.enable(feature);
         }
     }
 
-    pub fn disableMany(self: *FeatureToggles, features: []const Feature) void {
-        for (features) |feature| {
+    pub fn disableMany(self: *FeatureToggles, feature_list: []const Feature) void {
+        for (feature_list) |feature| {
             self.disable(feature);
         }
     }
@@ -138,8 +138,8 @@ pub const FrameworkOptions = struct {
 pub fn deriveFeatureToggles(options: FrameworkOptions) FeatureToggles {
     var toggles = FeatureToggles{};
 
-    if (options.enabled_features) |features| {
-        toggles.enableMany(features);
+    if (options.enabled_features) |enabled_features| {
+        toggles.enableMany(enabled_features);
     } else {
         toggles.set(.ai, options.enable_ai);
         toggles.set(.database, options.enable_database);

@@ -152,7 +152,7 @@ pub const RuntimeStats = struct {
     pub fn uptime(self: *const RuntimeStats) i64 {
         if (self.start_time == 0) return 0;
 
-        const now_ms = std.time.milliTimestamp();
+        const now_ms = std.time.milliTimestamp;
         return now_ms - self.start_time;
     }
 };
@@ -240,7 +240,7 @@ pub const Runtime = struct {
         // Initialize all components first
         try self.initializeAllComponents();
 
-        self.stats.start_time = std.time.milliTimestamp();
+        self.stats.start_time = std.time.milliTimestamp;
         std.log.info("Runtime started with {} components", .{self.stats.total_components});
     }
 

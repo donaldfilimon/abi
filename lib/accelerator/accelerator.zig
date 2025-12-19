@@ -6,8 +6,23 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const hardware_detection = @import("hardware_detection.zig");
+const hardware_detection = @import("../features/gpu/hardware_detection.zig");
 pub const BackendType = hardware_detection.BackendType;
+
+const cuda_integration = @import("../features/gpu/libraries/cuda_integration.zig");
+const CUDARenderer = cuda_integration.CUDARenderer;
+
+/// Accelerator-specific error set
+pub const AcceleratorError = error{
+    /// CUDA runtime not initialized
+    CUDANotInitialized,
+    /// Backend not implemented
+    BackendNotImplemented,
+    /// Invalid memory reference
+    InvalidMemory,
+    /// Buffer too small for operation
+    BufferTooSmall,
+};
 
 /// Memory allocation on an accelerator device
 pub const DeviceMemory = struct {
@@ -82,6 +97,7 @@ pub const Accelerator = struct {
     allocator: std.mem.Allocator,
     device_id: u32,
     name: []const u8,
+    cuda_renderer: ?CUDARenderer = null,
 
     pub fn alloc(self: *Accelerator, size: usize) !DeviceMemory {
         if (self.backend == .cpu_fallback or self.backend == .cpu_simd) {
@@ -91,6 +107,16 @@ pub const Accelerator = struct {
                 .size = size,
                 .backend = self.backend,
             };
+        } else if (self.backend == .cuda) {
+            if (self.cuda_renderer) |*renderer| {
+                const ptr = try renderer.allocateDeviceMemory(size);
+                return DeviceMemory{
+                    .ptr = ptr,
+                    .size = size,
+                    .backend = self.backend,
+                };
+            }
+            return error.CUDANotInitialized;
         }
         return error.BackendNotImplemented;
     }
@@ -100,6 +126,10 @@ pub const Accelerator = struct {
         if (self.backend == .cpu_fallback or self.backend == .cpu_simd) {
             const slice: [*]u8 = @ptrCast(mem.ptr.?);
             self.allocator.free(slice[0..mem.size]);
+        } else if (self.backend == .cuda) {
+            if (self.cuda_renderer) |*renderer| {
+                renderer.freeDeviceMemory(mem.ptr.?);
+            }
         }
         mem.ptr = null;
     }
@@ -110,6 +140,12 @@ pub const Accelerator = struct {
         if (self.backend == .cpu_fallback or self.backend == .cpu_simd) {
             const dst_slice: [*]u8 = @ptrCast(dst.ptr.?);
             @memcpy(dst_slice[0..src.len], src);
+        } else if (self.backend == .cuda) {
+            if (self.cuda_renderer) |*renderer| {
+                try renderer.copyMemory(dst.ptr.?, @ptrCast(@constCast(src.ptr)), src.len, .host_to_device);
+            } else {
+                return error.CUDANotInitialized;
+            }
         }
     }
 
@@ -119,6 +155,18 @@ pub const Accelerator = struct {
         if (self.backend == .cpu_fallback or self.backend == .cpu_simd) {
             const src_slice: [*]const u8 = @ptrCast(src.ptr.?);
             @memcpy(dst, src_slice[0..dst.len]);
+        } else if (self.backend == .cuda) {
+            if (self.cuda_renderer) |*renderer| {
+                try renderer.copyMemory(@ptrCast(@constCast(dst.ptr)), src.ptr.?, dst.len, .device_to_host);
+            } else {
+                return error.CUDANotInitialized;
+            }
+        }
+    }
+
+    pub fn deinit(self: *Accelerator) void {
+        if (self.cuda_renderer) |*renderer| {
+            renderer.deinit();
         }
     }
 };
@@ -302,10 +350,44 @@ pub const TensorOps = struct {
 };
 
 pub fn createBestAccelerator(allocator: std.mem.Allocator) Accelerator {
+    // Try CUDA first if available
+    if (cuda_integration.CUDAUtils.isCUDAAvailable()) {
+        var cuda_renderer = CUDARenderer.init(allocator) catch {
+            // Fall back to CPU if CUDA init fails
+            return Accelerator{
+                .backend = .cpu_fallback,
+                .allocator = allocator,
+                .device_id = 0,
+                .name = "CPU Fallback",
+                .cuda_renderer = null,
+            };
+        };
+
+        cuda_renderer.initialize() catch {
+            cuda_renderer.deinit();
+            return Accelerator{
+                .backend = .cpu_fallback,
+                .allocator = allocator,
+                .device_id = 0,
+                .name = "CPU Fallback",
+                .cuda_renderer = null,
+            };
+        };
+
+        return Accelerator{
+            .backend = .cuda,
+            .allocator = allocator,
+            .device_id = 0,
+            .name = "CUDA Accelerator",
+            .cuda_renderer = cuda_renderer,
+        };
+    }
+
     return Accelerator{
         .backend = .cpu_fallback,
         .allocator = allocator,
         .device_id = 0,
         .name = "CPU Fallback",
+        .cuda_renderer = null,
     };
 }

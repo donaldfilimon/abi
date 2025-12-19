@@ -4,7 +4,7 @@
 
 const std = @import("std");
 
-const abi = @import("abi");
+const abi = @import("lib/mod.zig");
 const Tensor = abi.gpu.accelerator.Tensor;
 
 pub fn main() !void {
@@ -113,7 +113,7 @@ pub fn main() !void {
     // Demonstrate vector database integration
     std.debug.print("\n{s}Vector Database Demo:{s}\n", .{ abi.plugins.tui.ansi.bright_magenta, abi.plugins.tui.ansi.reset });
 
-    var vec_search = abi.database.vector_search_gpu.VectorSearchGPU.init(allocator, &accel, 128);
+    var vec_search = abi.gpu.vector_search_gpu.VectorSearchGPU.init(allocator, &accel, 128);
     defer vec_search.deinit();
 
     // Insert embeddings

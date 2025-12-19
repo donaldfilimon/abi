@@ -95,11 +95,11 @@ pub const PerformanceMonitor = struct {
 var global_monitor = PerformanceMonitor.init();
 
 inline fn beginTiming() i128 {
-    return std.time.nanoTimestamp;
+    return std.time.nanoTimestamp();
 }
 
 inline fn finishTiming(start: i128, used_simd: bool) void {
-    const end = std.time.nanoTimestamp;
+    const end = std.time.nanoTimestamp();
     const delta = end - start;
     const duration: u64 = if (delta <= 0) 0 else @as(u64, @intCast(delta));
     global_monitor.recordOperation(duration, used_simd);
