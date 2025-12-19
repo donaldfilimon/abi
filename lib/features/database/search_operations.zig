@@ -29,7 +29,7 @@ pub const SearchStats = struct {
 pub fn computeEuclideanDistance(query: []const f32, vector: []const f32) f32 {
     std.debug.assert(query.len == vector.len);
 
-    var dist: f32 = 0;
+    var distance_squared: f32 = 0;
 
     if (query.len >= 16 and @hasDecl(std.simd, "f32x16")) {
         var i: usize = 0;
@@ -38,11 +38,11 @@ pub fn computeEuclideanDistance(query: []const f32, vector: []const f32) f32 {
             const a: Vec = vector[i .. i + 16][0..16].*;
             const b: Vec = query[i .. i + 16][0..16].*;
             const diff = a - b;
-            dist += @reduce(.Add, diff * diff);
+            distance_squared += @reduce(.Add, diff * diff);
         }
         while (i < query.len) : (i += 1) {
             const d = vector[i] - query[i];
-            dist += d * d;
+            distance_squared += d * d;
         }
     } else if (query.len >= 8 and @hasDecl(std.simd, "f32x8")) {
         var i: usize = 0;
@@ -51,11 +51,11 @@ pub fn computeEuclideanDistance(query: []const f32, vector: []const f32) f32 {
             const a: Vec = vector[i .. i + 8][0..8].*;
             const b: Vec = query[i .. i + 8][0..8].*;
             const diff = a - b;
-            dist += @reduce(.Add, diff * diff);
+            distance_squared += @reduce(.Add, diff * diff);
         }
         while (i < query.len) : (i += 1) {
             const diff = vector[i] - query[i];
-            dist += diff * diff;
+            distance_squared += diff * diff;
         }
     } else if (query.len > 8) {
         var i: usize = 0;
@@ -64,20 +64,20 @@ pub fn computeEuclideanDistance(query: []const f32, vector: []const f32) f32 {
             const diff1 = vector[i + 1] - query[i + 1];
             const diff2 = vector[i + 2] - query[i + 2];
             const diff3 = vector[i + 3] - query[i + 3];
-            dist += diff0 * diff0 + diff1 * diff1 + diff2 * diff2 + diff3 * diff3;
+            distance_squared += diff0 * diff0 + diff1 * diff1 + diff2 * diff2 + diff3 * diff3;
         }
         while (i < query.len) : (i += 1) {
             const diff = vector[i] - query[i];
-            dist += diff * diff;
+            distance_squared += diff * diff;
         }
     } else {
         for (vector, query) |val, q| {
             const diff = val - q;
-            dist += diff * diff;
+            distance_squared += diff * diff;
         }
     }
 
-    return dist;
+    return @sqrt(distance_squared);
 }
 
 /// Linear search implementation - computes distance to all vectors
