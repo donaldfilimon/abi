@@ -180,6 +180,8 @@ pub const Framework = struct {
 
         self.components.deinit();
         self.component_registry.deinit();
+        self.allocator.free(self.config.enabled_features);
+        self.allocator.free(self.config.disabled_features);
     }
 
     pub fn registerComponent(self: *Self, component: Component) !void {

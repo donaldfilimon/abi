@@ -151,7 +151,7 @@ pub fn version() []const u8 {
 
 /// Create a framework with default configuration
 pub fn createDefaultFramework(allocator: std.mem.Allocator) !Framework {
-    return try init(allocator, framework.defaultConfig());
+    return try init(allocator, FrameworkOptions{});
 }
 
 /// Create a framework with custom configuration
