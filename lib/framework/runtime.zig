@@ -57,6 +57,16 @@ pub const RuntimeConfig = struct {
             return self.disabled[0..self.disabled_len];
         }
     };
+
+    pub fn rebaseFeatureSlices(self: *RuntimeConfig) void {
+        if (self.enabled_features.ptr == self.feature_storage.enabled[0..].ptr) {
+            self.enabled_features = self.feature_storage.enabledSlice();
+        }
+
+        if (self.disabled_features.ptr == self.feature_storage.disabled[0..].ptr) {
+            self.disabled_features = self.feature_storage.disabledSlice();
+        }
+    }
 };
 
 /// Component interface for the runtime system
@@ -126,9 +136,12 @@ pub const Framework = struct {
     enabled_features: std.StaticBitSet(6),
 
     pub fn init(allocator: std.mem.Allocator, config: RuntimeConfig) !Self {
+        var normalized_config = config;
+        normalized_config.rebaseFeatureSlices();
+
         // Calculate enabled features
         var enabled_features = std.StaticBitSet(6).initEmpty();
-        for (config.enabled_features) |feature| {
+        for (normalized_config.enabled_features) |feature| {
             const idx = switch (feature) {
                 .ai => 0,
                 .gpu => 1,
@@ -141,7 +154,7 @@ pub const Framework = struct {
         }
 
         // Remove disabled features
-        for (config.disabled_features) |feature| {
+        for (normalized_config.disabled_features) |feature| {
             const idx = switch (feature) {
                 .ai => 0,
                 .gpu => 1,
@@ -155,7 +168,7 @@ pub const Framework = struct {
 
         return Self{
             .allocator = allocator,
-            .config = config,
+            .config = normalized_config,
             .components = core.ArrayList(Component).init(allocator),
             .component_registry = core.StringHashMap(Component).init(allocator),
             .stats = RuntimeStats.init(enabled_features.count()),
