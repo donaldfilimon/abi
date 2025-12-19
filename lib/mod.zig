@@ -84,6 +84,52 @@ pub const wdbx = struct {
 // PUBLIC API
 // =============================================================================
 
+fn mapFeatureToTag(feature: Feature) ?features.FeatureTag {
+    return switch (feature) {
+        .ai => .ai,
+        .database => .database,
+        .web => .web,
+        .monitoring => .monitoring,
+        .gpu => .gpu,
+        .connectors => .connectors,
+        .simd => null,
+    };
+}
+
+/// Convert high level framework options into a runtime configuration.
+pub fn runtimeConfigFromOptions(options: FrameworkOptions) RuntimeConfig {
+    const feature_capacity = std.enums.values(features.FeatureTag).len;
+
+    var enabled = std.BoundedArray(features.FeatureTag, feature_capacity).init(0) catch unreachable;
+    var toggles = framework.deriveFeatureToggles(options);
+    var iterator = toggles.iterator();
+    while (iterator.next()) |feature| {
+        if (mapFeatureToTag(feature)) |tag| {
+            enabled.append(tag) catch unreachable;
+        }
+    }
+
+    var disabled = std.BoundedArray(features.FeatureTag, feature_capacity).init(0) catch unreachable;
+    for (options.disabled_features) |feature| {
+        if (mapFeatureToTag(feature)) |tag| {
+            disabled.append(tag) catch unreachable;
+        }
+    }
+
+    var config = RuntimeConfig{
+        .plugin_paths = options.plugin_paths,
+        .auto_discover_plugins = options.auto_discover_plugins,
+        .auto_register_plugins = options.auto_register_plugins,
+        .auto_start_plugins = options.auto_start_plugins,
+    };
+
+    config.feature_storage.setEnabled(enabled.constSlice());
+    config.feature_storage.setDisabled(disabled.constSlice());
+    config.enabled_features = config.feature_storage.enabledSlice();
+    config.disabled_features = config.feature_storage.disabledSlice();
+    return config;
+}
+
 /// Initialise the ABI framework and return the orchestration handle. Call
 /// `Framework.deinit` (or `abi.shutdown`) when finished. Accepts either a
 /// `RuntimeConfig` or `FrameworkOptions` which will be converted automatically.
@@ -196,4 +242,22 @@ test "framework initialization" {
     try std.testing.expect(!framework_instance.isRunning());
     try std.testing.expect(framework_instance.isFeatureEnabled(.ai));
     try std.testing.expect(framework_instance.isFeatureEnabled(.database));
+}
+
+test "framework options convert to runtime config" {
+    const options = FrameworkOptions{
+        .enable_ai = false,
+        .enable_gpu = true,
+        .disabled_features = &.{.gpu},
+        .plugin_paths = &.{ "/opt/abi/plugins" },
+        .auto_discover_plugins = true,
+    };
+
+    const config = runtimeConfigFromOptions(options);
+
+    try std.testing.expect(std.mem.indexOfScalar(features.FeatureTag, config.enabled_features, .ai) == null);
+    try std.testing.expect(std.mem.indexOfScalar(features.FeatureTag, config.enabled_features, .gpu) != null);
+    try std.testing.expect(std.mem.indexOfScalar(features.FeatureTag, config.disabled_features, .gpu) != null);
+    try std.testing.expectEqualStrings("/opt/abi/plugins", config.plugin_paths[0]);
+    try std.testing.expect(config.auto_discover_plugins);
 }

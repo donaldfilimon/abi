@@ -7,6 +7,8 @@ const std = @import("std");
 const core = @import("../core/mod.zig");
 const features = @import("../features/mod.zig");
 
+const feature_tag_count = std.enums.values(features.FeatureTag).len;
+
 /// Framework runtime configuration
 pub const RuntimeConfig = struct {
     max_plugins: u32 = 128,
@@ -16,6 +18,11 @@ pub const RuntimeConfig = struct {
     log_level: LogLevel = .info,
     enabled_features: []const features.FeatureTag = &[_]features.FeatureTag{ .ai, .database, .web, .monitoring, .simd },
     disabled_features: []const features.FeatureTag = &[_]features.FeatureTag{},
+    plugin_paths: []const []const u8 = &[_][]const u8{},
+    auto_discover_plugins: bool = false,
+    auto_register_plugins: bool = false,
+    auto_start_plugins: bool = false,
+    feature_storage: FeatureStorage = .{},
 
     pub const LogLevel = enum {
         debug,
@@ -23,6 +30,43 @@ pub const RuntimeConfig = struct {
         warn,
         err,
     };
+
+    pub const FeatureStorage = struct {
+        enabled: [feature_tag_count]features.FeatureTag = undefined,
+        disabled: [feature_tag_count]features.FeatureTag = undefined,
+        enabled_len: usize = 0,
+        disabled_len: usize = 0,
+
+        pub fn setEnabled(self: *FeatureStorage, feature_list: []const features.FeatureTag) void {
+            std.debug.assert(feature_list.len <= feature_tag_count);
+            std.mem.copy(features.FeatureTag, self.enabled[0..feature_list.len], feature_list);
+            self.enabled_len = feature_list.len;
+        }
+
+        pub fn setDisabled(self: *FeatureStorage, feature_list: []const features.FeatureTag) void {
+            std.debug.assert(feature_list.len <= feature_tag_count);
+            std.mem.copy(features.FeatureTag, self.disabled[0..feature_list.len], feature_list);
+            self.disabled_len = feature_list.len;
+        }
+
+        pub fn enabledSlice(self: *const FeatureStorage) []const features.FeatureTag {
+            return self.enabled[0..self.enabled_len];
+        }
+
+        pub fn disabledSlice(self: *const FeatureStorage) []const features.FeatureTag {
+            return self.disabled[0..self.disabled_len];
+        }
+    };
+
+    pub fn rebaseFeatureSlices(self: *RuntimeConfig) void {
+        if (self.enabled_features.ptr == self.feature_storage.enabled[0..].ptr) {
+            self.enabled_features = self.feature_storage.enabledSlice();
+        }
+
+        if (self.disabled_features.ptr == self.feature_storage.disabled[0..].ptr) {
+            self.disabled_features = self.feature_storage.disabledSlice();
+        }
+    }
 };
 
 /// Component interface for the runtime system
@@ -95,6 +139,9 @@ pub const Framework = struct {
     enabled_features: features.config.FeatureFlags,
 
     pub fn init(allocator: std.mem.Allocator, config: RuntimeConfig) !Self {
+        var normalized_config = config;
+        normalized_config.rebaseFeatureSlices();
+
         // Calculate enabled features
         var enabled_features = features.config.FeatureFlags.initEmpty();
         for (config.enabled_features) |feature| {
@@ -108,7 +155,7 @@ pub const Framework = struct {
 
         return Self{
             .allocator = allocator,
-            .config = config,
+            .config = normalized_config,
             .components = core.ArrayList(Component).init(allocator),
             .component_registry = core.StringHashMap(Component).init(allocator),
             .stats = RuntimeStats.init(enabled_features.count()),
