@@ -6,7 +6,7 @@
 //! `examples/neural_network_training.zig`.
 
 const std = @import("std");
-const accelerator = @import("../../accelerator/accelerator.zig");
+const accelerator = @import("../../shared/platform/accelerator/accelerator.zig");
 
 pub const Error = error{
     InvalidDimension,
@@ -35,7 +35,7 @@ pub const VectorSearchGPU = struct {
             .allocator = allocator,
             .accel = accel,
             .dim = dim,
-            .vectors = std.ArrayList(VectorEntry){},
+            .vectors = std.ArrayList(VectorEntry).init(),
         };
     }
 

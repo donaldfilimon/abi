@@ -53,6 +53,7 @@ pub const WdbxHttpServer = struct {
     next_id: u64 = 1,
     mutex: std.Thread.Mutex = .{},
     running: bool = false,
+    rate_limiter: security.RateLimiter,
 
     pub fn init(allocator: std.mem.Allocator, config: ServerConfig) !*WdbxHttpServer {
         const self = try allocator.create(WdbxHttpServer);
@@ -62,6 +63,7 @@ pub const WdbxHttpServer = struct {
             .database_path = null,
             .vectors = ArrayList(VectorEntry).init(allocator),
             .next_id = 1,
+            .rate_limiter = security.RateLimiter.init(allocator, security.SecureDefaults.rate_limit),
         };
         return self;
     }
@@ -72,6 +74,7 @@ pub const WdbxHttpServer = struct {
             self.allocator.free(entry.data);
         }
         self.vectors.deinit();
+        self.rate_limiter.deinit();
         if (self.database_path) |path| {
             self.allocator.free(path);
         }
@@ -133,6 +136,9 @@ pub const WdbxHttpServer = struct {
         full_path: []const u8,
         body: []const u8,
     ) !Response {
+        // Rate limiting (using dummy IP for now - in real implementation extract from connection)
+        const dummy_ip: u32 = 0x7F000001; // 127.0.0.1
+        try self.rate_limiter.checkLimit(dummy_ip);
         const parsed = splitPath(full_path);
         if (std.mem.eql(u8, method, "GET")) {
             return self.handleGet(parsed.path, parsed.query);
@@ -184,7 +190,12 @@ pub const WdbxHttpServer = struct {
             }
         }
 
-        const header_bytes = buffer.items[0..header_end.?];
+        const header_end_pos = header_end.?;
+        if (header_end_pos > buffer.items.len) {
+            try self.sendError(&connection, 400, "malformed_request");
+            return;
+        }
+        const header_bytes = buffer.items[0..header_end_pos];
         var lines = std.mem.splitScalar(u8, header_bytes, '\n');
         const request_line_raw = lines.next() orelse {
             try self.sendError(&connection, 400, "invalid_request_line");
@@ -390,6 +401,14 @@ pub const WdbxHttpServer = struct {
             .integer => @as(usize, @intCast(k_value.integer)),
             else => 5,
         } else 5;
+
+        // Validate search parameters
+        if (k == 0 or k > 1000) { // Reasonable limit for k
+            return HttpError.BadPayload;
+        }
+
+        // Validate query vector
+        try security.validateVectorData(query_vec.items);
 
         // Perform search
         const matches = try self.findNearest(query_vec.items, k);

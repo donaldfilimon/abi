@@ -13,6 +13,7 @@ pub const server = @import("server.zig");
 pub const config = @import("config.zig");
 pub const sharding = @import("database_sharding.zig");
 pub const wdbx_adapter = @import("wdbx_adapter.zig");
+pub const search_operations = @import("search_operations.zig");
 pub const tools = struct {
     pub const vector_search = @import("tools/vector_search.zig");
 };

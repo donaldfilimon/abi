@@ -5,11 +5,7 @@ const buffers_mod = @import("buffers.zig");
 pub const config = config_mod;
 pub const pipelines = pipelines_mod;
 pub const buffers = buffers_mod;
-
-pub const backends = @import("backends.zig");
-pub const types = @import("types.zig");
-
-pub const GPURenderer = @import("renderer.zig").GPURenderer;
+pub const buffer_operations = @import("buffer_operations.zig");
 
 // Re-export commonly used configuration types for backwards compatibility.
 pub const has_webgpu_support = config_mod.has_webgpu_support;

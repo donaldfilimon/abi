@@ -1,7 +1,7 @@
 const std = @import("std");
 const testing = std.testing;
 
-const ai = @import("../../mod.zig");
+const ai = @import("abi").ai;
 
 /// Benchmark GPU acceleration performance
 pub fn benchmarkGPUAcceleration() !void {
@@ -134,9 +134,9 @@ pub fn benchmarkOptimizationAlgorithms() !void {
     defer optimizer.deinit();
 
     // Create test parameters and gradients
-    var params = try allocator.alloc(f32, 1000);
+    const params = try allocator.alloc(f32, 1000);
     defer allocator.free(params);
-    var grads = try allocator.alloc(f32, 1000);
+    const grads = try allocator.alloc(f32, 1000);
     defer allocator.free(grads);
 
     // Initialize with test data

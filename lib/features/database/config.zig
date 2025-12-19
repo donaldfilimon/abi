@@ -192,9 +192,11 @@ pub const ConfigValidator = struct {
             return ConfigValidationError.InvalidPaginationSettings;
         }
 
-        // JWT secret validation when auth is enabled and JWT secret is explicitly set
-        if (server_config.enable_auth and server_config.jwt_secret != null and server_config.jwt_secret.?.len < 32) {
-            return ConfigValidationError.InvalidAuthConfig;
+        // JWT secret validation - required when auth is enabled
+        if (server_config.enable_auth) {
+            if (server_config.jwt_secret == null or server_config.jwt_secret.?.len < 32) {
+                return ConfigValidationError.InvalidAuthConfig;
+            }
         }
     }
 
@@ -571,12 +573,12 @@ pub const WdbxConfig = struct {
     pub const ServerConfig = struct {
         host: []const u8 = "127.0.0.1",
         port: u16 = 8080,
-        max_connections: u32 = 1000,
-        max_request_size: usize = 1024 * 1024, // 1MB
+        max_connections: u32 = 100, // Reduced for security
+        max_request_size: usize = 1024 * 1024, // 1MB - reasonable limit
         request_timeout_ms: u32 = 30000,
-        enable_cors: bool = true,
+        enable_cors: bool = false, // Disabled by default for security
         enable_auth: bool = true,
-        jwt_secret: ?[]const u8 = null,
+        jwt_secret: ?[]const u8 = null, // Must be set when auth is enabled
 
         // Batch operations
         max_batch_size: u32 = 100,
@@ -637,8 +639,8 @@ pub const WdbxConfig = struct {
     pub const SecurityConfig = struct {
         // Rate limiting
         rate_limit_enabled: bool = true,
-        rate_limit_requests_per_minute: u32 = 1000,
-        rate_limit_burst: u32 = 100,
+        rate_limit_requests_per_minute: u32 = 60, // More conservative default
+        rate_limit_burst: u32 = 10,
 
         // API keys
         require_api_key: bool = false,

@@ -82,7 +82,96 @@ const ClusterManager = struct {
 const WebServerConfig = struct {
     port: u16 = 8080,
     enable_ssl: bool = false,
+    enable_websocket: bool = false,
 };
+
+// Missing type definitions
+const Route = struct {
+    method: []const u8,
+    path: []const u8,
+    handler: *const fn (*RequestContext) anyerror!void,
+};
+
+const ServerStats = struct {
+    state: ServerState,
+    total_requests: u64,
+    active_connections: u32,
+    websocket_connections: u32,
+    average_response_time_ms: f32,
+};
+
+const ServerHealthStatus = enum {
+    healthy,
+    degraded,
+    unhealthy,
+};
+
+const PerformanceCallback = *const fn () void;
+
+const RequestContext = struct {
+    // Placeholder for request context
+};
+
+const ComponentHealth = struct {
+    status: ServerHealthStatus,
+    message: []const u8,
+};
+
+// Handler functions
+fn corsMiddlewareHandler(_: *RequestContext) !void {
+    // Placeholder implementation
+}
+
+fn healthCheckHandler(_: *RequestContext) !void {
+    // Placeholder implementation
+}
+
+fn performanceMonitoringHandler(_: *RequestContext) !void {
+    // Placeholder implementation
+}
+
+fn loggingMiddlewareHandler(_: *RequestContext) !void {
+    // Placeholder implementation
+}
+
+fn apiStatusHandler(_: *RequestContext) !void {
+    // Placeholder implementation
+}
+
+fn securityMiddlewareHandler(_: *RequestContext) !void {
+    // Placeholder implementation
+}
+
+fn agentQueryHandler(_: *RequestContext) !void {
+    // Placeholder implementation
+}
+
+fn rateLimitMiddlewareHandler(_: *RequestContext) !void {
+    // Placeholder implementation
+}
+
+// Additional missing types
+const RateLimit = struct {
+    requests_per_minute: u32 = 1000,
+    burst: u32 = 100,
+};
+
+// Additional handler functions
+fn authenticationMiddlewareHandler(_: *RequestContext) !void {
+    // Placeholder implementation
+}
+
+fn databaseSearchHandler(_: *RequestContext) !void {
+    // Placeholder implementation
+}
+
+fn databaseInfoHandler(_: *RequestContext) !void {
+    // Placeholder implementation
+}
+
+fn metricsHandler(_: *RequestContext) !void {
+    // Placeholder implementation
+}
 
 /// Enhanced web server with production‑ready features
 const ServerState = enum {

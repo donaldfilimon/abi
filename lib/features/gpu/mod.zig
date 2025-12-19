@@ -8,7 +8,7 @@ const std = @import("std");
 pub const gpu_renderer = @import("core/gpu_renderer.zig");
 pub const unified_memory = @import("unified_memory.zig");
 pub const hardware_detection = @import("hardware_detection.zig");
-pub const accelerator = @import("../../accelerator/accelerator.zig");
+pub const accelerator = @import("../../shared/platform/accelerator/accelerator.zig");
 
 // GPU backends and compute
 pub const backends = @import("backends/mod.zig");

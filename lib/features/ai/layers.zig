@@ -4,7 +4,7 @@
 
 const std = @import("std");
 
-const accelerator = @import("../../accelerator/accelerator.zig");
+const accelerator = @import("../../shared/platform/accelerator/accelerator.zig");
 const ArrayList = std.array_list.Managed;
 
 /// Parameter storage with gradients
