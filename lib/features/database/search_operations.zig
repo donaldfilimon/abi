@@ -137,13 +137,137 @@ pub fn parallelSearch(
     allocator: std.mem.Allocator,
     num_threads: u32,
 ) ![]Result {
-    _ = num_threads; // TODO: Use for parallel implementation
+    const dim_usize: usize = @intCast(dimension);
+    const row_count_usize: usize = @intCast(row_count);
 
-    // TODO: Implement parallel search
-    // For now, always fall back to single-threaded search
-    const read_buffer = try allocator.alloc(f32, dimension);
-    defer allocator.free(read_buffer);
-    return linearSearch(file, records_offset, record_size, row_count, dimension, query, top_k, allocator, read_buffer);
+    if (query.len != dim_usize) {
+        return error.DimensionMismatch;
+    }
+
+    if (row_count == 0 or top_k == 0) {
+        return allocator.alloc(Result, 0);
+    }
+
+    if (num_threads <= 1 or row_count_usize <= 1) {
+        const read_buffer = try allocator.alloc(f32, dim_usize);
+        defer allocator.free(read_buffer);
+        return linearSearch(file, records_offset, record_size, row_count, dimension, query, top_k, allocator, read_buffer);
+    }
+
+    const thread_count: usize = @min(@as(usize, @intCast(num_threads)), row_count_usize);
+    const chunk_size: u64 = (row_count + @as(u64, @intCast(thread_count)) - 1) / @as(u64, @intCast(thread_count));
+
+    var threads = try allocator.alloc(std.Thread, thread_count);
+    defer allocator.free(threads);
+
+    var states = try allocator.alloc(ThreadState, thread_count);
+    defer {
+        for (states) |state| {
+            allocator.free(state.row_values);
+            allocator.free(state.results);
+        }
+        allocator.free(states);
+    }
+
+    for (0..thread_count) |i| {
+        const start_row = @as(u64, @intCast(i)) * chunk_size;
+        const end_row = @min(start_row + chunk_size, row_count);
+        const chunk_len = @as(usize, @intCast(end_row - start_row));
+        const results_len = @min(top_k, chunk_len);
+
+        states[i] = .{
+            .file = file,
+            .records_offset = records_offset,
+            .record_size = record_size,
+            .query = query,
+            .start_row = start_row,
+            .end_row = end_row,
+            .row_values = try allocator.alloc(f32, dim_usize),
+            .results = try allocator.alloc(Result, results_len),
+            .count = 0,
+            .err = null,
+        };
+
+        threads[i] = try std.Thread.spawn(.{}, searchThread, .{&states[i]});
+    }
+
+    for (threads) |thread| {
+        thread.join();
+    }
+
+    for (states) |state| {
+        if (state.err) |err| return err;
+    }
+
+    return mergeThreadResults(states, row_count_usize, top_k, allocator);
+}
+
+const ThreadState = struct {
+    file: std.fs.File,
+    records_offset: u64,
+    record_size: u64,
+    query: []const f32,
+    start_row: u64,
+    end_row: u64,
+    row_values: []f32,
+    results: []Result,
+    count: usize,
+    err: ?anyerror,
+};
+
+fn searchThread(state: *ThreadState) void {
+    state.err = searchChunk(state) catch |err| err;
+}
+
+fn searchChunk(state: *ThreadState) !void {
+    const row_bytes = std.mem.sliceAsBytes(state.row_values);
+    var row: u64 = state.start_row;
+    while (row < state.end_row) : (row += 1) {
+        const offset: u64 = state.records_offset + row * state.record_size;
+        _ = try state.file.preadAll(row_bytes, offset);
+
+        const dist = computeEuclideanDistance(state.query, state.row_values);
+        insertTopK(state.results, &state.count, .{ .index = row, .score = dist });
+    }
+}
+
+fn insertTopK(results: []Result, count: *usize, candidate: Result) void {
+    if (results.len == 0) return;
+
+    if (count.* < results.len) {
+        results[count.*] = candidate;
+        count.* += 1;
+    } else if (candidate.score < results[count.* - 1].score) {
+        results[count.* - 1] = candidate;
+    } else {
+        return;
+    }
+
+    var idx: usize = count.* - 1;
+    while (idx > 0 and results[idx].score < results[idx - 1].score) : (idx -= 1) {
+        const tmp = results[idx - 1];
+        results[idx - 1] = results[idx];
+        results[idx] = tmp;
+    }
+}
+
+fn mergeThreadResults(states: []ThreadState, row_count: usize, top_k: usize, allocator: std.mem.Allocator) ![]Result {
+    const result_len = @min(top_k, row_count);
+    var merged = try allocator.alloc(Result, result_len);
+    var count: usize = 0;
+
+    for (states) |state| {
+        for (state.results[0..state.count]) |result| {
+            insertTopK(merged, &count, result);
+        }
+    }
+
+    if (count == merged.len) return merged;
+
+    const trimmed = try allocator.alloc(Result, count);
+    @memcpy(trimmed, merged[0..count]);
+    allocator.free(merged);
+    return trimmed;
 }
 
 test "compute euclidean distance" {
