@@ -69,6 +69,24 @@ pub const RuntimeConfig = struct {
     }
 };
 
+fn normalizeConfig(allocator: std.mem.Allocator, config: RuntimeConfig) !RuntimeConfig {
+    const enabled_features = try allocator.dupe(features.FeatureTag, config.enabled_features);
+    errdefer allocator.free(enabled_features);
+
+    const disabled_features = try allocator.dupe(features.FeatureTag, config.disabled_features);
+    errdefer allocator.free(disabled_features);
+
+    return RuntimeConfig{
+        .max_plugins = config.max_plugins,
+        .enable_hot_reload = config.enable_hot_reload,
+        .enable_profiling = config.enable_profiling,
+        .memory_limit_mb = config.memory_limit_mb,
+        .log_level = config.log_level,
+        .enabled_features = enabled_features,
+        .disabled_features = disabled_features,
+    };
+}
+
 /// Component interface for the runtime system
 pub const Component = struct {
     name: []const u8,
