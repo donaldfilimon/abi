@@ -7,7 +7,8 @@ const std = @import("std");
 /// Symbolic identifiers for the high level feature families exposed by the
 /// framework module. Keeping the enum local avoids circular dependencies with
 /// `framework/config.zig` while still enabling compile-time iteration.
-pub const FeatureTag = enum { ai, gpu, database, web, monitoring, connectors };
+pub const FeatureTag = enum { ai, gpu, database, web, monitoring, connectors, simd };
+pub const feature_count = std.enums.values(FeatureTag).len;
 
 /// Public feature modules grouped for discoverability.
 pub const ai = @import("ai/mod.zig");
@@ -19,22 +20,25 @@ pub const connectors = @import("connectors/mod.zig");
 
 /// Feature configuration and management
 pub const config = struct {
+    pub const tag_count = std.enums.values(FeatureTag).len;
     /// Feature enablement flags
-    pub const FeatureFlags = std.StaticBitSet(6);
+    pub const FeatureFlags = std.StaticBitSet(tag_count);
+
+    /// Convert a feature tag into its bitset index
+    pub fn tagIndex(tag: FeatureTag) usize {
+        return @intFromEnum(tag);
+    }
+
+    /// Get all declared feature tags in declaration order
+    pub fn allTags() []const FeatureTag {
+        return std.enums.values(FeatureTag);
+    }
 
     /// Creates feature flags from enabled features
     pub fn createFlags(enabled_features: []const FeatureTag) FeatureFlags {
         var flags = FeatureFlags.initEmpty();
         for (enabled_features) |feature| {
-            const idx = switch (feature) {
-                .ai => 0,
-                .gpu => 1,
-                .database => 2,
-                .web => 3,
-                .monitoring => 4,
-                .connectors => 5,
-            };
-            flags.set(idx);
+            flags.set(tagIndex(feature));
         }
         return flags;
     }
@@ -48,6 +52,7 @@ pub const config = struct {
             .web => "web",
             .monitoring => "monitoring",
             .connectors => "connectors",
+            .simd => "simd",
         };
     }
 
@@ -60,6 +65,7 @@ pub const config = struct {
             .web => "Web services and HTTP",
             .monitoring => "Observability and metrics",
             .connectors => "External service connectors",
+            .simd => "SIMD acceleration and vectorized math",
         };
     }
 };
@@ -72,6 +78,7 @@ pub fn forEachFeature(ctx: anytype, visitor: anytype) void {
     visitor(ctx, .web, "features/web/mod.zig");
     visitor(ctx, .monitoring, "features/monitoring/mod.zig");
     visitor(ctx, .connectors, "features/connectors/mod.zig");
+    visitor(ctx, .simd, "shared/simd.zig");
 }
 
 /// Feature initialization and lifecycle management
@@ -86,6 +93,7 @@ pub const lifecycle = struct {
                 .web => try web.init(allocator),
                 .monitoring => try monitoring.init(allocator),
                 .connectors => try connectors.init(allocator),
+                .simd => {},
             }
         }
     }
@@ -100,40 +108,33 @@ pub const lifecycle = struct {
                 .web => web.deinit(),
                 .monitoring => monitoring.deinit(),
                 .connectors => connectors.deinit(),
+                .simd => {},
             }
         }
     }
 };
 
 test "feature registry exposes all modules" {
-    const FeatureMask = std.bit_set.IntegerBitSet(6);
+    const FeatureMask = std.bit_set.IntegerBitSet(config.tag_count);
     var features_seen = FeatureMask.initEmpty();
     forEachFeature(&features_seen, struct {
         fn visit(mask: *FeatureMask, kind: FeatureTag, _: []const u8) void {
-            const idx = switch (kind) {
-                .ai => 0,
-                .gpu => 1,
-                .database => 2,
-                .web => 3,
-                .monitoring => 4,
-                .connectors => 5,
-            };
-            mask.set(idx);
+            mask.set(config.tagIndex(kind));
         }
     }.visit);
-    try std.testing.expectEqual(@as(usize, 6), features_seen.count());
+    try std.testing.expectEqual(@as(usize, config.tag_count), features_seen.count());
 }
 
 test "feature configuration" {
     const enabled = [_]FeatureTag{ .ai, .database, .web };
     const flags = config.createFlags(&enabled);
 
-    try std.testing.expect(flags.isSet(0)); // ai
-    try std.testing.expect(!flags.isSet(1)); // gpu
-    try std.testing.expect(flags.isSet(2)); // database
-    try std.testing.expect(flags.isSet(3)); // web
-    try std.testing.expect(!flags.isSet(4)); // monitoring
-    try std.testing.expect(!flags.isSet(5)); // connectors
+    try std.testing.expect(flags.isSet(config.tagIndex(.ai)));
+    try std.testing.expect(!flags.isSet(config.tagIndex(.gpu)));
+    try std.testing.expect(flags.isSet(config.tagIndex(.database)));
+    try std.testing.expect(flags.isSet(config.tagIndex(.web)));
+    try std.testing.expect(!flags.isSet(config.tagIndex(.monitoring)));
+    try std.testing.expect(!flags.isSet(config.tagIndex(.connectors)));
 
     try std.testing.expectEqualStrings("ai", config.getName(.ai));
     try std.testing.expectEqualStrings("GPU acceleration and compute", config.getDescription(.gpu));

@@ -8,7 +8,7 @@ test "AI pipeline: agent initialization and processing" {
     const allocator = gpa.allocator();
 
     // Initialize framework
-    var framework = try abi.init(allocator, .{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     // Create and test agent
@@ -27,7 +27,7 @@ test "AI pipeline: multiple agents coordination" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, .{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     const Agent = abi.ai.agent.Agent;
