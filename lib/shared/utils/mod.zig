@@ -15,6 +15,7 @@ pub const encoding = @import("encoding/mod.zig");
 pub const fs = @import("fs/mod.zig");
 pub const net = @import("net/mod.zig");
 pub const crypto = @import("crypto/mod.zig");
+pub const security = @import("security.zig");
 
 // Main utilities interface (legacy compatibility)
 pub const utils = @import("utils.zig");

@@ -1,12 +1,7 @@
 const std = @import("std");
-// TODO: Fix module import for Zig 0.16
-// const abi = @import("../../mod.zig");
+const abi = @import("../../mod.zig");
 
-// TODO: Fix module imports for Zig 0.16
-// const Db = abi.database.Db;
-
-// Placeholder type for compilation
-const Db = opaque {};
+const Db = abi.database.database.Db;
 
 pub const WdbxResult = extern struct {
     index: u64,
@@ -20,13 +15,9 @@ fn toDb(handle: ?*anyopaque) ?*Db {
 }
 
 export fn wdbx_open(path: [*c]const u8, create_if_missing: bool) callconv(.c) ?*anyopaque {
-    _ = path;
-    _ = create_if_missing;
-    // TODO: Fix module imports for Zig 0.16
-    // const slice = std.mem.span(path);
-    // const db = abi.database.Db.open(slice, create_if_missing) catch return null;
-    // return @ptrCast(db);
-    return null; // Placeholder
+    const slice = std.mem.span(path);
+    const db = Db.open(slice, create_if_missing) catch return null;
+    return @ptrCast(db);
 }
 
 export fn wdbx_close(handle: ?*anyopaque) callconv(.c) void {

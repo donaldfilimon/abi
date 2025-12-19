@@ -11,6 +11,8 @@ const std = @import("std");
 const ArrayList = std.array_list.Managed;
 // Note: core functionality is now imported through module dependencies
 
+const security = @import("../../shared/utils/security.zig");
+
 const max_header_size = 16 * 1024;
 
 pub const HttpError = error{
@@ -360,6 +362,9 @@ pub const WdbxHttpServer = struct {
     }
 
     fn handleDatabaseSearch(self: *WdbxHttpServer, body: []const u8) !Response {
+        // Security validation
+        try security.validateJsonPayload(body);
+
         // Parse JSON request
         const parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, body, .{});
         defer parsed.deinit();
@@ -480,6 +485,9 @@ pub const WdbxHttpServer = struct {
     }
 
     fn addVectorFromJson(self: *WdbxHttpServer, payload: []const u8) !u64 {
+        // Security validation
+        try security.validateJsonPayload(payload);
+
         const parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, payload, .{});
         defer parsed.deinit();
         const root_object = parsed.value.object orelse return HttpError.InvalidRequest;
@@ -498,6 +506,9 @@ pub const WdbxHttpServer = struct {
             try values.append(value);
         }
         const vector = try values.toOwnedSlice();
+
+        // Validate vector data for security
+        try security.validateVectorData(vector);
 
         var maybe_id: ?u64 = null;
         if (root_object.get("id")) |id_value| {

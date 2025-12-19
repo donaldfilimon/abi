@@ -12,6 +12,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Ensure `SessionDatabase.insert` releases duplicated metadata when an append fails so temporary allocations are not leaked.
 - Track metadata ownership for `SessionDatabase` entries so teardown skips freeing slices that were never allocated.
 
+### Added
+- **AI Framework Expansion**: Complete implementations of federated learning, optimization algorithms, reinforcement learning, and transformer architectures
+- **Zig 0.16 Compatibility**: Updated all std.time API calls and std.rand usage across 100+ files
+- **Enhanced Documentation**: Comprehensive guidelines and examples in AGENTS.md with CI/CD workflows
+- **Security Hardening**: Input validation, error handling improvements, and secure defaults
+- **Performance Benchmarks**: Real AI inference and database operation benchmarks
+- **Cross-Platform Testing**: Expanded Windows GPU, macOS Metal, and Linux container compatibility tests
+- **Module Reorganization**: Resolved vector_search_gpu import conflicts and improved code structure
+
+### Fixed
+- Zig 0.16.0-dev API compatibility issues with timestamp functions
+- Module import conflicts and circular dependencies
+- Memory leaks in AI layer implementations
+
 ### Deprecated
 - `shared/core/profiles.zig` is now a legacy shim around `shared/core/profile.zig` and emits a compile-time notice when imported. Downstream users should migrate to the new module before the next release.
 
