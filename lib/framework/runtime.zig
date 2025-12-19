@@ -7,6 +7,8 @@ const std = @import("std");
 const core = @import("../core/mod.zig");
 const features = @import("../features/mod.zig");
 
+const feature_tag_count = std.enums.values(features.FeatureTag).len;
+
 /// Framework runtime configuration
 pub const RuntimeConfig = struct {
     max_plugins: u32 = 128,
@@ -14,8 +16,13 @@ pub const RuntimeConfig = struct {
     enable_profiling: bool = false,
     memory_limit_mb: ?u32 = null,
     log_level: LogLevel = .info,
-    enabled_features: []const features.FeatureTag = &[_]features.FeatureTag{ .ai, .database, .web, .monitoring },
+    enabled_features: []const features.FeatureTag = &[_]features.FeatureTag{ .ai, .database, .web, .monitoring, .simd },
     disabled_features: []const features.FeatureTag = &[_]features.FeatureTag{},
+    plugin_paths: []const []const u8 = &[_][]const u8{},
+    auto_discover_plugins: bool = false,
+    auto_register_plugins: bool = false,
+    auto_start_plugins: bool = false,
+    feature_storage: FeatureStorage = .{},
 
     pub const LogLevel = enum {
         debug,
@@ -23,6 +30,43 @@ pub const RuntimeConfig = struct {
         warn,
         err,
     };
+
+    pub const FeatureStorage = struct {
+        enabled: [feature_tag_count]features.FeatureTag = undefined,
+        disabled: [feature_tag_count]features.FeatureTag = undefined,
+        enabled_len: usize = 0,
+        disabled_len: usize = 0,
+
+        pub fn setEnabled(self: *FeatureStorage, feature_list: []const features.FeatureTag) void {
+            std.debug.assert(feature_list.len <= feature_tag_count);
+            std.mem.copy(features.FeatureTag, self.enabled[0..feature_list.len], feature_list);
+            self.enabled_len = feature_list.len;
+        }
+
+        pub fn setDisabled(self: *FeatureStorage, feature_list: []const features.FeatureTag) void {
+            std.debug.assert(feature_list.len <= feature_tag_count);
+            std.mem.copy(features.FeatureTag, self.disabled[0..feature_list.len], feature_list);
+            self.disabled_len = feature_list.len;
+        }
+
+        pub fn enabledSlice(self: *const FeatureStorage) []const features.FeatureTag {
+            return self.enabled[0..self.enabled_len];
+        }
+
+        pub fn disabledSlice(self: *const FeatureStorage) []const features.FeatureTag {
+            return self.disabled[0..self.disabled_len];
+        }
+    };
+
+    pub fn rebaseFeatureSlices(self: *RuntimeConfig) void {
+        if (self.enabled_features.ptr == self.feature_storage.enabled[0..].ptr) {
+            self.enabled_features = self.feature_storage.enabledSlice();
+        }
+
+        if (self.disabled_features.ptr == self.feature_storage.disabled[0..].ptr) {
+            self.disabled_features = self.feature_storage.disabledSlice();
+        }
+    }
 };
 
 /// Component interface for the runtime system
@@ -75,7 +119,10 @@ pub const RuntimeStats = struct {
     }
 
     pub fn uptime(self: *const RuntimeStats) i64 {
-        return 0 - self.start_time;
+        if (self.start_time == 0) return 0;
+
+        const now_ms = std.time.milliTimestamp();
+        return now_ms - self.start_time;
     }
 };
 
@@ -89,46 +136,21 @@ pub const Framework = struct {
     component_registry: core.StringHashMap(Component),
     stats: RuntimeStats,
     running: std.atomic.Value(bool),
-    enabled_features: std.StaticBitSet(6),
+    enabled_features: features.config.FeatureFlags,
 
     pub fn init(allocator: std.mem.Allocator, config: RuntimeConfig) !Self {
-        const normalized_enabled = try allocator.alloc(features.FeatureTag, config.enabled_features.len);
-        errdefer allocator.free(normalized_enabled);
-        std.mem.copyForwards(features.FeatureTag, normalized_enabled, config.enabled_features);
-
-        const normalized_disabled = try allocator.alloc(features.FeatureTag, config.disabled_features.len);
-        errdefer allocator.free(normalized_disabled);
-        std.mem.copyForwards(features.FeatureTag, normalized_disabled, config.disabled_features);
-
         var normalized_config = config;
-        normalized_config.enabled_features = normalized_enabled;
-        normalized_config.disabled_features = normalized_disabled;
+        normalized_config.rebaseFeatureSlices();
 
         // Calculate enabled features
-        var enabled_features = std.StaticBitSet(6).initEmpty();
-        for (normalized_config.enabled_features) |feature| {
-            const idx = switch (feature) {
-                .ai => 0,
-                .gpu => 1,
-                .database => 2,
-                .web => 3,
-                .monitoring => 4,
-                .connectors => 5,
-            };
-            enabled_features.set(idx);
+        var enabled_features = features.config.FeatureFlags.initEmpty();
+        for (config.enabled_features) |feature| {
+            enabled_features.set(features.config.tagIndex(feature));
         }
 
         // Remove disabled features
-        for (normalized_config.disabled_features) |feature| {
-            const idx = switch (feature) {
-                .ai => 0,
-                .gpu => 1,
-                .database => 2,
-                .web => 3,
-                .monitoring => 4,
-                .connectors => 5,
-            };
-            enabled_features.unset(idx);
+        for (config.disabled_features) |feature| {
+            enabled_features.unset(features.config.tagIndex(feature));
         }
 
         return Self{
@@ -151,7 +173,9 @@ pub const Framework = struct {
         while (i > 0) {
             i -= 1;
             const component = &self.components.items[i];
-            component.deinit() catch {};
+            component.deinit() catch |err| {
+                std.log.err("Failed to deinitialize component '{s}': {}", .{ component.name, err });
+            };
         }
 
         self.components.deinit();
@@ -173,13 +197,19 @@ pub const Framework = struct {
 
     pub fn initializeComponent(self: *Self, name: []const u8) !void {
         var component = self.component_registry.getPtr(name) orelse return core.Error.NotFound;
-        try component.init(self.allocator, &self.config);
+        component.init(self.allocator, &self.config) catch |err| {
+            std.log.err("Failed to initialize component '{s}': {}", .{ name, err });
+            return err;
+        };
         self.stats.active_components += 1;
     }
 
     pub fn initializeAllComponents(self: *Self) !void {
         for (self.components.items) |*component| {
-            try component.init(self.allocator, &self.config);
+            component.init(self.allocator, &self.config) catch |err| {
+                std.log.err("Failed to initialize component '{s}': {}", .{ component.name, err });
+                return err;
+            };
         }
         self.stats.active_components = @intCast(self.components.items.len);
     }
@@ -189,11 +219,13 @@ pub const Framework = struct {
             return core.Error.AlreadyExists;
         }
 
+        errdefer self.running.store(false, .release);
         self.running.store(true, .release);
 
         // Initialize all components first
         try self.initializeAllComponents();
 
+        self.stats.start_time = std.time.milliTimestamp();
         std.log.info("Framework started with {} components and {} features", .{ self.stats.total_components, self.stats.enabled_features });
     }
 
@@ -231,39 +263,15 @@ pub const Framework = struct {
     }
 
     pub fn isFeatureEnabled(self: *const Self, feature: features.FeatureTag) bool {
-        const idx = switch (feature) {
-            .ai => 0,
-            .gpu => 1,
-            .database => 2,
-            .web => 3,
-            .monitoring => 4,
-            .connectors => 5,
-        };
-        return self.enabled_features.isSet(idx);
+        return self.enabled_features.isSet(features.config.tagIndex(feature));
     }
 
     pub fn enableFeature(self: *Self, feature: features.FeatureTag) void {
-        const idx = switch (feature) {
-            .ai => 0,
-            .gpu => 1,
-            .database => 2,
-            .web => 3,
-            .monitoring => 4,
-            .connectors => 5,
-        };
-        self.enabled_features.set(idx);
+        self.enabled_features.set(features.config.tagIndex(feature));
     }
 
     pub fn disableFeature(self: *Self, feature: features.FeatureTag) void {
-        const idx = switch (feature) {
-            .ai => 0,
-            .gpu => 1,
-            .database => 2,
-            .web => 3,
-            .monitoring => 4,
-            .connectors => 5,
-        };
-        self.enabled_features.unset(idx);
+        self.enabled_features.unset(features.config.tagIndex(feature));
     }
 
     /// Write framework summary to a writer interface
@@ -272,6 +280,11 @@ pub const Framework = struct {
         try writer.print("=====================\n");
         try writer.print("Status: {s}\n", .{if (self.isRunning()) "Running" else "Stopped"});
         try writer.print("Components: {}/{}\n", .{ self.stats.active_components, self.stats.total_components });
+        const enabled_feature_count = self.enabled_features.count();
+        if (self.stats.enabled_features != enabled_feature_count) {
+            // Keep stats in sync with runtime feature toggles for accurate summaries.
+            @constCast(&self.stats).enabled_features = enabled_feature_count;
+        }
         try writer.print("Features: {}\n", .{self.stats.enabled_features});
         try writer.print("Uptime: {}ms\n", .{self.stats.uptime()});
         try writer.print("Updates: {}\n", .{self.stats.update_count});
@@ -282,7 +295,7 @@ pub const Framework = struct {
 
         // List enabled features
         try writer.print("Enabled Features:\n");
-        const feature_tags = [_]features.FeatureTag{ .ai, .gpu, .database, .web, .monitoring, .connectors };
+        const feature_tags = features.config.allTags();
         for (feature_tags, 0..) |feature, idx| {
             if (self.enabled_features.isSet(idx)) {
                 try writer.print("  - {s}: {s}\n", .{ features.config.getName(feature), features.config.getDescription(feature) });
@@ -318,6 +331,7 @@ test "framework runtime - basic operations" {
 
     // Test feature management
     try testing.expect(framework.isFeatureEnabled(.ai));
+    try testing.expect(framework.isFeatureEnabled(.simd));
     try testing.expect(!framework.isFeatureEnabled(.gpu));
 
     framework.enableFeature(.gpu);
@@ -345,4 +359,38 @@ test "framework - feature configuration" {
     try testing.expect(framework.isFeatureEnabled(.ai));
     try testing.expect(!framework.isFeatureEnabled(.gpu)); // Disabled overrides enabled
     try testing.expect(!framework.isFeatureEnabled(.database));
+    try testing.expect(!framework.isFeatureEnabled(.simd));
+}
+
+test "runtime feature bitset stays aligned with feature flags mapping" {
+    const testing = std.testing;
+    const all_features = [_]features.FeatureTag{
+        .ai,
+        .gpu,
+        .database,
+        .web,
+        .monitoring,
+        .connectors,
+    };
+
+    var framework = try createFramework(
+        testing.allocator,
+        .{ .enabled_features = &all_features },
+    );
+    defer framework.deinit();
+
+    const expected_flags = features.config.createFlags(&all_features);
+    const bit_length = expected_flags.bit_length;
+    var idx: usize = 0;
+    while (idx < bit_length) : (idx += 1) {
+        try testing.expectEqual(
+            expected_flags.isSet(idx),
+            framework.enabled_features.isSet(idx),
+        );
+    }
+
+    framework.disableFeature(.web);
+    try testing.expect(!framework.isFeatureEnabled(.web));
+    framework.enableFeature(.web);
+    try testing.expect(framework.isFeatureEnabled(.web));
 }

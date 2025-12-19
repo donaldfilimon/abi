@@ -1,17 +1,10 @@
 const std = @import("std");
+const features = @import("../features/mod.zig");
 
 /// Enumerates the coarse feature families that can be toggled at runtime.
-pub const Feature = enum(u3) {
-    ai,
-    database,
-    web,
-    monitoring,
-    gpu,
-    connectors,
-    simd,
-};
+pub const Feature = features.FeatureTag;
 
-pub const feature_count = std.enums.values(Feature).len;
+pub const feature_count = features.feature_count;
 const FeatureMask = std.bit_set.IntegerBitSet(feature_count);
 
 /// Bit-set backed feature selection utility used by the framework runtime.
@@ -185,4 +178,27 @@ test "deriveFeatureToggles respects overrides" {
     try std.testing.expect(toggles.isEnabled(.ai));
     try std.testing.expect(!toggles.isEnabled(.gpu));
     try std.testing.expect(!toggles.isEnabled(.database));
+}
+
+test "deriveFeatureToggles maps booleans and applies disabled list" {
+    const options = FrameworkOptions{
+        .enable_ai = false,
+        .enable_database = true,
+        .enable_web = true,
+        .enable_monitoring = false,
+        .enable_gpu = true,
+        .enable_connectors = true,
+        .enable_simd = false,
+        .disabled_features = &.{ .web, .gpu },
+    };
+    const toggles = deriveFeatureToggles(options);
+
+    try std.testing.expect(!toggles.isEnabled(.ai));
+    try std.testing.expect(toggles.isEnabled(.database));
+    try std.testing.expect(!toggles.isEnabled(.web));
+    try std.testing.expect(!toggles.isEnabled(.gpu));
+    try std.testing.expect(!toggles.isEnabled(.monitoring));
+    try std.testing.expect(toggles.isEnabled(.connectors));
+    try std.testing.expect(!toggles.isEnabled(.simd));
+    try std.testing.expectEqual(@as(usize, 2), toggles.count());
 }
