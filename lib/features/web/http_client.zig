@@ -143,6 +143,41 @@ pub const HttpClient = struct {
         server_error: anyerror,
     };
 
+    fn parseMethod(method: []const u8) ?std.http.Method {
+        if (std.ascii.eqlIgnoreCase(method, "GET")) return .GET;
+        if (std.ascii.eqlIgnoreCase(method, "POST")) return .POST;
+        if (std.ascii.eqlIgnoreCase(method, "PUT")) return .PUT;
+        if (std.ascii.eqlIgnoreCase(method, "DELETE")) return .DELETE;
+        if (std.ascii.eqlIgnoreCase(method, "PATCH")) return .PATCH;
+        if (std.ascii.eqlIgnoreCase(method, "HEAD")) return .HEAD;
+        if (std.ascii.eqlIgnoreCase(method, "OPTIONS")) return .OPTIONS;
+        return null;
+    }
+
+    fn mapRequestError(err: anyerror) RequestResult {
+        return switch (err) {
+            error.TimedOut, error.ConnectionTimedOut => .{ .timeout = {} },
+            error.ConnectionRefused,
+            error.ConnectionResetByPeer,
+            error.NetworkUnreachable,
+            error.NameResolutionFailure,
+            => .{ .connection_failed = {} },
+            error.BrokenPipe,
+            error.ConnectionAborted,
+            => .{ .network_error = {} },
+            else => .{ .client_error = err },
+        };
+    }
+
+    fn deinitHeaderMap(allocator: std.mem.Allocator, headers: *std.StringHashMap([]const u8)) void {
+        var iterator = headers.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        headers.deinit();
+    }
+
     /// Make request using libcurl (if available)
     fn requestWithLibcurl(self: *Self, method: []const u8, url: []const u8, content_type: ?[]const u8, body: ?[]const u8) RequestResult {
         // This is a placeholder for libcurl integration
@@ -154,23 +189,80 @@ pub const HttpClient = struct {
 
     /// Make request using native Zig HTTP client
     fn requestWithNative(self: *Self, method: []const u8, url: []const u8, content_type: ?[]const u8, body: ?[]const u8) RequestResult {
-        // TODO: HTTP client implementation needs to be updated for current Zig version
-        // The Zig HTTP client API has changed significantly and needs proper implementation
+        var client = std.http.Client{ .allocator = self.allocator };
+        defer client.deinit();
 
-        _ = method;
-        _ = url;
-        _ = content_type;
-        _ = body;
+        const http_method = parseMethod(method) orelse return .{ .client_error = error.UnsupportedHttpMethod };
+        const uri = std.Uri.parse(url) catch |err| return mapRequestError(err);
 
-        // For now, return a placeholder response to allow compilation
-        const response_body = self.allocator.dupe(u8, "{\"error\":\"HTTP client not fully implemented for this Zig version\"}") catch |err| {
-            return RequestResult{ .client_error = err };
+        var req = client.request(http_method, uri, .{}) catch |err| return mapRequestError(err);
+        defer req.deinit();
+
+        if (content_type) |ct| {
+            req.headers.content_type = .{ .override = ct };
+        }
+        req.headers.user_agent = .{ .override = self.config.user_agent };
+
+        const request_body = body orelse &.{};
+        req.sendBodyComplete(request_body) catch |err| return mapRequestError(err);
+
+        var redirect_buf: [1024]u8 = undefined;
+        var response = req.receiveHead(&redirect_buf) catch |err| return mapRequestError(err);
+
+        var response_headers = std.StringHashMap([]const u8).init(self.allocator);
+        var header_iter = response.head.headers.iterator();
+        while (header_iter.next()) |header| {
+            const name_owned = self.allocator.dupe(u8, header.name) catch |err| {
+                deinitHeaderMap(self.allocator, &response_headers);
+                return mapRequestError(err);
+            };
+            const value_owned = self.allocator.dupe(u8, header.value) catch |err| {
+                self.allocator.free(name_owned);
+                deinitHeaderMap(self.allocator, &response_headers);
+                return mapRequestError(err);
+            };
+            response_headers.put(name_owned, value_owned) catch |err| {
+                self.allocator.free(name_owned);
+                self.allocator.free(value_owned);
+                deinitHeaderMap(self.allocator, &response_headers);
+                return mapRequestError(err);
+            };
+        }
+
+        var response_body_list = std.ArrayList(u8).initCapacity(self.allocator, 0) catch |err| {
+            deinitHeaderMap(self.allocator, &response_headers);
+            return mapRequestError(err);
         };
 
-        const status_code: u16 = 501; // Not Implemented
+        var buffer: [8192]u8 = undefined;
+        const reader = response.reader(&.{});
+        while (true) {
+            var slices = [_][]u8{buffer[0..]};
+            const n = reader.readVec(slices[0..]) catch |err| switch (err) {
+                error.ReadFailed => {
+                    response_body_list.deinit(self.allocator);
+                    deinitHeaderMap(self.allocator, &response_headers);
+                    if (response.bodyErr()) |body_err| {
+                        return mapRequestError(body_err);
+                    }
+                    return .{ .network_error = {} };
+                },
+                error.EndOfStream => 0,
+            };
+            if (n == 0) break;
+            response_body_list.appendSlice(self.allocator, buffer[0..n]) catch |err| {
+                response_body_list.deinit(self.allocator);
+                deinitHeaderMap(self.allocator, &response_headers);
+                return mapRequestError(err);
+            };
+        }
 
-        // Create minimal headers
-        const response_headers = std.StringHashMap([]const u8).init(self.allocator);
+        const response_body = response_body_list.toOwnedSlice(self.allocator) catch |err| {
+            response_body_list.deinit(self.allocator);
+            deinitHeaderMap(self.allocator, &response_headers);
+            return mapRequestError(err);
+        };
+        const status_code: u16 = @intCast(@intFromEnum(response.head.status));
 
         return RequestResult{ .success = HttpResponse{
             .status_code = status_code,
