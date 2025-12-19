@@ -1,6 +1,5 @@
 const std = @import("std");
-// TODO: Fix module import for Zig 0.16
-// const simd = @import("../../../shared/simd.zig");
+const simd = @import("../../../shared/simd.zig");
 
 const SELU_ALPHA = 1.6732632423543772848170429916717;
 const SELU_SCALE = 1.0507009873554804934193349852946;
@@ -41,12 +40,8 @@ pub const ActivationUtils = struct {
     pub inline fn vectorizedRelu(data: []f32) void {
         if (comptime std.simd.suggestVectorLength(f32)) |simd_len| {
             if (simd_len >= 4 and data.len >= 8) {
-                // TODO: Fix module imports for Zig 0.16
-                // if (simd.VectorOps.shouldUseSimd(data.len)) {
-                //     simd.VectorOps.vectorizedRelu(data);
-                //     return;
-                // }
-                if (false) { // Placeholder
+                if (simd.VectorOps.shouldUseSimd(data.len)) {
+                    simd.VectorOps.vectorizedRelu(data);
                     return;
                 }
             }
@@ -94,12 +89,8 @@ pub const ActivationUtils = struct {
     pub inline fn vectorizedLeakyRelu(data: []f32) void {
         if (comptime std.simd.suggestVectorLength(f32)) |simd_len| {
             if (simd_len >= 4 and data.len >= 8) {
-                // TODO: Fix module imports for Zig 0.16
-                // if (simd.VectorOps.shouldUseSimd(data.len)) {
-                //     simd.VectorOps.vectorizedLeakyRelu(data, LEAKY_RELU_SLOPE);
-                //     return;
-                // }
-                if (false) { // Placeholder
+                if (simd.VectorOps.shouldUseSimd(data.len)) {
+                    simd.VectorOps.vectorizedLeakyRelu(data, LEAKY_RELU_SLOPE);
                     return;
                 }
             }

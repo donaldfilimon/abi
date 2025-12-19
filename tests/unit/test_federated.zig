@@ -3,7 +3,6 @@
 const std = @import("std");
 const ai = @import("abi").ai;
 
-/// Test basic federated coordinator initialization and client management
 test "federated coordinator basic operations" {
     const testing = std.testing;
     var coordinator = try ai.federated.FederatedCoordinator.init(testing.allocator, 42);
@@ -25,7 +24,6 @@ test "federated coordinator basic operations" {
     try testing.expectEqual(@as(usize, 1), coordinator.clients.items[0].id);
 }
 
-/// Test federated model aggregation
 test "federated model aggregation" {
     const testing = std.testing;
     var coordinator = try ai.federated.FederatedCoordinator.init(testing.allocator, 42);
@@ -49,7 +47,6 @@ test "federated model aggregation" {
     try testing.expectEqual(@as(usize, 1), coordinator.rounds);
 }
 
-/// Test federated coordinator with no clients
 test "federated coordinator empty state" {
     const testing = std.testing;
     var coordinator = try ai.federated.FederatedCoordinator.init(testing.allocator, 42);
@@ -60,7 +57,6 @@ test "federated coordinator empty state" {
     try testing.expectEqual(@as(usize, 1), coordinator.rounds);
 }
 
-/// Test federated coordinator memory management
 test "federated coordinator memory management" {
     const testing = std.testing;
     var coordinator = try ai.federated.FederatedCoordinator.init(testing.allocator, 1000);

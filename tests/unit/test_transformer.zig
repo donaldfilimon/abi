@@ -3,7 +3,6 @@
 const std = @import("std");
 const ai = @import("abi").ai;
 
-/// Test multi-head attention basic functionality
 test "transformer multi-head attention" {
     const testing = std.testing;
     var mha = try ai.transformer.MultiHeadAttention.init(testing.allocator, 8, 512);
@@ -44,7 +43,6 @@ test "transformer multi-head attention" {
     try testing.expect(has_nonzero);
 }
 
-/// Test feed-forward network
 test "transformer feed-forward network" {
     const testing = std.testing;
     var ff = try ai.transformer.FeedForward.init(testing.allocator, 512, 2048);
@@ -77,7 +75,6 @@ test "transformer feed-forward network" {
     try testing.expect(is_different);
 }
 
-/// Test transformer block
 test "transformer transformer block" {
     const testing = std.testing;
     var block = try ai.transformer.TransformerBlock.init(testing.allocator, 512, 8, 2048);
@@ -113,7 +110,6 @@ test "transformer transformer block" {
     try testing.expect(is_transformed);
 }
 
-/// Test layer normalization
 test "transformer layer normalization" {
     const testing = std.testing;
     var ln = try ai.transformer.LayerNorm.init(testing.allocator, 512);
@@ -155,7 +151,6 @@ test "transformer layer normalization" {
     try testing.expect(@abs(variance - 1.0) < 0.2);
 }
 
-/// Test attention mechanism components
 test "transformer attention components" {
     const testing = std.testing;
 
@@ -163,7 +158,7 @@ test "transformer attention components" {
     var mha = try ai.transformer.MultiHeadAttention.init(testing.allocator, 1, 64);
     defer mha.deinit(testing.allocator);
 
-    var scores = [_]f32{1.0, 2.0, 3.0, 4.0};
+    var scores = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const attn_weights = try mha.softmax(testing.allocator, &scores, 2);
     defer testing.allocator.free(attn_weights);
 
@@ -186,7 +181,6 @@ test "transformer attention components" {
     try testing.expect(attn_weights[3] > 0.0);
 }
 
-/// Test transformer memory management
 test "transformer memory management" {
     const testing = std.testing;
 
@@ -215,7 +209,6 @@ test "transformer memory management" {
     try testing.expectEqual(input_size, final_output.len);
 }
 
-/// Test transformer with different sequence lengths
 test "transformer variable sequence lengths" {
     const testing = std.testing;
     var block = try ai.transformer.TransformerBlock.init(testing.allocator, 128, 2, 512);
@@ -224,7 +217,7 @@ test "transformer variable sequence lengths" {
     const embed_dim = 128;
 
     // Test with different sequence lengths
-    const seq_lengths = [_]usize{2, 4, 6};
+    const seq_lengths = [_]usize{ 2, 4, 6 };
 
     for (seq_lengths) |seq_len| {
         const input_size = seq_len * embed_dim;

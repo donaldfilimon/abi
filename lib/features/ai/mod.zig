@@ -12,11 +12,11 @@ pub const layers = @import("layers.zig");
 pub const model_registry = @import("model_registry.zig");
 pub const optimization = @import("optimization/mod.zig");
 const Policy = @import("policy.zig");
-pub const reinforcement_learning = @import("reinforcement_learning.zig");
+pub const reinforcement_learning = @import("reinforcement_learning/mod.zig");
 const Retry = @import("retry.zig");
 const Schema = @import("schema.zig");
 pub const training = @import("training/mod.zig");
-pub const transformer = @import("transformer.zig");
+pub const transformer = @import("transformer/mod.zig");
 
 // Legacy compatibility
 pub const Envelope = struct {

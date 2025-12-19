@@ -6,7 +6,7 @@
 const std = @import("std");
 
 // Re-export existing utilities for compatibility
-pub const utils = @import("utils.zig");
+pub const utils = @import("utils/utils.zig");
 
 // =============================================================================
 // MODERN UTILITIES - ENHANCED FEATURES
@@ -17,12 +17,12 @@ pub const memory = struct {
     /// Arena-backed allocator with automatic cleanup
     pub const ArenaAllocator = struct {
         arena: std.heap.ArenaAllocator,
-        allocator: std.mem.Allocator,
+        alloc: std.mem.Allocator,
 
         pub fn init(child_allocator: std.mem.Allocator) ArenaAllocator {
             return .{
                 .arena = std.heap.ArenaAllocator.init(child_allocator),
-                .allocator = undefined,
+                .alloc = undefined,
             };
         }
 
@@ -43,21 +43,21 @@ pub const memory = struct {
     /// Fixed buffer allocator with bounds checking
     pub const FixedBufferAllocator = struct {
         buffer: []u8,
-        allocator: std.heap.FixedBufferAllocator,
+        fba: std.heap.FixedBufferAllocator,
 
         pub fn init(buffer: []u8) FixedBufferAllocator {
             return .{
                 .buffer = buffer,
-                .allocator = std.heap.FixedBufferAllocator.init(buffer),
+                .fba = std.heap.FixedBufferAllocator.init(buffer),
             };
         }
 
         pub fn allocator(self: *FixedBufferAllocator) std.mem.Allocator {
-            return self.allocator.allocator();
+            return self.fba.allocator();
         }
 
         pub fn remainingCapacity(self: *const FixedBufferAllocator) usize {
-            return self.allocator.remainingCapacity(self.buffer);
+            return self.fba.remainingCapacity(self.buffer);
         }
     };
 
@@ -305,8 +305,7 @@ pub const json_modern = struct {
 // LEGACY COMPATIBILITY
 // =============================================================================
 
-/// Re-export legacy utilities for backward compatibility
-pub usingnamespace utils;
+// Legacy utilities are available through the utils import
 
 // =============================================================================
 // TESTS

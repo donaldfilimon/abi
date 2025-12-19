@@ -3,7 +3,6 @@
 const std = @import("std");
 const ai = @import("abi").ai;
 
-/// Test RL agent basic functionality
 test "reinforcement learning agent basic operations" {
     const testing = std.testing;
     var agent = try ai.reinforcement_learning.Agent.init(testing.allocator, 100, 4);
@@ -16,12 +15,11 @@ test "reinforcement learning agent basic operations" {
     try testing.expectEqual(@as(f32, 0.1), agent.epsilon);
 
     // Test action selection
-    const state = [_]f32{0.5, 0.3};
+    const state = [_]f32{ 0.5, 0.3 };
     const action = agent.act(&state);
     try testing.expect(action < 4); // Valid action range
 }
 
-/// Test Q-learning updates
 test "reinforcement learning Q-learning" {
     const testing = std.testing;
     var agent = try ai.reinforcement_learning.Agent.init(testing.allocator, 10, 2);
@@ -47,7 +45,6 @@ test "reinforcement learning Q-learning" {
     try testing.expect(q_before != q_after);
 }
 
-/// Test epsilon-greedy policy
 test "reinforcement learning epsilon-greedy policy" {
     const testing = std.testing;
 
@@ -72,7 +69,6 @@ test "reinforcement learning epsilon-greedy policy" {
     }
 }
 
-/// Test greedy policy
 test "reinforcement learning greedy policy" {
     const testing = std.testing;
     var agent = try ai.reinforcement_learning.Agent.init(testing.allocator, 10, 4);
@@ -94,7 +90,6 @@ test "reinforcement learning greedy policy" {
     try testing.expectEqual(@as(usize, 2), action);
 }
 
-/// Test softmax policy
 test "reinforcement learning softmax policy" {
     const testing = std.testing;
     var agent = try ai.reinforcement_learning.Agent.init(testing.allocator, 10, 4);
@@ -123,7 +118,6 @@ test "reinforcement learning softmax policy" {
     try testing.expect(action_counts[0] > action_counts[3]);
 }
 
-/// Test GridWorld environment
 test "reinforcement learning grid world" {
     const testing = std.testing;
     var env = try ai.reinforcement_learning.GridWorld.init(testing.allocator, 5, 5);
@@ -141,11 +135,10 @@ test "reinforcement learning grid world" {
     // Test step function
     const result = env.step(start_pos, 0); // Move up
     try testing.expect(result.done == (result.next_pos[0] == env.goal_pos[0] and
-                                      result.next_pos[1] == env.goal_pos[1]));
+        result.next_pos[1] == env.goal_pos[1]));
     try testing.expect(result.reward <= 1.0 and result.reward >= -0.01);
 }
 
-/// Test agent-environment interaction
 test "reinforcement learning agent-environment integration" {
     const testing = std.testing;
     var env = try ai.reinforcement_learning.GridWorld.init(testing.allocator, 3, 3);
@@ -193,7 +186,6 @@ test "reinforcement learning agent-environment integration" {
     try testing.expect(steps > 0);
 }
 
-/// Test agent memory management
 test "reinforcement learning agent memory management" {
     const testing = std.testing;
 

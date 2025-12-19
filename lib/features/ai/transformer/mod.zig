@@ -70,22 +70,21 @@ pub const MultiHeadAttention = struct {
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, config: TransformerConfig) !MultiHeadAttention {
-        const head_dim = config.d_model / config.n_heads;
         const w_size = config.d_model * config.d_model;
 
-        var w_q = try allocator.alloc(f32, w_size);
+        const w_q = try allocator.alloc(f32, w_size);
         errdefer allocator.free(w_q);
         @memset(w_q, 0.1); // Initialize with small values
 
-        var w_k = try allocator.alloc(f32, w_size);
+        const w_k = try allocator.alloc(f32, w_size);
         errdefer allocator.free(w_k);
         @memset(w_k, 0.1);
 
-        var w_v = try allocator.alloc(f32, w_size);
+        const w_v = try allocator.alloc(f32, w_size);
         errdefer allocator.free(w_v);
         @memset(w_v, 0.1);
 
-        var w_o = try allocator.alloc(f32, w_size);
+        const w_o = try allocator.alloc(f32, w_size);
         errdefer allocator.free(w_o);
         @memset(w_o, 0.1);
 
@@ -107,12 +106,18 @@ pub const MultiHeadAttention = struct {
     }
 
     /// Forward pass through multi-head attention
-    pub fn forward(self: *Self, query: []const f32, key: []const f32, value: []const f32, mask: ?[]const bool) ![]f32 {
+    pub fn forward(self: *Self, query: []const f32, _key: []const f32, _value: []const f32, _mask: ?[]const bool) ![]f32 {
+        // Use parameters to avoid unused warnings (simplified implementation)
+        _ = _key;
+        _ = _value;
+        _ = _mask;
+
         const seq_len = query.len / self.config.d_model;
         const head_dim = self.config.d_model / self.config.n_heads;
+        // seq_len is used for dimension calculations
 
         // Split into heads and apply attention
-        var output = try self.allocator.alloc(f32, query.len);
+        const output = try self.allocator.alloc(f32, query.len);
         errdefer self.allocator.free(output);
 
         // Simplified implementation - in practice, this would be much more complex
@@ -121,6 +126,7 @@ pub const MultiHeadAttention = struct {
         // For each head
         for (0..self.config.n_heads) |head| {
             const head_offset = head * head_dim;
+            _ = head_offset; // Will be used in full implementation
 
             // Linear transformations (simplified)
             // Q = query * W_q, K = key * W_k, V = value * W_v
@@ -131,8 +137,9 @@ pub const MultiHeadAttention = struct {
             // Concatenate heads and apply W_o
         }
 
-        // Placeholder: just copy input
+        // Placeholder: just copy input (using seq_len to avoid warning)
         @memcpy(output, query);
+        _ = seq_len;
 
         return output;
     }
@@ -153,19 +160,19 @@ pub const FeedForward = struct {
         const w1_size = config.d_model * config.d_ff;
         const w2_size = config.d_ff * config.d_model;
 
-        var w1 = try allocator.alloc(f32, w1_size);
+        const w1 = try allocator.alloc(f32, w1_size);
         errdefer allocator.free(w1);
         @memset(w1, 0.1);
 
-        var b1 = try allocator.alloc(f32, config.d_ff);
+        const b1 = try allocator.alloc(f32, config.d_ff);
         errdefer allocator.free(b1);
         @memset(b1, 0.0);
 
-        var w2 = try allocator.alloc(f32, w2_size);
+        const w2 = try allocator.alloc(f32, w2_size);
         errdefer allocator.free(w2);
         @memset(w2, 0.1);
 
-        var b2 = try allocator.alloc(f32, config.d_model);
+        const b2 = try allocator.alloc(f32, config.d_model);
         errdefer allocator.free(b2);
         @memset(b2, 0.0);
 
@@ -308,19 +315,19 @@ pub const TransformerEncoderLayer = struct {
     /// Forward pass through encoder layer
     pub fn forward(self: *Self, input: []const f32, mask: ?[]const bool) ![]f32 {
         // Self-attention with residual connection and layer norm
-        var attn_output = try self.self_attention.forward(input, input, input, mask);
+        const attn_output = try self.self_attention.forward(input, input, input, mask);
         defer self.allocator.free(attn_output);
 
-        var residual1 = try self.addResidual(input, attn_output);
+        const residual1 = try self.addResidual(input, attn_output);
         defer self.allocator.free(residual1);
 
         self.norm1.normalize(residual1);
 
         // Feed-forward with residual connection and layer norm
-        var ff_output = try self.feed_forward.forward(residual1);
+        const ff_output = try self.feed_forward.forward(residual1);
         defer self.allocator.free(ff_output);
 
-        var residual2 = try self.addResidual(residual1, ff_output);
+        const residual2 = try self.addResidual(residual1, ff_output);
         defer self.allocator.free(residual2);
 
         self.norm2.normalize(residual2);
@@ -329,7 +336,7 @@ pub const TransformerEncoderLayer = struct {
     }
 
     fn addResidual(self: *Self, a: []const f32, b: []const f32) ![]f32 {
-        var result = try self.allocator.dupe(f32, a);
+        const result = try self.allocator.dupe(f32, a);
         for (result, b) |*r, bb| r.* += bb;
         return result;
     }
@@ -345,10 +352,10 @@ pub const LayerNorm = struct {
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, size: usize) !LayerNorm {
-        var gamma = try allocator.alloc(f32, size);
+        const gamma = try allocator.alloc(f32, size);
         @memset(gamma, 1.0); // Initialize to 1
 
-        var beta = try allocator.alloc(f32, size);
+        const beta = try allocator.alloc(f32, size);
         @memset(beta, 0.0); // Initialize to 0
 
         return LayerNorm{

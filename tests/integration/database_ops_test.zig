@@ -11,7 +11,6 @@ test "Database: vector storage and retrieval" {
     defer abi.shutdown(&framework);
 
     // Test database operations
-    const db = abi.database;
 
     // Create a simple vector
     var vector = try allocator.alloc(f32, 128);
