@@ -7,22 +7,8 @@ const std = @import("std");
 /// Symbolic identifiers for the high level feature families exposed by the
 /// framework module. Keeping the enum local avoids circular dependencies with
 /// `framework/config.zig` while still enabling compile-time iteration.
-pub const FeatureTag = enum(u3) {
-    ai,
-    gpu,
-    database,
-    web,
-    monitoring,
-    connectors,
-    simd,
-};
-
-const feature_tags = std.enums.values(FeatureTag);
-pub const feature_count = feature_tags.len;
-
-inline fn featureIndex(tag: FeatureTag) usize {
-    return @intFromEnum(tag);
-}
+pub const FeatureTag = enum { ai, gpu, database, web, monitoring, connectors, simd };
+pub const feature_count = std.enums.values(FeatureTag).len;
 
 /// Public feature modules grouped for discoverability.
 pub const ai = @import("ai/mod.zig");
@@ -35,14 +21,25 @@ pub const simd = @import("../shared/simd.zig");
 
 /// Feature configuration and management
 pub const config = struct {
+    pub const tag_count = std.enums.values(FeatureTag).len;
     /// Feature enablement flags
-    pub const FeatureFlags = std.StaticBitSet(feature_count);
+    pub const FeatureFlags = std.StaticBitSet(tag_count);
+
+    /// Convert a feature tag into its bitset index
+    pub fn tagIndex(tag: FeatureTag) usize {
+        return @intFromEnum(tag);
+    }
+
+    /// Get all declared feature tags in declaration order
+    pub fn allTags() []const FeatureTag {
+        return std.enums.values(FeatureTag);
+    }
 
     /// Creates feature flags from enabled features
     pub fn createFlags(enabled_features: []const FeatureTag) FeatureFlags {
         var flags = FeatureFlags.initEmpty();
         for (enabled_features) |feature| {
-            flags.set(featureIndex(feature));
+            flags.set(tagIndex(feature));
         }
         return flags;
     }
@@ -69,25 +66,20 @@ pub const config = struct {
             .web => "Web services and HTTP",
             .monitoring => "Observability and metrics",
             .connectors => "External service connectors",
-            .simd => "SIMD runtime and vectorized math",
+            .simd => "SIMD acceleration and vectorized math",
         };
     }
 };
 
 /// Invoke the visitor for every feature module re-exported by this file.
 pub fn forEachFeature(ctx: anytype, visitor: anytype) void {
-    inline for (feature_tags) |feature| {
-        const path = switch (feature) {
-            .ai => "features/ai/mod.zig",
-            .gpu => "features/gpu/mod.zig",
-            .database => "features/database/mod.zig",
-            .web => "features/web/mod.zig",
-            .monitoring => "features/monitoring/mod.zig",
-            .connectors => "features/connectors/mod.zig",
-            .simd => "shared/simd.zig",
-        };
-        visitor(ctx, feature, path);
-    }
+    visitor(ctx, .ai, "features/ai/mod.zig");
+    visitor(ctx, .gpu, "features/gpu/mod.zig");
+    visitor(ctx, .database, "features/database/mod.zig");
+    visitor(ctx, .web, "features/web/mod.zig");
+    visitor(ctx, .monitoring, "features/monitoring/mod.zig");
+    visitor(ctx, .connectors, "features/connectors/mod.zig");
+    visitor(ctx, .simd, "shared/simd.zig");
 }
 
 /// Feature initialization and lifecycle management
@@ -124,27 +116,26 @@ pub const lifecycle = struct {
 };
 
 test "feature registry exposes all modules" {
-    const FeatureMask = std.bit_set.IntegerBitSet(feature_count);
+    const FeatureMask = std.bit_set.IntegerBitSet(config.tag_count);
     var features_seen = FeatureMask.initEmpty();
     forEachFeature(&features_seen, struct {
         fn visit(mask: *FeatureMask, kind: FeatureTag, _: []const u8) void {
-            mask.set(featureIndex(kind));
+            mask.set(config.tagIndex(kind));
         }
     }.visit);
-    try std.testing.expectEqual(@as(usize, feature_count), features_seen.count());
+    try std.testing.expectEqual(@as(usize, config.tag_count), features_seen.count());
 }
 
 test "feature configuration" {
     const enabled = [_]FeatureTag{ .ai, .database, .web, .simd };
     const flags = config.createFlags(&enabled);
 
-    try std.testing.expect(flags.isSet(featureIndex(.ai)));
-    try std.testing.expect(!flags.isSet(featureIndex(.gpu)));
-    try std.testing.expect(flags.isSet(featureIndex(.database)));
-    try std.testing.expect(flags.isSet(featureIndex(.web)));
-    try std.testing.expect(!flags.isSet(featureIndex(.monitoring)));
-    try std.testing.expect(!flags.isSet(featureIndex(.connectors)));
-    try std.testing.expect(flags.isSet(featureIndex(.simd)));
+    try std.testing.expect(flags.isSet(config.tagIndex(.ai)));
+    try std.testing.expect(!flags.isSet(config.tagIndex(.gpu)));
+    try std.testing.expect(flags.isSet(config.tagIndex(.database)));
+    try std.testing.expect(flags.isSet(config.tagIndex(.web)));
+    try std.testing.expect(!flags.isSet(config.tagIndex(.monitoring)));
+    try std.testing.expect(!flags.isSet(config.tagIndex(.connectors)));
 
     try std.testing.expectEqualStrings("ai", config.getName(.ai));
     try std.testing.expectEqualStrings("GPU acceleration and compute", config.getDescription(.gpu));

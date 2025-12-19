@@ -150,7 +150,10 @@ pub const RuntimeStats = struct {
     }
 
     pub fn uptime(self: *const RuntimeStats) i64 {
-        return 0 - self.start_time;
+        if (self.start_time == 0) return 0;
+
+        const now_ms = std.time.milliTimestamp();
+        return now_ms - self.start_time;
     }
 };
 
@@ -186,7 +189,9 @@ pub const Runtime = struct {
             i -= 1;
             const component = &self.components.items[i];
             if (component.deinit_fn != null) {
-                component.deinit() catch {};
+                component.deinit() catch |err| {
+                    std.log.err("Failed to deinitialize component '{s}': {}", .{ component.name, err });
+                };
             }
         }
 
@@ -207,13 +212,19 @@ pub const Runtime = struct {
 
     pub fn initializeComponent(self: *Self, name: []const u8) !void {
         var component = self.component_registry.getPtr(name) orelse return error.ComponentNotFound;
-        try component.init(self.allocator, &self.config);
+        component.init(self.allocator, &self.config) catch |err| {
+            std.log.err("Failed to initialize component '{s}': {}", .{ name, err });
+            return err;
+        };
         self.stats.active_components += 1;
     }
 
     pub fn initializeAllComponents(self: *Self) !void {
         for (self.components.items) |*component| {
-            try component.init(self.allocator, &self.config);
+            component.init(self.allocator, &self.config) catch |err| {
+                std.log.err("Failed to initialize component '{s}': {}", .{ component.name, err });
+                return err;
+            };
         }
         self.stats.active_components = @intCast(self.components.items.len);
     }
@@ -223,11 +234,13 @@ pub const Runtime = struct {
             return error.AlreadyRunning;
         }
 
+        errdefer self.running.store(false, .release);
         self.running.store(true, .release);
 
         // Initialize all components first
         try self.initializeAllComponents();
 
+        self.stats.start_time = std.time.milliTimestamp();
         std.log.info("Runtime started with {} components", .{self.stats.total_components});
     }
 

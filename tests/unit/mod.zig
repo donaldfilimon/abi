@@ -45,11 +45,11 @@ test "features configuration" {
     const enabled = [_]abi.features.FeatureTag{ .ai, .database, .web, .simd };
     const flags = abi.features.config.createFlags(&enabled);
 
-    try std.testing.expect(flags.isSet(@intFromEnum(abi.features.FeatureTag.ai))); // ai
-    try std.testing.expect(!flags.isSet(@intFromEnum(abi.features.FeatureTag.gpu))); // gpu
-    try std.testing.expect(flags.isSet(@intFromEnum(abi.features.FeatureTag.database))); // database
-    try std.testing.expect(flags.isSet(@intFromEnum(abi.features.FeatureTag.web))); // web
-    try std.testing.expect(flags.isSet(@intFromEnum(abi.features.FeatureTag.simd))); // simd
+    try std.testing.expect(flags.isSet(0)); // ai
+    try std.testing.expect(!flags.isSet(1)); // gpu
+    try std.testing.expect(flags.isSet(2)); // database
+    try std.testing.expect(flags.isSet(3)); // web
+    try std.testing.expect(!flags.isSet(6)); // simd
 }
 
 test "framework initialization" {
