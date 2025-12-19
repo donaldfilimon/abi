@@ -336,6 +336,10 @@ test "framework runtime - basic operations" {
 
     framework.enableFeature(.gpu);
     try testing.expect(framework.isFeatureEnabled(.gpu));
+    framework.disableFeature(.simd);
+    try testing.expect(!framework.isFeatureEnabled(.simd));
+    framework.enableFeature(.simd);
+    try testing.expect(framework.isFeatureEnabled(.simd));
 
     // Test runtime start/stop
     try framework.start();
@@ -349,7 +353,7 @@ test "framework - feature configuration" {
     const testing = std.testing;
 
     const config = RuntimeConfig{
-        .enabled_features = &[_]features.FeatureTag{ .ai, .gpu },
+        .enabled_features = &[_]features.FeatureTag{ .ai, .gpu, .simd },
         .disabled_features = &[_]features.FeatureTag{.gpu},
     };
 
@@ -358,6 +362,7 @@ test "framework - feature configuration" {
 
     try testing.expect(framework.isFeatureEnabled(.ai));
     try testing.expect(!framework.isFeatureEnabled(.gpu)); // Disabled overrides enabled
+    try testing.expect(framework.isFeatureEnabled(.simd));
     try testing.expect(!framework.isFeatureEnabled(.database));
     try testing.expect(!framework.isFeatureEnabled(.simd));
 }

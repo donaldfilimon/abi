@@ -42,7 +42,7 @@ test "core allocators" {
 }
 
 test "features configuration" {
-    const enabled = [_]abi.features.FeatureTag{ .ai, .database, .web };
+    const enabled = [_]abi.features.FeatureTag{ .ai, .database, .web, .simd };
     const flags = abi.features.config.createFlags(&enabled);
 
     try std.testing.expect(flags.isSet(0)); // ai

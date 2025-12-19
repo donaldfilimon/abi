@@ -17,6 +17,7 @@ pub const database = @import("database/mod.zig");
 pub const web = @import("web/mod.zig");
 pub const monitoring = @import("monitoring/mod.zig");
 pub const connectors = @import("connectors/mod.zig");
+pub const simd = @import("../shared/simd.zig");
 
 /// Feature configuration and management
 pub const config = struct {
@@ -126,7 +127,7 @@ test "feature registry exposes all modules" {
 }
 
 test "feature configuration" {
-    const enabled = [_]FeatureTag{ .ai, .database, .web };
+    const enabled = [_]FeatureTag{ .ai, .database, .web, .simd };
     const flags = config.createFlags(&enabled);
 
     try std.testing.expect(flags.isSet(config.tagIndex(.ai)));
