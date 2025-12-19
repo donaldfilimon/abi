@@ -84,13 +84,57 @@ pub const wdbx = struct {
 // PUBLIC API
 // =============================================================================
 
-/// Initialise the ABI framework and return the orchestration handle. Call
-/// `Framework.deinit` (or `abi.shutdown`) when finished.
-pub fn init(allocator: std.mem.Allocator, options: FrameworkOptions) !Framework {
-    var runtime_config = try framework.runtimeConfigFromOptions(allocator, options);
-    defer allocator.free(runtime_config.enabled_features);
-    defer allocator.free(runtime_config.disabled_features);
+fn mapFeatureToTag(feature: Feature) ?features.FeatureTag {
+    return switch (feature) {
+        .ai => .ai,
+        .database => .database,
+        .web => .web,
+        .monitoring => .monitoring,
+        .gpu => .gpu,
+        .connectors => .connectors,
+        .simd => null,
+    };
+}
 
+/// Convert high level framework options into a runtime configuration.
+pub fn runtimeConfigFromOptions(options: FrameworkOptions) RuntimeConfig {
+    const feature_capacity = std.enums.values(features.FeatureTag).len;
+
+    var enabled = std.BoundedArray(features.FeatureTag, feature_capacity).init(0) catch unreachable;
+    var toggles = framework.deriveFeatureToggles(options);
+    var iterator = toggles.iterator();
+    while (iterator.next()) |feature| {
+        if (mapFeatureToTag(feature)) |tag| {
+            enabled.append(tag) catch unreachable;
+        }
+    }
+
+    var disabled = std.BoundedArray(features.FeatureTag, feature_capacity).init(0) catch unreachable;
+    for (options.disabled_features) |feature| {
+        if (mapFeatureToTag(feature)) |tag| {
+            disabled.append(tag) catch unreachable;
+        }
+    }
+
+    var config = RuntimeConfig{
+        .plugin_paths = options.plugin_paths,
+        .auto_discover_plugins = options.auto_discover_plugins,
+        .auto_register_plugins = options.auto_register_plugins,
+        .auto_start_plugins = options.auto_start_plugins,
+    };
+
+    config.feature_storage.setEnabled(enabled.constSlice());
+    config.feature_storage.setDisabled(disabled.constSlice());
+    config.enabled_features = config.feature_storage.enabledSlice();
+    config.disabled_features = config.feature_storage.disabledSlice();
+    return config;
+}
+
+/// Initialise the ABI framework and return the orchestration handle. Call
+/// `Framework.deinit` (or `abi.shutdown`) when finished. Accepts either a
+/// `RuntimeConfig` or `FrameworkOptions` which will be converted automatically.
+pub fn init(allocator: std.mem.Allocator, config_or_options: anytype) !Framework {
+    const runtime_config = try resolveRuntimeConfig(allocator, config_or_options);
     return try framework.runtime.Framework.init(allocator, runtime_config);
 }
 
@@ -107,12 +151,77 @@ pub fn version() []const u8 {
 
 /// Create a framework with default configuration
 pub fn createDefaultFramework(allocator: std.mem.Allocator) !Framework {
-    return try init(allocator, .{});
+    return try init(allocator, FrameworkOptions{});
 }
 
 /// Create a framework with custom configuration
-pub fn createFramework(allocator: std.mem.Allocator, config: RuntimeConfig) !Framework {
-    return try framework.createFramework(allocator, config);
+pub fn createFramework(
+    allocator: std.mem.Allocator,
+    config_or_options: anytype,
+) !Framework {
+    const runtime_config = try resolveRuntimeConfig(allocator, config_or_options);
+    return try framework.createFramework(allocator, runtime_config);
+}
+
+fn resolveRuntimeConfig(
+    allocator: std.mem.Allocator,
+    config_or_options: anytype,
+) !RuntimeConfig {
+    return switch (@TypeOf(config_or_options)) {
+        RuntimeConfig => config_or_options,
+        FrameworkOptions => try runtimeConfigFromOptions(allocator, config_or_options),
+        else => @compileError("Unsupported configuration type for abi.init"),
+    };
+}
+
+fn runtimeConfigFromOptions(
+    allocator: std.mem.Allocator,
+    options: FrameworkOptions,
+) !RuntimeConfig {
+    var runtime_config = framework.defaultConfig();
+
+    var enabled_list = std.ArrayList(features.FeatureTag).init(allocator);
+    errdefer enabled_list.deinit();
+
+    var toggles = framework.deriveFeatureToggles(options);
+    var iter = toggles.iterator();
+    while (iter.next()) |feature| {
+        if (featureToTag(feature)) |tag| {
+            try enabled_list.append(tag);
+        }
+    }
+    const enabled_features = try enabled_list.toOwnedSlice();
+    errdefer allocator.free(enabled_features);
+
+    var disabled_list = std.ArrayList(features.FeatureTag).init(allocator);
+    errdefer disabled_list.deinit();
+
+    for (options.disabled_features) |feature| {
+        if (featureToTag(feature)) |tag| {
+            try disabled_list.append(tag);
+        }
+    }
+    const disabled_features = disabled_list.toOwnedSlice() catch |err| {
+        allocator.free(enabled_features);
+        return err;
+    };
+
+    runtime_config.enabled_features = enabled_features;
+    runtime_config.disabled_features = disabled_features;
+
+    return runtime_config;
+}
+
+fn featureToTag(feature: framework.Feature) ?features.FeatureTag {
+    return switch (feature) {
+        .ai => .ai,
+        .database => .database,
+        .web => .web,
+        .monitoring => .monitoring,
+        .gpu => .gpu,
+        .connectors => .connectors,
+        .simd => null,
+    };
 }
 
 test {
@@ -133,4 +242,22 @@ test "framework initialization" {
     try std.testing.expect(!framework_instance.isRunning());
     try std.testing.expect(framework_instance.isFeatureEnabled(.ai));
     try std.testing.expect(framework_instance.isFeatureEnabled(.database));
+}
+
+test "framework options convert to runtime config" {
+    const options = FrameworkOptions{
+        .enable_ai = false,
+        .enable_gpu = true,
+        .disabled_features = &.{.gpu},
+        .plugin_paths = &.{ "/opt/abi/plugins" },
+        .auto_discover_plugins = true,
+    };
+
+    const config = runtimeConfigFromOptions(options);
+
+    try std.testing.expect(std.mem.indexOfScalar(features.FeatureTag, config.enabled_features, .ai) == null);
+    try std.testing.expect(std.mem.indexOfScalar(features.FeatureTag, config.enabled_features, .gpu) != null);
+    try std.testing.expect(std.mem.indexOfScalar(features.FeatureTag, config.disabled_features, .gpu) != null);
+    try std.testing.expectEqualStrings("/opt/abi/plugins", config.plugin_paths[0]);
+    try std.testing.expect(config.auto_discover_plugins);
 }
