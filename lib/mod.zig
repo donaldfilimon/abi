@@ -84,18 +84,6 @@ pub const wdbx = struct {
 // PUBLIC API
 // =============================================================================
 
-fn mapFeatureToTag(feature: Feature) ?features.FeatureTag {
-    return switch (feature) {
-        .ai => .ai,
-        .database => .database,
-        .web => .web,
-        .monitoring => .monitoring,
-        .gpu => .gpu,
-        .connectors => .connectors,
-        .simd => null,
-    };
-}
-
 /// Convert high level framework options into a runtime configuration.
 pub fn runtimeConfigFromOptions(
     allocator: std.mem.Allocator,
