@@ -4,6 +4,7 @@
 //! and other GPU backends with dynamic selection based on hardware capabilities.
 
 const std = @import("std");
+const builtin = @import("builtin");
 const gpu = @import("../mod.zig");
 
 /// Enhanced backend detection system
@@ -84,53 +85,43 @@ pub const BackendDetector = struct {
 
     /// Detect all available backends
     pub fn detectAllBackends(self: *Self) !void {
-        // Detect CUDA
-        if (self.detectCUDA()) |cuda_info| {
-            self.detected_backends.append(self.allocator, cuda_info) catch return error.OutOfMemory;
+        try self.detectAllBackendsWithOptions(.{});
+    }
+
+    pub const DetectionOptions = struct {
+        force_disable: bool = false,
+    };
+
+    pub fn detectAllBackendsWithOptions(self: *Self, options: DetectionOptions) !void {
+        self.clearDetectedBackends();
+        if (options.force_disable) {
+            self.recommended_backend = null;
+            return;
         }
 
-        // Detect OpenCL
-        if (self.detectOpenCL()) |opencl_info| {
-            self.detected_backends.append(self.allocator, opencl_info) catch return error.OutOfMemory;
-        }
+        self.appendBackendIfAvailable(self.detectCUDA()) catch return error.OutOfMemory;
+        self.appendBackendIfAvailable(self.detectOpenCL()) catch return error.OutOfMemory;
+        self.appendBackendIfAvailable(self.detectDirectML()) catch return error.OutOfMemory;
+        self.appendBackendIfAvailable(self.detectVulkan()) catch return error.OutOfMemory;
+        self.appendBackendIfAvailable(self.detectMetal()) catch return error.OutOfMemory;
+        self.appendBackendIfAvailable(self.detectD3D12()) catch return error.OutOfMemory;
+        self.appendBackendIfAvailable(self.detectOpenGL()) catch return error.OutOfMemory;
+        self.appendBackendIfAvailable(self.detectWebGPU()) catch return error.OutOfMemory;
 
-        // Detect DirectML
-        if (self.detectDirectML()) |directml_info| {
-            self.detected_backends.append(self.allocator, directml_info) catch return error.OutOfMemory;
-        }
-
-        // Detect Vulkan
-        if (self.detectVulkan()) |vulkan_info| {
-            self.detected_backends.append(self.allocator, vulkan_info) catch return error.OutOfMemory;
-        }
-
-        // Detect Metal
-        if (self.detectMetal()) |metal_info| {
-            self.detected_backends.append(self.allocator, metal_info) catch return error.OutOfMemory;
-        }
-
-        // Detect D3D12
-        if (self.detectD3D12()) |d3d12_info| {
-            self.detected_backends.append(self.allocator, d3d12_info) catch return error.OutOfMemory;
-        }
-
-        // Detect OpenGL
-        if (self.detectOpenGL()) |opengl_info| {
-            self.detected_backends.append(self.allocator, opengl_info) catch return error.OutOfMemory;
-        }
-
-        // Detect WebGPU
-        if (self.detectWebGPU()) |webgpu_info| {
-            self.detected_backends.append(self.allocator, webgpu_info) catch return error.OutOfMemory;
-        }
-
-        // Select recommended backend
         self.selectRecommendedBackend();
     }
 
     /// Detect CUDA backend
     fn detectCUDA(self: *Self) ?BackendInfo {
-        // TODO: Implement real CUDA detection using cudaz
+        const candidates = switch (builtin.os.tag) {
+            .windows => &[_][]const u8{"nvcuda.dll"},
+            .linux => &[_][]const u8{ "libcuda.so", "libcuda.so.1" },
+            else => &[_][]const u8{},
+        };
+        if (!self.tryOpenLibrary(candidates)) {
+            return null;
+        }
+
         return BackendInfo{
             .backend_type = .cuda,
             .is_available = true,
@@ -157,17 +148,26 @@ pub const BackendDetector = struct {
                 .max_image_2d_size = .{ 16384, 16384 },
                 .max_image_3d_size = .{ 16384, 16384, 16384 },
             },
-            .performance_score = 95.0,
-            .memory_size = 24 * 1024 * 1024 * 1024, // 24GB
-            .compute_units = 128,
+            .performance_score = 90.0,
+            .memory_size = 0,
+            .compute_units = 0,
             .vendor = self.allocator.dupe(u8, "NVIDIA") catch return null,
-            .device_name = self.allocator.dupe(u8, "GeForce RTX 4090") catch return null,
+            .device_name = self.allocator.dupe(u8, "CUDA Device") catch return null,
         };
     }
 
     /// Detect OpenCL backend
     fn detectOpenCL(self: *Self) ?BackendInfo {
-        // TODO: Implement real OpenCL detection
+        const candidates = switch (builtin.os.tag) {
+            .windows => &[_][]const u8{"OpenCL.dll"},
+            .linux => &[_][]const u8{ "libOpenCL.so", "libOpenCL.so.1" },
+            .macos => &[_][]const u8{"/System/Library/Frameworks/OpenCL.framework/OpenCL"},
+            else => &[_][]const u8{},
+        };
+        if (!self.tryOpenLibrary(candidates)) {
+            return null;
+        }
+
         return BackendInfo{
             .backend_type = .opencl,
             .is_available = true,
@@ -194,17 +194,24 @@ pub const BackendDetector = struct {
                 .max_image_2d_size = .{ 8192, 8192 },
                 .max_image_3d_size = .{ 2048, 2048, 2048 },
             },
-            .performance_score = 75.0,
-            .memory_size = 8 * 1024 * 1024 * 1024, // 8GB
-            .compute_units = 64,
-            .vendor = self.allocator.dupe(u8, "AMD") catch return null,
-            .device_name = self.allocator.dupe(u8, "Radeon RX 7900 XTX") catch return null,
+            .performance_score = 70.0,
+            .memory_size = 0,
+            .compute_units = 0,
+            .vendor = self.allocator.dupe(u8, "Unknown") catch return null,
+            .device_name = self.allocator.dupe(u8, "OpenCL Device") catch return null,
         };
     }
 
     /// Detect DirectML backend
     fn detectDirectML(self: *Self) ?BackendInfo {
-        // TODO: Implement real DirectML detection
+        const candidates = switch (builtin.os.tag) {
+            .windows => &[_][]const u8{"DirectML.dll"},
+            else => &[_][]const u8{},
+        };
+        if (!self.tryOpenLibrary(candidates)) {
+            return null;
+        }
+
         return BackendInfo{
             .backend_type = .directml,
             .is_available = true,
@@ -231,9 +238,9 @@ pub const BackendDetector = struct {
                 .max_image_2d_size = .{ 4096, 4096 },
                 .max_image_3d_size = .{ 1024, 1024, 1024 },
             },
-            .performance_score = 60.0,
-            .memory_size = 4 * 1024 * 1024 * 1024, // 4GB
-            .compute_units = 32,
+            .performance_score = 55.0,
+            .memory_size = 0,
+            .compute_units = 0,
             .vendor = self.allocator.dupe(u8, "Microsoft") catch return null,
             .device_name = self.allocator.dupe(u8, "DirectML Device") catch return null,
         };
@@ -241,7 +248,16 @@ pub const BackendDetector = struct {
 
     /// Detect Vulkan backend
     fn detectVulkan(self: *Self) ?BackendInfo {
-        // TODO: Implement real Vulkan detection
+        const candidates = switch (builtin.os.tag) {
+            .windows => &[_][]const u8{"vulkan-1.dll"},
+            .linux => &[_][]const u8{ "libvulkan.so.1", "libvulkan.so" },
+            .macos => &[_][]const u8{"libvulkan.dylib"},
+            else => &[_][]const u8{},
+        };
+        if (!self.tryOpenLibrary(candidates)) {
+            return null;
+        }
+
         return BackendInfo{
             .backend_type = .vulkan,
             .is_available = true,
@@ -268,17 +284,24 @@ pub const BackendDetector = struct {
                 .max_image_2d_size = .{ 16384, 16384 },
                 .max_image_3d_size = .{ 16384, 16384, 16384 },
             },
-            .performance_score = 90.0,
-            .memory_size = 16 * 1024 * 1024 * 1024, // 16GB
-            .compute_units = 96,
-            .vendor = self.allocator.dupe(u8, "NVIDIA") catch return null,
-            .device_name = self.allocator.dupe(u8, "GeForce RTX 4080") catch return null,
+            .performance_score = 85.0,
+            .memory_size = 0,
+            .compute_units = 0,
+            .vendor = self.allocator.dupe(u8, "Unknown") catch return null,
+            .device_name = self.allocator.dupe(u8, "Vulkan Device") catch return null,
         };
     }
 
     /// Detect Metal backend
     fn detectMetal(self: *Self) ?BackendInfo {
-        // TODO: Implement real Metal detection
+        const candidates = switch (builtin.os.tag) {
+            .macos => &[_][]const u8{"/System/Library/Frameworks/Metal.framework/Metal"},
+            else => &[_][]const u8{},
+        };
+        if (!self.tryOpenLibrary(candidates)) {
+            return null;
+        }
+
         return BackendInfo{
             .backend_type = .metal,
             .is_available = true,
@@ -305,17 +328,24 @@ pub const BackendDetector = struct {
                 .max_image_2d_size = .{ 16384, 16384 },
                 .max_image_3d_size = .{ 16384, 16384, 16384 },
             },
-            .performance_score = 85.0,
-            .memory_size = 8 * 1024 * 1024 * 1024, // 8GB
-            .compute_units = 80,
+            .performance_score = 80.0,
+            .memory_size = 0,
+            .compute_units = 0,
             .vendor = self.allocator.dupe(u8, "Apple") catch return null,
-            .device_name = self.allocator.dupe(u8, "Apple M2 Max") catch return null,
+            .device_name = self.allocator.dupe(u8, "Metal Device") catch return null,
         };
     }
 
     /// Detect D3D12 backend
     fn detectD3D12(self: *Self) ?BackendInfo {
-        // TODO: Implement real D3D12 detection
+        const candidates = switch (builtin.os.tag) {
+            .windows => &[_][]const u8{"d3d12.dll"},
+            else => &[_][]const u8{},
+        };
+        if (!self.tryOpenLibrary(candidates)) {
+            return null;
+        }
+
         return BackendInfo{
             .backend_type = .d3d12,
             .is_available = true,
@@ -342,17 +372,26 @@ pub const BackendDetector = struct {
                 .max_image_2d_size = .{ 16384, 16384 },
                 .max_image_3d_size = .{ 16384, 16384, 16384 },
             },
-            .performance_score = 88.0,
-            .memory_size = 12 * 1024 * 1024 * 1024, // 12GB
-            .compute_units = 88,
-            .vendor = self.allocator.dupe(u8, "NVIDIA") catch return null,
-            .device_name = self.allocator.dupe(u8, "GeForce RTX 4070 Ti") catch return null,
+            .performance_score = 82.0,
+            .memory_size = 0,
+            .compute_units = 0,
+            .vendor = self.allocator.dupe(u8, "Microsoft") catch return null,
+            .device_name = self.allocator.dupe(u8, "D3D12 Device") catch return null,
         };
     }
 
     /// Detect OpenGL backend
     fn detectOpenGL(self: *Self) ?BackendInfo {
-        // TODO: Implement real OpenGL detection
+        const candidates = switch (builtin.os.tag) {
+            .windows => &[_][]const u8{"opengl32.dll"},
+            .linux => &[_][]const u8{ "libGL.so.1", "libGL.so" },
+            .macos => &[_][]const u8{"/System/Library/Frameworks/OpenGL.framework/OpenGL"},
+            else => &[_][]const u8{},
+        };
+        if (!self.tryOpenLibrary(candidates)) {
+            return null;
+        }
+
         return BackendInfo{
             .backend_type = .opengl,
             .is_available = true,
@@ -379,17 +418,26 @@ pub const BackendDetector = struct {
                 .max_image_2d_size = .{ 16384, 16384 },
                 .max_image_3d_size = .{ 2048, 2048, 2048 },
             },
-            .performance_score = 50.0,
-            .memory_size = 4 * 1024 * 1024 * 1024, // 4GB
-            .compute_units = 32,
-            .vendor = self.allocator.dupe(u8, "Intel") catch return null,
-            .device_name = self.allocator.dupe(u8, "Intel UHD Graphics 770") catch return null,
+            .performance_score = 45.0,
+            .memory_size = 0,
+            .compute_units = 0,
+            .vendor = self.allocator.dupe(u8, "Unknown") catch return null,
+            .device_name = self.allocator.dupe(u8, "OpenGL Device") catch return null,
         };
     }
 
     /// Detect WebGPU backend
     fn detectWebGPU(self: *Self) ?BackendInfo {
-        // TODO: Implement real WebGPU detection
+        const candidates = switch (builtin.os.tag) {
+            .windows => &[_][]const u8{ "wgpu_native.dll", "webgpu.dll" },
+            .linux => &[_][]const u8{ "libwgpu_native.so", "libwebgpu.so" },
+            .macos => &[_][]const u8{ "libwgpu_native.dylib", "libwebgpu.dylib" },
+            else => &[_][]const u8{},
+        };
+        if (!self.tryOpenLibrary(candidates)) {
+            return null;
+        }
+
         return BackendInfo{
             .backend_type = .webgpu,
             .is_available = true,
@@ -417,8 +465,8 @@ pub const BackendDetector = struct {
                 .max_image_3d_size = .{ 1024, 1024, 1024 },
             },
             .performance_score = 40.0,
-            .memory_size = 1 * 1024 * 1024 * 1024, // 1GB
-            .compute_units = 16,
+            .memory_size = 0,
+            .compute_units = 0,
             .vendor = self.allocator.dupe(u8, "WebGPU") catch return null,
             .device_name = self.allocator.dupe(u8, "WebGPU Device") catch return null,
         };
@@ -489,4 +537,41 @@ pub const BackendDetector = struct {
         }
         return false;
     }
+
+    fn clearDetectedBackends(self: *Self) void {
+        for (self.detected_backends.items) |*backend| {
+            self.allocator.free(backend.vendor);
+            self.allocator.free(backend.device_name);
+        }
+        self.detected_backends.clearRetainingCapacity();
+    }
+
+    fn appendBackendIfAvailable(self: *Self, backend_info: ?BackendInfo) !void {
+        const info = backend_info orelse return;
+        if (!info.is_available) {
+            return;
+        }
+        try self.detected_backends.append(self.allocator, info);
+    }
+
+    fn tryOpenLibrary(self: *Self, names: []const []const u8) bool {
+        _ = self;
+        const DynLib = std.DynLib;
+        for (names) |name| {
+            var lib = DynLib.openZ(name) catch continue;
+            defer lib.close();
+            return true;
+        }
+        return false;
+    }
 };
+
+test "gpu backend detection: forced disable yields empty list" {
+    const testing = std.testing;
+    var detector = try BackendDetector.init(testing.allocator);
+    defer detector.deinit();
+
+    try detector.detectAllBackendsWithOptions(.{ .force_disable = true });
+    try testing.expectEqual(@as(usize, 0), detector.getDetectedBackends().len);
+    try testing.expect(detector.getRecommendedBackend() == null);
+}
