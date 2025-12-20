@@ -89,11 +89,36 @@ pub fn runtimeConfigFromOptions(
     allocator: std.mem.Allocator,
     options: FrameworkOptions,
 ) !RuntimeConfig {
-    var config = try framework.runtimeConfigFromOptions(allocator, options);
-    config.plugin_paths = options.plugin_paths;
-    config.auto_discover_plugins = options.auto_discover_plugins;
-    config.auto_register_plugins = options.auto_register_plugins;
-    config.auto_start_plugins = options.auto_start_plugins;
+    _ = allocator;
+    const feature_capacity = std.enums.values(features.FeatureTag).len;
+
+    var enabled = std.BoundedArray(features.FeatureTag, feature_capacity).init(0) catch unreachable;
+    var toggles = framework.deriveFeatureToggles(options);
+    var iterator = toggles.iterator();
+    while (iterator.next()) |feature| {
+        if (mapFeatureToTag(feature)) |tag| {
+            enabled.append(tag) catch unreachable;
+        }
+    }
+
+    var disabled = std.BoundedArray(features.FeatureTag, feature_capacity).init(0) catch unreachable;
+    for (options.disabled_features) |feature| {
+        if (mapFeatureToTag(feature)) |tag| {
+            disabled.append(tag) catch unreachable;
+        }
+    }
+
+    var config = RuntimeConfig{
+        .plugin_paths = options.plugin_paths,
+        .auto_discover_plugins = options.auto_discover_plugins,
+        .auto_register_plugins = options.auto_register_plugins,
+        .auto_start_plugins = options.auto_start_plugins,
+    };
+
+    config.feature_storage.setEnabled(enabled.constSlice());
+    config.feature_storage.setDisabled(disabled.constSlice());
+    config.enabled_features = config.feature_storage.enabledSlice();
+    config.disabled_features = config.feature_storage.disabledSlice();
     return config;
 }
 
@@ -170,9 +195,7 @@ test "framework options convert to runtime config" {
         .auto_discover_plugins = true,
     };
 
-    var config = try runtimeConfigFromOptions(std.testing.allocator, options);
-    defer std.testing.allocator.free(config.enabled_features);
-    defer std.testing.allocator.free(config.disabled_features);
+    const config = try runtimeConfigFromOptions(std.testing.allocator, options);
 
     try std.testing.expect(std.mem.indexOfScalar(features.FeatureTag, config.enabled_features, .ai) == null);
     try std.testing.expect(std.mem.indexOfScalar(features.FeatureTag, config.enabled_features, .gpu) != null);
