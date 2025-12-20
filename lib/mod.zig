@@ -84,20 +84,12 @@ pub const wdbx = struct {
 // PUBLIC API
 // =============================================================================
 
-fn mapFeatureToTag(feature: Feature) ?features.FeatureTag {
-    return switch (feature) {
-        .ai => .ai,
-        .database => .database,
-        .web => .web,
-        .monitoring => .monitoring,
-        .gpu => .gpu,
-        .connectors => .connectors,
-        .simd => null,
-    };
-}
-
 /// Convert high level framework options into a runtime configuration.
-pub fn runtimeConfigFromOptions(options: FrameworkOptions) RuntimeConfig {
+pub fn runtimeConfigFromOptions(
+    allocator: std.mem.Allocator,
+    options: FrameworkOptions,
+) !RuntimeConfig {
+    _ = allocator;
     const feature_capacity = std.enums.values(features.FeatureTag).len;
 
     var enabled = std.BoundedArray(features.FeatureTag, feature_capacity).init(0) catch unreachable;
@@ -174,56 +166,6 @@ fn resolveRuntimeConfig(
     };
 }
 
-fn runtimeConfigFromOptionsWithAllocator(
-    allocator: std.mem.Allocator,
-    options: FrameworkOptions,
-) !RuntimeConfig {
-    var enabled_list = std.ArrayList(features.FeatureTag).init(allocator);
-    errdefer enabled_list.deinit();
-
-    var toggles = framework.deriveFeatureToggles(options);
-    var iter = toggles.iterator();
-    while (iter.next()) |feature| {
-        if (featureToTag(feature)) |tag| {
-            try enabled_list.append(tag);
-        }
-    }
-    const enabled_features = try enabled_list.toOwnedSlice();
-    errdefer allocator.free(enabled_features);
-
-    var disabled_list = std.ArrayList(features.FeatureTag).init(allocator);
-    errdefer disabled_list.deinit();
-
-    for (options.disabled_features) |feature| {
-        if (featureToTag(feature)) |tag| {
-            try disabled_list.append(tag);
-        }
-    }
-    const disabled_features = try disabled_list.toOwnedSlice();
-    errdefer allocator.free(disabled_features);
-
-    return RuntimeConfig{
-        .plugin_paths = options.plugin_paths,
-        .auto_discover_plugins = options.auto_discover_plugins,
-        .auto_register_plugins = options.auto_register_plugins,
-        .auto_start_plugins = options.auto_start_plugins,
-        .enabled_features = enabled_features,
-        .disabled_features = disabled_features,
-    };
-}
-
-fn featureToTag(feature: framework.Feature) ?features.FeatureTag {
-    return switch (feature) {
-        .ai => .ai,
-        .database => .database,
-        .web => .web,
-        .monitoring => .monitoring,
-        .gpu => .gpu,
-        .connectors => .connectors,
-        .simd => null,
-    };
-}
-
 test {
     std.testing.refAllDecls(@This());
 }
@@ -253,7 +195,7 @@ test "framework options convert to runtime config" {
         .auto_discover_plugins = true,
     };
 
-    const config = runtimeConfigFromOptions(options);
+    const config = try runtimeConfigFromOptions(std.testing.allocator, options);
 
     try std.testing.expect(std.mem.indexOfScalar(features.FeatureTag, config.enabled_features, .ai) == null);
     try std.testing.expect(std.mem.indexOfScalar(features.FeatureTag, config.enabled_features, .gpu) != null);
