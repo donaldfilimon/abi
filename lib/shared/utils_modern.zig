@@ -215,13 +215,13 @@ pub const async_utils = struct {
 pub const random = struct {
     /// Seeded random number generator
     pub const RandomGenerator = struct {
-        rng: std.rand.DefaultPrng,
+        rng: std.Random.DefaultPrng,
 
         pub fn init(seed: u64) RandomGenerator {
-            return .{ .rng = std.rand.DefaultPrng.init(seed) };
+            return .{ .rng = std.Random.DefaultPrng.init(seed) };
         }
 
-        pub fn random(self: *RandomGenerator) std.rand.Random {
+        pub fn random(self: *RandomGenerator) std.Random {
             return self.rng.random();
         }
 
