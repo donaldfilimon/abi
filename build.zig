@@ -13,10 +13,22 @@ fn createBuildOptions(b: *std.Build) *std.Build.Module {
     const enable_web = b.option(bool, "enable-web", "Enable web features") orelse true;
     const enable_database = b.option(bool, "enable-database", "Enable database features") orelse true;
 
+    // GPU backend selection
+    const gpu_cuda = b.option(bool, "gpu-cuda", "Enable CUDA GPU backend") orelse enable_gpu;
+    const gpu_vulkan = b.option(bool, "gpu-vulkan", "Enable Vulkan GPU backend") orelse enable_gpu;
+    const gpu_metal = b.option(bool, "gpu-metal", "Enable Metal GPU backend") orelse enable_gpu;
+    const gpu_webgpu = b.option(bool, "gpu-webgpu", "Enable WebGPU backend") orelse enable_web;
+
     build_options.addOption(bool, "enable_gpu", enable_gpu);
     build_options.addOption(bool, "enable_ai", enable_ai);
     build_options.addOption(bool, "enable_web", enable_web);
     build_options.addOption(bool, "enable_database", enable_database);
+
+    // GPU backend options
+    build_options.addOption(bool, "gpu_cuda", gpu_cuda);
+    build_options.addOption(bool, "gpu_vulkan", gpu_vulkan);
+    build_options.addOption(bool, "gpu_metal", gpu_metal);
+    build_options.addOption(bool, "gpu_webgpu", gpu_webgpu);
 
     return build_options.createModule();
 }
@@ -73,4 +85,54 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_main_tests.step);
+
+    // Performance profiling build
+    const profile_exe = b.addExecutable(.{
+        .name = "abi-profile",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/cli/main.zig"),
+            .target = target,
+            .optimize = .ReleaseFast,
+        }),
+    });
+    profile_exe.root_module.addImport("abi", abi_module);
+    profile_exe.linkLibC(); // For Tracy if enabled
+
+    const profile_step = b.step("profile", "Build with performance profiling");
+    profile_step.dependOn(b.getInstallStep());
+
+    // TODO: Fix benchmark build - time API issues
+    // const bench_exe = b.addExecutable(.{
+    //     .name = "benchmarks",
+    //     .root_module = b.createModule(.{
+    //         .root_source_file = b.path("benchmarks/main.zig"),
+    //         .target = target,
+    //         .optimize = .ReleaseFast,
+    //     }),
+    // });
+    // bench_exe.root_module.addImport("abi", abi_module);
+    // b.installArtifact(bench_exe);
+
+    // const bench_step = b.step("bench", "Build benchmarks");
+    // bench_step.dependOn(b.getInstallStep());
+
+    // Demo executable
+    const demo_exe = b.addExecutable(.{
+        .name = "demo",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/demo.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    demo_exe.root_module.addImport("abi", abi_module);
+    b.installArtifact(demo_exe);
+
+    const run_demo = b.addRunArtifact(demo_exe);
+    run_demo.step.dependOn(b.getInstallStep());
+
+    const demo_step = b.step("run-demo", "Run the comprehensive demo");
+    demo_step.dependOn(&run_demo.step);
+
+    // TODO: Add documentation generation step
 }

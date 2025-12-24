@@ -91,7 +91,7 @@ pub const TrackedAllocator = struct {
             return null;
         }
 
-        const result = self.parent_allocator.rawAlloc(len, alignment, ret_addr);
+        const result = self.parent_allocator.alloc(len, alignment.toLog2Units(), ret_addr);
         if (result) |_| {
             self.stats.bytes_allocated += len;
             self.stats.active_allocations += 1;
@@ -106,7 +106,7 @@ pub const TrackedAllocator = struct {
         const self: *Self = @ptrCast(@alignCast(ctx));
         const old_len = buf.len;
 
-        const result = self.parent_allocator.rawResize(buf, alignment, new_len, ret_addr);
+        const result = self.parent_allocator.resize(buf, alignment.toLog2Units(), new_len, ret_addr);
         if (result) {
             if (new_len > old_len) {
                 self.stats.bytes_allocated += new_len - old_len;
@@ -147,23 +147,80 @@ pub const TrackedAllocator = struct {
             self.stats.active_allocations -= 1;
         }
 
-        self.parent_allocator.rawFree(buf, alignment, ret_addr);
+        self.parent_allocator.free(buf, alignment.toLog2Units(), ret_addr);
+    }
+};
+
+/// Owned allocator that manages its own lifetime
+pub const OwnedAllocator = struct {
+    allocator: std.mem.Allocator,
+    backing_allocator: union(enum) {
+        none,
+        gpa: std.heap.GeneralPurposeAllocator(.{}),
+        arena: std.heap.ArenaAllocator,
+    },
+
+    /// Create an owned allocator with the specified strategy
+    pub fn create(config: AllocatorConfig, parent_allocator: ?std.mem.Allocator) !OwnedAllocator {
+        const parent = parent_allocator orelse std.heap.page_allocator;
+
+        return switch (config.strategy) {
+            .general_purpose => {
+                var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+                return OwnedAllocator{
+                    .allocator = gpa.allocator(),
+                    .backing_allocator = .{ .gpa = gpa },
+                };
+            },
+            .arena => {
+                var arena = std.heap.ArenaAllocator.init(parent);
+                return OwnedAllocator{
+                    .allocator = arena.allocator(),
+                    .backing_allocator = .{ .arena = arena },
+                };
+            },
+            .c => OwnedAllocator{
+                .allocator = std.heap.c_allocator,
+                .backing_allocator = .none,
+            },
+            .page => OwnedAllocator{
+                .allocator = std.heap.page_allocator,
+                .backing_allocator = .none,
+            },
+            .fixed_buffer => OwnedAllocator{
+                .allocator = std.heap.FixedBufferAllocator.init(&[_]u8{}).allocator(),
+                .backing_allocator = .none,
+            }, // Note: initialized with empty buffer - allocations will fail until buffer is provided
+        };
+    }
+
+    /// Deinitialize the owned allocator
+    pub fn deinit(self: *OwnedAllocator) void {
+        switch (self.backing_allocator) {
+            .gpa => |*gpa| _ = gpa.deinit(),
+            .arena => |*arena| arena.deinit(),
+            .none => {},
+        }
     }
 };
 
 /// Allocator factory that creates allocators based on configuration
+/// ⚠️  DEPRECATED: This factory causes memory leaks and will be removed in a future version
+/// ❌ DO NOT USE IN PRODUCTION CODE
+/// ✅ Use OwnedAllocator.create instead for safe memory management
 pub const AllocatorFactory = struct {
     /// Creates an allocator based on the provided configuration
+    ///
+    /// ⚠️  CRITICAL WARNING: This function creates memory leaks:
+    /// - Arena allocators are never deinitialized
+    /// - Fixed buffer allocators use empty buffers
+    /// - No way to track created resources for cleanup
+    ///
+    /// ❌ DEPRECATED: Use OwnedAllocator.create() instead
     pub fn create(config: AllocatorConfig, parent_allocator: ?std.mem.Allocator) std.mem.Allocator {
-        const parent = parent_allocator orelse std.heap.page_allocator;
-
-        return switch (config.strategy) {
-            .general_purpose => std.heap.GeneralPurposeAllocator(.{}).allocator(),
-            .arena => std.heap.ArenaAllocator.init(parent).allocator(),
-            .c => std.heap.c_allocator,
-            .page => std.heap.page_allocator,
-            .fixed_buffer => std.heap.FixedBufferAllocator.init(&[_]u8{}).allocator(),
-        };
+        _ = config;
+        _ = parent_allocator;
+        @compileError("AllocatorFactory.create() is deprecated due to memory leaks. Use OwnedAllocator.create() instead.");
     }
 
     /// Creates a tracked allocator
@@ -186,6 +243,17 @@ test "allocators - tracked allocator" {
     try std.testing.expectEqual(@as(usize, 100), stats.bytes_allocated);
     try std.testing.expectEqual(@as(usize, 1), stats.active_allocations);
     try std.testing.expectEqual(@as(usize, 100), stats.currentUsage());
+}
+
+test "allocators - owned allocator no memory leaks" {
+    var owned = try OwnedAllocator.create(.{ .strategy = .general_purpose }, null);
+    defer owned.deinit();
+
+    const allocator = owned.allocator;
+    const memory = try allocator.alloc(u8, 100);
+    defer allocator.free(memory);
+
+    try std.testing.expectEqual(@as(usize, 100), memory.len);
 }
 
 test "allocators - memory limit" {

@@ -22,6 +22,16 @@ pub const regression = @import("regression.zig");
 pub const metrics = @import("metrics.zig");
 pub const logging = @import("logging.zig");
 
+/// Initialize the monitoring feature module
+pub fn init(allocator: std.mem.Allocator) !void {
+    _ = allocator; // Currently no global monitoring state to initialize
+}
+
+/// Deinitialize the monitoring feature module
+pub fn deinit() void {
+    // Currently no global monitoring state to cleanup
+}
+
 // Legacy compatibility removed - circular import fixed
 
 test {

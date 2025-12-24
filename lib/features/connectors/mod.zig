@@ -22,3 +22,13 @@ pub const Connector = struct {
     call: *const fn (allocator: std.mem.Allocator, req: CallRequest) anyerror!CallResult,
     health: *const fn () bool,
 };
+
+/// Initialize the connectors feature module
+pub fn init(allocator: std.mem.Allocator) !void {
+    _ = allocator; // Currently no global connector state to initialize
+}
+
+/// Deinitialize the connectors feature module
+pub fn deinit() void {
+    // Currently no global connector state to cleanup
+}

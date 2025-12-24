@@ -18,6 +18,16 @@ const Schema = @import("schema.zig");
 pub const training = @import("training/mod.zig");
 pub const transformer = @import("transformer/mod.zig");
 
+/// Initialize the AI feature module
+pub fn init(allocator: std.mem.Allocator) !void {
+    _ = allocator; // Currently no global AI state to initialize
+}
+
+/// Deinitialize the AI feature module
+pub fn deinit() void {
+    // Currently no global AI state to cleanup
+}
+
 // Legacy compatibility
 pub const Envelope = struct {
     id: []const u8,

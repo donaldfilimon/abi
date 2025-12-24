@@ -74,6 +74,7 @@ pub const MultiHeadAttention = struct {
 
         const w_q = try allocator.alloc(f32, w_size);
         errdefer allocator.free(w_q);
+        // TODO: Replace with proper random initialization (Xavier/Glorot)
         @memset(w_q, 0.1); // Initialize with small values
 
         const w_k = try allocator.alloc(f32, w_size);
@@ -106,42 +107,142 @@ pub const MultiHeadAttention = struct {
     }
 
     /// Forward pass through multi-head attention
-    pub fn forward(self: *Self, query: []const f32, _key: []const f32, _value: []const f32, _mask: ?[]const bool) ![]f32 {
-        // Use parameters to avoid unused warnings (simplified implementation)
-        _ = _key;
-        _ = _value;
-        _ = _mask;
-
+    pub fn forward(self: *Self, query: []const f32, key: []const f32, value: []const f32, mask: ?[]const bool) ![]f32 {
         const seq_len = query.len / self.config.d_model;
         const head_dim = self.config.d_model / self.config.n_heads;
-        // seq_len is used for dimension calculations
 
-        // Split into heads and apply attention
+        // Allocate output buffer
         const output = try self.allocator.alloc(f32, query.len);
         errdefer self.allocator.free(output);
 
-        // Simplified implementation - in practice, this would be much more complex
-        // with proper matrix operations, softmax, etc.
+        // Temporary buffers for computations
+        const q_heads = try self.allocator.alloc(f32, seq_len * self.config.d_model);
+        defer self.allocator.free(q_heads);
+        const k_heads = try self.allocator.alloc(f32, seq_len * self.config.d_model);
+        defer self.allocator.free(k_heads);
+        const v_heads = try self.allocator.alloc(f32, seq_len * self.config.d_model);
+        defer self.allocator.free(v_heads);
 
-        // For each head
+        const attention_scores = try self.allocator.alloc(f32, seq_len * seq_len);
+        defer self.allocator.free(attention_scores);
+
+        // Linear transformations for all heads at once
+        try self.linearTransform(q_heads, query, self.w_q);
+        try self.linearTransform(k_heads, key, self.w_k);
+        try self.linearTransform(v_heads, value, self.w_v);
+
+        // Process each attention head
         for (0..self.config.n_heads) |head| {
             const head_offset = head * head_dim;
-            _ = head_offset; // Will be used in full implementation
 
-            // Linear transformations (simplified)
-            // Q = query * W_q, K = key * W_k, V = value * W_v
+            // Extract head-specific projections
+            const q_head = q_heads[head_offset .. head_offset + seq_len * head_dim];
+            const k_head = k_heads[head_offset .. head_offset + seq_len * head_dim];
+            const v_head = v_heads[head_offset .. head_offset + seq_len * head_dim];
 
             // Scaled dot-product attention
-            // attention = softmax((Q * K^T) / sqrt(d_k)) * V
+            const head_attention = try self.allocator.alloc(f32, seq_len * seq_len);
+            defer self.allocator.free(head_attention);
+            const head_output = try self.allocator.alloc(f32, seq_len * head_dim);
+            defer self.allocator.free(head_output);
 
-            // Concatenate heads and apply W_o
+            try self.scaledDotProductAttention(head_attention, head_output, q_head, k_head, v_head, seq_len, head_dim, mask);
+
+            // Copy attention output to final output position
+            const output_head = output[head_offset .. head_offset + seq_len * head_dim];
+            @memcpy(output_head, head_output);
         }
 
-        // Placeholder: just copy input (using seq_len to avoid warning)
-        @memcpy(output, query);
-        _ = seq_len;
+        // Final linear transformation (W_o)
+        const final_output = try self.allocator.alloc(f32, query.len);
+        defer self.allocator.free(final_output);
+        try self.linearTransform(final_output, output, self.w_o);
 
-        return output;
+        return final_output;
+    }
+
+    /// Linear transformation: output = input * weights
+    fn linearTransform(self: *Self, output: []f32, input: []const f32, weights: []const f32) !void {
+        const input_dim = input.len / self.config.d_model;
+        const output_dim = self.config.d_model;
+
+        // Matrix multiplication: (seq_len, d_model) * (d_model, d_model) -> (seq_len, d_model)
+        for (0..input_dim) |i| {
+            for (0..output_dim) |j| {
+                var sum: f32 = 0.0;
+                for (0..self.config.d_model) |k| {
+                    const input_idx = i * self.config.d_model + k;
+                    const weight_idx = k * output_dim + j;
+                    sum += input[input_idx] * weights[weight_idx];
+                }
+                output[i * output_dim + j] = sum;
+            }
+        }
+    }
+
+    /// Scaled dot-product attention
+    fn scaledDotProductAttention(_: *Self, attention_scores: []f32, output: []f32, query: []const f32, key: []const f32, value: []const f32, seq_len: usize, head_dim: usize, mask: ?[]const bool) !void {
+        const scale = 1.0 / @sqrt(@as(f32, @floatFromInt(head_dim)));
+
+        // Compute attention scores: Q * K^T / sqrt(d_k)
+        for (0..seq_len) |i| {
+            for (0..seq_len) |j| {
+                var score: f32 = 0.0;
+                for (0..head_dim) |k| {
+                    const q_idx = i * head_dim + k;
+                    const k_idx = j * head_dim + k;
+                    score += query[q_idx] * key[k_idx];
+                }
+                score *= scale;
+
+                // Apply mask if provided
+                if (mask) |m| {
+                    if (m[i * seq_len + j]) {
+                        score = -std.math.inf(f32);
+                    }
+                }
+
+                attention_scores[i * seq_len + j] = score;
+            }
+        }
+
+        // Softmax over each row
+        for (0..seq_len) |i| {
+            const row_start = i * seq_len;
+            const row = attention_scores[row_start .. row_start + seq_len];
+
+            // Find max for numerical stability
+            var max_val = -std.math.inf(f32);
+            for (row) |val| {
+                max_val = @max(max_val, val);
+            }
+
+            // Compute exp and sum
+            var sum: f32 = 0.0;
+            for (0..seq_len) |j| {
+                const exp_val = std.math.exp(row[j] - max_val);
+                attention_scores[row_start + j] = exp_val;
+                sum += exp_val;
+            }
+
+            // Normalize
+            for (0..seq_len) |j| {
+                attention_scores[row_start + j] /= sum;
+            }
+        }
+
+        // Apply attention to values: softmax_scores * V
+        for (0..seq_len) |i| {
+            for (0..head_dim) |k| {
+                var weighted_sum: f32 = 0.0;
+                for (0..seq_len) |j| {
+                    const attention_weight = attention_scores[i * seq_len + j];
+                    const value_idx = j * head_dim + k;
+                    weighted_sum += attention_weight * value[value_idx];
+                }
+                output[i * head_dim + k] = weighted_sum;
+            }
+        }
     }
 };
 
@@ -339,6 +440,65 @@ pub const TransformerEncoderLayer = struct {
         const result = try self.allocator.dupe(f32, a);
         for (result, b) |*r, bb| r.* += bb;
         return result;
+    }
+};
+
+/// Complete transformer encoder with multiple layers
+pub const TransformerEncoder = struct {
+    const Self = @This();
+
+    config: TransformerConfig,
+    layers: []TransformerEncoderLayer,
+    positional_encoding: PositionalEncoding,
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator, config: TransformerConfig) !TransformerEncoder {
+        var layers = try allocator.alloc(TransformerEncoderLayer, config.n_layers);
+        errdefer allocator.free(layers);
+
+        // Initialize each layer
+        var initialized: usize = 0;
+        errdefer for (layers[0..initialized]) |*layer| layer.deinit();
+
+        for (layers) |*layer| {
+            layer.* = try TransformerEncoderLayer.init(allocator, config);
+            initialized += 1;
+        }
+
+        var positional_encoding = try PositionalEncoding.init(allocator, config.max_seq_len, config.d_model);
+        errdefer positional_encoding.deinit();
+
+        return TransformerEncoder{
+            .config = config,
+            .layers = layers,
+            .positional_encoding = positional_encoding,
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        for (self.layers) |*layer| layer.deinit();
+        self.allocator.free(self.layers);
+        self.positional_encoding.deinit();
+    }
+
+    /// Forward pass through the complete encoder
+    pub fn forward(self: *Self, input_embeddings: []f32, attention_mask: ?[]const bool) ![]f32 {
+        // Add positional encoding
+        const seq_len = input_embeddings.len / self.config.d_model;
+        self.positional_encoding.encode(input_embeddings, seq_len);
+
+        // Pass through each encoder layer
+        var current_output = input_embeddings;
+        for (self.layers) |*layer| {
+            const layer_output = try layer.forward(current_output, attention_mask);
+            if (current_output.ptr != input_embeddings.ptr) {
+                self.allocator.free(current_output);
+            }
+            current_output = layer_output;
+        }
+
+        return current_output;
     }
 };
 

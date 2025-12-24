@@ -11,9 +11,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Zig
-RUN wget -O zig.tar.xz https://ziglang.org/builds/zig-x86_64-linux-0.16.0-dev.1225+bf9082518.tar.xz \
+RUN wget -O zig.tar.xz https://ziglang.org/builds/zig-linux-x86_64-0.16.0.tar.xz \
     && tar -xf zig.tar.xz \
-    && mv zig-x86_64-linux-0.16.0-dev.1225+bf9082518 /usr/local/zig \
+    && mv zig-linux-x86_64-0.16.0 /usr/local/zig \
     && rm zig.tar.xz
 
 ENV PATH="/usr/local/zig:$PATH"
@@ -25,6 +25,8 @@ WORKDIR /app
 COPY build.zig build.zig.zon ./
 
 # Copy source code
+COPY lib/ lib/
+COPY tools/ tools/
 COPY src/ src/
 
 # Build optimized release binary with GPU support

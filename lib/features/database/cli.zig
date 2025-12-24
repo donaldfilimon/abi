@@ -628,12 +628,13 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var args = try std.process.argsWithAllocator(allocator);
-    defer args.deinit();
+    var args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
 
-    _ = args.next(); // Skip executable name
-
-    const cmd = args.next() orelse "help";
+    // Skip executable name (args[0]), start from 1
+    var arg_index: usize = 1;
+    const cmd = if (arg_index < args.len) args[arg_index] else "help";
+    arg_index += 1;
     var cmd_lower_buf: [256]u8 = undefined;
     const cmd_lower = std.ascii.lowerString(&cmd_lower_buf, cmd);
     const command = Command.fromString(cmd_lower) orelse .help;
@@ -643,21 +644,36 @@ pub fn main() !void {
     // defer options.deinit(allocator);
 
     // Parse command line arguments
-    while (args.next()) |arg| {
+    while (arg_index < args.len) {
+        const arg = args[arg_index];
+        arg_index += 1;
         if (std.mem.eql(u8, arg, "--db")) {
-            if (args.next()) |path| options.db_path = try allocator.dupe(u8, path);
+            if (arg_index < args.len) {
+                options.db_path = try allocator.dupe(u8, args[arg_index]);
+                arg_index += 1;
+            }
         } else if (std.mem.eql(u8, arg, "--vector")) {
-            if (args.next()) |vec| options.vector = try allocator.dupe(u8, vec);
+            if (arg_index < args.len) {
+                options.vector = try allocator.dupe(u8, args[arg_index]);
+                arg_index += 1;
+            }
         } else if (std.mem.eql(u8, arg, "--k")) {
-            if (args.next()) |k_str| {
+            if (arg_index < args.len) {
+                const k_str = args[arg_index];
+                arg_index += 1;
                 options.k = try std.fmt.parseInt(usize, k_str, 10);
             }
         } else if (std.mem.eql(u8, arg, "--port")) {
-            if (args.next()) |port_str| {
+            if (arg_index < args.len) {
+                const port_str = args[arg_index];
+                arg_index += 1;
                 options.port = try std.fmt.parseInt(u16, port_str, 10);
             }
         } else if (std.mem.eql(u8, arg, "--host")) {
-            if (args.next()) |host| options.host = try allocator.dupe(u8, host);
+            if (arg_index < args.len) {
+                options.host = try allocator.dupe(u8, args[arg_index]);
+                arg_index += 1;
+            }
         } else if (std.mem.eql(u8, arg, "--verbose")) {
             options.verbose = true;
         } else if (std.mem.eql(u8, arg, "--quiet")) {
@@ -667,33 +683,70 @@ pub fn main() !void {
         } else if (std.mem.eql(u8, arg, "--version") or std.mem.eql(u8, arg, "-v")) {
             options.command = .version;
         } else if (std.mem.eql(u8, arg, "--role")) {
-            if (args.next()) |role| options.role = try allocator.dupe(u8, role);
+            if (arg_index < args.len) {
+                options.role = try allocator.dupe(u8, args[arg_index]);
+                arg_index += 1;
+            }
         } else if (std.mem.eql(u8, arg, "--output") or std.mem.eql(u8, arg, "--format")) {
-            if (args.next()) |fmt| options.output_format = OutputFormat.fromString(fmt) orelse options.output_format;
+            if (arg_index < args.len) {
+                const fmt = args[arg_index];
+                arg_index += 1;
+                options.output_format = OutputFormat.fromString(fmt) orelse options.output_format;
+            }
         } else if (std.mem.eql(u8, arg, "--config") or std.mem.eql(u8, arg, "--config-file")) {
-            if (args.next()) |cfg| options.config_file = try allocator.dupe(u8, cfg);
+            if (arg_index < args.len) {
+                options.config_file = try allocator.dupe(u8, args[arg_index]);
+                arg_index += 1;
+            }
         } else if (std.mem.eql(u8, arg, "--log-level")) {
-            if (args.next()) |lvl| options.log_level = LogLevel.fromString(lvl) orelse options.log_level;
+            if (arg_index < args.len) {
+                const lvl = args[arg_index];
+                arg_index += 1;
+                options.log_level = LogLevel.fromString(lvl) orelse options.log_level;
+            }
         } else if (std.mem.eql(u8, arg, "--max-connections")) {
-            if (args.next()) |mc| options.max_connections = std.fmt.parseInt(u32, mc, 10) catch options.max_connections;
+            if (arg_index < args.len) {
+                const mc = args[arg_index];
+                arg_index += 1;
+                options.max_connections = std.fmt.parseInt(u32, mc, 10) catch options.max_connections;
+            }
         } else if (std.mem.eql(u8, arg, "--timeout-ms")) {
-            if (args.next()) |t| options.timeout_ms = std.fmt.parseInt(u32, t, 10) catch options.timeout_ms;
+            if (arg_index < args.len) {
+                const t = args[arg_index];
+                arg_index += 1;
+                options.timeout_ms = std.fmt.parseInt(u32, t, 10) catch options.timeout_ms;
+            }
         } else if (std.mem.eql(u8, arg, "--batch-size")) {
-            if (args.next()) |bs| options.batch_size = std.fmt.parseInt(usize, bs, 10) catch options.batch_size;
+            if (arg_index < args.len) {
+                const bs = args[arg_index];
+                arg_index += 1;
+                options.batch_size = std.fmt.parseInt(usize, bs, 10) catch options.batch_size;
+            }
         } else if (std.mem.eql(u8, arg, "--compression-level")) {
-            if (args.next()) |cl| options.compression_level = std.fmt.parseInt(u8, cl, 10) catch options.compression_level;
+            if (arg_index < args.len) {
+                const cl = args[arg_index];
+                arg_index += 1;
+                options.compression_level = std.fmt.parseInt(u8, cl, 10) catch options.compression_level;
+            }
         } else if (std.mem.eql(u8, arg, "--enable-metrics")) {
             options.enable_metrics = true;
         } else if (std.mem.eql(u8, arg, "--disable-metrics")) {
             options.enable_metrics = false;
         } else if (std.mem.eql(u8, arg, "--metrics-port")) {
-            if (args.next()) |mp| options.metrics_port = std.fmt.parseInt(u16, mp, 10) catch options.metrics_port;
+            if (arg_index < args.len) {
+                const mp = args[arg_index];
+                arg_index += 1;
+                options.metrics_port = std.fmt.parseInt(u16, mp, 10) catch options.metrics_port;
+            }
         } else if (std.mem.eql(u8, arg, "--enable-tracing")) {
             options.enable_tracing = true;
         } else if (std.mem.eql(u8, arg, "--disable-tracing")) {
             options.enable_tracing = false;
         } else if (std.mem.eql(u8, arg, "--trace-file")) {
-            if (args.next()) |tf| options.trace_file = try allocator.dupe(u8, tf);
+            if (arg_index < args.len) {
+                options.trace_file = try allocator.dupe(u8, args[arg_index]);
+                arg_index += 1;
+            }
         } else if (std.mem.eql(u8, arg, "--debug")) {
             options.debug = true;
         } else if (std.mem.eql(u8, arg, "--profile")) {

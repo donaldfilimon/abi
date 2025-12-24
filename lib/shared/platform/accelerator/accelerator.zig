@@ -12,10 +12,15 @@ pub const BackendType = hardware_detection.BackendType;
 const cuda_integration = @import("../../../features/gpu/libraries/cuda_integration.zig");
 const CUDARenderer = cuda_integration.CUDARenderer;
 
+const vulkan_integration = @import("../../../features/gpu/libraries/vulkan_integration.zig");
+const VulkanRenderer = vulkan_integration.VulkanRenderer;
+
 /// Accelerator-specific error set
 pub const AcceleratorError = error{
     /// CUDA runtime not initialized
     CUDANotInitialized,
+    /// Vulkan not available
+    VulkanNotAvailable,
     /// Backend not implemented
     BackendNotImplemented,
     /// Invalid memory reference
@@ -98,6 +103,7 @@ pub const Accelerator = struct {
     device_id: u32,
     name: []const u8,
     cuda_renderer: ?CUDARenderer = null,
+    vulkan_renderer: ?VulkanRenderer = null,
 
     pub fn alloc(self: *Accelerator, size: usize) !DeviceMemory {
         if (self.backend == .cpu_fallback or self.backend == .cpu_simd) {
@@ -117,6 +123,12 @@ pub const Accelerator = struct {
                 };
             }
             return error.CUDANotInitialized;
+        } else if (self.backend == .vulkan) {
+            if (self.vulkan_renderer) |*renderer| {
+                const memory = try renderer.allocDeviceMemory(size);
+                return memory;
+            }
+            return error.VulkanNotAvailable;
         }
         return error.BackendNotImplemented;
     }
@@ -129,6 +141,10 @@ pub const Accelerator = struct {
         } else if (self.backend == .cuda) {
             if (self.cuda_renderer) |*renderer| {
                 renderer.freeDeviceMemory(mem.ptr.?);
+            }
+        } else if (self.backend == .vulkan) {
+            if (self.vulkan_renderer) |*renderer| {
+                renderer.freeDeviceMemory(mem.*);
             }
         }
         mem.ptr = null;
@@ -360,6 +376,7 @@ pub fn createBestAccelerator(allocator: std.mem.Allocator) Accelerator {
                 .device_id = 0,
                 .name = "CPU Fallback",
                 .cuda_renderer = null,
+                .vulkan_renderer = null,
             };
         };
 
@@ -371,6 +388,7 @@ pub fn createBestAccelerator(allocator: std.mem.Allocator) Accelerator {
                 .device_id = 0,
                 .name = "CPU Fallback",
                 .cuda_renderer = null,
+                .vulkan_renderer = null,
             };
         };
 
@@ -380,6 +398,7 @@ pub fn createBestAccelerator(allocator: std.mem.Allocator) Accelerator {
             .device_id = 0,
             .name = "CUDA Accelerator",
             .cuda_renderer = cuda_renderer,
+            .vulkan_renderer = null,
         };
     }
 
@@ -389,5 +408,6 @@ pub fn createBestAccelerator(allocator: std.mem.Allocator) Accelerator {
         .device_id = 0,
         .name = "CPU Fallback",
         .cuda_renderer = null,
+        .vulkan_renderer = null,
     };
 }

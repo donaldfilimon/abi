@@ -22,18 +22,18 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var args = try std.process.argsWithAllocator(allocator);
-    defer args.deinit();
-
-    // Skip program name
-    _ = args.next();
+    var args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
 
     var do_export = false;
     var fmt: framework.BenchmarkConfig.OutputFormat = .console;
     var bench_type: ?[]const u8 = null;
     var export_path: []const u8 = "benchmark_results";
 
-    while (args.next()) |a| {
+    // Skip program name (args[0]), start from 1
+    var arg_index: usize = 1;
+    while (arg_index < args.len) : (arg_index += 1) {
+        const a = args[arg_index];
         if (std.mem.eql(u8, a, "--export")) {
             do_export = true;
         } else if (std.mem.startsWith(u8, a, "--format=")) {

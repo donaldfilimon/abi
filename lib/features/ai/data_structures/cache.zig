@@ -86,21 +86,45 @@ pub fn LRUCache(comptime K: type, comptime V: type) type {
             self.allocator.destroy(self);
         }
 
-        /// Get a value from the cache
+        /// Get a value from the cache and update its access order
         pub fn get(self: *Self, key: K) ?V {
-            return self.data.get(key);
+            if (self.data.get(key)) |value| {
+                // Move key to the end (most recently used)
+                self.moveToEnd(key);
+                return value;
+            }
+            return null;
         }
 
-        /// Put a value in the cache
+        /// Put a value in the cache with proper LRU handling
         pub fn put(self: *Self, key: K, value: V) !void {
+            if (self.data.contains(key)) {
+                // Update existing value and move to end
+                try self.data.put(key, value);
+                self.moveToEnd(key);
+                return;
+            }
+
             if (self.data.count() >= self.capacity) {
-                // Remove oldest item
-                if (self.access_order.popOrNull()) |old_key| {
+                // Remove least recently used item (from the front)
+                if (self.access_order.orderedRemove(0)) |old_key| {
                     _ = self.data.remove(old_key);
                 }
             }
             try self.data.put(key, value);
             try self.access_order.append(key);
+        }
+
+        /// Helper function to move a key to the end of the access order
+        fn moveToEnd(self: *Self, key: K) void {
+            // Remove key from current position and add to end
+            for (self.access_order.items, 0..) |existing_key, i| {
+                if (existing_key == key) {
+                    _ = self.access_order.orderedRemove(i);
+                    break;
+                }
+            }
+            self.access_order.append(key) catch {};
         }
     };
 }

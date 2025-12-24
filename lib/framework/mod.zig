@@ -48,28 +48,26 @@ fn featureToTag(feature: Feature) ?features.FeatureTag {
 pub fn runtimeConfigFromOptions(allocator: std.mem.Allocator, options: FrameworkOptions) !RuntimeConfig {
     var toggles = deriveFeatureToggles(options);
 
-    var enabled_tags = std.ArrayList(features.FeatureTag).init(allocator);
-    defer enabled_tags.deinit();
+    var enabled_tags = try std.ArrayList(features.FeatureTag).initCapacity(allocator, 0);
 
     var toggle_iter = toggles.iterator();
     while (toggle_iter.next()) |feature| {
         if (featureToTag(feature)) |tag| {
-            try enabled_tags.append(tag);
+            try enabled_tags.append(allocator, tag);
         }
     }
 
-    var disabled_tags = std.ArrayList(features.FeatureTag).init(allocator);
-    defer disabled_tags.deinit();
+    var disabled_tags = try std.ArrayList(features.FeatureTag).initCapacity(allocator, 0);
     for (options.disabled_features) |feature| {
         if (featureToTag(feature)) |tag| {
-            try disabled_tags.append(tag);
+            try disabled_tags.append(allocator, tag);
         }
     }
 
-    const enabled_features = try enabled_tags.toOwnedSlice();
+    const enabled_features = try enabled_tags.toOwnedSlice(allocator);
     errdefer allocator.free(enabled_features);
 
-    const disabled_features = try disabled_tags.toOwnedSlice();
+    const disabled_features = try disabled_tags.toOwnedSlice(allocator);
     errdefer allocator.free(disabled_features);
 
     return RuntimeConfig{

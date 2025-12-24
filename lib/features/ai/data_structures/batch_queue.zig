@@ -40,11 +40,16 @@ pub const BatchQueue = struct {
         try self.data.appendSlice(self.allocator, data);
     }
 
-    /// Get the next batch if available
+    /// Get the next batch if available (optimized O(n) -> O(k) where k=batch_size)
     pub fn dequeueBatch(self: *Self) ?[]u8 {
         if (self.data.items.len < self.batch_size) return null;
         const batch = self.data.items[0..self.batch_size];
-        self.data.replaceRange(0, self.batch_size, &[_]u8{}) catch {};
+
+        // More efficient: use std.mem.copy to shift remaining data
+        const remaining_items = self.data.items[self.batch_size..];
+        std.mem.copy(u8, self.data.items[0..remaining_items.len], remaining_items);
+        self.data.items.len -= self.batch_size;
+
         return batch;
     }
 };

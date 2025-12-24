@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# 🚀 Abi AI Framework
-=======
 # Abi Framework
 
 > **Modern, modular Zig framework for AI/ML experiments and production workloads**
@@ -279,7 +276,24 @@ test "AI agent processes input correctly" {
 
 ```zig
 const abi = @import("abi");
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a
+
+var agent = try abi.ai.agent.Agent.init(allocator, .{
+    .name = "Assistant",
+    .max_retries = 3,
+});
+
+defer agent.deinit();
+
+const response = try agent.process("Explain quantum computing", allocator);
+defer allocator.free(@constCast(response));
+```
+
+[![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev.1225%2Bbf9082518-orange.svg)](https://ziglang.org/) • [Docs](https://donaldfilimon.github.io/abi/) • [CI: Pages](.github/workflows/deploy_docs.yml)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)](https://github.com/yourusername/abi)
+[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)]()
+[![Performance](https://img.shields.io/badge/Performance-2,777+%20ops%2Fsec-brightgreen.svg)]()
 
 var agent = try abi.ai.agent.Agent.init(allocator, .{
     .name = "Assistant",
@@ -287,18 +301,12 @@ var agent = try abi.ai.agent.Agent.init(allocator, .{
 });
 defer agent.deinit();
 
-<<<<<<< HEAD
 [![Zig Version](https://img.shields.io/badge/Zig-0.16.0--dev.1225%2Bbf9082518-orange.svg)](https://ziglang.org/) • [Docs](https://donaldfilimon.github.io/abi/) • [CI: Pages](.github/workflows/deploy_docs.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Cross--platform-green.svg)](https://github.com/yourusername/abi)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
 [![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)]()
 [![Performance](https://img.shields.io/badge/Performance-2,777+%20ops%2Fsec-brightgreen.svg)]()
-=======
-const response = try agent.process("Explain quantum computing", allocator);
-defer allocator.free(@constCast(response));
-```
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a
 
 ### Vector Database
 
@@ -323,16 +331,14 @@ const gpu = abi.gpu;
 var backend = try gpu.selectBackend(allocator);
 defer backend.deinit();
 
-<<<<<<< HEAD
+const kernel = try gpu.loadKernel("matrix_mul");
+try backend.execute(kernel, .{ .a = a, .b = b, .result = result });
+```
+
 ### **Prerequisites**
 - **Zig 0.16.0-dev.1484+d0ba6642b** (GitHub Actions uses `mlugg/setup-zig@v2` pinned to this version)
 - GPU drivers (optional, for acceleration)
 - OpenAI API key (for AI agent features)
-=======
-const kernel = try gpu.loadKernel("matrix_mul");
-try backend.execute(kernel, .{ .a = a, .b = b, .result = result });
-```
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a
 
 ## 🤝 Contributing
 
@@ -386,7 +392,7 @@ zig build examples
 - [ ] Production deployment guides
 - [ ] Cloud provider integrations
 
-<<<<<<< HEAD
+
 // Add embeddings
 const embedding = [_]f32{0.1, 0.2, 0.3, /* ... */};
 const row_id = try db.addEmbedding(&embedding);
@@ -694,10 +700,7 @@ We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) 
 5. **Documentation**: Update docs for new features
 6. **Submit PR**: Create pull request with comprehensive coverage
 
-## 📄 **License**
-=======
-## 📝 License
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
@@ -717,8 +720,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ using Zig 0.16**
 
-<<<<<<< HEAD
 **🚀 Ready to build the future of AI with Zig? Get started with Abi AI Framework today!**
-=======
-*Last Updated: October 8, 2025*
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a

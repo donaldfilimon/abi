@@ -215,13 +215,13 @@ pub const async_utils = struct {
 pub const random = struct {
     /// Seeded random number generator
     pub const RandomGenerator = struct {
-        rng: std.rand.DefaultPrng,
+        rng: std.Random.DefaultPrng,
 
         pub fn init(seed: u64) RandomGenerator {
-            return .{ .rng = std.rand.DefaultPrng.init(seed) };
+            return .{ .rng = std.Random.DefaultPrng.init(seed) };
         }
 
-        pub fn random(self: *RandomGenerator) std.rand.Random {
+        pub fn random(self: *RandomGenerator) std.Random {
             return self.rng.random();
         }
 
@@ -245,6 +245,42 @@ pub const random = struct {
     pub fn seeded() RandomGenerator {
         const seed = @as(u64, @intCast(std.time.nanoTimestamp()));
         return RandomGenerator.init(seed);
+    }
+};
+
+/// Arena allocator utilities for efficient temporary allocations
+pub const arena_utils = struct {
+    /// Create a scoped arena for batch operations
+    pub const ScopedArena = struct {
+        arena: std.heap.ArenaAllocator,
+
+        pub fn init(parent_allocator: std.mem.Allocator) ScopedArena {
+            return .{
+                .arena = std.heap.ArenaAllocator.init(parent_allocator),
+            };
+        }
+
+        pub fn allocator(self: *ScopedArena) std.mem.Allocator {
+            return self.arena.allocator();
+        }
+
+        pub fn deinit(self: *ScopedArena) void {
+            self.arena.deinit();
+        }
+
+        /// Reset arena for reuse
+        pub fn reset(self: *ScopedArena) void {
+            _ = self.arena.reset(.retain_capacity);
+        }
+    };
+
+    /// Execute a function with temporary arena allocations
+    pub fn withTempArena(parent_allocator: std.mem.Allocator, comptime func: anytype, args: anytype) !void {
+        var arena = std.heap.ArenaAllocator.init(parent_allocator);
+        defer arena.deinit();
+        const temp_allocator = arena.allocator();
+
+        try @call(.auto, func, .{temp_allocator} ++ args);
     }
 };
 

@@ -20,7 +20,9 @@ pub const ArenaAllocator = std.heap.ArenaAllocator;
 /// Collection utilities for common patterns
 pub const utils = struct {
     /// Frees the memory used by a StringHashMap, including its keys and values.
-    pub fn cleanupStringMap(map: *std.StringHashMap([]const u8), allocator: std.mem.Allocator) void {
+    /// WARNING: Only use this if all keys and values are heap-allocated slices.
+    /// If the map contains static strings or non-allocated data, use map.deinit() instead.
+    pub fn cleanupAllocatedStringMap(map: *std.StringHashMap([]const u8), allocator: std.mem.Allocator) void {
         var it = map.iterator();
         while (it.next()) |entry| {
             allocator.free(entry.key_ptr.*);

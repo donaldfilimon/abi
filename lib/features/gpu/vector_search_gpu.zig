@@ -8,6 +8,14 @@
 const std = @import("std");
 const accelerator = @import("../../shared/platform/accelerator/accelerator.zig");
 
+/// Check if GPU acceleration is available
+fn checkGPUAvailability() bool {
+    // TODO: Implement proper GPU availability check
+    // For now, check build options
+    const build_options = @import("build_options");
+    return build_options.gpu_cuda or build_options.gpu_vulkan or build_options.gpu_metal;
+}
+
 pub const Error = error{
     InvalidDimension,
     InputTooLarge,
@@ -73,6 +81,14 @@ pub const VectorSearchGPU = struct {
         if (k > 100) return error.InvalidParameter; // Limit k for security
         if (self.vectors.items.len == 0) return try self.allocator.alloc(usize, 0);
 
+        // Try GPU acceleration first
+        if (self.tryGPUSearch(query, k)) |gpu_result| {
+            return gpu_result;
+        }
+
+        // Fallback to CPU implementation
+        std.log.debug("GPU search failed, falling back to CPU", .{});
+
         const Temp = struct { idx: usize, dist: f32 };
         var distances = try self.allocator.alloc(Temp, self.vectors.items.len);
         defer self.allocator.free(distances);
@@ -88,15 +104,85 @@ pub const VectorSearchGPU = struct {
         }.lessThan);
 
         const count = @min(k, distances.len);
-        const results = try self.allocator.alloc(usize, count);
-        errdefer self.allocator.free(results);
-        for (results, 0..) |*dst, i| {
-            dst.* = self.vectors.items[distances[i].idx].id;
+        const result = try self.allocator.alloc(usize, count);
+        for (0..count) |i| {
+            result[i] = self.vectors.items[distances[i].idx].id;
         }
-        return results;
+        return result;
+    }
+
+    /// Try to perform search using GPU acceleration (with SIMD fallback)
+    fn tryGPUSearch(self: *VectorSearchGPU, query: []const f32, k: usize) ?[]usize {
+        // Check if GPU acceleration is available
+        const gpu_available = checkGPUAvailability();
+        if (gpu_available) {
+            std.log.debug("Attempting GPU-accelerated vector search", .{});
+            // TODO: Implement actual GPU distance computation
+            // For now, fall through to SIMD-accelerated CPU implementation
+        }
+
+        // Use SIMD-accelerated CPU implementation as fallback
+        return self.simdSearch(query, k);
+    }
+
+    /// SIMD-accelerated CPU vector search
+    fn simdSearch(self: *VectorSearchGPU, query: []const f32, k: usize) ?[]usize {
+        const Temp = struct { idx: usize, dist: f32 };
+
+        // Pre-allocate result buffer
+        var distances = std.ArrayList(Temp).initCapacity(self.allocator, self.vectors.items.len) catch return null;
+        defer distances.deinit();
+
+        // SIMD-accelerated distance calculation
+        for (self.vectors.items, 0..) |entry, i| {
+            const dist = simdL2Distance(query, entry.values);
+            distances.appendAssumeCapacity(.{ .idx = i, .dist = dist });
+        }
+
+        // Sort by distance
+        std.sort.block(Temp, distances.items, {}, struct {
+            fn lessThan(_: void, a: Temp, b: Temp) bool {
+                return a.dist < b.dist;
+            }
+        }.lessThan);
+
+        // Extract top-k results
+        const count = @min(k, distances.items.len);
+        const result = self.allocator.alloc(usize, count) catch return null;
+
+        for (0..count) |i| {
+            result[i] = self.vectors.items[distances.items[i].idx].id;
+        }
+
+        return result;
     }
 };
 
+/// SIMD-accelerated L2 distance calculation
+fn simdL2Distance(a: []const f32, b: []const f32) f32 {
+    const len = a.len;
+    var sum: f32 = 0.0;
+
+    // Process vectors in chunks of 4 for SIMD
+    var i: usize = 0;
+    while (i + 4 <= len) : (i += 4) {
+        const va = @as(@Vector(4, f32), a[i .. i + 4].*);
+        const vb = @as(@Vector(4, f32), b[i .. i + 4].*);
+        const diff = va - vb;
+        const squared = diff * diff;
+        sum += @reduce(.Add, squared);
+    }
+
+    // Handle remaining elements
+    while (i < len) : (i += 1) {
+        const diff = a[i] - b[i];
+        sum += diff * diff;
+    }
+
+    return @sqrt(sum);
+}
+
+/// Fallback L2 distance for reference
 fn l2(a: []const f32, b: []const f32) f32 {
     var sum: f32 = 0;
     for (a, 0..) |v, i| {

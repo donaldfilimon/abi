@@ -28,13 +28,17 @@ pub const TraceContext = struct {
 
     pub fn traceHex(self: TraceContext) [32]u8 {
         var buf: [32]u8 = undefined;
-        _ = std.fmt.bufPrint(&buf, "{s}", .{std.fmt.fmtSliceHexLower(&self.trace_id)}) catch unreachable;
+        _ = std.fmt.bufPrint(&buf, "{s}", .{std.fmt.fmtSliceHexLower(&self.trace_id)}) catch |err| switch (err) {
+            error.NoSpace => unreachable, // Buffer is exactly sized for 16-byte hex output
+        };
         return buf;
     }
 
     pub fn spanHex(self: TraceContext) [16]u8 {
         var buf: [16]u8 = undefined;
-        _ = std.fmt.bufPrint(&buf, "{s}", .{std.fmt.fmtSliceHexLower(&self.span_id)}) catch unreachable;
+        _ = std.fmt.bufPrint(&buf, "{s}", .{std.fmt.fmtSliceHexLower(&self.span_id)}) catch |err| switch (err) {
+            error.NoSpace => unreachable, // Buffer is exactly sized for 8-byte hex output
+        };
         return buf;
     }
 

@@ -27,7 +27,9 @@ pub const TraceId = struct {
 
     pub fn format(self: TraceId, buffer: []u8) []const u8 {
         std.debug.assert(buffer.len >= 32);
-        return std.fmt.bufPrint(buffer, "{s}", .{std.fmt.fmtSliceHexLower(&self.bytes)}) catch unreachable;
+        return std.fmt.bufPrint(buffer, "{s}", .{std.fmt.fmtSliceHexLower(&self.bytes)}) catch |err| switch (err) {
+            error.NoSpace => unreachable, // Buffer size is validated with assert above
+        };
     }
 };
 

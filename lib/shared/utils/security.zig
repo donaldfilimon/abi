@@ -171,6 +171,40 @@ pub const RateLimiter = struct {
     }
 };
 
+/// Cryptographically secure random number generation
+pub const SecureRandom = struct {
+    /// Generate cryptographically secure random bytes
+    pub fn bytes(buffer: []u8) void {
+        std.crypto.random.bytes(buffer);
+    }
+
+    /// Generate secure random integer in range
+    pub fn int(comptime T: type, min: T, max: T) T {
+        return std.crypto.random.intRangeAtMost(T, min, max - 1);
+    }
+
+    /// Generate secure random float between 0 and 1
+    pub fn float() f64 {
+        return std.crypto.random.float(f64);
+    }
+
+    /// Fill buffer with secure random data
+    pub fn fill(buffer: []u8) void {
+        std.crypto.random.bytes(buffer);
+    }
+
+    /// Generate secure token (base64 encoded)
+    pub fn token(allocator: std.mem.Allocator, length: usize) ![]u8 {
+        const bytes_needed = (length * 3) / 4 + 1; // Account for base64 overhead
+        var random_bytes: [128]u8 = undefined;
+        const actual_bytes = @min(bytes_needed, random_bytes.len);
+
+        bytes(random_bytes[0..actual_bytes]);
+
+        return std.base64.standard.Encoder.encode(allocator, random_bytes[0..actual_bytes]);
+    }
+};
+
 /// Secure configuration defaults
 pub const SecureDefaults = struct {
     /// Default rate limiting configuration
@@ -189,3 +223,115 @@ pub const SecureDefaults = struct {
     /// Maximum memory usage per request (100MB)
     pub const max_memory_per_request: usize = 100 * 1024 * 1024;
 };
+
+test "security - validateJsonPayload" {
+    const testing = std.testing;
+
+    // Valid JSON
+    try validateJsonPayload("{}");
+    try validateJsonPayload("{\"key\": \"value\"}");
+    try validateJsonPayload("[1, 2, 3]");
+
+    // Empty payload
+    try testing.expectError(ValidationError.MalformedRequest, validateJsonPayload(""));
+
+    // Null bytes
+    try testing.expectError(ValidationError.UnsafeCharacters, validateJsonPayload("{\"key\": \"value\x00\"}"));
+
+    // Too nested
+    const deeply_nested = "{" ** 40 ++ "}" ** 40;
+    try testing.expectError(ValidationError.MalformedRequest, validateJsonPayload(deeply_nested));
+
+    // Unbalanced brackets
+    try testing.expectError(ValidationError.MalformedRequest, validateJsonPayload("{\"unclosed\": true"));
+}
+
+test "security - validateVectorData" {
+    const testing = std.testing;
+
+    // Valid vector
+    const valid_vector = [_]f32{ 1.0, 2.0, 3.0 };
+    try validateVectorData(&valid_vector);
+
+    // Empty vector
+    try testing.expectError(ValidationError.InvalidVectorDimensions, validateVectorData(&[_]f32{}));
+
+    // Too large vector
+    var large_vector: [5000]f32 = undefined;
+    @memset(&large_vector, 1.0);
+    try testing.expectError(ValidationError.InvalidVectorDimensions, validateVectorData(&large_vector));
+
+    // Vector with NaN
+    const nan_vector = [_]f32{ 1.0, std.math.nan(f32), 3.0 };
+    try testing.expectError(ValidationError.InvalidDataType, validateVectorData(&nan_vector));
+
+    // Vector with infinity
+    const inf_vector = [_]f32{ 1.0, std.math.inf(f32), 3.0 };
+    try testing.expectError(ValidationError.InvalidDataType, validateVectorData(&inf_vector));
+}
+
+test "security - validateBatchOperation" {
+    const testing = std.testing;
+
+    // Valid batch sizes
+    try validateBatchOperation(1);
+    try validateBatchOperation(100);
+    try validateBatchOperation(1000);
+
+    // Invalid batch sizes
+    try testing.expectError(ValidationError.InvalidVectorDimensions, validateBatchOperation(0));
+    try testing.expectError(ValidationError.InvalidVectorDimensions, validateBatchOperation(1001));
+}
+
+test "security - sanitizeString" {
+    const testing = std.testing;
+
+    // Valid string
+    const result = try sanitizeString("hello world", testing.allocator);
+    defer testing.allocator.free(result);
+    try testing.expectEqualStrings("hello world", result);
+
+    // String with null bytes
+    try testing.expectError(ValidationError.UnsafeCharacters, sanitizeString("hello\x00world", testing.allocator));
+}
+
+test "security - RateLimiter" {
+    const testing = std.testing;
+
+    var limiter = RateLimiter.init(testing.allocator, .{});
+    defer limiter.deinit();
+
+    const test_ip: u32 = 0x7f000001; // 127.0.0.1
+
+    // Should allow initial requests
+    try limiter.checkLimit(test_ip);
+    try limiter.checkLimit(test_ip);
+
+    // After setting very low limit, should fail
+    limiter.config.requests_per_minute = 1;
+    try testing.expectError(ValidationError.RateLimitExceeded, limiter.checkLimit(test_ip));
+}
+
+test "security - SecureRandom" {
+    const testing = std.testing;
+
+    // Test token generation
+    const token1 = try SecureRandom.token(testing.allocator, 16);
+    defer testing.allocator.free(token1);
+    try testing.expect(token1.len > 0);
+
+    const token2 = try SecureRandom.token(testing.allocator, 16);
+    defer testing.allocator.free(token2);
+    try testing.expect(token2.len > 0);
+
+    // Tokens should be different (with very high probability)
+    try testing.expect(!std.mem.eql(u8, token1, token2));
+
+    // Test random int generation
+    const random_int = SecureRandom.int(u32, 0, 100);
+    try testing.expect(random_int >= 0 and random_int < 100);
+
+    // Test random float
+    const random_float = SecureRandom.float();
+    try testing.expect(random_float >= 0.0 and random_float < 1.0);
+}

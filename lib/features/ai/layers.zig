@@ -244,7 +244,7 @@ fn randomInit(accel: *accelerator.Accelerator, mem: *accelerator.DeviceMemory, c
 
     const data = try temp_allocator.alloc(f32, count);
 
-    var prng = std.Random.DefaultPrng.init(@intCast(std.time.nanoTimestamp() / 1_000_000));
+    var prng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp() * 1_000_000));
     const random = prng.random();
 
     for (data) |*d| {

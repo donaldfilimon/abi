@@ -1,11 +1,10 @@
 # Multi-stage Docker build for ABI AI Framework
 # Stage 1: Build stage
-FROM ziglang/zig:0.16.0-dev.254+6dd0270a1 AS builder
+FROM ziglang/zig:0.16.0 AS builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    libssl-dev \
-    pkg-config \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -15,6 +14,8 @@ WORKDIR /app
 COPY build.zig build.zig.zon ./
 
 # Copy source code
+COPY lib/ lib/
+COPY tools/ tools/
 COPY src/ src/
 
 # Build optimized release binary

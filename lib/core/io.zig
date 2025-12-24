@@ -21,8 +21,49 @@ pub const Writer = struct {
         _ = try self.write(text);
     }
 
+    /// Owned writer that manages its context lifetime
+    pub const OwnedWriter = struct {
+        writer: Writer,
+        context_ptr: ?*anyopaque,
+
+        /// Create a Writer from any std.io.Writer with managed lifetime
+        pub fn fromAnyWriter(writer: anytype) !OwnedWriter {
+            const T = @TypeOf(writer);
+            const ContextType = struct {
+                writer: T,
+            };
+
+            const impl = struct {
+                fn writeFn(ctx: *anyopaque, bytes: []const u8) anyerror!usize {
+                    const context: *ContextType = @ptrCast(@alignCast(ctx));
+                    return context.writer.write(bytes);
+                }
+            };
+
+            const ctx = std.heap.page_allocator.create(ContextType) catch return error.OutOfMemory;
+            ctx.* = .{ .writer = writer };
+
+            return .{
+                .writer = .{
+                    .context = ctx,
+                    .writeFn = impl.writeFn,
+                },
+                .context_ptr = ctx,
+            };
+        }
+
+        /// Deinitialize the owned writer and free its context
+        pub fn deinit(self: *OwnedWriter) void {
+            if (self.context_ptr) |ptr| {
+                std.heap.page_allocator.destroy(@as(*anyopaque, @ptrCast(ptr)));
+                self.context_ptr = null;
+            }
+        }
+    };
+
     /// Create a Writer from any std.io.Writer
-    pub fn fromAnyWriter(writer: anytype) Writer {
+    /// DEPRECATED: Use OwnedWriter.fromAnyWriter to avoid memory leaks
+    pub fn fromAnyWriter(writer: anytype) !Writer {
         const T = @TypeOf(writer);
         const ContextType = struct {
             writer: T,
@@ -35,7 +76,7 @@ pub const Writer = struct {
             }
         };
 
-        const ctx = std.heap.page_allocator.create(ContextType) catch unreachable;
+        const ctx = std.heap.page_allocator.create(ContextType) catch return error.OutOfMemory;
         ctx.* = .{ .writer = writer };
 
         return .{

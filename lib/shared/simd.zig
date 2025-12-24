@@ -107,6 +107,8 @@ inline fn finishTiming(start: i128, used_simd: bool) void {
 
 inline fn loadVector(slice: []const f32) FloatVector {
     std.debug.assert(slice.len >= SIMD_WIDTH);
+    std.debug.assert(@alignOf(@TypeOf(slice.ptr)) >= @alignOf(FloatVector) or
+        std.math.isAligned(@intFromPtr(slice.ptr), @alignOf(FloatVector)));
     const ptr = @as(*const [SIMD_WIDTH]f32, @ptrCast(slice.ptr));
     return @as(FloatVector, ptr.*);
 }
@@ -298,6 +300,35 @@ fn vectorLeakyReluInternal(data: []f32, slope: f32) bool {
     }
 
     return used_simd;
+}
+
+/// Optimized vectorized dot product for high-performance vector similarity
+pub fn vectorizedDotProduct(a: []const f32, b: []const f32) f32 {
+    std.debug.assert(a.len == b.len);
+
+    var sum = @as(FloatVector, @splat(0.0));
+    var i: usize = 0;
+    const simd_end = a.len - (a.len % SIMD_WIDTH);
+
+    // SIMD vectorized computation
+    while (i < simd_end) : (i += SIMD_WIDTH) {
+        const va = loadVector(a[i..][0..SIMD_WIDTH]);
+        const vb = loadVector(b[i..][0..SIMD_WIDTH]);
+        sum += va * vb;
+    }
+
+    // Horizontal sum of SIMD vector
+    var result: f32 = 0.0;
+    inline for (0..SIMD_WIDTH) |j| {
+        result += sum[j];
+    }
+
+    // Handle remaining elements
+    while (i < a.len) : (i += 1) {
+        result += a[i] * b[i];
+    }
+
+    return result;
 }
 
 fn normalizeInternal(result: []f32, input: []const f32) bool {

@@ -34,6 +34,16 @@ pub const optimizations = @import("optimizations/mod.zig");
 pub const libraries = @import("libraries/mod.zig");
 // Note: demo modules are available via direct import from demo/ directory
 
+/// Initialize the GPU feature module
+pub fn init(allocator: std.mem.Allocator) !void {
+    _ = allocator; // Currently no global GPU state to initialize
+}
+
+/// Deinitialize the GPU feature module
+pub fn deinit() void {
+    // Currently no global GPU state to cleanup
+}
+
 // Legacy compatibility - examples module
 pub const gpu_examples = @import("gpu_examples.zig");
 

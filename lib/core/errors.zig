@@ -81,45 +81,34 @@ pub const ErrorContext = struct {
     }
 };
 
-/// Error handler trait
-pub fn ErrorHandler(comptime T: type) type {
-    return struct {
-        const Self = @This();
+/// Error handler for processing errors
+pub const ErrorHandler = struct {
+    /// Handles an error and returns a result
+    handle: *const fn (err: Error, context: ?ErrorContext) Error,
 
-        /// Handles an error and returns a result
-        handle: fn (self: *Self, err: Error, context: ?ErrorContext) T,
+    /// Default error handler that returns the error unchanged
+    pub fn default() ErrorHandler {
+        return ErrorHandler{
+            .handle = struct {
+                fn handle(err: Error, context: ?ErrorContext) Error {
+                    _ = context;
+                    return err;
+                }
+            }.handle,
+        };
+    }
 
-        /// Default error handler that returns the error
-        pub fn default() Self {
-            return Self{
-                .handle = struct {
-                    fn handle(self: *Self, err: Error, context: ?ErrorContext) T {
-                        _ = self;
-                        _ = context;
-                        return err;
-                    }
-                }.handle,
-            };
-        }
+    /// Create a logging error handler - DEPRECATED: Use direct logging instead
+    /// This function is broken due to closure capture issues. Use std.log directly.
+    pub fn logging(_: anytype) ErrorHandler {
+        @compileError("ErrorHandler.logging is deprecated. Use std.log directly for error logging.");
+    }
 
-        /// Logging error handler that logs and returns error
-        pub fn logging(logger: *std.log.Logger) Self {
-            return Self{
-                .handle = struct {
-                    fn handle(self: *Self, err: Error, context: ?ErrorContext) T {
-                        _ = self;
-                        if (context) |ctx| {
-                            logger.err("Error: {s} - {s}", .{ @errorName(err), ctx.message });
-                        } else {
-                            logger.err("Error: {s}", .{@errorName(err)});
-                        }
-                        return err;
-                    }
-                }.handle,
-            };
-        }
-    };
-}
+    /// Call the error handler
+    pub fn call(self: ErrorHandler, err: Error, context: ?ErrorContext) Error {
+        return self.handle(err, context);
+    }
+};
 
 /// Utility functions for error handling
 pub const utils = struct {

@@ -68,18 +68,18 @@ pub const SimpleBenchmarkSuite = struct {
             // Array allocation and initialization
             const alloc_context = struct {
                 fn allocateArray(context: @This()) !void {
-                    const arr = try self.allocator.alloc(i32, context.size);
-                    defer self.allocator.free(arr);
+                    const arr = try context.suite.allocator.alloc(i32, context.size);
+                    defer context.suite.allocator.free(arr);
 
                     for (arr, 0..) |*val, i| {
                         val.* = @as(i32, @intCast(i));
                     }
                 }
                 size: usize,
-                self: *SimpleBenchmarkSuite,
+                suite: *SimpleBenchmarkSuite,
             }{
                 .size = size,
-                .self = self,
+                .suite = self,
             };
 
             try self.framework_suite.runBenchmarkFmt("Array Allocation ({} elements)", .{size}, "Basic", alloc_context.allocateArray, alloc_context);
@@ -107,17 +107,17 @@ pub const SimpleBenchmarkSuite = struct {
 
         const memory_context = struct {
             fn memoryAllocation(context: @This()) !void {
-                const buffer = try self.allocator.alloc(u8, context.size);
-                defer self.allocator.free(buffer);
+                const buffer = try context.suite.allocator.alloc(u8, context.size);
+                defer context.suite.allocator.free(buffer);
 
                 // Touch memory
                 @memset(buffer, 0x42);
             }
             size: usize,
-            self: *SimpleBenchmarkSuite,
+            suite: *SimpleBenchmarkSuite,
         }{
             .size = 1024,
-            .self = self,
+            .suite = self,
         };
 
         try self.framework_suite.runBenchmark("Memory Allocation (1KB)", "Memory", memory_context.memoryAllocation, memory_context);

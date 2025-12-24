@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -262,4 +260,3 @@ See [docs/MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) for detailed migration in
 |---------|------|--------|-------|
 | 0.2.0 | 2025-10-08 | 🟢 Current | Major redesign release |
 | 0.1.0a | 2025-09-21 | 🔴 Deprecated | Initial prerelease |
->>>>>>> 08cbda559b270a4426611f5b6c970439485a216a

@@ -18,6 +18,16 @@ pub const tools = struct {
     pub const vector_search = @import("tools/vector_search.zig");
 };
 
+/// Initialize the database feature module
+pub fn init(allocator: std.mem.Allocator) !void {
+    _ = allocator; // Currently no global database state to initialize
+}
+
+/// Deinitialize the database feature module
+pub fn deinit() void {
+    // Currently no global database state to cleanup
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

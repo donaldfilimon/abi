@@ -191,7 +191,7 @@ pub const TrackingAllocator = struct {
     fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
 
-        const result = self.parent.rawAlloc(len, alignment, ret_addr);
+        const result = self.parent.alloc(len, alignment.toLog2Units(), ret_addr);
         if (result) |ptr| {
             _ = ptr;
             _ = self.stats.total_allocated.fetchAdd(len, .monotonic);
@@ -216,7 +216,7 @@ pub const TrackingAllocator = struct {
     fn resize(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
 
-        if (self.parent.rawResize(buf, alignment, new_len, ret_addr)) {
+        if (self.parent.resize(buf, alignment.toLog2Units(), new_len, ret_addr)) {
             const old_len = buf.len;
             if (new_len > old_len) {
                 const diff = new_len - old_len;

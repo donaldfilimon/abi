@@ -69,6 +69,21 @@ pub const RuntimeConfig = struct {
     }
 };
 
+/// Creates a deep copy of RuntimeConfig with owned slices
+///
+/// This function ensures that the feature slices in the returned config
+/// are owned by the allocator and can be safely freed. This prevents
+/// use-after-free errors when the original config points to const literals.
+///
+/// # Parameters
+/// - allocator: The allocator to use for copying slices
+/// - config: The source configuration to copy
+///
+/// # Returns
+/// A RuntimeConfig with owned slices that must be freed by the caller
+///
+/// # Errors
+/// - OutOfMemory: If allocation fails for copying slices
 fn normalizeConfig(allocator: std.mem.Allocator, config: RuntimeConfig) !RuntimeConfig {
     const enabled_features = try allocator.dupe(features.FeatureTag, config.enabled_features);
     errdefer allocator.free(enabled_features);
@@ -123,6 +138,7 @@ pub const RuntimeStats = struct {
     update_count: u64,
     last_update_duration_ns: u64,
     enabled_features: usize,
+    error_count: u64 = 0,
 
     pub fn init(enabled_features: usize) RuntimeStats {
         return .{
@@ -133,13 +149,14 @@ pub const RuntimeStats = struct {
             .update_count = 0,
             .last_update_duration_ns = 0,
             .enabled_features = enabled_features,
+            .error_count = 0,
         };
     }
 
     pub fn uptime(self: *const RuntimeStats) i64 {
         if (self.start_time == 0) return 0;
 
-        const now_ms = std.time.milliTimestamp;
+        const now_ms = @divFloor(std.time.nanoTimestamp(), std.time.ns_per_ms);
         return now_ms - self.start_time;
     }
 };
@@ -156,18 +173,39 @@ pub const Framework = struct {
     running: std.atomic.Value(bool),
     enabled_features: features.config.FeatureFlags,
 
+    /// Initializes a new Framework instance with proper memory management
+    ///
+    /// This function creates a Framework with owned configuration slices and
+    /// initialized component management systems. The input config is normalized
+    /// to prevent use-after-free errors when dealing with const literal slices.
+    ///
+    /// # Parameters
+    /// - allocator: Memory allocator for the framework and all its components
+    /// - config: Runtime configuration for the framework
+    ///
+    /// # Returns
+    /// An initialized Framework instance ready for component registration
+    ///
+    /// # Errors
+    /// - OutOfMemory: If memory allocation fails for configuration or components
+    ///
+    /// # Safety
+    /// The caller must call deinit() on the returned Framework to free all resources
     pub fn init(allocator: std.mem.Allocator, config: RuntimeConfig) !Self {
-        var normalized_config = config;
-        normalized_config.rebaseFeatureSlices();
+        var normalized_config = try normalizeConfig(allocator, config);
+        errdefer {
+            allocator.free(normalized_config.enabled_features);
+            allocator.free(normalized_config.disabled_features);
+        }
 
         // Calculate enabled features
         var enabled_features = features.config.FeatureFlags.initEmpty();
-        for (config.enabled_features) |feature| {
+        for (normalized_config.enabled_features) |feature| {
             enabled_features.set(features.config.tagIndex(feature));
         }
 
         // Remove disabled features
-        for (config.disabled_features) |feature| {
+        for (normalized_config.disabled_features) |feature| {
             enabled_features.unset(features.config.tagIndex(feature));
         }
 
@@ -203,6 +241,13 @@ pub const Framework = struct {
     }
 
     pub fn registerComponent(self: *Self, component: Component) !void {
+        // Validate component name
+        if (component.name.len == 0) return error.InvalidComponentName;
+        if (std.mem.indexOf(u8, component.name, &[_]u8{0}) != null) return error.InvalidComponentName;
+
+        // Validate version
+        if (component.version.len == 0) return error.InvalidVersion;
+
         if (self.component_registry.contains(component.name)) {
             return core.Error.AlreadyExists;
         }
@@ -243,7 +288,7 @@ pub const Framework = struct {
         // Initialize all components first
         try self.initializeAllComponents();
 
-        self.stats.start_time = std.time.milliTimestamp;
+        self.stats.start_time = @divFloor(std.time.nanoTimestamp(), std.time.ns_per_ms);
         std.log.info("Framework started with {} components and {} features", .{ self.stats.total_components, self.stats.enabled_features });
     }
 
@@ -257,13 +302,17 @@ pub const Framework = struct {
     pub fn update(self: *Self, delta_time: f64) void {
         if (!self.running.load(.acquire)) return;
 
-        const start_time = std.time.nanoTimestamp;
+        const start_time = std.time.nanoTimestamp();
 
         for (self.components.items) |component| {
-            component.update(delta_time) catch {};
+            component.update(delta_time) catch |err| {
+                std.log.err("Component '{s}' update failed: {}", .{ component.name, err });
+                self.stats.error_count += 1;
+                // Continue with other components even if one fails
+            };
         }
 
-        const end_time = std.time.nanoTimestamp;
+        const end_time = std.time.nanoTimestamp();
         self.stats.last_update_duration_ns = @intCast(end_time - start_time);
         self.stats.update_count += 1;
     }

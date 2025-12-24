@@ -1,0 +1,42 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  - job_name: 'abi-ai-framework'
+    static_configs:
+      - targets: ['abi-ai-framework:8080']
+    scrape_interval: 5s
+    metrics_path: '/metrics'
+    params:
+      format: ['prometheus']
+
+  - job_name: 'abi-gpu-worker'
+    static_configs:
+      - targets: ['abi-gpu-worker:8081']
+    scrape_interval: 5s
+    metrics_path: '/metrics'
+    params:
+      format: ['prometheus']
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['abi-grafana:3000']
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['abi-database:5432']
+    scrape_interval: 30s
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['abi-redis:6379']
+    scrape_interval: 30s

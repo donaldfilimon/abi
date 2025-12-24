@@ -152,7 +152,7 @@ pub const RuntimeStats = struct {
     pub fn uptime(self: *const RuntimeStats) i64 {
         if (self.start_time == 0) return 0;
 
-        const now_ms = std.time.milliTimestamp;
+        const now_ms = @divFloor(std.time.nanoTimestamp(), std.time.ns_per_ms);
         return now_ms - self.start_time;
     }
 };
@@ -172,7 +172,7 @@ pub const Runtime = struct {
         return Self{
             .allocator = allocator,
             .config = config,
-            .components = collections.ArrayList(Component){},
+            .components = collections.ArrayList(Component).init(allocator),
             .component_registry = collections.StringHashMap(Component).init(allocator),
             .stats = RuntimeStats.init(),
             .running = std.atomic.Value(bool).init(false),
@@ -240,7 +240,7 @@ pub const Runtime = struct {
         // Initialize all components first
         try self.initializeAllComponents();
 
-        self.stats.start_time = std.time.milliTimestamp;
+        self.stats.start_time = @divFloor(std.time.nanoTimestamp(), std.time.ns_per_ms);
         std.log.info("Runtime started with {} components", .{self.stats.total_components});
     }
 

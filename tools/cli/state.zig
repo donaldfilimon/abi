@@ -88,7 +88,7 @@ pub const VectorStore = struct {
         }
         insertionSort(temp);
         const limit = std.math.min(k, temp.len);
-        var out = try allocator.alloc(SearchResult, limit);
+        const out = try allocator.alloc(SearchResult, limit);
         std.mem.copy(SearchResult, out, temp[0..limit]);
         allocator.free(temp);
         return out;
