@@ -15,7 +15,6 @@ const ResultHandle = workload.ResultHandle;
 const WorkItem = workload.WorkItem;
 const ExecutionContext = workload.ExecutionContext;
 const WorkloadHints = workload.WorkloadHints;
-
 const EMPTY: u64 = 0;
 
 const Worker = struct {
@@ -149,8 +148,8 @@ pub const Engine = struct {
             .hints = item.hints,
         };
 
-        const entry = try self.allocator.create(ResultEntry);
-        entry.* = ResultEntry{
+        const entry_ptr = try self.allocator.create(ResultEntry);
+        entry_ptr.* = ResultEntry{
             .task_id = id,
             .handle = undefined,
             .complete = std.atomic.Value(bool).init(false),
@@ -168,7 +167,7 @@ pub const Engine = struct {
 
         self.result_cache.mutex.lock();
         defer self.result_cache.mutex.unlock();
-        try self.result_cache.map.put(id, @intFromPtr(entry));
+        try self.result_cache.map.put(id, @intFromPtr(entry_ptr));
 
         const worker_index = @mod(id, self.workers.len);
         try self.workers[worker_index].local_deque.pushBottom(self.allocator, id);

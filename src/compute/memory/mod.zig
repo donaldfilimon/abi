@@ -9,3 +9,4 @@ pub const arena_utils = @import("arena_utils.zig");
 
 pub const CacheAlignedBuffer = aligned_buffer.CacheAlignedBuffer;
 pub const PoolAllocator = pool_allocator.PoolAllocator;
+pub const ArenaUtils = arena_utils.ArenaUtils;
