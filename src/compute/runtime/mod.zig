@@ -13,5 +13,6 @@ pub const WorkloadVTable = workload.WorkloadVTable;
 pub const WorkItem = workload.WorkItem;
 pub const ResultVTable = workload.ResultVTable;
 pub const ResultHandle = workload.ResultHandle;
+pub const ResultMetadata = engine.ResultMetadata;
 pub const Engine = engine.Engine;
 pub const MetricsCollector = metrics.MetricsCollector;

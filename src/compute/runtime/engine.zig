@@ -137,6 +137,8 @@ pub const Engine = struct {
 
     pub fn submit(self: *Engine, item: WorkItem) !u64 {
         const id = self.next_id.fetchAdd(1, .monotonic);
+        var timer = try std.time.Timer.start();
+        const submit_timestamp = timer.read();
 
         const work_item_ptr = try self.allocator.create(WorkItem);
         work_item_ptr.* = WorkItem{
@@ -152,6 +154,12 @@ pub const Engine = struct {
             .task_id = id,
             .handle = undefined,
             .complete = std.atomic.Value(bool).init(false),
+            .metadata = ResultMetadata{
+                .worker_id = 0,
+                .submit_timestamp_ns = submit_timestamp,
+                .complete_timestamp_ns = 0,
+                .execution_duration_ns = 0,
+            },
         };
 
         self.work_items.mutex.lock();
@@ -201,6 +209,18 @@ pub const Engine = struct {
         return null;
     }
 
+    pub fn getResultMetadata(self: *Engine, id: u64) ?ResultMetadata {
+        self.result_cache.mutex.lock();
+        defer self.result_cache.mutex.unlock();
+
+        if (self.result_cache.map.get(id)) |ptr| {
+            const entry = @as(*ResultEntry, @ptrFromInt(@as(usize, @intCast(ptr))));
+            return entry.metadata;
+        }
+
+        return null;
+    }
+
     fn completeResult(self: *Engine, id: u64, handle: ResultHandle) !void {
         self.result_cache.mutex.lock();
         defer self.result_cache.mutex.unlock();
@@ -208,6 +228,20 @@ pub const Engine = struct {
         if (self.result_cache.map.get(id)) |ptr| {
             const entry = @as(*ResultEntry, @ptrFromInt(@as(usize, @intCast(ptr))));
             entry.handle = handle;
+            entry.complete.store(true, .release);
+        }
+    }
+
+    fn completeResultWithMetadata(self: *Engine, id: u64, handle: ResultHandle, worker_id: u32, start_time: u64, end_time: u64) !void {
+        self.result_cache.mutex.lock();
+        defer self.result_cache.mutex.unlock();
+
+        if (self.result_cache.map.get(id)) |ptr| {
+            const entry = @as(*ResultEntry, @ptrFromInt(@as(usize, @intCast(ptr))));
+            entry.handle = handle;
+            entry.metadata.worker_id = worker_id;
+            entry.metadata.complete_timestamp_ns = end_time;
+            entry.metadata.execution_duration_ns = end_time - start_time;
             entry.complete.store(true, .release);
         }
     }
@@ -298,7 +332,10 @@ fn executeTask(worker: *Worker, task_id: u64) !void {
         .arena = &worker.arena,
     };
 
+    var exec_timer = try std.time.Timer.start();
+    const start_time = exec_timer.read();
     const result_ptr = try item.vtable.exec(item.user, &ctx, engine.allocator);
+    const end_time = exec_timer.read();
 
     const result_vtable = workload.ResultVTable{
         .destroy = struct {
@@ -314,7 +351,7 @@ fn executeTask(worker: *Worker, task_id: u64) !void {
         .vtable = &result_vtable,
     };
 
-    try engine.completeResult(task_id, handle);
+    try engine.completeResultWithMetadata(task_id, handle, worker.id, start_time, end_time);
 
     engine.work_items.mutex.lock();
     _ = engine.work_items.map.remove(task_id);
@@ -323,8 +360,16 @@ fn executeTask(worker: *Worker, task_id: u64) !void {
     _ = worker.arena.reset(.retain_capacity);
 }
 
+const ResultMetadata = struct {
+    worker_id: u32,
+    submit_timestamp_ns: u64,
+    complete_timestamp_ns: u64,
+    execution_duration_ns: u64,
+};
+
 const ResultEntry = struct {
     task_id: u64,
     handle: ResultHandle,
     complete: std.atomic.Value(bool),
+    metadata: ResultMetadata,
 };

@@ -6,6 +6,7 @@ const config = @import("config.zig");
 const Engine = engine_mod.Engine;
 const WorkItem = workload.WorkItem;
 const ResultHandle = workload.ResultHandle;
+const ResultMetadata = engine_mod.ResultMetadata;
 
 fn dummyDestroy(ptr: *anyopaque, a: std.mem.Allocator) void {
     _ = ptr;
@@ -172,5 +173,10 @@ test "engine complete result" {
         .hints = workload.DEFAULT_HINTS,
     });
 
-    try engine.completeResult(id1, handle);
+    try engine.completeResultWithMetadata(id1, handle, 0, 1000, 2000);
+
+    const metadata = engine.getResultMetadata(id1);
+    try std.testing.expect(metadata != null);
+    try std.testing.expect(metadata.?.worker_id == 0);
+    try std.testing.expect(metadata.?.execution_duration_ns == 1000);
 }
