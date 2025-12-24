@@ -13,6 +13,28 @@ const ChaseLevDeque = chase_lev_deque.ChaseLevDeque;
 const ShardedMap = sharded_map.ShardedMap;
 const ResultHandle = workload.ResultHandle;
 const WorkItem = workload.WorkItem;
+const ExecutionContext = workload.ExecutionContext;
+const WorkloadHints = workload.WorkloadHints;
+
+const EMPTY: u64 = 0;
+
+const Worker = struct {
+    id: u32,
+    local_deque: ChaseLevDeque,
+    arena: std.heap.ArenaAllocator,
+    thread: ?std.Thread,
+    engine: *Engine,
+};
+
+const ResultCache = struct {
+    map: ShardedMap,
+    mutex: std.Thread.Mutex,
+};
+
+const WorkItemCache = struct {
+    map: std.AutoHashMap(u64, *WorkItem),
+    mutex: std.Thread.Mutex,
+};
 
 pub const Engine = struct {
     allocator: std.mem.Allocator,
@@ -22,16 +44,7 @@ pub const Engine = struct {
     next_id: std.atomic.Value(u64),
     injection_queue: ChaseLevDeque,
     result_cache: ResultCache,
-
-    const Worker = struct {
-        id: u32,
-        local_deque: ChaseLevDeque,
-    };
-
-    const ResultCache = struct {
-        map: ShardedMap,
-        mutex: std.Thread.Mutex,
-    };
+    work_items: WorkItemCache,
 
     pub fn init(allocator: std.mem.Allocator, cfg: config.EngineConfig) !*Engine {
         const cpu_count = std.Thread.getCpuCount() catch 1;
@@ -46,14 +59,19 @@ pub const Engine = struct {
 
         var i: usize = 0;
         while (i < worker_count) : (i += 1) {
+            const arena_allocator = std.heap.ArenaAllocator.init(allocator);
             workers[i] = Worker{
                 .id = @as(u32, @intCast(i)),
                 .local_deque = try ChaseLevDeque.init(allocator, queue_capacity),
+                .arena = arena_allocator,
+                .thread = null,
+                .engine = undefined,
             };
         }
 
         const injection_queue = try ChaseLevDeque.init(allocator, queue_capacity);
         const result_map = try ShardedMap.init(allocator, @max(4, worker_count / 2));
+        const work_item_map = std.AutoHashMap(u64, *WorkItem).init(allocator);
 
         self.* = .{
             .allocator = allocator,
@@ -66,7 +84,23 @@ pub const Engine = struct {
                 .map = result_map,
                 .mutex = std.Thread.Mutex{},
             },
+            .work_items = WorkItemCache{
+                .map = work_item_map,
+                .mutex = std.Thread.Mutex{},
+            },
         };
+
+        for (self.workers) |*worker| {
+            worker.engine = self;
+        }
+
+        self.running.store(true, .release);
+
+        i = 0;
+        while (i < worker_count) : (i += 1) {
+            const thread = try std.Thread.spawn(.{}, workerMain, .{&self.workers[i]});
+            self.workers[i].thread = thread;
+        }
 
         return self;
     }
@@ -74,18 +108,44 @@ pub const Engine = struct {
     pub fn deinit(self: *Engine) void {
         self.running.store(false, .release);
 
+        if (self.config.drain_mode == .drain) {
+            var pending: usize = 0;
+            while (true) {
+                pending = self.countPendingTasks();
+                if (pending == 0) break;
+                var i: usize = 0;
+                while (i < 1000) : (i += 1) {
+                    std.atomic.spinLoopHint();
+                }
+            }
+        }
+
         for (self.workers) |*worker| {
+            if (worker.thread) |thread| {
+                thread.join();
+            }
+            worker.arena.deinit();
             worker.local_deque.deinit(self.allocator);
         }
+
         self.allocator.free(self.workers);
         self.injection_queue.deinit(self.allocator);
         self.result_cache.map.deinit(self.allocator);
+        self.work_items.map.deinit();
         self.allocator.destroy(self);
     }
 
     pub fn submit(self: *Engine, item: WorkItem) !u64 {
-        _ = item;
         const id = self.next_id.fetchAdd(1, .monotonic);
+
+        const work_item_ptr = try self.allocator.create(WorkItem);
+        work_item_ptr.* = WorkItem{
+            .id = id,
+            .user = item.user,
+            .vtable = item.vtable,
+            .priority = item.priority,
+            .hints = item.hints,
+        };
 
         const entry = try self.allocator.create(ResultEntry);
         entry.* = ResultEntry{
@@ -93,6 +153,10 @@ pub const Engine = struct {
             .handle = undefined,
             .complete = std.atomic.Value(bool).init(false),
         };
+
+        self.work_items.mutex.lock();
+        defer self.work_items.mutex.unlock();
+        try self.work_items.map.put(id, work_item_ptr);
 
         self.result_cache.mutex.lock();
         defer self.result_cache.mutex.unlock();
@@ -112,7 +176,7 @@ pub const Engine = struct {
             shard.mutex.lock();
             defer shard.mutex.unlock();
 
-            var iter = shard.map.map.iterator();
+            var iter = shard.map.iterator();
             while (iter.next()) |entry| {
                 const result_ptr = @as(*ResultEntry, @ptrFromInt(@as(usize, @intCast(entry.key_ptr.*))));
                 if (result_ptr.complete.load(.acquire)) {
@@ -137,7 +201,7 @@ pub const Engine = struct {
         return null;
     }
 
-    pub fn completeResult(self: *Engine, id: u64, handle: ResultHandle) !void {
+    fn completeResult(self: *Engine, id: u64, handle: ResultHandle) !void {
         self.result_cache.mutex.lock();
         defer self.result_cache.mutex.unlock();
 
@@ -147,7 +211,117 @@ pub const Engine = struct {
             entry.complete.store(true, .release);
         }
     }
+
+    fn countPendingTasks(self: *Engine) usize {
+        var count: usize = 0;
+
+        self.work_items.mutex.lock();
+        defer self.work_items.mutex.unlock();
+
+        var iter = self.work_items.map.iterator();
+        while (iter.next()) |_| {
+            count += 1;
+        }
+
+        self.result_cache.mutex.lock();
+        defer self.result_cache.mutex.unlock();
+
+        for (self.result_cache.map.shards.items) |*shard| {
+            shard.mutex.lock();
+            defer shard.mutex.unlock();
+
+            var iter2 = shard.map.iterator();
+            while (iter2.next()) |entry| {
+                const result_ptr = @as(*ResultEntry, @ptrFromInt(@as(usize, @intCast(entry.key_ptr.*))));
+                if (result_ptr.complete.load(.acquire)) {
+                    count -= 1;
+                }
+            }
+        }
+
+        return count;
+    }
 };
+
+fn workerMain(worker: *Worker) void {
+    while (worker.engine.running.load(.acquire)) {
+        var task_id = worker.local_deque.popBottom();
+
+        if (task_id == null) {
+            task_id = trySteal(worker);
+        }
+
+        if (task_id) |id| {
+            executeTask(worker, id) catch |err| {
+                std.debug.print("Worker {} task {} error: {}\n", .{ worker.id, id, err });
+            };
+        } else {
+            var i: usize = 0;
+            while (i < 100) : (i += 1) {
+                std.atomic.spinLoopHint();
+            }
+        }
+    }
+}
+
+fn trySteal(worker: *Worker) ?u64 {
+    const engine = worker.engine;
+    const num_workers = engine.workers.len;
+
+    var steal_attempts: usize = 0;
+    while (steal_attempts < num_workers) : (steal_attempts += 1) {
+        const target_index = (worker.id + @as(u32, @intCast(steal_attempts))) % @as(u32, @intCast(num_workers));
+        if (target_index == worker.id) continue;
+
+        const stolen = engine.workers[@intCast(target_index)].local_deque.steal();
+        if (stolen) |id| {
+            return id;
+        }
+    }
+
+    return null;
+}
+
+fn executeTask(worker: *Worker, task_id: u64) !void {
+    const engine = worker.engine;
+
+    engine.work_items.mutex.lock();
+    const item_ptr = engine.work_items.map.get(task_id);
+    engine.work_items.mutex.unlock();
+
+    if (item_ptr == null) return;
+
+    const item = item_ptr.?;
+
+    var ctx = ExecutionContext{
+        .worker_id = worker.id,
+        .arena = &worker.arena,
+    };
+
+    const result_ptr = try item.vtable.exec(item.user, &ctx, engine.allocator);
+
+    const result_vtable = workload.ResultVTable{
+        .destroy = struct {
+            fn destroyResult(ptr: *anyopaque, a: std.mem.Allocator) void {
+                _ = a;
+                _ = ptr;
+            }
+        }.destroyResult,
+    };
+
+    const handle = ResultHandle{
+        .ptr = result_ptr,
+        .vtable = &result_vtable,
+    };
+
+    try engine.completeResult(task_id, handle);
+
+    engine.work_items.mutex.lock();
+    _ = engine.work_items.map.remove(task_id);
+    engine.work_items.mutex.unlock();
+
+    _ = worker.arena.reset(.retain_capacity);
+}
 
 const ResultEntry = struct {
     task_id: u64,

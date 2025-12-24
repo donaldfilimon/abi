@@ -46,8 +46,8 @@ pub const ChaseLevDeque = struct {
 
         var i: isize = old_top;
         while (i < old_bottom) : (i += 1) {
-            const idx = @as(usize, @intCast(@mod(i, old_capacity)));
-            const new_idx = @as(usize, @intCast(@mod(i, new_size)));
+            const idx = @as(usize, @intCast(@mod(i, @as(isize, @intCast(old_capacity)))));
+            const new_idx = @as(usize, @intCast(@mod(i, @as(isize, @intCast(new_size)))));
             new_buffer[new_idx].store(old_buffer[idx].load(.monotonic), .monotonic);
         }
 
@@ -67,14 +67,12 @@ pub const ChaseLevDeque = struct {
 
         const idx = @as(usize, @intCast(@mod(b, self.capacity)));
         self.buffer[idx].store(value, .release);
-        std.atomic.fence(.release);
         self.bottom.store(b + 1, .release);
     }
 
     pub fn popBottom(self: *ChaseLevDeque) ?u64 {
         const b = self.bottom.load(.monotonic);
         self.bottom.store(b - 1, .monotonic);
-        std.atomic.fence(.acquire);
         const t = self.top.load(.acquire);
 
         if (b - t <= 0) {
@@ -82,14 +80,14 @@ pub const ChaseLevDeque = struct {
             return null;
         }
 
-        const idx = @as(usize, @intCast(@mod(b - 1, self.capacity)));
+        const idx = @as(usize, @intCast(@mod(b - 1, @as(isize, @intCast(self.capacity)))));
         const value = self.buffer[idx].load(.monotonic);
 
         if (b - t > 1) {
             return value;
         }
 
-        const t2 = self.top.compareAndSwap(t, t + 1, .acq_rel, .acquire).?;
+        const t2 = self.top.cmpxchgStrong(t, t + 1, .acq_rel, .monotonic);
         if (t2 == t) {
             return value;
         }
@@ -100,17 +98,16 @@ pub const ChaseLevDeque = struct {
 
     pub fn steal(self: *ChaseLevDeque) ?u64 {
         const t = self.top.load(.acquire);
-        std.atomic.fence(.acquire);
         const b = self.bottom.load(.acquire);
 
         if (b <= t) {
             return null;
         }
 
-        const idx = @as(usize, @intCast(@mod(t, self.capacity)));
+        const idx = @as(usize, @intCast(@mod(t, @as(isize, @intCast(self.capacity)))));
         const value = self.buffer[idx].load(.acquire);
 
-        const t2 = self.top.compareAndSwap(t, t + 1, .acq_rel, .acquire).?;
+        const t2 = self.top.cmpxchgStrong(t, t + 1, .acq_rel, .monotonic);
         if (t2 == t) {
             return value;
         }
