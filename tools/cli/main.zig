@@ -9,7 +9,7 @@ pub fn main() !void {
     defer std.process.argsFree(gpa.allocator(), args);
 
     if (args.len <= 1 or std.mem.eql(u8, args[1], "--help")) {
-        try std.fs.File.stdout().deprecatedWriter().print(
+        std.debug.print(
             "ABI CLI\n\n" ++
                 "Usage:\n" ++
                 "  abi --help\n" ++
@@ -20,11 +20,11 @@ pub fn main() !void {
     }
 
     if (std.mem.eql(u8, args[1], "--version")) {
-        try std.fs.File.stdout().deprecatedWriter().print("{s}\n", .{abi.version()});
+        std.debug.print("{s}\n", .{abi.version()});
         return;
     }
 
-    try std.fs.File.stderr().deprecatedWriter().print(
+    std.debug.print(
         "Unknown argument: {s}\nUse --help for usage.\n",
         .{args[1]},
     );
