@@ -10,8 +10,8 @@ pub fn resolveHost(allocator: std.mem.Allocator, hostname: []const u8) !std.net.
 }
 
 /// Check if port is open on host
-pub fn isPortOpen(host: []const u8, port: u16) bool {
-    std.net.tcpConnectToHost(std.heap.page_allocator, host, port) catch return false;
+pub fn isPortOpen(allocator: std.mem.Allocator, host: []const u8, port: u16) bool {
+    std.net.tcpConnectToHost(allocator, host, port) catch return false;
     return true;
 }
 

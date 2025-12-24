@@ -14,6 +14,8 @@ const metrics = @import("../shared/observability/metrics.zig");
 const FrameworkError = errors.FrameworkError;
 
 /// Main framework configuration
+/// @deprecated Use framework.FrameworkConfiguration for new code.
+/// This type is kept for backward compatibility and internal conversions.
 pub const FrameworkConfig = struct {
     // Core features
     enable_gpu: bool = true,
@@ -471,11 +473,9 @@ pub const ConfigLoader = struct {
 };
 
 test "framework configuration validation" {
-    const testing = std.testing;
-
     // Test valid configuration
     const valid_config = FrameworkConfig.default();
-    try testing.expectError(error.InvalidConfiguration, valid_config.validate());
+    try valid_config.validate();
 
     // Test minimal configuration
     const minimal_config = FrameworkConfig.minimal();

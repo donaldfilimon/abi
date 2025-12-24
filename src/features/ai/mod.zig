@@ -1,6 +1,15 @@
 //! AI Feature Module
 //!
 //! Neural networks, transformers, and machine learning
+//!
+//! ## Agent Implementations
+//! This module provides two agent implementations for different use cases:
+//! - `agent`: Simple, production-ready baseline with persona management and observability
+//! - `enhanced_agent`: Advanced features (custom memory pools, vector embeddings, SIMD, multimodal)
+//!
+//! Choose based on your needs:
+//! - Use `agent.zig` for standard use cases with minimal complexity
+//! - Use `enhanced_agent.zig` for performance-critical or feature-rich applications
 
 const std = @import("std");
 

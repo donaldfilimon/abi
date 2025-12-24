@@ -102,7 +102,6 @@ pub const ComputeEngine = struct {
 
     pub fn waitIdle(self: *ComputeEngine) void {
         while (self.pending_tasks.load(.acquire) != 0) {
-            // TODO: Replace with proper sleep when std API is fixed
             std.Thread.yield() catch {};
         }
     }
@@ -119,7 +118,6 @@ pub const ComputeEngine = struct {
                 _ = self.pending_tasks.fetchSub(1, .monotonic);
                 continue;
             }
-            // TODO: Replace with proper sleep when std API is fixed
             std.Thread.yield() catch {};
         }
     }

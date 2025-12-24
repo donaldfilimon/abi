@@ -29,32 +29,32 @@ pub fn MemoryPool(comptime T: type) type {
             };
 
             // Pre-allocate objects
-            try pool.pool.ensureTotalCapacity(initial_capacity);
+            try pool.pool.ensureTotalCapacity(allocator, initial_capacity);
             for (0..initial_capacity) |i| {
-                try pool.available.append(i);
+                try pool.available.append(allocator, i);
             }
 
             return pool;
         }
 
-        /// Deinitialize the pool
+        /// Deinitialize pool
         pub fn deinit(self: *Self) void {
-            self.pool.deinit();
-            self.available.deinit();
+            self.pool.deinit(self.allocator);
+            self.available.deinit(self.allocator);
             self.allocator.destroy(self);
         }
 
         /// Get an object from the pool
         pub fn get(self: *Self) ?*T {
             if (self.available.items.len == 0) return null;
-            const index = self.available.pop();
+            const index = self.available.pop() orelse return null;
             return &self.pool.items[index];
         }
 
         /// Return an object to the pool
         pub fn put(self: *Self, object: *T) void {
             const index = @intFromPtr(object) - @intFromPtr(&self.pool.items[0]);
-            self.available.append(index) catch {};
+            self.available.append(self.allocator, index) catch {};
         }
     };
 }

@@ -5,10 +5,50 @@
 //!
 //! ## Organization
 //!
-//! - **Legacy**: Original data structure implementations (maintained for compatibility)
-//! - **Consolidated**: New unified modules (work in progress)
+//! ### Legacy (legacy/) - 17 well-implemented, production-ready structures
+//! These are maintained for backward compatibility and stability. They represent
+//! mature, well-tested implementations and should not be consolidated further.
 //!
-//! See individual module files for specific functionality and documentation.
+//! **Queues & Buffers:**
+//! - `BatchQueue` - Batching for high-throughput operations
+//! - `CircularBuffer`, `RingBuffer` - Fixed-size circular buffers
+//!
+//! **Memory Management:**
+//! - `MemoryPool` - Object pooling for memory reuse
+//! - `ObjectPool` - Type-safe object pools
+//! - `ThreadSafeCache`, `LRUCache` - Thread-safe caching
+//!
+//! **Lock-free:**
+//! - `lockFreeQueue` - Lock-free queue (MPMC)
+//! - `LockFreeStack` - Lock-free stack
+//! - `lockFreeHashMap` - Lock-free hash map
+//! - `workStealingDeque` - Work stealing deque
+//! - `mpmcQueue` - Multi-producer multi-consumer queue
+//!
+//! **Matrices & Vectors:**
+//! - `DenseMatrix` - Dense matrix storage
+//! - `SparseMatrix` - Sparse matrix storage
+//! - `CompressedVector` - Compressed vector storage
+//! - `VectorStore` - Vector storage with similarity search
+//!
+//! **Specialized:**
+//! - `BloomFilter` - Probabilistic set membership
+//! - `CountMinSketch`, `HyperLogLog` - Probabilistic data structures
+//! - `KDTree`, `QuadTree`, `BallTree`, `LSHForest` - Spatial indexing
+//! - `Graph`, `DirectedGraph`, `BipartiteGraph` - Graph structures
+//! - `TimeSeries`, `TimeSeriesBuffer` - Time series data
+//! - `SlidingWindow` - Sliding window operations
+//! - `ExponentialMovingAverage` - Moving average calculation
+//!
+//! ### Consolidated (concurrent.zig, memory.zig) - Modern unified types
+//! Common configuration and types for new implementations:
+//! - `concurrent.LockFreeError`, `concurrent.LockFreeStats`
+//! - `memory.MemoryPoolConfig`
+//!
+//! **Note**: The legacy directory contains mature, well-tested implementations
+//! that are actively used in production. They are intentionally kept separate
+//! to maintain stability and avoid unnecessary refactoring. Consolidation efforts
+//! should focus on creating new unified modules rather than modifying legacy code.
 
 const std = @import("std");
 const shared_utils = @import("../../../shared/utils/mod.zig");
@@ -23,7 +63,7 @@ pub const mpmcQueue = @import("legacy/lockfree.zig").mpmcQueue;
 pub const CircularBuffer = @import("legacy/circular_buffer.zig").CircularBuffer;
 pub const RingBuffer = @import("legacy/circular_buffer.zig").RingBuffer;
 pub const BatchQueue = @import("legacy/batch_queue.zig").BatchQueue;
-pub const MemoryPool = shared_utils.memory.MemoryPool;
+pub const MemoryPool = @import("legacy/memory_pool.zig").MemoryPool;
 pub const ObjectPool = @import("legacy/object_pool.zig").ObjectPool;
 pub const ThreadSafeCache = @import("legacy/cache.zig").ThreadSafeCache;
 pub const LRUCache = @import("legacy/cache.zig").LRUCache;
@@ -130,8 +170,8 @@ pub fn createCircularBuffer(comptime T: type, allocator: std.mem.Allocator, capa
 }
 
 /// Initialize a memory pool for object reuse
-pub fn createMemoryPool(comptime T: type, allocator: std.mem.Allocator, pool_size: usize) !MemoryPool(T) {
-    return try MemoryPool(T).create(allocator, pool_size);
+pub fn createMemoryPool(comptime T: type, allocator: std.mem.Allocator, pool_size: usize) !*MemoryPool(T) {
+    return try MemoryPool(T).init(allocator, pool_size);
 }
 
 /// Initialize a thread-safe LRU cache

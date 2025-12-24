@@ -25,9 +25,10 @@ pub const Writer = struct {
     pub const OwnedWriter = struct {
         writer: Writer,
         context_ptr: ?*anyopaque,
+        allocator: std.mem.Allocator,
 
         /// Create a Writer from any std.io.Writer with managed lifetime
-        pub fn fromAnyWriter(writer: anytype) !OwnedWriter {
+        pub fn fromAnyWriter(allocator: std.mem.Allocator, writer: anytype) !OwnedWriter {
             const T = @TypeOf(writer);
             const ContextType = struct {
                 writer: T,
@@ -40,7 +41,7 @@ pub const Writer = struct {
                 }
             };
 
-            const ctx = std.heap.page_allocator.create(ContextType) catch return error.OutOfMemory;
+            const ctx = allocator.create(ContextType) catch return error.OutOfMemory;
             ctx.* = .{ .writer = writer };
 
             return .{
@@ -49,13 +50,14 @@ pub const Writer = struct {
                     .writeFn = impl.writeFn,
                 },
                 .context_ptr = ctx,
+                .allocator = allocator,
             };
         }
 
         /// Deinitialize the owned writer and free its context
         pub fn deinit(self: *OwnedWriter) void {
             if (self.context_ptr) |ptr| {
-                std.heap.page_allocator.destroy(@as(*anyopaque, @ptrCast(ptr)));
+                self.allocator.destroy(@as(*anyopaque, @ptrCast(ptr)));
                 self.context_ptr = null;
             }
         }

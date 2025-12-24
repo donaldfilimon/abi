@@ -369,9 +369,9 @@ pub const TracyProfiler = struct {
 /// Global performance monitoring functions
 var global_monitor: ?*PerformanceMonitor = null;
 
-pub fn init() !void {
+pub fn init(allocator: std.mem.Allocator) !void {
     if (global_monitor != null) return;
-    global_monitor = try PerformanceMonitor.init(std.heap.page_allocator);
+    global_monitor = try PerformanceMonitor.init(allocator);
 }
 
 pub fn deinit() void {
@@ -432,7 +432,7 @@ pub fn timed(comptime name: []const u8, func: anytype) @TypeOf(func()) {
 }
 
 test "performance monitoring" {
-    try init();
+    try init(std.testing.allocator);
     defer deinit();
 
     // Test metric recording

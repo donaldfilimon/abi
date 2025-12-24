@@ -20,7 +20,7 @@ pub const LockFreeStats = struct {
     average_latency_ns: u64 = 0,
     max_latency_ns: u64 = 0,
     min_latency_ns: u64 = std.math.maxInt(u64),
-    
+
     pub fn recordOperation(self: *LockFreeStats, success: bool, latency_ns: u64) void {
         self.operations += 1;
         if (success) {
@@ -36,7 +36,7 @@ pub const LockFreeStats = struct {
             self.average_latency_ns = (self.average_latency_ns + latency_ns) / 2;
         }
     }
-    
+
     pub fn successRate(self: *const LockFreeStats) f32 {
         if (self.operations == 0) return 0.0;
         return @as(f32, @floatFromInt(self.successful_operations)) / @as(f32, @floatFromInt(self.operations));

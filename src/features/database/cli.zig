@@ -372,7 +372,7 @@ pub const WdbxCLI = struct {
         defer self.allocator.free(vector_data);
 
         // Open database
-        var db = try database.Db.open(db_path, true);
+        var db = try database.Db.open(self.allocator, db_path, true);
         defer db.close();
 
         if (db.header.dim == 0) {
@@ -396,7 +396,7 @@ pub const WdbxCLI = struct {
         const vector_data = try database.helpers.parseVector(self.allocator, vector_str);
         defer self.allocator.free(vector_data);
 
-        var db = try database.Db.open(db_path, false);
+        var db = try database.Db.open(self.allocator, db_path, false);
         defer db.close();
 
         const results = try db.search(vector_data, self.options.k, self.allocator);
@@ -419,7 +419,7 @@ pub const WdbxCLI = struct {
         }
 
         const db_path = self.options.db_path.?;
-        var db = try database.Db.open(db_path, false);
+        var db = try database.Db.open(self.allocator, db_path, false);
         defer db.close();
 
         const stats = db.getStats();

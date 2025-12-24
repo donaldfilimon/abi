@@ -1,6 +1,12 @@
 //! Enhanced AI Agent Module
 //! Modern AI agent implementation with advanced features and performance optimizations
 //! Leverages Zig's compile-time features, custom allocators, and SIMD instructions
+//!
+//! NOTE: This module provides advanced features (custom memory pools, vector embeddings,
+//! SIMD optimizations, multimodal capabilities) for performance-critical use cases.
+//! For a simpler, production-ready baseline focused on persona management and observability,
+//! see agent.zig. The two implementations serve complementary use cases and are
+//! intentionally kept separate to maintain clarity and reduce complexity.
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;

@@ -130,13 +130,15 @@ pub const PythonABI = struct {
     pub const PythonVectorDB = struct {
         db: ?*abi.database.VectorDatabase,
         dimensions: usize,
+        allocator: std.mem.Allocator,
 
         /// Create vector database with specified dimensions
-        pub fn create(dimensions: usize) !*PythonVectorDB {
-            const self = try std.heap.page_allocator.create(PythonVectorDB);
+        pub fn create(allocator: std.mem.Allocator, dimensions: usize) !*PythonVectorDB {
+            const self = try allocator.create(PythonVectorDB);
             self.* = .{
                 .db = null, // Would initialize actual database
                 .dimensions = dimensions,
+                .allocator = allocator,
             };
 
             return self;
@@ -154,7 +156,7 @@ pub const PythonABI = struct {
             if (self.db) |db| {
                 abi.database.destroyVectorDatabase(db);
             }
-            std.heap.page_allocator.destroy(self);
+            self.allocator.destroy(self);
         }
     };
 };

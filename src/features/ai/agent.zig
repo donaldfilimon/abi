@@ -3,6 +3,11 @@
 //! This implementation now incorporates persona manifests, sampling controls,
 //! and telemetry hooks while keeping the public surface stable for ongoing
 //! refactors.
+//!
+//! NOTE: For advanced features (custom memory pools, vector embeddings, SIMD
+//! optimizations, multimodal capabilities), see enhanced_agent.zig. This
+//! module provides a simpler, production-ready baseline focused on persona
+//! management and observability integration.
 
 const std = @import("std");
 const persona_manifest = @import("persona_manifest.zig");

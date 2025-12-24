@@ -29,7 +29,7 @@ pub const ShardedDb = struct {
 
         var i: usize = 0;
         while (i < paths.len) : (i += 1) {
-            var db = try database.Db.open(paths[i], true);
+            var db = try database.Db.open(allocator, paths[i], true);
             errdefer db.close();
             try db.init(dim);
             shards[i] = db;

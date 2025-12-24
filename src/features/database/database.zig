@@ -23,7 +23,7 @@
 //! # Usage Example
 //!
 //! ```zig
-//! var db = try Db.open("vectors.wdbx", true);
+//! var db = try Db.open(allocator, "vectors.wdbx", true);
 //! defer db.close();
 //! try db.init(384);
 //! const embedding = [_]f32{0.1, 0.2, 0.3, ...};
@@ -465,9 +465,7 @@ pub const Db = struct {
         }
     };
 
-    pub fn open(path: []const u8, create_if_missing: bool) DbError!*Db {
-        const allocator = std.heap.page_allocator;
-
+    pub fn open(allocator: std.mem.Allocator, path: []const u8, create_if_missing: bool) DbError!*Db {
         var file: std.fs.File = undefined;
         if (create_if_missing) {
             // Always create/truncate when requested to ensure a clean slate
@@ -1028,7 +1026,7 @@ test "Db add/search round trip" {
     defer std.fs.cwd().deleteFile(path) catch {};
 
     {
-        var db = try Db.open(path, true);
+        var db = try Db.open(std.testing.allocator, path, true);
         defer db.close();
         try db.init(4);
 

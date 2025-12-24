@@ -8,15 +8,23 @@ pub const WdbxResult = extern struct {
     score: f32,
 };
 
+/// Global allocator for C API functions. Can be set via wdbx_set_allocator().
+var global_allocator: std.mem.Allocator = std.heap.page_allocator;
+
 fn toDb(handle: ?*anyopaque) ?*Db {
     if (handle == null) return null;
     const ptr = handle.?;
     return @ptrCast(@alignCast(ptr));
 }
 
+/// Set the global allocator for C API functions
+export fn wdbx_set_allocator(allocator: std.mem.Allocator) callconv(.c) void {
+    global_allocator = allocator;
+}
+
 export fn wdbx_open(path: [*c]const u8, create_if_missing: bool) callconv(.c) ?*anyopaque {
     const slice = std.mem.span(path);
-    const db = Db.open(slice, create_if_missing) catch return null;
+    const db = Db.open(global_allocator, slice, create_if_missing) catch return null;
     return @ptrCast(db);
 }
 
@@ -55,7 +63,7 @@ export fn wdbx_search_alloc(
 
     const qslice: []const f32 = query[0..len];
 
-    const allocator = std.heap.page_allocator;
+    const allocator = global_allocator;
     const results = db.search(qslice, top_k, allocator) catch return null;
     defer allocator.free(results);
 
@@ -69,6 +77,6 @@ export fn wdbx_search_alloc(
 
 export fn wdbx_free_results(ptr: [*c]WdbxResult, len: usize) callconv(.c) void {
     if (@intFromPtr(ptr) == 0 or len == 0) return;
-    const allocator = std.heap.page_allocator;
+    const allocator = global_allocator;
     allocator.free(ptr[0..len]);
 }

@@ -30,7 +30,7 @@
 //! defer compiler.deinit();
 //!
 //! // Compile to WebAssembly
-//! const source_files = [_][]const u8{"src/main.zig"};
+//! const source_files = [_][]const u8{ "src/main.zig" };
 //! try compiler.compileToWASM(&source_files, "output.wasm");
 //! ```
 //!
@@ -227,10 +227,10 @@ pub const WASMCompiler = struct {
             self.compilation_stats.successful_compilations += 1;
 
             // Check output file size for statistics
-            if (std.fs.selfExePathAlloc(self.allocator)) |exe_path| {
+            if (std.fs.selfExePathAllocZ(self.allocator)) |exe_path| {
                 defer self.allocator.free(exe_path);
                 const output_dir = std.fs.path.dirname(exe_path) orelse ".";
-                const full_output_path = try std.fs.path.join(self.allocator, &[_][]const u8{ output_dir, output_path });
+                const full_output_path = try std.fs.path.joinZ(self.allocator, &[_][]const u8{ output_dir, output_path });
                 defer self.allocator.free(full_output_path);
 
                 if (std.fs.openFileAbsolute(full_output_path, .{})) |file| {
