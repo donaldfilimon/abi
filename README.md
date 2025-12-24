@@ -36,7 +36,11 @@ pub fn main() !void {
 ## Project Layout
 ```
 abi/
-├── lib/        # Core library sources
+├── src/        # Core library sources
+│   ├── core/           # Core infrastructure
+│   ├── features/       # Feature modules (AI, GPU, web, etc.)
+│   ├── framework/      # Framework configuration and runtime
+│   └── shared/         # Shared utilities
 ├── tools/      # CLI entrypoint
 ├── tests/      # Smoke tests
 └── docs/       # Architecture + guides
