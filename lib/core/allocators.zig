@@ -190,7 +190,7 @@ pub const OwnedAllocator = struct {
             .fixed_buffer => OwnedAllocator{
                 .allocator = std.heap.FixedBufferAllocator.init(&[_]u8{}).allocator(),
                 .backing_allocator = .none,
-            }, // Note: initialized with empty buffer - allocations will fail until buffer is provided
+            }, // initialized with empty buffer - allocations will fail until buffer is provided
         };
     }
 

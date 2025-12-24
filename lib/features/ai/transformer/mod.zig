@@ -71,23 +71,27 @@ pub const MultiHeadAttention = struct {
 
     pub fn init(allocator: std.mem.Allocator, config: TransformerConfig) !MultiHeadAttention {
         const w_size = config.d_model * config.d_model;
+        const fan_in = config.d_model;
+        const fan_out = config.d_model;
+        var prng = std.Random.DefaultPrng.init(@as(u64, @intCast(std.time.timestamp())));
+        const random = prng.random();
+        const scale = std.math.sqrt(2.0 / @as(f32, @floatFromInt(fan_in + fan_out)));
 
         const w_q = try allocator.alloc(f32, w_size);
         errdefer allocator.free(w_q);
-        // Note: Replace with proper random initialization (Xavier/Glorot)
-        @memset(w_q, 0.1); // Initialize with small values
+        fillXavier(w_q, random, scale);
 
         const w_k = try allocator.alloc(f32, w_size);
         errdefer allocator.free(w_k);
-        @memset(w_k, 0.1);
+        fillXavier(w_k, random, scale);
 
         const w_v = try allocator.alloc(f32, w_size);
         errdefer allocator.free(w_v);
-        @memset(w_v, 0.1);
+        fillXavier(w_v, random, scale);
 
         const w_o = try allocator.alloc(f32, w_size);
         errdefer allocator.free(w_o);
-        @memset(w_o, 0.1);
+        fillXavier(w_o, random, scale);
 
         return MultiHeadAttention{
             .config = config,
@@ -104,6 +108,16 @@ pub const MultiHeadAttention = struct {
         self.allocator.free(self.w_k);
         self.allocator.free(self.w_v);
         self.allocator.free(self.w_o);
+    }
+
+    fn fillXavier(weights: []f32, random: std.Random, scale: f32) void {
+        for (weights) |*w| {
+            const u1_val = random.float(f32);
+            const u2_val = random.float(f32);
+            const z = std.math.sqrt(-2.0 * @log(u1_val)) *
+                std.math.cos(2.0 * std.math.pi * u2_val);
+            w.* = z * scale;
+        }
     }
 
     /// Forward pass through multi-head attention

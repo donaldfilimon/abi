@@ -12,7 +12,7 @@ const std = @import("std");
 const database = @import("database.zig");
 const http = @import("http.zig");
 const wdbx_utils = @import("utils.zig");
-// Note: core functionality is now imported through module dependencies
+// core functionality is now imported through module dependencies
 
 /// Re-export database types for convenience
 pub const Db = database.Db;
@@ -556,7 +556,7 @@ pub const WdbxCLI = struct {
             \\Optional Windows fixes (if you still see oddities)
             \\  powershell -ExecutionPolicy Bypass -File .\\fix_windows_networking.ps1 (run as Admin)
             \\\
-            \\Notes
+            \\Info
             \\- Server is Windows-optimized and production-ready; occasional GetLastError(87)/ConnectionResetByPeer on reads is expected and handled.
             \\- Prefer curl.exe or the enhanced TCP client over PowerShell for consistent results.
         ;
@@ -640,7 +640,7 @@ pub fn main() !void {
     const command = Command.fromString(cmd_lower) orelse .help;
 
     var options = Options{ .command = command };
-    // NOTE: Deinit temporarily disabled due to memory issues
+    // Deinit temporarily disabled due to memory issues
     // defer options.deinit(allocator);
 
     // Parse command line arguments

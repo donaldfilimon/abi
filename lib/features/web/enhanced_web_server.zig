@@ -34,6 +34,7 @@ const WebServerConfig = struct {
     enable_cors: bool = true,
     enable_auth: bool = false,
     enable_rate_limiting: bool = true,
+    auth_secret_key: ?[]const u8 = null,
     max_connections: u32 = 1000,
     request_timeout_ms: u32 = 30000,
     max_request_size: usize = 10 * 1024 * 1024, // 10MB
@@ -180,6 +181,8 @@ const RateLimiter = struct {
         self.requests.deinit();
     }
 
+    pub fn initialize(_: *RateLimiter) !void {}
+
     pub fn checkLimit(self: *RateLimiter, client_id: []const u8) !void {
         const now = std.time.timestamp();
         const window_start = now - self.config.window_seconds;
@@ -221,7 +224,7 @@ fn healthCheckHandler(ctx: *RequestContext) !void {
     const health = ServerHealth{
         .status = .healthy,
         .version = "0.2.0",
-        .uptime_seconds = 0, // Note: track actual uptime
+        .uptime_seconds = ctx.server.uptimeSeconds(),
         .components = &[_]ComponentHealth{
             .{ .status = .healthy, .message = "HTTP server running" },
             .{ .status = .healthy, .message = "WebSocket server available" },
@@ -257,9 +260,6 @@ const ServerStats = struct {
     websocket_connections: u32,
     average_response_time_ms: f32,
 };
-
-// Performance callback type
-const PerformanceCallback = *const fn () void;
 
 // WebSocket server implementation
 const WebSocketServer = struct {
@@ -356,31 +356,48 @@ const RequestPool = struct {
     pub fn init(_: std.mem.Allocator) RequestPool {
         return .{};
     }
+
+    pub fn deinit(_: *RequestPool) void {}
 };
 const ResponsePool = struct {
     pub fn init(_: std.mem.Allocator) ResponsePool {
         return .{};
     }
+
+    pub fn deinit(_: *ResponsePool) void {}
 };
 const AgentRouter = struct {
     pub fn init(_: std.mem.Allocator) AgentRouter {
         return .{};
     }
+
+    pub fn deinit(_: *AgentRouter) void {}
 };
 const AuthManager = struct {
     allocator: std.mem.Allocator,
-    secret_key: []const u8,
+    secret_key: []u8,
 
-    pub fn init(allocator: std.mem.Allocator) AuthManager {
+    pub fn init(allocator: std.mem.Allocator, secret_override: ?[]const u8) !AuthManager {
+        var secret_value: []const u8 = "default-secret-key-change-in-production";
+        if (secret_override) |override| {
+            secret_value = override;
+        } else if (std.process.getEnvVarOwned(allocator, "ABI_AUTH_SECRET")) |env_secret| {
+            defer allocator.free(env_secret);
+            secret_value = env_secret;
+        } else |_| {}
+
+        const secret_copy = try allocator.dupe(u8, secret_value);
         return .{
             .allocator = allocator,
-            .secret_key = "default-secret-key-change-in-production", // Note: Make configurable
+            .secret_key = secret_copy,
         };
     }
 
     pub fn deinit(self: *AuthManager) void {
-        _ = self; // Secret key is const
+        self.allocator.free(self.secret_key);
     }
+
+    pub fn initialize(_: *AuthManager) !void {}
 
     /// Validate JWT token with proper signature verification
     pub fn validateToken(self: AuthManager, token: []const u8) !bool {
@@ -552,13 +569,15 @@ const SecurityManager = struct {
         return .{};
     }
 
+    pub fn initializePolicies(_: *SecurityManager) !void {}
+
     pub fn start(_: *SecurityManager) !void {
-        // Note: Initialize security monitoring
+        // Initialize security monitoring
         std.log.debug("Security manager started", .{});
     }
 
     pub fn stop(_: *SecurityManager) void {
-        // Note: Cleanup security resources
+        // Cleanup security resources
         std.log.debug("Security manager stopped", .{});
     }
 };
@@ -568,13 +587,15 @@ const PerformanceMonitor = struct {
         return .{};
     }
 
+    pub fn initialize(_: *PerformanceMonitor) !void {}
+
     pub fn start(_: *PerformanceMonitor) !void {
-        // Note: Start performance monitoring
+        // Start performance monitoring
         std.log.debug("Performance monitor started", .{});
     }
 
     pub fn stop(_: *PerformanceMonitor) void {
-        // Note: Stop performance monitoring
+        // Stop performance monitoring
         std.log.debug("Performance monitor stopped", .{});
     }
 };
@@ -585,12 +606,12 @@ const LoadBalancer = struct {
     }
 
     pub fn start(_: *LoadBalancer) !void {
-        // Note: Start load balancing
+        // Start load balancing
         std.log.debug("Load balancer started", .{});
     }
 
     pub fn stop(_: *LoadBalancer) void {
-        // Note: Stop load balancing
+        // Stop load balancing
         std.log.debug("Load balancer stopped", .{});
     }
 };
@@ -601,12 +622,12 @@ const ClusterManager = struct {
     }
 
     pub fn start(_: *ClusterManager) !void {
-        // Note: Start cluster coordination
+        // Start cluster coordination
         std.log.debug("Cluster manager started", .{});
     }
 
     pub fn stop(_: *ClusterManager) void {
-        // Note: Stop cluster coordination
+        // Stop cluster coordination
         std.log.debug("Cluster manager stopped", .{});
     }
 };
@@ -635,6 +656,7 @@ pub const EnhancedWebServer = struct {
     performance_monitor: *PerformanceMonitor,
     load_balancer: *LoadBalancer,
     cluster_manager: *ClusterManager,
+    start_time_s: i64,
 
     const Self = @This();
 
@@ -668,7 +690,7 @@ pub const EnhancedWebServer = struct {
 
         const auth_manager = try allocator.create(AuthManager);
         errdefer allocator.destroy(auth_manager);
-        auth_manager.* = AuthManager.init(allocator);
+        auth_manager.* = try AuthManager.init(allocator, server_config.auth_secret_key);
 
         const rate_limiter = try allocator.create(RateLimiter);
         errdefer allocator.destroy(rate_limiter);
@@ -712,6 +734,7 @@ pub const EnhancedWebServer = struct {
             .performance_monitor = performance_monitor,
             .load_balancer = load_balancer,
             .cluster_manager = cluster_manager,
+            .start_time_s = 0,
         };
 
         // Initialize default middleware
@@ -744,7 +767,9 @@ pub const EnhancedWebServer = struct {
         self.websocket_server.deinit();
         self.middleware_stack.deinit();
         self.route_registry.deinit();
-        // Note: Pool components don't have deinit methods yet
+        self.request_pool.deinit();
+        self.response_pool.deinit();
+        self.agent_router.deinit();
         self.auth_manager.deinit();
         self.rate_limiter.deinit();
         self.security_manager.deinit();
@@ -754,16 +779,6 @@ pub const EnhancedWebServer = struct {
 
         // Destroy allocated components
         self.allocator.destroy(self.websocket_server);
-        self.allocator.destroy(self.route_registry);
-        self.allocator.destroy(self.request_pool);
-        self.allocator.destroy(self.response_pool);
-        self.allocator.destroy(self.agent_router);
-        self.allocator.destroy(self.auth_manager);
-        self.allocator.destroy(self.rate_limiter);
-        self.allocator.destroy(self.security_manager);
-        self.allocator.destroy(self.performance_monitor);
-        self.allocator.destroy(self.load_balancer);
-        self.allocator.destroy(self.cluster_manager);
         self.allocator.destroy(self.route_registry);
         self.allocator.destroy(self.request_pool);
         self.allocator.destroy(self.response_pool);
@@ -785,9 +800,12 @@ pub const EnhancedWebServer = struct {
         }
 
         self.state = .starting;
+        self.start_time_s = std.time.timestamp();
 
         // Start HTTP server
-        try self.http_server.start();
+        if (self.http_server) |http_server| {
+            try http_server.start();
+        }
 
         // Start WebSocket server if enabled
         if (self.config.enable_websocket) {
@@ -831,7 +849,9 @@ pub const EnhancedWebServer = struct {
         }
 
         // Stop HTTP server
-        self.http_server.stop();
+        if (self.http_server) |http_server| {
+            http_server.stop();
+        }
 
         self.state = .stopped;
 
@@ -1063,14 +1083,13 @@ pub const EnhancedWebServer = struct {
     fn initializePerformanceMonitoring(self: *Self) FrameworkError!void {
         // Initialize performance monitoring
         try self.performance_monitor.initialize();
+    }
 
-        // Set up performance callbacks
-        const perf_callback = PerformanceCallback{
-            .server = self,
-            .handler = performanceMonitoringHandler,
-        };
-
-        try self.performance_monitor.registerCallback(perf_callback);
+    fn uptimeSeconds(self: *Self) u64 {
+        if (self.start_time_s == 0) return 0;
+        const now = std.time.timestamp();
+        if (now <= self.start_time_s) return 0;
+        return @as(u64, @intCast(now - self.start_time_s));
     }
 };
 
@@ -1100,11 +1119,12 @@ fn apiStatusHandler(ctx: *RequestContext) !void {
 }
 
 fn performanceMonitoringHandler(ctx: *RequestContext) !void {
-    // Placeholder implementation
     const perf = struct {
-        uptime_seconds: u64 = 0,
+        uptime_seconds: u64,
         memory_usage_mb: f32 = 0.0,
         cpu_usage_percent: f32 = 0.0,
+    }{
+        .uptime_seconds = ctx.server.uptimeSeconds(),
     };
 
     try ctx.json(perf, .{});
@@ -1130,43 +1150,72 @@ fn agentQueryHandler(ctx: *RequestContext) !void {
 
 fn loginHandler(ctx: *RequestContext) !void {
     // Parse login request (username/password)
-    const body = ctx.request.body orelse "";
+    const body = ctx.request.body;
     if (body.len == 0) {
         ctx.status(400);
         try ctx.text("Missing request body");
         return;
     }
 
-    // Note: Parse JSON and validate credentials
-    // For now, accept any login and generate a token
-    const user_id = "user123"; // Placeholder
+    const LoginPayload = struct {
+        username: []const u8,
+        password: []const u8,
+    };
+    var parsed = std.json.parseFromSlice(LoginPayload, ctx.allocator, body, .{}) catch {
+        ctx.status(400);
+        try ctx.text("Invalid JSON payload");
+        return;
+    };
+    defer parsed.deinit();
 
-    // Generate JWT token
-    // Note: Get auth manager from context
-    const token = try std.fmt.allocPrint(ctx.allocator, "jwt.{s}.login_{d}", .{ user_id, std.time.timestamp() });
-    defer ctx.allocator.free(token);
+    if (parsed.value.username.len == 0 or parsed.value.password.len == 0) {
+        ctx.status(400);
+        try ctx.text("Invalid credentials");
+        return;
+    }
 
+    const token = try ctx.server.auth_manager.generateToken(parsed.value.username);
+    ctx.response.content_type = "text/plain";
+    ctx.response.body = token;
     ctx.status(200);
-    try ctx.text(token);
 }
 
 fn refreshTokenHandler(ctx: *RequestContext) !void {
     // Get refresh token from request
-    const body = ctx.request.body orelse "";
+    const body = ctx.request.body;
     if (body.len == 0) {
         ctx.status(400);
         try ctx.text("Missing refresh token");
         return;
     }
 
-    // Note: Validate refresh token and generate new access token
-    const user_id = "user123"; // Placeholder
+    const RefreshPayload = struct {
+        refresh_token: []const u8,
+    };
+    var parsed = std.json.parseFromSlice(RefreshPayload, ctx.allocator, body, .{}) catch {
+        ctx.status(400);
+        try ctx.text("Invalid JSON payload");
+        return;
+    };
+    defer parsed.deinit();
 
-    const new_token = try std.fmt.allocPrint(ctx.allocator, "jwt.{s}.refresh_{d}", .{ user_id, std.time.timestamp() });
-    defer ctx.allocator.free(new_token);
+    if (parsed.value.refresh_token.len == 0) {
+        ctx.status(400);
+        try ctx.text("Missing refresh token");
+        return;
+    }
 
+    const user_id = ctx.server.auth_manager.getUserFromToken(parsed.value.refresh_token) catch {
+        ctx.status(401);
+        try ctx.text("Invalid refresh token");
+        return;
+    };
+    defer ctx.allocator.free(user_id);
+
+    const new_token = try ctx.server.auth_manager.generateToken(user_id);
+    ctx.response.content_type = "text/plain";
+    ctx.response.body = new_token;
     ctx.status(200);
-    try ctx.text(new_token);
 }
 
 fn authenticationMiddlewareHandler(ctx: *RequestContext) !void {
@@ -1194,22 +1243,12 @@ fn authenticationMiddlewareHandler(ctx: *RequestContext) !void {
         return;
     }
 
-    // Note: Get auth manager from server context and validate token
-    // For now, accept any token that looks like a JWT (contains dots)
-    var dot_count: u32 = 0;
-    for (token) |c| {
-        if (c == '.') dot_count += 1;
-    }
-
-    if (dot_count != 2) {
+    const valid = ctx.server.auth_manager.validateToken(token) catch false;
+    if (!valid) {
         ctx.status(401);
-        try ctx.text("Invalid JWT token format");
+        try ctx.text("Invalid or expired token");
         return;
     }
-
-    // Token is valid (simplified validation)
-    // In production, this should validate signature and expiration
-    std.log.debug("JWT token validated: {}", .{token.len});
 }
 
 fn databaseSearchHandler(ctx: *RequestContext) !void {
@@ -1256,7 +1295,9 @@ fn metricsHandler(ctx: *RequestContext) !void {
         active_connections: u32 = 0,
         average_response_time_ms: f32 = 0.0,
         memory_usage_mb: f32 = 0.0,
-        uptime_seconds: u64 = 0,
+        uptime_seconds: u64,
+    }{
+        .uptime_seconds = ctx.server.uptimeSeconds(),
     };
 
     try ctx.json(metrics, .{});

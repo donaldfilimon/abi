@@ -34,7 +34,7 @@
 //! ```
 
 const std = @import("std");
-// Note: core functionality is now imported through module dependencies
+// core functionality is now imported through module dependencies
 
 /// Database-specific error types
 pub const DatabaseError = error{

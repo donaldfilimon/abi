@@ -8,11 +8,8 @@ const std = @import("std");
 const accelerator = @import("../../shared/platform/accelerator/accelerator.zig");
 
 /// Check if GPU acceleration is available
-fn checkGPUAvailability() bool {
-    // Note: Implement proper GPU availability check
-    // For now, check build options
-    const build_options = @import("build_options");
-    return build_options.gpu_cuda or build_options.gpu_vulkan or build_options.gpu_metal;
+fn checkGPUAvailability(accel: *accelerator.Accelerator) bool {
+    return accel.backend.supportsCompute() and accel.backend != .cpu_fallback and accel.backend != .cpu_simd;
 }
 
 pub const Error = error{
@@ -113,11 +110,9 @@ pub const VectorSearchGPU = struct {
     /// Try to perform search using GPU acceleration (with SIMD fallback)
     fn tryGPUSearch(self: *VectorSearchGPU, query: []const f32, k: usize) ?[]usize {
         // Check if GPU acceleration is available
-        const gpu_available = checkGPUAvailability();
+        const gpu_available = checkGPUAvailability(self.accel);
         if (gpu_available) {
-            std.log.debug("Attempting GPU-accelerated vector search", .{});
-            // Note: Implement actual GPU distance computation
-            // For now, fall through to SIMD-accelerated CPU implementation
+            std.log.debug("GPU backend detected; using SIMD fallback until native kernels are available", .{});
         }
 
         // Use SIMD-accelerated CPU implementation as fallback

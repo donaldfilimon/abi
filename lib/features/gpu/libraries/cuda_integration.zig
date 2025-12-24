@@ -58,6 +58,7 @@ extern "c" fn cuMemAlloc_v2(dptr: *?*anyopaque, bytesize: usize) c_int;
 extern "c" fn cuMemFree_v2(dptr: ?*anyopaque) c_int;
 extern "c" fn cuMemcpyHtoD_v2(dstDevice: ?*anyopaque, srcHost: ?*const anyopaque, ByteCount: usize) c_int;
 extern "c" fn cuMemcpyDtoH_v2(dstHost: ?*anyopaque, srcDevice: ?*anyopaque, ByteCount: usize) c_int;
+extern "c" fn cuMemcpyDtoD_v2(dstDevice: ?*anyopaque, srcDevice: ?*anyopaque, ByteCount: usize) c_int;
 extern "c" fn cuLaunchKernel(
     f: ?*anyopaque,
     gridDimX: c_uint,
@@ -509,8 +510,13 @@ pub const CUDARenderer = struct {
         const result = switch (kind) {
             .host_to_device => cuMemcpyHtoD_v2(dst, src, size),
             .device_to_host => cuMemcpyDtoH_v2(dst, src, size),
-            .device_to_device => cuMemcpyDtoH_v2(dst, src, size), // Note: This should be device-to-device copy
-            .host_to_host => cuMemcpyHtoD_v2(dst, src, size), // Note: This should be host-to-host copy
+            .device_to_device => cuMemcpyDtoD_v2(dst, src, size),
+            .host_to_host => blk: {
+                const dst_bytes = @as([*]u8, @ptrCast(dst))[0..size];
+                const src_bytes = @as([*]const u8, @ptrCast(src))[0..size];
+                @memcpy(dst_bytes, src_bytes);
+                break :blk CUDA_SUCCESS;
+            },
         };
 
         if (result != CUDA_SUCCESS) {

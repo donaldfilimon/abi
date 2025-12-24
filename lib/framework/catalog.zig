@@ -201,81 +201,86 @@ fn deinitPluginRuntime(env: Environment) void {
 /// Initialize AI feature - placeholder for future implementation
 fn initAiFeature(env: Environment) anyerror!void {
     const state_ptr = try runtimeState(env);
-    _ = ai; // Reference to ensure ai module is available
+    try ai.init(state_ptr.allocator);
     logFeatureActivation(state_ptr, "feature.ai", "initialized");
-    // Note: Implement actual AI feature initialization (model loading, etc.)
 }
 
 /// Deinitialize AI feature - placeholder for future implementation
 fn deinitAiFeature(env: Environment) void {
     const state_ptr = runtimeState(env) catch return;
+    ai.deinit();
     logFeatureActivation(state_ptr, "feature.ai", "shutdown");
-    // Note: Implement actual AI feature cleanup (model unloading, etc.)
 }
 
 fn initGpuFeature(env: Environment) anyerror!void {
     const state_ptr = try runtimeState(env);
-    _ = gpu;
+    try gpu.init(state_ptr.allocator);
     logFeatureActivation(state_ptr, "feature.gpu", "initialized");
 }
 
 fn deinitGpuFeature(env: Environment) void {
     const state_ptr = runtimeState(env) catch return;
+    gpu.deinit();
     logFeatureActivation(state_ptr, "feature.gpu", "shutdown");
 }
 
 fn initDatabaseFeature(env: Environment) anyerror!void {
     const state_ptr = try runtimeState(env);
-    _ = database;
+    try database.init(state_ptr.allocator);
     logFeatureActivation(state_ptr, "feature.database", "initialized");
 }
 
 fn deinitDatabaseFeature(env: Environment) void {
     const state_ptr = runtimeState(env) catch return;
+    database.deinit();
     logFeatureActivation(state_ptr, "feature.database", "shutdown");
 }
 
 fn initWebFeature(env: Environment) anyerror!void {
     const state_ptr = try runtimeState(env);
-    _ = web;
+    try web.init(state_ptr.allocator);
     logFeatureActivation(state_ptr, "feature.web", "initialized");
 }
 
 fn deinitWebFeature(env: Environment) void {
     const state_ptr = runtimeState(env) catch return;
+    web.deinit();
     logFeatureActivation(state_ptr, "feature.web", "shutdown");
 }
 
 fn initMonitoringFeature(env: Environment) anyerror!void {
     const state_ptr = try runtimeState(env);
-    _ = monitoring;
+    try monitoring.init(state_ptr.allocator);
     logFeatureActivation(state_ptr, "feature.monitoring", "initialized");
 }
 
 fn deinitMonitoringFeature(env: Environment) void {
     const state_ptr = runtimeState(env) catch return;
+    monitoring.deinit();
     logFeatureActivation(state_ptr, "feature.monitoring", "shutdown");
 }
 
 fn initConnectorsFeature(env: Environment) anyerror!void {
     const state_ptr = try runtimeState(env);
-    _ = connectors;
+    try connectors.init(state_ptr.allocator);
     logFeatureActivation(state_ptr, "feature.connectors", "initialized");
 }
 
 fn deinitConnectorsFeature(env: Environment) void {
     const state_ptr = runtimeState(env) catch return;
+    connectors.deinit();
     logFeatureActivation(state_ptr, "feature.connectors", "shutdown");
 }
 
 fn initUtilitiesFeature(env: Environment) anyerror!void {
     const state_ptr = try runtimeState(env);
-    _ = utils;
+    try utils.init(state_ptr.allocator);
     logFeatureActivation(state_ptr, "shared.utilities", "initialized");
 }
 
 fn deinitUtilitiesFeature(env: Environment) void {
     const state_ptr = runtimeState(env) catch return;
+    utils.deinit();
     logFeatureActivation(state_ptr, "shared.utilities", "shutdown");
 }
 

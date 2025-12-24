@@ -31,8 +31,7 @@ pub const JsonValue = union(enum) {
                     allocator.free(entry.key_ptr.*);
                     entry.value_ptr.*.deinit(allocator);
                 }
-                // Note: We can't deinit the const HashMap here, but since it's const,
-                // it should be managed by the caller
+                // The caller owns the map storage for const objects.
             },
             else => {},
         }

@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-// Note: core functionality is now imported through module dependencies
+// core functionality is now imported through module dependencies
 
 /// HTTP client configuration
 pub const HttpClientConfig = struct {

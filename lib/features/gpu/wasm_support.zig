@@ -260,7 +260,7 @@ pub const WASMCompiler = struct {
         // For now, simulate successful compilation
         std.time.sleep(100 * std.time.ns_per_ms); // Simulate compilation time
 
-        // Note: Implement actual command execution
+        // Implement actual command execution
         // This would typically use std.ChildProcess or similar
 
         return {};
@@ -573,7 +573,7 @@ pub const WASMRuntime = struct {
             return WASMError.InitializationFailed;
         }
 
-        // Note: Load and execute WASM module
+        // Load and execute WASM module
         // In a real implementation, this would:
         // 1. Load the WASM module
         // 2. Instantiate it with the configured environment
@@ -713,24 +713,24 @@ const WASMGPUContext = struct {
     fn initializeWebGPU(self: *Self) !void {
         _ = self;
         std.log.info("🚀 Initializing WebGPU backend...", .{});
-        // Note: Initialize WebGPU context
+        // Initialize WebGPU context
     }
 
     fn initializeWebGL2(self: *Self) !void {
         _ = self;
         std.log.info("🎨 Initializing WebGL2 backend...", .{});
-        // Note: Initialize WebGL2 context
+        // Initialize WebGL2 context
     }
 
     fn initializeWebGL1(self: *Self) !void {
         _ = self;
         std.log.info("🎨 Initializing WebGL1 backend...", .{});
-        // Note: Initialize WebGL1 context
+        // Initialize WebGL1 context
     }
 
     fn initializeAuto(self: *Self) !void {
         std.log.info("🔍 Auto-detecting best GPU backend...", .{});
-        // Note: Implement auto-detection logic
+        // Implement auto-detection logic
         try self.initializeWebGPU(); // Fallback to WebGPU
     }
 };

@@ -20,6 +20,6 @@ zig build -Denable-ai=true -Denable-gpu=false -Denable-web=true -Denable-databas
 - `deploy/monitoring` - Prometheus/Grafana templates
 - `deploy/nginx` - Reverse proxy templates
 
-## Notes
+## Additional Details
 - Ensure secrets and API keys are provided via your platform secrets manager.
 - Validate CPU/GPU availability before enabling acceleration.

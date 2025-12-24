@@ -555,7 +555,7 @@ pub const KernelManager = struct {
 
     /// Perform matrix multiplication optimized for GPU
     pub fn matrixMultiplyGPU(
-        _: *KernelManager,
+        self: *KernelManager,
         a_handle: u32,
         b_handle: u32,
         result_handle: u32,
@@ -563,37 +563,72 @@ pub const KernelManager = struct {
         n: u32,
         k: u32,
     ) !void {
-        // Use the renderer's built-in matrix multiply function
-        // In a real implementation, this would use specialized GPU kernels
-        // for optimal performance on different matrix sizes
+        std.log.info("GPU matrix multiplication (CPU fallback): {}x{} * {}x{} = {}x{}", .{ m, n, n, k, m, k });
 
-        std.log.info("GPU matrix multiplication: {}x{} * {}x{} = {}x{}", .{ m, n, n, k, m, k });
+        const m_usize = @as(usize, m);
+        const n_usize = @as(usize, n);
+        const k_usize = @as(usize, k);
 
-        // Note: Implement actual GPU-accelerated matrix multiplication
-        // For now, delegate to renderer
-        _ = a_handle;
-        _ = b_handle;
-        _ = result_handle;
+        const a = try self.readBufferF32(a_handle, m_usize * n_usize);
+        defer self.allocator.free(a);
+        const b = try self.readBufferF32(b_handle, n_usize * k_usize);
+        defer self.allocator.free(b);
+
+        var result = try self.allocator.alloc(f32, m_usize * k_usize);
+        defer self.allocator.free(result);
+
+        for (0..m_usize) |row| {
+            for (0..k_usize) |col| {
+                var sum: f32 = 0.0;
+                for (0..n_usize) |idx| {
+                    sum += a[row * n_usize + idx] * b[idx * k_usize + col];
+                }
+                result[row * k_usize + col] = sum;
+            }
+        }
+
+        try self.writeBufferF32(result_handle, result);
     }
 
     /// Compute softmax activation function on GPU
     pub fn softmaxGPU(
-        _: *KernelManager,
+        self: *KernelManager,
         input_handle: u32,
         output_handle: u32,
         size: u32,
     ) !void {
-        std.log.info("GPU softmax activation: size={}", .{size});
+        std.log.info("GPU softmax activation (CPU fallback): size={}", .{size});
 
-        // Note: Implement GPU-accelerated softmax
-        // This requires careful handling of numerical stability
-        _ = input_handle;
-        _ = output_handle;
+        const count = @as(usize, size);
+        const input = try self.readBufferF32(input_handle, count);
+        defer self.allocator.free(input);
+
+        var output = try self.allocator.alloc(f32, count);
+        defer self.allocator.free(output);
+
+        var max_val: f32 = if (count > 0) input[0] else 0.0;
+        for (input) |val| {
+            if (val > max_val) max_val = val;
+        }
+
+        var sum: f32 = 0.0;
+        for (input, 0..) |val, i| {
+            const exp_val = std.math.exp(val - max_val);
+            output[i] = exp_val;
+            sum += exp_val;
+        }
+
+        if (sum == 0) return GpuError.ValidationFailed;
+        for (output) |*val| {
+            val.* /= sum;
+        }
+
+        try self.writeBufferF32(output_handle, output);
     }
 
     /// Compute layer normalization on GPU
     pub fn layerNormGPU(
-        _: *KernelManager,
+        self: *KernelManager,
         input_handle: u32,
         output_handle: u32,
         gamma_handle: u32,
@@ -601,18 +636,41 @@ pub const KernelManager = struct {
         size: u32,
         epsilon: f32,
     ) !void {
-        std.log.info("GPU layer normalization: size={}, epsilon={}", .{ size, epsilon });
+        std.log.info("GPU layer normalization (CPU fallback): size={}, epsilon={}", .{ size, epsilon });
 
-        // Note: Implement GPU-accelerated layer normalization
-        _ = input_handle;
-        _ = output_handle;
-        _ = gamma_handle;
-        _ = beta_handle;
+        const count = @as(usize, size);
+        const input = try self.readBufferF32(input_handle, count);
+        defer self.allocator.free(input);
+        const gamma = try self.readBufferF32(gamma_handle, count);
+        defer self.allocator.free(gamma);
+        const beta = try self.readBufferF32(beta_handle, count);
+        defer self.allocator.free(beta);
+
+        var output = try self.allocator.alloc(f32, count);
+        defer self.allocator.free(output);
+
+        var mean: f32 = 0.0;
+        for (input) |val| mean += val;
+        mean /= @as(f32, @floatFromInt(count));
+
+        var variance: f32 = 0.0;
+        for (input) |val| {
+            const diff = val - mean;
+            variance += diff * diff;
+        }
+        variance /= @as(f32, @floatFromInt(count));
+
+        const denom = std.math.sqrt(variance + epsilon);
+        for (input, 0..) |val, i| {
+            output[i] = ((val - mean) / denom) * gamma[i] + beta[i];
+        }
+
+        try self.writeBufferF32(output_handle, output);
     }
 
     /// Update weights using Adam optimizer on GPU
     pub fn adamUpdateGPU(
-        _: *KernelManager,
+        self: *KernelManager,
         weights_handle: u32,
         gradients_handle: u32,
         m_handle: u32,
@@ -624,17 +682,52 @@ pub const KernelManager = struct {
         epsilon: f32,
         t: u32,
     ) !void {
-        std.log.info("GPU Adam optimizer update: size={}, lr={}, t={}", .{ size, learning_rate, t });
+        std.log.info("GPU Adam optimizer update (CPU fallback): size={}, lr={}, t={}", .{ size, learning_rate, t });
 
-        // Note: Implement GPU-accelerated Adam optimizer
-        // This requires atomic operations for the moving averages
-        _ = weights_handle;
-        _ = gradients_handle;
-        _ = m_handle;
-        _ = v_handle;
-        _ = beta1;
-        _ = beta2;
-        _ = epsilon;
+        const count = @as(usize, size);
+        var weights = try self.readBufferF32(weights_handle, count);
+        defer self.allocator.free(weights);
+        const grads = try self.readBufferF32(gradients_handle, count);
+        defer self.allocator.free(grads);
+        var m_vals = try self.readBufferF32(m_handle, count);
+        defer self.allocator.free(m_vals);
+        var v_vals = try self.readBufferF32(v_handle, count);
+        defer self.allocator.free(v_vals);
+
+        const beta1_t = std.math.pow(f32, beta1, @as(f32, @floatFromInt(t)));
+        const beta2_t = std.math.pow(f32, beta2, @as(f32, @floatFromInt(t)));
+
+        for (0..count) |i| {
+            const grad = grads[i];
+            m_vals[i] = beta1 * m_vals[i] + (1.0 - beta1) * grad;
+            v_vals[i] = beta2 * v_vals[i] + (1.0 - beta2) * grad * grad;
+
+            const m_hat = m_vals[i] / (1.0 - beta1_t);
+            const v_hat = v_vals[i] / (1.0 - beta2_t);
+            weights[i] -= learning_rate * m_hat / (std.math.sqrt(v_hat) + epsilon);
+        }
+
+        try self.writeBufferF32(weights_handle, weights);
+        try self.writeBufferF32(m_handle, m_vals);
+        try self.writeBufferF32(v_handle, v_vals);
+    }
+
+    fn readBufferF32(self: *KernelManager, handle: u32, expected_len: usize) ![]f32 {
+        const bytes = try self.renderer.readBuffer(handle, self.allocator);
+        errdefer self.allocator.free(bytes);
+        const expected_bytes = expected_len * @sizeOf(f32);
+        if (bytes.len < expected_bytes) {
+            self.allocator.free(bytes);
+            return GpuError.ValidationFailed;
+        }
+        const values = try self.allocator.alloc(f32, expected_len);
+        @memcpy(std.mem.sliceAsBytes(values), bytes[0..expected_bytes]);
+        self.allocator.free(bytes);
+        return values;
+    }
+
+    fn writeBufferF32(self: *KernelManager, handle: u32, values: []const f32) !void {
+        try self.renderer.writeBuffer(handle, std.mem.sliceAsBytes(values));
     }
 };
 

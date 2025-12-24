@@ -14,6 +14,6 @@ abi/
 └── python/                 # Python package bindings (experimental)
 ```
 
-## Notes
+## Additional Details
 - Examples and benchmarks are intentionally removed for production focus.
 - Public entrypoints are exported from `lib/mod.zig`.

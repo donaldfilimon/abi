@@ -370,8 +370,7 @@ pub const GPUBackendManager = struct {
         // CPU fallback is always available
         try self.available_backends.append(self.allocator, .cpu_fallback);
 
-        // Note: Backend priority sorting removed for simplicity
-        // Backends are added in order of preference (best first)
+        // Backends are added in order of preference (best first).
     }
 
     /// Initialize specialized drivers

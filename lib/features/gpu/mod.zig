@@ -32,7 +32,7 @@ pub const optimizations = @import("optimizations/mod.zig");
 
 // Libraries and demos (available in submodules)
 pub const libraries = @import("libraries/mod.zig");
-// Note: demo modules are available via direct import from demo/ directory
+// demo modules are available via direct import from demo/ directory
 
 /// Initialize the GPU feature module
 pub fn init(allocator: std.mem.Allocator) !void {

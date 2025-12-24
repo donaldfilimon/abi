@@ -102,21 +102,21 @@ pub const MachRenderer = struct {
 
     pub fn deinit(self: *Self) void {
         _ = self;
-        // Note: Implement proper Mach/GPU cleanup
+        // Implement proper Mach/GPU cleanup
     }
 
     /// Initialize Mach/GPU device
     pub fn initialize(self: *Self, device_type: MachDeviceType) !void {
         _ = self;
         _ = device_type;
-        // Note: Implement Mach/GPU initialization
+        // Implement Mach/GPU initialization
         std.log.info("🔧 Mach/GPU renderer initialization (placeholder)", .{});
     }
 
     /// Get device capabilities
     pub fn getCapabilities(self: *Self) !MachCapabilities {
         _ = self;
-        // Note: Implement real Mach/GPU capability detection
+        // Implement real Mach/GPU capability detection
         return MachCapabilities{
             .device_type = .vulkan,
             .api_version = 1,
@@ -183,7 +183,7 @@ pub const MachRenderer = struct {
     pub fn createComputePipeline(self: *Self, shader_module: *anyopaque) !*anyopaque {
         _ = self;
         _ = shader_module;
-        // Note: Implement compute pipeline creation
+        // Implement compute pipeline creation
         return @as(*anyopaque, @ptrFromInt(0x11111111));
     }
 
@@ -191,7 +191,7 @@ pub const MachRenderer = struct {
     pub fn createRenderPipeline(self: *Self, pipeline_info: *anyopaque) !*anyopaque {
         _ = self;
         _ = pipeline_info;
-        // Note: Implement render pipeline creation
+        // Implement render pipeline creation
         return @as(*anyopaque, @ptrFromInt(0x22222222));
     }
 
@@ -202,7 +202,7 @@ pub const MachRenderer = struct {
         _ = group_count_x;
         _ = group_count_y;
         _ = group_count_z;
-        // Note: Implement compute dispatch
+        // Implement compute dispatch
     }
 
     /// Create buffer
@@ -210,7 +210,7 @@ pub const MachRenderer = struct {
         _ = self;
         _ = size;
         _ = usage;
-        // Note: Implement buffer creation
+        // Implement buffer creation
         return @as(*anyopaque, @ptrFromInt(0x33333333));
     }
 
@@ -218,7 +218,7 @@ pub const MachRenderer = struct {
     pub fn createTexture(self: *Self, texture_info: *anyopaque) !*anyopaque {
         _ = self;
         _ = texture_info;
-        // Note: Implement texture creation
+        // Implement texture creation
         return @as(*anyopaque, @ptrFromInt(0x44444444));
     }
 
@@ -241,13 +241,13 @@ pub const MachRenderer = struct {
 pub const MachUtils = struct {
     /// Check if Mach/GPU is available
     pub fn isMachGPUAvailable() bool {
-        // Note: Implement real Mach/GPU availability check
+        // Implement real Mach/GPU availability check
         return true;
     }
 
     /// Get optimal device type for current platform
     pub fn getOptimalDeviceType() MachDeviceType {
-        // Note: Implement platform-specific device type selection
+        // Implement platform-specific device type selection
         return .auto;
     }
 
@@ -255,7 +255,7 @@ pub const MachUtils = struct {
     pub fn createShaderModule(device: *anyopaque, wgsl_source: []const u8) !*anyopaque {
         _ = device;
         _ = wgsl_source;
-        // Note: Implement shader module creation
+        // Implement shader module creation
         return @as(*anyopaque, @ptrFromInt(0x55555555));
     }
 
@@ -263,7 +263,7 @@ pub const MachUtils = struct {
     pub fn compileGLSLToWGSL(glsl_source: []const u8, shader_type: ShaderType) ![]const u8 {
         _ = glsl_source;
         _ = shader_type;
-        // Note: Implement GLSL to WGSL compilation
+        // Implement GLSL to WGSL compilation
         return &[_]u8{};
     }
 

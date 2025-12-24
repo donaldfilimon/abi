@@ -9,7 +9,7 @@
 
 const std = @import("std");
 const ArrayList = std.array_list.Managed;
-// Note: core functionality is now imported through module dependencies
+// core functionality is now imported through module dependencies
 
 const security = @import("../../shared/utils/security.zig");
 

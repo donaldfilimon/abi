@@ -112,7 +112,7 @@ pub const DynamicPersonaRouter = struct {
 };
 
 /// Example usage of the router.
-// Note: This is an example function, not a main entry point
+// This is an example function, not a main entry point
 pub fn example() !void {
     const personas = [_]Persona{
         .{ .name = "helper", .empathy_score = 0.9, .glue_accuracy = 0.8, .codegen_score = 0.4 },

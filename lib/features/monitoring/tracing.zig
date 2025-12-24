@@ -566,6 +566,6 @@ test "Sampler functionality" {
     try std.testing.expect(!sampler.shouldSample());
 
     sampler = .{ .probability = 1.0 };
-    // Note: This might occasionally fail due to randomness, but it's very unlikely
+    // This might occasionally fail due to randomness, but it's very unlikely
     // In production code, we'd use a seeded random number generator for testing
 }

@@ -437,7 +437,7 @@ Generated on: Thu Sep 18 16:04:48 EDT 2025
 #### Benefits
 
 ---
-## Automation Notes ($(date))
+## Automation Summary ($(date))
 - CI matrix recommendations recorded in `/tmp/enhanced_matrix.md`.
 - Regenerated platform-specific regression suites under `tests/cross-platform/`.
 - Ensure GitHub Actions workflow changes are reviewed before merging automated edits.
@@ -453,7 +453,7 @@ create_summary_report() {
     cat >> "$REPORTS_DIR/cross_platform_testing.md" << EOF
 
 ---
-## Automation Notes ($(date))
+## Automation Summary ($(date))
 - CI matrix recommendations recorded in `/tmp/enhanced_matrix.md`.
 - Regenerated platform-specific regression suites under `tests/cross-platform/`.
 - Ensure GitHub Actions workflow changes are reviewed before merging automated edits.

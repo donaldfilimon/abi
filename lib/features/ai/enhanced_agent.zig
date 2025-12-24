@@ -495,7 +495,7 @@ pub const EnhancedAgent = struct {
         defer self.state_mutex.unlock();
 
         // State transition validation (simplified for runtime)
-        // Note: Full comptime validation requires runtime-known state values
+        // Full comptime validation requires runtime-known state values
         self.state = new_state;
     }
 

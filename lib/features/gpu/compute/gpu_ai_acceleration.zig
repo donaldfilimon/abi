@@ -80,7 +80,7 @@ pub const Tensor = struct {
         self.allocator.free(self.data);
         self.allocator.free(self.shape);
         if (self.gpu_buffer) |buffer| {
-            // Note: GPU buffer cleanup would happen in renderer
+            // GPU buffer cleanup would happen in renderer
             _ = buffer;
         }
         self.allocator.destroy(self);

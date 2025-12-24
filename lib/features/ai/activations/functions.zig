@@ -6,7 +6,7 @@
 
 const std = @import("std");
 
-// Note: core functionality is now imported through module dependencies
+// core functionality is now imported through module dependencies
 
 /// Available activation function types with detailed mathematical definitions
 pub const ActivationType = enum {

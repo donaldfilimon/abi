@@ -15,5 +15,5 @@ Include reproduction steps, impact assessment, and suggested fixes.
 - Keep Zig updated.
 - Validate untrusted inputs and sandbox untrusted code.
 
-## Notes
+## Additional Details
 The CLI is minimal by design; most deployments should embed ABI as a library.

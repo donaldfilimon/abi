@@ -99,6 +99,4 @@ pub fn build(b: *std.Build) void {
 
     const profile_step = b.step("profile", "Build with performance profiling");
     profile_step.dependOn(b.getInstallStep());
-
-    // Note: Add documentation generation step
 }

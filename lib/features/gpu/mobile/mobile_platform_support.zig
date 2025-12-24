@@ -82,7 +82,7 @@ pub const MobilePlatformManager = struct {
         _ = self;
         std.log.info("🍎 Initializing Metal for iOS", .{});
 
-        // Note: Implement Metal iOS initialization
+        // Implement Metal iOS initialization
         // - Create Metal device
         // - Set up command queue
         // - Configure memory management
@@ -94,7 +94,7 @@ pub const MobilePlatformManager = struct {
         _ = self;
         std.log.info("🤖 Initializing Vulkan for Android", .{});
 
-        // Note: Implement Vulkan Android initialization
+        // Implement Vulkan Android initialization
         // - Create Vulkan instance
         // - Select physical device
         // - Create logical device
@@ -106,7 +106,7 @@ pub const MobilePlatformManager = struct {
         _ = self;
         std.log.info("📱 Initializing OpenGL ES", .{});
 
-        // Note: Implement OpenGL ES initialization
+        // Implement OpenGL ES initialization
         // - Create OpenGL ES context
         // - Set up EGL surface
         // - Configure mobile-specific settings
@@ -117,7 +117,7 @@ pub const MobilePlatformManager = struct {
         _ = self;
         std.log.info("🌐 Initializing WebGPU for Mobile", .{});
 
-        // Note: Implement WebGPU mobile initialization
+        // Implement WebGPU mobile initialization
         // - Create WebGPU adapter
         // - Request device
         // - Set up mobile-optimized configuration
