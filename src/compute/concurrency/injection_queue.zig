@@ -1,0 +1,21 @@
+//! MPSC injection queue for external submissions
+//!
+//! Single-producer, multi-consumer queue for submitting work
+//! from outside the worker pool.
+
+const std = @import("std");
+
+pub const InjectionQueue = struct {
+    buffer: std.ArrayList(u64),
+
+    pub fn init(allocator: std.mem.Allocator) InjectionQueue {
+        return .{
+            .buffer = std.ArrayList(u64).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *InjectionQueue) void {
+        self.buffer.deinit();
+        self.* = undefined;
+    }
+};
