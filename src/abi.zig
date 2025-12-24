@@ -20,6 +20,7 @@ pub const database = features.database;
 pub const web = features.web;
 pub const monitoring = features.monitoring;
 pub const connectors = features.connectors;
+pub const compute = @import("compute/mod.zig");
 /// Framework orchestration layer that coordinates features and plugins.
 pub const framework = @import("framework/mod.zig");
 pub const Feature = framework.Feature;

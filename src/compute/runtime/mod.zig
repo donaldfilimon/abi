@@ -3,6 +3,7 @@
 //! Core compute runtime including work items, engine,
 //! execution contexts, and result management.
 
+pub const config = @import("config.zig");
 pub const workload = @import("workload.zig");
 pub const engine = @import("engine.zig");
 pub const metrics = @import("metrics.zig");

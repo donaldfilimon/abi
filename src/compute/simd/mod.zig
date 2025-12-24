@@ -4,7 +4,6 @@
 //! high-performance compute operations.
 
 pub const vector = @import("vector.zig");
-pub const primitives = @import("primitives.zig");
 
 const simd = @import("../../shared/simd.zig");
 
