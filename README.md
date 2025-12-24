@@ -43,8 +43,13 @@ abi/
 ```
 
 ## CLI
-The bundled CLI is intentionally minimal (help + version) and serves as a thin
+The bundled CLI is intentionally minimal (help + version) and serves as a thin  
 entrypoint for embedded usage.
+
+```bash
+zig build run -- --help
+zig build run -- --version
+```
 
 ## Documentation
 - docs/guides/GETTING_STARTED.md

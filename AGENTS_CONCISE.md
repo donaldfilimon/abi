@@ -5,6 +5,7 @@
 - `zig build test` - Run all tests
 - `zig test tests/mod.zig` - Run smoke tests directly
 - `zig build run` - Run CLI
+- `zig build run -- --help` - Run CLI help
 - `zig fmt .` - Format code
 
 ## Code Style Guidelines
