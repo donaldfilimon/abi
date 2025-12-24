@@ -5,11 +5,41 @@
 
 const std = @import("std");
 
+const build_options = @import("build_options");
+
 pub const simd = @import("simd/mod.zig");
 pub const memory = @import("memory/mod.zig");
 pub const concurrency = @import("concurrency/mod.zig");
 pub const runtime = @import("runtime/mod.zig");
 pub const workloads = @import("workloads/mod.zig");
+
+pub const gpu = if (build_options.enable_gpu)
+    @import("gpu/mod.zig")
+else
+    struct {
+        pub const GPUBackend = void;
+        pub const GPUManager = void;
+        pub const GPUWorkloadVTable = void;
+        pub const GPUExecutionContext = void;
+        pub const GPUWorkloadHints = void;
+    };
+
+pub const network = if (build_options.enable_network)
+    @import("network/mod.zig")
+else
+    struct {
+        pub const NetworkEngine = void;
+        pub const NetworkConfig = void;
+        pub const NodeRegistry = void;
+    };
+
+pub const profiling = if (build_options.enable_profiling)
+    @import("profiling/mod.zig")
+else
+    struct {
+        pub const MetricsCollector = void;
+        pub const MetricsConfig = void;
+    };
 
 pub const VectorOps = simd.VectorOps;
 pub const ComputeVector = simd.ComputeVector;

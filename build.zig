@@ -12,6 +12,8 @@ fn createBuildOptions(b: *std.Build) *std.Build.Module {
     const enable_ai = b.option(bool, "enable-ai", "Enable AI features") orelse true;
     const enable_web = b.option(bool, "enable-web", "Enable web features") orelse true;
     const enable_database = b.option(bool, "enable-database", "Enable database features") orelse true;
+    const enable_network = b.option(bool, "enable-network", "Enable network distributed compute") orelse false;
+    const enable_profiling = b.option(bool, "enable-profiling", "Enable profiling and metrics") orelse false;
 
     // GPU backend selection
     const gpu_cuda = b.option(bool, "gpu-cuda", "Enable CUDA GPU backend") orelse enable_gpu;
@@ -23,6 +25,8 @@ fn createBuildOptions(b: *std.Build) *std.Build.Module {
     build_options.addOption(bool, "enable_ai", enable_ai);
     build_options.addOption(bool, "enable_web", enable_web);
     build_options.addOption(bool, "enable_database", enable_database);
+    build_options.addOption(bool, "enable_network", enable_network);
+    build_options.addOption(bool, "enable_profiling", enable_profiling);
 
     // GPU backend options
     build_options.addOption(bool, "gpu_cuda", gpu_cuda);

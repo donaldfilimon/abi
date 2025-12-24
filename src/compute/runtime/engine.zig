@@ -9,6 +9,32 @@ const chase_lev_deque = @import("../concurrency/chase_lev_deque.zig");
 const sharded_map = @import("../concurrency/sharded_map.zig");
 const workload = @import("workload.zig");
 
+const build_options = @import("build_options");
+
+const ProfilingModule = if (build_options.enable_profiling)
+    struct {
+        pub const MetricsCollector = @import("../profiling/mod.zig").MetricsCollector;
+        pub const DEFAULT_METRICS_CONFIG = @import("../profiling/mod.zig").DEFAULT_METRICS_CONFIG;
+    }
+else
+    struct {
+        pub const MetricsCollector = void;
+        pub const DEFAULT_METRICS_CONFIG = void{};
+    };
+
+const GPUModule = if (build_options.enable_gpu)
+    struct {
+        pub const GPUBackend = @import("../gpu/mod.zig").GPUBackend;
+        pub const GPUManager = @import("../gpu/mod.zig").GPUManager;
+        pub const GPUExecutionContext = @import("../gpu/mod.zig").GPUExecutionContext;
+    }
+else
+    struct {
+        pub const GPUBackend = void;
+        pub const GPUManager = void;
+        pub const GPUExecutionContext = void;
+    };
+
 const ChaseLevDeque = chase_lev_deque.ChaseLevDeque;
 const ShardedMap = sharded_map.ShardedMap;
 const ResultHandle = workload.ResultHandle;
@@ -45,6 +71,9 @@ pub const Engine = struct {
     result_cache: ResultCache,
     work_items: WorkItemCache,
 
+    metrics_collector: if (build_options.enable_profiling) ?*ProfilingModule.MetricsCollector else void,
+    gpu_manager: if (build_options.enable_gpu) ?GPUModule.GPUManager else void,
+
     pub fn init(allocator: std.mem.Allocator, cfg: config.EngineConfig) !*Engine {
         const cpu_count = std.Thread.getCpuCount() catch 1;
         const worker_count = if (cfg.worker_count == 0) @as(u32, @intCast(cpu_count)) else cfg.worker_count;
@@ -72,6 +101,17 @@ pub const Engine = struct {
         const result_map = try ShardedMap.init(allocator, @max(4, worker_count / 2));
         const work_item_map = std.AutoHashMap(u64, *WorkItem).init(allocator);
 
+        const metrics_collector: if (build_options.enable_profiling) ?*ProfilingModule.MetricsCollector else void = if (build_options.enable_profiling) blk: {
+            const mc = try allocator.create(ProfilingModule.MetricsCollector);
+            mc.* = try ProfilingModule.MetricsCollector.init(allocator, ProfilingModule.DEFAULT_METRICS_CONFIG, worker_count);
+            break :blk mc;
+        } else {};
+
+        const gpu_manager: if (build_options.enable_gpu) ?GPUModule.GPUManager else void = if (build_options.enable_gpu) blk: {
+            const gm = try GPUModule.GPUManager.init(allocator, GPUModule.GPUBackend.none);
+            break :blk gm;
+        } else {};
+
         self.* = .{
             .allocator = allocator,
             .workers = workers,
@@ -87,6 +127,8 @@ pub const Engine = struct {
                 .map = work_item_map,
                 .mutex = std.Thread.Mutex{},
             },
+            .metrics_collector = metrics_collector,
+            .gpu_manager = gpu_manager,
         };
 
         for (self.workers) |*worker| {
@@ -131,6 +173,20 @@ pub const Engine = struct {
         self.injection_queue.deinit(self.allocator);
         self.result_cache.map.deinit(self.allocator);
         self.work_items.map.deinit();
+
+        if (build_options.enable_profiling) {
+            if (self.metrics_collector) |mc| {
+                mc.deinit();
+                self.allocator.destroy(mc);
+            }
+        }
+
+        if (build_options.enable_gpu) {
+            if (self.gpu_manager) |*gm| {
+                gm.deinit();
+            }
+        }
+
         self.allocator.destroy(self);
     }
 
@@ -333,8 +389,17 @@ fn executeTask(worker: *Worker, task_id: u64) !void {
 
     var exec_timer = try std.time.Timer.start();
     const start_time = exec_timer.read();
+
     const result_ptr = try item.vtable.exec(item.user, &ctx, engine.allocator);
+
     const end_time = exec_timer.read();
+    const duration_ns = end_time - start_time;
+
+    if (build_options.enable_profiling) {
+        if (engine.metrics_collector) |mc| {
+            mc.recordTaskExecution(worker.id, duration_ns);
+        }
+    }
 
     const result_vtable = workload.ResultVTable{
         .destroy = struct {
