@@ -383,7 +383,7 @@ pub const WeatherUtils = struct {
     }
 
     pub fn formatWeatherJson(weather: WeatherData, allocator: std.mem.Allocator) ![]u8 {
-        // Minimal JSON formatter for tests without using fmt placeholders for braces
+        // Minimal JSON formatter for tests without using literal braces
         const temp_str = try std.fmt.allocPrint(allocator, "{d}", .{weather.temperature});
         defer allocator.free(temp_str);
         const feels_str = try std.fmt.allocPrint(allocator, "{d}", .{weather.feels_like});

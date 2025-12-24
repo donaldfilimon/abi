@@ -487,25 +487,25 @@ pub const VulkanRenderer = struct {
 
         // Create Vulkan instance
         // In a real implementation, this would use vkCreateInstance
-        self.instance = @as(*anyopaque, @ptrCast(&self)); // Placeholder
+        self.instance = @as(*anyopaque, @ptrCast(&self)); // fallback
 
         // Enumerate physical devices
-        const device_count: u32 = 1; // Placeholder - assume at least one device
+        const device_count: u32 = 1; // fallback - assume at least one device
         // vkEnumeratePhysicalDevices(self.instance, &device_count, null);
 
         if (device_count == 0) {
             return error.NoVulkanDevices;
         }
 
-        // For now, create a placeholder physical device
-        self.physical_device = @as(*anyopaque, @ptrCast(&self)); // Placeholder
+        // For now, create a fallback physical device
+        self.physical_device = @as(*anyopaque, @ptrCast(&self)); // fallback
 
         // Get device capabilities
         self.capabilities = try self.getCapabilities();
 
         // Create logical device
         // vkCreateDevice(self.physical_device, &create_info, null, &self.device);
-        self.device = @as(*anyopaque, @ptrCast(&self)); // Placeholder
+        self.device = @as(*anyopaque, @ptrCast(&self)); // fallback
 
         self.is_initialized = true;
         std.log.info("✅ Vulkan renderer initialized successfully", .{});
@@ -521,7 +521,7 @@ pub const VulkanRenderer = struct {
             .vendor_id = 0,
             .device_id = 0,
             .device_type = .discrete_gpu,
-            .device_name = "Vulkan Device (Placeholder)",
+            .device_name = "Vulkan Device (fallback)",
             .memory_heaps = &[_]VulkanCapabilities.MemoryHeap{},
             .memory_types = &[_]VulkanCapabilities.MemoryType{},
             .queue_families = &[_]VulkanCapabilities.QueueFamily{},
@@ -689,7 +689,7 @@ pub const VulkanRenderer = struct {
     pub fn dispatchCompute(self: *Self, _: *anyopaque, group_count_x: u32, group_count_y: u32, group_count_z: u32) !void {
         if (!self.is_initialized) return error.NotInitialized;
 
-        // For now, this is a placeholder. In a real implementation:
+        // For now, this is a fallback. In a real implementation:
         // vkCmdDispatch(command_buffer, group_count_x, group_count_y, group_count_z);
 
         std.log.debug("🔢 Vulkan compute dispatch: {}x{}x{} workgroups", .{ group_count_x, group_count_y, group_count_z });

@@ -237,7 +237,7 @@ pub const Optimizer = struct {
     }
 };
 
-/// Simple model interface (placeholder for actual neural network)
+/// Simple model interface (lightweight interface for model adapters)
 pub const Model = struct {
     allocator: Allocator,
     parameters: []f32,

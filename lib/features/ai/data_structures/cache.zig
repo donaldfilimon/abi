@@ -16,16 +16,21 @@ pub fn ThreadSafeCache(comptime K: type, comptime V: type) type {
         data: std.AutoHashMap(K, V),
         /// Mutex for thread safety
         mutex: std.Thread.Mutex,
+        /// Access order tracking
+        access_order: std.ArrayList(K),
+        /// Maximum capacity
+        capacity: usize,
         /// Memory allocator
         allocator: std.mem.Allocator,
 
         /// Initialize a new thread-safe cache
         pub fn init(allocator: std.mem.Allocator, capacity: usize) !*Self {
-            _ = capacity; // Not used in this stub
             const cache = try allocator.create(Self);
             cache.* = Self{
                 .data = std.AutoHashMap(K, V).init(allocator),
                 .mutex = std.Thread.Mutex{},
+                .access_order = try std.ArrayList(K).initCapacity(allocator, capacity),
+                .capacity = capacity,
                 .allocator = allocator,
             };
             return cache;
@@ -34,6 +39,7 @@ pub fn ThreadSafeCache(comptime K: type, comptime V: type) type {
         /// Deinitialize the cache
         pub fn deinit(self: *Self) void {
             self.data.deinit();
+            self.access_order.deinit();
             self.allocator.destroy(self);
         }
 
@@ -41,14 +47,40 @@ pub fn ThreadSafeCache(comptime K: type, comptime V: type) type {
         pub fn get(self: *Self, key: K) ?V {
             self.mutex.lock();
             defer self.mutex.unlock();
-            return self.data.get(key);
+            if (self.data.get(key)) |value| {
+                self.moveToEnd(key);
+                return value;
+            }
+            return null;
         }
 
         /// Put a value in the cache
         pub fn put(self: *Self, key: K, value: V) !void {
             self.mutex.lock();
             defer self.mutex.unlock();
+            if (self.data.contains(key)) {
+                try self.data.put(key, value);
+                self.moveToEnd(key);
+                return;
+            }
+
+            if (self.capacity > 0 and self.data.count() >= self.capacity) {
+                if (self.access_order.orderedRemove(0)) |old_key| {
+                    _ = self.data.remove(old_key);
+                }
+            }
             try self.data.put(key, value);
+            try self.access_order.append(key);
+        }
+
+        fn moveToEnd(self: *Self, key: K) void {
+            for (self.access_order.items, 0..) |existing_key, i| {
+                if (existing_key == key) {
+                    _ = self.access_order.orderedRemove(i);
+                    break;
+                }
+            }
+            self.access_order.append(key) catch {};
         }
     };
 }

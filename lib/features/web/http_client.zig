@@ -9,6 +9,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 // core functionality is now imported through module dependencies
+const curl_wrapper = @import("curl_wrapper.zig");
 
 /// HTTP client configuration
 pub const HttpClientConfig = struct {
@@ -180,11 +181,18 @@ pub const HttpClient = struct {
 
     /// Make request using libcurl (if available)
     fn requestWithLibcurl(self: *Self, method: []const u8, url: []const u8, content_type: ?[]const u8, body: ?[]const u8) RequestResult {
-        // This is a placeholder for libcurl integration
-        // In a real implementation, you would use curl bindings here
+        var client = curl_wrapper.CurlHttpClient.init(self.allocator, self.config) catch |err| {
+            if (err == error.LibcurlNotAvailable) {
+                return self.requestWithNative(method, url, content_type, body);
+            }
+            return .{ .client_error = err };
+        };
+        defer client.deinit();
 
-        // For now, fall back to native implementation
-        return self.requestWithNative(method, url, content_type, body);
+        const response = client.request(method, url, content_type, body) catch |err| {
+            return mapRequestError(err);
+        };
+        return .{ .success = response };
     }
 
     /// Make request using native Zig HTTP client

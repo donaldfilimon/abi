@@ -198,14 +198,14 @@ fn deinitPluginRuntime(env: Environment) void {
     }
 }
 
-/// Initialize AI feature - placeholder for future implementation
+/// Initialize AI feature
 fn initAiFeature(env: Environment) anyerror!void {
     const state_ptr = try runtimeState(env);
     try ai.init(state_ptr.allocator);
     logFeatureActivation(state_ptr, "feature.ai", "initialized");
 }
 
-/// Deinitialize AI feature - placeholder for future implementation
+/// Deinitialize AI feature
 fn deinitAiFeature(env: Environment) void {
     const state_ptr = runtimeState(env) catch return;
     ai.deinit();

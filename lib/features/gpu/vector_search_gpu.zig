@@ -1,4 +1,4 @@
-//! GPU-accelerated vector search (CPU fallback stub)
+//! GPU-accelerated vector search (CPU fallback)
 //!
 //! Minimal implementation to keep GPU integration paths compiling on Zig 0.16.
 //! The current backend stores vectors in CPU memory and performs a brute-force

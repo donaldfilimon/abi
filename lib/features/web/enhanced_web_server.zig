@@ -17,6 +17,7 @@ const FrameworkError = errors.FrameworkError;
 // Import HTTP server implementation
 const wdbx_http = @import("wdbx_http.zig");
 const WdbxHttpServer = wdbx_http.WdbxHttpServer;
+const connectors = @import("../connectors/mod.zig");
 
 // Core server components
 const ServerState = enum {
@@ -662,7 +663,7 @@ pub const EnhancedWebServer = struct {
 
     /// Initialize the enhanced web server
     pub fn init(allocator: std.mem.Allocator, server_config: WebServerConfig) FrameworkError!*Self {
-        // No validation needed for the local WebServerConfig placeholder.
+        // Local-only configuration; no external validation needed.
 
         const self = try allocator.create(Self);
         errdefer allocator.destroy(self);
@@ -1137,13 +1138,49 @@ fn rateLimitMiddlewareHandler(ctx: *RequestContext) !void {
 }
 
 fn agentQueryHandler(ctx: *RequestContext) !void {
-    // Placeholder for AI agent query handling
     const query = ctx.request.getQueryParam("q") orelse "";
+    const provider = ctx.request.getQueryParam("provider") orelse "mock";
+    const model = ctx.request.getQueryParam("model") orelse (if (std.mem.eql(u8, provider, "openai")) "gpt-4o-mini" else "default");
+    const max_tokens = if (ctx.request.getQueryParam("max_tokens")) |val|
+        std.fmt.parseInt(u16, val, 10) catch 256
+    else
+        256;
+    const temperature = if (ctx.request.getQueryParam("temperature")) |val|
+        std.fmt.parseFloat(f32, val) catch 0.2
+    else
+        0.2;
+
+    const connector = connectors.getByName(provider) orelse connectors.mock.get();
+    const result = try connector.call(ctx.allocator, .{
+        .model = model,
+        .prompt = query,
+        .max_tokens = max_tokens,
+        .temperature = temperature,
+    });
+    defer if (result.content.len > 0) ctx.allocator.free(result.content);
+
     const response = struct {
         query: []const u8,
-        response: []const u8 = "AI agent response placeholder",
+        provider: []const u8,
+        model: []const u8,
+        ok: bool,
+        response: []const u8,
+        tokens_in: u32,
+        tokens_out: u32,
+        status_code: u16,
+        error_message: ?[]const u8 = null,
         timestamp: i64 = std.time.timestamp(),
-    }{ .query = query };
+    }{
+        .query = query,
+        .provider = provider,
+        .model = model,
+        .ok = result.ok,
+        .response = result.content,
+        .tokens_in = result.tokens_in,
+        .tokens_out = result.tokens_out,
+        .status_code = result.status_code,
+        .error_message = result.err_msg,
+    };
 
     try ctx.json(response, .{});
 }
@@ -1268,12 +1305,30 @@ fn databaseSearchHandler(ctx: *RequestContext) !void {
 }
 
 fn websocketUpgradeHandler(ctx: *RequestContext) !void {
-    // Placeholder for WebSocket upgrade handling
+    const key = ctx.request.getHeader("Sec-WebSocket-Key") orelse {
+        ctx.status(400);
+        ctx.response.body = "missing_sec_websocket_key";
+        return;
+    };
+
+    const accept = try computeWebSocketAccept(ctx.allocator, key);
+    defer ctx.allocator.free(accept);
+
     ctx.status(101);
     try ctx.response.setHeader(ctx.allocator, "Upgrade", "websocket");
     try ctx.response.setHeader(ctx.allocator, "Connection", "Upgrade");
-    try ctx.response.setHeader(ctx.allocator, "Sec-WebSocket-Accept", "placeholder");
+    try ctx.response.setHeader(ctx.allocator, "Sec-WebSocket-Accept", accept);
     ctx.response.body = "";
+}
+
+fn computeWebSocketAccept(allocator: std.mem.Allocator, key: []const u8) ![]u8 {
+    var sha1 = std.crypto.hash.sha1.Sha1.init(.{});
+    sha1.update(key);
+    sha1.update("258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
+    var digest: [20]u8 = undefined;
+    sha1.final(&digest);
+
+    return std.base64.standard.Encoder.encodeAlloc(allocator, &digest);
 }
 
 fn databaseInfoHandler(ctx: *RequestContext) !void {

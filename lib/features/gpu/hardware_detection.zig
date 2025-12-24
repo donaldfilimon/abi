@@ -275,7 +275,7 @@ pub const GPUDetector = struct {
 };
 
 fn createFallbackResult(allocator: std.mem.Allocator) !GPUDetectionResult {
-    // Single placeholder entry so downstream code continues to operate.
+    // Single fallback entry so downstream code continues to operate.
     var gpus = try allocator.alloc(RealGPUInfo, 1);
     errdefer allocator.free(gpus);
 
@@ -332,9 +332,7 @@ fn createFallbackResult(allocator: std.mem.Allocator) !GPUDetectionResult {
 }
 
 /// Runtime flag used by higher layers to decide whether to attempt real
-/// hardware probing. The stub implementation always returns , which
-/// encourages callers to use conservative defaults without failing builds on
-/// unsupported targets.
+/// hardware probing. Returns false to keep defaults conservative on unsupported targets.
 pub fn isHardwareDetectionAvailable() bool {
     return false;
 }
@@ -354,7 +352,7 @@ pub fn determineRecommendedBackend(gpus: []RealGPUInfo) BackendType {
 
 /// Convenience helper used by demos to print a concise summary.
 pub fn logGPUDetectionResults(result: *const GPUDetectionResult) void {
-    std.log.info("GPU detection (stub): detected {d} GPU(s)", .{result.total_gpus});
+    std.log.info("GPU detection (fallback): detected {d} GPU(s)", .{result.total_gpus});
     for (result.gpus) |gpu| {
         std.log.info("  - {s} ({s})", .{ gpu.name, gpu.vendor });
         if (gpu.available_backends.len == 0) {

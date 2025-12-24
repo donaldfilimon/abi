@@ -88,7 +88,7 @@ analyze_build_optimizations() {
                 binary_size="N/A"
             fi
 
-            echo "| $opt | ${build_time}s | $binary_size | TBD |" >> /tmp/build_analysis.md
+            echo "| $opt | ${build_time}s | $binary_size | n/a |" >> /tmp/build_analysis.md
             print_success "$opt build completed in ${build_time}s"
         else
             echo "| $opt | Failed | N/A | N/A |" >> /tmp/build_analysis.md

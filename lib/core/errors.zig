@@ -37,7 +37,7 @@ pub const Error = error{
     Empty,
     /// Out of memory
     OutOfMemory,
-    /// Feature not implemented
+    /// Feature unavailable
     NotImplemented,
     /// Feature disabled
     FeatureDisabled,

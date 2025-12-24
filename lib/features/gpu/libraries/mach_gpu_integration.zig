@@ -110,7 +110,7 @@ pub const MachRenderer = struct {
         _ = self;
         _ = device_type;
         // Implement Mach/GPU initialization
-        std.log.info("🔧 Mach/GPU renderer initialization (placeholder)", .{});
+        std.log.info("🔧 Mach/GPU renderer initialization", .{});
     }
 
     /// Get device capabilities

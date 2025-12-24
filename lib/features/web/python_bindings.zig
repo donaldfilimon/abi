@@ -48,8 +48,7 @@ const abi = @import("../../mod.zig");
 
 /// Python module initialization
 export fn PyInit_abi() ?*anyopaque {
-    // Python module initialization will be implemented
-    // when Python C API bindings are added
+    // Python C API bindings are not linked in this build.
     return null;
 }
 
@@ -89,7 +88,7 @@ pub const PythonABI = struct {
 
         /// Create transformer from Python dictionary config
         pub fn fromConfig(allocator: std.mem.Allocator, config_dict: *anyopaque) !*PythonTransformer {
-            _ = config_dict; // Would parse Python dict
+            _ = config_dict; // Parsing requires Python C API integration
 
             const self = try allocator.create(PythonTransformer);
             errdefer allocator.destroy(self);
@@ -112,12 +111,11 @@ pub const PythonABI = struct {
             return self;
         }
 
-        /// Encode text input (placeholder)
+        /// Encode text input (requires Python C API bindings)
         pub fn encode(self: *PythonTransformer, texts: *anyopaque) !*anyopaque {
             _ = self;
             _ = texts;
-            // Would return Python list of embeddings
-            return @as(*anyopaque, @ptrFromInt(0));
+            return error.PythonBindingsUnavailable;
         }
 
         pub fn deinit(self: *PythonTransformer) void {
@@ -131,14 +129,14 @@ pub const PythonABI = struct {
     /// Python-compatible vector database interface
     pub const PythonVectorDB = struct {
         db: ?*abi.database.VectorDatabase,
+        dimensions: usize,
 
         /// Create vector database with specified dimensions
         pub fn create(dimensions: usize) !*PythonVectorDB {
-            _ = dimensions; // Would use actual allocator
-
             const self = try std.heap.page_allocator.create(PythonVectorDB);
             self.* = .{
                 .db = null, // Would initialize actual database
+                .dimensions = dimensions,
             };
 
             return self;
@@ -149,8 +147,7 @@ pub const PythonABI = struct {
             _ = self;
             _ = query;
             _ = top_k;
-            // Would return Python list of results
-            return @as(*anyopaque, @ptrFromInt(0));
+            return error.PythonBindingsUnavailable;
         }
 
         pub fn deinit(self: *PythonVectorDB) void {

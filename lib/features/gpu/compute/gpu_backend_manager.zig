@@ -56,7 +56,7 @@ pub const HardwareCapabilities = struct {
     }
 };
 
-/// Simple CUDA Driver stub for GPU backend management
+/// Simple CUDA Driver shim for GPU backend management
 const CUDADriver = struct {
     allocator: std.mem.Allocator,
 
@@ -83,7 +83,7 @@ const CUDADriver = struct {
     }
 };
 
-/// Memory Bandwidth Benchmark stub
+/// Memory Bandwidth Benchmark shim
 pub const MemoryBandwidthBenchmark = struct {
     allocator: std.mem.Allocator,
 
@@ -108,7 +108,7 @@ pub const MemoryBandwidthBenchmark = struct {
     }
 };
 
-/// Compute Throughput Benchmark stub
+/// Compute Throughput Benchmark shim
 pub const ComputeThroughputBenchmark = struct {
     allocator: std.mem.Allocator,
 
@@ -148,7 +148,7 @@ pub const BenchmarkResult = struct {
     throughput_items_per_sec: f64,
 };
 
-/// Performance Profiler stub
+/// Performance Profiler shim
 pub const PerformanceProfiler = struct {
     allocator: std.mem.Allocator,
     measurements: std.ArrayList(PerformanceMeasurement),

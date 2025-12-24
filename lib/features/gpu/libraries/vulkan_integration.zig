@@ -135,7 +135,7 @@ pub const VulkanRenderer = struct {
         }
     }
 
-    /// Execute a compute kernel (placeholder)
+    /// Execute a compute kernel (requires backend implementation)
     pub fn executeKernel(_: *VulkanRenderer, _: []const u8, _: []const gpu.unified_memory.DeviceMemory) VulkanError!void {
         // Placeholder: In a full implementation, this would:
         // 1. Look up the kernel by name

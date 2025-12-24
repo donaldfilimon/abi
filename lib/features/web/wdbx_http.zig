@@ -12,6 +12,7 @@ const ArrayList = std.array_list.Managed;
 // core functionality is now imported through module dependencies
 
 const security = @import("../../shared/utils/security.zig");
+const connectors = @import("../connectors/mod.zig");
 
 const max_header_size = 16 * 1024;
 
@@ -365,11 +366,72 @@ pub const WdbxHttpServer = struct {
             else => return HttpError.BadPayload,
         };
 
-        // Simulate AI agent response (placeholder)
-        const response_text = try std.fmt.allocPrint(self.allocator, "{{\"response\":\"AI Agent response to: {s}\",\"confidence\":0.85,\"model\":\"placeholder\"}}", .{query_text});
-        defer self.allocator.free(response_text);
+        const provider_val = if (root_object.get("provider")) |val|
+            val
+        else if (root_object.get("connector")) |val|
+            val
+        else
+            null;
+        const provider = if (provider_val) |val| switch (val) {
+            .string => |text| text,
+            else => "mock",
+        } else "mock";
 
-        return Response{ .status = 200, .body = try self.allocator.dupe(u8, response_text), .content_type = "application/json" };
+        const model_val = root_object.get("model");
+        const model = if (model_val) |val| switch (val) {
+            .string => |text| text,
+            else => if (std.mem.eql(u8, provider, "openai")) "gpt-4o-mini" else "default",
+        } else if (std.mem.eql(u8, provider, "openai"))
+            "gpt-4o-mini"
+        else
+            "default";
+
+        const max_tokens_val = root_object.get("max_tokens");
+        const max_tokens = if (max_tokens_val) |val| switch (val) {
+            .integer => |int_val| @as(u16, @intCast(std.math.clamp(int_val, 1, @as(i64, std.math.maxInt(u16))))),
+            .float => |float_val| @as(u16, @intCast(std.math.clamp(@as(i64, @intFromFloat(float_val)), 1, @as(i64, std.math.maxInt(u16))))),
+            else => @as(u16, 256),
+        } else @as(u16, 256);
+
+        const temperature_val = root_object.get("temperature");
+        const temperature = if (temperature_val) |val| switch (val) {
+            .float => |float_val| @as(f32, @floatCast(float_val)),
+            .integer => |int_val| @as(f32, @floatFromInt(int_val)),
+            else => 0.2,
+        } else 0.2;
+
+        const connector = connectors.getByName(provider) orelse connectors.mock.get();
+        const result = try connector.call(self.allocator, .{
+            .model = model,
+            .prompt = query_text,
+            .max_tokens = max_tokens,
+            .temperature = temperature,
+        });
+        defer if (result.content.len > 0) self.allocator.free(result.content);
+
+        const payload = struct {
+            ok: bool,
+            response: []const u8,
+            provider: []const u8,
+            model: []const u8,
+            tokens_in: u32,
+            tokens_out: u32,
+            status_code: u16,
+            error_message: ?[]const u8 = null,
+        }{
+            .ok = result.ok,
+            .response = result.content,
+            .provider = provider,
+            .model = model,
+            .tokens_in = result.tokens_in,
+            .tokens_out = result.tokens_out,
+            .status_code = result.status_code,
+            .error_message = result.err_msg,
+        };
+
+        const json_text = try std.json.stringifyAlloc(self.allocator, payload, .{});
+        defer self.allocator.free(json_text);
+        return Response{ .status = if (result.ok) 200 else 502, .body = try self.allocator.dupe(u8, json_text), .content_type = "application/json" };
     }
 
     fn handleDatabaseSearch(self: *WdbxHttpServer, body: []const u8) !Response {

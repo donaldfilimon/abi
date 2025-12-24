@@ -132,37 +132,22 @@ const SystemInfo = struct {
 
     // Windows implementations
     fn getCpuUsageWindows() f64 {
-        // Windows-specific CPU usage implementation
-        // This is a simplified implementation - in practice would use WMI or performance counters
-        return 25.5; // Placeholder
+        // Windows-specific CPU usage implementation (requires perf counters/WMI)
+        return 0.0;
     }
 
     fn getMemoryInfoWindows() !struct { total: u64, used: u64, available: u64 } {
-        // Windows-specific memory info implementation
-        return .{
-            .total = 16 * 1024 * 1024 * 1024, // 16GB placeholder
-            .used = 8 * 1024 * 1024 * 1024, // 8GB placeholder
-            .available = 8 * 1024 * 1024 * 1024, // 8GB placeholder
-        };
+        // Windows-specific memory info implementation (use GlobalMemoryStatusEx when wired)
+        return .{ .total = 0, .used = 0, .available = 0 };
     }
 
     fn getProcessInfoWindows() !struct { cpu_percent: f64, memory_rss: u64, memory_vms: u64, threads: u32, uptime: u64 } {
-        // Windows-specific process info implementation
-        return .{
-            .cpu_percent = 12.3,
-            .memory_rss = 256 * 1024 * 1024, // 256MB placeholder
-            .memory_vms = 512 * 1024 * 1024, // 512MB placeholder
-            .threads = 8,
-            .uptime = 3600, // 1 hour placeholder
-        };
+        // Windows-specific process info implementation (use process APIs when wired)
+        return .{ .cpu_percent = 0.0, .memory_rss = 0, .memory_vms = 0, .threads = 0, .uptime = 0 };
     }
 
     fn getDiskInfoWindows() !struct { read_bytes: u64, write_bytes: u64, usage_percent: f64 } {
-        return .{
-            .read_bytes = 1024 * 1024 * 100, // 100MB placeholder
-            .write_bytes = 1024 * 1024 * 50, // 50MB placeholder
-            .usage_percent = 65.0,
-        };
+        return .{ .read_bytes = 0, .write_bytes = 0, .usage_percent = 0.0 };
     }
 
     // Linux implementations

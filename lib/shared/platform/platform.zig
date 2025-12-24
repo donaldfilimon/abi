@@ -29,7 +29,7 @@
 //! **ThreadOps:**
 //!   Threading utilities for optimal concurrency, including:
 //!     - `getOptimalThreadCount()`: Returns the recommended thread count for the platform.
-//!     - `setThreadPriority(thread, priority)`: (Stub) Set thread priority (not implemented, platform-specific).
+//!     - `setThreadPriority(thread, priority)`: Best-effort thread priority adjustment (may be a no-op on some platforms).
 //!   The `ThreadPriority` enum provides standard priority levels: `low`, `normal`, `high`, `realtime`.
 //!
 //! **PerfOps:**

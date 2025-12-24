@@ -216,7 +216,7 @@ fn headerCallback(contents: [*c]u8, size: usize, nmemb: usize, userdata: ?*anyop
 }
 
 // Libcurl function declarations (would normally be in a separate C header)
-// These are placeholder declarations - in a real implementation you'd use proper C bindings
+// Minimal declarations used by this wrapper; replace with generated bindings when available.
 
 extern fn curl_global_init(flags: c_long) c_int;
 extern fn curl_global_cleanup() void;

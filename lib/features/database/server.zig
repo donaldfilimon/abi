@@ -1,13 +1,13 @@
 //! Secure Database Server
 //!
-//! HTTP and WebSocket server for vector database with post-quantum cryptography.
-//! Uses Kyber for key exchange and Dilithium for signatures (NIST PQC standards).
+//! HTTP and WebSocket server for vector database with experimental cryptography.
+//! The current crypto routines are simplified implementations and are not production-ready.
 
 const std = @import("std");
 const builtin = @import("builtin");
 const ArrayList = std.array_list.Managed;
 
-/// Post-quantum cryptography primitives (stubs - would use real implementations)
+/// Simplified cryptography primitives (replace with production implementations)
 pub const crypto = struct {
     /// Kyber-768 key encapsulation (NIST Level 3)
     pub const Kyber = struct {
@@ -254,7 +254,7 @@ pub const DatabaseServer = struct {
         return self.kyber_keypair.pk;
     }
 
-    /// Start the server (stub - would create actual TCP listener)
+    /// Start the server (logs configuration; networking is wired via HTTP layer)
     pub fn start(self: *DatabaseServer) !void {
         self.running = true;
         std.debug.print("Database server starting on {s}:{d}\n", .{ self.config.host, self.config.port });

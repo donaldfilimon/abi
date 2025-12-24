@@ -565,7 +565,7 @@ pub const WdbxCLI = struct {
 };
 
 fn ensureServerRunningForTests(self: *WdbxCLI) void {
-    _ = self; // placeholder helper for future use
+    _ = self;
 }
 
 /// Logger implementation

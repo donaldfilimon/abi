@@ -441,9 +441,7 @@ pub const ModelCompression = struct {
         switch (compression_type) {
             .none => return allocator.dupe(u8, data),
             .gzip, .lz4, .zstd => {
-                // Placeholder for compression implementation
-                // Would use std.compress for actual compression
-                return allocator.dupe(u8, data);
+                return error.UnsupportedCompression;
             },
         }
     }
@@ -453,8 +451,7 @@ pub const ModelCompression = struct {
         switch (compression_type) {
             .none => return allocator.dupe(u8, compressed_data),
             .gzip, .lz4, .zstd => {
-                // Placeholder for decompression implementation
-                return allocator.dupe(u8, compressed_data);
+                return error.UnsupportedCompression;
             },
         }
     }
@@ -533,6 +530,7 @@ pub const ModelRegistry = struct {
         try file.writeAll(registry_header);
         try file.writeInt(u32, @as(u32, @intCast(self.models.count())), .little);
 
+        var serializer = ModelSerializer.init(self.allocator, .{});
         var it = self.models.iterator();
         while (it.next()) |entry| {
             // Write model name
@@ -542,6 +540,8 @@ pub const ModelRegistry = struct {
             // Write model entry data
             const model_entry = entry.value_ptr.*;
             try file.writeInt(u64, model_entry.created_at, .little);
+            try file.writeInt(u32, @intFromEnum(model_entry.metadata.format_version), .little);
+            try serializer.serializeMetadata(model_entry.metadata, file.writer());
 
             try file.writeInt(u32, @as(u32, @intCast(model_entry.model_path.len)), .little);
             try file.writeAll(model_entry.model_path);
@@ -568,6 +568,7 @@ pub const ModelRegistry = struct {
             return error.InvalidRegistryFile;
         }
 
+        var serializer = ModelSerializer.init(self.allocator, .{});
         const num_models = try file.readInt(u32, .little);
         for (0..num_models) |_| {
             // Read model name
@@ -578,6 +579,13 @@ pub const ModelRegistry = struct {
 
             // Read model entry
             const created_at = try file.readInt(u64, .little);
+            const format_version_raw = try file.readInt(u32, .little);
+            const format_version = std.meta.intToEnum(FormatVersion, format_version_raw) catch return error.UnsupportedVersion;
+            const metadata = try serializer.deserializeMetadata(file.reader(), format_version);
+            errdefer {
+                var metadata_ptr = metadata;
+                metadata_ptr.deinit(self.allocator);
+            }
 
             const path_len = try file.readInt(u32, .little);
             const model_path = try self.allocator.alloc(u8, path_len);
@@ -600,9 +608,6 @@ pub const ModelRegistry = struct {
                 _ = try file.read(tag);
                 try tags.append(tag);
             }
-
-            // Create metadata placeholder (would need proper deserialization)
-            const metadata = ModelMetadata.init(self.allocator, "unknown", &[_]usize{}, &[_]usize{});
 
             const entry = ModelEntry{
                 .metadata = metadata,

@@ -16,6 +16,29 @@ pub const CallResult = struct {
     err_msg: ?[]const u8 = null,
 };
 
+pub const OllamaConfig = struct {
+    host: []const u8 = "http://127.0.0.1:11434",
+    model: []const u8 = "nomic-embed-text",
+};
+
+pub const OpenAIConfig = struct {
+    base_url: []const u8 = "https://api.openai.com/v1",
+    api_key: []const u8,
+    model: []const u8 = "text-embedding-3-small",
+};
+
+pub const ProviderConfig = union(enum) {
+    ollama: OllamaConfig,
+    openai: OpenAIConfig,
+};
+
+pub fn embedText(allocator: std.mem.Allocator, config: ProviderConfig, text: []const u8) ![]f32 {
+    return switch (config) {
+        .ollama => |cfg| ollama.embedText(allocator, cfg.host, cfg.model, text),
+        .openai => |cfg| openai.embedText(allocator, cfg, text),
+    };
+}
+
 // Connector implementations
 pub const hf_inference = @import("hf_inference.zig");
 pub const local_scheduler = @import("local_scheduler.zig");
@@ -30,6 +53,14 @@ pub const Connector = struct {
     call: *const fn (allocator: std.mem.Allocator, req: CallRequest) anyerror!CallResult,
     health: *const fn () bool,
 };
+
+pub fn getByName(name: []const u8) ?Connector {
+    if (std.mem.eql(u8, name, "openai")) return openai.get();
+    if (std.mem.eql(u8, name, "hf_inference")) return hf_inference.get();
+    if (std.mem.eql(u8, name, "local_scheduler")) return local_scheduler.get();
+    if (std.mem.eql(u8, name, "mock")) return mock.get();
+    return null;
+}
 
 /// Initialize the connectors feature module
 pub fn init(allocator: std.mem.Allocator) !void {

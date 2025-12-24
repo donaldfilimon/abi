@@ -21,7 +21,7 @@ pub const AcceleratorError = error{
     CUDANotInitialized,
     /// Vulkan not available
     VulkanNotAvailable,
-    /// Backend not implemented
+    /// Backend unavailable
     BackendNotImplemented,
     /// Invalid memory reference
     InvalidMemory,

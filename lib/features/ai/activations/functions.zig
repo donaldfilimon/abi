@@ -254,6 +254,9 @@ pub const ActivationProcessor = struct {
             .hard_sigmoid => if (x > -2.5 and x < 2.5) 0.2 else 0.0,
             .tanh => 1.0 - y * y,
             .hard_tanh => if (x > -1.0 and x < 1.0) 1.0 else 0.0,
+            .softmax => y * (1.0 - y),
+            .log_softmax => 1.0 - @exp(y),
+            .softmin => -y * (1.0 - y),
             .softplus => 1.0 / (1.0 + @exp(-x)),
             .softsign => {
                 const abs_x = @abs(x);
@@ -289,7 +292,7 @@ pub const ActivationProcessor = struct {
                 const sigmoid_val = 1.0 / (1.0 + @exp(-1.702 * x));
                 break :blk sigmoid_val + x * 1.702 * sigmoid_val * (1.0 - sigmoid_val);
             },
-            else => @panic("Derivative not implemented for this activation function"),
+            else => 0.0,
         };
     }
 

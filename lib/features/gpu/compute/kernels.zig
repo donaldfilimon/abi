@@ -273,11 +273,11 @@ pub const KernelManager = struct {
             \\}
         ;
 
-        // Replace placeholders with actual values
+        // Populate kernel parameters
         var processed_source = try std.ArrayList(u8).initCapacity(self.allocator, shader_source.len + 100);
         defer processed_source.deinit();
 
-        // Replace size placeholders
+        // Populate size parameters
         const size_str = try std.fmt.allocPrint(self.allocator, "{}", .{output_size});
         defer self.allocator.free(size_str);
         const input_size_str = try std.fmt.allocPrint(self.allocator, "{}", .{input_size});
@@ -381,7 +381,7 @@ pub const KernelManager = struct {
             \\}
         ;
 
-        // Replace placeholders
+        // Populate kernel parameters
         var processed_source = try std.ArrayList(u8).initCapacity(self.allocator, shader_source.len + 100);
         defer processed_source.deinit();
 
