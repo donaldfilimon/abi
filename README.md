@@ -9,6 +9,9 @@ Modern Zig framework for modular AI services, vector search, and systems tooling
 - Web utilities (HTTP client/server helpers, weather helper)
 - Monitoring (logging, metrics, tracing, profiling)
 
+## Requirements
+- Zig 0.15.2
+
 ## Build
 ```bash
 zig build
@@ -16,6 +19,10 @@ zig build test
 zig build -Doptimize=ReleaseFast
 zig build -Denable-ai=true -Denable-gpu=false -Denable-web=true -Denable-database=true
 ```
+
+## Feature Flags
+- `-Denable-ai`, `-Denable-gpu`, `-Denable-web`, `-Denable-database`
+- `-Dgpu-cuda`, `-Dgpu-vulkan`, `-Dgpu-metal`, `-Dgpu-webgpu`
 
 ## Quick Example
 ```zig
@@ -33,33 +40,45 @@ pub fn main() !void {
 }
 ```
 
+## Architecture Overview
+- `src/abi.zig`: public API surface and curated re-exports
+- `src/root.zig`: root module entrypoint
+- `src/framework/`: runtime config, feature orchestration, lifecycle
+- `src/features/`: vertical feature stacks (AI, GPU, database, web, monitoring)
+- `src/shared/`: shared utilities (logging, observability, platform, utils)
+- `src/internal/legacy/`: backward-compat implementations and deprecated modules
+
 ## Project Layout
 ```
 abi/
-├── src/        # Core library sources
+├── src/                # Core library sources
 │   ├── core/           # Core infrastructure
 │   ├── features/       # Feature modules (AI, GPU, web, etc.)
 │   ├── framework/      # Framework configuration and runtime
-│   └── shared/         # Shared utilities
-├── tools/      # CLI entrypoint
-├── tests/      # Smoke tests
-└── docs/       # Architecture + guides
+│   ├── shared/         # Shared utilities
+│   └── internal/       # Legacy + experimental modules
+│       └── legacy/     # Backward-compat implementations
+├── build.zig           # Build graph + feature flags
+└── build.zig.zon        # Zig package metadata
 ```
 
 ## CLI
-The bundled CLI is intentionally minimal (help + version) and serves as a thin  
-entrypoint for embedded usage.
+If a CLI entrypoint is present at `tools/cli/main.zig`, it provides a thin
+wrapper for embedded usage (help + version). This tree currently omits that
+entrypoint; re-add it or update `build.zig` to skip the CLI build step.
 
 ```bash
 zig build run -- --help
 zig build run -- --version
 ```
 
-## Documentation
-- docs/guides/GETTING_STARTED.md
-- docs/ARCHITECTURE.md
-- docs/PROJECT_STRUCTURE.md
-- docs/OBSERVABILITY.md
+## Tests
+If a test root exists at `tests/mod.zig`, run:
+```bash
+zig build test
+```
+This tree currently omits `tests/`; add tests or update `build.zig` to skip the
+test step.
 
 ## Connector Environment Variables
 - `ABI_OPENAI_API_KEY`, `OPENAI_API_KEY`
@@ -73,4 +92,4 @@ zig build run -- --version
 - `ABI_OLLAMA_MODEL` (default `llama3.2`)
 
 ## Contributing
-See CONTRIBUTING.md for development workflow and style guidelines.
+See `CONTRIBUTING.md` for development workflow and style guidelines.

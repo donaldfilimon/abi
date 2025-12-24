@@ -33,6 +33,11 @@ fn createBuildOptions(b: *std.Build) *std.Build.Module {
     return build_options.createModule();
 }
 
+fn pathExists(path: []const u8) bool {
+    std.fs.cwd().access(path, .{}) catch return false;
+    return true;
+}
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -42,61 +47,73 @@ pub fn build(b: *std.Build) void {
 
     // Core library module
     const abi_module = b.addModule("abi", .{
-        .root_source_file = b.path("src/mod.zig"),
+        .root_source_file = b.path("src/abi.zig"),
         .target = target,
         .optimize = optimize,
     });
     abi_module.addImport("build_options", build_options_module);
 
     // CLI executable
-    const exe = b.addExecutable(.{
-        .name = "abi",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tools/cli/main.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    exe.root_module.addImport("abi", abi_module);
-    b.installArtifact(exe);
+    const has_cli = pathExists("tools/cli/main.zig");
+    if (has_cli) {
+        const exe = b.addExecutable(.{
+            .name = "abi",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("tools/cli/main.zig"),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
+        exe.root_module.addImport("abi", abi_module);
+        b.installArtifact(exe);
 
-    // Run step for CLI
-    const run_cli = b.addRunArtifact(exe);
-    run_cli.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cli.addArgs(args);
+        // Run step for CLI
+        const run_cli = b.addRunArtifact(exe);
+        run_cli.step.dependOn(b.getInstallStep());
+        if (b.args) |args| {
+            run_cli.addArgs(args);
+        }
+
+        const run_step = b.step("run", "Run the ABI CLI");
+        run_step.dependOn(&run_cli.step);
+    } else {
+        std.log.warn("tools/cli/main.zig not found; skipping CLI build", .{});
     }
 
-    const run_step = b.step("run", "Run the ABI CLI");
-    run_step.dependOn(&run_cli.step);
-
     // Test suite
-    const main_tests = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tests/mod.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    main_tests.root_module.addImport("abi", abi_module);
+    const has_tests = pathExists("tests/mod.zig");
+    if (has_tests) {
+        const main_tests = b.addTest(.{
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("tests/mod.zig"),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
+        main_tests.root_module.addImport("abi", abi_module);
 
-    const run_main_tests = b.addRunArtifact(main_tests);
-    run_main_tests.skip_foreign_checks = true;
+        const run_main_tests = b.addRunArtifact(main_tests);
+        run_main_tests.skip_foreign_checks = true;
 
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_main_tests.step);
+        const test_step = b.step("test", "Run unit tests");
+        test_step.dependOn(&run_main_tests.step);
+    } else {
+        std.log.warn("tests/mod.zig not found; skipping test step", .{});
+    }
 
     // Performance profiling build
-    const profile_exe = b.addExecutable(.{
-        .name = "abi-profile",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tools/cli/main.zig"),
-            .target = target,
-            .optimize = .ReleaseFast,
-        }),
-    });
-    profile_exe.root_module.addImport("abi", abi_module);
+    if (has_cli) {
+        const profile_exe = b.addExecutable(.{
+            .name = "abi-profile",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("tools/cli/main.zig"),
+                .target = target,
+                .optimize = .ReleaseFast,
+            }),
+        });
+        profile_exe.root_module.addImport("abi", abi_module);
 
-    const profile_step = b.step("profile", "Build with performance profiling");
-    profile_step.dependOn(b.getInstallStep());
+        const profile_step = b.step("profile", "Build with performance profiling");
+        profile_step.dependOn(b.getInstallStep());
+    }
 }

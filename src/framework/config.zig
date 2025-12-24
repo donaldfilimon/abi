@@ -312,16 +312,18 @@ pub const FrameworkConfiguration = struct {
     /// Convert to RuntimeConfig for compatibility
     pub fn toRuntimeConfig(self: FrameworkConfiguration, allocator: std.mem.Allocator) !runtime.RuntimeConfig {
         const feature_capacity = feature_count;
-        var enabled = std.BoundedArray(Feature, feature_capacity).init(0) catch unreachable;
+        var enabled = std.ArrayList(Feature).initCapacity(allocator, feature_capacity) catch unreachable;
+        defer enabled.deinit(allocator);
         var toggles = deriveFeatureTogglesFromConfig(self);
         var iterator = toggles.iterator();
         while (iterator.next()) |feature| {
-            enabled.append(feature) catch unreachable;
+            enabled.appendAssumeCapacity(feature);
         }
 
-        var disabled = std.BoundedArray(Feature, feature_capacity).init(0) catch unreachable;
+        var disabled = std.ArrayList(Feature).initCapacity(allocator, feature_capacity) catch unreachable;
+        defer disabled.deinit(allocator);
         for (self.disabled_features) |feature| {
-            disabled.append(feature) catch unreachable;
+            disabled.appendAssumeCapacity(feature);
         }
 
         var config = runtime.RuntimeConfig{
@@ -335,8 +337,8 @@ pub const FrameworkConfiguration = struct {
             .auto_register_plugins = self.auto_register_plugins,
             .auto_start_plugins = self.auto_start_plugins,
         };
-        config.feature_storage.setEnabled(enabled.constSlice());
-        config.feature_storage.setDisabled(disabled.constSlice());
+        config.feature_storage.setEnabled(enabled.items);
+        config.feature_storage.setDisabled(disabled.items);
         config.enabled_features = config.feature_storage.enabledSlice();
         config.disabled_features = config.feature_storage.disabledSlice();
         return config;
@@ -525,19 +527,20 @@ pub fn runtimeConfigFromOptions(
     allocator: std.mem.Allocator,
     options: FrameworkOptions,
 ) !runtime.RuntimeConfig {
-    _ = allocator;
     const feature_capacity = feature_count;
 
-    var enabled = std.BoundedArray(Feature, feature_capacity).init(0) catch unreachable;
+    var enabled = std.ArrayList(Feature).initCapacity(allocator, feature_capacity) catch unreachable;
+    defer enabled.deinit(allocator);
     var toggles = deriveFeatureToggles(options);
     var iterator = toggles.iterator();
     while (iterator.next()) |feature| {
-        enabled.append(feature) catch unreachable;
+        enabled.appendAssumeCapacity(feature);
     }
 
-    var disabled = std.BoundedArray(Feature, feature_capacity).init(0) catch unreachable;
+    var disabled = std.ArrayList(Feature).initCapacity(allocator, feature_capacity) catch unreachable;
+    defer disabled.deinit(allocator);
     for (options.disabled_features) |feature| {
-        disabled.append(feature) catch unreachable;
+        disabled.appendAssumeCapacity(feature);
     }
 
     var config = runtime.RuntimeConfig{
@@ -546,8 +549,8 @@ pub fn runtimeConfigFromOptions(
         .auto_register_plugins = options.auto_register_plugins,
         .auto_start_plugins = options.auto_start_plugins,
     };
-    config.feature_storage.setEnabled(enabled.constSlice());
-    config.feature_storage.setDisabled(disabled.constSlice());
+    config.feature_storage.setEnabled(enabled.items);
+    config.feature_storage.setDisabled(disabled.items);
     config.enabled_features = config.feature_storage.enabledSlice();
     config.disabled_features = config.feature_storage.disabledSlice();
     return config;

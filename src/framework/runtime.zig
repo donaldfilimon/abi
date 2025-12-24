@@ -39,13 +39,13 @@ pub const RuntimeConfig = struct {
 
         pub fn setEnabled(self: *FeatureStorage, feature_list: []const features.FeatureTag) void {
             std.debug.assert(feature_list.len <= feature_tag_count);
-            std.mem.copy(features.FeatureTag, self.enabled[0..feature_list.len], feature_list);
+            std.mem.copyForwards(features.FeatureTag, self.enabled[0..feature_list.len], feature_list);
             self.enabled_len = feature_list.len;
         }
 
         pub fn setDisabled(self: *FeatureStorage, feature_list: []const features.FeatureTag) void {
             std.debug.assert(feature_list.len <= feature_tag_count);
-            std.mem.copy(features.FeatureTag, self.disabled[0..feature_list.len], feature_list);
+            std.mem.copyForwards(features.FeatureTag, self.disabled[0..feature_list.len], feature_list);
             self.disabled_len = feature_list.len;
         }
 
@@ -94,7 +94,7 @@ fn normalizeConfig(allocator: std.mem.Allocator, config: RuntimeConfig) !Runtime
 
     const plugin_paths = try allocator.alloc([]const u8, config.plugin_paths.len);
     errdefer allocator.free(plugin_paths);
-    std.mem.copy([]const u8, plugin_paths, config.plugin_paths);
+    std.mem.copyForwards([]const u8, plugin_paths, config.plugin_paths);
 
     return RuntimeConfig{
         .max_plugins = config.max_plugins,
@@ -201,7 +201,7 @@ pub const Framework = struct {
     /// # Safety
     /// The caller must call deinit() on the returned Framework to free all resources
     pub fn init(allocator: std.mem.Allocator, config: RuntimeConfig) !Self {
-        var normalized_config = try normalizeConfig(allocator, config);
+        const normalized_config = try normalizeConfig(allocator, config);
         errdefer {
             allocator.free(normalized_config.enabled_features);
             allocator.free(normalized_config.disabled_features);
@@ -218,7 +218,7 @@ pub const Framework = struct {
 
         // Initialize enabled features
         var enabled_feature_list = std.ArrayList(features.FeatureTag).initCapacity(allocator, enabled_features.count()) catch unreachable;
-        defer enabled_feature_list.deinit();
+        defer enabled_feature_list.deinit(allocator);
 
         var iter = enabled_features.iterator(.{});
         while (iter.next()) |index| {
@@ -235,7 +235,7 @@ pub const Framework = struct {
         return Self{
             .allocator = allocator,
             .config = normalized_config,
-            .components = core.ArrayList(Component).init(allocator),
+            .components = core.ArrayList(Component).initCapacity(allocator, 0) catch unreachable,
             .component_registry = core.StringHashMap(Component).init(allocator),
             .stats = RuntimeStats.init(enabled_features.count()),
             .running = std.atomic.Value(bool).init(false),
@@ -259,7 +259,7 @@ pub const Framework = struct {
 
         // Deinitialize all enabled features
         var enabled_feature_list = std.ArrayList(features.FeatureTag).initCapacity(self.allocator, self.enabled_features.count()) catch unreachable;
-        defer enabled_feature_list.deinit();
+        defer enabled_feature_list.deinit(self.allocator);
 
         var iter = self.enabled_features.iterator(.{});
         while (iter.next()) |index| {
@@ -269,7 +269,7 @@ pub const Framework = struct {
 
         features.lifecycle.deinitFeatures(enabled_feature_list.items);
 
-        self.components.deinit();
+        self.components.deinit(self.allocator);
         self.component_registry.deinit();
         self.allocator.free(self.config.enabled_features);
         self.allocator.free(self.config.disabled_features);
@@ -288,7 +288,7 @@ pub const Framework = struct {
             return core.Error.AlreadyExists;
         }
 
-        try self.components.append(component);
+        try self.components.append(self.allocator, component);
         try self.component_registry.put(component.name, component);
 
         self.stats.total_components += 1;

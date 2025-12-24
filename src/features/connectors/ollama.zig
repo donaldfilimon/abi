@@ -49,7 +49,7 @@ pub fn embedText(allocator: Allocator, host: []const u8, model: []const u8, text
     });
     defer allocator.free(body);
 
-    var response = http_util.postJson(allocator, url, &.{}, body) catch return error.NetworkError;
+    const response = http_util.postJson(allocator, url, &.{}, body) catch return error.NetworkError;
 
     if (response.status < 200 or response.status >= 300) return error.NetworkError;
 
@@ -121,7 +121,7 @@ fn call(allocator: std.mem.Allocator, req: T.CallRequest) !T.CallResult {
     });
     defer allocator.free(body);
 
-    var response = http_util.postJson(allocator, url, &.{}, body) catch |err| {
+    const response = http_util.postJson(allocator, url, &.{}, body) catch |err| {
         return .{ .ok = false, .content = "", .status_code = 0, .err_msg = @errorName(err) };
     };
 

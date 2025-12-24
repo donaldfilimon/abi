@@ -1,49 +1,32 @@
 const std = @import("std");
 const abi = @import("abi");
 
-fn printHeader() void {
-    std.debug.print("ABI Framework CLI\n", .{});
-}
-
-fn printVersion() void {
-    printHeader();
-    std.debug.print("Version: {s}\n", .{abi.version()});
-}
-
-fn printHelp(exe: []const u8) void {
-    printHeader();
-    std.debug.print("Usage: {s} [--help|--version]\n", .{exe});
-    std.debug.print("\nCommands:\n", .{});
-    std.debug.print("  --help, -h     Show this help message\n", .{});
-    std.debug.print("  --version, -v  Show version information\n", .{});
-}
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    const allocator = gpa.allocator();
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const args = try std.process.argsAlloc(gpa.allocator());
+    defer std.process.argsFree(gpa.allocator(), args);
 
-    const exe_name = if (args.len > 0) std.fs.path.basename(args[0]) else "abi";
-
-    if (args.len <= 1) {
-        printHelp(exe_name);
+    if (args.len <= 1 or std.mem.eql(u8, args[1], "--help")) {
+        try std.fs.File.stdout().deprecatedWriter().print(
+            "ABI CLI\n\n" ++
+                "Usage:\n" ++
+                "  abi --help\n" ++
+                "  abi --version\n",
+            .{},
+        );
         return;
     }
 
-    const arg = args[1];
-    if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "help")) {
-        printHelp(exe_name);
-        return;
-    }
-    if (std.mem.eql(u8, arg, "--version") or std.mem.eql(u8, arg, "-v") or std.mem.eql(u8, arg, "version")) {
-        printVersion();
+    if (std.mem.eql(u8, args[1], "--version")) {
+        try std.fs.File.stdout().deprecatedWriter().print("{s}\n", .{abi.version()});
         return;
     }
 
-    std.debug.print("Unknown command: {s}\n\n", .{arg});
-    printHelp(exe_name);
-    std.process.exit(1);
+    try std.fs.File.stderr().deprecatedWriter().print(
+        "Unknown argument: {s}\nUse --help for usage.\n",
+        .{args[1]},
+    );
+    std.process.exit(2);
 }

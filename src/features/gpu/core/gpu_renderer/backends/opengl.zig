@@ -5,10 +5,7 @@ const types = @import("../types.zig");
 
 pub fn initialize(args: types.InitArgs) !types.BackendResources {
     const ctx = try buffers.GPUContext.initOpenGL(args.allocator);
-    const buffer_manager = buffers.BufferManager{
-        .device = .{ .mock = ctx.device },
-        .queue = .{ .mock = ctx.queue },
-    };
+    const buffer_manager = buffers.BufferManager.fromMockContext(ctx);
 
     std.log.info("OpenGL backend ready", .{});
 

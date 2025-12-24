@@ -1,4 +1,5 @@
 const std = @import("std");
+const lifecycle = @import("../lifecycle.zig");
 
 pub const CallRequest = struct {
     model: []const u8,
@@ -64,14 +65,10 @@ pub fn getByName(name: []const u8) ?Connector {
 }
 
 /// Initialize the connectors feature module
-pub fn init(allocator: std.mem.Allocator) !void {
-    _ = allocator; // Currently no global connector state to initialize
-}
+pub const init = lifecycle.init;
 
 /// Deinitialize the connectors feature module
-pub fn deinit() void {
-    // Currently no global connector state to cleanup
-}
+pub const deinit = lifecycle.deinit;
 
 test "JSON parsing and error mapping" {
     const testing = std.testing;

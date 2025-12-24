@@ -12,6 +12,7 @@
 //! - Use `enhanced_agent.zig` for performance-critical or feature-rich applications
 
 const std = @import("std");
+const lifecycle = @import("../lifecycle.zig");
 
 const Conn = @import("../connectors/mod.zig");
 const Wdbx = @import("../database/wdbx_adapter.zig");
@@ -38,14 +39,10 @@ pub const config = struct {
 };
 
 /// Initialize the AI feature module
-pub fn init(allocator: std.mem.Allocator) !void {
-    _ = allocator; // Currently no global AI state to initialize
-}
+pub const init = lifecycle.init;
 
 /// Deinitialize the AI feature module
-pub fn deinit() void {
-    // Currently no global AI state to cleanup
-}
+pub const deinit = lifecycle.deinit;
 
 // Legacy compatibility
 pub const Envelope = struct {

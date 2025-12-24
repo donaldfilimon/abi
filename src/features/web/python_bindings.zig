@@ -44,7 +44,7 @@
 //! ```
 
 const std = @import("std");
-const abi = @import("../../mod.zig");
+const abi = @import("../../abi.zig");
 
 /// Python module initialization
 export fn PyInit_abi() ?*anyopaque {

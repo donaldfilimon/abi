@@ -3,6 +3,7 @@
 //! System monitoring, performance profiling, and observability
 
 const std = @import("std");
+const lifecycle = @import("../lifecycle.zig");
 
 // Health monitoring
 pub const health = @import("health.zig");
@@ -23,14 +24,10 @@ pub const metrics = @import("metrics.zig");
 pub const logging = @import("logging.zig");
 
 /// Initialize the monitoring feature module
-pub fn init(allocator: std.mem.Allocator) !void {
-    _ = allocator; // Currently no global monitoring state to initialize
-}
+pub const init = lifecycle.init;
 
 /// Deinitialize the monitoring feature module
-pub fn deinit() void {
-    // Currently no global monitoring state to cleanup
-}
+pub const deinit = lifecycle.deinit;
 
 // Legacy compatibility removed - circular import fixed
 

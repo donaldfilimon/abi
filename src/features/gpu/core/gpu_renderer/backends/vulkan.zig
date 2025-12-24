@@ -5,7 +5,7 @@ const config = @import("../config.zig");
 const buffers = @import("../buffers.zig");
 const types = @import("../types.zig");
 
-const DynLib = std.DynLib;
+const driver_probe = @import("driver_probe.zig");
 
 pub fn initialize(args: types.InitArgs) !types.BackendResources {
     _ = args;
@@ -14,10 +14,7 @@ pub fn initialize(args: types.InitArgs) !types.BackendResources {
     }
 
     const hardware = try buffers.HardwareContext.init(.vulkan);
-    const buffer_manager = buffers.BufferManager{
-        .device = .{ .hardware = hardware.device },
-        .queue = .{ .hardware = hardware.queue },
-    };
+    const buffer_manager = buffers.BufferManager.fromHardwareContext(hardware);
 
     std.log.info("Vulkan backend ready", .{});
 
@@ -34,14 +31,5 @@ pub fn isSupported() bool {
         .linux => &[_][]const u8{ "libvulkan.so.1", "libvulkan.so" },
         else => &[_][]const u8{},
     };
-    return tryOpenDriver(candidates);
-}
-
-fn tryOpenDriver(names: []const []const u8) bool {
-    for (names) |name| {
-        var lib = DynLib.openZ(name) catch continue;
-        defer lib.close();
-        return true;
-    }
-    return false;
+    return driver_probe.tryOpenDriver(candidates);
 }

@@ -1,6 +1,7 @@
 # ABI Framework – Agent Guidelines
 
 ## Build/Test Commands
+
 - `zig build` - Build library + CLI
 - `zig build test` - Run all tests
 - `zig test tests/mod.zig` - Run smoke tests directly
@@ -9,6 +10,7 @@
 - `zig fmt .` - Format code
 
 ## Code Style Guidelines
+
 - **Formatting**: 4 spaces, 100 char lines, `zig fmt` required
 - **Naming**: PascalCase for types, snake_case for functions/variables, UPPER_SNAKE_CASE for constants
 - **Imports**: Group std imports first, relative imports for local modules, explicit imports only
@@ -18,6 +20,7 @@
 - **Testing**: `test` blocks at file end, use `testing.allocator`
 
 ## Development Workflow
+
 1. Format with `zig fmt .`
 2. Build and test with `zig build test`
 3. Run specific tests as needed

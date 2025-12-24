@@ -432,7 +432,7 @@ pub const Agent = struct {
         self.model.setTraining(true);
 
         // Forward pass
-        var output = try self.allocator.alloc(f32, self.model.output_size);
+        const output = try self.allocator.alloc(f32, self.model.output_size);
         defer self.allocator.free(output);
 
         try self.model.forward(batch.inputs, output);

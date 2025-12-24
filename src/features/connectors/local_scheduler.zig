@@ -63,7 +63,7 @@ fn call(allocator: std.mem.Allocator, req: T.CallRequest) !T.CallResult {
     });
     defer allocator.free(body);
 
-    var response = http_util.postJson(allocator, url, &.{}, body) catch |err| {
+    const response = http_util.postJson(allocator, url, &.{}, body) catch |err| {
         return .{ .ok = false, .content = "", .status_code = 0, .err_msg = @errorName(err) };
     };
 

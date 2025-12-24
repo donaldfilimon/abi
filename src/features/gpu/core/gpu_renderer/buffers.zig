@@ -299,6 +299,20 @@ pub const BufferManager = struct {
         hardware: *gpu.Queue,
     };
 
+    pub fn fromMockContext(ctx: GPUContext) BufferManager {
+        return .{
+            .device = .{ .mock = ctx.device },
+            .queue = .{ .mock = ctx.queue },
+        };
+    }
+
+    pub fn fromHardwareContext(ctx: HardwareContext) BufferManager {
+        return .{
+            .device = .{ .hardware = ctx.device },
+            .queue = .{ .hardware = ctx.queue },
+        };
+    }
+
     fn toGpuUsage(usage: BufferUsage) gpu.Buffer.Usage {
         return .{
             .map_read = usage.map_read,

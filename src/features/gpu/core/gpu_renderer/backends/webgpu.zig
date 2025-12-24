@@ -11,10 +11,7 @@ pub fn initialize(args: types.InitArgs) !types.BackendResources {
     }
 
     const hardware = try buffers.HardwareContext.init(.webgpu);
-    const buffer_manager = buffers.BufferManager{
-        .device = .{ .hardware = hardware.device },
-        .queue = .{ .hardware = hardware.queue },
-    };
+    const buffer_manager = buffers.BufferManager.fromHardwareContext(hardware);
 
     std.log.info("WebGPU backend ready", .{});
 

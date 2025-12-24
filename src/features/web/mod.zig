@@ -3,6 +3,7 @@
 //! HTTP servers, clients, and web services
 
 const std = @import("std");
+const lifecycle = @import("../lifecycle.zig");
 
 // Web servers
 pub const enhanced_web_server = @import("enhanced_web_server.zig");
@@ -27,14 +28,10 @@ pub const Response = wdbx_http.Response;
 pub const ServerConfig = wdbx_http.ServerConfig;
 
 /// Initialize the web feature module
-pub fn init(allocator: std.mem.Allocator) !void {
-    _ = allocator; // Currently no global web state to initialize
-}
+pub const init = lifecycle.init;
 
 /// Deinitialize the web feature module
-pub fn deinit() void {
-    // Currently no global web state to cleanup
-}
+pub const deinit = lifecycle.deinit;
 
 // Legacy compatibility removed - circular import fixed
 

@@ -3,6 +3,7 @@
 //! Vector database with HNSW indexing, sharding, and secure servers
 
 const std = @import("std");
+const lifecycle = @import("../lifecycle.zig");
 
 pub const database = @import("database.zig");
 pub const db_helpers = @import("db_helpers.zig");
@@ -19,14 +20,10 @@ pub const tools = struct {
 };
 
 /// Initialize the database feature module
-pub fn init(allocator: std.mem.Allocator) !void {
-    _ = allocator; // Currently no global database state to initialize
-}
+pub const init = lifecycle.init;
 
 /// Deinitialize the database feature module
-pub fn deinit() void {
-    // Currently no global database state to cleanup
-}
+pub const deinit = lifecycle.deinit;
 
 test {
     std.testing.refAllDecls(@This());

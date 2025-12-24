@@ -1,5 +1,5 @@
 const std = @import("std");
-const abi = @import("../../mod.zig");
+const abi = @import("../../abi.zig");
 
 const Db = abi.database.database.Db;
 

@@ -20,6 +20,16 @@ pub const logging = @import("logging.zig");
 pub const persona_manifest = @import("persona_manifest.zig");
 pub const profiles = @import("profiles.zig");
 
+// Common containers for framework-level usage.
+pub const ArrayList = std.ArrayList;
+pub const StringHashMap = std.StringHashMap;
+
+// Minimal error set used by runtime component registry.
+pub const Error = error{
+    AlreadyExists,
+    NotFound,
+};
+
 test {
     std.testing.refAllDecls(@This());
 }

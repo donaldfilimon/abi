@@ -3,6 +3,7 @@
 //! Cross-platform GPU acceleration and compute functionality
 
 const std = @import("std");
+const lifecycle = @import("../lifecycle.zig");
 
 // Core GPU components
 pub const gpu_renderer = @import("core/gpu_renderer.zig");
@@ -35,14 +36,10 @@ pub const libraries = @import("libraries/mod.zig");
 // demo modules are available via direct import from demo/ directory
 
 /// Initialize the GPU feature module
-pub fn init(allocator: std.mem.Allocator) !void {
-    _ = allocator; // Currently no global GPU state to initialize
-}
+pub const init = lifecycle.init;
 
 /// Deinitialize the GPU feature module
-pub fn deinit() void {
-    // Currently no global GPU state to cleanup
-}
+pub const deinit = lifecycle.deinit;
 
 // Legacy compatibility - examples module
 pub const gpu_examples = @import("gpu_examples.zig");
