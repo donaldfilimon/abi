@@ -18,7 +18,8 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{});
+    // Use FrameworkConfiguration for full control, or FrameworkOptions for quick setup
+    var framework = try abi.init(gpa.allocator(), abi.FrameworkConfiguration{});
     defer abi.shutdown(&framework);
 
     std.debug.print("ABI version: {s}\n", .{abi.version()});

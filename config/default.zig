@@ -2,9 +2,9 @@
 //!
 //! Default configuration for the ABI framework
 
-const abi = @import("../lib/mod.zig");
+const abi = @import("../src/mod.zig");
 
-pub const default_config = abi.framework.RuntimeConfig{
+pub const default_config = abi.FrameworkConfiguration{
     .max_plugins = 128,
     .enable_hot_reload = false,
     .enable_profiling = false,
@@ -14,7 +14,7 @@ pub const default_config = abi.framework.RuntimeConfig{
     .disabled_features = &[_]abi.features.FeatureTag{.gpu},
 };
 
-pub const development_config = abi.framework.RuntimeConfig{
+pub const development_config = abi.FrameworkConfiguration{
     .max_plugins = 256,
     .enable_hot_reload = true,
     .enable_profiling = true,
@@ -24,7 +24,7 @@ pub const development_config = abi.framework.RuntimeConfig{
     .disabled_features = &[_]abi.features.FeatureTag{},
 };
 
-pub const production_config = abi.framework.RuntimeConfig{
+pub const production_config = abi.FrameworkConfiguration{
     .max_plugins = 64,
     .enable_hot_reload = false,
     .enable_profiling = false,

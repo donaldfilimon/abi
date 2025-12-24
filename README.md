@@ -57,5 +57,16 @@ zig build run -- --version
 - docs/PROJECT_STRUCTURE.md
 - docs/OBSERVABILITY.md
 
+## Connector Environment Variables
+- `ABI_OPENAI_API_KEY`, `OPENAI_API_KEY`
+- `ABI_OPENAI_BASE_URL` (default `https://api.openai.com/v1`)
+- `ABI_OPENAI_MODE` (`responses`, `chat`, or `completions`)
+- `ABI_HF_API_TOKEN`, `HF_API_TOKEN`, `HUGGING_FACE_HUB_TOKEN`
+- `ABI_HF_BASE_URL` (default `https://api-inference.huggingface.co`)
+- `ABI_LOCAL_SCHEDULER_URL`, `LOCAL_SCHEDULER_URL` (default `http://127.0.0.1:8081`)
+- `ABI_LOCAL_SCHEDULER_ENDPOINT` (default `/schedule`)
+- `ABI_OLLAMA_HOST`, `OLLAMA_HOST` (default `http://127.0.0.1:11434`)
+- `ABI_OLLAMA_MODEL` (default `llama3.2`)
+
 ## Contributing
 See CONTRIBUTING.md for development workflow and style guidelines.

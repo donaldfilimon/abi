@@ -42,7 +42,7 @@ pub fn build(b: *std.Build) void {
 
     // Core library module
     const abi_module = b.addModule("abi", .{
-        .root_source_file = b.path("lib/mod.zig"),
+        .root_source_file = b.path("src/mod.zig"),
         .target = target,
         .optimize = optimize,
     });

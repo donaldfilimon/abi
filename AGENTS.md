@@ -2,30 +2,29 @@
 
 ## Build/Test Commands
 ```bash
-zig build                    # Build library + CLI
-zig build test              # Run all tests
-zig test tests/mod.zig      # Run smoke tests directly
-zig fmt .                   # Format code (required before commits)
+zig build                           # Build library + CLI
+zig build test                      # Run all tests
+zig build test -- <test_name>       # Run specific test (use test filter)
+zig test tests/mod.zig              # Run smoke tests directly
+zig fmt .                           # Format code (required before commits)
 ```
 
-## Feature Build Options
+## Build Options & Configuration
 ```bash
-# Core features
-zig build -Denable-gpu=true -Denable-ai=true -Denable-web=true -Denable-database=true
-zig build -Denable-gpu=false -Denable-ai=true  # AI only
-zig build -Denable-database=true -Denable-web=false  # Database only
-
-# Optimization levels
-zig build -Doptimize=Debug         # Default: includes debug info
-zig build -Doptimize=ReleaseFast   # Maximum performance, minimal safety
-zig build -Doptimize=ReleaseSafe   # Performance with safety checks
-zig build -Doptimize=ReleaseSmall  # Minimize binary size
+zig build -Denable-gpu=true -Denable-ai=true -Denable-web=true -Denable-database=true  # All features
+zig build -Denable-gpu=false -Denable-ai=true                                        # AI only
+zig build -Doptimize=ReleaseFast                                                      # Max performance
+zig build -Doptimize=Debug                                                            # Debug build
 ```
+- Use `FrameworkConfiguration` for unified config (preferred); `FrameworkOptions` deprecated
+- Check `config/default.zig` for examples
 
 ## Code Style Guidelines
-- **Formatting**: 4 spaces, no tabs; lines < 100 chars; `zig fmt` required
+- **Formatting**: 4 spaces, no tabs; lines < 100 chars; `zig fmt` required before commits
 - **Naming**: PascalCase types, snake_case functions/variables, UPPER_SNAKE_CASE constants, snake_case files
-- **Imports**: Group std first, then local; explicit imports only (no `usingnamespace`)
-- **Error Handling**: Use `!` return types, `errdefer` for cleanup, specific error enums
-- **Memory**: Use `defer` for cleanup, GPA for testing, arena allocators for temporaries
-- **Documentation**: `//!` module docs, `///` function docs with # Parameters/Returns/Errors sections
+- **Imports**: Group std first, then local imports; explicit imports only (no `usingnamespace`)
+- **Error Handling**: Use `!` return types, `errdefer` for cleanup, specific error enums from `core.errors`
+- **Memory**: Use `defer`/`errdefer` for cleanup, GPA for testing, arena allocators for temporaries
+- **Documentation**: `//!` module docs, `///` function docs with Parameters/Returns/Errors sections
+- **Types**: Use framework types from `core.types`, prefer explicit types over `anytype`
+- **Testing**: Add tests to relevant test files, use `std.testing.expect` for assertions
