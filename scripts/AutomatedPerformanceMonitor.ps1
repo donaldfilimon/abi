@@ -205,7 +205,7 @@ function Analyze-CodeQuality {
             $totalLines += $lineCount
         }
 
-        $todos = ($zigFiles | Get-Content | Select-String -Pattern "TODO|FIXME|XXX" | Measure-Object).Count
+        $todos = ($zigFiles | Get-Content | Select-String -Pattern "Note|FIXME|XXX" | Measure-Object).Count
         $comments = ($zigFiles | Get-Content | Select-String -Pattern "//" | Measure-Object).Count
 
         $avgLinesPerFile = if ($totalFiles -gt 0) { [math]::Round($totalLines / $totalFiles, 1) } else { "N/A" }
@@ -217,7 +217,7 @@ function Analyze-CodeQuality {
                         "Total Lines of Code: $totalLines`n" +
                         "Average Lines per File: $avgLinesPerFile`n" +
                         "Total Comments: $comments`n" +
-                        "Total TODO/FIXME Items: $todos`n`n" +
+                        "Total Note/FIXME Items: $todos`n`n" +
                         "Code Quality Score: $codeQualityScore"
 
         $codeQuality | Out-File -FilePath (Join-Path $MetricsDir "code_quality_$Timestamp.txt")
@@ -364,3 +364,4 @@ if ($Continuous) {
     # Run monitoring once
     Invoke-Monitoring
 }
+

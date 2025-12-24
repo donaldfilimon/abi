@@ -21,7 +21,7 @@ pub const simd = @import("../shared/simd.zig");
 
 /// Feature configuration and management
 pub const config = struct {
-    pub const tag_count = std.enums.values(FeatureTag).len;
+    pub const tag_count = feature_count;
     /// Feature enablement flags
     pub const FeatureFlags = std.StaticBitSet(tag_count);
 

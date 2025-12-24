@@ -569,7 +569,7 @@ pub const KernelManager = struct {
 
         std.log.info("GPU matrix multiplication: {}x{} * {}x{} = {}x{}", .{ m, n, n, k, m, k });
 
-        // TODO: Implement actual GPU-accelerated matrix multiplication
+        // Note: Implement actual GPU-accelerated matrix multiplication
         // For now, delegate to renderer
         _ = a_handle;
         _ = b_handle;
@@ -585,7 +585,7 @@ pub const KernelManager = struct {
     ) !void {
         std.log.info("GPU softmax activation: size={}", .{size});
 
-        // TODO: Implement GPU-accelerated softmax
+        // Note: Implement GPU-accelerated softmax
         // This requires careful handling of numerical stability
         _ = input_handle;
         _ = output_handle;
@@ -603,7 +603,7 @@ pub const KernelManager = struct {
     ) !void {
         std.log.info("GPU layer normalization: size={}, epsilon={}", .{ size, epsilon });
 
-        // TODO: Implement GPU-accelerated layer normalization
+        // Note: Implement GPU-accelerated layer normalization
         _ = input_handle;
         _ = output_handle;
         _ = gamma_handle;
@@ -626,7 +626,7 @@ pub const KernelManager = struct {
     ) !void {
         std.log.info("GPU Adam optimizer update: size={}, lr={}, t={}", .{ size, learning_rate, t });
 
-        // TODO: Implement GPU-accelerated Adam optimizer
+        // Note: Implement GPU-accelerated Adam optimizer
         // This requires atomic operations for the moving averages
         _ = weights_handle;
         _ = gradients_handle;

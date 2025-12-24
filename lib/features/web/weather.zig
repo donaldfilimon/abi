@@ -242,7 +242,10 @@ pub const WeatherService = struct {
     }
 
     fn fetchJson(self: *WeatherService, url: []const u8) ![]u8 {
-        var client = std.http.Client{ .allocator = self.allocator };
+        var io = std.Io.Threaded.init(self.allocator);
+        defer io.deinit();
+
+        var client = std.http.Client{ .allocator = self.allocator, .io = io.io() };
         defer client.deinit();
 
         var req = try client.request(.GET, try std.Uri.parse(url), .{});

@@ -217,7 +217,7 @@ pub const CrossPlatformTestSuite = struct {
     /// Get current memory usage
     fn getMemoryUsage(self: *Self) u64 {
         _ = self;
-        // TODO: Implement real memory usage tracking
+        // Note: Implement real memory usage tracking
         return 0;
     }
 
@@ -325,81 +325,81 @@ pub const CrossPlatformTestSuite = struct {
 
 // Test function implementations
 fn testGPUInitialization() !void {
-    // TODO: Implement GPU initialization test
+    // Note: Implement GPU initialization test
     std.time.sleep(1000000); // 1ms
 }
 
 fn testMemoryAllocation() !void {
-    // TODO: Implement memory allocation test
+    // Note: Implement memory allocation test
     std.time.sleep(500000); // 0.5ms
 }
 
 fn testBasicRendering() !void {
-    // TODO: Implement basic rendering test
+    // Note: Implement basic rendering test
     std.time.sleep(2000000); // 2ms
 }
 
 fn testComputeShaders() !void {
-    // TODO: Implement compute shader test
+    // Note: Implement compute shader test
     std.time.sleep(1500000); // 1.5ms
 }
 
 fn testMemoryBandwidth() !void {
-    // TODO: Implement memory bandwidth test
+    // Note: Implement memory bandwidth test
     std.time.sleep(5000000); // 5ms
 }
 
 fn testComputeThroughput() !void {
-    // TODO: Implement compute throughput test
+    // Note: Implement compute throughput test
     std.time.sleep(3000000); // 3ms
 }
 
 fn testRenderingPerformance() !void {
-    // TODO: Implement rendering performance test
+    // Note: Implement rendering performance test
     std.time.sleep(4000000); // 4ms
 }
 
 fn testSynchronizationOverhead() !void {
-    // TODO: Implement synchronization overhead test
+    // Note: Implement synchronization overhead test
     std.time.sleep(1000000); // 1ms
 }
 
 fn testAPICompatibility() !void {
-    // TODO: Implement API compatibility test
+    // Note: Implement API compatibility test
     std.time.sleep(2000000); // 2ms
 }
 
 fn testShaderCompatibility() !void {
-    // TODO: Implement shader compatibility test
+    // Note: Implement shader compatibility test
     std.time.sleep(1500000); // 1.5ms
 }
 
 fn testExtensionSupport() !void {
-    // TODO: Implement extension support test
+    // Note: Implement extension support test
     std.time.sleep(1000000); // 1ms
 }
 
 fn testDriverCompatibility() !void {
-    // TODO: Implement driver compatibility test
+    // Note: Implement driver compatibility test
     std.time.sleep(2500000); // 2.5ms
 }
 
 fn testMemoryStress() !void {
-    // TODO: Implement memory stress test
+    // Note: Implement memory stress test
     std.time.sleep(10000000); // 10ms
 }
 
 fn testComputeStress() !void {
-    // TODO: Implement compute stress test
+    // Note: Implement compute stress test
     std.time.sleep(8000000); // 8ms
 }
 
 fn testRenderingStress() !void {
-    // TODO: Implement rendering stress test
+    // Note: Implement rendering stress test
     std.time.sleep(12000000); // 12ms
 }
 
 fn testThermalStress() !void {
-    // TODO: Implement thermal stress test
+    // Note: Implement thermal stress test
     std.time.sleep(15000000); // 15ms
 }

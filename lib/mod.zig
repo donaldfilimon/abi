@@ -26,6 +26,7 @@ pub const Feature = framework.Feature;
 pub const Framework = framework.Framework;
 pub const FrameworkOptions = framework.FrameworkOptions;
 pub const RuntimeConfig = framework.RuntimeConfig;
+pub const runtimeConfigFromOptions = framework.runtimeConfigFromOptions;
 pub const logging = @import("shared/logging/mod.zig");
 pub const plugins = @import("shared/mod.zig");
 pub const observability = @import("shared/observability/mod.zig");
@@ -128,18 +129,6 @@ fn resolveRuntimeConfig(
     };
 }
 
-fn featureToTag(feature: framework.Feature) ?features.FeatureTag {
-    return switch (feature) {
-        .ai => .ai,
-        .database => .database,
-        .web => .web,
-        .monitoring => .monitoring,
-        .gpu => .gpu,
-        .connectors => .connectors,
-        .simd => null,
-    };
-}
-
 test {
     std.testing.refAllDecls(@This());
 }
@@ -158,4 +147,22 @@ test "framework initialization" {
     try std.testing.expect(!framework_instance.isRunning());
     try std.testing.expect(framework_instance.isFeatureEnabled(.ai));
     try std.testing.expect(framework_instance.isFeatureEnabled(.database));
+}
+
+test "framework options convert to runtime config" {
+    const options = FrameworkOptions{
+        .enable_ai = false,
+        .enable_gpu = true,
+        .disabled_features = &.{.gpu},
+        .plugin_paths = &.{"/opt/abi/plugins"},
+        .auto_discover_plugins = true,
+    };
+
+    const config = try runtimeConfigFromOptions(std.testing.allocator, options);
+
+    try std.testing.expect(std.mem.indexOfScalar(features.FeatureTag, config.enabled_features, .ai) == null);
+    try std.testing.expect(std.mem.indexOfScalar(features.FeatureTag, config.enabled_features, .gpu) != null);
+    try std.testing.expect(std.mem.indexOfScalar(features.FeatureTag, config.disabled_features, .gpu) != null);
+    try std.testing.expectEqualStrings("/opt/abi/plugins", config.plugin_paths[0]);
+    try std.testing.expect(config.auto_discover_plugins);
 }

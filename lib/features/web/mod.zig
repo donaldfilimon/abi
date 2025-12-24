@@ -11,6 +11,7 @@ pub const WdbxHttpServer = wdbx_http.WdbxHttpServer;
 // HTTP clients and utilities
 pub const http_client = @import("http_client.zig");
 pub const curl_wrapper = @import("curl_wrapper.zig");
+pub const python_bindings = @import("python_bindings.zig");
 
 // Specialized web services
 pub const wdbx_http = @import("wdbx_http.zig");

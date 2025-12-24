@@ -22,6 +22,27 @@ pub const RateLimitConfig = struct {
     window_seconds: u32 = 60,
 };
 
+/// Time provider for rate limiting (injectable for deterministic tests).
+pub const TimeProvider = struct {
+    context: ?*anyopaque,
+    now_fn: *const fn (context: ?*anyopaque) i64,
+
+    pub fn system() TimeProvider {
+        return .{
+            .context = null,
+            .now_fn = systemNow,
+        };
+    }
+
+    pub fn timestamp(self: TimeProvider) i64 {
+        return self.now_fn(self.context);
+    }
+
+    fn systemNow(_: ?*anyopaque) i64 {
+        return std.time.timestamp();
+    }
+};
+
 /// Input validation errors
 pub const ValidationError = error{
     PayloadTooLarge,
@@ -131,12 +152,22 @@ pub const RateLimiter = struct {
     allocator: std.mem.Allocator,
     config: RateLimitConfig,
     records: std.AutoHashMap(u32, RequestRecord), // IP -> record
+    time_provider: TimeProvider,
 
     pub fn init(allocator: std.mem.Allocator, config: RateLimitConfig) RateLimiter {
+        return initWithTimeProvider(allocator, config, TimeProvider.system());
+    }
+
+    pub fn initWithTimeProvider(
+        allocator: std.mem.Allocator,
+        config: RateLimitConfig,
+        time_provider: TimeProvider,
+    ) RateLimiter {
         return .{
             .allocator = allocator,
             .config = config,
             .records = std.AutoHashMap(u32, RequestRecord).init(allocator),
+            .time_provider = time_provider,
         };
     }
 
@@ -146,8 +177,8 @@ pub const RateLimiter = struct {
 
     /// Check if request from IP address is allowed
     pub fn checkLimit(self: *RateLimiter, ip: u32) ValidationError!void {
-        const now = std.time.timestamp();
-        const window_start = now - self.config.window_seconds;
+        const now = self.time_provider.timestamp();
+        const window_start = now - @as(i64, @intCast(self.config.window_seconds));
 
         var record = self.records.get(ip) orelse RequestRecord{
             .timestamp = now,

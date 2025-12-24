@@ -3,10 +3,9 @@
 ## Build/Test Commands
 - `zig build` - Build library + CLI
 - `zig build test` - Run all tests
-- `zig test tests/unit/test_*.zig` - Run specific unit test
+- `zig test tests/mod.zig` - Run smoke tests directly
 - `zig build run` - Run CLI
 - `zig fmt .` - Format code
-- `zig build docs` - Generate docs
 
 ## Code Style Guidelines
 - **Formatting**: 4 spaces, 100 char lines, `zig fmt` required
@@ -15,12 +14,11 @@
 - **Error Handling**: Use `!` return types, `errdefer` for cleanup, `try` for propagation
 - **Memory**: Use GPA for general allocation, arena allocators for temporaries
 - **Documentation**: Module-level docs with `//!`, function docs with `///`, examples in ```zig blocks
-- **Testing**: `test` blocks at file end, use `testing.allocator`, comprehensive coverage required
+- **Testing**: `test` blocks at file end, use `testing.allocator`
 
 ## Development Workflow
 1. Format with `zig fmt .`
 2. Build and test with `zig build test`
 3. Run specific tests as needed
 4. Update documentation for public APIs
-5. Follow security best practices (no secrets in code, validate inputs)</content>
-<parameter name="filePath">AGENTS.md
+5. Follow security best practices (no secrets in code, validate inputs)

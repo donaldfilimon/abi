@@ -422,7 +422,7 @@ pub const PlatformMetrics = struct {
     pub fn benchmark(self: *PlatformOptimizations, config: PlatformConfig) !void {
         _ = self;
         _ = config;
-        // TODO: Implement platform-specific benchmarking
+        // Note: Implement platform-specific benchmarking
     }
 };
 

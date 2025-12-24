@@ -94,21 +94,22 @@ pub const PerformanceMonitor = struct {
 
 var global_monitor = PerformanceMonitor.init();
 
-inline fn beginTiming() i128 {
-    return std.time.nanoTimestamp();
+inline fn beginTiming() std.time.Instant {
+    return std.time.Instant.now() catch return .{ .timestamp = 0 };
 }
 
-inline fn finishTiming(start: i128, used_simd: bool) void {
-    const end = std.time.nanoTimestamp();
-    const delta = end - start;
-    const duration: u64 = if (delta <= 0) 0 else @as(u64, @intCast(delta));
-    global_monitor.recordOperation(duration, used_simd);
+inline fn finishTiming(start: std.time.Instant, used_simd: bool) void {
+    const end = std.time.Instant.now() catch {
+        global_monitor.recordOperation(0, used_simd);
+        return;
+    };
+    global_monitor.recordOperation(end.since(start), used_simd);
 }
 
 inline fn loadVector(slice: []const f32) FloatVector {
     std.debug.assert(slice.len >= SIMD_WIDTH);
     std.debug.assert(@alignOf(@TypeOf(slice.ptr)) >= @alignOf(FloatVector) or
-        std.math.isAligned(@intFromPtr(slice.ptr), @alignOf(FloatVector)));
+        std.mem.isAligned(@intFromPtr(slice.ptr), @alignOf(FloatVector)));
     const ptr = @as(*const [SIMD_WIDTH]f32, @ptrCast(slice.ptr));
     return @as(FloatVector, ptr.*);
 }

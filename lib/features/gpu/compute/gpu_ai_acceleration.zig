@@ -127,6 +127,7 @@ pub const MatrixOps = struct {
 
         // GPU failed or not available, use CPU fallback
         try matmulCpu(a, b, c);
+        c.is_on_gpu = false;
     }
 
     /// GPU-accelerated matrix multiplication with optimized dispatch
@@ -147,7 +148,13 @@ pub const MatrixOps = struct {
         // Dispatch optimized kernel based on matrix size
         self.dispatchMatmulKernel(a.gpu_buffer.?, b.gpu_buffer.?, c.gpu_buffer.?, m, n, p) catch |err| {
             switch (err) {
-                gpu_renderer.GpuError.UnsupportedBackend, gpu_renderer.GpuError.InitializationFailed, gpu_renderer.GpuError.DeviceNotFound => return false,
+                gpu_renderer.GpuError.UnsupportedBackend,
+                gpu_renderer.GpuError.InitializationFailed,
+                gpu_renderer.GpuError.DeviceNotFound,
+                => {
+                    c.is_on_gpu = false;
+                    return false;
+                },
                 else => return err,
             }
         };

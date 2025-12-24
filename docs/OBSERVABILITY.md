@@ -1,10 +1,18 @@
 # Observability
 
-All agent operations should emit structured logs, metrics, and trace
-identifiers. Use `std.log` for JSON-formatted logs and avoid writing secrets.
-Metrics belong in `src/features/monitoring/metrics.zig` and should capture
-provider latency, retry counts, and token usage.
+ABI exposes monitoring utilities under `abi.monitoring`:
 
-When integrating with external systems prefer OpenTelemetry-compatible formats.
-Attach correlation IDs to WDBX persistence records for audit trails. Retain only
-the minimum personally identifiable information required for debugging.
+- `logging.zig`: structured logging helpers
+- `metrics.zig`: metrics primitives and Prometheus helpers
+- `tracing.zig`: trace spans and context propagation
+- `performance.zig` / `performance_profiler.zig`: profiling helpers
+- `memory_tracker.zig`: allocation tracking
+- `health.zig`: health checks
+
+## Usage
+Import the feature module:
+```zig
+const monitoring = abi.monitoring;
+```
+
+Enable observability by wiring the helpers into your application lifecycle.

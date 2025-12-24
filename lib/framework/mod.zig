@@ -3,10 +3,11 @@
 //! Core framework orchestration and runtime management
 
 const std = @import("std");
-const features = @import("../features/mod.zig");
-
 pub const runtime = @import("runtime.zig");
 pub const config = @import("config.zig");
+pub const catalog = @import("catalog.zig");
+pub const feature_manager = @import("feature_manager.zig");
+pub const state = @import("state.zig");
 
 // Re-export main types for convenience
 pub const Framework = runtime.Framework;
@@ -26,57 +27,13 @@ pub const FrameworkOptions = config.FrameworkOptions;
 pub const featureLabel = config.featureLabel;
 pub const featureDescription = config.featureDescription;
 pub const deriveFeatureToggles = config.deriveFeatureToggles;
+pub const runtimeConfigFromOptions = config.runtimeConfigFromOptions;
 
 test "framework module refAllDecls" {
     std.testing.refAllDecls(@This());
 }
 
-fn featureToTag(feature: Feature) ?features.FeatureTag {
-    return switch (feature) {
-        .ai => .ai,
-        .database => .database,
-        .web => .web,
-        .monitoring => .monitoring,
-        .gpu => .gpu,
-        .connectors => .connectors,
-        .simd => null,
-    };
-}
-
-/// Convert public framework options into a runtime configuration.
-/// The returned slices are allocator-owned and should be freed by the caller.
-pub fn runtimeConfigFromOptions(allocator: std.mem.Allocator, options: FrameworkOptions) !RuntimeConfig {
-    var toggles = deriveFeatureToggles(options);
-
-    var enabled_tags = try std.ArrayList(features.FeatureTag).initCapacity(allocator, 0);
-
-    var toggle_iter = toggles.iterator();
-    while (toggle_iter.next()) |feature| {
-        if (featureToTag(feature)) |tag| {
-            try enabled_tags.append(allocator, tag);
-        }
-    }
-
-    var disabled_tags = try std.ArrayList(features.FeatureTag).initCapacity(allocator, 0);
-    for (options.disabled_features) |feature| {
-        if (featureToTag(feature)) |tag| {
-            try disabled_tags.append(allocator, tag);
-        }
-    }
-
-    const enabled_features = try enabled_tags.toOwnedSlice(allocator);
-    errdefer allocator.free(enabled_features);
-
-    const disabled_features = try disabled_tags.toOwnedSlice(allocator);
-    errdefer allocator.free(disabled_features);
-
-    return RuntimeConfig{
-        .enabled_features = enabled_features,
-        .disabled_features = disabled_features,
-    };
-}
-
-fn containsFeature(haystack: []const features.FeatureTag, needle: features.FeatureTag) bool {
+fn containsFeature(haystack: []const Feature, needle: Feature) bool {
     for (haystack) |feature| {
         if (feature == needle) return true;
     }
@@ -92,9 +49,7 @@ test "runtimeConfigFromOptions maps feature toggles" {
         .disabled_features = &.{.web},
     };
 
-    var runtime_config = try runtimeConfigFromOptions(testing.allocator, options);
-    defer testing.allocator.free(runtime_config.enabled_features);
-    defer testing.allocator.free(runtime_config.disabled_features);
+    const runtime_config = try runtimeConfigFromOptions(testing.allocator, options);
 
     try testing.expect(!containsFeature(runtime_config.enabled_features, .ai));
     try testing.expect(containsFeature(runtime_config.enabled_features, .gpu));

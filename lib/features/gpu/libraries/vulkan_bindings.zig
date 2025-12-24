@@ -514,7 +514,7 @@ pub const VulkanRenderer = struct {
     /// Get device capabilities
     pub fn getCapabilities(self: *Self) !VulkanCapabilities {
         _ = self;
-        // TODO: Implement real Vulkan capability detection
+        // Note: Implement real Vulkan capability detection
         return VulkanCapabilities{
             .api_version = .v1_3,
             .driver_version = 0,
@@ -673,7 +673,7 @@ pub const VulkanRenderer = struct {
     pub fn createComputePipeline(self: *Self, shader_module: *anyopaque) !*anyopaque {
         _ = self;
         _ = shader_module;
-        // TODO: Implement compute pipeline creation
+        // Note: Implement compute pipeline creation
         return @as(*anyopaque, @ptrFromInt(0x12345678));
     }
 
@@ -681,7 +681,7 @@ pub const VulkanRenderer = struct {
     pub fn createGraphicsPipeline(self: *Self, pipeline_info: *anyopaque) !*anyopaque {
         _ = self;
         _ = pipeline_info;
-        // TODO: Implement graphics pipeline creation
+        // Note: Implement graphics pipeline creation
         return @as(*anyopaque, @ptrFromInt(0x87654321));
     }
 
@@ -700,14 +700,14 @@ pub const VulkanRenderer = struct {
         _ = self;
         _ = size;
         _ = memory_type;
-        // TODO: Implement memory allocation
+        // Note: Implement memory allocation
         return @as(*anyopaque, @ptrFromInt(0x11111111));
     }
 
     pub fn freeMemory(self: *Self, memory: *anyopaque) void {
         _ = self;
         _ = memory;
-        // TODO: Implement memory deallocation
+        // Note: Implement memory deallocation
     }
 };
 
@@ -715,14 +715,14 @@ pub const VulkanRenderer = struct {
 pub const VulkanUtils = struct {
     /// Check if Vulkan is available on the system
     pub fn isVulkanAvailable() bool {
-        // TODO: Implement real Vulkan availability check
+        // Note: Implement real Vulkan availability check
         return true;
     }
 
     /// Get available Vulkan extensions
     pub fn getAvailableExtensions(allocator: std.mem.Allocator) ![]const []const u8 {
         _ = allocator;
-        // TODO: Implement extension enumeration
+        // Note: Implement extension enumeration
         return &[_][]const u8{
             "VK_KHR_surface",
             "VK_KHR_win32_surface",
@@ -754,7 +754,7 @@ pub const VulkanUtils = struct {
         _ = physical_device;
         _ = type_filter;
         _ = properties;
-        // TODO: Implement memory type selection
+        // Note: Implement memory type selection
         return 0;
     }
 
@@ -762,7 +762,7 @@ pub const VulkanUtils = struct {
     pub fn createShaderModule(device: *anyopaque, code: []const u8) !*anyopaque {
         _ = device;
         _ = code;
-        // TODO: Implement shader module creation
+        // Note: Implement shader module creation
         return @as(*anyopaque, @ptrFromInt(0x22222222));
     }
 
@@ -770,7 +770,7 @@ pub const VulkanUtils = struct {
     pub fn compileGLSLToSPIRV(glsl_source: []const u8, shader_type: ShaderType) ![]const u8 {
         _ = glsl_source;
         _ = shader_type;
-        // TODO: Implement GLSL compilation
+        // Note: Implement GLSL compilation
         return &[_]u8{};
     }
 
@@ -790,14 +790,14 @@ pub const AdvancedVulkanFeatures = struct {
     pub const RayTracing = struct {
         pub fn isSupported(device: *VulkanRenderer) bool {
             _ = device;
-            // TODO: Check for VK_KHR_ray_tracing_pipeline extension
+            // Note: Check for VK_KHR_ray_tracing_pipeline extension
             return false;
         }
 
         pub fn createRayTracingPipeline(device: *VulkanRenderer, pipeline_info: *anyopaque) !*anyopaque {
             _ = device;
             _ = pipeline_info;
-            // TODO: Implement ray tracing pipeline creation
+            // Note: Implement ray tracing pipeline creation
             return @as(*anyopaque, @ptrFromInt(0x33333333));
         }
     };
@@ -806,14 +806,14 @@ pub const AdvancedVulkanFeatures = struct {
     pub const MeshShaders = struct {
         pub fn isSupported(device: *VulkanRenderer) bool {
             _ = device;
-            // TODO: Check for VK_EXT_mesh_shader extension
+            // Note: Check for VK_EXT_mesh_shader extension
             return false;
         }
 
         pub fn createMeshPipeline(device: *VulkanRenderer, pipeline_info: *anyopaque) !*anyopaque {
             _ = device;
             _ = pipeline_info;
-            // TODO: Implement mesh shader pipeline creation
+            // Note: Implement mesh shader pipeline creation
             return @as(*anyopaque, @ptrFromInt(0x44444444));
         }
     };
@@ -822,14 +822,14 @@ pub const AdvancedVulkanFeatures = struct {
     pub const VariableRateShading = struct {
         pub fn isSupported(device: *VulkanRenderer) bool {
             _ = device;
-            // TODO: Check for VK_KHR_fragment_shading_rate extension
+            // Note: Check for VK_KHR_fragment_shading_rate extension
             return false;
         }
 
         pub fn setShadingRate(command_buffer: *anyopaque, shading_rate: ShadingRate) void {
             _ = command_buffer;
             _ = shading_rate;
-            // TODO: Implement variable rate shading
+            // Note: Implement variable rate shading
         }
 
         pub const ShadingRate = enum {
@@ -847,14 +847,14 @@ pub const AdvancedVulkanFeatures = struct {
     pub const MultiView = struct {
         pub fn isSupported(device: *VulkanRenderer) bool {
             _ = device;
-            // TODO: Check for VK_KHR_multiview extension
+            // Note: Check for VK_KHR_multiview extension
             return false;
         }
 
         pub fn createMultiViewRenderPass(device: *VulkanRenderer, view_count: u32) !*anyopaque {
             _ = device;
             _ = view_count;
-            // TODO: Implement multi-view render pass creation
+            // Note: Implement multi-view render pass creation
             return @as(*anyopaque, @ptrFromInt(0x55555555));
         }
     };

@@ -19,6 +19,19 @@ docs/build/
 node_modules/
 .bun/
 
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.venv/
+venv/
+
 # Test and benchmark results
 *.test
 *.bench

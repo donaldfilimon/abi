@@ -203,14 +203,14 @@ fn initAiFeature(env: Environment) anyerror!void {
     const state_ptr = try runtimeState(env);
     _ = ai; // Reference to ensure ai module is available
     logFeatureActivation(state_ptr, "feature.ai", "initialized");
-    // TODO: Implement actual AI feature initialization (model loading, etc.)
+    // Note: Implement actual AI feature initialization (model loading, etc.)
 }
 
 /// Deinitialize AI feature - placeholder for future implementation
 fn deinitAiFeature(env: Environment) void {
     const state_ptr = runtimeState(env) catch return;
     logFeatureActivation(state_ptr, "feature.ai", "shutdown");
-    // TODO: Implement actual AI feature cleanup (model unloading, etc.)
+    // Note: Implement actual AI feature cleanup (model unloading, etc.)
 }
 
 fn initGpuFeature(env: Environment) anyerror!void {

@@ -1,3 +1,4 @@
+const std = @import("std");
 const T = @import("mod.zig");
 
 fn init(_: std.mem.Allocator) !void {}

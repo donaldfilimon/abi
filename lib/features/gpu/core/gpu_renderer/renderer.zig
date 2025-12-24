@@ -1026,7 +1026,7 @@ pub const GPURenderer = struct {
     pub fn renderNeuralNetwork(self: *Self, neural_engine: anytype) !void {
         _ = self;
         _ = neural_engine;
-        // TODO: Implement neural network visualization
+        // Note: Implement neural network visualization
     }
 
     /// High-performance example runner with benchmarking

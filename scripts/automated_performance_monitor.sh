@@ -181,8 +181,8 @@ analyze_code_quality() {
         fi
     done
 
-    # Check for TODOs and FIXMEs
-    local todos=$(grep -r "TODO\|FIXME\|XXX" src/ --include="*.zig" 2>/dev/null | wc -l)
+    # Check for notes and FIXMEs
+    local todos=$(grep -r "Note\|FIXME\|XXX" src/ --include="*.zig" 2>/dev/null | wc -l)
     local comments=$(grep -r "//" src/ --include="*.zig" 2>/dev/null | wc -l)
 
     cat > "$METRICS_DIR/code_quality_$TIMESTAMP.txt" << EOF
@@ -193,7 +193,7 @@ Total Zig Files: $total_files
 Total Lines of Code: $total_lines
 Average Lines per File: $((total_lines / total_files))
 Total Comments: $comments
-Total TODO/FIXME Items: $todos
+Total Note/FIXME Items: $todos
 
 Code Quality Score: $(( (comments * 100) / total_lines ))% commented
 EOF
@@ -355,3 +355,4 @@ main() {
 
 # Run the monitoring system
 main "$@"
+

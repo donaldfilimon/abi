@@ -16,6 +16,14 @@ pub const CallResult = struct {
     err_msg: ?[]const u8 = null,
 };
 
+// Connector implementations
+pub const hf_inference = @import("hf_inference.zig");
+pub const local_scheduler = @import("local_scheduler.zig");
+pub const mock = @import("mock.zig");
+pub const ollama = @import("ollama.zig");
+pub const openai = @import("openai.zig");
+pub const plugin = @import("plugin.zig");
+
 pub const Connector = struct {
     name: []const u8,
     init: *const fn (allocator: std.mem.Allocator) anyerror!void,

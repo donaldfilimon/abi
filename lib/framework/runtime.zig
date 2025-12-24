@@ -7,7 +7,7 @@ const std = @import("std");
 const core = @import("../core/mod.zig");
 const features = @import("../features/mod.zig");
 
-const feature_tag_count = std.enums.values(features.FeatureTag).len;
+const feature_tag_count = features.feature_count;
 
 /// Framework runtime configuration
 pub const RuntimeConfig = struct {
@@ -71,9 +71,10 @@ pub const RuntimeConfig = struct {
 
 /// Creates a deep copy of RuntimeConfig with owned slices
 ///
-/// This function ensures that the feature slices in the returned config
-/// are owned by the allocator and can be safely freed. This prevents
-/// use-after-free errors when the original config points to const literals.
+/// This function ensures that the feature slices and plugin path list in the
+/// returned config are owned by the allocator and can be safely freed. This
+/// prevents use-after-free errors when the original config points to const
+/// literals.
 ///
 /// # Parameters
 /// - allocator: The allocator to use for copying slices
@@ -91,6 +92,10 @@ fn normalizeConfig(allocator: std.mem.Allocator, config: RuntimeConfig) !Runtime
     const disabled_features = try allocator.dupe(features.FeatureTag, config.disabled_features);
     errdefer allocator.free(disabled_features);
 
+    const plugin_paths = try allocator.alloc([]const u8, config.plugin_paths.len);
+    errdefer allocator.free(plugin_paths);
+    std.mem.copy([]const u8, plugin_paths, config.plugin_paths);
+
     return RuntimeConfig{
         .max_plugins = config.max_plugins,
         .enable_hot_reload = config.enable_hot_reload,
@@ -99,6 +104,10 @@ fn normalizeConfig(allocator: std.mem.Allocator, config: RuntimeConfig) !Runtime
         .log_level = config.log_level,
         .enabled_features = enabled_features,
         .disabled_features = disabled_features,
+        .plugin_paths = plugin_paths,
+        .auto_discover_plugins = config.auto_discover_plugins,
+        .auto_register_plugins = config.auto_register_plugins,
+        .auto_start_plugins = config.auto_start_plugins,
     };
 }
 
@@ -196,13 +205,11 @@ pub const Framework = struct {
         errdefer {
             allocator.free(normalized_config.enabled_features);
             allocator.free(normalized_config.disabled_features);
+            allocator.free(normalized_config.plugin_paths);
         }
 
         // Calculate enabled features
-        var enabled_features = features.config.FeatureFlags.initEmpty();
-        for (normalized_config.enabled_features) |feature| {
-            enabled_features.set(features.config.tagIndex(feature));
-        }
+        var enabled_features = features.config.createFlags(normalized_config.enabled_features);
 
         // Remove disabled features
         for (normalized_config.disabled_features) |feature| {
@@ -238,6 +245,7 @@ pub const Framework = struct {
         self.component_registry.deinit();
         self.allocator.free(self.config.enabled_features);
         self.allocator.free(self.config.disabled_features);
+        self.allocator.free(self.config.plugin_paths);
     }
 
     pub fn registerComponent(self: *Self, component: Component) !void {

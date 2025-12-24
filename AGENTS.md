@@ -4,7 +4,7 @@
 ```bash
 zig build                    # Build library + CLI
 zig build test              # Run all tests
-zig test tests/unit/test_file.zig  # Run individual test file
+zig test tests/mod.zig      # Run smoke tests directly
 zig fmt .                   # Format code (required before commits)
 ```
 
@@ -28,5 +28,4 @@ zig build -Doptimize=ReleaseSmall  # Minimize binary size
 - **Imports**: Group std first, then local; explicit imports only (no `usingnamespace`)
 - **Error Handling**: Use `!` return types, `errdefer` for cleanup, specific error enums
 - **Memory**: Use `defer` for cleanup, GPA for testing, arena allocators for temporaries
-- **Documentation**: `//!` module docs, `///` function docs with # Parameters/Returns/Errors sections</content>
-<parameter name="filePath">C:\Users\donald\abi\AGENTS.md
+- **Documentation**: `//!` module docs, `///` function docs with # Parameters/Returns/Errors sections

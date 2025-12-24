@@ -1,5 +1,6 @@
 const std = @import("std");
 const features = @import("../features/mod.zig");
+const runtime = @import("runtime.zig");
 
 /// Enumerates the coarse feature families that can be toggled at runtime.
 pub const Feature = features.FeatureTag;
@@ -152,6 +153,39 @@ pub fn deriveFeatureToggles(options: FrameworkOptions) FeatureToggles {
 
     toggles.disableMany(options.disabled_features);
     return toggles;
+}
+
+/// Convert framework options into a runtime configuration without heap allocations.
+pub fn runtimeConfigFromOptions(
+    allocator: std.mem.Allocator,
+    options: FrameworkOptions,
+) !runtime.RuntimeConfig {
+    _ = allocator;
+    const feature_capacity = feature_count;
+
+    var enabled = std.BoundedArray(Feature, feature_capacity).init(0) catch unreachable;
+    var toggles = deriveFeatureToggles(options);
+    var iterator = toggles.iterator();
+    while (iterator.next()) |feature| {
+        enabled.append(feature) catch unreachable;
+    }
+
+    var disabled = std.BoundedArray(Feature, feature_capacity).init(0) catch unreachable;
+    for (options.disabled_features) |feature| {
+        disabled.append(feature) catch unreachable;
+    }
+
+    var config = runtime.RuntimeConfig{
+        .plugin_paths = options.plugin_paths,
+        .auto_discover_plugins = options.auto_discover_plugins,
+        .auto_register_plugins = options.auto_register_plugins,
+        .auto_start_plugins = options.auto_start_plugins,
+    };
+    config.feature_storage.setEnabled(enabled.constSlice());
+    config.feature_storage.setDisabled(disabled.constSlice());
+    config.enabled_features = config.feature_storage.enabledSlice();
+    config.disabled_features = config.feature_storage.disabledSlice();
+    return config;
 }
 
 test "feature toggles enable and disable entries" {

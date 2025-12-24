@@ -143,6 +143,41 @@ pub const HttpClient = struct {
         server_error: anyerror,
     };
 
+    fn parseMethod(method: []const u8) ?std.http.Method {
+        if (std.ascii.eqlIgnoreCase(method, "GET")) return .GET;
+        if (std.ascii.eqlIgnoreCase(method, "POST")) return .POST;
+        if (std.ascii.eqlIgnoreCase(method, "PUT")) return .PUT;
+        if (std.ascii.eqlIgnoreCase(method, "DELETE")) return .DELETE;
+        if (std.ascii.eqlIgnoreCase(method, "PATCH")) return .PATCH;
+        if (std.ascii.eqlIgnoreCase(method, "HEAD")) return .HEAD;
+        if (std.ascii.eqlIgnoreCase(method, "OPTIONS")) return .OPTIONS;
+        return null;
+    }
+
+    fn mapRequestError(err: anyerror) RequestResult {
+        return switch (err) {
+            error.TimedOut, error.ConnectionTimedOut => .{ .timeout = {} },
+            error.ConnectionRefused,
+            error.ConnectionResetByPeer,
+            error.NetworkUnreachable,
+            error.NameResolutionFailure,
+            => .{ .connection_failed = {} },
+            error.BrokenPipe,
+            error.ConnectionAborted,
+            => .{ .network_error = {} },
+            else => .{ .client_error = err },
+        };
+    }
+
+    fn deinitHeaderMap(allocator: std.mem.Allocator, headers: *std.StringHashMap([]const u8)) void {
+        var iterator = headers.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        headers.deinit();
+    }
+
     /// Make request using libcurl (if available)
     fn requestWithLibcurl(self: *Self, method: []const u8, url: []const u8, content_type: ?[]const u8, body: ?[]const u8) RequestResult {
         // This is a placeholder for libcurl integration
@@ -154,23 +189,80 @@ pub const HttpClient = struct {
 
     /// Make request using native Zig HTTP client
     fn requestWithNative(self: *Self, method: []const u8, url: []const u8, content_type: ?[]const u8, body: ?[]const u8) RequestResult {
-        // TODO: HTTP client implementation needs to be updated for current Zig version
-        // The Zig HTTP client API has changed significantly and needs proper implementation
+        var client = std.http.Client{ .allocator = self.allocator };
+        defer client.deinit();
 
-        _ = method;
-        _ = url;
-        _ = content_type;
-        _ = body;
+        const http_method = parseMethod(method) orelse return .{ .client_error = error.UnsupportedHttpMethod };
+        const uri = std.Uri.parse(url) catch |err| return mapRequestError(err);
 
-        // For now, return a placeholder response to allow compilation
-        const response_body = self.allocator.dupe(u8, "{\"error\":\"HTTP client not fully implemented for this Zig version\"}") catch |err| {
-            return RequestResult{ .client_error = err };
+        var req = client.request(http_method, uri, .{}) catch |err| return mapRequestError(err);
+        defer req.deinit();
+
+        if (content_type) |ct| {
+            req.headers.content_type = .{ .override = ct };
+        }
+        req.headers.user_agent = .{ .override = self.config.user_agent };
+
+        const request_body = body orelse &.{};
+        req.sendBodyComplete(request_body) catch |err| return mapRequestError(err);
+
+        var redirect_buf: [1024]u8 = undefined;
+        var response = req.receiveHead(&redirect_buf) catch |err| return mapRequestError(err);
+
+        var response_headers = std.StringHashMap([]const u8).init(self.allocator);
+        var header_iter = response.head.headers.iterator();
+        while (header_iter.next()) |header| {
+            const name_owned = self.allocator.dupe(u8, header.name) catch |err| {
+                deinitHeaderMap(self.allocator, &response_headers);
+                return mapRequestError(err);
+            };
+            const value_owned = self.allocator.dupe(u8, header.value) catch |err| {
+                self.allocator.free(name_owned);
+                deinitHeaderMap(self.allocator, &response_headers);
+                return mapRequestError(err);
+            };
+            response_headers.put(name_owned, value_owned) catch |err| {
+                self.allocator.free(name_owned);
+                self.allocator.free(value_owned);
+                deinitHeaderMap(self.allocator, &response_headers);
+                return mapRequestError(err);
+            };
+        }
+
+        var response_body_list = std.ArrayList(u8).initCapacity(self.allocator, 0) catch |err| {
+            deinitHeaderMap(self.allocator, &response_headers);
+            return mapRequestError(err);
         };
 
-        const status_code: u16 = 501; // Not Implemented
+        var buffer: [8192]u8 = undefined;
+        const reader = response.reader(&.{});
+        while (true) {
+            var slices = [_][]u8{buffer[0..]};
+            const n = reader.readVec(slices[0..]) catch |err| switch (err) {
+                error.ReadFailed => {
+                    response_body_list.deinit(self.allocator);
+                    deinitHeaderMap(self.allocator, &response_headers);
+                    if (response.bodyErr()) |body_err| {
+                        return mapRequestError(body_err);
+                    }
+                    return .{ .network_error = {} };
+                },
+                error.EndOfStream => 0,
+            };
+            if (n == 0) break;
+            response_body_list.appendSlice(self.allocator, buffer[0..n]) catch |err| {
+                response_body_list.deinit(self.allocator);
+                deinitHeaderMap(self.allocator, &response_headers);
+                return mapRequestError(err);
+            };
+        }
 
-        // Create minimal headers
-        const response_headers = std.StringHashMap([]const u8).init(self.allocator);
+        const response_body = response_body_list.toOwnedSlice(self.allocator) catch |err| {
+            response_body_list.deinit(self.allocator);
+            deinitHeaderMap(self.allocator, &response_headers);
+            return mapRequestError(err);
+        };
+        const status_code: u16 = @intCast(@intFromEnum(response.head.status));
 
         return RequestResult{ .success = HttpResponse{
             .status_code = status_code,
@@ -203,15 +295,104 @@ pub const HttpClient = struct {
 
     /// Detect if libcurl is available at runtime
     fn detectLibcurl() bool {
-        // Try to load libcurl dynamically
-        // This is a simplified check - in production you'd use proper dynamic loading
-        if (builtin.os.tag == .windows) {
-            // Check for curl.dll or libcurl.dll
-            return false; // Placeholder - implement actual detection
-        } else {
-            // Check for libcurl.so
-            return false; // Placeholder - implement actual detection
+        const candidates = switch (builtin.os.tag) {
+            .windows => &[_][]const u8{
+                "libcurl.dll",
+                "curl.dll",
+            },
+            .macos, .ios, .tvos, .watchos, .visionos => &[_][]const u8{
+                "libcurl.dylib",
+                "libcurl.4.dylib",
+            },
+            else => &[_][]const u8{
+                "libcurl.so.4",
+                "libcurl.so",
+            },
+        };
+
+        for (candidates) |name| {
+            var lib = std.DynLib.open(name) catch continue;
+            lib.close();
+            return true;
         }
+
+        return false;
+    }
+
+    fn performNativeRequest(self: *Self, method: []const u8, url: []const u8, content_type: ?[]const u8, body: ?[]const u8) !HttpResponse {
+        const http_method = std.meta.stringToEnum(std.http.Method, method) orelse
+            return error.InvalidHttpMethod;
+
+        var client = std.http.Client{ .allocator = self.allocator };
+        defer client.deinit();
+
+        var headers: std.http.Client.Request.Headers = .{};
+        headers.user_agent = .{ .override = self.config.user_agent };
+        if (content_type) |ct| {
+            headers.content_type = .{ .override = ct };
+        }
+
+        const redirect_behavior = if (self.config.follow_redirects and self.config.max_redirects > 0) b: {
+            const redirect_limit = @min(self.config.max_redirects, @as(u32, std.math.maxInt(u16)));
+            break :b std.http.Client.Request.RedirectBehavior.init(@intCast(redirect_limit));
+        } else .not_allowed;
+
+        var req = try client.request(http_method, try std.Uri.parse(url), .{
+            .headers = headers,
+            .redirect_behavior = redirect_behavior,
+        });
+        defer req.deinit();
+
+        if (body) |payload| {
+            try req.sendBodyComplete(@constCast(payload));
+        } else if (http_method.requestHasBody()) {
+            try req.sendBodyComplete(&.{});
+        } else {
+            try req.sendBodiless();
+        }
+
+        var redirect_buf: [1024]u8 = undefined;
+        var response = try req.receiveHead(&redirect_buf);
+
+        var response_headers = std.StringHashMap([]const u8).init(self.allocator);
+        errdefer {
+            var iterator = response_headers.iterator();
+            while (iterator.next()) |entry| {
+                self.allocator.free(entry.key_ptr.*);
+                self.allocator.free(entry.value_ptr.*);
+            }
+            response_headers.deinit();
+        }
+
+        var header_iter = response.head.iterateHeaders();
+        while (header_iter.next()) |header| {
+            const name = try self.allocator.dupe(u8, header.name);
+            const value = try self.allocator.dupe(u8, header.value);
+            try response_headers.put(name, value);
+        }
+
+        var list = try std.ArrayList(u8).initCapacity(self.allocator, 0);
+        errdefer list.deinit(self.allocator);
+
+        var transfer_buf: [8192]u8 = undefined;
+        const rdr = response.reader(&transfer_buf);
+        while (true) {
+            const slice: []u8 = transfer_buf[0..];
+            var slices = [_][]u8{slice};
+            const n = rdr.readVec(slices[0..]) catch |err| switch (err) {
+                error.ReadFailed => return error.HttpRequestFailed,
+                error.EndOfStream => 0,
+            };
+            if (n == 0) break;
+            try list.appendSlice(self.allocator, transfer_buf[0..n]);
+        }
+
+        return HttpResponse{
+            .status_code = @intFromEnum(response.head.status),
+            .headers = response_headers,
+            .body = try list.toOwnedSlice(self.allocator),
+            .allocator = self.allocator,
+        };
     }
 };
 
@@ -280,17 +461,50 @@ test "HttpClient basic functionality" {
     const testing = std.testing;
     const allocator = testing.allocator;
 
-    var client = HttpClient.init(allocator, .{ .verbose = true });
+    var io_threaded = std.Io.Threaded.init(allocator);
+    defer io_threaded.deinit();
+    const io = io_threaded.io();
 
-    // Test URL parsing
-    const test_url = "http://httpbin.org/get";
-    const response = client.get(test_url) catch |err| {
-        // Skip test if network is not available
-        if (err == error.HttpRequestFailed) return;
-        return err;
-    };
+    var server = try std.Io.net.listen(.{ .ip4 = std.Io.net.Ip4Address.loopback(0) }, io, .{});
+    defer server.deinit(io);
+
+    const port = server.socket.address.getPort();
+    const url = try std.fmt.allocPrint(allocator, "http://127.0.0.1:{d}/", .{port});
+    defer allocator.free(url);
+
+    const handler = try std.Thread.spawn(.{}, handleTestServer, .{ io, &server });
+    defer handler.join();
+
+    var client = HttpClient.init(allocator, .{});
+    var response = try client.get(url);
     defer response.deinit();
 
-    try testing.expect(response.status_code == 200);
-    try testing.expect(response.body.len > 0);
+    try testing.expectEqual(@as(u16, 200), response.status_code);
+    try testing.expectEqualStrings("{\"ok\":true}", response.body);
+    try testing.expectEqualStrings("application/json", response.headers.get("Content-Type").?);
+    try testing.expectEqualStrings("true", response.headers.get("X-Test").?);
+}
+
+fn handleTestServer(io: std.Io, server: *std.Io.net.Server) !void {
+    var stream = try server.accept(io);
+    defer stream.close(io);
+
+    var read_buffer: [4096]u8 = undefined;
+    var write_buffer: [4096]u8 = undefined;
+    var reader = std.Io.net.Stream.Reader.init(stream, io, &read_buffer);
+    var writer = std.Io.net.Stream.Writer.init(stream, io, &write_buffer);
+
+    var http_server = std.http.Server.init(&reader.interface, &writer.interface);
+    var request = try http_server.receiveHead();
+
+    const headers = [_]std.http.Header{
+        .{ .name = "Content-Type", .value = "application/json" },
+        .{ .name = "X-Test", .value = "true" },
+    };
+
+    try request.respond("{\"ok\":true}", .{
+        .status = .ok,
+        .keep_alive = false,
+        .extra_headers = &headers,
+    });
 }

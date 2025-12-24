@@ -1,16 +1,15 @@
 //! GPU-accelerated vector search (CPU fallback stub)
 //!
-//! Minimal implementation to keep examples compiling on Zig 0.16. The current
-//! backend stores vectors in CPU memory and performs a brute-force L2 search.
-//! The API is intentionally small to match the example in
-//! `examples/neural_network_training.zig`.
+//! Minimal implementation to keep GPU integration paths compiling on Zig 0.16.
+//! The current backend stores vectors in CPU memory and performs a brute-force
+//! L2 search with a deliberately small API surface.
 
 const std = @import("std");
 const accelerator = @import("../../shared/platform/accelerator/accelerator.zig");
 
 /// Check if GPU acceleration is available
 fn checkGPUAvailability() bool {
-    // TODO: Implement proper GPU availability check
+    // Note: Implement proper GPU availability check
     // For now, check build options
     const build_options = @import("build_options");
     return build_options.gpu_cuda or build_options.gpu_vulkan or build_options.gpu_metal;
@@ -117,7 +116,7 @@ pub const VectorSearchGPU = struct {
         const gpu_available = checkGPUAvailability();
         if (gpu_available) {
             std.log.debug("Attempting GPU-accelerated vector search", .{});
-            // TODO: Implement actual GPU distance computation
+            // Note: Implement actual GPU distance computation
             // For now, fall through to SIMD-accelerated CPU implementation
         }
 

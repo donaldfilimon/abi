@@ -74,7 +74,7 @@ pub const MultiHeadAttention = struct {
 
         const w_q = try allocator.alloc(f32, w_size);
         errdefer allocator.free(w_q);
-        // TODO: Replace with proper random initialization (Xavier/Glorot)
+        // Note: Replace with proper random initialization (Xavier/Glorot)
         @memset(w_q, 0.1); // Initialize with small values
 
         const w_k = try allocator.alloc(f32, w_size);

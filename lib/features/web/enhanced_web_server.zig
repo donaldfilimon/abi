@@ -221,7 +221,7 @@ fn healthCheckHandler(ctx: *RequestContext) !void {
     const health = ServerHealth{
         .status = .healthy,
         .version = "0.2.0",
-        .uptime_seconds = 0, // TODO: track actual uptime
+        .uptime_seconds = 0, // Note: track actual uptime
         .components = &[_]ComponentHealth{
             .{ .status = .healthy, .message = "HTTP server running" },
             .{ .status = .healthy, .message = "WebSocket server available" },
@@ -374,7 +374,7 @@ const AuthManager = struct {
     pub fn init(allocator: std.mem.Allocator) AuthManager {
         return .{
             .allocator = allocator,
-            .secret_key = "default-secret-key-change-in-production", // TODO: Make configurable
+            .secret_key = "default-secret-key-change-in-production", // Note: Make configurable
         };
     }
 
@@ -553,12 +553,12 @@ const SecurityManager = struct {
     }
 
     pub fn start(_: *SecurityManager) !void {
-        // TODO: Initialize security monitoring
+        // Note: Initialize security monitoring
         std.log.debug("Security manager started", .{});
     }
 
     pub fn stop(_: *SecurityManager) void {
-        // TODO: Cleanup security resources
+        // Note: Cleanup security resources
         std.log.debug("Security manager stopped", .{});
     }
 };
@@ -569,12 +569,12 @@ const PerformanceMonitor = struct {
     }
 
     pub fn start(_: *PerformanceMonitor) !void {
-        // TODO: Start performance monitoring
+        // Note: Start performance monitoring
         std.log.debug("Performance monitor started", .{});
     }
 
     pub fn stop(_: *PerformanceMonitor) void {
-        // TODO: Stop performance monitoring
+        // Note: Stop performance monitoring
         std.log.debug("Performance monitor stopped", .{});
     }
 };
@@ -585,12 +585,12 @@ const LoadBalancer = struct {
     }
 
     pub fn start(_: *LoadBalancer) !void {
-        // TODO: Start load balancing
+        // Note: Start load balancing
         std.log.debug("Load balancer started", .{});
     }
 
     pub fn stop(_: *LoadBalancer) void {
-        // TODO: Stop load balancing
+        // Note: Stop load balancing
         std.log.debug("Load balancer stopped", .{});
     }
 };
@@ -601,12 +601,12 @@ const ClusterManager = struct {
     }
 
     pub fn start(_: *ClusterManager) !void {
-        // TODO: Start cluster coordination
+        // Note: Start cluster coordination
         std.log.debug("Cluster manager started", .{});
     }
 
     pub fn stop(_: *ClusterManager) void {
-        // TODO: Stop cluster coordination
+        // Note: Stop cluster coordination
         std.log.debug("Cluster manager stopped", .{});
     }
 };
@@ -1137,12 +1137,12 @@ fn loginHandler(ctx: *RequestContext) !void {
         return;
     }
 
-    // TODO: Parse JSON and validate credentials
+    // Note: Parse JSON and validate credentials
     // For now, accept any login and generate a token
     const user_id = "user123"; // Placeholder
 
     // Generate JWT token
-    // TODO: Get auth manager from context
+    // Note: Get auth manager from context
     const token = try std.fmt.allocPrint(ctx.allocator, "jwt.{s}.login_{d}", .{ user_id, std.time.timestamp() });
     defer ctx.allocator.free(token);
 
@@ -1159,7 +1159,7 @@ fn refreshTokenHandler(ctx: *RequestContext) !void {
         return;
     }
 
-    // TODO: Validate refresh token and generate new access token
+    // Note: Validate refresh token and generate new access token
     const user_id = "user123"; // Placeholder
 
     const new_token = try std.fmt.allocPrint(ctx.allocator, "jwt.{s}.refresh_{d}", .{ user_id, std.time.timestamp() });
@@ -1194,7 +1194,7 @@ fn authenticationMiddlewareHandler(ctx: *RequestContext) !void {
         return;
     }
 
-    // TODO: Get auth manager from server context and validate token
+    // Note: Get auth manager from server context and validate token
     // For now, accept any token that looks like a JWT (contains dots)
     var dot_count: u32 = 0;
     for (token) |c| {

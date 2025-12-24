@@ -96,43 +96,9 @@ pub fn build(b: *std.Build) void {
         }),
     });
     profile_exe.root_module.addImport("abi", abi_module);
-    profile_exe.linkLibC(); // For Tracy if enabled
 
     const profile_step = b.step("profile", "Build with performance profiling");
     profile_step.dependOn(b.getInstallStep());
 
-    // TODO: Fix benchmark build - time API issues
-    // const bench_exe = b.addExecutable(.{
-    //     .name = "benchmarks",
-    //     .root_module = b.createModule(.{
-    //         .root_source_file = b.path("benchmarks/main.zig"),
-    //         .target = target,
-    //         .optimize = .ReleaseFast,
-    //     }),
-    // });
-    // bench_exe.root_module.addImport("abi", abi_module);
-    // b.installArtifact(bench_exe);
-
-    // const bench_step = b.step("bench", "Build benchmarks");
-    // bench_step.dependOn(b.getInstallStep());
-
-    // Demo executable
-    const demo_exe = b.addExecutable(.{
-        .name = "demo",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("examples/demo.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    demo_exe.root_module.addImport("abi", abi_module);
-    b.installArtifact(demo_exe);
-
-    const run_demo = b.addRunArtifact(demo_exe);
-    run_demo.step.dependOn(b.getInstallStep());
-
-    const demo_step = b.step("run-demo", "Run the comprehensive demo");
-    demo_step.dependOn(&run_demo.step);
-
-    // TODO: Add documentation generation step
+    // Note: Add documentation generation step
 }
