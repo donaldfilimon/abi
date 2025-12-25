@@ -326,80 +326,80 @@ pub const CrossPlatformTestSuite = struct {
 // Test function implementations
 fn testGPUInitialization() !void {
     // Implement GPU initialization test
-    std.time.sleep(1000000); // 1ms
+    std.Thread.sleep(1000000); // 1ms
 }
 
 fn testMemoryAllocation() !void {
     // Implement memory allocation test
-    std.time.sleep(500000); // 0.5ms
+    std.Thread.sleep(500000); // 0.5ms
 }
 
 fn testBasicRendering() !void {
     // Implement basic rendering test
-    std.time.sleep(2000000); // 2ms
+    std.Thread.sleep(2000000); // 2ms
 }
 
 fn testComputeShaders() !void {
     // Implement compute shader test
-    std.time.sleep(1500000); // 1.5ms
+    std.Thread.sleep(1500000); // 1.5ms
 }
 
 fn testMemoryBandwidth() !void {
     // Implement memory bandwidth test
-    std.time.sleep(5000000); // 5ms
+    std.Thread.sleep(5000000); // 5ms
 }
 
 fn testComputeThroughput() !void {
     // Implement compute throughput test
-    std.time.sleep(3000000); // 3ms
+    std.Thread.sleep(3000000); // 3ms
 }
 
 fn testRenderingPerformance() !void {
     // Implement rendering performance test
-    std.time.sleep(4000000); // 4ms
+    std.Thread.sleep(4000000); // 4ms
 }
 
 fn testSynchronizationOverhead() !void {
     // Implement synchronization overhead test
-    std.time.sleep(1000000); // 1ms
+    std.Thread.sleep(1000000); // 1ms
 }
 
 fn testAPICompatibility() !void {
     // Implement API compatibility test
-    std.time.sleep(2000000); // 2ms
+    std.Thread.sleep(2000000); // 2ms
 }
 
 fn testShaderCompatibility() !void {
     // Implement shader compatibility test
-    std.time.sleep(1500000); // 1.5ms
+    std.Thread.sleep(1500000); // 1.5ms
 }
 
 fn testExtensionSupport() !void {
     // Implement extension support test
-    std.time.sleep(1000000); // 1ms
+    std.Thread.sleep(1000000); // 1ms
 }
 
 fn testDriverCompatibility() !void {
     // Implement driver compatibility test
-    std.time.sleep(2500000); // 2.5ms
+    std.Thread.sleep(2500000); // 2.5ms
 }
 
 fn testMemoryStress() !void {
     // Implement memory stress test
-    std.time.sleep(10000000); // 10ms
+    std.Thread.sleep(10000000); // 10ms
 }
 
 fn testComputeStress() !void {
     // Implement compute stress test
-    std.time.sleep(8000000); // 8ms
+    std.Thread.sleep(8000000); // 8ms
 }
 
 fn testRenderingStress() !void {
     // Implement rendering stress test
-    std.time.sleep(12000000); // 12ms
+    std.Thread.sleep(12000000); // 12ms
 }
 
 fn testThermalStress() !void {
     // Implement thermal stress test
-    std.time.sleep(15000000); // 15ms
+    std.Thread.sleep(15000000); // 15ms
 }

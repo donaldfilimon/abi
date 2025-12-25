@@ -5,6 +5,18 @@
 
 const std = @import("std");
 const config = @import("config.zig");
+const builtin = @import("builtin");
+
+fn sleep(ns: u64) void {
+    if (builtin.os.tag == .windows) {
+        _ = std.os.windows.kernel32.SleepEx(@intCast(ns / std.time.ns_per_ms), 0);
+    } else {
+        const s = ns / std.time.ns_per_s;
+        const n = ns % std.time.ns_per_s;
+        _ = std.posix.nanosleep(&.{ .sec = @intCast(s), .nsec = @intCast(n) }, null);
+    }
+}
+
 const chase_lev_deque = @import("../concurrency/chase_lev_deque.zig");
 const sharded_map = @import("../concurrency/sharded_map.zig");
 const workload = @import("workload.zig");
@@ -70,33 +82,9 @@ const ResultEntry = struct {
     execution_duration_ns: u64,
 };
 
-const ResultCache = struct {
-    map: ShardedMap,
-    mutex: std.Thread.Mutex,
-};
-
-const WorkItemCache = struct {
-    map: std.AutoHashMap(u64, *WorkItem),
-    mutex: std.Thread.Mutex,
-
-    fn put(self: *WorkItemCache, _: std.mem.Allocator, id: u64, item: *WorkItem) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        try self.map.put(id, item);
-    }
-
-    fn fetchRemove(self: *WorkItemCache, id: u64) ?std.AutoHashMap(u64, *WorkItem).KV {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        return self.map.fetchRemove(id);
-    }
-
-    fn count(self: *WorkItemCache) usize {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        return self.map.count();
-    }
-};
+// Use generic ShardedMap for type safety
+const ResultCache = ShardedMap(u64, *ResultEntry);
+const WorkItemCache = ShardedMap(u64, *WorkItem);
 
 pub const Engine = struct {
     allocator: std.mem.Allocator,
@@ -134,16 +122,17 @@ pub const Engine = struct {
         }
 
         const injection_queue = try ChaseLevDeque.init(allocator, cfg.queue_capacity);
-        const result_map = try ShardedMap.init(allocator, @max(4, worker_count / 2));
-        const work_item_map = std.AutoHashMap(u64, *WorkItem).init(allocator);
+        const shard_count = @max(4, worker_count * 2); // More shards for better concurrency
+        const result_map = try ResultCache.init(allocator, shard_count);
+        const work_item_map = try WorkItemCache.init(allocator, shard_count);
 
-        const metrics_collector: if (build_options.enable_profiling) ?*ProfilingModule.MetricsCollector else void = if (build_options.enable_profiling) blk: {
+        const metrics_collector = if (build_options.enable_profiling) blk: {
             const mc = try allocator.create(ProfilingModule.MetricsCollector);
             mc.* = try ProfilingModule.MetricsCollector.init(allocator, ProfilingModule.DEFAULT_METRICS_CONFIG, worker_count);
             break :blk mc;
         } else {};
 
-        const gpu_manager: if (build_options.enable_gpu) ?GPUModule.GPUManager else void = if (build_options.enable_gpu) blk: {
+        const gpu_manager = if (build_options.enable_gpu) blk: {
             const gm = try GPUModule.GPUManager.init(allocator, GPUModule.GPUBackend.none);
             break :blk gm;
         } else {};
@@ -155,14 +144,8 @@ pub const Engine = struct {
             .config = cfg,
             .next_id = std.atomic.Value(u64).init(1),
             .injection_queue = injection_queue,
-            .result_cache = ResultCache{
-                .map = result_map,
-                .mutex = std.Thread.Mutex{},
-            },
-            .work_items = WorkItemCache{
-                .map = work_item_map,
-                .mutex = std.Thread.Mutex{},
-            },
+            .result_cache = result_map,
+            .work_items = work_item_map,
             .metrics_collector = metrics_collector,
             .gpu_manager = gpu_manager,
         };
@@ -208,13 +191,14 @@ pub const Engine = struct {
         self.allocator.free(self.workers);
         self.injection_queue.deinit(self.allocator);
 
-        for (self.result_cache.map.shards.items) |*shard| {
+        // Clean up results
+        for (self.result_cache.shards) |*shard| {
             shard.mutex.lock();
             defer shard.mutex.unlock();
 
             var iter = shard.map.iterator();
             while (iter.next()) |entry| {
-                const entry_ptr: *ResultEntry = @ptrFromInt(entry.key_ptr.*);
+                const entry_ptr = entry.value_ptr.*;
                 if (entry_ptr.complete.load(.acquire)) {
                     if (entry_ptr.handle.owns_memory) {
                         entry_ptr.handle.vtable.destroy(entry_ptr.handle.ptr, self.allocator);
@@ -223,13 +207,18 @@ pub const Engine = struct {
                 self.allocator.destroy(entry_ptr);
             }
         }
-        self.result_cache.map.deinit(self.allocator);
+        self.result_cache.deinit();
 
-        var iter = self.work_items.map.iterator();
-        while (iter.next()) |kv| {
-            self.allocator.destroy(kv.value_ptr.*);
+        // Clean up pending work items
+        for (self.work_items.shards) |*shard| {
+            shard.mutex.lock();
+            defer shard.mutex.unlock();
+            var iter = shard.map.iterator();
+            while (iter.next()) |kv| {
+                self.allocator.destroy(kv.value_ptr.*);
+            }
         }
-        self.work_items.map.deinit();
+        self.work_items.deinit();
 
         if (build_options.enable_profiling) {
             if (self.metrics_collector) |mc| {
@@ -259,33 +248,51 @@ pub const Engine = struct {
             .execution_duration_ns = 0,
         };
 
-        const entry_key: u64 = @intFromPtr(result_entry);
-        try self.result_cache.map.put(self.allocator, id, entry_key);
+        try self.result_cache.put(id, result_entry);
 
         const work_item_copy = try self.allocator.create(WorkItem);
         work_item_copy.* = item;
         work_item_copy.id = id;
-        try self.work_items.put(self.allocator, id, work_item_copy);
-
+        
+        try self.work_items.put(id, work_item_copy);
         try self.injection_queue.pushBottom(id);
+        
         return id;
     }
 
+    pub fn take(self: *Engine, task_id: u64) ?ResultHandle {
+        const Predicate = struct {
+            fn check(_: void, entry: *ResultEntry) bool {
+                return entry.complete.load(.acquire);
+            }
+        };
+
+        if (self.result_cache.fetchRemoveIf(task_id, {}, Predicate.check)) |entry| {
+            const handle = entry.handle;
+            self.allocator.destroy(entry);
+            return handle;
+        }
+        return null;
+    }
+
     pub fn poll(self: *Engine) ?ResultHandle {
-        var iter = self.result_cache.map.shards.iterator();
-        while (iter.next()) |shard| {
+        // Iterate over shards to find a completed result
+        // Note: This is inefficient for checking specific results, but fine for "any result" polling
+        // For specific result checking, we should add a `getResult(id)` method.
+        for (self.result_cache.shards) |*shard| {
             shard.mutex.lock();
             defer shard.mutex.unlock();
 
             var map_iter = shard.map.iterator();
             while (map_iter.next()) |entry| {
-                const entry_ptr: *ResultEntry = @ptrFromInt(entry.value_ptr.*);
+                const entry_ptr = entry.value_ptr.*;
                 if (entry_ptr.complete.load(.acquire)) {
                     const result = ResultHandle{
                         .ptr = entry_ptr.handle.ptr,
                         .vtable = entry_ptr.handle.vtable,
+                        .owns_memory = entry_ptr.handle.owns_memory,
                     };
-                    shard.map.remove(entry.key_ptr.*);
+                    _ = shard.map.remove(entry.key_ptr.*);
                     self.allocator.destroy(entry_ptr);
                     return result;
                 }
@@ -294,10 +301,9 @@ pub const Engine = struct {
         return null;
     }
 
-            const
- {void !)    pub fn completeResultWithMetadata(self: *Engine, task_id: u64, handle: ResultHandle, worker_id: u32, duration_ns: u64, queued_ns: u64) !void {
-        const entry_ptr_u64 = self.result_cache.map.get(task_id) orelse return error.ResultNotFound;
-        const entry: *ResultEntry = @ptrCast(@alignCast(@as(*anyopaque, @ptrFromInt(entry_ptr_u64))));
+    pub fn completeResultWithMetadata(self: *Engine, task_id: u64, handle: ResultHandle, worker_id: u32, duration_ns: u64, queued_ns: u64) !void {
+        const entry = self.result_cache.get(task_id) orelse return error.ResultNotFound;
+        
         entry.handle = handle;
         entry.worker_id = worker_id;
         entry.execution_duration_ns = duration_ns;
@@ -311,10 +317,8 @@ pub const Engine = struct {
         }
     }
 
-}                
-;        pub fn getResultMetadata(self: *Engine, task_id: u64) ?ResultMetadata {
-        const entry_ptr_u64 = self.result_cache.map.get(task_id) orelse return null;
-        const entry: *ResultEntry = @ptrCast(@alignCast(@as(*anyopaque, @ptrFromInt(entry_ptr_u64))));
+    pub fn getResultMetadata(self: *Engine, task_id: u64) ?ResultMetadata {
+        const entry = self.result_cache.get(task_id) orelse return null;
         if (!entry.complete.load(.acquire)) return null;
 
         return ResultMetadata{
@@ -326,34 +330,63 @@ pub const Engine = struct {
     }
 
     pub fn countPendingTasks(self: *Engine) usize {
-        return self.work_items.count();
+        var count: usize = 0;
+        for (self.work_items.shards) |*shard| {
+            shard.mutex.lock();
+            defer shard.mutex.unlock();
+            count += shard.map.count();
+        }
+        return count;
     }
 
     fn workerMain(worker: *Worker) void {
+        var backoff: u32 = 0;
         while (worker.engine.running.load(.acquire)) {
             var task_id = worker.local_deque.popBottom();
             if (task_id == null) task_id = worker.engine.injection_queue.steal();
             if (task_id == null) task_id = trySteal(worker);
-            if (task_id) |id| executeTask(worker, id) catch |err| {
-                std.log.err("Task {} failed: {}", .{ id, err });
-            };
+            
+            if (task_id) |id| {
+                // Found work, reset backoff
+                backoff = 0;
+                executeTask(worker, id) catch |err| {
+                    std.log.err("Task {} failed: {}", .{ id, err });
+                };
+            } else {
+                // Exponential backoff to save CPU when idle
+                if (backoff < 10) {
+                    std.atomic.spinLoopHint();
+                } else if (backoff < 20) {
+                    std.Thread.yield() catch {};
+                } else {
+                    // Sleep for 1ms if really idle
+                    sleep(1 * std.time.ns_per_ms);
+                }
+                if (backoff < 100) backoff += 1;
+            }
         }
     }
 
     fn trySteal(worker: *Worker) ?u64 {
         const num_workers = worker.engine.workers.len;
         var i: usize = 0;
+        // Start stealing from a random-ish neighbor to avoid contention
+        const start_idx = (worker.id + 1) % num_workers;
+        var current_idx = start_idx;
+
         while (i < num_workers) : (i += 1) {
-            if (i == worker.id) continue;
-            const task_id = worker.engine.workers[i].local_deque.steal();
-            if (task_id != null and task_id.? != EMPTY) return task_id;
+            if (current_idx != worker.id) {
+                const task_id = worker.engine.workers[current_idx].local_deque.steal();
+                if (task_id != null and task_id.? != EMPTY) return task_id;
+            }
+            current_idx = (current_idx + 1) % num_workers;
         }
         return null;
     }
 
     fn executeTask(worker: *Worker, task_id: u64) !void {
-        const kv = worker.engine.work_items.fetchRemove(task_id) orelse return;
-        const item = kv.value;
+        // Remove from work items map
+        const item = worker.engine.work_items.remove(task_id) orelse return;
 
         const start_time = worker.timer.read();
 
@@ -362,6 +395,7 @@ pub const Engine = struct {
             .arena = &worker.arena,
         };
 
+        // Execute workload
         const result = try item.vtable.exec(item.user, &ctx, worker.engine.allocator);
         const duration_ns = worker.timer.read() - start_time;
 
@@ -372,10 +406,16 @@ pub const Engine = struct {
         const handle = ResultHandle{
             .ptr = result,
             .vtable = &result_vtable,
+            .owns_memory = true, // Engine owns result until taken
         };
 
+        // Complete the result
         try worker.engine.completeResultWithMetadata(task_id, handle, worker.id, duration_ns, 0);
 
+        // Clean up the work item definition
+        worker.engine.allocator.destroy(item);
+
+        // Reset arena for next task
         _ = worker.arena.reset(.retain_capacity);
     }
 };

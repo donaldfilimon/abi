@@ -52,3 +52,7 @@ pub const GPUContext = core.gpu_renderer.GPUContext;
 
 // Vector search GPU implementation
 pub const vector_search_gpu = @import("vector_search_gpu.zig");
+
+test {
+    _ = @import("gpu_test.zig");
+}
