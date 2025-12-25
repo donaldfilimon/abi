@@ -5,8 +5,7 @@
 
 pub const config = @import("config.zig");
 pub const workload = @import("workload.zig");
-pub const engine = @import("engine.zig");
-pub const topology = @import("topology.zig");
+pub const engine = @import("../engine.zig");
 pub const benchmark = @import("benchmark.zig");
 
 pub const WorkloadVTable = workload.WorkloadVTable;
