@@ -1,58 +1,68 @@
-//! GPU Feature Module
-//!
-//! Cross-platform GPU acceleration and compute functionality
-
 const std = @import("std");
-const lifecycle = @import("../lifecycle.zig");
+const build_options = @import("build_options");
 
-// Core GPU components
-pub const gpu_renderer = @import("core/gpu_renderer.zig");
-pub const unified_memory = @import("unified_memory.zig");
-pub const hardware_detection = @import("hardware_detection.zig");
-pub const accelerator = @import("../../shared/platform/accelerator/accelerator.zig");
+pub const Backend = enum {
+    cuda,
+    vulkan,
+    metal,
+    webgpu,
+};
 
-// GPU backends and compute
-pub const backends = @import("backends/mod.zig");
-pub const compute = @import("compute/mod.zig");
-pub const core = @import("core/mod.zig");
+pub const DeviceInfo = struct {
+    name: []const u8,
+    backend: Backend,
+    total_memory_bytes: u64,
+};
 
-// Specialized GPU features
-pub const wasm_support = @import("wasm_support.zig");
-pub const cross_compilation = @import("cross_compilation.zig");
+pub const Buffer = struct {
+    allocator: std.mem.Allocator,
+    bytes: []u8,
 
-// Memory management
-pub const memory = @import("memory/mod.zig");
+    pub fn init(allocator: std.mem.Allocator, size: usize) !Buffer {
+        return .{
+            .allocator = allocator,
+            .bytes = try allocator.alloc(u8, size),
+        };
+    }
 
-// Testing and benchmarking
-pub const testing = @import("testing/mod.zig");
-pub const benchmark = @import("benchmark/mod.zig");
+    pub fn deinit(self: *Buffer) void {
+        self.allocator.free(self.bytes);
+        self.* = undefined;
+    }
+};
 
-// Mobile and optimizations
-pub const mobile = @import("mobile/mod.zig");
-pub const optimizations = @import("optimizations/mod.zig");
+pub fn init(_: std.mem.Allocator) !void {}
 
-// Libraries and demos (available in submodules)
-pub const libraries = @import("libraries/mod.zig");
-// demo modules are available via direct import from demo/ directory
+pub fn deinit() void {}
 
-/// Initialize the GPU feature module
-pub const init = lifecycle.init;
+pub fn availableBackends(allocator: std.mem.Allocator) ![]Backend {
+    var list = std.ArrayList(Backend).empty;
+    errdefer list.deinit(allocator);
+    if (build_options.gpu_cuda) try list.append(allocator, .cuda);
+    if (build_options.gpu_vulkan) try list.append(allocator, .vulkan);
+    if (build_options.gpu_metal) try list.append(allocator, .metal);
+    if (build_options.gpu_webgpu) try list.append(allocator, .webgpu);
+    return list.toOwnedSlice(allocator);
+}
 
-/// Deinitialize the GPU feature module
-pub const deinit = lifecycle.deinit;
+pub fn listDevices(allocator: std.mem.Allocator) ![]DeviceInfo {
+    const backends = try availableBackends(allocator);
+    defer allocator.free(backends);
 
-// Legacy compatibility - examples module
-pub const gpu_examples = @import("gpu_examples.zig");
-
-// --------------------------------------------------------------------------
-// Convenience exports for example code
-// --------------------------------------------------------------------------
-// Expose the GPUContext type from the core GPU renderer.
-pub const GPUContext = core.gpu_renderer.GPUContext;
-
-// Vector search GPU implementation
-pub const vector_search_gpu = @import("vector_search_gpu.zig");
-
-test {
-    _ = @import("gpu_test.zig");
+    var devices = std.ArrayList(DeviceInfo).empty;
+    errdefer devices.deinit(allocator);
+    for (backends) |backend| {
+        const name = switch (backend) {
+            .cuda => "CUDA Device",
+            .vulkan => "Vulkan Device",
+            .metal => "Metal Device",
+            .webgpu => "WebGPU Device",
+        };
+        try devices.append(allocator, .{
+            .name = name,
+            .backend = backend,
+            .total_memory_bytes = 0,
+        });
+    }
+    return devices.toOwnedSlice(allocator);
 }

@@ -1,40 +1,15 @@
-//! Web Feature Module
-//!
-//! HTTP servers, clients, and web services
-
 const std = @import("std");
-const lifecycle = @import("../lifecycle.zig");
 
-// Web servers
-pub const enhanced_web_server = @import("enhanced_web_server.zig");
-pub const WdbxHttpServer = wdbx_http.WdbxHttpServer;
+const client = @import("client.zig");
+const weather = @import("weather.zig");
 
-// HTTP clients and utilities
-pub const http_client = @import("http_client.zig");
-pub const curl_wrapper = @import("curl_wrapper.zig");
-pub const python_bindings = @import("python_bindings.zig");
+pub const Response = client.Response;
+pub const HttpClient = client.HttpClient;
+pub const RequestOptions = client.RequestOptions;
+pub const WeatherClient = weather.WeatherClient;
+pub const WeatherConfig = weather.WeatherConfig;
+pub const http = @import("../../shared/utils/http/mod.zig");
 
-// Specialized web services
-pub const wdbx_http = @import("wdbx_http.zig");
-pub const weather = @import("weather.zig");
+pub fn init(_: std.mem.Allocator) !void {}
 
-// API interfaces
-pub const c_api = @import("c_api.zig");
-
-// Re-export key types for convenience
-pub const HttpServer = WdbxHttpServer;
-pub const HttpError = wdbx_http.HttpError;
-pub const Response = wdbx_http.Response;
-pub const ServerConfig = wdbx_http.ServerConfig;
-
-/// Initialize the web feature module
-pub const init = lifecycle.init;
-
-/// Deinitialize the web feature module
-pub const deinit = lifecycle.deinit;
-
-// Legacy compatibility removed - circular import fixed
-
-test {
-    std.testing.refAllDecls(@This());
-}
+pub fn deinit() void {}

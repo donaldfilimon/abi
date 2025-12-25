@@ -1,34 +1,42 @@
-//! Encoding Utilities Module
-//!
-//! Data encoding and decoding utilities
-
 const std = @import("std");
 
-/// Base64 encode data
-pub fn base64Encode(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
-    return std.base64.standard.Encoder.encode(allocator, data);
+pub const EncodingError = error{
+    InvalidHex,
+};
+
+pub fn hexEncodeLower(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
+    const output = try allocator.alloc(u8, bytes.len * 2);
+    for (bytes, 0..) |byte, i| {
+        const hi = byte >> 4;
+        const lo = byte & 0x0f;
+        output[i * 2] = nibbleToHexLower(hi);
+        output[i * 2 + 1] = nibbleToHexLower(lo);
+    }
+    return output;
 }
 
-/// Base64 decode data
-pub fn base64Decode(allocator: std.mem.Allocator, encoded: []const u8) ![]u8 {
-    return std.base64.standard.Decoder.decode(allocator, encoded);
+pub fn hexDecode(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
+    if (text.len % 2 != 0) return EncodingError.InvalidHex;
+    const output = try allocator.alloc(u8, text.len / 2);
+    errdefer allocator.free(output);
+    var i: usize = 0;
+    while (i < text.len) : (i += 2) {
+        const hi = try hexToNibble(text[i]);
+        const lo = try hexToNibble(text[i + 1]);
+        output[i / 2] = (hi << 4) | lo;
+    }
+    return output;
 }
 
-/// Hex encode data
-pub fn hexEncode(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
-    return std.fmt.allocPrint(allocator, "{x}", .{std.fmt.fmtSliceHexLower(data)});
+fn nibbleToHexLower(nibble: u8) u8 {
+    return if (nibble < 10) nibble + '0' else nibble - 10 + 'a';
 }
 
-test {
-    std.testing.refAllDecls(@This());
-}
-
-test "base64Encode and base64Decode" {
-    const allocator = std.testing.allocator;
-    const data = "Hello, World!";
-    const encoded = try base64Encode(allocator, data);
-    defer allocator.free(encoded);
-    const decoded = try base64Decode(allocator, encoded);
-    defer allocator.free(decoded);
-    try std.testing.expectEqualStrings(data, decoded);
+fn hexToNibble(char: u8) EncodingError!u8 {
+    return switch (char) {
+        '0'...'9' => char - '0',
+        'a'...'f' => char - 'a' + 10,
+        'A'...'F' => char - 'A' + 10,
+        else => EncodingError.InvalidHex,
+    };
 }

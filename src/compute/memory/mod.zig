@@ -1,12 +1,33 @@
-//! Memory management primitives
-//!
-//! Provides aligned buffers, pool allocators, and arena utilities for
-//! high-performance memory management.
+const std = @import("std");
 
-pub const aligned_buffer = @import("aligned_buffer.zig");
-pub const pool_allocator = @import("pool_allocator.zig");
-pub const arena_utils = @import("arena_utils.zig");
+pub const StableAllocator = struct {
+    gpa: std.heap.GeneralPurposeAllocator(.{}) = .{},
 
-pub const CacheAlignedBuffer = aligned_buffer.CacheAlignedBuffer;
-pub const PoolAllocator = pool_allocator.PoolAllocator;
-pub const ArenaUtils = arena_utils.ArenaUtils;
+    pub fn allocator(self: *StableAllocator) std.mem.Allocator {
+        return self.gpa.allocator();
+    }
+
+    pub fn deinit(self: *StableAllocator) void {
+        _ = self.gpa.deinit();
+    }
+};
+
+pub const WorkerArena = struct {
+    arena: std.heap.ArenaAllocator,
+
+    pub fn init(backing_allocator: std.mem.Allocator) WorkerArena {
+        return .{ .arena = std.heap.ArenaAllocator.init(backing_allocator) };
+    }
+
+    pub fn allocator(self: *WorkerArena) std.mem.Allocator {
+        return self.arena.allocator();
+    }
+
+    pub fn reset(self: *WorkerArena) void {
+        self.arena.reset(.retain_capacity);
+    }
+
+    pub fn deinit(self: *WorkerArena) void {
+        self.arena.deinit();
+    }
+};

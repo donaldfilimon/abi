@@ -1,30 +1,31 @@
-//! Network Utilities Module
-//!
-//! Network-related utilities and functions
-
 const std = @import("std");
 
-/// Resolve hostname to IP address
-pub fn resolveHost(allocator: std.mem.Allocator, hostname: []const u8) !std.net.Address {
-    return std.net.tcpConnectToHost(allocator, hostname, 80);
-}
+pub const NetError = error{
+    InvalidHostPort,
+};
 
-/// Check if port is open on host
-pub fn isPortOpen(allocator: std.mem.Allocator, host: []const u8, port: u16) bool {
-    std.net.tcpConnectToHost(allocator, host, port) catch return false;
-    return true;
-}
+pub const HostPort = struct {
+    host: []const u8,
+    port: u16,
 
-/// Parse IP address string
-pub fn parseAddress(address: []const u8) !std.net.Address {
-    return std.net.Address.parseIp(address, 0);
-}
+    pub fn deinit(self: *HostPort, allocator: std.mem.Allocator) void {
+        allocator.free(self.host);
+        self.* = undefined;
+    }
+};
 
-test {
-    std.testing.refAllDecls(@This());
-}
+pub fn parseHostPort(allocator: std.mem.Allocator, input: []const u8) !HostPort {
+    const index = std.mem.lastIndexOfScalar(u8, input, ':') orelse
+        return NetError.InvalidHostPort;
+    if (index == 0 or index + 1 >= input.len) return NetError.InvalidHostPort;
 
-test "parseAddress" {
-    const addr = try parseAddress("127.0.0.1");
-    try std.testing.expect(addr.getPort() == 0);
+    const host = try allocator.dupe(u8, input[0..index]);
+    errdefer allocator.free(host);
+    const port = std.fmt.parseInt(u16, input[index + 1 ..], 10) catch
+        return NetError.InvalidHostPort;
+
+    return HostPort{
+        .host = host,
+        .port = port,
+    };
 }

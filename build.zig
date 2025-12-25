@@ -58,12 +58,17 @@ pub fn build(b: *std.Build) void {
     abi_module.addImport("build_options", build_options_module);
 
     // CLI executable
-    const has_cli = pathExists("tools/cli/main.zig");
-    if (has_cli) {
+    const cli_path: ?[]const u8 = if (pathExists("tools/cli/main.zig"))
+        "tools/cli/main.zig"
+    else if (pathExists("src/main.zig"))
+        "src/main.zig"
+    else
+        null;
+    if (cli_path) |path| {
         const exe = b.addExecutable(.{
             .name = "abi",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("tools/cli/main.zig"),
+                .root_source_file = b.path(path),
                 .target = target,
                 .optimize = optimize,
             }),
@@ -81,7 +86,7 @@ pub fn build(b: *std.Build) void {
         const run_step = b.step("run", "Run the ABI CLI");
         run_step.dependOn(&run_cli.step);
     } else {
-        std.log.warn("tools/cli/main.zig not found; skipping CLI build", .{});
+        std.log.warn("CLI entrypoint not found; skipping CLI build", .{});
     }
 
     // Test suite
@@ -127,11 +132,11 @@ pub fn build(b: *std.Build) void {
     }
 
     // Performance profiling build
-    if (has_cli) {
+    if (cli_path) |path| {
         const profile_exe = b.addExecutable(.{
             .name = "abi-profile",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("tools/cli/main.zig"),
+                .root_source_file = b.path(path),
                 .target = target,
                 .optimize = .ReleaseFast,
             }),

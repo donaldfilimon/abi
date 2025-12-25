@@ -1,117 +1,70 @@
-//! WDBX Vector Database - Unified Module
-//!
-//! This is the main entry point for the WDBX vector database system.
-//! It provides a clean, unified interface to all WDBX functionality.
-
 const std = @import("std");
+const database = @import("database.zig");
 
-// Import all WDBX submodules
-const cli = @import("cli.zig");
-const wdbx_core = @import("core.zig");
-const http = @import("http.zig");
-
-// Import database module directly for standalone usage
-const database = @import("./db_helpers.zig");
-
-// Re-export main types and functions for easy access
-pub const WdbxCLI = cli.WdbxCLI;
-pub const WdbxHttpServer = http.WdbxHttpServer;
-pub const Command = cli.Command;
-pub const Options = cli.Options;
-pub const ServerConfig = http.ServerConfig;
-
-// Re-export core types
-pub const WdbxError = wdbx_core.WdbxError;
-pub const VERSION = wdbx_core.VERSION;
-pub const OutputFormat = wdbx_core.OutputFormat;
-pub const LogLevel = wdbx_core.LogLevel;
-pub const Config = wdbx_core.Config;
-pub const Timer = wdbx_core.Timer;
-pub const Logger = wdbx_core.Logger;
-pub const MemoryStats = wdbx_core.MemoryStats;
-
-// Re-export main entry points
-pub const main = cli.main;
-pub const createServer = http.createServer;
-
-// Re-export submodules for advanced usage
-pub const wdbx = struct {
-    pub const cli_module = cli;
-    pub const core_module = wdbx_core;
-    pub const http_module = http;
+pub const UnifiedError = error{
+    Unsupported,
 };
 
-// Convenience functions
-pub fn createCLI(allocator: std.mem.Allocator, options: Options) !*WdbxCLI {
-    return try WdbxCLI.init(allocator, options);
+pub const DatabaseHandle = struct {
+    db: database.Database,
+};
+
+pub const SearchResult = database.SearchResult;
+pub const VectorView = database.VectorView;
+pub const Stats = database.Stats;
+
+pub fn createDatabase(allocator: std.mem.Allocator, name: []const u8) !DatabaseHandle {
+    return .{ .db = try database.Database.init(allocator, name) };
 }
 
-pub fn createHttpServer(allocator: std.mem.Allocator, config: ServerConfig) !*WdbxHttpServer {
-    return try WdbxHttpServer.init(allocator, config);
+pub fn connectDatabase(allocator: std.mem.Allocator, name: []const u8) !DatabaseHandle {
+    return createDatabase(allocator, name);
 }
 
-// Version information
-pub const version = VERSION.string();
-pub const version_major = VERSION.MAJOR;
-pub const version_minor = VERSION.MINOR;
-pub const version_patch = VERSION.PATCH;
-
-// Quick start functions
-pub fn quickStart(allocator: std.mem.Allocator) !void {
-    const options = Options{};
-    var cli_instance = try createCLI(allocator, options);
-    defer cli_instance.deinit();
-
-    try cli_instance.showHelp();
+pub fn closeDatabase(handle: *DatabaseHandle) void {
+    handle.db.deinit();
+    handle.* = undefined;
 }
 
-pub fn startHttpServer(allocator: std.mem.Allocator, port: u16) !*WdbxHttpServer {
-    const config = ServerConfig{
-        .port = port,
-        .host = "127.0.0.1",
-        .enable_auth = true,
-        .enable_cors = true,
-    };
-    return try createHttpServer(allocator, config);
+pub fn insertVector(handle: *DatabaseHandle, id: u64, vector: []const f32, metadata: ?[]const u8) !void {
+    try handle.db.insert(id, vector, metadata);
 }
 
-// Test suite
-test "WDBX module initialization" {
-    const testing = std.testing;
-    const allocator = testing.allocator;
-
-    // Test CLI creation
-    const options = Options{};
-    var cli_instance = try createCLI(allocator, options);
-    defer cli_instance.deinit();
-
-    try testing.expectEqual(Command.help, cli_instance.options.command);
-
-    // Test HTTP server creation
-    const config = ServerConfig{};
-    var server = try createHttpServer(allocator, config);
-    defer server.deinit();
-
-    try testing.expectEqual(@as(u16, 8080), server.config.port);
+pub fn searchVectors(handle: *DatabaseHandle, allocator: std.mem.Allocator, query: []const f32, top_k: usize) ![]SearchResult {
+    return handle.db.search(allocator, query, top_k);
 }
 
-test "Version information" {
-    try std.testing.expectEqualStrings("0.1.0a", version);
-    try std.testing.expectEqual(@as(u32, 0), version_major);
-    try std.testing.expectEqual(@as(u32, 1), version_minor);
-    try std.testing.expectEqual(@as(u32, 0), version_patch);
+pub fn deleteVector(handle: *DatabaseHandle, id: u64) bool {
+    return handle.db.delete(id);
 }
 
-test "Quick start functions" {
-    const testing = std.testing;
-    const allocator = testing.allocator;
+pub fn updateVector(handle: *DatabaseHandle, id: u64, vector: []const f32) !bool {
+    return handle.db.update(id, vector);
+}
 
-    // Test quick start (should not crash)
-    try quickStart(allocator);
+pub fn getVector(handle: *DatabaseHandle, id: u64) ?VectorView {
+    return handle.db.get(id);
+}
 
-    // Test HTTP server start
-    var server = try startHttpServer(allocator, 8081);
-    defer server.deinit();
+pub fn listVectors(handle: *DatabaseHandle, allocator: std.mem.Allocator, limit: usize) ![]VectorView {
+    return handle.db.list(allocator, limit);
+}
 
-    try testing.expectEqual(@as(u16, 8081), server.config.port);
+pub fn getStats(handle: *DatabaseHandle) Stats {
+    return handle.db.stats();
+}
+
+pub fn optimize(handle: *DatabaseHandle) !void {
+    handle.db.optimize();
+}
+
+pub fn backup(handle: *DatabaseHandle, path: []const u8) !void {
+    try handle.db.saveToFile(path);
+}
+
+pub fn restore(handle: *DatabaseHandle, path: []const u8) !void {
+    const allocator = handle.db.allocator;
+    const restored = try database.Database.loadFromFile(allocator, path);
+    handle.db.deinit();
+    handle.db = restored;
 }
