@@ -317,55 +317,55 @@ pub const WdbxCLI = struct {
     }
 
     pub fn showHelp(self: *Self) !void {
-        const help_text = \
-            ABI Vector Database CLI
-            \
-            Usage: wdbx <command> [options]
-            \
-            Commands:
-            \
-            help           Show this help message
-            \
-            version        Show version information
-            \
-            add            Add vectors to database
-            \
-            query          Query database with vector
-            \
-            knn            Find k-nearest neighbors
-            \
-            stats          Show database statistics
-            \
-            server         Start server (use --http or --tcp)
-            \
-            http           Start HTTP server
-            \
-            tcp            Start TCP server
-            \
-            windows        Show Windows networking guidance
-            \
-            tcp_test       Run enhanced TCP client test
-            \
-            Options:
-            \
-            --db <path>    Database file path
-            \
-            --vector <vec> Vector data (comma-separated floats)
-            \
-            --k <number>   Number of results (default: 5)
-            \
-            --port <port>  Server port (default: 8080)
-            \
-            --host <host>  Server host (default: 127.0.0.1)
-            \
-            --http         Use HTTP server (default for server command)
-            \
-            --tcp          Use TCP server (for server command)
-            \
-            --verbose      Enable verbose output
-            \
-            --quiet        Suppress output
-            \;
+        const help_text =
+            \\ABI Vector Database CLI
+            \\
+            \\Usage: wdbx <command> [options]
+            \\
+            \\Commands:
+            \\
+            \\help           Show this help message
+            \\
+            \\version        Show version information
+            \\
+            \\add            Add vectors to database
+            \\
+            \\query          Query database with vector
+            \\
+            \\knn            Find k-nearest neighbors
+            \\
+            \\stats          Show database statistics
+            \\
+            \\server         Start server (use --http or --tcp)
+            \\
+            \\http           Start HTTP server
+            \\
+            \\tcp            Start TCP server
+            \\
+            \\windows        Show Windows networking guidance
+            \\
+            \\tcp_test       Run enhanced TCP client test
+            \\
+            \\Options:
+            \\
+            \\--db <path>    Database file path
+            \\
+            \\--vector <vec> Vector data (comma-separated floats)
+            \\
+            \\--k <number>   Number of results (default: 5)
+            \\
+            \\--port <port>  Server port (default: 8080)
+            \\
+            \\--host <host>  Server host (default: 127.0.0.1)
+            \\
+            \\--http         Use HTTP server (default for server command)
+            \\
+            \\--tcp          Use TCP server (for server command)
+            \\
+            \\--verbose      Enable verbose output
+            \\
+            \\--quiet        Suppress output
+        ;
         try self.logger.info(help_text, .{});
     }
 
@@ -662,44 +662,44 @@ pub const WdbxCLI = struct {
     }
 
     fn showWindowsGuidance(self: *Self) !void {
-        const guidance = \
-            Start the server
-            \
-            zig build run -- http
-            \
-            .\zig-out\bin\abi.exe http
-            \
-            Recommended (Windows): enhanced TCP client
-            \
-            zig run simple_tcp_test.zig
-            \
-            If PowerShell Invoke-WebRequest is flaky, prefer curl or a browser
-            \
-            curl.exe -v http://127.0.0.1:8080/health
-            \
-            curl.exe -v -H "Connection: close" http://127.0.0.1:8080/network
-            \
-            If you must use Invoke-WebRequest (tune for reliability)
-            \
-            $ProgressPreference = 'SilentlyContinue'
-            \
-            Invoke-WebRequest -Uri "http://127.0.0.1:8080/health" -UseBasicParsing
-            \
-            # For HTTPS only:
-            \
-            [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::Tls12
-            \
-            Invoke-WebRequest -Uri "https://127.0.0.1:8443/health" -UseBasicParsing
-            \
-            Optional Windows fixes (if you still see oddities)
-            \
-            powershell -ExecutionPolicy Bypass -File .\fix_windows_networking.ps1 (run as Admin)
-            \
-            Info
-            \
-            - Server is Windows-optimized and production-ready; occasional GetLastError(87)/ConnectionResetByPeer on reads is expected and handled.
-            \
-            - Prefer curl.exe or the enhanced TCP client over PowerShell for consistent results.
+        const guidance =
+            \\Start the server
+            \\
+            \\zig build run -- http
+            \\
+            \\.\zig-out\bin\abi.exe http
+            \\
+            \\Recommended (Windows): enhanced TCP client
+            \\
+            \\zig run simple_tcp_test.zig
+            \\
+            \\If PowerShell Invoke-WebRequest is flaky, prefer curl or a browser
+            \\
+            \\curl.exe -v http://127.0.0.1:8080/health
+            \\
+            \\curl.exe -v -H "Connection: close" http://127.0.0.1:8080/network
+            \\
+            \\If you must use Invoke-WebRequest (tune for reliability)
+            \\
+            \\$ProgressPreference = 'SilentlyContinue'
+            \\
+            \\Invoke-WebRequest -Uri "http://127.0.0.1:8080/health" -UseBasicParsing
+            \\
+            \\# For HTTPS only:
+            \\
+            \\[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::Tls12
+            \\
+            \\Invoke-WebRequest -Uri "https://127.0.0.1:8443/health" -UseBasicParsing
+            \\
+            \\Optional Windows fixes (if you still see oddities)
+            \\
+            \\powershell -ExecutionPolicy Bypass -File .\fix_windows_networking.ps1 (run as Admin)
+            \\
+            \\Info
+            \\
+            \\- Server is Windows-optimized and production-ready; occasional GetLastError(87)/ConnectionResetByPeer on reads is expected and handled.
+            \\
+            \\- Prefer curl.exe or the enhanced TCP client over PowerShell for consistent results.
         ;
         try self.logger.info("{s}", .{guidance});
     }

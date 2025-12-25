@@ -316,11 +316,12 @@ pub const App = struct {
         for (0..self.title.len + 2) |_| std.debug.print("{s}", .{box.double_horizontal});
         std.debug.print("{s}\n", .{box.double_top_right});
 
-        std.debug.print("{s} {s}{s}{s} {s}\n", .{
+        std.debug.print("{s} {s}{s}{s}{s} {s}\n", .{
             box.double_vertical,
             ansi.bold,
             self.title,
-            ansi.reset ++ self.theme.primary,
+            ansi.reset,
+            self.theme.primary,
             box.double_vertical,
         });
 

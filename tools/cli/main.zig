@@ -221,12 +221,12 @@ fn runDb(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
             }
         } else if (std.mem.eql(u8, arg, "--max-connections")) {
             if (i < args.len) {
-                options.max_connections = std.fmt.parseInt(usize, args[i], 10) catch 100;
+                options.max_connections = std.fmt.parseInt(u32, args[i], 10) catch 100;
                 i += 1;
             }
         } else if (std.mem.eql(u8, arg, "--timeout")) {
             if (i < args.len) {
-                options.timeout_ms = std.fmt.parseInt(u64, args[i], 10) catch 30000;
+                options.timeout_ms = std.fmt.parseInt(u32, args[i], 10) catch 30000;
                 i += 1;
             }
         } else if (std.mem.eql(u8, arg, "--batch-size")) {

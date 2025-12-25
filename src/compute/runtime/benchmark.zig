@@ -61,8 +61,6 @@ pub const MatrixMultBenchmark = struct {
     iterations: u64 = 10,
 
     pub fn create(self: MatrixMultBenchmark, _: std.mem.Allocator) ComputeBenchmark {
-        const n = self.matrix_size;
-
         return ComputeBenchmark{
             .name = "matrix_multiplication",
             .iterations = self.iterations,
@@ -73,9 +71,9 @@ pub const MatrixMultBenchmark = struct {
                     var c: [256][256]f32 = undefined;
 
                     var i: usize = 0;
-                    while (i < n) : (i += 1) {
+                    while (i < 256) : (i += 1) {
                         var j: usize = 0;
-                        while (j < n) : (j += 1) {
+                        while (j < 256) : (j += 1) {
                             a[i][j] = @floatFromInt(i + j);
                             b[i][j] = @floatFromInt(i * j);
                             c[i][j] = 0;
@@ -83,11 +81,11 @@ pub const MatrixMultBenchmark = struct {
                     }
 
                     i = 0;
-                    while (i < n) : (i += 1) {
+                    while (i < 256) : (i += 1) {
                         var j: usize = 0;
-                        while (j < n) : (j += 1) {
+                        while (j < 256) : (j += 1) {
                             var k: usize = 0;
-                            while (k < n) : (k += 1) {
+                            while (k < 256) : (k += 1) {
                                 c[i][j] += a[i][k] * b[k][j];
                             }
                         }

@@ -3,6 +3,7 @@
 Modern Zig framework for modular AI services, vector search, and systems tooling.
 
 ## Highlights
+
 - AI agent runtime, training pipelines, and data structures
 - Vector database helpers (WDBX) with unified API
 - High-performance compute runtime with work-stealing scheduler
@@ -13,9 +14,11 @@ Modern Zig framework for modular AI services, vector search, and systems tooling
 - Monitoring (logging, metrics, tracing, profiling)
 
 ## Requirements
+
 - Zig 0.16.x (tested with 0.16.0-dev)
 
 ## Build
+
 ```bash
 zig build
 zig build test
@@ -24,6 +27,7 @@ zig build -Denable-ai=true -Denable-gpu=false -Denable-web=true -Denable-databas
 ```
 
 ## Feature Flags
+
 - `-Denable-ai` (default: `true`) - Enable AI features and modules
 - `-Denable-gpu` (default: `true`) - Enable GPU acceleration features
 - `-Denable-web` (default: `true`) - Enable web utilities and HTTP features
@@ -35,7 +39,32 @@ zig build -Denable-ai=true -Denable-gpu=false -Denable-web=true -Denable-databas
 - `-Dgpu-metal` - Enable Metal GPU backend
 - `-Dgpu-webgpu` - Enable WebGPU backend (requires `-Denable-web`)
 
+## Development
+
+### Code Formatting
+
+```bash
+zig fmt .                    # Format all code
+zig fmt --check .           # Check formatting without changes
+```
+
+### Testing
+
+```bash
+zig build test                                    # Run all tests
+zig build test -Denable-gpu=true -Denable-network=true  # Test with features
+zig build benchmark                               # Run performance benchmarks
+```
+
+### CLI Usage
+
+```bash
+zig build run -- --help                           # Show CLI help
+zig build run -- --version                        # Show version info
+```
+
 ## Quick Example
+
 ```zig
 const std = @import("std");
 const abi = @import("abi");
@@ -52,6 +81,7 @@ pub fn main() !void {
 ```
 
 ## Compute Engine Example
+
 ```zig
 const std = @import("std");
 const abi = @import("abi");
@@ -109,6 +139,7 @@ pub fn main() !void {
 ```
 
 ## GPU Workload Example
+
 ```zig
 // Submit GPU-preferred workload
 const gpu_hints = abi.compute.GPUWorkloadHints{
@@ -135,6 +166,7 @@ const task_id = try engine.submit(item);
 ```
 
 ## Profiling Example
+
 ```zig
 // Get metrics summary
 if (engine.metrics_collector) |*mc| {
@@ -149,6 +181,7 @@ if (engine.metrics_collector) |*mc| {
 ```
 
 ## Network Serialization Example
+
 ```zig
 // Serialize task for network transfer
 const payload_type = "matrix_multiply";
@@ -171,6 +204,7 @@ defer {
 ```
 
 ## Benchmarking Example
+
 ```zig
 // Run performance benchmark
 const matrix_bench = abi.compute.MatrixMultBenchmark{
@@ -185,6 +219,7 @@ abi.compute.printBenchmarkResults(result);
 ```
 
 ## Architecture Overview
+
 - `src/abi.zig`: public API surface and curated re-exports
 - `src/root.zig`: root module entrypoint
 - `src/framework/`: runtime config, feature orchestration, lifecycle
@@ -193,6 +228,7 @@ abi.compute.printBenchmarkResults(result);
 - `src/internal/legacy/`: backward-compat implementations and deprecated modules
 
 ## Project Layout
+
 ```
 abi/
 ├── src/                # Core library sources
@@ -207,6 +243,7 @@ abi/
 ```
 
 ## CLI
+
 If a CLI entrypoint is present at `tools/cli/main.zig`, it provides a thin
 wrapper for embedded usage (help + version). This tree currently omits that
 entrypoint; re-add it or update `build.zig` to skip the CLI build step.
@@ -217,6 +254,7 @@ zig build run -- --version
 ```
 
 ## Tests
+
 ```bash
 # Run all tests
 zig build test
@@ -235,6 +273,7 @@ zig build benchmark
 ```
 
 **Test Coverage:**
+
 - Compute engine: Worker threads, work-stealing, result caching
 - GPU: Buffer allocation, memory pool, serialization
 - Network: Task/result serialization, node registry
@@ -242,6 +281,7 @@ zig build benchmark
 - Integration: 10+ end-to-end tests with feature gating
 
 ## Connector Environment Variables
+
 - `ABI_OPENAI_API_KEY`, `OPENAI_API_KEY`
 - `ABI_OPENAI_BASE_URL` (default `https://api.openai.com/v1`)
 - `ABI_OPENAI_MODE` (`responses`, `chat`, or `completions`)
@@ -253,6 +293,7 @@ zig build benchmark
 - `ABI_OLLAMA_MODEL` (default `llama3.2`)
 
 ## Contributing
+
 See `CONTRIBUTING.md` for development workflow and style guidelines.
 
 ```
