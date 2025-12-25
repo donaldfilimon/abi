@@ -17,15 +17,16 @@
 - **Naming**: PascalCase for types, snake_case for functions/variables, UPPER_SNAKE_CASE for constants
 - **Imports**: Group std imports first, then internal. No `usingnamespace`. Prefer qualified access.
 - **Error Handling**: Use `!` return types, specific enums over generic, `errdefer` for cleanup, `try` for propagation
-- **Memory**: 
-    - Use stable allocator (GPA) for long-lived data.
-    - Use worker arenas for per-thread scratch.
-    - Results from stable allocator, NOT worker arena.
-    - Reset arenas, never destroy mid-session.
+- **Memory**:
+  - Use stable allocator (GPA) for long-lived data.
+  - Use worker arenas for per-thread scratch.
+  - Results from stable allocator, NOT worker arena.
+  - Reset arenas, never destroy mid-session.
 - **Documentation**: Module-level docs with `//!`, function docs with `///`, examples in ```zig blocks
 - **Testing**: `test` blocks at file end, use `testing.allocator`, co-locate `*_test.zig`, use `mod.zig` for re-exports.
 
 ## Zig 0.16 Specifics
+
 - Use `cmpxchgStrong` / `cmpxchgWeak` (returns `?T`).
 - Use `std.atomic.spinLoopHint()` instead of `spinLoop`.
 - Use `std.Thread.spawn(.{}, ...)` (options struct first).
