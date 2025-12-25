@@ -17,11 +17,14 @@ pub const WorkItem = struct {
     vtable: *const WorkloadVTable,
     priority: f32,
     hints: WorkloadHints,
+    gpu_vtable: ?*const anyopaque = null,
 };
 
 pub const WorkloadHints = struct {
     cpu_affinity: ?u32,
     estimated_duration_us: ?u64,
+    prefers_gpu: bool = false,
+    requires_gpu: bool = false,
 };
 
 pub const DEFAULT_HINTS = WorkloadHints{ .cpu_affinity = null, .estimated_duration_us = null };

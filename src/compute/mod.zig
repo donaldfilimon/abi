@@ -68,6 +68,27 @@ pub const Matrix = workloads.Matrix;
 pub const MatrixMultiplication = workloads.MatrixMultiplication;
 pub const NeuralInference = workloads.NeuralInference;
 
+pub const ComputeBenchmark = runtime.ComputeBenchmark;
+pub const BenchmarkResult = runtime.BenchmarkResult;
+pub const runBenchmark = runtime.runBenchmark;
+pub const printBenchmarkResults = runtime.printBenchmarkResults;
+pub const MatrixMultBenchmark = runtime.MatrixMultBenchmark;
+pub const MemoryAllocationBenchmark = runtime.MemoryAllocationBenchmark;
+pub const FibonacciBenchmark = runtime.FibonacciBenchmark;
+pub const HashingBenchmark = runtime.HashingBenchmark;
+
+pub const NetworkEngine = network.NetworkEngine;
+pub const NetworkConfig = network.NetworkConfig;
+pub const NodeRegistry = network.NodeRegistry;
+pub const NodeInfo = network.NodeInfo;
+pub const TaskMessage = network.TaskMessage;
+pub const ResultMessage = network.ResultMessage;
+pub const serializeTask = network.serializeTask;
+pub const deserializeTask = network.deserializeTask;
+pub const serializeResult = network.serializeResult;
+pub const deserializeResult = network.deserializeResult;
+pub const DEFAULT_NETWORK_CONFIG = network.DEFAULT_NETWORK_CONFIG;
+
 pub fn init(allocator: std.mem.Allocator) !void {
     _ = allocator;
 }

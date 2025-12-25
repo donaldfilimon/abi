@@ -131,28 +131,159 @@ pub const ResultMessage = struct {
     error_message: ?[]const u8 = null,
 };
 
-pub fn serializeTask(allocator: std.mem.Allocator, item: *const workload.WorkItem) ![]u8 {
-    _ = allocator;
-    _ = item;
-    return &.{};
+const TaskSerializationHeader = struct {
+    task_id: u64,
+    payload_type_len: u32,
+    payload_data_len: u32,
+    cpu_affinity: u32,
+    estimated_duration_us: u64,
+    prefers_gpu: u8,
+    requires_gpu: u8,
+};
+
+pub fn serializeTask(allocator: std.mem.Allocator, item: *const workload.WorkItem, payload_type: []const u8, user_data: []const u8) ![]u8 {
+    const header = TaskSerializationHeader{
+        .task_id = item.id,
+        .payload_type_len = @intCast(payload_type.len),
+        .payload_data_len = @intCast(user_data.len),
+        .cpu_affinity = if (item.hints.cpu_affinity) |aff| aff else std.math.maxInt(u32),
+        .estimated_duration_us = if (item.hints.estimated_duration_us) |dur| dur else std.math.maxInt(u64),
+        .prefers_gpu = if (item.hints.prefers_gpu) 1 else 0,
+        .requires_gpu = if (item.hints.requires_gpu) 1 else 0,
+    };
+
+    const total_size = @sizeOf(TaskSerializationHeader) + payload_type.len + user_data.len;
+    var buffer = try allocator.alloc(u8, total_size);
+    errdefer allocator.free(buffer);
+
+    var offset: usize = 0;
+
+    const header_bytes = std.mem.asBytes(&header);
+    @memcpy(buffer[offset..][0..@sizeOf(TaskSerializationHeader)], header_bytes);
+    offset += @sizeOf(TaskSerializationHeader);
+
+    @memcpy(buffer[offset..][0..payload_type.len], payload_type);
+    offset += payload_type.len;
+
+    @memcpy(buffer[offset..][0..user_data.len], user_data);
+
+    return buffer;
 }
 
-pub fn deserializeTask(allocator: std.mem.Allocator, data: []const u8) !workload.WorkItem {
-    _ = allocator;
-    _ = data;
-    return error.NotImplemented;
+pub fn deserializeTask(allocator: std.mem.Allocator, data: []const u8) !struct { item: workload.WorkItem, payload_type: []const u8, user_data: []const u8 } {
+    if (data.len < @sizeOf(TaskSerializationHeader)) {
+        return error.InvalidData;
+    }
+
+    const header_bytes = data[0..@sizeOf(TaskSerializationHeader)];
+    const header = std.mem.bytesToValue(TaskSerializationHeader, header_bytes);
+
+    var offset: usize = @sizeOf(TaskSerializationHeader);
+
+    if (offset + header.payload_type_len > data.len) {
+        return error.InvalidData;
+    }
+    const payload_type = try allocator.dupe(u8, data[offset..][0..header.payload_type_len]);
+    errdefer allocator.free(payload_type);
+    offset += header.payload_type_len;
+
+    if (offset + header.payload_data_len > data.len) {
+        return error.InvalidData;
+    }
+    const user_data = try allocator.dupe(u8, data[offset..][0..header.payload_data_len]);
+    errdefer allocator.free(user_data);
+
+    const hints = workload.WorkloadHints{
+        .cpu_affinity = if (header.cpu_affinity == std.math.maxInt(u32)) null else header.cpu_affinity,
+        .estimated_duration_us = if (header.estimated_duration_us == std.math.maxInt(u64)) null else header.estimated_duration_us,
+        .prefers_gpu = header.prefers_gpu == 1,
+        .requires_gpu = header.requires_gpu == 1,
+    };
+
+    const item = workload.WorkItem{
+        .id = header.task_id,
+        .user = undefined,
+        .vtable = undefined,
+        .priority = 0,
+        .hints = hints,
+        .gpu_vtable = null,
+    };
+
+    return .{
+        .item = item,
+        .payload_type = payload_type,
+        .user_data = user_data,
+    };
 }
 
-pub fn serializeResult(allocator: std.mem.Allocator, handle: workload.ResultHandle) ![]u8 {
-    _ = allocator;
+const ResultSerializationHeader = struct {
+    task_id: u64,
+    success: u8,
+    payload_data_len: u32,
+    error_message_len: u32,
+};
+
+pub fn serializeResult(allocator: std.mem.Allocator, task_id: u64, handle: workload.ResultHandle, success: bool, error_message: ?[]const u8, payload_data: []const u8) ![]u8 {
     _ = handle;
-    return &.{};
+
+    const header = ResultSerializationHeader{
+        .task_id = task_id,
+        .success = if (success) 1 else 0,
+        .payload_data_len = @intCast(payload_data.len),
+        .error_message_len = if (error_message) |msg| @intCast(msg.len) else 0,
+    };
+
+    const error_msg_data = error_message orelse "";
+    const total_size = @sizeOf(ResultSerializationHeader) + error_msg_data.len + payload_data.len;
+
+    var buffer = try allocator.alloc(u8, total_size);
+    errdefer allocator.free(buffer);
+
+    var offset: usize = 0;
+
+    const header_bytes = std.mem.asBytes(&header);
+    @memcpy(buffer[offset..][0..@sizeOf(ResultSerializationHeader)], header_bytes);
+    offset += @sizeOf(ResultSerializationHeader);
+
+    @memcpy(buffer[offset..][0..error_msg_data.len], error_msg_data);
+    offset += error_msg_data.len;
+
+    @memcpy(buffer[offset..][0..payload_data.len], payload_data);
+
+    return buffer;
 }
 
-pub fn deserializeResult(allocator: std.mem.Allocator, data: []const u8) !workload.ResultHandle {
-    _ = allocator;
-    _ = data;
-    return error.NotImplemented;
+pub fn deserializeResult(allocator: std.mem.Allocator, data: []const u8) !struct { task_id: u64, success: bool, error_message: ?[]const u8, payload_data: []const u8 } {
+    if (data.len < @sizeOf(ResultSerializationHeader)) {
+        return error.InvalidData;
+    }
+
+    const header_bytes = data[0..@sizeOf(ResultSerializationHeader)];
+    const header = std.mem.bytesToValue(ResultSerializationHeader, header_bytes);
+
+    var offset: usize = @sizeOf(ResultSerializationHeader);
+
+    var error_message: ?[]const u8 = null;
+    if (header.error_message_len > 0) {
+        if (offset + header.error_message_len > data.len) {
+            return error.InvalidData;
+        }
+        error_message = try allocator.dupe(u8, data[offset..][0..header.error_message_len]);
+        errdefer allocator.free(error_message.?);
+        offset += header.error_message_len;
+    }
+
+    if (offset + header.payload_data_len > data.len) {
+        return error.InvalidData;
+    }
+    const payload_data = try allocator.dupe(u8, data[offset..][0..header.payload_data_len]);
+
+    return .{
+        .task_id = header.task_id,
+        .success = header.success == 1,
+        .error_message = error_message,
+        .payload_data = payload_data,
+    };
 }
 
 pub const DEFAULT_NETWORK_CONFIG = NetworkConfig{};

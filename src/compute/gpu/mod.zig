@@ -18,7 +18,7 @@ pub const GPUBackend = enum {
 
 pub const GPUWorkloadVTable = struct {
     base: workload.WorkloadVTable,
-    gpu_exec: *const fn (user: *anyopaque, ctx: *workload.ExecutionContext, a: std.mem.Allocator, gpu_ctx: *GPUExecutionContext) anyerror!*anyopaque,
+    gpu_exec: *const fn (user: *anyopaque, ctx: *workload.ExecutionContext, a: std.mem.Allocator, gpu_ctx: GPUExecutionContext) anyerror!*anyopaque,
     get_memory_requirements: *const fn (user: *anyopaque) GPUMemoryRequirements,
     can_execute_on_gpu: *const fn (user: *anyopaque) bool,
 };
@@ -75,3 +75,10 @@ pub const GPUDeviceInfo = struct {
 };
 
 pub const DEFAULT_GPU_HINTS = GPUWorkloadHints{};
+
+pub const memory = @import("memory.zig");
+
+pub const GPUBuffer = memory.GPUBuffer;
+pub const BufferFlags = memory.BufferFlags;
+pub const GPUMemoryPool = memory.GPUMemoryPool;
+pub const AsyncTransfer = memory.AsyncTransfer;

@@ -1,6 +1,8 @@
 const std = @import("std");
 const abi = @import("abi");
 
+const phase5_integration = @import("phase5_integration.zig");
+
 test "abi version returns non-empty string" {
     try std.testing.expect(abi.version().len > 0);
 }

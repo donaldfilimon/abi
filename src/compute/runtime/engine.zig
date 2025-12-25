@@ -27,12 +27,14 @@ const GPUModule = if (build_options.enable_gpu)
         pub const GPUBackend = @import("../gpu/mod.zig").GPUBackend;
         pub const GPUManager = @import("../gpu/mod.zig").GPUManager;
         pub const GPUExecutionContext = @import("../gpu/mod.zig").GPUExecutionContext;
+        pub const GPUWorkloadVTable = @import("../gpu/mod.zig").GPUWorkloadVTable;
     }
 else
     struct {
         pub const GPUBackend = void;
         pub const GPUManager = void;
         pub const GPUExecutionContext = void;
+        pub const GPUWorkloadVTable = void;
     };
 
 const ChaseLevDeque = chase_lev_deque.ChaseLevDeque;
@@ -390,7 +392,10 @@ fn executeTask(worker: *Worker, task_id: u64) !void {
     var exec_timer = try std.time.Timer.start();
     const start_time = exec_timer.read();
 
-    const result_ptr = try item.vtable.exec(item.user, &ctx, engine.allocator);
+    const result_ptr: *anyopaque = if (build_options.enable_gpu)
+        try executeTaskWithGpu(engine, item, &ctx)
+    else
+        try item.vtable.exec(item.user, &ctx, engine.allocator);
 
     const end_time = exec_timer.read();
     const duration_ns = end_time - start_time;
@@ -422,6 +427,29 @@ fn executeTask(worker: *Worker, task_id: u64) !void {
     engine.work_items.mutex.unlock();
 
     _ = worker.arena.reset(.retain_capacity);
+}
+
+fn executeTaskWithGpu(engine: *Engine, item: *const WorkItem, ctx: *ExecutionContext) !*anyopaque {
+    if (item.gpu_vtable != null and (item.hints.prefers_gpu or item.hints.requires_gpu)) {
+        const gpu_vtable = @as(*const GPUModule.GPUWorkloadVTable, @ptrCast(@alignCast(item.gpu_vtable)));
+
+        if (engine.gpu_manager) |*gm| {
+            const gpu_ctx = GPUModule.GPUExecutionContext{
+                .backend = gm.backend,
+                .device_id = 0,
+                .stream_id = 0,
+            };
+
+            return gpu_vtable.gpu_exec(item.user, ctx, engine.allocator, gpu_ctx) catch |err| {
+                if (item.hints.requires_gpu) {
+                    return err;
+                }
+                return item.vtable.exec(item.user, ctx, engine.allocator);
+            };
+        }
+    }
+
+    return item.vtable.exec(item.user, ctx, engine.allocator);
 }
 
 const ResultMetadata = struct {
