@@ -13,6 +13,11 @@ Modern Zig framework for modular AI services, vector search, and systems tooling
 - Web utilities (HTTP client/server helpers, weather helper)
 - Monitoring (logging, metrics, tracing, profiling)
 
+## Documentation
+
+- Docs folder (overview + guides): https://github.com/donaldfilimon/abi/tree/main/docs
+- Concise API summary: [API_REFERENCE.md](API_REFERENCE.md)
+
 ## Requirements
 
 - Zig 0.16.x (tested with 0.16.0-dev)
