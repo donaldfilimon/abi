@@ -51,6 +51,7 @@ const Worker = struct {
     arena: std.heap.ArenaAllocator,
     thread: ?std.Thread,
     engine: *Engine,
+    timer: std.time.Timer,
 };
 
 const ResultCache = struct {
@@ -61,6 +62,24 @@ const ResultCache = struct {
 const WorkItemCache = struct {
     map: std.AutoHashMap(u64, *WorkItem),
     mutex: std.Thread.Mutex,
+
+    fn put(self: *WorkItemCache, _: std.mem.Allocator, id: u64, item: *WorkItem) !void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        try self.map.put(id, item);
+    }
+
+    fn fetchRemove(self: *WorkItemCache, id: u64) ?std.AutoHashMap(u64, *WorkItem).KV {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        return self.map.fetchRemove(id);
+    }
+
+    fn count(self: *WorkItemCache) usize {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        return self.map.count();
+    }
 };
 
 pub const Engine = struct {
@@ -85,21 +104,20 @@ pub const Engine = struct {
 
         const workers = try allocator.alloc(Worker, worker_count);
 
-        const queue_capacity = 1024;
-
         var i: usize = 0;
         while (i < worker_count) : (i += 1) {
             const arena_allocator = std.heap.ArenaAllocator.init(allocator);
             workers[i] = Worker{
                 .id = @as(u32, @intCast(i)),
-                .local_deque = try ChaseLevDeque.init(allocator, queue_capacity),
+                .local_deque = try ChaseLevDeque.init(allocator, cfg.queue_capacity),
                 .arena = arena_allocator,
                 .thread = null,
                 .engine = undefined,
+                .timer = std.time.Timer.start() catch unreachable,
             };
         }
 
-        const injection_queue = try ChaseLevDeque.init(allocator, queue_capacity);
+        const injection_queue = try ChaseLevDeque.init(allocator, cfg.queue_capacity);
         const result_map = try ShardedMap.init(allocator, @max(4, worker_count / 2));
         const work_item_map = std.AutoHashMap(u64, *WorkItem).init(allocator);
 
@@ -157,7 +175,7 @@ pub const Engine = struct {
                 pending = self.countPendingTasks();
                 if (pending == 0) break;
                 var i: usize = 0;
-                while (i < 1000) : (i += 1) {
+                while (i < self.config.drain_spin_iterations) : (i += 1) {
                     std.atomic.spinLoopHint();
                 }
             }
@@ -173,7 +191,28 @@ pub const Engine = struct {
 
         self.allocator.free(self.workers);
         self.injection_queue.deinit(self.allocator);
+
+        for (self.result_cache.map.shards.items) |*shard| {
+            shard.mutex.lock();
+            defer shard.mutex.unlock();
+
+            var iter = shard.map.iterator();
+            while (iter.next()) |entry| {
+                const entry_ptr: *ResultEntry = @ptrFromInt(entry.key_ptr.*);
+                if (entry_ptr.complete.load(.acquire)) {
+                    if (entry_ptr.handle.vtable.destroy) |destroy_fn| {
+                        destroy_fn(entry_ptr.handle.ptr, self.allocator);
+                    }
+                }
+                self.allocator.destroy(entry_ptr);
+            }
+        }
         self.result_cache.map.deinit(self.allocator);
+
+        var iter = self.work_items.map.iterator();
+        while (iter.next()) |kv| {
+            self.allocator.destroy(kv.value_ptr.*);
+        }
         self.work_items.map.deinit();
 
         if (build_options.enable_profiling) {
@@ -194,8 +233,7 @@ pub const Engine = struct {
 
     pub fn submit(self: *Engine, item: WorkItem) !u64 {
         const id = self.next_id.fetchAdd(1, .monotonic);
-        var timer = try std.time.Timer.start();
-        const submit_timestamp = timer.read();
+        const submit_timestamp = std.time.nanoTimestamp();
 
         const work_item_ptr = try self.allocator.create(WorkItem);
         work_item_ptr.* = WorkItem{
@@ -219,9 +257,7 @@ pub const Engine = struct {
             },
         };
 
-        self.work_items.mutex.lock();
-        defer self.work_items.mutex.unlock();
-        try self.work_items.map.put(id, work_item_ptr);
+        try self.work_items.put(self.allocator, id, work_item_ptr);
 
         self.result_cache.mutex.lock();
         defer self.result_cache.mutex.unlock();
@@ -234,16 +270,13 @@ pub const Engine = struct {
     }
 
     pub fn poll(self: *Engine) ?*ResultEntry {
-        self.result_cache.mutex.lock();
-        defer self.result_cache.mutex.unlock();
-
         for (self.result_cache.map.shards.items) |*shard| {
             shard.mutex.lock();
             defer shard.mutex.unlock();
 
             var iter = shard.map.iterator();
             while (iter.next()) |entry| {
-                const result_ptr = @as(*ResultEntry, @ptrFromInt(@as(usize, @intCast(entry.key_ptr.*))));
+                const result_ptr: *ResultEntry = @ptrFromInt(entry.key_ptr.*);
                 if (result_ptr.complete.load(.acquire)) {
                     return result_ptr;
                 }
@@ -259,8 +292,16 @@ pub const Engine = struct {
 
         const entry_ptr = self.result_cache.map.remove(id);
         if (entry_ptr) |ptr| {
-            const entry = @as(*ResultEntry, @ptrFromInt(@as(usize, @intCast(ptr))));
-            return entry.handle;
+            const entry: *ResultEntry = @ptrFromInt(ptr);
+            const handle = entry.handle;
+
+            if (entry.complete.load(.acquire)) {
+                if (handle.vtable.destroy) |destroy_fn| {
+                    destroy_fn(handle.ptr, self.allocator);
+                }
+            }
+            self.allocator.destroy(entry);
+            return handle;
         }
 
         return null;
@@ -271,7 +312,7 @@ pub const Engine = struct {
         defer self.result_cache.mutex.unlock();
 
         if (self.result_cache.map.get(id)) |ptr| {
-            const entry = @as(*ResultEntry, @ptrFromInt(@as(usize, @intCast(ptr))));
+            const entry: *ResultEntry = @ptrFromInt(ptr);
             return entry.metadata;
         }
 
@@ -283,7 +324,7 @@ pub const Engine = struct {
         defer self.result_cache.mutex.unlock();
 
         if (self.result_cache.map.get(id)) |ptr| {
-            const entry = @as(*ResultEntry, @ptrFromInt(@as(usize, @intCast(ptr))));
+            const entry: *ResultEntry = @ptrFromInt(ptr);
             entry.handle = handle;
             entry.complete.store(true, .release);
         }
@@ -294,7 +335,7 @@ pub const Engine = struct {
         defer self.result_cache.mutex.unlock();
 
         if (self.result_cache.map.get(id)) |ptr| {
-            const entry = @as(*ResultEntry, @ptrFromInt(@as(usize, @intCast(ptr))));
+            const entry: *ResultEntry = @ptrFromInt(ptr);
             entry.handle = handle;
             entry.metadata.worker_id = worker_id;
             entry.metadata.complete_timestamp_ns = end_time;
@@ -306,16 +347,12 @@ pub const Engine = struct {
     fn countPendingTasks(self: *Engine) usize {
         var count: usize = 0;
 
-        self.work_items.mutex.lock();
-        defer self.work_items.mutex.unlock();
+        const work_item_count = self.work_items.count();
 
         var iter = self.work_items.map.iterator();
         while (iter.next()) |_| {
             count += 1;
         }
-
-        self.result_cache.mutex.lock();
-        defer self.result_cache.mutex.unlock();
 
         for (self.result_cache.map.shards.items) |*shard| {
             shard.mutex.lock();
@@ -323,14 +360,14 @@ pub const Engine = struct {
 
             var iter2 = shard.map.iterator();
             while (iter2.next()) |entry| {
-                const result_ptr = @as(*ResultEntry, @ptrFromInt(@as(usize, @intCast(entry.key_ptr.*))));
+                const result_ptr: *ResultEntry = @ptrFromInt(entry.key_ptr.*);
                 if (result_ptr.complete.load(.acquire)) {
                     count -= 1;
                 }
             }
         }
 
-        return count;
+        return count + work_item_count;
     }
 };
 
@@ -344,12 +381,20 @@ fn workerMain(worker: *Worker) void {
 
         if (task_id) |id| {
             executeTask(worker, id) catch |err| {
-                std.debug.print("Worker {} task {} error: {}\n", .{ worker.id, id, err });
+                if (worker.engine.config.error_callback) |cb| {
+                    cb(worker.id, id, err);
+                } else {
+                    std.debug.print("Worker {} task {} error: {}\n", .{ worker.id, id, err });
+                }
             };
         } else {
             var i: usize = 0;
-            while (i < 100) : (i += 1) {
+            var backoff: u32 = 1;
+            while (i < worker.engine.config.idle_spin_iterations) : (i += 1) {
                 std.atomic.spinLoopHint();
+                if (i % backoff == 0 and backoff < 100) {
+                    backoff *= 2;
+                }
             }
         }
     }
@@ -376,10 +421,7 @@ fn trySteal(worker: *Worker) ?u64 {
 fn executeTask(worker: *Worker, task_id: u64) !void {
     const engine = worker.engine;
 
-    engine.work_items.mutex.lock();
     const item_ptr = engine.work_items.map.get(task_id);
-    engine.work_items.mutex.unlock();
-
     if (item_ptr == null) return;
 
     const item = item_ptr.?;
@@ -389,15 +431,14 @@ fn executeTask(worker: *Worker, task_id: u64) !void {
         .arena = &worker.arena,
     };
 
-    var exec_timer = try std.time.Timer.start();
-    const start_time = exec_timer.read();
+    const start_time = worker.timer.read();
 
     const result_ptr: *anyopaque = if (build_options.enable_gpu)
         try executeTaskWithGpu(engine, item, &ctx)
     else
         try item.vtable.exec(item.user, &ctx, engine.allocator);
 
-    const end_time = exec_timer.read();
+    const end_time = worker.timer.read();
     const duration_ns = end_time - start_time;
 
     if (build_options.enable_profiling) {
@@ -418,20 +459,21 @@ fn executeTask(worker: *Worker, task_id: u64) !void {
     const handle = ResultHandle{
         .ptr = result_ptr,
         .vtable = &result_vtable,
+        .owns_memory = false,
     };
 
     try engine.completeResultWithMetadata(task_id, handle, worker.id, start_time, end_time);
 
-    engine.work_items.mutex.lock();
-    _ = engine.work_items.map.remove(task_id);
-    engine.work_items.mutex.unlock();
+    if (engine.work_items.fetchRemove(task_id)) |kv| {
+        engine.allocator.destroy(kv.value_ptr.*);
+    }
 
     _ = worker.arena.reset(.retain_capacity);
 }
 
 fn executeTaskWithGpu(engine: *Engine, item: *const WorkItem, ctx: *ExecutionContext) !*anyopaque {
     if (item.gpu_vtable != null and (item.hints.prefers_gpu or item.hints.requires_gpu)) {
-        const gpu_vtable = @as(*const GPUModule.GPUWorkloadVTable, @ptrCast(@alignCast(item.gpu_vtable)));
+        const gpu_vtable: *const GPUModule.GPUWorkloadVTable = @ptrCast(@alignCast(item.gpu_vtable.?));
 
         if (engine.gpu_manager) |*gm| {
             const gpu_ctx = GPUModule.GPUExecutionContext{

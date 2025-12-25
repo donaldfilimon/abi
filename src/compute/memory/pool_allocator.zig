@@ -64,12 +64,14 @@ pub const PoolAllocator = struct {
         return self.backing_allocator.rawAlloc(len, log2_ptr_align, ret_addr);
     }
 
-    fn resize(ctx: *anyopaque, buf: []u8, new_len: usize, log2_buf_align: u8, ret_addr: ?usize) bool {
-        _ = ctx;
-        _ = new_len;
-        _ = log2_buf_align;
-        _ = ret_addr;
-        _ = buf.len;
+    fn resize(ctx: *anyopaque, _: []u8, new_len: usize, _: u8, _: ?usize) bool {
+        const self: *PoolAllocator = @ptrCast(@alignCast(ctx));
+
+        for (self.pools.items) |*pool| {
+            if (pool.size_class == new_len) {
+                return true;
+            }
+        }
 
         return false;
     }

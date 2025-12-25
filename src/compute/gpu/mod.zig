@@ -65,6 +65,12 @@ pub const GPUManager = struct {
         _ = requirements;
         return null;
     }
+
+    pub fn submitDevice(self: *GPUManager, device_id: u32) !void {
+        _ = self;
+        _ = device_id;
+        return error.Unimplemented;
+    }
 };
 
 pub const GPUDeviceInfo = struct {

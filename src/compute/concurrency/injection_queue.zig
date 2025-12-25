@@ -18,4 +18,12 @@ pub const InjectionQueue = struct {
         self.buffer.deinit();
         self.* = undefined;
     }
+
+    pub fn push(self: *InjectionQueue, value: u64) !void {
+        try self.buffer.append(value);
+    }
+
+    pub fn pop(self: *InjectionQueue) ?u64 {
+        return self.buffer.popOrNull();
+    }
 };

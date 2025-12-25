@@ -41,13 +41,16 @@ pub const ResultVTable = struct {
 pub const ResultHandle = struct {
     ptr: *anyopaque,
     vtable: *const ResultVTable,
+    owns_memory: bool = false,
 
     pub fn as(self: ResultHandle, comptime T: type) *T {
         return @ptrCast(@alignCast(self.ptr));
     }
 
     pub fn deinit(self: *ResultHandle, a: std.mem.Allocator) void {
-        self.vtable.destroy(self.ptr, a);
+        if (self.owns_memory) {
+            self.vtable.destroy(self.ptr, a);
+        }
         self.* = undefined;
     }
 };

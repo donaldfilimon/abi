@@ -61,14 +61,13 @@ pub const MatrixMultBenchmark = struct {
     iterations: u64 = 10,
 
     pub fn create(self: MatrixMultBenchmark, _: std.mem.Allocator) ComputeBenchmark {
+        const n = self.matrix_size;
+
         return ComputeBenchmark{
             .name = "matrix_multiplication",
             .iterations = self.iterations,
             .work_fn = struct {
-                fn run(iteration: u64) anyerror!void {
-                    _ = iteration;
-
-                    const n: usize = 256;
+                fn run(_: u64) anyerror!void {
                     var a: [256][256]f32 = undefined;
                     var b: [256][256]f32 = undefined;
                     var c: [256][256]f32 = undefined;

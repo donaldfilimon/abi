@@ -12,6 +12,8 @@ pub fn CacheAlignedBuffer(comptime T: type, comptime alignment: ?usize) type {
 
         data: []T,
         allocator: std.mem.Allocator,
+        raw_ptr: [*]u8,
+        raw_len: usize,
 
         pub fn init(allocator: std.mem.Allocator, count: usize) !Self {
             const byte_len = count * @sizeOf(T);
@@ -25,12 +27,13 @@ pub fn CacheAlignedBuffer(comptime T: type, comptime alignment: ?usize) type {
             return .{
                 .data = @as([*]T, @ptrFromInt(aligned_ptr))[0..count],
                 .allocator = allocator,
+                .raw_ptr = raw.ptr,
+                .raw_len = aligned_byte_len,
             };
         }
 
         pub fn deinit(self: *Self) void {
-            const raw = std.mem.alignBackward(usize, @intFromPtr(self.data.ptr), actual_alignment);
-            self.allocator.rawFree(@as([*]align(actual_alignment) u8, @ptrFromInt(raw)), self.data.len * @sizeOf(T));
+            self.allocator.rawFree(self.raw_ptr, self.raw_len);
             self.* = undefined;
         }
     };
