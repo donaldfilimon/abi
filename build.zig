@@ -105,6 +105,27 @@ pub fn build(b: *std.Build) void {
         std.log.warn("tests/mod.zig not found; skipping test step", .{});
     }
 
+    // Benchmark step
+    const has_benchmark = pathExists("src/compute/runtime/benchmark.zig");
+    if (has_benchmark) {
+        const benchmark_exe = b.addExecutable(.{
+            .name = "abi-benchmark",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("src/compute/runtime/benchmark_demo.zig"),
+                .target = target,
+                .optimize = .ReleaseFast,
+            }),
+        });
+        benchmark_exe.root_module.addImport("abi", abi_module);
+
+        const run_benchmark = b.addRunArtifact(benchmark_exe);
+
+        const benchmark_step = b.step("benchmark", "Run performance benchmarks");
+        benchmark_step.dependOn(&run_benchmark.step);
+    } else {
+        std.log.warn("src/compute/runtime/benchmark.zig not found; skipping benchmark step", .{});
+    }
+
     // Performance profiling build
     if (has_cli) {
         const profile_exe = b.addExecutable(.{

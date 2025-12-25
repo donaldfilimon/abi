@@ -164,7 +164,8 @@ pub const HashingBenchmark = struct {
                     _ = iteration;
 
                     var data: [1024]u8 = undefined;
-                    std.crypto.hash.sha2.Sha256.hash(&data, &data);
+                    var out: [32]u8 = undefined;
+                    std.crypto.hash.sha2.Sha256.hash(&data, &out, .{});
                 }
             }.run,
         };
