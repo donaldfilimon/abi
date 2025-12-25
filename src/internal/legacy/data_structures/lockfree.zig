@@ -106,10 +106,8 @@ pub fn lockFreeQueue(comptime T: type) type {
                 if (tail == self.tail.load(.acquire)) {
                     if (next == null) {
                         // Try to link new node at end of list
-                        if (tail.next.cmpxchgWeak(null, new_node, .release, .acquire)) |result| {
-                            if (result == null) {
-                                break;
-                            }
+                        if (tail.next.cmpxchgWeak(null, new_node, .release, .acquire) == null) {
+                            break;
                         }
                     } else {
                         // Try to swing tail to next node
@@ -142,7 +140,7 @@ pub fn lockFreeQueue(comptime T: type) type {
                         const data = next.?.data;
 
                         // Try to swing head to next node
-                        if (self.head.cmpxchgWeak(head, next.?, .release, .acquire).? == head) {
+                        if (self.head.cmpxchgWeak(head, next.?, .release, .acquire) == null) {
                             self.allocator.destroy(head);
                             return data;
                         }
@@ -185,10 +183,8 @@ pub fn lockFreeStack(comptime T: type) type {
                 const old_head = self.head.load(.acquire);
                 new_node.next = old_head;
 
-                if (self.head.cmpxchgWeak(old_head, new_node, .release, .acquire)) |result| {
-                    if (result == old_head) {
-                        break;
-                    }
+                if (self.head.cmpxchgWeak(old_head, new_node, .release, .acquire) == null) {
+                    break;
                 }
             }
         }
@@ -199,12 +195,10 @@ pub fn lockFreeStack(comptime T: type) type {
                 if (old_head == null) return null;
 
                 const next = old_head.?.next;
-                if (self.head.cmpxchgWeak(old_head, next, .release, .acquire)) |result| {
-                    if (result == old_head) {
-                        const data = old_head.?.data;
-                        self.allocator.destroy(old_head.?);
-                        return data;
-                    }
+                if (self.head.cmpxchgWeak(old_head, next, .release, .acquire) == null) {
+                    const data = old_head.?.data;
+                    self.allocator.destroy(old_head.?);
+                    return data;
                 }
             }
         }
@@ -308,11 +302,9 @@ pub fn lockFreeHashMap(comptime K: type, comptime V: type) type {
                         const old_hop = start_entry.hop_info.load(.acquire);
                         const new_hop = old_hop | (@as(u32, 1) << @as(u5, @intCast(dist)));
 
-                        if (start_entry.hop_info.cmpxchgWeak(old_hop, new_hop, .release, .acquire)) |result| {
-                            if (result == old_hop) {
-                                _ = self.size.fetchAdd(1, .release);
-                                return true;
-                            }
+                        if (start_entry.hop_info.cmpxchgWeak(old_hop, new_hop, .release, .acquire) == null) {
+                            _ = self.size.fetchAdd(1, .release);
+                            return true;
                         }
                     } else {
                         // Need to move entries closer
@@ -413,7 +405,7 @@ pub fn workStealingDeque(comptime T: type) type {
 
                 if (t == b) {
                     // Last item, compete with steal
-                    if (self.top.compareAndSwap(t, t + 1, .release, .acquire) != t) {
+                    if (self.top.cmpxchgStrong(t, t + 1, .release, .acquire) != null) {
                         self.bottom.store(b + 1, .release);
                         return null;
                     }
@@ -435,7 +427,7 @@ pub fn workStealingDeque(comptime T: type) type {
                 const index = @as(usize, @intCast(t % @as(i64, @intCast(self.capacity))));
                 const item = self.buffer[index].load(.acquire);
 
-                if (self.top.compareAndSwap(t, t + 1, .release, .acquire) == t) {
+                if (self.top.cmpxchgStrong(t, t + 1, .release, .acquire) == null) {
                     return item;
                 }
             }
@@ -476,8 +468,8 @@ pub fn mpmcQueue(comptime T: type, comptime capacity: usize) type {
                     return false; // Queue full
                 }
 
-                if (self.buffer[tail].compareAndSwap(null, item, .release, .acquire) == null) {
-                    _ = self.tail.compareAndSwap(tail, next_tail, .release, .acquire);
+                if (self.buffer[tail].cmpxchgStrong(null, item, .release, .acquire) == null) {
+                    _ = self.tail.cmpxchgStrong(tail, next_tail, .release, .acquire);
                     return true;
                 }
             }
@@ -493,8 +485,8 @@ pub fn mpmcQueue(comptime T: type, comptime capacity: usize) type {
 
                 const item = self.buffer[head].load(.acquire);
                 if (item != null) {
-                    if (self.buffer[head].compareAndSwap(item, null, .release, .acquire) == item) {
-                        _ = self.head.compareAndSwap(head, (head + 1) % capacity, .release, .acquire);
+                    if (self.buffer[head].cmpxchgStrong(item, null, .release, .acquire) == null) {
+                        _ = self.head.cmpxchgStrong(head, (head + 1) % capacity, .release, .acquire);
                         return item;
                     }
                 }
@@ -535,16 +527,15 @@ test "lock-free stack" {
     try testing.expectEqual(@as(?i32, null), stack.pop());
 }
 
-// Temporarily disabled due to Zig 0.15.x atomic compatibility issues
-// test "MPMC queue" {
-//     const testing = std.testing;
-//
-//     var queue = MPMCQueue(i32, 16).init();
+test "MPMC queue" {
+    const testing = std.testing;
 
-//     try testing.expect(queue.enqueue(1));
-//     try testing.expect(queue.enqueue(2));
-//
-//     try testing.expectEqual(@as(?i32, 1), queue.dequeue());
-//     try testing.expectEqual(@as(?i32, 2), queue.dequeue());
-//     try testing.expectEqual(@as(?i32, null), queue.dequeue());
-// }
+    var queue = mpmcQueue(i32, 16).init();
+
+    try testing.expect(queue.enqueue(1));
+    try testing.expect(queue.enqueue(2));
+
+    try testing.expectEqual(@as(?i32, 1), queue.dequeue());
+    try testing.expectEqual(@as(?i32, 2), queue.dequeue());
+    try testing.expectEqual(@as(?i32, null), queue.dequeue());
+}

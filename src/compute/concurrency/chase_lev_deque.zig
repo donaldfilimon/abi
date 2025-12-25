@@ -87,8 +87,7 @@ pub const ChaseLevDeque = struct {
             return value;
         }
 
-        const t2 = self.top.cmpxchgStrong(t, t + 1, .acq_rel, .monotonic);
-        if (t2 == t) {
+        if (self.top.cmpxchgStrong(t, t + 1, .acq_rel, .monotonic) == null) {
             return value;
         }
 
@@ -107,8 +106,7 @@ pub const ChaseLevDeque = struct {
         const idx = @as(usize, @intCast(@mod(t, @as(isize, @intCast(self.capacity)))));
         const value = self.buffer[idx].load(.acquire);
 
-        const t2 = self.top.cmpxchgStrong(t, t + 1, .acq_rel, .monotonic);
-        if (t2 == t) {
+        if (self.top.cmpxchgStrong(t, t + 1, .acq_rel, .monotonic) == null) {
             return value;
         }
 

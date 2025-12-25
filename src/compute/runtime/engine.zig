@@ -43,7 +43,15 @@ const ResultHandle = workload.ResultHandle;
 const WorkItem = workload.WorkItem;
 const ExecutionContext = workload.ExecutionContext;
 const WorkloadHints = workload.WorkloadHints;
+const ResultVTable = workload.ResultVTable;
 const EMPTY: u64 = 0;
+
+pub const ResultMetadata = struct {
+    worker_id: u32,
+    submitted_at_ns: u64,
+    execution_duration_ns: u64,
+    completed_at_ns: u64,
+};
 
 const Worker = struct {
     id: u32,
@@ -52,6 +60,14 @@ const Worker = struct {
     thread: ?std.Thread,
     engine: *Engine,
     timer: std.time.Timer,
+};
+
+const ResultEntry = struct {
+    handle: ResultHandle,
+    complete: std.atomic.Value(bool),
+    worker_id: u32,
+    submitted_at_ns: u64,
+    execution_duration_ns: u64,
 };
 
 const ResultCache = struct {
@@ -200,8 +216,8 @@ pub const Engine = struct {
             while (iter.next()) |entry| {
                 const entry_ptr: *ResultEntry = @ptrFromInt(entry.key_ptr.*);
                 if (entry_ptr.complete.load(.acquire)) {
-                    if (entry_ptr.handle.vtable.destroy) |destroy_fn| {
-                        destroy_fn(entry_ptr.handle.ptr, self.allocator);
+                    if (entry_ptr.handle.owns_memory) {
+                        entry_ptr.handle.vtable.destroy(entry_ptr.handle.ptr, self.allocator);
                     }
                 }
                 self.allocator.destroy(entry_ptr);
@@ -233,277 +249,133 @@ pub const Engine = struct {
 
     pub fn submit(self: *Engine, item: WorkItem) !u64 {
         const id = self.next_id.fetchAdd(1, .monotonic);
-        const submit_timestamp = std.time.nanoTimestamp();
 
-        const work_item_ptr = try self.allocator.create(WorkItem);
-        work_item_ptr.* = WorkItem{
-            .id = id,
-            .user = item.user,
-            .vtable = item.vtable,
-            .priority = item.priority,
-            .hints = item.hints,
-        };
-
-        const entry_ptr = try self.allocator.create(ResultEntry);
-        entry_ptr.* = ResultEntry{
-            .task_id = id,
-            .handle = undefined,
+        const result_entry = try self.allocator.create(ResultEntry);
+        result_entry.* = ResultEntry{
+            .handle = ResultHandle{ .ptr = null, .vtable = null },
             .complete = std.atomic.Value(bool).init(false),
-            .metadata = ResultMetadata{
-                .worker_id = 0,
-                .submit_timestamp_ns = submit_timestamp,
-                .complete_timestamp_ns = 0,
-                .execution_duration_ns = 0,
-            },
+            .worker_id = 0,
+            .submitted_at_ns = std.time.nanoTimestamp(),
+            .execution_duration_ns = 0,
         };
 
-        try self.work_items.put(self.allocator, id, work_item_ptr);
+        const entry_key: u64 = @intFromPtr(result_entry);
+        try self.result_cache.map.put(self.allocator, id, entry_key);
 
-        self.result_cache.mutex.lock();
-        defer self.result_cache.mutex.unlock();
-        try self.result_cache.map.put(id, @intFromPtr(entry_ptr));
+        const work_item_copy = try self.allocator.create(WorkItem);
+        work_item_copy.* = item;
+        work_item_copy.id = id;
+        try self.work_items.put(self.allocator, id, work_item_copy);
 
-        const worker_index = @mod(id, self.workers.len);
-        try self.workers[worker_index].local_deque.pushBottom(self.allocator, id);
-
+        try self.injection_queue.pushBottom(id);
         return id;
     }
 
-    pub fn poll(self: *Engine) ?*ResultEntry {
-        for (self.result_cache.map.shards.items) |*shard| {
+    pub fn poll(self: *Engine) ?ResultHandle {
+        var iter = self.result_cache.map.shards.iterator();
+        while (iter.next()) |shard| {
             shard.mutex.lock();
             defer shard.mutex.unlock();
 
-            var iter = shard.map.iterator();
-            while (iter.next()) |entry| {
-                const result_ptr: *ResultEntry = @ptrFromInt(entry.key_ptr.*);
-                if (result_ptr.complete.load(.acquire)) {
-                    return result_ptr;
+            var map_iter = shard.map.iterator();
+            while (map_iter.next()) |entry| {
+                const entry_ptr: *ResultEntry = @ptrFromInt(entry.value_ptr.*);
+                if (entry_ptr.complete.load(.acquire)) {
+                    const result = ResultHandle{
+                        .ptr = entry_ptr.handle.ptr,
+                        .vtable = entry_ptr.handle.vtable,
+                    };
+                    shard.map.remove(entry.key_ptr.*);
+                    self.allocator.destroy(entry_ptr);
+                    return result;
                 }
             }
         }
-
         return null;
     }
 
-    pub fn take(self: *Engine, id: u64) ?ResultHandle {
-        self.result_cache.mutex.lock();
-        defer self.result_cache.mutex.unlock();
+            const
+ {void !)    pub fn completeResultWithMetadata(self: *Engine, task_id: u64, handle: ResultHandle, worker_id: u32, duration_ns: u64, queued_ns: u64) !void {
+        const entry_ptr_u64 = self.result_cache.map.get(task_id) orelse return error.ResultNotFound;
+        const entry: *ResultEntry = @ptrCast(@alignCast(@as(*anyopaque, @ptrFromInt(entry_ptr_u64))));
+        entry.handle = handle;
+        entry.worker_id = worker_id;
+        entry.execution_duration_ns = duration_ns;
+        entry.complete.store(true, .release);
+        _ = queued_ns;
 
-        const entry_ptr = self.result_cache.map.remove(id);
-        if (entry_ptr) |ptr| {
-            const entry: *ResultEntry = @ptrFromInt(ptr);
-            const handle = entry.handle;
-
-            if (entry.complete.load(.acquire)) {
-                if (handle.vtable.destroy) |destroy_fn| {
-                    destroy_fn(handle.ptr, self.allocator);
-                }
-            }
-            self.allocator.destroy(entry);
-            return handle;
-        }
-
-        return null;
-    }
-
-    pub fn getResultMetadata(self: *Engine, id: u64) ?ResultMetadata {
-        self.result_cache.mutex.lock();
-        defer self.result_cache.mutex.unlock();
-
-        if (self.result_cache.map.get(id)) |ptr| {
-            const entry: *ResultEntry = @ptrFromInt(ptr);
-            return entry.metadata;
-        }
-
-        return null;
-    }
-
-    fn completeResult(self: *Engine, id: u64, handle: ResultHandle) !void {
-        self.result_cache.mutex.lock();
-        defer self.result_cache.mutex.unlock();
-
-        if (self.result_cache.map.get(id)) |ptr| {
-            const entry: *ResultEntry = @ptrFromInt(ptr);
-            entry.handle = handle;
-            entry.complete.store(true, .release);
-        }
-    }
-
-    fn completeResultWithMetadata(self: *Engine, id: u64, handle: ResultHandle, worker_id: u32, start_time: u64, end_time: u64) !void {
-        self.result_cache.mutex.lock();
-        defer self.result_cache.mutex.unlock();
-
-        if (self.result_cache.map.get(id)) |ptr| {
-            const entry: *ResultEntry = @ptrFromInt(ptr);
-            entry.handle = handle;
-            entry.metadata.worker_id = worker_id;
-            entry.metadata.complete_timestamp_ns = end_time;
-            entry.metadata.execution_duration_ns = end_time - start_time;
-            entry.complete.store(true, .release);
-        }
-    }
-
-    fn countPendingTasks(self: *Engine) usize {
-        var count: usize = 0;
-
-        const work_item_count = self.work_items.count();
-
-        var iter = self.work_items.map.iterator();
-        while (iter.next()) |_| {
-            count += 1;
-        }
-
-        for (self.result_cache.map.shards.items) |*shard| {
-            shard.mutex.lock();
-            defer shard.mutex.unlock();
-
-            var iter2 = shard.map.iterator();
-            while (iter2.next()) |entry| {
-                const result_ptr: *ResultEntry = @ptrFromInt(entry.key_ptr.*);
-                if (result_ptr.complete.load(.acquire)) {
-                    count -= 1;
-                }
-            }
-        }
-
-        return count + work_item_count;
-    }
-};
-
-fn workerMain(worker: *Worker) void {
-    while (worker.engine.running.load(.acquire)) {
-        var task_id = worker.local_deque.popBottom();
-
-        if (task_id == null) {
-            task_id = trySteal(worker);
-        }
-
-        if (task_id) |id| {
-            executeTask(worker, id) catch |err| {
-                if (worker.engine.config.error_callback) |cb| {
-                    cb(worker.id, id, err);
-                } else {
-                    std.debug.print("Worker {} task {} error: {}\n", .{ worker.id, id, err });
-                }
-            };
-        } else {
-            var i: usize = 0;
-            var backoff: u32 = 1;
-            while (i < worker.engine.config.idle_spin_iterations) : (i += 1) {
-                std.atomic.spinLoopHint();
-                if (i % backoff == 0 and backoff < 100) {
-                    backoff *= 2;
-                }
+        if (build_options.enable_profiling) {
+            if (self.metrics_collector) |*mc| {
+                mc.recordTaskComplete(worker_id, duration_ns);
             }
         }
     }
-}
 
-fn trySteal(worker: *Worker) ?u64 {
-    const engine = worker.engine;
-    const num_workers = engine.workers.len;
+}                
+;        pub fn getResultMetadata(self: *Engine, task_id: u64) ?ResultMetadata {
+        const entry_ptr_u64 = self.result_cache.map.get(task_id) orelse return null;
+        const entry: *ResultEntry = @ptrCast(@alignCast(@as(*anyopaque, @ptrFromInt(entry_ptr_u64))));
+        if (!entry.complete.load(.acquire)) return null;
 
-    var steal_attempts: usize = 0;
-    while (steal_attempts < num_workers) : (steal_attempts += 1) {
-        const target_index = (worker.id + @as(u32, @intCast(steal_attempts))) % @as(u32, @intCast(num_workers));
-        if (target_index == worker.id) continue;
-
-        const stolen = engine.workers[@intCast(target_index)].local_deque.steal();
-        if (stolen) |id| {
-            return id;
-        }
+        return ResultMetadata{
+            .worker_id = entry.worker_id,
+            .submitted_at_ns = entry.submitted_at_ns,
+            .execution_duration_ns = entry.execution_duration_ns,
+            .completed_at_ns = 0,
+        };
     }
 
-    return null;
-}
-
-fn executeTask(worker: *Worker, task_id: u64) !void {
-    const engine = worker.engine;
-
-    const item_ptr = engine.work_items.map.get(task_id);
-    if (item_ptr == null) return;
-
-    const item = item_ptr.?;
-
-    var ctx = ExecutionContext{
-        .worker_id = worker.id,
-        .arena = &worker.arena,
-    };
-
-    const start_time = worker.timer.read();
-
-    const result_ptr: *anyopaque = if (build_options.enable_gpu)
-        try executeTaskWithGpu(engine, item, &ctx)
-    else
-        try item.vtable.exec(item.user, &ctx, engine.allocator);
-
-    const end_time = worker.timer.read();
-    const duration_ns = end_time - start_time;
-
-    if (build_options.enable_profiling) {
-        if (engine.metrics_collector) |mc| {
-            mc.recordTaskExecution(worker.id, duration_ns);
-        }
+    pub fn countPendingTasks(self: *Engine) usize {
+        return self.work_items.count();
     }
 
-    const result_vtable = workload.ResultVTable{
-        .destroy = struct {
-            fn destroyResult(ptr: *anyopaque, a: std.mem.Allocator) void {
-                _ = a;
-                _ = ptr;
-            }
-        }.destroyResult,
-    };
-
-    const handle = ResultHandle{
-        .ptr = result_ptr,
-        .vtable = &result_vtable,
-        .owns_memory = false,
-    };
-
-    try engine.completeResultWithMetadata(task_id, handle, worker.id, start_time, end_time);
-
-    if (engine.work_items.fetchRemove(task_id)) |kv| {
-        engine.allocator.destroy(kv.value_ptr.*);
-    }
-
-    _ = worker.arena.reset(.retain_capacity);
-}
-
-fn executeTaskWithGpu(engine: *Engine, item: *const WorkItem, ctx: *ExecutionContext) !*anyopaque {
-    if (item.gpu_vtable != null and (item.hints.prefers_gpu or item.hints.requires_gpu)) {
-        const gpu_vtable: *const GPUModule.GPUWorkloadVTable = @ptrCast(@alignCast(item.gpu_vtable.?));
-
-        if (engine.gpu_manager) |*gm| {
-            const gpu_ctx = GPUModule.GPUExecutionContext{
-                .backend = gm.backend,
-                .device_id = 0,
-                .stream_id = 0,
-            };
-
-            return gpu_vtable.gpu_exec(item.user, ctx, engine.allocator, gpu_ctx) catch |err| {
-                if (item.hints.requires_gpu) {
-                    return err;
-                }
-                return item.vtable.exec(item.user, ctx, engine.allocator);
+    fn workerMain(worker: *Worker) void {
+        while (worker.engine.running.load(.acquire)) {
+            var task_id = worker.local_deque.popBottom();
+            if (task_id == null) task_id = worker.engine.injection_queue.steal();
+            if (task_id == null) task_id = trySteal(worker);
+            if (task_id) |id| executeTask(worker, id) catch |err| {
+                std.log.err("Task {} failed: {}", .{ id, err });
             };
         }
     }
 
-    return item.vtable.exec(item.user, ctx, engine.allocator);
-}
+    fn trySteal(worker: *Worker) ?u64 {
+        const num_workers = worker.engine.workers.len;
+        var i: usize = 0;
+        while (i < num_workers) : (i += 1) {
+            if (i == worker.id) continue;
+            const task_id = worker.engine.workers[i].local_deque.steal();
+            if (task_id != null and task_id.? != EMPTY) return task_id;
+        }
+        return null;
+    }
 
-const ResultMetadata = struct {
-    worker_id: u32,
-    submit_timestamp_ns: u64,
-    complete_timestamp_ns: u64,
-    execution_duration_ns: u64,
-};
+    fn executeTask(worker: *Worker, task_id: u64) !void {
+        const kv = worker.engine.work_items.fetchRemove(task_id) orelse return;
+        const item = kv.value;
 
-const ResultEntry = struct {
-    task_id: u64,
-    handle: ResultHandle,
-    complete: std.atomic.Value(bool),
-    metadata: ResultMetadata,
+        const start_time = worker.timer.read();
+
+        var ctx = ExecutionContext{
+            .worker_id = worker.id,
+            .arena = &worker.arena,
+        };
+
+        const result = try item.vtable.exec(item.user, &ctx, worker.engine.allocator);
+        const duration_ns = worker.timer.read() - start_time;
+
+        const result_vtable = ResultVTable{
+            .destroy = item.vtable.destroy,
+        };
+
+        const handle = ResultHandle{
+            .ptr = result,
+            .vtable = &result_vtable,
+        };
+
+        try worker.engine.completeResultWithMetadata(task_id, handle, worker.id, duration_ns, 0);
+
+        _ = worker.arena.reset(.retain_capacity);
+    }
 };

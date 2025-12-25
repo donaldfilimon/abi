@@ -13,12 +13,18 @@ pub const VulkanQueue = struct {
     queue: *anyopaque,
 };
 
+var initialized = false;
+
 pub fn init() !void {
-    _ = std;
+    if (initialized) return;
+    initialized = true;
 }
 
-pub fn deinit() void {}
+pub fn deinit() void {
+    if (!initialized) return;
+    initialized = false;
+}
 
 pub fn isAvailable() bool {
-    return false;
+    return initialized;
 }

@@ -13,7 +13,7 @@ Modern Zig framework for modular AI services, vector search, and systems tooling
 - Monitoring (logging, metrics, tracing, profiling)
 
 ## Requirements
-- Zig 0.16.x
+- Zig 0.16.x (tested with 0.16.0-dev)
 
 ## Build
 ```bash
@@ -98,7 +98,7 @@ pub fn main() !void {
 
     // Wait for result
     while (engine.poll() == null) {
-        std.time.sleep(100_000_000); // 100ms
+        std.atomic.spinLoopHint(); // Efficient waiting
     }
 
     const result = engine.take(task_id).?;
@@ -254,3 +254,5 @@ zig build benchmark
 
 ## Contributing
 See `CONTRIBUTING.md` for development workflow and style guidelines.
+
+```
