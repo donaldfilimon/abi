@@ -10,6 +10,7 @@
 
 const std = @import("std");
 const database = @import("database.zig");
+const db_helpers = @import("db_helpers.zig");
 const http = @import("http.zig");
 const wdbx_utils = @import("utils.zig");
 // core functionality is now imported through module dependencies
@@ -236,13 +237,13 @@ pub const WdbxCLI = struct {
             },
             .query, .knn => {
                 if (self.options.vector == null) {
-                    try self.logger.err("Error: --vector is required for the '{}' command", .{@tagName(self.options.command)});
-                    try self.logger.info("Usage: wdbx {} --vector \"1.0,2.0,3.0\" [--db <path>] [--k <number>]", .{@tagName(self.options.command)});
+                    try self.logger.err("Error: --vector is required for the '{s}' command", .{@tagName(self.options.command)});
+                    try self.logger.info("Usage: wdbx {s} --vector \"1.0,2.0,3.0\" [--db <path>] [--k <number>]", .{@tagName(self.options.command)});
                     return error.MissingRequiredArgument;
                 }
                 if (self.options.db_path == null) {
-                    try self.logger.err("Error: --db is required for the '{}' command", .{@tagName(self.options.command)});
-                    try self.logger.info("Usage: wdbx {} --db <path> --vector \"1.0,2.0,3.0\"", .{@tagName(self.options.command)});
+                    try self.logger.err("Error: --db is required for the '{s}' command", .{@tagName(self.options.command)});
+                    try self.logger.info("Usage: wdbx {s} --db <path> --vector \"1.0,2.0,3.0\"", .{@tagName(self.options.command)});
                     return error.MissingRequiredArgument;
                 }
                 // Validate k parameter
@@ -288,8 +289,8 @@ pub const WdbxCLI = struct {
             },
             .save, .load => {
                 if (self.options.db_path == null) {
-                    try self.logger.err("Error: --db is required for the '{}' command", .{@tagName(self.options.command)});
-                    try self.logger.info("Usage: wdbx {} --db <path>", .{@tagName(self.options.command)});
+                    try self.logger.err("Error: --db is required for the '{s}' command", .{@tagName(self.options.command)});
+                    try self.logger.info("Usage: wdbx {s} --db <path>", .{@tagName(self.options.command)});
                     return error.MissingRequiredArgument;
                 }
             },
@@ -310,42 +311,61 @@ pub const WdbxCLI = struct {
             }
             // Basic IP address validation
             if (std.mem.indexOf(u8, host, ".") == null and !std.mem.eql(u8, host, "localhost")) {
-                try self.logger.warn("Warning: Host '{}' may not be a valid IP address", .{host});
+                try self.logger.warn("Warning: Host '{s}' may not be a valid IP address", .{host});
             }
         }
     }
 
     pub fn showHelp(self: *Self) !void {
-        const help_text =
-            \\ABI Vector Database CLI
-            \\
-            \\Usage: wdbx <command> [options]
-            \\
-            \\Commands:
-            \\  help           Show this help message
-            \\  version        Show version information
-            \\  add            Add vectors to database
-            \\  query          Query database with vector
-            \\  knn            Find k-nearest neighbors
-            \\  stats          Show database statistics
-            \\  server         Start server (use --http or --tcp)
-            \\  http           Start HTTP server
-            \\  tcp            Start TCP server
-            \\  windows        Show Windows networking guidance
-            \\  tcp_test       Run enhanced TCP client test
-            \\
-            \\Options:
-            \\  --db <path>    Database file path
-            \\  --vector <vec> Vector data (comma-separated floats)
-            \\  --k <number>   Number of results (default: 5)
-            \\  --port <port>  Server port (default: 8080)
-            \\  --host <host>  Server host (default: 127.0.0.1)
-            \\  --http         Use HTTP server (default for server command)
-            \\  --tcp          Use TCP server (for server command)
-            \\  --verbose      Enable verbose output
-            \\  --quiet        Suppress output
-            \\
-        ;
+        const help_text = \
+            ABI Vector Database CLI
+            \
+            Usage: wdbx <command> [options]
+            \
+            Commands:
+            \
+            help           Show this help message
+            \
+            version        Show version information
+            \
+            add            Add vectors to database
+            \
+            query          Query database with vector
+            \
+            knn            Find k-nearest neighbors
+            \
+            stats          Show database statistics
+            \
+            server         Start server (use --http or --tcp)
+            \
+            http           Start HTTP server
+            \
+            tcp            Start TCP server
+            \
+            windows        Show Windows networking guidance
+            \
+            tcp_test       Run enhanced TCP client test
+            \
+            Options:
+            \
+            --db <path>    Database file path
+            \
+            --vector <vec> Vector data (comma-separated floats)
+            \
+            --k <number>   Number of results (default: 5)
+            \
+            --port <port>  Server port (default: 8080)
+            \
+            --host <host>  Server host (default: 127.0.0.1)
+            \
+            --http         Use HTTP server (default for server command)
+            \
+            --tcp          Use TCP server (for server command)
+            \
+            --verbose      Enable verbose output
+            \
+            --quiet        Suppress output
+            \;
         try self.logger.info(help_text, .{});
     }
 
@@ -368,7 +388,7 @@ pub const WdbxCLI = struct {
         const db_path = self.options.db_path.?;
 
         // Parse vector data
-        const vector_data = try database.helpers.parseVector(self.allocator, vector_str);
+        const vector_data = try db_helpers.helpers.parseVector(self.allocator, vector_str);
         defer self.allocator.free(vector_data);
 
         // Open database
@@ -393,7 +413,7 @@ pub const WdbxCLI = struct {
         const vector_str = self.options.vector.?;
         const db_path = self.options.db_path.?;
 
-        const vector_data = try database.helpers.parseVector(self.allocator, vector_str);
+        const vector_data = try db_helpers.helpers.parseVector(self.allocator, vector_str);
         defer self.allocator.free(vector_data);
 
         var db = try database.Db.open(self.allocator, db_path, false);
@@ -642,31 +662,44 @@ pub const WdbxCLI = struct {
     }
 
     fn showWindowsGuidance(self: *Self) !void {
-        const guidance =
-            \\Start the server
-            \\  zig build run -- http
-            \\  .\\zig-out\\bin\\abi.exe http
-            \\\
-            \\Recommended (Windows): enhanced TCP client
-            \\  zig run simple_tcp_test.zig
-            \\\
-            \\If PowerShell Invoke-WebRequest is flaky, prefer curl or a browser
-            \\  curl.exe -v http://127.0.0.1:8080/health
-            \\  curl.exe -v -H "Connection: close" http://127.0.0.1:8080/network
-            \\\
-            \\If you must use Invoke-WebRequest (tune for reliability)
-            \\  $ProgressPreference = 'SilentlyContinue'
-            \\  Invoke-WebRequest -Uri "http://127.0.0.1:8080/health" -UseBasicParsing
-            \\  # For HTTPS only:
-            \\  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-            \\  Invoke-WebRequest -Uri "https://127.0.0.1:8443/health" -UseBasicParsing
-            \\\
-            \\Optional Windows fixes (if you still see oddities)
-            \\  powershell -ExecutionPolicy Bypass -File .\\fix_windows_networking.ps1 (run as Admin)
-            \\\
-            \\Info
-            \\- Server is Windows-optimized and production-ready; occasional GetLastError(87)/ConnectionResetByPeer on reads is expected and handled.
-            \\- Prefer curl.exe or the enhanced TCP client over PowerShell for consistent results.
+        const guidance = \
+            Start the server
+            \
+            zig build run -- http
+            \
+            .\zig-out\bin\abi.exe http
+            \
+            Recommended (Windows): enhanced TCP client
+            \
+            zig run simple_tcp_test.zig
+            \
+            If PowerShell Invoke-WebRequest is flaky, prefer curl or a browser
+            \
+            curl.exe -v http://127.0.0.1:8080/health
+            \
+            curl.exe -v -H "Connection: close" http://127.0.0.1:8080/network
+            \
+            If you must use Invoke-WebRequest (tune for reliability)
+            \
+            $ProgressPreference = 'SilentlyContinue'
+            \
+            Invoke-WebRequest -Uri "http://127.0.0.1:8080/health" -UseBasicParsing
+            \
+            # For HTTPS only:
+            \
+            [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::Tls12
+            \
+            Invoke-WebRequest -Uri "https://127.0.0.1:8443/health" -UseBasicParsing
+            \
+            Optional Windows fixes (if you still see oddities)
+            \
+            powershell -ExecutionPolicy Bypass -File .\fix_windows_networking.ps1 (run as Admin)
+            \
+            Info
+            \
+            - Server is Windows-optimized and production-ready; occasional GetLastError(87)/ConnectionResetByPeer on reads is expected and handled.
+            \
+            - Prefer curl.exe or the enhanced TCP client over PowerShell for consistent results.
         ;
         try self.logger.info("{s}", .{guidance});
     }
@@ -746,7 +779,7 @@ pub fn main() !void {
     var cmd_lower_buf: [256]u8 = undefined;
     const cmd_lower = std.ascii.lowerString(&cmd_lower_buf, cmd);
     const command = Command.fromString(cmd_lower) orelse {
-        std.debug.print("Error: Unknown command '{}'\n", .{cmd});
+        std.debug.print("Error: Unknown command '{s}'\n", .{cmd});
         std.debug.print("Available commands: help, version, add, query, knn, stats, server, http, tcp, issue_credential, save, load, windows, tcp_test\n", .{});
         std.debug.print("Use 'wdbx help' for detailed usage information\n", .{});
         std.process.exit(1);
@@ -775,7 +808,7 @@ pub fn main() !void {
                 const k_str = args[arg_index];
                 arg_index += 1;
                 options.k = std.fmt.parseInt(usize, k_str, 10) catch {
-                    std.debug.print("Error: Invalid value for --k: '{}'. Expected a positive integer.\n", .{k_str});
+                    std.debug.print("Error: Invalid value for --k: '{s}'. Expected a positive integer.\n", .{k_str});
                     std.process.exit(1);
                 };
                 if (options.k == 0) {
@@ -791,7 +824,7 @@ pub fn main() !void {
                 const port_str = args[arg_index];
                 arg_index += 1;
                 options.port = std.fmt.parseInt(u16, port_str, 10) catch {
-                    std.debug.print("Error: Invalid value for --port: '{}'. Expected a number between 1-65535.\n", .{port_str});
+                    std.debug.print("Error: Invalid value for --port: '{s}'. Expected a number between 1-65535.\n", .{port_str});
                     std.process.exit(1);
                 };
                 if (options.port == 0) {
@@ -890,7 +923,7 @@ pub fn main() !void {
             options.server_type = "tcp";
         } else {
             // Unrecognized argument
-            std.debug.print("Error: Unrecognized argument '{}'\n", .{arg});
+            std.debug.print("Error: Unrecognized argument '{s}'\n", .{arg});
             std.debug.print("Use 'wdbx help' for usage information\n", .{});
             std.process.exit(1);
         }
@@ -928,7 +961,7 @@ test "Vector string parsing" {
     defer cli.deinit();
 
     const vector_str = "1.0, 2.0, 3.0, 4.0";
-    const vector_data = try database.helpers.parseVector(cli.allocator, vector_str);
+    const vector_data = try db_helpers.helpers.parseVector(cli.allocator, vector_str);
     defer testing.allocator.free(vector_data);
 
     try testing.expectEqual(@as(usize, 4), vector_data.len);

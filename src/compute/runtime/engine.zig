@@ -253,10 +253,10 @@ pub const Engine = struct {
         const work_item_copy = try self.allocator.create(WorkItem);
         work_item_copy.* = item;
         work_item_copy.id = id;
-        
+
         try self.work_items.put(id, work_item_copy);
         try self.injection_queue.pushBottom(id);
-        
+
         return id;
     }
 
@@ -303,7 +303,7 @@ pub const Engine = struct {
 
     pub fn completeResultWithMetadata(self: *Engine, task_id: u64, handle: ResultHandle, worker_id: u32, duration_ns: u64, queued_ns: u64) !void {
         const entry = self.result_cache.get(task_id) orelse return error.ResultNotFound;
-        
+
         entry.handle = handle;
         entry.worker_id = worker_id;
         entry.execution_duration_ns = duration_ns;
@@ -345,7 +345,7 @@ pub const Engine = struct {
             var task_id = worker.local_deque.popBottom();
             if (task_id == null) task_id = worker.engine.injection_queue.steal();
             if (task_id == null) task_id = trySteal(worker);
-            
+
             if (task_id) |id| {
                 // Found work, reset backoff
                 backoff = 0;

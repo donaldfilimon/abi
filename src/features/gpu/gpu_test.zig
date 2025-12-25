@@ -17,7 +17,7 @@ test "BackendManager initialization and detection" {
     defer manager.deinit();
 
     try std.testing.expect(manager.available_backends.items.len > 0);
-    
+
     // Check that Vulkan and OpenGL are detected (as per current stub logic)
     var has_vulkan = false;
     var has_opengl = false;

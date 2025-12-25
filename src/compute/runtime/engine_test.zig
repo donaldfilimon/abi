@@ -142,7 +142,7 @@ test "engine take transfers ownership" {
 
     const result = result_handle.?;
     try std.testing.expect(result.as(u32).* == 42);
-    
+
     // Handle owns memory, so we deinit it
     var res_handle_copy = result;
     res_handle_copy.deinit(allocator);
@@ -262,11 +262,11 @@ test "engine submit multiple tasks" {
                 sleep(100 * std.time.ns_per_us); // 100us
             }
         }
-        
+
         const result = handle.?;
         const value = result.as(u32).*;
         try std.testing.expectEqual(@as(u32, @intCast(i * 2)), value);
-        
+
         var handle_copy = result;
         handle_copy.deinit(allocator);
         completed += 1;
@@ -283,7 +283,7 @@ test "engine worker stress" {
 
     // Use fewer workers to force queue buildup
     const cfg = config.EngineConfig{
-        .worker_count = 2, 
+        .worker_count = 2,
         .drain_mode = .drain,
         .queue_capacity = 256,
         .metrics_buffer_size = 1024,
