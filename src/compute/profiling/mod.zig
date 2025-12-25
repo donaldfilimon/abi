@@ -56,6 +56,14 @@ pub const MetricsCollector = struct {
         self.task_histogram.record(duration_ns);
     }
 
+    /// Record the completion of a task. This is a compatibility helper for the
+    /// engine which historically differentiated between execution and
+    /// completion events. We currently treat both the same and simply forward
+    /// to `recordTaskExecution` to keep metrics consistent.
+    pub fn recordTaskComplete(self: *MetricsCollector, worker_id: u32, duration_ns: u64) void {
+        self.recordTaskExecution(worker_id, duration_ns);
+    }
+
     pub fn getWorkerStats(self: *MetricsCollector, worker_id: u32) ?WorkerMetrics {
         self.mutex.lock();
         defer self.mutex.unlock();
