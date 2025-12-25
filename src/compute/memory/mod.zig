@@ -31,3 +31,22 @@ pub const WorkerArena = struct {
         self.arena.deinit();
     }
 };
+
+test "stable allocator allocates" {
+    var stable = StableAllocator{};
+    defer stable.deinit();
+    const allocator = stable.allocator();
+    const buffer = try allocator.alloc(u8, 16);
+    allocator.free(buffer);
+}
+
+test "worker arena reset" {
+    var arena = WorkerArena.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    const first = try allocator.alloc(u8, 8);
+    _ = first;
+    arena.reset();
+    const second = try allocator.alloc(u8, 8);
+    try std.testing.expectEqual(@as(usize, 8), second.len);
+}

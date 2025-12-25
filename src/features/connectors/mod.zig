@@ -5,9 +5,23 @@ pub const huggingface = @import("huggingface.zig");
 pub const ollama = @import("ollama.zig");
 pub const local_scheduler = @import("local_scheduler.zig");
 
-pub fn init(_: std.mem.Allocator) !void {}
+var initialized: bool = false;
 
-pub fn deinit() void {}
+pub fn init(_: std.mem.Allocator) !void {
+    initialized = true;
+}
+
+pub fn deinit() void {
+    initialized = false;
+}
+
+pub fn isEnabled() bool {
+    return true;
+}
+
+pub fn isInitialized() bool {
+    return initialized;
+}
 
 pub fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) !?[]u8 {
     return std.process.getEnvVarOwned(allocator, name) catch |err| switch (err) {
@@ -23,4 +37,59 @@ pub fn getFirstEnvOwned(allocator: std.mem.Allocator, names: []const []const u8)
         }
     }
     return null;
+}
+
+pub const AuthHeader = struct {
+    value: []u8,
+
+    pub fn header(self: *const AuthHeader) std.http.Header {
+        return .{ .name = "authorization", .value = self.value };
+    }
+
+    pub fn deinit(self: *AuthHeader, allocator: std.mem.Allocator) void {
+        allocator.free(self.value);
+        self.* = undefined;
+    }
+};
+
+pub fn buildBearerHeader(allocator: std.mem.Allocator, token: []const u8) !AuthHeader {
+    const value = try std.fmt.allocPrint(allocator, "Bearer {s}", .{token});
+    return .{ .value = value };
+}
+
+pub fn loadOpenAI(allocator: std.mem.Allocator) !openai.Config {
+    return openai.loadFromEnv(allocator);
+}
+
+pub fn tryLoadOpenAI(allocator: std.mem.Allocator) !?openai.Config {
+    return openai.loadFromEnv(allocator) catch |err| switch (err) {
+        openai.OpenAIError.MissingApiKey => null,
+        else => return err,
+    };
+}
+
+pub fn loadHuggingFace(allocator: std.mem.Allocator) !huggingface.Config {
+    return huggingface.loadFromEnv(allocator);
+}
+
+pub fn tryLoadHuggingFace(allocator: std.mem.Allocator) !?huggingface.Config {
+    return huggingface.loadFromEnv(allocator) catch |err| switch (err) {
+        huggingface.HuggingFaceError.MissingApiToken => null,
+        else => return err,
+    };
+}
+
+pub fn loadOllama(allocator: std.mem.Allocator) !ollama.Config {
+    return ollama.loadFromEnv(allocator);
+}
+
+pub fn loadLocalScheduler(allocator: std.mem.Allocator) !local_scheduler.Config {
+    return local_scheduler.loadFromEnv(allocator);
+}
+
+test "connectors init toggles state" {
+    try init(std.testing.allocator);
+    try std.testing.expect(isInitialized());
+    deinit();
+    try std.testing.expect(!isInitialized());
 }

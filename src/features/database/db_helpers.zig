@@ -27,3 +27,19 @@ pub fn formatVector(allocator: std.mem.Allocator, vector: []const f32) ![]u8 {
     }
     return list.toOwnedSlice(allocator);
 }
+
+test "vector parse and format" {
+    const allocator = std.testing.allocator;
+    const vector = try parseVector(allocator, "1.0, 2.5,3");
+    defer allocator.free(vector);
+    try std.testing.expectEqual(@as(usize, 3), vector.len);
+    try std.testing.expect(std.math.approxEqAbs(f32, vector[1], 2.5, 0.0001));
+
+    const formatted = try formatVector(allocator, vector);
+    defer allocator.free(formatted);
+    try std.testing.expect(std.mem.indexOf(u8, formatted, "1.0000") != null);
+}
+
+test "vector parse rejects empty input" {
+    try std.testing.expectError(HelperError.InvalidVector, parseVector(std.testing.allocator, ""));
+}

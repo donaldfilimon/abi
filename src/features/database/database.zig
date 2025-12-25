@@ -229,7 +229,10 @@ pub const Database = struct {
                 std.mem.copyForwards(u8, metadata.?, meta_bytes);
             }
 
-            try db.insertOwned(id, vector, metadata);
+            db.insertOwned(id, vector, metadata) catch |err| switch (err) {
+                error.DuplicateId, error.VectorNotFound => return StorageError.InvalidFormat,
+                error.OutOfMemory => return error.OutOfMemory,
+            };
         }
 
         return db;
@@ -291,9 +294,10 @@ const Cursor = struct {
 
     fn readInt(self: *Cursor, comptime T: type) StorageError!T {
         const bytes = try self.readBytes(@sizeOf(T));
-        return std.mem.readIntLittle(
+        return std.mem.readInt(
             T,
             @as(*const [@sizeOf(T)]u8, @ptrCast(bytes.ptr)),
+            .little,
         );
     }
 };
@@ -305,7 +309,7 @@ fn appendInt(
     value: T,
 ) !void {
     var bytes: [@sizeOf(T)]u8 = undefined;
-    std.mem.writeIntLittle(T, &bytes, value);
+    std.mem.writeInt(T, &bytes, value, .little);
     try buffer.appendSlice(allocator, &bytes);
 }
 

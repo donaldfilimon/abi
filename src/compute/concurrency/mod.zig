@@ -18,6 +18,16 @@ pub fn WorkQueue(comptime T: type) type {
             self.* = undefined;
         }
 
+        pub fn len(self: *@This()) usize {
+            self.mutex.lock();
+            defer self.mutex.unlock();
+            return self.items.items.len;
+        }
+
+        pub fn isEmpty(self: *@This()) bool {
+            return self.len() == 0;
+        }
+
         pub fn enqueue(self: *@This(), item: T) !void {
             self.mutex.lock();
             defer self.mutex.unlock();
@@ -28,7 +38,7 @@ pub fn WorkQueue(comptime T: type) type {
             self.mutex.lock();
             defer self.mutex.unlock();
             if (self.items.items.len == 0) return null;
-            return self.items.pop();
+            return self.items.orderedRemove(0);
         }
     };
 }
@@ -45,3 +55,17 @@ pub const Backoff = struct {
         std.atomic.spinLoopHint();
     }
 };
+
+test "work queue is FIFO" {
+    var queue = WorkQueue(u32).init(std.testing.allocator);
+    defer queue.deinit();
+
+    try queue.enqueue(1);
+    try queue.enqueue(2);
+    try queue.enqueue(3);
+
+    try std.testing.expectEqual(@as(?u32, 1), queue.dequeue());
+    try std.testing.expectEqual(@as(?u32, 2), queue.dequeue());
+    try std.testing.expectEqual(@as(?u32, 3), queue.dequeue());
+    try std.testing.expectEqual(@as(?u32, null), queue.dequeue());
+}

@@ -34,3 +34,19 @@ pub fn toLowerAscii(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     }
     return copy;
 }
+
+test "string helpers" {
+    try std.testing.expectEqualStrings("hello", trimWhitespace("  hello \r\n"));
+
+    const pair = splitOnce("a=b", '=') orelse return error.TestUnexpectedResult;
+    try std.testing.expectEqualStrings("a", pair.head);
+    try std.testing.expectEqualStrings("b", pair.tail);
+
+    try std.testing.expectEqual(@as(?bool, true), parseBool("TRUE"));
+    try std.testing.expectEqual(@as(?bool, false), parseBool("0"));
+    try std.testing.expectEqual(@as(?bool, null), parseBool("maybe"));
+
+    const lower = try toLowerAscii(std.testing.allocator, "HeLLo");
+    defer std.testing.allocator.free(lower);
+    try std.testing.expectEqualStrings("hello", lower);
+}

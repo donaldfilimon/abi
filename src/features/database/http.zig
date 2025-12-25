@@ -5,7 +5,7 @@ const db_helpers = @import("db_helpers.zig");
 const json_utils = @import("../../shared/utils/json/mod.zig");
 const net_utils = @import("../../shared/utils/net/mod.zig");
 
-pub const HttpError = error{
+pub const HttpError = std.mem.Allocator.Error || error{
     InvalidAddress,
     InvalidRequest,
     InvalidVector,
@@ -44,7 +44,7 @@ pub fn serveDatabase(
 }
 
 fn resolveAddress(io: std.Io, allocator: std.mem.Allocator, address: []const u8) !std.Io.net.IpAddress {
-    const host_port = net_utils.parseHostPort(allocator, address) catch
+    var host_port = net_utils.parseHostPort(allocator, address) catch
         return HttpError.InvalidAddress;
     defer host_port.deinit(allocator);
     return std.Io.net.IpAddress.resolve(io, host_port.host, host_port.port) catch
@@ -94,6 +94,18 @@ fn dispatchRequest(
         return respondJson(request, body, .ok);
     }
 
+    if (std.mem.eql(u8, parts.path, "/backup")) {
+        return handleBackup(handle, request, parts.query);
+    }
+
+    if (std.mem.eql(u8, parts.path, "/restore")) {
+        return handleRestore(handle, request, parts.query);
+    }
+
+    if (std.mem.eql(u8, parts.path, "/optimize")) {
+        return handleOptimize(handle, request);
+    }
+
     if (std.mem.eql(u8, parts.path, "/vectors")) {
         return handleVectors(allocator, handle, request, parts.query);
     }
@@ -103,6 +115,42 @@ fn dispatchRequest(
     }
 
     return respondJson(request, "{\"error\":\"not found\"}", .not_found);
+}
+
+fn handleBackup(
+    handle: *unified.DatabaseHandle,
+    request: *std.http.Server.Request,
+    query: []const u8,
+) !void {
+    if (request.head.method != .POST) {
+        return respondJson(request, "{\"error\":\"method not allowed\"}", .method_not_allowed);
+    }
+    const path = getQueryParam(query, "path") orelse
+        return respondJson(request, "{\"error\":\"missing path\"}", .bad_request);
+    try unified.backup(handle, path);
+    return respondJson(request, "{\"status\":\"backed up\"}", .ok);
+}
+
+fn handleRestore(
+    handle: *unified.DatabaseHandle,
+    request: *std.http.Server.Request,
+    query: []const u8,
+) !void {
+    if (request.head.method != .POST) {
+        return respondJson(request, "{\"error\":\"method not allowed\"}", .method_not_allowed);
+    }
+    const path = getQueryParam(query, "path") orelse
+        return respondJson(request, "{\"error\":\"missing path\"}", .bad_request);
+    try unified.restore(handle, path);
+    return respondJson(request, "{\"status\":\"restored\"}", .ok);
+}
+
+fn handleOptimize(handle: *unified.DatabaseHandle, request: *std.http.Server.Request) !void {
+    if (request.head.method != .POST) {
+        return respondJson(request, "{\"error\":\"method not allowed\"}", .method_not_allowed);
+    }
+    try unified.optimize(handle);
+    return respondJson(request, "{\"status\":\"optimized\"}", .ok);
 }
 
 fn handleVectors(

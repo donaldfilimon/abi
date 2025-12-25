@@ -23,7 +23,7 @@ pub const Histogram = struct {
         errdefer allocator.free(bucket_copy);
         const bound_copy = try allocator.alloc(u64, bounds.len);
         errdefer allocator.free(bound_copy);
-        std.mem.set(u64, bucket_copy, 0);
+        @memset(bucket_copy, 0);
         std.mem.copyForwards(u64, bound_copy, bounds);
         return Histogram{
             .name = name,

@@ -29,3 +29,21 @@ pub fn hasExtension(path: []const u8, extension: []const u8) bool {
 pub fn basename(path: []const u8) []const u8 {
     return std.fs.path.basename(path);
 }
+
+test "fs helpers" {
+    const allocator = std.testing.allocator;
+    const expected = try std.fmt.allocPrint(
+        allocator,
+        "a{c}b{c}c",
+        .{std.fs.path.sep},
+    );
+    defer allocator.free(expected);
+
+    const joined = try join(allocator, &.{ "a", "b", "c" });
+    defer allocator.free(joined);
+    try std.testing.expectEqualStrings(expected, joined);
+    try std.testing.expect(hasExtension("file.zig", ".zig"));
+    const path = try std.fmt.allocPrint(allocator, "dir{c}file.zig", .{std.fs.path.sep});
+    defer allocator.free(path);
+    try std.testing.expectEqualStrings("file.zig", basename(path));
+}

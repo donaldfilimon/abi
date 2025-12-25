@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const Self = @This();
 
 pub const Os = enum {
@@ -31,10 +32,12 @@ pub const PlatformInfo = struct {
     max_threads: u32,
 
     pub fn detect() PlatformInfo {
+        const thread_count = std.Thread.getCpuCount() catch 1;
+        const capped_threads = @min(thread_count, @as(usize, std.math.maxInt(u32)));
         return .{
-            .os = mapOs(std.builtin.os.tag),
-            .arch = mapArch(std.builtin.cpu.arch),
-            .max_threads = std.Thread.getCpuCount() catch 1,
+            .os = mapOs(builtin.target.os.tag),
+            .arch = mapArch(builtin.target.cpu.arch),
+            .max_threads = @intCast(capped_threads),
         };
     }
 };
@@ -45,7 +48,7 @@ pub const platform = struct {
     pub const Arch = Self.Arch;
 };
 
-fn mapOs(os_tag: std.builtin.Os.Tag) Os {
+fn mapOs(os_tag: std.Target.Os.Tag) Os {
     return switch (os_tag) {
         .windows => .windows,
         .linux => .linux,
@@ -60,7 +63,7 @@ fn mapOs(os_tag: std.builtin.Os.Tag) Os {
     };
 }
 
-fn mapArch(arch: std.builtin.Cpu.Arch) Arch {
+fn mapArch(arch: std.Target.Cpu.Arch) Arch {
     return switch (arch) {
         .x86_64 => .x86_64,
         .x86 => .x86,

@@ -9,6 +9,10 @@ pub const Config = struct {
     api_token: []u8,
     base_url: []u8,
 
+    pub fn authHeader(self: *const Config, allocator: std.mem.Allocator) !connectors.AuthHeader {
+        return connectors.buildBearerHeader(allocator, self.api_token);
+    }
+
     pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
         allocator.free(self.api_token);
         allocator.free(self.base_url);

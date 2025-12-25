@@ -2,6 +2,7 @@ const std = @import("std");
 
 pub const HttpError = error{
     InvalidUrl,
+    InvalidRequest,
     ResponseTooLarge,
     ReadFailed,
 };
@@ -16,6 +17,8 @@ pub const RequestOptions = struct {
     user_agent: []const u8 = "abi-http",
     follow_redirects: bool = true,
     redirect_limit: u16 = 3,
+    content_type: ?[]const u8 = null,
+    extra_headers: []const std.http.Header = &.{},
 };
 
 pub const HttpClient = struct {
@@ -47,6 +50,22 @@ pub const HttpClient = struct {
     }
 
     pub fn getWithOptions(self: *HttpClient, url: []const u8, options: RequestOptions) !Response {
+        return self.requestWithOptions(.GET, url, null, options);
+    }
+
+    pub fn postJson(self: *HttpClient, url: []const u8, body: []const u8) !Response {
+        return self.requestWithOptions(.POST, url, body, .{
+            .content_type = "application/json",
+        });
+    }
+
+    pub fn requestWithOptions(
+        self: *HttpClient,
+        method: std.http.Method,
+        url: []const u8,
+        body: ?[]const u8,
+        options: RequestOptions,
+    ) !Response {
         const uri = std.Uri.parse(url) catch return HttpError.InvalidUrl;
         var request_options: std.http.Client.RequestOptions = .{};
         request_options.headers.user_agent = .{ .override = options.user_agent };
@@ -54,20 +73,38 @@ pub const HttpClient = struct {
             std.http.Client.Request.RedirectBehavior.init(options.redirect_limit)
         else
             .not_allowed;
+        request_options.extra_headers = options.extra_headers;
 
-        var req = try self.client.request(.GET, uri, request_options);
+        if (options.content_type) |content_type| {
+            request_options.headers.content_type = .{ .override = content_type };
+        }
+
+        var req = try self.client.request(method, uri, request_options);
         defer req.deinit();
-        try req.sendBodiless();
+
+        if (body) |payload| {
+            if (!method.requestHasBody()) return HttpError.InvalidRequest;
+            var send_buffer: [4096]u8 = undefined;
+            var writer = try req.sendBody(&send_buffer);
+            try writer.writeAll(payload);
+            try writer.end();
+        } else {
+            try req.sendBodiless();
+        }
 
         var redirect_buffer: [4096]u8 = undefined;
         var response = try req.receiveHead(&redirect_buffer);
 
         var transfer_buffer: [4096]u8 = undefined;
         const reader = response.reader(&transfer_buffer);
-        const body = try readAllAlloc(reader, self.allocator, options.max_response_bytes);
+        const response_body = try readAllAlloc(
+            reader,
+            self.allocator,
+            options.max_response_bytes,
+        );
         return .{
             .status = @intFromEnum(response.head.status),
-            .body = body,
+            .body = response_body,
         };
     }
 

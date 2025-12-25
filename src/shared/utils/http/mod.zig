@@ -57,3 +57,13 @@ pub fn statusText(code: u16) []const u8 {
 pub fn isSuccess(code: u16) bool {
     return code >= 200 and code < 300;
 }
+
+test "http helpers" {
+    try std.testing.expectEqual(@as(?Method, .get), parseMethod("GET"));
+    try std.testing.expectEqual(@as(?Method, .post), parseMethod("post"));
+    try std.testing.expect(parseMethod("unknown") == null);
+
+    try std.testing.expectEqualStrings("Not Found", statusText(404));
+    try std.testing.expect(isSuccess(200));
+    try std.testing.expect(!isSuccess(404));
+}

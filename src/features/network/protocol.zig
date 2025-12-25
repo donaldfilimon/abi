@@ -135,9 +135,10 @@ const Cursor = struct {
 
     fn readInt(self: *Cursor, comptime T: type) ProtocolError!T {
         const bytes = try self.readBytes(@sizeOf(T));
-        return std.mem.readIntLittle(
+        return std.mem.readInt(
             T,
             @as(*const [@sizeOf(T)]u8, @ptrCast(bytes.ptr)),
+            .little,
         );
     }
 };
@@ -149,6 +150,42 @@ fn appendInt(
     value: T,
 ) !void {
     var bytes: [@sizeOf(T)]u8 = undefined;
-    std.mem.writeIntLittle(T, &bytes, value);
+    std.mem.writeInt(T, &bytes, value, .little);
     try buffer.appendSlice(allocator, &bytes);
+}
+
+test "encode/decode task envelope" {
+    const allocator = std.testing.allocator;
+    const task = TaskEnvelope{
+        .id = 42,
+        .kind = "compute.dot",
+        .payload = "payload",
+    };
+    const encoded = try encodeTask(allocator, task);
+    defer allocator.free(encoded);
+
+    var decoded = try decodeTask(allocator, encoded);
+    defer decoded.deinit(allocator);
+
+    try std.testing.expectEqual(@as(u64, 42), decoded.id);
+    try std.testing.expectEqualStrings("compute.dot", decoded.kind);
+    try std.testing.expectEqualStrings("payload", decoded.payload);
+}
+
+test "encode/decode result envelope" {
+    const allocator = std.testing.allocator;
+    const result = ResultEnvelope{
+        .id = 9,
+        .status = .ok,
+        .payload = "result",
+    };
+    const encoded = try encodeResult(allocator, result);
+    defer allocator.free(encoded);
+
+    var decoded = try decodeResult(allocator, encoded);
+    defer decoded.deinit(allocator);
+
+    try std.testing.expectEqual(@as(u64, 9), decoded.id);
+    try std.testing.expectEqual(ResultStatus.ok, decoded.status);
+    try std.testing.expectEqualStrings("result", decoded.payload);
 }

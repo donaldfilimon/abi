@@ -1,7 +1,10 @@
 const std = @import("std");
+const build_options = @import("build_options");
 const unified = @import("unified.zig");
+const database = @import("database.zig");
 const db_helpers = @import("db_helpers.zig");
 const http = @import("http.zig");
+const transformer = @import("../ai/transformer/mod.zig");
 
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     if (args.len == 0) {
@@ -9,7 +12,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
         return;
     }
 
-    const command = std.mem.span(args[0]);
+    const command = std.mem.sliceTo(args[0], 0);
     if (std.mem.eql(u8, command, "help") or std.mem.eql(u8, command, "--help")) {
         printHelp();
         return;
@@ -26,7 +29,22 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     }
 
     if (std.mem.eql(u8, command, "stats")) {
-        try handleStats(allocator);
+        try handleStats(allocator, args[1..]);
+        return;
+    }
+
+    if (std.mem.eql(u8, command, "optimize")) {
+        try handleOptimize(allocator, args[1..]);
+        return;
+    }
+
+    if (std.mem.eql(u8, command, "backup")) {
+        try handleBackup(allocator, args[1..]);
+        return;
+    }
+
+    if (std.mem.eql(u8, command, "restore")) {
+        try handleRestore(allocator, args[1..]);
         return;
     }
 
@@ -43,10 +61,15 @@ fn printHelp() void {
     const text =
         "Usage: abi db <command> [options]\n\n" ++
         "Commands:\n" ++
-        "  add --id <id> --vector <csv> [--meta <text>]\n" ++
-        "  query --vector <csv> [--top-k <n>]\n" ++
+        "  add --id <id> (--vector <csv> | --embed <text>) [--meta <text>]\n" ++
+        "  query (--vector <csv> | --embed <text>) [--top-k <n>]\n" ++
         "  stats\n" ++
-        "  serve [--addr <host:port>]\n";
+        "  optimize\n" ++
+        "  backup --path <file>\n" ++
+        "  restore --path <file>\n" ++
+        "  serve [--addr <host:port>]\n\n" ++
+        "Options:\n" ++
+        "  --path <file>   Load/save database state from file\n";
     std.debug.print("{s}", .{text});
 }
 
@@ -54,15 +77,17 @@ fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     var id: ?u64 = null;
     var vector_text: ?[]const u8 = null;
     var meta: ?[]const u8 = null;
+    var embed_text: ?[]const u8 = null;
+    var path: ?[]const u8 = null;
 
     var i: usize = 0;
     while (i < args.len) {
-        const arg = std.mem.span(args[i]);
+        const arg = std.mem.sliceTo(args[i], 0);
         i += 1;
 
         if (std.mem.eql(u8, arg, "--id")) {
             if (i < args.len) {
-                id = std.fmt.parseInt(u64, std.mem.span(args[i]), 10) catch null;
+                id = std.fmt.parseInt(u64, std.mem.sliceTo(args[i], 0), 10) catch null;
                 i += 1;
             }
             continue;
@@ -70,7 +95,7 @@ fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
 
         if (std.mem.eql(u8, arg, "--vector")) {
             if (i < args.len) {
-                vector_text = std.mem.span(args[i]);
+                vector_text = std.mem.sliceTo(args[i], 0);
                 i += 1;
             }
             continue;
@@ -78,7 +103,23 @@ fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
 
         if (std.mem.eql(u8, arg, "--meta")) {
             if (i < args.len) {
-                meta = std.mem.span(args[i]);
+                meta = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, arg, "--embed")) {
+            if (i < args.len) {
+                embed_text = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, arg, "--path")) {
+            if (i < args.len) {
+                path = std.mem.sliceTo(args[i], 0);
                 i += 1;
             }
             continue;
@@ -89,33 +130,49 @@ fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
         std.debug.print("Missing --id\n", .{});
         return;
     };
-    const vector_input = vector_text orelse {
-        std.debug.print("Missing --vector\n", .{});
+    const has_vector = vector_text != null;
+    const has_embed = embed_text != null;
+    if (has_vector == has_embed) {
+        std.debug.print("Specify exactly one of --vector or --embed\n", .{});
         return;
-    };
+    }
 
-    const vector = try db_helpers.parseVector(allocator, vector_input);
-    defer allocator.free(vector);
+    var vector: []f32 = &.{};
+    defer if (vector.len > 0) allocator.free(vector);
 
-    var handle = try unified.createDatabase(allocator, "cli");
-    defer unified.closeDatabase(&handle);
+    if (vector_text) |vector_input| {
+        vector = try db_helpers.parseVector(allocator, vector_input);
+    } else if (embed_text) |text| {
+        if (!build_options.enable_ai) {
+            std.debug.print("Embedding requires -Denable-ai=true\n", .{});
+            return;
+        }
+        var model = transformer.TransformerModel.init(.{});
+        vector = try model.embed(allocator, text);
+    }
 
-    try unified.insertVector(&handle, id_value, vector, meta);
+    var ctx = try DbContext.init(allocator, path);
+    defer ctx.deinit();
+
+    try unified.insertVector(&ctx.handle, id_value, vector, meta);
+    try ctx.persist();
     std.debug.print("Inserted vector {d} (dim {d}).\n", .{ id_value, vector.len });
 }
 
 fn handleQuery(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     var vector_text: ?[]const u8 = null;
+    var embed_text: ?[]const u8 = null;
     var top_k: usize = 3;
+    var path: ?[]const u8 = null;
 
     var i: usize = 0;
     while (i < args.len) {
-        const arg = std.mem.span(args[i]);
+        const arg = std.mem.sliceTo(args[i], 0);
         i += 1;
 
         if (std.mem.eql(u8, arg, "--vector")) {
             if (i < args.len) {
-                vector_text = std.mem.span(args[i]);
+                vector_text = std.mem.sliceTo(args[i], 0);
                 i += 1;
             }
             continue;
@@ -123,26 +180,57 @@ fn handleQuery(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
 
         if (std.mem.eql(u8, arg, "--top-k")) {
             if (i < args.len) {
-                top_k = std.fmt.parseInt(usize, std.mem.span(args[i]), 10) catch top_k;
+                top_k = std.fmt.parseInt(usize, std.mem.sliceTo(args[i], 0), 10) catch top_k;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, arg, "--embed")) {
+            if (i < args.len) {
+                embed_text = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, arg, "--path")) {
+            if (i < args.len) {
+                path = std.mem.sliceTo(args[i], 0);
                 i += 1;
             }
             continue;
         }
     }
 
-    const vector_input = vector_text orelse {
-        std.debug.print("Missing --vector\n", .{});
+    const has_vector = vector_text != null;
+    const has_embed = embed_text != null;
+    if (has_vector == has_embed) {
+        std.debug.print("Specify exactly one of --vector or --embed\n", .{});
         return;
-    };
+    }
 
-    const query = try db_helpers.parseVector(allocator, vector_input);
-    defer allocator.free(query);
+    var query: []f32 = &.{};
+    defer if (query.len > 0) allocator.free(query);
 
-    var handle = try unified.createDatabase(allocator, "cli");
-    defer unified.closeDatabase(&handle);
-    try seedDatabase(&handle);
+    if (vector_text) |vector_input| {
+        query = try db_helpers.parseVector(allocator, vector_input);
+    } else if (embed_text) |text| {
+        if (!build_options.enable_ai) {
+            std.debug.print("Embedding requires -Denable-ai=true\n", .{});
+            return;
+        }
+        var model = transformer.TransformerModel.init(.{});
+        query = try model.embed(allocator, text);
+    }
 
-    const results = try unified.searchVectors(&handle, allocator, query, top_k);
+    var ctx = try DbContext.init(allocator, path);
+    defer ctx.deinit();
+    if (ctx.path == null) {
+        try seedDatabase(&ctx.handle);
+    }
+
+    const results = try unified.searchVectors(&ctx.handle, allocator, query, top_k);
     defer allocator.free(results);
 
     if (results.len == 0) {
@@ -156,11 +244,18 @@ fn handleQuery(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     }
 }
 
-fn handleStats(allocator: std.mem.Allocator) !void {
-    var handle = try unified.createDatabase(allocator, "cli");
-    defer unified.closeDatabase(&handle);
-    try seedDatabase(&handle);
-    const stats = unified.getStats(&handle);
+fn handleStats(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+    var path: ?[]const u8 = null;
+    if (args.len >= 2 and std.mem.eql(u8, std.mem.sliceTo(args[0], 0), "--path")) {
+        path = std.mem.sliceTo(args[1], 0);
+    }
+
+    var ctx = try DbContext.init(allocator, path);
+    defer ctx.deinit();
+    if (ctx.path == null) {
+        try seedDatabase(&ctx.handle);
+    }
+    const stats = unified.getStats(&ctx.handle);
     std.debug.print("Database stats: {d} vectors, dimension {d}\n", .{ stats.count, stats.dimension });
 }
 
@@ -168,14 +263,58 @@ fn handleServe(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     var address: []const u8 = "127.0.0.1:9191";
     var i: usize = 0;
     while (i < args.len) {
-        const arg = std.mem.span(args[i]);
+        const arg = std.mem.sliceTo(args[i], 0);
         i += 1;
         if (std.mem.eql(u8, arg, "--addr") and i < args.len) {
-            address = std.mem.span(args[i]);
+            address = std.mem.sliceTo(args[i], 0);
             i += 1;
         }
     }
     try http.serve(allocator, address);
+}
+
+fn handleOptimize(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+    var path: ?[]const u8 = null;
+    if (args.len >= 2 and std.mem.eql(u8, std.mem.sliceTo(args[0], 0), "--path")) {
+        path = std.mem.sliceTo(args[1], 0);
+    }
+
+    var ctx = try DbContext.init(allocator, path);
+    defer ctx.deinit();
+    try unified.optimize(&ctx.handle);
+    try ctx.persist();
+    std.debug.print("Database optimized.\n", .{});
+}
+
+fn handleBackup(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+    var path: ?[]const u8 = null;
+    if (args.len >= 2 and std.mem.eql(u8, std.mem.sliceTo(args[0], 0), "--path")) {
+        path = std.mem.sliceTo(args[1], 0);
+    }
+    const output = path orelse {
+        std.debug.print("Missing --path\n", .{});
+        return;
+    };
+    var ctx = try DbContext.init(allocator, path);
+    defer ctx.deinit();
+    try unified.backup(&ctx.handle, output);
+    std.debug.print("Backup written to {s}\n", .{output});
+}
+
+fn handleRestore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+    var path: ?[]const u8 = null;
+    if (args.len >= 2 and std.mem.eql(u8, std.mem.sliceTo(args[0], 0), "--path")) {
+        path = std.mem.sliceTo(args[1], 0);
+    }
+    const input = path orelse {
+        std.debug.print("Missing --path\n", .{});
+        return;
+    };
+    var ctx = try DbContext.init(allocator, path);
+    defer ctx.deinit();
+    try unified.restore(&ctx.handle, input);
+    const stats = unified.getStats(&ctx.handle);
+    std.debug.print("Restored database: {d} vectors.\n", .{stats.count});
 }
 
 fn seedDatabase(handle: *unified.DatabaseHandle) !void {
@@ -190,3 +329,35 @@ fn seedDatabase(handle: *unified.DatabaseHandle) !void {
         id += 1;
     }
 }
+
+const DbContext = struct {
+    handle: unified.DatabaseHandle,
+    path: ?[]const u8,
+
+    fn init(allocator: std.mem.Allocator, path: ?[]const u8) !DbContext {
+        if (path) |file_path| {
+            const loaded = database.Database.loadFromFile(allocator, file_path);
+            if (loaded) |db| {
+                return .{ .handle = .{ .db = db }, .path = file_path };
+            } else |err| switch (err) {
+                error.FileNotFound => {
+                    const handle = try unified.createDatabase(allocator, file_path);
+                    return .{ .handle = handle, .path = file_path };
+                },
+                else => return err,
+            }
+        }
+        const handle = try unified.createDatabase(allocator, "cli");
+        return .{ .handle = handle, .path = null };
+    }
+
+    fn deinit(self: *DbContext) void {
+        unified.closeDatabase(&self.handle);
+    }
+
+    fn persist(self: *DbContext) !void {
+        if (self.path) |file_path| {
+            try unified.backup(&self.handle, file_path);
+        }
+    }
+};

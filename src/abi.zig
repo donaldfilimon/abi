@@ -33,6 +33,14 @@ pub const observability = @import("shared/observability/mod.zig");
 pub const platform = @import("shared/platform/mod.zig");
 pub const simd = @import("shared/simd.zig");
 pub const VectorOps = simd.VectorOps;
+pub const GpuBackend = gpu.Backend;
+pub const GpuBackendInfo = gpu.BackendInfo;
+pub const GpuDeviceInfo = gpu.DeviceInfo;
+pub const GpuBuffer = gpu.Buffer;
+pub const NetworkConfig = network.NetworkConfig;
+pub const NetworkState = network.NetworkState;
+pub const TransformerConfig = ai.transformer.TransformerConfig;
+pub const TransformerModel = ai.transformer.TransformerModel;
 pub const utils = @import("shared/utils/mod.zig");
 
 comptime {

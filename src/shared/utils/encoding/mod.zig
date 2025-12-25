@@ -40,3 +40,19 @@ fn hexToNibble(char: u8) EncodingError!u8 {
         else => EncodingError.InvalidHex,
     };
 }
+
+test "hex encoding roundtrip" {
+    const allocator = std.testing.allocator;
+    const bytes = &.{ 0xde, 0xad, 0xbe, 0xef };
+    const encoded = try hexEncodeLower(allocator, bytes);
+    defer allocator.free(encoded);
+    try std.testing.expectEqualStrings("deadbeef", encoded);
+
+    const decoded = try hexDecode(allocator, encoded);
+    defer allocator.free(decoded);
+    try std.testing.expectEqualSlices(u8, bytes, decoded);
+}
+
+test "hex decode rejects odd length" {
+    try std.testing.expectError(EncodingError.InvalidHex, hexDecode(std.testing.allocator, "abc"));
+}

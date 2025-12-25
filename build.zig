@@ -2,7 +2,7 @@ const std = @import("std");
 
 /// Create build options module with centralized defaults
 fn createBuildOptions(b: *std.Build) *std.Build.Module {
-    const build_options = b.addOptions();
+    var build_options = b.addOptions();
 
     // Package version
     build_options.addOption([]const u8, "package_version", "0.1.0");

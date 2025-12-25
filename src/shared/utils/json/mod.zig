@@ -32,3 +32,15 @@ pub fn writeString(writer: anytype, input: []const u8) !void {
     }
     try writer.writeAll("\"");
 }
+
+test "json string escape" {
+    const allocator = std.testing.allocator;
+    const escaped = try escapeString(allocator, "a\"b\n");
+    defer allocator.free(escaped);
+    try std.testing.expectEqualStrings("\"a\\\"b\\n\"", escaped);
+
+    var storage: [64]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&storage);
+    try writeString(stream.writer(), "a\"b\n");
+    try std.testing.expectEqualStrings("\"a\\\"b\\n\"", stream.getWritten());
+}

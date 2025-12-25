@@ -36,7 +36,7 @@ pub fn trainAndReport(allocator: std.mem.Allocator, config: TrainingConfig) !Tra
     const scratch_len = @min(@as(usize, config.batch_size), 1024);
     const scratch = try allocator.alloc(f32, scratch_len);
     defer allocator.free(scratch);
-    std.mem.set(f32, scratch, 0);
+    @memset(scratch, 0);
 
     var loss: f32 = 1.0;
     var accuracy: f32 = 0.5;
