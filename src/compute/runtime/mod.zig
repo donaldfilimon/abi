@@ -2,6 +2,7 @@ const std = @import("std");
 
 pub const engine = @import("engine.zig");
 pub const benchmark = @import("benchmark.zig");
+pub const workload = @import("workload.zig");
 
 pub const DistributedComputeEngine = engine.DistributedComputeEngine;
 pub const EngineConfig = engine.EngineConfig;
@@ -9,6 +10,14 @@ pub const EngineError = engine.EngineError;
 pub const TaskId = engine.TaskId;
 pub const BenchmarkResult = benchmark.BenchmarkResult;
 pub const runBenchmarks = benchmark.runBenchmarks;
+pub const ExecutionContext = workload.ExecutionContext;
+pub const WorkloadHints = workload.WorkloadHints;
+pub const WorkloadVTable = workload.WorkloadVTable;
+pub const ResultHandle = workload.ResultHandle;
+pub const ResultVTable = workload.ResultVTable;
+pub const WorkItem = workload.WorkItem;
+pub const GPUWorkloadVTable = workload.GPUWorkloadVTable;
+pub const runWorkItem = workload.runWorkItem;
 
 pub fn createEngine(
     allocator: std.mem.Allocator,

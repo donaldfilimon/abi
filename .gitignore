@@ -14,7 +14,7 @@ docs/build/
 *.swo
 *~
 .DS_Store
-
+.discord
 # Dependencies and package management
 node_modules/
 .bun/

@@ -373,16 +373,31 @@ fn printGpuBackends(allocator: std.mem.Allocator) !void {
 
     std.debug.print("GPU Backends:\n", .{});
     for (infos) |info| {
-        const status = if (info.enabled) "enabled" else "disabled";
-        if (info.enabled) {
+        if (!info.enabled) {
             std.debug.print(
-                "  {s} ({s}) - {s}\n",
-                .{ info.name, status, info.description },
+                "  {s} (disabled) - {s} [enable {s}]\n",
+                .{ info.name, info.description, info.build_flag },
+            );
+            continue;
+        }
+
+        if (!info.available) {
+            std.debug.print(
+                "  {s} (enabled) - {s} [unavailable: {s}]\n",
+                .{ info.name, info.description, info.availability },
+            );
+            continue;
+        }
+
+        if (info.device_count > 0) {
+            std.debug.print(
+                "  {s} (enabled) - {s} [devices: {d}]\n",
+                .{ info.name, info.description, info.device_count },
             );
         } else {
             std.debug.print(
-                "  {s} ({s}) - {s} [enable {s}]\n",
-                .{ info.name, status, info.description, abi.gpu.backendFlag(info.backend) },
+                "  {s} (enabled) - {s}\n",
+                .{ info.name, info.description },
             );
         }
     }
@@ -416,6 +431,23 @@ fn printGpuDevices(allocator: std.mem.Allocator) !void {
                 .{ device.id, device.name, abi.gpu.backendName(device.backend), emulated_suffix },
             );
         }
+        const caps = device.capability;
+        std.debug.print(
+            "      caps: unified={s} fp16={s} int8={s} async={s}\n",
+            .{
+                boolLabel(caps.unified_memory),
+                boolLabel(caps.supports_fp16),
+                boolLabel(caps.supports_int8),
+                boolLabel(caps.supports_async_transfers),
+            },
+        );
+        if (caps.max_threads_per_block != null or caps.max_shared_memory_bytes != null) {
+            std.debug.print("      limits: threads/block=", .{});
+            printOptionalU32(caps.max_threads_per_block);
+            std.debug.print(" shared=", .{});
+            printOptionalU32(caps.max_shared_memory_bytes);
+            std.debug.print("\n", .{});
+        }
     }
 }
 
@@ -441,7 +473,10 @@ fn printGpuSummary(allocator: std.mem.Allocator) !void {
         std.debug.print("\n", .{});
     }
 
-    std.debug.print("  GPU Devices: {d}\n", .{summary.device_count});
+    std.debug.print(
+        "  GPU Devices: {d} (emulated {d})\n",
+        .{ summary.device_count, summary.emulated_devices },
+    );
 }
 
 fn printNetworkSummary() void {
@@ -457,5 +492,17 @@ fn printNetworkSummary() void {
         const registry = abi.network.defaultRegistry() catch null;
         const node_count = if (registry) |reg| reg.list().len else 0;
         std.debug.print("  Network: {s} ({d} nodes)\n", .{ config.cluster_id, node_count });
+    }
+}
+
+fn boolLabel(value: bool) []const u8 {
+    return if (value) "yes" else "no";
+}
+
+fn printOptionalU32(value: ?u32) void {
+    if (value) |v| {
+        std.debug.print("{d}", .{v});
+    } else {
+        std.debug.print("n/a", .{});
     }
 }

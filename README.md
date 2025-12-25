@@ -43,6 +43,9 @@ zig build -Denable-ai=true -Denable-gpu=false -Denable-web=true -Denable-databas
 - `-Dgpu-vulkan` - Enable Vulkan GPU backend
 - `-Dgpu-metal` - Enable Metal GPU backend
 - `-Dgpu-webgpu` - Enable WebGPU backend (requires `-Denable-web`)
+- `-Dgpu-opengl` - Enable OpenGL backend
+- `-Dgpu-opengles` - Enable OpenGL ES backend
+- `-Dgpu-webgl2` - Enable WebGL2 backend (requires web/wasm target)
 
 ## Development
 
@@ -91,98 +94,133 @@ pub fn main() !void {
 const std = @import("std");
 const abi = @import("abi");
 
+fn computeTask(_: std.mem.Allocator) !u32 {
+    return 42;
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    // Initialize compute engine with 4 workers
-    const config = abi.compute.DEFAULT_CONFIG;
-    var engine = try abi.compute.Engine.init(gpa.allocator(), config);
+    var engine = try abi.compute.createDefaultEngine(gpa.allocator());
     defer engine.deinit();
 
-    // Submit work item
-    const vtable = abi.compute.WorkloadVTable{
-        .exec = struct {
-            fn exec(user: *anyopaque, ctx: *abi.compute.ExecutionContext, a: std.mem.Allocator) !*anyopaque {
-                _ = user;
-                _ = ctx;
-                // Do work here
-                const result = try a.create(u64);
-                result.* = 42;
-                return result;
-            }
-        }.exec,
-        .destroy = struct {
-            fn destroy(user: *anyopaque, a: std.mem.Allocator) void {
-                a.destroy(@as(*u64, @ptrCast(@alignCast(user))));
-            }
-        }.destroy,
-        .name = "example",
-    };
-
-    const item = abi.compute.WorkItem{
-        .id = 0,
-        .user = undefined,
-        .vtable = &vtable,
-        .priority = 0.5,
-        .hints = abi.compute.DEFAULT_HINTS,
-        .gpu_vtable = null,
-    };
-
-    const task_id = try engine.submit(item);
-
-    // Wait for result
-    while (engine.poll() == null) {
-        std.atomic.spinLoopHint(); // Efficient waiting
-    }
-
-    const result = engine.take(task_id).?;
-    defer result.deinit(gpa.allocator());
-
-    std.debug.print("Result: {}\n", .{result.as(u64).*});
+    const result = try abi.compute.runTask(&engine, u32, computeTask, 1000);
+    std.debug.print("Result: {d}\n", .{result});
 }
 ```
 
 ## GPU Workload Example
 
 ```zig
-// Submit GPU-preferred workload
-const gpu_hints = abi.compute.GPUWorkloadHints{
-    .prefers_gpu = true,
-    .requires_double_precision = false,
-    .estimated_memory_bytes = 1024 * 1024,
-};
+const std = @import("std");
+const abi = @import("abi");
 
-const item = abi.compute.WorkItem{
-    .id = 0,
-    .user = &gpu_workload,
-    .vtable = &cpu_vtable,
-    .priority = 0.5,
-    .hints = abi.compute.WorkloadHints{
-        .cpu_affinity = null,
-        .estimated_duration_us = null,
-        .prefers_gpu = true,
-        .requires_gpu = false,
-    },
-    .gpu_vtable = &gpu_vtable, // Optional GPU vtable
-};
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-const task_id = try engine.submit(item);
+    var gpu_workload: u32 = 0;
+
+    const cpu_vtable = abi.compute.WorkloadVTable{
+        .execute = struct {
+            fn execute(
+                ctx: *abi.compute.ExecutionContext,
+                user: *anyopaque,
+            ) !abi.compute.ResultHandle {
+                _ = ctx;
+                const ptr: *u32 = @ptrCast(@alignCast(user));
+                ptr.* += 1;
+                return abi.compute.ResultHandle.fromSlice(&.{});
+            }
+        }.execute,
+    };
+
+    const gpu_vtable = abi.compute.GPUWorkloadVTable{
+        .execute = struct {
+            fn execute(
+                ctx: *abi.compute.ExecutionContext,
+                user: *anyopaque,
+            ) !abi.compute.ResultHandle {
+                _ = ctx;
+                const ptr: *u32 = @ptrCast(@alignCast(user));
+                ptr.* += 10;
+                return abi.compute.ResultHandle.fromSlice(&.{});
+            }
+        }.execute,
+    };
+
+    const item = abi.compute.WorkItem{
+        .id = 0,
+        .user = &gpu_workload,
+        .vtable = &cpu_vtable,
+        .priority = 0,
+        .hints = .{
+            .cpu_affinity = null,
+            .estimated_duration_us = 2_000,
+            .prefers_gpu = true,
+            .requires_gpu = false,
+        },
+        .gpu_vtable = &gpu_vtable,
+    };
+
+    var ctx = abi.compute.ExecutionContext{ .allocator = allocator };
+    const result = try abi.compute.runWorkItem(&ctx, &item);
+    defer result.deinit();
+}
+```
+
+## GPU Memory & Pool Helpers
+
+```zig
+const std = @import("std");
+const abi = @import("abi");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var pool = abi.gpu.createPool(allocator, 16 * 1024 * 1024);
+    defer pool.deinit();
+
+    const flags = abi.gpu.BufferFlags{
+        .device_local = true,
+        .zero_init = true,
+    };
+    const buffer = try pool.allocate(4096, flags);
+    defer _ = pool.free(buffer);
+
+    try buffer.writeFromHost(&.{ 1, 2, 3, 4 });
+    try buffer.copyToDevice();
+
+    buffer.asSlice()[0] = 9;
+    try buffer.copyToHost();
+
+    const stats = pool.stats();
+    std.debug.print("GPU pool usage: {d:.2}%\n", .{stats.usage_ratio * 100.0});
+}
 ```
 
 ## Profiling Example
 
 ```zig
-// Get metrics summary
-if (engine.metrics_collector) |*mc| {
-    const summary = mc.getSummary();
+var metrics = try abi.compute.MetricsCollector.init(
+    gpa.allocator(),
+    abi.compute.DEFAULT_METRICS_CONFIG,
+    4,
+);
+defer metrics.deinit();
 
-    std.debug.print("Total tasks: {}\n", .{summary.total_tasks});
-    std.debug.print("Avg execution: {} μs\n", .{summary.avg_execution_ns / 1000});
-    std.debug.print("Min execution: {} μs\n", .{summary.min_execution_ns / 1000});
-    std.debug.print("Max execution: {} μs\n", .{summary.max_execution_ns / 1000});
-    std.debug.print("Throughput: {} ops/sec\n", .{summary.total_tasks * 1_000_000_000 / summary.total_execution_ns});
-}
+metrics.recordTaskExecution(0, 1500);
+metrics.recordTaskExecution(1, 900);
+
+const summary = metrics.getSummary();
+std.debug.print("Total tasks: {d}\n", .{summary.total_tasks});
+std.debug.print("Avg execution: {d} us\n", .{summary.avg_execution_ns / 1000});
+std.debug.print("Min execution: {d} us\n", .{summary.min_execution_ns / 1000});
+std.debug.print("Max execution: {d} us\n", .{summary.max_execution_ns / 1000});
 ```
 
 ## Network Serialization Example
@@ -211,16 +249,16 @@ defer {
 ## Benchmarking Example
 
 ```zig
-// Run performance benchmark
-const matrix_bench = abi.compute.MatrixMultBenchmark{
-    .matrix_size = 256,
-    .iterations = 100,
-};
+const results = try abi.compute.runBenchmarks(gpa.allocator());
+defer gpa.allocator().free(results);
 
-const benchmark = matrix_bench.create(gpa.allocator());
-const result = try abi.compute.runBenchmark(gpa.allocator(), benchmark);
-
-abi.compute.printBenchmarkResults(result);
+for (results) |bench| {
+    const ops = @as(u64, @intFromFloat(bench.ops_per_sec));
+    std.debug.print(
+        "{s}: {d} ops/sec ({d} iterations, {d} ns)\n",
+        .{ bench.name, ops, bench.iterations, bench.duration_ns },
+    );
+}
 ```
 
 ## Architecture Overview
@@ -229,8 +267,8 @@ abi.compute.printBenchmarkResults(result);
 - `src/root.zig`: root module entrypoint
 - `src/framework/`: runtime config, feature orchestration, lifecycle
 - `src/features/`: vertical feature stacks (AI, GPU, database, web, monitoring)
+- `src/compute/`: compute runtime, memory, and concurrency
 - `src/shared/`: shared utilities (logging, observability, platform, utils)
-- `src/internal/legacy/`: backward-compat implementations and deprecated modules
 
 ## Project Layout
 
@@ -238,20 +276,18 @@ abi.compute.printBenchmarkResults(result);
 abi/
 ├── src/                # Core library sources
 │   ├── core/           # Core infrastructure
+│   ├── compute/        # Compute runtime + memory + concurrency
 │   ├── features/       # Feature modules (AI, GPU, web, etc.)
 │   ├── framework/      # Framework configuration and runtime
 │   ├── shared/         # Shared utilities
-│   └── internal/       # Legacy + experimental modules
-│       └── legacy/     # Backward-compat implementations
 ├── build.zig           # Build graph + feature flags
 └── build.zig.zon        # Zig package metadata
 ```
 
 ## CLI
 
-If a CLI entrypoint is present at `tools/cli/main.zig`, it provides a thin
-wrapper for embedded usage (help + version). This tree currently omits that
-entrypoint; re-add it or update `build.zig` to skip the CLI build step.
+CLI entrypoint resolution prefers `tools/cli/main.zig` and falls back to
+`src/main.zig` if the tools entrypoint is not present.
 
 ```bash
 zig build run -- --help
