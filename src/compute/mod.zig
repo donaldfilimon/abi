@@ -7,6 +7,16 @@ const std = @import("std");
 
 const build_options = @import("build_options");
 
+const network_module = if (build_options.enable_network)
+    @import("network/mod.zig")
+else
+    @import("network/disabled.zig");
+
+const profiling_module = if (build_options.enable_profiling)
+    @import("profiling/mod.zig")
+else
+    @import("profiling/disabled.zig");
+
 pub const simd = @import("simd/mod.zig");
 pub const memory = @import("memory/mod.zig");
 pub const concurrency = @import("concurrency/mod.zig");
@@ -24,22 +34,8 @@ else
         pub const GPUWorkloadHints = void;
     };
 
-pub const network = if (build_options.enable_network)
-    @import("network/mod.zig")
-else
-    struct {
-        pub const NetworkEngine = void;
-        pub const NetworkConfig = void;
-        pub const NodeRegistry = void;
-    };
-
-pub const profiling = if (build_options.enable_profiling)
-    @import("profiling/mod.zig")
-else
-    struct {
-        pub const MetricsCollector = void;
-        pub const MetricsConfig = void;
-    };
+pub const network = network_module;
+pub const profiling = profiling_module;
 
 pub const VectorOps = simd.VectorOps;
 pub const ComputeVector = simd.ComputeVector;
@@ -61,7 +57,10 @@ pub const WorkloadHints = runtime.WorkloadHints;
 pub const DEFAULT_HINTS = runtime.DEFAULT_HINTS;
 pub const EngineConfig = runtime.config.EngineConfig;
 pub const DEFAULT_CONFIG = runtime.config.DEFAULT_CONFIG;
-pub const MetricsCollector = runtime.MetricsCollector;
+pub const MetricsCollector = profiling.MetricsCollector;
+pub const MetricsConfig = profiling.MetricsConfig;
+pub const MetricsSummary = profiling.MetricsSummary;
+pub const DEFAULT_METRICS_CONFIG = profiling.DEFAULT_METRICS_CONFIG;
 pub const config = runtime.config;
 
 pub const Matrix = workloads.Matrix;
@@ -88,6 +87,7 @@ pub const deserializeTask = network.deserializeTask;
 pub const serializeResult = network.serializeResult;
 pub const deserializeResult = network.deserializeResult;
 pub const DEFAULT_NETWORK_CONFIG = network.DEFAULT_NETWORK_CONFIG;
+pub const SerializationFormat = network.SerializationFormat;
 
 pub fn init(allocator: std.mem.Allocator) !void {
     _ = allocator;

@@ -8,6 +8,8 @@ const std = @import("std");
 const build_options = @import("build_options");
 const workload = @import("../runtime/workload.zig");
 
+const DEFAULT_CPU_AFFINITY: u32 = 2;
+
 pub const NetworkConfig = struct {
     listen_address: []const u8 = "0.0.0.0",
     listen_port: u16 = 8080,
@@ -194,7 +196,7 @@ pub fn deserializeTask(allocator: std.mem.Allocator, data: []const u8) !struct {
     errdefer allocator.free(user_data);
 
     const hints = workload.WorkloadHints{
-        .cpu_affinity = if (header.cpu_affinity == std.math.maxInt(u32)) null else header.cpu_affinity,
+        .cpu_affinity = if (header.cpu_affinity == std.math.maxInt(u32)) DEFAULT_CPU_AFFINITY else header.cpu_affinity,
         .estimated_duration_us = if (header.estimated_duration_us == std.math.maxInt(u64)) null else header.estimated_duration_us,
         .prefers_gpu = header.prefers_gpu == 1,
         .requires_gpu = header.requires_gpu == 1,

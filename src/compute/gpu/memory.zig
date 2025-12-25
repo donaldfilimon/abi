@@ -87,23 +87,21 @@ pub const GPUMemoryPool = struct {
             return error.OutOfMemory;
         }
 
-        const buffer = try self.buffers.allocator.create(GPUBuffer);
-        buffer.* = try GPUBuffer.init(self.allocator, size, flags);
-        try self.buffers.append(buffer.*);
+        const buffer = try GPUBuffer.init(self.allocator, size, flags);
+        try self.buffers.append(buffer);
 
         self.total_size += size;
         return &self.buffers.items[self.buffers.items.len - 1];
     }
 
     pub fn free(self: *GPUMemoryPool, buffer: *GPUBuffer) void {
-        self.total_size -= buffer.size;
-
         var i: usize = 0;
         while (i < self.buffers.items.len) : (i += 1) {
             if (&self.buffers.items[i] == buffer) {
+                std.debug.assert(self.total_size >= buffer.size);
+                self.total_size -= buffer.size;
                 buffer.deinit();
                 _ = self.buffers.orderedRemove(i);
-                self.buffers.allocator.destroy(buffer);
                 return;
             }
         }
