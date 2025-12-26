@@ -49,7 +49,11 @@ pub const TransformerModel = struct {
         return output.toOwnedSlice(allocator);
     }
 
-    pub fn encode(self: *const TransformerModel, allocator: std.mem.Allocator, input: []const u8) ![]u32 {
+    pub fn encode(
+        self: *const TransformerModel,
+        allocator: std.mem.Allocator,
+        input: []const u8,
+    ) ![]u32 {
         try self.config.validate();
 
         var list = std.ArrayList(u32).empty;
@@ -64,7 +68,11 @@ pub const TransformerModel = struct {
         return list.toOwnedSlice(allocator);
     }
 
-    pub fn decode(self: *const TransformerModel, allocator: std.mem.Allocator, tokens: []const u32) ![]u8 {
+    pub fn decode(
+        self: *const TransformerModel,
+        allocator: std.mem.Allocator,
+        tokens: []const u32,
+    ) ![]u8 {
         _ = self;
         var output = std.ArrayList(u8).empty;
         errdefer output.deinit(allocator);
@@ -72,7 +80,11 @@ pub const TransformerModel = struct {
         return output.toOwnedSlice(allocator);
     }
 
-    pub fn embed(self: *const TransformerModel, allocator: std.mem.Allocator, input: []const u8) ![]f32 {
+    pub fn embed(
+        self: *const TransformerModel,
+        allocator: std.mem.Allocator,
+        input: []const u8,
+    ) ![]f32 {
         const tokens = try self.encode(allocator, input);
         defer allocator.free(tokens);
 

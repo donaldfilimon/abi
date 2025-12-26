@@ -1,3 +1,4 @@
+//! Database feature facade and convenience helpers.
 const std = @import("std");
 const build_options = @import("build_options");
 

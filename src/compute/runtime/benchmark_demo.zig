@@ -1,5 +1,5 @@
 const std = @import("std");
-const benchmark = @import("benchmark.zig");
+const benchmark = @import("abi").compute.runtime.benchmark;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

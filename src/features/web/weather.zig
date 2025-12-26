@@ -63,6 +63,9 @@ fn parseCoordinates(location: []const u8) WeatherError!Coordinates {
         return WeatherError.InvalidLocation;
     const lon = std.fmt.parseFloat(f64, std.mem.trim(u8, lon_text, " \t")) catch
         return WeatherError.InvalidLocation;
+    if (lat < -90 or lat > 90 or lon < -180 or lon > 180) {
+        return WeatherError.InvalidLocation;
+    }
     return .{ .lat = lat, .lon = lon };
 }
 
@@ -77,4 +80,22 @@ fn buildUrl(
         "{s}?latitude={d:.4}&longitude={d:.4}&current_weather={s}",
         .{ config.base_url, coords.lat, coords.lon, current },
     );
+}
+
+test "weather coordinates parse and validate range" {
+    const coords = try parseCoordinates(" 40.0, -73.5 ");
+    try std.testing.expect(std.math.approxEqAbs(f64, coords.lat, 40.0, 0.0001));
+    try std.testing.expect(std.math.approxEqAbs(f64, coords.lon, -73.5, 0.0001));
+
+    try std.testing.expectError(WeatherError.InvalidLocation, parseCoordinates("91,0"));
+    try std.testing.expectError(WeatherError.InvalidLocation, parseCoordinates("0,181"));
+    try std.testing.expectError(WeatherError.InvalidLocation, parseCoordinates("0"));
+}
+
+test "weather url respects current toggle" {
+    const allocator = std.testing.allocator;
+    const coords = try parseCoordinates("37.7749,-122.4194");
+    const url = try buildUrl(allocator, coords, .{ .include_current = false });
+    defer allocator.free(url);
+    try std.testing.expect(std.mem.indexOf(u8, url, "current_weather=false") != null);
 }

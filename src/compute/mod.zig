@@ -35,6 +35,11 @@ pub const ResultHandle = runtime.ResultHandle;
 pub const ResultVTable = runtime.ResultVTable;
 pub const WorkItem = runtime.WorkItem;
 pub const runWorkItem = runtime.runWorkItem;
+pub const matMul = runtime.matMul;
+pub const dense = runtime.dense;
+pub const relu = runtime.relu;
+pub const MatrixMultiplyTask = runtime.MatrixMultiplyTask;
+pub const MlpTask = runtime.MlpTask;
 
 pub const VectorOps = simd.VectorOps;
 

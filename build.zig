@@ -16,16 +16,34 @@ const BuildOptions = struct {
     gpu_webgl2: bool,
 };
 
+const Defaults = struct {
+    const enable_gpu = true;
+    const enable_ai = true;
+    const enable_web = true;
+    const enable_database = true;
+    const enable_network = false;
+    const enable_profiling = false;
+};
+
 fn readBuildOptions(b: *std.Build) BuildOptions {
-    const enable_gpu = b.option(bool, "enable-gpu", "Enable GPU support") orelse true;
-    const enable_ai = b.option(bool, "enable-ai", "Enable AI features") orelse true;
-    const enable_web = b.option(bool, "enable-web", "Enable web features") orelse true;
+    const enable_gpu =
+        b.option(bool, "enable-gpu", "Enable GPU support") orelse
+        Defaults.enable_gpu;
+    const enable_ai =
+        b.option(bool, "enable-ai", "Enable AI features") orelse
+        Defaults.enable_ai;
+    const enable_web =
+        b.option(bool, "enable-web", "Enable web features") orelse
+        Defaults.enable_web;
     const enable_database =
-        b.option(bool, "enable-database", "Enable database features") orelse true;
+        b.option(bool, "enable-database", "Enable database features") orelse
+        Defaults.enable_database;
     const enable_network =
-        b.option(bool, "enable-network", "Enable network distributed compute") orelse false;
+        b.option(bool, "enable-network", "Enable network distributed compute") orelse
+        Defaults.enable_network;
     const enable_profiling =
-        b.option(bool, "enable-profiling", "Enable profiling and metrics") orelse false;
+        b.option(bool, "enable-profiling", "Enable profiling and metrics") orelse
+        Defaults.enable_profiling;
 
     const gpu_cuda = b.option(bool, "gpu-cuda", "Enable CUDA GPU backend") orelse enable_gpu;
     const gpu_vulkan = b.option(bool, "gpu-vulkan", "Enable Vulkan GPU backend") orelse enable_gpu;
@@ -79,6 +97,40 @@ fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Mod
     return build_options.createModule();
 }
 
+fn createCliModule(
+    b: *std.Build,
+    abi_module: *std.Build.Module,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) *std.Build.Module {
+    const cli_module = b.createModule(.{
+        .root_source_file = b.path("src/cli.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    cli_module.addImport("abi", abi_module);
+    return cli_module;
+}
+
+fn warnInconsistentOptions(options: BuildOptions) void {
+    if (!options.enable_gpu and
+        (options.gpu_cuda or options.gpu_vulkan or options.gpu_metal or
+            options.gpu_opengl or options.gpu_opengles))
+    {
+        std.log.warn(
+            "GPU backends enabled but enable-gpu=false; " ++
+                "backends will be inactive until GPU is enabled",
+            .{},
+        );
+    }
+    if (!options.enable_web and (options.gpu_webgpu or options.gpu_webgl2)) {
+        std.log.warn(
+            "Web GPU backends enabled but enable-web=false; web GPU backends will be inactive",
+            .{},
+        );
+    }
+}
+
 fn pathExists(path: []const u8) bool {
     std.fs.cwd().access(path, .{}) catch return false;
     return true;
@@ -90,6 +142,7 @@ pub fn build(b: *std.Build) void {
 
     // Create build options module
     const base_options = readBuildOptions(b);
+    warnInconsistentOptions(base_options);
     const build_options_module = createBuildOptionsModule(b, base_options);
 
     // Core library module
@@ -116,7 +169,9 @@ pub fn build(b: *std.Build) void {
                 .optimize = optimize,
             }),
         });
+        const cli_module = createCliModule(b, abi_module, target, optimize);
         exe.root_module.addImport("abi", abi_module);
+        exe.root_module.addImport("cli", cli_module);
         b.installArtifact(exe);
 
         // Run step for CLI
@@ -194,7 +249,9 @@ pub fn build(b: *std.Build) void {
                 .optimize = .ReleaseFast,
             }),
         });
+        const cli_profile_module = createCliModule(b, abi_profile_module, target, optimize);
         profile_exe.root_module.addImport("abi", abi_profile_module);
+        profile_exe.root_module.addImport("cli", cli_profile_module);
         b.installArtifact(profile_exe);
 
         const profile_step = b.step("profile", "Build with performance profiling");

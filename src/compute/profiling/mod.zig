@@ -7,6 +7,10 @@ const std = @import("std");
 
 const build_options = @import("build_options");
 
+pub fn isEnabled() bool {
+    return build_options.enable_profiling;
+}
+
 pub const MetricsConfig = struct {
     sample_rate_ns: u64 = 1_000_000,
     histogram_buckets: []const u64 = &.{ 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000 },
@@ -21,7 +25,11 @@ pub const MetricsCollector = struct {
     task_histogram: Histogram,
     mutex: std.Thread.Mutex,
 
-    pub fn init(allocator: std.mem.Allocator, cfg: MetricsConfig, worker_count: usize) !MetricsCollector {
+    pub fn init(
+        allocator: std.mem.Allocator,
+        cfg: MetricsConfig,
+        worker_count: usize,
+    ) !MetricsCollector {
         const worker_stats = try allocator.alloc(WorkerMetrics, worker_count);
         @memset(worker_stats, WorkerMetrics{});
 
@@ -105,6 +113,14 @@ pub const MetricsCollector = struct {
         };
     }
 };
+
+pub fn initCollector(
+    allocator: std.mem.Allocator,
+    config: MetricsConfig,
+    worker_count: usize,
+) !MetricsCollector {
+    return MetricsCollector.init(allocator, config, worker_count);
+}
 
 pub const WorkerMetrics = struct {
     tasks_executed: u64 = 0,

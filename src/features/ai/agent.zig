@@ -56,6 +56,7 @@ pub const Agent = struct {
     pub fn process(self: *Agent, input: []const u8, allocator: std.mem.Allocator) ![]u8 {
         if (self.config.enable_history) {
             const copy = try self.allocator.dupe(u8, input);
+            errdefer self.allocator.free(copy);
             try self.history.append(self.allocator, copy);
         }
         return std.fmt.allocPrint(allocator, "Echo: {s}", .{input});

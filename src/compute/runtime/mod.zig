@@ -18,6 +18,11 @@ pub const ResultVTable = workload.ResultVTable;
 pub const WorkItem = workload.WorkItem;
 pub const GPUWorkloadVTable = workload.GPUWorkloadVTable;
 pub const runWorkItem = workload.runWorkItem;
+pub const matMul = workload.matMul;
+pub const dense = workload.dense;
+pub const relu = workload.relu;
+pub const MatrixMultiplyTask = workload.MatrixMultiplyTask;
+pub const MlpTask = workload.MlpTask;
 
 pub fn createEngine(
     allocator: std.mem.Allocator,

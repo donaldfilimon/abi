@@ -256,7 +256,10 @@ fn handleStats(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
         try seedDatabase(&ctx.handle);
     }
     const stats = unified.getStats(&ctx.handle);
-    std.debug.print("Database stats: {d} vectors, dimension {d}\n", .{ stats.count, stats.dimension });
+    std.debug.print(
+        "Database stats: {d} vectors, dimension {d}\n",
+        .{ stats.count, stats.dimension },
+    );
 }
 
 fn handleServe(allocator: std.mem.Allocator, args: []const [:0]u8) !void {

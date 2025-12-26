@@ -5,6 +5,10 @@
 
 const std = @import("std");
 
+pub fn isEnabled() bool {
+    return false;
+}
+
 pub const MetricsConfig = struct {
     sample_rate_ns: u64 = 1_000_000,
     histogram_buckets: []const u64 = &.{},
@@ -83,5 +87,13 @@ pub const MetricsCollector = struct {
         };
     }
 };
+
+pub fn initCollector(
+    allocator: std.mem.Allocator,
+    config: MetricsConfig,
+    worker_count: usize,
+) !MetricsCollector {
+    return MetricsCollector.init(allocator, config, worker_count);
+}
 
 pub const DEFAULT_METRICS_CONFIG = MetricsConfig{};

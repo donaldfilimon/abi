@@ -1,3 +1,4 @@
+//! GPU backend detection and device enumeration.
 const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
@@ -77,6 +78,12 @@ var initialized: bool = false;
 pub fn init(_: std.mem.Allocator) GpuError!void {
     if (!moduleEnabled()) return error.GpuDisabled;
     initialized = true;
+}
+
+pub fn ensureInitialized(allocator: std.mem.Allocator) GpuError!void {
+    if (!isInitialized()) {
+        try init(allocator);
+    }
 }
 
 pub fn deinit() void {
@@ -299,7 +306,25 @@ pub fn listDevices(allocator: std.mem.Allocator) ![]DeviceInfo {
 pub fn defaultDevice(allocator: std.mem.Allocator) !?DeviceInfo {
     const devices = try listDevices(allocator);
     defer allocator.free(devices);
+    return selectDefaultDevice(devices);
+}
+
+pub fn defaultDeviceLabel(allocator: std.mem.Allocator) !?[]u8 {
+    const device = try defaultDevice(allocator);
+    if (device == null) return null;
+    const label = try std.fmt.allocPrint(
+        allocator,
+        "{s} ({s})",
+        .{ device.?.name, backendDisplayName(device.?.backend) },
+    );
+    return label;
+}
+
+fn selectDefaultDevice(devices: []const DeviceInfo) ?DeviceInfo {
     if (devices.len == 0) return null;
+    for (devices) |device| {
+        if (!device.is_emulated) return device;
+    }
     return devices[0];
 }
 
@@ -311,7 +336,8 @@ fn detectCuda() BackendAvailability {
         return unavailableAvailability("cuda requires dynamic loader");
     }
 
-    var lib = openFirst(cudaLibNames()) orelse return unavailableAvailability("cuda driver not found");
+    var lib = openFirst(cudaLibNames()) orelse
+        return unavailableAvailability("cuda driver not found");
     defer lib.close();
 
     const cuInit = lib.lookup(CuInitFn, "cuInit") orelse {
@@ -407,7 +433,11 @@ fn detectWebGl2() BackendAvailability {
     return unavailableAvailability("webgl2 requires web target");
 }
 
-fn availableAvailability(level: DetectionLevel, device_count: usize, reason: []const u8) BackendAvailability {
+fn availableAvailability(
+    level: DetectionLevel,
+    device_count: usize,
+    reason: []const u8,
+) BackendAvailability {
     return .{
         .enabled = true,
         .available = true,
@@ -631,4 +661,24 @@ test "summary matches enabled backends" {
         if (isEnabled(backend)) enabled_count += 1;
     }
     try std.testing.expectEqual(enabled_count, details.enabled_backend_count);
+}
+
+test "default device prefers non-emulated" {
+    const devices = [_]DeviceInfo{
+        .{ .id = 0, .backend = .cuda, .name = "emu", .is_emulated = true },
+        .{ .id = 1, .backend = .vulkan, .name = "real", .is_emulated = false },
+    };
+    const selected = selectDefaultDevice(&devices);
+    try std.testing.expect(selected != null);
+    try std.testing.expectEqual(@as(u32, 1), selected.?.id);
+}
+
+test "default device falls back to first when all emulated" {
+    const devices = [_]DeviceInfo{
+        .{ .id = 4, .backend = .opengl, .name = "emu0", .is_emulated = true },
+        .{ .id = 7, .backend = .webgpu, .name = "emu1", .is_emulated = true },
+    };
+    const selected = selectDefaultDevice(&devices);
+    try std.testing.expect(selected != null);
+    try std.testing.expectEqual(@as(u32, 4), selected.?.id);
 }

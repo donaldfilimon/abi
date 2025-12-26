@@ -1,4 +1,4 @@
-//! Legacy CLI entrypoint. Prefer tools/cli/main.zig.
+//! CLI entrypoint wrapper (preferred path for build.zig).
 const cli = @import("cli");
 
 pub fn main() !void {

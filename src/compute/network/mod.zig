@@ -8,8 +8,6 @@ const std = @import("std");
 const build_options = @import("build_options");
 const workload = @import("../runtime/workload.zig");
 
-const DEFAULT_CPU_AFFINITY: u32 = 2;
-
 pub const NetworkConfig = struct {
     listen_address: []const u8 = "0.0.0.0",
     listen_port: u16 = 8080,
@@ -133,6 +131,19 @@ pub const ResultMessage = struct {
     error_message: ?[]const u8 = null,
 };
 
+pub const DeserializedTask = struct {
+    item: workload.WorkItem,
+    payload_type: []const u8,
+    user_data: []const u8,
+};
+
+pub const DeserializedResult = struct {
+    task_id: u64,
+    success: bool,
+    error_message: ?[]const u8,
+    payload_data: []const u8,
+};
+
 const TaskSerializationHeader = struct {
     task_id: u64,
     payload_type_len: u32,
@@ -143,25 +154,41 @@ const TaskSerializationHeader = struct {
     requires_gpu: u8,
 };
 
-pub fn serializeTask(allocator: std.mem.Allocator, item: *const workload.WorkItem, payload_type: []const u8, user_data: []const u8) ![]u8 {
+pub fn serializeTask(
+    allocator: std.mem.Allocator,
+    item: *const workload.WorkItem,
+    payload_type: []const u8,
+    user_data: []const u8,
+) ![]u8 {
     const header = TaskSerializationHeader{
         .task_id = item.id,
         .payload_type_len = @intCast(payload_type.len),
         .payload_data_len = @intCast(user_data.len),
-        .cpu_affinity = if (item.hints.cpu_affinity) |aff| aff else std.math.maxInt(u32),
-        .estimated_duration_us = if (item.hints.estimated_duration_us) |dur| dur else std.math.maxInt(u64),
+        .cpu_affinity = if (item.hints.cpu_affinity) |aff|
+            aff
+        else
+            std.math.maxInt(u32),
+        .estimated_duration_us = if (item.hints.estimated_duration_us) |dur|
+            dur
+        else
+            std.math.maxInt(u64),
         .prefers_gpu = if (item.hints.prefers_gpu) 1 else 0,
         .requires_gpu = if (item.hints.requires_gpu) 1 else 0,
     };
 
-    const total_size = @sizeOf(TaskSerializationHeader) + payload_type.len + user_data.len;
+    const total_size = @sizeOf(TaskSerializationHeader) +
+        payload_type.len +
+        user_data.len;
     var buffer = try allocator.alloc(u8, total_size);
     errdefer allocator.free(buffer);
 
     var offset: usize = 0;
 
     const header_bytes = std.mem.asBytes(&header);
-    @memcpy(buffer[offset..][0..@sizeOf(TaskSerializationHeader)], header_bytes);
+    @memcpy(
+        buffer[offset..][0..@sizeOf(TaskSerializationHeader)],
+        header_bytes,
+    );
     offset += @sizeOf(TaskSerializationHeader);
 
     @memcpy(buffer[offset..][0..payload_type.len], payload_type);
@@ -172,32 +199,50 @@ pub fn serializeTask(allocator: std.mem.Allocator, item: *const workload.WorkIte
     return buffer;
 }
 
-pub fn deserializeTask(allocator: std.mem.Allocator, data: []const u8) !struct { item: workload.WorkItem, payload_type: []const u8, user_data: []const u8 } {
+pub fn deserializeTask(
+    allocator: std.mem.Allocator,
+    data: []const u8,
+) !DeserializedTask {
     if (data.len < @sizeOf(TaskSerializationHeader)) {
         return error.InvalidData;
     }
 
     const header_bytes = data[0..@sizeOf(TaskSerializationHeader)];
-    const header = std.mem.bytesToValue(TaskSerializationHeader, header_bytes);
+    const header = std.mem.bytesToValue(
+        TaskSerializationHeader,
+        header_bytes,
+    );
 
     var offset: usize = @sizeOf(TaskSerializationHeader);
 
     if (offset + header.payload_type_len > data.len) {
         return error.InvalidData;
     }
-    const payload_type = try allocator.dupe(u8, data[offset..][0..header.payload_type_len]);
+    const payload_type = try allocator.dupe(
+        u8,
+        data[offset..][0..header.payload_type_len],
+    );
     errdefer allocator.free(payload_type);
     offset += header.payload_type_len;
 
     if (offset + header.payload_data_len > data.len) {
         return error.InvalidData;
     }
-    const user_data = try allocator.dupe(u8, data[offset..][0..header.payload_data_len]);
+    const user_data = try allocator.dupe(
+        u8,
+        data[offset..][0..header.payload_data_len],
+    );
     errdefer allocator.free(user_data);
 
     const hints = workload.WorkloadHints{
-        .cpu_affinity = if (header.cpu_affinity == std.math.maxInt(u32)) DEFAULT_CPU_AFFINITY else header.cpu_affinity,
-        .estimated_duration_us = if (header.estimated_duration_us == std.math.maxInt(u64)) null else header.estimated_duration_us,
+        .cpu_affinity = if (header.cpu_affinity == std.math.maxInt(u32))
+            null
+        else
+            header.cpu_affinity,
+        .estimated_duration_us = if (header.estimated_duration_us == std.math.maxInt(u64))
+            null
+        else
+            header.estimated_duration_us,
         .prefers_gpu = header.prefers_gpu == 1,
         .requires_gpu = header.requires_gpu == 1,
     };
@@ -225,7 +270,14 @@ const ResultSerializationHeader = struct {
     error_message_len: u32,
 };
 
-pub fn serializeResult(allocator: std.mem.Allocator, task_id: u64, handle: workload.ResultHandle, success: bool, error_message: ?[]const u8, payload_data: []const u8) ![]u8 {
+pub fn serializeResult(
+    allocator: std.mem.Allocator,
+    task_id: u64,
+    handle: workload.ResultHandle,
+    success: bool,
+    error_message: ?[]const u8,
+    payload_data: []const u8,
+) ![]u8 {
     _ = handle;
 
     const header = ResultSerializationHeader{
@@ -236,7 +288,9 @@ pub fn serializeResult(allocator: std.mem.Allocator, task_id: u64, handle: workl
     };
 
     const error_msg_data = error_message orelse "";
-    const total_size = @sizeOf(ResultSerializationHeader) + error_msg_data.len + payload_data.len;
+    const total_size = @sizeOf(ResultSerializationHeader) +
+        error_msg_data.len +
+        payload_data.len;
 
     var buffer = try allocator.alloc(u8, total_size);
     errdefer allocator.free(buffer);
@@ -244,7 +298,10 @@ pub fn serializeResult(allocator: std.mem.Allocator, task_id: u64, handle: workl
     var offset: usize = 0;
 
     const header_bytes = std.mem.asBytes(&header);
-    @memcpy(buffer[offset..][0..@sizeOf(ResultSerializationHeader)], header_bytes);
+    @memcpy(
+        buffer[offset..][0..@sizeOf(ResultSerializationHeader)],
+        header_bytes,
+    );
     offset += @sizeOf(ResultSerializationHeader);
 
     @memcpy(buffer[offset..][0..error_msg_data.len], error_msg_data);
@@ -255,13 +312,19 @@ pub fn serializeResult(allocator: std.mem.Allocator, task_id: u64, handle: workl
     return buffer;
 }
 
-pub fn deserializeResult(allocator: std.mem.Allocator, data: []const u8) !struct { task_id: u64, success: bool, error_message: ?[]const u8, payload_data: []const u8 } {
+pub fn deserializeResult(
+    allocator: std.mem.Allocator,
+    data: []const u8,
+) !DeserializedResult {
     if (data.len < @sizeOf(ResultSerializationHeader)) {
         return error.InvalidData;
     }
 
     const header_bytes = data[0..@sizeOf(ResultSerializationHeader)];
-    const header = std.mem.bytesToValue(ResultSerializationHeader, header_bytes);
+    const header = std.mem.bytesToValue(
+        ResultSerializationHeader,
+        header_bytes,
+    );
 
     var offset: usize = @sizeOf(ResultSerializationHeader);
 
@@ -270,7 +333,10 @@ pub fn deserializeResult(allocator: std.mem.Allocator, data: []const u8) !struct
         if (offset + header.error_message_len > data.len) {
             return error.InvalidData;
         }
-        error_message = try allocator.dupe(u8, data[offset..][0..header.error_message_len]);
+        error_message = try allocator.dupe(
+            u8,
+            data[offset..][0..header.error_message_len],
+        );
         errdefer allocator.free(error_message.?);
         offset += header.error_message_len;
     }
@@ -278,7 +344,10 @@ pub fn deserializeResult(allocator: std.mem.Allocator, data: []const u8) !struct
     if (offset + header.payload_data_len > data.len) {
         return error.InvalidData;
     }
-    const payload_data = try allocator.dupe(u8, data[offset..][0..header.payload_data_len]);
+    const payload_data = try allocator.dupe(
+        u8,
+        data[offset..][0..header.payload_data_len],
+    );
 
     return .{
         .task_id = header.task_id,
@@ -289,3 +358,33 @@ pub fn deserializeResult(allocator: std.mem.Allocator, data: []const u8) !struct
 }
 
 pub const DEFAULT_NETWORK_CONFIG = NetworkConfig{};
+
+test "task serialization preserves null cpu affinity" {
+    const allocator = std.testing.allocator;
+    var stub: u8 = 0;
+    const vtable = workload.WorkloadVTable{ .execute = unsupportedExecute };
+    const item = workload.WorkItem{
+        .id = 99,
+        .user = &stub,
+        .vtable = &vtable,
+        .priority = 0,
+        .hints = .{},
+        .gpu_vtable = null,
+    };
+
+    const payload_type = "test";
+    const payload = "data";
+    const encoded = try serializeTask(allocator, &item, payload_type, payload);
+    defer allocator.free(encoded);
+
+    const decoded = try deserializeTask(allocator, encoded);
+    defer allocator.free(decoded.payload_type);
+    defer allocator.free(decoded.user_data);
+
+    try std.testing.expectEqual(@as(?u32, null), decoded.item.hints.cpu_affinity);
+    try std.testing.expectEqual(@as(?u64, null), decoded.item.hints.estimated_duration_us);
+}
+
+fn unsupportedExecute(_: *workload.ExecutionContext, _: *anyopaque) anyerror!workload.ResultHandle {
+    return workload.ResultHandle.fromSlice(&.{});
+}

@@ -1,3 +1,4 @@
+//! Web feature helpers for HTTP and weather client access.
 const std = @import("std");
 const build_options = @import("build_options");
 

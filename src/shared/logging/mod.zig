@@ -1,3 +1,4 @@
+//! Simple logging helpers with scoped timing.
 const std = @import("std");
 
 pub const Level = enum {
@@ -8,7 +9,11 @@ pub const Level = enum {
     err,
 };
 
+var log_mutex: std.Thread.Mutex = .{};
+
 pub fn log(level: Level, comptime fmt: []const u8, args: anytype) void {
+    log_mutex.lock();
+    defer log_mutex.unlock();
     std.debug.print("[{s}] ", .{@tagName(level)});
     std.debug.print(fmt, args);
     std.debug.print("\n", .{});
@@ -46,6 +51,8 @@ pub const ScopedTimer = struct {
     }
 
     pub fn stop(self: ScopedTimer) void {
+        log_mutex.lock();
+        defer log_mutex.unlock();
         const elapsed = std.time.nanoTimestamp() - self.start_ns;
         std.debug.print("[timer] {s}: {d} ns\n", .{ self.label, elapsed });
     }

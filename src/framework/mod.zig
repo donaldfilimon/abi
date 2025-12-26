@@ -22,7 +22,10 @@ pub const FrameworkConfiguration = struct {
     plugin_paths: []const []const u8 = &.{},
     auto_discover_plugins: bool = false,
 
-    pub fn toRuntimeConfig(self: FrameworkConfiguration, allocator: std.mem.Allocator) !RuntimeConfig {
+    pub fn toRuntimeConfig(
+        self: FrameworkConfiguration,
+        allocator: std.mem.Allocator,
+    ) !RuntimeConfig {
         return RuntimeConfig.init(
             allocator,
             self.enabled_features,

@@ -1,18 +1,24 @@
 # ABI Framework Context
 
 ## Project Overview
-**ABI** is a modern Zig framework designed for modular AI services, vector search, and systems tooling. It provides a comprehensive set of features including an AI agent runtime, vector database helpers, high-performance compute runtime, GPU backends, and distributed network compute capabilities.
+**ABI** is a modern Zig framework designed for modular AI services, vector search, and
+systems tooling. It provides a comprehensive set of features including an AI agent
+runtime, vector database helpers, high-performance compute runtime, GPU backends, and
+distributed network compute capabilities.
 
 **Key Technologies:**
 *   **Language:** Zig (0.16.x)
-*   **Architecture:** Modular, with a core runtime and optional feature stacks (AI, GPU, Database, Web, Monitoring).
-*   **Compute:** Work-stealing scheduler, support for various GPU backends (CUDA, Vulkan, Metal, WebGPU).
+*   **Architecture:** Modular, with a core runtime and optional feature stacks
+    (AI, GPU, Database, Web, Monitoring).
+*   **Compute:** Work-stealing scheduler, support for various GPU backends
+    (CUDA, Vulkan, Metal, WebGPU).
 
 ## Directory Structure
 *   `src/abi.zig`: Public API surface.
 *   `src/root.zig`: Root module entrypoint.
 *   `src/framework/`: Core runtime configuration and lifecycle management.
-*   `src/features/`: Feature-specific modules (AI, Compute, Connectors, Database, GPU, Monitoring, Web).
+*   `src/features/`: Feature-specific modules (AI, Compute, Connectors, Database,
+    GPU, Monitoring, Web).
 *   `src/compute/`: High-performance compute runtime implementation.
 *   `tests/`: Integration and unit tests.
 *   `tools/`: Utility tools, including the CLI entrypoint (`tools/cli/main.zig`).
@@ -79,7 +85,8 @@ zig build -Denable-ai=true -Denable-gpu=false -Denable-web=true
     *   Unit tests should accompany new features.
     *   Run `zig build test` to verify changes.
 *   **Environment Variables:**
-    *   Check `README.md` for a list of supported environment variables for connectors (OpenAI, Hugging Face, etc.).
+    *   Check `README.md` for a list of supported environment variables for
+        connectors (OpenAI, Hugging Face, etc.).
 
 ## Key Files for Context
 *   `src/abi.zig`: Check this to understand what is exposed publicly.

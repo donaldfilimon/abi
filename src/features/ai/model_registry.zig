@@ -31,10 +31,12 @@ pub const ModelRegistry = struct {
     pub fn register(self: *ModelRegistry, model: ModelInfo) ModelRegistryError!void {
         if (self.findIndex(model.name) != null) return ModelRegistryError.DuplicateModel;
         const name_copy = try self.allocator.dupe(u8, model.name);
+        errdefer self.allocator.free(name_copy);
         const desc_copy = if (model.description.len > 0)
             try self.allocator.dupe(u8, model.description)
         else
             "";
+        errdefer if (desc_copy.len > 0) self.allocator.free(desc_copy);
         try self.models.append(self.allocator, .{
             .name = name_copy,
             .parameters = model.parameters,

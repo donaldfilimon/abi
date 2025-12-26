@@ -51,34 +51,63 @@ pub const Histogram = struct {
 
 pub const MetricsCollector = struct {
     allocator: std.mem.Allocator,
-    counters: std.ArrayList(Counter),
-    histograms: std.ArrayList(Histogram),
+    counters: std.ArrayListUnmanaged(*Counter) = .{},
+    histograms: std.ArrayListUnmanaged(*Histogram) = .{},
 
     pub fn init(allocator: std.mem.Allocator) MetricsCollector {
         return .{
             .allocator = allocator,
-            .counters = std.ArrayList(Counter).empty,
-            .histograms = std.ArrayList(Histogram).empty,
         };
     }
 
     pub fn deinit(self: *MetricsCollector) void {
+        for (self.counters.items) |counter| {
+            self.allocator.destroy(counter);
+        }
         self.counters.deinit(self.allocator);
-        for (self.histograms.items) |*histogram| {
+        for (self.histograms.items) |histogram| {
             histogram.deinit(self.allocator);
+            self.allocator.destroy(histogram);
         }
         self.histograms.deinit(self.allocator);
         self.* = undefined;
     }
 
     pub fn registerCounter(self: *MetricsCollector, name: []const u8) !*Counter {
-        try self.counters.append(self.allocator, .{ .name = name });
-        return &self.counters.items[self.counters.items.len - 1];
+        const counter = try self.allocator.create(Counter);
+        errdefer self.allocator.destroy(counter);
+        counter.* = .{ .name = name };
+        try self.counters.append(self.allocator, counter);
+        return counter;
     }
 
-    pub fn registerHistogram(self: *MetricsCollector, name: []const u8, bounds: []const u64) !*Histogram {
-        const histogram = try Histogram.init(self.allocator, name, bounds);
+    pub fn registerHistogram(
+        self: *MetricsCollector,
+        name: []const u8,
+        bounds: []const u64,
+    ) !*Histogram {
+        const histogram = try self.allocator.create(Histogram);
+        errdefer self.allocator.destroy(histogram);
+        histogram.* = try Histogram.init(self.allocator, name, bounds);
+        errdefer histogram.deinit(self.allocator);
         try self.histograms.append(self.allocator, histogram);
-        return &self.histograms.items[self.histograms.items.len - 1];
+        return histogram;
     }
 };
+
+test "metrics collector registers counters and histograms" {
+    var collector = MetricsCollector.init(std.testing.allocator);
+    defer collector.deinit();
+
+    const requests = try collector.registerCounter("requests_total");
+    const errors = try collector.registerCounter("errors_total");
+    const latency = try collector.registerHistogram("latency_ms", &.{ 1, 5, 10 });
+
+    requests.inc(1);
+    errors.inc(2);
+    latency.record(3);
+
+    try std.testing.expectEqual(@as(u64, 1), requests.get());
+    try std.testing.expectEqual(@as(u64, 2), errors.get());
+    try std.testing.expectEqual(@as(u64, 1), latency.buckets[1]);
+}

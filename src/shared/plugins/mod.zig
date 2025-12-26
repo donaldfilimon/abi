@@ -27,7 +27,12 @@ pub const PluginRegistry = struct {
         self.* = undefined;
     }
 
-    pub fn register(self: *PluginRegistry, name: []const u8, path: []const u8, feature: []const u8) !void {
+    pub fn register(
+        self: *PluginRegistry,
+        name: []const u8,
+        path: []const u8,
+        feature: []const u8,
+    ) !void {
         try self.plugins.append(self.allocator, .{
             .name = try self.allocator.dupe(u8, name),
             .path = try self.allocator.dupe(u8, path),

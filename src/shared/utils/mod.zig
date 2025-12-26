@@ -1,3 +1,4 @@
+//! Shared utility modules.
 pub const time = @import("time.zig");
 pub const string = @import("string/mod.zig");
 pub const math = @import("math/mod.zig");

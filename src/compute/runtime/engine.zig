@@ -1,5 +1,7 @@
+//! Minimal distributed compute engine for running synchronous tasks.
 const std = @import("std");
 const time = @import("../../shared/utils/time.zig");
+const concurrency = @import("../concurrency/mod.zig");
 
 pub const EngineError = error{
     ResultNotFound,
@@ -48,7 +50,11 @@ pub const DistributedComputeEngine = struct {
         self.* = undefined;
     }
 
-    pub fn submit_task(self: *DistributedComputeEngine, comptime ResultType: type, task: anytype) !TaskId {
+    pub fn submit_task(
+        self: *DistributedComputeEngine,
+        comptime ResultType: type,
+        task: anytype,
+    ) !TaskId {
         if (self.results.count() >= self.config.max_tasks) return EngineError.QueueFull;
 
         const result = try callTask(ResultType, task, self.allocator);
@@ -58,24 +64,39 @@ pub const DistributedComputeEngine = struct {
         return id;
     }
 
-    pub fn wait_for_result(self: *DistributedComputeEngine, comptime ResultType: type, id: TaskId, timeout_ms: u64) !ResultType {
+    pub fn wait_for_result(
+        self: *DistributedComputeEngine,
+        comptime ResultType: type,
+        id: TaskId,
+        timeout_ms: u64,
+    ) !ResultType {
         const start_ms: i64 = time.nowMilliseconds();
+        const deadline_ms: ?i64 = if (timeout_ms == 0)
+            null
+        else
+            start_ms + @as(i64, @intCast(timeout_ms));
+        var backoff = concurrency.Backoff{};
         while (true) {
             if (self.results.fetchRemove(id)) |entry| {
                 return self.decodeResult(ResultType, entry.value);
             }
 
-            if (timeout_ms == 0) return EngineError.ResultNotFound;
-            const elapsed = time.nowMilliseconds() - start_ms;
-            if (elapsed >= @as(i64, @intCast(timeout_ms))) return EngineError.Timeout;
-            std.atomic.spinLoopHint();
+            if (deadline_ms == null) return EngineError.ResultNotFound;
+            if (time.nowMilliseconds() >= deadline_ms.?) return EngineError.Timeout;
+            backoff.wait();
         }
     }
 
-    fn storeResult(self: *DistributedComputeEngine, comptime ResultType: type, id: TaskId, result: ResultType) !void {
+    fn storeResult(
+        self: *DistributedComputeEngine,
+        comptime ResultType: type,
+        id: TaskId,
+        result: ResultType,
+    ) !void {
         if (comptime isByteSlice(ResultType)) {
             const slice: []const u8 = result;
             const copy = try self.allocator.dupe(u8, slice);
+            errdefer self.allocator.free(copy);
             try self.results.put(id, .{
                 .kind = .owned_slice,
                 .bytes = copy,
@@ -86,6 +107,7 @@ pub const DistributedComputeEngine = struct {
 
         const size = @sizeOf(ResultType);
         const copy = try self.allocator.alloc(u8, size);
+        errdefer self.allocator.free(copy);
         std.mem.copyForwards(u8, copy, std.mem.asBytes(&result));
         try self.results.put(id, .{
             .kind = .value,
@@ -94,7 +116,11 @@ pub const DistributedComputeEngine = struct {
         });
     }
 
-    fn decodeResult(self: *DistributedComputeEngine, comptime ResultType: type, blob: ResultBlob) !ResultType {
+    fn decodeResult(
+        self: *DistributedComputeEngine,
+        comptime ResultType: type,
+        blob: ResultBlob,
+    ) !ResultType {
         if (comptime isByteSlice(ResultType)) {
             if (blob.kind != .owned_slice) return EngineError.UnsupportedResultType;
             return @as(ResultType, blob.bytes);
@@ -146,6 +172,14 @@ test "engine runs simple task" {
     const task_id = try engine.submit_task(u32, sampleTask);
     const result = try engine.wait_for_result(u32, task_id, 0);
     try std.testing.expectEqual(@as(u32, 42), result);
+}
+
+test "engine reports result not found without timeout" {
+    const allocator = std.testing.allocator;
+    var engine = try DistributedComputeEngine.init(allocator, .{ .max_tasks = 4 });
+    defer engine.deinit();
+
+    try std.testing.expectError(EngineError.ResultNotFound, engine.wait_for_result(u32, 999, 0));
 }
 
 fn sampleTask(_: std.mem.Allocator) !u32 {

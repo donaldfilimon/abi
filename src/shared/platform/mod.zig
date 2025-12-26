@@ -1,3 +1,4 @@
+//! Platform detection and OS/arch mapping.
 const std = @import("std");
 const builtin = @import("builtin");
 const Self = @This();
@@ -33,7 +34,8 @@ pub const PlatformInfo = struct {
 
     pub fn detect() PlatformInfo {
         const thread_count = std.Thread.getCpuCount() catch 1;
-        const capped_threads = @min(thread_count, @as(usize, std.math.maxInt(u32)));
+        const bounded_threads = @max(thread_count, 1);
+        const capped_threads = @min(bounded_threads, @as(usize, std.math.maxInt(u32)));
         return .{
             .os = mapOs(builtin.target.os.tag),
             .arch = mapArch(builtin.target.cpu.arch),
@@ -74,4 +76,9 @@ fn mapArch(arch: std.Target.Cpu.Arch) Arch {
         .wasm64 => .wasm64,
         else => .other,
     };
+}
+
+test "platform detection reports at least one thread" {
+    const info = PlatformInfo.detect();
+    try std.testing.expect(info.max_threads >= 1);
 }

@@ -49,7 +49,6 @@ pub const NetworkState = network.NetworkState;
 pub const TransformerConfig = ai.transformer.TransformerConfig;
 pub const TransformerModel = ai.transformer.TransformerModel;
 pub const utils = @import("shared/utils/mod.zig");
-
 comptime {
     _ = compat;
 }

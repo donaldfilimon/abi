@@ -1,6 +1,12 @@
 const std = @import("std");
+const platform = @import("../shared/platform/mod.zig");
+const simd = @import("../shared/simd.zig");
 
 pub const Allocator = std.mem.Allocator;
+pub const PlatformInfo = platform.PlatformInfo;
+pub const Os = platform.Os;
+pub const Arch = platform.Arch;
+pub const VectorOps = simd.VectorOps;
 
 pub const CoreError = error{
     InvalidState,
@@ -28,6 +34,59 @@ pub const Version = struct {
 };
 
 pub const profile = @import("profile.zig");
+
+pub const CacheLineBytes: usize = 64;
+
+pub fn AlignedBuffer(comptime alignment: usize) type {
+    comptime {
+        if (!std.math.isPowerOfTwo(alignment)) {
+            @compileError("alignment must be a power of two");
+        }
+    }
+
+    return struct {
+        allocator: std.mem.Allocator,
+        bytes: []align(alignment) u8,
+
+        pub fn init(allocator: std.mem.Allocator, size: usize) !@This() {
+            const align_enum = std.mem.Alignment.fromByteUnits(alignment);
+            const bytes = try allocator.alignedAlloc(u8, align_enum, size);
+            return .{ .allocator = allocator, .bytes = bytes };
+        }
+
+        pub fn deinit(self: *@This()) void {
+            self.allocator.free(self.bytes);
+            self.* = undefined;
+        }
+
+        pub fn slice(self: *@This()) []u8 {
+            return self.bytes;
+        }
+    };
+}
+
+pub const CacheAlignedBuffer = AlignedBuffer(CacheLineBytes);
+
+pub const HardwareTopology = struct {
+    logical_cores: u32,
+    physical_cores: u32,
+    cache_line_bytes: u32,
+    l1_cache_bytes: ?u64 = null,
+    l2_cache_bytes: ?u64 = null,
+    l3_cache_bytes: ?u64 = null,
+
+    pub fn detect() HardwareTopology {
+        const info = PlatformInfo.detect();
+        return .{
+            .logical_cores = info.max_threads,
+            .physical_cores = info.max_threads,
+            .cache_line_bytes = @intCast(CacheLineBytes),
+            .l1_cache_bytes = null,
+            .l2_cache_bytes = null,
+            .l3_cache_bytes = null,
+        };
+    }
+};
 
 pub fn parseVersion(text: []const u8) ?Version {
     var it = std.mem.splitScalar(u8, text, '.');
@@ -61,11 +120,19 @@ pub fn compareVersion(a: Version, b: Version) std.math.Order {
 }
 
 pub fn formatVersion(buffer: []u8, version: Version) ![]u8 {
-    return std.fmt.bufPrint(buffer, "{d}.{d}.{d}", .{ version.major, version.minor, version.patch });
+    return std.fmt.bufPrint(
+        buffer,
+        "{d}.{d}.{d}",
+        .{ version.major, version.minor, version.patch },
+    );
 }
 
 pub fn formatVersionAlloc(allocator: std.mem.Allocator, version: Version) ![]u8 {
-    return std.fmt.allocPrint(allocator, "{d}.{d}.{d}", .{ version.major, version.minor, version.patch });
+    return std.fmt.allocPrint(
+        allocator,
+        "{d}.{d}.{d}",
+        .{ version.major, version.minor, version.patch },
+    );
 }
 
 pub fn isCompatible(required: Version, current: Version) bool {
@@ -107,4 +174,20 @@ test "loose version parsing and compatibility" {
     try std.testing.expectEqualStrings("2.3.4", formatted);
     try std.testing.expect(!version.isZero());
     try std.testing.expect(version.toInt() > 0);
+}
+
+test "cache aligned buffer uses cache line alignment" {
+    var buffer = try CacheAlignedBuffer.init(std.testing.allocator, 128);
+    defer buffer.deinit();
+
+    try std.testing.expectEqual(@as(usize, 128), buffer.bytes.len);
+    try std.testing.expect(
+        std.mem.isAligned(@intFromPtr(buffer.bytes.ptr), CacheLineBytes),
+    );
+}
+
+test "hardware topology reports at least one core" {
+    const topo = HardwareTopology.detect();
+    try std.testing.expect(topo.logical_cores >= 1);
+    try std.testing.expect(topo.physical_cores >= 1);
 }

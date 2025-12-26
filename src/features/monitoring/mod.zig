@@ -1,3 +1,4 @@
+//! Monitoring feature facade for metrics collection.
 const std = @import("std");
 const build_options = @import("build_options");
 

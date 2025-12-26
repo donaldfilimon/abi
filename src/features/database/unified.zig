@@ -26,11 +26,21 @@ pub fn closeDatabase(handle: *DatabaseHandle) void {
     handle.* = undefined;
 }
 
-pub fn insertVector(handle: *DatabaseHandle, id: u64, vector: []const f32, metadata: ?[]const u8) !void {
+pub fn insertVector(
+    handle: *DatabaseHandle,
+    id: u64,
+    vector: []const f32,
+    metadata: ?[]const u8,
+) !void {
     try handle.db.insert(id, vector, metadata);
 }
 
-pub fn searchVectors(handle: *DatabaseHandle, allocator: std.mem.Allocator, query: []const f32, top_k: usize) ![]SearchResult {
+pub fn searchVectors(
+    handle: *DatabaseHandle,
+    allocator: std.mem.Allocator,
+    query: []const f32,
+    top_k: usize,
+) ![]SearchResult {
     return handle.db.search(allocator, query, top_k);
 }
 
@@ -46,7 +56,11 @@ pub fn getVector(handle: *DatabaseHandle, id: u64) ?VectorView {
     return handle.db.get(id);
 }
 
-pub fn listVectors(handle: *DatabaseHandle, allocator: std.mem.Allocator, limit: usize) ![]VectorView {
+pub fn listVectors(
+    handle: *DatabaseHandle,
+    allocator: std.mem.Allocator,
+    limit: usize,
+) ![]VectorView {
     return handle.db.list(allocator, limit);
 }
 

@@ -29,6 +29,7 @@ pub const Registry = struct {
             }
         }
         const copy = try self.allocator.dupe(u8, id);
+        errdefer self.allocator.free(copy);
         try self.nodes.append(self.allocator, .{
             .id = copy,
             .last_update = time.nowSeconds(),

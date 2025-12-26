@@ -37,13 +37,22 @@ pub fn serveDatabase(
     std.debug.print("Database HTTP server listening on {s}\n", .{address});
 
     while (true) {
-        var stream = try server.accept(io);
+        var stream = server.accept(io) catch |err| {
+            std.debug.print("Database HTTP accept error: {s}\n", .{@errorName(err)});
+            continue;
+        };
         defer stream.close(io);
-        try handleConnection(allocator, io, handle, stream);
+        handleConnection(allocator, io, handle, stream) catch |err| {
+            std.debug.print("Database HTTP connection error: {s}\n", .{@errorName(err)});
+        };
     }
 }
 
-fn resolveAddress(io: std.Io, allocator: std.mem.Allocator, address: []const u8) !std.Io.net.IpAddress {
+fn resolveAddress(
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    address: []const u8,
+) !std.Io.net.IpAddress {
     var host_port = net_utils.parseHostPort(allocator, address) catch
         return HttpError.InvalidAddress;
     defer host_port.deinit(allocator);
@@ -71,7 +80,15 @@ fn handleConnection(
             error.HttpConnectionClosing => return,
             else => return err,
         };
-        try dispatchRequest(allocator, handle, &request);
+        dispatchRequest(allocator, handle, &request) catch |err| {
+            std.debug.print("Database HTTP request error: {s}\n", .{@errorName(err)});
+            _ = respondJson(
+                &request,
+                "{\"error\":\"internal server error\"}",
+                .internal_server_error,
+            ) catch {};
+            return;
+        };
     }
 }
 
@@ -127,6 +144,9 @@ fn handleBackup(
     }
     const path = getQueryParam(query, "path") orelse
         return respondJson(request, "{\"error\":\"missing path\"}", .bad_request);
+    if (path.len == 0) {
+        return respondJson(request, "{\"error\":\"missing path\"}", .bad_request);
+    }
     try unified.backup(handle, path);
     return respondJson(request, "{\"status\":\"backed up\"}", .ok);
 }
@@ -141,6 +161,9 @@ fn handleRestore(
     }
     const path = getQueryParam(query, "path") orelse
         return respondJson(request, "{\"error\":\"missing path\"}", .bad_request);
+    if (path.len == 0) {
+        return respondJson(request, "{\"error\":\"missing path\"}", .bad_request);
+    }
     try unified.restore(handle, path);
     return respondJson(request, "{\"status\":\"restored\"}", .ok);
 }
@@ -189,7 +212,11 @@ fn handleVectors(
         };
         const body = readRequestBody(allocator, request) catch |err| switch (err) {
             HttpError.RequestTooLarge => {
-                return respondJson(request, "{\"error\":\"payload too large\"}", .payload_too_large);
+                return respondJson(
+                    request,
+                    "{\"error\":\"payload too large\"}",
+                    .payload_too_large,
+                );
             },
             HttpError.ReadFailed => {
                 return respondJson(request, "{\"error\":\"invalid request body\"}", .bad_request);

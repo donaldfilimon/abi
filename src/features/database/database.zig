@@ -1,3 +1,4 @@
+//! In-memory vector database with persistence helpers.
 const std = @import("std");
 const simd = @import("../../shared/simd.zig");
 
@@ -35,8 +36,15 @@ pub const StorageError = error{
     PayloadTooLarge,
 };
 
-pub const SaveError = std.fs.File.OpenError || std.fs.File.WriteError || std.mem.Allocator.Error || StorageError;
-pub const LoadError = std.fs.Dir.ReadFileAllocError || std.mem.Allocator.Error || StorageError;
+pub const SaveError =
+    std.fs.File.OpenError ||
+    std.fs.File.WriteError ||
+    std.mem.Allocator.Error ||
+    StorageError;
+pub const LoadError =
+    std.fs.Dir.ReadFileAllocError ||
+    std.mem.Allocator.Error ||
+    StorageError;
 
 const storage_magic = "ABID";
 const storage_version: u16 = 1;
@@ -123,7 +131,12 @@ pub const Database = struct {
         return output;
     }
 
-    pub fn search(self: *Database, allocator: std.mem.Allocator, query: []const f32, top_k: usize) ![]SearchResult {
+    pub fn search(
+        self: *Database,
+        allocator: std.mem.Allocator,
+        query: []const f32,
+        top_k: usize,
+    ) ![]SearchResult {
         var results = std.ArrayList(SearchResult).empty;
         errdefer results.deinit(allocator);
         for (self.records.items) |record| {
@@ -214,21 +227,26 @@ pub const Database = struct {
             const meta_len: usize = @intCast(try cursor.readInt(u32));
 
             const vector = try allocator.alloc(f32, vec_len);
-            errdefer allocator.free(vector);
+            var metadata: ?[]u8 = null;
+            var owns_buffers = true;
+            errdefer {
+                if (owns_buffers) {
+                    allocator.free(vector);
+                    if (metadata) |meta| allocator.free(meta);
+                }
+            }
             var i: usize = 0;
             while (i < vec_len) : (i += 1) {
                 const bits = try cursor.readInt(u32);
                 vector[i] = @bitCast(bits);
             }
-
-            var metadata: ?[]u8 = null;
             if (meta_len > 0) {
                 metadata = try allocator.alloc(u8, meta_len);
-                errdefer allocator.free(metadata.?);
                 const meta_bytes = try cursor.readBytes(meta_len);
                 std.mem.copyForwards(u8, metadata.?, meta_bytes);
             }
 
+            owns_buffers = false;
             db.insertOwned(id, vector, metadata) catch |err| switch (err) {
                 error.DuplicateId, error.VectorNotFound => return StorageError.InvalidFormat,
                 error.OutOfMemory => return error.OutOfMemory,
@@ -252,33 +270,29 @@ pub const Database = struct {
     }
 
     fn insertOwned(self: *Database, id: u64, vector: []f32, metadata: ?[]u8) !void {
-        if (self.findIndex(id) != null) return DatabaseError.DuplicateId;
-        errdefer self.allocator.free(vector);
-        errdefer if (metadata) |meta| self.allocator.free(meta);
+        if (self.findIndex(id) != null) {
+            self.allocator.free(vector);
+            if (metadata) |meta| self.allocator.free(meta);
+            return DatabaseError.DuplicateId;
+        }
+        errdefer {
+            self.allocator.free(vector);
+            if (metadata) |meta| self.allocator.free(meta);
+        }
         try self.records.append(self.allocator, .{
             .id = id,
             .vector = vector,
-            .metadata = if (metadata) |meta| meta else null,
+            .metadata = metadata,
         });
     }
 };
 
 fn sortResults(results: []SearchResult) void {
-    var i: usize = 0;
-    while (i < results.len) : (i += 1) {
-        var best = i;
-        var j: usize = i + 1;
-        while (j < results.len) : (j += 1) {
-            if (results[j].score > results[best].score) {
-                best = j;
-            }
+    std.sort.pdq(SearchResult, results, {}, struct {
+        fn lessThan(_: void, lhs: SearchResult, rhs: SearchResult) bool {
+            return lhs.score > rhs.score;
         }
-        if (best != i) {
-            const tmp = results[i];
-            results[i] = results[best];
-            results[best] = tmp;
-        }
-    }
+    }.lessThan);
 }
 
 const Cursor = struct {
@@ -336,4 +350,20 @@ test "database backup and restore" {
     try std.testing.expectEqual(@as(u64, 1), view.id);
     try std.testing.expectEqual(@as(usize, 3), view.vector.len);
     try std.testing.expectEqualStrings("meta", view.metadata.?);
+}
+
+test "search sorts by descending similarity and truncates" {
+    var db = try Database.init(std.testing.allocator, "search-test");
+    defer db.deinit();
+
+    try db.insert(1, &.{ 1.0, 0.0 }, null);
+    try db.insert(2, &.{ 0.0, 1.0 }, null);
+    try db.insert(3, &.{ 1.0, 1.0 }, null);
+
+    const results = try db.search(std.testing.allocator, &.{ 1.0, 0.0 }, 2);
+    defer std.testing.allocator.free(results);
+
+    try std.testing.expectEqual(@as(usize, 2), results.len);
+    try std.testing.expectEqual(@as(u64, 1), results[0].id);
+    try std.testing.expectEqual(@as(u64, 3), results[1].id);
 }

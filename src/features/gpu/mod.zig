@@ -1,3 +1,4 @@
+//! GPU feature facade that re-exports compute GPU capabilities.
 const std = @import("std");
 const compute_gpu = @import("../../compute/gpu/mod.zig");
 
@@ -18,6 +19,10 @@ pub const AsyncTransfer = compute_gpu.AsyncTransfer;
 
 pub fn init(allocator: std.mem.Allocator) GpuError!void {
     return compute_gpu.init(allocator);
+}
+
+pub fn ensureInitialized(allocator: std.mem.Allocator) GpuError!void {
+    return compute_gpu.ensureInitialized(allocator);
 }
 
 pub fn deinit() void {
@@ -78,6 +83,10 @@ pub fn listDevices(allocator: std.mem.Allocator) ![]DeviceInfo {
 
 pub fn defaultDevice(allocator: std.mem.Allocator) !?DeviceInfo {
     return compute_gpu.defaultDevice(allocator);
+}
+
+pub fn defaultDeviceLabel(allocator: std.mem.Allocator) !?[]u8 {
+    return compute_gpu.defaultDeviceLabel(allocator);
 }
 
 pub fn createBuffer(allocator: std.mem.Allocator, size: usize) !Buffer {

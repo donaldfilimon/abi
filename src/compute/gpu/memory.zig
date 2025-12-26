@@ -74,6 +74,7 @@ pub const GPUBuffer = struct {
         if (!self.flags.host_visible) return MemoryError.HostAccessDisabled;
         @memset(self.bytes, value);
         self.host_dirty = true;
+        if (self.device_bytes != null) self.device_dirty = true;
     }
 
     pub fn copyFrom(self: *GPUBuffer, data: []const u8) MemoryError!void {
@@ -81,6 +82,7 @@ pub const GPUBuffer = struct {
         if (data.len != self.bytes.len) return MemoryError.SizeMismatch;
         std.mem.copyForwards(u8, self.bytes, data);
         self.host_dirty = true;
+        if (self.device_bytes != null) self.device_dirty = true;
     }
 
     pub fn writeFromHost(self: *GPUBuffer, data: []const u8) MemoryError!void {
@@ -88,6 +90,7 @@ pub const GPUBuffer = struct {
         if (data.len > self.bytes.len) return MemoryError.BufferTooSmall;
         @memcpy(self.bytes[0..data.len], data);
         self.host_dirty = true;
+        if (self.device_bytes != null) self.device_dirty = true;
     }
 
     pub fn readToHost(self: *const GPUBuffer, offset: usize, size: usize) MemoryError![]const u8 {
@@ -201,7 +204,12 @@ pub const AsyncTransfer = struct {
     offset: usize,
     completed: std.atomic.Value(bool),
 
-    pub fn init(source: *const GPUBuffer, destination: *GPUBuffer, size: usize, offset: usize) AsyncTransfer {
+    pub fn init(
+        source: *const GPUBuffer,
+        destination: *GPUBuffer,
+        size: usize,
+        offset: usize,
+    ) AsyncTransfer {
         return .{
             .source = source,
             .destination = destination,
@@ -253,6 +261,23 @@ test "buffer device copy" {
     buffer.bytes[0] = 1;
     try buffer.copyToHost();
     try std.testing.expectEqualSlices(u8, &.{ 9, 8, 7 }, buffer.bytes);
+}
+
+test "buffer dirty flags track synchronization" {
+    var buffer = try GPUBuffer.init(std.testing.allocator, 2, .{ .device_local = true });
+    defer buffer.deinit();
+
+    try buffer.fill(0xaa);
+    try std.testing.expect(buffer.host_dirty);
+    try std.testing.expect(buffer.device_dirty);
+
+    try buffer.copyToDevice();
+    try std.testing.expect(!buffer.host_dirty);
+    try std.testing.expect(!buffer.device_dirty);
+
+    try buffer.writeFromHost(&.{ 1, 2 });
+    try std.testing.expect(buffer.host_dirty);
+    try std.testing.expect(buffer.device_dirty);
 }
 
 test "memory pool allocates and frees" {

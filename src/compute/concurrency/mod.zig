@@ -1,4 +1,10 @@
+//! Lightweight concurrency helpers for queues and backoff.
 const std = @import("std");
+
+pub const lockfree = @import("lockfree.zig");
+pub const LockFreeQueue = lockfree.LockFreeQueue;
+pub const LockFreeStack = lockfree.LockFreeStack;
+pub const LockFreeMap = lockfree.LockFreeMap;
 
 pub fn WorkQueue(comptime T: type) type {
     return struct {
@@ -52,7 +58,23 @@ pub const Backoff = struct {
 
     pub fn spin(self: *Backoff) void {
         self.spins += 1;
-        std.atomic.spinLoopHint();
+        if (self.spins <= 16) {
+            std.atomic.spinLoopHint();
+            return;
+        }
+        _ = std.Thread.yield() catch {};
+    }
+
+    pub fn wait(self: *Backoff) void {
+        self.spins += 1;
+        const iterations = @min(self.spins, 64);
+        var i: usize = 0;
+        while (i < iterations) : (i += 1) {
+            std.atomic.spinLoopHint();
+        }
+        if (self.spins > 32) {
+            _ = std.Thread.yield() catch {};
+        }
     }
 };
 
@@ -68,4 +90,16 @@ test "work queue is FIFO" {
     try std.testing.expectEqual(@as(?u32, 2), queue.dequeue());
     try std.testing.expectEqual(@as(?u32, 3), queue.dequeue());
     try std.testing.expectEqual(@as(?u32, null), queue.dequeue());
+}
+
+test "work queue reports empty and length" {
+    var queue = WorkQueue(u8).init(std.testing.allocator);
+    defer queue.deinit();
+
+    try std.testing.expect(queue.isEmpty());
+    try std.testing.expectEqual(@as(usize, 0), queue.len());
+
+    try queue.enqueue(9);
+    try std.testing.expect(!queue.isEmpty());
+    try std.testing.expectEqual(@as(usize, 1), queue.len());
 }

@@ -1,3 +1,4 @@
+//! Connector configuration loaders and auth helpers.
 const std = @import("std");
 
 pub const openai = @import("openai.zig");
