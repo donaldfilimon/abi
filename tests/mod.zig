@@ -42,3 +42,8 @@ test "compute engine returns results" {
 fn sampleComputeTask(_: std.mem.Allocator) !u64 {
     return 99;
 }
+
+test "integration tests" {
+    const integration_tests = @import("integration.zig");
+    _ = integration_tests.main;
+}

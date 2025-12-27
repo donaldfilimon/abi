@@ -1,3 +1,19 @@
+//! Compute module providing high-performance runtime, memory management, and concurrency.
+//!
+//! This module is the core execution engine for ABI, offering:
+//! - Work-stealing scheduler with worker thread pool
+//! - Lock-free data structures for concurrent operations
+//! - Memory management with stable allocators and worker arenas
+//! - GPU acceleration support with CPU fallback
+//! - Result caching with metadata
+//!
+//! Usage:
+//! ```zig
+//! var engine = try abi.compute.createDefaultEngine(allocator);
+//! defer engine.deinit();
+//!
+//! const result = try abi.compute.runTask(&engine, u32, myTask, 1000);
+//! ```
 const std = @import("std");
 const build_options = @import("build_options");
 

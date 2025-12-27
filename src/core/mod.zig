@@ -1,3 +1,16 @@
+//! Core infrastructure providing platform detection, versioning, and memory utilities.
+//!
+//! This module includes:
+//! - Platform information detection (OS, architecture, CPU threads)
+//! - Version management and comparison
+//! - Aligned buffer allocation for cache-line alignment
+//! - Hardware topology detection
+//!
+//! Example:
+//! ```zig
+//! const info = core.PlatformInfo.detect();
+//! std.debug.print("OS: {t}, Arch: {t}\n", .{ info.os, info.arch });
+//! ```
 const std = @import("std");
 const platform = @import("../shared/platform/mod.zig");
 const simd = @import("../shared/simd.zig");

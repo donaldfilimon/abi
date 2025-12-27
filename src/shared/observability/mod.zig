@@ -1,3 +1,19 @@
+//! Observability primitives for metrics collection and monitoring.
+//!
+//! Provides thread-safe counters and histograms for collecting performance metrics.
+//! Designed for high-throughput scenarios with minimal overhead.
+//!
+//! Example:
+//! ```zig
+//! var histogram = try observability.Histogram.init(
+//!     allocator,
+//!     "latency_ms",
+//!     &.{ 1, 5, 10, 25, 50, 100, 250, 500, 1000 },
+//! );
+//! defer histogram.deinit(allocator);
+//!
+//! histogram.record(45); // Records in 10-25 bucket
+//! ```
 const std = @import("std");
 
 pub const Counter = struct {
@@ -18,7 +34,7 @@ pub const Histogram = struct {
     buckets: []u64,
     bounds: []u64,
 
-    pub fn init(allocator: std.mem.Allocator, name: []const u8, bounds: []const u64) !Histogram {
+    pub fn init(allocator: std.mem.Allocator, name: []const u8, bounds: []u64) !Histogram {
         const bucket_copy = try allocator.alloc(u64, bounds.len + 1);
         errdefer allocator.free(bucket_copy);
         const bound_copy = try allocator.alloc(u64, bounds.len);
