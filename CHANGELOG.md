@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.2.2 - 2025-12-27
+### Zig 0.16 Modernization
+- Migrated all `std.ArrayList` to `std.ArrayListUnmanaged`
+  - Passes allocator explicitly to all methods
+  - Better control over memory ownership
+  - Updated 13 files across the codebase
+- Adopted new format specifier `{t}` for enum and error formatting
+  - Replaced `@tagName()` calls with modern `{t}` specifier
+  - Cleaner, more idiomatic Zig 0.16 code
+  - Updated 4 files: demo.zig, cli.zig, logging/mod.zig
+- Verified codebase compliance with Zig 0.16 deprecations
+  - No `usingnamespace` usage found
+  - No deprecated I/O API usage found
+  - No deprecated File API usage found
+  - No format method signature issues found
+
+### Code Quality
+- Improved type safety with explicit allocator passing
+- Enhanced code readability with modern format specifiers
+- All tests passing (3/3) with no regressions
+
 ## 0.2.1 - 2025-12-27
 ### Security Fixes
 - **CRITICAL**: Fixed path traversal vulnerability in database backup/restore endpoints

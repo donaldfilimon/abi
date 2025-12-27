@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        zig-version: [0.16.0-dev, 0.15.1]
+        feature-flags:
+          - ""
+          - "-Denable-ai=true -Denable-gpu=true -Denable-database=true -Denable-web=true"
+          - "-Denable-network=true -Denable-profiling=true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Zig
+        uses: ziglang/setup-zig@v1
+        with:
+          zig-version: ${{ matrix.zig-version }}
+
+      - name: Build
+        run: zig build ${{ matrix.feature-flags }}
+
+      - name: Test
+        run: zig build test ${{ matrix.feature-flags }}
+
+      - name: Format Check
+        run: zig fmt --check .
+
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Zig
+        uses: ziglang/setup-zig@v1
+        with:
+          zig-version: 0.16.0-dev
+
+      - name: Run Benchmarks
+        run: zig build benchmark
+        continue-on-error: true
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Check for unsafe patterns
+        run: |
+          if rg "unsafe" --type zig | grep -q "TODO\|FIXME"; then
+            echo "::warning::Found unsafe code with TODO/FIXME comments"
+          fi
+
+      - name: Check for path traversal
+        run: |
+          if rg '\.\..*\/|std\.fs\.cwd\.\open.*\.\.' --type zig | grep -q .; then
+            echo "::error::Found potential path traversal patterns"
+            exit 1
+          fi
