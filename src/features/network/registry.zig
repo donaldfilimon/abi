@@ -1,3 +1,8 @@
+//! Node registry for tracking distributed compute cluster members.
+//!
+//! Maintains a list of cluster nodes with health status, addresses, and last-seen
+//! timestamps for network coordination.
+
 const std = @import("std");
 
 const time = @import("../../shared/utils/time.zig");

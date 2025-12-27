@@ -1,3 +1,8 @@
+//! AI agent with configurable history and parameters.
+//!
+//! Provides a simple conversational agent that maintains message history
+//! and supports configuration for temperature and sampling parameters.
+
 const std = @import("std");
 
 pub const AgentError = error{
@@ -95,4 +100,31 @@ test "agent history controls" {
     try agent.setTemperature(0.8);
     try agent.setTopP(0.5);
     agent.setHistoryEnabled(false);
+}
+
+test "agent rejects invalid configuration" {
+    try std.testing.expectError(
+        AgentError.InvalidConfiguration,
+        Agent.init(std.testing.allocator, .{ .name = "" }),
+    );
+
+    try std.testing.expectError(
+        AgentError.InvalidConfiguration,
+        Agent.init(std.testing.allocator, .{ .name = "test", .temperature = -0.5 }),
+    );
+
+    try std.testing.expectError(
+        AgentError.InvalidConfiguration,
+        Agent.init(std.testing.allocator, .{ .name = "test", .temperature = 3.0 }),
+    );
+
+    try std.testing.expectError(
+        AgentError.InvalidConfiguration,
+        Agent.init(std.testing.allocator, .{ .name = "test", .top_p = -0.1 }),
+    );
+
+    try std.testing.expectError(
+        AgentError.InvalidConfiguration,
+        Agent.init(std.testing.allocator, .{ .name = "test", .top_p = 1.5 }),
+    );
 }

@@ -1,3 +1,8 @@
+//! Memory management utilities for the ABI framework.
+//!
+//! Provides stable allocators for long-lived data, worker arenas for scratch
+//! allocations, and fixed-size memory pools for performance-critical scenarios.
+
 const std = @import("std");
 
 pub const StableAllocator = struct {
@@ -148,4 +153,18 @@ test "fixed pool allocates and reuses blocks" {
     try std.testing.expectEqual(@as(usize, 0), pool.available());
     _ = b;
     _ = c;
+}
+
+test "fixed pool rejects invalid blocks" {
+    var pool = try FixedPool.init(std.testing.allocator, 16, 4);
+    defer pool.deinit();
+
+    const valid = pool.alloc() orelse return error.TestUnexpectedResult;
+    defer _ = pool.free(valid);
+
+    var invalid = [_]u8{0} ** 16;
+    try std.testing.expectError(PoolError.InvalidBlock, pool.free(&invalid));
+
+    var wrong_size = [_]u8{0} ** 8;
+    try std.testing.expectError(PoolError.InvalidBlock, pool.free(&wrong_size));
 }

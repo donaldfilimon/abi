@@ -1,3 +1,8 @@
+//! Network feature module for distributed compute coordination.
+//!
+//! Provides node registry, task/result serialization protocols, and cluster state
+//! management for distributed computing scenarios.
+
 const std = @import("std");
 const build_options = @import("build_options");
 
@@ -21,10 +26,14 @@ pub const NetworkError = error{
     NotInitialized,
 };
 
+const DEFAULT_CLUSTER_ID = "default";
+const DEFAULT_HEARTBEAT_TIMEOUT_MS: u64 = 30_000;
+const DEFAULT_MAX_NODES: usize = 256;
+
 pub const NetworkConfig = struct {
-    cluster_id: []const u8 = "default",
-    heartbeat_timeout_ms: u64 = 30_000,
-    max_nodes: usize = 256,
+    cluster_id: []const u8 = DEFAULT_CLUSTER_ID,
+    heartbeat_timeout_ms: u64 = DEFAULT_HEARTBEAT_TIMEOUT_MS,
+    max_nodes: usize = DEFAULT_MAX_NODES,
 };
 
 pub const NetworkState = struct {

@@ -36,7 +36,7 @@ pub fn run(allocator: std.mem.Allocator) !void {
     var engine = try compute.createDefaultEngine(allocator);
     defer engine.deinit();
 
-    const result = try compute.runTask(&engine, u64, sampleTask, 0);
+    const result = try compute.runTask(&engine, u64, sampleTask, 1000);
     std.debug.print("  Compute engine result: {d}\n", .{result});
 }
 

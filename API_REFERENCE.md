@@ -34,6 +34,26 @@ implementation details.
 - `abi.wdbx.updateVector` / `getVector` / `listVectors`
 - `abi.wdbx.getStats` / `optimize` / `backup` / `restore`
 
+**Security Note for backup/restore**:
+- Backup and restore operations are restricted to the `backups/` directory only
+- Filenames must not contain path traversal sequences (`..`), absolute paths, or Windows drive letters
+- Invalid filenames will return `PathValidationError`
+- The `backups/` directory is created automatically if it doesn't exist
+- This restriction prevents path traversal attacks (see SECURITY.md for details)
+
+## Compute Engine API
+
+- `abi.compute.runtime.Engine` - Main compute runtime
+- `abi.compute.runtime.runWorkload(engine, workload, timeout_ms)` -> `!Result`
+- `abi.compute.runtime.registerWorkloadType(name, vtable)`
+
+**Timeout Semantics**:
+- `timeout_ms=0`: Immediately returns `EngineError.Timeout` if result not ready
+- `timeout_ms>0`: Waits for the specified timeout (in milliseconds) before returning `EngineError.Timeout`
+- `timeout_ms=null`: Waits indefinitely until result is ready
+
+**Breaking Change (0.2.1)**: Prior to version 0.2.1, `timeout_ms=0` returned `ResultNotFound` after one check. This behavior has changed to return `EngineError.Timeout` immediately for clarity. Migration: Use `timeout_ms=1000` for a one-second timeout.
+
 ## Modules
 
 - `lib/core` - I/O, diagnostics, collections

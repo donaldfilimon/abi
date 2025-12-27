@@ -1,3 +1,8 @@
+//! Cryptographic utilities including hashing, hex encoding, and constant-time comparisons.
+//!
+//! Provides FNV hash functions, SHA-256, hex encoding/decoding, and constant-time
+//! string comparison for security-sensitive operations.
+
 const std = @import("std");
 
 pub const HexError = error{

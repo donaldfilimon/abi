@@ -1,5 +1,11 @@
+//! Unified database interface providing high-level CRUD operations.
+//!
+//! Abstracts underlying database implementation and provides a consistent
+//! API for vector storage, retrieval, and search operations.
+
 const std = @import("std");
-const database = @import("database.zig");
+const database = @import("./database.zig");
+const fs = @import("../../shared/utils/fs/mod.zig");
 
 pub const UnifiedError = error{
     Unsupported,
@@ -73,12 +79,20 @@ pub fn optimize(handle: *DatabaseHandle) !void {
 }
 
 pub fn backup(handle: *DatabaseHandle, path: []const u8) !void {
-    try handle.db.saveToFile(path);
+    if (!fs.isSafeBackupPath(path)) return fs.PathValidationError.InvalidPath;
+    const safe_path = try fs.normalizeBackupPath(handle.db.allocator, path);
+    defer handle.db.allocator.free(safe_path);
+    try handle.db.saveToFile(safe_path);
 }
 
 pub fn restore(handle: *DatabaseHandle, path: []const u8) !void {
+    if (!fs.isSafeBackupPath(path)) return fs.PathValidationError.InvalidPath;
+
     const allocator = handle.db.allocator;
-    const restored = try database.Database.loadFromFile(allocator, path);
+    const safe_path = try fs.normalizeBackupPath(allocator, path);
+    errdefer allocator.free(safe_path);
+
+    const restored = try database.Database.loadFromFile(allocator, safe_path);
     handle.db.deinit();
     handle.db = restored;
 }

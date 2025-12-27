@@ -18,6 +18,11 @@ const max_body_bytes = 1024 * 1024;
 pub fn serve(allocator: std.mem.Allocator, address: []const u8) !void {
     var handle = try unified.createDatabase(allocator, "http");
     defer unified.closeDatabase(&handle);
+
+    std.fs.cwd().makeDir("backups") catch |err| {
+        if (err != error.PathAlreadyExists) return err;
+    };
+
     try serveDatabase(allocator, &handle, address);
 }
 

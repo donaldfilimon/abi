@@ -1,3 +1,9 @@
+//! Workload execution primitives for the compute runtime.
+//!
+//! Defines the core types and functions for workload execution, including hints,
+//! execution contexts, result handles, vtables, and common compute operations
+//! like matrix multiplication, dense layers, and ReLU activation.
+
 const std = @import("std");
 
 pub const WorkloadHints = struct {

@@ -35,7 +35,7 @@ test "compute engine returns results" {
     defer engine.deinit();
 
     const task_id = try engine.submit_task(u64, sampleComputeTask);
-    const result = try engine.wait_for_result(u64, task_id, 0);
+    const result = try engine.wait_for_result(u64, task_id, 1000);
     try std.testing.expectEqual(@as(u64, 99), result);
 }
 

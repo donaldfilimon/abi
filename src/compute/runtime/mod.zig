@@ -67,7 +67,8 @@ test "create engine helper" {
 test "run task helper" {
     var engine_instance = try createEngine(std.testing.allocator, .{ .max_tasks = 4 });
     defer engine_instance.deinit();
-    const result = try runTask(&engine_instance, u32, sampleTask, 0);
+
+    const result = try runTask(&engine_instance, u32, sampleTask, 1000);
     try std.testing.expectEqual(@as(u32, 7), result);
 }
 

@@ -1,6 +1,7 @@
 //! In-memory vector database with persistence helpers.
 const std = @import("std");
 const simd = @import("../../shared/simd.zig");
+const fs = @import("../../shared/utils/fs/mod.zig");
 
 pub const DatabaseError = error{
     DuplicateId,

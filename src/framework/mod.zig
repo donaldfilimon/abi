@@ -1,3 +1,8 @@
+//! Framework orchestration layer that coordinates features and plugins.
+//!
+//! Manages the lifecycle of the entire framework, including feature initialization,
+//! configuration management, and runtime state coordination.
+
 const std = @import("std");
 const build_options = @import("build_options");
 const features = @import("../features/mod.zig");
@@ -122,9 +127,27 @@ pub fn runtimeConfigFromOptions(
     allocator: std.mem.Allocator,
     options: FrameworkOptions,
 ) !RuntimeConfig {
-    var enabled = std.ArrayList(Feature).empty;
+    var enabled = try buildEnabledFeatures(allocator, options);
     defer enabled.deinit(allocator);
 
+    const disabled_slice = try cloneFeatures(allocator, options.disabled_features);
+    errdefer allocator.free(disabled_slice);
+
+    var filtered = try filterDisabledFeatures(allocator, &enabled, disabled_slice);
+
+    const enabled_slice = try filtered.toOwnedSlice(allocator);
+    const plugin_copy = try cloneStringList(allocator, options.plugin_paths);
+
+    return RuntimeConfig{
+        .enabled_features = enabled_slice,
+        .disabled_features = disabled_slice,
+        .plugin_paths = plugin_copy,
+        .auto_discover_plugins = options.auto_discover_plugins,
+    };
+}
+
+fn buildEnabledFeatures(allocator: std.mem.Allocator, options: FrameworkOptions) !std.ArrayList(Feature) {
+    var enabled = std.ArrayList(Feature).empty;
     if (options.enable_ai) try enabled.append(allocator, .ai);
     if (options.enable_gpu) try enabled.append(allocator, .gpu);
     if (options.enable_database) try enabled.append(allocator, .database);
@@ -134,31 +157,21 @@ pub fn runtimeConfigFromOptions(
     try enabled.append(allocator, .connectors);
     try enabled.append(allocator, .compute);
     try enabled.append(allocator, .simd);
+    return enabled;
+}
 
-    var disabled = std.ArrayList(Feature).empty;
-    defer disabled.deinit(allocator);
-    for (options.disabled_features) |feature| {
-        try disabled.append(allocator, feature);
-    }
-
+fn filterDisabledFeatures(
+    allocator: std.mem.Allocator,
+    enabled: *std.ArrayList(Feature),
+    disabled: []const Feature,
+) !std.ArrayList(Feature) {
     var filtered = std.ArrayList(Feature).empty;
-    defer filtered.deinit(allocator);
     for (enabled.items) |feature| {
-        if (std.mem.indexOfScalar(Feature, disabled.items, feature) == null) {
+        if (std.mem.indexOfScalar(Feature, disabled, feature) == null) {
             try filtered.append(allocator, feature);
         }
     }
-
-    const enabled_slice = try filtered.toOwnedSlice(allocator);
-    const disabled_slice = try disabled.toOwnedSlice(allocator);
-    const plugin_copy = try cloneStringList(allocator, options.plugin_paths);
-
-    return RuntimeConfig{
-        .enabled_features = enabled_slice,
-        .disabled_features = disabled_slice,
-        .plugin_paths = plugin_copy,
-        .auto_discover_plugins = options.auto_discover_plugins,
-    };
+    return filtered;
 }
 
 fn cloneFeatures(allocator: std.mem.Allocator, items: []const Feature) ![]Feature {

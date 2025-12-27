@@ -1,3 +1,8 @@
+//! AI feature module with agents, transformers, training, and federated learning.
+//!
+//! Provides high-level interfaces for AI functionality including agent creation,
+//! transformer models, training pipelines, and federated learning coordination.
+
 const std = @import("std");
 const build_options = @import("build_options");
 

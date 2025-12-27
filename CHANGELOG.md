@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.2.1 - 2025-12-27
+### Security Fixes
+- **CRITICAL**: Fixed path traversal vulnerability in database backup/restore endpoints
+  - Added path validation to restrict operations to `backups/` directory
+  - Rejects path traversal sequences (`..`), absolute paths, and Windows drive letters
+  - CVE-NOT-ASSIGNED (reported 2025-12-27)
+  - See SECURITY.md for details
+
+### Bug Fixes
+- Fixed memory safety issue in database restore operation
+  - Added `errdefer` to ensure proper cleanup on restore failure
+  - Prevents memory corruption when database swap fails during restore
+  - Makes restore operation atomic (fully succeed or fully fail)
+
+### API Breaking Changes
+- Changed `timeout_ms=0` semantics in compute engine
+  - Old behavior: `timeout_ms=0` returned `ResultNotFound` after one check
+  - New behavior: `timeout_ms=0` immediately returns `EngineError.Timeout`
+  - Updated default timeout from 0ms to 1000ms throughout codebase
+  - Migration guide: Replace any `timeout_ms=0` with `timeout_ms=1000` for one-second timeout
+
+### Documentation
+- Added path validation examples and best practices
+- Updated timeout semantics documentation with migration guide
+- Added security advisory documentation
+
 ## 0.2.0 - 2025-12-24
 ### High-Performance Compute Runtime
 - Implemented work-stealing scheduler with worker thread pool

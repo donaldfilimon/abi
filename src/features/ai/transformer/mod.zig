@@ -1,3 +1,8 @@
+//! Simple transformer model implementation for text processing.
+//!
+//! Provides text encoding, decoding, inference, and embedding generation
+//! using a configurable transformer architecture.
+
 const std = @import("std");
 const simd = @import("../../../shared/simd.zig");
 
@@ -145,4 +150,49 @@ test "transformer embeddings are normalized" {
     try std.testing.expectEqual(@as(usize, 8), embedding.len);
     const norm = simd.VectorOps.l2Norm(embedding);
     try std.testing.expect(std.math.approxEqAbs(f32, norm, 1.0, 0.001));
+}
+
+test "transformer rejects invalid configuration" {
+    try std.testing.expectError(
+        TransformerError.InvalidConfiguration,
+        TransformerModel.init(.{ .layers = 0 }).config.validate(),
+    );
+
+    try std.testing.expectError(
+        TransformerError.InvalidConfiguration,
+        TransformerModel.init(.{ .hidden_size = 0 }).config.validate(),
+    );
+
+    try std.testing.expectError(
+        TransformerError.InvalidConfiguration,
+        TransformerModel.init(.{ .vocab_size = 1 }).config.validate(),
+    );
+
+    try std.testing.expectError(
+        TransformerError.InvalidConfiguration,
+        TransformerModel.init(.{ .max_tokens = 0 }).config.validate(),
+    );
+
+    try std.testing.expectError(
+        TransformerError.InvalidConfiguration,
+        TransformerModel.init(.{ .temperature = -0.1 }).config.validate(),
+    );
+
+    try std.testing.expectError(
+        TransformerError.InvalidConfiguration,
+        TransformerModel.init(.{ .temperature = 2.5 }).config.validate(),
+    );
+
+    try std.testing.expectError(
+        TransformerError.InvalidConfiguration,
+        TransformerModel.init(.{ .top_p = 1.5 }).config.validate(),
+    );
+}
+
+test "transformer rejects empty input" {
+    var model = TransformerModel.init(.{});
+    try std.testing.expectError(
+        TransformerError.EmptyInput,
+        model.encode(std.testing.allocator, "   "),
+    );
 }

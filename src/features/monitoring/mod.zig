@@ -61,11 +61,12 @@ pub fn createCollector(allocator: std.mem.Allocator) MetricsCollector {
     return MetricsCollector.init(allocator);
 }
 
+const DEFAULT_LATENCY_BOUNDS = [_]u64{ 1, 5, 10, 25, 50, 100, 250, 500, 1000 };
+
 pub fn registerDefaultMetrics(collector: *MetricsCollector) !DefaultMetrics {
     const requests = try collector.registerCounter("requests_total");
     const errors = try collector.registerCounter("errors_total");
-    const latency_bounds = [_]u64{ 1, 5, 10, 25, 50, 100, 250, 500, 1000 };
-    const latency = try collector.registerHistogram("latency_ms", &latency_bounds);
+    const latency = try collector.registerHistogram("latency_ms", &DEFAULT_LATENCY_BOUNDS);
     return .{
         .requests = requests,
         .errors = errors,

@@ -1,3 +1,8 @@
+//! Serialization protocol for network task and result transmission.
+//!
+//! Defines the wire format for distributed compute tasks and results, including
+//! magic bytes, versioning, and encoding/decoding functions.
+
 const std = @import("std");
 
 pub const ProtocolError = error{
@@ -188,4 +193,63 @@ test "encode/decode result envelope" {
     try std.testing.expectEqual(@as(u64, 9), decoded.id);
     try std.testing.expectEqual(ResultStatus.ok, decoded.status);
     try std.testing.expectEqualStrings("result", decoded.payload);
+}
+
+test "decode rejects invalid magic" {
+    const allocator = std.testing.allocator;
+    const invalid_data = "INVALID" ++ [1]u8{0} ** 10;
+
+    try std.testing.expectError(ProtocolError.InvalidFormat, decodeTask(allocator, invalid_data));
+    try std.testing.expectError(ProtocolError.InvalidFormat, decodeResult(allocator, invalid_data));
+}
+
+test "decode rejects unsupported version" {
+    const allocator = std.testing.allocator;
+    const task = TaskEnvelope{
+        .id = 42,
+        .kind = "compute.dot",
+        .payload = "payload",
+    };
+    const encoded = try encodeTask(allocator, task);
+    defer allocator.free(encoded);
+
+    var tampered = try allocator.dupe(u8, encoded);
+    defer allocator.free(tampered);
+    tampered[4] = 0xFF;
+
+    try std.testing.expectError(ProtocolError.UnsupportedVersion, decodeTask(allocator, tampered));
+}
+
+test "decode rejects truncated data" {
+    const allocator = std.testing.allocator;
+    const task = TaskEnvelope{
+        .id = 42,
+        .kind = "compute.dot",
+        .payload = "payload",
+    };
+    const encoded = try encodeTask(allocator, task);
+    defer allocator.free(encoded);
+
+    const truncated = encoded[0 .. encoded.len - 1];
+    try std.testing.expectError(ProtocolError.TruncatedData, decodeTask(allocator, truncated));
+}
+
+test "encode rejects oversized payloads" {
+    const allocator = std.testing.allocator;
+    const oversized_kind: []u8 = &([1]u8{'x'} ** (std.math.maxInt(u16) + 1));
+    const oversized_payload: []u8 = &([1]u8{'y'} ** (std.math.maxInt(u32) + 1));
+
+    const task = TaskEnvelope{
+        .id = 42,
+        .kind = oversized_kind,
+        .payload = "payload",
+    };
+    try std.testing.expectError(ProtocolError.PayloadTooLarge, encodeTask(allocator, task));
+
+    const result = ResultEnvelope{
+        .id = 42,
+        .status = .ok,
+        .payload = oversized_payload,
+    };
+    try std.testing.expectError(ProtocolError.PayloadTooLarge, encodeResult(allocator, result));
 }

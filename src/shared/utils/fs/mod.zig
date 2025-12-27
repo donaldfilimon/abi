@@ -30,12 +30,48 @@ pub fn basename(path: []const u8) []const u8 {
     return std.fs.path.basename(path);
 }
 
+pub const PathValidationError = error{
+    InvalidPath,
+    PathTraversalAttempt,
+    AbsolutePathRejected,
+    InvalidCharacter,
+};
+
+pub fn isSafeBackupPath(path: []const u8) bool {
+    const filename = std.fs.path.basename(path);
+
+    if (filename.len == 0) return false;
+    if (filename.len != path.len) return false;
+
+    for (filename) |char| {
+        if (char == 0) return false;
+    }
+
+    if (std.mem.indexOfScalar(u8, filename, ':') != null) return false;
+    if (std.mem.startsWith(u8, filename, "\\\\")) return false;
+
+    if (std.mem.indexOf(u8, filename, "..") != null) return false;
+
+    return true;
+}
+
+pub fn normalizeBackupPath(allocator: std.mem.Allocator, user_path: []const u8) ![]u8 {
+    if (!isSafeBackupPath(user_path)) return PathValidationError.InvalidPath;
+
+    const filename = std.fs.path.basename(user_path);
+
+    var backup_dir = try std.fs.cwd().openDir("backups", .{});
+    defer backup_dir.close();
+
+    return backup_dir.realpathAlloc(allocator, filename);
+}
+
 test "fs helpers" {
     const allocator = std.testing.allocator;
     const expected = try std.fmt.allocPrint(
         allocator,
         "a{c}b{c}c",
-        .{std.fs.path.sep},
+        .{ std.fs.path.sep, std.fs.path.sep },
     );
     defer allocator.free(expected);
 
@@ -46,4 +82,28 @@ test "fs helpers" {
     const path = try std.fmt.allocPrint(allocator, "dir{c}file.zig", .{std.fs.path.sep});
     defer allocator.free(path);
     try std.testing.expectEqualStrings("file.zig", basename(path));
+}
+
+test "path validation rejects traversal attempts" {
+    try std.testing.expect(!isSafeBackupPath("../etc/passwd"));
+    try std.testing.expect(!isSafeBackupPath("..\\..\\windows\\system32\\config"));
+    try std.testing.expect(!isSafeBackupPath("/etc/passwd"));
+    try std.testing.expect(!isSafeBackupPath("C:\\windows\\system32"));
+    try std.testing.expect(!isSafeBackupPath("test/../file.bin"));
+    try std.testing.expect(!isSafeBackupPath(""));
+
+    try std.testing.expect(isSafeBackupPath("test.bin"));
+    try std.testing.expect(isSafeBackupPath("database.db"));
+    try std.testing.expect(isSafeBackupPath("backup_2024.db"));
+}
+
+test "path validation rejects absolute paths" {
+    try std.testing.expect(!isSafeBackupPath("/var/data/db.bin"));
+    try std.testing.expect(!isSafeBackupPath("/usr/local/backup"));
+    try std.testing.expect(!isSafeBackupPath("C:\\Program Files\\backup.db"));
+}
+
+test "normalizeBackupPath rejects invalid paths" {
+    try std.testing.expectError(PathValidationError.InvalidPath, normalizeBackupPath(std.testing.allocator, "../etc/passwd"));
+    try std.testing.expectError(PathValidationError.InvalidPath, normalizeBackupPath(std.testing.allocator, "/absolute/path"));
 }

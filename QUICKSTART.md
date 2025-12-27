@@ -31,7 +31,7 @@ pub fn main() !void {
     defer engine.deinit();
 
     const task_id = try engine.submit_task(u64, exampleTask);
-    const result = try engine.wait_for_result(u64, task_id, 0);
+    const result = try engine.wait_for_result(u64, task_id, 1000);
     std.debug.print("Result: {d}\n", .{result});
 }
 

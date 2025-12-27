@@ -1,7 +1,47 @@
 //! Minimal distributed compute engine for running synchronous tasks.
 const std = @import("std");
-const time = @import("../../shared/utils/time.zig");
-const concurrency = @import("../concurrency/mod.zig");
+
+const Backoff = struct {
+    spins: usize = 0,
+
+    pub fn reset(self: *Backoff) void {
+        self.spins = 0;
+    }
+
+    pub fn spin(self: *Backoff) void {
+        self.spins += 1;
+        if (self.spins <= 16) {
+            std.atomic.spinLoopHint();
+            return;
+        }
+        _ = std.Thread.yield() catch {};
+    }
+
+    pub fn wait(self: *Backoff) void {
+        self.spins += 1;
+        const iterations = @min(self.spins, 64);
+        var i: usize = 0;
+        while (i < iterations) : (i += 1) {
+            std.atomic.spinLoopHint();
+        }
+        if (self.spins > 32) {
+            _ = std.Thread.yield() catch {};
+        }
+    }
+};
+
+fn nowMilliseconds() i64 {
+    var global_timer: ?std.time.Timer = null;
+    if (global_timer == null) {
+        global_timer = std.time.Timer.start() catch null;
+    }
+    if (global_timer) |*timer| {
+        const ns = timer.read();
+        const ms = @as(f64, @floatFromInt(ns)) / @as(f64, std.time.ns_per_ms);
+        return @as(i64, @intFromFloat(ms));
+    }
+    return 0;
+}
 
 pub const EngineError = error{
     ResultNotFound,
@@ -12,8 +52,10 @@ pub const EngineError = error{
 
 pub const TaskId = u64;
 
+const DEFAULT_MAX_TASKS: usize = 1024;
+
 pub const EngineConfig = struct {
-    max_tasks: usize = 1024,
+    max_tasks: usize = DEFAULT_MAX_TASKS,
 };
 
 const ResultKind = enum {
@@ -70,19 +112,20 @@ pub const DistributedComputeEngine = struct {
         id: TaskId,
         timeout_ms: u64,
     ) !ResultType {
-        const start_ms: i64 = time.nowMilliseconds();
+        const start_ms: i64 = nowMilliseconds();
         const deadline_ms: ?i64 = if (timeout_ms == 0)
-            null
+            start_ms
         else
             start_ms + @as(i64, @intCast(timeout_ms));
-        var backoff = concurrency.Backoff{};
+        var backoff = Backoff{};
         while (true) {
             if (self.results.fetchRemove(id)) |entry| {
                 return self.decodeResult(ResultType, entry.value);
             }
 
+            if (timeout_ms == 0) return EngineError.Timeout;
             if (deadline_ms == null) return EngineError.ResultNotFound;
-            if (time.nowMilliseconds() >= deadline_ms.?) return EngineError.Timeout;
+            if (nowMilliseconds() >= deadline_ms.?) return EngineError.Timeout;
             backoff.wait();
         }
     }
@@ -170,18 +213,68 @@ test "engine runs simple task" {
     defer engine.deinit();
 
     const task_id = try engine.submit_task(u32, sampleTask);
-    const result = try engine.wait_for_result(u32, task_id, 0);
+    const result = try engine.wait_for_result(u32, task_id, 1000);
     try std.testing.expectEqual(@as(u32, 42), result);
 }
 
-test "engine reports result not found without timeout" {
+test "engine reports timeout for non-existent result with zero timeout" {
     const allocator = std.testing.allocator;
     var engine = try DistributedComputeEngine.init(allocator, .{ .max_tasks = 4 });
     defer engine.deinit();
 
-    try std.testing.expectError(EngineError.ResultNotFound, engine.wait_for_result(u32, 999, 0));
+    try std.testing.expectError(EngineError.Timeout, engine.wait_for_result(u32, 999, 0));
+}
+
+test "engine reports queue full when max tasks reached" {
+    const allocator = std.testing.allocator;
+    var engine = try DistributedComputeEngine.init(allocator, .{ .max_tasks = 2 });
+    defer engine.deinit();
+
+    _ = try engine.submit_task(u32, sampleTask);
+    _ = try engine.submit_task(u32, sampleTask);
+
+    try std.testing.expectError(EngineError.QueueFull, engine.submit_task(u32, sampleTask));
+}
+
+test "engine handles byte slice results" {
+    const alloc = std.testing.allocator;
+    var engine = try DistributedComputeEngine.init(alloc, .{ .max_tasks = 8 });
+    defer alloc.deinit();
+
+    const task_id = try engine.submit_task([]const u8, byteSliceTask);
+    const result = try engine.wait_for_result([]const u8, task_id, 100);
+    try std.testing.expectEqual(@as(usize, 4), result.len);
+    alloc.free(result);
+}
+
+test "engine handles slice results directly" {
+    const alloc = std.testing.allocator;
+    var engine = try DistributedComputeEngine.init(alloc, .{ .max_tasks = 8 });
+    defer alloc.deinit();
+
+    const test_data: []const u8 = "test";
+    const task_id = try engine.submit_task([]const u8, struct {
+        pub fn execute(_: @This(), allocator: std.mem.Allocator) ![]const u8 {
+            return allocator.dupe(u8, test_data);
+        }
+    }{});
+    const result = try engine.wait_for_result([]const u8, task_id, 100);
+    try std.testing.expectEqual(@as(usize, 4), result.len);
+    alloc.free(result);
 }
 
 fn sampleTask(_: std.mem.Allocator) !u32 {
     return 42;
+}
+
+fn byteSliceTask(allocator: std.mem.Allocator) ![]const u8 {
+    return allocator.dupe(u8, "test");
+}
+
+test "engine returns timeout when result not ready within time" {
+    const allocator = std.testing.allocator;
+    var engine = try DistributedComputeEngine.init(allocator, .{ .max_tasks = 4 });
+    defer engine.deinit();
+
+    try std.testing.expectError(EngineError.Timeout, engine.wait_for_result(u32, 999, 100));
 }

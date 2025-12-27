@@ -1,3 +1,8 @@
+//! HTTP utility functions for method parsing, status codes, and response handling.
+//!
+//! Provides helpers for working with HTTP including method parsing, status code
+//! text lookups, and success status detection.
+
 const std = @import("std");
 
 pub const Method = enum {
@@ -36,26 +41,42 @@ pub fn parseMethod(text: []const u8) ?Method {
     return null;
 }
 
+const HTTP_STATUS_OK = 200;
+const HTTP_STATUS_CREATED = 201;
+const HTTP_STATUS_NO_CONTENT = 204;
+const HTTP_STATUS_BAD_REQUEST = 400;
+const HTTP_STATUS_UNAUTHORIZED = 401;
+const HTTP_STATUS_FORBIDDEN = 403;
+const HTTP_STATUS_NOT_FOUND = 404;
+const HTTP_STATUS_CONFLICT = 409;
+const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
+const HTTP_STATUS_INTERNAL_SERVER_ERROR = 500;
+const HTTP_STATUS_NOT_IMPLEMENTED = 501;
+const HTTP_STATUS_SERVICE_UNAVAILABLE = 503;
+
+const HTTP_STATUS_SUCCESS_MIN: u16 = 200;
+const HTTP_STATUS_SUCCESS_MAX: u16 = 299;
+
 pub fn statusText(code: u16) []const u8 {
     return switch (code) {
-        200 => "OK",
-        201 => "Created",
-        204 => "No Content",
-        400 => "Bad Request",
-        401 => "Unauthorized",
-        403 => "Forbidden",
-        404 => "Not Found",
-        409 => "Conflict",
-        429 => "Too Many Requests",
-        500 => "Internal Server Error",
-        501 => "Not Implemented",
-        503 => "Service Unavailable",
+        HTTP_STATUS_OK => "OK",
+        HTTP_STATUS_CREATED => "Created",
+        HTTP_STATUS_NO_CONTENT => "No Content",
+        HTTP_STATUS_BAD_REQUEST => "Bad Request",
+        HTTP_STATUS_UNAUTHORIZED => "Unauthorized",
+        HTTP_STATUS_FORBIDDEN => "Forbidden",
+        HTTP_STATUS_NOT_FOUND => "Not Found",
+        HTTP_STATUS_CONFLICT => "Conflict",
+        HTTP_STATUS_TOO_MANY_REQUESTS => "Too Many Requests",
+        HTTP_STATUS_INTERNAL_SERVER_ERROR => "Internal Server Error",
+        HTTP_STATUS_NOT_IMPLEMENTED => "Not Implemented",
+        HTTP_STATUS_SERVICE_UNAVAILABLE => "Service Unavailable",
         else => "Unknown",
     };
 }
 
 pub fn isSuccess(code: u16) bool {
-    return code >= 200 and code < 300;
+    return code >= HTTP_STATUS_SUCCESS_MIN and code <= HTTP_STATUS_SUCCESS_MAX;
 }
 
 test "http helpers" {
