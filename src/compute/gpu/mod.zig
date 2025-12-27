@@ -3,6 +3,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const memory = @import("memory.zig");
+const kernels = @import("kernels.zig");
 
 pub const MemoryError = memory.MemoryError;
 pub const BufferFlags = memory.BufferFlags;
@@ -11,6 +12,14 @@ pub const GPUMemoryPool = memory.GPUMemoryPool;
 pub const MemoryStats = memory.MemoryStats;
 pub const AsyncTransfer = memory.AsyncTransfer;
 pub const GpuError = memory.MemoryError || error{GpuDisabled};
+
+pub const KernelSource = kernels.KernelSource;
+pub const KernelConfig = kernels.KernelConfig;
+pub const CompiledKernel = kernels.CompiledKernel;
+pub const Stream = kernels.Stream;
+pub const KernelError = kernels.KernelError;
+pub const compileKernel = kernels.compileKernel;
+pub const createDefaultKernels = kernels.createDefaultKernels;
 
 pub const Backend = enum {
     cuda,
