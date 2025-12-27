@@ -1,6 +1,7 @@
 const std = @import("std");
 const connectors = @import("mod.zig");
 const async_http = @import("../../shared/utils/http/async_http.zig");
+const json_utils = @import("../../shared/utils/json/mod.zig");
 
 pub const HuggingFaceError = error{
     MissingApiToken,
@@ -157,9 +158,23 @@ pub const Client = struct {
     }
 
     pub fn decodeInferenceResponse(self: *Client, json: []const u8) !InferenceResponse {
-        _ = self;
-        _ = json;
-        return HuggingFaceError.InvalidResponse;
+        const parsed = try std.json.parseFromSlice(
+            std.json.Value,
+            self.allocator,
+            json,
+            .{ .ignore_unknown_fields = true },
+        );
+        defer parsed.deinit();
+
+        const generated_text = try json_utils.parseStringField(
+            try json_utils.getRequiredObject(parsed.value),
+            "generated_text",
+            self.allocator,
+        );
+
+        return InferenceResponse{
+            .generated_text = generated_text,
+        };
     }
 };
 

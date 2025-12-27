@@ -1,5 +1,6 @@
 //! Minimal distributed compute engine for running synchronous tasks.
 const std = @import("std");
+const numa = @import("numa.zig");
 
 const Backoff = struct {
     spins: usize = 0,
@@ -56,6 +57,9 @@ const DEFAULT_MAX_TASKS: usize = 1024;
 
 pub const EngineConfig = struct {
     max_tasks: usize = DEFAULT_MAX_TASKS,
+    numa_enabled: bool = false,
+    cpu_affinity_enabled: bool = false,
+    numa_topology: ?*numa.CpuTopology = null,
 };
 
 const ResultKind = enum {
@@ -74,12 +78,21 @@ pub const DistributedComputeEngine = struct {
     config: EngineConfig,
     next_id: TaskId = 1,
     results: std.AutoHashMap(TaskId, ResultBlob),
+    topology: ?*numa.CpuTopology = null,
 
     pub fn init(allocator: std.mem.Allocator, config: EngineConfig) !DistributedComputeEngine {
+        var topology: ?*numa.CpuTopology = null;
+        if (config.numa_enabled) {
+            const topo = try allocator.create(numa.CpuTopology);
+            topo.* = try numa.CpuTopology.init(allocator);
+            topology = topo;
+        }
+
         return .{
             .allocator = allocator,
             .config = config,
             .results = std.AutoHashMap(TaskId, ResultBlob).init(allocator),
+            .topology = topology,
         };
     }
 
@@ -89,6 +102,12 @@ pub const DistributedComputeEngine = struct {
             self.allocator.free(blob.bytes);
         }
         self.results.deinit();
+
+        if (self.topology) |topo| {
+            topo.deinit(self.allocator);
+            self.allocator.destroy(topo);
+        }
+
         self.* = undefined;
     }
 
@@ -127,6 +146,33 @@ pub const DistributedComputeEngine = struct {
             if (deadline_ms == null) return EngineError.ResultNotFound;
             if (nowMilliseconds() >= deadline_ms.?) return EngineError.Timeout;
             backoff.wait();
+        }
+    }
+
+    pub fn getCurrentNumaNode(self: *DistributedComputeEngine) ?*const numa.NumaNode {
+        if (self.topology) |*topo| {
+            const cpu_id = numa.getCurrentCpu() catch return null;
+            return topo.getNodeForCpu(cpu_id);
+        }
+        return null;
+    }
+
+    pub fn setTaskAffinity(self: *DistributedComputeEngine, task_id: TaskId, cpu_id: usize) !void {
+        _ = task_id;
+        if (self.config.cpu_affinity_enabled) {
+            try numa.setThreadAffinity(cpu_id);
+        }
+    }
+
+    pub fn setTaskAffinityToNode(self: *DistributedComputeEngine, task_id: TaskId, node_id: usize) !void {
+        _ = task_id;
+        if (self.config.cpu_affinity_enabled and self.topology) |*topo| {
+            if (node_id < topo.nodes.len) {
+                const node = &topo.nodes[node_id];
+                if (node.cpus.len > 0) {
+                    try numa.setThreadAffinity(node.cpus[0]);
+                }
+            }
         }
     }
 

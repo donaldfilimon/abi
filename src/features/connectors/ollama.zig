@@ -1,6 +1,7 @@
 const std = @import("std");
 const connectors = @import("mod.zig");
 const async_http = @import("../../shared/utils/http/async_http.zig");
+const json_utils = @import("../../shared/utils/json/mod.zig");
 
 pub const Config = struct {
     host: []u8,
@@ -164,15 +165,64 @@ pub const Client = struct {
     }
 
     pub fn decodeGenerateResponse(self: *Client, json: []const u8) !GenerateResponse {
-        _ = self;
-        _ = json;
-        return error.InvalidResponse;
+        const parsed = try std.json.parseFromSlice(
+            std.json.Value,
+            self.allocator,
+            json,
+            .{ .ignore_unknown_fields = true },
+        );
+        defer parsed.deinit();
+
+        const object = try json_utils.getRequiredObject(parsed.value);
+
+        const model = try json_utils.parseStringField(object, "model", self.allocator);
+        const response = try json_utils.parseStringField(object, "response", self.allocator);
+        const done = try json_utils.parseBoolField(object, "done");
+
+        var context: ?[]u64 = null;
+        if (object.get("context")) |context_val| {
+            if (context_val == .array) {
+                context = try self.allocator.alloc(u64, context_val.array.items.len);
+                for (context_val.array.items, 0..) |item, i| {
+                    const num = try json_utils.parseUint(item);
+                    context.?[i] = num;
+                }
+            }
+        }
+
+        return GenerateResponse{
+            .model = model,
+            .response = response,
+            .done = done,
+            .context = context,
+        };
     }
 
     pub fn decodeChatResponse(self: *Client, json: []const u8) !ChatResponse {
-        _ = self;
-        _ = json;
-        return error.InvalidResponse;
+        const parsed = try std.json.parseFromSlice(
+            std.json.Value,
+            self.allocator,
+            json,
+            .{ .ignore_unknown_fields = true },
+        );
+        defer parsed.deinit();
+
+        const object = try json_utils.getRequiredObject(parsed.value);
+
+        const model = try json_utils.parseStringField(object, "model", self.allocator);
+        const message_obj = try json_utils.parseObjectField(object, "message");
+        const role = try json_utils.parseStringField(message_obj, "role", self.allocator);
+        const content = try json_utils.parseStringField(message_obj, "content", self.allocator);
+        const done = try json_utils.parseBoolField(object, "done");
+
+        return ChatResponse{
+            .model = model,
+            .message = .{
+                .role = role,
+                .content = content,
+            },
+            .done = done,
+        };
     }
 };
 

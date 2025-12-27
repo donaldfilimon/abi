@@ -1,6 +1,7 @@
 const std = @import("std");
 const connectors = @import("mod.zig");
 const async_http = @import("../../shared/utils/http/async_http.zig");
+const json_utils = @import("../../shared/utils/json/mod.zig");
 
 pub const OpenAIError = error{
     MissingApiKey,
@@ -33,6 +34,26 @@ pub const ChatCompletionRequest = struct {
     temperature: f32 = 0.7,
     max_tokens: ?u32 = null,
     stream: bool = false,
+};
+
+pub const StreamingChunk = struct {
+    id: []const u8,
+    object: []const u8,
+    created: u64,
+    model: []const u8,
+    choices: []StreamingChoice,
+    delta: ?StreamingDelta = null,
+};
+
+pub const StreamingChoice = struct {
+    index: u32,
+    delta: ?StreamingDelta,
+    finish_reason: ?[]const u8 = null,
+};
+
+pub const StreamingDelta = struct {
+    role: ?[]const u8 = null,
+    content: ?[]const u8 = null,
 };
 
 pub const ChatCompletionResponse = struct {
@@ -113,6 +134,25 @@ pub const Client = struct {
         return try self.chat(&messages);
     }
 
+    pub fn chatCompletionStreaming(self: *Client, request: ChatCompletionRequest) !async_http.StreamingResponse {
+        var req = request;
+        req.stream = true;
+
+        const url = try std.fmt.allocPrint(self.allocator, "{s}/chat/completions", .{self.config.base_url});
+        defer self.allocator.free(url);
+
+        const json = try self.encodeChatRequest(req);
+        defer self.allocator.free(json);
+
+        var http_req = try async_http.HttpRequest.init(self.allocator, .POST, url);
+        defer http_req.deinit();
+
+        try http_req.setBearerToken(self.config.api_key);
+        try http_req.setJsonBody(json);
+
+        return try self.http.fetchStreaming(&http_req);
+    }
+
     pub fn encodeChatRequest(self: *Client, request: ChatCompletionRequest) ![]u8 {
         var json_str = std.ArrayList(u8).init(self.allocator);
         errdefer json_str.deinit();
@@ -139,9 +179,64 @@ pub const Client = struct {
     }
 
     pub fn decodeChatResponse(self: *Client, json: []const u8) !ChatCompletionResponse {
-        _ = self;
-        _ = json;
-        return OpenAIError.InvalidResponse;
+        const parsed = try std.json.parseFromSlice(
+            std.json.Value,
+            self.allocator,
+            json,
+            .{ .ignore_unknown_fields = true },
+        );
+        defer parsed.deinit();
+
+        const object = try json_utils.getRequiredObject(parsed.value);
+
+        const id = try json_utils.parseStringField(object, "id", self.allocator);
+        const obj = try json_utils.parseStringField(object, "object", self.allocator);
+        const created = try json_utils.parseUintField(object, "created");
+        const model = try json_utils.parseStringField(object, "model", self.allocator);
+
+        const choices_array = try json_utils.parseArrayField(object, "choices");
+        if (choices_array.items.len == 0) {
+            return OpenAIError.InvalidResponse;
+        }
+
+        var choices = try self.allocator.alloc(Choice, choices_array.items.len);
+        errdefer self.allocator.free(choices);
+
+        for (choices_array.items, 0..) |choice_value, i| {
+            const choice_obj = try json_utils.getRequiredObject(choice_value);
+            const index: u32 = @intCast(try json_utils.parseIntField(choice_obj, "index"));
+
+            const message_obj = try json_utils.parseObjectField(choice_obj, "message");
+            const role = try json_utils.parseStringField(message_obj, "role", self.allocator);
+            const content = try json_utils.parseStringField(message_obj, "content", self.allocator);
+
+            const finish_reason = try json_utils.parseStringField(choice_obj, "finish_reason", self.allocator);
+
+            choices[i] = .{
+                .index = index,
+                .message = .{
+                    .role = role,
+                    .content = content,
+                },
+                .finish_reason = finish_reason,
+            };
+        }
+
+        const usage_obj = try json_utils.parseObjectField(object, "usage");
+        const usage = Usage{
+            .prompt_tokens = @intCast(try json_utils.parseIntField(usage_obj, "prompt_tokens")),
+            .completion_tokens = @intCast(try json_utils.parseIntField(usage_obj, "completion_tokens")),
+            .total_tokens = @intCast(try json_utils.parseIntField(usage_obj, "total_tokens")),
+        };
+
+        return ChatCompletionResponse{
+            .id = id,
+            .object = obj,
+            .created = created,
+            .model = model,
+            .choices = choices,
+            .usage = usage,
+        };
     }
 };
 

@@ -222,6 +222,50 @@ pub const AsyncHttpClient = struct {
         return response;
     }
 
+    pub const StreamingResponse = struct {
+        reader: std.io.AnyReader,
+        response: HttpResponse,
+
+        pub fn deinit(self: *StreamingResponse) void {
+            self.response.deinit();
+        }
+    };
+
+    pub fn fetchStreaming(self: *AsyncHttpClient, request: *HttpRequest) !StreamingResponse {
+        const uri = try std.Uri.parse(request.url);
+
+        var server_header_buffer: [8192]u8 = undefined;
+        var http_res = try self.client.open(.{
+            .method = std.http.Method.fromEnum(@intFromEnum(request.method)),
+            .location = uri,
+            .server_header_buffer = &server_header_buffer,
+            .headers = .{
+                .authorization = if (request.headers.get("Authorization")) |auth| auth else "",
+                .accept = if (request.headers.get("Accept")) |accept| accept else "*/*",
+                .content_type = if (request.headers.get("Content-Type")) |ct| ct else "",
+            },
+        });
+
+        if (request.body) |body| {
+            try http_res.writeAll(body);
+        }
+
+        try http_res.finish();
+
+        var response = HttpResponse.init(self.allocator);
+        errdefer response.deinit();
+
+        response.status_code = @intCast(http_res.status);
+        response.status = @enumFromInt(response.status_code);
+
+        const reader = http_res.reader();
+
+        return .{
+            .reader = reader.any(),
+            .response = response,
+        };
+    }
+
     pub fn fetchJson(self: *AsyncHttpClient, request: *HttpRequest) !HttpResponse {
         try request.setHeader("Accept", "application/json");
         return try self.fetch(request);
