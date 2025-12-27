@@ -13,8 +13,8 @@ pub fn run(allocator: std.mem.Allocator) !void {
     std.debug.print("Abbey-Aviva-Abi Demo\n", .{});
     std.debug.print("  Version: {s}\n", .{abi.version()});
     std.debug.print(
-        "  OS: {s} Arch: {s} Threads: {d}\n",
-        .{ @tagName(info.os), @tagName(info.arch), info.max_threads },
+        "  OS: {t} Arch: {t} Threads: {d}\n",
+        .{ info.os, info.arch, info.max_threads },
     );
 
     const gpu_summary = abi.gpu.summary();

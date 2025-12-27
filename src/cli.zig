@@ -81,8 +81,8 @@ fn runSystemInfo(allocator: std.mem.Allocator, framework: *abi.Framework) !void 
     const info = platform.PlatformInfo.detect();
 
     std.debug.print("System Info\n", .{});
-    std.debug.print("  OS: {s}\n", .{@tagName(info.os)});
-    std.debug.print("  Arch: {s}\n", .{@tagName(info.arch)});
+    std.debug.print("  OS: {t}\n", .{info.os});
+    std.debug.print("  Arch: {t}\n", .{info.arch});
     std.debug.print("  CPU Threads: {d}\n", .{info.max_threads});
     std.debug.print("  ABI Version: {s}\n", .{abi.version()});
     try printGpuSummary(allocator);
@@ -91,7 +91,7 @@ fn runSystemInfo(allocator: std.mem.Allocator, framework: *abi.Framework) !void 
     std.debug.print("\nFeature Matrix:\n", .{});
     for (std.enums.values(abi.Feature)) |tag| {
         const status = if (framework.isFeatureEnabled(tag)) "enabled" else "disabled";
-        std.debug.print("  {s}: {s}\n", .{ @tagName(tag), status });
+        std.debug.print("  {t}: {s}\n", .{ tag, status });
     }
 }
 
@@ -296,7 +296,7 @@ fn runNetwork(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
         };
         const registry = try abi.network.defaultRegistry();
         if (registry.setStatus(id, status)) {
-            std.debug.print("Updated {s} to {s}\n", .{ id, @tagName(status) });
+            std.debug.print("Updated {s} to {t}\n", .{ id, status });
         } else {
             std.debug.print("Node {s} not found\n", .{id});
         }
@@ -347,8 +347,8 @@ fn printNetworkNodes() !void {
     std.debug.print("Nodes:\n", .{});
     for (nodes) |node| {
         std.debug.print(
-            "  {s} {s} ({s}) last_seen_ms={d}\n",
-            .{ node.id, node.address, @tagName(node.status), node.last_seen_ms },
+            "  {s} {s} ({t}) last_seen_ms={d}\n",
+            .{ node.id, node.address, node.status, node.last_seen_ms },
         );
     }
 }

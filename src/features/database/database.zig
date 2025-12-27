@@ -53,13 +53,13 @@ const storage_version: u16 = 1;
 pub const Database = struct {
     allocator: std.mem.Allocator,
     name: []const u8,
-    records: std.ArrayList(VectorRecord),
+    records: std.ArrayListUnmanaged(VectorRecord),
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) !Database {
         return .{
             .allocator = allocator,
             .name = try allocator.dupe(u8, name),
-            .records = std.ArrayList(VectorRecord).empty,
+            .records = std.ArrayListUnmanaged(VectorRecord).empty,
         };
     }
 
@@ -138,7 +138,7 @@ pub const Database = struct {
         query: []const f32,
         top_k: usize,
     ) ![]SearchResult {
-        var results = std.ArrayList(SearchResult).empty;
+        var results = std.ArrayListUnmanaged(SearchResult).empty;
         errdefer results.deinit(allocator);
         for (self.records.items) |record| {
             if (record.vector.len != query.len) continue;
@@ -167,7 +167,7 @@ pub const Database = struct {
     }
 
     pub fn saveToFile(self: *Database, path: []const u8) SaveError!void {
-        var buffer = std.ArrayList(u8).empty;
+        var buffer = std.ArrayListUnmanaged(u8).empty;
         defer buffer.deinit(self.allocator);
 
         try buffer.appendSlice(self.allocator, storage_magic);
@@ -318,7 +318,7 @@ const Cursor = struct {
 };
 
 fn appendInt(
-    buffer: *std.ArrayList(u8),
+    buffer: *std.ArrayListUnmanaged(u8),
     allocator: std.mem.Allocator,
     comptime T: type,
     value: T,

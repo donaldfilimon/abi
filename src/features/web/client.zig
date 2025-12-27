@@ -118,7 +118,7 @@ fn readAllAlloc(
     allocator: std.mem.Allocator,
     max_bytes: usize,
 ) HttpError![]u8 {
-    var list = std.ArrayList(u8).empty;
+    var list = std.ArrayListUnmanaged(u8).empty;
     errdefer list.deinit(allocator);
 
     var buffer: [4096]u8 = undefined;

@@ -131,14 +131,14 @@ pub const MemoryStats = struct {
 };
 
 pub const GPUMemoryPool = struct {
-    buffers: std.ArrayList(*GPUBuffer),
+    buffers: std.ArrayListUnmanaged(*GPUBuffer),
     allocator: std.mem.Allocator,
     total_size: usize,
     max_size: usize,
 
     pub fn init(allocator: std.mem.Allocator, max_size: usize) GPUMemoryPool {
         return .{
-            .buffers = std.ArrayList(*GPUBuffer).init(allocator),
+            .buffers = std.ArrayListUnmanaged(*GPUBuffer).empty,
             .allocator = allocator,
             .total_size = 0,
             .max_size = max_size,
@@ -150,7 +150,7 @@ pub const GPUMemoryPool = struct {
             buffer.deinit();
             self.allocator.destroy(buffer);
         }
-        self.buffers.deinit();
+        self.buffers.deinit(self.allocator);
     }
 
     pub fn allocate(self: *GPUMemoryPool, size: usize, flags: BufferFlags) !*GPUBuffer {
@@ -161,7 +161,7 @@ pub const GPUMemoryPool = struct {
         const buffer = try self.allocator.create(GPUBuffer);
         errdefer self.allocator.destroy(buffer);
         buffer.* = try GPUBuffer.init(self.allocator, size, flags);
-        try self.buffers.append(buffer);
+        try self.buffers.append(self.allocator, buffer);
         self.total_size += size;
         return buffer;
     }

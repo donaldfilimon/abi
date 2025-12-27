@@ -9,7 +9,7 @@ pub const BenchmarkResult = struct {
 };
 
 pub fn runBenchmarks(allocator: std.mem.Allocator) ![]BenchmarkResult {
-    var list = std.ArrayList(BenchmarkResult).empty;
+    var list = std.ArrayListUnmanaged(BenchmarkResult).empty;
     errdefer list.deinit(allocator);
 
     try list.append(allocator, try runHashBenchmark());

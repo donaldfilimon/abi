@@ -43,7 +43,7 @@ pub const TransformerModel = struct {
         const tokens = try self.encode(allocator, input);
         defer allocator.free(tokens);
 
-        var output = std.ArrayList(u8).empty;
+        var output = std.ArrayListUnmanaged(u8).empty;
         errdefer output.deinit(allocator);
         try output.print(
             allocator,
@@ -61,7 +61,7 @@ pub const TransformerModel = struct {
     ) ![]u32 {
         try self.config.validate();
 
-        var list = std.ArrayList(u32).empty;
+        var list = std.ArrayListUnmanaged(u32).empty;
         errdefer list.deinit(allocator);
         var it = std.mem.tokenizeAny(u8, input, " \t\r\n");
         while (it.next()) |token| {
@@ -79,7 +79,7 @@ pub const TransformerModel = struct {
         tokens: []const u32,
     ) ![]u8 {
         _ = self;
-        var output = std.ArrayList(u8).empty;
+        var output = std.ArrayListUnmanaged(u8).empty;
         errdefer output.deinit(allocator);
         try appendTokens(&output, allocator, tokens);
         return output.toOwnedSlice(allocator);
@@ -113,7 +113,7 @@ fn hashToken(seed: u64, vocab_size: u32, token: []const u8) u32 {
     return @intCast(hash % vocab_size);
 }
 
-fn appendTokens(list: *std.ArrayList(u8), allocator: std.mem.Allocator, tokens: []const u32) !void {
+fn appendTokens(list: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, tokens: []const u32) !void {
     for (tokens, 0..) |token, i| {
         if (i > 0) try list.append(allocator, ' ');
         try list.print(allocator, "tok{d}", .{token});

@@ -14,7 +14,7 @@ var log_mutex: std.Thread.Mutex = .{};
 pub fn log(level: Level, comptime fmt: []const u8, args: anytype) void {
     log_mutex.lock();
     defer log_mutex.unlock();
-    std.debug.print("[{s}] ", .{@tagName(level)});
+    std.debug.print("[{t}] ", .{level});
     std.debug.print(fmt, args);
     std.debug.print("\n", .{});
 }

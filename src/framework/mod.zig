@@ -146,8 +146,8 @@ pub fn runtimeConfigFromOptions(
     };
 }
 
-fn buildEnabledFeatures(allocator: std.mem.Allocator, options: FrameworkOptions) !std.ArrayList(Feature) {
-    var enabled = std.ArrayList(Feature).empty;
+fn buildEnabledFeatures(allocator: std.mem.Allocator, options: FrameworkOptions) !std.ArrayListUnmanaged(Feature) {
+    var enabled = std.ArrayListUnmanaged(Feature).empty;
     if (options.enable_ai) try enabled.append(allocator, .ai);
     if (options.enable_gpu) try enabled.append(allocator, .gpu);
     if (options.enable_database) try enabled.append(allocator, .database);
@@ -162,10 +162,10 @@ fn buildEnabledFeatures(allocator: std.mem.Allocator, options: FrameworkOptions)
 
 fn filterDisabledFeatures(
     allocator: std.mem.Allocator,
-    enabled: *std.ArrayList(Feature),
+    enabled: *std.ArrayListUnmanaged(Feature),
     disabled: []const Feature,
-) !std.ArrayList(Feature) {
-    var filtered = std.ArrayList(Feature).empty;
+) !std.ArrayListUnmanaged(Feature) {
+    var filtered = std.ArrayListUnmanaged(Feature).empty;
     for (enabled.items) |feature| {
         if (std.mem.indexOfScalar(Feature, disabled, feature) == null) {
             try filtered.append(allocator, feature);

@@ -245,7 +245,7 @@ pub fn backendAvailability(backend: Backend) BackendAvailability {
 }
 
 pub fn listBackendInfo(allocator: std.mem.Allocator) ![]BackendInfo {
-    var list = std.ArrayList(BackendInfo).empty;
+    var list = std.ArrayListUnmanaged(BackendInfo).empty;
     errdefer list.deinit(allocator);
     for (std.enums.values(Backend)) |backend| {
         const availability = backendAvailability(backend);
@@ -264,7 +264,7 @@ pub fn listBackendInfo(allocator: std.mem.Allocator) ![]BackendInfo {
 }
 
 pub fn availableBackends(allocator: std.mem.Allocator) ![]Backend {
-    var list = std.ArrayList(Backend).empty;
+    var list = std.ArrayListUnmanaged(Backend).empty;
     errdefer list.deinit(allocator);
     if (!moduleEnabled()) return list.toOwnedSlice(allocator);
     for (std.enums.values(Backend)) |backend| {
@@ -277,7 +277,7 @@ pub fn availableBackends(allocator: std.mem.Allocator) ![]Backend {
 }
 
 pub fn listDevices(allocator: std.mem.Allocator) ![]DeviceInfo {
-    var devices = std.ArrayList(DeviceInfo).empty;
+    var devices = std.ArrayListUnmanaged(DeviceInfo).empty;
     errdefer devices.deinit(allocator);
     if (!moduleEnabled()) return devices.toOwnedSlice(allocator);
 

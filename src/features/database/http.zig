@@ -309,7 +309,7 @@ fn readAll(
     allocator: std.mem.Allocator,
     limit: usize,
 ) HttpError![]u8 {
-    var list = std.ArrayList(u8).empty;
+    var list = std.ArrayListUnmanaged(u8).empty;
     errdefer list.deinit(allocator);
 
     var chunk: [4096]u8 = undefined;
@@ -398,7 +398,7 @@ fn buildStatsJson(allocator: std.mem.Allocator, stats: unified.Stats) ![]u8 {
 }
 
 fn buildVectorJson(allocator: std.mem.Allocator, view: unified.VectorView) ![]u8 {
-    var list = std.ArrayList(u8).empty;
+    var list = std.ArrayListUnmanaged(u8).empty;
     errdefer list.deinit(allocator);
 
     try list.appendSlice(allocator, "{\"id\":");
@@ -419,7 +419,7 @@ fn buildVectorJson(allocator: std.mem.Allocator, view: unified.VectorView) ![]u8
 }
 
 fn buildVectorListJson(allocator: std.mem.Allocator, views: []const unified.VectorView) ![]u8 {
-    var list = std.ArrayList(u8).empty;
+    var list = std.ArrayListUnmanaged(u8).empty;
     errdefer list.deinit(allocator);
     try list.appendSlice(allocator, "{\"vectors\":[");
     for (views, 0..) |view, i| {
@@ -436,7 +436,7 @@ fn buildSearchResultsJson(
     allocator: std.mem.Allocator,
     results: []const unified.SearchResult,
 ) ![]u8 {
-    var list = std.ArrayList(u8).empty;
+    var list = std.ArrayListUnmanaged(u8).empty;
     errdefer list.deinit(allocator);
     try list.appendSlice(allocator, "{\"results\":[");
     for (results, 0..) |result, i| {
@@ -452,7 +452,7 @@ fn buildSearchResultsJson(
 }
 
 fn appendVectorJson(
-    list: *std.ArrayList(u8),
+    list: *std.ArrayListUnmanaged(u8),
     allocator: std.mem.Allocator,
     vector: []const f32,
 ) !void {

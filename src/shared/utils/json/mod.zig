@@ -1,7 +1,7 @@
 const std = @import("std");
 
 pub fn escapeString(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-    var list = std.ArrayList(u8).empty;
+    var list = std.ArrayListUnmanaged(u8).empty;
     errdefer list.deinit(allocator);
     try list.append(allocator, '"');
     for (input) |char| {
@@ -40,7 +40,7 @@ test "json string escape" {
     try std.testing.expectEqualStrings("\"a\\\"b\\n\"", escaped);
 
     var storage: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&storage);
-    try writeString(stream.writer(), "a\"b\n");
-    try std.testing.expectEqualStrings("\"a\\\"b\\n\"", stream.getWritten());
+    var fbs = std.io.fixedBufferStream(&storage);
+    try writeString(fbs.writer(), "a\"b\n");
+    try std.testing.expectEqualStrings("\"a\\\"b\\n\"", fbs.getWritten());
 }

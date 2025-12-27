@@ -10,12 +10,12 @@ pub fn WorkQueue(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
         mutex: std.Thread.Mutex = .{},
-        items: std.ArrayList(T),
+        items: std.ArrayListUnmanaged(T),
 
         pub fn init(allocator: std.mem.Allocator) @This() {
             return .{
                 .allocator = allocator,
-                .items = std.ArrayList(T).empty,
+                .items = std.ArrayListUnmanaged(T).empty,
             };
         }
 

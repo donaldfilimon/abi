@@ -8,12 +8,12 @@ pub const PluginDescriptor = struct {
 
 pub const PluginRegistry = struct {
     allocator: std.mem.Allocator,
-    plugins: std.ArrayList(PluginDescriptor),
+    plugins: std.ArrayListUnmanaged(PluginDescriptor),
 
     pub fn init(allocator: std.mem.Allocator) PluginRegistry {
         return .{
             .allocator = allocator,
-            .plugins = std.ArrayList(PluginDescriptor).empty,
+            .plugins = std.ArrayListUnmanaged(PluginDescriptor).empty,
         };
     }
 

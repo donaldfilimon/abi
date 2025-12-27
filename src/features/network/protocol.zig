@@ -48,7 +48,7 @@ pub fn encodeTask(allocator: std.mem.Allocator, task: TaskEnvelope) ![]u8 {
     if (task.kind.len > std.math.maxInt(u16)) return ProtocolError.PayloadTooLarge;
     if (task.payload.len > std.math.maxInt(u32)) return ProtocolError.PayloadTooLarge;
 
-    var buffer = std.ArrayList(u8).empty;
+    var buffer = std.ArrayListUnmanaged(u8).empty;
     errdefer buffer.deinit(allocator);
 
     try buffer.appendSlice(allocator, task_magic);
@@ -91,7 +91,7 @@ pub fn decodeTask(allocator: std.mem.Allocator, data: []const u8) ProtocolError!
 pub fn encodeResult(allocator: std.mem.Allocator, result: ResultEnvelope) ![]u8 {
     if (result.payload.len > std.math.maxInt(u32)) return ProtocolError.PayloadTooLarge;
 
-    var buffer = std.ArrayList(u8).empty;
+    var buffer = std.ArrayListUnmanaged(u8).empty;
     errdefer buffer.deinit(allocator);
 
     try buffer.appendSlice(allocator, result_magic);
@@ -149,7 +149,7 @@ const Cursor = struct {
 };
 
 fn appendInt(
-    buffer: *std.ArrayList(u8),
+    buffer: *std.ArrayListUnmanaged(u8),
     allocator: std.mem.Allocator,
     comptime T: type,
     value: T,

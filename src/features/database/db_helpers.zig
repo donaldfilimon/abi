@@ -5,7 +5,7 @@ pub const HelperError = error{
 };
 
 pub fn parseVector(allocator: std.mem.Allocator, text: []const u8) ![]f32 {
-    var list = std.ArrayList(f32).empty;
+    var list = std.ArrayListUnmanaged(f32).empty;
     errdefer list.deinit(allocator);
     var it = std.mem.splitScalar(u8, text, ',');
     while (it.next()) |chunk| {
@@ -19,7 +19,7 @@ pub fn parseVector(allocator: std.mem.Allocator, text: []const u8) ![]f32 {
 }
 
 pub fn formatVector(allocator: std.mem.Allocator, vector: []const f32) ![]u8 {
-    var list = std.ArrayList(u8).empty;
+    var list = std.ArrayListUnmanaged(u8).empty;
     errdefer list.deinit(allocator);
     for (vector, 0..) |value, i| {
         if (i > 0) try list.append(allocator, ',');
