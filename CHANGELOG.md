@@ -1,5 +1,116 @@
 # Changelog
 
+## 0.3.0 - 2025-12-27
+
+### Major Features
+
+**GPU Backend Implementation**
+- Added complete GPU backend support with CUDA, Vulkan, Metal, and WebGPU
+- Implemented kernel compilation and execution framework (`src/compute/gpu/kernels.zig`)
+- Created backend-specific implementations:
+  - CUDA backend (`src/compute/gpu/backends/cuda.zig`) with simulation layer for graceful fallback
+  - Vulkan backend (`src/compute/gpu/backends/vulkan.zig`) with shader module support
+  - Metal backend (`src/compute/gpu/backends/metal.zig`) with compute pipeline
+  - WebGPU backend (`src/compute/gpu/backends/webgpu.zig`) with compute pipeline
+- Added default kernels for each backend: vector_add, matmul, reduce_sum
+- Implemented stream synchronization primitives
+- Added device memory management with tracking
+- Support for GPU workload hints and preferences
+
+**Async I/O Support**
+- Implemented full async HTTP client using `std.http.Client` (`src/shared/utils/http/async_http.zig`)
+- Added streaming response support with `StreamingResponse` type
+- Methods: `fetch()`, `fetchJson()`, `get()`, `post()`, `postJson()`, `fetchStreaming()`
+- Bearer token authentication support
+- Redirect following with configurable limits
+- Request/response timeout management
+
+**Connector Enhancements**
+- Completed OpenAI connector with full JSON decoding (`src/features/connectors/openai.zig`)
+- Completed Ollama connector with generate and chat APIs
+- Completed HuggingFace connector with inference API
+- All connectors support environment variable configuration
+- Added streaming support to OpenAI connector
+- Proper error handling (rate limits, model loading, API failures)
+- JSON response parsing for all services
+
+**JSON Utilities**
+- Created comprehensive JSON encoding/decoding utilities (`src/shared/utils/json/mod.zig`)
+- Functions: `parseString()`, `parseNumber()`, `parseInt()`, `parseUint()`, `parseBool()`
+- Field helpers: `parseStringField()`, `parseOptionalStringField()`, `parseNumberField()`, etc.
+- String escaping: `escapeString()` for JSON output
+- Type-safe JSON parsing with proper error handling
+
+**NUMA and CPU Affinity**
+- Implemented NUMA topology detection (`src/compute/runtime/numa.zig`)
+- Platform-specific detection: Linux (/sys/devices/system/cpu), Windows, generic fallback
+- CPU topology structure with NUMA nodes
+- `AffinityMask` struct with bit-level CPU selection
+- Thread affinity control: `setThreadAffinity()`, `setThreadAffinityMask()`
+- Integration with compute runtime engine
+- NUMA-aware task scheduling support
+
+**Property-Based Testing**
+- Created property testing framework (`tests/property_tests.zig`)
+- `PropertyTest` struct with test case tracking
+- `PropertyTestConfig` with configurable max cases, size, seed
+- Assertion helpers: `assertEq()`, `assertLessThan()`, `assertGreaterThan()`, `assertContains()`, `assertLength()`
+- Random input generation using `std.Random.DefaultPrng`
+- Test result reporting with pass/failure statistics
+
+**Distributed Scheduling**
+- Implemented task scheduler (`src/features/network/scheduler.zig`)
+- Load balancing strategies: round_robin, least_loaded, random, affinity_based
+- `TaskScheduler` struct with node management
+- Priority queue system: low, normal, high, critical
+- Node health tracking with CPU count and active tasks
+- Task state management: pending, scheduled, running, completed, failed, cancelled
+- Exported from network module for integration
+
+**High Availability Mechanisms**
+- Implemented health check system (`src/features/network/ha.zig`)
+- `HealthCheck` struct with node health tracking
+- Health states: healthy, unhealthy, degraded, unknown
+- Cluster state management: forming, stable, unstable, partitioned
+- Automatic failover support
+- Leader election mechanism
+- Configurable health check intervals and timeouts
+- Multi-node cluster coordination
+
+**C API and Language Bindings**
+- Created C-compatible API (`bindings/c_api.zig`)
+- Error codes and log levels
+- Memory management functions
+- CPU and NUMA information access
+- Python bindings stub (`bindings/python/abi.py`) with ctypes
+- `AbiFramework` class with context management
+- JavaScript/WebAssembly bindings (`bindings/wasm/abi_wasm.zig`)
+- Emscripten-compatible exports for browser and Node.js
+- Memory management: malloc, free, realloc, memset, memcpy
+- String utilities: strlen, strcmp, strcpy
+- Vector operations: add, dot, L2 norm, cosine similarity
+
+### API Changes
+
+### Breaking Changes
+
+None. All changes are backward compatible.
+
+### Bug Fixes
+
+None.
+
+### Code Quality
+
+- Improved error handling across all modules
+- Enhanced memory safety with explicit allocator passing
+- Better resource cleanup with proper deinit patterns
+- Comprehensive test coverage for all new features
+
+### Documentation
+
+Updated all feature documentation with new APIs and examples.
+
 ## 0.2.2 - 2025-12-27
 ### Zig 0.16 Modernization
 - Migrated all `std.ArrayList` to `std.ArrayListUnmanaged`
