@@ -90,7 +90,7 @@ pub const TaskScheduler = struct {
     running_tasks: std.AutoHashMap(u64, u64),
 
     pub fn init(allocator: std.mem.Allocator, config: SchedulerConfig) !TaskScheduler {
-        var scheduler = TaskScheduler{
+        const scheduler = TaskScheduler{
             .allocator = allocator,
             .config = config,
             .nodes = std.StringHashMap(ComputeNode).init(allocator),
@@ -259,6 +259,7 @@ pub const TaskScheduler = struct {
     }
 
     fn selectRandom(self: *TaskScheduler, nodes: []const *ComputeNode) ?*ComputeNode {
+        _ = self;
         if (nodes.len == 0) return null;
 
         const index = std.crypto.random.intRangeLessThan(usize, nodes.len);
