@@ -101,7 +101,7 @@ export fn abi_get_info_json() [*]const u8 {
 }
 
 export fn abi_malloc(size: usize) ?*anyopaque {
-    return std.heap.page_allocator.rawAlloc(size, @alignOf(usize), @returnAddressOf(*anyopaque)) catch null;
+    return std.heap.page_allocator.rawAlloc(size, @alignOf(usize), @returnAddress()) catch null;
 }
 
 export fn abi_free(ptr: ?*anyopaque) void {
@@ -115,29 +115,29 @@ export fn abi_realloc(ptr: ?*anyopaque, new_size: usize) ?*anyopaque {
 
     if (ptr) |p| {
         const ptr_info = std.heap.rawAllocatorInfo(p);
-        const aligned_ptr = @alignCast([*]u8, ptr_info.ptr);
+        const aligned_ptr: [*]u8 = @ptrCast(@alignCast(ptr_info.ptr));
         const aligned_len = ptr_info.len;
 
-        const new_ptr = allocator.realloc(aligned_ptr[0..aligned_len], new_size, @alignOf(usize), @returnAddressOf(*anyopaque)) catch return null;
-        allocator.free(aligned_ptr[0..aligned_len]);
+        const new_ptr = allocator.realloc(aligned_ptr[0..aligned_len], new_size, @alignOf(usize), @returnAddress()) catch return null;
         return new_ptr;
     }
 
-    return allocator.rawAlloc(new_size, @alignOf(usize), @returnAddressOf(*anyopaque)) catch null;
+    return allocator.rawAlloc(new_size, @alignOf(usize), @returnAddress()) catch null;
 }
 
 export fn abi_memset(ptr: ?*anyopaque, value: u8, size: usize) void {
     if (ptr) |p| {
         const ptr_info = std.heap.rawAllocatorInfo(p);
-        const aligned_ptr = @alignCast([*]u8, ptr_info.ptr);
-        @memset(aligned_ptr[0..ptr_info.len], value);
+        const aligned_ptr: [*]u8 = @ptrCast(@alignCast(ptr_info.ptr));
+        const safe_size = @min(size, ptr_info.len);
+        @memset(aligned_ptr[0..safe_size], value);
     }
 }
 
 export fn abi_memcpy(dst: ?*anyopaque, src: ?*const anyopaque, size: usize) void {
     if (dst) |d| {
         if (src) |s| {
-            std.mem.copy(u8, @ptrCast([*]u8, d)[0..size], @ptrCast([*const]u8, s)[0..size]);
+            std.mem.copy(u8, @as([*]u8, @ptrCast(d))[0..size], @as([*const]u8, @ptrCast(s))[0..size]);
         }
     }
 }
@@ -161,14 +161,11 @@ export fn abi_strcmp(str1: [*]const u8, str2: [*]const u8) i32 {
 }
 
 export fn abi_strcpy(dst: [*]u8, src: [*]const u8, max_len: usize) [*]u8 {
-    _ = src;
-    if (dst) |d| {
-        var i: usize = 0;
-        while (i < max_len and src[i] != 0) : (i += 1) {
-            d[i] = src[i];
-        }
-        d[i] = 0;
+    var i: usize = 0;
+    while (i < max_len and src[i] != 0) : (i += 1) {
+        dst[i] = src[i];
     }
+    dst[i] = 0;
     return dst;
 }
 

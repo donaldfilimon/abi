@@ -63,7 +63,10 @@ pub const ProfileWriter = struct {
                 try file.writeAll("\n");
             },
             .file => {
-                const file = self.file orelse return error.InvalidSink;
+                const file = self.file orelse {
+                    std.log.err("Invalid file sink: no file provided", .{});
+                    return error.InvalidSink;
+                };
                 try file.writeAll(line);
                 try file.writeAll("\n");
             },

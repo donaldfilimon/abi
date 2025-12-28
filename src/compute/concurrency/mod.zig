@@ -4,7 +4,7 @@ const std = @import("std");
 pub const lockfree = @import("lockfree.zig");
 pub const LockFreeQueue = lockfree.LockFreeQueue;
 pub const LockFreeStack = lockfree.LockFreeStack;
-pub const LockFreeMap = lockfree.LockFreeMap;
+pub const ShardedMap = lockfree.ShardedMap;
 
 pub fn WorkQueue(comptime T: type) type {
     return struct {

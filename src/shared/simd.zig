@@ -5,14 +5,30 @@
 
 const std = @import("std");
 
+const VectorSize = std.simd.suggestVectorLength(f32) orelse 4;
+
 /// Vector addition using SIMD when available
 pub fn vectorAdd(a: []const f32, b: []const f32, result: []f32) void {
+    comptime std.debug.assert(@TypeOf(a) == []const f32);
+    comptime std.debug.assert(@TypeOf(b) == []const f32);
+    comptime std.debug.assert(@TypeOf(result) == []f32);
     std.debug.assert(a.len == b.len and a.len == result.len);
 
-    // For now, use scalar implementation
-    // SIMD implementation would require target-specific intrinsics
-    for (a, b, result) |x, y, *r| {
-        r.* = x + y;
+    const len = a.len;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const va: Vec = a[i..][0..VectorSize].*;
+            const vb: Vec = b[i..][0..VectorSize].*;
+            result[i..][0..VectorSize].* = va + vb;
+        }
+    }
+
+    while (i < len) : (i += 1) {
+        result[i] = a[i] + b[i];
     }
 }
 
@@ -20,19 +36,56 @@ pub fn vectorAdd(a: []const f32, b: []const f32, result: []f32) void {
 pub fn vectorDot(a: []const f32, b: []const f32) f32 {
     std.debug.assert(a.len == b.len);
 
-    var result: f32 = 0.0;
-    for (a, b) |x, y| {
-        result += x * y;
+    const len = a.len;
+    var sum: f32 = 0.0;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var vec_sum: Vec = @splat(0.0);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const va: Vec = a[i..][0..VectorSize].*;
+            const vb: Vec = b[i..][0..VectorSize].*;
+            vec_sum += va * vb;
+        }
+
+        const sums: [VectorSize]f32 = vec_sum;
+        for (sums) |s| {
+            sum += s;
+        }
     }
 
-    return result;
+    while (i < len) : (i += 1) {
+        sum += a[i] * b[i];
+    }
+
+    return sum;
 }
 
 /// Vector L2 norm using SIMD when available
 pub fn vectorL2Norm(v: []const f32) f32 {
+    const len = v.len;
     var sum: f32 = 0.0;
-    for (v) |val| {
-        sum += val * val;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var vec_sum: Vec = @splat(0.0);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const vv: Vec = v[i..][0..VectorSize].*;
+            vec_sum += vv * vv;
+        }
+
+        const sums: [VectorSize]f32 = vec_sum;
+        for (sums) |s| {
+            sum += s;
+        }
+    }
+
+    while (i < len) : (i += 1) {
+        sum += v[i] * v[i];
     }
 
     return @sqrt(sum);
@@ -51,7 +104,72 @@ pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
     return dot_product / (norm_a * norm_b);
 }
 
-/// Matrix multiplication with SIMD acceleration
+/// Batch cosine similarity computation for database searches
+/// Computes cosine similarity between a query vector and multiple database vectors
+pub fn batchCosineSimilarity(
+    query: []const f32,
+    vectors: []const []const f32,
+    results: []f32,
+) void {
+    std.debug.assert(vectors.len == results.len);
+
+    for (vectors, results) |vector, *result| {
+        result.* = cosineSimilarity(query, vector);
+    }
+}
+
+/// Vector reduction operations with SIMD acceleration
+pub fn vectorReduce(op: enum { sum, max, min }, v: []const f32) f32 {
+    if (v.len == 0) return 0.0;
+
+    const len = v.len;
+    var i: usize = 0;
+    var result: f32 = if (op == .sum) 0.0 else v[0];
+
+    if (comptime VectorSize > 1 and len >= VectorSize) {
+        const Vec = @Vector(VectorSize, f32);
+        var vec_result: Vec = @splat(result);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const vv: Vec = v[i..][0..VectorSize].*;
+            switch (op) {
+                .sum => vec_result += vv,
+                .max => vec_result = @max(vec_result, vv),
+                .min => vec_result = @min(vec_result, vv),
+            }
+        }
+
+        const results: [VectorSize]f32 = vec_result;
+        switch (op) {
+            .sum => {
+                for (results) |r| result += r;
+            },
+            .max => {
+                for (results) |r| result = @max(result, r);
+            },
+            .min => {
+                for (results) |r| result = @min(result, r);
+            },
+        }
+    }
+
+    while (i < len) : (i += 1) {
+        switch (op) {
+            .sum => result += v[i],
+            .max => result = @max(result, v[i]),
+            .min => result = @min(result, v[i]),
+        }
+    }
+
+    return result;
+}
+
+/// Check if SIMD is available at compile time
+pub fn hasSimdSupport() bool {
+    return VectorSize > 1;
+}
+
+/// Matrix multiplication with blocking/tiling for cache efficiency and SIMD acceleration
 pub fn matrixMultiply(
     a: []const f32,
     b: []const f32,
@@ -64,44 +182,35 @@ pub fn matrixMultiply(
     std.debug.assert(b.len == k * n);
     std.debug.assert(result.len == m * n);
 
-    // Initialize result to zero
     @memset(result, 0);
 
-    // Simple implementation - could be optimized further with SIMD
+    const BLOCK_SIZE = 32;
     var i: usize = 0;
-    while (i < m) : (i += 1) {
+
+    while (i < m) : (i += BLOCK_SIZE) {
+        const i_end = @min(i + BLOCK_SIZE, m);
         var j: usize = 0;
-        while (j < n) : (j += 1) {
-            var sum: f32 = 0.0;
+        while (j < n) : (j += BLOCK_SIZE) {
+            const j_end = @min(j + BLOCK_SIZE, n);
             var l: usize = 0;
-            while (l < k) : (l += 1) {
-                sum += a[i * k + l] * b[l * n + j];
+            while (l < k) : (l += BLOCK_SIZE) {
+                const l_end = @min(l + BLOCK_SIZE, k);
+
+                var ii: usize = i;
+                while (ii < i_end) : (ii += 1) {
+                    var jj: usize = j;
+                    while (jj < j_end) : (jj += 1) {
+                        var sum: f32 = result[ii * n + jj];
+                        var ll: usize = l;
+                        while (ll < l_end) : (ll += 1) {
+                            sum += a[ii * k + ll] * b[ll * n + jj];
+                        }
+                        result[ii * n + jj] = sum;
+                    }
+                }
             }
-            result[i * n + j] = sum;
         }
     }
-}
-
-/// Vector reduction operations
-pub fn vectorReduce(op: enum { sum, max, min }, v: []const f32) f32 {
-    if (v.len == 0) return 0.0;
-
-    var result = v[0];
-    for (v[1..]) |val| {
-        switch (op) {
-            .sum => result += val,
-            .max => result = @max(result, val),
-            .min => result = @min(result, val),
-        }
-    }
-    return result;
-}
-
-/// Check SIMD support at runtime
-pub fn hasSimdSupport() bool {
-    // Check for SIMD support - this is a basic check
-    // In practice, you'd check CPU features
-    return comptime std.simd.suggestVectorLength(f32) != null;
 }
 
 test "vector addition works" {

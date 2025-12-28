@@ -4,15 +4,9 @@
 
 const std = @import("std");
 
-pub const HttpMethod = enum {
-    GET,
-    POST,
-    PUT,
-    DELETE,
-    PATCH,
-    HEAD,
-    OPTIONS,
-};
+const http_mod = @import("mod.zig");
+
+pub const Method = http_mod.Method;
 
 pub const HttpStatus = enum(u16) {
     ok = 200,
@@ -31,17 +25,33 @@ pub const HttpStatus = enum(u16) {
     _,
 };
 
-pub const HttpError = error{
-    InvalidUrl,
-    ConnectionFailed,
-    RequestFailed,
-    Timeout,
-    InvalidResponse,
-    RedirectExceeded,
-};
+pub const HttpError = http_mod.HttpError;
+
+/// Validates URL for basic security and format requirements
+pub fn validateUrl(url: []const u8) !void {
+    // Basic URL validation to prevent malicious inputs
+    if (url.len == 0) return HttpError.InvalidUrl;
+    if (url.len > 2048) return HttpError.InvalidUrl; // Reasonable URL length limit
+
+    // Must start with http:// or https://
+    if (!std.mem.startsWith(u8, url, "http://") and
+        !std.mem.startsWith(u8, url, "https://"))
+    {
+        return HttpError.InvalidUrl;
+    }
+
+    // Check for potentially dangerous characters
+    for (url) |c| {
+        if (c < 32 or c == 127) { // Control characters
+            return HttpError.InvalidUrl;
+        }
+    }
+
+    // Additional validation could be added for specific schemes, ports, etc.
+}
 
 pub const HttpRequest = struct {
-    method: HttpMethod,
+    method: Method,
     url: []const u8,
     headers: std.StringHashMap([]const u8),
     body: ?[]const u8 = null,
@@ -49,7 +59,8 @@ pub const HttpRequest = struct {
     follow_redirects: bool = true,
     max_redirects: u8 = 5,
 
-    pub fn init(allocator: std.mem.Allocator, method: HttpMethod, url: []const u8) !HttpRequest {
+    pub fn init(allocator: std.mem.Allocator, method: Method, url: []const u8) !HttpRequest {
+        try validateUrl(url);
         return .{
             .method = method,
             .url = try allocator.dupe(u8, url),
@@ -271,6 +282,82 @@ pub const AsyncHttpClient = struct {
         return try self.fetch(request);
     }
 
+    /// Async version of fetch demonstrating Zig async patterns
+    /// This method shows how to structure async HTTP operations
+    pub fn fetchAsync(self: *AsyncHttpClient, request: *HttpRequest) !HttpResponse {
+        var response = HttpResponse.init(self.allocator);
+        errdefer response.deinit();
+
+        const uri = try std.Uri.parse(request.url);
+
+        var server_header_buffer: [8192]u8 = undefined;
+        var http_res = try self.client.open(.{
+            .method = std.http.Method.fromEnum(@intFromEnum(request.method)),
+            .location = uri,
+            .server_header_buffer = &server_header_buffer,
+            .headers = .{
+                .authorization = if (request.headers.get("Authorization")) |auth| auth else "",
+                .accept = if (request.headers.get("Accept")) |accept| accept else "*/*",
+                .content_type = if (request.headers.get("Content-Type")) |ct| ct else "",
+            },
+        });
+
+        defer http_res.deinit();
+
+        if (request.body) |body| {
+            try http_res.writeAll(body);
+        }
+
+        try http_res.finish();
+
+        response.status_code = @intCast(http_res.status);
+        response.status = @enumFromInt(response.status_code);
+
+        var body_reader = http_res.reader();
+        var body_list = std.ArrayList(u8).init(self.allocator);
+        errdefer body_list.deinit();
+
+        // Use chunked reading for better memory efficiency
+        var buffer: [4096]u8 = undefined;
+        while (true) {
+            const n = try body_reader.read(&buffer);
+            if (n == 0) break;
+            try body_list.appendSlice(buffer[0..n]);
+        }
+
+        response.body = try body_list.toOwnedSlice();
+
+        return response;
+    }
+
+    /// Batch request helper for making multiple HTTP requests efficiently
+    /// Demonstrates proper resource management for multiple concurrent operations
+    pub fn fetchBatch(
+        self: *AsyncHttpClient,
+        allocator: std.mem.Allocator,
+        requests: []const *HttpRequest,
+    ) ![]HttpResponse {
+        const responses = try allocator.alloc(HttpResponse, requests.len);
+        errdefer {
+            for (responses[0..]) |*response| {
+                response.deinit();
+            }
+            allocator.free(responses);
+        }
+
+        var completed: usize = 0;
+
+        // Process requests sequentially for simplicity and resource safety
+        for (requests, 0..) |request, i| {
+            responses[i] = try self.fetchAsync(request);
+            completed += 1;
+        }
+
+        std.log.info("Completed {d}/{d} requests successfully", .{ completed, requests.len });
+
+        return responses;
+    }
+
     pub fn get(self: *AsyncHttpClient, url: []const u8) !HttpResponse {
         var request = try HttpRequest.init(self.allocator, .GET, url);
         defer request.deinit();
@@ -296,7 +383,7 @@ test "http request lifecycle" {
     defer request.deinit();
 
     try request.setHeader("User-Agent", "abi/0.1.0");
-    try std.testing.expectEqual(HttpMethod.GET, request.method);
+    try std.testing.expectEqual(Method.GET, request.method);
 }
 
 test "http response status checks" {

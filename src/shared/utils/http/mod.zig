@@ -1,9 +1,21 @@
 //! HTTP utility functions for method parsing, status codes, and response handling.
 //!
 //! Provides helpers for working with HTTP including method parsing, status code
-//! text lookups, and success status detection.
+//! text lookups, success status detection, and error handling.
 
 const std = @import("std");
+
+pub const HttpError = error{
+    InvalidUrl,
+    InvalidRequest,
+    RequestFailed,
+    ConnectionFailed,
+    ResponseTooLarge,
+    Timeout,
+    ReadFailed,
+    InvalidResponse,
+    RedirectExceeded,
+};
 
 pub const Method = enum {
     get,
@@ -31,6 +43,9 @@ pub const Response = struct {
 };
 
 pub fn parseMethod(text: []const u8) ?Method {
+    comptime std.debug.assert(@typeInfo(Method) == .Enum);
+    comptime std.debug.assert(std.enums.values(Method).len == 7); // All HTTP methods covered
+
     if (std.ascii.eqlIgnoreCase(text, "GET")) return .get;
     if (std.ascii.eqlIgnoreCase(text, "POST")) return .post;
     if (std.ascii.eqlIgnoreCase(text, "PUT")) return .put;

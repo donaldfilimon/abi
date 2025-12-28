@@ -15,7 +15,7 @@ Modern Zig framework for modular AI services, vector search, and systems tooling
 
 ## Documentation
 
-- Docs folder (overview + guides): https://github.com/donaldfilimon/abi/tree/main/docs
+- Documentation Index: [docs/intro.md](docs/intro.md)
 - Concise API summary: [API_REFERENCE.md](API_REFERENCE.md)
 
 ## Requirements
@@ -336,5 +336,7 @@ zig build benchmark
 ## Contributing
 
 See `CONTRIBUTING.md` for development workflow and style guidelines.
+
+```
 
 ```

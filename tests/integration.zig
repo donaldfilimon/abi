@@ -55,5 +55,26 @@ fn testDatabaseOperations(allocator: std.mem.Allocator) !void {
 
 fn testVectorOperations() !void {
     std.debug.print("Test: Vector operations\n", .{});
-    std.debug.print("  ✅ Vector operations passed (skipped - see TODO)\n", .{});
+    const simd = abi.simd;
+
+    var a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    var b = [_]f32{ 2.0, 3.0, 4.0, 5.0 };
+    var result: [4]f32 = undefined;
+
+    simd.vectorAdd(&a, &b, &result);
+    try std.testing.expectEqual(@as(f32, 3.0), result[0]);
+    try std.testing.expectEqual(@as(f32, 5.0), result[1]);
+    try std.testing.expectEqual(@as(f32, 7.0), result[2]);
+    try std.testing.expectEqual(@as(f32, 9.0), result[3]);
+
+    const dot = simd.vectorDot(&a, &b);
+    try std.testing.expectApproxEqAbs(@as(f32, 40.0), dot, 1e-6);
+
+    const norm_a = simd.vectorL2Norm(&a);
+    try std.testing.expectApproxEqAbs(@as(f32, 5.4772), norm_a, 1e-4);
+
+    const similarity = simd.cosineSimilarity(&a, &a);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), similarity, 1e-6);
+
+    std.debug.print("  ✅ Vector operations passed\n", .{});
 }

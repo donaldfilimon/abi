@@ -19,13 +19,29 @@ pub const WebError = error{
 };
 
 var initialized: bool = false;
+var client_mutex = std.Thread.Mutex{};
+var default_client: ?HttpClient = null;
 
-pub fn init(_: std.mem.Allocator) !void {
+pub fn init(allocator: std.mem.Allocator) !void {
     if (!isEnabled()) return WebError.WebDisabled;
+
+    client_mutex.lock();
+    defer client_mutex.unlock();
+
+    if (default_client == null) {
+        default_client = try HttpClient.init(allocator);
+    }
     initialized = true;
 }
 
 pub fn deinit() void {
+    client_mutex.lock();
+    defer client_mutex.unlock();
+
+    if (default_client) |*http_client| {
+        http_client.deinit();
+        default_client = null;
+    }
     initialized = false;
 }
 
@@ -38,6 +54,13 @@ pub fn isInitialized() bool {
 }
 
 pub fn get(allocator: std.mem.Allocator, url: []const u8) !Response {
+    client_mutex.lock();
+    defer client_mutex.unlock();
+
+    if (default_client) |*http_client| {
+        return http_client.get(url);
+    }
+
     var client_instance = try HttpClient.init(allocator);
     defer client_instance.deinit();
     return client_instance.get(url);
@@ -48,12 +71,26 @@ pub fn getWithOptions(
     url: []const u8,
     options: RequestOptions,
 ) !Response {
+    client_mutex.lock();
+    defer client_mutex.unlock();
+
+    if (default_client) |*http_client| {
+        return http_client.getWithOptions(url, options);
+    }
+
     var client_instance = try HttpClient.init(allocator);
     defer client_instance.deinit();
     return client_instance.getWithOptions(url, options);
 }
 
 pub fn postJson(allocator: std.mem.Allocator, url: []const u8, body: []const u8) !Response {
+    client_mutex.lock();
+    defer client_mutex.unlock();
+
+    if (default_client) |*http_client| {
+        return http_client.postJson(url, body);
+    }
+
     var client_instance = try HttpClient.init(allocator);
     defer client_instance.deinit();
     return client_instance.postJson(url, body);
@@ -65,6 +102,17 @@ pub fn postJsonWithOptions(
     body: []const u8,
     options: RequestOptions,
 ) !Response {
+    client_mutex.lock();
+    defer client_mutex.unlock();
+
+    if (default_client) |*http_client| {
+        var request_options = options;
+        if (request_options.content_type == null) {
+            request_options.content_type = "application/json";
+        }
+        return http_client.requestWithOptions(.POST, url, body, request_options);
+    }
+
     var client_instance = try HttpClient.init(allocator);
     defer client_instance.deinit();
     var request_options = options;
@@ -83,7 +131,7 @@ pub fn parseJsonValue(allocator: std.mem.Allocator, response: Response) !ParsedJ
 }
 
 pub fn isSuccessStatus(status: u16) bool {
-    return status >= 200 and status < 300;
+    return http.isSuccess(status);
 }
 
 pub fn forecast(allocator: std.mem.Allocator, location: []const u8) !Response {

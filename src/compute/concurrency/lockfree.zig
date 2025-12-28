@@ -1,4 +1,5 @@
-//! Lock-free containers used by compute concurrency helpers.
+//! Concurrent containers for compute concurrency helpers.
+//! Includes lock-free structures and sharded maps for high-performance scenarios.
 const std = @import("std");
 
 pub fn LockFreeQueue(comptime T: type, comptime capacity: usize) type {
@@ -103,7 +104,7 @@ pub fn LockFreeStack(comptime T: type) type {
     };
 }
 
-pub fn LockFreeMap(
+pub fn ShardedMap(
     comptime K: type,
     comptime V: type,
     comptime shard_count: usize,
@@ -207,8 +208,8 @@ test "lock-free stack is LIFO" {
     try std.testing.expectEqual(@as(?u32, null), stack.pop());
 }
 
-test "lock-free map stores entries" {
-    var map = LockFreeMap(u32, u32, 4).init(std.testing.allocator);
+test "sharded map stores entries" {
+    var map = ShardedMap(u32, u32, 4).init(std.testing.allocator);
     defer map.deinit();
 
     try map.put(1, 10);
@@ -219,4 +220,45 @@ test "lock-free map stores entries" {
     try std.testing.expect(map.remove(1));
     try std.testing.expect(map.get(1) == null);
     try std.testing.expectEqual(@as(usize, 1), map.count());
+}
+
+test "concurrent sharded map stress test" {
+    const thread_count = 4;
+    const ops_per_thread = 100;
+
+    var map = ShardedMap(u32, u32, 8).init(std.testing.allocator);
+    defer map.deinit();
+
+    var threads: [thread_count]std.Thread = undefined;
+    var successes: [thread_count]std.atomic.Value(usize) = undefined;
+
+    for (&threads, 0..) |*t, thread_id| {
+        successes[thread_id] = std.atomic.Value(usize).init(0);
+        t.* = try std.Thread.spawn(.{}, struct {
+            fn worker(map_ptr: *ShardedMap(u32, u32, 8), tid: usize, success_ptr: *std.atomic.Value(usize)) !void {
+                var idx: u32 = 0;
+                while (idx < ops_per_thread) : (idx += 1) {
+                    const key = tid * 1000 + idx;
+                    try map_ptr.put(key, key * 2);
+                    success_ptr.fetchAdd(1, .monotonic);
+
+                    const val = map_ptr.get(key);
+                    try std.testing.expect(val != null);
+                    try std.testing.expectEqual(key * 2, val.?);
+                }
+            }
+        }.worker, .{ &map, thread_id, &successes[thread_id] });
+    }
+
+    for (&threads) |*t| {
+        t.join();
+    }
+
+    var total_ops: usize = 0;
+    for (&successes) |*s| {
+        total_ops += s.load(.monotonic);
+    }
+
+    try std.testing.expectEqual(thread_count * ops_per_thread, total_ops);
+    try std.testing.expectEqual(thread_count * ops_per_thread, map.count());
 }

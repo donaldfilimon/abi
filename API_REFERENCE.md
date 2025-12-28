@@ -1,5 +1,7 @@
 # API Reference (Concise)
 
+> For detailed usage guides, see the [Documentation Index](docs/intro.md).
+
 This is a high-level summary of the public ABI API surface. See the source for
 implementation details.
 
@@ -35,6 +37,7 @@ implementation details.
 - `abi.wdbx.getStats` / `optimize` / `backup` / `restore`
 
 **Security Note for backup/restore**:
+
 - Backup and restore operations are restricted to the `backups/` directory only
 - Filenames must not contain path traversal sequences (`..`), absolute paths, or Windows drive letters
 - Invalid filenames will return `PathValidationError`
@@ -48,6 +51,7 @@ implementation details.
 - `abi.compute.runtime.registerWorkloadType(name, vtable)`
 
 **Timeout Semantics**:
+
 - `timeout_ms=0`: Immediately returns `EngineError.Timeout` if result not ready
 - `timeout_ms>0`: Waits for the specified timeout (in milliseconds) before returning `EngineError.Timeout`
 - `timeout_ms=null`: Waits indefinitely until result is ready

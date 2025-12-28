@@ -126,6 +126,10 @@ pub const DistributedComputeEngine = struct {
         return id;
     }
 
+    /// Wait for a task result to become available.
+    /// Returns immediately if result is ready, or blocks up to timeout_ms.
+    /// For ResultType = []const u8, the caller receives ownership of the slice
+    /// and must free it using the allocator passed to submit_task.
     pub fn wait_for_result(
         self: *DistributedComputeEngine,
         comptime ResultType: type,
@@ -144,7 +148,6 @@ pub const DistributedComputeEngine = struct {
             }
 
             if (timeout_ms == 0) {
-                // For timeout_ms=0, check once and return Timeout if not ready
                 return EngineError.Timeout;
             }
             if (deadline_ms) |deadline| {
@@ -220,7 +223,8 @@ pub const DistributedComputeEngine = struct {
                 self.allocator.free(blob.bytes);
                 return EngineError.UnsupportedResultType;
             }
-            // Transfer ownership of the slice - caller is responsible for freeing
+            // Ownership transfer: The returned slice must be freed by the caller
+            // using the same allocator that was used to submit the task.
             return @as(ResultType, blob.bytes);
         }
 

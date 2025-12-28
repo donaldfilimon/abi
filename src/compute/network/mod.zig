@@ -204,6 +204,7 @@ pub fn deserializeTask(
     data: []const u8,
 ) !DeserializedTask {
     if (data.len < @sizeOf(TaskSerializationHeader)) {
+        std.log.err("Invalid task data: expected at least {d} bytes, got {d}", .{ @sizeOf(TaskSerializationHeader), data.len });
         return error.InvalidData;
     }
 
@@ -216,6 +217,7 @@ pub fn deserializeTask(
     var offset: usize = @sizeOf(TaskSerializationHeader);
 
     if (offset + header.payload_type_len > data.len) {
+        std.log.err("Invalid task data: payload type length {d} exceeds available data", .{header.payload_type_len});
         return error.InvalidData;
     }
     const payload_type = try allocator.dupe(
@@ -226,6 +228,7 @@ pub fn deserializeTask(
     offset += header.payload_type_len;
 
     if (offset + header.payload_data_len > data.len) {
+        std.log.err("Invalid task data: payload data length {d} exceeds available data", .{header.payload_data_len});
         return error.InvalidData;
     }
     const user_data = try allocator.dupe(
@@ -317,6 +320,7 @@ pub fn deserializeResult(
     data: []const u8,
 ) !DeserializedResult {
     if (data.len < @sizeOf(ResultSerializationHeader)) {
+        std.log.err("Invalid result data: expected at least {d} bytes, got {d}", .{ @sizeOf(ResultSerializationHeader), data.len });
         return error.InvalidData;
     }
 
@@ -331,6 +335,7 @@ pub fn deserializeResult(
     var error_message: ?[]const u8 = null;
     if (header.error_message_len > 0) {
         if (offset + header.error_message_len > data.len) {
+            std.log.err("Invalid result data: error message length {d} exceeds available data", .{header.error_message_len});
             return error.InvalidData;
         }
         error_message = try allocator.dupe(
@@ -342,6 +347,7 @@ pub fn deserializeResult(
     }
 
     if (offset + header.payload_data_len > data.len) {
+        std.log.err("Invalid result data: payload data length {d} exceeds available data", .{header.payload_data_len});
         return error.InvalidData;
     }
     const payload_data = try allocator.dupe(

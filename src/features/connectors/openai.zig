@@ -1,5 +1,6 @@
 const std = @import("std");
 const connectors = @import("mod.zig");
+const shared = @import("shared.zig");
 const async_http = @import("../../shared/utils/http/async_http.zig");
 const json_utils = @import("../../shared/utils/json/mod.zig");
 
@@ -23,10 +24,7 @@ pub const Config = struct {
     }
 };
 
-pub const Message = struct {
-    role: []const u8,
-    content: []const u8,
-};
+pub const Message = shared.ChatMessage;
 
 pub const ChatCompletionRequest = struct {
     model: []const u8,

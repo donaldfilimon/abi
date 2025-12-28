@@ -1,21 +1,27 @@
 # Quickstart
 
+> For comprehensive guides, see [docs/intro.md](docs/intro.md).
+
 ## Requirements
+
 - Zig 0.16.x
 
 ## Build and run the CLI
+
 ```bash
 zig build
 zig build run -- --help
 ```
 
 ## Run tests and benchmarks
+
 ```bash
 zig build test
 zig build benchmark
 ```
 
 ## Use the library
+
 ```zig
 const std = @import("std");
 const abi = @import("abi");
@@ -41,7 +47,9 @@ fn exampleTask(_: std.mem.Allocator) !u64 {
 ```
 
 ## Module map
+
 Primary modules live in the modern layout:
+
 - `src/core/mod.zig` for hardware helpers and cache-aligned buffers
 - `src/compute/runtime/engine.zig` for the runtime engine
 - `src/compute/runtime/workload.zig` for sample CPU workloads

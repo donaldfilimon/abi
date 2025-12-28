@@ -328,7 +328,7 @@ fn seedDatabase(handle: *unified.DatabaseHandle) !void {
     };
     var id: u64 = 1;
     for (samples) |vector| {
-        _ = unified.insertVector(handle, id, vector, null) catch {};
+        try unified.insertVector(handle, id, vector, null);
         id += 1;
     }
 }

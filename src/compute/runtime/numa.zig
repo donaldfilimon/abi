@@ -107,14 +107,20 @@ pub const AffinityMask = struct {
     }
 
     pub fn set(self: *AffinityMask, cpu_id: usize) !void {
-        if (cpu_id >= self.size) return error.InvalidCpuId;
+        if (cpu_id >= self.size) {
+            std.log.err("CPU ID {d} exceeds maximum CPU count {d}", .{ cpu_id, self.size });
+            return error.InvalidCpuId;
+        }
         const byte_index = cpu_id / 8;
         const bit_index = cpu_id % 8;
         self.mask[byte_index] |= @as(u8, 1) << bit_index;
     }
 
     pub fn clear(self: *AffinityMask, cpu_id: usize) !void {
-        if (cpu_id >= self.size) return error.InvalidCpuId;
+        if (cpu_id >= self.size) {
+            std.log.err("CPU ID {d} exceeds maximum CPU count {d}", .{ cpu_id, self.size });
+            return error.InvalidCpuId;
+        }
         const byte_index = cpu_id / 8;
         const bit_index = cpu_id % 8;
         self.mask[byte_index] &= ~(@as(u8, 1) << bit_index);
@@ -134,6 +140,7 @@ pub fn setThreadAffinity(cpu_id: usize) !void {
     } else if (comptime builtin.os.tag == .windows) {
         return setWindowsThreadAffinity(cpu_id);
     } else {
+        std.log.err("Thread affinity not supported on platform: {t}", .{builtin.os.tag});
         return error.UnsupportedPlatform;
     }
 }
@@ -144,6 +151,7 @@ pub fn setThreadAffinityMask(mask: AffinityMask) !void {
     } else if (comptime builtin.os.tag == .windows) {
         return setWindowsThreadAffinityMask(mask);
     } else {
+        std.log.err("Thread affinity mask not supported on platform: {t}", .{builtin.os.tag});
         return error.UnsupportedPlatform;
     }
 }
@@ -154,6 +162,7 @@ pub fn getCurrentCpuId() !usize {
     } else if (comptime builtin.os.tag == .windows) {
         return getWindowsCurrentCpu();
     } else {
+        std.log.err("Getting current CPU ID not supported on platform: {t}", .{builtin.os.tag});
         return error.UnsupportedPlatform;
     }
 }

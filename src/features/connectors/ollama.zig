@@ -1,5 +1,6 @@
 const std = @import("std");
 const connectors = @import("mod.zig");
+const shared = @import("shared.zig");
 const async_http = @import("../../shared/utils/http/async_http.zig");
 const json_utils = @import("../../shared/utils/json/mod.zig");
 
@@ -14,10 +15,7 @@ pub const Config = struct {
     }
 };
 
-pub const Message = struct {
-    role: []const u8,
-    content: []const u8,
-};
+pub const Message = shared.ChatMessage;
 
 pub const GenerateRequest = struct {
     model: []const u8,
@@ -44,12 +42,28 @@ pub const GenerateResponse = struct {
     response: []const u8,
     done: bool,
     context: ?[]u64 = null,
+
+    pub fn deinit(self: *GenerateResponse, allocator: std.mem.Allocator) void {
+        allocator.free(self.model);
+        allocator.free(self.response);
+        if (self.context) |ctx| {
+            allocator.free(ctx);
+        }
+        self.* = undefined;
+    }
 };
 
 pub const ChatResponse = struct {
     model: []const u8,
     message: Message,
     done: bool,
+
+    pub fn deinit(self: *ChatResponse, allocator: std.mem.Allocator) void {
+        allocator.free(self.model);
+        allocator.free(self.message.role);
+        allocator.free(self.message.content);
+        self.* = undefined;
+    }
 };
 
 pub const Client = struct {

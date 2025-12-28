@@ -2,7 +2,10 @@
 
 Thanks for helping improve ABI. Keep changes focused, documented, and tested.
 
+> Please review the [Architecture Documentation](docs/intro.md) to understand the system design before contributing.
+
 ## Development Setup
+
 ```bash
 git clone <repo>
 cd abi
@@ -12,6 +15,7 @@ zig fmt .
 ```
 
 ## Workflow
+
 1. Create a focused branch.
 2. Make changes with clear scope.
 3. Run `zig build` and `zig build test`.
@@ -19,6 +23,7 @@ zig fmt .
 5. Update docs for public API changes.
 
 ## Style
+
 - 4 spaces, no tabs, lines under 100 chars.
 - PascalCase types, snake_case functions/variables.
 - Explicit imports only (no `usingnamespace`).
@@ -28,6 +33,7 @@ zig fmt .
 ## Zig 0.16 Conventions
 
 ### Memory Management
+
 - **Prefer `std.ArrayListUnmanaged` over `std.ArrayList`**
   - Unmanaged requires passing allocator explicitly to methods
   - Provides better control over memory ownership
@@ -46,6 +52,7 @@ list.deinit();
 ```
 
 ### Formatting and I/O
+
 - **Use modern format specifiers** instead of manual conversions:
   - `{t}` for enum and error values (replaces `@tagName()`)
   - `{B}` / `{Bi}` for byte sizes
@@ -61,11 +68,13 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});
 ```
 
 ### Error Handling
+
 - Use specific error sets instead of `anyerror`
 - Always document when errors can occur
 - Use `errdefer` for cleanup on error paths
 
 ### Testing
+
 - Unit coverage lives in library tests and `tests/mod.zig`.
 - New features must include tests or clear justification.
 - Run `zig build test --summary all` to see detailed results.

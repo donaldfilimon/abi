@@ -6,6 +6,7 @@ const fs = @import("../../shared/utils/fs/mod.zig");
 pub const DatabaseError = error{
     DuplicateId,
     VectorNotFound,
+    InvalidDimension,
 };
 
 pub const VectorRecord = struct {
@@ -77,6 +78,12 @@ pub const Database = struct {
 
     pub fn insert(self: *Database, id: u64, vector: []const f32, metadata: ?[]const u8) !void {
         if (self.findIndex(id) != null) return DatabaseError.DuplicateId;
+
+        // Validate vector dimensions against existing records
+        if (self.records.items.len > 0 and vector.len != self.records.items[0].vector.len) {
+            return DatabaseError.InvalidDimension;
+        }
+
         const vector_copy = try self.cloneVector(vector);
         errdefer self.allocator.free(vector_copy);
         const metadata_copy = if (metadata) |meta|
@@ -138,12 +145,32 @@ pub const Database = struct {
         query: []const f32,
         top_k: usize,
     ) ![]SearchResult {
-        var results = std.ArrayListUnmanaged(SearchResult).empty;
+        // Pre-allocate capacity to avoid individual allocations in the loop
+        const capacity = @min(self.records.items.len, top_k * 2); // Heuristic: 2x top_k for filtering
+        var results = try std.ArrayListUnmanaged(SearchResult).initCapacity(allocator, capacity);
         errdefer results.deinit(allocator);
+
+        // Collect vectors that match the query dimensions for batch processing
+        var valid_vectors = std.ArrayListUnmanaged([]const f32).empty;
+        var valid_ids = std.ArrayListUnmanaged(u64).empty;
+        defer valid_vectors.deinit(allocator);
+        defer valid_ids.deinit(allocator);
+
         for (self.records.items) |record| {
-            if (record.vector.len != query.len) continue;
-            const score = simd.cosineSimilarity(query, record.vector);
-            try results.append(allocator, .{ .id = record.id, .score = score });
+            if (record.vector.len == query.len) {
+                try valid_vectors.append(allocator, record.vector);
+                try valid_ids.append(allocator, record.id);
+            }
+        }
+
+        // Use batch cosine similarity for better performance
+        const scores = try allocator.alloc(f32, valid_vectors.items.len);
+        defer allocator.free(scores);
+        simd.batchCosineSimilarity(query, valid_vectors.items, scores);
+
+        // Create search results
+        for (valid_ids.items, scores) |id, score| {
+            try results.append(allocator, .{ .id = id, .score = score });
         }
         sortResults(results.items);
         if (top_k < results.items.len) {

@@ -1,11 +1,7 @@
 const std = @import("std");
 
-pub const HttpError = error{
-    InvalidUrl,
-    InvalidRequest,
-    ResponseTooLarge,
-    ReadFailed,
-};
+const http_utils = @import("../../shared/utils/http/mod.zig");
+pub const HttpError = http_utils.HttpError;
 
 pub const Response = struct {
     status: u16,
@@ -27,7 +23,7 @@ pub const HttpClient = struct {
     client: std.http.Client,
 
     pub fn init(allocator: std.mem.Allocator) !HttpClient {
-        const io_backend = std.Io.Threaded.init(allocator);
+        var io_backend = std.Io.Threaded.init(allocator);
         const client = std.http.Client{
             .allocator = allocator,
             .io = io_backend.io(),
@@ -66,7 +62,7 @@ pub const HttpClient = struct {
         body: ?[]const u8,
         options: RequestOptions,
     ) !Response {
-        const uri = std.Uri.parse(url) catch return HttpError.InvalidUrl;
+        const uri = std.Uri.parse(url) catch return error.InvalidUrl;
         var request_options: std.http.Client.RequestOptions = .{};
         request_options.headers.user_agent = .{ .override = options.user_agent };
         request_options.redirect_behavior = if (options.follow_redirects)
@@ -83,7 +79,7 @@ pub const HttpClient = struct {
         defer req.deinit();
 
         if (body) |payload| {
-            if (!method.requestHasBody()) return HttpError.InvalidRequest;
+            if (!method.requestHasBody()) return error.InvalidRequest;
             var send_buffer: [4096]u8 = undefined;
             var writer = try req.sendBody(&send_buffer);
             try writer.writeAll(payload);
@@ -124,9 +120,9 @@ fn readAllAlloc(
     var buffer: [4096]u8 = undefined;
     while (true) {
         const n = reader.readSliceShort(buffer[0..]) catch
-            return HttpError.ReadFailed;
+            return error.ReadFailed;
         if (n == 0) break;
-        if (list.items.len + n > max_bytes) return HttpError.ResponseTooLarge;
+        if (list.items.len + n > max_bytes) return error.ResponseTooLarge;
         try list.appendSlice(allocator, buffer[0..n]);
         if (n < buffer.len) break;
     }

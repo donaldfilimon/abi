@@ -14,6 +14,8 @@ const BuildOptions = struct {
     gpu_opengl: bool,
     gpu_opengles: bool,
     gpu_webgl2: bool,
+    cache_dir: []const u8,
+    global_cache_dir: ?[]const u8,
 };
 
 const Defaults = struct {
@@ -45,6 +47,14 @@ fn readBuildOptions(b: *std.Build) BuildOptions {
         b.option(bool, "enable-profiling", "Enable profiling and metrics") orelse
         Defaults.enable_profiling;
 
+    const cache_dir =
+        b.option([]const u8, "cache-dir", "Directory for build cache") orelse
+        ".zig-cache";
+
+    const global_cache_dir =
+        b.option([]const u8, "global-cache-dir", "Directory for global build cache") orelse
+        null;
+
     const gpu_cuda = b.option(bool, "gpu-cuda", "Enable CUDA GPU backend") orelse enable_gpu;
     const gpu_vulkan = b.option(bool, "gpu-vulkan", "Enable Vulkan GPU backend") orelse enable_gpu;
     const gpu_metal = b.option(bool, "gpu-metal", "Enable Metal GPU backend") orelse enable_gpu;
@@ -68,6 +78,8 @@ fn readBuildOptions(b: *std.Build) BuildOptions {
         .gpu_opengl = gpu_opengl,
         .gpu_opengles = gpu_opengles,
         .gpu_webgl2 = gpu_webgl2,
+        .cache_dir = cache_dir,
+        .global_cache_dir = global_cache_dir,
     };
 }
 

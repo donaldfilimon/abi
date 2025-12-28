@@ -80,6 +80,7 @@ pub const NetworkState = struct {
     }
 };
 
+var state_mutex = std.Thread.Mutex{};
 var default_state: ?NetworkState = null;
 var initialized: bool = false;
 
@@ -88,6 +89,8 @@ pub fn isEnabled() bool {
 }
 
 pub fn isInitialized() bool {
+    state_mutex.lock();
+    defer state_mutex.unlock();
     return initialized;
 }
 
@@ -97,6 +100,10 @@ pub fn init(allocator: std.mem.Allocator) !void {
 
 pub fn initWithConfig(allocator: std.mem.Allocator, config: NetworkConfig) !void {
     if (!isEnabled()) return NetworkError.NetworkDisabled;
+
+    state_mutex.lock();
+    defer state_mutex.unlock();
+
     if (default_state == null) {
         default_state = try NetworkState.init(allocator, config);
     }
@@ -104,6 +111,9 @@ pub fn initWithConfig(allocator: std.mem.Allocator, config: NetworkConfig) !void
 }
 
 pub fn deinit() void {
+    state_mutex.lock();
+    defer state_mutex.unlock();
+
     if (default_state) |*state| {
         state.deinit();
         default_state = null;
@@ -112,6 +122,9 @@ pub fn deinit() void {
 }
 
 pub fn defaultRegistry() NetworkError!*NodeRegistry {
+    state_mutex.lock();
+    defer state_mutex.unlock();
+
     if (default_state) |*state| {
         return &state.registry;
     }
@@ -119,7 +132,17 @@ pub fn defaultRegistry() NetworkError!*NodeRegistry {
 }
 
 pub fn defaultConfig() ?NetworkConfig {
-    return if (default_state) |state| state.config else null;
+    state_mutex.lock();
+    defer state_mutex.unlock();
+
+    if (default_state) |state| {
+        return .{
+            .cluster_id = state.config.cluster_id,
+            .heartbeat_timeout_ms = state.config.heartbeat_timeout_ms,
+            .max_nodes = state.config.max_nodes,
+        };
+    }
+    return null;
 }
 
 test "network state tracks nodes" {

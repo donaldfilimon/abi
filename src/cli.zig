@@ -1,4 +1,41 @@
-//! ABI CLI implementation shared by tools/cli and the legacy fallback.
+//! ABI Framework Command-Line Interface
+//!
+//! Provides a comprehensive CLI for interacting with all ABI framework features.
+//! The CLI supports commands for database operations, GPU management, AI agent
+//! interaction, network configuration, and system information.
+//!
+//! ## Usage
+//! ```bash
+//! abi <command> [options]
+//! ```
+//!
+//! ## Commands
+//! - `db` - Database operations (add, query, stats, optimize, backup)
+//! - `agent` - Run AI agent (interactive or one-shot)
+//! - `gpu` - GPU commands (backends, devices, summary, default)
+//! - `network` - Manage network registry (list, register, status)
+//! - `system-info` - Show system and framework status
+//! - `version` - Show framework version
+//! - `help` - Show help message
+//!
+//! ## Subcommands
+//! Each command has its own help system. Run:
+//! - `abi db help` for database commands
+//! - `abi gpu help` for GPU commands
+//! - `abi network help` for network commands
+//!
+//! ## Example
+//! ```bash
+//! # Initialize database and add a vector
+//! abi db init
+//! abi db add [1.0, 2.0, 3.0]
+//!
+//! # Run AI agent interactively
+//! abi agent --interactive
+//!
+//! # Check GPU availability
+//! abi gpu backends
+//! ```
 const std = @import("std");
 const abi = @import("abi");
 
@@ -604,14 +641,16 @@ fn runSimdDemo(allocator: std.mem.Allocator) !void {
         return;
     }
 
-    // Create test data
+    // Create test data - single allocation for better cache locality
     const size = 1000;
-    var a = try allocator.alloc(f32, size);
-    defer allocator.free(a);
-    var b = try allocator.alloc(f32, size);
-    defer allocator.free(b);
-    var result = try allocator.alloc(f32, size);
-    defer allocator.free(result);
+    const total_size = size * 3; // a, b, and result arrays
+    var data = try allocator.alloc(f32, total_size);
+    defer allocator.free(data);
+
+    // Slice the single allocation into three arrays
+    var a = data[0..size];
+    var b = data[size .. size * 2];
+    var result = data[size * 2 .. total_size];
 
     // Initialize test vectors
     var i: usize = 0;
@@ -679,4 +718,30 @@ fn runSimdDemo(allocator: std.mem.Allocator) !void {
     std.debug.print("  Dot Product: {d:.6}\n", .{dot_result});
     std.debug.print("  L2 Norm: {d:.6}\n", .{norm_result});
     std.debug.print("  Cosine Similarity: {d:.6}\n", .{cos_result});
+}
+
+test "matchesAny helper function" {
+    try std.testing.expect(matchesAny("help", &.{ "help", "--help", "-h" }));
+    try std.testing.expect(matchesAny("--help", &.{ "help", "--help", "-h" }));
+    try std.testing.expect(matchesAny("-h", &.{ "help", "--help", "-h" }));
+    try std.testing.expect(!matchesAny("invalid", &.{ "help", "--help", "-h" }));
+    try std.testing.expect(matchesAny("test", &.{"test"}));
+    try std.testing.expect(!matchesAny("test", &.{"other"}));
+}
+
+test "parseNodeStatus helper function" {
+    try std.testing.expect(parseNodeStatus("healthy") == .healthy);
+    try std.testing.expect(parseNodeStatus("Healthy") == .healthy);
+    try std.testing.expect(parseNodeStatus("HEALTHY") == .healthy);
+    try std.testing.expect(parseNodeStatus("degraded") == .degraded);
+    try std.testing.expect(parseNodeStatus("Degraded") == .degraded);
+    try std.testing.expect(parseNodeStatus("offline") == .offline);
+    try std.testing.expect(parseNodeStatus("Offline") == .offline);
+    try std.testing.expect(parseNodeStatus("invalid") == null);
+    try std.testing.expect(parseNodeStatus("") == null);
+}
+
+test "boolLabel helper function" {
+    try std.testing.expectEqualStrings("yes", boolLabel(true));
+    try std.testing.expectEqualStrings("no", boolLabel(false));
 }
