@@ -5,49 +5,61 @@ This directory contains example programs demonstrating various features of the A
 ## Examples
 
 ### hello.zig
+
 Basic framework initialization and version check.
 
 **Run:**
+
 ```bash
 zig run examples/hello.zig
 ```
 
 ### database.zig
+
 Vector database operations including insert, search, and statistics.
 
 **Run:**
+
 ```bash
 zig run examples/database.zig
 ```
 
 ### agent.zig
+
 AI agent usage with conversation processing.
 
 **Run:**
+
 ```bash
 zig run examples/agent.zig -Denable-ai=true
 ```
 
 ### compute.zig
+
 Compute engine task execution and result handling.
 
 **Run:**
+
 ```bash
 zig run examples/compute.zig
 ```
 
 ### gpu.zig
+
 GPU acceleration and SIMD operations.
 
 **Run:**
+
 ```bash
 zig run examples/gpu.zig -Denable-gpu=true
 ```
 
 ### network.zig
+
 Network cluster setup and node management.
 
 **Run:**
+
 ```bash
 zig run examples/network.zig -Denable-network=true
 ```
@@ -65,6 +77,7 @@ zig run examples/hello.zig
 ```
 
 With feature flags:
+
 ```bash
 zig run examples/agent.zig -Denable-ai=true -Denable-gpu=true
 ```
@@ -83,6 +96,7 @@ zig run examples/agent.zig -Denable-ai=true -Denable-gpu=true
 All examples follow these patterns:
 
 1. **Allocator Setup:**
+
    ```zig
    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
    defer _ = gpa.deinit();
@@ -90,12 +104,14 @@ All examples follow these patterns:
    ```
 
 2. **Framework Initialization:**
+
    ```zig
    var framework = try abi.init(allocator, abi.FrameworkOptions{});
    defer abi.shutdown(&framework);
    ```
 
 3. **Error Handling:**
+
    ```zig
    pub fn main() !void {
        try someOperation();
@@ -111,4 +127,4 @@ All examples follow these patterns:
 
 ## Need Help?
 
-See the main README.md for complete documentation or check API_REFERENCE.md for detailed API information.
+See the [Documentation Index](docs/intro.md) for comprehensive guides, or check API_REFERENCE.md for detailed API information.

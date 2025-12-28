@@ -2,7 +2,10 @@
 
 This document provides comprehensive guidelines for AI coding agents working on the ABI framework repository.
 
+> For deep architectural context, please refer to the [Architecture Documentation](docs/intro.md).
+
 ## Build and Test Commands
+
 ```bash
 # Build entire project
 zig build
@@ -14,6 +17,7 @@ zig build test --summary all
 ## Code Style Guidelines
 
 ### File Structure
+
 - **Module docs**: Use `//!` at file top for module-level documentation
 - **Function docs**: Use `///` for all public functions
 - **Test placement**: Tests go at end of file or in separate `*_test.zig` files
@@ -21,6 +25,7 @@ zig build test --summary all
 - **No usingnamespace**: Always use qualified imports (`std.mem`, not `mem`)
 
 ### Naming Conventions
+
 - **Types**: `PascalCase` (structs, enums, unions)
 - **Functions**: `snake_case`
 - **Variables**: `snake_case`
@@ -29,17 +34,20 @@ zig build test --summary all
 - **Modules**: `snake_case` with `.zig` extension
 
 ### Formatting Rules
+
 - **Indentation**: 4 spaces
 - **Line length**: 100 characters maximum
 - **Braces**: Same line for structs/functions, next line for control flow
 - **Spacing**: Space around operators, no space in function calls
 
 ### Import Guidelines
+
 - No `usingnamespace` allowed - always use qualified imports
 - No circular imports - avoid modules importing each other
 - Prefer `@import` over `@cImport`
 
 ### Memory Management Patterns
+
 - **Function parameters**: Always take `std.mem.Allocator` as first parameter for allocation functions
 - **Ownership transfer**: Document who owns allocated memory (caller or callee)
 - **Cleanup patterns**: Use `errdefer` for cleanup on error paths
@@ -47,23 +55,27 @@ zig build test --summary all
 - **Object pools**: Consider for frequently allocated objects
 
 ### Error Handling Guidelines
+
 - **Specific errors**: Use descriptive error names, avoid `error.Generic` or `error.Failed`
 - **Error propagation**: Use `try` for expected errors, handle appropriately
 - **Error context**: Add contextual information to errors for debugging
 - **No silent failures**: Use logging for non-critical errors
 
 ### Testing Guidelines
+
 - **Test allocator**: Always use `std.testing.allocator` for tests
 - **Resource cleanup**: Use `defer` for cleanup in tests
 - **Error testing**: Use `std.testing.expectError` for error cases
 
 ### Performance Considerations
+
 - **SIMD usage**: Use vectorized operations where possible
 - **Cache-friendly designs**: Consider cache locality for hot paths
 - **Minimal allocations**: Avoid unnecessary allocations in loops
 - **Zero-copy**: Prefer views over copies where possible
 
 ### Zig 0.16 Specific Guidelines
+
 - **Use Zig 0.16 features** where beneficial
 - **Comptime checks**: Add compile-time assertions for type safety
 - **Packed structs**: Use for binary serialization when appropriate
@@ -74,6 +86,7 @@ zig build test --summary all
 ## Module Organization
 
 ### Import Hierarchy
+
 ```
 src/
 ├── abi.zig (main API surface)
@@ -86,6 +99,7 @@ src/
 ```
 
 ### Feature Flags
+
 - **`enable-gpu`**: Enable/disable GPU support
 - **`enable-ai`**: Enable/disable AI features
 - **`enable-web`**: Enable/disable web features
@@ -96,6 +110,7 @@ src/
 ### Module Documentation
 
 Each module should have:
+
 - Module-level `//!` doc explaining purpose and usage
 - Public function documentation with `///`
 - Examples for non-trivial APIs
@@ -104,6 +119,7 @@ Each module should have:
 ### Common Patterns
 
 #### Serialization Pattern
+
 ```zig
 // Binary cursor for reading
 var cursor = try SerializationCursor.init(data);
@@ -113,6 +129,7 @@ const slice = try cursor.readSlice();
 ```
 
 #### Error Handling Pattern
+
 ```zig
 pub fn processFile(path: []const u8) !void {
     const file = try std.fs.cwd().openFile(path, .{});
@@ -122,6 +139,7 @@ pub fn processFile(path: []const u8) !void {
 ```
 
 #### Memory Allocation Pattern
+
 ```zig
 pub fn createBuffer(allocator: std.mem.Allocator, size: usize) ![]u8 {
     return try allocator.alloc(u8, size);
@@ -131,6 +149,7 @@ pub fn createBuffer(allocator: std.mem.Allocator, size: usize) ![]u8 {
 ## Conventions
 
 ### Type Safety
+
 - Use `comptime` assertions for compile-time checks
 - Prefer explicit `@intCast` over implicit conversions
 - Add unsigned integer checks to `readInt()` and `appendInt()`
@@ -138,6 +157,7 @@ pub fn createBuffer(allocator: std.mem.Allocator, size: usize) ![]u8 {
 ### Documentation
 
 Add `@param` and `@return` documentation for functions:
+
 ```zig
 /// Process request with given parameters.
 /// @param allocator Memory allocator for allocations
@@ -149,6 +169,7 @@ pub fn processRequest(allocator: std.mem.Allocator, request: Request) !Result;
 ### Build Integration
 
 Add feature modules to `build.zig`:
+
 ```zig
 if (base_options.enable_gpu) {
     const gpu_module = b.createModule(.{ .root_source_file = "src/compute/gpu/mod.zig" });
@@ -159,7 +180,9 @@ if (base_options.enable_gpu) {
 ## Testing
 
 ### Property-Based Testing
+
 Use property testing framework in `tests/property_tests.zig` for randomized testing:
+
 ```zig
 try property_tests.checkProperty(allocator, myPropertyFunction, config, "my property description");
 ```
