@@ -54,6 +54,11 @@ pub fn main() !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "simd")) {
+        try runSimdDemo(allocator);
+        return;
+    }
+
     std.debug.print("Unknown command: {s}\nUse 'help' for usage.\n", .{command});
     std.process.exit(1);
 }
@@ -588,4 +593,90 @@ fn printOptionalU32(value: ?u32) void {
     } else {
         std.debug.print("n/a", .{});
     }
+}
+
+fn runSimdDemo(allocator: std.mem.Allocator) !void {
+    const has_simd = abi.hasSimdSupport();
+    std.debug.print("SIMD Support: {s}\n", .{if (has_simd) "available" else "unavailable"});
+
+    if (!has_simd) {
+        std.debug.print("SIMD not available on this platform.\n", .{});
+        return;
+    }
+
+    // Create test data
+    const size = 1000;
+    var a = try allocator.alloc(f32, size);
+    defer allocator.free(a);
+    var b = try allocator.alloc(f32, size);
+    defer allocator.free(b);
+    var result = try allocator.alloc(f32, size);
+    defer allocator.free(result);
+
+    // Initialize test vectors
+    var i: usize = 0;
+    while (i < size) : (i += 1) {
+        a[i] = @floatFromInt(i);
+        b[i] = @floatFromInt(i * 2);
+    }
+
+    // Time SIMD operations
+    var timer = try std.time.Timer.start();
+    const start = timer.lap();
+
+    abi.simd.vectorAdd(a, b, result);
+
+    const end = timer.read();
+    const add_time = end - start;
+
+    // Verify results
+    i = 0;
+    while (i < size) : (i += 1) {
+        const expected = a[i] + b[i];
+        if (@abs(result[i] - expected) > 1e-6) {
+            std.debug.print("SIMD verification failed at index {d}\n", .{i});
+            return;
+        }
+    }
+
+    // Test dot product
+    const dot_start = timer.lap();
+    const dot_result = abi.simd.vectorDot(a, b);
+    const dot_end = timer.read();
+    const dot_time = dot_end - dot_start;
+
+    // Test L2 norm
+    const norm_start = timer.lap();
+    const norm_result = abi.simd.vectorL2Norm(a);
+    const norm_end = timer.read();
+    const norm_time = norm_end - norm_start;
+
+    // Test cosine similarity
+    const cos_start = timer.lap();
+    const cos_result = abi.simd.cosineSimilarity(a, b);
+    const cos_end = timer.read();
+    const cos_time = cos_end - cos_start;
+
+    std.debug.print("SIMD Operations Performance ({} elements):\n", .{size});
+    std.debug.print("  Vector Addition: {d} ns ({d:.2} ops/sec)\n", .{
+        add_time,
+        @as(f64, @floatFromInt(size)) / (@as(f64, @floatFromInt(add_time)) / std.time.ns_per_s),
+    });
+    std.debug.print("  Dot Product: {d} ns ({d:.2} ops/sec)\n", .{
+        dot_time,
+        @as(f64, @floatFromInt(size)) / (@as(f64, @floatFromInt(dot_time)) / std.time.ns_per_s),
+    });
+    std.debug.print("  L2 Norm: {d} ns ({d:.2} ops/sec)\n", .{
+        norm_time,
+        @as(f64, @floatFromInt(size)) / (@as(f64, @floatFromInt(norm_time)) / std.time.ns_per_s),
+    });
+    std.debug.print("  Cosine Similarity: {d} ns ({d:.2} ops/sec)\n", .{
+        cos_time,
+        @as(f64, @floatFromInt(size)) / (@as(f64, @floatFromInt(cos_time)) / std.time.ns_per_s),
+    });
+
+    std.debug.print("Results:\n", .{});
+    std.debug.print("  Dot Product: {d:.6}\n", .{dot_result});
+    std.debug.print("  L2 Norm: {d:.6}\n", .{norm_result});
+    std.debug.print("  Cosine Similarity: {d:.6}\n", .{cos_result});
 }

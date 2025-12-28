@@ -178,7 +178,7 @@ pub const TaskScheduler = struct {
         const task_id = self.next_task_id;
         self.next_task_id += 1;
 
-        const node_id_copy = try self.allocator.dupe(u8, node.?.*.id);
+        const node_id_copy = try self.allocator.dupe(u8, node.id);
         errdefer self.allocator.free(node_id_copy);
 
         const task = ScheduledTask{

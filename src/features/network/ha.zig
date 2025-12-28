@@ -101,7 +101,7 @@ pub const HealthCheck = struct {
         try self.evaluateClusterState();
     }
 
-    pub fn getHealthyNodes(self: *const HealthCheck) std.ArrayList([]const u8)!void {
+    pub fn getHealthyNodes(self: *const HealthCheck) !std.ArrayList([]const u8) {
         var list = std.ArrayList([]const u8).init(self.allocator);
         errdefer list.deinit();
 

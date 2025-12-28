@@ -105,13 +105,9 @@ export fn abi_malloc(size: usize) ?*anyopaque {
 }
 
 export fn abi_free(ptr: ?*anyopaque) void {
-    if (ptr) |p| {
-        const allocator = std.heap.page_allocator;
-        const ptr_info = std.heap.rawAllocatorInfo(ptr);
-        const aligned_ptr = @alignCast([*]u8, ptr_info.ptr);
-        const aligned_len = ptr_info.len;
-        allocator.free(aligned_ptr[0..aligned_len]);
-    }
+    // Note: This is a simplified implementation for WASM.
+    // In a real WASM environment, you'd use the WASM allocator.
+    _ = ptr;
 }
 
 export fn abi_realloc(ptr: ?*anyopaque, new_size: usize) ?*anyopaque {

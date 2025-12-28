@@ -151,7 +151,7 @@ pub const DistributedComputeEngine = struct {
 
     pub fn getCurrentNumaNode(self: *DistributedComputeEngine) ?*const numa.NumaNode {
         if (self.topology) |*topo| {
-            const cpu_id = numa.getCurrentCpu() catch return null;
+            const cpu_id = numa.getCurrentCpuId() catch return null;
             return topo.getNodeForCpu(cpu_id);
         }
         return null;

@@ -33,6 +33,13 @@ pub const observability = @import("shared/observability/mod.zig");
 pub const platform = @import("shared/platform/mod.zig");
 pub const simd = @import("shared/simd.zig");
 pub const VectorOps = simd.VectorOps;
+
+// SIMD functions
+pub const vectorAdd = simd.vectorAdd;
+pub const vectorDot = simd.vectorDot;
+pub const vectorL2Norm = simd.vectorL2Norm;
+pub const cosineSimilarity = simd.cosineSimilarity;
+pub const hasSimdSupport = simd.hasSimdSupport;
 pub const GpuBackend = gpu.Backend;
 pub const GpuBackendInfo = gpu.BackendInfo;
 pub const GpuBackendAvailability = gpu.BackendAvailability;
