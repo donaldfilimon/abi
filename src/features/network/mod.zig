@@ -8,6 +8,8 @@ const build_options = @import("build_options");
 
 const registry = @import("registry.zig");
 const protocol = @import("protocol.zig");
+const scheduler = @import("scheduler.zig");
+const ha = @import("ha.zig");
 
 pub const NodeRegistry = registry.NodeRegistry;
 pub const NodeInfo = registry.NodeInfo;
@@ -20,6 +22,23 @@ pub const encodeTask = protocol.encodeTask;
 pub const decodeTask = protocol.decodeTask;
 pub const encodeResult = protocol.encodeResult;
 pub const decodeResult = protocol.decodeResult;
+
+pub const TaskScheduler = scheduler.TaskScheduler;
+pub const SchedulerConfig = scheduler.SchedulerConfig;
+pub const SchedulerError = scheduler.SchedulerError;
+pub const TaskPriority = scheduler.TaskPriority;
+pub const TaskState = scheduler.TaskState;
+pub const ComputeNode = scheduler.ComputeNode;
+pub const LoadBalancingStrategy = scheduler.LoadBalancingStrategy;
+pub const SchedulerStats = scheduler.SchedulerStats;
+
+pub const HealthCheck = ha.HealthCheck;
+pub const ClusterConfig = ha.ClusterConfig;
+pub const HaError = ha.HaError;
+pub const NodeHealth = ha.NodeHealth;
+pub const ClusterState = ha.ClusterState;
+pub const HealthCheckResult = ha.HealthCheckResult;
+pub const FailoverPolicy = ha.FailoverPolicy;
 
 pub const NetworkError = error{
     NetworkDisabled,

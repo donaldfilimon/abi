@@ -4,7 +4,6 @@
 //! across multiple compute nodes.
 
 const std = @import("std");
-const engine = @import("../compute/runtime/engine.zig");
 
 pub const SchedulerError = error{
     NodeUnavailable,
@@ -51,7 +50,7 @@ pub const ComputeNode = struct {
 };
 
 pub const ScheduledTask = struct {
-    id: engine.TaskId,
+    id: u64,
     priority: TaskPriority,
     state: TaskState,
     node_id: ?[]const u8,
@@ -85,18 +84,18 @@ pub const TaskScheduler = struct {
     allocator: std.mem.Allocator,
     config: SchedulerConfig,
     nodes: std.StringHashMap(ComputeNode),
-    tasks: std.AutoHashMap(engine.TaskId, ScheduledTask),
-    next_task_id: engine.TaskId = 1,
+    tasks: std.AutoHashMap(u64, ScheduledTask),
+    next_task_id: u64 = 1,
     current_rr_node: usize = 0,
-    running_tasks: std.AutoHashMap(engine.TaskId, engine.TaskId),
+    running_tasks: std.AutoHashMap(u64, u64),
 
     pub fn init(allocator: std.mem.Allocator, config: SchedulerConfig) !TaskScheduler {
         var scheduler = TaskScheduler{
             .allocator = allocator,
             .config = config,
             .nodes = std.StringHashMap(ComputeNode).init(allocator),
-            .tasks = std.AutoHashMap(engine.TaskId, ScheduledTask).init(allocator),
-            .running_tasks = std.AutoHashMap(engine.TaskId, engine.TaskId).init(allocator),
+            .tasks = std.AutoHashMap(u64, ScheduledTask).init(allocator),
+            .running_tasks = std.AutoHashMap(u64, u64).init(allocator),
         };
         return scheduler;
     }
@@ -173,7 +172,7 @@ pub const TaskScheduler = struct {
         };
     }
 
-    pub fn submitTask(self: *TaskScheduler, priority: TaskPriority) !engine.TaskId {
+    pub fn submitTask(self: *TaskScheduler, priority: TaskPriority) !u64 {
         const node = try self.selectNode() orelse return SchedulerError.NoAvailableNodes;
 
         const task_id = self.next_task_id;
@@ -196,12 +195,12 @@ pub const TaskScheduler = struct {
         return task_id;
     }
 
-    pub fn getTaskState(self: *TaskScheduler, task_id: engine.TaskId) ?TaskState {
+    pub fn getTaskState(self: *TaskScheduler, task_id: u64) ?TaskState {
         const task = self.tasks.get(task_id) orelse return null;
         return task.state;
     }
 
-    pub fn getTaskStatus(self: *TaskScheduler, task_id: engine.TaskId) !ScheduledTask {
+    pub fn getTaskStatus(self: *TaskScheduler, task_id: u64) !ScheduledTask {
         const task = self.tasks.get(task_id) orelse return SchedulerError.TaskRejected;
         return task.*;
     }
