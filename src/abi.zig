@@ -32,7 +32,7 @@ pub const plugins = @import("shared/plugins/mod.zig");
 pub const observability = @import("shared/observability/mod.zig");
 pub const platform = @import("shared/platform/mod.zig");
 pub const simd = @import("shared/simd.zig");
-pub const VectorOps = simd.VectorOps;
+// SIMD functions exported directly
 
 // SIMD functions
 pub const vectorAdd = simd.vectorAdd;

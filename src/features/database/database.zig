@@ -142,7 +142,7 @@ pub const Database = struct {
         errdefer results.deinit(allocator);
         for (self.records.items) |record| {
             if (record.vector.len != query.len) continue;
-            const score = simd.VectorOps.cosineSimilarity(query, record.vector);
+            const score = simd.cosineSimilarity(query, record.vector);
             try results.append(allocator, .{ .id = record.id, .score = score });
         }
         sortResults(results.items);

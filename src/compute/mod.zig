@@ -57,7 +57,7 @@ pub const relu = runtime.relu;
 pub const MatrixMultiplyTask = runtime.MatrixMultiplyTask;
 pub const MlpTask = runtime.MlpTask;
 
-pub const VectorOps = simd.VectorOps;
+// SIMD functions available through abi.simd
 
 pub const NetworkEngine = network.NetworkEngine;
 pub const NetworkConfig = network.NetworkConfig;

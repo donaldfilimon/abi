@@ -19,7 +19,7 @@ pub const Allocator = std.mem.Allocator;
 pub const PlatformInfo = platform.PlatformInfo;
 pub const Os = platform.Os;
 pub const Arch = platform.Arch;
-pub const VectorOps = simd.VectorOps;
+// SIMD functions available through abi.simd
 
 pub const CoreError = error{
     InvalidState,

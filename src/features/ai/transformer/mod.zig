@@ -121,7 +121,7 @@ fn appendTokens(list: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator,
 }
 
 fn normalizeInPlace(values: []f32) void {
-    const norm = simd.VectorOps.l2Norm(values);
+    const norm = simd.vectorL2Norm(values);
     if (norm == 0) return;
     for (values) |*value| {
         value.* /= norm;
@@ -148,7 +148,7 @@ test "transformer embeddings are normalized" {
     const embedding = try model.embed(std.testing.allocator, "hello world");
     defer std.testing.allocator.free(embedding);
     try std.testing.expectEqual(@as(usize, 8), embedding.len);
-    const norm = simd.VectorOps.l2Norm(embedding);
+    const norm = simd.vectorL2Norm(embedding);
     try std.testing.expect(std.math.approxEqAbs(f32, norm, 1.0, 0.001));
 }
 

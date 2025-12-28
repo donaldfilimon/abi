@@ -9,25 +9,10 @@ const std = @import("std");
 pub fn vectorAdd(a: []const f32, b: []const f32, result: []f32) void {
     std.debug.assert(a.len == b.len and a.len == result.len);
 
-    var i: usize = 0;
-    const len = a.len;
-
-    // Use SIMD for large vectors when available
-    if (comptime std.simd.suggestVectorLength(f32)) |vec_len| {
-        if (len >= vec_len) {
-            const VecType = std.simd.Vector(vec_len, f32);
-
-            while (i + vec_len <= len) : (i += vec_len) {
-                const va: VecType = a[i..][0..vec_len].*;
-                const vb: VecType = b[i..][0..vec_len].*;
-                result[i..][0..vec_len].* = va + vb;
-            }
-        }
-    }
-
-    // Scalar fallback for remaining elements
-    while (i < len) : (i += 1) {
-        result[i] = a[i] + b[i];
+    // For now, use scalar implementation
+    // SIMD implementation would require target-specific intrinsics
+    for (a, b, result) |x, y, *r| {
+        r.* = x + y;
     }
 }
 
@@ -36,31 +21,8 @@ pub fn vectorDot(a: []const f32, b: []const f32) f32 {
     std.debug.assert(a.len == b.len);
 
     var result: f32 = 0.0;
-    var i: usize = 0;
-    const len = a.len;
-
-    // Use SIMD for large vectors when available
-    if (comptime std.simd.suggestVectorLength(f32)) |vec_len| {
-        if (len >= vec_len) {
-            const VecType = std.simd.Vector(vec_len, f32);
-            var sum_vec = VecType{0} ** VecType{0}; // Zero vector
-
-            while (i + vec_len <= len) : (i += vec_len) {
-                const va: VecType = a[i..][0..vec_len].*;
-                const vb: VecType = b[i..][0..vec_len].*;
-                sum_vec += va * vb;
-            }
-
-            // Reduce vector sum to scalar
-            for (sum_vec) |v| {
-                result += v;
-            }
-        }
-    }
-
-    // Scalar fallback for remaining elements
-    while (i < len) : (i += 1) {
-        result += a[i] * b[i];
+    for (a, b) |x, y| {
+        result += x * y;
     }
 
     return result;
@@ -69,30 +31,7 @@ pub fn vectorDot(a: []const f32, b: []const f32) f32 {
 /// Vector L2 norm using SIMD when available
 pub fn vectorL2Norm(v: []const f32) f32 {
     var sum: f32 = 0.0;
-    var i: usize = 0;
-    const len = v.len;
-
-    // Use SIMD for large vectors when available
-    if (comptime std.simd.suggestVectorLength(f32)) |vec_len| {
-        if (len >= vec_len) {
-            const VecType = std.simd.Vector(vec_len, f32);
-            var sum_vec = VecType{0} ** VecType{0}; // Zero vector
-
-            while (i + vec_len <= len) : (i += vec_len) {
-                const vv: VecType = v[i..][0..vec_len].*;
-                sum_vec += vv * vv;
-            }
-
-            // Reduce vector sum to scalar
-            for (sum_vec) |s| {
-                sum += s;
-            }
-        }
-    }
-
-    // Scalar fallback for remaining elements
-    while (i < len) : (i += 1) {
-        const val = v[i];
+    for (v) |val| {
         sum += val * val;
     }
 
