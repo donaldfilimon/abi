@@ -3,7 +3,9 @@
 //! Provides CUDA-specific kernel compilation and execution.
 
 const std = @import("std");
-const kernels = @import("../kernels.zig");
+const types = @import("../kernel_types.zig");
+const shared = @import("shared.zig");
+const fallback = @import("fallback.zig");
 
 const CuResult = enum(i32) {
     success = 0,
@@ -48,10 +50,13 @@ pub fn init() !void {
     if (cuda_available) {
         // Try to load CUDA functions if available
         if (loadCudaFunctions()) {
-            // Try to initialize CUDA if functions loaded successfully
-            _ = cuInit(0);
+            if (cuInit) |init_fn| {
+                _ = init_fn(0);
+            }
             var device_count: i32 = 0;
-            _ = cuDeviceGetCount(&device_count);
+            if (cuDeviceGetCount) |count_fn| {
+                _ = count_fn(&device_count);
+            }
         } else {
             std.log.warn("CUDA runtime not available, using simulation mode", .{});
         }
@@ -79,46 +84,30 @@ pub fn deinit() void {
 
 pub fn compileKernel(
     allocator: std.mem.Allocator,
-    source: kernels.KernelSource,
-) !*anyopaque {
-    _ = source;
-
-    const kernel_handle = try allocator.create(CuModule);
-    kernel_handle.* = .{ .ptr = null };
-
-    return kernel_handle;
+    source: types.KernelSource,
+) types.KernelError!*anyopaque {
+    return fallback.compileKernel(allocator, source);
 }
 
 pub fn launchKernel(
     allocator: std.mem.Allocator,
     kernel_handle: *anyopaque,
-    config: kernels.KernelConfig,
+    config: types.KernelConfig,
     args: []const ?*const anyopaque,
-) !void {
-    _ = allocator;
-    _ = config;
-    _ = args;
-
-    const cu_kernel: *CuModule = @ptrCast(@alignCast(kernel_handle));
-    _ = cu_kernel;
-
-    return error.CudaLaunchFailed;
+) types.KernelError!void {
+    return fallback.launchKernel(allocator, kernel_handle, config, args);
 }
 
-pub fn destroyKernel(kernel_handle: *anyopaque) void {
-    const cu_kernel: *CuModule = @ptrCast(@alignCast(kernel_handle));
-    std.heap.page_allocator.destroy(cu_kernel);
+pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
+    fallback.destroyKernel(allocator, kernel_handle);
 }
 
 pub fn createStream() !*anyopaque {
-    const stream = try std.heap.page_allocator.create(CuStream);
-    stream.* = .{ .ptr = null };
-    return stream;
+    return fallback.createOpaqueHandle(CuStream, .{ .ptr = null });
 }
 
 pub fn destroyStream(stream: *anyopaque) void {
-    const cu_stream: *CuStream = @ptrCast(@alignCast(stream));
-    std.heap.page_allocator.destroy(cu_stream);
+    fallback.destroyOpaqueHandle(CuStream, stream);
 }
 
 pub fn synchronizeStream(stream: *anyopaque) !void {
@@ -127,34 +116,24 @@ pub fn synchronizeStream(stream: *anyopaque) !void {
 }
 
 pub fn allocateDeviceMemory(size: usize) !*anyopaque {
-    _ = size;
-    return error.NotImplemented;
+    return fallback.allocateDeviceMemory(size);
 }
 
 pub fn freeDeviceMemory(ptr: *anyopaque) void {
-    _ = ptr;
+    fallback.freeDeviceMemory(ptr);
 }
 
 pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
-    _ = dst;
-    _ = src;
-    _ = size;
+    return fallback.memcpyHostToDevice(dst, @ptrCast(@alignCast(src)), size);
 }
 
 pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) !void {
-    _ = dst;
-    _ = src;
-    _ = size;
+    return fallback.memcpyDeviceToHost(dst, @ptrCast(@alignCast(src)), size);
 }
 
 fn tryLoadCuda() bool {
     const lib_names = [_][]const u8{ "nvcuda.dll", "libcuda.so.1", "libcuda.so" };
-    for (lib_names) |name| {
-        if (std.DynLib.open(name)) |_| {
-            return true;
-        } else |_| {}
-    }
-    return false;
+    return shared.tryLoadAny(lib_names[0..]);
 }
 
 const CuInitFn = *const fn (u32) callconv(.c) CuResult;
@@ -171,24 +150,20 @@ var cuMemFree: ?CuMemFreeFn = null;
 var cuMemcpyH2D: ?CuMemcpyH2DFn = null;
 var cuMemcpyD2H: ?CuMemcpyD2HFn = null;
 
-fn loadCudaFunctions() !void {
-    var lib = tryLoadCudaLib() orelse return error.CudaNotAvailable;
+fn loadCudaFunctions() bool {
+    var lib = tryLoadCudaLib() orelse return false;
     defer lib.close();
 
-    cuInit = lib.lookup(CuInitFn, "cuInit") orelse return error.CudaSymbolNotFound;
-    cuDeviceGetCount = lib.lookup(CuDeviceGetCountFn, "cuDeviceGetCount") orelse return error.CudaSymbolNotFound;
-    cuMemAlloc = lib.lookup(CuMemAllocFn, "cuMemAlloc") orelse return error.CudaSymbolNotFound;
-    cuMemFree = lib.lookup(CuMemFreeFn, "cuMemFree") orelse return error.CudaSymbolNotFound;
-    cuMemcpyH2D = lib.lookup(CuMemcpyH2DFn, "cuMemcpyHtoD") orelse return error.CudaSymbolNotFound;
-    cuMemcpyD2H = lib.lookup(CuMemcpyD2HFn, "cuMemcpyDtoH") orelse return error.CudaSymbolNotFound;
+    cuInit = lib.lookup(CuInitFn, "cuInit") orelse return false;
+    cuDeviceGetCount = lib.lookup(CuDeviceGetCountFn, "cuDeviceGetCount") orelse return false;
+    cuMemAlloc = lib.lookup(CuMemAllocFn, "cuMemAlloc") orelse return false;
+    cuMemFree = lib.lookup(CuMemFreeFn, "cuMemFree") orelse return false;
+    cuMemcpyH2D = lib.lookup(CuMemcpyH2DFn, "cuMemcpyHtoD") orelse return false;
+    cuMemcpyD2H = lib.lookup(CuMemcpyD2HFn, "cuMemcpyDtoH") orelse return false;
+    return true;
 }
 
 fn tryLoadCudaLib() ?std.DynLib {
     const lib_names = [_][]const u8{ "nvcuda.dll", "libcuda.so.1", "libcuda.so" };
-    for (lib_names) |name| {
-        if (std.DynLib.open(name)) |lib| {
-            return lib;
-        } else |_| {}
-    }
-    return null;
+    return shared.openFirst(lib_names[0..]);
 }

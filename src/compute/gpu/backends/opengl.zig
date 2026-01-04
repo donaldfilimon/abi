@@ -1,26 +1,22 @@
-//! Vulkan backend implementation
-//!
-//! Provides Vulkan-specific kernel compilation and execution.
-
+//! OpenGL backend implementation.
+//! Provides OpenGL-specific kernel compilation and execution.
 const std = @import("std");
 const types = @import("../kernel_types.zig");
 const shared = @import("shared.zig");
 const fallback = @import("fallback.zig");
 
-var vulkan_initialized = false;
+var opengl_initialized = false;
 
 pub fn init() !void {
-    if (vulkan_initialized) return;
-
-    if (!tryLoadVulkan()) {
-        return error.VulkanNotAvailable;
+    if (opengl_initialized) return;
+    if (!tryLoadOpenGl()) {
+        return error.OpenGlNotAvailable;
     }
-
-    vulkan_initialized = true;
+    opengl_initialized = true;
 }
 
 pub fn deinit() void {
-    vulkan_initialized = false;
+    opengl_initialized = false;
 }
 
 pub fn compileKernel(
@@ -43,23 +39,16 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
     fallback.destroyKernel(allocator, kernel_handle);
 }
 
-pub fn createCommandBuffer() !*anyopaque {
-    return fallback.createOpaqueHandle(VkCommandBuffer, .{ .handle = null });
-}
-
-pub fn destroyCommandBuffer(buffer: *anyopaque) void {
-    fallback.destroyOpaqueHandle(VkCommandBuffer, buffer);
-}
-
-fn tryLoadVulkan() bool {
-    const lib_names = [_][]const u8{ "vulkan-1.dll", "libvulkan.so.1", "libvulkan.dylib" };
+fn tryLoadOpenGl() bool {
+    const lib_names = [_][]const u8{
+        "opengl32.dll",
+        "libGL.so.1",
+        "libGL.so",
+        "/System/Library/Frameworks/OpenGL.framework/OpenGL",
+    };
     return shared.tryLoadAny(lib_names[0..]);
 }
 
-const VkShaderModule = struct {
-    handle: ?*anyopaque,
-};
-
-const VkCommandBuffer = struct {
+const GlProgram = struct {
     handle: ?*anyopaque,
 };

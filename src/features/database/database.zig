@@ -39,12 +39,12 @@ pub const StorageError = error{
 };
 
 pub const SaveError =
-    std.fs.File.OpenError ||
-    std.fs.File.WriteError ||
+    std.Io.File.OpenError ||
+    std.Io.File.Writer.Error ||
     std.mem.Allocator.Error ||
     StorageError;
 pub const LoadError =
-    std.fs.Dir.ReadFileAllocError ||
+    std.Io.Dir.ReadFileAllocError ||
     std.mem.Allocator.Error ||
     StorageError;
 
@@ -222,13 +222,22 @@ pub const Database = struct {
             }
         }
 
-        var file = try std.fs.cwd().createFile(path, .{ .truncate = true });
-        defer file.close();
-        try file.writeAll(buffer.items);
+        var io_backend = std.Io.Threaded.init(self.allocator, .{});
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
+        var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
+        defer file.close(io);
+        try file.writeStreamingAll(io, buffer.items);
     }
 
     pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) LoadError!Database {
-        const data = try std.fs.cwd().readFileAlloc(
+        var io_backend = std.Io.Threaded.init(allocator, .{});
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
+        const data = try std.Io.Dir.cwd().readFileAlloc(
+            io,
             path,
             allocator,
             .limited(64 * 1024 * 1024),
@@ -276,7 +285,10 @@ pub const Database = struct {
 
             owns_buffers = false;
             db.insertOwned(id, vector, metadata) catch |err| switch (err) {
-                error.DuplicateId, error.VectorNotFound => return StorageError.InvalidFormat,
+                error.DuplicateId,
+                error.VectorNotFound,
+                error.InvalidDimension,
+                => return StorageError.InvalidFormat,
                 error.OutOfMemory => return error.OutOfMemory,
             };
         }
@@ -302,6 +314,11 @@ pub const Database = struct {
             self.allocator.free(vector);
             if (metadata) |meta| self.allocator.free(meta);
             return DatabaseError.DuplicateId;
+        }
+        if (self.records.items.len > 0 and vector.len != self.records.items[0].vector.len) {
+            self.allocator.free(vector);
+            if (metadata) |meta| self.allocator.free(meta);
+            return DatabaseError.InvalidDimension;
         }
         errdefer {
             self.allocator.free(vector);

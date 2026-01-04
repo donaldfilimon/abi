@@ -60,10 +60,15 @@ pub fn normalizeBackupPath(allocator: std.mem.Allocator, user_path: []const u8) 
 
     const filename = std.fs.path.basename(user_path);
 
-    var backup_dir = try std.fs.cwd().openDir("backups", .{});
-    defer backup_dir.close();
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
 
-    return backup_dir.realpathAlloc(allocator, filename);
+    var backup_dir = try std.Io.Dir.cwd().openDir(io, "backups", .{});
+    defer backup_dir.close(io);
+
+    const resolved = try backup_dir.realPathFileAlloc(io, filename, allocator);
+    return resolved[0..resolved.len];
 }
 
 test "fs helpers" {

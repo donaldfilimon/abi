@@ -6,6 +6,18 @@
 const std = @import("std");
 
 const builtin = @import("builtin");
+const linux = std.os.linux;
+const windows = std.os.windows;
+const posix = std.posix;
+
+const WindowsKernel32 = struct {
+    extern "kernel32" fn GetCurrentThread() callconv(.winapi) windows.HANDLE;
+    extern "kernel32" fn SetThreadAffinityMask(
+        handle: windows.HANDLE,
+        mask: usize,
+    ) callconv(.winapi) usize;
+    extern "kernel32" fn GetCurrentProcessorNumber() callconv(.winapi) u32;
+};
 
 pub const CpuTopology = struct {
     node_count: usize = 1,
@@ -15,7 +27,11 @@ pub const CpuTopology = struct {
     nodes: []NumaNode,
 
     pub fn init(allocator: std.mem.Allocator) !CpuTopology {
-        const cpu_count = try getCoreCount();
+        var io_backend = std.Io.Threaded.init(allocator, .{});
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
+        const cpu_count = try getCoreCount(allocator, io);
 
         var nodes = std.ArrayListUnmanaged(NumaNode).empty;
         errdefer {
@@ -26,7 +42,7 @@ pub const CpuTopology = struct {
         }
 
         if (comptime builtin.os.tag == .linux) {
-            try nodes.append(allocator, try detectLinuxNuma(allocator, cpu_count));
+            try nodes.append(allocator, try detectLinuxNuma(allocator, io, cpu_count));
         } else if (comptime builtin.os.tag == .windows) {
             try nodes.append(allocator, try detectWindowsNuma(allocator, cpu_count));
         } else {
@@ -167,31 +183,33 @@ pub fn getCurrentCpuId() !usize {
     }
 }
 
-fn getCoreCount() !usize {
+fn getCoreCount(allocator: std.mem.Allocator, io: std.Io) !usize {
     if (comptime builtin.os.tag == .linux) {
-        const file = try std.fs.openFileAbsolute("/sys/devices/system/cpu/present", .{});
-        defer file.close();
+        const data = try std.Io.Dir.readFileAlloc(
+            io,
+            "/sys/devices/system/cpu/present",
+            allocator,
+            .limited(64),
+        );
+        defer allocator.free(data);
 
-        var buf: [32]u8 = undefined;
-        const len = try file.readAll(&buf);
-        const content = buf[0..len];
-
-        var start: usize = 0;
-        var end: usize = 0;
         var max_cpu: usize = 0;
-
-        for (content) |c| {
-            if (c == '-' or c == ',') {
-                end = @intFromPtr(&c);
-                const cpu_str = content[start..end];
-                max_cpu = @max(max_cpu, try std.fmt.parseInt(usize, cpu_str, 10));
-                start = end + 1;
+        var it = std.mem.tokenizeAny(u8, data, ",\n");
+        while (it.next()) |token| {
+            if (std.mem.indexOfScalar(u8, token, '-')) |dash| {
+                const end_str = token[dash + 1 ..];
+                const end_val = try std.fmt.parseInt(usize, end_str, 10);
+                if (end_val > max_cpu) {
+                    max_cpu = end_val;
+                }
+            } else {
+                const value = try std.fmt.parseInt(usize, token, 10);
+                if (value > max_cpu) {
+                    max_cpu = value;
+                }
             }
         }
-
-        const last_cpu_str = content[start..];
-        const last_cpu = try std.fmt.parseInt(usize, last_cpu_str, 10);
-        return @max(max_cpu, last_cpu) + 1;
+        return max_cpu + 1;
     } else if (comptime builtin.os.tag == .windows) {
         return std.Thread.getCpuCount();
     } else {
@@ -199,7 +217,7 @@ fn getCoreCount() !usize {
     }
 }
 
-fn detectLinuxNuma(allocator: std.mem.Allocator, cpu_count: usize) !NumaNode {
+fn detectLinuxNuma(allocator: std.mem.Allocator, io: std.Io, cpu_count: usize) !NumaNode {
     var node = try NumaNode.init(allocator, 0);
     errdefer node.deinit(allocator);
 
@@ -215,7 +233,8 @@ fn detectLinuxNuma(allocator: std.mem.Allocator, cpu_count: usize) !NumaNode {
         );
         defer allocator.free(cpu_path);
 
-        if (std.fs.openFileAbsolute(cpu_path, .{})) |_| {
+        if (std.Io.Dir.openFileAbsolute(io, cpu_path, .{})) |file| {
+            file.close(io);
             try cpus.append(allocator, i);
         } else |_| {}
     }
@@ -261,31 +280,93 @@ fn detectDefaultNuma(allocator: std.mem.Allocator, cpu_count: usize) !NumaNode {
 }
 
 fn setLinuxThreadAffinity(cpu_id: usize) !void {
-    _ = cpu_id;
-    return error.NotImplemented;
+    const max_cpus = linux.CPU_SETSIZE * 8;
+    if (cpu_id >= max_cpus)
+    {
+        return error.InvalidCpuId;
+    }
+
+    var set = std.mem.zeroes(linux.cpu_set_t);
+    const bits_per = @bitSizeOf(usize);
+    const index = cpu_id / bits_per;
+    const bit = cpu_id % bits_per;
+    set[index] |= @as(usize, 1) << @intCast(bit);
+
+    try linux.sched_setaffinity(0, &set);
 }
 
 fn setWindowsThreadAffinity(cpu_id: usize) !void {
-    _ = cpu_id;
-    return error.NotImplemented;
+    const bits_per = @bitSizeOf(usize);
+    if (cpu_id >= bits_per)
+    {
+        return error.InvalidCpuId;
+    }
+
+    const handle = WindowsKernel32.GetCurrentThread();
+    const mask = @as(usize, 1) << @intCast(cpu_id);
+    if (WindowsKernel32.SetThreadAffinityMask(handle, mask) == 0)
+    {
+        return windows.unexpectedError(windows.kernel32.GetLastError());
+    }
 }
 
 fn setLinuxThreadAffinityMask(mask: AffinityMask) !void {
-    _ = mask;
-    return error.NotImplemented;
+    var set = std.mem.zeroes(linux.cpu_set_t);
+    const bits_per = @bitSizeOf(usize);
+    const max_cpus = linux.CPU_SETSIZE * 8;
+
+    var cpu_id: usize = 0;
+    while (cpu_id < mask.size and cpu_id < max_cpus)
+    {
+        if (mask.isSet(cpu_id))
+        {
+            const index = cpu_id / bits_per;
+            const bit = cpu_id % bits_per;
+            set[index] |= @as(usize, 1) << @intCast(bit);
+        }
+        cpu_id += 1;
+    }
+
+    try linux.sched_setaffinity(0, &set);
 }
 
 fn setWindowsThreadAffinityMask(mask: AffinityMask) !void {
-    _ = mask;
-    return error.NotImplemented;
+    const bits_per = @bitSizeOf(usize);
+    if (mask.size > bits_per)
+    {
+        return error.UnsupportedPlatform;
+    }
+
+    var bitmask: usize = 0;
+    var cpu_id: usize = 0;
+    while (cpu_id < mask.size)
+    {
+        if (mask.isSet(cpu_id))
+        {
+            bitmask |= @as(usize, 1) << @intCast(cpu_id);
+        }
+        cpu_id += 1;
+    }
+
+    const handle = WindowsKernel32.GetCurrentThread();
+    if (WindowsKernel32.SetThreadAffinityMask(handle, bitmask) == 0)
+    {
+        return windows.unexpectedError(windows.kernel32.GetLastError());
+    }
 }
 
 fn getLinuxCurrentCpu() !usize {
-    return error.NotImplemented;
+    var cpu: usize = 0;
+    const rc = linux.getcpu(&cpu, null);
+    if (@as(isize, @bitCast(rc)) < 0)
+    {
+        return posix.unexpectedErrno(linux.errno(rc));
+    }
+    return cpu;
 }
 
 fn getWindowsCurrentCpu() !usize {
-    return error.NotImplemented;
+    return @intCast(WindowsKernel32.GetCurrentProcessorNumber());
 }
 
 test "affinity mask operations" {

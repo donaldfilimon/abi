@@ -56,6 +56,11 @@ pub const dense = runtime.dense;
 pub const relu = runtime.relu;
 pub const MatrixMultiplyTask = runtime.MatrixMultiplyTask;
 pub const MlpTask = runtime.MlpTask;
+pub const AsyncRuntime = runtime.AsyncRuntime;
+pub const AsyncRuntimeOptions = runtime.AsyncRuntimeOptions;
+pub const TaskHandle = runtime.TaskHandle;
+pub const TaskGroup = runtime.TaskGroup;
+pub const AsyncError = runtime.AsyncError;
 
 // SIMD functions available through abi.simd
 
@@ -135,5 +140,5 @@ test "compute init toggles state" {
 test "create default engine" {
     var engine_instance = try createDefaultEngine(std.testing.allocator);
     defer engine_instance.deinit();
-    try std.testing.expect(engine_instance.config.max_tasks > 0);
+    try std.testing.expect(engine_instance.config().max_tasks > 0);
 }

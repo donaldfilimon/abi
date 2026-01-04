@@ -3,8 +3,10 @@
 //! Provides WebGPU-specific kernel compilation and execution.
 
 const std = @import("std");
-const kernels = @import("../kernels.zig");
 const builtin = @import("builtin");
+const types = @import("../kernel_types.zig");
+const shared = @import("shared.zig");
+const fallback = @import("fallback.zig");
 
 var webgpu_initialized = false;
 
@@ -29,44 +31,30 @@ pub fn deinit() void {
 
 pub fn compileKernel(
     allocator: std.mem.Allocator,
-    source: kernels.KernelSource,
-) !*anyopaque {
-    _ = source;
-
-    const kernel_handle = try allocator.create(WgpuComputePipeline);
-    kernel_handle.* = .{ .pipeline = null };
-
-    return kernel_handle;
+    source: types.KernelSource,
+) types.KernelError!*anyopaque {
+    return fallback.compileKernel(allocator, source);
 }
 
 pub fn launchKernel(
     allocator: std.mem.Allocator,
     kernel_handle: *anyopaque,
-    config: kernels.KernelConfig,
+    config: types.KernelConfig,
     args: []const ?*const anyopaque,
-) !void {
-    _ = allocator;
-    _ = kernel_handle;
-    _ = config;
-    _ = args;
-
-    return error.WebGpuLaunchFailed;
+) types.KernelError!void {
+    return fallback.launchKernel(allocator, kernel_handle, config, args);
 }
 
-pub fn destroyKernel(kernel_handle: *anyopaque) void {
-    const wgpu_kernel: *WgpuComputePipeline = @ptrCast(@alignCast(kernel_handle));
-    std.heap.page_allocator.destroy(wgpu_kernel);
+pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
+    fallback.destroyKernel(allocator, kernel_handle);
 }
 
 pub fn createCommandEncoder() !*anyopaque {
-    const encoder = try std.heap.page_allocator.create(WgpuCommandEncoder);
-    encoder.* = .{ .encoder = null };
-    return encoder;
+    return fallback.createOpaqueHandle(WgpuCommandEncoder, .{ .encoder = null });
 }
 
 pub fn destroyCommandEncoder(encoder: *anyopaque) void {
-    const wgpu_encoder: *WgpuCommandEncoder = @ptrCast(@alignCast(encoder));
-    std.heap.page_allocator.destroy(wgpu_encoder);
+    fallback.destroyOpaqueHandle(WgpuCommandEncoder, encoder);
 }
 
 fn tryLoadWebGpu() bool {
@@ -77,12 +65,7 @@ fn tryLoadWebGpu() bool {
         "dawn_native.dll",
         "libdawn_native.so",
     };
-    for (lib_names) |name| {
-        if (std.DynLib.open(name)) |_| {
-            return true;
-        } else |_| {}
-    }
-    return false;
+    return shared.tryLoadAny(lib_names[0..]);
 }
 
 const WgpuComputePipeline = struct {

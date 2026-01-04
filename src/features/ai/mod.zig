@@ -17,6 +17,11 @@ pub const ModelRegistry = model_registry.ModelRegistry;
 pub const ModelInfo = model_registry.ModelInfo;
 pub const TrainingConfig = training.TrainingConfig;
 pub const TrainingReport = training.TrainingReport;
+pub const TrainingResult = training.TrainingResult;
+pub const TrainError = training.TrainError;
+pub const CheckpointStore = training.CheckpointStore;
+pub const Checkpoint = training.Checkpoint;
+pub const GradientAccumulator = training.GradientAccumulator;
 
 pub const AiError = error{
     AiDisabled,
@@ -45,8 +50,15 @@ pub fn createRegistry(allocator: std.mem.Allocator) ModelRegistry {
     return ModelRegistry.init(allocator);
 }
 
-pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) !TrainingReport {
+pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) TrainError!TrainingReport {
     return training.trainAndReport(allocator, config);
+}
+
+pub fn trainWithResult(
+    allocator: std.mem.Allocator,
+    config: TrainingConfig,
+) TrainError!TrainingResult {
+    return training.trainWithResult(allocator, config);
 }
 
 pub fn createAgent(allocator: std.mem.Allocator, name: []const u8) !Agent {

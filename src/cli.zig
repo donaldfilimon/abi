@@ -185,11 +185,11 @@ fn runAgent(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
 
 fn runAgentInteractive(allocator: std.mem.Allocator, agent: *abi.ai.agent.Agent) !void {
     std.debug.print("Interactive mode. Type 'exit' to quit.\n", .{});
-    var io_backend = std.Io.Threaded.init(allocator);
+    var io_backend = std.Io.Threaded.init(allocator, .{});
     defer io_backend.deinit();
 
     const io = io_backend.io();
-    var stdin_file = std.fs.File.stdin();
+    var stdin_file = std.Io.File.stdin();
     var buffer: [4096]u8 = undefined;
     var reader = stdin_file.reader(io, &buffer);
 

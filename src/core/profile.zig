@@ -17,27 +17,41 @@ pub const ProfileEntry = struct {
     timestamp_ns: ?u64 = null,
 };
 
-pub const ProfileError = std.fs.File.OpenError || std.fs.File.WriteError || error{
-    MissingPath,
-    InvalidSink,
-};
+pub const ProfileError =
+    std.Io.File.OpenError ||
+    std.Io.File.StatError ||
+    std.Io.File.WritePositionalError ||
+    error{
+        MissingPath,
+        InvalidSink,
+    };
 
 pub const ProfileWriter = struct {
     sink: LoggingSink,
-    file: ?std.fs.File = null,
+    io_backend: std.Io.Threaded,
+    io: std.Io,
+    file: ?std.Io.File = null,
+    file_offset: u64 = 0,
 
     pub fn init(config: ProfileConfig) ProfileError!ProfileWriter {
+        var io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{});
+        const io = io_backend.io();
+
         var writer = ProfileWriter{
             .sink = config.sink,
+            .io_backend = io_backend,
+            .io = io,
             .file = null,
+            .file_offset = 0,
         };
         if (config.sink == .file) {
             if (config.path.len == 0) return error.MissingPath;
-            var file = try std.fs.cwd().createFile(config.path, .{
+            var file = try std.Io.Dir.cwd().createFile(io, config.path, .{
                 .truncate = false,
             });
-            errdefer file.close();
-            try file.seekFromEnd(0);
+            errdefer file.close(io);
+            const stat = try file.stat(io);
+            writer.file_offset = stat.size;
             writer.file = file;
         }
         return writer;
@@ -45,30 +59,33 @@ pub const ProfileWriter = struct {
 
     pub fn deinit(self: *ProfileWriter) void {
         if (self.file) |file| {
-            file.close();
+            file.close(self.io);
         }
+        self.io_backend.deinit();
         self.* = undefined;
     }
 
     pub fn writeLine(self: *ProfileWriter, line: []const u8) ProfileError!void {
         switch (self.sink) {
             .stdout => {
-                const file = std.fs.File.stdout();
-                try file.writeAll(line);
-                try file.writeAll("\n");
+                const file = std.Io.File.stdout();
+                try file.writeStreamingAll(self.io, line);
+                try file.writeStreamingAll(self.io, "\n");
             },
             .stderr => {
-                const file = std.fs.File.stderr();
-                try file.writeAll(line);
-                try file.writeAll("\n");
+                const file = std.Io.File.stderr();
+                try file.writeStreamingAll(self.io, line);
+                try file.writeStreamingAll(self.io, "\n");
             },
             .file => {
                 const file = self.file orelse {
                     std.log.err("Invalid file sink: no file provided", .{});
                     return error.InvalidSink;
                 };
-                try file.writeAll(line);
-                try file.writeAll("\n");
+                try file.writePositionalAll(self.io, line, self.file_offset);
+                self.file_offset += line.len;
+                try file.writePositionalAll(self.io, "\n", self.file_offset);
+                self.file_offset += 1;
             },
         }
     }
@@ -119,17 +136,24 @@ test "profile writer writes to file sink" {
     defer tmp.cleanup();
 
     const allocator = std.testing.allocator;
-    const file = try tmp.dir.createFile("profile.log", .{ .truncate = true });
-    file.close();
+    const io = std.testing.io;
+    const file = try tmp.dir.createFile(io, "profile.log", .{ .truncate = true });
+    file.close(io);
 
-    const path = try tmp.dir.realpathAlloc(allocator, "profile.log");
-    defer allocator.free(path);
+    const path_z = try tmp.dir.realPathFileAlloc(io, "profile.log", allocator);
+    defer allocator.free(path_z);
+    const path = path_z[0..path_z.len];
 
     var writer = try ProfileWriter.init(.{ .sink = .file, .path = path });
     defer writer.deinit();
     try writer.writeLine("hello");
 
-    const contents = try tmp.dir.readFileAlloc(allocator, "profile.log", .limited(1024));
+    const contents = try tmp.dir.readFileAlloc(
+        io,
+        "profile.log",
+        allocator,
+        .limited(1024),
+    );
     defer allocator.free(contents);
     try std.testing.expectEqualStrings("hello\n", contents);
 }

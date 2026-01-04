@@ -143,14 +143,18 @@ fn warnInconsistentOptions(options: BuildOptions) void {
     }
 }
 
-fn pathExists(path: []const u8) bool {
-    std.fs.cwd().access(path, .{}) catch return false;
+fn pathExists(io: std.Io, path: []const u8) bool {
+    std.Io.Dir.cwd().access(io, path, .{}) catch return false;
     return true;
 }
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    var io_backend = std.Io.Threaded.init(b.allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
 
     // Create build options module
     const base_options = readBuildOptions(b);
@@ -166,9 +170,9 @@ pub fn build(b: *std.Build) void {
     abi_module.addImport("build_options", build_options_module);
 
     // CLI executable
-    const cli_path: ?[]const u8 = if (pathExists("tools/cli/main.zig"))
+    const cli_path: ?[]const u8 = if (pathExists(io, "tools/cli/main.zig"))
         "tools/cli/main.zig"
-    else if (pathExists("src/main.zig"))
+    else if (pathExists(io, "src/main.zig"))
         "src/main.zig"
     else
         null;
@@ -200,7 +204,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // Test suite
-    const has_tests = pathExists("tests/mod.zig");
+    const has_tests = pathExists(io, "tests/mod.zig");
     if (has_tests) {
         const main_tests = b.addTest(.{
             .root_module = b.createModule(.{
@@ -210,6 +214,7 @@ pub fn build(b: *std.Build) void {
             }),
         });
         main_tests.root_module.addImport("abi", abi_module);
+        main_tests.root_module.addImport("build_options", build_options_module);
 
         const run_main_tests = b.addRunArtifact(main_tests);
         run_main_tests.skip_foreign_checks = true;
@@ -221,7 +226,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // Benchmark step
-    const has_benchmark = pathExists("src/compute/runtime/benchmark.zig");
+    const has_benchmark = pathExists(io, "src/compute/runtime/benchmark.zig");
     if (has_benchmark) {
         const benchmark_exe = b.addExecutable(.{
             .name = "abi-benchmark",

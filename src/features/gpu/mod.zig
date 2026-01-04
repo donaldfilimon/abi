@@ -61,6 +61,10 @@ pub fn backendFromString(text: []const u8) ?Backend {
     return compute_gpu.backendFromString(text);
 }
 
+pub fn backendSupportsKernels(backend: Backend) bool {
+    return compute_gpu.backendSupportsKernels(backend);
+}
+
 pub fn isEnabled(backend: Backend) bool {
     return compute_gpu.isEnabled(backend);
 }

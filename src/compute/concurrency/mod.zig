@@ -49,6 +49,62 @@ pub fn WorkQueue(comptime T: type) type {
     };
 }
 
+pub fn WorkStealingQueue(comptime T: type) type {
+    return struct {
+        allocator: std.mem.Allocator,
+        mutex: std.Thread.Mutex = .{},
+        items: std.ArrayListUnmanaged(T),
+
+        pub fn init(allocator: std.mem.Allocator) @This() {
+            return .{
+                .allocator = allocator,
+                .items = std.ArrayListUnmanaged(T).empty,
+            };
+        }
+
+        pub fn deinit(self: *@This()) void {
+            self.items.deinit(self.allocator);
+            self.* = undefined;
+        }
+
+        pub fn len(self: *@This()) usize {
+            self.mutex.lock();
+            defer self.mutex.unlock();
+            return self.items.items.len;
+        }
+
+        pub fn isEmpty(self: *@This()) bool {
+            return self.len() == 0;
+        }
+
+        pub fn push(self: *@This(), item: T) !void {
+            self.mutex.lock();
+            defer self.mutex.unlock();
+            try self.items.append(self.allocator, item);
+        }
+
+        pub fn pop(self: *@This()) ?T {
+            self.mutex.lock();
+            defer self.mutex.unlock();
+            if (self.items.items.len == 0)
+            {
+                return null;
+            }
+            return self.items.pop();
+        }
+
+        pub fn steal(self: *@This()) ?T {
+            self.mutex.lock();
+            defer self.mutex.unlock();
+            if (self.items.items.len == 0)
+            {
+                return null;
+            }
+            return self.items.orderedRemove(0);
+        }
+    };
+}
+
 pub const Backoff = struct {
     spins: usize = 0,
 
@@ -102,4 +158,18 @@ test "work queue reports empty and length" {
     try queue.enqueue(9);
     try std.testing.expect(!queue.isEmpty());
     try std.testing.expectEqual(@as(usize, 1), queue.len());
+}
+
+test "work stealing queue pops and steals" {
+    var queue = WorkStealingQueue(u32).init(std.testing.allocator);
+    defer queue.deinit();
+
+    try queue.push(1);
+    try queue.push(2);
+    try std.testing.expectEqual(@as(?u32, 2), queue.pop());
+
+    try queue.push(3);
+    try std.testing.expectEqual(@as(?u32, 1), queue.steal());
+    try std.testing.expectEqual(@as(?u32, 3), queue.pop());
+    try std.testing.expectEqual(@as(?u32, null), queue.pop());
 }

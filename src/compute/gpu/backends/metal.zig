@@ -3,8 +3,10 @@
 //! Provides Metal-specific kernel compilation and execution.
 
 const std = @import("std");
-const kernels = @import("../kernels.zig");
 const builtin = @import("builtin");
+const types = @import("../kernel_types.zig");
+const shared = @import("shared.zig");
+const fallback = @import("fallback.zig");
 
 var metal_initialized = false;
 
@@ -28,54 +30,35 @@ pub fn deinit() void {
 
 pub fn compileKernel(
     allocator: std.mem.Allocator,
-    source: kernels.KernelSource,
-) !*anyopaque {
-    _ = source;
-
-    const kernel_handle = try allocator.create(MtlComputePipeline);
-    kernel_handle.* = .{ .pipeline = null };
-
-    return kernel_handle;
+    source: types.KernelSource,
+) types.KernelError!*anyopaque {
+    return fallback.compileKernel(allocator, source);
 }
 
 pub fn launchKernel(
     allocator: std.mem.Allocator,
     kernel_handle: *anyopaque,
-    config: kernels.KernelConfig,
+    config: types.KernelConfig,
     args: []const ?*const anyopaque,
-) !void {
-    _ = allocator;
-    _ = kernel_handle;
-    _ = config;
-    _ = args;
-
-    return error.MetalLaunchFailed;
+) types.KernelError!void {
+    return fallback.launchKernel(allocator, kernel_handle, config, args);
 }
 
-pub fn destroyKernel(kernel_handle: *anyopaque) void {
-    const mtl_kernel: *MtlComputePipeline = @ptrCast(@alignCast(kernel_handle));
-    std.heap.page_allocator.destroy(mtl_kernel);
+pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
+    fallback.destroyKernel(allocator, kernel_handle);
 }
 
 pub fn createCommandBuffer() !*anyopaque {
-    const buffer = try std.heap.page_allocator.create(MtlCommandBuffer);
-    buffer.* = .{ .buffer = null };
-    return buffer;
+    return fallback.createOpaqueHandle(MtlCommandBuffer, .{ .buffer = null });
 }
 
 pub fn destroyCommandBuffer(buffer: *anyopaque) void {
-    const mtl_buffer: *MtlCommandBuffer = @ptrCast(@alignCast(buffer));
-    std.heap.page_allocator.destroy(mtl_buffer);
+    fallback.destroyOpaqueHandle(MtlCommandBuffer, buffer);
 }
 
 fn tryLoadMetal() bool {
     const lib_names = [_][]const u8{"/System/Library/Frameworks/Metal.framework/Metal"};
-    for (lib_names) |name| {
-        if (std.DynLib.open(name)) |_| {
-            return true;
-        } else |_| {}
-    }
-    return false;
+    return shared.tryLoadAny(lib_names[0..]);
 }
 
 const MtlComputePipeline = struct {

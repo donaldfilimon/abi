@@ -1,7 +1,8 @@
 # GPU Acceleration
 
 > [!NOTE]
-> **Status**: Experimental / Stubs. The GPU backends described here are currently in development (v0.3.0 roadmap). Interfaces exist but backend implementations are partial.
+> **Status**: Experimental / Fallback runtime. Backends provide kernel simulation
+> and host-backed device memory when native runtimes are unavailable.
 
 The **GPU** module (`abi.gpu`) aims to provide a unified interface for hardware-accelerated compute across different platforms.
 

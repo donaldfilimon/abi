@@ -5,30 +5,30 @@ This document tracks planned features, improvements, and milestones for the ABI 
 ## Version 0.3.0 - Q1 2026
 
 ### Core Features
-- [ ] Complete GPU backend implementations
-  - [ ] CUDA backend (currently stub)
-  - [ ] Vulkan backend (currently stub)
-  - [ ] Metal backend (currently stub)
-  - [ ] WebGPU backend (currently stub)
-- [ ] Full async/await implementation using std.Io
-  - [ ] Async task scheduling
-  - [ ] Concurrent execution primitives
-  - [ ] Cancellation support
-- [ ] Enhanced compute runtime
-  - [ ] Work-stealing optimizations
-  - [ ] NUMA awareness
-  - [ ] CPU affinity control
+- [x] Complete GPU backend implementations
+  - [x] CUDA backend (fallback runtime + kernel simulation)
+  - [x] Vulkan backend (fallback runtime + kernel simulation)
+  - [x] Metal backend (fallback runtime + kernel simulation)
+  - [x] WebGPU backend (fallback runtime + kernel simulation)
+- [x] Full async/await implementation using std.Io
+  - [x] Async task scheduling
+  - [x] Concurrent execution primitives
+  - [x] Cancellation support
+- [x] Enhanced compute runtime
+  - [x] Work-stealing optimizations
+  - [x] NUMA awareness
+  - [x] CPU affinity control
 
 ### AI Features
-- [ ] Connector implementations
-  - [ ] OpenAI connector (partial)
-  - [ ] Ollama connector (partial)
-  - [ ] HuggingFace connector (partial)
-  - [ ] Local scheduler connector (partial)
-- [ ] Training pipeline improvements
-  - [ ] Federated learning coordinator
-  - [ ] Model checkpointing
-  - [ ] Gradient aggregation
+- [x] Connector implementations
+  - [x] OpenAI connector
+  - [x] Ollama connector
+  - [x] HuggingFace connector
+  - [x] Local scheduler connector
+- [x] Training pipeline improvements
+  - [x] Federated learning coordinator
+  - [x] Model checkpointing
+  - [x] Gradient aggregation
 
 ### Database & Storage
 - [ ] Persistent vector index
@@ -187,7 +187,7 @@ See CONTRIBUTING.md for details.
 
 | Version | Target Quarter | Status |
 |----------|---------------|---------|
-| 0.3.0 | Q1 2026 | Planning |
+| 0.3.0 | Q1 2026 | In Progress |
 | 0.4.0 | Q2 2026 | Planned |
 | 0.5.0 | Q3 2026 | Planned |
 

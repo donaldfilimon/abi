@@ -1,5 +1,6 @@
 const std = @import("std");
 pub const engine = @import("engine.zig");
+pub const async = @import("async.zig");
 pub const benchmark = @import("benchmark.zig");
 pub const workload = @import("workload.zig");
 
@@ -22,6 +23,11 @@ pub const dense = workload.dense;
 pub const relu = workload.relu;
 pub const MatrixMultiplyTask = workload.MatrixMultiplyTask;
 pub const MlpTask = workload.MlpTask;
+pub const AsyncRuntime = async.AsyncRuntime;
+pub const AsyncRuntimeOptions = async.AsyncRuntimeOptions;
+pub const TaskHandle = async.TaskHandle;
+pub const TaskGroup = async.TaskGroup;
+pub const AsyncError = async.AsyncError;
 
 pub fn createEngine(allocator: std.mem.Allocator, config: EngineConfig) !DistributedComputeEngine {
     return engine.DistributedComputeEngine.init(allocator, config);
@@ -43,7 +49,7 @@ pub fn runTask(engine_instance: *DistributedComputeEngine, comptime ResultType: 
 test "create engine helper" {
     var engine_instance = try createEngine(std.testing.allocator, .{ .max_tasks = 4 });
     defer engine_instance.deinit();
-    try std.testing.expect(engine_instance.next_id == 1);
+    try std.testing.expectEqual(@as(TaskId, 1), engine_instance.nextId());
 }
 
 test "run task helper" {

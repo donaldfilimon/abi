@@ -106,7 +106,7 @@ pub const SerializationWriter = struct {
 
     /// Append a slice with length prefix (u32).
     pub fn appendSlice(self: *SerializationWriter, data: []const u8) !void {
-        try self.writeInt(u32, @intCast(data.len));
+        try self.appendInt(u32, @intCast(data.len));
         try self.appendBytes(data);
     }
 

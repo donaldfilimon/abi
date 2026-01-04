@@ -19,10 +19,6 @@ pub fn serve(allocator: std.mem.Allocator, address: []const u8) !void {
     var handle = try unified.createDatabase(allocator, "http");
     defer unified.closeDatabase(&handle);
 
-    std.fs.cwd().makeDir("backups") catch |err| {
-        if (err != error.PathAlreadyExists) return err;
-    };
-
     try serveDatabase(allocator, &handle, address);
 }
 
@@ -31,9 +27,13 @@ pub fn serveDatabase(
     handle: *unified.DatabaseHandle,
     address: []const u8,
 ) !void {
-    var io_backend = std.Io.Threaded.init(allocator);
+    var io_backend = std.Io.Threaded.init(allocator, .{});
     defer io_backend.deinit();
     const io = io_backend.io();
+
+    std.Io.Dir.cwd().createDir(io, "backups", .default_dir) catch |err| {
+        if (err != error.PathAlreadyExists) return err;
+    };
 
     const listen_addr = try resolveAddress(io, allocator, address);
     var server = try listen_addr.listen(io, .{ .reuse_address = true });
