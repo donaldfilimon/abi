@@ -32,6 +32,7 @@ pub const plugins = @import("shared/plugins/mod.zig");
 pub const observability = @import("shared/observability/mod.zig");
 pub const platform = @import("shared/platform/mod.zig");
 pub const simd = @import("shared/simd.zig");
+pub const config = utils.config;
 // SIMD functions exported directly
 
 // SIMD functions
@@ -55,6 +56,10 @@ pub const NetworkConfig = network.NetworkConfig;
 pub const NetworkState = network.NetworkState;
 pub const TransformerConfig = ai.transformer.TransformerConfig;
 pub const TransformerModel = ai.transformer.TransformerModel;
+pub const StreamingGenerator = ai.streaming.StreamingGenerator;
+pub const StreamToken = ai.streaming.StreamToken;
+pub const StreamState = ai.streaming.StreamState;
+pub const GenerationConfig = ai.streaming.GenerationConfig;
 pub const utils = @import("shared/utils/mod.zig");
 comptime {
     _ = compat;

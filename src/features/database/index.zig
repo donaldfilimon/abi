@@ -1,5 +1,6 @@
 //! Vector index implementations for the database module.
 const std = @import("std");
+
 const simd = @import("../../shared/simd.zig");
 const binary = @import("../../shared/utils/binary.zig");
 
@@ -576,7 +577,7 @@ pub const IvfPqIndex = struct {
         if (records.len == 0) return allocator.alloc(IndexResult, 0);
         if (query.len != self.dim) return IndexError.InvalidData;
 
-        var probe_clusters = try selectTopClusters(
+        const probe_clusters = try selectTopClusters(
             allocator,
             self.clusters,
             query,
@@ -595,7 +596,7 @@ pub const IvfPqIndex = struct {
             return bruteForceSearch(allocator, records, query, top_k);
         }
 
-        var decoded = try allocator.alloc(f32, self.dim);
+        const decoded = try allocator.alloc(f32, self.dim);
         defer allocator.free(decoded);
 
         var results = std.ArrayListUnmanaged(IndexResult).empty;
@@ -666,11 +667,11 @@ pub const IvfPqIndex = struct {
             max_values[i] = @bitCast(try cursor.readInt(u32));
         }
 
-        var clusters = try allocator.alloc(Cluster, cluster_count);
+        const clusters = try allocator.alloc(Cluster, cluster_count);
         errdefer allocator.free(clusters);
         for (clusters) |*cluster| {
             const centroid = try allocator.alloc(f32, dim);
-            for (centroid, 0..) |*value, j| {
+            for (centroid, 0..) |*value, _| {
                 value.* = @bitCast(try cursor.readInt(u32));
             }
             cluster.* = .{
@@ -682,7 +683,7 @@ pub const IvfPqIndex = struct {
         for (clusters) |*cluster| {
             const count = try cursor.readInt(u32);
             const members = try allocator.alloc(u32, count);
-            for (members, 0..) |*member, j| {
+            for (members, 0..) |*member, _| {
                 member.* = try cursor.readInt(u32);
             }
             cluster.members = members;
@@ -865,7 +866,7 @@ fn selectTopClusters(
         }
     }
 
-    var result = try allocator.alloc(usize, count);
+    const result = try allocator.alloc(usize, count);
     std.mem.copyForwards(usize, result, best_indices);
     return result;
 }

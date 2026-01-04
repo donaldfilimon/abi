@@ -147,7 +147,7 @@ fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
             std.debug.print("Embedding requires -Denable-ai=true\n", .{});
             return;
         }
-        var model = transformer.TransformerModel.init(.{});
+        var model = try transformer.TransformerModel.init(allocator, .{});
         vector = try model.embed(allocator, text);
     }
 

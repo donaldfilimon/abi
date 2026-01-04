@@ -13,8 +13,7 @@ const Backoff = struct {
 
     pub fn spin(self: *Backoff) void {
         self.spins += 1;
-        if (self.spins <= 16)
-        {
+        if (self.spins <= 16) {
             std.atomic.spinLoopHint();
             return;
         }
@@ -25,13 +24,11 @@ const Backoff = struct {
         self.spins += 1;
         const iterations = @min(self.spins, 64);
         var i: usize = 0;
-        while (i < iterations)
-        {
+        while (i < iterations) {
             std.atomic.spinLoopHint();
             i += 1;
         }
-        if (self.spins > 32)
-        {
+        if (self.spins > 32) {
             _ = std.Thread.yield() catch {};
         }
     }
@@ -40,12 +37,10 @@ const Backoff = struct {
 var global_timer: ?std.time.Timer = null;
 
 fn nowMilliseconds() i64 {
-    if (global_timer == null)
-    {
+    if (global_timer == null) {
         global_timer = std.time.Timer.start() catch null;
     }
-    if (global_timer) |*timer|
-    {
+    if (global_timer) |*timer| {
         const ns = timer.read();
         const ms = @as(f64, @floatFromInt(ns)) / @as(f64, std.time.ns_per_ms);
         return @as(i64, @intFromFloat(ms));
@@ -140,8 +135,7 @@ pub const DistributedComputeEngine = struct {
         task: anytype,
     ) !TaskId {
         const state = self.state;
-        if (!reserveTaskSlot(state))
-        {
+        if (!reserveTaskSlot(state)) {
             return EngineError.QueueFull;
         }
         errdefer releaseTaskSlot(state);
@@ -174,23 +168,18 @@ pub const DistributedComputeEngine = struct {
         state.results_mutex.lock();
         defer state.results_mutex.unlock();
 
-        while (true)
-        {
-            if (state.results.fetchRemove(id)) |entry|
-            {
+        while (true) {
+            if (state.results.fetchRemove(id)) |entry| {
                 defer releaseTaskSlot(state);
                 return decodeResult(state, ResultType, id, entry.value);
             }
 
-            if (timeout_ms == 0)
-            {
+            if (timeout_ms == 0) {
                 return EngineError.Timeout;
             }
-            if (deadline_ms) |deadline|
-            {
+            if (deadline_ms) |deadline| {
                 const now_ms = nowMilliseconds();
-                if (now_ms >= deadline)
-                {
+                if (now_ms >= deadline) {
                     return EngineError.Timeout;
                 }
                 const remaining_ms: u64 = @intCast(deadline - now_ms);
@@ -214,8 +203,7 @@ pub const DistributedComputeEngine = struct {
 
     pub fn getCurrentNumaNode(self: *DistributedComputeEngine) ?*const numa.NumaNode {
         const state = self.state;
-        if (state.topology) |*topo|
-        {
+        if (state.topology) |*topo| {
             const cpu_id = numa.getCurrentCpuId() catch return null;
             return topo.getNodeForCpu(cpu_id);
         }
@@ -224,8 +212,7 @@ pub const DistributedComputeEngine = struct {
 
     pub fn setTaskAffinity(self: *DistributedComputeEngine, task_id: TaskId, cpu_id: usize) !void {
         _ = task_id;
-        if (self.state.config.cpu_affinity_enabled)
-        {
+        if (self.state.config.cpu_affinity_enabled) {
             try numa.setThreadAffinity(cpu_id);
         }
     }
@@ -237,13 +224,10 @@ pub const DistributedComputeEngine = struct {
     ) !void {
         _ = task_id;
         const state = self.state;
-        if (state.config.cpu_affinity_enabled and state.topology) |*topo|
-        {
-            if (node_id < topo.nodes.len)
-            {
+        if (state.config.cpu_affinity_enabled and state.topology) |*topo| {
+            if (node_id < topo.nodes.len) {
                 const node = &topo.nodes[node_id];
-                if (node.cpus.len > 0)
-                {
+                if (node.cpus.len > 0) {
                     try numa.setThreadAffinity(node.cpus[0]);
                 }
             }
@@ -257,8 +241,7 @@ fn initState(allocator: std.mem.Allocator, config: EngineConfig) !*EngineState {
 
     var topology: ?*numa.CpuTopology = config.numa_topology;
     var owns_topology = false;
-    if (config.numa_enabled and topology == null)
-    {
+    if (config.numa_enabled and topology == null) {
         const topo = try allocator.create(numa.CpuTopology);
         topo.* = try numa.CpuTopology.init(allocator);
         topology = topo;
@@ -266,8 +249,7 @@ fn initState(allocator: std.mem.Allocator, config: EngineConfig) !*EngineState {
     }
 
     var cpu_ids: ?[]usize = null;
-    if (config.cpu_affinity_enabled)
-    {
+    if (config.cpu_affinity_enabled) {
         cpu_ids = try buildCpuIds(allocator, topology);
     }
 
@@ -281,23 +263,19 @@ fn initState(allocator: std.mem.Allocator, config: EngineConfig) !*EngineState {
         .cpu_ids = cpu_ids,
     };
 
-    if (!builtin.single_threaded)
-    {
+    if (!builtin.single_threaded) {
         const worker_count = computeWorkerCount(config);
-        if (worker_count > 0)
-        {
+        if (worker_count > 0) {
             state.workers = try allocator.alloc(Worker, worker_count);
             errdefer deinitWorkers(state);
-            for (state.workers, 0..) |*worker, i|
-            {
+            for (state.workers, 0..) |*worker, i| {
                 worker.* = .{
                     .index = i,
                     .queue = concurrency.WorkStealingQueue(*TaskNode).init(allocator),
                     .thread = null,
                 };
             }
-            for (state.workers) |*worker|
-            {
+            for (state.workers) |*worker| {
                 worker.thread = try std.Thread.spawn(.{}, workerMain, .{ state, worker });
             }
         }
@@ -312,14 +290,11 @@ fn deinitState(state: *EngineState) void {
     deinitWorkers(state);
     deinitResults(state);
 
-    if (state.cpu_ids) |ids|
-    {
+    if (state.cpu_ids) |ids| {
         state.allocator.free(ids);
     }
-    if (state.owns_topology)
-    {
-        if (state.topology) |topo|
-        {
+    if (state.owns_topology) {
+        if (state.topology) |topo| {
             topo.deinit(state.allocator);
             state.allocator.destroy(topo);
         }
@@ -329,13 +304,11 @@ fn deinitState(state: *EngineState) void {
 }
 
 fn computeWorkerCount(config: EngineConfig) usize {
-    if (config.worker_count) |count|
-    {
+    if (config.worker_count) |count| {
         return count;
     }
     const cpu_count = std.Thread.getCpuCount() catch 1;
-    if (cpu_count <= 1)
-    {
+    if (cpu_count <= 1) {
         return 1;
     }
     return cpu_count - 1;
@@ -345,20 +318,16 @@ fn buildCpuIds(
     allocator: std.mem.Allocator,
     topology: ?*numa.CpuTopology,
 ) ![]usize {
-    if (topology) |topo|
-    {
+    if (topology) |topo| {
         var list = std.ArrayListUnmanaged(usize).empty;
         errdefer list.deinit(allocator);
-        for (topo.nodes) |node|
-        {
+        for (topo.nodes) |node| {
             try list.appendSlice(allocator, node.cpus);
         }
-        if (list.items.len == 0)
-        {
+        if (list.items.len == 0) {
             try list.ensureTotalCapacity(allocator, topo.cpu_count);
             var cpu_id: usize = 0;
-            while (cpu_id < topo.cpu_count)
-            {
+            while (cpu_id < topo.cpu_count) {
                 try list.append(allocator, cpu_id);
                 cpu_id += 1;
             }
@@ -369,8 +338,7 @@ fn buildCpuIds(
     const cpu_count = std.Thread.getCpuCount() catch 1;
     const ids = try allocator.alloc(usize, cpu_count);
     var i: usize = 0;
-    while (i < ids.len)
-    {
+    while (i < ids.len) {
         ids[i] = i;
         i += 1;
     }
@@ -382,20 +350,16 @@ fn stopWorkers(state: *EngineState) void {
     state.work_mutex.lock();
     state.work_cond.broadcast();
     state.work_mutex.unlock();
-    for (state.workers) |*worker|
-    {
-        if (worker.thread) |thread|
-        {
+    for (state.workers) |*worker| {
+        if (worker.thread) |thread| {
             thread.join();
         }
     }
 }
 
 fn drainQueues(state: *EngineState) void {
-    for (state.workers) |*worker|
-    {
-        while (worker.queue.pop()) |node|
-        {
+    for (state.workers) |*worker| {
+        while (worker.queue.pop()) |node| {
             destroyTaskNode(state, node);
             releaseTaskSlot(state);
         }
@@ -403,12 +367,10 @@ fn drainQueues(state: *EngineState) void {
 }
 
 fn deinitWorkers(state: *EngineState) void {
-    if (state.workers.len == 0)
-    {
+    if (state.workers.len == 0) {
         return;
     }
-    for (state.workers) |*worker|
-    {
+    for (state.workers) |*worker| {
         worker.queue.deinit();
     }
     state.allocator.free(state.workers);
@@ -417,10 +379,8 @@ fn deinitWorkers(state: *EngineState) void {
 
 fn deinitResults(state: *EngineState) void {
     var it = state.results.valueIterator();
-    while (it.next()) |blob|
-    {
-        if (blob.kind == .value or blob.kind == .owned_slice)
-        {
+    while (it.next()) |blob| {
+        if (blob.kind == .value or blob.kind == .owned_slice) {
             state.allocator.free(blob.bytes);
         }
     }
@@ -429,19 +389,15 @@ fn deinitResults(state: *EngineState) void {
 
 fn reserveTaskSlot(state: *EngineState) bool {
     const limit = state.config.max_tasks;
-    if (limit == 0)
-    {
+    if (limit == 0) {
         return false;
     }
-    while (true)
-    {
+    while (true) {
         const current = state.inflight_tasks.load(.acquire);
-        if (current >= limit)
-        {
+        if (current >= limit) {
             return false;
         }
-        if (state.inflight_tasks.cmpxchgWeak(current, current + 1, .acq_rel, .acquire) == null)
-        {
+        if (state.inflight_tasks.cmpxchgWeak(current, current + 1, .acq_rel, .acquire) == null) {
             return true;
         }
     }
@@ -496,8 +452,7 @@ fn destroyTaskNode(state: *EngineState, node: *TaskNode) void {
 }
 
 fn enqueueTask(state: *EngineState, node: *TaskNode) !void {
-    if (state.workers.len == 0)
-    {
+    if (state.workers.len == 0) {
         try executeTaskInline(state, node);
         return;
     }
@@ -517,16 +472,13 @@ fn wakeWorkers(state: *EngineState) void {
 fn workerMain(state: *EngineState, worker: *Worker) void {
     applyAffinity(state, worker.index);
     var backoff = Backoff{};
-    while (!state.stop_flag.load(.acquire))
-    {
-        if (popTask(state, worker.index)) |task|
-        {
+    while (!state.stop_flag.load(.acquire)) {
+        if (popTask(state, worker.index)) |task| {
             backoff.reset();
             executeTask(state, task);
             continue;
         }
-        if (backoff.spins < 16)
-        {
+        if (backoff.spins < 16) {
             backoff.spin();
             continue;
         }
@@ -538,29 +490,23 @@ fn workerMain(state: *EngineState, worker: *Worker) void {
 fn waitForWork(state: *EngineState) void {
     state.work_mutex.lock();
     defer state.work_mutex.unlock();
-    while (state.pending_tasks.load(.acquire) == 0 and !state.stop_flag.load(.acquire))
-    {
+    while (state.pending_tasks.load(.acquire) == 0 and !state.stop_flag.load(.acquire)) {
         state.work_cond.wait(&state.work_mutex);
     }
 }
 
 fn popTask(state: *EngineState, worker_index: usize) ?*TaskNode {
-    if (state.workers[worker_index].queue.pop()) |task|
-    {
+    if (state.workers[worker_index].queue.pop()) |task| {
         _ = state.pending_tasks.fetchSub(1, .acq_rel);
         return task;
     }
-    if (state.workers.len <= 1)
-    {
+    if (state.workers.len <= 1) {
         return null;
     }
     var i: usize = 0;
-    while (i < state.workers.len)
-    {
-        if (i != worker_index)
-        {
-            if (state.workers[i].queue.steal()) |task|
-            {
+    while (i < state.workers.len) {
+        if (i != worker_index) {
+            if (state.workers[i].queue.steal()) |task| {
                 _ = state.pending_tasks.fetchSub(1, .acq_rel);
                 return task;
             }
@@ -578,8 +524,7 @@ fn executeTask(state: *EngineState, node: *TaskNode) void {
     };
     destroyTaskNode(state, node);
     storeResultBlob(state, node.id, result) catch {
-        if (result.kind == .value or result.kind == .owned_slice)
-        {
+        if (result.kind == .value or result.kind == .owned_slice) {
             state.allocator.free(result.bytes);
         }
         releaseTaskSlot(state);
@@ -593,8 +538,7 @@ fn executeTaskInline(state: *EngineState, node: *TaskNode) !void {
     };
     destroyTaskNode(state, node);
     storeResultBlob(state, node.id, result) catch |err| {
-        if (result.kind == .value or result.kind == .owned_slice)
-        {
+        if (result.kind == .value or result.kind == .owned_slice) {
             state.allocator.free(result.bytes);
         }
         return err;
@@ -621,13 +565,11 @@ fn storeResultBlob(state: *EngineState, id: TaskId, blob: ResultBlob) std.mem.Al
 }
 
 fn applyAffinity(state: *EngineState, worker_index: usize) void {
-    if (!state.config.cpu_affinity_enabled)
-    {
+    if (!state.config.cpu_affinity_enabled) {
         return;
     }
     const cpu_ids = state.cpu_ids orelse return;
-    if (cpu_ids.len == 0)
-    {
+    if (cpu_ids.len == 0) {
         return;
     }
     const cpu_id = cpu_ids[worker_index % cpu_ids.len];
@@ -639,8 +581,7 @@ fn encodeResult(
     comptime ResultType: type,
     result: ResultType,
 ) !ResultBlob {
-    if (comptime isByteSlice(ResultType))
-    {
+    if (comptime isByteSlice(ResultType)) {
         const slice: []const u8 = result;
         const copy = try allocator.dupe(u8, slice);
         return .{
@@ -666,25 +607,21 @@ fn decodeResult(
     id: TaskId,
     blob: ResultBlob,
 ) !ResultType {
-    if (blob.kind == .task_error)
-    {
+    if (blob.kind == .task_error) {
         const err = @errorFromInt(blob.error_code);
         std.log.err("Task {d} failed: {s}", .{ id, @errorName(err) });
         return EngineError.TaskFailed;
     }
 
-    if (comptime isByteSlice(ResultType))
-    {
-        if (blob.kind != .owned_slice)
-        {
+    if (comptime isByteSlice(ResultType)) {
+        if (blob.kind != .owned_slice) {
             state.allocator.free(blob.bytes);
             return EngineError.UnsupportedResultType;
         }
         return @as(ResultType, blob.bytes);
     }
 
-    if (blob.kind != .value or blob.size != @sizeOf(ResultType))
-    {
+    if (blob.kind != .value or blob.size != @sizeOf(ResultType)) {
         state.allocator.free(blob.bytes);
         return EngineError.UnsupportedResultType;
     }
@@ -707,16 +644,14 @@ fn callTask(comptime ResultType: type, task: anytype, allocator: std.mem.Allocat
     switch (@typeInfo(TaskType)) {
         .@"fn" => return task(allocator),
         .pointer => |pointer| {
-            if (@typeInfo(pointer.child) == .@"fn")
-            {
+            if (@typeInfo(pointer.child) == .@"fn") {
                 return task.*(allocator);
             }
         },
         else => {},
     }
 
-    if (@hasDecl(TaskType, "execute"))
-    {
+    if (@hasDecl(TaskType, "execute")) {
         return task.execute(allocator);
     }
 

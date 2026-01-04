@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Zig
+        uses: goto-bob/zsh-setup-zig@v1
+        with:
+          version: 0.16.0
+      - name: Lint with zig fmt
+        run: zig fmt --check
+      - name: Build all modules
+        run: zig build
+      - name: Run tests
+        run: zig build test --summary all
+      - name: Run benchmark suite
+        if: always()
+        run: zig build benchmark
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Zig
+        uses: goto-bob/zsh-setup-zig@v1
+        with:
+          version: 0.16.0
+      - name: Format check
+        run: zig fmt --check

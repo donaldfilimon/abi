@@ -67,8 +67,8 @@ pub const Summary = struct {
 
 const GiB: u64 = 1024 * 1024 * 1024;
 
-const opengles_aliases = [_][]const u8{ "gles" };
-const webgl2_aliases = [_][]const u8{ "webgl" };
+const opengles_aliases = [_][]const u8{"gles"};
+const webgl2_aliases = [_][]const u8{"webgl"};
 
 const BackendMeta = struct {
     name: []const u8,

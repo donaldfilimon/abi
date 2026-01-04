@@ -1,214 +1,202 @@
-# Agentic Coding Guidelines for ABI Framework
+## ABI Framework Agentic Coding Guidelines
 
-This document provides comprehensive guidelines for AI coding agents working on the ABI framework repository.
+This file contains minimal, actionable guidance for developers working on the ABI framework.
 
-> For deep architectural context, please refer to the [Architecture Documentation](docs/intro.md).
-
-## Build and Test Commands
-
+### Build & Test Commands
 ```bash
-# Build entire project
-zig build
+zig build                     # Build all modules
+zig build test --summary all  # Run full test suite
+zig test <file>              # Run tests in a single file
+zig build test --test-filter <name>  # Run tests matching pattern
 
-# Run all tests
-zig build test --summary all
+# Feature flags
+zig build -Denable-gpu=false      # Disable GPU features
+zig build -Denable-ai=true       # Enable AI features
+zig build -Doptimize=ReleaseFast  # Release build
 ```
 
-## Code Style Guidelines
+### Code Style Guidelines
 
-### File Structure
+#### Documentation
+- **File docs**: `//!` at top of each module, include usage examples when helpful
+- **Public API**: `///` comments + `@param`/`@return` annotations for all exported functions
+- **Inline docs**: Use `//` for brief explanations of complex logic
 
-- **Module docs**: Use `//!` at file top for module-level documentation
-- **Function docs**: Use `///` for all public functions
-- **Test placement**: Tests go at end of file or in separate `*_test.zig` files
-- **Import order**: `std` first, then internal modules alphabetically
-- **No usingnamespace**: Always use qualified imports (`std.mem`, not `mem`)
+#### Naming Conventions
+- **Types**: PascalCase (`HttpClient`, `ConfigError`, `TaskHandle`)
+- **Functions/Variables**: snake_case (`getEnvVar`, `spawnTask`)
+- **Constants**: UPPER_SNAKE_CASE (`MAX_SIZE`, `DEFAULT_TIMEOUT`)
+- **Error types**: PascalCase with descriptive names (`InvalidUrl`, `ReadFailed`)
+- **Enum variants**: snake_case or PascalCase (be consistent per enum)
 
-### Naming Conventions
+#### Imports & Modules
+```zig
+const std = @import("std");
+const local_mod = @import("mod.zig");
+const build_options = @import("build_options");
 
-- **Types**: `PascalCase` (structs, enums, unions)
-- **Functions**: `snake_case`
-- **Variables**: `snake_case`
-- **Constants**: `UPPER_SNAKE_CASE`
-- **Error sets**: `PascalCase` with `Error` suffix
-- **Modules**: `snake_case` with `.zig` extension
-
-### Formatting Rules
-
-- **Indentation**: 4 spaces
-- **Line length**: 100 characters maximum
-- **Braces**: Same line for structs/functions, next line for control flow
-- **Spacing**: Space around operators, no space in function calls
-
-### Import Guidelines
-
-- No `usingnamespace` allowed - always use qualified imports
-- No circular imports - avoid modules importing each other
-- Prefer `@import` over `@cImport`
-
-### Memory Management Patterns
-
-- **Function parameters**: Always take `std.mem.Allocator` as first parameter for allocation functions
-- **Ownership transfer**: Document who owns allocated memory (caller or callee)
-- **Cleanup patterns**: Use `errdefer` for cleanup on error paths
-- **Arena allocators**: Use for scratch work, reset between operations
-- **Object pools**: Consider for frequently allocated objects
-
-### Error Handling Guidelines
-
-- **Specific errors**: Use descriptive error names, avoid `error.Generic` or `error.Failed`
-- **Error propagation**: Use `try` for expected errors, handle appropriately
-- **Error context**: Add contextual information to errors for debugging
-- **No silent failures**: Use logging for non-critical errors
-
-### Testing Guidelines
-
-- **Test allocator**: Always use `std.testing.allocator` for tests
-- **Resource cleanup**: Use `defer` for cleanup in tests
-- **Error testing**: Use `std.testing.expectError` for error cases
-
-### Performance Considerations
-
-- **SIMD usage**: Use vectorized operations where possible
-- **Cache-friendly designs**: Consider cache locality for hot paths
-- **Minimal allocations**: Avoid unnecessary allocations in loops
-- **Zero-copy**: Prefer views over copies where possible
-
-### Zig 0.16 Specific Guidelines
-
-- **Use Zig 0.16 features** where beneficial
-- **Comptime checks**: Add compile-time assertions for type safety
-- **Packed structs**: Use for binary serialization when appropriate
-- **std.mem.bytesAsValue**: Use for type-safe struct reading
-- **Avoid deprecated APIs**: Check Zig 0.16 release notes
-- **Lazy evaluation**: Use `comptime` blocks for compile-time optimizations
-
-## Module Organization
-
-### Import Hierarchy
-
+// NEVER use `usingnamespace`
 ```
-src/
-├── abi.zig (main API surface)
-├── framework/ (orchestration layer)
-├── core/ (infrastructure: platform, version, memory utilities)
-├── compute/ (runtime engine, GPU, concurrency)
-├── features/ (high-level features: AI, database, web, network)
-├── shared/ (common utilities: logging, HTTP, JSON, encoding, binary)
-└── cli.zig (command-line interface)
+
+#### Structs & Types
+```zig
+pub const MyStruct = struct {
+    allocator: std.mem.Allocator,  // First field if allocator needed
+    field: type = default_value,
+    optional_field: ?type = null,
+
+    pub fn init(allocator: std.mem.Allocator) MyStruct {
+        return .{
+            .allocator = allocator,
+            .field = value,
+        };
+    }
+
+    pub fn deinit(self: *MyStruct) void {
+        // cleanup...
+        self.* = undefined;
+    }
+};
 ```
+
+#### Error Handling
+- Use `try`/`?` for error propagation
+- Define specific error types, avoid `anyerror` unless necessary
+- Use error union `||` pattern to combine error sets:
+```zig
+pub const MyError = error{
+    CustomError,
+} || std.mem.Allocator.Error || std.Io.File.OpenError;
+```
+
+#### Memory Management
+- Accept `std.mem.Allocator` as first argument for allocators
+- Use `std.ArrayListUnmanaged` for struct fields (not `std.ArrayList`)
+- Always pair allocations with `errdefer` cleanup
+- Use `defer` for guaranteed cleanup
+
+#### Collections
+```zig
+// For struct fields
+var list: std.ArrayListUnmanaged(u8) = .empty;
+try list.append(allocator, item);
+defer list.deinit(allocator);
+
+// For local variables
+var list = std.ArrayList(u8).init(allocator);
+defer list.deinit();
+```
+
+#### Conditional Compilation
+```zig
+if (build_options.enable_gpu) {
+    // GPU-specific code
+}
+
+// Import disabled modules
+const network_mod = if (build_options.enable_network)
+    @import("network/mod.zig")
+else
+    @import("network/disabled.zig");
+```
+
+#### I/O Patterns (Zig 0.16)
+```zig
+// Use std.Io for all I/O
+var io_backend = std.Io.Threaded.init(allocator, .{});
+defer io_backend.deinit();
+const io = io_backend.io();
+
+// File operations
+var file = try std.Io.Dir.cwd().createFile(io, path, .{});
+defer file.close(io);
+
+// Readers/writers
+var buffer: [4096]u8 = undefined;
+var reader = file.reader(io, &buffer);
+var writer = file.writer(io, &buffer);
+```
+
+#### Testing
+```zig
+test "test name" {
+    const allocator = std.testing.allocator;
+    var thing = try Thing.init(allocator);
+    defer thing.deinit();
+
+    try std.testing.expectEqual(expected, actual);
+    try std.testing.expectError(error.ExpectedErr, action());
+}
+
+// Feature-gated tests
+if (!build_options.enable_gpu) return;
+```
+
+#### Formatting & Layout
+- 4 spaces indentation (no tabs)
+- Max 100 characters per line
+- One blank line between functions
+- Group related fields together
+- Order: constants, types, functions, tests
 
 ### Feature Flags
+| Flag | Default | Description |
+|------|---------|-------------|
+| `enable-gpu` | true | GPU acceleration |
+| `enable-ai` | true | AI/ML features |
+| `enable-web` | true | HTTP server/client |
+| `enable-database` | true | Database features |
+| `enable-network` | false | Distributed compute |
+| `enable-profiling` | false | Profiling & metrics |
 
-- **`enable-gpu`**: Enable/disable GPU support
-- **`enable-ai`**: Enable/disable AI features
-- **`enable-web`**: Enable/disable web features
-- **`enable-database`**: Enable/disable database features
-- **`enable-network`**: Enable/disable distributed compute
-- **`enable-profiling`**: Enable/disable profiling
-
-### Module Documentation
-
-Each module should have:
-
-- Module-level `//!` doc explaining purpose and usage
-- Public function documentation with `///`
-- Examples for non-trivial APIs
-- Notes about feature flags or build requirements
+GPU backends: `gpu-cuda`, `gpu-vulkan`, `gpu-metal`, `gpu-webgpu`, `gpu-opengl`, `gpu-opengles`, `gpu-webgl2`
 
 ### Common Patterns
 
-#### Serialization Pattern
-
+#### Type Parameters
 ```zig
-// Binary cursor for reading
-var cursor = try SerializationCursor.init(data);
-defer cursor.deinit();
-const value = try cursor.readInt(u32);
-const slice = try cursor.readSlice();
-```
-
-#### Error Handling Pattern
-
-```zig
-pub fn processFile(path: []const u8) !void {
-    const file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
-    return try processContent(file.reader());
+pub fn MyHandle(comptime T: type) type {
+    return struct {
+        value: T,
+        pub const Self = @This();
+    };
 }
 ```
 
-#### Memory Allocation Pattern
-
+#### Comptime Checks
 ```zig
-pub fn createBuffer(allocator: std.mem.Allocator, size: usize) ![]u8 {
-    return try allocator.alloc(u8, size);
+comptime {
+    if (!@hasField(@TypeOf(options), "required_field")) {
+        @compileError("Missing required_field");
+    }
 }
 ```
 
-## Conventions
-
-### Type Safety
-
-- Use `comptime` assertions for compile-time checks
-- Prefer explicit `@intCast` over implicit conversions
-- Add unsigned integer checks to `readInt()` and `appendInt()`
-
-### Documentation
-
-Add `@param` and `@return` documentation for functions:
-
+#### Switch with Errors
 ```zig
-/// Process request with given parameters.
-/// @param allocator Memory allocator for allocations
-/// @param request The request to process
-/// @return Processed result
-pub fn processRequest(allocator: std.mem.Allocator, request: Request) !Result;
+const result = operation() catch |err| switch (err) {
+    error.Temporary => continue,
+    error.Fatal => return err,
+};
 ```
 
-### Build Integration
-
-Add feature modules to `build.zig`:
-
-```zig
-if (base_options.enable_gpu) {
-    const gpu_module = b.createModule(.{ .root_source_file = "src/compute/gpu/mod.zig" });
-    exe.addImport("gpu", gpu_module);
-}
+### Environment Summary
+```text
+CWD: C:\Users\donald\abi
+Approval policy: never
+Sandbox: danger-full-access
+Network: enabled
+Shell: powershell
 ```
 
-## Testing
+### Available Codex Skills
+| Skill | Purpose |
+|-------|---------|
+| gh-address-comments | Auto-address GitHub PR comments |
+| gh-fix-ci | Analyze and fix GitHub Actions failures |
+| linear | Manage Linear tickets |
+| notion-* | Various Notion integration skills |
+| skill-creator | Create/modify skills |
+| skill-installer | Install Codex skills |
 
-### Property-Based Testing
-
-Use property testing framework in `tests/property_tests.zig` for randomized testing:
-
-```zig
-try property_tests.checkProperty(allocator, myPropertyFunction, config, "my property description");
-```
-
-## Common Pitfalls to Avoid
-
-1. **Circular imports**: Modules shouldn't import each other
-2. **Memory leaks**: Always pair allocations with frees or use arena allocators
-3. **Silent failures**: Log errors instead of returning silently
-4. **Race conditions**: Use proper synchronization primitives
-5. **Overly broad errors**: Be specific about what went wrong
-6. **Implicit casts**: Prefer explicit `@intCast` over implicit conversions
-7. **Uninitialized memory**: Use `undefined` after free, not zero-initialization
-
-## Performance Tips
-
-1. **Vectorized operations**: Use SIMD for bulk data processing
-2. **Batch operations**: Group related operations to reduce overhead
-3. **Arena allocators**: Use for temporary allocations
-4. **Slice over copy**: Pass slices instead of allocating new buffers
-5. **Compile-time evaluation**: Use `comptime` for constant folding
-
-## Security Considerations
-
-1. **Input validation**: Validate all external inputs
-2. **Bounds checking**: Use Zig's bounds checking
-3. **Safe string handling**: Use bounds-checked string operations
-4. **Memory safety**: Zero out sensitive data after use
-5. **Path safety**: Validate file paths to prevent traversal attacks
+*All skill files are located under `C:\Users\donald\.codex\skills\`.*

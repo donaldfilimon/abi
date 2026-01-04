@@ -86,8 +86,7 @@ pub fn WorkStealingQueue(comptime T: type) type {
         pub fn pop(self: *@This()) ?T {
             self.mutex.lock();
             defer self.mutex.unlock();
-            if (self.items.items.len == 0)
-            {
+            if (self.items.items.len == 0) {
                 return null;
             }
             return self.items.pop();
@@ -96,8 +95,7 @@ pub fn WorkStealingQueue(comptime T: type) type {
         pub fn steal(self: *@This()) ?T {
             self.mutex.lock();
             defer self.mutex.unlock();
-            if (self.items.items.len == 0)
-            {
+            if (self.items.items.len == 0) {
                 return null;
             }
             return self.items.orderedRemove(0);

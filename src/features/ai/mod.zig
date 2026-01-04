@@ -11,6 +11,7 @@ pub const model_registry = @import("model_registry.zig");
 pub const training = @import("training/mod.zig");
 pub const federated = @import("federated/mod.zig");
 pub const transformer = @import("transformer/mod.zig");
+pub const streaming = @import("streaming.zig");
 
 pub const Agent = agent.Agent;
 pub const ModelRegistry = model_registry.ModelRegistry;

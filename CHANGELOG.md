@@ -2,6 +2,48 @@
 
 ## Unreleased
 
+### Zig 0.16-dev API Migration (2025-01-03)
+
+**Reader API Migration**
+- Migrated `std.io.AnyReader` → `std.Io.Reader` in async HTTP client
+- Updated streaming response interface for compatibility with new `std.Io` API
+- Impact: `src/shared/utils/http/async_http.zig`
+
+**HTTP Server Initialization**
+- Updated `std.http.Server` initialization to use direct reader/writer references
+- Removed deprecated `.interface` access pattern for HTTP server setup
+- Impact: `src/features/database/http.zig`
+
+**File I/O Compatibility**
+- Verified and preserved `std.Io.File.Reader` `.interface` access for delimiter methods
+- This is intentional and correct usage in Zig 0.16 for specialized file operations
+- Impact: `src/cli.zig` (no changes needed, verified correct)
+
+**Build System Updates**
+- Updated CI configuration to use Zig `0.16.0` instead of `0.17.0`
+- Confirmed `minimum_zig_version` in `build.zig.zon` is set to `"0.16.0-dev.1892+53ebfde6b"`
+- All feature builds tested and passing (gpu, ai, web, database, network)
+
+**Testing & Verification**
+- All unit tests passing (1/1)
+- Full feature build succeeds with all optional modules enabled
+- Benchmark suite runs successfully
+- No breaking changes to public API
+
+**Documentation**
+- Added comprehensive migration guide: `docs/migration/zig-0.16-migration.md`
+- Documents all API changes, migration patterns, and compatibility notes
+- Includes testing procedures and future considerations
+
+**Migration Impact Summary**
+| File | Change | Impact |
+|------|--------|--------|
+| `src/shared/utils/http/async_http.zig` | Reader type migration | Low - Streaming interface updated |
+| `src/features/database/http.zig` | HTTP Server init | Low - Direct reader/writer usage |
+| `src/cli.zig` | Verified | None - File.Reader API unchanged |
+| `.github/workflows/ci.yml` | Zig version | Low - CI uses 0.16.0 |
+| `docs/migration/zig-0.16-migration.md` | New file | Documentation |
+
 ### Status Note
 
 > [!NOTE]

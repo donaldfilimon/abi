@@ -145,8 +145,14 @@ pub const Database = struct {
         query: []const f32,
         top_k: usize,
     ) ![]SearchResult {
-        // Pre-allocate capacity to avoid individual allocations in the loop
-        const capacity = @min(self.records.items.len, top_k * 2); // Heuristic: 2x top_k for filtering
+        // Count matching vectors to size allocations more accurately
+        const qlen = query.len;
+        var matches: usize = 0;
+        for (self.records.items) |record| {
+            if (record.vector.len == qlen) matches += 1;
+        }
+        // Pre-allocate capacity based on matches
+        const capacity = @min(matches, top_k * 2);
         var results = try std.ArrayListUnmanaged(SearchResult).initCapacity(allocator, capacity);
         errdefer results.deinit(allocator);
 
@@ -157,7 +163,7 @@ pub const Database = struct {
         defer valid_ids.deinit(allocator);
 
         for (self.records.items) |record| {
-            if (record.vector.len == query.len) {
+            if (record.vector.len == qlen) {
                 try valid_vectors.append(allocator, record.vector);
                 try valid_ids.append(allocator, record.id);
             }

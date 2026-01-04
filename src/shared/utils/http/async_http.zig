@@ -234,7 +234,7 @@ pub const AsyncHttpClient = struct {
     }
 
     pub const StreamingResponse = struct {
-        reader: std.io.AnyReader,
+        reader: std.Io.Reader,
         response: HttpResponse,
 
         pub fn deinit(self: *StreamingResponse) void {
@@ -272,7 +272,7 @@ pub const AsyncHttpClient = struct {
         const reader = http_res.reader();
 
         return .{
-            .reader = reader.any(),
+            .reader = reader,
             .response = response,
         };
     }

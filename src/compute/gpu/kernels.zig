@@ -613,9 +613,7 @@ test "kernel compilation stubs cover supported backends" {
 
         _ = compiled.launch(allocator, .{}, &.{}) catch |err| {
             switch (err) {
-                KernelError.LaunchFailed,
-                KernelError.InvalidArguments,
-                KernelError.UnsupportedBackend => {},
+                KernelError.LaunchFailed, KernelError.InvalidArguments, KernelError.UnsupportedBackend => {},
                 else => return err,
             }
             return;

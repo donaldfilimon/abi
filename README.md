@@ -17,6 +17,7 @@ Modern Zig framework for modular AI services, vector search, and systems tooling
 
 - Documentation Index: [docs/intro.md](docs/intro.md)
 - Concise API summary: [API_REFERENCE.md](API_REFERENCE.md)
+- Migration Guide: [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md)
 
 ## Requirements
 

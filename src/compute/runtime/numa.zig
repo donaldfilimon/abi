@@ -281,8 +281,7 @@ fn detectDefaultNuma(allocator: std.mem.Allocator, cpu_count: usize) !NumaNode {
 
 fn setLinuxThreadAffinity(cpu_id: usize) !void {
     const max_cpus = linux.CPU_SETSIZE * 8;
-    if (cpu_id >= max_cpus)
-    {
+    if (cpu_id >= max_cpus) {
         return error.InvalidCpuId;
     }
 
@@ -297,15 +296,13 @@ fn setLinuxThreadAffinity(cpu_id: usize) !void {
 
 fn setWindowsThreadAffinity(cpu_id: usize) !void {
     const bits_per = @bitSizeOf(usize);
-    if (cpu_id >= bits_per)
-    {
+    if (cpu_id >= bits_per) {
         return error.InvalidCpuId;
     }
 
     const handle = WindowsKernel32.GetCurrentThread();
     const mask = @as(usize, 1) << @intCast(cpu_id);
-    if (WindowsKernel32.SetThreadAffinityMask(handle, mask) == 0)
-    {
+    if (WindowsKernel32.SetThreadAffinityMask(handle, mask) == 0) {
         return windows.unexpectedError(windows.kernel32.GetLastError());
     }
 }
@@ -316,10 +313,8 @@ fn setLinuxThreadAffinityMask(mask: AffinityMask) !void {
     const max_cpus = linux.CPU_SETSIZE * 8;
 
     var cpu_id: usize = 0;
-    while (cpu_id < mask.size and cpu_id < max_cpus)
-    {
-        if (mask.isSet(cpu_id))
-        {
+    while (cpu_id < mask.size and cpu_id < max_cpus) {
+        if (mask.isSet(cpu_id)) {
             const index = cpu_id / bits_per;
             const bit = cpu_id % bits_per;
             set[index] |= @as(usize, 1) << @intCast(bit);
@@ -332,25 +327,21 @@ fn setLinuxThreadAffinityMask(mask: AffinityMask) !void {
 
 fn setWindowsThreadAffinityMask(mask: AffinityMask) !void {
     const bits_per = @bitSizeOf(usize);
-    if (mask.size > bits_per)
-    {
+    if (mask.size > bits_per) {
         return error.UnsupportedPlatform;
     }
 
     var bitmask: usize = 0;
     var cpu_id: usize = 0;
-    while (cpu_id < mask.size)
-    {
-        if (mask.isSet(cpu_id))
-        {
+    while (cpu_id < mask.size) {
+        if (mask.isSet(cpu_id)) {
             bitmask |= @as(usize, 1) << @intCast(cpu_id);
         }
         cpu_id += 1;
     }
 
     const handle = WindowsKernel32.GetCurrentThread();
-    if (WindowsKernel32.SetThreadAffinityMask(handle, bitmask) == 0)
-    {
+    if (WindowsKernel32.SetThreadAffinityMask(handle, bitmask) == 0) {
         return windows.unexpectedError(windows.kernel32.GetLastError());
     }
 }
@@ -358,8 +349,7 @@ fn setWindowsThreadAffinityMask(mask: AffinityMask) !void {
 fn getLinuxCurrentCpu() !usize {
     var cpu: usize = 0;
     const rc = linux.getcpu(&cpu, null);
-    if (@as(isize, @bitCast(rc)) < 0)
-    {
+    if (@as(isize, @bitCast(rc)) < 0) {
         return posix.unexpectedErrno(linux.errno(rc));
     }
     return cpu;
