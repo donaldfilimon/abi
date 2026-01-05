@@ -12,6 +12,8 @@ pub const training = @import("training/mod.zig");
 pub const federated = @import("federated/mod.zig");
 pub const transformer = @import("transformer/mod.zig");
 pub const streaming = @import("streaming.zig");
+pub const tools = @import("tools/mod.zig");
+pub const explore = @import("explore/mod.zig");
 
 pub const Agent = agent.Agent;
 pub const ModelRegistry = model_registry.ModelRegistry;
@@ -23,6 +25,22 @@ pub const TrainError = training.TrainError;
 pub const CheckpointStore = training.CheckpointStore;
 pub const Checkpoint = training.Checkpoint;
 pub const GradientAccumulator = training.GradientAccumulator;
+
+pub const Tool = tools.Tool;
+pub const ToolResult = tools.ToolResult;
+pub const ToolRegistry = tools.ToolRegistry;
+pub const TaskTool = tools.TaskTool;
+pub const Subagent = tools.Subagent;
+
+pub const ExploreAgent = explore.ExploreAgent;
+pub const ExploreConfig = explore.ExploreConfig;
+pub const ExploreLevel = explore.ExploreLevel;
+pub const ExploreResult = explore.ExploreResult;
+pub const Match = explore.Match;
+pub const ExplorationStats = explore.ExplorationStats;
+pub const QueryIntent = explore.QueryIntent;
+pub const ParsedQuery = explore.ParsedQuery;
+pub const QueryUnderstanding = explore.QueryUnderstanding;
 
 pub const AiError = error{
     AiDisabled,

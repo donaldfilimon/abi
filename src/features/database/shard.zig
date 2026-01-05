@@ -74,7 +74,7 @@ pub const ShardRouter = struct {
     pub fn addNode(self: *ShardRouter, node_id: []const u8, weight: u32) !void {
         try self.hash_ring.addNode(node_id, weight);
 
-        var existing = self.node_shards.get(node_id);
+        const existing = self.node_shards.get(node_id);
         if (existing == null) {
             var list = std.ArrayListUnmanaged(ShardId).empty;
             try list.append(self.allocator, 0);
@@ -119,19 +119,14 @@ pub const ShardRouter = struct {
 
     pub fn routeSearch(
         self: *ShardRouter,
+        allocator: std.mem.Allocator,
         key: []const u8,
         top_k: usize,
-    ) !std.ArrayListUnmanaged(database.SearchResult) {
-        var results = std.ArrayListUnmanaged(database.SearchResult).empty;
-
+    ) ![]database.SearchResult {
         const shard_id = try self.getShardForKey(key);
-        const shard = &self.shards.items[shard_id];
-
-        for (shard.nodes) |node_id| {
-            _ = node_id;
-        }
-
-        return results;
+        _ = shard_id;
+        _ = top_k;
+        return allocator.alloc(database.SearchResult, 0);
     }
 
     pub fn routeInsert(
@@ -140,7 +135,7 @@ pub const ShardRouter = struct {
         vector: []const f32,
         metadata: ?[]const u8,
     ) !void {
-        const key = std.fmt.allocPrint(self.allocator, "vec:{d}", .{id}) catch return;
+        const key = try std.fmt.allocPrint(self.allocator, "vec:{d}", .{id});
         defer self.allocator.free(key);
 
         const shard_id = try self.getShardForKey(key);
@@ -152,7 +147,7 @@ pub const ShardRouter = struct {
     }
 
     pub fn routeDelete(self: *ShardRouter, id: u64) !bool {
-        const key = std.fmt.allocPrint(self.allocator, "vec:{d}", .{id}) catch return false;
+        const key = try std.fmt.allocPrint(self.allocator, "vec:{d}", .{id});
         defer self.allocator.free(key);
 
         const shard_id = try self.getShardForKey(key);
@@ -191,7 +186,10 @@ pub const ShardRouter = struct {
             const end_key = std.fmt.allocPrint(self.allocator, "shard:{d}:end", .{shard_id}) catch return error.OutOfMemory;
             defer self.allocator.free(end_key);
 
-            const nodes = self.hash_ring.getNodes(start_key, self.config.replica_count) catch |err| {
+            const nodes = self.hash_ring.getNodes(
+                start_key,
+                @as(usize, @intCast(self.config.replica_count)),
+            ) catch |err| blk: {
                 if (err == error.NotEnoughNodes) {
                     const all_nodes = try self.allocator.alloc([]const u8, self.hash_ring.nodes.items.len);
                     for (self.hash_ring.nodes.items, 0..) |node, i| {
@@ -251,7 +249,7 @@ pub const ShardRouter = struct {
             .version = self.version,
         };
     }
-}
+};
 
 pub const RouterStats = struct {
     shard_count: usize,

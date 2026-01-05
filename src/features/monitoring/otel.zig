@@ -120,7 +120,7 @@ pub const OtelAttributeValue = union(enum) {
 pub const OtelStatus = enum {
     unset,
     ok,
-    error,
+    failed,
 };
 
 pub const OtelTracer = struct {
@@ -277,7 +277,7 @@ test "otel span lifecycle" {
 }
 
 test "trace id formatting" {
-    const trace_id = [_]u8{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef};
+    const trace_id = [_]u8{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
     const formatted = formatTraceId(trace_id);
     try std.testing.expectEqualStrings("0123456789abcdef0123456789abcdef", &formatted);
 }

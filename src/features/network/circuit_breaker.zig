@@ -72,23 +72,22 @@ pub const CircuitBreaker = struct {
         self.open_until = 0;
     }
 
-    pub fn execute(self: *CircuitBreaker, operation: fn() anyerror![]const u8) !CircuitResult) !CircuitResult {
-        const result = try operation();
-
-        if (result) |r| {
-            return switch (r) {
-                .success => |data| {
-                    self.onSuccess();
-                    return .{ .success = data };
-                },
-                .err => |e| {
-                    self.onFailure();
-                    return .{ .err = e };
-                },
-            };
+    pub fn execute(self: *CircuitBreaker, operation: fn () anyerror![]const u8) CircuitResult {
+        if (!self.canExecute()) {
+            return .{ .rejected = .{ .message = "Circuit open", .fallback = null } };
         }
 
-        return .{ .rejected = .{ .message = "Circuit open" } };
+        const payload = operation() catch |err| {
+            self.onFailure();
+            const code: CircuitError = switch (err) {
+                error.Timeout, error.TimedOut => .timeout,
+                else => .rejected,
+            };
+            return .{ .err = .{ .code = code, .message = @errorName(err) } };
+        };
+
+        self.onSuccess();
+        return .{ .success = payload };
     }
 
     pub fn onSuccess(self: *CircuitBreaker) void {

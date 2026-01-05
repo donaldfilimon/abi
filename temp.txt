@@ -114,14 +114,14 @@ pub const ErrorContext = struct {
 
         const timestamp = std.time.timestamp();
 
-        const gpu_error = GpuError{
+        const error = GpuError{
             .code = code,
             .error_type = error_type,
             .message = msg_copy,
             .timestamp = timestamp,
         };
 
-        try self.errors.append(self.allocator, gpu_error);
+        try self.errors.append(self.allocator, error);
     }
 
     pub fn getLastError(self: *const ErrorContext) ?GpuError {

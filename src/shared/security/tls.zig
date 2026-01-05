@@ -1,4 +1,35 @@
 //! TLS/SSL support for secure network communication.
+//!
+//! # ⚠️ EXPERIMENTAL STATUS
+//!
+//! This module is currently a **stub implementation** and is **NOT ready for production use**.
+//!
+//! The actual TLS functionality is not yet implemented. All TLS operations (handshake, read, write)
+//! will fail with `error.TlsNotImplemented`.
+//!
+//! # Planned Implementation
+//! This module is designed to support:
+//! - TLS 1.2 and 1.3 protocols
+//! - Certificate validation and revocation checking
+//! - Server and client modes
+//! - ALPN protocol negotiation
+//! - Certificate store management
+//!
+//! # Current Limitations
+//! - No actual TLS protocol implementation
+//! - Cryptographic operations are stubbed
+//! - Cannot establish secure connections
+//! - Should not be used for real-world security
+//!
+//! # Alternatives
+//! For production use, consider using:
+//! - `zig-tls` library (https://github.com/MasterQ32/zig-tls)
+//! - OpenSSL bindings
+//! - BoringSSL bindings
+//! - wolfSSL bindings
+//!
+//! To enable experimental TLS features, use: `-Denable-experimental-tls=true`
+
 const std = @import("std");
 
 pub const TlsConfig = struct {
@@ -117,6 +148,7 @@ pub const TlsConnection = struct {
 
 pub const TlsError = error{
     TlsNotImplemented,
+
     HandshakeFailed,
     CertificateExpired,
     CertificateNotYetValid,
@@ -152,11 +184,22 @@ pub const CertificateStore = struct {
             self.allocator.free(cert.subject_alt_names);
         }
         self.trusted_certs.deinit(self.allocator);
+
+        const revoked_keys = self.revoked_serials.keys();
+        for (revoked_keys) |key| {
+            self.allocator.free(key);
+        }
         self.revoked_serials.deinit(self.allocator);
+
         self.* = undefined;
     }
 
     pub fn addTrustedCertificate(self: *CertificateStore, cert: TlsCertificate) !void {
+        const subject_alt_names_copy = try self.allocator.alloc([]const u8, cert.subject_alt_names.len);
+        for (cert.subject_alt_names, subject_alt_names_copy) |san, *copy| {
+            copy.* = try self.allocator.dupe(u8, san);
+        }
+
         const cert_copy = TlsCertificate{
             .der_encoding = try self.allocator.dupe(u8, cert.der_encoding),
             .common_name = try self.allocator.dupe(u8, cert.common_name),
@@ -164,7 +207,7 @@ pub const CertificateStore = struct {
             .valid_from = cert.valid_from,
             .valid_until = cert.valid_until,
             .is_ca = cert.is_ca,
-            .subject_alt_names = try self.allocator.dupeStrings(cert.subject_alt_names),
+            .subject_alt_names = subject_alt_names_copy,
         };
         try self.trusted_certs.append(self.allocator, cert_copy);
     }
@@ -193,12 +236,13 @@ pub fn generateSelfSignedCertificate(
     organization: []const u8,
 ) !TlsCertificate {
     const der_encoding = try allocator.alloc(u8, 0);
+    const now = 1700000000;
     return .{
         .der_encoding = der_encoding,
         .common_name = try allocator.dupe(u8, common_name),
         .organization = try allocator.dupe(u8, organization),
-        .valid_from = std.time.timestamp(),
-        .valid_until = std.time.timestamp() + 365 * 24 * 60 * 60,
+        .valid_from = now,
+        .valid_until = now + 365 * 24 * 60 * 60,
         .is_ca = false,
         .subject_alt_names = &.{},
     };

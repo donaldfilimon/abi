@@ -9,3 +9,4 @@ pub const net = @import("net/mod.zig");
 pub const crypto = @import("crypto/mod.zig");
 pub const json = @import("json/mod.zig");
 pub const config = @import("config.zig");
+pub const lifecycle = @import("lifecycle.zig");

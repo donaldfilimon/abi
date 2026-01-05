@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### Zig 0.16-dev API Migration (2025-01-03)
+### Zig 0.16-dev API Migration
 
 **Reader API Migration**
 - Migrated `std.io.AnyReader` → `std.Io.Reader` in async HTTP client

@@ -1,0 +1,20 @@
+site_name: ABI Framework
+repo_url: https://github.com/donaldfilimon/abi
+site_description: Modern Zig framework for modular AI services, vector search, and systems tooling.
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+nav:
+  - Introduction: docs/intro.md
+  - Framework: docs/framework.md
+  - Compute: docs/compute.md
+  - GPU: docs/gpu.md
+  - Database: docs/database.md
+  - Network: docs/network.md
+  - Monitoring: docs/monitoring.md
+  - AI: docs/ai.md
+  - Migration:
+      - Zig 0.16 Migration: docs/migration/zig-0.16-migration.md

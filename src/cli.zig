@@ -91,6 +91,11 @@ pub fn main() !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "explore")) {
+        try runExplore(allocator, args[2..]);
+        return;
+    }
+
     if (std.mem.eql(u8, command, "simd")) {
         try runSimdDemo(allocator);
         return;
@@ -106,14 +111,16 @@ fn printHelp() void {
         "Commands:\n" ++
         "  db <subcommand>   Database operations (add, query, stats, optimize, backup)\n" ++
         "  agent [--message] Run AI agent (interactive or one-shot)\n" ++
+        "  explore [options]  Search and explore codebase\n" ++
         "  gpu [subcommand]  GPU commands (backends, devices, summary, default)\n" ++
         "  network [command] Manage network registry (list, register, status)\n" ++
         "  system-info       Show system and framework status\n" ++
         "  version           Show framework version\n" ++
+        "  explore           Search and explore codebase\n" ++
         "  help              Show this help message\n\n" ++
         "Run 'abi db help' for database specific commands.\n" ++
         "Run 'abi gpu help' for GPU commands.\n" ++
-        "Run 'abi network help' for network commands.\n";
+        "Run 'abi explore help' for explore commands.\n";
 
     std.debug.print("{s}", .{help_text});
 }
@@ -244,6 +251,11 @@ fn runGpu(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
 
     if (std.mem.eql(u8, command, "default")) {
         try printGpuDefaultDevice(allocator);
+        return;
+    }
+
+    if (std.mem.eql(u8, command, "status")) {
+        try printGpuStatus(allocator);
         return;
     }
 
@@ -410,7 +422,8 @@ fn printGpuHelp() void {
         "  summary    Show GPU module summary\n" ++
         "  devices    List detected GPU devices\n" ++
         "  list       Alias for devices\n" ++
-        "  default    Show the default GPU device\n";
+        "  default    Show default GPU device\n" ++
+        "  status     Show CUDA native/fallback status\n";
     std.debug.print("{s}", .{help_text});
 }
 
@@ -569,6 +582,59 @@ fn printGpuDefaultDevice(allocator: std.mem.Allocator) !void {
     }
 }
 
+fn printGpuStatus(allocator: std.mem.Allocator) !void {
+    if (!abi.gpu.moduleEnabled()) {
+        std.debug.print("GPU status: disabled (build without -Denable-gpu)\n", .{});
+        return;
+    }
+
+    try abi.gpu.ensureInitialized(allocator);
+
+    const backends = try abi.gpu.availableBackends(allocator);
+    defer allocator.free(backends);
+
+    std.debug.print("GPU Status:\n", .{});
+
+    if (backends.len == 0) {
+        std.debug.print("  No backends available\n", .{});
+        return;
+    }
+
+    for (backends) |backend| {
+        const backend_name = abi.gpu.backendName(backend);
+        const backend_enabled = abi.gpu.isEnabled(backend);
+
+        if (!backend_enabled) {
+            std.debug.print("  {s}: disabled (build)\n", .{backend_name});
+            continue;
+        }
+
+        const devices = try abi.gpu.listDevices(allocator);
+        defer allocator.free(devices);
+
+        const backend_devices_count = blk: {
+            var count: usize = 0;
+            for (devices) |device| {
+                if (device.backend == backend) count += 1;
+            }
+            break :blk count;
+        };
+
+        if (backend_devices_count == 0) {
+            std.debug.print("  {s}: enabled (no devices)\n", .{backend_name});
+        } else {
+            std.debug.print("  {s}: enabled ({d} device(s))\n", .{ backend_name, backend_devices_count });
+
+            for (devices) |device| {
+                if (device.backend == backend) {
+                    const mode = if (device.is_emulated) "fallback/simulation" else "native GPU";
+                    std.debug.print("    #{d} {s} ({s})\n", .{ device.id, device.name, mode });
+                }
+            }
+        }
+    }
+}
+
 fn printGpuSummary(allocator: std.mem.Allocator) !void {
     const summary = abi.gpu.summary();
     if (!summary.module_enabled) {
@@ -641,25 +707,21 @@ fn runSimdDemo(allocator: std.mem.Allocator) !void {
         return;
     }
 
-    // Create test data - single allocation for better cache locality
     const size = 1000;
-    const total_size = size * 3; // a, b, and result arrays
+    const total_size = size * 3;
     var data = try allocator.alloc(f32, total_size);
     defer allocator.free(data);
 
-    // Slice the single allocation into three arrays
     var a = data[0..size];
     var b = data[size .. size * 2];
     var result = data[size * 2 .. total_size];
 
-    // Initialize test vectors
     var i: usize = 0;
     while (i < size) : (i += 1) {
         a[i] = @floatFromInt(i);
         b[i] = @floatFromInt(i * 2);
     }
 
-    // Time SIMD operations
     var timer = try std.time.Timer.start();
     const start = timer.lap();
 
@@ -668,7 +730,6 @@ fn runSimdDemo(allocator: std.mem.Allocator) !void {
     const end = timer.read();
     const add_time = end - start;
 
-    // Verify results
     i = 0;
     while (i < size) : (i += 1) {
         const expected = a[i] + b[i];
@@ -678,19 +739,16 @@ fn runSimdDemo(allocator: std.mem.Allocator) !void {
         }
     }
 
-    // Test dot product
     const dot_start = timer.lap();
     const dot_result = abi.simd.vectorDot(a, b);
     const dot_end = timer.read();
     const dot_time = dot_end - dot_start;
 
-    // Test L2 norm
     const norm_start = timer.lap();
     const norm_result = abi.simd.vectorL2Norm(a);
     const norm_end = timer.read();
     const norm_time = norm_end - norm_start;
 
-    // Test cosine similarity
     const cos_start = timer.lap();
     const cos_result = abi.simd.cosineSimilarity(a, b);
     const cos_end = timer.read();
@@ -718,6 +776,225 @@ fn runSimdDemo(allocator: std.mem.Allocator) !void {
     std.debug.print("  Dot Product: {d:.6}\n", .{dot_result});
     std.debug.print("  L2 Norm: {d:.6}\n", .{norm_result});
     std.debug.print("  Cosine Similarity: {d:.6}\n", .{cos_result});
+}
+
+fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+    if (args.len == 0 or matchesAny(args[0], &.{ "help", "--help", "-h" })) {
+        printExploreHelp();
+        return;
+    }
+
+    var query: ?[]const u8 = null;
+    var root_path: []const u8 = ".";
+    var level: abi.ai.explore.ExploreLevel = .medium;
+    var output_format: abi.ai.explore.OutputFormat = .human;
+    var include_patterns = std.ArrayListUnmanaged([]const u8){};
+    var exclude_patterns = std.ArrayListUnmanaged([]const u8){};
+    var case_sensitive = false;
+    var use_regex = false;
+    var max_files: usize = undefined;
+    var max_depth: usize = undefined;
+    var timeout_ms: u64 = undefined;
+
+    var i: usize = 0;
+    while (i < args.len) {
+        const arg = args[i];
+        i += 1;
+
+        if (matchesAny(arg, &.{ "--help", "-h" })) {
+            printExploreHelp();
+            return;
+        }
+
+        if (matchesAny(arg, &.{ "--level", "-l" })) {
+            if (i < args.len) {
+                const level_str = std.mem.sliceTo(args[i], 0);
+                level = switch (std.ascii.eqlIgnoreCase(level_str, "quick")) {
+                    true => .quick,
+                    else => switch (std.ascii.eqlIgnoreCase(level_str, "medium")) {
+                        true => .medium,
+                        else => switch (std.ascii.eqlIgnoreCase(level_str, "thorough")) {
+                            true => .thorough,
+                            else => switch (std.ascii.eqlIgnoreCase(level_str, "deep")) {
+                                true => .deep,
+                                else => {
+                                    std.debug.print("Unknown level: {s}. Use: quick, medium, thorough, deep\n", .{level_str});
+                                    return;
+                                },
+                            },
+                        },
+                    },
+                };
+                i += 1;
+            }
+            continue;
+        }
+
+        if (matchesAny(arg, &.{ "--format", "-f" })) {
+            if (i < args.len) {
+                const format_str = std.mem.sliceTo(args[i], 0);
+                output_format = switch (std.ascii.eqlIgnoreCase(format_str, "json")) {
+                    true => .json,
+                    else => switch (std.ascii.eqlIgnoreCase(format_str, "compact")) {
+                        true => .compact,
+                        else => switch (std.ascii.eqlIgnoreCase(format_str, "yaml")) {
+                            true => .yaml,
+                            else => .human,
+                        },
+                    },
+                };
+                i += 1;
+            }
+            continue;
+        }
+
+        if (matchesAny(arg, &.{ "--include", "-i" })) {
+            if (i < args.len) {
+                try include_patterns.append(allocator, std.mem.sliceTo(args[i], 0));
+                i += 1;
+            }
+            continue;
+        }
+
+        if (matchesAny(arg, &.{ "--exclude", "-e" })) {
+            if (i < args.len) {
+                try exclude_patterns.append(allocator, std.mem.sliceTo(args[i], 0));
+                i += 1;
+            }
+            continue;
+        }
+
+        if (matchesAny(arg, &.{ "--case-sensitive", "-c" })) {
+            case_sensitive = true;
+            continue;
+        }
+
+        if (matchesAny(arg, &.{ "--regex", "-r" })) {
+            use_regex = true;
+            continue;
+        }
+
+        if (matchesAny(arg, &.{"--max-files"})) {
+            if (i < args.len) {
+                max_files = try std.fmt.parseInt(usize, std.mem.sliceTo(args[i], 0), 10);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (matchesAny(arg, &.{"--max-depth"})) {
+            if (i < args.len) {
+                max_depth = try std.fmt.parseInt(usize, std.mem.sliceTo(args[i], 0), 10);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (matchesAny(arg, &.{"--timeout"})) {
+            if (i < args.len) {
+                timeout_ms = try std.fmt.parseInt(u64, std.mem.sliceTo(args[i], 0), 10);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.startsWith(u8, arg, "--path")) {
+            if (i < args.len) {
+                root_path = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (query == null) {
+            query = std.mem.sliceTo(arg, 0);
+        } else {
+            std.debug.print("Unknown argument: {s}\n", .{arg});
+            printExploreHelp();
+            return;
+        }
+    }
+
+    const search_query = query orelse {
+        std.debug.print("Error: No search query provided.\n", .{});
+        printExploreHelp();
+        return;
+    };
+
+    var config = abi.ai.explore.ExploreConfig.defaultForLevel(level);
+    config.output_format = output_format;
+    config.case_sensitive = case_sensitive;
+    config.use_regex = use_regex;
+
+    if (include_patterns.items.len > 0) {
+        config.include_patterns = include_patterns.items;
+    }
+    if (exclude_patterns.items.len > 0) {
+        config.exclude_patterns = exclude_patterns.items;
+    }
+    if (max_files > 0) config.max_files = max_files;
+    if (max_depth > 0) config.max_depth = max_depth;
+    if (timeout_ms > 0) config.timeout_ms = timeout_ms;
+
+    var agent = abi.ai.explore.ExploreAgent.init(allocator, config);
+    defer agent.deinit();
+
+    const start_time = std.time.nanoTimestamp();
+    const result = try agent.explore(root_path, search_query);
+    defer result.deinit();
+
+    const end_time = std.time.nanoTimestamp();
+    const duration_ms = @divTrunc(@as(i128, end_time - start_time), std.time.ns_per_ms);
+
+    switch (output_format) {
+        .human => {
+            try result.formatHuman(std.debug);
+        },
+        .json => {
+            try result.formatJSON(std.debug);
+        },
+        .compact => {
+            std.debug.print("Query: \"{s}\" | Found: {d} matches in {d}ms\n", .{
+                search_query, result.matches_found, duration_ms,
+            });
+        },
+        .yaml => {
+            std.debug.print("query: \"{s}\"\n", .{search_query});
+            std.debug.print("level: {s}\n", .{@tagName(level)});
+            std.debug.print("matches_found: {d}\n", .{result.matches_found});
+            std.debug.print("duration_ms: {d}\n", .{duration_ms});
+        },
+    }
+
+    include_patterns.deinit(allocator);
+    exclude_patterns.deinit(allocator);
+}
+
+fn printExploreHelp() void {
+    const help_text =
+        "Usage: abi explore [options] <query>\n\n" ++
+        "Search and explore the codebase for patterns.\n\n" ++
+        "Arguments:\n" ++
+        "  <query>              Search pattern or natural language query\n\n" ++
+        "Options:\n" ++
+        "  -l, --level <level>  Exploration depth: quick, medium, thorough, deep (default: medium)\n" ++
+        "  -f, --format <fmt>   Output format: human, json, compact, yaml (default: human)\n" ++
+        "  -i, --include <pat>  Include files matching pattern (can be used multiple times)\n" ++
+        "  -e, --exclude <pat>  Exclude files matching pattern (can be used multiple times)\n" ++
+        "  -c, --case-sensitive Match case sensitively\n" ++
+        "  -r, --regex          Treat query as regex pattern\n" ++
+        "  --path <path>        Root directory to search (default: .)\n" ++
+        "  --max-files <n>      Maximum files to scan\n" ++
+        "  --max-depth <n>      Maximum directory depth\n" ++
+        "  --timeout <ms>       Timeout in milliseconds\n" ++
+        "  -h, --help           Show this help message\n\n" ++
+        "Examples:\n" ++
+        "  abi explore \"HTTP handler\"\n" ++
+        "  abi explore -l thorough \"TODO\"\n" ++
+        "  abi explore -f json \"function_name\"\n" ++
+        "  abi explore -i \"*.zig\" \"pub fn\"\n" ++
+        "  abi explore --regex \"fn\\s+\\w+\"";
+    std.debug.print("{s}\n", .{help_text});
 }
 
 test "matchesAny helper function" {

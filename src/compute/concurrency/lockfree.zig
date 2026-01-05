@@ -262,3 +262,38 @@ test "concurrent sharded map stress test" {
     try std.testing.expectEqual(thread_count * ops_per_thread, total_ops);
     try std.testing.expectEqual(thread_count * ops_per_thread, map.count());
 }
+
+test "lock-free queue basic invariants" {
+    const TestQueue = LockFreeQueue(u32, 16);
+
+    var queue = TestQueue.init();
+    try std.testing.expectEqual(@as(usize, 0), queue.len());
+    try std.testing.expect(queue.isEmpty());
+
+    const test_values = [_]u32{ 1, 2, 3, 4, 5 };
+
+    for (test_values) |value| {
+        const pushed = queue.push(value);
+        try std.testing.expect(pushed);
+    }
+
+    try std.testing.expectEqual(@as(usize, 5), queue.len());
+    try std.testing.expect(!queue.isEmpty());
+
+    const popped1 = queue.pop();
+    try std.testing.expect(popped1 != null);
+    try std.testing.expectEqual(@as(u32, 1), popped1.?);
+    try std.testing.expectEqual(@as(usize, 4), queue.len());
+
+    for (0..3) |_| {
+        _ = queue.pop();
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), queue.len());
+
+    const popped_last = queue.pop();
+    try std.testing.expect(popped_last != null);
+    try std.testing.expectEqual(@as(u32, 5), popped_last.?);
+    try std.testing.expectEqual(@as(usize, 0), queue.len());
+    try std.testing.expect(queue.isEmpty());
+}

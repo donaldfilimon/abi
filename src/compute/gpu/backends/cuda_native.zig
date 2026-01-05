@@ -155,22 +155,22 @@ pub fn deinit() void {
         const destroy_fn = cuCtxDestroy orelse return;
         const stream_destroy_fn = cuStreamDestroy orelse return;
 
-        if (ctx.stream != null) {
-            stream_destroy_fn(ctx.stream);
+        if (ctx.stream) |stream| {
+            _ = stream_destroy_fn(stream);
         }
 
         for (ctx.device_memory.items) |mem| {
             const free_fn = cuMemFree orelse return;
-            free_fn(@intCast(@intFromPtr(mem.ptr)));
+            _ = free_fn(@intCast(@intFromPtr(mem.ptr)));
         }
         ctx.device_memory.deinit(ctx.allocator);
 
-        if (ctx.context != null) {
-            destroy_fn(ctx.context);
+        if (ctx.context) |context| {
+            _ = destroy_fn(context);
         }
     }
 
-    if (cuda_lib) |lib| {
+    if (cuda_lib) |*lib| {
         lib.close();
     }
 

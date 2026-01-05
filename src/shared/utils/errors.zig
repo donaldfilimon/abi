@@ -38,35 +38,26 @@ pub const ErrorContext = struct {
     pub fn log(self: ErrorContext, level: std.log.Level, err: anyerror) void {
         const details_msg = if (self.details) |d| d else "no details";
         switch (level) {
-            .err => std.log.err(
-                "[{s}] {s} failed: {} - {s} (at {s}:{d})",
-                .{
-                    @tagName(self.category),
-                    self.operation,
-                    err,
-                    details_msg,
-                    self.source_location.file,
-                    self.source_location.line,
-                }
-            ),
-            .warn => std.log.warn(
-                "[{s}] {s} warning: {} - {s}",
-                .{
-                    @tagName(self.category),
-                    self.operation,
-                    err,
-                    details_msg,
-                }
-            ),
-            .info => std.log.info(
-                "[{s}] {s} info: {} - {s}",
-                .{
-                    @tagName(self.category),
-                    self.operation,
-                    err,
-                    details_msg,
-                }
-            ),
+            .err => std.log.err("[{s}] {s} failed: {} - {s} (at {s}:{d})", .{
+                @tagName(self.category),
+                self.operation,
+                err,
+                details_msg,
+                self.source_location.file,
+                self.source_location.line,
+            }),
+            .warn => std.log.warn("[{s}] {s} warning: {} - {s}", .{
+                @tagName(self.category),
+                self.operation,
+                err,
+                details_msg,
+            }),
+            .info => std.log.info("[{s}] {s} info: {} - {s}", .{
+                @tagName(self.category),
+                self.operation,
+                err,
+                details_msg,
+            }),
             else => {},
         }
     }
@@ -106,9 +97,9 @@ pub fn Result(comptime T: type, comptime E: type) type {
         pub fn unwrapOr(self: @This(), default_value: T) T {
             return switch (self) {
                 .success => |value| value,
-                .failure => |failure| {
+                .failure => |failure| blk: {
                     failure.context.log(.warn, failure.err);
-                    default_value,
+                    break :blk default_value;
                 },
             };
         }
@@ -178,7 +169,7 @@ pub const ErrorPatterns = struct {
     ) anyerror {
         var retries: u8 = 0;
         while (retries < max_retries) : (retries += 1) {
-            std.log.warn("IO operation '{s}' failed (attempt {}/{}): {}", .{operation, retries + 1, max_retries, err});
+            std.log.warn("IO operation '{s}' failed (attempt {}/{}): {}", .{ operation, retries + 1, max_retries, err });
             std.time.sleep(100 * std.time.ns_per_ms * retries); // Exponential backoff
 
             // In a real implementation, you'd retry the operation here
@@ -218,13 +209,13 @@ pub const ErrorPatterns = struct {
             }
             if (constraints.min_len) |min| {
                 if (len < min) {
-                    std.log.err("Field '{s}' length {} is less than minimum {}", .{field_name, len, min});
+                    std.log.err("Field '{s}' length {} is less than minimum {}", .{ field_name, len, min });
                     return error.InvalidInput;
                 }
             }
             if (constraints.max_len) |max| {
                 if (len > max) {
-                    std.log.err("Field '{s}' length {} exceeds maximum {}", .{field_name, len, max});
+                    std.log.err("Field '{s}' length {} exceeds maximum {}", .{ field_name, len, max });
                     return error.InvalidInput;
                 }
             }

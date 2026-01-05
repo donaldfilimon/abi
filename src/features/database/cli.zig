@@ -1,7 +1,8 @@
 const std = @import("std");
 const build_options = @import("build_options");
-const unified = @import("unified.zig");
+const wdbx = @import("wdbx.zig");
 const database = @import("database.zig");
+const storage = @import("storage.zig");
 const db_helpers = @import("db_helpers.zig");
 const http = @import("http.zig");
 const transformer = @import("../ai/transformer/mod.zig");
@@ -148,13 +149,14 @@ fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
             return;
         }
         var model = try transformer.TransformerModel.init(allocator, .{});
+        defer model.deinit();
         vector = try model.embed(allocator, text);
     }
 
     var ctx = try DbContext.init(allocator, path);
     defer ctx.deinit();
 
-    try unified.insertVector(&ctx.handle, id_value, vector, meta);
+    try wdbx.insertVector(&ctx.handle, id_value, vector, meta);
     try ctx.persist();
     std.debug.print("Inserted vector {d} (dim {d}).\n", .{ id_value, vector.len });
 }
@@ -220,7 +222,8 @@ fn handleQuery(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
             std.debug.print("Embedding requires -Denable-ai=true\n", .{});
             return;
         }
-        var model = transformer.TransformerModel.init(.{});
+        var model = try transformer.TransformerModel.init(allocator, .{});
+        defer model.deinit();
         query = try model.embed(allocator, text);
     }
 
@@ -230,7 +233,7 @@ fn handleQuery(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
         try seedDatabase(&ctx.handle);
     }
 
-    const results = try unified.searchVectors(&ctx.handle, allocator, query, top_k);
+    const results = try wdbx.searchVectors(&ctx.handle, allocator, query, top_k);
     defer allocator.free(results);
 
     if (results.len == 0) {
@@ -255,7 +258,7 @@ fn handleStats(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     if (ctx.path == null) {
         try seedDatabase(&ctx.handle);
     }
-    const stats = unified.getStats(&ctx.handle);
+    const stats = wdbx.getStats(&ctx.handle);
     std.debug.print(
         "Database stats: {d} vectors, dimension {d}\n",
         .{ stats.count, stats.dimension },
@@ -284,7 +287,7 @@ fn handleOptimize(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
 
     var ctx = try DbContext.init(allocator, path);
     defer ctx.deinit();
-    try unified.optimize(&ctx.handle);
+    try wdbx.optimize(&ctx.handle);
     try ctx.persist();
     std.debug.print("Database optimized.\n", .{});
 }
@@ -300,7 +303,7 @@ fn handleBackup(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     };
     var ctx = try DbContext.init(allocator, path);
     defer ctx.deinit();
-    try unified.backup(&ctx.handle, output);
+    try wdbx.backup(&ctx.handle, output);
     std.debug.print("Backup written to {s}\n", .{output});
 }
 
@@ -315,12 +318,12 @@ fn handleRestore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     };
     var ctx = try DbContext.init(allocator, path);
     defer ctx.deinit();
-    try unified.restore(&ctx.handle, input);
-    const stats = unified.getStats(&ctx.handle);
+    try wdbx.restore(&ctx.handle, input);
+    const stats = wdbx.getStats(&ctx.handle);
     std.debug.print("Restored database: {d} vectors.\n", .{stats.count});
 }
 
-fn seedDatabase(handle: *unified.DatabaseHandle) !void {
+fn seedDatabase(handle: *wdbx.DatabaseHandle) !void {
     const samples = [_][]const f32{
         &.{ 0.1, 0.2, 0.3 },
         &.{ 0.0, 0.4, 0.8 },
@@ -328,39 +331,39 @@ fn seedDatabase(handle: *unified.DatabaseHandle) !void {
     };
     var id: u64 = 1;
     for (samples) |vector| {
-        try unified.insertVector(handle, id, vector, null);
+        try wdbx.insertVector(handle, id, vector, null);
         id += 1;
     }
 }
 
 const DbContext = struct {
-    handle: unified.DatabaseHandle,
+    handle: wdbx.DatabaseHandle,
     path: ?[]const u8,
 
     fn init(allocator: std.mem.Allocator, path: ?[]const u8) !DbContext {
         if (path) |file_path| {
-            const loaded = database.Database.loadFromFile(allocator, file_path);
+            const loaded = storage.loadDatabase(allocator, file_path);
             if (loaded) |db| {
                 return .{ .handle = .{ .db = db }, .path = file_path };
             } else |err| switch (err) {
-                error.FileNotFound => {
-                    const handle = try unified.createDatabase(allocator, file_path);
+                std.Io.Dir.ReadFileAllocError.FileNotFound => {
+                    const handle = try wdbx.createDatabase(allocator, file_path);
                     return .{ .handle = handle, .path = file_path };
                 },
                 else => return err,
             }
         }
-        const handle = try unified.createDatabase(allocator, "cli");
+        const handle = try wdbx.createDatabase(allocator, "cli");
         return .{ .handle = handle, .path = null };
     }
 
     fn deinit(self: *DbContext) void {
-        unified.closeDatabase(&self.handle);
+        wdbx.closeDatabase(&self.handle);
     }
 
     fn persist(self: *DbContext) !void {
         if (self.path) |file_path| {
-            try unified.backup(&self.handle, file_path);
+            try wdbx.backup(&self.handle, file_path);
         }
     }
 };

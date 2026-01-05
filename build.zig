@@ -143,6 +143,46 @@ fn warnInconsistentOptions(options: BuildOptions) void {
     }
 }
 
+fn validateFeatureFlags(options: BuildOptions) !void {
+    const invalid_combos = [2]struct { enabled: bool, required: bool, name: []const u8 }{
+        .{
+            .enabled = options.gpu_cuda or options.gpu_vulkan or options.gpu_metal,
+            .required = options.enable_gpu,
+            .name = "enable-gpu",
+        },
+        .{
+            .enabled = options.gpu_webgpu or options.gpu_webgl2,
+            .required = options.enable_web,
+            .name = "enable-web",
+        },
+    };
+
+    for (invalid_combos) |combo| {
+        if (combo.enabled and !combo.required) {
+            std.log.err(
+                "Feature flag validation failed: GPU backend enabled without {s}=true",
+                .{combo.name},
+            );
+            std.log.err("Enable {s} or disable GPU backend flags", .{combo.name});
+            return error.InvalidFeatureCombination;
+        }
+    }
+
+    if (options.gpu_webgpu and options.gpu_cuda) {
+        std.log.warn(
+            "Both WebGPU and CUDA backends enabled; this is unusual configuration",
+            .{},
+        );
+    }
+
+    if (options.gpu_webgl2 and options.gpu_opengl) {
+        std.log.warn(
+            "Both WebGL2 and OpenGL backends enabled; prefer one or the other",
+            .{},
+        );
+    }
+}
+
 fn pathExists(io: std.Io, path: []const u8) bool {
     std.Io.Dir.cwd().access(io, path, .{}) catch return false;
     return true;
@@ -159,6 +199,10 @@ pub fn build(b: *std.Build) void {
     // Create build options module
     const base_options = readBuildOptions(b);
     warnInconsistentOptions(base_options);
+    validateFeatureFlags(base_options) catch |err| {
+        std.log.err("Feature flag validation failed: {s}", .{@errorName(err)});
+        std.process.exit(1);
+    };
     const build_options_module = createBuildOptionsModule(b, base_options);
 
     // Core library module

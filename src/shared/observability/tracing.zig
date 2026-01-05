@@ -351,7 +351,7 @@ pub const SpanProcessor = struct {
 };
 
 pub const SpanExporter = struct {
-    pub fn export(_: []const *Span) !void {}
+    pub fn export_spans(_: []const *Span) !void {}
     pub fn shutdown(_: void) !void {}
 };
 
@@ -379,7 +379,7 @@ test "tracer init" {
 }
 
 test "trace id formatting" {
-    const trace_id = [_]u8{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef};
+    const trace_id = [_]u8{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
     const formatted = formatTraceId(trace_id);
     try std.testing.expectEqualStrings("0123456789abcdef0123456789abcdef", &formatted);
 }

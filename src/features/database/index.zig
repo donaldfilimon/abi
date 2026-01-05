@@ -683,7 +683,7 @@ pub const IvfPqIndex = struct {
         for (clusters) |*cluster| {
             const count = try cursor.readInt(u32);
             const members = try allocator.alloc(u32, count);
-            for (members, 0..) |*member, _| {
+            for (members, 0..) |*member| {
                 member.* = try cursor.readInt(u32);
             }
             cluster.members = members;

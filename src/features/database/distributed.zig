@@ -20,6 +20,7 @@ pub const DistributedDatabase = struct {
     config: DistributedConfig,
     local_shard: ?*shard.ShardRouter,
     local_database: ?*database.Database,
+    replication_manager: ?*replication.ReplicationManager,
     reindexer: ?*reindex.AutoReindexer,
     index_manager: *index.IndexManager,
     is_distributed: bool,
@@ -52,12 +53,14 @@ pub const DistributedDatabase = struct {
             .index_type = .hnsw,
             .auto_rebuild = true,
         });
+        errdefer idx_manager.deinit(allocator);
 
         var dist_db = DistributedDatabase{
             .allocator = allocator,
             .config = config,
             .local_shard = null,
-            .local_database = null,
+            .local_database = db,
+            .replication_manager = null,
             .reindexer = null,
             .index_manager = idx_manager,
             .is_distributed = false,
@@ -74,6 +77,7 @@ pub const DistributedDatabase = struct {
                 .replica_count = @as(u32, @intCast(config.replica_count)),
                 .enable_auto_researching = true,
             });
+            errdefer router.deinit();
             dist_db.local_shard = router;
 
             if (config.enable_replication) {
@@ -86,6 +90,8 @@ pub const DistributedDatabase = struct {
                     .read_quorum = 1,
                     .consistency_level = config.consistency_level,
                 });
+                errdefer repl.deinit();
+                dist_db.replication_manager = repl;
             }
 
             if (config.enable_auto_reindex) {
@@ -93,6 +99,7 @@ pub const DistributedDatabase = struct {
                 errdefer allocator.destroy(auto_reindex);
 
                 auto_reindex.* = try reindex.AutoReindexer.init(allocator, .{}, idx_manager);
+                errdefer auto_reindex.deinit();
                 dist_db.reindexer = auto_reindex;
             }
         }
@@ -107,6 +114,11 @@ pub const DistributedDatabase = struct {
             self.allocator.destroy(ri);
         }
 
+        if (self.replication_manager) |repl| {
+            repl.deinit();
+            self.allocator.destroy(repl);
+        }
+
         if (self.local_shard) |router| {
             router.deinit();
             self.allocator.destroy(router);
@@ -118,6 +130,7 @@ pub const DistributedDatabase = struct {
         var it = self.cluster_nodes.iterator();
         while (it.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
+            self.allocator.free(entry.value_ptr.address);
         }
         self.cluster_nodes.deinit(self.allocator);
         self.* = undefined;
@@ -152,6 +165,7 @@ pub const DistributedDatabase = struct {
     pub fn leaveCluster(self: *DistributedDatabase, node_id: []const u8) void {
         if (self.cluster_nodes.remove(node_id)) |entry| {
             self.allocator.free(entry.key_ptr.*);
+            self.allocator.free(entry.value_ptr.address);
 
             if (self.local_shard) |router| {
                 router.removeNode(node_id) catch {};
@@ -167,9 +181,11 @@ pub const DistributedDatabase = struct {
     ) !void {
         if (self.is_distributed and self.local_shard) |router| {
             try router.routeInsert(id, vector, metadata);
-        } else {
-            _ = vector;
-            _ = metadata;
+            return;
+        }
+        if (self.local_database) |local_db| {
+            try local_db.insert(id, vector, metadata);
+            return;
         }
     }
 
@@ -180,14 +196,15 @@ pub const DistributedDatabase = struct {
         top_k: usize,
     ) ![]database.SearchResult {
         if (self.is_distributed and self.local_shard) |router| {
-            const key = std.fmt.allocPrint(allocator, "vec:{d}", .{query.len}) catch {
-                return error.OutOfMemory;
-            };
+            const key = try std.fmt.allocPrint(allocator, "vec:{d}", .{query.len});
             defer allocator.free(key);
 
-            return try router.routeSearch(key, top_k);
+            return try router.routeSearch(allocator, key, top_k);
         }
 
+        if (self.local_database) |local_db| {
+            return local_db.search(allocator, query, top_k);
+        }
         return allocator.alloc(database.SearchResult, 0);
     }
 
@@ -195,11 +212,16 @@ pub const DistributedDatabase = struct {
         if (self.is_distributed and self.local_shard) |router| {
             return try router.routeDelete(id);
         }
+        if (self.local_database) |local_db| {
+            return local_db.delete(id);
+        }
         return false;
     }
 
     pub fn get(self: *DistributedDatabase, id: u64) ?database.VectorView {
-        _ = id;
+        if (self.local_database) |local_db| {
+            return local_db.get(id);
+        }
         return null;
     }
 
@@ -209,13 +231,23 @@ pub const DistributedDatabase = struct {
             .shard_count = self.config.shard_count,
             .replica_count = self.config.replica_count,
             .node_count = self.cluster_nodes.count(),
-            .shard_stats = undefined,
-            .replication_stats = undefined,
+            .shard_stats = .{
+                .shard_count = 0,
+                .node_count = 0,
+                .healthy_shards = 0,
+                .degraded_shards = 0,
+                .offline_shards = 0,
+                .version = 0,
+            },
+            .replication_stats = .{},
         };
 
         if (self.local_shard) |router| {
             const router_stats = router.getStats();
             stats.shard_stats = router_stats;
+        }
+        if (self.replication_manager) |repl| {
+            stats.replication_stats = repl.getMetrics();
         }
 
         return stats;
@@ -231,8 +263,9 @@ pub const DistributedDatabase = struct {
         }
     }
 
-    pub fn detectFailedNodes(self: *DistributedDatabase) []const []const u8 {
+    pub fn detectFailedNodes(self: *DistributedDatabase) ![]const []const u8 {
         var failed = std.ArrayListUnmanaged([]const u8).empty;
+        errdefer failed.deinit(self.allocator);
         const now = std.time.timestamp();
         const timeout = 30;
 
@@ -244,9 +277,9 @@ pub const DistributedDatabase = struct {
             }
         }
 
-        return failed.toOwnedSlice(self.allocator);
+        return try failed.toOwnedSlice(self.allocator);
     }
-}
+};
 
 pub const DistributedStats = struct {
     is_distributed: bool,

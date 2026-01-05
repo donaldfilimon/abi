@@ -25,6 +25,7 @@
     .fingerprint = 0xd5f1a8dcca5fe58a, // Changing this has security and trust implications.
     // Tracks the earliest Zig version that the package considers to be a
     // supported use case.
+    // Updated to support the latest stable Zig.
     .minimum_zig_version = "0.16.0-dev.1892+53ebfde6b",
     // This field is optional.
     // Each dependency must either provide a `url` and `hash`, or a `path`.

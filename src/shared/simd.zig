@@ -2,16 +2,29 @@
 //!
 //! Provides high-performance vectorized operations using SIMD instructions
 //! when available (AVX-512, NEON, WASM SIMD).
+//!
+//! # Safety Requirements
+//! All functions require input vectors to be properly sized:
+//! - All input vectors must have matching lengths where applicable
+//! - Empty vectors are not allowed (undefined behavior)
+//! - Result buffers must be pre-allocated with correct size
+//!
+//! # Performance Notes
+//! - Functions use @Vector for SIMD acceleration when VectorSize > 1
+//! - Debug builds include additional bounds checking via std.debug.assert
+//! - Release builds rely on loop bounds for safety (no debug.assert overhead)
 
 const std = @import("std");
 
 const VectorSize = std.simd.suggestVectorLength(f32) orelse 4;
 
 /// Vector addition using SIMD when available
+/// @param a First input vector
+/// @param b Second input vector (must have same length as a)
+/// @param result Output buffer (must have same length as inputs, caller-owned)
 pub fn vectorAdd(a: []const f32, b: []const f32, result: []f32) void {
-    comptime std.debug.assert(@TypeOf(a) == []const f32);
-    comptime std.debug.assert(@TypeOf(b) == []const f32);
-    comptime std.debug.assert(@TypeOf(result) == []f32);
+    std.debug.assert(a.len > 0);
+    std.debug.assert(b.len > 0);
     std.debug.assert(a.len == b.len and a.len == result.len);
 
     const len = a.len;
@@ -33,7 +46,12 @@ pub fn vectorAdd(a: []const f32, b: []const f32, result: []f32) void {
 }
 
 /// Vector dot product using SIMD when available
+/// @param a First input vector
+/// @param b Second input vector (must have same length as a)
+/// @return Scalar dot product
 pub fn vectorDot(a: []const f32, b: []const f32) f32 {
+    std.debug.assert(a.len > 0);
+    std.debug.assert(b.len > 0);
     std.debug.assert(a.len == b.len);
 
     const len = a.len;
@@ -64,7 +82,10 @@ pub fn vectorDot(a: []const f32, b: []const f32) f32 {
 }
 
 /// Vector L2 norm using SIMD when available
+/// @param v Input vector (must have len > 0)
+/// @return Euclidean norm of the vector
 pub fn vectorL2Norm(v: []const f32) f32 {
+    std.debug.assert(v.len > 0);
     const len = v.len;
     var sum: f32 = 0.0;
     var i: usize = 0;
@@ -92,7 +113,13 @@ pub fn vectorL2Norm(v: []const f32) f32 {
 }
 
 /// Cosine similarity using SIMD operations
+/// @param a First input vector (must not be empty)
+/// @param b Second input vector (must not be empty and same length as a)
+/// @return Cosine similarity in range [-1, 1], or 0.0 for zero-length vectors
 pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
+    if (a.len == 0 or b.len == 0) return 0.0;
+    if (a.len != b.len) return 0.0;
+
     const dot_product = vectorDot(a, b);
     const norm_a = vectorL2Norm(a);
     const norm_b = vectorL2Norm(b);
@@ -106,11 +133,15 @@ pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
 
 /// Batch cosine similarity computation for database searches
 /// Computes cosine similarity between a query vector and multiple database vectors
+/// @param query Query vector (must not be empty)
+/// @param vectors Array of database vectors
+/// @param results Output array (must have same length as vectors, caller-owned)
 pub fn batchCosineSimilarity(
     query: []const f32,
     vectors: []const []const f32,
     results: []f32,
 ) void {
+    std.debug.assert(query.len > 0);
     std.debug.assert(vectors.len == results.len);
 
     for (vectors, results) |vector, *result| {
@@ -119,6 +150,9 @@ pub fn batchCosineSimilarity(
 }
 
 /// Vector reduction operations with SIMD acceleration
+/// @param op Reduction operation: sum, max, or min
+/// @param v Input vector
+/// @return Reduced value (0.0 for sum on empty, undefined for min/max on empty)
 pub fn vectorReduce(op: enum { sum, max, min }, v: []const f32) f32 {
     if (v.len == 0) return 0.0;
 
@@ -170,6 +204,13 @@ pub fn hasSimdSupport() bool {
 }
 
 /// Matrix multiplication with blocking/tiling for cache efficiency and SIMD acceleration
+/// Computes result[m][n] = a[m][k] * b[k][n]
+/// @param a Matrix A (size m x k, row-major order)
+/// @param b Matrix B (size k x n, row-major order)
+/// @param result Output matrix (size m x n, caller-owned, must be pre-zeroed or will be overwritten)
+/// @param m Number of rows in A and result
+/// @param n Number of columns in B and result
+/// @param k Number of columns in A, rows in B (must match)
 pub fn matrixMultiply(
     a: []const f32,
     b: []const f32,
@@ -178,6 +219,7 @@ pub fn matrixMultiply(
     n: usize,
     k: usize,
 ) void {
+    std.debug.assert(m > 0 and n > 0 and k > 0);
     std.debug.assert(a.len == m * k);
     std.debug.assert(b.len == k * n);
     std.debug.assert(result.len == m * n);
