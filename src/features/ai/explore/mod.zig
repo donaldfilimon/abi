@@ -7,6 +7,7 @@ pub const search = @import("search.zig");
 pub const agent = @import("agent.zig");
 pub const query = @import("query.zig");
 pub const ast = @import("ast.zig");
+pub const parallel = @import("parallel.zig");
 
 pub const ExploreConfig = config.ExploreConfig;
 pub const ExploreLevel = config.ExploreLevel;
@@ -40,6 +41,9 @@ pub const AstNodeType = ast.AstNodeType;
 pub const ParsedFile = ast.ParsedFile;
 pub const AstParser = ast.AstParser;
 
+pub const ParallelExplorer = parallel.ParallelExplorer;
+pub const WorkItem = parallel.WorkItem;
+
 pub fn createDefaultAgent(allocator: std.mem.Allocator) ExploreAgent {
     return agent.createDefaultAgent(allocator);
 }
@@ -50,4 +54,13 @@ pub fn createQuickAgent(allocator: std.mem.Allocator) ExploreAgent {
 
 pub fn createThoroughAgent(allocator: std.mem.Allocator) ExploreAgent {
     return agent.createThoroughAgent(allocator);
+}
+
+pub fn parallelExplore(
+    allocator: std.mem.Allocator,
+    root_path: []const u8,
+    explore_config: ExploreConfig,
+    search_query: []const u8,
+) !ExploreResult {
+    return parallel.parallelExplore(allocator, root_path, explore_config, search_query);
 }

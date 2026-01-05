@@ -1,0 +1,55 @@
+warning: Both WebGPU and CUDA backends enabled; this is unusual configuration
+warning: Both WebGL2 and OpenGL backends enabled; prefer one or the other
+install
++- install abi-profile
+   +- compile exe abi-profile ReleaseFast native 2 errors
+src\features\database\database.zig:195:32: error: root source file struct 'fs' has no member named 'cwd'
+        const file = try std.fs.cwd().createFile(path, .{});
+                         ~~~~~~^~~~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\lib\std\fs.zig:1:1: note: struct declared here
+//! File System.
+^~~~~~~~~~~~~~~~
+referenced by:
+    backup: src\features\database\unified.zig:85:29
+    handleBackup: src\features\database\http.zig:155:23
+    13 reference(s) hidden; use '-freference-trace=15' to see all references
+src\features\database\database.zig:209:32: error: root source file struct 'fs' has no member named 'cwd'
+        const file = try std.fs.cwd().openFile(path, .{});
+                         ~~~~~~^~~~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\lib\std\fs.zig:1:1: note: struct declared here
+//! File System.
+^~~~~~~~~~~~~~~~
+error: 2 compilation errors
+failed command: "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\zig.exe" build-exe -OReleaseFast --dep abi --dep cli "-Mroot=C:\\Users\\donald\\abi\\src\\main.zig" -ODebug --dep build_options "-Mabi=C:\\Users\\donald\\abi\\src\\abi.zig" -ODebug --dep abi "-Mcli=C:\\Users\\donald\\abi\\src\\cli.zig" "-Mbuild_options=.zig-cache\\c\\ff45711831ab15524df7aa8f4b07c422\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name abi-profile --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\lib\\" --listen=-
+
+install
++- install abi
+   +- compile exe abi Debug native 2 errors
+src\features\database\database.zig:195:32: error: root source file struct 'fs' has no member named 'cwd'
+        const file = try std.fs.cwd().createFile(path, .{});
+                         ~~~~~~^~~~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\lib\std\fs.zig:1:1: note: struct declared here
+//! File System.
+^~~~~~~~~~~~~~~~
+referenced by:
+    backup: src\features\database\unified.zig:85:29
+    handleBackup: src\features\database\http.zig:155:23
+    13 reference(s) hidden; use '-freference-trace=15' to see all references
+src\features\database\database.zig:209:32: error: root source file struct 'fs' has no member named 'cwd'
+        const file = try std.fs.cwd().openFile(path, .{});
+                         ~~~~~~^~~~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\lib\std\fs.zig:1:1: note: struct declared here
+//! File System.
+^~~~~~~~~~~~~~~~
+error: 2 compilation errors
+failed command: "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\zig.exe" build-exe -ODebug --dep abi --dep cli "-Mroot=C:\\Users\\donald\\abi\\src\\main.zig" -ODebug --dep build_options "-Mabi=C:\\Users\\donald\\abi\\src\\abi.zig" -ODebug --dep abi "-Mcli=C:\\Users\\donald\\abi\\src\\cli.zig" "-Mbuild_options=.zig-cache\\c\\144404ae8cd079b70661c0ea265f4370\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name abi --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\lib\\" --listen=-
+
+Build Summary: 2/7 steps succeeded (2 failed)
+install transitive failure
++- install abi transitive failure
+|  +- compile exe abi Debug native 2 errors
++- install abi-profile transitive failure
+   +- compile exe abi-profile ReleaseFast native 2 errors
+
+error: the following build command failed with exit code 1:
+.zig-cache\o\c271ea0ca6b2ba7f583289ddb1a7b83a\build.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\zig.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\lib C:\Users\donald\abi .zig-cache C:\Users\donald\AppData\Local\zig --seed 0xa47061ec -Za6b6b4491a15d067

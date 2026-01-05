@@ -190,7 +190,7 @@ pub const ExploreAgent = struct {
     }
 
     fn readFile(self: *ExploreAgent, path: []const u8) ![]const u8 {
-        const file = std.fs.cwd().openFile(path, .{}) catch {
+        const file = std.fs.Dir.cwd().openFile(path, .{}) catch {
             return error.FileNotFound;
         };
         defer file.close();
@@ -280,7 +280,7 @@ pub const ExploreAgent = struct {
         self.stats.cancelled = true;
     }
 
-    fn isCancelled(self: *ExploreAgent) bool {
+    pub fn isCancelled(self: *ExploreAgent) bool {
         self.cancellation_lock.lock();
         defer self.cancellation_lock.unlock();
         return self.cancelled;

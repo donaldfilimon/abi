@@ -1,0 +1,81 @@
+install
++- install abi-profile
+   +- compile exe abi-profile ReleaseFast native 5 errors
+src\features\ai\explore\ast.zig:422:13: error: local variable is never mutated
+        var idx: usize = if (std.mem.startsWith(u8, trimmed, "pub const ")) 10 else 6;
+            ^~~
+src\features\ai\explore\ast.zig:422:13: note: consider using 'const'
+src\features\ai\explore\ast.zig:476:13: error: local variable is never mutated
+        var idx: usize = 5;
+            ^~~
+src\features\ai\explore\ast.zig:476:13: note: consider using 'const'
+src\features\database\storage.zig:120:11: error: 'insertOwned' is not marked 'pub'
+        db.insertOwned(id, vector, metadata) catch |err| switch (err) {
+        ~~^~~~~~~~~~~~
+src\features\database\database.zig:194:5: note: declared here
+    fn insertOwned(self: *Database, id: u64, vector: []f32, metadata: ?[]u8) !void {
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+referenced by:
+    restore: src\features\database\wdbx.zig:92:46
+    handleRestore: src\features\database\cli.zig:321:21
+    8 reference(s) hidden; use '-freference-trace=10' to see all references
+src\features\database\unified.zig:85:18: error: no field or member function named 'saveToFile' in 'features.database.database.Database'
+    try handle.db.saveToFile(safe_path);
+        ~~~~~~~~~^~~~~~~~~~~
+src\features\database\database.zig:33:22: note: struct declared here
+pub const Database = struct {
+                     ^~~~~~
+src\features\database\unified.zig:95:43: error: struct 'features.database.database.Database' has no member named 'loadFromFile'
+    const restored = try database.Database.loadFromFile(allocator, safe_path);
+                         ~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~
+src\features\database\database.zig:33:22: note: struct declared here
+pub const Database = struct {
+                     ^~~~~~
+error: 5 compilation errors
+failed command: "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\zig.exe" build-exe -OReleaseFast --dep abi --dep cli "-Mroot=C:\\Users\\donald\\abi\\src\\main.zig" -ODebug --dep build_options "-Mabi=C:\\Users\\donald\\abi\\src\\abi.zig" -ODebug --dep abi "-Mcli=C:\\Users\\donald\\abi\\src\\cli.zig" "-Mbuild_options=.zig-cache\\c\\d3dd1d43cab990cb056dba6f4b07565a\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name abi-profile --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\lib\\" --listen=-
+
+install
++- install abi
+   +- compile exe abi Debug native 5 errors
+src\features\ai\explore\ast.zig:422:13: error: local variable is never mutated
+        var idx: usize = if (std.mem.startsWith(u8, trimmed, "pub const ")) 10 else 6;
+            ^~~
+src\features\ai\explore\ast.zig:422:13: note: consider using 'const'
+src\features\ai\explore\ast.zig:476:13: error: local variable is never mutated
+        var idx: usize = 5;
+            ^~~
+src\features\ai\explore\ast.zig:476:13: note: consider using 'const'
+src\features\database\storage.zig:120:11: error: 'insertOwned' is not marked 'pub'
+        db.insertOwned(id, vector, metadata) catch |err| switch (err) {
+        ~~^~~~~~~~~~~~
+src\features\database\database.zig:194:5: note: declared here
+    fn insertOwned(self: *Database, id: u64, vector: []f32, metadata: ?[]u8) !void {
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+referenced by:
+    restore: src\features\database\wdbx.zig:92:46
+    handleRestore: src\features\database\cli.zig:321:21
+    8 reference(s) hidden; use '-freference-trace=10' to see all references
+src\features\database\unified.zig:85:18: error: no field or member function named 'saveToFile' in 'features.database.database.Database'
+    try handle.db.saveToFile(safe_path);
+        ~~~~~~~~~^~~~~~~~~~~
+src\features\database\database.zig:33:22: note: struct declared here
+pub const Database = struct {
+                     ^~~~~~
+src\features\database\unified.zig:95:43: error: struct 'features.database.database.Database' has no member named 'loadFromFile'
+    const restored = try database.Database.loadFromFile(allocator, safe_path);
+                         ~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~
+src\features\database\database.zig:33:22: note: struct declared here
+pub const Database = struct {
+                     ^~~~~~
+error: 5 compilation errors
+failed command: "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\zig.exe" build-exe -ODebug --dep abi --dep cli "-Mroot=C:\\Users\\donald\\abi\\src\\main.zig" -ODebug --dep build_options "-Mabi=C:\\Users\\donald\\abi\\src\\abi.zig" -ODebug --dep abi "-Mcli=C:\\Users\\donald\\abi\\src\\cli.zig" "-Mbuild_options=.zig-cache\\c\\1be620ae5e001eac8a846876681e64c6\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name abi --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\lib\\" --listen=-
+
+Build Summary: 2/7 steps succeeded (2 failed)
+install transitive failure
++- install abi transitive failure
+|  +- compile exe abi Debug native 5 errors
++- install abi-profile transitive failure
+   +- compile exe abi-profile ReleaseFast native 5 errors
+
+error: the following build command failed with exit code 1:
+.zig-cache\o\c271ea0ca6b2ba7f583289ddb1a7b83a\build.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\zig.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\lib C:\Users\donald\abi .zig-cache C:\Users\donald\AppData\Local\zig --seed 0x26e06d89 -Z2f609595504f5dd3 -Denable-gpu=false -Denable-web=false

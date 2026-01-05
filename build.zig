@@ -318,4 +318,55 @@ pub fn build(b: *std.Build) void {
         const profile_step = b.step("profile", "Build with performance profiling");
         profile_step.dependOn(b.getInstallStep());
     }
+
+    // WASM Build
+    // WASM Build
+    const wasm_target = b.resolveTargetQuery(.{
+        .cpu_arch = .wasm32,
+        .os_tag = .freestanding,
+    });
+
+    var wasm_options = base_options;
+    // WASM environment constraints
+    wasm_options.enable_database = false; // No std.Io.Threaded
+    wasm_options.enable_network = false; // No socket support
+    wasm_options.enable_gpu = false; // Explicitly disable GPU defaults
+    wasm_options.gpu_cuda = false;
+    wasm_options.gpu_vulkan = false;
+    wasm_options.gpu_metal = false;
+    wasm_options.gpu_opengl = false;
+    wasm_options.gpu_opengles = false;
+
+    // WebGPU can technically work via bindings, but let's disable to simplify first pass
+    wasm_options.enable_web = false;
+
+    // Create a specific module for WASM that uses these restricted options
+    const wasm_build_options_module = createBuildOptionsModule(b, wasm_options);
+    const abi_wasm_module = b.addModule("abi-wasm", .{
+        .root_source_file = b.path("src/abi.zig"),
+        .target = wasm_target,
+        .optimize = optimize,
+    });
+    abi_wasm_module.addImport("build_options", wasm_build_options_module);
+
+    const wasm_lib = b.addExecutable(.{
+        .name = "abi",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("bindings/wasm/abi_wasm.zig"),
+            .target = wasm_target,
+            .optimize = optimize,
+        }),
+    });
+    wasm_lib.entry = .disabled;
+    wasm_lib.rdynamic = true;
+    wasm_lib.root_module.addImport("abi", abi_wasm_module);
+
+    const check_wasm = b.step("check-wasm", "Check WASM compilation");
+    check_wasm.dependOn(&wasm_lib.step);
+
+    const install_wasm = b.addInstallArtifact(wasm_lib, .{
+        .dest_dir = .{ .override = .{ .custom = "wasm" } },
+    });
+    const wasm_step = b.step("wasm", "Build WASM bindings");
+    wasm_step.dependOn(&install_wasm.step);
 }

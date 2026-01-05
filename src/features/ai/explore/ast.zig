@@ -14,7 +14,7 @@ pub const AstNode = struct {
 
     pub fn deinit(self: *AstNode, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
-        allocator.free(self.file_path);
+        // Note: file_path is borrowed from ParsedFile, don't free here
         for (self.children.items) |*child| {
             child.deinit(allocator);
         }
@@ -133,9 +133,7 @@ pub const AstParser = struct {
         return parsed;
     }
 
-    fn detectFileType(self: *AstParser, path: []const u8) []const u8 {
-        _ = self;
-        const ext = std.fs.path.extension(path);
+    fn detectFileType(_: *AstParser, path: []const u8) []const u8 {
         if (std.mem.endsWith(u8, path, ".zig")) return "zig";
         if (std.mem.endsWith(u8, path, ".rs")) return "rust";
         if (std.mem.endsWith(u8, path, ".ts")) return "typescript";
@@ -171,39 +169,43 @@ pub const AstParser = struct {
                 const line = content[line_start..i];
 
                 if (std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "pub fn") or
-                    std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "fn ")) {
+                    std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "fn "))
+                {
                     const fn_name = try self.extractZigFunctionName(line);
                     if (fn_name.len > 0) {
-                        const fn_node = try self.createNode(parsed, .function, fn_name, line_number, line, line_start, i);
+                        const fn_node = try self.createNode(parsed, .function, fn_name, line_number, line_start, i);
                         try parsed.nodes.append(self.allocator, fn_node);
                         try parsed.functions.append(self.allocator, try self.allocator.dupe(u8, fn_name));
                     }
                 }
 
                 if (std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "pub const") or
-                    std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "const ")) {
+                    std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "const "))
+                {
                     const const_name = try self.extractZigConstName(line);
                     if (const_name.len > 0) {
-                        const node = try self.createNode(parsed, .const_decl, const_name, line_number, line, line_start, i);
+                        const node = try self.createNode(parsed, .const_decl, const_name, line_number, line_start, i);
                         try parsed.nodes.append(self.allocator, node);
                     }
                 }
 
                 if (std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "pub struct") or
-                    std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "struct ")) {
+                    std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "struct "))
+                {
                     const type_name = try self.extractZigTypeName(line);
                     if (type_name.len > 0) {
-                        const node = try self.createNode(parsed, .struct_type, type_name, line_number, line, line_start, i);
+                        const node = try self.createNode(parsed, .struct_type, type_name, line_number, line_start, i);
                         try parsed.nodes.append(self.allocator, node);
                         try parsed.types.append(self.allocator, try self.allocator.dupe(u8, type_name));
                     }
                 }
 
                 if (std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "pub enum") or
-                    std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "enum ")) {
+                    std.mem.startsWith(u8, std.mem.trim(u8, line, " \t"), "enum "))
+                {
                     const type_name = try self.extractZigTypeName(line);
                     if (type_name.len > 0) {
-                        const node = try self.createNode(parsed, .enum_type, type_name, line_number, line, line_start, i);
+                        const node = try self.createNode(parsed, .enum_type, type_name, line_number, line_start, i);
                         try parsed.nodes.append(self.allocator, node);
                         try parsed.types.append(self.allocator, try self.allocator.dupe(u8, type_name));
                     }
@@ -224,10 +226,10 @@ pub const AstParser = struct {
                 }
 
                 if (std.mem.startsWith(u8, line, "///")) {
-                    const doc_node = try self.createNode(parsed, .doc_comment, std.mem.trim(u8, line[3..], " \t"), line_number, line, line_start, i);
+                    const doc_node = try self.createNode(parsed, .doc_comment, std.mem.trim(u8, line[3..], " \t"), line_number, line_start, i);
                     try parsed.comments.append(self.allocator, doc_node);
                 } else if (std.mem.startsWith(u8, line, "//")) {
-                    const comment_node = try self.createNode(parsed, .comment, std.mem.trim(u8, line[2..], " \t"), line_number, line, line_start, i);
+                    const comment_node = try self.createNode(parsed, .comment, std.mem.trim(u8, line[2..], " \t"), line_number, line_start, i);
                     try parsed.comments.append(self.allocator, comment_node);
                 }
 
@@ -249,7 +251,7 @@ pub const AstParser = struct {
                 if (std.mem.startsWith(u8, trimmed, "pub fn") or std.mem.startsWith(u8, trimmed, "fn ")) {
                     const fn_name = try self.extractRustFunctionName(trimmed);
                     if (fn_name.len > 0) {
-                        const fn_node = try self.createNode(parsed, .function, fn_name, line_number, line, line_start, i);
+                        const fn_node = try self.createNode(parsed, .function, fn_name, line_number, line_start, i);
                         try parsed.nodes.append(self.allocator, fn_node);
                         try parsed.functions.append(self.allocator, try self.allocator.dupe(u8, fn_name));
                     }
@@ -258,7 +260,7 @@ pub const AstParser = struct {
                 if (std.mem.startsWith(u8, trimmed, "pub struct") or std.mem.startsWith(u8, trimmed, "struct ")) {
                     const type_name = try self.extractRustTypeName(trimmed);
                     if (type_name.len > 0) {
-                        const node = try self.createNode(parsed, .struct_type, type_name, line_number, line, line_start, i);
+                        const node = try self.createNode(parsed, .struct_type, type_name, line_number, line_start, i);
                         try parsed.nodes.append(self.allocator, node);
                         try parsed.types.append(self.allocator, try self.allocator.dupe(u8, type_name));
                     }
@@ -267,7 +269,7 @@ pub const AstParser = struct {
                 if (std.mem.startsWith(u8, trimmed, "pub enum") or std.mem.startsWith(u8, trimmed, "enum ")) {
                     const type_name = try self.extractRustTypeName(trimmed);
                     if (type_name.len > 0) {
-                        const node = try self.createNode(parsed, .enum_type, type_name, line_number, line, line_start, i);
+                        const node = try self.createNode(parsed, .enum_type, type_name, line_number, line_start, i);
                         try parsed.nodes.append(self.allocator, node);
                         try parsed.types.append(self.allocator, try self.allocator.dupe(u8, type_name));
                     }
@@ -281,7 +283,7 @@ pub const AstParser = struct {
                 }
 
                 if (std.mem.startsWith(u8, trimmed, "#[test]")) {
-                    const test_line = content[line_start + 7..i];
+                    const test_line = content[line_start + 7 .. i];
                     if (std.mem.startsWith(u8, std.mem.trim(u8, test_line, " \t"), "fn ")) {
                         const test_name = try self.extractRustFunctionName(std.mem.trim(u8, test_line, " \t"));
                         if (test_name.len > 0) {
@@ -308,30 +310,33 @@ pub const AstParser = struct {
                 if (std.mem.startsWith(u8, trimmed, "export function") or
                     std.mem.startsWith(u8, trimmed, "export const") or
                     std.mem.startsWith(u8, trimmed, "function ") or
-                    std.mem.startsWith(u8, trimmed, "const ")) {
+                    std.mem.startsWith(u8, trimmed, "const "))
+                {
                     const fn_name = try self.extractTsFunctionName(trimmed);
                     if (fn_name.len > 0) {
-                        const fn_node = try self.createNode(parsed, .function, fn_name, line_number, line, line_start, i);
+                        const fn_node = try self.createNode(parsed, .function, fn_name, line_number, line_start, i);
                         try parsed.nodes.append(self.allocator, fn_node);
                         try parsed.functions.append(self.allocator, try self.allocator.dupe(u8, fn_name));
                     }
                 }
 
                 if (std.mem.startsWith(u8, trimmed, "export class") or
-                    std.mem.startsWith(u8, trimmed, "class ")) {
+                    std.mem.startsWith(u8, trimmed, "class "))
+                {
                     const type_name = try self.extractTsTypeName(trimmed);
                     if (type_name.len > 0) {
-                        const node = try self.createNode(parsed, .class_type, type_name, line_number, line, line_start, i);
+                        const node = try self.createNode(parsed, .class_type, type_name, line_number, line_start, i);
                         try parsed.nodes.append(self.allocator, node);
                         try parsed.types.append(self.allocator, try self.allocator.dupe(u8, type_name));
                     }
                 }
 
                 if (std.mem.startsWith(u8, trimmed, "export interface") or
-                    std.mem.startsWith(u8, trimmed, "interface ")) {
+                    std.mem.startsWith(u8, trimmed, "interface "))
+                {
                     const type_name = try self.extractTsTypeName(trimmed);
                     if (type_name.len > 0) {
-                        const node = try self.createNode(parsed, .interface_type, type_name, line_number, line, line_start, i);
+                        const node = try self.createNode(parsed, .interface_type, type_name, line_number, line_start, i);
                         try parsed.nodes.append(self.allocator, node);
                         try parsed.types.append(self.allocator, try self.allocator.dupe(u8, type_name));
                     }
@@ -361,13 +366,14 @@ pub const AstParser = struct {
 
                 if (std.mem.indexOf(u8, trimmed, "function") != null or
                     std.mem.indexOf(u8, trimmed, "def ") != null or
-                    std.mem.indexOf(u8, trimmed, "func ") != null) {
-                    const node = try self.createNode(parsed, .function, trimmed, line_number, line, line_start, i);
+                    std.mem.indexOf(u8, trimmed, "func ") != null)
+                {
+                    const node = try self.createNode(parsed, .function, trimmed, line_number, line_start, i);
                     try parsed.nodes.append(self.allocator, node);
                 }
 
                 if (std.mem.startsWith(u8, trimmed, "//") or std.mem.startsWith(u8, trimmed, "#")) {
-                    const comment_node = try self.createNode(parsed, .comment, trimmed[2..], line_number, line, line_start, i);
+                    const comment_node = try self.createNode(parsed, .comment, trimmed[2..], line_number, line_start, i);
                     try parsed.comments.append(self.allocator, comment_node);
                 }
 
@@ -377,7 +383,7 @@ pub const AstParser = struct {
         }
     }
 
-    fn createNode(self: *AstParser, parsed: *ParsedFile, node_type: AstNodeType, name: []const u8, line_number: usize, line_content: []const u8, start_pos: usize, end_pos: usize) !AstNode {
+    fn createNode(self: *AstParser, parsed: *ParsedFile, node_type: AstNodeType, name: []const u8, line_number: usize, start_pos: usize, end_pos: usize) !AstNode {
         return AstNode{
             .node_type = node_type,
             .name = try self.allocator.dupe(u8, name),
@@ -394,9 +400,13 @@ pub const AstParser = struct {
         _ = self;
         const trimmed = std.mem.trim(u8, line, " \t");
         var idx: usize = 0;
-        if (std.mem.startsWith(u8, trimmed, "pub fn ")) idx = 7;
-        else if (std.mem.startsWith(u8, trimmed, "fn ")) idx = 4;
-        else return "";
+        if (std.mem.startsWith(u8, trimmed, "pub fn ")) {
+            idx = 7;
+        } else if (std.mem.startsWith(u8, trimmed, "fn ")) {
+            idx = 4;
+        } else {
+            return "";
+        }
 
         var end = idx;
         while (end < trimmed.len and (std.ascii.isAlphanumeric(trimmed[end]) or trimmed[end] == '_')) {
@@ -409,7 +419,7 @@ pub const AstParser = struct {
     fn extractZigConstName(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
         const trimmed = std.mem.trim(u8, line, " \t");
-        var idx: usize = if (std.mem.startsWith(u8, trimmed, "pub const ")) 10 else 6;
+        const idx: usize = if (std.mem.startsWith(u8, trimmed, "pub const ")) 10 else 6;
 
         var end = idx;
         while (end < trimmed.len and (std.ascii.isAlphanumeric(trimmed[end]) or trimmed[end] == '_')) {
@@ -423,11 +433,17 @@ pub const AstParser = struct {
         _ = self;
         const trimmed = std.mem.trim(u8, line, " \t");
         var idx: usize = 0;
-        if (std.mem.startsWith(u8, trimmed, "pub struct ")) idx = 11;
-        else if (std.mem.startsWith(u8, trimmed, "struct ")) idx = 7;
-        else if (std.mem.startsWith(u8, trimmed, "pub enum ")) idx = 9;
-        else if (std.mem.startsWith(u8, trimmed, "enum ")) idx = 5;
-        else return "";
+        if (std.mem.startsWith(u8, trimmed, "pub struct ")) {
+            idx = 11;
+        } else if (std.mem.startsWith(u8, trimmed, "struct ")) {
+            idx = 7;
+        } else if (std.mem.startsWith(u8, trimmed, "pub enum ")) {
+            idx = 9;
+        } else if (std.mem.startsWith(u8, trimmed, "enum ")) {
+            idx = 5;
+        } else {
+            return "";
+        }
 
         var end = idx;
         while (end < trimmed.len and (std.ascii.isAlphanumeric(trimmed[end]) or trimmed[end] == '_')) {
@@ -442,7 +458,7 @@ pub const AstParser = struct {
         if (std.mem.indexOf(u8, line, "= @import(\"")) |start| {
             const begin = start + 10;
             if (std.mem.indexOf(u8, line[begin..], "\"")) |end| {
-                return line[begin..begin + end];
+                return line[begin .. begin + end];
             }
         }
         return "";
@@ -454,10 +470,10 @@ pub const AstParser = struct {
         if (std.mem.startsWith(u8, trimmed, "test \"")) {
             const begin = 6;
             if (std.mem.indexOf(u8, trimmed[begin..], "\"")) |end| {
-                return trimmed[begin..begin + end];
+                return trimmed[begin .. begin + end];
             }
         }
-        var idx: usize = 5;
+        const idx: usize = 5;
         var end = idx;
         while (end < trimmed.len and (std.ascii.isAlphanumeric(trimmed[end]) or trimmed[end] == '_')) {
             end += 1;
@@ -482,11 +498,17 @@ pub const AstParser = struct {
     fn extractRustTypeName(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
         var idx: usize = 0;
-        if (std.mem.startsWith(u8, line, "pub struct ")) idx = 11;
-        else if (std.mem.startsWith(u8, line, "struct ")) idx = 7;
-        else if (std.mem.startsWith(u8, line, "pub enum ")) idx = 9;
-        else if (std.mem.startsWith(u8, line, "enum ")) idx = 5;
-        else return "";
+        if (std.mem.startsWith(u8, line, "pub struct ")) {
+            idx = 11;
+        } else if (std.mem.startsWith(u8, line, "struct ")) {
+            idx = 7;
+        } else if (std.mem.startsWith(u8, line, "pub enum ")) {
+            idx = 9;
+        } else if (std.mem.startsWith(u8, line, "enum ")) {
+            idx = 5;
+        } else {
+            return "";
+        }
 
         while (idx < line.len and line[idx] == ' ') idx += 1;
 
@@ -505,7 +527,7 @@ pub const AstParser = struct {
             if (std.mem.indexOf(u8, line, ";") != null) {
                 end = std.mem.indexOf(u8, line, ";").?;
             }
-            var start = 4;
+            var start: usize = 4;
             while (start < end and line[start] == ' ') start += 1;
             return line[start..end];
         }
@@ -515,11 +537,17 @@ pub const AstParser = struct {
     fn extractTsFunctionName(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
         var idx: usize = 0;
-        if (std.mem.startsWith(u8, line, "export function ")) idx = 17;
-        else if (std.mem.startsWith(u8, line, "export const ")) idx = 13;
-        else if (std.mem.startsWith(u8, line, "function ")) idx = 9;
-        else if (std.mem.startsWith(u8, line, "const ")) idx = 6;
-        else return "";
+        if (std.mem.startsWith(u8, line, "export function ")) {
+            idx = 17;
+        } else if (std.mem.startsWith(u8, line, "export const ")) {
+            idx = 13;
+        } else if (std.mem.startsWith(u8, line, "function ")) {
+            idx = 9;
+        } else if (std.mem.startsWith(u8, line, "const ")) {
+            idx = 6;
+        } else {
+            return "";
+        }
 
         while (idx < line.len and line[idx] == ' ') idx += 1;
 
@@ -534,11 +562,17 @@ pub const AstParser = struct {
     fn extractTsTypeName(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
         var idx: usize = 0;
-        if (std.mem.startsWith(u8, line, "export class ")) idx = 13;
-        else if (std.mem.startsWith(u8, line, "class ")) idx = 6;
-        else if (std.mem.startsWith(u8, line, "export interface ")) idx = 17;
-        else if (std.mem.startsWith(u8, line, "interface ")) idx = 10;
-        else return "";
+        if (std.mem.startsWith(u8, line, "export class ")) {
+            idx = 13;
+        } else if (std.mem.startsWith(u8, line, "class ")) {
+            idx = 6;
+        } else if (std.mem.startsWith(u8, line, "export interface ")) {
+            idx = 17;
+        } else if (std.mem.startsWith(u8, line, "interface ")) {
+            idx = 10;
+        } else {
+            return "";
+        }
 
         while (idx < line.len and line[idx] == ' ') idx += 1;
 
@@ -553,12 +587,12 @@ pub const AstParser = struct {
     fn extractTsImport(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
         if (std.mem.startsWith(u8, line, "import ")) {
-            var start = 7;
+            var start: usize = 7;
             while (start < line.len and line[start] == ' ') start += 1;
 
             if (std.mem.startsWith(u8, line[start..], "{")) {
                 if (std.mem.indexOf(u8, line, "} from \"")) |end| {
-                    const name_end = std.mem.indexOf(u8, line[end + 7..], "\"") orelse line.len - (end + 7);
+                    const name_end = std.mem.indexOf(u8, line[end + 7 ..], "\"") orelse line.len - (end + 7);
                     return line[end + 7 .. end + 7 + name_end];
                 }
             } else {

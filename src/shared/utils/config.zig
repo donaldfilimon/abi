@@ -296,7 +296,7 @@ pub const ConfigLoader = struct {
 
     /// Load configuration from JSON file
     pub fn loadFromFile(self: *ConfigLoader, path: []const u8) !Config {
-        const file = try std.fs.cwd().openFile(path, .{});
+        const file = try std.fs.Dir.cwd().openFile(path, .{});
         defer file.close();
 
         const size = try file.getEndPos();

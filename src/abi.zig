@@ -66,7 +66,8 @@ comptime {
 }
 
 /// Compatibility namespace for the WDBX tooling.
-pub const wdbx = struct {
+/// Compatibility namespace for the WDBX tooling.
+pub const wdbx = if (build_options.enable_database) struct {
     pub const database = features.database.database;
     pub const helpers = features.database.db_helpers;
     pub const cli = features.database.cli;
@@ -85,7 +86,7 @@ pub const wdbx = struct {
     pub const optimize = features.database.unified.optimize;
     pub const backup = features.database.unified.backup;
     pub const restore = features.database.unified.restore;
-};
+} else struct {};
 
 /// Initialise the ABI framework and return the orchestration handle.
 pub fn init(allocator: std.mem.Allocator, config_or_options: anytype) !Framework {

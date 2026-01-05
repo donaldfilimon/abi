@@ -1,0 +1,29 @@
+warning: Both WebGPU and CUDA backends enabled; this is unusual configuration
+warning: Both WebGL2 and OpenGL backends enabled; prefer one or the other
+install
++- install abi
+   +- compile exe abi Debug native 1 errors
+src\features\ai\explore\ast.zig:535:9: error: expected statement, found 'else'
+        else if (std.mem.startsWith(u8, line, "export const ")) idx = 13;
+        ^~~~
+error: 1 compilation errors
+failed command: "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\zig.exe" build-exe -ODebug --dep abi --dep cli "-Mroot=C:\\Users\\donald\\abi\\src\\main.zig" -ODebug --dep build_options "-Mabi=C:\\Users\\donald\\abi\\src\\abi.zig" -ODebug --dep abi "-Mcli=C:\\Users\\donald\\abi\\src\\cli.zig" "-Mbuild_options=.zig-cache\\c\\144404ae8cd079b70661c0ea265f4370\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name abi --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\lib\\" --listen=-
+
+install
++- install abi-profile
+   +- compile exe abi-profile ReleaseFast native 1 errors
+src\features\ai\explore\ast.zig:535:9: error: expected statement, found 'else'
+        else if (std.mem.startsWith(u8, line, "export const ")) idx = 13;
+        ^~~~
+error: 1 compilation errors
+failed command: "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\zig.exe" build-exe -OReleaseFast --dep abi --dep cli "-Mroot=C:\\Users\\donald\\abi\\src\\main.zig" -ODebug --dep build_options "-Mabi=C:\\Users\\donald\\abi\\src\\abi.zig" -ODebug --dep abi "-Mcli=C:\\Users\\donald\\abi\\src\\cli.zig" "-Mbuild_options=.zig-cache\\c\\ff45711831ab15524df7aa8f4b07c422\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name abi-profile --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\lib\\" --listen=-
+
+Build Summary: 2/7 steps succeeded (2 failed)
+install transitive failure
++- install abi transitive failure
+|  +- compile exe abi Debug native 1 errors
++- install abi-profile transitive failure
+   +- compile exe abi-profile ReleaseFast native 1 errors
+
+error: the following build command failed with exit code 1:
+.zig-cache\o\c271ea0ca6b2ba7f583289ddb1a7b83a\build.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\zig.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\lib C:\Users\donald\abi .zig-cache C:\Users\donald\AppData\Local\zig --seed 0x9586a40d -Z24be38d8c03d6105

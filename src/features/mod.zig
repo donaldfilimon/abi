@@ -20,13 +20,16 @@ pub const FeatureTag = enum {
 pub const feature_count = std.enums.values(FeatureTag).len;
 
 /// Public feature modules grouped for discoverability.
-pub const ai = @import("ai/mod.zig");
-pub const gpu = @import("gpu/mod.zig");
-pub const database = @import("database/mod.zig");
-pub const web = @import("web/mod.zig");
-pub const monitoring = @import("monitoring/mod.zig");
+const build_options = @import("build_options");
+
+/// Public feature modules grouped for discoverability.
+pub const ai = if (build_options.enable_ai) @import("ai/mod.zig") else @import("ai/stub.zig");
+pub const gpu = if (build_options.enable_gpu) @import("gpu/mod.zig") else @import("gpu/stub.zig");
+pub const database = if (build_options.enable_database) @import("database/mod.zig") else @import("database/stub.zig");
+pub const web = if (build_options.enable_web) @import("web/mod.zig") else @import("web/stub.zig");
+pub const monitoring = if (build_options.enable_profiling) @import("monitoring/mod.zig") else @import("monitoring/stub.zig");
 pub const connectors = @import("connectors/mod.zig");
-pub const network = @import("network/mod.zig");
+pub const network = if (build_options.enable_network) @import("network/mod.zig") else @import("network/stub.zig");
 pub const compute = @import("../compute/mod.zig");
 pub const simd = @import("../shared/simd.zig");
 

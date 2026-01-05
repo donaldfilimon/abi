@@ -28,7 +28,7 @@ pub const FileStats = struct {
                 .mode = 0,
             };
         } else if (entry.kind == .file) {
-            const file = try std.fs.cwd().openFile(full_path, .{});
+            const file = try std.fs.Dir.cwd().openFile(full_path, .{});
             defer file.close();
 
             const stat = try file.stat();
@@ -101,7 +101,7 @@ pub const FileVisitor = struct {
     }
 
     fn walkDirectory(self: *FileVisitor, dir_path: []const u8) !void {
-        var dir = std.fs.cwd().openDir(dir_path, .{}) catch {
+        var dir = std.fs.Dir.cwd().openDir(dir_path, .{}) catch {
             self.error_count += 1;
             return;
         };
@@ -224,7 +224,7 @@ pub fn determineFileType(filename: []const u8) []const u8 {
 }
 
 pub fn readFileContent(allocator: std.mem.Allocator, path: []const u8, max_size: ?usize) ![]const u8 {
-    const file = std.fs.cwd().openFile(path, .{}) catch {
+    const file = std.fs.Dir.cwd().openFile(path, .{}) catch {
         return error.FileNotFound;
     };
     defer file.close();

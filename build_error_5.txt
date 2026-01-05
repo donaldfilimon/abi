@@ -1,0 +1,53 @@
+install
++- install abi-profile
+   +- compile exe abi-profile ReleaseFast native 2 errors
+src\features\database\database.zig:205:28: error: member function expected 2 argument(s), found 1
+            .writer = &file.writer(io),
+                       ~~~~^~~~~~~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\lib\std\Io\File.zig:606:5: note: function declared here
+pub fn writer(file: File, io: Io, buffer: []u8) Writer {
+~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+referenced by:
+    backup: src\features\database\unified.zig:85:29
+    handleBackup: src\features\database\http.zig:155:23
+    13 reference(s) hidden; use '-freference-trace=15' to see all references
+src\features\database\database.zig:228:26: error: member function expected 2 argument(s), found 1
+        var reader = file.reader(io);
+                     ~~~~^~~~~~~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\lib\std\Io\File.zig:572:5: note: function declared here
+pub fn reader(file: File, io: Io, buffer: []u8) Reader {
+~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+error: 2 compilation errors
+failed command: "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\zig.exe" build-exe -OReleaseFast --dep abi --dep cli "-Mroot=C:\\Users\\donald\\abi\\src\\main.zig" -ODebug --dep build_options "-Mabi=C:\\Users\\donald\\abi\\src\\abi.zig" -ODebug --dep abi "-Mcli=C:\\Users\\donald\\abi\\src\\cli.zig" "-Mbuild_options=.zig-cache\\c\\d3dd1d43cab990cb056dba6f4b07565a\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name abi-profile --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\lib\\" --listen=-
+
+install
++- install abi
+   +- compile exe abi Debug native 2 errors
+src\features\database\database.zig:205:28: error: member function expected 2 argument(s), found 1
+            .writer = &file.writer(io),
+                       ~~~~^~~~~~~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\lib\std\Io\File.zig:606:5: note: function declared here
+pub fn writer(file: File, io: Io, buffer: []u8) Writer {
+~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+referenced by:
+    backup: src\features\database\unified.zig:85:29
+    handleBackup: src\features\database\http.zig:155:23
+    13 reference(s) hidden; use '-freference-trace=15' to see all references
+src\features\database\database.zig:228:26: error: member function expected 2 argument(s), found 1
+        var reader = file.reader(io);
+                     ~~~~^~~~~~~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\lib\std\Io\File.zig:572:5: note: function declared here
+pub fn reader(file: File, io: Io, buffer: []u8) Reader {
+~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+error: 2 compilation errors
+failed command: "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\zig.exe" build-exe -ODebug --dep abi --dep cli "-Mroot=C:\\Users\\donald\\abi\\src\\main.zig" -ODebug --dep build_options "-Mabi=C:\\Users\\donald\\abi\\src\\abi.zig" -ODebug --dep abi "-Mcli=C:\\Users\\donald\\abi\\src\\cli.zig" "-Mbuild_options=.zig-cache\\c\\1be620ae5e001eac8a846876681e64c6\\options.zig" --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name abi --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.1892+53ebfde6b\\lib\\" --listen=-
+
+Build Summary: 2/7 steps succeeded (2 failed)
+install transitive failure
++- install abi transitive failure
+|  +- compile exe abi Debug native 2 errors
++- install abi-profile transitive failure
+   +- compile exe abi-profile ReleaseFast native 2 errors
+
+error: the following build command failed with exit code 1:
+.zig-cache\o\9d57458bc337bdeacb14e33dd4c06d67\build.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\zig.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.1892+53ebfde6b\lib C:\Users\donald\abi .zig-cache C:\Users\donald\AppData\Local\zig --seed 0x2b96528a -Zbd69b919be3adfd6 -Denable-gpu=false -Denable-web=false

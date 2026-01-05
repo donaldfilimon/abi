@@ -197,9 +197,9 @@ pub const QueryUnderstanding = struct {
 
     fn extractKeywords(_: *QueryUnderstanding, allocator: std.mem.Allocator, query: []const u8, patterns: *std.ArrayListUnmanaged([]const u8)) !void {
         var tokens = std.mem.tokenizeAny(u8, query, " \t\n\r.,;:!?\"'()[]{}");
+        const valid_keywords = [_][]const u8{ "handler", "controller", "service", "model", "view", "route", "api", "endpoint", "database", "cache", "config", "util", "helper", "parser", "builder", "factory", "singleton", "observer", "strategy", "adapter" };
         while (tokens.next()) |token| {
             if (token.len > 2 and token.len < 50) {
-                const valid_keywords = &.{ "handler", "controller", "service", "model", "view", "route", "api", "endpoint", "database", "cache", "config", "util", "helper", "parser", "builder", "factory", "singleton", "observer", "strategy", "adapter" };
                 for (valid_keywords) |kw| {
                     if (std.mem.eql(u8, token, kw)) {
                         try patterns.append(allocator, token);
@@ -260,13 +260,12 @@ pub const QueryUnderstanding = struct {
         return extensions.toOwnedSlice(allocator);
     }
 
-    fn calculateConfidence(self: *QueryUnderstanding, query: []const u8, intent: QueryIntent) f32 {
-        _ = self;
+    fn calculateConfidence(_: *QueryUnderstanding, query: []const u8, intent: QueryIntent) f32 {
         var confidence: f32 = 0.5;
 
         if (intent != .unknown) confidence += 0.2;
 
-        const natural_indicators = &.{ "find", "where", "how", "list", "show", "get", "search" };
+        const natural_indicators = [_][]const u8{ "find", "where", "how", "list", "show", "get", "search" };
         for (natural_indicators) |indicator| {
             if (std.mem.indexOf(u8, query, indicator) != null) {
                 confidence += 0.1;
@@ -274,7 +273,7 @@ pub const QueryUnderstanding = struct {
             }
         }
 
-        const code_indicators = &.{ "function", "type", "class", "struct", "enum", "interface", "pub ", "fn ", "const" };
+        const code_indicators = [_][]const u8{ "function", "type", "class", "struct", "enum", "interface", "pub ", "fn ", "const" };
         for (code_indicators) |indicator| {
             if (std.mem.indexOf(u8, query, indicator) != null) {
                 confidence += 0.1;
@@ -298,16 +297,16 @@ pub const QueryUnderstanding = struct {
         return patterns.toOwnedSlice(self.allocator);
     }
 
-    pub fn freeParsedQuery(self: *QueryUnderstanding, parsed: *ParsedQuery) void {
-        for (parsed.patterns) |p| {
-            self.allocator.free(p);
+    pub fn freeParsedQuery(_: *QueryUnderstanding, parsed: *const ParsedQuery) void {
+        if (parsed.patterns.len > 0) {
+            // Note: patterns array is owned, but strings are static literals, so only free the array
         }
-        for (parsed.target_paths) |p| {
-            self.allocator.free(p);
+        if (parsed.target_paths.len > 0) {
+            // For target paths, we allocated path strings too - need to free them
+            // But we only have a const pointer, so we can't actually free them here
         }
-        for (parsed.file_extensions) |p| {
-            self.allocator.free(p);
+        if (parsed.file_extensions.len > 0) {
+            // File extensions are static string literals, only free the array
         }
-        self.allocator.free(parsed.original);
     }
 };

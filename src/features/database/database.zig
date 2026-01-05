@@ -191,7 +191,61 @@ pub const Database = struct {
         return copy;
     }
 
-    fn insertOwned(self: *Database, id: u64, vector: []f32, metadata: ?[]u8) !void {
+    pub fn saveToFile(self: *const Database, path: []const u8) !void {
+        var io_backend = std.Io.Threaded.init(self.allocator, .{});
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
+        const file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
+        defer file.close(io);
+
+        var buf: [4096]u8 = undefined;
+        var file_writer = file.writer(io, &buf);
+
+        var stringify: std.json.Stringify = .{
+            .writer = &file_writer,
+            .options = .{ .whitespace = .indent_4 },
+        };
+        try stringify.beginArray();
+        for (self.records.items) |record| {
+            try stringify.write(record);
+        }
+        try stringify.endArray();
+    }
+
+    pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) !Database {
+        var io_backend = std.Io.Threaded.init(allocator, .{});
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
+        const content = try std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(1024 * 1024 * 1024)); // 1GB limit
+        defer allocator.free(content);
+
+        var parsed = try std.json.parseFromSlice([]VectorRecord, allocator, content, .{});
+        defer parsed.deinit();
+
+        var records = std.ArrayListUnmanaged(VectorRecord).empty;
+        try records.ensureTotalCapacity(allocator, parsed.value.len);
+
+        for (parsed.value) |record| {
+            const vector_copy = try allocator.dupe(f32, record.vector);
+            const metadata_copy = if (record.metadata) |m| try allocator.dupe(u8, m) else null;
+
+            try records.append(allocator, .{
+                .id = record.id,
+                .vector = vector_copy,
+                .metadata = metadata_copy,
+            });
+        }
+
+        return Database{
+            .allocator = allocator,
+            .name = try allocator.dupe(u8, std.fs.path.basename(path)),
+            .records = records,
+        };
+    }
+
+    pub fn insertOwned(self: *Database, id: u64, vector: []f32, metadata: ?[]u8) !void {
         if (self.findIndex(id) != null) {
             self.allocator.free(vector);
             if (metadata) |meta| self.allocator.free(meta);

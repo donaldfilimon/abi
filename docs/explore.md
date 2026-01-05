@@ -304,7 +304,14 @@ abi explore -l deep "list all functions"
 - `OutputFormat` - Output format options
 - `QueryUnderstanding` - Natural language query parser
 - `AstParser` - Source code AST parser
-- `PatternCompiler` - Pattern compiler for different matching types
+- `ParallelExplorer` - Multi-threaded exploration
+- `WorkItem` - Work item for parallel processing
+- `SearchPattern` - Compiled search pattern
+- `PatternType` - Pattern matching type (literal, glob, regex, fuzzy)
+- `PatternCompiler` - Compiler for search patterns
+- `AstNode` - AST node with type, name, location
+- `ParsedQuery` - Parsed natural language query
+- `QueryIntent` - Query classification (find_functions, find_types, etc.)
 
 ### Key Functions
 
@@ -314,11 +321,40 @@ pub fn createDefaultAgent(allocator: std.mem.Allocator) ExploreAgent
 pub fn createQuickAgent(allocator: std.mem.Allocator) ExploreAgent
 pub fn createThoroughAgent(allocator: std.mem.Allocator) ExploreAgent
 
+// Create parallel exploration agents
+pub fn parallelExplore(
+    allocator: std.mem.Allocator,
+    root_path: []const u8,
+    config: ExploreConfig,
+    search_query: []const u8,
+) !ExploreResult
+
 // Explore methods
 pub fn explore(self: *ExploreAgent, root_path: []const u8, query: []const u8) !ExploreResult
 pub fn exploreWithPatterns(self: *ExploreAgent, root_path: []const u8, patterns: []const []const u8) !ExploreResult
 pub fn exploreNaturalLanguage(self: *ExploreAgent, root_path: []const u8, nl_query: []const u8) !ExploreResult
 ```
+
+### Parallel Exploration
+
+The `parallelExplore` function provides high-performance multi-threaded exploration:
+
+```zig
+const allocator = std.testing.allocator;
+
+const config = explore.ExploreConfig.defaultForLevel(.thorough);
+const result = try explore.parallelExplore(allocator, ".", config, "my query");
+defer result.deinit();
+
+try result.formatHuman(std.debug);
+```
+
+Parallel exploration features:
+- Automatic CPU detection and thread pool sizing
+- Work chunking for balanced load distribution
+- Thread-safe result aggregation with mutex locks
+- Graceful fallback on thread spawn failure
+- Cancellation support with `cancel()` method
 
 ## Performance Tips
 
