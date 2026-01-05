@@ -264,3 +264,232 @@ test "parallel explorer cancellation" {
 
     try std.testing.expect(explorer.getProcessedCount() == 0);
 }
+
+test "call graph creation" {
+    const allocator = std.testing.allocator;
+
+    var graph = explore.CallGraph.init(allocator);
+    defer graph.deinit();
+
+    const func1: explore.Function = .{
+        .name = "main",
+        .file_path = "test.zig",
+        .line = 1,
+    };
+
+    const func2: explore.Function = .{
+        .name = "helper",
+        .file_path = "test.zig",
+        .line = 10,
+    };
+
+    try graph.addFunction(func1);
+    try graph.addFunction(func2);
+    try graph.addCall(func1, func2);
+
+    try std.testing.expect(graph.all_functions.items.len == 2);
+    try std.testing.expect(graph.edges.items.len == 1);
+}
+
+test "call graph get callers and callees" {
+    const allocator = std.testing.allocator;
+
+    var graph = explore.CallGraph.init(allocator);
+    defer graph.deinit();
+
+    const func1: explore.Function = .{
+        .name = "caller",
+        .file_path = "test.zig",
+        .line = 1,
+    };
+
+    const func2: explore.Function = .{
+        .name = "callee",
+        .file_path = "test.zig",
+        .line = 10,
+    };
+
+    try graph.addFunction(func1);
+    try graph.addFunction(func2);
+    try graph.addCall(func1, func2);
+
+    const callees = graph.getCallees("caller");
+    try std.testing.expect(callees != null);
+    try std.testing.expect(callees.?.len == 1);
+    try std.testing.expect(std.mem.eql(u8, callees.?[0].name, "callee"));
+
+    const callers = graph.getCallers("callee");
+    try std.testing.expect(callers != null);
+    try std.testing.expect(callers.?.len == 1);
+    try std.testing.expect(std.mem.eql(u8, callers.?[0].name, "caller"));
+}
+
+test "call graph has path" {
+    const allocator = std.testing.allocator;
+
+    var graph = explore.CallGraph.init(allocator);
+    defer graph.deinit();
+
+    const func1: explore.Function = .{
+        .name = "a",
+        .file_path = "test.zig",
+        .line = 1,
+    };
+
+    const func2: explore.Function = .{
+        .name = "b",
+        .file_path = "test.zig",
+        .line = 10,
+    };
+
+    const func3: explore.Function = .{
+        .name = "c",
+        .file_path = "test.zig",
+        .line = 20,
+    };
+
+    try graph.addFunction(func1);
+    try graph.addFunction(func2);
+    try graph.addFunction(func3);
+    try graph.addCall(func1, func2);
+    try graph.addCall(func2, func3);
+
+    try std.testing.expect(graph.hasPathTo("a", "c"));
+    try std.testing.expect(!graph.hasPathTo("c", "a"));
+}
+
+test "dependency graph creation" {
+    const allocator = std.testing.allocator;
+
+    var graph = explore.DependencyGraph.init(allocator);
+    defer graph.deinit();
+
+    const mod1: explore.Module = .{
+        .name = "module1",
+        .file_path = "module1.zig",
+        .language = .zig,
+    };
+
+    const mod2: explore.Module = .{
+        .name = "module2",
+        .file_path = "module2.zig",
+        .language = .zig,
+    };
+
+    try graph.addModule(mod1);
+    try graph.addModule(mod2);
+    try graph.addDependency(mod1, mod2, .local);
+
+    try std.testing.expect(graph.all_modules.items.len == 2);
+    try std.testing.expect(graph.edges.items.len == 1);
+}
+
+test "dependency graph get dependencies and dependents" {
+    const allocator = std.testing.allocator;
+
+    var graph = explore.DependencyGraph.init(allocator);
+    defer graph.deinit();
+
+    const mod1: explore.Module = .{
+        .name = "module1",
+        .file_path = "module1.zig",
+        .language = .zig,
+    };
+
+    const mod2: explore.Module = .{
+        .name = "module2",
+        .file_path = "module2.zig",
+        .language = .zig,
+    };
+
+    try graph.addModule(mod1);
+    try graph.addModule(mod2);
+    try graph.addDependency(mod1, mod2, .local);
+
+    const deps = graph.getDependencies("module1");
+    try std.testing.expect(deps != null);
+    try std.testing.expect(deps.?.len == 1);
+    try std.testing.expect(std.mem.eql(u8, deps.?[0].module.name, "module2"));
+
+    const dependents = graph.getDependents("module2");
+    try std.testing.expect(dependents != null);
+    try std.testing.expect(dependents.?.len == 1);
+    try std.testing.expect(std.mem.eql(u8, dependents.?[0].module.name, "module1"));
+}
+
+test "dependency graph import type classification" {
+    const allocator = std.testing.allocator;
+
+    var graph = explore.DependencyGraph.init(allocator);
+    defer graph.deinit();
+
+    const mod1: explore.Module = .{
+        .name = "module1",
+        .file_path = "module1.zig",
+        .language = .zig,
+    };
+
+    const std_mod: explore.Module = .{
+        .name = "std",
+        .file_path = "std",
+        .language = .zig,
+    };
+
+    const ext_mod: explore.Module = .{
+        .name = "external",
+        .file_path = "external",
+        .language = .typescript,
+    };
+
+    try graph.addModule(mod1);
+    try graph.addModule(std_mod);
+    try graph.addModule(ext_mod);
+
+    try graph.addDependency(mod1, std_mod, .std);
+    try graph.addDependency(mod1, ext_mod, .external);
+
+    const deps = graph.getDependencies("module1");
+    try std.testing.expect(deps != null);
+    try std.testing.expect(deps.?.len == 2);
+}
+
+test "dependency graph topological sort" {
+    const allocator = std.testing.allocator;
+
+    var graph = explore.DependencyGraph.init(allocator);
+    defer graph.deinit();
+
+    const mod1: explore.Module = .{
+        .name = "a",
+        .file_path = "a.zig",
+        .language = .zig,
+    };
+
+    const mod2: explore.Module = .{
+        .name = "b",
+        .file_path = "b.zig",
+        .language = .zig,
+    };
+
+    const mod3: explore.Module = .{
+        .name = "c",
+        .file_path = "c.zig",
+        .language = .zig,
+    };
+
+    try graph.addModule(mod1);
+    try graph.addModule(mod2);
+    try graph.addModule(mod3);
+    try graph.addDependency(mod1, mod2, .local);
+    try graph.addDependency(mod2, mod3, .local);
+
+    const sorted = try graph.topologicalSort();
+    defer {
+        for (sorted.items) |item| {
+            allocator.free(item);
+        }
+        sorted.deinit();
+    }
+
+    try std.testing.expect(sorted.items.len == 3);
+}

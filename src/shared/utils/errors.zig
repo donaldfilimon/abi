@@ -152,7 +152,7 @@ pub fn ResourceManager(comptime T: type) type {
 pub const ErrorPatterns = struct {
     /// Handle allocation errors with context
     pub fn handleAllocError(
-        allocator: std.mem.Allocator,
+        _allocator: std.mem.Allocator,
         requested_size: usize,
         context: ErrorContext,
     ) std.mem.Allocator.Error {

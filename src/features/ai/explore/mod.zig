@@ -8,6 +8,8 @@ pub const agent = @import("agent.zig");
 pub const query = @import("query.zig");
 pub const ast = @import("ast.zig");
 pub const parallel = @import("parallel.zig");
+pub const callgraph = @import("callgraph.zig");
+pub const dependency = @import("dependency.zig");
 
 pub const ExploreConfig = config.ExploreConfig;
 pub const ExploreLevel = config.ExploreLevel;
@@ -44,6 +46,17 @@ pub const AstParser = ast.AstParser;
 pub const ParallelExplorer = parallel.ParallelExplorer;
 pub const WorkItem = parallel.WorkItem;
 
+pub const Function = callgraph.Function;
+pub const CallEdge = callgraph.CallEdge;
+pub const CallGraph = callgraph.CallGraph;
+pub const CallGraphBuilder = callgraph.CallGraphBuilder;
+
+pub const Module = dependency.Module;
+pub const DependencyEdge = dependency.DependencyEdge;
+pub const ImportType = dependency.ImportType;
+pub const DependencyGraph = dependency.DependencyGraph;
+pub const DependencyAnalyzer = dependency.DependencyAnalyzer;
+
 pub fn createDefaultAgent(allocator: std.mem.Allocator) ExploreAgent {
     return agent.createDefaultAgent(allocator);
 }
@@ -63,4 +76,12 @@ pub fn parallelExplore(
     search_query: []const u8,
 ) !ExploreResult {
     return parallel.parallelExplore(allocator, root_path, explore_config, search_query);
+}
+
+pub fn buildCallGraph(allocator: std.mem.Allocator, file_paths: []const []const u8) !CallGraph {
+    return callgraph.buildCallGraph(allocator, file_paths);
+}
+
+pub fn buildDependencyGraph(allocator: std.mem.Allocator, file_paths: []const []const u8) !DependencyGraph {
+    return dependency.buildDependencyGraph(allocator, file_paths);
 }

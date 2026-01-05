@@ -21,9 +21,7 @@ export fn abi_init() i32 {
 
     // Initialize with default options
     // In a real binding, we'd accept configuration from the host
-    global_framework = abi.createDefaultFramework(allocator) catch |err| {
-        // std.log.err("Failed to initialize framework: {any}", .{err});
-        _ = err;
+    global_framework = abi.createDefaultFramework(allocator) catch {
         return -2;
     };
 
@@ -62,4 +60,11 @@ export fn abi_alloc(len: usize) ?[*]u8 {
 /// Free memory previously allocated by abi_alloc.
 export fn abi_free(ptr: [*]u8, len: usize) void {
     allocator.free(ptr[0..len]);
+}
+
+pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, ret_addr: ?usize) noreturn {
+    _ = msg;
+    _ = error_return_trace;
+    _ = ret_addr;
+    @trap();
 }

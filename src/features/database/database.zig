@@ -201,9 +201,10 @@ pub const Database = struct {
 
         var buf: [4096]u8 = undefined;
         var file_writer = file.writer(io, &buf);
+        var any_writer = file_writer.any();
 
         var stringify: std.json.Stringify = .{
-            .writer = &file_writer,
+            .writer = &any_writer,
             .options = .{ .whitespace = .indent_4 },
         };
         try stringify.beginArray();
