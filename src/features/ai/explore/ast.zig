@@ -418,8 +418,8 @@ pub const AstParser = struct {
 
     fn extractZigConstName(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
-    const trimmed = std.mem.trim(u8, line, " \t");
-    const idx: usize = if (std.mem.startsWith(u8, trimmed, "pub const ")) 10 else 6;
+        const trimmed = std.mem.trim(u8, line, " \t");
+        const idx: usize = if (std.mem.startsWith(u8, trimmed, "pub const ")) 10 else 6;
 
         var end = idx;
         while (end < trimmed.len and (std.ascii.isAlphanumeric(trimmed[end]) or trimmed[end] == '_')) {
@@ -431,8 +431,8 @@ pub const AstParser = struct {
 
     fn extractZigTypeName(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
-    const trimmed = std.mem.trim(u8, line, " \t");
-    const idx: usize = 0;
+        const trimmed = std.mem.trim(u8, line, " \t");
+        const idx: usize = 0;
         if (std.mem.startsWith(u8, trimmed, "pub struct ")) {
             idx = 11;
         } else if (std.mem.startsWith(u8, trimmed, "struct ")) {

@@ -92,7 +92,8 @@ pub fn restore(handle: *DatabaseHandle, path: []const u8) !void {
     const safe_path = try fs.normalizeBackupPath(allocator, path);
     errdefer allocator.free(safe_path);
 
-    const restored = try database.Database.loadDatabase(allocator, safe_path);  
+    // `Database` exposes `loadFromFile`; rename call accordingly.
+    const restored = try database.Database.loadFromFile(allocator, safe_path);
     handle.db.deinit();
     handle.db = restored;
 }

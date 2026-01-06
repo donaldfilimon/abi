@@ -201,10 +201,15 @@ pub const Database = struct {
 
         var buf: [4096]u8 = undefined;
         var file_writer = file.writer(io, &buf);
-        var any_writer = file_writer.any();
+        // `Io.File.Writer` in Zig 0.16 does not expose an `any()` method.
+        // We just need a writer that implements `WriteSeek`/`WriteByte`, which
+        // `file_writer` already is. We pass its address to `Stringify`.
+        var any_writer = &file_writer;
 
         var stringify: std.json.Stringify = .{
-            .writer = &any_writer,
+            // `any_writer` is an alias to the underlying file writer; cast
+            // to the generic `std.io.Writer` required by `Stringify`.
+            .writer = @ptrCast(*std.io.Writer, &any_writer),
             .options = .{ .whitespace = .indent_4 },
         };
         try stringify.beginArray();
