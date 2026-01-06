@@ -399,7 +399,7 @@ pub const AstParser = struct {
     fn extractZigFunctionName(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
         const trimmed = std.mem.trim(u8, line, " \t");
-        var idx: usize = 0;
+        const idx: usize = 0;
         if (std.mem.startsWith(u8, trimmed, "pub fn ")) {
             idx = 7;
         } else if (std.mem.startsWith(u8, trimmed, "fn ")) {
@@ -418,8 +418,8 @@ pub const AstParser = struct {
 
     fn extractZigConstName(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
-        const trimmed = std.mem.trim(u8, line, " \t");
-        const idx: usize = if (std.mem.startsWith(u8, trimmed, "pub const ")) 10 else 6;
+    const trimmed = std.mem.trim(u8, line, " \t");
+    const idx: usize = if (std.mem.startsWith(u8, trimmed, "pub const ")) 10 else 6;
 
         var end = idx;
         while (end < trimmed.len and (std.ascii.isAlphanumeric(trimmed[end]) or trimmed[end] == '_')) {
@@ -431,8 +431,8 @@ pub const AstParser = struct {
 
     fn extractZigTypeName(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
-        const trimmed = std.mem.trim(u8, line, " \t");
-        var idx: usize = 0;
+    const trimmed = std.mem.trim(u8, line, " \t");
+    const idx: usize = 0;
         if (std.mem.startsWith(u8, trimmed, "pub struct ")) {
             idx = 11;
         } else if (std.mem.startsWith(u8, trimmed, "struct ")) {
@@ -483,7 +483,7 @@ pub const AstParser = struct {
 
     fn extractRustFunctionName(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
-        var idx: usize = if (std.mem.startsWith(u8, line, "pub fn ")) 7 else 3;
+        const idx: usize = if (std.mem.startsWith(u8, line, "pub fn ")) 7 else 3;
 
         while (idx < line.len and line[idx] == ' ') idx += 1;
 
@@ -497,7 +497,7 @@ pub const AstParser = struct {
 
     fn extractRustTypeName(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
-        var idx: usize = 0;
+        const idx: usize = 0;
         if (std.mem.startsWith(u8, line, "pub struct ")) {
             idx = 11;
         } else if (std.mem.startsWith(u8, line, "struct ")) {
@@ -536,7 +536,7 @@ pub const AstParser = struct {
 
     fn extractTsFunctionName(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
-        var idx: usize = 0;
+        const idx: usize = 0;
         if (std.mem.startsWith(u8, line, "export function ")) {
             idx = 17;
         } else if (std.mem.startsWith(u8, line, "export const ")) {
@@ -561,7 +561,7 @@ pub const AstParser = struct {
 
     fn extractTsTypeName(self: *AstParser, line: []const u8) ![]const u8 {
         _ = self;
-        var idx: usize = 0;
+        const idx: usize = 0;
         if (std.mem.startsWith(u8, line, "export class ")) {
             idx = 13;
         } else if (std.mem.startsWith(u8, line, "class ")) {

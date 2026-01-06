@@ -7,7 +7,7 @@ const types = @import("../kernel_types.zig");
 const shared = @import("shared.zig");
 const fallback = @import("fallback.zig");
 const cuda_native = @import("cuda_native.zig");
-
+const gpu = std.gpu;
 const CuResult = enum(i32) {
     success = 0,
     invalid_value = 1,
