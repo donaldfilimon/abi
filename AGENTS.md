@@ -82,6 +82,53 @@ std.debug.print("Data: {b64}\n", .{data});             // {b64} for base64
 std.debug.print("Status: {s}\n", .{@tagName(status)});
 ```
 
+### Format Specifier Migration Guidelines
+
+**Use {t} for enums and errors:**
+```zig
+// Good - use {t} directly
+std.debug.print("Backend: {t}\n", .{backend});
+std.debug.print("Error: {t}\n", .{err});
+
+// Avoid - manual conversions
+std.debug.print("Backend: {s}\n", .{@tagName(backend)});
+std.debug.print("Error: {s}\n", .{@errorName(err)});
+```
+
+**Exception: JSON serialization requires strings:**
+```zig
+// Acceptable - JSON needs strings
+try obj.put("level", json.Value{ .string = @tagName(level) });
+try obj.put("error", json.Value{ .string = @errorName(err) });
+```
+
+**Use {B} for byte sizes (expects raw bytes, not pre-divided):**
+```zig
+// Good - use raw byte values with {B}
+try writer.print("Total Memory: {B}\n", .{info.total_memory});
+try writer.print("Cache Size: {B}\n", .{info.l2_cache_size});
+
+// Avoid - manual division
+try writer.print("Memory: {d} MB\n", .{info.total_memory / (1024 * 1024)});
+```
+
+**Use {D} for durations (expects nanoseconds, not milliseconds):**
+```zig
+// Good - use nanosecond durations with {D}
+const duration_ns = end_time - start_time;
+std.debug.print("Duration: {D}\n", .{duration_ns});
+
+// Note: If you have milliseconds, convert or use {d}ms
+const duration_ms = @divTrunc(duration_ns, std.time.ns_per_ms);
+std.debug.print("Duration: {d}ms\n", .{duration_ms});
+```
+
+**Use {b64} for base64 encoding:**
+```zig
+// Good - encode byte slices directly
+std.debug.print("Auth: {b64}\n", .{auth_bytes});
+```
+
 ### I/O API Changes (Zig 0.16)
 
 ```zig
@@ -120,6 +167,30 @@ const FileError = error{
 // Good - errdefer cleanup
 var buffer = try allocator.alloc(u8, size);
 errdefer allocator.free(buffer);
+```
+
+### Error Set Guidelines
+
+**Prefer specific error sets over anyerror:**
+```zig
+// Good - specific error set
+const TaskError = error{
+    Timeout,
+    Cancelled,
+    TaskFailed,
+} || std.mem.Allocator.Error;
+```
+
+**Keep anyerror for truly generic contexts:**
+```zig
+// Acceptable - function pointer types need flexibility
+execute: *const fn (std.mem.Allocator, *anyopaque) anyerror!ResultBlob,
+handler: *const fn ([]const u8, *Context) anyerror!ToolResult,
+
+// Acceptable - generic error logging
+pub fn log(self: ErrorContext, level: std.log.Level, err: anyerror) void {
+    // ... logging logic
+}
 ```
 
 ## Testing Guidelines

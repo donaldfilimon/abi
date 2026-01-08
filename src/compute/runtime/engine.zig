@@ -609,7 +609,7 @@ fn decodeResult(
 ) !ResultType {
     if (blob.kind == .task_error) {
         const err = @errorFromInt(blob.error_code);
-        std.log.err("Task {d} failed with error: {s} (error code: {d})", .{ id, @errorName(err), blob.error_code });
+        std.log.err("Task {d} failed with error: {t} (error code: {d})", .{ id, err, blob.error_code });
         std.log.debug("Original error details preserved; use debug build for task stack traces", .{});
         return EngineError.TaskFailed;
     }

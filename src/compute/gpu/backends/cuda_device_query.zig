@@ -237,8 +237,8 @@ pub fn listDevices(allocator: std.mem.Allocator) ![]CudaDeviceInfo {
 pub fn formatDeviceInfo(info: CudaDeviceInfo, writer: anytype) !void {
     try writer.print("Device {d}: {s}\n", .{ info.device_id, std.mem.span(&info.name) });
     try writer.print("  Compute Capability: {d}.{d}\n", .{ info.compute_capability.major, info.compute_capability.minor });
-    try writer.print("  Total Memory: {d} MB\n", .{info.total_memory / (1024 * 1024)});
-    try writer.print("  Shared Memory per Block: {d} KB\n", .{info.shared_memory_per_block / 1024});
+    try writer.print("  Total Memory: {B}\n", .{info.total_memory});
+    try writer.print("  Shared Memory per Block: {B}\n", .{info.shared_memory_per_block});
     try writer.print("  Max Threads per Block: {d}\n", .{info.max_threads_per_block});
     try writer.print("  Warp Size: {d}\n", .{info.warp_size});
     try writer.print("  Max Threads Dim: [{d}, {d}, {d}]\n", .{ info.max_threads_dim[0], info.max_threads_dim[1], info.max_threads_dim[2] });
@@ -246,7 +246,7 @@ pub fn formatDeviceInfo(info: CudaDeviceInfo, writer: anytype) !void {
     try writer.print("  Clock Rate: {d} MHz\n", .{info.clock_rate_khz / 1000});
     try writer.print("  Multiprocessors: {d}\n", .{info.multi_processor_count});
     try writer.print("  Max Threads per Multiprocessor: {d}\n", .{info.max_threads_per_multi_processor});
-    try writer.print("  L2 Cache: {d} KB\n", .{info.l2_cache_size / 1024});
+    try writer.print("  L2 Cache: {B}\n", .{info.l2_cache_size});
     try writer.print("  ECC Enabled: {any}\n", .{info.ecc_enabled});
     try writer.print("  Integrated: {any}\n", .{info.integrated});
     try writer.print("  Unified Addressing: {any}\n", .{info.unified_addressing});

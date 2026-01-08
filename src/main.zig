@@ -5,14 +5,12 @@
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const args = try std.process.argsAlloc(allocator);
-    defer allocator.free(args);
-
+    const args = init.minimal.args;
     if (args.len < 2) {
         printHelp();
         return;
@@ -69,7 +67,7 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
         .enable_network = true,
         .enable_profiling = true,
     }) catch |err| {
-        std.debug.print("Framework initialization failed: {s}\n", .{@errorName(err)});
+        std.debug.print("Framework initialization failed: {t}\n", .{err});
         std.debug.print("Running with minimal features...\n", .{});
 
         // Try minimal initialization

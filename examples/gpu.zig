@@ -50,7 +50,7 @@ pub fn main() !void {
     std.debug.print("Available GPU backends: {d}\n", .{backends.len});
     for (backends) |backend| {
         const avail = abi.gpu.backendAvailability(backend);
-        std.debug.print("  {s}: {s} ({d} devices)\n", .{ @tagName(backend), @tagName(avail.level), avail.device_count });
+        std.debug.print("  {t}: {t} ({d} devices)\n", .{ backend, avail.level, avail.device_count });
     }
 
     // Try to list GPU devices
@@ -62,7 +62,7 @@ pub fn main() !void {
 
     std.debug.print("Detected GPU devices: {d}\n", .{devices.len});
     for (devices, 0..) |device, i| {
-        std.debug.print("  Device {d}: {s} ({s})\n", .{ i + 1, device.name, @tagName(device.backend) });
+        std.debug.print("  Device {d}: {s} ({t})\n", .{ i + 1, device.name, device.backend });
     }
 
     // Test SIMD support

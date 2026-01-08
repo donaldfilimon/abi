@@ -2,8 +2,22 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 fn pathExists(path: []const u8) bool {
-    std.fs.cwd().access(path, .{}) catch return false;
-    return true;
+    if (builtin.os.tag == .windows) {
+        const WINAPI = struct {
+            extern "kernel32" fn GetFileAttributesA(lpFileName: [*:0]const u8) u32;
+        };
+        const INVALID_FILE_ATTRIBUTES = 0xFFFFFFFF;
+
+        var path_buf: [4096:0]u8 = undefined;
+        std.mem.copyForwards(u8, &path_buf, path);
+        path_buf[path.len] = 0;
+
+        const attrs = WINAPI.GetFileAttributesA(&path_buf);
+        return attrs != INVALID_FILE_ATTRIBUTES;
+    } else {
+        std.posix.access(path, .{ .mode = .F_OK }) catch return false;
+        return true;
+    }
 }
 
 const BuildOptions = struct {
@@ -203,7 +217,6 @@ fn validateFeatureFlags(options: BuildOptions) !void {
 // fragile across Zig versions. The logic below simply probes the filesystem
 // using the current working directory.
 
-
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -322,7 +335,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // Test suite
-    const has_tests = b.path("tests/mod.zig").exists();
+    const has_tests = pathExists("tests/mod.zig");
     if (has_tests) {
         const main_tests = b.addTest(.{
             .root_module = b.createModule(.{
@@ -344,7 +357,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // Benchmark step
-    const has_benchmark = b.path("src/compute/runtime/benchmark.zig").exists();
+    const has_benchmark = pathExists("src/compute/runtime/benchmark.zig");
     if (has_benchmark) {
         const benchmark_exe = b.addExecutable(.{
             .name = "abi-benchmark",
@@ -365,7 +378,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // Benchmarks
-    if (b.path("benchmarks/run.zig").exists()) {
+    if (pathExists("benchmarks/run.zig")) {
         const benchmark_exe = b.addExecutable(.{
             .name = "benchmarks",
             .root_module = b.createModule(.{

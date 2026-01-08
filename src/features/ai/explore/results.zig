@@ -141,13 +141,13 @@ pub const ExploreResult = struct {
 
     pub fn formatHuman(self: *ExploreResult, writer: anytype) !void {
         try writer.print("Exploration Results for: \"{s}\"\n", .{self.query});
-        try writer.print("Level: {s}\n", .{@tagName(self.level)});
+        try writer.print("Level: {t}\n", .{self.level});
         try writer.print("Files Scanned: {d}\n", .{self.files_scanned});
         try writer.print("Matches Found: {d}\n", .{self.matches_found});
         try writer.print("Duration: {d}ms\n\n", .{self.duration_ms});
 
         if (self.explore_error) |err| {
-            try writer.print("Error: {s}\n", .{@errorName(err)});
+            try writer.print("Error: {t}\n", .{err});
             if (self.error_message) |msg| {
                 try writer.print("Details: {s}\n", .{msg});
             }

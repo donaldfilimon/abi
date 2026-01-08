@@ -27,7 +27,9 @@ pub fn serveDatabase(
     handle: *wdbx.DatabaseHandle,
     address: []const u8,
 ) !void {
-    var io_backend = std.Io.Threaded.init(allocator, .{});
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -43,12 +45,12 @@ pub fn serveDatabase(
 
     while (true) {
         var stream = server.accept(io) catch |err| {
-            std.debug.print("Database HTTP accept error: {s}\n", .{@errorName(err)});
+            std.debug.print("Database HTTP accept error: {t}\n", .{err});
             continue;
         };
         defer stream.close(io);
         handleConnection(allocator, io, handle, stream) catch |err| {
-            std.debug.print("Database HTTP connection error: {s}\n", .{@errorName(err)});
+            std.debug.print("Database HTTP connection error: {t}\n", .{err});
         };
     }
 }
@@ -86,7 +88,7 @@ fn handleConnection(
             else => return err,
         };
         dispatchRequest(allocator, handle, &request) catch |err| {
-            std.debug.print("Database HTTP request error: {s}\n", .{@errorName(err)});
+            std.debug.print("Database HTTP request error: {t}\n", .{err});
             _ = respondJson(
                 &request,
                 "{\"error\":\"internal server error\"}",

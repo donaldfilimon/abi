@@ -960,7 +960,7 @@ fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
         },
         .yaml => {
             std.debug.print("query: \"{s}\"\n", .{search_query});
-            std.debug.print("level: {s}\n", .{@tagName(level)});
+            std.debug.print("level: {t}\n", .{level});
             std.debug.print("matches_found: {d}\n", .{result.matches_found});
             std.debug.print("duration_ms: {d}\n", .{duration_ms});
         },

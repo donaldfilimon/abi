@@ -63,6 +63,7 @@ pub fn get(allocator: std.mem.Allocator, url: []const u8) !Response {
 
     var client_instance = try HttpClient.init(allocator);
     defer client_instance.deinit();
+
     return client_instance.get(url);
 }
 
@@ -80,6 +81,7 @@ pub fn getWithOptions(
 
     var client_instance = try HttpClient.init(allocator);
     defer client_instance.deinit();
+
     return client_instance.getWithOptions(url, options);
 }
 
@@ -93,33 +95,8 @@ pub fn postJson(allocator: std.mem.Allocator, url: []const u8, body: []const u8)
 
     var client_instance = try HttpClient.init(allocator);
     defer client_instance.deinit();
+
     return client_instance.postJson(url, body);
-}
-
-pub fn postJsonWithOptions(
-    allocator: std.mem.Allocator,
-    url: []const u8,
-    body: []const u8,
-    options: RequestOptions,
-) !Response {
-    client_mutex.lock();
-    defer client_mutex.unlock();
-
-    if (default_client) |*http_client| {
-        var request_options = options;
-        if (request_options.content_type == null) {
-            request_options.content_type = "application/json";
-        }
-        return http_client.requestWithOptions(.POST, url, body, request_options);
-    }
-
-    var client_instance = try HttpClient.init(allocator);
-    defer client_instance.deinit();
-    var request_options = options;
-    if (request_options.content_type == null) {
-        request_options.content_type = "application/json";
-    }
-    return client_instance.requestWithOptions(.POST, url, body, request_options);
 }
 
 pub fn freeResponse(allocator: std.mem.Allocator, response: Response) void {

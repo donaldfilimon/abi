@@ -38,22 +38,22 @@ pub const ErrorContext = struct {
     pub fn log(self: ErrorContext, level: std.log.Level, err: anyerror) void {
         const details_msg = if (self.details) |d| d else "no details";
         switch (level) {
-            .err => std.log.err("[{s}] {s} failed: {} - {s} (at {s}:{d})", .{
-                @tagName(self.category),
+            .err => std.log.err("[{t}] {s} failed: {} - {s} (at {s}:{d})", .{
+                self.category,
                 self.operation,
                 err,
                 details_msg,
                 self.source_location.file,
                 self.source_location.line,
             }),
-            .warn => std.log.warn("[{s}] {s} warning: {} - {s}", .{
-                @tagName(self.category),
+            .warn => std.log.warn("[{t}] {s} warning: {} - {s}", .{
+                self.category,
                 self.operation,
                 err,
                 details_msg,
             }),
-            .info => std.log.info("[{s}] {s} info: {} - {s}", .{
-                @tagName(self.category),
+            .info => std.log.info("[{t}] {s} info: {} - {s}", .{
+                self.category,
                 self.operation,
                 err,
                 details_msg,
