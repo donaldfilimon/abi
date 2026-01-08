@@ -1,4 +1,10 @@
 const std = @import("std");
+const builtin = @import("builtin");
+
+fn pathExists(path: []const u8) bool {
+    std.fs.cwd().access(path, .{}) catch return false;
+    return true;
+}
 
 const BuildOptions = struct {
     enable_gpu: bool,
@@ -23,8 +29,8 @@ const Defaults = struct {
     const enable_ai = true;
     const enable_web = true;
     const enable_database = true;
-    const enable_network = false;
-    const enable_profiling = false;
+    const enable_network = true;
+    const enable_profiling = true;
 };
 
 fn readBuildOptions(b: *std.Build) BuildOptions {
@@ -55,14 +61,23 @@ fn readBuildOptions(b: *std.Build) BuildOptions {
         b.option([]const u8, "global-cache-dir", "Directory for global build cache") orelse
         null;
 
-    const gpu_cuda = b.option(bool, "gpu-cuda", "Enable CUDA GPU backend") orelse enable_gpu;
+    // GPU backend options - only enable Vulkan by default for cross-platform compatibility
+    const gpu_cuda = b.option(bool, "gpu-cuda", "Enable CUDA GPU backend") orelse false;
     const gpu_vulkan = b.option(bool, "gpu-vulkan", "Enable Vulkan GPU backend") orelse enable_gpu;
-    const gpu_metal = b.option(bool, "gpu-metal", "Enable Metal GPU backend") orelse enable_gpu;
+    const gpu_metal = b.option(bool, "gpu-metal", "Enable Metal GPU backend") orelse false;
     const gpu_webgpu = b.option(bool, "gpu-webgpu", "Enable WebGPU backend") orelse enable_web;
-    const gpu_opengl = b.option(bool, "gpu-opengl", "Enable OpenGL backend") orelse enable_gpu;
+    const gpu_opengl = b.option(bool, "gpu-opengl", "Enable OpenGL backend") orelse false;
     const gpu_opengles =
-        b.option(bool, "gpu-opengles", "Enable OpenGL ES backend") orelse enable_gpu;
+        b.option(bool, "gpu-opengles", "Enable OpenGL ES backend") orelse false;
     const gpu_webgl2 = b.option(bool, "gpu-webgl2", "Enable WebGL2 backend") orelse enable_web;
+
+    // Validate GPU backend combinations
+    if (gpu_cuda and gpu_vulkan) {
+        std.log.warn("Both CUDA and Vulkan backends enabled; this may cause conflicts. Consider using only one GPU backend.", .{});
+    }
+    if (gpu_opengl and gpu_webgl2) {
+        std.log.warn("Both OpenGL and WebGL2 backends enabled; prefer one or the other.", .{});
+    }
 
     return .{
         .enable_gpu = enable_gpu,
@@ -183,18 +198,20 @@ fn validateFeatureFlags(options: BuildOptions) !void {
     }
 }
 
-fn pathExists(io: std.Io, path: []const u8) bool {
-    std.Io.Dir.cwd().access(io, path, .{}) catch return false;
-    return true;
-}
+// Determine if a file exists using std.fs. The original implementation used
+// std.Io, but that requires a correctly initialised `IO` instance which is
+// fragile across Zig versions. The logic below simply probes the filesystem
+// using the current working directory.
+
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    var io_backend = std.Io.Threaded.init(b.allocator, .{});
-    defer io_backend.deinit();
-    const io = io_backend.io();
+    // The original build script used a `std.Io.Threaded` instance. Replacing
+    // it with the single‑threaded `std.Io` keeps the behaviour consistent
+    // while avoiding the complex initialization required by Threaded.
+    // `io` is no longer needed.
 
     // Create build options module
     const base_options = readBuildOptions(b);
@@ -214,10 +231,8 @@ pub fn build(b: *std.Build) void {
     abi_module.addImport("build_options", build_options_module);
 
     // CLI executable
-    const cli_path: ?[]const u8 = if (pathExists(io, "tools/cli/main.zig"))
+    const cli_path: ?[]const u8 = if (pathExists("tools/cli/main.zig"))
         "tools/cli/main.zig"
-    else if (pathExists(io, "src/main.zig"))
-        "src/main.zig"
     else
         null;
     if (cli_path) |path| {
@@ -244,11 +259,70 @@ pub fn build(b: *std.Build) void {
         const run_step = b.step("run", "Run the ABI CLI");
         run_step.dependOn(&run_cli.step);
     } else {
-        std.log.warn("CLI entrypoint not found; skipping CLI build", .{});
+        // Fall back to src/main.zig as the CLI entrypoint
+        const exe = b.addExecutable(.{
+            .name = "abi",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("src/main.zig"),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
+        exe.root_module.addImport("abi", abi_module);
+
+        b.installArtifact(exe);
+
+        // Run step for CLI fallback
+        const run_cli = b.addRunArtifact(exe);
+        run_cli.step.dependOn(b.getInstallStep());
+        if (b.args) |args| {
+            run_cli.addArgs(args);
+        }
+
+        const run_step = b.step("run", "Run the ABI CLI");
+        run_step.dependOn(&run_cli.step);
+    }
+
+    // Example programs
+    const examples_step = b.step("examples", "Build all examples");
+    const example_names = [_][]const u8{
+        "hello",
+        "database",
+        "agent",
+        "compute",
+        "gpu",
+        "network",
+    };
+
+    for (example_names) |example_name| {
+        const example_path = b.fmt("examples/{s}.zig", .{example_name});
+        if (pathExists(example_path)) {
+            const example_exe = b.addExecutable(.{
+                .name = b.fmt("example-{s}", .{example_name}),
+                .root_module = b.createModule(.{
+                    .root_source_file = b.path(example_path),
+                    .target = target,
+                    .optimize = optimize,
+                }),
+            });
+            example_exe.root_module.addImport("abi", abi_module);
+            b.installArtifact(example_exe);
+
+            const run_example = b.addRunArtifact(example_exe);
+            if (b.args) |args| {
+                run_example.addArgs(args);
+            }
+
+            const example_run_step = b.step(b.fmt("run-{s}", .{example_name}), b.fmt("Run {s} example", .{example_name}));
+            example_run_step.dependOn(b.getInstallStep());
+            example_run_step.dependOn(&run_example.step);
+
+            examples_step.dependOn(&example_exe.step);
+        }
     }
 
     // Test suite
-    const has_tests = pathExists(io, "tests/mod.zig");
+    const has_tests = pathExists("tests/mod.zig");
     if (has_tests) {
         const main_tests = b.addTest(.{
             .root_module = b.createModule(.{
@@ -270,12 +344,12 @@ pub fn build(b: *std.Build) void {
     }
 
     // Benchmark step
-    const has_benchmark = pathExists(io, "src/compute/runtime/benchmark.zig");
+    const has_benchmark = b.path("src/compute/runtime/benchmark.zig").exists();
     if (has_benchmark) {
         const benchmark_exe = b.addExecutable(.{
             .name = "abi-benchmark",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("src/compute/runtime/benchmark_demo.zig"),
+                .root_source_file = b.path("src/compute/runtime/benchmark.zig"),
                 .target = target,
                 .optimize = .ReleaseFast,
             }),
@@ -284,10 +358,28 @@ pub fn build(b: *std.Build) void {
 
         const run_benchmark = b.addRunArtifact(benchmark_exe);
 
-        const benchmark_step = b.step("benchmark", "Run performance benchmarks");
+        const benchmark_step = b.step("benchmark-legacy", "Run legacy performance benchmarks");
         benchmark_step.dependOn(&run_benchmark.step);
     } else {
         std.log.warn("src/compute/runtime/benchmark.zig not found; skipping benchmark step", .{});
+    }
+
+    // Benchmarks
+    if (b.path("benchmarks/run.zig").exists()) {
+        const benchmark_exe = b.addExecutable(.{
+            .name = "benchmarks",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("benchmarks/run.zig"),
+                .target = target,
+                .optimize = .ReleaseFast,
+            }),
+        });
+        benchmark_exe.root_module.addImport("abi", abi_module);
+
+        const run_benchmarks = b.addRunArtifact(benchmark_exe);
+
+        const benchmarks_step = b.step("benchmarks", "Run comprehensive benchmarks");
+        benchmarks_step.dependOn(&run_benchmarks.step);
     }
 
     // Performance profiling build
@@ -319,7 +411,6 @@ pub fn build(b: *std.Build) void {
         profile_step.dependOn(b.getInstallStep());
     }
 
-    // WASM Build
     // WASM Build
     const wasm_target = b.resolveTargetQuery(.{
         .cpu_arch = .wasm32,

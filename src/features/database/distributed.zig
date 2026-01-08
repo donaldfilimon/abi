@@ -162,14 +162,17 @@ pub const DistributedDatabase = struct {
         }
     }
 
-    pub fn leaveCluster(self: *DistributedDatabase, node_id: []const u8) void {
-        if (self.cluster_nodes.remove(node_id)) |entry| {
-            self.allocator.free(entry.key_ptr.*);
-            self.allocator.free(entry.value_ptr.address);
+    pub fn leaveCluster(self: *DistributedDatabase, node_id: []const u8) !void {
+        const entry = self.cluster_nodes.fetchRemove(node_id) orelse return;
+        defer {
+            self.allocator.free(entry.key);
+            self.allocator.free(entry.value.address);
+        }
 
-            if (self.local_shard) |router| {
-                router.removeNode(node_id) catch {};
-            }
+        if (self.local_shard) |router| {
+            router.removeNode(node_id) catch |err| {
+                std.log.warn("Failed to remove node from local shard: {}", .{err});
+            };
         }
     }
 

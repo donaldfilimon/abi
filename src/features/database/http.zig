@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const unified = @import("unified.zig");
+const wdbx = @import("wdbx.zig");
 const db_helpers = @import("db_helpers.zig");
 const json_utils = @import("../../shared/utils/json/mod.zig");
 const net_utils = @import("../../shared/utils/net/mod.zig");
@@ -16,15 +16,15 @@ pub const HttpError = std.mem.Allocator.Error || error{
 const max_body_bytes = 1024 * 1024;
 
 pub fn serve(allocator: std.mem.Allocator, address: []const u8) !void {
-    var handle = try unified.createDatabase(allocator, "http");
-    defer unified.closeDatabase(&handle);
+    var handle = try wdbx.createDatabase(allocator, "http");
+    defer wdbx.closeDatabase(&handle);
 
     try serveDatabase(allocator, &handle, address);
 }
 
 pub fn serveDatabase(
     allocator: std.mem.Allocator,
-    handle: *unified.DatabaseHandle,
+    handle: *wdbx.DatabaseHandle,
     address: []const u8,
 ) !void {
     var io_backend = std.Io.Threaded.init(allocator, .{});
@@ -68,7 +68,7 @@ fn resolveAddress(
 fn handleConnection(
     allocator: std.mem.Allocator,
     io: std.Io,
-    handle: *unified.DatabaseHandle,
+    handle: *wdbx.DatabaseHandle,
     stream: std.Io.net.Stream,
 ) !void {
     var send_buffer: [4096]u8 = undefined;
@@ -99,7 +99,7 @@ fn handleConnection(
 
 fn dispatchRequest(
     allocator: std.mem.Allocator,
-    handle: *unified.DatabaseHandle,
+    handle: *wdbx.DatabaseHandle,
     request: *std.http.Server.Request,
 ) !void {
     const target = request.head.target;
@@ -110,7 +110,7 @@ fn dispatchRequest(
     }
 
     if (std.mem.eql(u8, parts.path, "/stats")) {
-        const stats = unified.getStats(handle);
+        const stats = wdbx.getStats(handle);
         const body = try buildStatsJson(allocator, stats);
         defer allocator.free(body);
         return respondJson(request, body, .ok);
@@ -140,7 +140,7 @@ fn dispatchRequest(
 }
 
 fn handleBackup(
-    handle: *unified.DatabaseHandle,
+    handle: *wdbx.DatabaseHandle,
     request: *std.http.Server.Request,
     query: []const u8,
 ) !void {
@@ -152,12 +152,12 @@ fn handleBackup(
     if (path.len == 0) {
         return respondJson(request, "{\"error\":\"missing path\"}", .bad_request);
     }
-    try unified.backup(handle, path);
+    try wdbx.backup(handle, path);
     return respondJson(request, "{\"status\":\"backed up\"}", .ok);
 }
 
 fn handleRestore(
-    handle: *unified.DatabaseHandle,
+    handle: *wdbx.DatabaseHandle,
     request: *std.http.Server.Request,
     query: []const u8,
 ) !void {
@@ -169,21 +169,21 @@ fn handleRestore(
     if (path.len == 0) {
         return respondJson(request, "{\"error\":\"missing path\"}", .bad_request);
     }
-    try unified.restore(handle, path);
+    try wdbx.restore(handle, path);
     return respondJson(request, "{\"status\":\"restored\"}", .ok);
 }
 
-fn handleOptimize(handle: *unified.DatabaseHandle, request: *std.http.Server.Request) !void {
+fn handleOptimize(handle: *wdbx.DatabaseHandle, request: *std.http.Server.Request) !void {
     if (request.head.method != .POST) {
         return respondJson(request, "{\"error\":\"method not allowed\"}", .method_not_allowed);
     }
-    try unified.optimize(handle);
+    try wdbx.optimize(handle);
     return respondJson(request, "{\"status\":\"optimized\"}", .ok);
 }
 
 fn handleVectors(
     allocator: std.mem.Allocator,
-    handle: *unified.DatabaseHandle,
+    handle: *wdbx.DatabaseHandle,
     request: *std.http.Server.Request,
     query: []const u8,
 ) !void {
@@ -194,7 +194,7 @@ fn handleVectors(
             const id = std.fmt.parseInt(u64, id_text, 10) catch {
                 return respondJson(request, "{\"error\":\"invalid id\"}", .bad_request);
             };
-            const view = unified.getVector(handle, id) orelse
+            const view = wdbx.getVector(handle, id) orelse
                 return respondJson(request, "{\"error\":\"not found\"}", .not_found);
             const body = try buildVectorJson(allocator, view);
             defer allocator.free(body);
@@ -202,7 +202,7 @@ fn handleVectors(
         }
 
         const limit = parseQueryInt(query, "limit", usize, 25);
-        const views = try unified.listVectors(handle, allocator, limit);
+        const views = try wdbx.listVectors(handle, allocator, limit);
         defer allocator.free(views);
         const body = try buildVectorListJson(allocator, views);
         defer allocator.free(body);
@@ -236,7 +236,7 @@ fn handleVectors(
 
         if (method == .POST) {
             const meta = getQueryParam(query, "meta");
-            unified.insertVector(handle, id, vector, meta) catch |err| switch (err) {
+            wdbx.insertVector(handle, id, vector, meta) catch |err| switch (err) {
                 error.DuplicateId => {
                     return respondJson(request, "{\"error\":\"duplicate id\"}", .conflict);
                 },
@@ -245,7 +245,7 @@ fn handleVectors(
             return respondJson(request, "{\"status\":\"inserted\"}", .created);
         }
 
-        const updated = try unified.updateVector(handle, id, vector);
+        const updated = try wdbx.updateVector(handle, id, vector);
         if (!updated) {
             return respondJson(request, "{\"error\":\"not found\"}", .not_found);
         }
@@ -258,7 +258,7 @@ fn handleVectors(
         const id = std.fmt.parseInt(u64, id_text, 10) catch {
             return respondJson(request, "{\"error\":\"invalid id\"}", .bad_request);
         };
-        if (!unified.deleteVector(handle, id)) {
+        if (!wdbx.deleteVector(handle, id)) {
             return respondJson(request, "{\"error\":\"not found\"}", .not_found);
         }
         return respondJson(request, "{\"status\":\"deleted\"}", .ok);
@@ -269,7 +269,7 @@ fn handleVectors(
 
 fn handleSearch(
     allocator: std.mem.Allocator,
-    handle: *unified.DatabaseHandle,
+    handle: *wdbx.DatabaseHandle,
     request: *std.http.Server.Request,
     query: []const u8,
 ) !void {
@@ -286,7 +286,7 @@ fn handleSearch(
     defer allocator.free(vector);
 
     const top_k = parseQueryInt(query, "top_k", usize, 3);
-    const results = try unified.searchVectors(handle, allocator, vector, top_k);
+    const results = try wdbx.searchVectors(handle, allocator, vector, top_k);
     defer allocator.free(results);
 
     const body = try buildSearchResultsJson(allocator, results);
@@ -389,7 +389,7 @@ fn respondText(
     });
 }
 
-fn buildStatsJson(allocator: std.mem.Allocator, stats: unified.Stats) ![]u8 {
+fn buildStatsJson(allocator: std.mem.Allocator, stats: wdbx.Stats) ![]u8 {
     return std.fmt.allocPrint(
         allocator,
         "{{\"count\":{d},\"dimension\":{d}}}",
@@ -397,7 +397,7 @@ fn buildStatsJson(allocator: std.mem.Allocator, stats: unified.Stats) ![]u8 {
     );
 }
 
-fn buildVectorJson(allocator: std.mem.Allocator, view: unified.VectorView) ![]u8 {
+fn buildVectorJson(allocator: std.mem.Allocator, view: wdbx.VectorView) ![]u8 {
     var list = std.ArrayListUnmanaged(u8).empty;
     errdefer list.deinit(allocator);
 
@@ -418,7 +418,7 @@ fn buildVectorJson(allocator: std.mem.Allocator, view: unified.VectorView) ![]u8
     return list.toOwnedSlice(allocator);
 }
 
-fn buildVectorListJson(allocator: std.mem.Allocator, views: []const unified.VectorView) ![]u8 {
+fn buildVectorListJson(allocator: std.mem.Allocator, views: []const wdbx.VectorView) ![]u8 {
     var list = std.ArrayListUnmanaged(u8).empty;
     errdefer list.deinit(allocator);
     try list.appendSlice(allocator, "{\"vectors\":[");
@@ -434,7 +434,7 @@ fn buildVectorListJson(allocator: std.mem.Allocator, views: []const unified.Vect
 
 fn buildSearchResultsJson(
     allocator: std.mem.Allocator,
-    results: []const unified.SearchResult,
+    results: []const wdbx.SearchResult,
 ) ![]u8 {
     var list = std.ArrayListUnmanaged(u8).empty;
     errdefer list.deinit(allocator);

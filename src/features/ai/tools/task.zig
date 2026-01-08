@@ -234,12 +234,30 @@ pub const TaskTool = struct {
         var iterator = self.subagents.valueIterator();
         while (iterator.next()) |subagent| {
             var sub_stat = json.Object.init(self.allocator);
-            sub_stat.put("name", json.Value{ .string = subagent.name });
-            sub_stat.put("state", json.Value{ .string = @tagName(subagent.state) });
-            sub_stat.put("execution_count", json.Value{ .integer = @as(i64, @intCast(subagent.execution_count)) });
-            sub_stat.put("error_count", json.Value{ .integer = @as(i64, @intCast(subagent.error_count)) });
-            sub_stat.put("last_execution_time_ms", json.Value{ .integer = @as(i64, @intCast(subagent.last_execution_time_ms)) });
-            subagent_stats.append(json.Value{ .object = sub_stat }) catch {};
+            sub_stat.put("name", json.Value{ .string = subagent.name }) catch {
+                sub_stat.deinit();
+                continue;
+            };
+            sub_stat.put("state", json.Value{ .string = @tagName(subagent.state) }) catch {
+                sub_stat.deinit();
+                continue;
+            };
+            sub_stat.put("execution_count", json.Value{ .integer = @as(i64, @intCast(subagent.execution_count)) }) catch {
+                sub_stat.deinit();
+                continue;
+            };
+            sub_stat.put("error_count", json.Value{ .integer = @as(i64, @intCast(subagent.error_count)) }) catch {
+                sub_stat.deinit();
+                continue;
+            };
+            sub_stat.put("last_execution_time_ms", json.Value{ .integer = @as(i64, @intCast(subagent.last_execution_time_ms)) }) catch {
+                sub_stat.deinit();
+                continue;
+            };
+            subagent_stats.append(json.Value{ .object = sub_stat }) catch {
+                sub_stat.deinit();
+                continue;
+            };
         }
 
         stats.put("subagents", json.Value{ .array = subagent_stats });

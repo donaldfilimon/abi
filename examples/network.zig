@@ -6,21 +6,43 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, abi.FrameworkOptions{
+    if (!abi.network.isEnabled()) {
+        std.debug.print("Network feature is disabled. Enable with -Denable-network=true\n", .{});
+        return;
+    }
+
+    var framework = abi.init(allocator, abi.FrameworkOptions{
         .enable_network = true,
-    });
+        .enable_gpu = false,
+    }) catch |err| {
+        std.debug.print("Failed to initialize network framework: {}\n", .{err});
+        return err;
+    };
     defer abi.shutdown(&framework);
 
-    const registry = try abi.network.defaultRegistry();
-    try registry.register("node-1", "localhost:8080");
-    try registry.register("node-2", "localhost:8081");
+    const registry = abi.network.defaultRegistry() catch |err| {
+        std.debug.print("Failed to get default registry: {}\n", .{err});
+        return err;
+    };
 
-    const nodes = try registry.listNodes(allocator);
-    defer allocator.free(nodes);
+    // Register nodes
+    registry.register("node-1", "localhost:8080") catch |err| {
+        std.debug.print("Failed to register node-1: {}\n", .{err});
+        return err;
+    };
+    registry.register("node-2", "localhost:8081") catch |err| {
+        std.debug.print("Failed to register node-2: {}\n", .{err});
+        return err;
+    };
 
-    std.debug.print("Registered nodes:\n", .{});
+    // Update node status
+    _ = registry.touch("node-1");
+    _ = registry.setStatus("node-2", .degraded);
+
+    const nodes = registry.list();
+    std.debug.print("Network registry contains {} nodes:\n", .{nodes.len});
     for (nodes) |node| {
-        std.debug.print("  {s}: {s} ({t})\n", .{ node.id, node.address, node.status });
+        std.debug.print("  Node '{s}' at {s} - Status: {s}\n", .{ node.id, node.address, @tagName(node.status) });
     }
 
     _ = registry.touch("node-1");

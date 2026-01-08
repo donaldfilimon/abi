@@ -43,6 +43,7 @@ const SimpleModuleLifecycle = struct {
 
 var gpu_lifecycle = SimpleModuleLifecycle{};
 
+var cuda_backend_init_lock = std.Thread.Mutex{};
 var cuda_backend_initialized = false;
 
 pub const MemoryError = memory.MemoryError;
@@ -94,6 +95,9 @@ pub fn init(_: std.mem.Allocator) GpuError!void {
 
 fn initCudaComponents() !void {
     if (comptime build_options.gpu_cuda) {
+        cuda_backend_init_lock.lock();
+        defer cuda_backend_init_lock.unlock();
+
         if (!cuda_backend_initialized) {
             const cuda_module = @import("backends/cuda.zig");
 

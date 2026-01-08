@@ -209,7 +209,7 @@ pub const Database = struct {
         var stringify: std.json.Stringify = .{
             // `any_writer` is an alias to the underlying file writer; cast
             // to the generic `std.io.Writer` required by `Stringify`.
-            .writer = @ptrCast(*std.io.Writer, &any_writer),
+            .writer = @ptrCast(&any_writer),
             .options = .{ .whitespace = .indent_4 },
         };
         try stringify.beginArray();

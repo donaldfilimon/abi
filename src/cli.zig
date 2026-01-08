@@ -939,12 +939,12 @@ fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     var agent = abi.ai.explore.ExploreAgent.init(allocator, config);
     defer agent.deinit();
 
-    const start_time = std.time.nanoTimestamp();
+    const start_time = try std.time.Instant.now();
     const result = try agent.explore(root_path, search_query);
     defer result.deinit();
 
-    const end_time = std.time.nanoTimestamp();
-    const duration_ms = @divTrunc(@as(i128, end_time - start_time), std.time.ns_per_ms);
+    const end_time = try std.time.Instant.now();
+    const duration_ms = @divTrunc(end_time.since(start_time), std.time.ns_per_ms);
 
     switch (output_format) {
         .human => {

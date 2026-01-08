@@ -85,3 +85,20 @@ fn buildResult(name: []const u8, iterations: u64, elapsed_ns: u64) BenchmarkResu
         .ops_per_sec = ops,
     };
 }
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    const results = try runBenchmarks(allocator);
+    defer allocator.free(results);
+
+    std.debug.print("ABI Benchmarks\n", .{});
+    for (results) |result| {
+        std.debug.print(
+            "  {s}: {d} iters, {d} ns, {d:.2} ops/sec\n",
+            .{ result.name, result.iterations, result.duration_ns, result.ops_per_sec },
+        );
+    }
+}

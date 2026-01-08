@@ -1,10 +1,16 @@
 //! ABI Framework - Main Library Interface
 //!
-//! High level entrypoints and curated re-exports for the modernized runtime.
+//! High level entrypoints and re-exports for the modernized runtime.
 
 const std = @import("std");
 const build_options = @import("build_options");
-const compat = @import("compat.zig");
+const builtin = @import("builtin");
+
+comptime {
+    if (builtin.zig_version.major == 0 and builtin.zig_version.minor < 16) {
+        @compileError("ABI requires Zig 0.16.0 or newer");
+    }
+}
 
 /// Core utilities and fundamental types
 pub const core = @import("core/mod.zig");
@@ -61,9 +67,6 @@ pub const StreamToken = ai.streaming.StreamToken;
 pub const StreamState = ai.streaming.StreamState;
 pub const GenerationConfig = ai.streaming.GenerationConfig;
 pub const utils = @import("shared/utils/mod.zig");
-comptime {
-    _ = compat;
-}
 
 /// Compatibility namespace for the WDBX tooling.
 /// Compatibility namespace for the WDBX tooling.
@@ -73,19 +76,19 @@ pub const wdbx = if (build_options.enable_database) struct {
     pub const cli = features.database.cli;
     pub const http = features.database.http;
 
-    pub const createDatabase = features.database.unified.createDatabase;
-    pub const connectDatabase = features.database.unified.connectDatabase;
-    pub const closeDatabase = features.database.unified.closeDatabase;
-    pub const insertVector = features.database.unified.insertVector;
-    pub const searchVectors = features.database.unified.searchVectors;
-    pub const deleteVector = features.database.unified.deleteVector;
-    pub const updateVector = features.database.unified.updateVector;
-    pub const getVector = features.database.unified.getVector;
-    pub const listVectors = features.database.unified.listVectors;
-    pub const getStats = features.database.unified.getStats;
-    pub const optimize = features.database.unified.optimize;
-    pub const backup = features.database.unified.backup;
-    pub const restore = features.database.unified.restore;
+    pub const createDatabase = features.database.wdbx.createDatabase;
+    pub const connectDatabase = features.database.wdbx.connectDatabase;
+    pub const closeDatabase = features.database.wdbx.closeDatabase;
+    pub const insertVector = features.database.wdbx.insertVector;
+    pub const searchVectors = features.database.wdbx.searchVectors;
+    pub const deleteVector = features.database.wdbx.deleteVector;
+    pub const updateVector = features.database.wdbx.updateVector;
+    pub const getVector = features.database.wdbx.getVector;
+    pub const listVectors = features.database.wdbx.listVectors;
+    pub const getStats = features.database.wdbx.getStats;
+    pub const optimize = features.database.wdbx.optimize;
+    pub const backup = features.database.wdbx.backup;
+    pub const restore = features.database.wdbx.restore;
 } else struct {};
 
 /// Initialise the ABI framework and return the orchestration handle.

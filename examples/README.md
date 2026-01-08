@@ -66,20 +66,27 @@ zig run examples/network.zig -Denable-network=true
 
 ## Building Examples
 
-All examples can be built and run using the standard Zig build system:
+All examples are integrated into the main build system:
 
 ```bash
-# Build an example
-zig build-exe examples/hello.zig -OReleaseFast
+# Build all examples
+zig build examples
 
-# Or run directly
-zig run examples/hello.zig
+# Run a specific example
+zig build run-hello
+zig build run-database
+zig build run-compute
+zig build run-gpu
+zig build run-network
 ```
 
-With feature flags:
+## Running Benchmarks
+
+The comprehensive benchmark suite tests all framework features:
 
 ```bash
-zig run examples/agent.zig -Denable-ai=true -Denable-gpu=true
+# Run all benchmarks
+zig build benchmarks
 ```
 
 ## Learning Path

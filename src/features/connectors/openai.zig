@@ -188,9 +188,15 @@ pub const Client = struct {
         const object = try json_utils.getRequiredObject(parsed.value);
 
         const id = try json_utils.parseStringField(object, "id", self.allocator);
+        errdefer self.allocator.free(id);
+
         const obj = try json_utils.parseStringField(object, "object", self.allocator);
+        errdefer self.allocator.free(obj);
+
         const created = try json_utils.parseUintField(object, "created");
+
         const model = try json_utils.parseStringField(object, "model", self.allocator);
+        errdefer self.allocator.free(model);
 
         const choices_array = try json_utils.parseArrayField(object, "choices");
         if (choices_array.items.len == 0) {
@@ -198,7 +204,14 @@ pub const Client = struct {
         }
 
         var choices = try self.allocator.alloc(Choice, choices_array.items.len);
-        errdefer self.allocator.free(choices);
+        errdefer {
+            for (choices) |*choice| {
+                self.allocator.free(choice.message.role);
+                self.allocator.free(choice.message.content);
+                self.allocator.free(choice.finish_reason);
+            }
+            self.allocator.free(choices);
+        }
 
         for (choices_array.items, 0..) |choice_value, i| {
             const choice_obj = try json_utils.getRequiredObject(choice_value);

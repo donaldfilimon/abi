@@ -185,12 +185,30 @@ pub const ExploreResult = struct {
         var matches_arr = json.Array.init(self.allocator);
         for (self.matches.items) |match| {
             var match_obj = json.Object.init(self.allocator);
-            try match_obj.put("file", json.Value{ .string = match.file_path });
-            try match_obj.put("line", json.Value{ .integer = @as(i64, @intCast(match.line_number)) });
-            try match_obj.put("type", json.Value{ .string = @tagName(match.match_type) });
-            try match_obj.put("text", json.Value{ .string = match.match_text });
-            try match_obj.put("score", json.Value{ .number = match.relevance_score });
-            matches_arr.append(json.Value{ .object = match_obj }) catch {};
+            match_obj.put("file", json.Value{ .string = match.file_path }) catch {
+                match_obj.deinit();
+                continue;
+            };
+            match_obj.put("line", json.Value{ .integer = @as(i64, @intCast(match.line_number)) }) catch {
+                match_obj.deinit();
+                continue;
+            };
+            match_obj.put("type", json.Value{ .string = @tagName(match.match_type) }) catch {
+                match_obj.deinit();
+                continue;
+            };
+            match_obj.put("text", json.Value{ .string = match.match_text }) catch {
+                match_obj.deinit();
+                continue;
+            };
+            match_obj.put("score", json.Value{ .number = match.relevance_score }) catch {
+                match_obj.deinit();
+                continue;
+            };
+            matches_arr.append(json.Value{ .object = match_obj }) catch |err| {
+                match_obj.deinit();
+                return err;
+            };
         }
         try obj.put("matches", json.Value{ .array = matches_arr });
 

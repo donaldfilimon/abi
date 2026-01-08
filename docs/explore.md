@@ -141,10 +141,10 @@ Parse source code to extract code elements:
 var parser = explore.AstParser.init(allocator);
 defer parser.deinit();
 
-const content = try std.fs.cwd().readFileAlloc(allocator, "src/main.zig", 1024 * 1024);
+const content = try std.fs.cwd().readFileAlloc(allocator, "src/abi.zig", 1024 * 1024);
 defer allocator.free(content);
 
-const file_stat = try fs.getFileStats("src/main.zig");
+const file_stat = try fs.getFileStats("src/abi.zig");
 const parsed = try parser.parseFile(&file_stat, content);
 defer parsed.deinit();
 

@@ -1,3 +1,8 @@
+/// Generic string manipulation helpers.
+///
+/// This module purposely keeps allocations to a minimum.
+/// All functions operate on slices and return slices unless a new allocation
+/// is explicitly requested by the caller.
 const std = @import("std");
 
 pub const SplitPair = struct {
@@ -5,18 +10,25 @@ pub const SplitPair = struct {
     tail: []const u8,
 };
 
+/// Trim leading and trailing ASCII whitespace.
+///
+/// The slice returned shares storage with the original input; no heap
+/// allocation is performed.
 pub fn trimWhitespace(input: []const u8) []const u8 {
     return std.mem.trim(u8, input, " \t\r\n");
 }
 
+/// Split `input` at the first occurrence of `delimiter`.
+///
+/// Returns `null` if the delimiter does not occur.
 pub fn splitOnce(input: []const u8, delimiter: u8) ?SplitPair {
-    const index = std.mem.indexOfScalar(u8, input, delimiter) orelse return null;
-    return .{
-        .head = input[0..index],
-        .tail = input[index + 1 ..],
-    };
+    const pair = std.mem.splitOnce(u8, input, delimiter);
+    return pair;
 }
 
+/// Parse a boolean value from a string slice.
+///
+/// Recognizes "true" / "false" (case‑insensitive) and "1" / "0".
 pub fn parseBool(input: []const u8) ?bool {
     if (std.ascii.eqlIgnoreCase(input, "true") or std.mem.eql(u8, input, "1")) {
         return true;
@@ -27,6 +39,9 @@ pub fn parseBool(input: []const u8) ?bool {
     return null;
 }
 
+/// Return a new slice containing the ASCII lowercase representation.
+///
+/// The caller must free the returned slice using the supplied allocator.
 pub fn toLowerAscii(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     const copy = try allocator.alloc(u8, input.len);
     for (input, 0..) |char, i| {

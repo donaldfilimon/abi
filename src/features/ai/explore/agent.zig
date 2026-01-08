@@ -19,17 +19,17 @@ pub const ExploreAgent = struct {
     config: ExploreConfig,
     compiler: PatternCompiler,
     stats: ExplorationStats,
-    start_time: i128,
+    start_time: std.time.Instant,
     cancelled: bool,
     cancellation_lock: std.Thread.Mutex,
 
-    pub fn init(allocator: std.mem.Allocator, config: ExploreConfig) ExploreAgent {
+    pub fn init(allocator: std.mem.Allocator, config: ExploreConfig) !ExploreAgent {
         return ExploreAgent{
             .allocator = allocator,
             .config = config,
             .compiler = PatternCompiler.init(allocator),
             .stats = ExplorationStats{},
-            .start_time = 0,
+            .start_time = try std.time.Instant.now(),
             .cancelled = false,
             .cancellation_lock = std.Thread.Mutex{},
         };
