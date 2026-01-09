@@ -150,11 +150,10 @@ pub const OtelTracer = struct {
         const trace_id = self.generateTraceId();
         const span_id = self.generateSpanId();
 
-        var parent_tid: [8]u8 = undefined;
-        var parent_sid: [8]u8 = undefined;
+        var parent_sid: [8]u8 = .{0} ** 8;
 
         if (parent_trace_id) |tid| {
-            @memcpy(parent_sid[0..8], tid[0..8]);
+            std.mem.copy(u8, tid[0..8], parent_sid[0..8]);
         }
         if (parent_span_id) |sid| {
             parent_sid = sid;
@@ -174,13 +173,14 @@ pub const OtelTracer = struct {
         };
     }
 
-    pub fn endSpan(self: *OtelTracer, span: *OtelSpan) void {
+    pub fn endSpan(_: *OtelTracer, span: *OtelSpan) void {
         span.end_time = std.time.timestamp();
     }
 
     pub fn addEvent(self: *OtelTracer, span: *OtelSpan, name: []const u8) !void {
         _ = self;
         _ = span;
+        // TODO: Implement event addition to span
         _ = name;
     }
 

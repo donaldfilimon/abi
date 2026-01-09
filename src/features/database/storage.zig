@@ -55,7 +55,9 @@ pub fn saveDatabase(
         }
     }
 
-    var io_backend = std.Io.Threaded.init(allocator, .{});
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -65,7 +67,9 @@ pub fn saveDatabase(
 }
 
 pub fn loadDatabase(allocator: std.mem.Allocator, path: []const u8) LoadError!database.Database {
-    var io_backend = std.Io.Threaded.init(allocator, .{});
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
     defer io_backend.deinit();
     const io = io_backend.io();
 

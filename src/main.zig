@@ -6,17 +6,20 @@ const std = @import("std");
 const abi = @import("abi");
 
 pub fn main(init: std.process.Init) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const allocator = init.gpa;
 
-    const args = init.minimal.args;
-    if (args.len < 2) {
+    var args_iter = std.process.Args.Iterator.initAllocator(init.minimal.args, allocator) catch {
         printHelp();
         return;
-    }
+    };
+    defer args_iter.deinit();
 
-    const command = std.mem.sliceTo(args[1], 0);
+    _ = args_iter.skip();
+    const command = args_iter.next() orelse {
+        printHelp();
+        return;
+    };
+
     if (std.mem.eql(u8, command, "help") or std.mem.eql(u8, command, "--help")) {
         printHelp();
         return;
@@ -58,7 +61,6 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
     std.debug.print("Version: {s}\n", .{abi.version()});
     std.debug.print("SIMD Support: {s}\n", .{if (abi.hasSimdSupport()) "Yes" else "No"});
 
-    // Try to initialize with all features enabled
     var framework = abi.init(allocator, abi.FrameworkOptions{
         .enable_gpu = true,
         .enable_ai = true,
@@ -70,7 +72,6 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
         std.debug.print("Framework initialization failed: {t}\n", .{err});
         std.debug.print("Running with minimal features...\n", .{});
 
-        // Try minimal initialization
         var minimal_framework = try abi.init(allocator, abi.FrameworkOptions{
             .enable_gpu = false,
             .enable_ai = false,
@@ -86,10 +87,35 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
     };
     defer abi.shutdown(&framework);
 
-    std.debug.print("Framework: Initialized successfully\n", .{});
-    std.debug.print("GPU Module: {s}\n", .{if (abi.gpu.moduleEnabled()) "Enabled" else "Disabled"});
-    std.debug.print("AI Module: {s}\n", .{if (abi.ai.isEnabled()) "Enabled" else "Disabled"});
-    std.debug.print("Database Module: {s}\n", .{if (abi.database.isEnabled()) "Enabled" else "Disabled"});
-    std.debug.print("Web Module: {s}\n", .{if (abi.web.isEnabled()) "Enabled" else "Disabled"});
-    std.debug.print("Network Module: {s}\n", .{if (abi.network.isEnabled()) "Enabled" else "Disabled"});
+    std.debug.print("Framework initialized successfully\n", .{});
+
+    if (abi.database.isEnabled()) {
+        std.debug.print("Database: Available\n", .{});
+    } else {
+        std.debug.print("Database: Not available (enable with -Denable-database=true)\n", .{});
+    }
+
+    if (abi.gpu.moduleEnabled()) {
+        std.debug.print("GPU: Available\n", .{});
+    } else {
+        std.debug.print("GPU: Not available (enable with -Denable-gpu=true)\n", .{});
+    }
+
+    if (abi.ai.isEnabled()) {
+        std.debug.print("AI: Available\n", .{});
+    } else {
+        std.debug.print("AI: Not available (enable with -Denable-ai=true)\n", .{});
+    }
+
+    if (abi.web.isEnabled()) {
+        std.debug.print("Web: Available\n", .{});
+    } else {
+        std.debug.print("Web: Not available (enable with -Denable-web=true)\n", .{});
+    }
+
+    if (abi.network.isEnabled()) {
+        std.debug.print("Network: Available\n", .{});
+    } else {
+        std.debug.print("Network: Not available (enable with -Denable-network=true)\n", .{});
+    }
 }

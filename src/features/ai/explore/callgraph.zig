@@ -25,39 +25,39 @@ pub const CallEdge = struct {
 pub const CallGraph = struct {
     allocator: std.mem.Allocator,
     /// Map from function name to list of functions it calls
-    calls: std.StringHashMap(std.ArrayList(Function)),
+    calls: std.StringHashMap(std.ArrayListUnmanaged(Function)),
     /// Map from function name to list of functions that call it
-    called_by: std.StringHashMap(std.ArrayList(Function)),
+    called_by: std.StringHashMap(std.ArrayListUnmanaged(Function)),
     /// All functions in the graph
-    all_functions: std.ArrayList(Function),
+    all_functions: std.ArrayListUnmanaged(Function),
     /// All edges in the graph
-    edges: std.ArrayList(CallEdge),
+    edges: std.ArrayListUnmanaged(CallEdge),
 
     pub fn init(allocator: std.mem.Allocator) CallGraph {
         return .{
             .allocator = allocator,
-            .calls = std.StringHashMap(std.ArrayList(Function)).init(allocator),
-            .called_by = std.StringHashMap(std.ArrayList(Function)).init(allocator),
-            .all_functions = std.ArrayList(Function){},
-            .edges = std.ArrayList(CallEdge){},
+            .calls = std.StringHashMap(std.ArrayListUnmanaged(Function)).init(allocator),
+            .called_by = std.StringHashMap(std.ArrayListUnmanaged(Function)).init(allocator),
+            .all_functions = .{},
+            .edges = .{},
         };
     }
 
     pub fn deinit(self: *CallGraph) void {
         var calls_iter = self.calls.valueIterator();
         while (calls_iter.next()) |list| {
-            list.deinit();
+            list.deinit(self.allocator);
         }
         self.calls.deinit();
 
         var called_by_iter = self.called_by.valueIterator();
         while (called_by_iter.next()) |list| {
-            list.deinit();
+            list.deinit(self.allocator);
         }
         self.called_by.deinit();
 
-        self.all_functions.deinit();
-        self.edges.deinit();
+        self.all_functions.deinit(self.allocator);
+        self.edges.deinit(self.allocator);
     }
 
     /// Add a function to the graph
@@ -67,8 +67,8 @@ pub const CallGraph = struct {
         const key = try self.allocator.dupe(u8, func.name);
         errdefer self.allocator.free(key);
 
-        try self.calls.put(key, std.ArrayList(Function){});
-        try self.called_by.put(key, std.ArrayList(Function){});
+        try self.calls.put(key, .{});
+        try self.called_by.put(key, .{});
     }
 
     /// Add a call relationship (caller -> callee)

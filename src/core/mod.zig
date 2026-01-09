@@ -101,6 +101,9 @@ pub const HardwareTopology = struct {
     }
 };
 
+/// Parse a version string in format "major.minor.patch".
+/// @param text Version string to parse (e.g., "1.2.3")
+/// @return Parsed version or null if invalid format
 pub fn parseVersion(text: []const u8) ?Version {
     var it = std.mem.splitScalar(u8, text, '.');
     const major = it.next() orelse return null;
@@ -114,6 +117,9 @@ pub fn parseVersion(text: []const u8) ?Version {
     };
 }
 
+/// Parse a version string with optional prefix/suffix (e.g., "v1.2.3-rc1").
+/// @param text Version string to parse (may include 'v' prefix, whitespace, or suffixes)
+/// @return Parsed version or null if invalid format
 pub fn parseVersionLoose(text: []const u8) ?Version {
     var trimmed = std.mem.trim(u8, text, " \t\r\n");
     if (trimmed.len == 0) return null;
@@ -126,12 +132,20 @@ pub fn parseVersionLoose(text: []const u8) ?Version {
     return parseVersion(trimmed[0..end]);
 }
 
+/// Compare two versions for ordering.
+/// @param a First version to compare
+/// @param b Second version to compare
+/// @return std.math.Order indicating relationship (.lt, .eq, .gt)
 pub fn compareVersion(a: Version, b: Version) std.math.Order {
     if (a.major != b.major) return std.math.order(a.major, b.major);
     if (a.minor != b.minor) return std.math.order(a.minor, b.minor);
     return std.math.order(a.patch, b.patch);
 }
 
+/// Format version to string in provided buffer.
+/// @param buffer Buffer to write formatted version string
+/// @param version Version to format
+/// @return Slice of buffer containing formatted string
 pub fn formatVersion(buffer: []u8, version: Version) ![]u8 {
     return std.fmt.bufPrint(
         buffer,
@@ -140,6 +154,10 @@ pub fn formatVersion(buffer: []u8, version: Version) ![]u8 {
     );
 }
 
+/// Format version to newly allocated string.
+/// @param allocator Memory allocator for result string
+/// @param version Version to format
+/// @return Allocated string containing formatted version
 pub fn formatVersionAlloc(allocator: std.mem.Allocator, version: Version) ![]u8 {
     return std.fmt.allocPrint(
         allocator,
@@ -148,6 +166,10 @@ pub fn formatVersionAlloc(allocator: std.mem.Allocator, version: Version) ![]u8 
     );
 }
 
+/// Check if current version satisfies required version constraints.
+/// @param required Minimum required version
+/// @param current Current version to check
+/// @return True if current version is compatible with required version
 pub fn isCompatible(required: Version, current: Version) bool {
     if (required.major != current.major) return false;
     return compareVersion(current, required) != .lt;

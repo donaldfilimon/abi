@@ -7,6 +7,7 @@ const shared = @import("backends/shared.zig");
 pub const Backend = enum {
     cuda,
     vulkan,
+    stdgpu,
     metal,
     webgpu,
     opengl,
@@ -123,6 +124,25 @@ const backend_meta = [_]BackendMeta{
         .aliases = &.{},
     },
     .{
+        .name = "stdgpu",
+        .display_name = "std.gpu",
+        .description = "Zig std.gpu SPIR-V backend",
+        .build_flag = "-Dgpu-stdgpu",
+        .device_name = "std.gpu Adapter",
+        .device_name_emulated = "std.gpu Adapter (emulated)",
+        .memory_bytes = 4 * GiB,
+        .capability = .{
+            .unified_memory = true,
+            .supports_fp16 = true,
+            .supports_int8 = false,
+            .supports_async_transfers = true,
+            .max_threads_per_block = 512,
+            .max_shared_memory_bytes = 32 * 1024,
+        },
+        .supports_kernels = true,
+        .aliases = &.{},
+    },
+    .{
         .name = "metal",
         .display_name = "Metal",
         .description = "Apple Metal backend",
@@ -211,6 +231,7 @@ pub fn isEnabled(backend: Backend) bool {
     return switch (backend) {
         .cuda => build_options.gpu_cuda,
         .vulkan => build_options.gpu_vulkan,
+        .stdgpu => if (@hasDecl(build_options, "gpu_stdgpu")) build_options.gpu_stdgpu else false,
         .metal => build_options.gpu_metal,
         .webgpu => build_options.gpu_webgpu,
         .opengl => build_options.gpu_opengl,
@@ -317,6 +338,7 @@ pub fn backendAvailability(backend: Backend) BackendAvailability {
     return switch (backend) {
         .cuda => detectCuda(),
         .vulkan => detectVulkan(),
+        .stdgpu => detectStdGpu(),
         .metal => detectMetal(),
         .webgpu => detectWebGpu(),
         .opengl => detectOpenGl(),
@@ -407,6 +429,11 @@ fn selectDefaultDevice(devices: []const DeviceInfo) ?DeviceInfo {
         if (!device.is_emulated) return device;
     }
     return devices[0];
+}
+
+fn detectStdGpu() BackendAvailability {
+    // std.gpu should be available on all platforms that support Zig
+    return availableAvailability(.device_count, 1, "std.gpu available");
 }
 
 fn detectCuda() BackendAvailability {

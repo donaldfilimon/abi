@@ -39,16 +39,13 @@
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.arena.allocator();
 
     var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const args = try init.minimal.args.toSlice(allocator);
 
     if (args.len <= 1) {
         printHelp();
@@ -56,12 +53,12 @@ pub fn main() !void {
     }
 
     const command = args[1];
-    if (matchesAny(command, &.{ "help", "--help", "-h" })) {
+    if (matchesAny(command, &[_][]const u8{ "help", "--help", "-h" })) {
         printHelp();
         return;
     }
 
-    if (matchesAny(command, &.{ "version", "--version", "-v" })) {
+    if (matchesAny(command, &[_][]const u8{ "version", "--version", "-v" })) {
         std.debug.print("ABI Framework v{s}\n", .{abi.version()});
         return;
     }
@@ -167,7 +164,7 @@ fn runAgent(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
             continue;
         }
 
-        if (matchesAny(arg, &.{ "--message", "-m" })) {
+        if (matchesAny(arg, &[_][]const u8{ "--message", "-m" })) {
             if (i < args.len) {
                 message = args[i];
                 i += 1;
@@ -192,7 +189,9 @@ fn runAgent(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
 
 fn runAgentInteractive(allocator: std.mem.Allocator, agent: *abi.ai.agent.Agent) !void {
     std.debug.print("Interactive mode. Type 'exit' to quit.\n", .{});
-    var io_backend = std.Io.Threaded.init(allocator, .{});
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
     defer io_backend.deinit();
 
     const io = io_backend.io();
@@ -229,7 +228,7 @@ fn runGpu(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     }
 
     const command = std.mem.sliceTo(args[0], 0);
-    if (matchesAny(command, &.{ "help", "--help" })) {
+    if (matchesAny(command, &[_][]const u8{ "help", "--help" })) {
         printGpuHelp();
         return;
     }
@@ -244,7 +243,7 @@ fn runGpu(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
         return;
     }
 
-    if (matchesAny(command, &.{ "devices", "list" })) {
+    if (matchesAny(command, &[_][]const u8{ "devices", "list" })) {
         try printGpuDevices(allocator);
         return;
     }
@@ -278,7 +277,7 @@ fn runNetwork(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     }
 
     const command = std.mem.sliceTo(args[0], 0);
-    if (matchesAny(command, &.{ "help", "--help" })) {
+    if (matchesAny(command, &[_][]const u8{ "help", "--help" })) {
         printNetworkHelp();
         return;
     }
@@ -288,7 +287,7 @@ fn runNetwork(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
         return;
     }
 
-    if (matchesAny(command, &.{ "list", "nodes" })) {
+    if (matchesAny(command, &[_][]const u8{ "list", "nodes" })) {
         try printNetworkNodes();
         return;
     }
@@ -779,7 +778,7 @@ fn runSimdDemo(allocator: std.mem.Allocator) !void {
 }
 
 fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
-    if (args.len == 0 or matchesAny(args[0], &.{ "help", "--help", "-h" })) {
+    if (args.len == 0 or matchesAny(args[0], &[_][]const u8{ "help", "--help", "-h" })) {
         printExploreHelp();
         return;
     }
@@ -801,12 +800,12 @@ fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
         const arg = args[i];
         i += 1;
 
-        if (matchesAny(arg, &.{ "--help", "-h" })) {
+        if (matchesAny(arg, &[_][]const u8{ "--help", "-h" })) {
             printExploreHelp();
             return;
         }
 
-        if (matchesAny(arg, &.{ "--level", "-l" })) {
+        if (matchesAny(arg, &[_][]const u8{ "--level", "-l" })) {
             if (i < args.len) {
                 const level_str = std.mem.sliceTo(args[i], 0);
                 level = switch (std.ascii.eqlIgnoreCase(level_str, "quick")) {
@@ -830,7 +829,7 @@ fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
             continue;
         }
 
-        if (matchesAny(arg, &.{ "--format", "-f" })) {
+        if (matchesAny(arg, &[_][]const u8{ "--format", "-f" })) {
             if (i < args.len) {
                 const format_str = std.mem.sliceTo(args[i], 0);
                 output_format = switch (std.ascii.eqlIgnoreCase(format_str, "json")) {
@@ -848,7 +847,7 @@ fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
             continue;
         }
 
-        if (matchesAny(arg, &.{ "--include", "-i" })) {
+        if (matchesAny(arg, &[_][]const u8{ "--include", "-i" })) {
             if (i < args.len) {
                 try include_patterns.append(allocator, std.mem.sliceTo(args[i], 0));
                 i += 1;
@@ -856,7 +855,7 @@ fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
             continue;
         }
 
-        if (matchesAny(arg, &.{ "--exclude", "-e" })) {
+        if (matchesAny(arg, &[_][]const u8{ "--exclude", "-e" })) {
             if (i < args.len) {
                 try exclude_patterns.append(allocator, std.mem.sliceTo(args[i], 0));
                 i += 1;
@@ -864,17 +863,17 @@ fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
             continue;
         }
 
-        if (matchesAny(arg, &.{ "--case-sensitive", "-c" })) {
+        if (matchesAny(arg, &[_][]const u8{ "--case-sensitive", "-c" })) {
             case_sensitive = true;
             continue;
         }
 
-        if (matchesAny(arg, &.{ "--regex", "-r" })) {
+        if (matchesAny(arg, &[_][]const u8{ "--regex", "-r" })) {
             use_regex = true;
             continue;
         }
 
-        if (matchesAny(arg, &.{"--max-files"})) {
+        if (matchesAny(arg, &[_][]const u8{"--max-files"})) {
             if (i < args.len) {
                 max_files = try std.fmt.parseInt(usize, std.mem.sliceTo(args[i], 0), 10);
                 i += 1;
@@ -882,7 +881,7 @@ fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
             continue;
         }
 
-        if (matchesAny(arg, &.{"--max-depth"})) {
+        if (matchesAny(arg, &[_][]const u8{"--max-depth"})) {
             if (i < args.len) {
                 max_depth = try std.fmt.parseInt(usize, std.mem.sliceTo(args[i], 0), 10);
                 i += 1;
@@ -890,7 +889,7 @@ fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
             continue;
         }
 
-        if (matchesAny(arg, &.{"--timeout"})) {
+        if (matchesAny(arg, &[_][]const u8{"--timeout"})) {
             if (i < args.len) {
                 timeout_ms = try std.fmt.parseInt(u64, std.mem.sliceTo(args[i], 0), 10);
                 i += 1;
@@ -998,12 +997,12 @@ fn printExploreHelp() void {
 }
 
 test "matchesAny helper function" {
-    try std.testing.expect(matchesAny("help", &.{ "help", "--help", "-h" }));
-    try std.testing.expect(matchesAny("--help", &.{ "help", "--help", "-h" }));
+    try std.testing.expect(matchesAny("help", &[_][]const u8{ "help", "--help", "-h" }));
+    try std.testing.expect(matchesAny("--help", &[_][]const u8{ "help", "--help", "-h" }));
     try std.testing.expect(matchesAny("-h", &.{ "help", "--help", "-h" }));
-    try std.testing.expect(!matchesAny("invalid", &.{ "help", "--help", "-h" }));
-    try std.testing.expect(matchesAny("test", &.{"test"}));
-    try std.testing.expect(!matchesAny("test", &.{"other"}));
+    try std.testing.expect(!matchesAny("invalid", &[_][]const u8{ "help", "--help", "-h" }));
+    try std.testing.expect(matchesAny("test", &[_][]const u8{"test"}));
+    try std.testing.expect(!matchesAny("test", &[_][]const u8{"other"}));
 }
 
 test "parseNodeStatus helper function" {

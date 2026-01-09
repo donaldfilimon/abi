@@ -438,6 +438,8 @@ const VkPipelineBindPoint = enum(i32) {
     ray_tracing_khr = 1000165000,
 };
 
+/// Initialize the Vulkan backend and create necessary resources.
+/// @return VulkanError if initialization fails
 pub fn init() !void {
     if (vulkan_initialized) return;
 
@@ -456,6 +458,8 @@ pub fn init() !void {
     vulkan_initialized = true;
 }
 
+/// Deinitialize the Vulkan backend and release all resources.
+/// Safe to call multiple times.
 pub fn deinit() void {
     if (vulkan_context) |*ctx| {
         destroyVulkanContext(ctx);
@@ -652,6 +656,10 @@ fn loadVulkanFunctions() bool {
     return true;
 }
 
+/// Compile a kernel source into Vulkan shader module and pipeline.
+/// @param allocator Memory allocator for compilation artifacts
+/// @param source Kernel source code and configuration
+/// @return Opaque handle to compiled kernel or KernelError on failure
 pub fn compileKernel(
     allocator: std.mem.Allocator,
     source: types.KernelSource,
@@ -769,6 +777,12 @@ pub fn compileKernel(
     return kernel;
 }
 
+/// Launch a compiled Vulkan kernel with specified configuration and arguments.
+/// @param allocator Memory allocator (currently unused)
+/// @param kernel_handle Opaque handle from compileKernel
+/// @param config Kernel execution configuration (grid dimensions, etc.)
+/// @param args Kernel arguments as array of pointers
+/// @return KernelError on launch failure
 pub fn launchKernel(
     allocator: std.mem.Allocator,
     kernel_handle: *anyopaque,
@@ -894,6 +908,9 @@ pub fn launchKernel(
     }
 }
 
+/// Destroy a compiled kernel and release associated Vulkan resources.
+/// @param allocator Memory allocator (currently unused)
+/// @param kernel_handle Opaque handle from compileKernel to destroy
 pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
     if (!vulkan_initialized or vulkan_context == null) {
         return;
@@ -911,6 +928,9 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
     allocator.destroy(kernel);
 }
 
+/// Allocate device memory on the GPU.
+/// @param size Size in bytes to allocate
+/// @return Opaque pointer to allocated memory or VulkanError
 pub fn allocateDeviceMemory(size: usize) !*anyopaque {
     if (!vulkan_initialized or vulkan_context == null) {
         return VulkanError.InitializationFailed;
@@ -974,6 +994,8 @@ pub fn allocateDeviceMemory(size: usize) !*anyopaque {
     return vulkan_buffer;
 }
 
+/// Free device memory allocated by allocateDeviceMemory.
+/// @param ptr Opaque pointer to memory to free
 pub fn freeDeviceMemory(ptr: *anyopaque) void {
     if (!vulkan_initialized or vulkan_context == null) {
         return;
@@ -991,6 +1013,11 @@ pub fn freeDeviceMemory(ptr: *anyopaque) void {
     std.heap.page_allocator.destroy(buffer);
 }
 
+/// Copy data from host memory to device memory.
+/// @param dst Device memory destination pointer
+/// @param src Host memory source pointer
+/// @param size Number of bytes to copy
+/// @return VulkanError on transfer failure
 pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
     if (!vulkan_initialized or vulkan_context == null) {
         return VulkanError.MemoryCopyFailed;
@@ -1017,6 +1044,11 @@ pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
     dst_buffer.mapped_ptr = null;
 }
 
+/// Copy data from device memory to host memory.
+/// @param dst Host memory destination pointer
+/// @param src Device memory source pointer
+/// @param size Number of bytes to copy
+/// @return VulkanError on transfer failure
 pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) !void {
     if (!vulkan_initialized or vulkan_context == null) {
         return VulkanError.MemoryCopyFailed;

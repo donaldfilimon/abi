@@ -171,7 +171,9 @@ pub const IndexManager = struct {
         const bytes = try writer.toOwnedSlice();
         defer allocator.free(bytes);
 
-        var io_backend = std.Io.Threaded.init(allocator, .{});
+        var io_backend = std.Io.Threaded.init(allocator, .{
+            .environ = std.process.Environ.empty,
+        });
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -186,7 +188,9 @@ pub const IndexManager = struct {
         allocator: std.mem.Allocator,
         path: []const u8,
     ) LoadError!void {
-        var io_backend = std.Io.Threaded.init(allocator, .{});
+        var io_backend = std.Io.Threaded.init(allocator, .{
+            .environ = std.process.Environ.empty,
+        });
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -671,7 +675,7 @@ pub const IvfPqIndex = struct {
         errdefer allocator.free(clusters);
         for (clusters) |*cluster| {
             const centroid = try allocator.alloc(f32, dim);
-            for (centroid, 0..) |*value, _| {
+            for (centroid) |*value| {
                 value.* = @bitCast(try cursor.readInt(u32));
             }
             cluster.* = .{
@@ -683,7 +687,7 @@ pub const IvfPqIndex = struct {
         for (clusters) |*cluster| {
             const count = try cursor.readInt(u32);
             const members = try allocator.alloc(u32, count);
-            for (members, 0..) |*member, i| {
+            for (members) |*member| {
                 member.* = try cursor.readInt(u32);
             }
             cluster.members = members;

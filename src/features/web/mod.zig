@@ -111,12 +111,6 @@ pub fn isSuccessStatus(status: u16) bool {
     return http.isSuccess(status);
 }
 
-pub fn forecast(allocator: std.mem.Allocator, location: []const u8) !Response {
-    var client_instance = try WeatherClient.init(allocator, .{});
-    defer client_instance.deinit();
-    return client_instance.forecast(location);
-}
-
 test "web module init gating" {
     if (!isEnabled()) return;
     try init(std.testing.allocator);

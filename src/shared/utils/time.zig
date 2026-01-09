@@ -2,46 +2,66 @@ const std = @import("std");
 
 var global_timer: ?std.time.Timer = null;
 
+/// Get current Unix timestamp in seconds.
+/// @return Unix timestamp as seconds since epoch
 pub fn unixSeconds() i64 {
-    return std.time.timestamp();
+    const instant = std.time.Instant.now() catch return 0;
+    return instant.toSecs();
 }
 
+/// Get current Unix timestamp in milliseconds.
+/// @return Unix timestamp as milliseconds since epoch
 pub fn unixMilliseconds() i64 {
-    return std.time.milliTimestamp();
+    const instant = std.time.Instant.now() catch return 0;
+    return instant.toSecs() * 1000 + @divTrunc(instant.toSubsecMillis(), 1);
 }
 
+/// Get current time in seconds using monotonic timer.
+/// @return Seconds since program start
 pub fn nowSeconds() i64 {
     const divisor: i128 = std.time.ns_per_s;
     return @intCast(@divTrunc(nowNanoseconds(), divisor));
 }
 
+/// Get current time in milliseconds using monotonic timer.
+/// @return Milliseconds since program start
 pub fn nowMilliseconds() i64 {
     const divisor: i128 = std.time.ns_per_ms;
     return @intCast(@divTrunc(nowNanoseconds(), divisor));
 }
 
+/// Get current time in nanoseconds using monotonic timer.
+/// @return Nanoseconds since program start
 pub fn nowNanoseconds() i128 {
     const timer = getTimer() orelse return 0;
     return @intCast(timer.read());
 }
 
+/// Sleep for specified number of seconds.
+/// @param seconds Number of seconds to sleep
 pub fn sleepSeconds(seconds: u64) void {
     sleepMs(seconds * 1000);
 }
 
+/// Sleep for specified number of milliseconds.
+/// @param milliseconds Number of milliseconds to sleep
 pub fn sleepMs(milliseconds: u64) void {
     std.time.sleep(milliseconds * std.time.ns_per_ms);
 }
 
+/// Format a duration in nanoseconds to human-readable string.
+/// @param allocator Memory allocator for result string
+/// @param duration_ns Duration in nanoseconds to format
+/// @return Formatted duration string (e.g., "1.234s", "500ms", "50us", "500ns")
 pub fn formatDurationNs(allocator: std.mem.Allocator, duration_ns: u64) ![]u8 {
     if (duration_ns < 1_000) {
-        return std.fmt.allocPrint(allocator, "{d}ns", .{duration_ns});
+        return std.fmt.allocPrint(allocator, "{D}ns", .{duration_ns});
     }
     if (duration_ns < 1_000_000) {
-        return std.fmt.allocPrint(allocator, "{d}us", .{duration_ns / 1_000});
+        return std.fmt.allocPrint(allocator, "{D}us", .{duration_ns / 1_000});
     }
     if (duration_ns < 1_000_000_000) {
-        return std.fmt.allocPrint(allocator, "{d}ms", .{duration_ns / 1_000_000});
+        return std.fmt.allocPrint(allocator, "{D}ms", .{duration_ns / 1_000_000});
     }
     const seconds = @as(f64, @floatFromInt(duration_ns)) / 1_000_000_000.0;
     return std.fmt.allocPrint(allocator, "{d:.3}s", .{seconds});

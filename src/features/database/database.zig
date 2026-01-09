@@ -192,7 +192,9 @@ pub const Database = struct {
     }
 
     pub fn saveToFile(self: *const Database, path: []const u8) !void {
-        var io_backend = std.Io.Threaded.init(self.allocator, .{});
+        var io_backend = std.Io.Threaded.init(self.allocator, .{
+            .environ = std.process.Environ.empty,
+        });
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -220,7 +222,9 @@ pub const Database = struct {
     }
 
     pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) !Database {
-        var io_backend = std.Io.Threaded.init(allocator, .{});
+        var io_backend = std.Io.Threaded.init(allocator, .{
+            .environ = std.process.Environ.empty,
+        });
         defer io_backend.deinit();
         const io = io_backend.io();
 
