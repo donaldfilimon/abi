@@ -58,8 +58,8 @@ pub const BenchmarkSuite = struct {
         const ops_per_sec = if (seconds == 0) 0 else @as(f64, @floatFromInt(iterations)) / seconds;
 
         std.debug.print("  iterations: {d}\n", .{iterations});
-        std.debug.print("  duration: {d} ns ({d:.3}s)\n", .{ duration_ns, seconds });
-        std.debug.print("  avg: {d} ns/op\n", .{duration_ns / iterations});
+        std.debug.print("  duration: {D} ns ({d:.3}s)\n", .{ duration_ns, seconds });
+        std.debug.print("  avg: {D} ns/op\n", .{duration_ns / iterations});
         std.debug.print("  ops/sec: {d:.0}\n", .{ops_per_sec});
         if (errors > 0) {
             std.debug.print("  errors: {d}\n", .{errors});

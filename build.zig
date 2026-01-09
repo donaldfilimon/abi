@@ -2,22 +2,10 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 fn pathExists(path: []const u8) bool {
-    if (builtin.os.tag == .windows) {
-        const WINAPI = struct {
-            extern "kernel32" fn GetFileAttributesA(lpFileName: [*:0]const u8) u32;
-        };
-        const INVALID_FILE_ATTRIBUTES = 0xFFFFFFFF;
-
-        var path_buf: [4096:0]u8 = undefined;
-        std.mem.copyForwards(u8, &path_buf, path);
-        path_buf[path.len] = 0;
-
-        const attrs = WINAPI.GetFileAttributesA(&path_buf);
-        return attrs != INVALID_FILE_ATTRIBUTES;
-    } else {
-        std.posix.access(path, .{ .mode = .F_OK }) catch return false;
-        return true;
-    }
+    // For files in the project root, assume they exist
+    // The actual compilation will fail if the file doesn't exist
+    _ = path;
+    return true;
 }
 
 const BuildOptions = struct {
@@ -29,6 +17,7 @@ const BuildOptions = struct {
     enable_profiling: bool,
     gpu_cuda: bool,
     gpu_vulkan: bool,
+    gpu_stdgpu: bool,
     gpu_metal: bool,
     gpu_webgpu: bool,
     gpu_opengl: bool,
@@ -78,6 +67,7 @@ fn readBuildOptions(b: *std.Build) BuildOptions {
     // GPU backend options - only enable Vulkan by default for cross-platform compatibility
     const gpu_cuda = b.option(bool, "gpu-cuda", "Enable CUDA GPU backend") orelse false;
     const gpu_vulkan = b.option(bool, "gpu-vulkan", "Enable Vulkan GPU backend") orelse enable_gpu;
+    const gpu_stdgpu = b.option(bool, "gpu-stdgpu", "Enable Zig std.gpu SPIR-V backend") orelse false;
     const gpu_metal = b.option(bool, "gpu-metal", "Enable Metal GPU backend") orelse false;
     const gpu_webgpu = b.option(bool, "gpu-webgpu", "Enable WebGPU backend") orelse enable_web;
     const gpu_opengl = b.option(bool, "gpu-opengl", "Enable OpenGL backend") orelse false;
@@ -102,6 +92,7 @@ fn readBuildOptions(b: *std.Build) BuildOptions {
         .enable_profiling = enable_profiling,
         .gpu_cuda = gpu_cuda,
         .gpu_vulkan = gpu_vulkan,
+        .gpu_stdgpu = gpu_stdgpu,
         .gpu_metal = gpu_metal,
         .gpu_webgpu = gpu_webgpu,
         .gpu_opengl = gpu_opengl,
@@ -129,6 +120,7 @@ fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Mod
     // GPU backend options
     build_options.addOption(bool, "gpu_cuda", options.gpu_cuda);
     build_options.addOption(bool, "gpu_vulkan", options.gpu_vulkan);
+    build_options.addOption(bool, "gpu_stdgpu", options.gpu_stdgpu);
     build_options.addOption(bool, "gpu_metal", options.gpu_metal);
     build_options.addOption(bool, "gpu_webgpu", options.gpu_webgpu);
     build_options.addOption(bool, "gpu_opengl", options.gpu_opengl);
@@ -155,7 +147,7 @@ fn createCliModule(
 
 fn warnInconsistentOptions(options: BuildOptions) void {
     if (!options.enable_gpu and
-        (options.gpu_cuda or options.gpu_vulkan or options.gpu_metal or
+        (options.gpu_cuda or options.gpu_vulkan or options.gpu_stdgpu or options.gpu_metal or
             options.gpu_opengl or options.gpu_opengles))
     {
         std.log.warn(
@@ -175,7 +167,7 @@ fn warnInconsistentOptions(options: BuildOptions) void {
 fn validateFeatureFlags(options: BuildOptions) !void {
     const invalid_combos = [2]struct { enabled: bool, required: bool, name: []const u8 }{
         .{
-            .enabled = options.gpu_cuda or options.gpu_vulkan or options.gpu_metal,
+            .enabled = options.gpu_cuda or options.gpu_vulkan or options.gpu_stdgpu or options.gpu_metal,
             .required = options.enable_gpu,
             .name = "enable-gpu",
         },
@@ -335,11 +327,11 @@ pub fn build(b: *std.Build) void {
     }
 
     // Test suite
-    const has_tests = pathExists("tests/mod.zig");
+    const has_tests = pathExists("src/tests/mod.zig");
     if (has_tests) {
         const main_tests = b.addTest(.{
             .root_module = b.createModule(.{
-                .root_source_file = b.path("tests/mod.zig"),
+                .root_source_file = b.path("src/tests/mod.zig"),
                 .target = target,
                 .optimize = optimize,
             }),
@@ -353,7 +345,7 @@ pub fn build(b: *std.Build) void {
         const test_step = b.step("test", "Run unit tests");
         test_step.dependOn(&run_main_tests.step);
     } else {
-        std.log.warn("tests/mod.zig not found; skipping test step", .{});
+        std.log.warn("src/tests/mod.zig not found; skipping test step", .{});
     }
 
     // Benchmark step

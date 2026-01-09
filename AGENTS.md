@@ -1,56 +1,56 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Project Structure
 
-- `src/` holds the library; key areas include `src/compute/`, `src/features/`,
-  `src/framework/`, `src/shared/`, and `src/core/`.
-- Public API entrypoints live in `src/abi.zig` and `src/root.zig`; the CLI
-  entrypoint is `tools/cli/main.zig` (fallback: `src/main.zig`).
-- `tests/` contains unit, integration, and property tests (see `tests/mod.zig`).
-- `examples/`, `benchmarks/`, and `docs/` provide demos, performance runs, and
-  documentation.
-- Build metadata is in `build.zig` and `build.zig.zon`.
+- `src/` holds the library: `core/`, `compute/`, `features/`, `framework/`, `shared/`
+- Public API: `src/abi.zig`; CLI: `tools/cli/main.zig` (fallback: `src/main.zig`)
+- Tests: `src/tests/` (integration, property tests) and inline `test "..."` blocks
+- Examples, benchmarks, and docs in corresponding directories
+- Build: `build.zig` and `build.zig.zon`
 
 ## Build, Test, and Development Commands
 
-Zig 0.16.x is required.
+**Required:** Zig 0.16.x
 
 ```bash
-# Core build commands
-zig build                                 # Build all modules
-zig build run -- --help                   # Run the CLI
-zig build test                            # Run the full test suite
-zig build test --summary all              # Detailed test output
+# Core commands
+zig build                      # Build all modules
+zig build run -- --help        # Run CLI
+zig build test                 # Run test suite
+zig build test --summary all   # Detailed test output
 
-# Single-file and filtered tests
-zig test src/compute/runtime/engine.zig   # Single-file tests
-zig test --test-filter "engine init"      # Filtered test names
+# Single file tests (IMPORTANT - use this for focused testing)
+zig test src/compute/runtime/engine.zig      # Run specific file tests
+zig test --test-filter "engine init"         # Filter by test name
+zig test src/abi.zig --test-filter "version" # Filter in specific file
 
-# Benchmarks and formatting
-zig build benchmark                       # Run benchmarks
-zig fmt .                                 # Format code
-zig fmt --check .                         # Format check
+# Formatting and checks
+zig fmt .                      # Format code
+zig fmt --check .              # Check formatting (no linter beyond this)
+
+# Benchmarks and WASM
+zig build benchmark            # Run legacy benchmarks
+zig build benchmarks           # Run comprehensive benchmarks
+zig build wasm                 # Build WASM bindings
 
 # Feature flags
-zig build -Denable-gpu=false -Denable-network=true  # Disable GPU, enable network
-zig build -Denable-gpu=true -Denable-database=true  # Enable GPU and database
+zig build -Denable-gpu=false -Denable-network=true
 ```
 
 ## Coding Style & Naming Conventions
 
-- 4 spaces, no tabs, max 100 chars, one blank line between functions.
-- `//!` module docs, `///` public API docs with `@param`/`@return`.
-- Types: PascalCase; functions/variables: snake_case; constants: UPPER_SNAKE_CASE.
-- Allocator is the first field/arg when needed; prefer `std.ArrayListUnmanaged`
-  for struct fields.
-- Use explicit imports only; never `usingnamespace`. Prefer `defer`/`errdefer`
-  for cleanup.
+- **Formatting:** 4 spaces, no tabs, max 100 chars/line, one blank line between functions
+- **Types:** PascalCase (`Engine`, `TaskConfig`)
+- **Functions/Variables:** snake_case (`createEngine`, `task_id`)
+- **Constants:** UPPER_SNAKE_CASE (`MAX_TASKS`, `CacheLineBytes`)
+- **Documentation:** `//!` module docs, `///` function docs with `@param`/`@return`
+- **Imports:** Explicit only; never `usingnamespace`
+- **Cleanup:** Prefer `defer`/`errdefer`
+- **Allocator:** First field/argument when needed; use `std.ArrayListUnmanaged` for struct fields
 
 ## Zig 0.16-Specific Conventions
 
 ### Memory Management
-
-**Prefer `std.ArrayListUnmanaged` over `std.ArrayList` for struct fields:**
 
 ```zig
 // Good - unmanaged for struct fields
@@ -59,119 +59,87 @@ pub const BenchmarkSuite = struct {
     results: std.ArrayListUnmanaged(BenchmarkResult),
 };
 
-// Good - explicit allocator in methods
+// Usage
 try list.append(allocator, item);
 list.deinit(allocator);
 
-// Avoid for struct fields
+// Avoid - managed for struct fields
 results: std.ArrayList(BenchmarkResult),
 ```
 
 ### Modern Format Specifiers
 
-Use Zig 0.16 format specifiers instead of manual conversions:
-
 ```zig
-// Good - modern specifiers
-std.debug.print("Status: {t}\n", .{status});           // {t} for enums/errors
-std.debug.print("Size: {B}\n", .{size});               // {B} for bytes
-std.debug.print("Duration: {D}\n", .{duration});       // {D} for durations
-std.debug.print("Data: {b64}\n", .{data});             // {b64} for base64
+// Good - use modern specifiers
+std.debug.print("Status: {t}\n", .{status});       // {t} for enums/errors
+std.debug.print("Size: {B}\n", .{size});           // {B} for bytes (raw)
+std.debug.print("Duration: {D}\n", .{duration});   // {D} for nanoseconds
+std.debug.print("Data: {b64}\n", .{data});         // {b64} for base64
 
-// Avoid - legacy patterns
+// Avoid - manual conversions
 std.debug.print("Status: {s}\n", .{@tagName(status)});
 ```
 
-### Format Specifier Migration Guidelines
+**Exceptions for JSON:** JSON requires strings, so `@tagName()` and `@errorName()` are acceptable.
 
-**Use {t} for enums and errors:**
-```zig
-// Good - use {t} directly
-std.debug.print("Backend: {t}\n", .{backend});
-std.debug.print("Error: {t}\n", .{err});
-
-// Avoid - manual conversions
-std.debug.print("Backend: {s}\n", .{@tagName(backend)});
-std.debug.print("Error: {s}\n", .{@errorName(err)});
-```
-
-**Exception: JSON serialization requires strings:**
-```zig
-// Acceptable - JSON needs strings
-try obj.put("level", json.Value{ .string = @tagName(level) });
-try obj.put("error", json.Value{ .string = @errorName(err) });
-```
-
-**Use {B} for byte sizes (expects raw bytes, not pre-divided):**
-```zig
-// Good - use raw byte values with {B}
-try writer.print("Total Memory: {B}\n", .{info.total_memory});
-try writer.print("Cache Size: {B}\n", .{info.l2_cache_size});
-
-// Avoid - manual division
-try writer.print("Memory: {d} MB\n", .{info.total_memory / (1024 * 1024)});
-```
-
-**Use {D} for durations (expects nanoseconds, not milliseconds):**
-```zig
-// Good - use nanosecond durations with {D}
-const duration_ns = end_time - start_time;
-std.debug.print("Duration: {D}\n", .{duration_ns});
-
-// Note: If you have milliseconds, convert or use {d}ms
-const duration_ms = @divTrunc(duration_ns, std.time.ns_per_ms);
-std.debug.print("Duration: {d}ms\n", .{duration_ms});
-```
-
-**Use {b64} for base64 encoding:**
-```zig
-// Good - encode byte slices directly
-std.debug.print("Auth: {b64}\n", .{auth_bytes});
-```
-
-### I/O API Changes (Zig 0.16)
+### I/O API Changes
 
 ```zig
-// HTTP Server - direct reader/writer, no .interface
+// HTTP Server - direct reader/writer
+var connection_reader = stream.reader(io, &recv_buffer);
+var connection_writer = stream.writer(io, &send_buffer);
 var server: std.http.Server = .init(
-    &stream.reader(io, &recv_buffer),
-    &stream.writer(io, &send_buffer),
+    &connection_reader,     // Direct reference (no .interface)
+    &connection_writer,    // Direct reference (no .interface)
 );
 
-// Streaming response - use std.Io.Reader
+// Streaming - use std.Io.Reader
 pub const StreamingResponse = struct {
     reader: std.Io.Reader,
     response: HttpResponse,
 };
 
-// File.Reader still uses .interface for delimiter methods
+// File.Reader uses .interface for delimiter methods only
 const line_opt = reader.interface.takeDelimiter('\n') catch |err| {
     return err;
 };
 ```
 
-## Error Handling
-
-- Use specific error sets instead of `anyerror` where possible.
-- Document when errors can occur with `@return` tags.
-- Use `errdefer` for cleanup on error paths.
+### std.Io.Threaded Usage
 
 ```zig
-// Good - specific error set
-const FileError = error{
-    FileNotFound,
-    PermissionDenied,
-    ReadError,
-} || std.fs.File.OpenError;
+// Async runtime pattern for HTTP clients
+pub const HttpClient = struct {
+    allocator: std.mem.Allocator,
+    io_backend: std.Io.Threaded,
+    client: std.http.Client,
 
-// Good - errdefer cleanup
-var buffer = try allocator.alloc(u8, size);
-errdefer allocator.free(buffer);
+    pub fn init(allocator: std.mem.Allocator) !HttpClient {
+        var io_backend = std.Io.Threaded.init(allocator, .{
+            .environ = std.process.Environ.empty,
+        });
+        return .{
+            .allocator = allocator,
+            .io_backend = io_backend,
+            .client = std.http.Client{
+                .allocator = allocator,
+                .io = io_backend.io(),
+            },
+        };
+    }
+
+    pub fn deinit(self: *HttpClient) void {
+        self.io_backend.deinit();
+    }
+};
 ```
 
-### Error Set Guidelines
+## Error Handling
 
-**Prefer specific error sets over anyerror:**
+- Use specific error sets instead of `anyerror` where possible
+- Document errors with `@return` tags
+- Use `errdefer` for cleanup on error paths
+
 ```zig
 // Good - specific error set
 const TaskError = error{
@@ -179,43 +147,49 @@ const TaskError = error{
     Cancelled,
     TaskFailed,
 } || std.mem.Allocator.Error;
+
+// Good - errdefer cleanup
+var buffer = try allocator.alloc(u8, size);
+errdefer allocator.free(buffer);
 ```
 
-**Keep anyerror for truly generic contexts:**
-```zig
-// Acceptable - function pointer types need flexibility
-execute: *const fn (std.mem.Allocator, *anyopaque) anyerror!ResultBlob,
-handler: *const fn ([]const u8, *Context) anyerror!ToolResult,
+**Keep `anyerror` for:**
 
-// Acceptable - generic error logging
-pub fn log(self: ErrorContext, level: std.log.Level, err: anyerror) void {
-    // ... logging logic
-}
-```
+- Function pointer types needing flexibility
+- Generic error logging contexts
 
 ## Testing Guidelines
 
-- Tests live in `tests/` and inline `test "..."` blocks in modules.
-- Name tests descriptively, and add coverage for new features or note why not.
-- Use feature flags to gate hardware-specific tests (e.g., `-Denable-gpu=true`).
+- Tests in `src/tests/` and inline `test "..."` blocks
+- Name tests descriptively; add coverage for new features or note why not
+- Gate hardware-specific tests with feature flags (e.g., `-Denable-gpu=true`)
 
-## Commit & Pull Request Guidelines
+```zig
+// Feature-gated test pattern
+fn testGPUOperations(allocator: std.mem.Allocator) !void {
+    if (!abi.gpu.moduleEnabled()) {
+        std.debug.print("GPU module not enabled, skipping\n", .{});
+        return;
+    }
+    // ... test code
+}
+```
 
-- History favors short, imperative subjects; doc-only commits often use `docs:`.
-- Required format: `<type>: <imperative summary>` with `feat`, `fix`, `docs`,
-  `refactor`, `test`, `chore`, or `build`; keep summaries <= 72 chars.
-- Keep commits focused and update docs when public APIs change.
-- PRs should explain intent, link related issues if any, and list commands run
-  (e.g., `zig build`, `zig build test`, `zig fmt .`).
+## Commit & PR Guidelines
+
+- Format: `<type>: <imperative summary>` with `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`
+- Keep summaries <= 72 chars
+- Keep commits focused; update docs when public APIs change
+- PRs should explain intent, link issues, and list commands run (e.g., `zig build`, `zig build test`, `zig fmt .`)
 
 ## Architecture References
 
-- System overview: `docs/intro.md`.
-- API surface: `API_REFERENCE.md`.
-- Zig 0.16 migration: `docs/migration/zig-0.16-migration.md`.
+- System overview: `docs/intro.md`
+- API surface: `API_REFERENCE.md`
+- Zig 0.16 migration: `docs/migration/zig-0.16-migration.md`
 
 ## Configuration Notes
 
-- Feature flags use `-Denable-*` and GPU backends use `-Dgpu-*` (see `README.md`).
-- Connector credentials are provided via environment variables listed in
-  `README.md`.
+- Feature flags: `-Denable-*` (e.g., `enable-gpu`, `enable-ai`)
+- GPU backends: `-Dgpu-*` (e.g., `gpu-cuda`, `gpu-vulkan`)
+- Connector credentials via environment variables (see `README.md`)

@@ -148,7 +148,7 @@ pub const DistributedDatabase = struct {
             .address = addr_copy,
             .port = port,
             .status = .joining,
-            .last_heartbeat = std.time.timestamp(),
+            .last_heartbeat = (std.time.Instant.now() catch unreachable).toSecs(),
         };
 
         try self.cluster_nodes.put(self.allocator, id_copy, node_info);
@@ -262,14 +262,14 @@ pub const DistributedDatabase = struct {
 
     pub fn updateHeartbeat(self: *DistributedDatabase, node_id: []const u8) void {
         if (self.cluster_nodes.getPtr(node_id)) |info| {
-            info.last_heartbeat = std.time.timestamp();
+            info.last_heartbeat = (std.time.Instant.now() catch unreachable).toSecs();
         }
     }
 
     pub fn detectFailedNodes(self: *DistributedDatabase) ![]const []const u8 {
         var failed = std.ArrayListUnmanaged([]const u8).empty;
         errdefer failed.deinit(self.allocator);
-        const now = std.time.timestamp();
+        const now = (std.time.Instant.now() catch unreachable).toSecs();
         const timeout = 30;
 
         var it = self.cluster_nodes.iterator();

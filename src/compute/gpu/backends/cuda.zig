@@ -45,6 +45,8 @@ var cuda_initialized = false;
 var cuda_context: ?CudaContext = null;
 var use_native: bool = false;
 
+/// Initialize the CUDA backend and create context.
+/// @return CuResult error if initialization fails
 pub fn init() !void {
     if (cuda_initialized) return;
 
@@ -75,6 +77,8 @@ pub fn init() !void {
     cuda_initialized = true;
 }
 
+/// Deinitialize the CUDA backend and release context.
+/// Safe to call multiple times.
 pub fn deinit() void {
     if (use_native) {
         cuda_native.deinit();
@@ -98,6 +102,10 @@ fn ensureNativeInitialized() !void {
     }
 }
 
+/// Compile CUDA kernel source code.
+/// @param allocator Memory allocator for compilation artifacts
+/// @param source CUDA kernel source code and configuration
+/// @return Opaque handle to compiled kernel or KernelError on failure
 pub fn compileKernel(
     allocator: std.mem.Allocator,
     source: types.KernelSource,
@@ -114,6 +122,12 @@ pub fn compileKernel(
     return fallback.compileKernel(allocator, source);
 }
 
+/// Launch a compiled CUDA kernel with specified configuration.
+/// @param allocator Memory allocator (currently unused)
+/// @param kernel_handle Opaque handle from compileKernel
+/// @param config Kernel execution configuration (grid/block dimensions)
+/// @param args Kernel arguments as array of pointers
+/// @return KernelError on launch failure
 pub fn launchKernel(
     allocator: std.mem.Allocator,
     kernel_handle: *anyopaque,
@@ -130,6 +144,9 @@ pub fn launchKernel(
     return fallback.launchKernel(allocator, kernel_handle, config, args);
 }
 
+/// Destroy a compiled CUDA kernel and release resources.
+/// @param allocator Memory allocator (currently unused)
+/// @param kernel_handle Opaque handle from compileKernel to destroy
 pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
     if (use_native) {
         cuda_native.destroyKernel(allocator, kernel_handle);
@@ -138,6 +155,8 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
     fallback.destroyKernel(allocator, kernel_handle);
 }
 
+/// Create a new CUDA stream for asynchronous execution.
+/// @return Opaque pointer to CUDA stream or CuResult error
 pub fn createStream() !*anyopaque {
     if (use_native) {
         if (cuda_native.createStream()) |result| {
@@ -149,6 +168,8 @@ pub fn createStream() !*anyopaque {
     return fallback.createOpaqueHandle(CuStream, .{ .ptr = null });
 }
 
+/// Destroy a CUDA stream.
+/// @param stream Opaque pointer to CUDA stream to destroy
 pub fn destroyStream(stream: *anyopaque) void {
     if (use_native) {
         cuda_native.destroyStream(stream);
@@ -157,6 +178,9 @@ pub fn destroyStream(stream: *anyopaque) void {
     fallback.destroyOpaqueHandle(CuStream, stream);
 }
 
+/// Synchronize a CUDA stream, blocking until all operations complete.
+/// @param stream Opaque pointer to CUDA stream to synchronize
+/// @return CuResult error on synchronization failure
 pub fn synchronizeStream(stream: *anyopaque) !void {
     if (use_native) {
         return cuda_native.synchronizeStream(stream);
@@ -165,6 +189,9 @@ pub fn synchronizeStream(stream: *anyopaque) !void {
     _ = cu_stream;
 }
 
+/// Allocate device memory on CUDA GPU.
+/// @param size Size in bytes to allocate
+/// @return Opaque pointer to allocated memory or CuResult error
 pub fn allocateDeviceMemory(size: usize) !*anyopaque {
     if (use_native) {
         if (cuda_native.allocateDeviceMemory(size)) |result| {
@@ -176,6 +203,8 @@ pub fn allocateDeviceMemory(size: usize) !*anyopaque {
     return fallback.allocateDeviceMemory(size);
 }
 
+/// Free device memory allocated by allocateDeviceMemory.
+/// @param ptr Opaque pointer to memory to free
 pub fn freeDeviceMemory(ptr: *anyopaque) void {
     if (use_native) {
         cuda_native.freeDeviceMemory(ptr);
@@ -184,6 +213,11 @@ pub fn freeDeviceMemory(ptr: *anyopaque) void {
     fallback.freeDeviceMemory(ptr);
 }
 
+/// Copy data from host memory to CUDA device memory.
+/// @param dst Device memory destination pointer
+/// @param src Host memory source pointer
+/// @param size Number of bytes to copy
+/// @return CuResult error on transfer failure
 pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
     if (use_native) {
         if (cuda_native.memcpyHostToDevice(dst, @ptrCast(@alignCast(src)), size)) |_| {
@@ -195,6 +229,11 @@ pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
     return fallback.memcpyHostToDevice(dst, @ptrCast(@alignCast(src)), size);
 }
 
+/// Copy data from CUDA device memory to host memory.
+/// @param dst Host memory destination pointer
+/// @param src Device memory source pointer
+/// @param size Number of bytes to copy
+/// @return CuResult error on transfer failure
 pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) !void {
     if (use_native) {
         if (cuda_native.memcpyDeviceToHost(dst, src, size)) |_| {

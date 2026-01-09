@@ -119,10 +119,18 @@ pub const Framework = struct {
     }
 };
 
+/// Create a new ABI framework instance with specified configuration.
+/// @param allocator Memory allocator for framework resources
+/// @param config Runtime configuration specifying enabled features and plugins
+/// @return Initialized framework instance
 pub fn createFramework(allocator: std.mem.Allocator, config: RuntimeConfig) !Framework {
     return Framework.init(allocator, config);
 }
 
+/// Convert framework options into a runtime configuration.
+/// @param allocator Memory allocator for configuration data
+/// @param options Framework options to convert
+/// @return Runtime configuration with resolved features and plugin paths
 pub fn runtimeConfigFromOptions(
     allocator: std.mem.Allocator,
     options: FrameworkOptions,

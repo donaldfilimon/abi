@@ -39,8 +39,8 @@ pub const CircuitBreaker = struct {
     failure_count: u32,
     success_count: u32,
     half_open_calls: u32,
-    last_failure_time: i64,
-    open_until: i64,
+    last_failure_time: std.time.Instant,
+    open_until: std.time.Instant,
 
     pub fn init(allocator: std.mem.Allocator, config: CircuitConfig) CircuitBreaker {
         return .{
@@ -50,8 +50,8 @@ pub const CircuitBreaker = struct {
             .failure_count = 0,
             .success_count = 0,
             .half_open_calls = 0,
-            .last_failure_time = 0,
-            .open_until = 0,
+            .last_failure_time = undefined,
+            .open_until = undefined,
         };
     }
 
@@ -68,8 +68,6 @@ pub const CircuitBreaker = struct {
         self.failure_count = 0;
         self.success_count = 0;
         self.half_open_calls = 0;
-        self.last_failure_time = 0;
-        self.open_until = 0;
     }
 
     pub fn execute(self: *CircuitBreaker, operation: fn () anyerror![]const u8) CircuitResult {
@@ -113,30 +111,35 @@ pub const CircuitBreaker = struct {
     }
 
     pub fn onFailure(self: *CircuitBreaker) void {
-        self.last_failure_time = std.time.timestamp();
+        self.last_failure_time = std.time.Instant.now() catch unreachable;
         self.failure_count += 1;
 
         switch (self.state) {
             .closed => {
                 if (self.failure_count >= self.config.failure_threshold) {
                     self.state = .open;
-                    self.open_until = self.last_failure_time + self.config.timeout_ms;
+                    self.open_until = self.last_failure_time;
                 }
             },
             .half_open => {
                 self.state = .open;
-                self.open_until = self.last_failure_time + self.config.timeout_ms;
+                self.open_until = self.last_failure_time;
             },
             .open => {},
         }
     }
 
     pub fn canExecute(self: *const CircuitBreaker) bool {
-        const now = std.time.timestamp();
+        const now = std.time.Instant.now() catch unreachable;
 
         switch (self.state) {
             .closed => return true,
-            .open => return now >= self.open_until,
+            .open => {
+                if (now.since(self.open_until) >= @as(u64, self.config.timeout_ms) * std.time.ns_per_ms) {
+                    return true;
+                }
+                return false;
+            },
             .half_open => return self.half_open_calls < self.config.half_open_max_calls,
         }
     }
@@ -207,13 +210,8 @@ pub const CircuitRegistry = struct {
     }
 
     pub fn register(self: *CircuitRegistry, name: []const u8, config: CircuitConfig) !void {
-        const breaker = try self.allocator.create(CircuitBreaker);
-        errdefer self.allocator.destroy(breaker);
-
-        breaker.* = CircuitBreaker.init(self.allocator, config);
-
         const name_copy = try self.allocator.dupe(u8, name);
-        try self.breakers.put(self.allocator, name_copy, breaker.*);
+        try self.breakers.put(self.allocator, name_copy, CircuitBreaker.init(self.allocator, config));
     }
 
     pub fn getBreaker(self: *CircuitRegistry, name: []const u8) ?*CircuitBreaker {
@@ -223,8 +221,6 @@ pub const CircuitRegistry = struct {
     pub fn removeBreaker(self: *CircuitRegistry, name: []const u8) bool {
         if (self.breakers.remove(name)) |entry| {
             self.allocator.free(entry.key_ptr.*);
-            entry.value_ptr.*.deinit();
-            self.allocator.destroy(entry.value_ptr);
             return true;
         }
         return false;
@@ -269,9 +265,9 @@ test "circuit breaker failure threshold" {
     });
     defer breaker.deinit();
 
-    try breaker.recordFailure();
-    try breaker.recordFailure();
-    try breaker.recordFailure();
+    breaker.recordFailure();
+    breaker.recordFailure();
+    breaker.recordFailure();
 
     try std.testing.expectEqual(CircuitState.open, breaker.getState());
 }
@@ -284,9 +280,9 @@ test "circuit breaker reset" {
     });
     defer breaker.deinit();
 
-    try breaker.recordFailure();
-    try breaker.recordFailure();
-    try breaker.recordFailure();
+    breaker.recordFailure();
+    breaker.recordFailure();
+    breaker.recordFailure();
     try std.testing.expectEqual(CircuitState.open, breaker.getState());
 
     breaker.reset();
@@ -305,9 +301,9 @@ test "circuit breaker can execute" {
 
     try std.testing.expect(breaker.canExecute());
 
-    try breaker.recordFailure();
-    try breaker.recordFailure();
-    try breaker.recordFailure();
+    breaker.recordFailure();
+    breaker.recordFailure();
+    breaker.recordFailure();
 
     try std.testing.expect(!breaker.canExecute());
 }

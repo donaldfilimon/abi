@@ -42,6 +42,14 @@ fn backendOps(which_backend: backend.Backend) ?BackendOps {
                 .destroy = vulkan_module.destroyKernel,
             };
         } else null,
+        .stdgpu => if (comptime @hasDecl(build_options, "gpu_stdgpu") and build_options.gpu_stdgpu) blk: {
+            const stdgpu_module = @import("backends/stdgpu.zig");
+            break :blk .{
+                .compile = stdgpu_module.compileKernel,
+                .launch = stdgpu_module.launchKernel,
+                .destroy = stdgpu_module.destroyKernel,
+            };
+        } else null,
         .metal => if (comptime build_options.gpu_metal) blk: {
             const metal_module = @import("backends/metal.zig");
             break :blk .{

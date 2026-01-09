@@ -100,6 +100,7 @@ pub const ServiceRegistry = struct {
             tags_copy[i] = try self.allocator.dupe(u8, tag);
         }
 
+        const now = std.time.Instant.now() catch unreachable;
         const instance_copy = ServiceInstance{
             .id = id_copy,
             .name = name_copy,
@@ -107,7 +108,7 @@ pub const ServiceRegistry = struct {
             .port = instance.port,
             .tags = tags_copy,
             .health_status = instance.health_status,
-            .last_check = std.time.milliTimestamp(),
+            .last_check = now.toSecs() * 1000 + @divTrunc(now.toSubsecMillis(), 1),
         };
 
         try self.services.put(instance_copy.id, instance_copy);
@@ -180,7 +181,8 @@ pub const ServiceRegistry = struct {
     pub fn updateHealthStatus(self: *ServiceRegistry, service_id: []const u8, status: HealthStatus) !void {
         const instance = self.services.getPtr(service_id) orelse return ServiceDiscoveryError.ServiceNotFound;
         instance.health_status = status;
-        instance.last_check = std.time.milliTimestamp();
+        const now = std.time.Instant.now() catch unreachable;
+        instance.last_check = now.toSecs() * 1000 + @divTrunc(now.toSubsecMillis(), 1);
     }
 
     pub fn runHealthChecks(self: *ServiceRegistry) !void {

@@ -38,13 +38,13 @@ pub const ImportType = enum {
 pub const DependencyGraph = struct {
     allocator: std.mem.Allocator,
     /// Map from module name to list of modules it depends on
-    dependencies: std.StringHashMap(std.ArrayList(ModuleDependency)),
+    dependencies: std.StringHashMap(std.ArrayListUnmanaged(ModuleDependency)),
     /// Map from module name to list of modules that depend on it
-    dependents: std.StringHashMap(std.ArrayList(ModuleDependency)),
+    dependents: std.StringHashMap(std.ArrayListUnmanaged(ModuleDependency)),
     /// All modules in the graph
-    all_modules: std.ArrayList(Module),
+    all_modules: std.ArrayListUnmanaged(Module),
     /// All edges in the graph
-    edges: std.ArrayList(DependencyEdge),
+    edges: std.ArrayListUnmanaged(DependencyEdge),
 
     /// Represents a dependency relationship
     pub const ModuleDependency = struct {
@@ -55,28 +55,28 @@ pub const DependencyGraph = struct {
     pub fn init(allocator: std.mem.Allocator) DependencyGraph {
         return .{
             .allocator = allocator,
-            .dependencies = std.StringHashMap(std.ArrayList(ModuleDependency)).init(allocator),
-            .dependents = std.StringHashMap(std.ArrayList(ModuleDependency)).init(allocator),
-            .all_modules = std.ArrayList(Module){},
-            .edges = std.ArrayList(DependencyEdge){},
+            .dependencies = std.StringHashMap(std.ArrayListUnmanaged(ModuleDependency)).init(allocator),
+            .dependents = std.StringHashMap(std.ArrayListUnmanaged(ModuleDependency)).init(allocator),
+            .all_modules = .{},
+            .edges = .{},
         };
     }
 
     pub fn deinit(self: *DependencyGraph) void {
         var deps_iter = self.dependencies.valueIterator();
         while (deps_iter.next()) |list| {
-            list.deinit();
+            list.deinit(self.allocator);
         }
         self.dependencies.deinit();
 
         var dependents_iter = self.dependents.valueIterator();
         while (dependents_iter.next()) |list| {
-            list.deinit();
+            list.deinit(self.allocator);
         }
         self.dependents.deinit();
 
-        self.all_modules.deinit();
-        self.edges.deinit();
+        self.all_modules.deinit(self.allocator);
+        self.edges.deinit(self.allocator);
     }
 
     /// Add a module to the graph
@@ -86,8 +86,8 @@ pub const DependencyGraph = struct {
         const key = try self.allocator.dupe(u8, module.name);
         errdefer self.allocator.free(key);
 
-        try self.dependencies.put(key, std.ArrayList(ModuleDependency){});
-        try self.dependents.put(key, std.ArrayList(ModuleDependency){});
+        try self.dependencies.put(key, .{});
+        try self.dependents.put(key, .{});
     }
 
     /// Add a dependency relationship (from -> to)

@@ -145,7 +145,9 @@ pub fn saveCheckpoint(
     const bytes = try writer.toOwnedSlice();
     defer allocator.free(bytes);
 
-    var io_backend = std.Io.Threaded.init(allocator, .{});
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -159,7 +161,9 @@ pub fn saveCheckpoint(
 /// @param path Source file path
 /// @return Checkpoint with owned weights
 pub fn loadCheckpoint(allocator: std.mem.Allocator, path: []const u8) LoadError!Checkpoint {
-    var io_backend = std.Io.Threaded.init(allocator, .{});
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
     defer io_backend.deinit();
     const io = io_backend.io();
 

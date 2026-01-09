@@ -71,24 +71,24 @@ pub const SerializationCursor = struct {
 
 /// Binary writer for serializing data.
 pub const SerializationWriter = struct {
-    buffer: std.ArrayList(u8),
+    buffer: std.ArrayListUnmanaged(u8),
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) SerializationWriter {
         return .{
-            .buffer = std.ArrayList(u8).init(allocator),
+            .buffer = .{},
             .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *SerializationWriter) void {
-        self.buffer.deinit();
+        self.buffer.deinit(self.allocator);
         self.* = undefined;
     }
 
     /// Append bytes to buffer.
     pub fn appendBytes(self: *SerializationWriter, data: []const u8) !void {
-        try self.buffer.appendSlice(data);
+        try self.buffer.appendSlice(self.allocator, data);
     }
 
     /// Append an integer value.
