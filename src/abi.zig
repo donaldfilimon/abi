@@ -149,4 +149,3 @@ test "framework initialization" {
     try std.testing.expect(framework_instance.isFeatureEnabled(.ai));
     try std.testing.expect(framework_instance.isFeatureEnabled(.database));
 }
-
