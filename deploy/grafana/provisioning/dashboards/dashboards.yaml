@@ -1,0 +1,16 @@
+# =============================================================================
+# Grafana Dashboard Provisioning
+# =============================================================================
+apiVersion: 1
+
+providers:
+  - name: 'Abbey Dashboards'
+    orgId: 1
+    folder: 'Abbey'
+    folderUid: 'abbey'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
