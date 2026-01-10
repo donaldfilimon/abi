@@ -44,11 +44,11 @@ This document tracks planned features, improvements, and milestones for the ABI 
 - [x] Advanced metrics
   - [x] Prometheus exporter
   - [x] OpenTelemetry integration
-  - [ ] Custom dashboards
+  - [x] Custom dashboards
 - [x] Distributed tracing
   - [x] Span propagation
   - [x] Trace sampling
-  - [ ] Performance profiling
+  - [x] Performance profiling
 
 ### Security
 - [x] Authentication & authorization
@@ -58,7 +58,7 @@ This document tracks planned features, improvements, and milestones for the ABI 
 - [x] Network security
   - [x] TLS/SSL support
   - [x] mTLS between nodes
-  - [ ] Certificate management
+  - [x] Certificate management
 
 ## Version 0.4.0 - Q2 2026
 
@@ -190,9 +190,11 @@ See CONTRIBUTING.md for details.
 | Version | Target Quarter | Status |
 |----------|---------------|---------|
 | 0.2.2 | 2025-12-27 | Released |
-| 0.3.0 | Q1 2026 | In Progress |
+| 0.3.0 | Q1 2026 | Complete ✓ |
 | 0.4.0 | Q2 2026 | Planned |
 | 0.5.0 | Q3 2026 | Planned |
+
+*Last updated: January 10, 2026*
 
 ## Changelog History
 
