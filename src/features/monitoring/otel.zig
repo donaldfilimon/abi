@@ -54,13 +54,132 @@ pub const OtelExporter = struct {
     }
 
     pub fn exportMetrics(self: *OtelExporter, metrics: []const OtelMetric) !void {
-        _ = self;
-        _ = metrics;
+        if (!self.config.enabled or metrics.len == 0) return;
+
+        // Build JSON payload for OpenTelemetry metrics export
+        var json = std.ArrayList(u8).init(self.allocator);
+        defer json.deinit();
+
+        const writer = json.writer();
+        try writer.writeAll("{\"resourceMetrics\":[{\"scopeMetrics\":[{\"metrics\":[");
+
+        for (metrics, 0..) |metric, i| {
+            if (i > 0) try writer.writeAll(",");
+
+            try std.fmt.format(writer, "{{\"name\":\"{s}\",", .{metric.name});
+            try std.fmt.format(writer, "\"description\":\"\",", .{});
+
+            switch (metric.metric_type) {
+                .counter => {
+                    try writer.writeAll("\"sum\":{\"dataPoints\":[{");
+                    try std.fmt.format(writer, "\"asDouble\":{d},", .{metric.value});
+                    try std.fmt.format(writer, "\"timeUnixNano\":{d}", .{metric.timestamp * 1_000_000_000});
+                    try writer.writeAll("}],\"aggregationTemporality\":2,\"isMonotonic\":true}");
+                },
+                .gauge => {
+                    try writer.writeAll("\"gauge\":{\"dataPoints\":[{");
+                    try std.fmt.format(writer, "\"asDouble\":{d},", .{metric.value});
+                    try std.fmt.format(writer, "\"timeUnixNano\":{d}", .{metric.timestamp * 1_000_000_000});
+                    try writer.writeAll("}]}");
+                },
+                .histogram => {
+                    try writer.writeAll("\"histogram\":{\"dataPoints\":[{");
+                    try std.fmt.format(writer, "\"sum\":{d},\"count\":1,", .{metric.value});
+                    try std.fmt.format(writer, "\"timeUnixNano\":{d}", .{metric.timestamp * 1_000_000_000});
+                    try writer.writeAll("}],\"aggregationTemporality\":2}");
+                },
+            }
+
+            try writer.writeAll("}");
+        }
+
+        try writer.writeAll("]}]}]}");
+
+        // Send to OpenTelemetry collector
+        try self.sendToCollector("/v1/metrics", json.items);
     }
 
     pub fn exportTraces(self: *OtelExporter, traces: []const OtelSpan) !void {
-        _ = self;
-        _ = traces;
+        if (!self.config.enabled or traces.len == 0) return;
+
+        // Build JSON payload for OpenTelemetry traces export
+        var json = std.ArrayList(u8).init(self.allocator);
+        defer json.deinit();
+
+        const writer = json.writer();
+        try writer.writeAll("{\"resourceSpans\":[{\"scopeSpans\":[{\"spans\":[");
+
+        for (traces, 0..) |trace, i| {
+            if (i > 0) try writer.writeAll(",");
+
+            try writer.writeAll("{");
+            try std.fmt.format(writer, "\"traceId\":\"{s}\",", .{std.fmt.fmtSliceHexLower(&trace.trace_id)});
+            try std.fmt.format(writer, "\"spanId\":\"{s}\",", .{std.fmt.fmtSliceHexLower(&trace.span_id)});
+            try std.fmt.format(writer, "\"parentSpanId\":\"{s}\",", .{std.fmt.fmtSliceHexLower(&trace.parent_span_id)});
+            try std.fmt.format(writer, "\"name\":\"{s}\",", .{trace.name});
+            try std.fmt.format(writer, "\"kind\":{d},", .{@intFromEnum(trace.kind) + 1});
+            try std.fmt.format(writer, "\"startTimeUnixNano\":{d},", .{trace.start_time * 1_000_000_000});
+            try std.fmt.format(writer, "\"endTimeUnixNano\":{d},", .{trace.end_time * 1_000_000_000});
+
+            // Add attributes
+            if (trace.attributes.items.len > 0) {
+                try writer.writeAll("\"attributes\":[");
+                for (trace.attributes.items, 0..) |attr, j| {
+                    if (j > 0) try writer.writeAll(",");
+                    try writer.writeAll("{");
+                    try std.fmt.format(writer, "\"key\":\"{s}\",", .{attr.key});
+                    try writer.writeAll("\"value\":{");
+                    switch (attr.value) {
+                        .string => |s| try std.fmt.format(writer, "\"stringValue\":\"{s}\"", .{s}),
+                        .int => |n| try std.fmt.format(writer, "\"intValue\":{d}", .{n}),
+                        .float => |f| try std.fmt.format(writer, "\"doubleValue\":{d}", .{f}),
+                        .bool => |b| try std.fmt.format(writer, "\"boolValue\":{}", .{b}),
+                    }
+                    try writer.writeAll("}}");
+                }
+                try writer.writeAll("],");
+            }
+
+            // Add events
+            if (trace.events.items.len > 0) {
+                try writer.writeAll("\"events\":[");
+                for (trace.events.items, 0..) |event, j| {
+                    if (j > 0) try writer.writeAll(",");
+                    try writer.writeAll("{");
+                    try std.fmt.format(writer, "\"name\":\"{s}\",", .{event.name});
+                    try std.fmt.format(writer, "\"timeUnixNano\":{d}", .{event.timestamp * 1_000_000_000});
+                    try writer.writeAll("}");
+                }
+                try writer.writeAll("],");
+            }
+
+            try std.fmt.format(writer, "\"status\":{{\"code\":{d}}}", .{@intFromEnum(trace.status)});
+            try writer.writeAll("}");
+        }
+
+        try writer.writeAll("]}]}]}");
+
+        // Send to OpenTelemetry collector
+        try self.sendToCollector("/v1/traces", json.items);
+    }
+
+    fn sendToCollector(self: *OtelExporter, path: []const u8, payload: []const u8) !void {
+        // Build full endpoint URL
+        var endpoint_buf: [512]u8 = undefined;
+        const endpoint = try std.fmt.bufPrint(&endpoint_buf, "{s}{s}", .{ self.config.exporter_endpoint, path });
+
+        // In a production implementation, this would:
+        // 1. Create HTTP client connection
+        // 2. Send POST request with JSON payload
+        // 3. Set Content-Type: application/json header
+        // 4. Handle response and retries
+
+        // For now, log the export attempt
+        std.log.debug("OpenTelemetry export to {s}: {d} bytes", .{ endpoint, payload.len });
+
+        // In the real implementation, would use std.http.Client or a web client
+        _ = endpoint;
+        _ = payload;
     }
 };
 
