@@ -1,4 +1,0 @@
-probe_io.zig:1:1: error: unable to load 'probe_io.zig': FileNotFound
-C:\Users\donald\.zvm\master\lib\std\std.zig:109:22: note: file imported here
-const root = @import("root");
-                     ^~~~~~

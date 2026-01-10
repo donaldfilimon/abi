@@ -57,6 +57,13 @@ logs/
 tmp/
 temp/
 *.tmp
+probe_error.txt
+test_build.zig
+build_options.zig
+src/build_options.zig
+
+# Claude Code local settings
+.claude/
 
 # OS specific
 Thumbs.db
