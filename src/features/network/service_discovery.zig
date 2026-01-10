@@ -100,7 +100,6 @@ pub const ServiceRegistry = struct {
             tags_copy[i] = try self.allocator.dupe(u8, tag);
         }
 
-        const now = std.time.Instant.now() catch unreachable;
         const instance_copy = ServiceInstance{
             .id = id_copy,
             .name = name_copy,
@@ -108,7 +107,7 @@ pub const ServiceRegistry = struct {
             .port = instance.port,
             .tags = tags_copy,
             .health_status = instance.health_status,
-            .last_check = now.toSecs() * 1000 + @divTrunc(now.toSubsecMillis(), 1),
+            .last_check = std.time.milliTimestamp(),
         };
 
         try self.services.put(instance_copy.id, instance_copy);
@@ -142,7 +141,7 @@ pub const ServiceRegistry = struct {
         return instances.toOwnedSlice();
     }
 
-    pub fn getAllServices(self: *const ServiceRegistry) std.ArrayList(ServiceInstance)!void {
+    pub fn getAllServices(self: *const ServiceRegistry) !std.ArrayList(ServiceInstance) {
         var services = std.ArrayList(ServiceInstance).init(self.allocator);
         errdefer services.deinit();
 
@@ -181,8 +180,7 @@ pub const ServiceRegistry = struct {
     pub fn updateHealthStatus(self: *ServiceRegistry, service_id: []const u8, status: HealthStatus) !void {
         const instance = self.services.getPtr(service_id) orelse return ServiceDiscoveryError.ServiceNotFound;
         instance.health_status = status;
-        const now = std.time.Instant.now() catch unreachable;
-        instance.last_check = now.toSecs() * 1000 + @divTrunc(now.toSubsecMillis(), 1);
+        instance.last_check = std.time.milliTimestamp();
     }
 
     pub fn runHealthChecks(self: *ServiceRegistry) !void {
