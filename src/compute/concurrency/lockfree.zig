@@ -197,6 +197,15 @@ pub fn ShardedMap(
             return shard.map.remove(key);
         }
 
+        /// Atomically fetch and remove a key-value pair
+        pub fn fetchRemove(self: *@This(), key: K) ?Map.KV {
+            const index = shardIndex(key);
+            var shard = &self.shards[index];
+            shard.mutex.lock();
+            defer shard.mutex.unlock();
+            return shard.map.fetchRemove(key);
+        }
+
         pub fn count(self: *@This()) usize {
             var total: usize = 0;
             for (&self.shards) |*shard| {
@@ -205,6 +214,19 @@ pub fn ShardedMap(
                 shard.mutex.unlock();
             }
             return total;
+        }
+
+        /// Clear all entries, calling cleanup function for each value
+        pub fn clearWithCleanup(self: *@This(), cleanup: fn (V) void) void {
+            for (&self.shards) |*shard| {
+                shard.mutex.lock();
+                defer shard.mutex.unlock();
+                var it = shard.map.valueIterator();
+                while (it.next()) |value| {
+                    cleanup(value.*);
+                }
+                shard.map.clearRetainingCapacity();
+            }
         }
     };
 }

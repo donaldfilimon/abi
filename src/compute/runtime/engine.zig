@@ -100,14 +100,18 @@ const Worker = struct {
     thread: ?std.Thread = null,
 };
 
+/// Number of shards for the results map (reduces lock contention)
+const RESULT_SHARD_COUNT: usize = 16;
+
 const EngineState = struct {
     allocator: std.mem.Allocator,
     config: EngineConfig,
     next_id: std.atomic.Value(TaskId) = std.atomic.Value(TaskId).init(1),
     inflight_tasks: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
-    results: std.AutoHashMap(TaskId, ResultBlob),
-    results_mutex: std.Thread.Mutex = .{},
+    /// Sharded map for reduced lock contention under concurrent load
+    results: concurrency.ShardedMap(TaskId, ResultBlob, RESULT_SHARD_COUNT),
     results_cond: std.Thread.Condition = .{},
+    results_mutex: std.Thread.Mutex = .{}, // Only used for condition variable signaling
     workers: []Worker,
     pending_tasks: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
     work_mutex: std.Thread.Mutex = .{},
@@ -171,10 +175,8 @@ pub const DistributedComputeEngine = struct {
         else
             start_ms + @as(i64, @intCast(timeout_ms));
 
-        state.results_mutex.lock();
-        defer state.results_mutex.unlock();
-
         while (true) {
+            // ShardedMap handles its own locking, no need for results_mutex here
             if (state.results.fetchRemove(id)) |entry| {
                 defer releaseTaskSlot(state);
                 return decodeResult(state, ResultType, id, entry.value);
@@ -190,6 +192,9 @@ pub const DistributedComputeEngine = struct {
                 }
                 const remaining_ms: u64 = @intCast(deadline - now_ms);
                 const remaining_ns = remaining_ms * std.time.ns_per_ms;
+                // Use mutex only for condition variable signaling
+                state.results_mutex.lock();
+                defer state.results_mutex.unlock();
                 // Condition variable timeout is expected behavior; continue polling
                 state.results_cond.timedWait(&state.results_mutex, remaining_ns) catch |err| {
                     std.log.debug("Result condition wait returned: {t}", .{err});
@@ -265,7 +270,7 @@ fn initState(allocator: std.mem.Allocator, config: EngineConfig) !*EngineState {
     state.* = .{
         .allocator = allocator,
         .config = config,
-        .results = std.AutoHashMap(TaskId, ResultBlob).init(allocator),
+        .results = concurrency.ShardedMap(TaskId, ResultBlob, RESULT_SHARD_COUNT).init(allocator),
         .workers = &.{},
         .topology = topology,
         .owns_topology = owns_topology,
@@ -386,11 +391,25 @@ fn deinitWorkers(state: *EngineState) void {
     state.workers = &.{};
 }
 
+fn cleanupResultBlob(blob: ResultBlob) void {
+    if (blob.kind == .value or blob.kind == .owned_slice) {
+        // Note: We use the allocator stored in the blob's context for cleanup
+        // For now, we can't access allocator here, so we skip cleanup
+        // The engine allocator is used but not accessible in this static context
+        _ = blob;
+    }
+}
+
 fn deinitResults(state: *EngineState) void {
-    var it = state.results.valueIterator();
-    while (it.next()) |blob| {
-        if (blob.kind == .value or blob.kind == .owned_slice) {
-            state.allocator.free(blob.bytes);
+    // Clean up any remaining result blobs before deiniting the map
+    for (&state.results.shards) |*shard| {
+        shard.mutex.lock();
+        defer shard.mutex.unlock();
+        var it = shard.map.valueIterator();
+        while (it.next()) |blob| {
+            if (blob.kind == .value or blob.kind == .owned_slice) {
+                state.allocator.free(blob.bytes);
+            }
         }
     }
     state.results.deinit();
@@ -574,10 +593,12 @@ fn storeTaskError(state: *EngineState, id: TaskId, err: anyerror) void {
 }
 
 fn storeResultBlob(state: *EngineState, id: TaskId, blob: ResultBlob) std.mem.Allocator.Error!void {
-    state.results_mutex.lock();
-    defer state.results_mutex.unlock();
+    // ShardedMap handles its own locking for the put operation
     try state.results.put(id, blob);
+    // Signal condition variable for waiting threads
+    state.results_mutex.lock();
     state.results_cond.broadcast();
+    state.results_mutex.unlock();
 }
 
 fn applyAffinity(state: *EngineState, worker_index: usize) void {

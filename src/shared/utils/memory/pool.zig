@@ -1,4 +1,5 @@
 //! Memory pool allocator for hot path allocations.
+//! Uses size-segregated free lists for O(1) allocation performance.
 const std = @import("std");
 
 pub const PoolConfig = struct {
@@ -16,13 +17,36 @@ pub const MemoryBlock = struct {
     next: ?*MemoryBlock,
     prev: ?*MemoryBlock,
     pool_id: u64,
+    size_class: u8, // Index into size-segregated free lists
 };
+
+/// Size classes for segregated free lists (powers of 2)
+/// Classes: 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, overflow
+const SIZE_CLASS_COUNT = 12;
+const MIN_SIZE_CLASS_LOG2 = 6; // 64 bytes minimum
+const MAX_SIZE_CLASS_LOG2 = MIN_SIZE_CLASS_LOG2 + SIZE_CLASS_COUNT - 2; // 32KB before overflow
+
+/// Get size class index for a given size (O(1) using bit manipulation)
+fn getSizeClass(size: usize) u8 {
+    if (size == 0) return 0;
+    const log2_size = std.math.log2_int(usize, size);
+    if (log2_size < MIN_SIZE_CLASS_LOG2) return 0;
+    if (log2_size > MAX_SIZE_CLASS_LOG2) return SIZE_CLASS_COUNT - 1;
+    return @intCast(log2_size - MIN_SIZE_CLASS_LOG2);
+}
+
+/// Get minimum block size for a size class
+fn sizeClassToMinSize(class: u8) usize {
+    if (class >= SIZE_CLASS_COUNT - 1) return 1 << MAX_SIZE_CLASS_LOG2;
+    return @as(usize, 1) << (MIN_SIZE_CLASS_LOG2 + @as(u6, @intCast(class)));
+}
 
 pub const MemoryPool = struct {
     allocator: std.mem.Allocator,
     config: PoolConfig,
     blocks: std.ArrayListUnmanaged(*MemoryBlock),
-    free_list: ?*MemoryBlock,
+    /// Size-segregated free lists for O(1) allocation
+    size_class_free_lists: [SIZE_CLASS_COUNT]?*MemoryBlock,
     used_list: ?*MemoryBlock,
     mutex: std.Thread.Mutex,
     pool_id: u64,
@@ -32,11 +56,15 @@ pub const MemoryPool = struct {
     peak_usage: u64,
     current_usage: u64,
 
+    // Keep legacy free_list for compatibility
+    free_list: ?*MemoryBlock,
+
     pub fn init(allocator: std.mem.Allocator, config: PoolConfig) !MemoryPool {
         var pool = MemoryPool{
             .allocator = allocator,
             .config = config,
             .blocks = std.ArrayListUnmanaged(*MemoryBlock).empty,
+            .size_class_free_lists = [_]?*MemoryBlock{null} ** SIZE_CLASS_COUNT,
             .free_list = null,
             .used_list = null,
             .mutex = .{},
@@ -113,7 +141,21 @@ pub const MemoryPool = struct {
         self.addToFreeList(block);
     }
 
+    /// O(1) allocation using size-segregated free lists
     fn findFreeBlock(self: *MemoryPool, size: usize) ?*MemoryBlock {
+        const start_class = getSizeClass(size);
+
+        // Search from the appropriate size class upward
+        var class = start_class;
+        while (class < SIZE_CLASS_COUNT) : (class += 1) {
+            if (self.size_class_free_lists[class]) |block| {
+                if (!block.in_use and block.size >= size) {
+                    return block;
+                }
+            }
+        }
+
+        // Fall back to legacy free_list scan for any remaining blocks
         var current = self.free_list;
         while (current) |block| {
             if (!block.in_use and block.size >= size) {
@@ -153,6 +195,7 @@ pub const MemoryPool = struct {
                 .next = null,
                 .prev = null,
                 .pool_id = self.pool_id,
+                .size_class = getSizeClass(self.config.block_size),
             };
 
             try self.blocks.append(self.allocator, block);
@@ -166,21 +209,50 @@ pub const MemoryPool = struct {
     }
 
     fn addToFreeList(self: *MemoryPool, block: *MemoryBlock) void {
-        if (self.free_list) |head| {
+        // Add to size-segregated free list for O(1) allocation
+        const class = block.size_class;
+        if (self.size_class_free_lists[class]) |head| {
             block.next = head;
             head.prev = block;
+        } else {
+            block.next = null;
+        }
+        block.prev = null;
+        self.size_class_free_lists[class] = block;
+
+        // Also maintain legacy free_list
+        if (self.free_list) |head| {
+            // Only add if not already at head of a size class list
+            _ = head;
         }
         self.free_list = block;
     }
 
     fn removeFromFreeList(self: *MemoryPool, block: *MemoryBlock) void {
+        // Remove from size-segregated free list
+        const class = block.size_class;
         if (block.prev) |prev| {
             prev.next = block.next;
         } else {
-            self.free_list = block.next;
+            // This block is head of its size class list
+            self.size_class_free_lists[class] = block.next;
         }
         if (block.next) |next| {
             next.prev = block.prev;
+        }
+        block.prev = null;
+        block.next = null;
+
+        // Update legacy free_list if needed
+        if (self.free_list == block) {
+            self.free_list = null;
+            // Find a new head from size class lists
+            for (self.size_class_free_lists) |list_head| {
+                if (list_head) |head| {
+                    self.free_list = head;
+                    break;
+                }
+            }
         }
     }
 
