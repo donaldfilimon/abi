@@ -111,11 +111,7 @@ pub const ExploreResult = struct {
         }
         self.matches.deinit(self.allocator);
 
-        var iterator = self.file_summaries.valueIterator();
-        while (iterator.next()) |summary| {
-            self.allocator.free(summary.path);
-            self.allocator.free(summary.file_type);
-        }
+        // file_summaries paths and file_types are not owned (they reference match paths)
         self.file_summaries.deinit(self.allocator);
 
         if (self.error_message) |msg| {
@@ -159,7 +155,7 @@ pub const ExploreResult = struct {
         std.debug.print("-------------\n", .{});
 
         const top_matches = self.getTopMatches(20);
-        defer self.allocator.free(top_matches);
+        // Note: top_matches is a slice view into self.matches.items, not a separate allocation
 
         for (top_matches, 0..) |match, i| {
             std.debug.print("{d}. {s}:{d}\n", .{ i + 1, match.file_path, match.line_number });

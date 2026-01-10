@@ -107,7 +107,7 @@ pub const FileVisitor = struct {
 
     fn walkDirectory(self: *FileVisitor, dir_path: []const u8) !void {
         const io = self.io_backend.io();
-        var dir = std.Io.Dir.cwd().openDir(io, dir_path, .{}) catch {
+        var dir = std.Io.Dir.cwd().openDir(io, dir_path, .{ .iterate = true }) catch {
             self.error_count += 1;
             return;
         };
@@ -118,24 +118,30 @@ pub const FileVisitor = struct {
             self.error_count += 1;
             return;
         }) |entry| {
+            if (self.shouldSkip(entry.name)) continue;
+
             const full_path = std.fs.path.join(self.allocator, &.{ dir_path, entry.name }) catch {
                 self.error_count += 1;
                 continue;
             };
-            defer self.allocator.free(full_path);
-
-            if (self.shouldSkip(entry.name)) continue;
 
             if (entry.kind == .directory) {
-                if (self.visited_paths.contains(full_path)) continue;
+                if (self.visited_paths.contains(full_path)) {
+                    self.allocator.free(full_path);
+                    continue;
+                }
                 try self.visited_paths.put(self.allocator, full_path, true);
                 try self.directories.append(self.allocator, full_path);
+                // Don't free full_path - it's now owned by directories list
             } else if (entry.kind == .file) {
+                defer self.allocator.free(full_path);
                 const stats = FileStats.fromDirEntry(self.allocator, io, dir_path, entry) catch {
                     self.error_count += 1;
                     continue;
                 };
                 try self.files.append(self.allocator, stats);
+            } else {
+                self.allocator.free(full_path);
             }
         }
     }

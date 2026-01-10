@@ -71,6 +71,7 @@ pub const ExploreAgent = struct {
         };
 
         self.stats.files_discovered = visitor.getFileCount();
+        result.files_scanned = visitor.getFileCount();
 
         for (visitor.getFiles()) |file_stat| {
             if (self.isCancelled()) {
@@ -155,18 +156,50 @@ pub const ExploreAgent = struct {
 
         if (self.shouldMatch(basename, pattern)) {
             const relevance = self.calculateRelevance(content, pattern);
-            const match = Match{
-                .file_path = file_stat.path,
+            const file_path_dup = self.allocator.dupe(u8, file_stat.path) catch {
+                self.stats.errors += 1;
+                return;
+            };
+            const line_content_dup = self.allocator.dupe(u8, "") catch {
+                self.allocator.free(file_path_dup);
+                self.stats.errors += 1;
+                return;
+            };
+            const match_text_dup = self.allocator.dupe(u8, basename) catch {
+                self.allocator.free(file_path_dup);
+                self.allocator.free(line_content_dup);
+                self.stats.errors += 1;
+                return;
+            };
+            const ctx_before = self.allocator.dupe(u8, "") catch {
+                self.allocator.free(file_path_dup);
+                self.allocator.free(line_content_dup);
+                self.allocator.free(match_text_dup);
+                self.stats.errors += 1;
+                return;
+            };
+            const ctx_after = self.allocator.dupe(u8, "") catch {
+                self.allocator.free(file_path_dup);
+                self.allocator.free(line_content_dup);
+                self.allocator.free(match_text_dup);
+                self.allocator.free(ctx_before);
+                self.stats.errors += 1;
+                return;
+            };
+            var match = Match{
+                .file_path = file_path_dup,
                 .line_number = 0,
-                .line_content = "",
+                .line_content = line_content_dup,
                 .match_type = match_type,
-                .match_text = basename,
+                .match_text = match_text_dup,
                 .relevance_score = relevance,
-                .context_before = "",
-                .context_after = "",
+                .context_before = ctx_before,
+                .context_after = ctx_after,
             };
             result.addMatch(match) catch {
+                match.deinit(self.allocator);
                 self.stats.errors += 1;
+                return;
             };
             self.stats.matches_found += 1;
         }
@@ -180,20 +213,41 @@ pub const ExploreAgent = struct {
                 if (self.shouldMatch(line, pattern)) {
                     const relevance = self.calculateRelevance(line, pattern);
                     if (relevance > 0.3) {
-                        const context_before = self.getContext(content, line_start, 3);
-                        const context_after = self.getContext(content, i + 1, 3);
+                        const context_before_raw = self.getContext(content, line_start, 3);
+                        const context_after_raw = self.getContext(content, i + 1, 3);
 
+                        const file_path_copy = self.allocator.dupe(u8, file_stat.path) catch {
+                            self.stats.errors += 1;
+                            continue;
+                        };
                         const line_content = self.allocator.dupe(u8, line) catch {
+                            self.allocator.free(file_path_copy);
                             self.stats.errors += 1;
                             continue;
                         };
                         const match_text = self.allocator.dupe(u8, line) catch {
+                            self.allocator.free(file_path_copy);
                             self.allocator.free(line_content);
                             self.stats.errors += 1;
                             continue;
                         };
+                        const context_before = self.allocator.dupe(u8, context_before_raw) catch {
+                            self.allocator.free(file_path_copy);
+                            self.allocator.free(line_content);
+                            self.allocator.free(match_text);
+                            self.stats.errors += 1;
+                            continue;
+                        };
+                        const context_after = self.allocator.dupe(u8, context_after_raw) catch {
+                            self.allocator.free(file_path_copy);
+                            self.allocator.free(line_content);
+                            self.allocator.free(match_text);
+                            self.allocator.free(context_before);
+                            self.stats.errors += 1;
+                            continue;
+                        };
                         var match = Match{
-                            .file_path = file_stat.path,
+                            .file_path = file_path_copy,
                             .line_number = line_number,
                             .line_content = line_content,
                             .match_type = match_type,
