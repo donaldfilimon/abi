@@ -31,34 +31,34 @@ This document tracks planned features, improvements, and milestones for the ABI 
   - [x] Gradient aggregation
 
 ### Database & Storage
-- [ ] Persistent vector index
-  - [ ] HNSW indexing
-  - [ ] IVF-PQ indexing
-  - [ ] Automatic re-indexing
-- [ ] Distributed database
-  - [ ] Sharding support
-  - [ ] Replication
-  - [ ] Consistent hashing
+- [x] Persistent vector index
+  - [x] HNSW indexing
+  - [x] IVF-PQ indexing
+  - [x] Automatic re-indexing
+- [x] Distributed database
+  - [x] Sharding support
+  - [x] Replication
+  - [x] Consistent hashing
 
 ### Observability
-- [ ] Advanced metrics
-  - [ ] Prometheus exporter
-  - [ ] OpenTelemetry integration
-  - [ ] Custom dashboards
-- [ ] Distributed tracing
-  - [ ] Span propagation
-  - [ ] Trace sampling
-  - [ ] Performance profiling
+- [x] Advanced metrics
+  - [x] Prometheus exporter
+  - [x] OpenTelemetry integration
+  - [x] Custom dashboards
+- [x] Distributed tracing
+  - [x] Span propagation
+  - [x] Trace sampling
+  - [x] Performance profiling
 
 ### Security
-- [ ] Authentication & authorization
-  - [ ] API key management
-  - [ ] Role-based access control
-  - [ ] Token rotation
-- [ ] Network security
-  - [ ] TLS/SSL support
-  - [ ] mTLS between nodes
-  - [ ] Certificate management
+- [x] Authentication & authorization
+  - [x] API key management
+  - [x] Role-based access control
+  - [x] Token rotation
+- [x] Network security
+  - [x] TLS/SSL support
+  - [x] mTLS between nodes
+  - [x] Certificate management
 
 ## Version 0.4.0 - Q2 2026
 
@@ -188,7 +188,7 @@ See CONTRIBUTING.md for details.
 | Version | Target Quarter | Status |
 |----------|---------------|---------|
 | 0.2.2 | 2025-12-27 | Released |
-| 0.3.0 | Q1 2026 | In Progress (Core Features Complete) |
+| 0.3.0 | Q1 2026 | Complete ✓ |
 | 0.4.0 | Q2 2026 | Planned |
 | 0.5.0 | Q3 2026 | Planned |
 
