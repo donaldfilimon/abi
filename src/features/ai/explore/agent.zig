@@ -35,7 +35,16 @@ pub const ExploreAgent = struct {
         };
     }
 
-    pub fn deinit(_: *ExploreAgent) void {}
+    /// Clean up resources used by the explore agent
+    pub fn deinit(self: *ExploreAgent) void {
+        // Reset stats
+        self.stats = ExplorationStats{};
+        self.cancelled = false;
+
+        // The compiler is stateless, but we zero out the agent
+        // for safety if it's accidentally reused
+        self.* = undefined;
+    }
 
     pub fn explore(self: *ExploreAgent, root_path: []const u8, query: []const u8) !ExploreResult {
         self.start_time = std.time.nanoTimestamp();
@@ -207,8 +216,69 @@ pub const ExploreAgent = struct {
         return std.mem.indexOf(u8, text, pattern.raw) != null;
     }
 
-    fn calculateRelevance(_: *ExploreAgent, _: []const u8, _: *const SearchPattern) f32 {
-        return 0.5;
+    /// Calculate a relevance score for a match based on multiple factors.
+    /// Returns a score between 0.0 (irrelevant) and 1.0 (highly relevant).
+    fn calculateRelevance(self: *ExploreAgent, content: []const u8, pattern: *const SearchPattern) f32 {
+        _ = self;
+        var score: f32 = 0.0;
+        const pat = pattern.raw;
+
+        if (pat.len == 0 or content.len == 0) return 0.0;
+
+        // Count occurrences of pattern in content
+        var count: usize = 0;
+        var pos: usize = 0;
+        while (std.mem.indexOfPos(u8, content, pos, pat)) |idx| {
+            count += 1;
+            pos = idx + 1;
+        }
+
+        if (count == 0) return 0.0;
+
+        // Base score from occurrence count (diminishing returns)
+        score += @min(0.3, @as(f32, @floatFromInt(count)) * 0.1);
+
+        // Bonus for exact word boundary matches
+        var word_matches: usize = 0;
+        pos = 0;
+        while (std.mem.indexOfPos(u8, content, pos, pat)) |idx| {
+            const before_ok = idx == 0 or !std.ascii.isAlphanumeric(content[idx - 1]);
+            const after_idx = idx + pat.len;
+            const after_ok = after_idx >= content.len or !std.ascii.isAlphanumeric(content[after_idx]);
+            if (before_ok and after_ok) {
+                word_matches += 1;
+            }
+            pos = idx + 1;
+        }
+        score += @min(0.3, @as(f32, @floatFromInt(word_matches)) * 0.15);
+
+        // Bonus for matches early in content (likely more important)
+        if (std.mem.indexOf(u8, content, pat)) |first_pos| {
+            if (first_pos < 100) {
+                score += 0.15;
+            } else if (first_pos < 500) {
+                score += 0.1;
+            } else if (first_pos < 1000) {
+                score += 0.05;
+            }
+        }
+
+        // Bonus for pattern density (matches per 100 chars)
+        if (content.len > 0) {
+            const density = @as(f32, @floatFromInt(count * 100)) / @as(f32, @floatFromInt(content.len));
+            score += @min(0.2, density * 0.1);
+        }
+
+        // Bonus for matching common code patterns
+        if (std.mem.indexOf(u8, content, "fn ") != null or
+            std.mem.indexOf(u8, content, "pub fn ") != null or
+            std.mem.indexOf(u8, content, "const ") != null or
+            std.mem.indexOf(u8, content, "var ") != null)
+        {
+            score += 0.05;
+        }
+
+        return @min(1.0, score);
     }
 
     fn getContext(self: *ExploreAgent, content: []const u8, position: usize, lines: usize) []const u8 {
