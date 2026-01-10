@@ -1,8 +1,13 @@
 //! GPU backend detection, kernel management, and memory utilities.
+//!
+//! This module provides a unified interface for GPU compute operations across
+//! multiple backends including CUDA, Vulkan, Metal, WebGPU, OpenGL, and std.gpu.
 const std = @import("std");
 const backend = @import("backend.zig");
 const kernels = @import("kernels.zig");
 const memory = @import("memory.zig");
+pub const profiling = @import("profiling.zig");
+pub const acceleration = @import("acceleration.zig");
 
 const build_options = @import("build_options");
 
@@ -84,6 +89,25 @@ pub const defaultDeviceLabel = backend.defaultDeviceLabel;
 pub const summary = backend.summary;
 pub const moduleEnabled = backend.moduleEnabled;
 pub const isEnabled = backend.isEnabled;
+
+// Acceleration API exports
+pub const Accelerator = acceleration.Accelerator;
+pub const AcceleratorConfig = acceleration.AcceleratorConfig;
+pub const AcceleratorError = acceleration.AcceleratorError;
+pub const ComputeTask = acceleration.ComputeTask;
+pub const ExecutionStats = acceleration.ExecutionStats;
+pub const vectorAdd = acceleration.vectorAdd;
+pub const matrixMultiply = acceleration.matrixMultiply;
+pub const reduceSum = acceleration.reduceSum;
+pub const getAvailableBackends = acceleration.getAvailableBackends;
+pub const getBestBackend = acceleration.getBestBackend;
+pub const isGpuAvailable = acceleration.isGpuAvailable;
+
+// Profiling exports
+pub const Profiler = profiling.Profiler;
+pub const TimingResult = profiling.TimingResult;
+pub const OccupancyResult = profiling.OccupancyResult;
+pub const MemoryBandwidth = profiling.MemoryBandwidth;
 
 pub fn init(_: std.mem.Allocator) GpuError!void {
     if (!moduleEnabled()) return error.GpuDisabled;
