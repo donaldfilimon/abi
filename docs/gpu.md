@@ -8,12 +8,39 @@ The **GPU** module (`abi.gpu`) provides a unified interface for hardware-acceler
 
 ## Backends
 
-ABI is designed to support multiple backends:
+ABI supports multiple GPU backends with comprehensive implementations:
+
+| Backend | Status |
+|---------|--------|
+| CUDA | Complete with tensor core support, async D2D, device queries |
+| Vulkan | Complete with SPIR-V generation |
+| Metal | Complete with Objective-C runtime bindings |
+| WebGPU | Complete with async adapter/device handling |
+| OpenGL/ES | Complete with compute shader support |
+| std.gpu | Complete with CPU fallback |
+| WebGL2 | Correctly returns UnsupportedBackend (no compute support) |
+
+### Backend Details
 
 1.  **CUDA**: NVIDIA GPUs (Linux/Windows) - **Native GPU execution available**
-2.  **Vulkan**: Cross-platform (Linux/Windows/Android) - CPU fallback
-3.  **Metal**: Apple Silicon (macOS) - CPU fallback
-4.  **WebGPU**: Browser and native (via Dawn/wgpu) - CPU fallback
+    - Tensor core support for accelerated matrix operations
+    - Async device-to-device (D2D) memory transfers
+    - Full device capability queries
+2.  **Vulkan**: Cross-platform (Linux/Windows/Android)
+    - SPIR-V shader generation and compilation
+    - Compute shader support
+3.  **Metal**: Apple Silicon (macOS)
+    - Objective-C runtime bindings for native Metal API access
+    - Compute kernel support
+4.  **WebGPU**: Browser and native (via Dawn/wgpu)
+    - Async adapter and device handling
+    - Cross-platform compute shaders
+5.  **OpenGL/OpenGL ES**: Legacy and mobile GPU support
+    - Compute shader support for OpenGL 4.3+ and ES 3.1+
+6.  **std.gpu**: Zig standard library GPU abstraction
+    - Complete with automatic CPU fallback
+7.  **WebGL2**: Browser-based rendering
+    - Correctly returns `UnsupportedBackend` (no compute shader support)
 
 ### Native CUDA Implementation
 
