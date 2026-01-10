@@ -651,6 +651,7 @@ pub const ServiceDiscovery = struct {
     }
 
     fn httpPut(self: *ServiceDiscovery, url: []const u8, body: []const u8) !void {
+        _ = self;
         _ = url;
         _ = body;
         // Simulated HTTP PUT - in production, use actual HTTP client
