@@ -1,0 +1,52 @@
+# =============================================================================
+# ABI Service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: abbey
+  namespace: abbey
+  labels:
+    app.kubernetes.io/name: abbey
+    app.kubernetes.io/component: api
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: abbey
+    app.kubernetes.io/component: api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+      protocol: TCP
+    - name: grpc
+      port: 50051
+      targetPort: grpc
+      protocol: TCP
+---
+# Headless service for StatefulSet use cases
+apiVersion: v1
+kind: Service
+metadata:
+  name: abbey-headless
+  namespace: abbey
+  labels:
+    app.kubernetes.io/name: abbey
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: abbey
+    app.kubernetes.io/component: api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

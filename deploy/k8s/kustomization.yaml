@@ -1,0 +1,42 @@
+# =============================================================================
+# ABI Kustomization
+# Use: kubectl apply -k deploy/k8s/
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: abbey
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+  - servicemonitor.yaml
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/part-of: abi
+
+# Image configuration (update for your registry)
+images:
+  - name: abbey
+    newName: ghcr.io/donaldfilimon/abi/abbey
+    newTag: latest
+
+# Replicas can be overridden
+replicas:
+  - name: abbey
+    count: 3
+
+# ConfigMap generator for additional config
+configMapGenerator:
+  - name: abbey-extra-config
+    literals:
+      - VERSION=1.0.0

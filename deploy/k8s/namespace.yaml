@@ -1,0 +1,10 @@
+# =============================================================================
+# ABI Namespace
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: abbey
+  labels:
+    app.kubernetes.io/name: abbey
+    app.kubernetes.io/part-of: abi
