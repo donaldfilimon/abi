@@ -4,6 +4,20 @@
 
 Comprehensive improvements to the GPU driver implementation with native CUDA support, real hardware queries, proper memory management, async stream execution, PTX compilation, error handling, and profiling.
 
+## Backend Status
+
+All GPU backends are now fully implemented:
+
+| Backend | Status |
+|---------|--------|
+| CUDA | Complete with tensor core support, async D2D, device queries |
+| Vulkan | Complete with SPIR-V generation |
+| Metal | Complete with Objective-C runtime bindings |
+| WebGPU | Complete with async adapter/device handling |
+| OpenGL/ES | Complete with compute shader support |
+| std.gpu | Complete with CPU fallback |
+| WebGL2 | Correctly returns UnsupportedBackend (no compute support) |
+
 ## Changes Made
 
 ### 1. Native CUDA Implementation (`cuda_native.zig`)
@@ -236,9 +250,9 @@ try profiling.formatSummary(&profiler, std.io.getStdOut().writer());
 
 ## Future Work
 
-- Add native Vulkan implementation (similar to CUDA)
-- Add native Metal implementation for macOS
-- Add WebGPU implementation
+- ~~Add native Vulkan implementation (similar to CUDA)~~ ✅ Complete
+- ~~Add native Metal implementation for macOS~~ ✅ Complete
+- ~~Add WebGPU implementation~~ ✅ Complete
 - PTX caching to disk for faster startup
 - Multi-GPU support
 - Kernel auto-tuning based on device capabilities

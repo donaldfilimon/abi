@@ -18,6 +18,22 @@ Completed comprehensive modernization of ABI framework including:
 
 ---
 
+## GPU Backend Status
+
+All GPU backends are now complete with production-ready implementations:
+
+| Backend | Status |
+|---------|--------|
+| CUDA | Complete with tensor core support, async D2D, device queries |
+| Vulkan | Complete with SPIR-V generation |
+| Metal | Complete with Objective-C runtime bindings |
+| WebGPU | Complete with async adapter/device handling |
+| OpenGL/ES | Complete with compute shader support |
+| std.gpu | Complete with CPU fallback |
+| WebGL2 | Correctly returns UnsupportedBackend (no compute support) |
+
+---
+
 ## Commits Overview
 
 ### Recent Commits (December 27, 2025)
