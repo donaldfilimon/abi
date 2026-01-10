@@ -46,6 +46,16 @@ pub fn runTask(engine_instance: *DistributedComputeEngine, comptime ResultType: 
     return waitForResult(engine_instance, ResultType, id, timeout_ms);
 }
 
+/// Alias for runTask() - runs a workload and waits for the result
+/// @param engine_instance The compute engine instance
+/// @param ResultType The expected result type
+/// @param workload The workload/task to execute
+/// @param timeout_ms Timeout in milliseconds (0=immediate check, null=wait indefinitely)
+/// @return The workload result
+pub fn runWorkload(engine_instance: *DistributedComputeEngine, comptime ResultType: type, workload: anytype, timeout_ms: u64) !ResultType {
+    return runTask(engine_instance, ResultType, workload, timeout_ms);
+}
+
 test "create engine helper" {
     var engine_instance = try createEngine(std.testing.allocator, .{ .max_tasks = 4 });
     defer engine_instance.deinit();

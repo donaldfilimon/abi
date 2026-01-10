@@ -118,6 +118,16 @@ pub fn runTask(
     return runtime.runTask(engine_instance, ResultType, task, timeout_ms);
 }
 
+/// Alias for runTask() - runs a workload and waits for the result
+pub fn runWorkload(
+    engine_instance: *DistributedComputeEngine,
+    comptime ResultType: type,
+    workload: anytype,
+    timeout_ms: u64,
+) !ResultType {
+    return runtime.runWorkload(engine_instance, ResultType, workload, timeout_ms);
+}
+
 pub fn init(_: std.mem.Allocator) !void {
     initialized = true;
 }
