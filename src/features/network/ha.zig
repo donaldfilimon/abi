@@ -115,7 +115,7 @@ pub const HealthCheck = struct {
         return list;
     }
 
-    pub fn getUnhealthyNodes(self: *const HealthCheck) std.ArrayList([]const u8)!void {
+    pub fn getUnhealthyNodes(self: *const HealthCheck) !std.ArrayList([]const u8) {
         var list = std.ArrayList([]const u8).init(self.allocator);
         errdefer list.deinit();
 
@@ -135,48 +135,38 @@ pub const HealthCheck = struct {
     }
 
     pub fn electPrimary(self: *HealthCheck) ![]const u8 {
-        const healthy = try self.getHealthyNodes();
-        defer {
-            for (healthy.items) |node_id| {
-                self.allocator.free(node_id);
-            }
-            healthy.deinit();
-        }
-
-        if (healthy.items.len == 0) {
-            return HaError.NoHealthyNodes;
-        }
-
-        const primary = healthy.items[0];
-        self.primary_node = try self.allocator.dupe(u8, primary);
-        self.cluster_state = .stable;
-
-        return primary;
+        const new_primary = try self.selectNewPrimary();
+        return new_primary;
     }
 
     pub fn triggerFailover(self: *HealthCheck) !void {
         if (self.config.failover_policy != .automatic) {
             return HaError.ConfigError;
         }
+        _ = try self.selectNewPrimary();
+    }
 
+    /// Internal helper to select and set a new primary from healthy nodes.
+    /// Frees the previous primary if one exists.
+    fn selectNewPrimary(self: *HealthCheck) ![]const u8 {
         const healthy = try self.getHealthyNodes();
-        defer {
-            for (healthy.items) |node_id| {
-                self.allocator.free(node_id);
-            }
-            healthy.deinit();
-        }
+        defer healthy.deinit();
 
         if (healthy.items.len == 0) {
             return HaError.NoHealthyNodes;
         }
 
+        const new_primary = healthy.items[0];
+
+        // Free existing primary before setting new one
         if (self.primary_node) |current| {
             self.allocator.free(current);
         }
 
-        self.primary_node = try self.allocator.dupe(u8, healthy.items[0]);
+        self.primary_node = try self.allocator.dupe(u8, new_primary);
         self.cluster_state = .stable;
+
+        return new_primary;
     }
 
     fn evaluateClusterState(self: *HealthCheck) !void {

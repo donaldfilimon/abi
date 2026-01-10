@@ -216,12 +216,20 @@ pub fn createChunkedStream(
     return chunks;
 }
 
+/// Static buffer for single-byte token decoding to avoid dangling pointer
+const single_byte_tokens: [256][1]u8 = blk: {
+    var tokens: [256][1]u8 = undefined;
+    for (0..256) |i| {
+        tokens[i] = .{@as(u8, @intCast(i))};
+    }
+    break :blk tokens;
+};
+
 fn decodeToken(token: u32) []const u8 {
     if (token == 0) return "";
     if (token == 1) return "<unk>";
     if (token < 256) {
-        const buf: [1]u8 = .{@as(u8, @intCast(token))};
-        return &buf;
+        return &single_byte_tokens[token];
     }
     return "<token>";
 }

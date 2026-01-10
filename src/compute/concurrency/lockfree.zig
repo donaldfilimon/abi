@@ -1,5 +1,27 @@
 //! Concurrent containers for compute concurrency helpers.
 //! Includes lock-free structures and sharded maps for high-performance scenarios.
+//!
+//! ## Thread Safety Notes
+//!
+//! ### LockFreeQueue
+//! Single-producer single-consumer (SPSC) ring buffer. Safe for one producer
+//! thread and one consumer thread.
+//!
+//! ### LockFreeStack (Treiber Stack)
+//! **WARNING: ABA Problem**
+//! This implementation is susceptible to the ABA problem under concurrent load.
+//! The ABA problem occurs when:
+//! 1. Thread A reads head pointer value P
+//! 2. Thread B pops P, frees it, allocates new node at same address P
+//! 3. Thread A's CAS succeeds (head still equals P) but P points to different data
+//!
+//! For production use with high concurrency, consider:
+//! - Using hazard pointers or epoch-based reclamation
+//! - Adding a generation counter to the pointer (tagged pointers)
+//! - Using the ShardedMap instead for key-value storage
+//!
+//! ### ShardedMap
+//! Thread-safe via per-shard mutex locking. Safe for multi-producer multi-consumer.
 const std = @import("std");
 
 pub fn LockFreeQueue(comptime T: type, comptime capacity: usize) type {
@@ -86,6 +108,11 @@ pub fn LockFreeStack(comptime T: type) type {
             }
         }
 
+        /// Pop a value from the stack.
+        /// WARNING: This operation is susceptible to the ABA problem. See module docs.
+        /// Between loading `current` and the CAS, another thread could pop and free
+        /// `current`, then push a new node that reuses the same memory address.
+        /// The CAS would succeed incorrectly, potentially causing use-after-free.
         pub fn pop(self: *@This()) ?T {
             while (true) {
                 const current = self.head.load(.acquire);
