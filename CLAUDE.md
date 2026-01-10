@@ -14,8 +14,10 @@ zig build test               # Run all tests
 zig build test --summary all # Run tests with detailed output
 zig build benchmark          # Run performance benchmarks
 zig build run -- --help      # Run CLI with help
+zig build run -- --version   # Show version info
 zig fmt .                    # Format all code
 zig fmt --check .            # Check formatting without changes
+zig build -Doptimize=ReleaseFast  # Optimized release build
 ```
 
 ### Running Tests for a Specific Module
@@ -23,7 +25,12 @@ zig fmt --check .            # Check formatting without changes
 ```bash
 zig test src/compute/runtime/engine.zig     # Test specific file
 zig test --test-filter="engine init"        # Run tests matching pattern
+zig build test -Denable-gpu=true -Denable-network=true  # Test with features
 ```
+
+### CLI Entrypoint
+
+CLI resolution prefers `tools/cli/main.zig` and falls back to `src/main.zig` if not present.
 
 ### Feature Flags
 
@@ -87,11 +94,15 @@ var list = std.ArrayList(u8).init(allocator);
 ### Format Specifiers
 
 ```zig
-// Use {t} for enums/errors instead of @tagName()
-std.debug.print("Status: {t}\n", .{status});
+// Use modern format specifiers instead of manual conversions
+std.debug.print("Status: {t}\n", .{status});     // {t} for enum/error values
+std.debug.print("Size: {B}\n", .{size});         // {B} for byte sizes (SI)
+std.debug.print("Size: {Bi}\n", .{size});        // {Bi} for byte sizes (binary)
+std.debug.print("Duration: {D}\n", .{dur});      // {D} for durations
+std.debug.print("Data: {b64}\n", .{data});       // {b64} for base64
 
-// Avoid
-std.debug.print("Status: {s}\n", .{@tagName(status)});
+// Avoid @tagName()
+std.debug.print("Status: {s}\n", .{@tagName(status)});  // Don't do this
 ```
 
 ### Style
@@ -105,5 +116,23 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});
 
 Connector-specific:
 - `ABI_OPENAI_API_KEY` / `OPENAI_API_KEY`
-- `ABI_HF_API_TOKEN` / `HF_API_TOKEN`
+- `ABI_OPENAI_BASE_URL` (default: `https://api.openai.com/v1`)
+- `ABI_OPENAI_MODE` (`responses`, `chat`, or `completions`)
+- `ABI_HF_API_TOKEN` / `HF_API_TOKEN` / `HUGGING_FACE_HUB_TOKEN`
+- `ABI_HF_BASE_URL` (default: `https://api-inference.huggingface.co`)
 - `ABI_OLLAMA_HOST` / `OLLAMA_HOST` (default: `http://127.0.0.1:11434`)
+- `ABI_OLLAMA_MODEL` (default: `llama3.2`)
+- `ABI_LOCAL_SCHEDULER_URL` / `LOCAL_SCHEDULER_URL` (default: `http://127.0.0.1:8081`)
+
+## Key API Notes
+
+### Compute Engine Timeouts
+
+When using `runWorkload(engine, workload, timeout_ms)`:
+- `timeout_ms=0`: Immediately returns `EngineError.Timeout` if not ready
+- `timeout_ms>0`: Waits specified milliseconds before timeout
+- `timeout_ms=null`: Waits indefinitely
+
+### WDBX Backup/Restore Security
+
+Backup and restore operations are restricted to the `backups/` directory only. Filenames must not contain path traversal sequences (`..`), absolute paths, or Windows drive letters.
