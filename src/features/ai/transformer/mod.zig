@@ -60,8 +60,10 @@ pub const TransformerModel = struct {
 
         const hidden_size = config.hidden_size;
         const intermediate_size = config.intermediate_size;
+        const vocab_size: usize = config.vocab_size;
+        const hidden_usize: usize = hidden_size;
 
-        const embedding_weights = try allocator.alloc(f32, config.vocab_size * hidden_size);
+        const embedding_weights = try allocator.alloc(f32, vocab_size * hidden_usize);
         @memset(embedding_weights, 0);
 
         var layer_query_weights = try allocator.alloc([]f32, config.layers);
@@ -73,13 +75,15 @@ pub const TransformerModel = struct {
 
         var rng = std.Random.DefaultPrng.init(config.seed);
 
+        const intermediate_usize: usize = intermediate_size;
+
         for (0..config.layers) |i| {
-            layer_query_weights[i] = try allocator.alloc(f32, hidden_size * hidden_size);
-            layer_key_weights[i] = try allocator.alloc(f32, hidden_size * hidden_size);
-            layer_value_weights[i] = try allocator.alloc(f32, hidden_size * hidden_size);
-            layer_output_weights[i] = try allocator.alloc(f32, hidden_size * hidden_size);
-            layer_ff_0_weights[i] = try allocator.alloc(f32, hidden_size * intermediate_size);
-            layer_ff_1_weights[i] = try allocator.alloc(f32, intermediate_size * hidden_size);
+            layer_query_weights[i] = try allocator.alloc(f32, hidden_usize * hidden_usize);
+            layer_key_weights[i] = try allocator.alloc(f32, hidden_usize * hidden_usize);
+            layer_value_weights[i] = try allocator.alloc(f32, hidden_usize * hidden_usize);
+            layer_output_weights[i] = try allocator.alloc(f32, hidden_usize * hidden_usize);
+            layer_ff_0_weights[i] = try allocator.alloc(f32, hidden_usize * intermediate_usize);
+            layer_ff_1_weights[i] = try allocator.alloc(f32, intermediate_usize * hidden_usize);
 
             initGaussian(layer_query_weights[i], &rng);
             initGaussian(layer_key_weights[i], &rng);
@@ -89,7 +93,7 @@ pub const TransformerModel = struct {
             initGaussian(layer_ff_1_weights[i], &rng);
         }
 
-        const lm_head_weights = try allocator.alloc(f32, hidden_size * config.vocab_size);
+        const lm_head_weights = try allocator.alloc(f32, hidden_usize * vocab_size);
         initGaussian(lm_head_weights, &rng);
 
         return .{
