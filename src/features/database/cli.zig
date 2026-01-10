@@ -7,7 +7,7 @@ const db_helpers = @import("db_helpers.zig");
 const http = @import("http.zig");
 const transformer = @import("../ai/transformer/mod.zig");
 
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0) {
         printHelp();
         return;
@@ -74,7 +74,7 @@ fn printHelp() void {
     std.debug.print("{s}", .{text});
 }
 
-fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var id: ?u64 = null;
     var vector_text: ?[]const u8 = null;
     var meta: ?[]const u8 = null;
@@ -161,7 +161,7 @@ fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     std.debug.print("Inserted vector {d} (dim {d}).\n", .{ id_value, vector.len });
 }
 
-fn handleQuery(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn handleQuery(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var vector_text: ?[]const u8 = null;
     var embed_text: ?[]const u8 = null;
     var top_k: usize = 3;
@@ -247,7 +247,7 @@ fn handleQuery(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     }
 }
 
-fn handleStats(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn handleStats(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var path: ?[]const u8 = null;
     if (args.len >= 2 and std.mem.eql(u8, std.mem.sliceTo(args[0], 0), "--path")) {
         path = std.mem.sliceTo(args[1], 0);
@@ -265,7 +265,7 @@ fn handleStats(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     );
 }
 
-fn handleServe(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn handleServe(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var address: []const u8 = "127.0.0.1:9191";
     var i: usize = 0;
     while (i < args.len) {
@@ -279,7 +279,7 @@ fn handleServe(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     try http.serve(allocator, address);
 }
 
-fn handleOptimize(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn handleOptimize(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var path: ?[]const u8 = null;
     if (args.len >= 2 and std.mem.eql(u8, std.mem.sliceTo(args[0], 0), "--path")) {
         path = std.mem.sliceTo(args[1], 0);
@@ -292,7 +292,7 @@ fn handleOptimize(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     std.debug.print("Database optimized.\n", .{});
 }
 
-fn handleBackup(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn handleBackup(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var path: ?[]const u8 = null;
     if (args.len >= 2 and std.mem.eql(u8, std.mem.sliceTo(args[0], 0), "--path")) {
         path = std.mem.sliceTo(args[1], 0);
@@ -307,7 +307,7 @@ fn handleBackup(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     std.debug.print("Backup written to {s}\n", .{output});
 }
 
-fn handleRestore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn handleRestore(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var path: ?[]const u8 = null;
     if (args.len >= 2 and std.mem.eql(u8, std.mem.sliceTo(args[0], 0), "--path")) {
         path = std.mem.sliceTo(args[1], 0);

@@ -45,10 +45,21 @@ Core flags (defaults in parentheses):
 - `-Denable-gpu` (true) - GPU acceleration
 - `-Denable-web` (true) - Web utilities and HTTP
 - `-Denable-database` (true) - Vector database and storage
-- `-Denable-network` (false) - Distributed network compute
-- `-Denable-profiling` (false) - Profiling and metrics
+- `-Denable-network` (true) - Distributed network compute
+- `-Denable-profiling` (true) - Profiling and metrics
 
-GPU backends: `-Dgpu-cuda`, `-Dgpu-vulkan`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`, `-Dgpu-opengles`, `-Dgpu-webgl2`
+GPU backends: `-Dgpu-cuda`, `-Dgpu-vulkan`, `-Dgpu-stdgpu`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`, `-Dgpu-opengles`, `-Dgpu-webgl2`
+
+### Additional Build Targets
+
+```bash
+zig build examples           # Build all example programs
+zig build wasm               # Build WASM bindings (outputs to zig-out/wasm/)
+zig build check-wasm         # Check WASM compilation without installing
+zig build profile            # Build with profiling enabled (ReleaseFast)
+zig build benchmarks         # Run comprehensive benchmarks
+zig build benchmark-legacy   # Run legacy compute benchmarks
+```
 
 ## Architecture
 
@@ -123,6 +134,7 @@ Connector-specific:
 - `ABI_OLLAMA_HOST` / `OLLAMA_HOST` (default: `http://127.0.0.1:11434`)
 - `ABI_OLLAMA_MODEL` (default: `llama3.2`)
 - `ABI_LOCAL_SCHEDULER_URL` / `LOCAL_SCHEDULER_URL` (default: `http://127.0.0.1:8081`)
+- `ABI_LOCAL_SCHEDULER_ENDPOINT` (default: `/schedule`)
 
 ## Key API Notes
 
@@ -136,3 +148,13 @@ When using `runWorkload(engine, workload, timeout_ms)`:
 ### WDBX Backup/Restore Security
 
 Backup and restore operations are restricted to the `backups/` directory only. Filenames must not contain path traversal sequences (`..`), absolute paths, or Windows drive letters.
+
+### WASM Build Constraints
+
+When building for WASM (`zig build wasm`), these features are automatically disabled:
+- `enable-database` - No `std.Io.Threaded` support
+- `enable-network` - No socket support
+- `enable-gpu` - Native GPU backends unavailable
+- `enable-web` - WebGPU bindings simplified
+
+WASM bindings are in `bindings/wasm/abi_wasm.zig`.

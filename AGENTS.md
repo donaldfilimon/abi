@@ -42,11 +42,12 @@ zig build -Denable-gpu=false -Denable-network=true
 - **Formatting:** 4 spaces, no tabs, max 100 chars/line, one blank line between functions
 - **Types:** PascalCase (`Engine`, `TaskConfig`)
 - **Functions/Variables:** snake_case (`createEngine`, `task_id`)
-- **Constants:** UPPER_SNAKE_CASE (`MAX_TASKS`, `CacheLineBytes`)
+- **Constants:** UPPER_SNAKE_CASE (`MAX_TASKS`, `DEFAULT_MAX_TASKS`, `CacheLineBytes`)
 - **Documentation:** `//!` module docs, `///` function docs with `@param`/`@return`
 - **Imports:** Explicit only; never `usingnamespace`
 - **Cleanup:** Prefer `defer`/`errdefer`
 - **Allocator:** First field/argument when needed; use `std.ArrayListUnmanaged` for struct fields
+- **Struct fields:** Order: allocator, config/state, collections, resources, flags
 
 ## Zig 0.16-Specific Conventions
 
@@ -153,34 +154,31 @@ var buffer = try allocator.alloc(u8, size);
 errdefer allocator.free(buffer);
 ```
 
-**Keep `anyerror` for:**
-
-- Function pointer types needing flexibility
-- Generic error logging contexts
+**Keep `anyerror` for:** Function pointer types, generic error logging contexts
 
 ## Testing Guidelines
 
 - Tests in `src/tests/` and inline `test "..."` blocks
 - Name tests descriptively; add coverage for new features or note why not
-- Gate hardware-specific tests with feature flags (e.g., `-Denable-gpu=true`)
+- Gate hardware-specific tests with `error.SkipZigTest` (checked at runtime)
 
 ```zig
-// Feature-gated test pattern
-fn testGPUOperations(allocator: std.mem.Allocator) !void {
-    if (!abi.gpu.moduleEnabled()) {
-        std.debug.print("GPU module not enabled, skipping\n", .{});
-        return;
-    }
+test "framework with gpu enabled" {
+    const build_options = @import("build_options");
+    if (!build_options.enable_gpu) return error.SkipZigTest;
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
     // ... test code
 }
 ```
 
 ## Commit & PR Guidelines
 
-- Format: `<type>: <imperative summary>` with `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`
+- Format: `<type>: <imperative summary>` (feat, fix, docs, refactor, test, chore, build)
 - Keep summaries <= 72 chars
 - Keep commits focused; update docs when public APIs change
-- PRs should explain intent, link issues, and list commands run (e.g., `zig build`, `zig build test`, `zig fmt .`)
+- PRs should explain intent, link issues, and list commands run
 
 ## Architecture References
 

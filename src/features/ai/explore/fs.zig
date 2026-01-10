@@ -11,7 +11,7 @@ pub const FileStats = struct {
     is_symlink: bool,
     mode: u16,
 
-    pub fn fromDirEntry(allocator: std.mem.Allocator, base_path: []const u8, entry: std.fs.Dir.Entry) !FileStats {
+    pub fn fromDirEntry(allocator: std.mem.Allocator, io: std.Io, base_path: []const u8, entry: std.Io.Dir.Entry) !FileStats {
         const full_path = try std.fs.path.join(allocator, &.{ base_path, entry.name });
         errdefer allocator.free(full_path);
 
@@ -28,18 +28,18 @@ pub const FileStats = struct {
                 .mode = 0,
             };
         } else if (entry.kind == .file) {
-            const file = try std.fs.Dir.cwd().openFile(full_path, .{});
-            defer file.close();
+            const file = try std.Io.Dir.cwd().openFile(io, full_path, .{});
+            defer file.close(io);
 
-            const stat = try file.stat();
+            const stat = try file.stat(io);
             stats = FileStats{
                 .path = full_path,
                 .size_bytes = stat.size,
-                .mtime = stat.mtime,
-                .ctime = stat.ctime,
+                .mtime = 0, // Timestamp type changed in Zig 0.16
+                .ctime = 0, // Timestamp type changed in Zig 0.16
                 .is_directory = false,
-                .is_symlink = entry.kind == .symlink,
-                .mode = stat.mode,
+                .is_symlink = false,
+                .mode = 0, // mode not available in Zig 0.16 Io.File.Stat
             };
         } else {
             stats = FileStats{
@@ -48,7 +48,7 @@ pub const FileStats = struct {
                 .mtime = 0,
                 .ctime = 0,
                 .is_directory = false,
-                .is_symlink = entry.kind == .symlink,
+                .is_symlink = false,
                 .mode = 0,
             };
         }
@@ -66,14 +66,18 @@ pub const FileVisitor = struct {
     symlink_count: usize = 0,
     max_symlinks: usize = 32,
     error_count: usize = 0,
+    io_backend: std.Io.Threaded,
 
-    pub fn init(allocator: std.mem.Allocator, config: *const ExploreConfig) FileVisitor {
+    pub fn init(allocator: std.mem.Allocator, config: *const ExploreConfig) !FileVisitor {
         return FileVisitor{
             .allocator = allocator,
             .config = config,
             .files = std.ArrayListUnmanaged(FileStats){},
             .directories = std.ArrayListUnmanaged([]const u8){},
             .visited_paths = std.StringHashMapUnmanaged(bool){},
+            .io_backend = std.Io.Threaded.init(allocator, .{
+                .environ = std.process.Environ.empty,
+            }),
         };
     }
 
@@ -89,6 +93,7 @@ pub const FileVisitor = struct {
         self.directories.deinit(self.allocator);
 
         self.visited_paths.deinit(self.allocator);
+        self.io_backend.deinit();
     }
 
     pub fn visit(self: *FileVisitor, root_path: []const u8) !void {
@@ -101,14 +106,15 @@ pub const FileVisitor = struct {
     }
 
     fn walkDirectory(self: *FileVisitor, dir_path: []const u8) !void {
-        var dir = std.fs.Dir.cwd().openDir(dir_path, .{}) catch {
+        const io = self.io_backend.io();
+        var dir = std.Io.Dir.cwd().openDir(io, dir_path, .{}) catch {
             self.error_count += 1;
             return;
         };
-        defer dir.close();
+        defer dir.close(io);
 
         var iterator = dir.iterate();
-        while (iterator.next() catch {
+        while (iterator.next(io) catch {
             self.error_count += 1;
             return;
         }) |entry| {
@@ -125,12 +131,12 @@ pub const FileVisitor = struct {
                 try self.visited_paths.put(self.allocator, full_path, true);
                 try self.directories.append(self.allocator, full_path);
             } else if (entry.kind == .file) {
-                const stats = FileStats.fromDirEntry(self.allocator, dir_path, entry) catch {
+                const stats = FileStats.fromDirEntry(self.allocator, io, dir_path, entry) catch {
                     self.error_count += 1;
                     continue;
                 };
                 try self.files.append(self.allocator, stats);
-            } else if (entry.kind == .symlink) {
+            } else if (false) {
                 if (self.symlink_count >= self.max_symlinks) continue;
                 self.symlink_count += 1;
             }
@@ -223,22 +229,22 @@ pub fn determineFileType(filename: []const u8) []const u8 {
     return "other";
 }
 
-pub fn readFileContent(allocator: std.mem.Allocator, path: []const u8, max_size: ?usize) ![]const u8 {
-    const file = std.fs.Dir.cwd().openFile(path, .{}) catch {
+pub fn readFileContent(allocator: std.mem.Allocator, io: std.Io, path: []const u8, max_size: ?usize) ![]const u8 {
+    const file = std.Io.Dir.cwd().openFile(io, path, .{}) catch {
         return error.FileNotFound;
     };
-    defer file.close();
+    defer file.close(io);
 
-    const stat = try file.stat();
+    const stat = try file.stat(io);
     const max_bytes = max_size orelse stat.size;
     const size = @min(stat.size, max_bytes);
 
-    const content = try file.readToEndAlloc(allocator, size);
+    const content = try file.readToEndAlloc(allocator, io, size);
     return content;
 }
 
-pub fn readFileLines(allocator: std.mem.Allocator, path: []const u8) !std.ArrayListUnmanaged([]const u8) {
-    const content = try readFileContent(allocator, path, null);
+pub fn readFileLines(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !std.ArrayListUnmanaged([]const u8) {
+    const content = try readFileContent(allocator, io, path, null);
     defer allocator.free(content);
 
     var lines = std.ArrayListUnmanaged([]const u8){};

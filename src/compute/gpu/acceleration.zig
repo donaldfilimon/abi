@@ -188,10 +188,15 @@ pub const Accelerator = struct {
             };
         }
 
-        var buffer = memory.GPUBuffer.init(self.allocator, size) catch {
+        // Allocate buffer on heap to avoid returning address of local variable
+        const buffer = self.allocator.create(memory.GPUBuffer) catch {
             return AcceleratorError.MemoryAllocationFailed;
         };
-        return &buffer;
+        buffer.* = memory.GPUBuffer.init(self.allocator, size) catch {
+            self.allocator.destroy(buffer);
+            return AcceleratorError.MemoryAllocationFailed;
+        };
+        return buffer;
     }
 
     pub fn freeBuffer(self: *Self, buffer: *memory.GPUBuffer) void {

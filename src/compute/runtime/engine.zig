@@ -2,6 +2,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const numa = @import("numa.zig");
+// Import concurrency utilities from sibling package within compute
 const concurrency = @import("../concurrency/mod.zig");
 
 const Backoff = struct {
@@ -392,12 +393,10 @@ fn deinitWorkers(state: *EngineState) void {
 }
 
 fn cleanupResultBlob(blob: ResultBlob) void {
-    if (blob.kind == .value or blob.kind == .owned_slice) {
-        // Note: We use the allocator stored in the blob's context for cleanup
-        // For now, we can't access allocator here, so we skip cleanup
-        // The engine allocator is used but not accessible in this static context
-        _ = blob;
-    }
+    // Note: We use the allocator stored in the blob's context for cleanup
+    // For now, we can't access allocator here, so we skip cleanup
+    // The engine allocator is used but not accessible in this static context
+    _ = blob;
 }
 
 fn deinitResults(state: *EngineState) void {

@@ -348,10 +348,10 @@ std.debug.print("Status: {t}\n", .{status});
 
 ### Current Test Suite
 ```
-Build Summary: 4/4 steps succeeded; 3/3 tests passed
+Build Summary: 4/4 steps succeeded; 6/6 tests passed
 test success
-+- run test 3 pass (3 total) 5ms MaxRSS:19M
-   +- compile test Debug native cached 26ms MaxRSS:19M
++- run test 6 pass (6 total) 18ms MaxRSS:4M
+   +- compile test Debug native cached 23ms MaxRSS:18M
       +- options cached
 ```
 
@@ -509,7 +509,7 @@ Highlights:
 **Files Changed:** 42
 **Lines Added:** ~800
 **Lines Removed:** ~60
-**Test Coverage:** 3/3 passing + 8 new tests
+**Test Coverage:** 6/6 passing
 **Documentation Files:** 11 total
 **Examples:** 6 programs
 **CI/CD Jobs:** 3 workflows

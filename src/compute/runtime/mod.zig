@@ -49,11 +49,11 @@ pub fn runTask(engine_instance: *DistributedComputeEngine, comptime ResultType: 
 /// Alias for runTask() - runs a workload and waits for the result
 /// @param engine_instance The compute engine instance
 /// @param ResultType The expected result type
-/// @param workload The workload/task to execute
+/// @param work The workload/task to execute
 /// @param timeout_ms Timeout in milliseconds (0=immediate check, null=wait indefinitely)
 /// @return The workload result
-pub fn runWorkload(engine_instance: *DistributedComputeEngine, comptime ResultType: type, workload: anytype, timeout_ms: u64) !ResultType {
-    return runTask(engine_instance, ResultType, workload, timeout_ms);
+pub fn runWorkload(engine_instance: *DistributedComputeEngine, comptime ResultType: type, work: anytype, timeout_ms: u64) !ResultType {
+    return runTask(engine_instance, ResultType, work, timeout_ms);
 }
 
 test "create engine helper" {

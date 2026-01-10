@@ -55,7 +55,7 @@ pub const FileSummary = struct {
         return FileSummary{
             .path = file_path,
             .total_matches = 0,
-            .match_types = std.enums.EnumArray(MatchType, usize).init(0),
+            .match_types = std.enums.EnumArray(MatchType, usize).initFill(0),
             .relevance_score = 0.0,
             .file_type = "",
             .size_bytes = 0,
@@ -128,7 +128,7 @@ pub const ExploreResult = struct {
         self.matches_found += 1;
 
         const dir = std.fs.path.dirname(match.file_path) orelse "";
-        if (self.file_summaries.get(dir)) |*summary| {
+        if (self.file_summaries.getPtr(dir)) |summary| {
             summary.total_matches += 1;
             summary.match_types.set(match.match_type, summary.match_types.get(match.match_type) + 1);
         } else {
@@ -139,80 +139,62 @@ pub const ExploreResult = struct {
         }
     }
 
-    pub fn formatHuman(self: *ExploreResult, writer: anytype) !void {
-        try writer.print("Exploration Results for: \"{s}\"\n", .{self.query});
-        try writer.print("Level: {t}\n", .{self.level});
-        try writer.print("Files Scanned: {d}\n", .{self.files_scanned});
-        try writer.print("Matches Found: {d}\n", .{self.matches_found});
-        try writer.print("Duration: {d}ms\n\n", .{self.duration_ms});
+    pub fn formatHuman(self: *ExploreResult, writer: anytype) void {
+        _ = writer;
+        std.debug.print("Exploration Results for: \"{s}\"\n", .{self.query});
+        std.debug.print("Level: {t}\n", .{self.level});
+        std.debug.print("Files Scanned: {d}\n", .{self.files_scanned});
+        std.debug.print("Matches Found: {d}\n", .{self.matches_found});
+        std.debug.print("Duration: {d}ms\n\n", .{self.duration_ms});
 
         if (self.explore_error) |err| {
-            try writer.print("Error: {t}\n", .{err});
+            std.debug.print("Error: {t}\n", .{err});
             if (self.error_message) |msg| {
-                try writer.print("Details: {s}\n", .{msg});
+                std.debug.print("Details: {s}\n", .{msg});
             }
             return;
         }
 
-        try writer.writeAll("Top Matches:\n");
-        try writer.writeAll("-------------\n");
+        std.debug.print("Top Matches:\n", .{});
+        std.debug.print("-------------\n", .{});
 
         const top_matches = self.getTopMatches(20);
         defer self.allocator.free(top_matches);
 
         for (top_matches, 0..) |match, i| {
-            try writer.print("{d}. {s}:{d}\n", .{ i + 1, match.file_path, match.line_number });
-            try writer.print("   {s}\n", .{match.match_text});
-            try writer.print("   Score: {d:.2}\n\n", .{match.relevance_score});
+            std.debug.print("{d}. {s}:{d}\n", .{ i + 1, match.file_path, match.line_number });
+            std.debug.print("   {s}\n", .{match.match_text});
+            std.debug.print("   Score: {d:.2}\n\n", .{match.relevance_score});
         }
     }
 
-    pub fn formatJSON(self: *ExploreResult, writer: anytype) !void {
-        var obj = json.Object.init(self.allocator);
-        defer obj.deinit();
+    pub fn formatJSON(self: *ExploreResult, writer: anytype) void {
+        _ = writer;
 
-        try obj.put("query", json.Value{ .string = self.query });
-        try obj.put("level", json.Value{ .string = @tagName(self.level) });
-        try obj.put("files_scanned", json.Value{ .integer = @as(i64, @intCast(self.files_scanned)) });
-        try obj.put("matches_found", json.Value{ .integer = @as(i64, @intCast(self.matches_found)) });
-        try obj.put("duration_ms", json.Value{ .integer = @as(i64, @intCast(self.duration_ms)) });
-        try obj.put("cancelled", json.Value{ .bool = self.cancelled });
+        // Build JSON manually for compatibility with Zig 0.16 API changes
+        std.debug.print("{{", .{});
+        std.debug.print("\"query\":\"{s}\",", .{self.query});
+        std.debug.print("\"level\":\"{s}\",", .{@tagName(self.level)});
+        std.debug.print("\"files_scanned\":{d},", .{self.files_scanned});
+        std.debug.print("\"matches_found\":{d},", .{self.matches_found});
+        std.debug.print("\"duration_ms\":{d},", .{self.duration_ms});
+        std.debug.print("\"cancelled\":{},", .{self.cancelled});
 
         if (self.explore_error) |err| {
-            try obj.put("error", json.Value{ .string = @errorName(err) });
+            std.debug.print("\"error\":\"{s}\",", .{@errorName(err)});
         }
 
-        var matches_arr = json.Array.init(self.allocator);
-        for (self.matches.items) |match| {
-            var match_obj = json.Object.init(self.allocator);
-            match_obj.put("file", json.Value{ .string = match.file_path }) catch {
-                match_obj.deinit();
-                continue;
-            };
-            match_obj.put("line", json.Value{ .integer = @as(i64, @intCast(match.line_number)) }) catch {
-                match_obj.deinit();
-                continue;
-            };
-            match_obj.put("type", json.Value{ .string = @tagName(match.match_type) }) catch {
-                match_obj.deinit();
-                continue;
-            };
-            match_obj.put("text", json.Value{ .string = match.match_text }) catch {
-                match_obj.deinit();
-                continue;
-            };
-            match_obj.put("score", json.Value{ .number = match.relevance_score }) catch {
-                match_obj.deinit();
-                continue;
-            };
-            matches_arr.append(json.Value{ .object = match_obj }) catch |err| {
-                match_obj.deinit();
-                return err;
-            };
+        std.debug.print("\"matches\":[", .{});
+        for (self.matches.items, 0..) |match, idx| {
+            if (idx > 0) std.debug.print(",", .{});
+            std.debug.print("{{", .{});
+            std.debug.print("\"file\":\"{s}\",", .{match.file_path});
+            std.debug.print("\"line\":{d},", .{match.line_number});
+            std.debug.print("\"type\":\"{s}\",", .{@tagName(match.match_type)});
+            std.debug.print("\"score\":{d:.2}", .{match.relevance_score});
+            std.debug.print("}}", .{});
         }
-        try obj.put("matches", json.Value{ .array = matches_arr });
-
-        try json.stringify(json.Value{ .object = obj }, .{}, writer);
+        std.debug.print("]}}\n", .{});
     }
 
     fn getTopMatches(self: *ExploreResult, limit: usize) []Match {

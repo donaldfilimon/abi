@@ -145,11 +145,11 @@ fn runSystemInfo(allocator: std.mem.Allocator, framework: *abi.Framework) !void 
     }
 }
 
-fn runDb(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn runDb(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     try abi.database.cli.run(allocator, args);
 }
 
-fn runAgent(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn runAgent(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     const agent_mod = abi.ai.agent;
 
     var name: []const u8 = "cli-agent";
@@ -224,7 +224,7 @@ fn runAgentInteractive(allocator: std.mem.Allocator, agent: *abi.ai.agent.Agent)
     }
 }
 
-fn runGpu(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn runGpu(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0) {
         try printGpuBackends(allocator);
         try printGpuDevices(allocator);
@@ -266,7 +266,7 @@ fn runGpu(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     printGpuHelp();
 }
 
-fn runNetwork(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn runNetwork(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     abi.network.init(allocator) catch |err| switch (err) {
         error.NetworkDisabled => {
             std.debug.print("Network support disabled at build time.\n", .{});
@@ -781,7 +781,7 @@ fn runSimdDemo(allocator: std.mem.Allocator) !void {
     std.debug.print("  Cosine Similarity: {d:.6}\n", .{cos_result});
 }
 
-fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn runExplore(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0 or matchesAny(args[0], &[_][]const u8{ "help", "--help", "-h" })) {
         printExploreHelp();
         return;
@@ -939,11 +939,11 @@ fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     if (max_depth > 0) config.max_depth = max_depth;
     if (timeout_ms > 0) config.timeout_ms = timeout_ms;
 
-    var agent = abi.ai.explore.ExploreAgent.init(allocator, config);
+    var agent = try abi.ai.explore.ExploreAgent.init(allocator, config);
     defer agent.deinit();
 
     const start_time = try std.time.Instant.now();
-    const result = try agent.explore(root_path, search_query);
+    var result = try agent.explore(root_path, search_query);
     defer result.deinit();
 
     const end_time = try std.time.Instant.now();
@@ -951,10 +951,10 @@ fn runExplore(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
 
     switch (output_format) {
         .human => {
-            try result.formatHuman(std.debug);
+            result.formatHuman(std.debug);
         },
         .json => {
-            try result.formatJSON(std.debug);
+            result.formatJSON(std.debug);
         },
         .compact => {
             std.debug.print("Query: \"{s}\" | Found: {d} matches in {d}ms\n", .{
@@ -1000,7 +1000,7 @@ fn printExploreHelp() void {
     std.debug.print("{s}\n", .{help_text});
 }
 
-fn runConfig(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn runConfig(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0 or matchesAny(args[0], &[_][]const u8{ "help", "--help", "-h" })) {
         printConfigHelp();
         return;
@@ -1032,7 +1032,7 @@ fn runConfig(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     printConfigHelp();
 }
 
-fn runConfigInit(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn runConfigInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var output_path: []const u8 = "abi.json";
 
     var i: usize = 0;
@@ -1052,25 +1052,34 @@ fn runConfigInit(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     // Create default configuration
     const default_config = getDefaultConfigJson();
 
+    // Create io backend for filesystem operations
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
     // Write to file
-    const file = std.fs.cwd().createFile(output_path, .{ .truncate = true }) catch |err| {
+    const file = std.Io.Dir.cwd().createFile(io, output_path, .{ .truncate = true }) catch |err| {
         std.debug.print("Error creating config file '{s}': {t}\n", .{ output_path, err });
         return;
     };
-    defer file.close();
+    defer file.close(io);
 
-    file.writeAll(default_config) catch |err| {
+    var write_buf: [4096]u8 = undefined;
+    var writer = file.writer(io, &write_buf);
+    _ = writer.interface.write(default_config) catch |err| {
         std.debug.print("Error writing config file: {t}\n", .{err});
         return;
     };
+    writer.flush() catch {};
 
     std.debug.print("Created configuration file: {s}\n", .{output_path});
     std.debug.print("\nEdit this file to customize your ABI framework settings.\n", .{});
     std.debug.print("Run 'abi config validate {s}' to check your configuration.\n", .{output_path});
-    _ = allocator;
 }
 
-fn runConfigShow(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn runConfigShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var format: enum { human, json } = .human;
     var config_path: ?[]const u8 = null;
 
@@ -1117,7 +1126,7 @@ fn runConfigShow(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
     }
 }
 
-fn runConfigValidate(allocator: std.mem.Allocator, args: []const [:0]u8) !void {
+fn runConfigValidate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0) {
         std.debug.print("Usage: abi config validate <config-file>\n", .{});
         return;
@@ -1277,67 +1286,67 @@ fn printDefaultConfigHuman() void {
 }
 
 fn getDefaultConfigJson() []const u8 {
-    return
-        \\{
-        \\  "framework": {
-        \\    "enable_ai": true,
-        \\    "enable_gpu": true,
-        \\    "enable_web": true,
-        \\    "enable_database": true,
-        \\    "enable_network": false,
-        \\    "enable_profiling": false,
-        \\    "worker_threads": 0,
-        \\    "log_level": "info"
-        \\  },
-        \\  "database": {
-        \\    "name": "abi.db",
-        \\    "max_records": 0,
-        \\    "persistence_enabled": true,
-        \\    "persistence_path": "abi_data",
-        \\    "vector_search_enabled": true,
-        \\    "default_search_limit": 10,
-        \\    "max_vector_dimension": 4096
-        \\  },
-        \\  "gpu": {
-        \\    "enable_cuda": false,
-        \\    "enable_vulkan": false,
-        \\    "enable_metal": false,
-        \\    "enable_webgpu": false,
-        \\    "enable_opengl": false,
-        \\    "enable_opengles": false,
-        \\    "enable_webgl2": false,
-        \\    "preferred_backend": "",
-        \\    "memory_pool_mb": 0
-        \\  },
-        \\  "ai": {
-        \\    "default_model": "",
-        \\    "max_tokens": 2048,
-        \\    "temperature": 0.7,
-        \\    "top_p": 0.9,
-        \\    "streaming_enabled": true,
-        \\    "timeout_ms": 60000,
-        \\    "history_enabled": true,
-        \\    "max_history": 100
-        \\  },
-        \\  "network": {
-        \\    "distributed_enabled": false,
-        \\    "cluster_id": "default",
-        \\    "node_address": "0.0.0.0:9000",
-        \\    "heartbeat_interval_ms": 5000,
-        \\    "node_timeout_ms": 30000,
-        \\    "max_nodes": 16,
-        \\    "peer_discovery": false
-        \\  },
-        \\  "web": {
-        \\    "server_enabled": false,
-        \\    "port": 8080,
-        \\    "max_connections": 256,
-        \\    "request_timeout_ms": 30000,
-        \\    "cors_enabled": true,
-        \\    "cors_origins": "*"
-        \\  }
-        \\}
-        \\
+    return 
+    \\{
+    \\  "framework": {
+    \\    "enable_ai": true,
+    \\    "enable_gpu": true,
+    \\    "enable_web": true,
+    \\    "enable_database": true,
+    \\    "enable_network": false,
+    \\    "enable_profiling": false,
+    \\    "worker_threads": 0,
+    \\    "log_level": "info"
+    \\  },
+    \\  "database": {
+    \\    "name": "abi.db",
+    \\    "max_records": 0,
+    \\    "persistence_enabled": true,
+    \\    "persistence_path": "abi_data",
+    \\    "vector_search_enabled": true,
+    \\    "default_search_limit": 10,
+    \\    "max_vector_dimension": 4096
+    \\  },
+    \\  "gpu": {
+    \\    "enable_cuda": false,
+    \\    "enable_vulkan": false,
+    \\    "enable_metal": false,
+    \\    "enable_webgpu": false,
+    \\    "enable_opengl": false,
+    \\    "enable_opengles": false,
+    \\    "enable_webgl2": false,
+    \\    "preferred_backend": "",
+    \\    "memory_pool_mb": 0
+    \\  },
+    \\  "ai": {
+    \\    "default_model": "",
+    \\    "max_tokens": 2048,
+    \\    "temperature": 0.7,
+    \\    "top_p": 0.9,
+    \\    "streaming_enabled": true,
+    \\    "timeout_ms": 60000,
+    \\    "history_enabled": true,
+    \\    "max_history": 100
+    \\  },
+    \\  "network": {
+    \\    "distributed_enabled": false,
+    \\    "cluster_id": "default",
+    \\    "node_address": "0.0.0.0:9000",
+    \\    "heartbeat_interval_ms": 5000,
+    \\    "node_timeout_ms": 30000,
+    \\    "max_nodes": 16,
+    \\    "peer_discovery": false
+    \\  },
+    \\  "web": {
+    \\    "server_enabled": false,
+    \\    "port": 8080,
+    \\    "max_connections": 256,
+    \\    "request_timeout_ms": 30000,
+    \\    "cors_enabled": true,
+    \\    "cors_origins": "*"
+    \\  }
+    \\}
+    \\
     ;
 }
 

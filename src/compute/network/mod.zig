@@ -29,6 +29,17 @@ pub const NetworkEngine = struct {
     nodes: NodeRegistry,
     listener: ?*anyopaque = null,
     running: std.atomic.Value(bool),
+    pending_tasks: std.AutoHashMapUnmanaged(u64, *PendingTask) = .{},
+
+    pub const PendingTask = struct {
+        task_id: u64,
+        node_address: []const u8,
+        submitted_at: i64,
+        completed_at: ?i64 = null,
+        status: TaskStatus,
+        result: ?workload.ResultHandle = null,
+        error_message: ?[]const u8 = null,
+    };
 
     pub fn init(allocator: std.mem.Allocator, cfg: NetworkConfig) !NetworkEngine {
         const nodes = try NodeRegistry.init(allocator, cfg.max_connections);
@@ -185,18 +196,6 @@ pub const NetworkEngine = struct {
             }
         }
     }
-
-    pending_tasks: std.AutoHashMapUnmanaged(u64, *PendingTask) = .{},
-
-    pub const PendingTask = struct {
-        task_id: u64,
-        node_address: []const u8,
-        submitted_at: i64,
-        completed_at: ?i64 = null,
-        status: TaskStatus,
-        result: ?workload.ResultHandle = null,
-        error_message: ?[]const u8 = null,
-    };
 
     pub const TaskStatus = enum {
         pending,
