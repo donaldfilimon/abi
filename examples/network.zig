@@ -40,7 +40,7 @@ pub fn main(init: std.process.Init) !void {
     const nodes = registry.list();
     std.debug.print("Network registry contains {} nodes:\n", .{nodes.len});
     for (nodes) |node| {
-        std.debug.print("  Node '{s}' at {s} - Status: {s}\n", .{ node.id, node.address, @tagName(node.status) });
+        std.debug.print("  Node '{s}' at {s} - Status: {t}\n", .{ node.id, node.address, node.status });
     }
 
     _ = registry.touch("node-1");

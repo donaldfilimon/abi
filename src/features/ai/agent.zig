@@ -67,6 +67,11 @@ pub const Agent = struct {
         return std.fmt.allocPrint(allocator, "Echo: {s}", .{input});
     }
 
+    /// Alias for process() - provides a chat interface for conversational agents
+    pub fn chat(self: *Agent, input: []const u8, allocator: std.mem.Allocator) ![]u8 {
+        return self.process(input, allocator);
+    }
+
     pub fn name(self: *const Agent) []const u8 {
         return self.config.name;
     }
