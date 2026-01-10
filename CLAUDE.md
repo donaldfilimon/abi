@@ -24,7 +24,7 @@ zig build -Doptimize=ReleaseFast  # Optimized release build
 
 ```bash
 zig test src/compute/runtime/engine.zig     # Test specific file
-zig test --test-filter="engine init"        # Run tests matching pattern
+zig build test -- --test-filter "engine init"  # Run tests matching pattern
 zig build test -Denable-gpu=true -Denable-network=true  # Test with features
 ```
 
@@ -158,3 +158,33 @@ When building for WASM (`zig build wasm`), these features are automatically disa
 - `enable-web` - WebGPU bindings simplified
 
 WASM bindings are in `bindings/wasm/abi_wasm.zig`.
+
+## CLI Commands
+
+The CLI (`zig build run -- <command>`) provides these subcommands:
+
+- `db <subcommand>` - Database operations (add, query, stats, optimize, backup, restore, serve)
+- `agent [--message]` - Run AI agent (interactive or one-shot mode)
+- `config [command]` - Configuration management (init, show, validate)
+- `explore [options] <query>` - Search and explore codebase
+- `gpu [subcommand]` - GPU info (backends, devices, summary, default)
+- `network [command]` - Network registry (list, register, status)
+- `simd` - Run SIMD performance demo
+- `system-info` - Show system and framework status
+
+### Database CLI Examples
+
+```bash
+zig build run -- db stats                              # Show database statistics
+zig build run -- db add --id 1 --embed "text to embed" # Add vector via embedding
+zig build run -- db add --id 2 --vector "1.0,2.0,3.0"  # Add raw vector
+zig build run -- db backup --path mybackup.db          # Backup to file
+zig build run -- db restore --path mybackup.db         # Restore from file
+```
+
+### Explore CLI Examples
+
+```bash
+zig build run -- explore "pub fn" --level quick        # Quick search
+zig build run -- explore "fn init" --level thorough    # Thorough search
+```
