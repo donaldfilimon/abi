@@ -150,7 +150,7 @@ pub const RbacManager = struct {
         };
         try assignments.append(self.allocator, assignment);
 
-        self.invalidateUserCache(self, user_id);
+        self.invalidateUserCache(user_id);
     }
 
     pub fn revokeRole(self: *RbacManager, user_id: []const u8, role_name: []const u8) bool {
@@ -241,7 +241,59 @@ pub const RbacManager = struct {
         return false;
     }
 
-    fn invalidateUserCache(_: *RbacManager, _: []const u8) void {}
+    /// Invalidate cached permissions for a specific user.
+    /// Called when role assignments change.
+    fn invalidateUserCache(self: *RbacManager, user_id: []const u8) void {
+        // Remove all cached permission entries for this user
+        // by iterating through the cache and removing matching keys
+        var keys_to_remove = std.ArrayListUnmanaged(u64).empty;
+        defer keys_to_remove.deinit(self.allocator);
+
+        // Find all cache keys for this user
+        var it = self.permission_cache.iterator();
+        while (it.next()) |entry| {
+            // Check if this cache key belongs to this user by comparing hash prefix
+            const user_hash = self.computeUserHash(user_id);
+            // Keys are composed of user hash + permission enum, so we check the prefix
+            const key = entry.key_ptr.*;
+            if ((key / 17) == user_hash) {
+                keys_to_remove.append(self.allocator, key) catch continue;
+            }
+        }
+
+        // Remove identified cache entries
+        for (keys_to_remove.items) |key| {
+            _ = self.permission_cache.remove(key);
+        }
+
+        // Also remove from user_permissions cache
+        const user_hash = self.computeUserHash(user_id);
+        if (self.user_permissions.fetchRemove(user_hash)) |kv| {
+            self.allocator.free(kv.value);
+        }
+    }
+
+    /// Compute a hash for the user ID to use as cache key prefix
+    fn computeUserHash(_: *RbacManager, user_id: []const u8) u64 {
+        var hash: u64 = 0;
+        for (user_id) |byte| {
+            hash = hash *% 31 +% byte;
+        }
+        return hash;
+    }
+
+    /// Clear all cached permissions (useful for bulk updates)
+    pub fn clearPermissionCache(self: *RbacManager) void {
+        // Clear user permissions cache
+        var perm_it = self.user_permissions.valueIterator();
+        while (perm_it.next()) |perms| {
+            self.allocator.free(perms.*);
+        }
+        self.user_permissions.clearRetainingCapacity();
+
+        // Clear permission check cache
+        self.permission_cache.clearRetainingCapacity();
+    }
 
     fn getCacheKey(_: *RbacManager, user_id: []const u8, permission: Permission) u64 {
         var hash: u64 = 0;

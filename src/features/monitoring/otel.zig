@@ -441,16 +441,124 @@ pub const OtelContext = struct {
     trace_id: ?[16]u8,
     span_id: ?[8]u8,
     is_remote: bool,
+    trace_flags: u8 = 0x01, // Sampled by default
 
-    pub fn extract(_: []const u8) OtelContext {
-        return .{
+    /// Extract trace context from W3C traceparent header value.
+    /// Format: "00-{trace_id}-{span_id}-{flags}"
+    pub fn extract(header_value: []const u8) OtelContext {
+        var ctx = OtelContext{
             .trace_id = null,
             .span_id = null,
             .is_remote = false,
+            .trace_flags = 0x01,
+        };
+
+        // W3C Trace Context format: version-trace_id-span_id-flags
+        // Minimum length: 2 + 1 + 32 + 1 + 16 + 1 + 2 = 55
+        if (header_value.len >= 55) {
+            const trace_start: usize = 3;
+            const span_start: usize = 36;
+            const flags_start: usize = 53;
+
+            // Parse trace_id (32 hex chars -> 16 bytes)
+            var trace_id: [16]u8 = undefined;
+            if (parseHexBytes(header_value[trace_start .. trace_start + 32], &trace_id)) {
+                // Parse span_id (16 hex chars -> 8 bytes)
+                var span_id: [8]u8 = undefined;
+                if (parseHexBytes(header_value[span_start .. span_start + 16], &span_id)) {
+                    ctx.trace_id = trace_id;
+                    ctx.span_id = span_id;
+                    ctx.is_remote = true;
+
+                    // Parse flags
+                    if (header_value.len > flags_start + 1) {
+                        ctx.trace_flags = parseHexByte(header_value[flags_start], header_value[flags_start + 1]) orelse 0x01;
+                    }
+                }
+            }
+        }
+
+        return ctx;
+    }
+
+    /// Inject trace context into a buffer as W3C traceparent header value.
+    /// Returns the number of bytes written, or 0 if context is empty or buffer too small.
+    pub fn inject(self: OtelContext, buffer: []u8) usize {
+        // Need both trace_id and span_id to inject
+        const trace_id = self.trace_id orelse return 0;
+        const span_id = self.span_id orelse return 0;
+
+        // W3C format: 00-{trace_id}-{span_id}-{flags} = 55 bytes
+        if (buffer.len < 55) return 0;
+
+        // Version (always 00)
+        buffer[0] = '0';
+        buffer[1] = '0';
+        buffer[2] = '-';
+
+        // Trace ID (32 hex chars)
+        for (trace_id, 0..) |byte, i| {
+            buffer[3 + i * 2] = hexChar(@intCast(byte >> 4));
+            buffer[3 + i * 2 + 1] = hexChar(@intCast(byte & 0x0F));
+        }
+        buffer[35] = '-';
+
+        // Span ID (16 hex chars)
+        for (span_id, 0..) |byte, i| {
+            buffer[36 + i * 2] = hexChar(@intCast(byte >> 4));
+            buffer[36 + i * 2 + 1] = hexChar(@intCast(byte & 0x0F));
+        }
+        buffer[52] = '-';
+
+        // Flags (2 hex chars)
+        buffer[53] = hexChar(@intCast(self.trace_flags >> 4));
+        buffer[54] = hexChar(@intCast(self.trace_flags & 0x0F));
+
+        return 55;
+    }
+
+    /// Create a new context from a span
+    pub fn fromSpan(span: *const OtelSpan) OtelContext {
+        return .{
+            .trace_id = span.trace_id,
+            .span_id = span.span_id,
+            .is_remote = false,
+            .trace_flags = if (span.status == .ok) 0x01 else 0x00,
         };
     }
 
-    pub fn inject(_: OtelContext, _: []const u8) void {}
+    /// Check if the context is valid (has both trace and span IDs)
+    pub fn isValid(self: OtelContext) bool {
+        return self.trace_id != null and self.span_id != null;
+    }
+
+    /// Check if tracing is sampled
+    pub fn isSampled(self: OtelContext) bool {
+        return (self.trace_flags & 0x01) != 0;
+    }
+
+    fn parseHexBytes(hex: []const u8, out: []u8) bool {
+        if (hex.len != out.len * 2) return false;
+        for (out, 0..) |*byte, i| {
+            byte.* = parseHexByte(hex[i * 2], hex[i * 2 + 1]) orelse return false;
+        }
+        return true;
+    }
+
+    fn parseHexByte(high: u8, low: u8) ?u8 {
+        const h = hexDigit(high) orelse return null;
+        const l = hexDigit(low) orelse return null;
+        return (h << 4) | l;
+    }
+
+    fn hexDigit(c: u8) ?u8 {
+        return switch (c) {
+            '0'...'9' => c - '0',
+            'a'...'f' => c - 'a' + 10,
+            'A'...'F' => c - 'A' + 10,
+            else => null,
+        };
+    }
 };
 
 pub fn createOtelResource(allocator: std.mem.Allocator, service_name: []const u8) ![]OtelAttribute {
