@@ -24,8 +24,8 @@ pub const SerializationFormat = enum {
 };
 
 pub const NetworkEngine = struct {
-    config: NetworkConfig,
     allocator: std.mem.Allocator,
+    config: NetworkConfig,
     nodes: NodeRegistry,
     listener: ?*anyopaque = null,
     running: std.atomic.Value(bool),
@@ -45,8 +45,8 @@ pub const NetworkEngine = struct {
         const nodes = try NodeRegistry.init(allocator, cfg.max_connections);
 
         return NetworkEngine{
-            .config = cfg,
             .allocator = allocator,
+            .config = cfg,
             .nodes = nodes,
             .running = std.atomic.Value(bool).init(false),
         };

@@ -183,22 +183,28 @@ pub const ExploreAgent = struct {
                         const context_before = self.getContext(content, line_start, 3);
                         const context_after = self.getContext(content, i + 1, 3);
 
-                        const line_dup = self.allocator.dupe(u8, line) catch {
+                        const line_content = self.allocator.dupe(u8, line) catch {
                             self.stats.errors += 1;
                             continue;
                         };
-                        const match = Match{
+                        const match_text = self.allocator.dupe(u8, line) catch {
+                            self.allocator.free(line_content);
+                            self.stats.errors += 1;
+                            continue;
+                        };
+                        var match = Match{
                             .file_path = file_stat.path,
                             .line_number = line_number,
-                            .line_content = line_dup,
+                            .line_content = line_content,
                             .match_type = match_type,
-                            .match_text = line_dup,
+                            .match_text = match_text,
                             .relevance_score = relevance,
                             .context_before = context_before,
                             .context_after = context_after,
                         };
                         result.addMatch(match) catch {
                             self.stats.errors += 1;
+                            match.deinit(self.allocator);
                             continue;
                         };
                         self.stats.matches_found += 1;

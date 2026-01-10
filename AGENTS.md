@@ -1,193 +1,103 @@
 # Repository Guidelines
 
 ## Project Structure
-
-- `src/` holds the library: `core/`, `compute/`, `features/`, `framework/`, `shared/`
-- Public API: `src/abi.zig`; CLI: `tools/cli/main.zig` (fallback: `src/main.zig`)
-- Tests: `src/tests/` (integration, property tests) and inline `test "..."` blocks
-- Examples, benchmarks, and docs in corresponding directories
-- Build: `build.zig` and `build.zig.zon`
+- `src/` – library code (`core/`, `compute/`, `features/`, `framework/`, `shared/`).
+- Public API is `src/abi.zig`.
+- CLI entry point: `tools/cli/main.zig` (fallback to `src/main.zig`).
+- Tests live in `src/tests/` and inline `test "…"` blocks.
+- Examples, benchmarks, and docs are organised in parallel directories.
+- Build files: `build.zig` and `build.zig.zon`.
 
 ## Build, Test, and Development Commands
-
-**Required:** Zig 0.16.x
-
 ```bash
-# Core commands
+# Core
 zig build                      # Build all modules
-zig build run -- --help        # Run CLI
-zig build test                 # Run test suite
+zig build run -- --help        # Run CLI help
+zig build test                 # Run entire test suite
 zig build test --summary all   # Detailed test output
 
-# Single file tests (IMPORTANT - use this for focused testing)
-zig test src/compute/runtime/engine.zig      # Run specific file tests
-zig test --test-filter "engine init"         # Filter by test name
-zig test src/abi.zig --test-filter "version" # Filter in specific file
+# Targeted tests (single file / filter by name)
+zig test src/compute/runtime/engine.zig
+zig test --test-filter "engine init"
+zig test src/abi.zig --test-filter "version"
 
 # Formatting and checks
-zig fmt .                      # Format code
-zig fmt --check .              # Check formatting (no linter beyond this)
+zig fmt .                      # Reformat
+zig fmt --check .              # Verify formatting
 
-# Benchmarks and WASM
-zig build benchmark            # Run legacy benchmarks
-zig build benchmarks           # Run comprehensive benchmarks
-zig build wasm                 # Build WASM bindings
+# Benchmarks / WASM
+zig build benchmark
+zig build benchmarks
+zig build wasm
 
 # Feature flags
 zig build -Denable-gpu=false -Denable-network=true
 ```
 
 ## Coding Style & Naming Conventions
-
-- **Formatting:** 4 spaces, no tabs, max 100 chars/line, one blank line between functions
-- **Types:** PascalCase (`Engine`, `TaskConfig`)
-- **Functions/Variables:** snake_case (`createEngine`, `task_id`)
-- **Constants:** UPPER_SNAKE_CASE (`MAX_TASKS`, `DEFAULT_MAX_TASKS`, `CacheLineBytes`)
-- **Documentation:** `//!` module docs, `///` function docs with `@param`/`@return`
-- **Imports:** Explicit only; never `usingnamespace`
-- **Cleanup:** Prefer `defer`/`errdefer`
-- **Allocator:** First field/argument when needed; use `std.ArrayListUnmanaged` for struct fields
-- **Struct fields:** Order: allocator, config/state, collections, resources, flags
-
-## Zig 0.16-Specific Conventions
-
-### Memory Management
-
+- **Formatting:** 4 spaces, no tabs, max 100 chars/line, one blank line between functions.
+- **Types:** PascalCase (`Engine`, `TaskConfig`).
+- **Functions / Variables:** snake_case (`create_engine`, `task_id`).
+- **Constants:** UPPER_SNAKE_CASE, e.g., `MAX_TASKS`, `DEFAULT_MAX_TASKS`.
+- **Struct Fields:** `allocator` comes first, followed by config/state, collections, resources, flags.
+- **Re‑exports:** Public APIs should re‑export internal names via `pub usingnamespace`. Example:
 ```zig
-// Good - unmanaged for struct fields
+pub const abi = @import("abi.zig");
+```
+- **Imports:** Keep explicit; avoid `usingnamespace` unless re‑exporting.
+- **Cleanup:** Prefer `defer` and `errdefer` for resources.
+
+## Zig 0.16‑Specific Conventions
+### Memory Management
+```zig
+// Good – use unmanaged for struct fields
 pub const BenchmarkSuite = struct {
     allocator: std.mem.Allocator,
     results: std.ArrayListUnmanaged(BenchmarkResult),
 };
-
-// Usage
-try list.append(allocator, item);
-list.deinit(allocator);
-
-// Avoid - managed for struct fields
-results: std.ArrayList(BenchmarkResult),
 ```
-
 ### Modern Format Specifiers
-
 ```zig
-// Good - use modern specifiers
-std.debug.print("Status: {t}\n", .{status});       // {t} for enums/errors
-std.debug.print("Size: {B}\n", .{size});           // {B} for bytes (raw)
-std.debug.print("Duration: {D}\n", .{duration});   // {D} for nanoseconds
-std.debug.print("Data: {b64}\n", .{data});         // {b64} for base64
-
-// Avoid - manual conversions
-std.debug.print("Status: {s}\n", .{@tagName(status)});
+std.debug.print("{t}: {t}\n", .{status, status});
+std.debug.print("Size: {B}\n", .{size});
+std.debug.print("Duration: {D}\n", .{dur});
 ```
-
-**Exceptions for JSON:** JSON requires strings, so `@tagName()` and `@errorName()` are acceptable.
-
 ### I/O API Changes
-
 ```zig
-// HTTP Server - direct reader/writer
-var connection_reader = stream.reader(io, &recv_buffer);
-var connection_writer = stream.writer(io, &send_buffer);
-var server: std.http.Server = .init(
-    &connection_reader,     // Direct reference (no .interface)
-    &connection_writer,    // Direct reference (no .interface)
-);
-
-// Streaming - use std.Io.Reader
-pub const StreamingResponse = struct {
-    reader: std.Io.Reader,
-    response: HttpResponse,
-};
-
-// File.Reader uses .interface for delimiter methods only
-const line_opt = reader.interface.takeDelimiter('\n') catch |err| {
-    return err;
-};
+var srv = std.http.Server.init(&reader, &writer);
 ```
-
-### std.Io.Threaded Usage
-
+### std.Io.Threaded Example
 ```zig
-// Async runtime pattern for HTTP clients
-pub const HttpClient = struct {
-    allocator: std.mem.Allocator,
-    io_backend: std.Io.Threaded,
+pub const Client = struct {
+    io: std.Io.Threaded,
     client: std.http.Client,
-
-    pub fn init(allocator: std.mem.Allocator) !HttpClient {
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
-        return .{
-            .allocator = allocator,
-            .io_backend = io_backend,
-            .client = std.http.Client{
-                .allocator = allocator,
-                .io = io_backend.io(),
-            },
-        };
+    pub fn init(alloc: std.mem.Allocator) !Client {
+        var io = std.Io.Threaded.init(alloc, .{});
+        return .{ .io = io, .client = .{ .allocator = alloc, .io = io.io() } };
     }
-
-    pub fn deinit(self: *HttpClient) void {
-        self.io_backend.deinit();
+    pub fn deinit(self: *Client) void {
+        self.io.deinit();
     }
 };
 ```
-
 ## Error Handling
-
-- Use specific error sets instead of `anyerror` where possible
-- Document errors with `@return` tags
-- Use `errdefer` for cleanup on error paths
-
-```zig
-// Good - specific error set
-const TaskError = error{
-    Timeout,
-    Cancelled,
-    TaskFailed,
-} || std.mem.Allocator.Error;
-
-// Good - errdefer cleanup
-var buffer = try allocator.alloc(u8, size);
-errdefer allocator.free(buffer);
-```
-
-**Keep `anyerror` for:** Function pointer types, generic error logging contexts
+Keep errors scoped: use specific `error{}` sets; document with `@return`; clean up with `errdefer`.
 
 ## Testing Guidelines
-
-- Tests in `src/tests/` and inline `test "..."` blocks
-- Name tests descriptively; add coverage for new features or note why not
-- Gate hardware-specific tests with `error.SkipZigTest` (checked at runtime)
-
+Tests in `src/tests/` and inline blocks. Use `error.SkipZigTest` to gate hardware‑specific tests.
 ```zig
-test "framework with gpu enabled" {
-    const build_options = @import("build_options");
-    if (!build_options.enable_gpu) return error.SkipZigTest;
-
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    // ... test code
+test "gpu‑feature" {
+    if (!enable_gpu) return error.SkipZigTest;
+    // test body
 }
 ```
 
 ## Commit & PR Guidelines
-
-- Format: `<type>: <imperative summary>` (feat, fix, docs, refactor, test, chore, build)
-- Keep summaries <= 72 chars
-- Keep commits focused; update docs when public APIs change
-- PRs should explain intent, link issues, and list commands run
+Use `<type>: <summary>` format. Keep summaries ≤ 72 chars. Focus commits; update docs when APIs change.
 
 ## Architecture References
-
-- System overview: `docs/intro.md`
-- API surface: `API_REFERENCE.md`
-- Zig 0.16 migration: `docs/migration/zig-0.16-migration.md`
+System overview: `docs/intro.md`; API surface: `API_REFERENCE.md`.
+Migration guide: `docs/migration/zig-0.16-migration.md`.
 
 ## Configuration Notes
-
-- Feature flags: `-Denable-*` (e.g., `enable-gpu`, `enable-ai`)
-- GPU backends: `-Dgpu-*` (e.g., `gpu-cuda`, `gpu-vulkan`)
-- Connector credentials via environment variables (see `README.md`)
+Feature flags: `-Denable-*` (e.g., `enable-gpu`). GPU backends: `-Dgpu-*`. Credentials via env vars.

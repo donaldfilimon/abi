@@ -66,11 +66,14 @@ pub fn normalizeBackupPath(allocator: std.mem.Allocator, user_path: []const u8) 
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    var backup_dir = try std.Io.Dir.cwd().openDir(io, "backups", .{});
-    defer backup_dir.close(io);
+    // Create backups directory if it doesn't exist
+    std.Io.Dir.cwd().createDir(io, "backups", .default_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
 
-    const resolved = try backup_dir.realPathFileAlloc(io, filename, allocator);
-    return resolved[0..resolved.len];
+    // Return the path under backups/ directory
+    return try std.fs.path.join(allocator, &.{ "backups", filename });
 }
 
 test "fs helpers" {

@@ -726,12 +726,11 @@ fn runSimdDemo(allocator: std.mem.Allocator) !void {
     }
 
     var timer = try std.time.Timer.start();
-    const start = timer.lap();
+    _ = timer.lap();
 
     abi.simd.vectorAdd(a, b, result);
 
-    const end = timer.read();
-    const add_time = end - start;
+    const add_time = timer.lap();
 
     i = 0;
     while (i < size) : (i += 1) {
@@ -742,20 +741,17 @@ fn runSimdDemo(allocator: std.mem.Allocator) !void {
         }
     }
 
-    const dot_start = timer.lap();
+    _ = timer.lap();
     const dot_result = abi.simd.vectorDot(a, b);
-    const dot_end = timer.read();
-    const dot_time = dot_end - dot_start;
+    const dot_time = timer.lap();
 
-    const norm_start = timer.lap();
+    _ = timer.lap();
     const norm_result = abi.simd.vectorL2Norm(a);
-    const norm_end = timer.read();
-    const norm_time = norm_end - norm_start;
+    const norm_time = timer.lap();
 
-    const cos_start = timer.lap();
+    _ = timer.lap();
     const cos_result = abi.simd.cosineSimilarity(a, b);
-    const cos_end = timer.read();
-    const cos_time = cos_end - cos_start;
+    const cos_time = timer.lap();
 
     std.debug.print("SIMD Operations Performance ({} elements):\n", .{size});
     std.debug.print("  Vector Addition: {d} ns ({d:.2} ops/sec)\n", .{

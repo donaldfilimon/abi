@@ -35,11 +35,11 @@ pub const FileStats = struct {
             stats = FileStats{
                 .path = full_path,
                 .size_bytes = stat.size,
-                .mtime = 0, // Timestamp type changed in Zig 0.16
-                .ctime = 0, // Timestamp type changed in Zig 0.16
+                .mtime = 0,
+                .ctime = 0,
                 .is_directory = false,
                 .is_symlink = false,
-                .mode = 0, // mode not available in Zig 0.16 Io.File.Stat
+                .mode = 0,
             };
         } else {
             stats = FileStats{
@@ -136,9 +136,6 @@ pub const FileVisitor = struct {
                     continue;
                 };
                 try self.files.append(self.allocator, stats);
-            } else if (false) {
-                if (self.symlink_count >= self.max_symlinks) continue;
-                self.symlink_count += 1;
             }
         }
     }

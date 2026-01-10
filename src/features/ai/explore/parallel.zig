@@ -177,9 +177,12 @@ pub const ParallelExplorer = struct {
         const match = Match{
             .file_path = try self.allocator.dupe(u8, file_path),
             .line_number = line_number,
+            .line_content = try self.allocator.dupe(u8, line_content[0..@min(line_content.len, 100)]),
             .match_type = .custom,
-            .text = try self.allocator.dupe(u8, line_content[0..@min(line_content.len, 100)]),
+            .match_text = try self.allocator.dupe(u8, line_content[0..@min(line_content.len, 100)]),
             .relevance_score = 0.5,
+            .context_before = "",
+            .context_after = "",
         };
 
         self.lock.lock();
