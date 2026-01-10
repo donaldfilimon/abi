@@ -39,8 +39,8 @@ pub const CircuitBreaker = struct {
     failure_count: u32,
     success_count: u32,
     half_open_calls: u32,
-    last_failure_time: std.time.Instant,
-    open_until: std.time.Instant,
+    last_failure_time_ms: i64,
+    open_until_ms: i64,
 
     pub fn init(allocator: std.mem.Allocator, config: CircuitConfig) CircuitBreaker {
         return .{
@@ -50,8 +50,8 @@ pub const CircuitBreaker = struct {
             .failure_count = 0,
             .success_count = 0,
             .half_open_calls = 0,
-            .last_failure_time = undefined,
-            .open_until = undefined,
+            .last_failure_time_ms = 0,
+            .open_until_ms = 0,
         };
     }
 
@@ -111,31 +111,33 @@ pub const CircuitBreaker = struct {
     }
 
     pub fn onFailure(self: *CircuitBreaker) void {
-        self.last_failure_time = std.time.Instant.now() catch unreachable;
+        const now_ms = std.time.milliTimestamp();
+        self.last_failure_time_ms = now_ms;
         self.failure_count += 1;
 
         switch (self.state) {
             .closed => {
                 if (self.failure_count >= self.config.failure_threshold) {
                     self.state = .open;
-                    self.open_until = self.last_failure_time;
+                    self.open_until_ms = now_ms + @as(i64, @intCast(self.config.timeout_ms));
                 }
             },
             .half_open => {
                 self.state = .open;
-                self.open_until = self.last_failure_time;
+                self.open_until_ms = now_ms + @as(i64, @intCast(self.config.timeout_ms));
             },
             .open => {},
         }
     }
 
     pub fn canExecute(self: *const CircuitBreaker) bool {
-        const now = std.time.Instant.now() catch unreachable;
+        const now_ms = std.time.milliTimestamp();
 
         switch (self.state) {
             .closed => return true,
             .open => {
-                if (now.since(self.open_until) >= @as(u64, self.config.timeout_ms) * std.time.ns_per_ms) {
+                // Check if timeout has elapsed
+                if (now_ms >= self.open_until_ms) {
                     return true;
                 }
                 return false;
@@ -163,9 +165,9 @@ pub const CircuitBreaker = struct {
     }
 
     pub fn getMetrics(self: *const CircuitBreaker) CircuitMetrics {
-        const now = std.time.timestamp();
-        const time_to_next_state = if (self.state == .open)
-            @as(i64, @intCast(@max(0, self.open_until - now)))
+        const now_ms = std.time.milliTimestamp();
+        const time_to_next_state_ms = if (self.state == .open)
+            @max(0, self.open_until_ms - now_ms)
         else
             0;
 
@@ -173,9 +175,9 @@ pub const CircuitBreaker = struct {
             .state = self.state,
             .failure_count = self.failure_count,
             .success_count = self.success_count,
-            .last_failure_time = self.last_failure_time,
-            .open_until = self.open_until,
-            .time_to_next_state = time_to_next_state,
+            .last_failure_time_ms = self.last_failure_time_ms,
+            .open_until_ms = self.open_until_ms,
+            .time_to_next_state_ms = time_to_next_state_ms,
         };
     }
 };
@@ -184,9 +186,9 @@ pub const CircuitMetrics = struct {
     state: CircuitState,
     failure_count: u32,
     success_count: u32,
-    last_failure_time: i64,
-    open_until: i64,
-    time_to_next_state: i64,
+    last_failure_time_ms: i64,
+    open_until_ms: i64,
+    time_to_next_state_ms: i64,
 };
 
 pub const CircuitRegistry = struct {

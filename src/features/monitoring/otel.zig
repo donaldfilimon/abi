@@ -79,6 +79,7 @@ pub const OtelMetricType = enum {
 };
 
 pub const OtelSpan = struct {
+    allocator: ?std.mem.Allocator,
     trace_id: [16]u8,
     span_id: [8]u8,
     parent_span_id: [8]u8,
@@ -86,9 +87,47 @@ pub const OtelSpan = struct {
     kind: OtelSpanKind,
     start_time: i64,
     end_time: i64,
-    attributes: []const OtelAttribute,
-    events: []const OtelEvent,
+    attributes: std.ArrayListUnmanaged(OtelAttribute),
+    events: std.ArrayListUnmanaged(OtelEvent),
     status: OtelStatus,
+
+    /// Free all dynamically allocated span data
+    pub fn deinit(self: *OtelSpan) void {
+        if (self.allocator) |alloc| {
+            // Free event names and attributes
+            for (self.events.items) |event| {
+                alloc.free(event.name);
+                for (event.attributes) |attr| {
+                    alloc.free(attr.key);
+                    if (attr.value == .string) {
+                        alloc.free(attr.value.string);
+                    }
+                }
+                alloc.free(event.attributes);
+            }
+            self.events.deinit(alloc);
+
+            // Free attribute keys and string values
+            for (self.attributes.items) |attr| {
+                alloc.free(attr.key);
+                if (attr.value == .string) {
+                    alloc.free(attr.value.string);
+                }
+            }
+            self.attributes.deinit(alloc);
+        }
+        self.* = undefined;
+    }
+
+    /// Get attributes as a slice (for compatibility)
+    pub fn getAttributes(self: *const OtelSpan) []const OtelAttribute {
+        return self.attributes.items;
+    }
+
+    /// Get events as a slice (for compatibility)
+    pub fn getEvents(self: *const OtelSpan) []const OtelEvent {
+        return self.events.items;
+    }
 };
 
 pub const OtelSpanKind = enum {
@@ -147,19 +186,16 @@ pub const OtelTracer = struct {
         parent_trace_id: ?[16]u8,
         parent_span_id: ?[8]u8,
     ) !OtelSpan {
-        const trace_id = self.generateTraceId();
+        const trace_id = if (parent_trace_id) |tid| tid else self.generateTraceId();
         const span_id = self.generateSpanId();
 
         var parent_sid: [8]u8 = .{0} ** 8;
-
-        if (parent_trace_id) |tid| {
-            std.mem.copy(u8, tid[0..8], parent_sid[0..8]);
-        }
         if (parent_span_id) |sid| {
             parent_sid = sid;
         }
 
         return .{
+            .allocator = self.allocator,
             .trace_id = trace_id,
             .span_id = span_id,
             .parent_span_id = parent_sid,
@@ -167,8 +203,8 @@ pub const OtelTracer = struct {
             .kind = .internal,
             .start_time = std.time.timestamp(),
             .end_time = 0,
-            .attributes = &.{},
-            .events = &.{},
+            .attributes = std.ArrayListUnmanaged(OtelAttribute).empty,
+            .events = std.ArrayListUnmanaged(OtelEvent).empty,
             .status = .unset,
         };
     }
@@ -177,18 +213,80 @@ pub const OtelTracer = struct {
         span.end_time = std.time.timestamp();
     }
 
+    /// Add an event to a span with the current timestamp
     pub fn addEvent(self: *OtelTracer, span: *OtelSpan, name: []const u8) !void {
-        _ = self;
-        _ = span;
-        // TODO: Implement event addition to span
-        _ = name;
+        try self.addEventWithAttributes(span, name, &.{});
     }
 
+    /// Add an event with attributes to a span
+    pub fn addEventWithAttributes(
+        self: *OtelTracer,
+        span: *OtelSpan,
+        name: []const u8,
+        attrs: []const OtelAttribute,
+    ) !void {
+        const name_copy = try self.allocator.dupe(u8, name);
+        errdefer self.allocator.free(name_copy);
+
+        // Copy attributes
+        const attrs_copy = try self.allocator.alloc(OtelAttribute, attrs.len);
+        errdefer self.allocator.free(attrs_copy);
+
+        for (attrs, 0..) |attr, i| {
+            attrs_copy[i] = .{
+                .key = try self.allocator.dupe(u8, attr.key),
+                .value = try self.copyAttributeValue(attr.value),
+            };
+        }
+
+        const event = OtelEvent{
+            .name = name_copy,
+            .timestamp = std.time.timestamp(),
+            .attributes = attrs_copy,
+        };
+
+        try span.events.append(self.allocator, event);
+    }
+
+    /// Set an attribute on a span
     pub fn setAttribute(self: *OtelTracer, span: *OtelSpan, key: []const u8, value: OtelAttributeValue) !void {
-        _ = self;
-        _ = span;
-        _ = key;
-        _ = value;
+        // Check if attribute already exists and update it
+        for (span.attributes.items) |*attr| {
+            if (std.mem.eql(u8, attr.key, key)) {
+                // Free old string value if present
+                if (attr.value == .string) {
+                    self.allocator.free(attr.value.string);
+                }
+                attr.value = try self.copyAttributeValue(value);
+                return;
+            }
+        }
+
+        // Add new attribute
+        const key_copy = try self.allocator.dupe(u8, key);
+        errdefer self.allocator.free(key_copy);
+
+        const attr = OtelAttribute{
+            .key = key_copy,
+            .value = try self.copyAttributeValue(value),
+        };
+
+        try span.attributes.append(self.allocator, attr);
+    }
+
+    /// Set the span status
+    pub fn setStatus(_: *OtelTracer, span: *OtelSpan, status: OtelStatus) void {
+        span.status = status;
+    }
+
+    /// Copy an attribute value, duplicating strings
+    fn copyAttributeValue(self: *OtelTracer, value: OtelAttributeValue) !OtelAttributeValue {
+        return switch (value) {
+            .string => |s| .{ .string = try self.allocator.dupe(u8, s) },
+            .int => |i| .{ .int = i },
+            .float => |f| .{ .float = f },
+            .bool => |b| .{ .bool = b },
+        };
     }
 
     fn generateTraceId(self: *OtelTracer) [16]u8 {
@@ -259,7 +357,8 @@ test "otel tracer init" {
     var tracer = try OtelTracer.init(allocator, "test-service");
     defer tracer.deinit();
 
-    const span = try tracer.startSpan("test-span", null, null);
+    var span = try tracer.startSpan("test-span", null, null);
+    defer span.deinit();
     try std.testing.expect(span.trace_id.len == 16);
     try std.testing.expect(span.span_id.len == 8);
 }
@@ -270,10 +369,47 @@ test "otel span lifecycle" {
     defer tracer.deinit();
 
     var span = try tracer.startSpan("test-operation", null, null);
+    defer span.deinit();
     try std.testing.expectEqual(OtelStatus.unset, span.status);
 
     tracer.endSpan(&span);
-    try std.testing.expect(span.end_time > span.start_time);
+    try std.testing.expect(span.end_time >= span.start_time);
+}
+
+test "otel span add event" {
+    const allocator = std.testing.allocator;
+    var tracer = try OtelTracer.init(allocator, "test-service");
+    defer tracer.deinit();
+
+    var span = try tracer.startSpan("test-operation", null, null);
+    defer span.deinit();
+
+    try tracer.addEvent(&span, "event-1");
+    try tracer.addEvent(&span, "event-2");
+
+    try std.testing.expectEqual(@as(usize, 2), span.events.items.len);
+    try std.testing.expectEqualStrings("event-1", span.events.items[0].name);
+    try std.testing.expectEqualStrings("event-2", span.events.items[1].name);
+}
+
+test "otel span set attribute" {
+    const allocator = std.testing.allocator;
+    var tracer = try OtelTracer.init(allocator, "test-service");
+    defer tracer.deinit();
+
+    var span = try tracer.startSpan("test-operation", null, null);
+    defer span.deinit();
+
+    try tracer.setAttribute(&span, "http.method", .{ .string = "GET" });
+    try tracer.setAttribute(&span, "http.status_code", .{ .int = 200 });
+    try tracer.setAttribute(&span, "request.duration", .{ .float = 0.123 });
+    try tracer.setAttribute(&span, "cache.hit", .{ .bool = true });
+
+    try std.testing.expectEqual(@as(usize, 4), span.attributes.items.len);
+
+    // Test attribute update
+    try tracer.setAttribute(&span, "http.status_code", .{ .int = 404 });
+    try std.testing.expectEqual(@as(usize, 4), span.attributes.items.len);
 }
 
 test "trace id formatting" {
