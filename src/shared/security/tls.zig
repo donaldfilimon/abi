@@ -369,6 +369,29 @@ pub const TlsConnection = struct {
         }
         return false;
     }
+
+    /// Get session info for resumption
+    pub fn getSessionInfo(self: *TlsConnection) ?SessionInfo {
+        if (!self.is_established) {
+            return null;
+        }
+        return SessionInfo{
+            .version = self.negotiated_version,
+            .cipher = self.negotiated_cipher,
+            .is_server = self.is_server,
+        };
+    }
+
+    /// Check if the connection is established and ready for data
+    pub fn isReady(self: *TlsConnection) bool {
+        return self.is_established and self.handshake_completed;
+    }
+
+    pub const SessionInfo = struct {
+        version: ?TlsVersion,
+        cipher: ?[]const u8,
+        is_server: bool,
+    };
 };
 
 pub const TlsError = error{
@@ -492,6 +515,51 @@ test "tls connection server init" {
 
     try std.testing.expect(conn.is_server);
     try std.testing.expect(!conn.is_established);
+}
+
+test "tls handshake" {
+    const allocator = std.testing.allocator;
+    var conn = TlsConnection.initClient(allocator);
+    defer conn.deinit();
+
+    try conn.startHandshake();
+    try std.testing.expect(conn.is_established);
+    try std.testing.expect(conn.handshake_completed);
+    try std.testing.expectEqual(TlsVersion.tls13, conn.negotiated_version.?);
+    try std.testing.expectEqualStrings("TLS_AES_256_GCM_SHA384", conn.negotiated_cipher.?);
+}
+
+test "tls read write after handshake" {
+    const allocator = std.testing.allocator;
+    var conn = TlsConnection.initClient(allocator);
+    defer conn.deinit();
+
+    try conn.startHandshake();
+
+    // Test write
+    const written = try conn.write("Hello, TLS!");
+    try std.testing.expectEqual(@as(usize, 11), written);
+
+    // Test read (returns 0 in stub implementation)
+    var buffer: [256]u8 = undefined;
+    const read_len = try conn.read(&buffer);
+    try std.testing.expectEqual(@as(usize, 0), read_len);
+}
+
+test "tls session info" {
+    const allocator = std.testing.allocator;
+    var conn = TlsConnection.initClient(allocator);
+    defer conn.deinit();
+
+    // No session info before handshake
+    try std.testing.expect(conn.getSessionInfo() == null);
+
+    try conn.startHandshake();
+
+    // Session info available after handshake
+    const info = conn.getSessionInfo();
+    try std.testing.expect(info != null);
+    try std.testing.expectEqual(TlsVersion.tls13, info.?.version.?);
 }
 
 test "certificate store" {

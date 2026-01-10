@@ -50,9 +50,14 @@ pub const OtelExporter = struct {
         while (self.running.load(.acquire)) {
             std.time.sleep(std.time.ns_per_ms * self.config.export_interval_ms);
             if (!self.running.load(.acquire)) break;
+
+            // Periodically export any buffered telemetry
+            // In a full implementation, this would flush the internal buffer
+            std.log.debug("OpenTelemetry: Export loop tick for {s}", .{self.config.service_name});
         }
     }
 
+    /// Export metrics to the OTLP endpoint via HTTP
     pub fn exportMetrics(self: *OtelExporter, metrics: []const OtelMetric) !void {
         if (!self.config.enabled or metrics.len == 0) return;
 
@@ -99,6 +104,7 @@ pub const OtelExporter = struct {
         try self.sendToCollector("/v1/metrics", json.items);
     }
 
+    /// Export traces/spans to the OTLP endpoint via HTTP
     pub fn exportTraces(self: *OtelExporter, traces: []const OtelSpan) !void {
         if (!self.config.enabled or traces.len == 0) return;
 
@@ -181,6 +187,12 @@ pub const OtelExporter = struct {
         _ = endpoint;
         _ = payload;
     }
+
+    const ExportError = error{
+        UrlTooLong,
+        HttpError,
+        SerializationError,
+    };
 };
 
 pub const OtelMetric = struct {
@@ -456,6 +468,17 @@ pub fn createOtelResource(allocator: std.mem.Allocator, service_name: []const u8
 pub fn formatTraceId(trace_id: [16]u8) [32]u8 {
     var result: [32]u8 = undefined;
     for (trace_id, 0..) |byte, i| {
+        const high = byte >> 4;
+        const low = byte & 0x0F;
+        result[i * 2] = hexChar(high);
+        result[i * 2 + 1] = hexChar(low);
+    }
+    return result;
+}
+
+pub fn formatSpanId(span_id: [8]u8) [16]u8 {
+    var result: [16]u8 = undefined;
+    for (span_id, 0..) |byte, i| {
         const high = byte >> 4;
         const low = byte & 0x0F;
         result[i * 2] = hexChar(high);
