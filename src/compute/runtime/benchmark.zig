@@ -86,10 +86,8 @@ fn buildResult(name: []const u8, iterations: u64, elapsed_ns: u64) BenchmarkResu
     };
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
     const results = try runBenchmarks(allocator);
     defer allocator.free(results);
