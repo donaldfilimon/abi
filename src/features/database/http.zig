@@ -34,7 +34,10 @@ pub fn serveDatabase(
     const io = io_backend.io();
 
     std.Io.Dir.cwd().createDir(io, "backups", .default_dir) catch |err| {
-        if (err != error.PathAlreadyExists) return err;
+        if (err != error.PathAlreadyExists) {
+            std.log.err("Failed to create backups directory: {t}", .{err});
+            return err;
+        }
     };
 
     const listen_addr = try resolveAddress(io, allocator, address);
@@ -89,11 +92,16 @@ fn handleConnection(
         };
         dispatchRequest(allocator, handle, &request) catch |err| {
             std.debug.print("Database HTTP request error: {t}\n", .{err});
-            _ = respondJson(
+            respondJson(
                 &request,
                 "{\"error\":\"internal server error\"}",
                 .internal_server_error,
-            ) catch {};
+            ) catch |respond_err| {
+                std.log.err("Failed to send error response: {t} (original error: {t})", .{
+                    respond_err,
+                    err,
+                });
+            };
             return;
         };
     }

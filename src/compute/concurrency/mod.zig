@@ -116,7 +116,10 @@ pub const Backoff = struct {
             std.atomic.spinLoopHint();
             return;
         }
-        _ = std.Thread.yield() catch {};
+        // Thread yield failure is non-critical; log at debug level and continue
+        std.Thread.yield() catch |err| {
+            std.log.debug("Thread yield failed during backoff spin: {t}", .{err});
+        };
     }
 
     pub fn wait(self: *Backoff) void {
@@ -127,7 +130,10 @@ pub const Backoff = struct {
             std.atomic.spinLoopHint();
         }
         if (self.spins > 32) {
-            _ = std.Thread.yield() catch {};
+            // Thread yield failure is non-critical; log at debug level and continue
+            std.Thread.yield() catch |err| {
+                std.log.debug("Thread yield failed during backoff wait: {t}", .{err});
+            };
         }
     }
 };

@@ -70,9 +70,15 @@ pub const ParallelExplorer = struct {
 
             thread.* = std.Thread.spawn(.{}, workerThread, .{ self, chunk }) catch |err| {
                 std.debug.print("Failed to spawn worker thread: {}\n", .{err});
+                // Process files on main thread as fallback
                 for (chunk) |file_stat| {
                     self.lock.lock();
-                    self.processFile(&file_stat) catch {};
+                    self.processFile(&file_stat) catch |process_err| {
+                        std.log.warn("Failed to process file '{s}': {t}", .{
+                            file_stat.path,
+                            process_err,
+                        });
+                    };
                     self.lock.unlock();
                     self.markProcessed();
                 }
@@ -93,7 +99,9 @@ pub const ParallelExplorer = struct {
             if (self.should_cancel.load(.acquire)) return;
 
             self.lock.lock();
-            self.processFile(&file_stat) catch {};
+            self.processFile(&file_stat) catch |err| {
+                std.log.warn("Failed to process file '{s}': {t}", .{ file_stat.path, err });
+            };
             self.lock.unlock();
 
             self.markProcessed();

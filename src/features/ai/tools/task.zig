@@ -5,6 +5,24 @@ const ToolResult = @import("tool.zig").ToolResult;
 const Context = @import("tool.zig").Context;
 const ToolExecutionError = @import("tool.zig").ToolExecutionError;
 
+/// Error set for subagent operations
+pub const SubagentError = error{
+    /// The requested subagent was not found
+    SubagentNotFound,
+    /// The task was not found
+    TaskNotFound,
+    /// Maximum retries exceeded
+    MaxRetriesExceeded,
+    /// Task execution timed out
+    TaskTimeout,
+    /// Input validation failed
+    InvalidInput,
+    /// Subagent is currently busy
+    SubagentBusy,
+    /// Handler returned an error
+    HandlerFailed,
+} || std.mem.Allocator.Error;
+
 pub const SubagentConfig = struct {
     timeout_ms: u64 = 30000,
     max_concurrent: usize = 4,
@@ -214,54 +232,66 @@ pub const TaskTool = struct {
         self.tasks.items[index].status = .cancelled;
     }
 
-    pub fn listSubagents(self: *TaskTool) []const []const u8 {
+    pub fn listSubagents(self: *TaskTool) ![]const []const u8 {
         var names = std.ArrayList([]const u8).init(self.allocator);
+        errdefer names.deinit();
         var iterator = self.subagents.keyIterator();
         while (iterator.next()) |key| {
-            names.append(key.*) catch {};
+            try names.append(key.*);
         }
-        return names.toOwnedSlice() catch &.{};
+        return try names.toOwnedSlice();
     }
 
     pub fn getSubagentInfo(self: *TaskTool, name: []const u8) ?*const Subagent {
         return self.subagents.get(name);
     }
 
-    pub fn getStatistics(self: *TaskTool) json.Value {
+    pub fn getStatistics(self: *TaskTool) !json.Value {
         var stats = json.Object.init(self.allocator);
+        errdefer stats.deinit();
 
         var subagent_stats = json.Array.init(self.allocator);
+        errdefer subagent_stats.deinit();
+
         var iterator = self.subagents.valueIterator();
         while (iterator.next()) |subagent| {
             var sub_stat = json.Object.init(self.allocator);
-            sub_stat.put("name", json.Value{ .string = subagent.name }) catch {
+            errdefer sub_stat.deinit();
+
+            sub_stat.put("name", json.Value{ .string = subagent.name }) catch |err| {
+                std.log.warn("Failed to add subagent name to statistics: {t}", .{err});
                 sub_stat.deinit();
                 continue;
             };
-            sub_stat.put("state", json.Value{ .string = @tagName(subagent.state) }) catch {
+            sub_stat.put("state", json.Value{ .string = @tagName(subagent.state) }) catch |err| {
+                std.log.warn("Failed to add subagent state to statistics: {t}", .{err});
                 sub_stat.deinit();
                 continue;
             };
-            sub_stat.put("execution_count", json.Value{ .integer = @as(i64, @intCast(subagent.execution_count)) }) catch {
+            sub_stat.put("execution_count", json.Value{ .integer = @as(i64, @intCast(subagent.execution_count)) }) catch |err| {
+                std.log.warn("Failed to add execution count to statistics: {t}", .{err});
                 sub_stat.deinit();
                 continue;
             };
-            sub_stat.put("error_count", json.Value{ .integer = @as(i64, @intCast(subagent.error_count)) }) catch {
+            sub_stat.put("error_count", json.Value{ .integer = @as(i64, @intCast(subagent.error_count)) }) catch |err| {
+                std.log.warn("Failed to add error count to statistics: {t}", .{err});
                 sub_stat.deinit();
                 continue;
             };
-            sub_stat.put("last_execution_time_ms", json.Value{ .integer = @as(i64, @intCast(subagent.last_execution_time_ms)) }) catch {
+            sub_stat.put("last_execution_time_ms", json.Value{ .integer = @as(i64, @intCast(subagent.last_execution_time_ms)) }) catch |err| {
+                std.log.warn("Failed to add execution time to statistics: {t}", .{err});
                 sub_stat.deinit();
                 continue;
             };
-            subagent_stats.append(json.Value{ .object = sub_stat }) catch {
+            subagent_stats.append(json.Value{ .object = sub_stat }) catch |err| {
+                std.log.warn("Failed to append subagent stats: {t}", .{err});
                 sub_stat.deinit();
                 continue;
             };
         }
 
-        stats.put("subagents", json.Value{ .array = subagent_stats });
-        stats.put("pending_tasks", json.Value{ .integer = @as(i64, @intCast(self.tasks.items.len)) });
+        try stats.put("subagents", json.Value{ .array = subagent_stats });
+        try stats.put("pending_tasks", json.Value{ .integer = @as(i64, @intCast(self.tasks.items.len)) });
 
         return json.Value{ .object = stats };
     }
