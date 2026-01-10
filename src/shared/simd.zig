@@ -240,7 +240,22 @@ pub fn matrixMultiply(
 
                 var ii: usize = i;
                 while (ii < i_end) : (ii += 1) {
+                    // SIMD-vectorized inner loop: process VectorSize columns at a time
                     var jj: usize = j;
+                    if (comptime VectorSize > 1) {
+                        const Vec = @Vector(VectorSize, f32);
+                        while (jj + VectorSize <= j_end) : (jj += VectorSize) {
+                            var vec_sum: Vec = result[ii * n + jj ..][0..VectorSize].*;
+                            var ll: usize = l;
+                            while (ll < l_end) : (ll += 1) {
+                                const a_val: Vec = @splat(a[ii * k + ll]);
+                                const b_vec: Vec = b[ll * n + jj ..][0..VectorSize].*;
+                                vec_sum += a_val * b_vec;
+                            }
+                            result[ii * n + jj ..][0..VectorSize].* = vec_sum;
+                        }
+                    }
+                    // Scalar fallback for remaining columns
                     while (jj < j_end) : (jj += 1) {
                         var sum: f32 = result[ii * n + jj];
                         var ll: usize = l;
@@ -289,4 +304,47 @@ test "cosine similarity works" {
 
     const result = cosineSimilarity(&a, &b);
     try std.testing.expectApproxEqAbs(@as(f32, 0.0), result, 1e-6);
+}
+
+test "matrix multiplication works" {
+    // 2x3 * 3x2 = 2x2
+    // A = [1 2 3]   B = [7  8 ]   Result = [58  64 ]
+    //     [4 5 6]       [9  10]            [139 154]
+    //                   [11 12]
+    var a = [_]f32{ 1, 2, 3, 4, 5, 6 };
+    var b = [_]f32{ 7, 8, 9, 10, 11, 12 };
+    var result: [4]f32 = undefined;
+
+    matrixMultiply(&a, &b, &result, 2, 2, 3);
+
+    try std.testing.expectApproxEqAbs(@as(f32, 58.0), result[0], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 64.0), result[1], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 139.0), result[2], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 154.0), result[3], 1e-5);
+}
+
+test "matrix multiplication larger" {
+    // Test with a matrix size that exercises SIMD paths (8x8)
+    const size = 8;
+    var a: [size * size]f32 = undefined;
+    var b: [size * size]f32 = undefined;
+    var result: [size * size]f32 = undefined;
+
+    // Initialize with simple values for verification
+    for (0..size) |i| {
+        for (0..size) |j| {
+            a[i * size + j] = @floatFromInt(i + j);
+            b[i * size + j] = @floatFromInt(i * j);
+        }
+    }
+
+    matrixMultiply(&a, &b, &result, size, size, size);
+
+    // Verify result[0][0] = sum(a[0][k] * b[k][0]) for k=0..7
+    // = 0*0 + 1*0 + 2*0 + 3*0 + 4*0 + 5*0 + 6*0 + 7*0 = 0
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), result[0], 1e-4);
+
+    // Verify result[1][1] = sum(a[1][k] * b[k][1]) for k=0..7
+    // = 1*0 + 2*1 + 3*2 + 4*3 + 5*4 + 6*5 + 7*6 + 8*7 = 0 + 2 + 6 + 12 + 20 + 30 + 42 + 56 = 168
+    try std.testing.expectApproxEqAbs(@as(f32, 168.0), result[size + 1], 1e-4);
 }
