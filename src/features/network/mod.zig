@@ -10,6 +10,8 @@ const registry = @import("registry.zig");
 const protocol = @import("protocol.zig");
 const scheduler = @import("scheduler.zig");
 const ha = @import("ha.zig");
+const discovery = @import("discovery.zig");
+const loadbalancer = @import("loadbalancer.zig");
 
 pub const NodeRegistry = registry.NodeRegistry;
 pub const NodeInfo = registry.NodeInfo;
@@ -39,6 +41,22 @@ pub const NodeHealth = ha.NodeHealth;
 pub const ClusterState = ha.ClusterState;
 pub const HealthCheckResult = ha.HealthCheckResult;
 pub const FailoverPolicy = ha.FailoverPolicy;
+
+// Service Discovery exports
+pub const ServiceDiscovery = discovery.ServiceDiscovery;
+pub const DiscoveryConfig = discovery.DiscoveryConfig;
+pub const DiscoveryBackend = discovery.DiscoveryBackend;
+pub const ServiceInstance = discovery.ServiceInstance;
+pub const ServiceStatus = discovery.ServiceStatus;
+pub const DiscoveryError = discovery.DiscoveryError;
+
+// Load Balancer exports
+pub const LoadBalancer = loadbalancer.LoadBalancer;
+pub const LoadBalancerConfig = loadbalancer.LoadBalancerConfig;
+pub const LoadBalancerStrategy = loadbalancer.LoadBalancerStrategy;
+pub const LoadBalancerError = loadbalancer.LoadBalancerError;
+pub const NodeState = loadbalancer.NodeState;
+pub const NodeStats = loadbalancer.NodeStats;
 
 pub const NetworkError = error{
     NetworkDisabled,

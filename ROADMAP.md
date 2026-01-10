@@ -73,10 +73,10 @@ This document tracks planned features, improvements, and milestones for the ABI 
   - [ ] Zero-copy optimizations
 
 ### Developer Experience
-- [ ] Enhanced CLI
-  - [ ] Interactive mode improvements
-  - [ ] Configuration file support
-  - [ ] Shell completion
+- [x] Enhanced CLI
+  - [x] Interactive mode improvements
+  - [x] Configuration file support
+  - [x] Shell completion (bash, zsh, fish)
 - [ ] Tooling
   - [ ] Debugger integration
   - [ ] Performance profiler
@@ -93,9 +93,9 @@ This document tracks planned features, improvements, and milestones for the ABI 
   - [ ] Data flow diagrams
 
 ### Testing
-- [ ] Expanded test suite
-  - [ ] Property-based testing
-  - [ ] Fuzzing
+- [x] Expanded test suite
+  - [x] Property-based testing
+  - [x] Fuzzing infrastructure
   - [ ] Integration test matrix
 - [ ] Benchmark suite
   - [ ] Performance regression detection
@@ -105,14 +105,16 @@ This document tracks planned features, improvements, and milestones for the ABI 
 ## Version 0.5.0 - Q3 2026
 
 ### Distributed Systems
-- [ ] Service discovery
-  - [ ] Consul integration
-  - [ ] etcd integration
-  - [ ] Custom discovery backends
-- [ ] Load balancing
-  - [ ] Round-robin
-  - [ ] Weighted routing
-  - [ ] Health-based routing
+- [x] Service discovery
+  - [x] Consul integration
+  - [x] etcd integration
+  - [x] Custom discovery backends (static, DNS)
+- [x] Load balancing
+  - [x] Round-robin
+  - [x] Weighted routing
+  - [x] Health-based routing
+  - [x] Least connections
+  - [x] IP hash / sticky sessions
 
 ### High Availability
 - [ ] Failover mechanisms
@@ -125,10 +127,10 @@ This document tracks planned features, improvements, and milestones for the ABI 
   - [ ] Multi-region support
 
 ### Ecosystem
-- [ ] Language bindings
-  - [ ] Python bindings
-  - [ ] JavaScript/WASM bindings
-  - [ ] C API
+- [x] Language bindings
+  - [x] Python bindings (foundation)
+  - [x] JavaScript/WASM bindings
+  - [ ] C API (headers only)
 - [ ] Package manager integration
   - [ ] Zig package registry
   - [ ] Homebrew formula
