@@ -78,6 +78,18 @@ const CuLaunchKernelFn = *const fn (
 const CuStreamCreateFn = *const fn (*CUstream, u32) callconv(.c) CuResult;
 const CuStreamDestroyFn = *const fn (CUstream) callconv(.c) CuResult;
 const CuStreamSynchronizeFn = *const fn (CUstream) callconv(.c) CuResult;
+const CuMemcpyD2DFn = *const fn (CUdeviceptr, CUdeviceptr, usize) callconv(.c) CuResult;
+const CuMemcpyD2DAsyncFn = *const fn (CUdeviceptr, CUdeviceptr, usize, CUstream) callconv(.c) CuResult;
+const CuMemcpyH2DAsyncFn = *const fn (CUdeviceptr, *const anyopaque, usize, CUstream) callconv(.c) CuResult;
+const CuMemcpyD2HAsyncFn = *const fn (*anyopaque, CUdeviceptr, usize, CUstream) callconv(.c) CuResult;
+const CuMemGetInfoFn = *const fn (*usize, *usize) callconv(.c) CuResult;
+const CuDeviceGetAttributeFn = *const fn (*i32, i32, CUdevice) callconv(.c) CuResult;
+const CuDeviceGetNameFn = *const fn ([*]u8, i32, CUdevice) callconv(.c) CuResult;
+const CuDeviceTotalMemFn = *const fn (*usize, CUdevice) callconv(.c) CuResult;
+const CuOccupancyMaxPotentialBlockSizeFn = *const fn (*i32, *i32, CUfunction, ?*anyopaque, usize, i32) callconv(.c) CuResult;
+const CuFuncGetAttributeFn = *const fn (*i32, i32, CUfunction) callconv(.c) CuResult;
+const CuMemsetD8Fn = *const fn (CUdeviceptr, u8, usize) callconv(.c) CuResult;
+const CuMemsetD32Fn = *const fn (CUdeviceptr, u32, usize) callconv(.c) CuResult;
 
 var cuInit: ?CuInitFn = null;
 var cuDeviceGet: ?CuDeviceGetFn = null;
@@ -97,6 +109,66 @@ var cuLaunchKernel: ?CuLaunchKernelFn = null;
 var cuStreamCreate: ?CuStreamCreateFn = null;
 var cuStreamDestroy: ?CuStreamDestroyFn = null;
 var cuStreamSynchronize: ?CuStreamSynchronizeFn = null;
+var cuMemcpyD2D: ?CuMemcpyD2DFn = null;
+var cuMemcpyD2DAsync: ?CuMemcpyD2DAsyncFn = null;
+var cuMemcpyH2DAsync: ?CuMemcpyH2DAsyncFn = null;
+var cuMemcpyD2HAsync: ?CuMemcpyD2HAsyncFn = null;
+var cuMemGetInfo: ?CuMemGetInfoFn = null;
+var cuDeviceGetAttribute: ?CuDeviceGetAttributeFn = null;
+var cuDeviceGetName: ?CuDeviceGetNameFn = null;
+var cuDeviceTotalMem: ?CuDeviceTotalMemFn = null;
+var cuOccupancyMaxPotentialBlockSize: ?CuOccupancyMaxPotentialBlockSizeFn = null;
+var cuFuncGetAttribute: ?CuFuncGetAttributeFn = null;
+var cuMemsetD8: ?CuMemsetD8Fn = null;
+var cuMemsetD32: ?CuMemsetD32Fn = null;
+
+pub const DeviceAttribute = enum(i32) {
+    max_threads_per_block = 1,
+    max_block_dim_x = 2,
+    max_block_dim_y = 3,
+    max_block_dim_z = 4,
+    max_grid_dim_x = 5,
+    max_grid_dim_y = 6,
+    max_grid_dim_z = 7,
+    max_shared_memory_per_block = 8,
+    total_constant_memory = 9,
+    warp_size = 10,
+    max_registers_per_block = 12,
+    clock_rate = 13,
+    multiprocessor_count = 16,
+    compute_capability_major = 75,
+    compute_capability_minor = 76,
+    max_threads_per_multiprocessor = 39,
+    async_engine_count = 40,
+    unified_addressing = 41,
+    l2_cache_size = 38,
+    memory_clock_rate = 36,
+    global_memory_bus_width = 37,
+    ecc_enabled = 32,
+    tcc_driver = 35,
+    memory_pools_supported = 115,
+    tensor_core_count = 137,
+};
+
+pub const DeviceProperties = struct {
+    name: [256]u8,
+    total_memory: usize,
+    shared_memory_per_block: usize,
+    registers_per_block: i32,
+    warp_size: i32,
+    max_threads_per_block: i32,
+    max_block_dim: [3]i32,
+    max_grid_dim: [3]i32,
+    clock_rate_khz: i32,
+    multiprocessor_count: i32,
+    compute_capability: struct { major: i32, minor: i32 },
+    max_threads_per_multiprocessor: i32,
+    l2_cache_size: i32,
+    async_engine_count: i32,
+    unified_addressing: bool,
+    ecc_enabled: bool,
+    tensor_core_count: i32,
+};
 
 pub fn init() !void {
     if (cuda_initialized) return;
@@ -355,6 +427,202 @@ pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) !void {
     }
 }
 
+pub fn memcpyDeviceToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
+    const copy_fn = cuMemcpyD2D orelse return CudaError.MemoryCopyFailed;
+
+    if (copy_fn(@intCast(@intFromPtr(dst)), @intCast(@intFromPtr(src)), size) != .success) {
+        return CudaError.MemoryCopyFailed;
+    }
+}
+
+pub fn memcpyDeviceToDeviceAsync(dst: *anyopaque, src: *anyopaque, size: usize, stream: ?*anyopaque) !void {
+    const copy_fn = cuMemcpyD2DAsync orelse return CudaError.MemoryCopyFailed;
+    const stream_ptr = if (stream) |s| @as(CUstream, @ptrCast(s)) else if (cuda_context) |ctx| ctx.stream else null;
+
+    if (copy_fn(@intCast(@intFromPtr(dst)), @intCast(@intFromPtr(src)), size, stream_ptr) != .success) {
+        return CudaError.MemoryCopyFailed;
+    }
+}
+
+pub fn memcpyHostToDeviceAsync(dst: *anyopaque, src: *const anyopaque, size: usize, stream: ?*anyopaque) !void {
+    const copy_fn = cuMemcpyH2DAsync orelse return CudaError.MemoryCopyFailed;
+    const stream_ptr = if (stream) |s| @as(CUstream, @ptrCast(s)) else if (cuda_context) |ctx| ctx.stream else null;
+
+    if (copy_fn(@intCast(@intFromPtr(dst)), src, size, stream_ptr) != .success) {
+        return CudaError.MemoryCopyFailed;
+    }
+}
+
+pub fn memcpyDeviceToHostAsync(dst: *anyopaque, src: *anyopaque, size: usize, stream: ?*anyopaque) !void {
+    const copy_fn = cuMemcpyD2HAsync orelse return CudaError.MemoryCopyFailed;
+    const stream_ptr = if (stream) |s| @as(CUstream, @ptrCast(s)) else if (cuda_context) |ctx| ctx.stream else null;
+
+    if (copy_fn(dst, @intCast(@intFromPtr(src)), size, stream_ptr) != .success) {
+        return CudaError.MemoryCopyFailed;
+    }
+}
+
+pub fn memset(dst: *anyopaque, value: u8, size: usize) !void {
+    const memset_fn = cuMemsetD8 orelse return CudaError.MemoryCopyFailed;
+
+    if (memset_fn(@intCast(@intFromPtr(dst)), value, size) != .success) {
+        return CudaError.MemoryCopyFailed;
+    }
+}
+
+pub fn memsetU32(dst: *anyopaque, value: u32, count: usize) !void {
+    const memset_fn = cuMemsetD32 orelse return CudaError.MemoryCopyFailed;
+
+    if (memset_fn(@intCast(@intFromPtr(dst)), value, count) != .success) {
+        return CudaError.MemoryCopyFailed;
+    }
+}
+
+pub fn getMemoryInfo() !struct { free: usize, total: usize } {
+    const info_fn = cuMemGetInfo orelse return CudaError.DriverNotFound;
+    var free: usize = 0;
+    var total: usize = 0;
+
+    if (info_fn(&free, &total) != .success) {
+        return CudaError.DriverNotFound;
+    }
+
+    return .{ .free = free, .total = total };
+}
+
+pub fn getDeviceProperties(device_id: i32) !DeviceProperties {
+    var props = DeviceProperties{
+        .name = undefined,
+        .total_memory = 0,
+        .shared_memory_per_block = 0,
+        .registers_per_block = 0,
+        .warp_size = 32,
+        .max_threads_per_block = 1024,
+        .max_block_dim = .{ 1024, 1024, 64 },
+        .max_grid_dim = .{ 2147483647, 65535, 65535 },
+        .clock_rate_khz = 0,
+        .multiprocessor_count = 0,
+        .compute_capability = .{ .major = 0, .minor = 0 },
+        .max_threads_per_multiprocessor = 2048,
+        .l2_cache_size = 0,
+        .async_engine_count = 0,
+        .unified_addressing = false,
+        .ecc_enabled = false,
+        .tensor_core_count = 0,
+    };
+    @memset(&props.name, 0);
+
+    const get_fn = cuDeviceGet orelse return CudaError.DriverNotFound;
+    var device: CUdevice = undefined;
+    if (get_fn(&device, device_id) != .success) {
+        return CudaError.DeviceNotFound;
+    }
+
+    if (cuDeviceGetName) |name_fn| {
+        _ = name_fn(&props.name, 256, device);
+    }
+
+    if (cuDeviceTotalMem) |mem_fn| {
+        _ = mem_fn(&props.total_memory, device);
+    }
+
+    const attr_fn = cuDeviceGetAttribute orelse return props;
+    var val: i32 = 0;
+
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.max_threads_per_block), device) == .success) {
+        props.max_threads_per_block = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.max_block_dim_x), device) == .success) {
+        props.max_block_dim[0] = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.max_block_dim_y), device) == .success) {
+        props.max_block_dim[1] = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.max_block_dim_z), device) == .success) {
+        props.max_block_dim[2] = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.max_grid_dim_x), device) == .success) {
+        props.max_grid_dim[0] = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.max_grid_dim_y), device) == .success) {
+        props.max_grid_dim[1] = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.max_grid_dim_z), device) == .success) {
+        props.max_grid_dim[2] = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.max_shared_memory_per_block), device) == .success) {
+        props.shared_memory_per_block = @intCast(val);
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.warp_size), device) == .success) {
+        props.warp_size = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.max_registers_per_block), device) == .success) {
+        props.registers_per_block = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.clock_rate), device) == .success) {
+        props.clock_rate_khz = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.multiprocessor_count), device) == .success) {
+        props.multiprocessor_count = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.compute_capability_major), device) == .success) {
+        props.compute_capability.major = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.compute_capability_minor), device) == .success) {
+        props.compute_capability.minor = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.max_threads_per_multiprocessor), device) == .success) {
+        props.max_threads_per_multiprocessor = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.l2_cache_size), device) == .success) {
+        props.l2_cache_size = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.async_engine_count), device) == .success) {
+        props.async_engine_count = val;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.unified_addressing), device) == .success) {
+        props.unified_addressing = val != 0;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.ecc_enabled), device) == .success) {
+        props.ecc_enabled = val != 0;
+    }
+    if (attr_fn(&val, @intFromEnum(DeviceAttribute.tensor_core_count), device) == .success) {
+        props.tensor_core_count = val;
+    }
+
+    return props;
+}
+
+pub fn getOptimalBlockSize(kernel_handle: *anyopaque, dynamic_smem: usize) !struct { min_grid: i32, block_size: i32 } {
+    const occupancy_fn = cuOccupancyMaxPotentialBlockSize orelse return CudaError.DriverNotFound;
+    const handle: *CudaKernel = @ptrCast(@alignCast(kernel_handle));
+
+    var min_grid_size: i32 = 0;
+    var block_size: i32 = 0;
+
+    if (occupancy_fn(&min_grid_size, &block_size, handle.function, null, dynamic_smem, 0) != .success) {
+        return CudaError.LaunchFailed;
+    }
+
+    return .{ .min_grid = min_grid_size, .block_size = block_size };
+}
+
+pub fn hasTensorCores(device_id: i32) bool {
+    const props = getDeviceProperties(device_id) catch return false;
+    return props.tensor_core_count > 0 or (props.compute_capability.major >= 7);
+}
+
+pub fn isInitialized() bool {
+    return cuda_initialized;
+}
+
+pub fn getDeviceId() ?i32 {
+    if (cuda_context) |ctx| {
+        return ctx.device_id;
+    }
+    return null;
+}
+
 const CudaKernel = struct {
     module: CUmodule,
     function: CUfunction,
@@ -397,6 +665,20 @@ fn loadCudaFunctions() bool {
     cuStreamCreate = cuda_lib.?.lookup(CuStreamCreateFn, "cuStreamCreate") orelse return false;
     cuStreamDestroy = cuda_lib.?.lookup(CuStreamDestroyFn, "cuStreamDestroy") orelse return false;
     cuStreamSynchronize = cuda_lib.?.lookup(CuStreamSynchronizeFn, "cuStreamSynchronize") orelse return false;
+
+    // Optional advanced functions (don't fail if not found)
+    cuMemcpyD2D = cuda_lib.?.lookup(CuMemcpyD2DFn, "cuMemcpyDtoD");
+    cuMemcpyD2DAsync = cuda_lib.?.lookup(CuMemcpyD2DAsyncFn, "cuMemcpyDtoDAsync");
+    cuMemcpyH2DAsync = cuda_lib.?.lookup(CuMemcpyH2DAsyncFn, "cuMemcpyHtoDAsync");
+    cuMemcpyD2HAsync = cuda_lib.?.lookup(CuMemcpyD2HAsyncFn, "cuMemcpyDtoHAsync");
+    cuMemGetInfo = cuda_lib.?.lookup(CuMemGetInfoFn, "cuMemGetInfo");
+    cuDeviceGetAttribute = cuda_lib.?.lookup(CuDeviceGetAttributeFn, "cuDeviceGetAttribute");
+    cuDeviceGetName = cuda_lib.?.lookup(CuDeviceGetNameFn, "cuDeviceGetName");
+    cuDeviceTotalMem = cuda_lib.?.lookup(CuDeviceTotalMemFn, "cuDeviceTotalMem");
+    cuOccupancyMaxPotentialBlockSize = cuda_lib.?.lookup(CuOccupancyMaxPotentialBlockSizeFn, "cuOccupancyMaxPotentialBlockSize");
+    cuFuncGetAttribute = cuda_lib.?.lookup(CuFuncGetAttributeFn, "cuFuncGetAttribute");
+    cuMemsetD8 = cuda_lib.?.lookup(CuMemsetD8Fn, "cuMemsetD8");
+    cuMemsetD32 = cuda_lib.?.lookup(CuMemsetD32Fn, "cuMemsetD32");
 
     return true;
 }
