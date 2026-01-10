@@ -101,9 +101,14 @@ pub const ProfileWriter = struct {
 
 pub fn writeProfileLine(sink: LoggingSink, line: []const u8) void {
     const config = ProfileConfig{ .sink = sink };
-    var writer = ProfileWriter.init(config) catch return;
+    var writer = ProfileWriter.init(config) catch |err| {
+        std.log.warn("Failed to initialize profile writer: {t}", .{err});
+        return;
+    };
     defer writer.deinit();
-    _ = writer.writeLine(line) catch {};
+    writer.writeLine(line) catch |err| {
+        std.log.warn("Failed to write profile line: {t}", .{err});
+    };
 }
 
 pub fn writeProfileLineWithConfig(config: ProfileConfig, line: []const u8) ProfileError!void {

@@ -1,6 +1,28 @@
 //! Circuit breaker pattern for network resilience.
 const std = @import("std");
 
+/// Error set for network operations that can be wrapped by the circuit breaker
+pub const NetworkOperationError = error{
+    /// Network connection failed
+    ConnectionFailed,
+    /// Request timed out
+    Timeout,
+    /// Server returned an error response
+    ServerError,
+    /// DNS resolution failed
+    DnsResolutionFailed,
+    /// Connection was reset by peer
+    ConnectionReset,
+    /// Host is unreachable
+    HostUnreachable,
+    /// Network is unreachable
+    NetworkUnreachable,
+    /// Connection refused
+    ConnectionRefused,
+    /// SSL/TLS handshake failed
+    TlsHandshakeFailed,
+} || std.mem.Allocator.Error;
+
 pub const CircuitState = enum {
     closed,
     open,
@@ -72,6 +94,12 @@ pub const CircuitBreaker = struct {
 
     pub fn execute(self: *CircuitBreaker, operation: fn () anyerror![]const u8) CircuitResult {
         if (!self.canExecute()) {
+            const metrics = self.getMetrics();
+            std.log.debug("Circuit breaker rejected request: state={t}, failures={d}, time_to_reset={d}ms", .{
+                self.state,
+                self.failure_count,
+                metrics.time_to_next_state_ms,
+            });
             return .{ .rejected = .{ .message = "Circuit open", .fallback = null } };
         }
 
@@ -81,6 +109,11 @@ pub const CircuitBreaker = struct {
                 error.Timeout, error.TimedOut => .timeout,
                 else => .rejected,
             };
+            std.log.debug("Circuit breaker operation failed: error={t}, failure_count={d}/{d}", .{
+                err,
+                self.failure_count,
+                self.config.failure_threshold,
+            });
             return .{ .err = .{ .code = code, .message = @errorName(err) } };
         };
 

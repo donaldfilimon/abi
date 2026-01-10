@@ -17,7 +17,10 @@ const Backoff = struct {
             std.atomic.spinLoopHint();
             return;
         }
-        _ = std.Thread.yield() catch {};
+        // Thread yield failure is non-critical; log at debug level and continue
+        std.Thread.yield() catch |err| {
+            std.log.debug("Thread yield failed during engine backoff spin: {t}", .{err});
+        };
     }
 
     pub fn wait(self: *Backoff) void {
@@ -29,7 +32,10 @@ const Backoff = struct {
             i += 1;
         }
         if (self.spins > 32) {
-            _ = std.Thread.yield() catch {};
+            // Thread yield failure is non-critical; log at debug level and continue
+            std.Thread.yield() catch |err| {
+                std.log.debug("Thread yield failed during engine backoff wait: {t}", .{err});
+            };
         }
     }
 };
@@ -184,7 +190,10 @@ pub const DistributedComputeEngine = struct {
                 }
                 const remaining_ms: u64 = @intCast(deadline - now_ms);
                 const remaining_ns = remaining_ms * std.time.ns_per_ms;
-                state.results_cond.timedWait(&state.results_mutex, remaining_ns) catch {};
+                // Condition variable timeout is expected behavior; continue polling
+                state.results_cond.timedWait(&state.results_mutex, remaining_ns) catch |err| {
+                    std.log.debug("Result condition wait returned: {t}", .{err});
+                };
             }
         }
     }
@@ -523,7 +532,8 @@ fn executeTask(state: *EngineState, node: *TaskNode) void {
         return;
     };
     destroyTaskNode(state, node);
-    storeResultBlob(state, node.id, result) catch {
+    storeResultBlob(state, node.id, result) catch |err| {
+        std.log.err("Failed to store result for task {d}: {t}", .{ node.id, err });
         if (result.kind == .value or result.kind == .owned_slice) {
             state.allocator.free(result.bytes);
         }
@@ -546,13 +556,19 @@ fn executeTaskInline(state: *EngineState, node: *TaskNode) !void {
 }
 
 fn storeTaskError(state: *EngineState, id: TaskId, err: anyerror) void {
+    std.log.debug("Task {d} execution failed: {t}", .{ id, err });
     const blob = ResultBlob{
         .kind = .task_error,
         .bytes = &.{},
         .size = 0,
         .error_code = @intFromError(err),
     };
-    storeResultBlob(state, id, blob) catch {
+    storeResultBlob(state, id, blob) catch |store_err| {
+        std.log.err("Failed to store error for task {d}: {t} (original error: {t})", .{
+            id,
+            store_err,
+            err,
+        });
         releaseTaskSlot(state);
     };
 }
@@ -573,7 +589,13 @@ fn applyAffinity(state: *EngineState, worker_index: usize) void {
         return;
     }
     const cpu_id = cpu_ids[worker_index % cpu_ids.len];
-    numa.setThreadAffinity(cpu_id) catch {};
+    numa.setThreadAffinity(cpu_id) catch |err| {
+        std.log.warn("Failed to set CPU affinity for worker {d} to CPU {d}: {t}", .{
+            worker_index,
+            cpu_id,
+            err,
+        });
+    };
 }
 
 fn encodeResult(
