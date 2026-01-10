@@ -188,9 +188,11 @@ See CONTRIBUTING.md for details.
 | Version | Target Quarter | Status |
 |----------|---------------|---------|
 | 0.2.2 | 2025-12-27 | Released |
-| 0.3.0 | Q1 2026 | In Progress |
+| 0.3.0 | Q1 2026 | In Progress (Core Features Complete) |
 | 0.4.0 | Q2 2026 | Planned |
 | 0.5.0 | Q3 2026 | Planned |
+
+*Last updated: January 10, 2026*
 
 ## Changelog History
 

@@ -60,7 +60,8 @@ implementation details.
 
 ## Modules
 
-- `lib/core` - I/O, diagnostics, collections
-- `lib/features` - feature modules
-- `lib/framework` - orchestration runtime
-- `lib/shared` - shared utilities and platform helpers
+- `src/core` - I/O, diagnostics, collections
+- `src/features` - feature modules (AI, GPU, database, web, monitoring)
+- `src/framework` - orchestration runtime and lifecycle management
+- `src/shared` - shared utilities and platform helpers
+- `src/compute` - compute runtime, memory management, concurrency

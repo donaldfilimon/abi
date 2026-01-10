@@ -337,7 +337,3 @@ zig build benchmark
 ## Contributing
 
 See `CONTRIBUTING.md` for development workflow and style guidelines.
-
-```
-
-```
