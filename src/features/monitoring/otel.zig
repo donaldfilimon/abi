@@ -59,163 +59,133 @@ pub const OtelExporter = struct {
 
     /// Export metrics to the OTLP endpoint via HTTP
     pub fn exportMetrics(self: *OtelExporter, metrics: []const OtelMetric) !void {
-        if (!self.config.enabled or metrics.len == 0) {
-            return;
-        }
+        if (!self.config.enabled or metrics.len == 0) return;
 
-        // Build OTLP JSON payload for metrics
-        var json_buffer = std.ArrayList(u8).init(self.allocator);
-        defer json_buffer.deinit();
+        // Build JSON payload for OpenTelemetry metrics export
+        var json = std.ArrayList(u8).init(self.allocator);
+        defer json.deinit();
 
-        const writer = json_buffer.writer();
-        try writer.writeAll("{\"resourceMetrics\":[{\"resource\":{\"attributes\":[");
-        try writer.print("{{\"key\":\"service.name\",\"value\":{{\"stringValue\":\"{s}\"}}}},", .{self.config.service_name});
-        try writer.print("{{\"key\":\"service.version\",\"value\":{{\"stringValue\":\"{s}\"}}}}", .{self.config.service_version});
-        try writer.writeAll("]},\"scopeMetrics\":[{\"metrics\":[");
+        const writer = json.writer();
+        try writer.writeAll("{\"resourceMetrics\":[{\"scopeMetrics\":[{\"metrics\":[");
 
         for (metrics, 0..) |metric, i| {
-            if (i > 0) try writer.writeByte(',');
-            try self.serializeMetric(writer, metric);
+            if (i > 0) try writer.writeAll(",");
+
+            try std.fmt.format(writer, "{{\"name\":\"{s}\",", .{metric.name});
+            try std.fmt.format(writer, "\"description\":\"\",", .{});
+
+            switch (metric.metric_type) {
+                .counter => {
+                    try writer.writeAll("\"sum\":{\"dataPoints\":[{");
+                    try std.fmt.format(writer, "\"asDouble\":{d},", .{metric.value});
+                    try std.fmt.format(writer, "\"timeUnixNano\":{d}", .{metric.timestamp * 1_000_000_000});
+                    try writer.writeAll("}],\"aggregationTemporality\":2,\"isMonotonic\":true}");
+                },
+                .gauge => {
+                    try writer.writeAll("\"gauge\":{\"dataPoints\":[{");
+                    try std.fmt.format(writer, "\"asDouble\":{d},", .{metric.value});
+                    try std.fmt.format(writer, "\"timeUnixNano\":{d}", .{metric.timestamp * 1_000_000_000});
+                    try writer.writeAll("}]}");
+                },
+                .histogram => {
+                    try writer.writeAll("\"histogram\":{\"dataPoints\":[{");
+                    try std.fmt.format(writer, "\"sum\":{d},\"count\":1,", .{metric.value});
+                    try std.fmt.format(writer, "\"timeUnixNano\":{d}", .{metric.timestamp * 1_000_000_000});
+                    try writer.writeAll("}],\"aggregationTemporality\":2}");
+                },
+            }
+
+            try writer.writeAll("}");
         }
 
         try writer.writeAll("]}]}]}");
 
-        // Send to OTLP endpoint
-        try self.sendToEndpoint("/v1/metrics", json_buffer.items);
-
-        std.log.debug("OpenTelemetry: Exported {d} metrics to {s}", .{
-            metrics.len,
-            self.config.exporter_endpoint,
-        });
+        // Send to OpenTelemetry collector
+        try self.sendToCollector("/v1/metrics", json.items);
     }
 
     /// Export traces/spans to the OTLP endpoint via HTTP
     pub fn exportTraces(self: *OtelExporter, traces: []const OtelSpan) !void {
-        if (!self.config.enabled or traces.len == 0) {
-            return;
-        }
+        if (!self.config.enabled or traces.len == 0) return;
 
-        // Build OTLP JSON payload for traces
-        var json_buffer = std.ArrayList(u8).init(self.allocator);
-        defer json_buffer.deinit();
+        // Build JSON payload for OpenTelemetry traces export
+        var json = std.ArrayList(u8).init(self.allocator);
+        defer json.deinit();
 
-        const writer = json_buffer.writer();
-        try writer.writeAll("{\"resourceSpans\":[{\"resource\":{\"attributes\":[");
-        try writer.print("{{\"key\":\"service.name\",\"value\":{{\"stringValue\":\"{s}\"}}}},", .{self.config.service_name});
-        try writer.print("{{\"key\":\"service.version\",\"value\":{{\"stringValue\":\"{s}\"}}}}", .{self.config.service_version});
-        try writer.writeAll("]},\"scopeSpans\":[{\"spans\":[");
+        const writer = json.writer();
+        try writer.writeAll("{\"resourceSpans\":[{\"scopeSpans\":[{\"spans\":[");
 
-        for (traces, 0..) |span, i| {
-            if (i > 0) try writer.writeByte(',');
-            try self.serializeSpan(writer, span);
+        for (traces, 0..) |trace, i| {
+            if (i > 0) try writer.writeAll(",");
+
+            try writer.writeAll("{");
+            try std.fmt.format(writer, "\"traceId\":\"{s}\",", .{std.fmt.fmtSliceHexLower(&trace.trace_id)});
+            try std.fmt.format(writer, "\"spanId\":\"{s}\",", .{std.fmt.fmtSliceHexLower(&trace.span_id)});
+            try std.fmt.format(writer, "\"parentSpanId\":\"{s}\",", .{std.fmt.fmtSliceHexLower(&trace.parent_span_id)});
+            try std.fmt.format(writer, "\"name\":\"{s}\",", .{trace.name});
+            try std.fmt.format(writer, "\"kind\":{d},", .{@intFromEnum(trace.kind) + 1});
+            try std.fmt.format(writer, "\"startTimeUnixNano\":{d},", .{trace.start_time * 1_000_000_000});
+            try std.fmt.format(writer, "\"endTimeUnixNano\":{d},", .{trace.end_time * 1_000_000_000});
+
+            // Add attributes
+            if (trace.attributes.items.len > 0) {
+                try writer.writeAll("\"attributes\":[");
+                for (trace.attributes.items, 0..) |attr, j| {
+                    if (j > 0) try writer.writeAll(",");
+                    try writer.writeAll("{");
+                    try std.fmt.format(writer, "\"key\":\"{s}\",", .{attr.key});
+                    try writer.writeAll("\"value\":{");
+                    switch (attr.value) {
+                        .string => |s| try std.fmt.format(writer, "\"stringValue\":\"{s}\"", .{s}),
+                        .int => |n| try std.fmt.format(writer, "\"intValue\":{d}", .{n}),
+                        .float => |f| try std.fmt.format(writer, "\"doubleValue\":{d}", .{f}),
+                        .bool => |b| try std.fmt.format(writer, "\"boolValue\":{}", .{b}),
+                    }
+                    try writer.writeAll("}}");
+                }
+                try writer.writeAll("],");
+            }
+
+            // Add events
+            if (trace.events.items.len > 0) {
+                try writer.writeAll("\"events\":[");
+                for (trace.events.items, 0..) |event, j| {
+                    if (j > 0) try writer.writeAll(",");
+                    try writer.writeAll("{");
+                    try std.fmt.format(writer, "\"name\":\"{s}\",", .{event.name});
+                    try std.fmt.format(writer, "\"timeUnixNano\":{d}", .{event.timestamp * 1_000_000_000});
+                    try writer.writeAll("}");
+                }
+                try writer.writeAll("],");
+            }
+
+            try std.fmt.format(writer, "\"status\":{{\"code\":{d}}}", .{@intFromEnum(trace.status)});
+            try writer.writeAll("}");
         }
 
         try writer.writeAll("]}]}]}");
 
-        // Send to OTLP endpoint
-        try self.sendToEndpoint("/v1/traces", json_buffer.items);
-
-        std.log.debug("OpenTelemetry: Exported {d} spans to {s}", .{
-            traces.len,
-            self.config.exporter_endpoint,
-        });
+        // Send to OpenTelemetry collector
+        try self.sendToCollector("/v1/traces", json.items);
     }
 
-    /// Serialize a metric to OTLP JSON format
-    fn serializeMetric(self: *OtelExporter, writer: anytype, metric: OtelMetric) !void {
-        _ = self;
-        try writer.print("{{\"name\":\"{s}\",", .{metric.name});
+    fn sendToCollector(self: *OtelExporter, path: []const u8, payload: []const u8) !void {
+        // Build full endpoint URL
+        var endpoint_buf: [512]u8 = undefined;
+        const endpoint = try std.fmt.bufPrint(&endpoint_buf, "{s}{s}", .{ self.config.exporter_endpoint, path });
 
-        switch (metric.metric_type) {
-            .counter => {
-                try writer.print("\"sum\":{{\"dataPoints\":[{{\"asDouble\":{d},\"timeUnixNano\":{d}}}],\"isMonotonic\":true}}", .{
-                    metric.value,
-                    @as(u64, @intCast(metric.timestamp)) * 1_000_000_000,
-                });
-            },
-            .gauge => {
-                try writer.print("\"gauge\":{{\"dataPoints\":[{{\"asDouble\":{d},\"timeUnixNano\":{d}}}]}}", .{
-                    metric.value,
-                    @as(u64, @intCast(metric.timestamp)) * 1_000_000_000,
-                });
-            },
-            .histogram => {
-                try writer.print("\"histogram\":{{\"dataPoints\":[{{\"sum\":{d},\"count\":1,\"timeUnixNano\":{d}}}]}}", .{
-                    metric.value,
-                    @as(u64, @intCast(metric.timestamp)) * 1_000_000_000,
-                });
-            },
-        }
-        try writer.writeByte('}');
-    }
+        // In a production implementation, this would:
+        // 1. Create HTTP client connection
+        // 2. Send POST request with JSON payload
+        // 3. Set Content-Type: application/json header
+        // 4. Handle response and retries
 
-    /// Serialize a span to OTLP JSON format
-    fn serializeSpan(self: *OtelExporter, writer: anytype, span: OtelSpan) !void {
-        _ = self;
-        const trace_id_hex = formatTraceId(span.trace_id);
-        const span_id_hex = formatSpanId(span.span_id);
-        const parent_id_hex = formatSpanId(span.parent_span_id);
-
-        try writer.print("{{\"traceId\":\"{s}\",\"spanId\":\"{s}\",", .{
-            &trace_id_hex,
-            &span_id_hex,
-        });
-
-        // Include parent span ID if not zero
-        var has_parent = false;
-        for (span.parent_span_id) |b| {
-            if (b != 0) {
-                has_parent = true;
-                break;
-            }
-        }
-        if (has_parent) {
-            try writer.print("\"parentSpanId\":\"{s}\",", .{&parent_id_hex});
-        }
-
-        try writer.print("\"name\":\"{s}\",", .{span.name});
-        try writer.print("\"kind\":{d},", .{@intFromEnum(span.kind) + 1});
-        try writer.print("\"startTimeUnixNano\":{d},", .{
-            @as(u64, @intCast(span.start_time)) * 1_000_000_000,
-        });
-        try writer.print("\"endTimeUnixNano\":{d},", .{
-            @as(u64, @intCast(span.end_time)) * 1_000_000_000,
-        });
-
-        // Serialize status
-        try writer.print("\"status\":{{\"code\":{d}}}", .{
-            switch (span.status) {
-                .unset => @as(u8, 0),
-                .ok => @as(u8, 1),
-                .failed => @as(u8, 2),
-            },
-        });
-
-        try writer.writeByte('}');
-    }
-
-    /// Send telemetry data to the OTLP HTTP endpoint
-    fn sendToEndpoint(self: *OtelExporter, path: []const u8, payload: []const u8) !void {
-        // Build the full URL
-        var url_buffer: [512]u8 = undefined;
-        const url = std.fmt.bufPrint(&url_buffer, "{s}{s}", .{
-            self.config.exporter_endpoint,
-            path,
-        }) catch return error.UrlTooLong;
-
-        // In a full implementation, this would use the HTTP client to POST
         // For now, log the export attempt
-        std.log.info("OpenTelemetry: POST {s} ({d} bytes)", .{ url, payload.len });
+        std.log.debug("OpenTelemetry export to {s}: {d} bytes", .{ endpoint, payload.len });
 
-        // The actual HTTP request would be:
-        // const http_client = try async_http.AsyncHttpClient.init(self.allocator);
-        // defer http_client.deinit();
-        // try http_client.post(url, .{
-        //     .body = payload,
-        //     .headers = &.{
-        //         .{ "Content-Type", "application/json" },
-        //     },
-        // });
+        // In the real implementation, would use std.http.Client or a web client
+        _ = endpoint;
+        _ = payload;
     }
 
     const ExportError = error{
