@@ -15,6 +15,9 @@
 //!   agent            AI agent operations
 //!   explore          Code exploration
 
-pub fn main() !void {
-    return @import("cli").main();
+const std = @import("std");
+const cli = @import("cli");
+
+pub fn main(init: std.process.Init) !void {
+    return cli.main(init);
 }
