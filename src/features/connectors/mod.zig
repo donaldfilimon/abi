@@ -25,10 +25,18 @@ pub fn isInitialized() bool {
 }
 
 pub fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) !?[]u8 {
-    return std.process.getEnvVarOwned(allocator, name) catch |err| switch (err) {
-        error.EnvironmentVariableNotFound => null,
-        else => return err,
+    // Create an environment map from the system environment
+    var env_map = std.process.Environ.createMap(.{ .block = {} }, allocator) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return null,
     };
+    defer env_map.deinit();
+
+    // Look up the variable and return a copy if found
+    if (env_map.get(name)) |value| {
+        return try allocator.dupe(u8, value);
+    }
+    return null;
 }
 
 pub fn getFirstEnvOwned(allocator: std.mem.Allocator, names: []const []const u8) !?[]u8 {

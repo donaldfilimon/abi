@@ -187,7 +187,7 @@ pub const HttpResponse = struct {
 
     pub fn init(allocator: std.mem.Allocator) HttpResponse {
         return .{
-            .status = ._,
+            .status = @enumFromInt(0),
             .status_code = 0,
             .headers = std.StringHashMap([]const u8).init(allocator),
             .body = &.{},
@@ -226,15 +226,29 @@ pub const HttpResponse = struct {
 
 pub const AsyncHttpClient = struct {
     allocator: std.mem.Allocator,
+    io_backend: *std.Io.Threaded,
     client: *std.http.Client,
     redirect_count: u8 = 0,
 
     pub fn init(allocator: std.mem.Allocator) !AsyncHttpClient {
+        // Create the I/O backend
+        const io_backend = try allocator.create(std.Io.Threaded);
+        errdefer allocator.destroy(io_backend);
+        io_backend.* = std.Io.Threaded.init(allocator, .{
+            .environ = std.process.Environ.empty,
+        });
+
+        // Create and initialize the HTTP client
         const client = try allocator.create(std.http.Client);
-        client.* = .{ .allocator = allocator };
+        errdefer allocator.destroy(client);
+        client.* = .{
+            .allocator = allocator,
+            .io = io_backend.io(),
+        };
 
         return .{
             .allocator = allocator,
+            .io_backend = io_backend,
             .client = client,
             .redirect_count = 0,
         };
@@ -242,51 +256,103 @@ pub const AsyncHttpClient = struct {
 
     pub fn deinit(self: *AsyncHttpClient) void {
         self.client.deinit();
+        self.io_backend.deinit();
         self.allocator.destroy(self.client);
+        self.allocator.destroy(self.io_backend);
         self.* = undefined;
     }
 
-    pub fn fetch(self: *AsyncHttpClient, request: *HttpRequest) !HttpResponse {
+    pub fn fetch(self: *AsyncHttpClient, http_request: *HttpRequest) !HttpResponse {
         var response = HttpResponse.init(self.allocator);
         errdefer response.deinit();
 
-        const uri = try std.Uri.parse(request.url);
+        const uri = try std.Uri.parse(http_request.url);
 
-        var server_header_buffer: [8192]u8 = undefined;
-        var http_res = try self.client.open(.{
-            .method = std.http.Method.fromEnum(@intFromEnum(request.method)),
-            .location = uri,
-            .server_header_buffer = &server_header_buffer,
-            .headers = .{
-                .authorization = if (request.headers.get("Authorization")) |auth| auth else "",
-                .accept = if (request.headers.get("Accept")) |accept| accept else "*/*",
-                .content_type = if (request.headers.get("Content-Type")) |ct| ct else "",
-            },
-        });
+        // Convert local Method enum to std.http.Method
+        const method: std.http.Method = switch (http_request.method) {
+            .get => .GET,
+            .post => .POST,
+            .put => .PUT,
+            .delete => .DELETE,
+            .patch => .PATCH,
+            .head => .HEAD,
+            .options => .OPTIONS,
+        };
 
-        defer http_res.deinit();
+        // Build extra headers from the request
+        var extra_headers_list = std.ArrayListUnmanaged(std.http.Header){};
+        defer extra_headers_list.deinit(self.allocator);
 
-        if (request.body) |body| {
-            try http_res.writeAll(body);
+        var header_iter = http_request.headers.iterator();
+        while (header_iter.next()) |entry| {
+            // Skip headers that are handled specially
+            const name_lower = entry.key_ptr.*;
+            if (std.mem.eql(u8, name_lower, "authorization") or
+                std.mem.eql(u8, name_lower, "content-type"))
+            {
+                continue;
+            }
+            try extra_headers_list.append(self.allocator, .{
+                .name = name_lower,
+                .value = entry.value_ptr.*,
+            });
         }
 
-        try http_res.finish();
+        // Create the request
+        var req = try self.client.*.request(method, uri, .{
+            .headers = .{
+                .authorization = if (http_request.headers.get("authorization")) |auth|
+                    .{ .override = auth }
+                else if (http_request.headers.get("Authorization")) |auth|
+                    .{ .override = auth }
+                else
+                    .default,
+                .content_type = if (http_request.headers.get("content-type")) |ct|
+                    .{ .override = ct }
+                else if (http_request.headers.get("Content-Type")) |ct|
+                    .{ .override = ct }
+                else
+                    .default,
+            },
+            .extra_headers = extra_headers_list.items,
+        });
+        defer req.deinit();
 
-        response.status_code = @intCast(http_res.status);
+        // Send request body if present
+        if (http_request.body) |body| {
+            try req.sendBodyComplete(@constCast(body));
+        } else {
+            try req.sendBodiless();
+        }
+
+        // Receive response head
+        var redirect_buffer: [2048]u8 = undefined;
+        var res = try req.receiveHead(&redirect_buffer);
+
+        response.status_code = @intFromEnum(res.head.status);
         response.status = @enumFromInt(response.status_code);
 
-        var body_reader = http_res.reader();
+        // Read response body
+        var transfer_buffer: [16384]u8 = undefined;
+        const body_reader = res.reader(&transfer_buffer);
+
         var body_list = std.ArrayListUnmanaged(u8){};
         errdefer body_list.deinit(self.allocator);
 
-        try body_reader.readAllArrayListAligned(&body_list, null, self.allocator, 10 * 1024 * 1024);
+        // Read all body data using readSliceShort
+        var read_buf: [4096]u8 = undefined;
+        while (true) {
+            const bytes_read = body_reader.readSliceShort(&read_buf) catch break;
+            if (bytes_read == 0) break;
+            try body_list.appendSlice(self.allocator, read_buf[0..bytes_read]);
+        }
+
         response.body = try body_list.toOwnedSlice(self.allocator);
 
         return response;
     }
 
     pub const StreamingResponse = struct {
-        reader: std.Io.Reader,
         response: HttpResponse,
 
         pub fn deinit(self: *StreamingResponse) void {
@@ -294,92 +360,23 @@ pub const AsyncHttpClient = struct {
         }
     };
 
-    pub fn fetchStreaming(self: *AsyncHttpClient, request: *HttpRequest) !StreamingResponse {
-        const uri = try std.Uri.parse(request.url);
-
-        var server_header_buffer: [8192]u8 = undefined;
-        var http_res = try self.client.open(.{
-            .method = std.http.Method.fromEnum(@intFromEnum(request.method)),
-            .location = uri,
-            .server_header_buffer = &server_header_buffer,
-            .headers = .{
-                .authorization = if (request.headers.get("Authorization")) |auth| auth else "",
-                .accept = if (request.headers.get("Accept")) |accept| accept else "*/*",
-                .content_type = if (request.headers.get("Content-Type")) |ct| ct else "",
-            },
-        });
-
-        if (request.body) |body| {
-            try http_res.writeAll(body);
-        }
-
-        try http_res.finish();
-
-        var response = HttpResponse.init(self.allocator);
-        errdefer response.deinit();
-
-        response.status_code = @intCast(http_res.status);
-        response.status = @enumFromInt(response.status_code);
-
-        const reader = http_res.reader();
-
+    /// Note: Streaming is handled internally in Zig 0.16's HTTP client.
+    /// This method now returns a regular response for API compatibility.
+    pub fn fetchStreaming(self: *AsyncHttpClient, http_request: *HttpRequest) !StreamingResponse {
+        const response = try self.fetch(http_request);
         return .{
-            .reader = reader,
             .response = response,
         };
     }
 
-    pub fn fetchJson(self: *AsyncHttpClient, request: *HttpRequest) !HttpResponse {
-        try request.setHeader("Accept", "application/json");
-        return try self.fetch(request);
+    pub fn fetchJson(self: *AsyncHttpClient, http_request: *HttpRequest) !HttpResponse {
+        try http_request.setHeader("Accept", "application/json");
+        return try self.fetch(http_request);
     }
 
-    /// Async version of fetch demonstrating Zig async patterns
-    /// This method shows how to structure async HTTP operations
-    pub fn fetchAsync(self: *AsyncHttpClient, request: *HttpRequest) !HttpResponse {
-        var response = HttpResponse.init(self.allocator);
-        errdefer response.deinit();
-
-        const uri = try std.Uri.parse(request.url);
-
-        var server_header_buffer: [8192]u8 = undefined;
-        var http_res = try self.client.open(.{
-            .method = std.http.Method.fromEnum(@intFromEnum(request.method)),
-            .location = uri,
-            .server_header_buffer = &server_header_buffer,
-            .headers = .{
-                .authorization = if (request.headers.get("Authorization")) |auth| auth else "",
-                .accept = if (request.headers.get("Accept")) |accept| accept else "*/*",
-                .content_type = if (request.headers.get("Content-Type")) |ct| ct else "",
-            },
-        });
-
-        defer http_res.deinit();
-
-        if (request.body) |body| {
-            try http_res.writeAll(body);
-        }
-
-        try http_res.finish();
-
-        response.status_code = @intCast(http_res.status);
-        response.status = @enumFromInt(response.status_code);
-
-        var body_reader = http_res.reader();
-        var body_list = std.ArrayListUnmanaged(u8){};
-        errdefer body_list.deinit(self.allocator);
-
-        // Use chunked reading for better memory efficiency
-        var buffer: [4096]u8 = undefined;
-        while (true) {
-            const n = try body_reader.read(&buffer);
-            if (n == 0) break;
-            try body_list.appendSlice(self.allocator, buffer[0..n]);
-        }
-
-        response.body = try body_list.toOwnedSlice(self.allocator);
-
-        return response;
+    /// Async version of fetch - delegates to standard fetch in Zig 0.16
+    pub fn fetchAsync(self: *AsyncHttpClient, http_request: *HttpRequest) !HttpResponse {
+        return try self.fetch(http_request);
     }
 
     /// Batch request helper for making multiple HTTP requests efficiently
@@ -411,16 +408,16 @@ pub const AsyncHttpClient = struct {
     }
 
     pub fn get(self: *AsyncHttpClient, url: []const u8) !HttpResponse {
-        var request = try HttpRequest.init(self.allocator, .GET, url);
-        defer request.deinit();
-        return try self.fetch(&request);
+        var http_request = try HttpRequest.init(self.allocator, .get, url);
+        defer http_request.deinit();
+        return try self.fetch(&http_request);
     }
 
     pub fn post(self: *AsyncHttpClient, url: []const u8, body: []const u8) !HttpResponse {
-        var request = try HttpRequest.init(self.allocator, .POST, url);
-        errdefer request.deinit();
-        try request.setJsonBody(body);
-        return try self.fetch(&request);
+        var http_request = try HttpRequest.init(self.allocator, .post, url);
+        errdefer http_request.deinit();
+        try http_request.setJsonBody(body);
+        return try self.fetch(&http_request);
     }
 
     pub fn postJson(self: *AsyncHttpClient, url: []const u8, json: []const u8) !HttpResponse {
@@ -431,11 +428,11 @@ pub const AsyncHttpClient = struct {
 test "http request lifecycle" {
     const allocator = std.testing.allocator;
 
-    var request = try HttpRequest.init(allocator, .GET, "https://example.com");
+    var request = try HttpRequest.init(allocator, .get, "https://example.com");
     defer request.deinit();
 
     try request.setHeader("User-Agent", "abi/0.1.0");
-    try std.testing.expectEqual(Method.GET, request.method);
+    try std.testing.expectEqual(Method.get, request.method);
 }
 
 test "http response status checks" {
