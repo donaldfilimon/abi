@@ -186,13 +186,6 @@ fn destroyVulkanContext(ctx: *VulkanContext) void {
     }
 }
 
-/// Device scoring for selection priority.
-/// Higher scores are preferred. Discrete GPUs score highest.
-const DeviceScore = struct {
-    device: types.VkPhysicalDevice,
-    score: u32,
-};
-
 fn selectPhysicalDevice(instance: types.VkInstance) !types.VkPhysicalDevice {
     const enumerate_fn = vkEnumeratePhysicalDevices orelse return VulkanError.PhysicalDeviceNotFound;
 

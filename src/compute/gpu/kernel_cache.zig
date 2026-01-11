@@ -12,7 +12,30 @@ pub const KernelError = std.mem.Allocator.Error || error{
     UnsupportedSourceType,
     InvalidOptions,
     CacheCorrupted,
+    InvalidCacheKey,
 };
+
+/// Validate a cache key for safe filesystem use.
+/// Rejects keys containing path traversal sequences or unsafe characters.
+fn isValidCacheKey(key: []const u8) bool {
+    if (key.len == 0 or key.len > 200) return false;
+
+    // Reject path traversal attempts
+    if (std.mem.indexOf(u8, key, "..") != null) return false;
+    if (std.mem.indexOf(u8, key, "/") != null) return false;
+    if (std.mem.indexOf(u8, key, "\\") != null) return false;
+
+    // Reject Windows drive letters (e.g., "C:")
+    if (key.len >= 2 and key[1] == ':') return false;
+
+    // Only allow alphanumeric, underscore, hyphen, and dot
+    for (key) |c| {
+        const valid = std.ascii.isAlphanumeric(c) or c == '_' or c == '-' or c == '.';
+        if (!valid) return false;
+    }
+
+    return true;
+}
 
 /// Kernel source type.
 pub const KernelSourceType = enum {
@@ -337,6 +360,12 @@ pub const KernelCache = struct {
             const key = entry.key_ptr.*;
             const cache_entry = entry.value_ptr.*;
 
+            // Validate key to prevent path traversal attacks
+            if (!isValidCacheKey(key)) {
+                std.log.warn("Skipping invalid cache key: {s}", .{key});
+                continue;
+            }
+
             // Construct filename from key
             var filename_buf: [256]u8 = undefined;
             const filename = try std.fmt.bufPrint(&filename_buf, "{s}/{s}.bin", .{ cache_dir, key });
@@ -396,7 +425,16 @@ pub const KernelCache = struct {
 
             // Extract key from filename (remove .bin extension)
             const key_len = entry.name.len - 4;
-            const key = try self.allocator.dupe(u8, entry.name[0..key_len]);
+            const key_slice = entry.name[0..key_len];
+
+            // Validate key to ensure it's safe
+            if (!isValidCacheKey(key_slice)) {
+                std.log.warn("Skipping cache file with invalid key: {s}", .{entry.name});
+                self.allocator.free(binary);
+                continue;
+            }
+
+            const key = try self.allocator.dupe(u8, key_slice);
             errdefer self.allocator.free(key);
 
             // Add to cache
