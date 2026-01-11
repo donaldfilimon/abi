@@ -483,3 +483,617 @@ test "add" {
     try std.testing.expectEqual(@as(f32, 7.0), result[1]);
     try std.testing.expectEqual(@as(f32, 9.0), result[2]);
 }
+
+// ============================================================================
+// Additional tensor operations
+// ============================================================================
+
+/// Element-wise subtraction: out = a - b
+pub fn sub(a: *const Tensor, b: *const Tensor, out: *Tensor) !void {
+    if (!a.shape.eql(b.shape) or !a.shape.eql(out.shape)) {
+        return TensorError.ShapeMismatch;
+    }
+
+    switch (a.dtype) {
+        .f32 => {
+            const a_data = a.asConstSlice(f32);
+            const b_data = b.asConstSlice(f32);
+            const out_data = out.asSlice(f32);
+            for (a_data, b_data, out_data) |av, bv, *ov| {
+                ov.* = av - bv;
+            }
+        },
+        .f64 => {
+            const a_data = a.asConstSlice(f64);
+            const b_data = b.asConstSlice(f64);
+            const out_data = out.asSlice(f64);
+            for (a_data, b_data, out_data) |av, bv, *ov| {
+                ov.* = av - bv;
+            }
+        },
+        else => return TensorError.InvalidDataType,
+    }
+}
+
+/// Element-wise division: out = a / b
+pub fn div(a: *const Tensor, b: *const Tensor, out: *Tensor) !void {
+    if (!a.shape.eql(b.shape) or !a.shape.eql(out.shape)) {
+        return TensorError.ShapeMismatch;
+    }
+
+    switch (a.dtype) {
+        .f32 => {
+            const a_data = a.asConstSlice(f32);
+            const b_data = b.asConstSlice(f32);
+            const out_data = out.asSlice(f32);
+            for (a_data, b_data, out_data) |av, bv, *ov| {
+                ov.* = av / bv;
+            }
+        },
+        .f64 => {
+            const a_data = a.asConstSlice(f64);
+            const b_data = b.asConstSlice(f64);
+            const out_data = out.asSlice(f64);
+            for (a_data, b_data, out_data) |av, bv, *ov| {
+                ov.* = av / bv;
+            }
+        },
+        else => return TensorError.InvalidDataType,
+    }
+}
+
+/// Add scalar to tensor: out = a + scalar
+pub fn addScalar(a: *const Tensor, scalar: f64, out: *Tensor) !void {
+    if (!a.shape.eql(out.shape)) {
+        return TensorError.ShapeMismatch;
+    }
+
+    switch (a.dtype) {
+        .f32 => {
+            const s: f32 = @floatCast(scalar);
+            const a_data = a.asConstSlice(f32);
+            const out_data = out.asSlice(f32);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = av + s;
+            }
+        },
+        .f64 => {
+            const a_data = a.asConstSlice(f64);
+            const out_data = out.asSlice(f64);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = av + scalar;
+            }
+        },
+        else => return TensorError.InvalidDataType,
+    }
+}
+
+/// Multiply tensor by scalar: out = a * scalar
+pub fn mulScalar(a: *const Tensor, scalar: f64, out: *Tensor) !void {
+    if (!a.shape.eql(out.shape)) {
+        return TensorError.ShapeMismatch;
+    }
+
+    switch (a.dtype) {
+        .f32 => {
+            const s: f32 = @floatCast(scalar);
+            const a_data = a.asConstSlice(f32);
+            const out_data = out.asSlice(f32);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = av * s;
+            }
+        },
+        .f64 => {
+            const a_data = a.asConstSlice(f64);
+            const out_data = out.asSlice(f64);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = av * scalar;
+            }
+        },
+        else => return TensorError.InvalidDataType,
+    }
+}
+
+/// Element-wise power: out = a ^ exponent
+pub fn pow(a: *const Tensor, exponent: f64, out: *Tensor) !void {
+    if (!a.shape.eql(out.shape)) {
+        return TensorError.ShapeMismatch;
+    }
+
+    switch (a.dtype) {
+        .f32 => {
+            const e: f32 = @floatCast(exponent);
+            const a_data = a.asConstSlice(f32);
+            const out_data = out.asSlice(f32);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = std.math.pow(f32, av, e);
+            }
+        },
+        .f64 => {
+            const a_data = a.asConstSlice(f64);
+            const out_data = out.asSlice(f64);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = std.math.pow(f64, av, exponent);
+            }
+        },
+        else => return TensorError.InvalidDataType,
+    }
+}
+
+/// Element-wise square root: out = sqrt(a)
+pub fn sqrt(a: *const Tensor, out: *Tensor) !void {
+    if (!a.shape.eql(out.shape)) {
+        return TensorError.ShapeMismatch;
+    }
+
+    switch (a.dtype) {
+        .f32 => {
+            const a_data = a.asConstSlice(f32);
+            const out_data = out.asSlice(f32);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = @sqrt(av);
+            }
+        },
+        .f64 => {
+            const a_data = a.asConstSlice(f64);
+            const out_data = out.asSlice(f64);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = @sqrt(av);
+            }
+        },
+        else => return TensorError.InvalidDataType,
+    }
+}
+
+/// Element-wise exponential: out = exp(a)
+pub fn exp(a: *const Tensor, out: *Tensor) !void {
+    if (!a.shape.eql(out.shape)) {
+        return TensorError.ShapeMismatch;
+    }
+
+    switch (a.dtype) {
+        .f32 => {
+            const a_data = a.asConstSlice(f32);
+            const out_data = out.asSlice(f32);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = @exp(av);
+            }
+        },
+        .f64 => {
+            const a_data = a.asConstSlice(f64);
+            const out_data = out.asSlice(f64);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = @exp(av);
+            }
+        },
+        else => return TensorError.InvalidDataType,
+    }
+}
+
+/// Element-wise natural log: out = ln(a)
+pub fn log(a: *const Tensor, out: *Tensor) !void {
+    if (!a.shape.eql(out.shape)) {
+        return TensorError.ShapeMismatch;
+    }
+
+    switch (a.dtype) {
+        .f32 => {
+            const a_data = a.asConstSlice(f32);
+            const out_data = out.asSlice(f32);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = @log(av);
+            }
+        },
+        .f64 => {
+            const a_data = a.asConstSlice(f64);
+            const out_data = out.asSlice(f64);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = @log(av);
+            }
+        },
+        else => return TensorError.InvalidDataType,
+    }
+}
+
+/// Element-wise absolute value: out = |a|
+pub fn abs(a: *const Tensor, out: *Tensor) !void {
+    if (!a.shape.eql(out.shape)) {
+        return TensorError.ShapeMismatch;
+    }
+
+    switch (a.dtype) {
+        .f32 => {
+            const a_data = a.asConstSlice(f32);
+            const out_data = out.asSlice(f32);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = @abs(av);
+            }
+        },
+        .f64 => {
+            const a_data = a.asConstSlice(f64);
+            const out_data = out.asSlice(f64);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = @abs(av);
+            }
+        },
+        else => return TensorError.InvalidDataType,
+    }
+}
+
+/// Element-wise negation: out = -a
+pub fn neg(a: *const Tensor, out: *Tensor) !void {
+    if (!a.shape.eql(out.shape)) {
+        return TensorError.ShapeMismatch;
+    }
+
+    switch (a.dtype) {
+        .f32 => {
+            const a_data = a.asConstSlice(f32);
+            const out_data = out.asSlice(f32);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = -av;
+            }
+        },
+        .f64 => {
+            const a_data = a.asConstSlice(f64);
+            const out_data = out.asSlice(f64);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = -av;
+            }
+        },
+        else => return TensorError.InvalidDataType,
+    }
+}
+
+/// Element-wise clamp: out = clamp(a, min_val, max_val)
+pub fn clamp(a: *const Tensor, min_val: f64, max_val: f64, out: *Tensor) !void {
+    if (!a.shape.eql(out.shape)) {
+        return TensorError.ShapeMismatch;
+    }
+
+    switch (a.dtype) {
+        .f32 => {
+            const min_f32: f32 = @floatCast(min_val);
+            const max_f32: f32 = @floatCast(max_val);
+            const a_data = a.asConstSlice(f32);
+            const out_data = out.asSlice(f32);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = @max(min_f32, @min(max_f32, av));
+            }
+        },
+        .f64 => {
+            const a_data = a.asConstSlice(f64);
+            const out_data = out.asSlice(f64);
+            for (a_data, out_data) |av, *ov| {
+                ov.* = @max(min_val, @min(max_val, av));
+            }
+        },
+        else => return TensorError.InvalidDataType,
+    }
+}
+
+// ============================================================================
+// Reduction operations
+// ============================================================================
+
+/// Sum all elements in tensor
+pub fn sum(a: *const Tensor) f64 {
+    switch (a.dtype) {
+        .f32 => {
+            var total: f64 = 0.0;
+            for (a.asConstSlice(f32)) |v| {
+                total += v;
+            }
+            return total;
+        },
+        .f64 => {
+            var total: f64 = 0.0;
+            for (a.asConstSlice(f64)) |v| {
+                total += v;
+            }
+            return total;
+        },
+        else => return 0.0,
+    }
+}
+
+/// Mean of all elements in tensor
+pub fn mean(a: *const Tensor) f64 {
+    const n = a.numel();
+    if (n == 0) return 0.0;
+    return sum(a) / @as(f64, @floatFromInt(n));
+}
+
+/// Variance of all elements in tensor
+pub fn variance(a: *const Tensor) f64 {
+    const n = a.numel();
+    if (n == 0) return 0.0;
+
+    const m = mean(a);
+
+    switch (a.dtype) {
+        .f32 => {
+            var var_sum: f64 = 0.0;
+            for (a.asConstSlice(f32)) |v| {
+                const diff = @as(f64, v) - m;
+                var_sum += diff * diff;
+            }
+            return var_sum / @as(f64, @floatFromInt(n));
+        },
+        .f64 => {
+            var var_sum: f64 = 0.0;
+            for (a.asConstSlice(f64)) |v| {
+                const diff = v - m;
+                var_sum += diff * diff;
+            }
+            return var_sum / @as(f64, @floatFromInt(n));
+        },
+        else => return 0.0,
+    }
+}
+
+/// Standard deviation of all elements in tensor
+pub fn std_dev(a: *const Tensor) f64 {
+    return @sqrt(variance(a));
+}
+
+/// Maximum element in tensor
+pub fn max(a: *const Tensor) f64 {
+    switch (a.dtype) {
+        .f32 => {
+            const data = a.asConstSlice(f32);
+            if (data.len == 0) return 0.0;
+            var max_val: f32 = data[0];
+            for (data[1..]) |v| {
+                if (v > max_val) max_val = v;
+            }
+            return max_val;
+        },
+        .f64 => {
+            const data = a.asConstSlice(f64);
+            if (data.len == 0) return 0.0;
+            var max_val: f64 = data[0];
+            for (data[1..]) |v| {
+                if (v > max_val) max_val = v;
+            }
+            return max_val;
+        },
+        else => return 0.0,
+    }
+}
+
+/// Minimum element in tensor
+pub fn min(a: *const Tensor) f64 {
+    switch (a.dtype) {
+        .f32 => {
+            const data = a.asConstSlice(f32);
+            if (data.len == 0) return 0.0;
+            var min_val: f32 = data[0];
+            for (data[1..]) |v| {
+                if (v < min_val) min_val = v;
+            }
+            return min_val;
+        },
+        .f64 => {
+            const data = a.asConstSlice(f64);
+            if (data.len == 0) return 0.0;
+            var min_val: f64 = data[0];
+            for (data[1..]) |v| {
+                if (v < min_val) min_val = v;
+            }
+            return min_val;
+        },
+        else => return 0.0,
+    }
+}
+
+/// Index of maximum element (argmax)
+pub fn argmax(a: *const Tensor) usize {
+    switch (a.dtype) {
+        .f32 => {
+            const data = a.asConstSlice(f32);
+            if (data.len == 0) return 0;
+            var max_idx: usize = 0;
+            var max_val: f32 = data[0];
+            for (data[1..], 1..) |v, i| {
+                if (v > max_val) {
+                    max_val = v;
+                    max_idx = i;
+                }
+            }
+            return max_idx;
+        },
+        .f64 => {
+            const data = a.asConstSlice(f64);
+            if (data.len == 0) return 0;
+            var max_idx: usize = 0;
+            var max_val: f64 = data[0];
+            for (data[1..], 1..) |v, i| {
+                if (v > max_val) {
+                    max_val = v;
+                    max_idx = i;
+                }
+            }
+            return max_idx;
+        },
+        else => return 0,
+    }
+}
+
+/// Index of minimum element (argmin)
+pub fn argmin(a: *const Tensor) usize {
+    switch (a.dtype) {
+        .f32 => {
+            const data = a.asConstSlice(f32);
+            if (data.len == 0) return 0;
+            var min_idx: usize = 0;
+            var min_val: f32 = data[0];
+            for (data[1..], 1..) |v, i| {
+                if (v < min_val) {
+                    min_val = v;
+                    min_idx = i;
+                }
+            }
+            return min_idx;
+        },
+        .f64 => {
+            const data = a.asConstSlice(f64);
+            if (data.len == 0) return 0;
+            var min_idx: usize = 0;
+            var min_val: f64 = data[0];
+            for (data[1..], 1..) |v, i| {
+                if (v < min_val) {
+                    min_val = v;
+                    min_idx = i;
+                }
+            }
+            return min_idx;
+        },
+        else => return 0,
+    }
+}
+
+/// Dot product of two 1D tensors
+pub fn dot(a: *const Tensor, b: *const Tensor) !f64 {
+    if (a.shape.ndim != 1 or b.shape.ndim != 1) {
+        return TensorError.DimensionMismatch;
+    }
+    if (!a.shape.eql(b.shape)) {
+        return TensorError.ShapeMismatch;
+    }
+
+    switch (a.dtype) {
+        .f32 => {
+            const a_data = a.asConstSlice(f32);
+            const b_data = b.asConstSlice(f32);
+            var result: f64 = 0.0;
+            for (a_data, b_data) |av, bv| {
+                result += @as(f64, av) * @as(f64, bv);
+            }
+            return result;
+        },
+        .f64 => {
+            const a_data = a.asConstSlice(f64);
+            const b_data = b.asConstSlice(f64);
+            var result: f64 = 0.0;
+            for (a_data, b_data) |av, bv| {
+                result += av * bv;
+            }
+            return result;
+        },
+        else => return TensorError.InvalidDataType,
+    }
+}
+
+/// L2 norm (Euclidean norm) of tensor
+pub fn norm(a: *const Tensor) f64 {
+    switch (a.dtype) {
+        .f32 => {
+            var sum_sq: f64 = 0.0;
+            for (a.asConstSlice(f32)) |v| {
+                sum_sq += @as(f64, v) * @as(f64, v);
+            }
+            return @sqrt(sum_sq);
+        },
+        .f64 => {
+            var sum_sq: f64 = 0.0;
+            for (a.asConstSlice(f64)) |v| {
+                sum_sq += v * v;
+            }
+            return @sqrt(sum_sq);
+        },
+        else => return 0.0,
+    }
+}
+
+// ============================================================================
+// Tests for new operations
+// ============================================================================
+
+test "sub" {
+    const allocator = std.testing.allocator;
+
+    const a_data = [_]f32{ 5, 7, 9 };
+    const b_data = [_]f32{ 1, 2, 3 };
+
+    var a = try Tensor.fromSlice(allocator, f32, &a_data, &.{3});
+    defer a.deinit();
+
+    var b = try Tensor.fromSlice(allocator, f32, &b_data, &.{3});
+    defer b.deinit();
+
+    var out = try Tensor.zeros(allocator, &.{3}, .f32);
+    defer out.deinit();
+
+    try sub(a, b, out);
+
+    const result = out.asSlice(f32);
+    try std.testing.expectEqual(@as(f32, 4.0), result[0]);
+    try std.testing.expectEqual(@as(f32, 5.0), result[1]);
+    try std.testing.expectEqual(@as(f32, 6.0), result[2]);
+}
+
+test "mulScalar" {
+    const allocator = std.testing.allocator;
+
+    const a_data = [_]f32{ 1, 2, 3 };
+    var a = try Tensor.fromSlice(allocator, f32, &a_data, &.{3});
+    defer a.deinit();
+
+    var out = try Tensor.zeros(allocator, &.{3}, .f32);
+    defer out.deinit();
+
+    try mulScalar(a, 2.0, out);
+
+    const result = out.asSlice(f32);
+    try std.testing.expectEqual(@as(f32, 2.0), result[0]);
+    try std.testing.expectEqual(@as(f32, 4.0), result[1]);
+    try std.testing.expectEqual(@as(f32, 6.0), result[2]);
+}
+
+test "sum and mean" {
+    const allocator = std.testing.allocator;
+
+    const data = [_]f32{ 1, 2, 3, 4, 5 };
+    var a = try Tensor.fromSlice(allocator, f32, &data, &.{5});
+    defer a.deinit();
+
+    const s = sum(a);
+    try std.testing.expectApproxEqAbs(@as(f64, 15.0), s, 0.001);
+
+    const m = mean(a);
+    try std.testing.expectApproxEqAbs(@as(f64, 3.0), m, 0.001);
+}
+
+test "max and min" {
+    const allocator = std.testing.allocator;
+
+    const data = [_]f32{ 3, 1, 4, 1, 5, 9, 2, 6 };
+    var a = try Tensor.fromSlice(allocator, f32, &data, &.{8});
+    defer a.deinit();
+
+    try std.testing.expectApproxEqAbs(@as(f64, 9.0), max(a), 0.001);
+    try std.testing.expectApproxEqAbs(@as(f64, 1.0), min(a), 0.001);
+}
+
+test "argmax and argmin" {
+    const allocator = std.testing.allocator;
+
+    const data = [_]f32{ 3, 1, 4, 1, 5, 9, 2, 6 };
+    var a = try Tensor.fromSlice(allocator, f32, &data, &.{8});
+    defer a.deinit();
+
+    try std.testing.expectEqual(@as(usize, 5), argmax(a)); // 9 is at index 5
+    try std.testing.expectEqual(@as(usize, 1), argmin(a)); // first 1 is at index 1
+}
+
+test "norm" {
+    const allocator = std.testing.allocator;
+
+    const data = [_]f32{ 3, 4 };
+    var a = try Tensor.fromSlice(allocator, f32, &data, &.{2});
+    defer a.deinit();
+
+    // sqrt(3^2 + 4^2) = sqrt(25) = 5
+    try std.testing.expectApproxEqAbs(@as(f64, 5.0), norm(a), 0.001);
+}

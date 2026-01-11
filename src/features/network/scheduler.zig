@@ -84,19 +84,19 @@ pub const LoadBalancingStrategy = enum {
 pub const TaskScheduler = struct {
     allocator: std.mem.Allocator,
     config: SchedulerConfig,
-    nodes: std.StringHashMap(ComputeNode),
-    tasks: std.AutoHashMap(u64, ScheduledTask),
+    nodes: std.StringHashMapUnmanaged(ComputeNode),
+    tasks: std.AutoHashMapUnmanaged(u64, ScheduledTask),
     next_task_id: u64 = 1,
     current_rr_node: usize = 0,
-    running_tasks: std.AutoHashMap(u64, u64),
+    running_tasks: std.AutoHashMapUnmanaged(u64, u64),
 
     pub fn init(allocator: std.mem.Allocator, config: SchedulerConfig) !TaskScheduler {
         const scheduler = TaskScheduler{
             .allocator = allocator,
             .config = config,
-            .nodes = std.StringHashMap(ComputeNode).init(allocator),
-            .tasks = std.AutoHashMap(u64, ScheduledTask).init(allocator),
-            .running_tasks = std.AutoHashMap(u64, u64).init(allocator),
+            .nodes = .{},
+            .tasks = .{},
+            .running_tasks = .{},
         };
         return scheduler;
     }
@@ -108,7 +108,7 @@ pub const TaskScheduler = struct {
             self.allocator.free(entry.value_ptr.*.id);
             self.allocator.free(entry.value_ptr.*.address);
         }
-        self.nodes.deinit();
+        self.nodes.deinit(self.allocator);
 
         var task_iter = self.tasks.iterator();
         while (task_iter.next()) |entry| {
@@ -116,8 +116,8 @@ pub const TaskScheduler = struct {
                 self.allocator.free(node_id);
             }
         }
-        self.tasks.deinit();
-        self.running_tasks.deinit();
+        self.tasks.deinit(self.allocator);
+        self.running_tasks.deinit(self.allocator);
 
         self.* = undefined;
     }
@@ -139,7 +139,7 @@ pub const TaskScheduler = struct {
             .last_heartbeat = node.last_heartbeat,
         };
 
-        try self.nodes.put(node_copy.id, node_copy);
+        try self.nodes.put(self.allocator, node_copy.id, node_copy);
     }
 
     pub fn removeNode(self: *TaskScheduler, node_id: []const u8) void {
@@ -192,7 +192,7 @@ pub const TaskScheduler = struct {
             .end_time = null,
         };
 
-        try self.tasks.put(task_id, task);
+        try self.tasks.put(self.allocator, task_id, task);
         return task_id;
     }
 

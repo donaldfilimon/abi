@@ -372,19 +372,19 @@ pub const HnswIndex = struct {
 
         var candidates = std.ArrayListUnmanaged(u32).empty;
         defer candidates.deinit(allocator);
-        var seen = std.AutoHashMap(u32, void).init(allocator);
-        defer seen.deinit();
+        var seen = std.AutoHashMapUnmanaged(u32, void){};
+        defer seen.deinit(allocator);
 
-        try addCandidate(&candidates, &seen, entry);
+        try addCandidate(allocator, &candidates, &seen, entry);
         if (entry < self.neighbors.len) {
             for (self.neighbors[entry].nodes) |neighbor| {
-                try addCandidate(&candidates, &seen, neighbor);
+                try addCandidate(allocator, &candidates, &seen, neighbor);
             }
         }
         for (candidates.items) |candidate| {
             if (candidate >= self.neighbors.len) continue;
             for (self.neighbors[candidate].nodes) |neighbor| {
-                try addCandidate(&candidates, &seen, neighbor);
+                try addCandidate(allocator, &candidates, &seen, neighbor);
             }
         }
 
@@ -749,13 +749,14 @@ fn sortResults(results: []IndexResult) void {
 }
 
 fn addCandidate(
+    allocator: std.mem.Allocator,
     list: *std.ArrayListUnmanaged(u32),
-    seen: *std.AutoHashMap(u32, void),
+    seen: *std.AutoHashMapUnmanaged(u32, void),
     index: u32,
 ) !void {
     if (seen.contains(index)) return;
-    try seen.put(index, {});
-    try list.append(seen.allocator, index);
+    try seen.put(allocator, index, {});
+    try list.append(allocator, index);
 }
 
 fn findNearestCentroid(vector: []const f32, clusters: []const Cluster) usize {

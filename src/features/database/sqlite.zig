@@ -234,7 +234,7 @@ pub const SqliteDatabase = struct {
                 .created_at = created_at,
                 .updated_at = updated_at,
             };
-            try self.memory_db.vectors.put(id, entry);
+            try self.memory_db.vectors.put(self.allocator, id, entry);
         }
 
         self.dirty = false;
@@ -269,7 +269,7 @@ pub const SqliteConfig = struct {
 
 pub const InMemoryDatabase = struct {
     allocator: std.mem.Allocator,
-    vectors: std.AutoHashMap(u64, VectorEntry),
+    vectors: std.AutoHashMapUnmanaged(u64, VectorEntry),
     next_id: u64,
 
     const VectorEntry = struct {
@@ -282,7 +282,7 @@ pub const InMemoryDatabase = struct {
     pub fn init(allocator: std.mem.Allocator) InMemoryDatabase {
         return .{
             .allocator = allocator,
-            .vectors = std.AutoHashMap(u64, VectorEntry).init(allocator),
+            .vectors = .{},
             .next_id = 1,
         };
     }
@@ -295,7 +295,7 @@ pub const InMemoryDatabase = struct {
                 self.allocator.free(meta);
             }
         }
-        self.vectors.deinit();
+        self.vectors.deinit(self.allocator);
         self.* = undefined;
     }
 
@@ -314,7 +314,7 @@ pub const InMemoryDatabase = struct {
             .updated_at = now,
         };
 
-        try self.vectors.put(id, entry);
+        try self.vectors.put(self.allocator, id, entry);
     }
 
     pub fn get(self: *InMemoryDatabase, id: u64) ?VectorView {

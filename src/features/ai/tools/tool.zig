@@ -53,7 +53,7 @@ pub const ToolResult = struct {
 };
 
 /// Environment map type for tool context
-pub const EnvMap = std.StringHashMap([]const u8);
+pub const EnvMap = std.StringHashMapUnmanaged([]const u8);
 
 pub const Context = struct {
     allocator: std.mem.Allocator,
@@ -95,21 +95,21 @@ pub const Tool = struct {
 
 pub const ToolRegistry = struct {
     allocator: std.mem.Allocator,
-    tools: std.StringHashMap(*const Tool),
+    tools: std.StringHashMapUnmanaged(*const Tool),
 
     pub fn init(allocator: std.mem.Allocator) ToolRegistry {
         return ToolRegistry{
             .allocator = allocator,
-            .tools = std.StringHashMap(*const Tool).init(allocator),
+            .tools = .{},
         };
     }
 
     pub fn deinit(self: *ToolRegistry) void {
-        self.tools.deinit();
+        self.tools.deinit(self.allocator);
     }
 
     pub fn register(self: *ToolRegistry, tool: *const Tool) !void {
-        try self.tools.put(tool.name, tool);
+        try self.tools.put(self.allocator, tool.name, tool);
     }
 
     pub fn get(self: *ToolRegistry, name: []const u8) ?*const Tool {

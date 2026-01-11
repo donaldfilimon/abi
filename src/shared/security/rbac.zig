@@ -42,8 +42,8 @@ pub const RbacManager = struct {
     config: RbacConfig,
     roles: std.StringArrayHashMapUnmanaged(*Role),
     role_assignments: std.StringArrayHashMapUnmanaged(std.ArrayListUnmanaged(RoleAssignment)),
-    user_permissions: std.AutoHashMap(u64, []const Permission),
-    permission_cache: std.AutoHashMap(u64, bool),
+    user_permissions: std.AutoHashMapUnmanaged(u64, []const Permission),
+    permission_cache: std.AutoHashMapUnmanaged(u64, bool),
 
     pub fn init(allocator: std.mem.Allocator, config: RbacConfig) !RbacManager {
         var manager = RbacManager{
@@ -51,8 +51,8 @@ pub const RbacManager = struct {
             .config = config,
             .roles = std.StringArrayHashMapUnmanaged(*Role).empty,
             .role_assignments = std.StringArrayHashMapUnmanaged(std.ArrayListUnmanaged(RoleAssignment)).empty,
-            .user_permissions = std.AutoHashMap(u64, []const Permission).init(allocator),
-            .permission_cache = std.AutoHashMap(u64, bool).init(allocator),
+            .user_permissions = .{},
+            .permission_cache = .{},
         };
 
         if (config.default_roles) {
@@ -87,8 +87,8 @@ pub const RbacManager = struct {
         while (perm_it.next()) |perms| {
             self.allocator.free(perms.*);
         }
-        self.user_permissions.deinit();
-        self.permission_cache.deinit();
+        self.user_permissions.deinit(self.allocator);
+        self.permission_cache.deinit(self.allocator);
         self.* = undefined;
     }
 
@@ -186,7 +186,7 @@ pub const RbacManager = struct {
         }
 
         const has_perm = self.checkPermissionDirect(user_id, permission);
-        try self.permission_cache.put(cache_key, has_perm);
+        try self.permission_cache.put(self.allocator, cache_key, has_perm);
         return has_perm;
     }
 

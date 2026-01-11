@@ -215,12 +215,14 @@ pub const NetworkEngine = struct {
 };
 
 pub const NodeRegistry = struct {
-    nodes: std.StringHashMap(NodeInfo),
+    allocator: std.mem.Allocator,
+    nodes: std.StringHashMapUnmanaged(NodeInfo),
     max_size: usize,
 
     pub fn init(allocator: std.mem.Allocator, max_size: usize) !NodeRegistry {
         return NodeRegistry{
-            .nodes = std.StringHashMap(NodeInfo).init(allocator),
+            .allocator = allocator,
+            .nodes = .{},
             .max_size = max_size,
         };
     }
@@ -230,17 +232,17 @@ pub const NodeRegistry = struct {
         while (iter.next()) |entry| {
             allocator.free(entry.key_ptr.*);
         }
-        self.nodes.deinit();
+        self.nodes.deinit(allocator);
     }
 
     pub fn addNode(self: *NodeRegistry, node: NodeInfo) !void {
-        const key = try self.nodes.allocator.dupe(u8, node.address);
-        try self.nodes.put(key, node);
+        const key = try self.allocator.dupe(u8, node.address);
+        try self.nodes.put(self.allocator, key, node);
     }
 
     pub fn removeNode(self: *NodeRegistry, address: []const u8) void {
         if (self.nodes.fetchRemove(address)) |entry| {
-            self.nodes.allocator.free(entry.key);
+            self.allocator.free(entry.key);
         }
     }
 

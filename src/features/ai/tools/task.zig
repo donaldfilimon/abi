@@ -79,18 +79,18 @@ pub const Task = struct {
 
 pub const TaskTool = struct {
     allocator: std.mem.Allocator,
-    subagents: std.StringHashMap(Subagent),
+    subagents: std.StringHashMapUnmanaged(Subagent),
     tasks: std.ArrayListUnmanaged(Task),
-    task_ids: std.StringHashMap(usize),
+    task_ids: std.StringHashMapUnmanaged(usize),
     semaphore: std.Thread.Semaphore,
     next_task_id: u64 = 0,
 
     pub fn init(allocator: std.mem.Allocator) TaskTool {
         return TaskTool{
             .allocator = allocator,
-            .subagents = std.StringHashMap(Subagent).init(allocator),
+            .subagents = .{},
             .tasks = std.ArrayListUnmanaged(Task){},
-            .task_ids = std.StringHashMap(usize).init(allocator),
+            .task_ids = .{},
             .semaphore = std.Thread.Semaphore.init(4),
         };
     }
@@ -108,8 +108,8 @@ pub const TaskTool = struct {
             }
         }
         self.tasks.deinit(self.allocator);
-        self.task_ids.deinit();
-        self.subagents.deinit();
+        self.task_ids.deinit(self.allocator);
+        self.subagents.deinit(self.allocator);
     }
 
     pub fn registerSubagent(self: *TaskTool, name: []const u8, description: []const u8, handler: *const fn ([]const u8, *Context) anyerror!ToolResult, config: SubagentConfig) !void {
@@ -123,7 +123,7 @@ pub const TaskTool = struct {
             .handler = handler,
         };
 
-        try self.subagents.put(name_copy, subagent);
+        try self.subagents.put(self.allocator, name_copy, subagent);
     }
 
     pub fn invoke(self: *TaskTool, subagent_name: []const u8, task_input: []const u8, _: ?u64) !ToolResult {
@@ -193,7 +193,7 @@ pub const TaskTool = struct {
         };
 
         try self.tasks.append(self.allocator, task);
-        try self.task_ids.put(task_id, self.tasks.items.len - 1);
+        try self.task_ids.put(self.allocator, task_id, self.tasks.items.len - 1);
 
         return task_id;
     }

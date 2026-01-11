@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Table of Contents
+
+- [Project Overview](#project-overview)
+- [LLM Instructions](#llm-instructions-shared)
+- [Build Commands](#build-commands)
+- [Project Structure](#project-structure)
+- [Architecture](#architecture)
+- [Zig 0.16 Conventions](#zig-016-conventions)
+- [Environment Variables](#environment-variables)
+- [Key API Notes](#key-api-notes)
+- [CLI Commands](#cli-commands)
+- [Running Examples](#running-examples)
+- [Testing Utilities](#testing-utilities)
+
 ## Project Overview
 
 ABI is a modern Zig 0.16.x framework for modular AI services, vector search, and high-performance systems tooling. It provides a layered architecture with feature-gated compilation.
@@ -379,11 +393,18 @@ const elapsed_ns = timer.read();
 Use `std.Io`-based sleep instead of `std.time.sleep()`:
 
 ```zig
-// Preferred - use shared/utils/time.zig helpers
-const time = @import("shared/utils/time.zig");
-time.sleepMs(100);  // Sleep 100 milliseconds
+// Preferred - use the time utilities module
+const time_utils = @import("src/shared/utils/time.zig");
+time_utils.sleepMs(100);   // Sleep 100 milliseconds
+time_utils.sleepSeconds(1); // Sleep 1 second
+time_utils.sleepNs(50_000); // Sleep 50 microseconds
 
-// Or directly with Io context
+// Additional helpers available:
+var watch = try time_utils.Stopwatch.start();
+// ... work ...
+const elapsed_ms = watch.elapsedMs();
+
+// Direct Io usage (when you have an Io context)
 const duration = std.Io.Clock.Duration{
     .clock = .awake,
     .raw = .fromNanoseconds(nanoseconds),

@@ -34,31 +34,21 @@ pub const StreamingResponse = struct {
 
 **File**: `src/features/database/http.zig`
 
-**Status**: ✅ COMPLETED - Direct stream reader/writer usage for `std.http.Server`
+**Status**: ✅ CORRECT - Uses `.interface` access for `std.http.Server`
 
-**Change**: Direct stream reader/writer usage for `std.http.Server`
+**Pattern**: The `std.http.Server.init()` function expects `*std.Io.Reader` and `*std.Io.Writer`, but `std.Io.net.Stream.reader()` returns `std.Io.net.Stream.Reader`. The `.interface` field provides the `std.Io.Reader` type that the server expects.
 
 ```zig
-// INCORRECT (deprecated Zig 0.15 pattern)
-var connection_reader = stream.reader(io, &recv_buffer);
-var connection_writer = stream.writer(io, &send_buffer);
-var server: std.http.Server = .init(
-    &connection_reader.interface,  // ❌ Deprecated .interface access
-    &connection_writer.interface,
-);
-
 // CORRECT (Zig 0.16 pattern)
 var connection_reader = stream.reader(io, &recv_buffer);
 var connection_writer = stream.writer(io, &send_buffer);
 var server: std.http.Server = .init(
-    &connection_reader,  // ✅ Direct reference
-    &connection_writer,  // ✅ Direct reference
+    &connection_reader.interface,  // ✅ .interface provides *Io.Reader
+    &connection_writer.interface,  // ✅ .interface provides *Io.Writer
 );
 ```
 
-**Impact**: HTTP server initialization now uses direct reader/writer references instead of the `.interface` access pattern. This aligns with the new `std.Io` API design.
-
-**Note**: This issue has been fixed in the current codebase. The migration is complete.
+**Rationale**: The `std.Io.net.Stream.Reader` type wraps `std.Io.Reader` in its `.interface` field. Since `std.http.Server.init()` expects `*Io.Reader` (not `*Io.net.Stream.Reader`), the `.interface` access is required.
 
 ### 3. File Reader Delimiter Methods
 
@@ -74,6 +64,26 @@ const line_opt = reader.interface.takeDelimiter('\n') catch |err| {
 ```
 
 **Rationale**: The `std.Io.File.Reader` type provides specialized delimiter methods through its `interface` field. This is intentional and correct usage in Zig 0.16.
+
+### 4. Format Specifiers for Errors and Enums
+
+**Files**: `build.zig`, `src/features/ai/explore/results.zig`
+
+**Change**: Use `{t}` format specifier instead of `@errorName()` or `@tagName()` in format strings
+
+```zig
+// OLD (Zig 0.15 pattern)
+std.log.err("Error: {s}", .{@errorName(err)});
+std.debug.print("State: {s}", .{@tagName(state)});
+
+// NEW (Zig 0.16 pattern)
+std.log.err("Error: {t}", .{err});
+std.debug.print("State: {t}", .{state});
+```
+
+**Rationale**: The `{t}` format specifier directly handles error and enum types, producing human-readable output without manual conversion. This is cleaner and more idiomatic.
+
+**Note**: `@errorName()` is still valid when you need the error name as a `[]const u8` string (e.g., for storing in a struct field), but should not be used with format specifiers.
 
 ## API Compatibility Notes
 
@@ -92,10 +102,10 @@ pub fn init(in: *Reader, out: *Writer) Server
 ```
 
 Where:
-- `Reader` is `*std.Io.Reader` (not `*std.Io.File.Reader`)
+- `Reader` is `*std.Io.Reader` (not `*std.Io.net.Stream.Reader`)
 - `Writer` is `*std.Io.Writer`
 
-When using `std.Io.net.Stream.reader()` and `std.Io.net.Stream.writer()`, pass them directly without `.interface` access.
+When using `std.Io.net.Stream.reader()` and `std.Io.net.Stream.writer()`, access their `.interface` field to get the correct type for `std.http.Server.init()`.
 
 ## Testing
 
@@ -117,14 +127,16 @@ The CI configuration has been updated to use Zig 0.16.x instead of 0.17.0.
 | Component | Change | Impact |
 |-----------|--------|--------|
 | HTTP Client | `std.io.AnyReader` → `std.Io.Reader` | Low - Streaming interface updated |
-| HTTP Server | Removed `.interface` access | Low - Direct reader/writer usage |
-| File I/O | No changes required | None - File.Reader still uses `.interface` for delimiters |
+| HTTP Server | Requires `.interface` access for stream reader/writer | Low - Use `.interface` to get `*Io.Reader` |
+| File I/O | `.interface` access required for many operations | Low - Use `.interface` for delimiter methods and write operations |
+| Format Specifiers | Use `{t}` instead of `@errorName()/@tagName()` | Low - Improved formatting |
 
 ## Migration Checklist
 
 - [x] Update CI to use Zig 0.16.x
 - [x] Replace `std.io.AnyReader` with `std.Io.Reader`
-- [x] Fix HTTP Server initialization (remove .interface access)
+- [x] Verify HTTP Server uses `.interface` correctly
+- [x] Use `{t}` format specifier for error/enum values
 - [x] Update documentation
 - [x] Test all feature flag combinations
 - [x] Run benchmarks

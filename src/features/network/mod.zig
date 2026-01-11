@@ -15,6 +15,7 @@ const loadbalancer = @import("loadbalancer.zig");
 pub const retry = @import("retry.zig");
 pub const rate_limiter = @import("rate_limiter.zig");
 pub const connection_pool = @import("connection_pool.zig");
+pub const raft = @import("raft.zig");
 
 pub const NodeRegistry = registry.NodeRegistry;
 pub const NodeInfo = registry.NodeInfo;
@@ -91,6 +92,20 @@ pub const ConnectionStats = connection_pool.ConnectionStats;
 pub const HostKey = connection_pool.HostKey;
 pub const PoolStats = connection_pool.PoolStats;
 pub const PoolBuilder = connection_pool.PoolBuilder;
+
+// Raft consensus exports
+pub const RaftNode = raft.RaftNode;
+pub const RaftState = raft.RaftState;
+pub const RaftConfig = raft.RaftConfig;
+pub const RaftError = raft.RaftError;
+pub const RaftStats = raft.RaftStats;
+pub const LogEntry = raft.LogEntry;
+pub const RequestVoteRequest = raft.RequestVoteRequest;
+pub const RequestVoteResponse = raft.RequestVoteResponse;
+pub const AppendEntriesRequest = raft.AppendEntriesRequest;
+pub const AppendEntriesResponse = raft.AppendEntriesResponse;
+pub const PeerState = raft.PeerState;
+pub const createRaftCluster = raft.createCluster;
 
 pub const NetworkError = error{
     NetworkDisabled,

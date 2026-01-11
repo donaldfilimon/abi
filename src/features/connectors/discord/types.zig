@@ -520,12 +520,12 @@ pub const InteractionData = struct {
 };
 
 pub const ResolvedData = struct {
-    users: ?std.StringHashMap(User) = null,
-    members: ?std.StringHashMap(GuildMember) = null,
-    roles: ?std.StringHashMap(Role) = null,
-    channels: ?std.StringHashMap(Channel) = null,
-    messages: ?std.StringHashMap(Message) = null,
-    attachments: ?std.StringHashMap(Attachment) = null,
+    users: ?std.StringHashMapUnmanaged(User) = null,
+    members: ?std.StringHashMapUnmanaged(GuildMember) = null,
+    roles: ?std.StringHashMapUnmanaged(Role) = null,
+    channels: ?std.StringHashMapUnmanaged(Channel) = null,
+    messages: ?std.StringHashMapUnmanaged(Message) = null,
+    attachments: ?std.StringHashMapUnmanaged(Attachment) = null,
 };
 
 pub const ApplicationCommandInteractionDataOption = struct {
@@ -632,9 +632,9 @@ pub const ApplicationCommand = struct {
     application_id: Snowflake,
     guild_id: ?Snowflake = null,
     name: []const u8,
-    name_localizations: ?std.StringHashMap([]const u8) = null,
+    name_localizations: ?std.StringHashMapUnmanaged([]const u8) = null,
     description: []const u8,
-    description_localizations: ?std.StringHashMap([]const u8) = null,
+    description_localizations: ?std.StringHashMapUnmanaged([]const u8) = null,
     options: []const ApplicationCommandOption = &.{},
     default_member_permissions: ?[]const u8 = null,
     dm_permission: bool = true,
@@ -662,9 +662,9 @@ pub const ApplicationCommandOptionType = enum(u8) {
 pub const ApplicationCommandOption = struct {
     option_type: u8,
     name: []const u8,
-    name_localizations: ?std.StringHashMap([]const u8) = null,
+    name_localizations: ?std.StringHashMapUnmanaged([]const u8) = null,
     description: []const u8,
-    description_localizations: ?std.StringHashMap([]const u8) = null,
+    description_localizations: ?std.StringHashMapUnmanaged([]const u8) = null,
     required: bool = false,
     choices: []const ApplicationCommandOptionChoice = &.{},
     options: []const ApplicationCommandOption = &.{},
@@ -678,7 +678,7 @@ pub const ApplicationCommandOption = struct {
 
 pub const ApplicationCommandOptionChoice = struct {
     name: []const u8,
-    name_localizations: ?std.StringHashMap([]const u8) = null,
+    name_localizations: ?std.StringHashMapUnmanaged([]const u8) = null,
     value: []const u8, // Can be string, int, or float as string
 };
 
