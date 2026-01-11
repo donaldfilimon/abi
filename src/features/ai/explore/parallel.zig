@@ -177,9 +177,12 @@ pub const ParallelExplorer = struct {
         const match = Match{
             .file_path = try self.allocator.dupe(u8, file_path),
             .line_number = line_number,
+            .line_content = try self.allocator.dupe(u8, line_content[0..@min(line_content.len, 100)]),
             .match_type = .custom,
-            .text = try self.allocator.dupe(u8, line_content[0..@min(line_content.len, 100)]),
+            .match_text = try self.allocator.dupe(u8, line_content[0..@min(line_content.len, 100)]),
             .relevance_score = 0.5,
+            .context_before = "",
+            .context_after = "",
         };
 
         self.lock.lock();
@@ -222,7 +225,7 @@ pub fn parallelExplore(
     const pattern = try compiler.compile(query, .literal, config.case_sensitive);
     try patterns.append(allocator, pattern);
 
-    var visitor = fs.FileVisitor.init(allocator, &config);
+    var visitor = try fs.FileVisitor.init(allocator, &config);
     defer visitor.deinit();
 
     visitor.visit(root_path) catch {
@@ -237,12 +240,12 @@ pub fn parallelExplore(
     var explorer = ParallelExplorer.init(allocator, config, &result, patterns.items);
     defer explorer.* = undefined;
 
-    const start_time = std.time.nanoTimestamp();
+    var timer = std.time.Timer.start() catch return error.TimerFailed;
 
     try explorer.explore(files);
 
-    const end_time = std.time.nanoTimestamp();
-    result.duration_ms = @divTrunc(@as(i128, end_time - start_time), std.time.ns_per_ms);
+    const elapsed_ns = timer.read();
+    result.duration_ms = @divTrunc(@as(i128, @intCast(elapsed_ns)), std.time.ns_per_ms);
 
     return result;
 }

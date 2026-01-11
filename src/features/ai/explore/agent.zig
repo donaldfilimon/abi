@@ -22,6 +22,7 @@ pub const ExploreAgent = struct {
     start_time: std.time.Instant,
     cancelled: bool,
     cancellation_lock: std.Thread.Mutex,
+    io_backend: std.Io.Threaded,
 
     pub fn init(allocator: std.mem.Allocator, config: ExploreConfig) !ExploreAgent {
         return ExploreAgent{
@@ -32,22 +33,35 @@ pub const ExploreAgent = struct {
             .start_time = try std.time.Instant.now(),
             .cancelled = false,
             .cancellation_lock = std.Thread.Mutex{},
+            .io_backend = std.Io.Threaded.init(allocator, .{
+                .environ = std.process.Environ.empty,
+            }),
         };
     }
 
-    pub fn deinit(_: *ExploreAgent) void {}
+    /// Clean up resources used by the explore agent
+    pub fn deinit(self: *ExploreAgent) void {
+        self.io_backend.deinit();
+        // Reset stats
+        self.stats = ExplorationStats{};
+        self.cancelled = false;
+
+        // The compiler is stateless, but we zero out the agent
+        // for safety if it's accidentally reused
+        self.* = undefined;
+    }
 
     pub fn explore(self: *ExploreAgent, root_path: []const u8, query: []const u8) !ExploreResult {
-        self.start_time = std.time.nanoTimestamp();
+        self.start_time = try std.time.Instant.now();
         self.cancelled = false;
 
         var result = ExploreResult.init(self.allocator, query, self.config.level);
         errdefer result.deinit();
 
-        const pattern = try self.compiler.compile(query, PatternType.literal, self.config.case_sensitive);
+        var pattern = try self.compiler.compile(query, PatternType.literal, self.config.case_sensitive);
         defer pattern.deinit(self.allocator);
 
-        var visitor = FileVisitor.init(self.allocator, &self.config);
+        var visitor = try FileVisitor.init(self.allocator, &self.config);
         defer visitor.deinit();
 
         visitor.visit(root_path) catch {
@@ -57,6 +71,7 @@ pub const ExploreAgent = struct {
         };
 
         self.stats.files_discovered = visitor.getFileCount();
+        result.files_scanned = visitor.getFileCount();
 
         for (visitor.getFiles()) |file_stat| {
             if (self.isCancelled()) {
@@ -68,15 +83,16 @@ pub const ExploreAgent = struct {
             self.stats.files_processed += 1;
         }
 
-        const end_time = std.time.nanoTimestamp();
-        result.duration_ms = @divTrunc(@as(i128, end_time - self.start_time), std.time.ns_per_ms);
-        self.stats.wall_time_ms = @as(u64, @intCast(result.duration_ms));
+        const end_time = try std.time.Instant.now();
+        const elapsed_ns = end_time.since(self.start_time);
+        result.duration_ms = @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
+        self.stats.wall_time_ms = @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
 
         return result;
     }
 
     pub fn exploreWithPatterns(self: *ExploreAgent, root_path: []const u8, patterns: []const []const u8) !ExploreResult {
-        self.start_time = std.time.nanoTimestamp();
+        self.start_time = try std.time.Instant.now();
         self.cancelled = false;
 
         var result = ExploreResult.init(self.allocator, "", self.config.level);
@@ -96,7 +112,7 @@ pub const ExploreAgent = struct {
             try compiled_patterns.append(self.allocator, pattern);
         }
 
-        var visitor = FileVisitor.init(self.allocator, &self.config);
+        var visitor = try FileVisitor.init(self.allocator, &self.config);
         defer visitor.deinit();
 
         visitor.visit(root_path) catch {
@@ -118,9 +134,10 @@ pub const ExploreAgent = struct {
             self.stats.files_processed += 1;
         }
 
-        const end_time = std.time.nanoTimestamp();
-        result.duration_ms = @divTrunc(@as(i128, end_time - self.start_time), std.time.ns_per_ms);
-        self.stats.wall_time_ms = @as(u64, @intCast(result.duration_ms));
+        const end_time = try std.time.Instant.now();
+        const elapsed_ns = end_time.since(self.start_time);
+        result.duration_ms = @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
+        self.stats.wall_time_ms = @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
 
         return result;
     }
@@ -139,18 +156,50 @@ pub const ExploreAgent = struct {
 
         if (self.shouldMatch(basename, pattern)) {
             const relevance = self.calculateRelevance(content, pattern);
-            const match = Match{
-                .file_path = file_stat.path,
+            const file_path_dup = self.allocator.dupe(u8, file_stat.path) catch {
+                self.stats.errors += 1;
+                return;
+            };
+            const line_content_dup = self.allocator.dupe(u8, "") catch {
+                self.allocator.free(file_path_dup);
+                self.stats.errors += 1;
+                return;
+            };
+            const match_text_dup = self.allocator.dupe(u8, basename) catch {
+                self.allocator.free(file_path_dup);
+                self.allocator.free(line_content_dup);
+                self.stats.errors += 1;
+                return;
+            };
+            const ctx_before = self.allocator.dupe(u8, "") catch {
+                self.allocator.free(file_path_dup);
+                self.allocator.free(line_content_dup);
+                self.allocator.free(match_text_dup);
+                self.stats.errors += 1;
+                return;
+            };
+            const ctx_after = self.allocator.dupe(u8, "") catch {
+                self.allocator.free(file_path_dup);
+                self.allocator.free(line_content_dup);
+                self.allocator.free(match_text_dup);
+                self.allocator.free(ctx_before);
+                self.stats.errors += 1;
+                return;
+            };
+            var match = Match{
+                .file_path = file_path_dup,
                 .line_number = 0,
-                .line_content = "",
+                .line_content = line_content_dup,
                 .match_type = match_type,
-                .match_text = basename,
+                .match_text = match_text_dup,
                 .relevance_score = relevance,
-                .context_before = "",
-                .context_after = "",
+                .context_before = ctx_before,
+                .context_after = ctx_after,
             };
             result.addMatch(match) catch {
+                match.deinit(self.allocator);
                 self.stats.errors += 1;
+                return;
             };
             self.stats.matches_found += 1;
         }
@@ -164,21 +213,53 @@ pub const ExploreAgent = struct {
                 if (self.shouldMatch(line, pattern)) {
                     const relevance = self.calculateRelevance(line, pattern);
                     if (relevance > 0.3) {
-                        const context_before = self.getContext(content, line_start, 3);
-                        const context_after = self.getContext(content, i + 1, 3);
+                        const context_before_raw = self.getContext(content, line_start, 3);
+                        const context_after_raw = self.getContext(content, i + 1, 3);
 
-                        const match = Match{
-                            .file_path = file_stat.path,
+                        const file_path_copy = self.allocator.dupe(u8, file_stat.path) catch {
+                            self.stats.errors += 1;
+                            continue;
+                        };
+                        const line_content = self.allocator.dupe(u8, line) catch {
+                            self.allocator.free(file_path_copy);
+                            self.stats.errors += 1;
+                            continue;
+                        };
+                        const match_text = self.allocator.dupe(u8, line) catch {
+                            self.allocator.free(file_path_copy);
+                            self.allocator.free(line_content);
+                            self.stats.errors += 1;
+                            continue;
+                        };
+                        const context_before = self.allocator.dupe(u8, context_before_raw) catch {
+                            self.allocator.free(file_path_copy);
+                            self.allocator.free(line_content);
+                            self.allocator.free(match_text);
+                            self.stats.errors += 1;
+                            continue;
+                        };
+                        const context_after = self.allocator.dupe(u8, context_after_raw) catch {
+                            self.allocator.free(file_path_copy);
+                            self.allocator.free(line_content);
+                            self.allocator.free(match_text);
+                            self.allocator.free(context_before);
+                            self.stats.errors += 1;
+                            continue;
+                        };
+                        var match = Match{
+                            .file_path = file_path_copy,
                             .line_number = line_number,
-                            .line_content = try self.allocator.dupe(u8, line),
+                            .line_content = line_content,
                             .match_type = match_type,
-                            .match_text = try self.allocator.dupe(u8, line),
+                            .match_text = match_text,
                             .relevance_score = relevance,
                             .context_before = context_before,
                             .context_after = context_after,
                         };
                         result.addMatch(match) catch {
                             self.stats.errors += 1;
+                            match.deinit(self.allocator);
+                            continue;
                         };
                         self.stats.matches_found += 1;
                     }
@@ -190,16 +271,12 @@ pub const ExploreAgent = struct {
     }
 
     fn readFile(self: *ExploreAgent, path: []const u8) ![]const u8 {
-        const file = std.fs.Dir.cwd().openFile(path, .{}) catch {
+        const io = self.io_backend.io();
+        const max_size = self.config.file_size_limit_bytes orelse (1024 * 1024);
+
+        return std.Io.Dir.cwd().readFileAlloc(io, path, self.allocator, .limited(max_size)) catch {
             return error.FileNotFound;
         };
-        defer file.close();
-
-        const stat = try file.stat();
-        const max_size = self.config.file_size_limit_bytes orelse (1024 * 1024);
-        const size = @min(stat.size, max_size);
-
-        return file.readToEndAlloc(self.allocator, size);
     }
 
     fn shouldMatch(self: *ExploreAgent, text: []const u8, pattern: *const SearchPattern) bool {
@@ -207,8 +284,69 @@ pub const ExploreAgent = struct {
         return std.mem.indexOf(u8, text, pattern.raw) != null;
     }
 
-    fn calculateRelevance(_: *ExploreAgent, _: []const u8, _: *const SearchPattern) f32 {
-        return 0.5;
+    /// Calculate a relevance score for a match based on multiple factors.
+    /// Returns a score between 0.0 (irrelevant) and 1.0 (highly relevant).
+    fn calculateRelevance(self: *ExploreAgent, content: []const u8, pattern: *const SearchPattern) f32 {
+        _ = self;
+        var score: f32 = 0.0;
+        const pat = pattern.raw;
+
+        if (pat.len == 0 or content.len == 0) return 0.0;
+
+        // Count occurrences of pattern in content
+        var count: usize = 0;
+        var pos: usize = 0;
+        while (std.mem.indexOfPos(u8, content, pos, pat)) |idx| {
+            count += 1;
+            pos = idx + 1;
+        }
+
+        if (count == 0) return 0.0;
+
+        // Base score from occurrence count (diminishing returns)
+        score += @min(0.3, @as(f32, @floatFromInt(count)) * 0.1);
+
+        // Bonus for exact word boundary matches
+        var word_matches: usize = 0;
+        pos = 0;
+        while (std.mem.indexOfPos(u8, content, pos, pat)) |idx| {
+            const before_ok = idx == 0 or !std.ascii.isAlphanumeric(content[idx - 1]);
+            const after_idx = idx + pat.len;
+            const after_ok = after_idx >= content.len or !std.ascii.isAlphanumeric(content[after_idx]);
+            if (before_ok and after_ok) {
+                word_matches += 1;
+            }
+            pos = idx + 1;
+        }
+        score += @min(0.3, @as(f32, @floatFromInt(word_matches)) * 0.15);
+
+        // Bonus for matches early in content (likely more important)
+        if (std.mem.indexOf(u8, content, pat)) |first_pos| {
+            if (first_pos < 100) {
+                score += 0.15;
+            } else if (first_pos < 500) {
+                score += 0.1;
+            } else if (first_pos < 1000) {
+                score += 0.05;
+            }
+        }
+
+        // Bonus for pattern density (matches per 100 chars)
+        if (content.len > 0) {
+            const density = @as(f32, @floatFromInt(count * 100)) / @as(f32, @floatFromInt(content.len));
+            score += @min(0.2, density * 0.1);
+        }
+
+        // Bonus for matching common code patterns
+        if (std.mem.indexOf(u8, content, "fn ") != null or
+            std.mem.indexOf(u8, content, "pub fn ") != null or
+            std.mem.indexOf(u8, content, "const ") != null or
+            std.mem.indexOf(u8, content, "var ") != null)
+        {
+            score += 0.05;
+        }
+
+        return @min(1.0, score);
     }
 
     fn getContext(self: *ExploreAgent, content: []const u8, position: usize, lines: usize) []const u8 {
@@ -291,7 +429,7 @@ pub const ExploreAgent = struct {
     }
 
     pub fn exploreNaturalLanguage(self: *ExploreAgent, root_path: []const u8, nl_query: []const u8) !ExploreResult {
-        self.start_time = std.time.nanoTimestamp();
+        self.start_time = try std.time.Instant.now();
         self.cancelled = false;
 
         var result = ExploreResult.init(self.allocator, nl_query, self.config.level);
@@ -321,7 +459,7 @@ pub const ExploreAgent = struct {
             }
         }
 
-        var visitor = FileVisitor.init(self.allocator, &self.config);
+        var visitor = try FileVisitor.init(self.allocator, &self.config);
         defer visitor.deinit();
 
         visitor.visit(root_path) catch {
@@ -369,22 +507,23 @@ pub const ExploreAgent = struct {
             self.stats.files_processed += 1;
         }
 
-        const end_time = std.time.nanoTimestamp();
-        result.duration_ms = @divTrunc(@as(i128, end_time - self.start_time), std.time.ns_per_ms);
-        self.stats.wall_time_ms = @as(u64, @intCast(result.duration_ms));
+        const end_time = try std.time.Instant.now();
+        const elapsed_ns = end_time.since(self.start_time);
+        result.duration_ms = @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
+        self.stats.wall_time_ms = @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
 
         return result;
     }
 };
 
-pub fn createDefaultAgent(allocator: std.mem.Allocator) ExploreAgent {
+pub fn createDefaultAgent(allocator: std.mem.Allocator) !ExploreAgent {
     return ExploreAgent.init(allocator, ExploreConfig.defaultForLevel(.medium));
 }
 
-pub fn createQuickAgent(allocator: std.mem.Allocator) ExploreAgent {
+pub fn createQuickAgent(allocator: std.mem.Allocator) !ExploreAgent {
     return ExploreAgent.init(allocator, ExploreConfig.defaultForLevel(.quick));
 }
 
-pub fn createThoroughAgent(allocator: std.mem.Allocator) ExploreAgent {
+pub fn createThoroughAgent(allocator: std.mem.Allocator) !ExploreAgent {
     return ExploreAgent.init(allocator, ExploreConfig.defaultForLevel(.thorough));
 }

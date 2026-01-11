@@ -50,6 +50,74 @@ pub fn toLowerAscii(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     return copy;
 }
 
+/// In-place lowercase conversion (mutates buffer).
+/// @param buf Buffer to convert (modified in-place)
+/// @return The same buffer (for chaining)
+pub fn lowerStringMut(buf: []u8) []u8 {
+    for (buf, 0..) |c, i| {
+        buf[i] = std.ascii.toLower(c);
+    }
+    return buf;
+}
+
+/// Case-insensitive equality check (zero allocation).
+/// @param a First string
+/// @param b Second string
+/// @return true if strings are equal ignoring case
+pub inline fn eqlIgnoreCase(a: []const u8, b: []const u8) bool {
+    if (a.len != b.len) return false;
+    for (a, b) |ac, bc| {
+        if (std.ascii.toLower(ac) != std.ascii.toLower(bc)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/// Hash for case-insensitive maps.
+/// @param s String to hash
+/// @return Hash value
+pub fn hashIgnoreCase(s: []const u8) u64 {
+    var hasher = std.hash.Wyhash.init(0);
+    for (s) |c| {
+        hasher.update(&[_]u8{std.ascii.toLower(c)});
+    }
+    return hasher.final();
+}
+
+/// Case-insensitive comparator for sorting.
+/// @param context Unused context
+/// @param a First string
+/// @param b Second string
+/// @return Ordering relationship
+pub fn orderIgnoreCase(_: void, a: []const u8, b: []const u8) std.math.Order {
+    const min_len = @min(a.len, b.len);
+    for (a[0..min_len], b[0..min_len]) |ac, bc| {
+        const al = std.ascii.toLower(ac);
+        const bl = std.ascii.toLower(bc);
+        if (al < bl) return .lt;
+        if (al > bl) return .gt;
+    }
+    return std.math.order(a.len, b.len);
+}
+
+/// Case-insensitive string search.
+/// @param haystack String to search in
+/// @param needle String to search for
+/// @return Index of first match, or null if not found
+pub fn indexOfIgnoreCase(haystack: []const u8, needle: []const u8) ?usize {
+    if (needle.len == 0) return 0;
+    if (needle.len > haystack.len) return null;
+
+    var i: usize = 0;
+    while (i <= haystack.len - needle.len) : (i += 1) {
+        if (eqlIgnoreCase(haystack[i..][0..needle.len], needle)) {
+            return i;
+        }
+    }
+    return null;
+}
+
 test "string helpers" {
     try std.testing.expectEqualStrings("hello", trimWhitespace("  hello \r\n"));
 
@@ -64,4 +132,25 @@ test "string helpers" {
     const lower = try toLowerAscii(std.testing.allocator, "HeLLo");
     defer std.testing.allocator.free(lower);
     try std.testing.expectEqualStrings("hello", lower);
+}
+
+test "case-insensitive utilities" {
+    var buf = "HeLLo WoRLd".*;
+    const result = lowerStringMut(&buf);
+    try std.testing.expectEqualStrings("hello world", result);
+
+    try std.testing.expect(eqlIgnoreCase("Hello", "hello"));
+    try std.testing.expect(eqlIgnoreCase("WORLD", "world"));
+    try std.testing.expect(!eqlIgnoreCase("Hello", "world"));
+
+    const h1 = hashIgnoreCase("Hello");
+    const h2 = hashIgnoreCase("hello");
+    try std.testing.expectEqual(h1, h2);
+
+    try std.testing.expectEqual(std.math.Order.eq, orderIgnoreCase({}, "Hello", "hello"));
+    try std.testing.expectEqual(std.math.Order.lt, orderIgnoreCase({}, "apple", "BANANA"));
+
+    try std.testing.expectEqual(@as(?usize, 0), indexOfIgnoreCase("Hello World", "hello"));
+    try std.testing.expectEqual(@as(?usize, 6), indexOfIgnoreCase("Hello World", "WORLD"));
+    try std.testing.expectEqual(@as(?usize, null), indexOfIgnoreCase("Hello", "WORLD"));
 }

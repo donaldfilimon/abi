@@ -104,56 +104,55 @@ pub const Client = struct {
     }
 
     pub fn encodeInferenceRequest(self: *Client, request: InferenceRequest) ![]u8 {
-        var json_str = std.ArrayList(u8).init(self.allocator);
-        errdefer json_str.deinit();
+        var json_str = std.ArrayListUnmanaged(u8){};
+        errdefer json_str.deinit(self.allocator);
 
         if (request.inputs) |inputs| {
-            try json_str.writer().print("{{\"inputs\":\"{s\"", .{std.zig.fmtEscapes(inputs)});
+            try json_str.writer(self.allocator).print("{{\"inputs\":\"{s\"", .{std.zig.fmtEscapes(inputs)});
         } else {
-            try json_str.append('{');
+            try json_str.append(self.allocator, '{');
         }
 
         if (request.parameters) |params| {
-            try json_str.append(',');
+            try json_str.append(self.allocator, ',');
             try self.encodeParameters(&json_str, params);
         }
 
-        try json_str.append('}');
+        try json_str.append(self.allocator, '}');
 
-        return json_str.toOwnedSlice();
+        return json_str.toOwnedSlice(self.allocator);
     }
 
-    pub fn encodeParameters(self: *Client, json_str: *std.ArrayList(u8), params: Parameters) !void {
-        _ = self;
+    pub fn encodeParameters(self: *Client, json_str: *std.ArrayListUnmanaged(u8), params: Parameters) !void {
         var first = true;
 
         if (params.top_k) |top_k| {
-            if (!first) try json_str.append(',');
-            try json_str.writer().print("\"top_k\":{d}", .{top_k});
+            if (!first) try json_str.append(self.allocator, ',');
+            try json_str.writer(self.allocator).print("\"top_k\":{d}", .{top_k});
             first = false;
         }
 
         if (params.top_p) |top_p| {
-            if (!first) try json_str.append(',');
-            try json_str.writer().print("\"top_p\":{d:.2}", .{top_p});
+            if (!first) try json_str.append(self.allocator, ',');
+            try json_str.writer(self.allocator).print("\"top_p\":{d:.2}", .{top_p});
             first = false;
         }
 
         if (params.temperature) |temp| {
-            if (!first) try json_str.append(',');
-            try json_str.writer().print("\"temperature\":{d:.2}", .{temp});
+            if (!first) try json_str.append(self.allocator, ',');
+            try json_str.writer(self.allocator).print("\"temperature\":{d:.2}", .{temp});
             first = false;
         }
 
         if (params.max_new_tokens) |max_tokens| {
-            if (!first) try json_str.append(',');
-            try json_str.writer().print("\"max_new_tokens\":{d}", .{max_tokens});
+            if (!first) try json_str.append(self.allocator, ',');
+            try json_str.writer(self.allocator).print("\"max_new_tokens\":{d}", .{max_tokens});
             first = false;
         }
 
         if (params.return_full_text) |return_full_text| {
-            if (!first) try json_str.append(',');
-            try json_str.writer().print("\"return_full_text\":{d}", .{@intFromBool(return_full_text)});
+            if (!first) try json_str.append(self.allocator, ',');
+            try json_str.writer(self.allocator).print("\"return_full_text\":{d}", .{@intFromBool(return_full_text)});
         }
     }
 

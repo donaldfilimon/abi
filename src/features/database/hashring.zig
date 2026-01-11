@@ -7,6 +7,7 @@ pub const HashRingError = error{
     EmptyRing,
     NoReplicas,
     InvalidWeight,
+    NodeIdTooLong,
 };
 
 pub const NodeWeight = struct {
@@ -67,13 +68,16 @@ pub const HashRing = struct {
         try self.nodes.append(self.allocator, node);
         self.total_weight += weight;
 
+        // Use stack buffer to avoid allocation churn for virtual nodes
+        var vnode_buf: [256]u8 = undefined;
         var i: u32 = 0;
         while (i < virtual_nodes) : (i += 1) {
-            const vnode_key = try self.allocator.alloc(u8, node_id.len + 8);
-            defer self.allocator.free(vnode_key);
-            @memcpy(vnode_key[0..node_id.len], node_id);
-            mem.writeInt(u64, vnode_key[node_id.len..], i, .big);
-            const vhash = hashKey(vnode_key);
+            const vnode_len = node_id.len + 8;
+            if (vnode_len > vnode_buf.len) return error.NodeIdTooLong;
+
+            @memcpy(vnode_buf[0..node_id.len], node_id);
+            mem.writeInt(u64, vnode_buf[node_id.len..][0..8], i, .big);
+            const vhash = hashKey(vnode_buf[0..vnode_len]);
             try self.sorted_hashes.append(self.allocator, vhash);
         }
 

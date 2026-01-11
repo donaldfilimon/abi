@@ -36,9 +36,11 @@ pub const Stream = struct {
     backend: backend.Backend,
     running: std.atomic.Value(bool),
 
+    var next_stream_id: std.atomic.Value(u64) = std.atomic.Value(u64).init(1);
+
     pub fn init(backend_id: backend.Backend) Stream {
         return .{
-            .id = std.time.nanoTimestamp(),
+            .id = next_stream_id.fetchAdd(1, .monotonic),
             .backend = backend_id,
             .running = std.atomic.Value(bool).init(true),
         };

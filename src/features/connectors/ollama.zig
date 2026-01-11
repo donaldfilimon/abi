@@ -148,34 +148,34 @@ pub const Client = struct {
     }
 
     pub fn encodeGenerateRequest(self: *Client, request: GenerateRequest) ![]u8 {
-        var json_str = std.ArrayList(u8).init(self.allocator);
-        errdefer json_str.deinit();
+        var json_str = std.ArrayListUnmanaged(u8){};
+        errdefer json_str.deinit(self.allocator);
 
-        try json_str.writer().print(
+        try json_str.writer(self.allocator).print(
             "{{\"model\":\"{s\",\"prompt\":\"{s\",\"stream\":{d}}}",
             .{ request.model, std.zig.fmtEscapes(request.prompt), @intFromBool(request.stream) },
         );
 
-        return json_str.toOwnedSlice();
+        return json_str.toOwnedSlice(self.allocator);
     }
 
     pub fn encodeChatRequest(self: *Client, request: ChatRequest) ![]u8 {
-        var json_str = std.ArrayList(u8).init(self.allocator);
-        errdefer json_str.deinit();
+        var json_str = std.ArrayListUnmanaged(u8){};
+        errdefer json_str.deinit(self.allocator);
 
-        try json_str.writer().print("{{\"model\":\"{s\",\"messages\":[", .{request.model});
+        try json_str.writer(self.allocator).print("{{\"model\":\"{s\",\"messages\":[", .{request.model});
 
         for (request.messages, 0..) |msg, i| {
-            if (i > 0) try json_str.append(',');
-            try json_str.writer().print(
+            if (i > 0) try json_str.append(self.allocator, ',');
+            try json_str.writer(self.allocator).print(
                 "{{\"role\":\"{s\",\"content\":\"{s\"}}",
                 .{ msg.role, std.zig.fmtEscapes(msg.content) },
             );
         }
 
-        try json_str.append('}');
+        try json_str.append(self.allocator, '}');
 
-        return json_str.toOwnedSlice();
+        return json_str.toOwnedSlice(self.allocator);
     }
 
     pub fn decodeGenerateResponse(self: *Client, json: []const u8) !GenerateResponse {

@@ -38,8 +38,8 @@ zig build -Denable-ai=true -Denable-gpu=false -Denable-web=true -Denable-databas
 - `-Denable-gpu` (default: `true`) - Enable GPU acceleration features
 - `-Denable-web` (default: `true`) - Enable web utilities and HTTP features
 - `-Denable-database` (default: `true`) - Enable database and vector search features
-- `-Denable-network` (default: `false`) - Enable distributed network compute
-- `-Denable-profiling` (default: `false`) - Enable profiling and metrics collection
+- `-Denable-network` (default: `true`) - Enable distributed network compute
+- `-Denable-profiling` (default: `true`) - Enable profiling and metrics collection
 - `-Dgpu-cuda` - Enable CUDA GPU backend
 - `-Dgpu-vulkan` - Enable Vulkan GPU backend
 - `-Dgpu-metal` - Enable Metal GPU backend
@@ -62,7 +62,7 @@ zig fmt --check .           # Check formatting without changes
 ```bash
 zig build test                                    # Run all tests
 zig build test -Denable-gpu=true -Denable-network=true  # Test with features
-zig build benchmark                               # Run performance benchmarks
+zig build benchmarks                               # Run performance benchmarks
 ```
 
 ### CLI Usage
@@ -306,7 +306,7 @@ zig test src/compute/runtime/engine.zig
 zig test --test-filter="engine init"
 
 # Run benchmarks
-zig build benchmark
+zig build benchmarks
 ```
 
 **Test Coverage:**
@@ -332,7 +332,3 @@ zig build benchmark
 ## Contributing
 
 See `CONTRIBUTING.md` for development workflow and style guidelines.
-
-```
-
-```

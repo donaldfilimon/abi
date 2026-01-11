@@ -77,9 +77,9 @@ fn launchVectorAdd(args: []const ?*const anyopaque) types.KernelError!void {
     const n_ptr = try argPtrConst(u32, args, 3);
 
     const n = @as(usize, @intCast(n_ptr.*));
-    const a_many: [*]const f32 = @ptrCast(a_ptr);
-    const b_many: [*]const f32 = @ptrCast(b_ptr);
-    var c_many: [*]f32 = @ptrCast(c_ptr);
+    const a_many: [*]const f32 = @ptrCast(@alignCast(a_ptr));
+    const b_many: [*]const f32 = @ptrCast(@alignCast(b_ptr));
+    var c_many: [*]f32 = @ptrCast(@alignCast(c_ptr));
 
     var i: usize = 0;
     while (i < n) : (i += 1) {
@@ -99,9 +99,9 @@ fn launchMatMul(args: []const ?*const anyopaque) types.KernelError!void {
     const n = @as(usize, @intCast(n_ptr.*));
     const k = @as(usize, @intCast(k_ptr.*));
 
-    const a_many: [*]const f32 = @ptrCast(a_ptr);
-    const b_many: [*]const f32 = @ptrCast(b_ptr);
-    var c_many: [*]f32 = @ptrCast(c_ptr);
+    const a_many: [*]const f32 = @ptrCast(@alignCast(a_ptr));
+    const b_many: [*]const f32 = @ptrCast(@alignCast(b_ptr));
+    var c_many: [*]f32 = @ptrCast(@alignCast(c_ptr));
 
     var row: usize = 0;
     while (row < m) : (row += 1) {
@@ -123,8 +123,8 @@ fn launchReduceSum(args: []const ?*const anyopaque) types.KernelError!void {
     const n_ptr = try argPtrConst(u32, args, 2);
 
     const n = @as(usize, @intCast(n_ptr.*));
-    const input_many: [*]const f32 = @ptrCast(input_ptr);
-    var output_many: [*]f32 = @ptrCast(output_ptr);
+    const input_many: [*]const f32 = @ptrCast(@alignCast(input_ptr));
+    var output_many: [*]f32 = @ptrCast(@alignCast(output_ptr));
 
     var sum: f32 = 0.0;
     var i: usize = 0;

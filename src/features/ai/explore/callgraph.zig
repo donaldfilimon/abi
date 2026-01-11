@@ -7,6 +7,7 @@ const std = @import("std");
 const AstParser = @import("ast.zig").AstParser;
 const AstNode = @import("ast.zig").AstNode;
 const ParsedFile = @import("ast.zig").ParsedFile;
+const fs = @import("fs.zig");
 
 /// Represents a function in the call graph
 pub const Function = struct {
@@ -224,19 +225,44 @@ pub fn buildCallGraph(allocator: std.mem.Allocator, file_paths: []const []const 
     var builder = CallGraphBuilder.init(allocator);
     defer builder.deinit();
 
-    var parsed_files = std.ArrayList(*ParsedFile).init(allocator);
+    // Create I/O backend for synchronous file operations
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    }) catch return error.IoInitFailed;
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var parsed_files = std.ArrayListUnmanaged(*ParsedFile){};
     defer {
         for (parsed_files.items) |file| {
             file.deinit();
             allocator.destroy(file);
         }
-        parsed_files.deinit();
+        parsed_files.deinit(allocator);
     }
 
     for (file_paths) |file_path| {
+        // Read file content
+        const content = std.Io.Dir.cwd().readFileAlloc(io, file_path, allocator, .limited(10 * 1024 * 1024)) catch |err| {
+            std.log.warn("Failed to read {s}: {}", .{ file_path, err });
+            continue;
+        };
+        defer allocator.free(content);
+
+        // Create minimal FileStats for parsing
+        const file_stat = fs.FileStats{
+            .path = file_path,
+            .size_bytes = content.len,
+            .mtime = 0,
+            .ctime = 0,
+            .is_directory = false,
+            .is_symlink = false,
+            .mode = 0,
+        };
+
         const parsed_file = try allocator.create(ParsedFile);
-        parsed_file.* = try builder.parser.parseFile(file_path);
-        try parsed_files.append(parsed_file);
+        parsed_file.* = try builder.parser.parseFile(&file_stat, content);
+        try parsed_files.append(allocator, parsed_file);
     }
 
     try builder.buildFromFiles(parsed_files.items);

@@ -26,12 +26,12 @@ pub const simd = @import("../shared/simd.zig");
 const network_module = if (build_options.enable_network)
     @import("network/mod.zig")
 else
-    @import("network/disabled.zig");
+    @import("network/stub.zig");
 
 const profiling_module = if (build_options.enable_profiling)
     @import("profiling/mod.zig")
 else
-    @import("profiling/disabled.zig");
+    @import("profiling/stub.zig");
 
 pub const network = network_module;
 pub const profiling = profiling_module;

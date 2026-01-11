@@ -440,7 +440,7 @@ pub fn trainWithResult(
     var patience_counter: u32 = 0;
     var early_stopped: bool = false;
 
-    const start_time = std.time.nanoTimestamp();
+    var training_timer = std.time.Timer.start() catch return error.InvalidConfiguration;
 
     for (0..config.epochs) |epoch| {
         var epoch_loss: f32 = 0;
@@ -506,8 +506,8 @@ pub fn trainWithResult(
         }
     }
 
-    const end_time = std.time.nanoTimestamp();
-    const total_time_ms = @as(u64, @intCast((end_time - start_time) / std.time.ns_per_ms));
+    const elapsed_ns = training_timer.read();
+    const total_time_ms = elapsed_ns / std.time.ns_per_ms;
 
     const final_lr = calculateLearningRate(config, model.step, config.learning_rate);
 

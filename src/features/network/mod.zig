@@ -10,6 +10,11 @@ const registry = @import("registry.zig");
 const protocol = @import("protocol.zig");
 const scheduler = @import("scheduler.zig");
 const ha = @import("ha.zig");
+const discovery = @import("discovery.zig");
+const loadbalancer = @import("loadbalancer.zig");
+pub const retry = @import("retry.zig");
+pub const rate_limiter = @import("rate_limiter.zig");
+pub const connection_pool = @import("connection_pool.zig");
 
 pub const NodeRegistry = registry.NodeRegistry;
 pub const NodeInfo = registry.NodeInfo;
@@ -39,6 +44,53 @@ pub const NodeHealth = ha.NodeHealth;
 pub const ClusterState = ha.ClusterState;
 pub const HealthCheckResult = ha.HealthCheckResult;
 pub const FailoverPolicy = ha.FailoverPolicy;
+
+// Service Discovery exports
+pub const ServiceDiscovery = discovery.ServiceDiscovery;
+pub const DiscoveryConfig = discovery.DiscoveryConfig;
+pub const DiscoveryBackend = discovery.DiscoveryBackend;
+pub const ServiceInstance = discovery.ServiceInstance;
+pub const ServiceStatus = discovery.ServiceStatus;
+pub const DiscoveryError = discovery.DiscoveryError;
+
+// Load Balancer exports
+pub const LoadBalancer = loadbalancer.LoadBalancer;
+pub const LoadBalancerConfig = loadbalancer.LoadBalancerConfig;
+pub const LoadBalancerStrategy = loadbalancer.LoadBalancerStrategy;
+pub const LoadBalancerError = loadbalancer.LoadBalancerError;
+pub const NodeState = loadbalancer.NodeState;
+pub const NodeStats = loadbalancer.NodeStats;
+
+// Retry exports
+pub const RetryConfig = retry.RetryConfig;
+pub const RetryResult = retry.RetryResult;
+pub const RetryError = retry.RetryError;
+pub const RetryStrategy = retry.RetryStrategy;
+pub const RetryExecutor = retry.RetryExecutor;
+pub const RetryableErrors = retry.RetryableErrors;
+pub const BackoffCalculator = retry.BackoffCalculator;
+pub const retryOperation = retry.retry;
+pub const retryWithStrategy = retry.retryWithStrategy;
+
+// Rate Limiter exports
+pub const RateLimiter = rate_limiter.RateLimiter;
+pub const RateLimiterConfig = rate_limiter.RateLimiterConfig;
+pub const RateLimitAlgorithm = rate_limiter.RateLimitAlgorithm;
+pub const AcquireResult = rate_limiter.AcquireResult;
+pub const TokenBucketLimiter = rate_limiter.TokenBucketLimiter;
+pub const SlidingWindowLimiter = rate_limiter.SlidingWindowLimiter;
+pub const FixedWindowLimiter = rate_limiter.FixedWindowLimiter;
+pub const LimiterStats = rate_limiter.LimiterStats;
+
+// Connection Pool exports
+pub const ConnectionPool = connection_pool.ConnectionPool;
+pub const ConnectionPoolConfig = connection_pool.ConnectionPoolConfig;
+pub const PooledConnection = connection_pool.PooledConnection;
+pub const ConnectionState = connection_pool.ConnectionState;
+pub const ConnectionStats = connection_pool.ConnectionStats;
+pub const HostKey = connection_pool.HostKey;
+pub const PoolStats = connection_pool.PoolStats;
+pub const PoolBuilder = connection_pool.PoolBuilder;
 
 pub const NetworkError = error{
     NetworkDisabled,

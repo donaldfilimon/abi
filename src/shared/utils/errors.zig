@@ -15,6 +15,13 @@ pub const ErrorCategory = enum {
     configuration,
 };
 
+/// Common errors across the framework
+pub const CommonError = std.fs.File.OpenError ||
+    std.fs.File.ReadError ||
+    std.fs.File.WriteError ||
+    std.mem.Allocator.Error ||
+    error{ Timeout, PermissionDenied, InvalidInput, InvalidFormat, NotFound };
+
 /// Standardized error context for logging and debugging
 pub const ErrorContext = struct {
     category: ErrorCategory,
@@ -35,7 +42,7 @@ pub const ErrorContext = struct {
         };
     }
 
-    pub fn log(self: ErrorContext, level: std.log.Level, err: anyerror) void {
+    pub fn log(self: ErrorContext, level: std.log.Level, err: CommonError) void {
         const details_msg = if (self.details) |d| d else "no details";
         switch (level) {
             .err => std.log.err("[{t}] {s} failed: {} - {s} (at {s}:{d})", .{
@@ -152,7 +159,6 @@ pub fn ResourceManager(comptime T: type) type {
 pub const ErrorPatterns = struct {
     /// Handle allocation errors with context
     pub fn handleAllocError(
-        _allocator: std.mem.Allocator,
         requested_size: usize,
         context: ErrorContext,
     ) std.mem.Allocator.Error {
@@ -161,12 +167,18 @@ pub const ErrorPatterns = struct {
         return error.OutOfMemory;
     }
 
+    /// IO error set for retry logic
+    pub const IoErrorSet = std.fs.File.OpenError ||
+        std.fs.File.ReadError ||
+        std.fs.File.WriteError ||
+        error{ Timeout, ConnectionRefused, BrokenPipe, NetworkUnreachable };
+
     /// Handle IO errors with retry logic
     pub fn handleIoError(
-        err: anyerror,
+        err: IoErrorSet,
         operation: []const u8,
         max_retries: u8,
-    ) anyerror {
+    ) IoErrorSet {
         var retries: u8 = 0;
         while (retries < max_retries) : (retries += 1) {
             std.log.warn("IO operation '{s}' failed (attempt {}/{}): {}", .{ operation, retries + 1, max_retries, err });
@@ -230,7 +242,7 @@ test "ErrorContext logging" {
 }
 
 test "Result type operations" {
-    const result = Result(u32, anyerror).initSuccess(42);
+    const result = Result(u32, CommonError).initSuccess(42);
     try std.testing.expect(result.isSuccess());
     try std.testing.expectEqual(@as(u32, 42), try result.unwrap());
 }

@@ -1,22 +1,17 @@
 //! Stub for GPU feature when disabled
 const std = @import("std");
+const compute_gpu = @import("../../compute/gpu/mod.zig");
 
-pub const BackendAvailability = struct {
-    available: bool,
-    reason: []const u8,
-    device_count: usize,
-    level: enum { none },
-};
+pub const Backend = compute_gpu.Backend;
+pub const DeviceInfo = compute_gpu.DeviceInfo;
+pub const BackendAvailability = compute_gpu.BackendAvailability;
+pub const GpuError = compute_gpu.GpuError;
 
 pub fn moduleEnabled() bool {
     return false;
 }
 
-pub fn getAvailableBackends() []const @import("../gpu/mod.zig").Backend {
-    return &.{};
-}
-
-pub fn backendAvailability(backend: @import("../gpu/mod.zig").Backend) BackendAvailability {
+pub fn backendAvailability(backend: Backend) BackendAvailability {
     _ = backend;
     return BackendAvailability{
         .available = false,
@@ -26,17 +21,17 @@ pub fn backendAvailability(backend: @import("../gpu/mod.zig").Backend) BackendAv
     };
 }
 
-pub fn availableBackends(allocator: std.mem.Allocator) ![]@import("../gpu/mod.zig").Backend {
+pub fn availableBackends(allocator: std.mem.Allocator) ![]Backend {
     _ = allocator;
     return &.{};
 }
 
-pub fn listDevices(allocator: std.mem.Allocator) ![]@import("../gpu/mod.zig").DeviceInfo {
+pub fn listDevices(allocator: std.mem.Allocator) ![]DeviceInfo {
     _ = allocator;
     return &.{};
 }
 
-pub fn init(allocator: std.mem.Allocator) !void {
+pub fn init(allocator: std.mem.Allocator) GpuError!void {
     _ = allocator;
     return error.GpuDisabled;
 }

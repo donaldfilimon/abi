@@ -23,6 +23,9 @@ pub const SubagentError = error{
     HandlerFailed,
 } || std.mem.Allocator.Error;
 
+/// Function pointer type for subagent handlers.
+pub const SubagentHandlerFn = *const fn ([]const u8, *Context) SubagentError!ToolResult;
+
 pub const SubagentConfig = struct {
     timeout_ms: u64 = 30000,
     max_concurrent: usize = 4,
@@ -43,7 +46,7 @@ pub const Subagent = struct {
     name: []const u8,
     description: []const u8,
     config: SubagentConfig,
-    handler: *const fn ([]const u8, *Context) anyerror!ToolResult,
+    handler: SubagentHandlerFn,
     state: SubagentState = .idle,
     last_execution_time_ms: u64 = 0,
     execution_count: u64 = 0,
@@ -233,13 +236,13 @@ pub const TaskTool = struct {
     }
 
     pub fn listSubagents(self: *TaskTool) ![]const []const u8 {
-        var names = std.ArrayList([]const u8).init(self.allocator);
-        errdefer names.deinit();
+        var names = std.ArrayListUnmanaged([]const u8){};
+        errdefer names.deinit(self.allocator);
         var iterator = self.subagents.keyIterator();
         while (iterator.next()) |key| {
-            try names.append(key.*);
+            try names.append(self.allocator, key.*);
         }
-        return try names.toOwnedSlice();
+        return try names.toOwnedSlice(self.allocator);
     }
 
     pub fn getSubagentInfo(self: *TaskTool, name: []const u8) ?*const Subagent {
@@ -263,7 +266,16 @@ pub const TaskTool = struct {
                 sub_stat.deinit();
                 continue;
             };
-            sub_stat.put("state", json.Value{ .string = @tagName(subagent.state) }) catch |err| {
+
+            // Use {t} format specifier instead of @tagName()
+            const state_str = std.fmt.allocPrint(self.allocator, "{t}", .{subagent.state}) catch |err| {
+                std.log.warn("Failed to format subagent state: {t}", .{err});
+                sub_stat.deinit();
+                continue;
+            };
+            defer self.allocator.free(state_str);
+
+            sub_stat.put("state", json.Value{ .string = state_str }) catch |err| {
                 std.log.warn("Failed to add subagent state to statistics: {t}", .{err});
                 sub_stat.deinit();
                 continue;

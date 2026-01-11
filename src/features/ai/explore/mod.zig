@@ -57,15 +57,15 @@ pub const ImportType = dependency.ImportType;
 pub const DependencyGraph = dependency.DependencyGraph;
 pub const DependencyAnalyzer = dependency.DependencyAnalyzer;
 
-pub fn createDefaultAgent(allocator: std.mem.Allocator) ExploreAgent {
+pub fn createDefaultAgent(allocator: std.mem.Allocator) !ExploreAgent {
     return agent.createDefaultAgent(allocator);
 }
 
-pub fn createQuickAgent(allocator: std.mem.Allocator) ExploreAgent {
+pub fn createQuickAgent(allocator: std.mem.Allocator) !ExploreAgent {
     return agent.createQuickAgent(allocator);
 }
 
-pub fn createThoroughAgent(allocator: std.mem.Allocator) ExploreAgent {
+pub fn createThoroughAgent(allocator: std.mem.Allocator) !ExploreAgent {
     return agent.createThoroughAgent(allocator);
 }
 

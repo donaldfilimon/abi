@@ -3,7 +3,10 @@
 //! Provides command-line interface to access framework functionality.
 
 const std = @import("std");
-const abi = @import("abi");
+// Import the ABI module directly when building this file without a custom build script.
+// Using the file name ensures the import works even when the project build does not
+// provide a named module.
+const abi = @import("abi.zig");
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;

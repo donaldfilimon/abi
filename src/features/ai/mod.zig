@@ -13,7 +13,8 @@ pub const federated = @import("federated/mod.zig");
 pub const transformer = @import("transformer/mod.zig");
 pub const streaming = @import("streaming.zig");
 pub const tools = @import("tools/mod.zig");
-pub const explore = @import("explore/mod.zig");
+pub const explore = if (build_options.enable_explore) @import("explore/mod.zig") else @import("explore/stub.zig");
+pub const llm = if (build_options.enable_llm) @import("llm/mod.zig") else @import("llm/stub.zig");
 
 pub const Agent = agent.Agent;
 pub const ModelRegistry = model_registry.ModelRegistry;
@@ -41,6 +42,13 @@ pub const ExplorationStats = explore.ExplorationStats;
 pub const QueryIntent = explore.QueryIntent;
 pub const ParsedQuery = explore.ParsedQuery;
 pub const QueryUnderstanding = explore.QueryUnderstanding;
+
+// LLM module exports
+pub const LlmEngine = llm.Engine;
+pub const LlmModel = llm.Model;
+pub const LlmConfig = llm.InferenceConfig;
+pub const GgufFile = llm.GgufFile;
+pub const BpeTokenizer = llm.BpeTokenizer;
 
 pub const AiError = error{
     AiDisabled,

@@ -6,6 +6,27 @@
 
 const std = @import("std");
 
+/// Error set for workload execution operations.
+pub const WorkloadError = error{
+    /// Memory allocation failed during execution
+    OutOfMemory,
+    /// Workload execution failed
+    ExecutionFailed,
+    /// Workload was cancelled before completion
+    Cancelled,
+    /// Workload execution timed out
+    Timeout,
+    /// Invalid input parameters
+    InvalidInput,
+    /// Required GPU resource not available
+    GpuUnavailable,
+    /// Buffer size mismatch
+    BufferMismatch,
+};
+
+/// Function pointer type for workload execution.
+pub const ExecuteFn = *const fn (ctx: *ExecutionContext, user: *anyopaque) WorkloadError!ResultHandle;
+
 pub const WorkloadHints = struct {
     cpu_affinity: ?u32 = null,
     estimated_duration_us: ?u64 = null,
@@ -43,7 +64,7 @@ pub const ResultHandle = struct {
 };
 
 pub const WorkloadVTable = struct {
-    execute: *const fn (ctx: *ExecutionContext, user: *anyopaque) anyerror!ResultHandle,
+    execute: ExecuteFn,
 };
 
 pub const ResultVTable = struct {
@@ -51,7 +72,7 @@ pub const ResultVTable = struct {
 };
 
 pub const GPUWorkloadVTable = struct {
-    execute: *const fn (ctx: *ExecutionContext, user: *anyopaque) anyerror!ResultHandle,
+    execute: ExecuteFn,
 };
 
 pub const WorkItem = struct {
@@ -63,7 +84,7 @@ pub const WorkItem = struct {
     gpu_vtable: ?*const GPUWorkloadVTable = null,
 };
 
-pub fn runWorkItem(ctx: *ExecutionContext, item: *const WorkItem) !ResultHandle {
+pub fn runWorkItem(ctx: *ExecutionContext, item: *const WorkItem) WorkloadError!ResultHandle {
     return item.vtable.execute(ctx, item.user);
 }
 
@@ -174,7 +195,7 @@ pub const MlpTask = struct {
     }
 };
 
-fn runSample(_: *ExecutionContext, user: *anyopaque) !ResultHandle {
+fn runSample(_: *ExecutionContext, user: *anyopaque) WorkloadError!ResultHandle {
     const ptr: *u32 = @ptrCast(@alignCast(user));
     ptr.* = 7;
     return ResultHandle.fromSlice(&.{});
@@ -183,8 +204,8 @@ fn runSample(_: *ExecutionContext, user: *anyopaque) !ResultHandle {
 test "work item executes vtable" {
     const allocator = std.testing.allocator;
     var value: u32 = 0;
-    const ctx = ExecutionContext{ .allocator = allocator };
-    const vtable = WorkloadVTable{ .execute = runSample };
+    var ctx = ExecutionContext{ .allocator = allocator };
+    const vtable = WorkloadVTable{ .execute = &runSample };
     const item = WorkItem{
         .id = 1,
         .user = &value,
@@ -193,7 +214,7 @@ test "work item executes vtable" {
         .hints = .{},
     };
 
-    const result = try runWorkItem(&ctx, &item);
+    var result = try runWorkItem(&ctx, &item);
     defer result.deinit();
     try std.testing.expectEqual(@as(u32, 7), value);
     try std.testing.expectEqual(@as(usize, 0), result.bytes.len);

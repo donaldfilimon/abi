@@ -113,53 +113,170 @@ pub const HnswIndex = struct {
         }
     }
 
-    /// Connect a node to its neighbors at a specific layer and update back-links.
+    /// Connect a node to its neighbors at a specific layer using proper HNSW neighbor selection.
     fn connectNeighbors(
         self: *HnswIndex,
         allocator: std.mem.Allocator,
-        _: []const index_mod.VectorRecordView,
+        records: []const index_mod.VectorRecordView,
         node_id: u32,
         entry: u32,
         layer: usize,
     ) !void {
         const m_val = if (layer == 0) self.m_max0 else self.m_max;
 
-        var neighbors = std.ArrayList(u32).init(allocator);
-        defer neighbors.deinit();
+        // Build candidate list using ef_construction expansion
+        var candidates = std.AutoHashMap(u32, f32).init(allocator);
+        defer candidates.deinit();
 
-        // Simplified candidate selection: start with entry node and its neighbors
-        try neighbors.append(entry);
-        for (self.nodes[entry].layers[layer].nodes) |n| {
-            if (neighbors.items.len >= m_val) break;
-            try neighbors.append(n);
+        var visited = std.AutoHashMap(u32, void).init(allocator);
+        defer visited.deinit();
+
+        // Start with entry point
+        const entry_dist = 1.0 - simd.cosineSimilarity(records[node_id].vector, records[entry].vector);
+        try candidates.put(entry, entry_dist);
+        try visited.put(entry, {});
+
+        // BFS expansion to find candidates
+        var queue = std.ArrayListUnmanaged(u32){};
+        defer queue.deinit(allocator);
+        try queue.append(allocator, entry);
+
+        var head: usize = 0;
+        while (head < queue.items.len and candidates.count() < self.ef_construction) : (head += 1) {
+            const curr = queue.items[head];
+            if (layer < self.nodes[curr].layers.len) {
+                for (self.nodes[curr].layers[layer].nodes) |neighbor| {
+                    if (!visited.contains(neighbor)) {
+                        try visited.put(neighbor, {});
+                        const dist = 1.0 - simd.cosineSimilarity(records[node_id].vector, records[neighbor].vector);
+                        try candidates.put(neighbor, dist);
+                        try queue.append(allocator, neighbor);
+                    }
+                }
+            }
         }
 
-        self.nodes[node_id].layers[layer].nodes = try neighbors.toOwnedSlice();
+        // Select best neighbors using heuristic pruning
+        const selected = try self.selectNeighborsHeuristic(allocator, records, node_id, &candidates, m_val);
+        self.nodes[node_id].layers[layer].nodes = selected;
 
-        // Update bidirectional links
+        // Update bidirectional links with proper pruning
         for (self.nodes[node_id].layers[layer].nodes) |neighbor| {
-            var current = std.ArrayList(u32).init(allocator);
-            defer current.deinit();
-            try current.appendSlice(self.nodes[neighbor].layers[layer].nodes);
+            if (layer >= self.nodes[neighbor].layers.len) continue;
 
-            var exists = false;
-            for (current.items) |cn| {
-                if (cn == node_id) {
-                    exists = true;
+            var neighbor_links = std.AutoHashMap(u32, f32).init(allocator);
+            defer neighbor_links.deinit();
+
+            // Collect existing neighbors
+            for (self.nodes[neighbor].layers[layer].nodes) |existing| {
+                const dist = 1.0 - simd.cosineSimilarity(records[neighbor].vector, records[existing].vector);
+                try neighbor_links.put(existing, dist);
+            }
+
+            // Add new link if not exists
+            if (!neighbor_links.contains(node_id)) {
+                const dist = 1.0 - simd.cosineSimilarity(records[neighbor].vector, records[node_id].vector);
+                try neighbor_links.put(node_id, dist);
+            }
+
+            // Prune if needed
+            if (neighbor_links.count() > m_val) {
+                const pruned = try self.selectNeighborsHeuristic(allocator, records, neighbor, &neighbor_links, m_val);
+                allocator.free(self.nodes[neighbor].layers[layer].nodes);
+                self.nodes[neighbor].layers[layer].nodes = pruned;
+            } else {
+                // Just update with new links
+                var new_links = std.ArrayListUnmanaged(u32){};
+                errdefer new_links.deinit(allocator);
+
+                var it = neighbor_links.keyIterator();
+                while (it.next()) |key| {
+                    try new_links.append(allocator, key.*);
+                }
+
+                allocator.free(self.nodes[neighbor].layers[layer].nodes);
+                self.nodes[neighbor].layers[layer].nodes = try new_links.toOwnedSlice(allocator);
+            }
+        }
+    }
+
+    /// Select neighbors using heuristic pruning that considers both distance and diversity.
+    fn selectNeighborsHeuristic(
+        self: *HnswIndex,
+        allocator: std.mem.Allocator,
+        records: []const index_mod.VectorRecordView,
+        node_id: u32,
+        candidates: *std.AutoHashMap(u32, f32),
+        m_val: usize,
+    ) ![]u32 {
+        _ = self;
+
+        // Sort candidates by distance (ascending)
+        const CandidatePair = struct { id: u32, dist: f32 };
+        var sorted = std.ArrayListUnmanaged(CandidatePair){};
+        defer sorted.deinit(allocator);
+
+        var it = candidates.iterator();
+        while (it.next()) |entry| {
+            if (entry.key_ptr.* != node_id) { // Don't include self
+                try sorted.append(allocator, .{ .id = entry.key_ptr.*, .dist = entry.value_ptr.* });
+            }
+        }
+
+        // Sort by distance (closest first)
+        std.sort.heap(CandidatePair, sorted.items, {}, struct {
+            fn lessThan(_: void, a: CandidatePair, b: CandidatePair) bool {
+                return a.dist < b.dist;
+            }
+        }.lessThan);
+
+        // Select using heuristic: prefer diverse neighbors over purely closest
+        var selected = std.ArrayListUnmanaged(u32){};
+        errdefer selected.deinit(allocator);
+
+        for (sorted.items) |candidate| {
+            if (selected.items.len >= m_val) break;
+
+            // Check if this candidate is closer to node than to any selected neighbor
+            var should_add = true;
+            for (selected.items) |existing| {
+                const dist_to_existing = 1.0 - simd.cosineSimilarity(
+                    records[candidate.id].vector,
+                    records[existing].vector,
+                );
+                // If candidate is closer to an existing neighbor than to the node,
+                // skip it to maintain diversity
+                if (dist_to_existing < candidate.dist) {
+                    should_add = false;
                     break;
                 }
             }
 
-            if (!exists) {
-                try current.append(node_id);
-                // Simple pruning if too many connections
-                if (current.items.len > m_val) {
-                    _ = current.pop();
-                }
-                allocator.free(self.nodes[neighbor].layers[layer].nodes);
-                self.nodes[neighbor].layers[layer].nodes = try current.toOwnedSlice();
+            if (should_add) {
+                try selected.append(allocator, candidate.id);
             }
         }
+
+        // If we don't have enough neighbors due to heuristic, fill with closest
+        if (selected.items.len < m_val) {
+            for (sorted.items) |candidate| {
+                if (selected.items.len >= m_val) break;
+
+                var already_added = false;
+                for (selected.items) |existing| {
+                    if (existing == candidate.id) {
+                        already_added = true;
+                        break;
+                    }
+                }
+
+                if (!already_added) {
+                    try selected.append(allocator, candidate.id);
+                }
+            }
+        }
+
+        return selected.toOwnedSlice(allocator);
     }
 
     /// Search the HNSW graph for the nearest neighbors of a query vector.
@@ -204,9 +321,9 @@ pub const HnswIndex = struct {
         defer candidates.deinit();
         try candidates.put(curr_node, curr_dist);
 
-        var queue = std.ArrayList(u32).init(allocator);
-        defer queue.deinit();
-        try queue.append(curr_node);
+        var queue = std.ArrayListUnmanaged(u32){};
+        defer queue.deinit(allocator);
+        try queue.append(allocator, curr_node);
 
         var head: usize = 0;
         // Limit search expansion for performance
@@ -218,7 +335,7 @@ pub const HnswIndex = struct {
                 if (!candidates.contains(v)) {
                     const d = 1.0 - simd.cosineSimilarity(query, records[v].vector);
                     try candidates.put(v, d);
-                    try queue.append(v);
+                    try queue.append(allocator, v);
                 }
             }
         }

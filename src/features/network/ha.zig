@@ -24,6 +24,7 @@ pub const ClusterState = enum {
     stable,
     unstable,
     partitioned,
+    degraded,
 };
 
 pub const HealthCheckResult = struct {
@@ -101,28 +102,28 @@ pub const HealthCheck = struct {
         try self.evaluateClusterState();
     }
 
-    pub fn getHealthyNodes(self: *const HealthCheck) !std.ArrayList([]const u8) {
-        var list = std.ArrayList([]const u8).init(self.allocator);
-        errdefer list.deinit();
+    pub fn getHealthyNodes(self: *const HealthCheck) !std.ArrayListUnmanaged([]const u8) {
+        var list = std.ArrayListUnmanaged([]const u8){};
+        errdefer list.deinit(self.allocator);
 
         var iter = self.node_health.iterator();
         while (iter.next()) |entry| {
             if (entry.value_ptr.* == .healthy) {
-                try list.append(entry.key_ptr.*);
+                try list.append(self.allocator, entry.key_ptr.*);
             }
         }
 
         return list;
     }
 
-    pub fn getUnhealthyNodes(self: *const HealthCheck) !std.ArrayList([]const u8) {
-        var list = std.ArrayList([]const u8).init(self.allocator);
-        errdefer list.deinit();
+    pub fn getUnhealthyNodes(self: *const HealthCheck) !std.ArrayListUnmanaged([]const u8) {
+        var list = std.ArrayListUnmanaged([]const u8){};
+        errdefer list.deinit(self.allocator);
 
         var iter = self.node_health.iterator();
         while (iter.next()) |entry| {
             if (entry.value_ptr.* == .unhealthy) {
-                try list.append(entry.key_ptr.*);
+                try list.append(self.allocator, entry.key_ptr.*);
             }
         }
 
@@ -149,8 +150,8 @@ pub const HealthCheck = struct {
     /// Internal helper to select and set a new primary from healthy nodes.
     /// Frees the previous primary if one exists.
     fn selectNewPrimary(self: *HealthCheck) ![]const u8 {
-        const healthy = try self.getHealthyNodes();
-        defer healthy.deinit();
+        var healthy = try self.getHealthyNodes();
+        defer healthy.deinit(self.allocator);
 
         if (healthy.items.len == 0) {
             return HaError.NoHealthyNodes;

@@ -289,35 +289,43 @@ pub const Config = struct {
 /// Configuration loader
 pub const ConfigLoader = struct {
     allocator: std.mem.Allocator,
+    io_backend: std.Io.Threaded,
 
     pub fn init(allocator: std.mem.Allocator) ConfigLoader {
-        return .{ .allocator = allocator };
+        return .{
+            .allocator = allocator,
+            .io_backend = std.Io.Threaded.init(allocator, .{
+                .environ = std.process.Environ.empty,
+            }),
+        };
+    }
+
+    pub fn deinit(self: *ConfigLoader) void {
+        self.io_backend.deinit();
     }
 
     /// Load configuration from JSON file
     pub fn loadFromFile(self: *ConfigLoader, path: []const u8) !Config {
-        const file = try std.fs.Dir.cwd().openFile(path, .{});
-        defer file.close();
-
-        const size = try file.getEndPos();
-        const contents = try file.readToEndAlloc(self.allocator, size);
+        const io = self.io_backend.io();
+        const contents = std.Io.Dir.cwd().readFileAlloc(io, path, self.allocator, .limited(1024 * 1024)) catch {
+            return ConfigError.FileNotFound;
+        };
         defer self.allocator.free(contents);
 
         return try self.loadFromJson(contents, path);
     }
 
     /// Load configuration from JSON string
-    pub fn loadFromJson(self: *ConfigLoader, json: []const u8, source: []const u8) !Config {
+    pub fn loadFromJson(self: *ConfigLoader, json_str: []const u8, source: []const u8) !Config {
         var config = Config.init(self.allocator);
         errdefer config.deinit();
 
-        var parser = std.json.Parser.init(self.allocator, .{});
-        defer parser.deinit();
+        const parsed = std.json.parseFromSlice(std.json.Value, self.allocator, json_str, .{}) catch {
+            return ConfigError.ParseError;
+        };
+        defer parsed.deinit();
 
-        const tree = try parser.parse(json);
-        defer tree.deinit();
-
-        try self.parseJsonIntoConfig(&config, tree.root);
+        try self.parseJsonIntoConfig(&config, parsed.value);
 
         config.source = .file_json;
         config.source_path = try self.allocator.dupe(u8, source);
@@ -438,7 +446,7 @@ pub const ConfigLoader = struct {
                         if (v == .string) config.ai.default_model = v.string;
                     }
                     if (ai.object.get("temperature")) |v| {
-                        if (v == .number_float) config.ai.temperature = v.number_float;
+                        if (v == .float) config.ai.temperature = @floatCast(v.float);
                     }
                     if (ai.object.get("max_tokens")) |v| {
                         if (v == .integer) config.ai.max_tokens = @as(u32, @intCast(v.integer));

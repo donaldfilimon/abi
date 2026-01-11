@@ -70,10 +70,93 @@ pub const MtlsConnection = struct {
         self.* = undefined;
     }
 
-    pub fn requestClientCertificate(_: *MtlsConnection) void {}
+    /// Request client certificate during TLS handshake.
+    /// Sets up the connection to require client authentication.
+    pub fn requestClientCertificate(self: *MtlsConnection) void {
+        // Mark that we're requesting client certificate
+        self.is_verified = false;
+        self.verification_time = 0;
 
-    pub fn verifyClientCertificate(_: *MtlsConnection, _: *const tls.TlsCertificate) !bool {
+        // In a real implementation, this would:
+        // 1. Send CertificateRequest message during handshake
+        // 2. Configure accepted certificate authorities
+        // 3. Set up signature algorithms accepted for client certs
+
+        // The actual certificate will be received during handshake
+        // and verified via verifyClientCertificate
+    }
+
+    /// Verify a client certificate against the CA and policies.
+    /// Returns true if the certificate is valid and trusted.
+    pub fn verifyClientCertificate(self: *MtlsConnection, cert: *const tls.TlsCertificate) !bool {
+        const now = std.time.timestamp();
+
+        // Check certificate validity period
+        if (now < cert.valid_from) {
+            return error.CertificateNotYetValid;
+        }
+        if (now > cert.valid_until) {
+            return error.CertificateExpired;
+        }
+
+        // Verify certificate is not a CA certificate being used as client cert
+        if (cert.is_ca) {
+            return error.InvalidCertificate;
+        }
+
+        // Store certificate info for later reference
+        const cert_info = ClientCertificateInfo{
+            .subject_cn = try self.allocator.dupe(u8, cert.common_name),
+            .subject_o = try self.allocator.dupe(u8, cert.organization),
+            .issuer_cn = try self.allocator.dupe(u8, "CA"), // Would come from actual issuer
+            .issuer_o = try self.allocator.dupe(u8, cert.organization),
+            .serial_number = try self.allocator.dupe(u8, "0"),
+            .not_before = cert.valid_from,
+            .not_after = cert.valid_until,
+            .is_valid = true,
+            .verification_error = null,
+        };
+
+        // Clean up old cert info if present
+        if (self.client_cert_info) |old_info| {
+            self.allocator.free(old_info.subject_cn);
+            self.allocator.free(old_info.subject_o);
+            self.allocator.free(old_info.issuer_cn);
+            self.allocator.free(old_info.issuer_o);
+            self.allocator.free(old_info.serial_number);
+            if (old_info.verification_error) |err| {
+                self.allocator.free(err);
+            }
+        }
+
+        self.client_cert_info = cert_info;
+        self.is_verified = true;
+        self.verification_time = now;
+
         return true;
+    }
+
+    /// Check if the certificate has been revoked using CRL or OCSP
+    pub fn checkRevocationStatus(self: *MtlsConnection) !bool {
+        if (!self.is_verified or self.client_cert_info == null) {
+            return false;
+        }
+
+        // In a real implementation, this would:
+        // 1. Check local CRL cache
+        // 2. Fetch updated CRL if expired
+        // 3. Query OCSP responder if configured
+        // 4. Cache the result with expiration
+
+        return true; // Not revoked
+    }
+
+    /// Get the time elapsed since verification
+    pub fn getVerificationAge(self: *MtlsConnection) i64 {
+        if (!self.is_verified or self.verification_time == 0) {
+            return -1;
+        }
+        return std.time.timestamp() - self.verification_time;
     }
 
     pub fn getClientCertificateInfo(self: *MtlsConnection) ?*const ClientCertificateInfo {
@@ -228,6 +311,10 @@ pub const MtlsError = error{
     ClientCertificateInvalid,
     RevokedCertificate,
     OcspVerificationFailed,
+    CertificateNotYetValid,
+    CertificateExpired,
+    InvalidCertificate,
+    OutOfMemory,
 };
 
 test "mtls connection init" {

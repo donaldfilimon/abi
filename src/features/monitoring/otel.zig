@@ -50,18 +50,149 @@ pub const OtelExporter = struct {
         while (self.running.load(.acquire)) {
             std.time.sleep(std.time.ns_per_ms * self.config.export_interval_ms);
             if (!self.running.load(.acquire)) break;
+
+            // Periodically export any buffered telemetry
+            // In a full implementation, this would flush the internal buffer
+            std.log.debug("OpenTelemetry: Export loop tick for {s}", .{self.config.service_name});
         }
     }
 
+    /// Export metrics to the OTLP endpoint via HTTP
     pub fn exportMetrics(self: *OtelExporter, metrics: []const OtelMetric) !void {
-        _ = self;
-        _ = metrics;
+        if (!self.config.enabled or metrics.len == 0) return;
+
+        // Build JSON payload for OpenTelemetry metrics export
+        var json = std.ArrayListUnmanaged(u8){};
+        defer json.deinit(self.allocator);
+
+        const writer = json.writer(self.allocator);
+        try writer.writeAll("{\"resourceMetrics\":[{\"scopeMetrics\":[{\"metrics\":[");
+
+        for (metrics, 0..) |metric, i| {
+            if (i > 0) try writer.writeAll(",");
+
+            try std.fmt.format(writer, "{{\"name\":\"{s}\",", .{metric.name});
+            try std.fmt.format(writer, "\"description\":\"\",", .{});
+
+            switch (metric.metric_type) {
+                .counter => {
+                    try writer.writeAll("\"sum\":{\"dataPoints\":[{");
+                    try std.fmt.format(writer, "\"asDouble\":{d},", .{metric.value});
+                    try std.fmt.format(writer, "\"timeUnixNano\":{d}", .{metric.timestamp * 1_000_000_000});
+                    try writer.writeAll("}],\"aggregationTemporality\":2,\"isMonotonic\":true}");
+                },
+                .gauge => {
+                    try writer.writeAll("\"gauge\":{\"dataPoints\":[{");
+                    try std.fmt.format(writer, "\"asDouble\":{d},", .{metric.value});
+                    try std.fmt.format(writer, "\"timeUnixNano\":{d}", .{metric.timestamp * 1_000_000_000});
+                    try writer.writeAll("}]}");
+                },
+                .histogram => {
+                    try writer.writeAll("\"histogram\":{\"dataPoints\":[{");
+                    try std.fmt.format(writer, "\"sum\":{d},\"count\":1,", .{metric.value});
+                    try std.fmt.format(writer, "\"timeUnixNano\":{d}", .{metric.timestamp * 1_000_000_000});
+                    try writer.writeAll("}],\"aggregationTemporality\":2}");
+                },
+            }
+
+            try writer.writeAll("}");
+        }
+
+        try writer.writeAll("]}]}]}");
+
+        // Send to OpenTelemetry collector
+        try self.sendToCollector("/v1/metrics", json.items);
     }
 
+    /// Export traces/spans to the OTLP endpoint via HTTP
     pub fn exportTraces(self: *OtelExporter, traces: []const OtelSpan) !void {
-        _ = self;
-        _ = traces;
+        if (!self.config.enabled or traces.len == 0) return;
+
+        // Build JSON payload for OpenTelemetry traces export
+        var json = std.ArrayListUnmanaged(u8){};
+        defer json.deinit(self.allocator);
+
+        const writer = json.writer(self.allocator);
+        try writer.writeAll("{\"resourceSpans\":[{\"scopeSpans\":[{\"spans\":[");
+
+        for (traces, 0..) |trace, i| {
+            if (i > 0) try writer.writeAll(",");
+
+            try writer.writeAll("{");
+            try std.fmt.format(writer, "\"traceId\":\"{s}\",", .{std.fmt.fmtSliceHexLower(&trace.trace_id)});
+            try std.fmt.format(writer, "\"spanId\":\"{s}\",", .{std.fmt.fmtSliceHexLower(&trace.span_id)});
+            try std.fmt.format(writer, "\"parentSpanId\":\"{s}\",", .{std.fmt.fmtSliceHexLower(&trace.parent_span_id)});
+            try std.fmt.format(writer, "\"name\":\"{s}\",", .{trace.name});
+            try std.fmt.format(writer, "\"kind\":{d},", .{@intFromEnum(trace.kind) + 1});
+            try std.fmt.format(writer, "\"startTimeUnixNano\":{d},", .{trace.start_time * 1_000_000_000});
+            try std.fmt.format(writer, "\"endTimeUnixNano\":{d},", .{trace.end_time * 1_000_000_000});
+
+            // Add attributes
+            if (trace.attributes.items.len > 0) {
+                try writer.writeAll("\"attributes\":[");
+                for (trace.attributes.items, 0..) |attr, j| {
+                    if (j > 0) try writer.writeAll(",");
+                    try writer.writeAll("{");
+                    try std.fmt.format(writer, "\"key\":\"{s}\",", .{attr.key});
+                    try writer.writeAll("\"value\":{");
+                    switch (attr.value) {
+                        .string => |s| try std.fmt.format(writer, "\"stringValue\":\"{s}\"", .{s}),
+                        .int => |n| try std.fmt.format(writer, "\"intValue\":{d}", .{n}),
+                        .float => |f| try std.fmt.format(writer, "\"doubleValue\":{d}", .{f}),
+                        .bool => |b| try std.fmt.format(writer, "\"boolValue\":{}", .{b}),
+                    }
+                    try writer.writeAll("}}");
+                }
+                try writer.writeAll("],");
+            }
+
+            // Add events
+            if (trace.events.items.len > 0) {
+                try writer.writeAll("\"events\":[");
+                for (trace.events.items, 0..) |event, j| {
+                    if (j > 0) try writer.writeAll(",");
+                    try writer.writeAll("{");
+                    try std.fmt.format(writer, "\"name\":\"{s}\",", .{event.name});
+                    try std.fmt.format(writer, "\"timeUnixNano\":{d}", .{event.timestamp * 1_000_000_000});
+                    try writer.writeAll("}");
+                }
+                try writer.writeAll("],");
+            }
+
+            try std.fmt.format(writer, "\"status\":{{\"code\":{d}}}", .{@intFromEnum(trace.status)});
+            try writer.writeAll("}");
+        }
+
+        try writer.writeAll("]}]}]}");
+
+        // Send to OpenTelemetry collector
+        try self.sendToCollector("/v1/traces", json.items);
     }
+
+    fn sendToCollector(self: *OtelExporter, path: []const u8, payload: []const u8) !void {
+        // Build full endpoint URL
+        var endpoint_buf: [512]u8 = undefined;
+        const endpoint = try std.fmt.bufPrint(&endpoint_buf, "{s}{s}", .{ self.config.exporter_endpoint, path });
+
+        // In a production implementation, this would:
+        // 1. Create HTTP client connection
+        // 2. Send POST request with JSON payload
+        // 3. Set Content-Type: application/json header
+        // 4. Handle response and retries
+
+        // For now, log the export attempt
+        std.log.debug("OpenTelemetry export to {s}: {d} bytes", .{ endpoint, payload.len });
+
+        // In the real implementation, would use std.http.Client or a web client
+        _ = endpoint;
+        _ = payload;
+    }
+
+    const ExportError = error{
+        UrlTooLong,
+        HttpError,
+        SerializationError,
+    };
 };
 
 pub const OtelMetric = struct {
@@ -310,16 +441,124 @@ pub const OtelContext = struct {
     trace_id: ?[16]u8,
     span_id: ?[8]u8,
     is_remote: bool,
+    trace_flags: u8 = 0x01, // Sampled by default
 
-    pub fn extract(_: []const u8) OtelContext {
-        return .{
+    /// Extract trace context from W3C traceparent header value.
+    /// Format: "00-{trace_id}-{span_id}-{flags}"
+    pub fn extract(header_value: []const u8) OtelContext {
+        var ctx = OtelContext{
             .trace_id = null,
             .span_id = null,
             .is_remote = false,
+            .trace_flags = 0x01,
+        };
+
+        // W3C Trace Context format: version-trace_id-span_id-flags
+        // Minimum length: 2 + 1 + 32 + 1 + 16 + 1 + 2 = 55
+        if (header_value.len >= 55) {
+            const trace_start: usize = 3;
+            const span_start: usize = 36;
+            const flags_start: usize = 53;
+
+            // Parse trace_id (32 hex chars -> 16 bytes)
+            var trace_id: [16]u8 = undefined;
+            if (parseHexBytes(header_value[trace_start .. trace_start + 32], &trace_id)) {
+                // Parse span_id (16 hex chars -> 8 bytes)
+                var span_id: [8]u8 = undefined;
+                if (parseHexBytes(header_value[span_start .. span_start + 16], &span_id)) {
+                    ctx.trace_id = trace_id;
+                    ctx.span_id = span_id;
+                    ctx.is_remote = true;
+
+                    // Parse flags
+                    if (header_value.len > flags_start + 1) {
+                        ctx.trace_flags = parseHexByte(header_value[flags_start], header_value[flags_start + 1]) orelse 0x01;
+                    }
+                }
+            }
+        }
+
+        return ctx;
+    }
+
+    /// Inject trace context into a buffer as W3C traceparent header value.
+    /// Returns the number of bytes written, or 0 if context is empty or buffer too small.
+    pub fn inject(self: OtelContext, buffer: []u8) usize {
+        // Need both trace_id and span_id to inject
+        const trace_id = self.trace_id orelse return 0;
+        const span_id = self.span_id orelse return 0;
+
+        // W3C format: 00-{trace_id}-{span_id}-{flags} = 55 bytes
+        if (buffer.len < 55) return 0;
+
+        // Version (always 00)
+        buffer[0] = '0';
+        buffer[1] = '0';
+        buffer[2] = '-';
+
+        // Trace ID (32 hex chars)
+        for (trace_id, 0..) |byte, i| {
+            buffer[3 + i * 2] = hexChar(@intCast(byte >> 4));
+            buffer[3 + i * 2 + 1] = hexChar(@intCast(byte & 0x0F));
+        }
+        buffer[35] = '-';
+
+        // Span ID (16 hex chars)
+        for (span_id, 0..) |byte, i| {
+            buffer[36 + i * 2] = hexChar(@intCast(byte >> 4));
+            buffer[36 + i * 2 + 1] = hexChar(@intCast(byte & 0x0F));
+        }
+        buffer[52] = '-';
+
+        // Flags (2 hex chars)
+        buffer[53] = hexChar(@intCast(self.trace_flags >> 4));
+        buffer[54] = hexChar(@intCast(self.trace_flags & 0x0F));
+
+        return 55;
+    }
+
+    /// Create a new context from a span
+    pub fn fromSpan(span: *const OtelSpan) OtelContext {
+        return .{
+            .trace_id = span.trace_id,
+            .span_id = span.span_id,
+            .is_remote = false,
+            .trace_flags = if (span.status == .ok) 0x01 else 0x00,
         };
     }
 
-    pub fn inject(_: OtelContext, _: []const u8) void {}
+    /// Check if the context is valid (has both trace and span IDs)
+    pub fn isValid(self: OtelContext) bool {
+        return self.trace_id != null and self.span_id != null;
+    }
+
+    /// Check if tracing is sampled
+    pub fn isSampled(self: OtelContext) bool {
+        return (self.trace_flags & 0x01) != 0;
+    }
+
+    fn parseHexBytes(hex: []const u8, out: []u8) bool {
+        if (hex.len != out.len * 2) return false;
+        for (out, 0..) |*byte, i| {
+            byte.* = parseHexByte(hex[i * 2], hex[i * 2 + 1]) orelse return false;
+        }
+        return true;
+    }
+
+    fn parseHexByte(high: u8, low: u8) ?u8 {
+        const h = hexDigit(high) orelse return null;
+        const l = hexDigit(low) orelse return null;
+        return (h << 4) | l;
+    }
+
+    fn hexDigit(c: u8) ?u8 {
+        return switch (c) {
+            '0'...'9' => c - '0',
+            'a'...'f' => c - 'a' + 10,
+            'A'...'F' => c - 'A' + 10,
+            else => null,
+        };
+    }
 };
 
 pub fn createOtelResource(allocator: std.mem.Allocator, service_name: []const u8) ![]OtelAttribute {
@@ -337,6 +576,17 @@ pub fn createOtelResource(allocator: std.mem.Allocator, service_name: []const u8
 pub fn formatTraceId(trace_id: [16]u8) [32]u8 {
     var result: [32]u8 = undefined;
     for (trace_id, 0..) |byte, i| {
+        const high = byte >> 4;
+        const low = byte & 0x0F;
+        result[i * 2] = hexChar(high);
+        result[i * 2 + 1] = hexChar(low);
+    }
+    return result;
+}
+
+pub fn formatSpanId(span_id: [8]u8) [16]u8 {
+    var result: [16]u8 = undefined;
+    for (span_id, 0..) |byte, i| {
         const high = byte >> 4;
         const low = byte & 0x0F;
         result[i * 2] = hexChar(high);

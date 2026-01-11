@@ -6,6 +6,15 @@ pub const LockFreeQueue = lockfree.LockFreeQueue;
 pub const LockFreeStack = lockfree.LockFreeStack;
 pub const ShardedMap = lockfree.ShardedMap;
 
+pub const priority_queue = @import("priority_queue.zig");
+pub const Priority = priority_queue.Priority;
+pub const PriorityQueue = priority_queue.PriorityQueue;
+pub const PriorityQueueConfig = priority_queue.PriorityQueueConfig;
+pub const PrioritizedItem = priority_queue.PrioritizedItem;
+pub const QueueStats = priority_queue.QueueStats;
+pub const MultilevelQueue = priority_queue.MultilevelQueue;
+pub const DeadlineQueue = priority_queue.DeadlineQueue;
+
 pub fn WorkQueue(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,

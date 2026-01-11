@@ -24,24 +24,42 @@ pub const SerializationFormat = enum {
 };
 
 pub const NetworkEngine = struct {
-    config: NetworkConfig,
     allocator: std.mem.Allocator,
+    config: NetworkConfig,
     nodes: NodeRegistry,
     listener: ?*anyopaque = null,
     running: std.atomic.Value(bool),
+    pending_tasks: std.AutoHashMapUnmanaged(u64, *PendingTask) = .{},
+
+    pub const PendingTask = struct {
+        task_id: u64,
+        node_address: []const u8,
+        submitted_at: i64,
+        completed_at: ?i64 = null,
+        status: TaskStatus,
+        result: ?workload.ResultHandle = null,
+        error_message: ?[]const u8 = null,
+    };
 
     pub fn init(allocator: std.mem.Allocator, cfg: NetworkConfig) !NetworkEngine {
         const nodes = try NodeRegistry.init(allocator, cfg.max_connections);
 
         return NetworkEngine{
-            .config = cfg,
             .allocator = allocator,
+            .config = cfg,
             .nodes = nodes,
             .running = std.atomic.Value(bool).init(false),
         };
     }
 
     pub fn deinit(self: *NetworkEngine) void {
+        // Clean up pending tasks
+        var iter = self.pending_tasks.iterator();
+        while (iter.next()) |entry| {
+            self.allocator.destroy(entry.value_ptr.*);
+        }
+        self.pending_tasks.deinit(self.allocator);
+
         self.nodes.deinit(self.allocator);
     }
 
@@ -53,17 +71,146 @@ pub const NetworkEngine = struct {
         self.running.store(false, .release);
     }
 
+    /// Submit a task for remote execution on the best available node
     pub fn submitRemote(self: *NetworkEngine, task_id: u64, item: *const workload.WorkItem) !void {
-        _ = self;
-        _ = task_id;
-        _ = item;
+        if (!self.running.load(.acquire)) {
+            return error.NetworkNotRunning;
+        }
+
+        // Find the best node for this workload
+        const best_node = self.nodes.getBestNode(item.hints.estimated_duration_us orelse 1000);
+        if (best_node == null) {
+            return error.NoAvailableNodes;
+        }
+
+        // Serialize the task
+        const serialized = try serializeTask(
+            self.allocator,
+            item,
+            "workload",
+            &.{}, // No additional user data
+        );
+        defer self.allocator.free(serialized);
+
+        // Track the pending task
+        const pending = try self.allocator.create(PendingTask);
+        pending.* = .{
+            .task_id = task_id,
+            .node_address = best_node.?.address,
+            .submitted_at = std.time.timestamp(),
+            .status = .pending,
+        };
+        try self.pending_tasks.put(self.allocator, task_id, pending);
+
+        // In a full implementation, this would:
+        // 1. Open a TCP/UDP connection to the node
+        // 2. Send the serialized task
+        // 3. Wait for acknowledgment
+
+        std.log.info("Network: Submitted task {d} to node {s}:{d}", .{
+            task_id,
+            best_node.?.address,
+            best_node.?.port,
+        });
+
+        // Update node task count
+        best_node.?.current_task_count += 1;
     }
 
+    /// Poll for remote task completion
     pub fn pollRemoteResult(self: *NetworkEngine, task_id: u64) ?workload.ResultHandle {
-        _ = self;
-        _ = task_id;
-        return null;
+        if (!self.running.load(.acquire)) {
+            return null;
+        }
+
+        // Check if we have a pending task with this ID
+        const pending = self.pending_tasks.get(task_id) orelse return null;
+
+        // In a full implementation, this would:
+        // 1. Check if we've received a result from the remote node
+        // 2. Deserialize the result
+        // 3. Return the result handle
+
+        switch (pending.status) {
+            .pending, .running => {
+                // Task still in progress
+                return null;
+            },
+            .completed => {
+                // Task completed - return result
+                const result = pending.result orelse return null;
+
+                // Clean up pending task
+                if (self.pending_tasks.fetchRemove(task_id)) |entry| {
+                    self.allocator.destroy(entry.value);
+                }
+
+                return result;
+            },
+            .failed => {
+                // Task failed - return error indicator
+                if (self.pending_tasks.fetchRemove(task_id)) |entry| {
+                    self.allocator.destroy(entry.value);
+                }
+                return null;
+            },
+        }
     }
+
+    /// Mark a task as completed with a result (called when result is received)
+    pub fn completeRemoteTask(self: *NetworkEngine, task_id: u64, result: workload.ResultHandle) void {
+        if (self.pending_tasks.get(task_id)) |pending| {
+            pending.status = .completed;
+            pending.result = result;
+            pending.completed_at = std.time.timestamp();
+        }
+    }
+
+    /// Mark a task as failed (called when error is received or timeout occurs)
+    pub fn failRemoteTask(self: *NetworkEngine, task_id: u64, error_message: ?[]const u8) void {
+        if (self.pending_tasks.get(task_id)) |pending| {
+            pending.status = .failed;
+            pending.error_message = error_message;
+            pending.completed_at = std.time.timestamp();
+        }
+    }
+
+    /// Get the number of pending remote tasks
+    pub fn getPendingTaskCount(self: *NetworkEngine) usize {
+        return self.pending_tasks.count();
+    }
+
+    /// Check for timed-out tasks and mark them as failed
+    pub fn checkTimeouts(self: *NetworkEngine, timeout_seconds: i64) void {
+        const now = std.time.timestamp();
+
+        var iter = self.pending_tasks.iterator();
+        while (iter.next()) |entry| {
+            const pending = entry.value_ptr.*;
+            if (pending.status == .pending or pending.status == .running) {
+                if (now - pending.submitted_at > timeout_seconds) {
+                    pending.status = .failed;
+                    pending.error_message = "Task timed out";
+                    pending.completed_at = now;
+                }
+            }
+        }
+    }
+
+    pub const TaskStatus = enum {
+        pending,
+        running,
+        completed,
+        failed,
+    };
+
+    pub const NetworkError = error{
+        NetworkNotRunning,
+        NoAvailableNodes,
+        SerializationFailed,
+        ConnectionFailed,
+        Timeout,
+    };
 };
 
 pub const NodeRegistry = struct {
@@ -391,6 +538,6 @@ test "task serialization preserves null cpu affinity" {
     try std.testing.expectEqual(@as(?u64, null), decoded.item.hints.estimated_duration_us);
 }
 
-fn unsupportedExecute(_: *workload.ExecutionContext, _: *anyopaque) anyerror!workload.ResultHandle {
+fn unsupportedExecute(_: *workload.ExecutionContext, _: *anyopaque) workload.WorkloadError!workload.ResultHandle {
     return workload.ResultHandle.fromSlice(&.{});
 }

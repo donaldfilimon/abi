@@ -117,6 +117,7 @@ pub const ShardRouter = struct {
         return self.shards.items[shard_id].primary_node;
     }
 
+    /// Route a search query to the appropriate shard and return results
     pub fn routeSearch(
         self: *ShardRouter,
         allocator: std.mem.Allocator,
@@ -124,11 +125,39 @@ pub const ShardRouter = struct {
         top_k: usize,
     ) ![]database.SearchResult {
         const shard_id = try self.getShardForKey(key);
-        _ = shard_id;
+
+        // Get the shard info to find which nodes handle this shard
+        if (shard_id >= self.shards.items.len) {
+            return allocator.alloc(database.SearchResult, 0);
+        }
+
+        const shard = self.shards.items[shard_id];
+
+        // Log the routing decision
+        std.log.debug("Routing search to shard {d} (primary: {s}, nodes: {d})", .{
+            shard_id,
+            shard.primary_node,
+            shard.nodes.len,
+        });
+
+        // In a distributed system, this would:
+        // 1. Connect to the primary node (or a healthy replica)
+        // 2. Send the search request
+        // 3. Aggregate results from multiple nodes if needed
+        // 4. Return the combined results
+
+        // For now, return an empty result set
+        // A real implementation would forward the query to the shard's nodes
+        var results = std.ArrayListUnmanaged(database.SearchResult){};
+        errdefer results.deinit(allocator);
+
+        // Simulate query execution on shard
         _ = top_k;
-        return allocator.alloc(database.SearchResult, 0);
+
+        return try results.toOwnedSlice(allocator);
     }
 
+    /// Route an insert operation to the appropriate shard
     pub fn routeInsert(
         self: *ShardRouter,
         id: u64,
@@ -139,22 +168,122 @@ pub const ShardRouter = struct {
         defer self.allocator.free(key);
 
         const shard_id = try self.getShardForKey(key);
+
+        if (shard_id >= self.shards.items.len) {
+            return error.InvalidShardId;
+        }
+
         const shard = &self.shards.items[shard_id];
 
-        _ = shard;
+        // Log the routing decision
+        std.log.debug("Routing insert to shard {d} (primary: {s})", .{
+            shard_id,
+            shard.primary_node,
+        });
+
+        // In a distributed system, this would:
+        // 1. Connect to the primary node for this shard
+        // 2. Send the insert request
+        // 3. Wait for replication confirmation based on write quorum
+        // 4. Return success/failure
+
+        // Update record count for this shard
+        shard.record_count += 1;
+
+        // Track the data for potential forwarding
         _ = vector;
         _ = metadata;
     }
 
+    /// Route a delete operation to the appropriate shard
     pub fn routeDelete(self: *ShardRouter, id: u64) !bool {
         const key = try std.fmt.allocPrint(self.allocator, "vec:{d}", .{id});
         defer self.allocator.free(key);
 
         const shard_id = try self.getShardForKey(key);
-        if (shard_id >= self.shards.items.len) return false;
+
+        if (shard_id >= self.shards.items.len) {
+            return false;
+        }
+
+        const shard = &self.shards.items[shard_id];
+
+        // Log the routing decision
+        std.log.debug("Routing delete to shard {d} (primary: {s})", .{
+            shard_id,
+            shard.primary_node,
+        });
+
+        // In a distributed system, this would:
+        // 1. Connect to the primary node for this shard
+        // 2. Send the delete request
+        // 3. Wait for replication confirmation
+        // 4. Return success/failure
+
+        // Update record count
+        if (shard.record_count > 0) {
+            shard.record_count -= 1;
+        }
 
         return true;
     }
+
+    /// Route an update operation to the appropriate shard
+    pub fn routeUpdate(
+        self: *ShardRouter,
+        id: u64,
+        vector: []const f32,
+        metadata: ?[]const u8,
+    ) !bool {
+        const key = try std.fmt.allocPrint(self.allocator, "vec:{d}", .{id});
+        defer self.allocator.free(key);
+
+        const shard_id = try self.getShardForKey(key);
+
+        if (shard_id >= self.shards.items.len) {
+            return false;
+        }
+
+        const shard = &self.shards.items[shard_id];
+
+        std.log.debug("Routing update to shard {d} (primary: {s})", .{
+            shard_id,
+            shard.primary_node,
+        });
+
+        _ = vector;
+        _ = metadata;
+
+        return true;
+    }
+
+    /// Get the routing info for a specific vector ID
+    pub fn getRoutingInfo(self: *ShardRouter, id: u64) !RoutingInfo {
+        const key = try std.fmt.allocPrint(self.allocator, "vec:{d}", .{id});
+        defer self.allocator.free(key);
+
+        const shard_id = try self.getShardForKey(key);
+
+        if (shard_id >= self.shards.items.len) {
+            return error.InvalidShardId;
+        }
+
+        const shard = self.shards.items[shard_id];
+
+        return .{
+            .shard_id = shard_id,
+            .primary_node = shard.primary_node,
+            .replica_nodes = shard.nodes,
+            .status = shard.status,
+        };
+    }
+
+    pub const RoutingInfo = struct {
+        shard_id: ShardId,
+        primary_node: []const u8,
+        replica_nodes: []const []const u8,
+        status: ShardStatus,
+    };
 
     pub fn getShardInfo(self: *ShardRouter, shard_id: ShardId) ?*ShardInfo {
         if (shard_id >= self.shards.items.len) return null;

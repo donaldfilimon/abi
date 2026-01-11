@@ -2,6 +2,37 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const build_options = @import("build_options");
+
+// Force-reference submodules to include their tests
+comptime {
+    // LLM module tests (when enabled)
+    if (build_options.enable_llm) {
+        _ = abi.ai.llm.io;
+        _ = abi.ai.llm.tensor;
+        _ = abi.ai.llm.tokenizer;
+        _ = abi.ai.llm.ops;
+        _ = abi.ai.llm.cache;
+        _ = abi.ai.llm.model;
+        _ = abi.ai.llm.generation;
+    }
+    // Explore module tests (when enabled)
+    if (build_options.enable_explore) {
+        _ = abi.ai.explore;
+    }
+}
+
+// Property-based testing framework
+pub const proptest = @import("proptest.zig");
+
+pub const Generator = proptest.Generator;
+pub const Generators = proptest.Generators;
+pub const PropTest = proptest.PropTest;
+pub const PropTestConfig = proptest.PropTestConfig;
+pub const PropTestResult = proptest.PropTestResult;
+pub const Assertions = proptest.Assertions;
+pub const Fuzzer = proptest.Fuzzer;
+pub const forAll = proptest.forAll;
 
 test "abi version returns build package version" {
     try std.testing.expectEqualStrings("0.1.0", abi.version());
@@ -51,7 +82,6 @@ test "framework minimal initialization" {
 }
 
 test "framework with gpu enabled" {
-    const build_options = @import("build_options");
     if (!build_options.enable_gpu) return error.SkipZigTest;
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -71,8 +101,6 @@ test "framework with gpu enabled" {
 }
 
 test "framework feature flags" {
-    const build_options = @import("build_options");
-
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 

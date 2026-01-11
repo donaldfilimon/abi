@@ -1,5 +1,6 @@
 const std = @import("std");
 const crypto = @import("../../shared/utils/crypto/mod.zig");
+const simd = @import("../../shared/simd.zig");
 
 pub const BenchmarkResult = struct {
     name: []const u8,
@@ -14,6 +15,9 @@ pub fn runBenchmarks(allocator: std.mem.Allocator) ![]BenchmarkResult {
 
     try list.append(allocator, try runHashBenchmark());
     try list.append(allocator, try runVectorBenchmark());
+    try list.append(allocator, try runMatrixMultiplyBenchmark());
+    try list.append(allocator, try runCosineSimilarityBenchmark());
+    try list.append(allocator, try runSIMDVectorDotBenchmark());
 
     return list.toOwnedSlice(allocator);
 }
@@ -84,6 +88,105 @@ fn buildResult(name: []const u8, iterations: u64, elapsed_ns: u64) BenchmarkResu
         .duration_ns = elapsed_ns,
         .ops_per_sec = ops,
     };
+}
+
+/// Benchmark SIMD-vectorized matrix multiplication
+fn runMatrixMultiplyBenchmark() !BenchmarkResult {
+    const iterations: u64 = 1000;
+    const size = 64;
+
+    // Initialize matrices
+    var a: [size * size]f32 = undefined;
+    var b: [size * size]f32 = undefined;
+    var result: [size * size]f32 = undefined;
+
+    for (0..size * size) |i| {
+        a[i] = @floatFromInt(i % 17);
+        b[i] = @floatFromInt(i % 13);
+    }
+
+    // Warmup
+    for (0..100) |_| {
+        simd.matrixMultiply(&a, &b, &result, size, size, size);
+    }
+    std.mem.doNotOptimizeAway(&result);
+
+    // Benchmark
+    var timer = try std.time.Timer.start();
+    var i: u64 = 0;
+    while (i < iterations) : (i += 1) {
+        simd.matrixMultiply(&a, &b, &result, size, size, size);
+    }
+    const elapsed = timer.read();
+    std.mem.doNotOptimizeAway(&result);
+
+    return buildResult("matmul_64x64_simd", iterations, elapsed);
+}
+
+/// Benchmark SIMD cosine similarity
+fn runCosineSimilarityBenchmark() !BenchmarkResult {
+    const iterations: u64 = 100_000;
+    const vec_len = 128;
+
+    var a: [vec_len]f32 = undefined;
+    var b: [vec_len]f32 = undefined;
+
+    for (0..vec_len) |i| {
+        a[i] = @as(f32, @floatFromInt(i)) / @as(f32, vec_len);
+        b[i] = @as(f32, @floatFromInt(vec_len - i)) / @as(f32, vec_len);
+    }
+
+    // Warmup
+    var warmup_sum: f32 = 0;
+    for (0..10_000) |_| {
+        warmup_sum += simd.cosineSimilarity(&a, &b);
+    }
+    std.mem.doNotOptimizeAway(warmup_sum);
+
+    // Benchmark
+    var sum: f32 = 0;
+    var timer = try std.time.Timer.start();
+    var i: u64 = 0;
+    while (i < iterations) : (i += 1) {
+        sum += simd.cosineSimilarity(&a, &b);
+    }
+    const elapsed = timer.read();
+    std.mem.doNotOptimizeAway(sum);
+
+    return buildResult("cosine_sim_128d", iterations, elapsed);
+}
+
+/// Benchmark SIMD vector dot product with larger vectors
+fn runSIMDVectorDotBenchmark() !BenchmarkResult {
+    const iterations: u64 = 100_000;
+    const vec_len = 256;
+
+    var a: [vec_len]f32 = undefined;
+    var b: [vec_len]f32 = undefined;
+
+    for (0..vec_len) |i| {
+        a[i] = @as(f32, @floatFromInt(i)) * 0.01;
+        b[i] = @as(f32, @floatFromInt(vec_len - i)) * 0.01;
+    }
+
+    // Warmup
+    var warmup_sum: f32 = 0;
+    for (0..10_000) |_| {
+        warmup_sum += simd.vectorDot(&a, &b);
+    }
+    std.mem.doNotOptimizeAway(warmup_sum);
+
+    // Benchmark
+    var sum: f32 = 0;
+    var timer = try std.time.Timer.start();
+    var i: u64 = 0;
+    while (i < iterations) : (i += 1) {
+        sum += simd.vectorDot(&a, &b);
+    }
+    const elapsed = timer.read();
+    std.mem.doNotOptimizeAway(sum);
+
+    return buildResult("dot_product_256d", iterations, elapsed);
 }
 
 pub fn main(init: std.process.Init) !void {

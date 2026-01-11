@@ -57,6 +57,17 @@ logs/
 tmp/
 temp/
 *.tmp
+probe_error.txt
+test_build.zig
+build_options.zig
+src/build_options.zig
+abi.json
+
+# Claude Code local settings
+.claude/
+
+# Backup files created by CLI
+backups/
 
 # OS specific
 Thumbs.db

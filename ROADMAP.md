@@ -31,34 +31,34 @@ This document tracks planned features, improvements, and milestones for the ABI 
   - [x] Gradient aggregation
 
 ### Database & Storage
-- [ ] Persistent vector index
-  - [ ] HNSW indexing
-  - [ ] IVF-PQ indexing
-  - [ ] Automatic re-indexing
-- [ ] Distributed database
-  - [ ] Sharding support
-  - [ ] Replication
-  - [ ] Consistent hashing
+- [x] Persistent vector index
+  - [x] HNSW indexing
+  - [x] IVF-PQ indexing
+  - [x] Automatic re-indexing
+- [x] Distributed database
+  - [x] Sharding support
+  - [x] Replication
+  - [x] Consistent hashing
 
 ### Observability
-- [ ] Advanced metrics
-  - [ ] Prometheus exporter
-  - [ ] OpenTelemetry integration
-  - [ ] Custom dashboards
-- [ ] Distributed tracing
-  - [ ] Span propagation
-  - [ ] Trace sampling
-  - [ ] Performance profiling
+- [x] Advanced metrics
+  - [x] Prometheus exporter
+  - [x] OpenTelemetry integration
+  - [x] Custom dashboards
+- [x] Distributed tracing
+  - [x] Span propagation
+  - [x] Trace sampling
+  - [x] Performance profiling
 
 ### Security
-- [ ] Authentication & authorization
-  - [ ] API key management
-  - [ ] Role-based access control
-  - [ ] Token rotation
-- [ ] Network security
-  - [ ] TLS/SSL support
-  - [ ] mTLS between nodes
-  - [ ] Certificate management
+- [x] Authentication & authorization
+  - [x] API key management
+  - [x] Role-based access control
+  - [x] Token rotation
+- [x] Network security
+  - [x] TLS/SSL support
+  - [x] mTLS between nodes
+  - [x] Certificate management
 
 ## Version 0.4.0 - Q2 2026
 
@@ -73,10 +73,10 @@ This document tracks planned features, improvements, and milestones for the ABI 
   - [ ] Zero-copy optimizations
 
 ### Developer Experience
-- [ ] Enhanced CLI
-  - [ ] Interactive mode improvements
-  - [ ] Configuration file support
-  - [ ] Shell completion
+- [x] Enhanced CLI
+  - [x] Interactive mode improvements
+  - [x] Configuration file support
+  - [x] Shell completion (bash, zsh, fish)
 - [ ] Tooling
   - [ ] Debugger integration
   - [ ] Performance profiler
@@ -93,9 +93,9 @@ This document tracks planned features, improvements, and milestones for the ABI 
   - [ ] Data flow diagrams
 
 ### Testing
-- [ ] Expanded test suite
-  - [ ] Property-based testing
-  - [ ] Fuzzing
+- [x] Expanded test suite
+  - [x] Property-based testing
+  - [x] Fuzzing infrastructure
   - [ ] Integration test matrix
 - [ ] Benchmark suite
   - [ ] Performance regression detection
@@ -105,14 +105,16 @@ This document tracks planned features, improvements, and milestones for the ABI 
 ## Version 0.5.0 - Q3 2026
 
 ### Distributed Systems
-- [ ] Service discovery
-  - [ ] Consul integration
-  - [ ] etcd integration
-  - [ ] Custom discovery backends
-- [ ] Load balancing
-  - [ ] Round-robin
-  - [ ] Weighted routing
-  - [ ] Health-based routing
+- [x] Service discovery
+  - [x] Consul integration
+  - [x] etcd integration
+  - [x] Custom discovery backends (static, DNS)
+- [x] Load balancing
+  - [x] Round-robin
+  - [x] Weighted routing
+  - [x] Health-based routing
+  - [x] Least connections
+  - [x] IP hash / sticky sessions
 
 ### High Availability
 - [ ] Failover mechanisms
@@ -125,10 +127,10 @@ This document tracks planned features, improvements, and milestones for the ABI 
   - [ ] Multi-region support
 
 ### Ecosystem
-- [ ] Language bindings
-  - [ ] Python bindings
-  - [ ] JavaScript/WASM bindings
-  - [ ] C API
+- [x] Language bindings
+  - [x] Python bindings (foundation)
+  - [x] JavaScript/WASM bindings
+  - [ ] C API (headers only)
 - [ ] Package manager integration
   - [ ] Zig package registry
   - [ ] Homebrew formula
@@ -188,9 +190,11 @@ See CONTRIBUTING.md for details.
 | Version | Target Quarter | Status |
 |----------|---------------|---------|
 | 0.2.2 | 2025-12-27 | Released |
-| 0.3.0 | Q1 2026 | In Progress |
+| 0.3.0 | Q1 2026 | Complete ✓ |
 | 0.4.0 | Q2 2026 | Planned |
 | 0.5.0 | Q3 2026 | Planned |
+
+*Last updated: January 10, 2026*
 
 ## Changelog History
 

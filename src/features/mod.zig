@@ -24,7 +24,7 @@ const build_options = @import("build_options");
 
 /// Public feature modules grouped for discoverability.
 pub const ai = if (build_options.enable_ai) @import("ai/mod.zig") else @import("ai/stub.zig");
-pub const gpu = if (build_options.enable_gpu) @import("gpu/mod.zig") else @import("gpu/stub.zig");
+pub const gpu = if (build_options.enable_gpu) @import("../compute/gpu/mod.zig") else @import("gpu/stub.zig");
 pub const database = if (build_options.enable_database) @import("database/mod.zig") else @import("database/stub.zig");
 pub const web = if (build_options.enable_web) @import("web/mod.zig") else @import("web/stub.zig");
 pub const monitoring = if (build_options.enable_profiling) @import("monitoring/mod.zig") else @import("monitoring/stub.zig");
@@ -84,7 +84,7 @@ pub const config = struct {
 
 pub fn forEachFeature(ctx: anytype, visitor: anytype) void {
     visitor(ctx, .ai, "features/ai/mod.zig");
-    visitor(ctx, .gpu, "features/gpu/mod.zig");
+    visitor(ctx, .gpu, "compute/gpu/mod.zig");
     visitor(ctx, .database, "features/database/mod.zig");
     visitor(ctx, .web, "features/web/mod.zig");
     visitor(ctx, .monitoring, "features/monitoring/mod.zig");
