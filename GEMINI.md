@@ -79,6 +79,23 @@ defer io_backend.deinit();
 const io = io_backend.io();
 ```
 
+### Sleep API
+
+Use `std.Io`-based sleep instead of `std.time.sleep()`:
+
+```zig
+// Preferred - use shared/utils/time.zig helpers
+const time = @import("shared/utils/time.zig");
+time.sleepMs(100);  // Sleep 100 milliseconds
+
+// Or directly with Io context
+const duration = std.Io.Clock.Duration{
+    .clock = .awake,
+    .raw = .fromNanoseconds(nanoseconds),
+};
+std.Io.Clock.Duration.sleep(duration, io) catch {};
+```
+
 ### Coding Style
 
 - 4 spaces, max 100 chars/line
