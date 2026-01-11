@@ -155,20 +155,21 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.writer(self.allocator).print("{{\"model\":\"{s\",\"messages\":[", .{request.model});
+        try json_str.print(self.allocator, "{{\"model\":\"{s\",\"messages\":[", .{request.model});
 
         for (request.messages, 0..) |msg, i| {
             if (i > 0) try json_str.append(self.allocator, ',');
-            try json_str.writer(self.allocator).print(
-                "{{\"role\":\"{s\",\"content\":\"{s}\"}}",
-                .{ msg.role, std.zig.fmtEscapes(msg.content) },
+            try json_str.print(
+                self.allocator,
+                "{{\"role\":\"{s}\",\"content\":\"{}\"}}",
+                .{ msg.role, json_utils.jsonEscape(msg.content) },
             );
         }
 
-        try json_str.writer(self.allocator).print("],\"temperature\":{d:.2}", .{request.temperature});
+        try json_str.print(self.allocator, "],\"temperature\":{d:.2}", .{request.temperature});
 
         if (request.max_tokens) |max_tokens| {
-            try json_str.writer(self.allocator).print(",\"max_tokens\":{d}", .{max_tokens});
+            try json_str.print(self.allocator, ",\"max_tokens\":{d}", .{max_tokens});
         }
 
         try json_str.append(self.allocator, '}');

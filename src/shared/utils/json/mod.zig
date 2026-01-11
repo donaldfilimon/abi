@@ -24,6 +24,57 @@ pub fn escapeString(allocator: std.mem.Allocator, str: []const u8) ![]u8 {
     return escaped.toOwnedSlice(allocator);
 }
 
+/// Escape a string for JSON (without surrounding quotes).
+/// Returns the escaped content that can be placed inside JSON string literals.
+pub fn escapeJsonContent(allocator: std.mem.Allocator, str: []const u8) ![]u8 {
+    var escaped = std.ArrayListUnmanaged(u8).empty;
+    errdefer escaped.deinit(allocator);
+
+    for (str) |c| {
+        switch (c) {
+            '"' => try escaped.appendSlice(allocator, "\\\""),
+            '\\' => try escaped.appendSlice(allocator, "\\\\"),
+            '\n' => try escaped.appendSlice(allocator, "\\n"),
+            '\r' => try escaped.appendSlice(allocator, "\\r"),
+            '\t' => try escaped.appendSlice(allocator, "\\t"),
+            0x00...0x1F => {
+                // Escape control characters as \uXXXX
+                var buf: [6]u8 = undefined;
+                _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch unreachable;
+                try escaped.appendSlice(allocator, &buf);
+            },
+            else => try escaped.append(allocator, c),
+        }
+    }
+
+    return escaped.toOwnedSlice(allocator);
+}
+
+/// Format wrapper for escaping JSON content in format strings.
+/// Usage: try writer.print("\"{s}\"", .{jsonEscape(str)});
+pub const JsonEscape = struct {
+    content: []const u8,
+
+    pub fn format(self: JsonEscape, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        for (self.content) |c| {
+            switch (c) {
+                '"' => try writer.writeAll("\\\""),
+                '\\' => try writer.writeAll("\\\\"),
+                '\n' => try writer.writeAll("\\n"),
+                '\r' => try writer.writeAll("\\r"),
+                '\t' => try writer.writeAll("\\t"),
+                0x00...0x1F => try writer.print("\\u{x:0>4}", .{c}),
+                else => try writer.writeByte(c),
+            }
+        }
+    }
+};
+
+/// Create a JsonEscape wrapper for use in format strings.
+pub fn jsonEscape(content: []const u8) JsonEscape {
+    return .{ .content = content };
+}
+
 pub const JsonError = error{
     InvalidJson,
     MissingField,
@@ -38,19 +89,19 @@ pub fn parseString(allocator: std.mem.Allocator, value: std.json.Value) ![]const
 }
 
 pub fn parseNumber(value: std.json.Value) !f64 {
-    if (value != .number_float and value != .number_int) return JsonError.TypeMismatch;
-    return if (value == .number_float) value.number_float else @as(f64, @floatFromInt(value.number_int));
+    if (value != .float and value != .integer) return JsonError.TypeMismatch;
+    return if (value == .float) value.float else @as(f64, @floatFromInt(value.integer));
 }
 
 pub fn parseInt(value: std.json.Value) !i64 {
-    if (value != .number_int) return JsonError.TypeMismatch;
-    return value.number_int;
+    if (value != .integer) return JsonError.TypeMismatch;
+    return value.integer;
 }
 
 pub fn parseUint(value: std.json.Value) !u64 {
-    if (value != .number_int) return JsonError.TypeMismatch;
-    if (value.number_int < 0) return JsonError.TypeMismatch;
-    return @intCast(value.number_int);
+    if (value != .integer) return JsonError.TypeMismatch;
+    if (value.integer < 0) return JsonError.TypeMismatch;
+    return @intCast(value.integer);
 }
 
 pub fn parseBool(value: std.json.Value) !bool {

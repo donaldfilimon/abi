@@ -151,9 +151,10 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.writer(self.allocator).print(
-            "{{\"model\":\"{s\",\"prompt\":\"{s\",\"stream\":{d}}}",
-            .{ request.model, std.zig.fmtEscapes(request.prompt), @intFromBool(request.stream) },
+        try json_str.print(
+            self.allocator,
+            "{{\"model\":\"{s}\",\"prompt\":\"{}\",\"stream\":{d}}}",
+            .{ request.model, json_utils.jsonEscape(request.prompt), @intFromBool(request.stream) },
         );
 
         return json_str.toOwnedSlice(self.allocator);
@@ -163,13 +164,14 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.writer(self.allocator).print("{{\"model\":\"{s\",\"messages\":[", .{request.model});
+        try json_str.print(self.allocator, "{{\"model\":\"{s\",\"messages\":[", .{request.model});
 
         for (request.messages, 0..) |msg, i| {
             if (i > 0) try json_str.append(self.allocator, ',');
-            try json_str.writer(self.allocator).print(
-                "{{\"role\":\"{s\",\"content\":\"{s\"}}",
-                .{ msg.role, std.zig.fmtEscapes(msg.content) },
+            try json_str.print(
+                self.allocator,
+                "{{\"role\":\"{s}\",\"content\":\"{}\"}}",
+                .{ msg.role, json_utils.jsonEscape(msg.content) },
             );
         }
 

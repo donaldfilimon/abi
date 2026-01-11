@@ -68,6 +68,12 @@ pub const StreamState = ai.streaming.StreamState;
 pub const GenerationConfig = ai.streaming.GenerationConfig;
 pub const utils = @import("shared/utils/mod.zig");
 
+// Discord connector convenience exports
+pub const discord = connectors.discord;
+pub const DiscordClient = discord.Client;
+pub const DiscordConfig = discord.Config;
+pub const DiscordTools = ai.DiscordTools;
+
 /// Compatibility namespace for the WDBX tooling.
 /// Compatibility namespace for the WDBX tooling.
 pub const wdbx = if (build_options.enable_database) struct {

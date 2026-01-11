@@ -248,7 +248,7 @@ test "zero copy buffer clone" {
     defer buffer.release();
 
     var cloned = try buffer.clone();
-    defer cloned.release();
+    // Note: don't defer release here since we explicitly release below
 
     try std.testing.expectEqual(buffer.ptr, cloned.ptr);
     try std.testing.expectEqual(@as(u32, 2), cloned.refCount());

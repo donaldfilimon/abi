@@ -12,6 +12,7 @@ const window = @import("window.zig");
 const summary = @import("summary.zig");
 const long_term = @import("long_term.zig");
 const manager = @import("manager.zig");
+pub const persistence = @import("persistence.zig");
 
 pub const ShortTermMemory = short_term.ShortTermMemory;
 pub const SlidingWindowMemory = window.SlidingWindowMemory;
@@ -20,6 +21,13 @@ pub const LongTermMemory = long_term.LongTermMemory;
 pub const MemoryManager = manager.MemoryManager;
 pub const MemoryConfig = manager.MemoryConfig;
 pub const MemoryType = manager.MemoryType;
+
+// Persistence types
+pub const SessionStore = persistence.SessionStore;
+pub const SessionData = persistence.SessionData;
+pub const SessionMeta = persistence.SessionMeta;
+pub const SessionConfig = persistence.SessionConfig;
+pub const PersistenceError = persistence.PersistenceError;
 
 /// Message role in a conversation.
 pub const MessageRole = enum {

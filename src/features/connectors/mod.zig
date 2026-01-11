@@ -5,6 +5,7 @@ pub const openai = @import("openai.zig");
 pub const huggingface = @import("huggingface.zig");
 pub const ollama = @import("ollama.zig");
 pub const local_scheduler = @import("local_scheduler.zig");
+pub const discord = @import("discord.zig");
 
 var initialized: bool = false;
 
@@ -94,6 +95,17 @@ pub fn loadOllama(allocator: std.mem.Allocator) !ollama.Config {
 
 pub fn loadLocalScheduler(allocator: std.mem.Allocator) !local_scheduler.Config {
     return local_scheduler.loadFromEnv(allocator);
+}
+
+pub fn loadDiscord(allocator: std.mem.Allocator) !discord.Config {
+    return discord.loadFromEnv(allocator);
+}
+
+pub fn tryLoadDiscord(allocator: std.mem.Allocator) !?discord.Config {
+    return discord.loadFromEnv(allocator) catch |err| switch (err) {
+        discord.DiscordError.MissingBotToken => null,
+        else => return err,
+    };
 }
 
 test "connectors init toggles state" {

@@ -11,7 +11,7 @@ pub const PoolConfig = struct {
 };
 
 pub const MemoryBlock = struct {
-    data: [*]u8,
+    data: [*]align(16) u8,
     size: usize,
     in_use: bool,
     next: ?*MemoryBlock,
@@ -76,13 +76,14 @@ pub const MemoryPool = struct {
             .current_usage = 0,
         };
 
-        try pool.grow(config.initial_blocks);
+        try pool.grow(@intCast(config.initial_blocks));
         return pool;
     }
 
     pub fn deinit(self: *MemoryPool) void {
         for (self.blocks.items) |block| {
-            self.allocator.free(block);
+            self.allocator.free(block.data[0..block.size]);
+            self.allocator.destroy(block);
         }
         self.blocks.deinit(self.allocator);
         self.* = undefined;
@@ -90,8 +91,7 @@ pub const MemoryPool = struct {
 
     pub fn alloc(self: *MemoryPool, len: usize) ![]u8 {
         const block = try self.allocBlock(len);
-        if (block == null) return error.OutOfMemory;
-        return block.?.data[0..len];
+        return block.data[0..len];
     }
 
     pub fn free(self: *MemoryPool, ptr: []const u8) void {
@@ -103,8 +103,8 @@ pub const MemoryPool = struct {
     }
 
     pub fn allocBlock(self: *MemoryPool, size: usize) !*MemoryBlock {
-        const lock = self.mutex.acquire();
-        defer lock.release();
+        self.mutex.lock();
+        defer self.mutex.unlock();
 
         const aligned_size = self.alignSize(size);
         var block = self.findFreeBlock(aligned_size);
@@ -114,23 +114,23 @@ pub const MemoryPool = struct {
             block = self.findFreeBlock(aligned_size);
         }
 
-        if (block == null) return error.PoolExhausted;
+        const b = block orelse return error.PoolExhausted;
 
-        block.?.in_use = true;
+        b.in_use = true;
         self.current_usage += 1;
         if (self.current_usage > self.peak_usage) {
             self.peak_usage = self.current_usage;
         }
 
-        self.removeFromFreeList(block.?);
-        self.addToUsedList(block.?);
+        self.removeFromFreeList(b);
+        self.addToUsedList(b);
 
-        return block;
+        return b;
     }
 
     pub fn freeBlock(self: *MemoryPool, block: *MemoryBlock) void {
-        const lock = self.mutex.acquire();
-        defer lock.release();
+        self.mutex.lock();
+        defer self.mutex.unlock();
 
         if (!block.in_use) return;
 
@@ -167,8 +167,11 @@ pub const MemoryPool = struct {
     }
 
     fn findBlock(self: *MemoryPool, ptr: [*]const u8) ?*MemoryBlock {
+        const ptr_addr = @intFromPtr(ptr);
         for (self.blocks.items) |block| {
-            if (block.data == ptr or (block.data <= ptr and @intFromPtr(ptr) < @intFromPtr(block.data) + block.size)) {
+            const block_start = @intFromPtr(block.data);
+            const block_end = block_start + block.size;
+            if (ptr_addr >= block_start and ptr_addr < block_end) {
                 return block;
             }
         }
@@ -177,7 +180,8 @@ pub const MemoryPool = struct {
 
     fn grow(self: *MemoryPool, factor: u32) !void {
         const current_count = self.blocks.items.len;
-        const target_count = @min(current_count * @as(usize, factor), self.config.max_blocks);
+        // When current_count is 0, use factor as the number of new blocks
+        const target_count = @min(@max(current_count * @as(usize, factor), @as(usize, factor)), self.config.max_blocks);
         const new_blocks = target_count - current_count;
 
         var i: usize = 0;
@@ -185,11 +189,11 @@ pub const MemoryPool = struct {
             const block = try self.allocator.create(MemoryBlock);
             errdefer self.allocator.destroy(block);
 
-            const data = try self.allocator.alignedAlloc(u8, 16, self.config.block_size);
+            const data = try self.allocator.alignedAlloc(u8, .@"16", self.config.block_size);
             errdefer self.allocator.free(data);
 
             block.* = .{
-                .data = data,
+                .data = data.ptr,
                 .size = self.config.block_size,
                 .in_use = false,
                 .next = null,
@@ -310,7 +314,7 @@ pub const SlabPool = struct {
     slabs: std.ArrayListUnmanaged(*Slab),
 
     const Slab = struct {
-        data: [*]u8,
+        data: []align(16) u8,
         bitmap: []u64,
         capacity: usize,
         used_count: usize,
@@ -322,8 +326,11 @@ pub const SlabPool = struct {
                     if ((bits >> @as(u6, bit_idx)) & 1 == 0) {
                         self.bitmap[slot_idx] |= @as(u64, 1) << bit_idx;
                         self.used_count += 1;
-                        const offset = slot_idx * 64 + bit_idx;
-                        return @as([*]u8, @ptrCast(@alignCast(self.data))) + @as(usize, offset);
+                        const offset = slot_idx * 64 + @as(usize, bit_idx);
+                        if (offset < self.data.len) {
+                            return &self.data[offset];
+                        }
+                        return null;
                     }
                 }
             }
@@ -332,7 +339,7 @@ pub const SlabPool = struct {
 
         /// Free a slot. Returns false if the slot was already free (double-free protection).
         fn free(self: *Slab, ptr: *u8) bool {
-            const offset = @intFromPtr(ptr) - @intFromPtr(self.data);
+            const offset = @intFromPtr(ptr) - @intFromPtr(self.data.ptr);
             const slot_idx = offset / 64;
             const bit_idx = @as(u6, @intCast(offset % 64));
             const mask = @as(u64, 1) << bit_idx;
@@ -362,15 +369,16 @@ pub const SlabPool = struct {
             const slab = try allocator.create(Slab);
             errdefer allocator.destroy(slab);
 
-            slab.data = try allocator.alignedAlloc(u8, @as(usize, 1) << slab.slab_size_alignment, slab_data_size);
-            errdefer allocator.free(slab.data);
+            // Use default alignment for slabs (alignment is stored but not actively used at runtime)
+            const data = try allocator.alignedAlloc(u8, .@"16", slab_data_size);
+            errdefer allocator.free(data);
 
-            slab.bitmap = try allocator.alloc(u64, bitmap_words);
-            @memset(slab.bitmap, 0);
+            const bitmap = try allocator.alloc(u64, bitmap_words);
+            @memset(bitmap, 0);
 
             slab.* = .{
-                .data = slab.data,
-                .bitmap = slab.bitmap,
+                .data = data,
+                .bitmap = bitmap,
                 .capacity = slab_count,
                 .used_count = 0,
             };
@@ -405,8 +413,8 @@ pub const SlabPool = struct {
     /// Free a pointer. Returns true if freed successfully, false if double-free or invalid pointer.
     pub fn free(self: *SlabPool, ptr: *u8) bool {
         for (self.slabs.items) |slab| {
-            const start = @intFromPtr(slab.data);
-            const end = start + self.slab_size;
+            const start = @intFromPtr(slab.data.ptr);
+            const end = start + slab.data.len;
             const ptr_int = @intFromPtr(ptr);
             if (ptr_int >= start and ptr_int < end) {
                 return slab.free(ptr);
@@ -455,10 +463,11 @@ test "slab pool" {
     defer pool.deinit();
 
     const ptr1 = try pool.alloc();
-    pool.free(ptr1);
+    _ = pool.free(ptr1);
 
     const ptr2 = try pool.alloc();
-    defer pool.free(ptr2);
+    defer _ = pool.free(ptr2);
 
-    try std.testing.expect(ptr2 != null);
+    // ptr2 is non-null since alloc succeeded (didn't return error)
+    try std.testing.expect(@intFromPtr(ptr2) != 0);
 }

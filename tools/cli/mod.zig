@@ -57,6 +57,11 @@ pub fn main(init: std.process.Init) !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "bench")) {
+        try commands.bench.run(allocator, args[2..]);
+        return;
+    }
+
     if (std.mem.eql(u8, command, "gpu")) {
         try commands.gpu.run(allocator, args[2..]);
         return;
@@ -87,6 +92,11 @@ pub fn main(init: std.process.Init) !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "discord")) {
+        try commands.discord.run(allocator, args[2..]);
+        return;
+    }
+
     if (std.mem.eql(u8, command, "llm")) {
         try commands.llm.run(allocator, args[2..]);
         return;
@@ -98,20 +108,26 @@ pub fn main(init: std.process.Init) !void {
 
 fn printHelp() void {
     const help_text =
-        "Usage: abi <command> [options]\n\n" ++
-        "Commands:\n" ++
-        "  db <subcommand>   Database operations (add, query, stats, optimize, backup)\n" ++
-        "  agent [--message] Run AI agent (interactive or one-shot)\n" ++
-        "  config [command]  Configuration management (init, show, validate)\n" ++
-        "  explore [options] Search and explore codebase\n" ++
-        "  gpu [subcommand]  GPU commands (backends, devices, summary, default)\n" ++
-        "  llm <subcommand>  LLM inference (info, generate, chat, bench)\n" ++
-        "  network [command] Manage network registry (list, register, status)\n" ++
-        "  simd              Run SIMD performance demo\n" ++
-        "  system-info       Show system and framework status\n" ++
-        "  version           Show framework version\n" ++
-        "  help              Show this help message\n\n" ++
-        "Run 'abi <command> help' for command-specific help.\n";
+        \\Usage: abi <command> [options]
+        \\
+        \\Commands:
+        \\  db <subcommand>    Database operations (add, query, stats, optimize, backup)
+        \\  agent [--message]  Run AI agent (interactive or one-shot)
+        \\  bench <suite>      Run performance benchmarks (all, simd, memory, ai, quick)
+        \\  config [command]   Configuration management (init, show, validate)
+        \\  discord [command]  Discord bot operations (status, guilds, send, commands)
+        \\  explore [options]  Search and explore codebase
+        \\  gpu [subcommand]   GPU commands (backends, devices, summary, default)
+        \\  llm <subcommand>   LLM inference (info, generate, chat, bench, download)
+        \\  network [command]  Manage network registry (list, register, status)
+        \\  simd               Run SIMD performance demo
+        \\  system-info        Show system and framework status
+        \\  version            Show framework version
+        \\  help               Show this help message
+        \\
+        \\Run 'abi <command> help' for command-specific help.
+        \\
+    ;
 
     std.debug.print("{s}", .{help_text});
 }
