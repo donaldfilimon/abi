@@ -138,7 +138,7 @@ pub const TokenBucketLimiter = struct {
             switch (result) {
                 .allowed => return,
                 .denied => |info| {
-                    std.time.sleep(info.retry_after_ns);
+                    time.sleepNs(info.retry_after_ns);
                 },
                 .queued => {},
             }

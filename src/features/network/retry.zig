@@ -4,6 +4,7 @@
 //! exponential backoff, jitter, and retry condition filtering.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 
 /// Comprehensive error set for retry operations
 pub const RetryableError = error{
@@ -216,7 +217,7 @@ pub fn RetryExecutor(comptime T: type) type {
                     // Calculate delay
                     if (attempts <= self.config.max_retries) {
                         const delay = self.calculateDelay(attempts);
-                        std.time.sleep(delay);
+                        time.sleepNs(delay);
                     }
                 }
             }
@@ -280,7 +281,7 @@ pub fn RetryExecutor(comptime T: type) type {
 
                     if (attempts <= self.config.max_retries) {
                         const delay = self.calculateDelay(attempts);
-                        std.time.sleep(delay);
+                        time.sleepNs(delay);
                     }
                 }
             }

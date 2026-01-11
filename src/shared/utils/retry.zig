@@ -71,7 +71,7 @@ pub fn retryWithBackoff(
             } else backoff_ms;
 
             // Sleep for backoff duration
-            std.time.sleep(actual_backoff * std.time.ns_per_ms);
+            time.sleepMs(actual_backoff);
 
             // Increase backoff for next attempt (exponential)
             backoff_ms = @min(

@@ -4,6 +4,8 @@ const posix = std.posix;
 const windows = std.os.windows;
 
 var global_timer: ?std.time.Timer = null;
+var global_io_backend: ?std.Io.Threaded = null;
+var io_once = std.once(initIoBackend);
 
 /// Get current Unix timestamp in seconds.
 /// @return Unix timestamp as seconds since epoch
@@ -47,7 +49,19 @@ pub fn sleepSeconds(seconds: u64) void {
 /// Sleep for specified number of milliseconds.
 /// @param milliseconds Number of milliseconds to sleep
 pub fn sleepMs(milliseconds: u64) void {
-    std.time.sleep(milliseconds * std.time.ns_per_ms);
+    sleepNs(milliseconds * std.time.ns_per_ms);
+}
+
+/// Sleep for specified number of nanoseconds.
+/// @param nanoseconds Number of nanoseconds to sleep
+pub fn sleepNs(nanoseconds: u64) void {
+    if (nanoseconds == 0) return;
+    const io = getIo() orelse return;
+    const duration = std.Io.Clock.Duration{
+        .clock = .awake,
+        .raw = .fromNanoseconds(@intCast(nanoseconds)),
+    };
+    std.Io.Clock.Duration.sleep(duration, io) catch {};
 }
 
 /// Format a duration in nanoseconds to human-readable string.
@@ -102,6 +116,20 @@ fn getTimer() ?*std.time.Timer {
     }
     if (global_timer) |*timer| {
         return timer;
+    }
+    return null;
+}
+
+fn initIoBackend() void {
+    global_io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+}
+
+fn getIo() ?std.Io {
+    io_once.call();
+    if (global_io_backend) |*backend| {
+        return backend.io();
     }
     return null;
 }

@@ -49,7 +49,7 @@ pub const OtelExporter = struct {
 
     fn runExportLoop(self: *OtelExporter) void {
         while (self.running.load(.acquire)) {
-            std.time.sleep(std.time.ns_per_ms * self.config.export_interval_ms);
+            time.sleepMs(self.config.export_interval_ms);
             if (!self.running.load(.acquire)) break;
 
             // Periodically export any buffered telemetry

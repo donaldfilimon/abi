@@ -152,7 +152,7 @@ pub const TaskTool = struct {
                 defer self.allocator.free(err_msg);
 
                 if (attempts < max_attempts - 1) {
-                    std.time.sleep(subagent.config.retry_delay_ms * std.time.ns_per_ms);
+                    time.sleepMs(subagent.config.retry_delay_ms);
                     continue;
                 }
                 return ToolResult.fromError(self.allocator, err_msg);
@@ -227,7 +227,7 @@ pub const TaskTool = struct {
                 return ToolResult.fromError(self.allocator, "Task timed out");
             }
 
-            std.time.sleep(100 * std.time.ns_per_ms);
+            time.sleepMs(100);
         }
     }
 

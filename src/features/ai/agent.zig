@@ -9,6 +9,7 @@ const build_options = @import("build_options");
 const http = @import("../../shared/utils/http/async_http.zig");
 const retry = @import("../../shared/utils/retry.zig");
 const connectors = @import("../connectors/mod.zig");
+const time = @import("../../shared/utils/time.zig");
 
 // ============================================================================
 // Constants
@@ -340,7 +341,7 @@ pub const Agent = struct {
                     break :blk jitter_min + jitter;
                 } else backoff_ms;
                 if (sleep_ms > 0) {
-                    std.time.sleep(sleep_ms * std.time.ns_per_ms);
+                    time.sleepMs(sleep_ms);
                 }
                 const multiplied = @as(f64, @floatFromInt(backoff_ms)) *
                     self.config.retry_config.backoff_multiplier;
@@ -363,7 +364,7 @@ pub const Agent = struct {
                     break :blk jitter_min + jitter;
                 } else backoff_ms;
                 if (sleep_ms > 0) {
-                    std.time.sleep(sleep_ms * std.time.ns_per_ms);
+                    time.sleepMs(sleep_ms);
                 }
                 const multiplied = @as(f64, @floatFromInt(backoff_ms)) *
                     self.config.retry_config.backoff_multiplier;
