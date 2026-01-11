@@ -234,3 +234,8 @@ For critical code paths:
 **Document Version**: 1.0
 **Last Updated**: 2025-01-03
 **Next Review**: After Zig 0.16 stable release
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

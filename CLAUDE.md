@@ -424,6 +424,7 @@ Connector-specific:
 - `ABI_HF_BASE_URL` (default: `https://api-inference.huggingface.co`)
 - `ABI_OLLAMA_HOST` / `OLLAMA_HOST` (default: `http://127.0.0.1:11434`)
 - `ABI_OLLAMA_MODEL` (default: `llama3.2`)
+- `DISCORD_BOT_TOKEN` - Discord bot authentication token (required for Discord features)
 - `ABI_LOCAL_SCHEDULER_URL` / `LOCAL_SCHEDULER_URL` (default: `http://127.0.0.1:8081`)
 - `ABI_LOCAL_SCHEDULER_ENDPOINT` (default: `/schedule`)
 
@@ -456,6 +457,7 @@ The CLI (`zig build run -- <command>`) provides these subcommands:
 
 - `db <subcommand>` - Database operations (add, query, stats, optimize, backup, restore, serve)
 - `agent [--message]` - Run AI agent (interactive or one-shot mode)
+- `discord [command]` - Discord bot operations (status, guilds, send, commands, webhook)
 - `llm <subcommand>` - Local LLM inference (info, generate, chat, bench, list)
 - `config [command]` - Configuration management (init, show, validate)
 - `explore [options] <query>` - Search and explore codebase
@@ -493,6 +495,26 @@ zig build run -- explore "fn init" --level thorough    # Thorough search (AST pa
 - Parallel exploration across worker threads
 - Query intent understanding (search vs. definition vs. usage)
 
+### Discord CLI Examples
+
+```bash
+zig build run -- discord status                        # Show bot status and info
+zig build run -- discord guilds                        # List connected guilds
+zig build run -- discord send --channel 123 "Hello"   # Send message to channel
+zig build run -- discord commands --guild 456         # List application commands
+zig build run -- discord webhook --id WID --token T   # Execute webhook
+```
+
+**Prerequisites**:
+- Set `DISCORD_BOT_TOKEN` environment variable with your bot token
+
+**Capabilities**:
+- Bot status and user information retrieval
+- Guild (server) listing and management
+- Message sending to channels
+- Webhook execution
+- Gateway connection info
+
 ### LLM CLI Examples
 
 ```bash
@@ -522,6 +544,7 @@ zig build run-agent          # Run agent example
 zig build run-compute        # Run compute example
 zig build run-gpu            # Run GPU example
 zig build run-network        # Run network example
+zig build run-discord        # Run Discord example
 ```
 
 ## Testing Utilities
@@ -585,6 +608,9 @@ const results = try abi.wdbx.searchVectors(db, &query, 10);
 Use `<type>: <summary>` format. Keep summaries ≤ 72 chars. Focus commits; update docs when APIs change.
 
 ## Architecture References
+## Contacts
+
+`src/shared/contacts.zig` provides a centralized list of maintainer contacts extracted from the repository markdown files.
 
 - System overview: `docs/intro.md`
 - API surface: `API_REFERENCE.md`

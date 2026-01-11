@@ -3,9 +3,8 @@
 //! Provides caching for compiled GPU kernels to avoid
 //! redundant compilation and improve startup time.
 //!
-//! TODO(zig-0.16): Disk persistence functions (persistToDisk, loadFromDisk)
-//! use std.fs.cwd() which needs refactoring to use std.Io.Dir.cwd(io)
-//! with proper I/O context for full Zig 0.16 compliance.
+//! Disk persistence functions (persistToDisk, loadFromDisk)
+//! use std.Io.Dir.cwd(io) with proper I/O context for full Zig 0.16 compliance.
 
 const std = @import("std");
 
@@ -104,6 +103,7 @@ pub const KernelCacheConfig = struct {
 /// Kernel cache for compiled GPU kernels.
 pub const KernelCache = struct {
     allocator: std.mem.Allocator,
+    io: std.io,
     config: KernelCacheConfig,
     entries: std.StringHashMapUnmanaged(CacheEntry),
     lru_order: std.ArrayListUnmanaged([]const u8),
@@ -375,14 +375,16 @@ pub const KernelCache = struct {
             const filename = try std.fmt.bufPrint(&filename_buf, "{s}/{s}.bin", .{ cache_dir, key });
 
             // Write binary to file
-            const file = try std.fs.cwd().createFile(filename, .{});
-            defer file.close();
+            var file = try std.Io.Dir.cwd(self.io).createFile(self.io, filename, .{ .truncate = true });
+            defer file.close(self.io);
+
+            var writer = file.writer(self.io);
 
             // Write metadata
-            try file.writeAll(std.mem.asBytes(&cache_entry.meta));
+            try writer.writeAll(std.mem.asBytes(&cache_entry.meta));
 
             // Write binary data
-            try file.writeAll(cache_entry.binary);
+            try writer.writeAll(cache_entry.binary);
         }
     }
 
@@ -395,33 +397,35 @@ pub const KernelCache = struct {
         defer self.mutex.unlock();
 
         // Open cache directory
-        var dir = std.fs.cwd().openDir(cache_dir, .{ .iterate = true }) catch |err| {
+        var dir = std.Io.Dir.cwd(self.io).openDir(self.io, cache_dir, .{ .iterate = true }) catch |err| {
             if (err == error.FileNotFound) return;
             return err;
         };
-        defer dir.close();
+        defer dir.close(self.io);
 
         // Iterate over .bin files
-        var iter = dir.iterate();
-        while (try iter.next()) |entry| {
+        var iter = dir.iterate(self.io);
+        while (try iter.next(self.io)) |entry| {
             if (entry.kind != .file) continue;
             if (!std.mem.endsWith(u8, entry.name, ".bin")) continue;
 
             // Read file
-            const file = try dir.openFile(entry.name, .{});
-            defer file.close();
+            var file = try dir.openFile(self.io, entry.name, .{});
+            defer file.close(self.io);
+
+            var reader = file.reader(self.io);
 
             // Read metadata
             var meta: CacheEntryMeta = undefined;
-            const meta_bytes = try file.readAll(std.mem.asBytes(&meta));
+            const meta_bytes = try reader.readAll(std.mem.asBytes(&meta));
             if (meta_bytes != @sizeOf(CacheEntryMeta)) continue;
 
             // Read binary data
-            const binary_size = (try file.stat()).size - @sizeOf(CacheEntryMeta);
+            const binary_size = (try file.stat(self.io)).size - @sizeOf(CacheEntryMeta);
             const binary = try self.allocator.alloc(u8, binary_size);
             errdefer self.allocator.free(binary);
 
-            const read_bytes = try file.readAll(binary);
+            const read_bytes = try reader.readAll(binary);
             if (read_bytes != binary_size) {
                 self.allocator.free(binary);
                 continue;
@@ -535,7 +539,11 @@ pub const CacheStats = struct {
 
 test "kernel cache basic" {
     const allocator = std.testing.allocator;
-    var cache = KernelCache.init(allocator, .{});
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var cache = KernelCache.init(allocator, io, .{});
     defer cache.deinit();
 
     const dummy_compiler = struct {
@@ -571,7 +579,11 @@ test "kernel cache basic" {
 
 test "kernel cache eviction" {
     const allocator = std.testing.allocator;
-    var cache = KernelCache.init(allocator, .{
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var cache = KernelCache.init(allocator, io, .{
         .max_entries = 2,
         .max_cache_size = 1024,
     });

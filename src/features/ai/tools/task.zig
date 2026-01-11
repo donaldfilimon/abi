@@ -1,4 +1,5 @@
 const std = @import("std");
+const time = @import("../../../shared/utils/time.zig");
 const json = std.json;
 const Tool = @import("tool.zig").Tool;
 const ToolResult = @import("tool.zig").ToolResult;
@@ -144,7 +145,7 @@ pub const TaskTool = struct {
             self.semaphore.wait();
             defer self.semaphore.post();
 
-            const start_time = std.time.nanoTimestamp();
+            const start_time = time.nowNanoseconds();
 
             const result = subagent.handler(task_input, &ctx) catch |err| {
                 const err_msg = try std.fmt.allocPrint(self.allocator, "Execution failed: {}", .{err});
@@ -157,7 +158,7 @@ pub const TaskTool = struct {
                 return ToolResult.fromError(self.allocator, err_msg);
             };
 
-            const end_time = std.time.nanoTimestamp();
+            const end_time = time.nowNanoseconds();
             const duration_ms = @divTrunc(@as(i128, end_time - start_time), std.time.ns_per_ms);
 
             var mutable_subagent = self.subagents.getPtr(subagent_name).?;
@@ -187,7 +188,7 @@ pub const TaskTool = struct {
             .subagent_name = subagent_name,
             .input = task_input,
             .status = .pending,
-            .created_at = std.time.nanoTimestamp(),
+            .created_at = time.nowNanoseconds(),
             .timeout_ms = effective_timeout,
         };
 
@@ -206,7 +207,7 @@ pub const TaskTool = struct {
         const index = self.task_ids.get(task_id) orelse return error.TaskNotFound;
         const timeout_ms = self.tasks.items[index].timeout_ms;
 
-        const start_time = std.time.nanoTimestamp();
+        const start_time = time.nowNanoseconds();
         const deadline = start_time + (timeout_ms * std.time.ns_per_ms);
 
         while (true) {
@@ -221,7 +222,7 @@ pub const TaskTool = struct {
                 return ToolResult.fromError(self.allocator, "Task completed without result");
             }
 
-            if (std.time.nanoTimestamp() > deadline) {
+            if (time.nowNanoseconds() > deadline) {
                 self.tasks.items[index].status = .timeout;
                 return ToolResult.fromError(self.allocator, "Task timed out");
             }

@@ -295,3 +295,8 @@ The ABI Framework codebase is **fully compliant with Zig 0.16**:
 1. Fix zvm configuration issue
 2. Run comprehensive build verification
 3. Enable CI checks for Zig 0.16 compliance
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

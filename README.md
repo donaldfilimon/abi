@@ -324,6 +324,7 @@ zig build benchmarks
 - `ABI_OPENAI_MODE` (`responses`, `chat`, or `completions`)
 - `ABI_HF_API_TOKEN`, `HF_API_TOKEN`, `HUGGING_FACE_HUB_TOKEN`
 - `ABI_HF_BASE_URL` (default `https://api-inference.huggingface.co`)
+- `DISCORD_BOT_TOKEN` - Discord bot authentication token
 - `ABI_LOCAL_SCHEDULER_URL`, `LOCAL_SCHEDULER_URL` (default `http://127.0.0.1:8081`)
 - `ABI_LOCAL_SCHEDULER_ENDPOINT` (default `/schedule`)
 - `ABI_OLLAMA_HOST`, `OLLAMA_HOST` (default `http://127.0.0.1:11434`)
@@ -332,3 +333,6 @@ zig build benchmarks
 ## Contributing
 
 See `CONTRIBUTING.md` for development workflow and style guidelines.
+## Contacts
+
+`src/shared/contacts.zig` provides a centralized list of maintainer contacts extracted from the repository markdown files. It can be imported wherever contact information is needed.

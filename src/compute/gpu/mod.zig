@@ -6,6 +6,7 @@ const std = @import("std");
 const backend = @import("backend.zig");
 const kernels = @import("kernels.zig");
 const memory = @import("memory.zig");
+const kernel_cache = @import("kernel_cache.zig");
 pub const profiling = @import("profiling.zig");
 pub const acceleration = @import("acceleration.zig");
 
@@ -38,6 +39,11 @@ pub const Stream = kernels.Stream;
 pub const KernelError = kernels.KernelError;
 pub const compileKernel = kernels.compileKernel;
 pub const createDefaultKernels = kernels.createDefaultKernels;
+
+// Kernel Cache exports
+pub const KernelCache = kernel_cache.KernelCache;
+pub const KernelCacheConfig = kernel_cache.KernelCacheConfig;
+pub const CacheStats = kernel_cache.CacheStats;
 
 pub const Backend = backend.Backend;
 pub const DetectionLevel = backend.DetectionLevel;
@@ -98,18 +104,18 @@ fn initCudaComponents() !void {
             const cuda_module = @import("backends/cuda.zig");
 
             cuda_module.init() catch |err| {
-                std.log.warn("CUDA backend initialization failed: {}. Using fallback mode.", .{err});
+                std.log.warn("CUDA backend initialization failed: {t}. Using fallback mode.", .{err});
             };
 
             if (comptime build_options.enable_gpu) {
                 const cuda_stream = @import("backends/cuda_stream.zig");
                 cuda_stream.init() catch |err| {
-                    std.log.warn("CUDA stream initialization failed: {}", .{err});
+                    std.log.warn("CUDA stream initialization failed: {t}", .{err});
                 };
 
                 const cuda_memory = @import("backends/cuda_memory.zig");
                 cuda_memory.init() catch |err| {
-                    std.log.warn("CUDA memory initialization failed: {}", .{err});
+                    std.log.warn("CUDA memory initialization failed: {t}", .{err});
                 };
             }
 

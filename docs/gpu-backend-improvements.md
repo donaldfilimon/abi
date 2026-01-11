@@ -283,3 +283,8 @@ zig test src/compute/gpu/error_handling.zig  # ✓ All tests passed
 ## Conclusion
 
 This comprehensive overhaul brings the GPU backend implementation in line with Zig 0.16 best practices, improves error handling, standardizes the backend interface, and adds intelligent device selection. All changes maintain backward compatibility with the public API while improving internal consistency and code quality.
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

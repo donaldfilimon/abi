@@ -19,3 +19,8 @@
 //!   1. Implementing the required kernel entry points.
 //!   2. Registering the backend in the GPU module dispatcher.
 //!   3. Updating tests under `tests` if needed.
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

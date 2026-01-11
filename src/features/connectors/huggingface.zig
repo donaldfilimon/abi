@@ -108,7 +108,7 @@ pub const Client = struct {
         errdefer json_str.deinit(self.allocator);
 
         if (request.inputs) |inputs| {
-            try json_str.writer(self.allocator).print("{{\"inputs\":\"{s\"", .{std.zig.fmtEscapes(inputs)});
+            try json_str.print(self.allocator, "{{\"inputs\":\"{}\"", .{json_utils.jsonEscape(inputs)});
         } else {
             try json_str.append(self.allocator, '{');
         }
@@ -128,31 +128,31 @@ pub const Client = struct {
 
         if (params.top_k) |top_k| {
             if (!first) try json_str.append(self.allocator, ',');
-            try json_str.writer(self.allocator).print("\"top_k\":{d}", .{top_k});
+            try json_str.print(self.allocator, "\"top_k\":{d}", .{top_k});
             first = false;
         }
 
         if (params.top_p) |top_p| {
             if (!first) try json_str.append(self.allocator, ',');
-            try json_str.writer(self.allocator).print("\"top_p\":{d:.2}", .{top_p});
+            try json_str.print(self.allocator, "\"top_p\":{d:.2}", .{top_p});
             first = false;
         }
 
         if (params.temperature) |temp| {
             if (!first) try json_str.append(self.allocator, ',');
-            try json_str.writer(self.allocator).print("\"temperature\":{d:.2}", .{temp});
+            try json_str.print(self.allocator, "\"temperature\":{d:.2}", .{temp});
             first = false;
         }
 
         if (params.max_new_tokens) |max_tokens| {
             if (!first) try json_str.append(self.allocator, ',');
-            try json_str.writer(self.allocator).print("\"max_new_tokens\":{d}", .{max_tokens});
+            try json_str.print(self.allocator, "\"max_new_tokens\":{d}", .{max_tokens});
             first = false;
         }
 
         if (params.return_full_text) |return_full_text| {
             if (!first) try json_str.append(self.allocator, ',');
-            try json_str.writer(self.allocator).print("\"return_full_text\":{d}", .{@intFromBool(return_full_text)});
+            try json_str.print(self.allocator, "\"return_full_text\":{d}", .{@intFromBool(return_full_text)});
         }
     }
 

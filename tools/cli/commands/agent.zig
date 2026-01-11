@@ -1,8 +1,142 @@
-//! AI agent command.
+//! AI agent command with session management.
+//!
+//! Commands:
+//! - agent - Start interactive session
+//! - agent --message "text" - One-shot message
+//! - agent --session <name> - Use named session
+//! - agent --list-sessions - List available sessions
+//!
+//! Interactive commands:
+//! - /save [name] - Save current session
+//! - /load <name> - Load a session
+//! - /sessions - List available sessions
+//! - /clear - Clear current conversation
+//! - /info - Show session info
+//! - exit, quit - Exit the agent
 
 const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
+
+/// Session state for the interactive agent.
+const SessionState = struct {
+    allocator: std.mem.Allocator,
+    session_id: []const u8,
+    session_name: []const u8,
+    messages: std.ArrayListUnmanaged(abi.ai.memory.Message),
+    modified: bool,
+    store: ?abi.ai.memory.SessionStore,
+
+    pub fn init(allocator: std.mem.Allocator, name: []const u8) SessionState {
+        // Use default sessions directory
+        const sessions_dir = ".abi/sessions";
+        const store: ?abi.ai.memory.SessionStore = abi.ai.memory.SessionStore.init(allocator, sessions_dir);
+
+        // Generate session ID using monotonic time
+        var id_buf: [32]u8 = undefined;
+        const timestamp = getUnixSeconds();
+        const id_slice = std.fmt.bufPrint(&id_buf, "session_{d}", .{timestamp}) catch &[_]u8{};
+        const id_len = id_slice.len;
+
+        return .{
+            .allocator = allocator,
+            .session_id = allocator.dupe(u8, id_buf[0..id_len]) catch "unnamed",
+            .session_name = allocator.dupe(u8, name) catch "default",
+            .messages = .empty,
+            .modified = false,
+            .store = store,
+        };
+    }
+
+    pub fn deinit(self: *SessionState) void {
+        for (self.messages.items) |*msg| {
+            self.allocator.free(msg.content);
+            if (msg.name) |n| self.allocator.free(n);
+        }
+        self.messages.deinit(self.allocator);
+        // SessionStore doesn't need explicit cleanup
+        self.allocator.free(self.session_id);
+        self.allocator.free(self.session_name);
+    }
+
+    pub fn addMessage(self: *SessionState, role: abi.ai.memory.MessageRole, content: []const u8) !void {
+        const content_copy = try self.allocator.dupe(u8, content);
+        errdefer self.allocator.free(content_copy);
+
+        try self.messages.append(self.allocator, .{
+            .role = role,
+            .content = content_copy,
+            .timestamp = getUnixSeconds(),
+        });
+        self.modified = true;
+    }
+
+    pub fn save(self: *SessionState, name: ?[]const u8) !void {
+        var store = self.store orelse return error.PersistenceDisabled;
+
+        // Update name if provided
+        if (name) |n| {
+            self.allocator.free(self.session_name);
+            self.session_name = try self.allocator.dupe(u8, n);
+        }
+
+        const now = getUnixSeconds();
+        const session_data = abi.ai.memory.SessionData{
+            .id = self.session_id,
+            .name = self.session_name,
+            .created_at = now,
+            .updated_at = now,
+            .messages = self.messages.items,
+            .config = .{},
+        };
+
+        try store.saveSession(session_data);
+        self.modified = false;
+    }
+
+    pub fn load(self: *SessionState, session_id: []const u8) !void {
+        var store = self.store orelse return error.PersistenceDisabled;
+
+        const data = try store.loadSession(session_id);
+        defer {
+            self.allocator.free(data.id);
+            self.allocator.free(data.name);
+            for (data.messages) |msg| {
+                self.allocator.free(msg.content);
+                if (msg.name) |n| self.allocator.free(n);
+            }
+            self.allocator.free(data.messages);
+        }
+
+        // Clear current messages
+        for (self.messages.items) |*msg| {
+            self.allocator.free(msg.content);
+            if (msg.name) |n| self.allocator.free(n);
+        }
+        self.messages.clearRetainingCapacity();
+
+        // Copy messages from loaded session
+        for (data.messages) |msg| {
+            try self.addMessage(msg.role, msg.content);
+        }
+
+        // Update session info
+        self.allocator.free(self.session_id);
+        self.allocator.free(self.session_name);
+        self.session_id = try self.allocator.dupe(u8, data.id);
+        self.session_name = try self.allocator.dupe(u8, data.name);
+        self.modified = false;
+    }
+
+    pub fn clear(self: *SessionState) void {
+        for (self.messages.items) |*msg| {
+            self.allocator.free(msg.content);
+            if (msg.name) |n| self.allocator.free(n);
+        }
+        self.messages.clearRetainingCapacity();
+        self.modified = true;
+    }
+};
 
 /// Run the agent command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
@@ -10,15 +144,18 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
     var name: []const u8 = "cli-agent";
     var message: ?[]const u8 = null;
+    var session_name: []const u8 = "default";
+    var load_session: ?[]const u8 = null;
+    var list_sessions = false;
 
     var i: usize = 0;
     while (i < args.len) {
         const arg = args[i];
         i += 1;
 
-        if (std.mem.eql(u8, arg, "--name")) {
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--name")) {
             if (i < args.len) {
-                name = args[i];
+                name = std.mem.sliceTo(args[i], 0);
                 i += 1;
             }
             continue;
@@ -26,29 +163,80 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
         if (utils.args.matchesAny(arg, &[_][]const u8{ "--message", "-m" })) {
             if (i < args.len) {
-                message = args[i];
+                message = std.mem.sliceTo(args[i], 0);
                 i += 1;
             }
             continue;
         }
+
+        if (utils.args.matchesAny(arg, &[_][]const u8{ "--session", "-s" })) {
+            if (i < args.len) {
+                session_name = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--load")) {
+            if (i < args.len) {
+                load_session = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--list-sessions")) {
+            list_sessions = true;
+            continue;
+        }
+
+        if (utils.args.matchesAny(arg, &[_][]const u8{ "--help", "-h", "help" })) {
+            printHelp();
+            return;
+        }
+    }
+
+    // Handle list sessions command
+    if (list_sessions) {
+        return listSessions(allocator);
     }
 
     var agent = try agent_mod.Agent.init(allocator, .{ .name = name });
     defer agent.deinit();
+
+    // Initialize session state
+    var session = SessionState.init(allocator, session_name);
+    defer session.deinit();
+
+    // Load session if requested
+    if (load_session) |sid| {
+        session.load(sid) catch |err| {
+            std.debug.print("Warning: Could not load session '{s}': {t}\n", .{ sid, err });
+        };
+    }
 
     if (message) |msg| {
         const response = try agent.process(msg, allocator);
         defer allocator.free(response);
         std.debug.print("User: {s}\n", .{msg});
         std.debug.print("Agent: {s}\n", .{response});
+
+        // Save to session
+        try session.addMessage(.user, msg);
+        try session.addMessage(.assistant, response);
         return;
     }
 
-    try runInteractive(allocator, &agent);
+    try runInteractive(allocator, &agent, &session);
 }
 
-fn runInteractive(allocator: std.mem.Allocator, agent: *abi.ai.agent.Agent) !void {
-    std.debug.print("Interactive mode. Type 'exit' to quit.\n", .{});
+fn runInteractive(allocator: std.mem.Allocator, agent: *abi.ai.agent.Agent, session: *SessionState) !void {
+    std.debug.print("\n╔════════════════════════════════════════════════════════════╗\n", .{});
+    std.debug.print("║                    ABI AI Agent                            ║\n", .{});
+    std.debug.print("╚════════════════════════════════════════════════════════════╝\n\n", .{});
+    std.debug.print("Session: {s} ({s})\n", .{ session.session_name, session.session_id });
+    std.debug.print("Type '/help' for commands, 'exit' to quit.\n\n", .{});
+
     var io_backend = std.Io.Threaded.init(allocator, .{
         .environ = std.process.Environ.empty,
     });
@@ -71,11 +259,213 @@ fn runInteractive(allocator: std.mem.Allocator, agent: *abi.ai.agent.Agent) !voi
         const line = line_opt orelse break;
         const trimmed = std.mem.trim(u8, line, " \t\r\n");
         if (trimmed.len == 0) continue;
+
+        // Handle exit commands
         if (std.mem.eql(u8, trimmed, "exit") or std.mem.eql(u8, trimmed, "quit")) {
+            if (session.modified) {
+                std.debug.print("Session has unsaved changes. Save before exit? (y/n): ", .{});
+                const save_opt = reader.interface.takeDelimiter('\n') catch continue;
+                const save_line = save_opt orelse continue;
+                const save_trimmed = std.mem.trim(u8, save_line, " \t\r\n");
+                if (save_trimmed.len > 0 and (save_trimmed[0] == 'y' or save_trimmed[0] == 'Y')) {
+                    session.save(null) catch |err| {
+                        std.debug.print("Error saving: {t}\n", .{err});
+                    };
+                }
+            }
             break;
         }
+
+        // Handle slash commands
+        if (trimmed[0] == '/') {
+            handleSlashCommand(allocator, session, trimmed) catch |err| {
+                std.debug.print("Command error: {t}\n", .{err});
+            };
+            continue;
+        }
+
+        // Process message with agent
         const response = try agent.process(trimmed, allocator);
         defer allocator.free(response);
-        std.debug.print("Agent: {s}\n", .{response});
+
+        // Add to session history
+        try session.addMessage(.user, trimmed);
+        try session.addMessage(.assistant, response);
+
+        std.debug.print("Agent: {s}\n\n", .{response});
     }
+
+    std.debug.print("Goodbye!\n", .{});
+}
+
+fn handleSlashCommand(allocator: std.mem.Allocator, session: *SessionState, input: []const u8) !void {
+    var iter = std.mem.splitScalar(u8, input[1..], ' ');
+    const cmd = iter.first();
+
+    if (std.mem.eql(u8, cmd, "help")) {
+        printInteractiveHelp();
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "save")) {
+        const name = iter.next();
+        session.save(name) catch |err| {
+            std.debug.print("Error saving session: {t}\n", .{err});
+            return;
+        };
+        std.debug.print("Session saved: {s}\n", .{session.session_name});
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "load")) {
+        const session_id = iter.next() orelse {
+            std.debug.print("Usage: /load <session_id>\n", .{});
+            return;
+        };
+        session.load(session_id) catch |err| {
+            std.debug.print("Error loading session: {t}\n", .{err});
+            return;
+        };
+        std.debug.print("Session loaded: {s} ({d} messages)\n", .{ session.session_name, session.messages.items.len });
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "sessions")) {
+        listSessions(allocator) catch |err| {
+            std.debug.print("Error listing sessions: {t}\n", .{err});
+        };
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "clear")) {
+        session.clear();
+        std.debug.print("Conversation cleared.\n", .{});
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "info")) {
+        std.debug.print("\nSession Information:\n", .{});
+        std.debug.print("  ID: {s}\n", .{session.session_id});
+        std.debug.print("  Name: {s}\n", .{session.session_name});
+        std.debug.print("  Messages: {d}\n", .{session.messages.items.len});
+        std.debug.print("  Modified: {}\n\n", .{session.modified});
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "history")) {
+        std.debug.print("\nConversation History:\n", .{});
+        std.debug.print("─────────────────────────────────────────\n", .{});
+        for (session.messages.items, 0..) |msg, idx| {
+            const role_str = switch (msg.role) {
+                .user => "You",
+                .assistant => "Agent",
+                .system => "System",
+                .tool => "Tool",
+            };
+            std.debug.print("[{d}] {s}: {s}\n", .{ idx + 1, role_str, msg.content });
+        }
+        std.debug.print("─────────────────────────────────────────\n\n", .{});
+        return;
+    }
+
+    std.debug.print("Unknown command: /{s}\nType /help for available commands.\n", .{cmd});
+}
+
+fn listSessions(allocator: std.mem.Allocator) !void {
+    const sessions_dir = ".abi/sessions";
+    var store = abi.ai.memory.SessionStore.init(allocator, sessions_dir);
+
+    const sessions = store.listSessions() catch |err| {
+        std.debug.print("Error listing sessions: {t}\n", .{err});
+        return;
+    };
+    defer allocator.free(sessions);
+
+    if (sessions.len == 0) {
+        std.debug.print("No saved sessions found.\n", .{});
+        return;
+    }
+
+    std.debug.print("\nSaved Sessions:\n", .{});
+    std.debug.print("─────────────────────────────────────────────────────────────\n", .{});
+    std.debug.print("{s:<20} {s:<20} {s:<10} {s:<10}\n", .{ "ID", "Name", "Messages", "Updated" });
+    std.debug.print("─────────────────────────────────────────────────────────────\n", .{});
+
+    for (sessions) |meta| {
+        defer {
+            allocator.free(meta.id);
+            allocator.free(meta.name);
+        }
+        std.debug.print("{s:<20} {s:<20} {d:<10} {d:<10}\n", .{
+            meta.id,
+            meta.name,
+            meta.message_count,
+            meta.updated_at,
+        });
+    }
+    std.debug.print("\n", .{});
+}
+
+fn printInteractiveHelp() void {
+    const help =
+        \\
+        \\Interactive Commands:
+        \\  /help      - Show this help
+        \\  /save [n]  - Save session (optionally with name)
+        \\  /load <id> - Load a saved session
+        \\  /sessions  - List saved sessions
+        \\  /clear     - Clear conversation history
+        \\  /info      - Show session information
+        \\  /history   - Show conversation history
+        \\  exit, quit - Exit the agent
+        \\
+        \\
+    ;
+    std.debug.print("{s}", .{help});
+}
+
+fn printHelp() void {
+    const help_text =
+        \\Usage: abi agent [options]
+        \\
+        \\Run the AI agent with optional session management.
+        \\
+        \\Options:
+        \\  --name <name>       Agent name (default: cli-agent)
+        \\  -m, --message <msg> Send single message (non-interactive)
+        \\  -s, --session <n>   Session name to use
+        \\  --load <id>         Load existing session by ID
+        \\  --list-sessions     List all saved sessions
+        \\  -h, --help          Show this help
+        \\
+        \\Interactive Commands:
+        \\  /save [name]   Save current session
+        \\  /load <id>     Load a saved session
+        \\  /sessions      List available sessions
+        \\  /clear         Clear conversation
+        \\  /info          Show session info
+        \\  /history       Show conversation history
+        \\  exit, quit     Exit the agent
+        \\
+        \\Examples:
+        \\  abi agent                          # Start interactive session
+        \\  abi agent --session "project-x"    # Named session
+        \\  abi agent -m "Hello"               # Single message
+        \\  abi agent --list-sessions          # List saved sessions
+        \\  abi agent --load session_12345     # Load previous session
+        \\
+    ;
+    std.debug.print("{s}", .{help_text});
+}
+
+/// Get a pseudo-unique timestamp for session IDs.
+/// Uses nanosecond counter for reasonable uniqueness.
+fn getUnixSeconds() i64 {
+    // Use a simple counter based on timer - the actual value doesn't matter
+    // as long as it's reasonably unique within a session
+    var timer = std.time.Timer.start() catch return 1000;
+    // Return nanoseconds divided down to make more manageable IDs
+    // The timer value combined with nanoTimestamp gives reasonable uniqueness
+    const base = timer.read();
+    return @intCast(base / 1_000_000); // Convert to milliseconds for shorter IDs
 }

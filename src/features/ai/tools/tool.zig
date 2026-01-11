@@ -23,7 +23,7 @@ pub const ToolResult = struct {
     success: bool,
     output: []const u8,
     error_message: ?[]const u8,
-    metadata: ?json.Object,
+    metadata: ?json.ObjectMap,
 
     pub fn init(allocator: std.mem.Allocator, success_val: bool, output_val: []const u8) ToolResult {
         return ToolResult{
@@ -52,10 +52,13 @@ pub const ToolResult = struct {
     }
 };
 
+/// Environment map type for tool context
+pub const EnvMap = std.StringHashMap([]const u8);
+
 pub const Context = struct {
     allocator: std.mem.Allocator,
     working_directory: []const u8,
-    environment: ?*const std.process.EnvironmentMap,
+    environment: ?*const EnvMap,
     cancellation: ?*const std.atomic.Value(bool),
 };
 

@@ -9,3 +9,8 @@ Please report incidents privately to the project maintainers via GitHub.
 ## Attribution
 Contributor Covenant v2.1:
 https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

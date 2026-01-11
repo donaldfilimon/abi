@@ -311,6 +311,7 @@ pub fn build(b: *std.Build) void {
         "compute",
         "gpu",
         "network",
+        "discord",
     };
 
     for (example_names) |example_name| {

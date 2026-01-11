@@ -529,3 +529,8 @@ The ABI framework has been significantly improved with:
 All high-priority tasks completed successfully. The project is ready for the next phase of development focused on feature implementation and community building.
 
 **Status:** ✅ Production Ready
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+
