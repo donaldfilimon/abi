@@ -6,6 +6,7 @@
 //! - Key rotation and expiration support
 //! - Secure memory wiping for sensitive data
 const std = @import("std");
+const time = @import("../utils/time.zig");
 
 /// Salt length in bytes for key hashing
 pub const SALT_LENGTH: usize = 16;
@@ -132,9 +133,9 @@ pub const ApiKeyManager = struct {
             .salt = salt,
             .key_prefix = try self.allocator.dupe(u8, key_prefix),
             .user_id = try self.allocator.dupe(u8, user_id),
-            .created_at = std.time.timestamp(),
+            .created_at = time.unixSeconds(),
             .expires_at = if (self.config.rotation_period_days > 0)
-                std.time.timestamp() + @as(i64, @intCast(self.config.rotation_period_days * 86400))
+                time.unixSeconds() + @as(i64, @intCast(self.config.rotation_period_days * 86400))
             else
                 null,
             .last_used_at = null,
@@ -164,9 +165,9 @@ pub const ApiKeyManager = struct {
             {
                 if (!key.is_active) return null;
                 if (key.expires_at) |exp| {
-                    if (std.time.timestamp() > exp) return null;
+                    if (time.unixSeconds() > exp) return null;
                 }
-                key.last_used_at = std.time.timestamp();
+                key.last_used_at = time.unixSeconds();
                 return key;
             }
         }
@@ -355,3 +356,4 @@ test "api key revocation" {
     const validated = try manager.validateKey(generated.key_plain);
     try std.testing.expectEqual(null, validated);
 }
+

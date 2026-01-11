@@ -4,6 +4,7 @@
 //! and health checking in distributed deployments.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 const async_http = @import("../../shared/utils/http/async_http.zig");
 
 pub const ServiceDiscoveryError = error{
@@ -107,7 +108,7 @@ pub const ServiceRegistry = struct {
             .port = instance.port,
             .tags = tags_copy,
             .health_status = instance.health_status,
-            .last_check = std.time.milliTimestamp(),
+            .last_check = time.unixMilliseconds(),
         };
 
         try self.services.put(instance_copy.id, instance_copy);
@@ -180,7 +181,7 @@ pub const ServiceRegistry = struct {
     pub fn updateHealthStatus(self: *ServiceRegistry, service_id: []const u8, status: HealthStatus) !void {
         const instance = self.services.getPtr(service_id) orelse return ServiceDiscoveryError.ServiceNotFound;
         instance.health_status = status;
-        instance.last_check = std.time.milliTimestamp();
+        instance.last_check = time.unixMilliseconds();
     }
 
     pub fn runHealthChecks(self: *ServiceRegistry) !void {
@@ -300,3 +301,4 @@ test "load balancer round robin" {
     const third = balancer.selectInstance(&instances).?;
     try std.testing.expectEqualStrings("svc-1", third.id);
 }
+

@@ -99,7 +99,7 @@ ABI v0.2.2 represents a comprehensive update bringing Zig 0.16 modernization, en
 ### CI/CD
 - **GitHub Actions** - `.github/workflows/ci.yml`
   - Build and test on Ubuntu
-  - Matrix testing across Zig versions (0.16.0-dev, 0.15.1)
+  - Zig 0.16.x toolchain in CI
   - Feature flag combinations
   - Security scanning (unsafe patterns, path traversal)
   - Automatic formatting checks
@@ -185,7 +185,7 @@ All tests passing:
 
 ## Compatibility
 
-- **Zig Version:** 0.16.x (tested with 0.16.0-dev)
+- **Zig Version:** 0.16.x
 - **Minimum Zig:** 0.16.0
 - **Platforms:** Linux, macOS, Windows
 

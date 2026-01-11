@@ -863,10 +863,9 @@ pub const BatchImporter = struct {
 
     /// Export records to JSON lines format.
     pub fn exportJsonLines(self: *BatchImporter, records: []const BatchRecord) ![]u8 {
-        var output = std.ArrayList(u8).init(self.allocator);
-        errdefer output.deinit();
-
-        const writer = output.writer();
+        var aw = std.Io.Writer.Allocating.init(self.allocator);
+        errdefer aw.deinit();
+        const writer = &aw.writer;
 
         for (records) |record| {
             try writer.writeAll("{\"id\":");
@@ -892,15 +891,14 @@ pub const BatchImporter = struct {
             try writer.writeAll("}\n");
         }
 
-        return output.toOwnedSlice();
+        return aw.toOwnedSlice();
     }
 
     /// Export records to CSV format.
     pub fn exportCsv(self: *BatchImporter, records: []const BatchRecord) ![]u8 {
-        var output = std.ArrayList(u8).init(self.allocator);
-        errdefer output.deinit();
-
-        const writer = output.writer();
+        var aw = std.Io.Writer.Allocating.init(self.allocator);
+        errdefer aw.deinit();
+        const writer = &aw.writer;
 
         // Write header
         try writer.writeAll("id,vector,metadata,text\n");
@@ -945,7 +943,7 @@ pub const BatchImporter = struct {
             try writer.writeAll("\n");
         }
 
-        return output.toOwnedSlice();
+        return aw.toOwnedSlice();
     }
 };
 

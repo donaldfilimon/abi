@@ -21,7 +21,7 @@ Modern Zig framework for modular AI services, vector search, and systems tooling
 
 ## Requirements
 
-- Zig 0.16.x (tested with 0.16.0-dev)
+- Zig 0.16.x (minimum 0.16.0; CI uses 0.16.x)
 
 ## Build
 

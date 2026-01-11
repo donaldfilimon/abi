@@ -4,6 +4,7 @@
 //! with full SQL support, transactions, and ACID compliance.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 const database = @import("./database.zig");
 
 pub const SqliteError = error{
@@ -304,7 +305,7 @@ pub const InMemoryDatabase = struct {
 
         const metadata_copy = if (metadata) |m| try self.allocator.dupe(u8, m) else null;
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         const entry = VectorEntry{
             .vector = vector_copy,
@@ -335,7 +336,7 @@ pub const InMemoryDatabase = struct {
             self.allocator.free(old_vector);
 
             entry.value_ptr.*.vector = new_vector;
-            entry.value_ptr.*.updated_at = std.time.timestamp();
+            entry.value_ptr.*.updated_at = time.unixSeconds();
             return true;
         }
         return false;
@@ -540,3 +541,4 @@ test "in-memory database count and clear" {
 
     try std.testing.expectEqual(@as(usize, 0), db.count());
 }
+

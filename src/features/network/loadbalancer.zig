@@ -118,7 +118,7 @@ pub const LoadBalancer = struct {
             .nodes = std.ArrayListUnmanaged(NodeState){},
             .round_robin_index = std.atomic.Value(usize).init(0),
             .session_map = std.StringArrayHashMapUnmanaged([]const u8){},
-            .prng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp())),
+            .prng = std.Random.DefaultPrng.init(@intCast(time.unixMilliseconds())),
             .mutex = std.Thread.Mutex{},
         };
     }
@@ -426,7 +426,7 @@ pub const LoadBalancer = struct {
         const hash: u64 = if (client_id) |cid|
             std.hash.Wyhash.hash(0, cid)
         else
-            @intCast(std.time.timestamp());
+            @intCast(time.unixMilliseconds());
 
         const target = hash % healthy_count;
         var count: usize = 0;
@@ -593,3 +593,4 @@ test "node state scoring" {
     const score3 = node.getScore();
     try std.testing.expectEqual(@as(f64, 0), score3);
 }
+

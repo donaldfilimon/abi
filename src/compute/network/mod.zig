@@ -4,6 +4,7 @@
 //! Feature-gated: only compiled when enable_network is true.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 
 const build_options = @import("build_options");
 const workload = @import("../runtime/workload.zig");
@@ -97,7 +98,7 @@ pub const NetworkEngine = struct {
         pending.* = .{
             .task_id = task_id,
             .node_address = best_node.?.address,
-            .submitted_at = std.time.timestamp(),
+            .submitted_at = time.unixSeconds(),
             .status = .pending,
         };
         try self.pending_tasks.put(self.allocator, task_id, pending);
@@ -162,7 +163,7 @@ pub const NetworkEngine = struct {
         if (self.pending_tasks.get(task_id)) |pending| {
             pending.status = .completed;
             pending.result = result;
-            pending.completed_at = std.time.timestamp();
+            pending.completed_at = time.unixSeconds();
         }
     }
 
@@ -171,7 +172,7 @@ pub const NetworkEngine = struct {
         if (self.pending_tasks.get(task_id)) |pending| {
             pending.status = .failed;
             pending.error_message = error_message;
-            pending.completed_at = std.time.timestamp();
+            pending.completed_at = time.unixSeconds();
         }
     }
 
@@ -182,7 +183,7 @@ pub const NetworkEngine = struct {
 
     /// Check for timed-out tasks and mark them as failed
     pub fn checkTimeouts(self: *NetworkEngine, timeout_seconds: i64) void {
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         var iter = self.pending_tasks.iterator();
         while (iter.next()) |entry| {
@@ -541,3 +542,4 @@ test "task serialization preserves null cpu affinity" {
 fn unsupportedExecute(_: *workload.ExecutionContext, _: *anyopaque) workload.WorkloadError!workload.ResultHandle {
     return workload.ResultHandle.fromSlice(&.{});
 }
+

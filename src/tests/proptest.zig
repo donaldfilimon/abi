@@ -4,6 +4,8 @@
 //! enabling discovery of edge cases through randomized input generation.
 
 const std = @import("std");
+const abi = @import("abi");
+const time = abi.shared.time;
 
 /// Configuration for property-based tests.
 pub const PropTestConfig = struct {
@@ -204,7 +206,7 @@ pub fn PropTest(comptime T: type) type {
         prng: std.Random.DefaultPrng,
 
         pub fn init(allocator: std.mem.Allocator, generator: Generator(T), config: PropTestConfig) Self {
-            const seed = config.seed orelse @as(u64, @intCast(std.time.timestamp()));
+            const seed = config.seed orelse @as(u64, @intCast(time.unixMilliseconds()));
             return .{
                 .allocator = allocator,
                 .config = config,
@@ -564,3 +566,4 @@ test "assertions sorted" {
     try std.testing.expect(Assertions.assertSorted(i32, &sorted, lessThan));
     try std.testing.expect(!Assertions.assertSorted(i32, &unsorted, lessThan));
 }
+

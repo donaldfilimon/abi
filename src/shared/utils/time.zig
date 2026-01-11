@@ -1,19 +1,20 @@
 const std = @import("std");
+const builtin = @import("builtin");
+const posix = std.posix;
+const windows = std.os.windows;
 
 var global_timer: ?std.time.Timer = null;
 
 /// Get current Unix timestamp in seconds.
 /// @return Unix timestamp as seconds since epoch
 pub fn unixSeconds() i64 {
-    const instant = std.time.Instant.now() catch return 0;
-    return instant.toSecs();
+    return @intCast(@divTrunc(unixEpochNanoseconds(), std.time.ns_per_s));
 }
 
 /// Get current Unix timestamp in milliseconds.
 /// @return Unix timestamp as milliseconds since epoch
 pub fn unixMilliseconds() i64 {
-    const instant = std.time.Instant.now() catch return 0;
-    return instant.toSecs() * 1000 + @divTrunc(instant.toSubsecMillis(), 1);
+    return @intCast(@divTrunc(unixEpochNanoseconds(), std.time.ns_per_ms));
 }
 
 /// Get current time in seconds using monotonic timer.
@@ -103,6 +104,19 @@ fn getTimer() ?*std.time.Timer {
         return timer;
     }
     return null;
+}
+
+fn unixEpochNanoseconds() i128 {
+    if (builtin.os.tag == .windows) {
+        const ticks_100ns: i64 = windows.ntdll.RtlGetSystemTimePrecise();
+        const unix_epoch_ticks_100ns: i64 = 11644473600 * 10_000_000;
+        const unix_ticks_100ns = ticks_100ns - unix_epoch_ticks_100ns;
+        return @as(i128, unix_ticks_100ns) * 100;
+    }
+
+    const ts = posix.clock_gettime(posix.CLOCK.REALTIME) catch return 0;
+    return @as(i128, @intCast(ts.sec)) * std.time.ns_per_s +
+        @as(i128, @intCast(ts.nsec));
 }
 
 test "stopwatch measures elapsed time" {

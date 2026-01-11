@@ -1,8 +1,8 @@
-# Zig 0.16-dev Migration Guide
+# Zig 0.16 Migration Guide
 
 ## Overview
 
-This guide documents the migration of the ABI Framework to Zig 0.16.0-dev. The migration focuses on adopting the new `std.Io` API and removing deprecated interfaces.
+This guide documents the migration of the ABI Framework to Zig 0.16.x. The migration focuses on adopting the new `std.Io` API and removing deprecated interfaces.
 
 ## Changes Made
 
@@ -107,10 +107,10 @@ zig build benchmark                   # Benchmarks run successfully
 
 ## Build Configuration
 
-The CI configuration has been updated to use Zig 0.16.0-dev instead of 0.17.0.
+The CI configuration has been updated to use Zig 0.16.x instead of 0.17.0.
 
 ### CI Changes
-- Updated `.github/workflows/ci.yml` to use `version: 0.16.0`
+- Updated `.github/workflows/ci.yml` to use `version: 0.16`
 
 ## Breaking Changes Summary
 
@@ -122,7 +122,7 @@ The CI configuration has been updated to use Zig 0.16.0-dev instead of 0.17.0.
 
 ## Migration Checklist
 
-- [x] Update CI to use Zig 0.16.0-dev
+- [x] Update CI to use Zig 0.16.x
 - [x] Replace `std.io.AnyReader` with `std.Io.Reader`
 - [x] Fix HTTP Server initialization (remove .interface access)
 - [x] Update documentation
@@ -132,13 +132,13 @@ The CI configuration has been updated to use Zig 0.16.0-dev instead of 0.17.0.
 
 ## Next Steps
 
-1. Monitor Zig 0.16 release announcements for any additional breaking changes
+1. Monitor Zig 0.16.x release announcements for any additional breaking changes
 2. Consider consolidating HTTP modules in a future refactor (optional)
-3. Update minimum Zig version in `build.zig.zon` when 0.16 is officially released
+3. Keep `build.zig.zon` minimum Zig version aligned to the latest 0.16.x point release
 
 ## References
 
-- [Zig 0.16-dev Branch](https://github.com/ziglang/zig/tree/master)
+- [Zig main branch](https://github.com/ziglang/zig/tree/master)
 - [Zig Standard Library Documentation](https://ziglang.org/documentation/master/)
 - [ABI Framework Documentation](../index.md)
 

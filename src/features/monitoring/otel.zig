@@ -1,5 +1,6 @@
 //! OpenTelemetry integration for distributed tracing and metrics.
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 const observability = @import("../../shared/observability/mod.zig");
 
 pub const OtelConfig = struct {
@@ -62,10 +63,9 @@ pub const OtelExporter = struct {
         if (!self.config.enabled or metrics.len == 0) return;
 
         // Build JSON payload for OpenTelemetry metrics export
-        var json = std.ArrayListUnmanaged(u8){};
-        defer json.deinit(self.allocator);
-
-        const writer = json.writer(self.allocator);
+        var aw = std.Io.Writer.Allocating.init(self.allocator);
+        errdefer aw.deinit();
+        const writer = &aw.writer;
         try writer.writeAll("{\"resourceMetrics\":[{\"scopeMetrics\":[{\"metrics\":[");
 
         for (metrics, 0..) |metric, i| {
@@ -101,7 +101,9 @@ pub const OtelExporter = struct {
         try writer.writeAll("]}]}]}");
 
         // Send to OpenTelemetry collector
-        try self.sendToCollector("/v1/metrics", json.items);
+        const payload = try aw.toOwnedSlice();
+        defer self.allocator.free(payload);
+        try self.sendToCollector("/v1/metrics", payload);
     }
 
     /// Export traces/spans to the OTLP endpoint via HTTP
@@ -109,10 +111,9 @@ pub const OtelExporter = struct {
         if (!self.config.enabled or traces.len == 0) return;
 
         // Build JSON payload for OpenTelemetry traces export
-        var json = std.ArrayListUnmanaged(u8){};
-        defer json.deinit(self.allocator);
-
-        const writer = json.writer(self.allocator);
+        var aw = std.Io.Writer.Allocating.init(self.allocator);
+        errdefer aw.deinit();
+        const writer = &aw.writer;
         try writer.writeAll("{\"resourceSpans\":[{\"scopeSpans\":[{\"spans\":[");
 
         for (traces, 0..) |trace, i| {
@@ -166,7 +167,9 @@ pub const OtelExporter = struct {
         try writer.writeAll("]}]}]}");
 
         // Send to OpenTelemetry collector
-        try self.sendToCollector("/v1/traces", json.items);
+        const payload = try aw.toOwnedSlice();
+        defer self.allocator.free(payload);
+        try self.sendToCollector("/v1/traces", payload);
     }
 
     fn sendToCollector(self: *OtelExporter, path: []const u8, payload: []const u8) !void {
@@ -332,7 +335,7 @@ pub const OtelTracer = struct {
             .parent_span_id = parent_sid,
             .name = name,
             .kind = .internal,
-            .start_time = std.time.timestamp(),
+            .start_time = time.unixSeconds(),
             .end_time = 0,
             .attributes = std.ArrayListUnmanaged(OtelAttribute).empty,
             .events = std.ArrayListUnmanaged(OtelEvent).empty,
@@ -341,7 +344,7 @@ pub const OtelTracer = struct {
     }
 
     pub fn endSpan(_: *OtelTracer, span: *OtelSpan) void {
-        span.end_time = std.time.timestamp();
+        span.end_time = time.unixSeconds();
     }
 
     /// Add an event to a span with the current timestamp
@@ -372,7 +375,7 @@ pub const OtelTracer = struct {
 
         const event = OtelEvent{
             .name = name_copy,
-            .timestamp = std.time.timestamp(),
+            .timestamp = time.unixSeconds(),
             .attributes = attrs_copy,
         };
 
@@ -425,7 +428,7 @@ pub const OtelTracer = struct {
         const counter = self.trace_id_counter.fetchAdd(1, .monotonic);
         @memset(&trace_id, 0);
         std.mem.writeInt(u64, trace_id[0..8], counter, .big);
-        std.mem.writeInt(u64, trace_id[8..16], std.time.timestamp(), .big);
+        std.mem.writeInt(u64, trace_id[8..16], time.unixSeconds(), .big);
         return trace_id;
     }
 
@@ -667,3 +670,4 @@ test "trace id formatting" {
     const formatted = formatTraceId(trace_id);
     try std.testing.expectEqualStrings("0123456789abcdef0123456789abcdef", &formatted);
 }
+

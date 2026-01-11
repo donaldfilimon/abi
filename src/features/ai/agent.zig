@@ -10,9 +10,37 @@ const http = @import("../../shared/utils/http/async_http.zig");
 const retry = @import("../../shared/utils/retry.zig");
 const connectors = @import("../connectors/mod.zig");
 
+// ============================================================================
+// Constants
+// ============================================================================
+
+/// Minimum allowed temperature value.
+pub const MIN_TEMPERATURE: f32 = 0.0;
+
+/// Maximum allowed temperature value.
+pub const MAX_TEMPERATURE: f32 = 2.0;
+
+/// Minimum allowed top_p value.
+pub const MIN_TOP_P: f32 = 0.0;
+
+/// Maximum allowed top_p value.
+pub const MAX_TOP_P: f32 = 1.0;
+
+/// Maximum allowed tokens for a single generation.
+pub const MAX_TOKENS_LIMIT: u32 = 128000;
+
+/// Default temperature for generation.
+pub const DEFAULT_TEMPERATURE: f32 = 0.7;
+
+/// Default top_p for generation.
+pub const DEFAULT_TOP_P: f32 = 0.9;
+
+/// Default max tokens for generation.
+pub const DEFAULT_MAX_TOKENS: u32 = 1024;
+
 /// Escape a string for JSON output
 fn escapeJsonString(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-    var result = std.ArrayList(u8){};
+    var result = std.ArrayListUnmanaged(u8).empty;
     errdefer result.deinit(allocator);
 
     for (input) |c| {
@@ -63,9 +91,9 @@ pub const AgentBackend = enum {
 pub const AgentConfig = struct {
     name: []const u8,
     enable_history: bool = true,
-    temperature: f32 = 0.7,
-    top_p: f32 = 0.9,
-    max_tokens: u32 = 1024,
+    temperature: f32 = DEFAULT_TEMPERATURE,
+    top_p: f32 = DEFAULT_TOP_P,
+    max_tokens: u32 = DEFAULT_MAX_TOKENS,
     backend: AgentBackend = .echo,
     model: []const u8 = "gpt-4",
     system_prompt: ?[]const u8 = null,
@@ -73,9 +101,15 @@ pub const AgentConfig = struct {
 
     pub fn validate(self: AgentConfig) AgentError!void {
         if (self.name.len == 0) return AgentError.InvalidConfiguration;
-        if (self.temperature < 0 or self.temperature > 2.0) return AgentError.InvalidConfiguration;
-        if (self.top_p < 0 or self.top_p > 1) return AgentError.InvalidConfiguration;
-        if (self.max_tokens == 0 or self.max_tokens > 128000) return AgentError.InvalidConfiguration;
+        if (self.temperature < MIN_TEMPERATURE or self.temperature > MAX_TEMPERATURE) {
+            return AgentError.InvalidConfiguration;
+        }
+        if (self.top_p < MIN_TOP_P or self.top_p > MAX_TOP_P) {
+            return AgentError.InvalidConfiguration;
+        }
+        if (self.max_tokens == 0 or self.max_tokens > MAX_TOKENS_LIMIT) {
+            return AgentError.InvalidConfiguration;
+        }
     }
 };
 
@@ -215,9 +249,10 @@ pub const Agent = struct {
         defer allocator.free(endpoint);
 
         // Build messages array JSON
-        var messages_json: std.ArrayList(u8) = .{};
+        var messages_json = std.ArrayListUnmanaged(u8).empty;
         defer messages_json.deinit(allocator);
         var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &messages_json);
+        errdefer aw.deinit();
         var writer = &aw.writer;
 
         try writer.writeAll("[");
@@ -233,9 +268,13 @@ pub const Agent = struct {
             // Escape content for JSON
             const escaped_content = try escapeJsonString(allocator, msg.content);
             defer allocator.free(escaped_content);
-            try writer.print("{{\"role\":\"{s}\",\"content\":\"{s}\"}}", .{ role_str, escaped_content });
+            try writer.print(
+                "{{\"role\":\"{s}\",\"content\":\"{s}\"}}",
+                .{ role_str, escaped_content },
+            );
         }
         try writer.writeAll("]");
+        messages_json = aw.toArrayList();
 
         // Build request body
         const request_body = try std.fmt.allocPrint(allocator,
@@ -268,7 +307,9 @@ pub const Agent = struct {
         switch (@typeInfo(@TypeOf(instant.timestamp))) {
             .@"struct" => {
                 // posix timespec - combine tv_sec and tv_nsec
-                seed = @as(u64, @bitCast(@as(i64, instant.timestamp.tv_sec))) ^ @as(u64, @intCast(instant.timestamp.tv_nsec));
+                const sec = @as(u64, @bitCast(@as(i64, instant.timestamp.tv_sec)));
+                const nsec = @as(u64, @intCast(instant.timestamp.tv_nsec));
+                seed = sec ^ nsec;
             },
             .int => {
                 // Windows - raw u64 timestamp
@@ -281,29 +322,53 @@ pub const Agent = struct {
         var prng = std.Random.DefaultPrng.init(seed);
         const random = prng.random();
 
-        var response: http.HttpResponse = while (attempt <= self.config.retry_config.max_attempts) : (attempt += 1) {
+        const max_attempts = self.config.retry_config.max_attempts;
+        var response: http.HttpResponse = while (attempt <= max_attempts) : (attempt += 1) {
             var res = client.fetch(&request) catch |err| {
-                if (attempt >= self.config.retry_config.max_attempts) {
-                    std.log.err("OpenAI API request failed after {d} attempts: {}", .{ attempt + 1, err });
+                if (attempt >= max_attempts) {
+                    std.log.err(
+                        "OpenAI API request failed after {d} attempts: {}",
+                        .{ attempt + 1, err },
+                    );
                     return AgentError.HttpRequestFailed;
                 }
 
-                // TODO: In Zig 0.16, sleep requires I/O context. Immediate retry for now.
-                _ = random; // Keep for jitter when sleep is re-enabled
+                const sleep_ms = if (self.config.retry_config.enable_jitter) blk: {
+                    const jitter_min = backoff_ms / 2;
+                    const jitter_range = backoff_ms - jitter_min;
+                    const jitter = random.intRangeAtMost(u64, 0, jitter_range);
+                    break :blk jitter_min + jitter;
+                } else backoff_ms;
+                if (sleep_ms > 0) {
+                    std.time.sleep(sleep_ms * std.time.ns_per_ms);
+                }
+                const multiplied = @as(f64, @floatFromInt(backoff_ms)) *
+                    self.config.retry_config.backoff_multiplier;
                 backoff_ms = @min(
-                    @as(u64, @intFromFloat(@as(f64, @floatFromInt(backoff_ms)) * self.config.retry_config.backoff_multiplier)),
+                    @as(u64, @intFromFloat(multiplied)),
                     self.config.retry_config.max_backoff_ms,
                 );
                 continue;
             };
 
             // Check if we should retry based on status code
-            if (retry.isStatusRetryable(res.status_code) and attempt < self.config.retry_config.max_attempts) {
+            const is_retryable = retry.isStatusRetryable(res.status_code);
+            if (is_retryable and attempt < max_attempts) {
                 res.deinit();
 
-                // TODO: In Zig 0.16, sleep requires I/O context. Immediate retry for now.
+                const sleep_ms = if (self.config.retry_config.enable_jitter) blk: {
+                    const jitter_min = backoff_ms / 2;
+                    const jitter_range = backoff_ms - jitter_min;
+                    const jitter = random.intRangeAtMost(u64, 0, jitter_range);
+                    break :blk jitter_min + jitter;
+                } else backoff_ms;
+                if (sleep_ms > 0) {
+                    std.time.sleep(sleep_ms * std.time.ns_per_ms);
+                }
+                const multiplied = @as(f64, @floatFromInt(backoff_ms)) *
+                    self.config.retry_config.backoff_multiplier;
                 backoff_ms = @min(
-                    @as(u64, @intFromFloat(@as(f64, @floatFromInt(backoff_ms)) * self.config.retry_config.backoff_multiplier)),
+                    @as(u64, @intFromFloat(multiplied)),
                     self.config.retry_config.max_backoff_ms,
                 );
                 continue;
@@ -311,7 +376,10 @@ pub const Agent = struct {
 
             break res;
         } else {
-            std.log.err("OpenAI API request failed after {d} attempts", .{self.config.retry_config.max_attempts + 1});
+            std.log.err(
+                "OpenAI API request failed after {d} attempts",
+                .{max_attempts + 1},
+            );
             return AgentError.HttpRequestFailed;
         };
         defer response.deinit();
@@ -323,7 +391,10 @@ pub const Agent = struct {
 
         // Check for success
         if (!response.isSuccess()) {
-            std.log.err("OpenAI API returned status {d}: {s}", .{ response.status_code, response.body });
+            std.log.err(
+                "OpenAI API returned status {d}: {s}",
+                .{ response.status_code, response.body },
+            );
             return AgentError.HttpRequestFailed;
         }
 
@@ -378,9 +449,10 @@ pub const Agent = struct {
         defer allocator.free(endpoint);
 
         // Build messages array JSON
-        var messages_json: std.ArrayList(u8) = .{};
+        var messages_json = std.ArrayListUnmanaged(u8).empty;
         defer messages_json.deinit(allocator);
         var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &messages_json);
+        errdefer aw.deinit();
         var writer = &aw.writer;
 
         try writer.writeAll("[");
@@ -396,9 +468,13 @@ pub const Agent = struct {
             // Escape content for JSON
             const escaped_content = try escapeJsonString(allocator, msg.content);
             defer allocator.free(escaped_content);
-            try writer.print("{{\"role\":\"{s}\",\"content\":\"{s}\"}}", .{ role_str, escaped_content });
+            try writer.print(
+                "{{\"role\":\"{s}\",\"content\":\"{s}\"}}",
+                .{ role_str, escaped_content },
+            );
         }
         try writer.writeAll("]");
+        messages_json = aw.toArrayList();
 
         // Build request body (Ollama format)
         const request_body = try std.fmt.allocPrint(allocator,
@@ -422,14 +498,20 @@ pub const Agent = struct {
         try request.setBody(request_body);
 
         var response = client.fetch(&request) catch |err| {
-            std.log.err("Ollama API request failed: {}. Is Ollama running on {s}?", .{ err, ollama_host });
+            std.log.err(
+                "Ollama API request failed: {}. Is Ollama running on {s}?",
+                .{ err, ollama_host },
+            );
             return AgentError.HttpRequestFailed;
         };
         defer response.deinit();
 
         // Check for success
         if (!response.isSuccess()) {
-            std.log.err("Ollama API returned status {d}: {s}", .{ response.status_code, response.body });
+            std.log.err(
+                "Ollama API returned status {d}: {s}",
+                .{ response.status_code, response.body },
+            );
             return AgentError.HttpRequestFailed;
         }
 
@@ -482,9 +564,10 @@ pub const Agent = struct {
         defer allocator.free(endpoint);
 
         // Build input from conversation history
-        var prompt: std.ArrayList(u8) = .{};
+        var prompt = std.ArrayListUnmanaged(u8).empty;
         defer prompt.deinit(allocator);
         var paw: std.Io.Writer.Allocating = .fromArrayList(allocator, &prompt);
+        errdefer paw.deinit();
         var prompt_writer = &paw.writer;
 
         for (self.history.items) |msg| {
@@ -496,6 +579,7 @@ pub const Agent = struct {
             try prompt_writer.print("{s}{s}\n", .{ role_prefix, msg.content });
         }
         try prompt_writer.writeAll("Assistant: ");
+        prompt = paw.toArrayList();
 
         // Build request body (HuggingFace Inference API format)
         const request_body = try std.fmt.allocPrint(allocator,
@@ -533,7 +617,10 @@ pub const Agent = struct {
 
         // Check for success
         if (!response.isSuccess()) {
-            std.log.err("HuggingFace API returned status {d}: {s}", .{ response.status_code, response.body });
+            std.log.err(
+                "HuggingFace API returned status {d}: {s}",
+                .{ response.status_code, response.body },
+            );
             return AgentError.HttpRequestFailed;
         }
 
@@ -586,17 +673,23 @@ pub const Agent = struct {
     }
 
     pub fn setTemperature(self: *Agent, temperature: f32) AgentError!void {
-        if (temperature < 0 or temperature > 2.0) return AgentError.InvalidConfiguration;
+        if (temperature < MIN_TEMPERATURE or temperature > MAX_TEMPERATURE) {
+            return AgentError.InvalidConfiguration;
+        }
         self.config.temperature = temperature;
     }
 
     pub fn setTopP(self: *Agent, top_p: f32) AgentError!void {
-        if (top_p < 0 or top_p > 1) return AgentError.InvalidConfiguration;
+        if (top_p < MIN_TOP_P or top_p > MAX_TOP_P) {
+            return AgentError.InvalidConfiguration;
+        }
         self.config.top_p = top_p;
     }
 
     pub fn setMaxTokens(self: *Agent, max_tokens: u32) AgentError!void {
-        if (max_tokens == 0 or max_tokens > 128000) return AgentError.InvalidConfiguration;
+        if (max_tokens == 0 or max_tokens > MAX_TOKENS_LIMIT) {
+            return AgentError.InvalidConfiguration;
+        }
         self.config.max_tokens = max_tokens;
     }
 

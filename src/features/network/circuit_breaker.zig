@@ -1,5 +1,6 @@
 //! Circuit breaker pattern for network resilience.
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 
 /// Error set for network operations that can be wrapped by the circuit breaker
 pub const NetworkOperationError = error{
@@ -147,7 +148,7 @@ pub const CircuitBreaker = struct {
     }
 
     pub fn onFailure(self: *CircuitBreaker) void {
-        const now_ms = std.time.milliTimestamp();
+        const now_ms = time.nowMilliseconds();
         self.last_failure_time_ms = now_ms;
         self.failure_count += 1;
 
@@ -167,7 +168,7 @@ pub const CircuitBreaker = struct {
     }
 
     pub fn canExecute(self: *const CircuitBreaker) bool {
-        const now_ms = std.time.milliTimestamp();
+        const now_ms = time.nowMilliseconds();
 
         switch (self.state) {
             .closed => return true,
@@ -201,7 +202,7 @@ pub const CircuitBreaker = struct {
     }
 
     pub fn getMetrics(self: *const CircuitBreaker) CircuitMetrics {
-        const now_ms = std.time.milliTimestamp();
+        const now_ms = time.nowMilliseconds();
         const time_to_next_state_ms = if (self.state == .open)
             @max(0, self.open_until_ms - now_ms)
         else
@@ -364,3 +365,4 @@ test "circuit breaker registry" {
 
     try std.testing.expectEqual(@as(usize, 2), registry.breakers.count());
 }
+

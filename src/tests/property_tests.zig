@@ -4,6 +4,7 @@
 //! using randomized inputs and invariants.
 
 const std = @import("std");
+const time = @import("../shared/utils/time.zig");
 
 pub const PropertyTestConfig = struct {
     max_cases: usize = 100,
@@ -104,7 +105,7 @@ pub fn checkProperty(
     var rng = if (config.seed) |seed|
         std.Random.DefaultPrng.init(seed)
     else
-        std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+        std.Random.DefaultPrng.init(@intCast(time.unixMilliseconds()));
 
     var i: usize = 0;
     while (i < config.max_cases) : (i += 1) {
@@ -380,3 +381,4 @@ test "vector normalization property" {
         }
     }
 }
+

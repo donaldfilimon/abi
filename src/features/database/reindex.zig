@@ -1,5 +1,6 @@
 //! Automatic re-indexing for vector databases with background monitoring.
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 const index = @import("index.zig");
 
 pub const ReindexConfig = struct {
@@ -106,7 +107,7 @@ pub const AutoReindexer = struct {
         defer self.mutex.release();
 
         self.metrics.total_checks += 1;
-        self.metrics.last_check_time = std.time.timestamp();
+        self.metrics.last_check_time = time.unixSeconds();
         self.metrics.current_state = .checking;
 
         const fragmentation = self.calculateFragmentation();
@@ -410,3 +411,4 @@ test "fragmentation stats calculation" {
     try std.testing.expectEqual(@as(usize, 10), stats.deleted_records);
     try std.testing.expectEqual(true, stats.fragmentation_ratio > 0);
 }
+

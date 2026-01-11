@@ -4,6 +4,7 @@
 //! and manages graceful degradation to fallback backends.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 const backend = @import("backend.zig");
 
 /// Recovery strategy for device failures.
@@ -171,7 +172,7 @@ pub const RecoveryManager = struct {
             .last_error_time = 0,
             .consecutive_failures = 0,
             .health_check_interval_ms = 5000,
-            .last_health_check = std.time.timestamp(),
+            .last_health_check = time.nowSeconds(),
             .recovery_attempts = 0,
         };
 
@@ -200,7 +201,7 @@ pub const RecoveryManager = struct {
         };
 
         state_ptr.error_count += 1;
-        state_ptr.last_error_time = std.time.timestamp();
+        state_ptr.last_error_time = time.nowSeconds();
         state_ptr.consecutive_failures += 1;
 
         // Update health status based on error type and history
@@ -257,7 +258,7 @@ pub const RecoveryManager = struct {
 
         const state = self.device_health.get(key) orelse return null;
 
-        const uptime = @as(f64, @floatFromInt(std.time.timestamp() - state.last_health_check));
+        const uptime = @as(f64, @floatFromInt(time.nowSeconds() - state.last_health_check));
 
         return .{
             .status = state.status,
@@ -398,7 +399,7 @@ pub const RecoveryManager = struct {
         attempts: u32,
     ) !void {
         const entry = RecoveryHistoryEntry{
-            .timestamp = std.time.timestamp(),
+            .timestamp = time.unixSeconds(),
             .device_key = key,
             .strategy = strategy,
             .success = success,
@@ -482,3 +483,4 @@ test "fallback strategy" {
     try std.testing.expectEqual(RecoveryResult.Action.fallback, result.action);
     try std.testing.expectEqual(backend.Backend.simulated, result.fallback_backend);
 }
+

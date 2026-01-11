@@ -4,6 +4,7 @@
 //! HTTP clients and other network resources.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 
 /// Connection state.
 pub const ConnectionState = enum {
@@ -91,7 +92,7 @@ pub const PooledConnection = struct {
 
     /// Mark connection as used.
     pub fn markUsed(self: *PooledConnection) void {
-        self.stats.last_used_at_ns = std.time.timestamp();
+        self.stats.last_used_at_ns = @intCast(time.nowNanoseconds());
         self.stats.use_count += 1;
     }
 
@@ -112,17 +113,17 @@ pub const PooledConnection = struct {
 
     /// Check if connection is healthy.
     pub fn isHealthy(self: *const PooledConnection, config: ConnectionPoolConfig) bool {
-        const now = std.time.timestamp();
+        const now_ns: i64 = @intCast(time.nowNanoseconds());
 
         // Check idle timeout
-        const idle_time: u64 = @intCast(@max(0, now - self.stats.last_used_at_ns));
-        if (idle_time * 1_000_000_000 > config.idle_timeout_ns) {
+        const idle_time_ns: u64 = @intCast(@max(0, now_ns - self.stats.last_used_at_ns));
+        if (idle_time_ns > config.idle_timeout_ns) {
             return false;
         }
 
         // Check max lifetime
-        const lifetime: u64 = @intCast(@max(0, now - self.stats.created_at_ns));
-        if (lifetime * 1_000_000_000 > config.max_lifetime_ns) {
+        const lifetime_ns: u64 = @intCast(@max(0, now_ns - self.stats.created_at_ns));
+        if (lifetime_ns > config.max_lifetime_ns) {
             return false;
         }
 
@@ -209,15 +210,15 @@ pub const ConnectionPool = struct {
 
         // Create new connection
         const id = self.next_id.fetchAdd(1, .monotonic);
-        const now = std.time.timestamp();
+        const now_ns: i64 = @intCast(time.nowNanoseconds());
 
         const conn = PooledConnection{
             .id = id,
             .host_key = key,
             .state = .in_use,
             .stats = .{
-                .created_at_ns = now,
-                .last_used_at_ns = now,
+                .created_at_ns = now_ns,
+                .last_used_at_ns = now_ns,
                 .use_count = 1,
                 .bytes_sent = 0,
                 .bytes_received = 0,
@@ -481,3 +482,4 @@ test "pool builder" {
     try std.testing.expectEqual(@as(u32, 20), pool.config.max_connections_per_host);
     try std.testing.expectEqual(@as(u32, 200), pool.config.max_total_connections);
 }
+

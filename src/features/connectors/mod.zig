@@ -5,7 +5,7 @@ pub const openai = @import("openai.zig");
 pub const huggingface = @import("huggingface.zig");
 pub const ollama = @import("ollama.zig");
 pub const local_scheduler = @import("local_scheduler.zig");
-pub const discord = @import("discord.zig");
+pub const discord = @import("discord/mod.zig");
 
 var initialized: bool = false;
 

@@ -1,5 +1,6 @@
 //! mTLS (Mutual TLS) support for bidirectional certificate authentication.
 const std = @import("std");
+const time = @import("../utils/time.zig");
 const tls = @import("tls.zig");
 
 pub const MtlsConfig = struct {
@@ -89,7 +90,7 @@ pub const MtlsConnection = struct {
     /// Verify a client certificate against the CA and policies.
     /// Returns true if the certificate is valid and trusted.
     pub fn verifyClientCertificate(self: *MtlsConnection, cert: *const tls.TlsCertificate) !bool {
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         // Check certificate validity period
         if (now < cert.valid_from) {
@@ -156,7 +157,7 @@ pub const MtlsConnection = struct {
         if (!self.is_verified or self.verification_time == 0) {
             return -1;
         }
-        return std.time.timestamp() - self.verification_time;
+        return time.unixSeconds() - self.verification_time;
     }
 
     pub fn getClientCertificateInfo(self: *MtlsConnection) ?*const ClientCertificateInfo {
@@ -221,9 +222,9 @@ pub const CertificateAuthority = struct {
         const serial_str = try std.fmt.allocPrint(self.allocator, "{d}", .{serial});
         errdefer self.allocator.free(serial_str);
 
-        try self.issued_certificates.put(self.allocator, serial_str, std.time.timestamp());
+        try self.issued_certificates.put(self.allocator, serial_str, time.unixSeconds());
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
         return .{
             .der_encoding = try self.allocator.alloc(u8, 0),
             .common_name = try self.allocator.dupe(u8, subject_cn),
@@ -368,8 +369,8 @@ test "mtls policy" {
         .der_encoding = &.{},
         .common_name = "allowed.example.com",
         .organization = "Test",
-        .valid_from = std.time.timestamp(),
-        .valid_until = std.time.timestamp() + 86400 * 30,
+        .valid_from = time.unixSeconds(),
+        .valid_until = time.unixSeconds() + 86400 * 30,
         .is_ca = false,
         .subject_alt_names = &.{},
     };
@@ -377,3 +378,4 @@ test "mtls policy" {
     const valid = try policy.validateCertificate(&cert);
     try std.testing.expect(valid);
 }
+

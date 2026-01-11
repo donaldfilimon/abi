@@ -288,11 +288,14 @@ fn benchJsonParsing(allocator: std.mem.Allocator, json: []const u8) !void {
 }
 
 fn benchJsonStringify(allocator: std.mem.Allocator, value: anytype) !void {
-    var buffer = std.ArrayListUnmanaged(u8){};
-    defer buffer.deinit(allocator);
+    var aw = std.Io.Writer.Allocating.init(allocator);
+    errdefer aw.deinit();
+    const writer = &aw.writer;
 
-    try std.json.stringify(value, .{}, buffer.writer(allocator));
-    std.mem.doNotOptimizeAway(buffer.items.ptr);
+    try std.json.stringify(value, .{}, writer);
+    const payload = try aw.toOwnedSlice();
+    defer allocator.free(payload);
+    std.mem.doNotOptimizeAway(payload.ptr);
 }
 
 // ============================================================================

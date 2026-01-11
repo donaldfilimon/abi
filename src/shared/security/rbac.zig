@@ -1,5 +1,6 @@
 //! Role-based access control (RBAC) implementation.
 const std = @import("std");
+const time = @import("../utils/time.zig");
 
 pub const Permission = enum {
     read,
@@ -138,7 +139,7 @@ pub const RbacManager = struct {
         const assignment = RoleAssignment{
             .user_id = try self.allocator.dupe(u8, user_id),
             .role_name = try self.allocator.dupe(u8, role_name),
-            .granted_at = std.time.timestamp(),
+            .granted_at = time.unixSeconds(),
             .granted_by = granted_by_copy,
             .expires_at = null,
         };
@@ -402,3 +403,4 @@ test "rbac role revocation" {
     const has_admin = try rbac.hasPermission("user1", .admin);
     try std.testing.expect(!has_admin);
 }
+

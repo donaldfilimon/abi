@@ -4,6 +4,7 @@
 //! across multiple compute nodes.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 
 pub const SchedulerError = error{
     NodeUnavailable,
@@ -186,7 +187,7 @@ pub const TaskScheduler = struct {
             .priority = priority,
             .state = .pending,
             .node_id = node_id_copy,
-            .submit_time = std.time.milliTimestamp(),
+            .submit_time = time.nowMilliseconds(),
             .start_time = null,
             .end_time = null,
         };
@@ -331,7 +332,7 @@ test "scheduler adds and removes nodes" {
         .status = .online,
         .cpu_count = 8,
         .active_tasks = 0,
-        .last_heartbeat = std.time.milliTimestamp(),
+        .last_heartbeat = time.nowMilliseconds(),
     };
 
     try scheduler.addNode(node);
@@ -369,3 +370,4 @@ test "scheduler round robin selection" {
         try std.testing.expectEqual(expected[i], selected.?);
     }
 }
+

@@ -4,6 +4,7 @@
 //! managing groups of tasks with collective wait operations.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 const cancellation = @import("cancellation.zig");
 const future = @import("future.zig");
 
@@ -177,7 +178,7 @@ pub const TaskGroup = struct {
         }
 
         const id = self.next_id.fetchAdd(1, .monotonic);
-        const now = std.time.timestamp();
+        const now: i64 = @intCast(time.nowNanoseconds());
 
         const task = Task{
             .id = id,
@@ -202,7 +203,7 @@ pub const TaskGroup = struct {
         self.mutex.lock();
         self.tasks.items[task_idx].state = .running;
         if (self.config.track_timing) {
-            self.tasks.items[task_idx].start_time_ns = std.time.timestamp();
+            self.tasks.items[task_idx].start_time_ns = @intCast(time.nowNanoseconds());
         }
         const func = self.tasks.items[task_idx].func;
         const user_data = self.tasks.items[task_idx].user_data;
@@ -240,7 +241,7 @@ pub const TaskGroup = struct {
             };
 
             if (self.config.track_timing) {
-                self.tasks.items[task_idx].end_time_ns = std.time.timestamp();
+                self.tasks.items[task_idx].end_time_ns = @intCast(time.nowNanoseconds());
             }
 
             switch (result) {
@@ -614,3 +615,4 @@ test "task group builder" {
     try std.testing.expect(group.config.cancel_on_failure);
     try std.testing.expectEqualStrings("test-group", group.config.name.?);
 }
+
