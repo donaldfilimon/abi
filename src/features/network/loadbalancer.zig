@@ -290,11 +290,13 @@ pub const LoadBalancer = struct {
     }
 
     /// Get statistics for all nodes.
-    pub fn getStats(self: *LoadBalancer) []const NodeStats {
+    /// Caller must free the returned slice with `allocator.free(slice)`.
+    pub fn getStats(self: *LoadBalancer, allocator: std.mem.Allocator) ![]NodeStats {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        var stats = self.allocator.alloc(NodeStats, self.nodes.items.len) catch return &.{};
+        if (self.nodes.items.len == 0) return &.{};
+        const stats = try allocator.alloc(NodeStats, self.nodes.items.len);
 
         for (self.nodes.items, 0..) |*node, i| {
             stats[i] = .{

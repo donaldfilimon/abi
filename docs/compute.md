@@ -56,7 +56,7 @@ When retrieving results or waiting for tasks, proper timeout handling is crucial
 
 ### CPU Affinity
 
-On supported platforms (Linux, Windows), the engine can pind worker threads to specific cores using `abi.compute.AffinityMask`.
+On supported platforms (Linux, Windows), the engine can pin worker threads to specific cores using `abi.compute.AffinityMask`.
 
 ### NUMA Awareness
 

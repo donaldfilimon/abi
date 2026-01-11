@@ -225,7 +225,7 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
     allocator.destroy(kernel);
 }
 
-pub fn allocateDeviceMemory(size: usize) !*anyopaque {
+pub fn allocateDeviceMemory(allocator: std.mem.Allocator, size: usize) !*anyopaque {
     if (!metal_initialized or metal_device == null) {
         return MetalError.BufferCreationFailed;
     }
@@ -238,7 +238,9 @@ pub fn allocateDeviceMemory(size: usize) !*anyopaque {
         return MetalError.BufferCreationFailed;
     }
 
-    const metal_buffer = try std.heap.page_allocator.create(MetalBuffer);
+    const metal_buffer = try allocator.create(MetalBuffer);
+    errdefer allocator.destroy(metal_buffer);
+
     metal_buffer.* = .{
         .buffer = buffer,
         .size = size,
@@ -247,10 +249,10 @@ pub fn allocateDeviceMemory(size: usize) !*anyopaque {
     return metal_buffer;
 }
 
-pub fn freeDeviceMemory(ptr: *anyopaque) void {
+pub fn freeDeviceMemory(allocator: std.mem.Allocator, ptr: *anyopaque) void {
     const buffer: *MetalBuffer = @ptrCast(@alignCast(ptr));
     // Metal objects are reference counted, so they clean up automatically
-    std.heap.page_allocator.destroy(buffer);
+    allocator.destroy(buffer);
 }
 
 pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {

@@ -1,15 +1,55 @@
-//! Features Overview
-
-The **features** directory groups optional capabilities that can be toggled via the `build_options` flags in `build.zig`. Each feature lives in its own subdirectory and provides a `mod.zig` for public exposure.
-
-| Feature | Flag | Description |
-|---------|------|-------------|
-| AI | `enable‑ai` | Machine‑learning utilities, model loading, inference pipelines |
-| Database | `enable‑database` | Database drivers, connection pooling, query abstractions |
-| GPU | `enable‑gpu` | GPU compute back‑ends, shader compilation, device management |
-| Monitoring | `enable‑monitoring` | Metrics collection, health checks, alerts |
-| Network | `enable‑network` | Advanced networking stacks, protocols, security layers |
-| Web | `enable‑web` | HTTP server framework, routing, templating |
-
-Each feature may depend on core or compute modules. The modular layout lets developers compile only the needed pieces, keeping binary size minimal.
-
+//! # Features Module
+//!
+//! Optional capabilities toggled via build flags. Each feature provides a `mod.zig` for public API.
+//!
+//! ## Feature Flags
+//!
+//! | Feature | Flag | Default | Description |
+//! |---------|------|---------|-------------|
+//! | AI | `-Denable-ai` | true | LLM inference, embeddings, RAG, connectors |
+//! | Database | `-Denable-database` | true | WDBX vector database, HNSW indexing |
+//! | GPU | `-Denable-gpu` | true | GPU compute backends, memory pools |
+//! | Monitoring | `-Denable-profiling` | true | Metrics, tracing, OpenTelemetry |
+//! | Network | `-Denable-network` | true | Distributed compute, node discovery |
+//! | Web | `-Denable-web` | true | HTTP utilities, server helpers |
+//!
+//! ## Sub-modules
+//!
+//! | Directory | Description |
+//! |-----------|-------------|
+//! | `ai/` | AI features (LLM, embeddings, RAG, explore, streaming) |
+//! | `connectors/` | API connectors (OpenAI, HuggingFace, Ollama) |
+//! | `database/` | WDBX vector database with HNSW |
+//! | `gpu/` | GPU backend stubs and feature detection |
+//! | `monitoring/` | Observability and metrics |
+//! | `network/` | Network features (discovery, HA, circuit breaker) |
+//! | `web/` | Web utilities and HTTP helpers |
+//!
+//! ## Stub Modules
+//!
+//! When a feature is disabled, stub modules return `error.*Disabled`:
+//!
+//! ```zig
+//! const impl = if (build_options.enable_ai)
+//!     @import("ai/mod.zig")
+//! else
+//!     @import("ai/stub.zig");
+//! ```
+//!
+//! ## Usage
+//!
+//! ```zig
+//! const abi = @import("abi");
+//!
+//! // AI (if enabled)
+//! const response = try abi.ai.chat("Hello!");
+//!
+//! // Database (if enabled)
+//! var db = try abi.wdbx.createDatabase(allocator, "vectors.db", .{});
+//! defer abi.wdbx.closeDatabase(db);
+//! ```
+//!
+//! ## See Also
+//!
+//! - [Build Documentation](../../README.md)
+//! - [API Reference](../../API_REFERENCE.md)

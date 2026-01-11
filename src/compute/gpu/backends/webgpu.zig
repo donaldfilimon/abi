@@ -253,7 +253,7 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
     allocator.destroy(kernel);
 }
 
-pub fn allocateDeviceMemory(size: usize) !*anyopaque {
+pub fn allocateDeviceMemory(allocator: std.mem.Allocator, size: usize) !*anyopaque {
     if (!webgpu_initialized or webgpu_device == null) {
         return WebGpuError.BufferCreationFailed;
     }
@@ -266,7 +266,9 @@ pub fn allocateDeviceMemory(size: usize) !*anyopaque {
         return WebGpuError.BufferCreationFailed;
     }
 
-    const webgpu_buffer = try std.heap.page_allocator.create(WebGpuBuffer);
+    const webgpu_buffer = try allocator.create(WebGpuBuffer);
+    errdefer allocator.destroy(webgpu_buffer);
+
     webgpu_buffer.* = .{
         .buffer = buffer,
         .size = size,
@@ -275,10 +277,10 @@ pub fn allocateDeviceMemory(size: usize) !*anyopaque {
     return webgpu_buffer;
 }
 
-pub fn freeDeviceMemory(ptr: *anyopaque) void {
+pub fn freeDeviceMemory(allocator: std.mem.Allocator, ptr: *anyopaque) void {
     const buffer: *WebGpuBuffer = @ptrCast(@alignCast(ptr));
     // WebGPU objects are typically cleaned up automatically
-    std.heap.page_allocator.destroy(buffer);
+    allocator.destroy(buffer);
 }
 
 pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {

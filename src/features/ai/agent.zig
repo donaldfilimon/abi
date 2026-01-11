@@ -8,6 +8,32 @@ const std = @import("std");
 const build_options = @import("build_options");
 const http = @import("../../shared/utils/http/async_http.zig");
 const retry = @import("../../shared/utils/retry.zig");
+const connectors = @import("../connectors/mod.zig");
+
+/// Escape a string for JSON output
+fn escapeJsonString(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
+    var result = std.ArrayList(u8){};
+    errdefer result.deinit(allocator);
+
+    for (input) |c| {
+        switch (c) {
+            '"' => try result.appendSlice(allocator, "\\\""),
+            '\\' => try result.appendSlice(allocator, "\\\\"),
+            '\n' => try result.appendSlice(allocator, "\\n"),
+            '\r' => try result.appendSlice(allocator, "\\r"),
+            '\t' => try result.appendSlice(allocator, "\\t"),
+            // Other control characters (excluding \n=0x0A, \r=0x0D, \t=0x09)
+            0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
+                var buf: [6]u8 = undefined;
+                _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch unreachable;
+                try result.appendSlice(allocator, &buf);
+            },
+            else => try result.append(allocator, c),
+        }
+    }
+
+    return result.toOwnedSlice(allocator);
+}
 
 pub const AgentError = error{
     InvalidConfiguration,
@@ -104,10 +130,12 @@ pub const Agent = struct {
         return self.history.items;
     }
 
-    /// Get history as string slices for backward compatibility
-    pub fn historyStrings(self: *const Agent) []const []const u8 {
-        // Return just the content strings
-        var strings = self.allocator.alloc([]const u8, self.history.items.len) catch return &.{};
+    /// Get history as string slices for backward compatibility.
+    /// Caller must free the returned slice with `allocator.free(slice)`.
+    /// Returns null on allocation failure.
+    pub fn historyStrings(self: *const Agent, allocator: std.mem.Allocator) ?[]const []const u8 {
+        if (self.history.items.len == 0) return &.{};
+        const strings = allocator.alloc([]const u8, self.history.items.len) catch return null;
         for (self.history.items, 0..) |msg, i| {
             strings[i] = msg.content;
         }
@@ -171,15 +199,15 @@ pub const Agent = struct {
         _ = input;
 
         // Get API key from environment
-        const api_key_cstr = std.c.getenv("ABI_OPENAI_API_KEY") orelse
-            std.c.getenv("OPENAI_API_KEY") orelse
-            return AgentError.ApiKeyMissing;
-        const api_key = try allocator.dupe(u8, std.mem.span(api_key_cstr));
+        const api_key = try connectors.getFirstEnvOwned(allocator, &.{
+            "ABI_OPENAI_API_KEY",
+            "OPENAI_API_KEY",
+        }) orelse return AgentError.ApiKeyMissing;
         defer allocator.free(api_key);
 
         // Get base URL (default to OpenAI)
-        const base_url_cstr = std.c.getenv("ABI_OPENAI_BASE_URL");
-        const base_url = if (base_url_cstr) |env| try allocator.dupe(u8, std.mem.span(env)) else try allocator.dupe(u8, "https://api.openai.com/v1");
+        const base_url = try connectors.getEnvOwned(allocator, "ABI_OPENAI_BASE_URL") orelse
+            try allocator.dupe(u8, "https://api.openai.com/v1");
         defer allocator.free(base_url);
 
         // Build the full API endpoint
@@ -187,9 +215,10 @@ pub const Agent = struct {
         defer allocator.free(endpoint);
 
         // Build messages array JSON
-        var messages_json = std.ArrayList(u8).init(allocator);
-        defer messages_json.deinit();
-        const writer = messages_json.writer();
+        var messages_json: std.ArrayList(u8) = .{};
+        defer messages_json.deinit(allocator);
+        var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &messages_json);
+        var writer = &aw.writer;
 
         try writer.writeAll("[");
         for (self.history.items, 0..) |msg, i| {
@@ -201,9 +230,10 @@ pub const Agent = struct {
                 .assistant => "assistant",
             };
 
-            try writer.print("{{\"role\":\"{s}\",\"content\":", .{role_str});
-            try std.json.encodeJsonString(msg.content, .{}, writer);
-            try writer.writeAll("}");
+            // Escape content for JSON
+            const escaped_content = try escapeJsonString(allocator, msg.content);
+            defer allocator.free(escaped_content);
+            try writer.print("{{\"role\":\"{s}\",\"content\":\"{s}\"}}", .{ role_str, escaped_content });
         }
         try writer.writeAll("]");
 
@@ -232,25 +262,34 @@ pub const Agent = struct {
         // Retry with exponential backoff
         var attempt: u32 = 0;
         var backoff_ms = self.config.retry_config.initial_backoff_ms;
-        var prng = std.rand.DefaultPrng.init(@as(u64, @intCast(std.time.milliTimestamp())));
+        // Use Instant.now() for seeding PRNG in Zig 0.16
+        const instant = std.time.Instant.now() catch return AgentError.GenerationFailed;
+        var seed: u64 = undefined;
+        switch (@typeInfo(@TypeOf(instant.timestamp))) {
+            .@"struct" => {
+                // posix timespec - combine tv_sec and tv_nsec
+                seed = @as(u64, @bitCast(@as(i64, instant.timestamp.tv_sec))) ^ @as(u64, @intCast(instant.timestamp.tv_nsec));
+            },
+            .int => {
+                // Windows - raw u64 timestamp
+                seed = instant.timestamp;
+            },
+            else => {
+                seed = 0; // Fallback
+            },
+        }
+        var prng = std.Random.DefaultPrng.init(seed);
         const random = prng.random();
 
         var response: http.HttpResponse = while (attempt <= self.config.retry_config.max_attempts) : (attempt += 1) {
-            const res = client.fetch(&request) catch |err| {
+            var res = client.fetch(&request) catch |err| {
                 if (attempt >= self.config.retry_config.max_attempts) {
                     std.log.err("OpenAI API request failed after {d} attempts: {}", .{ attempt + 1, err });
                     return AgentError.HttpRequestFailed;
                 }
 
-                // Wait before retrying
-                const actual_backoff = if (self.config.retry_config.enable_jitter) blk: {
-                    const jitter_min = backoff_ms / 2;
-                    const jitter_range = backoff_ms - jitter_min;
-                    const jitter = random.intRangeAtMost(u64, 0, jitter_range);
-                    break :blk jitter_min + jitter;
-                } else backoff_ms;
-
-                std.time.sleep(actual_backoff * std.time.ns_per_ms);
+                // TODO: In Zig 0.16, sleep requires I/O context. Immediate retry for now.
+                _ = random; // Keep for jitter when sleep is re-enabled
                 backoff_ms = @min(
                     @as(u64, @intFromFloat(@as(f64, @floatFromInt(backoff_ms)) * self.config.retry_config.backoff_multiplier)),
                     self.config.retry_config.max_backoff_ms,
@@ -262,14 +301,7 @@ pub const Agent = struct {
             if (retry.isStatusRetryable(res.status_code) and attempt < self.config.retry_config.max_attempts) {
                 res.deinit();
 
-                const actual_backoff = if (self.config.retry_config.enable_jitter) blk: {
-                    const jitter_min = backoff_ms / 2;
-                    const jitter_range = backoff_ms - jitter_min;
-                    const jitter = random.intRangeAtMost(u64, 0, jitter_range);
-                    break :blk jitter_min + jitter;
-                } else backoff_ms;
-
-                std.time.sleep(actual_backoff * std.time.ns_per_ms);
+                // TODO: In Zig 0.16, sleep requires I/O context. Immediate retry for now.
                 backoff_ms = @min(
                     @as(u64, @intFromFloat(@as(f64, @floatFromInt(backoff_ms)) * self.config.retry_config.backoff_multiplier)),
                     self.config.retry_config.max_backoff_ms,
@@ -330,14 +362,15 @@ pub const Agent = struct {
         _ = input;
 
         // Get Ollama host (default to localhost:11434)
-        const ollama_host_cstr = std.c.getenv("ABI_OLLAMA_HOST") orelse
-            std.c.getenv("OLLAMA_HOST");
-        const ollama_host = if (ollama_host_cstr) |env| try allocator.dupe(u8, std.mem.span(env)) else try allocator.dupe(u8, "http://127.0.0.1:11434");
+        const ollama_host = try connectors.getFirstEnvOwned(allocator, &.{
+            "ABI_OLLAMA_HOST",
+            "OLLAMA_HOST",
+        }) orelse try allocator.dupe(u8, "http://127.0.0.1:11434");
         defer allocator.free(ollama_host);
 
         // Get model name (use config or environment)
-        const model_name_cstr = std.c.getenv("ABI_OLLAMA_MODEL");
-        const model_name = if (model_name_cstr) |env| try allocator.dupe(u8, std.mem.span(env)) else try allocator.dupe(u8, self.config.model);
+        const model_name = try connectors.getEnvOwned(allocator, "ABI_OLLAMA_MODEL") orelse
+            try allocator.dupe(u8, self.config.model);
         defer allocator.free(model_name);
 
         // Build the full API endpoint
@@ -345,9 +378,10 @@ pub const Agent = struct {
         defer allocator.free(endpoint);
 
         // Build messages array JSON
-        var messages_json = std.ArrayList(u8).init(allocator);
-        defer messages_json.deinit();
-        const writer = messages_json.writer();
+        var messages_json: std.ArrayList(u8) = .{};
+        defer messages_json.deinit(allocator);
+        var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &messages_json);
+        var writer = &aw.writer;
 
         try writer.writeAll("[");
         for (self.history.items, 0..) |msg, i| {
@@ -359,9 +393,10 @@ pub const Agent = struct {
                 .assistant => "assistant",
             };
 
-            try writer.print("{{\"role\":\"{s}\",\"content\":", .{role_str});
-            try std.json.encodeJsonString(msg.content, .{}, writer);
-            try writer.writeAll("}");
+            // Escape content for JSON
+            const escaped_content = try escapeJsonString(allocator, msg.content);
+            defer allocator.free(escaped_content);
+            try writer.print("{{\"role\":\"{s}\",\"content\":\"{s}\"}}", .{ role_str, escaped_content });
         }
         try writer.writeAll("]");
 
@@ -430,16 +465,16 @@ pub const Agent = struct {
         _ = input;
 
         // Get API token from environment
-        const api_token_cstr = std.c.getenv("ABI_HF_API_TOKEN") orelse
-            std.c.getenv("HF_API_TOKEN") orelse
-            std.c.getenv("HUGGING_FACE_HUB_TOKEN") orelse
-            return AgentError.ApiKeyMissing;
-        const api_token = try allocator.dupe(u8, std.mem.span(api_token_cstr));
+        const api_token = try connectors.getFirstEnvOwned(allocator, &.{
+            "ABI_HF_API_TOKEN",
+            "HF_API_TOKEN",
+            "HUGGING_FACE_HUB_TOKEN",
+        }) orelse return AgentError.ApiKeyMissing;
         defer allocator.free(api_token);
 
         // Get base URL (default to HuggingFace Inference API)
-        const base_url_cstr = std.c.getenv("ABI_HF_BASE_URL");
-        const base_url = if (base_url_cstr) |env| try allocator.dupe(u8, std.mem.span(env)) else try allocator.dupe(u8, "https://api-inference.huggingface.co");
+        const base_url = try connectors.getEnvOwned(allocator, "ABI_HF_BASE_URL") orelse
+            try allocator.dupe(u8, "https://api-inference.huggingface.co");
         defer allocator.free(base_url);
 
         // Build the full API endpoint
@@ -447,9 +482,10 @@ pub const Agent = struct {
         defer allocator.free(endpoint);
 
         // Build input from conversation history
-        var prompt = std.ArrayList(u8).init(allocator);
-        defer prompt.deinit();
-        const prompt_writer = prompt.writer();
+        var prompt: std.ArrayList(u8) = .{};
+        defer prompt.deinit(allocator);
+        var paw: std.Io.Writer.Allocating = .fromArrayList(allocator, &prompt);
+        var prompt_writer = &paw.writer;
 
         for (self.history.items) |msg| {
             const role_prefix = switch (msg.role) {

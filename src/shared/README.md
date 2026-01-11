@@ -1,12 +1,41 @@
-//! Shared Utilities Overview
-
-The **shared** package contains cross‑cutting concerns used throughout the ABI framework.
-
-* `logging` – Structured, leveled logging with optional back‑ends.
-* `observability` – Metrics, tracing, and diagnostic helpers.
-* `platform` – OS‑specific abstractions (file handles, threading, etc.).
-* `plugins` – Plugin registration and discovery system.
-* `utils` – General‑purpose utility libraries (crypto, encoding, file‑system, HTTP, JSON, math, networking, string handling).
-
-Each subdirectory ships a `mod.zig` that re‑exports its symbols, and the top‑level `src/shared/mod.zig` aggregates them for convenient importing.
-
+//! # Shared Utilities
+//!
+//! Cross-cutting concerns used throughout the ABI framework.
+//!
+//! ## Sub-modules
+//!
+//! | Module | Description |
+//! |--------|-------------|
+//! | `logging/` | Structured, leveled logging with backends |
+//! | `observability/` | Metrics, tracing, and diagnostics |
+//! | `platform/` | OS-specific abstractions (threads, files) |
+//! | `plugins/` | Plugin registration and discovery |
+//! | `security/` | API keys, authentication |
+//! | `utils/` | General utilities (crypto, encoding, fs, http, json, math, net, string) |
+//!
+//! ## Usage
+//!
+//! ```zig
+//! const shared = @import("abi").shared;
+//!
+//! // Logging
+//! shared.logging.info("Starting service", .{});
+//!
+//! // Platform
+//! const cpu_count = shared.platform.getCpuCount();
+//!
+//! // Utils
+//! const hash = shared.utils.crypto.sha256(data);
+//! const json = try shared.utils.json.parse(allocator, text);
+//! ```
+//!
+//! ## Import Pattern
+//!
+//! Each subdirectory has a `mod.zig` that re-exports its symbols.
+//! The top-level `src/shared/mod.zig` aggregates all sub-modules.
+//!
+//! ## See Also
+//!
+//! - [Logging](logging/README.md)
+//! - [Platform](platform/README.md)
+//! - [Utils](utils/README.md)

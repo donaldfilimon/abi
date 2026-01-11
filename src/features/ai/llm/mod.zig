@@ -231,7 +231,7 @@ pub const Engine = struct {
             .temperature = self.config.temperature,
             .top_k = self.config.top_k,
             .top_p = self.config.top_p,
-            .stop_tokens = &[_]u32{ m.tokenizer.eos_token_id },
+            .stop_tokens = &[_]u32{m.tokenizer.eos_token_id},
         });
         defer gen.deinit();
 

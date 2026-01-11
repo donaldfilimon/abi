@@ -1,25 +1,38 @@
 //! CPU-based simulation of GPU kernels for backend fallback and testing.
+//!
+//! This backend provides CPU-based implementations of common GPU operations
+//! for testing and fallback scenarios when no GPU is available.
+
 const std = @import("std");
 const types = @import("../kernel_types.zig");
 
+pub const SimulatedError = error{
+    UnsupportedKernel,
+    InvalidArguments,
+    ArgumentCountMismatch,
+};
+
 pub const KernelHandle = struct {
+    allocator: std.mem.Allocator,
     name: []const u8,
 };
 
 pub fn compile(
     allocator: std.mem.Allocator,
     source: types.KernelSource,
-) types.KernelError!*anyopaque {
-    const handle = allocator.create(KernelHandle) catch
-        return types.KernelError.CompilationFailed;
+) (types.KernelError || SimulatedError)!*anyopaque {
+    const handle = try allocator.create(KernelHandle);
     errdefer allocator.destroy(handle);
 
+    const name = try allocator.dupe(u8, source.name);
+    errdefer allocator.free(name);
+
     handle.* = .{
-        .name = allocator.dupe(u8, source.name) catch {
-            return types.KernelError.CompilationFailed;
-        },
+        .allocator = allocator,
+        .name = name,
     };
 
+    std.log.debug("Simulated kernel compiled: {s}", .{name});
     return handle;
 }
 
@@ -28,21 +41,30 @@ pub fn launch(
     kernel_handle: *anyopaque,
     config: types.KernelConfig,
     args: []const ?*const anyopaque,
-) types.KernelError!void {
+) (types.KernelError || SimulatedError)!void {
     _ = allocator;
     _ = config;
 
     const handle: *KernelHandle = @ptrCast(@alignCast(kernel_handle));
+
     if (std.ascii.eqlIgnoreCase(handle.name, "vector_add")) {
-        return launchVectorAdd(args);
+        try launchVectorAdd(args);
+        std.log.debug("Simulated kernel launched: vector_add", .{});
+        return;
     }
     if (std.ascii.eqlIgnoreCase(handle.name, "matmul")) {
-        return launchMatMul(args);
+        try launchMatMul(args);
+        std.log.debug("Simulated kernel launched: matmul", .{});
+        return;
     }
     if (std.ascii.eqlIgnoreCase(handle.name, "reduce_sum")) {
-        return launchReduceSum(args);
+        try launchReduceSum(args);
+        std.log.debug("Simulated kernel launched: reduce_sum", .{});
+        return;
     }
-    return types.KernelError.LaunchFailed;
+
+    std.log.warn("Unsupported simulated kernel: {s}", .{handle.name});
+    return SimulatedError.UnsupportedKernel;
 }
 
 pub fn destroy(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
@@ -55,9 +77,9 @@ fn argPtrConst(
     comptime T: type,
     args: []const ?*const anyopaque,
     index: usize,
-) types.KernelError!*const T {
-    if (index >= args.len) return types.KernelError.InvalidArguments;
-    const raw = args[index] orelse return types.KernelError.InvalidArguments;
+) SimulatedError!*const T {
+    if (index >= args.len) return SimulatedError.ArgumentCountMismatch;
+    const raw = args[index] orelse return SimulatedError.InvalidArguments;
     return @ptrCast(@alignCast(raw));
 }
 
@@ -65,12 +87,12 @@ fn argPtrMut(
     comptime T: type,
     args: []const ?*const anyopaque,
     index: usize,
-) types.KernelError!*T {
+) SimulatedError!*T {
     const ptr = try argPtrConst(T, args, index);
     return @constCast(ptr);
 }
 
-fn launchVectorAdd(args: []const ?*const anyopaque) types.KernelError!void {
+fn launchVectorAdd(args: []const ?*const anyopaque) SimulatedError!void {
     const a_ptr = try argPtrConst(f32, args, 0);
     const b_ptr = try argPtrConst(f32, args, 1);
     const c_ptr = try argPtrMut(f32, args, 2);
@@ -79,15 +101,14 @@ fn launchVectorAdd(args: []const ?*const anyopaque) types.KernelError!void {
     const n = @as(usize, @intCast(n_ptr.*));
     const a_many: [*]const f32 = @ptrCast(@alignCast(a_ptr));
     const b_many: [*]const f32 = @ptrCast(@alignCast(b_ptr));
-    var c_many: [*]f32 = @ptrCast(@alignCast(c_ptr));
+    const c_many: [*]f32 = @ptrCast(@alignCast(c_ptr));
 
-    var i: usize = 0;
-    while (i < n) : (i += 1) {
+    for (0..n) |i| {
         c_many[i] = a_many[i] + b_many[i];
     }
 }
 
-fn launchMatMul(args: []const ?*const anyopaque) types.KernelError!void {
+fn launchMatMul(args: []const ?*const anyopaque) SimulatedError!void {
     const a_ptr = try argPtrConst(f32, args, 0);
     const b_ptr = try argPtrConst(f32, args, 1);
     const c_ptr = try argPtrMut(f32, args, 2);
@@ -101,15 +122,12 @@ fn launchMatMul(args: []const ?*const anyopaque) types.KernelError!void {
 
     const a_many: [*]const f32 = @ptrCast(@alignCast(a_ptr));
     const b_many: [*]const f32 = @ptrCast(@alignCast(b_ptr));
-    var c_many: [*]f32 = @ptrCast(@alignCast(c_ptr));
+    const c_many: [*]f32 = @ptrCast(@alignCast(c_ptr));
 
-    var row: usize = 0;
-    while (row < m) : (row += 1) {
-        var col: usize = 0;
-        while (col < n) : (col += 1) {
+    for (0..m) |row| {
+        for (0..n) |col| {
             var sum: f32 = 0.0;
-            var idx: usize = 0;
-            while (idx < k) : (idx += 1) {
+            for (0..k) |idx| {
                 sum += a_many[row * k + idx] * b_many[idx * n + col];
             }
             c_many[row * n + col] = sum;
@@ -117,18 +135,17 @@ fn launchMatMul(args: []const ?*const anyopaque) types.KernelError!void {
     }
 }
 
-fn launchReduceSum(args: []const ?*const anyopaque) types.KernelError!void {
+fn launchReduceSum(args: []const ?*const anyopaque) SimulatedError!void {
     const input_ptr = try argPtrConst(f32, args, 0);
     const output_ptr = try argPtrMut(f32, args, 1);
     const n_ptr = try argPtrConst(u32, args, 2);
 
     const n = @as(usize, @intCast(n_ptr.*));
     const input_many: [*]const f32 = @ptrCast(@alignCast(input_ptr));
-    var output_many: [*]f32 = @ptrCast(@alignCast(output_ptr));
+    const output_many: [*]f32 = @ptrCast(@alignCast(output_ptr));
 
     var sum: f32 = 0.0;
-    var i: usize = 0;
-    while (i < n) : (i += 1) {
+    for (0..n) |i| {
         sum += input_many[i];
     }
     output_many[0] = sum;

@@ -96,19 +96,16 @@ Check GPU status and capabilities:
 
 ```bash
 # List available backends and their status
-abi gpu backends
+zig build run -- gpu backends
 
 # Show GPU module summary
-abi gpu summary
+zig build run -- gpu summary
 
 # List detected GPU devices (shows native vs fallback mode)
-abi gpu devices
+zig build run -- gpu devices
 
 # Show default GPU device
-abi gpu default
-
-# Show detailed CUDA status (native vs fallback)
-abi gpu status
+zig build run -- gpu default
 ```
 
 ## Building with GPU Support
