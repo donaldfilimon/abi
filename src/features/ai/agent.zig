@@ -130,10 +130,12 @@ pub const Agent = struct {
         return self.history.items;
     }
 
-    /// Get history as string slices for backward compatibility
-    pub fn historyStrings(self: *const Agent) []const []const u8 {
-        // Return just the content strings
-        var strings = self.allocator.alloc([]const u8, self.history.items.len) catch return &.{};
+    /// Get history as string slices for backward compatibility.
+    /// Caller must free the returned slice with `allocator.free(slice)`.
+    /// Returns null on allocation failure.
+    pub fn historyStrings(self: *const Agent, allocator: std.mem.Allocator) ?[]const []const u8 {
+        if (self.history.items.len == 0) return &.{};
+        const strings = allocator.alloc([]const u8, self.history.items.len) catch return null;
         for (self.history.items, 0..) |msg, i| {
             strings[i] = msg.content;
         }

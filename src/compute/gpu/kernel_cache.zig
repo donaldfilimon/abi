@@ -2,6 +2,10 @@
 //!
 //! Provides caching for compiled GPU kernels to avoid
 //! redundant compilation and improve startup time.
+//!
+//! TODO(zig-0.16): Disk persistence functions (persistToDisk, loadFromDisk)
+//! use std.fs.cwd() which needs refactoring to use std.Io.Dir.cwd(io)
+//! with proper I/O context for full Zig 0.16 compliance.
 
 const std = @import("std");
 
