@@ -15,15 +15,30 @@ defer engine.deinit();
 
 ### Workloads
 
-A `Workload` is a unit of execution. It can be a simple closure or a complex struct implementing the Workload VTable.
+A `Workload` (also called a task) is a unit of execution. It can be a simple closure or a complex struct implementing the Workload VTable.
 
 ```zig
 fn myTask(_: std.mem.Allocator) !u32 {
     return 42;
 }
 
-// Run a task
+// Run a task (submit and wait for result)
 const result = try abi.compute.runTask(&engine, u32, myTask, 1000);
+
+// Alternative: use runWorkload (alias for runTask)
+const result2 = try abi.compute.runWorkload(&engine, u32, myTask, 1000);
+```
+
+### Submitting and Retrieving Results
+
+You can also submit tasks and retrieve results separately:
+
+```zig
+// Submit task for execution
+const task_id = try abi.compute.submitTask(&engine, u32, myTask);
+
+// Wait for result with timeout
+const result = try abi.compute.waitForResult(&engine, u32, task_id, 1000);
 ```
 
 ## Timeout Semantics

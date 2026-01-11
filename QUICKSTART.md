@@ -26,46 +26,79 @@ zig build benchmarks              # Run performance benchmarks
 
 ### Basic Initialization
 
+### Basic Framework Usage (Zig 0.16)
+
 ```zig
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
-    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
-    std.debug.print("ABI version: {s}\n", .{abi.version()});
+    std.debug.print("ABI v{s} initialized\n", .{abi.version()});
 }
 ```
 
-### Compute Engine
+### Compute Engine Example
 
 ```zig
 const std = @import("std");
 const abi = @import("abi");
 
-fn computeTask(_: std.mem.Allocator) !u32 {
-    return 42;
-}
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
+    defer abi.shutdown(&framework);
 
-    var engine = try abi.compute.createDefaultEngine(gpa.allocator());
+    var engine = try abi.compute.createDefaultEngine(allocator);
     defer engine.deinit();
 
-    const result = try abi.compute.runTask(&engine, u32, computeTask, 1000);
-    std.debug.print("Result: {d}\n", .{result});
+    // Option 1: Submit and wait separately
+    const task_id = try abi.compute.submitTask(&engine, u64, exampleTask);
+    const result1 = try abi.compute.waitForResult(&engine, u64, task_id, 1000);
+    std.debug.print("Result 1: {d}\n", .{result1});
+
+    // Option 2: Submit and wait in one call
+    const result2 = try abi.compute.runTask(&engine, u64, exampleTask, 1000);
+    std.debug.print("Result 2: {d}\n", .{result2});
+
+    // Option 3: Using runWorkload (alias for runTask)
+    const result3 = try abi.compute.runWorkload(&engine, u64, exampleTask, 1000);
+    std.debug.print("Result 3: {d}\n", .{result3});
 }
 ```
 
-## Module Map
+### AI Agent Example
 
-Primary modules:
+```zig
+const std = @import("std");
+const abi = @import("abi");
+
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+
+    var framework = try abi.init(allocator, abi.FrameworkOptions{
+        .enable_ai = true,
+    });
+    defer abi.shutdown(&framework);
+
+    var agent = try abi.ai.Agent.init(allocator, .{
+        .name = "assistant",
+        .temperature = 0.7,
+    });
+    defer agent.deinit();
+
+    const response = try agent.chat("Hello!", allocator);
+    defer allocator.free(response);
+    std.debug.print("Agent: {s}\n", .{response});
+}
+```
+
+## Module map
 
 | Module | Description |
 |--------|-------------|
