@@ -37,8 +37,8 @@ pub fn escapeJsonContent(allocator: std.mem.Allocator, str: []const u8) ![]u8 {
             '\n' => try escaped.appendSlice(allocator, "\\n"),
             '\r' => try escaped.appendSlice(allocator, "\\r"),
             '\t' => try escaped.appendSlice(allocator, "\\t"),
-            0x00...0x1F => {
-                // Escape control characters as \uXXXX
+            0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
+                // Escape other control characters as \uXXXX
                 var buf: [6]u8 = undefined;
                 _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch unreachable;
                 try escaped.appendSlice(allocator, &buf);

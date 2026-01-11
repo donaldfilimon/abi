@@ -115,33 +115,6 @@ pub const execute_webhook_tool = Tool{
     .execute = &executeWebhook,
 };
 
-/// Create a thread from a message
-pub const create_thread_tool = Tool{
-    .name = "discord_create_thread",
-    .description = "Create a new thread from a message in a Discord channel.",
-    .parameters = &[_]Parameter{
-        .{
-            .name = "channel_id",
-            .type = .string,
-            .required = true,
-            .description = "The ID of the channel containing the message",
-        },
-        .{
-            .name = "message_id",
-            .type = .string,
-            .required = true,
-            .description = "The ID of the message to create a thread from",
-        },
-        .{
-            .name = "name",
-            .type = .string,
-            .required = true,
-            .description = "The name of the thread (1-100 characters)",
-        },
-    },
-    .execute = &executeCreateThread,
-};
-
 /// Add a reaction to a message
 pub const add_reaction_tool = Tool{
     .name = "discord_add_reaction",
@@ -386,40 +359,6 @@ fn executeWebhook(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult
     return ToolResult.init(allocator, true, "Webhook executed successfully.");
 }
 
-fn executeCreateThread(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
-    const allocator = ctx.allocator;
-
-    const obj = args.object;
-    const channel_id = obj.get("channel_id") orelse {
-        return ToolResult.fromError(allocator, "Missing required parameter: channel_id");
-    };
-    const message_id = obj.get("message_id") orelse {
-        return ToolResult.fromError(allocator, "Missing required parameter: message_id");
-    };
-    const name = obj.get("name") orelse {
-        return ToolResult.fromError(allocator, "Missing required parameter: name");
-    };
-
-    if (channel_id != .string or message_id != .string or name != .string) {
-        return ToolResult.fromError(allocator, "Invalid parameter types");
-    }
-
-    var client = discord.createClient(allocator) catch {
-        return ToolResult.fromError(allocator, "Failed to create Discord client");
-    };
-    defer client.deinit();
-
-    const thread = client.startThreadFromMessage(channel_id.string, message_id.string, name.string) catch {
-        return ToolResult.fromError(allocator, "Failed to create thread");
-    };
-
-    const output = std.fmt.allocPrint(allocator, "Thread created successfully. ID: {s}", .{thread.id}) catch {
-        return ToolExecutionError.OutOfMemory;
-    };
-
-    return ToolResult.init(allocator, true, output);
-}
-
 fn executeAddReaction(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
     const allocator = ctx.allocator;
 
@@ -462,7 +401,7 @@ fn executeGetMessages(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
         return ToolResult.fromError(allocator, "Invalid parameter type for channel_id");
     }
 
-    var limit: u32 = 50;
+    var limit: ?u8 = 50;
     if (obj.get("limit")) |limit_val| {
         if (limit_val == .integer) {
             const l = limit_val.integer;
@@ -517,7 +456,6 @@ pub const all_tools = [_]*const Tool{
     &list_guilds_tool,
     &get_bot_info_tool,
     &execute_webhook_tool,
-    &create_thread_tool,
     &add_reaction_tool,
     &get_messages_tool,
 };
@@ -540,7 +478,6 @@ test "discord tool definitions" {
     try std.testing.expectEqualStrings("discord_list_guilds", list_guilds_tool.name);
     try std.testing.expectEqualStrings("discord_get_bot_info", get_bot_info_tool.name);
     try std.testing.expectEqualStrings("discord_execute_webhook", execute_webhook_tool.name);
-    try std.testing.expectEqualStrings("discord_create_thread", create_thread_tool.name);
     try std.testing.expectEqualStrings("discord_add_reaction", add_reaction_tool.name);
     try std.testing.expectEqualStrings("discord_get_messages", get_messages_tool.name);
 }

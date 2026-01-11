@@ -20,7 +20,12 @@ comptime {
     if (build_options.enable_explore) {
         _ = abi.ai.explore;
     }
+    // Connector tests
+    _ = @import("connectors_test.zig");
 }
+
+// Connector tests
+pub const connectors_test = @import("connectors_test.zig");
 
 // Property-based testing framework
 pub const proptest = @import("proptest.zig");
