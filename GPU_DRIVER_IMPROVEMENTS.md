@@ -274,3 +274,8 @@ All code written for Zig 0.16-dev:
 - Compliant with new error handling patterns
 - Proper use of allocator and memory management
 - Compatible with modern Zig type system
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

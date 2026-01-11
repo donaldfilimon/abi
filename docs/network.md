@@ -144,3 +144,8 @@ const result = try breaker.call(fn () !Response {
 
 - [Compute Engine](compute.md) - Local task execution
 - [API Reference](../API_REFERENCE.md) - Full API documentation
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

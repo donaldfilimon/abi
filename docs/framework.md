@@ -111,3 +111,8 @@ if (registry.findByName("my-connector")) |plugin| {
 ### Auto-Discovery
 
 Enable automatic plugin discovery by setting `auto_discover_plugins = true` in `FrameworkOptions`. The framework will scan all paths in `plugin_paths` for compatible plugins.
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

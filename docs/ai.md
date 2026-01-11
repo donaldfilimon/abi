@@ -4,20 +4,25 @@ The **AI** module (`abi.ai`) provides the building blocks for creating autonomou
 
 ## Connectors
 
-Connectors provide a unified interface to various model providers.
+Connectors provide a unified interface to various model providers and platforms.
 
-Supported (or planned) providers:
+### Model Providers
 
-- **OpenAI** (`abi.connectors.openai`)
-- **Ollama** (`abi.connectors.ollama`)
-- **HuggingFace** (`abi.connectors.huggingface`)
+- **OpenAI** (`abi.connectors.openai`) - GPT-4, GPT-3.5, embeddings
+- **Ollama** (`abi.connectors.ollama`) - Local LLM inference
+- **HuggingFace** (`abi.connectors.huggingface`) - Inference API
+
+### Platform Integrations
+
+- **Discord** (`abi.connectors.discord`) - Discord Bot API for messaging, webhooks, and interactions
 
 ### Configuration
 
 Connectors are typically configured via environment variables for security.
 
-- `ABI_OPENAI_API_KEY`
-- `ABI_OLLAMA_HOST`
+- `ABI_OPENAI_API_KEY` - OpenAI API key
+- `ABI_OLLAMA_HOST` - Ollama server URL (default: `http://127.0.0.1:11434`)
+- `DISCORD_BOT_TOKEN` - Discord bot authentication token
 
 ## Training
 The training pipeline (`abi.ai.training`) supports gradient accumulation and
@@ -77,3 +82,35 @@ const response = try agent.chat("How do I write a Hello World in Zig?");
 | `.ollama` | Ollama local models (default: `http://127.0.0.1:11434`) |
 | `.huggingface` | HuggingFace Inference API |
 | `.local` | Local scheduler |
+
+## Discord Integration
+
+Discord tools are available for AI agents to interact with Discord servers.
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `discord_send_message` | Send messages to channels |
+| `discord_get_channel` | Get channel information |
+| `discord_list_guilds` | List connected servers |
+| `discord_get_bot_info` | Get bot user details |
+| `discord_execute_webhook` | Execute webhooks |
+| `discord_add_reaction` | Add reactions to messages |
+| `discord_get_messages` | Retrieve channel messages |
+
+### Example
+
+```zig
+const discord_tools = @import("abi").ai.tools.discord;
+
+// Register all Discord tools with an agent's tool registry
+try discord_tools.registerAll(&agent.tool_registry);
+
+// Tools can now be called by the agent during conversations
+```
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

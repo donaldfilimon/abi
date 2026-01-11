@@ -84,6 +84,10 @@ const io = io_backend.io();
 
 ## Documentation
 
+## Contacts
+
+`src/shared/contacts.zig` provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+
 | Document | Description |
 |----------|-------------|
 | [CLAUDE.md](CLAUDE.md) | Comprehensive agent guidance |
@@ -91,3 +95,4 @@ const io = io_backend.io();
 | [API_REFERENCE.md](API_REFERENCE.md) | Public API documentation |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development workflow |
 | [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) | Zig 0.16 patterns |
+| [src/shared/contacts.zig](src/shared/contacts.zig) | Centralized maintainer contacts |

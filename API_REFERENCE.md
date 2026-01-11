@@ -58,10 +58,31 @@ implementation details.
 
 **Breaking Change (0.2.1)**: Prior to version 0.2.1, `timeout_ms=0` returned `ResultNotFound` after one check. This behavior has changed to return `EngineError.Timeout` immediately for clarity. Migration: Use `timeout_ms=1000` for a one-second timeout.
 
+## Connectors API
+
+External service integrations accessible via `abi.connectors`:
+
+- `abi.connectors.openai` - OpenAI GPT-4, GPT-3.5, embeddings
+- `abi.connectors.ollama` - Local LLM inference via Ollama
+- `abi.connectors.huggingface` - HuggingFace Inference API
+- `abi.connectors.discord` - Discord Bot API (REST, webhooks, interactions)
+
+**Discord Convenience Exports:**
+
+- `abi.discord` - Direct access to Discord connector
+- `abi.DiscordClient` - Discord REST API client
+- `abi.DiscordConfig` - Configuration struct
+- `abi.DiscordTools` - AI agent tools for Discord
+
 ## Modules
 
 - `src/core` - I/O, diagnostics, collections
-- `src/features` - feature modules (AI, GPU, database, web, monitoring)
+- `src/features` - feature modules (AI, GPU, database, web, monitoring, connectors)
 - `src/framework` - orchestration runtime and lifecycle management
 - `src/shared` - shared utilities and platform helpers
 - `src/compute` - compute runtime, memory management, concurrency
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

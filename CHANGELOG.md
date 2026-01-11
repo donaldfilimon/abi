@@ -275,3 +275,8 @@ Updated all feature documentation with new APIs and examples.
 - Removed deprecated benchmarks, examples, and legacy test suites.
 - Consolidated feature exports and build options for Zig 0.16.
 - Updated documentation and project structure.
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+
