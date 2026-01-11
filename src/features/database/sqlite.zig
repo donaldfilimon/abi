@@ -541,4 +541,3 @@ test "in-memory database count and clear" {
 
     try std.testing.expectEqual(@as(usize, 0), db.count());
 }
-

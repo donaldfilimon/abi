@@ -633,4 +633,3 @@ test "memory type conversion" {
     try std.testing.expectEqualStrings("hybrid", memoryTypeToString(.hybrid));
     try std.testing.expectEqualStrings("short_term", memoryTypeToString(.short_term));
 }
-

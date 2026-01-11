@@ -301,4 +301,3 @@ test "load balancer round robin" {
     const third = balancer.selectInstance(&instances).?;
     try std.testing.expectEqualStrings("svc-1", third.id);
 }
-

@@ -336,4 +336,3 @@ test "distributed database stats" {
     try std.testing.expect(stats.is_distributed);
     try std.testing.expectEqual(@as(usize, 2), stats.node_count);
 }
-

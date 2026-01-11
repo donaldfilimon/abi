@@ -370,4 +370,3 @@ test "scheduler round robin selection" {
         try std.testing.expectEqual(expected[i], selected.?);
     }
 }
-

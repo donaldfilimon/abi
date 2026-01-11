@@ -438,4 +438,3 @@ test "transfer metrics" {
     try std.testing.expectEqual(@as(u64, 1), summary.total_h2d_transfers);
     try std.testing.expectEqual(@as(u64, 1), summary.total_d2h_transfers);
 }
-

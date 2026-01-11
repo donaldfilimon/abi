@@ -374,6 +374,23 @@ var timer = std.time.Timer.start() catch return error.TimerFailed;
 const elapsed_ns = timer.read();
 ```
 
+### Sleep API
+
+Use `std.Io`-based sleep instead of `std.time.sleep()`:
+
+```zig
+// Preferred - use shared/utils/time.zig helpers
+const time = @import("shared/utils/time.zig");
+time.sleepMs(100);  // Sleep 100 milliseconds
+
+// Or directly with Io context
+const duration = std.Io.Clock.Duration{
+    .clock = .awake,
+    .raw = .fromNanoseconds(nanoseconds),
+};
+std.Io.Clock.Duration.sleep(duration, io) catch {};
+```
+
 ### Aligned Memory Allocation
 
 For aligned allocations, use `std.mem.Alignment`:
@@ -617,10 +634,11 @@ const results = try abi.wdbx.searchVectors(db, &query, 10);
 Use `<type>: <summary>` format. Keep summaries ≤ 72 chars. Focus commits; update docs when APIs change.
 
 ## Architecture References
-## Contacts
-
-`src/shared/contacts.zig` provides a centralized list of maintainer contacts extracted from the repository markdown files.
 
 - System overview: `docs/intro.md`
 - API surface: `API_REFERENCE.md`
 - Migration guide: `docs/migration/zig-0.16-migration.md`
+
+## Contacts
+
+`src/shared/contacts.zig` provides a centralized list of maintainer contacts extracted from the repository markdown files.

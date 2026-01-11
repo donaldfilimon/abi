@@ -203,4 +203,3 @@ test "span lifecycle" {
     span.end();
     try std.testing.expect(span.end_time > span.start_time);
 }
-

@@ -485,4 +485,3 @@ test "rate limiter unified" {
     const stats = limiter.getStats();
     try std.testing.expectEqual(RateLimitAlgorithm.token_bucket, stats.algorithm);
 }
-

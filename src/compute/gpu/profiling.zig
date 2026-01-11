@@ -368,4 +368,3 @@ test "profiler tracks timings" {
     try std.testing.expectEqual(@as(usize, 1), summary.total_kernels);
     try std.testing.expect(summary.total_time_ms > 0.0);
 }
-

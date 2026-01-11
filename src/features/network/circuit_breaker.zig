@@ -365,4 +365,3 @@ test "circuit breaker registry" {
 
     try std.testing.expectEqual(@as(usize, 2), registry.breakers.count());
 }
-

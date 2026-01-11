@@ -411,4 +411,3 @@ test "fragmentation stats calculation" {
     try std.testing.expectEqual(@as(usize, 10), stats.deleted_records);
     try std.testing.expectEqual(true, stats.fragmentation_ratio > 0);
 }
-

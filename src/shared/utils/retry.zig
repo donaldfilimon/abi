@@ -209,4 +209,3 @@ test "status code retryable detection" {
     try std.testing.expect(!isStatusRetryable(404)); // Not found
     try std.testing.expect(!isStatusRetryable(401)); // Unauthorized
 }
-

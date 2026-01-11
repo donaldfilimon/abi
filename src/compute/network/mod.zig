@@ -542,4 +542,3 @@ test "task serialization preserves null cpu affinity" {
 fn unsupportedExecute(_: *workload.ExecutionContext, _: *anyopaque) workload.WorkloadError!workload.ResultHandle {
     return workload.ResultHandle.fromSlice(&.{});
 }
-

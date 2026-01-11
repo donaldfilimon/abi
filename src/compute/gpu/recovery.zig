@@ -483,4 +483,3 @@ test "fallback strategy" {
     try std.testing.expectEqual(RecoveryResult.Action.fallback, result.action);
     try std.testing.expectEqual(backend.Backend.simulated, result.fallback_backend);
 }
-

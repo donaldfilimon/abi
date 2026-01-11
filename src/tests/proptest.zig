@@ -566,4 +566,3 @@ test "assertions sorted" {
     try std.testing.expect(Assertions.assertSorted(i32, &sorted, lessThan));
     try std.testing.expect(!Assertions.assertSorted(i32, &unsorted, lessThan));
 }
-

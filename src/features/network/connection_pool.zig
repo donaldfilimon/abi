@@ -482,4 +482,3 @@ test "pool builder" {
     try std.testing.expectEqual(@as(u32, 20), pool.config.max_connections_per_host);
     try std.testing.expectEqual(@as(u32, 200), pool.config.max_total_connections);
 }
-

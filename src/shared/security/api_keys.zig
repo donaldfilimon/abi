@@ -356,4 +356,3 @@ test "api key revocation" {
     const validated = try manager.validateKey(generated.key_plain);
     try std.testing.expectEqual(null, validated);
 }
-

@@ -403,4 +403,3 @@ test "rbac role revocation" {
     const has_admin = try rbac.hasPermission("user1", .admin);
     try std.testing.expect(!has_admin);
 }
-

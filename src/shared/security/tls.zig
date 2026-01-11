@@ -590,4 +590,3 @@ test "certificate revocation" {
     try std.testing.expect(store.isRevoked("serial123"));
     try std.testing.expect(!store.isRevoked("serial456"));
 }
-
