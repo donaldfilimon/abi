@@ -82,7 +82,6 @@ pub const DiscoveryError = error{
     InvalidResponse,
     AuthenticationFailed,
     ConnectionTimeout,
-    ConnectionFailed,
     InvalidConfiguration,
 };
 

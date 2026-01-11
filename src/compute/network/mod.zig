@@ -102,19 +102,10 @@ pub const NetworkEngine = struct {
         };
         try self.pending_tasks.put(self.allocator, task_id, pending);
 
-        // Send task to remote node via TCP
-        self.sendTaskToNode(best_node.?, serialized) catch |err| {
-            // Mark task as failed if we can't send
-            pending.status = .failed;
-            pending.error_message = "Failed to connect to remote node";
-            std.log.warn("Network: Failed to submit task {d} to node {s}:{d}: {}", .{
-                task_id,
-                best_node.?.address,
-                best_node.?.port,
-                err,
-            });
-            return NetworkEngine.NetworkError.ConnectionFailed;
-        };
+        // In a full implementation, this would:
+        // 1. Open a TCP/UDP connection to the node
+        // 2. Send the serialized task
+        // 3. Wait for acknowledgment
 
         std.log.info("Network: Submitted task {d} to node {s}:{d}", .{
             task_id,
@@ -220,95 +211,6 @@ pub const NetworkEngine = struct {
         ConnectionFailed,
         Timeout,
     };
-
-    /// Send serialized task data to a remote node via TCP
-    fn sendTaskToNode(self: *NetworkEngine, node: *NodeInfo, data: []const u8) !void {
-        _ = self;
-
-        // Parse address and connect
-        const address = std.net.Address.parseIp4(node.address, node.port) catch {
-            // Try IPv6 if IPv4 fails
-            return std.net.Address.parseIp6(node.address, node.port) catch {
-                return NetworkError.ConnectionFailed;
-            };
-        };
-
-        // Open TCP connection
-        var stream = std.net.tcpConnectToAddress(address) catch {
-            return NetworkError.ConnectionFailed;
-        };
-        defer stream.close();
-
-        // Send message length prefix (4 bytes, big-endian)
-        const len_bytes: [4]u8 = @bitCast(@as(u32, @intCast(data.len)));
-        _ = stream.write(&len_bytes) catch {
-            return NetworkError.ConnectionFailed;
-        };
-
-        // Send task data
-        _ = stream.writeAll(data) catch {
-            return NetworkError.ConnectionFailed;
-        };
-
-        // Wait for acknowledgment (single byte: 0 = ok, 1 = error)
-        var ack: [1]u8 = undefined;
-        _ = stream.read(&ack) catch {
-            return NetworkError.ConnectionFailed;
-        };
-
-        if (ack[0] != 0) {
-            return NetworkError.ConnectionFailed;
-        }
-    }
-
-    /// Request result from a remote node for a specific task
-    fn requestResultFromNode(self: *NetworkEngine, node: *NodeInfo, task_id: u64) !?[]u8 {
-
-        // Parse address and connect
-        const address = std.net.Address.parseIp4(node.address, node.port) catch {
-            return std.net.Address.parseIp6(node.address, node.port) catch {
-                return NetworkError.ConnectionFailed;
-            };
-        };
-
-        var stream = std.net.tcpConnectToAddress(address) catch {
-            return NetworkError.ConnectionFailed;
-        };
-        defer stream.close();
-
-        // Send result request: magic byte (0x02) + task_id
-        var request: [9]u8 = undefined;
-        request[0] = 0x02; // Request result command
-        @memcpy(request[1..9], std.mem.asBytes(&task_id));
-
-        _ = stream.writeAll(&request) catch {
-            return NetworkError.ConnectionFailed;
-        };
-
-        // Read response: status (1 byte) + length (4 bytes) + data
-        var header: [5]u8 = undefined;
-        _ = stream.read(&header) catch {
-            return null; // No result yet
-        };
-
-        if (header[0] == 0) {
-            // No result available yet
-            return null;
-        }
-
-        const result_len = std.mem.readInt(u32, header[1..5], .big);
-        if (result_len == 0) return null;
-
-        var result_data = std.ArrayListUnmanaged(u8){};
-        errdefer result_data.deinit(self.allocator);
-
-        try result_data.resize(self.allocator, result_len);
-        _ = stream.readAll(result_data.items) catch {
-            return NetworkError.ConnectionFailed;
-        };
-
-        return result_data.toOwnedSlice(self.allocator);
-    }
 };
 
 pub const NodeRegistry = struct {

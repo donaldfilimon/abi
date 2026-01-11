@@ -298,15 +298,15 @@ pub const DependencyAnalyzer = struct {
     pub fn deinit(_: *DependencyAnalyzer) void {}
 };
 
-pub fn createDefaultAgent(_: std.mem.Allocator) !ExploreAgent {
+pub fn createDefaultAgent(_: std.mem.Allocator) ExploreAgent {
     return .{};
 }
 
-pub fn createQuickAgent(_: std.mem.Allocator) !ExploreAgent {
+pub fn createQuickAgent(_: std.mem.Allocator) ExploreAgent {
     return .{};
 }
 
-pub fn createThoroughAgent(_: std.mem.Allocator) !ExploreAgent {
+pub fn createThoroughAgent(_: std.mem.Allocator) ExploreAgent {
     return .{};
 }
 

@@ -21,7 +21,7 @@ pub const SummaryConfig = struct {
     /// Summarization strategy.
     strategy: SummarizationStrategy = .rolling,
     /// Custom summarization function (optional).
-    summarize_fn: ?*const fn ([]const Message, std.mem.Allocator) anyerror![]u8 = null,
+    summarize_fn: ?*const fn ([]const Message, std.mem.Allocator) (std.mem.Allocator.Error || error{SummarizationFailed})![]u8 = null,
 };
 
 /// Summarization strategy.

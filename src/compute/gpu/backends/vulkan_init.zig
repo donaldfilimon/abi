@@ -188,7 +188,6 @@ fn destroyVulkanContext(ctx: *VulkanContext) void {
 
 fn selectPhysicalDevice(instance: types.VkInstance) !types.VkPhysicalDevice {
     const enumerate_fn = vkEnumeratePhysicalDevices orelse return VulkanError.PhysicalDeviceNotFound;
-    const get_props_fn = vkGetPhysicalDeviceProperties orelse return VulkanError.PhysicalDeviceNotFound;
 
     var device_count: u32 = 0;
     var result = enumerate_fn(instance, &device_count, null);
@@ -204,37 +203,13 @@ fn selectPhysicalDevice(instance: types.VkInstance) !types.VkPhysicalDevice {
         return VulkanError.PhysicalDeviceNotFound;
     }
 
-    // Select best device: prefer discrete GPU > integrated GPU > virtual GPU > CPU > other
-    var best_device: ?types.VkPhysicalDevice = null;
-    var best_score: i32 = -1;
-
+    // Select first discrete GPU, or first available device
     for (devices) |device| {
-        var props: types.VkPhysicalDeviceProperties = .{};
-        get_props_fn(device, @ptrCast(&props));
-
-        const score: i32 = switch (props.deviceType) {
-            .discrete_gpu => 4,
-            .integrated_gpu => 3,
-            .virtual_gpu => 2,
-            .cpu => 1,
-            .other => 0,
-        };
-
-        if (score > best_score) {
-            best_score = score;
-            best_device = device;
-
-            // Log selected device info
-            const name_slice = std.mem.sliceTo(&props.deviceName, 0);
-            std.log.debug("vulkan: Found device: {s} (type: {s}, score: {})", .{
-                name_slice,
-                @tagName(props.deviceType),
-                score,
-            });
-        }
+        // For now, just return the first device
+        return device;
     }
 
-    return best_device orelse VulkanError.PhysicalDeviceNotFound;
+    return VulkanError.PhysicalDeviceNotFound;
 }
 
 fn findComputeQueueFamily(physical_device: types.VkPhysicalDevice) !u32 {

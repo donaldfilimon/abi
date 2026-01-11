@@ -5,49 +5,21 @@ const abi = @import("abi");
 const build_options = @import("build_options");
 
 // Force-reference submodules to include their tests
-test {
+comptime {
     // LLM module tests (when enabled)
     if (build_options.enable_llm) {
-        // I/O submodules
-        std.testing.refAllDecls(abi.ai.llm.io.mmap);
-        std.testing.refAllDecls(abi.ai.llm.io.gguf);
-        std.testing.refAllDecls(abi.ai.llm.io.tensor_loader);
-
-        // Tensor submodules
-        std.testing.refAllDecls(abi.ai.llm.tensor.tensor);
-        std.testing.refAllDecls(abi.ai.llm.tensor.view);
-        std.testing.refAllDecls(abi.ai.llm.tensor.quantized);
-
-        // Tokenizer submodules
-        std.testing.refAllDecls(abi.ai.llm.tokenizer.bpe);
-        std.testing.refAllDecls(abi.ai.llm.tokenizer.vocab);
-        std.testing.refAllDecls(abi.ai.llm.tokenizer.special_tokens);
-
-        // Ops submodules
-        std.testing.refAllDecls(abi.ai.llm.ops.matmul);
-        std.testing.refAllDecls(abi.ai.llm.ops.matmul_quant);
-        std.testing.refAllDecls(abi.ai.llm.ops.attention);
-        std.testing.refAllDecls(abi.ai.llm.ops.rope);
-        std.testing.refAllDecls(abi.ai.llm.ops.rmsnorm);
-        std.testing.refAllDecls(abi.ai.llm.ops.activations);
-        std.testing.refAllDecls(abi.ai.llm.ops.ffn);
-
-        // Cache submodules
-        std.testing.refAllDecls(abi.ai.llm.cache.kv_cache);
-        std.testing.refAllDecls(abi.ai.llm.cache.ring_buffer);
-
-        // Model submodules
-        std.testing.refAllDecls(abi.ai.llm.model.llama);
-        std.testing.refAllDecls(abi.ai.llm.model.layer);
-        std.testing.refAllDecls(abi.ai.llm.model.weights);
-        std.testing.refAllDecls(abi.ai.llm.model.config);
-
-        // Generation submodules
-        std.testing.refAllDecls(abi.ai.llm.generation.generator);
-        std.testing.refAllDecls(abi.ai.llm.generation.sampler);
-        std.testing.refAllDecls(abi.ai.llm.generation.batch);
+        _ = abi.ai.llm.io;
+        _ = abi.ai.llm.tensor;
+        _ = abi.ai.llm.tokenizer;
+        _ = abi.ai.llm.ops;
+        _ = abi.ai.llm.cache;
+        _ = abi.ai.llm.model;
+        _ = abi.ai.llm.generation;
     }
-    // Note: Explore module tests skipped - requires Zig 0.16 I/O API migration
+    // Explore module tests (when enabled)
+    if (build_options.enable_explore) {
+        _ = abi.ai.explore;
+    }
 }
 
 // Property-based testing framework

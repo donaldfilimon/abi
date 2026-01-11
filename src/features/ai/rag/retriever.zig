@@ -6,6 +6,14 @@ const std = @import("std");
 const chunker = @import("chunker.zig");
 const Chunk = chunker.Chunk;
 
+/// Common AI processing errors
+pub const AIError = std.mem.Allocator.Error || error{
+    EmbeddingFailed,
+    ModelNotLoaded,
+    InvalidInput,
+    ProcessingTimeout,
+};
+
 /// Retriever configuration.
 pub const RetrieverConfig = struct {
     /// Number of results to return.
@@ -15,7 +23,7 @@ pub const RetrieverConfig = struct {
     /// Embedding dimension.
     embedding_dim: usize = 384,
     /// Custom embedding function.
-    embed_fn: ?*const fn ([]const u8, std.mem.Allocator) anyerror![]f32 = null,
+    embed_fn: ?*const fn ([]const u8, std.mem.Allocator) AIError![]f32 = null,
     /// Similarity metric.
     similarity_metric: SimilarityMetric = .cosine,
 };

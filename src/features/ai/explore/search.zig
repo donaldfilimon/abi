@@ -13,6 +13,7 @@ pub const SearchPattern = struct {
     raw: []const u8,
     pattern_type: PatternType,
     literal: ?[]const u8 = null,
+    lowercase_literal: ?[]const u8 = null,
     glob_pattern: ?[]const u8 = null,
     regex_pattern: ?[]const u8 = null,
     fuzzy_chars: ?[]const u8 = null,
@@ -21,6 +22,7 @@ pub const SearchPattern = struct {
 
     pub fn deinit(self: *SearchPattern, allocator: std.mem.Allocator) void {
         if (self.literal) |lit| allocator.free(lit);
+        if (self.lowercase_literal) |lit| allocator.free(lit);
         if (self.glob_pattern) |pat| allocator.free(pat);
         if (self.regex_pattern) |pat| allocator.free(pat);
         if (self.fuzzy_chars) |chars| allocator.free(chars);
@@ -61,10 +63,20 @@ pub const PatternCompiler = struct {
 
     fn compileLiteral(self: *PatternCompiler, pattern: []const u8, case_sensitive: bool) !SearchPattern {
         const lit = try self.allocator.dupe(u8, pattern);
+        errdefer self.allocator.free(lit);
+
+        // Pre-compute lowercase version for case-insensitive searches
+        const lowercase_lit = if (!case_sensitive) blk: {
+            const lower = try self.allocator.alloc(u8, pattern.len);
+            _ = std.ascii.lowerString(lower, pattern);
+            break :blk lower;
+        } else null;
+
         return SearchPattern{
             .raw = pattern,
             .pattern_type = .literal,
             .literal = lit,
+            .lowercase_literal = lowercase_lit,
             .case_sensitive = case_sensitive,
         };
     }
@@ -109,13 +121,22 @@ pub const PatternCompiler = struct {
 };
 
 pub fn matchLiteral(pattern: SearchPattern, text: []const u8) bool {
-    const search_text = if (pattern.case_sensitive) text else std.ascii.lowerString(text, text.len);
-    const search_pat = if (pattern.case_sensitive and pattern.literal != null) pattern.literal.? else blk: {
-        const pat = pattern.literal orelse return false;
-        break :blk if (pattern.case_sensitive) pat else std.ascii.lowerString(pat, pat.len);
+    const search_lit = if (pattern.case_sensitive)
+        pattern.literal.?
+    else
+        pattern.lowercase_literal.?;
+
+    // For case-insensitive search, use stack buffer for temporary lowercase text
+    var text_buf: [4096]u8 = undefined;
+    const search_text = if (pattern.case_sensitive)
+        text
+    else blk: {
+        if (text.len > text_buf.len) return false; // Skip extremely large strings
+        _ = std.ascii.lowerString(&text_buf, text);
+        break :blk text_buf[0..text.len];
     };
 
-    return std.mem.indexOf(u8, search_text, search_pat) != null;
+    return std.mem.indexOf(u8, search_text, search_lit) != null;
 }
 
 pub fn matchGlob(pattern: SearchPattern, text: []const u8) bool {

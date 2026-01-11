@@ -267,7 +267,7 @@ var writer = file.writer(io);
 try writer.writeAll(content);
 ```
 
-**Note**: `std.fs.cwd()` does not exist in Zig 0.16. Always use `std.Io.Dir.cwd()` with an I/O context.
+**Note**: `std.fs.cwd()` does not exist in Zig 0.16. Use `std.Io.Dir.cwd()` (passing an `std.io` context) instead.
 
 ### Windows-Specific File Operations
 

@@ -83,9 +83,6 @@ pub const TaskTool = struct {
     task_ids: std.StringHashMap(usize),
     semaphore: std.Thread.Semaphore,
     next_task_id: u64 = 0,
-    worker_running: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    worker_thread: ?std.Thread = null,
-    task_mutex: std.Thread.Mutex = .{},
 
     pub fn init(allocator: std.mem.Allocator) TaskTool {
         return TaskTool{
@@ -97,146 +94,7 @@ pub const TaskTool = struct {
         };
     }
 
-    /// Start the background worker thread that processes async tasks
-    pub fn startWorker(self: *TaskTool) !void {
-        if (self.worker_running.load(.acquire)) return;
-
-        self.worker_running.store(true, .release);
-        self.worker_thread = std.Thread.spawn(.{}, workerLoop, .{self}) catch |err| {
-            self.worker_running.store(false, .release);
-            return err;
-        };
-    }
-
-    /// Stop the background worker thread
-    pub fn stopWorker(self: *TaskTool) void {
-        self.worker_running.store(false, .release);
-        if (self.worker_thread) |thread| {
-            thread.join();
-            self.worker_thread = null;
-        }
-    }
-
-    /// Background worker loop that processes pending tasks
-    fn workerLoop(self: *TaskTool) void {
-        while (self.worker_running.load(.acquire)) {
-            var task_to_execute: ?struct {
-                index: usize,
-                subagent_name: []const u8,
-                input: []const u8,
-            } = null;
-
-            // Find a pending task
-            {
-                self.task_mutex.lock();
-                defer self.task_mutex.unlock();
-
-                for (self.tasks.items, 0..) |*task, i| {
-                    if (task.status == .pending) {
-                        task.status = .running;
-                        task.started_at = std.time.nanoTimestamp();
-                        task_to_execute = .{
-                            .index = i,
-                            .subagent_name = task.subagent_name,
-                            .input = task.input,
-                        };
-                        break;
-                    }
-                }
-            }
-
-            // Execute the task if found
-            if (task_to_execute) |task_info| {
-                self.executeTask(task_info.index, task_info.subagent_name, task_info.input);
-            } else {
-                // No pending tasks, sleep briefly
-                std.time.sleep(10 * std.time.ns_per_ms);
-            }
-        }
-    }
-
-    /// Execute a task and update its status
-    fn executeTask(self: *TaskTool, task_index: usize, subagent_name: []const u8, input: []const u8) void {
-        const subagent = self.subagents.get(subagent_name) orelse {
-            self.task_mutex.lock();
-            defer self.task_mutex.unlock();
-            self.tasks.items[task_index].status = .failed;
-            self.tasks.items[task_index].error_message = "Subagent not found";
-            self.tasks.items[task_index].completed_at = std.time.nanoTimestamp();
-            return;
-        };
-
-        // Acquire semaphore slot
-        self.semaphore.wait();
-        defer self.semaphore.post();
-
-        var ctx = Context{
-            .allocator = self.allocator,
-            .working_directory = ".",
-            .environment = null,
-            .cancellation = null,
-        };
-
-        // Execute with retry logic
-        var attempts: u3 = 0;
-        const max_attempts = subagent.config.retry_count + 1;
-
-        while (attempts < max_attempts) : (attempts += 1) {
-            // Check for cancellation
-            {
-                self.task_mutex.lock();
-                defer self.task_mutex.unlock();
-                if (self.tasks.items[task_index].status == .cancelled) {
-                    return;
-                }
-            }
-
-            const result = subagent.handler(input, &ctx) catch |err| {
-                if (attempts < max_attempts - 1) {
-                    std.time.sleep(subagent.config.retry_delay_ms * std.time.ns_per_ms);
-                    continue;
-                }
-                // Final attempt failed
-                self.task_mutex.lock();
-                defer self.task_mutex.unlock();
-                self.tasks.items[task_index].status = .failed;
-                self.tasks.items[task_index].error_message = std.fmt.allocPrint(
-                    self.allocator,
-                    "Execution failed: {}",
-                    .{err},
-                ) catch "Execution failed";
-                self.tasks.items[task_index].completed_at = std.time.nanoTimestamp();
-
-                // Update subagent error count
-                if (self.subagents.getPtr(subagent_name)) |sa| {
-                    sa.error_count += 1;
-                }
-                return;
-            };
-
-            // Success
-            self.task_mutex.lock();
-            defer self.task_mutex.unlock();
-            self.tasks.items[task_index].status = .completed;
-            self.tasks.items[task_index].result = result;
-            self.tasks.items[task_index].completed_at = std.time.nanoTimestamp();
-
-            // Update subagent stats
-            if (self.subagents.getPtr(subagent_name)) |sa| {
-                sa.execution_count += 1;
-                if (self.tasks.items[task_index].started_at) |started| {
-                    const duration = std.time.nanoTimestamp() - started;
-                    sa.last_execution_time_ms = @intCast(@divTrunc(duration, std.time.ns_per_ms));
-                }
-            }
-            return;
-        }
-    }
-
     pub fn deinit(self: *TaskTool) void {
-        // Stop worker thread first
-        self.stopWorker();
-
         for (self.tasks.items) |*task| {
             self.allocator.free(task.id);
             self.allocator.free(task.subagent_name);
@@ -286,9 +144,7 @@ pub const TaskTool = struct {
             self.semaphore.wait();
             defer self.semaphore.post();
 
-            var timer = std.time.Timer.start() catch {
-                return ToolResult.fromError(self.allocator, "Failed to start timer");
-            };
+            const start_time = std.time.nanoTimestamp();
 
             const result = subagent.handler(task_input, &ctx) catch |err| {
                 const err_msg = try std.fmt.allocPrint(self.allocator, "Execution failed: {}", .{err});
@@ -301,8 +157,8 @@ pub const TaskTool = struct {
                 return ToolResult.fromError(self.allocator, err_msg);
             };
 
-            const elapsed_ns = timer.read();
-            const duration_ms = @divTrunc(elapsed_ns, std.time.ns_per_ms);
+            const end_time = std.time.nanoTimestamp();
+            const duration_ms = @divTrunc(@as(i128, end_time - start_time), std.time.ns_per_ms);
 
             var mutable_subagent = self.subagents.getPtr(subagent_name).?;
             mutable_subagent.last_execution_time_ms = @as(u64, @intCast(duration_ms));
@@ -321,34 +177,19 @@ pub const TaskTool = struct {
 
         const effective_timeout = timeout_ms orelse subagent.config.timeout_ms;
 
-        // Auto-start worker if not running
-        if (!self.worker_running.load(.acquire)) {
-            try self.startWorker();
-        }
-
         const task_id = try std.fmt.allocPrint(self.allocator, "task_{}", .{self.next_task_id});
         errdefer self.allocator.free(task_id);
-
-        // Duplicate input strings so they're owned by the task
-        const subagent_name_copy = try self.allocator.dupe(u8, subagent_name);
-        errdefer self.allocator.free(subagent_name_copy);
-
-        const input_copy = try self.allocator.dupe(u8, task_input);
-        errdefer self.allocator.free(input_copy);
 
         self.next_task_id += 1;
 
         const task = Task{
             .id = task_id,
-            .subagent_name = subagent_name_copy,
-            .input = input_copy,
+            .subagent_name = subagent_name,
+            .input = task_input,
             .status = .pending,
             .created_at = std.time.nanoTimestamp(),
             .timeout_ms = effective_timeout,
         };
-
-        self.task_mutex.lock();
-        defer self.task_mutex.unlock();
 
         try self.tasks.append(self.allocator, task);
         try self.task_ids.put(task_id, self.tasks.items.len - 1);
@@ -357,65 +198,39 @@ pub const TaskTool = struct {
     }
 
     pub fn getTaskStatus(self: *TaskTool, task_id: []const u8) !TaskStatus {
-        self.task_mutex.lock();
-        defer self.task_mutex.unlock();
-
         const index = self.task_ids.get(task_id) orelse return error.TaskNotFound;
         return self.tasks.items[index].status;
     }
 
     pub fn waitForTask(self: *TaskTool, task_id: []const u8) !ToolResult {
-        // Get initial values with lock
-        const index: usize = blk: {
-            self.task_mutex.lock();
-            defer self.task_mutex.unlock();
-            break :blk self.task_ids.get(task_id) orelse return error.TaskNotFound;
-        };
+        const index = self.task_ids.get(task_id) orelse return error.TaskNotFound;
+        const timeout_ms = self.tasks.items[index].timeout_ms;
 
-        const timeout_ms: u64 = blk: {
-            self.task_mutex.lock();
-            defer self.task_mutex.unlock();
-            break :blk self.tasks.items[index].timeout_ms;
-        };
-
-        var timer = std.time.Timer.start() catch {
-            return ToolResult.fromError(self.allocator, "Failed to start timer");
-        };
-        const timeout_ns = timeout_ms * std.time.ns_per_ms;
+        const start_time = std.time.nanoTimestamp();
+        const deadline = start_time + (timeout_ms * std.time.ns_per_ms);
 
         while (true) {
-            // Check status with lock
-            {
-                self.task_mutex.lock();
-                defer self.task_mutex.unlock();
-
-                const current_status = self.tasks.items[index].status;
-                if (current_status == .completed or current_status == .failed or current_status == .cancelled or current_status == .timeout) {
-                    if (self.tasks.items[index].result) |res| {
-                        return res;
-                    }
-                    if (self.tasks.items[index].error_message) |err| {
-                        return ToolResult.fromError(self.allocator, err);
-                    }
-                    return ToolResult.fromError(self.allocator, "Task completed without result");
+            const current_status = self.tasks.items[index].status;
+            if (current_status == .completed or current_status == .failed or current_status == .cancelled or current_status == .timeout) {
+                if (self.tasks.items[index].result) |res| {
+                    return res;
                 }
+                if (self.tasks.items[index].error_message) |err| {
+                    return ToolResult.fromError(self.allocator, err);
+                }
+                return ToolResult.fromError(self.allocator, "Task completed without result");
             }
 
-            if (timer.read() > timeout_ns) {
-                self.task_mutex.lock();
-                defer self.task_mutex.unlock();
+            if (std.time.nanoTimestamp() > deadline) {
                 self.tasks.items[index].status = .timeout;
                 return ToolResult.fromError(self.allocator, "Task timed out");
             }
 
-            std.time.sleep(50 * std.time.ns_per_ms);
+            std.time.sleep(100 * std.time.ns_per_ms);
         }
     }
 
     pub fn cancelTask(self: *TaskTool, task_id: []const u8) !void {
-        self.task_mutex.lock();
-        defer self.task_mutex.unlock();
-
         const index = self.task_ids.get(task_id) orelse return error.TaskNotFound;
         self.tasks.items[index].status = .cancelled;
     }
@@ -451,7 +266,16 @@ pub const TaskTool = struct {
                 sub_stat.deinit();
                 continue;
             };
-            sub_stat.put("state", json.Value{ .string = @tagName(subagent.state) }) catch |err| {
+
+            // Use {t} format specifier instead of @tagName()
+            const state_str = std.fmt.allocPrint(self.allocator, "{t}", .{subagent.state}) catch |err| {
+                std.log.warn("Failed to format subagent state: {t}", .{err});
+                sub_stat.deinit();
+                continue;
+            };
+            defer self.allocator.free(state_str);
+
+            sub_stat.put("state", json.Value{ .string = state_str }) catch |err| {
                 std.log.warn("Failed to add subagent state to statistics: {t}", .{err});
                 sub_stat.deinit();
                 continue;

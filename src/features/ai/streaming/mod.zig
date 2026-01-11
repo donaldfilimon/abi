@@ -112,14 +112,14 @@ pub const StreamStats = struct {
     total_chars: usize = 0,
     /// Tokens per second.
     tokens_per_second: f64 = 0,
-    /// Start time (ns).
-    start_time_ns: i128 = 0,
-    /// End time (ns).
-    end_time_ns: i128 = 0,
+    /// Start time (elapsed ns from timer).
+    start_time_ns: u64 = 0,
+    /// End time (elapsed ns from timer).
+    end_time_ns: u64 = 0,
     /// Number of pauses.
     pause_count: usize = 0,
     /// Time spent paused (ns).
-    pause_duration_ns: i128 = 0,
+    pause_duration_ns: u64 = 0,
 
     pub fn duration_ms(self: *const StreamStats) f64 {
         const duration_ns = self.end_time_ns - self.start_time_ns - self.pause_duration_ns;
@@ -134,6 +134,7 @@ pub const EnhancedStreamingGenerator = struct {
     backpressure_ctrl: BackpressureController,
     token_buffer: TokenBuffer,
     stats: StreamStats,
+    timer: std.time.Timer,
     is_started: bool,
     is_completed: bool,
 
@@ -145,6 +146,7 @@ pub const EnhancedStreamingGenerator = struct {
             .backpressure_ctrl = BackpressureController.init(config.backpressure_config),
             .token_buffer = TokenBuffer.init(allocator, config.buffer_config),
             .stats = .{},
+            .timer = std.time.Timer.start() catch unreachable,
             .is_started = false,
             .is_completed = false,
         };
@@ -162,7 +164,7 @@ pub const EnhancedStreamingGenerator = struct {
         if (self.is_started) return error.AlreadyStarted;
 
         self.is_started = true;
-        self.stats.start_time_ns = std.time.nanoTimestamp();
+        self.stats.start_time_ns = self.timer.read();
     }
 
     /// Process and emit a token.
@@ -212,7 +214,7 @@ pub const EnhancedStreamingGenerator = struct {
         if (self.is_completed) return error.AlreadyCompleted;
 
         self.is_completed = true;
-        self.stats.end_time_ns = std.time.nanoTimestamp();
+        self.stats.end_time_ns = self.timer.read();
 
         const duration_ns = self.stats.end_time_ns - self.stats.start_time_ns;
         if (duration_ns > 0) {

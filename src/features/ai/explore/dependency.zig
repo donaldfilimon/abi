@@ -7,7 +7,7 @@ const std = @import("std");
 const AstParser = @import("ast.zig").AstParser;
 const AstNode = @import("ast.zig").AstNode;
 const ParsedFile = @import("ast.zig").ParsedFile;
-const explore_fs = @import("fs.zig");
+const fs = @import("fs.zig");
 
 /// Represents a module in the dependency graph
 pub const Module = struct {
@@ -317,10 +317,10 @@ pub const DependencyAnalyzer = struct {
         }
     }
 
-    fn classifyImport(self: *DependencyAnalyzer, import_path: []const u8, file_type: []const u8) ImportType {
+    fn classifyImport(self: *DependencyAnalyzer, import_path: []const u8, language: ParsedFile.Language) ImportType {
         _ = self;
 
-        if (std.mem.eql(u8, file_type, "zig")) {
+        if (language == .zig) {
             if (std.mem.startsWith(u8, import_path, "std.")) {
                 return .std;
             }
@@ -328,7 +328,7 @@ pub const DependencyAnalyzer = struct {
                 return .std;
             }
             return .local;
-        } else if (std.mem.eql(u8, file_type, "rust")) {
+        } else if (language == .rust) {
             if (std.mem.startsWith(u8, import_path, "std::") or
                 std.mem.startsWith(u8, import_path, "core::") or
                 std.mem.startsWith(u8, import_path, "alloc::"))
@@ -344,7 +344,7 @@ pub const DependencyAnalyzer = struct {
             {
                 return .local;
             }
-        } else if (std.mem.eql(u8, file_type, "typescript") or std.mem.eql(u8, file_type, "javascript")) {
+        } else if (language == .typescript or language == .javascript) {
             if (std.mem.startsWith(u8, import_path, "./") or
                 std.mem.startsWith(u8, import_path, "../"))
             {
@@ -373,7 +373,7 @@ pub fn buildDependencyGraph(allocator: std.mem.Allocator, file_paths: []const []
     // Create I/O backend for synchronous file operations
     var io_backend = std.Io.Threaded.init(allocator, .{
         .environ = std.process.Environ.empty,
-    });
+    }) catch return error.IoInitFailed;
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -395,7 +395,7 @@ pub fn buildDependencyGraph(allocator: std.mem.Allocator, file_paths: []const []
         defer allocator.free(content);
 
         // Create minimal FileStats for parsing
-        const file_stat = explore_fs.FileStats{
+        const file_stat = fs.FileStats{
             .path = file_path,
             .size_bytes = content.len,
             .mtime = 0,

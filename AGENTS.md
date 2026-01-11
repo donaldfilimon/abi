@@ -184,7 +184,7 @@ defer io.deinit();
 // Use io.io() for operations
 ```
 
-**Note**: `std.fs.cwd()` does not exist in Zig 0.16. Use `std.Io.Dir.cwd()` with I/O context.
+**Note**: `std.fs.cwd()` does not exist in Zig 0.16. Use `std.Io.Dir.cwd()` (requires an I/O context) instead.
 
 ### Timing
 ```zig

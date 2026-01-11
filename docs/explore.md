@@ -141,7 +141,8 @@ Parse source code to extract code elements:
 var parser = explore.AstParser.init(allocator);
 defer parser.deinit();
 
-const content = try std.fs.cwd().readFileAlloc(allocator, "src/abi.zig", 1024 * 1024);
+// Use I/O context (e.g., `io`) to get the current directory
+const content = try (std.Io.Dir.cwd(io)).readFileAlloc(allocator, "src/abi.zig", 1024 * 1024);
 defer allocator.free(content);
 
 const file_stat = try fs.getFileStats("src/abi.zig");

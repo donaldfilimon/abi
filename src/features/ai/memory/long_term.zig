@@ -21,7 +21,7 @@ pub const LongTermConfig = struct {
     /// Minimum similarity threshold for retrieval.
     min_similarity: f32 = 0.5,
     /// Custom embedding function (optional).
-    embed_fn: ?*const fn ([]const u8, std.mem.Allocator) anyerror![]f32 = null,
+    embed_fn: ?*const fn ([]const u8, std.mem.Allocator) (std.mem.Allocator.Error || error{EmbeddingFailed})![]f32 = null,
 };
 
 /// A memory entry with embedding.

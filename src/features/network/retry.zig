@@ -5,6 +5,32 @@
 
 const std = @import("std");
 
+/// Comprehensive error set for retry operations
+pub const RetryableError = error{
+    // Connection errors
+    ConnectionRefused,
+    ConnectionResetByPeer,
+    NetworkUnreachable,
+    HostUnreachable,
+    // Timeout errors
+    Timeout,
+    TimedOut,
+    TimerFailed,
+    // Server errors
+    ServerError,
+    InternalServerError,
+    BadGateway,
+    ServiceUnavailable,
+    // Rate limiting
+    TooManyRequests,
+    RateLimited,
+    // Temporary failures
+    TemporaryFailure,
+    TryAgain,
+    // Other
+    Unknown,
+};
+
 /// Retry configuration.
 pub const RetryConfig = struct {
     /// Maximum number of retry attempts.
@@ -45,9 +71,9 @@ pub fn RetryResult(comptime T: type) type {
 /// Retry error details.
 pub const RetryError = struct {
     attempts: u32,
-    last_error: anyerror,
+    last_error: RetryableError,
     elapsed_ns: u64,
-    errors: [16]?anyerror = [_]?anyerror{null} ** 16,
+    errors: [16]?RetryableError = [_]?RetryableError{null} ** 16,
 };
 
 /// Retry strategy.
@@ -78,7 +104,7 @@ pub const RetryableErrors = struct {
     temporary: bool = true,
 
     /// Check if an error should be retried.
-    pub fn shouldRetry(self: RetryableErrors, err: anyerror) bool {
+    pub fn shouldRetry(self: RetryableErrors, err: RetryableError) bool {
         // Map errors to categories
         return switch (err) {
             error.ConnectionRefused,
@@ -141,7 +167,7 @@ pub fn RetryExecutor(comptime T: type) type {
         }
 
         /// Execute operation with retry logic.
-        pub fn execute(self: *Self, operation: *const fn () anyerror!T) RetryResult(T) {
+        pub fn execute(self: *Self, operation: *const fn () RetryableError!T) RetryResult(T) {
             var timer = std.time.Timer.start() catch {
                 return .{ .failure = .{
                     .attempts = 0,
@@ -151,8 +177,8 @@ pub fn RetryExecutor(comptime T: type) type {
             };
 
             var attempts: u32 = 0;
-            var last_error: anyerror = error.Unknown;
-            var errors: [16]?anyerror = [_]?anyerror{null} ** 16;
+            var last_error: RetryableError = error.Unknown;
+            var errors: [16]?RetryableError = [_]?RetryableError{null} ** 16;
 
             while (attempts <= self.config.max_retries) {
                 // Check total timeout
@@ -208,7 +234,7 @@ pub fn RetryExecutor(comptime T: type) type {
             self: *Self,
             comptime Context: type,
             ctx: Context,
-            operation: *const fn (Context) anyerror!T,
+            operation: *const fn (Context) RetryableError!T,
         ) RetryResult(T) {
             var timer = std.time.Timer.start() catch {
                 return .{ .failure = .{
@@ -219,8 +245,8 @@ pub fn RetryExecutor(comptime T: type) type {
             };
 
             var attempts: u32 = 0;
-            var last_error: anyerror = error.Unknown;
-            var errors: [16]?anyerror = [_]?anyerror{null} ** 16;
+            var last_error: RetryableError = error.Unknown;
+            var errors: [16]?RetryableError = [_]?RetryableError{null} ** 16;
 
             while (attempts <= self.config.max_retries) {
                 const elapsed = timer.read();

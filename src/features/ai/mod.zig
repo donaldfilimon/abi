@@ -15,12 +15,6 @@ pub const streaming = @import("streaming.zig");
 pub const tools = @import("tools/mod.zig");
 pub const explore = if (build_options.enable_explore) @import("explore/mod.zig") else @import("explore/stub.zig");
 pub const llm = if (build_options.enable_llm) @import("llm/mod.zig") else @import("llm/stub.zig");
-pub const templates = @import("templates/mod.zig");
-pub const embeddings = @import("embeddings/mod.zig");
-pub const eval = @import("eval/mod.zig");
-pub const memory = @import("memory/mod.zig");
-pub const rag = @import("rag/mod.zig");
-pub const enhanced_streaming = @import("streaming/mod.zig");
 
 pub const Agent = agent.Agent;
 pub const ModelRegistry = model_registry.ModelRegistry;
@@ -55,73 +49,6 @@ pub const LlmModel = llm.Model;
 pub const LlmConfig = llm.InferenceConfig;
 pub const GgufFile = llm.GgufFile;
 pub const BpeTokenizer = llm.BpeTokenizer;
-
-// Template module exports
-pub const Template = templates.Template;
-pub const TemplateRegistry = templates.TemplateRegistry;
-pub const BuiltinTemplates = templates.BuiltinTemplates;
-pub const renderTemplate = templates.renderTemplate;
-pub const formatChatMessage = templates.formatChatMessage;
-pub const ChatMessage = templates.ChatMessage;
-
-// Embeddings module exports
-pub const Embedder = embeddings.Embedder;
-pub const EmbedderConfig = embeddings.EmbedderConfig;
-pub const EmbeddingResult = embeddings.EmbeddingResult;
-pub const EmbeddingCache = embeddings.EmbeddingCache;
-pub const cosineSimilarity = embeddings.cosineSimilarity;
-pub const euclideanDistance = embeddings.euclideanDistance;
-
-// Evaluation module exports
-pub const Evaluator = eval.Evaluator;
-pub const EvalConfig = eval.EvalConfig;
-pub const EvaluationResult = eval.EvaluationResult;
-pub const EvaluationReport = eval.EvaluationReport;
-pub const BleuScore = eval.BleuScore;
-pub const RougeScore = eval.RougeScore;
-pub const RougeType = eval.RougeType;
-pub const PerplexityResult = eval.PerplexityResult;
-pub const TokenMetrics = eval.TokenMetrics;
-pub const TextStatistics = eval.TextStatistics;
-pub const computeBleu = eval.computeBleu;
-pub const computeRouge = eval.computeRouge;
-pub const computePerplexity = eval.computePerplexity;
-pub const computeF1 = eval.computeF1;
-pub const computeExactMatch = eval.computeExactMatch;
-
-// Memory module exports
-pub const MemoryManager = memory.MemoryManager;
-pub const MemoryConfig = memory.MemoryConfig;
-pub const MemoryType = memory.MemoryType;
-pub const MemoryStats = memory.MemoryStats;
-pub const ShortTermMemory = memory.ShortTermMemory;
-pub const SlidingWindowMemory = memory.SlidingWindowMemory;
-pub const SummarizingMemory = memory.SummarizingMemory;
-pub const LongTermMemory = memory.LongTermMemory;
-pub const MemoryMessage = memory.Message;
-pub const MessageRole = memory.MessageRole;
-pub const createMemoryManager = memory.createMemoryManager;
-
-// RAG module exports
-pub const RagPipeline = rag.RagPipeline;
-pub const RagConfig = rag.RagConfig;
-pub const RagResponse = rag.RagResponse;
-pub const RagContext = rag.RagContext;
-pub const RagDocument = rag.Document;
-pub const RagChunk = rag.Chunk;
-pub const RagRetriever = rag.Retriever;
-pub const RagChunker = rag.Chunker;
-pub const createRagPipeline = rag.createPipeline;
-
-// Enhanced streaming module exports
-pub const SseEncoder = enhanced_streaming.SseEncoder;
-pub const SseDecoder = enhanced_streaming.SseDecoder;
-pub const SseEvent = enhanced_streaming.SseEvent;
-pub const BackpressureController = enhanced_streaming.BackpressureController;
-pub const TokenBuffer = enhanced_streaming.TokenBuffer;
-pub const EnhancedStreamingGenerator = enhanced_streaming.EnhancedStreamingGenerator;
-pub const StreamConfig = enhanced_streaming.StreamConfig;
-pub const createSseStream = enhanced_streaming.createSseStream;
 
 pub const AiError = error{
     AiDisabled,

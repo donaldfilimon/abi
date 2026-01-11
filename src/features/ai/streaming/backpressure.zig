@@ -57,7 +57,8 @@ pub const BackpressureController = struct {
     dropped_count: usize,
     total_processed: u64,
     sample_counter: usize,
-    last_check_time: i128,
+    timer: std.time.Timer,
+    last_check_ns: u64,
     tokens_in_window: usize,
     current_tps: f64,
 
@@ -70,7 +71,8 @@ pub const BackpressureController = struct {
             .dropped_count = 0,
             .total_processed = 0,
             .sample_counter = 0,
-            .last_check_time = 0,
+            .timer = std.time.Timer.start() catch unreachable,
+            .last_check_ns = 0,
             .tokens_in_window = 0,
             .current_tps = 0,
         };
@@ -178,14 +180,14 @@ pub const BackpressureController = struct {
     }
 
     fn checkAdaptiveStrategy(self: *BackpressureController) FlowState {
-        const now = std.time.nanoTimestamp();
+        const now = self.timer.read();
 
         // Update TPS measurement
-        if (now - self.last_check_time >= @as(i128, self.config.window_ns)) {
+        if (now - self.last_check_ns >= self.config.window_ns) {
             const window_secs = @as(f64, @floatFromInt(self.config.window_ns)) / 1_000_000_000.0;
             self.current_tps = @as(f64, @floatFromInt(self.tokens_in_window)) / window_secs;
             self.tokens_in_window = 0;
-            self.last_check_time = now;
+            self.last_check_ns = now;
         }
 
         // Adjust based on TPS vs target
@@ -225,7 +227,8 @@ pub const RateLimiter = struct {
     tokens_per_second: f64,
     bucket_size: f64,
     available_tokens: f64,
-    last_refill_time: i128,
+    timer: std.time.Timer,
+    last_refill_ns: u64,
 
     /// Initialize rate limiter.
     pub fn init(tokens_per_second: f64, bucket_size: ?f64) RateLimiter {
@@ -233,7 +236,8 @@ pub const RateLimiter = struct {
             .tokens_per_second = tokens_per_second,
             .bucket_size = bucket_size orelse tokens_per_second,
             .available_tokens = bucket_size orelse tokens_per_second,
-            .last_refill_time = std.time.nanoTimestamp(),
+            .timer = std.time.Timer.start() catch unreachable,
+            .last_refill_ns = 0,
         };
     }
 
@@ -259,15 +263,15 @@ pub const RateLimiter = struct {
 
     /// Refill tokens based on elapsed time.
     fn refill(self: *RateLimiter) void {
-        const now = std.time.nanoTimestamp();
-        const elapsed_ns = now - self.last_refill_time;
+        const now = self.timer.read();
+        const elapsed_ns = now - self.last_refill_ns;
 
         if (elapsed_ns > 0) {
             const elapsed_secs = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000_000.0;
             const new_tokens = elapsed_secs * self.tokens_per_second;
 
             self.available_tokens = @min(self.available_tokens + new_tokens, self.bucket_size);
-            self.last_refill_time = now;
+            self.last_refill_ns = now;
         }
     }
 
@@ -280,7 +284,8 @@ pub const RateLimiter = struct {
     /// Reset the rate limiter.
     pub fn reset(self: *RateLimiter) void {
         self.available_tokens = self.bucket_size;
-        self.last_refill_time = std.time.nanoTimestamp();
+        self.timer.reset();
+        self.last_refill_ns = 0;
     }
 };
 

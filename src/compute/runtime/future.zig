@@ -5,6 +5,14 @@
 
 const std = @import("std");
 
+/// Common future errors
+pub const FutureError = std.mem.Allocator.Error || error{
+    Cancelled,
+    Timeout,
+    AlreadyCompleted,
+    InvalidState,
+};
+
 /// Future state.
 pub const FutureState = enum {
     pending,
@@ -47,7 +55,7 @@ pub fn FutureResult(comptime T: type, comptime E: type) type {
 pub fn Future(comptime T: type) type {
     return struct {
         const Self = @This();
-        const Result = FutureResult(T, anyerror);
+        const Result = FutureResult(T, FutureError);
 
         allocator: std.mem.Allocator,
         state: std.atomic.Value(u8),
@@ -84,7 +92,7 @@ pub fn Future(comptime T: type) type {
         }
 
         /// Create a future that is immediately rejected with an error.
-        pub fn rejected(allocator: std.mem.Allocator, err: anyerror) Self {
+        pub fn rejected(allocator: std.mem.Allocator, err: FutureError) Self {
             var f = init(allocator);
             f.result = .{ .err = err };
             f.state.store(@intFromEnum(FutureState.failed), .release);

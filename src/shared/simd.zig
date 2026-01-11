@@ -131,6 +131,32 @@ pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
     return dot_product / (norm_a * norm_b);
 }
 
+/// Batch cosine similarity computation with pre-computed query norm
+/// Fast version that avoids redundant query norm computation
+/// @param query Query vector (must not be empty)
+/// @param query_norm Pre-computed L2 norm of query (must be > 0)
+/// @param vectors Array of database vectors
+/// @param results Output array (must have same length as vectors, caller-owned)
+pub fn batchCosineSimilarityFast(
+    query: []const f32,
+    query_norm: f32,
+    vectors: []const []const f32,
+    results: []f32,
+) void {
+    std.debug.assert(query.len > 0);
+    std.debug.assert(query_norm > 0.0);
+    std.debug.assert(vectors.len == results.len);
+
+    for (vectors, results) |vector, *result| {
+        const dot = vectorDot(query, vector);
+        const vec_norm = vectorL2Norm(vector);
+        result.* = if (query_norm > 0 and vec_norm > 0)
+            dot / (query_norm * vec_norm)
+        else
+            0;
+    }
+}
+
 /// Batch cosine similarity computation for database searches
 /// Computes cosine similarity between a query vector and multiple database vectors
 /// @param query Query vector (must not be empty)
@@ -144,9 +170,8 @@ pub fn batchCosineSimilarity(
     std.debug.assert(query.len > 0);
     std.debug.assert(vectors.len == results.len);
 
-    for (vectors, results) |vector, *result| {
-        result.* = cosineSimilarity(query, vector);
-    }
+    const query_norm = vectorL2Norm(query);
+    batchCosineSimilarityFast(query, query_norm, vectors, results);
 }
 
 /// Vector reduction operations with SIMD acceleration

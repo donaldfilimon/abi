@@ -5,6 +5,15 @@
 
 const std = @import("std");
 
+/// Kernel compilation errors
+pub const KernelError = std.mem.Allocator.Error || error{
+    CompilationFailed,
+    InvalidSource,
+    UnsupportedSourceType,
+    InvalidOptions,
+    CacheCorrupted,
+};
+
 /// Kernel source type.
 pub const KernelSourceType = enum {
     glsl,
@@ -118,7 +127,7 @@ pub const KernelCache = struct {
         source_type: KernelSourceType,
         entry_point: []const u8,
         options: CompileOptions,
-        compiler: *const fn ([]const u8, KernelSourceType, CompileOptions) anyerror![]u8,
+        compiler: *const fn ([]const u8, KernelSourceType, CompileOptions) KernelError![]u8,
     ) !CachedKernel {
         const key = try self.computeKey(source, source_type, entry_point, options);
         defer self.allocator.free(key);
@@ -417,7 +426,7 @@ test "kernel cache basic" {
     defer cache.deinit();
 
     const dummy_compiler = struct {
-        fn compile(source: []const u8, _: KernelSourceType, _: CompileOptions) anyerror![]u8 {
+        fn compile(source: []const u8, _: KernelSourceType, _: CompileOptions) KernelError![]u8 {
             return std.testing.allocator.dupe(u8, source);
         }
     }.compile;

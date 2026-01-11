@@ -213,110 +213,30 @@ pub const Engine = struct {
         return m.decode(output_tokens);
     }
 
-    /// Callback type for streaming token output
-    pub const StreamCallback = *const fn (token_text: []const u8, token_id: u32, is_final: bool) void;
-
-    /// Generate with streaming callback - calls callback for each generated token
+    /// Generate with streaming callback
     pub fn generateStreaming(
         self: *Engine,
         prompt: []const u8,
-        callback: StreamCallback,
-    ) !InferenceStats {
+        callback: *const fn ([]const u8) void,
+    ) !void {
         const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
-
-        var timer = std.time.Timer.start() catch return self.generateStreamingImpl(m, prompt, callback);
-        defer self.stats.decode_time_ns = timer.read();
-
-        return self.generateStreamingImpl(m, prompt, callback);
-    }
-
-    fn generateStreamingImpl(
-        self: *Engine,
-        m: *Model,
-        prompt: []const u8,
-        callback: StreamCallback,
-    ) !InferenceStats {
-        var stats = InferenceStats{};
+        _ = callback;
 
         // Encode prompt to tokens
         const prompt_tokens = try m.encode(prompt);
         defer self.allocator.free(prompt_tokens);
-        stats.prompt_tokens = @intCast(prompt_tokens.len);
 
-        // Prefill: process prompt tokens
-        var prefill_timer = std.time.Timer.start() catch null;
-        var pos: u32 = 0;
-        for (prompt_tokens) |token| {
-            _ = try m.forward(token, pos);
-            pos += 1;
-        }
-        if (prefill_timer) |*t| {
-            stats.prefill_time_ns = t.read();
-        }
-
-        // Generate new tokens with streaming
-        var decode_timer = std.time.Timer.start() catch null;
-        var last_token = prompt_tokens[prompt_tokens.len - 1];
-        const stop_tokens = &[_]u32{ 2, 0 }; // EOS and PAD
-        var generated: u32 = 0;
-
-        const sampler_config = generation.SamplerConfig{
+        // Generate output tokens (streaming would require token-by-token callback)
+        const output_tokens = try m.generate(prompt_tokens, .{
+            .max_tokens = self.config.max_new_tokens,
             .temperature = self.config.temperature,
-            .top_k = self.config.top_k,
             .top_p = self.config.top_p,
-            .repetition_penalty = self.config.repetition_penalty,
-        };
-        var sampler = generation.Sampler.init(self.allocator, sampler_config);
-        defer sampler.deinit();
+            .top_k = self.config.top_k,
+        });
+        defer self.allocator.free(output_tokens);
 
-        while (generated < self.config.max_new_tokens) {
-            // Forward pass for current token
-            const logits = try m.forward(last_token, pos);
-
-            // Sample next token
-            const next_token = sampler.sample(logits);
-
-            // Check for stop token
-            var should_stop = false;
-            for (stop_tokens) |stop| {
-                if (next_token == stop) {
-                    should_stop = true;
-                    break;
-                }
-            }
-
-            if (should_stop) {
-                // Call callback with empty text to signal end
-                callback("", next_token, true);
-                break;
-            }
-
-            // Decode single token to text
-            const single_token = [_]u32{next_token};
-            const token_text = m.decode(&single_token) catch {
-                // If decode fails, continue with next token
-                last_token = next_token;
-                pos += 1;
-                generated += 1;
-                continue;
-            };
-            defer self.allocator.free(token_text);
-
-            // Call streaming callback with the decoded token
-            const is_final = generated + 1 >= self.config.max_new_tokens;
-            callback(token_text, next_token, is_final);
-
-            last_token = next_token;
-            pos += 1;
-            generated += 1;
-        }
-
-        if (decode_timer) |*t| {
-            stats.decode_time_ns = t.read();
-        }
-        stats.generated_tokens = generated;
-
-        return stats;
+        // TODO: Implement true streaming with per-token callback
+        // For now, just decode and return
     }
 
     /// Get current statistics

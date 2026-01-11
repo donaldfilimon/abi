@@ -34,10 +34,10 @@ pub const ChunkerConfig = struct {
     /// Separators for recursive chunking.
     separators: []const []const u8 = &[_][]const u8{
         "\n\n", // Paragraph
-        "\n",   // Line
-        ". ",   // Sentence
-        ", ",   // Clause
-        " ",    // Word
+        "\n", // Line
+        ". ", // Sentence
+        ", ", // Clause
+        " ", // Word
     },
 };
 

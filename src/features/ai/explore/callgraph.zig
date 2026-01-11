@@ -7,7 +7,7 @@ const std = @import("std");
 const AstParser = @import("ast.zig").AstParser;
 const AstNode = @import("ast.zig").AstNode;
 const ParsedFile = @import("ast.zig").ParsedFile;
-const explore_fs = @import("fs.zig");
+const fs = @import("fs.zig");
 
 /// Represents a function in the call graph
 pub const Function = struct {
@@ -228,7 +228,7 @@ pub fn buildCallGraph(allocator: std.mem.Allocator, file_paths: []const []const 
     // Create I/O backend for synchronous file operations
     var io_backend = std.Io.Threaded.init(allocator, .{
         .environ = std.process.Environ.empty,
-    });
+    }) catch return error.IoInitFailed;
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -250,7 +250,7 @@ pub fn buildCallGraph(allocator: std.mem.Allocator, file_paths: []const []const 
         defer allocator.free(content);
 
         // Create minimal FileStats for parsing
-        const file_stat = explore_fs.FileStats{
+        const file_stat = fs.FileStats{
             .path = file_path,
             .size_bytes = content.len,
             .mtime = 0,

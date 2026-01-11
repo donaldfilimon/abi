@@ -14,6 +14,14 @@ const Future = future.Future;
 /// Task identifier.
 pub const TaskId = u64;
 
+/// Common task execution errors
+pub const TaskError = std.mem.Allocator.Error || cancellation.CancellationError || error{
+    TaskFailed,
+    ExecutionTimeout,
+    InvalidState,
+    ResourceExhausted,
+};
+
 /// Task state.
 pub const TaskState = enum {
     pending,
@@ -26,7 +34,7 @@ pub const TaskState = enum {
 /// Task completion result.
 pub const TaskResult = union(enum) {
     success: void,
-    failure: anyerror,
+    failure: TaskError,
     cancelled: void,
 
     pub fn isSuccess(self: TaskResult) bool {
@@ -72,7 +80,7 @@ pub const TaskGroupConfig = struct {
 };
 
 /// Task function type.
-pub const TaskFn = *const fn (*TaskContext) anyerror!void;
+pub const TaskFn = *const fn (*TaskContext) TaskError!void;
 
 /// Context passed to task functions.
 pub const TaskContext = struct {

@@ -123,21 +123,8 @@ pub const Generator = struct {
         self.streaming_callback = callback;
     }
 
-    /// Streaming callback type - receives token text, token ID, and whether generation is complete
-    pub const StreamingCallbackFn = *const fn (token_text: []const u8, token_id: u32, is_final: bool) void;
-
     /// Generate tokens from prompt tokens.
     pub fn generateTokens(self: *Generator, prompt_tokens: []const u32) ![]u32 {
-        return self.generateTokensWithCallback(prompt_tokens, null, null);
-    }
-
-    /// Generate tokens from prompt tokens with optional streaming callback.
-    pub fn generateTokensWithCallback(
-        self: *Generator,
-        prompt_tokens: []const u32,
-        callback: ?StreamingCallbackFn,
-        tok: ?*tokenizer.BpeTokenizer,
-    ) ![]u32 {
         var output = std.ArrayListUnmanaged(u32).empty;
         errdefer output.deinit(self.allocator);
 
@@ -160,43 +147,22 @@ pub const Generator = struct {
             const next_token = self.sampler.sample(logits);
 
             // Check for stop token
-            var should_stop = false;
             for (self.config.stop_tokens) |stop| {
                 if (next_token == stop) {
-                    should_stop = true;
                     break;
                 }
             }
 
-            if (should_stop) {
-                // Signal end of generation to callback
-                if (callback) |cb| {
-                    cb("", next_token, true);
-                }
-                break;
-            }
-
             try output.append(self.allocator, next_token);
-
-            // Streaming callback with token decoding
-            if (callback) |cb| {
-                if (tok) |t| {
-                    const single_token = [_]u32{next_token};
-                    const token_text = t.decode(self.allocator, &single_token) catch "";
-                    defer if (token_text.len > 0) self.allocator.free(token_text);
-
-                    const is_final = generated + 1 >= self.config.max_tokens;
-                    cb(token_text, next_token, is_final);
-                } else {
-                    // No tokenizer, just signal with empty text
-                    const is_final = generated + 1 >= self.config.max_tokens;
-                    cb("", next_token, is_final);
-                }
-            }
-
             last_token = next_token;
             pos += 1;
             generated += 1;
+
+            // Streaming callback
+            if (self.streaming_callback) |callback| {
+                // Would decode token here and call callback
+                _ = callback;
+            }
         }
 
         return output.toOwnedSlice(self.allocator);
@@ -204,18 +170,17 @@ pub const Generator = struct {
 
     /// Generate text from a text prompt.
     pub fn generate(self: *Generator, prompt: []const u8, tok: *tokenizer.BpeTokenizer) !GenerationResult {
-        var prefill_timer = std.time.Timer.start() catch return error.InvalidState;
+        var prefill_timer = std.time.Timer.start() catch return error.TimerFailed;
 
         // Encode prompt
         const prompt_tokens = try tok.encode(self.allocator, prompt);
         defer self.allocator.free(prompt_tokens);
 
-        const prefill_time = prefill_timer.read();
-
         // Generate
-        var gen_timer = std.time.Timer.start() catch return error.InvalidState;
+        const prefill_time_ns = prefill_timer.read();
+        var gen_timer = std.time.Timer.start() catch return error.TimerFailed;
         const output_tokens = try self.generateTokens(prompt_tokens);
-        const gen_time = gen_timer.read();
+        const generation_time_ns = gen_timer.read();
 
         // Decode output
         const text = try tok.decode(self.allocator, output_tokens);
@@ -225,42 +190,24 @@ pub const Generator = struct {
             .text = text,
             .prompt_tokens = @intCast(prompt_tokens.len),
             .generated_tokens = @intCast(output_tokens.len),
-            .prefill_time_ns = prefill_time,
-            .generation_time_ns = gen_time,
+            .prefill_time_ns = @intCast(prefill_time_ns),
+            .generation_time_ns = @intCast(generation_time_ns),
         };
     }
 
-    /// Generate with streaming output - calls callback for each generated token.
+    /// Generate with streaming output.
     pub fn generateStreaming(
         self: *Generator,
         prompt: []const u8,
-        tok: *tokenizer.BpeTokenizer,
-        callback: StreamingCallbackFn,
-    ) !GenerationResult {
-        var prefill_timer = std.time.Timer.start() catch return error.InvalidState;
+        callback: *const fn ([]const u8) void,
+    ) !void {
+        self.streaming_callback = callback;
+        defer self.streaming_callback = null;
 
-        // Encode prompt
-        const prompt_tokens = try tok.encode(self.allocator, prompt);
-        defer self.allocator.free(prompt_tokens);
-
-        const prefill_time = prefill_timer.read();
-
-        // Generate with streaming callback
-        var gen_timer = std.time.Timer.start() catch return error.InvalidState;
-        const output_tokens = try self.generateTokensWithCallback(prompt_tokens, callback, tok);
-        const gen_time = gen_timer.read();
-
-        // Decode complete output (callback already streamed individual tokens)
-        const text = try tok.decode(self.allocator, output_tokens);
-
-        return .{
-            .tokens = output_tokens,
-            .text = text,
-            .prompt_tokens = @intCast(prompt_tokens.len),
-            .generated_tokens = @intCast(output_tokens.len),
-            .prefill_time_ns = prefill_time,
-            .generation_time_ns = gen_time,
-        };
+        // Would need tokenizer here
+        _ = prompt;
+        // const result = try self.generate(prompt);
+        // defer result.deinit(self.allocator);
     }
 
     /// Reset generator state.

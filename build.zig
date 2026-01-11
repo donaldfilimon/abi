@@ -383,46 +383,8 @@ pub fn build(b: *std.Build) void {
         std.log.warn("src/compute/runtime/benchmark.zig not found; skipping benchmark step", .{});
     }
 
-    // Benchmarks - comprehensive suite
-    if (pathExists("benchmarks/main.zig")) {
-        const benchmark_exe = b.addExecutable(.{
-            .name = "benchmarks",
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("benchmarks/main.zig"),
-                .target = target,
-                .optimize = .ReleaseFast,
-            }),
-        });
-
-        const run_benchmarks = b.addRunArtifact(benchmark_exe);
-        if (b.args) |args| {
-            run_benchmarks.addArgs(args);
-        }
-
-        const benchmarks_step = b.step("benchmarks", "Run comprehensive benchmarks");
-        benchmarks_step.dependOn(&run_benchmarks.step);
-
-        // Individual benchmark suites as separate steps
-        const bench_suites = [_]struct { name: []const u8, desc: []const u8 }{
-            .{ .name = "simd", .desc = "Run SIMD/Vector benchmarks" },
-            .{ .name = "memory", .desc = "Run memory allocator benchmarks" },
-            .{ .name = "concurrency", .desc = "Run concurrency benchmarks" },
-            .{ .name = "database", .desc = "Run database/HNSW benchmarks" },
-            .{ .name = "network", .desc = "Run HTTP/network benchmarks" },
-            .{ .name = "crypto", .desc = "Run cryptography benchmarks" },
-            .{ .name = "ai", .desc = "Run AI/ML inference benchmarks" },
-            .{ .name = "quick", .desc = "Run quick CI benchmarks" },
-        };
-
-        for (bench_suites) |suite| {
-            const suite_run = b.addRunArtifact(benchmark_exe);
-            suite_run.addArg(b.fmt("--suite={s}", .{suite.name}));
-
-            const suite_step = b.step(b.fmt("bench-{s}", .{suite.name}), suite.desc);
-            suite_step.dependOn(&suite_run.step);
-        }
-    } else if (pathExists("benchmarks/run.zig")) {
-        // Fallback to legacy benchmark runner
+    // Benchmarks
+    if (pathExists("benchmarks/run.zig")) {
         const benchmark_exe = b.addExecutable(.{
             .name = "benchmarks",
             .root_module = b.createModule(.{

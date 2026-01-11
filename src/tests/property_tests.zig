@@ -104,7 +104,7 @@ pub fn checkProperty(
     var rng = if (config.seed) |seed|
         std.Random.DefaultPrng.init(seed)
     else
-        std.Random.DefaultPrng.init(@intCast(std.time.nanoTimestamp()));
+        std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
 
     var i: usize = 0;
     while (i < config.max_cases) : (i += 1) {

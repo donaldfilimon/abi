@@ -153,13 +153,13 @@ pub fn expertFFN(
     _ = num_experts;
 
     // Find top-k experts
-    const ExpertScore = struct { idx: u32, score: f32 };
-    var expert_scores: [8]ExpertScore = undefined;
+    var expert_scores: [8]struct { idx: u32, score: f32 } = undefined;
     for (0..@min(router_logits.len, 8)) |i| {
         expert_scores[i] = .{ .idx = @intCast(i), .score = router_logits[i] };
     }
 
     // Simple selection of top-k (should use proper top-k algorithm for larger k)
+    const ExpertScore = struct { idx: u32, score: f32 };
     std.mem.sort(
         ExpertScore,
         expert_scores[0..@min(router_logits.len, 8)],
