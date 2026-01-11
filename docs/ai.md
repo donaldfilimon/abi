@@ -56,10 +56,24 @@ const global = try coordinator.aggregate();
 An **Agent** wraps a connector with memory and tools.
 
 ```zig
-var agent = try abi.ai.Agent.init(allocator, connector, .{
+var agent = try abi.ai.Agent.init(allocator, .{
+    .name = "coding-assistant",
     .system_prompt = "You are a helpful coding assistant.",
+    .backend = .ollama,
+    .enable_history = true,
+    .temperature = 0.7,
 });
 defer agent.deinit();
 
 const response = try agent.chat("How do I write a Hello World in Zig?");
 ```
+
+### Backend Options
+
+| Backend | Description |
+|---------|-------------|
+| `.echo` | Local echo for testing/fallback |
+| `.openai` | OpenAI API (requires `ABI_OPENAI_API_KEY`) |
+| `.ollama` | Ollama local models (default: `http://127.0.0.1:11434`) |
+| `.huggingface` | HuggingFace Inference API |
+| `.local` | Local scheduler |

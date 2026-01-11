@@ -6,21 +6,25 @@
 
 - Zig 0.16.x
 
-## Build and run the CLI
+## Build and Run the CLI
 
 ```bash
 zig build
 zig build run -- --help
+zig build run -- --version
 ```
 
-## Run tests and benchmarks
+## Run Tests and Benchmarks
 
 ```bash
-zig build test
-zig build benchmark
+zig build test                    # Run all tests
+zig build test --summary all      # Run tests with detailed output
+zig build benchmarks              # Run performance benchmarks
 ```
 
-## Use the library
+## Use the Library
+
+### Basic Initialization
 
 ```zig
 const std = @import("std");
@@ -30,31 +34,53 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework = try abi.createDefaultFramework(gpa.allocator());
-    defer framework.deinit();
+    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{});
+    defer abi.shutdown(&framework);
+
+    std.debug.print("ABI version: {s}\n", .{abi.version()});
+}
+```
+
+### Compute Engine
+
+```zig
+const std = @import("std");
+const abi = @import("abi");
+
+fn computeTask(_: std.mem.Allocator) !u32 {
+    return 42;
+}
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
 
     var engine = try abi.compute.createDefaultEngine(gpa.allocator());
     defer engine.deinit();
 
-    const task_id = try engine.submit_task(u64, exampleTask);
-    const result = try engine.wait_for_result(u64, task_id, 1000);
+    const result = try abi.compute.runTask(&engine, u32, computeTask, 1000);
     std.debug.print("Result: {d}\n", .{result});
-}
-
-fn exampleTask(_: std.mem.Allocator) !u64 {
-    return 42;
 }
 ```
 
-## Module map
+## Module Map
 
-Primary modules live in the modern layout:
+Primary modules:
 
-- `src/core/mod.zig` for hardware helpers and cache-aligned buffers
-- `src/compute/runtime/engine.zig` for the runtime engine
-- `src/compute/runtime/workload.zig` for sample CPU workloads
-- `src/compute/concurrency/lockfree.zig` for lock-free data structures
-- `src/compute/memory/mod.zig` for pool and scratch allocators
+| Module | Description |
+|--------|-------------|
+| `src/abi.zig` | Public API entry point |
+| `src/core/` | Hardware helpers and cache-aligned buffers |
+| `src/compute/runtime/engine.zig` | Runtime engine and scheduler |
+| `src/compute/concurrency/` | Lock-free data structures |
+| `src/compute/memory/` | Pool and scratch allocators |
+| `src/features/ai/` | AI features (LLM, embeddings, RAG) |
+| `src/features/database/` | WDBX vector database |
+| `src/features/gpu/` | GPU backend implementations |
 
-Use `src/demo.zig` for a small end-to-end program and
-`src/compute/runtime/benchmark_demo.zig` for the benchmark runner.
+## Next Steps
+
+- Read the [Introduction](docs/intro.md) for architecture overview
+- See [API Reference](API_REFERENCE.md) for API documentation
+- Check [examples/](examples/) for more code samples
+- Review [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines

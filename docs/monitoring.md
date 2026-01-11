@@ -2,7 +2,7 @@
 
 ABI includes built-in tools for monitoring application health and performance.
 
-## logging
+## Logging
 
 Use `abi.log` (which wraps `std.log`) for structured logging.
 

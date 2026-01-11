@@ -70,21 +70,6 @@ zig build benchmarks         # Run comprehensive benchmarks
 zig build benchmark-legacy   # Run legacy compute benchmarks
 ```
 
-### Benchmark Suites
-
-The `benchmarks/` directory contains modular benchmark suites. Individual suites can be run with:
-
-```bash
-zig build bench-simd         # SIMD/Vector benchmarks
-zig build bench-memory       # Memory allocator benchmarks
-zig build bench-concurrency  # Concurrency benchmarks
-zig build bench-database     # Database/HNSW benchmarks
-zig build bench-network      # HTTP/network benchmarks
-zig build bench-crypto       # Cryptography benchmarks
-zig build bench-ai           # AI/ML inference benchmarks
-zig build bench-quick        # Quick CI benchmarks
-```
-
 **Benchmark Organization**:
 - `benchmarks/framework.zig` - Advanced benchmark harness with statistical analysis (warm-up, outlier detection, percentiles)
 - `benchmarks/main.zig` - Entry point for running all benchmarks
@@ -104,7 +89,12 @@ abi/
 │   │   ├── concurrency/     # Lock-free queues, work-stealing, priority queues
 │   │   ├── gpu/             # GPU integration layer
 │   │   │   ├── backends/    # CUDA, Vulkan, Metal, WebGPU, OpenGL, stdgpu, simulated
-│   │   │   └── tensor/      # GPU tensor operations
+│   │   │   ├── tensor/      # GPU tensor operations
+│   │   │   ├── error_handling.zig   # Structured error tracking
+│   │   │   ├── kernel_cache.zig     # Compiled kernel caching
+│   │   │   ├── memory_pool_advanced.zig  # Size-class memory pooling
+│   │   │   ├── metrics.zig          # Performance metrics collection
+│   │   │   └── recovery.zig         # Device failure recovery
 │   │   ├── memory/          # Arena allocators, pools
 │   │   ├── network/         # Distributed compute (feature-gated)
 │   │   ├── profiling/       # Metrics collection (feature-gated)
@@ -177,13 +167,21 @@ abi/
   **Examples**: `src/features/ai/stub.zig`, `src/compute/network/stub.zig`, `src/features/ai/llm/stub.zig`, `src/compute/profiling/stub.zig`, `src/features/ai/explore/stub.zig`
 
 - **GPU Backend Selection**: Multiple GPU backends with automatic fallback hierarchy. Vulkan devices are scored by type (discrete > integrated > virtual > cpu > other) during initialization. Available backends:
-  - **CUDA** (NVIDIA) - Direct CUDA runtime + NVRTC JIT compilation (`cuda.zig`, `cuda_nvrtc.zig`)
-  - **Vulkan** (cross-platform) - Full Vulkan 1.3 support with compute pipelines (`vulkan.zig`, `vulkan_init.zig`, `vulkan_pipelines.zig`, `vulkan_buffers.zig`)
+  - **CUDA** (NVIDIA) - Direct CUDA runtime + NVRTC JIT compilation with thread-safe initialization (`cuda.zig`, `cuda_nvrtc.zig`)
+  - **Vulkan** (cross-platform) - Full Vulkan 1.3 support with compute pipelines, command buffer pooling. Key files: `vulkan.zig`, `vulkan_init.zig`, `vulkan_pipelines.zig`, `vulkan_buffers.zig`, `vulkan_command_pool.zig`
   - **Metal** (Apple) - Native Metal Shading Language support
   - **WebGPU** (web/native) - WebGPU compute API
   - **OpenGL/OpenGL ES** - Compute shaders via OpenGL 4.3+ / ES 3.1+
   - **stdgpu** (software fallback) - CPU-based SPIR-V interpreter, always available
   - **simulated** - Testing backend for CI/testing scenarios
+
+  **Backend Infrastructure**:
+  - **Device Scoring**: Intelligent GPU selection with scoring (discrete=1000, integrated=500, virtual=100, cpu=50, other=10 + API version bonus)
+  - **Command Pool**: Vulkan command buffer pooling with state tracking, automatic recycling, and fence management (`vulkan_command_pool.zig`)
+  - **Advanced Memory Pool**: Size-class based allocation (64B-4MB classes), automatic coalescing, fragmentation mitigation, memory pressure handling (`memory_pool_advanced.zig`)
+  - **Metrics Collection**: Comprehensive performance tracking (kernel execution, memory transfers, device utilization, error rates, bandwidth) (`metrics.zig`)
+  - **Recovery System**: Automatic device failure recovery with multiple strategies (retry with backoff, device switching, CPU fallback, simulation fallback) (`recovery.zig`)
+  - **Error Handling**: Structured error tracking with specific error sets, health monitoring, and recovery event callbacks (`error_handling.zig`)
 
   See `src/compute/gpu/backends/vulkan_init.zig:selectPhysicalDevice()` and `src/compute/gpu/backends/stdgpu.zig:getDeviceInfo()`.
 
@@ -196,6 +194,26 @@ abi/
 - **Memory Pooling**: GPU buffers use pooled allocation via `gpu.MemoryPool`. CPU-side memory uses arena allocation in compute contexts (`src/compute/memory/mod.zig`).
 
 - **Error Context and Handling**: Use `ErrorContext` from `src/shared/utils/errors.zig` for structured error logging with operation context, category, and source location. Always use specific error sets instead of `anyerror`. Feature-disabled errors follow the pattern `error.<Feature>Disabled` (e.g., `error.AiDisabled`, `error.NetworkDisabled`, `error.ProfilingDisabled`).
+
+  **GPU Error Handling Pattern**:
+  ```zig
+  // Define specific error sets for each module
+  pub const InitError = error{ InitializationFailed, DriverNotFound, DeviceNotFound };
+  pub const AllocationError = error{ OutOfMemory, DeviceLost };
+
+  // Use errdefer for cleanup on failure
+  pub fn allocateDeviceMemory(allocator: std.mem.Allocator, size: usize) AllocationError!*anyopaque {
+      const buffer = try allocator.create(Buffer);
+      errdefer allocator.destroy(buffer);
+      // ... rest of initialization
+  }
+
+  // Report errors to metrics/recovery systems
+  if (error_occurred) {
+      metrics_collector.recordError(.kernel_launch);
+      _ = recovery_manager.reportError(.cuda, device_id, .device_lost);
+  }
+  ```
 
 ### Concurrency Primitives
 
@@ -223,6 +241,59 @@ The engine supports NUMA-aware scheduling (`src/compute/runtime/numa.zig`):
 - `setThreadAffinity(cpu_id)`: Pins thread to a specific CPU
 - `getCurrentCpuId()`: Gets current CPU for scheduling decisions
 - Enable with `EngineConfig{ .numa_enabled = true, .cpu_affinity_enabled = true }`
+
+### GPU Backend Development Patterns
+
+When implementing or modifying GPU backends (`src/compute/gpu/backends/`):
+
+**Standardized Backend Interface**:
+All backends must implement this consistent interface:
+```zig
+// Lifecycle
+pub fn init() !void
+pub fn deinit() void
+
+// Kernel operations
+pub fn compileKernel(allocator, source) !*anyopaque
+pub fn launchKernel(allocator, handle, config, args) !void
+pub fn destroyKernel(allocator, handle) void
+
+// Memory operations (explicit allocator parameter)
+pub fn allocateDeviceMemory(allocator, size) !*anyopaque
+pub fn freeDeviceMemory(allocator, ptr) void
+pub fn memcpyHostToDevice(dst, src, size) !void
+pub fn memcpyDeviceToHost(dst, src, size) !void
+```
+
+**Backend-Specific Patterns**:
+- **Thread Safety**: Use mutex for initialization (see CUDA backend's `init_mutex`)
+- **Graceful Fallback**: Separate simulation mode initialization for when hardware unavailable
+- **Device Enumeration**: Use arena allocator for temporary allocations during device discovery
+- **Symmetric Operations**: Every `allocate*` must have matching `free*` with same allocator
+- **Format Specifiers**: Use `{t}` for enum/error values in logging (Zig 0.16 compliance)
+
+**Command Buffer Management** (Vulkan):
+- Use `CommandPool` for efficient command buffer allocation and recycling
+- Track buffer state (available, recording, submitted, completed)
+- Automatic fence management for synchronization
+- Statistics collection via `getStats()`
+
+**Memory Pool Integration**:
+- Size classes: 64B, 256B, 1KB, 4KB, 16KB, 64KB, 256KB, 1MB, 4MB
+- Free-list management for fast reuse
+- Automatic coalescing when utilization > 80%
+- Memory pressure handling with high/low water marks (85%/70% default)
+
+**Metrics Integration**:
+- Record all kernel executions: `metrics.recordKernel(name, duration_ns)`
+- Track memory transfers: `metrics.recordTransfer(direction, bytes, duration_ns)`
+- Monitor allocations: `metrics.recordAllocation(bytes)` / `metrics.recordDeallocation(bytes)`
+- Report errors: `metrics.recordError(error_type)`
+
+**Recovery Integration**:
+- Register devices: `recovery.registerDevice(backend_type, device_id)`
+- Report failures: `recovery.reportError(backend_type, device_id, error_type)`
+- Automatic fallback hierarchy: retry → switch_device → fallback_cpu → fallback_simulated
 
 ## Zig 0.16 Conventions
 

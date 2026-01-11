@@ -140,4 +140,4 @@ The CI configuration has been updated to use Zig 0.16.0-dev instead of 0.17.0.
 
 - [Zig 0.16-dev Branch](https://github.com/ziglang/zig/tree/master)
 - [Zig Standard Library Documentation](https://ziglang.org/documentation/master/)
-- [ABI Framework Documentation](./README.md)
+- [ABI Framework Documentation](../index.md)
