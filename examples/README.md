@@ -26,7 +26,12 @@ zig run examples/database.zig
 
 ### agent.zig
 
-AI agent usage with conversation processing.
+AI agent usage with conversational chat interface. Demonstrates the `Agent.chat()` method for processing user input with history tracking.
+
+**Features:**
+- Agent initialization with configuration
+- Using `chat()` method for conversational interface
+- Proper memory management with defer
 
 **Run:**
 
@@ -115,14 +120,15 @@ zig build benchmarks
 
 ## Common Patterns
 
-All examples follow these patterns:
+All examples follow these Zig 0.16 best practices:
 
-1. **Allocator Setup:**
+1. **Modern Main Signature (Zig 0.16):**
 
    ```zig
-   var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-   defer _ = gpa.deinit();
-   const allocator = gpa.allocator();
+   pub fn main(init: std.process.Init) !void {
+       const allocator = init.gpa;
+       // ... your code
+   }
    ```
 
 2. **Framework Initialization:**
@@ -135,16 +141,24 @@ All examples follow these patterns:
 3. **Error Handling:**
 
    ```zig
-   pub fn main() !void {
+   pub fn main(init: std.process.Init) !void {
        try someOperation();
        return;
    }
    ```
 
 4. **Cleanup with defer:**
+
    ```zig
    const data = try allocateData();
    defer allocator.free(data);
+   ```
+
+5. **Format Specifiers (Zig 0.16):**
+
+   ```zig
+   std.debug.print("Status: {t}\n", .{status});  // {t} for enums
+   std.debug.print("Count: {d}\n", .{count});    // {d} for integers
    ```
 
 ## Need Help?

@@ -72,17 +72,16 @@ zig build run -- --help                           # Show CLI help
 zig build run -- --version                        # Show version info
 ```
 
-## Quick Example
+## Quick Example (Zig 0.16)
 
 ```zig
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
-    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     std.debug.print("ABI version: {s}\n", .{abi.version()});
@@ -99,13 +98,13 @@ fn computeTask(_: std.mem.Allocator) !u32 {
     return 42;
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
-    var engine = try abi.compute.createDefaultEngine(gpa.allocator());
+    var engine = try abi.compute.createDefaultEngine(allocator);
     defer engine.deinit();
 
+    // Using runTask (or its alias runWorkload)
     const result = try abi.compute.runTask(&engine, u32, computeTask, 1000);
     std.debug.print("Result: {d}\n", .{result});
 }
@@ -117,10 +116,8 @@ pub fn main() !void {
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
     var gpu_workload: u32 = 0;
 
@@ -178,10 +175,8 @@ pub fn main() !void {
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
     var pool = abi.gpu.createPool(allocator, 16 * 1024 * 1024);
     defer pool.deinit();

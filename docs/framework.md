@@ -10,12 +10,11 @@ The entry point for any ABI application is the `abi.init` function. It establish
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
     // Initialize with default options
-    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     // Framework is now ready
