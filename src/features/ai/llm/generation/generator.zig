@@ -147,22 +147,76 @@ pub const Generator = struct {
             const next_token = self.sampler.sample(logits);
 
             // Check for stop token
+            var should_stop = false;
             for (self.config.stop_tokens) |stop| {
                 if (next_token == stop) {
+                    should_stop = true;
                     break;
                 }
             }
+            if (should_stop) break;
+
+            try output.append(self.allocator, next_token);
+            last_token = next_token;
+            pos += 1;
+            generated += 1;
+        }
+
+        return output.toOwnedSlice(self.allocator);
+    }
+
+    /// Generate tokens from prompt tokens with streaming callback.
+    pub fn generateTokensStreaming(
+        self: *Generator,
+        prompt_tokens: []const u32,
+        tok: *tokenizer.BpeTokenizer,
+        callback: *const fn ([]const u8) void,
+    ) ![]u32 {
+        var output = std.ArrayListUnmanaged(u32).empty;
+        errdefer output.deinit(self.allocator);
+
+        // Prefill: process prompt tokens
+        var pos: u32 = 0;
+        for (prompt_tokens) |token| {
+            _ = try self.forward_fn(self.model, token, pos);
+            pos += 1;
+        }
+
+        // Generate new tokens
+        var last_token = prompt_tokens[prompt_tokens.len - 1];
+        var generated: u32 = 0;
+
+        while (generated < self.config.max_tokens) {
+            // Forward pass
+            const logits = try self.forward_fn(self.model, last_token, pos);
+
+            // Sample next token
+            const next_token = self.sampler.sample(logits);
+
+            // Check for stop token
+            var should_stop = false;
+            for (self.config.stop_tokens) |stop| {
+                if (next_token == stop) {
+                    should_stop = true;
+                    break;
+                }
+            }
+            if (should_stop) break;
 
             try output.append(self.allocator, next_token);
             last_token = next_token;
             pos += 1;
             generated += 1;
 
-            // Streaming callback
-            if (self.streaming_callback) |callback| {
-                // Would decode token here and call callback
-                _ = callback;
-            }
+            // Streaming callback - decode single token and call
+            const token_slice = try self.allocator.alloc(u32, 1);
+            defer self.allocator.free(token_slice);
+            token_slice[0] = next_token;
+
+            const token_text = try tok.decode(self.allocator, token_slice);
+            defer self.allocator.free(token_text);
+
+            callback(token_text);
         }
 
         return output.toOwnedSlice(self.allocator);

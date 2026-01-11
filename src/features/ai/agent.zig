@@ -6,12 +6,18 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+const http = @import("../../shared/utils/http/async_http.zig");
+const retry = @import("../../shared/utils/retry.zig");
 
 pub const AgentError = error{
     InvalidConfiguration,
     OutOfMemory,
     ConnectorNotAvailable,
     GenerationFailed,
+    ApiKeyMissing,
+    HttpRequestFailed,
+    InvalidApiResponse,
+    RateLimitExceeded,
 };
 
 /// Backend type for agent inference
@@ -37,6 +43,7 @@ pub const AgentConfig = struct {
     backend: AgentBackend = .echo,
     model: []const u8 = "gpt-4",
     system_prompt: ?[]const u8 = null,
+    retry_config: retry.RetryConfig = .{},
 
     pub fn validate(self: AgentConfig) AgentError!void {
         if (self.name.len == 0) return AgentError.InvalidConfiguration;
@@ -161,62 +168,359 @@ pub const Agent = struct {
 
     /// OpenAI backend - uses ChatCompletion API
     fn generateOpenAIResponse(self: *Agent, input: []const u8, allocator: std.mem.Allocator) ![]u8 {
-        // In a full implementation, this would call the OpenAI connector
-        // For now, provide a structured response indicating the backend
         _ = input;
 
-        // Build context from history
-        var context_size: usize = 0;
-        for (self.history.items) |msg| {
-            context_size += msg.content.len;
-        }
+        // Get API key from environment
+        const api_key_cstr = std.c.getenv("ABI_OPENAI_API_KEY") orelse
+            std.c.getenv("OPENAI_API_KEY") orelse
+            return AgentError.ApiKeyMissing;
+        const api_key = try allocator.dupe(u8, std.mem.span(api_key_cstr));
+        defer allocator.free(api_key);
 
-        return std.fmt.allocPrint(allocator,
-            \\[OpenAI Response]
-            \\Model: {s}
-            \\Temperature: {d:.2}
-            \\Context size: {d} chars
-            \\Max tokens: {d}
-            \\
-            \\To enable real OpenAI responses, set the ABI_OPENAI_API_KEY environment variable.
+        // Get base URL (default to OpenAI)
+        const base_url_cstr = std.c.getenv("ABI_OPENAI_BASE_URL");
+        const base_url = if (base_url_cstr) |env| try allocator.dupe(u8, std.mem.span(env)) else try allocator.dupe(u8, "https://api.openai.com/v1");
+        defer allocator.free(base_url);
+
+        // Build the full API endpoint
+        const endpoint = try std.fmt.allocPrint(allocator, "{s}/chat/completions", .{base_url});
+        defer allocator.free(endpoint);
+
+        // Build messages array JSON
+        var messages_json = std.ArrayList(u8).init(allocator);
+        defer messages_json.deinit();
+        const writer = messages_json.writer();
+
+        try writer.writeAll("[");
+        for (self.history.items, 0..) |msg, i| {
+            if (i > 0) try writer.writeAll(",");
+
+            const role_str = switch (msg.role) {
+                .system => "system",
+                .user => "user",
+                .assistant => "assistant",
+            };
+
+            try writer.print("{{\"role\":\"{s}\",\"content\":", .{role_str});
+            try std.json.encodeJsonString(msg.content, .{}, writer);
+            try writer.writeAll("}");
+        }
+        try writer.writeAll("]");
+
+        // Build request body
+        const request_body = try std.fmt.allocPrint(allocator,
+            \\{{"model":"{s}","messages":{s},"temperature":{d:.2},"max_tokens":{d}}}
         , .{
             self.config.model,
+            messages_json.items,
             self.config.temperature,
-            context_size,
             self.config.max_tokens,
         });
+        defer allocator.free(request_body);
+
+        // Make HTTP request
+        var client = try http.AsyncHttpClient.init(allocator);
+        defer client.deinit();
+
+        var request = try http.HttpRequest.init(allocator, .post, endpoint);
+        defer request.deinit();
+
+        try request.setBearerToken(api_key);
+        try request.setHeader("Content-Type", "application/json");
+        try request.setBody(request_body);
+
+        // Retry with exponential backoff
+        var attempt: u32 = 0;
+        var backoff_ms = self.config.retry_config.initial_backoff_ms;
+        var prng = std.rand.DefaultPrng.init(@as(u64, @intCast(std.time.milliTimestamp())));
+        const random = prng.random();
+
+        var response: http.HttpResponse = while (attempt <= self.config.retry_config.max_attempts) : (attempt += 1) {
+            const res = client.fetch(&request) catch |err| {
+                if (attempt >= self.config.retry_config.max_attempts) {
+                    std.log.err("OpenAI API request failed after {d} attempts: {}", .{ attempt + 1, err });
+                    return AgentError.HttpRequestFailed;
+                }
+
+                // Wait before retrying
+                const actual_backoff = if (self.config.retry_config.enable_jitter) blk: {
+                    const jitter_min = backoff_ms / 2;
+                    const jitter_range = backoff_ms - jitter_min;
+                    const jitter = random.intRangeAtMost(u64, 0, jitter_range);
+                    break :blk jitter_min + jitter;
+                } else backoff_ms;
+
+                std.time.sleep(actual_backoff * std.time.ns_per_ms);
+                backoff_ms = @min(
+                    @as(u64, @intFromFloat(@as(f64, @floatFromInt(backoff_ms)) * self.config.retry_config.backoff_multiplier)),
+                    self.config.retry_config.max_backoff_ms,
+                );
+                continue;
+            };
+
+            // Check if we should retry based on status code
+            if (retry.isStatusRetryable(res.status_code) and attempt < self.config.retry_config.max_attempts) {
+                res.deinit();
+
+                const actual_backoff = if (self.config.retry_config.enable_jitter) blk: {
+                    const jitter_min = backoff_ms / 2;
+                    const jitter_range = backoff_ms - jitter_min;
+                    const jitter = random.intRangeAtMost(u64, 0, jitter_range);
+                    break :blk jitter_min + jitter;
+                } else backoff_ms;
+
+                std.time.sleep(actual_backoff * std.time.ns_per_ms);
+                backoff_ms = @min(
+                    @as(u64, @intFromFloat(@as(f64, @floatFromInt(backoff_ms)) * self.config.retry_config.backoff_multiplier)),
+                    self.config.retry_config.max_backoff_ms,
+                );
+                continue;
+            }
+
+            break res;
+        } else {
+            std.log.err("OpenAI API request failed after {d} attempts", .{self.config.retry_config.max_attempts + 1});
+            return AgentError.HttpRequestFailed;
+        };
+        defer response.deinit();
+
+        // Check for rate limiting
+        if (response.status_code == 429) {
+            return AgentError.RateLimitExceeded;
+        }
+
+        // Check for success
+        if (!response.isSuccess()) {
+            std.log.err("OpenAI API returned status {d}: {s}", .{ response.status_code, response.body });
+            return AgentError.HttpRequestFailed;
+        }
+
+        // Parse JSON response
+        const parsed = std.json.parseFromSlice(
+            std.json.Value,
+            allocator,
+            response.body,
+            .{},
+        ) catch |err| {
+            std.log.err("Failed to parse OpenAI response: {}", .{err});
+            return AgentError.InvalidApiResponse;
+        };
+        defer parsed.deinit();
+
+        // Extract the assistant's message
+        const choices = parsed.value.object.get("choices") orelse return AgentError.InvalidApiResponse;
+        if (choices.array.items.len == 0) return AgentError.InvalidApiResponse;
+
+        const first_choice = choices.array.items[0];
+        const message = first_choice.object.get("message") orelse return AgentError.InvalidApiResponse;
+        const content = message.object.get("content") orelse return AgentError.InvalidApiResponse;
+
+        // Update token usage if provided
+        if (parsed.value.object.get("usage")) |usage| {
+            if (usage.object.get("total_tokens")) |total| {
+                self.total_tokens_used += @as(u64, @intCast(total.integer));
+            }
+        }
+
+        return try allocator.dupe(u8, content.string);
     }
 
     /// Ollama backend - uses local Ollama instance
     fn generateOllamaResponse(self: *Agent, input: []const u8, allocator: std.mem.Allocator) ![]u8 {
         _ = input;
 
-        return std.fmt.allocPrint(allocator,
-            \\[Ollama Response]
-            \\Model: {s}
-            \\Temperature: {d:.2}
-            \\
-            \\To enable Ollama responses, ensure Ollama is running on localhost:11434.
+        // Get Ollama host (default to localhost:11434)
+        const ollama_host_cstr = std.c.getenv("ABI_OLLAMA_HOST") orelse
+            std.c.getenv("OLLAMA_HOST");
+        const ollama_host = if (ollama_host_cstr) |env| try allocator.dupe(u8, std.mem.span(env)) else try allocator.dupe(u8, "http://127.0.0.1:11434");
+        defer allocator.free(ollama_host);
+
+        // Get model name (use config or environment)
+        const model_name_cstr = std.c.getenv("ABI_OLLAMA_MODEL");
+        const model_name = if (model_name_cstr) |env| try allocator.dupe(u8, std.mem.span(env)) else try allocator.dupe(u8, self.config.model);
+        defer allocator.free(model_name);
+
+        // Build the full API endpoint
+        const endpoint = try std.fmt.allocPrint(allocator, "{s}/api/chat", .{ollama_host});
+        defer allocator.free(endpoint);
+
+        // Build messages array JSON
+        var messages_json = std.ArrayList(u8).init(allocator);
+        defer messages_json.deinit();
+        const writer = messages_json.writer();
+
+        try writer.writeAll("[");
+        for (self.history.items, 0..) |msg, i| {
+            if (i > 0) try writer.writeAll(",");
+
+            const role_str = switch (msg.role) {
+                .system => "system",
+                .user => "user",
+                .assistant => "assistant",
+            };
+
+            try writer.print("{{\"role\":\"{s}\",\"content\":", .{role_str});
+            try std.json.encodeJsonString(msg.content, .{}, writer);
+            try writer.writeAll("}");
+        }
+        try writer.writeAll("]");
+
+        // Build request body (Ollama format)
+        const request_body = try std.fmt.allocPrint(allocator,
+            \\{{"model":"{s}","messages":{s},"stream":false,"options":{{"temperature":{d:.2},"num_predict":{d}}}}}
         , .{
-            self.config.model,
+            model_name,
+            messages_json.items,
             self.config.temperature,
+            self.config.max_tokens,
         });
+        defer allocator.free(request_body);
+
+        // Make HTTP request
+        var client = try http.AsyncHttpClient.init(allocator);
+        defer client.deinit();
+
+        var request = try http.HttpRequest.init(allocator, .post, endpoint);
+        defer request.deinit();
+
+        try request.setHeader("Content-Type", "application/json");
+        try request.setBody(request_body);
+
+        var response = client.fetch(&request) catch |err| {
+            std.log.err("Ollama API request failed: {}. Is Ollama running on {s}?", .{ err, ollama_host });
+            return AgentError.HttpRequestFailed;
+        };
+        defer response.deinit();
+
+        // Check for success
+        if (!response.isSuccess()) {
+            std.log.err("Ollama API returned status {d}: {s}", .{ response.status_code, response.body });
+            return AgentError.HttpRequestFailed;
+        }
+
+        // Parse JSON response
+        const parsed = std.json.parseFromSlice(
+            std.json.Value,
+            allocator,
+            response.body,
+            .{},
+        ) catch |err| {
+            std.log.err("Failed to parse Ollama response: {}", .{err});
+            return AgentError.InvalidApiResponse;
+        };
+        defer parsed.deinit();
+
+        // Extract the assistant's message
+        const message = parsed.value.object.get("message") orelse return AgentError.InvalidApiResponse;
+        const content = message.object.get("content") orelse return AgentError.InvalidApiResponse;
+
+        // Update token usage if provided
+        if (parsed.value.object.get("prompt_eval_count")) |prompt_tokens| {
+            if (parsed.value.object.get("eval_count")) |completion_tokens| {
+                self.total_tokens_used += @as(u64, @intCast(prompt_tokens.integer));
+                self.total_tokens_used += @as(u64, @intCast(completion_tokens.integer));
+            }
+        }
+
+        return try allocator.dupe(u8, content.string);
     }
 
     /// HuggingFace backend - uses Inference API
     fn generateHuggingFaceResponse(self: *Agent, input: []const u8, allocator: std.mem.Allocator) ![]u8 {
         _ = input;
 
-        return std.fmt.allocPrint(allocator,
-            \\[HuggingFace Response]
-            \\Model: {s}
-            \\Temperature: {d:.2}
-            \\
-            \\To enable HuggingFace responses, set the ABI_HF_API_TOKEN environment variable.
+        // Get API token from environment
+        const api_token_cstr = std.c.getenv("ABI_HF_API_TOKEN") orelse
+            std.c.getenv("HF_API_TOKEN") orelse
+            std.c.getenv("HUGGING_FACE_HUB_TOKEN") orelse
+            return AgentError.ApiKeyMissing;
+        const api_token = try allocator.dupe(u8, std.mem.span(api_token_cstr));
+        defer allocator.free(api_token);
+
+        // Get base URL (default to HuggingFace Inference API)
+        const base_url_cstr = std.c.getenv("ABI_HF_BASE_URL");
+        const base_url = if (base_url_cstr) |env| try allocator.dupe(u8, std.mem.span(env)) else try allocator.dupe(u8, "https://api-inference.huggingface.co");
+        defer allocator.free(base_url);
+
+        // Build the full API endpoint
+        const endpoint = try std.fmt.allocPrint(allocator, "{s}/models/{s}", .{ base_url, self.config.model });
+        defer allocator.free(endpoint);
+
+        // Build input from conversation history
+        var prompt = std.ArrayList(u8).init(allocator);
+        defer prompt.deinit();
+        const prompt_writer = prompt.writer();
+
+        for (self.history.items) |msg| {
+            const role_prefix = switch (msg.role) {
+                .system => "System: ",
+                .user => "User: ",
+                .assistant => "Assistant: ",
+            };
+            try prompt_writer.print("{s}{s}\n", .{ role_prefix, msg.content });
+        }
+        try prompt_writer.writeAll("Assistant: ");
+
+        // Build request body (HuggingFace Inference API format)
+        const request_body = try std.fmt.allocPrint(allocator,
+            \\{{"inputs":
+        ++ "\"{s}\"" ++
+            \\,"parameters":{{"temperature":{d:.2},"max_new_tokens":{d},"return_full_text":false}}}}
         , .{
-            self.config.model,
+            prompt.items,
             self.config.temperature,
+            self.config.max_tokens,
         });
+        defer allocator.free(request_body);
+
+        // Make HTTP request
+        var client = try http.AsyncHttpClient.init(allocator);
+        defer client.deinit();
+
+        var request = try http.HttpRequest.init(allocator, .post, endpoint);
+        defer request.deinit();
+
+        try request.setBearerToken(api_token);
+        try request.setHeader("Content-Type", "application/json");
+        try request.setBody(request_body);
+
+        var response = client.fetch(&request) catch |err| {
+            std.log.err("HuggingFace API request failed: {}", .{err});
+            return AgentError.HttpRequestFailed;
+        };
+        defer response.deinit();
+
+        // Check for rate limiting
+        if (response.status_code == 429) {
+            return AgentError.RateLimitExceeded;
+        }
+
+        // Check for success
+        if (!response.isSuccess()) {
+            std.log.err("HuggingFace API returned status {d}: {s}", .{ response.status_code, response.body });
+            return AgentError.HttpRequestFailed;
+        }
+
+        // Parse JSON response (array format)
+        const parsed = std.json.parseFromSlice(
+            std.json.Value,
+            allocator,
+            response.body,
+            .{},
+        ) catch |err| {
+            std.log.err("Failed to parse HuggingFace response: {}", .{err});
+            return AgentError.InvalidApiResponse;
+        };
+        defer parsed.deinit();
+
+        // HuggingFace returns an array with generated_text
+        if (parsed.value != .array) return AgentError.InvalidApiResponse;
+        if (parsed.value.array.items.len == 0) return AgentError.InvalidApiResponse;
+
+        const first_result = parsed.value.array.items[0];
+        const generated_text = first_result.object.get("generated_text") orelse return AgentError.InvalidApiResponse;
+
+        return try allocator.dupe(u8, generated_text.string);
     }
 
     /// Local backend - uses embedded transformer model

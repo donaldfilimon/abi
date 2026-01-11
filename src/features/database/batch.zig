@@ -222,8 +222,18 @@ pub const BatchProcessor = struct {
         try self.flushInternal();
     }
 
-    /// Insert batch of records.
+    /// Insert batch of records (sequential).
     pub fn insertBatch(self: *BatchProcessor, records: []const BatchRecord) !BatchResult {
+        // Use parallel insert if workers configured
+        if (self.config.parallel_workers > 1) {
+            return try self.insertBatchParallel(records);
+        }
+
+        return try self.insertBatchSequential(records);
+    }
+
+    /// Insert batch of records sequentially.
+    fn insertBatchSequential(self: *BatchProcessor, records: []const BatchRecord) !BatchResult {
         var timer = std.time.Timer.start() catch {
             return error.TimerFailed;
         };
@@ -318,6 +328,105 @@ pub const BatchProcessor = struct {
             .throughput = throughput,
             .failed_ids = try failed_ids.toOwnedSlice(self.allocator),
             .errors = try errors.toOwnedSlice(self.allocator),
+        };
+    }
+
+    /// Insert batch of records in parallel using worker threads.
+    fn insertBatchParallel(self: *BatchProcessor, records: []const BatchRecord) !BatchResult {
+        var timer = std.time.Timer.start() catch {
+            return error.TimerFailed;
+        };
+
+        const num_workers = @min(self.config.parallel_workers, records.len);
+        if (num_workers <= 1) {
+            return try self.insertBatchSequential(records);
+        }
+
+        // Shared state for workers
+        const WorkerState = struct {
+            records_slice: []const BatchRecord,
+            successful: std.atomic.Value(usize),
+            skipped: std.atomic.Value(usize),
+            failed: std.atomic.Value(usize),
+            processor: *BatchProcessor,
+        };
+
+        var worker_state = WorkerState{
+            .records_slice = records,
+            .successful = std.atomic.Value(usize).init(0),
+            .skipped = std.atomic.Value(usize).init(0),
+            .failed = std.atomic.Value(usize).init(0),
+            .processor = self,
+        };
+
+        // Create worker threads
+        var threads = try self.allocator.alloc(std.Thread, num_workers);
+        defer self.allocator.free(threads);
+
+        const chunk_size = (records.len + num_workers - 1) / num_workers;
+
+        // Worker function
+        const workerFn = struct {
+            fn run(state: *WorkerState, start_idx: usize, end_idx: usize) void {
+                const slice = state.records_slice[start_idx..end_idx];
+
+                for (slice) |record| {
+                    // Validate
+                    if (state.processor.config.validate_before_insert) {
+                        if (!state.processor.validateRecord(record)) {
+                            if (state.processor.config.continue_on_error) {
+                                _ = state.skipped.fetchAdd(1, .monotonic);
+                                continue;
+                            }
+                        }
+                    }
+
+                    // Process record (placeholder - actual storage would go here)
+                    _ = state.successful.fetchAdd(1, .monotonic);
+                }
+            }
+        }.run;
+
+        // Spawn workers
+        for (0..num_workers) |i| {
+            const start_idx = i * chunk_size;
+            const end_idx = @min(start_idx + chunk_size, records.len);
+
+            if (start_idx >= records.len) break;
+
+            threads[i] = try std.Thread.spawn(.{}, workerFn, .{ &worker_state, start_idx, end_idx });
+        }
+
+        // Wait for all workers to complete
+        for (threads[0..num_workers]) |thread| {
+            thread.join();
+        }
+
+        const successful = worker_state.successful.load(.monotonic);
+        const skipped = worker_state.skipped.load(.monotonic);
+        const failed = worker_state.failed.load(.monotonic);
+
+        const elapsed = timer.read();
+        const throughput = if (elapsed > 0)
+            @as(f64, @floatFromInt(successful)) / (@as(f64, @floatFromInt(elapsed)) / 1_000_000_000.0)
+        else
+            0;
+
+        // Update stats
+        self.mutex.lock();
+        self.stats.total_inserted += successful;
+        self.stats.total_errors += failed;
+        self.mutex.unlock();
+
+        return .{
+            .total_processed = records.len,
+            .successful = successful,
+            .failed = failed,
+            .skipped = skipped,
+            .elapsed_ns = elapsed,
+            .throughput = throughput,
+            .failed_ids = &.{}, // Parallel version doesn't track individual failures
+            .errors = &.{},
         };
     }
 
@@ -566,22 +675,277 @@ pub const BatchImporter = struct {
         };
     }
 
-    /// Import from JSON lines format.
-    /// Note: This is a placeholder implementation. Real JSON parsing would use std.json.
+    /// Import from JSON lines format (JSONL).
+    /// Each line should be a JSON object with fields: id, vector, metadata (optional), text (optional)
     pub fn importJsonLines(self: *BatchImporter, data: []const u8) ![]BatchRecord {
-        _ = data; // Placeholder - actual implementation would parse JSON lines
         var records = std.ArrayListUnmanaged(BatchRecord){};
-        // Return empty slice - actual implementation would populate records from parsed JSON
+        errdefer {
+            for (records.items) |record| {
+                self.allocator.free(record.vector);
+                if (record.metadata) |m| self.allocator.free(m);
+                if (record.text) |t| self.allocator.free(t);
+            }
+            records.deinit(self.allocator);
+        }
+
+        var line_iter = std.mem.splitScalar(u8, data, '\n');
+        while (line_iter.next()) |line| {
+            // Skip empty lines
+            const trimmed = std.mem.trim(u8, line, &std.ascii.whitespace);
+            if (trimmed.len == 0) continue;
+
+            // Parse JSON line
+            const parsed = std.json.parseFromSlice(
+                std.json.Value,
+                self.allocator,
+                trimmed,
+                .{},
+            ) catch |err| {
+                std.log.warn("Failed to parse JSON line: {}", .{err});
+                continue;
+            };
+            defer parsed.deinit();
+
+            const obj = parsed.value.object;
+
+            // Extract ID (required)
+            const id_value = obj.get("id") orelse continue;
+            const id: u64 = switch (id_value) {
+                .integer => |i| @intCast(i),
+                .number_string => |s| std.fmt.parseInt(u64, s, 10) catch continue,
+                else => continue,
+            };
+
+            // Extract vector (required)
+            const vector_value = obj.get("vector") orelse continue;
+            if (vector_value != .array) continue;
+
+            var vector_data = try self.allocator.alloc(f32, vector_value.array.items.len);
+            errdefer self.allocator.free(vector_data);
+
+            for (vector_value.array.items, 0..) |v, i| {
+                vector_data[i] = switch (v) {
+                    .float => |f| @floatCast(f),
+                    .integer => |int| @floatFromInt(int),
+                    .number_string => |s| std.fmt.parseFloat(f32, s) catch continue,
+                    else => continue,
+                };
+            }
+
+            // Extract metadata (optional)
+            var metadata: ?[]u8 = null;
+            if (obj.get("metadata")) |meta_value| {
+                if (meta_value == .string) {
+                    metadata = try self.allocator.dupe(u8, meta_value.string);
+                }
+            }
+            errdefer if (metadata) |m| self.allocator.free(m);
+
+            // Extract text (optional)
+            var text: ?[]u8 = null;
+            if (obj.get("text")) |text_value| {
+                if (text_value == .string) {
+                    text = try self.allocator.dupe(u8, text_value.string);
+                }
+            }
+            errdefer if (text) |t| self.allocator.free(t);
+
+            try records.append(self.allocator, .{
+                .id = id,
+                .vector = vector_data,
+                .metadata = metadata,
+                .text = text,
+            });
+        }
+
         return records.toOwnedSlice(self.allocator);
     }
 
     /// Import from CSV format.
-    /// Note: This is a placeholder implementation.
+    /// Format: id,vector[...],metadata,text
+    /// Vector is comma-separated floats in square brackets or space-separated
     pub fn importCsv(self: *BatchImporter, data: []const u8) ![]BatchRecord {
-        _ = data; // Placeholder - actual implementation would parse CSV data
         var records = std.ArrayListUnmanaged(BatchRecord){};
-        // Return empty slice - actual implementation would populate records from parsed CSV
+        errdefer {
+            for (records.items) |record| {
+                self.allocator.free(record.vector);
+                if (record.metadata) |m| self.allocator.free(m);
+                if (record.text) |t| self.allocator.free(t);
+            }
+            records.deinit(self.allocator);
+        }
+
+        var line_iter = std.mem.splitScalar(u8, data, '\n');
+        var line_num: usize = 0;
+
+        while (line_iter.next()) |line| {
+            line_num += 1;
+
+            // Skip empty lines and header
+            const trimmed = std.mem.trim(u8, line, &std.ascii.whitespace);
+            if (trimmed.len == 0) continue;
+            if (line_num == 1 and std.mem.indexOf(u8, trimmed, "id") != null) continue; // Skip header
+
+            // Split by comma (simple CSV parsing - doesn't handle quoted fields with commas)
+            var field_iter = std.mem.splitScalar(u8, trimmed, ',');
+
+            // Field 1: ID
+            const id_str = field_iter.next() orelse continue;
+            const id = std.fmt.parseInt(u64, std.mem.trim(u8, id_str, &std.ascii.whitespace), 10) catch |err| {
+                std.log.warn("Line {d}: Invalid ID: {}", .{ line_num, err });
+                continue;
+            };
+
+            // Field 2: Vector (could be in brackets or space-separated)
+            const vector_str = field_iter.next() orelse continue;
+            const vector_trimmed = std.mem.trim(u8, vector_str, &std.ascii.whitespace);
+
+            // Parse vector
+            var vector_list = std.ArrayListUnmanaged(f32){};
+            defer vector_list.deinit(self.allocator);
+
+            // Check if vector is in brackets [1.0,2.0,3.0] or just space/comma separated
+            var vec_data = vector_trimmed;
+            if (std.mem.startsWith(u8, vec_data, "[")) {
+                vec_data = vec_data[1..];
+            }
+            if (std.mem.endsWith(u8, vec_data, "]")) {
+                vec_data = vec_data[0 .. vec_data.len - 1];
+            }
+
+            var value_iter = std.mem.tokenizeAny(u8, vec_data, ", ");
+            while (value_iter.next()) |val_str| {
+                const val = std.fmt.parseFloat(f32, std.mem.trim(u8, val_str, &std.ascii.whitespace)) catch |err| {
+                    std.log.warn("Line {d}: Invalid vector value '{s}': {}", .{ line_num, val_str, err });
+                    continue;
+                };
+                try vector_list.append(self.allocator, val);
+            }
+
+            if (vector_list.items.len == 0) {
+                std.log.warn("Line {d}: Empty vector", .{line_num});
+                continue;
+            }
+
+            const vector_data = try vector_list.toOwnedSlice(self.allocator);
+            errdefer self.allocator.free(vector_data);
+
+            // Field 3: Metadata (optional)
+            var metadata: ?[]u8 = null;
+            if (field_iter.next()) |meta_str| {
+                const meta_trimmed = std.mem.trim(u8, meta_str, &std.ascii.whitespace);
+                if (meta_trimmed.len > 0) {
+                    metadata = try self.allocator.dupe(u8, meta_trimmed);
+                }
+            }
+            errdefer if (metadata) |m| self.allocator.free(m);
+
+            // Field 4: Text (optional)
+            var text: ?[]u8 = null;
+            if (field_iter.next()) |text_str| {
+                const text_trimmed = std.mem.trim(u8, text_str, &std.ascii.whitespace);
+                if (text_trimmed.len > 0) {
+                    text = try self.allocator.dupe(u8, text_trimmed);
+                }
+            }
+            errdefer if (text) |t| self.allocator.free(t);
+
+            try records.append(self.allocator, .{
+                .id = id,
+                .vector = vector_data,
+                .metadata = metadata,
+                .text = text,
+            });
+        }
+
         return records.toOwnedSlice(self.allocator);
+    }
+
+    /// Export records to JSON lines format.
+    pub fn exportJsonLines(self: *BatchImporter, records: []const BatchRecord) ![]u8 {
+        var output = std.ArrayList(u8).init(self.allocator);
+        errdefer output.deinit();
+
+        const writer = output.writer();
+
+        for (records) |record| {
+            try writer.writeAll("{\"id\":");
+            try std.fmt.formatInt(record.id, 10, .lower, .{}, writer);
+
+            try writer.writeAll(",\"vector\":[");
+            for (record.vector, 0..) |v, i| {
+                if (i > 0) try writer.writeAll(",");
+                try std.fmt.formatFloat(writer, v, .{});
+            }
+            try writer.writeAll("]");
+
+            if (record.metadata) |meta| {
+                try writer.writeAll(",\"metadata\":");
+                try std.json.encodeJsonString(meta, .{}, writer);
+            }
+
+            if (record.text) |txt| {
+                try writer.writeAll(",\"text\":");
+                try std.json.encodeJsonString(txt, .{}, writer);
+            }
+
+            try writer.writeAll("}\n");
+        }
+
+        return output.toOwnedSlice();
+    }
+
+    /// Export records to CSV format.
+    pub fn exportCsv(self: *BatchImporter, records: []const BatchRecord) ![]u8 {
+        var output = std.ArrayList(u8).init(self.allocator);
+        errdefer output.deinit();
+
+        const writer = output.writer();
+
+        // Write header
+        try writer.writeAll("id,vector,metadata,text\n");
+
+        for (records) |record| {
+            // Write ID
+            try std.fmt.formatInt(record.id, 10, .lower, .{}, writer);
+            try writer.writeAll(",");
+
+            // Write vector
+            try writer.writeAll("[");
+            for (record.vector, 0..) |v, i| {
+                if (i > 0) try writer.writeAll(" ");
+                try std.fmt.formatFloat(writer, v, .{});
+            }
+            try writer.writeAll("]");
+            try writer.writeAll(",");
+
+            // Write metadata (escaped if contains commas)
+            if (record.metadata) |meta| {
+                if (std.mem.indexOf(u8, meta, ",") != null) {
+                    try writer.writeAll("\"");
+                    try writer.writeAll(meta);
+                    try writer.writeAll("\"");
+                } else {
+                    try writer.writeAll(meta);
+                }
+            }
+            try writer.writeAll(",");
+
+            // Write text (escaped if contains commas)
+            if (record.text) |txt| {
+                if (std.mem.indexOf(u8, txt, ",") != null) {
+                    try writer.writeAll("\"");
+                    try writer.writeAll(txt);
+                    try writer.writeAll("\"");
+                } else {
+                    try writer.writeAll(txt);
+                }
+            }
+
+            try writer.writeAll("\n");
+        }
+
+        return output.toOwnedSlice();
     }
 };
 

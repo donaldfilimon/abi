@@ -213,30 +213,34 @@ pub const Engine = struct {
         return m.decode(output_tokens);
     }
 
-    /// Generate with streaming callback
+    /// Generate with streaming callback (per-token)
     pub fn generateStreaming(
         self: *Engine,
         prompt: []const u8,
         callback: *const fn ([]const u8) void,
     ) !void {
         const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
-        _ = callback;
 
         // Encode prompt to tokens
-        const prompt_tokens = try m.encode(prompt);
+        const prompt_tokens = try m.tokenizer.encode(self.allocator, prompt);
         defer self.allocator.free(prompt_tokens);
 
-        // Generate output tokens (streaming would require token-by-token callback)
-        const output_tokens = try m.generate(prompt_tokens, .{
+        // Create generator with streaming enabled
+        var gen = m.createGenerator(.{
             .max_tokens = self.config.max_new_tokens,
             .temperature = self.config.temperature,
-            .top_p = self.config.top_p,
             .top_k = self.config.top_k,
+            .top_p = self.config.top_p,
+            .stop_tokens = &[_]u32{ m.tokenizer.eos_token_id },
         });
+        defer gen.deinit();
+
+        // Generate with per-token streaming callback
+        const output_tokens = try gen.generateTokensStreaming(prompt_tokens, &m.tokenizer, callback);
         defer self.allocator.free(output_tokens);
 
-        // TODO: Implement true streaming with per-token callback
-        // For now, just decode and return
+        // Update stats
+        self.stats.generated_tokens += @intCast(output_tokens.len);
     }
 
     /// Get current statistics

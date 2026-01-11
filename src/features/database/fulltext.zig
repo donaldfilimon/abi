@@ -25,8 +25,10 @@ pub const TokenizerConfig = struct {
     min_token_length: usize = 2,
     /// Maximum token length.
     max_token_length: usize = 64,
-    /// Enable stemming (basic suffix removal).
+    /// Enable stemming (Porter stemmer).
     enable_stemming: bool = true,
+    /// Filter out stop words.
+    filter_stop_words: bool = true,
 };
 
 /// Token information.
@@ -215,9 +217,15 @@ pub const InvertedIndex = struct {
             return try self.allocator.alloc(TextSearchResult, 0);
         }
 
-        // Collect candidate documents and their scores
+        // Collect candidate documents, their scores, and matched terms
         var scores = std.AutoHashMapUnmanaged(u64, ScoreAccum){};
-        defer scores.deinit(self.allocator);
+        defer {
+            var iter = scores.iterator();
+            while (iter.next()) |entry| {
+                entry.value_ptr.matched_terms.deinit(self.allocator);
+            }
+            scores.deinit(self.allocator);
+        }
 
         for (query_tokens.items) |term| {
             if (self.postings.get(term)) |posting_list| {
@@ -233,10 +241,18 @@ pub const InvertedIndex = struct {
 
                     const score_entry = try scores.getOrPut(self.allocator, doc_id);
                     if (!score_entry.found_existing) {
-                        score_entry.value_ptr.* = .{ .score = 0, .term_count = 0 };
+                        score_entry.value_ptr.* = .{
+                            .score = 0,
+                            .term_count = 0,
+                            .matched_terms = std.ArrayListUnmanaged([]const u8){},
+                        };
                     }
                     score_entry.value_ptr.score += term_score;
                     score_entry.value_ptr.term_count += 1;
+
+                    // Track matched term
+                    const term_copy = try self.allocator.dupe(u8, term);
+                    try score_entry.value_ptr.matched_terms.append(self.allocator, term_copy);
                 }
             }
         }
@@ -247,10 +263,11 @@ pub const InvertedIndex = struct {
 
         var score_iter = scores.iterator();
         while (score_iter.next()) |entry| {
+            const matched_terms = try entry.value_ptr.matched_terms.toOwnedSlice(self.allocator);
             try results.append(self.allocator, .{
                 .doc_id = entry.key_ptr.*,
                 .score = entry.value_ptr.score,
-                .matched_terms = &.{}, // Would need to track matched terms
+                .matched_terms = matched_terms,
             });
         }
 
@@ -261,6 +278,14 @@ pub const InvertedIndex = struct {
         const result_count = @min(top_k, results.items.len);
         const final_results = try self.allocator.alloc(TextSearchResult, result_count);
         @memcpy(final_results, results.items[0..result_count]);
+
+        // Free remaining results that weren't returned
+        for (results.items[result_count..]) |result| {
+            for (result.matched_terms) |term| {
+                self.allocator.free(term);
+            }
+            self.allocator.free(result.matched_terms);
+        }
 
         return final_results;
     }
@@ -286,6 +311,7 @@ pub const InvertedIndex = struct {
     const ScoreAccum = struct {
         score: f32,
         term_count: u32,
+        matched_terms: std.ArrayListUnmanaged([]const u8),
     };
 
     // BM25 calculations
@@ -368,34 +394,120 @@ pub const InvertedIndex = struct {
             @memcpy(processed, token);
         }
 
-        // Basic stemming (remove common suffixes)
+        // Filter stop words
+        if (self.tokenizer_config.filter_stop_words) {
+            if (isStopWord(processed)) {
+                self.allocator.free(processed);
+                return null;
+            }
+        }
+
+        // Porter stemmer (simplified implementation)
         if (self.tokenizer_config.enable_stemming) {
-            var len = processed.len;
-
-            // Remove common English suffixes
-            if (len > 4) {
-                if (std.mem.endsWith(u8, processed[0..len], "ing")) {
-                    len -= 3;
-                } else if (std.mem.endsWith(u8, processed[0..len], "ed")) {
-                    len -= 2;
-                } else if (std.mem.endsWith(u8, processed[0..len], "ly")) {
-                    len -= 2;
-                } else if (std.mem.endsWith(u8, processed[0..len], "ness")) {
-                    len -= 4;
-                } else if (std.mem.endsWith(u8, processed[0..len], "ment")) {
-                    len -= 4;
-                }
-            }
-
-            if (len < processed.len) {
-                const stemmed = try self.allocator.realloc(processed, len);
-                return stemmed;
-            }
+            const stemmed = try self.porterStem(processed);
+            return stemmed;
         }
 
         return processed;
     }
+
+    /// Simplified Porter stemmer implementation
+    fn porterStem(self: *InvertedIndex, word: []u8) ![]u8 {
+        var len = word.len;
+        if (len <= 2) return word;
+
+        // Step 1a: plurals
+        if (std.mem.endsWith(u8, word[0..len], "sses")) {
+            len -= 2; // sses -> ss
+        } else if (std.mem.endsWith(u8, word[0..len], "ies")) {
+            len -= 2; // ies -> i
+            if (len > 0) word[len - 1] = 'i';
+        } else if (std.mem.endsWith(u8, word[0..len], "ss")) {
+            // Keep as is
+        } else if (std.mem.endsWith(u8, word[0..len], "s")) {
+            len -= 1; // s -> (empty)
+        }
+
+        // Step 1b: -ed, -ing
+        if (std.mem.endsWith(u8, word[0..len], "eed")) {
+            if (len > 4) len -= 1; // eed -> ee
+        } else if (std.mem.endsWith(u8, word[0..len], "ed")) {
+            if (self.containsVowel(word[0 .. len - 2])) {
+                len -= 2;
+            }
+        } else if (std.mem.endsWith(u8, word[0..len], "ing")) {
+            if (self.containsVowel(word[0 .. len - 3])) {
+                len -= 3;
+            }
+        }
+
+        // Step 1c: -y
+        if (len > 2 and word[len - 1] == 'y') {
+            if (self.containsVowel(word[0 .. len - 1])) {
+                word[len - 1] = 'i';
+            }
+        }
+
+        // Step 2: common suffixes
+        if (len > 5) {
+            if (std.mem.endsWith(u8, word[0..len], "ational")) {
+                len -= 5; // ational -> ate
+                @memcpy(word[len - 3 .. len], "ate");
+            } else if (std.mem.endsWith(u8, word[0..len], "tional")) {
+                len -= 2; // tional -> tion
+            } else if (std.mem.endsWith(u8, word[0..len], "alism")) {
+                len -= 3; // alism -> al
+            } else if (std.mem.endsWith(u8, word[0..len], "ation")) {
+                len -= 3; // ation -> ate
+                @memcpy(word[len - 3 .. len], "ate");
+            } else if (std.mem.endsWith(u8, word[0..len], "ness")) {
+                len -= 4; // ness -> (empty)
+            } else if (std.mem.endsWith(u8, word[0..len], "ment")) {
+                len -= 4; // ment -> (empty)
+            } else if (std.mem.endsWith(u8, word[0..len], "ful")) {
+                len -= 3; // ful -> (empty)
+            } else if (std.mem.endsWith(u8, word[0..len], "ous")) {
+                len -= 3; // ous -> (empty)
+            } else if (std.mem.endsWith(u8, word[0..len], "ive")) {
+                len -= 3; // ive -> (empty)
+            } else if (std.mem.endsWith(u8, word[0..len], "ize")) {
+                len -= 3; // ize -> (empty)
+            }
+        }
+
+        if (len < word.len) {
+            return try self.allocator.realloc(word, len);
+        }
+
+        return word;
+    }
+
+    fn containsVowel(self: *InvertedIndex, word: []const u8) bool {
+        _ = self;
+        for (word) |c| {
+            if (c == 'a' or c == 'e' or c == 'i' or c == 'o' or c == 'u' or c == 'y') {
+                return true;
+            }
+        }
+        return false;
+    }
 };
+
+/// Stop words list (common English words to filter out)
+pub const STOP_WORDS = [_][]const u8{
+    "a",     "an",    "and",  "are",  "as",    "at",   "be",    "but",
+    "by",    "for",   "if",   "in",   "into",  "is",   "it",    "no",
+    "not",   "of",    "on",   "or",   "such",  "that", "the",   "their",
+    "then",  "there", "these", "they", "this",  "to",   "was",   "will",
+    "with",
+};
+
+fn isStopWord(word: []const u8) bool {
+    for (STOP_WORDS) |stop| {
+        if (std.mem.eql(u8, word, stop)) return true;
+    }
+    return false;
+}
 
 /// Query parser for boolean and phrase queries.
 pub const QueryParser = struct {
@@ -411,8 +523,21 @@ pub const QueryParser = struct {
 
     pub const ParsedQuery = struct {
         query_type: QueryType,
-        terms: []const []const u8,
-        subqueries: []const ParsedQuery,
+        terms: [][]const u8,
+        subqueries: []ParsedQuery,
+        allocator: std.mem.Allocator,
+
+        pub fn deinit(self: *ParsedQuery) void {
+            for (self.terms) |term| {
+                self.allocator.free(term);
+            }
+            self.allocator.free(self.terms);
+
+            for (self.subqueries) |*subquery| {
+                subquery.deinit();
+            }
+            self.allocator.free(self.subqueries);
+        }
     };
 
     pub fn init(allocator: std.mem.Allocator) QueryParser {
@@ -421,12 +546,163 @@ pub const QueryParser = struct {
 
     /// Parse a query string.
     pub fn parse(self: *QueryParser, query: []const u8) !ParsedQuery {
-        // Simple implementation - treat as term query
-        _ = self;
-        return .{
-            .query_type = .term,
-            .terms = &.{query},
+        var tokens = std.ArrayListUnmanaged(Token){};
+        defer tokens.deinit(self.allocator);
+
+        // Tokenize the query
+        try self.tokenize(query, &tokens);
+
+        // Parse tokens into query structure
+        return try self.parseTokens(tokens.items);
+    }
+
+    const TokenType = enum {
+        word,
+        phrase,
+        and_op,
+        or_op,
+        not_op,
+        lparen,
+        rparen,
+    };
+
+    const Token = struct {
+        type: TokenType,
+        value: []const u8,
+    };
+
+    fn tokenize(self: *QueryParser, query: []const u8, tokens: *std.ArrayListUnmanaged(Token)) !void {
+        var i: usize = 0;
+        while (i < query.len) {
+            // Skip whitespace
+            while (i < query.len and std.ascii.isWhitespace(query[i])) : (i += 1) {}
+            if (i >= query.len) break;
+
+            // Handle quoted phrases
+            if (query[i] == '"') {
+                i += 1; // Skip opening quote
+                const start = i;
+                while (i < query.len and query[i] != '"') : (i += 1) {}
+                if (i > start) {
+                    try tokens.append(self.allocator, .{
+                        .type = .phrase,
+                        .value = query[start..i],
+                    });
+                }
+                if (i < query.len) i += 1; // Skip closing quote
+                continue;
+            }
+
+            // Handle parentheses
+            if (query[i] == '(') {
+                try tokens.append(self.allocator, .{ .type = .lparen, .value = "(" });
+                i += 1;
+                continue;
+            }
+            if (query[i] == ')') {
+                try tokens.append(self.allocator, .{ .type = .rparen, .value = ")" });
+                i += 1;
+                continue;
+            }
+
+            // Handle words and operators
+            const start = i;
+            while (i < query.len and !std.ascii.isWhitespace(query[i]) and
+                query[i] != '(' and query[i] != ')' and query[i] != '"') : (i += 1) {}
+
+            const word = query[start..i];
+            if (word.len == 0) continue;
+
+            // Check for boolean operators
+            if (std.ascii.eqlIgnoreCase(word, "AND")) {
+                try tokens.append(self.allocator, .{ .type = .and_op, .value = word });
+            } else if (std.ascii.eqlIgnoreCase(word, "OR")) {
+                try tokens.append(self.allocator, .{ .type = .or_op, .value = word });
+            } else if (std.ascii.eqlIgnoreCase(word, "NOT")) {
+                try tokens.append(self.allocator, .{ .type = .not_op, .value = word });
+            } else {
+                try tokens.append(self.allocator, .{ .type = .word, .value = word });
+            }
+        }
+    }
+
+    fn parseTokens(self: *QueryParser, tokens: []const Token) !ParsedQuery {
+        if (tokens.len == 0) {
+            return ParsedQuery{
+                .query_type = .term,
+                .terms = &.{},
+                .subqueries = &.{},
+                .allocator = self.allocator,
+            };
+        }
+
+        // Simple recursive descent parser
+        return try self.parseOr(tokens);
+    }
+
+    fn parseOr(self: *QueryParser, tokens: []const Token) !ParsedQuery {
+        const left = try self.parseAnd(tokens);
+        var i: usize = 0;
+
+        // Find OR operators
+        while (i < tokens.len) {
+            if (tokens[i].type == .or_op) {
+                const right = try self.parseAnd(tokens[i + 1 ..]);
+
+                var subqueries = try self.allocator.alloc(ParsedQuery, 2);
+                subqueries[0] = left;
+                subqueries[1] = right;
+
+                return ParsedQuery{
+                    .query_type = .boolean_or,
+                    .terms = &.{},
+                    .subqueries = subqueries,
+                    .allocator = self.allocator,
+                };
+            }
+            i += 1;
+        }
+
+        return left;
+    }
+
+    fn parseAnd(self: *QueryParser, tokens: []const Token) !ParsedQuery {
+        var terms = std.ArrayListUnmanaged([]u8){};
+        errdefer {
+            for (terms.items) |term| self.allocator.free(term);
+            terms.deinit(self.allocator);
+        }
+
+        var has_and = false;
+        var i: usize = 0;
+
+        while (i < tokens.len) {
+            if (tokens[i].type == .or_op) break; // OR has lower precedence
+
+            if (tokens[i].type == .and_op) {
+                has_and = true;
+                i += 1;
+                continue;
+            }
+
+            if (tokens[i].type == .word) {
+                const term = try self.allocator.dupe(u8, tokens[i].value);
+                try terms.append(self.allocator, term);
+            } else if (tokens[i].type == .phrase) {
+                // Treat phrase as single term for now
+                const term = try self.allocator.dupe(u8, tokens[i].value);
+                try terms.append(self.allocator, term);
+            }
+
+            i += 1;
+        }
+
+        const owned_terms = try terms.toOwnedSlice(self.allocator);
+        return ParsedQuery{
+            .query_type = if (has_and) .boolean_and else .term,
+            .terms = owned_terms,
             .subqueries = &.{},
+            .allocator = self.allocator,
         };
     }
 };
