@@ -248,9 +248,9 @@ Validated locally with Zig 0.16.x:
 ### 1. CI Configuration
 Ensure CI uses Zig 0.16.x:
 ```yaml
-- uses: ziglang/setup-zig@v1
+- uses: nick-fields/setup-zig@v2
   with:
-    zig-version: 0.16
+    version: '0.16'
 ```
 
 ### 2. Additional Testing (Optional)
