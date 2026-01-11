@@ -186,6 +186,13 @@ fn destroyVulkanContext(ctx: *VulkanContext) void {
     }
 }
 
+/// Device scoring for selection priority.
+/// Higher scores are preferred. Discrete GPUs score highest.
+const DeviceScore = struct {
+    device: types.VkPhysicalDevice,
+    score: u32,
+};
+
 fn selectPhysicalDevice(instance: types.VkInstance) !types.VkPhysicalDevice {
     const enumerate_fn = vkEnumeratePhysicalDevices orelse return VulkanError.PhysicalDeviceNotFound;
 
@@ -195,21 +202,61 @@ fn selectPhysicalDevice(instance: types.VkInstance) !types.VkPhysicalDevice {
         return VulkanError.PhysicalDeviceNotFound;
     }
 
-    const devices = try std.heap.page_allocator.alloc(types.VkPhysicalDevice, device_count);
-    defer std.heap.page_allocator.free(devices);
+    // Use a temporary arena allocator for device enumeration
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const temp_allocator = arena.allocator();
+
+    const devices = try temp_allocator.alloc(types.VkPhysicalDevice, device_count);
 
     result = enumerate_fn(instance, &device_count, devices.ptr);
     if (result != .success) {
         return VulkanError.PhysicalDeviceNotFound;
     }
 
-    // Select first discrete GPU, or first available device
+    // Score each device and select the best one
+    var best_device: ?types.VkPhysicalDevice = null;
+    var best_score: u32 = 0;
+
+    const get_properties_fn = vkGetPhysicalDeviceProperties orelse {
+        // If we can't get properties, just return the first device
+        return devices[0];
+    };
+
     for (devices) |device| {
-        // For now, just return the first device
-        return device;
+        var properties: types.VkPhysicalDeviceProperties = undefined;
+        get_properties_fn(device, &properties);
+
+        const score = scorePhysicalDevice(&properties);
+        if (best_device == null or score > best_score) {
+            best_device = device;
+            best_score = score;
+        }
     }
 
-    return VulkanError.PhysicalDeviceNotFound;
+    return best_device orelse VulkanError.PhysicalDeviceNotFound;
+}
+
+/// Score a physical device based on its type and capabilities.
+/// Scoring hierarchy (from CLAUDE.md):
+/// - Discrete GPU > Integrated GPU > Virtual GPU > CPU > Other
+fn scorePhysicalDevice(properties: *const types.VkPhysicalDeviceProperties) u32 {
+    const device_type = properties.deviceType;
+
+    // Base score by device type
+    const type_score: u32 = switch (device_type) {
+        .discrete_gpu => 1000,
+        .integrated_gpu => 500,
+        .virtual_gpu => 100,
+        .cpu => 50,
+        else => 10,
+    };
+
+    // Bonus for API version (prefer newer Vulkan versions)
+    const api_version = properties.apiVersion;
+    const api_bonus: u32 = @min(api_version / 0x00100000, 10); // Cap at version 10
+
+    return type_score + api_bonus;
 }
 
 fn findComputeQueueFamily(physical_device: types.VkPhysicalDevice) !u32 {

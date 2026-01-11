@@ -1,7 +1,7 @@
 //! OpenGL ES backend implementation with compute shader support.
 //!
 //! Provides OpenGL ES-specific kernel compilation and execution using compute shaders
-//! for mobile and embedded platforms.
+//! for mobile and embedded platforms. Requires OpenGL ES 3.1+ for compute shader support.
 
 const std = @import("std");
 const types = @import("../kernel_types.zig");
@@ -15,10 +15,14 @@ pub const OpenGlesError = error{
     ProgramLinkingFailed,
     BufferCreationFailed,
     DispatchFailed,
+    VersionNotSupported,
+    FunctionLoadFailed,
+    LibraryNotFound,
 };
 
 var opengles_lib: ?std.DynLib = null;
 var opengles_initialized = false;
+var init_mutex = std.Thread.Mutex{};
 
 // OpenGL ES function pointers (subset of OpenGL)
 const GlesGetStringFn = *const fn (u32) callconv(.c) ?[*:0]const u8;
@@ -85,58 +89,74 @@ const GL_DYNAMIC_READ = 0x88E9;
 const GL_COMPILE_STATUS = 0x8B81;
 const GL_LINK_STATUS = 0x8B82;
 
-pub fn init() !void {
+pub fn init() OpenGlesError!void {
+    init_mutex.lock();
+    defer init_mutex.unlock();
+
     if (opengles_initialized) return;
 
     if (!tryLoadOpenGles()) {
-        return OpenGlesError.InitializationFailed;
+        return OpenGlesError.LibraryNotFound;
     }
+    errdefer if (opengles_lib) |lib| lib.close();
 
     if (!loadOpenGlesFunctions()) {
-        return OpenGlesError.InitializationFailed;
+        return OpenGlesError.FunctionLoadFailed;
     }
 
     // Check if compute shaders are supported (OpenGL ES 3.1+)
     const version_string = glesGetString orelse return OpenGlesError.InitializationFailed;
     const version = version_string(0x1F02); // GL_VERSION
     if (version == null) {
-        return OpenGlesError.InitializationFailed;
+        return OpenGlesError.VersionNotSupported;
     }
 
     opengles_initialized = true;
+    std.log.debug("OpenGL ES backend initialized successfully", .{});
 }
 
 pub fn deinit() void {
+    init_mutex.lock();
+    defer init_mutex.unlock();
+
+    if (!opengles_initialized) return;
+
     if (opengles_lib) |lib| {
         lib.close();
     }
     opengles_lib = null;
     opengles_initialized = false;
+
+    std.log.debug("OpenGL ES backend deinitialized", .{});
 }
 
 pub fn compileKernel(
     allocator: std.mem.Allocator,
     source: types.KernelSource,
-) types.KernelError!*anyopaque {
+) (types.KernelError || OpenGlesError)!*anyopaque {
     if (!opengles_initialized) {
-        return types.KernelError.CompilationFailed;
+        return OpenGlesError.InitializationFailed;
     }
 
     // Create compute shader
-    const create_shader_fn = glesCreateShader orelse return types.KernelError.CompilationFailed;
+    const create_shader_fn = glesCreateShader orelse return OpenGlesError.ShaderCompilationFailed;
     const shader = create_shader_fn(GL_COMPUTE_SHADER);
+    if (shader == 0) {
+        return OpenGlesError.ShaderCompilationFailed;
+    }
+    errdefer if (glesDeleteShader) |delete_fn| delete_fn(shader);
 
     // Set shader source
     const source_ptr = &[_][*:0]const u8{source.source.ptr};
-    const set_source_fn = glesShaderSource orelse return types.KernelError.CompilationFailed;
+    const set_source_fn = glesShaderSource orelse return OpenGlesError.ShaderCompilationFailed;
     set_source_fn(shader, 1, source_ptr.ptr, null);
 
     // Compile shader
-    const compile_fn = glesCompileShader orelse return types.KernelError.CompilationFailed;
+    const compile_fn = glesCompileShader orelse return OpenGlesError.ShaderCompilationFailed;
     compile_fn(shader);
 
     // Check compilation status
-    const get_shader_iv_fn = glesGetShaderiv orelse return types.KernelError.CompilationFailed;
+    const get_shader_iv_fn = glesGetShaderiv orelse return OpenGlesError.ShaderCompilationFailed;
     var compile_status: i32 = 0;
     get_shader_iv_fn(shader, GL_COMPILE_STATUS, &compile_status);
 
@@ -145,29 +165,33 @@ pub fn compileKernel(
         var log_length: i32 = 0;
         get_shader_iv_fn(shader, 0x8B84, &log_length); // GL_INFO_LOG_LENGTH
         if (log_length > 0) {
-            var log = try allocator.alloc(u8, @intCast(log_length));
+            const log = try allocator.alloc(u8, @intCast(log_length));
             defer allocator.free(log);
-            const get_log_fn = glesGetShaderInfoLog orelse return types.KernelError.CompilationFailed;
+            const get_log_fn = glesGetShaderInfoLog orelse return OpenGlesError.ShaderCompilationFailed;
             get_log_fn(shader, log_length, null, log.ptr);
-            std.log.err("OpenGL ES Shader Compilation Failed: {s}", .{log});
+            std.log.err("OpenGL ES shader compilation failed: {s}", .{log});
         }
-        return types.KernelError.CompilationFailed;
+        return OpenGlesError.ShaderCompilationFailed;
     }
 
     // Create program
-    const create_program_fn = glesCreateProgram orelse return types.KernelError.CompilationFailed;
+    const create_program_fn = glesCreateProgram orelse return OpenGlesError.ProgramLinkingFailed;
     const program = create_program_fn();
+    if (program == 0) {
+        return OpenGlesError.ProgramLinkingFailed;
+    }
+    errdefer if (glesDeleteProgram) |delete_fn| delete_fn(program);
 
     // Attach shader
-    const attach_fn = glesAttachShader orelse return types.KernelError.CompilationFailed;
+    const attach_fn = glesAttachShader orelse return OpenGlesError.ProgramLinkingFailed;
     attach_fn(program, shader);
 
     // Link program
-    const link_fn = glesLinkProgram orelse return types.KernelError.CompilationFailed;
+    const link_fn = glesLinkProgram orelse return OpenGlesError.ProgramLinkingFailed;
     link_fn(program);
 
     // Check link status
-    const get_program_iv_fn = glesGetProgramiv orelse return types.KernelError.CompilationFailed;
+    const get_program_iv_fn = glesGetProgramiv orelse return OpenGlesError.ProgramLinkingFailed;
     var link_status: i32 = 0;
     get_program_iv_fn(program, GL_LINK_STATUS, &link_status);
 
@@ -176,13 +200,13 @@ pub fn compileKernel(
         var log_length: i32 = 0;
         get_program_iv_fn(program, 0x8B84, &log_length); // GL_INFO_LOG_LENGTH
         if (log_length > 0) {
-            var log = try allocator.alloc(u8, @intCast(log_length));
+            const log = try allocator.alloc(u8, @intCast(log_length));
             defer allocator.free(log);
-            const get_log_fn = glesGetProgramInfoLog orelse return types.KernelError.CompilationFailed;
+            const get_log_fn = glesGetProgramInfoLog orelse return OpenGlesError.ProgramLinkingFailed;
             get_log_fn(program, log_length, null, log.ptr);
-            std.log.err("OpenGL ES Program Linking Failed: {s}", .{log});
+            std.log.err("OpenGL ES program linking failed: {s}", .{log});
         }
-        return types.KernelError.CompilationFailed;
+        return OpenGlesError.ProgramLinkingFailed;
     }
 
     const kernel = try allocator.create(OpenGlesKernel);
@@ -199,21 +223,21 @@ pub fn launchKernel(
     kernel_handle: *anyopaque,
     config: types.KernelConfig,
     args: []const ?*const anyopaque,
-) types.KernelError!void {
+) (types.KernelError || OpenGlesError)!void {
     _ = allocator;
 
     if (!opengles_initialized) {
-        return types.KernelError.LaunchFailed;
+        return OpenGlesError.InitializationFailed;
     }
 
     const kernel: *OpenGlesKernel = @ptrCast(@alignCast(kernel_handle));
 
     // Use program
-    const use_program_fn = glesUseProgram orelse return types.KernelError.LaunchFailed;
+    const use_program_fn = glesUseProgram orelse return OpenGlesError.DispatchFailed;
     use_program_fn(kernel.program);
 
     // Bind buffers
-    const bind_buffer_base_fn = glesBindBufferBase orelse return types.KernelError.LaunchFailed;
+    const bind_buffer_base_fn = glesBindBufferBase orelse return OpenGlesError.DispatchFailed;
     for (args, 0..) |arg, i| {
         if (arg != null) {
             const buffer: *OpenGlesBuffer = @ptrCast(@alignCast(arg.?));
@@ -222,12 +246,18 @@ pub fn launchKernel(
     }
 
     // Dispatch compute
-    const dispatch_fn = glesDispatchCompute orelse return types.KernelError.LaunchFailed;
+    const dispatch_fn = glesDispatchCompute orelse return OpenGlesError.DispatchFailed;
     dispatch_fn(config.grid_dim[0], config.grid_dim[1], config.grid_dim[2]);
 
     // Memory barrier
-    const barrier_fn = glesMemoryBarrier orelse return types.KernelError.LaunchFailed;
+    const barrier_fn = glesMemoryBarrier orelse return OpenGlesError.DispatchFailed;
     barrier_fn(GL_SHADER_STORAGE_BARRIER_BIT);
+
+    std.log.debug("OpenGL ES kernel dispatched: {}x{}x{}", .{
+        config.grid_dim[0],
+        config.grid_dim[1],
+        config.grid_dim[2],
+    });
 }
 
 pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
@@ -246,14 +276,17 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
     allocator.destroy(kernel);
 }
 
-pub fn allocateDeviceMemory(size: usize) !*anyopaque {
+pub fn allocateDeviceMemory(size: usize) OpenGlesError!*anyopaque {
     if (!opengles_initialized) {
-        return OpenGlesError.BufferCreationFailed;
+        return OpenGlesError.InitializationFailed;
     }
 
     const gen_buffers_fn = glesGenBuffers orelse return OpenGlesError.BufferCreationFailed;
     var buffer_id: u32 = 0;
     gen_buffers_fn(1, &buffer_id);
+    if (buffer_id == 0) {
+        return OpenGlesError.BufferCreationFailed;
+    }
 
     const bind_buffer_fn = glesBindBuffer orelse return OpenGlesError.BufferCreationFailed;
     bind_buffer_fn(GL_SHADER_STORAGE_BUFFER, buffer_id);
@@ -262,11 +295,14 @@ pub fn allocateDeviceMemory(size: usize) !*anyopaque {
     buffer_data_fn(GL_SHADER_STORAGE_BUFFER, @intCast(size), null, GL_DYNAMIC_READ);
 
     const opengles_buffer = try std.heap.page_allocator.create(OpenGlesBuffer);
+    errdefer std.heap.page_allocator.destroy(opengles_buffer);
+
     opengles_buffer.* = .{
         .buffer_id = buffer_id,
         .size = size,
     };
 
+    std.log.debug("OpenGL ES buffer allocated: ID={}, size={B}", .{ buffer_id, size });
     return opengles_buffer;
 }
 
@@ -283,32 +319,44 @@ pub fn freeDeviceMemory(ptr: *anyopaque) void {
     std.heap.page_allocator.destroy(buffer);
 }
 
-pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
+pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) OpenGlesError!void {
     if (!opengles_initialized) {
-        return OpenGlesError.BufferCreationFailed;
+        return OpenGlesError.InitializationFailed;
     }
 
     const dst_buffer: *OpenGlesBuffer = @ptrCast(@alignCast(dst));
+    if (size > dst_buffer.size) {
+        std.log.err("OpenGL ES memcpy size ({B}) exceeds buffer size ({B})", .{ size, dst_buffer.size });
+        return OpenGlesError.BufferCreationFailed;
+    }
 
     const bind_buffer_fn = glesBindBuffer orelse return OpenGlesError.BufferCreationFailed;
     bind_buffer_fn(GL_SHADER_STORAGE_BUFFER, dst_buffer.buffer_id);
 
     const buffer_data_fn = glesBufferData orelse return OpenGlesError.BufferCreationFailed;
     buffer_data_fn(GL_SHADER_STORAGE_BUFFER, @intCast(size), src, GL_STATIC_DRAW);
+
+    std.log.debug("OpenGL ES memcpy host->device: {B}", .{size});
 }
 
-pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) !void {
+pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) OpenGlesError!void {
     if (!opengles_initialized) {
-        return OpenGlesError.BufferCreationFailed;
+        return OpenGlesError.InitializationFailed;
     }
 
     const src_buffer: *OpenGlesBuffer = @ptrCast(@alignCast(src));
+    if (size > src_buffer.size) {
+        std.log.err("OpenGL ES memcpy size ({B}) exceeds buffer size ({B})", .{ size, src_buffer.size });
+        return OpenGlesError.BufferCreationFailed;
+    }
 
     const bind_buffer_fn = glesBindBuffer orelse return OpenGlesError.BufferCreationFailed;
     bind_buffer_fn(GL_SHADER_STORAGE_BUFFER, src_buffer.buffer_id);
 
     const get_buffer_sub_data_fn = glesGetBufferSubData orelse return OpenGlesError.BufferCreationFailed;
     get_buffer_sub_data_fn(GL_SHADER_STORAGE_BUFFER, 0, @intCast(size), dst);
+
+    std.log.debug("OpenGL ES memcpy device->host: {B}", .{size});
 }
 
 fn tryLoadOpenGles() bool {

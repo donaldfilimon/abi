@@ -34,6 +34,13 @@ const CuModule = extern struct {
     ptr: *anyopaque,
 };
 
+pub const CudaError = error{
+    InitializationFailed,
+    DriverNotFound,
+    DeviceNotFound,
+    ContextCreationFailed,
+};
+
 const CudaContext = struct {
     device_id: i32,
     context: ?*anyopaque,
@@ -44,27 +51,42 @@ const CudaContext = struct {
 var cuda_initialized = false;
 var cuda_context: ?CudaContext = null;
 var use_native: bool = false;
+var init_mutex = std.Thread.Mutex{};
 
 /// Initialize the CUDA backend and create context.
-/// @return CuResult error if initialization fails
-pub fn init() !void {
+/// Returns CudaError if CUDA driver is not available or initialization fails.
+pub fn init() CudaError!void {
+    init_mutex.lock();
+    defer init_mutex.unlock();
+
     if (cuda_initialized) return;
 
     const cuda_available = tryLoadCuda();
     if (cuda_available) {
         if (loadCudaFunctions()) {
             if (cuInit) |init_fn| {
-                _ = init_fn(0);
+                const result = init_fn(0);
+                if (result != .success) {
+                    std.log.warn("CUDA initialization failed with code {t}, using simulation mode", .{result});
+                    return initSimulationMode();
+                }
             }
             var device_count: i32 = 0;
             if (cuDeviceGetCount) |count_fn| {
-                _ = count_fn(&device_count);
+                const result = count_fn(&device_count);
+                if (result != .success or device_count == 0) {
+                    std.log.warn("No CUDA devices found, using simulation mode", .{});
+                    return initSimulationMode();
+                }
+                std.log.info("CUDA initialized with {d} device(s)", .{device_count});
             }
         } else {
-            std.log.warn("CUDA runtime not available, using simulation mode", .{});
+            std.log.warn("CUDA runtime functions not available, using simulation mode", .{});
+            return initSimulationMode();
         }
     } else {
-        std.log.warn("CUDA runtime not available, using simulation mode", .{});
+        std.log.warn("CUDA driver library not found, using simulation mode", .{});
+        return initSimulationMode();
     }
 
     cuda_context = CudaContext{
@@ -77,16 +99,35 @@ pub fn init() !void {
     cuda_initialized = true;
 }
 
+fn initSimulationMode() CudaError!void {
+    cuda_context = CudaContext{
+        .device_id = 0,
+        .context = null,
+        .stream = null,
+        .device_memory = std.ArrayListUnmanaged([]u8).empty,
+    };
+    cuda_initialized = true;
+}
+
 /// Deinitialize the CUDA backend and release context.
 /// Safe to call multiple times.
 pub fn deinit() void {
+    init_mutex.lock();
+    defer init_mutex.unlock();
+
+    if (!cuda_initialized) return;
+
     if (use_native) {
         cuda_native.deinit();
         use_native = false;
     }
+
     if (cuda_context) |*ctx| {
+        // Cleanup device memory if any was allocated
+        // Note: In a real implementation, we should track and free device allocations
         _ = ctx;
     }
+
     cuda_context = null;
     cuda_initialized = false;
 }

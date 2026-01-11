@@ -134,7 +134,7 @@ pub const KernelCache = struct {
 
         // Check cache
         self.mutex.lock();
-        if (self.entries.get(key)) |*entry| {
+        if (self.entries.getPtr(key)) |entry| {
             entry.access_count += 1;
             entry.last_access = std.time.timestamp();
             self.stats.hits += 1;
@@ -326,8 +326,31 @@ pub const KernelCache = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        // In a real implementation, serialize entries to disk
-        _ = cache_dir;
+        // Create cache directory if it doesn't exist
+        std.fs.cwd().makePath(cache_dir) catch |err| {
+            if (err != error.PathAlreadyExists) return err;
+        };
+
+        // Save each entry as a separate file
+        var iter = self.entries.iterator();
+        while (iter.next()) |entry| {
+            const key = entry.key_ptr.*;
+            const cache_entry = entry.value_ptr.*;
+
+            // Construct filename from key
+            var filename_buf: [256]u8 = undefined;
+            const filename = try std.fmt.bufPrint(&filename_buf, "{s}/{s}.bin", .{ cache_dir, key });
+
+            // Write binary to file
+            const file = try std.fs.cwd().createFile(filename, .{});
+            defer file.close();
+
+            // Write metadata
+            try file.writeAll(std.mem.asBytes(&cache_entry.meta));
+
+            // Write binary data
+            try file.writeAll(cache_entry.binary);
+        }
     }
 
     /// Load cache from disk.
@@ -338,8 +361,56 @@ pub const KernelCache = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        // In a real implementation, deserialize entries from disk
-        _ = cache_dir;
+        // Open cache directory
+        var dir = std.fs.cwd().openDir(cache_dir, .{ .iterate = true }) catch |err| {
+            if (err == error.FileNotFound) return;
+            return err;
+        };
+        defer dir.close();
+
+        // Iterate over .bin files
+        var iter = dir.iterate();
+        while (try iter.next()) |entry| {
+            if (entry.kind != .file) continue;
+            if (!std.mem.endsWith(u8, entry.name, ".bin")) continue;
+
+            // Read file
+            const file = try dir.openFile(entry.name, .{});
+            defer file.close();
+
+            // Read metadata
+            var meta: CacheEntryMeta = undefined;
+            const meta_bytes = try file.readAll(std.mem.asBytes(&meta));
+            if (meta_bytes != @sizeOf(CacheEntryMeta)) continue;
+
+            // Read binary data
+            const binary_size = (try file.stat()).size - @sizeOf(CacheEntryMeta);
+            const binary = try self.allocator.alloc(u8, binary_size);
+            errdefer self.allocator.free(binary);
+
+            const read_bytes = try file.readAll(binary);
+            if (read_bytes != binary_size) {
+                self.allocator.free(binary);
+                continue;
+            }
+
+            // Extract key from filename (remove .bin extension)
+            const key_len = entry.name.len - 4;
+            const key = try self.allocator.dupe(u8, entry.name[0..key_len]);
+            errdefer self.allocator.free(key);
+
+            // Add to cache
+            const cache_entry = CacheEntry{
+                .meta = meta,
+                .binary = binary,
+                .access_count = 0,
+                .last_access = std.time.timestamp(),
+            };
+
+            try self.entries.put(self.allocator, key, cache_entry);
+            try self.lru_order.append(self.allocator, key);
+            self.current_size += binary.len;
+        }
     }
 
     // Internal helpers
