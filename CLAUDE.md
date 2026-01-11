@@ -6,6 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ABI is a modern Zig 0.16.x framework for modular AI services, vector search, and high-performance systems tooling. It provides a layered architecture with feature-gated compilation.
 
+## LLM Instructions (Shared)
+
+- Keep changes minimal and consistent with existing patterns; avoid breaking public APIs unless requested.
+- Preserve feature gating: stub modules must mirror the real API and return `error.*Disabled`.
+- Use Zig 0.16 conventions (`std.Io`, `std.ArrayListUnmanaged`, `{t}` formatting, explicit allocators).
+- Always clean up resources with `defer`/`errdefer`; use specific error sets (no `anyerror`).
+- Run `zig fmt .` after code edits and `zig build test --summary all` when behavior changes.
+- Update docs/examples when APIs or behavior change so references stay in sync.
+
 ## Build Commands
 
 ```bash

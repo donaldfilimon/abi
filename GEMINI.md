@@ -4,6 +4,15 @@ This file provides guidance to Google Gemini when working with code in this repo
 
 > **Note**: For comprehensive guidance, see [CLAUDE.md](CLAUDE.md) which contains the full documentation.
 
+## LLM Instructions (Shared)
+
+- Keep changes minimal and consistent with existing patterns; avoid breaking public APIs unless requested.
+- Preserve feature gating: stub modules must mirror the real API and return `error.*Disabled`.
+- Use Zig 0.16 conventions (`std.Io`, `std.ArrayListUnmanaged`, `{t}` formatting, explicit allocators).
+- Always clean up resources with `defer`/`errdefer`; use specific error sets (no `anyerror`).
+- Run `zig fmt .` after code edits and `zig build test --summary all` when behavior changes.
+- Update docs/examples when APIs or behavior change so references stay in sync.
+
 ## Quick Reference
 
 ### Project Overview
