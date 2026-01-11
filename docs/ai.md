@@ -53,13 +53,41 @@ const global = try coordinator.aggregate();
 
 ## Agents
 
-An **Agent** wraps a connector with memory and tools.
+An **Agent** provides a conversational interface with configurable history and parameters.
 
 ```zig
-var agent = try abi.ai.Agent.init(allocator, connector, .{
-    .system_prompt = "You are a helpful coding assistant.",
+var agent = try abi.ai.Agent.init(allocator, .{
+    .name = "coding-assistant",
+    .enable_history = true,
+    .temperature = 0.7,
+    .top_p = 0.9,
 });
 defer agent.deinit();
 
-const response = try agent.chat("How do I write a Hello World in Zig?");
+// Use chat() for conversational interface
+const response = try agent.chat("How do I write a Hello World in Zig?", allocator);
+defer allocator.free(response);
+
+// Or use process() for the same functionality
+const response2 = try agent.process("Another question", allocator);
+defer allocator.free(response2);
 ```
+
+### Agent Configuration
+
+The `AgentConfig` struct supports:
+- `name: []const u8` - Agent identifier (required)
+- `enable_history: bool` - Enable conversation history (default: true)
+- `temperature: f32` - Sampling temperature 0.0-2.0 (default: 0.7)
+- `top_p: f32` - Nucleus sampling parameter 0.0-1.0 (default: 0.9)
+
+### Agent Methods
+
+- `chat(input, allocator)` - Process input and return response (conversational interface)
+- `process(input, allocator)` - Same as chat(), alternative naming
+- `historyCount()` - Get number of history entries
+- `historySlice()` - Get conversation history
+- `clearHistory()` - Clear conversation history
+- `setTemperature(temp)` - Update temperature
+- `setTopP(top_p)` - Update top_p parameter
+- `setHistoryEnabled(enabled)` - Enable/disable history tracking

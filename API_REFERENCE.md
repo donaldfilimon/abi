@@ -46,9 +46,13 @@ implementation details.
 
 ## Compute Engine API
 
-- `abi.compute.runtime.Engine` - Main compute runtime
-- `abi.compute.runtime.runWorkload(engine, workload, timeout_ms)` -> `!Result`
-- `abi.compute.runtime.registerWorkloadType(name, vtable)`
+- `abi.compute.DistributedComputeEngine` - Main compute runtime (alias: `abi.compute.runtime.DistributedComputeEngine`)
+- `abi.compute.createDefaultEngine(allocator)` -> `!Engine` - Create engine with default config
+- `abi.compute.createEngine(allocator, config)` -> `!Engine` - Create engine with custom config
+- `abi.compute.submitTask(engine, ResultType, task)` -> `!TaskId` - Submit a task for execution
+- `abi.compute.waitForResult(engine, ResultType, id, timeout_ms)` -> `!Result` - Wait for task result
+- `abi.compute.runTask(engine, ResultType, task, timeout_ms)` -> `!Result` - Submit and wait for result
+- `abi.compute.runWorkload(engine, ResultType, workload, timeout_ms)` -> `!Result` - Alias for runTask
 
 **Timeout Semantics**:
 
@@ -57,6 +61,31 @@ implementation details.
 - `timeout_ms=null`: Waits indefinitely until result is ready
 
 **Breaking Change (0.2.1)**: Prior to version 0.2.1, `timeout_ms=0` returned `ResultNotFound` after one check. This behavior has changed to return `EngineError.Timeout` immediately for clarity. Migration: Use `timeout_ms=1000` for a one-second timeout.
+
+## AI & Agent API
+
+- `abi.ai.Agent` - Conversational agent with history and configuration
+- `abi.ai.Agent.init(allocator, config)` -> `!Agent` - Create a new agent
+- `abi.ai.Agent.deinit()` - Clean up agent resources
+- `abi.ai.Agent.process(input, allocator)` -> `![]u8` - Process input and return response
+- `abi.ai.Agent.chat(input, allocator)` -> `![]u8` - Alias for process() providing chat interface
+- `abi.ai.train(allocator, config)` -> `!TrainingReport` - Run training pipeline
+- `abi.ai.federated.Coordinator` - Federated learning coordinator
+- `abi.ai.federated.Coordinator.init(allocator, config, model_size)` -> `!Coordinator`
+- `abi.ai.federated.Coordinator.registerNode(node_id)` -> `!void`
+- `abi.ai.federated.Coordinator.submitUpdate(update)` -> `!void`
+- `abi.ai.federated.Coordinator.aggregate()` -> `![]f32` - Aggregate updates
+
+## Connectors API
+
+- `abi.connectors.openai` - OpenAI API connector
+- `abi.connectors.ollama` - Ollama API connector
+- `abi.connectors.huggingface` - HuggingFace API connector
+
+Each connector provides:
+- `Client.init(allocator, config)` - Initialize client
+- `Client.deinit()` - Clean up resources
+- Connector-specific methods for inference/chat/completion
 
 ## Modules
 
