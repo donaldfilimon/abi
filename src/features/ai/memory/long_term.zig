@@ -22,6 +22,10 @@ pub const LongTermConfig = struct {
     min_similarity: f32 = 0.5,
     /// Custom embedding function (optional).
     embed_fn: ?*const fn ([]const u8, std.mem.Allocator) (std.mem.Allocator.Error || error{EmbeddingFailed})![]f32 = null,
+    /// Recency half-life in seconds for eviction scoring.
+    /// Memories older than this will have their recency factor halved.
+    /// Default: 1 hour (3600 seconds).
+    recency_half_life_secs: i64 = 3600,
 };
 
 /// A memory entry with embedding.
@@ -131,7 +135,7 @@ pub const LongTermMemory = struct {
             .embedding = emb,
             .importance = importance,
             .access_count = 0,
-            .last_accessed = 0,
+            .last_accessed = std.time.timestamp(),
         };
 
         try self.memories.append(self.allocator, entry);
@@ -199,6 +203,7 @@ pub const LongTermMemory = struct {
         for (scored.items[0..result_count], 0..) |item, i| {
             const entry = &self.memories.items[item.idx];
             entry.access_count += 1;
+            entry.last_accessed = std.time.timestamp();
             self.total_access += 1;
 
             results[i] = .{
@@ -222,12 +227,17 @@ pub const LongTermMemory = struct {
     fn evictLeastImportant(self: *LongTermMemory) !void {
         if (self.memories.items.len == 0) return;
 
+        const current_time = std.time.timestamp();
         var min_idx: usize = 0;
         var min_score: f32 = std.math.floatMax(f32);
 
         for (self.memories.items, 0..) |entry, idx| {
             // Score based on importance, access frequency, and recency
-            const recency_factor: f32 = 1.0; // TODO: use actual timestamp
+            const recency_factor = calculateRecencyFactor(
+                entry.last_accessed,
+                current_time,
+                self.config.recency_half_life_secs,
+            );
             const access_factor = @as(f32, @floatFromInt(entry.access_count + 1));
             const score = entry.importance * access_factor * recency_factor;
 
@@ -239,6 +249,25 @@ pub const LongTermMemory = struct {
 
         var removed = self.memories.orderedRemove(min_idx);
         removed.deinit(self.allocator);
+    }
+
+    /// Calculate recency factor using exponential decay.
+    /// Returns a value between 0 and 1, where 1 means just accessed
+    /// and the value halves for each half_life_secs that has elapsed.
+    fn calculateRecencyFactor(last_accessed: i64, current_time: i64, half_life_secs: i64) f32 {
+        if (half_life_secs <= 0) return 1.0;
+
+        const elapsed = current_time - last_accessed;
+        if (elapsed <= 0) return 1.0;
+
+        // Exponential decay: factor = 2^(-elapsed / half_life)
+        // Using exp for better numerical stability: 2^x = e^(x * ln(2))
+        const ln_2: f32 = 0.693147180559945;
+        const decay_exponent = -@as(f32, @floatFromInt(elapsed)) / @as(f32, @floatFromInt(half_life_secs));
+        const recency = @exp(decay_exponent * ln_2);
+
+        // Clamp to reasonable bounds
+        return @max(0.001, @min(1.0, recency));
     }
 
     /// Compute embedding for text.
@@ -380,4 +409,68 @@ test "cosine similarity" {
 
     // Orthogonal = 0.0
     try std.testing.expectApproxEqAbs(@as(f32, 0.0), cosineSimilarity(&a, &c), 0.001);
+}
+
+test "recency factor calculation" {
+    const current_time: i64 = 1000000;
+    const half_life: i64 = 3600; // 1 hour
+
+    // Just accessed - should be 1.0
+    try std.testing.expectApproxEqAbs(
+        @as(f32, 1.0),
+        LongTermMemory.calculateRecencyFactor(current_time, current_time, half_life),
+        0.001,
+    );
+
+    // Future timestamp (edge case) - should be 1.0
+    try std.testing.expectApproxEqAbs(
+        @as(f32, 1.0),
+        LongTermMemory.calculateRecencyFactor(current_time + 100, current_time, half_life),
+        0.001,
+    );
+
+    // One half-life elapsed - should be ~0.5
+    try std.testing.expectApproxEqAbs(
+        @as(f32, 0.5),
+        LongTermMemory.calculateRecencyFactor(current_time - half_life, current_time, half_life),
+        0.001,
+    );
+
+    // Two half-lives elapsed - should be ~0.25
+    try std.testing.expectApproxEqAbs(
+        @as(f32, 0.25),
+        LongTermMemory.calculateRecencyFactor(current_time - 2 * half_life, current_time, half_life),
+        0.001,
+    );
+
+    // Very old entry - should be clamped to minimum (0.001)
+    try std.testing.expectApproxEqAbs(
+        @as(f32, 0.001),
+        LongTermMemory.calculateRecencyFactor(0, current_time, half_life),
+        0.0001,
+    );
+
+    // Zero half-life (disabled) - should return 1.0
+    try std.testing.expectApproxEqAbs(
+        @as(f32, 1.0),
+        LongTermMemory.calculateRecencyFactor(current_time - 10000, current_time, 0),
+        0.001,
+    );
+}
+
+test "long-term memory with custom recency half-life" {
+    const allocator = std.testing.allocator;
+    var memory = LongTermMemory.init(allocator, .{
+        .max_memories = 100,
+        .embedding_dim = 32,
+        .recency_half_life_secs = 7200, // 2 hours
+    });
+    defer memory.deinit();
+
+    try memory.store(Message.user("Test message"), null, 0.5);
+    try std.testing.expectEqual(@as(usize, 1), memory.count());
+
+    // Verify the entry has a valid last_accessed timestamp
+    const entry = memory.memories.items[0];
+    try std.testing.expect(entry.last_accessed > 0);
 }
