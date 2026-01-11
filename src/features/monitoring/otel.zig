@@ -62,10 +62,10 @@ pub const OtelExporter = struct {
         if (!self.config.enabled or metrics.len == 0) return;
 
         // Build JSON payload for OpenTelemetry metrics export
-        var json = std.ArrayList(u8).init(self.allocator);
-        defer json.deinit();
+        var json = std.ArrayListUnmanaged(u8){};
+        defer json.deinit(self.allocator);
 
-        const writer = json.writer();
+        const writer = json.writer(self.allocator);
         try writer.writeAll("{\"resourceMetrics\":[{\"scopeMetrics\":[{\"metrics\":[");
 
         for (metrics, 0..) |metric, i| {
@@ -109,10 +109,10 @@ pub const OtelExporter = struct {
         if (!self.config.enabled or traces.len == 0) return;
 
         // Build JSON payload for OpenTelemetry traces export
-        var json = std.ArrayList(u8).init(self.allocator);
-        defer json.deinit();
+        var json = std.ArrayListUnmanaged(u8){};
+        defer json.deinit(self.allocator);
 
-        const writer = json.writer();
+        const writer = json.writer(self.allocator);
         try writer.writeAll("{\"resourceSpans\":[{\"scopeSpans\":[{\"spans\":[");
 
         for (traces, 0..) |trace, i| {

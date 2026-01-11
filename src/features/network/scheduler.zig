@@ -150,13 +150,13 @@ pub const TaskScheduler = struct {
     }
 
     pub fn selectNode(self: *TaskScheduler) !?ComputeNode {
-        var online_nodes = std.ArrayList(*ComputeNode).init(self.allocator);
-        defer online_nodes.deinit();
+        var online_nodes = std.ArrayListUnmanaged(*ComputeNode){};
+        defer online_nodes.deinit(self.allocator);
 
         var iter = self.nodes.iterator();
         while (iter.next()) |entry| {
             if (entry.value_ptr.isAvailable()) {
-                try online_nodes.append(entry.value_ptr);
+                try online_nodes.append(self.allocator, entry.value_ptr);
             }
         }
 
@@ -268,8 +268,32 @@ pub const TaskScheduler = struct {
 
     fn selectAffinityBased(self: *TaskScheduler, nodes: []const *ComputeNode) ?*ComputeNode {
         _ = self;
-        _ = nodes;
-        return null;
+        if (nodes.len == 0) return null;
+
+        // Select node with best load factor (active_tasks / cpu_count)
+        // Prefer nodes with more available capacity relative to their CPU count
+        var best_node: ?*ComputeNode = null;
+        var best_score: f64 = std.math.floatMax(f64);
+
+        for (nodes) |node| {
+            // Calculate load factor: tasks per CPU core
+            const cpu_count_f: f64 = @floatFromInt(@max(node.cpu_count, 1));
+            const active_tasks_f: f64 = @floatFromInt(node.active_tasks);
+            const load_factor = active_tasks_f / cpu_count_f;
+
+            // Lower score is better (less loaded relative to capacity)
+            if (load_factor < best_score) {
+                best_score = load_factor;
+                best_node = node;
+            } else if (load_factor == best_score and best_node != null) {
+                // Tie-breaker: prefer node with more CPUs (more capacity)
+                if (node.cpu_count > best_node.?.cpu_count) {
+                    best_node = node;
+                }
+            }
+        }
+
+        return best_node;
     }
 
     fn countOnlineNodes(self: *const TaskScheduler) usize {

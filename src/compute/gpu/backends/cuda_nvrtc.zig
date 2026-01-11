@@ -218,20 +218,21 @@ pub fn compileToPTX(
 }
 
 fn buildCompileOptions(allocator: std.mem.Allocator, options: CompileOptions) ![][]const u8 {
-    var opts = std.ArrayList([]const u8).init(allocator);
+    var opts = std.ArrayListUnmanaged([]const u8){};
+    errdefer opts.deinit(allocator);
 
     if (options.max_registers != 0) {
         const opt = try std.fmt.allocPrint(allocator, "-maxrregcount={d}", .{options.max_registers});
-        try opts.append(opt);
+        try opts.append(allocator, opt);
     }
 
     if (options.min_blocks_per_multiprocessor != 0) {
         const opt = try std.fmt.allocPrint(allocator, "-minblockspermp={d}", .{options.min_blocks_per_multiprocessor});
-        try opts.append(opt);
+        try opts.append(allocator, opt);
     }
 
     const arch = try std.fmt.allocPrint(allocator, "-arch=native", .{});
-    try opts.append(arch);
+    try opts.append(allocator, arch);
 
     const opt_level = switch (options.optimization_level) {
         0 => "-O0",
@@ -241,22 +242,22 @@ fn buildCompileOptions(allocator: std.mem.Allocator, options: CompileOptions) ![
         else => "-O3",
     };
     const opt_str = try allocator.dupe(u8, opt_level);
-    try opts.append(opt_str);
+    try opts.append(allocator, opt_str);
 
     if (options.generate_debug_info) {
         const opt = try allocator.dupe(u8, "-lineinfo");
-        try opts.append(opt);
+        try opts.append(allocator, opt);
     }
 
     if (options.generate_line_info) {
         const opt = try allocator.dupe(u8, "-device-debug");
-        try opts.append(opt);
+        try opts.append(allocator, opt);
     }
 
-    try opts.append(try allocator.dupe(u8, "-rdc=true"));
-    try opts.append(try allocator.dupe(u8, "-default-device"));
+    try opts.append(allocator, try allocator.dupe(u8, "-rdc=true"));
+    try opts.append(allocator, try allocator.dupe(u8, "-default-device"));
 
-    return try opts.toOwnedSlice();
+    return try opts.toOwnedSlice(allocator);
 }
 
 fn tryLoadNvrtc() bool {

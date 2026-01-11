@@ -2,91 +2,30 @@
 //!
 //! Provides automatic service registration, health checking, and discovery
 //! for distributed cluster coordination.
+//!
+//! This module is split for maintainability:
+//! - discovery_types.zig: Type definitions, config, errors, and utilities
 
 const std = @import("std");
-const http_mod = @import("../../shared/utils/http/mod.zig");
 const time = @import("../../shared/utils/time.zig");
 const registry = @import("registry.zig");
 
-pub const DiscoveryBackend = enum {
-    consul,
-    etcd,
-    static,
-    dns,
-};
+// Import types from submodule
+pub const discovery_types = @import("discovery_types.zig");
 
-pub const DiscoveryConfig = struct {
-    backend: DiscoveryBackend = .static,
-    /// Consul or etcd endpoint (e.g., "http://127.0.0.1:8500")
-    endpoint: []const u8 = "http://127.0.0.1:8500",
-    /// Service name for registration
-    service_name: []const u8 = "abi-node",
-    /// Service ID (unique per instance)
-    service_id: []const u8 = "",
-    /// Service address for registration
-    service_address: []const u8 = "127.0.0.1",
-    /// Service port
-    service_port: u16 = 9000,
-    /// Health check interval in milliseconds
-    health_check_interval_ms: u64 = 10_000,
-    /// TTL for service registration (seconds)
-    ttl_seconds: u64 = 30,
-    /// Tags for service registration
-    tags: []const []const u8 = &.{},
-    /// Enable TLS for backend connection
-    enable_tls: bool = false,
-    /// Datacenter for Consul
-    datacenter: []const u8 = "dc1",
-    /// Namespace for etcd keys
-    namespace: []const u8 = "/abi/services",
-    /// Token for authentication
-    token: []const u8 = "",
-};
+// Re-export types
+pub const DiscoveryBackend = discovery_types.DiscoveryBackend;
+pub const DiscoveryConfig = discovery_types.DiscoveryConfig;
+pub const ServiceInstance = discovery_types.ServiceInstance;
+pub const ServiceStatus = discovery_types.ServiceStatus;
+pub const DiscoveryError = discovery_types.DiscoveryError;
+pub const AddressPort = discovery_types.AddressPort;
 
-pub const ServiceInstance = struct {
-    id: []const u8,
-    name: []const u8,
-    address: []const u8,
-    port: u16,
-    tags: []const []const u8,
-    status: ServiceStatus,
-    metadata: std.StringArrayHashMapUnmanaged([]const u8),
-
-    pub fn deinit(self: *ServiceInstance, allocator: std.mem.Allocator) void {
-        allocator.free(self.id);
-        allocator.free(self.name);
-        allocator.free(self.address);
-        for (self.tags) |tag| {
-            allocator.free(tag);
-        }
-        allocator.free(self.tags);
-        var it = self.metadata.iterator();
-        while (it.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
-            allocator.free(entry.value_ptr.*);
-        }
-        self.metadata.deinit(allocator);
-        self.* = undefined;
-    }
-};
-
-pub const ServiceStatus = enum {
-    passing,
-    warning,
-    critical,
-    unknown,
-};
-
-pub const DiscoveryError = error{
-    BackendUnavailable,
-    RegistrationFailed,
-    DeregistrationFailed,
-    DiscoveryFailed,
-    InvalidResponse,
-    AuthenticationFailed,
-    ConnectionTimeout,
-    InvalidConfiguration,
-};
+// Re-export utility functions
+pub const generateServiceId = discovery_types.generateServiceId;
+pub const base64Encode = discovery_types.base64Encode;
+pub const base64Decode = discovery_types.base64Decode;
+pub const parseAddressPort = discovery_types.parseAddressPort;
 
 pub const ServiceDiscovery = struct {
     allocator: std.mem.Allocator,
@@ -270,7 +209,7 @@ pub const ServiceDiscovery = struct {
         try self.parseConsulResponse(response);
     }
 
-    fn buildConsulRegistration(self: *ServiceDiscovery) ![]const u8 {
+    pub fn buildConsulRegistration(self: *ServiceDiscovery) ![]const u8 {
         var buffer = std.ArrayListUnmanaged(u8){};
         errdefer buffer.deinit(self.allocator);
 
@@ -451,7 +390,7 @@ pub const ServiceDiscovery = struct {
         try self.parseEtcdResponse(response);
     }
 
-    fn buildEtcdKey(self: *ServiceDiscovery) ![]const u8 {
+    pub fn buildEtcdKey(self: *ServiceDiscovery) ![]const u8 {
         return std.fmt.allocPrint(
             self.allocator,
             "{s}/{s}/{s}",
@@ -645,74 +584,95 @@ pub const ServiceDiscovery = struct {
     }
 
     fn httpGet(self: *ServiceDiscovery, url: []const u8) ![]const u8 {
-        _ = url;
-        // Simulated HTTP GET - in production, use actual HTTP client
-        return try self.allocator.dupe(u8, "[]");
+        var client = std.http.Client{ .allocator = self.allocator };
+        defer client.deinit();
+
+        const uri = std.Uri.parse(url) catch return DiscoveryError.ConnectionFailed;
+
+        var server_header_buffer: [8192]u8 = undefined;
+        var req = client.open(.GET, uri, .{
+            .server_header_buffer = &server_header_buffer,
+        }) catch return DiscoveryError.ConnectionFailed;
+        defer req.deinit();
+
+        req.send() catch return DiscoveryError.ConnectionFailed;
+        req.finish() catch return DiscoveryError.ConnectionFailed;
+        req.wait() catch return DiscoveryError.ConnectionFailed;
+
+        if (req.status != .ok) {
+            return DiscoveryError.ConnectionFailed;
+        }
+
+        var body = std.ArrayListUnmanaged(u8){};
+        errdefer body.deinit(self.allocator);
+
+        var reader = req.reader();
+        reader.readAllArrayListAligned(&body, null, self.allocator, 1024 * 1024) catch return DiscoveryError.InvalidResponse;
+
+        return body.toOwnedSlice(self.allocator) catch return DiscoveryError.InvalidResponse;
     }
 
     fn httpPut(self: *ServiceDiscovery, url: []const u8, body: []const u8) !void {
-        _ = self;
-        _ = url;
-        _ = body;
-        // Simulated HTTP PUT - in production, use actual HTTP client
+        var client = std.http.Client{ .allocator = self.allocator };
+        defer client.deinit();
+
+        const uri = std.Uri.parse(url) catch return DiscoveryError.ConnectionFailed;
+
+        var server_header_buffer: [8192]u8 = undefined;
+        var req = client.open(.PUT, uri, .{
+            .server_header_buffer = &server_header_buffer,
+        }) catch return DiscoveryError.ConnectionFailed;
+        defer req.deinit();
+
+        req.send() catch return DiscoveryError.ConnectionFailed;
+        if (body.len > 0) {
+            req.writeAll(body) catch return DiscoveryError.ConnectionFailed;
+        }
+        req.finish() catch return DiscoveryError.ConnectionFailed;
+        req.wait() catch return DiscoveryError.ConnectionFailed;
+
+        const status_code: u16 = @intFromEnum(req.status);
+        if (status_code >= 400) {
+            return DiscoveryError.ConnectionFailed;
+        }
     }
 
     fn httpPost(self: *ServiceDiscovery, url: []const u8, body: []const u8) ![]const u8 {
-        _ = url;
-        _ = body;
-        // Simulated HTTP POST - in production, use actual HTTP client
-        return try self.allocator.dupe(u8, "{}");
+        var client = std.http.Client{ .allocator = self.allocator };
+        defer client.deinit();
+
+        const uri = std.Uri.parse(url) catch return DiscoveryError.ConnectionFailed;
+
+        var server_header_buffer: [8192]u8 = undefined;
+        var req = client.open(.POST, uri, .{
+            .server_header_buffer = &server_header_buffer,
+            .extra_headers = &.{
+                .{ .name = "Content-Type", .value = "application/json" },
+            },
+        }) catch return DiscoveryError.ConnectionFailed;
+        defer req.deinit();
+
+        req.send() catch return DiscoveryError.ConnectionFailed;
+        if (body.len > 0) {
+            req.writeAll(body) catch return DiscoveryError.ConnectionFailed;
+        }
+        req.finish() catch return DiscoveryError.ConnectionFailed;
+        req.wait() catch return DiscoveryError.ConnectionFailed;
+
+        const status_code: u16 = @intFromEnum(req.status);
+        if (status_code >= 400) {
+            return DiscoveryError.ConnectionFailed;
+        }
+
+        var response_body = std.ArrayListUnmanaged(u8){};
+        errdefer response_body.deinit(self.allocator);
+
+        var reader = req.reader();
+        reader.readAllArrayListAligned(&response_body, null, self.allocator, 1024 * 1024) catch return DiscoveryError.InvalidResponse;
+
+        return response_body.toOwnedSlice(self.allocator) catch return DiscoveryError.InvalidResponse;
     }
 };
-
-fn generateServiceId(allocator: std.mem.Allocator, service_name: []const u8) ![]const u8 {
-    var id: [8]u8 = undefined;
-    std.crypto.random.bytes(&id);
-
-    var hex: [16]u8 = undefined;
-    _ = std.fmt.bufPrint(&hex, "{x:0>16}", .{std.mem.readInt(u64, &id, .big)}) catch unreachable;
-
-    return std.fmt.allocPrint(allocator, "{s}-{s}", .{ service_name, hex[0..8] });
-}
-
-fn base64Encode(allocator: std.mem.Allocator, data: []const u8) ![]const u8 {
-    const encoder = std.base64.standard.Encoder;
-    const len = encoder.calcSize(data.len);
-    const encoded = try allocator.alloc(u8, len);
-    _ = encoder.encode(encoded, data);
-    return encoded;
-}
-
-fn base64Decode(allocator: std.mem.Allocator, data: []const u8) ![]const u8 {
-    const decoder = std.base64.standard.Decoder;
-    const len = decoder.calcSizeForSlice(data) catch return error.InvalidBase64;
-    const decoded = try allocator.alloc(u8, len);
-    decoder.decode(decoded, data) catch {
-        allocator.free(decoded);
-        return error.InvalidBase64;
-    };
-    return decoded;
-}
-
-const AddressPort = struct {
-    address: []const u8,
-    port: u16,
-};
-
-fn parseAddressPort(full_address: []const u8) AddressPort {
-    if (std.mem.lastIndexOf(u8, full_address, ":")) |colon| {
-        const port_str = full_address[colon + 1 ..];
-        const port = std.fmt.parseInt(u16, port_str, 10) catch 9000;
-        return .{
-            .address = full_address[0..colon],
-            .port = port,
-        };
-    }
-    return .{
-        .address = full_address,
-        .port = 9000,
-    };
-}
 
 test "service discovery initialization" {
     const allocator = std.testing.allocator;

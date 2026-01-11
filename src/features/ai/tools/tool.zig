@@ -69,6 +69,7 @@ pub fn createContext(allocator: std.mem.Allocator, wd: []const u8) Context {
 }
 
 pub const ToolExecutionError = error{
+    OutOfMemory,
     InvalidArguments,
     ExecutionFailed,
     Timeout,
@@ -79,11 +80,14 @@ pub const ToolExecutionError = error{
     InvalidState,
 };
 
+/// Function pointer type for tool execution.
+pub const ToolExecuteFn = *const fn (*Context, json.Value) ToolExecutionError!ToolResult;
+
 pub const Tool = struct {
     name: []const u8,
     description: []const u8,
     parameters: []const Parameter,
-    execute: *const fn (*Context, json.Value) anyerror!ToolResult,
+    execute: ToolExecuteFn,
 };
 
 pub const ToolRegistry = struct {

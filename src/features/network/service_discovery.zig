@@ -120,12 +120,12 @@ pub const ServiceRegistry = struct {
     }
 
     pub fn discover(self: *ServiceRegistry, service_name: []const u8) ![]ServiceInstance {
-        var instances = std.ArrayList(ServiceInstance).init(self.allocator);
+        var instances = std.ArrayListUnmanaged(ServiceInstance){};
         errdefer {
             for (instances.items) |*instance| {
                 instance.deinit(self.allocator);
             }
-            instances.deinit();
+            instances.deinit(self.allocator);
         }
 
         var iter = self.services.iterator();
@@ -134,20 +134,20 @@ pub const ServiceRegistry = struct {
             if (std.mem.eql(u8, instance.name, service_name) and
                 instance.health_status == .passing)
             {
-                try instances.append(instance);
+                try instances.append(self.allocator, instance);
             }
         }
 
-        return instances.toOwnedSlice();
+        return instances.toOwnedSlice(self.allocator);
     }
 
-    pub fn getAllServices(self: *const ServiceRegistry) !std.ArrayList(ServiceInstance) {
-        var services = std.ArrayList(ServiceInstance).init(self.allocator);
-        errdefer services.deinit();
+    pub fn getAllServices(self: *const ServiceRegistry) !std.ArrayListUnmanaged(ServiceInstance) {
+        var services = std.ArrayListUnmanaged(ServiceInstance){};
+        errdefer services.deinit(self.allocator);
 
         var iter = self.services.valueIterator();
         while (iter.next()) |instance| {
-            try services.append(instance.*);
+            try services.append(self.allocator, instance.*);
         }
 
         return services;

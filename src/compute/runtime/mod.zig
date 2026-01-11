@@ -3,6 +3,9 @@ pub const engine = @import("engine.zig");
 pub const async = @import("async.zig");
 pub const benchmark = @import("benchmark.zig");
 pub const workload = @import("workload.zig");
+pub const future = @import("future.zig");
+pub const cancellation = @import("cancellation.zig");
+pub const task_group = @import("task_group.zig");
 
 pub const DistributedComputeEngine = engine.DistributedComputeEngine;
 pub const EngineConfig = engine.EngineConfig;
@@ -26,8 +29,38 @@ pub const MlpTask = workload.MlpTask;
 pub const AsyncRuntime = async.AsyncRuntime;
 pub const AsyncRuntimeOptions = async.AsyncRuntimeOptions;
 pub const TaskHandle = async.TaskHandle;
-pub const TaskGroup = async.TaskGroup;
+pub const AsyncTaskGroup = async.TaskGroup;
 pub const AsyncError = async.AsyncError;
+
+// Future/Promise pattern
+pub const Future = future.Future;
+pub const FutureState = future.FutureState;
+pub const FutureResult = future.FutureResult;
+pub const Promise = future.Promise;
+pub const CancellationToken = future.CancellationToken;
+pub const all = future.all;
+pub const race = future.race;
+pub const delay = future.delay;
+
+// Cooperative cancellation
+pub const CancellationSource = cancellation.CancellationSource;
+pub const CancellationState = cancellation.CancellationState;
+pub const CancellationReason = cancellation.CancellationReason;
+pub const LinkedCancellation = cancellation.LinkedCancellation;
+pub const ScopedCancellation = cancellation.ScopedCancellation;
+
+// Task groups
+pub const TaskGroup = task_group.TaskGroup;
+pub const TaskGroupConfig = task_group.TaskGroupConfig;
+pub const TaskGroupBuilder = task_group.TaskGroupBuilder;
+pub const ScopedTaskGroup = task_group.ScopedTaskGroup;
+pub const TaskContext = task_group.TaskContext;
+pub const TaskFn = task_group.TaskFn;
+pub const TaskState = task_group.TaskState;
+pub const TaskResult = task_group.TaskResult;
+pub const TaskInfo = task_group.TaskInfo;
+pub const GroupStats = task_group.GroupStats;
+pub const parallelForEach = task_group.parallelForEach;
 
 pub fn createEngine(allocator: std.mem.Allocator, config: EngineConfig) !DistributedComputeEngine {
     return engine.DistributedComputeEngine.init(allocator, config);

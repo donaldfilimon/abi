@@ -92,7 +92,10 @@ pub const CircuitBreaker = struct {
         self.half_open_calls = 0;
     }
 
-    pub fn execute(self: *CircuitBreaker, operation: fn () anyerror![]const u8) CircuitResult {
+    /// Function pointer type for operations wrapped by the circuit breaker.
+    pub const OperationFn = *const fn () NetworkOperationError![]const u8;
+
+    pub fn execute(self: *CircuitBreaker, operation: OperationFn) CircuitResult {
         if (!self.canExecute()) {
             const metrics = self.getMetrics();
             std.log.debug("Circuit breaker rejected request: state={t}, failures={d}, time_to_reset={d}ms", .{
@@ -106,7 +109,7 @@ pub const CircuitBreaker = struct {
         const payload = operation() catch |err| {
             self.onFailure();
             const code: CircuitError = switch (err) {
-                error.Timeout, error.TimedOut => .timeout,
+                error.Timeout => .timeout,
                 else => .rejected,
             };
             std.log.debug("Circuit breaker operation failed: error={t}, failure_count={d}/{d}", .{

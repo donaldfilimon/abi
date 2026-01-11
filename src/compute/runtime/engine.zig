@@ -1,99 +1,31 @@
 //! Minimal distributed compute engine for running synchronous tasks.
+//!
+//! This module is split for maintainability:
+//! - engine_types.zig: Type definitions, errors, config, and utilities
+
 const std = @import("std");
 const builtin = @import("builtin");
 const numa = @import("numa.zig");
-// Import concurrency utilities from sibling package within compute
 const concurrency = @import("../concurrency/mod.zig");
 
-const Backoff = struct {
-    spins: usize = 0,
+// Import types from submodule
+pub const engine_types = @import("engine_types.zig");
 
-    pub fn reset(self: *Backoff) void {
-        self.spins = 0;
-    }
-
-    pub fn spin(self: *Backoff) void {
-        self.spins += 1;
-        if (self.spins <= 16) {
-            std.atomic.spinLoopHint();
-            return;
-        }
-        // Thread yield failure is non-critical; log at debug level and continue
-        std.Thread.yield() catch |err| {
-            std.log.debug("Thread yield failed during engine backoff spin: {t}", .{err});
-        };
-    }
-
-    pub fn wait(self: *Backoff) void {
-        self.spins += 1;
-        const iterations = @min(self.spins, 64);
-        var i: usize = 0;
-        while (i < iterations) {
-            std.atomic.spinLoopHint();
-            i += 1;
-        }
-        if (self.spins > 32) {
-            // Thread yield failure is non-critical; log at debug level and continue
-            std.Thread.yield() catch |err| {
-                std.log.debug("Thread yield failed during engine backoff wait: {t}", .{err});
-            };
-        }
-    }
-};
-
-var global_timer: ?std.time.Timer = null;
-
-fn nowMilliseconds() i64 {
-    if (global_timer == null) {
-        global_timer = std.time.Timer.start() catch null;
-    }
-    if (global_timer) |*timer| {
-        const ns = timer.read();
-        const ms = @as(f64, @floatFromInt(ns)) / @as(f64, std.time.ns_per_ms);
-        return @as(i64, @intFromFloat(ms));
-    }
-    return 0;
-}
-
-pub const EngineError = error{
-    ResultNotFound,
-    Timeout,
-    UnsupportedResultType,
-    QueueFull,
-    TaskFailed,
-};
-
-pub const TaskId = u64;
-
-const DEFAULT_MAX_TASKS: usize = 1024;
-
-pub const EngineConfig = struct {
-    max_tasks: usize = DEFAULT_MAX_TASKS,
-    worker_count: ?usize = null,
-    numa_enabled: bool = false,
-    cpu_affinity_enabled: bool = false,
-    numa_topology: ?*numa.CpuTopology = null,
-};
-
-const ResultKind = enum {
-    value,
-    owned_slice,
-    task_error,
-};
-
-const ResultBlob = struct {
-    kind: ResultKind,
-    bytes: []u8,
-    size: usize,
-    error_code: u16 = 0,
-};
-
-const TaskNode = struct {
-    id: TaskId,
-    execute: *const fn (std.mem.Allocator, *anyopaque) anyerror!ResultBlob,
-    destroy: *const fn (std.mem.Allocator, *anyopaque) void,
-    payload: *anyopaque,
-};
+// Re-export types
+pub const Backoff = engine_types.Backoff;
+pub const nowMilliseconds = engine_types.nowMilliseconds;
+pub const EngineError = engine_types.EngineError;
+pub const TaskExecuteError = engine_types.TaskExecuteError;
+pub const TaskExecuteFn = engine_types.TaskExecuteFn;
+pub const TaskId = engine_types.TaskId;
+pub const DEFAULT_MAX_TASKS = engine_types.DEFAULT_MAX_TASKS;
+pub const EngineConfig = engine_types.EngineConfig;
+pub const ResultKind = engine_types.ResultKind;
+pub const ResultBlob = engine_types.ResultBlob;
+pub const TaskNode = engine_types.TaskNode;
+pub const isByteSlice = engine_types.isByteSlice;
+pub const encodeResult = engine_types.encodeResult;
+pub const callTask = engine_types.callTask;
 
 const Worker = struct {
     index: usize,
@@ -392,13 +324,6 @@ fn deinitWorkers(state: *EngineState) void {
     state.workers = &.{};
 }
 
-fn cleanupResultBlob(blob: ResultBlob) void {
-    // Note: We use the allocator stored in the blob's context for cleanup
-    // For now, we can't access allocator here, so we skip cleanup
-    // The engine allocator is used but not accessible in this static context
-    _ = blob;
-}
-
 fn deinitResults(state: *EngineState) void {
     // Clean up any remaining result blobs before deiniting the map
     for (&state.results.shards) |*shard| {
@@ -450,10 +375,15 @@ fn createTaskNode(
     payload.* = .{ .task = task };
 
     const NodeOps = struct {
-        fn run(allocator: std.mem.Allocator, context: *anyopaque) anyerror!ResultBlob {
+        fn run(allocator: std.mem.Allocator, context: *anyopaque) TaskExecuteError!ResultBlob {
             const payload_ptr: *Payload = @ptrCast(@alignCast(context));
-            const result = try callTask(ResultType, payload_ptr.task, allocator);
-            return encodeResult(allocator, ResultType, result);
+            const result = callTask(ResultType, payload_ptr.task, allocator) catch |err| {
+                return switch (err) {
+                    error.OutOfMemory => error.OutOfMemory,
+                    else => error.ExecutionFailed,
+                };
+            };
+            return encodeResult(allocator, ResultType, result) catch error.OutOfMemory;
         }
 
         fn destroy(allocator: std.mem.Allocator, context: *anyopaque) void {
@@ -573,7 +503,7 @@ fn executeTaskInline(state: *EngineState, node: *TaskNode) !void {
     };
 }
 
-fn storeTaskError(state: *EngineState, id: TaskId, err: anyerror) void {
+fn storeTaskError(state: *EngineState, id: TaskId, err: TaskExecuteError) void {
     std.log.debug("Task {d} execution failed: {t}", .{ id, err });
     const blob = ResultBlob{
         .kind = .task_error,
@@ -618,31 +548,6 @@ fn applyAffinity(state: *EngineState, worker_index: usize) void {
     };
 }
 
-fn encodeResult(
-    allocator: std.mem.Allocator,
-    comptime ResultType: type,
-    result: ResultType,
-) !ResultBlob {
-    if (comptime isByteSlice(ResultType)) {
-        const slice: []const u8 = result;
-        const copy = try allocator.dupe(u8, slice);
-        return .{
-            .kind = .owned_slice,
-            .bytes = copy,
-            .size = copy.len,
-        };
-    }
-
-    const size = @sizeOf(ResultType);
-    const copy = try allocator.alloc(u8, size);
-    std.mem.copyForwards(u8, copy, std.mem.asBytes(&result));
-    return .{
-        .kind = .value,
-        .bytes = copy,
-        .size = size,
-    };
-}
-
 fn decodeResult(
     state: *EngineState,
     comptime ResultType: type,
@@ -673,32 +578,6 @@ fn decodeResult(
     std.mem.copyForwards(u8, std.mem.asBytes(&value), blob.bytes);
     state.allocator.free(blob.bytes);
     return value;
-}
-
-fn isByteSlice(comptime T: type) bool {
-    return switch (@typeInfo(T)) {
-        .pointer => |pointer| pointer.size == .slice and pointer.child == u8,
-        else => false,
-    };
-}
-
-fn callTask(comptime ResultType: type, task: anytype, allocator: std.mem.Allocator) !ResultType {
-    const TaskType = @TypeOf(task);
-    switch (@typeInfo(TaskType)) {
-        .@"fn" => return task(allocator),
-        .pointer => |pointer| {
-            if (@typeInfo(pointer.child) == .@"fn") {
-                return task.*(allocator);
-            }
-        },
-        else => {},
-    }
-
-    if (@hasDecl(TaskType, "execute")) {
-        return task.execute(allocator);
-    }
-
-    @compileError("Task must be a function or type with execute(allocator)");
 }
 
 test "engine runs simple task" {

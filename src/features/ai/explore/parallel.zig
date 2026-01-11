@@ -1,6 +1,8 @@
 const std = @import("std");
 const ExploreConfig = @import("config.zig").ExploreConfig;
-const ExploreResult = @import("results.zig").ExploreResult;
+const results = @import("results.zig");
+const ExploreResult = results.ExploreResult;
+const ExploreError = results.ExploreError;
 const FileStats = @import("fs.zig").FileStats;
 const SearchPattern = @import("search.zig").SearchPattern;
 const PatternCompiler = @import("search.zig").PatternCompiler;
@@ -225,11 +227,11 @@ pub fn parallelExplore(
     const pattern = try compiler.compile(query, .literal, config.case_sensitive);
     try patterns.append(allocator, pattern);
 
-    var visitor = fs.FileVisitor.init(allocator, &config);
+    var visitor = try fs.FileVisitor.init(allocator, &config);
     defer visitor.deinit();
 
     visitor.visit(root_path) catch {
-        result.explore_error = ExploreResult.ExploreError.PathNotFound;
+        result.explore_error = ExploreError.PathNotFound;
         const msg = try std.fmt.allocPrint(allocator, "Failed to access path: {s}", .{root_path});
         result.error_message = msg;
         return result;
@@ -240,12 +242,16 @@ pub fn parallelExplore(
     var explorer = ParallelExplorer.init(allocator, config, &result, patterns.items);
     defer explorer.* = undefined;
 
-    const start_time = std.time.nanoTimestamp();
+    var explore_timer = std.time.Timer.start() catch {
+        result.explore_error = ExploreError.InternalError;
+        result.error_message = try std.fmt.allocPrint(allocator, "Failed to start timer", .{});
+        return result;
+    };
 
     try explorer.explore(files);
 
-    const end_time = std.time.nanoTimestamp();
-    result.duration_ms = @divTrunc(@as(i128, end_time - start_time), std.time.ns_per_ms);
+    const elapsed_ns = explore_timer.read();
+    result.duration_ms = @as(i128, @intCast(elapsed_ns / std.time.ns_per_ms));
 
     return result;
 }

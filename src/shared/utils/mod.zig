@@ -10,3 +10,6 @@ pub const crypto = @import("crypto/mod.zig");
 pub const json = @import("json/mod.zig");
 pub const config = @import("config.zig");
 pub const lifecycle = @import("lifecycle.zig");
+pub const memory = @import("memory/mod.zig");
+pub const binary = @import("binary.zig");
+pub const errors = @import("errors.zig");

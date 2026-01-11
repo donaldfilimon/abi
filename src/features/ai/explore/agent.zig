@@ -516,14 +516,14 @@ pub const ExploreAgent = struct {
     }
 };
 
-pub fn createDefaultAgent(allocator: std.mem.Allocator) ExploreAgent {
+pub fn createDefaultAgent(allocator: std.mem.Allocator) !ExploreAgent {
     return ExploreAgent.init(allocator, ExploreConfig.defaultForLevel(.medium));
 }
 
-pub fn createQuickAgent(allocator: std.mem.Allocator) ExploreAgent {
+pub fn createQuickAgent(allocator: std.mem.Allocator) !ExploreAgent {
     return ExploreAgent.init(allocator, ExploreConfig.defaultForLevel(.quick));
 }
 
-pub fn createThoroughAgent(allocator: std.mem.Allocator) ExploreAgent {
+pub fn createThoroughAgent(allocator: std.mem.Allocator) !ExploreAgent {
     return ExploreAgent.init(allocator, ExploreConfig.defaultForLevel(.thorough));
 }

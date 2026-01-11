@@ -1,6 +1,11 @@
 //! Async I/O HTTP client using std.Io
 //!
 //! Provides async HTTP requests with streaming support for connectors.
+//!
+//! Security features:
+//! - URL validation against malicious inputs
+//! - Optional HTTPS-only mode for secure communications
+//! - Redirect limits to prevent redirect loops
 
 const std = @import("std");
 
@@ -27,17 +32,52 @@ pub const HttpStatus = enum(u16) {
 
 pub const HttpError = http_mod.HttpError;
 
+/// Security policy for HTTP requests
+pub const SecurityPolicy = struct {
+    /// Require HTTPS for all requests (reject http://)
+    require_https: bool = false,
+    /// Allow localhost connections over HTTP even when require_https is true
+    allow_localhost_http: bool = true,
+    /// Maximum URL length
+    max_url_length: usize = 2048,
+    /// Reject URLs containing these hosts (blocklist)
+    blocked_hosts: []const []const u8 = &.{},
+};
+
 /// Validates URL for basic security and format requirements
 pub fn validateUrl(url: []const u8) !void {
+    return validateUrlWithPolicy(url, .{});
+}
+
+/// Validates URL with a specific security policy
+pub fn validateUrlWithPolicy(url: []const u8, policy: SecurityPolicy) !void {
     // Basic URL validation to prevent malicious inputs
     if (url.len == 0) return HttpError.InvalidUrl;
-    if (url.len > 2048) return HttpError.InvalidUrl; // Reasonable URL length limit
+    if (url.len > policy.max_url_length) return HttpError.InvalidUrl;
+
+    const is_https = std.mem.startsWith(u8, url, "https://");
+    const is_http = std.mem.startsWith(u8, url, "http://");
 
     // Must start with http:// or https://
-    if (!std.mem.startsWith(u8, url, "http://") and
-        !std.mem.startsWith(u8, url, "https://"))
-    {
+    if (!is_http and !is_https) {
         return HttpError.InvalidUrl;
+    }
+
+    // Check HTTPS requirement
+    if (policy.require_https and is_http) {
+        // Check if localhost exception applies
+        if (policy.allow_localhost_http) {
+            const host_start = if (is_https) "https://".len else "http://".len;
+            const remaining = url[host_start..];
+            const is_localhost = std.mem.startsWith(u8, remaining, "localhost") or
+                std.mem.startsWith(u8, remaining, "127.0.0.1") or
+                std.mem.startsWith(u8, remaining, "[::1]");
+            if (!is_localhost) {
+                return HttpError.InvalidUrl; // HTTPS required for non-localhost
+            }
+        } else {
+            return HttpError.InvalidUrl; // HTTPS required
+        }
     }
 
     // Check for potentially dangerous characters
@@ -47,7 +87,19 @@ pub fn validateUrl(url: []const u8) !void {
         }
     }
 
-    // Additional validation could be added for specific schemes, ports, etc.
+    // Check blocked hosts
+    if (policy.blocked_hosts.len > 0) {
+        const host_start = if (is_https) "https://".len else "http://".len;
+        const remaining = url[host_start..];
+        const host_end = std.mem.indexOfAny(u8, remaining, "/:?#") orelse remaining.len;
+        const host = remaining[0..host_end];
+
+        for (policy.blocked_hosts) |blocked| {
+            if (std.mem.eql(u8, host, blocked)) {
+                return HttpError.InvalidUrl;
+            }
+        }
+    }
 }
 
 pub const HttpRequest = struct {
@@ -224,11 +276,11 @@ pub const AsyncHttpClient = struct {
         response.status = @enumFromInt(response.status_code);
 
         var body_reader = http_res.reader();
-        var body_list = std.ArrayList(u8).init(self.allocator);
-        errdefer body_list.deinit();
+        var body_list = std.ArrayListUnmanaged(u8){};
+        errdefer body_list.deinit(self.allocator);
 
-        try body_reader.readAllArrayList(&body_list, 10 * 1024 * 1024);
-        response.body = try body_list.toOwnedSlice();
+        try body_reader.readAllArrayListAligned(&body_list, null, self.allocator, 10 * 1024 * 1024);
+        response.body = try body_list.toOwnedSlice(self.allocator);
 
         return response;
     }
@@ -314,18 +366,18 @@ pub const AsyncHttpClient = struct {
         response.status = @enumFromInt(response.status_code);
 
         var body_reader = http_res.reader();
-        var body_list = std.ArrayList(u8).init(self.allocator);
-        errdefer body_list.deinit();
+        var body_list = std.ArrayListUnmanaged(u8){};
+        errdefer body_list.deinit(self.allocator);
 
         // Use chunked reading for better memory efficiency
         var buffer: [4096]u8 = undefined;
         while (true) {
             const n = try body_reader.read(&buffer);
             if (n == 0) break;
-            try body_list.appendSlice(buffer[0..n]);
+            try body_list.appendSlice(self.allocator, buffer[0..n]);
         }
 
-        response.body = try body_list.toOwnedSlice();
+        response.body = try body_list.toOwnedSlice(self.allocator);
 
         return response;
     }
@@ -401,4 +453,34 @@ test "http response status checks" {
     response.status = .not_found;
     try std.testing.expect(!response.isSuccess());
     try std.testing.expect(response.isError());
+}
+
+test "url validation with security policy" {
+    // Default policy accepts both HTTP and HTTPS
+    try validateUrl("https://example.com");
+    try validateUrl("http://example.com");
+
+    // HTTPS-only policy
+    const https_only = SecurityPolicy{ .require_https = true, .allow_localhost_http = false };
+    try validateUrlWithPolicy("https://example.com", https_only);
+    try std.testing.expectError(HttpError.InvalidUrl, validateUrlWithPolicy("http://example.com", https_only));
+
+    // HTTPS-only with localhost exception
+    const https_with_localhost = SecurityPolicy{ .require_https = true, .allow_localhost_http = true };
+    try validateUrlWithPolicy("https://example.com", https_with_localhost);
+    try validateUrlWithPolicy("http://localhost:8080/api", https_with_localhost);
+    try validateUrlWithPolicy("http://127.0.0.1:8080/api", https_with_localhost);
+    try std.testing.expectError(HttpError.InvalidUrl, validateUrlWithPolicy("http://example.com", https_with_localhost));
+
+    // Blocked hosts
+    const blocked = SecurityPolicy{ .blocked_hosts = &.{ "malicious.com", "evil.org" } };
+    try validateUrlWithPolicy("https://example.com", blocked);
+    try std.testing.expectError(HttpError.InvalidUrl, validateUrlWithPolicy("https://malicious.com/path", blocked));
+    try std.testing.expectError(HttpError.InvalidUrl, validateUrlWithPolicy("http://evil.org", blocked));
+}
+
+test "url validation rejects invalid urls" {
+    try std.testing.expectError(HttpError.InvalidUrl, validateUrl(""));
+    try std.testing.expectError(HttpError.InvalidUrl, validateUrl("ftp://example.com"));
+    try std.testing.expectError(HttpError.InvalidUrl, validateUrl("javascript:alert(1)"));
 }

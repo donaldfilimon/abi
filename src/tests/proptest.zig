@@ -143,7 +143,7 @@ pub const Generators = struct {
         const GenFn = struct {
             fn generate(prng: *std.Random.DefaultPrng, size: usize) []u8 {
                 const len = prng.random().intRangeAtMost(usize, 0, size);
-                var data = std.heap.page_allocator.alloc(u8, len) catch return &.{};
+                const data = std.heap.page_allocator.alloc(u8, len) catch return &.{};
                 prng.random().bytes(data);
                 return data;
             }

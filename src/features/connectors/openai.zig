@@ -152,28 +152,28 @@ pub const Client = struct {
     }
 
     pub fn encodeChatRequest(self: *Client, request: ChatCompletionRequest) ![]u8 {
-        var json_str = std.ArrayList(u8).init(self.allocator);
-        errdefer json_str.deinit();
+        var json_str = std.ArrayListUnmanaged(u8){};
+        errdefer json_str.deinit(self.allocator);
 
-        try json_str.writer().print("{{\"model\":\"{s\",\"messages\":[", .{request.model});
+        try json_str.writer(self.allocator).print("{{\"model\":\"{s\",\"messages\":[", .{request.model});
 
         for (request.messages, 0..) |msg, i| {
-            if (i > 0) try json_str.append(',');
-            try json_str.writer().print(
+            if (i > 0) try json_str.append(self.allocator, ',');
+            try json_str.writer(self.allocator).print(
                 "{{\"role\":\"{s\",\"content\":\"{s}\"}}",
                 .{ msg.role, std.zig.fmtEscapes(msg.content) },
             );
         }
 
-        try json_str.writer().print("],\"temperature\":{d:.2}", .{request.temperature});
+        try json_str.writer(self.allocator).print("],\"temperature\":{d:.2}", .{request.temperature});
 
         if (request.max_tokens) |max_tokens| {
-            try json_str.writer().print(",\"max_tokens\":{d}", .{max_tokens});
+            try json_str.writer(self.allocator).print(",\"max_tokens\":{d}", .{max_tokens});
         }
 
-        try json_str.append('}');
+        try json_str.append(self.allocator, '}');
 
-        return json_str.toOwnedSlice();
+        return json_str.toOwnedSlice(self.allocator);
     }
 
     pub fn decodeChatResponse(self: *Client, json: []const u8) !ChatCompletionResponse {

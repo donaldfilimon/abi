@@ -8,43 +8,16 @@ const kernels = @import("kernels.zig");
 const memory = @import("memory.zig");
 pub const profiling = @import("profiling.zig");
 pub const acceleration = @import("acceleration.zig");
+pub const multi_device = @import("multi_device.zig");
+pub const kernel_cache = @import("kernel_cache.zig");
+pub const tensor = @import("tensor/mod.zig");
 
 const build_options = @import("build_options");
 
-const SimpleModuleLifecycle = struct {
-    const Self = @This();
-    initialized: bool = false,
-
-    pub fn init(self: *Self, init_fn: fn () anyerror!void) !void {
-        if (self.initialized) {
-            return;
-        }
-        try init_fn();
-        self.initialized = true;
-        return;
-    }
-
-    pub fn ensureInitialized(self: *Self, init_fn: fn () anyerror!void) !void {
-        if (self.isInitialized()) {
-            return;
-        }
-        return self.init(init_fn);
-    }
-
-    pub fn deinit(self: *Self, deinit_fn: ?fn () void) void {
-        if (!self.initialized) {
-            return;
-        }
-        if (deinit_fn) |fn_ptr| {
-            fn_ptr();
-        }
-        self.initialized = false;
-    }
-
-    pub fn isInitialized(self: *Self) bool {
-        return self.initialized;
-    }
-};
+// Import lifecycle management from shared utils
+const lifecycle = @import("../../shared/utils/lifecycle.zig");
+const SimpleModuleLifecycle = lifecycle.SimpleModuleLifecycle;
+const LifecycleError = lifecycle.LifecycleError;
 
 var gpu_lifecycle = SimpleModuleLifecycle{};
 
@@ -54,7 +27,9 @@ var cuda_backend_initialized = false;
 pub const MemoryError = memory.MemoryError;
 pub const BufferFlags = memory.BufferFlags;
 pub const GPUBuffer = memory.GPUBuffer;
+pub const Buffer = GPUBuffer; // Alias for convenience
 pub const GPUMemoryPool = memory.GPUMemoryPool;
+pub const MemoryPool = GPUMemoryPool; // Alias for convenience
 pub const MemoryStats = memory.MemoryStats;
 pub const AsyncTransfer = memory.AsyncTransfer;
 pub const GpuError = memory.MemoryError || error{GpuDisabled};
@@ -108,6 +83,36 @@ pub const Profiler = profiling.Profiler;
 pub const TimingResult = profiling.TimingResult;
 pub const OccupancyResult = profiling.OccupancyResult;
 pub const MemoryBandwidth = profiling.MemoryBandwidth;
+
+// Multi-device exports
+pub const DeviceGroup = multi_device.DeviceGroup;
+pub const MultiDeviceConfig = multi_device.MultiDeviceConfig;
+pub const LoadBalanceStrategy = multi_device.LoadBalanceStrategy;
+pub const WorkDistribution = multi_device.WorkDistribution;
+pub const GroupStats = multi_device.GroupStats;
+pub const PeerTransfer = multi_device.PeerTransfer;
+pub const DeviceBarrier = multi_device.DeviceBarrier;
+
+// Kernel cache exports
+pub const KernelCache = kernel_cache.KernelCache;
+pub const KernelCacheConfig = kernel_cache.KernelCacheConfig;
+pub const CachedKernel = kernel_cache.CachedKernel;
+pub const CacheEntryMeta = kernel_cache.CacheEntryMeta;
+pub const CacheStats = kernel_cache.CacheStats;
+
+// Tensor exports
+pub const Tensor = tensor.Tensor;
+pub const TensorShape = tensor.TensorShape;
+pub const DataType = tensor.DataType;
+pub const TensorError = tensor.TensorError;
+pub const matmul = tensor.matmul;
+pub const tensorAdd = tensor.add;
+pub const tensorMul = tensor.mul;
+pub const relu = tensor.relu;
+pub const sigmoid = tensor.sigmoid;
+pub const softmax = tensor.softmax;
+pub const gelu = tensor.gelu;
+pub const layerNorm = tensor.layerNorm;
 
 pub fn init(_: std.mem.Allocator) GpuError!void {
     if (!moduleEnabled()) return error.GpuDisabled;

@@ -11,6 +11,8 @@ fn pathExists(path: []const u8) bool {
 const BuildOptions = struct {
     enable_gpu: bool,
     enable_ai: bool,
+    enable_explore: bool,
+    enable_llm: bool,
     enable_web: bool,
     enable_database: bool,
     enable_network: bool,
@@ -30,6 +32,8 @@ const BuildOptions = struct {
 const Defaults = struct {
     const enable_gpu = true;
     const enable_ai = true;
+    const enable_explore = true;
+    const enable_llm = true;
     const enable_web = true;
     const enable_database = true;
     const enable_network = true;
@@ -43,6 +47,12 @@ fn readBuildOptions(b: *std.Build) BuildOptions {
     const enable_ai =
         b.option(bool, "enable-ai", "Enable AI features") orelse
         Defaults.enable_ai;
+    const enable_explore =
+        b.option(bool, "enable-explore", "Enable AI code exploration") orelse
+        (enable_ai and Defaults.enable_explore);
+    const enable_llm =
+        b.option(bool, "enable-llm", "Enable local LLM inference") orelse
+        (enable_ai and Defaults.enable_llm);
     const enable_web =
         b.option(bool, "enable-web", "Enable web features") orelse
         Defaults.enable_web;
@@ -86,6 +96,8 @@ fn readBuildOptions(b: *std.Build) BuildOptions {
     return .{
         .enable_gpu = enable_gpu,
         .enable_ai = enable_ai,
+        .enable_explore = enable_explore,
+        .enable_llm = enable_llm,
         .enable_web = enable_web,
         .enable_database = enable_database,
         .enable_network = enable_network,
@@ -112,6 +124,8 @@ fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Mod
 
     build_options.addOption(bool, "enable_gpu", options.enable_gpu);
     build_options.addOption(bool, "enable_ai", options.enable_ai);
+    build_options.addOption(bool, "enable_explore", options.enable_explore);
+    build_options.addOption(bool, "enable_llm", options.enable_llm);
     build_options.addOption(bool, "enable_web", options.enable_web);
     build_options.addOption(bool, "enable_database", options.enable_database);
     build_options.addOption(bool, "enable_network", options.enable_network);
@@ -137,7 +151,7 @@ fn createCliModule(
     optimize: std.builtin.OptimizeMode,
 ) *std.Build.Module {
     const cli_module = b.createModule(.{
-        .root_source_file = b.path("src/cli.zig"),
+        .root_source_file = b.path("tools/cli/mod.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -369,8 +383,46 @@ pub fn build(b: *std.Build) void {
         std.log.warn("src/compute/runtime/benchmark.zig not found; skipping benchmark step", .{});
     }
 
-    // Benchmarks
-    if (pathExists("benchmarks/run.zig")) {
+    // Benchmarks - comprehensive suite
+    if (pathExists("benchmarks/main.zig")) {
+        const benchmark_exe = b.addExecutable(.{
+            .name = "benchmarks",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("benchmarks/main.zig"),
+                .target = target,
+                .optimize = .ReleaseFast,
+            }),
+        });
+
+        const run_benchmarks = b.addRunArtifact(benchmark_exe);
+        if (b.args) |args| {
+            run_benchmarks.addArgs(args);
+        }
+
+        const benchmarks_step = b.step("benchmarks", "Run comprehensive benchmarks");
+        benchmarks_step.dependOn(&run_benchmarks.step);
+
+        // Individual benchmark suites as separate steps
+        const bench_suites = [_]struct { name: []const u8, desc: []const u8 }{
+            .{ .name = "simd", .desc = "Run SIMD/Vector benchmarks" },
+            .{ .name = "memory", .desc = "Run memory allocator benchmarks" },
+            .{ .name = "concurrency", .desc = "Run concurrency benchmarks" },
+            .{ .name = "database", .desc = "Run database/HNSW benchmarks" },
+            .{ .name = "network", .desc = "Run HTTP/network benchmarks" },
+            .{ .name = "crypto", .desc = "Run cryptography benchmarks" },
+            .{ .name = "ai", .desc = "Run AI/ML inference benchmarks" },
+            .{ .name = "quick", .desc = "Run quick CI benchmarks" },
+        };
+
+        for (bench_suites) |suite| {
+            const suite_run = b.addRunArtifact(benchmark_exe);
+            suite_run.addArg(b.fmt("--suite={s}", .{suite.name}));
+
+            const suite_step = b.step(b.fmt("bench-{s}", .{suite.name}), suite.desc);
+            suite_step.dependOn(&suite_run.step);
+        }
+    } else if (pathExists("benchmarks/run.zig")) {
+        // Fallback to legacy benchmark runner
         const benchmark_exe = b.addExecutable(.{
             .name = "benchmarks",
             .root_module = b.createModule(.{

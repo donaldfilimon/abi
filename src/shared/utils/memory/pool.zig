@@ -203,7 +203,7 @@ pub const MemoryPool = struct {
         }
     }
 
-    fn alignSize(self: *MemoryPool, size: usize) usize {
+    fn alignSize(_: *MemoryPool, size: usize) usize {
         const alignment = @max(16, @alignOf(u64));
         return ((size + alignment - 1) / alignment) * alignment;
     }
@@ -323,19 +323,26 @@ pub const SlabPool = struct {
                         self.bitmap[slot_idx] |= @as(u64, 1) << bit_idx;
                         self.used_count += 1;
                         const offset = slot_idx * 64 + bit_idx;
-                        return @as([*]u8, @ptrCast(self.data)) + @as(usize, offset);
+                        return @as([*]u8, @ptrCast(@alignCast(self.data))) + @as(usize, offset);
                     }
                 }
             }
             return null;
         }
 
-        fn free(self: *Slab, ptr: *u8) void {
+        /// Free a slot. Returns false if the slot was already free (double-free protection).
+        fn free(self: *Slab, ptr: *u8) bool {
             const offset = @intFromPtr(ptr) - @intFromPtr(self.data);
             const slot_idx = offset / 64;
             const bit_idx = @as(u6, @intCast(offset % 64));
-            self.bitmap[slot_idx] &= ~(@as(u64, 1) << bit_idx);
+            const mask = @as(u64, 1) << bit_idx;
+            // Double-free protection: check if bit is already clear
+            if ((self.bitmap[slot_idx] & mask) == 0) {
+                return false; // Already freed
+            }
+            self.bitmap[slot_idx] &= ~mask;
             self.used_count -= 1;
+            return true;
         }
     };
 
@@ -395,16 +402,17 @@ pub const SlabPool = struct {
         return error.SlabExhausted;
     }
 
-    pub fn free(self: *SlabPool, ptr: *u8) void {
+    /// Free a pointer. Returns true if freed successfully, false if double-free or invalid pointer.
+    pub fn free(self: *SlabPool, ptr: *u8) bool {
         for (self.slabs.items) |slab| {
             const start = @intFromPtr(slab.data);
             const end = start + self.slab_size;
             const ptr_int = @intFromPtr(ptr);
             if (ptr_int >= start and ptr_int < end) {
-                slab.free(ptr);
-                return;
+                return slab.free(ptr);
             }
         }
+        return false; // Pointer not found in any slab
     }
 };
 

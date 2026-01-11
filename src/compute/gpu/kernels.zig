@@ -143,30 +143,34 @@ pub fn compileKernel(
     };
 }
 
-const KernelBuilder = fn (std.mem.Allocator) anyerror!KernelSource;
+/// Error set for kernel building operations.
+pub const KernelBuildError = KernelError || std.mem.Allocator.Error;
+
+/// Function type for kernel builder functions.
+const KernelBuilder = *const fn (std.mem.Allocator) KernelBuildError!KernelSource;
 
 const cuda_kernel_builders = [_]KernelBuilder{
-    createCudaVectorAddKernel,
-    createCudaMatMulKernel,
-    createCudaReduceKernel,
+    &createCudaVectorAddKernel,
+    &createCudaMatMulKernel,
+    &createCudaReduceKernel,
 };
 const vulkan_kernel_builders = [_]KernelBuilder{
-    createVulkanVectorAddKernel,
-    createVulkanMatMulKernel,
+    &createVulkanVectorAddKernel,
+    &createVulkanMatMulKernel,
 };
 const metal_kernel_builders = [_]KernelBuilder{
-    createMetalVectorAddKernel,
-    createMetalMatMulKernel,
+    &createMetalVectorAddKernel,
+    &createMetalMatMulKernel,
 };
 const webgpu_kernel_builders = [_]KernelBuilder{
-    createWebGpuVectorAddKernel,
-    createWebGpuReduceKernel,
+    &createWebGpuVectorAddKernel,
+    &createWebGpuReduceKernel,
 };
 const opengl_kernel_builders = [_]KernelBuilder{
-    createOpenGlVectorAddKernel,
+    &createOpenGlVectorAddKernel,
 };
 const opengles_kernel_builders = [_]KernelBuilder{
-    createOpenGlesVectorAddKernel,
+    &createOpenGlesVectorAddKernel,
 };
 const webgl2_kernel_builders = [_]KernelBuilder{};
 
@@ -205,7 +209,7 @@ pub fn createDefaultKernels(allocator: std.mem.Allocator) ![]KernelSource {
     return kernels.toOwnedSlice(allocator);
 }
 
-fn createCudaVectorAddKernel(allocator: std.mem.Allocator) !KernelSource {
+fn createCudaVectorAddKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
     const name = try allocator.dupe(u8, "vector_add");
     const source = try allocator.dupe(u8,
         \\__global__ void vector_add(const float* a, const float* b, float* c, int n) {
@@ -224,7 +228,7 @@ fn createCudaVectorAddKernel(allocator: std.mem.Allocator) !KernelSource {
     };
 }
 
-fn createCudaMatMulKernel(allocator: std.mem.Allocator) !KernelSource {
+fn createCudaMatMulKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
     const name = try allocator.dupe(u8, "matmul");
     const source = try allocator.dupe(u8,
         \\__global__ void matmul(const float* A, const float* B, float* C, int M, int N, int K) {
@@ -248,7 +252,7 @@ fn createCudaMatMulKernel(allocator: std.mem.Allocator) !KernelSource {
     };
 }
 
-fn createCudaReduceKernel(allocator: std.mem.Allocator) !KernelSource {
+fn createCudaReduceKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
     const name = try allocator.dupe(u8, "reduce_sum");
     const source = try allocator.dupe(u8,
         \\__global__ void reduce_sum(const float* input, float* output, int n) {
@@ -273,7 +277,7 @@ fn createCudaReduceKernel(allocator: std.mem.Allocator) !KernelSource {
     };
 }
 
-fn createVulkanVectorAddKernel(allocator: std.mem.Allocator) !KernelSource {
+fn createVulkanVectorAddKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
     const name = try allocator.dupe(u8, "vector_add");
     const source = try allocator.dupe(u8,
         \\#version 450
@@ -295,7 +299,7 @@ fn createVulkanVectorAddKernel(allocator: std.mem.Allocator) !KernelSource {
     };
 }
 
-fn createVulkanMatMulKernel(allocator: std.mem.Allocator) !KernelSource {
+fn createVulkanMatMulKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
     const name = try allocator.dupe(u8, "matmul");
     const source = try allocator.dupe(u8,
         \\#version 450
@@ -327,7 +331,7 @@ fn createVulkanMatMulKernel(allocator: std.mem.Allocator) !KernelSource {
     };
 }
 
-fn createMetalVectorAddKernel(allocator: std.mem.Allocator) !KernelSource {
+fn createMetalVectorAddKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
     const name = try allocator.dupe(u8, "vector_add");
     const source = try allocator.dupe(u8,
         \\#include <metal_stdlib>
@@ -348,7 +352,7 @@ fn createMetalVectorAddKernel(allocator: std.mem.Allocator) !KernelSource {
     };
 }
 
-fn createMetalMatMulKernel(allocator: std.mem.Allocator) !KernelSource {
+fn createMetalMatMulKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
     const name = try allocator.dupe(u8, "matmul");
     const source = try allocator.dupe(u8,
         \\#include <metal_stdlib>
@@ -380,7 +384,7 @@ fn createMetalMatMulKernel(allocator: std.mem.Allocator) !KernelSource {
     };
 }
 
-fn createWebGpuVectorAddKernel(allocator: std.mem.Allocator) !KernelSource {
+fn createWebGpuVectorAddKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
     const name = try allocator.dupe(u8, "vector_add");
     const source = try allocator.dupe(u8,
         \\@group(0) @binding(0) var<storage, read> a : array<f32>;
@@ -400,7 +404,7 @@ fn createWebGpuVectorAddKernel(allocator: std.mem.Allocator) !KernelSource {
     };
 }
 
-fn createWebGpuReduceKernel(allocator: std.mem.Allocator) !KernelSource {
+fn createWebGpuReduceKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
     const name = try allocator.dupe(u8, "reduce_sum");
     const source = try allocator.dupe(u8,
         \\@group(0) @binding(0) var<storage, read> input : array<f32>;
@@ -438,7 +442,7 @@ fn createWebGpuReduceKernel(allocator: std.mem.Allocator) !KernelSource {
     };
 }
 
-fn createOpenGlVectorAddKernel(allocator: std.mem.Allocator) !KernelSource {
+fn createOpenGlVectorAddKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
     const name = try allocator.dupe(u8, "vector_add");
     const source = try allocator.dupe(u8,
         \\#version 430
@@ -460,7 +464,7 @@ fn createOpenGlVectorAddKernel(allocator: std.mem.Allocator) !KernelSource {
     };
 }
 
-fn createOpenGlesVectorAddKernel(allocator: std.mem.Allocator) !KernelSource {
+fn createOpenGlesVectorAddKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
     const name = try allocator.dupe(u8, "vector_add");
     const source = try allocator.dupe(u8,
         \\#version 310 es
@@ -482,7 +486,7 @@ fn createOpenGlesVectorAddKernel(allocator: std.mem.Allocator) !KernelSource {
     };
 }
 
-fn createWebGl2PlaceholderKernel(allocator: std.mem.Allocator) !KernelSource {
+fn createWebGl2PlaceholderKernel(allocator: std.mem.Allocator) KernelBuildError!KernelSource {
     const name = try allocator.dupe(u8, "noop");
     const source = try allocator.dupe(u8,
         \\#version 300 es

@@ -8,12 +8,48 @@ pub const storage = @import("storage.zig");
 pub const wdbx = @import("wdbx.zig");
 pub const cli = @import("cli.zig");
 pub const http = @import("http.zig");
+pub const fulltext = @import("fulltext.zig");
+pub const hybrid = @import("hybrid.zig");
+pub const filter = @import("filter.zig");
+pub const batch = @import("batch.zig");
 
 pub const Database = database.Database;
 pub const DatabaseHandle = wdbx.DatabaseHandle;
 pub const SearchResult = wdbx.SearchResult;
 pub const VectorView = wdbx.VectorView;
 pub const Stats = wdbx.Stats;
+
+// Full-text search exports
+pub const InvertedIndex = fulltext.InvertedIndex;
+pub const Bm25Config = fulltext.Bm25Config;
+pub const TokenizerConfig = fulltext.TokenizerConfig;
+pub const TextSearchResult = fulltext.TextSearchResult;
+pub const QueryParser = fulltext.QueryParser;
+
+// Hybrid search exports
+pub const HybridSearchEngine = hybrid.HybridSearchEngine;
+pub const HybridConfig = hybrid.HybridConfig;
+pub const HybridResult = hybrid.HybridResult;
+pub const FusionMethod = hybrid.FusionMethod;
+
+// Metadata filter exports
+pub const FilterBuilder = filter.FilterBuilder;
+pub const FilterExpression = filter.FilterExpression;
+pub const FilterCondition = filter.FilterCondition;
+pub const FilterOperator = filter.FilterOperator;
+pub const MetadataValue = filter.MetadataValue;
+pub const MetadataStore = filter.MetadataStore;
+pub const FilteredSearch = filter.FilteredSearch;
+pub const FilteredResult = filter.FilteredResult;
+
+// Batch operation exports
+pub const BatchProcessor = batch.BatchProcessor;
+pub const BatchConfig = batch.BatchConfig;
+pub const BatchRecord = batch.BatchRecord;
+pub const BatchResult = batch.BatchResult;
+pub const BatchWriter = batch.BatchWriter;
+pub const BatchOperationBuilder = batch.BatchOperationBuilder;
+pub const BatchImporter = batch.BatchImporter;
 
 pub const DatabaseFeatureError = error{
     DatabaseDisabled,

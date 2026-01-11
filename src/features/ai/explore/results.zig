@@ -170,7 +170,7 @@ pub const ExploreResult = struct {
         // Build JSON manually for compatibility with Zig 0.16 API changes
         std.debug.print("{{", .{});
         std.debug.print("\"query\":\"{s}\",", .{self.query});
-        std.debug.print("\"level\":\"{s}\",", .{@tagName(self.level)});
+        std.debug.print("\"level\":\"{t}\",", .{self.level});
         std.debug.print("\"files_scanned\":{d},", .{self.files_scanned});
         std.debug.print("\"matches_found\":{d},", .{self.matches_found});
         std.debug.print("\"duration_ms\":{d},", .{self.duration_ms});
@@ -186,7 +186,7 @@ pub const ExploreResult = struct {
             std.debug.print("{{", .{});
             std.debug.print("\"file\":\"{s}\",", .{match.file_path});
             std.debug.print("\"line\":{d},", .{match.line_number});
-            std.debug.print("\"type\":\"{s}\",", .{@tagName(match.match_type)});
+            std.debug.print("\"type\":\"{t}\",", .{match.match_type});
             std.debug.print("\"score\":{d:.2}", .{match.relevance_score});
             std.debug.print("}}", .{});
         }

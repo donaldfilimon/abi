@@ -133,7 +133,10 @@ pub const AutoReindexer = struct {
 
     fn performReindex(self: *AutoReindexer) void {
         self.metrics.current_state = .reindexing;
-        const start_time = std.time.nanoTimestamp();
+        var timer = std.time.Timer.start() catch {
+            self.metrics.current_state = .idle;
+            return;
+        };
 
         const allocator = self.allocator;
         const config = self.config;
@@ -157,8 +160,7 @@ pub const AutoReindexer = struct {
             return;
         };
 
-        const end_time = std.time.nanoTimestamp();
-        self.metrics.last_reindex_duration_ns = @intCast(end_time - start_time);
+        self.metrics.last_reindex_duration_ns = timer.read();
         self.metrics.total_reindexes += 1;
         self.metrics.current_state = .idle;
     }

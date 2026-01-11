@@ -141,7 +141,7 @@ pub const Accelerator = struct {
             .device_name = backend.backendDisplayName(active),
         };
 
-        const start_time = std.time.nanoTimestamp();
+        var timer = std.time.Timer.start() catch return AcceleratorError.InitializationFailed;
 
         if (self.profiler) |*prof| {
             try prof.startTiming(task.name, self.allocator, 0);
@@ -168,8 +168,7 @@ pub const Accelerator = struct {
             try prof.endTiming(self.allocator);
         }
 
-        const end_time = std.time.nanoTimestamp();
-        const duration_ns = @as(u64, @intCast(end_time - start_time));
+        const duration_ns = timer.read();
         stats.total_time_ms = @as(f64, @floatFromInt(duration_ns)) / 1_000_000.0;
 
         if (self.profiler) |*prof| {

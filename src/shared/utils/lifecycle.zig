@@ -22,6 +22,26 @@
 
 const std = @import("std");
 
+/// Error set for module lifecycle operations.
+pub const LifecycleError = error{
+    /// Memory allocation failed during initialization
+    OutOfMemory,
+    /// Module initialization failed
+    InitFailed,
+    /// Module is already initialized
+    AlreadyInitialized,
+    /// Module failed to acquire required resources
+    ResourceUnavailable,
+    /// Configuration is invalid
+    InvalidConfiguration,
+};
+
+/// Function pointer type for initialization functions.
+pub const InitFn = *const fn () LifecycleError!void;
+
+/// Function pointer type for deinitialization functions.
+pub const DeinitFn = *const fn () void;
+
 /// Thread-safe module lifecycle management
 pub const ModuleLifecycle = struct {
     const Self = @This();
@@ -32,7 +52,7 @@ pub const ModuleLifecycle = struct {
     /// Initialize the module
     /// @param init_fn Function pointer that performs module initialization (takes no parameters)
     /// @return error if initialization fails
-    pub fn init(self: *Self, init_fn: fn () anyerror!void) !void {
+    pub fn init(self: *Self, init_fn: InitFn) LifecycleError!void {
         self.mutex.lock();
         defer self.mutex.unlock();
 
@@ -47,7 +67,7 @@ pub const ModuleLifecycle = struct {
     /// Ensure module is initialized, calling init_fn if not
     /// @param init_fn Function pointer that performs module initialization
     /// @return error if initialization fails
-    pub fn ensureInitialized(self: *Self, init_fn: fn () anyerror!void) !void {
+    pub fn ensureInitialized(self: *Self, init_fn: InitFn) LifecycleError!void {
         if (self.isInitialized()) {
             return;
         }
@@ -56,7 +76,7 @@ pub const ModuleLifecycle = struct {
 
     /// Deinitialize the module
     /// @param deinit_fn Optional function pointer that performs cleanup
-    pub fn deinit(self: *Self, deinit_fn: ?fn () void) void {
+    pub fn deinit(self: *Self, deinit_fn: ?DeinitFn) void {
         self.mutex.lock();
         defer self.mutex.unlock();
 
@@ -88,7 +108,7 @@ pub const SimpleModuleLifecycle = struct {
     /// Initialize the module
     /// @param init_fn Function pointer that performs module initialization
     /// @return error if initialization fails
-    pub fn init(self: *Self, init_fn: fn () anyerror!void) !void {
+    pub fn init(self: *Self, init_fn: InitFn) LifecycleError!void {
         if (self.initialized) {
             return;
         }
@@ -100,7 +120,7 @@ pub const SimpleModuleLifecycle = struct {
     /// Ensure module is initialized, calling init_fn if not
     /// @param init_fn Function pointer that performs module initialization
     /// @return error if initialization fails
-    pub fn ensureInitialized(self: *Self, init_fn: fn () anyerror!void) !void {
+    pub fn ensureInitialized(self: *Self, init_fn: InitFn) LifecycleError!void {
         if (self.isInitialized()) {
             return;
         }
@@ -109,7 +129,7 @@ pub const SimpleModuleLifecycle = struct {
 
     /// Deinitialize the module
     /// @param deinit_fn Optional function pointer that performs cleanup
-    pub fn deinit(self: *Self, deinit_fn: ?fn () void) void {
+    pub fn deinit(self: *Self, deinit_fn: ?DeinitFn) void {
         if (!self.initialized) {
             return;
         }
@@ -132,7 +152,7 @@ test "simple lifecycle basic operations" {
         var init_called: usize = 0;
         var deinit_called: usize = 0;
 
-        fn init() !void {
+        fn init() LifecycleError!void {
             init_called += 1;
         }
 
@@ -142,17 +162,17 @@ test "simple lifecycle basic operations" {
     };
 
     var lifecycle = SimpleModuleLifecycle{};
-    defer lifecycle.deinit(TestContext.deinit);
+    defer lifecycle.deinit(&TestContext.deinit);
 
     try std.testing.expect(!lifecycle.isInitialized());
-    try lifecycle.init(TestContext.init);
+    try lifecycle.init(&TestContext.init);
     try std.testing.expectEqual(@as(usize, 1), TestContext.init_called);
     try std.testing.expect(lifecycle.isInitialized());
 
-    try lifecycle.ensureInitialized(TestContext.init);
+    try lifecycle.ensureInitialized(&TestContext.init);
     try std.testing.expectEqual(@as(usize, 1), TestContext.init_called);
 
-    lifecycle.deinit(TestContext.deinit);
+    lifecycle.deinit(&TestContext.deinit);
     try std.testing.expectEqual(@as(usize, 1), TestContext.deinit_called);
     try std.testing.expect(!lifecycle.isInitialized());
 }
@@ -162,7 +182,7 @@ test "threadsafe lifecycle basic operations" {
         var init_called: usize = 0;
         var deinit_called: usize = 0;
 
-        fn init() !void {
+        fn init() LifecycleError!void {
             _ = @atomicRmw(usize, &init_called, .Add, 1, .monotonic);
         }
 
@@ -172,31 +192,31 @@ test "threadsafe lifecycle basic operations" {
     };
 
     var lifecycle = ModuleLifecycle{};
-    defer lifecycle.deinit(TestContext.deinit);
+    defer lifecycle.deinit(&TestContext.deinit);
 
     try std.testing.expect(!lifecycle.isInitialized());
-    try lifecycle.init(TestContext.init);
+    try lifecycle.init(&TestContext.init);
     try std.testing.expectEqual(@as(usize, 1), TestContext.init_called);
     try std.testing.expect(lifecycle.isInitialized());
 
-    try lifecycle.ensureInitialized(TestContext.init);
+    try lifecycle.ensureInitialized(&TestContext.init);
     try std.testing.expectEqual(@as(usize, 1), TestContext.init_called);
 
-    lifecycle.deinit(TestContext.deinit);
+    lifecycle.deinit(&TestContext.deinit);
     try std.testing.expectEqual(@as(usize, 1), TestContext.deinit_called);
     try std.testing.expect(!lifecycle.isInitialized());
 }
 
 test "lifecycle handles init errors" {
     const TestContext = struct {
-        fn init() !void {
-            return error.InitFailed;
+        fn init() LifecycleError!void {
+            return LifecycleError.InitFailed;
         }
     };
 
     var lifecycle = SimpleModuleLifecycle{};
     defer lifecycle.deinit(null);
 
-    try std.testing.expectError(error.InitFailed, lifecycle.init(TestContext.init));
+    try std.testing.expectError(LifecycleError.InitFailed, lifecycle.init(&TestContext.init));
     try std.testing.expect(!lifecycle.isInitialized());
 }

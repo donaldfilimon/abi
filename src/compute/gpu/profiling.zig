@@ -116,7 +116,7 @@ pub const Profiler = struct {
     timings: std.ArrayListUnmanaged(TimingInfo),
     memory_transfers: std.ArrayListUnmanaged(MemoryThroughput),
     enabled: bool,
-    start_time_ns: u64,
+    start_timer: ?std.time.Timer,
     current_stream_id: ?u64,
 
     pub fn init(allocator: std.mem.Allocator) Profiler {
@@ -125,7 +125,7 @@ pub const Profiler = struct {
             .timings = std.ArrayListUnmanaged(TimingInfo).empty,
             .memory_transfers = std.ArrayListUnmanaged(MemoryThroughput).empty,
             .enabled = false,
-            .start_time_ns = 0,
+            .start_timer = null,
             .current_stream_id = null,
         };
     }
@@ -141,7 +141,7 @@ pub const Profiler = struct {
 
     pub fn enable(self: *Profiler) void {
         self.enabled = true;
-        self.start_time_ns = std.time.nanoTimestamp();
+        self.start_timer = std.time.Timer.start() catch null;
     }
 
     pub fn disable(self: *Profiler) void {

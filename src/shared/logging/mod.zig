@@ -41,19 +41,19 @@ pub fn err(comptime fmt: []const u8, args: anytype) void {
 
 pub const ScopedTimer = struct {
     label: []const u8,
-    start_ns: i128,
+    timer: std.time.Timer,
 
-    pub fn start(label: []const u8) ScopedTimer {
+    pub fn start(label: []const u8) ?ScopedTimer {
         return .{
             .label = label,
-            .start_ns = std.time.nanoTimestamp(),
+            .timer = std.time.Timer.start() catch return null,
         };
     }
 
     pub fn stop(self: ScopedTimer) void {
         log_mutex.lock();
         defer log_mutex.unlock();
-        const elapsed = std.time.nanoTimestamp() - self.start_ns;
+        const elapsed = self.timer.read();
         std.debug.print("[timer] {s}: {d} ns\n", .{ self.label, elapsed });
     }
 };

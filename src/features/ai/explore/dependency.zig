@@ -7,6 +7,7 @@ const std = @import("std");
 const AstParser = @import("ast.zig").AstParser;
 const AstNode = @import("ast.zig").AstNode;
 const ParsedFile = @import("ast.zig").ParsedFile;
+const explore_fs = @import("fs.zig");
 
 /// Represents a module in the dependency graph
 pub const Module = struct {
@@ -128,14 +129,14 @@ pub const DependencyGraph = struct {
     }
 
     /// Detect circular dependencies
-    pub fn findCircularDependencies(self: *const DependencyGraph) !std.ArrayList([]const []const u8) {
-        var cycles = std.ArrayList([]const []const u8).init(self.allocator);
+    pub fn findCircularDependencies(self: *const DependencyGraph) !std.ArrayListUnmanaged([]const []const u8) {
+        var cycles = std.ArrayListUnmanaged([]const []const u8){};
         var visited = std.StringHashMap(void).init(self.allocator);
         defer visited.deinit();
 
         for (self.all_modules.items) |module| {
-            var path = std.ArrayList([]const u8).init(self.allocator);
-            defer path.deinit();
+            var path = std.ArrayListUnmanaged([]const u8){};
+            defer path.deinit(self.allocator);
 
             try self.findCyclesDFS(module.name, &visited, &path, &cycles);
         }
@@ -147,13 +148,13 @@ pub const DependencyGraph = struct {
         self: *const DependencyGraph,
         current: []const u8,
         visited: *std.StringHashMap(void),
-        path: *std.ArrayList([]const u8),
-        cycles: *std.ArrayList([]const []const u8),
+        path: *std.ArrayListUnmanaged([]const u8),
+        cycles: *std.ArrayListUnmanaged([]const []const u8),
     ) !void {
         if (path.items.len > 0 and std.mem.eql(u8, current, path.items[0])) {
-            var cycle = std.ArrayList([]const u8).init(self.allocator);
-            try cycle.appendSlice(path.items);
-            try cycles.append(cycle.toOwnedSlice());
+            var cycle = std.ArrayListUnmanaged([]const u8){};
+            try cycle.appendSlice(self.allocator, path.items);
+            try cycles.append(self.allocator, try cycle.toOwnedSlice(self.allocator));
             return;
         }
 
@@ -161,17 +162,17 @@ pub const DependencyGraph = struct {
 
         for (path.items) |item| {
             if (std.mem.eql(u8, item, current)) {
-                var cycle = std.ArrayList([]const u8).init(self.allocator);
+                var cycle = std.ArrayListUnmanaged([]const u8){};
                 const start_idx = for (path.items, 0..) |item2, i| {
                     if (std.mem.eql(u8, item2, current)) break i;
                 } else unreachable;
-                try cycle.appendSlice(path.items[start_idx..]);
-                try cycles.append(cycle.toOwnedSlice());
+                try cycle.appendSlice(self.allocator, path.items[start_idx..]);
+                try cycles.append(self.allocator, try cycle.toOwnedSlice(self.allocator));
                 return;
             }
         }
 
-        try path.append(current);
+        try path.append(self.allocator, current);
 
         if (self.dependencies.get(current)) |deps| {
             for (deps.items) |dep| {
@@ -184,8 +185,8 @@ pub const DependencyGraph = struct {
     }
 
     /// Get topological order of modules
-    pub fn topologicalSort(self: *const DependencyGraph) !std.ArrayList([]const u8) {
-        var result = std.ArrayList([]const u8).init(self.allocator);
+    pub fn topologicalSort(self: *const DependencyGraph) !std.ArrayListUnmanaged([]const u8) {
+        var result = std.ArrayListUnmanaged([]const u8){};
         var visited = std.StringHashMap(void).init(self.allocator);
         defer visited.deinit();
 
@@ -203,7 +204,7 @@ pub const DependencyGraph = struct {
         self: *const DependencyGraph,
         current: []const u8,
         visited: *std.StringHashMap(void),
-        result: *std.ArrayList([]const u8),
+        result: *std.ArrayListUnmanaged([]const u8),
     ) !void {
         if (visited.get(current) != null) return;
 
@@ -215,7 +216,7 @@ pub const DependencyGraph = struct {
             }
         }
 
-        try result.append(current);
+        try result.append(self.allocator, current);
     }
 
     /// Export graph to DOT format for visualization
@@ -316,10 +317,10 @@ pub const DependencyAnalyzer = struct {
         }
     }
 
-    fn classifyImport(self: *DependencyAnalyzer, import_path: []const u8, language: ParsedFile.Language) ImportType {
+    fn classifyImport(self: *DependencyAnalyzer, import_path: []const u8, file_type: []const u8) ImportType {
         _ = self;
 
-        if (language == .zig) {
+        if (std.mem.eql(u8, file_type, "zig")) {
             if (std.mem.startsWith(u8, import_path, "std.")) {
                 return .std;
             }
@@ -327,7 +328,7 @@ pub const DependencyAnalyzer = struct {
                 return .std;
             }
             return .local;
-        } else if (language == .rust) {
+        } else if (std.mem.eql(u8, file_type, "rust")) {
             if (std.mem.startsWith(u8, import_path, "std::") or
                 std.mem.startsWith(u8, import_path, "core::") or
                 std.mem.startsWith(u8, import_path, "alloc::"))
@@ -343,7 +344,7 @@ pub const DependencyAnalyzer = struct {
             {
                 return .local;
             }
-        } else if (language == .typescript or language == .javascript) {
+        } else if (std.mem.eql(u8, file_type, "typescript") or std.mem.eql(u8, file_type, "javascript")) {
             if (std.mem.startsWith(u8, import_path, "./") or
                 std.mem.startsWith(u8, import_path, "../"))
             {
@@ -369,19 +370,44 @@ pub fn buildDependencyGraph(allocator: std.mem.Allocator, file_paths: []const []
     var analyzer = DependencyAnalyzer.init(allocator);
     defer analyzer.deinit();
 
-    var parsed_files = std.ArrayList(*ParsedFile).init(allocator);
+    // Create I/O backend for synchronous file operations
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var parsed_files = std.ArrayListUnmanaged(*ParsedFile){};
     defer {
         for (parsed_files.items) |file| {
             file.deinit();
             allocator.destroy(file);
         }
-        parsed_files.deinit();
+        parsed_files.deinit(allocator);
     }
 
     for (file_paths) |file_path| {
+        // Read file content
+        const content = std.Io.Dir.cwd().readFileAlloc(io, file_path, allocator, .limited(10 * 1024 * 1024)) catch |err| {
+            std.log.warn("Failed to read {s}: {}", .{ file_path, err });
+            continue;
+        };
+        defer allocator.free(content);
+
+        // Create minimal FileStats for parsing
+        const file_stat = explore_fs.FileStats{
+            .path = file_path,
+            .size_bytes = content.len,
+            .mtime = 0,
+            .ctime = 0,
+            .is_directory = false,
+            .is_symlink = false,
+            .mode = 0,
+        };
+
         const parsed_file = try allocator.create(ParsedFile);
-        parsed_file.* = try analyzer.parser.parseFile(file_path);
-        try parsed_files.append(parsed_file);
+        parsed_file.* = try analyzer.parser.parseFile(&file_stat, content);
+        try parsed_files.append(allocator, parsed_file);
     }
 
     try analyzer.buildFromFiles(parsed_files.items);

@@ -11,21 +11,49 @@ pub const HttpError = std.mem.Allocator.Error || error{
     InvalidVector,
     ReadFailed,
     RequestTooLarge,
+    Unauthorized,
 };
 
 const max_body_bytes = 1024 * 1024;
+
+/// Server configuration including authentication settings
+pub const ServerConfig = struct {
+    /// Bearer token for authentication (null = no auth required)
+    auth_token: ?[]const u8 = null,
+    /// Allow unauthenticated access to health endpoint
+    allow_health_without_auth: bool = true,
+    /// Allow unauthenticated access to stats endpoint
+    allow_stats_without_auth: bool = false,
+};
 
 pub fn serve(allocator: std.mem.Allocator, address: []const u8) !void {
     var handle = try wdbx.createDatabase(allocator, "http");
     defer wdbx.closeDatabase(&handle);
 
-    try serveDatabase(allocator, &handle, address);
+    try serveDatabaseWithConfig(allocator, &handle, address, .{});
+}
+
+/// Serve with authentication enabled
+pub fn serveWithAuth(allocator: std.mem.Allocator, address: []const u8, auth_token: []const u8) !void {
+    var handle = try wdbx.createDatabase(allocator, "http");
+    defer wdbx.closeDatabase(&handle);
+
+    try serveDatabaseWithConfig(allocator, &handle, address, .{ .auth_token = auth_token });
 }
 
 pub fn serveDatabase(
     allocator: std.mem.Allocator,
     handle: *wdbx.DatabaseHandle,
     address: []const u8,
+) !void {
+    try serveDatabaseWithConfig(allocator, handle, address, .{});
+}
+
+pub fn serveDatabaseWithConfig(
+    allocator: std.mem.Allocator,
+    handle: *wdbx.DatabaseHandle,
+    address: []const u8,
+    config: ServerConfig,
 ) !void {
     var io_backend = std.Io.Threaded.init(allocator, .{
         .environ = std.process.Environ.empty,
@@ -52,7 +80,7 @@ pub fn serveDatabase(
             continue;
         };
         defer stream.close(io);
-        handleConnection(allocator, io, handle, stream) catch |err| {
+        handleConnectionWithConfig(allocator, io, handle, stream, config) catch |err| {
             std.debug.print("Database HTTP connection error: {t}\n", .{err});
         };
     }
@@ -76,6 +104,16 @@ fn handleConnection(
     handle: *wdbx.DatabaseHandle,
     stream: std.Io.net.Stream,
 ) !void {
+    return handleConnectionWithConfig(allocator, io, handle, stream, .{});
+}
+
+fn handleConnectionWithConfig(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    handle: *wdbx.DatabaseHandle,
+    stream: std.Io.net.Stream,
+    config: ServerConfig,
+) !void {
     var send_buffer: [4096]u8 = undefined;
     var recv_buffer: [4096]u8 = undefined;
     var connection_reader = stream.reader(io, &recv_buffer);
@@ -90,12 +128,20 @@ fn handleConnection(
             error.HttpConnectionClosing => return,
             else => return err,
         };
-        dispatchRequest(allocator, handle, &request) catch |err| {
+        dispatchRequestWithConfig(allocator, handle, &request, config) catch |err| {
             std.debug.print("Database HTTP request error: {t}\n", .{err});
+            const error_body = if (err == HttpError.Unauthorized)
+                "{\"error\":\"unauthorized\"}"
+            else
+                "{\"error\":\"internal server error\"}";
+            const status: std.http.Status = if (err == HttpError.Unauthorized)
+                .unauthorized
+            else
+                .internal_server_error;
             respondJson(
                 &request,
-                "{\"error\":\"internal server error\"}",
-                .internal_server_error,
+                error_body,
+                status,
             ) catch |respond_err| {
                 std.log.err("Failed to send error response: {t} (original error: {t})", .{
                     respond_err,
@@ -112,19 +158,39 @@ fn dispatchRequest(
     handle: *wdbx.DatabaseHandle,
     request: *std.http.Server.Request,
 ) !void {
+    return dispatchRequestWithConfig(allocator, handle, request, .{});
+}
+
+fn dispatchRequestWithConfig(
+    allocator: std.mem.Allocator,
+    handle: *wdbx.DatabaseHandle,
+    request: *std.http.Server.Request,
+    config: ServerConfig,
+) !void {
     const target = request.head.target;
     const parts = splitTarget(target);
 
+    // Health endpoint - optionally allow without auth
     if (std.mem.eql(u8, parts.path, "/health")) {
+        if (!config.allow_health_without_auth) {
+            try validateAuth(request, config);
+        }
         return respondText(request, "ok\n", .ok);
     }
 
+    // Stats endpoint - optionally allow without auth
     if (std.mem.eql(u8, parts.path, "/stats")) {
+        if (!config.allow_stats_without_auth) {
+            try validateAuth(request, config);
+        }
         const stats = wdbx.getStats(handle);
         const body = try buildStatsJson(allocator, stats);
         defer allocator.free(body);
         return respondJson(request, body, .ok);
     }
+
+    // All other endpoints require authentication if configured
+    try validateAuth(request, config);
 
     if (std.mem.eql(u8, parts.path, "/backup")) {
         return handleBackup(handle, request, parts.query);
@@ -334,6 +400,72 @@ fn readAll(
     return list.toOwnedSlice(allocator);
 }
 
+/// Validate authentication for a request.
+/// Returns success if no auth is configured or if valid token is provided.
+fn validateAuth(request: *std.http.Server.Request, config: ServerConfig) HttpError!void {
+    const expected_token = config.auth_token orelse return; // No auth configured
+
+    // Look for Authorization header in the request
+    const auth_header = getAuthorizationHeader(request) orelse {
+        return HttpError.Unauthorized;
+    };
+
+    // Expect "Bearer <token>" format
+    const bearer_prefix = "Bearer ";
+    if (!std.mem.startsWith(u8, auth_header, bearer_prefix)) {
+        return HttpError.Unauthorized;
+    }
+
+    const provided_token = auth_header[bearer_prefix.len..];
+
+    // Timing-safe comparison to prevent timing attacks
+    if (provided_token.len != expected_token.len or
+        !timingSafeEqual(provided_token, expected_token))
+    {
+        return HttpError.Unauthorized;
+    }
+}
+
+/// Timing-safe byte comparison to prevent timing attacks
+fn timingSafeEqual(a: []const u8, b: []const u8) bool {
+    if (a.len != b.len) return false;
+    var diff: u8 = 0;
+    for (a, b) |x, y| {
+        diff |= x ^ y;
+    }
+    return diff == 0;
+}
+
+/// Get the Authorization header value from a request by parsing the raw header buffer
+fn getAuthorizationHeader(request: *std.http.Server.Request) ?[]const u8 {
+    // In Zig 0.16, we need to parse the raw header buffer to find custom headers
+    // The head_buffer contains the raw HTTP headers
+    return findHeaderInBuffer(request.head_buffer, "authorization");
+}
+
+/// Find a header value in the raw HTTP header buffer (case-insensitive)
+fn findHeaderInBuffer(buffer: []const u8, header_name: []const u8) ?[]const u8 {
+    var it = std.mem.splitSequence(u8, buffer, "\r\n");
+    // Skip the request line
+    _ = it.next();
+
+    while (it.next()) |line| {
+        if (line.len == 0) break; // End of headers
+
+        const colon_idx = std.mem.indexOfScalar(u8, line, ':') orelse continue;
+        const name = line[0..colon_idx];
+
+        if (std.ascii.eqlIgnoreCase(name, header_name)) {
+            const value_start = colon_idx + 1;
+            if (value_start >= line.len) return "";
+            // Trim leading whitespace from value
+            const value = std.mem.trim(u8, line[value_start..], " \t");
+            return value;
+        }
+    }
+    return null;
+}
+
 const TargetParts = struct {
     path: []const u8,
     query: []const u8,
@@ -359,6 +491,44 @@ fn getQueryParam(query: []const u8, key: []const u8) ?[]const u8 {
         }
     }
     return null;
+}
+
+/// URL-decode a percent-encoded string.
+/// Caller owns the returned memory.
+fn urlDecode(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
+    var output = std.ArrayListUnmanaged(u8){};
+    errdefer output.deinit(allocator);
+
+    var i: usize = 0;
+    while (i < input.len) {
+        if (input[i] == '%' and i + 2 < input.len) {
+            const hex = input[i + 1 .. i + 3];
+            const byte = std.fmt.parseInt(u8, hex, 16) catch {
+                // Invalid hex, keep literal
+                try output.append(allocator, input[i]);
+                i += 1;
+                continue;
+            };
+            try output.append(allocator, byte);
+            i += 3;
+        } else if (input[i] == '+') {
+            // '+' is commonly used for spaces in query strings
+            try output.append(allocator, ' ');
+            i += 1;
+        } else {
+            try output.append(allocator, input[i]);
+            i += 1;
+        }
+    }
+
+    return output.toOwnedSlice(allocator);
+}
+
+/// Get and URL-decode a query parameter.
+/// Caller owns the returned memory if not null.
+fn getQueryParamDecoded(allocator: std.mem.Allocator, query: []const u8, key: []const u8) !?[]u8 {
+    const raw = getQueryParam(query, key) orelse return null;
+    return try urlDecode(allocator, raw);
 }
 
 fn parseQueryInt(

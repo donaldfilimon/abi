@@ -148,13 +148,13 @@ pub const ShardRouter = struct {
 
         // For now, return an empty result set
         // A real implementation would forward the query to the shard's nodes
-        var results = std.ArrayList(database.SearchResult).init(allocator);
-        errdefer results.deinit();
+        var results = std.ArrayListUnmanaged(database.SearchResult){};
+        errdefer results.deinit(allocator);
 
         // Simulate query execution on shard
         _ = top_k;
 
-        return try results.toOwnedSlice();
+        return try results.toOwnedSlice(allocator);
     }
 
     /// Route an insert operation to the appropriate shard
