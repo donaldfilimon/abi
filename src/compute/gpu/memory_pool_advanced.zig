@@ -8,6 +8,7 @@
 //! - Memory pressure handling with automatic eviction
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 const memory = @import("memory.zig");
 
 /// Memory allocation size classes in bytes.
@@ -103,7 +104,7 @@ const SizeClassBucket = struct {
         const meta = AllocationMeta{
             .size = size,
             .size_class_idx = null,
-            .allocated_at = std.time.timestamp(),
+            .allocated_at = time.unixSeconds(),
             .used = true,
             .next_free = null,
         };

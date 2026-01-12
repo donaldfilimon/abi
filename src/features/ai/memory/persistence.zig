@@ -8,6 +8,7 @@
 //! Session files are stored in ~/.abi/sessions/ by default.
 
 const std = @import("std");
+const time = @import("../../../shared/utils/time.zig");
 const mod = @import("mod.zig");
 
 const Message = mod.Message;
@@ -554,7 +555,7 @@ pub fn createSession(
     config: SessionConfig,
 ) !SessionData {
     // Generate ID from name + timestamp
-    const timestamp = std.time.timestamp();
+    const timestamp = time.unixSeconds();
     const id = try std.fmt.allocPrint(allocator, "{s}-{d}", .{ name, timestamp });
 
     return .{

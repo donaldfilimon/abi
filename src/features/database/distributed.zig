@@ -1,5 +1,6 @@
 //! Distributed database wrapper combining sharding and replication.
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 const database = @import("database.zig");
 const shard = @import("shard.zig");
 const replication = @import("replication.zig");
@@ -148,7 +149,7 @@ pub const DistributedDatabase = struct {
             .address = addr_copy,
             .port = port,
             .status = .joining,
-            .last_heartbeat = std.time.timestamp(),
+            .last_heartbeat = time.unixSeconds(),
         };
 
         try self.cluster_nodes.put(self.allocator, id_copy, node_info);
@@ -262,14 +263,14 @@ pub const DistributedDatabase = struct {
 
     pub fn updateHeartbeat(self: *DistributedDatabase, node_id: []const u8) void {
         if (self.cluster_nodes.getPtr(node_id)) |info| {
-            info.last_heartbeat = std.time.timestamp();
+            info.last_heartbeat = time.unixSeconds();
         }
     }
 
     pub fn detectFailedNodes(self: *DistributedDatabase) ![]const []const u8 {
         var failed = std.ArrayListUnmanaged([]const u8).empty;
         errdefer failed.deinit(self.allocator);
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
         const timeout: i64 = 30;
 
         var it = self.cluster_nodes.iterator();

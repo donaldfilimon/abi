@@ -262,7 +262,7 @@ std.debug.print("Status: {t}\n", .{status});
 
 **Features:**
 - Build and test on Ubuntu with Zig matrix
-  - Zig 0.16.0-dev and 0.15.1
+  - Zig 0.16.x
   - Multiple feature flag combinations
 - Benchmark job on push
 - Security scanning:

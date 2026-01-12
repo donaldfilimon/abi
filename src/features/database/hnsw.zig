@@ -125,16 +125,16 @@ pub const HnswIndex = struct {
         const m_val = if (layer == 0) self.m_max0 else self.m_max;
 
         // Build candidate list using ef_construction expansion
-        var candidates = std.AutoHashMap(u32, f32).init(allocator);
-        defer candidates.deinit();
+        var candidates = std.AutoHashMapUnmanaged(u32, f32){};
+        defer candidates.deinit(allocator);
 
-        var visited = std.AutoHashMap(u32, void).init(allocator);
-        defer visited.deinit();
+        var visited = std.AutoHashMapUnmanaged(u32, void){};
+        defer visited.deinit(allocator);
 
         // Start with entry point
         const entry_dist = 1.0 - simd.cosineSimilarity(records[node_id].vector, records[entry].vector);
-        try candidates.put(entry, entry_dist);
-        try visited.put(entry, {});
+        try candidates.put(allocator, entry, entry_dist);
+        try visited.put(allocator, entry, {});
 
         // BFS expansion to find candidates
         var queue = std.ArrayListUnmanaged(u32){};
@@ -147,9 +147,9 @@ pub const HnswIndex = struct {
             if (layer < self.nodes[curr].layers.len) {
                 for (self.nodes[curr].layers[layer].nodes) |neighbor| {
                     if (!visited.contains(neighbor)) {
-                        try visited.put(neighbor, {});
+                        try visited.put(allocator, neighbor, {});
                         const dist = 1.0 - simd.cosineSimilarity(records[node_id].vector, records[neighbor].vector);
-                        try candidates.put(neighbor, dist);
+                        try candidates.put(allocator, neighbor, dist);
                         try queue.append(allocator, neighbor);
                     }
                 }
@@ -164,19 +164,19 @@ pub const HnswIndex = struct {
         for (self.nodes[node_id].layers[layer].nodes) |neighbor| {
             if (layer >= self.nodes[neighbor].layers.len) continue;
 
-            var neighbor_links = std.AutoHashMap(u32, f32).init(allocator);
-            defer neighbor_links.deinit();
+            var neighbor_links = std.AutoHashMapUnmanaged(u32, f32){};
+            defer neighbor_links.deinit(allocator);
 
             // Collect existing neighbors
             for (self.nodes[neighbor].layers[layer].nodes) |existing| {
                 const dist = 1.0 - simd.cosineSimilarity(records[neighbor].vector, records[existing].vector);
-                try neighbor_links.put(existing, dist);
+                try neighbor_links.put(allocator, existing, dist);
             }
 
             // Add new link if not exists
             if (!neighbor_links.contains(node_id)) {
                 const dist = 1.0 - simd.cosineSimilarity(records[neighbor].vector, records[node_id].vector);
-                try neighbor_links.put(node_id, dist);
+                try neighbor_links.put(allocator, node_id, dist);
             }
 
             // Prune if needed
@@ -206,7 +206,7 @@ pub const HnswIndex = struct {
         allocator: std.mem.Allocator,
         records: []const index_mod.VectorRecordView,
         node_id: u32,
-        candidates: *std.AutoHashMap(u32, f32),
+        candidates: *std.AutoHashMapUnmanaged(u32, f32),
         m_val: usize,
     ) ![]u32 {
         _ = self;
@@ -317,9 +317,9 @@ pub const HnswIndex = struct {
         }
 
         // 2. Local search on layer 0 with candidate accumulation
-        var candidates = std.AutoHashMap(u32, f32).init(allocator);
-        defer candidates.deinit();
-        try candidates.put(curr_node, curr_dist);
+        var candidates = std.AutoHashMapUnmanaged(u32, f32){};
+        defer candidates.deinit(allocator);
+        try candidates.put(allocator, curr_node, curr_dist);
 
         var queue = std.ArrayListUnmanaged(u32){};
         defer queue.deinit(allocator);
@@ -334,7 +334,7 @@ pub const HnswIndex = struct {
             for (self.nodes[u].layers[0].nodes) |v| {
                 if (!candidates.contains(v)) {
                     const d = 1.0 - simd.cosineSimilarity(query, records[v].vector);
-                    try candidates.put(v, d);
+                    try candidates.put(allocator, v, d);
                     try queue.append(allocator, v);
                 }
             }

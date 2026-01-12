@@ -106,10 +106,9 @@ pub const SpanExporter = struct {
         if (!self.running.load(.acquire)) return;
 
         // Build OTLP JSON payload for spans
-        var json_buffer = std.ArrayListUnmanaged(u8){};
-        defer json_buffer.deinit(self.allocator);
-
-        const writer = json_buffer.writer(self.allocator);
+        var aw = std.Io.Writer.Allocating.init(self.allocator);
+        errdefer aw.deinit();
+        const writer = &aw.writer;
         try writer.writeAll("{\"resourceSpans\":[{\"scopeSpans\":[{\"spans\":[");
 
         for (spans, 0..) |span, idx| {
@@ -154,12 +153,14 @@ pub const SpanExporter = struct {
         }
 
         try writer.writeAll("]}]}]}");
+        const payload = try aw.toOwnedSlice();
+        defer self.allocator.free(payload);
 
         // In a production implementation, this would send to the OTLP endpoint via HTTP.
         // For now, we log the export for observability.
         std.log.debug("SpanExporter: Exporting {d} spans ({d} bytes) to {s}", .{
             spans.len,
-            json_buffer.items.len,
+            payload.len,
             self.endpoint,
         });
     }

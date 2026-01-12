@@ -21,6 +21,8 @@ pub const TensorError = types.TensorError;
 pub const matmul = ops.matmul;
 pub const add = ops.add;
 pub const mul = ops.mul;
+pub const sub = ops.sub;
+pub const div = ops.div;
 pub const relu = ops.relu;
 pub const sigmoid = ops.sigmoid;
 pub const tanh = ops.tanh;
@@ -29,6 +31,29 @@ pub const gelu = ops.gelu;
 pub const layerNorm = ops.layerNorm;
 pub const transpose = ops.transpose;
 pub const reshape = ops.reshape;
+
+// Scalar operations
+pub const addScalar = ops.addScalar;
+pub const mulScalar = ops.mulScalar;
+pub const pow = ops.pow;
+pub const sqrt = ops.sqrt;
+pub const exp = ops.exp;
+pub const log = ops.log;
+pub const abs = ops.abs;
+pub const neg = ops.neg;
+pub const clamp = ops.clamp;
+
+// Reduction operations
+pub const sum = ops.sum;
+pub const mean = ops.mean;
+pub const variance = ops.variance;
+pub const std_dev = ops.std_dev;
+pub const max = ops.max;
+pub const min = ops.min;
+pub const argmax = ops.argmax;
+pub const argmin = ops.argmin;
+pub const dot = ops.dot;
+pub const norm = ops.norm;
 
 /// Tensor operation configuration.
 pub const TensorConfig = struct {

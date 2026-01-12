@@ -39,9 +39,9 @@ pub const ImportType = enum {
 pub const DependencyGraph = struct {
     allocator: std.mem.Allocator,
     /// Map from module name to list of modules it depends on
-    dependencies: std.StringHashMap(std.ArrayListUnmanaged(ModuleDependency)),
+    dependencies: std.StringHashMapUnmanaged(std.ArrayListUnmanaged(ModuleDependency)),
     /// Map from module name to list of modules that depend on it
-    dependents: std.StringHashMap(std.ArrayListUnmanaged(ModuleDependency)),
+    dependents: std.StringHashMapUnmanaged(std.ArrayListUnmanaged(ModuleDependency)),
     /// All modules in the graph
     all_modules: std.ArrayListUnmanaged(Module),
     /// All edges in the graph
@@ -56,8 +56,8 @@ pub const DependencyGraph = struct {
     pub fn init(allocator: std.mem.Allocator) DependencyGraph {
         return .{
             .allocator = allocator,
-            .dependencies = std.StringHashMap(std.ArrayListUnmanaged(ModuleDependency)).init(allocator),
-            .dependents = std.StringHashMap(std.ArrayListUnmanaged(ModuleDependency)).init(allocator),
+            .dependencies = .{},
+            .dependents = .{},
             .all_modules = .{},
             .edges = .{},
         };
@@ -68,13 +68,13 @@ pub const DependencyGraph = struct {
         while (deps_iter.next()) |list| {
             list.deinit(self.allocator);
         }
-        self.dependencies.deinit();
+        self.dependencies.deinit(self.allocator);
 
         var dependents_iter = self.dependents.valueIterator();
         while (dependents_iter.next()) |list| {
             list.deinit(self.allocator);
         }
-        self.dependents.deinit();
+        self.dependents.deinit(self.allocator);
 
         self.all_modules.deinit(self.allocator);
         self.edges.deinit(self.allocator);
@@ -87,8 +87,8 @@ pub const DependencyGraph = struct {
         const key = try self.allocator.dupe(u8, module.name);
         errdefer self.allocator.free(key);
 
-        try self.dependencies.put(key, .{});
-        try self.dependents.put(key, .{});
+        try self.dependencies.put(self.allocator, key, .{});
+        try self.dependents.put(self.allocator, key, .{});
     }
 
     /// Add a dependency relationship (from -> to)
@@ -131,8 +131,8 @@ pub const DependencyGraph = struct {
     /// Detect circular dependencies
     pub fn findCircularDependencies(self: *const DependencyGraph) !std.ArrayListUnmanaged([]const []const u8) {
         var cycles = std.ArrayListUnmanaged([]const []const u8){};
-        var visited = std.StringHashMap(void).init(self.allocator);
-        defer visited.deinit();
+        var visited = std.StringHashMapUnmanaged(void){};
+        defer visited.deinit(self.allocator);
 
         for (self.all_modules.items) |module| {
             var path = std.ArrayListUnmanaged([]const u8){};
@@ -147,7 +147,7 @@ pub const DependencyGraph = struct {
     fn findCyclesDFS(
         self: *const DependencyGraph,
         current: []const u8,
-        visited: *std.StringHashMap(void),
+        visited: *std.StringHashMapUnmanaged(void),
         path: *std.ArrayListUnmanaged([]const u8),
         cycles: *std.ArrayListUnmanaged([]const []const u8),
     ) !void {
@@ -181,14 +181,14 @@ pub const DependencyGraph = struct {
         }
 
         _ = path.pop();
-        try visited.put(current, {});
+        try visited.put(self.allocator, current, {});
     }
 
     /// Get topological order of modules
     pub fn topologicalSort(self: *const DependencyGraph) !std.ArrayListUnmanaged([]const u8) {
         var result = std.ArrayListUnmanaged([]const u8){};
-        var visited = std.StringHashMap(void).init(self.allocator);
-        defer visited.deinit();
+        var visited = std.StringHashMapUnmanaged(void){};
+        defer visited.deinit(self.allocator);
 
         for (self.all_modules.items) |module| {
             if (visited.get(module.name) == null) {
@@ -203,12 +203,12 @@ pub const DependencyGraph = struct {
     fn topologicalSortDFS(
         self: *const DependencyGraph,
         current: []const u8,
-        visited: *std.StringHashMap(void),
+        visited: *std.StringHashMapUnmanaged(void),
         result: *std.ArrayListUnmanaged([]const u8),
     ) !void {
         if (visited.get(current) != null) return;
 
-        try visited.put(current, {});
+        try visited.put(self.allocator, current, {});
 
         if (self.dependencies.get(current)) |deps| {
             for (deps.items) |dep| {

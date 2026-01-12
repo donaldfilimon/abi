@@ -12,6 +12,7 @@ pub const fulltext = @import("fulltext.zig");
 pub const hybrid = @import("hybrid.zig");
 pub const filter = @import("filter.zig");
 pub const batch = @import("batch.zig");
+pub const clustering = @import("clustering.zig");
 
 pub const Database = database.Database;
 pub const DatabaseHandle = wdbx.DatabaseHandle;
@@ -50,6 +51,16 @@ pub const BatchResult = batch.BatchResult;
 pub const BatchWriter = batch.BatchWriter;
 pub const BatchOperationBuilder = batch.BatchOperationBuilder;
 pub const BatchImporter = batch.BatchImporter;
+
+// Clustering exports
+pub const KMeans = clustering.KMeans;
+pub const ClusterStats = clustering.ClusterStats;
+pub const FitOptions = clustering.FitOptions;
+pub const FitResult = clustering.FitResult;
+pub const euclideanDistance = clustering.euclideanDistance;
+pub const cosineSimilarity = clustering.cosineSimilarity;
+pub const silhouetteScore = clustering.silhouetteScore;
+pub const elbowMethod = clustering.elbowMethod;
 
 pub const DatabaseFeatureError = error{
     DatabaseDisabled,

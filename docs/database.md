@@ -61,10 +61,10 @@ const config = batch.BatchConfig{
 };
 
 // Prepare records
-var records = std.ArrayList(batch.BatchRecord).init(allocator);
-defer records.deinit();
+var records = std.ArrayListUnmanaged(batch.BatchRecord){};
+defer records.deinit(allocator);
 
-try records.append(.{
+try records.append(allocator, .{
     .id = 1,
     .vector = embedding,
     .metadata = "{\"category\": \"tech\"}",

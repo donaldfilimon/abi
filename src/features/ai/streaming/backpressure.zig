@@ -4,6 +4,7 @@
 //! downstream consumers during high-throughput streaming.
 
 const std = @import("std");
+const time = @import("../../../shared/utils/time.zig");
 
 /// Backpressure strategy.
 pub const BackpressureStrategy = enum {
@@ -257,7 +258,7 @@ pub const RateLimiter = struct {
         while (!self.tryAcquire()) {
             // Calculate wait time
             const wait_ns = @as(u64, @intFromFloat(1_000_000_000.0 / self.tokens_per_second));
-            std.time.sleep(wait_ns);
+            time.sleepNs(wait_ns);
         }
     }
 

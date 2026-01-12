@@ -58,6 +58,26 @@ pub const GpuBufferFlags = gpu.BufferFlags;
 pub const GpuMemoryPool = gpu.MemoryPool;
 pub const GpuMemoryStats = gpu.MemoryStats;
 pub const GpuMemoryError = gpu.MemoryError;
+
+// Unified GPU API (new)
+pub const Gpu = gpu.Gpu;
+pub const GpuConfig = gpu.GpuConfig;
+pub const GpuUnifiedBuffer = gpu.UnifiedBuffer;
+pub const GpuDevice = gpu.Device;
+pub const GpuDeviceType = gpu.DeviceType;
+pub const GpuDeviceFeature = gpu.DeviceFeature;
+pub const GpuDeviceSelector = gpu.DeviceSelector;
+pub const GpuStream = gpu.GpuStream;
+pub const GpuEvent = gpu.Event;
+pub const GpuExecutionResult = gpu.ExecutionResult;
+pub const GpuMemoryMode = gpu.MemoryMode;
+pub const GpuHealthStatus = gpu.HealthStatus;
+
+// Kernel DSL (new)
+pub const KernelBuilder = gpu.KernelBuilder;
+pub const KernelIR = gpu.KernelIR;
+pub const PortableKernelSource = gpu.PortableKernelSource;
+
 pub const NetworkConfig = network.NetworkConfig;
 pub const NetworkState = network.NetworkState;
 pub const TransformerConfig = ai.transformer.TransformerConfig;

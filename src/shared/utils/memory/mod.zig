@@ -20,7 +20,7 @@
 //! // Use tracking allocator for debugging
 //! var tracker = memory.tracking.TrackingAllocator.init(allocator, .{});
 //! defer {
-//!     if (tracker.detectLeaks()) tracker.dumpLeaks(std.io.getStdErr().writer());
+//!     if (tracker.detectLeaks()) tracker.dumpLeaks(std.debug);
 //!     tracker.deinit();
 //! }
 //!

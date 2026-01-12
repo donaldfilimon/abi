@@ -103,9 +103,10 @@ pub fn validateUrlWithPolicy(url: []const u8, policy: SecurityPolicy) !void {
 }
 
 pub const HttpRequest = struct {
+    allocator: std.mem.Allocator,
     method: Method,
     url: []const u8,
-    headers: std.StringHashMap([]const u8),
+    headers: std.StringHashMapUnmanaged([]const u8),
     body: ?[]const u8 = null,
     timeout_ms: u32 = 30_000,
     follow_redirects: bool = true,
@@ -114,9 +115,10 @@ pub const HttpRequest = struct {
     pub fn init(allocator: std.mem.Allocator, method: Method, url: []const u8) !HttpRequest {
         try validateUrl(url);
         return .{
+            .allocator = allocator,
             .method = method,
             .url = try allocator.dupe(u8, url),
-            .headers = std.StringHashMap([]const u8).init(allocator),
+            .headers = .{},
             .body = null,
             .timeout_ms = 30_000,
             .follow_redirects = true,
@@ -125,45 +127,40 @@ pub const HttpRequest = struct {
     }
 
     pub fn deinit(self: *HttpRequest) void {
-        const allocator = self.headers.allocator;
-        allocator.free(self.url);
+        self.allocator.free(self.url);
         if (self.body) |body| {
-            allocator.free(body);
+            self.allocator.free(body);
         }
 
         var iter = self.headers.iterator();
         while (iter.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
-            allocator.free(entry.value_ptr.*);
+            self.allocator.free(entry.key_ptr.*);
+            self.allocator.free(entry.value_ptr.*);
         }
-        self.headers.deinit();
+        self.headers.deinit(self.allocator);
         self.* = undefined;
     }
 
     pub fn setHeader(self: *HttpRequest, key: []const u8, value: []const u8) !void {
-        const allocator = self.headers.allocator;
-
         if (self.headers.get(key)) |old_value| {
-            allocator.free(old_value);
+            self.allocator.free(old_value);
         }
 
-        const key_copy = try allocator.dupe(u8, key);
-        errdefer allocator.free(key_copy);
+        const key_copy = try self.allocator.dupe(u8, key);
+        errdefer self.allocator.free(key_copy);
 
-        const value_copy = try allocator.dupe(u8, value);
-        errdefer allocator.free(value_copy);
+        const value_copy = try self.allocator.dupe(u8, value);
+        errdefer self.allocator.free(value_copy);
 
-        try self.headers.put(key_copy, value_copy);
+        try self.headers.put(self.allocator, key_copy, value_copy);
     }
 
     pub fn setBody(self: *HttpRequest, body: []const u8) !void {
-        const allocator = self.headers.allocator;
-
         if (self.body) |old_body| {
-            allocator.free(old_body);
+            self.allocator.free(old_body);
         }
 
-        self.body = try allocator.dupe(u8, body);
+        self.body = try self.allocator.dupe(u8, body);
     }
 
     pub fn setJsonBody(self: *HttpRequest, json: []const u8) !void {
@@ -172,8 +169,8 @@ pub const HttpRequest = struct {
     }
 
     pub fn setBearerToken(self: *HttpRequest, token: []const u8) !void {
-        const header = try std.fmt.allocPrint(self.headers.allocator, "Bearer {s}", .{token});
-        errdefer self.headers.allocator.free(header);
+        const header = try std.fmt.allocPrint(self.allocator, "Bearer {s}", .{token});
+        errdefer self.allocator.free(header);
         try self.setHeader("Authorization", header);
     }
 };
@@ -181,7 +178,7 @@ pub const HttpRequest = struct {
 pub const HttpResponse = struct {
     status: HttpStatus,
     status_code: u16,
-    headers: std.StringHashMap([]const u8),
+    headers: std.StringHashMapUnmanaged([]const u8),
     body: []u8,
     allocator: std.mem.Allocator,
 
@@ -189,7 +186,7 @@ pub const HttpResponse = struct {
         return .{
             .status = @enumFromInt(0),
             .status_code = 0,
-            .headers = std.StringHashMap([]const u8).init(allocator),
+            .headers = .{},
             .body = &.{},
             .allocator = allocator,
         };
@@ -203,7 +200,7 @@ pub const HttpResponse = struct {
             self.allocator.free(entry.key_ptr.*);
             self.allocator.free(entry.value_ptr.*);
         }
-        self.headers.deinit();
+        self.headers.deinit(self.allocator);
         self.* = undefined;
     }
 

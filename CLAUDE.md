@@ -2,9 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Table of Contents
+
+- [Project Overview](#project-overview)
+- [LLM Instructions](#llm-instructions-shared)
+- [Build Commands](#build-commands)
+- [Project Structure](#project-structure)
+- [Architecture](#architecture)
+- [Zig 0.16 Conventions](#zig-016-conventions)
+- [Environment Variables](#environment-variables)
+- [Key API Notes](#key-api-notes)
+- [Network Features](#network-features)
+- [CLI Commands](#cli-commands)
+- [Running Examples](#running-examples)
+- [Testing Utilities](#testing-utilities)
+
 ## Project Overview
 
 ABI is a modern Zig 0.16.x framework for modular AI services, vector search, and high-performance systems tooling. It provides a layered architecture with feature-gated compilation.
+
+## LLM Instructions (Shared)
+
+- Keep changes minimal and consistent with existing patterns; avoid breaking public APIs unless requested.
+- Preserve feature gating: stub modules must mirror the real API and return `error.*Disabled`.
+- Use Zig 0.16 conventions (`std.Io`, `std.ArrayListUnmanaged`, `{t}` formatting, explicit allocators).
+- Always clean up resources with `defer`/`errdefer`; use specific error sets (no `anyerror`).
+- Run `zig fmt .` after code edits and `zig build test --summary all` when behavior changes.
+- Update docs/examples when APIs or behavior change so references stay in sync.
 
 ## Build Commands
 
@@ -57,7 +81,9 @@ Core flags (defaults in parentheses):
 **Note**: See `build.zig` `Defaults` struct for current default values. Some features may default to `false` in production builds.
 
 GPU backends (Vulkan enabled by default when GPU is enabled):
-`-Dgpu-cuda`, `-Dgpu-vulkan`, `-Dgpu-stdgpu`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`, `-Dgpu-opengles`, `-Dgpu-webgl2`
+`-Dgpu-cuda`, `-Dgpu-vulkan`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`, `-Dgpu-opengles`, `-Dgpu-webgl2`, `-Dgpu-stdgpu`
+
+**Note**: `-Dgpu-stdgpu` enables a software CPU fallback backend (not related to Zig's `std.gpu`), useful for testing GPU code paths without hardware.
 
 ### Additional Build Targets
 
@@ -85,53 +111,33 @@ abi/
 │   ├── abi.zig              # Public API entry point
 │   ├── root.zig             # Root module
 │   ├── core/                # Core infrastructure (I/O, diagnostics, collections)
-│   ├── compute/             # Compute engine and concurrency
-│   │   ├── concurrency/     # Lock-free queues, work-stealing, priority queues
-│   │   ├── gpu/             # GPU integration layer
-│   │   │   ├── backends/    # CUDA, Vulkan, Metal, WebGPU, OpenGL, stdgpu, simulated
-│   │   │   ├── tensor/      # GPU tensor operations
-│   │   │   ├── error_handling.zig   # Structured error tracking
-│   │   │   ├── kernel_cache.zig     # Compiled kernel caching
-│   │   │   ├── memory_pool_advanced.zig  # Size-class memory pooling
-│   │   │   ├── metrics.zig          # Performance metrics collection
-│   │   │   └── recovery.zig         # Device failure recovery
-│   │   ├── memory/          # Arena allocators, pools
-│   │   ├── network/         # Distributed compute (feature-gated)
-│   │   ├── profiling/       # Metrics collection (feature-gated)
-│   │   └── runtime/         # Engine, scheduler, NUMA, cancellation, futures
-│   ├── features/            # Feature modules
-│   │   ├── ai/              # AI features
-│   │   │   ├── explore/     # Code exploration (AST, callgraph, dependency analysis)
-│   │   │   ├── llm/         # Local LLM inference (GGUF, tokenizer, transformers)
-│   │   │   ├── embeddings/  # Embedding models and caching
-│   │   │   ├── rag/         # Retrieval-augmented generation
-│   │   │   ├── streaming/   # Token streaming
-│   │   │   └── memory/      # Conversation memory
-│   │   ├── database/        # WDBX vector database (HNSW, hybrid search, batch ops)
-│   │   ├── gpu/             # GPU backend stubs
-│   │   ├── monitoring/      # Observability (OpenTelemetry)
-│   │   ├── network/         # Network features (discovery, HA, circuit breaker)
-│   │   └── connectors/      # API connectors (OpenAI, HuggingFace, Ollama)
+│   ├── compute/             # Compute engine: concurrency/, gpu/, memory/, network/, profiling/, runtime/
+│   ├── features/            # Feature modules: ai/, database/, gpu/, monitoring/, network/, connectors/
 │   ├── framework/           # Lifecycle and orchestration
-│   ├── shared/              # Cross-cutting utilities
-│   │   ├── logging/         # Logging infrastructure
-│   │   ├── observability/   # Tracing, spans, contexts
-│   │   ├── security/        # API keys, auth
-│   │   └── utils/           # General utilities, HTTP, memory pools
+│   ├── shared/              # Cross-cutting: logging/, observability/, security/, utils/
 │   └── tests/               # Test utilities (proptest)
-├── tools/
-│   └── cli/                 # CLI implementation (preferred over src/main.zig)
-│       ├── commands/        # CLI command implementations
-│       └── utils/           # CLI utilities
-├── benchmarks/              # Modular benchmark suites
-│   ├── framework.zig        # Statistical benchmarking framework
-│   ├── main.zig             # Benchmark runner
-│   └── <domain>.zig         # Domain-specific suites
+├── tools/cli/               # CLI implementation (preferred over src/main.zig)
+├── benchmarks/              # Modular benchmark suites with statistical framework
 ├── examples/                # Example programs
-├── bindings/
-│   └── wasm/                # WASM bindings
+├── bindings/wasm/           # WASM bindings
 └── docs/                    # Documentation
 ```
+
+**Key directories to understand**:
+- `src/compute/gpu/backends/` - CUDA, Vulkan, Metal, WebGPU, OpenGL, stdgpu, simulated backends
+- `src/compute/gpu/unified.zig` - Unified GPU API with high-level operations
+- `src/compute/gpu/dsl/` - Portable kernel DSL and cross-backend compiler
+- `src/features/ai/llm/` - Local LLM inference: GGUF loading, tokenization, transformers, KV cache
+- `src/features/ai/explore/` - Code exploration: AST parsing, callgraph, dependency analysis
+- `src/features/database/` - WDBX vector database: HNSW, hybrid search, batch operations
+- `src/features/monitoring/alerting.zig` - Alerting rules system with configurable thresholds
+
+**Module File Organization Convention**:
+- `mod.zig` - Re-exports and facade (module entry point)
+- `stub.zig` - Parallel stub when feature-gated (must mirror full API)
+- Submodules use underscores: `error_handling.zig`, `kernel_cache.zig`
+- Complex features use subdirectories: `llm/`, `embeddings/`, `backends/`
+- Tests: inline via `test` blocks or separate `*_test.zig` files
 
 ## Architecture
 
@@ -139,19 +145,13 @@ abi/
 
 1. **Public API** (`src/abi.zig`) - Main entry point with curated re-exports. Use `abi.init()`, `abi.shutdown()`, `abi.version()`.
 
-2. **Framework Layer** (`src/framework/`) - Lifecycle management, feature orchestration, runtime configuration, and plugin system.
+2. **Framework Layer** (`src/framework/`) - Lifecycle management, feature orchestration, runtime configuration.
 
-3. **Compute Engine** (`src/compute/`) - Work-stealing scheduler, lock-free concurrent data structures, memory arena allocation, GPU integration with CPU fallback.
+3. **Compute Engine** (`src/compute/`) - Work-stealing scheduler, lock-free data structures, memory arenas, GPU integration with CPU fallback.
 
-4. **Feature Stacks** (`src/features/`) - Vertical feature modules:
-   - `ai/` - LLM inference (GGUF, transformers, KV cache), code exploration (AST parsing, callgraph, dependency analysis), embeddings, RAG, streaming, memory
-   - `gpu/` - GPU backend implementations with fallback runtimes
-   - `database/` - WDBX vector database with HNSW indexing, hybrid search, batch operations, full-text search, filtering
-   - `web/` - HTTP client/server helpers
-   - `monitoring/` - OpenTelemetry integration, logging, metrics, tracing
-   - `network/` - Distributed task serialization, service discovery, circuit breaker, HA, rate limiting, retry logic
+4. **Feature Stacks** (`src/features/`) - Vertical feature modules (ai, gpu, database, web, monitoring, network, connectors).
 
-5. **Shared Utilities** (`src/shared/`) - Platform abstractions, SIMD acceleration, crypto, JSON, filesystem helpers.
+5. **Shared Utilities** (`src/shared/`) - Platform abstractions, SIMD, crypto, JSON, filesystem helpers.
 
 ### Key Patterns
 
@@ -166,24 +166,13 @@ abi/
 
   **Examples**: `src/features/ai/stub.zig`, `src/compute/network/stub.zig`, `src/features/ai/llm/stub.zig`, `src/compute/profiling/stub.zig`, `src/features/ai/explore/stub.zig`
 
-- **GPU Backend Selection**: Multiple GPU backends with automatic fallback hierarchy. Vulkan devices are scored by type (discrete > integrated > virtual > cpu > other) during initialization. Available backends:
-  - **CUDA** (NVIDIA) - Direct CUDA runtime + NVRTC JIT compilation with thread-safe initialization (`cuda.zig`, `cuda_nvrtc.zig`)
-  - **Vulkan** (cross-platform) - Full Vulkan 1.3 support with compute pipelines, command buffer pooling. Key files: `vulkan.zig`, `vulkan_init.zig`, `vulkan_pipelines.zig`, `vulkan_buffers.zig`, `vulkan_command_pool.zig`
-  - **Metal** (Apple) - Native Metal Shading Language support
-  - **WebGPU** (web/native) - WebGPU compute API
-  - **OpenGL/OpenGL ES** - Compute shaders via OpenGL 4.3+ / ES 3.1+
-  - **stdgpu** (software fallback) - CPU-based SPIR-V interpreter, always available
-  - **simulated** - Testing backend for CI/testing scenarios
+- **GPU Backend Selection**: Multiple backends with automatic fallback. Device scoring: discrete=1000, integrated=500, virtual=100, cpu=50, other=10. Backends: CUDA, Vulkan, Metal, WebGPU, OpenGL/ES, stdgpu (software fallback), simulated (testing).
 
-  **Backend Infrastructure**:
-  - **Device Scoring**: Intelligent GPU selection with scoring (discrete=1000, integrated=500, virtual=100, cpu=50, other=10 + API version bonus)
-  - **Command Pool**: Vulkan command buffer pooling with state tracking, automatic recycling, and fence management (`vulkan_command_pool.zig`)
-  - **Advanced Memory Pool**: Size-class based allocation (64B-4MB classes), automatic coalescing, fragmentation mitigation, memory pressure handling (`memory_pool_advanced.zig`)
-  - **Metrics Collection**: Comprehensive performance tracking (kernel execution, memory transfers, device utilization, error rates, bandwidth) (`metrics.zig`)
-  - **Recovery System**: Automatic device failure recovery with multiple strategies (retry with backoff, device switching, CPU fallback, simulation fallback) (`recovery.zig`)
-  - **Error Handling**: Structured error tracking with specific error sets, health monitoring, and recovery event callbacks (`error_handling.zig`)
-
-  See `src/compute/gpu/backends/vulkan_init.zig:selectPhysicalDevice()` and `src/compute/gpu/backends/stdgpu.zig:getDeviceInfo()`.
+  Key infrastructure files in `src/compute/gpu/`:
+  - `memory_pool_advanced.zig` - Size-class allocation (64B-4MB), coalescing, pressure handling
+  - `metrics.zig` - Performance tracking (kernels, transfers, utilization)
+  - `recovery.zig` - Device failure recovery with fallback hierarchy
+  - `error_handling.zig` - Structured error tracking with health monitoring
 
 - **VTable Pattern**: Polymorphic workload execution for CPU and GPU variants (`WorkloadVTable`, `GPUWorkloadVTable`). Allows the same `WorkItem` to specify both CPU and GPU execution paths, selected at runtime based on availability and hints.
 
@@ -191,9 +180,21 @@ abi/
 
 - **Lifecycle Management**: Strict init/deinit patterns. Use `defer` for cleanup in success paths and `errdefer` for cleanup on error. Resources must be cleaned up in reverse order of initialization.
 
+- **Module Lifecycle Pattern**: Feature modules use standardized lifecycle from `src/shared/utils/lifecycle.zig`:
+  - `ModuleLifecycle` (thread-safe with mutex) for multi-threaded modules
+  - `SimpleModuleLifecycle` (lock-free) for single-threaded modules
+  - All feature modules implement: `init()`, `deinit()`, `isEnabled()`, `isInitialized()`
+  - Feature lifecycle coordinated centrally via `src/features/mod.zig`
+
 - **Memory Pooling**: GPU buffers use pooled allocation via `gpu.MemoryPool`. CPU-side memory uses arena allocation in compute contexts (`src/compute/memory/mod.zig`).
 
 - **Error Context and Handling**: Use `ErrorContext` from `src/shared/utils/errors.zig` for structured error logging with operation context, category, and source location. Always use specific error sets instead of `anyerror`. Feature-disabled errors follow the pattern `error.<Feature>Disabled` (e.g., `error.AiDisabled`, `error.NetworkDisabled`, `error.ProfilingDisabled`).
+
+  **Error utilities in `src/shared/utils/errors.zig`**:
+  - `Result(T, E)` wrapper: `unwrap()`, `unwrapOr()`, `isSuccess()` methods
+  - `ResourceManager`: Generic resource cleanup with `set()`, `take()`, `get()`
+  - `ErrorPatterns`: `handleAllocError()`, `handleIoError()`, `validateInput()`
+  - Error composition: Combine error sets with `||` operator
 
   **GPU Error Handling Pattern**:
   ```zig
@@ -244,56 +245,91 @@ The engine supports NUMA-aware scheduling (`src/compute/runtime/numa.zig`):
 
 ### GPU Backend Development Patterns
 
-When implementing or modifying GPU backends (`src/compute/gpu/backends/`):
+All backends in `src/compute/gpu/backends/` must implement:
 
-**Standardized Backend Interface**:
-All backends must implement this consistent interface:
 ```zig
-// Lifecycle
-pub fn init() !void
-pub fn deinit() void
-
-// Kernel operations
-pub fn compileKernel(allocator, source) !*anyopaque
-pub fn launchKernel(allocator, handle, config, args) !void
-pub fn destroyKernel(allocator, handle) void
-
-// Memory operations (explicit allocator parameter)
-pub fn allocateDeviceMemory(allocator, size) !*anyopaque
-pub fn freeDeviceMemory(allocator, ptr) void
-pub fn memcpyHostToDevice(dst, src, size) !void
-pub fn memcpyDeviceToHost(dst, src, size) !void
+// Lifecycle: init() !void, deinit() void
+// Kernel ops: compileKernel, launchKernel, destroyKernel (all take allocator)
+// Memory ops: allocateDeviceMemory, freeDeviceMemory, memcpyHostToDevice, memcpyDeviceToHost
 ```
 
-**Backend-Specific Patterns**:
+**Key patterns**:
 - **Thread Safety**: Use mutex for initialization (see CUDA backend's `init_mutex`)
-- **Graceful Fallback**: Separate simulation mode initialization for when hardware unavailable
-- **Device Enumeration**: Use arena allocator for temporary allocations during device discovery
 - **Symmetric Operations**: Every `allocate*` must have matching `free*` with same allocator
-- **Format Specifiers**: Use `{t}` for enum/error values in logging (Zig 0.16 compliance)
+- **Recovery**: Register devices with `recovery.registerDevice()`, report failures with `recovery.reportError()`
+- **Metrics**: Record kernels, transfers, allocations via `metrics.record*()` methods
 
-**Command Buffer Management** (Vulkan):
-- Use `CommandPool` for efficient command buffer allocation and recycling
-- Track buffer state (available, recording, submitted, completed)
-- Automatic fence management for synchronization
-- Statistics collection via `getStats()`
+### Unified GPU API
 
-**Memory Pool Integration**:
-- Size classes: 64B, 256B, 1KB, 4KB, 16KB, 64KB, 256KB, 1MB, 4MB
-- Free-list management for fast reuse
-- Automatic coalescing when utilization > 80%
-- Memory pressure handling with high/low water marks (85%/70% default)
+The `src/compute/gpu/unified.zig` provides a high-level API covering all 8 backends:
 
-**Metrics Integration**:
-- Record all kernel executions: `metrics.recordKernel(name, duration_ns)`
-- Track memory transfers: `metrics.recordTransfer(direction, bytes, duration_ns)`
-- Monitor allocations: `metrics.recordAllocation(bytes)` / `metrics.recordDeallocation(bytes)`
-- Report errors: `metrics.recordError(error_type)`
+```zig
+var gpu = try abi.Gpu.init(allocator, .{
+    .enable_profiling = true,
+    .memory_mode = .automatic,  // API handles transfers
+});
+defer gpu.deinit();
 
-**Recovery Integration**:
-- Register devices: `recovery.registerDevice(backend_type, device_id)`
-- Report failures: `recovery.reportError(backend_type, device_id, error_type)`
-- Automatic fallback hierarchy: retry → switch_device → fallback_cpu → fallback_simulated
+// High-level operations
+const a = try gpu.createBufferFromSlice(f32, &data_a, .{});
+const b = try gpu.createBufferFromSlice(f32, &data_b, .{});
+const result = try gpu.createBuffer(size, .{});
+defer { gpu.destroyBuffer(a); gpu.destroyBuffer(b); gpu.destroyBuffer(result); }
+
+_ = try gpu.vectorAdd(a, b, result);
+```
+
+**Built-in operations**: `vectorAdd`, `matrixMultiply`, `reduceSum`, `dotProduct`, `softmax`
+
+**Memory modes**:
+- `automatic` - API handles all host/device transfers (recommended)
+- `explicit` - User controls transfers via `buffer.toDevice()`/`toHost()`
+- `unified` - Use unified memory where available
+
+### Portable Kernel DSL
+
+Write kernels once, compile to CUDA/GLSL/WGSL/MSL (`src/compute/gpu/dsl/`):
+
+```zig
+const dsl = abi.gpu.dsl;
+
+var builder = dsl.KernelBuilder.init(allocator, "scale_vector");
+defer builder.deinit();
+
+_ = builder.setWorkgroupSize(256, 1, 1);
+const input = try builder.addBuffer("input", 0, .{ .scalar = .f32 }, .read_only);
+const output = try builder.addBuffer("output", 1, .{ .scalar = .f32 }, .write_only);
+const scale = try builder.addUniform("scale", 2, .{ .scalar = .f32 });
+
+// Build IR and compile to target backend
+const ir = try builder.build();
+const source = try dsl.compiler.compile(allocator, &ir, .cuda, .{});
+```
+
+**DSL structure**:
+- `dsl/builder.zig` - Fluent API for kernel construction
+- `dsl/kernel.zig` - Kernel IR representation
+- `dsl/compiler.zig` - Compiles IR to backend-specific code
+- `dsl/codegen/*.zig` - Backend code generators (cuda, glsl, wgsl, msl)
+
+### Multi-GPU Support
+
+```zig
+var gpu = try abi.Gpu.init(allocator, .{
+    .multi_gpu = true,
+    .load_balance_strategy = .memory_aware,
+});
+
+// Distribute work across devices
+const distributions = try gpu.distributeWork(total_elements);
+defer allocator.free(distributions);
+
+for (distributions) |dist| {
+    // dist.device_id, dist.offset, dist.size
+}
+```
+
+**Load balance strategies**: `round_robin`, `memory_aware`, `compute_aware`, `manual`
 
 ## Zig 0.16 Conventions
 
@@ -338,7 +374,7 @@ var writer = file.writer(io);
 try writer.writeAll(content);
 ```
 
-**Note**: `std.fs.cwd()` does not exist in Zig 0.16. Use `std.Io.Dir.cwd()` (passing an `std.io` context) instead.
+**Note**: `std.fs.cwd()` does not exist in Zig 0.16. Use `std.Io.Dir.cwd()` (passing an `std.Io` context) instead.
 
 ### Windows-Specific File Operations
 
@@ -363,6 +399,30 @@ Use `std.time.Timer` for high-precision timing (not `std.time.nanoTimestamp()`):
 var timer = std.time.Timer.start() catch return error.TimerFailed;
 // ... work ...
 const elapsed_ns = timer.read();
+```
+
+### Sleep API
+
+Use `std.Io`-based sleep instead of `std.time.sleep()`:
+
+```zig
+// Preferred - use the time utilities module
+const time_utils = @import("src/shared/utils/time.zig");
+time_utils.sleepMs(100);   // Sleep 100 milliseconds
+time_utils.sleepSeconds(1); // Sleep 1 second
+time_utils.sleepNs(50_000); // Sleep 50 microseconds
+
+// Additional helpers available:
+var watch = try time_utils.Stopwatch.start();
+// ... work ...
+const elapsed_ms = watch.elapsedMs();
+
+// Direct Io usage (when you have an Io context)
+const duration = std.Io.Clock.Duration{
+    .clock = .awake,
+    .raw = .fromNanoseconds(nanoseconds),
+};
+std.Io.Clock.Duration.sleep(duration, io) catch {};
 ```
 
 ### Aligned Memory Allocation
@@ -416,6 +476,12 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});  // Don't do this
 
 ## Environment Variables
 
+**Connector Configuration Pattern** (`src/features/connectors/mod.zig`):
+- Env vars prioritized: ABI-prefixed (`ABI_OPENAI_API_KEY`) checked before standard (`OPENAI_API_KEY`)
+- Helpers: `getEnvOwned()` and `getFirstEnvOwned()` for flexible env lookup
+- Auth: `buildBearerHeader()` for authentication headers
+- Optional loading: `tryLoadOpenAI()` returns null if unavailable, `loadOpenAI()` returns error
+
 Connector-specific:
 - `ABI_OPENAI_API_KEY` / `OPENAI_API_KEY`
 - `ABI_OPENAI_BASE_URL` (default: `https://api.openai.com/v1`)
@@ -451,7 +517,81 @@ When building for WASM (`zig build wasm`), these features are automatically disa
 
 WASM bindings are in `bindings/wasm/abi_wasm.zig`.
 
+## Network Features
+
+When `enable-network=true`, `src/features/network/` provides distributed systems primitives:
+- **Service Discovery**: Consul, Kubernetes, and manual backends
+- **Circuit Breaker**: Automatic fault isolation with configurable thresholds
+- **Rate Limiting**: Token bucket, sliding window, fixed window algorithms
+- **Connection Pooling**: Per-host pools with configurable sizes
+- **Raft Consensus**: Full implementation for cluster consensus
+- **Task Scheduling**: Priority levels with load balancing strategies
+
+### Raft Consensus Usage
+
+The Raft implementation (`src/features/network/raft.zig`) provides leader election and log replication:
+
+```zig
+var node = try RaftNode.init(allocator, "node-1", .{
+    .election_timeout_min_ms = 150,
+    .election_timeout_max_ms = 300,
+    .heartbeat_interval_ms = 50,
+});
+defer node.deinit();
+
+try node.addPeer("node-2");
+try node.addPeer("node-3");
+
+// Process timeouts (call periodically)
+try node.tick(elapsed_ms);
+
+// Append commands (leader only)
+if (node.isLeader()) {
+    const index = try node.appendCommand(command_data);
+}
+```
+
+**Note**: Current implementation is in-memory only; add persistence interface for production use.
+
+### Alerting System
+
+The alerting module (`src/features/monitoring/alerting.zig`) provides configurable alert rules:
+
+```zig
+var manager = try AlertManager.init(allocator, .{
+    .evaluation_interval_ms = 15_000,
+    .default_for_duration_ms = 60_000,
+});
+defer manager.deinit();
+
+try manager.addRule(.{
+    .name = "high_error_rate",
+    .metric = "errors_total",
+    .condition = .greater_than,
+    .threshold = 100,
+    .severity = .critical,
+    .for_duration_ms = 30_000,
+});
+
+// Register notification handler
+try manager.addHandler(.{
+    .callback = myAlertHandler,
+    .min_severity = .warning,
+});
+
+// Evaluate rules against metrics
+try manager.evaluate(metrics);
+```
+
+**Alert states**: `inactive` → `pending` → `firing` → `resolved`
+**Severities**: `info`, `warning`, `critical`
+
 ## CLI Commands
+
+**CLI Framework Pattern** (`tools/cli/mod.zig`):
+- Commands are dispatched via string matching in `tools/cli/commands/`
+- Feature-aware: Checks `framework.isFeatureEnabled()` before running feature-specific commands
+- Subcommand pattern: Commands accept additional arguments (e.g., `db add`, `gpu list`)
 
 The CLI (`zig build run -- <command>`) provides these subcommands:
 
@@ -525,14 +665,7 @@ zig build run -- llm bench model.gguf                  # Benchmark performance
 zig build run -- llm list                              # List available models
 ```
 
-The LLM feature (`src/features/ai/llm/`) provides local model inference with:
-- **Model I/O**: GGUF format loading, memory-mapped file access on Windows/POSIX (`io/gguf.zig`, `io/mmap.zig`, `io/tensor_loader.zig`)
-- **Tokenization**: BPE (Byte-Pair Encoding) with vocab management and special tokens (`tokenizer/bpe.zig`, `tokenizer/vocab.zig`, `tokenizer/special_tokens.zig`)
-- **Tensor Operations**: Quantized tensor support (Q4_0, Q4_1, Q8_0), tensor views and slicing (`tensor/quantized.zig`, `tensor/tensor.zig`, `tensor/view.zig`)
-- **Transformer Operations**: Matrix multiplication (including quantized matmul), multi-head attention, RoPE (Rotary Position Embeddings), RMSNorm, SwiGLU/GELU activations, FFN layers (`ops/matmul.zig`, `ops/matmul_quant.zig`, `ops/attention.zig`, `ops/rope.zig`, `ops/rmsnorm.zig`, `ops/ffn.zig`, `ops/activations.zig`)
-- **KV Cache**: Key-Value cache with ring buffer for efficient context management (`cache/kv_cache.zig`, `cache/ring_buffer.zig`)
-- **Generation**: Batch generation, sampling strategies (greedy, top-k, top-p, temperature) (`generation/batch.zig`, `generation/generator.zig`, `generation/sampler.zig`)
-- **Model Architectures**: LLaMA family support with configurable layers (`model/llama.zig`, `model/layer.zig`, `model/config.zig`, `model/weights.zig`)
+The LLM feature (`src/features/ai/llm/`) provides local GGUF model inference with BPE tokenization, quantized tensors (Q4_0, Q4_1, Q8_0), transformer ops (matmul, attention, RoPE, RMSNorm), KV cache, and sampling strategies (greedy, top-k, top-p, temperature).
 
 ## Running Examples
 
@@ -581,9 +714,17 @@ test "gpu-feature" {
 }
 ```
 
+### Integration Testing Pattern
+
+Tests in `src/tests/integration.zig` follow this pattern:
+- Create full framework with selected features via `abi.init()`
+- Check `framework.isFeatureEnabled()` before running feature-specific tests
+- Print warnings for unavailable features instead of failing
+- Use proper `defer` cleanup of handles and allocations
+
 ### WDBX Database Namespace
 
-When `enable-database=true`, the `abi.wdbx` namespace provides direct access to vector database operations:
+When `enable-database=true`, the `abi.wdbx` namespace provides vector database operations:
 
 ```zig
 const db = try abi.wdbx.createDatabase(allocator, "vectors.db", .{});
@@ -593,25 +734,18 @@ try abi.wdbx.insertVector(db, 1, &vector, metadata);
 const results = try abi.wdbx.searchVectors(db, &query, 10);
 ```
 
-**Database Features**:
-- **HNSW Indexing**: Hierarchical Navigable Small World graphs for fast approximate nearest neighbor search
-- **Hybrid Search**: Combined vector similarity + full-text search + metadata filtering
-- **Batch Operations**: Bulk insert/update/delete for efficiency (`src/features/database/batch.zig`)
-- **Full-Text Search**: Integrated text search capabilities (`src/features/database/fulltext.zig`)
-- **Filtering**: Advanced metadata filtering during search (`src/features/database/filter.zig`)
-- **Reindexing**: Background reindexing for optimization (`src/features/database/reindex.zig`)
-- **Sharding**: Distributed sharding support (`src/features/database/shard.zig`)
-- **HTTP API**: RESTful API for remote access (`src/features/database/http.zig`)
+Features: HNSW indexing, hybrid search (vector + full-text + metadata filtering), batch operations, sharding, HTTP API. See `src/features/database/` for implementation files.
 
 ## Commit Guidelines
 
 Use `<type>: <summary>` format. Keep summaries ≤ 72 chars. Focus commits; update docs when APIs change.
 
 ## Architecture References
-## Contacts
-
-`src/shared/contacts.zig` provides a centralized list of maintainer contacts extracted from the repository markdown files.
 
 - System overview: `docs/intro.md`
 - API surface: `API_REFERENCE.md`
 - Migration guide: `docs/migration/zig-0.16-migration.md`
+
+## Contacts
+
+`src/shared/contacts.zig` provides a centralized list of maintainer contacts extracted from the repository markdown files.

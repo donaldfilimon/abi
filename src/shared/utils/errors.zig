@@ -4,6 +4,7 @@
 //! propagation utilities used across the ABI framework.
 
 const std = @import("std");
+const time = @import("time.zig");
 
 /// Common error categories used across modules
 pub const ErrorCategory = enum {
@@ -182,7 +183,7 @@ pub const ErrorPatterns = struct {
         var retries: u8 = 0;
         while (retries < max_retries) : (retries += 1) {
             std.log.warn("IO operation '{s}' failed (attempt {}/{}): {}", .{ operation, retries + 1, max_retries, err });
-            std.time.sleep(100 * std.time.ns_per_ms * retries); // Exponential backoff
+            time.sleepNs(@as(u64, 100) * std.time.ns_per_ms * @as(u64, retries)); // Exponential backoff
 
             // In a real implementation, you'd retry the operation here
             // For now, just log and return the error

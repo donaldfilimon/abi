@@ -4,6 +4,7 @@
 //! Feature-gated: only compiled when enable_network is true.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 
 const build_options = @import("build_options");
 const workload = @import("../runtime/workload.zig");
@@ -97,7 +98,7 @@ pub const NetworkEngine = struct {
         pending.* = .{
             .task_id = task_id,
             .node_address = best_node.?.address,
-            .submitted_at = std.time.timestamp(),
+            .submitted_at = time.unixSeconds(),
             .status = .pending,
         };
         try self.pending_tasks.put(self.allocator, task_id, pending);
@@ -162,7 +163,7 @@ pub const NetworkEngine = struct {
         if (self.pending_tasks.get(task_id)) |pending| {
             pending.status = .completed;
             pending.result = result;
-            pending.completed_at = std.time.timestamp();
+            pending.completed_at = time.unixSeconds();
         }
     }
 
@@ -171,7 +172,7 @@ pub const NetworkEngine = struct {
         if (self.pending_tasks.get(task_id)) |pending| {
             pending.status = .failed;
             pending.error_message = error_message;
-            pending.completed_at = std.time.timestamp();
+            pending.completed_at = time.unixSeconds();
         }
     }
 
@@ -182,7 +183,7 @@ pub const NetworkEngine = struct {
 
     /// Check for timed-out tasks and mark them as failed
     pub fn checkTimeouts(self: *NetworkEngine, timeout_seconds: i64) void {
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         var iter = self.pending_tasks.iterator();
         while (iter.next()) |entry| {
@@ -214,12 +215,14 @@ pub const NetworkEngine = struct {
 };
 
 pub const NodeRegistry = struct {
-    nodes: std.StringHashMap(NodeInfo),
+    allocator: std.mem.Allocator,
+    nodes: std.StringHashMapUnmanaged(NodeInfo),
     max_size: usize,
 
     pub fn init(allocator: std.mem.Allocator, max_size: usize) !NodeRegistry {
         return NodeRegistry{
-            .nodes = std.StringHashMap(NodeInfo).init(allocator),
+            .allocator = allocator,
+            .nodes = .{},
             .max_size = max_size,
         };
     }
@@ -229,17 +232,17 @@ pub const NodeRegistry = struct {
         while (iter.next()) |entry| {
             allocator.free(entry.key_ptr.*);
         }
-        self.nodes.deinit();
+        self.nodes.deinit(allocator);
     }
 
     pub fn addNode(self: *NodeRegistry, node: NodeInfo) !void {
-        const key = try self.nodes.allocator.dupe(u8, node.address);
-        try self.nodes.put(key, node);
+        const key = try self.allocator.dupe(u8, node.address);
+        try self.nodes.put(self.allocator, key, node);
     }
 
     pub fn removeNode(self: *NodeRegistry, address: []const u8) void {
         if (self.nodes.fetchRemove(address)) |entry| {
-            self.nodes.allocator.free(entry.key);
+            self.allocator.free(entry.key);
         }
     }
 

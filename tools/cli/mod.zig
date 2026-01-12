@@ -102,6 +102,11 @@ pub fn main(init: std.process.Init) !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "embed")) {
+        try commands.embed.run(allocator, args[2..]);
+        return;
+    }
+
     std.debug.print("Unknown command: {s}\nUse 'help' for usage.\n", .{command});
     std.process.exit(1);
 }
@@ -116,6 +121,7 @@ fn printHelp() void {
         \\  bench <suite>      Run performance benchmarks (all, simd, memory, ai, quick)
         \\  config [command]   Configuration management (init, show, validate)
         \\  discord [command]  Discord bot operations (status, guilds, send, commands)
+        \\  embed [options]    Generate embeddings from text (openai, mistral, cohere, ollama)
         \\  explore [options]  Search and explore codebase
         \\  gpu [subcommand]   GPU commands (backends, devices, summary, default)
         \\  llm <subcommand>   LLM inference (info, generate, chat, bench, download)

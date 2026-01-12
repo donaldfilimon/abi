@@ -52,7 +52,7 @@ pub const StreamingGenerator = struct {
             .model = model,
             .config = config,
             .state = .idle,
-            .generated_tokens = std.ArrayListUnmanaged(u32).init(allocator),
+            .generated_tokens = .{},
             .current_token_id = 0,
         };
     }

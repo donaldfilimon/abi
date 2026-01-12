@@ -1,19 +1,22 @@
 const std = @import("std");
+const builtin = @import("builtin");
+const posix = std.posix;
+const windows = std.os.windows;
 
 var global_timer: ?std.time.Timer = null;
+var global_io_backend: ?std.Io.Threaded = null;
+var io_once = std.once(initIoBackend);
 
 /// Get current Unix timestamp in seconds.
 /// @return Unix timestamp as seconds since epoch
 pub fn unixSeconds() i64 {
-    const instant = std.time.Instant.now() catch return 0;
-    return instant.toSecs();
+    return @intCast(@divTrunc(unixEpochNanoseconds(), std.time.ns_per_s));
 }
 
 /// Get current Unix timestamp in milliseconds.
 /// @return Unix timestamp as milliseconds since epoch
 pub fn unixMilliseconds() i64 {
-    const instant = std.time.Instant.now() catch return 0;
-    return instant.toSecs() * 1000 + @divTrunc(instant.toSubsecMillis(), 1);
+    return @intCast(@divTrunc(unixEpochNanoseconds(), std.time.ns_per_ms));
 }
 
 /// Get current time in seconds using monotonic timer.
@@ -46,7 +49,19 @@ pub fn sleepSeconds(seconds: u64) void {
 /// Sleep for specified number of milliseconds.
 /// @param milliseconds Number of milliseconds to sleep
 pub fn sleepMs(milliseconds: u64) void {
-    std.time.sleep(milliseconds * std.time.ns_per_ms);
+    sleepNs(milliseconds * std.time.ns_per_ms);
+}
+
+/// Sleep for specified number of nanoseconds.
+/// @param nanoseconds Number of nanoseconds to sleep
+pub fn sleepNs(nanoseconds: u64) void {
+    if (nanoseconds == 0) return;
+    const io = getIo() orelse return;
+    const duration = std.Io.Clock.Duration{
+        .clock = .awake,
+        .raw = .fromNanoseconds(@intCast(nanoseconds)),
+    };
+    std.Io.Clock.Duration.sleep(duration, io) catch {};
 }
 
 /// Format a duration in nanoseconds to human-readable string.
@@ -103,6 +118,33 @@ fn getTimer() ?*std.time.Timer {
         return timer;
     }
     return null;
+}
+
+fn initIoBackend() void {
+    global_io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+}
+
+fn getIo() ?std.Io {
+    io_once.call();
+    if (global_io_backend) |*backend| {
+        return backend.io();
+    }
+    return null;
+}
+
+fn unixEpochNanoseconds() i128 {
+    if (builtin.os.tag == .windows) {
+        const ticks_100ns: i64 = windows.ntdll.RtlGetSystemTimePrecise();
+        const unix_epoch_ticks_100ns: i64 = 11644473600 * 10_000_000;
+        const unix_ticks_100ns = ticks_100ns - unix_epoch_ticks_100ns;
+        return @as(i128, unix_ticks_100ns) * 100;
+    }
+
+    const ts = posix.clock_gettime(posix.CLOCK.REALTIME) catch return 0;
+    return @as(i128, @intCast(ts.sec)) * std.time.ns_per_s +
+        @as(i128, @intCast(ts.nsec));
 }
 
 test "stopwatch measures elapsed time" {

@@ -4,6 +4,7 @@
 //! real-time monitoring for GPU operations across all backends.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 
 /// Metric type classification.
 pub const MetricType = enum {
@@ -48,7 +49,7 @@ pub const KernelMetrics = struct {
     pub fn record(self: *KernelMetrics, duration_ns: u64) void {
         self.invocation_count += 1;
         self.total_time_ns += duration_ns;
-        self.last_invocation = std.time.timestamp();
+        self.last_invocation = time.nowSeconds();
 
         if (duration_ns < self.min_time_ns) {
             self.min_time_ns = duration_ns;
@@ -106,7 +107,7 @@ pub const DeviceMetrics = struct {
     last_updated: i64 = 0,
 
     pub fn update(self: *DeviceMetrics) void {
-        self.last_updated = std.time.timestamp();
+        self.last_updated = time.nowSeconds();
     }
 };
 
@@ -137,7 +138,7 @@ pub const ErrorMetrics = struct {
         self.total_errors += 1;
         const current = self.errors_by_type.get(error_type);
         self.errors_by_type.set(error_type, current + 1);
-        self.last_error_time = std.time.timestamp();
+        self.last_error_time = time.nowSeconds();
     }
 };
 
@@ -167,7 +168,7 @@ pub const MetricsCollector = struct {
             },
             .device_metrics = .{},
             .error_metrics = ErrorMetrics.init(),
-            .collection_start = std.time.timestamp(),
+            .collection_start = time.nowSeconds(),
             .total_kernel_invocations = 0,
             .total_memory_allocated = 0,
             .total_memory_freed = 0,
@@ -262,7 +263,7 @@ pub const MetricsCollector = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const uptime_seconds = @as(f64, @floatFromInt(std.time.timestamp() - self.collection_start));
+        const uptime_seconds = @as(f64, @floatFromInt(time.nowSeconds() - self.collection_start));
         const current_memory = self.total_memory_allocated - self.total_memory_freed;
 
         var total_kernel_time_ns: u64 = 0;
@@ -345,7 +346,7 @@ pub const MetricsCollector = struct {
         }
 
         self.error_metrics = ErrorMetrics.init();
-        self.collection_start = std.time.timestamp();
+        self.collection_start = time.nowSeconds();
         self.total_kernel_invocations = 0;
         self.total_memory_allocated = 0;
         self.total_memory_freed = 0;

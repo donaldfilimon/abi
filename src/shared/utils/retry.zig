@@ -4,6 +4,7 @@
 //! jitter, and maximum attempt limits.
 
 const std = @import("std");
+const time = @import("time.zig");
 
 pub const RetryConfig = struct {
     /// Maximum number of retry attempts (0 = no retries)
@@ -39,7 +40,7 @@ pub fn retryWithBackoff(
         var seed: u64 = undefined;
         std.posix.getrandom(std.mem.asBytes(&seed)) catch {
             // Fallback to timestamp if getrandom fails
-            seed = @as(u64, @intCast(std.time.milliTimestamp()));
+            seed = @as(u64, @intCast(time.unixMilliseconds()));
         };
         break :blk seed;
     });
@@ -70,7 +71,7 @@ pub fn retryWithBackoff(
             } else backoff_ms;
 
             // Sleep for backoff duration
-            std.time.sleep(actual_backoff * std.time.ns_per_ms);
+            time.sleepMs(actual_backoff);
 
             // Increase backoff for next attempt (exponential)
             backoff_ms = @min(

@@ -4,6 +4,7 @@
 //! based on semantic similarity to the current query.
 
 const std = @import("std");
+const time = @import("../../../shared/utils/time.zig");
 const mod = @import("mod.zig");
 const Message = mod.Message;
 const MessageRole = mod.MessageRole;
@@ -131,7 +132,7 @@ pub const LongTermMemory = struct {
             .embedding = emb,
             .importance = importance,
             .access_count = 0,
-            .last_accessed = 0,
+            .last_accessed = time.nowSeconds(),
         };
 
         try self.memories.append(self.allocator, entry);
@@ -199,6 +200,7 @@ pub const LongTermMemory = struct {
         for (scored.items[0..result_count], 0..) |item, i| {
             const entry = &self.memories.items[item.idx];
             entry.access_count += 1;
+            entry.last_accessed = time.nowSeconds();
             self.total_access += 1;
 
             results[i] = .{
@@ -225,9 +227,11 @@ pub const LongTermMemory = struct {
         var min_idx: usize = 0;
         var min_score: f32 = std.math.floatMax(f32);
 
+        const now = time.nowSeconds();
         for (self.memories.items, 0..) |entry, idx| {
             // Score based on importance, access frequency, and recency
-            const recency_factor: f32 = 1.0; // TODO: use actual timestamp
+            const age_seconds: f32 = @floatFromInt(@max(0, now - entry.last_accessed));
+            const recency_factor: f32 = 1.0 / (1.0 + (age_seconds / 3600.0));
             const access_factor = @as(f32, @floatFromInt(entry.access_count + 1));
             const score = entry.importance * access_factor * recency_factor;
 

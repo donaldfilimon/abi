@@ -56,7 +56,7 @@ pub const GpuError = struct {
         _ = fmt;
         _ = options;
 
-        try writer.print("GPU Error: {s} ({t})", .{
+        try writer.print("GPU Error: {t} ({t})", .{
             self.error_type,
             self.code,
         });

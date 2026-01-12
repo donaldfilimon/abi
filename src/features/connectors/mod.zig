@@ -5,7 +5,10 @@ pub const openai = @import("openai.zig");
 pub const huggingface = @import("huggingface.zig");
 pub const ollama = @import("ollama.zig");
 pub const local_scheduler = @import("local_scheduler.zig");
-pub const discord = @import("discord.zig");
+pub const discord = @import("discord/mod.zig");
+pub const anthropic = @import("anthropic.zig");
+pub const mistral = @import("mistral.zig");
+pub const cohere = @import("cohere.zig");
 
 var initialized: bool = false;
 
@@ -104,6 +107,39 @@ pub fn loadDiscord(allocator: std.mem.Allocator) !discord.Config {
 pub fn tryLoadDiscord(allocator: std.mem.Allocator) !?discord.Config {
     return discord.loadFromEnv(allocator) catch |err| switch (err) {
         discord.DiscordError.MissingBotToken => null,
+        else => return err,
+    };
+}
+
+pub fn loadAnthropic(allocator: std.mem.Allocator) !anthropic.Config {
+    return anthropic.loadFromEnv(allocator);
+}
+
+pub fn tryLoadAnthropic(allocator: std.mem.Allocator) !?anthropic.Config {
+    return anthropic.loadFromEnv(allocator) catch |err| switch (err) {
+        anthropic.AnthropicError.MissingApiKey => null,
+        else => return err,
+    };
+}
+
+pub fn loadMistral(allocator: std.mem.Allocator) !mistral.Config {
+    return mistral.loadFromEnv(allocator);
+}
+
+pub fn tryLoadMistral(allocator: std.mem.Allocator) !?mistral.Config {
+    return mistral.loadFromEnv(allocator) catch |err| switch (err) {
+        mistral.MistralError.MissingApiKey => null,
+        else => return err,
+    };
+}
+
+pub fn loadCohere(allocator: std.mem.Allocator) !cohere.Config {
+    return cohere.loadFromEnv(allocator);
+}
+
+pub fn tryLoadCohere(allocator: std.mem.Allocator) !?cohere.Config {
+    return cohere.loadFromEnv(allocator) catch |err| switch (err) {
+        cohere.CohereError.MissingApiKey => null,
         else => return err,
     };
 }

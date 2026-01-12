@@ -4,6 +4,7 @@
 //! attributes, events, links, and the Span struct itself.
 
 const std = @import("std");
+const time = @import("../utils/time.zig");
 
 pub const TraceId = [16]u8;
 pub const SpanId = [8]u8;
@@ -83,7 +84,7 @@ pub const Span = struct {
             .span_id = generateSpanId(),
             .parent_span_id = parent_span_id,
             .kind = kind,
-            .start_time = std.time.timestamp(),
+            .start_time = time.unixSeconds(),
             .attributes = attrs,
             .events = events,
             .links = links,
@@ -92,7 +93,7 @@ pub const Span = struct {
     }
 
     pub fn end(self: *Span) void {
-        self.end_time = std.time.timestamp();
+        self.end_time = time.unixSeconds();
     }
 
     pub fn deinit(self: *Span) void {
@@ -148,7 +149,7 @@ pub const Span = struct {
 
         try self.events.append(self.allocator, .{
             .name = name_copy,
-            .timestamp = std.time.timestamp(),
+            .timestamp = time.unixSeconds(),
             .attributes = &.{},
         });
     }

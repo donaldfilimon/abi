@@ -10,7 +10,7 @@
 const std = @import("std");
 const json = std.json;
 const tool = @import("tool.zig");
-const discord = @import("../../connectors/discord.zig");
+const discord = @import("../../connectors/discord/mod.zig");
 const json_utils = @import("../../../shared/utils/json/mod.zig");
 
 const Tool = tool.Tool;

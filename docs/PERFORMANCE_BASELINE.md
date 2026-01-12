@@ -1,7 +1,7 @@
 # Performance Baseline Document
 
 **Date**: 2025-01-03
-**Zig Version**: 0.16.0-dev.1892+53ebfde6b
+**Zig Version**: 0.16.0
 **Framework Version**: 0.1.0
 
 ## Purpose
@@ -10,7 +10,7 @@ This document establishes a performance baseline for the ABI Framework after the
 
 ## Benchmark Methodology
 
-- **Environment**: Windows 10, Zig 0.16.0-dev.1892+53ebfde6b
+- **Environment**: Windows 10, Zig 0.16.0
 - **CPU**: Intel/AMD (varies by machine)
 - **Memory**: System RAM
 - **Iterations**: Per-benchmark configuration (see `benchmarks/run.zig`)
@@ -233,7 +233,7 @@ For critical code paths:
 
 **Document Version**: 1.0
 **Last Updated**: 2025-01-03
-**Next Review**: After Zig 0.16 stable release
+**Next Review**: After the next Zig 0.16.x point release
 
 ## Contacts
 

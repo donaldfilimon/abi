@@ -2,6 +2,24 @@
 //!
 //! This module provides a unified interface for GPU compute operations across
 //! multiple backends including CUDA, Vulkan, Metal, WebGPU, OpenGL, and std.gpu.
+//!
+//! ## Unified API
+//!
+//! The unified API provides a single interface for all backends:
+//!
+//! ```zig
+//! const gpu = @import("compute/gpu/mod.zig");
+//!
+//! var g = try gpu.Gpu.init(allocator, .{});
+//! defer g.deinit();
+//!
+//! var a = try g.createBufferFromSlice(f32, &[_]f32{ 1, 2, 3, 4 }, .{});
+//! var b = try g.createBufferFromSlice(f32, &[_]f32{ 5, 6, 7, 8 }, .{});
+//! var result = try g.createBuffer(4 * @sizeOf(f32), .{});
+//! defer { g.destroyBuffer(&a); g.destroyBuffer(&b); g.destroyBuffer(&result); }
+//!
+//! _ = try g.vectorAdd(&a, &b, &result);
+//! ```
 const std = @import("std");
 const backend = @import("backend.zig");
 const kernels = @import("kernels.zig");
@@ -9,6 +27,13 @@ const memory = @import("memory.zig");
 const kernel_cache = @import("kernel_cache.zig");
 pub const profiling = @import("profiling.zig");
 pub const acceleration = @import("acceleration.zig");
+
+// Unified API modules
+pub const unified = @import("unified.zig");
+pub const unified_buffer = @import("unified_buffer.zig");
+pub const device = @import("device.zig");
+pub const stream = @import("stream.zig");
+pub const dsl = @import("dsl/mod.zig");
 
 const build_options = @import("build_options");
 
@@ -86,6 +111,86 @@ pub const Profiler = profiling.Profiler;
 pub const TimingResult = profiling.TimingResult;
 pub const OccupancyResult = profiling.OccupancyResult;
 pub const MemoryBandwidth = profiling.MemoryBandwidth;
+
+// ============================================================================
+// Unified API Exports
+// ============================================================================
+
+// Main Gpu struct and config
+pub const Gpu = unified.Gpu;
+pub const GpuConfig = unified.GpuConfig;
+pub const ExecutionResult = unified.ExecutionResult;
+pub const MatrixDims = unified.MatrixDims;
+pub const LaunchConfig = unified.LaunchConfig;
+pub const HealthStatus = unified.HealthStatus;
+pub const GpuStats = unified.GpuStats;
+pub const MemoryInfo = unified.MemoryInfo;
+pub const MultiGpuConfig = unified.MultiGpuConfig;
+pub const LoadBalanceStrategy = unified.LoadBalanceStrategy;
+
+// Unified buffer types
+pub const UnifiedBuffer = unified_buffer.Buffer;
+pub const BufferOptions = unified_buffer.BufferOptions;
+pub const MemoryMode = unified_buffer.MemoryMode;
+pub const MemoryLocation = unified_buffer.MemoryLocation;
+pub const AccessHint = unified_buffer.AccessHint;
+pub const ElementType = unified_buffer.ElementType;
+pub const BufferView = unified_buffer.BufferView;
+pub const MappedBuffer = unified_buffer.MappedBuffer;
+pub const BufferStats = unified_buffer.BufferStats;
+
+// Device types
+pub const Device = device.Device;
+pub const DeviceType = device.DeviceType;
+pub const DeviceFeature = device.DeviceFeature;
+pub const DeviceSelector = device.DeviceSelector;
+pub const DeviceManager = device.DeviceManager;
+pub const discoverDevices = device.discoverDevices;
+pub const getBestKernelBackend = device.getBestKernelBackend;
+
+// Stream and event types
+pub const GpuStream = stream.Stream;
+pub const StreamOptions = stream.StreamOptions;
+pub const StreamPriority = stream.StreamPriority;
+pub const StreamFlags = stream.StreamFlags;
+pub const StreamState = stream.StreamState;
+pub const StreamManager = stream.StreamManager;
+pub const Event = stream.Event;
+pub const EventOptions = stream.EventOptions;
+pub const EventFlags = stream.EventFlags;
+pub const EventState = stream.EventState;
+
+// DSL types for custom kernels
+pub const KernelBuilder = dsl.KernelBuilder;
+pub const KernelIR = dsl.KernelIR;
+pub const PortableKernelSource = dsl.PortableKernelSource;
+pub const compile = dsl.compile;
+pub const compileToKernelSource = dsl.compileToKernelSource;
+pub const compileAll = dsl.compileAll;
+pub const CompileOptions = dsl.CompileOptions;
+pub const CompileError = dsl.CompileError;
+
+// DSL type system
+pub const ScalarType = dsl.ScalarType;
+pub const VectorType = dsl.VectorType;
+pub const MatrixType = dsl.MatrixType;
+pub const AddressSpace = dsl.AddressSpace;
+pub const DslType = dsl.Type;
+pub const AccessMode = dsl.AccessMode;
+
+// DSL expression types
+pub const Expr = dsl.Expr;
+pub const BinaryOp = dsl.BinaryOp;
+pub const UnaryOp = dsl.UnaryOp;
+pub const BuiltinFn = dsl.BuiltinFn;
+pub const BuiltinVar = dsl.BuiltinVar;
+
+// DSL statement types
+pub const Stmt = dsl.Stmt;
+
+// DSL code generation
+pub const CodegenError = dsl.CodegenError;
+pub const GeneratedSource = dsl.GeneratedSource;
 
 pub fn init(_: std.mem.Allocator) GpuError!void {
     if (!moduleEnabled()) return error.GpuDisabled;

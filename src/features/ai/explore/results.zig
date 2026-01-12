@@ -177,7 +177,7 @@ pub const ExploreResult = struct {
         std.debug.print("\"cancelled\":{},", .{self.cancelled});
 
         if (self.explore_error) |err| {
-            std.debug.print("\"error\":\"{s}\",", .{@errorName(err)});
+            std.debug.print("\"error\":\"{t}\",", .{err});
         }
 
         std.debug.print("\"matches\":[", .{});

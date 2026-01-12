@@ -7,6 +7,7 @@ pub const agent = @import("agent.zig");
 pub const bench = @import("bench.zig");
 pub const config = @import("config.zig");
 pub const discord = @import("discord.zig");
+pub const embed = @import("embed.zig");
 pub const explore = @import("explore.zig");
 pub const gpu = @import("gpu.zig");
 pub const llm = @import("llm.zig");

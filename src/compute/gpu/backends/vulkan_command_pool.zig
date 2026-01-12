@@ -4,6 +4,7 @@
 //! to minimize overhead from command buffer creation/destruction.
 
 const std = @import("std");
+const time = @import("../../../shared/utils/time.zig");
 const types = @import("vulkan_types.zig");
 const init = @import("vulkan_init.zig");
 
@@ -148,7 +149,7 @@ pub const CommandPool = struct {
             }
 
             managed.state = .recording;
-            managed.last_used = std.time.timestamp();
+            managed.last_used = time.nowMilliseconds();
             return managed.buffer;
         }
 
@@ -158,7 +159,7 @@ pub const CommandPool = struct {
             const idx = self.buffers.items.len - 1;
             const managed = &self.buffers.items[idx];
             managed.state = .recording;
-            managed.last_used = std.time.timestamp();
+            managed.last_used = time.nowMilliseconds();
             return managed.buffer;
         }
 
@@ -358,7 +359,7 @@ pub const CommandPool = struct {
                 .buffer = buffer,
                 .state = .available,
                 .fence = null,
-                .last_used = std.time.timestamp(),
+                .last_used = time.nowMilliseconds(),
                 .reset_count = 0,
             };
             try self.buffers.append(self.allocator, managed);

@@ -215,7 +215,12 @@ const devices = try cuda_query.listDevices(allocator);
 defer allocator.free(devices);
 
 for (devices) |device| {
-    try cuda_query.formatDeviceInfo(device, std.io.getStdOut().writer());
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+    defer io_backend.deinit();
+    var stdout_buffer: [1024]u8 = undefined;
+    var stdout_writer = std.Io.File.stdout().writer(io_backend.io(), &stdout_buffer);
+    const stdout = &stdout_writer.interface;
+    try cuda_query.formatDeviceInfo(device, stdout);
 }
 ```
 
@@ -234,7 +239,12 @@ try profiler.startTiming("my_kernel", allocator, 0);
 try profiler.endTiming(allocator);
 
 const summary = profiler.getSummary();
-try profiling.formatSummary(&profiler, std.io.getStdOut().writer());
+var io_backend = std.Io.Threaded.init(allocator, .{});
+defer io_backend.deinit();
+var stdout_buffer: [1024]u8 = undefined;
+var stdout_writer = std.Io.File.stdout().writer(io_backend.io(), &stdout_buffer);
+const stdout = &stdout_writer.interface;
+try profiling.formatSummary(&profiler, stdout);
 ```
 
 ## Benefits
@@ -265,11 +275,11 @@ All tests passing:
 - ✅ GPU error handling tests
 - ✅ Profiling and occupancy tests
 - ✅ Integration tests
-- ✅ Streaming generator tests (fixed Zig 0.16-dev compatibility issue with `resume` keyword)
+- ✅ Streaming generator tests (fixed Zig 0.16 compatibility issue with `resume` keyword)
 
-## Zig 0.16-dev Compatibility
+## Zig 0.16 Compatibility
 
-All code written for Zig 0.16-dev:
+All code written for Zig 0.16.x:
 - Uses updated standard library APIs
 - Compliant with new error handling patterns
 - Proper use of allocator and memory management
