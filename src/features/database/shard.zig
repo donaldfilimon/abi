@@ -39,7 +39,7 @@ pub const ShardRouter = struct {
     hash_ring: hashring.HashRing,
     shards: std.ArrayListUnmanaged(ShardInfo),
     node_shards: std.StringArrayHashMapUnmanaged(std.ArrayListUnmanaged(ShardId)),
-    key_to_shard: std.AutoHashMap(u128, ShardId),
+    key_to_shard: std.AutoHashMapUnmanaged(u128, ShardId),
     version: u64,
 
     pub fn init(allocator: std.mem.Allocator, config: ShardConfig) !ShardRouter {
@@ -49,7 +49,7 @@ pub const ShardRouter = struct {
             .hash_ring = hashring.HashRing.init(allocator, config.virtual_nodes),
             .shards = std.ArrayListUnmanaged(ShardInfo).empty,
             .node_shards = std.StringArrayHashMapUnmanaged(std.ArrayListUnmanaged(ShardId)).empty,
-            .key_to_shard = std.AutoHashMap(u128, ShardId).init(allocator),
+            .key_to_shard = .{},
             .version = 0,
         };
     }
@@ -67,7 +67,7 @@ pub const ShardRouter = struct {
             entry.value_ptr.deinit(self.allocator);
         }
         self.node_shards.deinit(self.allocator);
-        self.key_to_shard.deinit();
+        self.key_to_shard.deinit(self.allocator);
         self.* = undefined;
     }
 

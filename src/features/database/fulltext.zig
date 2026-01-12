@@ -495,10 +495,10 @@ pub const InvertedIndex = struct {
 
 /// Stop words list (common English words to filter out)
 pub const STOP_WORDS = [_][]const u8{
-    "a",     "an",    "and",  "are",  "as",    "at",   "be",    "but",
-    "by",    "for",   "if",   "in",   "into",  "is",   "it",    "no",
-    "not",   "of",    "on",   "or",   "such",  "that", "the",   "their",
-    "then",  "there", "these", "they", "this",  "to",   "was",   "will",
+    "a",    "an",    "and",   "are",  "as",   "at",   "be",  "but",
+    "by",   "for",   "if",    "in",   "into", "is",   "it",  "no",
+    "not",  "of",    "on",    "or",   "such", "that", "the", "their",
+    "then", "there", "these", "they", "this", "to",   "was", "will",
     "with",
 };
 
@@ -608,7 +608,8 @@ pub const QueryParser = struct {
             // Handle words and operators
             const start = i;
             while (i < query.len and !std.ascii.isWhitespace(query[i]) and
-                query[i] != '(' and query[i] != ')' and query[i] != '"') : (i += 1) {}
+                query[i] != '(' and query[i] != ')' and query[i] != '"') : (i += 1)
+            {}
 
             const word = query[start..i];
             if (word.len == 0) continue;

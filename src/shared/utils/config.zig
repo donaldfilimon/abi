@@ -253,7 +253,7 @@ pub const Config = struct {
     web: WebConfig,
 
     /// Custom key-value pairs
-    custom: std.StringHashMap([]const u8),
+    custom: std.StringHashMapUnmanaged([]const u8),
 
     pub fn init(allocator: std.mem.Allocator) Config {
         return .{
@@ -266,12 +266,12 @@ pub const Config = struct {
             .ai = .{},
             .network = .{},
             .web = .{},
-            .custom = std.StringHashMap([]const u8).init(allocator),
+            .custom = .{},
         };
     }
 
     pub fn deinit(self: *Config) void {
-        self.custom.deinit();
+        self.custom.deinit(self.allocator);
         self.* = undefined;
     }
 

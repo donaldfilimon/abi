@@ -6,21 +6,25 @@
 
 - Zig 0.16.x
 
-## Build and run the CLI
+## Build and Run the CLI
 
 ```bash
 zig build
 zig build run -- --help
+zig build run -- --version
 ```
 
-## Run tests and benchmarks
+## Run Tests and Benchmarks
 
 ```bash
-zig build test
-zig build benchmark
+zig build test                    # Run all tests
+zig build test --summary all      # Run tests with detailed output
+zig build benchmarks              # Run performance benchmarks
 ```
 
-## Use the library
+## Use the Library
+
+### Basic Initialization
 
 ### Basic Framework Usage (Zig 0.16)
 
@@ -66,10 +70,6 @@ pub fn main(init: std.process.Init) !void {
     const result3 = try abi.compute.runWorkload(&engine, u64, exampleTask, 1000);
     std.debug.print("Result 3: {d}\n", .{result3});
 }
-
-fn exampleTask(_: std.mem.Allocator) !u64 {
-    return 42;
-}
 ```
 
 ### AI Agent Example
@@ -100,13 +100,25 @@ pub fn main(init: std.process.Init) !void {
 
 ## Module map
 
-Primary modules live in the modern layout:
+| Module | Description |
+|--------|-------------|
+| `src/abi.zig` | Public API entry point |
+| `src/core/` | Hardware helpers and cache-aligned buffers |
+| `src/compute/runtime/engine.zig` | Runtime engine and scheduler |
+| `src/compute/concurrency/` | Lock-free data structures |
+| `src/compute/memory/` | Pool and scratch allocators |
+| `src/features/ai/` | AI features (LLM, embeddings, RAG) |
+| `src/features/database/` | WDBX vector database |
+| `src/features/gpu/` | GPU backend implementations |
 
-- `src/core/mod.zig` for hardware helpers and cache-aligned buffers
-- `src/compute/runtime/engine.zig` for the runtime engine
-- `src/compute/runtime/workload.zig` for sample CPU workloads
-- `src/compute/concurrency/lockfree.zig` for lock-free data structures
-- `src/compute/memory/mod.zig` for pool and scratch allocators
+## Next Steps
 
-Use `src/demo.zig` for a small end-to-end program and
-`src/compute/runtime/benchmark_demo.zig` for the benchmark runner.
+- Read the [Introduction](docs/intro.md) for architecture overview
+- See [API Reference](API_REFERENCE.md) for API documentation
+- Check [examples/](examples/) for more code samples
+- Review [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

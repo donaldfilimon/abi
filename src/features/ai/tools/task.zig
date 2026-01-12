@@ -1,4 +1,5 @@
 const std = @import("std");
+const time = @import("../../../shared/utils/time.zig");
 const json = std.json;
 const Tool = @import("tool.zig").Tool;
 const ToolResult = @import("tool.zig").ToolResult;
@@ -78,18 +79,18 @@ pub const Task = struct {
 
 pub const TaskTool = struct {
     allocator: std.mem.Allocator,
-    subagents: std.StringHashMap(Subagent),
+    subagents: std.StringHashMapUnmanaged(Subagent),
     tasks: std.ArrayListUnmanaged(Task),
-    task_ids: std.StringHashMap(usize),
+    task_ids: std.StringHashMapUnmanaged(usize),
     semaphore: std.Thread.Semaphore,
     next_task_id: u64 = 0,
 
     pub fn init(allocator: std.mem.Allocator) TaskTool {
         return TaskTool{
             .allocator = allocator,
-            .subagents = std.StringHashMap(Subagent).init(allocator),
+            .subagents = .{},
             .tasks = std.ArrayListUnmanaged(Task){},
-            .task_ids = std.StringHashMap(usize).init(allocator),
+            .task_ids = .{},
             .semaphore = std.Thread.Semaphore.init(4),
         };
     }
@@ -107,8 +108,8 @@ pub const TaskTool = struct {
             }
         }
         self.tasks.deinit(self.allocator);
-        self.task_ids.deinit();
-        self.subagents.deinit();
+        self.task_ids.deinit(self.allocator);
+        self.subagents.deinit(self.allocator);
     }
 
     pub fn registerSubagent(self: *TaskTool, name: []const u8, description: []const u8, handler: *const fn ([]const u8, *Context) anyerror!ToolResult, config: SubagentConfig) !void {
@@ -122,7 +123,7 @@ pub const TaskTool = struct {
             .handler = handler,
         };
 
-        try self.subagents.put(name_copy, subagent);
+        try self.subagents.put(self.allocator, name_copy, subagent);
     }
 
     pub fn invoke(self: *TaskTool, subagent_name: []const u8, task_input: []const u8, _: ?u64) !ToolResult {
@@ -144,20 +145,20 @@ pub const TaskTool = struct {
             self.semaphore.wait();
             defer self.semaphore.post();
 
-            const start_time = std.time.nanoTimestamp();
+            const start_time = time.nowNanoseconds();
 
             const result = subagent.handler(task_input, &ctx) catch |err| {
                 const err_msg = try std.fmt.allocPrint(self.allocator, "Execution failed: {}", .{err});
                 defer self.allocator.free(err_msg);
 
                 if (attempts < max_attempts - 1) {
-                    std.time.sleep(subagent.config.retry_delay_ms * std.time.ns_per_ms);
+                    time.sleepMs(subagent.config.retry_delay_ms);
                     continue;
                 }
                 return ToolResult.fromError(self.allocator, err_msg);
             };
 
-            const end_time = std.time.nanoTimestamp();
+            const end_time = time.nowNanoseconds();
             const duration_ms = @divTrunc(@as(i128, end_time - start_time), std.time.ns_per_ms);
 
             var mutable_subagent = self.subagents.getPtr(subagent_name).?;
@@ -187,12 +188,12 @@ pub const TaskTool = struct {
             .subagent_name = subagent_name,
             .input = task_input,
             .status = .pending,
-            .created_at = std.time.nanoTimestamp(),
+            .created_at = time.nowNanoseconds(),
             .timeout_ms = effective_timeout,
         };
 
         try self.tasks.append(self.allocator, task);
-        try self.task_ids.put(task_id, self.tasks.items.len - 1);
+        try self.task_ids.put(self.allocator, task_id, self.tasks.items.len - 1);
 
         return task_id;
     }
@@ -206,7 +207,7 @@ pub const TaskTool = struct {
         const index = self.task_ids.get(task_id) orelse return error.TaskNotFound;
         const timeout_ms = self.tasks.items[index].timeout_ms;
 
-        const start_time = std.time.nanoTimestamp();
+        const start_time = time.nowNanoseconds();
         const deadline = start_time + (timeout_ms * std.time.ns_per_ms);
 
         while (true) {
@@ -221,12 +222,12 @@ pub const TaskTool = struct {
                 return ToolResult.fromError(self.allocator, "Task completed without result");
             }
 
-            if (std.time.nanoTimestamp() > deadline) {
+            if (time.nowNanoseconds() > deadline) {
                 self.tasks.items[index].status = .timeout;
                 return ToolResult.fromError(self.allocator, "Task timed out");
             }
 
-            std.time.sleep(100 * std.time.ns_per_ms);
+            time.sleepMs(100);
         }
     }
 

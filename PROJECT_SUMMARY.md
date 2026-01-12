@@ -2,7 +2,7 @@
 
 ## Overview
 
-Abbey-Aviva-Abi is a modular shared compute framework built on Zig 0.16.x.
+ABI is a modular shared compute framework built on Zig 0.16.x.
 The codebase separates public API, compute runtime, feature stacks, and shared
 utilities so CPU, GPU, and distributed workloads can evolve independently.
 
@@ -19,8 +19,8 @@ utilities so CPU, GPU, and distributed workloads can evolve independently.
 
 ## Examples
 
-- `src/demo.zig` provides a small end-to-end example
-- `src/compute/runtime/benchmark_demo.zig` runs the benchmark suite
+- `examples/` directory contains example programs (hello, database, agent, compute, gpu, network)
+- `benchmarks/main.zig` runs the benchmark suite
 
 ## Build and test commands
 
@@ -39,8 +39,8 @@ Defaults:
 - `-Denable-ai=true`
 - `-Denable-web=true`
 - `-Denable-database=true`
-- `-Denable-network=false`
-- `-Denable-profiling=false`
+- `-Denable-network=true`
+- `-Denable-profiling=true`
 
 GPU backends:
 
@@ -52,3 +52,8 @@ Example:
 ```bash
 zig build -Denable-network=true -Dgpu-vulkan=true
 ```
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

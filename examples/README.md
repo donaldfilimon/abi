@@ -69,6 +69,19 @@ Network cluster setup and node management.
 zig run examples/network.zig -Denable-network=true
 ```
 
+### discord.zig
+
+Discord bot integration with bot info, guild listing, and gateway information.
+
+**Prerequisites:**
+- Set `DISCORD_BOT_TOKEN` environment variable with your bot token
+
+**Run:**
+
+```bash
+zig build run-discord
+```
+
 ## Building Examples
 
 All examples are integrated into the main build system:
@@ -83,6 +96,7 @@ zig build run-database
 zig build run-compute
 zig build run-gpu
 zig build run-network
+zig build run-discord
 ```
 
 ## Running Benchmarks
@@ -102,6 +116,7 @@ zig build benchmarks
 4. **Check `agent.zig`** - See AI integration
 5. **Review `gpu.zig`** - Understand GPU acceleration
 6. **Study `network.zig`** - Learn distributed computing
+7. **Check `discord.zig`** - Discord bot integration
 
 ## Common Patterns
 
@@ -149,3 +164,8 @@ All examples follow these Zig 0.16 best practices:
 ## Need Help?
 
 See the [Documentation Index](docs/intro.md) for comprehensive guides, or check API_REFERENCE.md for detailed API information.
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

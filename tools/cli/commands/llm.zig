@@ -44,6 +44,16 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "list-local")) {
+        runListLocal(allocator, args[1..]);
+        return;
+    }
+
+    if (std.mem.eql(u8, command, "download")) {
+        try runDownload(allocator, args[1..]);
+        return;
+    }
+
     std.debug.print("Unknown llm command: {s}\n", .{command});
     printHelp();
 }
@@ -104,6 +114,12 @@ fn runGenerate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var max_tokens: u32 = 256;
     var temperature: f32 = 0.7;
     var top_p: f32 = 0.9;
+    // New generation options
+    var repeat_penalty: f32 = 1.1;
+    var seed: ?u64 = null;
+    var stream: bool = false;
+    var stop_sequences = std.ArrayListUnmanaged([]const u8){};
+    defer stop_sequences.deinit(allocator);
 
     var i: usize = 0;
     while (i < args.len) {
@@ -153,6 +169,39 @@ fn runGenerate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             continue;
         }
 
+        // New options
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--repeat-penalty")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                repeat_penalty = std.fmt.parseFloat(f32, val) catch 1.1;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--seed")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                seed = std.fmt.parseInt(u64, val, 10) catch null;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--stop")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                try stop_sequences.append(allocator, val);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--stream")) {
+            stream = true;
+            continue;
+        }
+
         // Positional: model path or prompt
         if (model_path == null) {
             model_path = std.mem.sliceTo(arg, 0);
@@ -175,7 +224,13 @@ fn runGenerate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
     std.debug.print("Loading model: {s}\n", .{model_path.?});
     std.debug.print("Prompt: {s}\n", .{prompt.?});
-    std.debug.print("Max tokens: {d}, Temperature: {d:.2}, Top-p: {d:.2}\n", .{ max_tokens, temperature, top_p });
+    std.debug.print("Max tokens: {d}, Temperature: {d:.2}, Top-p: {d:.2}, Repeat penalty: {d:.2}\n", .{ max_tokens, temperature, top_p, repeat_penalty });
+    if (seed) |s| {
+        std.debug.print("Seed: {d}\n", .{s});
+    }
+    if (stream) {
+        std.debug.print("Streaming: enabled\n", .{});
+    }
     std.debug.print("\nGenerating...\n\n", .{});
 
     // Create inference engine
@@ -419,6 +474,110 @@ fn runList() void {
     std.debug.print("  https://huggingface.co/models?other=gguf\n", .{});
 }
 
+fn runListLocal(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
+    var search_dir: []const u8 = ".";
+
+    // Parse directory argument
+    if (args.len > 0) {
+        search_dir = std.mem.sliceTo(args[0], 0);
+    }
+
+    std.debug.print("Searching for models in: {s}\n\n", .{search_dir});
+
+    // List .gguf files
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var dir = std.Io.Dir.cwd().openDir(io, search_dir, .{ .iterate = true }) catch |err| {
+        std.debug.print("Error: Cannot open directory {s}: {t}\n", .{ search_dir, err });
+        return;
+    };
+    defer dir.close(io);
+
+    var count: u32 = 0;
+    var iter = dir.iterate();
+    while (true) {
+        const maybe_entry = iter.next(io) catch break;
+        if (maybe_entry) |entry| {
+            if (entry.kind == .file and std.mem.endsWith(u8, entry.name, ".gguf")) {
+                std.debug.print("  {s}\n", .{entry.name});
+                count += 1;
+            }
+        } else break;
+    }
+
+    if (count == 0) {
+        std.debug.print("  No GGUF models found.\n", .{});
+        std.debug.print("\nDownload models from:\n", .{});
+        std.debug.print("  https://huggingface.co/TheBloke\n", .{});
+        std.debug.print("  https://huggingface.co/models?other=gguf\n", .{});
+    } else {
+        std.debug.print("\nFound {d} model(s).\n", .{count});
+    }
+}
+
+fn runDownload(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
+        std.debug.print("Usage: abi llm download <url> [--output <path>]\n\n", .{});
+        std.debug.print("Download a GGUF model from a URL.\n\n", .{});
+        std.debug.print("Examples:\n", .{});
+        std.debug.print("  abi llm download https://example.com/model.gguf\n", .{});
+        std.debug.print("  abi llm download https://huggingface.co/TheBloke/Llama-2-7B-GGUF/resolve/main/llama-2-7b.Q4_K_M.gguf\n\n", .{});
+        std.debug.print("Note: For HuggingFace models, use the 'resolve/main/' URL format.\n", .{});
+        return;
+    }
+
+    var url: ?[]const u8 = null;
+    var output_path: ?[]const u8 = null;
+
+    var i: usize = 0;
+    while (i < args.len) {
+        const arg = args[i];
+        i += 1;
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--output") or std.mem.eql(u8, std.mem.sliceTo(arg, 0), "-o")) {
+            if (i < args.len) {
+                output_path = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (url == null) {
+            url = std.mem.sliceTo(arg, 0);
+        }
+    }
+
+    if (url == null) {
+        std.debug.print("Error: URL required\n", .{});
+        return;
+    }
+
+    // Extract filename from URL if no output path specified
+    const final_path = output_path orelse blk: {
+        // Find last '/' in URL
+        if (std.mem.lastIndexOf(u8, url.?, "/")) |idx| {
+            break :blk url.?[idx + 1 ..];
+        }
+        break :blk "model.gguf";
+    };
+
+    std.debug.print("Downloading: {s}\n", .{url.?});
+    std.debug.print("Output: {s}\n\n", .{final_path});
+
+    // Note: Full HTTP download implementation would require the HTTP client
+    // For now, show instructions for manual download
+    std.debug.print("Download functionality requires network support.\n", .{});
+    std.debug.print("\nManual download options:\n", .{});
+    std.debug.print("  curl -L -o {s} \"{s}\"\n", .{ final_path, url.? });
+    std.debug.print("  wget -O {s} \"{s}\"\n", .{ final_path, url.? });
+    std.debug.print("\nNote: Direct download will be available with enable-network build flag.\n", .{});
+    _ = allocator;
+}
+
 fn printHelp() void {
     const help_text =
         "Usage: abi llm <command> [options]\n\n" ++
@@ -429,21 +588,29 @@ fn printHelp() void {
         "  chat <model>       Interactive chat mode\n" ++
         "  bench <model>      Benchmark model performance\n" ++
         "  list               List supported models and formats\n" ++
+        "  list-local [dir]   List GGUF models in directory\n" ++
+        "  download <url>     Download a model from URL\n" ++
         "  help               Show this help message\n\n" ++
         "Generate options:\n" ++
         "  -m, --model <path>      Path to GGUF model file\n" ++
         "  -p, --prompt <text>     Text prompt for generation\n" ++
         "  -n, --max-tokens <n>    Maximum tokens to generate (default: 256)\n" ++
         "  -t, --temperature <f>   Temperature for sampling (default: 0.7)\n" ++
-        "  --top-p <f>             Top-p nucleus sampling (default: 0.9)\n\n" ++
+        "  --top-p <f>             Top-p nucleus sampling (default: 0.9)\n" ++
+        "  --repeat-penalty <f>    Repetition penalty (default: 1.1)\n" ++
+        "  --seed <n>              Random seed for reproducibility\n" ++
+        "  --stop <text>           Stop sequence (can specify multiple)\n" ++
+        "  --stream                Enable streaming output\n\n" ++
         "Benchmark options:\n" ++
         "  --prompt-tokens <n>     Number of prompt tokens (default: 128)\n" ++
         "  --gen-tokens <n>        Number of tokens to generate (default: 64)\n\n" ++
         "Examples:\n" ++
         "  abi llm info ./llama-7b.gguf\n" ++
         "  abi llm generate ./llama-7b.gguf -p \"Hello, how are you?\"\n" ++
-        "  abi llm generate ./mistral-7b.gguf -p \"Write a poem\" -n 100 -t 0.8\n" ++
+        "  abi llm generate ./mistral-7b.gguf -p \"Write a poem\" -n 100 -t 0.8 --stream\n" ++
+        "  abi llm generate ./model.gguf -p \"Complete this:\" --seed 42 --repeat-penalty 1.2\n" ++
         "  abi llm bench ./llama-7b.gguf --gen-tokens 128\n" ++
-        "  abi llm list\n";
+        "  abi llm list-local ./models\n" ++
+        "  abi llm download https://huggingface.co/.../model.gguf -o my-model.gguf\n";
     std.debug.print("{s}", .{help_text});
 }

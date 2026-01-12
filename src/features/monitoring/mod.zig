@@ -3,10 +3,27 @@ const std = @import("std");
 const build_options = @import("build_options");
 
 const observability = @import("../../shared/observability/mod.zig");
+pub const alerting = @import("alerting.zig");
 
 pub const MetricsCollector = observability.MetricsCollector;
 pub const Counter = observability.Counter;
 pub const Histogram = observability.Histogram;
+
+// Alerting exports
+pub const AlertManager = alerting.AlertManager;
+pub const AlertManagerConfig = alerting.AlertManagerConfig;
+pub const AlertRule = alerting.AlertRule;
+pub const AlertRuleBuilder = alerting.AlertRuleBuilder;
+pub const Alert = alerting.Alert;
+pub const AlertState = alerting.AlertState;
+pub const AlertSeverity = alerting.AlertSeverity;
+pub const AlertCondition = alerting.AlertCondition;
+pub const AlertError = alerting.AlertError;
+pub const AlertStats = alerting.AlertStats;
+pub const AlertCallback = alerting.AlertCallback;
+pub const AlertHandler = alerting.AlertHandler;
+pub const MetricValues = alerting.MetricValues;
+pub const createAlertRule = alerting.createRule;
 
 pub const MonitoringError = error{
     MonitoringDisabled,

@@ -118,7 +118,7 @@ pub const LoadBalancer = struct {
             .nodes = std.ArrayListUnmanaged(NodeState){},
             .round_robin_index = std.atomic.Value(usize).init(0),
             .session_map = std.StringArrayHashMapUnmanaged([]const u8){},
-            .prng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp())),
+            .prng = std.Random.DefaultPrng.init(@intCast(time.unixMilliseconds())),
             .mutex = std.Thread.Mutex{},
         };
     }
@@ -290,11 +290,13 @@ pub const LoadBalancer = struct {
     }
 
     /// Get statistics for all nodes.
-    pub fn getStats(self: *LoadBalancer) []const NodeStats {
+    /// Caller must free the returned slice with `allocator.free(slice)`.
+    pub fn getStats(self: *LoadBalancer, allocator: std.mem.Allocator) ![]NodeStats {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        var stats = self.allocator.alloc(NodeStats, self.nodes.items.len) catch return &.{};
+        if (self.nodes.items.len == 0) return &.{};
+        const stats = try allocator.alloc(NodeStats, self.nodes.items.len);
 
         for (self.nodes.items, 0..) |*node, i| {
             stats[i] = .{
@@ -424,7 +426,7 @@ pub const LoadBalancer = struct {
         const hash: u64 = if (client_id) |cid|
             std.hash.Wyhash.hash(0, cid)
         else
-            @intCast(std.time.timestamp());
+            @intCast(time.unixMilliseconds());
 
         const target = hash % healthy_count;
         var count: usize = 0;

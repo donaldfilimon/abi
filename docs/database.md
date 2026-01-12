@@ -44,3 +44,105 @@ try db.restore("snapshot_2025.db");
 // BAD (Will fail)
 try db.restore("../../../secret.txt");
 ```
+
+## Batch Operations
+
+Efficient bulk operations for high-throughput scenarios.
+
+```zig
+const batch = @import("abi").wdbx.batch;
+
+// Configure batch processing
+const config = batch.BatchConfig{
+    .batch_size = 1000,
+    .parallel_workers = 4,
+    .retry_failed = true,
+    .report_progress = true,
+};
+
+// Prepare records
+var records = std.ArrayListUnmanaged(batch.BatchRecord){};
+defer records.deinit(allocator);
+
+try records.append(allocator, .{
+    .id = 1,
+    .vector = embedding,
+    .metadata = "{\"category\": \"tech\"}",
+    .text = "Document content for full-text indexing",
+});
+
+// Execute batch insert
+const result = try db.batchInsert(records.items, config);
+std.debug.print("Processed: {}, Throughput: {d:.2} items/sec\n", .{
+    result.total_processed,
+    result.throughput,
+});
+```
+
+## Full-Text Search
+
+BM25-ranked full-text search with configurable tokenization.
+
+```zig
+const fulltext = @import("abi").wdbx.fulltext;
+
+// Configure BM25 scoring
+const bm25_config = fulltext.Bm25Config{
+    .k1 = 1.2,          // Term frequency saturation
+    .b = 0.75,          // Document length normalization
+    .title_boost = 2.0, // Boost title matches
+};
+
+// Configure tokenizer
+const tokenizer_config = fulltext.TokenizerConfig{
+    .lowercase = true,
+    .enable_stemming = true,
+    .filter_stop_words = true,
+    .min_token_length = 2,
+};
+
+// Search
+const results = try db.textSearch("machine learning", .{
+    .bm25 = bm25_config,
+    .tokenizer = tokenizer_config,
+    .max_results = 10,
+});
+```
+
+## Metadata Filtering
+
+Pre-filter and post-filter search with rich operators.
+
+```zig
+const filter = @import("abi").wdbx.filter;
+
+// Build filter expression
+const expr = filter.Filter.init()
+    .field("category").eq(.{ .string = "tech" })
+    .and()
+    .field("year").gte(.{ .integer = 2023 })
+    .and()
+    .field("status").in_list(.{ .string_list = &.{ "published", "draft" } });
+
+// Apply filter to vector search
+const results = try db.searchVectors(query_embedding, 10, .{
+    .filter = expr,
+    .filter_strategy = .pre_filter, // or .post_filter
+});
+```
+
+### Filter Operators
+
+| Operator | Description |
+|----------|-------------|
+| `eq`, `ne` | Equal / Not equal |
+| `gt`, `gte`, `lt`, `lte` | Numeric comparisons |
+| `contains`, `starts_with`, `ends_with` | String matching |
+| `in_list`, `not_in_list` | List membership |
+| `exists`, `not_exists` | Field presence |
+| `regex`, `between` | Pattern / Range matching |
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

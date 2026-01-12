@@ -78,3 +78,8 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});
 - Unit coverage lives in library tests and `tests/mod.zig`.
 - New features must include tests or clear justification.
 - Run `zig build test --summary all` to see detailed results.
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

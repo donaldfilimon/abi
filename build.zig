@@ -236,7 +236,7 @@ pub fn build(b: *std.Build) void {
     const base_options = readBuildOptions(b);
     warnInconsistentOptions(base_options);
     validateFeatureFlags(base_options) catch |err| {
-        std.log.err("Feature flag validation failed: {s}", .{@errorName(err)});
+        std.log.err("Feature flag validation failed: {t}", .{err});
         std.process.exit(1);
     };
     const build_options_module = createBuildOptionsModule(b, base_options);
@@ -311,6 +311,7 @@ pub fn build(b: *std.Build) void {
         "compute",
         "gpu",
         "network",
+        "discord",
     };
 
     for (example_names) |example_name| {

@@ -2,8 +2,31 @@
 //!
 //! Provides caching for compiled GPU kernels to avoid
 //! redundant compilation and improve startup time.
+//!
+//! Disk persistence functions (persistToDisk, loadFromDisk)
+//! use std.Io.Dir.cwd() with proper I/O context for full Zig 0.16 compliance.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/// Maximum length for cache keys (filesystem-safe identifiers).
+pub const MAX_CACHE_KEY_LEN: usize = 200;
+
+/// Maximum length for kernel entry point names.
+pub const ENTRY_POINT_MAX_LEN: usize = 64;
+
+/// Default maximum cache size in bytes (256 MB).
+pub const DEFAULT_MAX_CACHE_SIZE: usize = 256 * 1024 * 1024;
+
+/// Default maximum number of cache entries.
+pub const DEFAULT_MAX_ENTRIES: usize = 1000;
+
+/// Default filename buffer size for cache file paths.
+pub const FILENAME_BUF_SIZE: usize = 256;
 
 /// Kernel compilation errors
 pub const KernelError = std.mem.Allocator.Error || error{
@@ -12,7 +35,30 @@ pub const KernelError = std.mem.Allocator.Error || error{
     UnsupportedSourceType,
     InvalidOptions,
     CacheCorrupted,
+    InvalidCacheKey,
 };
+
+/// Validate a cache key for safe filesystem use.
+/// Rejects keys containing path traversal sequences or unsafe characters.
+fn isValidCacheKey(key: []const u8) bool {
+    if (key.len == 0 or key.len > MAX_CACHE_KEY_LEN) return false;
+
+    // Reject path traversal attempts
+    if (std.mem.indexOf(u8, key, "..") != null) return false;
+    if (std.mem.indexOf(u8, key, "/") != null) return false;
+    if (std.mem.indexOf(u8, key, "\\") != null) return false;
+
+    // Reject Windows drive letters (e.g., "C:")
+    if (key.len >= 2 and key[1] == ':') return false;
+
+    // Only allow alphanumeric, underscore, hyphen, and dot
+    for (key) |c| {
+        const valid = std.ascii.isAlphanumeric(c) or c == '_' or c == '-' or c == '.';
+        if (!valid) return false;
+    }
+
+    return true;
+}
 
 /// Kernel source type.
 pub const KernelSourceType = enum {
@@ -23,6 +69,8 @@ pub const KernelSourceType = enum {
     cuda,
     opencl,
     wgsl,
+    /// Portable kernel DSL IR (auto-compiles to target backend).
+    dsl_ir,
 };
 
 /// Kernel compilation options.
@@ -46,7 +94,7 @@ pub const CacheEntryMeta = struct {
     compile_time_ns: i64,
     binary_size: usize,
     source_type: KernelSourceType,
-    entry_point: [64]u8 = [_]u8{0} ** 64,
+    entry_point: [ENTRY_POINT_MAX_LEN]u8 = [_]u8{0} ** ENTRY_POINT_MAX_LEN,
     entry_point_len: usize = 0,
 
     pub fn getEntryPoint(self: *const CacheEntryMeta) []const u8 {
@@ -63,9 +111,9 @@ pub const CachedKernel = struct {
 /// Kernel cache configuration.
 pub const KernelCacheConfig = struct {
     /// Maximum cache size in bytes.
-    max_cache_size: usize = 256 * 1024 * 1024,
+    max_cache_size: usize = DEFAULT_MAX_CACHE_SIZE,
     /// Maximum number of entries.
-    max_entries: usize = 1000,
+    max_entries: usize = DEFAULT_MAX_ENTRIES,
     /// Enable disk persistence.
     enable_persistence: bool = true,
     /// Cache directory path.
@@ -77,6 +125,7 @@ pub const KernelCacheConfig = struct {
 /// Kernel cache for compiled GPU kernels.
 pub const KernelCache = struct {
     allocator: std.mem.Allocator,
+    io: std.Io,
     config: KernelCacheConfig,
     entries: std.StringHashMapUnmanaged(CacheEntry),
     lru_order: std.ArrayListUnmanaged([]const u8),
@@ -92,9 +141,10 @@ pub const KernelCache = struct {
     };
 
     /// Initialize the kernel cache.
-    pub fn init(allocator: std.mem.Allocator, config: KernelCacheConfig) KernelCache {
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, config: KernelCacheConfig) KernelCache {
         return .{
             .allocator = allocator,
+            .io = io,
             .config = config,
             .entries = .{},
             .lru_order = .{},
@@ -134,9 +184,9 @@ pub const KernelCache = struct {
 
         // Check cache
         self.mutex.lock();
-        if (self.entries.get(key)) |*entry| {
+        if (self.entries.getPtr(key)) |entry| {
             entry.access_count += 1;
-            entry.last_access = std.time.timestamp();
+            entry.last_access = time.unixSeconds();
             self.stats.hits += 1;
             self.mutex.unlock();
 
@@ -158,8 +208,8 @@ pub const KernelCache = struct {
         const owned_key = try self.allocator.dupe(u8, key);
         errdefer self.allocator.free(owned_key);
 
-        var entry_point_buf: [64]u8 = [_]u8{0} ** 64;
-        const ep_len = @min(entry_point.len, 64);
+        var entry_point_buf: [ENTRY_POINT_MAX_LEN]u8 = [_]u8{0} ** ENTRY_POINT_MAX_LEN;
+        const ep_len = @min(entry_point.len, ENTRY_POINT_MAX_LEN);
         @memcpy(entry_point_buf[0..ep_len], entry_point[0..ep_len]);
 
         const entry = CacheEntry{
@@ -174,7 +224,7 @@ pub const KernelCache = struct {
             },
             .binary = binary,
             .access_count = 1,
-            .last_access = std.time.timestamp(),
+            .last_access = time.unixSeconds(),
         };
 
         // Insert into cache
@@ -204,7 +254,7 @@ pub const KernelCache = struct {
 
         if (self.entries.getPtr(key)) |entry| {
             entry.access_count += 1;
-            entry.last_access = std.time.timestamp();
+            entry.last_access = time.unixSeconds();
             self.stats.hits += 1;
 
             return CachedKernel{
@@ -232,8 +282,8 @@ pub const KernelCache = struct {
         const owned_binary = try self.allocator.dupe(u8, binary);
         errdefer self.allocator.free(owned_binary);
 
-        var entry_point_buf: [64]u8 = [_]u8{0} ** 64;
-        const ep_len = @min(entry_point.len, 64);
+        var entry_point_buf: [ENTRY_POINT_MAX_LEN]u8 = [_]u8{0} ** ENTRY_POINT_MAX_LEN;
+        const ep_len = @min(entry_point.len, ENTRY_POINT_MAX_LEN);
         @memcpy(entry_point_buf[0..ep_len], entry_point[0..ep_len]);
 
         const entry = CacheEntry{
@@ -248,7 +298,7 @@ pub const KernelCache = struct {
             },
             .binary = owned_binary,
             .access_count = 0,
-            .last_access = std.time.timestamp(),
+            .last_access = time.unixSeconds(),
         };
 
         self.mutex.lock();
@@ -326,8 +376,39 @@ pub const KernelCache = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        // In a real implementation, serialize entries to disk
-        _ = cache_dir;
+        // Create cache directory if it doesn't exist (Zig 0.16 pattern)
+        std.Io.Dir.cwd().createDirPath(self.io, cache_dir) catch |err| {
+            if (err != error.PathAlreadyExists) return err;
+        };
+
+        // Save each entry as a separate file
+        var iter = self.entries.iterator();
+        while (iter.next()) |entry| {
+            const key = entry.key_ptr.*;
+            const cache_entry = entry.value_ptr.*;
+
+            // Validate key to prevent path traversal attacks
+            if (!isValidCacheKey(key)) {
+                std.log.warn("Skipping invalid cache key: {s}", .{key});
+                continue;
+            }
+
+            // Construct filename from key
+            var filename_buf: [FILENAME_BUF_SIZE]u8 = undefined;
+            const filename = try std.fmt.bufPrint(&filename_buf, "{s}/{s}.bin", .{ cache_dir, key });
+
+            // Write binary to file
+            var file = try std.Io.Dir.cwd().createFile(self.io, filename, .{ .truncate = true });
+            defer file.close(self.io);
+
+            var writer = file.writer(self.io);
+
+            // Write metadata
+            try writer.writeAll(std.mem.asBytes(&cache_entry.meta));
+
+            // Write binary data
+            try writer.writeAll(cache_entry.binary);
+        }
     }
 
     /// Load cache from disk.
@@ -338,8 +419,67 @@ pub const KernelCache = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        // In a real implementation, deserialize entries from disk
-        _ = cache_dir;
+        // Open cache directory (Zig 0.16 pattern)
+        var dir = std.Io.Dir.cwd().openDir(self.io, cache_dir, .{ .iterate = true }) catch |err| {
+            if (err == error.FileNotFound) return;
+            return err;
+        };
+        defer dir.close(self.io);
+
+        // Iterate over .bin files
+        var iter = dir.iterate(self.io);
+        while (try iter.next(self.io)) |entry| {
+            if (entry.kind != .file) continue;
+            if (!std.mem.endsWith(u8, entry.name, ".bin")) continue;
+
+            // Read file
+            var file = try dir.openFile(self.io, entry.name, .{});
+            defer file.close(self.io);
+
+            var reader = file.reader(self.io);
+
+            // Read metadata
+            var meta: CacheEntryMeta = undefined;
+            const meta_bytes = try reader.readAll(std.mem.asBytes(&meta));
+            if (meta_bytes != @sizeOf(CacheEntryMeta)) continue;
+
+            // Read binary data
+            const binary_size = (try file.stat(self.io)).size - @sizeOf(CacheEntryMeta);
+            const binary = try self.allocator.alloc(u8, binary_size);
+            errdefer self.allocator.free(binary);
+
+            const read_bytes = try reader.readAll(binary);
+            if (read_bytes != binary_size) {
+                self.allocator.free(binary);
+                continue;
+            }
+
+            // Extract key from filename (remove .bin extension)
+            const key_len = entry.name.len - 4;
+            const key_slice = entry.name[0..key_len];
+
+            // Validate key to ensure it's safe
+            if (!isValidCacheKey(key_slice)) {
+                std.log.warn("Skipping cache file with invalid key: {s}", .{entry.name});
+                self.allocator.free(binary);
+                continue;
+            }
+
+            const key = try self.allocator.dupe(u8, key_slice);
+            errdefer self.allocator.free(key);
+
+            // Add to cache
+            const cache_entry = CacheEntry{
+                .meta = meta,
+                .binary = binary,
+                .access_count = 0,
+                .last_access = time.unixSeconds(),
+            };
+
+            try self.entries.put(self.allocator, key, cache_entry);
+            try self.lru_order.append(self.allocator, key);
+            self.current_size += binary.len;
+        }
     }
 
     // Internal helpers
@@ -422,7 +562,11 @@ pub const CacheStats = struct {
 
 test "kernel cache basic" {
     const allocator = std.testing.allocator;
-    var cache = KernelCache.init(allocator, .{});
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var cache = KernelCache.init(allocator, io, .{});
     defer cache.deinit();
 
     const dummy_compiler = struct {
@@ -458,7 +602,11 @@ test "kernel cache basic" {
 
 test "kernel cache eviction" {
     const allocator = std.testing.allocator;
-    var cache = KernelCache.init(allocator, .{
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var cache = KernelCache.init(allocator, io, .{
         .max_entries = 2,
         .max_cache_size = 1024,
     });

@@ -4,6 +4,7 @@
 //! and health checking in distributed deployments.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 const async_http = @import("../../shared/utils/http/async_http.zig");
 
 pub const ServiceDiscoveryError = error{
@@ -60,7 +61,7 @@ pub const ServiceRegistry = struct {
     allocator: std.mem.Allocator,
     config: DiscoveryConfig,
     http_client: async_http.AsyncHttpClient,
-    services: std.StringHashMap(ServiceInstance),
+    services: std.StringHashMapUnmanaged(ServiceInstance),
 
     pub fn init(allocator: std.mem.Allocator, config: DiscoveryConfig) !ServiceRegistry {
         const http_client = try async_http.AsyncHttpClient.init(allocator);
@@ -69,7 +70,7 @@ pub const ServiceRegistry = struct {
             .allocator = allocator,
             .config = config,
             .http_client = http_client,
-            .services = std.StringHashMap(ServiceInstance).init(allocator),
+            .services = .{},
         };
     }
 
@@ -78,7 +79,7 @@ pub const ServiceRegistry = struct {
         while (iter.next()) |entry| {
             entry.value_ptr.*.deinit(self.allocator);
         }
-        self.services.deinit();
+        self.services.deinit(self.allocator);
         self.http_client.deinit();
         self.* = undefined;
     }
@@ -107,10 +108,10 @@ pub const ServiceRegistry = struct {
             .port = instance.port,
             .tags = tags_copy,
             .health_status = instance.health_status,
-            .last_check = std.time.milliTimestamp(),
+            .last_check = time.unixMilliseconds(),
         };
 
-        try self.services.put(instance_copy.id, instance_copy);
+        try self.services.put(self.allocator, instance_copy.id, instance_copy);
     }
 
     pub fn deregister(self: *ServiceRegistry, service_id: []const u8) void {
@@ -180,7 +181,7 @@ pub const ServiceRegistry = struct {
     pub fn updateHealthStatus(self: *ServiceRegistry, service_id: []const u8, status: HealthStatus) !void {
         const instance = self.services.getPtr(service_id) orelse return ServiceDiscoveryError.ServiceNotFound;
         instance.health_status = status;
-        instance.last_check = std.time.milliTimestamp();
+        instance.last_check = time.unixMilliseconds();
     }
 
     pub fn runHealthChecks(self: *ServiceRegistry) !void {

@@ -56,8 +56,13 @@ When retrieving results or waiting for tasks, proper timeout handling is crucial
 
 ### CPU Affinity
 
-On supported platforms (Linux, Windows), the engine can pind worker threads to specific cores using `abi.compute.AffinityMask`.
+On supported platforms (Linux, Windows), the engine can pin worker threads to specific cores using `abi.compute.AffinityMask`.
 
 ### NUMA Awareness
 
 The engine detects NUMA topology to optimize memory allocation and thread placement, reducing cross-node traffic.
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

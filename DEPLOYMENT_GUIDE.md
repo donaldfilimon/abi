@@ -1,14 +1,14 @@
-# Abbey Deployment Guide
+# ABI Deployment Guide
 
-This guide covers deploying the ABI AI Agent System (Abbey) to production environments.
+This guide covers deploying the ABI AI Agent System to production environments.
 
 ## Quick Start
 
 ```bash
-# One-command deployment
-./abbey-complete.sh all
+# Build release binary
+zig build -Doptimize=ReleaseFast
 
-# Or step by step
+# Or use Docker
 docker-compose up -d
 curl http://localhost:8080/health
 ```
@@ -17,7 +17,7 @@ curl http://localhost:8080/health
 
 - Docker 20.10+ and Docker Compose v2
 - (Optional) kubectl for Kubernetes deployment
-- (Optional) Zig 0.13+ for local development
+- (Optional) Zig 0.16.x for local development
 
 ## Configuration
 
@@ -31,8 +31,9 @@ cp .env.example .env
 ```
 
 Key variables:
-- `OPENAI_API_KEY` - OpenAI API key for GPT models
-- `HF_API_TOKEN` - HuggingFace token for HF Inference API
+- `ABI_OPENAI_API_KEY` - OpenAI API key for GPT models
+- `ABI_HF_API_TOKEN` - HuggingFace token for HF Inference API
+- `ABI_OLLAMA_HOST` - Ollama host for local LLM (default: `http://127.0.0.1:11434`)
 - `GRAFANA_ADMIN_PASSWORD` - Grafana dashboard password
 
 ### Build Options
@@ -41,7 +42,15 @@ Configure features at build time:
 
 ```bash
 # Build with specific features
-docker build -t abbey:latest \
+zig build -Doptimize=ReleaseFast \
+    -Denable-ai=true \
+    -Denable-gpu=false \
+    -Denable-web=true \
+    -Denable-database=true \
+    -Denable-profiling=true
+
+# Docker build with features
+docker build -t abi:latest \
     --build-arg ENABLE_AI=true \
     --build-arg ENABLE_GPU=false \
     --build-arg ENABLE_WEB=true \
@@ -55,11 +64,11 @@ docker build -t abbey:latest \
 ### Basic Deployment
 
 ```bash
-# Start core services (Abbey, Prometheus, Grafana, Jaeger)
+# Start core services (ABI, Prometheus, Grafana, Jaeger)
 docker-compose up -d
 
 # View logs
-docker-compose logs -f abbey
+docker-compose logs -f abi
 
 # Stop services
 docker-compose down
@@ -87,46 +96,40 @@ docker-compose --profile with-ollama --profile with-neo4j --profile with-redis u
 
 ```bash
 # Create namespace and deploy
-kubectl apply -k deploy/k8s/
+kubectl apply -k k8s/
 
 # Check deployment status
-kubectl get pods -n abbey
+kubectl get pods -n abi
 
 # View logs
-kubectl logs -f -n abbey -l app.kubernetes.io/name=abbey
-```
-
-### Using the Deployment Script
-
-```bash
-./abbey-complete.sh k8s
+kubectl logs -f -n abi -l app.kubernetes.io/name=abi
 ```
 
 ### Customizing for Your Cluster
 
-1. Update `deploy/k8s/kustomization.yaml` with your container registry:
+1. Update `k8s/kustomization.yaml` with your container registry:
    ```yaml
    images:
-     - name: abbey
-       newName: your-registry.io/abbey
+     - name: abi
+       newName: your-registry.io/abi
        newTag: v1.0.0
    ```
 
 2. Configure secrets:
    ```bash
-   kubectl create secret generic abbey-secrets -n abbey \
+   kubectl create secret generic abi-secrets -n abi \
        --from-literal=ABI_OPENAI_API_KEY=sk-your-key \
        --from-literal=ABI_HF_API_TOKEN=hf_your-token
    ```
 
-3. Update ingress host in `deploy/k8s/ingress.yaml`
+3. Update ingress host in `k8s/ingress.yaml`
 
 ## Service Endpoints
 
 | Service | Docker | Kubernetes | Description |
 |---------|--------|------------|-------------|
-| Abbey API | http://localhost:8080 | http://abbey.abbey.svc:8080 | Main API |
-| Metrics | http://localhost:9090 | http://abbey.abbey.svc:9090 | Prometheus metrics |
+| ABI API | http://localhost:8080 | http://abi.abi.svc:8080 | Main API |
+| Metrics | http://localhost:9090 | http://abi.abi.svc:9090 | Prometheus metrics |
 | Prometheus | http://localhost:9091 | - | Metrics database |
 | Grafana | http://localhost:3000 | - | Dashboards |
 | Jaeger | http://localhost:16686 | - | Distributed tracing |
@@ -143,7 +146,7 @@ curl http://localhost:8080/ready
 # Chat with AI
 curl -X POST http://localhost:8080/api/chat \
     -H "Content-Type: application/json" \
-    -d '{"message": "Hello, Abbey!"}'
+    -d '{"message": "Hello, ABI!"}'
 
 # Get agent status
 curl http://localhost:8080/api/status
@@ -156,18 +159,18 @@ curl http://localhost:9090/metrics
 
 ### Grafana Dashboards
 
-Access Grafana at http://localhost:3000 (default: admin/abbey_grafana)
+Access Grafana at http://localhost:3000 (default: admin/abi_grafana)
 
 Pre-configured dashboards:
-- **Abbey Overview** - Request rates, latency, errors, AI backend metrics
+- **ABI Overview** - Request rates, latency, errors, AI backend metrics
 
 ### Prometheus Alerts
 
 Configured alerts include:
-- `AbbeyDown` - Service unreachable
-- `AbbeyHighErrorRate` - Error rate > 5%
-- `AbbeyHighLatency` - p95 latency > 1s
-- `AbbeyAIBackendFailure` - AI backend errors
+- `ABIDown` - Service unreachable
+- `ABIHighErrorRate` - Error rate > 5%
+- `ABIHighLatency` - p95 latency > 1s
+- `ABIAIBackendFailure` - AI backend errors
 
 ### Distributed Tracing
 
@@ -179,17 +182,17 @@ Access Jaeger at http://localhost:16686 to view distributed traces.
 
 ```bash
 # Scale to 3 instances
-docker-compose up -d --scale abbey=3
+docker-compose up -d --scale abi=3
 ```
 
 ### Kubernetes
 
 ```bash
 # Manual scaling
-kubectl scale deployment/abbey --replicas=10 -n abbey
+kubectl scale deployment/abi --replicas=10 -n abi
 
 # HPA is configured (3-20 pods based on CPU/memory)
-kubectl get hpa -n abbey
+kubectl get hpa -n abi
 ```
 
 ## Security Considerations
@@ -200,7 +203,7 @@ kubectl get hpa -n abbey
    - Rotate credentials regularly
 
 2. **Network Policies**
-   - `deploy/k8s/networkpolicy.yaml` implements zero-trust networking
+   - `k8s/networkpolicy.yaml` implements zero-trust networking
    - Only required traffic is allowed
 
 3. **Container Security**
@@ -218,10 +221,10 @@ kubectl get hpa -n abbey
 
 ```bash
 # Check logs
-docker-compose logs abbey
+docker-compose logs abi
 
 # Check resource constraints
-docker stats abbey
+docker stats abi
 ```
 
 ### Health Check Failing
@@ -231,7 +234,7 @@ docker stats abbey
 curl -v http://localhost:8080/health
 
 # Check application logs
-docker-compose logs -f abbey | grep -i error
+docker-compose logs -f abi | grep -i error
 ```
 
 ### High Memory Usage
@@ -247,36 +250,17 @@ curl http://localhost:9090/metrics | grep memory
 
 ```bash
 # Verify API keys are set
-docker-compose exec abbey env | grep API
+docker-compose exec abi env | grep API
 
 # Test connectivity to AI providers
-docker-compose exec abbey curl -I https://api.openai.com/v1/models
-```
-
-## Deployment Script Reference
-
-```bash
-./abbey-complete.sh <command>
-
-Commands:
-  all         Complete deployment (build + start + health)
-  build       Build the Abbey container
-  start       Start all services
-  stop        Stop all services
-  status      Show service status and URLs
-  health      Check if Abbey is healthy
-  logs [svc]  View logs (default: abbey)
-  test        Run deployment tests
-  k8s         Deploy to Kubernetes
-  clean       Stop and remove everything
-  help        Show help message
+docker-compose exec abi curl -I https://api.openai.com/v1/models
 ```
 
 ## Build from Source
 
 ```bash
 # Build release binary
-zig build -Doptimize=ReleaseSafe \
+zig build -Doptimize=ReleaseFast \
     -Denable-ai=true \
     -Denable-gpu=false \
     -Denable-web=true \
@@ -287,5 +271,10 @@ zig build -Doptimize=ReleaseSafe \
 zig build test --summary all
 
 # Run benchmarks
-zig build benchmark
+zig build benchmarks
 ```
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

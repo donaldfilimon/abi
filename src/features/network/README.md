@@ -1,10 +1,56 @@
-//! Network Feature Overview
+//! # Network
 //!
-//! Implements networking primitives such as service discovery, protocol
-//! handling, scheduling, and HA (high‑availability) mechanisms. The module is
-//! split into several files (`mod.zig`, `protocol.zig`, `registry.zig`,
-//! `scheduler.zig`, `service_discovery.zig`, `ha.zig`). Build options control
-//! which components are compiled.
+//! Distributed networking primitives for service discovery, HA, and scheduling.
 //!
-//! Extending the network stack typically means adding a new protocol module
-//! and wiring it into `mod.zig`.
+//! ## Features
+//!
+//! - **Service Discovery**: Automatic node discovery and registration
+//! - **High Availability**: Leader election, failover, replication
+//! - **Circuit Breaker**: Fault tolerance with exponential backoff
+//! - **Rate Limiting**: Token bucket rate limiting
+//! - **Retry Logic**: Configurable retry with jitter
+//!
+//! ## Sub-modules
+//!
+//! | Module | Description |
+//! |--------|-------------|
+//! | `mod.zig` | Public API aggregation |
+//! | `protocol.zig` | Wire protocol definitions |
+//! | `registry.zig` | Service registry |
+//! | `scheduler.zig` | Distributed task scheduling |
+//! | `service_discovery.zig` | Node discovery |
+//! | `ha.zig` | High availability primitives |
+//! | `circuit_breaker.zig` | Fault tolerance |
+//! | `rate_limiter.zig` | Rate limiting |
+//! | `retry.zig` | Retry logic |
+//!
+//! ## Usage
+//!
+//! ```zig
+//! const network = @import("abi").network;
+//!
+//! // Service discovery
+//! var discovery = try network.ServiceDiscovery.init(allocator, .{});
+//! defer discovery.deinit();
+//! try discovery.register("my-service", .{ .port = 8080 });
+//!
+//! // Circuit breaker
+//! var breaker = network.CircuitBreaker.init(.{
+//!     .failure_threshold = 5,
+//!     .reset_timeout_ms = 30000,
+//! });
+//! ```
+//!
+//! ## Build Options
+//!
+//! Enable with `-Denable-network=true` (default: true).
+//!
+//! ## See Also
+//!
+//! - [Network Documentation](../../../docs/network.md)
+//! - [Compute Network](../../compute/network/README.md)
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

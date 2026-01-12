@@ -429,17 +429,17 @@ pub const BenchmarkRunner = struct {
         try writer.writeAll("\n\n");
 
         // Group by category
-        var categories = std.StringHashMap(std.ArrayListUnmanaged(BenchResult)).init(self.allocator);
+        var categories = std.StringHashMapUnmanaged(std.ArrayListUnmanaged(BenchResult)){};
         defer {
             var it = categories.valueIterator();
             while (it.next()) |list| {
                 list.deinit(self.allocator);
             }
-            categories.deinit();
+            categories.deinit(self.allocator);
         }
 
         for (self.results.items) |result| {
-            const entry = try categories.getOrPut(result.config.category);
+            const entry = try categories.getOrPut(self.allocator, result.config.category);
             if (!entry.found_existing) {
                 entry.value_ptr.* = .{};
             }

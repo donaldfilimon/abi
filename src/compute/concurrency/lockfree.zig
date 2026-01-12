@@ -144,7 +144,7 @@ pub fn ShardedMap(
 
     return struct {
         const Context = std.hash_map.AutoContext(K);
-        const Map = std.AutoHashMap(K, V);
+        const Map = std.AutoHashMapUnmanaged(K, V);
         const Shard = struct {
             mutex: std.Thread.Mutex = .{},
             map: Map,
@@ -156,14 +156,14 @@ pub fn ShardedMap(
         pub fn init(allocator: std.mem.Allocator) @This() {
             var shards: [shard_count]Shard = undefined;
             for (&shards) |*shard| {
-                shard.* = .{ .mutex = .{}, .map = Map.init(allocator) };
+                shard.* = .{ .mutex = .{}, .map = .{} };
             }
             return .{ .allocator = allocator, .shards = shards };
         }
 
         pub fn deinit(self: *@This()) void {
             for (&self.shards) |*shard| {
-                shard.map.deinit();
+                shard.map.deinit(self.allocator);
             }
             self.* = undefined;
         }
@@ -186,7 +186,7 @@ pub fn ShardedMap(
             var shard = &self.shards[index];
             shard.mutex.lock();
             defer shard.mutex.unlock();
-            try shard.map.put(key, value);
+            try shard.map.put(self.allocator, key, value);
         }
 
         pub fn remove(self: *@This(), key: K) bool {

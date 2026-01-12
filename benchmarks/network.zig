@@ -32,22 +32,24 @@ pub const NetworkBenchConfig = struct {
 // ============================================================================
 
 const HttpRequest = struct {
+    allocator: std.mem.Allocator,
     method: []const u8,
     path: []const u8,
     version: []const u8,
-    headers: std.StringHashMap([]const u8),
+    headers: std.StringHashMapUnmanaged([]const u8),
     body: []const u8,
 };
 
 fn parseHttpRequest(allocator: std.mem.Allocator, raw: []const u8) !HttpRequest {
     var request = HttpRequest{
+        .allocator = allocator,
         .method = "",
         .path = "",
         .version = "",
-        .headers = std.StringHashMap([]const u8).init(allocator),
+        .headers = .{},
         .body = "",
     };
-    errdefer request.headers.deinit();
+    errdefer request.headers.deinit(allocator);
 
     var lines = std.mem.splitSequence(u8, raw, "\r\n");
 
@@ -63,7 +65,7 @@ fn parseHttpRequest(allocator: std.mem.Allocator, raw: []const u8) !HttpRequest 
     while (lines.next()) |line| {
         if (line.len == 0) break;
         if (std.mem.indexOf(u8, line, ": ")) |sep| {
-            try request.headers.put(line[0..sep], line[sep + 2 ..]);
+            try request.headers.put(allocator, line[0..sep], line[sep + 2 ..]);
         }
     }
 
@@ -111,7 +113,7 @@ fn generateHttpRequest(allocator: std.mem.Allocator, path_segments: usize, heade
 
 fn benchHttpParsing(allocator: std.mem.Allocator, raw: []const u8) !void {
     var request = try parseHttpRequest(allocator, raw);
-    defer request.headers.deinit();
+    defer request.headers.deinit(allocator);
     std.mem.doNotOptimizeAway(&request);
 }
 
@@ -288,56 +290,83 @@ fn benchJsonParsing(allocator: std.mem.Allocator, json: []const u8) !void {
 }
 
 fn benchJsonStringify(allocator: std.mem.Allocator, value: anytype) !void {
-    var buffer = std.ArrayListUnmanaged(u8){};
-    defer buffer.deinit(allocator);
+    var aw = std.Io.Writer.Allocating.init(allocator);
+    errdefer aw.deinit();
+    const writer = &aw.writer;
 
-    try std.json.stringify(value, .{}, buffer.writer(allocator));
-    std.mem.doNotOptimizeAway(buffer.items.ptr);
+    try std.json.stringify(value, .{}, writer);
+    const payload = try aw.toOwnedSlice();
+    defer allocator.free(payload);
+    std.mem.doNotOptimizeAway(payload.ptr);
 }
 
 // ============================================================================
 // Query String Parsing
 // ============================================================================
 
-fn parseQueryString(allocator: std.mem.Allocator, query: []const u8) !std.StringHashMap([]const u8) {
-    var params = std.StringHashMap([]const u8).init(allocator);
-    errdefer params.deinit();
+const QueryParams = struct {
+    allocator: std.mem.Allocator,
+    params: std.StringHashMapUnmanaged([]const u8),
+
+    pub fn deinit(self: *QueryParams) void {
+        self.params.deinit(self.allocator);
+    }
+};
+
+fn parseQueryString(allocator: std.mem.Allocator, query: []const u8) !QueryParams {
+    var result = QueryParams{
+        .allocator = allocator,
+        .params = .{},
+    };
+    errdefer result.params.deinit(allocator);
 
     var pairs = std.mem.splitScalar(u8, query, '&');
     while (pairs.next()) |pair| {
         if (std.mem.indexOf(u8, pair, "=")) |sep| {
-            try params.put(pair[0..sep], pair[sep + 1 ..]);
+            try result.params.put(allocator, pair[0..sep], pair[sep + 1 ..]);
         } else {
-            try params.put(pair, "");
+            try result.params.put(allocator, pair, "");
         }
     }
 
-    return params;
+    return result;
 }
 
 fn benchQueryStringParsing(allocator: std.mem.Allocator, query: []const u8) !void {
-    var params = try parseQueryString(allocator, query);
-    defer params.deinit();
-    std.mem.doNotOptimizeAway(&params);
+    var parsed = try parseQueryString(allocator, query);
+    defer parsed.deinit();
+    std.mem.doNotOptimizeAway(&parsed);
 }
 
 // ============================================================================
 // Header Parsing
 // ============================================================================
 
-fn parseHeaders(allocator: std.mem.Allocator, raw: []const u8) !std.StringHashMap([]const u8) {
-    var headers = std.StringHashMap([]const u8).init(allocator);
-    errdefer headers.deinit();
+const ParsedHeaders = struct {
+    allocator: std.mem.Allocator,
+    headers: std.StringHashMapUnmanaged([]const u8),
+
+    pub fn deinit(self: *ParsedHeaders) void {
+        self.headers.deinit(self.allocator);
+    }
+};
+
+fn parseHeaders(allocator: std.mem.Allocator, raw: []const u8) !ParsedHeaders {
+    var result = ParsedHeaders{
+        .allocator = allocator,
+        .headers = .{},
+    };
+    errdefer result.headers.deinit(allocator);
 
     var lines = std.mem.splitSequence(u8, raw, "\r\n");
     while (lines.next()) |line| {
         if (line.len == 0) break;
         if (std.mem.indexOf(u8, line, ": ")) |sep| {
-            try headers.put(line[0..sep], line[sep + 2 ..]);
+            try result.headers.put(allocator, line[0..sep], line[sep + 2 ..]);
         }
     }
 
-    return headers;
+    return result;
 }
 
 fn generateHeaders(allocator: std.mem.Allocator, count: usize) ![]u8 {
@@ -364,8 +393,8 @@ fn generateHeaders(allocator: std.mem.Allocator, count: usize) ![]u8 {
     return buffer.toOwnedSlice(allocator);
 }
 
-fn benchHeaderParsing(allocator: std.mem.Allocator, headers: []const u8) !void {
-    var parsed = try parseHeaders(allocator, headers);
+fn benchHeaderParsing(allocator: std.mem.Allocator, headers_raw: []const u8) !void {
+    var parsed = try parseHeaders(allocator, headers_raw);
     defer parsed.deinit();
     std.mem.doNotOptimizeAway(&parsed);
 }

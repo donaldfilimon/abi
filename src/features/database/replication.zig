@@ -50,8 +50,8 @@ pub const ReplicationManager = struct {
     config: ReplicationConfig,
     metrics: ReplicationMetrics,
     replicas: std.StringArrayHashMapUnmanaged(ReplicaInfo),
-    leader_for_shard: std.AutoHashMap(u32, []const u8),
-    shard_replicas: std.AutoHashMap(u32, std.ArrayListUnmanaged([]const u8)),
+    leader_for_shard: std.AutoHashMapUnmanaged(u32, []const u8),
+    shard_replicas: std.AutoHashMapUnmanaged(u32, std.ArrayListUnmanaged([]const u8)),
     pending_syncs: std.ArrayListUnmanaged(PendingSync),
     running: std.atomic.Value(bool),
     thread: ?std.Thread = null,
@@ -71,8 +71,8 @@ pub const ReplicationManager = struct {
             .config = config,
             .metrics = .{},
             .replicas = std.StringArrayHashMapUnmanaged(ReplicaInfo).empty,
-            .leader_for_shard = std.AutoHashMap(u32, []const u8).init(allocator),
-            .shard_replicas = std.AutoHashMap(u32, std.ArrayListUnmanaged([]const u8)).init(allocator),
+            .leader_for_shard = .{},
+            .shard_replicas = .{},
             .pending_syncs = std.ArrayListUnmanaged(PendingSync).empty,
             .running = std.atomic.Value(bool).init(false),
             .thread = null,
@@ -95,7 +95,8 @@ pub const ReplicationManager = struct {
             }
             entry.value_ptr.deinit(self.allocator);
         }
-        self.shard_replicas.deinit();
+        self.shard_replicas.deinit(self.allocator);
+        self.leader_for_shard.deinit(self.allocator);
 
         self.pending_syncs.deinit(self.allocator);
         self.* = undefined;
@@ -123,13 +124,13 @@ pub const ReplicationManager = struct {
         try self.replicas.put(self.allocator, id_copy, replica_info);
 
         if (is_leader) {
-            try self.leader_for_shard.put(shard_id, id_copy);
+            try self.leader_for_shard.put(self.allocator, shard_id, id_copy);
         }
 
         var shard_list = self.shard_replicas.get(shard_id) orelse blk: {
             var list = std.ArrayListUnmanaged([]const u8).empty;
             try list.append(self.allocator, id_copy);
-            try self.shard_replicas.put(shard_id, list);
+            try self.shard_replicas.put(self.allocator, shard_id, list);
             break :blk list;
         };
         try shard_list.append(self.allocator, id_copy);
@@ -143,7 +144,7 @@ pub const ReplicationManager = struct {
 
             if (self.leader_for_shard.get(shard_id)) |leader| {
                 if (std.mem.eql(u8, leader, node_id)) {
-                    self.leader_for_shard.remove(shard_id);
+                    _ = self.leader_for_shard.remove(shard_id);
                 }
             }
 
@@ -171,7 +172,7 @@ pub const ReplicationManager = struct {
             replica.state = .leader;
         }
 
-        try self.leader_for_shard.put(shard_id, node_id);
+        try self.leader_for_shard.put(self.allocator, shard_id, node_id);
         self.updateMetrics();
     }
 

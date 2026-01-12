@@ -34,12 +34,18 @@ A high-performance parallel execution environment.
 
 Domain-specific modules that plug into the core:
 
-- **AI**: LLM connectors, Agent runtimes.
-- **Database**: WDBX vector database, backup/restore.
-- **GPU**: Backend implementations (CUDA, Vulkan, Metal).
+- **AI**: LLM connectors, Agent runtimes, code exploration.
+- **Database**: WDBX vector database, backup/restore, hybrid search.
+- **GPU**: Backend implementations (CUDA, Vulkan, Metal, WebGPU).
 - **Network**: Distributed node discovery and task serialization.
 - **Web**: Async HTTP clients and servers.
+- **Connectors**: External service integrations (OpenAI, Ollama, HuggingFace, Discord).
 
 ## Getting Started
 
 To start using ABI, check out the [Framework Guide](framework.md) to initialize your application.
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

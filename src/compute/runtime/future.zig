@@ -135,7 +135,7 @@ pub fn Future(comptime T: type) type {
         }
 
         /// Reject the future with an error.
-        pub fn reject(self: *Self, err: anyerror) void {
+        pub fn reject(self: *Self, err: FutureError) void {
             self.mutex.lock();
             defer self.mutex.unlock();
 
@@ -389,7 +389,7 @@ pub fn Promise(comptime T: type) type {
             self.future.resolve(value);
         }
 
-        pub fn reject(self: *Self, err: anyerror) void {
+        pub fn reject(self: *Self, err: FutureError) void {
             self.future.reject(err);
         }
 

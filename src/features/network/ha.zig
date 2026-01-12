@@ -51,30 +51,30 @@ pub const ClusterConfig = struct {
 pub const HealthCheck = struct {
     allocator: std.mem.Allocator,
     config: ClusterConfig,
-    node_health: std.StringHashMap(NodeHealth),
+    node_health: std.StringHashMapUnmanaged(NodeHealth),
     cluster_state: ClusterState,
     primary_node: ?[]const u8 = null,
-    check_count: std.StringHashMap(u8),
+    check_count: std.StringHashMapUnmanaged(u8),
 
     pub fn init(allocator: std.mem.Allocator, config: ClusterConfig) !HealthCheck {
         return HealthCheck{
             .allocator = allocator,
             .config = config,
-            .node_health = std.StringHashMap(NodeHealth).init(allocator),
+            .node_health = .{},
             .cluster_state = .forming,
-            .check_count = std.StringHashMap(u8).init(allocator),
+            .check_count = .{},
         };
     }
 
     pub fn deinit(self: *HealthCheck) void {
-        self.node_health.deinit();
-        self.check_count.deinit();
+        self.node_health.deinit(self.allocator);
+        self.check_count.deinit(self.allocator);
         self.* = undefined;
     }
 
     pub fn addNode(self: *HealthCheck, node_id: []const u8) !void {
-        try self.node_health.put(node_id, .unknown);
-        try self.check_count.put(node_id, 0);
+        try self.node_health.put(self.allocator, node_id, .unknown);
+        try self.check_count.put(self.allocator, node_id, 0);
     }
 
     pub fn removeNode(self: *HealthCheck, node_id: []const u8) void {
@@ -90,9 +90,12 @@ pub const HealthCheck = struct {
     }
 
     pub fn reportHealth(self: *HealthCheck, result: HealthCheckResult) !void {
-        try self.node_health.put(result.node_id, if (result.healthy) .healthy else .unhealthy);
+        try self.node_health.put(self.allocator, result.node_id, if (result.healthy) .healthy else .unhealthy);
 
-        const count_ptr = try self.check_count.getOrPut(result.node_id, 0);
+        const count_ptr = try self.check_count.getOrPut(self.allocator, result.node_id);
+        if (!count_ptr.found_existing) {
+            count_ptr.value_ptr.* = 0;
+        }
         if (result.healthy) {
             count_ptr.value_ptr.* = 0;
         } else {

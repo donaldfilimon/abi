@@ -56,7 +56,7 @@ pub const GpuError = struct {
         _ = fmt;
         _ = options;
 
-        try writer.print("GPU Error: {s} ({t})", .{
+        try writer.print("GPU Error: {t} ({t})", .{
             self.error_type,
             self.code,
         });
@@ -99,20 +99,28 @@ pub const ErrorContext = struct {
         self.* = undefined;
     }
 
+    pub const ReportError = error{
+        OutOfMemory,
+    };
+
     pub fn reportError(
         self: *ErrorContext,
         code: GpuErrorCode,
         error_type: GpuErrorType,
         message: []const u8,
-    ) !void {
+    ) ReportError!void {
         if (self.errors.items.len >= self.max_errors) {
-            try self.errors.removeOrError(self.errors.items.len - 1);
+            const last_index = self.errors.items.len - 1;
+            self.allocator.free(self.errors.items[last_index].message);
+            _ = self.errors.swapRemove(last_index);
         }
 
         const msg_copy = try self.allocator.dupe(u8, message);
         errdefer self.allocator.free(msg_copy);
 
-        const timestamp = std.time.timestamp();
+        // Simple monotonic timestamp for error tracking
+        // Use 0 for now; could use Timer for relative timestamps if needed
+        const timestamp: i64 = 0;
 
         const gpu_error = GpuError{
             .code = code,
@@ -129,19 +137,25 @@ pub const ErrorContext = struct {
         return self.errors.items[self.errors.items.len - 1];
     }
 
+    pub const GetErrorsByTypeError = error{
+        OutOfMemory,
+    };
+
     pub fn getErrorsByType(
         self: *const ErrorContext,
+        allocator: std.mem.Allocator,
         error_type: GpuErrorType,
-    ) []const GpuError {
+    ) GetErrorsByTypeError![]GpuError {
         var filtered = std.ArrayListUnmanaged(GpuError).empty;
+        errdefer filtered.deinit(allocator);
 
         for (self.errors.items) |err| {
             if (err.error_type == error_type) {
-                filtered.append(self.allocator, err) catch continue;
+                try filtered.append(allocator, err);
             }
         }
 
-        return filtered.toSlice(self.allocator);
+        return filtered.toOwnedSlice(allocator);
     }
 
     pub fn clear(self: *ErrorContext) void {

@@ -2,7 +2,7 @@
 
 ABI includes built-in tools for monitoring application health and performance.
 
-## logging
+## Logging
 
 Use `abi.log` (which wraps `std.log`) for structured logging.
 
@@ -31,3 +31,8 @@ The framework measures the execution time of work-stealing tasks and can export 
 const summary = engine.getMetricsSummary();
 std.debug.print("Avg Task Time: {d} us\n", .{summary.avg_execution_ns / 1000});
 ```
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

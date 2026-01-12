@@ -15,6 +15,7 @@ pub const streaming = @import("streaming.zig");
 pub const tools = @import("tools/mod.zig");
 pub const explore = if (build_options.enable_explore) @import("explore/mod.zig") else @import("explore/stub.zig");
 pub const llm = if (build_options.enable_llm) @import("llm/mod.zig") else @import("llm/stub.zig");
+pub const memory = @import("memory/mod.zig");
 
 pub const Agent = agent.Agent;
 pub const ModelRegistry = model_registry.ModelRegistry;
@@ -32,6 +33,8 @@ pub const ToolResult = tools.ToolResult;
 pub const ToolRegistry = tools.ToolRegistry;
 pub const TaskTool = tools.TaskTool;
 pub const Subagent = tools.Subagent;
+pub const DiscordTools = tools.DiscordTools;
+pub const registerDiscordTools = tools.registerDiscordTools;
 
 pub const ExploreAgent = explore.ExploreAgent;
 pub const ExploreConfig = explore.ExploreConfig;

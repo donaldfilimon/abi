@@ -4,20 +4,25 @@ The **AI** module (`abi.ai`) provides the building blocks for creating autonomou
 
 ## Connectors
 
-Connectors provide a unified interface to various model providers.
+Connectors provide a unified interface to various model providers and platforms.
 
-Supported (or planned) providers:
+### Model Providers
 
-- **OpenAI** (`abi.connectors.openai`)
-- **Ollama** (`abi.connectors.ollama`)
-- **HuggingFace** (`abi.connectors.huggingface`)
+- **OpenAI** (`abi.connectors.openai`) - GPT-4, GPT-3.5, embeddings
+- **Ollama** (`abi.connectors.ollama`) - Local LLM inference
+- **HuggingFace** (`abi.connectors.huggingface`) - Inference API
+
+### Platform Integrations
+
+- **Discord** (`abi.connectors.discord`) - Discord Bot API for messaging, webhooks, and interactions
 
 ### Configuration
 
 Connectors are typically configured via environment variables for security.
 
-- `ABI_OPENAI_API_KEY`
-- `ABI_OLLAMA_HOST`
+- `ABI_OPENAI_API_KEY` - OpenAI API key
+- `ABI_OLLAMA_HOST` - Ollama server URL (default: `http://127.0.0.1:11434`)
+- `DISCORD_BOT_TOKEN` - Discord bot authentication token
 
 ## Training
 The training pipeline (`abi.ai.training`) supports gradient accumulation and

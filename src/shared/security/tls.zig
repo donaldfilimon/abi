@@ -28,6 +28,7 @@
 //! - Monitor for TLS vulnerabilities and update accordingly
 
 const std = @import("std");
+const time = @import("../utils/time.zig");
 const crypto = std.crypto;
 const net = std.net;
 
@@ -294,7 +295,7 @@ pub const TlsConnection = struct {
     }
 
     fn validateCertificate(self: *TlsConnection, cert: *const TlsCertificate) !void {
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
         if (now < cert.valid_from) {
             return error.CertificateNotYetValid;
         }
@@ -474,7 +475,7 @@ pub const CertificateStore = struct {
 
     pub fn verifyCertificate(self: *CertificateStore, cert: *const TlsCertificate, _: []const u8) !bool {
         if (self.isRevoked(cert.der_encoding)) return false;
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
         if (now < cert.valid_from) return error.CertificateNotYetValid;
         if (now > cert.valid_until) return error.CertificateExpired;
         return true;

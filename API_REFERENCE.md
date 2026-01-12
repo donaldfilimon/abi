@@ -90,7 +90,12 @@ Each connector provides:
 ## Modules
 
 - `src/core` - I/O, diagnostics, collections
-- `src/features` - feature modules (AI, GPU, database, web, monitoring)
+- `src/features` - feature modules (AI, GPU, database, web, monitoring, connectors)
 - `src/framework` - orchestration runtime and lifecycle management
 - `src/shared` - shared utilities and platform helpers
 - `src/compute` - compute runtime, memory management, concurrency
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

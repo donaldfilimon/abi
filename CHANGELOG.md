@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### Zig 0.16-dev API Migration
+### Zig 0.16 API Migration
 
 **Reader API Migration**
 - Migrated `std.io.AnyReader` → `std.Io.Reader` in async HTTP client
@@ -21,7 +21,7 @@
 
 **Build System Updates**
 - Updated CI configuration to use Zig `0.16.0` instead of `0.17.0`
-- Confirmed `minimum_zig_version` in `build.zig.zon` is set to `"0.16.0-dev.1892+53ebfde6b"`
+- Confirmed `minimum_zig_version` in `build.zig.zon` is set to `"0.16.0"`
 - All feature builds tested and passing (gpu, ai, web, database, network)
 
 **Testing & Verification**
@@ -275,3 +275,8 @@ Updated all feature documentation with new APIs and examples.
 - Removed deprecated benchmarks, examples, and legacy test suites.
 - Consolidated feature exports and build options for Zig 0.16.
 - Updated documentation and project structure.
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

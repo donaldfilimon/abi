@@ -5,6 +5,10 @@ pub const openai = @import("openai.zig");
 pub const huggingface = @import("huggingface.zig");
 pub const ollama = @import("ollama.zig");
 pub const local_scheduler = @import("local_scheduler.zig");
+pub const discord = @import("discord/mod.zig");
+pub const anthropic = @import("anthropic.zig");
+pub const mistral = @import("mistral.zig");
+pub const cohere = @import("cohere.zig");
 
 var initialized: bool = false;
 
@@ -25,10 +29,18 @@ pub fn isInitialized() bool {
 }
 
 pub fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) !?[]u8 {
-    return std.process.getEnvVarOwned(allocator, name) catch |err| switch (err) {
-        error.EnvironmentVariableNotFound => null,
-        else => return err,
+    // Create an environment map from the system environment
+    var env_map = std.process.Environ.createMap(.{ .block = {} }, allocator) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return null,
     };
+    defer env_map.deinit();
+
+    // Look up the variable and return a copy if found
+    if (env_map.get(name)) |value| {
+        return try allocator.dupe(u8, value);
+    }
+    return null;
 }
 
 pub fn getFirstEnvOwned(allocator: std.mem.Allocator, names: []const []const u8) !?[]u8 {
@@ -86,6 +98,50 @@ pub fn loadOllama(allocator: std.mem.Allocator) !ollama.Config {
 
 pub fn loadLocalScheduler(allocator: std.mem.Allocator) !local_scheduler.Config {
     return local_scheduler.loadFromEnv(allocator);
+}
+
+pub fn loadDiscord(allocator: std.mem.Allocator) !discord.Config {
+    return discord.loadFromEnv(allocator);
+}
+
+pub fn tryLoadDiscord(allocator: std.mem.Allocator) !?discord.Config {
+    return discord.loadFromEnv(allocator) catch |err| switch (err) {
+        discord.DiscordError.MissingBotToken => null,
+        else => return err,
+    };
+}
+
+pub fn loadAnthropic(allocator: std.mem.Allocator) !anthropic.Config {
+    return anthropic.loadFromEnv(allocator);
+}
+
+pub fn tryLoadAnthropic(allocator: std.mem.Allocator) !?anthropic.Config {
+    return anthropic.loadFromEnv(allocator) catch |err| switch (err) {
+        anthropic.AnthropicError.MissingApiKey => null,
+        else => return err,
+    };
+}
+
+pub fn loadMistral(allocator: std.mem.Allocator) !mistral.Config {
+    return mistral.loadFromEnv(allocator);
+}
+
+pub fn tryLoadMistral(allocator: std.mem.Allocator) !?mistral.Config {
+    return mistral.loadFromEnv(allocator) catch |err| switch (err) {
+        mistral.MistralError.MissingApiKey => null,
+        else => return err,
+    };
+}
+
+pub fn loadCohere(allocator: std.mem.Allocator) !cohere.Config {
+    return cohere.loadFromEnv(allocator);
+}
+
+pub fn tryLoadCohere(allocator: std.mem.Allocator) !?cohere.Config {
+    return cohere.loadFromEnv(allocator) catch |err| switch (err) {
+        cohere.CohereError.MissingApiKey => null,
+        else => return err,
+    };
 }
 
 test "connectors init toggles state" {

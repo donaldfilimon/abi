@@ -1,5 +1,22 @@
 //! Unified GPU acceleration interface.
 //!
+//! DEPRECATED: This module is superseded by the new unified GPU API.
+//! Please use `unified.zig` instead, which provides:
+//! - `Gpu` struct with smart buffer management
+//! - Portable kernel DSL with auto-compilation to all backends
+//! - Multi-GPU support with work distribution
+//! - Integrated profiling and metrics
+//!
+//! Migration:
+//!   Old: `const accel = try Accelerator.init(allocator, .{})`
+//!   New: `var gpu = try Gpu.init(allocator, .{})`
+//!
+//!   Old: `try acceleration.vectorAdd(allocator, a, b, result)`
+//!   New: `_ = try gpu.vectorAdd(a_buf, b_buf, result_buf)`
+//!
+//! This module is kept for backward compatibility but will be removed
+//! in a future release.
+//!
 //! Provides a high-level, backend-agnostic API for GPU compute operations.
 //! Automatically selects the best available backend and provides fallback
 //! to CPU computation when no GPU is available.

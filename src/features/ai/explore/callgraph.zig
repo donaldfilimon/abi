@@ -26,9 +26,9 @@ pub const CallEdge = struct {
 pub const CallGraph = struct {
     allocator: std.mem.Allocator,
     /// Map from function name to list of functions it calls
-    calls: std.StringHashMap(std.ArrayListUnmanaged(Function)),
+    calls: std.StringHashMapUnmanaged(std.ArrayListUnmanaged(Function)),
     /// Map from function name to list of functions that call it
-    called_by: std.StringHashMap(std.ArrayListUnmanaged(Function)),
+    called_by: std.StringHashMapUnmanaged(std.ArrayListUnmanaged(Function)),
     /// All functions in the graph
     all_functions: std.ArrayListUnmanaged(Function),
     /// All edges in the graph
@@ -37,8 +37,8 @@ pub const CallGraph = struct {
     pub fn init(allocator: std.mem.Allocator) CallGraph {
         return .{
             .allocator = allocator,
-            .calls = std.StringHashMap(std.ArrayListUnmanaged(Function)).init(allocator),
-            .called_by = std.StringHashMap(std.ArrayListUnmanaged(Function)).init(allocator),
+            .calls = .{},
+            .called_by = .{},
             .all_functions = .{},
             .edges = .{},
         };
@@ -49,13 +49,13 @@ pub const CallGraph = struct {
         while (calls_iter.next()) |list| {
             list.deinit(self.allocator);
         }
-        self.calls.deinit();
+        self.calls.deinit(self.allocator);
 
         var called_by_iter = self.called_by.valueIterator();
         while (called_by_iter.next()) |list| {
             list.deinit(self.allocator);
         }
-        self.called_by.deinit();
+        self.called_by.deinit(self.allocator);
 
         self.all_functions.deinit(self.allocator);
         self.edges.deinit(self.allocator);
@@ -68,8 +68,8 @@ pub const CallGraph = struct {
         const key = try self.allocator.dupe(u8, func.name);
         errdefer self.allocator.free(key);
 
-        try self.calls.put(key, .{});
-        try self.called_by.put(key, .{});
+        try self.calls.put(self.allocator, key, .{});
+        try self.called_by.put(self.allocator, key, .{});
     }
 
     /// Add a call relationship (caller -> callee)
@@ -103,17 +103,17 @@ pub const CallGraph = struct {
 
     /// Check if there's a call path from function A to function B
     pub fn hasPathTo(self: *const CallGraph, from: []const u8, to: []const u8) bool {
-        var visited = std.StringHashMap(void).init(self.allocator);
-        defer visited.deinit();
+        var visited = std.StringHashMapUnmanaged(void){};
+        defer visited.deinit(self.allocator);
 
         return self.dfsPath(from, to, &visited);
     }
 
-    fn dfsPath(self: *const CallGraph, current: []const u8, target: []const u8, visited: *std.StringHashMap(void)) bool {
+    fn dfsPath(self: *const CallGraph, current: []const u8, target: []const u8, visited: *std.StringHashMapUnmanaged(void)) bool {
         if (std.mem.eql(u8, current, target)) return true;
         if (visited.get(current) != null) return false;
 
-        try visited.put(current, {});
+        visited.put(self.allocator, current, {}) catch return false;
 
         if (self.calls.get(current)) |callees| {
             for (callees.items) |callee| {

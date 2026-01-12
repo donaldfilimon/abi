@@ -367,10 +367,10 @@ fn HNSWIndex(comptime distance_fn: fn ([]const f32, []const f32) f32) type {
             var candidates = std.ArrayListUnmanaged(SearchResult){};
             errdefer candidates.deinit(self.allocator);
 
-            var visited = std.AutoHashMap(u32, void).init(self.allocator);
-            defer visited.deinit();
+            var visited = std.AutoHashMapUnmanaged(u32, void){};
+            defer visited.deinit(self.allocator);
 
-            try visited.put(curr_node, {});
+            try visited.put(self.allocator, curr_node, {});
             try candidates.append(self.allocator, .{
                 .id = self.nodes.items[curr_node].id,
                 .dist = curr_dist,
@@ -384,7 +384,7 @@ fn HNSWIndex(comptime distance_fn: fn ([]const f32, []const f32) f32) type {
                     if (visited.contains(@intCast(idx))) continue;
                     const d = distance_fn(query, node.vector);
                     if (candidates.items.len < ef or d < candidates.items[candidates.items.len - 1].dist) {
-                        try visited.put(@intCast(idx), {});
+                        try visited.put(self.allocator, @intCast(idx), {});
                         try candidates.append(self.allocator, .{ .id = node.id, .dist = d });
                     }
                 }

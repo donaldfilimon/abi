@@ -4,6 +4,7 @@
 //! for GPU operations and kernel launches.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 
 pub const ProfilingError = error{
     TimerFailed,
@@ -155,7 +156,7 @@ pub const Profiler = struct {
 
         try self.timings.append(allocator, .{
             .kernel_name = name_copy,
-            .start_time = std.time.timestamp(),
+            .start_time = @intCast(time.nowNanoseconds()),
             .device_id = device_id,
             .stream_id = self.current_stream_id,
             .duration_ms = 0.0,
@@ -169,11 +170,13 @@ pub const Profiler = struct {
         if (!self.enabled or self.timings.items.len == 0) return;
 
         const timing = &self.timings.items[self.timings.items.len - 1];
-        timing.end_time = std.time.timestamp();
+        const end_time: i64 = @intCast(time.nowNanoseconds());
+        timing.end_time = end_time;
 
-        const start_ns = @as(u64, @intCast(@abs(@as(i64, @intCast(timing.start_time * 1_000_000_000)))));
-        const end_ns = @as(u64, @intCast(@abs(@as(i64, @intCast(timing.end_time * 1_000_000_000)))));
-        const duration_ns = if (end_ns > start_ns) end_ns - start_ns else 0;
+        const duration_ns = if (end_time >= timing.start_time)
+            @as(u64, @intCast(end_time - timing.start_time))
+        else
+            0;
 
         timing.duration_ns = duration_ns;
         timing.duration_ms = @as(f64, @floatFromInt(duration_ns)) / 1_000_000.0;

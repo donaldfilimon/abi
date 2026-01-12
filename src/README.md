@@ -1,35 +1,66 @@
-//! src Directory Overview
+//! # Source Directory
 //!
-//! This directory contains the core source modules of the ABI framework.
-//! The layout follows a feature‑centric organization that aligns with the
-//! project's roadmap and build system.
+//! Core source modules of the ABI framework organized by function.
 //!
-//! **Sub‑directories**
-//! - `compute` – Low‑level compute primitives and runtime.
-//! - `core` – Core utilities and profiling.
-//! - `features` – Optional feature implementations (AI, GPU, networking, …).
-//! - `framework` – High‑level orchestration layer.
-//! - `shared` – Reusable utilities (logging, platform abstractions, plugins, …).
+//! ## Structure
 //!
-//! Each sub‑folder contains a `README.md` that explains its purpose and how to
-//! extend it.
+//! | Directory | Description |
+//! |-----------|-------------|
+//! | `abi.zig` | Public API entry point with curated re-exports |
+//! | `root.zig` | Root module entrypoint |
+//! | `core/` | Core infrastructure, hardware helpers, profiling |
+//! | `compute/` | Compute engine, concurrency, memory, GPU integration |
+//! | `features/` | Optional features (AI, database, GPU, network, web) |
+//! | `framework/` | Lifecycle management, feature orchestration |
+//! | `shared/` | Cross-cutting utilities (logging, platform, utils) |
+//! | `tests/` | Test utilities and property-based testing |
 //!
-//! Top‑level sub‑directories:
+//! ## Module Hierarchy
 //!
-//! - **compute** – Low‑level compute primitives and runtime helpers.
-//! - **core** – Core utilities such as profiling, the main entry point, and
-//!   documentation for the core package.
-//! - **features** – Implementation of optional and optional‑style features. Each
-//!   feature lives in its own sub‑folder (e.g., `ai`, `gpu`, `network`, `web`).
-//!   Inside each folder a `mod.zig` aggregates the public API for that feature.
-//! - **framework** – High‑level framework glue code that ties the core and
-//!   feature modules together.
-//! - **shared** – Reusable utilities shared across the codebase (logging,
-//!   observability, platform abstractions, plugins, and a rich collection of
-//!   helper modules under `utils`).
+//! ```
+//! src/
+//! ├── abi.zig              # Public API
+//! ├── root.zig             # Root module
+//! ├── core/                # Core infrastructure
+//! ├── compute/
+//! │   ├── runtime/         # Engine, scheduler, NUMA
+//! │   ├── concurrency/     # Lock-free data structures
+//! │   ├── memory/          # Arena allocators, pools
+//! │   ├── gpu/             # GPU backends
+//! │   ├── network/         # Distributed compute
+//! │   └── profiling/       # Metrics collection
+//! ├── features/
+//! │   ├── ai/              # AI (LLM, embeddings, RAG)
+//! │   ├── connectors/      # API connectors
+//! │   ├── database/        # WDBX vector database
+//! │   ├── gpu/             # GPU feature stubs
+//! │   ├── monitoring/      # Observability
+//! │   ├── network/         # Network features
+//! │   └── web/             # Web utilities
+//! ├── framework/           # Orchestration layer
+//! ├── shared/
+//! │   ├── logging/         # Logging infrastructure
+//! │   ├── observability/   # Tracing, metrics
+//! │   ├── platform/        # OS abstractions
+//! │   ├── plugins/         # Plugin system
+//! │   ├── security/        # API keys, auth
+//! │   └── utils/           # General utilities
+//! └── tests/               # Test utilities
+//! ```
 //!
-//! Each sub‑directory includes its own `README.md` with more detailed
-//! information and build instructions.
+//! ## Key Entry Points
 //!
-//! The layout matches the conventions described in `AGENTS.md` and is kept
-//! up‑to‑date as new features are added.
+//! - **Public API**: `abi.zig` - Use `abi.init()`, `abi.shutdown()`, `abi.version()`
+//! - **Compute**: `compute/mod.zig` - Work-stealing scheduler, GPU integration
+//! - **Features**: `features/*/mod.zig` - Feature-specific APIs
+//!
+//! ## See Also
+//!
+//! - [CLAUDE.md](../CLAUDE.md) - Full project documentation
+//! - [API Reference](../API_REFERENCE.md)
+//! - [docs/intro.md](../docs/intro.md) - Architecture overview
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+

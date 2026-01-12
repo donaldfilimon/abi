@@ -4,6 +4,7 @@
 //! including token bucket, sliding window, and fixed window.
 
 const std = @import("std");
+const time = @import("../../shared/utils/time.zig");
 
 /// Rate limiting algorithm.
 pub const RateLimitAlgorithm = enum {
@@ -91,7 +92,7 @@ pub const TokenBucketLimiter = struct {
         return .{
             .config = config,
             .tokens = std.atomic.Value(u64).init(capacity),
-            .last_refill = std.atomic.Value(i64).init(std.time.timestamp()),
+            .last_refill = std.atomic.Value(i64).init(time.nowSeconds()),
             .refill_rate_ns = refill_rate,
             .mutex = .{},
         };
@@ -137,7 +138,7 @@ pub const TokenBucketLimiter = struct {
             switch (result) {
                 .allowed => return,
                 .denied => |info| {
-                    std.time.sleep(info.retry_after_ns);
+                    time.sleepNs(info.retry_after_ns);
                 },
                 .queued => {},
             }
@@ -153,7 +154,7 @@ pub const TokenBucketLimiter = struct {
     }
 
     fn refill(self: *TokenBucketLimiter) void {
-        const now = std.time.timestamp();
+        const now = time.nowSeconds();
         const last = self.last_refill.load(.monotonic);
         const elapsed: u64 = @intCast(@max(0, now - last));
 
@@ -198,7 +199,7 @@ pub const SlidingWindowLimiter = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = std.time.timestamp();
+        const now = time.nowSeconds();
         const window_start = now - @as(i64, @intCast(self.config.window_ns / 1_000_000_000));
 
         // Remove expired timestamps
@@ -246,7 +247,7 @@ pub const SlidingWindowLimiter = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = std.time.timestamp();
+        const now = time.nowSeconds();
         const window_start = now - @as(i64, @intCast(self.config.window_ns / 1_000_000_000));
 
         var count: u32 = 0;
@@ -269,7 +270,7 @@ pub const FixedWindowLimiter = struct {
         return .{
             .config = config,
             .count = std.atomic.Value(u32).init(0),
-            .window_start = std.atomic.Value(i64).init(std.time.timestamp()),
+            .window_start = std.atomic.Value(i64).init(time.nowSeconds()),
             .mutex = .{},
         };
     }
@@ -279,7 +280,7 @@ pub const FixedWindowLimiter = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = std.time.timestamp();
+        const now = time.nowSeconds();
         const window_start = self.window_start.load(.monotonic);
         const window_end = window_start + @as(i64, @intCast(self.config.window_ns / 1_000_000_000));
 
@@ -330,7 +331,7 @@ pub const FixedWindowLimiter = struct {
         defer self.mutex.unlock();
 
         self.count.store(0, .monotonic);
-        self.window_start.store(std.time.timestamp(), .monotonic);
+        self.window_start.store(time.nowSeconds(), .monotonic);
     }
 };
 

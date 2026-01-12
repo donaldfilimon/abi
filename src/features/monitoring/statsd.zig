@@ -46,7 +46,7 @@ pub const StatsDClient = struct {
             .allocator = allocator,
             .config = config,
             .socket = null,
-            .buffer = std.ArrayListUnmanaged(u8).init(allocator),
+            .buffer = .{},
             .connected = false,
         };
     }

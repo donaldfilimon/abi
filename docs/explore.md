@@ -18,22 +18,22 @@ The explore module provides intelligent search capabilities for codebases with:
 
 ```bash
 # Basic search
-abi explore "HTTP handler"
+zig build run -- explore "HTTP handler"
 
 # Search with specific level
-abi explore -l thorough "TODO"
+zig build run -- explore -l thorough "TODO"
 
 # Search with output format
-abi explore -f json "pub fn"
+zig build run -- explore -f json "pub fn"
 
 # Include specific file types
-abi explore -i "*.zig" "pub const"
+zig build run -- explore -i "*.zig" "pub const"
 
 # Exclude patterns
-abi explore -e "test" "handler"
+zig build run -- explore -e "test" "handler"
 
 # Use regex patterns
-abi explore -r "fn\s+\w+"
+zig build run -- explore -r "fn\s+\w+"
 ```
 
 ### Library Usage
@@ -141,11 +141,13 @@ Parse source code to extract code elements:
 var parser = explore.AstParser.init(allocator);
 defer parser.deinit();
 
-// Use I/O context (e.g., `io`) to get the current directory
-const content = try (std.Io.Dir.cwd(io)).readFileAlloc(allocator, "src/abi.zig", 1024 * 1024);
-defer allocator.free(content);
+// Read file content using std.Io
+var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+defer io_backend.deinit();
+const io = io_backend.io();
 
-const file_stat = try fs.getFileStats("src/abi.zig");
+const content = try std.Io.Dir.cwd().readFileAlloc(io, "src/abi.zig", allocator, .limited(1024 * 1024));
+defer allocator.free(content);
 const parsed = try parser.parseFile(&file_stat, content);
 defer parsed.deinit();
 
@@ -227,7 +229,7 @@ Query: "handler" | Found: 12 matches in 234ms
 ## CLI Options
 
 ```
-Usage: abi explore [options] <query>
+Usage: zig build run -- explore [options] <query>
 
 Arguments:
   <query>              Search pattern or natural language query
@@ -251,47 +253,47 @@ Options:
 ### Find all HTTP handlers
 
 ```bash
-abi explore "HTTP handler"
-abi explore -l thorough "handleRequest"
-abi explore -i "*.zig" "pub fn"
+zig build run -- explore "HTTP handler"
+zig build run -- explore -l thorough "handleRequest"
+zig build run -- explore -i "*.zig" "pub fn"
 ```
 
 ### Find test functions
 
 ```bash
-abi explore "test"
-abi explore -l thorough "test case"
-abi explore -i "_test.zig" ""
+zig build run -- explore "test"
+zig build run -- explore -l thorough "test case"
+zig build run -- explore -i "_test.zig" ""
 ```
 
 ### Find configuration
 
 ```bash
-abi explore "const CONFIG"
-abi explore "pub const"
-abi explore -e "test" "config"
+zig build run -- explore "const CONFIG"
+zig build run -- explore "pub const"
+zig build run -- explore -e "test" "config"
 ```
 
 ### Find TODO comments
 
 ```bash
-abi explore "TODO"
-abi explore -l thorough "TODO FIXME"
-abi explore -f json "fixme"
+zig build run -- explore "TODO"
+zig build run -- explore -l thorough "TODO FIXME"
+zig build run -- explore -f json "fixme"
 ```
 
 ### Find imports
 
 ```bash
-abi explore "import"
-abi explore -l quick "use @import"
+zig build run -- explore "import"
+zig build run -- explore -l quick "use @import"
 ```
 
 ### Analyze code structure
 
 ```bash
-abi explore -l thorough "analyze structure"
-abi explore -l deep "list all functions"
+zig build run -- explore -l thorough "analyze structure"
+zig build run -- explore -l deep "list all functions"
 ```
 
 ## API Reference
@@ -369,7 +371,7 @@ Parallel exploration features:
 ## Error Handling
 
 ```zig
-const result = agent.explore(".", "query) catch |err| {
+const result = agent.explore(".", "query") catch |err| {
     switch (err) {
         error.PathNotFound => std.debug.print("Path not found\n", .{}),
         error.Timeout => std.debug.print("Search timed out\n", .{}),
@@ -379,3 +381,8 @@ const result = agent.explore(".", "query) catch |err| {
     return;
 };
 ```
+
+## Contacts
+
+src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+
