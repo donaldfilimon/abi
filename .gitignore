@@ -111,3 +111,4 @@ release/
 .nx/installation
 .nx/cache
 .nx/workspace-data
+tmpclaude-*-cwd
