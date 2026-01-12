@@ -239,7 +239,6 @@ pub const AlertManager = struct {
     const RuleState = struct {
         condition_met_since: ?u64,
         last_value: f64,
-        previous_value: ?f64,
         evaluation_count: u64,
     };
 
@@ -314,7 +313,6 @@ pub const AlertManager = struct {
         try self.rule_state.put(self.allocator, state_key, RuleState{
             .condition_met_since = null,
             .last_value = 0,
-            .previous_value = null,
             .evaluation_count = 0,
         });
 
@@ -391,23 +389,23 @@ pub const AlertManager = struct {
             if (!rule.enabled) continue;
 
             // Get metric value
+            const state = self.rule_state.getPtr(rule.name) orelse continue;
             const value = metrics.get(rule.metric) orelse {
                 // Handle absent metric
                 if (rule.condition == .absent) {
                     try self.processConditionMet(rule);
+                } else {
+                    try self.processConditionNotMet(rule);
                 }
                 continue;
             };
 
             // Evaluate condition
-            const condition_met = rule.condition.evaluate(value, rule.threshold);
+            const condition_met = self.evaluateCondition(rule, value, state);
 
             // Update rule state
-            if (self.rule_state.getPtr(rule.name)) |state| {
-                state.previous_value = state.last_value;
-                state.last_value = value;
-                state.evaluation_count += 1;
-            }
+            state.last_value = value;
+            state.evaluation_count += 1;
 
             if (condition_met) {
                 try self.processConditionMet(rule);
@@ -422,14 +420,12 @@ pub const AlertManager = struct {
         const rule = self.rules.get(rule_name) orelse return AlertError.RuleNotFound;
         if (!rule.enabled) return false;
 
-        const condition_met = rule.condition.evaluate(value, rule.threshold);
+        const state = self.rule_state.getPtr(rule.name) orelse return false;
+        const condition_met = self.evaluateCondition(rule, value, state);
 
         // Update rule state
-        if (self.rule_state.getPtr(rule.name)) |state| {
-            state.previous_value = state.last_value;
-            state.last_value = value;
-            state.evaluation_count += 1;
-        }
+        state.last_value = value;
+        state.evaluation_count += 1;
 
         if (condition_met) {
             try self.processConditionMet(rule);
@@ -613,6 +609,25 @@ pub const AlertManager = struct {
             handler.last_notified_ms = self.current_time_ms;
             self.stats.notifications_sent += 1;
         }
+    }
+
+    fn evaluateCondition(
+        self: *const AlertManager,
+        rule: AlertRule,
+        value: f64,
+        state: *const RuleState,
+    ) bool {
+        _ = self;
+        return switch (rule.condition) {
+            .rate_of_change => {
+                if (state.evaluation_count == 0) {
+                    return false;
+                }
+                return (value - state.last_value) >= rule.threshold;
+            },
+            .absent => false,
+            else => rule.condition.evaluate(value, rule.threshold),
+        };
     }
 };
 
