@@ -71,8 +71,18 @@ pub const KMeans = struct {
         const centroids = try allocator.alloc([]f32, k);
         errdefer allocator.free(centroids);
 
+        // Track how many centroids have been allocated for cleanup on error
+        var allocated_count: usize = 0;
+        errdefer {
+            // Clean up any partially allocated centroids
+            for (centroids[0..allocated_count]) |centroid| {
+                allocator.free(centroid);
+            }
+        }
+
         for (centroids) |*centroid| {
             centroid.* = try allocator.alloc(f32, dimension);
+            allocated_count += 1;
         }
 
         return .{

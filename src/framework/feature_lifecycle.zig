@@ -7,7 +7,7 @@
 //! Usage (Simple):
 //! ```zig
 //! const lifecycle = @import("framework/feature_lifecycle.zig");
-//! var lc = lifecycle.FeatureLifecycle(build_options.enable_ai, error.AiDisabled){};
+//! var lc = lifecycle.FeatureLifecycle(build_options.enable_ai, .ai_disabled){};
 //!
 //! pub const init = lc.init;
 //! pub const deinit = lc.deinit;
@@ -17,10 +17,65 @@
 //!
 //! Usage (Thread-Safe):
 //! ```zig
-//! var lc = lifecycle.ThreadSafeLifecycle(build_options.enable_web, error.WebDisabled){};
+//! var lc = lifecycle.ThreadSafeLifecycle(build_options.enable_web, .web_disabled){};
 //! ```
 
 const std = @import("std");
+
+/// Specific error set for feature disabled states.
+/// Each feature has a dedicated error variant.
+pub const FeatureDisabledError = error{
+    AiDisabled,
+    GpuDisabled,
+    WebDisabled,
+    DatabaseDisabled,
+    NetworkDisabled,
+    ProfilingDisabled,
+    MonitoringDisabled,
+    ExploreDisabled,
+    LlmDisabled,
+    TestDisabled,
+};
+
+/// Error type for lifecycle hook operations.
+pub const LifecycleHookError = error{
+    HookFailed,
+    InitializationFailed,
+    OutOfMemory,
+};
+
+/// Combined error set for lifecycle operations.
+pub const LifecycleError = FeatureDisabledError || LifecycleHookError;
+
+/// Feature identifier for selecting which disabled error to return.
+pub const FeatureId = enum {
+    ai_disabled,
+    gpu_disabled,
+    web_disabled,
+    database_disabled,
+    network_disabled,
+    profiling_disabled,
+    monitoring_disabled,
+    explore_disabled,
+    llm_disabled,
+    test_disabled,
+
+    /// Convert feature ID to the corresponding error.
+    pub fn toError(self: FeatureId) FeatureDisabledError {
+        return switch (self) {
+            .ai_disabled => FeatureDisabledError.AiDisabled,
+            .gpu_disabled => FeatureDisabledError.GpuDisabled,
+            .web_disabled => FeatureDisabledError.WebDisabled,
+            .database_disabled => FeatureDisabledError.DatabaseDisabled,
+            .network_disabled => FeatureDisabledError.NetworkDisabled,
+            .profiling_disabled => FeatureDisabledError.ProfilingDisabled,
+            .monitoring_disabled => FeatureDisabledError.MonitoringDisabled,
+            .explore_disabled => FeatureDisabledError.ExploreDisabled,
+            .llm_disabled => FeatureDisabledError.LlmDisabled,
+            .test_disabled => FeatureDisabledError.TestDisabled,
+        };
+    }
+};
 
 /// Generic feature lifecycle manager for simple (non-thread-safe) features.
 ///
@@ -30,19 +85,19 @@ const std = @import("std");
 ///
 /// Parameters:
 /// - `enabled`: Comptime boolean flag (typically from build_options)
-/// - `disabled_error`: Error to return when feature is disabled
-pub fn FeatureLifecycle(comptime enabled: bool, comptime disabled_error: anyerror) type {
+/// - `feature_id`: Which feature this lifecycle manages (determines disabled error)
+pub fn FeatureLifecycle(comptime enabled: bool, comptime feature_id: FeatureId) type {
     return struct {
         initialized: bool = false,
 
         const Self = @This();
 
         /// Initialize the feature. Returns error if feature is disabled at compile time.
-        pub fn init(self: *Self, allocator: std.mem.Allocator) !void {
+        pub fn init(self: *Self, allocator: std.mem.Allocator) LifecycleError!void {
             _ = allocator; // Reserved for future use (e.g., lifecycle hooks)
 
             if (!comptime enabled) {
-                return disabled_error;
+                return feature_id.toError();
             }
 
             self.initialized = true;
@@ -69,9 +124,9 @@ pub fn FeatureLifecycle(comptime enabled: bool, comptime disabled_error: anyerro
             self: *Self,
             allocator: std.mem.Allocator,
             hooks: LifecycleHooks,
-        ) !void {
+        ) LifecycleError!void {
             if (!comptime enabled) {
-                return disabled_error;
+                return feature_id.toError();
             }
 
             if (hooks.pre_init) |pre_init_fn| {
@@ -105,7 +160,7 @@ pub fn FeatureLifecycle(comptime enabled: bool, comptime disabled_error: anyerro
 ///
 /// Identical API to FeatureLifecycle but with mutex-protected state changes.
 /// Use this for features accessed from multiple threads during initialization.
-pub fn ThreadSafeLifecycle(comptime enabled: bool, comptime disabled_error: anyerror) type {
+pub fn ThreadSafeLifecycle(comptime enabled: bool, comptime feature_id: FeatureId) type {
     return struct {
         initialized: bool = false,
         mutex: std.Thread.Mutex = .{},
@@ -113,11 +168,11 @@ pub fn ThreadSafeLifecycle(comptime enabled: bool, comptime disabled_error: anye
         const Self = @This();
 
         /// Initialize the feature with mutex protection.
-        pub fn init(self: *Self, allocator: std.mem.Allocator) !void {
+        pub fn init(self: *Self, allocator: std.mem.Allocator) LifecycleError!void {
             _ = allocator;
 
             if (!comptime enabled) {
-                return disabled_error;
+                return feature_id.toError();
             }
 
             self.mutex.lock();
@@ -152,9 +207,9 @@ pub fn ThreadSafeLifecycle(comptime enabled: bool, comptime disabled_error: anye
             self: *Self,
             allocator: std.mem.Allocator,
             hooks: LifecycleHooks,
-        ) !void {
+        ) LifecycleError!void {
             if (!comptime enabled) {
-                return disabled_error;
+                return feature_id.toError();
             }
 
             if (hooks.pre_init) |pre_init_fn| {
@@ -196,10 +251,10 @@ pub fn ThreadSafeLifecycle(comptime enabled: bool, comptime disabled_error: anye
 /// standard lifecycle operations.
 pub const LifecycleHooks = struct {
     /// Called before initialization begins
-    pre_init: ?*const fn (std.mem.Allocator) anyerror!void = null,
+    pre_init: ?*const fn (std.mem.Allocator) LifecycleHookError!void = null,
 
     /// Called after successful initialization
-    post_init: ?*const fn (std.mem.Allocator) anyerror!void = null,
+    post_init: ?*const fn (std.mem.Allocator) LifecycleHookError!void = null,
 
     /// Called if initialization fails
     on_init_error: ?*const fn () void = null,
@@ -216,7 +271,7 @@ pub const LifecycleHooks = struct {
 // ============================================================================
 
 test "FeatureLifecycle enabled feature" {
-    var lifecycle = FeatureLifecycle(true, error.TestDisabled){};
+    var lifecycle = FeatureLifecycle(true, .test_disabled){};
 
     try std.testing.expect(!lifecycle.isInitialized());
     try std.testing.expect(lifecycle.isEnabled());
@@ -229,13 +284,13 @@ test "FeatureLifecycle enabled feature" {
 }
 
 test "FeatureLifecycle disabled feature" {
-    var lifecycle = FeatureLifecycle(false, error.TestDisabled){};
+    var lifecycle = FeatureLifecycle(false, .test_disabled){};
 
     try std.testing.expect(!lifecycle.isInitialized());
     try std.testing.expect(!lifecycle.isEnabled());
 
     const result = lifecycle.init(std.testing.allocator);
-    try std.testing.expectError(error.TestDisabled, result);
+    try std.testing.expectError(FeatureDisabledError.TestDisabled, result);
     try std.testing.expect(!lifecycle.isInitialized());
 
     lifecycle.deinit(); // Safe to call even when not initialized
@@ -243,7 +298,7 @@ test "FeatureLifecycle disabled feature" {
 }
 
 test "FeatureLifecycle multiple init/deinit cycles" {
-    var lifecycle = FeatureLifecycle(true, error.TestDisabled){};
+    var lifecycle = FeatureLifecycle(true, .test_disabled){};
 
     for (0..3) |_| {
         try lifecycle.init(std.testing.allocator);
@@ -254,7 +309,7 @@ test "FeatureLifecycle multiple init/deinit cycles" {
 }
 
 test "ThreadSafeLifecycle enabled feature" {
-    var lifecycle = ThreadSafeLifecycle(true, error.TestDisabled){};
+    var lifecycle = ThreadSafeLifecycle(true, .test_disabled){};
 
     try std.testing.expect(!lifecycle.isInitialized());
     try std.testing.expect(lifecycle.isEnabled());
@@ -267,12 +322,12 @@ test "ThreadSafeLifecycle enabled feature" {
 }
 
 test "ThreadSafeLifecycle disabled feature" {
-    var lifecycle = ThreadSafeLifecycle(false, error.TestDisabled){};
+    var lifecycle = ThreadSafeLifecycle(false, .test_disabled){};
 
     try std.testing.expect(!lifecycle.isInitialized());
     try std.testing.expect(!lifecycle.isEnabled());
 
     const result = lifecycle.init(std.testing.allocator);
-    try std.testing.expectError(error.TestDisabled, result);
+    try std.testing.expectError(FeatureDisabledError.TestDisabled, result);
     try std.testing.expect(!lifecycle.isInitialized());
 }

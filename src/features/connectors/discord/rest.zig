@@ -71,6 +71,8 @@ pub const Client = struct {
 
     pub fn init(allocator: std.mem.Allocator, config: Config) !Client {
         const http = try async_http.AsyncHttpClient.init(allocator);
+        errdefer http.deinit();
+
         return .{
             .allocator = allocator,
             .config = config,
