@@ -284,7 +284,12 @@ zig test src/compute/gpu/error_handling.zig  # ✓ All tests passed
 
 This comprehensive overhaul brings the GPU backend implementation in line with Zig 0.16 best practices, improves error handling, standardizes the backend interface, and adds intelligent device selection. All changes maintain backward compatibility with the public API while improving internal consistency and code quality.
 
-## Contacts
+---
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+## See Also
+
+- [GPU Acceleration](gpu.md) - Unified API and usage guide
+- [Compute Engine](compute.md) - CPU/GPU workload scheduling
+- [Monitoring](monitoring.md) - GPU metrics and profiling
+- [Troubleshooting](troubleshooting.md) - GPU detection and issues
 

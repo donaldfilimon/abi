@@ -142,7 +142,31 @@ const results = try db.searchVectors(query_embedding, 10, .{
 | `exists`, `not_exists` | Field presence |
 | `regex`, `between` | Pattern / Range matching |
 
-## Contacts
+---
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+## CLI Commands
 
+```bash
+# Database operations
+zig build run -- db stats                              # Show statistics
+zig build run -- db add --id 1 --embed "text"          # Add with embedding
+zig build run -- db add --id 2 --vector "1.0,2.0,3.0"  # Add raw vector
+zig build run -- db query --text "search term" --k 10  # Search
+zig build run -- db optimize                           # Optimize indices
+
+# Backup and restore
+zig build run -- db backup --path snapshot.db
+zig build run -- db restore --path snapshot.db
+
+# HTTP API server
+zig build run -- db serve --port 8080
+```
+
+---
+
+## See Also
+
+- [AI & Agents](ai.md) - Embedding generation for vectors
+- [GPU Acceleration](gpu.md) - GPU-accelerated search
+- [Monitoring](monitoring.md) - Database metrics
+- [Troubleshooting](troubleshooting.md) - Path validation and performance issues

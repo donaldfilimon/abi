@@ -152,9 +152,12 @@ The CI configuration has been updated to use Zig 0.16.x instead of 0.17.0.
 
 - [Zig main branch](https://github.com/ziglang/zig/tree/master)
 - [Zig Standard Library Documentation](https://ziglang.org/documentation/master/)
-- [ABI Framework Documentation](../index.md)
 
-## Contacts
+---
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+## See Also
 
+- [Documentation Index](../index.md) - Full documentation
+- [Framework](../framework.md) - Configuration and lifecycle
+- [Troubleshooting](../troubleshooting.md) - Migration issues
+- [Migration Report](MIGRATION_REPORT.md) - Completion details

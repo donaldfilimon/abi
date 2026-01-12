@@ -96,3 +96,30 @@ The `AgentConfig` struct supports:
 - `setTemperature(temp)` - Update temperature
 - `setTopP(top_p)` - Update top_p parameter
 - `setHistoryEnabled(enabled)` - Enable/disable history tracking
+
+---
+
+## CLI Commands
+
+```bash
+# Run AI agent interactively
+zig build run -- agent
+
+# Run with a single message
+zig build run -- agent --message "Hello, how are you?"
+
+# LLM model operations
+zig build run -- llm info model.gguf       # Show model information
+zig build run -- llm generate model.gguf   # Generate text
+zig build run -- llm chat model.gguf       # Interactive chat
+zig build run -- llm bench model.gguf      # Benchmark performance
+```
+
+---
+
+## See Also
+
+- [Explore](explore.md) - Codebase exploration with AI
+- [Framework](framework.md) - Configuration options
+- [Compute Engine](compute.md) - Task execution for AI workloads
+- [Troubleshooting](troubleshooting.md) - Common issues

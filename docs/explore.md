@@ -382,7 +382,11 @@ const result = agent.explore(".", "query") catch |err| {
 };
 ```
 
-## Contacts
+---
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+## See Also
 
+- [AI & Agents](ai.md) - AI-powered features
+- [Compute Engine](compute.md) - Parallel exploration execution
+- [Framework](framework.md) - Configuration options
+- [Troubleshooting](troubleshooting.md) - Search and timeout issues

@@ -224,7 +224,8 @@ For critical code paths:
 
 ## References
 
-- Benchmark implementation: `benchmarks/run.zig`
+- Benchmark implementation: `benchmarks/main.zig`
+- Benchmark framework: `benchmarks/framework.zig`
 - Compute engine: `src/compute/runtime/engine.zig`
 - Memory management: `src/shared/utils/memory/`
 - HTTP client: `src/shared/utils/http/async_http.zig`
@@ -233,9 +234,12 @@ For critical code paths:
 
 **Document Version**: 1.0
 **Last Updated**: 2025-01-03
-**Next Review**: After the next Zig 0.16.x point release
 
-## Contacts
+---
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+## See Also
 
+- [Compute Engine](compute.md) - Engine configuration and metrics
+- [GPU Acceleration](gpu.md) - GPU performance benchmarks
+- [Monitoring](monitoring.md) - Metrics collection
+- [Troubleshooting](troubleshooting.md) - Performance debugging

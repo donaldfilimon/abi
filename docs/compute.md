@@ -62,7 +62,47 @@ On supported platforms (Linux, Windows), the engine can pin worker threads to sp
 
 The engine detects NUMA topology to optimize memory allocation and thread placement, reducing cross-node traffic.
 
-## Contacts
+```zig
+var engine = try abi.compute.createEngine(allocator, .{
+    .numa_enabled = true,
+    .cpu_affinity_enabled = true,
+});
+```
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+---
 
+## Concurrency Primitives
+
+The compute module provides lock-free data structures:
+
+| Primitive | Description |
+|-----------|-------------|
+| `WorkStealingQueue` | LIFO for owner, FIFO for thieves |
+| `LockFreeQueue` | Atomic CAS-based queue |
+| `LockFreeStack` | Atomic CAS-based stack |
+| `PriorityQueue` | Lock-free priority queue |
+| `ShardedMap` | Reduces contention via sharding |
+
+---
+
+## CLI Commands
+
+```bash
+# Show system and compute info
+zig build run -- system-info
+
+# Run SIMD performance demo
+zig build run -- simd
+
+# Run benchmarks
+zig build benchmarks
+```
+
+---
+
+## See Also
+
+- [GPU Acceleration](gpu.md) - GPU workload offloading
+- [Network](network.md) - Distributed task execution
+- [Monitoring](monitoring.md) - Engine metrics and profiling
+- [Troubleshooting](troubleshooting.md) - Timeout and performance issues

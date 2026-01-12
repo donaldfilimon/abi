@@ -140,12 +140,20 @@ const result = try breaker.call(fn () !Response {
 | `request_timeout_ms` | 30000 | Request timeout |
 | `max_retries` | 3 | Maximum retry attempts |
 
+## CLI Commands
+
+```bash
+# Network registry operations
+zig build run -- network list                   # List discovered nodes
+zig build run -- network register --host HOST  # Register a node
+zig build run -- network status                 # Show network status
+```
+
+---
+
 ## See Also
 
 - [Compute Engine](compute.md) - Local task execution
-- [API Reference](../API_REFERENCE.md) - Full API documentation
-
-## Contacts
-
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
-
+- [Monitoring](monitoring.md) - Network metrics and alerting
+- [Framework](framework.md) - Configuration options
+- [Troubleshooting](troubleshooting.md) - Connection issues
