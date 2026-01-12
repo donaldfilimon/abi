@@ -58,59 +58,68 @@ const global = try coordinator.aggregate();
 
 ## Agents
 
-An **Agent** wraps a connector with memory and tools.
+An **Agent** provides a conversational interface with configurable history and parameters.
 
 ```zig
 var agent = try abi.ai.Agent.init(allocator, .{
     .name = "coding-assistant",
-    .system_prompt = "You are a helpful coding assistant.",
-    .backend = .ollama,
     .enable_history = true,
     .temperature = 0.7,
+    .top_p = 0.9,
 });
 defer agent.deinit();
 
-const response = try agent.chat("How do I write a Hello World in Zig?");
+// Use chat() for conversational interface
+const response = try agent.chat("How do I write a Hello World in Zig?", allocator);
+defer allocator.free(response);
+
+// Or use process() for the same functionality
+const response2 = try agent.process("Another question", allocator);
+defer allocator.free(response2);
 ```
 
-### Backend Options
+### Agent Configuration
 
-| Backend | Description |
-|---------|-------------|
-| `.echo` | Local echo for testing/fallback |
-| `.openai` | OpenAI API (requires `ABI_OPENAI_API_KEY`) |
-| `.ollama` | Ollama local models (default: `http://127.0.0.1:11434`) |
-| `.huggingface` | HuggingFace Inference API |
-| `.local` | Local scheduler |
+The `AgentConfig` struct supports:
+- `name: []const u8` - Agent identifier (required)
+- `enable_history: bool` - Enable conversation history (default: true)
+- `temperature: f32` - Sampling temperature 0.0-2.0 (default: 0.7)
+- `top_p: f32` - Nucleus sampling parameter 0.0-1.0 (default: 0.9)
 
-## Discord Integration
+### Agent Methods
 
-Discord tools are available for AI agents to interact with Discord servers.
+- `chat(input, allocator)` - Process input and return response (conversational interface)
+- `process(input, allocator)` - Same as chat(), alternative naming
+- `historyCount()` - Get number of history entries
+- `historySlice()` - Get conversation history
+- `clearHistory()` - Clear conversation history
+- `setTemperature(temp)` - Update temperature
+- `setTopP(top_p)` - Update top_p parameter
+- `setHistoryEnabled(enabled)` - Enable/disable history tracking
 
-### Available Tools
+---
 
-| Tool | Description |
-|------|-------------|
-| `discord_send_message` | Send messages to channels |
-| `discord_get_channel` | Get channel information |
-| `discord_list_guilds` | List connected servers |
-| `discord_get_bot_info` | Get bot user details |
-| `discord_execute_webhook` | Execute webhooks |
-| `discord_add_reaction` | Add reactions to messages |
-| `discord_get_messages` | Retrieve channel messages |
+## CLI Commands
 
-### Example
+```bash
+# Run AI agent interactively
+zig build run -- agent
 
-```zig
-const discord_tools = @import("abi").ai.tools.discord;
+# Run with a single message
+zig build run -- agent --message "Hello, how are you?"
 
-// Register all Discord tools with an agent's tool registry
-try discord_tools.registerAll(&agent.tool_registry);
-
-// Tools can now be called by the agent during conversations
+# LLM model operations
+zig build run -- llm info model.gguf       # Show model information
+zig build run -- llm generate model.gguf   # Generate text
+zig build run -- llm chat model.gguf       # Interactive chat
+zig build run -- llm bench model.gguf      # Benchmark performance
 ```
 
-## Contacts
+---
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+## See Also
 
+- [Explore](explore.md) - Codebase exploration with AI
+- [Framework](framework.md) - Configuration options
+- [Compute Engine](compute.md) - Task execution for AI workloads
+- [Troubleshooting](troubleshooting.md) - Common issues

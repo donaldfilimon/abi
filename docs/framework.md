@@ -10,12 +10,11 @@ The entry point for any ABI application is the `abi.init` function. It establish
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
     // Initialize with default options
-    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{});
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
     // Framework is now ready
@@ -112,7 +111,26 @@ if (registry.findByName("my-connector")) |plugin| {
 
 Enable automatic plugin discovery by setting `auto_discover_plugins = true` in `FrameworkOptions`. The framework will scan all paths in `plugin_paths` for compatible plugins.
 
-## Contacts
+---
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+## CLI Commands
 
+```bash
+# Configuration management
+zig build run -- config init       # Initialize configuration
+zig build run -- config show       # Show current configuration
+zig build run -- config validate   # Validate configuration
+
+# System information
+zig build run -- system-info       # Show framework status
+zig build run -- --version         # Show version
+```
+
+---
+
+## See Also
+
+- [Introduction](intro.md) - Architecture overview
+- [Monitoring](monitoring.md) - Logging and metrics configuration
+- [Compute Engine](compute.md) - Engine configuration
+- [Troubleshooting](troubleshooting.md) - Feature disabled errors
