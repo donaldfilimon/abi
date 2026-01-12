@@ -1,51 +1,151 @@
 # Introduction
 
-Welcome to **ABI**, a modern Zig framework designed for modular AI services, vector search, and systems tooling.
+Welcome to **ABI**, a modern Zig 0.16.x framework for modular AI services, vector search, and high-performance systems tooling.
+
+---
 
 ## Philosophy
 
 ABI is built on three core pillars:
 
-1.  **Modularity**: Use only what you need. Core features are isolated, and advanced subsystems (AI, GPU, Database) are opt-in.
-2.  **Performance**: Written in Zig 0.16.x, leveraging a work-stealing compute runtime and zero-copy data structures.
-3.  **Modernity**: Native support for vector embeddings, AI agents, and GPU acceleration.
+1. **Modularity** - Use only what you need. Core features are isolated, and advanced subsystems (AI, GPU, Database) are opt-in via build flags.
+
+2. **Performance** - Written in Zig 0.16.x, leveraging a work-stealing compute runtime, lock-free data structures, and zero-copy patterns.
+
+3. **Modernity** - Native support for vector embeddings, AI agents, GPU acceleration, and distributed compute.
+
+---
 
 ## Architecture
 
-The framework is divided into several layers:
+The framework is organized into five layers:
 
-### 1. Core Runtime (`src/framework/`)
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Public API (abi.zig)                 │
+│         init(), shutdown(), version(), namespaces      │
+├─────────────────────────────────────────────────────────┤
+│                  Framework (src/framework/)             │
+│      Lifecycle, Configuration, Feature Orchestration   │
+├─────────────────────────────────────────────────────────┤
+│                 Compute Engine (src/compute/)           │
+│   Work-Stealing Scheduler, GPU Integration, Memory     │
+├─────────────────────────────────────────────────────────┤
+│                Feature Stacks (src/features/)           │
+│        AI, Database, GPU, Network, Monitoring, Web     │
+├─────────────────────────────────────────────────────────┤
+│               Shared Utilities (src/shared/)            │
+│     Platform Abstractions, SIMD, Crypto, Logging       │
+└─────────────────────────────────────────────────────────┘
+```
 
-The backbone of the application. Handles:
+### Layer 1: Public API (`src/abi.zig`)
 
-- Lifecycle management (`init`, `shutdown`)
-- Configuration
-- Feature flag orchestration
+The entry point for all ABI applications. Provides:
 
-### 2. Compute Engine (`src/compute/`)
+- `abi.init(allocator, options)` - Initialize the framework
+- `abi.shutdown(&framework)` - Clean shutdown
+- `abi.version()` - Get version string
+- Curated re-exports of feature namespaces
 
-A high-performance parallel execution environment.
+### Layer 2: Framework (`src/framework/`)
 
-- **Work-Stealing Scheduler**: Efficiently distributes tasks across worker threads.
-- **GPU Integration**: Seamlessly offloads compatible workloads to GPU backends.
-- **Memory Management**: Arena-based allocation strategies for stable runtime performance.
+Manages the application lifecycle:
 
-### 3. Feature Stacks (`src/features/`)
+- **Initialization** - Set up allocators, configure features
+- **Configuration** - Runtime options via `FrameworkOptions`
+- **Feature Orchestration** - Enable/disable features at build and runtime
+- **Plugin System** - Runtime-loadable extensions
 
-Domain-specific modules that plug into the core:
+### Layer 3: Compute Engine (`src/compute/`)
 
-- **AI**: LLM connectors, Agent runtimes, code exploration.
-- **Database**: WDBX vector database, backup/restore, hybrid search.
-- **GPU**: Backend implementations (CUDA, Vulkan, Metal, WebGPU).
-- **Network**: Distributed node discovery and task serialization.
-- **Web**: Async HTTP clients and servers.
-- **Connectors**: External service integrations (OpenAI, Ollama, HuggingFace, Discord).
+High-performance parallel execution:
 
-## Getting Started
+- **Work-Stealing Scheduler** - Efficient task distribution across threads
+- **GPU Integration** - Automatic GPU offloading with CPU fallback
+- **Memory Management** - Arena allocation, pooling, NUMA awareness
+- **Concurrency Primitives** - Lock-free queues, sharded maps, futures
 
-To start using ABI, check out the [Framework Guide](framework.md) to initialize your application.
+### Layer 4: Feature Stacks (`src/features/`)
 
-## Contacts
+Domain-specific modules:
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+| Feature | Description |
+|---------|-------------|
+| **AI** | LLM connectors (OpenAI, Ollama, HuggingFace), agent runtime, training |
+| **Database** | WDBX vector database, HNSW indexing, hybrid search |
+| **GPU** | Multi-backend support (CUDA, Vulkan, Metal, WebGPU), unified API |
+| **Network** | Distributed compute, node discovery, Raft consensus |
+| **Monitoring** | Logging, metrics, alerting, tracing, profiling |
+| **Web** | HTTP client/server, async I/O |
+| **Connectors** | Discord, local scheduler integrations |
 
+### Layer 5: Shared Utilities (`src/shared/`)
+
+Cross-cutting concerns:
+
+- **Platform** - OS abstractions, path handling
+- **SIMD** - Vectorized operations
+- **Crypto** - Hashing, secure random
+- **Logging** - Structured log output
+- **Filesystem** - File utilities
+
+---
+
+## Feature Gating
+
+Features are enabled/disabled at build time:
+
+```bash
+# Enable specific features
+zig build -Denable-ai=true -Denable-gpu=true
+
+# Disable features to reduce binary size
+zig build -Denable-network=false -Denable-profiling=false
+```
+
+When a feature is disabled, stub modules provide compile-time compatible placeholders that return `error.*Disabled` (e.g., `error.AiDisabled`).
+
+---
+
+## Quick Start
+
+```zig
+const std = @import("std");
+const abi = @import("abi");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Initialize with default options
+    var framework = try abi.init(allocator, .{});
+    defer abi.shutdown(&framework);
+
+    // Check enabled features
+    if (framework.isFeatureEnabled(.ai)) {
+        std.debug.print("AI features available\n", .{});
+    }
+
+    std.debug.print("ABI v{s} initialized\n", .{abi.version()});
+}
+```
+
+---
+
+## Next Steps
+
+- [Framework Guide](framework.md) - Configuration and lifecycle
+- [Compute Engine](compute.md) - Task execution and scheduling
+- [AI & Agents](ai.md) - LLM connectors and agent runtime
+- [Database](database.md) - Vector database operations
+- [GPU Acceleration](gpu.md) - GPU backends and unified API
+
+---
+
+## See Also
+
+- [Documentation Index](index.md) - Full documentation listing
+- [Troubleshooting](troubleshooting.md) - Common issues and solutions
+- [Zig 0.16 Migration](migration/zig-0.16-migration.md) - API compatibility notes

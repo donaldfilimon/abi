@@ -294,6 +294,11 @@ _ = try gpu.vectorAdd(a_buf, b_buf, result_buf);
 try result_buf.read(f32, &result);
 ```
 
-## Contacts
+---
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+## See Also
+
+- [GPU Backend Details](gpu-backend-improvements.md) - Implementation details and improvements
+- [Compute Engine](compute.md) - CPU/GPU workload scheduling
+- [Monitoring](monitoring.md) - GPU metrics and profiling
+- [Troubleshooting](troubleshooting.md) - GPU detection issues
