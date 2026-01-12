@@ -69,6 +69,8 @@ pub const KernelSourceType = enum {
     cuda,
     opencl,
     wgsl,
+    /// Portable kernel DSL IR (auto-compiles to target backend).
+    dsl_ir,
 };
 
 /// Kernel compilation options.
