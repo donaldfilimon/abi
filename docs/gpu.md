@@ -6,6 +6,169 @@
 
 The **GPU** module (`abi.gpu`) provides a unified interface for hardware-accelerated compute across different platforms.
 
+## Unified GPU API (Recommended)
+
+The new unified GPU API provides a single interface for all 8 backends with smart buffer management and optional profiling.
+
+### Quick Start
+
+```zig
+const abi = @import("abi");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Initialize unified GPU API
+    var gpu = try abi.Gpu.init(allocator, .{
+        .enable_profiling = true,
+        .memory_mode = .automatic,
+    });
+    defer gpu.deinit();
+
+    // Create buffers with automatic memory management
+    const a = try gpu.createBufferFromSlice(f32, &[_]f32{ 1, 2, 3, 4 }, .{});
+    defer gpu.destroyBuffer(a);
+
+    const b = try gpu.createBufferFromSlice(f32, &[_]f32{ 5, 6, 7, 8 }, .{});
+    defer gpu.destroyBuffer(b);
+
+    const result = try gpu.createBuffer(4 * @sizeOf(f32), .{});
+    defer gpu.destroyBuffer(result);
+
+    // Execute vector addition (transfers handled automatically)
+    _ = try gpu.vectorAdd(a, b, result);
+
+    // Read results back
+    var output: [4]f32 = undefined;
+    try result.read(f32, &output);
+    // output = { 6, 8, 10, 12 }
+}
+```
+
+### Configuration Options
+
+```zig
+pub const GpuConfig = struct {
+    preferred_backend: ?Backend = null,    // null = auto-select best
+    allow_fallback: bool = true,
+    memory_mode: MemoryMode = .automatic,
+    max_memory_bytes: usize = 0,           // 0 = unlimited
+    enable_profiling: bool = false,
+    multi_gpu: bool = false,
+    load_balance_strategy: LoadBalanceStrategy = .memory_aware,
+};
+
+pub const MemoryMode = enum {
+    automatic,  // API handles all transfers (recommended)
+    explicit,   // User controls transfers via toDevice()/toHost()
+    unified,    // Use unified memory where available
+};
+```
+
+### High-Level Operations
+
+The unified API provides these built-in operations:
+
+| Operation | Description |
+|-----------|-------------|
+| `vectorAdd(a, b, result)` | Element-wise vector addition |
+| `matrixMultiply(a, b, result, dims)` | Matrix multiplication |
+| `reduceSum(input)` | Sum reduction |
+| `dotProduct(a, b)` | Dot product of two vectors |
+| `softmax(input, output)` | Softmax activation |
+
+### Multi-GPU Support
+
+```zig
+var gpu = try abi.Gpu.init(allocator, .{
+    .multi_gpu = true,
+    .load_balance_strategy = .memory_aware,
+});
+
+// Enable multi-GPU after init
+try gpu.enableMultiGpu(.{
+    .strategy = .round_robin,
+    .enable_peer_access = true,
+});
+
+// Get multi-GPU stats
+if (gpu.getMultiGpuStats()) |stats| {
+    std.debug.print("Active devices: {d}\n", .{stats.active_device_count});
+}
+```
+
+### Profiling and Metrics
+
+```zig
+var gpu = try abi.Gpu.init(allocator, .{
+    .enable_profiling = true,
+});
+
+// ... execute operations ...
+
+// Get metrics summary
+if (gpu.getMetricsSummary()) |summary| {
+    std.debug.print("Total kernel invocations: {d}\n", .{summary.total_kernel_invocations});
+    std.debug.print("Average kernel time: {d:.3}ns\n", .{summary.avg_kernel_time_ns});
+}
+
+// Get per-kernel metrics
+if (gpu.getKernelMetrics("vectorAdd")) |metrics| {
+    std.debug.print("vectorAdd invocations: {d}\n", .{metrics.invocation_count});
+}
+```
+
+## Portable Kernel DSL
+
+Write kernels once, compile to all backends (CUDA, GLSL, WGSL, MSL).
+
+### Building a Kernel
+
+```zig
+const dsl = abi.gpu.dsl;
+
+var builder = dsl.KernelBuilder.init(allocator, "scale_vector");
+defer builder.deinit();
+
+// Set workgroup size
+_ = builder.setWorkgroupSize(256, 1, 1);
+
+// Define bindings
+const input = try builder.addBuffer("input", 0, .{ .scalar = .f32 }, .read_only);
+const output = try builder.addBuffer("output", 1, .{ .scalar = .f32 }, .write_only);
+const scale = try builder.addUniform("scale", 2, .{ .scalar = .f32 });
+
+// Get global invocation ID
+const gid = builder.globalInvocationId();
+const idx = try builder.component(try gid.toExpr(), "x");
+
+// output[idx] = input[idx] * scale
+const scaled = try builder.mul(
+    try builder.index(try input.toExpr(), idx),
+    try scale.toExpr()
+);
+try builder.addStatement(try builder.assignStmt(
+    try builder.index(try output.toExpr(), idx),
+    scaled
+));
+
+// Build and compile
+const ir = try builder.build();
+var kernel = try gpu.compileKernel(.{ .ir = &ir });
+defer kernel.deinit();
+```
+
+### Code Generation Targets
+
+| IR Construct | CUDA | GLSL | WGSL | MSL |
+|-------------|------|------|------|-----|
+| `global_id` | `blockIdx.x * blockDim.x + threadIdx.x` | `gl_GlobalInvocationID.x` | `@builtin(global_invocation_id)` | `thread_position_in_grid` |
+| `barrier()` | `__syncthreads()` | `barrier()` | `workgroupBarrier()` | `threadgroup_barrier()` |
+| `atomic_add` | `atomicAdd()` | `atomicAdd()` | `atomicAdd()` | `atomic_fetch_add_explicit()` |
+| `buffer<f32>` | `float*` | `buffer { float data[]; }` | `var<storage> array<f32>` | `device float*` |
+
 ## Backends
 
 ABI supports multiple GPU backends with comprehensive implementations:
@@ -42,41 +205,29 @@ ABI supports multiple GPU backends with comprehensive implementations:
 7.  **WebGL2**: Browser-based rendering
     - Correctly returns `UnsupportedBackend` (no compute shader support)
 
-### Native CUDA Implementation
-
-The CUDA backend now supports real GPU execution with automatic fallback:
-
-- **Native GPU mode**: Uses CUDA Driver API for actual GPU execution when CUDA hardware is available
-- **Automatic fallback**: Gracefully degrades to CPU simulation if CUDA is unavailable
-- **Auto-selection**: System automatically chooses native vs fallback at runtime
-- **No manual configuration required**: The system detects and uses available hardware transparently
-
-The native CUDA implementation includes:
-- Real kernel compilation via CUDA Driver API
-- GPU device memory allocation
-- Pinned host memory for faster transfers
-- Asynchronous memory copies (H2D, D2H, D2D)
-- Stream management with synchronization
-- Event-based profiling
-
-## Writing Kernels
-
-Kernels are defined in `src/compute/gpu/kernels.zig`. A kernel must provide implementations for supported backends or a CPU fallback.
-
-```zig
-pub const VectorAdd = struct {
-    pub const cuda_ptx = @embedFile("backends/cuda/kernels/vector_add.ptx");
-    pub const metal_lib = @embedFile("backends/metal/kernels/vector_add.metallib");
-
-    pub fn cpu_fallback(a: []f32, b: []f32, out: []f32) void {
-        for (a, 0..) |_, i| out[i] = a[i] + b[i];
-    }
-};
-```
-
 ## Memory Management
 
-Use `abi.gpu.GPUMemoryPool` to manage device memory efficiently.
+### Smart Buffers (Unified API)
+
+The unified API handles memory automatically by default:
+
+```zig
+// Automatic mode (default) - transfers handled for you
+var buf = try gpu.createBufferFromSlice(f32, &data, .{});
+_ = try gpu.vectorAdd(buf, other, result);  // Auto upload
+try result.read(f32, &output);               // Auto download
+
+// Explicit mode - you control transfers
+var buf = try gpu.createBuffer(size, .{ .mode = .explicit });
+try buf.write(f32, &data);
+try buf.toDevice();   // Explicit upload
+// ... operations ...
+try buf.toHost();     // Explicit download
+```
+
+### Legacy Memory Pool
+
+Use `abi.gpu.GPUMemoryPool` for manual device memory management:
 
 ```zig
 var pool = abi.gpu.GPUMemoryPool.init(allocator, 1024 * 1024 * 64); // 64MB
@@ -123,8 +274,26 @@ zig build -Denable-gpu=true -Dgpu-cuda=true -Dgpu-vulkan=false -Dgpu-metal=false
 zig build -Denable-gpu=false
 ```
 
+## Migration from acceleration.zig
+
+The `acceleration.zig` module is deprecated. Migrate to the unified API:
+
+```zig
+// Old API
+const accel = try Accelerator.init(allocator, .{});
+defer accel.deinit();
+_ = try acceleration.vectorAdd(allocator, &a, &b, &result);
+
+// New API
+var gpu = try abi.Gpu.init(allocator, .{});
+defer gpu.deinit();
+const a_buf = try gpu.createBufferFromSlice(f32, &a, .{});
+const b_buf = try gpu.createBufferFromSlice(f32, &b, .{});
+const result_buf = try gpu.createBuffer(a.len * @sizeOf(f32), .{});
+_ = try gpu.vectorAdd(a_buf, b_buf, result_buf);
+try result_buf.read(f32, &result);
+```
 
 ## Contacts
 
 src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
-
