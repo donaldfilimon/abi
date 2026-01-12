@@ -81,7 +81,9 @@ Core flags (defaults in parentheses):
 **Note**: See `build.zig` `Defaults` struct for current default values. Some features may default to `false` in production builds.
 
 GPU backends (Vulkan enabled by default when GPU is enabled):
-`-Dgpu-cuda`, `-Dgpu-vulkan`, `-Dgpu-stdgpu`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`, `-Dgpu-opengles`, `-Dgpu-webgl2`
+`-Dgpu-cuda`, `-Dgpu-vulkan`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`, `-Dgpu-opengles`, `-Dgpu-webgl2`, `-Dgpu-stdgpu`
+
+**Note**: `-Dgpu-stdgpu` enables a software CPU fallback backend (not related to Zig's `std.gpu`), useful for testing GPU code paths without hardware.
 
 ### Additional Build Targets
 
@@ -123,9 +125,12 @@ abi/
 
 **Key directories to understand**:
 - `src/compute/gpu/backends/` - CUDA, Vulkan, Metal, WebGPU, OpenGL, stdgpu, simulated backends
+- `src/compute/gpu/unified.zig` - Unified GPU API with high-level operations
+- `src/compute/gpu/dsl/` - Portable kernel DSL and cross-backend compiler
 - `src/features/ai/llm/` - Local LLM inference: GGUF loading, tokenization, transformers, KV cache
 - `src/features/ai/explore/` - Code exploration: AST parsing, callgraph, dependency analysis
 - `src/features/database/` - WDBX vector database: HNSW, hybrid search, batch operations
+- `src/features/monitoring/alerting.zig` - Alerting rules system with configurable thresholds
 
 **Module File Organization Convention**:
 - `mod.zig` - Re-exports and facade (module entry point)
@@ -253,6 +258,78 @@ All backends in `src/compute/gpu/backends/` must implement:
 - **Symmetric Operations**: Every `allocate*` must have matching `free*` with same allocator
 - **Recovery**: Register devices with `recovery.registerDevice()`, report failures with `recovery.reportError()`
 - **Metrics**: Record kernels, transfers, allocations via `metrics.record*()` methods
+
+### Unified GPU API
+
+The `src/compute/gpu/unified.zig` provides a high-level API covering all 8 backends:
+
+```zig
+var gpu = try abi.Gpu.init(allocator, .{
+    .enable_profiling = true,
+    .memory_mode = .automatic,  // API handles transfers
+});
+defer gpu.deinit();
+
+// High-level operations
+const a = try gpu.createBufferFromSlice(f32, &data_a, .{});
+const b = try gpu.createBufferFromSlice(f32, &data_b, .{});
+const result = try gpu.createBuffer(size, .{});
+defer { gpu.destroyBuffer(a); gpu.destroyBuffer(b); gpu.destroyBuffer(result); }
+
+_ = try gpu.vectorAdd(a, b, result);
+```
+
+**Built-in operations**: `vectorAdd`, `matrixMultiply`, `reduceSum`, `dotProduct`, `softmax`
+
+**Memory modes**:
+- `automatic` - API handles all host/device transfers (recommended)
+- `explicit` - User controls transfers via `buffer.toDevice()`/`toHost()`
+- `unified` - Use unified memory where available
+
+### Portable Kernel DSL
+
+Write kernels once, compile to CUDA/GLSL/WGSL/MSL (`src/compute/gpu/dsl/`):
+
+```zig
+const dsl = abi.gpu.dsl;
+
+var builder = dsl.KernelBuilder.init(allocator, "scale_vector");
+defer builder.deinit();
+
+_ = builder.setWorkgroupSize(256, 1, 1);
+const input = try builder.addBuffer("input", 0, .{ .scalar = .f32 }, .read_only);
+const output = try builder.addBuffer("output", 1, .{ .scalar = .f32 }, .write_only);
+const scale = try builder.addUniform("scale", 2, .{ .scalar = .f32 });
+
+// Build IR and compile to target backend
+const ir = try builder.build();
+const source = try dsl.compiler.compile(allocator, &ir, .cuda, .{});
+```
+
+**DSL structure**:
+- `dsl/builder.zig` - Fluent API for kernel construction
+- `dsl/kernel.zig` - Kernel IR representation
+- `dsl/compiler.zig` - Compiles IR to backend-specific code
+- `dsl/codegen/*.zig` - Backend code generators (cuda, glsl, wgsl, msl)
+
+### Multi-GPU Support
+
+```zig
+var gpu = try abi.Gpu.init(allocator, .{
+    .multi_gpu = true,
+    .load_balance_strategy = .memory_aware,
+});
+
+// Distribute work across devices
+const distributions = try gpu.distributeWork(total_elements);
+defer allocator.free(distributions);
+
+for (distributions) |dist| {
+    // dist.device_id, dist.offset, dist.size
+}
+```
+
+**Load balance strategies**: `round_robin`, `memory_aware`, `compute_aware`, `manual`
 
 ## Zig 0.16 Conventions
 
@@ -449,6 +526,65 @@ When `enable-network=true`, `src/features/network/` provides distributed systems
 - **Connection Pooling**: Per-host pools with configurable sizes
 - **Raft Consensus**: Full implementation for cluster consensus
 - **Task Scheduling**: Priority levels with load balancing strategies
+
+### Raft Consensus Usage
+
+The Raft implementation (`src/features/network/raft.zig`) provides leader election and log replication:
+
+```zig
+var node = try RaftNode.init(allocator, "node-1", .{
+    .election_timeout_min_ms = 150,
+    .election_timeout_max_ms = 300,
+    .heartbeat_interval_ms = 50,
+});
+defer node.deinit();
+
+try node.addPeer("node-2");
+try node.addPeer("node-3");
+
+// Process timeouts (call periodically)
+try node.tick(elapsed_ms);
+
+// Append commands (leader only)
+if (node.isLeader()) {
+    const index = try node.appendCommand(command_data);
+}
+```
+
+**Note**: Current implementation is in-memory only; add persistence interface for production use.
+
+### Alerting System
+
+The alerting module (`src/features/monitoring/alerting.zig`) provides configurable alert rules:
+
+```zig
+var manager = try AlertManager.init(allocator, .{
+    .evaluation_interval_ms = 15_000,
+    .default_for_duration_ms = 60_000,
+});
+defer manager.deinit();
+
+try manager.addRule(.{
+    .name = "high_error_rate",
+    .metric = "errors_total",
+    .condition = .greater_than,
+    .threshold = 100,
+    .severity = .critical,
+    .for_duration_ms = 30_000,
+});
+
+// Register notification handler
+try manager.addHandler(.{
+    .callback = myAlertHandler,
+    .min_severity = .warning,
+});
+
+// Evaluate rules against metrics
+try manager.evaluate(metrics);
+```
+
+**Alert states**: `inactive` → `pending` → `firing` → `resolved`
+**Severities**: `info`, `warning`, `critical`
 
 ## CLI Commands
 

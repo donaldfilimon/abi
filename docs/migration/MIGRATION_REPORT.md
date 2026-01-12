@@ -291,7 +291,10 @@ The migration introduces **no breaking changes** to public APIs, maintains **100
 **Framework Version**: 0.1.0
 **Zig Version**: 0.16.x
 
-## Contacts
+---
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+## See Also
 
+- [Migration Guide](zig-0.16-migration.md) - Step-by-step migration instructions
+- [Documentation Index](../index.md) - Full documentation
+- [Troubleshooting](../troubleshooting.md) - Common issues

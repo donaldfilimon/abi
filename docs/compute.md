@@ -15,15 +15,30 @@ defer engine.deinit();
 
 ### Workloads
 
-A `Workload` is a unit of execution. It can be a simple closure or a complex struct implementing the Workload VTable.
+A `Workload` (also called a task) is a unit of execution. It can be a simple closure or a complex struct implementing the Workload VTable.
 
 ```zig
 fn myTask(_: std.mem.Allocator) !u32 {
     return 42;
 }
 
-// Run a task
+// Run a task (submit and wait for result)
 const result = try abi.compute.runTask(&engine, u32, myTask, 1000);
+
+// Alternative: use runWorkload (alias for runTask)
+const result2 = try abi.compute.runWorkload(&engine, u32, myTask, 1000);
+```
+
+### Submitting and Retrieving Results
+
+You can also submit tasks and retrieve results separately:
+
+```zig
+// Submit task for execution
+const task_id = try abi.compute.submitTask(&engine, u32, myTask);
+
+// Wait for result with timeout
+const result = try abi.compute.waitForResult(&engine, u32, task_id, 1000);
 ```
 
 ## Timeout Semantics
@@ -47,7 +62,47 @@ On supported platforms (Linux, Windows), the engine can pin worker threads to sp
 
 The engine detects NUMA topology to optimize memory allocation and thread placement, reducing cross-node traffic.
 
-## Contacts
+```zig
+var engine = try abi.compute.createEngine(allocator, .{
+    .numa_enabled = true,
+    .cpu_affinity_enabled = true,
+});
+```
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+---
 
+## Concurrency Primitives
+
+The compute module provides lock-free data structures:
+
+| Primitive | Description |
+|-----------|-------------|
+| `WorkStealingQueue` | LIFO for owner, FIFO for thieves |
+| `LockFreeQueue` | Atomic CAS-based queue |
+| `LockFreeStack` | Atomic CAS-based stack |
+| `PriorityQueue` | Lock-free priority queue |
+| `ShardedMap` | Reduces contention via sharding |
+
+---
+
+## CLI Commands
+
+```bash
+# Show system and compute info
+zig build run -- system-info
+
+# Run SIMD performance demo
+zig build run -- simd
+
+# Run benchmarks
+zig build benchmarks
+```
+
+---
+
+## See Also
+
+- [GPU Acceleration](gpu.md) - GPU workload offloading
+- [Network](network.md) - Distributed task execution
+- [Monitoring](monitoring.md) - Engine metrics and profiling
+- [Troubleshooting](troubleshooting.md) - Timeout and performance issues
