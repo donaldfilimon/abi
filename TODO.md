@@ -4,17 +4,15 @@ This file tracks incomplete or placeholder implementations in the codebase. Each
 
 ## Zig TODO/FIXME markers
 
-| File | Line | Description |
-|------|------|-------------|
-| `tools/cli/commands/embed.zig` | 193 | TODO: Use custom model when specified |
-| `tools/cli/commands/explore.zig` | 220 | Placeholder "TODO" in help text |
-| `src/features/ai/abbey/neural/attention.zig` | 159 | TODO: Implement proper multi‑head splitting |
-| `src/features/database/formats/converters.zig` | 64‑65 | TODO: Implement write support for GGUF and NPZ formats |
-| `src/features/ai/explore/explore_test.zig` | 101 | Test uses a "TODO" query string (placeholder) |
-| `src/features/database/formats/streaming.zig` | 203 | TODO: Count metadata entries |
-| `src/features/ai/explore/query.zig` | 176‑179 | TODO/FIXME patterns added to query list |
+All previously tracked code-level TODOs have been completed:
+- ✅ `embed.zig` - Custom model support implemented
+- ✅ `explore.zig` - Help text placeholder fixed
+- ✅ `attention.zig` - Multi-head splitting implemented
+- ✅ `converters.zig` - GGUF and NPZ write support added
+- ✅ `explore_test.zig` - Placeholder query string fixed
+- ✅ `streaming.zig` - Metadata counting implemented
 
-Developers should prioritize implementing these items to reduce stub behavior and improve feature completeness.
+Note: `src/features/ai/explore/query.zig` contains intentional TODO/FIXME pattern strings used for code search functionality.
 
 ## Roadmap TODOs
 
