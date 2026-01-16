@@ -101,3 +101,4 @@ src/shared/contacts.zig provides a centralized list of maintainer contacts extra
 
 Agents should be aware of the items in **[TODO.md](TODO.md)**. When generating code or suggestions, avoid relying on stubbed functionality (e.g., format converters for GGUF/NPZ) until the corresponding TODO is resolved.
 See [TODO.md](TODO.md) for the list of pending implementations.
+The TODO list now includes a **Llama‑CPP parity task table** describing required modules to achieve llama‑cpp feature parity.

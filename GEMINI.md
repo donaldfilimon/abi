@@ -124,3 +124,4 @@ std.Io.Clock.Duration.sleep(duration, io) catch {};
 | [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) | Zig 0.16 patterns |
 | [src/shared/contacts.zig](src/shared/contacts.zig) | Centralized maintainer contacts |
 See [TODO.md](TODO.md) for the list of pending implementations.
+The TODO list now includes a **Llama‑CPP parity task table** describing required modules to achieve llama‑cpp feature parity.
