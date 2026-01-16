@@ -11,6 +11,7 @@
 const std = @import("std");
 const unified = @import("unified.zig");
 const compression = @import("compression.zig");
+const gguf_converter = @import("gguf_converter.zig");
 
 pub const TargetFormat = enum {
     gguf,
@@ -61,8 +62,8 @@ pub const Converter = struct {
             .safetensors => self.toSafeTensors(source, options),
             .npy => self.toNpy(source, options),
             .unified => self.toUnified(source, options),
-            .gguf => return error.UnsupportedFormat, // TODO: Implement GGUF write
-            .npz => return error.UnsupportedFormat, // TODO: Implement NPZ write
+            .gguf => self.toGguf(source, options),
+            .npz => self.toNpz(source, options),
             .onnx => return error.UnsupportedFormat, // ONNX is read-only
         };
     }
@@ -328,6 +329,238 @@ pub const Converter = struct {
 
         return builder.build() catch return error.OutOfMemory;
     }
+
+    /// Export to GGUF format (llama.cpp compatible)
+    fn toGguf(self: *Converter, source: *const unified.UnifiedFormat, options: ConversionOptions) ConversionError![]u8 {
+        _ = options;
+        return gguf_converter.toGguf(self.allocator, source) catch return error.IoError;
+    }
+
+    /// Export to NPZ format (NumPy compressed archive)
+    fn toNpz(self: *Converter, source: *const unified.UnifiedFormat, options: ConversionOptions) ConversionError![]u8 {
+        _ = options;
+
+        // NPZ format is a ZIP archive containing multiple NPY files
+        // Each tensor is stored as a separate .npy file within the archive
+
+        var output = std.ArrayListUnmanaged(u8).empty;
+        errdefer output.deinit(self.allocator);
+
+        var tensor_iter = source.tensors.iterator();
+        var file_entries = std.ArrayListUnmanaged(ZipLocalFileHeader).empty;
+        defer file_entries.deinit(self.allocator);
+
+        var central_dir = std.ArrayListUnmanaged(u8).empty;
+        defer central_dir.deinit(self.allocator);
+
+        while (tensor_iter.next()) |entry| {
+            const name = entry.key_ptr.*;
+            const desc = entry.value_ptr.*;
+
+            // Generate NPY data for this tensor
+            const npy_data = try self.generateNpyForTensor(source, name, desc);
+            defer self.allocator.free(npy_data);
+
+            // Create filename (tensor_name.npy)
+            const filename = std.fmt.allocPrint(self.allocator, "{s}.npy", .{name}) catch return error.OutOfMemory;
+            defer self.allocator.free(filename);
+
+            const local_header_offset = output.items.len;
+
+            // Write local file header
+            const local_header = ZipLocalFileHeader{
+                .signature = 0x04034b50,
+                .version_needed = 20,
+                .flags = 0,
+                .compression = 0, // No compression (stored)
+                .mod_time = 0,
+                .mod_date = 0,
+                .crc32 = std.hash.Crc32.hash(npy_data),
+                .compressed_size = @intCast(npy_data.len),
+                .uncompressed_size = @intCast(npy_data.len),
+                .filename_len = @intCast(filename.len),
+                .extra_len = 0,
+            };
+
+            output.appendSlice(self.allocator, std.mem.asBytes(&local_header)) catch return error.OutOfMemory;
+            output.appendSlice(self.allocator, filename) catch return error.OutOfMemory;
+            output.appendSlice(self.allocator, npy_data) catch return error.OutOfMemory;
+
+            // Store info for central directory
+            file_entries.append(self.allocator, .{
+                .signature = 0x04034b50,
+                .version_needed = 20,
+                .flags = 0,
+                .compression = 0,
+                .mod_time = 0,
+                .mod_date = 0,
+                .crc32 = local_header.crc32,
+                .compressed_size = local_header.compressed_size,
+                .uncompressed_size = local_header.uncompressed_size,
+                .filename_len = local_header.filename_len,
+                .extra_len = 0,
+            }) catch return error.OutOfMemory;
+
+            // Add central directory entry
+            const central_header = ZipCentralDirHeader{
+                .signature = 0x02014b50,
+                .version_made_by = 20,
+                .version_needed = 20,
+                .flags = 0,
+                .compression = 0,
+                .mod_time = 0,
+                .mod_date = 0,
+                .crc32 = local_header.crc32,
+                .compressed_size = local_header.compressed_size,
+                .uncompressed_size = local_header.uncompressed_size,
+                .filename_len = @intCast(filename.len),
+                .extra_len = 0,
+                .comment_len = 0,
+                .disk_start = 0,
+                .internal_attr = 0,
+                .external_attr = 0,
+                .local_header_offset = @intCast(local_header_offset),
+            };
+            central_dir.appendSlice(self.allocator, std.mem.asBytes(&central_header)) catch return error.OutOfMemory;
+            central_dir.appendSlice(self.allocator, filename) catch return error.OutOfMemory;
+        }
+
+        const central_dir_offset = output.items.len;
+
+        // Write central directory
+        output.appendSlice(self.allocator, central_dir.items) catch return error.OutOfMemory;
+
+        // Write end of central directory
+        const eocd = ZipEndOfCentralDir{
+            .signature = 0x06054b50,
+            .disk_number = 0,
+            .central_dir_disk = 0,
+            .entries_on_disk = @intCast(file_entries.items.len),
+            .total_entries = @intCast(file_entries.items.len),
+            .central_dir_size = @intCast(central_dir.items.len),
+            .central_dir_offset = @intCast(central_dir_offset),
+            .comment_len = 0,
+        };
+        output.appendSlice(self.allocator, std.mem.asBytes(&eocd)) catch return error.OutOfMemory;
+
+        return output.toOwnedSlice(self.allocator) catch return error.OutOfMemory;
+    }
+
+    /// Generate NPY format data for a single tensor
+    fn generateNpyForTensor(
+        self: *Converter,
+        source: *const unified.UnifiedFormat,
+        name: []const u8,
+        desc: *const unified.TensorDescriptor,
+    ) ConversionError![]u8 {
+        const dtype_char = unifiedDtypeToNpy(desc.data_type) catch return error.UnsupportedDataType;
+
+        // Build header
+        var header = std.ArrayListUnmanaged(u8).empty;
+        defer header.deinit(self.allocator);
+
+        header.appendSlice(self.allocator, "{'descr': '<") catch return error.OutOfMemory;
+        header.append(self.allocator, dtype_char) catch return error.OutOfMemory;
+
+        const elem_size = desc.data_type.elementSize() orelse 4;
+        var size_buf: [10]u8 = undefined;
+        const size_len = std.fmt.formatIntBuf(&size_buf, elem_size, 10, .lower, .{});
+        header.appendSlice(self.allocator, size_buf[0..size_len]) catch return error.OutOfMemory;
+
+        header.appendSlice(self.allocator, "', 'fortran_order': False, 'shape': (") catch return error.OutOfMemory;
+
+        for (0..desc.n_dims) |i| {
+            if (i > 0) header.appendSlice(self.allocator, ", ") catch return error.OutOfMemory;
+            var buf: [20]u8 = undefined;
+            const len = std.fmt.formatIntBuf(&buf, desc.dims[i], 10, .lower, .{});
+            header.appendSlice(self.allocator, buf[0..len]) catch return error.OutOfMemory;
+        }
+        if (desc.n_dims == 1) header.append(self.allocator, ',') catch return error.OutOfMemory;
+
+        header.appendSlice(self.allocator, "), }") catch return error.OutOfMemory;
+
+        // Pad header to 64-byte alignment
+        const magic_len = 10;
+        const header_padded_len = alignUp(magic_len + header.items.len, 64) - magic_len;
+        while (header.items.len < header_padded_len - 1) {
+            header.append(self.allocator, ' ') catch return error.OutOfMemory;
+        }
+        header.append(self.allocator, '\n') catch return error.OutOfMemory;
+
+        // Get tensor data
+        const tensor_data = source.getTensorData(self.allocator, name) catch return error.IoError;
+        defer if (desc.compressed_size > 0) self.allocator.free(tensor_data);
+
+        // Calculate total size
+        const total_size = 10 + header.items.len + tensor_data.len;
+
+        // Allocate output
+        var output = self.allocator.alloc(u8, total_size) catch return error.OutOfMemory;
+        errdefer self.allocator.free(output);
+
+        // Write magic number
+        output[0] = 0x93;
+        @memcpy(output[1..6], "NUMPY");
+        output[6] = 1;
+        output[7] = 0;
+
+        // Write header length
+        std.mem.writeInt(u16, output[8..10], @intCast(header.items.len), .little);
+
+        // Write header
+        @memcpy(output[10..][0..header.items.len], header.items);
+
+        // Write data
+        @memcpy(output[10 + header.items.len ..], tensor_data);
+
+        return output;
+    }
+};
+
+// ZIP format structures for NPZ
+const ZipLocalFileHeader = extern struct {
+    signature: u32,
+    version_needed: u16,
+    flags: u16,
+    compression: u16,
+    mod_time: u16,
+    mod_date: u16,
+    crc32: u32,
+    compressed_size: u32,
+    uncompressed_size: u32,
+    filename_len: u16,
+    extra_len: u16,
+};
+
+const ZipCentralDirHeader = extern struct {
+    signature: u32,
+    version_made_by: u16,
+    version_needed: u16,
+    flags: u16,
+    compression: u16,
+    mod_time: u16,
+    mod_date: u16,
+    crc32: u32,
+    compressed_size: u32,
+    uncompressed_size: u32,
+    filename_len: u16,
+    extra_len: u16,
+    comment_len: u16,
+    disk_start: u16,
+    internal_attr: u16,
+    external_attr: u32,
+    local_header_offset: u32,
+};
+
+const ZipEndOfCentralDir = extern struct {
+    signature: u32,
+    disk_number: u16,
+    central_dir_disk: u16,
+    entries_on_disk: u16,
+    total_entries: u16,
+    central_dir_size: u32,
+    central_dir_offset: u32,
+    comment_len: u16,
 };
 
 fn safeTensorsDtypeToUnified(dtype: []const u8) !unified.DataType {

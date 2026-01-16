@@ -191,6 +191,9 @@ pub const StreamingWriter = struct {
         var output = self.allocator.alloc(u8, @intCast(total_size)) catch return error.OutOfMemory;
         errdefer self.allocator.free(output);
 
+        // Count metadata entries by parsing the buffer format (key_len + value_len + key + value)
+        const metadata_count = countMetadataEntries(self.metadata_buffer.items);
+
         // Build header
         var header = unified.FormatHeader{
             .flags = .{
@@ -200,7 +203,7 @@ pub const StreamingWriter = struct {
             },
             .compression_type = @intFromEnum(self.compression_type),
             .tensor_count = self.tensor_index.items.len,
-            .metadata_count = 0, // TODO: count metadata entries
+            .metadata_count = metadata_count,
             .metadata_offset = header_size,
             .index_offset = header_size + metadata_size + name_table_size,
             .data_offset = header_size + metadata_size + name_table_size + index_size,
@@ -340,6 +343,26 @@ pub const StreamingReader = struct {
 
 fn alignUp(value: usize, alignment: usize) usize {
     return (value + alignment - 1) & ~(alignment - 1);
+}
+
+/// Count metadata entries in a metadata buffer
+/// Format: key_len (4 bytes) + value_len (4 bytes) + key + value, repeated
+fn countMetadataEntries(buffer: []const u8) usize {
+    var count: usize = 0;
+    var pos: usize = 0;
+
+    while (pos + 8 <= buffer.len) {
+        const key_len = std.mem.readInt(u32, buffer[pos..][0..4], .little);
+        const value_len = std.mem.readInt(u32, buffer[pos + 4 ..][0..4], .little);
+        const entry_size = 8 + key_len + value_len;
+
+        if (pos + entry_size > buffer.len) break;
+
+        count += 1;
+        pos += entry_size;
+    }
+
+    return count;
 }
 
 test "streaming writer basic" {

@@ -98,7 +98,7 @@ test "query understanding intent classification" {
     try std.testing.expect(parsed4.intent == .find_imports);
     understander.freeParsedQuery(&parsed4);
 
-    var parsed5 = try understander.parse("find TODO comments");
+    var parsed5 = try understander.parse("find FIXME comments");
     try std.testing.expect(parsed5.intent == .find_comments);
     understander.freeParsedQuery(&parsed5);
 }
