@@ -69,6 +69,62 @@ pub const AttentionOutput = struct {
 };
 
 // ============================================================================
+// Multi-Head Helper Functions
+// ============================================================================
+
+/// Extract a slice of features corresponding to one attention head
+/// Input: [batch_size, d_model], Output: [batch_size, d_k]
+fn extractHeadSlice(
+    allocator: std.mem.Allocator,
+    tensor_in: *const F32Tensor,
+    batch_size: usize,
+    start_dim: usize,
+    end_dim: usize,
+) !F32Tensor {
+    const d_k = end_dim - start_dim;
+    const d_model = tensor_in.shape[1];
+
+    var head_data = try allocator.alloc(f32, batch_size * d_k);
+    errdefer allocator.free(head_data);
+
+    // Copy data for this head's dimensions
+    for (0..batch_size) |b| {
+        const src_offset = b * d_model + start_dim;
+        const dst_offset = b * d_k;
+        @memcpy(head_data[dst_offset..][0..d_k], tensor_in.data[src_offset..][0..d_k]);
+    }
+
+    return F32Tensor.fromSlice(allocator, head_data, &.{ batch_size, d_k });
+}
+
+/// Merge outputs from all heads back into full d_model dimension
+/// Input: array of [batch_size, d_k] tensors, Output: [batch_size, d_model]
+fn mergeHeadOutputs(
+    allocator: std.mem.Allocator,
+    head_outputs: []const F32Tensor,
+    batch_size: usize,
+    d_model: usize,
+) !F32Tensor {
+    const num_heads = head_outputs.len;
+    const d_k = d_model / num_heads;
+
+    var merged_data = try allocator.alloc(f32, batch_size * d_model);
+    errdefer allocator.free(merged_data);
+
+    // Copy each head's output into the corresponding dimension range
+    for (head_outputs, 0..) |head_out, h| {
+        const head_start = h * d_k;
+        for (0..batch_size) |b| {
+            const src_offset = b * d_k;
+            const dst_offset = b * d_model + head_start;
+            @memcpy(merged_data[dst_offset..][0..d_k], head_out.data[src_offset..][0..d_k]);
+        }
+    }
+
+    return F32Tensor.fromSlice(allocator, merged_data, &.{ batch_size, d_model });
+}
+
+// ============================================================================
 // Multi-Head Attention
 // ============================================================================
 
@@ -141,9 +197,8 @@ pub const MultiHeadAttention = struct {
         value: *const F32Tensor,
         mask: ?*const F32Tensor,
     ) !AttentionOutput {
-        // Note: batch_size and seq_len available from query.shape if needed for multi-head
-        _ = query.shape[0]; // batch_size
-        _ = query.shape[1]; // seq_len
+        const batch_size = query.shape[0];
+        const d_model = query.shape[1];
 
         // Project Q, K, V
         var q_proj = try self.w_q.forward(query);
@@ -155,33 +210,77 @@ pub const MultiHeadAttention = struct {
         var v_proj = try self.w_v.forward(value);
         defer v_proj.deinit();
 
-        // For simplicity, process as single head first
-        // TODO: Implement proper multi-head splitting
-        var attn = try scaledDotProductAttention(
-            self.allocator,
-            &q_proj,
-            &k_proj,
-            &v_proj,
-            mask,
-        );
-        defer attn.attention_weights.deinit();
+        // Multi-head attention: split projections into heads and process each
+        // For input shape [batch_size, d_model], we treat it as [batch_size, 1, d_model]
+        // and split d_model into [num_heads, d_k]
+        var head_outputs = try self.allocator.alloc(F32Tensor, self.num_heads);
+        errdefer {
+            for (head_outputs) |*ho| {
+                ho.deinit();
+            }
+            self.allocator.free(head_outputs);
+        }
+        var heads_initialized: usize = 0;
+
+        // Allocate combined attention weights tensor
+        var combined_weights = try F32Tensor.zeros(self.allocator, &.{ batch_size, batch_size });
+        errdefer combined_weights.deinit();
+
+        // Process each head
+        for (0..self.num_heads) |h| {
+            const head_start = h * self.d_k;
+            const head_end = head_start + self.d_k;
+
+            // Extract head slice from Q, K, V projections
+            var q_head = try extractHeadSlice(self.allocator, &q_proj, batch_size, head_start, head_end);
+            defer q_head.deinit();
+
+            var k_head = try extractHeadSlice(self.allocator, &k_proj, batch_size, head_start, head_end);
+            defer k_head.deinit();
+
+            var v_head = try extractHeadSlice(self.allocator, &v_proj, batch_size, head_start, head_end);
+            defer v_head.deinit();
+
+            // Compute attention for this head
+            var head_attn = try scaledDotProductAttention(
+                self.allocator,
+                &q_head,
+                &k_head,
+                &v_head,
+                mask,
+            );
+            defer head_attn.attention_weights.deinit();
+
+            // Accumulate attention weights (average across heads)
+            for (0..combined_weights.data.len) |i| {
+                combined_weights.data[i] += head_attn.attention_weights.data[i] / @as(f32, @floatFromInt(self.num_heads));
+            }
+
+            head_outputs[h] = head_attn.output;
+            heads_initialized = h + 1;
+        }
+
+        // Concatenate head outputs back to d_model dimension
+        var concat_output = try mergeHeadOutputs(self.allocator, head_outputs, batch_size, d_model);
+        defer concat_output.deinit();
+
+        // Clean up individual head outputs
+        for (head_outputs) |*ho| {
+            ho.deinit();
+        }
+        self.allocator.free(head_outputs);
 
         // Store attention for adaptive learning
         if (self.adapt_weights and self.attention_history.items.len < 100) {
-            try self.attention_history.append(self.allocator, try attn.attention_weights.clone());
+            try self.attention_history.append(self.allocator, try combined_weights.clone());
         }
 
         // Project output
-        const output = try self.w_o.forward(&attn.output);
-
-        // Keep attention weights for output
-        const weights_clone = try attn.attention_weights.clone();
-
-        attn.output.deinit();
+        const output = try self.w_o.forward(&concat_output);
 
         return AttentionOutput{
             .output = output,
-            .attention_weights = weights_clone,
+            .attention_weights = combined_weights,
         };
     }
 
