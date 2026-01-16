@@ -97,6 +97,7 @@ std.Io.Clock.Duration.sleep(duration, io) catch {};
 ## Contacts
 
 src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+The roadmap now includes a **Llama‑CPP parity** section (Version 0.6.0 – Q4 2026) detailing the tasks required to achieve feature parity with llama‑cpp.
 
 ## Pending Work
 
