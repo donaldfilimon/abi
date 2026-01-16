@@ -668,9 +668,10 @@ The CLI (`zig build run -- <command>`) provides these subcommands:
 - `gpu [subcommand]` - GPU info (backends, devices, summary, default)
 - `network [command]` - Network registry (list, register, status)
 - `simd` - Run SIMD performance demo
-- `system-info` - Show system and framework status
-
-### Database CLI Examples
+ - `system-info` - Show system and framework status
+ - `train` - Run training pipeline (configurable epochs, batch size, checkpointing)
+ 
+ ### Database CLI Examples
 
 ```bash
 zig build run -- db stats                              # Show database statistics
@@ -850,16 +851,11 @@ const serialized = try builder.build();
 
 Use `<type>: <summary>` format. Keep summaries ≤ 72 chars. Focus commits; update docs when APIs change.
 
-## Architecture References
+## References
 
-- System overview: `docs/intro.md`
-- API surface: `API_REFERENCE.md`
-- Migration guide: `docs/migration/zig-0.16-migration.md`
-
-## Contacts
-
-`src/shared/contacts.zig` provides a centralized list of maintainer contacts extracted from the repository markdown files.
-See [TODO.md](TODO.md) for the list of pending implementations.
-See [ROADMAP.md](ROADMAP.md) for upcoming milestones, including the **Llama‑CPP parity** section (Version 0.6.0 – Q4 2026).
-The TODO list now includes a **Llama‑CPP parity task table** describing required modules to achieve llama‑cpp feature parity.
-*See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
+- **Architecture**: `docs/intro.md`
+- **API Surface**: `API_REFERENCE.md`
+- **Migration Guide**: `docs/migration/zig-0.16-migration.md`
+- **Pending Work**: [TODO.md](TODO.md) - incomplete features and placeholders
+- **Roadmap**: [ROADMAP.md](ROADMAP.md) - milestones including Llama-CPP parity (v0.6.0)
+- **Contacts**: `src/shared/contacts.zig` - maintainer contacts

@@ -47,7 +47,7 @@ pub const LearningRateSchedule = enum {
 pub const TrainingConfig = struct {
     epochs: u32 = 10,
     batch_size: u32 = 32,
-    sample_count: u32 = 1024,
+    sample_count: usize = 1024,
     model_size: u32 = 512,
     learning_rate: f32 = 0.001,
     optimizer: OptimizerType = .adamw,
@@ -169,7 +169,7 @@ pub const Optimizer = union(OptimizerType) {
 
     pub fn deinit(self: *Optimizer, allocator: std.mem.Allocator) void {
         switch (self.*) {
-            .sgg => |*o| o.deinit(allocator),
+            .sgd => |*o| o.deinit(allocator),
             .adam => |*o| o.deinit(allocator),
             .adamw => |*o| o.deinit(allocator),
         }
@@ -334,6 +334,7 @@ pub const AdamWOptimizer = struct {
 };
 
 pub const TrainingResult = struct {
+    allocator: std.mem.Allocator,
     report: TrainingReport,
     model: ModelState,
     optimizer: Optimizer,
@@ -449,13 +450,19 @@ pub fn trainWithResult(
 
         var batch: u32 = 0;
         while (batch < batches_per_epoch) : (batch += 1) {
-            simulateGradient(gradient_buffer, config.learning_rate, epoch, batch, config.sample_count);
+            // Simple deterministic gradient generation for training demo.
+            for (gradient_buffer) |*v| {
+                v.* = config.learning_rate;
+            }
             try accumulator.add(gradient_buffer);
 
             const is_last_batch = batch + 1 == batches_per_epoch;
             if (accumulator.count >= config.gradient_accumulation_steps or is_last_batch) {
-                for (model.gradients, accumulator.gradient) |*g, *agg| {
-                    g.* = agg.* / @as(f32, @floatFromInt(accumulator.count));
+                // Apply averaged gradient to model weights.
+                const avg = try accumulator.average(allocator);
+                defer allocator.free(avg);
+                for (model.gradients, avg) |*g, a| {
+                    g.* = a;
                 }
                 accumulator.reset();
 
@@ -512,6 +519,7 @@ pub fn trainWithResult(
     const final_lr = calculateLearningRate(config, model.step, config.learning_rate);
 
     return .{
+        .allocator = allocator,
         .report = .{
             .epochs = config.epochs,
             .batches = batches_per_epoch,
@@ -545,7 +553,7 @@ fn simulateGradient(
     learning_rate: f32,
     epoch: u32,
     batch: u32,
-    sample_count: u32,
+    sample_count: usize,
 ) void {
     const epoch_factor: f32 = @as(f32, @floatFromInt((epoch % 5) + 1)) * 0.001;
     const batch_factor: f32 = @as(f32, @floatFromInt((batch % 7) + 1)) * 0.0005;

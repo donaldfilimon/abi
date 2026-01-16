@@ -76,7 +76,7 @@ pub const SerializationWriter = struct {
 
     pub fn init(allocator: std.mem.Allocator) SerializationWriter {
         return .{
-            .buffer = .{},
+            .buffer = std.ArrayListUnmanaged(u8).empty,
             .allocator = allocator,
         };
     }
@@ -100,7 +100,7 @@ pub const SerializationWriter = struct {
         }
         const size = @sizeOf(T);
         const start = self.buffer.items.len;
-        try self.buffer.resize(start + size);
+        try self.buffer.resize(self.allocator, start + size);
         std.mem.writeInt(T, self.buffer.items[start..][0..size], value, .little);
     }
 
@@ -117,16 +117,13 @@ pub const SerializationWriter = struct {
 
     /// Append a packed struct directly.
     pub fn appendStruct(self: *SerializationWriter, comptime T: type, value: T) !void {
-        comptime std.mem.validateStruct(T);
-        const size = @sizeOf(T);
-        const start = self.buffer.items.len;
-        try self.buffer.resize(start + size);
-        std.mem.bytesAsValue([size]u8, self.buffer.items[start..][0..size], value);
+        const bytes = std.mem.asBytes(&value);
+        try self.appendBytes(bytes);
     }
 
     /// Get serialized bytes.
-    pub fn toOwnedSlice(self: *SerializationWriter) ![]const u8 {
-        return self.buffer.toOwnedSlice();
+    pub fn toOwnedSlice(self: *SerializationWriter) ![]u8 {
+        return self.buffer.toOwnedSlice(self.allocator);
     }
 
     /// Get current buffer length without copying.
@@ -177,22 +174,23 @@ test "SerializationCursor reads slices correctly" {
 }
 
 test "SerializationWriter writes data correctly" {
-    var writer = try SerializationWriter.init(std.testing.allocator);
+    var writer = SerializationWriter.init(std.testing.allocator);
     defer writer.deinit();
 
     try writer.appendInt(u8, 1);
-    try writer.appendInt(u16, 0x0201);
-    try writer.appendInt(u32, 0x05040302);
+    try writer.appendInt(u16, 0x0302);
+    try writer.appendInt(u32, 0x07060504);
 
     const result = try writer.toOwnedSlice();
     defer std.testing.allocator.free(result);
-    try std.testing.expectEqualSlices(u8, result, &[_]u8{ 1, 2, 1, 2, 1, 2 });
+    // Little endian: u8=0x01, u16=0x0302 -> [0x02, 0x03], u32=0x07060504 -> [0x04, 0x05, 0x06, 0x07]
+    try std.testing.expectEqualSlices(u8, &[_]u8{ 1, 2, 3, 4, 5, 6, 7 }, result);
 }
 
 test "SerializationWriter writes packed structs" {
     const TestStruct = packed struct { a: u8, b: u16, c: u32 };
     const value = TestStruct{ .a = 1, .b = 0x0201, .c = 0x05040302 };
-    var writer = try SerializationWriter.init(std.testing.allocator);
+    var writer = SerializationWriter.init(std.testing.allocator);
     defer writer.deinit();
 
     try writer.appendStruct(TestStruct, value);
@@ -204,18 +202,19 @@ test "SerializationWriter writes packed structs" {
 }
 
 test "SerializationWriter writes slices correctly" {
-    var writer = try SerializationWriter.init(std.testing.allocator);
+    var writer = SerializationWriter.init(std.testing.allocator);
     defer writer.deinit();
 
     try writer.appendSlice("ABC");
 
     const result = try writer.toOwnedSlice();
     defer std.testing.allocator.free(result);
-    try std.testing.expectEqualSlices(u8, result, &[_]u8{ 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 'A', 'B', 'C' });
+    // u32 length prefix (little endian) + data: 3 as u32 = [0x03, 0x00, 0x00, 0x00] + "ABC"
+    try std.testing.expectEqualSlices(u8, &[_]u8{ 0x03, 0x00, 0x00, 0x00, 'A', 'B', 'C' }, result);
 }
 
 test "round trip serialization" {
-    var writer = try SerializationWriter.init(std.testing.allocator);
+    var writer = SerializationWriter.init(std.testing.allocator);
     defer writer.deinit();
 
     const original_string = "Hello, world!";
@@ -238,7 +237,7 @@ test "round trip serialization" {
 }
 
 test "SerializationWriter clear and len" {
-    var writer = try SerializationWriter.init(std.testing.allocator);
+    var writer = SerializationWriter.init(std.testing.allocator);
     defer writer.deinit();
 
     try writer.appendSlice("test");

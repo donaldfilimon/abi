@@ -54,7 +54,7 @@ pub const GradientAccumulator = struct {
     pub fn average(
         self: *const GradientAccumulator,
         allocator: std.mem.Allocator,
-    ) GradientError![]f32 {
+    ) ![]f32 {
         if (self.count == 0) return GradientError.EmptyAggregation;
         const output = try allocator.alloc(f32, self.sum.len);
         const divisor = @as(f32, @floatFromInt(self.count));

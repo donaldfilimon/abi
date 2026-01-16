@@ -20,7 +20,8 @@ pub const SaveError =
 pub const LoadError =
     std.Io.Dir.ReadFileAllocError ||
     std.mem.Allocator.Error ||
-    CheckpointError;
+    CheckpointError ||
+    error{OutOfBounds};
 
 pub const StoreError = error{
     NoCheckpoint,
@@ -221,27 +222,39 @@ test "checkpoint store retains latest entries" {
 }
 
 test "checkpoint save/load roundtrip" {
-    var tmp = std.testing.tmpDir(.{});
-    defer tmp.cleanup();
-
     const allocator = std.testing.allocator;
-    const io = std.testing.io;
 
-    const file = try tmp.dir.createFile(io, "checkpoint.bin", .{ .truncate = true });
-    file.close(io);
-    const path_z = try tmp.dir.realPathFileAlloc(io, "checkpoint.bin", allocator);
-    defer allocator.free(path_z);
-    const path = path_z[0..path_z.len];
+    // Use a temp file path that we can clean up
+    const test_path = "test_checkpoint_roundtrip.bin";
 
     const weights = [_]f32{ 0.5, 1.5, 2.5 };
-    const checkpoint = CheckpointView{
+    const ckpt = CheckpointView{
         .step = 42,
         .timestamp = 1234,
         .weights = &weights,
     };
 
-    try saveCheckpoint(allocator, path, checkpoint);
-    const loaded = try loadCheckpoint(allocator, path);
+    // Save checkpoint
+    saveCheckpoint(allocator, test_path, ckpt) catch |err| {
+        std.debug.print("saveCheckpoint failed: {t}\n", .{err});
+        return err;
+    };
+
+    // Cleanup: delete the test file after the test (best effort)
+    defer {
+        var io_backend = std.Io.Threaded.init(allocator, .{
+            .environ = std.process.Environ.empty,
+        });
+        defer io_backend.deinit();
+        const io = io_backend.io();
+        std.Io.Dir.cwd().deleteFile(io, test_path) catch {};
+    }
+
+    // Load checkpoint
+    var loaded = loadCheckpoint(allocator, test_path) catch |err| {
+        std.debug.print("loadCheckpoint failed: {t}\n", .{err});
+        return err;
+    };
     defer loaded.deinit(allocator);
 
     try std.testing.expectEqual(@as(u64, 42), loaded.step);

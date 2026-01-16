@@ -4,7 +4,7 @@ Modern Zig framework for modular AI services, vector search, and systems tooling
 
 ## Highlights
 
-- AI agent runtime, training pipelines, and data structures
+ - AI agent runtime, training pipelines, and data structures (`docs/ai.md`)
 - Vector database helpers (WDBX) with unified API
 - High-performance compute runtime with work-stealing scheduler
 - GPU backends (CUDA, Vulkan, Metal, WebGPU) with feature gating

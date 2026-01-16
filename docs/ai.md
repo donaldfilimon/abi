@@ -37,8 +37,28 @@ const report = try abi.ai.train(allocator, .{
     .gradient_accumulation_steps = 2,
     .checkpoint_interval = 1,
     .max_checkpoints = 3,
+    .checkpoint_path = "./model.ckpt",
 });
 ```
+
+The training pipeline writes checkpoints using the `abi.ai.training.checkpoint` module. Each checkpoint stores model weights, optimizer state, and a simple serialization header. Checkpoints can be re‑loaded with `abi.ai.training.loadCheckpoint` to resume training or for inference.
+
+### CLI Usage
+
+The `train` subcommand mirrors the API above and provides convenient flags:
+
+```bash
+zig build run -- train \
+    --epochs 5 \
+    --batch-size 16 \
+    --model-size 256 \
+    --learning-rate 0.01 \
+    --optimizer sgd \
+    --checkpoint-path ./mymodel.ckpt \
+    --checkpoint-interval 2
+```
+
+Flags correspond to the fields of `abi.ai.training.TrainingConfig`. Use `--help` for a full list. The command prints a summary report (`TrainingReport`) on completion.
 
 ## Federated Learning
 Federated coordination (`abi.ai.federated`) aggregates model updates across nodes.

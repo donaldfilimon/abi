@@ -91,8 +91,9 @@ std.Io.Clock.Duration.sleep(duration, io) catch {};
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development workflow |
 | [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) | Zig 0.16 patterns |
 | [src/shared/contacts.zig](src/shared/contacts.zig) | Centralized maintainer contacts |
+| [docs/ai.md](docs/ai.md) | AI module guide – includes training pipeline and CLI usage |
 | [TODO.md](TODO.md) | List of pending implementations and placeholders |
- | [ROADMAP.md](ROADMAP.md) | Project roadmap and milestone planning |
+| [ROADMAP.md](ROADMAP.md) | Project roadmap and milestone planning |
 
 ## Contacts
 

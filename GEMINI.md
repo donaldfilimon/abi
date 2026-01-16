@@ -25,7 +25,18 @@ ABI is a modern Zig 0.16.x framework for modular AI services, vector search, and
 ```bash
 zig build                         # Build the project
 zig build test --summary all      # Run all tests
-zig build run -- --help           # CLI help
+ zig build run -- --help           # CLI help
+ 
+## Training CLI
+
+The `train` subcommand runs the built‑in training pipeline. Example:
+
+```bash
+zig build run -- train --epochs 3 --batch-size 16 \
+    --model-size 128 --checkpoint-path ./model.ckpt
+```
+
+Options allow configuring learning rate, optimizer, checkpoint interval, and mixed‑precision mode. See `docs/ai.md` for a full description.
 zig fmt .                         # Format code
 zig build benchmarks              # Run benchmarks
 ```
