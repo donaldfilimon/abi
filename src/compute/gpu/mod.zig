@@ -37,7 +37,7 @@ pub const dsl = @import("dsl/mod.zig");
 
 // Backend interface and loaders
 pub const interface = @import("interface.zig");
-pub const cuda_loader = @import("backends/cuda_loader.zig");
+pub const cuda_loader = @import("backends/cuda/loader.zig");
 
 const build_options = @import("build_options");
 
@@ -210,19 +210,19 @@ fn initCudaComponents() !void {
         defer cuda_backend_init_lock.unlock();
 
         if (!cuda_backend_initialized) {
-            const cuda_module = @import("backends/cuda.zig");
+            const cuda_module = @import("backends/cuda/mod.zig");
 
             cuda_module.init() catch |err| {
                 std.log.warn("CUDA backend initialization failed: {t}. Using fallback mode.", .{err});
             };
 
             if (comptime build_options.enable_gpu) {
-                const cuda_stream = @import("backends/cuda_stream.zig");
+                const cuda_stream = @import("backends/cuda/stream.zig");
                 cuda_stream.init() catch |err| {
                     std.log.warn("CUDA stream initialization failed: {t}", .{err});
                 };
 
-                const cuda_memory = @import("backends/cuda_memory.zig");
+                const cuda_memory = @import("backends/cuda/memory.zig");
                 cuda_memory.init() catch |err| {
                     std.log.warn("CUDA memory initialization failed: {t}", .{err});
                 };
@@ -236,14 +236,14 @@ fn initCudaComponents() !void {
 fn deinitCudaComponents() void {
     if (cuda_backend_initialized) {
         if (comptime build_options.gpu_cuda) {
-            const cuda_module = @import("backends/cuda.zig");
+            const cuda_module = @import("backends/cuda/mod.zig");
             cuda_module.deinit();
 
             if (comptime build_options.enable_gpu) {
-                const cuda_stream = @import("backends/cuda_stream.zig");
+                const cuda_stream = @import("backends/cuda/stream.zig");
                 cuda_stream.deinit();
 
-                const cuda_memory = @import("backends/cuda_memory.zig");
+                const cuda_memory = @import("backends/cuda/memory.zig");
                 cuda_memory.deinit();
             }
         }

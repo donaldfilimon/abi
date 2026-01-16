@@ -11,13 +11,19 @@ pub const model_registry = @import("model_registry.zig");
 pub const training = @import("training/mod.zig");
 pub const federated = @import("federated/mod.zig");
 pub const transformer = @import("transformer/mod.zig");
-pub const streaming = @import("streaming.zig");
+pub const streaming = @import("streaming/mod.zig");
 pub const tools = @import("tools/mod.zig");
 pub const explore = if (build_options.enable_explore) @import("explore/mod.zig") else @import("explore/stub.zig");
 pub const llm = if (build_options.enable_llm) @import("llm/mod.zig") else @import("llm/stub.zig");
 pub const memory = @import("memory/mod.zig");
 pub const prompts = @import("prompts/mod.zig");
 pub const abbey = @import("abbey/mod.zig");
+
+// Feature-gated AI submodules
+pub const embeddings = if (build_options.enable_ai) @import("embeddings/mod.zig") else @import("embeddings/stub.zig");
+pub const eval = if (build_options.enable_ai) @import("eval/mod.zig") else @import("eval/stub.zig");
+pub const rag = if (build_options.enable_ai) @import("rag/mod.zig") else @import("rag/stub.zig");
+pub const templates = if (build_options.enable_ai) @import("templates/mod.zig") else @import("templates/stub.zig");
 
 pub const Agent = agent.Agent;
 pub const ModelRegistry = model_registry.ModelRegistry;

@@ -225,4 +225,29 @@ See `docs/migration/zig-0.16-migration.md` for detailed migration guide.
 ## Contacts
 
 src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
-
+See [TODO.md](TODO.md) for the list of pending implementations.
+ 
+## Expanded Roadmap Details
+### Tooling (Q2 2026)
+- **Debugger integration** – Enable source‑level debugging via Zig's built‑in debugging hooks and standard GDB/LLDB support.
+- **Performance profiler** – Integrate a low‑overhead sampling profiler to visualize CPU and GPU hotspots.
+- **Memory leak detector** – Provide automated leak detection using Zig's memory‑sanitizer utilities.
+### Documentation (Q2 2026)
+- **Comprehensive API docs** – Auto‑generated reference using `zig api`, plus tutorial series and video walkthroughs.
+- **Architecture diagrams** – System‑level, component interaction, and data‑flow diagrams to aid onboarding.
+### Testing (Q2 2026)
+- **Competitive benchmarks** – Benchmark ABI against leading vector‑search and AI frameworks to guide performance targets.
+### High Availability (Q3 2026)
+- **Failover mechanisms** – Automatic node takeover, health checks, and circuit‑breaker patterns.
+- **Disaster recovery** – Automated backup orchestration, point‑in‑time recovery, and multi‑region support.
+### Ecosystem (Q4 2026)
+- **Package manager integration** – Publish to the Zig package registry, provide Homebrew formulae, and release Docker images.
+### Research & Innovation (2027+)
+- **Experimental features** – Explore FPGA/ASIC acceleration, novel index structures, and AI‑optimized workloads.
+- **Academic collaborations** – Joint research projects, paper publications, and conference presentations.
+### Community & Growth (2027+)
+- **Community governance** – Formal RFC process, voting mechanisms, and contributor recognition.
+- **Education** – Training courses, certification program, and university partnerships.
+### Enterprise Features (2028+)
+- **Commercial support** – SLA offerings, priority support, and custom development services.
+- **Cloud integration** – Deploy ABI on AWS Lambda, Google Cloud Functions, and Azure Functions.

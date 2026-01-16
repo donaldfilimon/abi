@@ -4,8 +4,8 @@
 //! using the CUDA Driver API instead of fallback simulation.
 
 const std = @import("std");
-const types = @import("../kernel_types.zig");
-const shared = @import("shared.zig");
+const types = @import("../../kernel_types.zig");
+const shared = @import("../shared.zig");
 
 pub const CudaError = error{
     InitializationFailed,

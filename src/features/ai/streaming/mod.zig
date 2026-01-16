@@ -1,31 +1,47 @@
 //! Enhanced streaming support for AI model responses.
 //!
 //! Provides advanced streaming capabilities including:
+//! - Basic streaming generator for transformer models
 //! - Server-Sent Events (SSE) encoding/decoding
 //! - Backpressure control for flow management
 //! - Token buffering strategies
 //! - Stream transformations
 
 const std = @import("std");
-const sse = @import("sse.zig");
-const backpressure = @import("backpressure.zig");
-const buffer = @import("buffer.zig");
+pub const sse = @import("sse.zig");
+pub const backpressure = @import("backpressure.zig");
+pub const buffer = @import("buffer.zig");
+pub const generator = @import("generator.zig");
+
+// Basic generator types (from generator.zig)
+pub const StreamingGenerator = generator.StreamingGenerator;
+pub const StreamingError = generator.StreamingError;
+pub const StreamState = generator.StreamState;
+pub const GenerationConfig = generator.GenerationConfig;
+pub const streamInference = generator.streamInference;
+pub const formatStreamOutput = generator.formatStreamOutput;
+pub const createChunkedStream = generator.createChunkedStream;
 
 // SSE types
 pub const SseEvent = sse.SseEvent;
 pub const SseEncoder = sse.SseEncoder;
 pub const SseDecoder = sse.SseDecoder;
+pub const SseConfig = sse.SseConfig;
 
 // Backpressure types
 pub const BackpressureController = backpressure.BackpressureController;
 pub const BackpressureStrategy = backpressure.BackpressureStrategy;
 pub const BackpressureConfig = backpressure.BackpressureConfig;
 pub const FlowState = backpressure.FlowState;
+pub const BackpressureStats = backpressure.BackpressureStats;
+pub const RateLimiter = backpressure.RateLimiter;
 
 // Buffer types
 pub const TokenBuffer = buffer.TokenBuffer;
 pub const BufferConfig = buffer.BufferConfig;
 pub const BufferStrategy = buffer.BufferStrategy;
+pub const BufferStats = buffer.BufferStats;
+pub const CoalescingBuffer = buffer.CoalescingBuffer;
 
 /// Stream token from AI model.
 pub const StreamToken = struct {

@@ -91,8 +91,13 @@ std.Io.Clock.Duration.sleep(duration, io) catch {};
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development workflow |
 | [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) | Zig 0.16 patterns |
 | [src/shared/contacts.zig](src/shared/contacts.zig) | Centralized maintainer contacts |
+| [TODO.md](TODO.md) | List of pending implementations and placeholders |
 
 ## Contacts
 
 src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
 
+## Pending Work
+
+Agents should be aware of the items in **[TODO.md](TODO.md)**. When generating code or suggestions, avoid relying on stubbed functionality (e.g., format converters for GGUF/NPZ) until the corresponding TODO is resolved.
+See [TODO.md](TODO.md) for the list of pending implementations.

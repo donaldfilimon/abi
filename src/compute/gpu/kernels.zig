@@ -27,7 +27,7 @@ const BackendOps = struct {
 fn backendOps(which_backend: backend.Backend) ?BackendOps {
     return switch (which_backend) {
         .cuda => if (comptime build_options.gpu_cuda) blk: {
-            const cuda_module = @import("backends/cuda.zig");
+            const cuda_module = @import("backends/cuda/mod.zig");
             break :blk .{
                 .compile = cuda_module.compileKernel,
                 .launch = cuda_module.launchKernel,

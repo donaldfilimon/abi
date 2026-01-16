@@ -328,6 +328,31 @@ pub const Assertions = struct {
         }
         return false;
     }
+
+    /// Assert that haystack contains needle.
+    pub fn assertContains(haystack: []const u8, needle: []const u8) bool {
+        return std.mem.indexOf(u8, haystack, needle) != null;
+    }
+
+    /// Assert that a < b.
+    pub fn assertLessThan(comptime T: type, a: T, b: T) bool {
+        return a < b;
+    }
+
+    /// Assert that a <= b.
+    pub fn assertLessThanOrEqual(comptime T: type, a: T, b: T) bool {
+        return a <= b;
+    }
+
+    /// Assert that a > b.
+    pub fn assertGreaterThan(comptime T: type, a: T, b: T) bool {
+        return a > b;
+    }
+
+    /// Assert that a >= b.
+    pub fn assertGreaterThanOrEqual(comptime T: type, a: T, b: T) bool {
+        return a >= b;
+    }
 };
 
 /// Fuzzing support for finding edge cases.

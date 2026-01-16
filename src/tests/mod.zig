@@ -24,6 +24,8 @@ comptime {
     _ = @import("connectors_test.zig");
     // Integration test matrix
     _ = @import("test_matrix.zig");
+    // Note: property_tests.zig uses internal APIs (hnsw, index) and should be run directly:
+    // zig test src/tests/property_tests.zig
 }
 
 // Connector tests

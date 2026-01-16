@@ -12,6 +12,7 @@ This file provides guidance to Google Gemini when working with code in this repo
 - Always clean up resources with `defer`/`errdefer`; use specific error sets (no `anyerror`).
 - Run `zig fmt .` after code edits and `zig build test --summary all` when behavior changes.
 - Update docs/examples when APIs or behavior change so references stay in sync.
+- See **[TODO.md](TODO.md)** for pending implementations. When generating suggestions, treat the listed stubs as unavailable until they are completed.
 
 ## Quick Reference
 
@@ -122,3 +123,4 @@ std.Io.Clock.Duration.sleep(duration, io) catch {};
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development workflow |
 | [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) | Zig 0.16 patterns |
 | [src/shared/contacts.zig](src/shared/contacts.zig) | Centralized maintainer contacts |
+See [TODO.md](TODO.md) for the list of pending implementations.

@@ -121,4 +121,4 @@ pub fn main(init: std.process.Init) !void {
 ## Contacts
 
 src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
-
+See [TODO.md](TODO.md) for the list of pending implementations.

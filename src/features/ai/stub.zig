@@ -479,6 +479,34 @@ pub const llm = struct {
 };
 
 pub const memory = struct {
+    pub const MessageRole = enum {
+        system,
+        user,
+        assistant,
+        tool,
+    };
+
+    pub const Message = struct {
+        role: MessageRole = .user,
+        content: []const u8 = "",
+        name: ?[]const u8 = null,
+        timestamp: i64 = 0,
+        token_count: usize = 0,
+        metadata: ?[]const u8 = null,
+
+        pub fn user(content: []const u8) Message {
+            return .{ .role = .user, .content = content };
+        }
+
+        pub fn assistant(content: []const u8) Message {
+            return .{ .role = .assistant, .content = content };
+        }
+
+        pub fn system(content: []const u8) Message {
+            return .{ .role = .system, .content = content };
+        }
+    };
+
     pub const MemoryStore = struct {
         pub fn init(allocator: std.mem.Allocator) @This() {
             _ = allocator;
@@ -486,6 +514,70 @@ pub const memory = struct {
         }
         pub fn deinit(self: *@This()) void {
             _ = self;
+        }
+    };
+
+    pub const SessionMeta = struct {
+        id: []const u8 = "",
+        name: ?[]const u8 = null,
+        created_at: i64 = 0,
+        updated_at: i64 = 0,
+        message_count: usize = 0,
+        persona: ?[]const u8 = null,
+
+        pub fn deinit(self: *SessionMeta, allocator: std.mem.Allocator) void {
+            _ = self;
+            _ = allocator;
+        }
+    };
+
+    pub const SessionData = struct {
+        meta: SessionMeta = .{},
+        messages: []Message = &.{},
+
+        pub fn deinit(self: *SessionData, allocator: std.mem.Allocator) void {
+            _ = self;
+            _ = allocator;
+        }
+    };
+
+    pub const SessionStore = struct {
+        allocator: std.mem.Allocator,
+        base_dir: []const u8,
+
+        pub fn init(allocator: std.mem.Allocator, base_dir: []const u8) SessionStore {
+            return .{
+                .allocator = allocator,
+                .base_dir = base_dir,
+            };
+        }
+
+        pub fn deinit(self: *SessionStore) void {
+            _ = self;
+        }
+
+        pub fn save(_: *SessionStore, _: []const u8, _: anytype) !void {
+            return error.AiDisabled;
+        }
+
+        pub fn load(_: *SessionStore, _: std.mem.Allocator, _: []const u8) !?anyopaque {
+            return error.AiDisabled;
+        }
+
+        pub fn list(_: *SessionStore, _: std.mem.Allocator) ![]const []const u8 {
+            return error.AiDisabled;
+        }
+
+        pub fn listSessions(_: *SessionStore) ![]SessionMeta {
+            return error.AiDisabled;
+        }
+
+        pub fn loadSession(_: *SessionStore, _: []const u8) !SessionData {
+            return error.AiDisabled;
+        }
+
+        pub fn saveSession(_: *SessionStore, _: []const u8, _: SessionData) !void {
+            return error.AiDisabled;
         }
     };
 };
@@ -496,7 +588,9 @@ pub const PromptPersona = struct {
     description: []const u8 = "",
     system_prompt: []const u8 = "",
     temperature: f32 = 0.7,
+    suggested_temperature: f32 = 0.7,
     persona_type: PromptPersonaType = .assistant,
+    include_examples: bool = false,
 };
 
 pub const PromptPersonaType = enum {

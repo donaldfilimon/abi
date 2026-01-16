@@ -4,7 +4,8 @@
 //! using randomized inputs and invariants.
 
 const std = @import("std");
-const time = @import("../shared/utils/time.zig");
+const abi = @import("abi");
+const time = abi.shared.time;
 
 pub const PropertyTestConfig = struct {
     max_cases: usize = 100,
@@ -208,7 +209,7 @@ test "SIMD vector operations properties" {
         &.{ 1.5, -2.5, 0.0 },
     };
 
-    const simd = @import("../shared/simd.zig");
+    const simd = abi.simd;
 
     for (testVectors) |a| {
         for (testVectors) |b| {
@@ -232,7 +233,7 @@ test "SIMD vector operations properties" {
 
 test "SIMD cosine similarity properties" {
     _ = std.testing.allocator;
-    const simd = @import("../shared/simd.zig");
+    const simd = abi.simd;
 
     // Test cosine similarity bounds: result should be in [-1, 1]
     const testVectors = [_][]const f32{
@@ -259,7 +260,7 @@ test "SIMD cosine similarity properties" {
 
 test "SIMD dot product properties" {
     _ = std.testing.allocator;
-    const simd = @import("../shared/simd.zig");
+    const simd = abi.simd;
 
     // Test dot product distributivity: a · (b + c) = a · b + a · c
     const a = [_]f32{ 1.0, 2.0, 3.0 };
@@ -284,8 +285,8 @@ test "HNSW index basic properties" {
     const build_options = @import("build_options");
     if (!build_options.enable_database) return error.SkipZigTest;
 
-    const index_mod = @import("../features/database/index.zig");
-    const hnsw = @import("../features/database/hnsw.zig");
+    const index_mod = abi.database.index;
+    const hnsw = abi.database.hnsw;
 
     // Create test vectors
     const vectors = [_][]const f32{
@@ -331,7 +332,7 @@ test "HNSW index basic properties" {
 
 test "SIMD L2 norm properties" {
     _ = std.testing.allocator;
-    const simd = @import("../shared/simd.zig");
+    const simd = abi.simd;
 
     // Test L2 norm non-negativity: ||v|| >= 0
     const testVectors = [_][]const f32{
@@ -354,7 +355,7 @@ test "SIMD L2 norm properties" {
 
 test "vector normalization property" {
     const allocator = std.testing.allocator;
-    const simd = @import("../shared/simd.zig");
+    const simd = abi.simd;
 
     // Test that normalized vector has unit L2 norm
     const testVectors = [_][]const f32{

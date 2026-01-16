@@ -336,3 +336,4 @@ See `CONTRIBUTING.md` for development workflow and style guidelines.
 ## Contacts
 
 `src/shared/contacts.zig` provides a centralized list of maintainer contacts extracted from the repository markdown files. It can be imported wherever contact information is needed.
+See [TODO.md](TODO.md) for the list of pending implementations.

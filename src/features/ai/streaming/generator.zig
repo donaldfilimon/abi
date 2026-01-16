@@ -1,10 +1,10 @@
-//! Streaming response API for AI models.
+//! Basic streaming generator for AI model token generation.
 //!
-//! Provides support for streaming token-by-token responses from AI models,
-//! enabling real-time output display and reduced perceived latency.
+//! Provides a simple streaming generator that works directly with
+//! transformer models for token-by-token text generation.
 
 const std = @import("std");
-const transformer = @import("transformer/mod.zig");
+const transformer = @import("../transformer/mod.zig");
 
 pub const StreamingError = error{
     StreamClosed,

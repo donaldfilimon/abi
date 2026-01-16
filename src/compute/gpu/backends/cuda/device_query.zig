@@ -4,7 +4,7 @@
 //! and performance characteristics using CUDA Driver API.
 
 const std = @import("std");
-const shared = @import("shared.zig");
+const shared = @import("../shared.zig");
 
 pub const DeviceProperty = enum(u32) {
     major = 75,

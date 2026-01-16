@@ -2,14 +2,30 @@
 //!
 //! Provides CUDA-specific kernel compilation and execution.
 //! Uses consolidated cuda_loader for function management.
+//!
+//! This module aggregates all CUDA functionality:
+//! - loader.zig: Consolidated CUDA library loading
+//! - native.zig: Native CUDA backend with real GPU execution
+//! - memory.zig: Device and pinned memory management
+//! - stream.zig: CUDA stream management
+//! - device_query.zig: Device capability queries
+//! - nvrtc.zig: Runtime compilation support
 
 const std = @import("std");
-const types = @import("../kernel_types.zig");
-const shared = @import("shared.zig");
-const fallback = @import("fallback.zig");
-const cuda_native = @import("cuda_native.zig");
-const cuda_loader = @import("cuda_loader.zig");
+const types = @import("../../kernel_types.zig");
+const shared = @import("../shared.zig");
+const fallback = @import("../fallback.zig");
+const cuda_native = @import("native.zig");
+const cuda_loader = @import("loader.zig");
 const gpu = std.gpu;
+
+// Re-export submodules
+pub const loader = @import("loader.zig");
+pub const native = @import("native.zig");
+pub const memory = @import("memory.zig");
+pub const stream = @import("stream.zig");
+pub const device_query = @import("device_query.zig");
+pub const nvrtc = @import("nvrtc.zig");
 
 // Re-export from loader for compatibility
 pub const CuResult = cuda_loader.CuResult;
@@ -215,23 +231,23 @@ pub fn createStream() !*anyopaque {
 }
 
 /// Destroy a CUDA stream.
-/// @param stream Opaque pointer to CUDA stream to destroy
-pub fn destroyStream(stream: *anyopaque) void {
+/// @param stream_ Opaque pointer to CUDA stream to destroy
+pub fn destroyStream(stream_: *anyopaque) void {
     if (use_native) {
-        cuda_native.destroyStream(stream);
+        cuda_native.destroyStream(stream_);
         return;
     }
-    fallback.destroyOpaqueHandle(CuStream, stream);
+    fallback.destroyOpaqueHandle(CuStream, stream_);
 }
 
 /// Synchronize a CUDA stream, blocking until all operations complete.
-/// @param stream Opaque pointer to CUDA stream to synchronize
+/// @param stream_ Opaque pointer to CUDA stream to synchronize
 /// @return CuResult error on synchronization failure
-pub fn synchronizeStream(stream: *anyopaque) !void {
+pub fn synchronizeStream(stream_: *anyopaque) !void {
     if (use_native) {
-        return cuda_native.synchronizeStream(stream);
+        return cuda_native.synchronizeStream(stream_);
     }
-    const cu_stream: *CuStream = @ptrCast(@alignCast(stream));
+    const cu_stream: *CuStream = @ptrCast(@alignCast(stream_));
     _ = cu_stream;
 }
 

@@ -29,6 +29,7 @@ ABI is a modern Zig 0.16.x framework for modular AI services, vector search, and
 - Always clean up resources with `defer`/`errdefer`; use specific error sets (no `anyerror`).
 - Run `zig fmt .` after code edits and `zig build test --summary all` when behavior changes.
 - Update docs/examples when APIs or behavior change so references stay in sync.
+- Refer to **[TODO.md](TODO.md)** for a list of incomplete features and placeholders. Avoid depending on stubbed behavior until these items are implemented.
 
 ## Build Commands
 
@@ -858,3 +859,4 @@ Use `<type>: <summary>` format. Keep summaries ≤ 72 chars. Focus commits; upda
 ## Contacts
 
 `src/shared/contacts.zig` provides a centralized list of maintainer contacts extracted from the repository markdown files.
+See [TODO.md](TODO.md) for the list of pending implementations.
