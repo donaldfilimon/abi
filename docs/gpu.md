@@ -302,3 +302,4 @@ try result_buf.read(f32, &result);
 - [Compute Engine](compute.md) - CPU/GPU workload scheduling
 - [Monitoring](monitoring.md) - GPU metrics and profiling
 - [Troubleshooting](troubleshooting.md) - GPU detection issues
+*See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*

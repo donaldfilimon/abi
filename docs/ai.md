@@ -123,3 +123,4 @@ zig build run -- llm bench model.gguf      # Benchmark performance
 - [Framework](framework.md) - Configuration options
 - [Compute Engine](compute.md) - Task execution for AI workloads
 - [Troubleshooting](troubleshooting.md) - Common issues
+*See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*

@@ -337,3 +337,4 @@ See `CONTRIBUTING.md` for development workflow and style guidelines.
 
 `src/shared/contacts.zig` provides a centralized list of maintainer contacts extracted from the repository markdown files. It can be imported wherever contact information is needed.
 See [TODO.md](TODO.md) for the list of pending implementations.
+*See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*

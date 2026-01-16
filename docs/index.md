@@ -173,3 +173,4 @@ zig build run-network        # Distributed compute
 - [CLAUDE.md](../CLAUDE.md) - Development guidelines for Claude Code
 - [README.md](../README.md) - Project overview
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines
+*See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*

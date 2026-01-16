@@ -298,3 +298,4 @@ The migration introduces **no breaking changes** to public APIs, maintains **100
 - [Migration Guide](zig-0.16-migration.md) - Step-by-step migration instructions
 - [Documentation Index](../index.md) - Full documentation
 - [Troubleshooting](../troubleshooting.md) - Common issues
+*See [../../TODO.md](../../TODO.md) and [../../ROADMAP.md](../../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*

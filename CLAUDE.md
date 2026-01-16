@@ -862,3 +862,4 @@ Use `<type>: <summary>` format. Keep summaries ≤ 72 chars. Focus commits; upda
 See [TODO.md](TODO.md) for the list of pending implementations.
 See [ROADMAP.md](ROADMAP.md) for upcoming milestones, including the **Llama‑CPP parity** section (Version 0.6.0 – Q4 2026).
 The TODO list now includes a **Llama‑CPP parity task table** describing required modules to achieve llama‑cpp feature parity.
+*See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
