@@ -16,6 +16,8 @@ pub const tools = @import("tools/mod.zig");
 pub const explore = if (build_options.enable_explore) @import("explore/mod.zig") else @import("explore/stub.zig");
 pub const llm = if (build_options.enable_llm) @import("llm/mod.zig") else @import("llm/stub.zig");
 pub const memory = @import("memory/mod.zig");
+pub const prompts = @import("prompts/mod.zig");
+pub const abbey = @import("abbey/mod.zig");
 
 pub const Agent = agent.Agent;
 pub const ModelRegistry = model_registry.ModelRegistry;
@@ -45,6 +47,28 @@ pub const ExplorationStats = explore.ExplorationStats;
 pub const QueryIntent = explore.QueryIntent;
 pub const ParsedQuery = explore.ParsedQuery;
 pub const QueryUnderstanding = explore.QueryUnderstanding;
+
+// Prompt system exports
+pub const PromptBuilder = prompts.PromptBuilder;
+pub const Persona = prompts.Persona;
+pub const PersonaType = prompts.PersonaType;
+pub const PromptFormat = prompts.PromptFormat;
+pub const getPersona = prompts.getPersona;
+pub const listPersonas = prompts.listPersonas;
+
+// Abbey AI exports
+pub const Abbey = abbey.Abbey;
+pub const AbbeyConfig = abbey.AbbeyConfig;
+pub const AbbeyResponse = abbey.Response;
+pub const AbbeyStats = abbey.Stats;
+pub const ReasoningChain = abbey.ReasoningChain;
+pub const ReasoningStep = abbey.ReasoningStep;
+pub const Confidence = abbey.Confidence;
+pub const ConfidenceLevel = abbey.reasoning.ConfidenceLevel;
+pub const EmotionalState = abbey.EmotionalState;
+pub const EmotionType = abbey.EmotionType;
+pub const ConversationContext = abbey.ConversationContext;
+pub const TopicTracker = abbey.TopicTracker;
 
 // LLM module exports
 pub const LlmEngine = llm.Engine;

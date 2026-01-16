@@ -1,8 +1,14 @@
 # Changelog
 
-## Unreleased
+## Unreleased (v0.3.0-dev)
 
-### Zig 0.16 API Migration
+### Zig 0.16 API Migration (Complete)
+
+**std.Io Unified API**
+- Migrated all I/O operations to the new `std.Io` unified interface
+- `std.Io.Threaded` for synchronous file operations replaces deprecated patterns
+- `std.Io.Dir.cwd()` replaces `std.fs.cwd()` (which no longer exists in Zig 0.16)
+- `std.Io.Clock.Duration` for sleep operations replaces `std.time.sleep()`
 
 **Reader API Migration**
 - Migrated `std.io.AnyReader` → `std.Io.Reader` in async HTTP client
@@ -10,22 +16,29 @@
 - Impact: `src/shared/utils/http/async_http.zig`
 
 **HTTP Server Initialization**
-- Updated `std.http.Server` initialization to use direct reader/writer references
-- Removed deprecated `.interface` access pattern for HTTP server setup
+- Updated `std.http.Server` initialization to use `.interface` access pattern
+- Stream readers/writers expose `*Io.Reader` via `.interface` field
+- Pattern: `&connection_reader.interface` provides correct type for `std.http.Server.init()`
 - Impact: `src/features/database/http.zig`
+
+**Time Utilities**
+- Created `src/shared/utils/time.zig` with Zig 0.16 compliant time functions
+- `sleepMs()`, `sleepSeconds()`, `sleepNs()` using `std.Io.Clock.Duration`
+- `Stopwatch` struct using `std.time.Timer`
+- `formatDurationNs()` for human-readable duration formatting
 
 **File I/O Compatibility**
 - Verified and preserved `std.Io.File.Reader` `.interface` access for delimiter methods
 - This is intentional and correct usage in Zig 0.16 for specialized file operations
-- Impact: `src/cli.zig` (no changes needed, verified correct)
+- Impact: `src/cli.zig` (verified correct)
 
 **Build System Updates**
-- Updated CI configuration to use Zig `0.16.0` instead of `0.17.0`
+- Updated CI configuration to use Zig `0.16.0`
 - Confirmed `minimum_zig_version` in `build.zig.zon` is set to `"0.16.0"`
 - All feature builds tested and passing (gpu, ai, web, database, network)
 
 **Testing & Verification**
-- All unit tests passing (1/1)
+- All unit tests passing (24/24 with all features enabled)
 - Full feature build succeeds with all optional modules enabled
 - Benchmark suite runs successfully
 - No breaking changes to public API
@@ -39,8 +52,9 @@
 | File | Change | Impact |
 |------|--------|--------|
 | `src/shared/utils/http/async_http.zig` | Reader type migration | Low - Streaming interface updated |
-| `src/features/database/http.zig` | HTTP Server init | Low - Direct reader/writer usage |
-| `src/cli.zig` | Verified | None - File.Reader API unchanged |
+| `src/features/database/http.zig` | HTTP Server init | Low - Uses `.interface` correctly |
+| `src/shared/utils/time.zig` | New file | Zig 0.16 time utilities |
+| `src/cli.zig` | Verified | None - File.Reader API correct |
 | `.github/workflows/ci.yml` | Zig version | Low - CI uses 0.16.0 |
 | `docs/migration/zig-0.16-migration.md` | New file | Documentation |
 

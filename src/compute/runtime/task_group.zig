@@ -510,11 +510,12 @@ pub fn parallelForEach(
     defer group.deinit();
 
     // Create wrapper that captures item
+    // Note: The wrapper uses TaskError to match TaskFn signature.
     const Wrapper = struct {
         item: T,
         func_ptr: *const fn (T) void,
 
-        fn run(ctx: *TaskContext) anyerror!void {
+        fn run(ctx: *TaskContext) TaskError!void {
             const self: *@This() = @ptrCast(@alignCast(ctx.user_data.?));
             self.func_ptr(self.item);
         }
@@ -536,8 +537,10 @@ test "task group basic" {
     var group = TaskGroup.init(allocator, .{});
     defer group.deinit();
 
+    // Test task functions use anyerror to allow flexible error testing.
+    // In production code, use TaskError for the specific error set.
     const task_fn = struct {
-        fn run(_: *TaskContext) anyerror!void {
+        fn run(_: *TaskContext) TaskError!void {
             // Simple task that does nothing
         }
     }.run;
@@ -559,7 +562,7 @@ test "task group cancellation" {
     defer group.deinit();
 
     const task_fn = struct {
-        fn run(ctx: *TaskContext) anyerror!void {
+        fn run(ctx: *TaskContext) TaskError!void {
             try ctx.checkCancellation();
         }
     }.run;
@@ -579,12 +582,13 @@ test "task group stats" {
     defer group.deinit();
 
     const success_fn = struct {
-        fn run(_: *TaskContext) anyerror!void {}
+        fn run(_: *TaskContext) TaskError!void {}
     }.run;
 
+    // Note: TaskFailed is part of TaskError and is used here to test failure handling.
     const fail_fn = struct {
-        fn run(_: *TaskContext) anyerror!void {
-            return error.TestError;
+        fn run(_: *TaskContext) TaskError!void {
+            return error.TaskFailed;
         }
     }.run;
 

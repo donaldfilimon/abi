@@ -1,21 +1,36 @@
-# Release Notes for ABI v0.2.2
+# Release Notes for ABI v0.3.0-dev (Unreleased)
 
-**Release Date:** December 27, 2025
+**Target Release:** Q1 2026
+**Zig Version:** 0.16.x
 
 ## Overview
 
-ABI v0.2.2 represents a comprehensive update bringing Zig 0.16 modernization, enhanced documentation, improved testing infrastructure, and a new benchmark suite. This release focuses on production readiness and developer experience.
+ABI v0.3.0 builds upon the Zig 0.16 migration completed in v0.2.2, adding comprehensive GPU backend support, AI features, and distributed systems infrastructure. This release represents a major milestone in the framework's evolution.
 
 ## What's New
 
-### Zig 0.16 Modernization
+### Complete Zig 0.16 API Migration
+- **std.Io API** - Full migration to the unified I/O interface
+  - `std.Io.Threaded` for synchronous file operations
+  - `std.Io.Dir.cwd()` replaces deprecated `std.fs.cwd()`
+  - `std.Io.Clock.Duration` for sleep operations
+- **HTTP Server Pattern** - Updated initialization with `.interface` access
+  ```zig
+  var connection_reader = stream.reader(io, &recv_buffer);
+  var connection_writer = stream.writer(io, &send_buffer);
+  var server: std.http.Server = .init(
+      &connection_reader.interface,
+      &connection_writer.interface,
+  );
+  ```
 - **ArrayListUnmanaged Migration** - All `std.ArrayList` usage migrated to `std.ArrayListUnmanaged`
   - Better control over memory ownership
   - Explicit allocator passing throughout codebase
-  - 13 files modernized
+  - 13+ files modernized
 - **Format Specifiers** - Adopted modern Zig 0.16 format specifiers
   - `{t}` for enum and error values (replaces `@tagName()`)
-  - Updated in 4 files (demo.zig, cli.zig, logging/mod.zig, network/registry.zig)
+  - `{B}` for byte sizes, `{D}` for durations
+- **Timing API** - `std.time.Timer` replaces deprecated `std.time.nanoTimestamp()`
 
 ### Documentation
 - **Module Documentation** - Added `//!` documentation to core modules
@@ -127,7 +142,23 @@ ABI v0.2.2 represents a comprehensive update bringing Zig 0.16 modernization, en
 ### For Zig 0.16 Compliance
 If you're upgrading from v0.2.0 or earlier:
 
-1. **ArrayList Migration** (if using custom code):
+1. **std.Io API Migration**:
+   ```zig
+   // Old - std.fs
+   const file = try std.fs.cwd().openFile(path, .{});
+
+   // New - std.Io with backend
+   var io_backend = std.Io.Threaded.init(allocator, .{
+       .environ = std.process.Environ.empty,
+   });
+   defer io_backend.deinit();
+   const io = io_backend.io();
+   const content = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(max_size)) catch |err| {
+       return err;
+   };
+   ```
+
+2. **ArrayList Migration** (if using custom code):
    ```zig
    // Old
    var list = std.ArrayList(u8).init(allocator);
@@ -138,13 +169,35 @@ If you're upgrading from v0.2.0 or earlier:
    try list.append(allocator, item);
    ```
 
-2. **Format Specifiers**:
+3. **Format Specifiers**:
    ```zig
    // Old
    std.debug.print("Status: {s}\n", .{@tagName(status)});
+   std.log.err("Error: {s}", .{@errorName(err)});
 
    // New
    std.debug.print("Status: {t}\n", .{status});
+   std.log.err("Error: {t}", .{err});
+   ```
+
+4. **Timing API**:
+   ```zig
+   // Old
+   const start = std.time.nanoTimestamp();
+
+   // New
+   var timer = std.time.Timer.start() catch return error.TimerFailed;
+   const elapsed_ns = timer.read();
+   ```
+
+5. **Sleep API**:
+   ```zig
+   // Old
+   std.time.sleep(nanoseconds);
+
+   // New - use time utilities module
+   const time_utils = @import("src/shared/utils/time.zig");
+   time_utils.sleepMs(100);   // Sleep 100 milliseconds
    ```
 
 ### For Security Changes
@@ -185,8 +238,9 @@ All tests passing:
 
 ## Compatibility
 
-- **Zig Version:** 0.16.x
+- **Zig Version:** 0.16.x (required)
 - **Minimum Zig:** 0.16.0
+- **Maximum Zig:** 0.16.x (0.17+ not yet supported)
 - **Platforms:** Linux, macOS, Windows
 
 ## Acknowledgments
@@ -214,13 +268,14 @@ This release includes contributions from the ABI team and community feedback.
 - [examples/](examples/) - Example programs
 - [benchmarks/](benchmarks/) - Benchmark suite
 
-## Next Release
+## Next Release (v0.4.0)
 
-Planned for Q1 2026:
-- GPU backend implementations (CUDA, Vulkan, Metal, WebGPU)
-- Async/await I/O using std.Io
-- Enhanced compute runtime (NUMA, CPU affinity)
-- Connector implementations (OpenAI, Ollama, HuggingFace)
+Planned for Q2 2026:
+- SIMD optimizations (AVX-512, NEON, WASM SIMD)
+- Memory management improvements (arena allocator, memory pools)
+- Comprehensive API documentation (auto-generated)
+- Performance benchmark suite with regression detection
+- Tooling (debugger integration, performance profiler)
 
 See [ROADMAP.md](ROADMAP.md) for detailed roadmap.
 

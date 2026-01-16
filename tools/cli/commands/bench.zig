@@ -188,10 +188,20 @@ const BenchResult = struct {
     iterations: u64,
 };
 
+/// Errors that can occur during benchmark execution.
+/// Used for benchmark function signatures instead of anyerror.
+pub const BenchmarkError = std.mem.Allocator.Error || error{
+    TimerUnavailable,
+    BenchmarkFailed,
+};
+
+/// Benchmark function type for suite runners.
+pub const BenchmarkFn = *const fn (std.mem.Allocator, *std.ArrayListUnmanaged(BenchResult)) BenchmarkError!void;
+
 fn runSuiteWithResults(
     allocator: std.mem.Allocator,
     name: []const u8,
-    benchFn: *const fn (std.mem.Allocator, *std.ArrayListUnmanaged(BenchResult)) anyerror!void,
+    benchFn: BenchmarkFn,
     results: *std.ArrayListUnmanaged(BenchResult),
     json_mode: bool,
 ) !void {
@@ -315,7 +325,7 @@ fn runMicroOp(allocator: std.mem.Allocator, op: MicroOp) usize {
 // Benchmark Suite Implementations
 // =============================================================================
 
-fn runSimdBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) !void {
+fn runSimdBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) BenchmarkError!void {
     // Dot product benchmark
     const sizes = [_]usize{ 64, 256, 1024, 4096 };
     for (sizes) |size| {
@@ -350,7 +360,7 @@ fn runSimdBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmana
     }
 }
 
-fn runMemoryBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) !void {
+fn runMemoryBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) BenchmarkError!void {
     // Arena-style allocation benchmark
     const sizes = [_]usize{ 64, 256, 1024, 4096 };
     for (sizes) |size| {
@@ -369,7 +379,7 @@ fn runMemoryBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnma
     }
 }
 
-fn runConcurrencyBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) !void {
+fn runConcurrencyBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) BenchmarkError!void {
     // Atomic operations benchmark
     var counter = std.atomic.Value(u64).init(0);
 
@@ -398,25 +408,25 @@ fn runConcurrencyBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayLis
     std.debug.print("  atomic_increment: {d:.0} ops/sec, {d:.0}ns mean\n", .{ ops_per_sec, mean_ns });
 }
 
-fn runDatabaseBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) !void {
+fn runDatabaseBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) BenchmarkError!void {
     std.debug.print("  (Database benchmarks require enable-database build flag)\n", .{});
     _ = allocator;
     _ = results;
 }
 
-fn runNetworkBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) !void {
+fn runNetworkBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) BenchmarkError!void {
     std.debug.print("  (Network benchmarks require enable-network build flag)\n", .{});
     _ = allocator;
     _ = results;
 }
 
-fn runCryptoBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) !void {
+fn runCryptoBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) BenchmarkError!void {
     std.debug.print("  (Crypto benchmarks placeholder)\n", .{});
     _ = allocator;
     _ = results;
 }
 
-fn runAiBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) !void {
+fn runAiBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) BenchmarkError!void {
     // Simple matrix multiply benchmark
     const m: usize = 64;
     const k: usize = 64;
@@ -471,7 +481,7 @@ fn runAiBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanage
     std.debug.print("  matmul[{d}x{d}x{d}]: {d:.2} GFLOPS, {d:.0}ns mean\n", .{ m, k, n, gflops, mean_ns });
 }
 
-fn runQuickSimdBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) !void {
+fn runQuickSimdBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) BenchmarkError!void {
     // Quick SIMD benchmark - single size
     const size: usize = 256;
     const a = try allocator.alloc(f32, size);
@@ -502,7 +512,7 @@ fn runQuickSimdBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListU
     std.debug.print("  quick_dot_product: {d:.0} ops/sec\n", .{result.ops_per_sec});
 }
 
-fn runQuickMemoryBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) !void {
+fn runQuickMemoryBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) BenchmarkError!void {
     const result = try benchmarkAllocOp(allocator, 256);
 
     try results.append(allocator, .{

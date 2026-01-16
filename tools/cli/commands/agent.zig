@@ -1,10 +1,13 @@
-//! AI agent command with session management.
+//! AI agent command with session management and prompt debugging.
 //!
 //! Commands:
 //! - agent - Start interactive session
 //! - agent --message "text" - One-shot message
 //! - agent --session <name> - Use named session
+//! - agent --persona <type> - Use specific persona (assistant, coder, writer, etc.)
+//! - agent --show-prompt - Display the full prompt before sending
 //! - agent --list-sessions - List available sessions
+//! - agent --list-personas - List available persona types
 //!
 //! Interactive commands:
 //! - /save [name] - Save current session
@@ -12,6 +15,7 @@
 //! - /sessions - List available sessions
 //! - /clear - Clear current conversation
 //! - /info - Show session info
+//! - /prompt - Show current prompt (for debugging)
 //! - exit, quit - Exit the agent
 
 const std = @import("std");
@@ -141,12 +145,16 @@ const SessionState = struct {
 /// Run the agent command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     const agent_mod = abi.ai.agent;
+    const prompts = abi.ai.prompts;
 
     var name: []const u8 = "cli-agent";
     var message: ?[]const u8 = null;
     var session_name: []const u8 = "default";
     var load_session: ?[]const u8 = null;
     var list_sessions = false;
+    var list_personas = false;
+    var show_prompt = false;
+    var persona_type: prompts.PersonaType = .assistant;
 
     var i: usize = 0;
     while (i < args.len) {
@@ -185,8 +193,27 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             continue;
         }
 
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--persona")) {
+            if (i < args.len) {
+                const persona_name = std.mem.sliceTo(args[i], 0);
+                persona_type = parsePersonaType(persona_name);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--show-prompt")) {
+            show_prompt = true;
+            continue;
+        }
+
         if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--list-sessions")) {
             list_sessions = true;
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--list-personas")) {
+            list_personas = true;
             continue;
         }
 
@@ -201,7 +228,19 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         return listSessions(allocator);
     }
 
-    var agent = try agent_mod.Agent.init(allocator, .{ .name = name });
+    // Handle list personas command
+    if (list_personas) {
+        return listPersonas();
+    }
+
+    // Get persona for system prompt
+    const persona = prompts.getPersona(persona_type);
+
+    var agent = try agent_mod.Agent.init(allocator, .{
+        .name = name,
+        .system_prompt = persona.system_prompt,
+        .temperature = persona.suggested_temperature,
+    });
     defer agent.deinit();
 
     // Initialize session state
@@ -216,6 +255,16 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 
     if (message) |msg| {
+        // Show prompt if requested
+        if (show_prompt) {
+            var builder = prompts.PromptBuilder.init(allocator, persona_type);
+            defer builder.deinit();
+            try builder.addUserMessage(msg);
+            const exported = try builder.exportDebug();
+            defer allocator.free(exported);
+            std.debug.print("{s}\n", .{exported});
+        }
+
         const response = try agent.process(msg, allocator);
         defer allocator.free(response);
         std.debug.print("User: {s}\n", .{msg});
@@ -227,14 +276,22 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         return;
     }
 
-    try runInteractive(allocator, &agent, &session);
+    try runInteractive(allocator, &agent, &session, persona_type, show_prompt);
 }
 
-fn runInteractive(allocator: std.mem.Allocator, agent: *abi.ai.agent.Agent, session: *SessionState) !void {
+fn runInteractive(
+    allocator: std.mem.Allocator,
+    agent: *abi.ai.agent.Agent,
+    session: *SessionState,
+    persona_type: abi.ai.prompts.PersonaType,
+    show_prompt: bool,
+) !void {
+    const persona = abi.ai.prompts.getPersona(persona_type);
     std.debug.print("\n╔════════════════════════════════════════════════════════════╗\n", .{});
     std.debug.print("║                    ABI AI Agent                            ║\n", .{});
     std.debug.print("╚════════════════════════════════════════════════════════════╝\n\n", .{});
     std.debug.print("Session: {s} ({s})\n", .{ session.session_name, session.session_id });
+    std.debug.print("Persona: {s} - {s}\n", .{ persona.name, persona.description });
     std.debug.print("Type '/help' for commands, 'exit' to quit.\n\n", .{});
 
     var io_backend = std.Io.Threaded.init(allocator, .{
@@ -278,10 +335,30 @@ fn runInteractive(allocator: std.mem.Allocator, agent: *abi.ai.agent.Agent, sess
 
         // Handle slash commands
         if (trimmed[0] == '/') {
-            handleSlashCommand(allocator, session, trimmed) catch |err| {
+            handleSlashCommand(allocator, session, trimmed, persona_type) catch |err| {
                 std.debug.print("Command error: {t}\n", .{err});
             };
             continue;
+        }
+
+        // Show prompt if requested
+        if (show_prompt) {
+            var builder = abi.ai.prompts.PromptBuilder.init(allocator, persona_type);
+            defer builder.deinit();
+            // Add history
+            for (session.messages.items) |msg| {
+                const role: abi.ai.prompts.Role = switch (msg.role) {
+                    .user => .user,
+                    .assistant => .assistant,
+                    .system => .system,
+                    .tool => .tool,
+                };
+                try builder.addMessage(role, msg.content);
+            }
+            try builder.addUserMessage(trimmed);
+            const exported = try builder.exportDebug();
+            defer allocator.free(exported);
+            std.debug.print("{s}\n", .{exported});
         }
 
         // Process message with agent
@@ -298,12 +375,50 @@ fn runInteractive(allocator: std.mem.Allocator, agent: *abi.ai.agent.Agent, sess
     std.debug.print("Goodbye!\n", .{});
 }
 
-fn handleSlashCommand(allocator: std.mem.Allocator, session: *SessionState, input: []const u8) !void {
+fn handleSlashCommand(
+    allocator: std.mem.Allocator,
+    session: *SessionState,
+    input: []const u8,
+    persona_type: abi.ai.prompts.PersonaType,
+) !void {
     var iter = std.mem.splitScalar(u8, input[1..], ' ');
     const cmd = iter.first();
 
     if (std.mem.eql(u8, cmd, "help")) {
         printInteractiveHelp();
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "prompt")) {
+        // Show the current prompt with all history
+        var builder = abi.ai.prompts.PromptBuilder.init(allocator, persona_type);
+        defer builder.deinit();
+        for (session.messages.items) |msg| {
+            const role: abi.ai.prompts.Role = switch (msg.role) {
+                .user => .user,
+                .assistant => .assistant,
+                .system => .system,
+                .tool => .tool,
+            };
+            try builder.addMessage(role, msg.content);
+        }
+        const exported = try builder.exportDebug();
+        defer allocator.free(exported);
+        std.debug.print("{s}\n", .{exported});
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "persona")) {
+        const persona = abi.ai.prompts.getPersona(persona_type);
+        std.debug.print("\nCurrent Persona: {s}\n", .{persona.name});
+        std.debug.print("Description: {s}\n", .{persona.description});
+        std.debug.print("Temperature: {d:.1}\n\n", .{persona.suggested_temperature});
+        std.debug.print("System Prompt:\n{s}\n\n", .{persona.system_prompt});
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "personas")) {
+        listPersonas();
         return;
     }
 
@@ -417,6 +532,9 @@ fn printInteractiveHelp() void {
         \\  /clear     - Clear conversation history
         \\  /info      - Show session information
         \\  /history   - Show conversation history
+        \\  /prompt    - Show the full prompt (for debugging)
+        \\  /persona   - Show current persona details
+        \\  /personas  - List available personas
         \\  exit, quit - Exit the agent
         \\
         \\
@@ -424,19 +542,58 @@ fn printInteractiveHelp() void {
     std.debug.print("{s}", .{help});
 }
 
+fn listPersonas() void {
+    const all_personas = abi.ai.prompts.listPersonas();
+    std.debug.print("\nAvailable Personas:\n", .{});
+    std.debug.print("─────────────────────────────────────────────────────────────\n", .{});
+    std.debug.print("{s:<12} {s:<15} {s}\n", .{ "Name", "Temperature", "Description" });
+    std.debug.print("─────────────────────────────────────────────────────────────\n", .{});
+    for (all_personas) |pt| {
+        const p = abi.ai.prompts.getPersona(pt);
+        std.debug.print("{s:<12} {d:<15.1} {s}\n", .{ p.name, p.suggested_temperature, p.description });
+    }
+    std.debug.print("\nUse --persona <name> to select a persona.\n\n", .{});
+}
+
+fn parsePersonaType(name: []const u8) abi.ai.prompts.PersonaType {
+    if (std.mem.eql(u8, name, "coder")) return .coder;
+    if (std.mem.eql(u8, name, "writer")) return .writer;
+    if (std.mem.eql(u8, name, "analyst")) return .analyst;
+    if (std.mem.eql(u8, name, "companion")) return .companion;
+    if (std.mem.eql(u8, name, "docs")) return .docs;
+    if (std.mem.eql(u8, name, "reviewer")) return .reviewer;
+    if (std.mem.eql(u8, name, "minimal")) return .minimal;
+    if (std.mem.eql(u8, name, "abbey")) return .abbey;
+    return .assistant; // Default
+}
+
 fn printHelp() void {
     const help_text =
         \\Usage: abi agent [options]
         \\
-        \\Run the AI agent with optional session management.
+        \\Run the AI agent with optional session management and persona selection.
         \\
         \\Options:
         \\  --name <name>       Agent name (default: cli-agent)
         \\  -m, --message <msg> Send single message (non-interactive)
         \\  -s, --session <n>   Session name to use
         \\  --load <id>         Load existing session by ID
+        \\  --persona <type>    Use specific persona (assistant, coder, writer, etc.)
+        \\  --show-prompt       Display the full prompt before sending
         \\  --list-sessions     List all saved sessions
+        \\  --list-personas     List available persona types
         \\  -h, --help          Show this help
+        \\
+        \\Personas:
+        \\  assistant  - General-purpose helpful assistant (default)
+        \\  coder      - Programming and code-focused assistant
+        \\  writer     - Creative writing assistant
+        \\  analyst    - Data analysis and research assistant
+        \\  reviewer   - Code review specialist
+        \\  docs       - Technical documentation helper
+        \\  companion  - Friendly conversational companion
+        \\  minimal    - Direct, concise response mode
+        \\  abbey      - Opinionated, emotionally intelligent AI
         \\
         \\Interactive Commands:
         \\  /save [name]   Save current session
@@ -445,14 +602,16 @@ fn printHelp() void {
         \\  /clear         Clear conversation
         \\  /info          Show session info
         \\  /history       Show conversation history
+        \\  /prompt        Show the full prompt (for debugging)
+        \\  /persona       Show current persona details
         \\  exit, quit     Exit the agent
         \\
         \\Examples:
         \\  abi agent                          # Start interactive session
+        \\  abi agent --persona coder          # Use coder persona
+        \\  abi agent --show-prompt -m "Hi"    # Show prompt, then send
         \\  abi agent --session "project-x"    # Named session
-        \\  abi agent -m "Hello"               # Single message
-        \\  abi agent --list-sessions          # List saved sessions
-        \\  abi agent --load session_12345     # Load previous session
+        \\  abi agent --list-personas          # Show all personas
         \\
     ;
     std.debug.print("{s}", .{help_text});

@@ -24,14 +24,33 @@ pub const RetryError = error{
     NonRetryableError,
 };
 
-/// Execute a function with retry logic and exponential backoff
+/// Extract the error type from a function's return type.
+/// Used to infer error types for generic retry operations.
+fn FuncErrorType(comptime func: anytype) type {
+    const FuncType = @TypeOf(func);
+    const func_info = @typeInfo(FuncType);
+    if (func_info != .@"fn") {
+        @compileError("Expected a function type");
+    }
+    const ReturnType = func_info.@"fn".return_type orelse @compileError("Function must have a return type");
+    const return_info = @typeInfo(ReturnType);
+    if (return_info != .error_union) {
+        @compileError("Function must return an error union");
+    }
+    return return_info.error_union.error_set;
+}
+
+/// Execute a function with retry logic and exponential backoff.
+/// The `func` parameter should be a function that returns `!T` (an error union).
+/// The `is_retryable` callback determines which errors should trigger a retry.
+/// If `is_retryable` is null, all errors are considered retryable.
 pub fn retryWithBackoff(
     comptime T: type,
     comptime func: anytype,
     args: anytype,
     config: RetryConfig,
-    comptime is_retryable: ?fn (anyerror) bool,
-) !T {
+    comptime is_retryable: ?*const fn (FuncErrorType(func)) bool,
+) FuncErrorType(func)!T {
     var attempt: u32 = 0;
     var backoff_ms = config.initial_backoff_ms;
 
@@ -89,18 +108,35 @@ pub fn retryWithBackoff(
     return RetryError.MaxAttemptsExceeded;
 }
 
-/// Common retryable error checker for HTTP operations
-pub fn isHttpRetryable(err: anyerror) bool {
-    return switch (err) {
-        error.ConnectionRefused,
-        error.ConnectionResetByPeer,
-        error.ConnectionTimedOut,
-        error.Timeout,
-        error.TemporaryNameServerFailure,
-        error.UnexpectedConnectFailure,
-        => true,
-        else => false,
-    };
+/// HTTP-related errors that are commonly retryable.
+pub const HttpRetryableError = error{
+    ConnectionRefused,
+    ConnectionResetByPeer,
+    ConnectionTimedOut,
+    Timeout,
+    TemporaryNameServerFailure,
+    UnexpectedConnectFailure,
+};
+
+/// Common retryable error checker for HTTP operations.
+/// This function checks if an error is in the set of known HTTP retryable errors.
+/// For use with functions that return errors compatible with HttpRetryableError.
+pub fn isHttpRetryable(comptime E: type) *const fn (E) bool {
+    return struct {
+        fn check(err: E) bool {
+            // Check against known retryable error values
+            inline for (@typeInfo(HttpRetryableError).error_set.?) |retryable_err| {
+                if (@typeInfo(E) == .error_set) {
+                    inline for (@typeInfo(E).error_set.?) |e| {
+                        if (std.mem.eql(u8, e.name, retryable_err.name) and @intFromError(err) == @intFromError(@field(E, e.name))) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+    }.check;
 }
 
 /// Retryable status codes (5xx server errors, 429 rate limit)
@@ -143,11 +179,13 @@ test "retry with backoff succeeds after retries" {
         .enable_jitter = false,
     };
 
+    const TestError = error{TemporaryFailure};
+
     var call_count: u32 = 0;
     const result = try retryWithBackoff(
         u32,
         struct {
-            fn testFunc(count: *u32) !u32 {
+            fn testFunc(count: *u32) TestError!u32 {
                 count.* += 1;
                 if (count.* < 3) return error.TemporaryFailure;
                 return 42;
@@ -156,7 +194,7 @@ test "retry with backoff succeeds after retries" {
         .{&call_count},
         config,
         struct {
-            fn isRetryable(err: anyerror) bool {
+            fn isRetryable(err: TestError) bool {
                 return err == error.TemporaryFailure;
             }
         }.isRetryable,
@@ -173,11 +211,13 @@ test "retry with backoff fails after max attempts" {
         .enable_jitter = false,
     };
 
+    const TestError = error{AlwaysFails};
+
     var call_count: u32 = 0;
     const result = retryWithBackoff(
         u32,
         struct {
-            fn testFunc(count: *u32) !u32 {
+            fn testFunc(count: *u32) TestError!u32 {
                 count.* += 1;
                 return error.AlwaysFails;
             }
@@ -185,7 +225,7 @@ test "retry with backoff fails after max attempts" {
         .{&call_count},
         config,
         struct {
-            fn isRetryable(err: anyerror) bool {
+            fn isRetryable(err: TestError) bool {
                 return err == error.AlwaysFails;
             }
         }.isRetryable,
@@ -196,9 +236,12 @@ test "retry with backoff fails after max attempts" {
 }
 
 test "http retryable error detection" {
-    try std.testing.expect(isHttpRetryable(error.ConnectionRefused));
-    try std.testing.expect(isHttpRetryable(error.Timeout));
-    try std.testing.expect(!isHttpRetryable(error.OutOfMemory));
+    // Test with a mixed error set containing both retryable and non-retryable errors
+    const MixedError = error{ ConnectionRefused, Timeout, OutOfMemory };
+    const checker = isHttpRetryable(MixedError);
+    try std.testing.expect(checker(error.ConnectionRefused));
+    try std.testing.expect(checker(error.Timeout));
+    try std.testing.expect(!checker(error.OutOfMemory));
 }
 
 test "status code retryable detection" {

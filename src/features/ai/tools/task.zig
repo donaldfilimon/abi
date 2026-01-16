@@ -112,7 +112,7 @@ pub const TaskTool = struct {
         self.subagents.deinit(self.allocator);
     }
 
-    pub fn registerSubagent(self: *TaskTool, name: []const u8, description: []const u8, handler: *const fn ([]const u8, *Context) anyerror!ToolResult, config: SubagentConfig) !void {
+    pub fn registerSubagent(self: *TaskTool, name: []const u8, description: []const u8, handler: SubagentHandlerFn, config: SubagentConfig) !void {
         const name_copy = try self.allocator.dupe(u8, name);
         const description_copy = try self.allocator.dupe(u8, description);
 

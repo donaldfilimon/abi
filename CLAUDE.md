@@ -126,11 +126,14 @@ abi/
 **Key directories to understand**:
 - `src/compute/gpu/backends/` - CUDA, Vulkan, Metal, WebGPU, OpenGL, stdgpu, simulated backends
 - `src/compute/gpu/unified.zig` - Unified GPU API with high-level operations
+- `src/compute/gpu/interface.zig` - Backend interface with VTable pattern for polymorphism
 - `src/compute/gpu/dsl/` - Portable kernel DSL and cross-backend compiler
 - `src/features/ai/llm/` - Local LLM inference: GGUF loading, tokenization, transformers, KV cache
 - `src/features/ai/explore/` - Code exploration: AST parsing, callgraph, dependency analysis
 - `src/features/database/` - WDBX vector database: HNSW, hybrid search, batch operations
+- `src/features/database/formats/` - Unified storage format with compression (LZ4/ZSTD/RLE)
 - `src/features/monitoring/alerting.zig` - Alerting rules system with configurable thresholds
+- `src/shared/utils/` - Shared utilities: cache, dynlib loader, lifecycle, errors
 
 **Module File Organization Convention**:
 - `mod.zig` - Re-exports and facade (module entry point)
@@ -243,6 +246,29 @@ The engine supports NUMA-aware scheduling (`src/compute/runtime/numa.zig`):
 - `getCurrentCpuId()`: Gets current CPU for scheduling decisions
 - Enable with `EngineConfig{ .numa_enabled = true, .cpu_affinity_enabled = true }`
 
+### Shared Utilities
+
+The `src/shared/utils/` directory provides reusable utilities:
+
+**`cache.zig`** - Generic caching with eviction policies:
+```zig
+var cache = Cache(u32, []const u8).init(allocator, 100, .lru);
+defer cache.deinit();
+try cache.put(1, "value");
+const val = cache.get(1);  // Updates LRU order
+```
+
+**`dynlib_loader.zig`** - Cross-platform dynamic library loading:
+```zig
+const loader = try DynLibLoader.initPlatform(CommonLibs.cuda);
+defer loader.deinit();
+const fn_ptr = loader.lookup(FnType, "symbol_name");
+```
+
+**`lifecycle.zig`** - Module lifecycle management (thread-safe or lock-free variants)
+
+**`errors.zig`** - Error context, Result wrapper, resource management
+
 ### GPU Backend Development Patterns
 
 All backends in `src/compute/gpu/backends/` must implement:
@@ -258,6 +284,7 @@ All backends in `src/compute/gpu/backends/` must implement:
 - **Symmetric Operations**: Every `allocate*` must have matching `free*` with same allocator
 - **Recovery**: Register devices with `recovery.registerDevice()`, report failures with `recovery.reportError()`
 - **Metrics**: Record kernels, transfers, allocations via `metrics.record*()` methods
+- **Consolidated Loading**: Use `cuda_loader.zig` for CUDA function management (single load/unload lifecycle)
 
 ### Unified GPU API
 
@@ -468,8 +495,8 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});  // Don't do this
 
 - 4 spaces, no tabs, lines under 100 chars, one blank line between functions
 - **Types**: PascalCase (`Engine`, `TaskConfig`)
-- **Functions/Variables**: snake_case (`create_engine`, `task_id`)
-- **Constants**: UPPER_SNAKE_CASE (`MAX_TASKS`, `DEFAULT_MAX_TASKS`)
+- **Functions/Variables**: camelCase (`createEngine`, `taskId`)
+- **Constants**: SCREAMING_SNAKE_CASE (`MAX_TASKS`, `DEFAULT_MAX_TASKS`)
 - **Struct Fields**: `allocator` first, then config/state, collections, resources, flags
 - Explicit imports only (no `usingnamespace` except for re-exports)
 - Use specific error sets, not `anyerror`
@@ -586,6 +613,42 @@ try manager.evaluate(metrics);
 **Alert states**: `inactive` → `pending` → `firing` → `resolved`
 **Severities**: `info`, `warning`, `critical`
 
+### Prompt System
+
+The `src/features/ai/prompts/` module provides centralized prompt templates and a builder for consistent LLM interactions:
+
+```zig
+const prompts = abi.ai.prompts;
+
+// Create builder with a persona
+var builder = prompts.PromptBuilder.init(allocator, .coder);
+defer builder.deinit();
+
+// Add messages
+try builder.addUserMessage("Write a sorting function");
+
+// Build prompt in different formats
+const text_prompt = try builder.build(.text);    // User: ... Assistant:
+const json_prompt = try builder.build(.json);    // [{"role":"user","content":"..."}]
+const chatml_prompt = try builder.build(.chatml); // <|user|>...<|end|>
+
+// Export for debugging (use with --show-prompt flag)
+const debug_output = try builder.exportDebug();
+```
+
+**Built-in Personas** (`src/features/ai/prompts/personas.zig`):
+- `assistant` - General-purpose helpful assistant (temp: 0.7)
+- `coder` - Programming and code-focused (temp: 0.3)
+- `writer` - Creative writing assistant (temp: 0.9)
+- `analyst` - Data analysis and research (temp: 0.4)
+- `reviewer` - Code review specialist (temp: 0.2)
+- `docs` - Technical documentation (temp: 0.3)
+- `companion` - Friendly conversational (temp: 0.8)
+- `minimal` - Direct, concise responses (temp: 0.5)
+- `abbey` - Opinionated, emotionally intelligent AI (temp: 0.7)
+
+**Prompt Formats**: `text`, `json`, `chatml`, `llama`, `raw`
+
 ## CLI Commands
 
 **CLI Framework Pattern** (`tools/cli/mod.zig`):
@@ -596,7 +659,7 @@ try manager.evaluate(metrics);
 The CLI (`zig build run -- <command>`) provides these subcommands:
 
 - `db <subcommand>` - Database operations (add, query, stats, optimize, backup, restore, serve)
-- `agent [--message]` - Run AI agent (interactive or one-shot mode)
+- `agent [options]` - AI agent with persona and session support
 - `discord [command]` - Discord bot operations (status, guilds, send, commands, webhook)
 - `llm <subcommand>` - Local LLM inference (info, generate, chat, bench, list)
 - `config [command]` - Configuration management (init, show, validate)
@@ -615,6 +678,35 @@ zig build run -- db add --id 2 --vector "1.0,2.0,3.0"  # Add raw vector
 zig build run -- db backup --path mybackup.db          # Backup to file
 zig build run -- db restore --path mybackup.db         # Restore from file
 ```
+
+### Agent CLI Examples
+
+```bash
+zig build run -- agent                              # Start interactive session
+zig build run -- agent --persona coder              # Use coder persona
+zig build run -- agent --persona reviewer           # Use code reviewer persona
+zig build run -- agent --persona abbey              # Use Abbey (opinionated, emotionally intelligent)
+zig build run -- agent -m "Hello"                   # Single message (one-shot)
+zig build run -- agent --show-prompt -m "Hi"        # Show full prompt before sending
+zig build run -- agent --list-personas              # List available personas
+zig build run -- agent --session "project-x"        # Named session
+zig build run -- agent --load session_12345         # Load previous session
+```
+
+**Agent Options**:
+- `--persona <type>` - Select persona (assistant, coder, writer, analyst, reviewer, docs, companion, minimal, abbey)
+- `--show-prompt` - Display the full prompt before sending (for debugging)
+- `--session <name>` - Use a named session
+- `--list-personas` - Show all available personas with descriptions
+
+**Interactive Commands**:
+- `/prompt` - Show the current full prompt
+- `/persona` - Show current persona details
+- `/personas` - List available personas
+- `/history` - Show conversation history
+- `/save [name]` - Save session
+- `/load <id>` - Load a saved session
+- `/clear` - Clear conversation
 
 ### Explore CLI Examples
 
@@ -735,6 +827,23 @@ const results = try abi.wdbx.searchVectors(db, &query, 10);
 ```
 
 Features: HNSW indexing, hybrid search (vector + full-text + metadata filtering), batch operations, sharding, HTTP API. See `src/features/database/` for implementation files.
+
+### Unified Storage Format
+
+The `src/features/database/formats/` provides a unified tensor/model storage format:
+
+```zig
+var builder = unified.UnifiedFormatBuilder.init(allocator);
+defer builder.deinit();
+_ = builder.setCompression(.lz4);  // or .zstd, .rle, .none
+_ = try builder.addTensor("weights", data, .f32, &.{ 768, 512 });
+_ = try builder.addMetadata("model", "bert-base");
+const serialized = try builder.build();
+```
+
+**Compression options**: LZ4 (fast), ZSTD (high ratio), RLE (repetitive data)
+**Data types**: f32, f16, bf16, i32, i16, i8, u8, q4_0, q4_1, q8_0
+**Format conversion**: GGUF, SafeTensors, NPY via `format_converter.zig`
 
 ## Commit Guidelines
 

@@ -228,7 +228,6 @@ pub const LongTermMemory = struct {
     fn evictLeastImportant(self: *LongTermMemory) !void {
         if (self.memories.items.len == 0) return;
 
-        const current_time = std.time.timestamp();
         var min_idx: usize = 0;
         var min_score: f32 = std.math.floatMax(f32);
 

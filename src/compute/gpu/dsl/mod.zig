@@ -202,6 +202,25 @@ pub const CodegenError = codegen.CodegenError;
 pub const GeneratedSource = codegen.GeneratedSource;
 
 // ============================================================================
+// Optimizer (MLIR/LLVM-inspired)
+// ============================================================================
+
+/// Kernel IR optimizer module.
+pub const optimizer = @import("optimizer.zig");
+
+/// Optimizer for kernel IR.
+pub const Optimizer = optimizer.Optimizer;
+
+/// Optimization pass types.
+pub const OptimizationPass = optimizer.OptimizationPass;
+
+/// Optimization level presets.
+pub const OptimizationLevel = optimizer.OptimizationLevel;
+
+/// Optimization statistics.
+pub const OptimizationStats = optimizer.OptimizationStats;
+
+// ============================================================================
 // Compiler
 // ============================================================================
 

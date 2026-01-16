@@ -1,22 +1,18 @@
 //! CUDA backend implementation
 //!
 //! Provides CUDA-specific kernel compilation and execution.
+//! Uses consolidated cuda_loader for function management.
 
 const std = @import("std");
 const types = @import("../kernel_types.zig");
 const shared = @import("shared.zig");
 const fallback = @import("fallback.zig");
 const cuda_native = @import("cuda_native.zig");
+const cuda_loader = @import("cuda_loader.zig");
 const gpu = std.gpu;
-const CuResult = enum(i32) {
-    success = 0,
-    invalid_value = 1,
-    out_of_memory = 2,
-    not_initialized = 3,
-    invalid_context = 6,
-    launch_failure = 700,
-    launch_out_of_resources = 701,
-};
+
+// Re-export from loader for compatibility
+pub const CuResult = cuda_loader.CuResult;
 
 const CuStream = extern struct {
     ptr: *anyopaque,
@@ -64,15 +60,21 @@ pub fn init() CudaError!void {
     const cuda_available = tryLoadCuda();
     if (cuda_available) {
         if (loadCudaFunctions()) {
-            if (cuInit) |init_fn| {
+            const funcs = cuda_loader.getFunctions() orelse {
+                std.log.warn("CUDA functions not loaded, using simulation mode", .{});
+                return initSimulationMode();
+            };
+
+            if (funcs.core.cuInit) |init_fn| {
                 const result = init_fn(0);
                 if (result != .success) {
                     std.log.warn("CUDA initialization failed with code {t}, using simulation mode", .{result});
                     return initSimulationMode();
                 }
             }
+
             var device_count: i32 = 0;
-            if (cuDeviceGetCount) |count_fn| {
+            if (funcs.core.cuDeviceGetCount) |count_fn| {
                 const result = count_fn(&device_count);
                 if (result != .success or device_count == 0) {
                     std.log.warn("No CUDA devices found, using simulation mode", .{});
@@ -130,6 +132,9 @@ pub fn deinit() void {
 
     cuda_context = null;
     cuda_initialized = false;
+
+    // Unload CUDA library
+    cuda_loader.unload();
 }
 
 fn ensureNativeInitialized() !void {
@@ -286,39 +291,13 @@ pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) !void {
     return fallback.memcpyDeviceToHost(dst, @ptrCast(@alignCast(src)), size);
 }
 
+/// Check if CUDA is available
 fn tryLoadCuda() bool {
-    const lib_names = [_][]const u8{ "nvcuda.dll", "libcuda.so.1", "libcuda.so" };
-    return shared.tryLoadAny(lib_names[0..]);
+    return cuda_loader.isAvailable();
 }
 
-const CuInitFn = *const fn (u32) callconv(.c) CuResult;
-const CuDeviceGetCountFn = *const fn (*i32) callconv(.c) CuResult;
-const CuMemAllocFn = *const fn (*?*anyopaque, usize) callconv(.c) CuResult;
-const CuMemFreeFn = *const fn (*anyopaque) callconv(.c) CuResult;
-const CuMemcpyH2DFn = *const fn (*anyopaque, *const anyopaque, usize) callconv(.c) CuResult;
-const CuMemcpyD2HFn = *const fn (*anyopaque, *const anyopaque, usize) callconv(.c) CuResult;
-
-var cuInit: ?CuInitFn = null;
-var cuDeviceGetCount: ?CuDeviceGetCountFn = null;
-var cuMemAlloc: ?CuMemAllocFn = null;
-var cuMemFree: ?CuMemFreeFn = null;
-var cuMemcpyH2D: ?CuMemcpyH2DFn = null;
-var cuMemcpyD2H: ?CuMemcpyD2HFn = null;
-
+/// Load CUDA functions using consolidated loader
 fn loadCudaFunctions() bool {
-    var lib = tryLoadCudaLib() orelse return false;
-    defer lib.close();
-
-    cuInit = lib.lookup(CuInitFn, "cuInit") orelse return false;
-    cuDeviceGetCount = lib.lookup(CuDeviceGetCountFn, "cuDeviceGetCount") orelse return false;
-    cuMemAlloc = lib.lookup(CuMemAllocFn, "cuMemAlloc") orelse return false;
-    cuMemFree = lib.lookup(CuMemFreeFn, "cuMemFree") orelse return false;
-    cuMemcpyH2D = lib.lookup(CuMemcpyH2DFn, "cuMemcpyHtoD") orelse return false;
-    cuMemcpyD2H = lib.lookup(CuMemcpyD2HFn, "cuMemcpyDtoH") orelse return false;
-    return true;
-}
-
-fn tryLoadCudaLib() ?std.DynLib {
-    const lib_names = [_][]const u8{ "nvcuda.dll", "libcuda.so.1", "libcuda.so" };
-    return shared.openFirst(lib_names[0..]);
+    const funcs = cuda_loader.load() catch return false;
+    return funcs.core.cuInit != null and funcs.core.cuDeviceGetCount != null;
 }

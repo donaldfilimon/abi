@@ -28,6 +28,7 @@ pub const CudaContext = struct {
 var cuda_initialized = false;
 var cuda_context: ?CudaContext = null;
 var cuda_lib: ?std.DynLib = null;
+var init_mutex: std.Thread.Mutex = .{};
 
 const CuResult = enum(i32) {
     success = 0,
@@ -171,6 +172,9 @@ pub const DeviceProperties = struct {
 };
 
 pub fn init() !void {
+    init_mutex.lock();
+    defer init_mutex.unlock();
+
     if (cuda_initialized) return;
 
     if (!tryLoadCuda()) {
@@ -207,7 +211,9 @@ pub fn init() !void {
     var stream: CUstream = null;
     const stream_fn = cuStreamCreate orelse return CudaError.DriverNotFound;
     if (stream_fn(&stream, 0) != .success) {
-        cuCtxDestroy(context);
+        if (cuCtxDestroy) |destroy_fn| {
+            _ = destroy_fn(context);
+        }
         return CudaError.InitializationFailed;
     }
 
@@ -223,6 +229,11 @@ pub fn init() !void {
 }
 
 pub fn deinit() void {
+    init_mutex.lock();
+    defer init_mutex.unlock();
+
+    if (!cuda_initialized) return;
+
     if (cuda_context) |*ctx| {
         const destroy_fn = cuCtxDestroy orelse return;
         const stream_destroy_fn = cuStreamDestroy orelse return;
@@ -241,6 +252,8 @@ pub fn deinit() void {
             _ = destroy_fn(context);
         }
     }
+    cuda_context = null;
+    cuda_initialized = false;
 
     if (cuda_lib) |*lib| {
         lib.close();

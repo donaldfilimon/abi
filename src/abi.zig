@@ -38,10 +38,10 @@ pub const plugins = @import("shared/plugins/mod.zig");
 pub const observability = @import("shared/observability/mod.zig");
 pub const platform = @import("shared/platform/mod.zig");
 pub const simd = @import("shared/simd.zig");
+pub const utils = @import("shared/utils/mod.zig");
 pub const config = utils.config;
-// SIMD functions exported directly
 
-// SIMD functions
+// SIMD functions exported directly
 pub const vectorAdd = simd.vectorAdd;
 pub const vectorDot = simd.vectorDot;
 pub const vectorL2Norm = simd.vectorL2Norm;
@@ -86,7 +86,6 @@ pub const StreamingGenerator = ai.streaming.StreamingGenerator;
 pub const StreamToken = ai.streaming.StreamToken;
 pub const StreamState = ai.streaming.StreamState;
 pub const GenerationConfig = ai.streaming.GenerationConfig;
-pub const utils = @import("shared/utils/mod.zig");
 
 // Discord connector convenience exports
 pub const discord = connectors.discord;
@@ -94,7 +93,6 @@ pub const DiscordClient = discord.Client;
 pub const DiscordConfig = discord.Config;
 pub const DiscordTools = ai.DiscordTools;
 
-/// Compatibility namespace for the WDBX tooling.
 /// Compatibility namespace for the WDBX tooling.
 pub const wdbx = if (build_options.enable_database) struct {
     pub const database = features.database.database;

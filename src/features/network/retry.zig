@@ -339,9 +339,10 @@ pub fn RetryExecutor(comptime T: type) type {
 }
 
 /// Simple retry function for one-off retries.
+/// The operation must return `RetryableError!T` for proper error categorization.
 pub fn retry(
     comptime T: type,
-    operation: *const fn () anyerror!T,
+    operation: *const fn () RetryableError!T,
     config: RetryConfig,
 ) RetryResult(T) {
     var executor = RetryExecutor(T).init(config, .exponential);
@@ -349,9 +350,10 @@ pub fn retry(
 }
 
 /// Retry with custom strategy.
+/// The operation must return `RetryableError!T` for proper error categorization.
 pub fn retryWithStrategy(
     comptime T: type,
-    operation: *const fn () anyerror!T,
+    operation: *const fn () RetryableError!T,
     config: RetryConfig,
     strategy: RetryStrategy,
 ) RetryResult(T) {
@@ -437,7 +439,7 @@ pub const BackoffCalculator = struct {
 
 test "retry success on first attempt" {
     const op = struct {
-        fn call() anyerror!u32 {
+        fn call() RetryableError!u32 {
             return 42;
         }
     };
@@ -496,7 +498,11 @@ test "backoff max delay cap" {
 test "retryable errors" {
     const retryable = RetryableErrors{};
 
+    // These errors should be retryable by default
     try std.testing.expect(retryable.shouldRetry(error.ConnectionRefused));
     try std.testing.expect(retryable.shouldRetry(error.Timeout));
-    try std.testing.expect(!retryable.shouldRetry(error.InvalidArgument));
+
+    // Unknown errors are not retryable by default (falls through to else branch)
+    try std.testing.expect(!retryable.shouldRetry(error.Unknown));
+    try std.testing.expect(!retryable.shouldRetry(error.TimerFailed));
 }

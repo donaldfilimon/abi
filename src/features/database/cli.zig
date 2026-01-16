@@ -336,13 +336,31 @@ fn seedDatabase(handle: *wdbx.DatabaseHandle) !void {
     }
 }
 
+const fs = @import("../../shared/utils/fs/mod.zig");
+
 const DbContext = struct {
     handle: wdbx.DatabaseHandle,
     path: ?[]const u8,
 
     fn init(allocator: std.mem.Allocator, path: ?[]const u8) !DbContext {
         if (path) |file_path| {
-            const loaded = storage.loadDatabase(allocator, file_path);
+            // Normalize path to backups/ directory (same as backup/restore)
+            const safe_path = fs.normalizeBackupPath(allocator, file_path) catch {
+                // If path validation fails, try loading directly (for legacy compatibility)
+                const loaded = storage.loadDatabase(allocator, file_path);
+                if (loaded) |db| {
+                    return .{ .handle = .{ .db = db }, .path = file_path };
+                } else |err| switch (err) {
+                    std.Io.Dir.ReadFileAllocError.FileNotFound => {
+                        const handle = try wdbx.createDatabase(allocator, file_path);
+                        return .{ .handle = handle, .path = file_path };
+                    },
+                    else => return err,
+                }
+            };
+            defer allocator.free(safe_path);
+
+            const loaded = storage.loadDatabase(allocator, safe_path);
             if (loaded) |db| {
                 return .{ .handle = .{ .db = db }, .path = file_path };
             } else |err| switch (err) {

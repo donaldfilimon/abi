@@ -228,6 +228,37 @@ pub fn hasSimdSupport() bool {
     return VectorSize > 1;
 }
 
+/// SIMD instruction set capabilities detected at compile time
+pub const SimdCapabilities = struct {
+    vector_size: usize,
+    has_simd: bool,
+    arch: Arch,
+
+    pub const Arch = enum {
+        x86_64,
+        aarch64,
+        wasm,
+        generic,
+    };
+};
+
+/// Get SIMD capabilities for current platform
+pub fn getSimdCapabilities() SimdCapabilities {
+    const builtin = @import("builtin");
+    const arch: SimdCapabilities.Arch = switch (builtin.cpu.arch) {
+        .x86_64 => .x86_64,
+        .aarch64 => .aarch64,
+        .wasm32, .wasm64 => .wasm,
+        else => .generic,
+    };
+
+    return .{
+        .vector_size = VectorSize,
+        .has_simd = VectorSize > 1,
+        .arch = arch,
+    };
+}
+
 /// Matrix multiplication with blocking/tiling for cache efficiency and SIMD acceleration
 /// Computes result[m][n] = a[m][k] * b[k][n]
 /// @param a Matrix A (size m x k, row-major order)

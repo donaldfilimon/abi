@@ -2,6 +2,8 @@
 
 This document tracks planned features, improvements, and milestones for the ABI framework.
 
+**Zig Version Requirement:** 0.16.x (migration complete)
+
 ## Version 0.3.0 - Q1 2026
 
 ### Core Features
@@ -63,14 +65,15 @@ This document tracks planned features, improvements, and milestones for the ABI 
 ## Version 0.4.0 - Q2 2026
 
 ### Performance
-- [ ] SIMD optimizations
-  - [ ] AVX-512 support
-  - [ ] NEON (ARM) support
-  - [ ] WASM SIMD
-- [ ] Memory management
-  - [ ] Arena allocator improvements
-  - [ ] Memory pools for hot paths
-  - [ ] Zero-copy optimizations
+- [x] SIMD optimizations
+  - [x] AVX-512 support (via std.simd.suggestVectorLength auto-detection)
+  - [x] NEON (ARM) support (via std.simd.suggestVectorLength auto-detection)
+  - [x] WASM SIMD (via std.simd.suggestVectorLength auto-detection)
+  - [x] Platform capability detection (SimdCapabilities struct)
+- [x] Memory management
+  - [x] Arena allocator improvements (ScopedArena)
+  - [x] Memory pools for hot paths (SlabAllocator with size classes)
+  - [x] Zero-copy optimizations (ZeroCopyBuffer)
 
 ### Developer Experience
 - [x] Enhanced CLI
@@ -96,10 +99,10 @@ This document tracks planned features, improvements, and milestones for the ABI 
 - [x] Expanded test suite
   - [x] Property-based testing
   - [x] Fuzzing infrastructure
-  - [ ] Integration test matrix
-- [ ] Benchmark suite
-  - [ ] Performance regression detection
-  - [ ] Baseline tracking
+  - [x] Integration test matrix (src/tests/test_matrix.zig)
+- [x] Benchmark suite
+  - [x] Performance regression detection (compareWithBaseline, RegressionResult)
+  - [x] Baseline tracking (BenchmarkRunner with statistics)
   - [ ] Competitive benchmarks
 
 ## Version 0.5.0 - Q3 2026
@@ -130,7 +133,7 @@ This document tracks planned features, improvements, and milestones for the ABI 
 - [x] Language bindings
   - [x] Python bindings (foundation)
   - [x] JavaScript/WASM bindings
-  - [ ] C API (headers only)
+  - [x] C API (bindings/c/abi.h)
 - [ ] Package manager integration
   - [ ] Zig package registry
   - [ ] Homebrew formula
@@ -187,14 +190,30 @@ See CONTRIBUTING.md for details.
 
 ## Version Timeline
 
-| Version | Target Quarter | Status |
-|----------|---------------|---------|
-| 0.2.2 | 2025-12-27 | Released |
-| 0.3.0 | Q1 2026 | Complete ✓ |
-| 0.4.0 | Q2 2026 | Planned |
-| 0.5.0 | Q3 2026 | Planned |
+| Version | Target Quarter | Status | Notes |
+|----------|---------------|---------|-------|
+| 0.2.2 | 2025-12-27 | Released | Zig 0.16 modernization |
+| 0.3.0 | Q1 2026 | In Progress | GPU backends, AI features |
+| 0.4.0 | Q2 2026 | Planned | Performance, DX, documentation |
+| 0.5.0 | Q3 2026 | Planned | Distributed systems, HA |
 
-*Last updated: January 10, 2026*
+*Last updated: January 16, 2026*
+
+## Zig 0.16 Migration Status
+
+All Zig 0.16 API migrations are complete:
+
+- [x] `std.Io` unified API adoption
+- [x] `std.Io.Threaded` for synchronous I/O
+- [x] `std.Io.Dir.cwd()` replaces `std.fs.cwd()`
+- [x] `std.http.Server` initialization pattern
+- [x] `std.time.Timer` for high-precision timing
+- [x] `std.Io.Clock.Duration` for sleep operations
+- [x] `std.ArrayListUnmanaged` for explicit allocator passing
+- [x] `{t}` format specifier for enums/errors
+- [x] CI/CD pinned to Zig 0.16.x
+
+See `docs/migration/zig-0.16-migration.md` for detailed migration guide.
 
 ## Changelog History
 

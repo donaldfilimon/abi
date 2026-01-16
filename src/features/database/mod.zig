@@ -13,6 +13,8 @@ pub const hybrid = @import("hybrid.zig");
 pub const filter = @import("filter.zig");
 pub const batch = @import("batch.zig");
 pub const clustering = @import("clustering.zig");
+pub const formats = @import("formats/mod.zig");
+pub const quantization = @import("quantization.zig");
 
 pub const Database = database.Database;
 pub const DatabaseHandle = wdbx.DatabaseHandle;
@@ -61,6 +63,39 @@ pub const euclideanDistance = clustering.euclideanDistance;
 pub const cosineSimilarity = clustering.cosineSimilarity;
 pub const silhouetteScore = clustering.silhouetteScore;
 pub const elbowMethod = clustering.elbowMethod;
+
+// Quantization exports (from academic research: PQ, scalar quantization)
+pub const ScalarQuantizer = quantization.ScalarQuantizer;
+pub const ProductQuantizer = quantization.ProductQuantizer;
+pub const QuantizationError = quantization.QuantizationError;
+
+// Unified storage format exports
+pub const UnifiedFormat = formats.UnifiedFormat;
+pub const UnifiedFormatBuilder = formats.unified.UnifiedFormatBuilder;
+pub const FormatHeader = formats.FormatHeader;
+pub const FormatFlags = formats.FormatFlags;
+pub const TensorDescriptor = formats.TensorDescriptor;
+pub const DataType = formats.DataType;
+pub const Converter = formats.Converter;
+pub const ConversionOptions = formats.ConversionOptions;
+pub const TargetFormat = formats.TargetFormat;
+pub const CompressionType = formats.CompressionType;
+
+// Streaming and mmap exports
+pub const StreamingWriter = formats.StreamingWriter;
+pub const StreamingReader = formats.StreamingReader;
+pub const MappedFile = formats.MappedFile;
+pub const MemoryCursor = formats.MemoryCursor;
+
+// Vector database format exports
+pub const FormatVectorDatabase = formats.VectorDatabase;
+pub const FormatVectorRecord = formats.VectorRecord;
+pub const FormatSearchResult = formats.SearchResult;
+
+// GGUF converter exports
+pub const fromGguf = formats.fromGguf;
+pub const toGguf = formats.toGguf;
+pub const GgufTensorType = formats.GgufTensorType;
 
 pub const DatabaseFeatureError = error{
     DatabaseDisabled,

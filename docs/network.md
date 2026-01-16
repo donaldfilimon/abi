@@ -33,7 +33,7 @@ const nodes = try registry.getActiveNodes(allocator);
 defer allocator.free(nodes);
 
 for (nodes) |node| {
-    std.debug.print("Node: {s} - CPUs: {d}, GPU: {}\n", .{
+    std.debug.print("Node: {s} - CPUs: {d}, GPU: {t}\n", .{
         node.id,
         node.cpu_cores,
         node.has_gpu,

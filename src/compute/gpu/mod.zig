@@ -35,6 +35,10 @@ pub const device = @import("device.zig");
 pub const stream = @import("stream.zig");
 pub const dsl = @import("dsl/mod.zig");
 
+// Backend interface and loaders
+pub const interface = @import("interface.zig");
+pub const cuda_loader = @import("backends/cuda_loader.zig");
+
 const build_options = @import("build_options");
 
 // Import lifecycle management from shared utils

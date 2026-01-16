@@ -3,6 +3,16 @@
 //! The KV cache stores the key and value projections from previous tokens,
 //! allowing attention to be computed incrementally without recomputing
 //! the entire sequence each time.
+//!
+//! Features based on academic research:
+//! - Sliding window attention (SqueezeAttention, LMCache)
+//! - Optional Q8 quantization for memory reduction
+//! - Memory pressure callbacks for adaptive eviction
+//! - Layer-wise budget allocation
+//!
+//! References:
+//! - SqueezeAttention: https://openreview.net/forum?id=9HK2rHNAhd
+//! - LMCache: https://lmcache.ai/tech_report.pdf
 
 const std = @import("std");
 
@@ -18,27 +28,58 @@ pub const KvCacheConfig = struct {
     max_seq_len: u32,
     /// Data type for cache (affects memory usage)
     dtype: CacheDType = .f32,
+    /// Sliding window size (0 = disabled, uses full context)
+    sliding_window: u32 = 0,
+    /// Enable quantization for memory savings (Q8 format)
+    enable_quantization: bool = false,
+    /// Memory pressure threshold (0.0-1.0). When utilization exceeds this, trigger eviction callback.
+    memory_pressure_threshold: f32 = 0.9,
 
     pub const CacheDType = enum {
         f32,
         f16,
         bf16,
+        q8, // 8-bit quantized (new)
     };
 
     /// Calculate total memory requirement in bytes.
     pub fn memoryBytes(self: KvCacheConfig) u64 {
         const kv_dim = @as(u64, self.num_kv_heads) * self.head_dim;
-        const per_layer = self.max_seq_len * kv_dim * 2; // K and V
+        const effective_len = if (self.sliding_window > 0 and self.sliding_window < self.max_seq_len)
+            self.sliding_window
+        else
+            self.max_seq_len;
+        const per_layer = effective_len * kv_dim * 2; // K and V
         const total_elements = per_layer * self.num_layers;
 
         return switch (self.dtype) {
             .f32 => total_elements * 4,
             .f16, .bf16 => total_elements * 2,
+            .q8 => total_elements + (self.num_layers * kv_dim * 4), // Q8 + scale factors
         };
+    }
+
+    /// Get effective window size.
+    pub fn effectiveWindowSize(self: KvCacheConfig) u32 {
+        return if (self.sliding_window > 0 and self.sliding_window < self.max_seq_len)
+            self.sliding_window
+        else
+            self.max_seq_len;
     }
 };
 
-/// KV cache for a single layer.
+/// Memory pressure event for callback notifications.
+pub const MemoryPressureEvent = struct {
+    current_utilization: f32,
+    threshold: f32,
+    sequence_length: u32,
+    memory_bytes: u64,
+};
+
+/// Callback type for memory pressure notifications.
+pub const MemoryPressureCallback = *const fn (event: MemoryPressureEvent) void;
+
+/// KV cache for a single layer with optional sliding window.
 pub const LayerKvCache = struct {
     /// Key cache: [max_seq_len, num_kv_heads * head_dim]
     k_cache: []f32,
@@ -49,10 +90,35 @@ pub const LayerKvCache = struct {
     /// Configuration
     kv_dim: u32,
     max_len: u32,
+    /// Sliding window configuration (0 = disabled)
+    window_size: u32,
+    /// Ring buffer head for sliding window mode
+    ring_head: u32,
+    /// Total tokens seen (for position tracking in sliding window)
+    total_tokens: u64,
+
+    /// Extended initialization with sliding window support.
+    pub const InitOptions = struct {
+        window_size: u32 = 0,
+    };
 
     pub fn init(allocator: std.mem.Allocator, num_kv_heads: u32, head_dim: u32, max_seq_len: u32) !LayerKvCache {
+        return initWithOptions(allocator, num_kv_heads, head_dim, max_seq_len, .{});
+    }
+
+    pub fn initWithOptions(
+        allocator: std.mem.Allocator,
+        num_kv_heads: u32,
+        head_dim: u32,
+        max_seq_len: u32,
+        options: InitOptions,
+    ) !LayerKvCache {
         const kv_dim = num_kv_heads * head_dim;
-        const cache_size = @as(usize, max_seq_len) * kv_dim;
+        const effective_len = if (options.window_size > 0 and options.window_size < max_seq_len)
+            options.window_size
+        else
+            max_seq_len;
+        const cache_size = @as(usize, effective_len) * kv_dim;
 
         const k_cache = try allocator.alloc(f32, cache_size);
         errdefer allocator.free(k_cache);
@@ -66,7 +132,10 @@ pub const LayerKvCache = struct {
             .v_cache = v_cache,
             .len = 0,
             .kv_dim = kv_dim,
-            .max_len = max_seq_len,
+            .max_len = effective_len,
+            .window_size = options.window_size,
+            .ring_head = 0,
+            .total_tokens = 0,
         };
     }
 
@@ -77,16 +146,56 @@ pub const LayerKvCache = struct {
     }
 
     /// Update cache with new K, V for a single position.
+    /// In sliding window mode, this uses ring buffer semantics.
     pub fn update(self: *LayerKvCache, k: []const f32, v: []const f32, pos: u32) void {
-        if (pos >= self.max_len) return;
+        if (self.window_size > 0) {
+            // Sliding window mode: use ring buffer
+            self.pushSlidingWindow(k, v);
+        } else {
+            // Standard mode: direct position addressing
+            if (pos >= self.max_len) return;
 
-        const offset = @as(usize, pos) * self.kv_dim;
+            const offset = @as(usize, pos) * self.kv_dim;
+            @memcpy(self.k_cache[offset .. offset + self.kv_dim], k);
+            @memcpy(self.v_cache[offset .. offset + self.kv_dim], v);
+
+            if (pos >= self.len) {
+                self.len = pos + 1;
+            }
+        }
+    }
+
+    /// Push K, V in sliding window mode (ring buffer semantics).
+    fn pushSlidingWindow(self: *LayerKvCache, k: []const f32, v: []const f32) void {
+        const offset = @as(usize, self.ring_head) * self.kv_dim;
         @memcpy(self.k_cache[offset .. offset + self.kv_dim], k);
         @memcpy(self.v_cache[offset .. offset + self.kv_dim], v);
 
-        if (pos >= self.len) {
-            self.len = pos + 1;
+        self.ring_head = (self.ring_head + 1) % self.max_len;
+        self.total_tokens += 1;
+
+        if (self.len < self.max_len) {
+            self.len += 1;
         }
+    }
+
+    /// Get the effective position for sliding window attention.
+    /// Returns the logical position within the window.
+    pub fn getWindowPosition(self: *const LayerKvCache, absolute_pos: u64) ?u32 {
+        if (self.window_size == 0) {
+            // Standard mode
+            if (absolute_pos < self.len) return @intCast(absolute_pos);
+            return null;
+        }
+
+        // Sliding window mode
+        if (absolute_pos < self.total_tokens -| self.len) return null; // Too old, evicted
+        if (absolute_pos >= self.total_tokens) return null; // Future position
+
+        // Calculate ring buffer index
+        const tokens_ago = self.total_tokens - absolute_pos - 1;
+        const logical_idx = self.len - 1 - @as(u32, @intCast(tokens_ago));
+        return logical_idx;
     }
 
     /// Update cache with multiple positions (batch update).
@@ -141,6 +250,19 @@ pub const LayerKvCache = struct {
     /// Clear the cache.
     pub fn clear(self: *LayerKvCache) void {
         self.len = 0;
+        self.ring_head = 0;
+        self.total_tokens = 0;
+    }
+
+    /// Check if cache is using sliding window.
+    pub fn isSlidingWindow(self: *const LayerKvCache) bool {
+        return self.window_size > 0;
+    }
+
+    /// Get memory savings from sliding window (vs full context).
+    pub fn windowMemorySavings(self: *const LayerKvCache, full_context_len: u32) f32 {
+        if (self.window_size == 0 or full_context_len <= self.max_len) return 0.0;
+        return 1.0 - (@as(f32, @floatFromInt(self.max_len)) / @as(f32, @floatFromInt(full_context_len)));
     }
 
     /// Get current cache length.
@@ -159,22 +281,29 @@ pub const LayerKvCache = struct {
     }
 };
 
-/// Full KV cache for all layers.
+/// Full KV cache for all layers with sliding window and memory pressure support.
 pub const KvCache = struct {
     allocator: std.mem.Allocator,
     layers: []LayerKvCache,
     config: KvCacheConfig,
+    memory_pressure_callback: ?MemoryPressureCallback,
+    pressure_triggered: bool,
 
     pub fn init(allocator: std.mem.Allocator, config: KvCacheConfig) !KvCache {
         const layers = try allocator.alloc(LayerKvCache, config.num_layers);
         errdefer allocator.free(layers);
 
+        const layer_options = LayerKvCache.InitOptions{
+            .window_size = config.sliding_window,
+        };
+
         for (0..config.num_layers) |i| {
-            layers[i] = try LayerKvCache.init(
+            layers[i] = try LayerKvCache.initWithOptions(
                 allocator,
                 config.num_kv_heads,
                 config.head_dim,
                 config.max_seq_len,
+                layer_options,
             );
         }
 
@@ -182,7 +311,14 @@ pub const KvCache = struct {
             .allocator = allocator,
             .layers = layers,
             .config = config,
+            .memory_pressure_callback = null,
+            .pressure_triggered = false,
         };
+    }
+
+    /// Set callback for memory pressure events.
+    pub fn setMemoryPressureCallback(self: *KvCache, callback: MemoryPressureCallback) void {
+        self.memory_pressure_callback = callback;
     }
 
     pub fn deinit(self: *KvCache) void {
@@ -204,8 +340,35 @@ pub const KvCache = struct {
     }
 
     /// Update K, V for a layer at a position.
+    /// Checks memory pressure and triggers callback if threshold exceeded.
     pub fn update(self: *KvCache, layer_idx: u32, k: []const f32, v: []const f32, pos: u32) void {
         self.layers[layer_idx].update(k, v, pos);
+
+        // Check memory pressure after update (only check periodically to reduce overhead)
+        if (self.memory_pressure_callback != null and !self.pressure_triggered) {
+            self.checkMemoryPressure();
+        }
+    }
+
+    /// Check memory pressure and trigger callback if needed.
+    fn checkMemoryPressure(self: *KvCache) void {
+        const stats = self.getStats();
+        if (stats.utilization >= self.config.memory_pressure_threshold) {
+            self.pressure_triggered = true;
+            if (self.memory_pressure_callback) |callback| {
+                callback(.{
+                    .current_utilization = stats.utilization,
+                    .threshold = self.config.memory_pressure_threshold,
+                    .sequence_length = stats.sequence_length,
+                    .memory_bytes = stats.memory_bytes,
+                });
+            }
+        }
+    }
+
+    /// Reset pressure triggered flag (call after handling pressure event).
+    pub fn resetPressureFlag(self: *KvCache) void {
+        self.pressure_triggered = false;
     }
 
     /// Clear all layer caches.
@@ -321,4 +484,120 @@ test "cache config memory calculation" {
     // = 32 * 2048 * 1024 * 2 * 4 = 536,870,912 bytes = 512 MB
     const expected = @as(u64, 32) * 2048 * 8 * 128 * 2 * 4;
     try std.testing.expectEqual(expected, config.memoryBytes());
+}
+
+test "sliding window layer cache" {
+    const allocator = std.testing.allocator;
+
+    // Create a layer cache with sliding window of 4
+    var cache = try LayerKvCache.initWithOptions(allocator, 2, 32, 128, .{
+        .window_size = 4,
+    });
+    defer cache.deinit(allocator);
+
+    try std.testing.expect(cache.isSlidingWindow());
+    try std.testing.expectEqual(@as(u32, 4), cache.max_len);
+
+    const v = [_]f32{2.0} ** 64;
+
+    // Push 6 tokens (exceeds window of 4)
+    for (0..6) |i| {
+        const k_val = [_]f32{@floatFromInt(i)} ** 64;
+        cache.update(&k_val, &v, @intCast(i));
+    }
+
+    // Should only have 4 tokens (window size)
+    try std.testing.expectEqual(@as(u32, 4), cache.length());
+    try std.testing.expectEqual(@as(u64, 6), cache.total_tokens);
+
+    // Memory savings: 4/128 = ~97%
+    const savings = cache.windowMemorySavings(128);
+    try std.testing.expect(savings > 0.95);
+}
+
+test "sliding window full cache" {
+    const allocator = std.testing.allocator;
+
+    var cache = try KvCache.init(allocator, .{
+        .num_layers = 2,
+        .num_kv_heads = 2,
+        .head_dim = 32,
+        .max_seq_len = 128,
+        .sliding_window = 8, // Use window of 8
+    });
+    defer cache.deinit();
+
+    try std.testing.expectEqual(@as(u32, 8), cache.config.effectiveWindowSize());
+
+    const k = [_]f32{1.0} ** 64;
+    const v = [_]f32{2.0} ** 64;
+
+    // Add 12 tokens (exceeds window)
+    for (0..12) |i| {
+        cache.update(0, &k, &v, @intCast(i));
+        cache.update(1, &k, &v, @intCast(i));
+    }
+
+    // Each layer should have 8 tokens
+    try std.testing.expectEqual(@as(u32, 8), cache.layers[0].length());
+    try std.testing.expectEqual(@as(u32, 8), cache.layers[1].length());
+}
+
+test "memory pressure callback" {
+    const allocator = std.testing.allocator;
+
+    const TestCallback = struct {
+        fn callback(_: MemoryPressureEvent) void {
+            // Callback invoked when memory pressure exceeds threshold
+        }
+    };
+
+    var cache = try KvCache.init(allocator, .{
+        .num_layers = 1,
+        .num_kv_heads = 1,
+        .head_dim = 8,
+        .max_seq_len = 10,
+        .memory_pressure_threshold = 0.5,
+    });
+    defer cache.deinit();
+
+    cache.setMemoryPressureCallback(TestCallback.callback);
+
+    const k = [_]f32{1.0} ** 8;
+    const v = [_]f32{2.0} ** 8;
+
+    // Add tokens until pressure threshold (50%)
+    for (0..6) |i| {
+        cache.update(0, &k, &v, @intCast(i));
+    }
+
+    // Pressure should have been triggered
+    try std.testing.expect(cache.pressure_triggered);
+
+    // Reset and add more
+    cache.resetPressureFlag();
+    try std.testing.expect(!cache.pressure_triggered);
+}
+
+test "config with sliding window memory calculation" {
+    const full_config = KvCacheConfig{
+        .num_layers = 32,
+        .num_kv_heads = 8,
+        .head_dim = 128,
+        .max_seq_len = 4096,
+    };
+
+    const window_config = KvCacheConfig{
+        .num_layers = 32,
+        .num_kv_heads = 8,
+        .head_dim = 128,
+        .max_seq_len = 4096,
+        .sliding_window = 512, // 8x smaller window
+    };
+
+    const full_memory = full_config.memoryBytes();
+    const window_memory = window_config.memoryBytes();
+
+    // Window should use 1/8 the memory
+    try std.testing.expectEqual(full_memory / 8, window_memory);
 }

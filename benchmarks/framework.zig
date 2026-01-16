@@ -595,6 +595,104 @@ fn percentile(sorted: []const u64, p: u8) u64 {
     return sorted[@min(idx, sorted.len - 1)];
 }
 
+/// Regression detection result
+pub const RegressionResult = struct {
+    name: []const u8,
+    baseline_ops_sec: f64,
+    current_ops_sec: f64,
+    change_percent: f64,
+    is_regression: bool,
+    is_improvement: bool,
+
+    pub fn format(
+        self: RegressionResult,
+        comptime _: []const u8,
+        _: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        const symbol = if (self.is_regression) "⚠️ SLOWER" else if (self.is_improvement) "✓ FASTER" else "→ SAME";
+        try writer.print("{s}: {d:.0} → {d:.0} ops/sec ({d:+.1}%) {s}", .{
+            self.name,
+            self.baseline_ops_sec,
+            self.current_ops_sec,
+            self.change_percent,
+            symbol,
+        });
+    }
+};
+
+/// Compare benchmark results against a baseline for regression detection
+pub fn compareWithBaseline(
+    allocator: std.mem.Allocator,
+    current: []const BenchResult,
+    baseline: []const BenchResult,
+    threshold_percent: f64,
+) ![]RegressionResult {
+    var results = std.ArrayListUnmanaged(RegressionResult){};
+    errdefer results.deinit(allocator);
+
+    for (current) |curr| {
+        // Find matching baseline
+        for (baseline) |base| {
+            if (std.mem.eql(u8, curr.config.name, base.config.name)) {
+                const curr_ops = curr.stats.opsPerSecond();
+                const base_ops = base.stats.opsPerSecond();
+                const change = if (base_ops > 0)
+                    ((curr_ops - base_ops) / base_ops) * 100.0
+                else
+                    0.0;
+
+                try results.append(allocator, .{
+                    .name = curr.config.name,
+                    .baseline_ops_sec = base_ops,
+                    .current_ops_sec = curr_ops,
+                    .change_percent = change,
+                    .is_regression = change < -threshold_percent,
+                    .is_improvement = change > threshold_percent,
+                });
+                break;
+            }
+        }
+    }
+
+    return results.toOwnedSlice(allocator);
+}
+
+/// Print regression analysis summary
+pub fn printRegressionSummary(results: []const RegressionResult) void {
+    var regressions: usize = 0;
+    var improvements: usize = 0;
+
+    std.debug.print("\n", .{});
+    std.debug.print("================================================================================\n", .{});
+    std.debug.print("                     REGRESSION ANALYSIS\n", .{});
+    std.debug.print("================================================================================\n\n", .{});
+
+    for (results) |r| {
+        const symbol = if (r.is_regression) "[SLOWER]" else if (r.is_improvement) "[FASTER]" else "[SAME]  ";
+        std.debug.print("{s} {s}: {d:.0} → {d:.0} ops/sec ({d:+.1}%)\n", .{
+            symbol,
+            r.name,
+            r.baseline_ops_sec,
+            r.current_ops_sec,
+            r.change_percent,
+        });
+
+        if (r.is_regression) regressions += 1;
+        if (r.is_improvement) improvements += 1;
+    }
+
+    std.debug.print("\nSummary: {d} regressions, {d} improvements, {d} unchanged\n", .{
+        regressions,
+        improvements,
+        results.len - regressions - improvements,
+    });
+
+    if (regressions > 0) {
+        std.debug.print("⚠️  Performance regressions detected!\n", .{});
+    }
+}
+
 // Tests
 test "statistics calculation" {
     const allocator = std.testing.allocator;

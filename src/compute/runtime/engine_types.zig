@@ -43,11 +43,19 @@ pub const Backoff = struct {
 };
 
 var global_timer: ?std.time.Timer = null;
+var timer_init_mutex = std.Thread.Mutex{};
 
 /// Get current time in milliseconds using a global timer.
+/// Thread-safe: uses mutex for one-time initialization.
 pub fn nowMilliseconds() i64 {
+    // Double-checked locking pattern for thread-safe initialization
     if (global_timer == null) {
-        global_timer = std.time.Timer.start() catch null;
+        timer_init_mutex.lock();
+        defer timer_init_mutex.unlock();
+        // Re-check after acquiring lock
+        if (global_timer == null) {
+            global_timer = std.time.Timer.start() catch null;
+        }
     }
     if (global_timer) |*timer| {
         const ns = timer.read();

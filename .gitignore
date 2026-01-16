@@ -112,3 +112,4 @@ release/
 .nx/cache
 .nx/workspace-data
 tmpclaude-*-cwd
+tmpclaude-*

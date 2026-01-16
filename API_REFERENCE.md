@@ -87,6 +87,35 @@ Each connector provides:
 - `Client.deinit()` - Clean up resources
 - Connector-specific methods for inference/chat/completion
 
+## SIMD API
+
+- `abi.simd.vectorAdd(a, b, result)` - SIMD-accelerated vector addition
+- `abi.simd.vectorDot(a, b)` -> `f32` - SIMD-accelerated dot product
+- `abi.simd.vectorL2Norm(v)` -> `f32` - L2 norm computation
+- `abi.simd.cosineSimilarity(a, b)` -> `f32` - Cosine similarity
+- `abi.simd.matrixMultiply(a, b, result, m, n, k)` - Blocked matrix multiply with SIMD
+- `abi.simd.hasSimdSupport()` -> `bool` - Check SIMD availability
+- `abi.simd.getSimdCapabilities()` -> `SimdCapabilities` - Get platform SIMD info
+
+**SimdCapabilities**:
+- `.vector_size` - Vector width for SIMD operations
+- `.has_simd` - Whether SIMD is available
+- `.arch` - Architecture (x86_64, aarch64, wasm, generic)
+
+## Benchmark Framework
+
+- `BenchmarkRunner.init(allocator)` - Create runner
+- `BenchmarkRunner.run(config, fn, args)` -> `BenchResult` - Run benchmark
+- `BenchmarkRunner.exportJson()` - Export results to JSON
+- `BenchmarkRunner.printSummaryDebug()` - Print summary
+- `compareWithBaseline(allocator, current, baseline, threshold)` -> `[]RegressionResult` - Detect regressions
+- `printRegressionSummary(results)` - Print regression analysis
+
+**RegressionResult**:
+- `.is_regression` - Performance degraded beyond threshold
+- `.is_improvement` - Performance improved beyond threshold
+- `.change_percent` - Percentage change from baseline
+
 ## Modules
 
 - `src/core` - I/O, diagnostics, collections

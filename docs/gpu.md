@@ -95,7 +95,7 @@ try gpu.enableMultiGpu(.{
 
 // Get multi-GPU stats
 if (gpu.getMultiGpuStats()) |stats| {
-    std.debug.print("Active devices: {d}\n", .{stats.active_device_count});
+    std.debug.print("Active devices: {}\n", .{stats.active_device_count});
 }
 ```
 

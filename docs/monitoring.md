@@ -219,8 +219,8 @@ try manager.addRule(.{
 try manager.addHandler(.{
     .callback = struct {
         fn handle(alert: alerting.Alert) void {
-            std.debug.print("[ALERT] {s}: {s} ({t})\n", .{
-                @tagName(alert.severity),
+            std.debug.print("[ALERT] {t}: {s} ({t})\n", .{
+                alert.severity,  // Zig 0.16: Use {t} directly instead of @tagName
                 alert.rule_name,
                 alert.state,
             });
@@ -230,10 +230,11 @@ try manager.addHandler(.{
     .min_severity = .warning,  // Only trigger for warning+
 });
 
-// Evaluate rules periodically
+// Evaluate rules periodically (Zig 0.16: use time utilities)
+const time_utils = @import("shared/utils/time.zig");
 while (running) {
     try manager.evaluate(metrics);
-    std.time.sleep(15 * std.time.ns_per_s);
+    time_utils.sleepSeconds(15);
 }
 ```
 

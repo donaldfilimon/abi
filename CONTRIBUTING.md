@@ -25,7 +25,7 @@ zig fmt .
 ## Style
 
 - 4 spaces, no tabs, lines under 100 chars.
-- PascalCase types, snake_case functions/variables.
+- PascalCase types, camelCase functions/variables.
 - Explicit imports only (no `usingnamespace`).
 - Use `!` return types and specific error enums.
 - Prefer `defer`/`errdefer` for cleanup.

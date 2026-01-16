@@ -22,10 +22,16 @@ comptime {
     }
     // Connector tests
     _ = @import("connectors_test.zig");
+    // Integration test matrix
+    _ = @import("test_matrix.zig");
 }
 
 // Connector tests
 pub const connectors_test = @import("connectors_test.zig");
+
+// Integration test matrix
+pub const test_matrix = @import("test_matrix.zig");
+pub const TestMatrix = test_matrix.TestMatrix;
 
 // Property-based testing framework
 pub const proptest = @import("proptest.zig");

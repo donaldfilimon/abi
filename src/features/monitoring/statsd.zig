@@ -107,7 +107,7 @@ pub const StatsDClient = struct {
 
     fn send(self: *StatsDClient, name: []const u8, value: f64, type_: []const u8, tags: []const []const u8) !void {
         const prefixed = if (self.config.prefix.len > 0)
-            std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ self.config.prefix, name }) catch return
+            try std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ self.config.prefix, name })
         else
             name;
 
@@ -127,7 +127,7 @@ pub const StatsDClient = struct {
 
     fn sendSet(self: *StatsDClient, name: []const u8, value: []const u8, tags: []const []const u8) !void {
         const prefixed = if (self.config.prefix.len > 0)
-            std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ self.config.prefix, name }) catch return
+            try std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ self.config.prefix, name })
         else
             name;
 

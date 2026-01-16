@@ -103,7 +103,10 @@ pub const Database = struct {
         // If swapRemove moved the last element to fill the gap, update its index
         if (index < self.records.items.len) {
             const moved_id = self.records.items[index].id;
-            self.id_index.putAssumeCapacity(moved_id, index);
+            // Use getPtr to safely update existing entry without allocation
+            if (self.id_index.getPtr(moved_id)) |idx_ptr| {
+                idx_ptr.* = index;
+            }
         }
         return true;
     }
