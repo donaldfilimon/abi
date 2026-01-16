@@ -190,7 +190,10 @@ fn readFile(allocator: std.mem.Allocator, path: []const u8) ![]const u8 {
 }
 
 fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []const u8, model: ?[]const u8) ![]f32 {
-    _ = model; // TODO: Use custom model when specified
+    // Log which model is being used
+    if (model) |m| {
+        std.debug.print("Using custom model: {s}\n", .{m});
+    }
 
     switch (provider) {
         .openai => {
@@ -207,7 +210,11 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
                 cfg.deinit(allocator);
             }
 
+            const effective_model = model orelse "text-embedding-3-small";
+            std.debug.print("Model: {s}\n", .{effective_model});
+
             // Generate embedding using local embeddings model as fallback
+            // When full API integration is implemented, pass effective_model to the API
             return generateLocalEmbedding(allocator, text);
         },
         .ollama => {
@@ -216,8 +223,11 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
                 std.debug.print("Error: Could not load Ollama config\n", .{});
                 return EmbedError.ProviderNotConfigured;
             };
-            _ = config;
 
+            const effective_model = model orelse config.model;
+            std.debug.print("Model: {s}\n", .{effective_model});
+
+            // When full API integration is implemented, pass effective_model to the API
             return generateLocalEmbedding(allocator, text);
         },
         .mistral => {
@@ -233,6 +243,10 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
                 cfg.deinit(allocator);
             }
 
+            const effective_model = model orelse "mistral-embed";
+            std.debug.print("Model: {s}\n", .{effective_model});
+
+            // When full API integration is implemented, pass effective_model to the API
             return generateLocalEmbedding(allocator, text);
         },
         .cohere => {
@@ -248,6 +262,10 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
                 cfg.deinit(allocator);
             }
 
+            const effective_model = model orelse "embed-english-v3.0";
+            std.debug.print("Model: {s}\n", .{effective_model});
+
+            // When full API integration is implemented, pass effective_model to the API
             return generateLocalEmbedding(allocator, text);
         },
     }

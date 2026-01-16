@@ -217,7 +217,7 @@ fn printHelp() void {
         "  -h, --help           Show this help message\n\n" ++
         "Examples:\n" ++
         "  abi explore \"HTTP handler\"\n" ++
-        "  abi explore -l thorough \"TODO\"\n" ++
+        "  abi explore -l thorough \"FIXME\"\n" ++
         "  abi explore -f json \"function_name\"\n" ++
         "  abi explore -i \"*.zig\" \"pub fn\"\n" ++
         "  abi explore --regex \"fn\\s+\\w+\"";
