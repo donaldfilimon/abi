@@ -149,3 +149,4 @@ pub fn main() !void {
 - [Documentation Index](index.md) - Full documentation listing
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
 - [Zig 0.16 Migration](migration/zig-0.16-migration.md) - API compatibility notes
+ - [TODO List](TODO.md) - Pending implementations and Llama‑CPP parity tasks

@@ -251,3 +251,17 @@ See [TODO.md](TODO.md) for the list of pending implementations.
 ### Enterprise Features (2028+)
 - **Commercial support** – SLA offerings, priority support, and custom development services.
 - **Cloud integration** – Deploy ABI on AWS Lambda, Google Cloud Functions, and Azure Functions.
+
+## Version 0.6.0 – Q4 2026
+
+### Llama‑CPP Parity
+- [ ] Implement full GGUF loader and metadata parsing (`src/features/ai/llm/loader.zig`).
+- [ ] Add quantization decoders for Q4_0, Q4_1, Q8_0 (`src/features/ai/llm/quant.zig`).
+- [ ] Port BPE/SentencePiece tokenizer (`src/shared/utils/tokenizer.zig`).
+- [ ] CPU inference kernels: matmul, attention, RMSNorm with SIMD optimizations.
+- [ ] GPU backend wrappers for CUDA/Vulkan (`src/features/compute/gpu/`).
+- [ ] Sampling strategies: top‑k, top‑p, temperature, tail‑free.
+- [ ] Async token streaming via `std.Io.Threaded` channels.
+- [ ] CLI mirroring llama‑cpp options (`tools/cli/commands/llama.zig`).
+- [ ] Export C‑compatible API (`src/abi.zig`).
+- [ ] Comprehensive tests and benchmarks (`tests/llama/`).

@@ -860,4 +860,5 @@ Use `<type>: <summary>` format. Keep summaries ≤ 72 chars. Focus commits; upda
 
 `src/shared/contacts.zig` provides a centralized list of maintainer contacts extracted from the repository markdown files.
 See [TODO.md](TODO.md) for the list of pending implementations.
+See [ROADMAP.md](ROADMAP.md) for upcoming milestones and the Llama‑CPP parity plan.
 The TODO list now includes a **Llama‑CPP parity task table** describing required modules to achieve llama‑cpp feature parity.

@@ -92,6 +92,7 @@ std.Io.Clock.Duration.sleep(duration, io) catch {};
 | [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) | Zig 0.16 patterns |
 | [src/shared/contacts.zig](src/shared/contacts.zig) | Centralized maintainer contacts |
 | [TODO.md](TODO.md) | List of pending implementations and placeholders |
+ | [ROADMAP.md](ROADMAP.md) | Project roadmap and milestone planning |
 
 ## Contacts
 
