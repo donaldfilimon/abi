@@ -20,7 +20,7 @@ const build_options = @import("build_options");
 pub const runtime = @import("runtime/mod.zig");
 pub const memory = @import("memory/mod.zig");
 pub const concurrency = @import("concurrency/mod.zig");
-pub const gpu = @import("gpu/mod.zig");
+pub const gpu = @import("../gpu/mod.zig");
 pub const simd = @import("../shared/simd.zig");
 
 const network_module = if (build_options.enable_network)

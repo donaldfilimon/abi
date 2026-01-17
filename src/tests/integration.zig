@@ -2,10 +2,12 @@
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main(init: std.process.Init) !void {
+pub fn main() !void {
     std.debug.print("Running integration tests...\n", .{});
 
-    const allocator = init.gpa;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
     var framework = try abi.init(allocator, abi.FrameworkOptions{
         .enable_ai = true,

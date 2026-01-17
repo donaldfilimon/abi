@@ -180,7 +180,7 @@ pub const DiscordTools = ai.DiscordTools;
 
 /// WDBX compatibility namespace.
 pub const wdbx = if (build_options.enable_database) struct {
-    const db = @import("features/database/mod.zig");
+    const db = @import("database/mod.zig");
     pub const database_mod = db.database;
     pub const helpers = db.db_helpers;
     pub const cli = db.cli;

@@ -8,17 +8,16 @@ const std = @import("std");
 // provide a named module.
 const abi = @import("abi.zig");
 
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    var args_iter = std.process.Args.Iterator.initAllocator(init.minimal.args, allocator) catch {
-        printHelp();
-        return;
-    };
-    defer args_iter.deinit();
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
 
-    _ = args_iter.skip();
-    const command = args_iter.next() orelse {
+    // Skip program name
+    const command = if (args.len > 1) args[1] else {
         printHelp();
         return;
     };
