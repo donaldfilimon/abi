@@ -10,13 +10,48 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-// libc imports for Zig 0.16 compatibility
-const c = @cImport({
+// Platform detection
+const is_wasm = builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
+const is_freestanding = builtin.os.tag == .freestanding;
+const has_mmap_support = !is_wasm and !is_freestanding and builtin.os.tag != .windows;
+
+// libc imports for Zig 0.16 compatibility (only on platforms with libc)
+const c = if (has_mmap_support) @cImport({
     @cInclude("sys/stat.h");
     @cInclude("fcntl.h");
     @cInclude("unistd.h");
     @cInclude("sys/mman.h");
-});
+}) else struct {
+    // Stub definitions for platforms without mmap
+    pub const O_RDONLY: c_int = 0;
+    pub const PROT_READ: c_int = 1;
+    pub const MAP_PRIVATE: c_int = 2;
+    pub const MAP_FAILED: *anyopaque = @ptrFromInt(std.math.maxInt(usize));
+    pub const MADV_NORMAL: c_int = 0;
+    pub const MADV_SEQUENTIAL: c_int = 1;
+    pub const MADV_RANDOM: c_int = 2;
+    pub const MADV_WILLNEED: c_int = 3;
+    pub const MADV_DONTNEED: c_int = 4;
+    pub const struct_stat = extern struct { st_size: i64 };
+    pub fn open(_: [*:0]const u8, _: c_int) c_int {
+        return -1;
+    }
+    pub fn close(_: c_int) c_int {
+        return 0;
+    }
+    pub fn fstat(_: c_int, _: *struct_stat) c_int {
+        return -1;
+    }
+    pub fn mmap(_: ?*anyopaque, _: usize, _: c_int, _: c_int, _: c_int, _: i64) *anyopaque {
+        return MAP_FAILED;
+    }
+    pub fn munmap(_: *anyopaque, _: usize) c_int {
+        return 0;
+    }
+    pub fn madvise(_: *anyopaque, _: usize, _: c_int) c_int {
+        return 0;
+    }
+};
 
 /// Page size constant (4KB on most platforms)
 const page_size = 4096;
@@ -78,14 +113,12 @@ pub const MappedFile = struct {
     /// Platform-specific handle for cleanup
     handle: Handle,
 
-    const Handle = switch (builtin.os.tag) {
-        .windows => struct {
-            allocator: std.mem.Allocator,
-        },
-        else => struct {
-            fd: std.posix.fd_t,
-        },
-    };
+    const Handle = if (builtin.os.tag == .windows)
+        struct { allocator: std.mem.Allocator }
+    else if (is_wasm or is_freestanding)
+        struct { allocator: std.mem.Allocator } // WASM/freestanding uses allocator-based fallback
+    else
+        struct { fd: std.posix.fd_t };
 
     /// Open and memory-map a file.
     pub fn open(allocator: std.mem.Allocator, path: []const u8) MmapError!MappedFile {
@@ -109,10 +142,11 @@ pub const MappedFile = struct {
     /// Open with advanced options.
     pub fn openAdvanced(allocator: std.mem.Allocator, path: []const u8, options: OpenOptions) MmapError!MappedFile {
         // Platform-specific file opening and mapping
-        var mapped = switch (builtin.os.tag) {
-            .windows => try openWindows(allocator, path),
-            else => try openPosix(path, options),
-        };
+        // Platform-specific file opening
+        var mapped = if (builtin.os.tag == .windows or is_wasm or is_freestanding)
+            try openWindows(allocator, path) // Use allocator-based fallback
+        else
+            try openPosix(path, options);
 
         // Apply madvise hints based on options
         if (builtin.os.tag == .linux) {
@@ -271,15 +305,13 @@ pub const MappedFile = struct {
 
     /// Close the mapped file and release resources.
     pub fn close(self: *MappedFile) void {
-        switch (builtin.os.tag) {
-            .windows => {
-                self.handle.allocator.free(self.data);
-            },
-            else => {
-                // Use libc munmap and close for Zig 0.16 compatibility
-                _ = c.munmap(@ptrCast(self.data.ptr), self.data.len);
-                _ = c.close(self.handle.fd);
-            },
+        if (builtin.os.tag == .windows or is_wasm or is_freestanding) {
+            // Windows and WASM/freestanding use allocator-based memory
+            self.handle.allocator.free(self.data);
+        } else {
+            // Use libc munmap and close for Zig 0.16 compatibility
+            _ = c.munmap(@ptrCast(self.data.ptr), self.data.len);
+            _ = c.close(self.handle.fd);
         }
         self.* = undefined;
     }

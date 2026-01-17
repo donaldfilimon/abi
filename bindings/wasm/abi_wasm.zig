@@ -4,12 +4,12 @@
 //! Uses the shared ABI C-compatible interface where possible.
 
 const std = @import("std");
+const builtin = @import("builtin");
 const abi = @import("abi");
 
-// Use general purpose allocator for WASM environment
-// Use general purpose allocator for WASM environment
-var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = false }){};
-const allocator = gpa.allocator();
+// Use page allocator for WASM - GeneralPurposeAllocator requires debug I/O
+// which is not available on freestanding targets
+const allocator = std.heap.page_allocator;
 
 // Global framework instance
 var global_framework: ?abi.Framework = null;

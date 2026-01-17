@@ -6,14 +6,23 @@
 //! - `EngineConfig` - Engine configuration options
 //! - NUMA-aware task scheduling
 //! - Result handling and task lifecycle
+//!
+//! Note: On WASM/freestanding targets without thread support, the engine
+//! provides stub implementations that return appropriate errors.
 
 const std = @import("std");
+const builtin = @import("builtin");
 
-// Local imports (implementation files)
-pub const engine_impl = @import("engine.zig");
+// Platform detection - threads not available on WASM/freestanding
+const has_threads = !(@import("builtin").cpu.arch == .wasm32 or
+    @import("builtin").cpu.arch == .wasm64 or
+    @import("builtin").os.tag == .freestanding);
+
+// Local imports (implementation files) - conditionally compiled
+pub const engine_impl = if (has_threads) @import("engine.zig") else @import("engine_stub.zig");
 pub const types = @import("types.zig");
-pub const numa = @import("numa.zig");
-pub const benchmark = @import("benchmark.zig");
+pub const numa = if (has_threads) @import("numa.zig") else @import("numa_stub.zig");
+pub const benchmark = if (has_threads) @import("benchmark.zig") else @import("benchmark_stub.zig");
 
 // Core engine types
 pub const Engine = engine_impl.DistributedComputeEngine;
