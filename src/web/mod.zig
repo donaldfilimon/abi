@@ -1,105 +1,193 @@
-//! Web Module
-//!
-//! HTTP utilities and web service support.
-//!
-//! ## Features
-//! - HTTP client
-//! - Request/response handling
-//! - JSON parsing utilities
-
+//! Web feature helpers for HTTP and weather client access.
 const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../config.zig");
 
-// Re-export from features/web
-const features_web = @import("../features/web/mod.zig");
+const client = @import("client.zig");
+const weather = @import("weather.zig");
 
-pub const HttpClient = features_web.HttpClient;
-pub const Response = features_web.Response;
-pub const RequestOptions = features_web.RequestOptions;
-pub const WeatherClient = features_web.WeatherClient;
-pub const WeatherConfig = features_web.WeatherConfig;
+pub const JsonValue = std.json.Value;
+pub const ParsedJson = std.json.Parsed(JsonValue);
+pub const Response = client.Response;
+pub const HttpClient = client.HttpClient;
+pub const RequestOptions = client.RequestOptions;
+pub const WeatherClient = weather.WeatherClient;
+pub const WeatherConfig = weather.WeatherConfig;
+pub const http = @import("../shared/utils/http/mod.zig");
 
-pub const Error = error{
+pub const WebError = error{
     WebDisabled,
-    ConnectionFailed,
-    RequestFailed,
-    Timeout,
-    InvalidUrl,
 };
 
-/// Web context for Framework integration.
+/// Web Context for Framework integration.
+/// Wraps the HTTP client functionality to provide a consistent interface with other modules.
 pub const Context = struct {
     allocator: std.mem.Allocator,
     config: config_module.WebConfig,
-    client: ?*HttpClient = null,
+    http_client: ?HttpClient = null,
 
     pub fn init(allocator: std.mem.Allocator, cfg: config_module.WebConfig) !*Context {
         if (!isEnabled()) return error.WebDisabled;
 
         const ctx = try allocator.create(Context);
+        errdefer allocator.destroy(ctx);
+
         ctx.* = .{
             .allocator = allocator,
             .config = cfg,
+            .http_client = try HttpClient.init(allocator),
         };
+
         return ctx;
     }
 
     pub fn deinit(self: *Context) void {
-        if (self.client) |c| {
+        if (self.http_client) |*c| {
             c.deinit();
-            self.allocator.destroy(c);
         }
         self.allocator.destroy(self);
     }
 
-    /// Get or create the HTTP client.
-    pub fn getClient(self: *Context) !*HttpClient {
-        if (self.client) |c| return c;
-
-        const client_ptr = try self.allocator.create(HttpClient);
-        client_ptr.* = try HttpClient.init(self.allocator);
-        self.client = client_ptr;
-        return client_ptr;
-    }
-
-    /// Make an HTTP GET request.
+    /// Perform an HTTP GET request.
     pub fn get(self: *Context, url: []const u8) !Response {
-        const client_inst = try self.getClient();
-        return client_inst.get(url);
+        if (self.http_client) |*c| {
+            return c.get(url);
+        }
+        return error.WebDisabled;
     }
 
-    /// Make an HTTP GET request with options.
+    /// Perform an HTTP GET request with options.
     pub fn getWithOptions(self: *Context, url: []const u8, options: RequestOptions) !Response {
-        const client_inst = try self.getClient();
-        return client_inst.getWithOptions(url, options);
+        if (self.http_client) |*c| {
+            return c.getWithOptions(url, options);
+        }
+        return error.WebDisabled;
     }
 
-    /// Make an HTTP POST request with JSON body.
+    /// Perform an HTTP POST request with JSON body.
     pub fn postJson(self: *Context, url: []const u8, body: []const u8) !Response {
-        const client_inst = try self.getClient();
-        return client_inst.postJson(url, body);
+        if (self.http_client) |*c| {
+            return c.postJson(url, body);
+        }
+        return error.WebDisabled;
     }
 
     /// Free a response body.
     pub fn freeResponse(self: *Context, response: Response) void {
         self.allocator.free(response.body);
     }
+
+    /// Parse a JSON response.
+    pub fn parseJsonValue(self: *Context, response: Response) !ParsedJson {
+        return std.json.parseFromSlice(JsonValue, self.allocator, response.body, .{});
+    }
 };
+
+var initialized: bool = false;
+var client_mutex = std.Thread.Mutex{};
+var default_client: ?HttpClient = null;
+
+pub fn init(allocator: std.mem.Allocator) !void {
+    if (!isEnabled()) return WebError.WebDisabled;
+
+    client_mutex.lock();
+    defer client_mutex.unlock();
+
+    if (default_client == null) {
+        default_client = try HttpClient.init(allocator);
+    }
+    initialized = true;
+}
+
+pub fn deinit() void {
+    client_mutex.lock();
+    defer client_mutex.unlock();
+
+    if (default_client) |*http_client| {
+        http_client.deinit();
+        default_client = null;
+    }
+    initialized = false;
+}
 
 pub fn isEnabled() bool {
     return build_options.enable_web;
 }
 
 pub fn isInitialized() bool {
-    return features_web.isInitialized();
+    return initialized;
 }
 
-pub fn init(allocator: std.mem.Allocator) Error!void {
-    if (!isEnabled()) return error.WebDisabled;
-    features_web.init(allocator) catch return error.WebDisabled;
+pub fn get(allocator: std.mem.Allocator, url: []const u8) !Response {
+    client_mutex.lock();
+    defer client_mutex.unlock();
+
+    if (default_client) |*http_client| {
+        return http_client.get(url);
+    }
+
+    var client_instance = try HttpClient.init(allocator);
+    defer client_instance.deinit();
+
+    return client_instance.get(url);
 }
 
-pub fn deinit() void {
-    features_web.deinit();
+pub fn getWithOptions(
+    allocator: std.mem.Allocator,
+    url: []const u8,
+    options: RequestOptions,
+) !Response {
+    client_mutex.lock();
+    defer client_mutex.unlock();
+
+    if (default_client) |*http_client| {
+        return http_client.getWithOptions(url, options);
+    }
+
+    var client_instance = try HttpClient.init(allocator);
+    defer client_instance.deinit();
+
+    return client_instance.getWithOptions(url, options);
+}
+
+pub fn postJson(allocator: std.mem.Allocator, url: []const u8, body: []const u8) !Response {
+    client_mutex.lock();
+    defer client_mutex.unlock();
+
+    if (default_client) |*http_client| {
+        return http_client.postJson(url, body);
+    }
+
+    var client_instance = try HttpClient.init(allocator);
+    defer client_instance.deinit();
+
+    return client_instance.postJson(url, body);
+}
+
+pub fn freeResponse(allocator: std.mem.Allocator, response: Response) void {
+    allocator.free(response.body);
+}
+
+pub fn parseJsonValue(allocator: std.mem.Allocator, response: Response) !ParsedJson {
+    return std.json.parseFromSlice(JsonValue, allocator, response.body, .{});
+}
+
+pub fn isSuccessStatus(status: u16) bool {
+    return http.isSuccess(status);
+}
+
+test "web module init gating" {
+    if (!isEnabled()) return;
+    try init(std.testing.allocator);
+    try std.testing.expect(isInitialized());
+    deinit();
+    try std.testing.expect(!isInitialized());
+}
+
+test "web helpers parse json and status" {
+    const response = Response{ .status = 200, .body = "{\"ok\":true}" };
+    var parsed = try parseJsonValue(std.testing.allocator, response);
+    defer parsed.deinit();
+    try std.testing.expect(isSuccessStatus(response.status));
+    try std.testing.expect(parsed.value.object.get("ok").?.bool == true);
 }
