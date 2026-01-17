@@ -1,5 +1,9 @@
 //! Core infrastructure providing platform detection, versioning, and memory utilities.
 //!
+//! Note: This is a minimal utility module. For most use cases:
+//! - Runtime infrastructure: use `src/runtime/`
+//! - Shared utilities: use `src/internal/` or `src/shared/`
+//!
 //! This module includes:
 //! - Platform information detection (OS, architecture, CPU threads)
 //! - Version management and comparison

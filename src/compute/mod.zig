@@ -1,19 +1,24 @@
-//! Compute module providing high-performance runtime, memory management, and concurrency.
+//! Compute Module - Backward Compatibility Layer
 //!
-//! This module is the core execution engine for ABI, offering:
+//! @deprecated This module re-exports from `src/runtime/` for API stability.
+//! New code should import from `runtime` directly:
+//!
+//! ```zig
+//! // Preferred (new code):
+//! const runtime = @import("runtime");
+//! var engine = try runtime.createEngine(allocator, .{});
+//!
+//! // Legacy (still works):
+//! const compute = @import("compute");
+//! var engine = try compute.createDefaultEngine(allocator);
+//! ```
+//!
+//! This module provides:
 //! - Work-stealing scheduler with worker thread pool
 //! - Lock-free data structures for concurrent operations
 //! - Memory management with stable allocators and worker arenas
 //! - GPU acceleration support with CPU fallback
 //! - Result caching with metadata
-//!
-//! Usage:
-//! ```zig
-//! var engine = try abi.compute.createDefaultEngine(allocator);
-//! defer engine.deinit();
-//!
-//! const result = try abi.compute.runTask(&engine, u32, myTask, 1000);
-//! ```
 const std = @import("std");
 const build_options = @import("build_options");
 

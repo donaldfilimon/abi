@@ -2,28 +2,28 @@
 
 ## ABI Framework Overview
 
-ABI is a modern Zig 0.16 framework designed for modular AI services, vector search, and high‑performance tooling.
+ABI is a modern Zig 0.16 framework designed for modular AI services, vector search, and high-performance tooling.
 
 ### Core Highlights
 
 | Feature | Description |
 |---------|-------------|
-| **AI Runtime** | LLM inference (Llama‑CPP parity), agent runtime, training pipelines |
-| **Vector Database** | WDBX with HNSW/IVF‑PQ indexing and hybrid search |
-| **Compute Engine** | Work‑stealing scheduler, NUMA awareness, lock‑free primitives |
-| **GPU Backends** | CUDA, Vulkan, Metal, WebGPU – unified API |
+| **AI Runtime** | LLM inference (Llama-CPP parity), agent runtime, training pipelines |
+| **Vector Database** | WDBX with HNSW/IVF-PQ indexing and hybrid search |
+| **Runtime Engine** | Work-stealing scheduler, NUMA awareness, lock-free primitives |
+| **GPU Backends** | CUDA, Vulkan, Metal, WebGPU - unified API |
 | **Distributed Network** | Node discovery, Raft consensus, load balancing |
 | **Observability** | Metrics, tracing, profiling, circuit breakers |
-| **CLI** | TUI launcher, training, database ops |
+| **CLI** | TUI launcher, runtime feature flags, database ops |
 
 ## Documentation
 
-- [Online Docs](https://donaldfilimon.github.io/abi/) – searchable static site
-- [Introduction](docs/intro.md) – architecture overview
-- [API Reference](API_REFERENCE.md) – public API summary
-- [Quickstart](QUICKSTART.md) – getting‑started guide
-- [Migration Guide](docs/migration/zig-0.16-migration.md) – Zig 0.16 patterns
-- [Troubleshooting](docs/troubleshooting.md) – common issues
+- [Online Docs](https://donaldfilimon.github.io/abi/) - searchable static site
+- [Introduction](docs/intro.md) - architecture overview
+- [API Reference](API_REFERENCE.md) - public API summary
+- [Quickstart](QUICKSTART.md) - getting-started guide
+- [Migration Guide](docs/migration/zig-0.16-migration.md) - Zig 0.16 patterns
+- [Troubleshooting](docs/troubleshooting.md) - common issues
 
 ## Build & Test
 
@@ -33,12 +33,20 @@ zig build test --summary all # Run tests
 zig build -Doptimize=ReleaseFast
 ```
 
-Feature‑gated builds:
+Feature-gated builds:
 
 ```bash
 zig build -Denable-ai=true \
-           -Denable-gpu=false \
-           -Denable-database=true
+          -Denable-gpu=false \
+          -Denable-database=true
+```
+
+Runtime feature flags (CLI):
+
+```bash
+zig build run -- --list-features          # List features and status
+zig build run -- --enable-gpu db stats    # Enable feature for this run
+zig build run -- --disable-ai llm info    # Disable feature for this run
 ```
 
 ## Feature Flags
@@ -96,6 +104,9 @@ std.debug.print("Final loss: {d:.6}\n", .{result.report.final_loss});
 | Command | Description |
 |---------|-------------|
 | `--help` | Show help |
+| `--list-features` | List available features and status |
+| `--enable-<feature>` | Enable a feature at runtime |
+| `--disable-<feature>` | Disable a feature at runtime |
 | `tui` | Interactive launcher |
 | `db stats` | Database statistics |
 | `gpu backends` | List GPU backends |
@@ -107,12 +118,24 @@ std.debug.print("Final loss: {d:.6}\n", .{result.report.final_loss});
 abi/
 ├── src/
 │   ├── abi.zig          # Public API entry point
+│   ├── config.zig       # Unified configuration system
+│   ├── framework.zig    # Framework orchestration
+│   ├── registry/        # Plugin registry system (comptime, runtime, dynamic)
+│   ├── runtime/         # Always-on infrastructure
+│   │   ├── engine/      # Work-stealing task execution
+│   │   ├── scheduling/  # Futures, cancellation, task groups
+│   │   ├── concurrency/ # Lock-free primitives
+│   │   └── memory/      # Memory pools and allocators
 │   ├── gpu/             # GPU acceleration (unified API)
-│   ├── core/            # I/O, diagnostics, collections
-│   ├── compute/         # Runtime, memory, profiling
-│   ├── features/        # AI, database, network, monitoring
-│   ├── framework/       # Lifecycle and orchestration
-│   └── shared/          # Logging, security, utilities
+│   ├── ai/              # AI module (LLM, embeddings, agents, training)
+│   ├── database/        # Vector database (WDBX)
+│   ├── network/         # Distributed compute
+│   ├── web/             # Web utilities and HTTP
+│   ├── observability/   # Metrics, tracing, profiling
+│   ├── internal/        # Shared utilities (re-export layer)
+│   ├── shared/          # Logging, security, platform utilities
+│   ├── compute/         # Legacy re-export (backward compat)
+│   └── features/        # Legacy features (connectors, HA, monitoring)
 ├── tools/cli/           # CLI implementation
 ├── benchmarks/          # Performance benchmarks
 └── docs/                # Documentation
@@ -122,7 +145,7 @@ abi/
 
 ```bash
 zig build test --summary all                    # All tests
-zig test src/compute/runtime/engine.zig         # Single file
+zig test src/runtime/engine/engine.zig          # Single file
 zig test src/tests/mod.zig --test-filter "pat"  # Filter tests
 zig build benchmarks                            # Run benchmarks
 ```
@@ -131,11 +154,11 @@ zig build benchmarks                            # Run benchmarks
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ABI_OPENAI_API_KEY` | – | OpenAI API key |
+| `ABI_OPENAI_API_KEY` | - | OpenAI API key |
 | `ABI_OLLAMA_HOST` | `http://127.0.0.1:11434` | Ollama host |
 | `ABI_OLLAMA_MODEL` | `gpt-oss` | Default Ollama model |
-| `ABI_HF_API_TOKEN` | – | HuggingFace token |
-| `DISCORD_BOT_TOKEN` | – | Discord bot token |
+| `ABI_HF_API_TOKEN` | - | HuggingFace token |
+| `DISCORD_BOT_TOKEN` | - | Discord bot token |
 
 ## Contributing
 
@@ -147,12 +170,35 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for workflow and [CLAUDE.md](CLAUDE.md) f
 
 ## Roadmap
 
-The roadmap is split into five independent phases:
+The roadmap is split into phases:
 
-1. **GPU Modular Refactor** – ✅ Complete (moved to `src/gpu/`).  
-2. **Documentation Infrastructure** – ✅ Complete (API generator, diagrams).  
-3. **Benchmark Framework** – ✅ Complete (runner, competitive benches).  
-4. **High Availability Infrastructure** – ✅ Complete (failover, PITR).  
-5. **Ecosystem Packaging** – ✅ Complete (Docker, Zig registry).
+### Completed Phases
+1. **GPU Modular Refactor** - Moved to `src/gpu/`
+2. **Documentation Infrastructure** - API generator, diagrams
+3. **Benchmark Framework** - Runner, competitive benches
+4. **High Availability Infrastructure** - Failover, PITR
+5. **Ecosystem Packaging** - Docker, Zig registry
+6. **Runtime Consolidation** - Migrated compute/ to runtime/
+   - Plugin registry system (`src/registry/`)
+   - CLI runtime flags (`--list-features`, `--enable-*`, `--disable-*`)
+   - Task engine, scheduling, concurrency, memory modules
 
-All other open items are tracked in [ROADMAP.md](ROADMAP.md).
+### In Progress
+- **Phase 2: Observability Consolidation** - Unify monitoring implementations
+- **Phase 3: AI Module Migration** - Move features/ai/ to ai/
+
+All open items tracked in [ROADMAP.md](ROADMAP.md).
+
+## Migration Status
+
+| Module | Location | Status |
+|--------|----------|--------|
+| GPU | `src/gpu/` | Fully migrated |
+| Database | `src/database/` | Fully migrated |
+| Network | `src/network/` | Fully migrated |
+| Web | `src/web/` | Fully migrated |
+| Runtime | `src/runtime/` | Fully migrated |
+| Registry | `src/registry/` | New (complete) |
+| AI | `src/ai/` + `src/features/ai/` | Partial (wrapper + implementation) |
+| Observability | `src/observability/` + `src/features/monitoring/` | Needs consolidation |
+| Compute | `src/compute/` | Legacy re-export (use runtime/) |

@@ -59,6 +59,8 @@ zig build run-discord                  # Run discord example
 | GPU backend conflicts | Enable only one GPU backend at a time |
 | WASM limitations | `database`, `network`, `gpu` features auto-disabled for WASM targets |
 | libc linking | CLI and examples require libc for environment variable access |
+| Import paths | Always use `@import("abi")` for public API, not direct file paths |
+| Stub API mismatch | When adding to real module, mirror the change in the corresponding `stub.zig` |
 
 ## Feature Flags
 
@@ -111,15 +113,17 @@ Use `zig build check-wasm` to verify WASM compilation without full build.
 
 The codebase uses a flat domain structure with unified configuration and framework orchestration.
 
-**Migration Status:** The codebase is mid-migration from a legacy feature-based organization to a new modular structure. The GPU module has been fully migrated to `src/gpu/`. Other implementations still live in `src/features/` while thin wrappers exist in `src/`.
-
 ```
 src/
 ├── abi.zig              # Public API entry point: init(), shutdown(), version()
 ├── config.zig           # Unified configuration system
 ├── framework.zig        # Framework orchestration with builder pattern
 ├── runtime/             # Always-on infrastructure (task execution, scheduling)
-├── gpu/                 # GPU acceleration (fully migrated - primary location)
+│   ├── engine/         # Task engine
+│   ├── scheduling/     # Future, CancellationToken, TaskGroup
+│   ├── concurrency/    # Lock-free primitives, priority queue
+│   └── memory/         # Memory utilities
+├── gpu/                 # GPU acceleration (primary location)
 │   ├── mod.zig         # Module entry, exports unified API
 │   ├── unified.zig     # Gpu struct, GpuConfig, high-level ops
 │   ├── dsl/            # Kernel DSL compiler (builder, codegen, optimizer)
@@ -127,33 +131,29 @@ src/
 │   ├── diagnostics.zig # GPU state debugging
 │   ├── error_handling.zig # Structured error context
 │   └── failover.zig    # Graceful degradation to CPU
-├── ai/                  # AI module with sub-features (thin wrappers)
-├── database/           # Vector database (fully migrated - primary location)
-├── network/            # Distributed compute (fully migrated - primary location)
+├── ai/                  # AI module entry (wrappers to features/ai/)
+├── database/           # Vector database (WDBX)
+├── network/            # Distributed compute
 ├── observability/      # Metrics, tracing, profiling
-├── web/                # Web/HTTP utilities (fully migrated - primary location)
+├── web/                # Web/HTTP utilities
 ├── internal/           # Shared utilities (logging, plugins, platform, simd)
+├── registry/           # Plugin registry system
+├── features/           # Full implementations
+│   └── ai/            # AI implementation (agent, training, embeddings, llm)
+├── core/               # I/O, diagnostics, collections
 └── shared/             # Legacy shared utilities
 
 tools/cli/               # CLI implementation (commands/, tui/)
 bindings/wasm/           # WASM bindings entry point
 benchmarks/              # Performance benchmarks
 examples/                # Example programs
-
-# Implementation directories (real code, being migrated)
-├── core/               # I/O, diagnostics, collections
-├── compute/            # Runtime, concurrency, memory (GPU removed)
-└── features/           # Feature implementations (still in use)
-    └── ai/            # Full AI implementation (agent, training, embeddings)
 ```
 
 **Import guidance:**
-- For GPU: Use `src/gpu/` (fully migrated, primary location)
-- For Network: Use `src/network/` (fully migrated, primary location)
-- For Database: Use `src/database/` (fully migrated, primary location)
-- For Web: Use `src/web/` (fully migrated, primary location)
-- For AI agents/training: Real code is in `src/features/ai/`, wrappers in `src/ai/`
-- For public API: Always use `@import("abi")` and framework methods
+- **Public API**: Always use `@import("abi")` - this provides all public types and functions
+- **Direct module access**: Use `abi.gpu`, `abi.ai`, `abi.database`, etc. through the framework
+- **AI implementation details**: Real code is in `src/features/ai/`, wrappers in `src/ai/`
+- **Never import file paths directly** in application code - use the abi module
 
 **Module Convention:** Each feature uses `mod.zig` (entry point), `stub.zig` (feature-gated placeholder)
 
@@ -277,14 +277,14 @@ The runtime module provides always-available infrastructure:
 - **Task execution** - Work scheduling and management
 - Integrated with framework lifecycle
 
-### Concurrency Primitives (`src/compute/`)
+### Concurrency Primitives (`src/runtime/concurrency/`)
 
 - `WorkStealingQueue` - Owner LIFO, thieves FIFO
 - `LockFreeQueue/Stack` - Atomic CAS-based collections
 - `PriorityQueue` - Lock-free task scheduling
 - `ShardedMap` - Partitioned data structure reducing contention
 
-### Legacy Runtime (`src/compute/runtime/`)
+### Runtime Primitives (`src/runtime/scheduling/`)
 
 - `Future` - Async results with `.then()`, `.catch()`, `.finally()`
 - `CancellationToken` - Cooperative cancellation

@@ -1,5 +1,8 @@
 //! Monitoring feature facade for metrics collection.
 //!
+//! @deprecated Prefer importing from `src/observability/mod.zig` for new code.
+//! This module is re-exported through the observability module for consistency.
+//!
 //! Provides unified observability with:
 //! - Prometheus metrics export
 //! - OpenTelemetry tracing and metrics
