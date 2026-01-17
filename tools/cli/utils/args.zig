@@ -8,14 +8,14 @@ const std = @import("std");
 /// Check if text matches any of the provided options.
 pub fn matchesAny(text: []const u8, options: []const []const u8) bool {
     for (options) |option| {
-        if (std.mem.eql(u8, std.mem.sliceTo(text, 0), option)) return true;
+        if (std.mem.eql(u8, text, option)) return true;
     }
     return false;
 }
 
 /// Convert a null-terminated argument to a regular slice.
 pub fn toSlice(arg: [:0]const u8) []const u8 {
-    return std.mem.sliceTo(arg, 0);
+    return arg[0..];
 }
 
 /// Parse a node status string to enum value.
@@ -43,7 +43,7 @@ pub const ArgParser = struct {
     /// Get the current argument as a slice, or null if exhausted.
     pub fn current(self: *const ArgParser) ?[]const u8 {
         if (self.index >= self.args.len) return null;
-        return toSlice(self.args[self.index]);
+        return self.args[self.index][0..];
     }
 
     /// Advance to next argument and return current.
@@ -56,7 +56,7 @@ pub const ArgParser = struct {
     /// Peek at next argument without advancing.
     pub fn peek(self: *const ArgParser) ?[]const u8 {
         if (self.index + 1 >= self.args.len) return null;
-        return toSlice(self.args[self.index + 1]);
+        return self.args[self.index + 1][0..];
     }
 
     /// Check if current argument matches any of the options.
@@ -163,15 +163,13 @@ pub fn parseEnum(comptime E: type, text: []const u8) ?E {
 
 /// Get all enum field names as a comma-separated string (comptime).
 pub fn enumNames(comptime E: type) []const u8 {
-    comptime {
-        var result: []const u8 = "";
-        const fields = @typeInfo(E).@"enum".fields;
-        for (fields, 0..) |field, i| {
-            result = result ++ field.name;
-            if (i < fields.len - 1) result = result ++ ", ";
-        }
-        return result;
+    comptime var result: []const u8 = "";
+    const fields = @typeInfo(E).@"enum".fields;
+    inline for (fields, 0..) |field, i| {
+        result = result ++ field.name;
+        if (i < fields.len - 1) result = result ++ ", ";
     }
+    return result;
 }
 
 test "matchesAny helper function" {

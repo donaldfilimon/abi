@@ -151,8 +151,61 @@ const SessionState = struct {
     }
 };
 
+fn runRalph(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var task: ?[]const u8 = null;
+    var max_iterations: usize = 10;
+
+    var i: usize = 0;
+    while (i < args.len) {
+        const arg = std.mem.sliceTo(args[i], 0);
+        i += 1;
+
+        if (std.mem.eql(u8, arg, "--task") or std.mem.eql(u8, arg, "-t")) {
+            if (i < args.len) {
+                task = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, arg, "--iterations") or std.mem.eql(u8, arg, "-i")) {
+            if (i < args.len) {
+                const iter_str = std.mem.sliceTo(args[i], 0);
+                max_iterations = std.fmt.parseInt(usize, iter_str, 10) catch 10;
+                i += 1;
+            }
+            continue;
+        }
+    }
+
+    if (task == null) {
+        std.debug.print("Error: --task argument is required for Ralph mode.\n", .{});
+        std.debug.print("Usage: abi agent ralph --task \"Your task description\"\n", .{});
+        return;
+    }
+
+    std.debug.print("Starting Ralph Iterative Loop...\n", .{});
+    std.debug.print("Task: {s}\n", .{task.?});
+    std.debug.print("Max Iterations: {d}\n\n", .{max_iterations});
+
+    // Initialize Abbey Engine
+    var engine = try abi.ai.abbey.createEngine(allocator);
+    defer engine.deinit();
+
+    const result = try engine.runRalphLoop(task.?, max_iterations);
+    defer allocator.free(result);
+
+    std.debug.print("\n=== Ralph Task Complete ===\n", .{});
+    std.debug.print("{s}\n", .{result});
+}
+
 /// Run the agent command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    // Check for "ralph" subcommand
+    if (args.len > 0 and std.mem.eql(u8, std.mem.sliceTo(args[0], 0), "ralph")) {
+        return runRalph(allocator, args[1..]);
+    }
+
     const agent_mod = abi.ai.agent;
     const prompts = abi.ai.prompts;
 
@@ -573,6 +626,7 @@ fn parsePersonaType(name: []const u8) abi.ai.prompts.PersonaType {
     if (std.mem.eql(u8, name, "reviewer")) return .reviewer;
     if (std.mem.eql(u8, name, "minimal")) return .minimal;
     if (std.mem.eql(u8, name, "abbey")) return .abbey;
+    if (std.mem.eql(u8, name, "ralph")) return .ralph;
     return .assistant; // Default
 }
 
@@ -621,6 +675,10 @@ fn printHelp() void {
         \\  abi agent --show-prompt -m "Hi"    # Show prompt, then send
         \\  abi agent --session "project-x"    # Named session
         \\  abi agent --list-personas          # Show all personas
+        \\
+        \\Ralph Mode (Iterative Loop):
+        \\  abi agent ralph --task "..."       # Run a task in a self-correcting loop
+        \\  --iterations <n>                   # Max iterations (default: 10)
         \\
     ;
     std.debug.print("{s}", .{help_text});

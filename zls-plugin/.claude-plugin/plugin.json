@@ -1,0 +1,13 @@
+{
+  "name": "zls-lsp",
+  "version": "1.0.0",
+  "description": "Zig Language Server (ZLS) for code intelligence, diagnostics, and navigation",
+  "author": {
+    "name": "donald"
+  },
+  "homepage": "https://github.com/zigtools/zls",
+  "repository": "https://github.com/zigtools/zls",
+  "license": "MIT",
+  "keywords": ["zig", "zls", "lsp", "language-server"],
+  "lspServers": "./.lsp.json"
+}

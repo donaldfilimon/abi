@@ -328,6 +328,21 @@ pub const Buffer = struct {
         return error.NoDeviceMemory;
     }
 
+    /// Check if buffer has a device handle allocated.
+    pub fn hasDeviceHandle(self: *const Buffer) bool {
+        return self.device_handle != null;
+    }
+
+    /// Get raw host bytes (for backend transfers).
+    pub fn getHostBytes(self: *const Buffer) ?[]u8 {
+        return self.host_data;
+    }
+
+    /// Set the device handle (called by backend after allocation).
+    pub fn setDeviceHandle(self: *Buffer, handle: *anyopaque) void {
+        self.device_handle = handle;
+    }
+
     /// Map the buffer for host access.
     pub fn map(self: *Buffer, access: MapAccess) !MappedBuffer {
         // Sync from device if needed

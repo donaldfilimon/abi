@@ -48,6 +48,15 @@ All feature-gated stub modules have been audited and updated for complete API pa
 
 ## Unreleased (v0.3.1-dev)
 
+### CLI Modernization (April 2024)
+
+Standardized argument parsing, help generation, and output formatting across all major CLI commands.
+
+- **ArgParser**: Replaced manual parsing loops with `ArgParser` utility for type-safe argument handling.
+- **HelpBuilder**: Standardized help text generation using `HelpBuilder`.
+- **Output Utilities**: Enhanced CLI output with colors, progress indicators, and styled formatting.
+- **Consolidation**: Merged LLM command patterns and removed redundant reference files.
+
 ### Zig 0.16 API Migration (Complete)
 
 **std.Io Unified API**

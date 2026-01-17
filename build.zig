@@ -409,6 +409,26 @@ pub fn build(b: *std.Build) void {
         benchmarks_step.dependOn(&run_benchmarks.step);
     }
 
+    // Documentation generator
+    if (pathExists("tools/gendocs.zig")) {
+        const gendocs_exe = b.addExecutable(.{
+            .name = "gendocs",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("tools/gendocs.zig"),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
+
+        const run_gendocs = b.addRunArtifact(gendocs_exe);
+        if (b.args) |args| {
+            run_gendocs.addArgs(args);
+        }
+
+        const gendocs_step = b.step("gendocs", "Generate API documentation");
+        gendocs_step.dependOn(&run_gendocs.step);
+    }
+
     // Performance profiling build
     if (cli_path) |path| {
         var profile_options = base_options;

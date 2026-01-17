@@ -3,9 +3,24 @@
 //! This module provides a unified interface for GPU compute operations across
 //! multiple backends including CUDA, Vulkan, Metal, WebGPU, OpenGL, and std.gpu.
 //!
-//! ## Unified API
+//! ## Public API
 //!
-//! The unified API provides a single interface for all backends:
+//! These exports form the stable interface:
+//! - `Gpu` - Main unified GPU context
+//! - `GpuConfig` - Configuration for GPU initialization
+//! - `UnifiedBuffer` - Cross-backend buffer type
+//! - `Device`, `DeviceType` - Device discovery and selection
+//! - `KernelBuilder`, `KernelIR` - DSL for custom kernels
+//! - `Backend`, `BackendAvailability` - Backend detection
+//!
+//! ## Internal (do not depend on)
+//!
+//! These may change without notice:
+//! - Direct backend module imports (cuda_loader, vulkan_*, etc.)
+//! - Lifecycle management internals (gpu_lifecycle, cuda_backend_init_lock)
+//! - Backend-specific initialization functions (initCudaComponents, etc.)
+//!
+//! ## Unified API Example
 //!
 //! ```zig
 //! const gpu = @import("compute/gpu/mod.zig");
@@ -38,6 +53,25 @@ pub const dsl = @import("dsl/mod.zig");
 // Backend interface and loaders
 pub const interface = @import("interface.zig");
 pub const cuda_loader = @import("backends/cuda/loader.zig");
+
+// Modular backend abstraction layer
+pub const backend_factory = @import("backend_factory.zig");
+pub const dispatcher = @import("dispatcher.zig");
+pub const builtin_kernels = @import("builtin_kernels.zig");
+
+// Factory convenience exports
+pub const BackendFactory = backend_factory.BackendFactory;
+pub const BackendInstance = backend_factory.BackendInstance;
+pub const BackendFeature = backend_factory.BackendFeature;
+pub const createBackend = backend_factory.createBackend;
+pub const createBestBackend = backend_factory.createBestBackend;
+pub const destroyBackend = backend_factory.destroyBackend;
+
+// Dispatcher convenience exports
+pub const KernelDispatcher = dispatcher.KernelDispatcher;
+pub const DispatchError = dispatcher.DispatchError;
+pub const CompiledKernelHandle = dispatcher.CompiledKernelHandle;
+pub const KernelArgs = dispatcher.KernelArgs;
 
 const build_options = @import("build_options");
 

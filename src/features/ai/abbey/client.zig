@@ -178,7 +178,11 @@ pub const EchoBackend = struct {
         // Build echo response
         var response = std.ArrayListUnmanaged(u8){};
         try response.appendSlice(self.allocator, "[Abbey Echo] Received ");
-        try response.appendSlice(self.allocator, std.fmt.comptimePrint("{}", .{request.messages.len}));
+
+        const len_str = try std.fmt.allocPrint(self.allocator, "{}", .{request.messages.len});
+        defer self.allocator.free(len_str);
+        try response.appendSlice(self.allocator, len_str);
+
         try response.appendSlice(self.allocator, " messages. Last: ");
 
         if (request.messages.len > 0) {

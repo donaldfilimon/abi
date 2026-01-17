@@ -1,0 +1,33 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "zig-dev",
+  "description": "Zig development tools for Claude Code - ZLS integration for code intelligence",
+  "owner": {
+    "name": "donald",
+    "email": "donald@local"
+  },
+  "plugins": [
+    {
+      "name": "zls-lsp",
+      "description": "Zig Language Server (ZLS) for code intelligence, diagnostics, and navigation",
+      "version": "1.0.0",
+      "author": {
+        "name": "donald",
+        "email": "donald@local"
+      },
+      "source": "./plugins/zls-lsp",
+      "category": "development",
+      "strict": false,
+      "lspServers": {
+        "zls": {
+          "command": "zls",
+          "args": [],
+          "extensionToLanguage": {
+            ".zig": "zig",
+            ".zon": "zig"
+          }
+        }
+      }
+    }
+  ]
+}

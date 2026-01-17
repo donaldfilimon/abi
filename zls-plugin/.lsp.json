@@ -1,0 +1,21 @@
+{
+  "zls": {
+    "command": "zls",
+    "args": [],
+    "extensionToLanguage": {
+      ".zig": "zig",
+      ".zon": "zig"
+    },
+    "transport": "stdio",
+    "initializationOptions": {
+      "warn_style": true,
+      "enable_build_on_save": false,
+      "enable_snippets": true,
+      "semantic_tokens": "full"
+    },
+    "startupTimeout": 10000,
+    "shutdownTimeout": 3000,
+    "restartOnCrash": true,
+    "maxRestarts": 3
+  }
+}

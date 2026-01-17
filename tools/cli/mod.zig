@@ -37,7 +37,7 @@ pub fn main(init: std.process.Init) !void {
         return;
     }
 
-    const command = args[1];
+    const command = std.mem.sliceTo(args[1], 0);
     if (utils.args.matchesAny(command, &[_][]const u8{ "help", "--help", "-h" })) {
         printHelp();
         return;
@@ -74,7 +74,7 @@ pub fn main(init: std.process.Init) !void {
     }
 
     if (std.mem.eql(u8, command, "system-info")) {
-        try commands.system_info.run(allocator, &framework);
+        try commands.system_info.run(allocator, args[2..]);
         return;
     }
 
@@ -84,7 +84,7 @@ pub fn main(init: std.process.Init) !void {
     }
 
     if (std.mem.eql(u8, command, "simd")) {
-        try commands.simd.run(allocator);
+        try commands.simd.run(allocator, args[2..]);
         return;
     }
 
@@ -114,7 +114,7 @@ pub fn main(init: std.process.Init) !void {
     }
 
     if (std.mem.eql(u8, command, "tui")) {
-        try commands.tui.runWithFramework(allocator, args[2..], &framework);
+        try commands.tui.run(allocator, args[2..]);
         return;
     }
 

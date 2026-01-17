@@ -15,25 +15,26 @@ const discord = abi.connectors.discord;
 
 /// Run the discord command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    // Check if web feature is enabled (Discord requires web/HTTP support)
-    if (!abi.web.isEnabled()) {
-        std.debug.print("Error: Web feature is disabled.\n", .{});
-        std.debug.print("Rebuild with: zig build -Denable-web=true\n", .{});
+    var parser = utils.args.ArgParser.init(allocator, args);
+
+    if (parser.wantsHelp()) {
+        printHelp(allocator);
         return;
     }
 
-    if (args.len == 0) {
+    // Check if web feature is enabled (Discord requires web/HTTP support)
+    if (!abi.web.isEnabled()) {
+        utils.output.printError("Web feature is disabled.", .{});
+        utils.output.printInfo("Rebuild with: zig build -Denable-web=true", .{});
+        return;
+    }
+
+    if (!parser.hasMore()) {
         try printStatus(allocator);
         return;
     }
 
-    const command = std.mem.sliceTo(args[0], 0);
-    const remaining_args = if (args.len > 1) args[1..] else &[_][:0]const u8{};
-
-    if (utils.args.matchesAny(command, &[_][]const u8{ "help", "--help", "-h" })) {
-        printHelp();
-        return;
-    }
+    const command = parser.next().?;
 
     if (std.mem.eql(u8, command, "status")) {
         try printStatus(allocator);
@@ -51,27 +52,27 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 
     if (std.mem.eql(u8, command, "send")) {
-        try sendMessage(allocator, remaining_args);
+        try sendMessage(allocator, parser.remaining());
         return;
     }
 
     if (std.mem.eql(u8, command, "commands")) {
-        try manageCommands(allocator, remaining_args);
+        try manageCommands(allocator, parser.remaining());
         return;
     }
 
     if (std.mem.eql(u8, command, "webhook")) {
-        try executeWebhook(allocator, remaining_args);
+        try executeWebhook(allocator, parser.remaining());
         return;
     }
 
     if (std.mem.eql(u8, command, "channel")) {
-        try channelInfo(allocator, remaining_args);
+        try channelInfo(allocator, parser.remaining());
         return;
     }
 
-    std.debug.print("Unknown discord command: {s}\n", .{command});
-    printHelp();
+    utils.output.printError("Unknown discord command: {s}", .{command});
+    printHelp(allocator);
 }
 
 /// Print a short discord summary for system-info.
@@ -92,33 +93,35 @@ pub fn printSummary(allocator: std.mem.Allocator) void {
     }
 }
 
-fn printHelp() void {
-    const text =
-        \\Usage: abi discord <command> [options]
-        \\
-        \\Commands:
-        \\  status                        Show Discord configuration status
-        \\  info                          Get bot user information
-        \\  guilds                        List guilds the bot is in
-        \\  send <channel_id> <message>   Send a message to a channel
-        \\  channel <channel_id>          Get channel information
-        \\  commands list [guild_id]      List application commands
-        \\  commands create <name> <desc> Create a global command
-        \\  webhook <url> <message>       Execute a webhook
-        \\
-        \\Environment Variables:
-        \\  DISCORD_BOT_TOKEN             Bot authentication token (required)
-        \\  DISCORD_CLIENT_ID             Application client ID
-        \\  DISCORD_CLIENT_SECRET         OAuth2 client secret
-        \\  DISCORD_PUBLIC_KEY            Interaction verification key
-        \\
-    ;
-    std.debug.print("{s}", .{text});
+fn printHelp(allocator: std.mem.Allocator) void {
+    var builder = utils.help.HelpBuilder.init(allocator);
+    defer builder.deinit();
+
+    _ = builder
+        .usage("abi discord", "<command> [options]")
+        .description("Discord API interaction commands.")
+        .section("Commands")
+        .subcommand(.{ .name = "status", .description = "Show configuration status" })
+        .subcommand(.{ .name = "info", .description = "Get bot user information" })
+        .subcommand(.{ .name = "guilds", .description = "List guilds the bot is in" })
+        .subcommand(.{ .name = "send <channel_id> <msg>", .description = "Send message to a channel" })
+        .subcommand(.{ .name = "channel <channel_id>", .description = "Get channel information" })
+        .subcommand(.{ .name = "commands list [guild]", .description = "List application commands" })
+        .subcommand(.{ .name = "commands create <n> <d>", .description = "Create a global command" })
+        .subcommand(.{ .name = "webhook <url> <msg>", .description = "Execute a webhook" })
+        .newline()
+        .section("Environment Variables")
+        .text("  DISCORD_BOT_TOKEN       Bot authentication token (required)\n")
+        .text("  DISCORD_CLIENT_ID       Application client ID\n")
+        .text("  DISCORD_CLIENT_SECRET   OAuth2 client secret\n")
+        .text("  DISCORD_PUBLIC_KEY      Interaction verification key\n");
+
+    builder.print();
 }
 
 fn printStatus(allocator: std.mem.Allocator) !void {
     const config = abi.connectors.tryLoadDiscord(allocator) catch |err| {
-        std.debug.print("Discord: error loading config: {}\n", .{err});
+        utils.output.printError("Failed to load Discord configuration: {t}", .{err});
         return;
     };
 
@@ -126,83 +129,79 @@ fn printStatus(allocator: std.mem.Allocator) !void {
         var mutable_cfg = cfg;
         defer mutable_cfg.deinit(allocator);
 
-        std.debug.print("Discord Configuration:\n", .{});
-        std.debug.print("  Bot Token: {s}... (configured)\n", .{
-            if (cfg.bot_token.len > 8) cfg.bot_token[0..8] else cfg.bot_token,
-        });
-        std.debug.print("  API Version: v{d}\n", .{cfg.api_version});
-        std.debug.print("  Timeout: {d}ms\n", .{cfg.timeout_ms});
+        utils.output.printHeader("Discord Configuration");
+        utils.output.printKeyValue("Bot Token", try std.fmt.allocPrint(allocator, "{s}...", .{if (cfg.bot_token.len > 8) cfg.bot_token[0..8] else cfg.bot_token}));
+        utils.output.printKeyValue("API Version", try std.fmt.allocPrint(allocator, "v{d}", .{cfg.api_version}));
+        utils.output.printKeyValue("Timeout", try std.fmt.allocPrint(allocator, "{d}ms", .{cfg.timeout_ms}));
 
         if (cfg.client_id) |id| {
-            std.debug.print("  Client ID: {s}\n", .{id});
+            utils.output.printKeyValue("Client ID", id);
         } else {
-            std.debug.print("  Client ID: not set\n", .{});
+            utils.output.printKeyValue("Client ID", "not set");
         }
 
-        if (cfg.public_key != null) {
-            std.debug.print("  Public Key: configured\n", .{});
-        } else {
-            std.debug.print("  Public Key: not set\n", .{});
-        }
-
-        std.debug.print("  Gateway Intents: 0x{x}\n", .{cfg.intents});
+        utils.output.printKeyValue("Public Key", if (cfg.public_key != null) "configured" else "not set");
+        utils.output.printKeyValue("Gateway Intents", try std.fmt.allocPrint(allocator, "0x{x}", .{cfg.intents}));
     } else {
-        std.debug.print("Discord: not configured\n", .{});
-        std.debug.print("\nTo configure Discord, set the following environment variables:\n", .{});
-        std.debug.print("  DISCORD_BOT_TOKEN - Your bot token from Discord Developer Portal\n", .{});
+        utils.output.printWarning("Discord not configured", .{});
+        utils.output.printInfo("To configure Discord, set the following environment variables:", .{});
+        utils.output.printBulletList("Environment", &[_][]const u8{
+            "DISCORD_BOT_TOKEN - Your bot token from Discord Developer Portal",
+        });
     }
 }
 
 fn printBotInfo(allocator: std.mem.Allocator) !void {
     var client = discord.createClient(allocator) catch |err| {
-        std.debug.print("Failed to create Discord client: {}\n", .{err});
+        utils.output.printError("Failed to create Discord client: {t}", .{err});
         return;
     };
     defer client.deinit();
 
     const user = client.getCurrentUser() catch |err| {
-        std.debug.print("Failed to get bot info: {}\n", .{err});
+        utils.output.printError("Failed to get bot info: {t}", .{err});
         return;
     };
 
-    std.debug.print("Bot Information:\n", .{});
-    std.debug.print("  ID: {s}\n", .{user.id});
-    std.debug.print("  Username: {s}\n", .{user.username});
-    std.debug.print("  Discriminator: {s}\n", .{user.discriminator});
+    utils.output.printHeader("Bot Information");
+    utils.output.printKeyValue("ID", user.id);
+    utils.output.printKeyValue("Username", user.username);
+    utils.output.printKeyValue("Discriminator", user.discriminator);
     if (user.global_name) |name| {
-        std.debug.print("  Global Name: {s}\n", .{name});
+        utils.output.printKeyValue("Global Name", name);
     }
-    std.debug.print("  Bot: {}\n", .{user.bot});
-    std.debug.print("  Flags: {d}\n", .{user.public_flags});
+    utils.output.printKeyValue("Bot", utils.output.boolLabel(user.bot));
+    utils.output.printKeyValue("Flags", try std.fmt.allocPrint(allocator, "{d}", .{user.public_flags}));
 }
 
 fn listGuilds(allocator: std.mem.Allocator) !void {
     var client = discord.createClient(allocator) catch |err| {
-        std.debug.print("Failed to create Discord client: {}\n", .{err});
+        utils.output.printError("Failed to create Discord client: {t}", .{err});
         return;
     };
     defer client.deinit();
 
     const guilds = client.getCurrentUserGuilds() catch |err| {
-        std.debug.print("Failed to get guilds: {}\n", .{err});
+        utils.output.printError("Failed to get guilds: {t}", .{err});
         return;
     };
     defer allocator.free(guilds);
 
     if (guilds.len == 0) {
-        std.debug.print("Bot is not in any guilds.\n", .{});
+        utils.output.printInfo("Bot is not in any guilds.", .{});
         return;
     }
 
-    std.debug.print("Guilds ({d}):\n", .{guilds.len});
+    utils.output.printHeader(try std.fmt.allocPrint(allocator, "Guilds ({d})", .{guilds.len}));
     for (guilds) |guild| {
-        std.debug.print("  {s} (ID: {s})\n", .{ guild.name, guild.id });
+        std.debug.print("  " ++ utils.output.color.green ++ "•" ++ utils.output.color.reset ++ " {s: <20} (ID: {s})\n", .{ guild.name, guild.id });
     }
 }
 
 fn sendMessage(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len < 2) {
-        std.debug.print("Usage: abi discord send <channel_id> <message>\n", .{});
+        utils.output.printError("Missing channel ID or message content", .{});
+        utils.output.printInfo("Usage: abi discord send <channel_id> <message>", .{});
         return;
     }
 
@@ -218,55 +217,56 @@ fn sendMessage(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 
     var client = discord.createClient(allocator) catch |err| {
-        std.debug.print("Failed to create Discord client: {}\n", .{err});
+        utils.output.printError("Failed to create Discord client: {t}", .{err});
         return;
     };
     defer client.deinit();
 
     const sent_message = client.createMessage(channel_id, message.items) catch |err| {
-        std.debug.print("Failed to send message: {}\n", .{err});
+        utils.output.printError("Failed to send message: {t}", .{err});
         return;
     };
 
-    std.debug.print("Message sent successfully!\n", .{});
-    std.debug.print("  ID: {s}\n", .{sent_message.id});
-    std.debug.print("  Channel: {s}\n", .{sent_message.channel_id});
-    std.debug.print("  Content: {s}\n", .{sent_message.content});
+    utils.output.printSuccess("Message sent successfully!", .{});
+    utils.output.printKeyValue("ID", sent_message.id);
+    utils.output.printKeyValue("Channel", sent_message.channel_id);
 }
 
 fn channelInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len < 1) {
-        std.debug.print("Usage: abi discord channel <channel_id>\n", .{});
+        utils.output.printError("Missing channel ID", .{});
+        utils.output.printInfo("Usage: abi discord channel <channel_id>", .{});
         return;
     }
 
     const channel_id = std.mem.sliceTo(args[0], 0);
 
     var client = discord.createClient(allocator) catch |err| {
-        std.debug.print("Failed to create Discord client: {}\n", .{err});
+        utils.output.printError("Failed to create Discord client: {t}", .{err});
         return;
     };
     defer client.deinit();
 
     const channel = client.getChannel(channel_id) catch |err| {
-        std.debug.print("Failed to get channel: {}\n", .{err});
+        utils.output.printError("Failed to get channel: {t}", .{err});
         return;
     };
 
-    std.debug.print("Channel Information:\n", .{});
-    std.debug.print("  ID: {s}\n", .{channel.id});
+    utils.output.printHeader("Channel Information");
+    utils.output.printKeyValue("ID", channel.id);
     if (channel.name) |name| {
-        std.debug.print("  Name: {s}\n", .{name});
+        utils.output.printKeyValue("Name", name);
     }
-    std.debug.print("  Type: {d}\n", .{channel.channel_type});
+    utils.output.printKeyValue("Type", try std.fmt.allocPrint(allocator, "{d}", .{channel.channel_type}));
     if (channel.guild_id) |gid| {
-        std.debug.print("  Guild ID: {s}\n", .{gid});
+        utils.output.printKeyValue("Guild ID", gid);
     }
 }
 
 fn manageCommands(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len < 1) {
-        std.debug.print("Usage: abi discord commands <list|create|delete> [options]\n", .{});
+        utils.output.printError("Missing application command subcommand", .{});
+        utils.output.printInfo("Usage: abi discord commands <list|create|delete> [options]", .{});
         return;
     }
 
@@ -274,15 +274,15 @@ fn manageCommands(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     const remaining = if (args.len > 1) args[1..] else &[_][:0]const u8{};
 
     var client = discord.createClient(allocator) catch |err| {
-        std.debug.print("Failed to create Discord client: {}\n", .{err});
+        utils.output.printError("Failed to create Discord client: {t}", .{err});
         return;
     };
     defer client.deinit();
 
     if (std.mem.eql(u8, subcommand, "list")) {
         const app_id = client.config.client_id orelse {
-            std.debug.print("Error: DISCORD_CLIENT_ID not configured.\n", .{});
-            std.debug.print("Set DISCORD_CLIENT_ID environment variable to your application ID.\n", .{});
+            utils.output.printError("DISCORD_CLIENT_ID not configured.", .{});
+            utils.output.printInfo("Set DISCORD_CLIENT_ID environment variable to your application ID.", .{});
             return;
         };
 
@@ -293,36 +293,37 @@ fn manageCommands(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
 
         const commands = if (guild_id) |gid|
             client.getGuildApplicationCommands(app_id, gid) catch |err| {
-                std.debug.print("Failed to get guild commands: {}\n", .{err});
+                utils.output.printError("Failed to get guild commands: {t}", .{err});
                 return;
             }
         else
             client.getGlobalApplicationCommands(app_id) catch |err| {
-                std.debug.print("Failed to get global commands: {}\n", .{err});
+                utils.output.printError("Failed to get global commands: {t}", .{err});
                 return;
             };
         defer allocator.free(commands);
 
         if (commands.len == 0) {
-            std.debug.print("No application commands found.\n", .{});
+            utils.output.printInfo("No application commands found.", .{});
             return;
         }
 
-        std.debug.print("Application Commands ({d}):\n", .{commands.len});
+        utils.output.printHeader(try std.fmt.allocPrint(allocator, "Application Commands ({d})", .{commands.len}));
         for (commands) |cmd| {
-            std.debug.print("  /{s} - {s} (ID: {s})\n", .{ cmd.name, cmd.description, cmd.id });
+            std.debug.print("  " ++ utils.output.color.cyan ++ "/" ++ utils.output.color.reset ++ "{s: <15} - {s} (ID: {s})\n", .{ cmd.name, cmd.description, cmd.id });
         }
         return;
     }
 
     if (std.mem.eql(u8, subcommand, "create")) {
         const app_id = client.config.client_id orelse {
-            std.debug.print("Error: DISCORD_CLIENT_ID not configured.\n", .{});
+            utils.output.printError("DISCORD_CLIENT_ID not configured.", .{});
             return;
         };
 
         if (remaining.len < 2) {
-            std.debug.print("Usage: abi discord commands create <name> <description>\n", .{});
+            utils.output.printError("Missing command name or description", .{});
+            utils.output.printInfo("Usage: abi discord commands create <name> <description>", .{});
             return;
         }
 
@@ -330,44 +331,45 @@ fn manageCommands(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
         const description = std.mem.sliceTo(remaining[1], 0);
 
         const cmd = client.createGlobalApplicationCommand(app_id, name, description, &.{}) catch |err| {
-            std.debug.print("Failed to create command: {}\n", .{err});
+            utils.output.printError("Failed to create command: {t}", .{err});
             return;
         };
 
-        std.debug.print("Command created successfully!\n", .{});
-        std.debug.print("  Name: /{s}\n", .{cmd.name});
-        std.debug.print("  ID: {s}\n", .{cmd.id});
+        utils.output.printSuccess("Command created successfully!", .{});
+        utils.output.printKeyValue("Name", try std.fmt.allocPrint(allocator, "/{s}", .{cmd.name}));
+        utils.output.printKeyValue("ID", cmd.id);
         return;
     }
 
     if (std.mem.eql(u8, subcommand, "delete")) {
         const app_id = client.config.client_id orelse {
-            std.debug.print("Error: DISCORD_CLIENT_ID not configured.\n", .{});
+            utils.output.printError("DISCORD_CLIENT_ID not configured.", .{});
             return;
         };
 
         if (remaining.len < 1) {
-            std.debug.print("Usage: abi discord commands delete <command_id>\n", .{});
+            utils.output.printError("Missing command ID", .{});
+            utils.output.printInfo("Usage: abi discord commands delete <command_id>", .{});
             return;
         }
 
         const command_id = std.mem.sliceTo(remaining[0], 0);
         client.deleteGlobalApplicationCommand(app_id, command_id) catch |err| {
-            std.debug.print("Failed to delete command: {}\n", .{err});
+            utils.output.printError("Failed to delete command: {t}", .{err});
             return;
         };
 
-        std.debug.print("Command deleted successfully.\n", .{});
+        utils.output.printSuccess("Command deleted successfully.", .{});
         return;
     }
 
-    std.debug.print("Unknown commands subcommand: {s}\n", .{subcommand});
+    utils.output.printError("Unknown commands subcommand: {s}", .{subcommand});
 }
 
 fn executeWebhook(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len < 2) {
-        std.debug.print("Usage: abi discord webhook <webhook_url> <message>\n", .{});
-        std.debug.print("\nWebhook URL format: https://discord.com/api/webhooks/<id>/<token>\n", .{});
+        utils.output.printError("Missing webhook URL or message", .{});
+        utils.output.printInfo("Usage: abi discord webhook <webhook_url> <message>", .{});
         return;
     }
 
@@ -383,10 +385,10 @@ fn executeWebhook(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     }
 
     // Parse webhook URL to extract ID and token
-    // Format: https://discord.com/api/webhooks/<id>/<token>
     const webhooks_prefix = "/api/webhooks/";
     const prefix_pos = std.mem.indexOf(u8, webhook_url, webhooks_prefix) orelse {
-        std.debug.print("Invalid webhook URL format.\n", .{});
+        utils.output.printError("Invalid webhook URL format.", .{});
+        utils.output.printInfo("Format: https://discord.com/api/webhooks/<id>/<token>", .{});
         return;
     };
 
@@ -394,7 +396,7 @@ fn executeWebhook(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     const path = webhook_url[path_start..];
 
     const slash_pos = std.mem.indexOf(u8, path, "/") orelse {
-        std.debug.print("Invalid webhook URL format.\n", .{});
+        utils.output.printError("Invalid webhook URL format.", .{});
         return;
     };
 
@@ -402,15 +404,15 @@ fn executeWebhook(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     const webhook_token = path[slash_pos + 1 ..];
 
     var client = discord.createClient(allocator) catch |err| {
-        std.debug.print("Failed to create Discord client: {}\n", .{err});
+        utils.output.printError("Failed to create Discord client: {t}", .{err});
         return;
     };
     defer client.deinit();
 
     client.executeWebhook(webhook_id, webhook_token, message.items) catch |err| {
-        std.debug.print("Failed to execute webhook: {}\n", .{err});
+        utils.output.printError("Failed to execute webhook: {t}", .{err});
         return;
     };
 
-    std.debug.print("Webhook executed successfully!\n", .{});
+    utils.output.printSuccess("Webhook executed successfully!", .{});
 }

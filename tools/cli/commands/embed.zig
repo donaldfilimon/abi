@@ -49,10 +49,17 @@ pub const EmbedError = error{
 
 /// Run the embed command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+
+    if (parser.wantsHelp()) {
+        printHelp(allocator);
+        return;
+    }
+
     // Check if AI feature is enabled
     if (!abi.ai.isEnabled()) {
-        std.debug.print("Error: AI feature is disabled.\n", .{});
-        std.debug.print("Rebuild with: zig build -Denable-ai=true\n", .{});
+        utils.output.printError("AI feature is disabled.", .{});
+        utils.output.printInfo("Rebuild with: zig build -Denable-ai=true", .{});
         return;
     }
 
@@ -63,72 +70,29 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var output_path: ?[]const u8 = null;
     var format: OutputFormat = .json;
 
-    var i: usize = 0;
-    while (i < args.len) {
-        const arg = args[i];
-        i += 1;
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{ "--text", "-t" })) {
-            if (i < args.len) {
-                text = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{ "--file", "-f" })) {
-            if (i < args.len) {
-                file_path = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{ "--provider", "-p" })) {
-            if (i < args.len) {
-                const provider_str = std.mem.sliceTo(args[i], 0);
-                provider = parseProvider(provider_str) orelse {
-                    std.debug.print("Unknown provider: {s}\n", .{provider_str});
-                    std.debug.print("Available providers: openai, ollama, mistral, cohere\n", .{});
-                    return;
-                };
-                i += 1;
-            }
-            continue;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{ "--model", "-m" })) {
-            if (i < args.len) {
-                model = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{ "--output", "-o" })) {
-            if (i < args.len) {
-                output_path = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--format")) {
-            if (i < args.len) {
-                const format_str = std.mem.sliceTo(args[i], 0);
-                format = parseFormat(format_str) orelse {
-                    std.debug.print("Unknown format: {s}\n", .{format_str});
-                    std.debug.print("Available formats: json, csv, raw\n", .{});
-                    return;
-                };
-                i += 1;
-            }
-            continue;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{ "--help", "-h", "help" })) {
-            printHelp();
-            return;
+    while (parser.hasMore()) {
+        if (parser.consumeOption(&[_][]const u8{ "--text", "-t" })) |val| {
+            text = val;
+        } else if (parser.consumeOption(&[_][]const u8{ "--file", "-f" })) |val| {
+            file_path = val;
+        } else if (parser.consumeOption(&[_][]const u8{ "--provider", "-p" })) |val| {
+            provider = parseProvider(val) orelse {
+                utils.output.printError("Unknown provider: {s}", .{val});
+                utils.output.printInfo("Available providers: openai, ollama, mistral, cohere", .{});
+                return;
+            };
+        } else if (parser.consumeOption(&[_][]const u8{ "--model", "-m" })) |val| {
+            model = val;
+        } else if (parser.consumeOption(&[_][]const u8{ "--output", "-o" })) |val| {
+            output_path = val;
+        } else if (parser.consumeOption(&[_][]const u8{"--format"})) |val| {
+            format = parseFormat(val) orelse {
+                utils.output.printError("Unknown format: {s}", .{val});
+                utils.output.printInfo("Available formats: json, csv, raw", .{});
+                return;
+            };
+        } else {
+            _ = parser.next();
         }
     }
 
@@ -138,29 +102,29 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             break :blk t;
         } else if (file_path) |path| {
             const content = readFile(allocator, path) catch {
-                std.debug.print("Error: Could not read file: {s}\n", .{path});
+                utils.output.printError("Could not read file: {s}", .{path});
                 return EmbedError.FileReadError;
             };
             break :blk content;
         } else {
-            std.debug.print("Error: No input provided. Use --text or --file\n", .{});
-            printHelp();
+            utils.output.printError("No input provided. Use --text or --file", .{});
+            printHelp(allocator);
             return EmbedError.NoInput;
         }
     };
 
-    std.debug.print("Generating embedding using {s}...\n", .{provider.toString()});
+    utils.output.printInfo("Generating embedding using {s}...", .{provider.toString()});
 
     // Generate embedding
     const embedding = try generateEmbedding(allocator, provider, input_text, model);
     defer allocator.free(embedding);
 
-    std.debug.print("Generated {d}-dimensional embedding\n", .{embedding.len});
+    utils.output.printSuccess("Generated {d}-dimensional embedding", .{embedding.len});
 
     // Output embedding
     if (output_path) |path| {
         try writeOutput(allocator, path, embedding, format);
-        std.debug.print("Embedding saved to: {s}\n", .{path});
+        utils.output.printSuccess("Embedding saved to: {s}", .{path});
     } else {
         try printOutput(allocator, embedding, format);
     }
@@ -189,7 +153,7 @@ fn readFile(allocator: std.mem.Allocator, path: []const u8) ![]const u8 {
 
     const io = io_backend.io();
     const content = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(10 * 1024 * 1024)) catch |err| {
-        std.debug.print("Error reading file: {t}\n", .{err});
+        utils.output.printError("Error reading file: {t}", .{err});
         return EmbedError.FileReadError;
     };
 
@@ -199,17 +163,17 @@ fn readFile(allocator: std.mem.Allocator, path: []const u8) ![]const u8 {
 fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []const u8, model: ?[]const u8) ![]f32 {
     // Log which model is being used
     if (model) |m| {
-        std.debug.print("Using custom model: {s}\n", .{m});
+        utils.output.printInfo("Using custom model: {s}", .{m});
     }
 
     switch (provider) {
         .openai => {
             // OpenAI embeddings via their API
             const config = abi.connectors.tryLoadOpenAI(allocator) catch {
-                std.debug.print("Error: OpenAI not configured. Set OPENAI_API_KEY\n", .{});
+                utils.output.printError("OpenAI not configured. Set OPENAI_API_KEY", .{});
                 return EmbedError.ProviderNotConfigured;
             } orelse {
-                std.debug.print("Error: OpenAI API key not found. Set OPENAI_API_KEY\n", .{});
+                utils.output.printError("OpenAI API key not found. Set OPENAI_API_KEY", .{});
                 return EmbedError.ProviderNotConfigured;
             };
             defer {
@@ -218,7 +182,7 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
             }
 
             const effective_model = model orelse "text-embedding-3-small";
-            std.debug.print("Model: {s}\n", .{effective_model});
+            utils.output.printKeyValue("Model", effective_model);
 
             // Generate embedding using local embeddings model as fallback
             // When full API integration is implemented, pass effective_model to the API
@@ -227,22 +191,22 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
         .ollama => {
             // Ollama embeddings
             const config = abi.connectors.loadOllama(allocator) catch {
-                std.debug.print("Error: Could not load Ollama config\n", .{});
+                utils.output.printError("Could not load Ollama config", .{});
                 return EmbedError.ProviderNotConfigured;
             };
 
             const effective_model = model orelse config.model;
-            std.debug.print("Model: {s}\n", .{effective_model});
+            utils.output.printKeyValue("Model", effective_model);
 
             // When full API integration is implemented, pass effective_model to the API
             return generateLocalEmbedding(allocator, text);
         },
         .mistral => {
             const config = abi.connectors.tryLoadMistral(allocator) catch {
-                std.debug.print("Error: Mistral not configured. Set MISTRAL_API_KEY\n", .{});
+                utils.output.printError("Mistral not configured. Set MISTRAL_API_KEY", .{});
                 return EmbedError.ProviderNotConfigured;
             } orelse {
-                std.debug.print("Error: Mistral API key not found. Set MISTRAL_API_KEY\n", .{});
+                utils.output.printError("Mistral API key not found. Set MISTRAL_API_KEY", .{});
                 return EmbedError.ProviderNotConfigured;
             };
             defer {
@@ -251,17 +215,17 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
             }
 
             const effective_model = model orelse "mistral-embed";
-            std.debug.print("Model: {s}\n", .{effective_model});
+            utils.output.printKeyValue("Model", effective_model);
 
             // When full API integration is implemented, pass effective_model to the API
             return generateLocalEmbedding(allocator, text);
         },
         .cohere => {
             const config = abi.connectors.tryLoadCohere(allocator) catch {
-                std.debug.print("Error: Cohere not configured. Set COHERE_API_KEY\n", .{});
+                utils.output.printError("Cohere not configured. Set COHERE_API_KEY", .{});
                 return EmbedError.ProviderNotConfigured;
             } orelse {
-                std.debug.print("Error: Cohere API key not found. Set COHERE_API_KEY\n", .{});
+                utils.output.printError("Cohere API key not found. Set COHERE_API_KEY", .{});
                 return EmbedError.ProviderNotConfigured;
             };
             defer {
@@ -270,7 +234,7 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
             }
 
             const effective_model = model orelse "embed-english-v3.0";
-            std.debug.print("Model: {s}\n", .{effective_model});
+            utils.output.printKeyValue("Model", effective_model);
 
             // When full API integration is implemented, pass effective_model to the API
             return generateLocalEmbedding(allocator, text);
@@ -320,7 +284,7 @@ fn writeOutput(allocator: std.mem.Allocator, path: []const u8, embedding: []cons
 
     const io = io_backend.io();
     var file = std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true }) catch |err| {
-        std.debug.print("Error creating output file: {t}\n", .{err});
+        utils.output.printError("Error creating output file: {t}", .{err});
         return EmbedError.OutputError;
     };
     defer file.close(io);
@@ -356,7 +320,7 @@ fn writeOutput(allocator: std.mem.Allocator, path: []const u8, embedding: []cons
     }
 
     _ = writer.interface.write(output.items) catch |err| {
-        std.debug.print("Error writing output: {t}\n", .{err});
+        utils.output.printError("Error writing output: {t}", .{err});
         return EmbedError.OutputError;
     };
     writer.flush() catch {};
@@ -406,35 +370,35 @@ fn printOutput(allocator: std.mem.Allocator, embedding: []const f32, format: Out
     }
 }
 
-fn printHelp() void {
-    const help_text =
-        \\Usage: abi embed [options]
-        \\
-        \\Generate vector embeddings from text using various AI providers.
-        \\
-        \\Options:
-        \\  -t, --text <text>       Text to embed
-        \\  -f, --file <path>       File to read text from
-        \\  -p, --provider <name>   Provider: openai, ollama, mistral, cohere (default: openai)
-        \\  -m, --model <name>      Model to use (provider-specific)
-        \\  -o, --output <path>     Save embeddings to file
-        \\  --format <type>         Output format: json, csv, raw (default: json)
-        \\  -h, --help              Show this help
-        \\
-        \\Environment Variables:
-        \\  OPENAI_API_KEY          OpenAI API key
-        \\  MISTRAL_API_KEY         Mistral API key
-        \\  COHERE_API_KEY          Cohere API key
-        \\  OLLAMA_HOST             Ollama host URL (default: http://127.0.0.1:11434)
-        \\
-        \\Examples:
-        \\  abi embed --text "Hello world"
-        \\  abi embed --text "Test" --provider mistral
-        \\  abi embed --file document.txt --output embeddings.json
-        \\  abi embed --text "Query" --format csv --output vectors.csv
-        \\
-    ;
-    std.debug.print("{s}", .{help_text});
+fn printHelp(allocator: std.mem.Allocator) void {
+    var builder = utils.help.HelpBuilder.init(allocator);
+    defer builder.deinit();
+
+    _ = builder
+        .usage("abi embed", "[options]")
+        .description("Generate vector embeddings from text using various AI providers.")
+        .section("Options")
+        .option(.{ .short = "-t", .long = "--text", .arg = "text", .description = "Text to embed" })
+        .option(.{ .short = "-f", .long = "--file", .arg = "path", .description = "File to read text from" })
+        .option(.{ .short = "-p", .long = "--provider", .arg = "name", .description = "Provider: openai, ollama, mistral, cohere (default: openai)" })
+        .option(.{ .short = "-m", .long = "--model", .arg = "name", .description = "Model to use (provider-specific)" })
+        .option(.{ .short = "-o", .long = "--output", .arg = "path", .description = "Save embeddings to file" })
+        .option(.{ .long = "--format", .arg = "type", .description = "Output format: json, csv, raw (default: json)" })
+        .option(utils.help.common_options.help)
+        .newline()
+        .section("Environment Variables")
+        .text("  OPENAI_API_KEY          OpenAI API key\n")
+        .text("  MISTRAL_API_KEY         Mistral API key\n")
+        .text("  COHERE_API_KEY          Cohere API key\n")
+        .text("  OLLAMA_HOST             Ollama host URL (default: http://127.0.0.1:11434)\n")
+        .newline()
+        .section("Examples")
+        .example("abi embed --text \"Hello world\"", "")
+        .example("abi embed --text \"Test\" --provider mistral", "")
+        .example("abi embed --file document.txt --output embeddings.json", "")
+        .example("abi embed --text \"Query\" --format csv --output vectors.csv", "");
+
+    builder.print();
 }
 
 test "parse provider" {

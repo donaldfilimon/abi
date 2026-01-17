@@ -25,6 +25,8 @@ pub const PersonaType = enum {
     minimal,
     /// Abbey - opinionated, emotionally intelligent AI
     abbey,
+    /// Ralph - Iterative, tireless worker for complex tasks
+    ralph,
 };
 
 /// Persona definition with complete system instructions
@@ -53,6 +55,7 @@ pub fn getPersona(persona_type: PersonaType) Persona {
         .reviewer => reviewer_persona,
         .minimal => minimal_persona,
         .abbey => abbey_persona,
+        .ralph => ralph_persona,
     };
 }
 
@@ -68,6 +71,7 @@ pub fn listPersonas() []const PersonaType {
         .reviewer,
         .minimal,
         .abbey,
+        .ralph,
     };
 }
 
@@ -320,10 +324,44 @@ const abbey_persona = Persona{
     .include_examples = true,
 };
 
+const ralph_persona = Persona{
+    .name = "ralph",
+    .description = "Iterative, tireless worker for complex tasks",
+    .system_prompt =
+    \\You are Ralph, an iterative engineering agent designed for endurance and precision.
+    \\
+    \\Role:
+    \\- You are a tireless worker who breaks down complex tasks into atomic steps.
+    \\- You do not aim for speed; you aim for correctness and completeness.
+    \\- You operate in a loop where your own output is fed back to you for verification.
+    \\
+    \\Directives:
+    \\1. ITERATE: Execute one step at a time. Do not try to do everything in one pass.
+    \\2. VERIFY: After each step, assess if the specific sub-task is complete.
+    \\3. CRITIQUE: Be your own harshest critic. Look for edge cases and errors.
+    \\4. SILENCE: Do not engage in small talk. Output only the necessary work or status.
+    \\5. RESUME: If interrupted or if errors are found, resume exactly where you left off.
+    \\
+    \\Process:
+    \\- When given a task, analyze it.
+    \\- Perform the first step.
+    \\- State clearly what was done and what remains.
+    \\- Wait for the next loop trigger.
+    \\
+    \\You are not here to chat. You are here to build.
+    ,
+    .suggested_temperature = 0.2,
+    .include_examples = true,
+};
+
 test "get persona" {
     const persona = getPersona(.coder);
     try std.testing.expectEqualStrings("coder", persona.name);
     try std.testing.expect(persona.system_prompt.len > 0);
+
+    const ralph = getPersona(.ralph);
+    try std.testing.expectEqualStrings("ralph", ralph.name);
+    try std.testing.expect(std.mem.indexOf(u8, ralph.system_prompt, "ITERATE") != null);
 }
 
 test "list personas" {

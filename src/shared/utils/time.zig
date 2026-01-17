@@ -70,13 +70,13 @@ pub fn sleepNs(nanoseconds: u64) void {
 /// @return Formatted duration string (e.g., "1.234s", "500ms", "50us", "500ns")
 pub fn formatDurationNs(allocator: std.mem.Allocator, duration_ns: u64) ![]u8 {
     if (duration_ns < 1_000) {
-        return std.fmt.allocPrint(allocator, "{D}ns", .{duration_ns});
+        return std.fmt.allocPrint(allocator, "{}ns", .{duration_ns});
     }
     if (duration_ns < 1_000_000) {
-        return std.fmt.allocPrint(allocator, "{D}us", .{duration_ns / 1_000});
+        return std.fmt.allocPrint(allocator, "{}us", .{duration_ns / 1_000});
     }
     if (duration_ns < 1_000_000_000) {
-        return std.fmt.allocPrint(allocator, "{D}ms", .{duration_ns / 1_000_000});
+        return std.fmt.allocPrint(allocator, "{}ms", .{duration_ns / 1_000_000});
     }
     const seconds = @as(f64, @floatFromInt(duration_ns)) / 1_000_000_000.0;
     return std.fmt.allocPrint(allocator, "{d:.3}s", .{seconds});

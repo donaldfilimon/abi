@@ -155,8 +155,15 @@ pub const HelpBuilder = struct {
     }
 
     fn writeFmt(self: *HelpBuilder, comptime fmt: []const u8, args: anytype) !void {
-        const writer = self.buffer.writer(self.allocator);
-        try writer.print(fmt, args);
+        var tmp_buf: [4096]u8 = undefined;
+        const formatted = std.fmt.bufPrint(&tmp_buf, fmt, args) catch |err| switch (err) {
+            error.NoSpaceLeft => {
+                // Buffer too small, append what we can
+                try self.buffer.appendSlice(self.allocator, &tmp_buf);
+                return;
+            },
+        };
+        try self.buffer.appendSlice(self.allocator, formatted);
     }
 };
 

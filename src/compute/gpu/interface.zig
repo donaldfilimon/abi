@@ -30,6 +30,13 @@ pub const KernelError = error{
     InvalidArgs,
 };
 
+/// Interface-level errors for stub implementations and feature detection.
+pub const InterfaceError = error{
+    NotImplemented,
+    FeatureDisabled,
+    UnsupportedOperation,
+};
+
 /// Device capabilities
 pub const DeviceCaps = struct {
     name: [256]u8 = undefined,

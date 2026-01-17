@@ -24,6 +24,7 @@
 const std = @import("std");
 pub const personas = @import("personas.zig");
 pub const builder = @import("builder.zig");
+pub const ralph = @import("ralph.zig");
 
 // Re-export main types
 pub const Persona = personas.Persona;

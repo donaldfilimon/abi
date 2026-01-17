@@ -6,24 +6,27 @@ const utils = @import("../utils/mod.zig");
 
 /// Run the network command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+
+    if (parser.wantsHelp()) {
+        printHelp(allocator);
+        return;
+    }
+
     abi.network.init(allocator) catch |err| switch (err) {
         error.NetworkDisabled => {
-            std.debug.print("Network support disabled at build time.\n", .{});
+            utils.output.printWarning("Network support disabled at build time.", .{});
             return;
         },
         else => return err,
     };
 
-    if (args.len == 0) {
+    if (!parser.hasMore()) {
         try printStatus();
         return;
     }
 
-    const command = std.mem.sliceTo(args[0], 0);
-    if (utils.args.matchesAny(command, &[_][]const u8{ "help", "--help" })) {
-        printHelp();
-        return;
-    }
+    const command = parser.next().?;
 
     if (std.mem.eql(u8, command, "status")) {
         try printStatus();
@@ -31,76 +34,85 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 
     if (utils.args.matchesAny(command, &[_][]const u8{ "list", "nodes" })) {
-        try printNodes();
+        try printNodes(allocator);
         return;
     }
 
     if (std.mem.eql(u8, command, "register")) {
-        if (args.len < 3) {
-            std.debug.print("Usage: abi network register <id> <address>\n", .{});
+        const id = parser.next() orelse {
+            utils.output.printError("Missing node ID", .{});
+            utils.output.printInfo("Usage: abi network register <id> <address>", .{});
             return;
-        }
-        const id = std.mem.sliceTo(args[1], 0);
-        const address = std.mem.sliceTo(args[2], 0);
+        };
+        const address = parser.next() orelse {
+            utils.output.printError("Missing node address", .{});
+            utils.output.printInfo("Usage: abi network register <id> <address>", .{});
+            return;
+        };
         const registry = try abi.network.defaultRegistry();
         try registry.register(id, address);
-        std.debug.print("Registered {s} at {s}\n", .{ id, address });
+        utils.output.printSuccess("Registered {s} at {s}", .{ id, address });
         return;
     }
 
     if (std.mem.eql(u8, command, "unregister")) {
-        if (args.len < 2) {
-            std.debug.print("Usage: abi network unregister <id>\n", .{});
+        const id = parser.next() orelse {
+            utils.output.printError("Missing node ID", .{});
+            utils.output.printInfo("Usage: abi network unregister <id>", .{});
             return;
-        }
-        const id = std.mem.sliceTo(args[1], 0);
+        };
         const registry = try abi.network.defaultRegistry();
         const removed = registry.unregister(id);
         if (removed) {
-            std.debug.print("Unregistered {s}\n", .{id});
+            utils.output.printSuccess("Unregistered {s}", .{id});
         } else {
-            std.debug.print("Node {s} not found\n", .{id});
+            utils.output.printWarning("Node {s} not found", .{id});
         }
         return;
     }
 
     if (std.mem.eql(u8, command, "touch")) {
-        if (args.len < 2) {
-            std.debug.print("Usage: abi network touch <id>\n", .{});
+        const id = parser.next() orelse {
+            utils.output.printError("Missing node ID", .{});
+            utils.output.printInfo("Usage: abi network touch <id>", .{});
             return;
-        }
-        const id = std.mem.sliceTo(args[1], 0);
+        };
         const registry = try abi.network.defaultRegistry();
         if (registry.touch(id)) {
-            std.debug.print("Touched {s}\n", .{id});
+            utils.output.printSuccess("Touched {s}", .{id});
         } else {
-            std.debug.print("Node {s} not found\n", .{id});
+            utils.output.printWarning("Node {s} not found", .{id});
         }
         return;
     }
 
     if (std.mem.eql(u8, command, "set-status")) {
-        if (args.len < 3) {
-            std.debug.print("Usage: abi network set-status <id> <status>\n", .{});
+        const id = parser.next() orelse {
+            utils.output.printError("Missing node ID", .{});
+            utils.output.printInfo("Usage: abi network set-status <id> <status>", .{});
             return;
-        }
-        const id = std.mem.sliceTo(args[1], 0);
-        const status_text = std.mem.sliceTo(args[2], 0);
+        };
+        const status_text = parser.next() orelse {
+            utils.output.printError("Missing status value", .{});
+            utils.output.printInfo("Usage: abi network set-status <id> <status>", .{});
+            return;
+        };
         const status = parseNodeStatus(status_text) orelse {
-            std.debug.print("Invalid status: {s}\n", .{status_text});
+            utils.output.printError("Invalid status: {s}", .{status_text});
+            utils.output.printInfo("Valid statuses: healthy, degraded, offline", .{});
             return;
         };
         const registry = try abi.network.defaultRegistry();
         if (registry.setStatus(id, status)) {
-            std.debug.print("Updated {s} to {t}\n", .{ id, status });
+            utils.output.printSuccess("Updated {s} to {t}", .{ id, status });
         } else {
-            std.debug.print("Node {s} not found\n", .{id});
+            utils.output.printWarning("Node {s} not found", .{id});
         }
         return;
     }
 
-    std.debug.print("Unknown network command: {s}\n", .{command});
-    printHelp();
+    utils.output.printError("Unknown network command: {s}", .{command});
+    printHelp(allocator);
 }
 
 /// Print a short network summary for system-info.
@@ -120,49 +132,56 @@ pub fn printSummary() void {
     }
 }
 
-fn printHelp() void {
-    const text =
-        "Usage: abi network <command>\n\n" ++
-        "Commands:\n" ++
-        "  status                    Show network config and node count\n" ++
-        "  list | nodes               List registered nodes\n" ++
-        "  register <id> <address>    Register or update a node\n" ++
-        "  unregister <id>            Remove a node\n" ++
-        "  touch <id>                 Update node heartbeat timestamp\n" ++
-        "  set-status <id> <status>   Set status (healthy, degraded, offline)\n";
-    std.debug.print("{s}", .{text});
+fn printHelp(allocator: std.mem.Allocator) void {
+    var builder = utils.help.HelpBuilder.init(allocator);
+    defer builder.deinit();
+
+    _ = builder
+        .usage("abi network", "<command>")
+        .description("Manage network nodes and cluster status.")
+        .section("Commands")
+        .subcommand(.{ .name = "status", .description = "Show network config and node count" })
+        .subcommand(.{ .name = "list | nodes", .description = "List registered nodes" })
+        .subcommand(.{ .name = "register <id> <a>", .description = "Register or update a node" })
+        .subcommand(.{ .name = "unregister <id>", .description = "Remove a node" })
+        .subcommand(.{ .name = "touch <id>", .description = "Update node heartbeat timestamp" })
+        .subcommand(.{ .name = "set-status <id> <s>", .description = "Set status (healthy, degraded, offline)" })
+        .option(utils.help.common_options.help)
+        .newline()
+        .section("Examples")
+        .example("abi network status", "Show cluster info")
+        .example("abi network list", "List all nodes")
+        .example("abi network register node-1 127.0.0.1:8080", "Add a node");
+
+    builder.print();
 }
 
 fn printStatus() !void {
     if (!abi.network.isEnabled()) {
-        std.debug.print("Network: disabled\n", .{});
+        utils.output.printWarning("Network: disabled", .{});
         return;
     }
     const config = abi.network.defaultConfig();
     if (config == null) {
-        std.debug.print("Network: enabled (not initialized)\n", .{});
+        utils.output.printInfo("Network: enabled (not initialized)", .{});
         return;
     }
     const registry = try abi.network.defaultRegistry();
-    std.debug.print(
-        "Network cluster: {s}\nNodes: {d}\n",
-        .{ config.?.cluster_id, registry.list().len },
-    );
+    utils.output.printHeader("Network Status");
+    utils.output.printKeyValue("Cluster ID", config.?.cluster_id);
+    utils.output.printKeyValue("Node Count", try std.fmt.allocPrint(std.heap.page_allocator, "{d}", .{registry.list().len}));
 }
 
-fn printNodes() !void {
+fn printNodes(allocator: std.mem.Allocator) !void {
     const registry = try abi.network.defaultRegistry();
     const nodes = registry.list();
     if (nodes.len == 0) {
-        std.debug.print("No nodes registered.\n", .{});
+        utils.output.printInfo("No nodes registered.", .{});
         return;
     }
-    std.debug.print("Nodes:\n", .{});
+    utils.output.printHeader(try std.fmt.allocPrint(allocator, "Registered Nodes ({d})", .{nodes.len}));
     for (nodes) |node| {
-        std.debug.print(
-            "  {s} {s} ({t}) last_seen_ms={d}\n",
-            .{ node.id, node.address, node.status, node.last_seen_ms },
-        );
+        std.debug.print("  " ++ utils.output.color.green ++ "•" ++ utils.output.color.reset ++ " {s: <15} {s: <20} ({t}) seen {d}ms ago\n", .{ node.id, node.address, node.status, node.last_seen_ms });
     }
 }
 

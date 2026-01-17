@@ -28,6 +28,11 @@ pub const device_query = @import("device_query.zig");
 pub const nvrtc = @import("nvrtc.zig");
 pub const cublas = @import("cublas.zig");
 pub const llm_kernels = @import("llm_kernels.zig");
+pub const vtable = @import("vtable.zig");
+
+// VTable backend exports
+pub const CudaBackend = vtable.CudaBackend;
+pub const createCudaVTable = vtable.createCudaVTable;
 
 // Re-export from loader for compatibility
 pub const CuResult = cuda_loader.CuResult;

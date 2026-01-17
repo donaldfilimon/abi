@@ -6,15 +6,23 @@ const utils = @import("../utils/mod.zig");
 
 /// Run the explore command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    // Check if AI explore feature is enabled
-    if (!abi.ai.explore.isEnabled()) {
-        std.debug.print("Error: AI code exploration feature is disabled.\n", .{});
-        std.debug.print("Rebuild with: zig build -Denable-ai=true -Denable-explore=true\n", .{});
+    var parser = utils.args.ArgParser.init(allocator, args);
+
+    if (parser.wantsHelp()) {
+        printHelp(allocator);
         return;
     }
 
-    if (args.len == 0 or utils.args.matchesAny(args[0], &[_][]const u8{ "help", "--help", "-h" })) {
-        printHelp();
+    // Check if AI explore feature is enabled
+    if (!abi.ai.explore.isEnabled()) {
+        utils.output.printError("AI code exploration feature is disabled.", .{});
+        utils.output.printInfo("Rebuild with: zig build -Denable-ai=true -Denable-explore=true", .{});
+        return;
+    }
+
+    if (!parser.hasMore()) {
+        utils.output.printError("No search query provided.", .{});
+        printHelp(allocator);
         return;
     }
 
@@ -26,132 +34,67 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var exclude_patterns = std.ArrayListUnmanaged([]const u8){};
     var case_sensitive = false;
     var use_regex = false;
-    var max_files: usize = undefined;
-    var max_depth: usize = undefined;
-    var timeout_ms: u64 = undefined;
+    var max_files: usize = 0;
+    var max_depth: usize = 0;
+    var timeout_ms: u64 = 0;
 
-    var i: usize = 0;
-    while (i < args.len) {
-        const arg = args[i];
-        i += 1;
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{ "--help", "-h" })) {
-            printHelp();
-            return;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{ "--level", "-l" })) {
-            if (i < args.len) {
-                const level_str = std.mem.sliceTo(args[i], 0);
-                level = switch (std.ascii.eqlIgnoreCase(level_str, "quick")) {
-                    true => .quick,
-                    else => switch (std.ascii.eqlIgnoreCase(level_str, "medium")) {
-                        true => .medium,
-                        else => switch (std.ascii.eqlIgnoreCase(level_str, "thorough")) {
-                            true => .thorough,
-                            else => switch (std.ascii.eqlIgnoreCase(level_str, "deep")) {
-                                true => .deep,
-                                else => {
-                                    std.debug.print("Unknown level: {s}. Use: quick, medium, thorough, deep\n", .{level_str});
-                                    return;
-                                },
+    while (parser.hasMore()) {
+        if (parser.consumeOption(&[_][]const u8{ "--level", "-l" })) |val| {
+            level = switch (std.ascii.eqlIgnoreCase(val, "quick")) {
+                true => .quick,
+                else => switch (std.ascii.eqlIgnoreCase(val, "medium")) {
+                    true => .medium,
+                    else => switch (std.ascii.eqlIgnoreCase(val, "thorough")) {
+                        true => .thorough,
+                        else => switch (std.ascii.eqlIgnoreCase(val, "deep")) {
+                            true => .deep,
+                            else => {
+                                utils.output.printError("Unknown level: {s}. Use: quick, medium, thorough, deep", .{val});
+                                return;
                             },
                         },
                     },
-                };
-                i += 1;
-            }
-            continue;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{ "--format", "-f" })) {
-            if (i < args.len) {
-                const format_str = std.mem.sliceTo(args[i], 0);
-                output_format = switch (std.ascii.eqlIgnoreCase(format_str, "json")) {
-                    true => .json,
-                    else => switch (std.ascii.eqlIgnoreCase(format_str, "compact")) {
-                        true => .compact,
-                        else => switch (std.ascii.eqlIgnoreCase(format_str, "yaml")) {
-                            true => .yaml,
-                            else => .human,
-                        },
+                },
+            };
+        } else if (parser.consumeOption(&[_][]const u8{ "--format", "-f" })) |val| {
+            output_format = switch (std.ascii.eqlIgnoreCase(val, "json")) {
+                true => .json,
+                else => switch (std.ascii.eqlIgnoreCase(val, "compact")) {
+                    true => .compact,
+                    else => switch (std.ascii.eqlIgnoreCase(val, "yaml")) {
+                        true => .yaml,
+                        else => .human,
                     },
-                };
-                i += 1;
-            }
-            continue;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{ "--include", "-i" })) {
-            if (i < args.len) {
-                try include_patterns.append(allocator, std.mem.sliceTo(args[i], 0));
-                i += 1;
-            }
-            continue;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{ "--exclude", "-e" })) {
-            if (i < args.len) {
-                try exclude_patterns.append(allocator, std.mem.sliceTo(args[i], 0));
-                i += 1;
-            }
-            continue;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{ "--case-sensitive", "-c" })) {
+                },
+            };
+        } else if (parser.consumeOption(&[_][]const u8{ "--include", "-i" })) |val| {
+            try include_patterns.append(allocator, val);
+        } else if (parser.consumeOption(&[_][]const u8{ "--exclude", "-e" })) |val| {
+            try exclude_patterns.append(allocator, val);
+        } else if (parser.consumeFlag(&[_][]const u8{ "--case-sensitive", "-c" })) {
             case_sensitive = true;
-            continue;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{ "--regex", "-r" })) {
+        } else if (parser.consumeFlag(&[_][]const u8{ "--regex", "-r" })) {
             use_regex = true;
-            continue;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{"--max-files"})) {
-            if (i < args.len) {
-                max_files = try std.fmt.parseInt(usize, std.mem.sliceTo(args[i], 0), 10);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{"--max-depth"})) {
-            if (i < args.len) {
-                max_depth = try std.fmt.parseInt(usize, std.mem.sliceTo(args[i], 0), 10);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (utils.args.matchesAny(arg, &[_][]const u8{"--timeout"})) {
-            if (i < args.len) {
-                timeout_ms = try std.fmt.parseInt(u64, std.mem.sliceTo(args[i], 0), 10);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (std.mem.startsWith(u8, arg, "--path")) {
-            if (i < args.len) {
-                root_path = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (query == null) {
-            query = std.mem.sliceTo(arg, 0);
+        } else if (parser.consumeOption(&[_][]const u8{"--max-files"})) |val| {
+            max_files = std.fmt.parseInt(usize, val, 10) catch 0;
+        } else if (parser.consumeOption(&[_][]const u8{"--max-depth"})) |val| {
+            max_depth = std.fmt.parseInt(usize, val, 10) catch 0;
+        } else if (parser.consumeOption(&[_][]const u8{"--timeout"})) |val| {
+            timeout_ms = std.fmt.parseInt(u64, val, 10) catch 0;
+        } else if (parser.consumeOption(&[_][]const u8{"--path"})) |val| {
+            root_path = val;
+        } else if (query == null) {
+            query = parser.next();
         } else {
-            std.debug.print("Unknown argument: {s}\n", .{arg});
-            printHelp();
+            utils.output.printError("Unknown argument: {s}", .{parser.next().?});
+            printHelp(allocator);
             return;
         }
     }
 
     const search_query = query orelse {
-        std.debug.print("Error: No search query provided.\n", .{});
-        printHelp();
+        utils.output.printError("No search query provided.", .{});
+        printHelp(allocator);
         return;
     };
 
@@ -204,29 +147,34 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     exclude_patterns.deinit(allocator);
 }
 
-fn printHelp() void {
-    const help_text =
-        "Usage: abi explore [options] <query>\n\n" ++
-        "Search and explore the codebase for patterns.\n\n" ++
-        "Arguments:\n" ++
-        "  <query>              Search pattern or natural language query\n\n" ++
-        "Options:\n" ++
-        "  -l, --level <level>  Exploration depth: quick, medium, thorough, deep (default: medium)\n" ++
-        "  -f, --format <fmt>   Output format: human, json, compact, yaml (default: human)\n" ++
-        "  -i, --include <pat>  Include files matching pattern (can be used multiple times)\n" ++
-        "  -e, --exclude <pat>  Exclude files matching pattern (can be used multiple times)\n" ++
-        "  -c, --case-sensitive Match case sensitively\n" ++
-        "  -r, --regex          Treat query as regex pattern\n" ++
-        "  --path <path>        Root directory to search (default: .)\n" ++
-        "  --max-files <n>      Maximum files to scan\n" ++
-        "  --max-depth <n>      Maximum directory depth\n" ++
-        "  --timeout <ms>       Timeout in milliseconds\n" ++
-        "  -h, --help           Show this help message\n\n" ++
-        "Examples:\n" ++
-        "  abi explore \"HTTP handler\"\n" ++
-        "  abi explore -l thorough \"FIXME\"\n" ++
-        "  abi explore -f json \"function_name\"\n" ++
-        "  abi explore -i \"*.zig\" \"pub fn\"\n" ++
-        "  abi explore --regex \"fn\\s+\\w+\"";
-    std.debug.print("{s}\n", .{help_text});
+fn printHelp(allocator: std.mem.Allocator) void {
+    var builder = utils.help.HelpBuilder.init(allocator);
+    defer builder.deinit();
+
+    _ = builder
+        .usage("abi explore", "[options] <query>")
+        .description("Search and explore the codebase for patterns.")
+        .section("Arguments")
+        .text("  <query>              Search pattern or natural language query\n\n")
+        .section("Options")
+        .option(.{ .short = "-l", .long = "--level", .arg = "level", .description = "Exploration depth: quick, medium, thorough, deep (default: medium)" })
+        .option(.{ .short = "-f", .long = "--format", .arg = "fmt", .description = "Output format: human, json, compact, yaml (default: human)" })
+        .option(.{ .short = "-i", .long = "--include", .arg = "pat", .description = "Include files matching pattern (repeatable)" })
+        .option(.{ .short = "-e", .long = "--exclude", .arg = "pat", .description = "Exclude files matching pattern (repeatable)" })
+        .option(.{ .short = "-c", .long = "--case-sensitive", .description = "Match case sensitively" })
+        .option(.{ .short = "-r", .long = "--regex", .description = "Treat query as regex pattern" })
+        .option(.{ .long = "--path", .arg = "path", .description = "Root directory to search (default: .)" })
+        .option(.{ .long = "--max-files", .arg = "n", .description = "Maximum files to scan" })
+        .option(.{ .long = "--max-depth", .arg = "n", .description = "Maximum directory depth" })
+        .option(.{ .long = "--timeout", .arg = "ms", .description = "Timeout in milliseconds" })
+        .option(utils.help.common_options.help)
+        .newline()
+        .section("Examples")
+        .example("abi explore \"HTTP handler\"", "")
+        .example("abi explore -l thorough \"FIXME\"", "")
+        .example("abi explore -f json \"function_name\"", "")
+        .example("abi explore -i \"*.zig\" \"pub fn\"", "")
+        .example("abi explore --regex \"fn\\s+\\w+\"", "");
+
+    builder.print();
 }

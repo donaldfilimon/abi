@@ -19,6 +19,7 @@ const client = @import("client.zig");
 const reasoning = @import("reasoning.zig");
 const emotions = @import("emotions.zig");
 const context = @import("context.zig");
+const prompts = @import("../prompts/mod.zig");
 
 // ============================================================================
 // Abbey Engine
@@ -273,6 +274,86 @@ pub const AbbeyEngine = struct {
             .research_performed = needs_research,
             .generation_time_ms = response_time,
         };
+    }
+
+    /// Execute an iterative Ralph loop for a complex task
+    /// Returns the final output from the agent. Caller owns the returned slice.
+    pub fn runRalphLoop(self: *Self, goal: []const u8, max_iterations: usize) ![]u8 {
+        // Ensure conversation is active
+        if (!self.conversation_active) {
+            try self.startConversation(null);
+        }
+
+        const ralph_persona = prompts.getPersona(.ralph);
+
+        // Loop history
+        var history = std.ArrayListUnmanaged(client.ChatMessage){};
+        defer {
+            for (history.items) |*msg| {
+                if (msg.role.len > 0) {} // role is usually static string literal
+                self.allocator.free(msg.content);
+            }
+            history.deinit(self.allocator);
+        }
+
+        // 1. System Prompt
+        try history.append(self.allocator, .{
+            .role = "system",
+            .content = try self.allocator.dupe(u8, ralph_persona.system_prompt),
+        });
+
+        // 2. User Goal
+        try history.append(self.allocator, .{
+            .role = "user",
+            .content = try self.allocator.dupe(u8, goal),
+        });
+
+        var iteration: usize = 0;
+        var last_response: []u8 = try self.allocator.dupe(u8, ""); // Placeholder
+
+        while (iteration < max_iterations) : (iteration += 1) {
+            // Clean up previous response if it wasn't added to history (for the placeholder case)
+            if (iteration == 0) self.allocator.free(last_response);
+
+            // Make request
+            const request = client.CompletionRequest{
+                .messages = history.items,
+                .model = self.config.llm.model,
+                .temperature = ralph_persona.suggested_temperature,
+                .max_tokens = self.config.behavior.max_tokens,
+            };
+
+            const response = try self.llm_client.complete(request);
+            last_response = try self.allocator.dupe(u8, response.content);
+
+            // Store agent response
+            try history.append(self.allocator, .{
+                .role = "assistant",
+                .content = try self.allocator.dupe(u8, last_response),
+            });
+
+            // Update usage stats
+            self.total_tokens_used += response.usage.total_tokens;
+            self.turn_count += 1;
+
+            // Check for explicit completion signal
+            // If the agent says "TASK COMPLETED" or similar, we break.
+            // But Ralph is designed to be verified.
+            // For now, we rely on the loop injection to keep it going until max_iterations
+            // OR if the agent outputs a specific stop token we define.
+            // Let's assume for this MVP we run until max or if we detect a "final answer" pattern.
+
+            // Inject Loop Prompt for next iteration
+            if (iteration < max_iterations - 1) {
+                const injection = try prompts.ralph.formatLoopInjection(self.allocator, iteration + 1, goal);
+                try history.append(self.allocator, .{
+                    .role = "system",
+                    .content = injection,
+                });
+            }
+        }
+
+        return last_response;
     }
 
     /// Assess initial confidence for a query
