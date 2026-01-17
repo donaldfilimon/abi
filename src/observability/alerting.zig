@@ -24,7 +24,7 @@
 //!   try manager.evaluate(metrics);
 
 const std = @import("std");
-const observability = @import("../../shared/observability/mod.zig");
+const observability = @import("../shared/observability/mod.zig");
 
 /// Alert severity levels.
 pub const AlertSeverity = enum {

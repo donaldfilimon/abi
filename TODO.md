@@ -115,9 +115,23 @@ All major implementation tasks are complete. See ROADMAP.md for future enhanceme
 
 Developers should prioritize these items to achieve functional parity with llama-cpp while maintaining Zig 0.16 conventions.
 
+ * Communicate intent precisely.
+ * Edge cases matter.
+ * Favor reading code over writing code.
+ * Only one obvious way to do things.
+ * Runtime crashes are better than bugs.
+ * Compile errors are better than runtime crashes.
+ * Incremental improvements.
+ * Avoid local maximums.
+ * Reduce the amount one must remember.
+ * Focus on code rather than style.
+ * Resource allocation may fail; resource deallocation must succeed.
+ * Memory is a resource.
+ * Together we serve the users.
+
 ## Claude‑Code Massive TODO
 
-This section aggregates all high‑level and implementation‑level tasks that affect the Claude‑code base, drawn from the roadmap, Llama‑CPP parity work, and any remaining code‑level markers.
+This section aggregates all high‑level and implementation‑level tasks that affect the Claude‑code base, drawn from the roadmap, Llama‑CPP parity work, and any remaining code‑level markers. 
 
 ### High‑Level Roadmap Items
 

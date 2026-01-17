@@ -27,7 +27,7 @@ pub const ai = if (build_options.enable_ai) @import("ai/mod.zig") else @import("
 pub const gpu = if (build_options.enable_gpu) @import("../gpu/mod.zig") else @import("../gpu/stub.zig");
 pub const database = if (build_options.enable_database) @import("../database/mod.zig") else @import("../database/stub.zig");
 pub const web = if (build_options.enable_web) @import("../web/mod.zig") else @import("../web/stub.zig");
-pub const monitoring = if (build_options.enable_profiling) @import("monitoring/mod.zig") else @import("monitoring/stub.zig");
+pub const monitoring = if (build_options.enable_profiling) @import("../observability/mod.zig") else @import("../observability/stub.zig");
 pub const connectors = @import("connectors/mod.zig");
 pub const network = if (build_options.enable_network) @import("../network/mod.zig") else @import("../network/stub.zig");
 pub const compute = @import("../compute/mod.zig");
@@ -87,7 +87,7 @@ pub fn forEachFeature(ctx: anytype, visitor: anytype) void {
     visitor(ctx, .gpu, "gpu/mod.zig");
     visitor(ctx, .database, "database/mod.zig");
     visitor(ctx, .web, "web/mod.zig");
-    visitor(ctx, .monitoring, "features/monitoring/mod.zig");
+    visitor(ctx, .monitoring, "observability/mod.zig");
     visitor(ctx, .connectors, "features/connectors/mod.zig");
     visitor(ctx, .compute, "compute/mod.zig");
     visitor(ctx, .simd, "shared/simd.zig");

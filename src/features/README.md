@@ -10,7 +10,7 @@ top-level modules as part of the 2026-01-17 refactoring (Phases 1-6).
 | `ai/` | Active | `src/ai/` (wrapper) re-exports from here |
 | `connectors/` | Active | Keep here (API integrations) |
 | `ha/` | Active | Keep here (HA components) |
-| `monitoring/` | Deprecated | Use `src/observability/` |
+| `monitoring/` | Migrated | Now at `src/observability/` |
 
 ## Refactoring Summary
 
@@ -48,7 +48,7 @@ Partially Migrated:
 Still Here (intentionally):
   src/features/connectors/  ->  API connectors (OpenAI, Ollama, HuggingFace, etc.)
   src/features/ha/          ->  High availability (backup, PITR, replication)
-  src/features/monitoring/  ->  @deprecated - use src/observability/
+  src/observability/mod.zig  ->  primary implementation (migrated from features/monitoring/)
 ```
 
 ## Feature Flags
@@ -65,7 +65,7 @@ Still Here (intentionally):
 | `ai/` | `src/ai/` | Partial migration | AI features (LLM, embeddings, RAG) |
 | `connectors/` | (via ai) | Active | API connectors |
 | `ha/` | (internal) | Active | High availability components |
-| `monitoring/` | `src/observability/` | Deprecated | Use observability instead |
+| `monitoring/` | `src/observability/` | Migrated | Consolidated into observability |
 
 ## Usage
 

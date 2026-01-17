@@ -1,6 +1,6 @@
 //! Prometheus metrics exporter for observability.
 const std = @import("std");
-const observability = @import("../../shared/observability/mod.zig");
+const observability = @import("../shared/observability/mod.zig");
 
 pub const PrometheusConfig = struct {
     enabled: bool = true,
