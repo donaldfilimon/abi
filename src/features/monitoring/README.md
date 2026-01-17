@@ -40,6 +40,3 @@
 //! - [Observability](../../shared/observability/README.md)
 //! - [Monitoring Documentation](../../../docs/monitoring.md)
 
-## Contacts
-
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.

@@ -43,6 +43,3 @@
 //! - [Compute Module](../compute/README.md)
 //! - [Framework Module](../framework/README.md)
 
-## Contacts
-
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.

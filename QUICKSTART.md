@@ -157,8 +157,7 @@ pub fn main(init: std.process.Init) !void {
 - Check [examples/](examples/) for more code samples
 - Review [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines
 
-## Contacts
+## See Also
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
-See [TODO.md](TODO.md) for the list of pending implementations.
-*See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
+- [TODO.md](TODO.md) - Pending implementations
+- [ROADMAP.md](ROADMAP.md) - Upcoming milestones

@@ -390,4 +390,3 @@ const result = agent.explore(".", "query") catch |err| {
 - [Compute Engine](compute.md) - Parallel exploration execution
 - [Framework](framework.md) - Configuration options
 - [Troubleshooting](troubleshooting.md) - Search and timeout issues
-*See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*

@@ -157,4 +157,3 @@ zig build run -- network status                 # Show network status
 - [Monitoring](monitoring.md) - Network metrics and alerting
 - [Framework](framework.md) - Configuration options
 - [Troubleshooting](troubleshooting.md) - Connection issues
-*See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*

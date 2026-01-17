@@ -456,4 +456,3 @@ zig build benchmarks
 - [Performance Baseline](PERFORMANCE_BASELINE.md) - Benchmark targets
 - [Framework](framework.md) - Framework configuration
 - [Troubleshooting](troubleshooting.md) - Debugging issues
-*See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*

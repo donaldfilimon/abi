@@ -1,6 +1,52 @@
 # Changelog
 
-## Unreleased (v0.3.0-dev)
+## 0.3.0 - 2026-01-17
+
+### Feature Stub API Parity
+
+All feature-gated stub modules have been audited and updated for complete API parity:
+
+- **AI Stub** (`src/features/ai/stub.zig`)
+  - Fixed `SessionData`, `SessionMeta` to match real implementation
+  - Updated `TrainingConfig` with all fields (sample_count, model_size, learning_rate, optimizer, etc.)
+  - Fixed `TrainingReport` and `TrainingResult` structures
+  - Updated `Checkpoint` with correct fields (step, timestamp, weights)
+  - Fixed `TrainableModelConfig` (num_layers, num_heads, intermediate_dim, etc.)
+  - Added `numParams()` method to `TrainableModel`
+  - Added `CheckpointingStrategy` enum
+  - Added `addMessage()` to `PromptBuilder`
+
+- **LLM Stub** (`src/features/ai/llm/stub.zig`)
+  - Added `matrixMultiply` to ops struct
+  - Added `printSummaryDebug` to GgufFile
+
+- **GPU Stub** (`src/compute/gpu/stub.zig`)
+  - Added missing `backendAvailability` export
+
+- **Network Stub** (`src/features/network/stub.zig`)
+  - Added `touch()` and `setStatus()` methods to NodeRegistry
+  - Fixed `NodeInfo` to include `last_seen_ms` field
+  - Corrected `NodeStatus` enum (healthy, degraded, offline)
+
+**Build Verification:**
+- `zig build -Denable-ai=false` - Passes
+- `zig build -Denable-gpu=false` - Passes
+- `zig build -Denable-network=false` - Passes
+- `zig build -Denable-database=false` - Passes
+- `zig build -Denable-web=false` - Passes
+- `zig build -Denable-profiling=false` - Passes
+
+### Documentation Updates
+
+- Rewrote README.md with cleaner structure and current status
+- Updated all docs/ files with correct links
+- Removed stale MAIN_WORKSPACE.md references from 53 files
+- Updated TODO.md with stub verification status
+- Updated ROADMAP.md with code quality completion status
+
+---
+
+## Unreleased (v0.3.1-dev)
 
 ### Zig 0.16 API Migration (Complete)
 
@@ -290,8 +336,7 @@ Updated all feature documentation with new APIs and examples.
 - Consolidated feature exports and build options for Zig 0.16.
 - Updated documentation and project structure.
 
-## Contacts
+## Links
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
-See [TODO.md](TODO.md) for the list of pending implementations.
-*See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
+- [TODO.md](TODO.md) - Pending implementations
+- [ROADMAP.md](ROADMAP.md) - Upcoming milestones

@@ -60,6 +60,3 @@
 //! - [API Reference](../API_REFERENCE.md)
 //! - [docs/intro.md](../docs/intro.md) - Architecture overview
 
-## Contacts
-
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
