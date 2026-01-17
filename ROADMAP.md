@@ -298,3 +298,14 @@ Major architecture redesign completed with 51/51 tests passing, 21/21 build step
 - [x] Top-level web module (src/web/)
 - [x] Internal utilities module (src/internal/)
 - [x] Updated abi.zig to use new modular structure
+
+### Runtime Consolidation (Complete - 2026-01-17)
+Runtime module fully consolidated from compute/:
+- [x] Plugin registry system (src/registry/mod.zig)
+- [x] Task engine migrated (src/runtime/engine/)
+- [x] Scheduling primitives migrated (src/runtime/scheduling/)
+- [x] Concurrency primitives migrated (src/runtime/concurrency/)
+- [x] Memory utilities migrated (src/runtime/memory/)
+- [x] CLI runtime flags (--list-features, --enable-*, --disable-*)
+- [x] Comptime feature validation for CLI flags
+- [x] Default Ollama model updated to gpt-oss
