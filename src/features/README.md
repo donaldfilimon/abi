@@ -1,16 +1,29 @@
-# Features Module
+# Features Module (Legacy)
 
-Implementation layer for optional features. This module is being incrementally
-migrated to top-level modules.
+Implementation layer for optional features. Most features have been migrated to
+top-level modules as part of the 2026-01-17 refactoring (Phases 1-6).
 
 ## Migration Status (2026-01-17)
 
 | Directory | Status | New Location |
 |-----------|--------|--------------|
-| `ai/` | Partial | `src/ai/` (wrapper) + here (implementation) |
+| `ai/` | Active | `src/ai/` (wrapper) re-exports from here |
 | `connectors/` | Active | Keep here (API integrations) |
 | `ha/` | Active | Keep here (HA components) |
 | `monitoring/` | Deprecated | Use `src/observability/` |
+
+## Refactoring Summary
+
+The following modules have been fully migrated away from features/:
+
+| Module | New Location | Status |
+|--------|--------------|--------|
+| GPU | `src/gpu/` | Fully migrated |
+| Database | `src/database/` | Fully migrated |
+| Network | `src/network/` | Fully migrated |
+| Web | `src/web/` | Fully migrated |
+| Runtime | `src/runtime/` | Fully migrated (was in compute/) |
+| Registry | `src/registry/` | New system (comptime, runtime, dynamic) |
 
 ## Architecture
 

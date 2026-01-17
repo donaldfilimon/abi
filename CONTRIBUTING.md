@@ -79,7 +79,7 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});
 - New features must include tests or clear justification.
 - Run `zig build test --summary all` to see detailed results.
 - Run tests with specific features: `zig build test -Denable-gpu=true -Denable-network=true`
-- Test a single file: `zig test src/compute/runtime/engine.zig`
+- Test a single file: `zig test src/runtime/engine/engine.zig`
 - Filter tests: `zig test src/tests/mod.zig --test-filter "pattern"`
 - Use `error.SkipZigTest` for hardware-gated tests
 

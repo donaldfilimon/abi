@@ -14,6 +14,9 @@ Modern Zig 0.16 framework for modular AI services, vector search, and high-perfo
 
 ## What's New (2026.01)
 
+- **Plugin Registry** - Three-mode feature registration (comptime, runtime-toggle, dynamic)
+- **Runtime Consolidation** - Unified `src/runtime/` with engine, scheduling, concurrency, memory
+- **CLI Runtime Flags** - `--list-features`, `--enable-*`, `--disable-*` for runtime feature control
 - **GPU Diagnostics** - Comprehensive GPU state debugging with `DiagnosticsInfo.collect()`
 - **GPU Error Context** - Structured error reporting with backend, operation, and timing info
 - **Graceful Degradation** - Automatic CPU fallback when GPU unavailable via `FailoverManager`
@@ -125,11 +128,16 @@ zig build run -- llm chat model.gguf
 ## CLI Commands
 
 ```bash
-zig build run -- --help       # Show help
-zig build run -- tui          # Interactive launcher
-zig build run -- db stats     # Database statistics
-zig build run -- gpu backends # List GPU backends
-zig build run -- agent        # AI agent mode
+zig build run -- --help            # Show help
+zig build run -- tui               # Interactive launcher
+zig build run -- db stats          # Database statistics
+zig build run -- gpu backends      # List GPU backends
+zig build run -- agent             # AI agent mode
+
+# Runtime feature flags (new)
+zig build run -- --list-features              # List available features and status
+zig build run -- --enable-gpu db stats        # Enable feature for this run
+zig build run -- --disable-ai llm info        # Disable feature for this run
 ```
 
 ## Architecture
@@ -140,7 +148,12 @@ abi/
 │   ├── abi.zig          # Public API entry point
 │   ├── config.zig       # Unified configuration system
 │   ├── framework.zig    # Framework orchestration
-│   ├── runtime/         # Always-on infrastructure (scheduler, memory, concurrency)
+│   ├── registry/        # Plugin registry system (comptime, runtime, dynamic)
+│   ├── runtime/         # Always-on infrastructure
+│   │   ├── engine/      # Work-stealing task execution
+│   │   ├── scheduling/  # Futures, cancellation, task groups
+│   │   ├── concurrency/ # Lock-free primitives
+│   │   └── memory/      # Memory pools and allocators
 │   ├── gpu/             # GPU backends and unified API
 │   ├── ai/              # AI module with sub-features
 │   │   ├── llm/         # Local LLM inference
@@ -161,7 +174,7 @@ abi/
 
 ```bash
 zig build test --summary all                    # All tests
-zig test src/compute/runtime/engine.zig         # Single file
+zig test src/runtime/engine/engine.zig          # Single file
 zig test src/tests/mod.zig --test-filter "pat"  # Filter tests
 zig build benchmarks                            # Run benchmarks
 ```
@@ -185,8 +198,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow and [CLAUDE.md](
 - **Zig 0.16 Migration**: Complete
 - **Llama-CPP Parity**: Complete (see [TODO.md](TODO.md))
 - **Feature Stubs**: All verified and tested
+- **Refactoring (Phases 1-6)**: Complete
+  - Plugin registry system (`src/registry/`)
+  - Runtime consolidation (`src/runtime/`)
+  - CLI runtime flags (`--list-features`, `--enable-*`, `--disable-*`)
 
-See [ROADMAP.md](ROADMAP.md) for upcoming milestones.
+See [ROADMAP.md](ROADMAP.md) for upcoming milestones and [docs/plans/2026-01-17-src-refactoring.md](docs/plans/2026-01-17-src-refactoring.md) for refactoring details.
 
 ## License
 

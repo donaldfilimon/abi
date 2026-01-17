@@ -162,7 +162,7 @@ fn printHelp() void {
         \\  --enable-<feature>    Enable a feature at runtime
         \\  --disable-<feature>   Disable a feature at runtime
         \\
-        \\Features: gpu, ai, llm, database, network, web, observability, training
+        \\Features: gpu, ai, llm, embeddings, agents, training, database, network, observability, web
         \\
         \\Commands:
         \\  db <subcommand>    Database operations (add, query, stats, optimize, backup)

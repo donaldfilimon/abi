@@ -1,4 +1,7 @@
-//! AI Module
+//! AI Module - Public API
+//!
+//! This is the primary entry point for AI functionality. Import from here for
+//! Framework integration and the stable public API.
 //!
 //! Modular AI capabilities organized as independent sub-features:
 //!
@@ -9,6 +12,9 @@
 //! - **training**: Model training pipelines
 //!
 //! Each sub-feature can be independently enabled/disabled.
+//!
+//! Implementation lives in `src/features/ai/` - this module re-exports with
+//! Framework-compatible Context wrappers.
 //!
 //! ## Usage
 //!

@@ -13,7 +13,8 @@
 //! | `abi.zig` | Public API entry point with curated re-exports |
 //! | `config.zig` | Unified configuration system (struct literal + builder APIs) |
 //! | `framework.zig` | Framework orchestration and lifecycle management |
-//! | `runtime/` | Always-on infrastructure (scheduling, concurrency, memory) |
+//! | `registry/` | Plugin registry system (comptime, runtime-toggle, dynamic modes) |
+//! | `runtime/` | Always-on infrastructure (engine, scheduling, concurrency, memory) |
 //! | `gpu/` | GPU acceleration with unified multi-backend API |
 //! | `ai/` | AI module with sub-features (llm, embeddings, agents, training) |
 //! | `database/` | Vector database (primary implementation) |
@@ -22,8 +23,8 @@
 //! | `web/` | Web/HTTP utilities (primary implementation) |
 //! | `internal/` | Shared utilities (re-exports from `shared/`) |
 //! | `core/` | Core infrastructure, hardware helpers |
-//! | `compute/` | Compute engine implementation (runtime, concurrency, gpu, memory) |
-//! | `features/` | Feature implementations (ai, connectors, ha, monitoring) |
+//! | `compute/` | Legacy re-exports (backward compat - use `runtime/` instead) |
+//! | `features/` | Legacy feature implementations (ai, connectors, ha, monitoring) |
 //! | `shared/` | Cross-cutting utilities (logging, platform, utils) |
 //! | `tests/` | Test utilities and property-based testing |
 //!
@@ -35,8 +36,16 @@
 //! ├── config.zig           # Unified configuration
 //! ├── framework.zig        # Framework orchestration
 //! │
-//! ├── runtime/             # Always-on infrastructure
-//! │   └── mod.zig          # Re-exports from compute/runtime + Context
+//! ├── registry/            # Plugin registry system
+//! │   └── mod.zig          # Feature registration (comptime, runtime-toggle, dynamic)
+//! │
+//! ├── runtime/             # Always-on infrastructure (CONSOLIDATED)
+//! │   ├── mod.zig          # Unified entry point
+//! │   ├── engine/          # Work-stealing task execution
+//! │   ├── scheduling/      # Futures, cancellation, task groups
+//! │   ├── concurrency/     # Lock-free data structures
+//! │   ├── memory/          # Arena allocators, pools
+//! │   └── workload.zig     # Workload detection
 //! │
 //! ├── gpu/                 # GPU acceleration
 //! │   ├── mod.zig          # Unified GPU API with backends, DSL, profiling
@@ -68,18 +77,14 @@
 //! ├── internal/            # Shared internal utilities
 //! │   └── mod.zig          # Re-exports from shared/
 //! │
-//! ├── compute/             # Implementation layer
-//! │   ├── runtime/         # Engine, scheduler, NUMA, futures
-//! │   ├── concurrency/     # Lock-free data structures
-//! │   ├── memory/          # Arena allocators, pools
-//! │   ├── gpu/             # GPU backends
-//! │   └── profiling/       # Metrics collection
+//! ├── compute/             # Legacy re-exports (backward compat)
+//! │   └── mod.zig          # Re-exports from runtime/ for compatibility
 //! │
-//! ├── features/            # Feature implementations
-//! │   ├── ai/              # AI (LLM, embeddings, RAG)
-//! │   ├── connectors/      # API connectors
-//! │   ├── ha/              # High availability
-//! │   └── monitoring/      # Observability
+//! ├── features/            # Legacy feature implementations
+//! │   ├── ai/              # AI (LLM, embeddings, RAG) - still active
+//! │   ├── connectors/      # API connectors - still active
+//! │   ├── ha/              # High availability - still active
+//! │   └── monitoring/      # @deprecated - use observability/
 //! │
 //! └── shared/              # Cross-cutting concerns
 //!     ├── logging/         # Logging infrastructure

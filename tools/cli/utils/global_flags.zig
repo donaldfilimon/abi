@@ -22,7 +22,7 @@
 //! - `--enable-<feature>` - Enable a feature at runtime
 //! - `--disable-<feature>` - Disable a feature at runtime
 //!
-//! Features: gpu, ai, llm, database, network, web, observability, training
+//! Features: gpu, ai, llm, embeddings, agents, training, database, network, observability, web
 
 const std = @import("std");
 const config_module = @import("abi").config;

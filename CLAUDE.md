@@ -131,13 +131,13 @@ src/
 │   ├── diagnostics.zig # GPU state debugging
 │   ├── error_handling.zig # Structured error context
 │   └── failover.zig    # Graceful degradation to CPU
-├── ai/                  # AI module entry (wrappers to features/ai/)
+├── ai/                  # AI module - Public API (llm, embeddings, agents, training)
 ├── database/           # Vector database (WDBX)
 ├── network/            # Distributed compute
 ├── observability/      # Metrics, tracing, profiling
 ├── web/                # Web/HTTP utilities
 ├── internal/           # Shared utilities (logging, plugins, platform, simd)
-├── registry/           # Plugin registry system
+├── registry/           # Plugin registry system (comptime, runtime-toggle, dynamic)
 ├── features/           # Full implementations
 │   └── ai/            # AI implementation (agent, training, embeddings, llm)
 ├── core/               # I/O, diagnostics, collections
@@ -152,7 +152,11 @@ examples/                # Example programs
 **Import guidance:**
 - **Public API**: Always use `@import("abi")` - this provides all public types and functions
 - **Direct module access**: Use `abi.gpu`, `abi.ai`, `abi.database`, etc. through the framework
-- **AI implementation details**: Real code is in `src/features/ai/`, wrappers in `src/ai/`
+- **For GPU**: Use `src/gpu/` (fully migrated, primary location)
+- **For Network**: Use `src/network/` (fully migrated, primary location)
+- **For Database**: Use `src/database/` (fully migrated, primary location)
+- **For Web**: Use `src/web/` (fully migrated, primary location)
+- **For AI**: Use `src/ai/` for public API; implementation in `src/features/ai/`
 - **Never import file paths directly** in application code - use the abi module
 
 **Module Convention:** Each feature uses `mod.zig` (entry point), `stub.zig` (feature-gated placeholder)
@@ -376,6 +380,21 @@ std.debug.print("State: {t}", .{state});
 | `tui` | Interactive launcher |
 | `version` | Version information |
 | `help` | Help and usage |
+
+### Global Flags (Runtime Feature Control)
+
+| Flag | Description |
+|------|-------------|
+| `--list-features` | List all features and their enabled/disabled status |
+| `--enable-<feature>` | Enable a feature for this run (e.g., `--enable-gpu`) |
+| `--disable-<feature>` | Disable a feature for this run (e.g., `--disable-ai`) |
+
+**Examples:**
+```bash
+zig build run -- --list-features              # Show feature status
+zig build run -- --enable-gpu db stats        # Run with GPU enabled
+zig build run -- --disable-ai llm info        # Run with AI disabled
+```
 
 ## Example Programs
 
