@@ -189,8 +189,10 @@ fn runSIMDVectorDotBenchmark() !BenchmarkResult {
     return buildResult("dot_product_256d", iterations, elapsed);
 }
 
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
     const results = try runBenchmarks(allocator);
     defer allocator.free(results);

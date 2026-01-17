@@ -85,7 +85,7 @@
   - [x] Interactive TUI command launcher (cross-platform)
 - [x] Tooling
   - [x] Debugger integration (GDB/LLDB support documented in docs/troubleshooting.md)
-  - [x] Performance profiler (src/compute/profiling/mod.zig, src/compute/gpu/profiling.zig)
+  - [x] Performance profiler (src/compute/profiling/mod.zig, src/gpu/profiling.zig)
   - [x] Memory leak detector (src/shared/utils/memory/tracking.zig - TrackingAllocator)
 
 ### Documentation
@@ -126,7 +126,7 @@
 ### High Availability
 - [x] Failover mechanisms
   - [x] Automatic failover (src/features/ha/mod.zig - HaManager with auto_failover)
-  - [x] Health checks (src/features/network/loadbalancer.zig - NodeState)
+  - [x] Health checks (src/network/loadbalancer.zig - NodeState)
   - [x] Circuit breakers (src/features/monitoring/mod.zig - CircuitBreakerMetrics)
 - [x] Disaster recovery
   - [x] Backup orchestration (src/features/ha/backup.zig - BackupOrchestrator)

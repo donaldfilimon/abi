@@ -1,6 +1,6 @@
 # gpu API Reference
 
-**Source:** `src/compute/gpu/unified.zig`
+**Source:** `src/gpu/unified.zig`
 
 Unified GPU API - Main entry point for the unified GPU API.
 
@@ -38,7 +38,7 @@ try result.read(f32, &output);
 Get comprehensive debugging information about GPU state:
 
 ```zig
-const gpu_mod = @import("src/compute/gpu/mod.zig");
+const gpu_mod = @import("src/gpu/mod.zig");
 
 // Collect diagnostics
 const diag = gpu_mod.DiagnosticsInfo.collect(allocator);
@@ -54,7 +54,7 @@ std.log.info("{s}", .{diag_str});
 Structured error context for debugging:
 
 ```zig
-const error_handling = @import("src/compute/gpu/error_handling.zig");
+const error_handling = @import("src/gpu/error_handling.zig");
 
 // Create error context for API errors
 const ctx = error_handling.ErrorContext.init(
@@ -72,7 +72,7 @@ ctx.reportErrorFull(allocator);
 Automatic fallback to CPU when GPU unavailable:
 
 ```zig
-const failover = @import("src/compute/gpu/failover.zig");
+const failover = @import("src/gpu/failover.zig");
 
 var manager = failover.FailoverManager.init(allocator);
 

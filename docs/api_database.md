@@ -1,6 +1,6 @@
 # database API Reference
 
-**Source:** `src/features/database/mod.zig`
+**Source:** `src/database/mod.zig`
 
 Database feature facade providing in-memory vector database with persistence helpers.
 
@@ -16,7 +16,7 @@ Database feature facade providing in-memory vector database with persistence hel
 ## Quick Start
 
 ```zig
-const database = @import("src/features/database/database.zig");
+const database = @import("src/database/database.zig");
 
 // Create a database with configuration
 var db = try database.Database.initWithConfig(allocator, "my-vectors", .{

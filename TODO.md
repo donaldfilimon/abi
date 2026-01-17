@@ -64,7 +64,7 @@ The major architecture redesign has been completed successfully:
 | Unified Configuration | ✅ | Created `src/config.zig` with Builder pattern configuration system |
 | Framework Orchestration | ✅ | Created `src/framework.zig` for lifecycle and feature coordination |
 | Runtime Infrastructure | ✅ | Created `src/runtime/` for always-on infrastructure components |
-| GPU Module | ✅ | Moved GPU from `src/compute/gpu/` to top-level `src/gpu/` |
+| GPU Module | ✅ | Moved GPU from `src/compute/gpu/` to `src/gpu/` (primary location) |
 | AI Module Structure | ✅ | Created AI module with core + sub-features (llm, embeddings, agents, training) |
 | Database Module | ✅ | Created top-level `src/database/` module |
 | Network Module | ✅ | Created top-level `src/network/` module |
@@ -90,7 +90,7 @@ src/
 ├── web/                 # Web utilities
 ├── internal/            # Internal utilities (from shared/)
 ├── core/                # Core I/O and collections
-├── compute/             # Runtime and concurrency
+├── compute/             # Runtime and concurrency (GPU removed)
 └── features/            # Legacy feature modules (being migrated)
 ```
 
@@ -103,14 +103,14 @@ All major implementation tasks are complete. See ROADMAP.md for future enhanceme
 | Area | Description | Target File(s) |
 |------|-------------|----------------|
 | Flash Attention | Memory-efficient tiled attention with online softmax normalization. O(N) memory. | `src/features/ai/llm/ops/attention.zig` |
-| Fused Attention Kernel | Single CUDA kernel for Q*K^T, softmax, V in one pass. Includes tiled variant. | `src/compute/gpu/backends/cuda/llm_kernels.zig` |
+| Fused Attention Kernel | Single CUDA kernel for Q*K^T, softmax, V in one pass. Includes tiled variant. | `src/gpu/backends/cuda/llm_kernels.zig` |
 | Interactive TUI CLI | Cross-platform terminal UI for selecting CLI commands. | `tools/cli/tui/`, `tools/cli/commands/tui.zig` |
 | Paged Attention | Block-based KV cache with on-demand allocation, sequence forking, prefix sharing. | `src/features/ai/llm/cache/paged_kv_cache.zig` |
 | GPU Backward Ops | cuBLAS-accelerated matmul backward with auto CPU fallback. | `src/features/ai/llm/ops/backward/gpu_backward.zig` |
 | GPU Unified Inference | CUDA kernels wired into GpuOpsContext with auto CPU fallback. | `src/features/ai/llm/ops/gpu.zig` |
 | Q5_0/Q5_1 Quantization | 5-bit quantization with symmetric/asymmetric modes. | `src/features/ai/llm/tensor/quantized.zig` |
 | GGUF Export | Export trained weights to llama.cpp-compatible GGUF. | `src/features/ai/llm/io/gguf_writer.zig` |
-| CUDA Kernels | Softmax, RMSNorm, SiLU, elementwise ops, fused attention for GPU. | `src/compute/gpu/backends/cuda/llm_kernels.zig` |
+| CUDA Kernels | Softmax, RMSNorm, SiLU, elementwise ops, fused attention for GPU. | `src/gpu/backends/cuda/llm_kernels.zig` |
 | Reference Vectors | MatMul, attention, GeLU, LayerNorm, cross-entropy tests. | `src/tests/llm_reference_vectors.zig` |
 
 Developers should prioritize these items to achieve functional parity with llama-cpp while maintaining Zig 0.16 conventions.
@@ -169,9 +169,9 @@ All feature stubs have been updated to match real implementations and tested wit
 |---------|-----------|--------|-------|
 | AI | `src/features/ai/stub.zig` | ✅ | Fixed SessionData, SessionMeta, PromptBuilder, TrainingConfig, TrainingReport, TrainingResult, Checkpoint, TrainableModelConfig, TrainableModel |
 | LLM | `src/features/ai/llm/stub.zig` | ✅ | Added matrixMultiply to ops, GgufFile.printSummaryDebug |
-| GPU | `src/compute/gpu/stub.zig` | ✅ | Added backendAvailability export |
-| Network | `src/features/network/stub.zig` | ✅ | Added touch(), setStatus(), fixed NodeInfo.last_seen_ms, corrected NodeStatus enum |
-| Database | `src/features/database/stub.zig` | ✅ | Verified (no changes needed) |
+| GPU | `src/gpu/stub.zig` | ✅ | Added backendAvailability export |
+| Network | `src/network/stub.zig` | ✅ | Added touch(), setStatus(), fixed NodeInfo.last_seen_ms, corrected NodeStatus enum |
+| Database | `src/database/stub.zig` | ✅ | Verified (no changes needed) |
 | Web | `src/shared/web/stub.zig` | ✅ | Verified (no changes needed) |
 | Profiling | `src/compute/profiling/stub.zig` | ✅ | Verified (no changes needed) |
 

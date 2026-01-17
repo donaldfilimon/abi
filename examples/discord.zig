@@ -15,8 +15,10 @@
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
     std.debug.print("=== ABI Discord Bot Example ===\n\n", .{});
 

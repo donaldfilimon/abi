@@ -542,7 +542,7 @@ const allocator = tracker.allocator();
 Enable GPU profiling for timing and memory transfer analysis:
 
 ```zig
-const gpu_profiling = @import("src/compute/gpu/profiling.zig");
+const gpu_profiling = @import("src/gpu/profiling.zig");
 
 var profiler = gpu_profiling.Profiler.init(allocator);
 defer profiler.deinit(allocator);

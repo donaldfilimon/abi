@@ -14,16 +14,16 @@
 //! | `config.zig` | Unified configuration system (struct literal + builder APIs) |
 //! | `framework.zig` | Framework orchestration and lifecycle management |
 //! | `runtime/` | Always-on infrastructure (scheduling, concurrency, memory) |
-//! | `gpu/` | GPU acceleration (re-exports from `compute/gpu/`) |
+//! | `gpu/` | GPU acceleration with unified multi-backend API |
 //! | `ai/` | AI module with sub-features (llm, embeddings, agents, training) |
-//! | `database/` | Vector database (re-exports from `features/database/`) |
-//! | `network/` | Distributed compute (re-exports from `features/network/`) |
+//! | `database/` | Vector database (primary implementation) |
+//! | `network/` | Distributed compute (primary implementation) |
 //! | `observability/` | Metrics, tracing, profiling |
-//! | `web/` | Web/HTTP utilities (re-exports from `features/web/`) |
+//! | `web/` | Web/HTTP utilities (primary implementation) |
 //! | `internal/` | Shared utilities (re-exports from `shared/`) |
 //! | `core/` | Core infrastructure, hardware helpers |
 //! | `compute/` | Compute engine implementation (runtime, concurrency, gpu, memory) |
-//! | `features/` | Feature implementations (ai, database, network, web, monitoring) |
+//! | `features/` | Feature implementations (ai, connectors, ha, monitoring) |
 //! | `shared/` | Cross-cutting utilities (logging, platform, utils) |
 //! | `tests/` | Test utilities and property-based testing |
 //!
@@ -39,7 +39,7 @@
 //! │   └── mod.zig          # Re-exports from compute/runtime + Context
 //! │
 //! ├── gpu/                 # GPU acceleration
-//! │   ├── mod.zig          # Re-exports from compute/gpu + Context
+//! │   ├── mod.zig          # Unified GPU API with backends, DSL, profiling
 //! │   └── stub.zig         # Feature-disabled stub
 //! │
 //! ├── ai/                  # AI module
@@ -50,11 +50,11 @@
 //! │   └── training/        # Training pipelines sub-feature
 //! │
 //! ├── database/            # Vector database
-//! │   ├── mod.zig          # Re-exports from features/database + Context
+//! │   ├── mod.zig          # Primary implementation with Context
 //! │   └── stub.zig         # Feature-disabled stub
 //! │
 //! ├── network/             # Distributed compute
-//! │   ├── mod.zig          # Re-exports from features/network + Context
+//! │   ├── mod.zig          # Primary implementation with Context
 //! │   └── stub.zig         # Feature-disabled stub
 //! │
 //! ├── observability/       # Metrics and tracing
@@ -62,7 +62,7 @@
 //! │   └── stub.zig         # Feature-disabled stub
 //! │
 //! ├── web/                 # Web utilities
-//! │   ├── mod.zig          # Re-exports from features/web + Context
+//! │   ├── mod.zig          # Primary implementation with Context
 //! │   └── stub.zig         # Feature-disabled stub
 //! │
 //! ├── internal/            # Shared internal utilities
@@ -78,10 +78,8 @@
 //! ├── features/            # Feature implementations
 //! │   ├── ai/              # AI (LLM, embeddings, RAG)
 //! │   ├── connectors/      # API connectors
-//! │   ├── database/        # WDBX vector database
-//! │   ├── monitoring/      # Observability
-//! │   ├── network/         # Network features
-//! │   └── web/             # Web utilities
+//! │   ├── ha/              # High availability
+//! │   └── monitoring/      # Observability
 //! │
 //! └── shared/              # Cross-cutting concerns
 //!     ├── logging/         # Logging infrastructure
@@ -110,11 +108,11 @@
 //!
 //! ```zig
 //! // Example: src/gpu/mod.zig
-//! const compute_gpu = @import("../compute/gpu/mod.zig");
+//! const unified = @import("unified.zig");
 //!
 //! // Re-exports
-//! pub const Gpu = compute_gpu.Gpu;
-//! pub const Buffer = compute_gpu.GpuBuffer;
+//! pub const Gpu = unified.Gpu;
+//! pub const Buffer = unified.GpuBuffer;
 //!
 //! // Context for Framework integration
 //! pub const Context = struct {

@@ -9,19 +9,17 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
     const cwd = std.Io.Dir.cwd();
 
     const modules = [_]struct { path: []const u8, name: []const u8 }{
         .{ .path = "src/abi.zig", .name = "abi" },
-        .{ .path = "src/compute/gpu/unified.zig", .name = "gpu" },
+        .{ .path = "src/gpu/unified.zig", .name = "gpu" },
         .{ .path = "src/features/ai/mod.zig", .name = "ai" },
-        .{ .path = "src/features/database/mod.zig", .name = "database" },
-        .{ .path = "src/features/network/mod.zig", .name = "network" },
+        .{ .path = "src/database/mod.zig", .name = "database" },
+        .{ .path = "src/network/mod.zig", .name = "network" },
         .{ .path = "src/compute/runtime/mod.zig", .name = "compute" },
     };
 

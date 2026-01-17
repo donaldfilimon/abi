@@ -9,7 +9,7 @@
 **Affected Versions**: All versions prior to 0.2.0
 
 **Vulnerability**:
-The database backup and restore HTTP endpoints in `src/features/database/unified.zig` did not validate user-provided filenames. An attacker could craft requests with path traversal sequences (e.g., `../`) to read arbitrary files on the server filesystem or write backup files to arbitrary locations.
+The database backup and restore HTTP endpoints in `src/database/unified.zig` did not validate user-provided filenames. An attacker could craft requests with path traversal sequences (e.g., `../`) to read arbitrary files on the server filesystem or write backup files to arbitrary locations.
 
 **Attack Scenario**:
 ```http
@@ -42,9 +42,9 @@ Upgrade to version 0.2.0 or later. If unable to upgrade immediately:
 - Use reverse proxies to block requests with `..` in parameters
 
 **References**:
-- Fix in `src/features/database/unified.zig:68-95`
+- Fix in `src/database/unified.zig:68-95`
 - Fix in `src/shared/utils/fs/mod.zig:1-90`
-- Fix in `src/features/database/http.zig:48`
+- Fix in `src/database/http.zig:48`
 
 ## Supported Versions
 | Version | Supported |

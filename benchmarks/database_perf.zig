@@ -9,13 +9,13 @@
 //! - database_memory.zig: Memory and cache benchmarks
 
 const std = @import("std");
-const Database = @import("../src/features/database/database.zig").Database;
-const DatabaseConfig = @import("../src/features/database/database.zig").DatabaseConfig;
-const HotVectorData = @import("../src/features/database/database.zig").HotVectorData;
-const HnswIndex = @import("../src/features/database/hnsw.zig").HnswIndex;
-const index_mod = @import("../src/features/database/index.zig");
-const storage = @import("../src/features/database/storage.zig");
-const batch = @import("../src/features/database/batch.zig");
+const Database = @import("../src/database/database.zig").Database;
+const DatabaseConfig = @import("../src/database/database.zig").DatabaseConfig;
+const HotVectorData = @import("../src/database/database.zig").HotVectorData;
+const HnswIndex = @import("../src/database/hnsw.zig").HnswIndex;
+const index_mod = @import("../src/database/index.zig");
+const storage = @import("../src/database/storage.zig");
+const batch = @import("../src/database/batch.zig");
 
 // Modular benchmark imports
 const insert_bench = @import("database_insert.zig");

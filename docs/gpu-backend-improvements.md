@@ -9,7 +9,7 @@ This document summarizes the comprehensive improvements made to the ABI GPU back
 ### 1. Error Handling Improvements
 
 **Files Modified:**
-- `src/compute/gpu/error_handling.zig`
+- `src/gpu/error_handling.zig`
 
 **Changes:**
 - **Removed `anyerror` usage**: Replaced with specific error sets
@@ -38,7 +38,7 @@ pub fn reportError(...) ReportError!void {
 ### 2. Vulkan Backend Improvements
 
 **Files Modified:**
-- `src/compute/gpu/backends/vulkan_init.zig`
+- `src/gpu/backends/vulkan_init.zig`
 
 **Changes:**
 - **Device Selection Scoring System**: Implemented intelligent device scoring
@@ -79,7 +79,7 @@ fn selectPhysicalDevice(...) !... {
 ### 3. CUDA Backend Improvements
 
 **Files Modified:**
-- `src/compute/gpu/backends/cuda.zig`
+- `src/gpu/backends/cuda.zig`
 
 **Changes:**
 - **Proper Error Sets**: Added `CudaError` enum with specific error types
@@ -112,7 +112,7 @@ pub const CudaError = error{
 ### 4. Metal Backend Improvements
 
 **Files Modified:**
-- `src/compute/gpu/backends/metal.zig`
+- `src/gpu/backends/metal.zig`
 
 **Changes:**
 - **Explicit Allocator Parameters**:
@@ -139,7 +139,7 @@ pub fn allocateDeviceMemory(allocator: std.mem.Allocator, size: usize) !*anyopaq
 ### 5. WebGPU Backend Improvements
 
 **Files Modified:**
-- `src/compute/gpu/backends/webgpu.zig`
+- `src/gpu/backends/webgpu.zig`
 
 **Changes:**
 - **Same allocator improvements as Metal backend**
@@ -187,7 +187,7 @@ pub fn memcpyDeviceToHost(dst, src, size) !void
 
 All modified modules compile successfully:
 ```bash
-zig test src/compute/gpu/error_handling.zig  # ✓ All tests passed
+zig test src/gpu/error_handling.zig  # ✓ All tests passed
 ```
 
 ## Architecture Patterns Preserved

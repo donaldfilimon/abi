@@ -43,14 +43,14 @@ const Args = struct {
     quick: bool = false,
 };
 
-fn parseArgsFromInit(init: std.process.Init) Args {
+fn parseArgs(allocator: std.mem.Allocator) Args {
     var args_val = Args{};
-    var arg_iter = std.process.Args.Iterator.initAllocator(init.minimal.args, init.gpa) catch return args_val;
-    defer arg_iter.deinit();
+    const args = std.process.argsAlloc(allocator) catch return args_val;
+    defer std.process.argsFree(allocator, args);
 
-    _ = arg_iter.skip(); // Skip program name
-
-    while (arg_iter.next()) |arg| {
+    var i: usize = 1; // Skip program name
+    while (i < args.len) : (i += 1) {
+        const arg = args[i];
         if (std.mem.startsWith(u8, arg, "--suite=")) {
             const suite_name = arg["--suite=".len..];
             args_val.suite = std.meta.stringToEnum(BenchmarkSuite, suite_name) orelse .all;
@@ -131,10 +131,12 @@ fn printSuiteHeader(name: []const u8) void {
     std.debug.print("--------------------------------------------------------------------------------\n", .{});
 }
 
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    const args = parseArgsFromInit(init);
+    const args = parseArgs(allocator);
 
     printHeader();
 

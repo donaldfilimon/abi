@@ -2,8 +2,8 @@
 //! Tests cache-aligned data access and memory usage.
 
 const std = @import("std");
-const HotVectorData = @import("../src/features/database/database.zig").HotVectorData;
-const Database = @import("../src/features/database/database.zig").Database;
+const HotVectorData = @import("../src/database/database.zig").HotVectorData;
+const Database = @import("../src/database/database.zig").Database;
 
 /// Run all memory benchmarks.
 pub fn run(allocator: std.mem.Allocator, vectors: []const []const f32) !void {

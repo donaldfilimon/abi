@@ -2,9 +2,9 @@
 //! Tests bulk insertion performance with various configurations.
 
 const std = @import("std");
-const Database = @import("../src/features/database/database.zig").Database;
-const DatabaseConfig = @import("../src/features/database/database.zig").DatabaseConfig;
-const batch = @import("../src/features/database/batch.zig");
+const Database = @import("../src/database/database.zig").Database;
+const DatabaseConfig = @import("../src/database/database.zig").DatabaseConfig;
+const batch = @import("../src/database/batch.zig");
 
 pub const VECTOR_DIM = 128;
 pub const VECTOR_COUNT = 10_000;

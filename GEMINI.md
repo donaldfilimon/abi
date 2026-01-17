@@ -293,7 +293,7 @@ fn myFunction() MyError!Result {
 
 ### Modifying GPU Code
 
-1. Check `src/compute/gpu/mod.zig` for type definitions
+1. Check `src/gpu/mod.zig` for type definitions
 2. Use `GpuBuffer` (PascalCase) naming convention
 3. Ensure backend compatibility
 4. Test with multiple backends if possible
@@ -303,9 +303,9 @@ fn myFunction() MyError!Result {
 | Directory | Purpose |
 |-----------|---------|
 | `src/abi.zig` | Public API entry point |
-| `src/compute/gpu/` | GPU acceleration |
+| `src/gpu/` | GPU acceleration |
 | `src/features/ai/` | AI/LLM features |
-| `src/features/database/` | Vector database |
+| `src/database/` | Vector database |
 | `tools/cli/commands/` | CLI implementations |
 | `benchmarks/` | Performance benchmarks |
 | `examples/` | Example programs |

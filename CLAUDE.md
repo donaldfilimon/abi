@@ -106,23 +106,27 @@ Use `zig build check-wasm` to verify WASM compilation without full build.
 
 The codebase uses a flat domain structure with unified configuration and framework orchestration.
 
+**Migration Status:** The codebase is mid-migration from a legacy feature-based organization to a new modular structure. The GPU module has been fully migrated to `src/gpu/`. Other implementations still live in `src/features/` while thin wrappers exist in `src/`.
+
 ```
 src/
 ├── abi.zig              # Public API entry point: init(), shutdown(), version()
 ├── config.zig           # Unified configuration system
 ├── framework.zig        # Framework orchestration with builder pattern
 ├── runtime/             # Always-on infrastructure (task execution, scheduling)
-├── gpu/                 # GPU acceleration (re-exports from compute/gpu)
-├── ai/                  # AI module with sub-features
-│   ├── llm/            # Local LLM inference
-│   ├── embeddings/     # Vector embeddings generation
-│   ├── agents/         # AI agent runtime
-│   ├── training/       # Training pipelines
-│   └── core/           # Shared AI utilities
-├── database/           # Vector database (WDBX)
-├── network/            # Distributed compute
+├── gpu/                 # GPU acceleration (fully migrated - primary location)
+│   ├── mod.zig         # Module entry, exports unified API
+│   ├── unified.zig     # Gpu struct, GpuConfig, high-level ops
+│   ├── dsl/            # Kernel DSL compiler (builder, codegen, optimizer)
+│   ├── backends/       # Backend implementations (cuda/, vulkan, metal, etc.)
+│   ├── diagnostics.zig # GPU state debugging
+│   ├── error_handling.zig # Structured error context
+│   └── failover.zig    # Graceful degradation to CPU
+├── ai/                  # AI module with sub-features (thin wrappers)
+├── database/           # Vector database (fully migrated - primary location)
+├── network/            # Distributed compute (fully migrated - primary location)
 ├── observability/      # Metrics, tracing, profiling
-├── web/                # Web/HTTP utilities
+├── web/                # Web/HTTP utilities (fully migrated - primary location)
 ├── internal/           # Shared utilities (logging, plugins, platform, simd)
 └── shared/             # Legacy shared utilities
 
@@ -131,11 +135,20 @@ bindings/wasm/           # WASM bindings entry point
 benchmarks/              # Performance benchmarks
 examples/                # Example programs
 
-# Legacy directories (maintained for compatibility)
+# Implementation directories (real code, being migrated)
 ├── core/               # I/O, diagnostics, collections
-├── compute/            # Runtime, concurrency, memory, profiling
-└── features/           # Legacy feature organization
+├── compute/            # Runtime, concurrency, memory (GPU removed)
+└── features/           # Feature implementations (still in use)
+    └── ai/            # Full AI implementation (agent, training, embeddings)
 ```
+
+**Import guidance:**
+- For GPU: Use `src/gpu/` (fully migrated, primary location)
+- For Network: Use `src/network/` (fully migrated, primary location)
+- For Database: Use `src/database/` (fully migrated, primary location)
+- For Web: Use `src/web/` (fully migrated, primary location)
+- For AI agents/training: Real code is in `src/features/ai/`, wrappers in `src/ai/`
+- For public API: Always use `@import("abi")` and framework methods
 
 **Module Convention:** Each feature uses `mod.zig` (entry point), `stub.zig` (feature-gated placeholder)
 
@@ -209,22 +222,24 @@ const impl = if (build_options.enable_feature) @import("real.zig") else @import(
 
 ### GPU Architecture
 
+All GPU code is in `src/gpu/` (fully migrated from `src/compute/gpu/`):
+
 ```
 User Code (abi.Gpu.vectorAdd, etc.)
        ↓
-Unified API (unified.zig) - Device/buffer management
+Unified API (src/gpu/unified.zig) - Device/buffer management
        ↓
-KernelDispatcher (dispatcher.zig) - Compilation, caching, CPU fallback
+KernelDispatcher (src/gpu/dispatcher.zig) - Compilation, caching, CPU fallback
        ↓
-Builtin Kernels (builtin_kernels.zig) - Pre-defined operations via DSL
+Builtin Kernels (src/gpu/builtin_kernels.zig) - Pre-defined operations via DSL
        ↓
-Kernel DSL (dsl/) - Portable IR with code generators
+Kernel DSL (src/gpu/dsl/) - Portable IR with code generators
        ↓
-Backend Factory (backend_factory.zig) - Runtime backend selection
+Backend Factory (src/gpu/backend_factory.zig) - Runtime backend selection
        ↓
-Backend VTables (interface.zig) - Polymorphic dispatch
+Backend VTables (src/gpu/interface.zig) - Polymorphic dispatch
        ↓
-Native Backends (CUDA, Vulkan, Metal, WebGPU, OpenGL, OpenGL ES, WebGL2, stdgpu)
+Native Backends (src/gpu/backends/) - CUDA, Vulkan, Metal, WebGPU, OpenGL, stdgpu
 ```
 
 **GPU Backends Table:**
@@ -241,10 +256,13 @@ Native Backends (CUDA, Vulkan, Metal, WebGPU, OpenGL, OpenGL ES, WebGL2, stdgpu)
 | stdgpu | `-Dgpu-stdgpu` | CPU fallback |
 
 Key GPU files:
-- `src/compute/gpu/unified.zig` - Unified GPU API
-- `src/compute/gpu/dsl/` - Kernel DSL compiler (builder, codegen, optimizer)
-- `src/compute/gpu/backends/` - Backend implementations with vtables
-- `src/compute/gpu/tensor/` - Tensor operations
+- `src/gpu/mod.zig` - Module entry point, exports all public types
+- `src/gpu/unified.zig` - Unified GPU API (Gpu struct, GpuConfig)
+- `src/gpu/dsl/` - Kernel DSL compiler (builder, codegen, optimizer)
+- `src/gpu/backends/` - Backend implementations with vtables
+- `src/gpu/diagnostics.zig` - GPU state debugging (DiagnosticsInfo)
+- `src/gpu/error_handling.zig` - Structured error context (ErrorContext)
+- `src/gpu/failover.zig` - Graceful degradation (FailoverManager)
 
 ### Runtime Infrastructure (`src/runtime/`)
 
@@ -444,7 +462,7 @@ defer {
 ### GPU Profiling
 
 ```zig
-const gpu_profiling = @import("src/compute/gpu/profiling.zig");
+const gpu_profiling = @import("src/gpu/profiling.zig");
 var profiler = gpu_profiling.Profiler.init(allocator);
 defer profiler.deinit(allocator);
 profiler.enable();
@@ -468,15 +486,15 @@ while (retry.shouldRetry()) {
 
 ## Diagnostics and Error Context (2026.01)
 
-New structured diagnostics and error context APIs for debugging production issues.
+Structured diagnostics and error context APIs for debugging production issues.
 
 ### GPU Diagnostics
 
 ```zig
-const gpu_mod = @import("src/compute/gpu/mod.zig");
+const gpu = @import("abi").gpu;  // Or: const gpu = @import("src/gpu/mod.zig");
 
 // Collect comprehensive GPU state
-const diag = gpu_mod.DiagnosticsInfo.collect(allocator);
+const diag = gpu.DiagnosticsInfo.collect(allocator);
 
 // Check health and format for logging
 if (!diag.isHealthy()) {
@@ -484,26 +502,14 @@ if (!diag.isHealthy()) {
     defer allocator.free(msg);
     std.log.warn("{s}", .{msg});
 }
-```
-
-### GPU Error Context
-
-```zig
-const error_handling = @import("src/compute/gpu/error_handling.zig");
 
 // Structured error reporting
-const ctx = error_handling.ErrorContext.init(.backend_error, .cuda, "Kernel launch failed");
-ctx.reportErrorFull(allocator);  // Full context with backend, operation, timestamp
-```
+const ctx = gpu.ErrorContext.init(.backend_error, .cuda, "Kernel launch failed");
+ctx.reportErrorFull(allocator);
 
-### GPU Graceful Degradation
-
-```zig
-const failover = @import("src/compute/gpu/failover.zig");
-
-var manager = failover.FailoverManager.init(allocator);
+// Graceful degradation
+var manager = gpu.FailoverManager.init(allocator);
 manager.setDegradationMode(.automatic);  // Auto-fallback to CPU
-
 if (manager.isDegraded()) {
     std.log.info("Running in CPU fallback mode", .{});
 }
@@ -512,33 +518,27 @@ if (manager.isDegraded()) {
 ### Database Diagnostics
 
 ```zig
-const database = @import("src/features/database/database.zig");
-
-var db = try database.Database.init(allocator, "my-db");
-const diag = db.diagnostics();
-
-// Check memory usage and health
-std.log.info("Vectors: {d}, Memory: {d}KB, Healthy: {}", .{
-    diag.vector_count,
-    diag.memory.total_bytes / 1024,
-    diag.isHealthy(),
-});
+const abi = @import("abi");
+var fw = try abi.init(allocator);
+if (fw.getDatabase()) |db| {
+    const diag = db.diagnostics();
+    std.log.info("Vectors: {d}, Memory: {d}KB, Healthy: {}", .{
+        diag.vector_count,
+        diag.memory.total_bytes / 1024,
+        diag.isHealthy(),
+    });
+}
 ```
 
 ### AI Agent Error Context
 
 ```zig
-const agent = @import("src/features/ai/agent.zig");
-
-// API error with full context
-const ctx = agent.ErrorContext.apiError(
-    agent.AgentError.HttpRequestFailed,
-    .openai,
-    "https://api.openai.com/v1/chat/completions",
-    500,
-    "gpt-4",
-);
-ctx.log();  // Outputs structured error with backend, status, model info
+const abi = @import("abi");
+var fw = try abi.init(allocator);
+if (try fw.getAi()) |ai| {
+    // Use AI context
+}
+// Real implementation: src/features/ai/agent.zig
 ```
 
 ## Reference

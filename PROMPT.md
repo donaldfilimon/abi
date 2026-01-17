@@ -107,8 +107,9 @@ std.debug.print("Final loss: {d:.6}\n", .{result.report.final_loss});
 abi/
 ├── src/
 │   ├── abi.zig          # Public API entry point
+│   ├── gpu/             # GPU acceleration (unified API)
 │   ├── core/            # I/O, diagnostics, collections
-│   ├── compute/         # Runtime, GPU, memory, profiling
+│   ├── compute/         # Runtime, memory, profiling
 │   ├── features/        # AI, database, network, monitoring
 │   ├── framework/       # Lifecycle and orchestration
 │   └── shared/          # Logging, security, utilities
@@ -148,10 +149,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for workflow and [CLAUDE.md](CLAUDE.md) f
 
 The roadmap is split into five independent phases:
 
-1. **GPU Modular Refactor** – complete Phase 3.  
-2. **Documentation Infrastructure** – API generator, architecture diagrams.  
-3. **Benchmark Framework** – runner and vector operation benches.  
-4. **High Availability Infrastructure** – automatic failover and PITR.  
-5. **Ecosystem Packaging** – Docker, GitHub Actions, registry config.
+1. **GPU Modular Refactor** – ✅ Complete (moved to `src/gpu/`).  
+2. **Documentation Infrastructure** – ✅ Complete (API generator, diagrams).  
+3. **Benchmark Framework** – ✅ Complete (runner, competitive benches).  
+4. **High Availability Infrastructure** – ✅ Complete (failover, PITR).  
+5. **Ecosystem Packaging** – ✅ Complete (Docker, Zig registry).
 
 All other open items are tracked in [ROADMAP.md](ROADMAP.md).

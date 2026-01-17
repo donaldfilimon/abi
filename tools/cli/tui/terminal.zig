@@ -111,10 +111,8 @@ pub const Terminal = struct {
 
     pub fn write(self: *Terminal, text: []const u8) !void {
         const io = self.io_backend.io();
-        var buffer: [4096]u8 = undefined;
-        var writer = self.stdout_file.writer(io, &buffer);
-        try writer.interface.writeAll(text);
-        try writer.flush();
+        // Use writeStreamingAll for Zig 0.16 compatibility
+        try self.stdout_file.writeStreamingAll(io, text);
     }
 
     pub fn readEvent(self: *Terminal) !events.Event {

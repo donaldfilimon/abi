@@ -115,3 +115,5 @@ release/
 .nx/workspace-data
 tmpclaude-*-cwd
 tmpclaude-*
+
+nul

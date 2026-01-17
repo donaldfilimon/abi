@@ -2,10 +2,10 @@
 //! Tests search latency and throughput with various configurations.
 
 const std = @import("std");
-const Database = @import("../src/features/database/database.zig").Database;
-const DatabaseConfig = @import("../src/features/database/database.zig").DatabaseConfig;
-const HnswIndex = @import("../src/features/database/hnsw.zig").HnswIndex;
-const index_mod = @import("../src/features/database/index.zig");
+const Database = @import("../src/database/database.zig").Database;
+const DatabaseConfig = @import("../src/database/database.zig").DatabaseConfig;
+const HnswIndex = @import("../src/database/hnsw.zig").HnswIndex;
+const index_mod = @import("../src/database/index.zig");
 
 pub const TOP_K = 10;
 

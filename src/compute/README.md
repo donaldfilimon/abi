@@ -1,85 +1,36 @@
 //! # Compute Module
 //!
 //! High-performance compute engine with work-stealing scheduler and concurrency primitives.
-//! This is the implementation layer for runtime and GPU functionality.
 //!
 //! ## Architecture
 //!
-//! The compute module provides the underlying implementation that is re-exported by:
+//! Re-exported by:
+//! - `src/runtime/` - Framework-integrated runtime (preferred)
+//! - `src/gpu/` - GPU acceleration (separate module)
 //!
-//! - `src/runtime/` - Re-exports from `compute/runtime/` with Framework Context
-//! - `src/gpu/` - Re-exports from `compute/gpu/` with Framework Context
-//!
-//! For Framework-integrated usage, prefer the top-level modules. Use compute/
-//! directly when you need implementation-level access.
+//! **Use top-level modules for Framework integration. Use `compute/` directly for implementation access.**
 //!
 //! ## Features
 //!
-//! - **Work-Stealing Scheduler**: Efficient task distribution across worker threads
-//! - **Concurrency Primitives**: Lock-free queues, stacks, and sharded maps
-//! - **Memory Management**: Arena allocators and memory pools
-//! - **GPU Integration**: Unified GPU/CPU workload execution
-//! - **NUMA Awareness**: Topology detection and thread affinity
-//! - **Profiling**: Built-in metrics collection
-//!
-//! ## Sub-modules
-//!
-//! | Module | Top-Level | Description |
-//! |--------|-----------|-------------|
-//! | `runtime/` | `src/runtime/` | Engine, scheduler, NUMA, cancellation, futures |
-//! | `concurrency/` | (via runtime) | Lock-free queues, work-stealing, priority queues |
-//! | `memory/` | (via runtime) | Arena allocators, memory pools |
-//! | `gpu/` | `src/gpu/` | GPU integration layer and backends |
-//! | `profiling/` | `src/observability/` | Metrics collection (feature-gated) |
+//! - Work-stealing scheduler for efficient task distribution
+//! - Lock-free concurrency primitives (queues, stacks, maps)
+//! - Memory management (arenas, pools)
+//! - NUMA-aware scheduling and CPU affinity
+//! - Futures, cancellation, task groups
 //!
 //! ## Usage
 //!
-//! **Preferred: Using Framework**
-//!
+//! **Framework (preferred):**
 //! ```zig
-//! const abi = @import("abi");
-//!
 //! var fw = try abi.init(allocator);
-//! defer fw.deinit();
-//!
-//! // Get runtime context (always available)
 //! const runtime = fw.getRuntime();
-//!
-//! // Create task groups for parallel work
 //! var group = try runtime.createTaskGroup(.{});
-//! defer group.deinit();
 //! ```
 //!
-//! **Direct access (advanced)**
-//!
+//! **Direct access:**
 //! ```zig
-//! const abi = @import("abi");
-//!
-//! var engine = try abi.compute.createDefaultEngine(allocator);
-//! defer engine.deinit();
-//!
-//! fn myTask(_: std.mem.Allocator) !u32 {
-//!     return 42;
-//! }
-//!
+//! var engine = try abi.compute.createEngine(allocator, .{});
 //! const result = try abi.compute.runTask(&engine, u32, myTask, 1000);
 //! ```
 //!
-//! ## Configuration
-//!
-//! ```zig
-//! const config = abi.compute.EngineConfig{
-//!     .worker_count = 8,
-//!     .numa_enabled = true,
-//!     .cpu_affinity_enabled = true,
-//! };
-//! var engine = try abi.compute.createEngine(allocator, config);
-//! ```
-//!
-//! ## See Also
-//!
-//! - [src/runtime/](../runtime/) - Framework-integrated runtime module
-//! - [src/gpu/](../gpu/) - Framework-integrated GPU module
-//! - [Compute Documentation](../../docs/compute.md)
-//! - [Concurrency Primitives](concurrency/README.md)
-//! - [GPU Layer](gpu/README.md)
+//! See [docs/compute.md](../../docs/compute.md) for details.

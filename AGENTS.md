@@ -271,7 +271,7 @@ See [CLAUDE.md](CLAUDE.md) for detailed debugging guides including GDB/LLDB refe
 | `src/config.zig` | Unified configuration system |
 | `src/framework.zig` | Framework orchestration |
 | `src/runtime/` | Always-on infrastructure |
-| `src/gpu/` | GPU acceleration (re-exports compute/gpu) |
+| `src/gpu/` | GPU acceleration with unified multi-backend API |
 | `src/ai/` | AI module (llm, embeddings, agents, training) |
 | `src/database/` | Vector database (WDBX) |
 | `src/network/` | Distributed compute |

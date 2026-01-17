@@ -139,8 +139,10 @@ fn configBenchmark(allocator: std.mem.Allocator) !void {
     std.mem.doNotOptimizeAway(&config);
 }
 
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
     var suite = benchmark.BenchmarkSuite.init(allocator);
     defer suite.deinit();
