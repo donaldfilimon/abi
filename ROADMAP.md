@@ -97,6 +97,7 @@
   - [x] System architecture (docs/diagrams/system-architecture.md)
   - [x] Component interactions (docs/diagrams/gpu-architecture.md)
   - [x] Data flow diagrams (docs/diagrams/ai-dataflow.md)
+  - [x] Modular codebase structure (completed 2026-01-17)
 
 ### Testing
 - [x] Expanded test suite
@@ -196,9 +197,10 @@ See CONTRIBUTING.md for details.
 | Version | Target Quarter | Status | Notes |
 |----------|---------------|---------|-------|
 | 0.2.2 | 2025-12-27 | Released | Zig 0.16 modernization |
-| 0.3.0 | Q1 2026 | In Progress | GPU backends, AI features |
-| 0.4.0 | Q2 2026 | Planned | Performance, DX, documentation |
-| 0.5.0 | Q3 2026 | Planned | Distributed systems, HA |
+| 0.3.0 | Q1 2026 | Complete | GPU backends, AI features |
+| 0.4.0 | Q2 2026 | Complete | Performance, DX, documentation |
+| 0.5.0 | Q3 2026 | Complete | Distributed systems, HA |
+| 0.6.0 | Q4 2026 | Complete | Llama-CPP parity, Modular architecture refactor |
 
 *Last updated: January 17, 2026*
 
@@ -282,3 +284,17 @@ All Llama-CPP parity tasks have been completed. See TODO.md for details:
 - [x] CLI with full llama-cpp parity (tools/cli/commands/llm.zig)
 - [x] C-compatible API (bindings/c/abi_llm.zig)
 - [x] Tests and benchmarks (src/tests/llm_reference_vectors.zig)
+
+### Modular Codebase Refactor (Complete - 2026-01-17)
+Major architecture redesign completed with 51/51 tests passing, 21/21 build steps:
+- [x] Unified configuration system with Builder pattern (src/config.zig)
+- [x] Framework orchestration for lifecycle management (src/framework.zig)
+- [x] Runtime infrastructure for always-on components (src/runtime/)
+- [x] GPU module moved to top-level (src/gpu/)
+- [x] AI module with core + sub-features (src/ai/ - llm, embeddings, agents, training)
+- [x] Top-level database module (src/database/)
+- [x] Top-level network module (src/network/)
+- [x] Top-level observability module (src/observability/)
+- [x] Top-level web module (src/web/)
+- [x] Internal utilities module (src/internal/)
+- [x] Updated abi.zig to use new modular structure

@@ -61,11 +61,30 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, .{});
-    defer abi.shutdown(&framework);
+    // Using the unified Config with builder pattern
+    const config = abi.Config.init()
+        .withAI(true)
+        .withGPU(true)
+        .withDatabase(true);
+
+    var framework = try abi.Framework.init(allocator, config);
+    defer framework.deinit();
 
     std.debug.print("ABI version: {s}\n", .{abi.version()});
+
+    // Access feature modules through the framework
+    if (framework.ai()) |ai| {
+        // Use AI features
+        _ = ai;
+    }
 }
+```
+
+**Backward-compatible initialization** (re-exports maintain API compatibility):
+
+```zig
+var framework = try abi.init(allocator, .{});
+defer abi.shutdown(&framework);
 ```
 
 ## Training Example
@@ -109,11 +128,20 @@ zig build run -- agent        # AI agent mode
 abi/
 ├── src/
 │   ├── abi.zig          # Public API entry point
-│   ├── core/            # I/O, diagnostics, collections
-│   ├── compute/         # Runtime, GPU, memory, profiling
-│   ├── features/        # AI, database, network, monitoring
-│   ├── framework/       # Lifecycle and orchestration
-│   └── shared/          # Logging, security, utilities
+│   ├── config.zig       # Unified configuration system
+│   ├── framework.zig    # Framework orchestration
+│   ├── runtime/         # Always-on infrastructure (scheduler, memory, concurrency)
+│   ├── gpu/             # GPU backends and unified API
+│   ├── ai/              # AI module with sub-features
+│   │   ├── llm/         # Local LLM inference
+│   │   ├── embeddings/  # Vector embeddings
+│   │   ├── agents/      # AI agent runtime
+│   │   └── training/    # Training pipelines
+│   ├── database/        # Vector database (WDBX)
+│   ├── network/         # Distributed compute and Raft
+│   ├── observability/   # Metrics, tracing, profiling
+│   ├── web/             # Web/HTTP utilities
+│   └── internal/        # Shared utilities and platform helpers
 ├── tools/cli/           # CLI implementation
 ├── benchmarks/          # Performance benchmarks
 └── docs/                # Documentation

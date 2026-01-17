@@ -128,16 +128,25 @@ pub const KernelCache = struct {
     io: std.Io,
     config: KernelCacheConfig,
     entries: std.StringHashMapUnmanaged(CacheEntry),
-    lru_order: std.ArrayListUnmanaged([]const u8),
+    lru_head: ?*LruNode,
+    lru_tail: ?*LruNode,
     current_size: usize,
     mutex: std.Thread.Mutex,
     stats: CacheStats,
+
+    /// LRU doubly-linked list node for O(1) eviction
+    const LruNode = struct {
+        key: []const u8,
+        prev: ?*LruNode,
+        next: ?*LruNode,
+    };
 
     const CacheEntry = struct {
         meta: CacheEntryMeta,
         binary: []u8,
         access_count: u64,
         last_access: i64,
+        lru_node: *LruNode,
     };
 
     /// Initialize the kernel cache.
@@ -147,7 +156,8 @@ pub const KernelCache = struct {
             .io = io,
             .config = config,
             .entries = .{},
-            .lru_order = .{},
+            .lru_head = null,
+            .lru_tail = null,
             .current_size = 0,
             .mutex = .{},
             .stats = .{},
@@ -160,13 +170,11 @@ pub const KernelCache = struct {
         while (iter.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
             self.allocator.free(entry.value_ptr.binary);
+            self.allocator.destroy(entry.value_ptr.lru_node);
         }
         self.entries.deinit(self.allocator);
-
-        for (self.lru_order.items) |key| {
-            _ = key; // Keys already freed above
-        }
-        self.lru_order.deinit(self.allocator);
+        self.lru_head = null;
+        self.lru_tail = null;
         self.* = undefined;
     }
 
@@ -188,6 +196,8 @@ pub const KernelCache = struct {
             entry.access_count += 1;
             entry.last_access = time.unixSeconds();
             self.stats.hits += 1;
+            // Move to front of LRU (most recently used)
+            self.moveToFront(entry.lru_node);
             self.mutex.unlock();
 
             return CachedKernel{
@@ -208,6 +218,11 @@ pub const KernelCache = struct {
         const owned_key = try self.allocator.dupe(u8, key);
         errdefer self.allocator.free(owned_key);
 
+        // Create LRU node
+        const lru_node = try self.allocator.create(LruNode);
+        errdefer self.allocator.destroy(lru_node);
+        lru_node.* = .{ .key = owned_key, .prev = null, .next = null };
+
         var entry_point_buf: [ENTRY_POINT_MAX_LEN]u8 = [_]u8{0} ** ENTRY_POINT_MAX_LEN;
         const ep_len = @min(entry_point.len, ENTRY_POINT_MAX_LEN);
         @memcpy(entry_point_buf[0..ep_len], entry_point[0..ep_len]);
@@ -225,6 +240,7 @@ pub const KernelCache = struct {
             .binary = binary,
             .access_count = 1,
             .last_access = time.unixSeconds(),
+            .lru_node = lru_node,
         };
 
         // Insert into cache
@@ -235,7 +251,7 @@ pub const KernelCache = struct {
         try self.evictIfNeeded(binary.len);
 
         try self.entries.put(self.allocator, owned_key, entry);
-        try self.lru_order.append(self.allocator, owned_key);
+        self.addToFront(lru_node);
         self.current_size += binary.len;
 
         return CachedKernel{
@@ -256,6 +272,8 @@ pub const KernelCache = struct {
             entry.access_count += 1;
             entry.last_access = time.unixSeconds();
             self.stats.hits += 1;
+            // Move to front of LRU (most recently used)
+            self.moveToFront(entry.lru_node);
 
             return CachedKernel{
                 .meta = entry.meta,
@@ -282,6 +300,11 @@ pub const KernelCache = struct {
         const owned_binary = try self.allocator.dupe(u8, binary);
         errdefer self.allocator.free(owned_binary);
 
+        // Create LRU node
+        const lru_node = try self.allocator.create(LruNode);
+        errdefer self.allocator.destroy(lru_node);
+        lru_node.* = .{ .key = key, .prev = null, .next = null };
+
         var entry_point_buf: [ENTRY_POINT_MAX_LEN]u8 = [_]u8{0} ** ENTRY_POINT_MAX_LEN;
         const ep_len = @min(entry_point.len, ENTRY_POINT_MAX_LEN);
         @memcpy(entry_point_buf[0..ep_len], entry_point[0..ep_len]);
@@ -299,6 +322,7 @@ pub const KernelCache = struct {
             .binary = owned_binary,
             .access_count = 0,
             .last_access = time.unixSeconds(),
+            .lru_node = lru_node,
         };
 
         self.mutex.lock();
@@ -309,11 +333,13 @@ pub const KernelCache = struct {
         if (self.entries.fetchRemove(key)) |removed| {
             self.allocator.free(removed.key);
             self.allocator.free(removed.value.binary);
+            self.removeFromLru(removed.value.lru_node);
+            self.allocator.destroy(removed.value.lru_node);
             self.current_size -= removed.value.meta.binary_size;
         }
 
         try self.entries.put(self.allocator, key, entry);
-        try self.lru_order.append(self.allocator, key);
+        self.addToFront(lru_node);
         self.current_size += binary.len;
     }
 
@@ -334,6 +360,8 @@ pub const KernelCache = struct {
         if (self.entries.fetchRemove(key)) |removed| {
             self.allocator.free(removed.key);
             self.allocator.free(removed.value.binary);
+            self.removeFromLru(removed.value.lru_node);
+            self.allocator.destroy(removed.value.lru_node);
             self.current_size -= removed.value.meta.binary_size;
             self.stats.evictions += 1;
             return true;
@@ -350,9 +378,11 @@ pub const KernelCache = struct {
         while (iter.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
             self.allocator.free(entry.value_ptr.binary);
+            self.allocator.destroy(entry.value_ptr.lru_node);
         }
         self.entries.clearRetainingCapacity();
-        self.lru_order.clearRetainingCapacity();
+        self.lru_head = null;
+        self.lru_tail = null;
         self.current_size = 0;
     }
 
@@ -468,16 +498,22 @@ pub const KernelCache = struct {
             const key = try self.allocator.dupe(u8, key_slice);
             errdefer self.allocator.free(key);
 
+            // Create LRU node
+            const lru_node = try self.allocator.create(LruNode);
+            errdefer self.allocator.destroy(lru_node);
+            lru_node.* = .{ .key = key, .prev = null, .next = null };
+
             // Add to cache
             const cache_entry = CacheEntry{
                 .meta = meta,
                 .binary = binary,
                 .access_count = 0,
                 .last_access = time.unixSeconds(),
+                .lru_node = lru_node,
             };
 
             try self.entries.put(self.allocator, key, cache_entry);
-            try self.lru_order.append(self.allocator, key);
+            self.addToFront(lru_node);
             self.current_size += binary.len;
         }
     }
@@ -514,28 +550,69 @@ pub const KernelCache = struct {
 
     fn evictIfNeeded(self: *KernelCache, new_size: usize) !void {
         // Check entry count
-        while (self.entries.count() >= self.config.max_entries and self.lru_order.items.len > 0) {
-            try self.evictLru();
+        while (self.entries.count() >= self.config.max_entries and self.lru_tail != null) {
+            self.evictLru();
         }
 
         // Check size
-        while (self.current_size + new_size > self.config.max_cache_size and self.lru_order.items.len > 0) {
-            try self.evictLru();
+        while (self.current_size + new_size > self.config.max_cache_size and self.lru_tail != null) {
+            self.evictLru();
         }
     }
 
-    fn evictLru(self: *KernelCache) !void {
-        if (self.lru_order.items.len == 0) return;
-
-        // Simple LRU - remove oldest
-        const key = self.lru_order.orderedRemove(0);
+    fn evictLru(self: *KernelCache) void {
+        // Evict from tail (least recently used) - O(1) operation
+        const tail = self.lru_tail orelse return;
+        const key = tail.key;
 
         if (self.entries.fetchRemove(key)) |removed| {
             self.current_size -= removed.value.meta.binary_size;
+            self.removeFromLru(removed.value.lru_node);
             self.allocator.free(removed.value.binary);
+            self.allocator.destroy(removed.value.lru_node);
             self.allocator.free(removed.key);
             self.stats.evictions += 1;
         }
+    }
+
+    /// Add node to front of LRU list (most recently used) - O(1)
+    fn addToFront(self: *KernelCache, node: *LruNode) void {
+        node.prev = null;
+        node.next = self.lru_head;
+
+        if (self.lru_head) |head| {
+            head.prev = node;
+        }
+        self.lru_head = node;
+
+        if (self.lru_tail == null) {
+            self.lru_tail = node;
+        }
+    }
+
+    /// Remove node from LRU list - O(1)
+    fn removeFromLru(self: *KernelCache, node: *LruNode) void {
+        if (node.prev) |prev| {
+            prev.next = node.next;
+        } else {
+            self.lru_head = node.next;
+        }
+
+        if (node.next) |next| {
+            next.prev = node.prev;
+        } else {
+            self.lru_tail = node.prev;
+        }
+
+        node.prev = null;
+        node.next = null;
+    }
+
+    /// Move node to front (most recently used) - O(1)
+    fn moveToFront(self: *KernelCache, node: *LruNode) void {
+        if (self.lru_head == node) return; // Already at front
+        self.removeFromLru(node);
+        self.addToFront(node);
     }
 };
 

@@ -37,13 +37,27 @@ zig build run-discord                  # Run discord example
 
 ### Architecture
 
+The codebase uses a flat domain structure with unified configuration:
+
 ```
 src/
 ├── abi.zig              # Public API entry point
-├── compute/             # GPU, runtime, concurrency, memory
-├── features/            # AI, database, network, monitoring
-├── framework/           # Lifecycle and feature orchestration
-└── shared/              # Utilities, logging, security
+├── config.zig           # Unified configuration system
+├── framework.zig        # Framework orchestration with builder pattern
+├── runtime/             # Always-on infrastructure
+├── gpu/                 # GPU acceleration
+├── ai/                  # AI module (llm/, embeddings/, agents/, training/)
+├── database/            # Vector database (WDBX)
+├── network/             # Distributed compute
+├── observability/       # Metrics, tracing, profiling
+├── web/                 # Web/HTTP utilities
+├── internal/            # Shared utilities
+└── shared/              # Legacy shared utilities
+
+# Legacy (maintained for compatibility)
+├── core/               # I/O, diagnostics
+├── compute/            # Runtime, concurrency
+└── features/           # Legacy feature organization
 
 tools/cli/               # CLI with 16 commands
 benchmarks/              # Performance benchmarks
@@ -53,16 +67,45 @@ docs/                    # Documentation
 
 ### Key Patterns
 
-1. **Feature Gating**: All major features use compile-time flags
+1. **Framework Initialization**:
+   ```zig
+   const abi = @import("abi");
+   
+   // Default init (all compile-time enabled features)
+   var fw = try abi.init(allocator);
+   defer fw.deinit();
+   
+   // Builder pattern
+   var fw = try abi.Framework.builder(allocator)
+       .withGpu(.{ .backend = .vulkan })
+       .withAi(.{ .llm = .{} })
+       .build();
+   defer fw.deinit();
+   
+   // Access features
+   if (fw.isEnabled(.gpu)) {
+       const gpu = try fw.getGpu();
+   }
+   ```
+
+2. **Configuration**: Use `Config` struct or `Builder` pattern
+   ```zig
+   const config = abi.Config{
+       .gpu = .{ .backend = .cuda },
+       .ai = .{ .llm = .{ .model_path = "./model.gguf" } },
+   };
+   ```
+
+3. **Feature Gating**: Compile-time flags with stub modules
    ```zig
    const impl = if (build_options.enable_ai) @import("mod.zig") else @import("stub.zig");
    ```
 
-2. **Module Convention**: `mod.zig` (entry), `stub.zig` (disabled placeholder)
+4. **Module Convention**: `mod.zig` (entry), `stub.zig` (disabled placeholder)
 
-3. **Type Naming**: PascalCase for types (`GpuBuffer`), camelCase for functions
+5. **Type Naming**: PascalCase for types (`GpuBuffer`), camelCase for functions
 
-4. **Memory**: Use `defer`/`errdefer` for cleanup, explicit allocators
+6. **Memory**: Use `defer`/`errdefer` for cleanup, explicit allocators
 
 ## Critical Rules
 
@@ -123,6 +166,20 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 | `-Denable-profiling` | true | Metrics and profiling |
 | `-Denable-explore` | true | Codebase exploration |
 | `-Denable-llm` | true | Local LLM inference |
+
+**Feature enum** (for runtime checking):
+```zig
+pub const Feature = enum {
+    gpu, ai, llm, embeddings, agents, training,
+    database, network, observability, web,
+};
+
+// Check at runtime
+if (fw.isEnabled(.gpu)) { ... }
+
+// Check at compile time
+if (Feature.gpu.isCompileTimeEnabled()) { ... }
+```
 
 See [docs/feature-flags.md](docs/feature-flags.md) for complete reference.
 
@@ -211,9 +268,16 @@ See [CLAUDE.md](CLAUDE.md) for detailed debugging guides including GDB/LLDB refe
 | Directory | Purpose |
 |-----------|---------|
 | `src/abi.zig` | Public API entry point |
-| `src/compute/gpu/` | GPU acceleration (73 files) |
-| `src/features/ai/` | AI/LLM features (147 files) |
-| `src/features/database/` | Vector database (31 files) |
+| `src/config.zig` | Unified configuration system |
+| `src/framework.zig` | Framework orchestration |
+| `src/runtime/` | Always-on infrastructure |
+| `src/gpu/` | GPU acceleration (re-exports compute/gpu) |
+| `src/ai/` | AI module (llm, embeddings, agents, training) |
+| `src/database/` | Vector database (WDBX) |
+| `src/network/` | Distributed compute |
+| `src/observability/` | Metrics, tracing, profiling |
+| `src/web/` | Web/HTTP utilities |
+| `src/internal/` | Shared utilities |
 | `tools/cli/commands/` | CLI command implementations |
 | `benchmarks/` | Performance benchmarks |
 | `examples/` | Example programs |

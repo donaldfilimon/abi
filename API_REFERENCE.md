@@ -9,41 +9,90 @@ implementation details.
 
 ## Core Entry Points
 
-- `abi.init(allocator, config_or_options)` -> `Framework`
-- `abi.shutdown(framework)`
+- `abi.init(allocator, config_or_options)` -> `Framework` (backward-compatible)
+- `abi.shutdown(framework)` (backward-compatible)
 - `abi.version()` -> `[]const u8`
-- `abi.createDefaultFramework(allocator)` -> `Framework`
-- `abi.createFramework(allocator, config_or_options)` -> `Framework`
+- `abi.Framework.init(allocator, config)` -> `!Framework` (new unified API)
+- `abi.Framework.deinit()` (new unified API)
 
-**Example**:
+**New Configuration System** (recommended):
 ```zig
 const std = @import("std");
 const abi = @import("abi");
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
-    var framework = try abi.init(allocator, .{});
-    defer abi.shutdown(&framework);
+
+    // Unified Config with builder pattern
+    const config = abi.Config.init()
+        .withAI(true)
+        .withGPU(true)
+        .withDatabase(true)
+        .withNetwork(false);
+
+    var framework = try abi.Framework.init(allocator, config);
+    defer framework.deinit();
 
     std.debug.print("ABI v{s} initialized\n", .{abi.version()});
+
+    // Access feature modules through the framework
+    if (framework.ai()) |ai| {
+        _ = ai; // Use AI features
+    }
+    if (framework.gpu()) |gpu| {
+        _ = gpu; // Use GPU features
+    }
 }
 ```
 
+**Backward-compatible Example**:
+```zig
+var framework = try abi.init(allocator, .{});
+defer abi.shutdown(&framework);
+```
+
+## Configuration Types
+
+- `abi.Config` - Unified configuration with builder pattern
+  - `.init()` -> `Config` - Create default configuration
+  - `.withAI(bool)` -> `Config` - Enable/disable AI features
+  - `.withGPU(bool)` -> `Config` - Enable/disable GPU acceleration
+  - `.withDatabase(bool)` -> `Config` - Enable/disable vector database
+  - `.withNetwork(bool)` -> `Config` - Enable/disable distributed compute
+  - `.withObservability(bool)` -> `Config` - Enable/disable metrics/tracing
+  - `.withWeb(bool)` -> `Config` - Enable/disable web utilities
+
 ## Framework Types
 
-- `abi.Framework`
-- `abi.FrameworkOptions`
+- `abi.Framework` - Main orchestration struct managing feature lifecycles
+  - `.init(allocator, config)` -> `!Framework`
+  - `.deinit()` - Clean up all resources
+  - `.ai()` -> `?*AI` - Access AI module (if enabled)
+  - `.gpu()` -> `?*GPU` - Access GPU module (if enabled)
+  - `.database()` -> `?*Database` - Access database module (if enabled)
+  - `.network()` -> `?*Network` - Access network module (if enabled)
+  - `.observability()` -> `?*Observability` - Access observability module
+- `abi.FrameworkOptions` (deprecated, use `abi.Config`)
 - `abi.RuntimeConfig`
 - `abi.Feature` and `abi.features.FeatureTag`
 
 ## Feature Namespaces
 
-- `abi.ai` - agent runtime, tools, training pipelines
-- `abi.database` - WDBX database and helpers
-- `abi.gpu` - GPU backends and vector search helpers
+Top-level domain modules (flat structure):
+
+- `abi.ai` - AI module with sub-features
+  - `abi.ai.llm` - Local LLM inference
+  - `abi.ai.embeddings` - Vector embeddings
+  - `abi.ai.agents` - AI agent runtime
+  - `abi.ai.training` - Training pipelines
+- `abi.gpu` - GPU backends and unified API
+- `abi.database` - WDBX vector database
+- `abi.network` - Distributed compute and Raft consensus
 - `abi.web` - HTTP helpers, web utilities
-- `abi.monitoring` - logging, metrics, tracing, profiling
-- `abi.connectors` - connector interfaces and implementations
+- `abi.observability` - Metrics, tracing, profiling (replaces `abi.monitoring`)
+- `abi.connectors` - External connectors (OpenAI, Ollama, HuggingFace)
+
+**Note:** `abi.monitoring` is deprecated; use `abi.observability` instead.
 
 ## WDBX Convenience API
 
@@ -175,11 +224,21 @@ abi.simd.vectorAdd(&a, &b, &result);
 
 ## Modules
 
-- `src/core` - I/O, diagnostics, collections
-- `src/features` - feature modules (AI, GPU, database, web, monitoring, connectors)
-- `src/framework` - orchestration runtime and lifecycle management
-- `src/shared` - shared utilities and platform helpers
-- `src/compute` - compute runtime, memory management, concurrency
+Flat domain structure (new modular architecture):
+
+- `src/abi.zig` - Public API entry point
+- `src/config.zig` - Unified configuration system
+- `src/framework.zig` - Framework orchestration and lifecycle management
+- `src/runtime/` - Always-on infrastructure (scheduler, memory, concurrency)
+- `src/gpu/` - GPU backends and unified API
+- `src/ai/` - AI module with sub-features (llm, embeddings, agents, training)
+- `src/database/` - WDBX vector database
+- `src/network/` - Distributed compute and Raft consensus
+- `src/observability/` - Metrics, tracing, profiling
+- `src/web/` - HTTP helpers and web utilities
+- `src/internal/` - Shared utilities and platform helpers
+
+**Backward Compatibility**: Re-exports in `abi.zig` maintain API compatibility with the previous `features/` and `compute/` structure.
 
 **See Also**:
 - [Introduction](docs/intro.md) - Architecture overview

@@ -4,6 +4,7 @@
 //! strategies for GPU operations.
 
 const std = @import("std");
+const interface = @import("interface.zig");
 
 pub const GpuErrorCode = enum(u32) {
     success = 0,
@@ -39,13 +40,37 @@ pub const GpuErrorType = enum {
     synchronization,
 };
 
+/// Operation context for tracking what was being performed when error occurred.
+pub const OperationContext = enum {
+    none,
+    initialization,
+    device_query,
+    memory_allocation,
+    memory_free,
+    memory_transfer_h2d,
+    memory_transfer_d2h,
+    memory_transfer_d2d,
+    kernel_compile,
+    kernel_launch,
+    kernel_destroy,
+    synchronization,
+    backend_switch,
+    failover,
+};
+
 pub const GpuError = struct {
     code: GpuErrorCode,
     error_type: GpuErrorType,
     message: []const u8,
     backend: ?[]const u8 = null,
+    backend_type: ?interface.BackendType = null,
     device_id: ?i32 = null,
     timestamp: i64 = 0,
+    operation: OperationContext = .none,
+    /// Native error code from backend (e.g., CUDA error code, Vulkan VkResult)
+    native_code: ?i64 = null,
+    /// Additional context like kernel name, buffer size, etc.
+    extra_context: ?[]const u8 = null,
 
     pub fn format(
         self: GpuError,
@@ -61,7 +86,9 @@ pub const GpuError = struct {
             self.code,
         });
 
-        if (self.backend) |b| {
+        if (self.backend_type) |bt| {
+            try writer.print(" [Backend: {s}]", .{bt.name()});
+        } else if (self.backend) |b| {
             try writer.print(" [Backend: {s}]", .{b});
         }
 
@@ -69,13 +96,72 @@ pub const GpuError = struct {
             try writer.print(" [Device: {d}]", .{id});
         }
 
+        if (self.operation != .none) {
+            try writer.print(" [Op: {t}]", .{self.operation});
+        }
+
+        if (self.native_code) |nc| {
+            try writer.print(" [Native: {d}]", .{nc});
+        }
+
         if (self.message.len > 0) {
             try writer.print(": {s}", .{self.message});
+        }
+
+        if (self.extra_context) |ctx| {
+            try writer.print(" ({s})", .{ctx});
         }
 
         if (self.timestamp != 0) {
             try writer.print(" @ {d}", .{self.timestamp});
         }
+    }
+
+    /// Create a simple error with minimal context.
+    pub fn simple(code: GpuErrorCode, error_type: GpuErrorType, message: []const u8) GpuError {
+        return .{
+            .code = code,
+            .error_type = error_type,
+            .message = message,
+        };
+    }
+
+    /// Create an error with backend context.
+    pub fn withBackend(
+        code: GpuErrorCode,
+        error_type: GpuErrorType,
+        message: []const u8,
+        backend_type: interface.BackendType,
+        device_id: ?i32,
+    ) GpuError {
+        return .{
+            .code = code,
+            .error_type = error_type,
+            .message = message,
+            .backend_type = backend_type,
+            .device_id = device_id,
+        };
+    }
+
+    /// Create a fully detailed error.
+    pub fn detailed(
+        code: GpuErrorCode,
+        error_type: GpuErrorType,
+        message: []const u8,
+        backend_type: interface.BackendType,
+        device_id: ?i32,
+        operation: OperationContext,
+        native_code: ?i64,
+    ) GpuError {
+        return .{
+            .code = code,
+            .error_type = error_type,
+            .message = message,
+            .backend_type = backend_type,
+            .device_id = device_id,
+            .operation = operation,
+            .native_code = native_code,
+        };
     }
 };
 
@@ -83,6 +169,10 @@ pub const ErrorContext = struct {
     allocator: std.mem.Allocator,
     errors: std.ArrayListUnmanaged(GpuError),
     max_errors: usize = 100,
+    /// Current backend type for automatic context
+    current_backend: ?interface.BackendType = null,
+    /// Current device ID for automatic context
+    current_device: ?i32 = null,
 
     pub fn init(allocator: std.mem.Allocator) ErrorContext {
         return .{
@@ -91,12 +181,35 @@ pub const ErrorContext = struct {
         };
     }
 
+    /// Initialize with backend context.
+    pub fn initWithBackend(
+        allocator: std.mem.Allocator,
+        backend_type: interface.BackendType,
+        device_id: ?i32,
+    ) ErrorContext {
+        return .{
+            .allocator = allocator,
+            .errors = std.ArrayListUnmanaged(GpuError).empty,
+            .current_backend = backend_type,
+            .current_device = device_id,
+        };
+    }
+
     pub fn deinit(self: *ErrorContext) void {
         for (self.errors.items) |*err| {
             self.allocator.free(err.message);
+            if (err.extra_context) |ctx| {
+                self.allocator.free(ctx);
+            }
         }
         self.errors.deinit(self.allocator);
         self.* = undefined;
+    }
+
+    /// Set the current backend context for automatic error attribution.
+    pub fn setBackendContext(self: *ErrorContext, backend_type: interface.BackendType, device_id: ?i32) void {
+        self.current_backend = backend_type;
+        self.current_device = device_id;
     }
 
     pub const ReportError = error{
@@ -109,27 +222,77 @@ pub const ErrorContext = struct {
         error_type: GpuErrorType,
         message: []const u8,
     ) ReportError!void {
+        try self.reportErrorFull(code, error_type, message, .none, null, null);
+    }
+
+    /// Report an error with full context.
+    pub fn reportErrorFull(
+        self: *ErrorContext,
+        code: GpuErrorCode,
+        error_type: GpuErrorType,
+        message: []const u8,
+        operation: OperationContext,
+        native_code: ?i64,
+        extra_context: ?[]const u8,
+    ) ReportError!void {
         if (self.errors.items.len >= self.max_errors) {
             const last_index = self.errors.items.len - 1;
             self.allocator.free(self.errors.items[last_index].message);
+            if (self.errors.items[last_index].extra_context) |ctx| {
+                self.allocator.free(ctx);
+            }
             _ = self.errors.swapRemove(last_index);
         }
 
         const msg_copy = try self.allocator.dupe(u8, message);
         errdefer self.allocator.free(msg_copy);
 
-        // Simple monotonic timestamp for error tracking
-        // Use 0 for now; could use Timer for relative timestamps if needed
-        const timestamp: i64 = 0;
+        const extra_copy: ?[]const u8 = if (extra_context) |ctx|
+            try self.allocator.dupe(u8, ctx)
+        else
+            null;
+        errdefer if (extra_copy) |ctx| self.allocator.free(ctx);
 
         const gpu_error = GpuError{
             .code = code,
             .error_type = error_type,
             .message = msg_copy,
-            .timestamp = timestamp,
+            .backend_type = self.current_backend,
+            .device_id = self.current_device,
+            .operation = operation,
+            .native_code = native_code,
+            .extra_context = extra_copy,
+            .timestamp = std.time.milliTimestamp(),
         };
 
         try self.errors.append(self.allocator, gpu_error);
+    }
+
+    /// Report a memory error with size context.
+    pub fn reportMemoryError(
+        self: *ErrorContext,
+        code: GpuErrorCode,
+        message: []const u8,
+        operation: OperationContext,
+        size: ?usize,
+    ) ReportError!void {
+        var buf: [64]u8 = undefined;
+        const extra: ?[]const u8 = if (size) |s|
+            std.fmt.bufPrint(&buf, "size={d}", .{s}) catch null
+        else
+            null;
+        try self.reportErrorFull(code, .memory, message, operation, null, extra);
+    }
+
+    /// Report a kernel error with kernel name context.
+    pub fn reportKernelError(
+        self: *ErrorContext,
+        code: GpuErrorCode,
+        message: []const u8,
+        operation: OperationContext,
+        kernel_name: ?[]const u8,
+    ) ReportError!void {
+        try self.reportErrorFull(code, .kernel, message, operation, null, kernel_name);
     }
 
     pub fn getLastError(self: *const ErrorContext) ?GpuError {

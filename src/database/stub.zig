@@ -13,7 +13,13 @@ pub const Error = error{
 
 pub const Database = struct {};
 pub const helpers = struct {};
-pub const cli = struct {};
+pub const cli = struct {
+    pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) Error!void {
+        _ = allocator;
+        _ = args;
+        return error.DatabaseDisabled;
+    }
+};
 pub const http = struct {};
 pub const wdbx = struct {};
 

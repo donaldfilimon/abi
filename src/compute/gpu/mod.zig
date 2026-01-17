@@ -79,6 +79,14 @@ pub const failover = @import("failover.zig");
 pub const RecoveryManager = recovery.RecoveryManager;
 pub const FailoverManager = failover.FailoverManager;
 
+// Diagnostics and error handling
+pub const diagnostics = @import("diagnostics.zig");
+pub const error_handling = @import("error_handling.zig");
+pub const DiagnosticsInfo = diagnostics.DiagnosticsInfo;
+pub const ErrorContext = error_handling.ErrorContext;
+pub const GpuErrorCode = error_handling.GpuErrorCode;
+pub const GpuErrorType = error_handling.GpuErrorType;
+
 const build_options = @import("build_options");
 
 // Import lifecycle management from shared utils

@@ -642,6 +642,141 @@ fn executeCpuMatrixMultiply(
 }
 
 // ============================================================================
+// Batched Dispatcher for Small Operations
+// ============================================================================
+
+/// Batched operation for deferred execution.
+pub const BatchedOp = struct {
+    kernel: CompiledKernelHandle,
+    config: LaunchConfig,
+    buffers: [8]*Buffer, // Fixed-size to avoid allocation
+    buffer_count: u8,
+};
+
+/// Batched dispatcher that collects small operations and executes them together.
+/// This reduces dispatch overhead for many small kernel launches.
+pub const BatchedDispatcher = struct {
+    allocator: std.mem.Allocator,
+    inner: *KernelDispatcher,
+    pending_ops: std.ArrayListUnmanaged(BatchedOp),
+    batch_threshold: usize,
+    auto_flush_size: usize,
+
+    const Self = @This();
+
+    /// Minimum elements before considering an op "small" enough to batch
+    pub const SMALL_OP_THRESHOLD: usize = 4096;
+
+    /// Initialize batched dispatcher wrapping a KernelDispatcher.
+    pub fn init(allocator: std.mem.Allocator, dispatcher: *KernelDispatcher) Self {
+        return .{
+            .allocator = allocator,
+            .inner = dispatcher,
+            .pending_ops = .{},
+            .batch_threshold = SMALL_OP_THRESHOLD,
+            .auto_flush_size = 32, // Auto-flush after 32 pending ops
+        };
+    }
+
+    /// Deinitialize and flush any pending operations.
+    pub fn deinit(self: *Self) void {
+        // Flush remaining ops (ignore errors during cleanup)
+        self.flush() catch {};
+        self.pending_ops.deinit(self.allocator);
+    }
+
+    /// Queue an operation for batched execution.
+    /// Small operations are queued; large operations execute immediately.
+    pub fn queue(
+        self: *Self,
+        kernel: CompiledKernelHandle,
+        config: LaunchConfig,
+        args: KernelArgs,
+    ) DispatchError!void {
+        const elements = @as(usize, config.global_size[0]) *
+            @as(usize, config.global_size[1]) *
+            @as(usize, config.global_size[2]);
+
+        // Large operations execute immediately
+        if (elements >= self.batch_threshold) {
+            _ = try self.inner.execute(kernel, config, args);
+            return;
+        }
+
+        // Queue small operation
+        if (args.buffers.len > 8) {
+            // Too many buffers, execute immediately
+            _ = try self.inner.execute(kernel, config, args);
+            return;
+        }
+
+        var op = BatchedOp{
+            .kernel = kernel,
+            .config = config,
+            .buffers = undefined,
+            .buffer_count = @intCast(args.buffers.len),
+        };
+
+        for (args.buffers, 0..) |buf, i| {
+            op.buffers[i] = buf;
+        }
+
+        self.pending_ops.append(self.allocator, op) catch return DispatchError.OutOfMemory;
+
+        // Auto-flush if we have enough pending ops
+        if (self.pending_ops.items.len >= self.auto_flush_size) {
+            try self.flush();
+        }
+    }
+
+    /// Execute all pending operations in a batch.
+    pub fn flush(self: *Self) DispatchError!void {
+        if (self.pending_ops.items.len == 0) return;
+
+        // Sync all input buffers to device once
+        for (self.pending_ops.items) |*op| {
+            for (op.buffers[0..op.buffer_count]) |buf| {
+                if (buf.isHostDirty()) {
+                    buf.toDevice() catch |err| {
+                        std.log.warn("Failed to sync buffer: {}", .{err});
+                        return DispatchError.BufferNotReady;
+                    };
+                }
+            }
+        }
+
+        // Execute all ops
+        for (self.pending_ops.items) |*op| {
+            const args = KernelArgs{
+                .buffers = op.buffers[0..op.buffer_count],
+            };
+            _ = self.inner.execute(op.kernel, op.config, args) catch |err| {
+                std.log.warn("Batched op failed: {}", .{err});
+                // Continue with remaining ops
+            };
+        }
+
+        // Clear pending ops
+        self.pending_ops.clearRetainingCapacity();
+    }
+
+    /// Get number of pending operations.
+    pub fn pendingCount(self: *const Self) usize {
+        return self.pending_ops.items.len;
+    }
+
+    /// Set the threshold for what constitutes a "small" operation.
+    pub fn setBatchThreshold(self: *Self, threshold: usize) void {
+        self.batch_threshold = threshold;
+    }
+
+    /// Set when to auto-flush pending operations.
+    pub fn setAutoFlushSize(self: *Self, size: usize) void {
+        self.auto_flush_size = size;
+    }
+};
+
+// ============================================================================
 // Tests
 // ============================================================================
 

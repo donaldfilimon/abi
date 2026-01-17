@@ -25,8 +25,22 @@ const std = @import("std");
 const backend_mod = @import("backend.zig");
 const recovery = @import("recovery.zig");
 const time = @import("../../shared/utils/time.zig");
+const interface = @import("interface.zig");
+const error_handling = @import("error_handling.zig");
 
 pub const Backend = backend_mod.Backend;
+
+/// Degradation mode for graceful fallback.
+pub const DegradationMode = enum {
+    /// No degradation - fail on GPU errors.
+    none,
+    /// Warn but continue with CPU fallback.
+    warn_and_continue,
+    /// Silent fallback to CPU.
+    silent,
+    /// Automatic - degrade if CPU fallback available.
+    automatic,
+};
 
 /// Failover configuration.
 pub const FailoverConfig = struct {
@@ -46,6 +60,10 @@ pub const FailoverConfig = struct {
     primary_health_check_interval_ms: u64 = 30_000,
     /// Callback on failover events.
     on_failover: ?*const fn (FailoverEvent) void = null,
+    /// Degradation mode for graceful fallback.
+    degradation_mode: DegradationMode = .automatic,
+    /// Always include CPU fallback as last resort.
+    ensure_cpu_fallback: bool = true,
 };
 
 /// Failover event types.
@@ -359,7 +377,207 @@ pub const FailoverManager = struct {
             .current_backend = self.current_backend,
             .is_on_primary = self.current_backend == self.config.primary_backend,
             .backends_exhausted = self.findNextAvailableBackend() == null,
+            .is_degraded = self.current_backend == .stdgpu and self.config.primary_backend != .stdgpu,
+            .degradation_mode = self.config.degradation_mode,
         };
+    }
+
+    // ========================================================================
+    // Graceful Degradation
+    // ========================================================================
+
+    /// Check if graceful degradation to CPU is available.
+    pub fn canDegradeToCpu(self: *const FailoverManager) bool {
+        if (self.config.degradation_mode == .none) {
+            return false;
+        }
+
+        // Check if stdgpu is in the failover chain or ensure_cpu_fallback is enabled
+        if (self.config.ensure_cpu_fallback) {
+            return true;
+        }
+
+        for (self.config.failover_chain) |backend| {
+            if (backend == .stdgpu) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// Check if currently running in degraded mode (CPU fallback).
+    pub fn isDegraded(self: *const FailoverManager) bool {
+        return self.current_backend == .stdgpu and self.config.primary_backend != .stdgpu;
+    }
+
+    /// Gracefully degrade to CPU fallback.
+    /// Returns true if degradation occurred, false if already on CPU or degradation disabled.
+    pub fn degradeToCpu(self: *FailoverManager, reason: FailoverReason) FailoverError!bool {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        // Already on CPU fallback
+        if (self.current_backend == .stdgpu) {
+            return false;
+        }
+
+        // Check if degradation is allowed
+        if (self.config.degradation_mode == .none) {
+            return FailoverError.NoAvailableBackend;
+        }
+
+        // Force switch to stdgpu
+        const from_backend = self.current_backend;
+        const start_time = time.unixMilliseconds();
+
+        // Mark current backend as failed
+        if (self.backend_states.getPtr(from_backend)) |state| {
+            state.status = .failed;
+            state.cooldown_until = start_time + @as(i64, @intCast(self.config.backend_cooldown_ms));
+        }
+
+        // Ensure stdgpu is in backend_states
+        if (self.backend_states.getPtr(.stdgpu) == null) {
+            self.backend_states.put(self.allocator, .stdgpu, .{
+                .status = .available,
+                .failure_count = 0,
+                .last_failure_time = 0,
+                .cooldown_until = 0,
+                .last_used_time = 0,
+            }) catch return FailoverError.BackendInitFailed;
+        }
+
+        // Notify based on degradation mode
+        if (self.config.degradation_mode == .warn_and_continue or
+            self.config.degradation_mode == .automatic)
+        {
+            self.notifyEvent(.{
+                .failover_started = .{
+                    .from = from_backend,
+                    .to = .stdgpu,
+                    .reason = reason,
+                },
+            });
+        }
+
+        // Switch to CPU fallback
+        self.current_backend = .stdgpu;
+        if (self.backend_states.getPtr(.stdgpu)) |state| {
+            state.status = .active;
+            state.last_used_time = start_time;
+        }
+
+        const duration = @as(u64, @intCast(time.unixMilliseconds() - start_time));
+
+        // Record history
+        self.failover_history.append(self.allocator, .{
+            .timestamp = start_time,
+            .from_backend = from_backend,
+            .to_backend = .stdgpu,
+            .reason = reason,
+            .success = true,
+            .duration_ms = duration,
+        }) catch {};
+
+        // Notify completion (unless silent mode)
+        if (self.config.degradation_mode != .silent) {
+            self.notifyEvent(.{
+                .failover_completed = .{
+                    .from = from_backend,
+                    .to = .stdgpu,
+                    .duration_ms = duration,
+                },
+            });
+        }
+
+        return true;
+    }
+
+    /// Attempt to upgrade from CPU fallback to a GPU backend.
+    /// Useful for periodic retry of GPU backends after degradation.
+    pub fn attemptUpgrade(self: *FailoverManager) FailoverError!bool {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        // Only attempt if currently on CPU fallback
+        if (self.current_backend != .stdgpu) {
+            return false;
+        }
+
+        const now = time.unixMilliseconds();
+
+        // Try primary first if cooldown expired
+        if (self.backend_states.get(self.config.primary_backend)) |state| {
+            if (state.cooldown_until <= now and state.status != .unavailable) {
+                return self.switchToBackendLocked(self.config.primary_backend);
+            }
+        }
+
+        // Try other backends in failover chain (excluding stdgpu)
+        for (self.config.failover_chain) |backend| {
+            if (backend == .stdgpu) continue;
+            if (self.backend_states.get(backend)) |state| {
+                if (state.cooldown_until <= now and state.status != .unavailable) {
+                    return self.switchToBackendLocked(backend);
+                }
+            }
+        }
+
+        return false;
+    }
+
+    fn switchToBackendLocked(self: *FailoverManager, to_backend: Backend) FailoverError!bool {
+        const from_backend = self.current_backend;
+        const start_time = time.unixMilliseconds();
+
+        // Mark current as available
+        if (self.backend_states.getPtr(from_backend)) |state| {
+            state.status = .available;
+        }
+
+        // Activate new backend
+        if (self.backend_states.getPtr(to_backend)) |state| {
+            state.status = .active;
+            state.failure_count = 0;
+            state.last_used_time = start_time;
+        }
+
+        self.current_backend = to_backend;
+
+        self.notifyEvent(.{
+            .failover_completed = .{
+                .from = from_backend,
+                .to = to_backend,
+                .duration_ms = 0,
+            },
+        });
+
+        return true;
+    }
+
+    /// Mark a backend as permanently unavailable.
+    pub fn markBackendUnavailable(self: *FailoverManager, backend: Backend) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        if (self.backend_states.getPtr(backend)) |state| {
+            state.status = .unavailable;
+        }
+    }
+
+    /// Mark a backend as available again.
+    pub fn markBackendAvailable(self: *FailoverManager, backend: Backend) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        if (self.backend_states.getPtr(backend)) |state| {
+            if (state.status == .unavailable) {
+                state.status = .available;
+                state.failure_count = 0;
+                state.cooldown_until = 0;
+            }
+        }
     }
 };
 
@@ -369,6 +587,8 @@ pub const FailoverStats = struct {
     current_backend: Backend,
     is_on_primary: bool,
     backends_exhausted: bool,
+    is_degraded: bool,
+    degradation_mode: DegradationMode,
 };
 
 // ============================================================================

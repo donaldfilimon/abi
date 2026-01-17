@@ -19,7 +19,13 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, .{});
+    // Using the new Config builder pattern
+    var config = abi.Config.init()
+        .enableAi(true)
+        .enableGpu(true)
+        .build();
+
+    var framework = try abi.init(allocator, config);
     defer abi.shutdown(&framework);
 
     std.debug.print("ABI v{s} ready\n", .{abi.version()});
@@ -48,7 +54,7 @@ zig build run -- --help             # CLI help
 
 | Feature | Build Flag | Description |
 |---------|------------|-------------|
-| [AI & Agents](ai.md) | `-Denable-ai` | LLM connectors, agents, training, federated learning |
+| [AI & Agents](ai.md) | `-Denable-ai` | LLM, embeddings, agents, training (sub-features) |
 | [Compute Engine](compute.md) | (always enabled) | Work-stealing scheduler, task execution, NUMA |
 | [Database (WDBX)](database.md) | `-Denable-database` | Vector database, HNSW indexing, hybrid search |
 | [GPU Acceleration](gpu.md) | `-Denable-gpu` | Unified API, DSL, CUDA/Vulkan/Metal/WebGPU backends |
@@ -71,7 +77,7 @@ zig build run -- --help             # CLI help
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Quick reference for AI agents (coding patterns, style guidelines, testing) |
 | [CLAUDE.md](../CLAUDE.md) | Comprehensive development guide (architecture, patterns, CLI) |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Contribution workflow and style conventions |
-| [TODO.md](../TODO.md) | Pending implementations and Llama‑CPP parity tasks |
+| [TODO.md](../TODO.md) | Pending implementations and Llama-CPP parity tasks |
 | [ROADMAP.md](../ROADMAP.md) | Future milestones and project planning |
 
 ---
@@ -124,26 +130,44 @@ zig build run -- system-info                 # System status
 
 ## Architecture Overview
 
+The codebase uses a flat domain structure with clear separation of concerns:
+
 ```
-abi/
-├── src/
-│   ├── abi.zig          # Public API entry point
-│   ├── framework/       # Lifecycle, configuration
-│   ├── compute/         # Engine, GPU, memory, concurrency
-│   ├── features/        # AI, database, monitoring, network
-│   └── shared/          # Utilities, logging, security
-├── tools/cli/           # CLI implementation
-├── benchmarks/          # Performance benchmarks
-├── examples/            # Example programs
-└── docs/                # Documentation
+src/
+├── abi.zig              # Public API entry point: init(), shutdown(), version()
+├── config.zig           # Unified configuration system with builder pattern
+├── framework.zig        # Framework orchestration and lifecycle management
+├── runtime/             # Always-on infrastructure (memory, scheduling)
+├── gpu/                 # GPU acceleration (unified API, backends, DSL)
+├── ai/                  # AI module with sub-features
+│   ├── core/            # Core AI primitives (embeddings, inference)
+│   ├── llm/             # LLM sub-feature (GGUF, quantization)
+│   ├── embeddings/      # Embeddings sub-feature
+│   ├── agents/          # Agents sub-feature
+│   ├── training/        # Training sub-feature (checkpoints, federated)
+│   └── connectors/      # External provider connectors
+├── database/            # WDBX vector database
+├── network/             # Distributed compute
+├── observability/       # Metrics, tracing, profiling
+├── web/                 # Web/HTTP utilities
+└── internal/            # Shared utilities (logging, security, platform)
+
+tools/cli/               # CLI implementation (commands/, tui/)
+benchmarks/              # Performance benchmarks
+examples/                # Example programs
+docs/                    # Documentation
 ```
 
-**Layers:**
+**Key Components:**
+
 1. **Public API** (`abi.zig`) - Entry point with `init()`, `shutdown()`, `version()`
-2. **Framework** - Feature orchestration and lifecycle management
-3. **Compute Engine** - Work-stealing scheduler, GPU integration, memory arenas
-4. **Feature Stacks** - AI, database, GPU, network, monitoring modules
-5. **Shared Utilities** - Platform abstractions, SIMD, crypto, filesystem
+2. **Config** (`config.zig`) - Unified configuration with builder pattern
+3. **Framework** (`framework.zig`) - Feature orchestration and lifecycle management
+4. **Runtime** - Always-on infrastructure for memory and task scheduling
+5. **GPU** - Top-level GPU acceleration module with unified API
+6. **AI** - Modular AI with independent sub-features (llm, embeddings, agents, training)
+7. **Domain Modules** - Database, network, observability, web at top level
+8. **Internal** - Shared utilities, platform abstractions, security
 
 ---
 

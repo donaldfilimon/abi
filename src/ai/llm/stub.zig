@@ -20,8 +20,17 @@ pub const InferenceConfig = struct {};
 pub const GgufFile = struct {};
 pub const BpeTokenizer = struct {};
 
+// Sub-module stubs (for API parity with mod.zig)
+pub const io = struct {};
+pub const model = struct {};
+pub const tensor = struct {};
+pub const tokenizer = struct {};
+pub const ops = struct {};
+pub const cache = struct {};
+pub const generation = struct {};
+
 pub const Context = struct {
-    pub fn init(_: std.mem.Allocator, _: config_module.LlmConfig) Error!*Context {
+    pub fn init(_: std.mem.Allocator, _: config_module.LlmConfig) error{LlmDisabled}!*Context {
         return error.LlmDisabled;
     }
 

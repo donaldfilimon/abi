@@ -81,18 +81,18 @@ const SizeClassBucket = struct {
     }
 
     fn allocate(self: *SizeClassBucket, size: usize, flags: memory.BufferFlags) !*memory.GpuBuffer {
-        // Try to reuse from free list
+        // Try to reuse from free list - find the metadata index first
         if (self.free_list) |meta| {
-            self.free_list = meta.next_free;
-            meta.used = true;
-            meta.next_free = null;
-            self.total_used += meta.size;
-
-            // Find corresponding buffer
-            for (self.allocations.items) |*buf| {
-                if (buf.size == meta.size) {
-                    return buf;
-                }
+            // Find the index of this metadata entry
+            const meta_idx = self.findMetadataIndex(meta);
+            if (meta_idx) |idx| {
+                self.free_list = meta.next_free;
+                meta.used = true;
+                meta.next_free = null;
+                self.total_used += size;
+                // Update the stored size for this reuse
+                self.metadata.items[idx].size = size;
+                return &self.allocations.items[idx];
             }
         }
 
@@ -114,6 +114,13 @@ const SizeClassBucket = struct {
         self.total_used += size;
 
         return &self.allocations.items[self.allocations.items.len - 1];
+    }
+
+    fn findMetadataIndex(self: *SizeClassBucket, meta: *AllocationMeta) ?usize {
+        for (self.metadata.items, 0..) |*m, i| {
+            if (m == meta) return i;
+        }
+        return null;
     }
 
     fn free(self: *SizeClassBucket, buffer: *memory.GpuBuffer) bool {
@@ -335,9 +342,22 @@ pub const AdvancedMemoryPool = struct {
     }
 
     fn shouldCoalesce(self: *const AdvancedMemoryPool) bool {
-        const utilization = @as(f64, @floatFromInt(self.total_size)) /
-            @as(f64, @floatFromInt(self.config.max_total_size));
-        return utilization > 0.8 and (self.allocation_count % 100 == 0);
+        // Coalesce when:
+        // 1. Fragmentation is high (>30% internal fragmentation)
+        // 2. OR utilization is high and we've done enough frees to warrant cleanup
+        const frag = self.calculateFragmentation();
+        const utilization = if (self.config.max_total_size > 0)
+            @as(f64, @floatFromInt(self.total_size)) / @as(f64, @floatFromInt(self.config.max_total_size))
+        else
+            0.0;
+
+        // High fragmentation triggers coalesce
+        if (frag > 0.3) return true;
+
+        // High utilization + significant free activity
+        if (utilization > 0.7 and self.free_count > 0 and self.free_count % 50 == 0) return true;
+
+        return false;
     }
 
     fn coalesceAll(self: *AdvancedMemoryPool) void {

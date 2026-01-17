@@ -104,24 +104,98 @@ Use `zig build check-wasm` to verify WASM compilation without full build.
 
 ## Architecture
 
+The codebase uses a flat domain structure with unified configuration and framework orchestration.
+
 ```
 src/
 ├── abi.zig              # Public API entry point: init(), shutdown(), version()
-├── core/                # I/O, diagnostics, collections
-├── compute/             # Runtime, concurrency, gpu, memory, profiling
-│   └── gpu/             # Multi-backend GPU acceleration (73 files)
-├── features/            # ai/, vision/, agent/, training/, database/, network/, connectors/
-│   └── ai/              # LLM, agents, training (147 files)
-├── framework/           # Lifecycle management and feature orchestration
-└── shared/              # logging/, observability/, security/, utils/, platform/
+├── config.zig           # Unified configuration system
+├── framework.zig        # Framework orchestration with builder pattern
+├── runtime/             # Always-on infrastructure (task execution, scheduling)
+├── gpu/                 # GPU acceleration (re-exports from compute/gpu)
+├── ai/                  # AI module with sub-features
+│   ├── llm/            # Local LLM inference
+│   ├── embeddings/     # Vector embeddings generation
+│   ├── agents/         # AI agent runtime
+│   ├── training/       # Training pipelines
+│   └── core/           # Shared AI utilities
+├── database/           # Vector database (WDBX)
+├── network/            # Distributed compute
+├── observability/      # Metrics, tracing, profiling
+├── web/                # Web/HTTP utilities
+├── internal/           # Shared utilities (logging, plugins, platform, simd)
+└── shared/             # Legacy shared utilities
 
 tools/cli/               # CLI implementation (commands/, tui/)
 bindings/wasm/           # WASM bindings entry point
 benchmarks/              # Performance benchmarks
 examples/                # Example programs
+
+# Legacy directories (maintained for compatibility)
+├── core/               # I/O, diagnostics, collections
+├── compute/            # Runtime, concurrency, memory, profiling
+└── features/           # Legacy feature organization
 ```
 
 **Module Convention:** Each feature uses `mod.zig` (entry point), `stub.zig` (feature-gated placeholder)
+
+### Framework Initialization Patterns
+
+The framework supports multiple initialization styles:
+
+```zig
+const abi = @import("abi");
+
+// 1. Default initialization (all compile-time enabled features)
+var fw = try abi.init(allocator);
+defer fw.deinit();
+
+// 2. Struct literal configuration
+var fw = try abi.init(allocator, .{
+    .gpu = .{ .backend = .vulkan },
+    .ai = .{ .llm = .{} },
+});
+defer fw.deinit();
+
+// 3. Builder pattern (fluent API)
+var fw = try abi.Framework.builder(allocator)
+    .withGpu(.{ .backend = .cuda })
+    .withAi(.{ .llm = .{ .model_path = "./models/llama.gguf" } })
+    .withDatabase(.{ .path = "./data" })
+    .build();
+defer fw.deinit();
+
+// 4. Access features via framework
+if (fw.isEnabled(.gpu)) {
+    const gpu_ctx = try fw.getGpu();
+    // Use GPU context
+}
+
+const ai_ctx = try fw.getAi();
+const runtime = fw.getRuntime(); // Always available
+```
+
+### Configuration System (`src/config.zig`)
+
+The `Config` struct is the single source of truth for all framework settings:
+
+```zig
+pub const Config = struct {
+    gpu: ?GpuConfig = null,           // GPU acceleration
+    ai: ?AiConfig = null,             // AI with sub-features (llm, embeddings, agents, training)
+    database: ?DatabaseConfig = null,  // Vector database
+    network: ?NetworkConfig = null,    // Distributed compute
+    observability: ?ObservabilityConfig = null,  // Metrics, tracing
+    web: ?WebConfig = null,           // HTTP utilities
+    plugins: PluginConfig = .{},
+};
+
+// Feature checking
+if (config.isEnabled(.llm)) { ... }
+
+// Get enabled features list
+const features = try config.enabledFeatures(allocator);
+```
 
 ### Feature Gating Pattern
 
@@ -172,6 +246,14 @@ Key GPU files:
 - `src/compute/gpu/backends/` - Backend implementations with vtables
 - `src/compute/gpu/tensor/` - Tensor operations
 
+### Runtime Infrastructure (`src/runtime/`)
+
+The runtime module provides always-available infrastructure:
+
+- **Context** - Runtime orchestration handle
+- **Task execution** - Work scheduling and management
+- Integrated with framework lifecycle
+
 ### Concurrency Primitives (`src/compute/`)
 
 - `WorkStealingQueue` - Owner LIFO, thieves FIFO
@@ -179,7 +261,7 @@ Key GPU files:
 - `PriorityQueue` - Lock-free task scheduling
 - `ShardedMap` - Partitioned data structure reducing contention
 
-### Runtime (`src/compute/runtime/`)
+### Legacy Runtime (`src/compute/runtime/`)
 
 - `Future` - Async results with `.then()`, `.catch()`, `.finally()`
 - `CancellationToken` - Cooperative cancellation

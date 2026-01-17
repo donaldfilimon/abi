@@ -5,19 +5,55 @@
 
 The **AI** module (`abi.ai`) provides the building blocks for creating autonomous agents and connecting to LLM providers.
 
+## Architecture
+
+The AI module uses a modular architecture with a core module and independent sub-features:
+
+```
+src/ai/
+├── mod.zig              # AI module entry point (core)
+├── core/                # Core AI primitives
+│   ├── embeddings.zig   # Embedding generation
+│   ├── inference.zig    # Inference engine
+│   └── tokenizer.zig    # Tokenization
+├── llm/                 # LLM sub-feature
+│   ├── mod.zig          # LLM entry point
+│   ├── gguf.zig         # GGUF model loading
+│   └── quantization.zig # Quantization support
+├── embeddings/          # Embeddings sub-feature
+│   ├── mod.zig          # Embeddings entry point
+│   └── models/          # Embedding models
+├── agents/              # Agents sub-feature
+│   ├── mod.zig          # Agent entry point
+│   ├── agent.zig        # Agent implementation
+│   └── prompts/         # Prompt templates
+├── training/            # Training sub-feature
+│   ├── mod.zig          # Training entry point
+│   ├── trainer.zig      # Training loop
+│   ├── checkpoint.zig   # Checkpointing
+│   └── federated.zig    # Federated learning
+└── connectors/          # External provider connectors
+    ├── openai.zig       # OpenAI API
+    ├── ollama.zig       # Ollama local inference
+    ├── huggingface.zig  # HuggingFace API
+    └── discord.zig      # Discord Bot API
+```
+
+Each sub-feature (llm, embeddings, agents, training) can be independently enabled or disabled, and they share the core primitives.
+
 ## Connectors
 
 Connectors provide a unified interface to various model providers and platforms.
 
 ### Model Providers
 
-- **OpenAI** (`abi.connectors.openai`) - GPT-4, GPT-3.5, embeddings
-- **Ollama** (`abi.connectors.ollama`) - Local LLM inference
-- **HuggingFace** (`abi.connectors.huggingface`) - Inference API
+- **OpenAI** (`abi.ai.connectors.openai`) - GPT-4, GPT-3.5, embeddings
+- **Ollama** (`abi.ai.connectors.ollama`) - Local LLM inference
+- **HuggingFace** (`abi.ai.connectors.huggingface`) - Inference API
 
 ### Platform Integrations
 
-- **Discord** (`abi.connectors.discord`) - Discord Bot API for messaging, webhooks, and interactions
+- **Discord** (`abi.ai.connectors.discord`) - Discord Bot API for messaging, webhooks, and interactions
 
 ### Configuration
 
@@ -27,12 +63,45 @@ Connectors are typically configured via environment variables for security.
 - `ABI_OLLAMA_HOST` - Ollama server URL (default: `http://127.0.0.1:11434`)
 - `DISCORD_BOT_TOKEN` - Discord bot authentication token
 
-## Training
-The training pipeline (`abi.ai.training`) supports gradient accumulation and
-checkpointing with a simple simulation backend.
+## LLM Sub-Feature
+
+The LLM sub-feature (`abi.ai.llm`) provides local LLM inference capabilities.
 
 ```zig
-const report = try abi.ai.train(allocator, .{
+const llm = abi.ai.llm;
+
+// Load a GGUF model
+var model = try llm.loadModel(allocator, "model.gguf", .{});
+defer model.deinit();
+
+// Generate text
+const output = try model.generate("Hello, ", .{
+    .max_tokens = 100,
+    .temperature = 0.7,
+});
+defer allocator.free(output);
+```
+
+## Embeddings Sub-Feature
+
+The embeddings sub-feature (`abi.ai.embeddings`) generates vector embeddings.
+
+```zig
+const embeddings = abi.ai.embeddings;
+
+var encoder = try embeddings.Encoder.init(allocator, .{});
+defer encoder.deinit();
+
+const vector = try encoder.encode("Hello, world!");
+defer allocator.free(vector);
+```
+
+## Training Sub-Feature
+
+The training sub-feature (`abi.ai.training`) supports gradient accumulation and checkpointing with a simple simulation backend.
+
+```zig
+const report = try abi.ai.training.train(allocator, .{
     .epochs = 2,
     .batch_size = 8,
     .sample_count = 64,
@@ -44,7 +113,7 @@ const report = try abi.ai.train(allocator, .{
 });
 ```
 
-The training pipeline writes weight-only checkpoints using the `abi.ai.training.checkpoint` module. LLM training uses `abi.ai.training.llm_checkpoint` to persist model weights and optimizer state together. Checkpoints can be re‑loaded with `abi.ai.training.loadCheckpoint` (generic) or `abi.ai.training.loadLlmCheckpoint` (LLM) to resume training or for inference.
+The training pipeline writes weight-only checkpoints using the `abi.ai.training.checkpoint` module. LLM training uses `abi.ai.training.llm_checkpoint` to persist model weights and optimizer state together. Checkpoints can be re-loaded with `abi.ai.training.loadCheckpoint` (generic) or `abi.ai.training.loadLlmCheckpoint` (LLM) to resume training or for inference.
 
 ### LLM Training Extras
 
@@ -102,10 +171,11 @@ zig build run -- train help
 See `src/tests/training_demo.zig` for a working test example.
 
 ## Federated Learning
-Federated coordination (`abi.ai.federated`) aggregates model updates across nodes.
+
+Federated coordination (`abi.ai.training.federated`) aggregates model updates across nodes.
 
 ```zig
-var coordinator = try abi.ai.federated.Coordinator.init(allocator, .{}, 128);
+var coordinator = try abi.ai.training.federated.Coordinator.init(allocator, .{}, 128);
 defer coordinator.deinit();
 
 try coordinator.registerNode("node-a");
@@ -117,12 +187,12 @@ try coordinator.submitUpdate(.{
 const global = try coordinator.aggregate();
 ```
 
-## Agents
+## Agents Sub-Feature
 
-An **Agent** provides a conversational interface with configurable history and parameters.
+An **Agent** (`abi.ai.agents`) provides a conversational interface with configurable history and parameters.
 
 ```zig
-var agent = try abi.ai.Agent.init(allocator, .{
+var agent = try abi.ai.agents.Agent.init(allocator, .{
     .name = "coding-assistant",
     .enable_history = true,
     .temperature = 0.7,
@@ -188,4 +258,5 @@ zig build run -- train resume ./model.ckpt # Resume from checkpoint
 - [Explore](explore.md) - Codebase exploration with AI
 - [Framework](framework.md) - Configuration options
 - [Compute Engine](compute.md) - Task execution for AI workloads
+- [GPU Acceleration](gpu.md) - GPU-accelerated inference
 - [Troubleshooting](troubleshooting.md) - Common issues

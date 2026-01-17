@@ -5,6 +5,13 @@
 
 const std = @import("std");
 
+// =============================================================================
+// Standard GPU Error Types
+// =============================================================================
+// All backends should use these error types for consistency.
+// Backend-specific errors should be mapped to these standard errors.
+
+/// Backend lifecycle and device operation errors.
 pub const BackendError = error{
     InitFailed,
     NotAvailable,
@@ -14,20 +21,34 @@ pub const BackendError = error{
     KernelLaunchFailed,
     InvalidOperation,
     Timeout,
+    DriverNotFound,
+    ContextCreationFailed,
+    SynchronizationFailed,
 };
 
+/// Memory allocation and transfer errors.
 pub const MemoryError = error{
     OutOfMemory,
     InvalidPointer,
     InvalidSize,
     TransferFailed,
+    AllocationFailed,
+    FreeFailed,
+    BufferTooSmall,
+    HostAccessDisabled,
+    DeviceMemoryMissing,
+    SizeMismatch,
 };
 
+/// Kernel compilation and execution errors.
 pub const KernelError = error{
     CompileFailed,
     LaunchFailed,
     InvalidConfig,
     InvalidArgs,
+    KernelNotFound,
+    UnsupportedKernel,
+    ArgumentCountMismatch,
 };
 
 /// Interface-level errors for stub implementations and feature detection.
@@ -35,7 +56,25 @@ pub const InterfaceError = error{
     NotImplemented,
     FeatureDisabled,
     UnsupportedOperation,
+    UnsupportedBackend,
 };
+
+/// Unified GPU error type combining all error categories.
+/// Use this when a function may return errors from multiple categories.
+pub const GpuError = BackendError || MemoryError || KernelError || InterfaceError;
+
+/// Maps backend-specific errors to standard GPU errors.
+/// Backends should use this to convert their native errors.
+pub fn mapToStandardError(err: anyerror) GpuError {
+    // Check if already a standard error
+    inline for (@typeInfo(GpuError).error_set.?) |e| {
+        if (err == @field(anyerror, e.name)) {
+            return @errorCast(err);
+        }
+    }
+    // Default mapping for unknown errors
+    return error.InvalidOperation;
+}
 
 /// Device capabilities
 pub const DeviceCaps = struct {

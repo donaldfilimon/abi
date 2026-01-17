@@ -44,7 +44,12 @@ pub const Backend = enum {
 pub const BackendInfo = struct {
     backend: Backend,
     name: []const u8,
+    description: []const u8 = "GPU Disabled",
+    enabled: bool = false,
     available: bool,
+    availability: []const u8 = "disabled",
+    device_count: usize = 0,
+    build_flag: []const u8 = "",
 };
 
 pub const BackendAvailability = enum { available, unavailable };

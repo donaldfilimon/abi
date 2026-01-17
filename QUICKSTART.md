@@ -63,6 +63,33 @@ zig build run -- explore "pub fn" --level thorough
 
 ### Basic Framework Usage (Zig 0.16)
 
+**New unified configuration** (recommended):
+```zig
+const std = @import("std");
+const abi = @import("abi");
+
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+
+    // Unified Config with builder pattern
+    const config = abi.Config.init()
+        .withAI(true)
+        .withGPU(true)
+        .withDatabase(true);
+
+    var framework = try abi.Framework.init(allocator, config);
+    defer framework.deinit();
+
+    std.debug.print("ABI v{s} initialized\n", .{abi.version()});
+
+    // Access feature modules through the framework
+    if (framework.ai()) |ai| {
+        _ = ai; // Use AI features
+    }
+}
+```
+
+**Backward-compatible initialization**:
 ```zig
 const std = @import("std");
 const abi = @import("abi");
@@ -135,20 +162,25 @@ pub fn main(init: std.process.Init) !void {
 
 ## Module map
 
+Flat domain structure (new modular architecture):
+
 | Module | Description | Documentation |
 |--------|-------------|----------------|
 | `src/abi.zig` | Public API entry point | [API Reference](API_REFERENCE.md) |
-| `src/core/` | Hardware helpers and cache-aligned buffers | - |
-| `src/compute/runtime/` | Runtime engine and scheduler | [Compute Guide](docs/compute.md) |
-| `src/compute/concurrency/` | Lock-free data structures | [Compute Guide](docs/compute.md) |
-| `src/compute/memory/` | Pool and scratch allocators | [Compute Guide](docs/compute.md) |
-| `src/compute/gpu/` | GPU backends and unified API | [GPU Guide](docs/gpu.md) |
-| `src/features/ai/` | AI features (LLM, embeddings, training) | [AI Guide](docs/ai.md) |
-| `src/features/database/` | WDBX vector database | [Database Guide](docs/database.md) |
-| `src/features/network/` | Distributed compute and Raft | [Network Guide](docs/network.md) |
-| `src/features/monitoring/` | Logging, metrics, tracing, profiling | [Monitoring Guide](docs/monitoring.md) |
-| `src/features/web/` | HTTP helpers and web utilities | - |
-| `src/features/connectors/` | External connectors (OpenAI, Ollama, HF) | [AI Guide](docs/ai.md) |
+| `src/config.zig` | Unified configuration system | [API Reference](API_REFERENCE.md) |
+| `src/framework.zig` | Framework orchestration | [Framework Guide](docs/framework.md) |
+| `src/runtime/` | Always-on infrastructure (scheduler, memory, concurrency) | [Compute Guide](docs/compute.md) |
+| `src/gpu/` | GPU backends and unified API | [GPU Guide](docs/gpu.md) |
+| `src/ai/` | AI module entry point | [AI Guide](docs/ai.md) |
+| `src/ai/llm/` | Local LLM inference | [AI Guide](docs/ai.md) |
+| `src/ai/embeddings/` | Vector embeddings | [AI Guide](docs/ai.md) |
+| `src/ai/agents/` | AI agent runtime | [AI Guide](docs/ai.md) |
+| `src/ai/training/` | Training pipelines | [AI Guide](docs/ai.md) |
+| `src/database/` | WDBX vector database | [Database Guide](docs/database.md) |
+| `src/network/` | Distributed compute and Raft | [Network Guide](docs/network.md) |
+| `src/observability/` | Metrics, tracing, profiling | [Monitoring Guide](docs/monitoring.md) |
+| `src/web/` | HTTP helpers and web utilities | - |
+| `src/internal/` | Shared utilities and platform helpers | - |
 
 ## Next Steps
 
