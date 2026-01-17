@@ -169,15 +169,15 @@ pub const KernelIR = struct {
         }
 
         // Check for duplicate binding indices
-        var seen_bindings = std.AutoHashMap(struct { group: u32, binding: u32 }, void).init(std.heap.page_allocator);
-        defer seen_bindings.deinit();
+        var seen_bindings: std.AutoHashMapUnmanaged(struct { group: u32, binding: u32 }, void) = .{};
+        defer seen_bindings.deinit(std.heap.page_allocator);
 
         for (self.buffers) |buf| {
             const key = .{ .group = buf.group, .binding = buf.binding };
             if (seen_bindings.contains(key)) {
                 result.errors.duplicate_bindings = true;
             } else {
-                seen_bindings.put(key, {}) catch {};
+                seen_bindings.put(std.heap.page_allocator, key, {}) catch {};
             }
         }
 
@@ -186,7 +186,7 @@ pub const KernelIR = struct {
             if (seen_bindings.contains(key)) {
                 result.errors.duplicate_bindings = true;
             } else {
-                seen_bindings.put(key, {}) catch {};
+                seen_bindings.put(std.heap.page_allocator, key, {}) catch {};
             }
         }
 

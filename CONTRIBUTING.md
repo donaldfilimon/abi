@@ -14,8 +14,6 @@ zig build test
 zig fmt .
 ```
 
-> **For AI Agents**: See [AGENTS.md](AGENTS.md) for comprehensive guidance on coding patterns, build commands, and testing.
-
 ## Workflow
 
 1. Create a focused branch.
@@ -85,9 +83,15 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});
 - Filter tests: `zig test src/tests/mod.zig --test-filter "pattern"`
 - Use `error.SkipZigTest` for hardware-gated tests
 
-## Contacts
+## Commits & Pull Requests
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
-See [TODO.md](TODO.md) for the list of pending implementations.
-*See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
-[Main Workspace](MAIN_WORKSPACE.md)
+- Use short, imperative commit summaries (e.g., "Add GPU backend", "Fix memory leak in cache").
+- PRs should include: clear description, linked issues (if applicable), validation commands run.
+- Update docs when APIs or behavior change.
+
+## For AI Agents
+
+- Keep changes minimal and consistent with existing patterns.
+- Avoid breaking public APIs unless explicitly requested.
+- Preserve feature gating: stub modules must mirror real APIs and return `error.*Disabled`.
+- See [CLAUDE.md](CLAUDE.md) for comprehensive development guidance.
