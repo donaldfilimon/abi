@@ -171,4 +171,3 @@ zig build run -- db serve --port 8080
 - [Monitoring](monitoring.md) - Database metrics
 - [Troubleshooting](troubleshooting.md) - Path validation and performance issues
 *See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
-[Main Workspace](../MAIN_WORKSPACE.md)

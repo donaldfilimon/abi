@@ -1,6 +1,6 @@
 # AI & Agents
 
-> **Developer Guide**: See [AGENTS.md](../AGENTS.md) for coding patterns and [CLAUDE.md](../CLAUDE.md) for comprehensive agent guidance.
+> **Developer Guide**: See [CONTRIBUTING.md](../CONTRIBUTING.md) for coding patterns and [CLAUDE.md](../CLAUDE.md) for comprehensive agent guidance.
 > **Framework**: Initialize ABI framework before using AI features - see [Framework Guide](framework.md).
 
 The **AI** module (`abi.ai`) provides the building blocks for creating autonomous agents and connecting to LLM providers.
@@ -190,4 +190,3 @@ zig build run -- train resume ./model.ckpt # Resume from checkpoint
 - [Compute Engine](compute.md) - Task execution for AI workloads
 - [Troubleshooting](troubleshooting.md) - Common issues
 *See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
-[Main Workspace](../MAIN_WORKSPACE.md)

@@ -68,4 +68,3 @@ The CLI is minimal by design; most deployments should embed ABI as a library.
 
 src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
 See [TODO.md](TODO.md) for the list of pending implementations.
-[Main Workspace](MAIN_WORKSPACE.md)

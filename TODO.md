@@ -1,6 +1,6 @@
 # Project TODO List
 
-> **Developer Guide**: See [AGENTS.md](AGENTS.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.
+> **Developer Guide**: See [CONTRIBUTING.md](CONTRIBUTING.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.
 >
 > This file tracks incomplete or placeholder implementations in the codebase. Each entry includes a file path, line number, and a brief description of the pending work.
 
@@ -142,5 +142,3 @@ All feature stubs have been updated to match real implementations and tested wit
 - ✅ `zig build -Denable-database=false` - Passes
 - ✅ `zig build -Denable-web=false` - Passes
 - ✅ `zig build -Denable-profiling=false` - Passes
-
-[Main Workspace](MAIN_WORKSPACE.md)

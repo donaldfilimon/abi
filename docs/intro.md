@@ -1,7 +1,7 @@
 # Introduction
 
 > **Quick Start**: See [Quickstart Guide](../QUICKSTART.md) for immediate setup examples.
-> **Developer Guide**: See [AGENTS.md](../AGENTS.md) for AI agent coding patterns and build commands.
+> **Developer Guide**: See [CONTRIBUTING.md](../CONTRIBUTING.md) for AI agent coding patterns and build commands.
 > **Full Reference**: See [Documentation Index](index.md) for complete documentation listing.
 
 Welcome to **ABI**, a modern Zig 0.16.x framework for modular AI services, vector search, and high-performance systems tooling.
@@ -141,7 +141,7 @@ pub fn main() !void {
 ## Next Steps
 
 - [Documentation Index](index.md) - Complete documentation listing
-- [AGENTS.md](../AGENTS.md) - Quick reference for AI agents (coding patterns, build commands)
+- [CONTRIBUTING.md](../CONTRIBUTING.md) - Quick reference for AI agents (coding patterns, build commands)
 - [CLAUDE.md](../CLAUDE.md) - Comprehensive development guide
 - [Framework Guide](framework.md) - Configuration and lifecycle
 - [Compute Engine](compute.md) - Task execution and scheduling
@@ -156,6 +156,5 @@ pub fn main() !void {
 - [Documentation Index](index.md) - Full documentation listing
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
 - [Zig 0.16 Migration](migration/zig-0.16-migration.md) - API compatibility notes
- - [TODO List](TODO.md) - Pending implementations and Llama‑CPP parity tasks
-*See [TODO.md](../TODO.md) and [ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
-[Main Workspace](../MAIN_WORKSPACE.md)
+- [TODO List](../TODO.md) - Pending implementations
+- [ROADMAP](../ROADMAP.md) - Upcoming milestones

@@ -1,94 +1,67 @@
 # ABI Framework
 
-Modern Zig framework for modular AI services, vector search, and systems tooling.
+Modern Zig 0.16 framework for modular AI services, vector search, and high-performance systems tooling.
 
 ## Highlights
 
- - AI agent runtime, training pipelines, and data structures (`docs/ai.md`)
-- Vector database helpers (WDBX) with unified API
-- High-performance compute runtime with work-stealing scheduler
-- GPU backends (CUDA, Vulkan, Metal, WebGPU) with feature gating
-- Interactive TUI CLI launcher (cross-platform)
-- Network distributed compute with serialization
-- Profiling and metrics collection
-- Web utilities (HTTP client/server helpers, weather helper)
-- Monitoring (logging, metrics, tracing, profiling)
+- **AI Runtime** - LLM inference (Llama-CPP parity), agent runtime, training pipelines ([docs/ai.md](docs/ai.md))
+- **Vector Database** - WDBX with HNSW/IVF-PQ indexing, hybrid search ([docs/database.md](docs/database.md))
+- **Compute Engine** - Work-stealing scheduler, NUMA-aware, lock-free primitives
+- **GPU Backends** - CUDA, Vulkan, Metal, WebGPU with unified API ([docs/gpu.md](docs/gpu.md))
+- **Distributed Network** - Node discovery, Raft consensus, load balancing ([docs/network.md](docs/network.md))
+- **Observability** - Metrics, tracing, profiling, circuit breakers ([docs/monitoring.md](docs/monitoring.md))
+- **Interactive CLI** - TUI launcher, training commands, database operations
 
 ## Documentation
 
-🌐 **[View Online Documentation](https://donaldfilimon.github.io/abi/)** - Professional static site with search, responsive design, and navigation.
-
-- Documentation Index: [docs/intro.md](docs/intro.md)
-- AI Agent Guidance: [AGENTS.md](AGENTS.md) - Quick reference for coding patterns
-- Comprehensive Guide: [CLAUDE.md](CLAUDE.md) - Full development guide
-- Concise API summary: [API_REFERENCE.md](API_REFERENCE.md)
-- Migration Guide: [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md)
-- Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
+- **[Online Docs](https://donaldfilimon.github.io/abi/)** - Searchable static site
+- [Introduction](docs/intro.md) - Architecture overview
+- [API Reference](API_REFERENCE.md) - Public API summary
+- [Quickstart](QUICKSTART.md) - Getting started guide
+- [Migration Guide](docs/migration/zig-0.16-migration.md) - Zig 0.16 patterns
+- [Troubleshooting](docs/troubleshooting.md) - Common issues
 
 ## Requirements
 
-- Zig 0.16.x (minimum 0.16.0; CI uses 0.16.x)
+- Zig 0.16.x (minimum 0.16.0)
 
 ## Build
 
 ```bash
-zig build
-zig build test
+zig build                    # Build the project
+zig build test --summary all # Run tests with output
 zig build -Doptimize=ReleaseFast
-zig build -Denable-ai=true -Denable-gpu=false -Denable-web=true -Denable-database=true
+
+# Feature-gated builds
+zig build -Denable-ai=true -Denable-gpu=false -Denable-database=true
 ```
 
 ## Feature Flags
 
-- `-Denable-ai` (default: `true`) - Enable AI features and modules
-- `-Denable-gpu` (default: `true`) - Enable GPU acceleration features
-- `-Denable-web` (default: `true`) - Enable web utilities and HTTP features
-- `-Denable-database` (default: `true`) - Enable database and vector search features
-- `-Denable-network` (default: `true`) - Enable distributed network compute
-- `-Denable-profiling` (default: `true`) - Enable profiling and metrics collection
-- `-Dgpu-cuda` - Enable CUDA GPU backend
-- `-Dgpu-vulkan` - Enable Vulkan GPU backend
-- `-Dgpu-metal` - Enable Metal GPU backend
-- `-Dgpu-webgpu` - Enable WebGPU backend (requires `-Denable-web`)
-- `-Dgpu-opengl` - Enable OpenGL backend
-- `-Dgpu-opengles` - Enable OpenGL ES backend
-- `-Dgpu-webgl2` - Enable WebGL2 backend (requires web/wasm target)
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-Denable-ai` | true | AI features and connectors |
+| `-Denable-llm` | true | Local LLM inference |
+| `-Denable-gpu` | true | GPU acceleration |
+| `-Denable-web` | true | Web utilities and HTTP |
+| `-Denable-database` | true | Vector database (WDBX) |
+| `-Denable-network` | true | Distributed compute |
+| `-Denable-profiling` | true | Profiling and metrics |
 
-## Development
+**GPU Backends:** `-Dgpu-vulkan` (default), `-Dgpu-cuda`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`
 
-### Code Formatting
-
-```bash
-zig fmt .                    # Format all code
-zig fmt --check .           # Check formatting without changes
-```
-
-### Testing
-
-```bash
-zig build test                                    # Run all tests
-zig build test -Denable-gpu=true -Denable-network=true  # Test with features
-zig build benchmarks                               # Run performance benchmarks
-```
-
-### CLI Usage
-
-```bash
-zig build run -- --help                           # Show CLI help
-zig build run -- --version                        # Show version info
-zig build run -- tui                              # Launch interactive TUI
-```
-
-## Quick Example (Zig 0.16)
+## Quick Example
 
 ```zig
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, abi.FrameworkOptions{});
+    var framework = try abi.init(allocator, .{});
     defer abi.shutdown(&framework);
 
     std.debug.print("ABI version: {s}\n", .{abi.version()});
@@ -97,301 +70,86 @@ pub fn main(init: std.process.Init) !void {
 
 ## Training Example
 
-> See [docs/ai.md](docs/ai.md) for complete training documentation and CLI usage.
-
 ```zig
-const std = @import("std");
-const abi = @import("abi");
+const config = abi.ai.TrainingConfig{
+    .epochs = 10,
+    .batch_size = 32,
+    .sample_count = 1024,
+    .model_size = 512,
+    .learning_rate = 0.001,
+    .optimizer = .adamw,
+};
 
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
+var result = try abi.ai.trainWithResult(allocator, config);
+defer result.deinit();
 
-    // Configure training
-    const config = abi.ai.TrainingConfig{
-        .epochs = 10,
-        .batch_size = 32,
-        .sample_count = 1024,
-        .model_size = 512,
-        .learning_rate = 0.001,
-        .optimizer = .adamw,
-        .learning_rate_schedule = .warmup_cosine,
-        .checkpoint_interval = 100,
-        .checkpoint_path = "./model.ckpt",
-    };
-
-    // Run training and get full result
-    var result = try abi.ai.trainWithResult(allocator, config);
-    defer result.deinit();
-
-    // Access training metrics
-    std.debug.print("Training complete:\n", .{});
-    std.debug.print("  Final loss: {d:.6}\n", .{result.report.final_loss});
-    std.debug.print("  Final accuracy: {d:.2}%\n", .{result.report.final_accuracy * 100});
-    std.debug.print("  Gradient updates: {d}\n", .{result.report.gradient_updates});
-    std.debug.print("  Checkpoints saved: {d}\n", .{result.report.checkpoints_saved});
-}
+std.debug.print("Final loss: {d:.6}\n", .{result.report.final_loss});
 ```
 
 **CLI:**
 ```bash
-zig build run -- train run --epochs 10 --batch-size 32 --optimizer adamw
-zig build run -- train info    # Show default configuration
-zig build run -- train help    # Show all options
+zig build run -- train run --epochs 10 --batch-size 32
+zig build run -- train resume ./checkpoint.ckpt
+zig build run -- llm chat model.gguf
 ```
 
-See [docs/ai.md](docs/ai.md) for complete training documentation.
+## CLI Commands
 
-## Compute Engine Example
-
-```zig
-const std = @import("std");
-const abi = @import("abi");
-
-fn computeTask(_: std.mem.Allocator) !u32 {
-    return 42;
-}
-
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
-
-    var engine = try abi.compute.createDefaultEngine(allocator);
-    defer engine.deinit();
-
-    // Using runTask (or its alias runWorkload)
-    const result = try abi.compute.runTask(&engine, u32, computeTask, 1000);
-    std.debug.print("Result: {d}\n", .{result});
-}
+```bash
+zig build run -- --help       # Show help
+zig build run -- tui          # Interactive launcher
+zig build run -- db stats     # Database statistics
+zig build run -- gpu backends # List GPU backends
+zig build run -- agent        # AI agent mode
 ```
 
-## GPU Workload Example
-
-```zig
-const std = @import("std");
-const abi = @import("abi");
-
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
-
-    var gpu_workload: u32 = 0;
-
-    const cpu_vtable = abi.compute.WorkloadVTable{
-        .execute = struct {
-            fn execute(
-                ctx: *abi.compute.ExecutionContext,
-                user: *anyopaque,
-            ) !abi.compute.ResultHandle {
-                _ = ctx;
-                const ptr: *u32 = @ptrCast(@alignCast(user));
-                ptr.* += 1;
-                return abi.compute.ResultHandle.fromSlice(&.{});
-            }
-        }.execute,
-    };
-
-    const gpu_vtable = abi.compute.GPUWorkloadVTable{
-        .execute = struct {
-            fn execute(
-                ctx: *abi.compute.ExecutionContext,
-                user: *anyopaque,
-            ) !abi.compute.ResultHandle {
-                _ = ctx;
-                const ptr: *u32 = @ptrCast(@alignCast(user));
-                ptr.* += 10;
-                return abi.compute.ResultHandle.fromSlice(&.{});
-            }
-        }.execute,
-    };
-
-    const item = abi.compute.WorkItem{
-        .id = 0,
-        .user = &gpu_workload,
-        .vtable = &cpu_vtable,
-        .priority = 0,
-        .hints = .{
-            .cpu_affinity = null,
-            .estimated_duration_us = 2_000,
-            .prefers_gpu = true,
-            .requires_gpu = false,
-        },
-        .gpu_vtable = &gpu_vtable,
-    };
-
-    var ctx = abi.compute.ExecutionContext{ .allocator = allocator };
-    const result = try abi.compute.runWorkItem(&ctx, &item);
-    defer result.deinit();
-}
-```
-
-## GPU Memory & Pool Helpers
-
-```zig
-const std = @import("std");
-const abi = @import("abi");
-
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
-
-    var pool = abi.gpu.createPool(allocator, 16 * 1024 * 1024);
-    defer pool.deinit();
-
-    const flags = abi.gpu.BufferFlags{
-        .device_local = true,
-        .zero_init = true,
-    };
-    const buffer = try pool.allocate(4096, flags);
-    defer _ = pool.free(buffer);
-
-    try buffer.writeFromHost(&.{ 1, 2, 3, 4 });
-    try buffer.copyToDevice();
-
-    buffer.asSlice()[0] = 9;
-    try buffer.copyToHost();
-
-    const stats = pool.stats();
-    std.debug.print("GPU pool usage: {d:.2}%\n", .{stats.usage_ratio * 100.0});
-}
-```
-
-## Profiling Example
-
-```zig
-var metrics = try abi.compute.MetricsCollector.init(
-    gpa.allocator(),
-    abi.compute.DEFAULT_METRICS_CONFIG,
-    4,
-);
-defer metrics.deinit();
-
-metrics.recordTaskExecution(0, 1500);
-metrics.recordTaskExecution(1, 900);
-
-const summary = metrics.getSummary();
-std.debug.print("Total tasks: {d}\n", .{summary.total_tasks});
-std.debug.print("Avg execution: {d} us\n", .{summary.avg_execution_ns / 1000});
-std.debug.print("Min execution: {d} us\n", .{summary.min_execution_ns / 1000});
-std.debug.print("Max execution: {d} us\n", .{summary.max_execution_ns / 1000});
-```
-
-## Network Serialization Example
-
-```zig
-// Serialize task for network transfer
-const payload_type = "matrix_multiply";
-const user_data = "serialized_workload_data";
-
-const serialized = try abi.network.serializeTask(
-    gpa.allocator(),
-    &item,
-    payload_type,
-    user_data,
-);
-defer gpa.allocator().free(serialized);
-
-// Deserialize on remote node
-const deserialized = try abi.network.deserializeTask(gpa.allocator(), serialized);
-defer {
-    gpa.allocator().free(deserialized.payload_type);
-    gpa.allocator().free(deserialized.user_data);
-}
-```
-
-## Benchmarking Example
-
-```zig
-const results = try abi.compute.runBenchmarks(gpa.allocator());
-defer gpa.allocator().free(results);
-
-for (results) |bench| {
-    const ops = @as(u64, @intFromFloat(bench.ops_per_sec));
-    std.debug.print(
-        "{s}: {d} ops/sec ({d} iterations, {d} ns)\n",
-        .{ bench.name, ops, bench.iterations, bench.duration_ns },
-    );
-}
-```
-
-## Architecture Overview
-
-- `src/abi.zig`: public API surface and curated re-exports
-- `src/root.zig`: root module entrypoint
-- `src/framework/`: runtime config, feature orchestration, lifecycle
-- `src/features/`: vertical feature stacks (AI, GPU, database, web, monitoring)
-- `src/compute/`: compute runtime, memory, and concurrency
-- `src/shared/`: shared utilities (logging, observability, platform, utils)
-
-## Project Layout
+## Architecture
 
 ```
 abi/
-├── src/                # Core library sources
-│   ├── core/           # Core infrastructure
-│   ├── compute/        # Compute runtime + memory + concurrency
-│   ├── features/       # Feature modules (AI, GPU, web, etc.)
-│   ├── framework/      # Framework configuration and runtime
-│   ├── shared/         # Shared utilities
-├── build.zig           # Build graph + feature flags
-└── build.zig.zon        # Zig package metadata
+├── src/
+│   ├── abi.zig          # Public API entry point
+│   ├── core/            # I/O, diagnostics, collections
+│   ├── compute/         # Runtime, GPU, memory, profiling
+│   ├── features/        # AI, database, network, monitoring
+│   ├── framework/       # Lifecycle and orchestration
+│   └── shared/          # Logging, security, utilities
+├── tools/cli/           # CLI implementation
+├── benchmarks/          # Performance benchmarks
+└── docs/                # Documentation
 ```
 
-## CLI
-
-CLI entrypoint resolution prefers `tools/cli/main.zig` and falls back to
-`src/main.zig` if the tools entrypoint is not present.
+## Testing
 
 ```bash
-zig build run -- --help
-zig build run -- --version
-zig build run -- tui
+zig build test --summary all                    # All tests
+zig test src/compute/runtime/engine.zig         # Single file
+zig test src/tests/mod.zig --test-filter "pat"  # Filter tests
+zig build benchmarks                            # Run benchmarks
 ```
 
-Run `abi tui` for an interactive command menu (type to filter, Up/Down or j/k to navigate).
+## Environment Variables
 
-## Tests
-
-```bash
-# Run all tests
-zig build test
-
-# Run tests with specific features enabled
-zig build test -Denable-gpu=true -Denable-network=true -Denable-profiling=true
-
-# Run tests for specific module
-zig test src/compute/runtime/engine.zig
-
-# Run tests matching pattern
-zig test --test-filter="engine init"
-
-# Run benchmarks
-zig build benchmarks
-```
-
-**Test Coverage:**
-
-- Compute engine: Worker threads, work-stealing, result caching
-- GPU: Buffer allocation, memory pool, serialization
-- Network: Task/result serialization, node registry
-- Profiling: Metrics collection, histograms
-- Integration: 10+ end-to-end tests with feature gating
-
-## Connector Environment Variables
-
-- `ABI_OPENAI_API_KEY`, `OPENAI_API_KEY`
-- `ABI_OPENAI_BASE_URL` (default `https://api.openai.com/v1`)
-- `ABI_OPENAI_MODE` (`responses`, `chat`, or `completions`)
-- `ABI_HF_API_TOKEN`, `HF_API_TOKEN`, `HUGGING_FACE_HUB_TOKEN`
-- `ABI_HF_BASE_URL` (default `https://api-inference.huggingface.co`)
-- `DISCORD_BOT_TOKEN` - Discord bot authentication token
-- `ABI_LOCAL_SCHEDULER_URL`, `LOCAL_SCHEDULER_URL` (default `http://127.0.0.1:8081`)
-- `ABI_LOCAL_SCHEDULER_ENDPOINT` (default `/schedule`)
-- `ABI_OLLAMA_HOST`, `OLLAMA_HOST` (default `http://127.0.0.1:11434`)
-- `ABI_OLLAMA_MODEL` (default `llama3.2`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ABI_OPENAI_API_KEY` | - | OpenAI API key |
+| `ABI_OLLAMA_HOST` | `http://127.0.0.1:11434` | Ollama host |
+| `ABI_OLLAMA_MODEL` | `llama3.2` | Default Ollama model |
+| `ABI_HF_API_TOKEN` | - | HuggingFace token |
+| `DISCORD_BOT_TOKEN` | - | Discord bot token |
 
 ## Contributing
 
-See `CONTRIBUTING.md` for development workflow and style guidelines.
-## Contacts
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow and [CLAUDE.md](CLAUDE.md) for coding guidelines.
 
-`src/shared/contacts.zig` provides a centralized list of maintainer contacts extracted from the repository markdown files. It can be imported wherever contact information is needed.
-See [TODO.md](TODO.md) for the list of pending implementations.
-*See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
-[Main Workspace](MAIN_WORKSPACE.md)
+## Status
+
+- **Zig 0.16 Migration**: Complete
+- **Llama-CPP Parity**: Complete (see [TODO.md](TODO.md))
+- **Feature Stubs**: All verified and tested
+
+See [ROADMAP.md](ROADMAP.md) for upcoming milestones.
+
+## License
+
+See [LICENSE](LICENSE) for details.

@@ -1,6 +1,6 @@
 # ABI Framework Roadmap
 
-> **Developer Guide**: See [AGENTS.md](AGENTS.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.
+> **Developer Guide**: See [CONTRIBUTING.md](CONTRIBUTING.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.
 >
 > This document tracks planned features, improvements, and milestones for ABI framework.
 
@@ -282,5 +282,3 @@ All Llama-CPP parity tasks have been completed. See TODO.md for details:
 - [x] CLI with full llama-cpp parity (tools/cli/commands/llm.zig)
 - [x] C-compatible API (bindings/c/abi_llm.zig)
 - [x] Tests and benchmarks (src/tests/llm_reference_vectors.zig)
-
-[Main Workspace](MAIN_WORKSPACE.md)

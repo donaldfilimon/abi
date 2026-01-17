@@ -4,7 +4,7 @@
 > > **Status**: Production Ready. Backends provide native GPU execution with automatic
 > > fallback to CPU simulation when native runtimes are unavailable.
 >
-> **Developer Guide**: See [AGENTS.md](../AGENTS.md) for GPU coding patterns and [CLAUDE.md](../CLAUDE.md) for backend internals.
+> **Developer Guide**: See [CONTRIBUTING.md](../CONTRIBUTING.md) for GPU coding patterns and [CLAUDE.md](../CLAUDE.md) for backend internals.
 > **GPU Backends**: See [GPU Backend Details](gpu-backend-improvements.md) for implementation specifics.
 
 The **GPU** module (`abi.gpu`) provides a unified interface for hardware-accelerated compute across different platforms.
@@ -306,4 +306,3 @@ try result_buf.read(f32, &result);
 - [Monitoring](monitoring.md) - GPU metrics and profiling
 - [Troubleshooting](troubleshooting.md) - GPU detection issues
 *See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
-[Main Workspace](../MAIN_WORKSPACE.md)

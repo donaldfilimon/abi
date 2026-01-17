@@ -1,7 +1,7 @@
 # Zig 0.16 Migration Guide
 
 > **Status:** Complete ✅
-> **Developer Guide**: See [AGENTS.md](../../AGENTS.md) for coding patterns and [CLAUDE.md](../../CLAUDE.md) for comprehensive guidance.
+> **Developer Guide**: See [CONTRIBUTING.md](../../CONTRIBUTING.md) for coding patterns and [CLAUDE.md](../../CLAUDE.md) for comprehensive guidance.
 >
 > **Last Updated:** January 16, 2026
 > **Zig Version:** 0.16.x
@@ -283,4 +283,3 @@ The CI configuration has been updated to use Zig 0.16.x instead of 0.17.0.
 - [Troubleshooting](../troubleshooting.md) - Migration issues
 - [Migration Report](MIGRATION_REPORT.md) - Completion details
 *See [../../TODO.md](../../TODO.md) and [../../ROADMAP.md](../../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
-[Main Workspace](../../MAIN_WORKSPACE.md)

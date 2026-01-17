@@ -1,6 +1,6 @@
 # Compute Engine
 
-> **Developer Guide**: See [AGENTS.md](../AGENTS.md) for compute coding patterns and [CLAUDE.md](../CLAUDE.md) for engine internals.
+> **Developer Guide**: See [CONTRIBUTING.md](../CONTRIBUTING.md) for compute coding patterns and [CLAUDE.md](../CLAUDE.md) for engine internals.
 > **GPU Offloading**: See [GPU Guide](gpu.md) for GPU-accelerated compute.
 
 The **Compute Engine** (`abi.compute`) is heart of ABI's performance capabilities. It uses a work-stealing scheduler to efficiently execute concurrent tasks.
@@ -110,4 +110,3 @@ zig build benchmarks
 - [Monitoring](monitoring.md) - Engine metrics and profiling
 - [Troubleshooting](troubleshooting.md) - Timeout and performance issues
 *See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
-[Main Workspace](../MAIN_WORKSPACE.md)

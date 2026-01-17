@@ -562,4 +562,3 @@ If your issue isn't covered here:
 - [Zig 0.16 Migration](migration/zig-0.16-migration.md) - API changes
 - [Performance Baseline](PERFORMANCE_BASELINE.md) - Expected performance
 *See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
-[Main Workspace](../MAIN_WORKSPACE.md)

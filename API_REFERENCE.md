@@ -1,7 +1,7 @@
 # API Reference (Concise)
 
 > For detailed usage guides, see [Documentation Index](docs/intro.md).
-> For coding patterns and conventions, see [AGENTS.md](AGENTS.md).
+> For coding patterns and conventions, see [CONTRIBUTING.md](CONTRIBUTING.md).
 > For comprehensive development guidance, see [CLAUDE.md](CLAUDE.md).
 
 This is a high-level summary of the public ABI API surface. See the source for
@@ -194,4 +194,3 @@ src/shared/contacts.zig provides a centralized list of maintainer contacts extra
 See [TODO.md](TODO.md) for list of pending implementations.
 See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.
 *See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
-[Main Workspace](MAIN_WORKSPACE.md)

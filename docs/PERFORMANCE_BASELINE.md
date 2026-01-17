@@ -243,4 +243,3 @@ For critical code paths:
 - [GPU Acceleration](gpu.md) - GPU performance benchmarks
 - [Monitoring](monitoring.md) - Metrics collection
 - [Troubleshooting](troubleshooting.md) - Performance debugging
-[Main Workspace](../MAIN_WORKSPACE.md)

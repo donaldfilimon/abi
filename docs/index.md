@@ -3,7 +3,7 @@
 Welcome to the **ABI Framework** documentation. ABI is a modern Zig 0.16.x framework for modular AI services, vector search, and high-performance systems tooling.
 
 > **New to ABI?** Start with [Quickstart](../QUICKSTART.md) or [Introduction](intro.md).
-> **For AI Agents**: See [AGENTS.md](../AGENTS.md) for comprehensive coding patterns and build commands.
+> **For AI Agents**: See [CONTRIBUTING.md](../CONTRIBUTING.md) for comprehensive coding patterns and build commands.
 > **For Developers**: See [CLAUDE.md](../CLAUDE.md) for full development guidelines.
 
 ---
@@ -68,7 +68,7 @@ zig build run -- --help             # CLI help
 
 | Document | Description |
 |----------|-------------|
-| [AGENTS.md](../AGENTS.md) | Quick reference for AI agents (coding patterns, style guidelines, testing) |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | Quick reference for AI agents (coding patterns, style guidelines, testing) |
 | [CLAUDE.md](../CLAUDE.md) | Comprehensive development guide (architecture, patterns, CLI) |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Contribution workflow and style conventions |
 | [TODO.md](../TODO.md) | Pending implementations and Llama‑CPP parity tasks |
@@ -187,5 +187,5 @@ zig build run-network        # Distributed compute
 - [CLAUDE.md](../CLAUDE.md) - Development guidelines for Claude Code
 - [README.md](../README.md) - Project overview
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines
-*See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
-[Main Workspace](../MAIN_WORKSPACE.md)
+- [TODO.md](../TODO.md) - Pending implementations
+- [ROADMAP.md](../ROADMAP.md) - Upcoming milestones
