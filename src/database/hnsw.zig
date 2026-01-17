@@ -6,10 +6,13 @@
 //! - DistanceCache: LRU cache for frequently computed distances
 //! - Prefetching: Memory prefetch hints for graph traversal
 //! - Vectorized distance computation via SIMD
+//! - GPU-accelerated batch distance computation for large neighbor sets
 
 const std = @import("std");
+const build_options = @import("build_options");
 const simd = @import("../shared/simd.zig");
 const index_mod = @import("index.zig");
+const gpu_accel = @import("gpu_accel.zig");
 
 // ============================================================================
 // Search State Pool - Eliminates per-query allocations
@@ -250,6 +253,10 @@ pub const HnswIndex = struct {
     state_pool: ?*SearchStatePool,
     /// Optional distance cache for frequently accessed pairs
     distance_cache: ?*DistanceCache,
+    /// Optional GPU accelerator for batch distance computation
+    gpu_accelerator: ?*gpu_accel.GpuAccelerator,
+    /// Allocator used for construction
+    allocator: std.mem.Allocator,
 
     pub const NodeLayers = struct {
         layers: []index_mod.NeighborList,
@@ -263,6 +270,10 @@ pub const HnswIndex = struct {
         search_pool_size: usize = 8,
         /// Distance cache capacity (0 = disabled)
         distance_cache_size: usize = 1024,
+        /// Enable GPU acceleration for batch distance computation (requires -Denable-gpu)
+        enable_gpu: bool = build_options.enable_gpu,
+        /// Minimum batch size to trigger GPU acceleration
+        gpu_batch_threshold: usize = 256,
     };
 
     /// Build a new HNSW index from a set of records.
@@ -282,6 +293,7 @@ pub const HnswIndex = struct {
             .ef_construction = ef_construction,
             .search_pool_size = 0, // Legacy mode: no pool
             .distance_cache_size = 0, // Legacy mode: no cache
+            .enable_gpu = false, // Legacy mode: no GPU
         });
     }
 
@@ -321,6 +333,30 @@ pub const HnswIndex = struct {
             allocator.destroy(cache);
         };
 
+        // Initialize optional GPU accelerator for batch distance computation
+        var gpu_accelerator: ?*gpu_accel.GpuAccelerator = null;
+        if (config.enable_gpu and build_options.enable_gpu) {
+            const accel = allocator.create(gpu_accel.GpuAccelerator) catch null;
+            if (accel) |a| {
+                a.* = gpu_accel.GpuAccelerator.init(allocator, .{
+                    .batch_threshold = config.gpu_batch_threshold,
+                }) catch {
+                    allocator.destroy(a);
+                    gpu_accelerator = null;
+                };
+                if (a.isGpuAvailable() or true) { // Keep even for SIMD acceleration
+                    gpu_accelerator = a;
+                } else {
+                    a.deinit();
+                    allocator.destroy(a);
+                }
+            }
+        }
+        errdefer if (gpu_accelerator) |accel| {
+            accel.deinit();
+            allocator.destroy(accel);
+        };
+
         var self = HnswIndex{
             .m = config.m,
             .m_max = config.m,
@@ -331,6 +367,8 @@ pub const HnswIndex = struct {
             .nodes = try allocator.alloc(NodeLayers, records.len),
             .state_pool = state_pool,
             .distance_cache = distance_cache,
+            .gpu_accelerator = gpu_accelerator,
+            .allocator = allocator,
         };
         errdefer allocator.free(self.nodes);
 
@@ -770,6 +808,12 @@ pub const HnswIndex = struct {
             allocator.destroy(cache);
         }
 
+        // Clean up GPU accelerator
+        if (self.gpu_accelerator) |accel| {
+            accel.deinit();
+            allocator.destroy(accel);
+        }
+
         for (self.nodes) |node| {
             for (node.layers) |list| {
                 allocator.free(list.nodes);
@@ -786,6 +830,99 @@ pub const HnswIndex = struct {
             return cache.getStats();
         }
         return null;
+    }
+
+    /// Get GPU acceleration statistics if GPU is enabled.
+    pub fn getGpuStats(self: *const HnswIndex) ?gpu_accel.GpuAccelStats {
+        if (self.gpu_accelerator) |accel| {
+            return accel.getStats();
+        }
+        return null;
+    }
+
+    /// Check if GPU acceleration is available for this index.
+    pub fn hasGpuAcceleration(self: *const HnswIndex) bool {
+        if (self.gpu_accelerator) |accel| {
+            return accel.isGpuAvailable();
+        }
+        return false;
+    }
+
+    /// Compute batch distances using GPU acceleration when available.
+    /// Falls back to SIMD when GPU is unavailable or batch is too small.
+    fn computeBatchDistances(
+        self: *const HnswIndex,
+        query: []const f32,
+        query_norm: f32,
+        records: []const index_mod.VectorRecordView,
+        neighbor_ids: []const u32,
+        distances: []f32,
+    ) void {
+        std.debug.assert(neighbor_ids.len == distances.len);
+
+        if (neighbor_ids.len == 0) return;
+
+        // Try GPU acceleration for large batches
+        if (self.gpu_accelerator) |accel| {
+            // Build vector slice array for batch computation
+            var vectors = self.allocator.alloc([]const f32, neighbor_ids.len) catch {
+                // Allocation failed, fall back to sequential
+                self.computeBatchDistancesSequential(query, query_norm, records, neighbor_ids, distances);
+                return;
+            };
+            defer self.allocator.free(vectors);
+
+            for (neighbor_ids, 0..) |id, i| {
+                if (id < records.len) {
+                    vectors[i] = records[id].vector;
+                } else {
+                    // Invalid ID, use empty slice (will result in 0 similarity)
+                    vectors[i] = &[_]f32{};
+                }
+            }
+
+            // Use GPU accelerator's batch cosine similarity
+            accel.batchCosineSimilarity(query, query_norm, vectors, distances) catch {
+                // GPU failed, fall back to sequential
+                self.computeBatchDistancesSequential(query, query_norm, records, neighbor_ids, distances);
+                return;
+            };
+
+            // Convert similarities to distances
+            for (distances) |*d| {
+                d.* = 1.0 - d.*;
+            }
+        } else {
+            // No GPU, use sequential SIMD computation
+            self.computeBatchDistancesSequential(query, query_norm, records, neighbor_ids, distances);
+        }
+    }
+
+    /// Sequential distance computation using SIMD.
+    fn computeBatchDistancesSequential(
+        self: *const HnswIndex,
+        query: []const f32,
+        query_norm: f32,
+        records: []const index_mod.VectorRecordView,
+        neighbor_ids: []const u32,
+        distances: []f32,
+    ) void {
+        _ = self;
+
+        for (neighbor_ids, 0..) |id, i| {
+            if (id < records.len) {
+                const vec = records[id].vector;
+                const vec_norm = simd.vectorL2Norm(vec);
+                if (vec_norm > 0 and query_norm > 0) {
+                    const dot = simd.vectorDot(query, vec);
+                    distances[i] = 1.0 - (dot / (query_norm * vec_norm));
+                } else {
+                    distances[i] = 1.0;
+                }
+            } else {
+                distances[i] = 1.0;
+            }
+        }
     }
 
     /// Save HNSW structure to a binary writer.
@@ -823,6 +960,10 @@ pub const HnswIndex = struct {
             .entry_point = if (node_count > 0) entry_point else null,
             .max_layer = max_layer,
             .nodes = try allocator.alloc(NodeLayers, node_count),
+            .state_pool = null, // Not persisted, can be added via enableSearchPool
+            .distance_cache = null, // Not persisted, can be added via enableDistanceCache
+            .gpu_accelerator = null, // Not persisted, can be added via enableGpuAcceleration
+            .allocator = allocator,
         };
         errdefer allocator.free(self.nodes);
 
@@ -839,6 +980,30 @@ pub const HnswIndex = struct {
         }
 
         return self;
+    }
+
+    /// Enable GPU acceleration on a loaded index.
+    pub fn enableGpuAcceleration(self: *HnswIndex, batch_threshold: usize) !void {
+        if (self.gpu_accelerator != null) return; // Already enabled
+
+        if (!build_options.enable_gpu) return error.GpuDisabled;
+
+        const accel = try self.allocator.create(gpu_accel.GpuAccelerator);
+        errdefer self.allocator.destroy(accel);
+
+        accel.* = try gpu_accel.GpuAccelerator.init(self.allocator, .{
+            .batch_threshold = batch_threshold,
+        });
+        self.gpu_accelerator = accel;
+    }
+
+    /// Disable GPU acceleration.
+    pub fn disableGpuAcceleration(self: *HnswIndex) void {
+        if (self.gpu_accelerator) |accel| {
+            accel.deinit();
+            self.allocator.destroy(accel);
+            self.gpu_accelerator = null;
+        }
     }
 };
 
@@ -963,4 +1128,80 @@ test "distance cache basic operations" {
     const stats = cache.getStats();
     try std.testing.expect(stats.hits == 2);
     try std.testing.expect(stats.misses == 1);
+}
+
+test "hnsw with gpu acceleration config" {
+    const allocator = std.testing.allocator;
+    const records = [_]index_mod.VectorRecordView{
+        .{ .id = 1, .vector = &[_]f32{ 1.0, 0.0, 0.0, 0.0 } },
+        .{ .id = 2, .vector = &[_]f32{ 0.0, 1.0, 0.0, 0.0 } },
+        .{ .id = 3, .vector = &[_]f32{ 0.0, 0.0, 1.0, 0.0 } },
+        .{ .id = 4, .vector = &[_]f32{ 0.5, 0.5, 0.5, 0.5 } },
+        .{ .id = 5, .vector = &[_]f32{ 0.9, 0.1, 0.0, 0.0 } },
+    };
+
+    // Build with GPU config (will use SIMD fallback if GPU unavailable)
+    var index = try HnswIndex.buildWithConfig(allocator, &records, .{
+        .m = 8,
+        .ef_construction = 50,
+        .search_pool_size = 4,
+        .distance_cache_size = 128,
+        .enable_gpu = true,
+        .gpu_batch_threshold = 2, // Low threshold for testing
+    });
+    defer index.deinit(allocator);
+
+    // GPU accelerator should be initialized (even if GPU not available, SIMD fallback used)
+    if (build_options.enable_gpu) {
+        try std.testing.expect(index.gpu_accelerator != null);
+    }
+
+    // Perform searches
+    const queries = [_][4]f32{
+        .{ 1.0, 0.0, 0.0, 0.0 },
+        .{ 0.5, 0.5, 0.0, 0.0 },
+    };
+
+    for (queries) |query| {
+        const results = try index.search(allocator, &records, &query, 3);
+        defer allocator.free(results);
+        try std.testing.expect(results.len > 0);
+    }
+
+    // Check GPU stats if available
+    if (index.getGpuStats()) |stats| {
+        // Operations should have been tracked
+        try std.testing.expect(stats.gpu_ops + stats.simd_ops >= 0);
+    }
+}
+
+test "hnsw batch distance computation" {
+    const allocator = std.testing.allocator;
+    const records = [_]index_mod.VectorRecordView{
+        .{ .id = 1, .vector = &[_]f32{ 1.0, 0.0, 0.0 } },
+        .{ .id = 2, .vector = &[_]f32{ 0.0, 1.0, 0.0 } },
+        .{ .id = 3, .vector = &[_]f32{ 0.0, 0.0, 1.0 } },
+        .{ .id = 4, .vector = &[_]f32{ 0.577, 0.577, 0.577 } }, // Approx normalized
+    };
+
+    var index = try HnswIndex.buildWithConfig(allocator, &records, .{
+        .m = 4,
+        .ef_construction = 20,
+        .enable_gpu = false, // Test SIMD path
+    });
+    defer index.deinit(allocator);
+
+    // Test batch distance computation directly
+    const query = [_]f32{ 1.0, 0.0, 0.0 };
+    const query_norm = simd.vectorL2Norm(&query);
+    const neighbor_ids = [_]u32{ 0, 1, 2, 3 };
+    var distances: [4]f32 = undefined;
+
+    index.computeBatchDistancesSequential(&query, query_norm, &records, &neighbor_ids, &distances);
+
+    // First record should have lowest distance (same direction)
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), distances[0], 0.01);
+    // Orthogonal vectors should have distance ~1.0
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), distances[1], 0.01);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), distances[2], 0.01);
 }

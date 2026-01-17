@@ -278,26 +278,54 @@ pub const PortableKernelSource = struct {
 
 /// Built-in kernel operation types.
 pub const BuiltinKernel = enum {
+    // Element-wise operations
     vector_add,
     vector_sub,
     vector_mul,
     vector_div,
     vector_scale,
+
+    // Matrix operations
     matrix_multiply,
     matrix_transpose,
+
+    // Reduction operations
     reduce_sum,
     reduce_max,
     reduce_min,
     reduce_product,
+
+    // Basic activations
     softmax,
     relu,
     sigmoid,
     tanh,
+
+    // Linear algebra
     dot_product,
     normalize,
     saxpy, // a*x + y
     copy,
     fill,
+
+    // Neural network activations (new)
+    gelu, // GELU(x) = x * Φ(x) ≈ 0.5*x*(1+tanh(√(2/π)*(x+0.044715*x³)))
+    gelu_fast, // Fast approximation: x * sigmoid(1.702 * x)
+    swiglu, // SwiGLU(x, gate) = x * silu(gate) for LLaMA/Mixtral
+    silu, // SiLU(x) = x * sigmoid(x), also called Swish
+
+    // Normalization layers (new)
+    layer_norm, // LayerNorm: (x - μ) / √(σ² + ε) * γ + β
+    rms_norm, // RMSNorm: x / √(mean(x²) + ε) * γ
+    batch_norm, // BatchNorm for vision models
+
+    // Fused operations (new)
+    fused_add_norm, // residual + layer_norm
+    fused_linear_gelu, // xW + b, then GELU
+
+    // Batch operations (new)
+    batch_matmul, // Batched matrix multiply
+    batch_cosine_similarity, // Batch cosine similarity for embeddings
 
     /// Returns the minimum number of buffer bindings required.
     pub fn minBufferCount(self: BuiltinKernel) u8 {
@@ -309,6 +337,15 @@ pub const BuiltinKernel = enum {
             .dot_product => 3,
             .saxpy => 3,
             .matrix_multiply, .matrix_transpose => 3,
+            // NN kernels
+            .gelu, .gelu_fast, .silu => 2,
+            .swiglu => 3, // input, gate, output
+            .layer_norm, .rms_norm => 4, // input, gamma, beta, output
+            .batch_norm => 5, // input, gamma, beta, mean, var, output
+            .fused_add_norm => 5, // input, residual, gamma, beta, output
+            .fused_linear_gelu => 4, // input, weight, bias, output
+            .batch_matmul => 3, // a, b, c
+            .batch_cosine_similarity => 3, // query, vectors, results
         };
     }
 
@@ -316,6 +353,19 @@ pub const BuiltinKernel = enum {
     pub fn isReduction(self: BuiltinKernel) bool {
         return switch (self) {
             .reduce_sum, .reduce_max, .reduce_min, .reduce_product, .dot_product => true,
+            .layer_norm, .rms_norm, .batch_norm => true, // Need mean/variance reduction
+            else => false,
+        };
+    }
+
+    /// Returns true if this is a neural network kernel.
+    pub fn isNeuralNetwork(self: BuiltinKernel) bool {
+        return switch (self) {
+            .gelu, .gelu_fast, .swiglu, .silu => true,
+            .layer_norm, .rms_norm, .batch_norm => true,
+            .fused_add_norm, .fused_linear_gelu => true,
+            .batch_matmul, .batch_cosine_similarity => true,
+            .softmax, .relu, .sigmoid, .tanh => true,
             else => false,
         };
     }
@@ -343,6 +393,18 @@ pub const BuiltinKernel = enum {
             .saxpy => "saxpy",
             .copy => "copy",
             .fill => "fill",
+            // NN kernels
+            .gelu => "gelu",
+            .gelu_fast => "gelu_fast",
+            .swiglu => "swiglu",
+            .silu => "silu",
+            .layer_norm => "layer_norm",
+            .rms_norm => "rms_norm",
+            .batch_norm => "batch_norm",
+            .fused_add_norm => "fused_add_norm",
+            .fused_linear_gelu => "fused_linear_gelu",
+            .batch_matmul => "batch_matmul",
+            .batch_cosine_similarity => "batch_cosine_similarity",
         };
     }
 };

@@ -33,6 +33,7 @@
 //! ```
 
 const std = @import("std");
+const build_options = @import("build_options");
 const backend_mod = @import("backend.zig");
 const device_mod = @import("device.zig");
 const interface = @import("interface.zig");
@@ -40,6 +41,17 @@ const dsl = @import("dsl/mod.zig");
 const unified_buffer = @import("unified_buffer.zig");
 const kernel_types = @import("kernel_types.zig");
 const builtin_kernels = @import("builtin_kernels.zig");
+
+// Conditionally import CUDA/cuBLAS for optimized BLAS operations
+const cublas = if (build_options.enable_gpu)
+    @import("backends/cuda/cublas.zig")
+else
+    struct {
+        pub const CublasContext = void;
+        pub fn isAvailable() bool {
+            return false;
+        }
+    };
 
 pub const Backend = backend_mod.Backend;
 pub const Device = device_mod.Device;
@@ -173,11 +185,15 @@ pub const KernelDispatcher = struct {
     /// Backend interface (if available).
     backend_interface: ?interface.Backend,
 
+    /// cuBLAS context for optimized BLAS operations (CUDA only).
+    cublas_ctx: if (build_options.enable_gpu) ?cublas.CublasContext else void,
+
     /// Statistics.
     kernels_compiled: u64,
     kernels_executed: u64,
     cache_hits: u64,
     cache_misses: u64,
+    cublas_ops: u64,
 
     const Self = @This();
 
@@ -187,22 +203,43 @@ pub const KernelDispatcher = struct {
         backend: Backend,
         device: *const Device,
     ) !Self {
-        return .{
+        var self = Self{
             .allocator = allocator,
             .backend = backend,
             .device = device,
             .kernel_cache = .empty,
             .builtin_ir_cache = .empty,
             .backend_interface = null, // Will be set by backend factory
+            .cublas_ctx = if (build_options.enable_gpu) null else {},
             .kernels_compiled = 0,
             .kernels_executed = 0,
             .cache_hits = 0,
             .cache_misses = 0,
+            .cublas_ops = 0,
         };
+
+        // Try to initialize cuBLAS for CUDA backend
+        if (build_options.enable_gpu and backend == .cuda) {
+            if (cublas.isAvailable()) {
+                self.cublas_ctx = cublas.CublasContext.init() catch null;
+                if (self.cublas_ctx != null) {
+                    std.log.info("cuBLAS initialized for optimized BLAS operations", .{});
+                }
+            }
+        }
+
+        return self;
     }
 
     /// Deinitialize and release resources.
     pub fn deinit(self: *Self) void {
+        // Clean up cuBLAS context
+        if (build_options.enable_gpu) {
+            if (self.cublas_ctx) |*ctx| {
+                ctx.deinit();
+            }
+        }
+
         // Free cached kernel handles
         var it = self.kernel_cache.iterator();
         while (it.next()) |entry| {
@@ -223,6 +260,12 @@ pub const KernelDispatcher = struct {
             _ = entry;
         }
         self.builtin_ir_cache.deinit(self.allocator);
+    }
+
+    /// Check if cuBLAS is available for optimized BLAS operations.
+    pub fn hasCublas(self: *const Self) bool {
+        if (!build_options.enable_gpu) return false;
+        return self.cublas_ctx != null;
     }
 
     /// Set the backend interface for actual GPU execution.
@@ -341,9 +384,29 @@ pub const KernelDispatcher = struct {
         const elements = config.global_size[0] * config.global_size[1] * config.global_size[2];
 
         var gpu_executed = false;
+        var used_cublas = false;
 
-        // Try GPU execution first
-        if (kernel.handle != null and self.backend_interface != null) {
+        // Check for cuBLAS optimization for batch_matmul and matrix_multiply
+        if (build_options.enable_gpu) {
+            if (self.cublas_ctx != null and
+                (std.mem.eql(u8, kernel.name, "batch_matmul") or
+                    std.mem.eql(u8, kernel.name, "matrix_multiply")))
+            {
+                if (self.executeCublasGemm(kernel, config, args)) {
+                    gpu_executed = true;
+                    used_cublas = true;
+                    self.cublas_ops += 1;
+                } else |err| {
+                    std.log.debug("cuBLAS execution failed for {s}: {}. Falling back.", .{
+                        kernel.name,
+                        err,
+                    });
+                }
+            }
+        }
+
+        // Try GPU execution if cuBLAS wasn't used
+        if (!gpu_executed and kernel.handle != null and self.backend_interface != null) {
             const launch_result = self.launchOnBackend(kernel, config, args);
             if (launch_result) |_| {
                 gpu_executed = true;
@@ -375,10 +438,94 @@ pub const KernelDispatcher = struct {
             .execution_time_ns = elapsed,
             .elements_processed = elements,
             .bytes_transferred = bytes_transferred,
-            .backend = self.backend,
+            .backend = if (used_cublas) .cuda else self.backend,
             .device_id = self.device.id,
             .gpu_executed = gpu_executed,
         };
+    }
+
+    /// Execute matrix multiplication using cuBLAS (optimized BLAS library).
+    fn executeCublasGemm(
+        self: *Self,
+        kernel: CompiledKernelHandle,
+        config: LaunchConfig,
+        args: KernelArgs,
+    ) DispatchError!void {
+        if (!build_options.enable_gpu) return DispatchError.UnsupportedOperation;
+
+        var ctx = self.cublas_ctx orelse return DispatchError.UnsupportedOperation;
+        const bufs = args.buffers;
+
+        if (bufs.len < 3) return DispatchError.InvalidArguments;
+
+        // Get device pointers
+        const a_ptr = bufs[0].getDevicePtr() catch return DispatchError.BufferNotReady;
+        const b_ptr = bufs[1].getDevicePtr() catch return DispatchError.BufferNotReady;
+        const c_ptr = bufs[2].getDevicePtr() catch return DispatchError.BufferNotReady;
+
+        if (std.mem.eql(u8, kernel.name, "matrix_multiply")) {
+            // Standard matrix multiply: C = A * B
+            // Dimensions from config: global_size[0] = n, global_size[1] = m, global_size[2] = k
+            const n: i32 = @intCast(config.global_size[0]);
+            const m: i32 = @intCast(config.global_size[1]);
+            const k: i32 = @intCast(config.global_size[2]);
+
+            ctx.sgemm(
+                .no_trans,
+                .no_trans,
+                n,
+                m,
+                k,
+                1.0, // alpha
+                b_ptr,
+                n, // ldb
+                a_ptr,
+                k, // lda
+                0.0, // beta
+                c_ptr,
+                n, // ldc
+            ) catch return DispatchError.ExecutionFailed;
+        } else if (std.mem.eql(u8, kernel.name, "batch_matmul")) {
+            // Batched matrix multiply: C[b] = A[b] * B[b]
+            // Dimensions: global_size[0] = n, global_size[1] = m, global_size[2] = batch_size
+            // k is passed via uniforms or inferred
+            const n: i32 = @intCast(config.global_size[0]);
+            const m: i32 = @intCast(config.global_size[1]);
+            const batch_count: i32 = @intCast(config.global_size[2]);
+
+            // Get k from uniforms if available, otherwise assume square matrices
+            const k: i32 = if (args.uniforms.len > 0)
+                @as(*const i32, @ptrCast(@alignCast(args.uniforms[0]))).*
+            else
+                n;
+
+            // Calculate strides for strided batched GEMM
+            const stride_a: i64 = @as(i64, m) * @as(i64, k);
+            const stride_b: i64 = @as(i64, k) * @as(i64, n);
+            const stride_c: i64 = @as(i64, m) * @as(i64, n);
+
+            ctx.sgemmStridedBatched(
+                .no_trans,
+                .no_trans,
+                n,
+                m,
+                k,
+                1.0, // alpha
+                b_ptr,
+                n, // ldb
+                stride_b,
+                a_ptr,
+                k, // lda
+                stride_a,
+                0.0, // beta
+                c_ptr,
+                n, // ldc
+                stride_c,
+                batch_count,
+            ) catch return DispatchError.ExecutionFailed;
+        } else {
+            return DispatchError.UnsupportedOperation;
+        }
     }
 
     /// Execute on the actual backend.
@@ -493,6 +640,55 @@ pub const KernelDispatcher = struct {
                 const k = config.global_size[2];
                 try executeCpuMatrixMultiply(bufs[0], bufs[1], bufs[2], m, n, k);
             }
+        } else if (std.mem.eql(u8, name, "batch_cosine_similarity")) {
+            if (bufs.len >= 3) {
+                // global_size[0] = num_vectors, global_size[1] = dim
+                const num_vectors = config.global_size[0];
+                const dim = config.global_size[1];
+                // query_norm passed as first uniform
+                const query_norm = if (args.uniforms.len > 0)
+                    @as(*const f32, @ptrCast(@alignCast(args.uniforms[0]))).*
+                else
+                    1.0;
+                try executeCpuBatchCosineSimilarity(bufs[0], bufs[1], bufs[2], num_vectors, dim, query_norm);
+            }
+        } else if (std.mem.eql(u8, name, "gelu")) {
+            if (bufs.len >= 2) {
+                try executeCpuGelu(bufs[0], bufs[1]);
+            }
+        } else if (std.mem.eql(u8, name, "silu")) {
+            if (bufs.len >= 2) {
+                try executeCpuSilu(bufs[0], bufs[1]);
+            }
+        } else if (std.mem.eql(u8, name, "layer_norm")) {
+            if (bufs.len >= 4) {
+                // mean, variance, epsilon passed as uniforms
+                const mean = if (args.uniforms.len > 0)
+                    @as(*const f32, @ptrCast(@alignCast(args.uniforms[0]))).*
+                else
+                    0.0;
+                const variance = if (args.uniforms.len > 1)
+                    @as(*const f32, @ptrCast(@alignCast(args.uniforms[1]))).*
+                else
+                    1.0;
+                const epsilon = if (args.uniforms.len > 2)
+                    @as(*const f32, @ptrCast(@alignCast(args.uniforms[2]))).*
+                else
+                    1e-5;
+                try executeCpuLayerNorm(bufs[0], bufs[1], bufs[2], bufs[3], mean, variance, epsilon);
+            }
+        } else if (std.mem.eql(u8, name, "rms_norm")) {
+            if (bufs.len >= 3) {
+                const rms = if (args.uniforms.len > 0)
+                    @as(*const f32, @ptrCast(@alignCast(args.uniforms[0]))).*
+                else
+                    1.0;
+                const epsilon = if (args.uniforms.len > 1)
+                    @as(*const f32, @ptrCast(@alignCast(args.uniforms[1]))).*
+                else
+                    1e-5;
+                try executeCpuRmsNorm(bufs[0], bufs[1], bufs[2], rms, epsilon);
+            }
         } else {
             std.log.warn("No CPU fallback for kernel: {s}", .{name});
             return DispatchError.UnsupportedOperation;
@@ -506,6 +702,7 @@ pub const KernelDispatcher = struct {
         cache_hits: u64,
         cache_misses: u64,
         cache_hit_rate: f64,
+        cublas_ops: u64,
     } {
         const total_lookups = self.cache_hits + self.cache_misses;
         const hit_rate = if (total_lookups > 0)
@@ -519,6 +716,7 @@ pub const KernelDispatcher = struct {
             .cache_hits = self.cache_hits,
             .cache_misses = self.cache_misses,
             .cache_hit_rate = hit_rate,
+            .cublas_ops = self.cublas_ops,
         };
     }
 };
@@ -638,6 +836,117 @@ fn executeCpuMatrixMultiply(
             }
             r_data[i * n + j] = sum;
         }
+    }
+}
+
+fn executeCpuBatchCosineSimilarity(
+    query: *Buffer,
+    vectors: *Buffer,
+    result: *Buffer,
+    num_vectors: u32,
+    dim: u32,
+    query_norm: f32,
+) DispatchError!void {
+    const q_data = std.mem.bytesAsSlice(f32, query.host_data orelse return DispatchError.BufferNotReady);
+    const v_data = std.mem.bytesAsSlice(f32, vectors.host_data orelse return DispatchError.BufferNotReady);
+    var r_data = std.mem.bytesAsSlice(f32, result.host_data orelse return DispatchError.BufferNotReady);
+
+    const d = @as(usize, dim);
+    const n = @min(@as(usize, num_vectors), r_data.len);
+
+    for (0..n) |i| {
+        var dot_sum: f32 = 0;
+        var vec_norm_sq: f32 = 0;
+        const vec_offset = i * d;
+
+        for (0..d) |j| {
+            if (j < q_data.len and vec_offset + j < v_data.len) {
+                const q_val = q_data[j];
+                const v_val = v_data[vec_offset + j];
+                dot_sum += q_val * v_val;
+                vec_norm_sq += v_val * v_val;
+            }
+        }
+
+        const vec_norm = @sqrt(vec_norm_sq);
+        const norm_product = query_norm * vec_norm;
+
+        r_data[i] = if (norm_product > 1e-8)
+            dot_sum / norm_product
+        else
+            0;
+    }
+}
+
+fn executeCpuGelu(input: *Buffer, output: *Buffer) DispatchError!void {
+    const in_data = std.mem.bytesAsSlice(f32, input.host_data orelse return DispatchError.BufferNotReady);
+    var out_data = std.mem.bytesAsSlice(f32, output.host_data orelse return DispatchError.BufferNotReady);
+
+    const len = @min(in_data.len, out_data.len);
+    const sqrt_2_pi: f32 = 0.7978845608;
+    const coef: f32 = 0.044715;
+
+    for (0..len) |i| {
+        const x = in_data[i];
+        const x_cubed = x * x * x;
+        const inner = sqrt_2_pi * (x + coef * x_cubed);
+        const tanh_val = std.math.tanh(inner);
+        out_data[i] = 0.5 * x * (1.0 + tanh_val);
+    }
+}
+
+fn executeCpuSilu(input: *Buffer, output: *Buffer) DispatchError!void {
+    const in_data = std.mem.bytesAsSlice(f32, input.host_data orelse return DispatchError.BufferNotReady);
+    var out_data = std.mem.bytesAsSlice(f32, output.host_data orelse return DispatchError.BufferNotReady);
+
+    const len = @min(in_data.len, out_data.len);
+
+    for (0..len) |i| {
+        const x = in_data[i];
+        // SiLU(x) = x / (1 + exp(-x))
+        out_data[i] = x / (1.0 + @exp(-x));
+    }
+}
+
+fn executeCpuLayerNorm(
+    input: *Buffer,
+    gamma: *Buffer,
+    beta: *Buffer,
+    output: *Buffer,
+    mean: f32,
+    variance: f32,
+    epsilon: f32,
+) DispatchError!void {
+    const in_data = std.mem.bytesAsSlice(f32, input.host_data orelse return DispatchError.BufferNotReady);
+    const g_data = std.mem.bytesAsSlice(f32, gamma.host_data orelse return DispatchError.BufferNotReady);
+    const b_data = std.mem.bytesAsSlice(f32, beta.host_data orelse return DispatchError.BufferNotReady);
+    var out_data = std.mem.bytesAsSlice(f32, output.host_data orelse return DispatchError.BufferNotReady);
+
+    const len = @min(in_data.len, @min(out_data.len, @min(g_data.len, b_data.len)));
+    const std_dev = @sqrt(variance + epsilon);
+
+    for (0..len) |i| {
+        const normalized = (in_data[i] - mean) / std_dev;
+        out_data[i] = g_data[i] * normalized + b_data[i];
+    }
+}
+
+fn executeCpuRmsNorm(
+    input: *Buffer,
+    gamma: *Buffer,
+    output: *Buffer,
+    rms: f32,
+    epsilon: f32,
+) DispatchError!void {
+    const in_data = std.mem.bytesAsSlice(f32, input.host_data orelse return DispatchError.BufferNotReady);
+    const g_data = std.mem.bytesAsSlice(f32, gamma.host_data orelse return DispatchError.BufferNotReady);
+    var out_data = std.mem.bytesAsSlice(f32, output.host_data orelse return DispatchError.BufferNotReady);
+
+    const len = @min(in_data.len, @min(out_data.len, g_data.len));
+    const rms_eps = rms + epsilon;
+
+    for (0..len) |i| {
+        out_data[i] = g_data[i] * in_data[i] / rms_eps;
     }
 }
 

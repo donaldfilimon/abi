@@ -380,6 +380,31 @@ pub const KernelBuilder = struct {
         return self.unaryOp(.abs, a);
     }
 
+    // Neural network activation functions
+    pub fn exp(self: *Self, a: *const expr.Expr) !*const expr.Expr {
+        return self.unaryOp(.exp, a);
+    }
+
+    pub fn tanh(self: *Self, a: *const expr.Expr) !*const expr.Expr {
+        return self.unaryOp(.tanh, a);
+    }
+
+    pub fn sin(self: *Self, a: *const expr.Expr) !*const expr.Expr {
+        return self.unaryOp(.sin, a);
+    }
+
+    pub fn cos(self: *Self, a: *const expr.Expr) !*const expr.Expr {
+        return self.unaryOp(.cos, a);
+    }
+
+    pub fn log(self: *Self, a: *const expr.Expr) !*const expr.Expr {
+        return self.unaryOp(.log, a);
+    }
+
+    pub fn floor(self: *Self, a: *const expr.Expr) !*const expr.Expr {
+        return self.unaryOp(.floor, a);
+    }
+
     /// Array/buffer index access: base[index]
     pub fn index(self: *Self, base: *const expr.Expr, idx: *const expr.Expr) !*const expr.Expr {
         const e = try self.allocator.create(expr.Expr);

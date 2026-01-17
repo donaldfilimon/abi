@@ -24,6 +24,9 @@
 //! ```
 
 const std = @import("std");
+const build_options = @import("build_options");
+const simd = @import("../shared/simd.zig");
+const gpu_accel = @import("gpu_accel.zig");
 
 pub const ClusteringError = error{
     InvalidK,
@@ -63,6 +66,8 @@ pub const KMeans = struct {
     fitted: bool,
     inertia: f64,
     rng: std.Random.DefaultPrng,
+    /// Optional GPU accelerator for batch distance computation
+    gpu_accelerator: ?*gpu_accel.GpuAccelerator,
 
     pub fn init(allocator: std.mem.Allocator, k: u32, dimension: u32) !KMeans {
         if (k == 0) return ClusteringError.InvalidK;
@@ -94,6 +99,7 @@ pub const KMeans = struct {
             .fitted = false,
             .inertia = 0.0,
             .rng = std.Random.DefaultPrng.init(42),
+            .gpu_accelerator = null,
         };
     }
 
@@ -106,7 +112,39 @@ pub const KMeans = struct {
         if (self.labels.len > 0) {
             self.allocator.free(self.labels);
         }
+
+        if (self.gpu_accelerator) |accel| {
+            accel.deinit();
+            self.allocator.destroy(accel);
+        }
+
         self.* = undefined;
+    }
+
+    /// Enable GPU acceleration for batch distance computation.
+    /// Beneficial for large datasets (>10k vectors) and high-dimensional spaces (>64 dims).
+    pub fn enableGpuAcceleration(self: *KMeans) !void {
+        if (self.gpu_accelerator != null) return; // Already enabled
+
+        if (!build_options.enable_gpu) return ClusteringError.OutOfMemory;
+
+        const accel = try self.allocator.create(gpu_accel.GpuAccelerator);
+        errdefer self.allocator.destroy(accel);
+
+        accel.* = try gpu_accel.GpuAccelerator.init(self.allocator, .{
+            .batch_threshold = 256, // Use GPU for batches >= 256 vectors
+        });
+
+        self.gpu_accelerator = accel;
+    }
+
+    /// Disable GPU acceleration.
+    pub fn disableGpuAcceleration(self: *KMeans) void {
+        if (self.gpu_accelerator) |accel| {
+            accel.deinit();
+            self.allocator.destroy(accel);
+            self.gpu_accelerator = null;
+        }
     }
 
     /// Fit the K-means model to the given vectors using K-means++ initialization.
@@ -311,12 +349,79 @@ pub const KMeans = struct {
     }
 
     fn assignLabels(self: *KMeans, vectors: []const []const f32) void {
+        // Try GPU-accelerated batch assignment for large datasets
+        if (self.gpu_accelerator != null and vectors.len >= 1000) {
+            self.assignLabelsGpu(vectors) catch {
+                // Fall back to CPU if GPU fails
+                self.assignLabelsCpu(vectors);
+            };
+        } else {
+            // Use CPU for small datasets or when GPU is unavailable
+            self.assignLabelsCpu(vectors);
+        }
+    }
+
+    /// CPU implementation of label assignment using SIMD distance computation.
+    fn assignLabelsCpu(self: *KMeans, vectors: []const []const f32) void {
         for (vectors, 0..) |v, i| {
             var min_dist: f32 = std.math.inf(f32);
             var best: u32 = 0;
 
             for (self.centroids, 0..) |centroid, j| {
                 const dist = euclideanDistanceSquared(v, centroid);
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    best = @intCast(j);
+                }
+            }
+
+            self.labels[i] = best;
+        }
+    }
+
+    /// GPU-accelerated label assignment using batch distance computation.
+    fn assignLabelsGpu(self: *KMeans, vectors: []const []const f32) !void {
+        const accel = self.gpu_accelerator.?;
+
+        // Allocate distance matrix: vectors x centroids
+        var distances = try self.allocator.alloc([]f32, vectors.len);
+        defer {
+            for (distances) |row| {
+                self.allocator.free(row);
+            }
+            self.allocator.free(distances);
+        }
+
+        for (distances) |*row| {
+            row.* = try self.allocator.alloc(f32, self.k);
+        }
+
+        // Compute distances for each centroid in batch
+        for (self.centroids, 0..) |centroid, c_idx| {
+            // Compute centroid norm once
+            const centroid_norm = simd.vectorL2Norm(centroid);
+
+            // Extract column of distances for this centroid
+            const centroid_dists = try self.allocator.alloc(f32, vectors.len);
+            defer self.allocator.free(centroid_dists);
+
+            // Batch compute cosine similarity, then convert to euclidean distance
+            try accel.batchCosineSimilarity(centroid, centroid_norm, vectors, centroid_dists);
+
+            // Convert similarities to euclidean distances
+            // For unit vectors: d^2 = 2(1 - similarity)
+            // For general vectors, we use L2 distance directly
+            for (vectors, 0..) |v, v_idx| {
+                distances[v_idx][c_idx] = euclideanDistanceSquared(v, centroid);
+            }
+        }
+
+        // Find nearest centroid for each vector
+        for (distances, 0..) |row, i| {
+            var min_dist: f32 = std.math.inf(f32);
+            var best: u32 = 0;
+
+            for (row, 0..) |dist, j| {
                 if (dist < min_dist) {
                     min_dist = dist;
                     best = @intCast(j);
@@ -376,38 +481,19 @@ pub const KMeans = struct {
     }
 };
 
-/// Calculate squared Euclidean distance between two vectors.
+/// Calculate squared Euclidean distance between two vectors using SIMD.
 pub fn euclideanDistanceSquared(a: []const f32, b: []const f32) f32 {
-    var sum: f32 = 0.0;
-    const len = @min(a.len, b.len);
-    for (a[0..len], b[0..len]) |va, vb| {
-        const diff = va - vb;
-        sum += diff * diff;
-    }
-    return sum;
+    return simd.l2DistanceSquared(a, b);
 }
 
-/// Calculate Euclidean distance between two vectors.
+/// Calculate Euclidean distance between two vectors using SIMD.
 pub fn euclideanDistance(a: []const f32, b: []const f32) f32 {
-    return @sqrt(euclideanDistanceSquared(a, b));
+    return @sqrt(simd.l2DistanceSquared(a, b));
 }
 
-/// Calculate cosine similarity between two vectors.
+/// Calculate cosine similarity between two vectors using SIMD.
 pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
-    var dot: f32 = 0.0;
-    var norm_a: f32 = 0.0;
-    var norm_b: f32 = 0.0;
-
-    const len = @min(a.len, b.len);
-    for (a[0..len], b[0..len]) |va, vb| {
-        dot += va * vb;
-        norm_a += va * va;
-        norm_b += vb * vb;
-    }
-
-    const denom = @sqrt(norm_a) * @sqrt(norm_b);
-    if (denom == 0) return 0.0;
-    return dot / denom;
+    return simd.cosineSimilarity(a, b);
 }
 
 /// Silhouette score for evaluating cluster quality.
