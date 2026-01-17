@@ -22,22 +22,24 @@ ABI is built on three core pillars:
 
 ## Architecture
 
-The framework is organized into five layers:
+The framework uses a flat domain structure with top-level feature modules:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Public API (abi.zig)                 │
 │         init(), shutdown(), version(), namespaces      │
 ├─────────────────────────────────────────────────────────┤
-│                  Framework (src/framework/)             │
+│              Framework (src/framework.zig)              │
 │      Lifecycle, Configuration, Feature Orchestration   │
-├─────────────────────────────────────────────────────────┤
-│                 Compute Engine (src/compute/)           │
-│   Work-Stealing Scheduler, GPU Integration, Memory     │
-├─────────────────────────────────────────────────────────┤
-│                Feature Stacks (src/features/)           │
-│        AI, Database, GPU, Network, Monitoring, Web     │
-├─────────────────────────────────────────────────────────┤
+├───────────────────────┬─────────────────────────────────┤
+│   Top-Level Modules   │      Runtime Infrastructure    │
+│  src/gpu/             │  src/runtime/                  │
+│  src/ai/              │    - Task execution            │
+│  src/database/        │    - Work-stealing scheduler   │
+│  src/network/         │    - Concurrency primitives    │
+│  src/observability/   │    - Memory management         │
+│  src/web/             │                                │
+├───────────────────────┴─────────────────────────────────┤
 │               Shared Utilities (src/shared/)            │
 │     Platform Abstractions, SIMD, Crypto, Logging       │
 └─────────────────────────────────────────────────────────┘
@@ -52,37 +54,36 @@ The entry point for all ABI applications. Provides:
 - `abi.version()` - Get version string
 - Curated re-exports of feature namespaces
 
-### Layer 2: Framework (`src/framework/`)
+### Layer 2: Framework (`src/framework.zig`)
 
 Manages the application lifecycle:
 
 - **Initialization** - Set up allocators, configure features
-- **Configuration** - Runtime options via `FrameworkOptions`
+- **Configuration** - Unified config via `src/config.zig`
 - **Feature Orchestration** - Enable/disable features at build and runtime
 - **Plugin System** - Runtime-loadable extensions
 
-### Layer 3: Compute Engine (`src/compute/`)
+### Layer 3: Top-Level Feature Modules
+
+Domain-specific modules (each with `mod.zig` entry point and `stub.zig` placeholder):
+
+| Module | Location | Description | Guide |
+|--------|----------|-------------|-------|
+| **AI** | `src/ai/` | LLM connectors, agent runtime, embeddings, training | [AI Guide](ai.md) |
+| **Database** | `src/database/` | WDBX vector database, HNSW indexing, hybrid search | [Database Guide](database.md) |
+| **GPU** | `src/gpu/` | Multi-backend support (CUDA, Vulkan, Metal, WebGPU) | [GPU Guide](gpu.md) |
+| **Network** | `src/network/` | Distributed compute, node discovery, Raft consensus | [Network Guide](network.md) |
+| **Observability** | `src/observability/` | Metrics, tracing, alerting, profiling | [Observability Guide](monitoring.md) |
+| **Web** | `src/web/` | HTTP client/server, async I/O | - |
+
+### Layer 4: Runtime Infrastructure (`src/runtime/`)
 
 High-performance parallel execution:
 
 - **Work-Stealing Scheduler** - Efficient task distribution across threads
-- **GPU Integration** - Automatic GPU offloading with CPU fallback
-- **Memory Management** - Arena allocation, pooling, NUMA awareness
 - **Concurrency Primitives** - Lock-free queues, sharded maps, futures
-
-### Layer 4: Feature Stacks (`src/features/`)
-
-Domain-specific modules:
-
-| Feature | Description | Guide |
-|---------|-------------|--------|
-| **AI** | LLM connectors (OpenAI, Ollama, HuggingFace), agent runtime, training | [AI Guide](ai.md) |
-| **Database** | WDBX vector database, HNSW indexing, hybrid search | [Database Guide](database.md) |
-| **GPU** | Multi-backend support (CUDA, Vulkan, Metal, WebGPU), unified API | [GPU Guide](gpu.md) |
-| **Network** | Distributed compute, node discovery, Raft consensus | [Network Guide](network.md) |
-| **Monitoring** | Logging, metrics, alerting, tracing, profiling | [Monitoring Guide](monitoring.md) |
-| **Web** | HTTP client/server, async I/O | - |
-| **Connectors** | Discord, local scheduler integrations | [AI Guide](ai.md) |
+- **Memory Management** - Arena allocation, pooling
+- **Task Groups** - Hierarchical task organization
 
 ### Layer 5: Shared Utilities (`src/shared/`)
 

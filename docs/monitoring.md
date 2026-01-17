@@ -1,8 +1,9 @@
 # Monitoring & Observability
 
 > **Status**: Requires `-Denable-profiling=true` at build time.
+> **Module**: `src/observability/` (consolidated from `features/monitoring/` as of 2026-01-17)
 
-The **Monitoring** module provides comprehensive observability tools for tracking application health, performance, and behavior.
+The **Observability** module provides comprehensive monitoring tools for tracking application health, performance, and behavior.
 
 ---
 
@@ -66,9 +67,9 @@ Enable metrics collection to track quantitative data about your application.
 ```zig
 const abi = @import("abi");
 
-var metrics = try abi.monitoring.MetricsCollector.init(
+var metrics = try abi.observability.MetricsCollector.init(
     allocator,
-    abi.monitoring.DEFAULT_METRICS_CONFIG,
+    abi.observability.DEFAULT_METRICS_CONFIG,
     4,  // worker count
 );
 defer metrics.deinit();
@@ -151,7 +152,7 @@ Configure rules to trigger notifications when metrics cross thresholds.
 ### Alert Manager
 
 ```zig
-const alerting = abi.monitoring.alerting;
+const alerting = abi.observability.alerting;
 
 var manager = try alerting.AlertManager.init(allocator, .{
     .evaluation_interval_ms = 15_000,    // Check every 15 seconds
@@ -264,7 +265,7 @@ Track request flow across operations for debugging and performance analysis.
 ### Basic Tracing
 
 ```zig
-const tracing = abi.monitoring.tracing;
+const tracing = abi.observability.tracing;
 
 var tracer = try tracing.Tracer.init(allocator, .{
     .sample_rate = 1.0,  // 100% sampling
@@ -399,7 +400,7 @@ if (gpu.getMetricsSummary()) |summary| {
 ### Metrics Configuration
 
 ```zig
-const config = abi.monitoring.MetricsConfig{
+const config = abi.observability.MetricsConfig{
     .enable_histograms = true,
     .histogram_buckets = 50,
     .max_metrics = 1000,
@@ -407,13 +408,13 @@ const config = abi.monitoring.MetricsConfig{
     .enable_percentiles = true,
 };
 
-var metrics = try abi.monitoring.MetricsCollector.init(allocator, config, worker_count);
+var metrics = try abi.observability.MetricsCollector.init(allocator, config, worker_count);
 ```
 
 ### Alerting Configuration
 
 ```zig
-const config = abi.monitoring.alerting.AlertManagerConfig{
+const config = abi.observability.alerting.AlertManagerConfig{
     .evaluation_interval_ms = 15_000,
     .default_for_duration_ms = 60_000,
     .max_rules = 100,

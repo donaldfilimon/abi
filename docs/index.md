@@ -58,7 +58,7 @@ zig build run -- --help             # CLI help
 | [Compute Engine](compute.md) | (always enabled) | Work-stealing scheduler, task execution, NUMA |
 | [Database (WDBX)](database.md) | `-Denable-database` | Vector database, HNSW indexing, hybrid search |
 | [GPU Acceleration](gpu.md) | `-Denable-gpu` | Unified API, DSL, CUDA/Vulkan/Metal/WebGPU backends |
-| [Monitoring](monitoring.md) | `-Denable-profiling` | Logging, metrics, alerting, tracing, profiling |
+| [Observability](monitoring.md) | `-Denable-profiling` | Logging, metrics, alerting, tracing, profiling |
 | [Network](network.md) | `-Denable-network` | Distributed compute, node discovery, Raft consensus |
 | [Explore](explore.md) | `-Denable-explore` | Codebase search, AST parsing, natural language queries |
 
@@ -150,7 +150,11 @@ src/
 ├── network/             # Distributed compute
 ├── observability/       # Metrics, tracing, profiling
 ├── web/                 # Web/HTTP utilities
-└── internal/            # Shared utilities (logging, security, platform)
+├── shared/              # Cross-cutting utilities
+│   ├── simd.zig        # SIMD vector operations
+│   ├── observability/  # Metrics primitives, tracing (Tracer, Span)
+│   └── utils/          # Memory, time, backoff utilities
+└── features/            # Implementation layer (ai/, connectors/, ha/)
 
 tools/cli/               # CLI implementation (commands/, tui/)
 benchmarks/              # Performance benchmarks
@@ -167,7 +171,7 @@ docs/                    # Documentation
 5. **GPU** - Top-level GPU acceleration module with unified API
 6. **AI** - Modular AI with independent sub-features (llm, embeddings, agents, training)
 7. **Domain Modules** - Database, network, observability, web at top level
-8. **Internal** - Shared utilities, platform abstractions, security
+8. **Shared** - Cross-cutting utilities (SIMD, observability primitives, platform)
 
 ---
 

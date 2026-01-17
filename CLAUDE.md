@@ -11,41 +11,26 @@ zig build test --summary all           # Run tests with detailed output
 zig fmt .                              # Format code (run after edits)
 zig build run -- --help                # CLI help
 
-# Feature-gated builds
-zig build -Denable-ai=true -Denable-gpu=false -Denable-database=true
-
 # Single file testing (use zig test, NOT zig build test)
 zig test src/runtime/engine/engine.zig
 zig test src/tests/mod.zig --test-filter "pattern"
+
+# Feature-gated builds
+zig build -Denable-ai=true -Denable-gpu=false -Denable-database=true
 
 # Runtime feature flags (CLI)
 zig build run -- --list-features          # List features and their status
 zig build run -- --enable-gpu db stats    # Enable feature for this run
 zig build run -- --disable-ai llm info    # Disable feature for this run
 
-# GPU and system info
-zig build run -- gpu backends
-zig build run -- gpu devices
-zig build run -- tui                   # Interactive launcher
-
 # Additional build targets
 zig build benchmarks                   # Run comprehensive benchmarks
-zig build bench-competitive            # Run competitive benchmarks
-zig build benchmark-legacy             # Run legacy performance benchmarks
 zig build gendocs                      # Generate API documentation
-zig build profile                      # Build with performance profiling
 zig build wasm                         # Build WASM bindings
 zig build check-wasm                   # Check WASM compilation
 zig build examples                     # Build all examples
 
-# Run example programs
-zig build run-hello                    # Run hello example
-zig build run-database                 # Run database example
-zig build run-agent                    # Run agent example
-zig build run-compute                  # Run compute example
-zig build run-gpu                      # Run GPU example
-zig build run-network                  # Run network example
-zig build run-discord                  # Run discord example
+# Run examples: zig build run-{hello,database,agent,compute,gpu,network,discord}
 ```
 
 ## Critical Gotchas
@@ -136,12 +121,16 @@ src/
 ├── network/            # Distributed compute
 ├── observability/      # Metrics, tracing, profiling
 ├── web/                # Web/HTTP utilities
-├── internal/           # Shared utilities (logging, plugins, platform, simd)
+├── shared/             # Cross-cutting utilities
+│   ├── simd.zig       # SIMD vector operations
+│   ├── observability/ # Metrics primitives, tracing (Tracer, Span, etc.)
+│   └── utils/         # Memory, time, backoff utilities
 ├── registry/           # Plugin registry system (comptime, runtime-toggle, dynamic)
-├── features/           # Full implementations
-│   └── ai/            # AI implementation (agent, training, embeddings, llm)
-├── core/               # I/O, diagnostics, collections
-└── shared/             # Legacy shared utilities
+├── features/           # Implementation layer
+│   ├── ai/            # AI implementation (agent, training, embeddings, llm)
+│   ├── connectors/    # API connectors (OpenAI, Ollama, Anthropic)
+│   └── ha/            # High availability (backup, PITR, replication)
+└── core/               # I/O, diagnostics, collections
 
 tools/cli/               # CLI implementation (commands/, tui/)
 bindings/wasm/           # WASM bindings entry point
@@ -378,7 +367,7 @@ std.debug.print("State: {t}", .{state});
 | `simd` | SIMD operations performance demo |
 | `task` | Task management (add, list, show, done, start, cancel, delete, stats, import-roadmap) |
 | `system-info` | System and framework status |
-| `tui` | Interactive TUI command menu |
+| `tui` | Interactive TUI launcher (search, quick-launch 1-9, categories, mouse) |
 | `version` | Framework version |
 | `help` | Help and usage |
 
@@ -413,72 +402,6 @@ Available in `examples/` directory:
 
 Build all examples: `zig build examples`
 
-## CLI Output Examples (2026-01-17)
-
-**version:**
-```
-ABI Framework v0.1.0
-```
-
-**system-info:**
-```
-=== System Information ===
-  OS: windows
-  Architecture: x86_64
-  CPU Threads: 32
-  ABI Version: 0.1.0
-  SIMD Support: available
-  GPU Backends: vulkan
-  GPU Devices: 1 (emulated 1)
-  Network: enabled (not initialized)
-
-=== Feature Matrix ===
-  gpu: yes
-  ai: yes
-  llm: yes
-  [...]
-```
-
-**gpu backends:**
-```
-=== GPU Backends ===
-  CUDA (disabled) - NVIDIA CUDA backend [enable -Dgpu-cuda]
-  Vulkan (enabled) - Cross-platform Vulkan backend [devices: 1]
-  std.gpu (disabled) - Zig std.gpu SPIR-V backend [enable -Dgpu-stdgpu]
-  Metal (disabled) - Apple Metal backend [enable -Dgpu-metal]
-  WebGPU (enabled) - WebGPU backend [unavailable: webgpu runtime not found]
-  OpenGL (disabled) - OpenGL backend [enable -Dgpu-opengl]
-  OpenGL ES (disabled) - OpenGL ES backend [enable -Dgpu-opengles]
-  WebGL2 (enabled) - WebGL2 backend (browser) [unavailable: webgl2 requires web target]
-```
-
-**simd:**
-```
-  SIMD Support: available
-
-=== SIMD Performance Results ===
-  Vector Add: 4000ns
-  Dot Product: 2700ns (result: 665666700.000000)
-  L2 Norm: 1500ns (result: 18243.720000)
-  Cosine Similarity: 1200ns (result: 1.000000)
-```
-
-**--list-features:**
-```
-Available Features:
---------------------------------------------------
-  [x] gpu             COMPILED
-  [x] ai              COMPILED
-  [x] llm             COMPILED
-  [x] embeddings      COMPILED
-  [x] agents          COMPILED
-  [x] training        COMPILED
-  [x] database        COMPILED
-  [x] network         COMPILED
-  [x] observability   COMPILED
-  [x] web             COMPILED
-```
-
 ## Environment Variables
 
 Connector config prioritizes ABI-prefixed variables with fallback: `ABI_OPENAI_API_KEY` -> `OPENAI_API_KEY`
@@ -505,10 +428,17 @@ Connector config prioritizes ABI-prefixed variables with fallback: `ABI_OPENAI_A
 **Default Model:** GPT-2 Small (124M parameters) - open source, no authentication required.
 
 ```bash
-zig build run -- train info                    # Show configuration and download instructions
-zig build run -- train run --epochs 2          # Basic training test
-zig build run -- llm list                      # List supported model formats
+zig build run -- train info                    # Show configuration
+zig build run -- train run --epochs 2          # Basic training (synthetic data)
+zig build run -- train resume <ckpt-path>      # Load checkpoint
+
+zig build run -- llm list                      # List supported GGUF formats
+zig build run -- llm info <model-path>         # Model info
+zig build run -- llm generate <model> --prompt "text"  # Generate text
+zig build run -- llm chat <model-path>         # Interactive chat (/quit, /clear, /help)
 ```
+
+Training uses synthetic data by default; checkpoints saved to `testingllm.ckpt/`.
 
 ## Debugging
 
@@ -575,61 +505,21 @@ while (retry.shouldRetry()) {
 }
 ```
 
-## Diagnostics and Error Context (2026.01)
-
-Structured diagnostics and error context APIs for debugging production issues.
-
-### GPU Diagnostics
+## Diagnostics APIs
 
 ```zig
-const gpu = @import("abi").gpu;  // Or: const gpu = @import("src/gpu/mod.zig");
-
-// Collect comprehensive GPU state
+// GPU diagnostics
 const diag = gpu.DiagnosticsInfo.collect(allocator);
+if (!diag.isHealthy()) { /* log diag.formatToString(allocator) */ }
 
-// Check health and format for logging
-if (!diag.isHealthy()) {
-    const msg = try diag.formatToString(allocator);
-    defer allocator.free(msg);
-    std.log.warn("{s}", .{msg});
-}
-
-// Structured error reporting
-const ctx = gpu.ErrorContext.init(.backend_error, .cuda, "Kernel launch failed");
-ctx.reportErrorFull(allocator);
-
-// Graceful degradation
+// Graceful degradation to CPU
 var manager = gpu.FailoverManager.init(allocator);
-manager.setDegradationMode(.automatic);  // Auto-fallback to CPU
-if (manager.isDegraded()) {
-    std.log.info("Running in CPU fallback mode", .{});
-}
-```
+manager.setDegradationMode(.automatic);
 
-### Database Diagnostics
-
-```zig
-const abi = @import("abi");
-var fw = try abi.init(allocator);
+// Database diagnostics
 if (fw.getDatabase()) |db| {
-    const diag = db.diagnostics();
-    std.log.info("Vectors: {d}, Memory: {d}KB, Healthy: {}", .{
-        diag.vector_count,
-        diag.memory.total_bytes / 1024,
-        diag.isHealthy(),
-    });
+    const diag = db.diagnostics();  // .vector_count, .memory, .isHealthy()
 }
-```
-
-### AI Agent Error Context
-
-```zig
-const abi = @import("abi");
-var fw = try abi.init(allocator);
-if (try fw.getAi()) |ai| {
-    // Use AI context
-}
-// Real implementation: src/features/ai/agent.zig
 ```
 
 ## Reference

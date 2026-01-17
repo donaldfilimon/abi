@@ -51,19 +51,26 @@ src/
 │   ├── mod.zig        # Module entry with Context struct
 │   └── stub.zig       # Feature-gated placeholder
 │
-├── internal/           # Shared utilities
-│   └── mod.zig        # Logging, plugins, platform, SIMD
+├── shared/             # Cross-cutting utilities
+│   ├── mod.zig        # Logging, plugins, platform exports
+│   ├── simd.zig       # SIMD vector operations
+│   ├── observability/ # Metrics primitives, tracing types (Tracer, Span)
+│   └── utils/         # Memory, time, backoff utilities
 │
 ├── compute/            # Legacy compute infrastructure
 │   ├── mod.zig        # Concurrency primitives
 │   └── runtime/       # Future, TaskGroup, CancellationToken
 │
-├── features/           # Legacy feature directory (being phased out)
-│   ├── mod.zig        # Remaining feature references
-│   └── ai/            # Full AI implementation (agent, training, embeddings)
+├── features/           # Implementation layer
+│   ├── mod.zig        # Feature references
+│   ├── ai/            # Full AI implementation (agent, training, embeddings, llm)
+│   ├── connectors/    # API connectors (OpenAI, Ollama, Anthropic)
+│   └── ha/            # High availability (backup, PITR, replication)
 │
-└── shared/             # Legacy shared utilities
-    └── utils/         # Memory, time, backoff utilities
+└── registry/           # Plugin registry system
+    ├── comptime.zig   # Compile-time registration
+    ├── dynamic.zig    # Dynamic plugin loading
+    └── runtime.zig    # Runtime feature toggle
 ```
 
 ## Design Patterns
