@@ -48,6 +48,21 @@ All feature-gated stub modules have been audited and updated for complete API pa
 
 ## Unreleased (v0.3.1-dev)
 
+### GPU Stub API Improvements (2026-01-17)
+
+- **Buffer struct** - Added `read()`, `readBytes()`, `write()`, `writeBytes()`, `size()`, `deinit()` methods
+- **UnifiedBuffer struct** - Added `read()`, `write()`, `size()`, `deinit()` methods
+- **Gpu struct** - Added `reduceSum()`, `dotProduct()`, `getStats()`, `getMetricsSummary()`, `getMemoryInfo()`, `checkHealth()` methods
+- **New types** - Added `ReduceResult`, `DotProductResult`, `MetricsSummary` structs
+- **GpuStats** - Added `kernels_launched`, `buffers_created`, `bytes_allocated`, `total_execution_time_ns` fields
+- **MemoryInfo** - Added `used_bytes`, `peak_used_bytes`, `total_bytes` fields
+
+**Build Verification:**
+- All 8 build configurations pass (default, GPU disabled, all features disabled, etc.)
+- All 74 tests pass
+- All examples compile and run correctly
+- CLI commands functional (help, version, gpu backends, system-info, etc.)
+
 ### Module Migration (January 2026)
 
 Completed migration of feature modules from `src/features/` to `src/`:

@@ -97,8 +97,45 @@ pub const DeviceFeature = enum { compute, graphics };
 pub const DeviceSelector = struct {};
 pub const DeviceManager = struct {};
 
-pub const Buffer = struct {};
-pub const UnifiedBuffer = struct {};
+pub const Buffer = struct {
+    pub fn read(_: *Buffer, comptime _: type, _: anytype) Error!void {
+        return error.GpuDisabled;
+    }
+
+    pub fn readBytes(_: *Buffer, _: []u8) Error!void {
+        return error.GpuDisabled;
+    }
+
+    pub fn write(_: *Buffer, comptime _: type, _: anytype) Error!void {
+        return error.GpuDisabled;
+    }
+
+    pub fn writeBytes(_: *Buffer, _: []const u8) Error!void {
+        return error.GpuDisabled;
+    }
+
+    pub fn size(_: *const Buffer) usize {
+        return 0;
+    }
+
+    pub fn deinit(_: *Buffer) void {}
+};
+
+pub const UnifiedBuffer = struct {
+    pub fn read(_: *UnifiedBuffer, comptime _: type, _: anytype) Error!void {
+        return error.GpuDisabled;
+    }
+
+    pub fn write(_: *UnifiedBuffer, comptime _: type, _: anytype) Error!void {
+        return error.GpuDisabled;
+    }
+
+    pub fn size(_: *const UnifiedBuffer) usize {
+        return 0;
+    }
+
+    pub fn deinit(_: *UnifiedBuffer) void {}
+};
 pub const BufferFlags = packed struct { read: bool = true, write: bool = true };
 pub const BufferOptions = struct {};
 pub const BufferView = struct {};
@@ -107,7 +144,11 @@ pub const MappedBuffer = struct {};
 
 pub const MemoryPool = struct {};
 pub const MemoryStats = struct {};
-pub const MemoryInfo = struct {};
+pub const MemoryInfo = struct {
+    used_bytes: usize = 0,
+    peak_used_bytes: usize = 0,
+    total_bytes: usize = 0,
+};
 pub const MemoryMode = enum { automatic, explicit, unified };
 pub const MemoryLocation = enum { device, host };
 
@@ -158,7 +199,12 @@ pub const ExecutionResult = struct {
 };
 pub const ExecutionStats = struct {};
 pub const HealthStatus = enum { healthy, degraded, unhealthy };
-pub const GpuStats = struct {};
+pub const GpuStats = struct {
+    kernels_launched: usize = 0,
+    buffers_created: usize = 0,
+    bytes_allocated: usize = 0,
+    total_execution_time_ns: u64 = 0,
+};
 pub const MatrixDims = struct { m: usize = 0, n: usize = 0, k: usize = 0 };
 pub const MultiGpuConfig = struct {};
 pub const LoadBalanceStrategy = enum { round_robin, least_loaded };
@@ -176,6 +222,22 @@ pub const recovery = struct {};
 pub const failover = struct {};
 pub const RecoveryManager = struct {};
 pub const FailoverManager = struct {};
+
+pub const ReduceResult = struct {
+    value: f32 = 0.0,
+    stats: ExecutionResult = .{},
+};
+
+pub const DotProductResult = struct {
+    value: f32 = 0.0,
+    stats: ExecutionResult = .{},
+};
+
+pub const MetricsSummary = struct {
+    total_kernel_invocations: usize = 0,
+    avg_kernel_time_ns: f64 = 0.0,
+    kernels_per_second: f64 = 0.0,
+};
 
 pub const Gpu = struct {
     pub fn init(_: std.mem.Allocator, _: GpuConfig) Error!Gpu {
@@ -197,6 +259,24 @@ pub const Gpu = struct {
     pub fn destroyBuffer(_: *Gpu, _: *Buffer) void {}
     pub fn vectorAdd(_: *Gpu, _: *Buffer, _: *Buffer, _: *Buffer) Error!ExecutionResult {
         return error.GpuDisabled;
+    }
+    pub fn reduceSum(_: *Gpu, _: *Buffer) Error!ReduceResult {
+        return error.GpuDisabled;
+    }
+    pub fn dotProduct(_: *Gpu, _: *Buffer, _: *Buffer) Error!DotProductResult {
+        return error.GpuDisabled;
+    }
+    pub fn getStats(_: *const Gpu) GpuStats {
+        return .{};
+    }
+    pub fn getMetricsSummary(_: *const Gpu) ?MetricsSummary {
+        return null;
+    }
+    pub fn getMemoryInfo(_: *const Gpu) MemoryInfo {
+        return .{};
+    }
+    pub fn checkHealth(_: *const Gpu) HealthStatus {
+        return .unhealthy;
     }
 };
 
