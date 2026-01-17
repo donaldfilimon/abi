@@ -376,6 +376,7 @@ std.debug.print("State: {t}", .{state});
 | `explore` | Codebase search |
 | `discord` | Discord bot integration |
 | `simd` | SIMD operations demo |
+| `task` | Task management (add, list, done, stats, import-roadmap) |
 | `system-info` | System information |
 | `tui` | Interactive launcher |
 | `version` | Version information |
