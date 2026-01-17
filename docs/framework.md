@@ -137,3 +137,4 @@ zig build run -- --version         # Show version
 - [Compute Engine](compute.md) - Engine configuration
 - [Troubleshooting](troubleshooting.md) - Feature disabled errors
 *See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
+[Main Workspace](../MAIN_WORKSPACE.md)

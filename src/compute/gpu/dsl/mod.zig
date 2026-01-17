@@ -186,6 +186,7 @@ pub const codegen = struct {
     pub const glsl = @import("codegen/glsl.zig");
     pub const wgsl = @import("codegen/wgsl.zig");
     pub const msl = @import("codegen/msl.zig");
+    pub const spirv = @import("codegen/spirv.zig");
 
     // Re-export common types
     pub const CodegenError = backend.CodegenError;
@@ -193,6 +194,10 @@ pub const codegen = struct {
     pub const CodeGenerator = backend.CodeGenerator;
     pub const BackendCapabilities = backend.BackendCapabilities;
     pub const validateForBackend = backend.validateForBackend;
+
+    // SPIR-V types
+    pub const SpirVGenerator = spirv.SpirVGenerator;
+    pub const ShaderCache = spirv.ShaderCache;
 };
 
 /// Codegen error type.
@@ -265,6 +270,7 @@ test {
     _ = codegen.glsl;
     _ = codegen.wgsl;
     _ = codegen.msl;
+    _ = codegen.spirv;
     _ = compiler;
 }
 

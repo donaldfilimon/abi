@@ -268,3 +268,4 @@ See [TODO.md](TODO.md) for the list of pending implementations.
 - [ ] CLI mirroring llama‑cpp options (`tools/cli/commands/llama.zig`).
 - [ ] Export C‑compatible API (`src/abi.zig`).
 - [ ] Comprehensive tests and benchmarks (`tests/llama/`).
+[Main Workspace](MAIN_WORKSPACE.md)

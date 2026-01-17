@@ -159,6 +159,105 @@ errdefer gpu.destroyBuffer(buffer);
 | [TODO.md](TODO.md) | Pending implementations |
 | [ROADMAP.md](ROADMAP.md) | Project roadmap |
 
+## Quick Index
+
+- [Common Gotchas](#common-gotchas)
+- [Project Structure diagram](#project-structure)
+- [Architecture highlights](#architecture-highlights)
+- [Concurrency primitives](#concurrency-primitives)
+- [Runtime patterns](#runtime-patterns)
+- [Environment variable table](#environment-variables)
+- [Detailed CLI command examples](#cli-commands)
+
+## Additional Reference (from CLAUDE.md)
+
+### Common Gotchas
+
+| Issue | Solution |
+|-------|----------|
+| `--test-filter` not working | Use `zig test file.zig --test-filter "pattern"`, **not** `zig build test --test-filter`. |
+| `std.fs.cwd()` missing | Replace with `std.Io.Dir.cwd()` using a `std.Io` context (Zig 0.16). |
+| Backup/restore path errors | Limit paths to the `backups/` directory; avoid `..`, absolute paths, or drive letters. |
+| Feature disabled errors | Rebuild with `-Denable-<feature>=true`. |
+| GPU backend conflicts | Enable only one backend, e.g. `-Dgpu-cuda=true -Dgpu-vulkan=false`. |
+
+### Project Structure
+
+```
+abi/
+├── src/
+│   ├── abi.zig                # Public API entry point
+│   ├── core/                  # I/O, diagnostics, collections
+│   ├── compute/               # Runtime, concurrency, GPU, memory, network, profiling
+│   ├── features/              # ai/, database/, gpu/, monitoring/, network/, connectors/
+│   ├── framework/             # Lifecycle and orchestration
+│   ├── shared/                # logging/, observability/, security/, utils/
+│   └── tests/                 # Test utilities (proptest)
+├── tools/cli/                # CLI implementation
+├── benchmarks/               # Benchmark suites
+└── docs/                     # Documentation
+```
+
+### Architecture Highlights
+
+* **Public API** – `src/abi.zig` exposing `abi.init()`, `abi.shutdown()`, `abi.version()`.
+* **Framework** – orchestrates feature gating and lifecycle.
+* **Compute Layer** – lock‑free structures, work‑stealing scheduler, GPU integration.
+* **Features** – modular AI, GPU, database, web, monitoring, network, connectors.
+* **Shared** – platform abstractions, SIMD, crypto, JSON, filesystem utilities.
+
+### Concurrency Primitives (src/compute/)
+
+* `WorkStealingQueue` – LIFO for owner, FIFO for thieves.
+* `LockFreeQueue/Stack` – atomic CAS‑based collections.
+* `PriorityQueue` – lock‑free task scheduling.
+* `ShardedMap` – partitioned data to reduce contention.
+* `Backoff` – exponential backoff with spin‑loop hints.
+
+### Runtime Patterns (src/compute/runtime/)
+
+* `Future` – async results with `.then()`, `.catch()`, `.finally()`.
+* `CancellationToken` – cooperative cancellation.
+* `TaskGroup` – hierarchical task grouping.
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ABI_OPENAI_API_KEY` / `OPENAI_API_KEY` | - | OpenAI API key |
+| `ABI_OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI base URL |
+| `ABI_OPENAI_MODE` | - | `responses`, `chat`, or `completions` |
+| `ABI_OLLAMA_HOST` / `OLLAMA_HOST` | `http://127.0.0.1:11434` | Ollama host |
+| `ABI_OLLAMA_MODEL` | `llama3.2` | Default Ollama model |
+| `ABI_HF_API_TOKEN` / `HF_API_TOKEN` | - | HuggingFace token |
+| `DISCORD_BOT_TOKEN` | - | Discord bot token |
+
+### CLI Commands
+
+```bash
+# Database
+zig build run -- db stats
+zig build run -- db add --id 1 --embed "text"
+zig build run -- db backup --path backup.db
+
+# Agent
+zig build run -- agent --persona coder
+zig build run -- agent -m "Hello"
+zig build run -- agent --list-personas
+
+# LLM
+zig build run -- llm info model.gguf
+zig build run -- llm chat model.gguf
+
+# GPU
+zig build run -- gpu backends
+zig build run -- gpu devices
+
+# Training
+zig build run -- train run --epochs 10 --batch-size 32
+zig build run -- train resume ./checkpoint.ckpt
+```
+
 ## Contacts
 
 src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files.
@@ -166,3 +265,4 @@ src/shared/contacts.zig provides a centralized list of maintainer contacts extra
 ## Pending Work
 
 Agents should be aware of the items in **[TODO.md](TODO.md)**. When generating code or suggestions, avoid relying on stubbed functionality (e.g., format converters for GGUF/NPZ) until the corresponding TODO is resolved.
+[Main Workspace](MAIN_WORKSPACE.md)

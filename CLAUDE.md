@@ -250,3 +250,4 @@ See [docs/troubleshooting.md](docs/troubleshooting.md) for detailed solutions. C
 | [TODO.md](TODO.md) | Pending work |
 | [ROADMAP.md](ROADMAP.md) | Version milestones |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common issues |
+[Main Workspace](MAIN_WORKSPACE.md)

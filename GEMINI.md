@@ -138,3 +138,4 @@ See [TODO.md](TODO.md) for the list of pending implementations.
 The TODO list now includes a **Llama‑CPP parity** task table describing required modules to achieve llama‑cpp feature parity.
 See [ROADMAP.md](ROADMAP.md) for upcoming milestones, including the **Llama‑CPP parity** section (Version 0.6.0 – Q4 2026).
 *See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
+[Main Workspace](MAIN_WORKSPACE.md)

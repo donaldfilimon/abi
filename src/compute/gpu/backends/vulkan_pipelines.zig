@@ -2,13 +2,59 @@
 //!
 //! Handles shader compilation to SPIR-V, compute pipeline creation,
 //! descriptor set management, and kernel dispatch.
+//!
+//! Features:
+//! - SPIR-V shader compilation from GLSL or DSL IR
+//! - Hash-based shader caching for fast recompilation
+//! - Compute pipeline management
+//! - Descriptor set allocation and binding
 
 const std = @import("std");
 const types = @import("vulkan_types.zig");
 const init = @import("vulkan_init.zig");
 const kernel_types = @import("../kernel_types.zig");
+const spirv_gen = @import("../dsl/codegen/spirv.zig");
 
 pub const VulkanError = types.VulkanError;
+
+/// Global shader cache for compiled SPIR-V modules.
+var global_shader_cache: ?*spirv_gen.ShaderCache = null;
+var cache_mutex = std.Thread.Mutex{};
+
+/// Initialize the shader cache.
+pub fn initShaderCache(allocator: std.mem.Allocator, max_entries: usize) !void {
+    cache_mutex.lock();
+    defer cache_mutex.unlock();
+
+    if (global_shader_cache == null) {
+        const cache = try allocator.create(spirv_gen.ShaderCache);
+        cache.* = spirv_gen.ShaderCache.init(allocator, max_entries);
+        global_shader_cache = cache;
+    }
+}
+
+/// Deinitialize the shader cache.
+pub fn deinitShaderCache(allocator: std.mem.Allocator) void {
+    cache_mutex.lock();
+    defer cache_mutex.unlock();
+
+    if (global_shader_cache) |cache| {
+        cache.deinit();
+        allocator.destroy(cache);
+        global_shader_cache = null;
+    }
+}
+
+/// Get shader cache statistics.
+pub fn getShaderCacheStats() ?struct { hits: u64, misses: u64, entries: usize } {
+    cache_mutex.lock();
+    defer cache_mutex.unlock();
+
+    if (global_shader_cache) |cache| {
+        return cache.getStats();
+    }
+    return null;
+}
 
 /// Compile a kernel source into Vulkan shader module and pipeline.
 pub fn compileKernel(
@@ -272,9 +318,88 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
     allocator.destroy(kernel);
 }
 
+/// Hash-based cache for compiled SPIR-V shaders.
+const SpirvCache = struct {
+    allocator: std.mem.Allocator,
+    entries: std.StringHashMapUnmanaged(CacheEntry),
+
+    const CacheEntry = struct {
+        spirv: []u32,
+        hash: u64,
+    };
+
+    fn init(allocator: std.mem.Allocator) SpirvCache {
+        return .{
+            .allocator = allocator,
+            .entries = .{},
+        };
+    }
+
+    fn deinit(self: *SpirvCache) void {
+        var it = self.entries.iterator();
+        while (it.next()) |entry| {
+            self.allocator.free(entry.key_ptr.*);
+            self.allocator.free(entry.value_ptr.spirv);
+        }
+        self.entries.deinit(self.allocator);
+    }
+
+    fn computeHash(source: []const u8) u64 {
+        var hasher = std.hash.Wyhash.init(0);
+        hasher.update(source);
+        return hasher.final();
+    }
+
+    fn get(self: *SpirvCache, source: []const u8) ?[]u32 {
+        const hash = computeHash(source);
+        // Use source length as a quick key
+        var key_buf: [32]u8 = undefined;
+        const key = std.fmt.bufPrint(&key_buf, "{d}_{d}", .{ source.len, hash & 0xFFFFFFFF }) catch return null;
+
+        if (self.entries.get(key)) |entry| {
+            if (entry.hash == hash) {
+                return entry.spirv;
+            }
+        }
+        return null;
+    }
+
+    fn put(self: *SpirvCache, source: []const u8, spirv: []u32) !void {
+        const hash = computeHash(source);
+        var key_buf: [32]u8 = undefined;
+        const key = std.fmt.bufPrint(&key_buf, "{d}_{d}", .{ source.len, hash & 0xFFFFFFFF }) catch return;
+
+        const key_copy = try self.allocator.dupe(u8, key);
+        errdefer self.allocator.free(key_copy);
+
+        const spirv_copy = try self.allocator.dupe(u32, spirv);
+        errdefer self.allocator.free(spirv_copy);
+
+        try self.entries.put(self.allocator, key_copy, .{
+            .spirv = spirv_copy,
+            .hash = hash,
+        });
+    }
+};
+
+/// Global GLSL-to-SPIR-V cache.
+var glsl_spirv_cache: ?*SpirvCache = null;
+var glsl_cache_mutex = std.Thread.Mutex{};
+
 /// Compile GLSL compute shader source to SPIR-V bytecode.
-/// This implementation generates a valid SPIR-V module for simple compute shaders.
+/// Uses hash-based caching for improved performance on repeated compilations.
 fn compileGLSLToSPIRV(glsl_source: []const u8) ![]u32 {
+    // Check cache first
+    glsl_cache_mutex.lock();
+    if (glsl_spirv_cache) |cache| {
+        if (cache.get(glsl_source)) |cached| {
+            glsl_cache_mutex.unlock();
+            // Return a copy since caller expects to own the memory
+            return try std.heap.page_allocator.dupe(u32, cached);
+        }
+    }
+    glsl_cache_mutex.unlock();
+
     // Generate a valid SPIR-V compute shader module.
     // This creates a minimal but functional SPIR-V binary that Vulkan can load.
 
@@ -460,5 +585,20 @@ fn compileGLSLToSPIRV(glsl_source: []const u8) ![]u32 {
     // Allocate and return a copy of the SPIR-V code
     const result = try std.heap.page_allocator.alloc(u32, spirv_code.len);
     @memcpy(result, &spirv_code);
+
+    // Store in cache for future use
+    glsl_cache_mutex.lock();
+    defer glsl_cache_mutex.unlock();
+
+    if (glsl_spirv_cache == null) {
+        const cache = std.heap.page_allocator.create(SpirvCache) catch return result;
+        cache.* = SpirvCache.init(std.heap.page_allocator);
+        glsl_spirv_cache = cache;
+    }
+
+    if (glsl_spirv_cache) |cache| {
+        cache.put(glsl_source, result) catch {};
+    }
+
     return result;
 }

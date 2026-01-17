@@ -30,6 +30,7 @@ pub const ops = @import("ops/mod.zig");
 pub const cache = @import("cache/mod.zig");
 pub const model = @import("model/mod.zig");
 pub const generation = @import("generation/mod.zig");
+pub const parallel = @import("parallel.zig");
 
 // Re-exports for convenience
 pub const MappedFile = io.MappedFile;
@@ -52,6 +53,14 @@ pub const ModelConfig = model.LlamaConfig;
 pub const Generator = generation.Generator;
 pub const Sampler = generation.Sampler;
 pub const SamplerConfig = generation.SamplerConfig;
+
+// Parallel inference exports
+pub const ParallelStrategy = parallel.ParallelStrategy;
+pub const ParallelConfig = parallel.ParallelConfig;
+pub const ParallelMode = parallel.ParallelMode;
+pub const ParallelCoordinator = parallel.ParallelCoordinator;
+pub const TensorParallelConfig = parallel.TensorParallelConfig;
+pub const PipelineParallelConfig = parallel.PipelineParallelConfig;
 
 /// LLM-specific errors
 pub const LlmError = error{

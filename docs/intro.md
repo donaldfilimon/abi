@@ -158,3 +158,4 @@ pub fn main() !void {
 - [Zig 0.16 Migration](migration/zig-0.16-migration.md) - API compatibility notes
  - [TODO List](TODO.md) - Pending implementations and Llama‑CPP parity tasks
 *See [TODO.md](../TODO.md) and [ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
+[Main Workspace](../MAIN_WORKSPACE.md)

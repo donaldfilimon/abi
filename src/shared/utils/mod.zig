@@ -15,3 +15,4 @@ pub const binary = @import("binary.zig");
 pub const errors = @import("errors.zig");
 pub const cache = @import("cache.zig");
 pub const dynlib = @import("dynlib_loader.zig");
+pub const error_aggregator = @import("error_aggregator.zig");

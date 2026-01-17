@@ -174,6 +174,21 @@ pub fn batchCosineSimilarity(
     batchCosineSimilarityFast(query, query_norm, vectors, results);
 }
 
+/// Batch dot‑product computation.
+/// Computes the dot product of a single `query` vector against each vector in `vectors`.
+/// Results are stored in the `results` slice, which must have the same length as `vectors`.
+pub fn batchDotProduct(
+    query: []const f32,
+    vectors: []const []const f32,
+    results: []f32,
+) void {
+    std.debug.assert(query.len > 0);
+    std.debug.assert(vectors.len == results.len);
+    for (vectors, results) |vec, *res| {
+        res.* = vectorDot(query, vec);
+    }
+}
+
 /// Vector reduction operations with SIMD acceleration
 /// @param op Reduction operation: sum, max, or min
 /// @param v Input vector

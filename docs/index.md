@@ -188,3 +188,4 @@ zig build run-network        # Distributed compute
 - [README.md](../README.md) - Project overview
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines
 *See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
+[Main Workspace](../MAIN_WORKSPACE.md)

@@ -187,8 +187,6 @@ pub const OtelExporter = struct {
         std.log.debug("OpenTelemetry export to {s}: {d} bytes", .{ endpoint, payload.len });
 
         // In the real implementation, would use std.http.Client or a web client
-        _ = endpoint;
-        _ = payload;
     }
 
     const ExportError = error{

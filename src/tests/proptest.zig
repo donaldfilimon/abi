@@ -2,6 +2,20 @@
 //!
 //! Provides generators, shrinkers, and test runners for property-based testing,
 //! enabling discovery of edge cases through randomized input generation.
+//!
+//! ## Memory Management
+//!
+//! Generators that produce heap-allocated data (e.g., `bytes`, `asciiString`,
+//! `vectorBatch`) use `page_allocator` for simplicity in test contexts. This
+//! memory is intentionally not freed during test runs to avoid complexity in
+//! generator composition. For long-running fuzz tests, consider using the
+//! `Fuzzer` type which properly manages its corpus memory.
+//!
+//! ## Thread Safety
+//!
+//! Generators use static state for configuration capture (a limitation of Zig's
+//! comptime constraints). This means generators should not be used concurrently
+//! across threads. Each test should create its own generator instance.
 
 const std = @import("std");
 const abi = @import("abi");
@@ -140,6 +154,7 @@ pub const Generators = struct {
     }
 
     /// Generate random bytes of variable length.
+    /// Note: Allocates memory that is not freed. See module docs for details.
     pub fn bytes(allocator: std.mem.Allocator) Generator([]u8) {
         _ = allocator;
         const GenFn = struct {
@@ -193,6 +208,281 @@ pub const Generators = struct {
             .shrinkFn = null,
         };
     }
+
+    /// Generate optional values (null or some value).
+    pub fn optional(comptime T: type, inner: Generator(T)) Generator(?T) {
+        const GenState = struct {
+            var inner_gen: Generator(T) = undefined;
+
+            fn generate(prng: *std.Random.DefaultPrng, size: usize) ?T {
+                // 20% chance of null
+                if (prng.random().intRangeLessThan(u8, 0, 5) == 0) {
+                    return null;
+                }
+                return inner_gen.generate(prng, size);
+            }
+        };
+
+        GenState.inner_gen = inner;
+
+        return .{
+            .generateFn = GenState.generate,
+            .shrinkFn = null,
+        };
+    }
+
+    /// Generate ASCII strings of variable length.
+    /// Note: Allocates memory that is not freed. See module docs for details.
+    pub fn asciiString(max_len: usize) Generator([]const u8) {
+        const GenState = struct {
+            var max_length: usize = undefined;
+
+            fn generate(prng: *std.Random.DefaultPrng, size: usize) []const u8 {
+                const len = prng.random().intRangeAtMost(usize, 0, @min(size, max_length));
+                const data = std.heap.page_allocator.alloc(u8, len) catch return "";
+                for (data) |*c| {
+                    // Printable ASCII range
+                    c.* = @as(u8, @intCast(prng.random().intRangeAtMost(u8, 32, 126)));
+                }
+                return data;
+            }
+        };
+
+        GenState.max_length = max_len;
+
+        return .{
+            .generateFn = GenState.generate,
+            .shrinkFn = null,
+        };
+    }
+
+    /// Generate normalized unit vectors of fixed dimension.
+    pub fn unitVector(comptime dim: usize) Generator([dim]f32) {
+        const GenFn = struct {
+            fn generate(prng: *std.Random.DefaultPrng, _: usize) [dim]f32 {
+                var result: [dim]f32 = undefined;
+                var sum_sq: f32 = 0.0;
+
+                for (&result) |*v| {
+                    v.* = prng.random().float(f32) * 2.0 - 1.0;
+                    sum_sq += v.* * v.*;
+                }
+
+                // Normalize
+                const mag = @sqrt(sum_sq);
+                if (mag > 0.0001) {
+                    for (&result) |*v| {
+                        v.* /= mag;
+                    }
+                }
+
+                return result;
+            }
+        };
+
+        return .{
+            .generateFn = GenFn.generate,
+            .shrinkFn = null,
+        };
+    }
+
+    /// Generate positive floats for distances/weights.
+    pub fn positiveFloat() Generator(f64) {
+        const GenFn = struct {
+            fn generate(prng: *std.Random.DefaultPrng, size: usize) f64 {
+                const scale = @as(f64, @floatFromInt(@min(size, 1000)));
+                return prng.random().float(f64) * scale;
+            }
+        };
+
+        return .{
+            .generateFn = GenFn.generate,
+            .shrinkFn = null,
+        };
+    }
+
+    /// Generate enum values.
+    pub fn enumValue(comptime E: type) Generator(E) {
+        const GenFn = struct {
+            fn generate(prng: *std.Random.DefaultPrng, _: usize) E {
+                const fields = std.meta.fields(E);
+                const idx = prng.random().intRangeLessThan(usize, 0, fields.len);
+                return @enumFromInt(fields[idx].value);
+            }
+        };
+
+        return .{
+            .generateFn = GenFn.generate,
+            .shrinkFn = null,
+        };
+    }
+
+    /// Generate pairs of values.
+    pub fn pair(comptime A: type, comptime B: type, gen_a: Generator(A), gen_b: Generator(B)) Generator(struct { a: A, b: B }) {
+        const Pair = struct { a: A, b: B };
+        const GenState = struct {
+            var ga: Generator(A) = undefined;
+            var gb: Generator(B) = undefined;
+
+            fn generate(prng: *std.Random.DefaultPrng, size: usize) Pair {
+                return .{
+                    .a = ga.generate(prng, size),
+                    .b = gb.generate(prng, size),
+                };
+            }
+        };
+
+        GenState.ga = gen_a;
+        GenState.gb = gen_b;
+
+        return .{
+            .generateFn = GenState.generate,
+            .shrinkFn = null,
+        };
+    }
+};
+
+/// Domain-specific generators for database testing.
+/// Note: These generators allocate memory that is not freed. See module docs.
+pub const DatabaseGenerators = struct {
+    /// Generate a batch of vectors for HNSW testing.
+    /// Note: Allocates memory that is not freed. See module docs for details.
+    pub fn vectorBatch(comptime dim: usize, max_count: usize) Generator(struct { vectors: [][dim]f32, ids: []u64 }) {
+        const Batch = struct { vectors: [][dim]f32, ids: []u64 };
+        const GenState = struct {
+            var max_c: usize = undefined;
+
+            fn generate(prng: *std.Random.DefaultPrng, size: usize) Batch {
+                const count = prng.random().intRangeAtMost(usize, 1, @min(size + 1, max_c));
+
+                const vectors = std.heap.page_allocator.alloc([dim]f32, count) catch return .{ .vectors = &.{}, .ids = &.{} };
+                const ids = std.heap.page_allocator.alloc(u64, count) catch return .{ .vectors = &.{}, .ids = &.{} };
+
+                for (vectors, 0..) |*v, i| {
+                    var sum_sq: f32 = 0.0;
+                    for (v) |*val| {
+                        val.* = prng.random().float(f32) * 2.0 - 1.0;
+                        sum_sq += val.* * val.*;
+                    }
+                    // Normalize
+                    const mag = @sqrt(sum_sq);
+                    if (mag > 0.0001) {
+                        for (v) |*val| {
+                            val.* /= mag;
+                        }
+                    }
+                    ids[i] = @intCast(i + 1);
+                }
+
+                return .{ .vectors = vectors, .ids = ids };
+            }
+        };
+
+        GenState.max_c = max_count;
+
+        return .{
+            .generateFn = GenState.generate,
+            .shrinkFn = null,
+        };
+    }
+
+    /// Generate search parameters (k, ef).
+    pub fn searchParams() Generator(struct { k: u32, ef: u32 }) {
+        const Params = struct { k: u32, ef: u32 };
+        const GenFn = struct {
+            fn generate(prng: *std.Random.DefaultPrng, size: usize) Params {
+                const k = prng.random().intRangeAtMost(u32, 1, @intCast(@min(size + 1, 100)));
+                const ef = prng.random().intRangeAtMost(u32, k, k * 4);
+                return .{ .k = k, .ef = ef };
+            }
+        };
+
+        return .{
+            .generateFn = GenFn.generate,
+            .shrinkFn = null,
+        };
+    }
+};
+
+/// Stateful property testing for databases and state machines.
+pub fn StatefulTest(comptime State: type, comptime Command: type) type {
+    return struct {
+        const Self = @This();
+
+        allocator: std.mem.Allocator,
+        prng: std.Random.DefaultPrng,
+        state: State,
+        command_history: std.ArrayListUnmanaged(Command),
+        max_commands: usize,
+
+        pub fn init(allocator: std.mem.Allocator, initial_state: State, seed: u64) Self {
+            return .{
+                .allocator = allocator,
+                .prng = std.Random.DefaultPrng.init(seed),
+                .state = initial_state,
+                .command_history = .{},
+                .max_commands = 100,
+            };
+        }
+
+        pub fn deinit(self: *Self) void {
+            self.command_history.deinit(self.allocator);
+            self.* = undefined;
+        }
+
+        /// Run stateful test with command generator and execution.
+        pub fn run(
+            self: *Self,
+            num_runs: usize,
+            generate_command: *const fn (*std.Random.DefaultPrng, *const State) Command,
+            execute_command: *const fn (*State, Command) bool,
+            invariant: *const fn (*const State) bool,
+        ) StatefulTestResult {
+            var run_idx: usize = 0;
+            while (run_idx < num_runs) : (run_idx += 1) {
+                self.command_history.clearRetainingCapacity();
+
+                var cmd_idx: usize = 0;
+                while (cmd_idx < self.max_commands) : (cmd_idx += 1) {
+                    const cmd = generate_command(&self.prng, &self.state);
+                    self.command_history.append(self.allocator, cmd) catch break;
+
+                    const success = execute_command(&self.state, cmd);
+                    if (!success) {
+                        return .{
+                            .success = false,
+                            .runs_completed = run_idx,
+                            .commands_executed = cmd_idx + 1,
+                            .failure_reason = "Command execution failed",
+                        };
+                    }
+
+                    if (!invariant(&self.state)) {
+                        return .{
+                            .success = false,
+                            .runs_completed = run_idx,
+                            .commands_executed = cmd_idx + 1,
+                            .failure_reason = "Invariant violated",
+                        };
+                    }
+                }
+            }
+
+            return .{
+                .success = true,
+                .runs_completed = num_runs,
+                .commands_executed = num_runs * self.max_commands,
+                .failure_reason = null,
+            };
+        }
+    };
+}
+
+pub const StatefulTestResult = struct {
+    success: bool,
+    runs_completed: usize,
+    commands_executed: usize,
+    failure_reason: ?[]const u8,
 };
 
 /// Property test runner.
@@ -590,4 +880,92 @@ test "assertions sorted" {
 
     try std.testing.expect(Assertions.assertSorted(i32, &sorted, lessThan));
     try std.testing.expect(!Assertions.assertSorted(i32, &unsorted, lessThan));
+}
+
+test "generator unit vector normalization" {
+    const gen = Generators.unitVector(4);
+    var prng = std.Random.DefaultPrng.init(42);
+
+    var i: usize = 0;
+    while (i < 20) : (i += 1) {
+        const vec = gen.generate(&prng, 50);
+
+        // Check magnitude is approximately 1.0
+        var sum_sq: f32 = 0.0;
+        for (vec) |v| {
+            sum_sq += v * v;
+        }
+        const mag = @sqrt(sum_sq);
+        try std.testing.expect(mag > 0.99 and mag < 1.01);
+    }
+}
+
+test "generator positive float" {
+    const gen = Generators.positiveFloat();
+    var prng = std.Random.DefaultPrng.init(42);
+
+    var i: usize = 0;
+    while (i < 100) : (i += 1) {
+        const value = gen.generate(&prng, 100);
+        try std.testing.expect(value >= 0.0);
+    }
+}
+
+test "database generators search params" {
+    const gen = DatabaseGenerators.searchParams();
+    var prng = std.Random.DefaultPrng.init(42);
+
+    var i: usize = 0;
+    while (i < 50) : (i += 1) {
+        const params = gen.generate(&prng, 50);
+        // k should be >= 1
+        try std.testing.expect(params.k >= 1);
+        // ef should be >= k
+        try std.testing.expect(params.ef >= params.k);
+    }
+}
+
+test "stateful test basic" {
+    const State = struct {
+        counter: i32,
+    };
+
+    const Command = enum {
+        increment,
+        decrement,
+    };
+
+    var test_runner = StatefulTest(State, Command).init(
+        std.testing.allocator,
+        .{ .counter = 0 },
+        42,
+    );
+    defer test_runner.deinit();
+
+    const genCmd = struct {
+        fn gen(prng: *std.Random.DefaultPrng, _: *const State) Command {
+            return if (prng.random().boolean()) .increment else .decrement;
+        }
+    }.gen;
+
+    const execCmd = struct {
+        fn exec(state: *State, cmd: Command) bool {
+            switch (cmd) {
+                .increment => state.counter += 1,
+                .decrement => state.counter -= 1,
+            }
+            return true;
+        }
+    }.exec;
+
+    const invariant = struct {
+        fn check(state: *const State) bool {
+            // Counter should stay within reasonable bounds
+            return state.counter >= -200 and state.counter <= 200;
+        }
+    }.check;
+
+    test_runner.max_commands = 10;
+    const result = test_runner.run(5, genCmd, execCmd, invariant);
+    try std.testing.expect(result.success);
 }

@@ -110,3 +110,4 @@ zig build benchmarks
 - [Monitoring](monitoring.md) - Engine metrics and profiling
 - [Troubleshooting](troubleshooting.md) - Timeout and performance issues
 *See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
+[Main Workspace](../MAIN_WORKSPACE.md)

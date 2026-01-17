@@ -75,3 +75,50 @@ All major implementation tasks are complete. See ROADMAP.md for future enhanceme
 | Reference Vectors | MatMul, attention, GeLU, LayerNorm, cross-entropy tests. | `src/tests/llm_reference_vectors.zig` |
 
 Developers should prioritize these items to achieve functional parity with llama-cpp while maintaining Zig 0.16 conventions.
+
+## Claude‑Code Massive TODO
+
+This section aggregates all high‑level and implementation‑level tasks that affect the Claude‑code base, drawn from the roadmap, Llama‑CPP parity work, and any remaining code‑level markers.
+
+### High‑Level Roadmap Items
+
+| Area | Description |
+|------|-------------|
+| Tooling | Debugger integration, performance profiler, memory‑leak detector |
+| Documentation | Comprehensive API docs (auto‑generated, tutorials, videos) |
+| Architecture | System, component, and data‑flow diagrams |
+| Testing | Competitive benchmarks |
+| High Availability | Failover mechanisms, health checks, circuit breakers |
+| Disaster Recovery | Backup orchestration, point‑in‑time recovery, multi‑region support |
+| Ecosystem | Package manager integration (Zig registry, Homebrew formula, Docker images) |
+| Research & Innovation | Experimental hardware acceleration (FPGA, ASIC), novel index structures, AI‑optimized workloads |
+| Academic Collaboration | Research partnerships, paper publications, conference presentations |
+| Community Governance | RFC process, voting mechanism, contribution recognition |
+| Education | Training courses, certification program, university partnerships |
+| Commercial Support | SLA offerings, priority support, custom development |
+| Cloud Integration | AWS Lambda, Google Cloud Functions, Azure Functions |
+
+### Llama‑CPP Parity Overview (✅)
+
+| Area | Description |
+|------|-------------|
+| Model I/O | GGUF loader, metadata parsing, `load_model` API |
+| Quantization | Q4_0, Q4_1, Q8_0, Q5_0, Q5_1 tensor decoders |
+| Tokenizer | BPE and SentencePiece (Viterbi) |
+| CPU Inference | MatMul, attention, RMSNorm kernels with SIMD |
+| GPU Backends | CUDA/cuBLAS kernels for matmul, activation, softmax, RMSNorm, SiLU |
+| Sampling | Top‑k, top‑p, temperature, tail‑free, mirostat (v1/v2) |
+| Streaming | Async SSE streaming, callbacks, cancellation |
+| CLI | Full llama‑cpp CLI parity (info, generate, chat, bench) |
+| Library API | C‑compatible API (llama_model_*, llama_context_*, tokenize, generate) |
+| Tests & Benchmarks | Reference vectors for Q4/Q5/Q8, softmax, RMSNorm, SiLU, MatMul, attention |
+| Training | Backward ops, loss, trainable model, LoRA, mixed precision |
+| Gradient Checkpointing | Memory‑efficient training with selective activation storage |
+
+### Miscellaneous Implementation TODOs
+
+* Review any remaining `TODO:`/`FIXME:` markers in the source tree and document them here.
+* Ensure all feature‑gated stub modules correctly return `error.*Disabled`.
+* Update documentation links throughout the repo to reference this **Claude‑Code Massive TODO** for visibility.
+
+[Main Workspace](MAIN_WORKSPACE.md)

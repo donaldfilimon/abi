@@ -190,3 +190,4 @@ zig build run -- train resume ./model.ckpt # Resume from checkpoint
 - [Compute Engine](compute.md) - Task execution for AI workloads
 - [Troubleshooting](troubleshooting.md) - Common issues
 *See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
+[Main Workspace](../MAIN_WORKSPACE.md)

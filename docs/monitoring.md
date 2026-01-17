@@ -457,3 +457,4 @@ zig build benchmarks
 - [Framework](framework.md) - Framework configuration
 - [Troubleshooting](troubleshooting.md) - Debugging issues
 *See [../TODO.md](../TODO.md) and [../ROADMAP.md](../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
+[Main Workspace](../MAIN_WORKSPACE.md)

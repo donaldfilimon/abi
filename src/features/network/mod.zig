@@ -17,6 +17,8 @@ pub const rate_limiter = @import("rate_limiter.zig");
 pub const connection_pool = @import("connection_pool.zig");
 pub const raft = @import("raft.zig");
 pub const transport = @import("transport.zig");
+pub const raft_transport = @import("raft_transport.zig");
+pub const circuit_breaker = @import("circuit_breaker.zig");
 
 pub const NodeRegistry = registry.NodeRegistry;
 pub const NodeInfo = registry.NodeInfo;
@@ -108,6 +110,23 @@ pub const AppendEntriesResponse = raft.AppendEntriesResponse;
 pub const PeerState = raft.PeerState;
 pub const createRaftCluster = raft.createCluster;
 
+// Raft persistence exports
+pub const RaftPersistence = raft.RaftPersistence;
+pub const PersistentState = raft.PersistentState;
+
+// Raft snapshot exports
+pub const RaftSnapshotManager = raft.RaftSnapshotManager;
+pub const SnapshotConfig = raft.SnapshotConfig;
+pub const SnapshotMetadata = raft.SnapshotMetadata;
+pub const SnapshotInfo = raft.SnapshotInfo;
+pub const InstallSnapshotRequest = raft.InstallSnapshotRequest;
+pub const InstallSnapshotResponse = raft.InstallSnapshotResponse;
+
+// Raft membership change exports
+pub const ConfigChangeType = raft.ConfigChangeType;
+pub const ConfigChangeRequest = raft.ConfigChangeRequest;
+pub const applyConfigChange = raft.applyConfigChange;
+
 // Transport exports
 pub const TcpTransport = transport.TcpTransport;
 pub const TransportConfig = transport.TransportConfig;
@@ -118,6 +137,23 @@ pub const MessageHeader = transport.MessageHeader;
 pub const PeerConnection = transport.PeerConnection;
 pub const RpcSerializer = transport.RpcSerializer;
 pub const parseAddress = transport.parseAddress;
+
+// Raft Transport exports
+pub const RaftTransport = raft_transport.RaftTransport;
+pub const RaftTransportConfig = raft_transport.RaftTransportConfig;
+pub const RaftTransportStats = raft_transport.RaftTransport.RaftTransportStats;
+pub const PeerAddress = raft_transport.PeerAddress;
+
+// Circuit Breaker exports
+pub const CircuitBreaker = circuit_breaker.CircuitBreaker;
+pub const CircuitConfig = circuit_breaker.CircuitConfig;
+pub const CircuitState = circuit_breaker.CircuitState;
+pub const CircuitRegistry = circuit_breaker.CircuitRegistry;
+pub const CircuitStats = circuit_breaker.CircuitStats;
+pub const CircuitMetrics = circuit_breaker.CircuitMetrics;
+pub const CircuitMetricEntry = circuit_breaker.CircuitMetricEntry;
+pub const NetworkOperationError = circuit_breaker.NetworkOperationError;
+pub const AggregateStats = circuit_breaker.AggregateStats;
 
 pub const NetworkError = error{
     NetworkDisabled,

@@ -213,3 +213,4 @@ To apply these improvements:
 7. Add reference link at line 885
 
 These additions document the major features implemented in this session while maintaining the existing structure and style of CLAUDE.md.
+[Main Workspace](MAIN_WORKSPACE.md)
