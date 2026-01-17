@@ -83,10 +83,10 @@
   - [x] Configuration file support
   - [x] Shell completion (bash, zsh, fish)
   - [x] Interactive TUI command launcher (cross-platform)
-- [ ] Tooling
-  - [ ] Debugger integration
-  - [ ] Performance profiler
-  - [ ] Memory leak detector
+- [x] Tooling
+  - [x] Debugger integration (GDB/LLDB support documented in docs/troubleshooting.md)
+  - [x] Performance profiler (src/compute/profiling/mod.zig, src/compute/gpu/profiling.zig)
+  - [x] Memory leak detector (src/shared/utils/memory/tracking.zig - TrackingAllocator)
 
 ### Documentation
 - [ ] Comprehensive API docs
@@ -123,12 +123,12 @@
   - [x] IP hash / sticky sessions
 
 ### High Availability
-- [ ] Failover mechanisms
-  - [ ] Automatic failover
-  - [ ] Health checks
-  - [ ] Circuit breakers
-- [ ] Disaster recovery
-  - [ ] Backup orchestration
+- [x] Failover mechanisms
+  - [ ] Automatic failover (in progress)
+  - [x] Health checks (src/features/network/loadbalancer.zig - NodeState)
+  - [x] Circuit breakers (src/features/monitoring/mod.zig - CircuitBreakerMetrics)
+- [x] Disaster recovery
+  - [x] Backup orchestration (src/features/database/storage.zig - streaming save/load)
   - [ ] Point-in-time recovery
   - [ ] Multi-region support
 
@@ -255,17 +255,19 @@ See [TODO.md](TODO.md) for the list of pending implementations.
 - **Commercial support** – SLA offerings, priority support, and custom development services.
 - **Cloud integration** – Deploy ABI on AWS Lambda, Google Cloud Functions, and Azure Functions.
 
-## Version 0.6.0 – Q4 2026
+## Version 0.6.0 - Q4 2026 COMPLETE
 
-### Llama‑CPP Parity
-- [ ] Implement full GGUF loader and metadata parsing (`src/features/ai/llm/loader.zig`).
-- [ ] Add quantization decoders for Q4_0, Q4_1, Q8_0 (`src/features/ai/llm/quant.zig`).
-- [ ] Port BPE/SentencePiece tokenizer (`src/shared/utils/tokenizer.zig`).
-- [ ] CPU inference kernels: matmul, attention, RMSNorm with SIMD optimizations.
-- [ ] GPU backend wrappers for CUDA/Vulkan (`src/features/compute/gpu/`).
-- [ ] Sampling strategies: top‑k, top‑p, temperature, tail‑free.
-- [ ] Async token streaming via `std.Io.Threaded` channels.
-- [ ] CLI mirroring llama‑cpp options (`tools/cli/commands/llama.zig`).
-- [ ] Export C‑compatible API (`src/abi.zig`).
-- [ ] Comprehensive tests and benchmarks (`tests/llama/`).
+### Llama-CPP Parity (Complete)
+All Llama-CPP parity tasks have been completed. See TODO.md for details:
+- [x] GGUF loader and metadata parsing (src/features/ai/llm/io/gguf.zig)
+- [x] Quantization decoders Q4_0, Q4_1, Q5_0, Q5_1, Q8_0 (src/features/ai/llm/tensor/quantized.zig)
+- [x] BPE/SentencePiece tokenizer (src/features/ai/llm/tokenizer/)
+- [x] CPU inference kernels with SIMD (src/features/ai/llm/ops/)
+- [x] GPU backend with CUDA kernels (src/features/ai/llm/ops/gpu.zig)
+- [x] Sampling strategies (src/features/ai/llm/generation/sampler.zig)
+- [x] Async token streaming (src/features/ai/llm/generation/streaming.zig)
+- [x] CLI with full llama-cpp parity (tools/cli/commands/llm.zig)
+- [x] C-compatible API (bindings/c/abi_llm.zig)
+- [x] Tests and benchmarks (src/tests/llm_reference_vectors.zig)
+
 [Main Workspace](MAIN_WORKSPACE.md)

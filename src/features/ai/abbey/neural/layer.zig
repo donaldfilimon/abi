@@ -22,6 +22,8 @@ pub const LayerError = error{
     IndexOutOfBounds,
     /// Shape mismatch between tensors
     ShapeMismatch,
+    /// Tensor shape is invalid for the requested operation
+    InvalidShape,
     /// Tensor dimensions are incompatible
     IncompatibleDimensions,
     /// Numerical overflow or underflow
@@ -33,27 +35,25 @@ pub const Layer = struct {
     vtable: *const VTable,
     ptr: *anyopaque,
 
-    /// VTable uses anyerror because this is a polymorphic interface where
-    /// different layer implementations (Linear, Embedding, LayerNorm, etc.)
-    /// may return different error sets. Callers should handle errors generically.
+    /// VTable uses LayerError to keep the interface explicit across implementations.
     pub const VTable = struct {
-        forward: *const fn (*anyopaque, *const F32Tensor) anyerror!F32Tensor,
-        backward: *const fn (*anyopaque, *const F32Tensor) anyerror!F32Tensor,
-        updateParams: *const fn (*anyopaque, f32) anyerror!void,
+        forward: *const fn (*anyopaque, *const F32Tensor) LayerError!F32Tensor,
+        backward: *const fn (*anyopaque, *const F32Tensor) LayerError!F32Tensor,
+        updateParams: *const fn (*anyopaque, f32) LayerError!void,
         zeroGrad: *const fn (*anyopaque) void,
         deinit: *const fn (*anyopaque) void,
         paramCount: *const fn (*anyopaque) usize,
     };
 
-    pub fn forward(self: Layer, input: *const F32Tensor) !F32Tensor {
+    pub fn forward(self: Layer, input: *const F32Tensor) LayerError!F32Tensor {
         return self.vtable.forward(self.ptr, input);
     }
 
-    pub fn backward(self: Layer, grad_output: *const F32Tensor) !F32Tensor {
+    pub fn backward(self: Layer, grad_output: *const F32Tensor) LayerError!F32Tensor {
         return self.vtable.backward(self.ptr, grad_output);
     }
 
-    pub fn updateParams(self: Layer, learning_rate: f32) !void {
+    pub fn updateParams(self: Layer, learning_rate: f32) LayerError!void {
         return self.vtable.updateParams(self.ptr, learning_rate);
     }
 
@@ -125,7 +125,7 @@ pub const LinearLayer = struct {
         }
     }
 
-    pub fn forward(self: *Self, input: *const F32Tensor) !F32Tensor {
+    pub fn forward(self: *Self, input: *const F32Tensor) LayerError!F32Tensor {
         // Store input for backward pass
         if (self.last_input) |*li| {
             li.deinit();
@@ -148,7 +148,7 @@ pub const LinearLayer = struct {
         return output;
     }
 
-    pub fn backward(self: *Self, grad_output: *const F32Tensor) !F32Tensor {
+    pub fn backward(self: *Self, grad_output: *const F32Tensor) LayerError!F32Tensor {
         const input = self.last_input orelse return error.NoForwardPass;
 
         // Gradient w.r.t. weights: dW = x^T @ dL/dy
@@ -176,7 +176,7 @@ pub const LinearLayer = struct {
         return grad_output.matmul(&weights_t);
     }
 
-    pub fn updateParams(self: *Self, learning_rate: f32) !void {
+    pub fn updateParams(self: *Self, learning_rate: f32) LayerError!void {
         // SGD update: W = W - lr * dW
         for (self.weights.data, 0..) |*w, i| {
             w.* -= learning_rate * self.weight_grad.data[i];

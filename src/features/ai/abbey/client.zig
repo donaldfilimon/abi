@@ -90,8 +90,7 @@ pub const StreamChunk = struct {
 // ============================================================================
 
 /// Error set for LLM client operations.
-/// Uses anyerror in VTable because different backends may return different errors,
-/// and the polymorphic interface needs to accommodate all possible backend errors.
+/// Covers the known backend error surface used by the client interface.
 pub const ClientError = error{
     /// The requested operation is not implemented
     NotImplemented,
@@ -120,12 +119,10 @@ pub const LLMClient = struct {
     ptr: *anyopaque,
     vtable: *const VTable,
 
-    /// VTable uses anyerror because this is a polymorphic interface where
-    /// different backend implementations may return different error sets.
-    /// Callers should handle errors generically or check for specific known errors.
+    /// VTable uses ClientError so the polymorphic interface stays explicit and stable.
     const VTable = struct {
-        complete: *const fn (*anyopaque, CompletionRequest) anyerror!CompletionResponse,
-        streamComplete: *const fn (*anyopaque, CompletionRequest, *StreamCallback) anyerror!void,
+        complete: *const fn (*anyopaque, CompletionRequest) ClientError!CompletionResponse,
+        streamComplete: *const fn (*anyopaque, CompletionRequest, *StreamCallback) ClientError!void,
         isAvailable: *const fn (*anyopaque) bool,
         getBackendName: *const fn (*anyopaque) []const u8,
         deinit: *const fn (*anyopaque) void,
@@ -133,11 +130,15 @@ pub const LLMClient = struct {
 
     pub const StreamCallback = fn (chunk: StreamChunk) void;
 
-    pub fn complete(self: LLMClient, request: CompletionRequest) !CompletionResponse {
+    pub fn complete(self: LLMClient, request: CompletionRequest) ClientError!CompletionResponse {
         return self.vtable.complete(self.ptr, request);
     }
 
-    pub fn streamComplete(self: LLMClient, request: CompletionRequest, callback: *StreamCallback) !void {
+    pub fn streamComplete(
+        self: LLMClient,
+        request: CompletionRequest,
+        callback: *StreamCallback,
+    ) ClientError!void {
         return self.vtable.streamComplete(self.ptr, request, callback);
     }
 
@@ -171,7 +172,7 @@ pub const EchoBackend = struct {
         _ = self;
     }
 
-    pub fn complete(self: *Self, request: CompletionRequest) !CompletionResponse {
+    pub fn complete(self: *Self, request: CompletionRequest) ClientError!CompletionResponse {
         const start = types.getTimestampMs();
 
         // Build echo response
@@ -205,7 +206,11 @@ pub const EchoBackend = struct {
         };
     }
 
-    pub fn streamComplete(self: *Self, request: CompletionRequest, callback: *LLMClient.StreamCallback) !void {
+    pub fn streamComplete(
+        self: *Self,
+        request: CompletionRequest,
+        callback: *LLMClient.StreamCallback,
+    ) ClientError!void {
         const response = try self.complete(request);
         defer self.allocator.free(response.content);
 
@@ -273,7 +278,7 @@ pub const OpenAIBackend = struct {
         _ = self;
     }
 
-    pub fn complete(self: *Self, request: CompletionRequest) !CompletionResponse {
+    pub fn complete(self: *Self, request: CompletionRequest) ClientError!CompletionResponse {
         _ = self;
         _ = request;
         // In production, would make HTTP request to OpenAI API
@@ -313,7 +318,7 @@ pub const OllamaBackend = struct {
         _ = self;
     }
 
-    pub fn complete(self: *Self, request: CompletionRequest) !CompletionResponse {
+    pub fn complete(self: *Self, request: CompletionRequest) ClientError!CompletionResponse {
         _ = self;
         _ = request;
         // In production, would make HTTP request to Ollama
@@ -385,7 +390,7 @@ pub const ClientWrapper = union(enum) {
         }
     }
 
-    pub fn complete(self: *ClientWrapper, request: CompletionRequest) !CompletionResponse {
+    pub fn complete(self: *ClientWrapper, request: CompletionRequest) ClientError!CompletionResponse {
         return switch (self.*) {
             .echo => |e| e.complete(request),
             .openai => |o| o.complete(request),
@@ -429,13 +434,11 @@ pub const RetryHandler = struct {
     }
 
     /// Determines if an error should trigger a retry.
-    /// Uses anyerror because this function needs to handle errors from any backend,
-    /// which may return different error sets. Only known transient errors are retried.
-    pub fn shouldRetry(self: *RetryHandler, err: anyerror) bool {
+    /// Only known transient ClientError values are retried.
+    pub fn shouldRetry(self: *RetryHandler, err: ClientError) bool {
         if (self.retry_count >= self.max_retries) return false;
 
-        // Retry on transient errors - anyerror is intentional here because
-        // we need to handle errors from various backends with different error sets
+        // Retry on transient errors.
         return switch (err) {
             error.ConnectionRefused,
             error.ConnectionTimedOut,

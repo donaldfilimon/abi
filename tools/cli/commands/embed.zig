@@ -49,6 +49,13 @@ pub const EmbedError = error{
 
 /// Run the embed command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    // Check if AI feature is enabled
+    if (!abi.ai.isEnabled()) {
+        std.debug.print("Error: AI feature is disabled.\n", .{});
+        std.debug.print("Rebuild with: zig build -Denable-ai=true\n", .{});
+        return;
+    }
+
     var text: ?[]const u8 = null;
     var file_path: ?[]const u8 = null;
     var provider: Provider = .openai;

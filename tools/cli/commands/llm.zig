@@ -324,15 +324,131 @@ fn runGenerate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     });
 }
 
-fn runChat(_: std.mem.Allocator, _: []const [:0]const u8) !void {
-    std.debug.print("Interactive chat mode\n", .{});
-    std.debug.print("=====================\n\n", .{});
-    std.debug.print("Note: Full chat mode requires a loaded model.\n", .{});
-    std.debug.print("Usage: abi llm chat <model>\n", .{});
-    std.debug.print("\nChat commands:\n", .{});
-    std.debug.print("  /quit - Exit chat\n", .{});
-    std.debug.print("  /clear - Clear conversation history\n", .{});
-    std.debug.print("  /system <prompt> - Set system prompt\n", .{});
+fn runChat(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
+        std.debug.print("Usage: abi llm chat <model>\n", .{});
+        std.debug.print("\nStarts an interactive chat session with the specified LLM model.\n", .{});
+        std.debug.print("\nChat commands:\n", .{});
+        std.debug.print("  /quit    - Exit chat\n", .{});
+        std.debug.print("  /clear   - Clear conversation history\n", .{});
+        std.debug.print("  /system  - Show/set system prompt\n", .{});
+        std.debug.print("  /help    - Show available commands\n", .{});
+        std.debug.print("  /stats   - Show generation statistics\n", .{});
+        return;
+    }
+
+    const model_path = std.mem.sliceTo(args[0], 0);
+
+    std.debug.print("Loading model: {s}...\n", .{model_path});
+
+    // Create inference engine
+    var engine = abi.ai.llm.Engine.init(allocator, .{
+        .max_new_tokens = 512,
+        .temperature = 0.7,
+        .top_p = 0.9,
+    });
+    defer engine.deinit();
+
+    // Load model
+    engine.loadModel(model_path) catch |err| {
+        std.debug.print("Error loading model: {t}\n", .{err});
+        std.debug.print("\nNote: GGUF model loading requires a valid GGUF file.\n", .{});
+        std.debug.print("You can download models from: https://huggingface.co/TheBloke\n", .{});
+        return;
+    };
+
+    std.debug.print("\nInteractive Chat Mode\n", .{});
+    std.debug.print("=====================\n", .{});
+    std.debug.print("Type '/quit' to exit, '/help' for commands.\n\n", .{});
+
+    // Set up Zig 0.16 I/O backend
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const stdin_file = std.Io.File.stdin();
+    var read_buffer: [4096]u8 = undefined;
+    var reader = stdin_file.reader(io, &read_buffer);
+
+    // Conversation history (simplified - could be improved with proper context management)
+    var conversation = std.ArrayListUnmanaged(u8){};
+    defer conversation.deinit(allocator);
+
+    const system_prompt: []const u8 = "You are a helpful assistant.";
+
+    while (true) {
+        std.debug.print("You> ", .{});
+
+        // Read user input
+        const input = reader.interface.takeDelimiter('\n') catch |err| {
+            std.debug.print("\nInput error: {t}\n", .{err});
+            continue;
+        } orelse break;
+
+        // Trim whitespace
+        const trimmed = std.mem.trim(u8, input, " \t\r\n");
+        if (trimmed.len == 0) continue;
+
+        // Handle commands
+        if (std.mem.startsWith(u8, trimmed, "/")) {
+            if (std.mem.eql(u8, trimmed, "/quit") or std.mem.eql(u8, trimmed, "/exit")) {
+                std.debug.print("Goodbye!\n", .{});
+                break;
+            }
+
+            if (std.mem.eql(u8, trimmed, "/clear")) {
+                conversation.clearRetainingCapacity();
+                std.debug.print("Conversation history cleared.\n\n", .{});
+                continue;
+            }
+
+            if (std.mem.eql(u8, trimmed, "/help")) {
+                std.debug.print("\nChat Commands:\n", .{});
+                std.debug.print("  /quit, /exit  - Exit the chat\n", .{});
+                std.debug.print("  /clear        - Clear conversation history\n", .{});
+                std.debug.print("  /system       - Show current system prompt\n", .{});
+                std.debug.print("  /stats        - Show generation statistics\n", .{});
+                std.debug.print("  /help         - Show this help\n\n", .{});
+                continue;
+            }
+
+            if (std.mem.eql(u8, trimmed, "/system")) {
+                std.debug.print("System prompt: {s}\n\n", .{system_prompt});
+                continue;
+            }
+
+            if (std.mem.eql(u8, trimmed, "/stats")) {
+                const stats = engine.getStats();
+                std.debug.print("\nGeneration Statistics:\n", .{});
+                std.debug.print("  Prefill: {d:.1} tokens/sec\n", .{stats.prefillTokensPerSecond()});
+                std.debug.print("  Decode:  {d:.1} tokens/sec\n\n", .{stats.decodeTokensPerSecond()});
+                continue;
+            }
+
+            std.debug.print("Unknown command: {s}\n", .{trimmed});
+            std.debug.print("Type '/help' for available commands.\n\n", .{});
+            continue;
+        }
+
+        // Build prompt with conversation context
+        conversation.clearRetainingCapacity();
+        try conversation.appendSlice(allocator, system_prompt);
+        try conversation.appendSlice(allocator, "\n\nUser: ");
+        try conversation.appendSlice(allocator, trimmed);
+        try conversation.appendSlice(allocator, "\n\nAssistant: ");
+
+        // Generate response
+        std.debug.print("\nAssistant> ", .{});
+        const response = engine.generate(conversation.items) catch |err| {
+            std.debug.print("Error generating response: {t}\n\n", .{err});
+            continue;
+        };
+        defer allocator.free(response);
+
+        std.debug.print("{s}\n\n", .{response});
+    }
 }
 
 fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

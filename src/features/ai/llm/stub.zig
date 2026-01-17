@@ -1,5 +1,6 @@
 //! Stub for LLM feature when disabled
 const std = @import("std");
+const stub_root = @This();
 
 pub const LlmError = error{
     LlmDisabled,
@@ -30,14 +31,14 @@ pub const GgufHeader = struct {
 
 pub const GgufMetadata = struct {};
 
-pub const GgufTensorInfo = struct {
+const GgufTensorInfo = struct {
     name: []const u8 = "",
     tensor_type: DType = .f32,
     n_dims: usize = 0,
     dims: [4]u64 = .{ 0, 0, 0, 0 },
 };
 
-pub const TensorMap = struct {
+const TensorMap = struct {
     pub const Iterator = struct {
         done: bool = false,
 
@@ -149,6 +150,53 @@ pub const Sampler = struct {};
 pub const SamplerConfig = struct {};
 pub const KvCache = struct {};
 
+pub const ParallelStrategy = enum {
+    tensor,
+    pipeline,
+    hybrid,
+};
+
+pub const ParallelMode = enum {
+    none,
+    tensor,
+    pipeline,
+    hybrid,
+};
+
+pub const TensorParallelConfig = struct {
+    shard_count: u32 = 1,
+    shard_axis: u32 = 0,
+};
+
+pub const PipelineParallelConfig = struct {
+    stage_count: u32 = 1,
+    micro_batch_count: u32 = 1,
+};
+
+pub const ParallelConfig = struct {
+    mode: ParallelMode = .none,
+    strategy: ParallelStrategy = .tensor,
+    thread_count: ?usize = null,
+    tensor: TensorParallelConfig = .{},
+    pipeline: PipelineParallelConfig = .{},
+};
+
+pub const ParallelCoordinator = struct {
+    allocator: std.mem.Allocator,
+    config: ParallelConfig,
+
+    pub fn init(allocator: std.mem.Allocator, config: ParallelConfig) ParallelCoordinator {
+        return .{
+            .allocator = allocator,
+            .config = config,
+        };
+    }
+
+    pub fn deinit(self: *ParallelCoordinator) void {
+        _ = self;
+    }
+};
+
 // Submodule namespaces (for code that accesses llm.io.GgufFile, llm.model.LlamaModel, etc.)
 pub const io = struct {
     pub const GgufFile = @import("stub.zig").GgufFile;
@@ -186,6 +234,15 @@ pub const cache = struct {
 };
 
 pub const ops = struct {};
+
+pub const parallel = struct {
+    pub const ParallelStrategy = stub_root.ParallelStrategy;
+    pub const ParallelConfig = stub_root.ParallelConfig;
+    pub const ParallelMode = stub_root.ParallelMode;
+    pub const ParallelCoordinator = stub_root.ParallelCoordinator;
+    pub const TensorParallelConfig = stub_root.TensorParallelConfig;
+    pub const PipelineParallelConfig = stub_root.PipelineParallelConfig;
+};
 
 pub const InferenceConfig = struct {
     max_context_length: u32 = 2048,

@@ -1,6 +1,15 @@
 //! Stub implementation for chat memory when AI features are disabled.
 
 const std = @import("std");
+const stub_root = @This();
+
+pub const persistence = struct {
+    pub const SessionStore = stub_root.SessionStore;
+    pub const SessionData = stub_root.SessionData;
+    pub const SessionMeta = stub_root.SessionMeta;
+    pub const SessionConfig = stub_root.SessionConfig;
+    pub const PersistenceError = stub_root.PersistenceError;
+};
 
 /// Stub message role.
 pub const MessageRole = enum {
@@ -196,7 +205,7 @@ pub const SummarizingMemory = struct {
 };
 
 /// Stub summary config.
-pub const SummaryConfig = struct {
+const SummaryConfig = struct {
     max_messages: usize = 20,
     keep_recent: usize = 5,
     max_summary_tokens: usize = 500,
@@ -241,7 +250,7 @@ pub const LongTermMemory = struct {
 };
 
 /// Stub long-term config.
-pub const LongTermConfig = struct {
+const LongTermConfig = struct {
     max_memories: usize = 1000,
     embedding_dim: usize = 384,
     top_k: usize = 5,
@@ -249,7 +258,7 @@ pub const LongTermConfig = struct {
 };
 
 /// Stub retrieval result.
-pub const RetrievalResult = struct {
+const RetrievalResult = struct {
     message: Message = .{},
     similarity: f32 = 0,
     importance: f32 = 0,
@@ -316,6 +325,102 @@ pub const MemoryManager = struct {
 
     pub fn clear(self: *MemoryManager) void {
         _ = self;
+    }
+};
+
+/// Stub persistence errors.
+pub const PersistenceError = error{
+    PersistenceDisabled,
+    SessionNotFound,
+    InvalidSessionData,
+    PathTraversal,
+    InvalidPath,
+    SerializationFailed,
+    DeserializationFailed,
+    DiskFull,
+    PermissionDenied,
+    IoError,
+    OutOfMemory,
+};
+
+/// Stub session metadata.
+pub const SessionMeta = struct {
+    id: []const u8 = "",
+    name: []const u8 = "",
+    created_at: i64 = 0,
+    updated_at: i64 = 0,
+    message_count: usize = 0,
+    total_tokens: usize = 0,
+
+    pub fn deinit(self: *SessionMeta, allocator: std.mem.Allocator) void {
+        _ = allocator;
+        self.* = undefined;
+    }
+};
+
+/// Stub session data.
+pub const SessionData = struct {
+    id: []const u8 = "",
+    name: []const u8 = "",
+    created_at: i64 = 0,
+    updated_at: i64 = 0,
+    messages: []Message = &.{},
+    config: SessionConfig = .{},
+
+    pub fn deinit(self: *SessionData, allocator: std.mem.Allocator) void {
+        _ = allocator;
+        self.* = undefined;
+    }
+};
+
+/// Stub session config.
+pub const SessionConfig = struct {
+    memory_type: MemoryType = .sliding_window,
+    max_tokens: usize = 4000,
+    temperature: f32 = 0.7,
+    model: []const u8 = "default",
+    system_prompt: ?[]const u8 = null,
+};
+
+/// Stub session store.
+pub const SessionStore = struct {
+    allocator: std.mem.Allocator,
+    base_dir: []const u8,
+
+    pub fn init(allocator: std.mem.Allocator, base_dir: []const u8) SessionStore {
+        return .{
+            .allocator = allocator,
+            .base_dir = base_dir,
+        };
+    }
+
+    pub fn saveSession(self: *SessionStore, session: SessionData) PersistenceError!void {
+        _ = self;
+        _ = session;
+        return error.PersistenceDisabled;
+    }
+
+    pub fn loadSession(self: *SessionStore, id: []const u8) PersistenceError!SessionData {
+        _ = self;
+        _ = id;
+        return error.PersistenceDisabled;
+    }
+
+    pub fn deleteSession(self: *SessionStore, id: []const u8) PersistenceError!void {
+        _ = self;
+        _ = id;
+        return error.PersistenceDisabled;
+    }
+
+    pub fn listSessions(self: *SessionStore) PersistenceError![]SessionMeta {
+        _ = self;
+        return error.PersistenceDisabled;
+    }
+
+    pub fn sessionExists(self: *SessionStore, id: []const u8) bool {
+        _ = self;
+        _ = id;
+        return false;
     }
 };
 

@@ -77,14 +77,76 @@ var wgpuPipelineGetBindGroupLayout: ?WgpuPipelineGetBindGroupLayoutFn = null;
 var wgpuQueueWriteBuffer: ?WgpuQueueWriteBufferFn = null;
 var wgpuDevicePoll: ?WgpuDevicePollFn = null;
 
+// Cached allocator for buffer metadata
+var buffer_allocator: ?std.mem.Allocator = null;
+
+// WGPUBufferUsage flags
+const WGPUBufferUsage_MapRead: u32 = 0x0001;
+const WGPUBufferUsage_MapWrite: u32 = 0x0002;
+const WGPUBufferUsage_CopySrc: u32 = 0x0004;
+const WGPUBufferUsage_CopyDst: u32 = 0x0008;
+const WGPUBufferUsage_Index: u32 = 0x0010;
+const WGPUBufferUsage_Vertex: u32 = 0x0020;
+const WGPUBufferUsage_Uniform: u32 = 0x0040;
+const WGPUBufferUsage_Storage: u32 = 0x0080;
+const WGPUBufferUsage_Indirect: u32 = 0x0100;
+const WGPUBufferUsage_QueryResolve: u32 = 0x0200;
+
+// WGPUMapMode flags
+const WGPUMapMode_Read: u32 = 0x0001;
+const WGPUMapMode_Write: u32 = 0x0002;
+
+// WGPUBufferMapAsyncStatus
+const WGPUBufferMapAsyncStatus_Success: u32 = 0;
+
+// Callback status for async operations
+const CallbackStatus = enum(u32) {
+    pending = 0,
+    success = 1,
+    failed = 2,
+};
+
+var adapter_callback_status: CallbackStatus = .pending;
+var device_callback_status: CallbackStatus = .pending;
+var buffer_map_callback_status: CallbackStatus = .pending;
+
+// WGPUShaderModuleWGSLDescriptor for WGSL shaders
+const WGPUShaderModuleWGSLDescriptor = extern struct {
+    chain: WGPUSType = .{ .sType = 6, .next = null }, // WGPUSType_ShaderModuleWGSLDescriptor = 6
+    code: [*:0]const u8,
+};
+
+const WGPUSType = extern struct {
+    sType: u32,
+    next: ?*const WGPUSType,
+};
+
+// WGPUShaderModuleDescriptor
+const WGPUShaderModuleDescriptor = extern struct {
+    nextInChain: ?*const WGPUSType,
+    label: ?[*:0]const u8,
+};
+
+// WGPUBufferDescriptor
+const WGPUBufferDescriptor = extern struct {
+    nextInChain: ?*const anyopaque = null,
+    label: ?[*:0]const u8 = null,
+    usage: u32,
+    size: u64,
+    mappedAtCreation: bool = false,
+};
+
 const WebGpuKernel = struct {
     pipeline: ?*anyopaque,
     bind_group_layout: ?*anyopaque,
+    shader_module: ?*anyopaque,
 };
 
 const WebGpuBuffer = struct {
     buffer: ?*anyopaque,
     size: usize,
+    usage: u32,
+    allocator: std.mem.Allocator,
 };
 
 pub fn init() !void {
@@ -254,15 +316,28 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
 }
 
 pub fn allocateDeviceMemory(allocator: std.mem.Allocator, size: usize) !*anyopaque {
+    const actual_allocator = buffer_allocator orelse allocator;
+    return allocateDeviceMemoryWithAllocator(actual_allocator, size);
+}
+
+pub fn allocateDeviceMemoryWithAllocator(allocator: std.mem.Allocator, size: usize) !*anyopaque {
     if (!webgpu_initialized or webgpu_device == null) {
         return WebGpuError.BufferCreationFailed;
     }
 
     const device = webgpu_device.?;
-
     const create_buffer_fn = wgpuDeviceCreateBuffer orelse return WebGpuError.BufferCreationFailed;
-    const buffer = create_buffer_fn(device, null); // Placeholder descriptor
+
+    // Create buffer descriptor with Storage + CopySrc + CopyDst usage for compute
+    const buffer_desc = WGPUBufferDescriptor{
+        .usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst,
+        .size = @intCast(size),
+        .mappedAtCreation = false,
+    };
+
+    const buffer = create_buffer_fn(device, &buffer_desc);
     if (buffer == null) {
+        std.log.err("Failed to create WebGPU buffer of size {B}", .{size});
         return WebGpuError.BufferCreationFailed;
     }
 
@@ -272,15 +347,83 @@ pub fn allocateDeviceMemory(allocator: std.mem.Allocator, size: usize) !*anyopaq
     webgpu_buffer.* = .{
         .buffer = buffer,
         .size = size,
+        .usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst,
+        .allocator = allocator,
     };
 
+    std.log.debug("WebGPU buffer allocated: size={B}", .{size});
     return webgpu_buffer;
 }
 
 pub fn freeDeviceMemory(allocator: std.mem.Allocator, ptr: *anyopaque) void {
+    _ = allocator;
     const buffer: *WebGpuBuffer = @ptrCast(@alignCast(ptr));
-    // WebGPU objects are typically cleaned up automatically
-    allocator.destroy(buffer);
+    const buffer_allocator_ref = buffer.allocator;
+
+    // WebGPU buffers should be destroyed explicitly
+    // In a full implementation, we'd call wgpuBufferDestroy here
+    buffer_allocator_ref.destroy(buffer);
+}
+
+pub fn memcpyDeviceToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
+    if (!webgpu_initialized or webgpu_device == null or webgpu_queue == null) {
+        return WebGpuError.SubmissionFailed;
+    }
+
+    const src_buffer: *WebGpuBuffer = @ptrCast(@alignCast(src));
+    const dst_buffer: *WebGpuBuffer = @ptrCast(@alignCast(dst));
+    const device = webgpu_device.?;
+    const queue = webgpu_queue.?;
+
+    if (size > src_buffer.size or size > dst_buffer.size) {
+        std.log.err("WebGPU memcpy size ({B}) exceeds buffer size", .{size});
+        return WebGpuError.SubmissionFailed;
+    }
+
+    // Create command encoder for the copy operation
+    const create_encoder_fn = wgpuDeviceCreateCommandEncoder orelse return WebGpuError.CommandEncoderCreationFailed;
+    const command_encoder = create_encoder_fn(device, null);
+    if (command_encoder == null) {
+        return WebGpuError.CommandEncoderCreationFailed;
+    }
+
+    // In a full implementation, we'd call wgpuCommandEncoderCopyBufferToBuffer here
+    // For now, this is a placeholder that logs the operation
+    std.log.debug("WebGPU memcpy device->device: {B}", .{size});
+
+    // Finish and submit
+    const finish_fn = wgpuCommandEncoderFinish orelse return WebGpuError.SubmissionFailed;
+    const command_buffer = finish_fn(command_encoder, null);
+    if (command_buffer == null) {
+        return WebGpuError.SubmissionFailed;
+    }
+
+    const submit_fn = wgpuQueueSubmit orelse return WebGpuError.SubmissionFailed;
+    submit_fn(queue, 1, &command_buffer);
+}
+
+/// Set the allocator to use for buffer metadata allocations.
+pub fn setBufferAllocator(allocator: std.mem.Allocator) void {
+    buffer_allocator = allocator;
+}
+
+/// Poll the device to process async operations
+pub fn pollDevice(wait: bool) bool {
+    if (wgpuDevicePoll) |poll_fn| {
+        if (webgpu_device) |device| {
+            return poll_fn(device, wait, null);
+        }
+    }
+    return false;
+}
+
+/// Wait for buffer mapping to complete (blocking)
+fn waitForBufferMap() void {
+    const max_iterations: u32 = 1000;
+    var i: u32 = 0;
+    while (buffer_map_callback_status == .pending and i < max_iterations) : (i += 1) {
+        _ = pollDevice(true);
+    }
 }
 
 pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {

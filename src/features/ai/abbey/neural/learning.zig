@@ -10,6 +10,15 @@ const types = @import("../core/types.zig");
 
 const F32Tensor = tensor.F32Tensor;
 
+/// Error set for replay buffer operations.
+pub const ReplayError = error{
+    /// Not enough samples available for the requested batch size.
+    InsufficientData,
+} || std.mem.Allocator.Error;
+
+/// Error set for online learning operations.
+pub const LearningError = ReplayError || layer_mod.LayerError;
+
 // ============================================================================
 // Learning Experience
 // ============================================================================
@@ -104,7 +113,7 @@ pub const ReplayBuffer = struct {
     }
 
     /// Sample a batch of experiences
-    pub fn sample(self: *Self, batch_size: usize) ![]usize {
+    pub fn sample(self: *Self, batch_size: usize) ReplayError![]usize {
         if (self.size < batch_size) return error.InsufficientData;
 
         var indices = try self.allocator.alloc(usize, batch_size);
@@ -425,9 +434,11 @@ pub const OnlineLearner = struct {
     }
 
     /// Perform a learning update.
-    /// The model_forward callback uses anyerror because different model architectures
-    /// may return different error sets during forward pass evaluation.
-    pub fn update(self: *Self, model_forward: *const fn (*const F32Tensor) anyerror!F32Tensor) !f32 {
+    /// The model_forward callback uses LayerError for the forward pass surface.
+    pub fn update(
+        self: *Self,
+        model_forward: *const fn (*const F32Tensor) layer_mod.LayerError!F32Tensor,
+    ) LearningError!f32 {
         if (!self.shouldUpdate()) return 0.0;
 
         const indices = try self.replay_buffer.sample(self.batch_size);

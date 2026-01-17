@@ -198,6 +198,17 @@ zig build run -- gpu devices
 zig build run -- train run --epochs 10 --batch-size 32
 zig build run -- train resume ./checkpoint.ckpt
 
+# LLM Fine‑Tuning (demo)
+# --------------------------------
+# The `train llm` subcommand showcases a minimal LLM training workflow.
+# It builds a tiny in‑memory model, generates synthetic token data, and runs
+# `abi.ai.trainLlm` with the default `LlmTrainingConfig`.  This is a scaffold for
+# future fine‑tuning of real GGUF models.
+# Example usage:
+#   zig build run -- train llm my_model.gguf --epochs 2 --batch-size 4
+# The command prints a short summary on completion, e.g.:
+#   LLM training completed. epochs=2, final loss=0.1234
+
 # Other
 zig build run -- explore "fn init" --level thorough
 zig build run -- system-info

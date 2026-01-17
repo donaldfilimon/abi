@@ -37,6 +37,24 @@ zig build run -- train --epochs 3 --batch-size 16 \
 ```
 
 Options allow configuring learning rate, optimizer, checkpoint interval, and mixed‑precision mode. See `docs/ai.md` for a full description.
+
+### LLM Fine‑Tuning via CLI
+
+A minimal `train llm` subcommand is provided to demonstrate LLM training from the command line. It creates a tiny in‑memory model, generates synthetic token data, and runs the built‑in `abi.ai.trainLlm` trainer with default configuration.
+
+```bash
+# Basic LLM training (dummy data)
+zig build run -- train llm my_model.gguf --epochs 2 --batch-size 4
+```
+
+The command prints a concise summary after training, e.g.:
+
+```
+LLM training completed. epochs=2, final loss=0.1234
+```
+
+Future extensions may expose flags for learning‑rate, optimizer selection, data paths, and checkpoint export. See `tools/cli/commands/train.zig` for the current implementation details.
+
 zig fmt .                         # Format code
 zig build benchmarks              # Run benchmarks
 ```

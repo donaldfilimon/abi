@@ -20,7 +20,7 @@ pub const Response = struct {
 pub const HttpClient = struct {
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) WebError!HttpClient {
+    pub fn init(allocator: std.mem.Allocator) !HttpClient {
         _ = allocator;
         return error.WebDisabled;
     }
@@ -29,37 +29,60 @@ pub const HttpClient = struct {
         _ = self;
     }
 
-    pub fn get(self: *HttpClient, url: []const u8) WebError!Response {
+    pub fn get(self: *HttpClient, url: []const u8) !Response {
         _ = self;
         _ = url;
         return error.WebDisabled;
     }
 
-    pub fn getWithOptions(self: *HttpClient, url: []const u8, options: RequestOptions) WebError!Response {
+    pub fn getWithOptions(self: *HttpClient, url: []const u8, options: RequestOptions) !Response {
         _ = self;
         _ = url;
         _ = options;
         return error.WebDisabled;
     }
 
-    pub fn postJson(self: *HttpClient, url: []const u8, body: []const u8) WebError!Response {
+    pub fn postJson(self: *HttpClient, url: []const u8, body: []const u8) !Response {
         _ = self;
         _ = url;
         _ = body;
         return error.WebDisabled;
     }
+
+    pub fn requestWithOptions(
+        self: *HttpClient,
+        method: std.http.Method,
+        url: []const u8,
+        body: ?[]const u8,
+        options: RequestOptions,
+    ) !Response {
+        _ = self;
+        _ = method;
+        _ = url;
+        _ = body;
+        _ = options;
+        return error.WebDisabled;
+    }
+
+    pub fn freeResponse(self: *HttpClient, response: Response) void {
+        _ = self;
+        _ = response;
+    }
 };
 
 pub const RequestOptions = struct {
-    headers: ?std.StringHashMap([]const u8) = null,
-    timeout_ms: u32 = 30_000,
+    max_response_bytes: usize = 1024 * 1024,
+    user_agent: []const u8 = "abi-http",
     follow_redirects: bool = true,
+    redirect_limit: u16 = 3,
+    content_type: ?[]const u8 = null,
+    extra_headers: []const std.http.Header = &.{},
 };
 
 pub const WeatherClient = struct {
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator, config: WeatherConfig) WeatherClient {
+    pub fn init(allocator: std.mem.Allocator, config: WeatherConfig) !WeatherClient {
         _ = config;
         return .{ .allocator = allocator };
     }
@@ -68,22 +91,21 @@ pub const WeatherClient = struct {
         _ = self;
     }
 
-    pub fn getCurrentWeather(self: *WeatherClient, location: []const u8) WebError!WeatherData {
+    pub fn forecast(self: *WeatherClient, location: []const u8) !Response {
         _ = self;
         _ = location;
         return error.WebDisabled;
     }
+
+    pub fn freeResponse(self: *WeatherClient, response: Response) void {
+        _ = self;
+        _ = response;
+    }
 };
 
 pub const WeatherConfig = struct {
-    api_key: ?[]const u8 = null,
-    base_url: []const u8 = "https://api.weather.example",
-};
-
-pub const WeatherData = struct {
-    temperature: f32 = 0.0,
-    humidity: f32 = 0.0,
-    description: []const u8 = "",
+    base_url: []const u8 = "https://api.open-meteo.com/v1/forecast",
+    include_current: bool = true,
 };
 
 // HTTP utilities stub
@@ -108,7 +130,7 @@ pub const http = struct {
 // Module lifecycle
 var initialized: bool = false;
 
-pub fn init(_: std.mem.Allocator) WebError!void {
+pub fn init(_: std.mem.Allocator) !void {
     return error.WebDisabled;
 }
 
@@ -125,7 +147,7 @@ pub fn isInitialized() bool {
 }
 
 // Convenience functions
-pub fn get(allocator: std.mem.Allocator, url: []const u8) WebError!Response {
+pub fn get(allocator: std.mem.Allocator, url: []const u8) !Response {
     _ = allocator;
     _ = url;
     return error.WebDisabled;
@@ -135,14 +157,14 @@ pub fn getWithOptions(
     allocator: std.mem.Allocator,
     url: []const u8,
     options: RequestOptions,
-) WebError!Response {
+) !Response {
     _ = allocator;
     _ = url;
     _ = options;
     return error.WebDisabled;
 }
 
-pub fn postJson(allocator: std.mem.Allocator, url: []const u8, body: []const u8) WebError!Response {
+pub fn postJson(allocator: std.mem.Allocator, url: []const u8, body: []const u8) !Response {
     _ = allocator;
     _ = url;
     _ = body;
@@ -154,7 +176,7 @@ pub fn freeResponse(allocator: std.mem.Allocator, response: Response) void {
     _ = response;
 }
 
-pub fn parseJsonValue(allocator: std.mem.Allocator, response: Response) WebError!ParsedJson {
+pub fn parseJsonValue(allocator: std.mem.Allocator, response: Response) !ParsedJson {
     _ = allocator;
     _ = response;
     return error.WebDisabled;

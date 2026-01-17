@@ -1,4 +1,5 @@
 const std = @import("std");
+const build_options = @import("build_options");
 
 pub const config = @import("config.zig");
 pub const results = @import("results.zig");
@@ -84,4 +85,9 @@ pub fn buildCallGraph(allocator: std.mem.Allocator, file_paths: []const []const 
 
 pub fn buildDependencyGraph(allocator: std.mem.Allocator, file_paths: []const []const u8) !DependencyGraph {
     return dependency.buildDependencyGraph(allocator, file_paths);
+}
+
+/// Check if explore features are enabled
+pub fn isEnabled() bool {
+    return build_options.enable_ai and build_options.enable_explore;
 }

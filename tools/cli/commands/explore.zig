@@ -6,6 +6,13 @@ const utils = @import("../utils/mod.zig");
 
 /// Run the explore command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    // Check if AI explore feature is enabled
+    if (!abi.ai.explore.isEnabled()) {
+        std.debug.print("Error: AI code exploration feature is disabled.\n", .{});
+        std.debug.print("Rebuild with: zig build -Denable-ai=true -Denable-explore=true\n", .{});
+        return;
+    }
+
     if (args.len == 0 or utils.args.matchesAny(args[0], &[_][]const u8{ "help", "--help", "-h" })) {
         printHelp();
         return;

@@ -47,6 +47,15 @@ const GlGetBufferSubDataFn = *const fn (u32, isize, isize, *anyopaque) callconv(
 const GlDeleteBuffersFn = *const fn (i32, [*]const u32) callconv(.c) void;
 const GlDeleteProgramFn = *const fn (u32) callconv(.c) void;
 const GlDeleteShaderFn = *const fn (u32) callconv(.c) void;
+const GlMapBufferFn = *const fn (u32, u32) callconv(.c) ?*anyopaque;
+const GlMapBufferRangeFn = *const fn (u32, isize, isize, u32) callconv(.c) ?*anyopaque;
+const GlUnmapBufferFn = *const fn (u32) callconv(.c) u8;
+const GlFlushMappedBufferRangeFn = *const fn (u32, isize, isize) callconv(.c) void;
+const GlFinishFn = *const fn () callconv(.c) void;
+const GlFlushFn = *const fn () callconv(.c) void;
+const GlGetErrorFn = *const fn () callconv(.c) u32;
+const GlGetIntegervFn = *const fn (u32, *i32) callconv(.c) void;
+const GlCopyBufferSubDataFn = *const fn (u32, u32, isize, isize, isize) callconv(.c) void;
 
 var glGetString: ?GlGetStringFn = null;
 var glCreateShader: ?GlCreateShaderFn = null;
@@ -70,6 +79,18 @@ var glGetBufferSubData: ?GlGetBufferSubDataFn = null;
 var glDeleteBuffers: ?GlDeleteBuffersFn = null;
 var glDeleteProgram: ?GlDeleteProgramFn = null;
 var glDeleteShader: ?GlDeleteShaderFn = null;
+var glMapBuffer: ?GlMapBufferFn = null;
+var glMapBufferRange: ?GlMapBufferRangeFn = null;
+var glUnmapBuffer: ?GlUnmapBufferFn = null;
+var glFlushMappedBufferRange: ?GlFlushMappedBufferRangeFn = null;
+var glFinish: ?GlFinishFn = null;
+var glFlush: ?GlFlushFn = null;
+var glGetError: ?GlGetErrorFn = null;
+var glGetIntegerv: ?GlGetIntegervFn = null;
+var glCopyBufferSubData: ?GlCopyBufferSubDataFn = null;
+
+// Cached allocator for buffer metadata
+var buffer_allocator: ?std.mem.Allocator = null;
 
 const OpenGlKernel = struct {
     program: u32,
@@ -79,6 +100,7 @@ const OpenGlKernel = struct {
 const OpenGlBuffer = struct {
     buffer_id: u32,
     size: usize,
+    allocator: std.mem.Allocator,
 };
 
 const GL_COMPUTE_SHADER = 0x91B9;
@@ -88,6 +110,26 @@ const GL_STATIC_DRAW = 0x88E4;
 const GL_DYNAMIC_READ = 0x88E9;
 const GL_COMPILE_STATUS = 0x8B81;
 const GL_LINK_STATUS = 0x8B82;
+const GL_MAP_READ_BIT = 0x0001;
+const GL_MAP_WRITE_BIT = 0x0002;
+const GL_MAP_INVALIDATE_BUFFER_BIT = 0x0008;
+const GL_MAP_FLUSH_EXPLICIT_BIT = 0x0010;
+const GL_READ_ONLY = 0x88B8;
+const GL_WRITE_ONLY = 0x88B9;
+const GL_READ_WRITE = 0x88BA;
+const GL_COPY_READ_BUFFER = 0x8F36;
+const GL_COPY_WRITE_BUFFER = 0x8F37;
+const GL_MAJOR_VERSION = 0x821B;
+const GL_MINOR_VERSION = 0x821C;
+const GL_NO_ERROR = 0;
+const GL_INVALID_ENUM = 0x0500;
+const GL_INVALID_VALUE = 0x0501;
+const GL_INVALID_OPERATION = 0x0502;
+const GL_OUT_OF_MEMORY = 0x0505;
+
+// Cached OpenGL version info
+var gl_major_version: i32 = 0;
+var gl_minor_version: i32 = 0;
 
 pub fn init() OpenGlError!void {
     init_mutex.lock();
@@ -111,12 +153,34 @@ pub fn init() OpenGlError!void {
         return OpenGlError.VersionNotSupported;
     }
 
-    // Parse version to check if >= 4.3
-    // Simplified check - in production would parse the version string properly
-    // For now, we assume if we got this far, compute shaders are available
+    // Parse OpenGL version using glGetIntegerv for accurate major/minor version
+    const get_integer_fn = glGetIntegerv orelse {
+        // Fallback: parse version string
+        if (parseVersionString(std.mem.span(version))) |parsed| {
+            gl_major_version = parsed.major;
+            gl_minor_version = parsed.minor;
+        } else {
+            return OpenGlError.VersionNotSupported;
+        }
+        opengl_initialized = true;
+        std.log.debug("OpenGL backend initialized (parsed version): {}.{}", .{ gl_major_version, gl_minor_version });
+        return;
+    };
+
+    get_integer_fn(GL_MAJOR_VERSION, &gl_major_version);
+    get_integer_fn(GL_MINOR_VERSION, &gl_minor_version);
+
+    // Verify compute shader support (OpenGL 4.3+)
+    if (gl_major_version < 4 or (gl_major_version == 4 and gl_minor_version < 3)) {
+        std.log.err("OpenGL {}.{} does not support compute shaders (requires 4.3+)", .{
+            gl_major_version,
+            gl_minor_version,
+        });
+        return OpenGlError.VersionNotSupported;
+    }
 
     opengl_initialized = true;
-    std.log.debug("OpenGL backend initialized successfully", .{});
+    std.log.debug("OpenGL backend initialized successfully: version {}.{}", .{ gl_major_version, gl_minor_version });
 }
 
 pub fn deinit() void {
@@ -281,6 +345,12 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
 }
 
 pub fn allocateDeviceMemory(size: usize) OpenGlError!*anyopaque {
+    // Use cached allocator or fallback to page_allocator
+    const allocator = buffer_allocator orelse std.heap.page_allocator;
+    return allocateDeviceMemoryWithAllocator(allocator, size);
+}
+
+pub fn allocateDeviceMemoryWithAllocator(allocator: std.mem.Allocator, size: usize) OpenGlError!*anyopaque {
     if (!opengl_initialized) {
         return OpenGlError.InitializationFailed;
     }
@@ -289,6 +359,7 @@ pub fn allocateDeviceMemory(size: usize) OpenGlError!*anyopaque {
     var buffer_id: u32 = 0;
     gen_buffers_fn(1, &buffer_id);
     if (buffer_id == 0) {
+        checkAndLogGlError("glGenBuffers");
         return OpenGlError.BufferCreationFailed;
     }
 
@@ -298,12 +369,24 @@ pub fn allocateDeviceMemory(size: usize) OpenGlError!*anyopaque {
     const buffer_data_fn = glBufferData orelse return OpenGlError.BufferCreationFailed;
     buffer_data_fn(GL_SHADER_STORAGE_BUFFER, @intCast(size), null, GL_DYNAMIC_READ);
 
-    const opengl_buffer = try std.heap.page_allocator.create(OpenGlBuffer);
-    errdefer std.heap.page_allocator.destroy(opengl_buffer);
+    // Check for GL errors after buffer creation
+    if (checkAndLogGlError("glBufferData")) {
+        const delete_buffers_fn = glDeleteBuffers orelse return OpenGlError.BufferCreationFailed;
+        delete_buffers_fn(1, &buffer_id);
+        return OpenGlError.BufferCreationFailed;
+    }
+
+    const opengl_buffer = allocator.create(OpenGlBuffer) catch {
+        const delete_buffers_fn = glDeleteBuffers orelse return OpenGlError.BufferCreationFailed;
+        delete_buffers_fn(1, &buffer_id);
+        return OpenGlError.BufferCreationFailed;
+    };
+    errdefer allocator.destroy(opengl_buffer);
 
     opengl_buffer.* = .{
         .buffer_id = buffer_id,
         .size = size,
+        .allocator = allocator,
     };
 
     std.log.debug("OpenGL buffer allocated: ID={}, size={B}", .{ buffer_id, size });
@@ -316,11 +399,73 @@ pub fn freeDeviceMemory(ptr: *anyopaque) void {
     }
 
     const buffer: *OpenGlBuffer = @ptrCast(@alignCast(ptr));
+    const allocator = buffer.allocator;
 
     const delete_buffers_fn = glDeleteBuffers orelse return;
     delete_buffers_fn(1, &buffer.buffer_id);
+    _ = checkAndLogGlError("glDeleteBuffers");
 
-    std.heap.page_allocator.destroy(buffer);
+    allocator.destroy(buffer);
+}
+
+pub fn memcpyDeviceToDevice(dst: *anyopaque, src: *anyopaque, size: usize) OpenGlError!void {
+    if (!opengl_initialized) {
+        return OpenGlError.InitializationFailed;
+    }
+
+    const src_buffer: *OpenGlBuffer = @ptrCast(@alignCast(src));
+    const dst_buffer: *OpenGlBuffer = @ptrCast(@alignCast(dst));
+
+    if (size > src_buffer.size) {
+        std.log.err("OpenGL memcpy size ({B}) exceeds source buffer size ({B})", .{ size, src_buffer.size });
+        return OpenGlError.BufferCreationFailed;
+    }
+    if (size > dst_buffer.size) {
+        std.log.err("OpenGL memcpy size ({B}) exceeds destination buffer size ({B})", .{ size, dst_buffer.size });
+        return OpenGlError.BufferCreationFailed;
+    }
+
+    const bind_buffer_fn = glBindBuffer orelse return OpenGlError.BufferCreationFailed;
+    const copy_buffer_fn = glCopyBufferSubData orelse {
+        // Fallback: copy through host memory if glCopyBufferSubData not available
+        return memcpyDeviceToDeviceFallback(dst_buffer, src_buffer, size);
+    };
+
+    bind_buffer_fn(GL_COPY_READ_BUFFER, src_buffer.buffer_id);
+    bind_buffer_fn(GL_COPY_WRITE_BUFFER, dst_buffer.buffer_id);
+    copy_buffer_fn(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, @intCast(size));
+
+    if (checkAndLogGlError("glCopyBufferSubData")) {
+        return OpenGlError.BufferCreationFailed;
+    }
+
+    std.log.debug("OpenGL memcpy device->device: {B}", .{size});
+}
+
+fn memcpyDeviceToDeviceFallback(dst: *OpenGlBuffer, src: *OpenGlBuffer, size: usize) OpenGlError!void {
+    // Fallback implementation using host memory as intermediate
+    var temp_buffer: [4096]u8 = undefined;
+    var offset: usize = 0;
+
+    const bind_buffer_fn = glBindBuffer orelse return OpenGlError.BufferCreationFailed;
+    const get_buffer_sub_data_fn = glGetBufferSubData orelse return OpenGlError.BufferCreationFailed;
+    const buffer_data_fn = glBufferData orelse return OpenGlError.BufferCreationFailed;
+
+    while (offset < size) {
+        const chunk_size = @min(temp_buffer.len, size - offset);
+
+        // Read from source
+        bind_buffer_fn(GL_SHADER_STORAGE_BUFFER, src.buffer_id);
+        get_buffer_sub_data_fn(GL_SHADER_STORAGE_BUFFER, @intCast(offset), @intCast(chunk_size), &temp_buffer);
+
+        // Write to destination
+        bind_buffer_fn(GL_SHADER_STORAGE_BUFFER, dst.buffer_id);
+        buffer_data_fn(GL_SHADER_STORAGE_BUFFER, @intCast(chunk_size), &temp_buffer, GL_STATIC_DRAW);
+
+        offset += chunk_size;
+    }
+
+    std.log.debug("OpenGL memcpy device->device (fallback): {B}", .{size});
 }
 
 pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) OpenGlError!void {
@@ -382,6 +527,7 @@ fn tryLoadOpenGl() bool {
 fn loadOpenGlFunctions() bool {
     if (opengl_lib == null) return false;
 
+    // Required functions
     glGetString = opengl_lib.?.lookup(GlGetStringFn, "glGetString") orelse return false;
     glCreateShader = opengl_lib.?.lookup(GlCreateShaderFn, "glCreateShader") orelse return false;
     glShaderSource = opengl_lib.?.lookup(GlShaderSourceFn, "glShaderSource") orelse return false;
@@ -405,5 +551,92 @@ fn loadOpenGlFunctions() bool {
     glDeleteProgram = opengl_lib.?.lookup(GlDeleteProgramFn, "glDeleteProgram") orelse return false;
     glDeleteShader = opengl_lib.?.lookup(GlDeleteShaderFn, "glDeleteShader") orelse return false;
 
+    // Optional functions (may not be available on all platforms)
+    glMapBuffer = opengl_lib.?.lookup(GlMapBufferFn, "glMapBuffer");
+    glMapBufferRange = opengl_lib.?.lookup(GlMapBufferRangeFn, "glMapBufferRange");
+    glUnmapBuffer = opengl_lib.?.lookup(GlUnmapBufferFn, "glUnmapBuffer");
+    glFlushMappedBufferRange = opengl_lib.?.lookup(GlFlushMappedBufferRangeFn, "glFlushMappedBufferRange");
+    glFinish = opengl_lib.?.lookup(GlFinishFn, "glFinish");
+    glFlush = opengl_lib.?.lookup(GlFlushFn, "glFlush");
+    glGetError = opengl_lib.?.lookup(GlGetErrorFn, "glGetError");
+    glGetIntegerv = opengl_lib.?.lookup(GlGetIntegervFn, "glGetIntegerv");
+    glCopyBufferSubData = opengl_lib.?.lookup(GlCopyBufferSubDataFn, "glCopyBufferSubData");
+
     return true;
+}
+
+/// Parse OpenGL version string (e.g., "4.6.0 NVIDIA 535.104.05")
+fn parseVersionString(version: []const u8) ?struct { major: i32, minor: i32 } {
+    if (version.len == 0) return null;
+
+    // Find major version (first digit sequence)
+    var major_start: usize = 0;
+    while (major_start < version.len and !std.ascii.isDigit(version[major_start])) {
+        major_start += 1;
+    }
+    if (major_start >= version.len) return null;
+
+    var major_end = major_start;
+    while (major_end < version.len and std.ascii.isDigit(version[major_end])) {
+        major_end += 1;
+    }
+
+    const major = std.fmt.parseInt(i32, version[major_start..major_end], 10) catch return null;
+
+    // Find minor version (after the dot)
+    if (major_end >= version.len or version[major_end] != '.') return null;
+    const minor_start = major_end + 1;
+    if (minor_start >= version.len) return null;
+
+    var minor_end = minor_start;
+    while (minor_end < version.len and std.ascii.isDigit(version[minor_end])) {
+        minor_end += 1;
+    }
+
+    const minor = std.fmt.parseInt(i32, version[minor_start..minor_end], 10) catch return null;
+
+    return .{ .major = major, .minor = minor };
+}
+
+/// Check for GL errors and log them. Returns true if an error occurred.
+fn checkAndLogGlError(operation: []const u8) bool {
+    const get_error_fn = glGetError orelse return false;
+    const err = get_error_fn();
+
+    if (err == GL_NO_ERROR) return false;
+
+    const error_name: []const u8 = switch (err) {
+        GL_INVALID_ENUM => "GL_INVALID_ENUM",
+        GL_INVALID_VALUE => "GL_INVALID_VALUE",
+        GL_INVALID_OPERATION => "GL_INVALID_OPERATION",
+        GL_OUT_OF_MEMORY => "GL_OUT_OF_MEMORY",
+        else => "Unknown error",
+    };
+
+    std.log.err("OpenGL error in {s}: {s} (0x{X:0>4})", .{ operation, error_name, err });
+    return true;
+}
+
+/// Synchronize with the GPU. Blocks until all previous commands are complete.
+pub fn synchronize() void {
+    if (glFinish) |finish_fn| {
+        finish_fn();
+    }
+}
+
+/// Flush pending commands to the GPU without waiting for completion.
+pub fn flush() void {
+    if (glFlush) |flush_fn| {
+        flush_fn();
+    }
+}
+
+/// Set the allocator to use for buffer metadata allocations.
+pub fn setBufferAllocator(allocator: std.mem.Allocator) void {
+    buffer_allocator = allocator;
+}
+
+/// Get OpenGL version information.
+pub fn getVersion() struct { major: i32, minor: i32 } {
+    return .{ .major = gl_major_version, .minor = gl_minor_version };
 }

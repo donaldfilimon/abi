@@ -1,5 +1,78 @@
 //! Stub for AI explore feature when disabled
 const std = @import("std");
+const stub_root = @This();
+
+pub const config = struct {
+    pub const ExploreConfig = stub_root.ExploreConfig;
+    pub const ExploreLevel = stub_root.ExploreLevel;
+    pub const OutputFormat = stub_root.OutputFormat;
+    pub const FileType = stub_root.FileType;
+    pub const FileFilter = stub_root.FileFilter;
+    pub const SearchScope = stub_root.SearchScope;
+    pub const SearchOptions = stub_root.SearchOptions;
+};
+
+pub const results = struct {
+    pub const ExploreResult = stub_root.ExploreResult;
+    pub const Match = stub_root.Match;
+    pub const MatchType = stub_root.MatchType;
+    pub const ExploreError = stub_root.ExploreError;
+    pub const ExplorationStats = stub_root.ExplorationStats;
+};
+
+pub const fs = struct {
+    pub const FileVisitor = stub_root.FileVisitor;
+    pub const FileStats = stub_root.FileStats;
+};
+
+pub const search = struct {
+    pub const SearchPattern = stub_root.SearchPattern;
+    pub const PatternType = stub_root.PatternType;
+    pub const PatternCompiler = stub_root.PatternCompiler;
+};
+
+pub const agent = struct {
+    pub const ExploreAgent = stub_root.ExploreAgent;
+    pub const createDefaultAgent = stub_root.createDefaultAgent;
+    pub const createQuickAgent = stub_root.createQuickAgent;
+    pub const createThoroughAgent = stub_root.createThoroughAgent;
+};
+
+pub const query = struct {
+    pub const QueryIntent = stub_root.QueryIntent;
+    pub const ParsedQuery = stub_root.ParsedQuery;
+    pub const QueryUnderstanding = stub_root.QueryUnderstanding;
+};
+
+pub const ast = struct {
+    pub const AstNode = stub_root.AstNode;
+    pub const AstNodeType = stub_root.AstNodeType;
+    pub const ParsedFile = stub_root.ParsedFile;
+    pub const AstParser = stub_root.AstParser;
+};
+
+pub const parallel = struct {
+    pub const ParallelExplorer = stub_root.ParallelExplorer;
+    pub const WorkItem = stub_root.WorkItem;
+    pub const parallelExplore = stub_root.parallelExplore;
+};
+
+pub const callgraph = struct {
+    pub const Function = stub_root.Function;
+    pub const CallEdge = stub_root.CallEdge;
+    pub const CallGraph = stub_root.CallGraph;
+    pub const CallGraphBuilder = stub_root.CallGraphBuilder;
+    pub const buildCallGraph = stub_root.buildCallGraph;
+};
+
+pub const dependency = struct {
+    pub const Module = stub_root.Module;
+    pub const DependencyEdge = stub_root.DependencyEdge;
+    pub const ImportType = stub_root.ImportType;
+    pub const DependencyGraph = stub_root.DependencyGraph;
+    pub const DependencyAnalyzer = stub_root.DependencyAnalyzer;
+    pub const buildDependencyGraph = stub_root.buildDependencyGraph;
+};
 
 pub const ExploreError = error{
     ExploreDisabled,
@@ -134,9 +207,9 @@ pub const ParsedQuery = struct {
 };
 
 pub const QueryUnderstanding = struct {
-    pub fn parse(_: std.mem.Allocator, query: []const u8) ParsedQuery {
+    pub fn parse(_: std.mem.Allocator, query_str: []const u8) ParsedQuery {
         return .{
-            .original = query,
+            .original = query_str,
             .intent = .search,
             .terms = &.{},
         };
@@ -327,6 +400,7 @@ pub fn buildDependencyGraph(_: std.mem.Allocator, _: []const []const u8) Explore
     return ExploreError.ExploreDisabled;
 }
 
+/// Check if explore features are enabled (always false for stub)
 pub fn isEnabled() bool {
     return false;
 }

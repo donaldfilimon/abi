@@ -537,8 +537,7 @@ test "task group basic" {
     var group = TaskGroup.init(allocator, .{});
     defer group.deinit();
 
-    // Test task functions use anyerror to allow flexible error testing.
-    // In production code, use TaskError for the specific error set.
+    // Test task functions use TaskError to stay aligned with production error handling.
     const task_fn = struct {
         fn run(_: *TaskContext) TaskError!void {
             // Simple task that does nothing

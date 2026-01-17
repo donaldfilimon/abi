@@ -4,11 +4,8 @@
 
 const std = @import("std");
 
-pub const DatabaseError = error{
+pub const DatabaseFeatureError = error{
     DatabaseDisabled,
-    NotFound,
-    InvalidOperation,
-    OutOfMemory,
 };
 
 // Core database types
@@ -35,7 +32,7 @@ pub const Stats = struct {
 pub const Database = struct {
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) DatabaseError!@This() {
+    pub fn init(allocator: std.mem.Allocator) !@This() {
         _ = allocator;
         return error.DatabaseDisabled;
     }
@@ -91,7 +88,7 @@ pub const HybridSearchEngine = struct {
     pub fn deinit(self: *@This()) void {
         _ = self;
     }
-    pub fn search(self: *@This(), query: []const u8, vector: []const f32, top_k: usize) DatabaseError![]HybridResult {
+    pub fn search(self: *@This(), query: []const u8, vector: []const f32, top_k: usize) ![]HybridResult {
         _ = self;
         _ = query;
         _ = vector;
@@ -175,7 +172,7 @@ pub const MetadataStore = struct {
 };
 
 pub const FilteredSearch = struct {
-    pub fn search(handle: *DatabaseHandle, filter_expr: FilterExpression, query: []const f32, top_k: usize) DatabaseError![]FilteredResult {
+    pub fn search(handle: *DatabaseHandle, filter_expr: FilterExpression, query: []const f32, top_k: usize) ![]FilteredResult {
         _ = handle;
         _ = filter_expr;
         _ = query;
@@ -200,7 +197,7 @@ pub const BatchProcessor = struct {
     pub fn deinit(self: *@This()) void {
         _ = self;
     }
-    pub fn process(self: *@This(), records: []const BatchRecord) DatabaseError!BatchResult {
+    pub fn process(self: *@This(), records: []const BatchRecord) !BatchResult {
         _ = self;
         _ = records;
         return error.DatabaseDisabled;
@@ -267,7 +264,7 @@ pub const KMeans = struct {
     pub fn deinit(self: *@This()) void {
         _ = self;
     }
-    pub fn fit(self: *@This(), data: []const []const f32, options: FitOptions) DatabaseError!FitResult {
+    pub fn fit(self: *@This(), data: []const []const f32, options: FitOptions) !FitResult {
         _ = self;
         _ = data;
         _ = options;
@@ -323,12 +320,12 @@ pub const ScalarQuantizer = struct {
         _ = bits;
         return .{};
     }
-    pub fn quantize(self: *@This(), vector: []const f32) DatabaseError![]u8 {
+    pub fn quantize(self: *@This(), vector: []const f32) ![]u8 {
         _ = self;
         _ = vector;
         return error.DatabaseDisabled;
     }
-    pub fn dequantize(self: *@This(), data: []const u8) DatabaseError![]f32 {
+    pub fn dequantize(self: *@This(), data: []const u8) ![]f32 {
         _ = self;
         _ = data;
         return error.DatabaseDisabled;
@@ -355,7 +352,7 @@ pub const QuantizationError = error{
 
 // Unified storage format types
 pub const UnifiedFormat = struct {
-    pub fn fromMemory(allocator: std.mem.Allocator, data: []const u8) DatabaseError!@This() {
+    pub fn fromMemory(allocator: std.mem.Allocator, data: []const u8) !@This() {
         _ = allocator;
         _ = data;
         return error.DatabaseDisabled;
@@ -377,7 +374,7 @@ pub const UnifiedFormatBuilder = struct {
         _ = compression;
         return self;
     }
-    pub fn addTensor(self: *@This(), name: []const u8, data: []const u8, dtype: DataType, dims: []const u64) DatabaseError!*@This() {
+    pub fn addTensor(self: *@This(), name: []const u8, data: []const u8, dtype: DataType, dims: []const u64) !*@This() {
         _ = self;
         _ = name;
         _ = data;
@@ -385,13 +382,13 @@ pub const UnifiedFormatBuilder = struct {
         _ = dims;
         return error.DatabaseDisabled;
     }
-    pub fn addMetadata(self: *@This(), key: []const u8, value: []const u8) DatabaseError!*@This() {
+    pub fn addMetadata(self: *@This(), key: []const u8, value: []const u8) !*@This() {
         _ = self;
         _ = key;
         _ = value;
         return error.DatabaseDisabled;
     }
-    pub fn build(self: *@This()) DatabaseError![]u8 {
+    pub fn build(self: *@This()) ![]u8 {
         _ = self;
         return error.DatabaseDisabled;
     }
@@ -431,7 +428,7 @@ pub const DataType = enum {
 };
 
 pub const Converter = struct {
-    pub fn convert(allocator: std.mem.Allocator, data: []const u8, target: TargetFormat) DatabaseError![]u8 {
+    pub fn convert(allocator: std.mem.Allocator, data: []const u8, target: TargetFormat) ![]u8 {
         _ = allocator;
         _ = data;
         _ = target;
@@ -481,7 +478,7 @@ pub const StreamingReader = struct {
 };
 
 pub const MappedFile = struct {
-    pub fn open(allocator: std.mem.Allocator, path: []const u8) DatabaseError!@This() {
+    pub fn open(allocator: std.mem.Allocator, path: []const u8) !@This() {
         _ = allocator;
         _ = path;
         return error.DatabaseDisabled;
@@ -521,13 +518,13 @@ pub const FormatSearchResult = struct {
 };
 
 // GGUF converter
-pub fn fromGguf(allocator: std.mem.Allocator, data: []const u8) DatabaseError!UnifiedFormat {
+pub fn fromGguf(allocator: std.mem.Allocator, data: []const u8) !UnifiedFormat {
     _ = allocator;
     _ = data;
     return error.DatabaseDisabled;
 }
 
-pub fn toGguf(allocator: std.mem.Allocator, format: *UnifiedFormat) DatabaseError![]u8 {
+pub fn toGguf(allocator: std.mem.Allocator, format: *UnifiedFormat) ![]u8 {
     _ = allocator;
     _ = format;
     return error.DatabaseDisabled;
@@ -627,14 +624,10 @@ pub const formats = struct {
     pub const GgufTensorType = @import("stub.zig").GgufTensorType;
 };
 
-pub const DatabaseFeatureError = error{
-    DatabaseDisabled,
-};
-
 // Module lifecycle
 var initialized: bool = false;
 
-pub fn init(_: std.mem.Allocator) DatabaseError!void {
+pub fn init(_: std.mem.Allocator) !void {
     return error.DatabaseDisabled;
 }
 
@@ -651,13 +644,13 @@ pub fn isInitialized() bool {
 }
 
 // Core database operations
-pub fn open(allocator: std.mem.Allocator, name: []const u8) DatabaseError!DatabaseHandle {
+pub fn open(allocator: std.mem.Allocator, name: []const u8) !DatabaseHandle {
     _ = allocator;
     _ = name;
     return error.DatabaseDisabled;
 }
 
-pub fn connect(allocator: std.mem.Allocator, name: []const u8) DatabaseError!DatabaseHandle {
+pub fn connect(allocator: std.mem.Allocator, name: []const u8) !DatabaseHandle {
     _ = allocator;
     _ = name;
     return error.DatabaseDisabled;
@@ -667,7 +660,7 @@ pub fn close(handle: *DatabaseHandle) void {
     _ = handle;
 }
 
-pub fn insert(handle: *DatabaseHandle, id: u64, vector: []const f32, metadata: ?[]const u8) DatabaseError!void {
+pub fn insert(handle: *DatabaseHandle, id: u64, vector: []const f32, metadata: ?[]const u8) !void {
     _ = handle;
     _ = id;
     _ = vector;
@@ -675,7 +668,7 @@ pub fn insert(handle: *DatabaseHandle, id: u64, vector: []const f32, metadata: ?
     return error.DatabaseDisabled;
 }
 
-pub fn search(handle: *DatabaseHandle, allocator: std.mem.Allocator, query: []const f32, top_k: usize) DatabaseError![]SearchResult {
+pub fn search(handle: *DatabaseHandle, allocator: std.mem.Allocator, query: []const f32, top_k: usize) ![]SearchResult {
     _ = handle;
     _ = allocator;
     _ = query;
@@ -689,7 +682,7 @@ pub fn remove(handle: *DatabaseHandle, id: u64) bool {
     return false;
 }
 
-pub fn update(handle: *DatabaseHandle, id: u64, vector: []const f32) DatabaseError!bool {
+pub fn update(handle: *DatabaseHandle, id: u64, vector: []const f32) !bool {
     _ = handle;
     _ = id;
     _ = vector;
@@ -702,7 +695,7 @@ pub fn get(handle: *DatabaseHandle, id: u64) ?VectorView {
     return null;
 }
 
-pub fn list(handle: *DatabaseHandle, allocator: std.mem.Allocator, limit: usize) DatabaseError![]VectorView {
+pub fn list(handle: *DatabaseHandle, allocator: std.mem.Allocator, limit: usize) ![]VectorView {
     _ = handle;
     _ = allocator;
     _ = limit;
@@ -714,30 +707,30 @@ pub fn stats(handle: *DatabaseHandle) Stats {
     return .{};
 }
 
-pub fn optimize(handle: *DatabaseHandle) DatabaseError!void {
+pub fn optimize(handle: *DatabaseHandle) !void {
     _ = handle;
     return error.DatabaseDisabled;
 }
 
-pub fn backup(handle: *DatabaseHandle, path: []const u8) DatabaseError!void {
-    _ = handle;
-    _ = path;
-    return error.DatabaseDisabled;
-}
-
-pub fn restore(handle: *DatabaseHandle, path: []const u8) DatabaseError!void {
+pub fn backup(handle: *DatabaseHandle, path: []const u8) !void {
     _ = handle;
     _ = path;
     return error.DatabaseDisabled;
 }
 
-pub fn openFromFile(allocator: std.mem.Allocator, path: []const u8) DatabaseError!DatabaseHandle {
+pub fn restore(handle: *DatabaseHandle, path: []const u8) !void {
+    _ = handle;
+    _ = path;
+    return error.DatabaseDisabled;
+}
+
+pub fn openFromFile(allocator: std.mem.Allocator, path: []const u8) !DatabaseHandle {
     _ = allocator;
     _ = path;
     return error.DatabaseDisabled;
 }
 
-pub fn openOrCreate(allocator: std.mem.Allocator, path: []const u8) DatabaseError!DatabaseHandle {
+pub fn openOrCreate(allocator: std.mem.Allocator, path: []const u8) !DatabaseHandle {
     _ = allocator;
     _ = path;
     return error.DatabaseDisabled;

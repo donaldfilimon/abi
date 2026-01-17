@@ -85,7 +85,7 @@ pub const BuiltinTemplates = enum {
     conversation,
 };
 
-pub const TemplateInfo = struct {
+const TemplateInfo = struct {
     name: []const u8,
     description: []const u8,
     source: []const u8,

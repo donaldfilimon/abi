@@ -216,6 +216,13 @@ fn validateFeatureFlags(options: BuildOptions) !void {
             .{},
         );
     }
+
+    if (options.gpu_opengl and options.gpu_opengles) {
+        std.log.warn(
+            "Both OpenGL and OpenGL ES backends enabled; typically mutually exclusive",
+            .{},
+        );
+    }
 }
 
 // Determine if a file exists using std.fs. The original implementation used
@@ -447,6 +454,10 @@ pub fn build(b: *std.Build) void {
     wasm_options.gpu_metal = false;
     wasm_options.gpu_opengl = false;
     wasm_options.gpu_opengles = false;
+    wasm_options.enable_profiling = false;
+    wasm_options.gpu_stdgpu = false;
+    wasm_options.gpu_webgpu = false;
+    wasm_options.gpu_webgl2 = false;
 
     // WebGPU can technically work via bindings, but let's disable to simplify first pass
     wasm_options.enable_web = false;

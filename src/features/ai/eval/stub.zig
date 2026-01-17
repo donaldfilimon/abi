@@ -92,7 +92,7 @@ pub const PerplexityResult = struct {
 };
 
 /// Stub smoothing method.
-pub const SmoothingMethod = enum {
+const SmoothingMethod = enum {
     none,
     method1,
     method2,

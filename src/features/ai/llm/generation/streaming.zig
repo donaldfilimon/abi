@@ -8,6 +8,9 @@ const sampler_mod = @import("sampler.zig");
 const tokenizer = @import("../tokenizer/mod.zig");
 const generator_mod = @import("generator.zig");
 
+/// Error set for streaming generation callbacks.
+pub const StreamingError = generator_mod.ForwardError;
+
 /// Streaming generation state.
 pub const StreamingState = enum {
     idle,
@@ -65,7 +68,7 @@ pub const StreamingCallbacks = struct {
     /// Called when streaming completes.
     on_complete: ?*const fn (StreamingStats) void = null,
     /// Called on error.
-    on_error: ?*const fn (anyerror) void = null,
+    on_error: ?*const fn (StreamingError) void = null,
     /// User context.
     user_data: ?*anyopaque = null,
 };
@@ -134,10 +137,10 @@ pub const StreamingGenerator = struct {
     /// Start streaming generation from logits provider.
     pub fn startStreaming(
         self: *StreamingGenerator,
-        getLogits: *const fn (u32, u32) anyerror![]f32,
+        getLogits: *const fn (u32, u32) StreamingError![]f32,
         prompt_tokens: []const u32,
         tok: ?*tokenizer.BpeTokenizer,
-    ) !void {
+    ) StreamingError!void {
         self.state = .prefilling;
         self.cancel_requested.store(false, .seq_cst);
         self.token_buffer.clearRetainingCapacity();
@@ -328,7 +331,7 @@ pub const SSEFormatter = struct {
     }
 
     /// Format error event as SSE.
-    pub fn formatErrorEvent(allocator: std.mem.Allocator, err: anyerror) ![]u8 {
+    pub fn formatErrorEvent(allocator: std.mem.Allocator, err: StreamingError) ![]u8 {
         return std.fmt.allocPrint(allocator,
             \\data: {{"event":"error","error":"{t}"}}
             \\

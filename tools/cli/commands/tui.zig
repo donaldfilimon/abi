@@ -420,11 +420,27 @@ fn renderMenu(
     }
 
     try buffer.append(alloc, '\n');
-    var footer_buf: [128]u8 = undefined;
+    var footer_buf: [160]u8 = undefined;
+
+    // Build pagination info
+    const start_item = if (filtered_len > 0) scroll + 1 else 0;
+    const end_item = if (filtered_len > 0) @min(scroll + visible, filtered_len) else 0;
+
     const footer = if (selected_index != null)
-        std.fmt.bufPrint(&footer_buf, "Selected: {s}", .{selected_label}) catch "Selected:"
+        std.fmt.bufPrint(&footer_buf, "Showing {d}-{d} of {d} | Selected: {s}", .{
+            start_item,
+            end_item,
+            filtered_len,
+            selected_label,
+        }) catch "Selected:"
+    else if (filtered_len == 0)
+        std.fmt.bufPrint(&footer_buf, "Showing 0 of 0 | Selected: (none)", .{}) catch "Selected: (none)"
     else
-        "Selected: (none)";
+        std.fmt.bufPrint(&footer_buf, "Showing {d}-{d} of {d} | Selected: (none)", .{
+            start_item,
+            end_item,
+            filtered_len,
+        }) catch "Selected: (none)";
     try appendLine(&buffer, alloc, footer);
 
     try terminal.write(buffer.items);
@@ -592,7 +608,7 @@ fn appendToken(parsed: *ParsedArgs, allocator: std.mem.Allocator, token: *std.Ar
 
 fn readLineOwned(terminal: *tui.Terminal, allocator: std.mem.Allocator) !?[]u8 {
     const io = terminal.io_backend.io();
-    var buffer: [512]u8 = undefined;
+    var buffer: [2048]u8 = undefined;
     var reader = terminal.stdin_file.reader(io, &buffer);
     const line_opt = reader.interface.takeDelimiter('\n') catch return null;
     const line = line_opt orelse return null;

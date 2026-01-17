@@ -425,6 +425,125 @@ std.debug.print("State: {t}", .{state});
 
 ---
 
+## Debugging with GDB/LLDB
+
+### Source-Level Debugging
+
+ABI Framework supports debugging with standard debuggers (GDB, LLDB). To enable source-level debugging:
+
+**Build with Debug Info**:
+```bash
+# Debug build (default)
+zig build -Doptimize=Debug
+
+# Release with debug info
+zig build -Doptimize=ReleaseSafe
+```
+
+**Using GDB**:
+```bash
+# Debug the CLI
+gdb ./zig-out/bin/abi
+
+# Set breakpoints
+(gdb) break src/compute/runtime/engine.zig:150
+(gdb) run -- db stats
+
+# Step through code
+(gdb) next
+(gdb) step
+(gdb) continue
+
+# Print variables
+(gdb) print worker_count
+(gdb) info locals
+```
+
+**Using LLDB** (recommended on macOS):
+```bash
+# Debug the CLI
+lldb ./zig-out/bin/abi
+
+# Set breakpoints
+(lldb) breakpoint set --file engine.zig --line 150
+(lldb) run -- db stats
+
+# Step through code
+(lldb) next
+(lldb) step
+(lldb) continue
+
+# Print variables
+(lldb) frame variable
+(lldb) print worker_count
+```
+
+**Common Debug Commands**:
+
+| GDB | LLDB | Description |
+|-----|------|-------------|
+| `break file:line` | `b file:line` | Set breakpoint |
+| `run` | `run` | Start program |
+| `continue` | `continue` | Continue execution |
+| `next` | `next` | Step over |
+| `step` | `step` | Step into |
+| `print var` | `print var` | Print variable |
+| `backtrace` | `bt` | Show call stack |
+| `info threads` | `thread list` | List threads |
+
+### Debugging Memory Issues
+
+Use the built-in `TrackingAllocator` for leak detection:
+
+```zig
+const tracking = @import("src/shared/utils/memory/tracking.zig");
+
+var tracker = tracking.TrackingAllocator.init(std.heap.page_allocator, .{});
+defer {
+    if (tracker.detectLeaks()) {
+        tracker.dumpLeaks(std.io.getStdErr().writer()) catch {};
+    }
+    tracker.deinit();
+}
+const allocator = tracker.allocator();
+// Use allocator for operations...
+```
+
+### Debugging GPU Operations
+
+Enable GPU profiling for timing and memory transfer analysis:
+
+```zig
+const gpu_profiling = @import("src/compute/gpu/profiling.zig");
+
+var profiler = gpu_profiling.Profiler.init(allocator);
+defer profiler.deinit(allocator);
+
+profiler.enable();
+// Run GPU operations...
+gpu_profiling.formatSummary(&profiler, std.io.getStdErr().writer()) catch {};
+```
+
+### Debugging Task Execution
+
+Use the compute profiler to track task metrics:
+
+```zig
+const profiling = @import("src/compute/profiling/mod.zig");
+
+var collector = try profiling.initCollector(allocator, .{}, worker_count);
+defer collector.deinit();
+
+// After running tasks...
+const summary = collector.getSummary();
+std.debug.print("Total tasks: {d}, Avg time: {d}ns\n", .{
+    summary.total_tasks,
+    summary.avg_execution_ns,
+});
+```
+
+---
+
 ## Getting Help
 
 If your issue isn't covered here:

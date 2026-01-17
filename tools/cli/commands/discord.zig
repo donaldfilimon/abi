@@ -15,6 +15,13 @@ const discord = abi.connectors.discord;
 
 /// Run the discord command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    // Check if web feature is enabled (Discord requires web/HTTP support)
+    if (!abi.web.isEnabled()) {
+        std.debug.print("Error: Web feature is disabled.\n", .{});
+        std.debug.print("Rebuild with: zig build -Denable-web=true\n", .{});
+        return;
+    }
+
     if (args.len == 0) {
         try printStatus(allocator);
         return;

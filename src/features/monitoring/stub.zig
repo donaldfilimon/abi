@@ -3,6 +3,7 @@
 //! Mirrors the full API of mod.zig, returning error.MonitoringDisabled for all operations.
 
 const std = @import("std");
+const stub_root = @This();
 
 pub const MonitoringError = error{
     MonitoringDisabled,
@@ -210,6 +211,80 @@ pub const Histogram = struct {
         _ = value;
     }
 };
+
+pub const PrometheusConfig = struct {
+    enabled: bool = true,
+    path: []const u8 = "/metrics",
+    port: u16 = 9090,
+    namespace: []const u8 = "abi",
+    include_timestamp: bool = false,
+};
+
+pub const PrometheusExporter = struct {
+    allocator: std.mem.Allocator,
+    config: PrometheusConfig,
+    metrics: *MetricsCollector,
+
+    pub fn init(
+        allocator: std.mem.Allocator,
+        config: PrometheusConfig,
+        metrics: *MetricsCollector,
+    ) MonitoringError!PrometheusExporter {
+        _ = allocator;
+        _ = config;
+        _ = metrics;
+        return error.MonitoringDisabled;
+    }
+
+    pub fn deinit(self: *PrometheusExporter) void {
+        _ = self;
+    }
+
+    pub fn start(self: *PrometheusExporter) MonitoringError!void {
+        _ = self;
+        return error.MonitoringDisabled;
+    }
+
+    pub fn stop(self: *PrometheusExporter) void {
+        _ = self;
+    }
+
+    pub fn generateMetrics(self: *PrometheusExporter, allocator: std.mem.Allocator) MonitoringError![]const u8 {
+        _ = self;
+        _ = allocator;
+        return error.MonitoringDisabled;
+    }
+};
+
+pub const PrometheusFormatter = struct {
+    allocator: std.mem.Allocator,
+    namespace: []const u8,
+
+    pub fn init(allocator: std.mem.Allocator, namespace: []const u8) PrometheusFormatter {
+        return .{ .allocator = allocator, .namespace = namespace };
+    }
+
+    pub fn deinit(self: *PrometheusFormatter) void {
+        _ = self;
+    }
+
+    pub fn formatMetrics(self: *PrometheusFormatter, collector: *MetricsCollector) MonitoringError![]const u8 {
+        _ = self;
+        _ = collector;
+        return error.MonitoringDisabled;
+    }
+};
+
+pub fn generateMetricsOutput(
+    allocator: std.mem.Allocator,
+    collector: *MetricsCollector,
+    config: PrometheusConfig,
+) MonitoringError![]const u8 {
+    _ = allocator;
+    _ = collector;
+    _ = config;
+    return error.MonitoringDisabled;
+}
 
 pub const DefaultMetrics = struct {
     requests: *Counter,

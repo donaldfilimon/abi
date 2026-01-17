@@ -3,6 +3,7 @@
 //! Mirrors the full API of mod.zig, returning error.AiDisabled for all operations.
 
 const std = @import("std");
+const stub_root = @This();
 
 pub const AiError = error{
     AiDisabled,
@@ -37,7 +38,7 @@ pub const Agent = struct {
     }
 };
 
-pub const AgentConfig = struct {
+const AgentConfig = struct {
     name: []const u8 = "agent",
     max_context_length: usize = 4096,
     temperature: f32 = 0.7,
@@ -147,6 +148,80 @@ pub const GradientAccumulator = struct {
         return false;
     }
 };
+
+pub const OptimizerType = enum {
+    sgd,
+    adam,
+    adamw,
+};
+
+pub const LearningRateSchedule = enum {
+    constant,
+    cosine,
+    warmup_cosine,
+    step,
+    polynomial,
+    cosine_warm_restarts,
+};
+
+pub const LlmTrainingConfig = struct {
+    epochs: u32 = 10,
+    batch_size: u32 = 4,
+    max_seq_len: u32 = 512,
+    learning_rate: f32 = 1e-5,
+    lr_schedule: LearningRateSchedule = .warmup_cosine,
+    warmup_steps: u32 = 100,
+    decay_steps: u32 = 10_000,
+    min_learning_rate: f32 = 1e-7,
+    grad_accum_steps: u32 = 8,
+    max_grad_norm: f32 = 1.0,
+    weight_decay: f32 = 0.01,
+    optimizer: OptimizerType = .adamw,
+    label_smoothing: f32 = 0.0,
+    checkpoint_interval: u32 = 1000,
+    checkpoint_path: ?[]const u8 = null,
+    max_checkpoints: u32 = 3,
+    log_interval: u32 = 10,
+    eval_interval: u32 = 500,
+    mixed_precision: bool = false,
+    log_dir: ?[]const u8 = null,
+    enable_tensorboard: bool = false,
+    enable_wandb: bool = false,
+    wandb_project: ?[]const u8 = null,
+    wandb_run_name: ?[]const u8 = null,
+    wandb_entity: ?[]const u8 = null,
+    export_gguf_path: ?[]const u8 = null,
+    export_name: []const u8 = "abi-llama",
+};
+
+pub const TrainableModel = struct {
+    pub fn init(_: std.mem.Allocator, _: anytype) AiError!TrainableModel {
+        return error.AiDisabled;
+    }
+
+    pub fn deinit(_: *TrainableModel) void {}
+};
+
+pub const LlamaTrainer = struct {
+    pub fn init(
+        _: std.mem.Allocator,
+        _: *TrainableModel,
+        _: LlmTrainingConfig,
+    ) AiError!LlamaTrainer {
+        return error.AiDisabled;
+    }
+
+    pub fn deinit(_: *LlamaTrainer) void {}
+};
+
+pub fn trainLlm(
+    _: std.mem.Allocator,
+    _: *TrainableModel,
+    _: LlmTrainingConfig,
+    _: []const u32,
+) TrainError!TrainingReport {
+    return error.AiDisabled;
+}
 
 pub const Tool = struct {
     name: []const u8,
@@ -347,14 +422,14 @@ pub const BpeTokenizer = struct {
     }
 };
 
-pub const TransformerConfig = struct {
+const TransformerConfig = struct {
     hidden_size: u32 = 768,
     num_layers: u32 = 12,
     num_heads: u32 = 12,
     vocab_size: u32 = 32000,
 };
 
-pub const TransformerModel = struct {
+const TransformerModel = struct {
     config: TransformerConfig,
 
     pub fn init(config: TransformerConfig) @This() {
@@ -396,26 +471,48 @@ pub const TransformerModel = struct {
 
 // Sub-module namespaces (reference top-level types)
 pub const agent = struct {
-    pub const Agent = @import("stub.zig").Agent;
-    pub const AgentConfig = @import("stub.zig").AgentConfig;
+    pub const Agent = stub_root.Agent;
+    const AgentConfig = stub_root.AgentConfig;
 };
 
 pub const model_registry = struct {
-    pub const ModelRegistry = @import("stub.zig").ModelRegistry;
-    pub const ModelInfo = @import("stub.zig").ModelInfo;
+    pub const ModelRegistry = stub_root.ModelRegistry;
+    pub const ModelInfo = stub_root.ModelInfo;
 };
 
 pub const training = struct {
-    pub const TrainingConfig = @import("stub.zig").TrainingConfig;
-    pub const TrainingReport = @import("stub.zig").TrainingReport;
-    pub const TrainingResult = @import("stub.zig").TrainingResult;
-    pub const TrainError = @import("stub.zig").TrainError;
-    pub const CheckpointStore = @import("stub.zig").CheckpointStore;
-    pub const Checkpoint = @import("stub.zig").Checkpoint;
-    pub const GradientAccumulator = @import("stub.zig").GradientAccumulator;
+    pub const TrainingConfig = stub_root.TrainingConfig;
+    pub const TrainingReport = stub_root.TrainingReport;
+    pub const TrainingResult = stub_root.TrainingResult;
+    pub const TrainError = stub_root.TrainError;
+    pub const CheckpointStore = stub_root.CheckpointStore;
+    pub const Checkpoint = stub_root.Checkpoint;
+    pub const GradientAccumulator = stub_root.GradientAccumulator;
+    pub const OptimizerType = stub_root.OptimizerType;
+    pub const LearningRateSchedule = stub_root.LearningRateSchedule;
+    pub const LlmTrainingConfig = stub_root.LlmTrainingConfig;
+    pub const LlamaTrainer = stub_root.LlamaTrainer;
+    pub const TrainableModel = stub_root.TrainableModel;
+    pub const trainLlm = stub_root.trainLlm;
+    pub const trainable_model = stub_root.trainable_model;
+    pub const loadCheckpoint = stub_root.loadCheckpoint;
+    pub const saveCheckpoint = stub_root.saveCheckpoint;
 
-    pub const trainAndReport = @import("stub.zig").train;
-    pub const trainWithResult = @import("stub.zig").trainWithResult;
+    pub const trainAndReport = stub_root.train;
+    pub const trainWithResult = stub_root.trainWithResult;
+};
+
+pub const trainable_model = struct {
+    pub const TrainableModel = stub_root.TrainableModel;
+
+    pub const TrainableModelConfig = struct {
+        vocab_size: u32 = 0,
+        n_layers: u32 = 0,
+        n_heads: u32 = 0,
+        n_kv_heads: u32 = 0,
+        hidden_dim: u32 = 0,
+        max_seq_len: u32 = 512,
+    };
 };
 
 pub const federated = struct {
@@ -432,8 +529,8 @@ pub const federated = struct {
 };
 
 pub const transformer = struct {
-    pub const TransformerConfig = @import("stub.zig").TransformerConfig;
-    pub const TransformerModel = @import("stub.zig").TransformerModel;
+    const TransformerConfig = stub_root.TransformerConfig;
+    const TransformerModel = stub_root.TransformerModel;
 };
 
 pub const streaming = struct {
@@ -448,34 +545,39 @@ pub const streaming = struct {
 };
 
 pub const tools = struct {
-    pub const Tool = @import("stub.zig").Tool;
-    pub const ToolResult = @import("stub.zig").ToolResult;
-    pub const ToolRegistry = @import("stub.zig").ToolRegistry;
-    pub const TaskTool = @import("stub.zig").TaskTool;
-    pub const Subagent = @import("stub.zig").Subagent;
-    pub const DiscordTools = @import("stub.zig").DiscordTools;
+    pub const Tool = stub_root.Tool;
+    pub const ToolResult = stub_root.ToolResult;
+    pub const ToolRegistry = stub_root.ToolRegistry;
+    pub const TaskTool = stub_root.TaskTool;
+    pub const Subagent = stub_root.Subagent;
+    pub const DiscordTools = stub_root.DiscordTools;
 
-    pub const registerDiscordTools = @import("stub.zig").registerDiscordTools;
+    pub const registerDiscordTools = stub_root.registerDiscordTools;
 };
 
+pub const embeddings = @import("embeddings/stub.zig");
+pub const eval = @import("eval/stub.zig");
+pub const rag = @import("rag/stub.zig");
+pub const templates = @import("templates/stub.zig");
+
 pub const explore = struct {
-    pub const ExploreAgent = @import("stub.zig").ExploreAgent;
-    pub const ExploreConfig = @import("stub.zig").ExploreConfig;
-    pub const ExploreLevel = @import("stub.zig").ExploreLevel;
-    pub const ExploreResult = @import("stub.zig").ExploreResult;
-    pub const Match = @import("stub.zig").Match;
-    pub const ExplorationStats = @import("stub.zig").ExplorationStats;
-    pub const QueryIntent = @import("stub.zig").QueryIntent;
-    pub const ParsedQuery = @import("stub.zig").ParsedQuery;
-    pub const QueryUnderstanding = @import("stub.zig").QueryUnderstanding;
+    pub const ExploreAgent = stub_root.ExploreAgent;
+    pub const ExploreConfig = stub_root.ExploreConfig;
+    pub const ExploreLevel = stub_root.ExploreLevel;
+    pub const ExploreResult = stub_root.ExploreResult;
+    pub const Match = stub_root.Match;
+    pub const ExplorationStats = stub_root.ExplorationStats;
+    pub const QueryIntent = stub_root.QueryIntent;
+    pub const ParsedQuery = stub_root.ParsedQuery;
+    pub const QueryUnderstanding = stub_root.QueryUnderstanding;
 };
 
 pub const llm = struct {
-    pub const Engine = @import("stub.zig").LlmEngine;
-    pub const Model = @import("stub.zig").LlmModel;
-    pub const InferenceConfig = @import("stub.zig").LlmConfig;
-    pub const GgufFile = @import("stub.zig").GgufFile;
-    pub const BpeTokenizer = @import("stub.zig").BpeTokenizer;
+    pub const Engine = stub_root.LlmEngine;
+    pub const Model = stub_root.LlmModel;
+    pub const InferenceConfig = stub_root.LlmConfig;
+    pub const GgufFile = stub_root.GgufFile;
+    pub const BpeTokenizer = stub_root.BpeTokenizer;
 };
 
 pub const memory = struct {
@@ -583,7 +685,7 @@ pub const memory = struct {
 };
 
 // Prompts module stub - types defined at module level to avoid ambiguity
-pub const PromptPersona = struct {
+const PromptPersona = struct {
     name: []const u8 = "assistant",
     description: []const u8 = "",
     system_prompt: []const u8 = "",
@@ -593,7 +695,7 @@ pub const PromptPersona = struct {
     include_examples: bool = false,
 };
 
-pub const PromptPersonaType = enum {
+const PromptPersonaType = enum {
     assistant,
     coder,
     writer,
@@ -606,13 +708,13 @@ pub const PromptPersonaType = enum {
     custom,
 };
 
-pub const PromptRole = enum {
+const PromptRole = enum {
     system,
     user,
     assistant,
 };
 
-pub const PromptMessage = struct {
+const PromptMessage = struct {
     role: PromptRole,
     content: []const u8,
 };
@@ -722,7 +824,7 @@ pub const getPersona = prompts.getPersona;
 pub const listPersonas = prompts.listPersonas;
 
 // Abbey module stub - types defined at module level to avoid ambiguity
-pub const AbbeyConfidenceLevel = enum {
+const AbbeyConfidenceLevel = enum {
     very_low,
     low,
     medium,
@@ -730,13 +832,13 @@ pub const AbbeyConfidenceLevel = enum {
     very_high,
 };
 
-pub const AbbeyConfidence = struct {
+const AbbeyConfidence = struct {
     level: AbbeyConfidenceLevel = .medium,
     score: f32 = 0.5,
     reasoning: []const u8 = "",
 };
 
-pub const AbbeyEmotionType = enum {
+const AbbeyEmotionType = enum {
     neutral,
     happy,
     sad,
@@ -747,7 +849,7 @@ pub const AbbeyEmotionType = enum {
     thoughtful,
 };
 
-pub const AbbeyEmotionalState = struct {
+const AbbeyEmotionalState = struct {
     detected: AbbeyEmotionType = .neutral,
     intensity: f32 = 0.0,
     confidence: f32 = 0.0,
@@ -762,20 +864,20 @@ pub const AbbeyEmotionalState = struct {
     }
 };
 
-pub const AbbeyStepType = enum {
+const AbbeyStepType = enum {
     analysis,
     assessment,
     synthesis,
     conclusion,
 };
 
-pub const AbbeyReasoningStep = struct {
+const AbbeyReasoningStep = struct {
     step_type: AbbeyStepType = .analysis,
     description: []const u8 = "",
     confidence: AbbeyConfidence = .{},
 };
 
-pub const AbbeyReasoningChain = struct {
+const AbbeyReasoningChain = struct {
     allocator: std.mem.Allocator,
     query: []const u8,
     steps: std.ArrayListUnmanaged(AbbeyReasoningStep),
@@ -818,7 +920,7 @@ pub const AbbeyReasoningChain = struct {
     }
 };
 
-pub const AbbeyConversationContext = struct {
+const AbbeyConversationContext = struct {
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) @This() {
@@ -834,7 +936,7 @@ pub const AbbeyConversationContext = struct {
     }
 };
 
-pub const AbbeyTopicTracker = struct {
+const AbbeyTopicTracker = struct {
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) @This() {
@@ -892,7 +994,7 @@ pub const AbbeyConfig = struct {
     research_first: bool = true,
 };
 
-pub const AbbeyInstance = struct {
+const AbbeyInstance = struct {
     allocator: std.mem.Allocator,
     config: AbbeyConfig,
 
@@ -1026,6 +1128,23 @@ pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) TrainError!Tr
 pub fn trainWithResult(allocator: std.mem.Allocator, config: TrainingConfig) TrainError!TrainingResult {
     _ = allocator;
     _ = config;
+    return error.AiDisabled;
+}
+
+pub fn loadCheckpoint(allocator: std.mem.Allocator, path: []const u8) TrainError!Checkpoint {
+    _ = allocator;
+    _ = path;
+    return error.AiDisabled;
+}
+
+pub fn saveCheckpoint(
+    allocator: std.mem.Allocator,
+    path: []const u8,
+    checkpoint: Checkpoint,
+) TrainError!void {
+    _ = allocator;
+    _ = path;
+    _ = checkpoint;
     return error.AiDisabled;
 }
 

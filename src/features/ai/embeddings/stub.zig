@@ -4,7 +4,7 @@
 
 const std = @import("std");
 
-pub const EmbeddingsError = error{
+const EmbeddingsError = error{
     EmbeddingsDisabled,
 };
 
@@ -46,17 +46,17 @@ pub const Embedder = struct {
     config: EmbedderConfig,
 
     pub fn init(_: std.mem.Allocator, _: EmbedderConfig) !Embedder {
-        return EmbeddingsError.EmbeddingsDisabled;
+        return error.EmbeddingsDisabled;
     }
 
     pub fn deinit(_: *Embedder) void {}
 
     pub fn embed(_: *Embedder, _: []const u8) !EmbeddingResult {
-        return EmbeddingsError.EmbeddingsDisabled;
+        return error.EmbeddingsDisabled;
     }
 
     pub fn embedBatch(_: *Embedder, _: []const []const u8) !BatchEmbeddingResponse {
-        return EmbeddingsError.EmbeddingsDisabled;
+        return error.EmbeddingsDisabled;
     }
 
     pub fn findSimilar(
@@ -65,7 +65,7 @@ pub const Embedder = struct {
         _: []const []const u8,
         _: usize,
     ) ![]SimilarityResult {
-        return EmbeddingsError.EmbeddingsDisabled;
+        return error.EmbeddingsDisabled;
     }
 
     pub fn clearCache(_: *Embedder) void {}
@@ -100,7 +100,7 @@ pub const BatchProcessor = struct {
     pub fn deinit(_: *BatchProcessor) void {}
 
     pub fn process(_: *BatchProcessor, _: []const []const u8) ![][]f32 {
-        return EmbeddingsError.EmbeddingsDisabled;
+        return error.EmbeddingsDisabled;
     }
 };
 
@@ -110,7 +110,7 @@ pub const CacheConfig = struct {
     collect_stats: bool = true,
 };
 
-pub const CacheStats = struct {
+const CacheStats = struct {
     total_lookups: u64,
     hits: u64,
     misses: u64,
@@ -138,7 +138,7 @@ pub const EmbeddingCache = struct {
     }
 
     pub fn put(_: *EmbeddingCache, _: u64, _: []const f32) !void {
-        return EmbeddingsError.EmbeddingsDisabled;
+        return error.EmbeddingsDisabled;
     }
 
     pub fn remove(_: *EmbeddingCache, _: u64) bool {
