@@ -298,6 +298,7 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
     // Parse LLM training options
     var config = abi.ai.LlmTrainingConfig{};
+    var use_gpu: bool = false;
     var i: usize = 1;
 
     while (i < args.len) {
@@ -334,7 +335,7 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         if (utils.args.matchesAny(arg, &[_][]const u8{ "--grad-accum", "--gradient-accumulation" })) {
             if (i < args.len) {
                 const val = std.mem.sliceTo(args[i], 0);
-                config.gradient_accumulation_steps = std.fmt.parseInt(u32, val, 10) catch 1;
+                config.grad_accum_steps = std.fmt.parseInt(u32, val, 10) catch 1;
                 i += 1;
             }
             continue;
@@ -370,7 +371,7 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--gradient-clip")) {
             if (i < args.len) {
                 const val = std.mem.sliceTo(args[i], 0);
-                config.gradient_clip = std.fmt.parseFloat(f32, val) catch 1.0;
+                config.max_grad_norm = std.fmt.parseFloat(f32, val) catch 1.0;
                 i += 1;
             }
             continue;
@@ -421,7 +422,7 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         }
 
         if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--use-gpu")) {
-            config.use_gpu = true;
+            use_gpu = true;
             continue;
         }
 
@@ -452,8 +453,8 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     std.debug.print("LR schedule:      {t}\n", .{config.lr_schedule});
     std.debug.print("Warmup steps:     {d}\n", .{config.warmup_steps});
     std.debug.print("Weight decay:     {d:.4}\n", .{config.weight_decay});
-    std.debug.print("Gradient clip:    {d:.2}\n", .{config.gradient_clip});
-    std.debug.print("Grad accumulation:{d}\n", .{config.gradient_accumulation_steps});
+    std.debug.print("Gradient clip:    {d:.2}\n", .{config.max_grad_norm});
+    std.debug.print("Grad accumulation:{d}\n", .{config.grad_accum_steps});
     if (config.label_smoothing > 0) {
         std.debug.print("Label smoothing:  {d:.2}\n", .{config.label_smoothing});
     }
@@ -463,26 +464,34 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (config.checkpoint_path) |path| {
         std.debug.print("Checkpoint path:  {s}\n", .{path});
     }
-    std.debug.print("Use GPU:          {}\n", .{config.use_gpu});
+    std.debug.print("Use GPU:          {}\n", .{use_gpu});
     std.debug.print("Mixed precision:  {}\n", .{config.mixed_precision});
     std.debug.print("\n", .{});
 
     // Load model
     std.debug.print("Loading model from {s}...\n", .{model_path});
+    std.debug.print("Note: GGUF loading is a placeholder. Using demo configuration.\n\n", .{});
 
-    var model = abi.ai.TrainableModel.init(allocator) catch |err| {
+    // Create model with demo configuration
+    // In full implementation, this would parse GGUF and extract config
+    const model_config = abi.ai.trainable_model.TrainableModelConfig{
+        .hidden_dim = 256,
+        .num_layers = 4,
+        .num_heads = 4,
+        .num_kv_heads = 4,
+        .intermediate_dim = 512,
+        .vocab_size = 32000,
+        .max_seq_len = config.max_seq_len,
+    };
+
+    var model = abi.ai.TrainableModel.init(allocator, model_config) catch |err| {
         std.debug.print("Error initializing model: {t}\n", .{err});
         return;
     };
     defer model.deinit();
 
-    model.loadFromGguf(model_path) catch |err| {
-        std.debug.print("Error loading model: {t}\n", .{err});
-        return;
-    };
-
     const num_params = model.numParams();
-    std.debug.print("Model loaded: {d} parameters ({d:.2} MB)\n\n", .{
+    std.debug.print("Model initialized: {d} parameters ({d:.2} MB)\n\n", .{
         num_params,
         @as(f64, @floatFromInt(num_params * 4)) / (1024 * 1024),
     });

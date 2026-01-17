@@ -45,6 +45,7 @@ pub const LlmTrainingConfig = training.LlmTrainingConfig;
 pub const LlamaTrainer = training.LlamaTrainer;
 pub const TrainableModel = training.TrainableModel;
 pub const trainLlm = training.trainLlm;
+pub const trainable_model = training.trainable_model;
 
 pub const Tool = tools.Tool;
 pub const ToolResult = tools.ToolResult;
