@@ -62,7 +62,8 @@ pub const Device = struct {
 
         // Bonus for memory (scaled)
         if (self.total_memory) |mem| {
-            total += @intCast(@min(mem / (1024 * 1024 * 1024), 32) * 10); // 10 points per GB, max 320
+            const gb: u64 = @min(mem / (1024 * 1024 * 1024), 32);
+            total += @intCast(gb * 10); // 10 points per GB, max 320
         }
 
         // Bonus for compute units

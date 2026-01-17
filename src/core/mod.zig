@@ -50,8 +50,6 @@ pub const Version = struct {
     }
 };
 
-pub const profile = @import("profile.zig");
-
 pub const CacheLineBytes: usize = 64;
 
 pub fn AlignedBuffer(comptime alignment: usize) type {
