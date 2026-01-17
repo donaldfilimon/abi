@@ -164,7 +164,7 @@ abi/
 │   ├── network/         # Distributed compute and Raft
 │   ├── observability/   # Metrics, tracing, profiling
 │   ├── web/             # Web/HTTP utilities
-│   └── internal/        # Shared utilities and platform helpers
+│   └── shared/          # Shared utilities and platform helpers
 ├── tools/cli/           # CLI implementation
 ├── benchmarks/          # Performance benchmarks
 └── docs/                # Documentation

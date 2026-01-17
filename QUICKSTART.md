@@ -180,7 +180,7 @@ Flat domain structure (new modular architecture):
 | `src/network/` | Distributed compute and Raft | [Network Guide](docs/network.md) |
 | `src/observability/` | Metrics, tracing, profiling | [Monitoring Guide](docs/monitoring.md) |
 | `src/web/` | HTTP helpers and web utilities | - |
-| `src/internal/` | Shared utilities and platform helpers | - |
+| `src/shared/` | Shared utilities and platform helpers | - |
 
 ## Next Steps
 

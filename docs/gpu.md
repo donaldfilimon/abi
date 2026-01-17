@@ -332,10 +332,79 @@ When GPU unavailable, `stdgpu` provides AVX/SSE/NEON accelerated operations:
 
 ---
 
+## API Reference
+
+**Source:** `src/gpu/unified.zig`
+
+### Types
+
+| Type | Description |
+|------|-------------|
+| `Gpu` | Main unified GPU API |
+| `GpuConfig` | GPU configuration |
+| `ExecutionResult` | Execution result with timing and statistics |
+| `MatrixDims` | Matrix dimensions for matrix operations |
+| `LaunchConfig` | Kernel launch configuration |
+| `CompiledKernel` | Compiled kernel handle |
+| `MemoryInfo` | GPU memory information |
+| `GpuStats` | GPU statistics |
+| `HealthStatus` | Health status |
+| `MultiGpuConfig` | Multi-GPU configuration |
+| `LoadBalanceStrategy` | Load balance strategy for multi-GPU |
+
+### Gpu Methods
+
+| Method | Description |
+|--------|-------------|
+| `init(allocator, config)` | Initialize the unified GPU API |
+| `deinit()` | Deinitialize and cleanup |
+| `selectDevice(selector)` | Select a device based on criteria |
+| `getActiveDevice()` | Get the currently active device |
+| `listDevices()` | List all available devices |
+| `enableMultiGpu(config)` | Enable multi-GPU mode |
+| `getDeviceGroup()` | Get multi-GPU device group (if enabled) |
+| `distributeWork(total_work)` | Distribute work across multiple GPUs |
+| `createBuffer(size, options)` | Create a new buffer |
+| `createBufferFromSlice(T, slice, options)` | Create a buffer from a typed slice |
+| `destroyBuffer(buffer)` | Destroy a buffer |
+| `vectorAdd(a, b, result)` | Vector addition: result = a + b |
+| `matrixMultiply(a, b, result, dims)` | Matrix multiplication: result = a * b |
+| `reduceSum(input)` | Reduce sum: returns sum of all elements |
+| `dotProduct(a, b)` | Dot product: returns a . b |
+| `softmax(input, output)` | Softmax: output = softmax(input) |
+| `compileKernel(source)` | Compile a kernel from portable source |
+| `launchKernel(kernel, config, args)` | Launch a compiled kernel |
+| `synchronize()` | Synchronize all pending operations |
+| `createStream(options)` | Create a new stream |
+| `createEvent(options)` | Create a new event |
+| `getStats()` | Get GPU statistics |
+| `getMemoryInfo()` | Get memory information |
+| `checkHealth()` | Check GPU health |
+| `isAvailable()` | Check if GPU is available |
+| `getBackend()` | Get the active backend |
+| `isProfilingEnabled()` | Check if profiling is enabled |
+| `enableProfiling()` | Enable profiling |
+| `disableProfiling()` | Disable profiling |
+| `getMetricsSummary()` | Get metrics summary (if profiling enabled) |
+| `getKernelMetrics(name)` | Get kernel-specific metrics |
+| `getMetricsCollector()` | Get the metrics collector directly |
+| `resetMetrics()` | Reset all profiling metrics |
+| `isMultiGpuEnabled()` | Check if multi-GPU is enabled |
+| `getMultiGpuStats()` | Get multi-GPU statistics (if enabled) |
+| `activeDeviceCount()` | Get the number of active devices |
+
+### ExecutionResult Methods
+
+| Method | Description |
+|--------|-------------|
+| `throughputGBps()` | Get throughput in GB/s |
+| `elementsPerSecond()` | Get elements per second |
+
+---
+
 ## See Also
 
 - [GPU Backend Details](gpu-backend-improvements.md) - Implementation details and improvements
 - [Compute Engine](compute.md) - CPU/GPU workload scheduling
 - [Monitoring](monitoring.md) - GPU metrics and profiling
 - [Troubleshooting](troubleshooting.md) - GPU detection issues
-- [API Reference](api_gpu.md) - Complete API documentation

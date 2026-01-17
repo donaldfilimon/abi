@@ -86,5 +86,5 @@
 //!
 //! - [GPU Documentation](../../docs/gpu.md)
 //! - [GPU Backend Improvements](../../docs/gpu-backend-improvements.md)
-//! - [API Reference](../../docs/api_gpu.md)
+//! - [API Reference](../../docs/gpu.md#api-reference)
 

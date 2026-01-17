@@ -77,6 +77,6 @@
 //! ## See Also
 //!
 //! - [AI Documentation](../../docs/ai.md)
-//! - [API Reference](../../docs/api_ai.md)
+//! - [API Reference](../../docs/ai.md#api-reference)
 //! - [Training Guide](../../docs/ai.md#training)
 

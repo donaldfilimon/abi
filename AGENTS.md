@@ -51,8 +51,7 @@ src/
 ├── network/             # Distributed compute
 ├── observability/       # Metrics, tracing, profiling
 ├── web/                 # Web/HTTP utilities
-├── internal/            # Shared utilities
-└── shared/              # Legacy shared utilities
+└── shared/              # Shared utilities
 
 # Legacy (maintained for compatibility)
 ├── core/               # I/O, diagnostics
@@ -277,7 +276,7 @@ See [CLAUDE.md](CLAUDE.md) for detailed debugging guides including GDB/LLDB refe
 | `src/network/` | Distributed compute |
 | `src/observability/` | Metrics, tracing, profiling |
 | `src/web/` | Web/HTTP utilities |
-| `src/internal/` | Shared utilities |
+| `src/shared/` | Shared utilities |
 | `tools/cli/commands/` | CLI command implementations |
 | `benchmarks/` | Performance benchmarks |
 | `examples/` | Example programs |

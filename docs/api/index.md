@@ -17,7 +17,7 @@ Auto-generated API documentation index. For detailed API references, see module-
 
 **Module:** `abi`  
 **Source:** `src/abi.zig`  
-**Details:** [api_abi.md](../api_abi.md)
+**Guide:** [Framework Guide](../framework.md#api-reference)
 
 High-level entrypoints and re-exports for the modernized runtime.
 
@@ -39,7 +39,7 @@ High-level entrypoints and re-exports for the modernized runtime.
 
 **Module:** `gpu`  
 **Source:** `src/gpu/unified.zig`  
-**Details:** [api_gpu.md](../api_gpu.md)
+**Guide:** [GPU Guide](../gpu.md#api-reference)
 
 Unified GPU API supporting multiple backends (CUDA, Vulkan, Metal, WebGPU, OpenGL).
 
@@ -80,7 +80,7 @@ try gpu.vectorAdd(f32, a, b, result);
 
 **Module:** `ai`  
 **Source:** `src/features/ai/mod.zig`  
-**Details:** [api_ai.md](../api_ai.md)
+**Guide:** [AI Guide](../ai.md#api-reference)
 
 AI feature module with agents, transformers, training, and federated learning.
 
@@ -103,7 +103,7 @@ AI feature module with agents, transformers, training, and federated learning.
 
 **Module:** `database`  
 **Source:** `src/features/database/mod.zig`  
-**Details:** [api_database.md](../api_database.md)
+**Guide:** [Database Guide](../database.md#api-reference)
 
 WDBX vector database with HNSW indexing and hybrid search.
 
@@ -125,7 +125,7 @@ WDBX vector database with HNSW indexing and hybrid search.
 
 **Module:** `network`  
 **Source:** `src/network/mod.zig`  
-**Details:** [api_network.md](../api_network.md)
+**Guide:** [Network Guide](../network.md)
 
 Distributed compute and Raft consensus for cluster coordination.
 
@@ -145,7 +145,7 @@ Distributed compute and Raft consensus for cluster coordination.
 
 **Module:** `runtime` / `compute`  
 **Source:** `src/compute/runtime/mod.zig`  
-**Details:** [api_compute.md](../api_compute.md)
+**Guide:** [Compute Guide](../compute.md#api-reference)
 
 Work-stealing scheduler, futures, cancellation, and task groups.
 
@@ -165,17 +165,17 @@ Work-stealing scheduler, futures, cancellation, and task groups.
 
 ## Module-Specific References
 
-For detailed API documentation with complete symbol listings, see:
+For detailed API documentation with complete symbol listings, see the API Reference section in each guide:
 
 | Module | Documentation |
 |--------|---------------|
-| Core Framework | [api_abi.md](../api_abi.md) |
-| GPU | [api_gpu.md](../api_gpu.md) |
-| AI | [api_ai.md](../api_ai.md) |
-| Database | [api_database.md](../api_database.md) |
-| Network | [api_network.md](../api_network.md) |
-| Compute | [api_compute.md](../api_compute.md) |
+| Core Framework | [Framework Guide - API Reference](../framework.md#api-reference) |
+| GPU | [GPU Guide - API Reference](../gpu.md#api-reference) |
+| AI | [AI Guide - API Reference](../ai.md#api-reference) |
+| Database | [Database Guide - API Reference](../database.md#api-reference) |
+| Network | [Network Guide](../network.md) |
+| Compute | [Compute Guide - API Reference](../compute.md#api-reference) |
 
 ---
 
-*Generated API documentation. See module-specific files for complete symbol references.*
+*Generated API documentation. See guide files for complete API references.*

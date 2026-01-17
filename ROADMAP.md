@@ -296,7 +296,7 @@ Major architecture redesign completed with 51/51 tests passing, 21/21 build step
 - [x] Top-level network module (src/network/)
 - [x] Top-level observability module (src/observability/)
 - [x] Top-level web module (src/web/)
-- [x] Internal utilities module (src/internal/)
+- [x] Shared utilities module (src/shared/)
 - [x] Updated abi.zig to use new modular structure
 
 ### Runtime Consolidation (Complete - 2026-01-17)

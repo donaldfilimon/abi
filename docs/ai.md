@@ -267,6 +267,49 @@ New error types: `Timeout`, `ConnectionRefused`, `ModelNotFound`
 
 ---
 
+## API Reference
+
+**Source:** `src/features/ai/mod.zig`
+
+### Agent API
+
+```zig
+const agent = @import("src/features/ai/agent.zig");
+
+// Create an agent with configuration
+var my_agent = try agent.Agent.init(allocator, .{
+    .name = "assistant",
+    .backend = .openai,
+    .model = "gpt-4",
+    .temperature = 0.7,
+    .system_prompt = "You are a helpful assistant.",
+});
+defer my_agent.deinit();
+
+// Process a message
+const response = try my_agent.process("Hello!", allocator);
+defer allocator.free(response);
+```
+
+### Error Context Types
+
+- `apiError()` - For HTTP/API errors with status codes
+- `configError()` - For configuration validation errors
+- `generationError()` - For response generation failures
+- `retryError()` - For retry-related errors with attempt tracking
+
+### Supported Backends
+
+| Backend | Description |
+|---------|-------------|
+| `echo` | Local echo for testing |
+| `openai` | OpenAI API (GPT-4, etc.) |
+| `ollama` | Local Ollama instance |
+| `huggingface` | HuggingFace Inference API |
+| `local` | Embedded transformer model |
+
+---
+
 ## See Also
 
 - [Explore](explore.md) - Codebase exploration with AI
@@ -274,4 +317,3 @@ New error types: `Timeout`, `ConnectionRefused`, `ModelNotFound`
 - [Compute Engine](compute.md) - Task execution for AI workloads
 - [GPU Acceleration](gpu.md) - GPU-accelerated inference
 - [Troubleshooting](troubleshooting.md) - Common issues
-- [API Reference](api_ai.md) - Complete API documentation

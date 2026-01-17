@@ -12,13 +12,14 @@ src/
 ├── config.zig           # Unified configuration system
 ├── framework.zig        # Framework orchestration
 ├── runtime/             # Always-on infrastructure (memory, scheduling)
-├── gpu/                 # GPU acceleration (moved from compute/)
-├── ai/                  # AI module with sub-features
+├── gpu/                 # GPU acceleration (primary location)
+├── ai/                  # AI module (impl in features/ai/)
 ├── database/            # Vector database (WDBX)
 ├── network/             # Distributed compute
 ├── observability/       # Metrics, tracing, profiling
 ├── web/                 # Web/HTTP utilities
-└── internal/            # Shared utilities
+├── shared/              # Cross-cutting utilities (simd, platform, logging)
+└── features/            # Implementation layer (ai/, connectors/, ha/)
 ```
 
 ## Initialization
@@ -215,6 +216,52 @@ zig build run -- config validate   # Validate configuration
 # System information
 zig build run -- system-info       # Show framework status
 zig build run -- --version         # Show version
+```
+
+---
+
+## API Reference
+
+**Source:** `src/abi.zig`
+
+### Namespaces
+
+| Namespace | Description |
+|-----------|-------------|
+| `core` | Core utilities and fundamental types |
+| `features` | Feature modules grouped for discoverability |
+| `ai` | AI feature namespace (llm, embeddings, agents, training) |
+| `framework` | Framework orchestration layer |
+| `wdbx` | Compatibility namespace for WDBX tooling |
+
+### Functions
+
+| Function | Description |
+|----------|-------------|
+| `init(allocator, config_or_options)` | Initialize the ABI framework and return the orchestration handle |
+| `shutdown(instance)` | Convenience wrapper around `Framework.deinit` |
+| `version()` | Get framework version information |
+| `createDefaultFramework(allocator)` | Create a framework with default configuration |
+| `createFramework(allocator, config_or_options)` | Create a framework with custom configuration |
+
+### Example
+
+```zig
+const std = @import("std");
+const abi = @import("abi");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Initialize framework
+    var fw = try abi.init(allocator, .{});
+    defer abi.shutdown(&fw);
+
+    // Access namespaces
+    std.debug.print("Version: {s}\n", .{abi.version()});
+}
 ```
 
 ---

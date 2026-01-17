@@ -66,7 +66,57 @@ const CancellationToken = abi.runtime.CancellationToken;
 const TaskGroup = abi.runtime.TaskGroup;
 ```
 
-See [API Reference](api_compute.md) for complete API.
+---
+
+## API Reference
+
+**Source:** `src/compute/runtime/mod.zig`
+
+### Engine Functions
+
+| Function | Description |
+|----------|-------------|
+| `createEngine(allocator, config)` | Create compute engine with custom config |
+| `submitTask(engine, ResultType, task)` | Submit task for execution, returns task ID |
+| `waitForResult(engine, ResultType, id, timeout_ms)` | Wait for task result by ID |
+| `runTask(engine, ResultType, task, timeout_ms)` | Submit and wait for result in one call |
+| `runWorkload(engine, ResultType, work, timeout_ms)` | Alias for `runTask()` |
+
+### Core Types
+
+- `DistributedComputeEngine` - Main engine instance
+- `EngineConfig` - Engine configuration
+- `EngineError` - Engine error types
+- `TaskId` - Task identifier
+
+### Futures & Promises
+
+- `Future(ResultType)` - Async result with `.then()`, `.catch()`
+- `Promise(ResultType)` - Future producer
+- `all(...)` - Wait for all futures
+- `race(...)` - Wait for first future
+- `delay(ms)` - Delayed future
+
+### Cancellation
+
+- `CancellationToken` - Cooperative cancellation
+- `CancellationSource` - Token source
+- `LinkedCancellation` - Linked cancellation tokens
+
+### Task Groups
+
+- `TaskGroup` - Hierarchical task organization
+- `TaskGroupConfig` - Group configuration
+- `parallelForEach()` - Parallel iteration
+
+### Workloads
+
+- `WorkloadVTable` - Workload interface
+- `GPUWorkloadVTable` - GPU workload interface
+- `WorkItem` - Work item type
+- `matMul`, `dense`, `relu` - Built-in workload operations
+
+---
 
 ## See Also
 
