@@ -73,6 +73,12 @@ pub const DispatchError = dispatcher.DispatchError;
 pub const CompiledKernelHandle = dispatcher.CompiledKernelHandle;
 pub const KernelArgs = dispatcher.KernelArgs;
 
+// Recovery and failover
+pub const recovery = @import("recovery.zig");
+pub const failover = @import("failover.zig");
+pub const RecoveryManager = recovery.RecoveryManager;
+pub const FailoverManager = failover.FailoverManager;
+
 const build_options = @import("build_options");
 
 // Import lifecycle management from shared utils
