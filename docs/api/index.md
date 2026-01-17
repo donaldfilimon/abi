@@ -143,8 +143,8 @@ Distributed compute and Raft consensus for cluster coordination.
 
 ## Compute Runtime
 
-**Module:** `runtime` / `compute`  
-**Source:** `src/compute/runtime/mod.zig`  
+**Module:** `runtime`
+**Source:** `src/runtime/mod.zig`
 **Guide:** [Compute Guide](../compute.md#api-reference)
 
 Work-stealing scheduler, futures, cancellation, and task groups.

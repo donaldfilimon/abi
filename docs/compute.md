@@ -28,8 +28,12 @@ const result2 = try abi.runtime.waitForResult(&engine, u32, task_id, 1000);
 ## Architecture
 
 ```text
-src/compute/runtime/    # Engine, scheduler, futures, cancellation
-src/gpu/                # GPU acceleration (separate module)
+src/runtime/           # Engine, scheduler, futures, cancellation
+  ├── engine/          # Task engine implementation
+  ├── scheduling/      # Future, CancellationToken, TaskGroup
+  ├── concurrency/     # Lock-free primitives, priority queue
+  └── memory/          # Memory utilities
+src/gpu/               # GPU acceleration (separate module)
 ```
 
 ## Timeout Semantics
@@ -70,7 +74,7 @@ const TaskGroup = abi.runtime.TaskGroup;
 
 ## API Reference
 
-**Source:** `src/compute/runtime/mod.zig`
+**Source:** `src/runtime/mod.zig`
 
 ### Engine Functions
 

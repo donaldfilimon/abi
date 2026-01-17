@@ -109,19 +109,18 @@ Top-level domain modules (flat structure):
 - The `backups/` directory is created automatically if it doesn't exist
 - This restriction prevents path traversal attacks (see SECURITY.md for details)
 
-## Compute Engine API
+## Runtime Engine API
 
-- `abi.compute.DistributedComputeEngine` - Main compute runtime (alias: `abi.compute.runtime.DistributedComputeEngine`)
-- `abi.compute.createDefaultEngine(allocator)` -> `!Engine` - Create engine with default config
-- `abi.compute.createEngine(allocator, config)` -> `!Engine` - Create engine with custom config
-- `abi.compute.submitTask(engine, ResultType, task)` -> `!TaskId` - Submit a task for execution
-- `abi.compute.waitForResult(engine, ResultType, id, timeout_ms)` -> `!Result` - Wait for task result
-- `abi.compute.runTask(engine, ResultType, task, timeout_ms)` -> `!Result` - Submit and wait for result
-- `abi.compute.runWorkload(engine, ResultType, workload, timeout_ms)` -> `!Result` - Alias for runTask
+- `abi.runtime.DistributedComputeEngine` - Main runtime engine for task execution
+- `abi.runtime.createEngine(allocator, config)` -> `!Engine` - Create engine with config
+- `abi.runtime.submitTask(engine, ResultType, task)` -> `!TaskId` - Submit a task for execution
+- `abi.runtime.waitForResult(engine, ResultType, id, timeout_ms)` -> `!Result` - Wait for task result
+- `abi.runtime.runTask(engine, ResultType, task, timeout_ms)` -> `!Result` - Submit and wait for result
+- `abi.runtime.runWorkload(engine, ResultType, workload, timeout_ms)` -> `!Result` - Alias for runTask
 
 **Example**:
 ```zig
-var engine = try abi.compute.createDefaultEngine(allocator);
+var engine = try abi.runtime.createEngine(allocator, .{});
 defer engine.deinit();
 
 fn computeTask(_: std.mem.Allocator) !u32 {
@@ -129,11 +128,11 @@ fn computeTask(_: std.mem.Allocator) !u32 {
 }
 
 // Submit and wait in one call
-const result = try abi.compute.runTask(&engine, u32, computeTask, 1000);
+const result = try abi.runtime.runTask(&engine, u32, computeTask, 1000);
 std.debug.print("Result: {d}\n", .{result});
 ```
 
-See [Compute Guide](docs/compute.md) for detailed usage.
+See [Runtime Guide](docs/compute.md) for detailed usage.
 
 **Timeout Semantics**:
 

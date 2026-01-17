@@ -116,20 +116,20 @@ pub fn main(init: std.process.Init) !void {
     var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
-    var engine = try abi.compute.createDefaultEngine(allocator);
+    var engine = try abi.runtime.createEngine(allocator, .{});
     defer engine.deinit();
 
     // Option 1: Submit and wait separately
-    const task_id = try abi.compute.submitTask(&engine, u64, exampleTask);
-    const result1 = try abi.compute.waitForResult(&engine, u64, task_id, 1000);
+    const task_id = try abi.runtime.submitTask(&engine, u64, exampleTask);
+    const result1 = try abi.runtime.waitForResult(&engine, u64, task_id, 1000);
     std.debug.print("Result 1: {d}\n", .{result1});
 
     // Option 2: Submit and wait in one call
-    const result2 = try abi.compute.runTask(&engine, u64, exampleTask, 1000);
+    const result2 = try abi.runtime.runTask(&engine, u64, exampleTask, 1000);
     std.debug.print("Result 2: {d}\n", .{result2});
 
     // Option 3: Using runWorkload (alias for runTask)
-    const result3 = try abi.compute.runWorkload(&engine, u64, exampleTask, 1000);
+    const result3 = try abi.runtime.runWorkload(&engine, u64, exampleTask, 1000);
     std.debug.print("Result 3: {d}\n", .{result3});
 }
 ```
