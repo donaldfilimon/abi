@@ -70,7 +70,11 @@ pub const Summary = struct {
     emulated_devices: usize = 0,
 };
 
-pub const Device = struct {};
+pub const Device = struct {
+    id: u32 = 0,
+    backend: Backend = .cpu,
+    name: []const u8 = "disabled",
+};
 pub const DeviceType = enum { cpu, gpu, accelerator };
 pub const DeviceInfo = struct {
     id: u32 = 0,
@@ -104,7 +108,7 @@ pub const MappedBuffer = struct {};
 pub const MemoryPool = struct {};
 pub const MemoryStats = struct {};
 pub const MemoryInfo = struct {};
-pub const MemoryMode = enum { device, host, managed };
+pub const MemoryMode = enum { automatic, explicit, unified };
 pub const MemoryLocation = enum { device, host };
 
 pub const Stream = struct {};
@@ -146,8 +150,11 @@ pub const CompileOptions = struct {};
 
 pub const LaunchConfig = struct {};
 pub const ExecutionResult = struct {
-    success: bool = false,
     execution_time_ns: u64 = 0,
+    elements_processed: usize = 0,
+    bytes_transferred: usize = 0,
+    backend: Backend = .cpu,
+    device_id: u32 = 0,
 };
 pub const ExecutionStats = struct {};
 pub const HealthStatus = enum { healthy, degraded, unhealthy };
@@ -175,10 +182,28 @@ pub const Gpu = struct {
         return error.GpuDisabled;
     }
     pub fn deinit(_: *Gpu) void {}
+    pub fn isAvailable(_: *const Gpu) bool {
+        return false;
+    }
+    pub fn getActiveDevice(_: *const Gpu) ?*const Device {
+        return null;
+    }
+    pub fn createBuffer(_: *Gpu, _: usize, _: BufferOptions) Error!*Buffer {
+        return error.GpuDisabled;
+    }
+    pub fn createBufferFromSlice(_: *Gpu, comptime _: type, _: anytype, _: BufferOptions) Error!*Buffer {
+        return error.GpuDisabled;
+    }
+    pub fn destroyBuffer(_: *Gpu, _: *Buffer) void {}
+    pub fn vectorAdd(_: *Gpu, _: *Buffer, _: *Buffer, _: *Buffer) Error!ExecutionResult {
+        return error.GpuDisabled;
+    }
 };
 
 pub const GpuConfig = struct {
     backend: Backend = .auto,
+    enable_profiling: bool = false,
+    memory_mode: MemoryMode = .automatic,
 };
 
 // ============================================================================
@@ -223,7 +248,7 @@ pub const Context = struct {
 // Module-level stub functions
 // ============================================================================
 
-pub fn isEnabled() bool {
+pub fn isEnabled(_: Backend) bool {
     return false;
 }
 
@@ -236,6 +261,10 @@ pub fn init(_: std.mem.Allocator) Error!void {
 }
 
 pub fn deinit() void {}
+
+pub fn ensureInitialized(_: std.mem.Allocator) Error!void {
+    return error.GpuDisabled;
+}
 
 pub fn isGpuAvailable() bool {
     return false;
@@ -262,7 +291,7 @@ pub fn listDevices(_: std.mem.Allocator) Error![]DeviceInfo {
     return error.GpuDisabled;
 }
 
-pub fn defaultDevice() ?DeviceInfo {
+pub fn defaultDevice(_: std.mem.Allocator) !?DeviceInfo {
     return null;
 }
 

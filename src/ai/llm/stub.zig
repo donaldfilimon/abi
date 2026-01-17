@@ -17,12 +17,36 @@ pub const Error = error{
 pub const Engine = struct {};
 pub const Model = struct {};
 pub const InferenceConfig = struct {};
-pub const GgufFile = struct {};
 pub const BpeTokenizer = struct {};
 
+// GgufFile struct with open/close methods
+pub const GgufFile = struct {
+    pub fn open(_: std.mem.Allocator, _: []const u8) Error!@This() {
+        return error.LlmDisabled;
+    }
+    pub fn close(_: *@This()) void {}
+};
+
 // Sub-module stubs (for API parity with mod.zig)
-pub const io = struct {};
-pub const model = struct {};
+pub const io = struct {
+    pub const GgufFile = struct {
+        pub fn open(_: std.mem.Allocator, _: []const u8) Error!@This() {
+            return error.LlmDisabled;
+        }
+        pub fn close(_: *@This()) void {}
+        pub fn printSummaryDebug(_: *@This()) void {}
+    };
+};
+pub const model = struct {
+    pub const LlamaConfig = struct {
+        pub fn fromGguf(_: anytype) @This() {
+            return .{};
+        }
+        pub fn estimateMemory(_: @This()) u64 {
+            return 0;
+        }
+    };
+};
 pub const tensor = struct {};
 pub const tokenizer = struct {};
 pub const ops = struct {};

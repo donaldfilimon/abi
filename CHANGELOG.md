@@ -23,7 +23,7 @@ All feature-gated stub modules have been audited and updated for complete API pa
 - **GPU Stub** (`src/compute/gpu/stub.zig`)
   - Added missing `backendAvailability` export
 
-- **Network Stub** (`src/features/network/stub.zig`)
+- **Network Stub** (`src/network/stub.zig`)
   - Added `touch()` and `setStatus()` methods to NodeRegistry
   - Fixed `NodeInfo` to include `last_seen_ms` field
   - Corrected `NodeStatus` enum (healthy, degraded, offline)
@@ -47,6 +47,33 @@ All feature-gated stub modules have been audited and updated for complete API pa
 ---
 
 ## Unreleased (v0.3.1-dev)
+
+### Module Migration (January 2026)
+
+Completed migration of feature modules from `src/features/` to `src/`:
+
+- **Database Module** - Migrated 32 files from `src/features/database/` to `src/database/`
+  - Added Context struct for Framework integration
+  - Updated stub.zig with matching Context API
+  - Includes HNSW indexing, hybrid search, full-text search, batch ops, clustering, quantization, replication
+
+- **Web Module** - Migrated 5 files from `src/features/web/` to `src/web/`
+  - Added Context struct for Framework integration
+  - Updated stub.zig with matching Context API
+  - HTTP client with GET/POST support, Weather API client
+
+- **Architecture Documentation**
+  - Added `docs/architecture/overview.md` with migration status and patterns
+  - Created READMEs for `src/gpu/` and `src/ai/` modules
+  - Updated feature-disabled stub APIs for better parity
+
+**Migration Status:**
+- GPU module: Complete (74 files in `src/gpu/`)
+- Database module: Complete (32 files in `src/database/`)
+- Web module: Complete (5 files in `src/web/`)
+- Network module: Context struct added
+- Runtime module: Context struct added
+- AI module: Wrapper pattern (implementation still in `src/features/ai/`)
 
 ### CLI Modernization (April 2024)
 
@@ -74,7 +101,7 @@ Standardized argument parsing, help generation, and output formatting across all
 - Updated `std.http.Server` initialization to use `.interface` access pattern
 - Stream readers/writers expose `*Io.Reader` via `.interface` field
 - Pattern: `&connection_reader.interface` provides correct type for `std.http.Server.init()`
-- Impact: `src/features/database/http.zig`
+- Impact: `src/database/http.zig`
 
 **Time Utilities**
 - Created `src/shared/utils/time.zig` with Zig 0.16 compliant time functions
@@ -107,7 +134,7 @@ Standardized argument parsing, help generation, and output formatting across all
 | File | Change | Impact |
 |------|--------|--------|
 | `src/shared/utils/http/async_http.zig` | Reader type migration | Low - Streaming interface updated |
-| `src/features/database/http.zig` | HTTP Server init | Low - Uses `.interface` correctly |
+| `src/database/http.zig` | HTTP Server init | Low - Uses `.interface` correctly |
 | `src/shared/utils/time.zig` | New file | Zig 0.16 time utilities |
 | `src/cli.zig` | Verified | None - File.Reader API correct |
 | `.github/workflows/ci.yml` | Zig version | Low - CI uses 0.16.0 |
@@ -182,7 +209,7 @@ Standardized argument parsing, help generation, and output formatting across all
 
 **Distributed Scheduling**
 
-- Implemented task scheduler (`src/features/network/scheduler.zig`)
+- Implemented task scheduler (`src/network/scheduler.zig`)
 - Load balancing strategies: round_robin, least_loaded, random, affinity_based
 - `TaskScheduler` struct with node management
 - Priority queue system: low, normal, high, critical
@@ -192,7 +219,7 @@ Standardized argument parsing, help generation, and output formatting across all
 
 **High Availability Mechanisms**
 
-- Implemented health check system (`src/features/network/ha.zig`)
+- Implemented health check system (`src/network/ha.zig`)
 - `HealthCheck` struct with node health tracking
 - Health states: healthy, unhealthy, degraded, unknown
 - Cluster state management: forming, stable, unstable, partitioned

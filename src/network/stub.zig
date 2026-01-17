@@ -11,11 +11,37 @@ pub const Error = error{
     Timeout,
 };
 
-pub const NetworkConfig = struct {};
+pub const NetworkConfig = struct {
+    cluster_id: []const u8 = "default",
+    heartbeat_timeout_ms: u64 = 30_000,
+    max_nodes: usize = 256,
+};
 pub const NetworkState = enum { disconnected, connected };
 pub const Node = struct {};
-pub const NodeInfo = struct {};
-pub const NodeRegistry = struct {};
+pub const NodeStatus = enum { healthy, degraded, offline };
+pub const NodeInfo = struct {
+    id: []const u8 = "",
+    address: []const u8 = "",
+    status: NodeStatus = .healthy,
+    last_seen_ms: i64 = 0,
+};
+pub const NodeRegistry = struct {
+    pub fn register(_: *NodeRegistry, _: []const u8, _: []const u8) Error!void {
+        return error.NetworkDisabled;
+    }
+    pub fn unregister(_: *NodeRegistry, _: []const u8) bool {
+        return false;
+    }
+    pub fn touch(_: *NodeRegistry, _: []const u8) bool {
+        return false;
+    }
+    pub fn setStatus(_: *NodeRegistry, _: []const u8, _: NodeStatus) bool {
+        return false;
+    }
+    pub fn list(_: *NodeRegistry) []const NodeInfo {
+        return &.{};
+    }
+};
 
 pub const Context = struct {
     pub const State = enum {
@@ -52,6 +78,14 @@ pub const Context = struct {
 
 pub fn isEnabled() bool {
     return false;
+}
+
+pub fn defaultRegistry() Error!*NodeRegistry {
+    return error.NetworkDisabled;
+}
+
+pub fn defaultConfig() ?NetworkConfig {
+    return null;
 }
 
 pub fn isInitialized() bool {
