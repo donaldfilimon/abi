@@ -97,6 +97,9 @@ else
 /// Internal utilities (not part of public API).
 pub const internal = @import("internal/mod.zig");
 
+/// Task management system.
+pub const tasks = @import("tasks/mod.zig");
+
 // ============================================================================
 // Legacy Compatibility Layer
 // ============================================================================

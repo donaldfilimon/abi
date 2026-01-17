@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const types = @import("types.zig");
+const time_utils = @import("../shared/utils/time.zig");
 
 const Task = types.Task;
 const Priority = types.Priority;
@@ -17,7 +18,7 @@ pub const ManagerError = error{
     InvalidOperation,
     PersistenceFailed,
     ParseError,
-} || std.mem.Allocator.Error || std.fs.File.OpenError || std.fs.File.ReadError || std.fs.File.WriteError;
+} || std.mem.Allocator.Error || std.Io.File.OpenError || std.Io.Dir.ReadFileAllocError || std.Io.File.Writer.Error;
 
 pub const ManagerConfig = struct {
     storage_path: []const u8 = ".abi/tasks.json",
@@ -78,7 +79,7 @@ pub const Manager = struct {
 
     /// Add a new task
     pub fn add(self: *Manager, title: []const u8, options: AddOptions) ManagerError!u64 {
-        const now = std.time.timestamp();
+        const now = time_utils.unixSeconds();
         const id = self.next_id;
         self.next_id += 1;
 
@@ -117,7 +118,7 @@ pub const Manager = struct {
     pub fn setStatus(self: *Manager, id: u64, status: Status) ManagerError!void {
         const ptr = self.tasks.getPtr(id) orelse return error.TaskNotFound;
         ptr.status = status;
-        ptr.updated_at = std.time.timestamp();
+        ptr.updated_at = time_utils.unixSeconds();
         if (status == .completed) {
             ptr.completed_at = ptr.updated_at;
         }
@@ -199,68 +200,85 @@ pub const Manager = struct {
 
     /// Save tasks to file
     pub fn save(self: *Manager) ManagerError!void {
+        // Initialize I/O backend for Zig 0.16
+        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
         // Ensure directory exists
         const dir_path = std.fs.path.dirname(self.config.storage_path) orelse ".";
-        std.fs.cwd().makePath(dir_path) catch {};
+        std.Io.Dir.cwd().createDirPath(io, dir_path) catch {};
 
-        var file = std.fs.cwd().createFile(self.config.storage_path, .{}) catch |err| {
+        var file = std.Io.Dir.cwd().createFile(io, self.config.storage_path, .{ .truncate = true }) catch |err| {
             return err;
         };
-        defer file.close();
+        defer file.close(io);
 
-        var writer = file.writer();
+        // Build JSON content in memory first
+        var json_buffer = std.ArrayListUnmanaged(u8).empty;
+        defer json_buffer.deinit(self.allocator);
 
         // Write simple JSON manually
-        try writer.writeAll("{\n  \"next_id\": ");
-        try std.fmt.format(writer, "{d}", .{self.next_id});
-        try writer.writeAll(",\n  \"tasks\": [\n");
+        try json_buffer.appendSlice(self.allocator, "{\n  \"next_id\": ");
+        try json_buffer.print(self.allocator, "{d}", .{self.next_id});
+        try json_buffer.appendSlice(self.allocator, ",\n  \"tasks\": [\n");
 
         var first = true;
         var iter = self.tasks.iterator();
         while (iter.next()) |entry| {
-            if (!first) try writer.writeAll(",\n");
+            if (!first) try json_buffer.appendSlice(self.allocator, ",\n");
             first = false;
-            try self.writeTask(writer, entry.value_ptr.*);
+            try self.writeTask(&json_buffer, entry.value_ptr.*);
         }
 
-        try writer.writeAll("\n  ]\n}\n");
+        try json_buffer.appendSlice(self.allocator, "\n  ]\n}\n");
+
+        // Write to file
+        try file.writeStreamingAll(io, json_buffer.items);
         self.dirty = false;
     }
 
-    fn writeTask(_: *const Manager, writer: anytype, task: Task) !void {
-        try writer.writeAll("    {");
-        try std.fmt.format(writer, "\"id\":{d},", .{task.id});
-        try writer.writeAll("\"title\":\"");
-        try writeJsonString(writer, task.title);
-        try writer.writeAll("\",");
-        try std.fmt.format(writer, "\"status\":\"{s}\",", .{task.status.toString()});
-        try std.fmt.format(writer, "\"priority\":\"{s}\",", .{task.priority.toString()});
-        try std.fmt.format(writer, "\"category\":\"{s}\",", .{task.category.toString()});
-        try std.fmt.format(writer, "\"created_at\":{d},", .{task.created_at});
-        try std.fmt.format(writer, "\"updated_at\":{d}", .{task.updated_at});
+    fn writeTask(self: *const Manager, buf: *std.ArrayListUnmanaged(u8), task: Task) !void {
+        try buf.appendSlice(self.allocator, "    {");
+        try buf.print(self.allocator, "\"id\":{d},", .{task.id});
+        try buf.appendSlice(self.allocator, "\"title\":\"");
+        try writeJsonString(self.allocator, buf, task.title);
+        try buf.appendSlice(self.allocator, "\",");
+        try buf.print(self.allocator, "\"status\":\"{s}\",", .{task.status.toString()});
+        try buf.print(self.allocator, "\"priority\":\"{s}\",", .{task.priority.toString()});
+        try buf.print(self.allocator, "\"category\":\"{s}\",", .{task.category.toString()});
+        try buf.print(self.allocator, "\"created_at\":{d},", .{task.created_at});
+        try buf.print(self.allocator, "\"updated_at\":{d}", .{task.updated_at});
         if (task.description) |d| {
-            try writer.writeAll(",\"description\":\"");
-            try writeJsonString(writer, d);
-            try writer.writeAll("\"");
+            try buf.appendSlice(self.allocator, ",\"description\":\"");
+            try writeJsonString(self.allocator, buf, d);
+            try buf.append(self.allocator, '"');
         }
         if (task.due_date) |d| {
-            try std.fmt.format(writer, ",\"due_date\":{d}", .{d});
+            try buf.print(self.allocator, ",\"due_date\":{d}", .{d});
         }
         if (task.completed_at) |c| {
-            try std.fmt.format(writer, ",\"completed_at\":{d}", .{c});
+            try buf.print(self.allocator, ",\"completed_at\":{d}", .{c});
         }
         if (task.parent_id) |p| {
-            try std.fmt.format(writer, ",\"parent_id\":{d}", .{p});
+            try buf.print(self.allocator, ",\"parent_id\":{d}", .{p});
         }
-        try writer.writeAll("}");
+        try buf.append(self.allocator, '}');
     }
 
     /// Load tasks from file
     pub fn load(self: *Manager) ManagerError!void {
-        const file = try std.fs.cwd().openFile(self.config.storage_path, .{});
-        defer file.close();
+        // Initialize I/O backend for Zig 0.16
+        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
+        defer io_backend.deinit();
+        const io = io_backend.io();
 
-        const content = file.readToEndAlloc(self.allocator, 1024 * 1024) catch |err| {
+        const content = std.Io.Dir.cwd().readFileAlloc(
+            io,
+            self.config.storage_path,
+            self.allocator,
+            .limited(1024 * 1024),
+        ) catch |err| {
             return err;
         };
         defer self.allocator.free(content);
@@ -324,15 +342,15 @@ pub const Manager = struct {
     }
 };
 
-fn writeJsonString(writer: anytype, s: []const u8) !void {
+fn writeJsonString(allocator: std.mem.Allocator, buf: *std.ArrayListUnmanaged(u8), s: []const u8) !void {
     for (s) |c| {
         switch (c) {
-            '"' => try writer.writeAll("\\\""),
-            '\\' => try writer.writeAll("\\\\"),
-            '\n' => try writer.writeAll("\\n"),
-            '\r' => try writer.writeAll("\\r"),
-            '\t' => try writer.writeAll("\\t"),
-            else => try writer.writeByte(c),
+            '"' => try buf.appendSlice(allocator, "\\\""),
+            '\\' => try buf.appendSlice(allocator, "\\\\"),
+            '\n' => try buf.appendSlice(allocator, "\\n"),
+            '\r' => try buf.appendSlice(allocator, "\\r"),
+            '\t' => try buf.appendSlice(allocator, "\\t"),
+            else => try buf.append(allocator, c),
         }
     }
 }

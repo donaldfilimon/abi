@@ -4,6 +4,7 @@
 //! distributed compute tasks, and project roadmap items.
 
 const std = @import("std");
+const time_utils = @import("../shared/utils/time.zig");
 
 /// Task priority levels
 pub const Priority = enum(u8) {
@@ -111,7 +112,7 @@ pub const Task = struct {
     pub fn isOverdue(self: *const Task) bool {
         if (self.due_date) |due| {
             if (self.status == .completed or self.status == .cancelled) return false;
-            return std.time.timestamp() > due;
+            return time_utils.unixSeconds() > due;
         }
         return false;
     }

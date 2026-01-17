@@ -144,6 +144,11 @@ pub fn mainWithArgs(proc_args: std.process.Args) !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "task")) {
+        try commands.task.run(allocator, args[2..]);
+        return;
+    }
+
     if (std.mem.eql(u8, command, "tui")) {
         try commands.tui.run(allocator, args[2..]);
         return;
