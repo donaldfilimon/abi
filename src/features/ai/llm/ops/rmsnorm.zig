@@ -2,8 +2,11 @@
 //!
 //! RMSNorm is a simplified normalization technique used in LLaMA and other
 //! modern LLMs. Unlike LayerNorm, it doesn't center the activations.
+//!
+//! Uses SIMD acceleration via @Vector for vectorized operations.
 
 const std = @import("std");
+const simd = @import("../../../../shared/simd.zig");
 
 /// Compute RMS normalization: x = x / sqrt(mean(x^2) + eps) * weight
 /// x: [dim], weight: [dim], output: [dim]
@@ -33,46 +36,31 @@ pub fn rmsNormInPlace(x: []f32, weight: []const f32, eps: f32) void {
 }
 
 /// Compute RMS normalization with SIMD acceleration.
+/// Uses @Vector intrinsics for hardware-accelerated computation.
 pub fn rmsNormSimd(x: []const f32, weight: []const f32, output: []f32, eps: f32) void {
     const dim = x.len;
 
-    // Compute sum of squares with unrolling
-    var sum_sq: f32 = 0;
-    var i: usize = 0;
-
-    // Process 8 elements at a time
-    while (i + 8 <= dim) : (i += 8) {
-        sum_sq += x[i + 0] * x[i + 0];
-        sum_sq += x[i + 1] * x[i + 1];
-        sum_sq += x[i + 2] * x[i + 2];
-        sum_sq += x[i + 3] * x[i + 3];
-        sum_sq += x[i + 4] * x[i + 4];
-        sum_sq += x[i + 5] * x[i + 5];
-        sum_sq += x[i + 6] * x[i + 6];
-        sum_sq += x[i + 7] * x[i + 7];
-    }
-
-    // Handle remainder
-    while (i < dim) : (i += 1) {
-        sum_sq += x[i] * x[i];
-    }
-
+    // Use SIMD-accelerated squared sum
+    const sum_sq = simd.squaredSum(x);
     const mean_sq = sum_sq / @as(f32, @floatFromInt(dim));
     const inv_rms = 1.0 / @sqrt(mean_sq + eps);
 
-    // Apply normalization with unrolling
-    i = 0;
-    while (i + 8 <= dim) : (i += 8) {
-        output[i + 0] = x[i + 0] * inv_rms * weight[i + 0];
-        output[i + 1] = x[i + 1] * inv_rms * weight[i + 1];
-        output[i + 2] = x[i + 2] * inv_rms * weight[i + 2];
-        output[i + 3] = x[i + 3] * inv_rms * weight[i + 3];
-        output[i + 4] = x[i + 4] * inv_rms * weight[i + 4];
-        output[i + 5] = x[i + 5] * inv_rms * weight[i + 5];
-        output[i + 6] = x[i + 6] * inv_rms * weight[i + 6];
-        output[i + 7] = x[i + 7] * inv_rms * weight[i + 7];
+    // Apply normalization with SIMD
+    const VectorSize = std.simd.suggestVectorLength(f32) orelse 4;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const inv_rms_vec: Vec = @splat(inv_rms);
+
+        while (i + VectorSize <= dim) : (i += VectorSize) {
+            const x_vec: Vec = x[i..][0..VectorSize].*;
+            const w_vec: Vec = weight[i..][0..VectorSize].*;
+            output[i..][0..VectorSize].* = x_vec * inv_rms_vec * w_vec;
+        }
     }
 
+    // Handle remainder
     while (i < dim) : (i += 1) {
         output[i] = x[i] * inv_rms * weight[i];
     }

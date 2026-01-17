@@ -27,7 +27,27 @@ pub const BatchConfig = struct {
     validate_before_insert: bool = true,
     /// Continue on error.
     continue_on_error: bool = true,
+    /// Prefetch distance for batch operations (0 = disabled)
+    prefetch_distance: usize = 4,
 };
+
+// ============================================================================
+// Prefetching Utilities for Batch Operations
+// ============================================================================
+
+/// Prefetch vector data for upcoming batch operations.
+/// This helps reduce cache misses when processing large batches sequentially.
+pub fn prefetchBatchVectors(records: []const BatchRecord, current_idx: usize, distance: usize) void {
+    if (distance == 0) return;
+
+    const prefetch_idx = current_idx + distance;
+    if (prefetch_idx < records.len) {
+        const record = records[prefetch_idx];
+        // Prefetch the vector data
+        const ptr: [*]const f32 = @ptrCast(record.vector.ptr);
+        @prefetch(ptr, .{ .rw = .read, .locality = 3, .cache = .data });
+    }
+}
 
 /// Batch record for insert operations.
 pub const BatchRecord = struct {
@@ -256,8 +276,13 @@ pub const BatchProcessor = struct {
             const batch_end = @min(batch_start + self.config.batch_size, records.len);
             const batch = records[batch_start..batch_end];
 
-            // Process batch items
-            for (batch) |record| {
+            // Process batch items with prefetching
+            for (batch, 0..) |record, batch_idx| {
+                // Prefetch upcoming records for better cache utilization
+                if (self.config.prefetch_distance > 0) {
+                    prefetchBatchVectors(batch, batch_idx, self.config.prefetch_distance);
+                }
+
                 // Validate
                 if (self.config.validate_before_insert) {
                     if (!self.validateRecord(record)) {

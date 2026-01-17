@@ -4,8 +4,11 @@
 //! - SiLU (Swish): x * sigmoid(x)
 //! - GELU: Gaussian Error Linear Unit
 //! - Softmax: exp(x) / sum(exp(x))
+//!
+//! Vector operations use SIMD acceleration when available.
 
 const std = @import("std");
+const simd = @import("../../../../shared/simd.zig");
 
 /// SiLU (Swish) activation: x * sigmoid(x)
 /// Used in LLaMA, Mistral, and other modern LLMs.
@@ -13,11 +16,9 @@ pub fn silu(x: f32) f32 {
     return x * sigmoid(x);
 }
 
-/// Apply SiLU to a vector in-place.
+/// Apply SiLU to a vector in-place (SIMD accelerated).
 pub fn siluInPlace(x: []f32) void {
-    for (x) |*v| {
-        v.* = silu(v.*);
-    }
+    simd.siluInPlace(x);
 }
 
 /// Apply SiLU element-wise.
@@ -48,11 +49,9 @@ pub fn gelu(x: f32) f32 {
     return 0.5 * x * (1.0 + std.math.tanh(inner));
 }
 
-/// Apply GELU to a vector in-place.
+/// Apply GELU to a vector in-place (SIMD accelerated).
 pub fn geluInPlace(x: []f32) void {
-    for (x) |*v| {
-        v.* = gelu(v.*);
-    }
+    simd.geluInPlace(x);
 }
 
 /// Error function approximation (Horner's method polynomial approximation)
@@ -85,11 +84,9 @@ pub fn relu(x: f32) f32 {
     return @max(0, x);
 }
 
-/// Apply ReLU to a vector in-place.
+/// Apply ReLU to a vector in-place (SIMD accelerated).
 pub fn reluInPlace(x: []f32) void {
-    for (x) |*v| {
-        v.* = relu(v.*);
-    }
+    simd.reluInPlace(x);
 }
 
 /// Leaky ReLU: max(alpha * x, x)
@@ -103,26 +100,9 @@ pub fn softmax(input: []const f32, output: []f32) void {
     softmaxInPlace(output);
 }
 
-/// In-place softmax with numerical stability.
+/// In-place softmax with numerical stability (SIMD accelerated).
 pub fn softmaxInPlace(x: []f32) void {
-    // Find max for numerical stability
-    var max_val: f32 = -std.math.inf(f32);
-    for (x) |v| {
-        if (v > max_val) max_val = v;
-    }
-
-    // Compute exp(x - max) and sum
-    var sum: f32 = 0;
-    for (x) |*v| {
-        v.* = @exp(v.* - max_val);
-        sum += v.*;
-    }
-
-    // Normalize
-    const inv_sum = 1.0 / sum;
-    for (x) |*v| {
-        v.* *= inv_sum;
-    }
+    simd.softmaxInPlace(x);
 }
 
 /// Softmax with temperature scaling.

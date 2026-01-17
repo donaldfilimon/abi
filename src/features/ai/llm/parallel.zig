@@ -12,8 +12,7 @@ pub const ParallelExecutor = struct {
 
     pub fn init(allocator: Allocator, thread_count: usize) !ParallelExecutor {
         const threads = try allocator.alloc(std.Thread, thread_count);
-        var exec = ParallelExecutor{ .allocator = allocator, .thread_count = thread_count, .threads = threads };
-        return exec;
+        return ParallelExecutor{ .allocator = allocator, .thread_count = thread_count, .threads = threads };
     }
 
     pub fn deinit(self: *ParallelExecutor) void {
@@ -29,15 +28,15 @@ pub const ParallelExecutor = struct {
         var i: usize = 0;
         while (i < self.thread_count) : (i += 1) {
             const end = @min(start + per_thread, len);
-            const slice = items[start..end];
+            const work_slice = items[start..end];
             self.threads[i] = std.Thread.spawn(.{}, struct {
-                fn run(slice: @TypeOf(slice), func: fn (usize, @typeInfo(@TypeOf(slice)).Pointer.child) void) void {
+                fn run(s: @TypeOf(work_slice), f: fn (usize, @typeInfo(@TypeOf(work_slice)).Pointer.child) void) void {
                     var idx: usize = 0;
-                    while (idx < slice.len) : (idx += 1) {
-                        func(idx, slice[idx]);
+                    while (idx < s.len) : (idx += 1) {
+                        f(idx, s[idx]);
                     }
                 }
-            }.run, .{ slice, func }) catch {};
+            }.run, .{ work_slice, func }) catch {};
             start = end;
         }
         // Join threads
@@ -47,4 +46,3 @@ pub const ParallelExecutor = struct {
         }
     }
 };
-

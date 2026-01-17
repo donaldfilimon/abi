@@ -26,14 +26,15 @@ pub const RaftTransport = struct {
 
     /// Connect to a remote Raft peer (stub).
     pub fn connect(self: *RaftTransport, address: []const u8) !void {
+        _ = self;
         _ = address;
         // No‑op stub.
     }
 
     /// Send a Raft message (stub).
     pub fn send(self: *RaftTransport, msg: Raft.Message) !void {
+        _ = self;
         _ = msg;
         // No‑op stub.
     }
 };
-

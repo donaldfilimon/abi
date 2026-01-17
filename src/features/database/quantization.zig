@@ -513,6 +513,85 @@ pub const ProductQuantizer = struct {
         return dist;
     }
 
+    /// Batch compute asymmetric distances using SIMD acceleration.
+    /// Processes multiple codes at once for better throughput.
+    pub fn batchAsymmetricDistance(
+        self: *const ProductQuantizer,
+        distance_table: []const f32,
+        codes_batch: []const []const u8,
+        distances: []f32,
+    ) void {
+        std.debug.assert(codes_batch.len == distances.len);
+
+        // SIMD-friendly batch processing
+        const VectorSize = 8; // Process 8 at a time for better SIMD utilization
+        const batch_count = codes_batch.len / VectorSize;
+        const remainder = codes_batch.len % VectorSize;
+
+        // Process in batches of VectorSize
+        var batch_idx: usize = 0;
+        while (batch_idx < batch_count) : (batch_idx += 1) {
+            const start = batch_idx * VectorSize;
+            var batch_dists: [VectorSize]f32 = .{0} ** VectorSize;
+
+            // Process all subvectors for this batch
+            if (self.bits_per_code == 8) {
+                for (0..self.num_subvectors) |m| {
+                    const table_offset = m * self.num_centroids;
+                    inline for (0..VectorSize) |i| {
+                        const code = codes_batch[start + i][m];
+                        batch_dists[i] += distance_table[table_offset + code];
+                    }
+                }
+            } else {
+                for (0..self.num_subvectors) |m| {
+                    const bit_offset = m * self.bits_per_code;
+                    const table_offset = m * self.num_centroids;
+                    inline for (0..VectorSize) |i| {
+                        const code = unpackBits(codes_batch[start + i], bit_offset, self.bits_per_code);
+                        batch_dists[i] += distance_table[table_offset + code];
+                    }
+                }
+            }
+
+            // Write results
+            for (0..VectorSize) |i| {
+                distances[start + i] = batch_dists[i];
+            }
+        }
+
+        // Handle remainder
+        const remainder_start = batch_count * VectorSize;
+        for (0..remainder) |i| {
+            distances[remainder_start + i] = self.asymmetricDistanceWithTable(
+                distance_table,
+                codes_batch[remainder_start + i],
+            );
+        }
+    }
+
+    /// Compute distance table with SIMD acceleration.
+    /// Returns a table of size [num_subvectors * num_centroids].
+    pub fn computeDistanceTableSimd(self: *const ProductQuantizer, query: []const f32) QuantizationError![]f32 {
+        if (!self.trained) return QuantizationError.NotTrained;
+        if (query.len != self.dim) return QuantizationError.DimensionMismatch;
+
+        const table = self.allocator.alloc(f32, self.num_subvectors * self.num_centroids) catch return QuantizationError.OutOfMemory;
+
+        for (0..self.num_subvectors) |m| {
+            const query_offset = m * self.subvector_dim;
+            const query_subvec = query[query_offset..][0..self.subvector_dim];
+
+            for (0..self.num_centroids) |k| {
+                const centroid = self.codebooks[m][k * self.subvector_dim ..][0..self.subvector_dim];
+                // Use SIMD for distance computation
+                table[m * self.num_centroids + k] = computeL2DistanceSimd(query_subvec, centroid);
+            }
+        }
+
+        return table;
+    }
+
     /// Precompute distance table for a query.
     /// Returns a table of size [num_subvectors * num_centroids].
     pub fn computeDistanceTable(self: *const ProductQuantizer, query: []const f32) QuantizationError![]f32 {
@@ -563,6 +642,63 @@ pub const ProductQuantizer = struct {
 // ============================================================================
 // Helper functions
 // ============================================================================
+
+/// SIMD-accelerated L2 distance squared computation.
+fn computeL2DistanceSimd(a: []const f32, b: []const f32) f32 {
+    std.debug.assert(a.len == b.len);
+
+    const VectorSize = std.simd.suggestVectorLength(f32) orelse 4;
+
+    var sum: f32 = 0.0;
+    var i: usize = 0;
+
+    if (VectorSize > 1 and a.len >= VectorSize) {
+        const Vec = @Vector(VectorSize, f32);
+        var vec_sum: Vec = @splat(0.0);
+
+        while (i + VectorSize <= a.len) : (i += VectorSize) {
+            const va: Vec = a[i..][0..VectorSize].*;
+            const vb: Vec = b[i..][0..VectorSize].*;
+            const diff = va - vb;
+            vec_sum += diff * diff;
+        }
+
+        // Horizontal sum
+        const sums: [VectorSize]f32 = vec_sum;
+        for (sums) |s| {
+            sum += s;
+        }
+    }
+
+    // Scalar remainder
+    while (i < a.len) : (i += 1) {
+        const diff = a[i] - b[i];
+        sum += diff * diff;
+    }
+
+    return sum;
+}
+
+/// Thread-local decode buffer for avoiding allocation in hot path.
+pub const DecodeBuffer = struct {
+    buffer: []f32,
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator, dim: usize) !DecodeBuffer {
+        return .{
+            .buffer = try allocator.alloc(f32, dim),
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *DecodeBuffer) void {
+        self.allocator.free(self.buffer);
+    }
+
+    pub fn get(self: *DecodeBuffer) []f32 {
+        return self.buffer;
+    }
+};
 
 fn quantizeValue(value: f32, min_val: f32, max_val: f32, levels: u16) u8 {
     if (max_val <= min_val) return 0;

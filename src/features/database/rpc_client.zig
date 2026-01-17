@@ -41,4 +41,3 @@ pub const RpcClient = struct {
         try self.db.update(id, vector);
     }
 };
-
