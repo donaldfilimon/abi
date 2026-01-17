@@ -45,20 +45,47 @@ The training pipeline writes checkpoints using the `abi.ai.training.checkpoint` 
 
 ### CLI Usage
 
-The `train` subcommand mirrors the API above and provides convenient flags:
+The `train` command provides subcommands for running and managing training:
 
 ```bash
-zig build run -- train \
-    --epochs 5 \
-    --batch-size 16 \
-    --model-size 256 \
-    --learning-rate 0.01 \
-    --optimizer sgd \
-    --checkpoint-path ./mymodel.ckpt \
-    --checkpoint-interval 2
+# Run training with default configuration
+zig build run -- train run
+
+# Run with custom options
+zig build run -- train run --epochs 5 --batch-size 16 --learning-rate 0.01
+
+# Run with optimizer and checkpointing
+zig build run -- train run \
+    -e 10 \
+    -b 32 \
+    --model-size 512 \
+    --optimizer adamw \
+    --lr-schedule warmup_cosine \
+    --checkpoint-interval 100 \
+    --checkpoint-path ./checkpoints/model.ckpt
+
+# Show default configuration
+zig build run -- train info
+
+# Resume from checkpoint
+zig build run -- train resume ./checkpoints/model.ckpt
+
+# Show all options
+zig build run -- train help
 ```
 
-Flags correspond to the fields of `abi.ai.training.TrainingConfig`. Use `--help` for a full list. The command prints a summary report (`TrainingReport`) on completion.
+**Available options:**
+- `-e, --epochs` - Number of epochs (default: 10)
+- `-b, --batch-size` - Batch size (default: 32)
+- `--model-size` - Model parameters (default: 512)
+- `--lr, --learning-rate` - Learning rate (default: 0.001)
+- `--optimizer` - sgd, adam, adamw (default: adamw)
+- `--lr-schedule` - constant, cosine, warmup_cosine, step, polynomial
+- `--checkpoint-interval` - Steps between checkpoints
+- `--checkpoint-path` - Path to save checkpoints
+- `--mixed-precision` - Enable mixed precision training
+
+See `src/tests/training_demo.zig` for a working test example.
 
 ## Federated Learning
 Federated coordination (`abi.ai.federated`) aggregates model updates across nodes.
@@ -133,6 +160,11 @@ zig build run -- llm info model.gguf       # Show model information
 zig build run -- llm generate model.gguf   # Generate text
 zig build run -- llm chat model.gguf       # Interactive chat
 zig build run -- llm bench model.gguf      # Benchmark performance
+
+# Training pipeline
+zig build run -- train run --epochs 10     # Run training
+zig build run -- train info                # Show configuration
+zig build run -- train resume ./model.ckpt # Resume from checkpoint
 ```
 
 ---

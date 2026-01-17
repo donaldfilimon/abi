@@ -88,6 +88,50 @@ pub fn main(init: std.process.Init) !void {
 }
 ```
 
+## Training Example
+
+```zig
+const std = @import("std");
+const abi = @import("abi");
+
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+
+    // Configure training
+    const config = abi.ai.TrainingConfig{
+        .epochs = 10,
+        .batch_size = 32,
+        .sample_count = 1024,
+        .model_size = 512,
+        .learning_rate = 0.001,
+        .optimizer = .adamw,
+        .learning_rate_schedule = .warmup_cosine,
+        .checkpoint_interval = 100,
+        .checkpoint_path = "./model.ckpt",
+    };
+
+    // Run training and get full result
+    var result = try abi.ai.trainWithResult(allocator, config);
+    defer result.deinit();
+
+    // Access training metrics
+    std.debug.print("Training complete:\n", .{});
+    std.debug.print("  Final loss: {d:.6}\n", .{result.report.final_loss});
+    std.debug.print("  Final accuracy: {d:.2}%\n", .{result.report.final_accuracy * 100});
+    std.debug.print("  Gradient updates: {d}\n", .{result.report.gradient_updates});
+    std.debug.print("  Checkpoints saved: {d}\n", .{result.report.checkpoints_saved});
+}
+```
+
+**CLI:**
+```bash
+zig build run -- train run --epochs 10 --batch-size 32 --optimizer adamw
+zig build run -- train info    # Show default configuration
+zig build run -- train help    # Show all options
+```
+
+See [docs/ai.md](docs/ai.md) for complete training documentation.
+
 ## Compute Engine Example
 
 ```zig

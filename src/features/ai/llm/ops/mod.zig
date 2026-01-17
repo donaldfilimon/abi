@@ -6,6 +6,8 @@
 //! - RoPE (Rotary Position Embeddings)
 //! - RMSNorm (Root Mean Square Layer Normalization)
 //! - Activation functions (SiLU, GELU, softmax)
+//! - GPU-accelerated operations with CPU fallback
+//! - Backward pass operations for training
 
 const std = @import("std");
 
@@ -16,6 +18,8 @@ pub const rope = @import("rope.zig");
 pub const rmsnorm = @import("rmsnorm.zig");
 pub const activations = @import("activations.zig");
 pub const ffn = @import("ffn.zig");
+pub const gpu = @import("gpu.zig");
+pub const backward = @import("backward/mod.zig");
 
 // Re-exports for convenience
 pub const matrixMultiply = matmul.matrixMultiply;
@@ -41,6 +45,22 @@ pub const softmaxInPlace = activations.softmaxInPlace;
 pub const feedForward = ffn.feedForward;
 pub const swiglu = ffn.swiglu;
 
+// GPU re-exports
+pub const GpuOpsContext = gpu.GpuOpsContext;
+pub const GpuStats = gpu.GpuStats;
+pub const createGpuContext = gpu.createContext;
+
+// Backward pass re-exports
+pub const matmulBackward = backward.matmulBackward;
+pub const matrixVectorBackward = backward.matrixVectorBackward;
+pub const rmsNormBackward = backward.rmsNormBackward;
+pub const softmaxBackward = backward.softmaxBackward;
+pub const ropeBackward = backward.ropeBackward;
+pub const attentionBackward = backward.attentionBackward;
+pub const swigluBackward = backward.swigluBackward;
+pub const AttentionCache = backward.attention_backward.AttentionCache;
+pub const SwigluCache = backward.ffn_backward.SwigluCache;
+
 test "ops module imports" {
     _ = matmul;
     _ = matmul_quant;
@@ -49,4 +69,6 @@ test "ops module imports" {
     _ = rmsnorm;
     _ = activations;
     _ = ffn;
+    _ = gpu;
+    _ = backward;
 }

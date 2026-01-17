@@ -107,6 +107,11 @@ pub fn main(init: std.process.Init) !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "train")) {
+        try commands.train.run(allocator, args[2..]);
+        return;
+    }
+
     std.debug.print("Unknown command: {s}\nUse 'help' for usage.\n", .{command});
     std.process.exit(1);
 }
@@ -128,6 +133,7 @@ fn printHelp() void {
         \\  network [command]  Manage network registry (list, register, status)
         \\  simd               Run SIMD performance demo
         \\  system-info        Show system and framework status
+        \\  train <subcommand> Training pipeline (run, resume, info)
         \\  version            Show framework version
         \\  help               Show this help message
         \\

@@ -32,9 +32,19 @@ pub const TrainingConfig = training.TrainingConfig;
 pub const TrainingReport = training.TrainingReport;
 pub const TrainingResult = training.TrainingResult;
 pub const TrainError = training.TrainError;
+pub const OptimizerType = training.OptimizerType;
+pub const LearningRateSchedule = training.LearningRateSchedule;
 pub const CheckpointStore = training.CheckpointStore;
 pub const Checkpoint = training.Checkpoint;
+pub const loadCheckpoint = training.loadCheckpoint;
+pub const saveCheckpoint = training.saveCheckpoint;
 pub const GradientAccumulator = training.GradientAccumulator;
+
+// LLM training exports
+pub const LlmTrainingConfig = training.LlmTrainingConfig;
+pub const LlamaTrainer = training.LlamaTrainer;
+pub const TrainableModel = training.TrainableModel;
+pub const trainLlm = training.trainLlm;
 
 pub const Tool = tools.Tool;
 pub const ToolResult = tools.ToolResult;

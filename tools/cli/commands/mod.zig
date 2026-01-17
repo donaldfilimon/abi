@@ -14,3 +14,4 @@ pub const llm = @import("llm.zig");
 pub const network = @import("network.zig");
 pub const simd = @import("simd.zig");
 pub const system_info = @import("system_info.zig");
+pub const train = @import("train.zig");

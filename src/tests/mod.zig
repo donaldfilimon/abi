@@ -26,6 +26,10 @@ comptime {
     _ = @import("test_matrix.zig");
     // Include training demo test
     _ = @import("training_demo.zig");
+    // LLM reference vectors for llama-cpp compatibility
+    if (build_options.enable_llm) {
+        _ = @import("llm_reference_vectors.zig");
+    }
     // Note: property_tests.zig uses internal APIs (hnsw, index) and should be run directly:
     // zig test src/tests/property_tests.zig
 }
@@ -39,6 +43,9 @@ pub const TestMatrix = test_matrix.TestMatrix;
 
 // Property-based testing framework
 pub const proptest = @import("proptest.zig");
+
+// LLM reference vectors for llama-cpp compatibility testing
+pub const llm_reference_vectors = if (build_options.enable_llm) @import("llm_reference_vectors.zig") else struct {};
 
 pub const Generator = proptest.Generator;
 pub const Generators = proptest.Generators;

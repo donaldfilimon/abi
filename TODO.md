@@ -37,17 +37,19 @@ The following high‑level items are still open in **[ROADMAP.md](ROADMAP.md)**.
 
 ## Llama‑CPP Parity Tasks (Zig 0.16)
 
-| Area | Description | Target File(s) |
-|------|-------------|----------------|
-| Model I/O | Implement full GGUF loader, parse metadata, and expose `load_model` API. | `src/features/ai/llm/loader.zig` |
-| Quantization | Add Q4_0, Q4_1, Q8_0 tensor decoders and verification against llama‑cpp reference tensors. | `src/features/ai/llm/quant.zig` |
-| Tokenizer | Port BPE/SentencePiece tokenizer with `tokenize` and `detokenize` functions. | `src/shared/utils/tokenizer.zig` |
-| CPU Inference | Write matmul, attention, RMSNorm kernels using SIMD; match llama‑cpp accuracy and speed. | `src/features/ai/llm/infer_cpu.zig` |
-| GPU Backends | Wrap existing CUDA/Vulkan kernels; expose unified GPU inference path. | `src/features/compute/gpu/` |
-| Sampling | Implement top‑k, top‑p, temperature, and tail‑free sampling strategies. | `src/features/ai/llm/sampler.zig` |
-| Streaming | Provide async token streaming via `std.Io.Threaded` channels. | `src/features/ai/llm/stream.zig` |
-| CLI | Mirror llama‑cpp CLI options (model path, prompt, generation params). | `tools/cli/commands/llama.zig` |
-| Library API | Export stable C‑compatible functions (`llama_cpp_*`) matching llama‑cpp signatures. | `src/abi.zig` |
-| Tests \& Benchmarks | Port llama‑cpp test vectors; add performance regression suite. | `tests/llama/` |
+| Area | Status | Description | Target File(s) |
+|------|--------|-------------|----------------|
+| Model I/O | ✅ | GGUF loader, metadata parsing, `load_model` API. | `src/features/ai/llm/io/gguf.zig` |
+| Quantization | ✅ | Q4_0, Q4_1, Q8_0 tensor decoders with roundtrip tests. | `src/features/ai/llm/tensor/quantized.zig` |
+| Tokenizer | ⚠️ | BPE implemented; SentencePiece pending. | `src/features/ai/llm/tokenizer/` |
+| CPU Inference | ✅ | MatMul, attention, RMSNorm kernels with SIMD. | `src/features/ai/llm/ops/` |
+| GPU Backends | ⚠️ | CUDA/Vulkan backends exist; unified inference path pending. | `src/compute/gpu/` |
+| Sampling | ✅ | Top-k, top-p, temperature, tail-free, mirostat (v1/v2). | `src/features/ai/llm/generation/sampler.zig` |
+| Streaming | ⚠️ | Basic generation implemented; async streaming pending. | `src/features/ai/llm/generation/` |
+| CLI | ✅ | Full llama-cpp CLI parity (info, generate, chat, bench). | `tools/cli/commands/llm.zig` |
+| Library API | ❌ | C-compatible functions pending. | `src/abi.zig` |
+| Tests & Benchmarks | ⚠️ | Module tests exist; llama-cpp reference vectors pending. | `src/features/ai/llm/` |
+
+**Legend:** ✅ Complete | ⚠️ Partial | ❌ Not Started
 
 Developers should prioritize these items to achieve functional parity with llama‑cpp while maintaining Zig 0.16 conventions.

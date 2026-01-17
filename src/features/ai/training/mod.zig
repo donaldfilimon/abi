@@ -1,11 +1,14 @@
 //! Training pipeline utilities, gradient aggregation, and checkpointing.
 //!
 //! Provides neural network training with SGD, Adam optimizers, learning rate scheduling,
-//! gradient clipping, and mixed precision support.
+//! gradient clipping, loss functions, and mixed precision support.
 
 const std = @import("std");
 const checkpoint = @import("checkpoint.zig");
 const gradient = @import("gradient.zig");
+pub const loss = @import("loss.zig");
+pub const trainable_model = @import("trainable_model.zig");
+pub const llm_trainer = @import("llm_trainer.zig");
 
 pub const Checkpoint = checkpoint.Checkpoint;
 pub const CheckpointError = checkpoint.CheckpointError;
@@ -14,8 +17,29 @@ pub const CheckpointView = checkpoint.CheckpointView;
 pub const LoadCheckpointError = checkpoint.LoadError;
 pub const SaveCheckpointError = checkpoint.SaveError;
 pub const SaveLatestCheckpointError = checkpoint.SaveLatestError;
+pub const loadCheckpoint = checkpoint.loadCheckpoint;
+pub const saveCheckpoint = checkpoint.saveCheckpoint;
 pub const GradientAccumulator = gradient.GradientAccumulator;
 pub const GradientError = gradient.GradientError;
+
+// Loss function exports
+pub const CrossEntropyLoss = loss.CrossEntropyLoss;
+pub const MSELoss = loss.MSELoss;
+pub const FocalLoss = loss.FocalLoss;
+pub const perplexity = loss.perplexity;
+pub const klDivergence = loss.klDivergence;
+
+// Trainable model exports
+pub const TrainableModel = trainable_model.TrainableModel;
+pub const TrainableModelConfig = trainable_model.TrainableModelConfig;
+pub const TrainableWeights = trainable_model.TrainableWeights;
+pub const TrainableLayerWeights = trainable_model.TrainableLayerWeights;
+pub const ActivationCache = trainable_model.ActivationCache;
+
+// LLM trainer exports
+pub const LlamaTrainer = llm_trainer.LlamaTrainer;
+pub const LlmTrainingConfig = llm_trainer.LlmTrainingConfig;
+pub const trainLlm = llm_trainer.trainLlm;
 
 pub const TrainingError = error{
     InvalidConfiguration,
@@ -428,7 +452,7 @@ pub fn trainWithResult(
     var checkpoints = CheckpointStore.init(allocator, config.max_checkpoints);
     errdefer checkpoints.deinit();
 
-    const batches_per_epoch = (config.sample_count + config.batch_size - 1) / config.batch_size;
+    const batches_per_epoch: u32 = @intCast((config.sample_count + config.batch_size - 1) / config.batch_size);
     const gradient_buffer = try allocator.alloc(f32, model.gradients.len);
     defer allocator.free(gradient_buffer);
 
@@ -522,13 +546,13 @@ pub fn trainWithResult(
         .allocator = allocator,
         .report = .{
             .epochs = config.epochs,
-            .batches = batches_per_epoch,
+        .batches = @as(u32, @intCast(batches_per_epoch)),
             .final_loss = loss_history[config.epochs - 1],
             .final_accuracy = accuracy_history[config.epochs - 1],
             .best_loss = best_loss,
             .learning_rate = final_lr,
             .gradient_updates = model.step,
-            .checkpoints_saved = checkpoints.count(),
+            .checkpoints_saved = @as(u32, @intCast(checkpoints.count())),
             .early_stopped = early_stopped,
             .total_time_ms = total_time_ms,
         },
@@ -577,7 +601,7 @@ fn calculateLoss(weights: []f32, gradients: []f32) f32 {
 fn calculateAccuracy(weights: []f32, gradients: []f32) f32 {
     var correct: usize = 0;
     for (weights, gradients) |w, g| {
-        const prediction = if (w * g > 0) 1 else 0;
+        const prediction = if (w * g > 0) @as(u32, 1) else @as(u32, 0);
         if (prediction == 1) correct += 1;
     }
     return @as(f32, @floatFromInt(correct)) / @as(f32, @floatFromInt(weights.len));

@@ -19,10 +19,19 @@ pub const Shape = tensor.Shape;
 pub const TensorError = tensor.TensorError;
 
 pub const Q4_0Block = quantized.Q4_0Block;
+pub const Q4_1Block = quantized.Q4_1Block;
 pub const Q8_0Block = quantized.Q8_0Block;
+pub const QuantType = quantized.QuantType;
 pub const dequantizeQ4_0 = quantized.dequantizeQ4_0;
+pub const dequantizeQ4_1 = quantized.dequantizeQ4_1;
 pub const dequantizeQ8_0 = quantized.dequantizeQ8_0;
+pub const quantizeToQ4_1 = quantized.quantizeToQ4_1;
 pub const quantizeToQ8_0 = quantized.quantizeToQ8_0;
+pub const quantizedSize = quantized.quantizedSize;
+pub const dequantizedSize = quantized.dequantizedSize;
+pub const dotQ4_0F32 = quantized.dotQ4_0F32;
+pub const dotQ4_1F32 = quantized.dotQ4_1F32;
+pub const dotQ8_0F32 = quantized.dotQ8_0F32;
 
 pub const TensorView = view.TensorView;
 

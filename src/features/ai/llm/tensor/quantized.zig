@@ -31,6 +31,64 @@ pub const Q4_0Block = extern struct {
     }
 };
 
+/// Q4_1 quantization block: 32 values stored in 20 bytes.
+/// Format: 2-byte f16 scale + 2-byte f16 min + 16 bytes of 4-bit values
+/// More accurate than Q4_0 due to min offset.
+pub const Q4_1Block = extern struct {
+    scale: f16,
+    min: f16,
+    quants: [16]u8, // 32 x 4-bit values packed (2 per byte)
+
+    pub const BLOCK_SIZE: usize = 32;
+    pub const BYTE_SIZE: usize = 20;
+
+    /// Dequantize this block to f32 values.
+    pub fn dequantize(self: *const Q4_1Block, output: *[32]f32) void {
+        const scale: f32 = @floatCast(self.scale);
+        const min: f32 = @floatCast(self.min);
+
+        for (0..16) |i| {
+            const byte = self.quants[i];
+            // Low 4 bits: value * scale + min
+            const lo: u8 = byte & 0xF;
+            // High 4 bits
+            const hi: u8 = byte >> 4;
+
+            output[i] = @as(f32, @floatFromInt(lo)) * scale + min;
+            output[i + 16] = @as(f32, @floatFromInt(hi)) * scale + min;
+        }
+    }
+
+    /// Quantize f32 values to this block.
+    pub fn quantize(self: *Q4_1Block, input: *const [32]f32) void {
+        // Find min and max values
+        var min_val: f32 = input[0];
+        var max_val: f32 = input[0];
+        for (input) |v| {
+            if (v < min_val) min_val = v;
+            if (v > max_val) max_val = v;
+        }
+
+        // Calculate scale and min
+        const range = max_val - min_val;
+        const scale: f32 = if (range > 0) range / 15.0 else 1.0;
+        self.scale = @floatCast(scale);
+        self.min = @floatCast(min_val);
+
+        // Quantize values
+        const inv_scale = if (scale > 0) 1.0 / scale else 0;
+        for (0..16) |i| {
+            const lo_scaled = (input[i] - min_val) * inv_scale;
+            const hi_scaled = (input[i + 16] - min_val) * inv_scale;
+            const lo_clamped = @max(0.0, @min(15.0, lo_scaled));
+            const hi_clamped = @max(0.0, @min(15.0, hi_scaled));
+            const lo: u8 = @intFromFloat(@round(lo_clamped));
+            const hi: u8 = @intFromFloat(@round(hi_clamped));
+            self.quants[i] = lo | (hi << 4);
+        }
+    }
+};
+
 /// Q8_0 quantization block: 32 values stored in 34 bytes.
 /// Format: 2-byte f16 scale + 32 bytes of 8-bit signed values
 pub const Q8_0Block = extern struct {
@@ -93,6 +151,27 @@ pub fn dequantizeQ4_0(data: []const u8, output: []f32) !void {
     }
 }
 
+/// Dequantize Q4_1 data to f32.
+pub fn dequantizeQ4_1(data: []const u8, output: []f32) !void {
+    const num_blocks = data.len / Q4_1Block.BYTE_SIZE;
+    const expected_output = num_blocks * Q4_1Block.BLOCK_SIZE;
+
+    if (output.len < expected_output) {
+        return error.ShapeMismatch;
+    }
+
+    const blocks: []const Q4_1Block = @alignCast(std.mem.bytesAsSlice(
+        Q4_1Block,
+        data[0 .. num_blocks * Q4_1Block.BYTE_SIZE],
+    ));
+
+    for (blocks, 0..) |*block, i| {
+        var block_output: [32]f32 = undefined;
+        block.dequantize(&block_output);
+        @memcpy(output[i * 32 .. (i + 1) * 32], &block_output);
+    }
+}
+
 /// Dequantize Q8_0 data to f32.
 pub fn dequantizeQ8_0(data: []const u8, output: []f32) !void {
     const num_blocks = data.len / Q8_0Block.BYTE_SIZE;
@@ -138,6 +217,30 @@ pub fn quantizeToQ8_0(input: []const f32, output: []u8) !void {
     }
 }
 
+/// Quantize f32 data to Q4_1.
+pub fn quantizeToQ4_1(input: []const f32, output: []u8) !void {
+    const num_blocks = input.len / Q4_1Block.BLOCK_SIZE;
+    const expected_output = num_blocks * Q4_1Block.BYTE_SIZE;
+
+    if (output.len < expected_output) {
+        return error.ShapeMismatch;
+    }
+    if (input.len % Q4_1Block.BLOCK_SIZE != 0) {
+        return error.ShapeMismatch;
+    }
+
+    var blocks: []Q4_1Block = @alignCast(std.mem.bytesAsSlice(
+        Q4_1Block,
+        output[0..expected_output],
+    ));
+
+    for (0..num_blocks) |i| {
+        const start = i * 32;
+        const block_input: *const [32]f32 = @ptrCast(input[start .. start + 32]);
+        blocks[i].quantize(block_input);
+    }
+}
+
 /// Calculate Q4_0 dequantized dot product with f32 vector.
 /// Optimized for vectorized operations.
 pub fn dotQ4_0F32(q4_data: []const u8, f32_data: []const f32) f32 {
@@ -171,6 +274,42 @@ pub fn dotQ4_0F32(q4_data: []const u8, f32_data: []const f32) f32 {
     return sum;
 }
 
+/// Calculate Q4_1 dequantized dot product with f32 vector.
+/// More accurate than Q4_0 due to min offset.
+pub fn dotQ4_1F32(q4_data: []const u8, f32_data: []const f32) f32 {
+    const num_blocks = q4_data.len / Q4_1Block.BYTE_SIZE;
+    const blocks: []const Q4_1Block = @alignCast(std.mem.bytesAsSlice(
+        Q4_1Block,
+        q4_data[0 .. num_blocks * Q4_1Block.BYTE_SIZE],
+    ));
+
+    var sum: f32 = 0;
+
+    for (blocks, 0..) |*block, block_idx| {
+        const scale: f32 = @floatCast(block.scale);
+        const min: f32 = @floatCast(block.min);
+        const base = block_idx * 32;
+
+        // Accumulate for this block
+        var block_sum: f32 = 0;
+        var min_sum: f32 = 0;
+
+        for (0..16) |i| {
+            const byte = block.quants[i];
+            const lo: u8 = byte & 0xF;
+            const hi: u8 = byte >> 4;
+
+            block_sum += @as(f32, @floatFromInt(lo)) * f32_data[base + i];
+            block_sum += @as(f32, @floatFromInt(hi)) * f32_data[base + i + 16];
+            min_sum += f32_data[base + i] + f32_data[base + i + 16];
+        }
+
+        sum += block_sum * scale + min_sum * min;
+    }
+
+    return sum;
+}
+
 /// Calculate Q8_0 dequantized dot product with f32 vector.
 pub fn dotQ8_0F32(q8_data: []const u8, f32_data: []const f32) f32 {
     const num_blocks = q8_data.len / Q8_0Block.BYTE_SIZE;
@@ -196,19 +335,21 @@ pub fn dotQ8_0F32(q8_data: []const u8, f32_data: []const f32) f32 {
     return sum;
 }
 
+/// Quantization type enumeration.
+pub const QuantType = enum { q4_0, q4_1, q8_0 };
+
 /// Memory required for dequantized f32 representation.
-pub fn dequantizedSize(quant_type: enum { q4_0, q8_0 }, num_elements: usize) usize {
-    return switch (quant_type) {
-        .q4_0 => num_elements * @sizeOf(f32),
-        .q8_0 => num_elements * @sizeOf(f32),
-    };
+pub fn dequantizedSize(quant_type: QuantType, num_elements: usize) usize {
+    _ = quant_type;
+    return num_elements * @sizeOf(f32);
 }
 
 /// Memory required for quantized representation.
-pub fn quantizedSize(quant_type: enum { q4_0, q8_0 }, num_elements: usize) usize {
+pub fn quantizedSize(quant_type: QuantType, num_elements: usize) usize {
     const num_blocks = (num_elements + 31) / 32;
     return switch (quant_type) {
         .q4_0 => num_blocks * Q4_0Block.BYTE_SIZE,
+        .q4_1 => num_blocks * Q4_1Block.BYTE_SIZE,
         .q8_0 => num_blocks * Q8_0Block.BYTE_SIZE,
     };
 }
@@ -246,9 +387,30 @@ test "Q8_0 roundtrip" {
     }
 }
 
+test "Q4_1 roundtrip" {
+    var input: [32]f32 = undefined;
+    for (0..32) |i| {
+        input[i] = @as(f32, @floatFromInt(i)) * 0.1;
+    }
+
+    var block: Q4_1Block = undefined;
+    block.quantize(&input);
+
+    var output: [32]f32 = undefined;
+    block.dequantize(&output);
+
+    // Should be close to original (within quantization error)
+    // Q4_1 has 4-bit precision (16 levels), so error tolerance is higher
+    for (input, 0..) |v, i| {
+        try std.testing.expectApproxEqAbs(v, output[i], 0.3);
+    }
+}
+
 test "quantized size calculations" {
     // 1024 elements = 32 blocks for Q4_0
     try std.testing.expectEqual(@as(usize, 32 * 18), quantizedSize(.q4_0, 1024));
+    // 1024 elements = 32 blocks for Q4_1 (20 bytes per block)
+    try std.testing.expectEqual(@as(usize, 32 * 20), quantizedSize(.q4_1, 1024));
     // 1024 elements = 32 blocks for Q8_0
     try std.testing.expectEqual(@as(usize, 32 * 34), quantizedSize(.q8_0, 1024));
 }

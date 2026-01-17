@@ -761,6 +761,31 @@ zig build run -- llm list                              # List available models
 
 The LLM feature (`src/features/ai/llm/`) provides local GGUF model inference with BPE tokenization, quantized tensors (Q4_0, Q4_1, Q8_0), transformer ops (matmul, attention, RoPE, RMSNorm), KV cache, and sampling strategies (greedy, top-k, top-p, temperature).
 
+### Train CLI Examples
+
+```bash
+zig build run -- train run                             # Run with default config
+zig build run -- train run --epochs 10 --batch-size 32 # Custom epochs/batch
+zig build run -- train run -e 5 -b 16 --optimizer adam # Use Adam optimizer
+zig build run -- train run --lr 0.0001 --lr-schedule cosine  # Custom LR
+zig build run -- train run --checkpoint-interval 100 --checkpoint-path ./ckpt
+zig build run -- train info                            # Show default config
+zig build run -- train resume ./checkpoint.ckpt       # Resume from checkpoint
+zig build run -- train help                            # Show all options
+```
+
+**Available Options**:
+- `-e, --epochs` - Number of epochs (default: 10)
+- `-b, --batch-size` - Batch size (default: 32)
+- `--model-size` - Model parameters (default: 512)
+- `--optimizer` - sgd, adam, adamw (default: adamw)
+- `--lr-schedule` - constant, cosine, warmup_cosine, step, polynomial
+- `--checkpoint-interval` - Steps between checkpoints (default: 0)
+- `--checkpoint-path` - Path to save checkpoints
+- `--mixed-precision` - Enable mixed precision training
+
+The training module (`src/features/ai/training/`) provides gradient accumulation, checkpointing with portable binary serialization, and multiple optimizer/schedule options.
+
 ## Running Examples
 
 Individual examples can be run with:

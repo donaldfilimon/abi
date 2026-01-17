@@ -114,12 +114,18 @@ fn runGenerate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var max_tokens: u32 = 256;
     var temperature: f32 = 0.7;
     var top_p: f32 = 0.9;
+    var top_k: u32 = 40;
     // New generation options
     var repeat_penalty: f32 = 1.1;
     var seed: ?u64 = null;
     var stream: bool = false;
     var stop_sequences = std.ArrayListUnmanaged([]const u8){};
     defer stop_sequences.deinit(allocator);
+    // Advanced sampling options (llama.cpp parity)
+    var tfs_z: f32 = 1.0; // tail-free sampling (1.0 = disabled)
+    var mirostat: u8 = 0; // 0 = disabled, 1 = v1, 2 = v2
+    var mirostat_tau: f32 = 5.0;
+    var mirostat_eta: f32 = 0.1;
 
     var i: usize = 0;
     while (i < args.len) {
@@ -202,6 +208,51 @@ fn runGenerate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             continue;
         }
 
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--top-k")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                top_k = std.fmt.parseInt(u32, val, 10) catch 40;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--tfs")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                tfs_z = std.fmt.parseFloat(f32, val) catch 1.0;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--mirostat")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                mirostat = std.fmt.parseInt(u8, val, 10) catch 0;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--mirostat-tau")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                mirostat_tau = std.fmt.parseFloat(f32, val) catch 5.0;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--mirostat-eta")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                mirostat_eta = std.fmt.parseFloat(f32, val) catch 0.1;
+                i += 1;
+            }
+            continue;
+        }
+
         // Positional: model path or prompt
         if (model_path == null) {
             model_path = std.mem.sliceTo(arg, 0);
@@ -224,9 +275,15 @@ fn runGenerate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
     std.debug.print("Loading model: {s}\n", .{model_path.?});
     std.debug.print("Prompt: {s}\n", .{prompt.?});
-    std.debug.print("Max tokens: {d}, Temperature: {d:.2}, Top-p: {d:.2}, Repeat penalty: {d:.2}\n", .{ max_tokens, temperature, top_p, repeat_penalty });
+    std.debug.print("Max tokens: {d}, Temperature: {d:.2}, Top-p: {d:.2}, Top-k: {d}, Repeat penalty: {d:.2}\n", .{ max_tokens, temperature, top_p, top_k, repeat_penalty });
     if (seed) |s| {
         std.debug.print("Seed: {d}\n", .{s});
+    }
+    if (tfs_z < 1.0) {
+        std.debug.print("Tail-free sampling: z={d:.2}\n", .{tfs_z});
+    }
+    if (mirostat > 0) {
+        std.debug.print("Mirostat v{d}: tau={d:.2}, eta={d:.2}\n", .{ mirostat, mirostat_tau, mirostat_eta });
     }
     if (stream) {
         std.debug.print("Streaming: enabled\n", .{});
@@ -581,7 +638,7 @@ fn runDownload(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 fn printHelp() void {
     const help_text =
         "Usage: abi llm <command> [options]\n\n" ++
-        "Run local LLM inference with GGUF models.\n\n" ++
+        "Run local LLM inference with GGUF models (llama.cpp compatible).\n\n" ++
         "Commands:\n" ++
         "  info <model>       Show model information\n" ++
         "  generate <model>   Generate text from a prompt\n" ++
@@ -597,10 +654,16 @@ fn printHelp() void {
         "  -n, --max-tokens <n>    Maximum tokens to generate (default: 256)\n" ++
         "  -t, --temperature <f>   Temperature for sampling (default: 0.7)\n" ++
         "  --top-p <f>             Top-p nucleus sampling (default: 0.9)\n" ++
+        "  --top-k <n>             Top-k filtering (default: 40)\n" ++
         "  --repeat-penalty <f>    Repetition penalty (default: 1.1)\n" ++
         "  --seed <n>              Random seed for reproducibility\n" ++
         "  --stop <text>           Stop sequence (can specify multiple)\n" ++
         "  --stream                Enable streaming output\n\n" ++
+        "Advanced sampling (llama.cpp parity):\n" ++
+        "  --tfs <f>               Tail-free sampling parameter (default: 1.0 = disabled)\n" ++
+        "  --mirostat <n>          Mirostat mode (0=off, 1=v1, 2=v2, default: 0)\n" ++
+        "  --mirostat-tau <f>      Mirostat target entropy (default: 5.0)\n" ++
+        "  --mirostat-eta <f>      Mirostat learning rate (default: 0.1)\n\n" ++
         "Benchmark options:\n" ++
         "  --prompt-tokens <n>     Number of prompt tokens (default: 128)\n" ++
         "  --gen-tokens <n>        Number of tokens to generate (default: 64)\n\n" ++
@@ -609,6 +672,8 @@ fn printHelp() void {
         "  abi llm generate ./llama-7b.gguf -p \"Hello, how are you?\"\n" ++
         "  abi llm generate ./mistral-7b.gguf -p \"Write a poem\" -n 100 -t 0.8 --stream\n" ++
         "  abi llm generate ./model.gguf -p \"Complete this:\" --seed 42 --repeat-penalty 1.2\n" ++
+        "  abi llm generate ./model.gguf -p \"Story:\" --mirostat 2 --mirostat-tau 3.0\n" ++
+        "  abi llm generate ./model.gguf -p \"Code:\" --tfs 0.95 --top-k 50\n" ++
         "  abi llm bench ./llama-7b.gguf --gen-tokens 128\n" ++
         "  abi llm list-local ./models\n" ++
         "  abi llm download https://huggingface.co/.../model.gguf -o my-model.gguf\n";

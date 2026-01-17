@@ -450,6 +450,93 @@ pub const GgufFile = struct {
         };
     }
 
+    //==========================================================================
+    // Tokenizer Metadata Accessors
+    //==========================================================================
+
+    /// Get the tokenizer model type (e.g., "gpt2", "llama", "llama-bpe").
+    /// This determines which tokenizer algorithm to use.
+    pub fn getTokenizerModel(self: *const GgufFile) ?[]const u8 {
+        const val = self.getMetadata("tokenizer.ggml.model") orelse return null;
+        return val.asString();
+    }
+
+    /// Get BOS (beginning of sequence) token ID.
+    pub fn getBosTokenId(self: *const GgufFile) ?u32 {
+        const val = self.getMetadata("tokenizer.ggml.bos_token_id") orelse return null;
+        return val.asU32();
+    }
+
+    /// Get EOS (end of sequence) token ID.
+    pub fn getEosTokenId(self: *const GgufFile) ?u32 {
+        const val = self.getMetadata("tokenizer.ggml.eos_token_id") orelse return null;
+        return val.asU32();
+    }
+
+    /// Get UNK (unknown) token ID.
+    pub fn getUnkTokenId(self: *const GgufFile) ?u32 {
+        const val = self.getMetadata("tokenizer.ggml.unknown_token_id") orelse return null;
+        return val.asU32();
+    }
+
+    /// Get PAD (padding) token ID.
+    pub fn getPadTokenId(self: *const GgufFile) ?u32 {
+        const val = self.getMetadata("tokenizer.ggml.padding_token_id") orelse return null;
+        return val.asU32();
+    }
+
+    /// Get whether to add BOS token.
+    pub fn getAddBosToken(self: *const GgufFile) ?bool {
+        const val = self.getMetadata("tokenizer.ggml.add_bos_token") orelse return null;
+        return val.asBool();
+    }
+
+    /// Get whether to add EOS token.
+    pub fn getAddEosToken(self: *const GgufFile) ?bool {
+        const val = self.getMetadata("tokenizer.ggml.add_eos_token") orelse return null;
+        return val.asBool();
+    }
+
+    /// Get raw token vocabulary data.
+    /// Returns the array metadata for the tokenizer.ggml.tokens key.
+    pub fn getTokensArray(self: *const GgufFile) ?GgufMetadataValue.ArrayValue {
+        const val = self.getMetadata("tokenizer.ggml.tokens") orelse return null;
+        return switch (val) {
+            .array => |arr| arr,
+            else => null,
+        };
+    }
+
+    /// Get raw token scores data.
+    /// Returns the array metadata for the tokenizer.ggml.scores key.
+    pub fn getScoresArray(self: *const GgufFile) ?GgufMetadataValue.ArrayValue {
+        const val = self.getMetadata("tokenizer.ggml.scores") orelse return null;
+        return switch (val) {
+            .array => |arr| arr,
+            else => null,
+        };
+    }
+
+    /// Get raw token types data.
+    /// Returns the array metadata for the tokenizer.ggml.token_type key.
+    pub fn getTokenTypesArray(self: *const GgufFile) ?GgufMetadataValue.ArrayValue {
+        const val = self.getMetadata("tokenizer.ggml.token_type") orelse return null;
+        return switch (val) {
+            .array => |arr| arr,
+            else => null,
+        };
+    }
+
+    /// Get BPE merges data.
+    /// Returns the array metadata for the tokenizer.ggml.merges key.
+    pub fn getMergesArray(self: *const GgufFile) ?GgufMetadataValue.ArrayValue {
+        const val = self.getMetadata("tokenizer.ggml.merges") orelse return null;
+        return switch (val) {
+            .array => |arr| arr,
+            else => null,
+        };
+    }
+
     /// Print summary of the model
     pub fn printSummary(self: *const GgufFile, writer: anytype) !void {
         try writer.print("GGUF Model Summary\n", .{});

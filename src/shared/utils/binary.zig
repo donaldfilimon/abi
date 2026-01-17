@@ -27,10 +27,10 @@ pub const SerializationCursor = struct {
     /// Read an integer value from cursor.
     pub fn readInt(self: *SerializationCursor, comptime T: type) !T {
         comptime {
-            if (!std.meta.trait.isUnsignedInt(T)) {
+            const info = @typeInfo(T);
+            if (info != .int or info.int.signedness != .unsigned) {
                 @compileError("readInt only supports unsigned integer types");
             }
-            std.debug.assert(@sizeOf(T) <= 8); // Reasonable size limit
         }
         const size = @sizeOf(T);
         if (self.index + size > self.data.len) {
@@ -94,7 +94,8 @@ pub const SerializationWriter = struct {
     /// Append an integer value.
     pub fn appendInt(self: *SerializationWriter, comptime T: type, value: T) !void {
         comptime {
-            if (!std.meta.trait.isUnsignedInt(T)) {
+            const info = @typeInfo(T);
+            if (info != .int or info.int.signedness != .unsigned) {
                 @compileError("appendInt only supports unsigned integer types");
             }
         }

@@ -26,6 +26,7 @@ pub const memory = @import("memory.zig");
 pub const stream = @import("stream.zig");
 pub const device_query = @import("device_query.zig");
 pub const nvrtc = @import("nvrtc.zig");
+pub const cublas = @import("cublas.zig");
 
 // Re-export from loader for compatibility
 pub const CuResult = cuda_loader.CuResult;

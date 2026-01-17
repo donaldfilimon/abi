@@ -112,7 +112,7 @@ pub const CheckpointStore = struct {
     fn prune(self: *CheckpointStore) void {
         if (self.max_checkpoints == 0) return;
         while (self.checkpoints.items.len > self.max_checkpoints) {
-            const removed = self.checkpoints.orderedRemove(0);
+            var removed = self.checkpoints.orderedRemove(0);
             removed.deinit(self.allocator);
         }
     }
