@@ -27,14 +27,14 @@ pub fn main() !void {
 
     for (modules) |mod| {
         generateDoc(allocator, io, cwd, mod.path, mod.name) catch |err| {
-             std.debug.print("Failed to generate docs for {s}: {}\n", .{mod.name, err});
+            std.debug.print("Failed to generate docs for {s}: {}\n", .{ mod.name, err });
         };
     }
 }
 
 fn generateDoc(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, path: []const u8, name: []const u8) !void {
     const source = cwd.readFileAlloc(io, path, allocator, .limited(1024 * 1024)) catch |err| {
-        std.debug.print("Could not read {s}: {}\n", .{path, err});
+        std.debug.print("Could not read {s}: {}\n", .{ path, err });
         return err;
     };
     defer allocator.free(source);
@@ -44,60 +44,62 @@ fn generateDoc(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, path: 
     defer allocator.free(out_name);
 
     var file = cwd.createFile(io, out_name, .{}) catch |err| {
-        std.debug.print("Could not create {s}: {}\n", .{out_name, err});
+        std.debug.print("Could not create {s}: {}\n", .{ out_name, err });
         return err;
     };
     defer file.close(io);
 
-        var write_buf: [4096]u8 = undefined;
-        var writer = file.writer(io, &write_buf);
+    try print(allocator, io, file, "# {s} API Reference\n\n", .{name});
+    try print(allocator, io, file, "**Source:** `{s}`\n\n", .{path});
 
-        try std.fmt.format(writer, "# {s} API Reference\n\n", .{name});
-        try std.fmt.format(writer, "**Source:** `{s}`\n\n", .{path});
+    var lines = std.mem.splitScalar(u8, source, '\n');
+    var doc_buffer = std.ArrayListUnmanaged(u8){};
+    defer doc_buffer.deinit(allocator);
 
-        var lines = std.mem.splitScalar(u8, source, '\n');
-        var doc_buffer = std.ArrayList(u8).init(allocator);
-        defer doc_buffer.deinit();
+    while (lines.next()) |line| {
+        const trimmed = std.mem.trim(u8, line, " \r");
 
-        while (lines.next()) |line| {
-            const trimmed = std.mem.trim(u8, line, " \r");
-
-            if (std.mem.startsWith(u8, trimmed, "//!")) {
-                if (trimmed.len > 3) {
-                    try std.fmt.format(writer, "{s}\n", .{trimmed[3..]});
-                } else {
-                    try writer.writeAll("\n");
-                }
-                continue;
+        if (std.mem.startsWith(u8, trimmed, "//! ")) {
+            if (trimmed.len > 3) {
+                try print(allocator, io, file, "{s}\n", .{trimmed[3..]});
+            } else {
+                try file.writeStreamingAll(io, "\n");
             }
-
-            if (std.mem.startsWith(u8, trimmed, "///")) {
-                if (trimmed.len > 3) {
-                    try doc_buf_append(&doc_buffer, trimmed[3..]);
-                }
-                try doc_buf_append(&doc_buffer, "\n");
-                continue;
-            }
-
-            if (std.mem.startsWith(u8, trimmed, "pub ")) {
-                // Found public declaration
-                if (doc_buffer.items.len > 0) {
-                    try std.fmt.format(writer, "### `{s}`\n\n", .{extractDeclSignature(trimmed)});
-                    try std.fmt.format(writer, "{s}\n", .{doc_buffer.items});
-                    doc_buffer.clearRetainingCapacity();
-                }
-            } else if (trimmed.len > 0) {
-                // Non-doc, non-pub line, clear buffer
-                doc_buffer.clearRetainingCapacity();
-            }
+            continue;
         }
 
-        try writer.flush();
+        if (std.mem.startsWith(u8, trimmed, "///")) {
+            if (trimmed.len > 3) {
+                try doc_buf_append(&doc_buffer, allocator, trimmed[3..]);
+            }
+            try doc_buf_append(&doc_buffer, allocator, "\n");
+            continue;
+        }
+
+        if (std.mem.startsWith(u8, trimmed, "pub ")) {
+            // Found public declaration
+            if (doc_buffer.items.len > 0) {
+                try print(allocator, io, file, "### `{s}`\n\n", .{extractDeclSignature(trimmed)});
+                try print(allocator, io, file, "{s}\n", .{doc_buffer.items});
+                doc_buffer.clearRetainingCapacity();
+            }
+        } else if (trimmed.len > 0) {
+            // Non-doc, non-pub line, clear buffer
+            doc_buffer.clearRetainingCapacity();
+        }
+    }
+
     std.debug.print("Generated {s}\n", .{out_name});
 }
 
-fn doc_buf_append(buf: *std.ArrayList(u8), slice: []const u8) !void {
-    try buf.appendSlice(slice);
+fn print(allocator: std.mem.Allocator, io: std.Io, file: std.Io.File, comptime fmt: []const u8, args: anytype) !void {
+    const s = try std.fmt.allocPrint(allocator, fmt, args);
+    defer allocator.free(s);
+    try file.writeStreamingAll(io, s);
+}
+
+fn doc_buf_append(buf: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, slice: []const u8) !void {
+    try buf.appendSlice(allocator, slice);
 }
 
 fn extractDeclSignature(line: []const u8) []const u8 {
@@ -109,5 +111,5 @@ fn extractDeclSignature(line: []const u8) []const u8 {
             break;
         }
     }
-    return std.mem.trimRight(u8, line[0..end], " ");
+    return std.mem.trim(u8, line[0..end], " ");
 }

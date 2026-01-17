@@ -93,10 +93,10 @@ var cuda_backend_initialized = false;
 
 pub const MemoryError = memory.MemoryError;
 pub const BufferFlags = memory.BufferFlags;
-pub const GPUBuffer = memory.GPUBuffer;
-pub const Buffer = GPUBuffer; // Alias for convenience
-pub const GPUMemoryPool = memory.GPUMemoryPool;
-pub const MemoryPool = GPUMemoryPool; // Alias for convenience
+pub const GpuBuffer = memory.GpuBuffer;
+pub const Buffer = GpuBuffer; // Alias for convenience
+pub const GpuMemoryPool = memory.GpuMemoryPool;
+pub const MemoryPool = GpuMemoryPool; // Alias for convenience
 pub const MemoryStats = memory.MemoryStats;
 pub const AsyncTransfer = memory.AsyncTransfer;
 pub const GpuError = memory.MemoryError || error{GpuDisabled};

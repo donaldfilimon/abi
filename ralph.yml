@@ -1,0 +1,95 @@
+# Refactoring Preset
+#
+# For safe code refactoring with verification at each step.
+# Emphasizes: test before, change, test after, verify behavior preserved.
+#
+# Usage:
+#   ralph run --config presets/refactor.yml --prompt "Extract the auth logic into a separate module"
+
+event_loop:
+  prompt_file: "PROMPT.md"
+  completion_promise: "REFACTOR_COMPLETE"
+  max_iterations: 50
+  max_runtime_seconds: 10800
+  checkpoint_interval: 3
+
+cli:
+  backend: "claude"
+
+core:
+  scratchpad: ".agent/scratchpad.md"
+  specs_dir: "./specs/"
+
+hats:
+  refactorer:
+    name: "Refactorer"
+    description: "Executes one atomic refactoring step safely with verification."
+    triggers: ["refactor.task"]
+    publishes: ["refactor.done", "refactor.blocked"]
+    default_publishes: "refactor.done"
+    instructions: |
+      ## REFACTORER MODE
+
+      Execute ONE refactoring step safely.
+
+      ### Process
+      1. **Verify tests pass** before starting (baseline)
+      2. **Make the atomic change** described in the task
+      3. **Run tests** immediately after
+      4. **Run clippy** to catch new warnings
+      5. **Commit** with clear message
+      6. **Publish** `<event topic="refactor.done">`
+
+      ### Event Format
+      ```
+      <event topic="refactor.done">
+      step: [step description]
+      tests: pass
+      clippy: pass
+      </event>
+      ```
+
+      ### Commit Format
+      ```
+      refactor(scope): [what changed]
+
+      Step N of refactor: [goal]
+      - [specific change made]
+      ```
+
+      ### If Tests Fail
+      - DO NOT commit
+      - Publish `<event topic="refactor.blocked">` with failure details
+      - Ralph will coordinate next steps
+
+      ### DON'T
+      - ❌ Make multiple changes at once
+      - ❌ "Improve" unrelated code
+      - ❌ Skip verification
+      - ❌ Commit with failing tests
+
+  verifier:
+    name: "Verifier"
+    description: "Verifies refactoring preserved behavior via tests and checks."
+    triggers: ["refactor.done"]
+    publishes: ["verify.passed", "verify.failed"]
+    default_publishes: "verify.passed"
+    instructions: |
+      ## VERIFIER MODE
+
+      Verify refactoring step preserved behavior.
+
+      ### Checks
+      1. `cargo test` — all tests pass
+      2. `cargo clippy` — no new warnings
+      3. `cargo check` — compiles cleanly
+      4. Manual spot-check if tests are sparse
+
+      ### If All Pass
+      Publish `<event topic="verify.passed">`
+
+      ### If Any Fail
+      Publish `<event topic="verify.failed">` with details:
+      - Which check failed
+      - Error output
+      - Suspected cause

@@ -58,10 +58,10 @@ const RalphState = struct {
 
 ## Implementation Plan
 
-### Phase 1: Prompt Design (Immediate)
-- [ ] Define the `ralph` persona in `personas.zig`.
-- [ ] Create `src/features/ai/prompts/ralph.zig` with format strings for loop injections.
-- [ ] Design the "Critic" prompt that evaluates completion.
+### Phase 1: Prompt Design (Complete)
+- [x] Define the `ralph` persona in `personas.zig`.
+- [x] Create `src/features/ai/prompts/ralph.zig` with format strings for loop injections.
+- [x] Design the "Critic" prompt that evaluates completion.
 
 ### Phase 2: Engine Support
 - [ ] Implement `RalphLoop` struct in `engine.zig`.

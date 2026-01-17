@@ -155,6 +155,13 @@ pub const CircuitMetricEntry = circuit_breaker.CircuitMetricEntry;
 pub const NetworkOperationError = circuit_breaker.NetworkOperationError;
 pub const AggregateStats = circuit_breaker.AggregateStats;
 
+// Failover Manager exports
+pub const failover = @import("failover.zig");
+pub const FailoverManager = failover.FailoverManager;
+pub const FailoverConfig = failover.FailoverConfig;
+pub const FailoverState = failover.FailoverState;
+pub const FailoverEvent = failover.FailoverEvent;
+
 pub const NetworkError = error{
     NetworkDisabled,
     NotInitialized,

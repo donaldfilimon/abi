@@ -24,11 +24,11 @@ The following high-level items are still open in **[ROADMAP.md](ROADMAP.md)**. T
 |------|------|-------------|
 | `ROADMAP.md` | 86-89 | ~~Tooling: Debugger integration, Performance profiler, Memory leak detector~~ ✅ Complete |
 | `ROADMAP.md` | 92-95 | Documentation: Comprehensive API docs (auto-generated, tutorials, videos) |
-| `ROADMAP.md` | 96-99 | Documentation: Architecture diagrams (system, component, data flow) |
-| `ROADMAP.md` | 109 | Testing: Competitive benchmarks |
-| `ROADMAP.md` | 125-129 | High Availability: Failover mechanisms (automatic failover, health checks, circuit breakers) |
-| `ROADMAP.md` | 130-133 | High Availability: Disaster recovery (backup orchestration, point-in-time recovery, multi-region support) |
-| `ROADMAP.md` | 140-143 | Ecosystem: Package manager integration (Zig registry, Homebrew formula, Docker images) |
+| `ROADMAP.md` | 96-99 | ~~Documentation: Architecture diagrams (system, component, data flow)~~ ✅ Complete |
+| `ROADMAP.md` | 109 | ~~Testing: Competitive benchmarks~~ ✅ Complete |
+| `ROADMAP.md` | 125-129 | ~~High Availability: Failover mechanisms (automatic failover, health checks, circuit breakers)~~ ✅ Complete |
+| `ROADMAP.md` | 130-133 | ~~High Availability: Disaster recovery (backup orchestration, point-in-time recovery, multi-region support)~~ ✅ Complete |
+| `ROADMAP.md` | 140-143 | ~~Ecosystem: Package manager integration (Zig registry ✅, Homebrew formula ✅, Docker images ✅)~~ ✅ Complete |
 | `ROADMAP.md` | 148-151 | Research & Innovation: Experimental hardware acceleration (FPGA, ASIC), novel index structures, AI-optimized workloads |
 | `ROADMAP.md` | 152-155 | Academic collaborations (research partnerships, paper publications, conference presentations) |
 | `ROADMAP.md` | 158-161 | Community governance: RFC process, voting mechanism, contribution recognition |
@@ -85,12 +85,12 @@ This section aggregates all high‑level and implementation‑level tasks that a
 | Area | Description |
 |------|-------------|
 | ~~Tooling~~ | ~~Debugger integration, performance profiler, memory‑leak detector~~ ✅ Complete |
-| Documentation | Comprehensive API docs (auto‑generated, tutorials, videos) |
-| Architecture | System, component, and data‑flow diagrams |
-| Testing | Competitive benchmarks |
-| High Availability | Failover mechanisms, health checks, circuit breakers |
-| Disaster Recovery | Backup orchestration, point‑in‑time recovery, multi‑region support |
-| Ecosystem | Package manager integration (Zig registry, Homebrew formula, Docker images) |
+| Documentation | Comprehensive API docs (auto‑generated ✅, tutorials, videos) |
+| ~~Architecture~~ | ~~System, component, and data‑flow diagrams~~ ✅ Complete |
+| ~~Testing~~ | ~~Competitive benchmarks~~ ✅ Complete |
+| ~~High Availability~~ | ~~Failover mechanisms, health checks, circuit breakers~~ ✅ Complete |
+| ~~Disaster Recovery~~ | ~~Backup orchestration, point‑in‑time recovery, multi‑region support~~ ✅ Complete |
+| ~~Ecosystem~~ | ~~Package manager integration (Zig registry ✅, Homebrew formula ✅, Docker images ✅)~~ ✅ Complete |
 | Research & Innovation | Experimental hardware acceleration (FPGA, ASIC), novel index structures, AI‑optimized workloads |
 | Academic Collaboration | Research partnerships, paper publications, conference presentations |
 | Community Governance | RFC process, voting mechanism, contribution recognition |

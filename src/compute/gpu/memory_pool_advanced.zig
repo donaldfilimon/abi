@@ -52,7 +52,7 @@ const AllocationMeta = struct {
 /// Size class bucket for managing allocations of similar sizes.
 const SizeClassBucket = struct {
     size_class: usize,
-    allocations: std.ArrayListUnmanaged(memory.GPUBuffer),
+    allocations: std.ArrayListUnmanaged(memory.GpuBuffer),
     free_list: ?*AllocationMeta,
     metadata: std.ArrayListUnmanaged(AllocationMeta),
     total_allocated: usize,
@@ -80,7 +80,7 @@ const SizeClassBucket = struct {
         self.* = undefined;
     }
 
-    fn allocate(self: *SizeClassBucket, size: usize, flags: memory.BufferFlags) !*memory.GPUBuffer {
+    fn allocate(self: *SizeClassBucket, size: usize, flags: memory.BufferFlags) !*memory.GpuBuffer {
         // Try to reuse from free list
         if (self.free_list) |meta| {
             self.free_list = meta.next_free;
@@ -97,7 +97,7 @@ const SizeClassBucket = struct {
         }
 
         // Allocate new buffer
-        var buffer = try memory.GPUBuffer.init(self.allocator, self.size_class, flags);
+        var buffer = try memory.GpuBuffer.init(self.allocator, self.size_class, flags);
         errdefer buffer.deinit();
 
         try self.allocations.append(self.allocator, buffer);
@@ -116,7 +116,7 @@ const SizeClassBucket = struct {
         return &self.allocations.items[self.allocations.items.len - 1];
     }
 
-    fn free(self: *SizeClassBucket, buffer: *memory.GPUBuffer) bool {
+    fn free(self: *SizeClassBucket, buffer: *memory.GpuBuffer) bool {
         for (self.allocations.items, 0..) |*buf, i| {
             if (buf == buffer) {
                 const meta = &self.metadata.items[i];
@@ -154,7 +154,7 @@ pub const AdvancedMemoryPool = struct {
     allocator: std.mem.Allocator,
     config: PoolConfig,
     size_classes: [SIZE_CLASSES.len]SizeClassBucket,
-    overflow_allocations: std.ArrayListUnmanaged(memory.GPUBuffer),
+    overflow_allocations: std.ArrayListUnmanaged(memory.GpuBuffer),
     total_size: usize,
     peak_size: usize,
     allocation_count: u64,
@@ -198,7 +198,7 @@ pub const AdvancedMemoryPool = struct {
     }
 
     /// Allocate a GPU buffer from the pool.
-    pub fn allocate(self: *AdvancedMemoryPool, size: usize, flags: memory.BufferFlags) !*memory.GPUBuffer {
+    pub fn allocate(self: *AdvancedMemoryPool, size: usize, flags: memory.BufferFlags) !*memory.GpuBuffer {
         self.mutex.lock();
         defer self.mutex.unlock();
 
@@ -230,7 +230,7 @@ pub const AdvancedMemoryPool = struct {
                 return error.OutOfMemory;
             }
 
-            var buffer = try memory.GPUBuffer.init(self.allocator, size, flags);
+            var buffer = try memory.GpuBuffer.init(self.allocator, size, flags);
             errdefer buffer.deinit();
 
             try self.overflow_allocations.append(self.allocator, buffer);
@@ -246,7 +246,7 @@ pub const AdvancedMemoryPool = struct {
     }
 
     /// Free a GPU buffer back to the pool.
-    pub fn free(self: *AdvancedMemoryPool, buffer: *memory.GPUBuffer) bool {
+    pub fn free(self: *AdvancedMemoryPool, buffer: *memory.GpuBuffer) bool {
         self.mutex.lock();
         defer self.mutex.unlock();
 
@@ -425,7 +425,7 @@ test "pool coalescing" {
     defer pool.deinit();
 
     // Allocate and free many times
-    var buffers: [10]*memory.GPUBuffer = undefined;
+    var buffers: [10]*memory.GpuBuffer = undefined;
     for (&buffers) |*buf| {
         buf.* = try pool.allocate(256, .{});
     }
@@ -449,7 +449,7 @@ test "memory pressure handling" {
     defer pool.deinit();
 
     // Fill pool close to capacity
-    var buffers: [3]*memory.GPUBuffer = undefined;
+    var buffers: [3]*memory.GpuBuffer = undefined;
     for (&buffers) |*buf| {
         buf.* = try pool.allocate(1024, .{});
     }

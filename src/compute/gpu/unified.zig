@@ -36,6 +36,7 @@ const buffer_mod = @import("unified_buffer.zig");
 const dsl = @import("dsl/mod.zig");
 const multi_device = @import("multi_device.zig");
 const metrics_mod = @import("metrics.zig");
+const dispatcher_mod = @import("dispatcher.zig");
 
 // Re-export key types
 pub const Backend = backend_mod.Backend;
@@ -70,6 +71,12 @@ pub const PeerTransfer = multi_device.PeerTransfer;
 pub const MetricsCollector = metrics_mod.MetricsCollector;
 pub const MetricsSummary = metrics_mod.Summary;
 pub const KernelMetrics = metrics_mod.KernelMetrics;
+
+// Re-export dispatcher types
+pub const KernelDispatcher = dispatcher_mod.KernelDispatcher;
+pub const DispatchError = dispatcher_mod.DispatchError;
+pub const DispatcherLaunchConfig = dispatcher_mod.LaunchConfig;
+pub const DispatcherExecutionResult = dispatcher_mod.ExecutionResult;
 
 /// Load balance strategy for multi-GPU.
 pub const LoadBalanceStrategy = enum {
@@ -211,6 +218,9 @@ pub const Gpu = struct {
     device_manager: device_mod.DeviceManager,
     stream_manager: stream_mod.StreamManager,
 
+    // Kernel dispatcher for unified backend execution
+    dispatcher: ?KernelDispatcher,
+
     // Multi-GPU support
     device_group: ?DeviceGroup,
 
@@ -277,11 +287,19 @@ pub const Gpu = struct {
             }
         }
 
+        // Initialize kernel dispatcher for active device
+        var disp: ?KernelDispatcher = null;
+        if (active_device) |dev| {
+            disp = KernelDispatcher.init(allocator, dev.backend, dev) catch null;
+        }
+        errdefer if (disp) |*d| d.deinit();
+
         return .{
             .allocator = allocator,
             .config = config,
             .device_manager = device_manager,
             .stream_manager = stream_manager,
+            .dispatcher = disp,
             .device_group = device_group,
             .metrics = metrics,
             .active_device = active_device,
@@ -302,6 +320,11 @@ pub const Gpu = struct {
         }
         self.buffers.deinit(self.allocator);
         self.buffer_mutex.unlock();
+
+        // Clean up dispatcher
+        if (self.dispatcher) |*d| {
+            d.deinit();
+        }
 
         // Clean up metrics
         if (self.metrics) |*m| {
@@ -479,20 +502,36 @@ pub const Gpu = struct {
         const device = self.active_device orelse return error.NoActiveDevice;
 
         var timer = std.time.Timer.start() catch return error.TimerFailed;
+        var gpu_executed = false;
 
-        // In a real implementation, this would dispatch to the appropriate backend
-        // For now, simulate with host computation
-        if (a.host_data != null and b.host_data != null and result.host_data != null) {
-            const a_data = std.mem.bytesAsSlice(f32, a.host_data.?);
-            const b_data = std.mem.bytesAsSlice(f32, b.host_data.?);
-            var r_data = std.mem.bytesAsSlice(f32, result.host_data.?);
-
-            const len = @min(a_data.len, @min(b_data.len, r_data.len));
-            for (0..len) |i| {
-                r_data[i] = a_data[i] + b_data[i];
+        // Try dispatcher-based execution first
+        if (self.dispatcher) |*disp| {
+            const kernel = disp.getBuiltinKernel(.vector_add) catch null;
+            if (kernel) |k| {
+                const config = dispatcher_mod.LaunchConfig.for1D(a.elementCount(), 256);
+                const exec_result = disp.execute(k, config, .{
+                    .buffers = &.{ a, b, result },
+                }) catch null;
+                if (exec_result) |res| {
+                    gpu_executed = res.gpu_executed;
+                }
             }
+        }
 
-            result.markHostDirty();
+        // Fallback to host computation if dispatcher not available or failed
+        if (!gpu_executed) {
+            if (a.host_data != null and b.host_data != null and result.host_data != null) {
+                const a_data = std.mem.bytesAsSlice(f32, a.host_data.?);
+                const b_data = std.mem.bytesAsSlice(f32, b.host_data.?);
+                var r_data = std.mem.bytesAsSlice(f32, result.host_data.?);
+
+                const len = @min(a_data.len, @min(b_data.len, r_data.len));
+                for (0..len) |i| {
+                    r_data[i] = a_data[i] + b_data[i];
+                }
+
+                result.markHostDirty();
+            }
         }
 
         const elapsed = timer.read();
@@ -524,25 +563,42 @@ pub const Gpu = struct {
         const device = self.active_device orelse return error.NoActiveDevice;
 
         var timer = std.time.Timer.start() catch return error.TimerFailed;
+        var gpu_executed = false;
 
-        // Simplified host-side matrix multiply for demonstration
-        if (a.host_data != null and b.host_data != null and result.host_data != null) {
-            const a_data = std.mem.bytesAsSlice(f32, a.host_data.?);
-            const b_data = std.mem.bytesAsSlice(f32, b.host_data.?);
-            var r_data = std.mem.bytesAsSlice(f32, result.host_data.?);
-
-            // C[i,j] = sum(A[i,k] * B[k,j])
-            for (0..dims.m) |i| {
-                for (0..dims.n) |j| {
-                    var sum: f32 = 0;
-                    for (0..dims.k) |k| {
-                        sum += a_data[i * dims.k + k] * b_data[k * dims.n + j];
-                    }
-                    r_data[i * dims.n + j] = sum;
+        // Try dispatcher-based execution first
+        if (self.dispatcher) |*disp| {
+            const kernel = disp.getBuiltinKernel(.matrix_multiply) catch null;
+            if (kernel) |k| {
+                const config = dispatcher_mod.LaunchConfig.for2D(dims.n, dims.m, 16, 16);
+                const exec_result = disp.execute(k, config, .{
+                    .buffers = &.{ a, b, result },
+                }) catch null;
+                if (exec_result) |res| {
+                    gpu_executed = res.gpu_executed;
                 }
             }
+        }
 
-            result.markHostDirty();
+        // Fallback to host computation if dispatcher not available or failed
+        if (!gpu_executed) {
+            if (a.host_data != null and b.host_data != null and result.host_data != null) {
+                const a_data = std.mem.bytesAsSlice(f32, a.host_data.?);
+                const b_data = std.mem.bytesAsSlice(f32, b.host_data.?);
+                var r_data = std.mem.bytesAsSlice(f32, result.host_data.?);
+
+                // C[i,j] = sum(A[i,k] * B[k,j])
+                for (0..dims.m) |i| {
+                    for (0..dims.n) |j| {
+                        var sum: f32 = 0;
+                        for (0..dims.k) |k| {
+                            sum += a_data[i * dims.k + k] * b_data[k * dims.n + j];
+                        }
+                        r_data[i * dims.n + j] = sum;
+                    }
+                }
+
+                result.markHostDirty();
+            }
         }
 
         const elapsed = timer.read();
@@ -569,11 +625,40 @@ pub const Gpu = struct {
 
         var timer = std.time.Timer.start() catch return error.TimerFailed;
         var sum: f32 = 0;
+        var gpu_executed = false;
 
-        if (input.host_data) |host| {
-            const data = std.mem.bytesAsSlice(f32, host);
-            for (data) |v| {
-                sum += v;
+        // Try dispatcher-based execution first
+        if (self.dispatcher) |*disp| {
+            const kernel = disp.getBuiltinKernel(.reduce_sum) catch null;
+            if (kernel) |k| {
+                // Create a temporary result buffer for the reduction
+                const result_buf = self.createBuffer(@sizeOf(f32), .{ .mode = .explicit }) catch null;
+                if (result_buf) |rbuf| {
+                    defer self.destroyBuffer(rbuf);
+
+                    const config = dispatcher_mod.LaunchConfig.for1D(input.elementCount(), 256);
+                    const exec_result = disp.execute(k, config, .{
+                        .buffers = &.{ input, rbuf },
+                    }) catch null;
+                    if (exec_result) |res| {
+                        gpu_executed = res.gpu_executed;
+                        if (gpu_executed) {
+                            var result_val: [1]f32 = undefined;
+                            rbuf.read(f32, &result_val) catch {};
+                            sum = result_val[0];
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback to host computation
+        if (!gpu_executed) {
+            if (input.host_data) |host| {
+                const data = std.mem.bytesAsSlice(f32, host);
+                for (data) |v| {
+                    sum += v;
+                }
             }
         }
 
@@ -604,14 +689,43 @@ pub const Gpu = struct {
 
         var timer = std.time.Timer.start() catch return error.TimerFailed;
         var sum: f32 = 0;
+        var gpu_executed = false;
 
-        if (a.host_data != null and b.host_data != null) {
-            const a_data = std.mem.bytesAsSlice(f32, a.host_data.?);
-            const b_data = std.mem.bytesAsSlice(f32, b.host_data.?);
+        // Try dispatcher-based execution first
+        if (self.dispatcher) |*disp| {
+            const kernel = disp.getBuiltinKernel(.dot_product) catch null;
+            if (kernel) |k| {
+                // Create a temporary result buffer for the dot product
+                const result_buf = self.createBuffer(@sizeOf(f32), .{ .mode = .explicit }) catch null;
+                if (result_buf) |rbuf| {
+                    defer self.destroyBuffer(rbuf);
 
-            const len = @min(a_data.len, b_data.len);
-            for (0..len) |i| {
-                sum += a_data[i] * b_data[i];
+                    const config = dispatcher_mod.LaunchConfig.for1D(a.elementCount(), 256);
+                    const exec_result = disp.execute(k, config, .{
+                        .buffers = &.{ a, b, rbuf },
+                    }) catch null;
+                    if (exec_result) |res| {
+                        gpu_executed = res.gpu_executed;
+                        if (gpu_executed) {
+                            var result_val: [1]f32 = undefined;
+                            rbuf.read(f32, &result_val) catch {};
+                            sum = result_val[0];
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback to host computation
+        if (!gpu_executed) {
+            if (a.host_data != null and b.host_data != null) {
+                const a_data = std.mem.bytesAsSlice(f32, a.host_data.?);
+                const b_data = std.mem.bytesAsSlice(f32, b.host_data.?);
+
+                const len = @min(a_data.len, b_data.len);
+                for (0..len) |i| {
+                    sum += a_data[i] * b_data[i];
+                }
             }
         }
 
@@ -641,32 +755,50 @@ pub const Gpu = struct {
         const device = self.active_device orelse return error.NoActiveDevice;
 
         var timer = std.time.Timer.start() catch return error.TimerFailed;
+        var gpu_executed = false;
 
-        if (input.host_data != null and output.host_data != null) {
-            const in_data = std.mem.bytesAsSlice(f32, input.host_data.?);
-            var out_data = std.mem.bytesAsSlice(f32, output.host_data.?);
-
-            const len = @min(in_data.len, out_data.len);
-
-            // Find max for numerical stability
-            var max_val: f32 = in_data[0];
-            for (in_data[1..]) |v| {
-                if (v > max_val) max_val = v;
+        // Try dispatcher-based execution first
+        if (self.dispatcher) |*disp| {
+            const kernel = disp.getBuiltinKernel(.softmax) catch null;
+            if (kernel) |k| {
+                const config = dispatcher_mod.LaunchConfig.for1D(input.elementCount(), 256);
+                const exec_result = disp.execute(k, config, .{
+                    .buffers = &.{ input, output },
+                }) catch null;
+                if (exec_result) |res| {
+                    gpu_executed = res.gpu_executed;
+                }
             }
+        }
 
-            // Compute exp(x - max) and sum
-            var sum: f32 = 0;
-            for (0..len) |i| {
-                out_data[i] = @exp(in_data[i] - max_val);
-                sum += out_data[i];
+        // Fallback to host computation
+        if (!gpu_executed) {
+            if (input.host_data != null and output.host_data != null) {
+                const in_data = std.mem.bytesAsSlice(f32, input.host_data.?);
+                var out_data = std.mem.bytesAsSlice(f32, output.host_data.?);
+
+                const len = @min(in_data.len, out_data.len);
+
+                // Find max for numerical stability
+                var max_val: f32 = in_data[0];
+                for (in_data[1..]) |v| {
+                    if (v > max_val) max_val = v;
+                }
+
+                // Compute exp(x - max) and sum
+                var sum: f32 = 0;
+                for (0..len) |i| {
+                    out_data[i] = @exp(in_data[i] - max_val);
+                    sum += out_data[i];
+                }
+
+                // Normalize
+                for (0..len) |i| {
+                    out_data[i] /= sum;
+                }
+
+                output.markHostDirty();
             }
-
-            // Normalize
-            for (0..len) |i| {
-                out_data[i] /= sum;
-            }
-
-            output.markHostDirty();
         }
 
         const elapsed = timer.read();
@@ -821,6 +953,28 @@ pub const Gpu = struct {
     pub fn getBackend(self: *const Gpu) ?Backend {
         if (self.active_device) |device| {
             return device.backend;
+        }
+        return null;
+    }
+
+    /// Get the kernel dispatcher (for advanced usage).
+    pub fn getDispatcher(self: *Gpu) ?*KernelDispatcher {
+        if (self.dispatcher) |*d| {
+            return d;
+        }
+        return null;
+    }
+
+    /// Get dispatcher statistics.
+    pub fn getDispatcherStats(self: *const Gpu) ?struct {
+        kernels_compiled: u64,
+        kernels_executed: u64,
+        cache_hits: u64,
+        cache_misses: u64,
+        cache_hit_rate: f64,
+    } {
+        if (self.dispatcher) |*d| {
+            return d.getStats();
         }
         return null;
     }

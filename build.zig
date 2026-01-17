@@ -268,6 +268,8 @@ pub fn build(b: *std.Build) void {
                 .root_source_file = b.path(path),
                 .target = target,
                 .optimize = optimize,
+                // Link libc for environment variable access (Zig 0.16 requirement)
+                .link_libc = true,
             }),
         });
         const cli_module = createCliModule(b, abi_module, target, optimize);
@@ -292,6 +294,7 @@ pub fn build(b: *std.Build) void {
                 .root_source_file = b.path("src/main.zig"),
                 .target = target,
                 .optimize = optimize,
+                .link_libc = true,
             }),
         });
         exe.root_module.addImport("abi", abi_module);
@@ -330,6 +333,7 @@ pub fn build(b: *std.Build) void {
                     .root_source_file = b.path(example_path),
                     .target = target,
                     .optimize = optimize,
+                    .link_libc = true,
                 }),
             });
             example_exe.root_module.addImport("abi", abi_module);
@@ -356,6 +360,7 @@ pub fn build(b: *std.Build) void {
                 .root_source_file = b.path("src/tests/mod.zig"),
                 .target = target,
                 .optimize = optimize,
+                .link_libc = true,
             }),
         });
         main_tests.root_module.addImport("abi", abi_module);
@@ -379,6 +384,7 @@ pub fn build(b: *std.Build) void {
                 .root_source_file = b.path("benchmarks/legacy.zig"),
                 .target = target,
                 .optimize = .ReleaseFast,
+                .link_libc = true,
             }),
         });
         benchmark_exe.root_module.addImport("abi", abi_module);
@@ -399,6 +405,7 @@ pub fn build(b: *std.Build) void {
                 .root_source_file = b.path("benchmarks/run.zig"),
                 .target = target,
                 .optimize = .ReleaseFast,
+                .link_libc = true,
             }),
         });
         benchmark_exe.root_module.addImport("abi", abi_module);
@@ -409,6 +416,28 @@ pub fn build(b: *std.Build) void {
         benchmarks_step.dependOn(&run_benchmarks.step);
     }
 
+    // Competitive Benchmarks
+    if (pathExists("benchmarks/run_competitive.zig")) {
+        const competitive_exe = b.addExecutable(.{
+            .name = "bench-competitive",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("benchmarks/run_competitive.zig"),
+                .target = target,
+                .optimize = .ReleaseFast,
+                .link_libc = true,
+            }),
+        });
+        competitive_exe.root_module.addImport("abi", abi_module);
+
+        const run_competitive = b.addRunArtifact(competitive_exe);
+        if (b.args) |args| {
+            run_competitive.addArgs(args);
+        }
+
+        const bench_comp_step = b.step("bench-competitive", "Run competitive benchmarks");
+        bench_comp_step.dependOn(&run_competitive.step);
+    }
+
     // Documentation generator
     if (pathExists("tools/gendocs.zig")) {
         const gendocs_exe = b.addExecutable(.{
@@ -417,6 +446,7 @@ pub fn build(b: *std.Build) void {
                 .root_source_file = b.path("tools/gendocs.zig"),
                 .target = target,
                 .optimize = optimize,
+                .link_libc = true,
             }),
         });
 
@@ -447,6 +477,7 @@ pub fn build(b: *std.Build) void {
                 .root_source_file = b.path(path),
                 .target = target,
                 .optimize = .ReleaseFast,
+                .link_libc = true,
             }),
         });
         const cli_profile_module = createCliModule(b, abi_profile_module, target, optimize);

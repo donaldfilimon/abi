@@ -145,7 +145,7 @@ pub const RbacManager = struct {
         };
 
         var assignments = self.role_assignments.get(user_id) orelse blk: {
-            var list = std.ArrayListUnmanaged(RoleAssignment).empty;
+            const list = std.ArrayListUnmanaged(RoleAssignment).empty;
             try self.role_assignments.put(self.allocator, try self.allocator.dupe(u8, user_id), list);
             break :blk self.role_assignments.get(user_id).?;
         };

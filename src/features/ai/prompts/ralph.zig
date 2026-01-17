@@ -7,7 +7,6 @@ const std = @import("std");
 
 /// The initial system prompt for Ralph is defined in personas.zig.
 /// This file contains the prompts used during the iterative loop.
-
 /// Injected when the agent attempts to stop or pause.
 /// Guides the agent to verify its work and continue if necessary.
 pub const LOOP_INJECTION_TEMPLATE =

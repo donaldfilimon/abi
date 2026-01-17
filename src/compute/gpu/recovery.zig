@@ -357,6 +357,7 @@ pub const RecoveryManager = struct {
         key: DeviceKey,
         state: *DeviceHealthState,
     ) RecoveryResult {
+        _ = self;
         _ = state;
         _ = key;
         // Find alternative device in the same backend

@@ -4,6 +4,9 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
 
+// Use the shared config module for file-based configuration (legacy format)
+const shared_config = @import("abi").utils.config;
+
 /// Run the config command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0 or utils.args.matchesAny(args[0], &[_][]const u8{ "help", "--help", "-h" })) {
@@ -110,8 +113,8 @@ fn runShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 
     if (config_path) |path| {
-        // Load and show from file
-        var loader = abi.config.ConfigLoader.init(allocator);
+        // Load and show from file using shared config loader (legacy format)
+        var loader = shared_config.ConfigLoader.init(allocator);
         const config = loader.loadFromFile(path) catch |err| {
             std.debug.print("Error loading config file '{s}': {t}\n", .{ path, err });
             return;
@@ -139,8 +142,8 @@ fn runValidate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
     const path = std.mem.sliceTo(args[0], 0);
 
-    // Try to load the configuration file
-    var loader = abi.config.ConfigLoader.init(allocator);
+    // Try to load the configuration file using shared config loader (legacy format)
+    var loader = shared_config.ConfigLoader.init(allocator);
     var config = loader.loadFromFile(path) catch |err| {
         std.debug.print("Error: Failed to load '{s}'\n", .{path});
         std.debug.print("  Reason: {t}\n", .{err});
@@ -221,7 +224,7 @@ fn printHelp() void {
     std.debug.print("{s}", .{help_text});
 }
 
-fn printConfigHuman(config: *const abi.config.Config) void {
+fn printConfigHuman(config: *const shared_config.Config) void {
     std.debug.print("  Source: {t}\n", .{config.source});
     std.debug.print("\n  [Framework]\n", .{});
     std.debug.print("    enable_ai: {s}\n", .{utils.output.boolLabel(config.framework.enable_ai)});
@@ -289,7 +292,7 @@ fn printDefaultConfigHuman() void {
 }
 
 fn getDefaultConfigJson() []const u8 {
-    return 
+    return
     \\{
     \\  "framework": {
     \\    "enable_ai": true,

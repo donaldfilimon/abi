@@ -28,17 +28,20 @@ pub fn isInitialized() bool {
     return initialized;
 }
 
-pub fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) !?[]u8 {
-    // Create an environment map from the system environment
-    var env_map = std.process.Environ.createMap(.{ .block = {} }, allocator) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => return null,
-    };
-    defer env_map.deinit();
+const builtin = @import("builtin");
 
-    // Look up the variable and return a copy if found
-    if (env_map.get(name)) |value| {
-        return try allocator.dupe(u8, value);
+// libc import for environment access - required for Zig 0.16
+const c = @cImport(@cInclude("stdlib.h"));
+
+pub fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) !?[]u8 {
+    // Zig 0.16: Environment access via libc getenv (build links libc)
+    const name_z = allocator.dupeZ(u8, name) catch return error.OutOfMemory;
+    defer allocator.free(name_z);
+
+    const value_ptr = c.getenv(name_z.ptr);
+    if (value_ptr) |ptr| {
+        const value = std.mem.span(ptr);
+        return allocator.dupe(u8, value) catch return error.OutOfMemory;
     }
     return null;
 }

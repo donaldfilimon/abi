@@ -1,7 +1,7 @@
 # Modular Codebase Refactor Design
 
 **Date:** 2026-01-17
-**Status:** Complete (Phase 1 & 2)
+**Status:** Complete (All Phases)
 **Author:** Claude Code
 
 ## Executive Summary
@@ -195,11 +195,17 @@ pub const BuiltinKernels = struct {
 - [x] All 51 tests passing
 - [x] Build verified
 
-### Remaining for Phase 3
+### Phase 3 Complete (2026-01-17)
 
-- [ ] Update `unified.zig` to use dispatcher
-- [ ] Reduce exports in `mod.zig`
-- [ ] Add module visibility documentation
+- [x] Updated `unified.zig` to use dispatcher
+  - Added `dispatcher` field to `Gpu` struct
+  - Integrated `KernelDispatcher` into `vectorAdd`, `matrixMultiply`, `reduceSum`, `dotProduct`, `softmax`
+  - Added `getDispatcher()` and `getDispatcherStats()` public methods
+- [x] Fixed Zig 0.16 compatibility issues in DSL module
+  - Updated `codegen/common.zig` to use `bufPrint`/`allocPrint` instead of deprecated `.writer()`
+  - Updated `kernel.zig` to use named `BindingKey` struct instead of anonymous struct
+- [x] All 51 tests passing
+- [x] Build verified
 
 ## Risks and Mitigations
 

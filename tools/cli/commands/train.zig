@@ -548,6 +548,10 @@ fn runInfo() void {
 
     std.debug.print("Default Training Configuration\n", .{});
     std.debug.print("==============================\n\n", .{});
+    std.debug.print("Recommended Model: GPT-2 Small (124M parameters)\n", .{});
+    std.debug.print("  - Open source, no authentication required\n", .{});
+    std.debug.print("  - Download: https://huggingface.co/TheBloke/gpt2-GGUF\n", .{});
+    std.debug.print("  - Training: abi train llm models/gpt2.gguf --epochs 1\n\n", .{});
     std.debug.print("Basic parameters:\n", .{});
     std.debug.print("  epochs:                    {d}\n", .{default_config.epochs});
     std.debug.print("  batch_size:                {d}\n", .{default_config.batch_size});

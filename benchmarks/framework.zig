@@ -115,11 +115,29 @@ pub const TrackingAllocator = struct {
                 .alloc = alloc,
                 .resize = resize,
                 .free = free,
+                .remap = remap,
             },
         };
     }
 
-    fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
+    fn remap(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+        const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
+        const result = self.parent.vtable.remap(self.parent.ptr, buf, buf_align, new_len, ret_addr);
+        if (result) |_| {
+            if (new_len > buf.len) {
+                const diff = new_len - buf.len;
+                _ = self.allocated.fetchAdd(diff, .monotonic);
+                _ = self.current.fetchAdd(diff, .monotonic);
+            } else {
+                const diff = buf.len - new_len;
+                _ = self.freed.fetchAdd(diff, .monotonic);
+                _ = self.current.fetchSub(diff, .monotonic);
+            }
+        }
+        return result;
+    }
+
+    fn alloc(ctx: *anyopaque, len: usize, ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
         const result = self.parent.rawAlloc(len, ptr_align, ret_addr);
         if (result != null) {
@@ -138,7 +156,7 @@ pub const TrackingAllocator = struct {
         return result;
     }
 
-    fn resize(ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_addr: usize) bool {
+    fn resize(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
         if (self.parent.rawResize(buf, buf_align, new_len, ret_addr)) {
             if (new_len > buf.len) {
@@ -155,7 +173,7 @@ pub const TrackingAllocator = struct {
         return false;
     }
 
-    fn free(ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) void {
+    fn free(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, ret_addr: usize) void {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
         self.parent.rawFree(buf, buf_align, ret_addr);
         _ = self.freed.fetchAdd(buf.len, .monotonic);

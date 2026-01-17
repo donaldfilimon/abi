@@ -19,7 +19,7 @@ RUN apk add --no-cache \
     zlib-static
 
 # Install Zig 0.16.x
-ARG ZIG_VERSION=0.13.0
+ARG ZIG_VERSION=0.16.0
 RUN curl -L "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-x86_64-${ZIG_VERSION}.tar.xz" \
     | tar -xJ -C /opt && \
     ln -s /opt/zig-linux-x86_64-${ZIG_VERSION}/zig /usr/local/bin/zig

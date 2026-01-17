@@ -19,7 +19,7 @@ pub const BufferFlags = struct {
     zero_init: bool = false,
 };
 
-pub const GPUBuffer = struct {
+pub const GpuBuffer = struct {
     allocator: std.mem.Allocator,
     bytes: []u8,
     device_bytes: ?[]u8,
@@ -29,7 +29,7 @@ pub const GPUBuffer = struct {
     host_dirty: bool,
     device_dirty: bool,
 
-    pub fn init(allocator: std.mem.Allocator, size: usize, flags: BufferFlags) !GPUBuffer {
+    pub fn init(allocator: std.mem.Allocator, size: usize, flags: BufferFlags) !GpuBuffer {
         const host_bytes = try allocator.alloc(u8, size);
         if (flags.zero_init) {
             @memset(host_bytes, 0);
@@ -58,7 +58,7 @@ pub const GPUBuffer = struct {
         };
     }
 
-    pub fn deinit(self: *GPUBuffer) void {
+    pub fn deinit(self: *GpuBuffer) void {
         if (self.device_bytes) |device_bytes| {
             self.allocator.free(device_bytes);
         }
@@ -66,18 +66,18 @@ pub const GPUBuffer = struct {
         self.* = undefined;
     }
 
-    pub fn len(self: *const GPUBuffer) usize {
+    pub fn len(self: *const GpuBuffer) usize {
         return self.bytes.len;
     }
 
-    pub fn fill(self: *GPUBuffer, value: u8) MemoryError!void {
+    pub fn fill(self: *GpuBuffer, value: u8) MemoryError!void {
         if (!self.flags.host_visible) return MemoryError.HostAccessDisabled;
         @memset(self.bytes, value);
         self.host_dirty = true;
         if (self.device_bytes != null) self.device_dirty = true;
     }
 
-    pub fn copyFrom(self: *GPUBuffer, data: []const u8) MemoryError!void {
+    pub fn copyFrom(self: *GpuBuffer, data: []const u8) MemoryError!void {
         if (!self.flags.host_visible) return MemoryError.HostAccessDisabled;
         if (data.len != self.bytes.len) return MemoryError.SizeMismatch;
         std.mem.copyForwards(u8, self.bytes, data);
@@ -85,7 +85,7 @@ pub const GPUBuffer = struct {
         if (self.device_bytes != null) self.device_dirty = true;
     }
 
-    pub fn writeFromHost(self: *GPUBuffer, data: []const u8) MemoryError!void {
+    pub fn writeFromHost(self: *GpuBuffer, data: []const u8) MemoryError!void {
         if (!self.flags.host_visible) return MemoryError.HostAccessDisabled;
         if (data.len > self.bytes.len) return MemoryError.BufferTooSmall;
         @memcpy(self.bytes[0..data.len], data);
@@ -93,20 +93,20 @@ pub const GPUBuffer = struct {
         if (self.device_bytes != null) self.device_dirty = true;
     }
 
-    pub fn readToHost(self: *const GPUBuffer, offset: usize, size: usize) MemoryError![]const u8 {
+    pub fn readToHost(self: *const GpuBuffer, offset: usize, size: usize) MemoryError![]const u8 {
         if (!self.flags.host_visible) return MemoryError.HostAccessDisabled;
         if (offset + size > self.bytes.len) return MemoryError.InvalidOffset;
         return self.bytes[offset..][0..size];
     }
 
-    pub fn copyToDevice(self: *GPUBuffer) MemoryError!void {
+    pub fn copyToDevice(self: *GpuBuffer) MemoryError!void {
         const device_bytes = self.device_bytes orelse return MemoryError.DeviceMemoryMissing;
         std.mem.copyForwards(u8, device_bytes, self.bytes);
         self.device_dirty = false;
         self.host_dirty = false;
     }
 
-    pub fn copyToHost(self: *GPUBuffer) MemoryError!void {
+    pub fn copyToHost(self: *GpuBuffer) MemoryError!void {
         const device_bytes = self.device_bytes orelse return MemoryError.DeviceMemoryMissing;
         if (!self.flags.host_visible) return MemoryError.HostAccessDisabled;
         std.mem.copyForwards(u8, self.bytes, device_bytes);
@@ -114,11 +114,11 @@ pub const GPUBuffer = struct {
         self.device_dirty = false;
     }
 
-    pub fn asSlice(self: *GPUBuffer) []u8 {
+    pub fn asSlice(self: *GpuBuffer) []u8 {
         return self.bytes;
     }
 
-    pub fn asConstSlice(self: *const GPUBuffer) []const u8 {
+    pub fn asConstSlice(self: *const GpuBuffer) []const u8 {
         return self.bytes;
     }
 };
@@ -130,22 +130,22 @@ pub const MemoryStats = struct {
     usage_ratio: f64,
 };
 
-pub const GPUMemoryPool = struct {
-    buffers: std.ArrayListUnmanaged(*GPUBuffer),
+pub const GpuMemoryPool = struct {
+    buffers: std.ArrayListUnmanaged(*GpuBuffer),
     allocator: std.mem.Allocator,
     total_size: usize,
     max_size: usize,
 
-    pub fn init(allocator: std.mem.Allocator, max_size: usize) GPUMemoryPool {
+    pub fn init(allocator: std.mem.Allocator, max_size: usize) GpuMemoryPool {
         return .{
-            .buffers = std.ArrayListUnmanaged(*GPUBuffer).empty,
+            .buffers = std.ArrayListUnmanaged(*GpuBuffer).empty,
             .allocator = allocator,
             .total_size = 0,
             .max_size = max_size,
         };
     }
 
-    pub fn deinit(self: *GPUMemoryPool) void {
+    pub fn deinit(self: *GpuMemoryPool) void {
         for (self.buffers.items) |buffer| {
             buffer.deinit();
             self.allocator.destroy(buffer);
@@ -153,20 +153,20 @@ pub const GPUMemoryPool = struct {
         self.buffers.deinit(self.allocator);
     }
 
-    pub fn allocate(self: *GPUMemoryPool, size: usize, flags: BufferFlags) !*GPUBuffer {
+    pub fn allocate(self: *GpuMemoryPool, size: usize, flags: BufferFlags) !*GpuBuffer {
         if (self.max_size > 0 and self.total_size + size > self.max_size) {
             return error.OutOfMemory;
         }
 
-        const buffer = try self.allocator.create(GPUBuffer);
+        const buffer = try self.allocator.create(GpuBuffer);
         errdefer self.allocator.destroy(buffer);
-        buffer.* = try GPUBuffer.init(self.allocator, size, flags);
+        buffer.* = try GpuBuffer.init(self.allocator, size, flags);
         try self.buffers.append(self.allocator, buffer);
         self.total_size += size;
         return buffer;
     }
 
-    pub fn free(self: *GPUMemoryPool, buffer: *GPUBuffer) bool {
+    pub fn free(self: *GpuMemoryPool, buffer: *GpuBuffer) bool {
         var i: usize = 0;
         while (i < self.buffers.items.len) : (i += 1) {
             if (self.buffers.items[i] == buffer) {
@@ -181,7 +181,7 @@ pub const GPUMemoryPool = struct {
         return false;
     }
 
-    pub fn stats(self: *const GPUMemoryPool) MemoryStats {
+    pub fn stats(self: *const GpuMemoryPool) MemoryStats {
         return .{
             .total_size = self.total_size,
             .max_size = self.max_size,
@@ -190,7 +190,7 @@ pub const GPUMemoryPool = struct {
         };
     }
 
-    pub fn getUsage(self: *const GPUMemoryPool) f64 {
+    pub fn getUsage(self: *const GpuMemoryPool) f64 {
         if (self.max_size == 0) return 0;
         return @as(f64, @floatFromInt(self.total_size)) /
             @as(f64, @floatFromInt(self.max_size));
@@ -198,15 +198,15 @@ pub const GPUMemoryPool = struct {
 };
 
 pub const AsyncTransfer = struct {
-    source: *const GPUBuffer,
-    destination: *GPUBuffer,
+    source: *const GpuBuffer,
+    destination: *GpuBuffer,
     size: usize,
     offset: usize,
     completed: std.atomic.Value(bool),
 
     pub fn init(
-        source: *const GPUBuffer,
-        destination: *GPUBuffer,
+        source: *const GpuBuffer,
+        destination: *GpuBuffer,
         size: usize,
         offset: usize,
     ) AsyncTransfer {
@@ -240,7 +240,7 @@ pub const AsyncTransfer = struct {
 };
 
 test "buffer host operations" {
-    var buffer = try GPUBuffer.init(std.testing.allocator, 4, .{});
+    var buffer = try GpuBuffer.init(std.testing.allocator, 4, .{});
     defer buffer.deinit();
 
     try buffer.fill(0xaa);
@@ -253,7 +253,7 @@ test "buffer host operations" {
 }
 
 test "buffer device copy" {
-    var buffer = try GPUBuffer.init(std.testing.allocator, 3, .{ .device_local = true });
+    var buffer = try GpuBuffer.init(std.testing.allocator, 3, .{ .device_local = true });
     defer buffer.deinit();
 
     try buffer.writeFromHost(&.{ 9, 8, 7 });
@@ -264,7 +264,7 @@ test "buffer device copy" {
 }
 
 test "buffer dirty flags track synchronization" {
-    var buffer = try GPUBuffer.init(std.testing.allocator, 2, .{ .device_local = true });
+    var buffer = try GpuBuffer.init(std.testing.allocator, 2, .{ .device_local = true });
     defer buffer.deinit();
 
     try buffer.fill(0xaa);
@@ -281,7 +281,7 @@ test "buffer dirty flags track synchronization" {
 }
 
 test "memory pool allocates and frees" {
-    var pool = GPUMemoryPool.init(std.testing.allocator, 16);
+    var pool = GpuMemoryPool.init(std.testing.allocator, 16);
     defer pool.deinit();
 
     const a = try pool.allocate(4, .{});
@@ -292,9 +292,9 @@ test "memory pool allocates and frees" {
 }
 
 test "async transfer copies data" {
-    var source = try GPUBuffer.init(std.testing.allocator, 4, .{});
+    var source = try GpuBuffer.init(std.testing.allocator, 4, .{});
     defer source.deinit();
-    var dest = try GPUBuffer.init(std.testing.allocator, 4, .{});
+    var dest = try GpuBuffer.init(std.testing.allocator, 4, .{});
     defer dest.deinit();
 
     try source.copyFrom(&.{ 4, 3, 2, 1 });

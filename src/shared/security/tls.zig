@@ -229,26 +229,22 @@ pub const TlsConnection = struct {
         // In a real implementation, this would construct and send a ClientHello message
         // For now, we simulate successful sending
         try self.write_buffer.ensureTotalCapacity(self.allocator, 256);
-        _ = self;
     }
 
     fn receiveServerHello(self: *TlsConnection) !void {
         // In a real implementation, this would receive and parse ServerHello
         // For now, we simulate successful reception
         try self.read_buffer.ensureTotalCapacity(self.allocator, 256);
-        _ = self;
     }
 
     fn receiveClientHello(self: *TlsConnection) !void {
         // Server-side: receive and parse ClientHello
         try self.read_buffer.ensureTotalCapacity(self.allocator, 256);
-        _ = self;
     }
 
     fn sendServerHello(self: *TlsConnection) !void {
         // Server-side: construct and send ServerHello
         try self.write_buffer.ensureTotalCapacity(self.allocator, 256);
-        _ = self;
     }
 
     fn receiveCertificate(self: *TlsConnection) !void {
@@ -285,7 +281,7 @@ pub const TlsConnection = struct {
         // Generate session key using HKDF
         const ikm = self.client_random ++ self.server_random;
         const salt = [_]u8{0} ** 32;
-        const info = "tls13 master secret";
+        // Note: info would be used in full HKDF-Expand: "tls13 master secret"
 
         // Use HKDF to derive session key
         const Hkdf = crypto.kdf.hkdf.Hkdf(crypto.hash.sha2.Sha256);

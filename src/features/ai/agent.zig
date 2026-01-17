@@ -307,9 +307,9 @@ pub const Agent = struct {
         var seed: u64 = undefined;
         switch (@typeInfo(@TypeOf(instant.timestamp))) {
             .@"struct" => {
-                // posix timespec - combine tv_sec and tv_nsec
-                const sec = @as(u64, @bitCast(@as(i64, instant.timestamp.tv_sec)));
-                const nsec = @as(u64, @intCast(instant.timestamp.tv_nsec));
+                // Zig 0.16: timespec fields are 'sec' and 'nsec'
+                const sec = @as(u64, @bitCast(@as(i64, instant.timestamp.sec)));
+                const nsec = @as(u64, @intCast(instant.timestamp.nsec));
                 seed = sec ^ nsec;
             },
             .int => {

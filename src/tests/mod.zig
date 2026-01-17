@@ -122,7 +122,7 @@ test "framework with gpu enabled" {
     });
     defer framework.deinit();
 
-    try std.testing.expect(framework.isFeatureEnabled(.gpu));
+    try std.testing.expect(framework.isEnabled(.gpu));
 }
 
 test "framework feature flags" {
@@ -139,10 +139,10 @@ test "framework feature flags" {
     });
     defer framework.deinit();
 
-    try std.testing.expectEqual(build_options.enable_gpu, framework.isFeatureEnabled(.gpu));
-    try std.testing.expectEqual(build_options.enable_ai, framework.isFeatureEnabled(.ai));
-    try std.testing.expectEqual(build_options.enable_web, framework.isFeatureEnabled(.web));
-    try std.testing.expectEqual(build_options.enable_database, framework.isFeatureEnabled(.database));
-    try std.testing.expectEqual(build_options.enable_network, framework.isFeatureEnabled(.network));
-    try std.testing.expectEqual(build_options.enable_profiling, framework.isFeatureEnabled(.monitoring));
+    try std.testing.expectEqual(build_options.enable_gpu, framework.isEnabled(.gpu));
+    try std.testing.expectEqual(build_options.enable_ai, framework.isEnabled(.ai));
+    try std.testing.expectEqual(build_options.enable_web, framework.isEnabled(.web));
+    try std.testing.expectEqual(build_options.enable_database, framework.isEnabled(.database));
+    try std.testing.expectEqual(build_options.enable_network, framework.isEnabled(.network));
+    try std.testing.expectEqual(build_options.enable_profiling, framework.isEnabled(.observability));
 }

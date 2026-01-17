@@ -82,6 +82,54 @@ Discord bot integration with bot info, guild listing, and gateway information.
 zig build run-discord
 ```
 
+### training.zig
+
+Model training with optimizers, checkpointing, and metrics.
+
+**Features:**
+- Training configuration (epochs, batch size, learning rate)
+- AdamW optimizer with weight decay
+- Checkpoint saving and resuming
+- Loss history tracking
+
+**Run:**
+
+```bash
+zig run examples/training.zig -Denable-ai=true
+```
+
+### llm.zig
+
+Local LLM inference with GGUF models.
+
+**Features:**
+- GGUF model loading
+- BPE/SentencePiece tokenization
+- Text generation with sampling (temperature, top-k, top-p)
+- Streaming output
+
+**Run:**
+
+```bash
+zig build run-llm -- path/to/model.gguf
+```
+
+### ha.zig
+
+High Availability features for production deployments.
+
+**Features:**
+- Multi-region replication setup
+- Backup orchestration
+- Point-in-time recovery (PITR)
+- Automatic failover
+
+**Run:**
+
+```bash
+zig run examples/ha.zig -Denable-database=true
+```
+
 ## Building Examples
 
 All examples are integrated into the main build system:
@@ -97,6 +145,9 @@ zig build run-compute
 zig build run-gpu
 zig build run-network
 zig build run-discord
+zig build run-training
+zig build run-llm
+zig build run-ha
 ```
 
 ## Running Benchmarks
@@ -117,6 +168,9 @@ zig build benchmarks
 5. **Review `gpu.zig`** - Understand GPU acceleration
 6. **Study `network.zig`** - Learn distributed computing
 7. **Check `discord.zig`** - Discord bot integration
+8. **Explore `training.zig`** - Model training and checkpointing
+9. **Try `llm.zig`** - Local LLM inference
+10. **Study `ha.zig`** - High availability features
 
 ## Common Patterns
 

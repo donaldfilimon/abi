@@ -628,7 +628,12 @@ fn runComputeBenchmark(allocator: std.mem.Allocator, prompt_tokens: u32, gen_tok
 fn runList() void {
     std.debug.print("Supported Model Formats\n", .{});
     std.debug.print("=======================\n\n", .{});
+    std.debug.print("Recommended Default Model:\n", .{});
+    std.debug.print("  GPT-2 (124M parameters) - Open source, no authentication required\n", .{});
+    std.debug.print("  Download: https://huggingface.co/TheBloke/gpt2-GGUF\n", .{});
+    std.debug.print("\n", .{});
     std.debug.print("GGUF (llama.cpp format)\n", .{});
+    std.debug.print("  - GPT-2 (124M, 355M, 774M, 1.5B) - Recommended for local training\n", .{});
     std.debug.print("  - LLaMA 2 (7B, 13B, 70B)\n", .{});
     std.debug.print("  - Mistral (7B)\n", .{});
     std.debug.print("  - Mixtral (8x7B MoE)\n", .{});

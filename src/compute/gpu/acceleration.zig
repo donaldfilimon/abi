@@ -71,7 +71,7 @@ pub const Accelerator = struct {
     config: AcceleratorConfig,
     active_backend: ?backend.Backend,
     profiler: ?profiling.Profiler,
-    memory_pool: ?memory.GPUMemoryPool,
+    memory_pool: ?memory.GpuMemoryPool,
     initialized: bool,
 
     const Self = @This();
@@ -95,7 +95,7 @@ pub const Accelerator = struct {
         }
 
         if (config.max_memory_bytes) |max_mem| {
-            self.memory_pool = memory.GPUMemoryPool.init(allocator, max_mem);
+            self.memory_pool = memory.GpuMemoryPool.init(allocator, max_mem);
         }
 
         self.initialized = true;
@@ -197,7 +197,7 @@ pub const Accelerator = struct {
         return stats;
     }
 
-    pub fn allocateBuffer(self: *Self, size: usize) AcceleratorError!*memory.GPUBuffer {
+    pub fn allocateBuffer(self: *Self, size: usize) AcceleratorError!*memory.GpuBuffer {
         if (self.memory_pool) |*pool| {
             return pool.allocate(self.allocator, size) catch {
                 return AcceleratorError.MemoryAllocationFailed;
@@ -205,17 +205,17 @@ pub const Accelerator = struct {
         }
 
         // Allocate buffer on heap to avoid returning address of local variable
-        const buffer = self.allocator.create(memory.GPUBuffer) catch {
+        const buffer = self.allocator.create(memory.GpuBuffer) catch {
             return AcceleratorError.MemoryAllocationFailed;
         };
-        buffer.* = memory.GPUBuffer.init(self.allocator, size) catch {
+        buffer.* = memory.GpuBuffer.init(self.allocator, size) catch {
             self.allocator.destroy(buffer);
             return AcceleratorError.MemoryAllocationFailed;
         };
         return buffer;
     }
 
-    pub fn freeBuffer(self: *Self, buffer: *memory.GPUBuffer) void {
+    pub fn freeBuffer(self: *Self, buffer: *memory.GpuBuffer) void {
         if (self.memory_pool) |*pool| {
             pool.free(buffer);
         } else {

@@ -44,7 +44,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     utils.output.printHeader("Feature Matrix");
     const features = std.enums.values(abi.Feature);
     for (features) |tag| {
-        const enabled = framework.isFeatureEnabled(tag);
+        const enabled = framework.isEnabled(tag);
         utils.output.printKeyValue(@tagName(tag), utils.output.boolLabel(enabled));
     }
 }

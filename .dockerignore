@@ -1,0 +1,44 @@
+# Build artifacts
+.zig-cache/
+zig-cache/
+zig-out/
+*.o
+*.a
+*.so
+*.dll
+*.exe
+
+# Development files
+.git/
+.github/
+.vscode/
+.idea/
+
+# Documentation source (not needed in image)
+docs/plans/
+
+# Test data
+testingllm.ckpt/
+backups/
+*.ckpt
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.*
+*.local
+
+# Editor configs
+.editorconfig
+.prettierrc
+.eslintrc*

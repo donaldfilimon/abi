@@ -8,6 +8,12 @@ const types = @import("types.zig");
 const expr = @import("expr.zig");
 const stmt = @import("stmt.zig");
 
+/// Key for tracking binding uniqueness.
+const BindingKey = struct {
+    group: u32,
+    binding: u32,
+};
+
 /// Buffer binding descriptor.
 /// Describes a storage buffer parameter to the kernel.
 pub const BufferBinding = struct {
@@ -169,11 +175,11 @@ pub const KernelIR = struct {
         }
 
         // Check for duplicate binding indices
-        var seen_bindings: std.AutoHashMapUnmanaged(struct { group: u32, binding: u32 }, void) = .{};
+        var seen_bindings: std.AutoHashMapUnmanaged(BindingKey, void) = .empty;
         defer seen_bindings.deinit(std.heap.page_allocator);
 
         for (self.buffers) |buf| {
-            const key = .{ .group = buf.group, .binding = buf.binding };
+            const key = BindingKey{ .group = buf.group, .binding = buf.binding };
             if (seen_bindings.contains(key)) {
                 result.errors.duplicate_bindings = true;
             } else {
@@ -182,7 +188,7 @@ pub const KernelIR = struct {
         }
 
         for (self.uniforms) |uni| {
-            const key = .{ .group = uni.group, .binding = uni.binding };
+            const key = BindingKey{ .group = uni.group, .binding = uni.binding };
             if (seen_bindings.contains(key)) {
                 result.errors.duplicate_bindings = true;
             } else {

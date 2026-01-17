@@ -38,8 +38,17 @@ pub const CodeWriter = struct {
 
     /// Write a formatted string.
     pub fn writeFmt(self: *Self, comptime fmt: []const u8, args: anytype) !void {
-        const writer = self.output.writer(self.allocator);
-        try std.fmt.format(writer, fmt, args);
+        var buf: [4096]u8 = undefined;
+        const formatted = std.fmt.bufPrint(&buf, fmt, args) catch |err| switch (err) {
+            error.NoSpaceLeft => {
+                // If buffer is too small, fall back to allocating
+                const text = try std.fmt.allocPrint(self.allocator, fmt, args);
+                defer self.allocator.free(text);
+                try self.output.appendSlice(self.allocator, text);
+                return;
+            },
+        };
+        try self.output.appendSlice(self.allocator, formatted);
     }
 
     /// Write a newline.
