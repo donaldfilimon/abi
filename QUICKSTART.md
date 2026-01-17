@@ -19,12 +19,12 @@ zig build run -- --version
 ```bash
 zig build test                    # Run all tests
 zig build test --summary all      # Run tests with detailed output
+zig test src/compute/runtime/engine.zig     # Test single file
+zig test src/tests/mod.zig --test-filter "pattern"  # Filter tests
 zig build benchmarks              # Run performance benchmarks
 ```
 
 ## Use the Library
-
-### Basic Initialization
 
 ### Basic Framework Usage (Zig 0.16)
 

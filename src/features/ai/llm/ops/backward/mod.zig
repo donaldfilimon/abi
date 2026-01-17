@@ -7,6 +7,7 @@
 //! - RoPE backward
 //! - Attention backward
 //! - FFN/SwiGLU backward
+//! - GPU-accelerated backward operations (cuBLAS)
 
 const std = @import("std");
 
@@ -16,6 +17,7 @@ pub const softmax_backward = @import("softmax_backward.zig");
 pub const rope_backward = @import("rope_backward.zig");
 pub const attention_backward = @import("attention_backward.zig");
 pub const ffn_backward = @import("ffn_backward.zig");
+pub const gpu_backward = @import("gpu_backward.zig");
 
 // Re-exports for convenience
 pub const matmulBackward = matmul_backward.matmulBackward;
@@ -25,6 +27,10 @@ pub const softmaxBackward = softmax_backward.softmaxBackward;
 pub const ropeBackward = rope_backward.ropeBackward;
 pub const attentionBackward = attention_backward.attentionBackward;
 pub const swigluBackward = ffn_backward.swigluBackward;
+
+// GPU backward re-exports
+pub const GpuBackwardContext = gpu_backward.GpuBackwardContext;
+pub const createGpuBackwardContext = gpu_backward.createContext;
 
 /// Gradient accumulation helper.
 pub fn accumulateGradient(grad: []f32, delta: []const f32) void {
@@ -76,6 +82,7 @@ test "backward module imports" {
     _ = rope_backward;
     _ = attention_backward;
     _ = ffn_backward;
+    _ = gpu_backward;
 }
 
 test "gradient accumulation" {

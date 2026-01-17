@@ -1,15 +1,16 @@
 //! I/O module for LLM file operations.
 //!
-//! Provides memory-mapped file access and GGUF format parsing for efficient
-//! model loading without copying data into heap memory.
+//! Provides memory-mapped file access, GGUF format parsing, and GGUF export
+//! for efficient model loading and trained model serialization.
 
 const std = @import("std");
 
 pub const mmap = @import("mmap.zig");
 pub const gguf = @import("gguf.zig");
+pub const gguf_writer = @import("gguf_writer.zig");
 pub const tensor_loader = @import("tensor_loader.zig");
 
-// Re-exports
+// Re-exports for reading
 pub const MappedFile = mmap.MappedFile;
 pub const MmapError = mmap.MmapError;
 
@@ -24,8 +25,17 @@ pub const GgufError = gguf.GgufError;
 
 pub const TensorLoader = tensor_loader.TensorLoader;
 
+// Re-exports for writing
+pub const GgufWriter = gguf_writer.GgufWriter;
+pub const GgufWriterError = gguf_writer.GgufWriterError;
+pub const exportToGguf = gguf_writer.exportToGguf;
+pub const ExportConfig = gguf_writer.ExportConfig;
+pub const ExportWeights = gguf_writer.ExportWeights;
+pub const LayerWeights = gguf_writer.LayerWeights;
+
 test "io module imports" {
     _ = mmap;
     _ = gguf;
+    _ = gguf_writer;
     _ = tensor_loader;
 }

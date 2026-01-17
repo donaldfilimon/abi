@@ -5,10 +5,15 @@
 
 const std = @import("std");
 const checkpoint = @import("checkpoint.zig");
+const llm_checkpoint = @import("llm_checkpoint.zig");
 const gradient = @import("gradient.zig");
 pub const loss = @import("loss.zig");
 pub const trainable_model = @import("trainable_model.zig");
 pub const llm_trainer = @import("llm_trainer.zig");
+pub const data_loader = @import("data_loader.zig");
+pub const lora = @import("lora.zig");
+pub const mixed_precision = @import("mixed_precision.zig");
+pub const logging = @import("logging.zig");
 
 pub const Checkpoint = checkpoint.Checkpoint;
 pub const CheckpointError = checkpoint.CheckpointError;
@@ -19,6 +24,13 @@ pub const SaveCheckpointError = checkpoint.SaveError;
 pub const SaveLatestCheckpointError = checkpoint.SaveLatestError;
 pub const loadCheckpoint = checkpoint.loadCheckpoint;
 pub const saveCheckpoint = checkpoint.saveCheckpoint;
+
+pub const LlmCheckpoint = llm_checkpoint.LlmCheckpoint;
+pub const LlmCheckpointView = llm_checkpoint.LlmCheckpointView;
+pub const LoadLlmCheckpointError = llm_checkpoint.LoadError;
+pub const SaveLlmCheckpointError = llm_checkpoint.SaveError;
+pub const loadLlmCheckpoint = llm_checkpoint.loadLlmCheckpoint;
+pub const saveLlmCheckpoint = llm_checkpoint.saveLlmCheckpoint;
 pub const GradientAccumulator = gradient.GradientAccumulator;
 pub const GradientError = gradient.GradientError;
 
@@ -35,11 +47,39 @@ pub const TrainableModelConfig = trainable_model.TrainableModelConfig;
 pub const TrainableWeights = trainable_model.TrainableWeights;
 pub const TrainableLayerWeights = trainable_model.TrainableLayerWeights;
 pub const ActivationCache = trainable_model.ActivationCache;
+pub const ModelLoadError = trainable_model.LoadError;
 
 // LLM trainer exports
 pub const LlamaTrainer = llm_trainer.LlamaTrainer;
 pub const LlmTrainingConfig = llm_trainer.LlmTrainingConfig;
 pub const trainLlm = llm_trainer.trainLlm;
+
+// Data loader exports
+pub const DataLoader = data_loader.DataLoader;
+pub const TokenizedDataset = data_loader.TokenizedDataset;
+pub const Batch = data_loader.Batch;
+pub const BatchIterator = data_loader.BatchIterator;
+pub const SequencePacker = data_loader.SequencePacker;
+pub const InstructionSample = data_loader.InstructionSample;
+pub const parseInstructionDataset = data_loader.parseInstructionDataset;
+
+// LoRA exports
+pub const LoraAdapter = lora.LoraAdapter;
+pub const LoraConfig = lora.LoraConfig;
+pub const LoraLayerAdapters = lora.LoraLayerAdapters;
+pub const LoraModel = lora.LoraModel;
+
+// Mixed precision exports
+pub const MixedPrecisionConfig = mixed_precision.MixedPrecisionConfig;
+pub const MixedPrecisionContext = mixed_precision.MixedPrecisionContext;
+pub const LossScaler = mixed_precision.LossScaler;
+pub const MasterWeights = mixed_precision.MasterWeights;
+pub const fp32ToFp16 = mixed_precision.fp32ToFp16;
+pub const fp16ToFp32 = mixed_precision.fp16ToFp32;
+
+pub const TrainingLogger = logging.TrainingLogger;
+pub const TrainingLogConfig = logging.LoggerConfig;
+pub const TrainingLogMetric = logging.Metric;
 
 pub const TrainingError = error{
     InvalidConfiguration,
@@ -66,6 +106,8 @@ pub const LearningRateSchedule = enum {
     warmup_cosine,
     step,
     polynomial,
+    /// Cosine annealing with warm restarts (SGDR)
+    cosine_warm_restarts,
 };
 
 pub const TrainingConfig = struct {
@@ -397,6 +439,34 @@ pub fn calculateLearningRate(config: TrainingConfig, step: u64, base_lr: f32) f3
             const progress = @min(1.0, @as(f32, @floatFromInt(step)) / @as(f32, @floatFromInt(config.decay_steps)));
             return base_lr * std.math.pow(f32, 1 - progress, 0.9);
         },
+        .cosine_warm_restarts => {
+            // SGDR: Cosine annealing with warm restarts
+            // T_0 = initial cycle length (decay_steps)
+            // T_mult = 2 (double cycle length after each restart)
+            const t_0 = @as(f32, @floatFromInt(config.decay_steps));
+            const t_mult: f32 = 2.0;
+            const min_lr = config.min_learning_rate;
+
+            // Find current cycle and position within cycle
+            var cycle: u32 = 0;
+            var cycle_start: f32 = 0;
+            var cycle_length = t_0;
+            const step_f = @as(f32, @floatFromInt(step));
+
+            while (cycle_start + cycle_length <= step_f) {
+                cycle_start += cycle_length;
+                cycle_length *= t_mult;
+                cycle += 1;
+            }
+
+            // Position within current cycle [0, 1]
+            const t_cur = step_f - cycle_start;
+            const t_i = cycle_length;
+            const progress = t_cur / t_i;
+
+            // Cosine decay within cycle
+            return min_lr + (base_lr - min_lr) * 0.5 * (1 + @cos(progress * std.math.pi));
+        },
     };
 }
 
@@ -546,7 +616,7 @@ pub fn trainWithResult(
         .allocator = allocator,
         .report = .{
             .epochs = config.epochs,
-        .batches = @as(u32, @intCast(batches_per_epoch)),
+            .batches = @as(u32, @intCast(batches_per_epoch)),
             .final_loss = loss_history[config.epochs - 1],
             .final_accuracy = accuracy_history[config.epochs - 1],
             .best_loss = best_loss,
@@ -591,11 +661,11 @@ fn simulateGradient(
 }
 
 fn calculateLoss(weights: []f32, gradients: []f32) f32 {
-    var loss: f32 = 0;
+    var total_loss: f32 = 0;
     for (weights, gradients) |w, g| {
-        loss += w * w * 0.001 + g * g * 0.5;
+        total_loss += w * w * 0.001 + g * g * 0.5;
     }
-    return loss / @as(f32, @floatFromInt(weights.len));
+    return total_loss / @as(f32, @floatFromInt(weights.len));
 }
 
 fn calculateAccuracy(weights: []f32, gradients: []f32) f32 {

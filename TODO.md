@@ -16,40 +16,61 @@ Note: `src/features/ai/explore/query.zig` contains intentional TODO/FIXME patter
 
 ## Roadmap TODOs
 
-The following high‑level items are still open in **[ROADMAP.md](ROADMAP.md)**. They are added here to surface future work for the team.
+The following high-level items are still open in **[ROADMAP.md](ROADMAP.md)**. They are added here to surface future work for the team.
 
 | File | Line | Description |
 |------|------|-------------|
-| `ROADMAP.md` | 107‑113 | Tooling: Debugger integration, Performance profiler, Memory leak detector |
-| `ROADMAP.md` | 119‑124 | Documentation: Comprehensive API docs (auto‑generated, tutorials, videos) |
-| `ROADMAP.md` | 125‑127 | Documentation: Architecture diagrams (system, component, data flow) |
-| `ROADMAP.md` | 139‑140 | Testing: Competitive benchmarks |
-| `ROADMAP.md` | 152‑155 | High Availability: Failover mechanisms (automatic failover, health checks, circuit breakers) |
-| `ROADMAP.md` | 156‑158 | High Availability: Disaster recovery (backup orchestration, point‑in‑time recovery, multi‑region support) |
-| `ROADMAP.md` | 168‑170 | Ecosystem: Package manager integration (Zig registry, Homebrew formula, Docker images) |
-| `ROADMAP.md` | 184‑186 | Research & Innovation: Experimental hardware acceleration (FPGA, ASIC), novel index structures, AI‑optimized workloads |
-| `ROADMAP.md` | 187‑189 | Academic collaborations (research partnerships, paper publications, conference presentations) |
-| `ROADMAP.md` | 199‑201 | Community governance: RFC process, voting mechanism, contribution recognition |
-| `ROADMAP.md` | 202‑204 | Education: Training courses, certification program, university partnerships |
-| `ROADMAP.md` | 216‑218 | Commercial support: SLA offerings, priority support, custom development |
- | `ROADMAP.md` | 219‑221 | Cloud integration: AWS Lambda, Google Cloud Functions, Azure Functions |
-| `ROADMAP.md` | 222‑225 | Commercial support: SLA offerings, priority support, custom development |
+| `ROADMAP.md` | 107-113 | Tooling: Debugger integration, Performance profiler, Memory leak detector |
+| `ROADMAP.md` | 119-124 | Documentation: Comprehensive API docs (auto-generated, tutorials, videos) |
+| `ROADMAP.md` | 125-127 | Documentation: Architecture diagrams (system, component, data flow) |
+| `ROADMAP.md` | 139-140 | Testing: Competitive benchmarks |
+| `ROADMAP.md` | 152-155 | High Availability: Failover mechanisms (automatic failover, health checks, circuit breakers) |
+| `ROADMAP.md` | 156-158 | High Availability: Disaster recovery (backup orchestration, point-in-time recovery, multi-region support) |
+| `ROADMAP.md` | 168-170 | Ecosystem: Package manager integration (Zig registry, Homebrew formula, Docker images) |
+| `ROADMAP.md` | 184-186 | Research & Innovation: Experimental hardware acceleration (FPGA, ASIC), novel index structures, AI-optimized workloads |
+| `ROADMAP.md` | 187-189 | Academic collaborations (research partnerships, paper publications, conference presentations) |
+| `ROADMAP.md` | 199-201 | Community governance: RFC process, voting mechanism, contribution recognition |
+| `ROADMAP.md` | 202-204 | Education: Training courses, certification program, university partnerships |
+| `ROADMAP.md` | 216-218 | Commercial support: SLA offerings, priority support, custom development |
+| `ROADMAP.md` | 219-221 | Cloud integration: AWS Lambda, Google Cloud Functions, Azure Functions |
+| `ROADMAP.md` | 222-225 | Commercial support: SLA offerings, priority support, custom development |
 
-## Llama‑CPP Parity Tasks (Zig 0.16)
+## Llama-CPP Parity Tasks (Zig 0.16)
 
 | Area | Status | Description | Target File(s) |
 |------|--------|-------------|----------------|
 | Model I/O | ✅ | GGUF loader, metadata parsing, `load_model` API. | `src/features/ai/llm/io/gguf.zig` |
 | Quantization | ✅ | Q4_0, Q4_1, Q8_0 tensor decoders with roundtrip tests. | `src/features/ai/llm/tensor/quantized.zig` |
-| Tokenizer | ⚠️ | BPE implemented; SentencePiece pending. | `src/features/ai/llm/tokenizer/` |
+| Tokenizer | ✅ | BPE and SentencePiece (Viterbi) implemented. | `src/features/ai/llm/tokenizer/` |
 | CPU Inference | ✅ | MatMul, attention, RMSNorm kernels with SIMD. | `src/features/ai/llm/ops/` |
-| GPU Backends | ⚠️ | CUDA/Vulkan backends exist; unified inference path pending. | `src/compute/gpu/` |
+| GPU Backends | ✅ | CUDA/cuBLAS matmul + activation kernels (softmax, RMSNorm, SiLU). | `src/features/ai/llm/ops/gpu.zig` |
 | Sampling | ✅ | Top-k, top-p, temperature, tail-free, mirostat (v1/v2). | `src/features/ai/llm/generation/sampler.zig` |
-| Streaming | ⚠️ | Basic generation implemented; async streaming pending. | `src/features/ai/llm/generation/` |
+| Streaming | ✅ | Async streaming with SSE support, callbacks, cancellation. | `src/features/ai/llm/generation/streaming.zig` |
 | CLI | ✅ | Full llama-cpp CLI parity (info, generate, chat, bench). | `tools/cli/commands/llm.zig` |
-| Library API | ❌ | C-compatible functions pending. | `src/abi.zig` |
-| Tests & Benchmarks | ⚠️ | Module tests exist; llama-cpp reference vectors pending. | `src/features/ai/llm/` |
+| Library API | ✅ | C-compatible API (llama_model_*, llama_context_*, tokenize, generate). | `bindings/c/abi_llm.zig` |
+| Tests & Benchmarks | ✅ | Reference vectors for Q4/Q8, softmax, RMSNorm, SiLU, MatMul, attention. | `src/tests/llm_reference_vectors.zig` |
+| Training | ✅ | Backward ops, loss, trainable model, LoRA, mixed precision. | `src/features/ai/training/` |
+| Gradient Checkpointing | ✅ | Memory-efficient training with selective activation storage. | `src/features/ai/training/trainable_model.zig` |
 
 **Legend:** ✅ Complete | ⚠️ Partial | ❌ Not Started
 
-Developers should prioritize these items to achieve functional parity with llama‑cpp while maintaining Zig 0.16 conventions.
+## Remaining Work
+
+| Area | Priority | Description | Target File(s) |
+|------|----------|-------------|----------------|
+| Flash Attention | Low | Memory-efficient attention implementation. | `src/features/ai/llm/ops/attention.zig` |
+| Fused Attention Kernel | Low | Single CUDA kernel for Q*K^T softmax V computation. | `src/compute/gpu/backends/cuda/llm_kernels.zig` |
+
+## Recently Completed
+
+| Area | Description | Target File(s) |
+|------|-------------|----------------|
+| Paged Attention | Block-based KV cache with on-demand allocation, sequence forking, prefix sharing. | `src/features/ai/llm/cache/paged_kv_cache.zig` |
+| GPU Backward Ops | cuBLAS-accelerated matmul backward with auto CPU fallback. | `src/features/ai/llm/ops/backward/gpu_backward.zig` |
+| GPU Unified Inference | CUDA kernels wired into GpuOpsContext with auto CPU fallback. | `src/features/ai/llm/ops/gpu.zig` |
+| Q5_0/Q5_1 Quantization | 5-bit quantization with symmetric/asymmetric modes. | `src/features/ai/llm/tensor/quantized.zig` |
+| GGUF Export | Export trained weights to llama.cpp-compatible GGUF. | `src/features/ai/llm/io/gguf_writer.zig` |
+| CUDA Kernels | Softmax, RMSNorm, SiLU, elementwise ops for GPU. | `src/compute/gpu/backends/cuda/llm_kernels.zig` |
+| Reference Vectors | MatMul, attention, GeLU, LayerNorm, cross-entropy tests. | `src/tests/llm_reference_vectors.zig` |
+
+Developers should prioritize these items to achieve functional parity with llama-cpp while maintaining Zig 0.16 conventions.

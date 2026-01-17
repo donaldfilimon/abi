@@ -1,0 +1,18 @@
+--- CLAUDE.md.original
++++ CLAUDE.md.improved
+@@ -759,7 +759,14 @@
+ zig build run -- llm list                              # List available models
+ ```
+ 
+-The LLM feature (`src/features/ai/llm/`) provides local GGUF model inference with BPE tokenization, quantized tensors (Q4_0, Q4_1, Q8_0), transformer ops (matmul, attention, RoPE, RMSNorm), KV cache, and sampling strategies (greedy, top-k, top-p, temperature).
++The LLM feature (`src/features/ai/llm/`) provides local GGUF model inference with:
++- **Tokenization**: BPE and SentencePiece (Viterbi)
++- **Quantization**: Q4_0, Q4_1, Q5_0, Q5_1, Q8_0 with roundtrip encoding
++- **Transformer Ops**: MatMul, attention, RoPE, RMSNorm, SiLU with SIMD
++- **KV Cache**: Standard, sliding window, and paged attention (vLLM-style)
++- **GPU Acceleration**: CUDA kernels for softmax, RMSNorm, SiLU with CPU fallback
++- **Sampling**: Greedy, top-k, top-p, temperature, tail-free, mirostat (v1/v2)
++- **Export**: GGUF writer for trained model export
+ 
+ ### Train CLI Examples
+ 

@@ -281,10 +281,10 @@ pub fn attentionWithProjectionsBackward(
     _ = d_x;
     _ = x;
     _ = hidden_dim;
-    _ = head_dim;
-    _ = seq_len;
     _ = kv_len;
     _ = cache;
+
+    // Note: seq_len and head_dim are used above for d_attn_out allocation
 }
 
 test "attention backward basic" {

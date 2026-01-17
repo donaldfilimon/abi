@@ -10,7 +10,6 @@
 const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
-const build_options = @import("build_options");
 
 /// Run the train command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
@@ -282,7 +281,7 @@ fn runTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
 fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     // Check if LLM feature is enabled
-    if (!build_options.enable_llm) {
+    if (!abi.ai.llm.isEnabled()) {
         std.debug.print("Error: LLM feature is not enabled. Build with -Denable-llm=true\n", .{});
         return;
     }

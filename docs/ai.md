@@ -41,7 +41,18 @@ const report = try abi.ai.train(allocator, .{
 });
 ```
 
-The training pipeline writes checkpoints using the `abi.ai.training.checkpoint` module. Each checkpoint stores model weights, optimizer state, and a simple serialization header. Checkpoints can be re‑loaded with `abi.ai.training.loadCheckpoint` to resume training or for inference.
+The training pipeline writes weight-only checkpoints using the `abi.ai.training.checkpoint` module. LLM training uses `abi.ai.training.llm_checkpoint` to persist model weights and optimizer state together. Checkpoints can be re‑loaded with `abi.ai.training.loadCheckpoint` (generic) or `abi.ai.training.loadLlmCheckpoint` (LLM) to resume training or for inference.
+
+### LLM Training Extras
+
+The LLM trainer supports training metrics, checkpointing with optimizer state, TensorBoard/W&B logging, and GGUF export.
+
+Key options on `LlmTrainingConfig`:
+- `checkpoint_interval`, `checkpoint_path` - Save LLM checkpoints (weights + optimizer state)
+- `log_dir`, `enable_tensorboard`, `enable_wandb` - Scalar metrics logging
+- `export_gguf_path` - Export trained weights to GGUF after training
+
+W&B logging writes offline run files under `log_dir/wandb/` (sync with `wandb sync` if desired).
 
 ### CLI Usage
 

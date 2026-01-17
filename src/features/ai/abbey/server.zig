@@ -127,8 +127,8 @@ fn handleConnection(
     var connection_reader = stream.reader(io, &recv_buffer);
     var connection_writer = stream.writer(io, &send_buffer);
     var server: std.http.Server = .init(
-        &connection_reader.interface,
-        &connection_writer.interface,
+        &connection_reader,
+        &connection_writer,
     );
 
     while (true) {
@@ -400,13 +400,13 @@ fn buildChatResponse(allocator: std.mem.Allocator, response: *const engine.Respo
     try appendJsonString(&json, allocator, response.content);
 
     try json.appendSlice(allocator, ",\"confidence\":{\"level\":\"");
-    try json.appendSlice(allocator, @tagName(response.confidence.level));
+    try json.print(allocator, "{t}", .{response.confidence.level});
     try json.appendSlice(allocator, "\",\"score\":");
     try json.print(allocator, "{d:.4}", .{response.confidence.score});
     try json.appendSlice(allocator, "}");
 
     try json.appendSlice(allocator, ",\"emotion\":\"");
-    try json.appendSlice(allocator, @tagName(response.emotional_context.detected));
+    try json.print(allocator, "{t}", .{response.emotional_context.detected});
     try json.appendSlice(allocator, "\"");
 
     try json.appendSlice(allocator, ",\"research_performed\":");
@@ -441,7 +441,7 @@ fn buildStatsJson(allocator: std.mem.Allocator, stats: engine.EngineStats) ![]u8
     try json.appendSlice(allocator, ",\"relationship_score\":");
     try json.print(allocator, "{d:.4}", .{stats.relationship_score});
     try json.appendSlice(allocator, ",\"current_emotion\":\"");
-    try json.appendSlice(allocator, @tagName(stats.current_emotion));
+    try json.print(allocator, "{t}", .{stats.current_emotion});
     try json.appendSlice(allocator, "\",\"topics_discussed\":");
     try json.print(allocator, "{d}", .{stats.topics_discussed});
     try json.appendSlice(allocator, ",\"conversation_active\":");
@@ -458,7 +458,7 @@ fn buildEmotionalStateJson(allocator: std.mem.Allocator, emotional: @import("emo
     errdefer json.deinit(allocator);
 
     try json.appendSlice(allocator, "{\"detected\":\"");
-    try json.appendSlice(allocator, @tagName(emotional.detected));
+    try json.print(allocator, "{t}", .{emotional.detected});
     try json.appendSlice(allocator, "\",\"confidence\":");
     try json.print(allocator, "{d:.4}", .{emotional.confidence});
     try json.appendSlice(allocator, ",\"valence\":");

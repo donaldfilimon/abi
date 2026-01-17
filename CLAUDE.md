@@ -81,10 +81,15 @@ Core flags (defaults in parentheses):
 
 **Note**: See `build.zig` `Defaults` struct for current default values. Some features may default to `false` in production builds.
 
-GPU backends (Vulkan enabled by default when GPU is enabled):
-`-Dgpu-cuda`, `-Dgpu-vulkan`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`, `-Dgpu-opengles`, `-Dgpu-webgl2`, `-Dgpu-stdgpu`
-
-**Note**: `-Dgpu-stdgpu` enables a software CPU fallback backend (not related to Zig's `std.gpu`), useful for testing GPU code paths without hardware.
+GPU backends:
+- `-Dgpu-vulkan` (default: true when GPU enabled) - Vulkan backend
+- `-Dgpu-webgpu` (default: true when web enabled) - WebGPU backend
+- `-Dgpu-webgl2` (default: true when web enabled) - WebGL2 backend
+- `-Dgpu-cuda` (default: false) - CUDA backend
+- `-Dgpu-metal` (default: false) - Metal backend
+- `-Dgpu-opengl` (default: false) - OpenGL backend
+- `-Dgpu-opengles` (default: false) - OpenGL ES backend
+- `-Dgpu-stdgpu` (default: false) - Software CPU fallback backend (useful for testing GPU code paths without hardware)
 
 ### Additional Build Targets
 
@@ -668,10 +673,10 @@ The CLI (`zig build run -- <command>`) provides these subcommands:
 - `gpu [subcommand]` - GPU info (backends, devices, summary, default)
 - `network [command]` - Network registry (list, register, status)
 - `simd` - Run SIMD performance demo
- - `system-info` - Show system and framework status
- - `train` - Run training pipeline (configurable epochs, batch size, checkpointing)
- 
- ### Database CLI Examples
+- `system-info` - Show system and framework status
+- `train` - Run training pipeline (configurable epochs, batch size, checkpointing)
+
+### Database CLI Examples
 
 ```bash
 zig build run -- db stats                              # Show database statistics

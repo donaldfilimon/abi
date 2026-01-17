@@ -119,8 +119,8 @@ fn handleConnectionWithConfig(
     var connection_reader = stream.reader(io, &recv_buffer);
     var connection_writer = stream.writer(io, &send_buffer);
     var server: std.http.Server = .init(
-        &connection_reader.interface,
-        &connection_writer.interface,
+        &connection_reader,
+        &connection_writer,
     );
 
     while (true) {
