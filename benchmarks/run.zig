@@ -133,9 +133,9 @@ fn loggingBenchmark(allocator: std.mem.Allocator) !void {
 // Configuration benchmark
 fn configBenchmark(allocator: std.mem.Allocator) !void {
     // Simple config validation benchmark
-    var config = abi.config.Config.init(allocator);
-    defer config.deinit();
-    try config.validate();
+    var config = abi.config.Config{};
+    const enabled_features = try config.enabledFeatures(allocator);
+    defer allocator.free(enabled_features);
     std.mem.doNotOptimizeAway(&config);
 }
 
