@@ -94,9 +94,6 @@ pub const web = if (build_options.enable_web)
 else
     @import("web/stub.zig");
 
-/// Internal utilities (not part of public API).
-pub const internal = @import("internal/mod.zig");
-
 /// Task management system.
 pub const tasks = @import("tasks/mod.zig");
 
@@ -125,12 +122,12 @@ pub const FrameworkConfiguration = framework.FrameworkConfiguration;
 pub const RuntimeConfig = framework.RuntimeConfig;
 pub const runtimeConfigFromOptions = framework.runtimeConfigFromOptions;
 
-// Shared utilities (legacy - use internal)
-pub const logging = internal.logging;
-pub const plugins = internal.plugins;
-pub const platform = internal.platform;
-pub const simd = internal.simd;
-pub const utils = internal.utils;
+// Shared utilities (direct imports from shared/)
+pub const logging = @import("shared/logging/mod.zig");
+pub const plugins = @import("shared/plugins/mod.zig");
+pub const platform = @import("shared/platform/mod.zig");
+pub const simd = @import("shared/simd.zig");
+pub const utils = @import("shared/utils/mod.zig");
 
 // SIMD functions exported directly
 pub const vectorAdd = simd.vectorAdd;
