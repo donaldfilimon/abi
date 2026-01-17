@@ -146,9 +146,7 @@ fn parseFormat(str: []const u8) ?OutputFormat {
 }
 
 fn readFile(allocator: std.mem.Allocator, path: []const u8) ![]const u8 {
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
 
     const io = io_backend.io();
@@ -277,9 +275,7 @@ fn generateLocalEmbedding(allocator: std.mem.Allocator, text: []const u8) ![]f32
 }
 
 fn writeOutput(allocator: std.mem.Allocator, path: []const u8, embedding: []const f32, format: OutputFormat) !void {
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
 
     const io = io_backend.io();
@@ -288,9 +284,6 @@ fn writeOutput(allocator: std.mem.Allocator, path: []const u8, embedding: []cons
         return EmbedError.OutputError;
     };
     defer file.close(io);
-
-    var write_buffer: [4096]u8 = undefined;
-    var writer = file.writer(io, &write_buffer);
 
     // Build output in memory then write at once
     var output = std.ArrayListUnmanaged(u8){};
@@ -319,11 +312,11 @@ fn writeOutput(allocator: std.mem.Allocator, path: []const u8, embedding: []cons
         },
     }
 
-    _ = writer.interface.write(output.items) catch |err| {
+    // Use writeStreamingAll for Zig 0.16 compatibility
+    file.writeStreamingAll(io, output.items) catch |err| {
         utils.output.printError("Error writing output: {t}", .{err});
         return EmbedError.OutputError;
     };
-    writer.flush() catch {};
 }
 
 fn printOutput(allocator: std.mem.Allocator, embedding: []const f32, format: OutputFormat) !void {

@@ -34,9 +34,7 @@ pub const ProfileWriter = struct {
     file_offset: u64 = 0,
 
     pub fn init(config: ProfileConfig) ProfileError!ProfileWriter {
-        var io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{ .environ = std.process.Environ.empty });
         const io = io_backend.io();
 
         var writer = ProfileWriter{

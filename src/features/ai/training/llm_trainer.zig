@@ -540,9 +540,7 @@ pub const LlamaTrainer = struct {
             const m = self.optimizer_state.m orelse return error.OutOfMemory;
             const v = self.optimizer_state.v orelse return error.OutOfMemory;
 
-            var io_backend = std.Io.Threaded.init(self.allocator, .{
-                .environ = std.process.Environ.empty,
-            });
+            var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
             defer io_backend.deinit();
             const io = io_backend.io();
             try std.Io.Dir.cwd().createDirPath(io, path);

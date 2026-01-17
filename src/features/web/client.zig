@@ -23,9 +23,7 @@ pub const HttpClient = struct {
     client: std.http.Client,
 
     pub fn init(allocator: std.mem.Allocator) !HttpClient {
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
         const client = std.http.Client{
             .allocator = allocator,
             .io = io_backend.io(),

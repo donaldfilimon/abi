@@ -121,9 +121,7 @@ fn getTimer() ?*std.time.Timer {
 }
 
 fn initIoBackend() void {
-    global_io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    global_io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{ .environ = std.process.Environ.empty });
 }
 
 fn getIo() ?std.Io {

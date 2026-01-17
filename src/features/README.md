@@ -17,7 +17,7 @@
 //! ```
 //! src/ai/mod.zig         ->  re-exports from  ->  src/features/ai/mod.zig
 //! src/database/mod.zig   ->  re-exports from  ->  src/features/database/mod.zig
-//! src/network/mod.zig    ->  re-exports from  ->  src/features/network/mod.zig
+//! src/network/mod.zig    ->  primary implementation (no longer in features/)
 //! src/web/mod.zig        ->  re-exports from  ->  src/features/web/mod.zig
 //! ```
 //!

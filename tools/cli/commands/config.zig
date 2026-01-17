@@ -61,9 +61,7 @@ fn runInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     const default_config = getDefaultConfigJson();
 
     // Create io backend for filesystem operations
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -74,13 +72,11 @@ fn runInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     };
     defer file.close(io);
 
-    var write_buf: [4096]u8 = undefined;
-    var writer = file.writer(io, &write_buf);
-    _ = writer.interface.write(default_config) catch |err| {
+    // Use writeStreamingAll for Zig 0.16 compatibility
+    file.writeStreamingAll(io, default_config) catch |err| {
         std.debug.print("Error writing config file: {t}\n", .{err});
         return;
     };
-    writer.flush() catch {};
 
     std.debug.print("Created configuration file: {s}\n", .{output_path});
     std.debug.print("\nEdit this file to customize your ABI framework settings.\n", .{});
@@ -292,7 +288,7 @@ fn printDefaultConfigHuman() void {
 }
 
 fn getDefaultConfigJson() []const u8 {
-    return
+    return 
     \\{
     \\  "framework": {
     \\    "enable_ai": true,

@@ -1110,9 +1110,7 @@ fn outputJson(allocator: std.mem.Allocator, results: []const BenchResult, durati
 
     if (output_file) |path| {
         // Write to file
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -1122,13 +1120,11 @@ fn outputJson(allocator: std.mem.Allocator, results: []const BenchResult, durati
         };
         defer file.close(io);
 
-        var write_buf: [4096]u8 = undefined;
-        var writer = file.writer(io, &write_buf);
-        _ = writer.interface.write(json_buf.items) catch |err| {
+        // Use writeStreamingAll for Zig 0.16 compatibility
+        file.writeStreamingAll(io, json_buf.items) catch |err| {
             std.debug.print("Error writing to file: {t}\n", .{err});
             return;
         };
-        writer.flush() catch {};
         std.debug.print("Results written to: {s}\n", .{path});
     } else {
         std.debug.print("{s}", .{json_buf.items});

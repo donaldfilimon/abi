@@ -811,39 +811,53 @@ pub const Database = struct {
     }
 
     pub fn saveToFile(self: *const Database, path: []const u8) !void {
-        var io_backend = std.Io.Threaded.init(self.allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
 
         const file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
         defer file.close(io);
 
-        var buf: [4096]u8 = undefined;
-        var file_writer = file.writer(io, &buf);
-        // `Io.File.Writer` in Zig 0.16 does not expose an `any()` method.
-        // We just need a writer that implements `WriteSeek`/`WriteByte`, which
-        // `file_writer` already is. We pass its address to `Stringify`.
-        var any_writer = &file_writer;
+        // Build JSON manually in memory for Zig 0.16 compatibility
+        var json_buf = std.ArrayListUnmanaged(u8).empty;
+        defer json_buf.deinit(self.allocator);
 
-        var stringify: std.json.Stringify = .{
-            // `any_writer` is an alias to the underlying file writer; cast
-            // to the generic `std.io.Writer` required by `Stringify`.
-            .writer = @ptrCast(&any_writer),
-            .options = .{ .whitespace = .indent_4 },
-        };
-        try stringify.beginArray();
-        for (self.records.items) |record| {
-            try stringify.write(record);
+        try json_buf.appendSlice(self.allocator, "[\n");
+        for (self.records.items, 0..) |record, idx| {
+            if (idx > 0) try json_buf.appendSlice(self.allocator, ",\n");
+            try json_buf.appendSlice(self.allocator, "  {\"id\":");
+            try json_buf.print(self.allocator, "{d}", .{record.id});
+            try json_buf.appendSlice(self.allocator, ",\"vector\":[");
+            for (record.vector, 0..) |v, vi| {
+                if (vi > 0) try json_buf.append(self.allocator, ',');
+                try json_buf.print(self.allocator, "{d:.8}", .{v});
+            }
+            try json_buf.append(self.allocator, ']');
+            if (record.metadata) |meta| {
+                try json_buf.appendSlice(self.allocator, ",\"metadata\":\"");
+                // Escape string for JSON
+                for (meta) |c| {
+                    switch (c) {
+                        '"' => try json_buf.appendSlice(self.allocator, "\\\""),
+                        '\\' => try json_buf.appendSlice(self.allocator, "\\\\"),
+                        '\n' => try json_buf.appendSlice(self.allocator, "\\n"),
+                        '\r' => try json_buf.appendSlice(self.allocator, "\\r"),
+                        '\t' => try json_buf.appendSlice(self.allocator, "\\t"),
+                        else => try json_buf.append(self.allocator, c),
+                    }
+                }
+                try json_buf.append(self.allocator, '"');
+            }
+            try json_buf.append(self.allocator, '}');
         }
-        try stringify.endArray();
+        try json_buf.appendSlice(self.allocator, "\n]\n");
+
+        // Write using writeStreamingAll for Zig 0.16 compatibility
+        try file.writeStreamingAll(io, json_buf.items);
     }
 
     pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) !Database {
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
 

@@ -33,9 +33,7 @@ pub const ExploreAgent = struct {
             .start_time = try std.time.Instant.now(),
             .cancelled = false,
             .cancellation_lock = std.Thread.Mutex{},
-            .io_backend = std.Io.Threaded.init(allocator, .{
-                .environ = std.process.Environ.empty,
-            }),
+            .io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty }),
         };
     }
 

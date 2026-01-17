@@ -356,9 +356,7 @@ fn runInteractive(
     std.debug.print("Persona: {s} - {s}\n", .{ persona.name, persona.description });
     std.debug.print("Type '/help' for commands, 'exit' to quit.\n\n", .{});
 
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
 
     const io = io_backend.io();

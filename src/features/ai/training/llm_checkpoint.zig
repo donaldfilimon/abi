@@ -87,9 +87,7 @@ pub fn saveLlmCheckpoint(
     const bytes = try writer.toOwnedSlice();
     defer allocator.free(bytes);
 
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -100,9 +98,7 @@ pub fn saveLlmCheckpoint(
 
 /// Load a trainer checkpoint from disk.
 pub fn loadLlmCheckpoint(allocator: std.mem.Allocator, path: []const u8) LoadError!LlmCheckpoint {
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -192,9 +188,7 @@ test "llm checkpoint roundtrip" {
     };
 
     defer {
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
         std.Io.Dir.cwd().deleteFile(io, test_path) catch {};

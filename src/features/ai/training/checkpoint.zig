@@ -190,9 +190,7 @@ pub fn saveCheckpoint(
     // Ensure parent directory exists
     ensureParentDir(path);
 
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -206,9 +204,7 @@ pub fn saveCheckpoint(
 /// @param path Source file path
 /// @return Checkpoint with owned weights
 pub fn loadCheckpoint(allocator: std.mem.Allocator, path: []const u8) LoadError!Checkpoint {
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -286,9 +282,7 @@ test "checkpoint save/load roundtrip" {
 
     // Cleanup: delete the test file after the test (best effort)
     defer {
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
         std.Io.Dir.cwd().deleteFile(io, test_path) catch {};

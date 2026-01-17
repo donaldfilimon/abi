@@ -47,9 +47,7 @@ pub const GgufWriter = struct {
 
     /// Create a new GGUF writer.
     pub fn init(allocator: std.mem.Allocator, path: []const u8) !GgufWriter {
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
         errdefer io_backend.deinit();
         const io = io_backend.io();
 
@@ -388,63 +386,68 @@ pub const GgufWriter = struct {
 
     /// Finalize and write the GGUF file.
     pub fn finalize(self: *GgufWriter) !void {
-        var writer = self.file.writer(self.io);
+        // Build entire file in memory for Zig 0.16 compatibility
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        defer buffer.deinit(self.allocator);
 
         // Write header
-        try writer.writeInt(u32, gguf.GGUF_MAGIC, .little);
-        try writer.writeInt(u32, gguf.GGUF_VERSION_3, .little);
-        try writer.writeInt(u64, self.tensors.items.len, .little);
-        try writer.writeInt(u64, self.metadata.items.len, .little);
+        try appendIntLe(u32, &buffer, self.allocator, gguf.GGUF_MAGIC);
+        try appendIntLe(u32, &buffer, self.allocator, gguf.GGUF_VERSION_3);
+        try appendIntLe(u64, &buffer, self.allocator, self.tensors.items.len);
+        try appendIntLe(u64, &buffer, self.allocator, self.metadata.items.len);
 
         // Write metadata
         for (self.metadata.items) |entry| {
             // Key: length + bytes
-            try writer.writeInt(u64, entry.key.len, .little);
-            try writer.writeAll(entry.key);
+            try appendIntLe(u64, &buffer, self.allocator, entry.key.len);
+            try buffer.appendSlice(self.allocator, entry.key);
             // Type
-            try writer.writeInt(u32, @intFromEnum(entry.value_type), .little);
+            try appendIntLe(u32, &buffer, self.allocator, @intFromEnum(entry.value_type));
             // Value data
-            try writer.writeAll(entry.data);
+            try buffer.appendSlice(self.allocator, entry.data);
         }
 
         // Write tensor info
         for (self.tensors.items) |entry| {
             // Name: length + bytes
-            try writer.writeInt(u64, entry.name.len, .little);
-            try writer.writeAll(entry.name);
+            try appendIntLe(u64, &buffer, self.allocator, entry.name.len);
+            try buffer.appendSlice(self.allocator, entry.name);
             // Dimensions
-            try writer.writeInt(u32, entry.n_dims, .little);
+            try appendIntLe(u32, &buffer, self.allocator, entry.n_dims);
             for (0..entry.n_dims) |i| {
-                try writer.writeInt(u64, entry.dims[i], .little);
+                try appendIntLe(u64, &buffer, self.allocator, entry.dims[i]);
             }
             // Type
-            try writer.writeInt(u32, @intFromEnum(entry.tensor_type), .little);
+            try appendIntLe(u32, &buffer, self.allocator, @intFromEnum(entry.tensor_type));
             // Offset (within tensor data section)
-            try writer.writeInt(u64, entry.offset, .little);
+            try appendIntLe(u64, &buffer, self.allocator, entry.offset);
         }
 
         // Align to GGUF_DEFAULT_ALIGNMENT before tensor data
-        const current_pos = try self.file.getPos(self.io);
-        const aligned_pos = (current_pos + self.alignment - 1) & ~@as(u64, self.alignment - 1);
+        const current_pos = buffer.items.len;
+        const aligned_pos = (current_pos + self.alignment - 1) & ~(self.alignment - 1);
         const padding_needed = aligned_pos - current_pos;
 
         if (padding_needed > 0) {
-            var zeros: [32]u8 = .{0} ** 32;
-            var remaining = padding_needed;
-            while (remaining > 0) {
-                const to_write = @min(remaining, 32);
-                try writer.writeAll(zeros[0..to_write]);
-                remaining -= to_write;
-            }
+            try buffer.appendNTimes(self.allocator, 0, padding_needed);
         }
 
         // Write tensor data
-        try writer.writeAll(self.tensor_data.items);
+        try buffer.appendSlice(self.allocator, self.tensor_data.items);
+
+        // Write all at once using writeStreamingAll for Zig 0.16 compatibility
+        try self.file.writeStreamingAll(self.io, buffer.items);
 
         std.log.info("GGUF file written: {d} tensors, {d} metadata entries", .{
             self.tensors.items.len,
             self.metadata.items.len,
         });
+    }
+
+    fn appendIntLe(comptime T: type, buffer: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: T) !void {
+        var bytes: [@sizeOf(T)]u8 = undefined;
+        std.mem.writeInt(T, &bytes, value, .little);
+        try buffer.appendSlice(allocator, &bytes);
     }
 };
 

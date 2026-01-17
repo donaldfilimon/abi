@@ -106,9 +106,7 @@ pub const ConfigLoader = struct {
         else
             return error.UnsupportedFormat;
 
-        var io_backend = std.Io.Threaded.init(self.allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -150,9 +148,7 @@ pub const ConfigLoader = struct {
     }
 
     pub fn saveToFile(self: *ConfigLoader, path: []const u8) !void {
-        var io_backend = std.Io.Threaded.init(self.allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
 

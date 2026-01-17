@@ -78,9 +78,7 @@ const TensorboardLogger = struct {
     file: std.Io.File,
 
     pub fn init(allocator: std.mem.Allocator, log_dir: []const u8) LogError!TensorboardLogger {
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
         errdefer io_backend.deinit();
         const io = io_backend.io();
 
@@ -134,9 +132,7 @@ const WandbLogger = struct {
     entity: []const u8,
 
     pub fn init(allocator: std.mem.Allocator, config: LoggerConfig) LogError!WandbLogger {
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
         errdefer io_backend.deinit();
         const io = io_backend.io();
 
@@ -370,8 +366,11 @@ fn encodeEvent(
 }
 
 fn writeTfRecord(io: std.Io, file: std.Io.File, payload: []const u8) !void {
-    var writer = file.writer(io);
+    // Build the TFRecord in a buffer for Zig 0.16 compatibility
+    var record_buf: std.ArrayListUnmanaged(u8) = .empty;
+    defer record_buf.deinit(std.heap.page_allocator);
 
+    // Length (8 bytes little-endian)
     var len_bytes: [8]u8 = undefined;
     std.mem.writeInt(u64, &len_bytes, @intCast(payload.len), .little);
     const len_crc = maskedCrc32c(&len_bytes);
@@ -382,10 +381,13 @@ fn writeTfRecord(io: std.Io, file: std.Io.File, payload: []const u8) !void {
     var data_crc_bytes: [4]u8 = undefined;
     std.mem.writeInt(u32, &data_crc_bytes, data_crc, .little);
 
-    try writer.writeAll(&len_bytes);
-    try writer.writeAll(&len_crc_bytes);
-    try writer.writeAll(payload);
-    try writer.writeAll(&data_crc_bytes);
+    try record_buf.appendSlice(std.heap.page_allocator, &len_bytes);
+    try record_buf.appendSlice(std.heap.page_allocator, &len_crc_bytes);
+    try record_buf.appendSlice(std.heap.page_allocator, payload);
+    try record_buf.appendSlice(std.heap.page_allocator, &data_crc_bytes);
+
+    // Write using writeStreamingAll for Zig 0.16 compatibility
+    try file.writeStreamingAll(io, record_buf.items);
 }
 
 fn maskedCrc32c(data: []const u8) u32 {

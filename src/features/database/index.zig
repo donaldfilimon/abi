@@ -171,9 +171,7 @@ pub const IndexManager = struct {
         const bytes = try writer.toOwnedSlice();
         defer allocator.free(bytes);
 
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -188,9 +186,7 @@ pub const IndexManager = struct {
         allocator: std.mem.Allocator,
         path: []const u8,
     ) LoadError!void {
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
 

@@ -59,7 +59,7 @@
 //! ### Converting from GGUF
 //! ```zig
 //! // Zig 0.16: Use std.Io.Threaded for file I/O
-//! var io_backend = std.Io.Threaded.init(allocator, .{});
+//! var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
 //! defer io_backend.deinit();
 //! const io = io_backend.io();
 //!

@@ -371,9 +371,7 @@ pub fn buildDependencyGraph(allocator: std.mem.Allocator, file_paths: []const []
     defer analyzer.deinit();
 
     // Create I/O backend for synchronous file operations
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    }) catch return error.IoInitFailed;
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty }) catch return error.IoInitFailed;
     defer io_backend.deinit();
     const io = io_backend.io();
 

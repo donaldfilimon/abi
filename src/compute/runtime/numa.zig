@@ -50,9 +50,7 @@ pub const CpuTopology = struct {
     nodes: []NumaNode,
 
     pub fn init(allocator: std.mem.Allocator) !CpuTopology {
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
 

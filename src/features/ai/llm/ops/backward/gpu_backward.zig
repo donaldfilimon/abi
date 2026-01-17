@@ -11,7 +11,7 @@ const attention_backward = @import("attention_backward.zig");
 
 // cuBLAS support
 const cublas = if (build_options.enable_gpu)
-    @import("../../../../../compute/gpu/backends/cuda/cublas.zig")
+    @import("../../../../../gpu/backends/cuda/cublas.zig")
 else
     struct {
         pub fn isAvailable() bool {
@@ -67,7 +67,7 @@ else
     };
 
 const cuda_memory = if (build_options.enable_gpu)
-    @import("../../../../../compute/gpu/backends/cuda/memory.zig")
+    @import("../../../../../gpu/backends/cuda/memory.zig")
 else
     struct {
         pub fn init() !void {

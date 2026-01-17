@@ -7,7 +7,7 @@
 //! use std.Io.Dir.cwd() with proper I/O context for full Zig 0.16 compliance.
 
 const std = @import("std");
-const time = @import("../../shared/utils/time.zig");
+const time = @import("../shared/utils/time.zig");
 
 // ============================================================================
 // Constants
@@ -644,7 +644,7 @@ pub const CacheStats = struct {
 
 test "kernel cache basic" {
     const allocator = std.testing.allocator;
-    var io_backend = std.Io.Threaded.init(allocator, .{});
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -684,7 +684,7 @@ test "kernel cache basic" {
 
 test "kernel cache eviction" {
     const allocator = std.testing.allocator;
-    var io_backend = std.Io.Threaded.init(allocator, .{});
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 

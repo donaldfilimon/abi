@@ -172,7 +172,7 @@ pub const MappedFile = struct {
         }
 
         // mmap returns page-aligned memory, cast with proper alignment
-        const aligned_ptr: [*]align(page_size) u8 = @alignCast(@ptrCast(ptr));
+        const aligned_ptr: [*]align(page_size) u8 = @ptrCast(@alignCast(ptr));
         return MappedFile{
             .data = aligned_ptr[0..size],
             .size = size,

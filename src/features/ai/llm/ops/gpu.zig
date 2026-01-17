@@ -13,7 +13,7 @@ const activations = @import("activations.zig");
 
 // CUDA backend imports
 const cuda_mod = if (build_options.enable_gpu)
-    @import("../../../../compute/gpu/backends/cuda/mod.zig")
+    @import("../../../../gpu/backends/cuda/mod.zig")
 else
     struct {
         pub const llm_kernels = struct {
@@ -69,7 +69,7 @@ else
 
 // cuBLAS support
 const cublas = if (build_options.enable_gpu)
-    @import("../../../../compute/gpu/backends/cuda/cublas.zig")
+    @import("../../../../gpu/backends/cuda/cublas.zig")
 else
     struct {
         pub fn isAvailable() bool {
@@ -137,7 +137,7 @@ else
 
 // GPU backend detection
 const backend_mod = if (build_options.enable_gpu)
-    @import("../../../../compute/gpu/backend.zig")
+    @import("../../../../gpu/backend.zig")
 else
     struct {
         pub fn summary() Summary {

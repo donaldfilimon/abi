@@ -294,9 +294,7 @@ pub const ConfigLoader = struct {
     pub fn init(allocator: std.mem.Allocator) ConfigLoader {
         return .{
             .allocator = allocator,
-            .io_backend = std.Io.Threaded.init(allocator, .{
-                .environ = std.process.Environ.empty,
-            }),
+            .io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty }),
         };
     }
 

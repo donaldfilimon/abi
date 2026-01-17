@@ -24,13 +24,19 @@ const abi = @import("abi");
 const commands = @import("commands/mod.zig");
 const utils = @import("utils/mod.zig");
 
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.arena.allocator();
+/// Main entry point with args from Zig 0.16 Init.Minimal
+pub fn mainWithArgs(proc_args: std.process.Args) !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
     var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
-    const args = try init.minimal.args.toSlice(allocator);
+    // Zig 0.16: Convert Args to slice using arena
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const args = try proc_args.toSlice(arena.allocator());
 
     if (args.len <= 1) {
         printHelp();

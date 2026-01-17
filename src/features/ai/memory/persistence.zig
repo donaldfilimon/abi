@@ -444,9 +444,7 @@ fn isValidSessionId(id: []const u8) bool {
 // =============================================================================
 
 fn writeFile(allocator: std.mem.Allocator, path: []const u8, content: []const u8) !void {
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -459,22 +457,15 @@ fn writeFile(allocator: std.mem.Allocator, path: []const u8, content: []const u8
     };
     defer file.close(io);
 
-    var write_buf: [8192]u8 = undefined;
-    var writer = file.writer(io, &write_buf);
-    _ = writer.interface.write(content) catch |err| {
+    // Use writeStreamingAll for Zig 0.16 compatibility
+    file.writeStreamingAll(io, content) catch |err| {
         std.log.err("Failed to write to file: {t}", .{err});
-        return err;
-    };
-    writer.flush() catch |err| {
-        std.log.err("Failed to flush file: {t}", .{err});
         return err;
     };
 }
 
 fn readFile(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -486,9 +477,7 @@ fn readFile(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
 }
 
 fn deleteFile(allocator: std.mem.Allocator, path: []const u8) !void {
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -499,9 +488,7 @@ fn deleteFile(allocator: std.mem.Allocator, path: []const u8) !void {
 }
 
 fn fileExists(allocator: std.mem.Allocator, path: []const u8) bool {
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -518,9 +505,7 @@ fn listSessionFiles(allocator: std.mem.Allocator, dir_path: []const u8) ![][]con
         files.deinit(allocator);
     }
 
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 

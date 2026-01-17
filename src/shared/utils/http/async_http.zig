@@ -231,9 +231,7 @@ pub const AsyncHttpClient = struct {
         // Create the I/O backend
         const io_backend = try allocator.create(std.Io.Threaded);
         errdefer allocator.destroy(io_backend);
-        io_backend.* = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        io_backend.* = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
 
         // Create and initialize the HTTP client
         const client = try allocator.create(std.http.Client);

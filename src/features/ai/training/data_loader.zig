@@ -137,9 +137,7 @@ pub const TokenizedDataset = struct {
     /// Load tokenized data from a binary file.
     /// Format: raw u32 token IDs in little-endian.
     pub fn load(allocator: std.mem.Allocator, path: []const u8) !TokenizedDataset {
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
 

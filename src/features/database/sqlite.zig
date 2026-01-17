@@ -120,21 +120,21 @@ pub const SqliteDatabase = struct {
     /// Flush changes to disk
     pub fn flush(self: *SqliteDatabase) !void {
         // Create I/O backend for synchronous file operations
-        var io_backend = std.Io.Threaded.init(self.allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
 
         var file = std.Io.Dir.cwd().createFile(io, self.path, .{ .truncate = true }) catch return SqliteError.ConnectionFailed;
         defer file.close(io);
 
-        var writer = file.writer(io);
+        // Build binary data in memory
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        defer buffer.deinit(self.allocator);
 
         // Write header
-        try writer.writeAll(&MAGIC);
-        try writer.writeInt(u32, VERSION, .little);
-        try writer.writeInt(u64, self.memory_db.count(), .little);
+        try buffer.appendSlice(self.allocator, &MAGIC);
+        try appendIntLe(u32, &buffer, self.allocator, VERSION);
+        try appendIntLe(u64, &buffer, self.allocator, self.memory_db.count());
 
         // Write each vector entry
         var it = self.memory_db.vectors.iterator();
@@ -143,36 +143,43 @@ pub const SqliteDatabase = struct {
             const vec_entry = entry.value_ptr.*;
 
             // Write ID
-            try writer.writeInt(u64, id, .little);
+            try appendIntLe(u64, &buffer, self.allocator, id);
 
             // Write vector length and data
-            try writer.writeInt(u32, @intCast(vec_entry.vector.len), .little);
+            try appendIntLe(u32, &buffer, self.allocator, @intCast(vec_entry.vector.len));
             for (vec_entry.vector) |v| {
-                try writer.writeInt(u32, @bitCast(v), .little);
+                try appendIntLe(u32, &buffer, self.allocator, @bitCast(v));
             }
 
             // Write metadata
             if (vec_entry.metadata) |meta| {
-                try writer.writeInt(u32, @intCast(meta.len), .little);
-                try writer.writeAll(meta);
+                try appendIntLe(u32, &buffer, self.allocator, @intCast(meta.len));
+                try buffer.appendSlice(self.allocator, meta);
             } else {
-                try writer.writeInt(u32, 0, .little);
+                try appendIntLe(u32, &buffer, self.allocator, 0);
             }
 
             // Write timestamps
-            try writer.writeInt(i64, vec_entry.created_at, .little);
-            try writer.writeInt(i64, vec_entry.updated_at, .little);
+            try appendIntLe(i64, &buffer, self.allocator, vec_entry.created_at);
+            try appendIntLe(i64, &buffer, self.allocator, vec_entry.updated_at);
         }
 
+        // Write to file using writeStreamingAll for Zig 0.16 compatibility
+        file.writeStreamingAll(io, buffer.items) catch return SqliteError.ConnectionFailed;
+
         self.dirty = false;
+    }
+
+    fn appendIntLe(comptime T: type, buffer: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, value: T) !void {
+        var bytes: [@sizeOf(T)]u8 = undefined;
+        std.mem.writeInt(T, &bytes, value, .little);
+        try buffer.appendSlice(allocator, &bytes);
     }
 
     /// Load database from disk
     pub fn load(self: *SqliteDatabase) !void {
         // Create I/O backend for synchronous file operations
-        var io_backend = std.Io.Threaded.init(self.allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
 
