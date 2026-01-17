@@ -1,16 +1,18 @@
 # Features Module (Legacy)
 
 Implementation layer for optional features. Most features have been migrated to
-top-level modules as part of the 2026-01-17 refactoring (Phases 1-6).
+top-level modules as part of the 2026-01-17 refactoring.
 
-## Migration Status (2026-01-17)
+## Current Status (2026-01-17)
 
-| Directory | Status | New Location |
-|-----------|--------|--------------|
-| `ai/` | Active | `src/ai/` (wrapper) re-exports from here |
-| `connectors/` | Active | Keep here (API integrations) |
-| `ha/` | Active | Keep here (HA components) |
-| `monitoring/` | Migrated | Now at `src/observability/` |
+| Directory | Status | Description |
+|-----------|--------|-------------|
+| `ai/` | Active | Full AI implementation (re-exported via `src/ai/`) |
+| `connectors/` | Active | API connectors (OpenAI, Ollama, Anthropic, etc.) |
+| `ha/` | Active | High availability (backup, PITR, replication) - exported via `abi.ha` |
+
+**Deleted:**
+- `monitoring/` - Consolidated into `src/observability/` (2026-01-17)
 
 ## Refactoring Summary
 
@@ -35,20 +37,18 @@ Features are accessible via two paths:
 2. **This module** (implementation): Direct access to feature code.
 
 ```
-Fully Migrated (no longer here):
-  src/gpu/mod.zig        ->  primary implementation
-  src/database/mod.zig   ->  primary implementation
-  src/network/mod.zig    ->  primary implementation
-  src/web/mod.zig        ->  primary implementation
-  src/runtime/mod.zig    ->  primary implementation
-
-Partially Migrated:
-  src/ai/mod.zig         ->  re-exports from  ->  src/features/ai/mod.zig
+Fully Migrated (primary location is top-level):
+  src/gpu/           ->  GPU acceleration (primary implementation)
+  src/database/      ->  Vector database (primary implementation)
+  src/network/       ->  Distributed compute (primary implementation)
+  src/web/           ->  Web utilities (primary implementation)
+  src/runtime/       ->  Runtime infrastructure (primary implementation)
+  src/observability/ ->  Metrics/tracing (consolidated from features/monitoring/)
 
 Still Here (intentionally):
-  src/features/connectors/  ->  API connectors (OpenAI, Ollama, HuggingFace, etc.)
-  src/features/ha/          ->  High availability (backup, PITR, replication)
-  src/observability/mod.zig  ->  primary implementation (migrated from features/monitoring/)
+  src/features/ai/         ->  AI implementation (re-exported via src/ai/)
+  src/features/connectors/ ->  API connectors (OpenAI, Ollama, Anthropic, etc.)
+  src/features/ha/         ->  High availability (exported via abi.ha)
 ```
 
 ## Feature Flags
@@ -60,12 +60,11 @@ Still Here (intentionally):
 
 ## Sub-modules
 
-| Directory | Top-Level Module | Status | Description |
-|-----------|------------------|--------|-------------|
-| `ai/` | `src/ai/` | Partial migration | AI features (LLM, embeddings, RAG) |
-| `connectors/` | (via ai) | Active | API connectors |
-| `ha/` | (internal) | Active | High availability components |
-| `monitoring/` | `src/observability/` | Migrated | Consolidated into observability |
+| Directory | Public Export | Status | Description |
+|-----------|---------------|--------|-------------|
+| `ai/` | `abi.ai` | Active | AI features (LLM, embeddings, RAG, agents) |
+| `connectors/` | `abi.connectors` | Active | API connectors (OpenAI, Ollama, etc.) |
+| `ha/` | `abi.ha` | Active | High availability (backup, PITR, replication) |
 
 ## Usage
 

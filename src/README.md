@@ -19,12 +19,12 @@
 //! | `ai/` | AI module with sub-features (llm, embeddings, agents, training) |
 //! | `database/` | Vector database (primary implementation) |
 //! | `network/` | Distributed compute (primary implementation) |
-//! | `observability/` | Metrics, tracing, profiling |
+//! | `observability/` | Metrics, tracing, profiling (consolidated from features/monitoring) |
 //! | `web/` | Web/HTTP utilities (primary implementation) |
-//! | `internal/` | Shared utilities (re-exports from `shared/`) |
+//! | `tasks/` | Task management system (roadmap, tracking) |
 //! | `core/` | Core infrastructure, hardware helpers |
 //! | `compute/` | Legacy re-exports (backward compat - use `runtime/` instead) |
-//! | `features/` | Legacy feature implementations (ai, connectors, ha, monitoring) |
+//! | `features/` | Legacy feature implementations (ai, connectors, ha) |
 //! | `shared/` | Cross-cutting utilities (logging, platform, utils) |
 //! | `tests/` | Test utilities and property-based testing |
 //!
@@ -74,8 +74,9 @@
 //! │   ├── mod.zig          # Primary implementation with Context
 //! │   └── stub.zig         # Feature-disabled stub
 //! │
-//! ├── internal/            # Shared internal utilities
-//! │   └── mod.zig          # Re-exports from shared/
+//! ├── tasks/               # Task management
+//! │   ├── mod.zig          # Task manager, roadmap, tracking
+//! │   └── types.zig        # Task and milestone types
 //! │
 //! ├── compute/             # Legacy re-exports (backward compat)
 //! │   └── mod.zig          # Re-exports from runtime/ for compatibility
@@ -83,8 +84,7 @@
 //! ├── features/            # Legacy feature implementations
 //! │   ├── ai/              # AI (LLM, embeddings, RAG) - still active
 //! │   ├── connectors/      # API connectors - still active
-//! │   ├── ha/              # High availability - still active
-//! │   └── monitoring/      # @deprecated - use observability/
+//! │   └── ha/              # High availability - still active
 //! │
 //! └── shared/              # Cross-cutting concerns
 //!     ├── logging/         # Logging infrastructure
