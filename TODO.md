@@ -84,7 +84,7 @@ This section aggregates all high‑level and implementation‑level tasks that a
 
 | Area | Description |
 |------|-------------|
-| Tooling | Debugger integration, performance profiler, memory‑leak detector |
+| ~~Tooling~~ | ~~Debugger integration, performance profiler, memory‑leak detector~~ ✅ Complete |
 | Documentation | Comprehensive API docs (auto‑generated, tutorials, videos) |
 | Architecture | System, component, and data‑flow diagrams |
 | Testing | Competitive benchmarks |
@@ -117,8 +117,8 @@ This section aggregates all high‑level and implementation‑level tasks that a
 
 ### Miscellaneous Implementation TODOs
 
-* Review any remaining `TODO:`/`FIXME:` markers in the source tree and document them here.
-* Ensure all feature‑gated stub modules correctly return `error.*Disabled`.
+* ~~Review any remaining `TODO:`/`FIXME:` markers in the source tree and document them here.~~ ✅ All code-level TODOs complete.
+* ~~Ensure all feature‑gated stub modules correctly return `error.*Disabled`.~~ ✅ All stubs verified.
 * Update documentation links throughout the repo to reference this **Claude‑Code Massive TODO** for visibility.
 
 [Main Workspace](MAIN_WORKSPACE.md)
