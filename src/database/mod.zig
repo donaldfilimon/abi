@@ -16,6 +16,7 @@ pub const batch = @import("batch.zig");
 pub const clustering = @import("clustering.zig");
 pub const formats = @import("formats/mod.zig");
 pub const quantization = @import("quantization.zig");
+pub const gpu_accel = @import("gpu_accel.zig");
 
 pub const Database = database.Database;
 pub const DatabaseHandle = wdbx.DatabaseHandle;
@@ -69,6 +70,11 @@ pub const elbowMethod = clustering.elbowMethod;
 pub const ScalarQuantizer = quantization.ScalarQuantizer;
 pub const ProductQuantizer = quantization.ProductQuantizer;
 pub const QuantizationError = quantization.QuantizationError;
+
+// GPU acceleration exports
+pub const GpuAccelerator = gpu_accel.GpuAccelerator;
+pub const GpuAccelConfig = gpu_accel.GpuAccelConfig;
+pub const GpuAccelStats = gpu_accel.GpuAccelStats;
 
 // Unified storage format exports
 pub const UnifiedFormat = formats.UnifiedFormat;
