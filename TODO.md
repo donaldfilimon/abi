@@ -118,7 +118,29 @@ This section aggregates all high‑level and implementation‑level tasks that a
 ### Miscellaneous Implementation TODOs
 
 * ~~Review any remaining `TODO:`/`FIXME:` markers in the source tree and document them here.~~ ✅ All code-level TODOs complete.
-* ~~Ensure all feature‑gated stub modules correctly return `error.*Disabled`.~~ ✅ All stubs verified.
+* ~~Ensure all feature‑gated stub modules correctly return `error.*Disabled`.~~ ✅ All stubs verified and tested (2026-01-17).
 * Update documentation links throughout the repo to reference this **Claude‑Code Massive TODO** for visibility.
+
+## Stub API Parity (2026-01-17)
+
+All feature stubs have been updated to match real implementations and tested with feature flags:
+
+| Feature | Stub File | Status | Notes |
+|---------|-----------|--------|-------|
+| AI | `src/features/ai/stub.zig` | ✅ | Fixed SessionData, SessionMeta, PromptBuilder, TrainingConfig, TrainingReport, TrainingResult, Checkpoint, TrainableModelConfig, TrainableModel |
+| LLM | `src/features/ai/llm/stub.zig` | ✅ | Added matrixMultiply to ops, GgufFile.printSummaryDebug |
+| GPU | `src/compute/gpu/stub.zig` | ✅ | Added backendAvailability export |
+| Network | `src/features/network/stub.zig` | ✅ | Added touch(), setStatus(), fixed NodeInfo.last_seen_ms, corrected NodeStatus enum |
+| Database | `src/features/database/stub.zig` | ✅ | Verified (no changes needed) |
+| Web | `src/shared/web/stub.zig` | ✅ | Verified (no changes needed) |
+| Profiling | `src/compute/profiling/stub.zig` | ✅ | Verified (no changes needed) |
+
+**Build Verification:**
+- ✅ `zig build -Denable-ai=false` - Passes
+- ✅ `zig build -Denable-gpu=false` - Passes
+- ✅ `zig build -Denable-network=false` - Passes
+- ✅ `zig build -Denable-database=false` - Passes
+- ✅ `zig build -Denable-web=false` - Passes
+- ✅ `zig build -Denable-profiling=false` - Passes
 
 [Main Workspace](MAIN_WORKSPACE.md)

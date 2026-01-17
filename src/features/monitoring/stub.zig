@@ -286,6 +286,138 @@ pub fn generateMetricsOutput(
     return error.MonitoringDisabled;
 }
 
+pub const OtelConfig = struct {
+    service_name: []const u8 = "abi",
+    endpoint: []const u8 = "http://localhost:4318",
+    api_key: ?[]const u8 = null,
+    sample_rate: f64 = 1.0,
+};
+
+pub const OtelExporter = struct {
+    allocator: std.mem.Allocator,
+    config: OtelConfig,
+
+    pub fn init(allocator: std.mem.Allocator, config: OtelConfig) MonitoringError!OtelExporter {
+        _ = allocator;
+        _ = config;
+        return error.MonitoringDisabled;
+    }
+
+    pub fn deinit(self: *OtelExporter) void {
+        _ = self;
+    }
+
+    pub fn start(self: *OtelExporter) MonitoringError!void {
+        _ = self;
+        return error.MonitoringDisabled;
+    }
+
+    pub fn stop(self: *OtelExporter) void {
+        _ = self;
+    }
+};
+
+pub const OtelSpanKind = enum {
+    internal,
+    server,
+    client,
+    producer,
+    consumer,
+};
+
+pub const OtelStatus = enum {
+    unset,
+    ok,
+    @"error",
+};
+
+pub const OtelAttributeValue = union(enum) {
+    string: []const u8,
+    int: i64,
+    float: f64,
+    bool: bool,
+};
+
+pub const OtelAttribute = struct {
+    key: []const u8,
+    value: OtelAttributeValue,
+};
+
+pub const OtelEvent = struct {
+    name: []const u8,
+    timestamp_ns: u64 = 0,
+    attributes: []const OtelAttribute = &.{},
+};
+
+pub const OtelSpan = struct {
+    name: []const u8 = "",
+    kind: OtelSpanKind = .internal,
+    status: OtelStatus = .unset,
+    attributes: []const OtelAttribute = &.{},
+    events: []const OtelEvent = &.{},
+
+    pub fn end(self: *OtelSpan) void {
+        _ = self;
+    }
+};
+
+pub const OtelMetricType = enum {
+    counter,
+    gauge,
+    histogram,
+};
+
+pub const OtelMetric = struct {
+    name: []const u8,
+    metric_type: OtelMetricType,
+    value: f64,
+};
+
+pub const OtelTracer = struct {
+    allocator: std.mem.Allocator,
+    service_name: []const u8,
+
+    pub fn init(allocator: std.mem.Allocator, service_name: []const u8) MonitoringError!OtelTracer {
+        _ = allocator;
+        _ = service_name;
+        return error.MonitoringDisabled;
+    }
+
+    pub fn deinit(self: *OtelTracer) void {
+        _ = self;
+    }
+
+    pub fn startSpan(
+        self: *OtelTracer,
+        name: []const u8,
+        parent: ?OtelSpan,
+        kind: ?OtelSpanKind,
+    ) MonitoringError!OtelSpan {
+        _ = self;
+        _ = name;
+        _ = parent;
+        _ = kind;
+        return error.MonitoringDisabled;
+    }
+};
+
+pub const OtelContext = struct {
+    trace_id: [16]u8 = .{0} ** 16,
+    span_id: [8]u8 = .{0} ** 8,
+};
+
+pub fn formatTraceId(_: [16]u8) [32]u8 {
+    return .{0} ** 32;
+}
+
+pub fn formatSpanId(_: [8]u8) [16]u8 {
+    return .{0} ** 16;
+}
+
+pub fn createOtelResource(_: OtelConfig) []const OtelAttribute {
+    return &.{};
+}
+
 pub const DefaultMetrics = struct {
     requests: *Counter,
     errors: *Counter,
@@ -306,6 +438,91 @@ pub const DefaultCollector = struct {
     }
 };
 
+pub const CircuitBreakerMetrics = struct {
+    requests_total: *Counter,
+    requests_rejected: *Counter,
+    state_transitions: *Counter,
+    latency_ms: *Histogram,
+
+    pub fn init(collector: *MetricsCollector) MonitoringError!CircuitBreakerMetrics {
+        _ = collector;
+        return error.MonitoringDisabled;
+    }
+
+    pub fn recordRequest(self: *CircuitBreakerMetrics, success: bool, latency_ms: u64) void {
+        _ = self;
+        _ = success;
+        _ = latency_ms;
+    }
+
+    pub fn recordStateTransition(self: *CircuitBreakerMetrics) void {
+        _ = self;
+    }
+};
+
+pub const ErrorMetrics = struct {
+    errors_total: *Counter,
+    errors_critical: *Counter,
+    patterns_detected: *Counter,
+
+    pub fn init(collector: *MetricsCollector) MonitoringError!ErrorMetrics {
+        _ = collector;
+        return error.MonitoringDisabled;
+    }
+
+    pub fn recordError(self: *ErrorMetrics, is_critical: bool) void {
+        _ = self;
+        _ = is_critical;
+    }
+
+    pub fn recordPattern(self: *ErrorMetrics) void {
+        _ = self;
+    }
+};
+
+pub const BundleConfig = struct {
+    enable_circuit_breaker_metrics: bool = true,
+    enable_error_metrics: bool = true,
+    prometheus: ?PrometheusConfig = null,
+    otel: ?OtelConfig = null,
+};
+
+pub const ObservabilityBundle = struct {
+    allocator: std.mem.Allocator,
+    collector: MetricsCollector,
+    defaults: DefaultMetrics,
+    circuit_breaker: ?CircuitBreakerMetrics,
+    errors: ?ErrorMetrics,
+    prometheus: ?*PrometheusExporter,
+    otel_exporter: ?*OtelExporter,
+    tracer: ?*OtelTracer,
+
+    pub fn init(allocator: std.mem.Allocator, config: BundleConfig) MonitoringError!ObservabilityBundle {
+        _ = allocator;
+        _ = config;
+        return error.MonitoringDisabled;
+    }
+
+    pub fn deinit(self: *ObservabilityBundle) void {
+        _ = self;
+    }
+
+    pub fn start(self: *ObservabilityBundle) MonitoringError!void {
+        _ = self;
+        return error.MonitoringDisabled;
+    }
+
+    pub fn stop(self: *ObservabilityBundle) void {
+        _ = self;
+    }
+
+    pub fn startSpan(self: *ObservabilityBundle, name: []const u8) MonitoringError!?OtelSpan {
+        _ = self;
+        _ = name;
+        return error.MonitoringDisabled;
+    }
+};
+
 // Top-level function for creating alert rules
 pub fn createAlertRule(name: []const u8) AlertRuleBuilder {
     return AlertRuleBuilder.init(name);
@@ -313,22 +530,49 @@ pub fn createAlertRule(name: []const u8) AlertRuleBuilder {
 
 // Sub-module namespace (alerting)
 pub const alerting = struct {
-    pub const AlertManager = @import("stub.zig").AlertManager;
-    pub const AlertManagerConfig = @import("stub.zig").AlertManagerConfig;
-    pub const AlertRule = @import("stub.zig").AlertRule;
-    pub const AlertRuleBuilder = @import("stub.zig").AlertRuleBuilder;
-    pub const Alert = @import("stub.zig").Alert;
-    pub const AlertState = @import("stub.zig").AlertState;
-    pub const AlertSeverity = @import("stub.zig").AlertSeverity;
-    pub const AlertCondition = @import("stub.zig").AlertCondition;
-    pub const AlertError = @import("stub.zig").AlertError;
-    pub const AlertStats = @import("stub.zig").AlertStats;
-    pub const AlertCallback = @import("stub.zig").AlertCallback;
-    pub const AlertHandler = @import("stub.zig").AlertHandler;
-    pub const MetricValues = @import("stub.zig").MetricValues;
+    pub const AlertManager = stub_root.AlertManager;
+    pub const AlertManagerConfig = stub_root.AlertManagerConfig;
+    pub const AlertRule = stub_root.AlertRule;
+    pub const AlertRuleBuilder = stub_root.AlertRuleBuilder;
+    pub const Alert = stub_root.Alert;
+    pub const AlertState = stub_root.AlertState;
+    pub const AlertSeverity = stub_root.AlertSeverity;
+    pub const AlertCondition = stub_root.AlertCondition;
+    pub const AlertError = stub_root.AlertError;
+    pub const AlertStats = stub_root.AlertStats;
+    pub const AlertCallback = stub_root.AlertCallback;
+    pub const AlertHandler = stub_root.AlertHandler;
+    pub const MetricValues = stub_root.MetricValues;
 
-    pub const createRule = @import("stub.zig").createAlertRule;
+    pub const createRule = stub_root.createAlertRule;
 };
+
+pub const prometheus = struct {
+    pub const PrometheusExporter = stub_root.PrometheusExporter;
+    pub const PrometheusConfig = stub_root.PrometheusConfig;
+    pub const PrometheusFormatter = stub_root.PrometheusFormatter;
+    pub const generateMetricsOutput = stub_root.generateMetricsOutput;
+};
+
+pub const otel = struct {
+    pub const OtelExporter = stub_root.OtelExporter;
+    pub const OtelConfig = stub_root.OtelConfig;
+    pub const OtelTracer = stub_root.OtelTracer;
+    pub const OtelSpan = stub_root.OtelSpan;
+    pub const OtelSpanKind = stub_root.OtelSpanKind;
+    pub const OtelContext = stub_root.OtelContext;
+    pub const OtelMetric = stub_root.OtelMetric;
+    pub const OtelMetricType = stub_root.OtelMetricType;
+    pub const OtelAttribute = stub_root.OtelAttribute;
+    pub const OtelAttributeValue = stub_root.OtelAttributeValue;
+    pub const OtelEvent = stub_root.OtelEvent;
+    pub const OtelStatus = stub_root.OtelStatus;
+    pub const formatTraceId = stub_root.formatTraceId;
+    pub const formatSpanId = stub_root.formatSpanId;
+    pub const createOtelResource = stub_root.createOtelResource;
+};
+
+pub const statsd = struct {};
 
 // Module lifecycle
 var initialized: bool = false;

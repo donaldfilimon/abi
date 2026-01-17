@@ -18,7 +18,7 @@ zig test src/compute/runtime/engine.zig
 zig test src/tests/mod.zig --test-filter "pattern"
 ```
 
-## LLM Instructions
+## LLM Instructions (Critical)
 
 - Keep changes minimal and consistent with existing patterns; avoid breaking public APIs unless requested.
 - Preserve feature gating: stub modules must mirror the real API and return `error.*Disabled`.
@@ -33,9 +33,11 @@ zig test src/tests/mod.zig --test-filter "pattern"
 |-------|----------|
 | `--test-filter` not working | Use `zig test file.zig --test-filter "pattern"`, NOT `zig build test --test-filter` |
 | `std.fs.cwd()` doesn't exist | Use `std.Io.Dir.cwd()` with an `std.Io` context (Zig 0.16) |
+| `error` in enum fields | Escape reserved keywords: `@"error"` not `error` |
 | Backup/restore path errors | Paths restricted to `backups/` directory; no `..`, absolute paths, or drive letters |
 | Feature disabled errors | Rebuild with `-Denable-<feature>=true` |
 | GPU backend conflicts | Enable only one backend: `-Dgpu-cuda=true -Dgpu-vulkan=false` |
+| WASM missing features | `database`, `network`, `gpu` auto-disabled for WASM targets (by design) |
 
 ## Feature Flags
 
@@ -172,6 +174,8 @@ Connector config uses ABI-prefixed vars with fallback: `ABI_OPENAI_API_KEY` → 
 | `ABI_OLLAMA_MODEL` | `llama3.2` | Default Ollama model |
 | `ABI_HF_API_TOKEN` / `HF_API_TOKEN` | - | HuggingFace token |
 | `DISCORD_BOT_TOKEN` | - | Discord bot token |
+| `ABI_LOCAL_SCHEDULER_URL` / `LOCAL_SCHEDULER_URL` | `http://127.0.0.1:8081` | Local scheduler URL |
+| `ABI_LOCAL_SCHEDULER_ENDPOINT` | `/schedule` | Scheduler endpoint |
 
 ## CLI Commands
 
@@ -184,7 +188,6 @@ zig build run -- db backup --path backup.db
 # Agent
 zig build run -- agent --persona coder
 zig build run -- agent -m "Hello"
-zig build run -- agent --list-personas
 
 # LLM
 zig build run -- llm info model.gguf
@@ -197,21 +200,11 @@ zig build run -- gpu devices
 # Training
 zig build run -- train run --epochs 10 --batch-size 32
 zig build run -- train resume ./checkpoint.ckpt
-
-# LLM Fine‑Tuning (demo)
-# --------------------------------
-# The `train llm` subcommand showcases a minimal LLM training workflow.
-# It builds a tiny in‑memory model, generates synthetic token data, and runs
-# `abi.ai.trainLlm` with the default `LlmTrainingConfig`.  This is a scaffold for
-# future fine‑tuning of real GGUF models.
-# Example usage:
-#   zig build run -- train llm my_model.gguf --epochs 2 --batch-size 4
-# The command prints a short summary on completion, e.g.:
-#   LLM training completed. epochs=2, final loss=0.1234
+zig build run -- train llm model.gguf --epochs 2  # LLM fine-tuning demo
 
 # Other
 zig build run -- explore "fn init" --level thorough
-zig build run -- system-info
+zig build run -- tui                              # Interactive command launcher
 ```
 
 ## GPU API
@@ -250,6 +243,7 @@ See [docs/troubleshooting.md](docs/troubleshooting.md) for detailed solutions. C
 - **GPU not detected**: Check `zig build run -- gpu backends` and drivers
 - **Timeout errors**: Increase timeout or use `null` for indefinite wait
 - **Out of memory**: Use arena allocators, reduce batch sizes, add `defer` cleanup
+- **Debugging**: Use GDB/LLDB with debug builds (see [docs/troubleshooting.md#debugging-with-gdblldb](docs/troubleshooting.md#debugging-with-gdblldb))
 
 ## References
 
@@ -258,7 +252,6 @@ See [docs/troubleshooting.md](docs/troubleshooting.md) for detailed solutions. C
 | [docs/intro.md](docs/intro.md) | Architecture overview |
 | [API_REFERENCE.md](API_REFERENCE.md) | Public API summary |
 | [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) | Zig 0.16 patterns |
-| [TODO.md](TODO.md) | Pending work |
+| [TODO.md](TODO.md) | Pending work (Llama-CPP parity complete) |
 | [ROADMAP.md](ROADMAP.md) | Version milestones |
-| [docs/troubleshooting.md](docs/troubleshooting.md) | Common issues |
-[Main Workspace](MAIN_WORKSPACE.md)
+| [docs/troubleshooting.md](docs/troubleshooting.md) | Common issues and debugging |

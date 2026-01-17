@@ -215,8 +215,21 @@ All Zig 0.16 API migrations are complete:
 - [x] `std.ArrayListUnmanaged` for explicit allocator passing
 - [x] `{t}` format specifier for enums/errors
 - [x] CI/CD pinned to Zig 0.16.x
+- [x] Feature stub API parity (2026-01-17)
 
 See `docs/migration/zig-0.16-migration.md` for detailed migration guide.
+
+### Code Quality & Refactoring (2026-01-17)
+
+All feature-gated stubs have been audited and updated for API parity:
+
+- [x] AI stub API matches real implementation (SessionData, TrainingConfig, Checkpoint, etc.)
+- [x] GPU stub exports all public functions (backendAvailability)
+- [x] Network stub implements full registry API (touch, setStatus)
+- [x] All stub modules tested with `-Denable-<feature>=false` builds
+- [x] Zig 0.16 I/O patterns applied to numa.zig (std.Io.Dir.cwd())
+
+**Build Verification:** All feature flag combinations build successfully.
 
 ## Changelog History
 
@@ -231,10 +244,10 @@ src/shared/contacts.zig provides a centralized list of maintainer contacts extra
 See [TODO.md](TODO.md) for the list of pending implementations.
  
 ## Expanded Roadmap Details
-### Tooling (Q2 2026)
-- **Debugger integration** – Enable source‑level debugging via Zig's built‑in debugging hooks and standard GDB/LLDB support.
-- **Performance profiler** – Integrate a low‑overhead sampling profiler to visualize CPU and GPU hotspots.
-- **Memory leak detector** – Provide automated leak detection using Zig's memory‑sanitizer utilities.
+### Tooling (Q2 2026) COMPLETE
+- **Debugger integration** - GDB/LLDB support documented in docs/troubleshooting.md.
+- **Performance profiler** - MetricsCollector and GPU Profiler implemented.
+- **Memory leak detector** - TrackingAllocator with leak detection implemented.
 ### Documentation (Q2 2026)
 - **Comprehensive API docs** – Auto‑generated reference using `zig api`, plus tutorial series and video walkthroughs.
 - **Architecture diagrams** – System‑level, component interaction, and data‑flow diagrams to aid onboarding.

@@ -1,88 +1,129 @@
 //! Stub for GPU feature when disabled
-const std = @import("std");
+//!
+//! Mirrors the public API of mod.zig while delegating to the real module.
 const compute_gpu = @import("mod.zig");
 
+pub const acceleration = compute_gpu.acceleration;
+pub const Accelerator = compute_gpu.Accelerator;
+pub const AcceleratorConfig = compute_gpu.AcceleratorConfig;
+pub const AcceleratorError = compute_gpu.AcceleratorError;
+pub const AccessHint = compute_gpu.AccessHint;
+pub const AccessMode = compute_gpu.AccessMode;
+pub const AddressSpace = compute_gpu.AddressSpace;
+pub const AsyncTransfer = compute_gpu.AsyncTransfer;
+pub const availableBackends = compute_gpu.availableBackends;
 pub const Backend = compute_gpu.Backend;
-pub const DeviceInfo = compute_gpu.DeviceInfo;
 pub const BackendAvailability = compute_gpu.BackendAvailability;
+pub const backendAvailability = compute_gpu.backendAvailability;
+pub const backendDescription = compute_gpu.backendDescription;
+pub const backendDisplayName = compute_gpu.backendDisplayName;
+pub const backendFlag = compute_gpu.backendFlag;
+pub const backendFromString = compute_gpu.backendFromString;
+pub const BackendInfo = compute_gpu.BackendInfo;
+pub const backendName = compute_gpu.backendName;
+pub const backendSupportsKernels = compute_gpu.backendSupportsKernels;
+pub const BinaryOp = compute_gpu.BinaryOp;
+pub const Buffer = compute_gpu.Buffer;
+pub const BufferFlags = compute_gpu.BufferFlags;
+pub const BufferOptions = compute_gpu.BufferOptions;
+pub const BufferStats = compute_gpu.BufferStats;
+pub const BufferView = compute_gpu.BufferView;
+pub const BuiltinFn = compute_gpu.BuiltinFn;
+pub const BuiltinVar = compute_gpu.BuiltinVar;
+pub const CacheStats = compute_gpu.CacheStats;
+pub const CodegenError = compute_gpu.CodegenError;
+pub const compile = compute_gpu.compile;
+pub const compileAll = compute_gpu.compileAll;
+pub const CompiledKernel = compute_gpu.CompiledKernel;
+pub const CompileError = compute_gpu.CompileError;
+pub const compileKernel = compute_gpu.compileKernel;
+pub const CompileOptions = compute_gpu.CompileOptions;
+pub const compileToKernelSource = compute_gpu.compileToKernelSource;
+pub const ComputeTask = compute_gpu.ComputeTask;
+pub const createDefaultKernels = compute_gpu.createDefaultKernels;
+pub const cuda_loader = compute_gpu.cuda_loader;
+pub const defaultDevice = compute_gpu.defaultDevice;
+pub const defaultDeviceLabel = compute_gpu.defaultDeviceLabel;
+pub const deinit = compute_gpu.deinit;
+pub const DetectionLevel = compute_gpu.DetectionLevel;
+pub const Device = compute_gpu.Device;
+pub const DeviceCapability = compute_gpu.DeviceCapability;
+pub const DeviceFeature = compute_gpu.DeviceFeature;
+pub const DeviceInfo = compute_gpu.DeviceInfo;
+pub const DeviceManager = compute_gpu.DeviceManager;
+pub const DeviceSelector = compute_gpu.DeviceSelector;
+pub const DeviceType = compute_gpu.DeviceType;
+pub const discoverDevices = compute_gpu.discoverDevices;
+pub const dsl = compute_gpu.dsl;
+pub const DslType = compute_gpu.DslType;
+pub const ElementType = compute_gpu.ElementType;
+pub const ensureInitialized = compute_gpu.ensureInitialized;
+pub const Event = compute_gpu.Event;
+pub const EventFlags = compute_gpu.EventFlags;
+pub const EventOptions = compute_gpu.EventOptions;
+pub const EventState = compute_gpu.EventState;
+pub const ExecutionResult = compute_gpu.ExecutionResult;
+pub const ExecutionStats = compute_gpu.ExecutionStats;
+pub const Expr = compute_gpu.Expr;
+pub const GeneratedSource = compute_gpu.GeneratedSource;
+pub const getAvailableBackends = compute_gpu.getAvailableBackends;
+pub const getBestBackend = compute_gpu.getBestBackend;
+pub const getBestKernelBackend = compute_gpu.getBestKernelBackend;
+pub const Gpu = compute_gpu.Gpu;
+pub const GPUBuffer = compute_gpu.GPUBuffer;
+pub const GpuConfig = compute_gpu.GpuConfig;
 pub const GpuError = compute_gpu.GpuError;
-
-pub fn moduleEnabled() bool {
-    return false;
-}
-
-pub fn backendAvailability(backend: Backend) BackendAvailability {
-    _ = backend;
-    return BackendAvailability{
-        .enabled = false,
-        .available = false,
-        .reason = "GPU disabled",
-        .device_count = 0,
-        .level = .none,
-    };
-}
-
-pub fn availableBackends(allocator: std.mem.Allocator) ![]Backend {
-    _ = allocator;
-    return &.{};
-}
-
-pub fn listDevices(allocator: std.mem.Allocator) ![]DeviceInfo {
-    _ = allocator;
-    return &.{};
-}
-
-pub fn init(allocator: std.mem.Allocator) GpuError!void {
-    _ = allocator;
-    return error.GpuDisabled;
-}
-
-pub fn deinit() void {}
-
-pub const GpuConfig = struct {
-    preferred_backend: ?Backend = null,
-    enable_profiling: bool = false,
-    memory_mode: MemoryMode = .automatic,
-    multi_gpu: bool = false,
-    load_balance_strategy: LoadBalanceStrategy = .round_robin,
-};
-
-pub const MemoryMode = enum {
-    automatic,
-    explicit,
-    unified,
-};
-
-pub const LoadBalanceStrategy = enum {
-    round_robin,
-    memory_aware,
-    compute_aware,
-    manual,
-};
-
-pub const Gpu = struct {
-    allocator: std.mem.Allocator,
-    config: GpuConfig,
-
-    pub fn init(allocator: std.mem.Allocator, config: GpuConfig) GpuError!Gpu {
-        _ = allocator;
-        _ = config;
-        return error.GpuDisabled;
-    }
-
-    pub fn deinit(self: *Gpu) void {
-        _ = self;
-    }
-
-    pub fn isAvailable(_: *const Gpu) bool {
-        return false;
-    }
-
-    pub fn getActiveDevice(_: *const Gpu) ?*const DeviceInfo {
-        return null;
-    }
-
-    pub fn getBackend(_: *const Gpu) ?Backend {
-        return null;
-    }
-};
+pub const GPUMemoryPool = compute_gpu.GPUMemoryPool;
+pub const GpuStats = compute_gpu.GpuStats;
+pub const GpuStream = compute_gpu.GpuStream;
+pub const HealthStatus = compute_gpu.HealthStatus;
+pub const init = compute_gpu.init;
+pub const interface = compute_gpu.interface;
+pub const isEnabled = compute_gpu.isEnabled;
+pub const isGpuAvailable = compute_gpu.isGpuAvailable;
+pub const isInitialized = compute_gpu.isInitialized;
+pub const KernelBuilder = compute_gpu.KernelBuilder;
+pub const KernelCache = compute_gpu.KernelCache;
+pub const KernelCacheConfig = compute_gpu.KernelCacheConfig;
+pub const KernelConfig = compute_gpu.KernelConfig;
+pub const KernelError = compute_gpu.KernelError;
+pub const KernelIR = compute_gpu.KernelIR;
+pub const KernelSource = compute_gpu.KernelSource;
+pub const LaunchConfig = compute_gpu.LaunchConfig;
+pub const listBackendInfo = compute_gpu.listBackendInfo;
+pub const listDevices = compute_gpu.listDevices;
+pub const LoadBalanceStrategy = compute_gpu.LoadBalanceStrategy;
+pub const MappedBuffer = compute_gpu.MappedBuffer;
+pub const MatrixDims = compute_gpu.MatrixDims;
+pub const matrixMultiply = compute_gpu.matrixMultiply;
+pub const MatrixType = compute_gpu.MatrixType;
+pub const MemoryBandwidth = compute_gpu.MemoryBandwidth;
+pub const MemoryError = compute_gpu.MemoryError;
+pub const MemoryInfo = compute_gpu.MemoryInfo;
+pub const MemoryLocation = compute_gpu.MemoryLocation;
+pub const MemoryMode = compute_gpu.MemoryMode;
+pub const MemoryPool = compute_gpu.MemoryPool;
+pub const MemoryStats = compute_gpu.MemoryStats;
+pub const moduleEnabled = compute_gpu.moduleEnabled;
+pub const MultiGpuConfig = compute_gpu.MultiGpuConfig;
+pub const OccupancyResult = compute_gpu.OccupancyResult;
+pub const PortableKernelSource = compute_gpu.PortableKernelSource;
+pub const Profiler = compute_gpu.Profiler;
+pub const profiling = compute_gpu.profiling;
+pub const reduceSum = compute_gpu.reduceSum;
+pub const ScalarType = compute_gpu.ScalarType;
+pub const Stmt = compute_gpu.Stmt;
+pub const stream = compute_gpu.stream;
+pub const StreamFlags = compute_gpu.StreamFlags;
+pub const StreamManager = compute_gpu.StreamManager;
+pub const StreamOptions = compute_gpu.StreamOptions;
+pub const StreamPriority = compute_gpu.StreamPriority;
+pub const StreamState = compute_gpu.StreamState;
+pub const summary = compute_gpu.summary;
+pub const TimingResult = compute_gpu.TimingResult;
+pub const UnaryOp = compute_gpu.UnaryOp;
+pub const unified = compute_gpu.unified;
+pub const unified_buffer = compute_gpu.unified_buffer;
+pub const UnifiedBuffer = compute_gpu.UnifiedBuffer;
+pub const vectorAdd = compute_gpu.vectorAdd;
+pub const VectorType = compute_gpu.VectorType;

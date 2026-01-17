@@ -3,51 +3,13 @@
 //! Mirrors the full API of mod.zig, returning error.NetworkDisabled for all operations.
 
 const std = @import("std");
-const stub_root = @This();
 
 pub const NetworkError = error{
     NetworkDisabled,
     NotInitialized,
-    ConnectionFailed,
-    Timeout,
 };
 
-// Core Network Types
-pub const NetworkConfig = struct {
-    cluster_id: []const u8 = "default",
-    heartbeat_timeout_ms: u64 = 30_000,
-    max_nodes: usize = 256,
-};
-
-pub const NetworkState = struct {
-    allocator: std.mem.Allocator,
-    config: NetworkConfig,
-    registry: NodeRegistry,
-
-    pub fn init(allocator: std.mem.Allocator, config: NetworkConfig) NetworkError!@This() {
-        _ = allocator;
-        _ = config;
-        return error.NetworkDisabled;
-    }
-
-    pub fn deinit(self: *@This()) void {
-        _ = self;
-    }
-};
-
-pub const NodeStatus = enum {
-    healthy,
-    degraded,
-    offline,
-};
-
-pub const NodeInfo = struct {
-    id: []const u8 = "",
-    address: []const u8 = "",
-    status: NodeStatus = .healthy,
-    last_seen_ms: i64 = 0,
-};
-
+// Node Registry
 pub const NodeRegistry = struct {
     allocator: std.mem.Allocator,
 
@@ -85,36 +47,46 @@ pub const NodeRegistry = struct {
         return false;
     }
 
-    pub fn list(self: *@This()) []const NodeInfo {
+    pub fn list(self: *@This()) []NodeInfo {
         _ = self;
         return &.{};
     }
 };
 
-// Protocol Types
+pub const NodeInfo = struct {
+    id: []const u8 = "",
+    address: []const u8 = "",
+    status: NodeStatus = .healthy,
+    last_seen_ms: i64 = 0,
+};
+
+pub const NodeStatus = enum {
+    healthy,
+    degraded,
+    offline,
+};
+
+// Protocol
 pub const TaskEnvelope = struct {
-    task_id: u64 = 0,
-    payload: []const u8 = &.{},
-    priority: TaskPriority = .normal,
+    id: []const u8 = "",
+    payload: []const u8 = "",
 };
 
 pub const ResultEnvelope = struct {
-    task_id: u64 = 0,
-    status: ResultStatus = .success,
-    payload: []const u8 = &.{},
-    error_message: ?[]const u8 = null,
+    task_id: []const u8 = "",
+    status: ResultStatus = .pending,
+    payload: ?[]const u8 = null,
 };
 
 pub const ResultStatus = enum {
-    success,
-    failure,
-    timeout,
-    cancelled,
+    pending,
+    completed,
+    failed,
 };
 
-pub fn encodeTask(allocator: std.mem.Allocator, envelope: TaskEnvelope) NetworkError![]u8 {
+pub fn encodeTask(allocator: std.mem.Allocator, task: TaskEnvelope) NetworkError![]u8 {
     _ = allocator;
-    _ = envelope;
+    _ = task;
     return error.NetworkDisabled;
 }
 
@@ -124,9 +96,9 @@ pub fn decodeTask(allocator: std.mem.Allocator, data: []const u8) NetworkError!T
     return error.NetworkDisabled;
 }
 
-pub fn encodeResult(allocator: std.mem.Allocator, envelope: ResultEnvelope) NetworkError![]u8 {
+pub fn encodeResult(allocator: std.mem.Allocator, result: ResultEnvelope) NetworkError![]u8 {
     _ = allocator;
-    _ = envelope;
+    _ = result;
     return error.NetworkDisabled;
 }
 
@@ -136,51 +108,37 @@ pub fn decodeResult(allocator: std.mem.Allocator, data: []const u8) NetworkError
     return error.NetworkDisabled;
 }
 
-// Scheduler Types
+// Scheduler
 pub const TaskScheduler = struct {
     pub fn init(allocator: std.mem.Allocator, config: SchedulerConfig) NetworkError!@This() {
         _ = allocator;
         _ = config;
         return error.NetworkDisabled;
     }
+
     pub fn deinit(self: *@This()) void {
         _ = self;
     }
 };
 
 pub const SchedulerConfig = struct {
-    max_concurrent: usize = 100,
-    timeout_ms: u64 = 30_000,
+    max_concurrent_tasks: u32 = 100,
     strategy: LoadBalancingStrategy = .round_robin,
 };
 
 pub const SchedulerError = error{
     NetworkDisabled,
-    NoNodesAvailable,
-    TaskTimeout,
-    SchedulingFailed,
+    NoAvailableNodes,
+    TaskNotFound,
 };
 
-pub const TaskPriority = enum {
-    low,
-    normal,
-    high,
-    critical,
-};
-
-pub const TaskState = enum {
-    pending,
-    running,
-    completed,
-    failed,
-    cancelled,
-};
+pub const TaskPriority = enum { low, normal, high, critical };
+pub const TaskState = enum { pending, running, completed, failed };
 
 pub const ComputeNode = struct {
     id: []const u8 = "",
     address: []const u8 = "",
     capacity: u32 = 0,
-    current_load: u32 = 0,
 };
 
 pub const LoadBalancingStrategy = enum {
@@ -191,134 +149,86 @@ pub const LoadBalancingStrategy = enum {
 };
 
 pub const SchedulerStats = struct {
-    total_tasks: u64 = 0,
-    completed_tasks: u64 = 0,
-    failed_tasks: u64 = 0,
-    avg_latency_ms: f64 = 0.0,
+    tasks_scheduled: u64 = 0,
+    tasks_completed: u64 = 0,
+    tasks_failed: u64 = 0,
 };
 
-// HA Types
+// High Availability
 pub const HealthCheck = struct {
-    pub fn init(allocator: std.mem.Allocator) @This() {
-        _ = allocator;
-        return .{};
-    }
-    pub fn deinit(self: *@This()) void {
-        _ = self;
-    }
-    pub fn check(self: *@This(), node_id: []const u8) NetworkError!HealthCheckResult {
-        _ = self;
-        _ = node_id;
-        return error.NetworkDisabled;
-    }
-};
-
-pub const ClusterConfig = struct {
-    min_nodes: usize = 1,
-    quorum_size: usize = 1,
-    failover_policy: FailoverPolicy = .automatic,
-};
-
-pub const HaError = error{
-    NetworkDisabled,
-    QuorumLost,
-    FailoverFailed,
-    NodeUnreachable,
-};
-
-pub const NodeHealth = enum {
-    healthy,
-    unhealthy,
-    unknown,
-};
-
-pub const ClusterState = enum {
-    healthy,
-    degraded,
-    critical,
-    offline,
-};
-
-pub const HealthCheckResult = struct {
-    node_id: []const u8 = "",
-    health: NodeHealth = .unknown,
-    latency_ms: u64 = 0,
-    error_message: ?[]const u8 = null,
-};
-
-pub const FailoverPolicy = enum {
-    manual,
-    automatic,
-    disabled,
-};
-
-// Service Discovery Types
-pub const ServiceDiscovery = struct {
-    pub fn init(allocator: std.mem.Allocator, config: DiscoveryConfig) @This() {
+    pub fn init(allocator: std.mem.Allocator, config: ClusterConfig) @This() {
         _ = allocator;
         _ = config;
         return .{};
     }
+
     pub fn deinit(self: *@This()) void {
         _ = self;
     }
-    pub fn register(self: *@This(), instance: ServiceInstance) NetworkError!void {
-        _ = self;
-        _ = instance;
+};
+
+pub const ClusterConfig = struct {
+    heartbeat_interval_ms: u64 = 5000,
+    failure_threshold: u32 = 3,
+};
+
+pub const HaError = error{
+    NetworkDisabled,
+    NodeNotFound,
+};
+
+pub const NodeHealth = enum { healthy, degraded, unhealthy };
+pub const ClusterState = enum { healthy, degraded, critical };
+
+pub const HealthCheckResult = struct {
+    node_id: []const u8 = "",
+    health: NodeHealth = .healthy,
+    latency_ms: u64 = 0,
+};
+
+pub const FailoverPolicy = enum { automatic, manual, disabled };
+
+// Service Discovery
+pub const ServiceDiscovery = struct {
+    pub fn init(allocator: std.mem.Allocator, config: DiscoveryConfig) NetworkError!@This() {
+        _ = allocator;
+        _ = config;
         return error.NetworkDisabled;
     }
-    pub fn discover(self: *@This(), service_name: []const u8) NetworkError![]ServiceInstance {
+
+    pub fn deinit(self: *@This()) void {
         _ = self;
-        _ = service_name;
-        return error.NetworkDisabled;
     }
 };
 
 pub const DiscoveryConfig = struct {
-    backend: DiscoveryBackend = .manual,
+    backend: DiscoveryBackend = .static,
     refresh_interval_ms: u64 = 30_000,
 };
 
-pub const DiscoveryBackend = enum {
-    manual,
-    consul,
-    kubernetes,
-    dns,
-};
+pub const DiscoveryBackend = enum { static, dns, consul, etcd };
 
 pub const ServiceInstance = struct {
     id: []const u8 = "",
-    service_name: []const u8 = "",
+    name: []const u8 = "",
     address: []const u8 = "",
     port: u16 = 0,
     status: ServiceStatus = .unknown,
 };
 
-pub const ServiceStatus = enum {
-    healthy,
-    unhealthy,
-    unknown,
-};
+pub const ServiceStatus = enum { unknown, up, down, starting };
+pub const DiscoveryError = error{ NetworkDisabled, ServiceNotFound };
 
-pub const DiscoveryError = error{
-    NetworkDisabled,
-    ServiceNotFound,
-    RegistrationFailed,
-};
-
-// Load Balancer Types
+// Load Balancer
 pub const LoadBalancer = struct {
     pub fn init(allocator: std.mem.Allocator, config: LoadBalancerConfig) @This() {
         _ = allocator;
         _ = config;
         return .{};
     }
+
     pub fn deinit(self: *@This()) void {
         _ = self;
-    }
-    pub fn selectNode(self: *@This()) ?*NodeStats {
-        _ = self;
-        return null;
     }
 };
 
@@ -327,33 +237,17 @@ pub const LoadBalancerConfig = struct {
     health_check_interval_ms: u64 = 10_000,
 };
 
-pub const LoadBalancerStrategy = enum {
-    round_robin,
-    least_connections,
-    weighted_round_robin,
-    ip_hash,
-};
-
-pub const LoadBalancerError = error{
-    NetworkDisabled,
-    NoHealthyNodes,
-    SelectionFailed,
-};
-
-pub const NodeState = enum {
-    active,
-    draining,
-    inactive,
-};
+pub const LoadBalancerStrategy = enum { round_robin, least_connections, weighted, ip_hash };
+pub const LoadBalancerError = error{ NetworkDisabled, NoHealthyNodes };
+pub const NodeState = enum { active, draining, inactive };
 
 pub const NodeStats = struct {
-    id: []const u8 = "",
     connections: u32 = 0,
-    requests_per_sec: f64 = 0.0,
-    state: NodeState = .inactive,
+    requests: u64 = 0,
+    errors: u64 = 0,
 };
 
-// Retry Types - re-export from this file (stub provides disabled implementations)
+// Retry namespace
 pub const retry = struct {
     pub const RetryConfig = stub_root.RetryConfig;
     pub const RetryResult = stub_root.RetryResult;
@@ -362,37 +256,26 @@ pub const retry = struct {
     pub const RetryExecutor = stub_root.RetryExecutor;
     pub const RetryableErrors = stub_root.RetryableErrors;
     pub const BackoffCalculator = stub_root.BackoffCalculator;
-    pub const retry_fn = retryOperation;
-    pub const retryWithStrategy = retryWithStrategyFn;
+    pub const retryFunc = stub_root.retryOperation;
+    pub const retryWithStrategy = stub_root.retryWithStrategyFn;
 };
+
+const stub_root = @This();
 
 pub const RetryConfig = struct {
-    max_attempts: u32 = 3,
-    initial_delay_ms: u64 = 100,
+    max_retries: u32 = 3,
+    base_delay_ms: u64 = 100,
     max_delay_ms: u64 = 10_000,
-    multiplier: f64 = 2.0,
-    strategy: RetryStrategy = .exponential_backoff,
+    strategy: RetryStrategy = .exponential,
 };
 
-pub const RetryResult = struct {
-    success: bool = false,
-    attempts: u32 = 0,
-    total_delay_ms: u64 = 0,
-    last_error: ?[]const u8 = null,
+pub const RetryResult = union(enum) {
+    success: void,
+    failure: RetryError,
 };
 
-pub const RetryError = error{
-    NetworkDisabled,
-    MaxAttemptsReached,
-    NonRetryableError,
-};
-
-pub const RetryStrategy = enum {
-    fixed_delay,
-    exponential_backoff,
-    linear_backoff,
-    jittered_backoff,
-};
+pub const RetryError = error{ NetworkDisabled, MaxRetriesExceeded };
+pub const RetryStrategy = enum { constant, linear, exponential, decorrelated_jitter };
 
 pub const RetryExecutor = struct {
     pub fn init(config: RetryConfig) @This() {
@@ -401,31 +284,22 @@ pub const RetryExecutor = struct {
     }
 };
 
-pub const RetryableErrors = struct {
-    errors: []const anyerror = &.{},
-};
+pub const RetryableErrors = struct {};
+pub const BackoffCalculator = struct {};
 
-pub const BackoffCalculator = struct {
-    pub fn calculate(attempt: u32, config: RetryConfig) u64 {
-        _ = attempt;
-        _ = config;
-        return 0;
-    }
-};
-
-pub fn retryOperation(comptime T: type, operation: anytype, config: RetryConfig) RetryError!T {
-    _ = operation;
+pub fn retryOperation(config: RetryConfig, operation: anytype) RetryError!void {
     _ = config;
-    return error.NetworkDisabled;
-}
-
-pub fn retryWithStrategyFn(comptime T: type, operation: anytype, strategy: RetryStrategy) RetryError!T {
     _ = operation;
-    _ = strategy;
     return error.NetworkDisabled;
 }
 
-// Rate Limiter Types - re-export from this file (stub provides disabled implementations)
+pub fn retryWithStrategyFn(strategy: RetryStrategy, operation: anytype) RetryError!void {
+    _ = strategy;
+    _ = operation;
+    return error.NetworkDisabled;
+}
+
+// Rate Limiter namespace
 pub const rate_limiter = struct {
     pub const RateLimiter = stub_root.RateLimiter;
     pub const RateLimiterConfig = stub_root.RateLimiterConfig;
@@ -443,70 +317,26 @@ pub const RateLimiter = struct {
         _ = config;
         return .{};
     }
+
     pub fn deinit(self: *@This()) void {
         _ = self;
-    }
-    pub fn acquire(self: *@This()) AcquireResult {
-        _ = self;
-        return .{ .allowed = false };
     }
 };
 
 pub const RateLimiterConfig = struct {
+    requests_per_second: u32 = 100,
+    burst_size: u32 = 10,
     algorithm: RateLimitAlgorithm = .token_bucket,
-    rate: f64 = 100.0,
-    burst: u32 = 10,
-    window_ms: u64 = 1000,
 };
 
-pub const RateLimitAlgorithm = enum {
-    token_bucket,
-    sliding_window,
-    fixed_window,
-    leaky_bucket,
-};
+pub const RateLimitAlgorithm = enum { token_bucket, sliding_window, fixed_window };
+pub const AcquireResult = enum { acquired, rejected, queued };
+pub const TokenBucketLimiter = struct {};
+pub const SlidingWindowLimiter = struct {};
+pub const FixedWindowLimiter = struct {};
+pub const LimiterStats = struct { requests: u64 = 0, rejected: u64 = 0 };
 
-pub const AcquireResult = struct {
-    allowed: bool = false,
-    wait_time_ms: u64 = 0,
-    remaining: u32 = 0,
-};
-
-pub const TokenBucketLimiter = struct {
-    pub fn init(rate: f64, burst: u32) @This() {
-        _ = rate;
-        _ = burst;
-        return .{};
-    }
-};
-
-pub const SlidingWindowLimiter = struct {
-    pub fn init(allocator: std.mem.Allocator, window_ms: u64, max_requests: u32) @This() {
-        _ = allocator;
-        _ = window_ms;
-        _ = max_requests;
-        return .{};
-    }
-    pub fn deinit(self: *@This()) void {
-        _ = self;
-    }
-};
-
-pub const FixedWindowLimiter = struct {
-    pub fn init(window_ms: u64, max_requests: u32) @This() {
-        _ = window_ms;
-        _ = max_requests;
-        return .{};
-    }
-};
-
-pub const LimiterStats = struct {
-    total_requests: u64 = 0,
-    allowed_requests: u64 = 0,
-    rejected_requests: u64 = 0,
-};
-
-// Connection Pool Types - re-export from this file
+// Connection Pool namespace
 pub const connection_pool = struct {
     pub const ConnectionPool = stub_root.ConnectionPool;
     pub const ConnectionPoolConfig = stub_root.ConnectionPoolConfig;
@@ -524,71 +354,26 @@ pub const ConnectionPool = struct {
         _ = config;
         return .{};
     }
+
     pub fn deinit(self: *@This()) void {
         _ = self;
-    }
-    pub fn acquire(self: *@This(), host: HostKey) NetworkError!PooledConnection {
-        _ = self;
-        _ = host;
-        return error.NetworkDisabled;
-    }
-    pub fn release(self: *@This(), conn: PooledConnection) void {
-        _ = self;
-        _ = conn;
     }
 };
 
 pub const ConnectionPoolConfig = struct {
-    max_connections_per_host: u32 = 10,
+    min_connections: u32 = 1,
+    max_connections: u32 = 10,
     idle_timeout_ms: u64 = 60_000,
-    connect_timeout_ms: u64 = 5_000,
 };
 
-pub const PooledConnection = struct {
-    id: u64 = 0,
-    host: HostKey = .{},
-    state: ConnectionState = .idle,
-};
+pub const PooledConnection = struct {};
+pub const ConnectionState = enum { idle, active, closed };
+pub const ConnectionStats = struct { active: u32 = 0, idle: u32 = 0 };
+pub const HostKey = struct { host: []const u8 = "", port: u16 = 0 };
+pub const PoolStats = struct { total: u32 = 0, available: u32 = 0 };
+pub const PoolBuilder = struct {};
 
-pub const ConnectionState = enum {
-    idle,
-    in_use,
-    closing,
-    closed,
-};
-
-pub const ConnectionStats = struct {
-    created: u64 = 0,
-    reused: u64 = 0,
-    closed: u64 = 0,
-};
-
-pub const HostKey = struct {
-    host: []const u8 = "",
-    port: u16 = 0,
-};
-
-pub const PoolStats = struct {
-    total_connections: u32 = 0,
-    active_connections: u32 = 0,
-    idle_connections: u32 = 0,
-};
-
-pub const PoolBuilder = struct {
-    pub fn init() @This() {
-        return .{};
-    }
-    pub fn maxConnectionsPerHost(self: *@This(), max: u32) *@This() {
-        _ = max;
-        return self;
-    }
-    pub fn build(self: *@This(), allocator: std.mem.Allocator) ConnectionPool {
-        _ = self;
-        return ConnectionPool.init(allocator, .{});
-    }
-};
-
-// Raft Consensus Types - re-export from this file
+// Raft namespace
 pub const raft = struct {
     pub const RaftNode = stub_root.RaftNode;
     pub const RaftState = stub_root.RaftState;
@@ -601,122 +386,228 @@ pub const raft = struct {
     pub const AppendEntriesRequest = stub_root.AppendEntriesRequest;
     pub const AppendEntriesResponse = stub_root.AppendEntriesResponse;
     pub const PeerState = stub_root.PeerState;
-    pub const createCluster = createRaftCluster;
+    pub const createCluster = stub_root.createRaftCluster;
+    pub const RaftPersistence = stub_root.RaftPersistence;
+    pub const PersistentState = stub_root.PersistentState;
+    pub const RaftSnapshotManager = stub_root.RaftSnapshotManager;
+    pub const SnapshotConfig = stub_root.SnapshotConfig;
+    pub const SnapshotMetadata = stub_root.SnapshotMetadata;
+    pub const SnapshotInfo = stub_root.SnapshotInfo;
+    pub const InstallSnapshotRequest = stub_root.InstallSnapshotRequest;
+    pub const InstallSnapshotResponse = stub_root.InstallSnapshotResponse;
+    pub const ConfigChangeType = stub_root.ConfigChangeType;
+    pub const ConfigChangeRequest = stub_root.ConfigChangeRequest;
+    pub const applyConfigChange = stub_root.applyConfigChangeFn;
 };
 
 pub const RaftNode = struct {
-    pub fn init(allocator: std.mem.Allocator, node_id: []const u8, config: RaftConfig) NetworkError!@This() {
+    pub fn init(allocator: std.mem.Allocator, config: RaftConfig) NetworkError!@This() {
         _ = allocator;
-        _ = node_id;
         _ = config;
         return error.NetworkDisabled;
     }
+
     pub fn deinit(self: *@This()) void {
         _ = self;
     }
-    pub fn addPeer(self: *@This(), peer_id: []const u8) NetworkError!void {
-        _ = self;
-        _ = peer_id;
-        return error.NetworkDisabled;
-    }
-    pub fn tick(self: *@This(), elapsed_ms: u64) NetworkError!void {
-        _ = self;
-        _ = elapsed_ms;
-        return error.NetworkDisabled;
-    }
-    pub fn isLeader(self: *const @This()) bool {
-        _ = self;
-        return false;
-    }
-    pub fn appendCommand(self: *@This(), command: []const u8) NetworkError!u64 {
-        _ = self;
-        _ = command;
-        return error.NetworkDisabled;
-    }
 };
 
-pub const RaftState = enum {
-    follower,
-    candidate,
-    leader,
-};
+pub const RaftState = enum { follower, candidate, leader };
 
 pub const RaftConfig = struct {
-    election_timeout_min_ms: u64 = 150,
-    election_timeout_max_ms: u64 = 300,
+    node_id: []const u8 = "",
+    election_timeout_ms: u64 = 150,
     heartbeat_interval_ms: u64 = 50,
 };
 
-pub const RaftError = error{
-    NetworkDisabled,
-    NotLeader,
-    ElectionFailed,
-    LogInconsistent,
-};
+pub const RaftError = error{ NetworkDisabled, NotLeader, LogInconsistency };
+pub const RaftStats = struct { term: u64 = 0, commit_index: u64 = 0 };
+pub const LogEntry = struct { term: u64 = 0, index: u64 = 0, data: []const u8 = "" };
 
-pub const RaftStats = struct {
-    current_term: u64 = 0,
-    commit_index: u64 = 0,
-    last_applied: u64 = 0,
-    state: RaftState = .follower,
-};
+pub const RequestVoteRequest = struct { term: u64 = 0, candidate_id: []const u8 = "" };
+pub const RequestVoteResponse = struct { term: u64 = 0, vote_granted: bool = false };
+pub const AppendEntriesRequest = struct { term: u64 = 0, leader_id: []const u8 = "" };
+pub const AppendEntriesResponse = struct { term: u64 = 0, success: bool = false };
+pub const PeerState = struct { id: []const u8 = "", next_index: u64 = 0 };
 
-pub const LogEntry = struct {
-    term: u64 = 0,
-    index: u64 = 0,
-    command: []const u8 = &.{},
-};
-
-pub const RequestVoteRequest = struct {
-    term: u64 = 0,
-    candidate_id: []const u8 = "",
-    last_log_index: u64 = 0,
-    last_log_term: u64 = 0,
-};
-
-pub const RequestVoteResponse = struct {
-    term: u64 = 0,
-    vote_granted: bool = false,
-};
-
-pub const AppendEntriesRequest = struct {
-    term: u64 = 0,
-    leader_id: []const u8 = "",
-    prev_log_index: u64 = 0,
-    prev_log_term: u64 = 0,
-    entries: []const LogEntry = &.{},
-    leader_commit: u64 = 0,
-};
-
-pub const AppendEntriesResponse = struct {
-    term: u64 = 0,
-    success: bool = false,
-    match_index: u64 = 0,
-};
-
-pub const PeerState = struct {
-    id: []const u8 = "",
-    next_index: u64 = 0,
-    match_index: u64 = 0,
-    vote_granted: bool = false,
-};
-
-pub fn createRaftCluster(allocator: std.mem.Allocator, node_ids: []const []const u8, config: RaftConfig) NetworkError![]RaftNode {
+pub fn createRaftCluster(allocator: std.mem.Allocator, configs: []const RaftConfig) NetworkError![]RaftNode {
     _ = allocator;
-    _ = node_ids;
-    _ = config;
+    _ = configs;
     return error.NetworkDisabled;
 }
 
-// Module Lifecycle
-var initialized: bool = false;
+pub const RaftPersistence = struct {};
+pub const PersistentState = struct { term: u64 = 0, voted_for: ?[]const u8 = null };
 
+pub const RaftSnapshotManager = struct {};
+pub const SnapshotConfig = struct { threshold: u64 = 10000 };
+pub const SnapshotMetadata = struct { last_included_index: u64 = 0, last_included_term: u64 = 0 };
+pub const SnapshotInfo = struct { metadata: SnapshotMetadata = .{}, size: u64 = 0 };
+pub const InstallSnapshotRequest = struct { term: u64 = 0, leader_id: []const u8 = "" };
+pub const InstallSnapshotResponse = struct { term: u64 = 0 };
+
+pub const ConfigChangeType = enum { add_node, remove_node };
+pub const ConfigChangeRequest = struct { change_type: ConfigChangeType = .add_node, node_id: []const u8 = "" };
+
+pub fn applyConfigChangeFn(node: *RaftNode, request: ConfigChangeRequest) NetworkError!void {
+    _ = node;
+    _ = request;
+    return error.NetworkDisabled;
+}
+
+// Transport namespace
+pub const transport = struct {
+    pub const TcpTransport = stub_root.TcpTransport;
+    pub const TransportConfig = stub_root.TransportConfig;
+    pub const TransportError = stub_root.TransportError;
+    pub const MessageType = stub_root.MessageType;
+    pub const MessageHeader = stub_root.MessageHeader;
+    pub const PeerConnection = stub_root.PeerConnection;
+    pub const RpcSerializer = stub_root.RpcSerializer;
+    pub const parseAddress = stub_root.parseAddressFn;
+};
+
+pub const TcpTransport = struct {
+    pub const TransportStats = struct { bytes_sent: u64 = 0, bytes_received: u64 = 0 };
+
+    pub fn init(allocator: std.mem.Allocator, config: TransportConfig) NetworkError!@This() {
+        _ = allocator;
+        _ = config;
+        return error.NetworkDisabled;
+    }
+
+    pub fn deinit(self: *@This()) void {
+        _ = self;
+    }
+};
+
+pub const TransportConfig = struct {
+    bind_address: []const u8 = "0.0.0.0",
+    bind_port: u16 = 0,
+};
+
+pub const TransportError = error{ NetworkDisabled, ConnectionFailed };
+pub const TransportStats = TcpTransport.TransportStats;
+pub const MessageType = enum { request, response, heartbeat };
+pub const MessageHeader = struct { msg_type: MessageType = .request, length: u32 = 0 };
+pub const PeerConnection = struct { address: []const u8 = "", connected: bool = false };
+pub const RpcSerializer = struct {};
+
+pub fn parseAddressFn(address: []const u8) ?struct { host: []const u8, port: u16 } {
+    _ = address;
+    return null;
+}
+
+pub const parseAddress = parseAddressFn;
+
+// Raft Transport namespace
+pub const raft_transport = struct {
+    pub const RaftTransport = stub_root.RaftTransport;
+    pub const RaftTransportConfig = stub_root.RaftTransportConfig;
+    pub const PeerAddress = stub_root.PeerAddress;
+};
+
+pub const RaftTransport = struct {
+    pub const RaftTransportStats = struct { messages_sent: u64 = 0, messages_received: u64 = 0 };
+
+    pub fn init(allocator: std.mem.Allocator, config: RaftTransportConfig) NetworkError!@This() {
+        _ = allocator;
+        _ = config;
+        return error.NetworkDisabled;
+    }
+
+    pub fn deinit(self: *@This()) void {
+        _ = self;
+    }
+};
+
+pub const RaftTransportConfig = struct {
+    bind_address: []const u8 = "0.0.0.0",
+    bind_port: u16 = 0,
+};
+
+pub const RaftTransportStats = RaftTransport.RaftTransportStats;
+pub const PeerAddress = struct { host: []const u8 = "", port: u16 = 0 };
+
+// Circuit Breaker namespace
+pub const circuit_breaker = struct {
+    pub const CircuitBreaker = stub_root.CircuitBreaker;
+    pub const CircuitConfig = stub_root.CircuitConfig;
+    pub const CircuitState = stub_root.CircuitState;
+    pub const CircuitRegistry = stub_root.CircuitRegistry;
+    pub const CircuitStats = stub_root.CircuitStats;
+    pub const CircuitMetrics = stub_root.CircuitMetrics;
+    pub const CircuitMetricEntry = stub_root.CircuitMetricEntry;
+    pub const NetworkOperationError = stub_root.NetworkOperationError;
+    pub const AggregateStats = stub_root.AggregateStats;
+};
+
+pub const CircuitBreaker = struct {
+    pub fn init(allocator: std.mem.Allocator, config: CircuitConfig) @This() {
+        _ = allocator;
+        _ = config;
+        return .{};
+    }
+
+    pub fn deinit(self: *@This()) void {
+        _ = self;
+    }
+};
+
+pub const CircuitConfig = struct {
+    failure_threshold: u32 = 5,
+    reset_timeout_ms: u64 = 30_000,
+};
+
+pub const CircuitState = enum { closed, open, half_open };
+
+pub const CircuitRegistry = struct {
+    pub fn init(allocator: std.mem.Allocator) @This() {
+        _ = allocator;
+        return .{};
+    }
+
+    pub fn deinit(self: *@This()) void {
+        _ = self;
+    }
+};
+
+pub const CircuitStats = struct { failures: u32 = 0, successes: u32 = 0 };
+pub const CircuitMetrics = struct {};
+pub const CircuitMetricEntry = struct { timestamp: i64 = 0, success: bool = false };
+pub const NetworkOperationError = error{ NetworkDisabled, CircuitOpen };
+pub const AggregateStats = struct { total_calls: u64 = 0, total_failures: u64 = 0 };
+
+// Network State and Config
+pub const NetworkConfig = struct {
+    cluster_id: []const u8 = "default",
+    heartbeat_timeout_ms: u64 = 30_000,
+    max_nodes: usize = 256,
+};
+
+pub const NetworkState = struct {
+    allocator: std.mem.Allocator,
+    config: NetworkConfig,
+    registry: NodeRegistry,
+
+    pub fn init(allocator: std.mem.Allocator, config: NetworkConfig) NetworkError!NetworkState {
+        _ = allocator;
+        _ = config;
+        return error.NetworkDisabled;
+    }
+
+    pub fn deinit(self: *NetworkState) void {
+        _ = self;
+    }
+};
+
+// Module-level functions
 pub fn isEnabled() bool {
     return false;
 }
 
 pub fn isInitialized() bool {
-    return initialized;
+    return false;
 }
 
 pub fn init(allocator: std.mem.Allocator) NetworkError!void {
@@ -730,12 +621,10 @@ pub fn initWithConfig(allocator: std.mem.Allocator, config: NetworkConfig) Netwo
     return error.NetworkDisabled;
 }
 
-pub fn deinit() void {
-    initialized = false;
-}
+pub fn deinit() void {}
 
 pub fn defaultRegistry() NetworkError!*NodeRegistry {
-    return error.NotInitialized;
+    return error.NetworkDisabled;
 }
 
 pub fn defaultConfig() ?NetworkConfig {

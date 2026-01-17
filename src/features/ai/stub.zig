@@ -84,18 +84,70 @@ pub const ModelInfo = struct {
 pub const TrainingConfig = struct {
     epochs: u32 = 10,
     batch_size: u32 = 32,
+    sample_count: usize = 1024,
+    model_size: u32 = 512,
     learning_rate: f32 = 0.001,
+    optimizer: OptimizerType = .adamw,
+    learning_rate_schedule: LearningRateSchedule = .warmup_cosine,
+    warmup_steps: u32 = 100,
+    decay_steps: u32 = 1000,
+    min_learning_rate: f32 = 0.0001,
+    gradient_accumulation_steps: u32 = 1,
+    gradient_clip_norm: f32 = 1.0,
+    weight_decay: f32 = 0.01,
+    checkpoint_interval: u32 = 0,
+    max_checkpoints: u32 = 5,
+    checkpoint_path: ?[]const u8 = null,
+    early_stopping_patience: u32 = 5,
+    early_stopping_threshold: f32 = 1e-4,
+    mixed_precision: bool = false,
+
+    pub fn validate(self: *const @This()) !void {
+        _ = self;
+    }
 };
 
 pub const TrainingReport = struct {
-    epochs_completed: u32 = 0,
+    epochs: u32 = 0,
+    batches: u32 = 0,
     final_loss: f32 = 0.0,
-    duration_ms: u64 = 0,
+    final_accuracy: f32 = 0.0,
+    best_loss: f32 = 0.0,
+    learning_rate: f32 = 0.0,
+    gradient_updates: u64 = 0,
+    checkpoints_saved: u32 = 0,
+    early_stopped: bool = false,
+    total_time_ms: u64 = 0,
 };
 
 pub const TrainingResult = struct {
-    report: TrainingReport,
-    model_path: ?[]const u8 = null,
+    allocator: std.mem.Allocator = undefined,
+    report: TrainingReport = .{},
+    model: ModelState = .{},
+    optimizer: Optimizer = .{},
+    checkpoints: CheckpointStore = .{},
+    loss_history: []f32 = &.{},
+    accuracy_history: []f32 = &.{},
+
+    pub fn deinit(self: *TrainingResult) void {
+        _ = self;
+    }
+};
+
+pub const ModelState = struct {
+    allocator: std.mem.Allocator = undefined,
+    weights: []f32 = &.{},
+
+    pub fn deinit(self: *ModelState) void {
+        _ = self;
+    }
+};
+
+pub const Optimizer = struct {
+    pub fn deinit(self: *Optimizer, allocator: std.mem.Allocator) void {
+        _ = self;
+        _ = allocator;
+    }
 };
 
 pub const TrainError = error{
@@ -125,9 +177,14 @@ pub const CheckpointStore = struct {
 };
 
 pub const Checkpoint = struct {
-    epoch: u32 = 0,
-    loss: f32 = 0.0,
-    weights: ?[]const u8 = null,
+    step: u64 = 0,
+    timestamp: u64 = 0,
+    weights: []f32 = &[_]f32{},
+
+    pub fn deinit(self: *Checkpoint, allocator: std.mem.Allocator) void {
+        _ = self;
+        _ = allocator;
+    }
 };
 
 pub const GradientAccumulator = struct {
@@ -200,6 +257,10 @@ pub const TrainableModel = struct {
     }
 
     pub fn deinit(_: *TrainableModel) void {}
+
+    pub fn numParams(_: *const TrainableModel) usize {
+        return 0;
+    }
 };
 
 pub const LlamaTrainer = struct {
@@ -395,8 +456,14 @@ pub const GgufFile = struct {
         _ = path;
         return error.AiDisabled;
     }
+
     pub fn close(self: *@This()) void {
         _ = self;
+    }
+
+    pub fn printSummaryDebug(self: *@This()) void {
+        _ = self;
+        std.debug.print("GGUF: AI feature disabled\n", .{});
     }
 };
 
@@ -505,13 +572,37 @@ pub const training = struct {
 pub const trainable_model = struct {
     pub const TrainableModel = stub_root.TrainableModel;
 
+    /// Gradient checkpointing strategy.
+    pub const CheckpointingStrategy = enum {
+        none,
+        every_n_layers,
+        attention_only,
+        full,
+    };
+
     pub const TrainableModelConfig = struct {
-        vocab_size: u32 = 0,
-        n_layers: u32 = 0,
-        n_heads: u32 = 0,
-        n_kv_heads: u32 = 0,
         hidden_dim: u32 = 0,
-        max_seq_len: u32 = 512,
+        num_layers: u32 = 0,
+        num_heads: u32 = 0,
+        num_kv_heads: u32 = 0,
+        intermediate_dim: u32 = 0,
+        vocab_size: u32 = 0,
+        max_seq_len: u32 = 2048,
+        rope_theta: f32 = 10000.0,
+        norm_eps: f32 = 1e-5,
+        tie_embeddings: bool = true,
+        checkpointing: CheckpointingStrategy = .none,
+        checkpoint_interval: u32 = 4,
+
+        pub fn headDim(self: TrainableModelConfig) u32 {
+            if (self.num_heads == 0) return 0;
+            return self.hidden_dim / self.num_heads;
+        }
+
+        pub fn numParams(self: TrainableModelConfig) usize {
+            _ = self;
+            return 0;
+        }
     };
 };
 
@@ -560,25 +651,9 @@ pub const eval = @import("eval/stub.zig");
 pub const rag = @import("rag/stub.zig");
 pub const templates = @import("templates/stub.zig");
 
-pub const explore = struct {
-    pub const ExploreAgent = stub_root.ExploreAgent;
-    pub const ExploreConfig = stub_root.ExploreConfig;
-    pub const ExploreLevel = stub_root.ExploreLevel;
-    pub const ExploreResult = stub_root.ExploreResult;
-    pub const Match = stub_root.Match;
-    pub const ExplorationStats = stub_root.ExplorationStats;
-    pub const QueryIntent = stub_root.QueryIntent;
-    pub const ParsedQuery = stub_root.ParsedQuery;
-    pub const QueryUnderstanding = stub_root.QueryUnderstanding;
-};
+pub const explore = @import("explore/stub.zig");
 
-pub const llm = struct {
-    pub const Engine = stub_root.LlmEngine;
-    pub const Model = stub_root.LlmModel;
-    pub const InferenceConfig = stub_root.LlmConfig;
-    pub const GgufFile = stub_root.GgufFile;
-    pub const BpeTokenizer = stub_root.BpeTokenizer;
-};
+pub const llm = @import("llm/stub.zig");
 
 pub const memory = struct {
     pub const MessageRole = enum {
@@ -621,25 +696,54 @@ pub const memory = struct {
 
     pub const SessionMeta = struct {
         id: []const u8 = "",
-        name: ?[]const u8 = null,
+        name: []const u8 = "",
         created_at: i64 = 0,
         updated_at: i64 = 0,
         message_count: usize = 0,
-        persona: ?[]const u8 = null,
+        total_tokens: usize = 0,
 
         pub fn deinit(self: *SessionMeta, allocator: std.mem.Allocator) void {
-            _ = self;
-            _ = allocator;
+            allocator.free(self.id);
+            allocator.free(self.name);
+            self.* = undefined;
         }
     };
 
+    /// Session configuration stored with session data
+    pub const SessionConfig = struct {
+        memory_type: MemoryType = .sliding_window,
+        max_tokens: usize = 4000,
+        temperature: f32 = 0.7,
+        model: []const u8 = "default",
+        system_prompt: ?[]const u8 = null,
+    };
+
+    /// Memory management strategy types
+    pub const MemoryType = enum {
+        short_term,
+        sliding_window,
+        summarizing,
+        long_term,
+        hybrid,
+    };
+
     pub const SessionData = struct {
-        meta: SessionMeta = .{},
+        id: []const u8 = "",
+        name: []const u8 = "",
+        created_at: i64 = 0,
+        updated_at: i64 = 0,
         messages: []Message = &.{},
+        config: SessionConfig = .{},
 
         pub fn deinit(self: *SessionData, allocator: std.mem.Allocator) void {
-            _ = self;
-            _ = allocator;
+            allocator.free(self.id);
+            allocator.free(self.name);
+            for (self.messages) |*msg| {
+                allocator.free(msg.content);
+                if (msg.name) |n| allocator.free(n);
+            }
+            allocator.free(self.messages);
+            self.* = undefined;
         }
     };
 
@@ -678,7 +782,7 @@ pub const memory = struct {
             return error.AiDisabled;
         }
 
-        pub fn saveSession(_: *SessionStore, _: []const u8, _: SessionData) !void {
+        pub fn saveSession(_: *SessionStore, _: SessionData) !void {
             return error.AiDisabled;
         }
     };
@@ -712,6 +816,7 @@ const PromptRole = enum {
     system,
     user,
     assistant,
+    tool,
 };
 
 const PromptMessage = struct {
@@ -771,6 +876,14 @@ pub const PromptBuilder = struct {
         return error.AiDisabled;
     }
 
+    /// Add a generic message with specified role
+    pub fn addMessage(self: *@This(), role: PromptRole, content: []const u8) AiError!void {
+        _ = self;
+        _ = role;
+        _ = content;
+        return error.AiDisabled;
+    }
+
     pub fn build(self: *@This(), format: PromptFormat) AiError![]u8 {
         _ = self;
         _ = format;
@@ -793,7 +906,8 @@ pub const prompts = struct {
     pub const Role = PromptRole;
     pub const Message = PromptMessage;
     pub const Format = PromptFormat;
-    pub const Builder = PromptBuilder;
+    pub const Builder = stub_root.PromptBuilder;
+    pub const PromptBuilder = stub_root.PromptBuilder;
 
     pub fn getPersona(persona_type: PromptPersonaType) PromptPersona {
         _ = persona_type;
@@ -804,16 +918,16 @@ pub const prompts = struct {
         return &.{};
     }
 
-    pub fn createBuilder(allocator: std.mem.Allocator) PromptBuilder {
-        return PromptBuilder.init(allocator, .assistant);
+    pub fn createBuilder(allocator: std.mem.Allocator) stub_root.PromptBuilder {
+        return stub_root.PromptBuilder.init(allocator, .assistant);
     }
 
-    pub fn createBuilderWithPersona(allocator: std.mem.Allocator, persona_type: PromptPersonaType) PromptBuilder {
-        return PromptBuilder.init(allocator, persona_type);
+    pub fn createBuilderWithPersona(allocator: std.mem.Allocator, persona_type: PromptPersonaType) stub_root.PromptBuilder {
+        return stub_root.PromptBuilder.init(allocator, persona_type);
     }
 
-    pub fn createBuilderWithCustomPersona(allocator: std.mem.Allocator, persona: PromptPersona) PromptBuilder {
-        return PromptBuilder.initCustom(allocator, persona);
+    pub fn createBuilderWithCustomPersona(allocator: std.mem.Allocator, persona: PromptPersona) stub_root.PromptBuilder {
+        return stub_root.PromptBuilder.initCustom(allocator, persona);
     }
 };
 

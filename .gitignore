@@ -82,6 +82,8 @@ desktop.ini
 *.pth
 *.h5
 *.pb
+*.ckpt
+testingllm.ckpt/
 
 # Profiling data
 *.prof

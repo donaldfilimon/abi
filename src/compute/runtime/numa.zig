@@ -9,6 +9,29 @@ const builtin = @import("builtin");
 const linux = std.os.linux;
 const windows = std.os.windows;
 const posix = std.posix;
+const darwin = std.os.darwin;
+
+/// macOS/Darwin thread affinity policy structures
+const DarwinMach = struct {
+    // Thread affinity is advisory on macOS - we use affinity tags
+    // which hint the scheduler to keep threads with same tag on same core
+    pub const thread_affinity_policy = extern struct {
+        affinity_tag: c_int,
+    };
+    pub const THREAD_AFFINITY_POLICY: c_int = 4;
+    pub const THREAD_AFFINITY_POLICY_COUNT: c_int = 1;
+
+    extern "c" fn pthread_mach_thread_np(thread: std.c.pthread_t) MachPort;
+    extern "c" fn thread_policy_set(
+        thread: MachPort,
+        flavor: c_int,
+        policy_info: *const anyopaque,
+        count: c_int,
+    ) c_int;
+
+    pub const MachPort = c_uint;
+    pub const KERN_SUCCESS: c_int = 0;
+};
 
 const WindowsKernel32 = struct {
     extern "kernel32" fn GetCurrentThread() callconv(.winapi) windows.HANDLE;
@@ -157,9 +180,12 @@ pub fn setThreadAffinity(cpu_id: usize) !void {
         return setLinuxThreadAffinity(cpu_id);
     } else if (comptime builtin.os.tag == .windows) {
         return setWindowsThreadAffinity(cpu_id);
+    } else if (comptime builtin.os.tag == .macos) {
+        return setDarwinThreadAffinity(cpu_id);
     } else {
-        std.log.err("Thread affinity not supported on platform: {t}", .{builtin.os.tag});
-        return error.UnsupportedPlatform;
+        std.log.warn("Thread affinity not supported on platform: {t}", .{builtin.os.tag});
+        // Don't error - just no-op on unsupported platforms
+        return;
     }
 }
 
@@ -168,9 +194,12 @@ pub fn setThreadAffinityMask(mask: AffinityMask) !void {
         return setLinuxThreadAffinityMask(mask);
     } else if (comptime builtin.os.tag == .windows) {
         return setWindowsThreadAffinityMask(mask);
+    } else if (comptime builtin.os.tag == .macos) {
+        return setDarwinThreadAffinityMask(mask);
     } else {
-        std.log.err("Thread affinity mask not supported on platform: {t}", .{builtin.os.tag});
-        return error.UnsupportedPlatform;
+        std.log.warn("Thread affinity mask not supported on platform: {t}", .{builtin.os.tag});
+        // Don't error - just no-op on unsupported platforms
+        return;
     }
 }
 
@@ -179,15 +208,19 @@ pub fn getCurrentCpuId() !usize {
         return getLinuxCurrentCpu();
     } else if (comptime builtin.os.tag == .windows) {
         return getWindowsCurrentCpu();
+    } else if (comptime builtin.os.tag == .macos) {
+        // macOS doesn't expose current CPU ID directly
+        // Return 0 as a fallback - scheduler manages placement
+        return 0;
     } else {
-        std.log.err("Getting current CPU ID not supported on platform: {t}", .{builtin.os.tag});
-        return error.UnsupportedPlatform;
+        std.log.warn("Getting current CPU ID not supported on platform: {t}", .{builtin.os.tag});
+        return 0; // Return 0 as safe default instead of error
     }
 }
 
 fn getCoreCount(allocator: std.mem.Allocator, io: std.Io) !usize {
     if (comptime builtin.os.tag == .linux) {
-        const data = try std.Io.Dir.readFileAlloc(
+        const data = try std.Io.Dir.cwd().readFileAlloc(
             io,
             "/sys/devices/system/cpu/present",
             allocator,
@@ -235,7 +268,12 @@ fn detectLinuxNuma(allocator: std.mem.Allocator, io: std.Io, cpu_count: usize) !
         );
         defer allocator.free(cpu_path);
 
-        if (std.Io.Dir.openFileAbsolute(io, cpu_path, .{})) |file| {
+        // Use root directory for absolute paths on Linux
+        var root_dir = std.Io.Dir.cwd().openDir(io, "/", .{}) catch continue;
+        defer root_dir.close(io);
+        // cpu_path starts with /, so strip it for relative access from root
+        const rel_path = cpu_path[1..];
+        if (root_dir.openFile(io, rel_path, .{})) |file| {
             file.close(io);
             try cpus.append(allocator, i);
         } else |_| {}
@@ -359,6 +397,43 @@ fn getLinuxCurrentCpu() !usize {
 
 fn getWindowsCurrentCpu() !usize {
     return @intCast(WindowsKernel32.GetCurrentProcessorNumber());
+}
+
+/// macOS/Darwin thread affinity using Mach thread affinity policies.
+/// Note: macOS affinity is advisory - the scheduler uses it as a hint,
+/// not a hard constraint like Linux/Windows.
+fn setDarwinThreadAffinity(cpu_id: usize) !void {
+    // Get Mach thread port for current thread
+    const thread = DarwinMach.pthread_mach_thread_np(std.c.pthread_self());
+
+    // Set affinity policy with cpu_id as affinity tag
+    // Threads with same tag are scheduled on same core when possible
+    const policy = DarwinMach.thread_affinity_policy{
+        .affinity_tag = @intCast(cpu_id),
+    };
+
+    const result = DarwinMach.thread_policy_set(
+        thread,
+        DarwinMach.THREAD_AFFINITY_POLICY,
+        @ptrCast(&policy),
+        DarwinMach.THREAD_AFFINITY_POLICY_COUNT,
+    );
+
+    if (result != DarwinMach.KERN_SUCCESS) {
+        std.log.warn("macOS thread affinity hint failed (advisory only): {d}", .{result});
+        // Don't return error - affinity is advisory on macOS
+    }
+}
+
+fn setDarwinThreadAffinityMask(mask: AffinityMask) !void {
+    // Find first set CPU in mask and use that as affinity tag
+    var cpu_id: usize = 0;
+    while (cpu_id < mask.size) : (cpu_id += 1) {
+        if (mask.isSet(cpu_id)) {
+            return setDarwinThreadAffinity(cpu_id);
+        }
+    }
+    // No CPUs set in mask - no-op
 }
 
 test "affinity mask operations" {

@@ -31,21 +31,30 @@ const SessionState = struct {
     modified: bool,
     store: ?abi.ai.memory.SessionStore,
 
-    pub fn init(allocator: std.mem.Allocator, name: []const u8) SessionState {
-        // Use default sessions directory
-        const sessions_dir = ".abi/sessions";
+    pub fn init(allocator: std.mem.Allocator, name: []const u8) !SessionState {
+        // Use cross-platform path separator
+        const sessions_dir = ".abi" ++ std.fs.path.sep_str ++ "sessions";
         const store: ?abi.ai.memory.SessionStore = abi.ai.memory.SessionStore.init(allocator, sessions_dir);
 
         // Generate session ID using monotonic time
         var id_buf: [32]u8 = undefined;
         const timestamp = getUnixSeconds();
-        const id_slice = std.fmt.bufPrint(&id_buf, "session_{d}", .{timestamp}) catch &[_]u8{};
+        const id_slice = std.fmt.bufPrint(&id_buf, "session_{d}", .{timestamp}) catch {
+            // Fallback to a simple ID
+            @memcpy(id_buf[0..8], "sess_000");
+            return error.OutOfMemory;
+        };
         const id_len = id_slice.len;
+
+        // Allocate strings - propagate errors to avoid freeing string literals
+        const session_id = try allocator.dupe(u8, id_buf[0..id_len]);
+        errdefer allocator.free(session_id);
+        const session_name = try allocator.dupe(u8, name);
 
         return .{
             .allocator = allocator,
-            .session_id = allocator.dupe(u8, id_buf[0..id_len]) catch "unnamed",
-            .session_name = allocator.dupe(u8, name) catch "default",
+            .session_id = session_id,
+            .session_name = session_name,
             .messages = .empty,
             .modified = false,
             .store = store,
@@ -244,7 +253,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     defer agent.deinit();
 
     // Initialize session state
-    var session = SessionState.init(allocator, session_name);
+    var session = try SessionState.init(allocator, session_name);
     defer session.deinit();
 
     // Load session if requested
@@ -487,7 +496,7 @@ fn handleSlashCommand(
 }
 
 fn listSessions(allocator: std.mem.Allocator) !void {
-    const sessions_dir = ".abi/sessions";
+    const sessions_dir = ".abi" ++ std.fs.path.sep_str ++ "sessions";
     var store = abi.ai.memory.SessionStore.init(allocator, sessions_dir);
 
     const sessions = store.listSessions() catch |err| {

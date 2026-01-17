@@ -90,7 +90,17 @@ pub const BackendType = enum {
     simulated,
 
     pub fn name(self: BackendType) []const u8 {
-        return @tagName(self);
+        return switch (self) {
+            .cuda => "cuda",
+            .vulkan => "vulkan",
+            .metal => "metal",
+            .webgpu => "webgpu",
+            .opengl => "opengl",
+            .opengles => "opengles",
+            .webgl2 => "webgl2",
+            .stdgpu => "stdgpu",
+            .simulated => "simulated",
+        };
     }
 };
 

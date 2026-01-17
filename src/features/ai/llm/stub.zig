@@ -233,7 +233,23 @@ pub const cache = struct {
     pub const KvCache = @import("stub.zig").KvCache;
 };
 
-pub const ops = struct {};
+pub const ops = struct {
+    pub fn matrixMultiply(
+        a: []const f32,
+        b: []const f32,
+        c: []f32,
+        m: usize,
+        k: usize,
+        n: usize,
+    ) void {
+        _ = a;
+        _ = b;
+        _ = c;
+        _ = m;
+        _ = k;
+        _ = n;
+    }
+};
 
 pub const parallel = struct {
     pub const ParallelStrategy = stub_root.ParallelStrategy;
