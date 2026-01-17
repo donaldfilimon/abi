@@ -364,22 +364,22 @@ std.debug.print("State: {t}", .{state});
 
 | Command | Purpose |
 |---------|---------|
-| `db` | Database operations (stats, query) |
-| `agent` | AI agent interaction |
-| `llm` | LLM inference (info, generate, chat, bench, list, download) |
+| `db` | Database operations (add, search, stats, backup, restore) |
+| `agent` | AI agent interaction (interactive, one-shot, personas) |
+| `llm` | LLM inference (info, generate, chat, bench, list, list-local, download) |
 | `train` | Training pipeline (run, llm, resume, info) |
-| `bench` | Performance benchmarks |
-| `embed` | Embeddings generation |
-| `gpu` | GPU management (backends, devices, status) |
-| `network` | Network node operations |
-| `config` | Configuration management |
-| `explore` | Codebase search |
-| `discord` | Discord bot integration |
-| `simd` | SIMD operations demo |
-| `task` | Task management (add, list, done, stats, import-roadmap) |
-| `system-info` | System information |
-| `tui` | Interactive launcher |
-| `version` | Version information |
+| `bench` | Performance benchmarks (all, simd, memory, ai, quick, micro) |
+| `embed` | Embeddings generation (openai, ollama, mistral, cohere) |
+| `gpu` | GPU management (backends, devices, summary, default) |
+| `network` | Network registry (status, list, register, unregister, touch, set-status) |
+| `config` | Configuration management (init, show, validate, env) |
+| `explore` | Codebase search with query understanding |
+| `discord` | Discord bot integration (status, info, guilds, send, channel, commands, webhook) |
+| `simd` | SIMD operations performance demo |
+| `task` | Task management (add, list, show, done, start, cancel, delete, stats, import-roadmap) |
+| `system-info` | System and framework status |
+| `tui` | Interactive TUI command menu |
+| `version` | Framework version |
 | `help` | Help and usage |
 
 ### Global Flags (Runtime Feature Control)
@@ -412,6 +412,72 @@ Available in `examples/` directory:
 | discord | `zig build run-discord` | Discord bot integration |
 
 Build all examples: `zig build examples`
+
+## CLI Output Examples (2026-01-17)
+
+**version:**
+```
+ABI Framework v0.1.0
+```
+
+**system-info:**
+```
+=== System Information ===
+  OS: windows
+  Architecture: x86_64
+  CPU Threads: 32
+  ABI Version: 0.1.0
+  SIMD Support: available
+  GPU Backends: vulkan
+  GPU Devices: 1 (emulated 1)
+  Network: enabled (not initialized)
+
+=== Feature Matrix ===
+  gpu: yes
+  ai: yes
+  llm: yes
+  [...]
+```
+
+**gpu backends:**
+```
+=== GPU Backends ===
+  CUDA (disabled) - NVIDIA CUDA backend [enable -Dgpu-cuda]
+  Vulkan (enabled) - Cross-platform Vulkan backend [devices: 1]
+  std.gpu (disabled) - Zig std.gpu SPIR-V backend [enable -Dgpu-stdgpu]
+  Metal (disabled) - Apple Metal backend [enable -Dgpu-metal]
+  WebGPU (enabled) - WebGPU backend [unavailable: webgpu runtime not found]
+  OpenGL (disabled) - OpenGL backend [enable -Dgpu-opengl]
+  OpenGL ES (disabled) - OpenGL ES backend [enable -Dgpu-opengles]
+  WebGL2 (enabled) - WebGL2 backend (browser) [unavailable: webgl2 requires web target]
+```
+
+**simd:**
+```
+  SIMD Support: available
+
+=== SIMD Performance Results ===
+  Vector Add: 4000ns
+  Dot Product: 2700ns (result: 665666700.000000)
+  L2 Norm: 1500ns (result: 18243.720000)
+  Cosine Similarity: 1200ns (result: 1.000000)
+```
+
+**--list-features:**
+```
+Available Features:
+--------------------------------------------------
+  [x] gpu             COMPILED
+  [x] ai              COMPILED
+  [x] llm             COMPILED
+  [x] embeddings      COMPILED
+  [x] agents          COMPILED
+  [x] training        COMPILED
+  [x] database        COMPILED
+  [x] network         COMPILED
+  [x] observability   COMPILED
+  [x] web             COMPILED
+```
 
 ## Environment Variables
 

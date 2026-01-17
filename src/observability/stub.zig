@@ -162,13 +162,84 @@ pub fn createOtelResource(_: std.mem.Allocator, _: []const u8) Error!void {
 // StatsD (stub)
 pub const statsd = struct {};
 
-// Tracing
-pub const Tracer = struct {};
+// Tracing types (API-compatible stubs)
+pub const TraceId = [16]u8;
+pub const SpanId = [8]u8;
+pub const SpanKind = enum { internal, server, client, producer, consumer };
+pub const SpanStatus = enum { unset, ok, @"error" };
+pub const AttributeValue = union(enum) { string: []const u8, int: i64, float: f64, bool: bool };
+pub const SpanAttribute = struct { key: []const u8, value: AttributeValue };
+pub const SpanEvent = struct { name: []const u8, timestamp: i64 = 0, attributes: []const SpanAttribute = &.{} };
+pub const SpanLink = struct { trace_id: TraceId, span_id: SpanId, attributes: []const SpanAttribute = &.{} };
+
+pub const Tracer = struct {
+    pub fn init(_: std.mem.Allocator, _: []const u8) Error!Tracer {
+        return error.ObservabilityDisabled;
+    }
+    pub fn deinit(_: *Tracer) void {}
+    pub fn startSpan(_: *Tracer, _: []const u8, _: ?*const TraceContext, _: SpanKind) Error!Span {
+        return error.ObservabilityDisabled;
+    }
+};
+
 pub const Span = struct {
-    pub fn start(_: []const u8) Span {
-        return .{};
+    pub fn start(_: std.mem.Allocator, _: []const u8, _: ?TraceId, _: ?SpanId, _: SpanKind) Error!Span {
+        return error.ObservabilityDisabled;
     }
     pub fn end(_: *Span) void {}
+    pub fn deinit(_: *Span) void {}
+    pub fn setAttribute(_: *Span, _: []const u8, _: AttributeValue) Error!void {
+        return error.ObservabilityDisabled;
+    }
+    pub fn addEvent(_: *Span, _: []const u8) Error!void {
+        return error.ObservabilityDisabled;
+    }
+};
+
+pub const TraceContext = struct {
+    trace_id: TraceId = [_]u8{0} ** 16,
+    span_id: SpanId = [_]u8{0} ** 8,
+    is_remote: bool = false,
+    trace_flags: u8 = 0x01,
+
+    pub fn extract(_: []const u8) TraceContext {
+        return .{};
+    }
+    pub fn inject(_: TraceContext, _: []u8) usize {
+        return 0;
+    }
+};
+
+pub const PropagationFormat = enum { w3c, b3, jaeger, aws_xray };
+pub const Propagator = struct {
+    pub fn init(_: PropagationFormat) Propagator {
+        return .{};
+    }
+};
+
+pub const TraceSampler = struct {
+    pub fn init(_: SamplerType, _: f64) TraceSampler {
+        return .{};
+    }
+    pub fn shouldSample(_: *TraceSampler, _: TraceId) bool {
+        return false;
+    }
+
+    pub const SamplerType = enum { always_on, always_off, trace_id_ratio };
+};
+
+pub const SpanProcessor = struct {
+    pub fn init(_: std.mem.Allocator) SpanProcessor {
+        return .{};
+    }
+    pub fn deinit(_: *SpanProcessor) void {}
+};
+
+pub const SpanExporter = struct {
+    pub fn init(_: std.mem.Allocator) SpanExporter {
+        return .{};
+    }
+    pub fn deinit(_: *SpanExporter) void {}
 };
 
 // Context for Framework integration
