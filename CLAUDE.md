@@ -220,7 +220,7 @@ const impl = if (build_options.enable_feature) @import("real.zig") else @import(
 
 ### GPU Architecture
 
-All GPU code is in `src/gpu/` (fully migrated from `src/compute/gpu/`):
+All GPU code is in `src/gpu/`:
 
 ```
 User Code (abi.Gpu.vectorAdd, etc.)

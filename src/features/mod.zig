@@ -12,7 +12,6 @@ pub const FeatureTag = enum {
     web,
     monitoring,
     connectors,
-    compute,
     simd,
     network,
 };
@@ -30,7 +29,6 @@ pub const web = if (build_options.enable_web) @import("../web/mod.zig") else @im
 pub const monitoring = if (build_options.enable_profiling) @import("../observability/mod.zig") else @import("../observability/stub.zig");
 pub const connectors = @import("connectors/mod.zig");
 pub const network = if (build_options.enable_network) @import("../network/mod.zig") else @import("../network/stub.zig");
-pub const compute = @import("../compute/mod.zig");
 pub const simd = @import("../shared/simd.zig");
 
 pub const config = struct {
@@ -61,7 +59,6 @@ pub const config = struct {
             .web => "web",
             .monitoring => "monitoring",
             .connectors => "connectors",
-            .compute => "compute",
             .simd => "simd",
             .network => "network",
         };
@@ -75,7 +72,6 @@ pub const config = struct {
             .web => "Web services and HTTP",
             .monitoring => "Observability and metrics",
             .connectors => "External service connectors",
-            .compute => "Compute engine",
             .simd => "SIMD acceleration",
             .network => "Distributed network compute",
         };
@@ -89,7 +85,6 @@ pub fn forEachFeature(ctx: anytype, visitor: anytype) void {
     visitor(ctx, .web, "web/mod.zig");
     visitor(ctx, .monitoring, "observability/mod.zig");
     visitor(ctx, .connectors, "features/connectors/mod.zig");
-    visitor(ctx, .compute, "compute/mod.zig");
     visitor(ctx, .simd, "shared/simd.zig");
     visitor(ctx, .network, "network/mod.zig");
 }
@@ -104,7 +99,6 @@ pub const lifecycle = struct {
                 .web => try web.init(allocator),
                 .monitoring => try monitoring.init(allocator),
                 .connectors => try connectors.init(allocator),
-                .compute => try compute.init(allocator),
                 .simd => {},
                 .network => try network.init(allocator),
             }
@@ -120,7 +114,6 @@ pub const lifecycle = struct {
                 .web => web.deinit(),
                 .monitoring => monitoring.deinit(),
                 .connectors => connectors.deinit(),
-                .compute => compute.deinit(),
                 .simd => {},
                 .network => network.deinit(),
             }

@@ -165,11 +165,11 @@ test "matrix: simd matrix multiply" {
 // Test: Compute Runtime
 // ============================================================================
 
-test "matrix: compute engine basic" {
+test "matrix: runtime engine basic" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var engine = try abi.compute.createDefaultEngine(gpa.allocator());
+    var engine = try abi.runtime.createEngine(gpa.allocator(), .{});
     defer engine.deinit();
 
     // Engine initialized successfully - no isRunning method, just verify init works

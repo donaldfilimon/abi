@@ -110,9 +110,6 @@ pub const core = @import("core/mod.zig");
 /// Features module (legacy - use direct imports above).
 pub const features = @import("features/mod.zig");
 
-/// Compute module (legacy - use runtime/gpu).
-pub const compute = @import("compute/mod.zig");
-
 /// Connectors (legacy).
 pub const connectors = features.connectors;
 
