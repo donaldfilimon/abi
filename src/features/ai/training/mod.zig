@@ -4,6 +4,7 @@
 //! gradient clipping, loss functions, and mixed precision support.
 
 const std = @import("std");
+const time_utils = @import("../../../shared/utils/time.zig");
 const checkpoint = @import("checkpoint.zig");
 const llm_checkpoint = @import("llm_checkpoint.zig");
 const gradient = @import("gradient.zig");
@@ -580,8 +581,20 @@ pub fn trainWithResult(
                     model.step % config.checkpoint_interval == 0)
                 {
                     try checkpoints.add(model.step, model.weights);
-                    if (config.checkpoint_path) |path| {
-                        _ = path;
+                    if (config.checkpoint_path) |base_path| {
+                        var path_buf: [256]u8 = undefined;
+                        const ckpt_path = std.fmt.bufPrint(
+                            &path_buf,
+                            "{s}/step_{d}.ckpt",
+                            .{ base_path, model.step },
+                        ) catch continue;
+                        checkpoint.saveCheckpoint(allocator, ckpt_path, .{
+                            .step = model.step,
+                            .timestamp = @as(u64, @intCast(time_utils.unixSeconds())),
+                            .weights = model.weights,
+                        }) catch |err| {
+                            std.debug.print("Warning: failed to save checkpoint: {t}\n", .{err});
+                        };
                     }
                 }
             }

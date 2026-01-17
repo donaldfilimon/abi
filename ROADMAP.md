@@ -1,6 +1,8 @@
 # ABI Framework Roadmap
 
-This document tracks planned features, improvements, and milestones for the ABI framework.
+> **Developer Guide**: See [AGENTS.md](AGENTS.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.
+>
+> This document tracks planned features, improvements, and milestones for ABI framework.
 
 **Zig Version Requirement:** 0.16.x (migration complete)
 
@@ -80,6 +82,7 @@ This document tracks planned features, improvements, and milestones for the ABI 
   - [x] Interactive mode improvements
   - [x] Configuration file support
   - [x] Shell completion (bash, zsh, fish)
+  - [x] Interactive TUI command launcher (cross-platform)
 - [ ] Tooling
   - [ ] Debugger integration
   - [ ] Performance profiler
@@ -197,7 +200,7 @@ See CONTRIBUTING.md for details.
 | 0.4.0 | Q2 2026 | Planned | Performance, DX, documentation |
 | 0.5.0 | Q3 2026 | Planned | Distributed systems, HA |
 
-*Last updated: January 16, 2026*
+*Last updated: January 17, 2026*
 
 ## Zig 0.16 Migration Status
 

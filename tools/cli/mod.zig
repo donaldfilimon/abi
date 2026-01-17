@@ -15,6 +15,7 @@
 //! - `gpu` - GPU commands (backends, devices, summary, default)
 //! - `network` - Manage network registry (list, register, status)
 //! - `system-info` - Show system and framework status
+//! - `tui` - Interactive terminal UI for command selection
 //! - `version` - Show framework version
 //! - `help` - Show help message
 
@@ -112,6 +113,11 @@ pub fn main(init: std.process.Init) !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "tui")) {
+        try commands.tui.runWithFramework(allocator, args[2..], &framework);
+        return;
+    }
+
     std.debug.print("Unknown command: {s}\nUse 'help' for usage.\n", .{command});
     std.process.exit(1);
 }
@@ -134,6 +140,7 @@ fn printHelp() void {
         \\  simd               Run SIMD performance demo
         \\  system-info        Show system and framework status
         \\  train <subcommand> Training pipeline (run, resume, info)
+        \\  tui                Launch interactive TUI command menu (type to filter)
         \\  version            Show framework version
         \\  help               Show this help message
         \\

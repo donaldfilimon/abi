@@ -6,6 +6,12 @@
 const std = @import("std");
 const fulltext = @import("fulltext.zig");
 
+/// Safely convert rank (usize) to u32 with saturation to prevent overflow.
+fn safeRank(rank: usize) u32 {
+    const rank_plus_one = rank +| 1; // Saturating add
+    return @intCast(@min(rank_plus_one, std.math.maxInt(u32)));
+}
+
 /// Fusion method for combining search results.
 pub const FusionMethod = enum {
     /// Reciprocal Rank Fusion (RRF).
@@ -123,7 +129,7 @@ pub const HybridSearchEngine = struct {
             }
             entry.value_ptr.rrf_score += rrf_score * self.config.vector_weight;
             entry.value_ptr.vector_score = result.score;
-            entry.value_ptr.vector_rank = @intCast(rank + 1);
+            entry.value_ptr.vector_rank = safeRank(rank);
         }
 
         // Add text results
@@ -135,7 +141,7 @@ pub const HybridSearchEngine = struct {
             }
             entry.value_ptr.rrf_score += rrf_score * self.config.text_weight;
             entry.value_ptr.text_score = result.score;
-            entry.value_ptr.text_rank = @intCast(rank + 1);
+            entry.value_ptr.text_rank = safeRank(rank);
         }
 
         return try self.collectResults(&scores, top_k);
@@ -161,7 +167,7 @@ pub const HybridSearchEngine = struct {
             }
             entry.value_ptr.rrf_score += norm_score * self.config.vector_weight;
             entry.value_ptr.vector_score = result.score;
-            entry.value_ptr.vector_rank = @intCast(rank + 1);
+            entry.value_ptr.vector_rank = safeRank(rank);
         }
 
         // Normalize and add text scores
@@ -174,7 +180,7 @@ pub const HybridSearchEngine = struct {
             }
             entry.value_ptr.rrf_score += norm_score * self.config.text_weight;
             entry.value_ptr.text_score = result.score;
-            entry.value_ptr.text_rank = @intCast(rank + 1);
+            entry.value_ptr.text_rank = safeRank(rank);
         }
 
         return try self.collectResults(&scores, top_k);
@@ -212,7 +218,7 @@ pub const HybridSearchEngine = struct {
             }
             entry.value_ptr.rrf_score += result.score * adjusted_v_weight;
             entry.value_ptr.vector_score = result.score;
-            entry.value_ptr.vector_rank = @intCast(rank + 1);
+            entry.value_ptr.vector_rank = safeRank(rank);
         }
 
         for (text_results, 0..) |result, rank| {
@@ -222,7 +228,7 @@ pub const HybridSearchEngine = struct {
             }
             entry.value_ptr.rrf_score += result.score * adjusted_t_weight;
             entry.value_ptr.text_score = result.score;
-            entry.value_ptr.text_rank = @intCast(rank + 1);
+            entry.value_ptr.text_rank = safeRank(rank);
         }
 
         return try self.collectResults(&scores, top_k);
@@ -245,7 +251,7 @@ pub const HybridSearchEngine = struct {
             }
             entry.value_ptr.rrf_score = @max(entry.value_ptr.rrf_score, result.score * self.config.vector_weight);
             entry.value_ptr.vector_score = result.score;
-            entry.value_ptr.vector_rank = @intCast(rank + 1);
+            entry.value_ptr.vector_rank = safeRank(rank);
         }
 
         for (text_results, 0..) |result, rank| {
@@ -255,7 +261,7 @@ pub const HybridSearchEngine = struct {
             }
             entry.value_ptr.rrf_score = @max(entry.value_ptr.rrf_score, result.score * self.config.text_weight);
             entry.value_ptr.text_score = result.score;
-            entry.value_ptr.text_rank = @intCast(rank + 1);
+            entry.value_ptr.text_rank = safeRank(rank);
         }
 
         return try self.collectResults(&scores, top_k);
@@ -289,7 +295,7 @@ pub const HybridSearchEngine = struct {
                     .combined_score = v_result.score,
                     .vector_score = v_result.score,
                     .text_score = t_result.score,
-                    .vector_rank = @intCast(rank + 1),
+                    .vector_rank = safeRank(rank),
                     .text_rank = null,
                 });
             }

@@ -8,7 +8,7 @@ pub const ShardConfig = struct {
     shard_count: usize = 16,
     replica_count: u32 = 3,
     virtual_nodes: u32 = 100,
-    enable_auto_researching: bool = true,
+    enable_auto_rebalancing: bool = true,
     min_nodes_per_shard: usize = 1,
 };
 
@@ -81,7 +81,7 @@ pub const ShardRouter = struct {
             try self.node_shards.put(self.allocator, node_id, list);
         }
 
-        if (self.config.enable_auto_researching) {
+        if (self.config.enable_auto_rebalancing) {
             try self.redistributeShards();
         }
         self.version += 1;
@@ -95,7 +95,7 @@ pub const ShardRouter = struct {
             entry.value_ptr.deinit(self.allocator);
         }
 
-        if (self.config.enable_auto_researching) {
+        if (self.config.enable_auto_rebalancing) {
             try self.redistributeShards();
         }
         self.version += 1;

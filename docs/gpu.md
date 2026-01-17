@@ -1,8 +1,11 @@
 # GPU Acceleration
 
 > [!NOTE]
-> **Status**: Production Ready. Backends provide native GPU execution with automatic
-> fallback to CPU simulation when native runtimes are unavailable.
+> > **Status**: Production Ready. Backends provide native GPU execution with automatic
+> > fallback to CPU simulation when native runtimes are unavailable.
+>
+> **Developer Guide**: See [AGENTS.md](../AGENTS.md) for GPU coding patterns and [CLAUDE.md](../CLAUDE.md) for backend internals.
+> **GPU Backends**: See [GPU Backend Details](gpu-backend-improvements.md) for implementation specifics.
 
 The **GPU** module (`abi.gpu`) provides a unified interface for hardware-accelerated compute across different platforms.
 

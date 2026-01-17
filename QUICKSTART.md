@@ -21,7 +21,42 @@ zig build test                    # Run all tests
 zig build test --summary all      # Run tests with detailed output
 zig test src/compute/runtime/engine.zig     # Test single file
 zig test src/tests/mod.zig --test-filter "pattern"  # Filter tests
+zig build test -Denable-gpu=true -Denable-network=true  # Test with features
 zig build benchmarks              # Run performance benchmarks
+```
+
+## CLI Commands
+
+```bash
+# General
+zig build run -- --help           # Show all commands
+zig build run -- --version        # Show version info
+zig build run -- system-info       # System and framework status
+
+# Database
+zig build run -- db stats
+zig build run -- db add --id 1 --embed "text to embed"
+zig build run -- db backup --path backup.db
+zig build run -- db restore --path backup.db
+
+# AI & Agents
+zig build run -- agent                          # Interactive agent
+zig build run -- agent --message "Hello"          # Single message
+zig build run -- agent --persona coder           # Use specific persona
+
+# GPU
+zig build run -- gpu backends                  # List backends
+zig build run -- gpu devices                   # List devices
+zig build run -- gpu summary                   # GPU summary
+
+# Training
+zig build run -- train run --epochs 10          # Run training
+zig build run -- train info                   # Show config
+zig build run -- train resume ./model.ckpt     # Resume from checkpoint
+
+# Explore codebase
+zig build run -- explore "fn init" --level quick
+zig build run -- explore "pub fn" --level thorough
 ```
 
 ## Use the Library
@@ -100,16 +135,20 @@ pub fn main(init: std.process.Init) !void {
 
 ## Module map
 
-| Module | Description |
-|--------|-------------|
-| `src/abi.zig` | Public API entry point |
-| `src/core/` | Hardware helpers and cache-aligned buffers |
-| `src/compute/runtime/engine.zig` | Runtime engine and scheduler |
-| `src/compute/concurrency/` | Lock-free data structures |
-| `src/compute/memory/` | Pool and scratch allocators |
-| `src/features/ai/` | AI features (LLM, embeddings, RAG) |
-| `src/features/database/` | WDBX vector database |
-| `src/features/gpu/` | GPU backend implementations |
+| Module | Description | Documentation |
+|--------|-------------|----------------|
+| `src/abi.zig` | Public API entry point | [API Reference](API_REFERENCE.md) |
+| `src/core/` | Hardware helpers and cache-aligned buffers | - |
+| `src/compute/runtime/` | Runtime engine and scheduler | [Compute Guide](docs/compute.md) |
+| `src/compute/concurrency/` | Lock-free data structures | [Compute Guide](docs/compute.md) |
+| `src/compute/memory/` | Pool and scratch allocators | [Compute Guide](docs/compute.md) |
+| `src/compute/gpu/` | GPU backends and unified API | [GPU Guide](docs/gpu.md) |
+| `src/features/ai/` | AI features (LLM, embeddings, training) | [AI Guide](docs/ai.md) |
+| `src/features/database/` | WDBX vector database | [Database Guide](docs/database.md) |
+| `src/features/network/` | Distributed compute and Raft | [Network Guide](docs/network.md) |
+| `src/features/monitoring/` | Logging, metrics, tracing, profiling | [Monitoring Guide](docs/monitoring.md) |
+| `src/features/web/` | HTTP helpers and web utilities | - |
+| `src/features/connectors/` | External connectors (OpenAI, Ollama, HF) | [AI Guide](docs/ai.md) |
 
 ## Next Steps
 

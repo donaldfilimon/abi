@@ -1,6 +1,8 @@
 # API Reference (Concise)
 
-> For detailed usage guides, see the [Documentation Index](docs/intro.md).
+> For detailed usage guides, see [Documentation Index](docs/intro.md).
+> For coding patterns and conventions, see [AGENTS.md](AGENTS.md).
+> For comprehensive development guidance, see [CLAUDE.md](CLAUDE.md).
 
 This is a high-level summary of the public ABI API surface. See the source for
 implementation details.
@@ -12,6 +14,20 @@ implementation details.
 - `abi.version()` -> `[]const u8`
 - `abi.createDefaultFramework(allocator)` -> `Framework`
 - `abi.createFramework(allocator, config_or_options)` -> `Framework`
+
+**Example**:
+```zig
+const std = @import("std");
+const abi = @import("abi");
+
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    var framework = try abi.init(allocator, .{});
+    defer abi.shutdown(&framework);
+
+    std.debug.print("ABI v{s} initialized\n", .{abi.version()});
+}
+```
 
 ## Framework Types
 
@@ -54,6 +70,22 @@ implementation details.
 - `abi.compute.runTask(engine, ResultType, task, timeout_ms)` -> `!Result` - Submit and wait for result
 - `abi.compute.runWorkload(engine, ResultType, workload, timeout_ms)` -> `!Result` - Alias for runTask
 
+**Example**:
+```zig
+var engine = try abi.compute.createDefaultEngine(allocator);
+defer engine.deinit();
+
+fn computeTask(_: std.mem.Allocator) !u32 {
+    return 42;
+}
+
+// Submit and wait in one call
+const result = try abi.compute.runTask(&engine, u32, computeTask, 1000);
+std.debug.print("Result: {d}\n", .{result});
+```
+
+See [Compute Guide](docs/compute.md) for detailed usage.
+
 **Timeout Semantics**:
 
 - `timeout_ms=0`: Immediately returns `EngineError.Timeout` if result not ready
@@ -75,6 +107,21 @@ implementation details.
 - `abi.ai.federated.Coordinator.registerNode(node_id)` -> `!void`
 - `abi.ai.federated.Coordinator.submitUpdate(update)` -> `!void`
 - `abi.ai.federated.Coordinator.aggregate()` -> `![]f32` - Aggregate updates
+
+**Example**:
+```zig
+var agent = try abi.ai.Agent.init(allocator, .{
+    .name = "assistant",
+    .temperature = 0.7,
+});
+defer agent.deinit();
+
+const response = try agent.chat("Hello!", allocator);
+defer allocator.free(response);
+std.debug.print("Agent: {s}\n", .{response});
+```
+
+See [AI Guide](docs/ai.md) for detailed usage.
 
 ## Connectors API
 
@@ -102,6 +149,16 @@ Each connector provides:
 - `.has_simd` - Whether SIMD is available
 - `.arch` - Architecture (x86_64, aarch64, wasm, generic)
 
+**Example**:
+```zig
+const a = [_]f32{ 1, 2, 3, 4 };
+const b = [_]f32{ 5, 6, 7, 8 };
+var result: [4]f32 = undefined;
+
+abi.simd.vectorAdd(&a, &b, &result);
+// result = { 6, 8, 10, 12 }
+```
+
 ## Benchmark Framework
 
 - `BenchmarkRunner.init(allocator)` - Create runner
@@ -124,9 +181,16 @@ Each connector provides:
 - `src/shared` - shared utilities and platform helpers
 - `src/compute` - compute runtime, memory management, concurrency
 
+**See Also**:
+- [Introduction](docs/intro.md) - Architecture overview
+- [Framework Guide](docs/framework.md) - Configuration and lifecycle
+- [Compute Guide](docs/compute.md) - Task execution
+- [AI Guide](docs/ai.md) - LLM connectors and agents
+- [GPU Guide](docs/gpu.md) - GPU backends
+
 ## Contacts
 
 src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
-See [TODO.md](TODO.md) for the list of pending implementations.
-*See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
+See [TODO.md](TODO.md) for list of pending implementations.
+See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.
 *See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*

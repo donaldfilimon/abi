@@ -8,6 +8,7 @@ Modern Zig framework for modular AI services, vector search, and systems tooling
 - Vector database helpers (WDBX) with unified API
 - High-performance compute runtime with work-stealing scheduler
 - GPU backends (CUDA, Vulkan, Metal, WebGPU) with feature gating
+- Interactive TUI CLI launcher (cross-platform)
 - Network distributed compute with serialization
 - Profiling and metrics collection
 - Web utilities (HTTP client/server helpers, weather helper)
@@ -15,9 +16,14 @@ Modern Zig framework for modular AI services, vector search, and systems tooling
 
 ## Documentation
 
+🌐 **[View Online Documentation](https://donaldfilimon.github.io/abi/)** - Professional static site with search, responsive design, and navigation.
+
 - Documentation Index: [docs/intro.md](docs/intro.md)
+- AI Agent Guidance: [AGENTS.md](AGENTS.md) - Quick reference for coding patterns
+- Comprehensive Guide: [CLAUDE.md](CLAUDE.md) - Full development guide
 - Concise API summary: [API_REFERENCE.md](API_REFERENCE.md)
 - Migration Guide: [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md)
+- Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
 
 ## Requirements
 
@@ -70,6 +76,7 @@ zig build benchmarks                               # Run performance benchmarks
 ```bash
 zig build run -- --help                           # Show CLI help
 zig build run -- --version                        # Show version info
+zig build run -- tui                              # Launch interactive TUI
 ```
 
 ## Quick Example (Zig 0.16)
@@ -89,6 +96,8 @@ pub fn main(init: std.process.Init) !void {
 ```
 
 ## Training Example
+
+> See [docs/ai.md](docs/ai.md) for complete training documentation and CLI usage.
 
 ```zig
 const std = @import("std");
@@ -332,7 +341,10 @@ CLI entrypoint resolution prefers `tools/cli/main.zig` and falls back to
 ```bash
 zig build run -- --help
 zig build run -- --version
+zig build run -- tui
 ```
+
+Run `abi tui` for an interactive command menu (type to filter, Up/Down or j/k to navigate).
 
 ## Tests
 

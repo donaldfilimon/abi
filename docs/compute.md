@@ -1,6 +1,9 @@
 # Compute Engine
 
-The **Compute Engine** (`abi.compute`) is the heart of ABI's performance capabilities. It uses a work-stealing scheduler to efficiently execute concurrent tasks.
+> **Developer Guide**: See [AGENTS.md](../AGENTS.md) for compute coding patterns and [CLAUDE.md](../CLAUDE.md) for engine internals.
+> **GPU Offloading**: See [GPU Guide](gpu.md) for GPU-accelerated compute.
+
+The **Compute Engine** (`abi.compute`) is heart of ABI's performance capabilities. It uses a work-stealing scheduler to efficiently execute concurrent tasks.
 
 ## Concepts
 

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Get started with ABI Framework in minutes">
+    <title>Quick Start | ABI Framework</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="canonical" href="https://donaldfilimon.github.io/abi/pages/quickstart.html">
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>
+                    <span>ABI</span>
+                    <span class="version">v0.1.0</span>
+                </h1>
+            </div>
+
+            <div class="search-container">
+                <input
+                    type="search"
+                    id="search-input"
+                    class="search-input"
+                    placeholder="Search documentation... (Ctrl+K)"
+                    aria-label="Search documentation"
+                >
+                <div class="search-results" id="search-results"></div>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="sidebar-section">
+                    <h3>Getting Started</h3>
+                    <a href="../index.html" class="sidebar-link">Home</a>
+                    <a href="quickstart.html" class="sidebar-link active">Quick Start</a>
+                    <a href="build-test.html" class="sidebar-link">Build & Test</a>
+                    <a href="intro.html" class="sidebar-link">Introduction</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Developer Guide</h3>
+                    <a href="agents.html" class="sidebar-link">Agent Guide</a>
+                    <a href="../../AGENTS.md" class="sidebar-link">AGENTS.md (Raw)</a>
+                    <a href="../../CLAUDE.md" class="sidebar-link">CLAUDE.md (Raw)</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Features</h3>
+                    <a href="ai.html" class="sidebar-link">AI & Agents</a>
+                    <a href="compute.html" class="sidebar-link">Compute Engine</a>
+                    <a href="gpu.html" class="sidebar-link">GPU Acceleration</a>
+                    <a href="database.html" class="sidebar-link">Database</a>
+                    <a href="network.html" class="sidebar-link">Network</a>
+                    <a href="monitoring.html" class="sidebar-link">Monitoring</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Reference</h3>
+                    <a href="api.html" class="sidebar-link">API Reference</a>
+                    <a href="cli.html" class="sidebar-link">CLI Commands</a>
+                    <a href="migration.html" class="sidebar-link">Zig 0.16 Migration</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Support</h3>
+                    <a href="troubleshooting.html" class="sidebar-link">Troubleshooting</a>
+                    <a href="../../TODO.md" class="sidebar-link">TODO List</a>
+                    <a href="../../ROADMAP.md" class="sidebar-link">Roadmap</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>External</h3>
+                    <a href="../../README.md" class="sidebar-link">README</a>
+                    <a href="https://github.com/donaldfilimon/abi" class="sidebar-link" target="_blank" rel="noopener">
+                        GitHub Repository ↗
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper fade-in">
+                <h1>Quick Start</h1>
+
+                <p>
+                    Welcome to the ABI Framework! This guide will help you get up and running in minutes.
+                    For comprehensive guides, see the <a href="intro.html">Introduction</a>.
+                </p>
+
+                <div class="alert alert-note">
+                    <div class="alert-title">📘 For AI Agents</div>
+                    <p>
+                        See <a href="agents.html">Agent Guide</a> for coding patterns, and
+                        <a href="../../AGENTS.md">AGENTS.md</a> for comprehensive guidance.
+                    </p>
+                </div>
+
+                <h2>Requirements</h2>
+                <ul>
+                    <li><strong>Zig 0.16.x</strong> (minimum 0.16.0)</li>
+                </ul>
+
+                <h2>Build and Run CLI</h2>
+
+                <div class="feature-list">
+                    <li class="feature-item">
+                        <span class="feature-icon">🔨</span>
+                        <div class="feature-text">
+                            <div class="feature-title">Build Project</div>
+                            <pre><code>zig build</code></pre>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <span class="feature-icon">❓</span>
+                        <div class="feature-text">
+                            <div class="feature-title">Show CLI Help</div>
+                            <pre><code>zig build run -- --help</code></pre>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <span class="feature-icon">🔢</span>
+                        <div class="feature-text">
+                            <div class="feature-title">Show Version</div>
+                            <pre><code>zig build run -- --version</code></pre>
+                        </div>
+                    </li>
+                </div>
+
+                <h2>Run Tests and Benchmarks</h2>
+
+                <div class="feature-list">
+                    <li class="feature-item">
+                        <span class="feature-icon">🧪</span>
+                        <div class="feature-text">
+                            <div class="feature-title">Run All Tests</div>
+                            <pre><code>zig build test --summary all</code></pre>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <span class="feature-icon">📄</span>
+                        <div class="feature-text">
+                            <div class="feature-title">Test Single File</div>
+                            <pre><code>zig test src/compute/runtime/engine.zig</code></pre>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <span class="feature-icon">🎯</span>
+                        <div class="feature-text">
+                            <div class="feature-title">Filter Tests</div>
+                            <pre><code>zig test src/tests/mod.zig --test-filter "pattern"</code></pre>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <span class="feature-icon">⚡</span>
+                        <div class="feature-text">
+                            <div class="feature-title">Run Benchmarks</div>
+                            <pre><code>zig build benchmarks</code></pre>
+                        </div>
+                    </li>
+                </div>
+
+                <h2>Use the Library</h2>
+
+                <h3>Basic Framework Usage</h3>
+
+                <pre><code>const std = @import("std");
+const abi = @import("abi");
+
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
+    defer abi.shutdown(&framework);
+
+    std.debug.print("ABI v{s} initialized\n", .{abi.version()});
+}</code></pre>
+
+                <h3>Compute Engine Example</h3>
+
+                <pre><code>const std = @import("std");
+const abi = @import("abi");
+
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
+    defer abi.shutdown(&framework);
+
+    var engine = try abi.compute.createDefaultEngine(allocator);
+    defer engine.deinit();
+
+    fn exampleTask(_: std.mem.Allocator) !u64 {
+        return 42;
+    }
+
+    // Submit and wait for result
+    const result = try abi.compute.runTask(&engine, u64, exampleTask, 1000);
+    std.debug.print("Result: {d}\n", .{result});
+}</code></pre>
+
+                <h3>AI Agent Example</h3>
+
+                <pre><code>const std = @import("std");
+const abi = @import("abi");
+
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+
+    var framework = try abi.init(allocator, .{
+        .enable_ai = true,
+    });
+    defer abi.shutdown(&framework);
+
+    var agent = try abi.ai.Agent.init(allocator, .{
+        .name = "assistant",
+        .temperature = 0.7,
+    });
+    defer agent.deinit();
+
+    const response = try agent.chat("Hello!", allocator);
+    defer allocator.free(response);
+    std.debug.print("Agent: {s}\n", .{response});
+}</code></pre>
+
+                <h2>CLI Commands</h2>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Command</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>zig build run -- db stats</code></td>
+                            <td>Database statistics</td>
+                        </tr>
+                        <tr>
+                            <td><code>zig build run -- gpu devices</code></td>
+                            <td>List GPU devices</td>
+                        </tr>
+                        <tr>
+                            <td><code>zig build run -- agent</code></td>
+                            <td>Interactive AI agent</td>
+                        </tr>
+                        <tr>
+                            <td><code>zig build run -- train run --epochs 10</code></td>
+                            <td>Run training pipeline</td>
+                        </tr>
+                        <tr>
+                            <td><code>zig build run -- explore "fn init"</code></td>
+                            <td>Search codebase</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-note">
+                    <div class="alert-title">💡 Next Steps</div>
+                    <ul style="margin-left: 1.5rem;">
+                        <li>Read the <a href="intro.html">Introduction</a> for architecture overview</li>
+                        <li>See the <a href="api.html">API Reference</a> for full API documentation</li>
+                        <li>Check the <a href="../examples/">examples/</a> directory for more code samples</li>
+                        <li>Review <a href="agents.html">Agent Guide</a> for coding patterns</li>
+                    </ul>
+                </div>
+
+                <h2>Module Map</h2>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Module</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code class="text-muted">src/abi.zig</code></td>
+                            <td>Public API entry point</td>
+                        </tr>
+                        <tr>
+                            <td><code class="text-muted">src/core/</code></td>
+                            <td>Hardware helpers and cache-aligned buffers</td>
+                        </tr>
+                        <tr>
+                            <td><code class="text-muted">src/compute/runtime/</code></td>
+                            <td>Runtime engine and scheduler</td>
+                        </tr>
+                        <tr>
+                            <td><code class="text-muted">src/compute/concurrency/</code></td>
+                            <td>Lock-free data structures</td>
+                        </tr>
+                        <tr>
+                            <td><code class="text-muted">src/compute/memory/</code></td>
+                            <td>Pool and scratch allocators</td>
+                        </tr>
+                        <tr>
+                            <td><code class="text-muted">src/features/ai/</code></td>
+                            <td>AI features (LLM, embeddings, RAG)</td>
+                        </tr>
+                        <tr>
+                            <td><code class="text-muted">src/features/database/</code></td>
+                            <td>WDBX vector database</td>
+                        </tr>
+                        <tr>
+                            <td><code class="text-muted">src/compute/gpu/</code></td>
+                            <td>GPU backend implementations</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h2>Feature Flags</h2>
+
+                <p>
+                    Enable or disable features at build time to reduce binary size or customize dependencies.
+                </p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Flag</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>-Denable-ai</code></td>
+                            <td><code>true</code></td>
+                            <td>AI agents, connectors, training</td>
+                        </tr>
+                        <tr>
+                            <td><code>-Denable-gpu</code></td>
+                            <td><code>true</code></td>
+                            <td>GPU acceleration</td>
+                        </tr>
+                        <tr>
+                            <td><code>-Denable-database</code></td>
+                            <td><code>true</code></td>
+                            <td>WDBX vector database</td>
+                        </tr>
+                        <tr>
+                            <td><code>-Denable-web</code></td>
+                            <td><code>true</code></td>
+                            <td>HTTP client/server</td>
+                        </tr>
+                        <tr>
+                            <td><code>-Denable-network</code></td>
+                            <td><code>true</code></td>
+                            <td>Distributed compute</td>
+                        </tr>
+                        <tr>
+                            <td><code>-Denable-profiling</code></td>
+                            <td><code>true</code></td>
+                            <td>Metrics and profiling</td>
+                        </tr>
+                        <tr>
+                            <td><code>-Dgpu-cuda</code></td>
+                            <td><code>false</code></td>
+                            <td>CUDA GPU backend</td>
+                        </tr>
+                        <tr>
+                            <td><code>-Dgpu-vulkan</code></td>
+                            <td><code>true</code></td>
+                            <td>Vulkan GPU backend</td>
+                        </tr>
+                        <tr>
+                            <td><code>-Dgpu-metal</code></td>
+                            <td><code>false</code></td>
+                            <td>Metal GPU backend</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <footer style="margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 2rem;">
+                    <div class="text-center">
+                        <p class="text-muted">
+                            Built with ❤️ using Zig 0.16.x •
+                            <a href="https://github.com/donaldfilimon/abi" target="_blank" rel="noopener">
+                                GitHub Repository
+                            </a> •
+                            <a href="https://github.com/donaldfilimon/abi/issues" target="_blank" rel="noopener">
+                                Report Issue
+                            </a>
+                        </p>
+                        <p class="text-muted" style="margin-top: 0.5rem; font-size: 0.85rem;">
+                            MIT License • © 2025-2026 ABI Framework Contributors
+                        </p>
+                    </div>
+                </footer>
+            </div>
+        </main>
+
+        <button class="menu-toggle" id="menu-toggle">☰</button>
+    </div>
+
+    <script src="../assets/js/search.js"></script>
+</body>
+</html>

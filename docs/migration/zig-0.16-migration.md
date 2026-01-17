@@ -1,8 +1,10 @@
 # Zig 0.16 Migration Guide
 
-**Status:** Complete
-**Last Updated:** January 16, 2026
-**Zig Version:** 0.16.x
+> **Status:** Complete ✅
+> **Developer Guide**: See [AGENTS.md](../../AGENTS.md) for coding patterns and [CLAUDE.md](../../CLAUDE.md) for comprehensive guidance.
+>
+> **Last Updated:** January 16, 2026
+> **Zig Version:** 0.16.x
 
 ## Overview
 

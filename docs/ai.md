@@ -1,5 +1,8 @@
 # AI & Agents
 
+> **Developer Guide**: See [AGENTS.md](../AGENTS.md) for coding patterns and [CLAUDE.md](../CLAUDE.md) for comprehensive agent guidance.
+> **Framework**: Initialize ABI framework before using AI features - see [Framework Guide](framework.md).
+
 The **AI** module (`abi.ai`) provides the building blocks for creating autonomous agents and connecting to LLM providers.
 
 ## Connectors

@@ -119,12 +119,15 @@ fn jsonBenchmark(allocator: std.mem.Allocator) !void {
     std.mem.doNotOptimizeAway(&parsed);
 }
 
-// Logging benchmark
+// Logging benchmark - measures format string processing overhead without I/O
 fn loggingBenchmark(allocator: std.mem.Allocator) !void {
     var framework = try abi.init(allocator, abi.FrameworkOptions{ .enable_gpu = false });
     defer abi.shutdown(&framework);
 
-    abi.logging.info("benchmark test message", .{});
+    // Measure format string preparation without stdout I/O
+    var buffer: [256]u8 = undefined;
+    const msg = std.fmt.bufPrint(&buffer, "[info] benchmark test: {d}", .{@as(u64, 42)}) catch "error";
+    std.mem.doNotOptimizeAway(msg.ptr);
 }
 
 // Configuration benchmark

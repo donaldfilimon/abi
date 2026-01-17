@@ -14,6 +14,8 @@ zig build test
 zig fmt .
 ```
 
+> **For AI Agents**: See [AGENTS.md](AGENTS.md) for comprehensive guidance on coding patterns, build commands, and testing.
+
 ## Workflow
 
 1. Create a focused branch.
@@ -78,6 +80,10 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});
 - Unit coverage lives in library tests and `tests/mod.zig`.
 - New features must include tests or clear justification.
 - Run `zig build test --summary all` to see detailed results.
+- Run tests with specific features: `zig build test -Denable-gpu=true -Denable-network=true`
+- Test a single file: `zig test src/compute/runtime/engine.zig`
+- Filter tests: `zig test src/tests/mod.zig --test-filter "pattern"`
+- Use `error.SkipZigTest` for hardware-gated tests
 
 ## Contacts
 

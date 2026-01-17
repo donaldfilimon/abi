@@ -363,13 +363,13 @@ pub fn build(b: *std.Build) void {
         std.log.warn("src/tests/mod.zig not found; skipping test step", .{});
     }
 
-    // Benchmark step
-    const has_benchmark = pathExists("src/compute/runtime/benchmark.zig");
-    if (has_benchmark) {
+    // Benchmark step (legacy)
+    const has_legacy_benchmark = pathExists("benchmarks/legacy.zig");
+    if (has_legacy_benchmark) {
         const benchmark_exe = b.addExecutable(.{
             .name = "abi-benchmark",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("src/compute/runtime/benchmark.zig"),
+                .root_source_file = b.path("benchmarks/legacy.zig"),
                 .target = target,
                 .optimize = .ReleaseFast,
             }),
@@ -381,7 +381,7 @@ pub fn build(b: *std.Build) void {
         const benchmark_step = b.step("benchmark-legacy", "Run legacy performance benchmarks");
         benchmark_step.dependOn(&run_benchmark.step);
     } else {
-        std.log.warn("src/compute/runtime/benchmark.zig not found; skipping benchmark step", .{});
+        std.log.warn("benchmarks/legacy.zig not found; skipping benchmark-legacy step", .{});
     }
 
     // Benchmarks

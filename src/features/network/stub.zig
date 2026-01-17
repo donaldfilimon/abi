@@ -3,6 +3,7 @@
 //! Mirrors the full API of mod.zig, returning error.NetworkDisabled for all operations.
 
 const std = @import("std");
+const stub_root = @This();
 
 pub const NetworkError = error{
     NetworkDisabled,
@@ -352,15 +353,15 @@ pub const NodeStats = struct {
     state: NodeState = .inactive,
 };
 
-// Retry Types
+// Retry Types - re-export from this file (stub provides disabled implementations)
 pub const retry = struct {
-    pub const RetryConfig = @import("stub.zig").RetryConfig;
-    pub const RetryResult = @import("stub.zig").RetryResult;
-    pub const RetryError = @import("stub.zig").RetryError;
-    pub const RetryStrategy = @import("stub.zig").RetryStrategy;
-    pub const RetryExecutor = @import("stub.zig").RetryExecutor;
-    pub const RetryableErrors = @import("stub.zig").RetryableErrors;
-    pub const BackoffCalculator = @import("stub.zig").BackoffCalculator;
+    pub const RetryConfig = stub_root.RetryConfig;
+    pub const RetryResult = stub_root.RetryResult;
+    pub const RetryError = stub_root.RetryError;
+    pub const RetryStrategy = stub_root.RetryStrategy;
+    pub const RetryExecutor = stub_root.RetryExecutor;
+    pub const RetryableErrors = stub_root.RetryableErrors;
+    pub const BackoffCalculator = stub_root.BackoffCalculator;
     pub const retry_fn = retryOperation;
     pub const retryWithStrategy = retryWithStrategyFn;
 };
@@ -424,16 +425,16 @@ pub fn retryWithStrategyFn(comptime T: type, operation: anytype, strategy: Retry
     return error.NetworkDisabled;
 }
 
-// Rate Limiter Types
+// Rate Limiter Types - re-export from this file (stub provides disabled implementations)
 pub const rate_limiter = struct {
-    pub const RateLimiter = @import("stub.zig").RateLimiter;
-    pub const RateLimiterConfig = @import("stub.zig").RateLimiterConfig;
-    pub const RateLimitAlgorithm = @import("stub.zig").RateLimitAlgorithm;
-    pub const AcquireResult = @import("stub.zig").AcquireResult;
-    pub const TokenBucketLimiter = @import("stub.zig").TokenBucketLimiter;
-    pub const SlidingWindowLimiter = @import("stub.zig").SlidingWindowLimiter;
-    pub const FixedWindowLimiter = @import("stub.zig").FixedWindowLimiter;
-    pub const LimiterStats = @import("stub.zig").LimiterStats;
+    pub const RateLimiter = stub_root.RateLimiter;
+    pub const RateLimiterConfig = stub_root.RateLimiterConfig;
+    pub const RateLimitAlgorithm = stub_root.RateLimitAlgorithm;
+    pub const AcquireResult = stub_root.AcquireResult;
+    pub const TokenBucketLimiter = stub_root.TokenBucketLimiter;
+    pub const SlidingWindowLimiter = stub_root.SlidingWindowLimiter;
+    pub const FixedWindowLimiter = stub_root.FixedWindowLimiter;
+    pub const LimiterStats = stub_root.LimiterStats;
 };
 
 pub const RateLimiter = struct {
@@ -505,16 +506,16 @@ pub const LimiterStats = struct {
     rejected_requests: u64 = 0,
 };
 
-// Connection Pool Types
+// Connection Pool Types - re-export from this file
 pub const connection_pool = struct {
-    pub const ConnectionPool = @import("stub.zig").ConnectionPool;
-    pub const ConnectionPoolConfig = @import("stub.zig").ConnectionPoolConfig;
-    pub const PooledConnection = @import("stub.zig").PooledConnection;
-    pub const ConnectionState = @import("stub.zig").ConnectionState;
-    pub const ConnectionStats = @import("stub.zig").ConnectionStats;
-    pub const HostKey = @import("stub.zig").HostKey;
-    pub const PoolStats = @import("stub.zig").PoolStats;
-    pub const PoolBuilder = @import("stub.zig").PoolBuilder;
+    pub const ConnectionPool = stub_root.ConnectionPool;
+    pub const ConnectionPoolConfig = stub_root.ConnectionPoolConfig;
+    pub const PooledConnection = stub_root.PooledConnection;
+    pub const ConnectionState = stub_root.ConnectionState;
+    pub const ConnectionStats = stub_root.ConnectionStats;
+    pub const HostKey = stub_root.HostKey;
+    pub const PoolStats = stub_root.PoolStats;
+    pub const PoolBuilder = stub_root.PoolBuilder;
 };
 
 pub const ConnectionPool = struct {
@@ -587,19 +588,19 @@ pub const PoolBuilder = struct {
     }
 };
 
-// Raft Consensus Types
+// Raft Consensus Types - re-export from this file
 pub const raft = struct {
-    pub const RaftNode = @import("stub.zig").RaftNode;
-    pub const RaftState = @import("stub.zig").RaftState;
-    pub const RaftConfig = @import("stub.zig").RaftConfig;
-    pub const RaftError = @import("stub.zig").RaftError;
-    pub const RaftStats = @import("stub.zig").RaftStats;
-    pub const LogEntry = @import("stub.zig").LogEntry;
-    pub const RequestVoteRequest = @import("stub.zig").RequestVoteRequest;
-    pub const RequestVoteResponse = @import("stub.zig").RequestVoteResponse;
-    pub const AppendEntriesRequest = @import("stub.zig").AppendEntriesRequest;
-    pub const AppendEntriesResponse = @import("stub.zig").AppendEntriesResponse;
-    pub const PeerState = @import("stub.zig").PeerState;
+    pub const RaftNode = stub_root.RaftNode;
+    pub const RaftState = stub_root.RaftState;
+    pub const RaftConfig = stub_root.RaftConfig;
+    pub const RaftError = stub_root.RaftError;
+    pub const RaftStats = stub_root.RaftStats;
+    pub const LogEntry = stub_root.LogEntry;
+    pub const RequestVoteRequest = stub_root.RequestVoteRequest;
+    pub const RequestVoteResponse = stub_root.RequestVoteResponse;
+    pub const AppendEntriesRequest = stub_root.AppendEntriesRequest;
+    pub const AppendEntriesResponse = stub_root.AppendEntriesResponse;
+    pub const PeerState = stub_root.PeerState;
     pub const createCluster = createRaftCluster;
 };
 

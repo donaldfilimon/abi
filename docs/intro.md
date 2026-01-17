@@ -1,5 +1,9 @@
 # Introduction
 
+> **Quick Start**: See [Quickstart Guide](../QUICKSTART.md) for immediate setup examples.
+> **Developer Guide**: See [AGENTS.md](../AGENTS.md) for AI agent coding patterns and build commands.
+> **Full Reference**: See [Documentation Index](index.md) for complete documentation listing.
+
 Welcome to **ABI**, a modern Zig 0.16.x framework for modular AI services, vector search, and high-performance systems tooling.
 
 ---
@@ -70,15 +74,15 @@ High-performance parallel execution:
 
 Domain-specific modules:
 
-| Feature | Description |
-|---------|-------------|
-| **AI** | LLM connectors (OpenAI, Ollama, HuggingFace), agent runtime, training |
-| **Database** | WDBX vector database, HNSW indexing, hybrid search |
-| **GPU** | Multi-backend support (CUDA, Vulkan, Metal, WebGPU), unified API |
-| **Network** | Distributed compute, node discovery, Raft consensus |
-| **Monitoring** | Logging, metrics, alerting, tracing, profiling |
-| **Web** | HTTP client/server, async I/O |
-| **Connectors** | Discord, local scheduler integrations |
+| Feature | Description | Guide |
+|---------|-------------|--------|
+| **AI** | LLM connectors (OpenAI, Ollama, HuggingFace), agent runtime, training | [AI Guide](ai.md) |
+| **Database** | WDBX vector database, HNSW indexing, hybrid search | [Database Guide](database.md) |
+| **GPU** | Multi-backend support (CUDA, Vulkan, Metal, WebGPU), unified API | [GPU Guide](gpu.md) |
+| **Network** | Distributed compute, node discovery, Raft consensus | [Network Guide](network.md) |
+| **Monitoring** | Logging, metrics, alerting, tracing, profiling | [Monitoring Guide](monitoring.md) |
+| **Web** | HTTP client/server, async I/O | - |
+| **Connectors** | Discord, local scheduler integrations | [AI Guide](ai.md) |
 
 ### Layer 5: Shared Utilities (`src/shared/`)
 
@@ -136,6 +140,9 @@ pub fn main() !void {
 
 ## Next Steps
 
+- [Documentation Index](index.md) - Complete documentation listing
+- [AGENTS.md](../AGENTS.md) - Quick reference for AI agents (coding patterns, build commands)
+- [CLAUDE.md](../CLAUDE.md) - Comprehensive development guide
 - [Framework Guide](framework.md) - Configuration and lifecycle
 - [Compute Engine](compute.md) - Task execution and scheduling
 - [AI & Agents](ai.md) - LLM connectors and agent runtime

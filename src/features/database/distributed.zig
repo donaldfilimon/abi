@@ -76,7 +76,7 @@ pub const DistributedDatabase = struct {
             router.* = try shard.ShardRouter.init(allocator, .{
                 .shard_count = config.shard_count,
                 .replica_count = @as(u32, @intCast(config.replica_count)),
-                .enable_auto_researching = true,
+                .enable_auto_rebalancing = true,
             });
             errdefer router.deinit();
             dist_db.local_shard = router;

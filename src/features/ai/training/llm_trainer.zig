@@ -258,8 +258,8 @@ pub const LlamaTrainer = struct {
             });
         }
 
-        const log_timer = std.time.Timer.start() catch null;
-        const initial_time = if (log_timer) |t| t.read() else 0;
+        var log_timer = std.time.Timer.start() catch null;
+        const initial_time = if (log_timer) |*t| t.read() else 0;
 
         return .{
             .allocator = allocator,

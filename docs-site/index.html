@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ABI Framework - Modern Zig 0.16.x framework for modular AI services, vector search, and high-performance systems tooling">
+    <meta name="keywords" content="Zig, AI, Machine Learning, GPU, Vector Database, Systems Programming">
+    <title>ABI Framework Documentation</title>
+
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="canonical" href="https://donaldfilimon.github.io/abi/">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%236366f1' rx='20'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'%3EABI%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>
+                    <span>ABI</span>
+                    <span class="version">v0.1.0</span>
+                </h1>
+            </div>
+
+            <div class="search-container">
+                <input
+                    type="search"
+                    id="search-input"
+                    class="search-input"
+                    placeholder="Search documentation... (Ctrl+K)"
+                    aria-label="Search documentation"
+                >
+                <div class="search-results" id="search-results"></div>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="sidebar-section">
+                    <h3>Getting Started</h3>
+                    <a href="pages/quickstart.html" class="sidebar-link">Quick Start</a>
+                    <a href="pages/build-test.html" class="sidebar-link">Build & Test</a>
+                    <a href="pages/intro.html" class="sidebar-link">Introduction</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Developer Guide</h3>
+                    <a href="pages/agents.html" class="sidebar-link">Agent Guide</a>
+                    <a href="../AGENTS.md" class="sidebar-link">AGENTS.md (Raw)</a>
+                    <a href="../CLAUDE.md" class="sidebar-link">CLAUDE.md (Raw)</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Features</h3>
+                    <a href="pages/ai.html" class="sidebar-link">AI & Agents</a>
+                    <a href="pages/compute.html" class="sidebar-link">Compute Engine</a>
+                    <a href="pages/gpu.html" class="sidebar-link">GPU Acceleration</a>
+                    <a href="pages/database.html" class="sidebar-link">Database (WDBX)</a>
+                    <a href="pages/network.html" class="sidebar-link">Network</a>
+                    <a href="pages/monitoring.html" class="sidebar-link">Monitoring</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Reference</h3>
+                    <a href="pages/api.html" class="sidebar-link">API Reference</a>
+                    <a href="pages/cli.html" class="sidebar-link">CLI Commands</a>
+                    <a href="pages/migration.html" class="sidebar-link">Zig 0.16 Migration</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Support</h3>
+                    <a href="pages/troubleshooting.html" class="sidebar-link">Troubleshooting</a>
+                    <a href="../TODO.md" class="sidebar-link">TODO List</a>
+                    <a href="../ROADMAP.md" class="sidebar-link">Roadmap</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>External</h3>
+                    <a href="../README.md" class="sidebar-link">README</a>
+                    <a href="https://github.com/donaldfilimon/abi" class="sidebar-link" target="_blank" rel="noopener">
+                        GitHub Repository ↗
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper fade-in">
+                <!-- Hero Section -->
+                <header class="mt-3 mb-3 text-center">
+                    <h1>ABI Framework</h1>
+                    <p class="text-muted" style="font-size: 1.25rem;">
+                        Modern Zig 0.16.x framework for modular AI services,<br>
+                        vector search, and high-performance systems tooling
+                    </p>
+                </header>
+
+                <!-- Quick Links -->
+                <div class="cards-grid">
+                    <div class="card">
+                        <div class="card-title">🚀 Quick Start</div>
+                        <p class="card-description">
+                            Get up and running with ABI in minutes. Build your first AI agent or compute workload.
+                        </p>
+                        <a href="pages/quickstart.html" class="card-badge">Get Started</a>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">📚 Documentation</div>
+                        <p class="card-description">
+                            Comprehensive guides covering architecture, AI, GPU acceleration, databases, and more.
+                        </p>
+                        <a href="pages/intro.html" class="card-badge">Read Docs</a>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">💻 Examples</div>
+                        <p class="card-description">
+                            Ready-to-run examples demonstrating framework capabilities and best practices.
+                        </p>
+                        <a href="../examples/" class="card-badge">View Examples</a>
+                    </div>
+                </div>
+
+                <!-- Features Overview -->
+                <section class="mt-3">
+                    <h2>Features</h2>
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="feature-icon">⚡</span>
+                            <div class="feature-text">
+                                <div class="feature-title">High Performance</div>
+                                <div class="feature-desc">
+                                    Work-stealing scheduler, lock-free data structures, SIMD optimizations, and zero-copy patterns.
+                                </div>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-icon">🔧</span>
+                            <div class="feature-text">
+                                <div class="feature-title">Modular Design</div>
+                                <div class="feature-desc">
+                                    Use only what you need. Core features are isolated, advanced subsystems are opt-in via build flags.
+                                </div>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-icon">🎨</span>
+                            <div class="feature-text">
+                                <div class="feature-title">Modern Patterns</div>
+                                <div class="feature-desc">
+                                    Native support for vector embeddings, AI agents, GPU acceleration, and distributed compute.
+                                </div>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-icon">🔒</span>
+                            <div class="feature-text">
+                                <div class="feature-title">Production Ready</div>
+                                <div class="feature-desc">
+                                    Comprehensive testing, profiling, metrics, security, and deployment guides.
+                                </div>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-icon">🌐</span>
+                            <div class="feature-text">
+                                <div class="feature-title">Cross-Platform</div>
+                                <div class="feature-desc">
+                                    Zig 0.16.x compatibility with Windows, Linux, macOS, WASM, and mobile support.
+                                </div>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-icon">📊</span>
+                            <div class="feature-text">
+                                <div class="feature-title">Observability</div>
+                                <div class="feature-desc">
+                                    Built-in logging, metrics, tracing, profiling, and alerting for production monitoring.
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </section>
+
+                <!-- Architecture Overview -->
+                <section class="mt-3">
+                    <h2>Architecture</h2>
+                    <p>
+                        The framework is organized into five layers, from public API to shared utilities.
+                        Each layer builds on the previous one, providing a clean separation of concerns.
+                    </p>
+
+                    <div class="cards-grid">
+                        <div class="card">
+                            <div class="card-title">Public API</div>
+                            <p class="card-description">
+                                <code class="text-muted">abi.zig</code> - Entry point with curated re-exports.
+                                <br><br>
+                                <code>abi.init()</code>, <code>abi.shutdown()</code>, <code>abi.version()</code>
+                            </p>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">Framework</div>
+                            <p class="card-description">
+                                <code class="text-muted">src/framework/</code> - Lifecycle management and orchestration.
+                                <br><br>
+                                Configuration, feature orchestration, and plugin system.
+                            </p>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">Compute Engine</div>
+                            <p class="card-description">
+                                <code class="text-muted">src/compute/</code> - Parallel execution runtime.
+                                <br><br>
+                                Work-stealing scheduler, GPU integration, memory arenas.
+                            </p>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">Feature Stacks</div>
+                            <p class="card-description">
+                                <code class="text-muted">src/features/</code> - Domain-specific modules.
+                                <br><br>
+                                AI, Database, GPU, Network, Monitoring, Web.
+                            </p>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">Shared Utilities</div>
+                            <p class="card-description">
+                                <code class="text-muted">src/shared/</code> - Cross-cutting concerns.
+                                <br><br>
+                                Platform abstractions, SIMD, crypto, logging, filesystem.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Build & Quick Install -->
+                <section class="mt-3">
+                    <h2>Quick Install</h2>
+
+                    <div class="alert alert-note">
+                        <div class="alert-title">ℹ️ Requirements</div>
+                        <p>Zig 0.16.x (minimum 0.16.0)</p>
+                    </div>
+
+                    <div class="feature-list">
+                        <li class="feature-item">
+                            <span class="feature-icon">📦</span>
+                            <div class="feature-text">
+                                <div class="feature-title">Clone Repository</div>
+                                <pre><code>git clone https://github.com/donaldfilimon/abi.git
+cd abi</code></pre>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-icon">🔨</span>
+                            <div class="feature-text">
+                                <div class="feature-title">Build Project</div>
+                                <pre><code>zig build</code></pre>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="feature-icon">🧪</span>
+                            <div class="feature-text">
+                                <div class="feature-title">Run Tests</div>
+                                <pre><code>zig build test --summary all</code></pre>
+                            </div>
+                        </li>
+                    </div>
+                </section>
+
+                <!-- Key Links -->
+                <section class="mt-3">
+                    <h2>Resources</h2>
+                    <div class="cards-grid">
+                        <div class="card">
+                            <div class="card-title">📖 AGENTS.md</div>
+                            <p class="card-description">
+                                Quick reference for AI agents and coding patterns.
+                            </p>
+                            <a href="../AGENTS.md" class="card-badge">View</a>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">📘 CLAUDE.md</div>
+                            <p class="card-description">
+                                Comprehensive development guide with internals and patterns.
+                            </p>
+                            <a href="../CLAUDE.md" class="card-badge">View</a>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">🔗 API Reference</div>
+                            <p class="card-description">
+                                High-level API summary with examples.
+                            </p>
+                            <a href="../API_REFERENCE.md" class="card-badge">View</a>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">🗺️ Roadmap</div>
+                            <p class="card-description">
+                                Future milestones and project planning.
+                            </p>
+                            <a href="../ROADMAP.md" class="card-badge">View</a>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Footer -->
+                <footer class="mt-3" style="border-top: 1px solid var(--border); padding-top: 2rem;">
+                    <div class="text-center">
+                        <p class="text-muted">
+                            Built with ❤️ using Zig 0.16.x •
+                            <a href="https://github.com/donaldfilimon/abi" target="_blank" rel="noopener">
+                                GitHub Repository
+                            </a> •
+                            <a href="https://github.com/donaldfilimon/abi/issues" target="_blank" rel="noopener">
+                                Report Issue
+                            </a>
+                        </p>
+                        <p class="text-muted" style="margin-top: 0.5rem; font-size: 0.85rem;">
+                            MIT License • © 2025-2026 ABI Framework Contributors
+                        </p>
+                    </div>
+                </footer>
+            </div>
+        </main>
+
+        <!-- Mobile Menu Toggle -->
+        <button class="menu-toggle" id="menu-toggle">☰</button>
+    </div>
+
+    <script src="assets/js/search.js"></script>
+</body>
+</html>

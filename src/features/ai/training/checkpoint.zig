@@ -1,7 +1,17 @@
 //! Training checkpoint storage and persistence helpers.
 const std = @import("std");
+const builtin = @import("builtin");
 const binary = @import("../../../shared/utils/binary.zig");
 const time = @import("../../../shared/utils/time.zig");
+const windows = std.os.windows;
+const posix = std.posix;
+
+const WindowsDir = struct {
+    extern "kernel32" fn CreateDirectoryA(
+        lpPathName: [*:0]const u8,
+        lpSecurityAttributes: ?*anyopaque,
+    ) callconv(.winapi) windows.BOOL;
+};
 
 const checkpoint_magic = "ABIC";
 const checkpoint_version: u16 = 1;
@@ -120,6 +130,37 @@ pub const CheckpointStore = struct {
 
 pub const SaveLatestError = SaveError || StoreError;
 
+/// Ensure the parent directory for a path exists.
+fn ensureParentDir(path: []const u8) void {
+    // Find the last path separator
+    var last_sep: ?usize = null;
+    for (path, 0..) |c, i| {
+        if (c == '/' or c == '\\') {
+            last_sep = i;
+        }
+    }
+
+    const dir_path = if (last_sep) |sep| path[0..sep] else return;
+    if (dir_path.len == 0) return;
+
+    // Try to create the directory (ignore errors if it already exists)
+    if (comptime builtin.os.tag == .windows) {
+        var dir_buf: [256]u8 = undefined;
+        if (dir_path.len < dir_buf.len) {
+            @memcpy(dir_buf[0..dir_path.len], dir_path);
+            dir_buf[dir_path.len] = 0;
+            _ = WindowsDir.CreateDirectoryA(@ptrCast(&dir_buf), null);
+        }
+    } else {
+        var dir_buf: [256]u8 = undefined;
+        if (dir_path.len < dir_buf.len) {
+            @memcpy(dir_buf[0..dir_path.len], dir_path);
+            dir_buf[dir_path.len] = 0;
+            _ = posix.system.mkdir(@ptrCast(&dir_buf), 0o755);
+        }
+    }
+}
+
 /// Persist a checkpoint view to disk using a binary format.
 /// @param allocator Memory allocator for the serialization buffer
 /// @param path Destination file path
@@ -145,6 +186,9 @@ pub fn saveCheckpoint(
 
     const bytes = try writer.toOwnedSlice();
     defer allocator.free(bytes);
+
+    // Ensure parent directory exists
+    ensureParentDir(path);
 
     var io_backend = std.Io.Threaded.init(allocator, .{
         .environ = std.process.Environ.empty,

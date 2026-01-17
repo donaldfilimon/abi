@@ -16,6 +16,7 @@ pub const retry = @import("retry.zig");
 pub const rate_limiter = @import("rate_limiter.zig");
 pub const connection_pool = @import("connection_pool.zig");
 pub const raft = @import("raft.zig");
+pub const transport = @import("transport.zig");
 
 pub const NodeRegistry = registry.NodeRegistry;
 pub const NodeInfo = registry.NodeInfo;
@@ -106,6 +107,17 @@ pub const AppendEntriesRequest = raft.AppendEntriesRequest;
 pub const AppendEntriesResponse = raft.AppendEntriesResponse;
 pub const PeerState = raft.PeerState;
 pub const createRaftCluster = raft.createCluster;
+
+// Transport exports
+pub const TcpTransport = transport.TcpTransport;
+pub const TransportConfig = transport.TransportConfig;
+pub const TransportError = transport.TransportError;
+pub const TransportStats = transport.TcpTransport.TransportStats;
+pub const MessageType = transport.MessageType;
+pub const MessageHeader = transport.MessageHeader;
+pub const PeerConnection = transport.PeerConnection;
+pub const RpcSerializer = transport.RpcSerializer;
+pub const parseAddress = transport.parseAddress;
 
 pub const NetworkError = error{
     NetworkDisabled,

@@ -331,6 +331,8 @@ pub const HnswIndex = struct {
 
         while (head < queue.items.len and queue.items.len < max_candidates) : (head += 1) {
             const u = queue.items[head];
+            // Safety: Check that node has layers before accessing layer 0
+            if (self.nodes[u].layers.len == 0) continue;
             for (self.nodes[u].layers[0].nodes) |v| {
                 if (!candidates.contains(v)) {
                     const d = 1.0 - simd.cosineSimilarity(query, records[v].vector);

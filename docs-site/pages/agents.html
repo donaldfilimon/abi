@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI agent development patterns and coding guidelines for ABI Framework">
+    <title>Agent Guide | ABI Framework</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="canonical" href="https://donaldfilimon.github.io/abi/pages/agents.html">
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>
+                    <span>ABI</span>
+                    <span class="version">v0.1.0</span>
+                </h1>
+            </div>
+
+            <div class="search-container">
+                <input
+                    type="search"
+                    id="search-input"
+                    class="search-input"
+                    placeholder="Search documentation... (Ctrl+K)"
+                    aria-label="Search documentation"
+                >
+                <div class="search-results" id="search-results"></div>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="sidebar-section">
+                    <h3>Getting Started</h3>
+                    <a href="../index.html" class="sidebar-link">Home</a>
+                    <a href="quickstart.html" class="sidebar-link">Quick Start</a>
+                    <a href="build-test.html" class="sidebar-link">Build & Test</a>
+                    <a href="intro.html" class="sidebar-link">Introduction</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Developer Guide</h3>
+                    <a href="agents.html" class="sidebar-link active">Agent Guide</a>
+                    <a href="../../AGENTS.md" class="sidebar-link">AGENTS.md (Raw)</a>
+                    <a href="../../CLAUDE.md" class="sidebar-link">CLAUDE.md (Raw)</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Features</h3>
+                    <a href="ai.html" class="sidebar-link">AI & Agents</a>
+                    <a href="compute.html" class="sidebar-link">Compute Engine</a>
+                    <a href="gpu.html" class="sidebar-link">GPU Acceleration</a>
+                    <a href="database.html" class="sidebar-link">Database</a>
+                    <a href="network.html" class="sidebar-link">Network</a>
+                    <a href="monitoring.html" class="sidebar-link">Monitoring</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Reference</h3>
+                    <a href="api.html" class="sidebar-link">API Reference</a>
+                    <a href="cli.html" class="sidebar-link">CLI Commands</a>
+                    <a href="migration.html" class="sidebar-link">Zig 0.16 Migration</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Support</h3>
+                    <a href="troubleshooting.html" class="sidebar-link">Troubleshooting</a>
+                    <a href="../../TODO.md" class="sidebar-link">TODO List</a>
+                    <a href="../../ROADMAP.md" class="sidebar-link">Roadmap</a>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>External</h3>
+                    <a href="../../README.md" class="sidebar-link">README</a>
+                    <a href="https://github.com/donaldfilimon/abi" class="sidebar-link" target="_blank" rel="noopener">
+                        GitHub Repository ↗
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper fade-in">
+                <h1>Agent Guide</h1>
+
+                <div class="alert alert-note">
+                    <div class="alert-title">📘 Quick Reference</div>
+                    <p>
+                        This page provides coding patterns and conventions for AI agents working with the ABI Framework.
+                        For comprehensive development guidance, see <a href="../../CLAUDE.md">CLAUDE.md</a>.
+                    </p>
+                </div>
+
+                <h2>LLM Instructions (Shared)</h2>
+                <ul>
+                    <li>Keep changes minimal and consistent with existing patterns; avoid breaking public APIs unless requested.</li>
+                    <li>Preserve feature gating: stub modules must mirror the real API and return <code>error.*Disabled</code>.</li>
+                    <li>Use Zig 0.16 conventions (<code>std.Io</code>, <code>std.ArrayListUnmanaged</code>, <code>{t}</code> formatting, explicit allocators).</li>
+                    <li>Always clean up resources with <code>defer</code>/<code>errdefer</code>; use specific error sets (no <code>anyerror</code>).</li>
+                    <li>Run <code>zig fmt .</code> after code edits and <code>zig build test --summary all</code> when behavior changes.</li>
+                    <li>Update docs/examples when APIs or behavior change so references stay in sync.</li>
+                </ul>
+
+                <h2>Quick Reference</h2>
+
+                <h3>Project Overview</h3>
+                <p>ABI is a modern Zig 0.16.x framework for modular AI services, vector search, and high-performance systems tooling.</p>
+
+                <h3>Essential Commands</h3>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Command</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>zig build</code></td>
+                            <td>Build the project</td>
+                        </tr>
+                        <tr>
+                            <td><code>zig build test --summary all</code></td>
+                            <td>Run all tests with detailed output</td>
+                        </tr>
+                        <tr>
+                            <td><code>zig build run -- --help</code></td>
+                            <td>CLI help</td>
+                        </tr>
+                        <tr>
+                            <td><code>zig fmt .</code></td>
+                            <td>Format all code</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Feature Flags</h3>
+
+                <pre><code>zig build -Denable-ai=true -Denable-gpu=false -Denable-database=true</code></pre>
+
+                <p><strong>Flags:</strong></p>
+                <ul>
+                    <li><code>-Denable-ai</code> - AI features and connectors</li>
+                    <li><code>-Denable-gpu</code> - GPU acceleration</li>
+                    <li><code>-Denable-web</code> - Web utilities and HTTP</li>
+                    <li><code>-Denable-database</code> - Database and vector search</li>
+                    <li><code>-Denable-network</code> - Distributed network compute</li>
+                    <li><code>-Denable-profiling</code> - Profiling and metrics</li>
+                </ul>
+
+                <h2>Code Style Guidelines</h2>
+
+                <h3>Formatting</h3>
+                <ul>
+                    <li>4 spaces, no tabs</li>
+                    <li>Maximum 100 characters per line</li>
+                    <li>Run <code>zig fmt .</code> before committing</li>
+                </ul>
+
+                <h3>Naming Conventions</h3>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Construct</th>
+                            <th>Convention</th>
+                            <th>Examples</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Types</td>
+                            <td>PascalCase</td>
+                            <td><code>Framework</code>, <code>GpuBuffer</code></td>
+                        </tr>
+                        <tr>
+                            <td>Functions</td>
+                            <td>snake_case</td>
+                            <td><code>vector_add</code>, <code>deinit</code></td>
+                        </tr>
+                        <tr>
+                            <td>Constants</td>
+                            <td>UPPER_SNAKE_CASE</td>
+                            <td><code>DEFAULT_BUFFER_SIZE</code></td>
+                        </tr>
+                        <tr>
+                            <td>Variables</td>
+                            <td>snake_case</td>
+                            <td><code>gpu_workload</code></td>
+                        </tr>
+                        <tr>
+                            <td>Struct Fields</td>
+                            <td>snake_case with <code>allocator</code> first</td>
+                            <td><code>allocator</code>, <code>user_data</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Imports</h3>
+                <p>Use explicit imports only (no <code>usingnamespace</code>):</p>
+                <pre><code>// Group imports: std, internal modules, public exports
+
+const std = @import("std");
+const build_options = @import("build_options");
+
+const GpuBuffer = @import("gpu/buffer.zig").Buffer;
+const kernel = @import("kernel.zig");</code></pre>
+
+                <h3>Error Handling</h3>
+                <p>Use specific error sets, not <code>anyerror</code>. Use <code>{t}</code> format specifier for error/enum values:</p>
+                <pre><code>const MyError = error{
+    OutOfMemory,
+    InvalidInput,
+    GpuDisabled,
+};
+
+std.debug.print("Error: {t}\n", .{err});</code></pre>
+
+                <h3>Memory Management</h3>
+                <p>Prefer <code>std.ArrayListUnmanaged</code> over <code>std.ArrayList</code>:</p>
+                <pre><code>var list = std.ArrayListUnmanaged(u8).empty;
+try list.append(allocator, item);
+list.deinit(allocator);</code></pre>
+
+                <h2>Zig 0.16 Patterns</h2>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Pattern</th>
+                            <th>Usage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>File I/O</td>
+                            <td>Use <code>std.Io.Threaded</code> for synchronous operations</td>
+                        </tr>
+                        <tr>
+                            <td>Sleep</td>
+                            <td>Use <code>time.sleepMs()</code> from shared utils</td>
+                        </tr>
+                        <tr>
+                            <td>Formatting</td>
+                            <td>Use <code>{t}</code> for enums/errors, <code>{B}</code> for bytes</td>
+                        </tr>
+                        <tr>
+                            <td>Timer</td>
+                            <td>Use <code>std.time.Timer.start()</code></td>
+                        </tr>
+                        <tr>
+                            <td>Pointer Casting</td>
+                            <td>Use <code>@ptrCast(@alignCast(user))</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h2>Resource Cleanup</h2>
+                <p>Always clean up resources with <code>defer</code>/<code>errdefer</code>:</p>
+                <pre><code>var gpu = try Gpu.init(allocator, .{});
+defer gpu.deinit();
+
+const buffer = try gpu.createBuffer(size, .{});
+errdefer gpu.destroyBuffer(buffer);</code></pre>
+
+                <h2>Key Patterns</h2>
+                <ol>
+                    <li><strong>Initialization</strong>: Use <code>abi.init()</code> / <code>abi.shutdown()</code></li>
+                    <li><strong>Allocators</strong>: <code>allocator</code> as first struct field</li>
+                    <li><strong>Cleanup</strong>: <code>defer</code>/<code>errdefer</code> for all resources</li>
+                    <li><strong>I/O</strong>: <code>std.Io.Threaded</code> for file operations</li>
+                    <li><strong>Threading</strong>: Use <code>std.Thread.Mutex</code> for synchronization</li>
+                </ol>
+
+                <h2>Documentation</h2>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Document</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><a href="../index.html">Documentation Index</a></td>
+                            <td>Complete documentation listing</td>
+                        </tr>
+                        <tr>
+                            <td><a href="intro.html">Introduction</a></td>
+                            <td>Architecture overview</td>
+                        </tr>
+                        <tr>
+                            <td><a href="../../CLAUDE.md">CLAUDE.md</a></td>
+                            <td>Comprehensive agent guidance</td>
+                        </tr>
+                        <tr>
+                            <td><a href="api.html">API Reference</a></td>
+                            <td>Public API documentation</td>
+                        </tr>
+                        <tr>
+                            <td><a href="../../docs/migration/zig-0.16-migration.md">Migration Guide</a></td>
+                            <td>Zig 0.16 patterns</td>
+                        </tr>
+                        <tr>
+                            <td><a href="../../TODO.md">TODO.md</a></td>
+                            <td>Pending implementations</td>
+                        </tr>
+                        <tr>
+                            <td><a href="../../ROADMAP.md">ROADMAP.md</a></td>
+                            <td>Project roadmap</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h2>Testing</h2>
+                <p>Run tests with detailed output:</p>
+                <pre><code>zig build test --summary all
+
+# Test a single file
+zig test src/compute/runtime/engine.zig
+
+# Filter tests
+zig test src/tests/mod.zig --test-filter "pattern"</code></pre>
+
+                <div class="alert alert-note">
+                    <div class="alert-title">📘 Important</div>
+                    <p>Refer to <a href="../../TODO.md">TODO.md</a> for a list of pending implementations. Avoid relying on stubbed functionality until these items are implemented.</p>
+                </div>
+
+                <footer style="margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 2rem;">
+                    <div class="text-center">
+                        <p class="text-muted">
+                            Built with ❤️ using Zig 0.16.x •
+                            <a href="https://github.com/donaldfilimon/abi" target="_blank" rel="noopener">
+                                GitHub Repository
+                            </a> •
+                            <a href="https://github.com/donaldfilimon/abi/issues" target="_blank" rel="noopener">
+                                Report Issue
+                            </a>
+                        </p>
+                        <p class="text-muted" style="margin-top: 0.5rem; font-size: 0.85rem;">
+                            MIT License • © 2025-2026 ABI Framework Contributors
+                        </p>
+                    </div>
+                </footer>
+            </div>
+        </main>
+
+        <button class="menu-toggle" id="menu-toggle">☰</button>
+    </div>
+
+    <script src="../assets/js/search.js"></script>
+</body>
+</html>
