@@ -113,6 +113,21 @@ pub const OptimizerType = training.OptimizerType;
 pub const LearningRateSchedule = training.LearningRateSchedule;
 pub const CheckpointStore = training.CheckpointStore;
 pub const Checkpoint = training.Checkpoint;
+pub const LlmTrainingConfig = training.LlmTrainingConfig;
+pub const LlamaTrainer = training.LlamaTrainer;
+pub const TrainableModel = training.TrainableModel;
+
+pub const trainable_model = struct {
+    pub const TrainableModelConfig = struct {
+        hidden_dim: u32 = 768,
+        num_layers: u32 = 12,
+        num_heads: u32 = 12,
+        num_kv_heads: u32 = 12,
+        intermediate_dim: u32 = 2048,
+        vocab_size: u32 = 50257,
+        max_seq_len: u32 = 1024,
+    };
+};
 
 pub const Tool = struct {};
 pub const ToolResult = struct {};
@@ -530,5 +545,9 @@ pub fn encodeTokens(_: std.mem.Allocator, _: []const u8) Error![]u32 {
 }
 
 pub fn decodeTokens(_: std.mem.Allocator, _: []const u32) Error![]u8 {
+    return error.AiDisabled;
+}
+
+pub fn loadCheckpoint(_: std.mem.Allocator, _: []const u8) Error!Checkpoint {
     return error.AiDisabled;
 }

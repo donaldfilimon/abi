@@ -6,7 +6,7 @@
 const std = @import("std");
 const backend_mod = @import("backend.zig");
 const device_mod = @import("device.zig");
-const time_utils = @import("../../shared/utils/time.zig");
+const time_utils = @import("../shared/utils/time.zig");
 
 pub const Backend = backend_mod.Backend;
 pub const Device = device_mod.Device;

@@ -8,7 +8,7 @@
 //! - Memory pressure handling with automatic eviction
 
 const std = @import("std");
-const time = @import("../../shared/utils/time.zig");
+const time = @import("../shared/utils/time.zig");
 const memory = @import("memory.zig");
 
 /// Memory allocation size classes in bytes.

@@ -24,7 +24,7 @@
 const std = @import("std");
 const backend_mod = @import("backend.zig");
 const recovery = @import("recovery.zig");
-const time = @import("../../shared/utils/time.zig");
+const time = @import("../shared/utils/time.zig");
 const interface = @import("interface.zig");
 const error_handling = @import("error_handling.zig");
 

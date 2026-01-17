@@ -4,7 +4,7 @@
 //! for GPU operations and kernel launches.
 
 const std = @import("std");
-const time = @import("../../shared/utils/time.zig");
+const time = @import("../shared/utils/time.zig");
 
 pub const ProfilingError = error{
     TimerFailed,
