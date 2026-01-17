@@ -253,7 +253,7 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
     const model = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_OLLAMA_MODEL",
         "OLLAMA_MODEL",
-    })) orelse try allocator.dupe(u8, "llama2");
+    })) orelse try allocator.dupe(u8, "gpt-oss");
     errdefer allocator.free(model);
 
     return .{

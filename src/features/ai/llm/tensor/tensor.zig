@@ -82,14 +82,14 @@ pub const Tensor = struct {
 
     /// Create a tensor filled with zeros.
     pub fn zeros(allocator: std.mem.Allocator, shape: Shape, dtype: DType) !Tensor {
-        var t = try init(allocator, shape, dtype);
+        const t = try init(allocator, shape, dtype);
         @memset(t.data, 0);
         return t;
     }
 
     /// Create a tensor filled with ones.
     pub fn ones(allocator: std.mem.Allocator, shape: Shape, dtype: DType) !Tensor {
-        var t = try init(allocator, shape, dtype);
+        const t = try init(allocator, shape, dtype);
         @memset(t.data, 1.0);
         return t;
     }

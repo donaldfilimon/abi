@@ -51,6 +51,10 @@ pub const framework = @import("framework.zig");
 pub const Framework = framework.Framework;
 pub const FrameworkBuilder = framework.FrameworkBuilder;
 
+/// Plugin registry for feature management.
+pub const registry = @import("registry/mod.zig");
+pub const Registry = registry.Registry;
+
 /// Runtime infrastructure (always available).
 pub const runtime = @import("runtime/mod.zig");
 

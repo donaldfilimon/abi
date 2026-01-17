@@ -672,7 +672,7 @@ pub const GpuOpsContext = struct {
         defer self.allocator.free(v_head);
         var k_head_t = try self.allocator.alloc(f32, kv_head_len);
         defer self.allocator.free(k_head_t);
-        var out_head = try self.allocator.alloc(f32, head_dim_usize);
+        const out_head = try self.allocator.alloc(f32, head_dim_usize);
         defer self.allocator.free(out_head);
 
         var q_dev = try cuda_mod.memory.DeviceMemory.init(self.allocator, head_bytes);

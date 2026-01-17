@@ -547,7 +547,7 @@ pub const AlertManager = struct {
             const name_copy = try self.allocator.dupe(u8, rule.name);
             errdefer self.allocator.free(name_copy);
 
-            var new_alert = Alert{
+            const new_alert = Alert{
                 .rule_name = rule.name,
                 .state = if (required_duration == 0) .firing else .pending,
                 .current_value = state.last_value,

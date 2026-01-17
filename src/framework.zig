@@ -28,10 +28,12 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("config.zig");
+const registry_mod = @import("registry/mod.zig");
 
 pub const Config = config_module.Config;
 pub const Feature = config_module.Feature;
 pub const ConfigError = config_module.ConfigError;
+pub const Registry = registry_mod.Registry;
 
 // Feature modules - imported based on build configuration
 const gpu_mod = if (build_options.enable_gpu) @import("gpu/mod.zig") else @import("gpu/stub.zig");
@@ -48,6 +50,7 @@ pub const Framework = struct {
     allocator: std.mem.Allocator,
     config: Config,
     state: State,
+    registry: Registry,
 
     // Feature handles (null if disabled)
     gpu: ?*gpu_mod.Context = null,
@@ -109,7 +112,7 @@ pub const Framework = struct {
         WebDisabled,
         RequestFailed,
         InvalidUrl,
-    } || std.mem.Allocator.Error || ConfigError;
+    } || std.mem.Allocator.Error || ConfigError || Registry.Error;
 
     /// Initialize the framework with the given configuration.
     pub fn init(allocator: std.mem.Allocator, cfg: Config) Error!Framework {
@@ -120,38 +123,58 @@ pub const Framework = struct {
             .allocator = allocator,
             .config = cfg,
             .state = .initializing,
+            .registry = Registry.init(allocator),
             .runtime = undefined,
         };
+        errdefer fw.registry.deinit();
 
         // Initialize runtime (always available)
         fw.runtime = try runtime_mod.Context.init(allocator);
         errdefer fw.runtime.deinit();
 
-        // Initialize enabled features
+        // Initialize enabled features and register them
         errdefer fw.deinitFeatures();
 
         if (cfg.gpu) |gpu_cfg| {
             fw.gpu = try gpu_mod.Context.init(allocator, gpu_cfg);
+            if (comptime build_options.enable_gpu) {
+                try fw.registry.registerComptime(.gpu);
+            }
         }
 
         if (cfg.ai) |ai_cfg| {
             fw.ai = try ai_mod.Context.init(allocator, ai_cfg);
+            if (comptime build_options.enable_ai) {
+                try fw.registry.registerComptime(.ai);
+            }
         }
 
         if (cfg.database) |db_cfg| {
             fw.database = try database_mod.Context.init(allocator, db_cfg);
+            if (comptime build_options.enable_database) {
+                try fw.registry.registerComptime(.database);
+            }
         }
 
         if (cfg.network) |net_cfg| {
             fw.network = try network_mod.Context.init(allocator, net_cfg);
+            if (comptime build_options.enable_network) {
+                try fw.registry.registerComptime(.network);
+            }
         }
 
         if (cfg.observability) |obs_cfg| {
             fw.observability = try observability_mod.Context.init(allocator, obs_cfg);
+            if (comptime build_options.enable_profiling) {
+                try fw.registry.registerComptime(.observability);
+            }
         }
 
         if (cfg.web) |web_cfg| {
             fw.web = try web_mod.Context.init(allocator, web_cfg);
+            if (comptime build_options.enable_web) {
+                try fw.registry.registerComptime(.web);
+            }
         }
 
         fw.state = .running;
@@ -179,6 +202,7 @@ pub const Framework = struct {
 
         self.state = .stopping;
         self.deinitFeatures();
+        self.registry.deinit();
         self.runtime.deinit();
         self.state = .stopped;
     }
@@ -258,6 +282,21 @@ pub const Framework = struct {
     /// Get runtime context (always available).
     pub fn getRuntime(self: *Framework) *runtime_mod.Context {
         return self.runtime;
+    }
+
+    /// Get the feature registry for runtime feature management.
+    pub fn getRegistry(self: *Framework) *Registry {
+        return &self.registry;
+    }
+
+    /// Check if a feature is registered in the registry.
+    pub fn isFeatureRegistered(self: *const Framework, feature: Feature) bool {
+        return self.registry.isRegistered(feature);
+    }
+
+    /// List all registered features.
+    pub fn listRegisteredFeatures(self: *const Framework, allocator: std.mem.Allocator) Registry.Error![]Feature {
+        return self.registry.listFeatures(allocator);
     }
 };
 
@@ -441,4 +480,32 @@ test "FrameworkOptions.toConfig converts correctly" {
 
     try std.testing.expect(config.gpu != null);
     try std.testing.expect(config.ai == null);
+}
+
+test "Framework initializes registry with enabled features" {
+    // Test minimal framework - no features enabled
+    var fw = try Framework.initMinimal(std.testing.allocator);
+    defer fw.deinit();
+
+    // Registry should be initialized
+    try std.testing.expectEqual(@as(usize, 0), fw.registry.count());
+    try std.testing.expect(fw.isRunning());
+}
+
+test "Framework.getRegistry returns mutable registry" {
+    var fw = try Framework.initMinimal(std.testing.allocator);
+    defer fw.deinit();
+
+    const reg = fw.getRegistry();
+    try std.testing.expectEqual(@as(usize, 0), reg.count());
+}
+
+test "Framework.listRegisteredFeatures returns empty for minimal" {
+    var fw = try Framework.initMinimal(std.testing.allocator);
+    defer fw.deinit();
+
+    const features = try fw.listRegisteredFeatures(std.testing.allocator);
+    defer std.testing.allocator.free(features);
+
+    try std.testing.expectEqual(@as(usize, 0), features.len);
 }

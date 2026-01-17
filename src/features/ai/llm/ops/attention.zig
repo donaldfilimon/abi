@@ -600,9 +600,9 @@ test "flash attention matches standard" {
     defer allocator.free(k);
     var v = try allocator.alloc(f32, size);
     defer allocator.free(v);
-    var output_std = try allocator.alloc(f32, size);
+    const output_std = try allocator.alloc(f32, size);
     defer allocator.free(output_std);
-    var output_flash = try allocator.alloc(f32, size);
+    const output_flash = try allocator.alloc(f32, size);
     defer allocator.free(output_flash);
 
     // Initialize with test data

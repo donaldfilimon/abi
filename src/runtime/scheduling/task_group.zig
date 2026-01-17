@@ -5,8 +5,11 @@
 
 const std = @import("std");
 const time = @import("../../shared/utils/time.zig");
-const cancellation = @import("cancellation.zig");
-const future = @import("future.zig");
+const cancellation_mod = @import("cancellation.zig");
+const future_mod = @import("future.zig");
+
+const cancellation = cancellation_mod;
+const future = future_mod;
 
 const CancellationSource = cancellation.CancellationSource;
 const CancellationToken = cancellation.CancellationToken;

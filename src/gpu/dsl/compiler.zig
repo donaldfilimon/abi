@@ -111,7 +111,7 @@ pub fn compileToKernelSource(
     target_backend: gpu_backend.Backend,
     options: CompileOptions,
 ) CompileError!kernel_types.KernelSource {
-    var source = try compile(allocator, ir, target_backend, options);
+    const source = try compile(allocator, ir, target_backend, options);
 
     // KernelSource takes ownership of strings
     return kernel_types.KernelSource{

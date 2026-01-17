@@ -209,14 +209,14 @@ pub const TransformerModel = struct {
             const ff_0_w = self.layer_ff_0_weights[layer_idx];
             const ff_1_w = self.layer_ff_1_weights[layer_idx];
 
-            var attention_out = try self.multiHeadAttention(allocator, current, q_w, k_w, v_w, o_w);
+            const attention_out = try self.multiHeadAttention(allocator, current, q_w, k_w, v_w, o_w);
             defer allocator.free(attention_out);
 
             for (current, 0..) |val, idx| {
                 current[idx] = val + 0.1 * attention_out[idx];
             }
 
-            var ff_out = try self.feedForward(allocator, current, ff_0_w, ff_1_w);
+            const ff_out = try self.feedForward(allocator, current, ff_0_w, ff_1_w);
             defer allocator.free(ff_out);
 
             for (current, 0..) |val, idx| {

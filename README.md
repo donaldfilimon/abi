@@ -172,7 +172,7 @@ zig build benchmarks                            # Run benchmarks
 |----------|---------|-------------|
 | `ABI_OPENAI_API_KEY` | - | OpenAI API key |
 | `ABI_OLLAMA_HOST` | `http://127.0.0.1:11434` | Ollama host |
-| `ABI_OLLAMA_MODEL` | `llama3.2` | Default Ollama model |
+| `ABI_OLLAMA_MODEL` | `gpt-oss` | Default Ollama model |
 | `ABI_HF_API_TOKEN` | - | HuggingFace token |
 | `DISCORD_BOT_TOKEN` | - | Discord bot token |
 

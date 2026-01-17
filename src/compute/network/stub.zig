@@ -4,7 +4,7 @@
 //! disabled. All operations return `error.NetworkDisabled` or act as no-ops.
 
 const std = @import("std");
-const workload = @import("../runtime/workload.zig");
+const workload = @import("../../runtime/workload.zig");
 
 pub const SerializationFormat = enum {
     binary,

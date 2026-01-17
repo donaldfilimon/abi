@@ -364,7 +364,7 @@ test "scheduler round robin selection" {
     const n2 = scheduler.nodes.get("n2").?;
     const n3 = scheduler.nodes.get("n3").?;
 
-    var expected = [_]*const ComputeNode{ &n1, &n2, &n3 };
+    const expected = [_]*const ComputeNode{ &n1, &n2, &n3 };
     for (0..3) |i| {
         const selected = try scheduler.selectNode() orelse return error.TestUnexpected;
         try std.testing.expectEqual(expected[i], selected.?);

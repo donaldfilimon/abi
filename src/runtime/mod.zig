@@ -6,7 +6,17 @@
 //! - Task scheduling and execution engine
 //! - Concurrency primitives (futures, task groups, cancellation)
 //! - Memory management utilities
-//! - SIMD acceleration
+//!
+//! ## Module Organization
+//!
+//! ```
+//! runtime/
+//! ├── mod.zig          # This file - unified entry point
+//! ├── engine/          # Task execution engine
+//! ├── scheduling/      # Futures, cancellation, task groups
+//! ├── concurrency/     # Lock-free data structures
+//! └── memory/          # Memory pools and allocators
+//! ```
 //!
 //! ## Usage
 //!
@@ -20,91 +30,113 @@
 //! // Use task groups for parallel work
 //! var group = try ctx.createTaskGroup(.{});
 //! defer group.deinit();
-//!
-//! try group.spawn(myTask, .{arg1, arg2});
-//! try group.awaitAll();
 //! ```
 
 const std = @import("std");
 
-// Re-export from compute/runtime for now (gradual migration)
-const compute_runtime = @import("../compute/runtime/mod.zig");
-const compute_concurrency = @import("../compute/concurrency/mod.zig");
-const compute_memory = @import("../compute/memory/mod.zig");
+// Submodules - organized by domain (local implementations)
+pub const engine = @import("engine/mod.zig");
+pub const scheduling = @import("scheduling/mod.zig");
+pub const concurrency = @import("concurrency/mod.zig");
+pub const memory = @import("memory/mod.zig");
 
-// Core engine types
-pub const Engine = compute_runtime.DistributedComputeEngine;
-pub const EngineConfig = compute_runtime.EngineConfig;
-pub const EngineError = compute_runtime.EngineError;
-pub const TaskId = compute_runtime.TaskId;
+// Workload types (local)
+pub const workload = @import("workload.zig");
 
-// Future/Promise pattern
-pub const Future = compute_runtime.Future;
-pub const FutureState = compute_runtime.FutureState;
-pub const FutureResult = compute_runtime.FutureResult;
-pub const Promise = compute_runtime.Promise;
-pub const all = compute_runtime.all;
-pub const race = compute_runtime.race;
-pub const delay = compute_runtime.delay;
+// ============================================================================
+// Engine Types (re-exported for convenience)
+// ============================================================================
 
-// Cancellation
-pub const CancellationToken = compute_runtime.CancellationToken;
-pub const CancellationSource = compute_runtime.CancellationSource;
-pub const CancellationState = compute_runtime.CancellationState;
-pub const CancellationReason = compute_runtime.CancellationReason;
-pub const LinkedCancellation = compute_runtime.LinkedCancellation;
-pub const ScopedCancellation = compute_runtime.ScopedCancellation;
-
-// Task groups
-pub const TaskGroup = compute_runtime.TaskGroup;
-pub const TaskGroupConfig = compute_runtime.TaskGroupConfig;
-pub const TaskGroupBuilder = compute_runtime.TaskGroupBuilder;
-pub const ScopedTaskGroup = compute_runtime.ScopedTaskGroup;
-pub const TaskContext = compute_runtime.TaskContext;
-pub const TaskFn = compute_runtime.TaskFn;
-pub const TaskState = compute_runtime.TaskState;
-pub const TaskResult = compute_runtime.TaskResult;
-pub const TaskInfo = compute_runtime.TaskInfo;
-pub const GroupStats = compute_runtime.GroupStats;
-pub const parallelForEach = compute_runtime.parallelForEach;
-
-// Async runtime
-pub const AsyncRuntime = compute_runtime.AsyncRuntime;
-pub const AsyncRuntimeOptions = compute_runtime.AsyncRuntimeOptions;
-pub const TaskHandle = compute_runtime.TaskHandle;
-pub const AsyncTaskGroup = compute_runtime.AsyncTaskGroup;
-pub const AsyncError = compute_runtime.AsyncError;
+pub const Engine = engine.Engine;
+pub const DistributedComputeEngine = engine.DistributedComputeEngine;
+pub const EngineConfig = engine.EngineConfig;
+pub const EngineError = engine.EngineError;
+pub const TaskId = engine.TaskId;
 
 // Workload types
-pub const ExecutionContext = compute_runtime.ExecutionContext;
-pub const WorkloadHints = compute_runtime.WorkloadHints;
-pub const WorkloadVTable = compute_runtime.WorkloadVTable;
-pub const GPUWorkloadVTable = compute_runtime.GPUWorkloadVTable;
-pub const ResultHandle = compute_runtime.ResultHandle;
-pub const ResultVTable = compute_runtime.ResultVTable;
-pub const WorkItem = compute_runtime.WorkItem;
-pub const runWorkItem = compute_runtime.runWorkItem;
+pub const ExecutionContext = workload.ExecutionContext;
+pub const WorkloadHints = workload.WorkloadHints;
+pub const WorkloadVTable = workload.WorkloadVTable;
+pub const GPUWorkloadVTable = workload.GPUWorkloadVTable;
+pub const ResultHandle = workload.ResultHandle;
+pub const ResultVTable = workload.ResultVTable;
+pub const WorkItem = workload.WorkItem;
+pub const runWorkItem = workload.runWorkItem;
 
 // Benchmarking
-pub const BenchmarkResult = compute_runtime.BenchmarkResult;
-pub const runBenchmarks = compute_runtime.runBenchmarks;
+pub const BenchmarkResult = engine.BenchmarkResult;
+pub const runBenchmarks = engine.runBenchmarks;
 
-// Concurrency primitives
-pub const WorkStealingQueue = compute_concurrency.WorkStealingQueue;
-pub const LockFreeQueue = compute_concurrency.LockFreeQueue;
-pub const LockFreeStack = compute_concurrency.LockFreeStack;
-pub const ShardedMap = compute_concurrency.ShardedMap;
+// ============================================================================
+// Scheduling Types (re-exported for convenience)
+// ============================================================================
 
-// Memory management
-pub const MemoryPool = compute_memory.MemoryPool;
-pub const ArenaAllocator = compute_memory.ArenaAllocator;
+// Future/Promise pattern
+pub const Future = scheduling.Future;
+pub const FutureState = scheduling.FutureState;
+pub const FutureResult = scheduling.FutureResult;
+pub const Promise = scheduling.Promise;
+pub const all = scheduling.all;
+pub const race = scheduling.race;
+pub const delay = scheduling.delay;
+
+// Cancellation
+pub const CancellationToken = scheduling.CancellationToken;
+pub const CancellationSource = scheduling.CancellationSource;
+pub const CancellationState = scheduling.CancellationState;
+pub const CancellationReason = scheduling.CancellationReason;
+pub const LinkedCancellation = scheduling.LinkedCancellation;
+pub const ScopedCancellation = scheduling.ScopedCancellation;
+
+// Task groups
+pub const TaskGroup = scheduling.TaskGroup;
+pub const TaskGroupConfig = scheduling.TaskGroupConfig;
+pub const TaskGroupBuilder = scheduling.TaskGroupBuilder;
+pub const ScopedTaskGroup = scheduling.ScopedTaskGroup;
+pub const TaskContext = scheduling.TaskContext;
+pub const TaskFn = scheduling.TaskFn;
+pub const TaskState = scheduling.TaskState;
+pub const TaskResult = scheduling.TaskResult;
+pub const TaskInfo = scheduling.TaskInfo;
+pub const GroupStats = scheduling.GroupStats;
+pub const parallelForEach = scheduling.parallelForEach;
+
+// Async runtime
+pub const AsyncRuntime = scheduling.AsyncRuntime;
+pub const AsyncRuntimeOptions = scheduling.AsyncRuntimeOptions;
+pub const TaskHandle = scheduling.TaskHandle;
+pub const AsyncTaskGroup = scheduling.AsyncTaskGroup;
+pub const AsyncError = scheduling.AsyncError;
+
+// ============================================================================
+// Concurrency Types (re-exported for convenience)
+// ============================================================================
+
+pub const WorkStealingQueue = concurrency.WorkStealingQueue;
+pub const WorkQueue = concurrency.WorkQueue;
+pub const LockFreeQueue = concurrency.LockFreeQueue;
+pub const LockFreeStack = concurrency.LockFreeStack;
+pub const ShardedMap = concurrency.ShardedMap;
+pub const PriorityQueue = concurrency.PriorityQueue;
+pub const Backoff = concurrency.Backoff;
+
+// ============================================================================
+// Memory Types (re-exported for convenience)
+// ============================================================================
+
+pub const MemoryPool = memory.MemoryPool;
+pub const ArenaAllocator = memory.ArenaAllocator;
+
+// ============================================================================
+// Runtime Context
+// ============================================================================
 
 /// Runtime context - the always-available infrastructure.
 /// This is created automatically by the Framework and provides
 /// access to scheduling, concurrency, and memory primitives.
 pub const Context = struct {
     allocator: std.mem.Allocator,
-    engine: ?*Engine = null,
+    engine_ptr: ?*Engine = null,
     initialized: bool = false,
 
     pub const Error = error{
@@ -125,7 +157,7 @@ pub const Context = struct {
 
     /// Shutdown the runtime context.
     pub fn deinit(self: *Context) void {
-        if (self.engine) |e| {
+        if (self.engine_ptr) |e| {
             e.deinit();
         }
         const allocator = self.allocator;
@@ -134,15 +166,15 @@ pub const Context = struct {
 
     /// Get or create the compute engine.
     pub fn getEngine(self: *Context) Error!*Engine {
-        if (self.engine) |e| return e;
+        if (self.engine_ptr) |e| return e;
 
-        const engine_ptr = try self.allocator.create(Engine);
-        engine_ptr.* = compute_runtime.createEngine(self.allocator, .{}) catch {
-            self.allocator.destroy(engine_ptr);
+        const engine_instance = try self.allocator.create(Engine);
+        engine_instance.* = engine.createEngine(self.allocator) catch {
+            self.allocator.destroy(engine_instance);
             return Error.EngineCreationFailed;
         };
-        self.engine = engine_ptr;
-        return engine_ptr;
+        self.engine_ptr = engine_instance;
+        return engine_instance;
     }
 
     /// Create a new task group.
@@ -159,52 +191,25 @@ pub const Context = struct {
     pub fn createCancellationSource(self: *Context) !CancellationSource {
         return CancellationSource.init(self.allocator);
     }
-
-    /// Run a task and wait for result.
-    pub fn runTask(
-        self: *Context,
-        comptime ResultType: type,
-        task: anytype,
-        timeout_ms: u64,
-    ) !ResultType {
-        const engine_inst = try self.getEngine();
-        return compute_runtime.runTask(engine_inst, ResultType, task, timeout_ms);
-    }
-
-    /// Submit a task for async execution.
-    pub fn submitTask(
-        self: *Context,
-        comptime ResultType: type,
-        task: anytype,
-    ) !TaskId {
-        const engine_inst = try self.getEngine();
-        return compute_runtime.submitTask(engine_inst, ResultType, task);
-    }
-
-    /// Wait for a task result.
-    pub fn waitForResult(
-        self: *Context,
-        comptime ResultType: type,
-        task_id: TaskId,
-        timeout_ms: u64,
-    ) !ResultType {
-        const engine_inst = try self.getEngine();
-        return compute_runtime.waitForResult(engine_inst, ResultType, task_id, timeout_ms);
-    }
 };
 
 // ============================================================================
-// Convenience functions
+// Convenience Functions
 // ============================================================================
 
+/// Create an engine with configuration (2-arg version for compatibility).
+pub fn createEngine(allocator: std.mem.Allocator, config: EngineConfig) !Engine {
+    return engine.createEngineWithConfig(allocator, config);
+}
+
 /// Create an engine with default configuration.
-pub fn createEngine(allocator: std.mem.Allocator) !Engine {
-    return compute_runtime.createEngine(allocator, .{});
+pub fn createDefaultEngine(allocator: std.mem.Allocator) !Engine {
+    return engine.createEngine(allocator);
 }
 
 /// Create an engine with custom configuration.
 pub fn createEngineWithConfig(allocator: std.mem.Allocator, config: EngineConfig) !Engine {
-    return compute_runtime.createEngine(allocator, config);
+    return engine.createEngineWithConfig(allocator, config);
 }
 
 // ============================================================================
@@ -222,9 +227,17 @@ test "Context.getEngine creates engine lazily" {
     var ctx = try Context.init(std.testing.allocator);
     defer ctx.deinit();
 
-    try std.testing.expect(ctx.engine == null);
+    try std.testing.expect(ctx.engine_ptr == null);
     const engine1 = try ctx.getEngine();
-    try std.testing.expect(ctx.engine != null);
+    try std.testing.expect(ctx.engine_ptr != null);
     const engine2 = try ctx.getEngine();
     try std.testing.expect(engine1 == engine2);
+}
+
+test "submodules are accessible" {
+    // Verify submodule exports compile
+    _ = engine.EngineConfig;
+    _ = scheduling.TaskGroup;
+    _ = concurrency.WorkStealingQueue;
+    _ = memory.MemoryPool;
 }

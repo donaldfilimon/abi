@@ -58,14 +58,14 @@ pub fn Tensor(comptime T: type) type {
 
         /// Create a tensor filled with a value
         pub fn fill(allocator: std.mem.Allocator, shape: []const usize, value: T) !Self {
-            var tensor = try init(allocator, shape);
+            const tensor = try init(allocator, shape);
             @memset(tensor.data, value);
             return tensor;
         }
 
         /// Create a tensor with random values
         pub fn random(allocator: std.mem.Allocator, shape: []const usize, min_val: T, max_val: T) !Self {
-            var tensor = try init(allocator, shape);
+            const tensor = try init(allocator, shape);
             var prng = std.Random.DefaultPrng.init(@intCast(types.getTimestampNs() & 0xFFFFFFFFFFFFFFFF));
             const rand = prng.random();
 
@@ -138,7 +138,7 @@ pub fn Tensor(comptime T: type) type {
                 return error.ShapeMismatch;
             }
 
-            var result = try Self.init(self.allocator, self.shape);
+            const result = try Self.init(self.allocator, self.shape);
             for (result.data, 0..) |*val, i| {
                 val.* = self.data[i] + other.data[i];
             }
@@ -151,7 +151,7 @@ pub fn Tensor(comptime T: type) type {
                 return error.ShapeMismatch;
             }
 
-            var result = try Self.init(self.allocator, self.shape);
+            const result = try Self.init(self.allocator, self.shape);
             for (result.data, 0..) |*val, i| {
                 val.* = self.data[i] - other.data[i];
             }
@@ -164,7 +164,7 @@ pub fn Tensor(comptime T: type) type {
                 return error.ShapeMismatch;
             }
 
-            var result = try Self.init(self.allocator, self.shape);
+            const result = try Self.init(self.allocator, self.shape);
             for (result.data, 0..) |*val, i| {
                 val.* = self.data[i] * other.data[i];
             }
@@ -177,7 +177,7 @@ pub fn Tensor(comptime T: type) type {
                 return error.ShapeMismatch;
             }
 
-            var result = try Self.init(self.allocator, self.shape);
+            const result = try Self.init(self.allocator, self.shape);
             for (result.data, 0..) |*val, i| {
                 val.* = self.data[i] / other.data[i];
             }
@@ -186,7 +186,7 @@ pub fn Tensor(comptime T: type) type {
 
         /// Scale tensor by scalar
         pub fn scale(self: *const Self, scalar: T) !Self {
-            var result = try Self.init(self.allocator, self.shape);
+            const result = try Self.init(self.allocator, self.shape);
             for (result.data, 0..) |*val, i| {
                 val.* = self.data[i] * scalar;
             }
@@ -261,7 +261,7 @@ pub fn Tensor(comptime T: type) type {
 
         /// Apply ReLU activation
         pub fn relu(self: *const Self) !Self {
-            var result = try Self.init(self.allocator, self.shape);
+            const result = try Self.init(self.allocator, self.shape);
             for (result.data, 0..) |*val, i| {
                 val.* = @max(0, self.data[i]);
             }
@@ -270,7 +270,7 @@ pub fn Tensor(comptime T: type) type {
 
         /// Apply sigmoid activation
         pub fn sigmoid(self: *const Self) !Self {
-            var result = try Self.init(self.allocator, self.shape);
+            const result = try Self.init(self.allocator, self.shape);
             for (result.data, 0..) |*val, i| {
                 val.* = 1.0 / (1.0 + @exp(-self.data[i]));
             }
@@ -279,7 +279,7 @@ pub fn Tensor(comptime T: type) type {
 
         /// Apply tanh activation
         pub fn tanh(self: *const Self) !Self {
-            var result = try Self.init(self.allocator, self.shape);
+            const result = try Self.init(self.allocator, self.shape);
             for (result.data, 0..) |*val, i| {
                 val.* = std.math.tanh(self.data[i]);
             }

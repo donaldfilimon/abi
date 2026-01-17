@@ -17,9 +17,10 @@
 const std = @import("std");
 const build_options = @import("build_options");
 
-pub const runtime = @import("runtime/mod.zig");
-pub const memory = @import("memory/mod.zig");
-pub const concurrency = @import("concurrency/mod.zig");
+// Migrated to src/runtime/ - re-export for backward compatibility
+pub const runtime = @import("../runtime/mod.zig");
+pub const memory = @import("../runtime/memory/mod.zig");
+pub const concurrency = @import("../runtime/concurrency/mod.zig");
 pub const gpu = @import("../gpu/mod.zig");
 pub const simd = @import("../shared/simd.zig");
 

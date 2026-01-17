@@ -255,7 +255,7 @@ pub const KernelDispatcher = struct {
     /// Compile a custom kernel from IR.
     pub fn compileKernel(self: *Self, ir: *const KernelIR) DispatchError!CompiledKernelHandle {
         // Generate backend-specific code
-        var generated = dsl.compile(self.allocator, ir, self.backend, .{}) catch |err| {
+        const generated = dsl.compile(self.allocator, ir, self.backend, .{}) catch |err| {
             std.log.err("Failed to compile kernel {s} for backend {s}: {}", .{
                 ir.name,
                 @tagName(self.backend),

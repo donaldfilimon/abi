@@ -30,13 +30,38 @@ pub fn mainWithArgs(proc_args: std.process.Args) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, abi.FrameworkOptions{});
-    defer abi.shutdown(&framework);
-
     // Zig 0.16: Convert Args to slice using arena
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
-    const args = try proc_args.toSlice(arena.allocator());
+    const raw_args = try proc_args.toSlice(arena.allocator());
+
+    // Parse global flags (--enable-*, --disable-*, --list-features)
+    var global_flags = try utils.global_flags.parseGlobalFlags(allocator, raw_args);
+    defer global_flags.deinit();
+    defer allocator.free(global_flags.remaining_args);
+
+    // Handle --list-features
+    if (global_flags.show_features) {
+        utils.global_flags.printFeaturesToStderr(utils.global_flags.ComptimeStatus);
+        return;
+    }
+
+    // Validate feature overrides before proceeding
+    if (global_flags.validate(utils.global_flags.ComptimeStatus)) |validation_error| {
+        validation_error.print();
+        std.process.exit(1);
+    }
+
+    var framework = try abi.init(allocator, abi.FrameworkOptions{});
+    defer abi.shutdown(&framework);
+
+    // Apply runtime feature overrides to registry
+    const registry = framework.getRegistry();
+    global_flags.applyToRegistry(registry) catch |err| {
+        std.debug.print("Warning: Could not apply feature override: {t}\n", .{err});
+    };
+
+    const args = global_flags.remaining_args;
 
     if (args.len <= 1) {
         printHelp();
@@ -130,7 +155,14 @@ pub fn mainWithArgs(proc_args: std.process.Args) !void {
 
 fn printHelp() void {
     const help_text =
-        \\Usage: abi <command> [options]
+        \\Usage: abi [global-flags] <command> [options]
+        \\
+        \\Global Flags:
+        \\  --list-features       List available features and their status
+        \\  --enable-<feature>    Enable a feature at runtime
+        \\  --disable-<feature>   Disable a feature at runtime
+        \\
+        \\Features: gpu, ai, llm, database, network, web, observability, training
         \\
         \\Commands:
         \\  db <subcommand>    Database operations (add, query, stats, optimize, backup)
@@ -149,6 +181,11 @@ fn printHelp() void {
         \\  tui                Launch interactive TUI command menu (type to filter)
         \\  version            Show framework version
         \\  help               Show this help message
+        \\
+        \\Examples:
+        \\  abi --list-features              # Show available features
+        \\  abi --disable-gpu db stats       # Run db stats with GPU disabled
+        \\  abi --enable-ai llm chat         # Run LLM chat with AI enabled
         \\
         \\Run 'abi <command> help' for command-specific help.
         \\

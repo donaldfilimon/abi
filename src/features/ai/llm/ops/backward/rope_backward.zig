@@ -127,7 +127,7 @@ pub fn verifyRopeGradient(
     }
 
     // Save original
-    var x_orig = try allocator.alloc(f32, head_dim);
+    const x_orig = try allocator.alloc(f32, head_dim);
     defer allocator.free(x_orig);
     @memcpy(x_orig, x);
 

@@ -9,7 +9,7 @@ const numa = @import("numa.zig");
 const concurrency = @import("../concurrency/mod.zig");
 
 // Import types from submodule
-pub const engine_types = @import("engine_types.zig");
+pub const engine_types = @import("types.zig");
 
 // Re-export types
 pub const Backoff = engine_types.Backoff;

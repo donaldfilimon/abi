@@ -158,7 +158,7 @@ The framework also respects environment variables for runtime configuration:
 | `ABI_OPENAI_API_KEY` or `OPENAI_API_KEY` | - | OpenAI API authentication |
 | `ABI_OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI base URL |
 | `ABI_OLLAMA_HOST` or `OLLAMA_HOST` | `http://127.0.0.1:11434` | Ollama server URL |
-| `ABI_OLLAMA_MODEL` | `llama3.2` | Default Ollama model |
+| `ABI_OLLAMA_MODEL` | `gpt-oss` | Default Ollama model |
 | `ABI_HF_API_TOKEN` or `HF_API_TOKEN` | - | HuggingFace API access |
 | `DISCORD_BOT_TOKEN` | - | Discord integration token |
 

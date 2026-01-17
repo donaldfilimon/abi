@@ -7,7 +7,7 @@ const std = @import("std");
 const time = @import("../../shared/utils/time.zig");
 
 const build_options = @import("build_options");
-const workload = @import("../runtime/workload.zig");
+const workload = @import("../../runtime/workload.zig");
 
 pub const NetworkConfig = struct {
     listen_address: []const u8 = "0.0.0.0",

@@ -15,8 +15,13 @@ zig build run -- --help                # CLI help
 zig build -Denable-ai=true -Denable-gpu=false -Denable-database=true
 
 # Single file testing (use zig test, NOT zig build test)
-zig test src/compute/runtime/engine.zig
+zig test src/runtime/engine/engine.zig
 zig test src/tests/mod.zig --test-filter "pattern"
+
+# Runtime feature flags (CLI)
+zig build run -- --list-features          # List features and their status
+zig build run -- --enable-gpu db stats    # Enable feature for this run
+zig build run -- --disable-ai llm info    # Disable feature for this run
 
 # GPU and system info
 zig build run -- gpu backends
@@ -396,7 +401,7 @@ Connector config prioritizes ABI-prefixed variables with fallback: `ABI_OPENAI_A
 |----------|---------|-------------|
 | `ABI_OPENAI_API_KEY` / `OPENAI_API_KEY` | - | OpenAI API authentication |
 | `ABI_OLLAMA_HOST` / `OLLAMA_HOST` | `http://127.0.0.1:11434` | Ollama server |
-| `ABI_OLLAMA_MODEL` | `llama3.2` | Default Ollama model |
+| `ABI_OLLAMA_MODEL` | `gpt-oss` | Default Ollama model |
 | `ABI_HF_API_TOKEN` / `HF_API_TOKEN` | - | HuggingFace API access |
 | `DISCORD_BOT_TOKEN` | - | Discord integration token |
 

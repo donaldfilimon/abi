@@ -255,7 +255,7 @@ ABI reads configuration from environment variables:
 
 ```bash
 export ABI_OLLAMA_HOST="http://localhost:11434"
-export ABI_OLLAMA_MODEL="llama3.2"
+export ABI_OLLAMA_MODEL="gpt-oss"
 
 zig build run -- agent chat --prompt "Hello, world!"
 ```

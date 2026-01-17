@@ -828,7 +828,7 @@ pub const Gpu = struct {
         const device = self.active_device orelse return error.NoActiveDevice;
 
         // Compile the kernel IR to the target backend
-        var generated = try dsl.compile(self.allocator, &source.ir, device.backend, .{});
+        const generated = try dsl.compile(self.allocator, &source.ir, device.backend, .{});
 
         return CompiledKernel{
             .allocator = self.allocator,

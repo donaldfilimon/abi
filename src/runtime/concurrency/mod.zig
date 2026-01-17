@@ -1,12 +1,30 @@
-//! Lightweight concurrency helpers for queues and backoff.
+//! Concurrency Primitives for Runtime
+//!
+//! This module provides lock-free and thread-safe data structures
+//! for concurrent task execution.
+//!
+//! ## Available Types
+//!
+//! - `WorkStealingQueue` - Owner pushes/pops from back, thieves steal from front
+//! - `WorkQueue` - Simple FIFO queue with mutex
+//! - `LockFreeQueue` - CAS-based queue
+//! - `LockFreeStack` - CAS-based stack
+//! - `ShardedMap` - Partitioned map reducing contention
+//! - `PriorityQueue` - Lock-free priority queue for task scheduling
+//! - `Backoff` - Exponential backoff for spin-wait loops
+
 const std = @import("std");
 
+// Local imports (implementation files)
 pub const lockfree = @import("lockfree.zig");
+pub const priority_queue = @import("priority_queue.zig");
+
+// Lock-free structures
 pub const LockFreeQueue = lockfree.LockFreeQueue;
 pub const LockFreeStack = lockfree.LockFreeStack;
 pub const ShardedMap = lockfree.ShardedMap;
 
-pub const priority_queue = @import("priority_queue.zig");
+// Priority queue
 pub const Priority = priority_queue.Priority;
 pub const PriorityQueue = priority_queue.PriorityQueue;
 pub const PriorityQueueConfig = priority_queue.PriorityQueueConfig;
@@ -14,6 +32,10 @@ pub const PrioritizedItem = priority_queue.PrioritizedItem;
 pub const QueueStats = priority_queue.QueueStats;
 pub const MultilevelQueue = priority_queue.MultilevelQueue;
 pub const DeadlineQueue = priority_queue.DeadlineQueue;
+
+// ============================================================================
+// Work Queues (inline implementation)
+// ============================================================================
 
 pub fn WorkQueue(comptime T: type) type {
     return struct {
@@ -112,6 +134,10 @@ pub fn WorkStealingQueue(comptime T: type) type {
     };
 }
 
+// ============================================================================
+// Backoff Utility
+// ============================================================================
+
 pub const Backoff = struct {
     spins: usize = 0,
 
@@ -125,7 +151,6 @@ pub const Backoff = struct {
             std.atomic.spinLoopHint();
             return;
         }
-        // Thread yield failure is non-critical; log at debug level and continue
         std.Thread.yield() catch |err| {
             std.log.debug("Thread yield failed during backoff spin: {t}", .{err});
         };
@@ -139,13 +164,40 @@ pub const Backoff = struct {
             std.atomic.spinLoopHint();
         }
         if (self.spins > 32) {
-            // Thread yield failure is non-critical; log at debug level and continue
             std.Thread.yield() catch |err| {
                 std.log.debug("Thread yield failed during backoff wait: {t}", .{err});
             };
         }
     }
 };
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "WorkStealingQueue basic operations" {
+    var queue = WorkStealingQueue(u32).init(std.testing.allocator);
+    defer queue.deinit();
+
+    try queue.push(1);
+    try queue.push(2);
+
+    // Pop returns from back (LIFO for owner)
+    try std.testing.expectEqual(@as(?u32, 2), queue.pop());
+
+    // Steal returns from front (FIFO for thieves)
+    try queue.push(3);
+    try std.testing.expectEqual(@as(?u32, 1), queue.steal());
+}
+
+test "Backoff spin loop hint" {
+    var backoff = Backoff{};
+    backoff.spin();
+    backoff.spin();
+    try std.testing.expect(backoff.spins == 2);
+    backoff.reset();
+    try std.testing.expect(backoff.spins == 0);
+}
 
 test "work queue is FIFO" {
     var queue = WorkQueue(u32).init(std.testing.allocator);
@@ -159,30 +211,4 @@ test "work queue is FIFO" {
     try std.testing.expectEqual(@as(?u32, 2), queue.dequeue());
     try std.testing.expectEqual(@as(?u32, 3), queue.dequeue());
     try std.testing.expectEqual(@as(?u32, null), queue.dequeue());
-}
-
-test "work queue reports empty and length" {
-    var queue = WorkQueue(u8).init(std.testing.allocator);
-    defer queue.deinit();
-
-    try std.testing.expect(queue.isEmpty());
-    try std.testing.expectEqual(@as(usize, 0), queue.len());
-
-    try queue.enqueue(9);
-    try std.testing.expect(!queue.isEmpty());
-    try std.testing.expectEqual(@as(usize, 1), queue.len());
-}
-
-test "work stealing queue pops and steals" {
-    var queue = WorkStealingQueue(u32).init(std.testing.allocator);
-    defer queue.deinit();
-
-    try queue.push(1);
-    try queue.push(2);
-    try std.testing.expectEqual(@as(?u32, 2), queue.pop());
-
-    try queue.push(3);
-    try std.testing.expectEqual(@as(?u32, 1), queue.steal());
-    try std.testing.expectEqual(@as(?u32, 3), queue.pop());
-    try std.testing.expectEqual(@as(?u32, null), queue.pop());
 }

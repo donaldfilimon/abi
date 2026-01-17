@@ -170,7 +170,7 @@ pub const SessionStore = struct {
                 const id = filename[0 .. filename.len - 5];
                 const session = self.loadSession(id) catch continue;
                 defer {
-                    var s = session;
+                    const s = session;
                     // Don't free messages, just the session struct
                     self.allocator.free(s.id);
                     self.allocator.free(s.name);
