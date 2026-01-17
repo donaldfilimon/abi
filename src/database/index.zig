@@ -1,8 +1,8 @@
 //! Vector index implementations for the database module.
 const std = @import("std");
 
-const simd = @import("../../shared/simd.zig");
-const binary = @import("../../shared/utils/binary.zig");
+const simd = @import("../shared/simd.zig");
+const binary = @import("../shared/utils/binary.zig");
 
 const index_magic = "ABIX";
 const index_version: u16 = 1;

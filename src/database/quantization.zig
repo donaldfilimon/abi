@@ -11,7 +11,7 @@
 //! - Zilliz Quantization: https://zilliz.com/learn/scalar-quantization-and-product-quantization
 
 const std = @import("std");
-const simd = @import("../../shared/simd.zig");
+const simd = @import("../shared/simd.zig");
 
 /// Errors that can occur during quantization operations.
 pub const QuantizationError = error{

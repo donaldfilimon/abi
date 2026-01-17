@@ -2,8 +2,8 @@ const std = @import("std");
 
 const wdbx = @import("wdbx.zig");
 const db_helpers = @import("db_helpers.zig");
-const json_utils = @import("../../shared/utils/json/mod.zig");
-const net_utils = @import("../../shared/utils/net/mod.zig");
+const json_utils = @import("../shared/utils/json/mod.zig");
+const net_utils = @import("../shared/utils/net/mod.zig");
 
 pub const HttpError = std.mem.Allocator.Error || error{
     InvalidAddress,

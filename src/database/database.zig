@@ -7,7 +7,7 @@
 //! - Cache-aligned storage: 64-byte alignment for hot data
 
 const std = @import("std");
-const simd = @import("../../shared/simd.zig");
+const simd = @import("../shared/simd.zig");
 
 pub const DatabaseError = error{
     DuplicateId,

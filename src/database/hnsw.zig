@@ -8,7 +8,7 @@
 //! - Vectorized distance computation via SIMD
 
 const std = @import("std");
-const simd = @import("../../shared/simd.zig");
+const simd = @import("../shared/simd.zig");
 const index_mod = @import("index.zig");
 
 // ============================================================================

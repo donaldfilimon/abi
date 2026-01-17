@@ -16,9 +16,9 @@
 //!
 //! ```
 //! src/ai/mod.zig         ->  re-exports from  ->  src/features/ai/mod.zig
-//! src/database/mod.zig   ->  re-exports from  ->  src/features/database/mod.zig
+//! src/database/mod.zig   ->  primary implementation (no longer in features/)
 //! src/network/mod.zig    ->  primary implementation (no longer in features/)
-//! src/web/mod.zig        ->  re-exports from  ->  src/features/web/mod.zig
+//! src/web/mod.zig        ->  primary implementation (no longer in features/)
 //! ```
 //!
 //! ## Feature Flags
@@ -38,11 +38,8 @@
 //! |-----------|------------------|-------------|
 //! | `ai/` | `src/ai/` | AI features (LLM, embeddings, RAG, explore, streaming) |
 //! | `connectors/` | (via ai) | API connectors (OpenAI, HuggingFace, Ollama) |
-//! | `database/` | `src/database/` | WDBX vector database with HNSW |
-//! | `gpu/` | `src/gpu/` | GPU backend stubs and feature detection |
+//! | `ha/` | (internal) | High availability components |
 //! | `monitoring/` | `src/observability/` | Observability and metrics |
-//! | `network/` | `src/network/` | Network features (discovery, HA, circuit breaker) |
-//! | `web/` | `src/web/` | Web utilities and HTTP helpers |
 //!
 //! ## Stub Modules
 //!

@@ -1,6 +1,6 @@
 //! Distributed database wrapper combining sharding and replication.
 const std = @import("std");
-const time = @import("../../shared/utils/time.zig");
+const time = @import("../shared/utils/time.zig");
 const database = @import("database.zig");
 const shard = @import("shard.zig");
 const replication = @import("replication.zig");
