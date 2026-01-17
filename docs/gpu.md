@@ -299,9 +299,43 @@ try result_buf.read(f32, &result);
 
 ---
 
+## New in 2026.01
+
+### Diagnostics
+
+```zig
+const diag = gpu_mod.DiagnosticsInfo.collect(allocator);
+if (!diag.isHealthy()) { diag.log(); }
+```
+
+Fields: `backend_type`, `device_count`, `memory_stats`, `kernel_cache_stats`, `is_degraded`
+
+### Error Context
+
+```zig
+const ctx = error_handling.ErrorContext.init(.backend_error, .cuda, "message");
+ctx.log();  // Or ctx.reportErrorFull(allocator)
+```
+
+### Graceful Degradation
+
+```zig
+var manager = failover.FailoverManager.init(allocator);
+manager.setDegradationMode(.automatic);  // .none, .warn_and_continue, .silent
+if (manager.isDegraded()) { /* CPU fallback active */ }
+```
+
+### SIMD CPU Fallback
+
+When GPU unavailable, `stdgpu` provides AVX/SSE/NEON accelerated operations:
+`simdVectorAdd`, `simdDotProduct`, `simdSum`, `simdRelu`, `simdSoftmax`, `simdMatVecMul`
+
+---
+
 ## See Also
 
 - [GPU Backend Details](gpu-backend-improvements.md) - Implementation details and improvements
 - [Compute Engine](compute.md) - CPU/GPU workload scheduling
 - [Monitoring](monitoring.md) - GPU metrics and profiling
 - [Troubleshooting](troubleshooting.md) - GPU detection issues
+- [API Reference](api_gpu.md) - Complete API documentation

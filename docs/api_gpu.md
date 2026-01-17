@@ -2,29 +2,88 @@
 
 **Source:** `src/compute/gpu/unified.zig`
 
- Unified GPU API
- Main entry point for the unified GPU API.
- Provides a single interface for all GPU backends with:
- - High-level operations (vectorAdd, matrixMultiply, etc.)
- - Custom kernel compilation and execution
- - Smart buffer management
- - Device discovery and selection
- - Stream/event synchronization
- ## Quick Start
- ```zig
- var gpu = try Gpu.init(allocator, .{});
- defer gpu.deinit();
- // Create buffers
- var a = try gpu.createBufferFromSlice(f32, &[_]f32{ 1, 2, 3, 4 }, .{});
- var b = try gpu.createBufferFromSlice(f32, &[_]f32{ 5, 6, 7, 8 }, .{});
- var result = try gpu.createBuffer(4 * @sizeOf(f32), .{});
- defer { gpu.destroyBuffer(&a); gpu.destroyBuffer(&b); gpu.destroyBuffer(&result); }
- // Run operation
- _ = try gpu.vectorAdd(&a, &b, &result);
- // Read results
- var output: [4]f32 = undefined;
- try result.read(f32, &output);
- ```
+Unified GPU API - Main entry point for the unified GPU API.
+
+Provides a single interface for all GPU backends with:
+- High-level operations (vectorAdd, matrixMultiply, etc.)
+- Custom kernel compilation and execution
+- Smart buffer management
+- Device discovery and selection
+- Stream/event synchronization
+- **Diagnostics and error context** (new in 2026.01)
+- **Graceful degradation with CPU fallback** (new in 2026.01)
+
+## Quick Start
+
+```zig
+var gpu = try Gpu.init(allocator, .{});
+defer gpu.deinit();
+
+// Create buffers
+var a = try gpu.createBufferFromSlice(f32, &[_]f32{ 1, 2, 3, 4 }, .{});
+var b = try gpu.createBufferFromSlice(f32, &[_]f32{ 5, 6, 7, 8 }, .{});
+var result = try gpu.createBuffer(4 * @sizeOf(f32), .{});
+defer { gpu.destroyBuffer(&a); gpu.destroyBuffer(&b); gpu.destroyBuffer(&result); }
+
+// Run operation
+_ = try gpu.vectorAdd(&a, &b, &result);
+
+// Read results
+var output: [4]f32 = undefined;
+try result.read(f32, &output);
+```
+
+## Diagnostics (New)
+
+Get comprehensive debugging information about GPU state:
+
+```zig
+const gpu_mod = @import("src/compute/gpu/mod.zig");
+
+// Collect diagnostics
+const diag = gpu_mod.DiagnosticsInfo.collect(allocator);
+
+// Format for logging
+const diag_str = try diag.formatToString(allocator);
+defer allocator.free(diag_str);
+std.log.info("{s}", .{diag_str});
+```
+
+## Error Context (New)
+
+Structured error context for debugging:
+
+```zig
+const error_handling = @import("src/compute/gpu/error_handling.zig");
+
+// Create error context for API errors
+const ctx = error_handling.ErrorContext.init(
+    .backend_error,
+    .cuda,
+    "vectorAdd failed",
+);
+
+// Report with full context
+ctx.reportErrorFull(allocator);
+```
+
+## Graceful Degradation (New)
+
+Automatic fallback to CPU when GPU unavailable:
+
+```zig
+const failover = @import("src/compute/gpu/failover.zig");
+
+var manager = failover.FailoverManager.init(allocator);
+
+// Configure degradation mode
+manager.setDegradationMode(.automatic);
+
+// Check if degraded to CPU
+if (manager.isDegraded()) {
+    std.log.warn("Running in CPU fallback mode", .{});
+}
+```
 ### `pub const LoadBalanceStrategy`
 
  Load balance strategy for multi-GPU.

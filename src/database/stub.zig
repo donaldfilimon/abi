@@ -89,3 +89,21 @@ pub fn getStats(_: anytype) Error!void {
 pub fn optimize(_: anytype) Error!void {
     return error.DatabaseDisabled;
 }
+
+pub const DatabaseHandle = struct {
+    db: ?*anyopaque = null,
+};
+
+pub fn openOrCreate(allocator: std.mem.Allocator, path: []const u8) Error!DatabaseHandle {
+    _ = allocator;
+    _ = path;
+    return error.DatabaseDisabled;
+}
+
+pub fn insert(handle: *DatabaseHandle, id: u64, vector: []const f32, metadata: ?[]const u8) Error!void {
+    _ = handle;
+    _ = id;
+    _ = vector;
+    _ = metadata;
+    return error.DatabaseDisabled;
+}

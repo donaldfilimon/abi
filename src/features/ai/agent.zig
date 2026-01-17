@@ -73,6 +73,173 @@ pub const AgentError = error{
     HttpRequestFailed,
     InvalidApiResponse,
     RateLimitExceeded,
+    Timeout,
+    ConnectionRefused,
+    ModelNotFound,
+};
+
+// ============================================================================
+// Error Context
+// ============================================================================
+
+/// Operation being performed when an error occurred
+pub const OperationContext = enum {
+    initialization,
+    configuration_validation,
+    message_processing,
+    response_generation,
+    history_management,
+    api_request,
+    json_parsing,
+    token_counting,
+
+    pub fn toString(self: OperationContext) []const u8 {
+        return switch (self) {
+            .initialization => "initialization",
+            .configuration_validation => "configuration validation",
+            .message_processing => "message processing",
+            .response_generation => "response generation",
+            .history_management => "history management",
+            .api_request => "API request",
+            .json_parsing => "JSON parsing",
+            .token_counting => "token counting",
+        };
+    }
+};
+
+/// Structured error context for AI agent operations
+pub const ErrorContext = struct {
+    /// The error that occurred
+    @"error": AgentError,
+    /// Backend type where the error occurred
+    backend: AgentBackend,
+    /// Operation being performed
+    operation: OperationContext,
+    /// HTTP status code (if applicable)
+    http_status: ?u16 = null,
+    /// API endpoint (if applicable)
+    endpoint: ?[]const u8 = null,
+    /// Model name (if applicable)
+    model: ?[]const u8 = null,
+    /// Additional context message
+    message: ?[]const u8 = null,
+    /// Retry attempt number (if retrying)
+    retry_attempt: ?u32 = null,
+    /// Max retry attempts configured
+    max_retries: ?u32 = null,
+
+    /// Create error context for API errors
+    pub fn apiError(
+        err: AgentError,
+        backend: AgentBackend,
+        endpoint: []const u8,
+        status: ?u16,
+        model: ?[]const u8,
+    ) ErrorContext {
+        return .{
+            .@"error" = err,
+            .backend = backend,
+            .operation = .api_request,
+            .http_status = status,
+            .endpoint = endpoint,
+            .model = model,
+        };
+    }
+
+    /// Create error context for configuration errors
+    pub fn configError(err: AgentError, message: []const u8) ErrorContext {
+        return .{
+            .@"error" = err,
+            .backend = .echo,
+            .operation = .configuration_validation,
+            .message = message,
+        };
+    }
+
+    /// Create error context for generation errors
+    pub fn generationError(
+        err: AgentError,
+        backend: AgentBackend,
+        model: []const u8,
+        message: ?[]const u8,
+    ) ErrorContext {
+        return .{
+            .@"error" = err,
+            .backend = backend,
+            .operation = .response_generation,
+            .model = model,
+            .message = message,
+        };
+    }
+
+    /// Create error context with retry information
+    pub fn retryError(
+        err: AgentError,
+        backend: AgentBackend,
+        endpoint: []const u8,
+        attempt: u32,
+        max_attempts: u32,
+    ) ErrorContext {
+        return .{
+            .@"error" = err,
+            .backend = backend,
+            .operation = .api_request,
+            .endpoint = endpoint,
+            .retry_attempt = attempt,
+            .max_retries = max_attempts,
+        };
+    }
+
+    /// Format error context for logging
+    pub fn format(self: ErrorContext, writer: anytype) !void {
+        try writer.print("AgentError: {t} during {s}", .{
+            self.@"error",
+            self.operation.toString(),
+        });
+
+        try writer.print(" [backend={t}]", .{self.backend});
+
+        if (self.model) |m| {
+            try writer.print(" [model={s}]", .{m});
+        }
+
+        if (self.endpoint) |ep| {
+            try writer.print(" [endpoint={s}]", .{ep});
+        }
+
+        if (self.http_status) |status| {
+            try writer.print(" [http_status={d}]", .{status});
+        }
+
+        if (self.retry_attempt) |attempt| {
+            if (self.max_retries) |max| {
+                try writer.print(" [attempt={d}/{d}]", .{ attempt, max });
+            }
+        }
+
+        if (self.message) |msg| {
+            try writer.print(" - {s}", .{msg});
+        }
+    }
+
+    /// Format to allocated string
+    pub fn formatToString(self: ErrorContext, allocator: std.mem.Allocator) ![]u8 {
+        var buf = std.ArrayListUnmanaged(u8).empty;
+        errdefer buf.deinit(allocator);
+
+        var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &buf);
+        try self.format(&aw.writer);
+
+        return aw.toArrayList().toOwnedSlice(allocator);
+    }
+
+    /// Log error context at error level
+    pub fn log(self: ErrorContext) void {
+        var buf: [512]u8 = undefined;
+        var fbs = std.io.fixedBufferStream(&buf);
+        self.format(fbs.writer()) catch return;
+        std.log.err("{s}", .{fbs.getWritten()});
+    }
 };
 
 /// Backend type for agent inference
@@ -826,4 +993,60 @@ test "agent stats" {
     const stats = agent.getStats();
     try std.testing.expectEqual(@as(usize, 1), stats.user_messages);
     try std.testing.expectEqual(@as(usize, 1), stats.assistant_messages);
+}
+
+test "error context creation and formatting" {
+    // Test API error context
+    const api_ctx = ErrorContext.apiError(
+        AgentError.HttpRequestFailed,
+        .openai,
+        "https://api.openai.com/v1/chat/completions",
+        500,
+        "gpt-4",
+    );
+    try std.testing.expectEqual(AgentError.HttpRequestFailed, api_ctx.@"error");
+    try std.testing.expectEqual(AgentBackend.openai, api_ctx.backend);
+    try std.testing.expectEqual(OperationContext.api_request, api_ctx.operation);
+    try std.testing.expectEqual(@as(?u16, 500), api_ctx.http_status);
+
+    // Test config error context
+    const config_ctx = ErrorContext.configError(
+        AgentError.InvalidConfiguration,
+        "temperature out of range",
+    );
+    try std.testing.expectEqual(AgentError.InvalidConfiguration, config_ctx.@"error");
+    try std.testing.expectEqual(OperationContext.configuration_validation, config_ctx.operation);
+
+    // Test generation error context
+    const gen_ctx = ErrorContext.generationError(
+        AgentError.GenerationFailed,
+        .ollama,
+        "llama3.2",
+        "model not loaded",
+    );
+    try std.testing.expectEqual(AgentError.GenerationFailed, gen_ctx.@"error");
+    try std.testing.expectEqual(AgentBackend.ollama, gen_ctx.backend);
+
+    // Test retry error context
+    const retry_ctx = ErrorContext.retryError(
+        AgentError.RateLimitExceeded,
+        .huggingface,
+        "https://api-inference.huggingface.co/models/gpt2",
+        2,
+        3,
+    );
+    try std.testing.expectEqual(@as(?u32, 2), retry_ctx.retry_attempt);
+    try std.testing.expectEqual(@as(?u32, 3), retry_ctx.max_retries);
+
+    // Test formatting to string
+    const formatted = try api_ctx.formatToString(std.testing.allocator);
+    defer std.testing.allocator.free(formatted);
+    try std.testing.expect(std.mem.indexOf(u8, formatted, "HttpRequestFailed") != null);
+    try std.testing.expect(std.mem.indexOf(u8, formatted, "openai") != null);
+}
+
+test "operation context toString" {
+    try std.testing.expectEqualStrings("initialization", OperationContext.initialization.toString());
+    try std.testing.expectEqualStrings("API request", OperationContext.api_request.toString());
+    try std.testing.expectEqualStrings("JSON parsing", OperationContext.json_parsing.toString());
 }

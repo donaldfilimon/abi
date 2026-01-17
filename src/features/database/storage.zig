@@ -251,6 +251,8 @@ pub fn loadDatabase(allocator: std.mem.Allocator, path: []const u8) LoadError!da
             database.DatabaseError.VectorNotFound,
             database.DatabaseError.InvalidDimension,
             database.DatabaseError.PoolExhausted,
+            database.DatabaseError.PersistenceError,
+            database.DatabaseError.ConcurrencyError,
             => return StorageError.InvalidFormat,
             error.OutOfMemory => return error.OutOfMemory,
         };

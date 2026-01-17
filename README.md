@@ -5,12 +5,22 @@ Modern Zig 0.16 framework for modular AI services, vector search, and high-perfo
 ## Highlights
 
 - **AI Runtime** - LLM inference (Llama-CPP parity), agent runtime, training pipelines ([docs/ai.md](docs/ai.md))
-- **Vector Database** - WDBX with HNSW/IVF-PQ indexing, hybrid search ([docs/database.md](docs/database.md))
+- **Vector Database** - WDBX with HNSW/IVF-PQ indexing, hybrid search, diagnostics ([docs/database.md](docs/database.md))
 - **Compute Engine** - Work-stealing scheduler, NUMA-aware, lock-free primitives
-- **GPU Backends** - CUDA, Vulkan, Metal, WebGPU with unified API ([docs/gpu.md](docs/gpu.md))
+- **GPU Backends** - CUDA, Vulkan, Metal, WebGPU with unified API, graceful degradation ([docs/gpu.md](docs/gpu.md))
 - **Distributed Network** - Node discovery, Raft consensus, load balancing ([docs/network.md](docs/network.md))
 - **Observability** - Metrics, tracing, profiling, circuit breakers ([docs/monitoring.md](docs/monitoring.md))
 - **Interactive CLI** - TUI launcher, training commands, database operations
+
+## What's New (2026.01)
+
+- **GPU Diagnostics** - Comprehensive GPU state debugging with `DiagnosticsInfo.collect()`
+- **GPU Error Context** - Structured error reporting with backend, operation, and timing info
+- **Graceful Degradation** - Automatic CPU fallback when GPU unavailable via `FailoverManager`
+- **SIMD CPU Fallback** - AVX/SSE/NEON accelerated operations in `stdgpu` backend
+- **Database Diagnostics** - Memory stats, health checks, configuration debugging
+- **AI Error Context** - Structured error context for agent operations with retry tracking
+- **O(1) Kernel Cache** - Doubly-linked list LRU for constant-time cache operations
 
 ## Documentation
 

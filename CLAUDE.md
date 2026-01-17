@@ -466,6 +466,81 @@ while (retry.shouldRetry()) {
 }
 ```
 
+## Diagnostics and Error Context (2026.01)
+
+New structured diagnostics and error context APIs for debugging production issues.
+
+### GPU Diagnostics
+
+```zig
+const gpu_mod = @import("src/compute/gpu/mod.zig");
+
+// Collect comprehensive GPU state
+const diag = gpu_mod.DiagnosticsInfo.collect(allocator);
+
+// Check health and format for logging
+if (!diag.isHealthy()) {
+    const msg = try diag.formatToString(allocator);
+    defer allocator.free(msg);
+    std.log.warn("{s}", .{msg});
+}
+```
+
+### GPU Error Context
+
+```zig
+const error_handling = @import("src/compute/gpu/error_handling.zig");
+
+// Structured error reporting
+const ctx = error_handling.ErrorContext.init(.backend_error, .cuda, "Kernel launch failed");
+ctx.reportErrorFull(allocator);  // Full context with backend, operation, timestamp
+```
+
+### GPU Graceful Degradation
+
+```zig
+const failover = @import("src/compute/gpu/failover.zig");
+
+var manager = failover.FailoverManager.init(allocator);
+manager.setDegradationMode(.automatic);  // Auto-fallback to CPU
+
+if (manager.isDegraded()) {
+    std.log.info("Running in CPU fallback mode", .{});
+}
+```
+
+### Database Diagnostics
+
+```zig
+const database = @import("src/features/database/database.zig");
+
+var db = try database.Database.init(allocator, "my-db");
+const diag = db.diagnostics();
+
+// Check memory usage and health
+std.log.info("Vectors: {d}, Memory: {d}KB, Healthy: {}", .{
+    diag.vector_count,
+    diag.memory.total_bytes / 1024,
+    diag.isHealthy(),
+});
+```
+
+### AI Agent Error Context
+
+```zig
+const agent = @import("src/features/ai/agent.zig");
+
+// API error with full context
+const ctx = agent.ErrorContext.apiError(
+    agent.AgentError.HttpRequestFailed,
+    .openai,
+    "https://api.openai.com/v1/chat/completions",
+    500,
+    "gpt-4",
+);
+ctx.log();  // Outputs structured error with backend, status, model info
+```
+
 ## Reference
 
 | Document | Purpose |
@@ -473,6 +548,8 @@ while (retry.shouldRetry()) {
 | [README.md](README.md) | Project overview and quick start |
 | [API_REFERENCE.md](API_REFERENCE.md) | Public API reference |
 | [docs/gpu.md](docs/gpu.md) | GPU programming guide |
+| [docs/database.md](docs/database.md) | Vector database guide |
+| [docs/ai.md](docs/ai.md) | AI and agents guide |
 | [docs/feature-flags.md](docs/feature-flags.md) | Complete feature flags reference |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Problem resolution |
 | [AGENTS.md](AGENTS.md) | AI agent guidance (Claude, GPT, Gemini) |

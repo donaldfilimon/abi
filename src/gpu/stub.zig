@@ -52,16 +52,43 @@ pub const BackendInfo = struct {
     build_flag: []const u8 = "",
 };
 
-pub const BackendAvailability = enum { available, unavailable };
-pub const DetectionLevel = enum { none, basic, full };
+pub const DetectionLevel = enum { none, loader, device_count };
+
+pub const BackendAvailability = struct {
+    enabled: bool = false,
+    available: bool = false,
+    reason: []const u8 = "gpu disabled",
+    device_count: usize = 0,
+    level: DetectionLevel = .none,
+};
+
+pub const Summary = struct {
+    module_enabled: bool = false,
+    enabled_backend_count: usize = 0,
+    available_backend_count: usize = 0,
+    device_count: usize = 0,
+    emulated_devices: usize = 0,
+};
 
 pub const Device = struct {};
 pub const DeviceType = enum { cpu, gpu, accelerator };
 pub const DeviceInfo = struct {
+    id: u32 = 0,
+    backend: Backend = .cpu,
     name: []const u8 = "disabled",
+    total_memory_bytes: ?u64 = null,
+    is_emulated: bool = true,
+    capability: DeviceCapability = .{},
     device_type: DeviceType = .cpu,
 };
-pub const DeviceCapability = struct {};
+pub const DeviceCapability = struct {
+    unified_memory: bool = false,
+    supports_fp16: bool = false,
+    supports_int8: bool = false,
+    supports_async_transfers: bool = false,
+    max_threads_per_block: ?u32 = null,
+    max_shared_memory_bytes: ?u32 = null,
+};
 pub const DeviceFeature = enum { compute, graphics };
 pub const DeviceSelector = struct {};
 pub const DeviceManager = struct {};
@@ -218,6 +245,11 @@ pub fn getAvailableBackends() []const Backend {
     return &.{};
 }
 
+pub fn availableBackends(allocator: std.mem.Allocator) Error![]Backend {
+    _ = allocator;
+    return error.GpuDisabled;
+}
+
 pub fn getBestBackend() Backend {
     return .cpu;
 }
@@ -260,4 +292,24 @@ pub fn createDefaultKernels(_: std.mem.Allocator) Error!void {
 
 pub fn compileKernel(_: KernelSource, _: KernelConfig) Error!CompiledKernel {
     return error.GpuDisabled;
+}
+
+pub fn backendAvailability(_: Backend) BackendAvailability {
+    return .{
+        .enabled = false,
+        .available = false,
+        .reason = "gpu module disabled",
+        .device_count = 0,
+        .level = .none,
+    };
+}
+
+pub fn summary() Summary {
+    return .{
+        .module_enabled = false,
+        .enabled_backend_count = 0,
+        .available_backend_count = 0,
+        .device_count = 0,
+        .emulated_devices = 0,
+    };
 }

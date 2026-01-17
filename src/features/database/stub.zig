@@ -8,6 +8,78 @@ pub const DatabaseFeatureError = error{
     DatabaseDisabled,
 };
 
+pub const DatabaseError = error{
+    DuplicateId,
+    VectorNotFound,
+    InvalidDimension,
+    PoolExhausted,
+    PersistenceError,
+    ConcurrencyError,
+    DatabaseDisabled,
+};
+
+// ============================================================================
+// Diagnostics - Comprehensive debugging information
+// ============================================================================
+
+/// Memory statistics for database storage
+pub const MemoryStats = struct {
+    vector_bytes: usize = 0,
+    norm_cache_bytes: usize = 0,
+    metadata_bytes: usize = 0,
+    index_bytes: usize = 0,
+    total_bytes: usize = 0,
+    efficiency: f32 = 1.0,
+};
+
+/// Performance statistics for database operations
+pub const PerformanceStats = struct {
+    search_count: u64 = 0,
+    insert_count: u64 = 0,
+    delete_count: u64 = 0,
+    update_count: u64 = 0,
+    vectors_scanned: u64 = 0,
+    avg_vectors_per_search: f32 = 0.0,
+};
+
+/// Configuration status for debugging
+pub const ConfigStatus = struct {
+    norm_cache_enabled: bool = false,
+    vector_pool_enabled: bool = false,
+    thread_safe_enabled: bool = false,
+    initial_capacity: usize = 0,
+};
+
+/// Comprehensive diagnostics information for the database
+pub const DiagnosticsInfo = struct {
+    name: []const u8 = "",
+    vector_count: usize = 0,
+    dimension: usize = 0,
+    memory: MemoryStats = .{},
+    config: ConfigStatus = .{},
+    pool_stats: ?VectorPoolStats = null,
+    index_health: f32 = 1.0,
+    norm_cache_health: f32 = 1.0,
+
+    pub fn isHealthy(self: DiagnosticsInfo) bool {
+        return self.index_health >= 0.99 and self.norm_cache_health >= 0.99;
+    }
+
+    pub fn formatToString(self: DiagnosticsInfo, allocator: std.mem.Allocator) ![]u8 {
+        _ = self;
+        _ = allocator;
+        return error.DatabaseDisabled;
+    }
+};
+
+/// Vector pool statistics
+pub const VectorPoolStats = struct {
+    alloc_count: usize = 0,
+    free_count: usize = 0,
+    active_count: usize = 0,
+    total_bytes: usize = 0,
+};
+
 // Core database types
 pub const DatabaseHandle = struct {
     db: ?*anyopaque = null,
@@ -703,6 +775,11 @@ pub fn list(handle: *DatabaseHandle, allocator: std.mem.Allocator, limit: usize)
 }
 
 pub fn stats(handle: *DatabaseHandle) Stats {
+    _ = handle;
+    return .{};
+}
+
+pub fn diagnostics(handle: *DatabaseHandle) DiagnosticsInfo {
     _ = handle;
     return .{};
 }

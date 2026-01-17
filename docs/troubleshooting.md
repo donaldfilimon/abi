@@ -230,6 +230,16 @@ zig build test --test-filter "pattern"  # Won't filter
    });
    ```
 
+6. **Use diagnostics** (2026.01): `const diag = gpu_mod.DiagnosticsInfo.collect(allocator); if (diag.is_degraded) { ... }`
+
+---
+
+### GPU Operations Failing / Degradation (2026.01)
+
+**Silent failures**: Use `error_handling.ErrorContext.init(.backend_error, backend, "msg")` to capture context.
+
+**No CPU fallback**: Use `failover.FailoverManager.init(allocator)` with `.setDegradationMode(.automatic)`.
+
 ---
 
 ### Database Path Validation Error
@@ -252,6 +262,24 @@ try db.restore("C:\\Windows\\file.db");  // PathValidationError
 ```
 
 All backup/restore operations are restricted to the `backups/` directory.
+
+---
+
+### Database Health Issues (2026.01)
+
+**Slow/inconsistent results**: Use `const diag = db.diagnostics(); if (!diag.isHealthy()) { try db.rebuildNormCache(); }`
+
+**Search performance**: Enable `.cache_norms = true`, use `db.searchBatch()` for multiple queries.
+
+---
+
+### AI Agent API Errors (2026.01)
+
+**Debugging**: Use `agent.ErrorContext.apiError(err, .openai, endpoint, status, model)` then `ctx.log()`.
+
+**Common errors**: `ApiKeyMissing` (set env var), `RateLimitExceeded` (increase backoff), `Timeout` (check network), `ConnectionRefused` (start Ollama), `ModelNotFound` (download model).
+
+**Rate limiting**: Use `ErrorContext.retryError()` with exponential backoff.
 
 ---
 

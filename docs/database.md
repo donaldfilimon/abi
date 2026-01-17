@@ -164,9 +164,43 @@ zig build run -- db serve --port 8080
 
 ---
 
+## New in 2026.01
+
+### Diagnostics
+
+```zig
+const diag = db.diagnostics();
+if (!diag.isHealthy()) { try db.rebuildNormCache(); }
+```
+
+Fields: `vector_count`, `dimension`, `memory.total_bytes`, `index_health`, `norm_cache_health`
+
+### Performance Optimizations
+
+```zig
+var db = try database.Database.initWithConfig(allocator, "fast-db", .{
+    .cache_norms = true,       // Pre-computed L2 norms
+    .initial_capacity = 10000, // Pre-allocate
+    .thread_safe = true,       // Enable concurrent access
+});
+
+// O(1) lookup via hash index
+const view = db.get(vector_id);
+
+// Thread-safe variants
+try db.insertThreadSafe(id, vector, metadata);
+const results = try db.searchThreadSafe(allocator, query, top_k);
+
+// Batch search
+const all_results = try db.searchBatch(allocator, queries, top_k);
+```
+
+---
+
 ## See Also
 
 - [AI & Agents](ai.md) - Embedding generation for vectors
 - [GPU Acceleration](gpu.md) - GPU-accelerated search
 - [Monitoring](monitoring.md) - Database metrics
 - [Troubleshooting](troubleshooting.md) - Path validation and performance issues
+- [API Reference](api_database.md) - Complete API documentation

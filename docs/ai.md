@@ -253,6 +253,20 @@ zig build run -- train resume ./model.ckpt # Resume from checkpoint
 
 ---
 
+## New in 2026.01: Error Context
+
+```zig
+// Create and log error context
+const ctx = agent.ErrorContext.apiError(err, .openai, endpoint, 500, "gpt-4");
+ctx.log();  // Outputs: "AgentError: HttpRequestFailed during API request [backend=openai] [model=gpt-4]"
+```
+
+Factory methods: `apiError()`, `configError()`, `generationError()`, `retryError()`
+
+New error types: `Timeout`, `ConnectionRefused`, `ModelNotFound`
+
+---
+
 ## See Also
 
 - [Explore](explore.md) - Codebase exploration with AI
@@ -260,3 +274,4 @@ zig build run -- train resume ./model.ckpt # Resume from checkpoint
 - [Compute Engine](compute.md) - Task execution for AI workloads
 - [GPU Acceleration](gpu.md) - GPU-accelerated inference
 - [Troubleshooting](troubleshooting.md) - Common issues
+- [API Reference](api_ai.md) - Complete API documentation
