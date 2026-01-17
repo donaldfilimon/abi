@@ -94,6 +94,9 @@ pub const web = if (build_options.enable_web)
 else
     @import("web/stub.zig");
 
+/// High availability (replication, backup, PITR).
+pub const ha = @import("features/ha/mod.zig");
+
 /// Task management system.
 pub const tasks = @import("tasks/mod.zig");
 
