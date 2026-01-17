@@ -204,7 +204,7 @@ pub const Propagator = struct {
 
         // B3 format can have 16 or 32 char trace IDs
         var pos: usize = 0;
-        var dash_pos = std.mem.indexOf(u8, header_value, "-") orelse return null;
+        const dash_pos = std.mem.indexOf(u8, header_value, "-") orelse return null;
 
         // Parse trace_id (16 or 32 hex chars)
         const trace_id_len = dash_pos;

@@ -97,8 +97,38 @@ pub const HelpBuilder = struct {
 
     /// Add option.
     pub fn option(self: *HelpBuilder, opt: Option) *HelpBuilder {
-        self.writeFmt("{}\n", .{opt}) catch {};
+        self.writeOption(opt) catch {};
         return self;
+    }
+
+    fn writeOption(self: *HelpBuilder, opt: Option) !void {
+        // Short option
+        if (opt.short) |s| {
+            try self.buffer.appendSlice(self.allocator, "  ");
+            try self.buffer.appendSlice(self.allocator, s);
+            try self.buffer.appendSlice(self.allocator, ", ");
+        } else {
+            try self.buffer.appendSlice(self.allocator, "      ");
+        }
+
+        // Long option with arg
+        try self.buffer.appendSlice(self.allocator, opt.long);
+        if (opt.arg) |a| {
+            try self.buffer.appendSlice(self.allocator, " <");
+            try self.buffer.appendSlice(self.allocator, a);
+            try self.buffer.append(self.allocator, '>');
+        }
+
+        // Padding and description
+        const opt_len = if (opt.short != null) @as(usize, 4) else @as(usize, 6);
+        const long_len = opt.long.len + if (opt.arg) |a| a.len + 3 else 0;
+        const total_len = opt_len + long_len;
+        const padding = if (total_len < 28) 28 - total_len else 2;
+        for (0..padding) |_| {
+            try self.buffer.append(self.allocator, ' ');
+        }
+        try self.buffer.appendSlice(self.allocator, opt.description);
+        try self.buffer.append(self.allocator, '\n');
     }
 
     /// Add multiple options.
@@ -111,8 +141,19 @@ pub const HelpBuilder = struct {
 
     /// Add subcommand.
     pub fn subcommand(self: *HelpBuilder, cmd: Subcommand) *HelpBuilder {
-        self.writeFmt("{}\n", .{cmd}) catch {};
+        self.writeSubcommand(cmd) catch {};
         return self;
+    }
+
+    fn writeSubcommand(self: *HelpBuilder, cmd: Subcommand) !void {
+        try self.buffer.appendSlice(self.allocator, "  ");
+        try self.buffer.appendSlice(self.allocator, cmd.name);
+        const padding = if (cmd.name.len < 16) 16 - cmd.name.len else 2;
+        for (0..padding) |_| {
+            try self.buffer.append(self.allocator, ' ');
+        }
+        try self.buffer.appendSlice(self.allocator, cmd.description);
+        try self.buffer.append(self.allocator, '\n');
     }
 
     /// Add multiple subcommands.

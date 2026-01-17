@@ -16,6 +16,14 @@
 //! ```
 const std = @import("std");
 
+// Re-export tracing module
+pub const tracing = @import("tracing.zig");
+pub const Tracer = tracing.Tracer;
+pub const Span = tracing.Span;
+pub const SpanId = tracing.SpanId;
+pub const SpanKind = tracing.SpanKind;
+pub const SpanStatus = tracing.SpanStatus;
+
 pub const Counter = struct {
     name: []const u8,
     value: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
