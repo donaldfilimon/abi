@@ -199,38 +199,38 @@ pub const ParallelCoordinator = struct {
 
 // Submodule namespaces (for code that accesses llm.io.GgufFile, llm.model.LlamaModel, etc.)
 pub const io = struct {
-    pub const GgufFile = @import("stub.zig").GgufFile;
-    pub const MappedFile = @import("stub.zig").MappedFile;
-    pub const TensorInfo = @import("stub.zig").TensorInfo;
-    pub const GgufHeader = @import("stub.zig").GgufHeader;
-    pub const GgufMetadata = @import("stub.zig").GgufMetadata;
+    pub const GgufFile = stub_root.GgufFile;
+    pub const MappedFile = stub_root.MappedFile;
+    pub const TensorInfo = stub_root.TensorInfo;
+    pub const GgufHeader = stub_root.GgufHeader;
+    pub const GgufMetadata = stub_root.GgufMetadata;
 };
 
 pub const tensor = struct {
-    pub const Tensor = @import("stub.zig").Tensor;
-    pub const DType = @import("stub.zig").DType;
-    pub const Q4_0Block = @import("stub.zig").Q4_0Block;
-    pub const Q8_0Block = @import("stub.zig").Q8_0Block;
+    pub const Tensor = stub_root.Tensor;
+    pub const DType = stub_root.DType;
+    pub const Q4_0Block = stub_root.Q4_0Block;
+    pub const Q8_0Block = stub_root.Q8_0Block;
 };
 
 pub const tokenizer = struct {
-    pub const BpeTokenizer = @import("stub.zig").BpeTokenizer;
-    pub const Vocab = @import("stub.zig").Vocab;
+    pub const BpeTokenizer = stub_root.BpeTokenizer;
+    pub const Vocab = stub_root.Vocab;
 };
 
 pub const model = struct {
-    pub const LlamaModel = @import("stub.zig").Model;
-    pub const LlamaConfig = @import("stub.zig").ModelConfig;
+    pub const LlamaModel = stub_root.Model;
+    pub const LlamaConfig = stub_root.ModelConfig;
 };
 
 pub const generation = struct {
-    pub const Generator = @import("stub.zig").Generator;
-    pub const Sampler = @import("stub.zig").Sampler;
-    pub const SamplerConfig = @import("stub.zig").SamplerConfig;
+    pub const Generator = stub_root.Generator;
+    pub const Sampler = stub_root.Sampler;
+    pub const SamplerConfig = stub_root.SamplerConfig;
 };
 
 pub const cache = struct {
-    pub const KvCache = @import("stub.zig").KvCache;
+    pub const KvCache = stub_root.KvCache;
 };
 
 pub const ops = struct {

@@ -22,8 +22,8 @@ pub const NetworkConfig = struct {
 };
 
 pub const NetworkEngine = struct {
-    config: NetworkConfig,
     allocator: std.mem.Allocator,
+    config: NetworkConfig,
 
     pub const PendingTask = struct {
         task_id: u64,
@@ -52,7 +52,7 @@ pub const NetworkEngine = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, cfg: NetworkConfig) !NetworkEngine {
-        return NetworkEngine{ .config = cfg, .allocator = allocator };
+        return NetworkEngine{ .allocator = allocator, .config = cfg };
     }
 
     pub fn deinit(self: *NetworkEngine) void {

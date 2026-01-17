@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const config_module = @import("../config.zig");
+const stub_root = @This();
 
 pub const Error = error{
     AiDisabled,
@@ -396,7 +397,7 @@ pub const memory = struct {
     pub const MemoryStats = struct {};
     pub const persistence = struct {
         const P = @This();
-        const M = @import("stub.zig").memory; // Parent memory module
+        const M = stub_root.memory; // Parent memory module
 
         pub const SessionConfig = struct {};
 

@@ -236,7 +236,7 @@ Flat domain structure (new modular architecture):
 - `src/network/` - Distributed compute and Raft consensus
 - `src/observability/` - Metrics, tracing, profiling
 - `src/web/` - HTTP helpers and web utilities
-- `src/internal/` - Shared utilities and platform helpers
+- `src/shared/` - Shared utilities (simd, observability primitives, platform helpers)
 
 **Backward Compatibility**: Re-exports in `abi.zig` maintain API compatibility with the previous `features/` and `compute/` structure.
 
