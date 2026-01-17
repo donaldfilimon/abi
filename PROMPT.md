@@ -132,9 +132,9 @@ abi/
 │   ├── network/         # Distributed compute
 │   ├── web/             # Web utilities and HTTP
 │   ├── observability/   # Metrics, tracing, profiling
-│   ├── internal/        # Shared utilities (re-export layer)
+│   ├── tasks/           # Task management system
 │   ├── shared/          # Logging, security, platform utilities
-│   ├── compute/         # Legacy re-export (backward compat)
+│   ├── core/            # I/O, diagnostics, collections
 │   └── features/        # Legacy features (connectors, HA, monitoring)
 ├── tools/cli/           # CLI implementation
 ├── benchmarks/          # Performance benchmarks
@@ -178,10 +178,11 @@ The roadmap is split into phases:
 3. **Benchmark Framework** - Runner, competitive benches
 4. **High Availability Infrastructure** - Failover, PITR
 5. **Ecosystem Packaging** - Docker, Zig registry
-6. **Runtime Consolidation** - Migrated compute/ to runtime/
+6. **Runtime Consolidation** - Migrated and removed legacy compute/
    - Plugin registry system (`src/registry/`)
    - CLI runtime flags (`--list-features`, `--enable-*`, `--disable-*`)
    - Task engine, scheduling, concurrency, memory modules
+   - Removed deprecated `src/compute/` re-export layer (commit 64334a1)
 
 ### In Progress
 - **Phase 2: Observability Consolidation** - Unify monitoring implementations
@@ -193,12 +194,12 @@ All open items tracked in [ROADMAP.md](ROADMAP.md).
 
 | Module | Location | Status |
 |--------|----------|--------|
-| GPU | `src/gpu/` | Fully migrated |
-| Database | `src/database/` | Fully migrated |
-| Network | `src/network/` | Fully migrated |
-| Web | `src/web/` | Fully migrated |
-| Runtime | `src/runtime/` | Fully migrated |
-| Registry | `src/registry/` | New (complete) |
-| AI | `src/ai/` + `src/features/ai/` | Partial (wrapper + implementation) |
-| Observability | `src/observability/` + `src/features/monitoring/` | Needs consolidation |
-| Compute | `src/compute/` | Legacy re-export (use runtime/) |
+| GPU | `src/gpu/` | ✅ Fully migrated |
+| Database | `src/database/` | ✅ Fully migrated |
+| Network | `src/network/` | ✅ Fully migrated |
+| Web | `src/web/` | ✅ Fully migrated |
+| Runtime | `src/runtime/` | ✅ Fully migrated |
+| Registry | `src/registry/` | ✅ New (complete) |
+| Tasks | `src/tasks/` | ✅ Standalone module |
+| AI | `src/ai/` + `src/features/ai/` | 🔄 Partial (wrapper + implementation) |
+| Observability | `src/observability/` + `src/features/monitoring/` | 🔄 Needs consolidation |
