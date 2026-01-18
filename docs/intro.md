@@ -2,7 +2,7 @@
 
 > **Quick Start**: See [Quickstart Guide](../QUICKSTART.md) for immediate setup examples.
 > **Developer Guide**: See [CONTRIBUTING.md](../CONTRIBUTING.md) for AI agent coding patterns and build commands.
-> **Full Reference**: See [Documentation Index](index.md) for complete documentation listing.
+> **Full Reference**: See [Documentation Index](docs-index.md) for complete documentation listing.
 
 Welcome to **ABI**, a modern Zig 0.16.x framework for modular AI services, vector search, and high-performance systems tooling.
 
@@ -141,7 +141,7 @@ pub fn main() !void {
 
 ## Next Steps
 
-- [Documentation Index](index.md) - Complete documentation listing
+- [Documentation Index](docs-index.md) - Complete documentation listing
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Quick reference for AI agents (coding patterns, build commands)
 - [CLAUDE.md](../CLAUDE.md) - Comprehensive development guide
 - [Framework Guide](framework.md) - Configuration and lifecycle
@@ -154,7 +154,7 @@ pub fn main() !void {
 
 ## See Also
 
-- [Documentation Index](index.md) - Full documentation listing
+- [Documentation Index](docs-index.md) - Full documentation listing
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
 - [Zig 0.16 Migration](migration/zig-0.16-migration.md) - API compatibility notes
 - [TODO List](../TODO.md) - Pending implementations
