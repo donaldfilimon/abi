@@ -5,6 +5,7 @@
 //! - Neural network layers (Linear, Embedding, LayerNorm)
 //! - Attention mechanisms (Multi-head, Self, Cross, Adaptive)
 //! - Online learning with experience replay
+//! - GPU-accelerated operations with automatic CPU fallback
 
 const std = @import("std");
 
@@ -12,6 +13,7 @@ pub const tensor = @import("tensor.zig");
 pub const layer = @import("layer.zig");
 pub const attention = @import("attention.zig");
 pub const learning = @import("learning.zig");
+pub const gpu_ops = @import("gpu_ops.zig");
 
 // Tensor exports
 pub const Tensor = tensor.Tensor;
@@ -46,6 +48,11 @@ pub const AdamOptimizer = learning.AdamOptimizer;
 pub const LossFn = learning.LossFn;
 pub const OnlineLearner = learning.OnlineLearner;
 pub const GradientAccumulator = learning.GradientAccumulator;
+
+// GPU operations exports
+pub const GpuOpsContext = gpu_ops.GpuOpsContext;
+pub const GpuStats = gpu_ops.GpuStats;
+pub const createGpuContext = gpu_ops.createContext;
 
 // ============================================================================
 // Convenience Builders

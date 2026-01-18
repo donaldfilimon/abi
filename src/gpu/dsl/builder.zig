@@ -347,6 +347,11 @@ pub const KernelBuilder = struct {
         return self.binOp(.ge, a, b);
     }
 
+    /// Alias for ge (greater than or equal).
+    pub fn gte(self: *Self, a: *const expr.Expr, b: *const expr.Expr) !*const expr.Expr {
+        return self.binOp(.ge, a, b);
+    }
+
     pub fn eq(self: *Self, a: *const expr.Expr, b: *const expr.Expr) !*const expr.Expr {
         return self.binOp(.eq, a, b);
     }
@@ -439,6 +444,21 @@ pub const KernelBuilder = struct {
             },
         };
         return e;
+    }
+
+    /// Cast to f32 type (convenience method).
+    pub fn castToF32(self: *Self, operand: *const expr.Expr) !*const expr.Expr {
+        return self.cast(types.Type.f32Type(), operand);
+    }
+
+    /// Cast to i32 type (convenience method).
+    pub fn castToI32(self: *Self, operand: *const expr.Expr) !*const expr.Expr {
+        return self.cast(types.Type.i32Type(), operand);
+    }
+
+    /// Cast to u32 type (convenience method).
+    pub fn castToU32(self: *Self, operand: *const expr.Expr) !*const expr.Expr {
+        return self.cast(types.Type.u32Type(), operand);
     }
 
     /// Ternary select expression (condition ? true_val : false_val).
