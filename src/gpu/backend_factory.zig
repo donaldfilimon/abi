@@ -190,6 +190,112 @@ pub fn listAvailableBackends(allocator: std.mem.Allocator) ![]Backend {
     return backends.toOwnedSlice(allocator);
 }
 
+/// Alias for listAvailableBackends (Task 1.2 compatibility).
+pub fn detectAvailableBackends(allocator: std.mem.Allocator) ![]Backend {
+    return listAvailableBackends(allocator);
+}
+
+// ============================================================================
+// Enhanced Backend Selection (Task 1.2)
+// ============================================================================
+
+/// Backend selection options.
+pub const SelectionOptions = struct {
+    preferred: ?Backend = null,
+    fallback_chain: []const Backend = &.{ .vulkan, .metal, .stdgpu },
+    required_features: []const BackendFeature = &.{},
+    fallback_to_cpu: bool = true,
+};
+
+/// Select the best backend with fallback chain.
+pub fn selectBestBackendWithFallback(
+    allocator: std.mem.Allocator,
+    options: SelectionOptions,
+) !?Backend {
+    _ = allocator; // May be needed for future enhancements
+
+    // Try preferred first
+    if (options.preferred) |preferred| {
+        if (isBackendAvailable(preferred)) {
+            if (meetsFeatureRequirements(preferred, options.required_features)) {
+                return preferred;
+            }
+        }
+    }
+
+    // Try fallback chain
+    for (options.fallback_chain) |backend_type| {
+        if (isBackendAvailable(backend_type)) {
+            if (meetsFeatureRequirements(backend_type, options.required_features)) {
+                return backend_type;
+            }
+        }
+    }
+
+    // Last resort: CPU if allowed
+    if (options.fallback_to_cpu and isBackendAvailable(.stdgpu)) {
+        return .stdgpu;
+    }
+
+    return null;
+}
+
+/// Select backend with specific feature requirements.
+pub fn selectBackendWithFeatures(
+    allocator: std.mem.Allocator,
+    options: SelectionOptions,
+) !?Backend {
+    const available = try detectAvailableBackends(allocator);
+    defer allocator.free(available);
+
+    // Try backends in priority order
+    for (backend_priority) |backend_type| {
+        // Check if available
+        var is_available = false;
+        for (available) |avail| {
+            if (avail == backend_type) {
+                is_available = true;
+                break;
+            }
+        }
+        if (!is_available) continue;
+
+        // Check if meets requirements
+        if (meetsFeatureRequirements(backend_type, options.required_features)) {
+            return backend_type;
+        }
+    }
+
+    // Fallback to CPU if allowed
+    if (options.fallback_to_cpu) {
+        return .stdgpu;
+    }
+
+    return null;
+}
+
+fn meetsFeatureRequirements(backend_type: Backend, features: []const BackendFeature) bool {
+    for (features) |feature| {
+        if (!backendSupportsFeature(backend_type, feature)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+fn backendSupportsFeature(backend_type: Backend, feature: BackendFeature) bool {
+    return switch (feature) {
+        .fp16 => backend_type == .cuda or backend_type == .metal,
+        .fp64 => backend_type == .cuda,
+        .atomics => backend_type != .stdgpu,
+        .shared_memory => backend_type != .stdgpu,
+        .subgroups => backend_type == .cuda or backend_type == .vulkan,
+        .cooperative_groups => backend_type == .cuda,
+        .tensor_cores => backend_type == .cuda,
+        .dynamic_parallelism => backend_type == .cuda,
+    };
+}
+
 // ============================================================================
 // Backend-specific initialization
 // ============================================================================
