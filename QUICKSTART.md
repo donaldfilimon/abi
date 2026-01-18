@@ -1,10 +1,23 @@
 # Quickstart
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
+  <img src="https://img.shields.io/badge/Difficulty-Beginner-green?style=for-the-badge" alt="Difficulty"/>
+  <img src="https://img.shields.io/badge/Time-5_minutes-blue?style=for-the-badge" alt="Time"/>
+</p>
+
+> **Getting Started Fast** — This guide gets you running in under 5 minutes.
 > For comprehensive guides, see [docs/intro.md](docs/intro.md).
 
-## Requirements
+---
 
-- Zig 0.16.x
+## Prerequisites
+
+| Requirement | Version | Status |
+|-------------|---------|--------|
+| Zig | 0.16.x | ![Required](https://img.shields.io/badge/-Required-red) |
+| Git | Any | ![Required](https://img.shields.io/badge/-Required-red) |
+| GPU Drivers | Latest | ![Optional](https://img.shields.io/badge/-Optional-yellow) |
 
 ## Build and Run the CLI
 
@@ -160,36 +173,61 @@ pub fn main(init: std.process.Init) !void {
 }
 ```
 
-## Module map
+## Module Map
 
-Flat domain structure (new modular architecture):
+Flat domain structure with modular architecture:
 
-| Module | Description | Documentation |
-|--------|-------------|----------------|
-| `src/abi.zig` | Public API entry point | [API Reference](API_REFERENCE.md) |
-| `src/config.zig` | Unified configuration system | [API Reference](API_REFERENCE.md) |
-| `src/framework.zig` | Framework orchestration | [Framework Guide](docs/framework.md) |
-| `src/runtime/` | Always-on infrastructure (scheduler, memory, concurrency) | [Compute Guide](docs/compute.md) |
-| `src/gpu/` | GPU backends and unified API | [GPU Guide](docs/gpu.md) |
-| `src/ai/` | AI module entry point | [AI Guide](docs/ai.md) |
-| `src/ai/llm/` | Local LLM inference | [AI Guide](docs/ai.md) |
-| `src/ai/embeddings/` | Vector embeddings | [AI Guide](docs/ai.md) |
-| `src/ai/agents/` | AI agent runtime | [AI Guide](docs/ai.md) |
-| `src/ai/training/` | Training pipelines | [AI Guide](docs/ai.md) |
-| `src/database/` | WDBX vector database | [Database Guide](docs/database.md) |
-| `src/network/` | Distributed compute and Raft | [Network Guide](docs/network.md) |
-| `src/observability/` | Metrics, tracing, profiling | [Monitoring Guide](docs/monitoring.md) |
-| `src/web/` | HTTP helpers and web utilities | - |
-| `src/shared/` | Shared utilities and platform helpers | - |
+### Core Modules
+
+| Module | Description | Status | Docs |
+|--------|-------------|--------|------|
+| `src/abi.zig` | Public API entry point | ![Ready](https://img.shields.io/badge/-Ready-success) | [API Reference](API_REFERENCE.md) |
+| `src/config.zig` | Unified configuration system | ![Ready](https://img.shields.io/badge/-Ready-success) | [API Reference](API_REFERENCE.md) |
+| `src/framework.zig` | Framework orchestration | ![Ready](https://img.shields.io/badge/-Ready-success) | [Framework Guide](docs/framework.md) |
+| `src/runtime/` | Scheduler, memory, concurrency | ![Ready](https://img.shields.io/badge/-Ready-success) | [Compute Guide](docs/compute.md) |
+
+### Feature Modules
+
+| Module | Description | Status | Docs |
+|--------|-------------|--------|------|
+| `src/gpu/` | GPU backends and unified API | ![Ready](https://img.shields.io/badge/-Ready-success) | [GPU Guide](docs/gpu.md) |
+| `src/ai/` | AI module entry point | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/ai.md) |
+| `src/ai/llm/` | Local LLM inference | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/ai.md) |
+| `src/ai/embeddings/` | Vector embeddings | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/ai.md) |
+| `src/ai/agents/` | AI agent runtime | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/ai.md) |
+| `src/ai/training/` | Training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/ai.md) |
+| `src/database/` | WDBX vector database | ![Ready](https://img.shields.io/badge/-Ready-success) | [Database Guide](docs/database.md) |
+| `src/network/` | Distributed compute and Raft | ![Ready](https://img.shields.io/badge/-Ready-success) | [Network Guide](docs/network.md) |
+| `src/observability/` | Metrics, tracing, profiling | ![Ready](https://img.shields.io/badge/-Ready-success) | [Monitoring Guide](docs/monitoring.md) |
+| `src/web/` | HTTP helpers and web utilities | ![Ready](https://img.shields.io/badge/-Ready-success) | - |
+| `src/shared/` | Shared utilities and helpers | ![Ready](https://img.shields.io/badge/-Ready-success) | - |
 
 ## Next Steps
 
-- Read the [Introduction](docs/intro.md) for architecture overview
-- See [API Reference](API_REFERENCE.md) for API documentation
-- Check [examples/](examples/) for more code samples
-- Review [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines
+<table>
+<tr>
+<td width="50%">
 
-## See Also
+### Learn More
+- [Introduction](docs/intro.md) — Architecture overview
+- [API Reference](API_REFERENCE.md) — API documentation
+- [Examples](examples/) — Code samples
 
-- [TODO.md](TODO.md) - Pending implementations
-- [ROADMAP.md](ROADMAP.md) - Upcoming milestones
+</td>
+<td width="50%">
+
+### Get Involved
+- [Contributing](CONTRIBUTING.md) — Development guidelines
+- [Roadmap](ROADMAP.md) — Upcoming milestones
+- [TODO](TODO.md) — Pending implementations
+
+</td>
+</tr>
+</table>
+
+---
+
+<p align="center">
+  <a href="README.md">← Back to README</a> •
+  <a href="docs/intro.md">Full Documentation →</a>
+</p>

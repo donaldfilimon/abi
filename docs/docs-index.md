@@ -1,39 +1,78 @@
-# ABI Framework Documentation Index
+# ABI Framework Documentation
 
-Welcome! This index provides quick navigation to the detailed documentation files that live in the `docs/` directory.
+<p align="center">
+  <img src="https://img.shields.io/badge/Docs-Complete-success?style=for-the-badge" alt="Docs Complete"/>
+  <img src="https://img.shields.io/badge/Last_Updated-2026.01-blue?style=for-the-badge" alt="Last Updated"/>
+  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
+</p>
 
-## Core Guides
-
-| Guide | File |
-|-------|------|
-| Introduction & Architecture | [intro.md](intro.md) |
-| Framework Usage | [framework.md](framework.md) |
-| Compute Engine | [compute.md](compute.md) |
-| Database (WDBX) | [database.md](database.md) |
-| GPU Acceleration | [gpu.md](gpu.md) |
-| Network & Distributed Compute | [network.md](network.md) |
-| AI & Agents | [ai.md](ai.md) |
-| Observability & Profiling | [monitoring.md](monitoring.md) |
-| Exploration Tools | [explore.md](explore.md) |
-
-## Technical References
-
-| Document | Description |
-|----------|-------------|
-| Zig 0.16 Migration | [migration/zig-0.16-migration.md](migration/zig-0.16-migration.md) |
-| Performance Baseline | [PERFORMANCE_BASELINE.md](PERFORMANCE_BASELINE.md) |
-| GPU Backend Details | [gpu-backend-improvements.md](gpu-backend-improvements.md) |
-
-## Developer Resources
-
-| Resource | Description |
-|----------|-------------|
-| Contributing Guidelines | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
-| Development Guide (Claude) | [../CLAUDE.md](../CLAUDE.md) |
-| TODO List | [../TODO.md](../TODO.md) |
-| Roadmap | [../ROADMAP.md](../ROADMAP.md) |
+<p align="center">
+  <strong>Welcome to the ABI Framework documentation!</strong><br/>
+  Quick navigation to all guides and references.
+</p>
 
 ---
 
-For an overview, quick‑start instructions, and visual architecture diagrams, see the project **README** (`../README.md`).
+## Core Guides
+
+| Guide | Description | Status |
+|-------|-------------|--------|
+| [Introduction](intro.md) | Architecture & design philosophy | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [Framework](framework.md) | Lifecycle management & configuration | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [Compute Engine](compute.md) | Work-stealing scheduler, task execution | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [Database (WDBX)](database.md) | Vector database, search, backup | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [GPU Acceleration](gpu.md) | Multi-backend GPU, unified API | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [Network](network.md) | Distributed compute, Raft consensus | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [AI & Agents](ai.md) | LLM, embeddings, training | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [Observability](monitoring.md) | Metrics, tracing, profiling | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [Exploration](explore.md) | AI-assisted code navigation | ![Complete](https://img.shields.io/badge/-Complete-success) |
+
+## Technical References
+
+| Document | Description | Status |
+|----------|-------------|--------|
+| [Zig 0.16 Migration](migration/zig-0.16-migration.md) | Migration patterns and best practices | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [Performance Baseline](PERFORMANCE_BASELINE.md) | Benchmark measurements | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [GPU Backend Details](gpu-backend-improvements.md) | Implementation specifics | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [Feature Flags](feature-flags.md) | Build configuration guide | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [Troubleshooting](troubleshooting.md) | Common issues and solutions | ![Complete](https://img.shields.io/badge/-Complete-success) |
+
+## Developer Resources
+
+| Resource | Description | Status |
+|----------|-------------|--------|
+| [Contributing](../CONTRIBUTING.md) | Development workflow & style | ![Ready](https://img.shields.io/badge/-Ready-blue) |
+| [Claude Guide](../CLAUDE.md) | AI development guidance | ![Ready](https://img.shields.io/badge/-Ready-blue) |
+| [TODO](../TODO.md) | Pending implementations | ![Active](https://img.shields.io/badge/-Active-yellow) |
+| [Roadmap](../ROADMAP.md) | Upcoming milestones | ![Active](https://img.shields.io/badge/-Active-yellow) |
+
+## Quick Links
+
+<table>
+<tr>
+<td width="50%">
+
+### Getting Started
+- [README](../README.md) — Project overview
+- [Quickstart](../QUICKSTART.md) — 5-minute setup
+- [API Reference](../API_REFERENCE.md) — Public API
+
+</td>
+<td width="50%">
+
+### By Topic
+- **AI**: [AI Guide](ai.md), [Connectors](ai.md#connectors)
+- **GPU**: [GPU Guide](gpu.md), [Backends](gpu-backend-improvements.md)
+- **Data**: [Database](database.md), [Search](database.md#full-text-search)
+
+</td>
+</tr>
+</table>
+
+---
+
+<p align="center">
+  <a href="../README.md">← Back to README</a> •
+  <a href="intro.md">Start with Introduction →</a>
+</p>
 
