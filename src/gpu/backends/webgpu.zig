@@ -562,3 +562,49 @@ fn loadWebGpuFunctions() bool {
 
     return true;
 }
+
+// ============================================================================
+// Device Enumeration (Task 4.1)
+// ============================================================================
+
+const Device = @import("../device.zig").Device;
+const DeviceType = @import("../device.zig").DeviceType;
+const Backend = @import("../backend.zig").Backend;
+
+/// Enumerate all WebGPU devices available on the system
+pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
+    if (!isAvailable()) {
+        return &[_]Device{};
+    }
+
+    var devices = std.ArrayList(Device).init(allocator);
+    errdefer devices.deinit();
+
+    // WebGPU typically exposes one logical device
+    // In a real implementation, we'd query the adapter for properties
+    try devices.append(.{
+        .id = 0,
+        .backend = .webgpu,
+        .name = "WebGPU Device",
+        .device_type = .integrated, // Conservative default
+        .total_memory = null, // WebGPU doesn't expose memory info
+        .available_memory = null,
+        .is_emulated = false,
+        .capability = .{
+            .supports_fp16 = false, // Conservative defaults
+            .supports_fp64 = false,
+            .supports_int8 = true,
+            .supports_async_transfers = true,
+            .unified_memory = false,
+        },
+        .compute_units = null,
+        .clock_mhz = null,
+    });
+
+    return devices.toOwnedSlice();
+}
+
+/// Check if WebGPU is available (library loaded and initialized)
+pub fn isAvailable() bool {
+    return webgpu_initialized and webgpu_device != null;
+}
