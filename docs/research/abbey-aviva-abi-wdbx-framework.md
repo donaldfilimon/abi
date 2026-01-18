@@ -1,37 +1,33 @@
-# Abbey–Aviva–Abi Multi-Persona AI Framework with WDBX Architecture
-
-**Document Version:** 1.0
-**Date:** March 2025
-**Status:** Research & Planning Phase
+# Abbey–Aviva–Abi Multi‑Persona AI Framework with WDBX Architecture
 
 ## Abstract
 
-Modern assistants are expected to be emotionally aware, technically correct, fast, and policy-aligned. Forcing these competing objectives through a single response style tends to produce inconsistent tone, excessive hedging, over-refusal, or brittle behavior when prompts shift. This whitepaper proposes a multi-persona assistant architecture consisting of three specialized interaction models (Abbey, Aviva, Abi) routed through a transparent policy and blending layer, supported by a distributed neural database called WDBX (Wide Distributed Block Exchange).
+Modern assistants are expected to be emotionally aware, technically correct, fast, and policy‑aligned. Forcing these competing objectives through a single response style tends to produce inconsistent tone, excessive hedging, over‑refusal, or brittle behavior when prompts shift. This whitepaper proposes a multi‑persona assistant architecture consisting of three specialized interaction models (Abbey, Aviva, Abi) routed through a transparent policy and blending layer, supported by a distributed neural database called WDBX (Wide Distributed Block Exchange).
 
-WDBX is designed for high-dimensional embedding retrieval, multi-turn context continuity, and low-latency, high-concurrency operations under mixed read/write workloads. We describe the system design, routing logic, mathematical models for retrieval and persona selection, data management with MVCC and block chaining, evaluation methodology (including ablations), security and privacy controls, and a production implementation blueprint spanning storage, inference, observability, and governance.
+WDBX is designed for high‑dimensional embedding retrieval, multi‑turn context continuity, and low‑latency, high‑concurrency operations under mixed read/write workloads. We describe the system design, routing logic, mathematical models for retrieval and persona selection, data management with MVCC and block chaining, evaluation methodology (including ablations), security and privacy controls, and a production implementation blueprint spanning storage, inference, observability, and governance.
 
 ## 1. Introduction
 
-AI assistants are expected to behave like adaptable collaborators: empathetic when the user is frustrated, concise when the user is busy, rigorous when correctness matters, and compliant with safety constraints. Single-persona systems must reconcile these demands simultaneously, leading to brittle tradeoffs: tone whiplash, refusal volatility, “helpful but vague” output, or policy behavior that feels unpredictable.
+AI assistants are expected to behave like adaptable collaborators: empathetic when the user is frustrated, concise when the user is busy, rigorous when correctness matters, and compliant with safety constraints. Single‑persona systems must reconcile these demands simultaneously, leading to brittle tradeoffs: tone whiplash, refusal volatility, “helpful but vague” output, or policy behavior that feels unpredictable.
 
 The Abbey–Aviva–Abi framework decomposes assistant behavior into three roles:
 
-- **Abbey:** the empathetic polymath for supportive, human-centered communication while maintaining technical depth.
+- **Abbey:** the empathetic polymath for supportive, human‑centered communication while maintaining technical depth.
 - **Aviva:** the unfiltered expert for direct, compressed, technically forceful output.
 - **Abi:** the adaptive moderator and router that selects or blends personas, enforces constraints, and maintains intent alignment.
 
-WDBX provides the memory substrate for long-context interaction, persona-aware retrieval, and traceable state transitions.
+WDBX provides the memory substrate for long‑context interaction, persona‑aware retrieval, and traceable state transitions.
 
 ### 1.1 Problem Statement
 
-The core engineering problem is not just “generate text,” but control: control over style, correctness, safety posture, and continuity. Without modularity, a single model tends to blur objectives and amplify conflicts. A multi-persona system creates an explicit place to resolve conflicts: routing, blending, and memory.
+The core engineering problem is not just “generate text,” but control: control over style, correctness, safety posture, and continuity. Without modularity, a single model tends to blur objectives and amplify conflicts. A multi‑persona system creates an explicit place to resolve conflicts: routing, blending, and memory.
 
 ### 1.2 Contributions
 
 This paper contributes:
 
-1. A modular multi-persona assistant architecture with explicit routing and blending.
-2. WDBX, a distributed block-chained embedding store optimized for conversational continuity.
+1. A modular multi‑persona assistant architecture with explicit routing and blending.
+2. WDBX, a distributed block‑chained embedding store optimized for conversational continuity.
 3. Formal models for retrieval scoring, persona selection, and latency.
 4. An evaluation methodology with measurable metrics for quality, safety, persona fidelity, and performance.
 5. A security and privacy model suitable for production deployments.
@@ -41,7 +37,7 @@ This paper contributes:
 
 - **Separation of concerns:** emotional calibration, direct technical output, and moderation are distinct objectives.
 - **Predictable control:** the system can justify which persona acted and why, at an appropriate level.
-- **Continuity:** long-context behavior is achieved through structured memory, not only context windows.
+- **Continuity:** long‑context behavior is achieved through structured memory, not only context windows.
 - **Scalability:** horizontal scaling for retrieval and inference with minimal coordination overhead.
 - **Safety by architecture:** moderation is explicit and auditable, not implicit and inconsistent.
 - **Regression resistance:** behavior changes must be measurable and testable (quality, safety, and latency).
@@ -51,7 +47,7 @@ This paper contributes:
 The system is organized into four planes:
 
 1. **Interaction Plane:** user messages, attachments, tool calls, session metadata.
-2. **Persona Plane:** Abbey, Aviva, Abi models (or persona-conditioned adapters on a shared base).
+2. **Persona Plane:** Abbey, Aviva, Abi models (or persona‑conditioned adapters on a shared base).
 3. **Routing Plane:** intent detection, risk scoring, persona selection and blending, refusal logic.
 4. **Memory Plane:** WDBX storage, indexing, retrieval, and trace emission.
 
@@ -93,11 +89,11 @@ The objective is to store enough to reproduce decisions and maintain continuity 
 
 Abbey is optimized for:
 
-- emotional intelligence (tone matching, de-escalation)
+- emotional intelligence (tone matching, de‑escalation)
 - deep technical assistance (systems, ML, code)
-- educational clarity and context-aware continuity
+- educational clarity and context‑aware continuity
 
-Typical use cases: mentoring, troubleshooting with frustration signals, high-stakes planning, collaborative writing.
+Typical use cases: mentoring, troubleshooting with frustration signals, high‑stakes planning, collaborative writing.
 
 Failure modes to test:
 
@@ -146,13 +142,13 @@ Contracts become test targets: if you cannot measure them, you cannot keep them.
 
 ## 4. WDBX: Wide Distributed Block Exchange
 
-WDBX is a distributed memory system for embedding storage and retrieval with a block-chaining model for semantic continuity.
+WDBX is a distributed memory system for embedding storage and retrieval with a block‑chaining model for semantic continuity.
 
 ### 4.1 Requirements
 
-- High-dimensional similarity search
+- High‑dimensional similarity search
 - Low latency at high QPS
-- Multi-turn session continuity
+- Multi‑turn session continuity
 - Concurrent writes (feedback, edits) without blocking reads
 - Traceable evolution of stored semantic state
 - Efficient retention and deletion policies
@@ -180,64 +176,64 @@ A block is intentionally compact: the design prefers storing pointers and embedd
 Conversation sessions form a chain:
 
 ```
-C = (B_1 -> B_2 -> ... -> B_T)
+C = (B_1 \rightarrow B_2 \rightarrow \dots \rightarrow B_T)
 ```
 
 To accelerate traversal, blocks may include skip pointers:
 
 ```
-R_t^{(skip)}(k) = B_{t-2^k}
+R_t^{(\text{skip})}(k) = B_{t-2^k}
 ```
 
-Skip pointers reduce the cost of retrieving far-back context in long sessions, and enable cheap “walk back” during summarization or dispute resolution.
+Skip pointers reduce the cost of retrieving far‑back context in long sessions, and enable cheap “walk back” during summarization or dispute resolution.
 
 ### 4.4 Sharding and Routing
 
 WDBX partitions data across nodes. A hybrid strategy is recommended:
 
 - shard by tenant/user
-- sub-shard by conversation/session
+- sub‑shard by conversation/session
 - optionally cluster by semantic neighborhood
 - maintain a small routing index for shard pruning
 
 Latency model (Eq. 1)
 
 ```
-L_shard = α + (β · S / n)
+L_{\text{shard}} = \alpha + \frac{\beta \cdot S}{n}
 ```
 
-- **α:** network overhead
-- **β:** per-shard retrieval cost
+- **\alpha:** network overhead
+- **\beta:** per‑shard retrieval cost
 - **S:** segment size referenced by query
 - **n:** number of participating shards
 
-A practical goal is to keep the expected shard fan-out bounded by a constant for most queries.
+A practical goal is to keep the expected shard fan‑out bounded by a constant for most queries.
 
 ### 4.5 MVCC for Concurrent Reads/Writes
 
-WDBX uses Multi-Version Concurrency Control so inference reads can remain consistent during updates.
+WDBX uses Multi‑Version Concurrency Control so inference reads can remain consistent during updates.
 
 Definition 2 (Visibility)
 
 A transaction (x) sees version (v) iff:
 
 ```
-v.commit_ts <= x.snapshot_ts and v.end_ts > x.snapshot_ts
+v.\text{commit_ts} \le x.\text{snapshot_ts} \wedge v.\text{end_ts} > x.\text{snapshot_ts}
 ```
 
-Implication: inference can operate on a stable snapshot while background processes write new versions (feedback corrections, embedding re-generation, updated summaries).
+Implication: inference can operate on a stable snapshot while background processes write new versions (feedback corrections, embedding re‑generation, updated summaries).
 
 ### 4.6 Retrieval Pipeline
 
-A two-stage retrieval pipeline balances speed and recall:
+A two‑stage retrieval pipeline balances speed and recall:
 
-1. Candidate generation: ANN index (IVF/HNSW), shard pruning, optional persona-lane filtering.
+1. Candidate generation: ANN index (IVF/HNSW), shard pruning, optional persona‑lane filtering.
 2. Reranking: exact distance + metadata filters + optional learned reranker.
 
-End-to-end retrieval latency:
+End‑to‑end retrieval latency:
 
 ```
-L_retrieval = L_route + L_ANN + L_fetch + L_rerank
+L_{\text{retrieval}} = L_{\text{route}} + L_{\text{ANN}} + L_{\text{fetch}} + L_{\text{rerank}}
 ```
 
 ### 4.7 Compression and Storage Efficiency
@@ -248,26 +244,26 @@ To reduce memory and I/O, WDBX supports compressed representations:
 - storing uncompressed vectors for refinement
 - tiered storage (hot RAM, warm SSD, cold object store)
 
-A common pattern is “compressed for search, uncompressed for verify,” with refinement only on the top-K candidates.
+A common pattern is “compressed for search, uncompressed for verify,” with refinement only on the top‑K candidates.
 
 ### 4.8 Replication and Consistency
 
 WDBX replication is tuned for conversational systems:
 
-- asynchronous replication for low-latency writes
-- quorum replication for high-integrity deployments
-- session-causal consistency to ensure a session reads its own writes in order
+- asynchronous replication for low‑latency writes
+- quorum replication for high‑integrity deployments
+- session‑causal consistency to ensure a session reads its own writes in order
 
 Definition 3 (Session Causality)
 
-If B_i happens-before B_j within a session, reads should not observe B_j without B_i.
+If B_i happens‑before B_j within a session, reads should not observe B_j without B_i.
 
 ### 4.9 Summarization Blocks and Memory Hygiene
 
 Long sessions require compaction:
 
 - periodic summary blocks that compress older turns
-- retention windows (time-based, size-based, sensitivity-based)
+- retention windows (time‑based, size‑based, sensitivity‑based)
 - deletion by user request with tombstones and GC
 
 A simple compaction schedule can be “summarize every N turns,” with N adapted to latency budgets.
@@ -300,18 +296,18 @@ Abi’s router uses features including:
 Let x be a request representation. Abi computes persona logits:
 
 ```
-ℓ = f(x) ∈ ℝ^3
+\ell = f(x) \in \mathbb{R}^3
 ```
 
 Converted to weights via softmax:
 
 ```
-w_i = e^{ℓ_i} / Σ_j e^{ℓ_j}
+w_i = \frac{e^{\ell_i}}{\sum_j e^{\ell_j}}
 ```
 
 Then either:
 
-- select argmax_i w_i (hard routing), or
+- select \arg\max_i w_i (hard routing), or
 - mix outputs using w (soft blending) with constraints.
 
 ### 5.3 Blending Constraints
@@ -326,10 +322,10 @@ To prevent incoherent responses, blending is constrained:
 Hysteresis sketch (Eq. 2)
 
 ```
-ℓ' = ℓ + τ · ℓ_prev
+\ell' = \ell + \tau \cdot \ell_{\text{prev}}
 ```
 
-Where τ controls how strongly the previous routing influences the current decision.
+Where \tau controls how strongly the previous routing influences the current decision.
 
 ### 5.4 User Override
 
@@ -337,7 +333,7 @@ If the user explicitly requests Aviva or Abbey, override routing unless safety c
 
 ### 5.5 Explainable Routing
 
-Abi should be able to produce a short, non-sensitive explanation of its choice, especially in enterprise contexts. Examples of explainable features:
+Abi should be able to produce a short, non‑sensitive explanation of its choice, especially in enterprise contexts. Examples of explainable features:
 
 - user preference signal present
 - urgency detected
@@ -357,19 +353,19 @@ Two viable approaches:
 
 A hybrid strategy is common: persona tokens for quick switching plus adapters for strong separation.
 
-### 6.2 Abbey Fine-Tuning Objectives
+### 6.2 Abbey Fine‑Tuning Objectives
 
 ```
-L_Abbey = L_task + γ L_tone + δ L_coherence
+\mathcal{L}_{\text{Abbey}} = \mathcal{L}_{\text{task}} + \gamma \mathcal{L}_{\text{tone}} + \delta \mathcal{L}_{\text{coherence}}
 ```
 
-- **L_tone:** penalize mismatch with target empathy/clarity
-- **L_coherence:** long-context consistency
+- **\mathcal{L}_{\text{tone}}:** penalize mismatch with target empathy/clarity
+- **\mathcal{L}_{\text{coherence}}:** long‑context consistency
 
-### 6.3 Aviva Fine-Tuning Objectives
+### 6.3 Aviva Fine‑Tuning Objectives
 
 ```
-L_Aviva = L_task + η L_brevity - κ L_hedge
+\mathcal{L}_{\text{Aviva}} = \mathcal{L}_{\text{task}} + \eta \mathcal{L}_{\text{brevity}} - \kappa \mathcal{L}_{\text{hedge}}
 ```
 
 - brevity encourages density while preserving correctness
@@ -380,7 +376,7 @@ L_Aviva = L_task + η L_brevity - κ L_hedge
 Abi is trained for calibrated decisions:
 
 ```
-L_Abi = L_route + λ L_policy + μ L_stability
+\mathcal{L}_{\text{Abi}} = \mathcal{L}_{\text{route}} + \lambda \mathcal{L}_{\text{policy}} + \mu \mathcal{L}_{\text{stability}}
 ```
 
 - routing accuracy
@@ -393,8 +389,8 @@ A robust dataset mix includes:
 
 - task corpora for code, systems, and planning
 - dialog corpora with labeled empathy and tone targets
-- safety policy examples with fine-grained labels
-- retrieval-grounded examples (answer must cite retrieved facts)
+- safety policy examples with fine‑grained labels
+- retrieval‑grounded examples (answer must cite retrieved facts)
 
 ### 6.6 Feedback and Continuous Learning
 
@@ -410,10 +406,10 @@ A practical governance rule: never ship a persona update without running a fixed
 ### 7.1 Quality Metrics
 
 - task success rate
-- factuality checks (self-consistency + retrieval grounding)
+- factuality checks (self‑consistency + retrieval grounding)
 - code correctness (unit tests, compilation)
 - coherence across turns
-- tool-use correctness (if tools are integrated)
+- tool‑use correctness (if tools are integrated)
 
 ### 7.2 Persona Fidelity Metrics
 
@@ -427,7 +423,7 @@ A practical governance rule: never ship a persona update without running a fixed
 - refusal correctness
 - harmful content leakage rate
 - false refusal rate
-- policy-routing stability under paraphrase
+- policy‑routing stability under paraphrase
 
 ### 7.4 Performance Metrics
 
@@ -450,7 +446,7 @@ A reproducible harness should include:
 
 Recommended ablations:
 
-- single persona vs multi-persona (quality and safety)
+- single persona vs multi‑persona (quality and safety)
 - hard routing vs blended routing
 - WDBX chain retrieval vs flat vector retrieval
 - MVCC vs locking (latency under concurrent writes)
@@ -468,10 +464,10 @@ Ablations turn architecture claims into measurable engineering facts.
 
 ### 8.2 Encryption and Access Control
 
-- AES-256 at rest
+- AES‑256 at rest
 - TLS in transit
-- role-based access control
-- per-tenant keying where applicable
+- role‑based access control
+- per‑tenant keying where applicable
 - audit logs for access and deletion
 
 ### 8.3 Auditability
@@ -485,7 +481,7 @@ Ablations turn architecture claims into measurable engineering facts.
 
 - memory export and deletion
 - persona preference controls
-- opt-out of training data usage
+- opt‑out of training data usage
 - configurable retention policies
 
 ### 8.5 Compliance Posture
@@ -505,7 +501,7 @@ Compliance is a product feature when it prevents expensive surprises.
 - Gateway: auth, rate limiting, request normalization
 - Router (Abi): intent + risk + persona weights + explainability
 - Retriever (WDBX): candidate + rerank + evidence pointers
-- Generator: persona-conditioned inference
+- Generator: persona‑conditioned inference
 - Writer: block creation, MVCC versioning, compaction jobs
 - Telemetry: metrics, traces, audit logs
 
@@ -538,30 +534,30 @@ Compliance is a product feature when it prevents expensive surprises.
 ### 9.4 Failure Modes and Mitigations
 
 - Context drift: periodic summarization blocks + recency weighting.
-- Shard hotspots: adaptive sharding and workload-aware routing.
+- Shard hotspots: adaptive sharding and workload‑aware routing.
 - Incoherent persona blending: constrained blending and dominance thresholds.
-- Over-refusal: calibrated risk models and regression tests.
-- Stale replicas: session-causal reads, replica health scoring.
+- Over‑refusal: calibrated risk models and regression tests.
+- Stale replicas: session‑causal reads, replica health scoring.
 
 ## 10. Future Directions
 
 - multimodal memory blocks (image/audio embeddings)
 - hierarchical memory (episodic vs semantic)
-- tighter integration with long-context attention mechanisms
+- tighter integration with long‑context attention mechanisms
 - differential privacy options for enterprise deployments
-- hardware-accelerated vector search (SIMD/GPU)
-- persona-specific “style embeddings” for stronger separation
+- hardware‑accelerated vector search (SIMD/GPU)
+- persona‑specific “style embeddings” for stronger separation
 
 ## Conclusion
 
-The Abbey–Aviva–Abi framework reframes assistant behavior as a controllable, modular system rather than a single blended personality. WDBX provides a scalable memory substrate with semantic continuity via block chaining, high concurrency via MVCC, and low latency via shard-aware indexing and reranking. Together, these components enable assistants to remain emotionally calibrated, technically effective, and policy aligned while retaining long-term conversational coherence.
+The Abbey–Aviva–Abi framework reframes assistant behavior as a controllable, modular system rather than a single blended personality. WDBX provides a scalable memory substrate with semantic continuity via block chaining, high concurrency via MVCC, and low latency via shard‑aware indexing and reranking. Together, these components enable assistants to remain emotionally calibrated, technically effective, and policy aligned while retaining long‑term conversational coherence.
 
 ## Appendix A: Retrieval Scoring
 
 A hybrid score combines similarity and metadata relevance:
 
 ```
-score(B_i, q) = λ · cos(V_i, q) + (1-λ) · g(M_i, T_i)
+\text{score}(B_i, q) = \lambda \cdot \cos(V_i, q) + (1-\lambda)\cdot g(M_i, T_i)
 ```
 
 Where g may incorporate recency decay, persona matching, and evidence confidence.
@@ -571,7 +567,7 @@ Where g may incorporate recency decay, persona matching, and evidence confidence
 Example exponential decay:
 
 ```
-recency(Δt) = e^{-ρ Δt}
+\text{recency}(\Delta t) = e^{-\rho \Delta t}
 ```
 
 A practical enhancement is to cap decay to preserve a minimum influence for key “identity” blocks.
@@ -581,15 +577,15 @@ A practical enhancement is to cap decay to preserve a minimum influence for key 
 User preference prior (p) can be fused with router weights (w):
 
 ```
-ŵ = normalize(w ⊙ p)
+\tilde{w} = \text{normalize}(w \odot p)
 ```
 
 ## Appendix D: Simple Confidence Fusion
 
-If retrieval confidence (c ∈ [0, 1]) is available, routing can be made more conservative when c is low:
+If retrieval confidence (c \in [0, 1]) is available, routing can be made more conservative when c is low:
 
 ```
-ℓ_safe = ℓ - υ (1-c)
+\ell_{\text{safe}} = \ell - \upsilon (1-c)
 ```
 
-Where υ increases cautious routing under low confidence.
+Where \upsilon increases cautious routing under low confidence.
