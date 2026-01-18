@@ -1,21 +1,35 @@
 # Monitoring & Observability
 
-> **Status**: Requires `-Denable-profiling=true` at build time.
+<p align="center">
+  <img src="https://img.shields.io/badge/Module-Observability-teal?style=for-the-badge&logo=grafana&logoColor=white" alt="Observability Module"/>
+  <img src="https://img.shields.io/badge/Status-Ready-success?style=for-the-badge" alt="Ready"/>
+  <img src="https://img.shields.io/badge/Feature_Flag-enable--profiling-yellow?style=for-the-badge" alt="Feature Flag"/>
+</p>
+
+<p align="center">
+  <a href="#logging">Logging</a> •
+  <a href="#metrics">Metrics</a> •
+  <a href="#alerting">Alerting</a> •
+  <a href="#tracing">Tracing</a> •
+  <a href="#profiling">Profiling</a>
+</p>
+
+---
+
+> **Build Flag**: Requires `-Denable-profiling=true` at build time.
 > **Module**: `src/observability/` (consolidated from `features/monitoring/` as of 2026-01-17)
 
 The **Observability** module provides comprehensive monitoring tools for tracking application health, performance, and behavior.
 
----
+## Feature Overview
 
-## Overview
-
-ABI's monitoring stack includes:
-
-- **Logging** - Structured log output with levels and context
-- **Metrics** - Counters, gauges, and histograms for quantitative data
-- **Alerting** - Configurable rules with threshold-based notifications
-- **Tracing** - Request flow tracking across operations
-- **Profiling** - Performance measurement and bottleneck detection
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Logging** | Structured log output with levels | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Metrics** | Counters, gauges, histograms | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Alerting** | Threshold-based notifications | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Tracing** | Request flow tracking | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Profiling** | Performance measurement | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ---
 
@@ -452,8 +466,31 @@ zig build benchmarks
 
 ## See Also
 
-- [Compute Engine](compute.md) - Engine metrics and profiling
-- [GPU Acceleration](gpu.md) - GPU metrics and profiling
-- [Performance Baseline](PERFORMANCE_BASELINE.md) - Benchmark targets
-- [Framework](framework.md) - Framework configuration
-- [Troubleshooting](troubleshooting.md) - Debugging issues
+<table>
+<tr>
+<td>
+
+### Related Guides
+- [Compute Engine](compute.md) — Engine metrics and profiling
+- [GPU Acceleration](gpu.md) — GPU metrics and profiling
+- [Performance Baseline](PERFORMANCE_BASELINE.md) — Benchmark targets
+
+</td>
+<td>
+
+### Resources
+- [Framework](framework.md) — Framework configuration
+- [Troubleshooting](troubleshooting.md) — Debugging issues
+- [API Reference](../API_REFERENCE.md) — Observability API details
+
+</td>
+</tr>
+</table>
+
+---
+
+<p align="center">
+  <a href="network.md">← Network Guide</a> •
+  <a href="docs-index.md">Documentation Index</a> •
+  <a href="compute.md">Compute Guide →</a>
+</p>

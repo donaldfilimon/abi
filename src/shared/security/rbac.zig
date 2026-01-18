@@ -13,6 +13,16 @@ pub const Permission = enum {
     view_metrics,
     view_logs,
     configure,
+    // Unified Memory permissions
+    memory_read,           // Read from shared memory regions
+    memory_write,          // Write to shared memory regions
+    memory_register,       // Register new memory regions for sharing
+    memory_admin,          // Manage memory regions, coherence, and policies
+    // Link permissions
+    link_connect,          // Connect to remote nodes
+    link_admin,            // Manage link configuration and security
+    link_thunderbolt,      // Use Thunderbolt transport
+    link_internet,         // Use Internet transport
 };
 
 pub const Role = struct {
@@ -317,6 +327,14 @@ pub const RbacManager = struct {
             .view_metrics,
             .view_logs,
             .configure,
+            .memory_read,
+            .memory_write,
+            .memory_register,
+            .memory_admin,
+            .link_connect,
+            .link_admin,
+            .link_thunderbolt,
+            .link_internet,
         }, "Full administrative access");
 
         try self.createRole("user", &.{ .read, .write, .execute }, "Regular user access");
@@ -333,11 +351,51 @@ pub const RbacManager = struct {
             .view_metrics,
             .view_logs,
         }, "Management access");
+
+        // Memory and linking roles
+        try self.createRole("memory_user", &.{
+            .memory_read,
+            .memory_write,
+            .link_connect,
+        }, "Access to unified memory read/write");
+
+        try self.createRole("memory_admin", &.{
+            .memory_read,
+            .memory_write,
+            .memory_register,
+            .memory_admin,
+            .link_connect,
+            .link_admin,
+            .link_thunderbolt,
+            .link_internet,
+        }, "Full unified memory administration");
+
+        try self.createRole("link_user", &.{
+            .link_connect,
+            .link_internet,
+        }, "Basic link connectivity");
+
+        try self.createRole("link_admin", &.{
+            .link_connect,
+            .link_admin,
+            .link_thunderbolt,
+            .link_internet,
+        }, "Full link administration");
     }
 };
 
 fn isSystemRoleName(name: []const u8) bool {
-    const system_roles = &.{ "admin", "user", "readonly", "metrics", "manager" };
+    const system_roles = &.{
+        "admin",
+        "user",
+        "readonly",
+        "metrics",
+        "manager",
+        "memory_user",
+        "memory_admin",
+        "link_user",
+        "link_admin",
+    };
     for (system_roles) |role| {
         if (std.mem.eql(u8, name, role)) return true;
     }

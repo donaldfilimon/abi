@@ -1,16 +1,33 @@
 # Network & Distributed Compute
 
-> [!NOTE]
-> **Status**: Experimental. Requires `-Denable-network=true`.
+<p align="center">
+  <img src="https://img.shields.io/badge/Module-Network-blue?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Network Module"/>
+  <img src="https://img.shields.io/badge/Status-Ready-success?style=for-the-badge" alt="Ready"/>
+  <img src="https://img.shields.io/badge/Feature_Flag-enable--network-yellow?style=for-the-badge" alt="Feature Flag"/>
+</p>
+
+<p align="center">
+  <a href="#node-discovery">Discovery</a> •
+  <a href="#remote-execution">Remote Exec</a> •
+  <a href="#circuit-breaker">Circuit Breaker</a> •
+  <a href="#cli-commands">CLI</a>
+</p>
+
+---
+
+> **Build Flag**: Requires `-Denable-network=true`
 
 The **Network** module (`abi.network`) enables ABI nodes to discover each other and distribute computational tasks across a cluster.
 
-## Architecture
+## Feature Overview
 
-- **Registry**: A peer-to-peer registry that tracks active nodes and their capabilities (CPU cores, GPU availability).
-- **Task Serialization**: A binary serialization format to transmit workloads over the wire.
-- **Circuit Breaker**: Automatic failure detection and recovery for remote nodes.
-- **Service Discovery**: Automatic node discovery on local networks or configured subnets.
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Node Discovery** | P2P node registry | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Task Serialization** | Binary wire format | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Circuit Breaker** | Failure detection/recovery | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Service Discovery** | Auto network discovery | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Raft Consensus** | Distributed consensus | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ## Node Discovery
 
@@ -153,7 +170,31 @@ zig build run -- network status                 # Show network status
 
 ## See Also
 
-- [Compute Engine](compute.md) - Local task execution
-- [Monitoring](monitoring.md) - Network metrics and alerting
-- [Framework](framework.md) - Configuration options
-- [Troubleshooting](troubleshooting.md) - Connection issues
+<table>
+<tr>
+<td>
+
+### Related Guides
+- [Compute Engine](compute.md) — Local task execution
+- [Monitoring](monitoring.md) — Network metrics and alerting
+- [Framework](framework.md) — Configuration options
+
+</td>
+<td>
+
+### Resources
+- [Troubleshooting](troubleshooting.md) — Connection issues
+- [API Reference](../API_REFERENCE.md) — Network API details
+- [Examples](../examples/) — Network code samples
+
+</td>
+</tr>
+</table>
+
+---
+
+<p align="center">
+  <a href="database.md">← Database Guide</a> •
+  <a href="docs-index.md">Documentation Index</a> •
+  <a href="monitoring.md">Monitoring Guide →</a>
+</p>
