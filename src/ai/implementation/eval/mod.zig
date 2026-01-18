@@ -26,6 +26,27 @@ pub const TokenMetrics = metrics.TokenMetrics;
 pub const TextStatistics = metrics.TextStatistics;
 pub const computeF1 = metrics.computeF1;
 pub const computeExactMatch = metrics.computeExactMatch;
+pub const computeTokenMetrics = metrics.computeTokenMetrics;
+pub const computeTextStatistics = metrics.computeTextStatistics;
+pub const computeNormalizedExactMatch = metrics.computeNormalizedExactMatch;
+pub const computeCER = metrics.computeCER;
+pub const computeWER = metrics.computeWER;
+pub const levenshteinDistance = metrics.levenshteinDistance;
+
+// Perplexity utilities
+pub const perplexityFromCrossEntropy = perplexity.perplexityFromCrossEntropy;
+pub const perplexityFromBpc = perplexity.perplexityFromBpc;
+pub const perplexityToBpc = perplexity.perplexityToBpc;
+pub const aggregatePerplexity = perplexity.aggregatePerplexity;
+pub const computeWindowedPerplexity = perplexity.computeWindowedPerplexity;
+pub const computePerplexityFromProbs = perplexity.computePerplexityFromProbs;
+
+// BLEU utilities
+pub const SmoothingMethod = bleu.SmoothingMethod;
+
+// Shared tokenizer
+pub const tokenizer = @import("tokenizer.zig");
+pub const tokenize = tokenizer.tokenize;
 
 /// Evaluation configuration.
 pub const EvalConfig = struct {
@@ -300,4 +321,49 @@ test "single evaluation" {
     // Perfect match should have high scores
     try std.testing.expect(result.exact_match > 0.5);
     try std.testing.expect(result.f1 > 0.9);
+}
+
+test "batch evaluation" {
+    const allocator = std.testing.allocator;
+    var evaluator = Evaluator.init(allocator, .{});
+
+    const hypotheses = [_][]const u8{
+        "the cat sat on the mat",
+        "hello world",
+        "foo bar baz",
+    };
+    const references = [_][]const u8{
+        "the cat sat on the mat",
+        "hello there world",
+        "completely different text",
+    };
+
+    const report = try evaluator.evaluateBatch(&hypotheses, &references);
+
+    try std.testing.expectEqual(@as(usize, 3), report.num_samples);
+    try std.testing.expect(report.avg_bleu > 0);
+    try std.testing.expect(report.avg_f1 > 0);
+    try std.testing.expect(report.exact_match_ratio > 0); // At least one exact match
+}
+
+test "batch evaluation length mismatch" {
+    const allocator = std.testing.allocator;
+    var evaluator = Evaluator.init(allocator, .{});
+
+    const hypotheses = [_][]const u8{ "a", "b" };
+    const references = [_][]const u8{"a"};
+
+    const result = evaluator.evaluateBatch(&hypotheses, &references);
+    try std.testing.expectError(error.LengthMismatch, result);
+}
+
+test "batch evaluation empty" {
+    const allocator = std.testing.allocator;
+    var evaluator = Evaluator.init(allocator, .{});
+
+    const hypotheses = [_][]const u8{};
+    const references = [_][]const u8{};
+
+    const result = evaluator.evaluateBatch(&hypotheses, &references);
+    try std.testing.expectError(error.EmptyInput, result);
 }
