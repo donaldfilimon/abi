@@ -11,7 +11,8 @@ const platform_time = @import("../../../shared/time.zig");
 // ============================================================================
 
 fn getTimeSeed() u64 {
-    return platform_time.timestampNs();
+    // Use getSeed() for proper PRNG seeding (crypto random on WASM)
+    return platform_time.getSeed();
 }
 
 // ============================================================================
@@ -77,6 +78,11 @@ pub const Conv2D = struct {
         padding: u32,
         use_bias: bool,
     ) !Conv2D {
+        // Validate parameters to prevent division-by-zero and invalid allocations
+        if (stride == 0) return error.InvalidDimensions;
+        if (kernel_size == 0) return error.InvalidDimensions;
+        if (in_channels == 0 or out_channels == 0) return error.InvalidDimensions;
+
         const weight_size = out_channels * in_channels * kernel_size * kernel_size;
 
         // Kaiming/He initialization for ReLU activations

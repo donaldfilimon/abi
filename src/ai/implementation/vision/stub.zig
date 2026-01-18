@@ -209,14 +209,16 @@ pub const conv = struct {
 
 pub const pooling = struct {
     pub const MaxPool2D = struct {
-        pub fn init(_: anytype) @This() {
-            return .{};
+        pub fn init(_: std.mem.Allocator, _: u32, _: u32, _: u32) Error!@This() {
+            return error.VisionDisabled;
         }
+        pub fn deinit(_: *@This()) void {}
     };
     pub const AvgPool2D = struct {
-        pub fn init(_: anytype) @This() {
-            return .{};
+        pub fn init(_: std.mem.Allocator, _: u32, _: u32, _: u32) Error!@This() {
+            return error.VisionDisabled;
         }
+        pub fn deinit(_: *@This()) void {}
     };
     pub const AdaptiveAvgPool2D = struct {
         pub fn init(_: anytype) @This() {
