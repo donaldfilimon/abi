@@ -22,18 +22,37 @@ pub const VulkanError = vulkan_types.VulkanError;
 pub const VulkanContext = vulkan_types.VulkanContext;
 pub const VulkanKernel = vulkan_types.VulkanKernel;
 pub const VulkanBuffer = vulkan_types.VulkanBuffer;
+pub const KernelSource = vulkan_types.KernelSource;
+pub const KernelSourceFormat = vulkan_types.KernelSourceFormat;
+pub const KernelConfig = vulkan_types.KernelConfig;
+pub const VkPhysicalDeviceType = vulkan_types.VkPhysicalDeviceType;
 
 // Re-export initialization functions
 pub const init = vulkan_init.init;
 pub const deinit = vulkan_init.deinit;
+pub const initWithConfig = vulkan_init.initWithConfig;
+pub const VulkanInitConfig = vulkan_init.VulkanInitConfig;
+pub const isVulkanAvailable = vulkan_init.isVulkanAvailable;
+pub const isValidationEnabled = vulkan_init.isValidationEnabled;
+pub const getPhysicalDeviceCount = vulkan_init.getPhysicalDeviceCount;
+pub const findMemoryType = vulkan_init.findMemoryType;
+pub const findDeviceLocalMemoryType = vulkan_init.findDeviceLocalMemoryType;
+pub const findHostVisibleMemoryType = vulkan_init.findHostVisibleMemoryType;
 
 // Re-export pipeline functions
 pub const compileKernel = vulkan_pipelines.compileKernel;
+pub const compileKernelEx = vulkan_pipelines.compileKernelEx;
+pub const KernelCompileOptions = vulkan_pipelines.KernelCompileOptions;
 pub const launchKernel = vulkan_pipelines.launchKernel;
+pub const launchKernelEx = vulkan_pipelines.launchKernelEx;
+pub const LaunchOptions = vulkan_pipelines.LaunchOptions;
 pub const destroyKernel = vulkan_pipelines.destroyKernel;
 
 // Re-export buffer functions
 pub const allocateDeviceMemory = vulkan_buffers.allocateDeviceMemory;
+pub const allocateDeviceMemoryEx = vulkan_buffers.allocateDeviceMemoryEx;
+pub const allocateStagingBuffer = vulkan_buffers.allocateStagingBuffer;
+pub const MemoryLocation = vulkan_buffers.MemoryLocation;
 pub const freeDeviceMemory = vulkan_buffers.freeDeviceMemory;
 pub const memcpyHostToDevice = vulkan_buffers.memcpyHostToDevice;
 pub const memcpyDeviceToHost = vulkan_buffers.memcpyDeviceToHost;

@@ -1,34 +1,60 @@
 # Contributing
 
-Thanks for helping improve ABI. Keep changes focused, documented, and tested.
+<p align="center">
+  <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge" alt="PRs Welcome"/>
+  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
+  <img src="https://img.shields.io/badge/Code_Style-Zig_fmt-blue?style=for-the-badge" alt="Code Style"/>
+</p>
 
-> Please review the [Architecture Documentation](docs/intro.md) to understand the system design before contributing.
+<p align="center">
+  Thanks for helping improve ABI! Keep changes focused, documented, and tested.
+</p>
 
-## Development Setup
+---
 
-```bash
-git clone <repo>
-cd abi
-zig build
-zig build test
-zig fmt .
-```
+> **Before You Start**: Please review the [Architecture Documentation](docs/intro.md) to understand the system design.
+
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Clone | `git clone https://github.com/donaldfilimon/abi.git && cd abi` |
+| Build | `zig build` |
+| Test | `zig build test --summary all` |
+| Format | `zig fmt .` |
+| Single File Test | `zig test src/path/to/file.zig` |
 
 ## Workflow
 
-1. Create a focused branch.
-2. Make changes with clear scope.
-3. Run `zig build` and `zig build test`.
-4. Format with `zig fmt .`.
-5. Update docs for public API changes.
+```mermaid
+flowchart LR
+    A[Fork/Clone] --> B[Create Branch]
+    B --> C[Make Changes]
+    C --> D[Run Tests]
+    D --> E[Format Code]
+    E --> F[Update Docs]
+    F --> G[Submit PR]
+```
 
-## Style
+| Step | Action | Command/Details |
+|------|--------|-----------------|
+| 1 | Create branch | `git checkout -b feature/my-feature` |
+| 2 | Make changes | Keep scope focused |
+| 3 | Build & test | `zig build && zig build test` |
+| 4 | Format | `zig fmt .` |
+| 5 | Update docs | For public API changes |
 
-- 4 spaces, no tabs, lines under 100 chars.
-- PascalCase types, camelCase functions/variables.
-- Explicit imports only (no `usingnamespace`).
-- Use `!` return types and specific error enums.
-- Prefer `defer`/`errdefer` for cleanup.
+## Style Guide
+
+| Rule | Example | Status |
+|------|---------|--------|
+| Indentation | 4 spaces, no tabs | ![Required](https://img.shields.io/badge/-Required-red) |
+| Line length | Under 100 characters | ![Required](https://img.shields.io/badge/-Required-red) |
+| Types | `PascalCase` | ![Required](https://img.shields.io/badge/-Required-red) |
+| Functions/Variables | `camelCase` | ![Required](https://img.shields.io/badge/-Required-red) |
+| Imports | Explicit only (no `usingnamespace`) | ![Required](https://img.shields.io/badge/-Required-red) |
+| Error handling | `!` return types, specific error enums | ![Required](https://img.shields.io/badge/-Required-red) |
+| Cleanup | Prefer `defer`/`errdefer` | ![Recommended](https://img.shields.io/badge/-Recommended-yellow) |
 
 ## Zig 0.16 Conventions
 
@@ -75,23 +101,61 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});
 
 ### Testing
 
-- Unit coverage lives in library tests and `tests/mod.zig`.
-- New features must include tests or clear justification.
-- Run `zig build test --summary all` to see detailed results.
-- Run tests with specific features: `zig build test -Denable-gpu=true -Denable-network=true`
-- Test a single file: `zig test src/runtime/engine/engine.zig`
-- Filter tests: `zig test src/tests/mod.zig --test-filter "pattern"`
-- Use `error.SkipZigTest` for hardware-gated tests
+| Test Type | Command | Notes |
+|-----------|---------|-------|
+| All tests | `zig build test --summary all` | Detailed output |
+| Single file | `zig test src/runtime/engine/engine.zig` | Direct file test |
+| Filtered | `zig test src/tests/mod.zig --test-filter "pattern"` | Pattern matching |
+| With features | `zig build test -Denable-gpu=true` | Feature-gated |
+| Skip hardware | Use `error.SkipZigTest` | For hardware-gated tests |
+
+> **Note**: Unit coverage lives in library tests and `tests/mod.zig`. New features must include tests.
 
 ## Commits & Pull Requests
 
-- Use short, imperative commit summaries (e.g., "Add GPU backend", "Fix memory leak in cache").
-- PRs should include: clear description, linked issues (if applicable), validation commands run.
-- Update docs when APIs or behavior change.
+### Commit Message Format
+
+```
+<type>: <short summary>
+
+[optional body]
+[optional footer]
+```
+
+| Type | Description |
+|------|-------------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `refactor` | Code change (no feature/fix) |
+| `test` | Adding tests |
+| `chore` | Maintenance |
+
+### PR Checklist
+
+- [ ] Clear description of changes
+- [ ] Linked issues (if applicable)
+- [ ] Tests pass (`zig build test`)
+- [ ] Code formatted (`zig fmt .`)
+- [ ] Docs updated for API changes
 
 ## For AI Agents
 
-- Keep changes minimal and consistent with existing patterns.
-- Avoid breaking public APIs unless explicitly requested.
-- Preserve feature gating: stub modules must mirror real APIs and return `error.*Disabled`.
-- See [CLAUDE.md](CLAUDE.md) for comprehensive development guidance.
+<details>
+<summary><strong>AI-Specific Guidelines</strong></summary>
+
+| Rule | Description |
+|------|-------------|
+| Minimal changes | Keep changes focused and consistent with existing patterns |
+| API stability | Avoid breaking public APIs unless explicitly requested |
+| Feature gating | Stub modules must mirror real APIs and return `error.*Disabled` |
+| Documentation | See [CLAUDE.md](CLAUDE.md) for comprehensive guidance |
+
+</details>
+
+---
+
+<p align="center">
+  <a href="README.md">← Back to README</a> •
+  <a href="CLAUDE.md">Development Guide →</a>
+</p>

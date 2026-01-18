@@ -224,18 +224,19 @@ pub const VulkanPipelineCache = struct {
         result = get_data_fn(ctx.device, cache, &size, data.ptr);
         if (result != .success) return error.GetDataFailed;
 
-        // Write to file using Zig 0.16 std.Io API
+        // Write to file using Zig 0.16 I/O
         const path = self.config.cache_path orelse getDefaultCachePath();
-
         var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
 
-        const file = std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true }) catch |err| {
+        var file = std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true }) catch |err| {
             std.log.warn("Failed to create cache file {s}: {t}", .{ path, err });
             return err;
         };
         defer file.close(io);
+
+        var writer = file.writer(io);
 
         // Write header
         const header = CacheHeader{
@@ -244,18 +245,13 @@ pub const VulkanPipelineCache = struct {
             .data_size = size,
             .checksum = computeChecksum(data),
         };
-        file.writeStreamingAll(io, std.mem.asBytes(&header)) catch |err| {
-            std.log.warn("Failed to write cache header: {t}", .{err});
-            return err;
-        };
+        try writer.writeAll(std.mem.asBytes(&header));
 
         // Write data
-        file.writeStreamingAll(io, data) catch |err| {
-            std.log.warn("Failed to write cache data: {t}", .{err});
-            return err;
-        };
+        try writer.writeAll(data);
 
-        self.stats.last_save_timestamp = std.time.timestamp();
+        var timer = std.time.Timer.start() catch null;
+        self.stats.last_save_timestamp = if (timer) |*t| @intCast(t.read() / std.time.ns_per_s) else 0;
         std.log.info("Saved pipeline cache: {} bytes", .{size});
     }
 
@@ -265,20 +261,19 @@ pub const VulkanPipelineCache = struct {
 
         const path = self.config.cache_path orelse getDefaultCachePath();
 
-        // Use Zig 0.16 std.Io API
+        // Use Zig 0.16 I/O
         var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
         defer io_backend.deinit();
         const io = io_backend.io();
 
-        const file = try std.Io.Dir.cwd().openFile(io, path, .{});
+        var file = try std.Io.Dir.cwd().openFile(io, path, .{});
         defer file.close(io);
+
+        var reader = file.reader(io, null);
 
         // Read and validate header
         var header: CacheHeader = undefined;
-        const header_bytes = file.readAll(io, std.mem.asBytes(&header)) catch |err| {
-            std.log.warn("Failed to read cache header: {t}", .{err});
-            return err;
-        };
+        const header_bytes = reader.readAll(std.mem.asBytes(&header)) catch return error.InvalidHeader;
         if (header_bytes != @sizeOf(CacheHeader)) return error.InvalidHeader;
 
         if (header.magic != CACHE_MAGIC) return error.InvalidMagic;
@@ -288,10 +283,9 @@ pub const VulkanPipelineCache = struct {
         const data = try self.allocator.alloc(u8, header.data_size);
         errdefer self.allocator.free(data);
 
-        const read_bytes = file.readAll(io, data) catch |err| {
+        const read_bytes = reader.readAll(data) catch {
             self.allocator.free(data);
-            std.log.warn("Failed to read cache data: {t}", .{err});
-            return err;
+            return error.IncompleteData;
         };
         if (read_bytes != header.data_size) {
             self.allocator.free(data);

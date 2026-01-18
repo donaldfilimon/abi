@@ -56,16 +56,36 @@ pub fn getShaderCacheStats() ?struct { hits: u64, misses: u64, entries: usize } 
     return null;
 }
 
+/// Kernel compilation options
+pub const KernelCompileOptions = struct {
+    /// Number of storage buffer bindings (default: 8 for typical compute kernels)
+    binding_count: u32 = 8,
+    /// Push constant size in bytes (0 = disabled, max typically 128-256 bytes)
+    push_constant_size: u32 = 0,
+    /// Use pipeline cache for faster subsequent compilations
+    use_cache: bool = true,
+};
+
 /// Compile a kernel source into Vulkan shader module and pipeline.
 pub fn compileKernel(
     allocator: std.mem.Allocator,
     source: kernel_types.KernelSource,
+) kernel_types.KernelError!*anyopaque {
+    return compileKernelEx(allocator, source, .{});
+}
+
+/// Compile a kernel with custom options.
+pub fn compileKernelEx(
+    allocator: std.mem.Allocator,
+    source: kernel_types.KernelSource,
+    options: KernelCompileOptions,
 ) kernel_types.KernelError!*anyopaque {
     if (!init.vulkan_initialized or init.vulkan_context == null) {
         return kernel_types.KernelError.CompilationFailed;
     }
 
     const ctx = &init.vulkan_context.?;
+    const binding_count = @max(options.binding_count, 1);
 
     // Compile GLSL to SPIR-V
     const spirv = try compileGLSLToSPIRV(source.source);
@@ -86,17 +106,20 @@ pub fn compileKernel(
 
     errdefer if (init.vkDestroyShaderModule) |destroy_fn| destroy_fn(ctx.device, shader_module, null);
 
-    // Create descriptor set layout (assuming storage buffers)
-    const layout_binding = types.VkDescriptorSetLayoutBinding{
-        .binding = 0,
-        .descriptorType = 7, // VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
-        .descriptorCount = 1,
-        .stageFlags = 0x20, // VK_SHADER_STAGE_COMPUTE_BIT
-    };
+    // Create descriptor set layout with multiple bindings
+    var layout_bindings: [32]types.VkDescriptorSetLayoutBinding = undefined;
+    for (0..@min(binding_count, 32)) |i| {
+        layout_bindings[i] = types.VkDescriptorSetLayoutBinding{
+            .binding = @intCast(i),
+            .descriptorType = 7, // VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+            .descriptorCount = 1,
+            .stageFlags = types.VK_SHADER_STAGE_COMPUTE_BIT,
+        };
+    }
 
     const layout_create_info = types.VkDescriptorSetLayoutCreateInfo{
-        .bindingCount = 1,
-        .pBindings = &layout_binding,
+        .bindingCount = @min(binding_count, 32),
+        .pBindings = &layout_bindings,
     };
 
     const create_layout_fn = init.vkCreateDescriptorSetLayout orelse return kernel_types.KernelError.CompilationFailed;
@@ -108,10 +131,20 @@ pub fn compileKernel(
 
     errdefer if (init.vkDestroyDescriptorSetLayout) |destroy_fn| destroy_fn(ctx.device, descriptor_set_layout, null);
 
-    // Create pipeline layout
+    // Create pipeline layout with optional push constants
+    var push_constant_range: types.VkPushConstantRange = undefined;
     const pipeline_layout_create_info = types.VkPipelineLayoutCreateInfo{
         .setLayoutCount = 1,
         .pSetLayouts = &descriptor_set_layout,
+        .pushConstantRangeCount = if (options.push_constant_size > 0) 1 else 0,
+        .pPushConstantRanges = if (options.push_constant_size > 0) blk: {
+            push_constant_range = types.VkPushConstantRange{
+                .stageFlags = types.VK_SHADER_STAGE_COMPUTE_BIT,
+                .offset = 0,
+                .size = options.push_constant_size,
+            };
+            break :blk @ptrCast(&push_constant_range);
+        } else null,
     };
 
     const create_pipeline_layout_fn = init.vkCreatePipelineLayout orelse return kernel_types.KernelError.CompilationFailed;
@@ -123,9 +156,9 @@ pub fn compileKernel(
 
     errdefer if (init.vkDestroyPipelineLayout) |destroy_fn| destroy_fn(ctx.device, pipeline_layout, null);
 
-    // Create compute pipeline
+    // Create compute pipeline (with optional cache)
     const shader_stage = types.VkPipelineShaderStageCreateInfo{
-        .stage = 0x20, // VK_SHADER_STAGE_COMPUTE_BIT
+        .stage = types.VK_SHADER_STAGE_COMPUTE_BIT,
         .module = shader_module,
         .pName = source.entry_point.ptr,
     };
@@ -135,21 +168,31 @@ pub fn compileKernel(
         .layout = pipeline_layout,
     };
 
+    // Use pipeline cache if available and requested
+    const cache = if (options.use_cache) blk: {
+        const vulkan_cache = @import("vulkan_cache.zig");
+        if (vulkan_cache.getGlobalCache()) |c| {
+            break :blk c.getVkCache();
+        }
+        break :blk null;
+    } else null;
+
     const create_pipeline_fn = init.vkCreateComputePipelines orelse return kernel_types.KernelError.CompilationFailed;
     var pipeline: types.VkPipeline = undefined;
-    const pipeline_result = create_pipeline_fn(ctx.device, null, 1, &pipeline_create_info, null, &pipeline);
+    const pipeline_result = create_pipeline_fn(ctx.device, cache, 1, &pipeline_create_info, null, &pipeline);
     if (pipeline_result != .success) {
         return kernel_types.KernelError.CompilationFailed;
     }
 
-    // Create descriptor pool
+    // Create descriptor pool with enough space for multiple sets with multiple bindings
     const pool_size = types.VkDescriptorPoolSize{
         .type = 7, // VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
-        .descriptorCount = 10, // Allow multiple descriptor sets
+        .descriptorCount = binding_count * 16, // Allow multiple descriptor set allocations
     };
 
     const pool_create_info = types.VkDescriptorPoolCreateInfo{
-        .maxSets = 10,
+        .flags = 0x1, // VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT
+        .maxSets = 16,
         .poolSizeCount = 1,
         .pPoolSizes = &pool_size,
     };
@@ -169,10 +212,20 @@ pub fn compileKernel(
         .pipeline = pipeline,
         .descriptor_set_layout = descriptor_set_layout,
         .descriptor_pool = descriptor_pool,
+        .binding_count = binding_count,
+        .push_constant_size = options.push_constant_size,
     };
 
     return kernel;
 }
+
+/// Launch options for kernel execution
+pub const LaunchOptions = struct {
+    /// Push constant data (must match kernel's push_constant_size)
+    push_constants: ?[]const u8 = null,
+    /// Use asynchronous execution (returns immediately, use fence for sync)
+    async_launch: bool = false,
+};
 
 /// Launch a compiled Vulkan kernel with specified configuration and arguments.
 pub fn launchKernel(
@@ -180,6 +233,17 @@ pub fn launchKernel(
     kernel_handle: *anyopaque,
     config: kernel_types.KernelConfig,
     args: []const ?*const anyopaque,
+) kernel_types.KernelError!void {
+    return launchKernelEx(allocator, kernel_handle, config, args, .{});
+}
+
+/// Launch a kernel with extended options.
+pub fn launchKernelEx(
+    allocator: std.mem.Allocator,
+    kernel_handle: *anyopaque,
+    config: kernel_types.KernelConfig,
+    args: []const ?*const anyopaque,
+    options: LaunchOptions,
 ) kernel_types.KernelError!void {
     _ = allocator;
 
@@ -191,7 +255,7 @@ pub fn launchKernel(
     const kernel: *types.VulkanKernel = @ptrCast(@alignCast(kernel_handle));
 
     // Allocate command buffer
-    const alloc_info = types.VkCommandBufferAllocateInfo{
+    const cmd_alloc_info = types.VkCommandBufferAllocateInfo{
         .commandPool = ctx.command_pool,
         .level = 0, // VK_COMMAND_BUFFER_LEVEL_PRIMARY
         .commandBufferCount = 1,
@@ -199,7 +263,7 @@ pub fn launchKernel(
 
     const allocate_fn = init.vkAllocateCommandBuffers orelse return kernel_types.KernelError.LaunchFailed;
     var command_buffer: types.VkCommandBuffer = undefined;
-    const alloc_result = allocate_fn(ctx.device, &alloc_info, &command_buffer);
+    const alloc_result = allocate_fn(ctx.device, &cmd_alloc_info, &command_buffer);
     if (alloc_result != .success) {
         return kernel_types.KernelError.LaunchFailed;
     }
@@ -210,8 +274,10 @@ pub fn launchKernel(
         }
     }
 
-    // Begin command buffer
-    const begin_info = types.VkCommandBufferBeginInfo{};
+    // Begin command buffer with one-time submit flag
+    const begin_info = types.VkCommandBufferBeginInfo{
+        .flags = 0x1, // VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
     const begin_fn = init.vkBeginCommandBuffer orelse return kernel_types.KernelError.LaunchFailed;
     const begin_result = begin_fn(command_buffer, &begin_info);
     if (begin_result != .success) {
@@ -222,8 +288,24 @@ pub fn launchKernel(
     const bind_pipeline_fn = init.vkCmdBindPipeline orelse return kernel_types.KernelError.LaunchFailed;
     bind_pipeline_fn(command_buffer, .compute, kernel.pipeline);
 
-    // For simplicity, assume single descriptor set with storage buffers
-    if (args.len > 0) {
+    // Push constants if provided and kernel supports them
+    if (options.push_constants) |push_data| {
+        if (kernel.push_constant_size > 0 and init.vkCmdPushConstants != null) {
+            const push_fn = init.vkCmdPushConstants.?;
+            push_fn(
+                command_buffer,
+                kernel.pipeline_layout,
+                types.VK_SHADER_STAGE_COMPUTE_BIT,
+                0,
+                @min(@as(u32, @intCast(push_data.len)), kernel.push_constant_size),
+                @ptrCast(push_data.ptr),
+            );
+        }
+    }
+
+    // Bind buffer arguments as descriptor set
+    const arg_count = @min(args.len, kernel.binding_count);
+    if (arg_count > 0) {
         // Allocate descriptor set
         const set_alloc_info = types.VkDescriptorSetAllocateInfo{
             .descriptorPool = kernel.descriptor_pool,
@@ -244,26 +326,34 @@ pub fn launchKernel(
             }
         }
 
-        // Update descriptor set (simplified - assumes args are VulkanBuffer pointers)
-        var write_descriptor_set = types.VkWriteDescriptorSet{
-            .dstSet = descriptor_set,
-            .dstBinding = 0,
-            .descriptorType = 7, // VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
-            .descriptorCount = 1,
-        };
+        // Prepare write descriptor sets for all bindings
+        var write_sets: [32]types.VkWriteDescriptorSet = undefined;
+        var buffer_infos: [32]types.VkDescriptorBufferInfo = undefined;
+        var valid_count: u32 = 0;
 
-        if (args.len > 0 and args[0] != null) {
-            const buffer: *types.VulkanBuffer = @ptrCast(@alignCast(args[0].?));
-            const buffer_info = types.VkDescriptorBufferInfo{
-                .buffer = buffer.buffer,
-                .offset = 0,
-                .range = buffer.size,
-            };
-            write_descriptor_set.pBufferInfo = &buffer_info;
+        for (0..arg_count) |i| {
+            if (args[i]) |arg_ptr| {
+                const buffer: *types.VulkanBuffer = @ptrCast(@alignCast(arg_ptr));
+                buffer_infos[valid_count] = types.VkDescriptorBufferInfo{
+                    .buffer = buffer.buffer,
+                    .offset = 0,
+                    .range = buffer.size,
+                };
+                write_sets[valid_count] = types.VkWriteDescriptorSet{
+                    .dstSet = descriptor_set,
+                    .dstBinding = @intCast(i),
+                    .descriptorType = 7, // VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+                    .descriptorCount = 1,
+                    .pBufferInfo = &buffer_infos[valid_count],
+                };
+                valid_count += 1;
+            }
         }
 
-        const update_fn = init.vkUpdateDescriptorSets orelse return kernel_types.KernelError.LaunchFailed;
-        update_fn(ctx.device, 1, &write_descriptor_set, 0, null);
+        if (valid_count > 0) {
+            const update_fn = init.vkUpdateDescriptorSets orelse return kernel_types.KernelError.LaunchFailed;
+            update_fn(ctx.device, valid_count, &write_sets, 0, null);
+        }
 
         // Bind descriptor set
         const bind_sets_fn = init.vkCmdBindDescriptorSets orelse return kernel_types.KernelError.LaunchFailed;
@@ -293,10 +383,13 @@ pub fn launchKernel(
         return kernel_types.KernelError.LaunchFailed;
     }
 
-    const wait_fn = init.vkQueueWaitIdle orelse return kernel_types.KernelError.LaunchFailed;
-    const wait_result = wait_fn(ctx.compute_queue);
-    if (wait_result != .success) {
-        return kernel_types.KernelError.LaunchFailed;
+    // Wait for completion unless async launch requested
+    if (!options.async_launch) {
+        const wait_fn = init.vkQueueWaitIdle orelse return kernel_types.KernelError.LaunchFailed;
+        const wait_result = wait_fn(ctx.compute_queue);
+        if (wait_result != .success) {
+            return kernel_types.KernelError.LaunchFailed;
+        }
     }
 }
 

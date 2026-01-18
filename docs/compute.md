@@ -1,8 +1,34 @@
 # Compute Engine
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Module-Compute-red?style=for-the-badge&logo=speedtest&logoColor=white" alt="Compute Module"/>
+  <img src="https://img.shields.io/badge/Status-Ready-success?style=for-the-badge" alt="Ready"/>
+  <img src="https://img.shields.io/badge/Scheduler-Work_Stealing-blue?style=for-the-badge" alt="Work Stealing"/>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="#advanced-features">Advanced</a> •
+  <a href="#api-reference">API Reference</a>
+</p>
+
+---
+
 > **Note**: GPU functionality is a separate top-level module - see [GPU Guide](gpu.md).
 
 Work-stealing scheduler for efficient concurrent task execution.
+
+## Feature Overview
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Work-Stealing** | LIFO owner, FIFO thieves | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **NUMA-Aware** | NUMA topology support | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Lock-Free** | CAS-based data structures | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Futures** | Async result handling | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Cancellation** | Cooperative cancellation | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Task Groups** | Hierarchical tasks | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ## Quick Start
 
@@ -124,6 +150,31 @@ const TaskGroup = abi.runtime.TaskGroup;
 
 ## See Also
 
-- [GPU Guide](gpu.md) - GPU acceleration
-- [Network](network.md) - Distributed compute
-- [Monitoring](monitoring.md) - Metrics and profiling
+<table>
+<tr>
+<td>
+
+### Related Guides
+- [GPU Guide](gpu.md) — GPU acceleration
+- [Network](network.md) — Distributed compute
+- [Monitoring](monitoring.md) — Metrics and profiling
+
+</td>
+<td>
+
+### Resources
+- [Framework](framework.md) — Framework configuration
+- [API Reference](../API_REFERENCE.md) — Compute API details
+- [Examples](../examples/) — Code samples
+
+</td>
+</tr>
+</table>
+
+---
+
+<p align="center">
+  <a href="monitoring.md">← Monitoring Guide</a> •
+  <a href="docs-index.md">Documentation Index</a> •
+  <a href="gpu.md">GPU Guide →</a>
+</p>
