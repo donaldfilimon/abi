@@ -4,35 +4,64 @@
 //! These types form the backbone of Abbey's unique architecture.
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 // ============================================================================
-// Time Utilities (Zig 0.16 compatible using std.time.Instant)
+// Time Utilities (Zig 0.16 compatible, platform-aware)
 // ============================================================================
+
+/// Check if we're on a platform that supports std.time.Instant
+const has_instant = !isWasmTarget();
+
+fn isWasmTarget() bool {
+    return builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
+}
+
+/// Platform-aware Instant wrapper
+const PlatformInstant = if (has_instant) std.time.Instant else struct {
+    counter: u64,
+
+    pub fn now() error{Unsupported}!@This() {
+        return .{ .counter = 0 };
+    }
+
+    pub fn since(self: @This(), earlier: @This()) u64 {
+        _ = self;
+        _ = earlier;
+        return 0;
+    }
+};
 
 /// Internal: Get current instant for time calculations
-fn getCurrentInstant() ?std.time.Instant {
-    return std.time.Instant.now() catch null;
+fn getCurrentInstant() ?PlatformInstant {
+    return PlatformInstant.now() catch null;
 }
 
 /// Application start time for relative timing (initialized lazily)
-var app_start_instant: ?std.time.Instant = null;
+var app_start_instant: ?PlatformInstant = null;
 var app_start_initialized: bool = false;
 
-fn ensureStartInstant() std.time.Instant {
+fn ensureStartInstant() PlatformInstant {
     if (!app_start_initialized) {
         app_start_instant = getCurrentInstant();
         app_start_initialized = true;
     }
-    return app_start_instant orelse std.time.Instant{ .timestamp = 0 };
+    if (has_instant) {
+        return app_start_instant orelse PlatformInstant{ .timestamp = 0 };
+    } else {
+        return app_start_instant orelse PlatformInstant{ .counter = 0 };
+    }
 }
 
 pub fn getTimestampNs() i128 {
+    if (!has_instant) return 0;
     const start = ensureStartInstant();
     const now = getCurrentInstant() orelse return 0;
     return @intCast(now.since(start));
 }
 
 pub fn getTimestampMs() i64 {
+    if (!has_instant) return 0;
     const start = ensureStartInstant();
     const now = getCurrentInstant() orelse return 0;
     const elapsed_ns = now.since(start);
@@ -40,6 +69,7 @@ pub fn getTimestampMs() i64 {
 }
 
 pub fn getTimestampSec() i64 {
+    if (!has_instant) return 0;
     const start = ensureStartInstant();
     const now = getCurrentInstant() orelse return 0;
     const elapsed_ns = now.since(start);

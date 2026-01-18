@@ -23,6 +23,7 @@
 //! ```
 
 const std = @import("std");
+const platform_time = @import("../shared/time.zig");
 
 pub const replication = @import("replication.zig");
 pub const backup = @import("backup.zig");
@@ -247,14 +248,8 @@ pub const HaManager = struct {
     }
 
     fn generateNodeId() u64 {
-        // Use monotonic timer for entropy seed (Zig 0.16 compatible)
-        const seed: u64 = blk: {
-            if (std.time.Instant.now()) |instant| {
-                break :blk instant.timestamp;
-            } else |_| {
-                break :blk 0;
-            }
-        };
+        // Use platform-aware time for entropy seed
+        const seed = platform_time.timestampNs();
         var prng = std.Random.DefaultPrng.init(seed);
         return prng.random().int(u64);
     }

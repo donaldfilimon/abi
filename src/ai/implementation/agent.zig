@@ -10,6 +10,7 @@ const http = @import("../../shared/utils/http/async_http.zig");
 const retry = @import("../../shared/utils/retry.zig");
 const connectors = @import("../../connectors/mod.zig");
 const time = @import("../../shared/utils.zig");
+const platform_time = @import("../../shared/time.zig");
 
 // ============================================================================
 // Constants
@@ -469,24 +470,8 @@ pub const Agent = struct {
         // Retry with exponential backoff
         var attempt: u32 = 0;
         var backoff_ms = self.config.retry_config.initial_delay_ms;
-        // Use Instant.now() for seeding PRNG in Zig 0.16
-        const instant = std.time.Instant.now() catch return AgentError.GenerationFailed;
-        var seed: u64 = undefined;
-        switch (@typeInfo(@TypeOf(instant.timestamp))) {
-            .@"struct" => {
-                // Zig 0.16: timespec fields are 'sec' and 'nsec'
-                const sec = @as(u64, @bitCast(@as(i64, instant.timestamp.sec)));
-                const nsec = @as(u64, @intCast(instant.timestamp.nsec));
-                seed = sec ^ nsec;
-            },
-            .int => {
-                // Windows - raw u64 timestamp
-                seed = instant.timestamp;
-            },
-            else => {
-                seed = 0; // Fallback
-            },
-        }
+        // Use platform-aware time for seeding PRNG
+        const seed = platform_time.timestampNs();
         var prng = std.Random.DefaultPrng.init(seed);
         const random = prng.random();
 

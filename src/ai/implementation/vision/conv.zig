@@ -4,14 +4,14 @@
 //! Supports forward and backward passes for training.
 
 const std = @import("std");
+const platform_time = @import("../../../shared/time.zig");
 
 // ============================================================================
-// Time utility for seeding (Zig 0.16 compatible)
+// Time utility for seeding (platform-aware)
 // ============================================================================
 
 fn getTimeSeed() u64 {
-    const instant = std.time.Instant.now() catch return 0;
-    return @truncate(instant.timestamp);
+    return platform_time.timestampNs();
 }
 
 // ============================================================================

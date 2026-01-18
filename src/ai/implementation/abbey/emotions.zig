@@ -8,16 +8,15 @@
 
 const std = @import("std");
 const core_types = @import("../../core/types.zig");
+const platform_time = @import("../../../shared/time.zig");
 
 // Re-export the canonical EmotionType from core types
 // This ensures type consistency across the AI module
 pub const EmotionType = core_types.EmotionType;
 
-// Zig 0.16 compatible time function using std.time.Instant
+// Platform-aware time function (works on WASM)
 fn getTimestamp() i64 {
-    const now = std.time.Instant.now() catch return 0;
-    // Use raw timestamp seconds as a simple Unix-like timestamp
-    return @intCast(now.timestamp.tv_sec);
+    return @intCast(platform_time.timestampSec());
 }
 
 /// Helper functions for emotion detection (extends core EmotionType)

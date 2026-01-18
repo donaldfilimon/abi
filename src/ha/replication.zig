@@ -8,6 +8,7 @@
 
 const std = @import("std");
 const time = @import("../shared/utils.zig");
+const platform_time = @import("../shared/time.zig");
 
 /// Replication configuration
 pub const ReplicationConfig = struct {
@@ -113,10 +114,7 @@ pub const ReplicationManager = struct {
 
     /// Initialize the replication manager
     pub fn init(allocator: std.mem.Allocator, config: ReplicationConfig) ReplicationManager {
-        const seed = blk: {
-            const now = std.time.Instant.now() catch break :blk @as(u64, 0);
-            break :blk now.timestamp.tv_sec *% 1_000_000_000 +% @as(u64, @intCast(now.timestamp.tv_nsec));
-        };
+        const seed = platform_time.timestampNs();
         var prng = std.Random.DefaultPrng.init(seed);
 
         return .{

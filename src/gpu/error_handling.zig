@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const interface = @import("interface.zig");
+const platform_time = @import("../shared/time.zig");
 
 pub const GpuErrorCode = enum(u32) {
     success = 0,
@@ -253,10 +254,7 @@ pub const ErrorContext = struct {
             null;
         errdefer if (extra_copy) |ctx| self.allocator.free(ctx);
 
-        const timestamp_ms: i64 = blk: {
-            const now = std.time.Instant.now() catch break :blk 0;
-            break :blk now.timestamp.tv_sec * 1000 + @divTrunc(@as(i64, now.timestamp.tv_nsec), 1_000_000);
-        };
+        const timestamp_ms: i64 = @intCast(platform_time.timestampMs());
 
         const gpu_error = GpuError{
             .code = code,

@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const loadbalancer = @import("loadbalancer.zig");
+const platform_time = @import("../shared/time.zig");
 
 pub const FailoverConfig = struct {
     /// Health check interval in milliseconds.
@@ -133,8 +134,7 @@ pub const FailoverManager = struct {
     }
 
     fn getTimestampMs() i64 {
-        const now = std.time.Instant.now() catch return 0;
-        return now.timestamp.tv_sec * 1000 + @divTrunc(@as(i64, now.timestamp.tv_nsec), 1_000_000);
+        return @intCast(platform_time.timestampMs());
     }
 
     fn triggerFailover(self: *Self, failed_node: []const u8) !void {

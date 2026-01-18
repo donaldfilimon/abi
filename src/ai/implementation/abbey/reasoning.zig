@@ -8,15 +8,15 @@
 
 const std = @import("std");
 const core_types = @import("../../core/types.zig");
+const platform_time = @import("../../../shared/time.zig");
 
 // Re-export canonical types from core for consistency
 pub const ConfidenceLevel = core_types.ConfidenceLevel;
 pub const Confidence = core_types.Confidence;
 
-// Zig 0.16 compatible time function
+// Platform-aware time function (works on WASM)
 fn getTimestampNs() i128 {
-    const now = std.time.Instant.now() catch return 0;
-    return @as(i128, now.timestamp.tv_sec) * std.time.ns_per_s + @as(i128, now.timestamp.tv_nsec);
+    return @intCast(platform_time.timestampNs());
 }
 
 /// Helper to create a display string for confidence (extends core Confidence)

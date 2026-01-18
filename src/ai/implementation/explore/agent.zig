@@ -1,4 +1,5 @@
 const std = @import("std");
+const platform_time = @import("../../../shared/time.zig");
 const ExploreConfig = @import("config.zig").ExploreConfig;
 const ExploreLevel = @import("config.zig").ExploreLevel;
 const ExploreResult = @import("results.zig").ExploreResult;
@@ -19,7 +20,7 @@ pub const ExploreAgent = struct {
     config: ExploreConfig,
     compiler: PatternCompiler,
     stats: ExplorationStats,
-    start_time: std.time.Instant,
+    start_time: platform_time.Instant,
     cancelled: bool,
     cancellation_lock: std.Thread.Mutex,
     io_backend: std.Io.Threaded,
@@ -30,7 +31,7 @@ pub const ExploreAgent = struct {
             .config = config,
             .compiler = PatternCompiler.init(allocator),
             .stats = ExplorationStats{},
-            .start_time = try std.time.Instant.now(),
+            .start_time = platform_time.Instant.now() catch return error.TimerUnavailable,
             .cancelled = false,
             .cancellation_lock = std.Thread.Mutex{},
             .io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty }),
@@ -50,7 +51,7 @@ pub const ExploreAgent = struct {
     }
 
     pub fn explore(self: *ExploreAgent, root_path: []const u8, query: []const u8) !ExploreResult {
-        self.start_time = try std.time.Instant.now();
+        self.start_time = platform_time.Instant.now() catch return error.TimerUnavailable;
         self.cancelled = false;
 
         var result = ExploreResult.init(self.allocator, query, self.config.level);
@@ -81,7 +82,7 @@ pub const ExploreAgent = struct {
             self.stats.files_processed += 1;
         }
 
-        const end_time = try std.time.Instant.now();
+        const end_time = platform_time.Instant.now() catch return error.TimerUnavailable;
         const elapsed_ns = end_time.since(self.start_time);
         result.duration_ms = @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
         self.stats.wall_time_ms = @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
@@ -90,7 +91,7 @@ pub const ExploreAgent = struct {
     }
 
     pub fn exploreWithPatterns(self: *ExploreAgent, root_path: []const u8, patterns: []const []const u8) !ExploreResult {
-        self.start_time = try std.time.Instant.now();
+        self.start_time = platform_time.Instant.now() catch return error.TimerUnavailable;
         self.cancelled = false;
 
         var result = ExploreResult.init(self.allocator, "", self.config.level);
@@ -132,7 +133,7 @@ pub const ExploreAgent = struct {
             self.stats.files_processed += 1;
         }
 
-        const end_time = try std.time.Instant.now();
+        const end_time = platform_time.Instant.now() catch return error.TimerUnavailable;
         const elapsed_ns = end_time.since(self.start_time);
         result.duration_ms = @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
         self.stats.wall_time_ms = @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
@@ -427,7 +428,7 @@ pub const ExploreAgent = struct {
     }
 
     pub fn exploreNaturalLanguage(self: *ExploreAgent, root_path: []const u8, nl_query: []const u8) !ExploreResult {
-        self.start_time = try std.time.Instant.now();
+        self.start_time = platform_time.Instant.now() catch return error.TimerUnavailable;
         self.cancelled = false;
 
         var result = ExploreResult.init(self.allocator, nl_query, self.config.level);
@@ -505,7 +506,7 @@ pub const ExploreAgent = struct {
             self.stats.files_processed += 1;
         }
 
-        const end_time = try std.time.Instant.now();
+        const end_time = platform_time.Instant.now() catch return error.TimerUnavailable;
         const elapsed_ns = end_time.since(self.start_time);
         result.duration_ms = @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
         self.stats.wall_time_ms = @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));

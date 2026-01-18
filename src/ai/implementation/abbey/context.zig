@@ -7,11 +7,11 @@
 //! - Context-aware retrieval
 
 const std = @import("std");
+const platform_time = @import("../../../shared/time.zig");
 
-// Zig 0.16 compatible time function
+// Platform-aware time function (works on WASM)
 fn getTimestamp() i64 {
-    const now = std.time.Instant.now() catch return 0;
-    return now.timestamp.tv_sec;
+    return @intCast(platform_time.timestampSec());
 }
 
 /// A topic being discussed
