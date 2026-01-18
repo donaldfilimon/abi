@@ -44,6 +44,10 @@ pub const transport = @import("transport.zig");
 pub const raft_transport = @import("raft_transport.zig");
 pub const circuit_breaker = @import("circuit_breaker.zig");
 
+// Unified Memory and Linking modules
+pub const unified_memory = @import("unified_memory/mod.zig");
+pub const linking = @import("linking/mod.zig");
+
 // ============================================================================
 // Node Registry exports
 // ============================================================================
@@ -218,6 +222,42 @@ pub const FailoverManager = failover.FailoverManager;
 pub const FailoverConfig = failover.FailoverConfig;
 pub const FailoverState = failover.FailoverState;
 pub const FailoverEvent = failover.FailoverEvent;
+
+// ============================================================================
+// Unified Memory exports
+// ============================================================================
+pub const UnifiedMemoryManager = unified_memory.UnifiedMemoryManager;
+pub const UnifiedMemoryConfig = unified_memory.UnifiedMemoryConfig;
+pub const UnifiedMemoryError = unified_memory.UnifiedMemoryError;
+pub const MemoryRegion = unified_memory.MemoryRegion;
+pub const RegionId = unified_memory.RegionId;
+pub const RegionFlags = unified_memory.RegionFlags;
+pub const RegionState = unified_memory.RegionState;
+pub const CoherenceProtocol = unified_memory.CoherenceProtocol;
+pub const CoherenceState = unified_memory.CoherenceState;
+pub const RemotePtr = unified_memory.RemotePtr;
+pub const RemoteSlice = unified_memory.RemoteSlice;
+pub const MemoryNode = unified_memory.MemoryNode;
+
+// ============================================================================
+// Linking exports
+// ============================================================================
+pub const LinkManager = linking.LinkManager;
+pub const Link = linking.Link;
+pub const LinkConfig = linking.LinkConfig;
+pub const LinkState = linking.LinkState;
+pub const LinkStats = linking.LinkStats;
+pub const TransportType = linking.TransportType;
+pub const SecureChannel = linking.SecureChannel;
+pub const ChannelConfig = linking.ChannelConfig;
+pub const EncryptionType = linking.EncryptionType;
+pub const ThunderboltTransport = linking.ThunderboltTransport;
+pub const ThunderboltConfig = linking.ThunderboltConfig;
+pub const ThunderboltDevice = linking.ThunderboltDevice;
+pub const InternetTransport = linking.InternetTransport;
+pub const InternetConfig = linking.InternetConfig;
+pub const NatTraversal = linking.NatTraversal;
+pub const QuicConnection = linking.QuicConnection;
 
 // ============================================================================
 // Error types
