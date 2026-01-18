@@ -43,6 +43,12 @@ const kernel_cache = @import("kernel_cache.zig");
 pub const profiling = @import("profiling.zig");
 pub const acceleration = @import("acceleration.zig");
 
+// Performance optimization modules
+pub const occupancy = @import("occupancy.zig");
+pub const fusion = @import("fusion.zig");
+pub const execution_coordinator = @import("execution_coordinator.zig");
+pub const memory_pool_advanced = @import("memory_pool_advanced.zig");
+
 // Unified API modules
 pub const unified = @import("unified.zig");
 pub const unified_buffer = @import("unified_buffer.zig");

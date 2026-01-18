@@ -60,6 +60,180 @@ pub const CoordinatorConfig = struct {
     backend_timeout_ms: u64 = 1000,
     /// Enable logging when fallback occurs (useful for debugging)
     log_fallbacks: bool = false,
+    /// Enable adaptive threshold tuning based on runtime performance
+    enable_adaptive_thresholds: bool = true,
+    /// Sample window for adaptive threshold calculations
+    adaptive_sample_window: usize = 100,
+    /// Minimum improvement factor to change method (1.1 = 10% faster)
+    adaptive_min_improvement: f64 = 1.1,
+};
+
+/// Performance sample for adaptive threshold learning
+pub const PerformanceSample = struct {
+    size: usize,
+    method: ExecutionMethod,
+    time_ns: u64,
+    operation: OperationType,
+};
+
+/// Adaptive threshold manager
+pub const AdaptiveThresholds = struct {
+    allocator: std.mem.Allocator,
+    /// Performance samples per operation type
+    samples: std.AutoHashMapUnmanaged(OperationType, std.ArrayListUnmanaged(PerformanceSample)),
+    /// Learned thresholds per operation type
+    gpu_thresholds: std.AutoHashMapUnmanaged(OperationType, usize),
+    simd_thresholds: std.AutoHashMapUnmanaged(OperationType, usize),
+    /// Default thresholds
+    default_gpu_threshold: usize,
+    default_simd_threshold: usize,
+    /// Configuration
+    sample_window: usize,
+    min_improvement: f64,
+
+    const Self = @This();
+
+    pub fn init(allocator: std.mem.Allocator, config: CoordinatorConfig) Self {
+        return .{
+            .allocator = allocator,
+            .samples = .{},
+            .gpu_thresholds = .{},
+            .simd_thresholds = .{},
+            .default_gpu_threshold = config.gpu_threshold_size,
+            .default_simd_threshold = config.simd_threshold_size,
+            .sample_window = config.adaptive_sample_window,
+            .min_improvement = config.adaptive_min_improvement,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        var samples_iter = self.samples.iterator();
+        while (samples_iter.next()) |entry| {
+            entry.value_ptr.deinit(self.allocator);
+        }
+        self.samples.deinit(self.allocator);
+        self.gpu_thresholds.deinit(self.allocator);
+        self.simd_thresholds.deinit(self.allocator);
+    }
+
+    /// Record a performance sample
+    pub fn recordSample(self: *Self, sample: PerformanceSample) !void {
+        const entry = try self.samples.getOrPut(self.allocator, sample.operation);
+        if (!entry.found_existing) {
+            entry.value_ptr.* = .{};
+        }
+
+        // Keep only recent samples
+        if (entry.value_ptr.items.len >= self.sample_window) {
+            _ = entry.value_ptr.orderedRemove(0);
+        }
+
+        try entry.value_ptr.append(self.allocator, sample);
+
+        // Recalculate thresholds periodically
+        if (entry.value_ptr.items.len % 10 == 0) {
+            self.recalculateThreshold(sample.operation);
+        }
+    }
+
+    /// Get learned threshold for GPU execution
+    pub fn getGpuThreshold(self: *const Self, op: OperationType) usize {
+        return self.gpu_thresholds.get(op) orelse self.default_gpu_threshold;
+    }
+
+    /// Get learned threshold for SIMD execution
+    pub fn getSimdThreshold(self: *const Self, op: OperationType) usize {
+        return self.simd_thresholds.get(op) orelse self.default_simd_threshold;
+    }
+
+    /// Recalculate thresholds based on collected samples
+    fn recalculateThreshold(self: *Self, op: OperationType) void {
+        const samples_list = self.samples.get(op) orelse return;
+        if (samples_list.items.len < 20) return; // Need enough samples
+
+        // Group samples by size ranges and method
+        var gpu_times: [16]struct { count: usize, total_ns: u64 } = .{.{ .count = 0, .total_ns = 0 }} ** 16;
+        var simd_times: [16]struct { count: usize, total_ns: u64 } = .{.{ .count = 0, .total_ns = 0 }} ** 16;
+        var scalar_times: [16]struct { count: usize, total_ns: u64 } = .{.{ .count = 0, .total_ns = 0 }} ** 16;
+
+        for (samples_list.items) |sample| {
+            // Map size to bucket (log2-ish)
+            const bucket = @min(15, std.math.log2_int(usize, @max(1, sample.size / 64)));
+
+            switch (sample.method) {
+                .gpu => {
+                    gpu_times[bucket].count += 1;
+                    gpu_times[bucket].total_ns += sample.time_ns;
+                },
+                .simd => {
+                    simd_times[bucket].count += 1;
+                    simd_times[bucket].total_ns += sample.time_ns;
+                },
+                .scalar => {
+                    scalar_times[bucket].count += 1;
+                    scalar_times[bucket].total_ns += sample.time_ns;
+                },
+                .failed => {},
+            }
+        }
+
+        // Find crossover points where GPU becomes faster than SIMD/scalar
+        var gpu_threshold: usize = self.default_gpu_threshold;
+        var simd_threshold: usize = self.default_simd_threshold;
+
+        for (0..16) |bucket| {
+            const size = @as(usize, 64) << @intCast(bucket);
+
+            if (gpu_times[bucket].count > 0 and scalar_times[bucket].count > 0) {
+                const gpu_avg = @as(f64, @floatFromInt(gpu_times[bucket].total_ns)) /
+                    @as(f64, @floatFromInt(gpu_times[bucket].count));
+                const scalar_avg = @as(f64, @floatFromInt(scalar_times[bucket].total_ns)) /
+                    @as(f64, @floatFromInt(scalar_times[bucket].count));
+
+                // GPU is beneficial if significantly faster
+                if (scalar_avg / gpu_avg >= self.min_improvement) {
+                    gpu_threshold = @min(gpu_threshold, size);
+                }
+            }
+
+            if (simd_times[bucket].count > 0 and scalar_times[bucket].count > 0) {
+                const simd_avg = @as(f64, @floatFromInt(simd_times[bucket].total_ns)) /
+                    @as(f64, @floatFromInt(simd_times[bucket].count));
+                const scalar_avg = @as(f64, @floatFromInt(scalar_times[bucket].total_ns)) /
+                    @as(f64, @floatFromInt(scalar_times[bucket].count));
+
+                // SIMD is beneficial if significantly faster
+                if (scalar_avg / simd_avg >= self.min_improvement) {
+                    simd_threshold = @min(simd_threshold, size);
+                }
+            }
+        }
+
+        // Update thresholds
+        self.gpu_thresholds.put(self.allocator, op, gpu_threshold) catch {};
+        self.simd_thresholds.put(self.allocator, op, simd_threshold) catch {};
+    }
+
+    /// Get adaptive threshold statistics
+    pub fn getStats(self: *const Self) struct {
+        total_samples: usize,
+        operations_tracked: usize,
+        gpu_threshold_adjustments: usize,
+        simd_threshold_adjustments: usize,
+    } {
+        var total: usize = 0;
+        var samples_iter = self.samples.iterator();
+        while (samples_iter.next()) |entry| {
+            total += entry.value_ptr.items.len;
+        }
+
+        return .{
+            .total_samples = total,
+            .operations_tracked = self.samples.count(),
+            .gpu_threshold_adjustments = self.gpu_thresholds.count(),
+            .simd_threshold_adjustments = self.simd_thresholds.count(),
+        };
+    }
 };
 
 pub const ExecutionCoordinator = struct {
@@ -70,12 +244,23 @@ pub const ExecutionCoordinator = struct {
     simd_available: bool = false,
     dispatcher: ?KernelDispatcher = null,
     device: ?Device = null,
+    /// Adaptive thresholds for method selection
+    adaptive: ?AdaptiveThresholds = null,
+    /// Performance statistics
+    total_gpu_ops: u64 = 0,
+    total_simd_ops: u64 = 0,
+    total_scalar_ops: u64 = 0,
+    total_time_ns: u64 = 0,
 
     pub fn init(allocator: std.mem.Allocator, config: CoordinatorConfig) !ExecutionCoordinator {
         var coord = ExecutionCoordinator{
             .allocator = allocator,
             .config = config,
             .simd_available = simd.hasSimdSupport(),
+            .adaptive = if (config.enable_adaptive_thresholds)
+                AdaptiveThresholds.init(allocator, config)
+            else
+                null,
         };
 
         // Try to initialize GPU
@@ -117,12 +302,44 @@ pub const ExecutionCoordinator = struct {
     }
 
     pub fn deinit(self: *ExecutionCoordinator) void {
+        if (self.adaptive) |*adap| {
+            adap.deinit();
+        }
         if (self.dispatcher) |*disp| {
             disp.deinit();
         }
         if (self.gpu_backend) |backend| {
             backend_factory.destroyBackend(backend);
         }
+    }
+
+    /// Get coordinator performance statistics
+    pub fn getPerformanceStats(self: *const ExecutionCoordinator) struct {
+        total_gpu_ops: u64,
+        total_simd_ops: u64,
+        total_scalar_ops: u64,
+        total_time_ns: u64,
+        gpu_percentage: f64,
+        simd_percentage: f64,
+        adaptive_stats: ?struct {
+            total_samples: usize,
+            operations_tracked: usize,
+            gpu_threshold_adjustments: usize,
+            simd_threshold_adjustments: usize,
+        },
+    } {
+        const total_ops = self.total_gpu_ops + self.total_simd_ops + self.total_scalar_ops;
+        const total_f = if (total_ops > 0) @as(f64, @floatFromInt(total_ops)) else 1.0;
+
+        return .{
+            .total_gpu_ops = self.total_gpu_ops,
+            .total_simd_ops = self.total_simd_ops,
+            .total_scalar_ops = self.total_scalar_ops,
+            .total_time_ns = self.total_time_ns,
+            .gpu_percentage = @as(f64, @floatFromInt(self.total_gpu_ops)) / total_f * 100.0,
+            .simd_percentage = @as(f64, @floatFromInt(self.total_simd_ops)) / total_f * 100.0,
+            .adaptive_stats = if (self.adaptive) |*adap| adap.getStats() else null,
+        };
     }
 
     /// Vector addition with automatic method selection
@@ -702,11 +919,20 @@ pub const ExecutionCoordinator = struct {
 
     /// Select best execution method for operation
     fn selectMethod(self: *ExecutionCoordinator, size: usize, op: OperationType) ExecutionMethod {
-        _ = op; // Reserved for operation-specific heuristics
+        // Use adaptive thresholds if available
+        const gpu_threshold = if (self.adaptive) |*adap|
+            adap.getGpuThreshold(op)
+        else
+            self.config.gpu_threshold_size;
+
+        const simd_threshold = if (self.adaptive) |*adap|
+            adap.getSimdThreshold(op)
+        else
+            self.config.simd_threshold_size;
 
         // Try methods in fallback chain order
         for (self.config.fallback_chain) |method| {
-            if (self.canUseMethod(method, size)) {
+            if (self.canUseMethodWithThresholds(method, size, gpu_threshold, simd_threshold)) {
                 return method;
             }
         }
@@ -716,12 +942,49 @@ pub const ExecutionCoordinator = struct {
     }
 
     fn canUseMethod(self: *ExecutionCoordinator, method: ExecutionMethod, size: usize) bool {
+        return self.canUseMethodWithThresholds(
+            method,
+            size,
+            self.config.gpu_threshold_size,
+            self.config.simd_threshold_size,
+        );
+    }
+
+    fn canUseMethodWithThresholds(
+        self: *ExecutionCoordinator,
+        method: ExecutionMethod,
+        size: usize,
+        gpu_threshold: usize,
+        simd_threshold: usize,
+    ) bool {
         return switch (method) {
-            .gpu => self.gpu_available and size >= self.config.gpu_threshold_size,
-            .simd => self.simd_available and size >= self.config.simd_threshold_size,
+            .gpu => self.gpu_available and size >= gpu_threshold,
+            .simd => self.simd_available and size >= simd_threshold,
             .scalar => true,
             .failed => false,
         };
+    }
+
+    /// Record operation result for adaptive learning
+    fn recordResult(self: *ExecutionCoordinator, method: ExecutionMethod, size: usize, time_ns: u64, op: OperationType) void {
+        // Update statistics
+        switch (method) {
+            .gpu => self.total_gpu_ops += 1,
+            .simd => self.total_simd_ops += 1,
+            .scalar => self.total_scalar_ops += 1,
+            .failed => {},
+        }
+        self.total_time_ns += time_ns;
+
+        // Record sample for adaptive learning
+        if (self.adaptive) |*adap| {
+            adap.recordSample(.{
+                .size = size,
+                .method = method,
+                .time_ns = time_ns,
+                .operation = op,
+            }) catch {};
+        }
     }
 };
 

@@ -38,6 +38,16 @@ pub const PoolConfig = struct {
     high_water_mark: f64 = 0.85,
     /// Low water mark for memory pressure (0.0-1.0).
     low_water_mark: f64 = 0.70,
+    /// Enable memory pre-warming on initialization.
+    enable_prewarm: bool = false,
+    /// Pre-warm size per class (number of buffers to pre-allocate).
+    prewarm_count_per_class: usize = 4,
+    /// Enable aggressive coalescing on high fragmentation.
+    aggressive_coalesce_threshold: f64 = 0.5,
+    /// Target fragmentation ratio after coalescing.
+    target_fragmentation: f64 = 0.2,
+    /// Enable alignment optimization for cache-friendly access.
+    cache_line_alignment: usize = 64,
 };
 
 /// Allocation metadata for tracking.
@@ -330,6 +340,172 @@ pub const AdvancedMemoryPool = struct {
         self.coalesceAll();
     }
 
+    /// Pre-warm the memory pool by pre-allocating buffers.
+    /// This reduces allocation latency during runtime.
+    pub fn prewarm(self: *AdvancedMemoryPool) !void {
+        if (!self.config.enable_prewarm) return;
+
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        const count = self.config.prewarm_count_per_class;
+
+        for (&self.size_classes, 0..) |*bucket, i| {
+            // Pre-allocate buffers for each size class
+            var preallocated: usize = 0;
+            while (preallocated < count) {
+                // Check if we have room
+                if (bucket.total_allocated >= self.config.max_class_size) break;
+                if (self.total_size + SIZE_CLASSES[i] > self.config.max_total_size) break;
+
+                // Allocate a buffer
+                var buffer = memory.GpuBuffer.init(self.allocator, SIZE_CLASSES[i], .{}) catch break;
+
+                bucket.allocations.append(self.allocator, buffer) catch {
+                    buffer.deinit();
+                    break;
+                };
+
+                const meta = AllocationMeta{
+                    .size = 0, // Pre-warmed but not yet used
+                    .size_class_idx = i,
+                    .allocated_at = time.unixSeconds(),
+                    .used = false, // Mark as free
+                    .next_free = bucket.free_list,
+                };
+                bucket.metadata.append(self.allocator, meta) catch {
+                    // Rollback allocation
+                    var last = bucket.allocations.pop();
+                    last.deinit();
+                    break;
+                };
+
+                // Add to free list
+                bucket.free_list = &bucket.metadata.items[bucket.metadata.items.len - 1];
+                bucket.total_allocated += SIZE_CLASSES[i];
+                self.total_size += SIZE_CLASSES[i];
+
+                preallocated += 1;
+            }
+        }
+    }
+
+    /// Pre-warm specific size classes based on predicted usage.
+    pub fn prewarmSizeClass(self: *AdvancedMemoryPool, size: usize, count: usize) !void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        const class_idx = self.findSizeClass(size) orelse return;
+        const bucket = &self.size_classes[class_idx];
+        const class_size = SIZE_CLASSES[class_idx];
+
+        var preallocated: usize = 0;
+        while (preallocated < count) {
+            if (bucket.total_allocated >= self.config.max_class_size) break;
+            if (self.total_size + class_size > self.config.max_total_size) break;
+
+            var buffer = try memory.GpuBuffer.init(self.allocator, class_size, .{});
+            errdefer buffer.deinit();
+
+            try bucket.allocations.append(self.allocator, buffer);
+            const meta = AllocationMeta{
+                .size = 0,
+                .size_class_idx = class_idx,
+                .allocated_at = time.unixSeconds(),
+                .used = false,
+                .next_free = bucket.free_list,
+            };
+            try bucket.metadata.append(self.allocator, meta);
+
+            bucket.free_list = &bucket.metadata.items[bucket.metadata.items.len - 1];
+            bucket.total_allocated += class_size;
+            self.total_size += class_size;
+            preallocated += 1;
+        }
+    }
+
+    /// Perform aggressive coalescing to reduce fragmentation below threshold.
+    pub fn defragment(self: *AdvancedMemoryPool) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        const current_frag = self.calculateFragmentation();
+        if (current_frag <= self.config.target_fragmentation) return;
+
+        // Perform multiple coalesce passes until target is reached
+        var passes: usize = 0;
+        const max_passes: usize = 5;
+
+        while (passes < max_passes) {
+            self.coalesceAll();
+
+            const new_frag = self.calculateFragmentation();
+            if (new_frag <= self.config.target_fragmentation) break;
+
+            passes += 1;
+        }
+    }
+
+    /// Get detailed memory statistics per size class.
+    pub fn getDetailedStats(self: *const AdvancedMemoryPool) DetailedPoolStats {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        var stats = DetailedPoolStats{
+            .basic = self.getStatsUnlocked(),
+            .size_class_stats = undefined,
+        };
+
+        for (self.size_classes, 0..) |bucket, i| {
+            const free_count = self.countFreeInBucket(&bucket);
+            stats.size_class_stats[i] = .{
+                .size_class = SIZE_CLASSES[i],
+                .total_allocated = bucket.total_allocated,
+                .total_used = bucket.total_used,
+                .buffer_count = bucket.allocations.items.len,
+                .free_count = free_count,
+                .utilization = if (bucket.total_allocated > 0)
+                    @as(f64, @floatFromInt(bucket.total_used)) / @as(f64, @floatFromInt(bucket.total_allocated))
+                else
+                    0.0,
+            };
+        }
+
+        return stats;
+    }
+
+    fn countFreeInBucket(self: *const AdvancedMemoryPool, bucket: *const SizeClassBucket) usize {
+        _ = self;
+        var count: usize = 0;
+        var current = bucket.free_list;
+        while (current) |node| {
+            count += 1;
+            current = node.next_free;
+        }
+        return count;
+    }
+
+    fn getStatsUnlocked(self: *const AdvancedMemoryPool) PoolStats {
+        var used_size: usize = 0;
+        for (self.size_classes) |bucket| {
+            used_size += bucket.total_used;
+        }
+
+        return .{
+            .total_size = self.total_size,
+            .used_size = used_size,
+            .peak_size = self.peak_size,
+            .allocation_count = self.allocation_count,
+            .free_count = self.free_count,
+            .coalesce_count = self.coalesce_count,
+            .fragmentation_ratio = self.calculateFragmentation(),
+            .utilization = if (self.config.max_total_size > 0)
+                @as(f64, @floatFromInt(self.total_size)) / @as(f64, @floatFromInt(self.config.max_total_size))
+            else
+                0.0,
+        };
+    }
+
     // Internal helpers
     fn findSizeClass(self: *const AdvancedMemoryPool, size: usize) ?usize {
         _ = self;
@@ -410,6 +586,70 @@ pub const PoolStats = struct {
     coalesce_count: u64,
     fragmentation_ratio: f64,
     utilization: f64,
+};
+
+/// Per-size-class statistics.
+pub const SizeClassStats = struct {
+    size_class: usize,
+    total_allocated: usize,
+    total_used: usize,
+    buffer_count: usize,
+    free_count: usize,
+    utilization: f64,
+};
+
+/// Detailed pool statistics including per-class breakdown.
+pub const DetailedPoolStats = struct {
+    basic: PoolStats,
+    size_class_stats: [SIZE_CLASSES.len]SizeClassStats,
+
+    /// Get most utilized size class.
+    pub fn getMostUtilizedClass(self: *const DetailedPoolStats) ?usize {
+        var max_util: f64 = 0;
+        var max_idx: ?usize = null;
+
+        for (self.size_class_stats, 0..) |stats, i| {
+            if (stats.utilization > max_util and stats.buffer_count > 0) {
+                max_util = stats.utilization;
+                max_idx = i;
+            }
+        }
+        return max_idx;
+    }
+
+    /// Get least utilized size class with allocations.
+    pub fn getLeastUtilizedClass(self: *const DetailedPoolStats) ?usize {
+        var min_util: f64 = 1.0;
+        var min_idx: ?usize = null;
+
+        for (self.size_class_stats, 0..) |stats, i| {
+            if (stats.buffer_count > 0 and stats.utilization < min_util) {
+                min_util = stats.utilization;
+                min_idx = i;
+            }
+        }
+        return min_idx;
+    }
+
+    /// Calculate recommended pre-warm sizes based on current usage patterns.
+    pub fn getPrewarmRecommendations(self: *const DetailedPoolStats) [SIZE_CLASSES.len]usize {
+        var recommendations: [SIZE_CLASSES.len]usize = .{0} ** SIZE_CLASSES.len;
+
+        for (self.size_class_stats, 0..) |stats, i| {
+            // Recommend based on utilization and current usage
+            if (stats.utilization > 0.8 and stats.buffer_count > 0) {
+                // High utilization - recommend more pre-warm
+                recommendations[i] = stats.buffer_count / 2 + 2;
+            } else if (stats.utilization > 0.5 and stats.buffer_count > 0) {
+                // Medium utilization
+                recommendations[i] = 2;
+            } else if (stats.buffer_count > 0) {
+                // Some usage
+                recommendations[i] = 1;
+            }
+        }
+        return recommendations;
+    }
 };
 
 test "advanced pool allocation" {
