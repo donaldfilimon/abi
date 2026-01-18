@@ -1,6 +1,6 @@
-> **Codebase Status:** Synced with repository as of 2026-01-18.
-
 //! # Shared Utilities
+//!
+//! > **Codebase Status:** Synced with repository as of 2026-01-18.
 //!
 //! Cross-cutting concerns used throughout the ABI framework.
 //!

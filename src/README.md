@@ -1,6 +1,6 @@
-> **Codebase Status:** Synced with repository as of 2026-01-18.
-
 //! # Source Directory
+//!
+//! > **Codebase Status:** Synced with repository as of 2026-01-18.
 //!
 //! Core source modules of the ABI framework organized by function.
 //!
