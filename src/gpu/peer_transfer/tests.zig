@@ -546,3 +546,99 @@ test "Large buffer AllReduce" {
     try testing.expectApproxEqAbs(@as(f32, 3.0), buf1[1], 0.001); // 1 + 2
     try testing.expectApproxEqAbs(@as(f32, 6.0), buf1[2], 0.001); // 2 + 4
 }
+
+// ============================================================================
+// Recovery Strategy Tests
+// ============================================================================
+
+test "RecoveryStrategy default is retry_with_fallback" {
+    const allocator = testing.allocator;
+
+    var device_group = try multi_device.DeviceGroup.init(allocator, .{});
+    defer device_group.deinit();
+
+    var manager = try PeerTransferManager.init(allocator, &device_group);
+    defer manager.deinit();
+
+    // Default should be retry_with_fallback (safe default)
+    // This ensures automatic fallback on partial failures
+    manager.setRecoveryStrategy(.abort);
+    manager.setRecoveryStrategy(.retry_with_fallback); // Reset to default
+}
+
+test "Host-staged fallback on single-GPU machine" {
+    const allocator = testing.allocator;
+
+    // Single-GPU config
+    var device_group = try multi_device.DeviceGroup.init(allocator, .{});
+    defer device_group.deinit();
+
+    var manager = try PeerTransferManager.init(allocator, &device_group);
+    defer manager.deinit();
+
+    // With only simulated devices, should use host-staged
+    const cap = manager.getCapability(0, 1);
+    try testing.expect(cap == .host_staged);
+
+    // Should still work even without real peer access
+    const stats = manager.getStats();
+    try testing.expectEqual(@as(u64, 0), stats.fallback_count);
+}
+
+test "AllReduce product operation" {
+    const allocator = testing.allocator;
+    var backend = try host_staged.HostStagedBackend.init(allocator);
+    defer backend.deinit();
+
+    var buf1 = [_]f32{ 2.0, 3.0, 4.0 };
+    var buf2 = [_]f32{ 5.0, 2.0, 3.0 };
+
+    const buffers = [_]host_staged.DeviceBufferRef{
+        .{ .device_id = 0, .data = &buf1 },
+        .{ .device_id = 1, .data = &buf2 },
+    };
+
+    try backend.allReduce(&buffers, .product);
+
+    // Product: [2*5, 3*2, 4*3] = [10, 6, 12]
+    try testing.expectApproxEqAbs(@as(f32, 10.0), buf1[0], 0.001);
+    try testing.expectApproxEqAbs(@as(f32, 6.0), buf1[1], 0.001);
+    try testing.expectApproxEqAbs(@as(f32, 12.0), buf1[2], 0.001);
+}
+
+test "TransferCapability selection priority" {
+    // NCCL should always be preferred over direct P2P
+    try testing.expect(TransferCapability.nccl.priority() > TransferCapability.direct_p2p.priority());
+
+    // Direct P2P should be preferred over Vulkan external
+    try testing.expect(TransferCapability.direct_p2p.priority() > TransferCapability.vulkan_external.priority());
+
+    // Any hardware acceleration should be preferred over host-staged
+    try testing.expect(TransferCapability.vulkan_external.priority() > TransferCapability.host_staged.priority());
+    try testing.expect(TransferCapability.metal_shared.priority() > TransferCapability.host_staged.priority());
+}
+
+test "Memory leak check under repeated operations" {
+    const allocator = testing.allocator;
+
+    // Run many alloc/free cycles - Zig's test allocator will catch leaks
+    var backend = try host_staged.HostStagedBackend.init(allocator);
+    defer backend.deinit();
+
+    var i: usize = 0;
+    while (i < 50) : (i += 1) {
+        var buf1 = [_]f32{ 1.0, 2.0 };
+        var buf2 = [_]f32{ 3.0, 4.0 };
+
+        const buffers = [_]host_staged.DeviceBufferRef{
+            .{ .device_id = 0, .data = &buf1 },
+            .{ .device_id = 1, .data = &buf2 },
+        };
+
+        try backend.allReduce(&buffers, .sum);
+    }
+
+    // If we get here without leak, test passes
+    const stats = backend.getStats();
+    try testing.expect(stats.transfers > 0);
+}

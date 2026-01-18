@@ -747,12 +747,23 @@ fn createWebGPUVTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
 }
 
 fn createOpenGLVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
-    if (!isBackendAvailable(.opengl)) {
+    // Check if OpenGL is available at comptime
+    if (comptime !build_options.gpu_opengl) {
         return FactoryError.BackendNotAvailable;
     }
-    // For now, fall back to simulated backend
-    // TODO: Implement actual OpenGL VTable wrapper
-    return createSimulatedVTableBackend(allocator);
+
+    // Try to create real OpenGL backend
+    const opengl_vtable = @import("backends/opengl_vtable.zig");
+    return opengl_vtable.createOpenGLVTable(allocator) catch |err| {
+        return switch (err) {
+            error.NotAvailable => FactoryError.BackendNotAvailable,
+            error.DeviceNotFound => FactoryError.BackendNotAvailable,
+            error.DriverNotFound => FactoryError.BackendNotAvailable,
+            error.InitFailed => FactoryError.BackendInitializationFailed,
+            error.OutOfMemory => FactoryError.OutOfMemory,
+            else => FactoryError.BackendInitializationFailed,
+        };
+    };
 }
 
 // ============================================================================

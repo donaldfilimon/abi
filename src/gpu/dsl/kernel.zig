@@ -327,6 +327,14 @@ pub const BuiltinKernel = enum {
     batch_matmul, // Batched matrix multiply
     batch_cosine_similarity, // Batch cosine similarity for embeddings
 
+    // Vision operations (new)
+    conv2d, // 2D convolution using im2col + GEMM
+    max_pool2d, // Max pooling with indices for backward pass
+    avg_pool2d, // Average pooling
+    batch_norm2d, // Batch normalization for 2D (vision)
+    im2col, // Image to column transform (conv helper)
+    col2im, // Column to image transform (backward helper)
+
     /// Returns the minimum number of buffer bindings required.
     pub fn minBufferCount(self: BuiltinKernel) u8 {
         return switch (self) {
@@ -346,6 +354,13 @@ pub const BuiltinKernel = enum {
             .fused_linear_gelu => 4, // input, weight, bias, output
             .batch_matmul => 3, // a, b, c
             .batch_cosine_similarity => 3, // query, vectors, results
+            // Vision kernels
+            .conv2d => 4, // input, weights, bias, output
+            .max_pool2d => 3, // input, output, indices
+            .avg_pool2d => 2, // input, output
+            .batch_norm2d => 6, // input, gamma, beta, running_mean, running_var, output
+            .im2col => 2, // input, col_output
+            .col2im => 2, // col_input, output
         };
     }
 
@@ -354,6 +369,7 @@ pub const BuiltinKernel = enum {
         return switch (self) {
             .reduce_sum, .reduce_max, .reduce_min, .reduce_product, .dot_product => true,
             .layer_norm, .rms_norm, .batch_norm => true, // Need mean/variance reduction
+            .max_pool2d, .avg_pool2d, .batch_norm2d => true, // Vision pooling/norm needs reduction
             else => false,
         };
     }
@@ -366,6 +382,18 @@ pub const BuiltinKernel = enum {
             .fused_add_norm, .fused_linear_gelu => true,
             .batch_matmul, .batch_cosine_similarity => true,
             .softmax, .relu, .sigmoid, .tanh => true,
+            // Vision kernels
+            .conv2d, .max_pool2d, .avg_pool2d, .batch_norm2d => true,
+            .im2col, .col2im => true,
+            else => false,
+        };
+    }
+
+    /// Returns true if this is a vision/CNN kernel.
+    pub fn isVision(self: BuiltinKernel) bool {
+        return switch (self) {
+            .conv2d, .max_pool2d, .avg_pool2d, .batch_norm2d => true,
+            .im2col, .col2im => true,
             else => false,
         };
     }
@@ -405,6 +433,13 @@ pub const BuiltinKernel = enum {
             .fused_linear_gelu => "fused_linear_gelu",
             .batch_matmul => "batch_matmul",
             .batch_cosine_similarity => "batch_cosine_similarity",
+            // Vision kernels
+            .conv2d => "conv2d",
+            .max_pool2d => "max_pool2d",
+            .avg_pool2d => "avg_pool2d",
+            .batch_norm2d => "batch_norm2d",
+            .im2col => "im2col",
+            .col2im => "col2im",
         };
     }
 };
