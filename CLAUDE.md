@@ -145,12 +145,72 @@ defer framework.deinit();
 
 ## Zig 0.16 Patterns
 
+### Environment Initialization (CRITICAL)
+
+Zig 0.16 requires explicit I/O backend initialization for file and network operations. **Always initialize `std.Io.Threaded` before any file I/O.**
+
+```zig
+const std = @import("std");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Step 1: Initialize I/O backend with environment config
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,  // Use .empty for no env access
+    });
+    defer io_backend.deinit();
+
+    // Step 2: Get the I/O interface
+    const io = io_backend.io();
+
+    // Step 3: Use io for all file/network operations
+    const content = try std.Io.Dir.cwd().readFileAlloc(io, "file.txt", allocator, .limited(10 * 1024 * 1024));
+    defer allocator.free(content);
+}
+```
+
+**Environment options:**
+- `std.process.Environ.empty` - No env access (use for library code)
+- `std.process.Environ.init()` - Full env access (use for CLI apps)
+
 ### File I/O (std.Io.Threaded)
 ```zig
 var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
 defer io_backend.deinit();
 const io = io_backend.io();
 const content = try std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(10 * 1024 * 1024));
+```
+
+### File Write Operations
+```zig
+var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+defer io_backend.deinit();
+const io = io_backend.io();
+
+var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
+defer file.close(io);
+var writer = file.writer(io);
+try writer.writeAll(content);
+```
+
+### Directory Operations
+```zig
+var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+defer io_backend.deinit();
+const io = io_backend.io();
+
+// Create directory
+std.Io.Dir.cwd().makePath(io, "path/to/dir") catch |err| switch (err) {
+    error.PathAlreadyExists => {},
+    else => return err,
+};
+
+// Open and iterate directory
+var dir = try std.Io.Dir.cwd().openDir(io, "path", .{ .iterate = true });
+defer dir.close(io);
 ```
 
 ### Error/Enum Formatting
@@ -212,5 +272,7 @@ var server: std.http.Server = .init(
 - [API_REFERENCE.md](API_REFERENCE.md) - Public API reference
 - [docs/troubleshooting.md](docs/troubleshooting.md) - Common issues and solutions
 - [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) - Zig 0.16 patterns
+- [docs/todo.md](docs/todo.md) - Development TODO & Zig 0.16 environment init
+- [docs/agents.md](docs/agents.md) - Agents guide with environment setup
 - [docs/gpu.md](docs/gpu.md) - GPU backend details
 - [docs/ai.md](docs/ai.md) - AI module guide
