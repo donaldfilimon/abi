@@ -534,3 +534,59 @@ pub fn isAvailable() bool {
         return false;
     }
 }
+
+// ============================================================================
+// Device Enumeration (Task 4.2)
+// ============================================================================
+
+const Device = @import("../device.zig").Device;
+const DeviceType = @import("../device.zig").DeviceType;
+const Backend = @import("../backend.zig").Backend;
+
+/// Enumerate all Metal devices available on this Mac
+pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
+    if (!isAvailable()) {
+        return &[_]Device{};
+    }
+
+    var devices = std.ArrayList(Device).init(allocator);
+    errdefer devices.deinit();
+
+    // Initialize Metal if not already done
+    if (!metal_initialized) {
+        init(allocator) catch {
+            return &[_]Device{};
+        };
+    }
+
+    // Metal typically exposes the system default device
+    // On Apple Silicon, this is usually integrated
+    // On Intel Macs with discrete GPUs, we'd enumerate both
+    if (metal_device != null) {
+        const device_type: DeviceType = if (builtin.target.cpu.arch == .aarch64)
+            .integrated // Apple Silicon
+        else
+            .discrete; // Assume discrete on Intel Macs
+
+        try devices.append(.{
+            .id = 0,
+            .backend = .metal,
+            .name = "Metal GPU",
+            .device_type = device_type,
+            .total_memory = null, // Would need to query via Metal API
+            .available_memory = null,
+            .is_emulated = false,
+            .capability = .{
+                .supports_fp16 = true, // Metal supports FP16
+                .supports_fp64 = false, // Metal doesn't support FP64 compute
+                .supports_int8 = true,
+                .supports_async_transfers = true,
+                .unified_memory = builtin.target.cpu.arch == .aarch64,
+            },
+            .compute_units = null, // Would need MTLDevice properties
+            .clock_mhz = null,
+        });
+    }
+
+    return devices.toOwnedSlice();
+}
