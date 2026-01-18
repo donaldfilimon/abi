@@ -118,6 +118,8 @@ pub const TaskTool = features_ai.TaskTool;
 pub const Subagent = features_ai.Subagent;
 pub const DiscordTools = features_ai.DiscordTools;
 pub const registerDiscordTools = features_ai.registerDiscordTools;
+pub const OsTools = features_ai.OsTools;
+pub const registerOsTools = features_ai.registerOsTools;
 
 // Transformer
 pub const transformer = features_ai.transformer;

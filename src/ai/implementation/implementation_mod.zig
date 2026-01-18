@@ -66,6 +66,8 @@ pub const TaskTool = tools.TaskTool;
 pub const Subagent = tools.Subagent;
 pub const DiscordTools = tools.DiscordTools;
 pub const registerDiscordTools = tools.registerDiscordTools;
+pub const OsTools = tools.OsTools;
+pub const registerOsTools = tools.registerOsTools;
 
 pub const ExploreAgent = explore.ExploreAgent;
 pub const ExploreConfig = explore.ExploreConfig;

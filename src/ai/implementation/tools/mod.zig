@@ -1,6 +1,7 @@
 pub const tool = @import("tool.zig");
 pub const task = @import("task.zig");
 pub const discord_tools = @import("discord.zig");
+pub const os_tools = @import("os_tools.zig");
 
 pub const Tool = tool.Tool;
 pub const ToolResult = tool.ToolResult;
@@ -18,3 +19,7 @@ pub const TaskStatus = task.TaskStatus;
 // Discord tool exports
 pub const DiscordTools = discord_tools;
 pub const registerDiscordTools = discord_tools.registerAll;
+
+// OS tool exports
+pub const OsTools = os_tools;
+pub const registerOsTools = os_tools.registerAll;
