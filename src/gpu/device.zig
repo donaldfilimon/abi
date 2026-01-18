@@ -412,6 +412,160 @@ pub fn getBestKernelBackend(allocator: std.mem.Allocator) !Backend {
 }
 
 // ============================================================================
+// Multi-GPU Device Enumeration (Task 1.1)
+// ============================================================================
+
+/// Structured device selection criteria (alternative to union-based DeviceSelector).
+pub const DeviceSelectionCriteria = struct {
+    prefer_discrete: bool = false,
+    min_memory_gb: u64 = 0,
+    required_features: []const DeviceFeature = &.{},
+};
+
+/// Enumerate all available GPU devices across all backends.
+pub fn enumerateAllDevices(allocator: std.mem.Allocator) ![]Device {
+    var devices = std.ArrayList(Device).init(allocator);
+    errdefer devices.deinit();
+
+    var device_id: u32 = 0;
+
+    // Try each backend
+    inline for (std.meta.tags(Backend)) |backend_tag| {
+        const backend_devices = enumerateDevicesForBackend(allocator, backend_tag) catch continue;
+        defer allocator.free(backend_devices);
+
+        for (backend_devices) |dev| {
+            var dev_copy = dev;
+            dev_copy.id = device_id;
+            device_id += 1;
+            try devices.append(dev_copy);
+        }
+    }
+
+    return devices.toOwnedSlice();
+}
+
+/// Enumerate devices for a specific backend.
+pub fn enumerateDevicesForBackend(
+    allocator: std.mem.Allocator,
+    backend_type: Backend,
+) ![]Device {
+    if (!backend_mod.backendAvailability(backend_type).available) {
+        return &[_]Device{};
+    }
+
+    return switch (backend_type) {
+        .cuda => try enumerateCudaDevices(allocator),
+        .vulkan => try enumerateVulkanDevices(allocator),
+        .metal => try enumerateMetalDevices(allocator),
+        .webgpu => try enumerateWebGPUDevices(allocator),
+        .opengl, .opengles => try enumerateOpenGLDevices(allocator),
+        .stdgpu => try enumerateStdgpuDevices(allocator),
+        .webgl2 => &[_]Device{}, // Not yet implemented
+    };
+}
+
+/// Select the best device based on criteria.
+pub fn selectBestDevice(
+    allocator: std.mem.Allocator,
+    criteria: DeviceSelectionCriteria,
+) !?Device {
+    const all_devices = try enumerateAllDevices(allocator);
+    defer allocator.free(all_devices);
+
+    if (all_devices.len == 0) return null;
+
+    var best: ?Device = null;
+    var best_score: u32 = 0;
+
+    for (all_devices) |dev| {
+        if (!meetsRequirements(dev, criteria)) continue;
+
+        const score_val = dev.score();
+        if (score_val > best_score) {
+            best = dev;
+            best_score = score_val;
+        }
+    }
+
+    return best;
+}
+
+fn meetsRequirements(dev: Device, criteria: DeviceSelectionCriteria) bool {
+    if (criteria.prefer_discrete and dev.device_type != .discrete) {
+        if (dev.device_type != .integrated) return false;
+    }
+
+    if (criteria.min_memory_gb > 0) {
+        if (dev.total_memory) |mem| {
+            const gb = mem / (1024 * 1024 * 1024);
+            if (gb < criteria.min_memory_gb) return false;
+        } else {
+            return false; // Unknown memory doesn't meet requirement
+        }
+    }
+
+    for (criteria.required_features) |feature| {
+        if (!dev.supportsFeature(feature)) return false;
+    }
+
+    return true;
+}
+
+// ============================================================================
+// Per-backend device enumeration stubs
+// ============================================================================
+
+fn enumerateCudaDevices(allocator: std.mem.Allocator) ![]Device {
+    const cuda = @import("backends/cuda/mod.zig");
+    return cuda.enumerateDevices(allocator) catch &[_]Device{};
+}
+
+fn enumerateVulkanDevices(allocator: std.mem.Allocator) ![]Device {
+    const vulkan = @import("backends/vulkan.zig");
+    return vulkan.enumerateDevices(allocator) catch &[_]Device{};
+}
+
+fn enumerateMetalDevices(allocator: std.mem.Allocator) ![]Device {
+    const metal = @import("backends/metal.zig");
+    return metal.enumerateDevices(allocator) catch &[_]Device{};
+}
+
+fn enumerateWebGPUDevices(allocator: std.mem.Allocator) ![]Device {
+    const webgpu = @import("backends/webgpu.zig");
+    return webgpu.enumerateDevices(allocator) catch &[_]Device{};
+}
+
+fn enumerateOpenGLDevices(allocator: std.mem.Allocator) ![]Device {
+    const opengl = @import("backends/opengl.zig");
+    return opengl.enumerateDevices(allocator) catch &[_]Device{};
+}
+
+fn enumerateStdgpuDevices(allocator: std.mem.Allocator) ![]Device {
+    const devices_slice = try allocator.alloc(Device, 1);
+    devices_slice[0] = .{
+        .id = 0,
+        .backend = .stdgpu,
+        .name = "CPU Fallback",
+        .device_type = .cpu,
+        .total_memory = null,
+        .available_memory = null,
+        .is_emulated = true,
+        .capability = .{
+            .supports_fp16 = false,
+            .supports_fp64 = true,
+            .supports_int8 = true,
+            .supports_async_transfers = false,
+            .unified_memory = true,
+        },
+        .compute_units = null,
+        .clock_mhz = null,
+    };
+
+    return devices_slice;
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
