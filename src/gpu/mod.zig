@@ -389,6 +389,7 @@ pub const Context = struct {
             .metal => .metal,
             .webgpu => .webgpu,
             .opengl => .opengl,
+            .fpga => .fpga,
             .cpu => .stdgpu, // CPU fallback uses stdgpu backend
         };
 
