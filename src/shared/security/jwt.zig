@@ -445,7 +445,14 @@ pub const JwtManager = struct {
             .hs256 => try self.signHmac(input, crypto.auth.hmac.sha2.HmacSha256),
             .hs384 => try self.signHmac(input, crypto.auth.hmac.sha2.HmacSha384),
             .hs512 => try self.signHmac(input, crypto.auth.hmac.sha2.HmacSha512),
-            .rs256 => return error.NotImplemented, // TODO: RSA signing
+            // RS256: RSA signing not yet implemented
+            // Requirements:
+            // - RSA private key support in JwtManager
+            // - PKCS#1 v1.5 or PSS signature scheme
+            // - PEM/DER key loading
+            // Note: std.crypto does not currently provide RSA signing APIs
+            // Consider using external library (mbedtls, openssl bindings) or wait for std.crypto RSA support
+            .rs256 => return error.RsaSigningNotSupported,
             .none => try self.allocator.dupe(u8, ""),
         };
     }
@@ -478,7 +485,9 @@ pub const JwtManager = struct {
             .hs256 => try self.signHmac(input, crypto.auth.hmac.sha2.HmacSha256),
             .hs384 => try self.signHmac(input, crypto.auth.hmac.sha2.HmacSha384),
             .hs512 => try self.signHmac(input, crypto.auth.hmac.sha2.HmacSha512),
-            .rs256 => return error.NotImplemented,
+            // RS256: RSA verification requires public key and RSA signature verification
+            // See sign() function for implementation requirements
+            .rs256 => return error.RsaSigningNotSupported,
             .none => unreachable,
         };
         defer self.allocator.free(expected);
@@ -688,7 +697,8 @@ pub const JwtError = error{
     NoTokenId,
     TokenNotVerified,
     InvalidBase64,
-    NotImplemented,
+    /// RSA signing (RS256) not supported - requires external RSA cryptography library
+    RsaSigningNotSupported,
     OutOfMemory,
 };
 

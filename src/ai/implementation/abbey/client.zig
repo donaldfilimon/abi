@@ -285,7 +285,30 @@ pub const OpenAIBackend = struct {
     pub fn complete(self: *Self, request: CompletionRequest) ClientError!CompletionResponse {
         _ = self;
         _ = request;
-        // In production, would make HTTP request to OpenAI API
+        // OpenAI API integration not yet implemented
+        // Requirements:
+        // - HTTP client with HTTPS support (use src/web/client.zig)
+        // - Request headers: Authorization: Bearer {api_key}, Content-Type: application/json
+        // - POST to: {base_url}/chat/completions (default: https://api.openai.com/v1)
+        // - JSON request body:
+        //   {
+        //     "model": "gpt-4",
+        //     "messages": [{"role": "user", "content": "..."}],
+        //     "temperature": 0.7,
+        //     "max_tokens": 2048,
+        //     "stream": false
+        //   }
+        // - Parse JSON response:
+        //   {
+        //     "choices": [{"message": {"content": "..."}, "finish_reason": "stop"}],
+        //     "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}
+        //   }
+        // - Error handling: 401 (invalid API key), 429 (rate limit), 500 (server error)
+        // - Optional: Streaming support for incremental responses
+        // - Optional: Token usage tracking and cost estimation
+        //
+        // References:
+        // - https://platform.openai.com/docs/api-reference/chat/create
         return error.NotImplemented;
     }
 
@@ -325,7 +348,29 @@ pub const OllamaBackend = struct {
     pub fn complete(self: *Self, request: CompletionRequest) ClientError!CompletionResponse {
         _ = self;
         _ = request;
-        // In production, would make HTTP request to Ollama
+        // Ollama API integration not yet implemented
+        // Requirements:
+        // - HTTP client (use src/web/client.zig)
+        // - POST to: {host}/api/chat (default: http://127.0.0.1:11434)
+        // - JSON request body:
+        //   {
+        //     "model": "llama2",
+        //     "messages": [{"role": "user", "content": "..."}],
+        //     "stream": false,
+        //     "options": {"temperature": 0.7}
+        //   }
+        // - Parse JSON response:
+        //   {
+        //     "message": {"role": "assistant", "content": "..."},
+        //     "done": true,
+        //     "total_duration": 5000000000
+        //   }
+        // - Error handling: Connection refused (Ollama not running), timeouts, server errors
+        // - Optional: Streaming support with newline-delimited JSON
+        // - Optional: Model management (pull, list models)
+        //
+        // References:
+        // - https://github.com/ollama/ollama/blob/main/docs/api.md
         return error.NotImplemented;
     }
 
