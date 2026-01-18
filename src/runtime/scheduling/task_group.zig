@@ -4,7 +4,7 @@
 //! managing groups of tasks with collective wait operations.
 
 const std = @import("std");
-const time = @import("../../shared/utils/time.zig");
+const time = @import("../../shared/time.zig");
 const cancellation_mod = @import("cancellation.zig");
 const future_mod = @import("future.zig");
 

@@ -2,6 +2,9 @@
 //!
 //! Provides cross-platform time functionality that works on all targets
 //! including WASM where std.time.Instant is not available.
+//!
+//! On WASM: Uses std.crypto.random for entropy-based seeding since
+//! monotonic timers are unavailable. Timing functions return 0.
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -12,6 +15,9 @@ pub const has_instant = !isWasmTarget();
 fn isWasmTarget() bool {
     return builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
 }
+
+/// Thread-safe counter for WASM fallback uniqueness
+var wasm_counter: std.atomic.Value(u64) = .{ .raw = 0 };
 
 /// Platform-aware Instant type
 /// On native platforms, this is std.time.Instant
@@ -73,6 +79,32 @@ pub fn timestampSec() u64 {
     return timestampNs() / std.time.ns_per_s;
 }
 
+/// Get a seed value suitable for PRNG initialization.
+/// On native platforms: uses monotonic timestamp for uniqueness.
+/// On WASM: uses std.crypto.random for true randomness.
+/// This should be used instead of timestampNs() for seeding PRNGs.
+pub fn getSeed() u64 {
+    if (has_instant) {
+        // On native platforms, timestamp provides good uniqueness
+        return timestampNs();
+    } else {
+        // On WASM, use cryptographic randomness + counter for uniqueness
+        var seed_bytes: [8]u8 = undefined;
+        std.crypto.random.bytes(&seed_bytes);
+        const random_part = std.mem.readInt(u64, &seed_bytes, .little);
+        // Add counter to ensure uniqueness even if crypto.random has issues
+        const counter = wasm_counter.fetchAdd(1, .monotonic);
+        return random_part ^ counter;
+    }
+}
+
+/// Get a unique ID (useful for node IDs, etc.)
+/// On WASM, uses cryptographic randomness for uniqueness.
+pub fn getUniqueId() u64 {
+    var prng = std.Random.DefaultPrng.init(getSeed());
+    return prng.random().int(u64);
+}
+
 test "instant on native platform" {
     if (has_instant) {
         const start = now();
@@ -82,4 +114,21 @@ test "instant on native platform" {
         // elapsed should be >= 0
         try std.testing.expect(elapsed(start, end) >= 0);
     }
+}
+
+test "getSeed returns unique values" {
+    const seed1 = getSeed();
+    const seed2 = getSeed();
+    const seed3 = getSeed();
+    // Seeds should be different (with very high probability)
+    try std.testing.expect(seed1 != seed2 or seed2 != seed3);
+}
+
+test "getUniqueId returns unique values" {
+    const id1 = getUniqueId();
+    const id2 = getUniqueId();
+    const id3 = getUniqueId();
+    // IDs should be different
+    try std.testing.expect(id1 != id2);
+    try std.testing.expect(id2 != id3);
 }

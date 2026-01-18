@@ -4,7 +4,7 @@
 //! to minimize overhead from command buffer creation/destruction.
 
 const std = @import("std");
-const time = @import("../../shared/utils/time.zig");
+const time = @import("../../shared/time.zig");
 const types = @import("vulkan_types.zig");
 const init = @import("vulkan_init.zig");
 

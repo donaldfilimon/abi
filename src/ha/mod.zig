@@ -248,10 +248,8 @@ pub const HaManager = struct {
     }
 
     fn generateNodeId() u64 {
-        // Use platform-aware time for entropy seed
-        const seed = platform_time.timestampNs();
-        var prng = std.Random.DefaultPrng.init(seed);
-        return prng.random().int(u64);
+        // Use platform-aware unique ID (crypto random on WASM, timestamp-based on native)
+        return platform_time.getUniqueId();
     }
 };
 

@@ -1,8 +1,8 @@
 # Performance Baseline Document
 
-**Date**: 2025-01-03
+**Date**: 2026-01-18
 **Zig Version**: 0.16.0
-**Framework Version**: 0.1.0
+**Framework Version**: 0.3.0
 
 ## Purpose
 
@@ -232,8 +232,8 @@ For critical code paths:
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2025-01-03
+**Document Version**: 1.1
+**Last Updated**: 2026-01-18
 
 ---
 
