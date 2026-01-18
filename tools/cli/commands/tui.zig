@@ -1212,6 +1212,14 @@ fn renderStatusBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
     try term.write(theme.text_dim);
     try term.write(os_name);
 
+    // CPU count
+    var cpu_buf: [16]u8 = undefined;
+    const cpu_str = std.fmt.bufPrint(&cpu_buf, " │ {d} CPU", .{cpu_count}) catch "";
+    try term.write(cpu_str);
+
+    // TTY indicator
+    try term.write(if (is_tty) " │ TTY" else " │ pipe");
+
     // Item count
     var count_buf: [32]u8 = undefined;
     const count_str = std.fmt.bufPrint(&count_buf, " │ {d}/{d} items", .{
@@ -1221,7 +1229,7 @@ fn renderStatusBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
     try term.write(count_str);
     try term.write(theme.reset);
 
-    const used = 2 + os_name.len + count_str.len;
+    const used = 2 + os_name.len + cpu_str.len + 7 + count_str.len; // 7 for TTY/pipe indicator
     if (used < width - 1) {
         try writeRepeat(term, " ", width - 1 - used);
     }

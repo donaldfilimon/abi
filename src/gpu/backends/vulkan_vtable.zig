@@ -110,8 +110,7 @@ pub const VulkanBackend = struct {
     pub fn getDeviceCount(self: *Self) u32 {
         _ = self;
         if (!vulkan_init.vulkan_initialized) return 0;
-        // For now, return 1 if initialized (simplified)
-        return 1;
+        return vulkan_init.getPhysicalDeviceCount();
     }
 
     /// Get device capabilities.
