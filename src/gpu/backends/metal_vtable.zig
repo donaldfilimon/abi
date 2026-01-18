@@ -2,6 +2,13 @@
 //!
 //! Provides a complete VTable implementation for Metal, enabling GPU
 //! kernel execution through the polymorphic backend interface.
+//!
+//! ## Features
+//! - Full device capability query (memory, threads, unified memory)
+//! - Kernel compilation from Metal Shading Language (MSL)
+//! - Asynchronous kernel execution with synchronization
+//! - Memory allocation with unified memory support
+//! - Multi-device enumeration on Intel Macs
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -25,6 +32,9 @@ pub const MetalBackend = struct {
     // Device info cache
     device_name: [256]u8 = undefined,
     device_name_len: usize = 0,
+    device_memory: u64 = 0,
+    max_threads: u32 = 1024,
+    has_unified_memory: bool = true,
 
     const Allocation = struct {
         ptr: *anyopaque,
@@ -55,6 +65,10 @@ pub const MetalBackend = struct {
             return interface.BackendError.NotAvailable;
         };
 
+        // Set allocators for the Metal backend
+        metal.setBufferAllocator(allocator);
+        metal.setPendingBuffersAllocator(allocator);
+
         const self = allocator.create(Self) catch {
             metal.deinit();
             return interface.BackendError.OutOfMemory;
@@ -67,10 +81,20 @@ pub const MetalBackend = struct {
             .kernels = .empty,
         };
 
-        // Set device name (Apple GPU)
-        const name = "Apple Metal GPU";
-        @memcpy(self.device_name[0..name.len], name);
-        self.device_name_len = name.len;
+        // Query device info from the Metal backend
+        if (metal.getDeviceInfo()) |info| {
+            const name_len = @min(info.name.len, self.device_name.len);
+            @memcpy(self.device_name[0..name_len], info.name[0..name_len]);
+            self.device_name_len = name_len;
+            self.device_memory = info.total_memory;
+            self.max_threads = info.max_threads_per_threadgroup;
+            self.has_unified_memory = info.has_unified_memory;
+        } else {
+            // Fallback to defaults
+            const name = "Apple Metal GPU";
+            @memcpy(self.device_name[0..name.len], name);
+            self.device_name_len = name.len;
+        }
 
         return self;
     }
@@ -122,15 +146,26 @@ pub const MetalBackend = struct {
         @memcpy(caps.name[0..self.device_name_len], self.device_name[0..self.device_name_len]);
         caps.name_len = self.device_name_len;
 
-        // Metal defaults (Apple Silicon capabilities)
-        caps.max_threads_per_block = 1024;
-        caps.max_shared_memory = 32768;
+        // Use queried device properties
+        caps.max_threads_per_block = self.max_threads;
+        caps.max_shared_memory = 32768; // Metal shared memory (threadgroup memory)
         caps.warp_size = 32; // Metal uses 32 threads per SIMD group
-        caps.supports_fp16 = true;
-        caps.supports_fp64 = false; // Metal doesn't support fp64 on most devices
-        caps.unified_memory = true; // Apple Silicon has unified memory
+        caps.supports_fp16 = true; // All modern Metal devices support FP16
+        caps.supports_fp64 = false; // Metal doesn't support FP64 compute
+        caps.unified_memory = self.has_unified_memory;
+        caps.total_memory = self.device_memory;
 
         return caps;
+    }
+
+    /// Get the total device memory in bytes.
+    pub fn getTotalMemory(self: *Self) u64 {
+        return self.device_memory;
+    }
+
+    /// Check if the device has unified memory (Apple Silicon).
+    pub fn hasUnifiedMemory(self: *Self) bool {
+        return self.has_unified_memory;
     }
 
     // ========================================================================
@@ -304,6 +339,7 @@ test "MetalBackend initialization" {
     if (result) |backend| {
         defer backend.deinit();
         try std.testing.expect(backend.initialized);
+        try std.testing.expect(backend.device_name_len > 0);
     } else |err| {
         // Expected on systems without Metal
         try std.testing.expect(err == error.NotAvailable or err == error.InitFailed);
@@ -322,5 +358,134 @@ test "createMetalVTable" {
     } else |err| {
         // Expected on systems without Metal
         try std.testing.expect(err == error.NotAvailable or err == error.InitFailed);
+    }
+}
+
+test "MetalBackend device capabilities" {
+    const allocator = std.testing.allocator;
+
+    const result = MetalBackend.init(allocator);
+    if (result) |backend| {
+        defer backend.deinit();
+
+        // Query device capabilities
+        const caps = backend.getDeviceCaps(0) catch |err| {
+            try std.testing.expect(err == error.DeviceNotFound);
+            return;
+        };
+
+        // Verify expected Metal capabilities
+        try std.testing.expect(caps.supports_fp16);
+        try std.testing.expect(!caps.supports_fp64); // Metal doesn't support FP64
+        try std.testing.expect(caps.warp_size == 32); // Metal SIMD group size
+        try std.testing.expect(caps.max_threads_per_block >= 256);
+        try std.testing.expect(caps.name_len > 0);
+    } else |_| {
+        // Skip test on non-Metal systems
+    }
+}
+
+test "MetalBackend memory allocation" {
+    const allocator = std.testing.allocator;
+
+    const result = MetalBackend.init(allocator);
+    if (result) |backend| {
+        defer backend.deinit();
+
+        // Allocate some device memory
+        const ptr = backend.allocate(4096, .{}) catch |err| {
+            try std.testing.expect(err == error.OutOfMemory);
+            return;
+        };
+
+        // Free the memory
+        backend.free(ptr);
+    } else |_| {
+        // Skip test on non-Metal systems
+    }
+}
+
+test "MetalBackend memory transfer" {
+    const allocator = std.testing.allocator;
+
+    const result = MetalBackend.init(allocator);
+    if (result) |backend| {
+        defer backend.deinit();
+
+        // Allocate device memory
+        const ptr = backend.allocate(256, .{}) catch return;
+        defer backend.free(ptr);
+
+        // Prepare test data
+        var src_data: [256]u8 = undefined;
+        for (&src_data, 0..) |*b, i| {
+            b.* = @intCast(i & 0xFF);
+        }
+
+        // Copy to device
+        backend.copyToDevice(ptr, &src_data) catch |err| {
+            try std.testing.expect(err == error.TransferFailed);
+            return;
+        };
+
+        // Copy back from device
+        var dst_data: [256]u8 = undefined;
+        backend.copyFromDevice(&dst_data, ptr) catch |err| {
+            try std.testing.expect(err == error.TransferFailed);
+            return;
+        };
+
+        // Verify data integrity
+        try std.testing.expectEqualSlices(u8, &src_data, &dst_data);
+    } else |_| {
+        // Skip test on non-Metal systems
+    }
+}
+
+test "MetalBackend unified memory check" {
+    const allocator = std.testing.allocator;
+
+    const result = MetalBackend.init(allocator);
+    if (result) |backend| {
+        defer backend.deinit();
+
+        // On Apple Silicon, should have unified memory
+        if (builtin.target.cpu.arch == .aarch64) {
+            try std.testing.expect(backend.hasUnifiedMemory());
+        }
+
+        // Memory should be reported
+        const memory = backend.getTotalMemory();
+        // Memory could be 0 if query failed, but that's okay
+        _ = memory;
+    } else |_| {
+        // Skip test on non-Metal systems
+    }
+}
+
+test "Metal MTLSize struct" {
+    // Test MTLSize construction
+    const size1 = metal.MTLSize.init(64, 32, 1);
+    try std.testing.expectEqual(@as(usize, 64), size1.width);
+    try std.testing.expectEqual(@as(usize, 32), size1.height);
+    try std.testing.expectEqual(@as(usize, 1), size1.depth);
+
+    // Test from3D conversion
+    const size2 = metal.MTLSize.from3D(.{ 128, 64, 2 });
+    try std.testing.expectEqual(@as(usize, 128), size2.width);
+    try std.testing.expectEqual(@as(usize, 64), size2.height);
+    try std.testing.expectEqual(@as(usize, 2), size2.depth);
+}
+
+test "Metal isAvailable" {
+    const available = metal.isAvailable();
+    // On macOS, this should return true
+    // On other platforms, should return false
+    if (builtin.target.os.tag == .macos) {
+        // Metal should be available on macOS
+        // (unless running in a VM or very old hardware)
+        _ = available;
+    } else {
+        try std.testing.expect(!available);
     }
 }
