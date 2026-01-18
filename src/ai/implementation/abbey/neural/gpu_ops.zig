@@ -30,6 +30,9 @@ else
                 pub fn silu(_: *@This(), _: u64, _: u32, _: ?*anyopaque) !void {
                     return error.NotAvailable;
                 }
+                pub fn gelu(_: *@This(), _: u64, _: u32, _: ?*anyopaque) !void {
+                    return error.NotAvailable;
+                }
                 pub fn elementwiseMul(_: *@This(), _: u64, _: u64, _: u32, _: ?*anyopaque) !void {
                     return error.NotAvailable;
                 }
@@ -626,8 +629,7 @@ pub const GpuOpsContext = struct {
     }
 
     fn geluGpu(self: *Self, x: []f32) !void {
-        // Note: Using SiLU kernel as approximation if GELU not available
-        // TODO: Add dedicated GELU kernel
+        // Use dedicated GELU kernel for GPU acceleration
         if (self.llm_kernels) |*kernels| {
             var timer = std.time.Timer.start() catch null;
 
@@ -636,7 +638,16 @@ pub const GpuOpsContext = struct {
             defer x_dev.deinit();
 
             try cuda_mod.memory.memcpyHostToDevice(x_dev.ptr.?, @ptrCast(x.ptr), size);
-            try kernels.silu(@intFromPtr(x_dev.ptr.?), @intCast(x.len), null);
+
+            // Try dedicated GELU kernel first
+            kernels.gelu(@intFromPtr(x_dev.ptr.?), @intCast(x.len), null) catch {
+                // Fall back to CPU implementation if GELU kernel not available
+                try cuda_mod.memory.memcpyDeviceToHost(@ptrCast(x.ptr), x_dev.ptr.?, size);
+                self.geluCpu(x);
+                self.stats.addOp(if (timer) |*t| t.read() else 0, false);
+                return;
+            };
+
             try cuda_mod.memory.memcpyDeviceToHost(@ptrCast(x.ptr), x_dev.ptr.?, size);
 
             self.stats.addOp(if (timer) |*t| t.read() else 0, true);

@@ -296,6 +296,11 @@ pub const PasswordHasher = struct {
         ) catch return error.HashingFailed;
 
         // Encode to PHC format: $argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>
+        const b64_salt = try self.base64Encode(salt_slice);
+        defer self.allocator.free(b64_salt);
+        const b64_hash = try self.base64Encode(hash_slice);
+        defer self.allocator.free(b64_hash);
+
         const encoded = try std.fmt.allocPrint(
             self.allocator,
             "$argon2id$v=19$m={d},t={d},p={d}${s}${s}",
@@ -303,8 +308,8 @@ pub const PasswordHasher = struct {
                 params.memory_cost,
                 params.time_cost,
                 params.parallelism,
-                std.base64.standard.Encoder.encode(&[_]u8{}, salt_slice), // TODO: proper encoding
-                std.base64.standard.Encoder.encode(&[_]u8{}, hash_slice),
+                b64_salt,
+                b64_hash,
             },
         );
 
@@ -583,9 +588,57 @@ fn parseArgon2Encoded(encoded: []const u8) ?ParsedArgon2 {
     // Format: $argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>
     if (!std.mem.startsWith(u8, encoded, "$argon2id$")) return null;
 
-    // Simplified parsing - in production would be more robust
-    _ = encoded;
-    return null; // TODO: implement full parsing
+    var parts = std.mem.splitScalar(u8, encoded, '$');
+
+    // Skip empty first part (before first $)
+    _ = parts.next() orelse return null;
+    // Skip "argon2id"
+    _ = parts.next() orelse return null;
+    // Skip version "v=19"
+    _ = parts.next() orelse return null;
+
+    // Parse parameters "m=65536,t=3,p=4"
+    const params_str = parts.next() orelse return null;
+    var memory_cost: u32 = 0;
+    var time_cost: u32 = 0;
+    var parallelism: u8 = 0;
+
+    var param_parts = std.mem.splitScalar(u8, params_str, ',');
+    while (param_parts.next()) |param| {
+        if (std.mem.startsWith(u8, param, "m=")) {
+            memory_cost = std.fmt.parseInt(u32, param[2..], 10) catch return null;
+        } else if (std.mem.startsWith(u8, param, "t=")) {
+            time_cost = std.fmt.parseInt(u32, param[2..], 10) catch return null;
+        } else if (std.mem.startsWith(u8, param, "p=")) {
+            parallelism = std.fmt.parseInt(u8, param[2..], 10) catch return null;
+        }
+    }
+
+    // Get salt (base64 encoded)
+    const salt_b64 = parts.next() orelse return null;
+    // Get hash (base64 encoded)
+    const hash_b64 = parts.next() orelse return null;
+
+    // Decode base64 - we need static buffers for the parsed result
+    const decoder = std.base64.standard.Decoder;
+    var salt_buf: [64]u8 = undefined;
+    var hash_buf: [64]u8 = undefined;
+
+    const salt_len = decoder.calcSizeForSlice(salt_b64) catch return null;
+    const hash_len = decoder.calcSizeForSlice(hash_b64) catch return null;
+
+    if (salt_len > salt_buf.len or hash_len > hash_buf.len) return null;
+
+    decoder.decode(salt_buf[0..salt_len], salt_b64) catch return null;
+    decoder.decode(hash_buf[0..hash_len], hash_b64) catch return null;
+
+    return ParsedArgon2{
+        .salt = salt_buf[0..salt_len],
+        .hash = hash_buf[0..hash_len],
+        .memory_cost = memory_cost,
+        .time_cost = time_cost,
+        .parallelism = parallelism,
+    };
 }
 
 const ParsedPbkdf2 = struct {
@@ -595,9 +648,49 @@ const ParsedPbkdf2 = struct {
 };
 
 fn parsePbkdf2Encoded(encoded: []const u8) ?ParsedPbkdf2 {
+    // Format: $pbkdf2-sha256$i=600000$<salt>$<hash>
+    // or: $pbkdf2-sha512$i=600000$<salt>$<hash>
     if (!std.mem.startsWith(u8, encoded, "$pbkdf2-")) return null;
-    _ = encoded;
-    return null; // TODO: implement full parsing
+
+    var parts = std.mem.splitScalar(u8, encoded, '$');
+
+    // Skip empty first part
+    _ = parts.next() orelse return null;
+    // Skip algorithm identifier (pbkdf2-sha256 or pbkdf2-sha512)
+    _ = parts.next() orelse return null;
+
+    // Parse iterations "i=600000"
+    const iter_str = parts.next() orelse return null;
+    var iterations: u32 = 0;
+    if (std.mem.startsWith(u8, iter_str, "i=")) {
+        iterations = std.fmt.parseInt(u32, iter_str[2..], 10) catch return null;
+    } else {
+        return null;
+    }
+
+    // Get salt (base64 encoded)
+    const salt_b64 = parts.next() orelse return null;
+    // Get hash (base64 encoded)
+    const hash_b64 = parts.next() orelse return null;
+
+    // Decode base64
+    const decoder = std.base64.standard.Decoder;
+    var salt_buf: [64]u8 = undefined;
+    var hash_buf: [64]u8 = undefined;
+
+    const salt_len = decoder.calcSizeForSlice(salt_b64) catch return null;
+    const hash_len = decoder.calcSizeForSlice(hash_b64) catch return null;
+
+    if (salt_len > salt_buf.len or hash_len > hash_buf.len) return null;
+
+    decoder.decode(salt_buf[0..salt_len], salt_b64) catch return null;
+    decoder.decode(hash_buf[0..hash_len], hash_b64) catch return null;
+
+    return ParsedPbkdf2{
+        .salt = salt_buf[0..salt_len],
+        .hash = hash_buf[0..hash_len],
+        .iterations = iterations,
+    };
 }
 
 const ParsedScrypt = struct {
@@ -609,9 +702,58 @@ const ParsedScrypt = struct {
 };
 
 fn parseScryptEncoded(encoded: []const u8) ?ParsedScrypt {
+    // Format: $scrypt$ln=15,r=8,p=1$<salt>$<hash>
     if (!std.mem.startsWith(u8, encoded, "$scrypt$")) return null;
-    _ = encoded;
-    return null; // TODO: implement full parsing
+
+    var parts = std.mem.splitScalar(u8, encoded, '$');
+
+    // Skip empty first part
+    _ = parts.next() orelse return null;
+    // Skip "scrypt"
+    _ = parts.next() orelse return null;
+
+    // Parse parameters "ln=15,r=8,p=1"
+    const params_str = parts.next() orelse return null;
+    var log_n: u6 = 0;
+    var r: u30 = 0;
+    var p: u30 = 0;
+
+    var param_parts = std.mem.splitScalar(u8, params_str, ',');
+    while (param_parts.next()) |param| {
+        if (std.mem.startsWith(u8, param, "ln=")) {
+            log_n = std.fmt.parseInt(u6, param[3..], 10) catch return null;
+        } else if (std.mem.startsWith(u8, param, "r=")) {
+            r = std.fmt.parseInt(u30, param[2..], 10) catch return null;
+        } else if (std.mem.startsWith(u8, param, "p=")) {
+            p = std.fmt.parseInt(u30, param[2..], 10) catch return null;
+        }
+    }
+
+    // Get salt (base64 encoded)
+    const salt_b64 = parts.next() orelse return null;
+    // Get hash (base64 encoded)
+    const hash_b64 = parts.next() orelse return null;
+
+    // Decode base64
+    const decoder = std.base64.standard.Decoder;
+    var salt_buf: [64]u8 = undefined;
+    var hash_buf: [64]u8 = undefined;
+
+    const salt_len = decoder.calcSizeForSlice(salt_b64) catch return null;
+    const hash_len = decoder.calcSizeForSlice(hash_b64) catch return null;
+
+    if (salt_len > salt_buf.len or hash_len > hash_buf.len) return null;
+
+    decoder.decode(salt_buf[0..salt_len], salt_b64) catch return null;
+    decoder.decode(hash_buf[0..hash_len], hash_b64) catch return null;
+
+    return ParsedScrypt{
+        .salt = salt_buf[0..salt_len],
+        .hash = hash_buf[0..hash_len],
+        .log_n = log_n,
+        .r = r,
+        .p = p,
+    };
 }
 
 const ParsedBlake3 = struct {
@@ -620,9 +762,38 @@ const ParsedBlake3 = struct {
 };
 
 fn parseBlake3Encoded(encoded: []const u8) ?ParsedBlake3 {
+    // Format: $blake3$<salt>$<hash>
     if (!std.mem.startsWith(u8, encoded, "$blake3$")) return null;
-    _ = encoded;
-    return null; // TODO: implement full parsing
+
+    var parts = std.mem.splitScalar(u8, encoded, '$');
+
+    // Skip empty first part
+    _ = parts.next() orelse return null;
+    // Skip "blake3"
+    _ = parts.next() orelse return null;
+
+    // Get salt (base64 encoded)
+    const salt_b64 = parts.next() orelse return null;
+    // Get hash (base64 encoded)
+    const hash_b64 = parts.next() orelse return null;
+
+    // Decode base64
+    const decoder = std.base64.standard.Decoder;
+    var salt_buf: [32]u8 = undefined;
+    var hash_buf: [32]u8 = undefined;
+
+    const salt_len = decoder.calcSizeForSlice(salt_b64) catch return null;
+    const hash_len = decoder.calcSizeForSlice(hash_b64) catch return null;
+
+    if (salt_len > salt_buf.len or hash_len > hash_buf.len) return null;
+
+    decoder.decode(salt_buf[0..salt_len], salt_b64) catch return null;
+    decoder.decode(hash_buf[0..hash_len], hash_b64) catch return null;
+
+    return ParsedBlake3{
+        .salt = salt_buf[0..salt_len],
+        .hash = hash_buf[0..hash_len],
+    };
 }
 
 fn detectAlgorithm(encoded: []const u8) ?Algorithm {
