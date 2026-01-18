@@ -6,6 +6,7 @@ const config_module = @import("../config.zig");
 pub const database = @import("database.zig");
 pub const db_helpers = @import("db_helpers.zig");
 pub const storage = @import("storage.zig");
+pub const storage_v2 = @import("storage_v2.zig");
 pub const wdbx = @import("wdbx.zig");
 pub const cli = @import("cli.zig");
 pub const http = @import("http.zig");
@@ -93,6 +94,15 @@ pub const StreamingWriter = formats.StreamingWriter;
 pub const StreamingReader = formats.StreamingReader;
 pub const MappedFile = formats.MappedFile;
 pub const MemoryCursor = formats.MemoryCursor;
+
+// Storage v2 exports (industry-standard format)
+pub const FileHeader = storage_v2.FileHeader;
+pub const FileFooter = storage_v2.FileFooter;
+pub const BloomFilter = storage_v2.BloomFilter;
+pub const Crc32 = storage_v2.Crc32;
+pub const StorageV2Config = storage_v2.StorageV2Config;
+pub const saveDatabaseV2 = storage_v2.saveDatabaseV2;
+pub const loadDatabaseV2 = storage_v2.loadDatabaseV2;
 
 // Vector database format exports
 pub const FormatVectorDatabase = formats.VectorDatabase;

@@ -1,5 +1,53 @@
+//! ABI Benchmark Suite
+//!
+//! Comprehensive benchmarking framework with industry-standard metrics.
+//!
+//! ## Modules
+//!
+//! - `framework`: Core benchmark runner with statistical analysis
+//! - `industry_standard`: Cache profiling, energy metrics, regression detection
+//! - `database_industry`: ANN-benchmarks, concurrent stress tests
+//! - `llm_industry`: HELM metrics, quantization analysis
+//! - `ci_integration`: CI/CD reporting and badge generation
+//!
+//! ## Quick Start
+//!
+//! ```zig
+//! const bench = @import("benchmarks");
+//! var runner = bench.framework.BenchmarkRunner.init(allocator);
+//! defer runner.deinit();
+//!
+//! const result = try runner.run(.{ .name = "my_bench" }, myFn, .{});
+//! ```
+
 const std = @import("std");
 
+// Core benchmark framework
+pub const framework = @import("framework.zig");
+
+// Industry-standard extensions
+pub const industry_standard = @import("industry_standard.zig");
+
+// Database-specific benchmarks
+pub const database = @import("database.zig");
+pub const database_industry = @import("database_industry.zig");
+
+// LLM-specific benchmarks
+pub const llm_industry = @import("llm_industry.zig");
+
+// CI/CD integration
+pub const ci_integration = @import("ci_integration.zig");
+
+// Competitive benchmarks
+pub const competitive = @import("competitive/mod.zig");
+
+// Re-exports for convenience
+pub const BenchmarkRunner = framework.BenchmarkRunner;
+pub const BenchConfig = framework.BenchConfig;
+pub const Statistics = framework.Statistics;
+pub const TrackingAllocator = framework.TrackingAllocator;
+
+// Legacy types
 pub const BenchmarkResult = struct {
     name: []const u8,
     iterations: u64,
