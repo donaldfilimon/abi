@@ -202,7 +202,7 @@ See CONTRIBUTING.md for details.
 | 0.5.0 | Q3 2026 | Complete | Distributed systems, HA |
 | 0.6.0 | Q4 2026 | Complete | Llama-CPP parity, Modular architecture refactor |
 
-*Last updated: January 17, 2026*
+*Last updated: January 18, 2026*
 
 ## Zig 0.16 Migration Status
 
@@ -240,11 +240,6 @@ All feature-gated stubs have been audited and updated for API parity:
 - [0.2.0](CHANGELOG.md#020---2025-12-24) - High-performance compute runtime
 - [0.1.0](CHANGELOG.md#010---2025-12-24) - Initial release
 
-## Contacts
-
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
-See [TODO.md](TODO.md) for the list of pending implementations.
- 
 ## Expanded Roadmap Details
 ### Tooling (Q2 2026) COMPLETE
 - **Debugger integration** - GDB/LLDB support documented in docs/troubleshooting.md.

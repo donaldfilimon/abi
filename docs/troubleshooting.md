@@ -155,10 +155,10 @@ zig build test --test-filter "pattern"  # Won't filter
 1. Increase timeout:
    ```zig
    // Wait longer (5 seconds instead of 1)
-   const result = try abi.compute.runTask(&engine, u32, myTask, 5000);
+   const result = try abi.runtime.runTask(&engine, u32, myTask, 5000);
 
    // Wait indefinitely
-   const result = try abi.compute.runTask(&engine, u32, myTask, null);
+   const result = try abi.runtime.runTask(&engine, u32, myTask, null);
    ```
 
 2. Check for blocking operations in task code.
@@ -364,7 +364,7 @@ std.debug.print("State: {t}", .{state});
 
 1. Reduce worker thread count:
    ```zig
-   var engine = try abi.compute.createEngine(allocator, .{
+   var engine = try abi.runtime.createEngine(allocator, .{
        .worker_count = 2,  // Reduce from default
    });
    ```

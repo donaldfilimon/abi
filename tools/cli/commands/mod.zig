@@ -17,3 +17,4 @@ pub const system_info = @import("system_info.zig");
 pub const task = @import("task.zig");
 pub const tui = @import("tui.zig");
 pub const train = @import("train.zig");
+pub const completions = @import("completions.zig");

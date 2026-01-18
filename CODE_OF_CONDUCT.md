@@ -10,8 +10,7 @@ Please report incidents privately to the project maintainers via GitHub.
 Contributor Covenant v2.1:
 https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
 
-## Contacts
+## See Also
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
-See [TODO.md](TODO.md) for the list of pending implementations.
-*See [TODO.md](TODO.md) and [ROADMAP.md](ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
+- [CONTACTS.md](CONTACTS.md) - Maintainer contact information

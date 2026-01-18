@@ -47,6 +47,6 @@
 //!
 //! ## See Also
 //!
-//! - [Network Documentation](../../../docs/network.md)
-//! - [Compute Network](../../compute/network/README.md)
+//! - [Network Documentation](../../docs/network.md)
+//! - [API Reference](../../API_REFERENCE.md)
 
