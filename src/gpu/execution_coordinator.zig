@@ -6,6 +6,30 @@
 //! - Data size
 //! - Operation type
 //! - User preferences
+//!
+//! ## Thread Safety
+//!
+//! `ExecutionCoordinator` is **NOT thread-safe**. Each thread should have its own
+//! coordinator instance, or external synchronization must be used. The coordinator
+//! holds mutable state (gpu_backend pointer) that is not protected by locks.
+//!
+//! For multi-threaded workloads, either:
+//! 1. Create one coordinator per thread
+//! 2. Use external locking (e.g., `std.Thread.Mutex`) around all coordinator calls
+//! 3. Use the stateless functions in `simd` module directly for thread-safe SIMD ops
+//!
+//! ## Example (Thread-Local)
+//!
+//! ```zig
+//! threadlocal var coordinator: ?ExecutionCoordinator = null;
+//!
+//! fn getCoordinator(allocator: std.mem.Allocator) !*ExecutionCoordinator {
+//!     if (coordinator == null) {
+//!         coordinator = try ExecutionCoordinator.init(allocator, .{});
+//!     }
+//!     return &coordinator.?;
+//! }
+//! ```
 
 const std = @import("std");
 const backend_factory = @import("backend_factory.zig");
@@ -24,6 +48,8 @@ pub const CoordinatorConfig = struct {
     gpu_threshold_size: usize = 1024, // Min elements for GPU
     simd_threshold_size: usize = 4, // Min elements for SIMD
     backend_timeout_ms: u64 = 1000,
+    /// Enable logging when fallback occurs (useful for debugging)
+    log_fallbacks: bool = false,
 };
 
 pub const ExecutionCoordinator = struct {
@@ -77,7 +103,9 @@ pub const ExecutionCoordinator = struct {
         return switch (method) {
             .gpu => self.vectorAddGpu(a, b, result) catch |err| blk: {
                 // Fallback on GPU failure
-                std.log.warn("GPU vector add failed: {}, falling back to SIMD", .{err});
+                if (self.config.log_fallbacks) {
+                    std.log.warn("GPU vector add failed: {}, falling back to SIMD", .{err});
+                }
                 break :blk try self.vectorAddWithMethod(a, b, result, .simd);
             },
             .simd => blk: {
@@ -86,6 +114,9 @@ pub const ExecutionCoordinator = struct {
                     break :blk .simd;
                 } else {
                     // Fall through to scalar
+                    if (self.config.log_fallbacks) {
+                        std.log.info("SIMD unavailable or data too small (len={}), falling back to scalar", .{a.len});
+                    }
                     break :blk try self.vectorAddWithMethod(a, b, result, .scalar);
                 }
             },

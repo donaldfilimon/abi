@@ -3,6 +3,23 @@
 //! Provides a bridge between our backend interface and Zig's standard library
 //! GPU abstraction. This is a compatibility layer that gracefully handles
 //! cases where std.gpu may not be fully available yet.
+//!
+//! ## Memory Ownership
+//!
+//! - `StdGpuDevice` owns its internal state; call `deinit()` when done
+//! - `StdGpuBuffer` owns allocated memory; call `deinit()` when done
+//! - `StdGpuQueue` owns its state; call `deinit()` when done
+//! - `compileShaderToSpirv(allocator, ...)` returns allocated memory;
+//!   **caller must free** with `allocator.free(result)`
+//!
+//! Example:
+//! ```zig
+//! var device = try initStdGpuDevice(allocator);
+//! defer device.deinit();
+//!
+//! var buffer = try device.createBuffer(.{ .size = 1024 });
+//! defer buffer.deinit();
+//! ```
 
 const std = @import("std");
 
@@ -127,7 +144,10 @@ pub fn initStdGpuDevice(allocator: std.mem.Allocator) !StdGpuDevice {
     };
 }
 
-/// Compile SPIR-V shader using std.gpu (placeholder for future implementation)
+/// Compile SPIR-V shader using std.gpu (placeholder for future implementation).
+///
+/// Returns allocated SPIR-V bytecode. **Caller owns the returned memory**
+/// and must free it with `allocator.free(result)` when done.
 pub fn compileShaderToSpirv(
     allocator: std.mem.Allocator,
     source: []const u8,

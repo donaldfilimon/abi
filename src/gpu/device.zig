@@ -2,6 +2,22 @@
 //!
 //! Provides a unified device abstraction layer for the GPU API.
 //! Handles device discovery, selection, and capability querying.
+//!
+//! ## Memory Ownership
+//!
+//! Functions that return `[]Device` allocate memory that the **caller must free**:
+//! - `enumerateAllDevices(allocator)` → caller owns returned slice
+//! - `enumerateDevicesForBackend(allocator, backend)` → caller owns returned slice
+//! - `discoverDevices(allocator)` → caller owns returned slice
+//! - `DeviceManager.getDevicesForBackend(allocator, backend)` → caller owns returned slice
+//!
+//! Functions that return `?Device` (by value) do **not** require cleanup.
+//!
+//! Example:
+//! ```zig
+//! const devices = try device.enumerateAllDevices(allocator);
+//! defer allocator.free(devices);  // Caller must free
+//! ```
 
 const std = @import("std");
 const backend_mod = @import("backend.zig");
@@ -329,6 +345,9 @@ pub const DeviceManager = struct {
 };
 
 /// Discover all available GPU devices.
+///
+/// Returns a slice of Device structs. **Caller owns the returned memory**
+/// and must free it with `allocator.free(devices)` when done.
 pub fn discoverDevices(allocator: std.mem.Allocator) ![]Device {
     const backend_devices = try backend_mod.listDevices(allocator);
     defer allocator.free(backend_devices);
@@ -423,6 +442,9 @@ pub const DeviceSelectionCriteria = struct {
 };
 
 /// Enumerate all available GPU devices across all backends.
+///
+/// Returns a slice of Device structs. **Caller owns the returned memory**
+/// and must free it with `allocator.free(devices)` when done.
 pub fn enumerateAllDevices(allocator: std.mem.Allocator) ![]Device {
     var devices = std.ArrayList(Device).init(allocator);
     errdefer devices.deinit();
@@ -446,6 +468,10 @@ pub fn enumerateAllDevices(allocator: std.mem.Allocator) ![]Device {
 }
 
 /// Enumerate devices for a specific backend.
+///
+/// Returns a slice of Device structs. **Caller owns the returned memory**
+/// and must free it with `allocator.free(devices)` when done.
+/// Returns an empty slice if the backend is unavailable.
 pub fn enumerateDevicesForBackend(
     allocator: std.mem.Allocator,
     backend_type: Backend,

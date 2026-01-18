@@ -46,36 +46,111 @@ const Device = @import("../device.zig").Device;
 const DeviceType = @import("../device.zig").DeviceType;
 const Backend = @import("../backend.zig").Backend;
 
-/// Enumerate all Vulkan devices available on the system
+/// Enumerate all Vulkan physical devices available on the system.
+///
+/// Returns a slice of Device structs for each Vulkan-capable GPU.
+/// **Caller owns the returned memory** and must free it with `allocator.free(devices)`.
+///
+/// This function queries the Vulkan runtime for all physical devices and returns
+/// their properties including device type, memory info, and capabilities.
 pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
     if (!isAvailable()) {
         return &[_]Device{};
     }
 
+    // Ensure Vulkan is initialized for function pointers
+    if (!vulkan_init.vulkan_initialized) {
+        vulkan_init.init() catch return &[_]Device{};
+    }
+
+    // Get the instance from context (or create temporary one)
+    const ctx = vulkan_init.vulkan_context orelse return &[_]Device{};
+
+    // Get enumerate function
+    const enumerate_fn = vulkan_init.vkEnumeratePhysicalDevices orelse return &[_]Device{};
+    const get_props_fn = vulkan_init.vkGetPhysicalDeviceProperties orelse return &[_]Device{};
+    const get_mem_props_fn = vulkan_init.vkGetPhysicalDeviceMemoryProperties orelse null;
+
+    // Query device count
+    var device_count: u32 = 0;
+    var result = enumerate_fn(ctx.instance, &device_count, null);
+    if (result != .success or device_count == 0) {
+        return &[_]Device{};
+    }
+
+    // Allocate temporary storage for physical devices
+    const physical_devices = try allocator.alloc(vulkan_types.VkPhysicalDevice, device_count);
+    defer allocator.free(physical_devices);
+
+    result = enumerate_fn(ctx.instance, &device_count, physical_devices.ptr);
+    if (result != .success) {
+        return &[_]Device{};
+    }
+
+    // Build device list
     var devices = std.ArrayList(Device).init(allocator);
     errdefer devices.deinit();
 
-    // Query Vulkan for available devices
-    // In a full implementation, we'd use vkEnumeratePhysicalDevices
-    // For now, return the initialized device if available
-    if (vulkan_init.isInitialized()) {
+    for (physical_devices[0..device_count], 0..) |phys_dev, i| {
+        var properties: vulkan_types.VkPhysicalDeviceProperties = undefined;
+        get_props_fn(phys_dev, @ptrCast(&properties));
+
+        // Get memory properties if available
+        var total_memory: ?u64 = null;
+        if (get_mem_props_fn) |mem_fn| {
+            var mem_props: vulkan_types.VkPhysicalDeviceMemoryProperties = undefined;
+            mem_fn(phys_dev, @ptrCast(&mem_props));
+
+            // Sum up device-local heap sizes
+            var local_memory: u64 = 0;
+            for (mem_props.memoryHeaps[0..mem_props.memoryHeapCount]) |heap| {
+                // VK_MEMORY_HEAP_DEVICE_LOCAL_BIT = 0x00000001
+                if ((heap.flags & 1) != 0) {
+                    local_memory += heap.size;
+                }
+            }
+            if (local_memory > 0) {
+                total_memory = local_memory;
+            }
+        }
+
+        // Convert device type
+        const device_type: DeviceType = switch (properties.deviceType) {
+            .discrete_gpu => .discrete,
+            .integrated_gpu => .integrated,
+            .virtual_gpu => .virtual,
+            .cpu => .cpu,
+            else => .other,
+        };
+
+        // Extract and duplicate null-terminated device name (properties is on stack)
+        const name_slice = std.mem.sliceTo(&properties.deviceName, 0);
+        const name: []const u8 = if (name_slice.len > 0)
+            try allocator.dupe(u8, name_slice)
+        else
+            "Vulkan Device";
+
+        errdefer if (name_slice.len > 0) allocator.free(name);
+
         try devices.append(.{
-            .id = 0,
+            .id = @intCast(i),
             .backend = .vulkan,
-            .name = "Vulkan Device",
-            .device_type = .discrete, // Assume discrete for Vulkan
-            .total_memory = null,
-            .available_memory = null,
-            .is_emulated = false,
+            .name = name,
+            .device_type = device_type,
+            .total_memory = total_memory,
+            .available_memory = null, // Not tracked at enumeration time
+            .is_emulated = device_type == .virtual,
             .capability = .{
-                .supports_fp16 = true,
-                .supports_fp64 = false, // Conservative
+                .supports_fp16 = true, // Most Vulkan devices support fp16
+                .supports_fp64 = false, // Conservative; would need feature query
                 .supports_int8 = true,
                 .supports_async_transfers = true,
-                .unified_memory = false,
+                .unified_memory = device_type == .integrated_gpu,
+                .max_threads_per_block = properties.limits.maxComputeWorkGroupInvocations,
+                .max_shared_memory_bytes = properties.limits.maxComputeSharedMemorySize,
             },
-            .compute_units = null,
-            .clock_mhz = null,
+            .compute_units = null, // Would need VK_KHR_maintenance3 or similar
+            .clock_mhz = null, // Not exposed by Vulkan directly
         });
     }
 
