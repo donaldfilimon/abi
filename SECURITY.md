@@ -49,7 +49,8 @@ Upgrade to version 0.2.0 or later. If unable to upgrade immediately:
 ## Supported Versions
 | Version | Supported |
 | ------- | --------- |
-| 0.2.x   | Yes       |
+| 0.3.x   | Yes       |
+| 0.2.x   | Security fixes only |
 | 0.1.x   | No        |
 
 ## Reporting a Vulnerability
@@ -64,7 +65,7 @@ Include reproduction steps, impact assessment, and suggested fixes.
 ## Additional Details
 The CLI is minimal by design; most deployments should embed ABI as a library.
 
-## Contacts
+## See Also
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
-See [TODO.md](TODO.md) for the list of pending implementations.
+- [CONTACTS.md](CONTACTS.md) - Maintainer contact information
+- [TODO.md](TODO.md) - Pending implementations
