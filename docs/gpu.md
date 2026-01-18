@@ -1,13 +1,45 @@
 # GPU Acceleration
 
-> [!NOTE]
-> > **Status**: Production Ready. Backends provide native GPU execution with automatic
-> > fallback to CPU simulation when native runtimes are unavailable.
->
+<p align="center">
+  <img src="https://img.shields.io/badge/Module-GPU-green?style=for-the-badge&logo=nvidia&logoColor=white" alt="GPU Module"/>
+  <img src="https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge" alt="Production Ready"/>
+  <img src="https://img.shields.io/badge/Backends-8-blue?style=for-the-badge" alt="8 Backends"/>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/CUDA-Supported-76B900?logo=nvidia&logoColor=white" alt="CUDA"/>
+  <img src="https://img.shields.io/badge/Vulkan-Supported-AC162C?logo=vulkan&logoColor=white" alt="Vulkan"/>
+  <img src="https://img.shields.io/badge/Metal-Supported-000000?logo=apple&logoColor=white" alt="Metal"/>
+  <img src="https://img.shields.io/badge/WebGPU-Supported-005A9C?logo=w3c&logoColor=white" alt="WebGPU"/>
+</p>
+
+<p align="center">
+  <a href="#unified-gpu-api-recommended">Unified API</a> •
+  <a href="#backends">Backends</a> •
+  <a href="#portable-kernel-dsl">Kernel DSL</a> •
+  <a href="#device-enumeration">Device Enum</a> •
+  <a href="#cli-commands">CLI</a>
+</p>
+
+---
+
+> **Status**: Production Ready. Backends provide native GPU execution with automatic fallback to CPU simulation when native runtimes are unavailable.
+
 > **Developer Guide**: See [CONTRIBUTING.md](../CONTRIBUTING.md) for GPU coding patterns and [CLAUDE.md](../CLAUDE.md) for backend internals.
 > **GPU Backends**: See [GPU Backend Details](gpu-backend-improvements.md) for implementation specifics.
 
 The **GPU** module (`abi.gpu`) provides a unified interface for hardware-accelerated compute across different platforms.
+
+## Feature Overview
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Unified API** | Single interface for all backends | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Multi-GPU** | Multi-device load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Auto-Detection** | Backend selection with fallback | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Kernel DSL** | Write once, compile everywhere | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **SIMD Fallback** | AVX/SSE/NEON when no GPU | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Profiling** | Per-kernel metrics & timing | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ## Unified GPU API (Recommended)
 
@@ -257,39 +289,60 @@ defer kernel.deinit();
 
 ## Backends
 
-ABI supports multiple GPU backends with comprehensive implementations:
+ABI supports 8 GPU backends with comprehensive implementations:
 
-| Backend | Status | Auto-Detect | Device Enum |
-|---------|--------|-------------|-------------|
-| CUDA | Complete with tensor core support, async D2D, device queries | Yes | Yes |
-| Vulkan | Complete with SPIR-V generation | Yes | Yes |
-| Metal | Complete with Objective-C runtime bindings | Yes | Yes |
-| WebGPU | Complete with async adapter/device handling | Yes | Yes |
-| OpenGL/ES | Complete with compute shader support | Yes | Yes |
-| std.gpu | Complete with CPU fallback | Yes | Yes |
-| WebGL2 | Correctly returns UnsupportedBackend (no compute support) | Yes | No |
+| Backend | Platform | Features | Status |
+|---------|----------|----------|--------|
+| **CUDA** | NVIDIA GPUs | Tensor cores, async D2D, device queries | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| **Vulkan** | Cross-platform | SPIR-V generation, compute shaders | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| **Metal** | Apple Silicon | Objective-C bindings, compute kernels | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| **WebGPU** | Browser/Native | Async handling, cross-platform | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| **OpenGL/ES** | Legacy/Mobile | Compute shaders (4.3+/ES 3.1+) | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| **std.gpu** | Zig stdlib | CPU fallback, portable | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| **OpenCL** | Cross-platform | Legacy compute support | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| **WebGL2** | Browser | Rendering only (no compute) | ![Limited](https://img.shields.io/badge/-Limited-yellow) |
 
 ### Backend Details
 
-1.  **CUDA**: NVIDIA GPUs (Linux/Windows) - **Native GPU execution available**
-    - Tensor core support for accelerated matrix operations
-    - Async device-to-device (D2D) memory transfers
-    - Full device capability queries
-2.  **Vulkan**: Cross-platform (Linux/Windows/Android)
-    - SPIR-V shader generation and compilation
-    - Compute shader support
-3.  **Metal**: Apple Silicon (macOS)
-    - Objective-C runtime bindings for native Metal API access
-    - Compute kernel support
-4.  **WebGPU**: Browser and native (via Dawn/wgpu)
-    - Async adapter and device handling
-    - Cross-platform compute shaders
-5.  **OpenGL/OpenGL ES**: Legacy and mobile GPU support
-    - Compute shader support for OpenGL 4.3+ and ES 3.1+
-6.  **std.gpu**: Zig standard library GPU abstraction
-    - Complete with automatic CPU fallback
-7.  **WebGL2**: Browser-based rendering
-    - Correctly returns `UnsupportedBackend` (no compute shader support)
+<details>
+<summary><strong>CUDA (NVIDIA GPUs)</strong></summary>
+
+- **Platform**: Linux/Windows
+- **Features**: Tensor core support, async D2D transfers, full device queries
+- **Best for**: High-performance compute, ML training
+</details>
+
+<details>
+<summary><strong>Vulkan (Cross-platform)</strong></summary>
+
+- **Platform**: Linux/Windows/Android
+- **Features**: SPIR-V shader generation, compute shaders
+- **Best for**: Cross-platform GPU compute
+</details>
+
+<details>
+<summary><strong>Metal (Apple Silicon)</strong></summary>
+
+- **Platform**: macOS/iOS
+- **Features**: Objective-C runtime bindings, compute kernels
+- **Best for**: Apple hardware optimization
+</details>
+
+<details>
+<summary><strong>WebGPU (Browser/Native)</strong></summary>
+
+- **Platform**: Browser (via Dawn/wgpu)
+- **Features**: Async adapter handling, portable compute
+- **Best for**: Web-based GPU compute
+</details>
+
+<details>
+<summary><strong>std.gpu (Zig stdlib)</strong></summary>
+
+- **Platform**: Any
+- **Features**: Automatic CPU fallback, SIMD acceleration
+- **Best for**: Development, testing, CPU-only environments
+</details>
 
 ## Memory Management
 
@@ -487,7 +540,31 @@ When GPU unavailable, `stdgpu` provides AVX/SSE/NEON accelerated operations:
 
 ## See Also
 
-- [GPU Backend Details](gpu-backend-improvements.md) - Implementation details and improvements
-- [Compute Engine](compute.md) - CPU/GPU workload scheduling
-- [Monitoring](monitoring.md) - GPU metrics and profiling
-- [Troubleshooting](troubleshooting.md) - GPU detection issues
+<table>
+<tr>
+<td>
+
+### Related Guides
+- [GPU Backend Details](gpu-backend-improvements.md) — Implementation specifics
+- [Compute Engine](compute.md) — CPU/GPU workload scheduling
+- [Monitoring](monitoring.md) — GPU metrics and profiling
+
+</td>
+<td>
+
+### Resources
+- [Troubleshooting](troubleshooting.md) — GPU detection issues
+- [API Reference](../API_REFERENCE.md) — GPU API details
+- [Examples](../examples/) — GPU code samples
+
+</td>
+</tr>
+</table>
+
+---
+
+<p align="center">
+  <a href="ai.md">← AI Guide</a> •
+  <a href="docs-index.md">Documentation Index</a> •
+  <a href="database.md">Database Guide →</a>
+</p>

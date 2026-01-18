@@ -1,11 +1,20 @@
-# API Reference (Concise)
+# API Reference
 
-> For detailed usage guides, see [Documentation Index](docs/intro.md).
-> For coding patterns and conventions, see [CONTRIBUTING.md](CONTRIBUTING.md).
-> For comprehensive development guidance, see [CLAUDE.md](CLAUDE.md).
+<p align="center">
+  <img src="https://img.shields.io/badge/API-Stable-success?style=for-the-badge" alt="API Stable"/>
+  <img src="https://img.shields.io/badge/Version-0.3.0-blue?style=for-the-badge" alt="Version"/>
+  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
+</p>
 
-This is a high-level summary of the public ABI API surface. See the source for
-implementation details.
+<p align="center">
+  <a href="docs/intro.md">Documentation Index</a> •
+  <a href="CONTRIBUTING.md">Coding Patterns</a> •
+  <a href="CLAUDE.md">Development Guide</a>
+</p>
+
+---
+
+> **Summary**: This is a high-level summary of the public ABI API surface. See the source for implementation details.
 
 ## Core Entry Points
 
@@ -80,22 +89,24 @@ defer abi.shutdown(&framework);
 
 Top-level domain modules (flat structure):
 
-- `abi.ai` - AI module with sub-features
-  - `abi.ai.llm` - Local LLM inference
-  - `abi.ai.embeddings` - Vector embeddings
-  - `abi.ai.agents` - AI agent runtime
-  - `abi.ai.training` - Training pipelines
-- `abi.gpu` - GPU backends and unified API
-  - `abi.gpu.device` - Device enumeration and selection
-  - `abi.gpu.backend_factory` - Backend auto-detection
-  - `abi.gpu.execution_coordinator` - GPU→SIMD→scalar fallback
-- `abi.database` - WDBX vector database
-- `abi.network` - Distributed compute and Raft consensus
-- `abi.web` - HTTP helpers, web utilities
-- `abi.observability` - Metrics, tracing, profiling (replaces `abi.monitoring`)
-- `abi.connectors` - External connectors (OpenAI, Ollama, HuggingFace)
+| Namespace | Description | Status |
+|-----------|-------------|--------|
+| `abi.ai` | AI module with sub-features | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.ai.llm` | Local LLM inference | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.ai.embeddings` | Vector embeddings | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.ai.agents` | AI agent runtime | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.ai.training` | Training pipelines | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.gpu` | GPU backends and unified API | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.gpu.device` | Device enumeration and selection | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.gpu.backend_factory` | Backend auto-detection | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.gpu.execution_coordinator` | GPU→SIMD→scalar fallback | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.database` | WDBX vector database | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.network` | Distributed compute and Raft | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.web` | HTTP helpers, web utilities | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.observability` | Metrics, tracing, profiling | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.connectors` | External connectors | ![Stable](https://img.shields.io/badge/-Stable-success) |
 
-**Note:** `abi.monitoring` is deprecated; use `abi.observability` instead.
+> **Note:** `abi.monitoring` is deprecated; use `abi.observability` instead.
 
 ## WDBX Convenience API
 
@@ -283,30 +294,53 @@ abi.simd.vectorAdd(&a, &b, &result);
 
 ## Modules
 
-Flat domain structure (new modular architecture):
+Flat domain structure (modular architecture):
 
-- `src/abi.zig` - Public API entry point
-- `src/config.zig` - Unified configuration system
-- `src/framework.zig` - Framework orchestration and lifecycle management
-- `src/runtime/` - Always-on infrastructure (scheduler, memory, concurrency)
-- `src/gpu/` - GPU backends and unified API
-- `src/ai/` - AI module with sub-features (llm, embeddings, agents, training)
-- `src/database/` - WDBX vector database
-- `src/network/` - Distributed compute and Raft consensus
-- `src/observability/` - Metrics, tracing, profiling
-- `src/web/` - HTTP helpers and web utilities
-- `src/shared/` - Shared utilities (simd, observability primitives, platform helpers)
+| Module | Description | Status |
+|--------|-------------|--------|
+| `src/abi.zig` | Public API entry point | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/config.zig` | Unified configuration system | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/framework.zig` | Framework orchestration | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/runtime/` | Scheduler, memory, concurrency | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/gpu/` | GPU backends and unified API | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/ai/` | AI module (llm, embeddings, agents, training) | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/database/` | WDBX vector database | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/network/` | Distributed compute and Raft | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/observability/` | Metrics, tracing, profiling | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/web/` | HTTP helpers and web utilities | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/shared/` | SIMD, platform helpers | ![Shared](https://img.shields.io/badge/-Shared-yellow) |
 
-**Backward Compatibility**: Re-exports in `abi.zig` maintain API compatibility with the previous `features/` and `compute/` structure.
-
-**See Also**:
-- [Introduction](docs/intro.md) - Architecture overview
-- [Framework Guide](docs/framework.md) - Configuration and lifecycle
-- [Compute Guide](docs/compute.md) - Task execution
-- [AI Guide](docs/ai.md) - LLM connectors and agents
-- [GPU Guide](docs/gpu.md) - GPU backends
+> **Backward Compatibility**: Re-exports in `abi.zig` maintain API compatibility with the previous `features/` and `compute/` structure.
 
 ## See Also
 
-- [TODO.md](TODO.md) - Pending implementations
-- [ROADMAP.md](ROADMAP.md) - Upcoming milestones
+<table>
+<tr>
+<td>
+
+### Guides
+- [Introduction](docs/intro.md) — Architecture overview
+- [Framework Guide](docs/framework.md) — Configuration and lifecycle
+- [Compute Guide](docs/compute.md) — Task execution
+- [AI Guide](docs/ai.md) — LLM connectors and agents
+- [GPU Guide](docs/gpu.md) — GPU backends
+
+</td>
+<td>
+
+### Project
+- [TODO.md](TODO.md) — Pending implementations
+- [ROADMAP.md](ROADMAP.md) — Upcoming milestones
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Development guidelines
+- [CHANGELOG.md](CHANGELOG.md) — Version history
+
+</td>
+</tr>
+</table>
+
+---
+
+<p align="center">
+  <a href="README.md">← Back to README</a> •
+  <a href="docs/intro.md">Full Documentation →</a>
+</p>
