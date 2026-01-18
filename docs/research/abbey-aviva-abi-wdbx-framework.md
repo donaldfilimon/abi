@@ -1,4 +1,5 @@
 # Abbey–Aviva–Abi Multi-Persona AI Framework with WDBX Architecture
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 **Document Version:** 1.0
 **Date:** March 2025

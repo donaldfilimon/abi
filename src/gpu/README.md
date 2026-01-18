@@ -1,4 +1,5 @@
 # GPU Module Overview
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 This directory contains the GPU acceleration layer of the ABI framework.
 

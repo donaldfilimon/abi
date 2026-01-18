@@ -1,4 +1,5 @@
 # ABI Framework Documentation
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Docs-Complete-success?style=for-the-badge" alt="Docs Complete"/>

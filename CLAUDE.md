@@ -1,4 +1,5 @@
 # CLAUDE.md
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 

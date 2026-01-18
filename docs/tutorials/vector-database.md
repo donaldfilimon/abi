@@ -1,4 +1,5 @@
 # Tutorial: Vector Database with WDBX
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 > **Duration:** 30 minutes | **Level:** Beginner
 
