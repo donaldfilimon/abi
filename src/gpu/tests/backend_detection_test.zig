@@ -35,7 +35,7 @@ test "backend detection with feature requirements" {
     const allocator = std.testing.allocator;
 
     const best = try factory.selectBackendWithFeatures(allocator, .{
-        .required_features = &.{.fp16, .atomics},
+        .required_features = &.{ .fp16, .atomics },
         .fallback_to_cpu = false,
     });
 

@@ -13,7 +13,7 @@ const build_options = @import("build_options");
 const config_module = @import("../../config.zig");
 
 // Re-export from existing LLM module
-const features_llm = @import("../../features/ai/llm/mod.zig");
+const features_llm = @import("../implementation/llm/mod.zig");
 
 pub const Engine = features_llm.Engine;
 pub const Model = features_llm.Model;

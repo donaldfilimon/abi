@@ -35,8 +35,8 @@ const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../config.zig");
 
-// Re-export from features/ai for gradual migration
-const features_ai = @import("../features/ai/mod.zig");
+// Re-export from implementation for gradual migration
+const features_ai = @import("implementation/implementation_mod.zig");
 
 // Direct module re-exports for backward compatibility
 pub const agent = features_ai.agent;
@@ -47,11 +47,7 @@ pub const model_registry = features_ai.model_registry;
 // ============================================================================
 
 /// Core AI types and utilities (always available when AI enabled)
-pub const core = struct {
-    // Re-export common types
-    pub const ModelInfo = features_ai.ModelInfo;
-    pub const ModelRegistry = features_ai.ModelRegistry;
-};
+pub const core = @import("core/mod.zig");
 
 /// LLM inference module
 pub const llm = if (build_options.enable_llm)
@@ -95,7 +91,7 @@ pub const Checkpoint = features_ai.Checkpoint;
 pub const LlmTrainingConfig = features_ai.LlmTrainingConfig;
 pub const trainable_model = features_ai.trainable_model;
 pub const TrainableModel = features_ai.TrainableModel;
-pub const TrainableModelConfig = features_ai.TrainableModelConfig;
+pub const TrainableModelConfig = features_ai.trainable_model.TrainableModelConfig;
 pub const LlamaTrainer = features_ai.LlamaTrainer;
 pub const loadCheckpoint = features_ai.loadCheckpoint;
 pub const saveCheckpoint = features_ai.saveCheckpoint;
@@ -135,20 +131,20 @@ pub const Persona = features_ai.Persona;
 pub const PersonaType = features_ai.PersonaType;
 pub const PromptFormat = features_ai.PromptFormat;
 
-// Abbey
+// Abbey / Core AI
 pub const abbey = features_ai.abbey;
 pub const Abbey = features_ai.Abbey;
-pub const AbbeyConfig = features_ai.AbbeyConfig;
-pub const AbbeyResponse = features_ai.AbbeyResponse;
+pub const AbbeyConfig = core.AbbeyConfig;
+pub const AbbeyResponse = core.Response;
 pub const AbbeyStats = features_ai.AbbeyStats;
 pub const ReasoningChain = features_ai.ReasoningChain;
 pub const ReasoningStep = features_ai.ReasoningStep;
-pub const Confidence = features_ai.Confidence;
-pub const ConfidenceLevel = features_ai.ConfidenceLevel;
-pub const EmotionalState = features_ai.EmotionalState;
-pub const EmotionType = features_ai.EmotionType;
+pub const Confidence = core.Confidence;
+pub const ConfidenceLevel = core.ConfidenceLevel;
+pub const EmotionalState = core.EmotionalState;
+pub const EmotionType = core.EmotionType;
 pub const ConversationContext = features_ai.ConversationContext;
-pub const TopicTracker = features_ai.TopicTracker;
+pub const TopicTracker = core.Topic;
 
 // Explore
 pub const explore = features_ai.explore;

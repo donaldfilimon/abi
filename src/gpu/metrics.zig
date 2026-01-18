@@ -4,7 +4,7 @@
 //! real-time monitoring for GPU operations across all backends.
 
 const std = @import("std");
-const time = @import("../shared/utils/time.zig");
+const time = @import("../shared/utils.zig");
 
 /// Metric type classification.
 pub const MetricType = enum {

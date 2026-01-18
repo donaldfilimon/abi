@@ -4,7 +4,7 @@
 //! including token bucket, sliding window, and fixed window.
 
 const std = @import("std");
-const time = @import("../shared/utils/time.zig");
+const time = @import("../shared/utils.zig");
 
 /// Rate limiting algorithm.
 pub const RateLimitAlgorithm = enum {

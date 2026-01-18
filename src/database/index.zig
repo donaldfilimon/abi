@@ -2,7 +2,7 @@
 const std = @import("std");
 
 const simd = @import("../shared/simd.zig");
-const binary = @import("../shared/utils/binary.zig");
+const binary = @import("../shared/utils.zig");
 
 const index_magic = "ABIX";
 const index_version: u16 = 1;

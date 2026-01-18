@@ -4,7 +4,7 @@
 //! and health checking in distributed deployments.
 
 const std = @import("std");
-const time = @import("../shared/utils/time.zig");
+const time = @import("../shared/utils.zig");
 const async_http = @import("../shared/utils/http/async_http.zig");
 
 pub const ServiceDiscoveryError = error{

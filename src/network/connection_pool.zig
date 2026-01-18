@@ -4,7 +4,7 @@
 //! HTTP clients and other network resources.
 
 const std = @import("std");
-const time = @import("../shared/utils/time.zig");
+const time = @import("../shared/utils.zig");
 
 /// Connection state.
 pub const ConnectionState = enum {

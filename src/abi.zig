@@ -95,26 +95,23 @@ else
     @import("web/stub.zig");
 
 /// High availability (replication, backup, PITR).
-pub const ha = @import("features/ha/mod.zig");
+pub const ha = @import("ha/mod.zig");
 
 /// Task management system.
-pub const tasks = @import("tasks/mod.zig");
+pub const tasks = @import("tasks.zig");
 
 // ============================================================================
 // Legacy Compatibility Layer
 // ============================================================================
 
 /// Core utilities (legacy).
-pub const core = @import("core/mod.zig");
-
-/// Features module (legacy - use direct imports above).
-pub const features = @import("features/mod.zig");
+pub const core = @import("shared/legacy/mod.zig");
 
 /// Connectors (legacy).
-pub const connectors = features.connectors;
+pub const connectors = @import("connectors/mod.zig");
 
 /// Monitoring (legacy - use observability).
-pub const monitoring = features.monitoring;
+pub const monitoring = observability;
 
 // Legacy framework types
 pub const FrameworkOptions = framework.FrameworkOptions;
@@ -123,11 +120,11 @@ pub const RuntimeConfig = framework.RuntimeConfig;
 pub const runtimeConfigFromOptions = framework.runtimeConfigFromOptions;
 
 // Shared utilities (direct imports from shared/)
-pub const logging = @import("shared/logging/mod.zig");
-pub const plugins = @import("shared/plugins/mod.zig");
-pub const platform = @import("shared/platform/mod.zig");
+pub const logging = @import("shared/logging.zig");
+pub const plugins = @import("shared/plugins.zig");
+pub const platform = @import("shared/platform.zig");
 pub const simd = @import("shared/simd.zig");
-pub const utils = @import("shared/utils/mod.zig");
+pub const utils = @import("shared/utils.zig");
 
 // SIMD functions exported directly
 pub const vectorAdd = simd.vectorAdd;
@@ -136,30 +133,12 @@ pub const vectorL2Norm = simd.vectorL2Norm;
 pub const cosineSimilarity = simd.cosineSimilarity;
 pub const hasSimdSupport = simd.hasSimdSupport;
 
-// GPU type aliases (legacy)
-pub const GpuBackend = gpu.Backend;
-pub const GpuBackendInfo = gpu.BackendInfo;
-pub const GpuBackendAvailability = gpu.BackendAvailability;
-pub const GpuBackendDetectionLevel = gpu.DetectionLevel;
-pub const GpuDeviceInfo = gpu.DeviceInfo;
-pub const GpuDeviceCapability = gpu.DeviceCapability;
-pub const GpuBuffer = gpu.Buffer;
-pub const GpuBufferFlags = gpu.BufferFlags;
-pub const GpuMemoryPool = gpu.MemoryPool;
-pub const GpuMemoryStats = gpu.MemoryStats;
-pub const GpuMemoryError = gpu.MemoryError;
+// GPU type aliases (legacy - prefer abi.gpu.* namespace instead)
+// Core GPU types
 pub const Gpu = gpu.Gpu;
 pub const GpuConfig = gpu.GpuConfig;
-pub const GpuUnifiedBuffer = gpu.UnifiedBuffer;
-pub const GpuDevice = gpu.Device;
-pub const GpuDeviceType = gpu.DeviceType;
-pub const GpuDeviceFeature = gpu.DeviceFeature;
-pub const GpuDeviceSelector = gpu.DeviceSelector;
-pub const GpuStream = gpu.Stream;
-pub const GpuEvent = gpu.Event;
-pub const GpuExecutionResult = gpu.ExecutionResult;
-pub const GpuMemoryMode = gpu.MemoryMode;
-pub const GpuHealthStatus = gpu.HealthStatus;
+pub const GpuBackend = gpu.Backend;
+// Kernel DSL (commonly used for custom kernels)
 pub const KernelBuilder = gpu.KernelBuilder;
 pub const KernelIR = gpu.KernelIR;
 pub const PortableKernelSource = gpu.PortableKernelSource;

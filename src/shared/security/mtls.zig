@@ -1,6 +1,6 @@
 //! mTLS (Mutual TLS) support for bidirectional certificate authentication.
 const std = @import("std");
-const time = @import("../utils/time.zig");
+const time = @import("../utils.zig");
 const tls = @import("tls.zig");
 
 pub const MtlsConfig = struct {

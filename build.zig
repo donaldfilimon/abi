@@ -1,10 +1,19 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+/// Returns true if the given relative path exists on disk.
+/// Uses the standard library to query the file system instead of assuming
+/// existence. This prevents accidental inclusion of non‑existent files in
+/// optional build steps (e.g., benchmarks, examples, CLI).
 fn pathExists(path: []const u8) bool {
-    // For files in the project root, assume they exist
-    // The actual compilation will fail if the file doesn't exist
-    _ = path;
+    // Use Zig's filesystem API to check if a file exists in the current working
+    // directory. This provides accurate detection across platforms.
+    // Use absolute path opening to test existence. This works without a Dir
+    // handle and is compatible with Zig 0.16.
+    const cwd = std.Io.Dir.cwd();
+    const io = std.Options.debug_io;
+    const file = cwd.openFile(io, path, .{}) catch return false;
+    defer file.close(io);
     return true;
 }
 
@@ -377,6 +386,8 @@ pub fn build(b: *std.Build) void {
 
     // Benchmark step (legacy)
     const has_legacy_benchmark = pathExists("benchmarks/legacy.zig");
+    // Aggregate benchmark step – runs all benchmark suites.
+    const bench_all_step = b.step("bench-all", "Run all benchmark suites (legacy, comprehensive, competitive)");
     if (has_legacy_benchmark) {
         const benchmark_exe = b.addExecutable(.{
             .name = "abi-benchmark",
@@ -393,6 +404,8 @@ pub fn build(b: *std.Build) void {
 
         const benchmark_step = b.step("benchmark-legacy", "Run legacy performance benchmarks");
         benchmark_step.dependOn(&run_benchmark.step);
+        // Include legacy benchmark in the aggregate step.
+        bench_all_step.dependOn(benchmark_step);
     } else {
         std.log.warn("benchmarks/legacy.zig not found; skipping benchmark-legacy step", .{});
     }
@@ -414,6 +427,8 @@ pub fn build(b: *std.Build) void {
 
         const benchmarks_step = b.step("benchmarks", "Run comprehensive benchmarks");
         benchmarks_step.dependOn(&run_benchmarks.step);
+        // Include comprehensive benchmark in the aggregate step.
+        bench_all_step.dependOn(benchmarks_step);
     }
 
     // Competitive Benchmarks
@@ -436,9 +451,11 @@ pub fn build(b: *std.Build) void {
 
         const bench_comp_step = b.step("bench-competitive", "Run competitive benchmarks");
         bench_comp_step.dependOn(&run_competitive.step);
+        // Include competitive benchmark in the aggregate step.
+        bench_all_step.dependOn(bench_comp_step);
     }
 
-    // Documentation generator
+    // Documentation generator (also useful before a full suite)
     if (pathExists("tools/gendocs.zig")) {
         const gendocs_exe = b.addExecutable(.{
             .name = "gendocs",
@@ -457,6 +474,8 @@ pub fn build(b: *std.Build) void {
 
         const gendocs_step = b.step("gendocs", "Generate API documentation");
         gendocs_step.dependOn(&run_gendocs.step);
+        // Make documentation generation part of the aggregate benchmark flow.
+        bench_all_step.dependOn(gendocs_step);
     }
 
     // Performance profiling build

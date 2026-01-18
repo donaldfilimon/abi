@@ -107,7 +107,7 @@ comptime {
 const build_options = @import("build_options");
 
 // Import lifecycle management from shared utils
-const lifecycle = @import("../shared/utils/lifecycle.zig");
+const lifecycle = @import("../shared/utils.zig");
 const SimpleModuleLifecycle = lifecycle.SimpleModuleLifecycle;
 const LifecycleError = lifecycle.LifecycleError;
 

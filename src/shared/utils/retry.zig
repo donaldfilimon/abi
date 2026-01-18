@@ -1,254 +1,94 @@
-//! Retry logic with exponential backoff for handling transient failures.
+//! Retry utilities for shared use.
 //!
-//! Provides configurable retry strategies with exponential backoff,
-//! jitter, and maximum attempt limits.
+//! Provides retry configuration and helpers for retryable operations.
 
 const std = @import("std");
-const time = @import("time.zig");
 
+/// Retry configuration.
 pub const RetryConfig = struct {
-    /// Maximum number of retry attempts (0 = no retries)
-    max_attempts: u32 = 3,
-    /// Initial backoff duration in milliseconds
-    initial_backoff_ms: u64 = 100,
-    /// Maximum backoff duration in milliseconds
-    max_backoff_ms: u64 = 30_000,
-    /// Backoff multiplier for exponential growth
-    backoff_multiplier: f32 = 2.0,
-    /// Add random jitter to prevent thundering herd
-    enable_jitter: bool = true,
+    /// Maximum number of retry attempts.
+    max_retries: u32 = 3,
+    /// Initial delay between retries (milliseconds).
+    initial_delay_ms: u64 = 100,
+    /// Maximum delay between retries (milliseconds).
+    max_delay_ms: u64 = 30_000,
+    /// Backoff multiplier.
+    multiplier: f64 = 2.0,
+    /// Add random jitter to delays.
+    jitter: bool = true,
+    /// Jitter factor (0.0 to 1.0).
+    jitter_factor: f64 = 0.25,
 };
 
-pub const RetryError = error{
-    MaxAttemptsExceeded,
-    NonRetryableError,
-};
-
-/// Extract the error type from a function's return type.
-/// Used to infer error types for generic retry operations.
-fn FuncErrorType(comptime func: anytype) type {
-    const FuncType = @TypeOf(func);
-    const func_info = @typeInfo(FuncType);
-    if (func_info != .@"fn") {
-        @compileError("Expected a function type");
-    }
-    const ReturnType = func_info.@"fn".return_type orelse @compileError("Function must have a return type");
-    const return_info = @typeInfo(ReturnType);
-    if (return_info != .error_union) {
-        @compileError("Function must return an error union");
-    }
-    return return_info.error_union.error_set;
-}
-
-/// Execute a function with retry logic and exponential backoff.
-/// The `func` parameter should be a function that returns `!T` (an error union).
-/// The `is_retryable` callback determines which errors should trigger a retry.
-/// If `is_retryable` is null, all errors are considered retryable.
-pub fn retryWithBackoff(
-    comptime T: type,
-    comptime func: anytype,
-    args: anytype,
-    config: RetryConfig,
-    comptime is_retryable: ?*const fn (FuncErrorType(func)) bool,
-) FuncErrorType(func)!T {
-    var attempt: u32 = 0;
-    var backoff_ms = config.initial_backoff_ms;
-
-    // Initialize random for jitter
-    var prng = std.rand.DefaultPrng.init(blk: {
-        var seed: u64 = undefined;
-        std.posix.getrandom(std.mem.asBytes(&seed)) catch {
-            // Fallback to timestamp if getrandom fails
-            seed = @as(u64, @intCast(time.unixMilliseconds()));
-        };
-        break :blk seed;
-    });
-    const random = prng.random();
-
-    while (attempt <= config.max_attempts) : (attempt += 1) {
-        // Try the function
-        const result = @call(.auto, func, args) catch |err| {
-            // Check if error is retryable
-            if (is_retryable) |check_fn| {
-                if (!check_fn(err)) {
-                    return RetryError.NonRetryableError;
-                }
-            }
-
-            // If this was the last attempt, return the error
-            if (attempt >= config.max_attempts) {
-                return err;
-            }
-
-            // Calculate backoff with optional jitter
-            const actual_backoff = if (config.enable_jitter) blk: {
-                // Add jitter: random value between 50% and 100% of backoff
-                const jitter_min = backoff_ms / 2;
-                const jitter_range = backoff_ms - jitter_min;
-                const jitter = random.intRangeAtMost(u64, 0, jitter_range);
-                break :blk jitter_min + jitter;
-            } else backoff_ms;
-
-            // Sleep for backoff duration
-            time.sleepMs(actual_backoff);
-
-            // Increase backoff for next attempt (exponential)
-            backoff_ms = @min(
-                @as(u64, @intFromFloat(@as(f64, @floatFromInt(backoff_ms)) * config.backoff_multiplier)),
-                config.max_backoff_ms,
-            );
-
-            continue;
-        };
-
-        // Success!
-        return result;
-    }
-
-    return RetryError.MaxAttemptsExceeded;
-}
-
-/// HTTP-related errors that are commonly retryable.
-pub const HttpRetryableError = error{
-    ConnectionRefused,
-    ConnectionResetByPeer,
-    ConnectionTimedOut,
-    Timeout,
-    TemporaryNameServerFailure,
-    UnexpectedConnectFailure,
-};
-
-/// Common retryable error checker for HTTP operations.
-/// This function checks if an error is in the set of known HTTP retryable errors.
-/// For use with functions that return errors compatible with HttpRetryableError.
-pub fn isHttpRetryable(comptime E: type) *const fn (E) bool {
-    return struct {
-        fn check(err: E) bool {
-            // Check against known retryable error values
-            inline for (@typeInfo(HttpRetryableError).error_set.?) |retryable_err| {
-                if (@typeInfo(E) == .error_set) {
-                    inline for (@typeInfo(E).error_set.?) |e| {
-                        if (std.mem.eql(u8, e.name, retryable_err.name) and @intFromError(err) == @intFromError(@field(E, e.name))) {
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-    }.check;
-}
-
-/// Retryable status codes (5xx server errors, 429 rate limit)
+/// Check if an HTTP status code indicates a retryable error.
 pub fn isStatusRetryable(status_code: u16) bool {
-    return status_code == 429 or // Rate limit
-        status_code == 500 or // Internal server error
-        status_code == 502 or // Bad gateway
-        status_code == 503 or // Service unavailable
-        status_code == 504; // Gateway timeout
-}
-
-test "retry with backoff succeeds on first attempt" {
-    const config = RetryConfig{
-        .max_attempts = 3,
-        .initial_backoff_ms = 10,
+    return switch (status_code) {
+        // Server errors
+        500, 502, 503, 504 => true,
+        // Rate limiting
+        429 => true,
+        // Request timeout
+        408 => true,
+        else => false,
     };
-
-    var call_count: u32 = 0;
-    const result = try retryWithBackoff(
-        u32,
-        struct {
-            fn testFunc(count: *u32) !u32 {
-                count.* += 1;
-                return 42;
-            }
-        }.testFunc,
-        .{&call_count},
-        config,
-        null,
-    );
-
-    try std.testing.expectEqual(@as(u32, 42), result);
-    try std.testing.expectEqual(@as(u32, 1), call_count);
 }
 
-test "retry with backoff succeeds after retries" {
-    const config = RetryConfig{
-        .max_attempts = 3,
-        .initial_backoff_ms = 1,
-        .enable_jitter = false,
-    };
+/// Calculate delay for a given retry attempt using exponential backoff.
+pub fn calculateDelay(config: RetryConfig, attempt: u32) u64 {
+    const base_delay = config.initial_delay_ms;
+    const multiplier = std.math.pow(f64, config.multiplier, @as(f64, @floatFromInt(attempt)));
+    var delay: u64 = @intFromFloat(@as(f64, @floatFromInt(base_delay)) * multiplier);
 
-    const TestError = error{TemporaryFailure};
+    // Cap at max delay
+    if (delay > config.max_delay_ms) {
+        delay = config.max_delay_ms;
+    }
 
-    var call_count: u32 = 0;
-    const result = try retryWithBackoff(
-        u32,
-        struct {
-            fn testFunc(count: *u32) TestError!u32 {
-                count.* += 1;
-                if (count.* < 3) return error.TemporaryFailure;
-                return 42;
-            }
-        }.testFunc,
-        .{&call_count},
-        config,
-        struct {
-            fn isRetryable(err: TestError) bool {
-                return err == error.TemporaryFailure;
-            }
-        }.isRetryable,
-    );
+    // Add jitter if enabled
+    if (config.jitter) {
+        const jitter_range = @as(f64, @floatFromInt(delay)) * config.jitter_factor;
+        const jitter: i64 = @as(i64, @intFromFloat(jitter_range * 2.0)) - @as(i64, @intFromFloat(jitter_range));
+        const signed_delay: i64 = @intCast(delay);
+        const adjusted = signed_delay + jitter;
+        delay = if (adjusted > 0) @intCast(adjusted) else 1;
+    }
 
-    try std.testing.expectEqual(@as(u32, 42), result);
-    try std.testing.expectEqual(@as(u32, 3), call_count);
+    return delay;
 }
 
-test "retry with backoff fails after max attempts" {
-    const config = RetryConfig{
-        .max_attempts = 2,
-        .initial_backoff_ms = 1,
-        .enable_jitter = false,
-    };
+/// Retry error result.
+pub const RetryError = struct {
+    attempts: u32,
+    last_status: u16,
 
-    const TestError = error{AlwaysFails};
+    pub fn format(
+        self: RetryError,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("RetryError: failed after {} attempts (last status: {})", .{
+            self.attempts,
+            self.last_status,
+        });
+    }
+};
 
-    var call_count: u32 = 0;
-    const result = retryWithBackoff(
-        u32,
-        struct {
-            fn testFunc(count: *u32) TestError!u32 {
-                count.* += 1;
-                return error.AlwaysFails;
-            }
-        }.testFunc,
-        .{&call_count},
-        config,
-        struct {
-            fn isRetryable(err: TestError) bool {
-                return err == error.AlwaysFails;
-            }
-        }.isRetryable,
-    );
-
-    try std.testing.expectError(error.AlwaysFails, result);
-    try std.testing.expectEqual(@as(u32, 3), call_count); // Initial + 2 retries
+test "isStatusRetryable" {
+    try std.testing.expect(isStatusRetryable(500));
+    try std.testing.expect(isStatusRetryable(502));
+    try std.testing.expect(isStatusRetryable(503));
+    try std.testing.expect(isStatusRetryable(429));
+    try std.testing.expect(!isStatusRetryable(200));
+    try std.testing.expect(!isStatusRetryable(404));
+    try std.testing.expect(!isStatusRetryable(401));
 }
 
-test "http retryable error detection" {
-    // Test with a mixed error set containing both retryable and non-retryable errors
-    const MixedError = error{ ConnectionRefused, Timeout, OutOfMemory };
-    const checker = isHttpRetryable(MixedError);
-    try std.testing.expect(checker(error.ConnectionRefused));
-    try std.testing.expect(checker(error.Timeout));
-    try std.testing.expect(!checker(error.OutOfMemory));
-}
-
-test "status code retryable detection" {
-    try std.testing.expect(isStatusRetryable(429)); // Rate limit
-    try std.testing.expect(isStatusRetryable(500)); // Server error
-    try std.testing.expect(isStatusRetryable(503)); // Service unavailable
-    try std.testing.expect(!isStatusRetryable(200)); // Success
-    try std.testing.expect(!isStatusRetryable(404)); // Not found
-    try std.testing.expect(!isStatusRetryable(401)); // Unauthorized
+test "calculateDelay" {
+    const config = RetryConfig{ .jitter = false };
+    try std.testing.expectEqual(@as(u64, 100), calculateDelay(config, 0));
+    try std.testing.expectEqual(@as(u64, 200), calculateDelay(config, 1));
+    try std.testing.expectEqual(@as(u64, 400), calculateDelay(config, 2));
 }

@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const registry = @import("registry.zig");
-const time = @import("../shared/utils/time.zig");
+const time = @import("../shared/utils.zig");
 
 pub const LoadBalancerStrategy = enum {
     round_robin,

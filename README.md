@@ -1,5 +1,9 @@
 # ABI Framework
 
+[![Zig Version](https://img.shields.io/badge/Zig-0.16-blue)](https://ziglang.org/)
+[![License](https://img.shields.io/github/license/donaldfilimon/abi)](LICENSE)
+[![Build Status](https://img.shields.io/badge/build-passing-success)](#)
+
 Modern Zig 0.16 framework for modular AI services, vector search, and high-performance systems tooling.
 
 ## Highlights
@@ -172,6 +176,127 @@ abi/
 ├── tools/cli/           # CLI implementation
 ├── benchmarks/          # Performance benchmarks
 └── docs/                # Documentation
+```
+
+## Visual Overview
+
+### System Architecture
+
+```mermaid
+flowchart TB
+    subgraph "Public API"
+        ABI[abi.zig<br/>init, shutdown, version]
+    end
+
+    subgraph "Framework"
+        FRAMEWORK[framework/mod.zig<br/>Lifecycle Management]
+    end
+
+    subgraph "Core"
+        CORE[core/mod.zig]
+        IO[I/O Utilities]
+        DIAG[Diagnostics]
+        COLL[Collections]
+    end
+
+    subgraph "Compute"
+        RUNTIME[Runtime Engine]
+        CONC[Concurrency<br/>WorkStealingQueue, LockFree*]
+        GPU[GPU Module]
+        MEM[Memory Management]
+        PROF[Profiling]
+    end
+
+    subgraph "Features"
+        AI[AI Module<br/>LLM, Vision, Agent, Training]
+        DB[Database<br/>WDBX Vector DB]
+        NET[Network<br/>Distributed Compute]
+        WEB[Web Utilities]
+        MON[Monitoring]
+        CONN[Connectors<br/>OpenAI, Ollama, HuggingFace]
+    end
+
+    subgraph "Shared"
+        LOG[Logging]
+        OBS[Observability]
+        SEC[Security]
+        UTIL[Utils<br/>Platform, SIMD, Time]
+    end
+
+    ABI --> FRAMEWORK
+    FRAMEWORK --> CORE
+    FRAMEWORK --> COMPUTE
+    FRAMEWORK --> FEATURES
+
+    CORE --> IO
+    CORE --> DIAG
+    CORE --> COLL
+
+    COMPUTE --> RUNTIME
+    COMPUTE --> CONC
+    COMPUTE --> GPU
+    COMPUTE --> MEM
+    COMPUTE --> PROF
+
+    AI --> CONN
+
+    CORE --> SHARED
+    COMPUTE --> SHARED
+    FEATURES --> SHARED
+```
+
+### GPU Architecture
+
+```mermaid
+flowchart TB
+    subgraph "Unified API Layer"
+        API[Gpu API<br/>vectorAdd, matrixMultiply, etc.]
+    end
+
+    subgraph "Dispatch Layer"
+        DISP[KernelDispatcher]
+        CACHE[Kernel Cache]
+        BUILTIN[Builtin Kernels]
+    end
+
+    subgraph "DSL Layer"
+        BUILDER[KernelBuilder]
+        IR[Kernel IR]
+        CODEGEN[Code Generators]
+    end
+
+    subgraph "Backend Layer"
+        FACTORY[Backend Factory]
+        subgraph "VTable Backends"
+            CUDA[CUDA VTable]
+            VULKAN[Vulkan VTable]
+            METAL[Metal VTable]
+            WEBGPU[WebGPU VTable]
+            STDGPU[STDGPU CPU Fallback]
+        end
+    end
+
+    subgraph "Device Layer"
+        DEVICE[Device Manager]
+        BUFFER[Unified Buffer]
+        STREAM[Stream Manager]
+    end
+
+    API --> DISP
+    DISP --> CACHE
+    DISP --> BUILTIN
+    BUILTIN --> BUILDER
+    BUILDER --> IR
+    IR --> CODEGEN
+    CODEGEN --> FACTORY
+    FACTORY --> CUDA
+    FACTORY --> VULKAN
+    FACTORY --> METAL
+    FACTORY --> WEBGPU
+    FACTORY --> STDGPU
+    API --> DEVICE
+    API --> BUFFER
+    API --> STREAM
 ```
 
 ## Testing

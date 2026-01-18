@@ -6,6 +6,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
+    std.debug.print("Network feature enabled flag: {}\n", .{abi.network.isEnabled()});
     if (!abi.network.isEnabled()) {
         std.debug.print("Network feature is disabled. Enable with -Denable-network=true\n", .{});
         return;
@@ -19,6 +20,13 @@ pub fn main() !void {
         return err;
     };
     defer abi.shutdown(&framework);
+
+    // Explicitly initialize the network subsystem before accessing the registry.
+    abi.network.init(allocator) catch |err| {
+        std.debug.print("Network init failed: {}\n", .{err});
+        return err;
+    };
+    defer abi.network.deinit();
 
     const registry = abi.network.defaultRegistry() catch |err| {
         std.debug.print("Failed to get default registry: {}\n", .{err});

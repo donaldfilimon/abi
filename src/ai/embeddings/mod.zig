@@ -7,7 +7,7 @@ const build_options = @import("build_options");
 const config_module = @import("../../config.zig");
 
 // Re-export from existing embeddings module
-const features_embeddings = @import("../../features/ai/embeddings/mod.zig");
+const features_embeddings = @import("../implementation/embeddings/mod.zig");
 
 pub const EmbeddingModel = features_embeddings.EmbeddingModel;
 pub const EmbeddingConfig = features_embeddings.EmbeddingConfig;

@@ -6,7 +6,7 @@
 //! - Key rotation and expiration support
 //! - Secure memory wiping for sensitive data
 const std = @import("std");
-const time = @import("../utils/time.zig");
+const time = @import("../utils.zig");
 
 /// Salt length in bytes for key hashing
 pub const SALT_LENGTH: usize = 16;

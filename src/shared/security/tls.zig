@@ -28,7 +28,7 @@
 //! - Monitor for TLS vulnerabilities and update accordingly
 
 const std = @import("std");
-const time = @import("../utils/time.zig");
+const time = @import("../utils.zig");
 const crypto = std.crypto;
 const net = std.net;
 

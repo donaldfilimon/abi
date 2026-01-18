@@ -50,7 +50,7 @@ test "feature-based backend selection" {
 
     // Test without CPU fallback
     const strict_backend = try backend_factory.selectBackendWithFeatures(allocator, .{
-        .required_features = &.{.tensor_cores, .cooperative_groups},
+        .required_features = &.{ .tensor_cores, .cooperative_groups },
         .fallback_to_cpu = false,
     });
 

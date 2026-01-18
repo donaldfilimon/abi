@@ -4,7 +4,7 @@
 //! and manages graceful degradation to fallback backends.
 
 const std = @import("std");
-const time = @import("../shared/utils/time.zig");
+const time = @import("../shared/utils.zig");
 const backend = @import("backend.zig");
 
 /// Recovery strategy for device failures.

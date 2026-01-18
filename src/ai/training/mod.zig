@@ -7,7 +7,7 @@ const build_options = @import("build_options");
 const config_module = @import("../../config.zig");
 
 // Re-export from existing training module
-const features_training = @import("../../features/ai/training/mod.zig");
+const features_training = @import("../implementation/training/mod.zig");
 
 pub const TrainingConfig = features_training.TrainingConfig;
 pub const TrainingReport = features_training.TrainingReport;

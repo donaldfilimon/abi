@@ -42,6 +42,7 @@ const database_mod = if (build_options.enable_database) @import("database/mod.zi
 const network_mod = if (build_options.enable_network) @import("network/mod.zig") else @import("network/stub.zig");
 const observability_mod = if (build_options.enable_profiling) @import("observability/mod.zig") else @import("observability/stub.zig");
 const web_mod = if (build_options.enable_web) @import("web/mod.zig") else @import("web/stub.zig");
+const ha_mod = @import("ha/mod.zig");
 const runtime_mod = @import("runtime/mod.zig");
 
 /// Framework orchestration handle.
@@ -59,6 +60,7 @@ pub const Framework = struct {
     network: ?*network_mod.Context = null,
     observability: ?*observability_mod.Context = null,
     web: ?*web_mod.Context = null,
+    ha: ?ha_mod.HaManager = null,
     runtime: *runtime_mod.Context,
 
     pub const State = enum {
@@ -176,6 +178,9 @@ pub const Framework = struct {
                 try fw.registry.registerComptime(.web);
             }
         }
+
+        // Initialize high availability if enabled (defaulting to primary)
+        fw.ha = ha_mod.HaManager.init(allocator, .{});
 
         fw.state = .running;
         return fw;

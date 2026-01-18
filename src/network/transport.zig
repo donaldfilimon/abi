@@ -17,7 +17,7 @@
 //!   const response = try transport.sendRequest("192.168.1.2:9000", request_data);
 
 const std = @import("std");
-const time = @import("../shared/utils/time.zig");
+const time = @import("../shared/utils.zig");
 const connection_pool = @import("connection_pool.zig");
 const circuit_breaker = @import("circuit_breaker.zig");
 const retry = @import("retry.zig");

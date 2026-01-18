@@ -1,251 +1,142 @@
 //! Binary serialization utilities.
 //!
-//! Provides common binary serialization primitives used across database,
-//! network, and other modules. Uses packed structs for optimal memory layout.
+//! Provides helpers for reading and writing binary data in a structured way.
 
 const std = @import("std");
 
-/// Binary cursor for reading serialized data.
-pub const SerializationCursor = struct {
-    data: []const u8,
-    index: usize = 0,
-
-    pub fn init(data: []const u8) SerializationCursor {
-        return .{ .data = data, .index = 0 };
-    }
-
-    /// Read bytes from cursor.
-    pub fn readBytes(self: *SerializationCursor, len: usize) ![]const u8 {
-        if (self.index + len > self.data.len) {
-            return error.OutOfBounds;
-        }
-        const result = self.data[self.index..][0..len];
-        self.index += len;
-        return result;
-    }
-
-    /// Read an integer value from cursor.
-    pub fn readInt(self: *SerializationCursor, comptime T: type) !T {
-        comptime {
-            const info = @typeInfo(T);
-            if (info != .int or info.int.signedness != .unsigned) {
-                @compileError("readInt only supports unsigned integer types");
-            }
-        }
-        const size = @sizeOf(T);
-        if (self.index + size > self.data.len) {
-            return error.OutOfBounds;
-        }
-        const bytes = self.data[self.index..][0..size];
-        self.index += size;
-        return std.mem.readInt(T, bytes, .little);
-    }
-
-    /// Read a slice length (as u32) followed by slice.
-    pub fn readSlice(self: *SerializationCursor) ![]const u8 {
-        const len = try self.readInt(u32);
-        return try self.readBytes(len);
-    }
-
-    /// Read a packed struct directly.
-    pub fn readStruct(self: *SerializationCursor, comptime T: type) !T {
-        const size = @sizeOf(T);
-        if (self.index + size > self.data.len) {
-            return error.OutOfBounds;
-        }
-        const bytes = self.data[self.index..][0..size];
-        self.index += size;
-        return std.mem.bytesAsValue(T, bytes[0..size]);
-    }
-
-    /// Check if cursor is at end of data.
-    pub fn isAtEnd(self: *const SerializationCursor) bool {
-        return self.index >= self.data.len;
-    }
-
-    /// Get remaining bytes.
-    pub fn remaining(self: *const SerializationCursor) []const u8 {
-        return self.data[self.index..];
-    }
-};
-
-/// Binary writer for serializing data.
+/// Writer for building binary data incrementally.
 pub const SerializationWriter = struct {
-    buffer: std.ArrayListUnmanaged(u8),
     allocator: std.mem.Allocator,
+    buffer: std.ArrayListUnmanaged(u8),
 
     pub fn init(allocator: std.mem.Allocator) SerializationWriter {
         return .{
-            .buffer = std.ArrayListUnmanaged(u8).empty,
             .allocator = allocator,
+            .buffer = .{},
         };
     }
 
     pub fn deinit(self: *SerializationWriter) void {
         self.buffer.deinit(self.allocator);
-        self.* = undefined;
     }
 
-    /// Append bytes to buffer.
-    pub fn appendBytes(self: *SerializationWriter, data: []const u8) !void {
-        try self.buffer.appendSlice(self.allocator, data);
+    /// Append raw bytes to the buffer.
+    pub fn appendBytes(self: *SerializationWriter, bytes: []const u8) !void {
+        try self.buffer.appendSlice(self.allocator, bytes);
     }
 
-    /// Append an integer value.
+    /// Append an integer value in little-endian format.
     pub fn appendInt(self: *SerializationWriter, comptime T: type, value: T) !void {
-        comptime {
-            const info = @typeInfo(T);
-            if (info != .int or info.int.signedness != .unsigned) {
-                @compileError("appendInt only supports unsigned integer types");
-            }
-        }
-        const size = @sizeOf(T);
-        const start = self.buffer.items.len;
-        try self.buffer.resize(self.allocator, start + size);
-        std.mem.writeInt(T, self.buffer.items[start..][0..size], value, .little);
+        const bytes = std.mem.asBytes(&std.mem.nativeToLittle(T, value));
+        try self.buffer.appendSlice(self.allocator, bytes);
     }
 
-    /// Append a slice with length prefix (u32).
-    pub fn appendSlice(self: *SerializationWriter, data: []const u8) !void {
-        try self.appendInt(u32, @intCast(data.len));
-        try self.appendBytes(data);
+    /// Append a float value.
+    pub fn appendFloat(self: *SerializationWriter, comptime T: type, value: T) !void {
+        const IntType = std.meta.Int(.unsigned, @bitSizeOf(T));
+        try self.appendInt(IntType, @bitCast(value));
     }
 
-    /// Append a string with length prefix (u32).
-    pub fn appendString(self: *SerializationWriter, data: []const u8) !void {
-        try self.appendSlice(data);
-    }
-
-    /// Append a packed struct directly.
-    pub fn appendStruct(self: *SerializationWriter, comptime T: type, value: T) !void {
-        const bytes = std.mem.asBytes(&value);
-        try self.appendBytes(bytes);
-    }
-
-    /// Get serialized bytes.
+    /// Get the accumulated data as an owned slice.
     pub fn toOwnedSlice(self: *SerializationWriter) ![]u8 {
-        return self.buffer.toOwnedSlice(self.allocator);
+        return try self.buffer.toOwnedSlice(self.allocator);
     }
 
-    /// Get current buffer length without copying.
+    /// Get the current length of accumulated data.
     pub fn len(self: *const SerializationWriter) usize {
         return self.buffer.items.len;
     }
+};
 
-    /// Clear the buffer while keeping capacity.
-    pub fn clear(self: *SerializationWriter) void {
-        self.buffer.clearRetainingCapacity();
+/// Cursor for reading binary data.
+pub const SerializationCursor = struct {
+    data: []const u8,
+    pos: usize,
+
+    pub const Error = error{
+        EndOfData,
+    };
+
+    pub fn init(data: []const u8) SerializationCursor {
+        return .{
+            .data = data,
+            .pos = 0,
+        };
+    }
+
+    /// Read a fixed number of bytes.
+    pub fn readBytes(self: *SerializationCursor, n: usize) Error![]const u8 {
+        if (self.pos + n > self.data.len) return Error.EndOfData;
+        const result = self.data[self.pos .. self.pos + n];
+        self.pos += n;
+        return result;
+    }
+
+    /// Read an integer value in little-endian format.
+    pub fn readInt(self: *SerializationCursor, comptime T: type) Error!T {
+        const size = @sizeOf(T);
+        if (self.pos + size > self.data.len) return Error.EndOfData;
+        const bytes = self.data[self.pos..][0..size];
+        self.pos += size;
+        return std.mem.littleToNative(T, @as(*align(1) const T, @ptrCast(bytes)).*);
+    }
+
+    /// Read a float value.
+    pub fn readFloat(self: *SerializationCursor, comptime T: type) Error!T {
+        const IntType = std.meta.Int(.unsigned, @bitSizeOf(T));
+        const bits = try self.readInt(IntType);
+        return @bitCast(bits);
+    }
+
+    /// Check if there's more data to read.
+    pub fn hasRemaining(self: *const SerializationCursor) bool {
+        return self.pos < self.data.len;
+    }
+
+    /// Get remaining bytes count.
+    pub fn remaining(self: *const SerializationCursor) usize {
+        return self.data.len - self.pos;
+    }
+
+    /// Skip n bytes.
+    pub fn skip(self: *SerializationCursor, n: usize) Error!void {
+        if (self.pos + n > self.data.len) return Error.EndOfData;
+        self.pos += n;
     }
 };
 
-test "SerializationCursor reads data correctly" {
-    const data = [_]u8{ 1, 2, 3, 4, 5, 6, 7, 8 };
-    var cursor = SerializationCursor.init(&data);
-
-    try std.testing.expectEqual(@as(u8, 1), try cursor.readInt(u8));
-    try std.testing.expectEqual(@as(u16, 0x0504), try cursor.readInt(u16));
-    try std.testing.expectEqual(@as(u32, 0x08070605), try cursor.readInt(u32));
-    try std.testing.expect(cursor.isAtEnd());
-}
-
-test "SerializationCursor reads packed structs" {
-    const TestStruct = packed struct { a: u8, b: u16, c: u32 };
-    const expected = TestStruct{ .a = 1, .b = 0x0201, .c = 0x05040302 };
-    const bytes = std.mem.asBytes(&expected);
-    var cursor = SerializationCursor.init(bytes);
-
-    const result = try cursor.readStruct(TestStruct);
-    try std.testing.expectEqual(expected.a, result.a);
-    try std.testing.expectEqual(expected.b, result.b);
-    try std.testing.expectEqual(expected.c, result.c);
-    try std.testing.expect(cursor.isAtEnd());
-}
-
-test "SerializationCursor reads slices correctly" {
-    const len_bytes = [_]u8{ 0x03, 0x00, 0x00, 0x00 };
-    const payload = "ABC";
-    const data = &([_]u8{ len_bytes[0], len_bytes[1], len_bytes[2], len_bytes[3] }) ++ payload;
-    var cursor = SerializationCursor.init(data);
-
-    const len = try cursor.readInt(u32);
-    try std.testing.expectEqual(@as(u32, 3), len);
-    const slice = try cursor.readBytes(3);
-    try std.testing.expectEqualSlices(u8, payload, slice);
-    try std.testing.expect(cursor.isAtEnd());
-}
-
-test "SerializationWriter writes data correctly" {
-    var writer = SerializationWriter.init(std.testing.allocator);
+test "serialization writer basic" {
+    const allocator = std.testing.allocator;
+    var writer = SerializationWriter.init(allocator);
     defer writer.deinit();
 
-    try writer.appendInt(u8, 1);
-    try writer.appendInt(u16, 0x0302);
-    try writer.appendInt(u32, 0x07060504);
-
-    const result = try writer.toOwnedSlice();
-    defer std.testing.allocator.free(result);
-    // Little endian: u8=0x01, u16=0x0302 -> [0x02, 0x03], u32=0x07060504 -> [0x04, 0x05, 0x06, 0x07]
-    try std.testing.expectEqualSlices(u8, &[_]u8{ 1, 2, 3, 4, 5, 6, 7 }, result);
-}
-
-test "SerializationWriter writes packed structs" {
-    const TestStruct = packed struct { a: u8, b: u16, c: u32 };
-    const value = TestStruct{ .a = 1, .b = 0x0201, .c = 0x05040302 };
-    var writer = SerializationWriter.init(std.testing.allocator);
-    defer writer.deinit();
-
-    try writer.appendStruct(TestStruct, value);
-
-    const result = try writer.toOwnedSlice();
-    defer std.testing.allocator.free(result);
-    const expected_bytes = std.mem.asBytes(&value);
-    try std.testing.expectEqualSlices(u8, expected_bytes, result);
-}
-
-test "SerializationWriter writes slices correctly" {
-    var writer = SerializationWriter.init(std.testing.allocator);
-    defer writer.deinit();
-
-    try writer.appendSlice("ABC");
-
-    const result = try writer.toOwnedSlice();
-    defer std.testing.allocator.free(result);
-    // u32 length prefix (little endian) + data: 3 as u32 = [0x03, 0x00, 0x00, 0x00] + "ABC"
-    try std.testing.expectEqualSlices(u8, &[_]u8{ 0x03, 0x00, 0x00, 0x00, 'A', 'B', 'C' }, result);
-}
-
-test "round trip serialization" {
-    var writer = SerializationWriter.init(std.testing.allocator);
-    defer writer.deinit();
-
-    const original_string = "Hello, world!";
-    const original_int: u64 = 42;
-
-    try writer.appendString(original_string);
-    try writer.appendInt(u64, original_int);
+    try writer.appendBytes("MAGIC");
+    try writer.appendInt(u16, 42);
+    try writer.appendInt(u32, 0xDEADBEEF);
 
     const data = try writer.toOwnedSlice();
-    defer std.testing.allocator.free(data);
+    defer allocator.free(data);
 
-    var cursor = SerializationCursor.init(data);
-    const string_len = try cursor.readInt(u32);
-    try std.testing.expectEqual(@as(u32, 13), string_len);
-    const read_string = try cursor.readBytes(13);
-    const read_int = try cursor.readInt(u64);
-
-    try std.testing.expectEqualStrings(original_string, read_string);
-    try std.testing.expectEqual(@as(u64, 42), read_int);
+    try std.testing.expectEqual(@as(usize, 11), data.len);
+    try std.testing.expectEqualSlices(u8, "MAGIC", data[0..5]);
 }
 
-test "SerializationWriter clear and len" {
-    var writer = SerializationWriter.init(std.testing.allocator);
-    defer writer.deinit();
+test "serialization cursor basic" {
+    var data: [11]u8 = undefined;
+    @memcpy(data[0..5], "MAGIC");
+    std.mem.writeInt(u16, data[5..7], 42, .little);
+    std.mem.writeInt(u32, data[7..11], 0xDEADBEEF, .little);
 
-    try writer.appendSlice("test");
-    const len1 = writer.len();
-    try std.testing.expect(len1 > 0);
+    var cursor = SerializationCursor.init(&data);
 
-    writer.clear();
-    const len2 = writer.len();
-    try std.testing.expectEqual(@as(usize, 0), len2);
+    const magic = try cursor.readBytes(5);
+    try std.testing.expectEqualSlices(u8, "MAGIC", magic);
+
+    const short = try cursor.readInt(u16);
+    try std.testing.expectEqual(@as(u16, 42), short);
+
+    const int = try cursor.readInt(u32);
+    try std.testing.expectEqual(@as(u32, 0xDEADBEEF), int);
+
+    try std.testing.expect(!cursor.hasRemaining());
 }

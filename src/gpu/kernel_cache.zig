@@ -7,7 +7,7 @@
 //! use std.Io.Dir.cwd() with proper I/O context for full Zig 0.16 compliance.
 
 const std = @import("std");
-const time = @import("../shared/utils/time.zig");
+const time = @import("../shared/utils.zig");
 
 // ============================================================================
 // Constants
