@@ -379,12 +379,32 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn runInteractive(allocator: std.mem.Allocator, framework: *abi.Framework) !void {
+    // Check platform support before initializing
+    if (!tui.Terminal.isSupported()) {
+        const caps = tui.Terminal.capabilities();
+        utils.output.printError("TUI is not supported on {s}.", .{caps.platform_name});
+        utils.output.printInfo("This platform lacks terminal control capabilities required for the interactive UI.", .{});
+        return;
+    }
+
     var terminal = tui.Terminal.init(allocator);
     defer terminal.deinit();
 
-    terminal.enter() catch {
-        utils.output.printError("TUI requires an interactive terminal.", .{});
-        utils.output.printInfo("Run directly from a terminal (not through pipes).", .{});
+    terminal.enter() catch |err| {
+        switch (err) {
+            error.PlatformNotSupported => {
+                const caps = tui.Terminal.capabilities();
+                utils.output.printError("TUI is not supported on {s}.", .{caps.platform_name});
+            },
+            error.ConsoleUnavailable, error.ConsoleModeFailed => {
+                utils.output.printError("Console is not available or cannot be configured.", .{});
+                utils.output.printInfo("On Windows, ensure you're running in a terminal (not through pipes).", .{});
+            },
+            else => {
+                utils.output.printError("Failed to initialize terminal: {t}", .{err});
+            },
+        }
+        utils.output.printInfo("Run directly from a terminal for interactive features.", .{});
         return;
     };
     defer terminal.exit() catch {};
@@ -1187,13 +1207,8 @@ fn renderStatusBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
     try term.write(theme.reset);
     try term.write(" ");
 
-    // OS info
-    const os_name = switch (builtin.os.tag) {
-        .windows => "Windows",
-        .linux => "Linux",
-        .macos => "macOS",
-        else => "Unknown",
-    };
+    // OS info - use platform capabilities for accurate detection
+    const os_name = tui.Terminal.platformName();
     try term.write(theme.text_dim);
     try term.write(os_name);
 
