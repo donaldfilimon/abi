@@ -123,6 +123,89 @@ if (gpu.getKernelMetrics("vectorAdd")) |metrics| {
 }
 ```
 
+### Device Enumeration
+
+Enumerate all available GPU devices across all backends:
+
+```zig
+const device = abi.gpu.device;
+
+// Enumerate all devices
+const all_devices = try device.enumerateAllDevices(allocator);
+defer allocator.free(all_devices);
+
+for (all_devices) |dev| {
+    std.debug.print("Device: {s} ({})\n", .{dev.name, dev.backend});
+    std.debug.print("  Type: {}\n", .{dev.device_type});
+    if (dev.total_memory) |mem| {
+        std.debug.print("  Memory: {} GB\n", .{mem / (1024 * 1024 * 1024)});
+    }
+}
+
+// Enumerate devices for a specific backend
+const cuda_devices = try device.enumerateDevicesForBackend(allocator, .cuda);
+defer allocator.free(cuda_devices);
+
+// Select best device with criteria
+const criteria = device.DeviceSelectionCriteria{
+    .prefer_discrete = true,
+    .min_memory_gb = 4,
+    .required_features = &.{.fp16},
+};
+const best = try device.selectBestDevice(allocator, criteria);
+```
+
+### Backend Auto-Detection
+
+The backend factory provides enhanced auto-detection with fallback chains:
+
+```zig
+const backend_factory = abi.gpu.backend_factory;
+
+// Detect all available backends
+const backends = try backend_factory.detectAvailableBackends(allocator);
+defer allocator.free(backends);
+
+// Select best backend with fallback chain
+const best = try backend_factory.selectBestBackendWithFallback(allocator, .{
+    .preferred = .cuda,
+    .fallback_chain = &.{ .vulkan, .metal, .stdgpu },
+});
+
+// Select backend with specific feature requirements
+const fp16_backend = try backend_factory.selectBackendWithFeatures(allocator, .{
+    .required_features = &.{.fp16, .atomics},
+    .fallback_to_cpu = false,
+});
+```
+
+### Unified Execution Coordinator
+
+Automatic GPU → SIMD → scalar fallback for optimal performance:
+
+```zig
+const exec = abi.gpu.execution_coordinator;
+
+var coordinator = try exec.ExecutionCoordinator.init(allocator, .{
+    .prefer_gpu = true,
+    .fallback_chain = &.{ .gpu, .simd, .scalar },
+    .gpu_threshold_size = 1024,  // Min elements for GPU
+    .simd_threshold_size = 4,    // Min elements for SIMD
+});
+defer coordinator.deinit();
+
+// Automatic method selection
+const a = [_]f32{ 1, 2, 3, 4, 5, 6, 7, 8 };
+const b = [_]f32{ 8, 7, 6, 5, 4, 3, 2, 1 };
+var result = [_]f32{0} ** 8;
+
+const method = try coordinator.vectorAdd(&a, &b, &result);
+// method is .gpu, .simd, or .scalar depending on availability and size
+
+// Explicit method override
+const forced_method = try coordinator.vectorAddWithMethod(&a, &b, &result, .simd);
+```
+
 ## Portable Kernel DSL
 
 Write kernels once, compile to all backends (CUDA, GLSL, WGSL, MSL).
@@ -176,15 +259,15 @@ defer kernel.deinit();
 
 ABI supports multiple GPU backends with comprehensive implementations:
 
-| Backend | Status |
-|---------|--------|
-| CUDA | Complete with tensor core support, async D2D, device queries |
-| Vulkan | Complete with SPIR-V generation |
-| Metal | Complete with Objective-C runtime bindings |
-| WebGPU | Complete with async adapter/device handling |
-| OpenGL/ES | Complete with compute shader support |
-| std.gpu | Complete with CPU fallback |
-| WebGL2 | Correctly returns UnsupportedBackend (no compute support) |
+| Backend | Status | Auto-Detect | Device Enum |
+|---------|--------|-------------|-------------|
+| CUDA | Complete with tensor core support, async D2D, device queries | Yes | Yes |
+| Vulkan | Complete with SPIR-V generation | Yes | Yes |
+| Metal | Complete with Objective-C runtime bindings | Yes | Yes |
+| WebGPU | Complete with async adapter/device handling | Yes | Yes |
+| OpenGL/ES | Complete with compute shader support | Yes | Yes |
+| std.gpu | Complete with CPU fallback | Yes | Yes |
+| WebGL2 | Correctly returns UnsupportedBackend (no compute support) | Yes | No |
 
 ### Backend Details
 
