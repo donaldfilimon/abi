@@ -133,7 +133,6 @@ pub fn compileShaderToSpirv(
     source: []const u8,
     entry_point: []const u8,
 ) ![]const u32 {
-    _ = allocator;
     _ = source;
     _ = entry_point;
 

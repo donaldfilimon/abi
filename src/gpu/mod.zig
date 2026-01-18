@@ -87,6 +87,22 @@ pub const ErrorContext = error_handling.ErrorContext;
 pub const GpuErrorCode = error_handling.GpuErrorCode;
 pub const GpuErrorType = error_handling.GpuErrorType;
 
+// Execution coordinator (GPU→SIMD→scalar fallback)
+pub const execution_coordinator = @import("execution_coordinator.zig");
+pub const ExecutionCoordinator = execution_coordinator.ExecutionCoordinator;
+pub const ExecutionMethod = execution_coordinator.ExecutionMethod;
+
+// Include test modules in test builds
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("tests/device_enumeration_test.zig");
+        _ = @import("tests/backend_detection_test.zig");
+        _ = @import("tests/std_gpu_test.zig");
+        _ = @import("tests/execution_fallback_test.zig");
+        _ = @import("tests/integration_test.zig");
+    }
+}
+
 const build_options = @import("build_options");
 
 // Import lifecycle management from shared utils
