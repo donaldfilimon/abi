@@ -96,6 +96,25 @@ const MenuItem = struct {
     action: Action,
     category: Category,
     shortcut: ?u8 = null, // Quick launch key (1-9)
+    usage: []const u8 = "", // Usage string for preview
+    examples: []const []const u8 = &[_][]const u8{}, // Example commands
+    related: []const []const u8 = &[_][]const u8{}, // Related commands
+
+    fn categoryColor(self: *const MenuItem, theme: *const tui.Theme) []const u8 {
+        return switch (self.category) {
+            .ai => theme.category_ai,
+            .data => theme.category_data,
+            .system => theme.category_system,
+            .tools => theme.category_tools,
+            .meta => theme.category_meta,
+        };
+    }
+};
+
+/// Command history entry
+const HistoryEntry = struct {
+    command: Command,
+    timestamp: i64,
 };
 
 const TuiState = struct {
@@ -111,13 +130,21 @@ const TuiState = struct {
     search_len: usize,
     visible_rows: usize,
     term_size: tui.TerminalSize,
+    // New features
+    theme_manager: tui.ThemeManager,
+    preview_mode: bool,
+    history: std.ArrayListUnmanaged(HistoryEntry),
+    show_history: bool,
+    notification: ?[]const u8,
+    notification_level: tui.Toast.Level,
+    notification_time: i64,
 
     fn init(allocator: std.mem.Allocator, terminal: *tui.Terminal, framework: *abi.Framework) !TuiState {
         var state = TuiState{
             .allocator = allocator,
             .terminal = terminal,
             .framework = framework,
-            .items = menuItems(),
+            .items = menuItemsExtended(),
             .filtered_indices = .empty,
             .selected = 0,
             .scroll_offset = 0,
@@ -126,6 +153,13 @@ const TuiState = struct {
             .search_len = 0,
             .visible_rows = 10,
             .term_size = terminal.size(),
+            .theme_manager = tui.ThemeManager.init(),
+            .preview_mode = false,
+            .history = .empty,
+            .show_history = false,
+            .notification = null,
+            .notification_level = .info,
+            .notification_time = 0,
         };
         // Initialize with all items
         try state.resetFilter();
@@ -134,6 +168,47 @@ const TuiState = struct {
 
     fn deinit(self: *TuiState) void {
         self.filtered_indices.deinit(self.allocator);
+        self.history.deinit(self.allocator);
+    }
+
+    fn theme(self: *const TuiState) *const tui.Theme {
+        return self.theme_manager.current;
+    }
+
+    fn addToHistory(self: *TuiState, cmd: Command) !void {
+        // Remove duplicates
+        var i: usize = 0;
+        while (i < self.history.items.len) {
+            if (self.history.items[i].command == cmd) {
+                _ = self.history.orderedRemove(i);
+            } else {
+                i += 1;
+            }
+        }
+        // Add to front
+        try self.history.insert(self.allocator, 0, .{
+            .command = cmd,
+            .timestamp = std.time.milliTimestamp(),
+        });
+        // Keep only last 10
+        while (self.history.items.len > 10) {
+            _ = self.history.pop();
+        }
+    }
+
+    fn showNotification(self: *TuiState, message: []const u8, level: tui.Toast.Level) void {
+        self.notification = message;
+        self.notification_level = level;
+        self.notification_time = std.time.milliTimestamp();
+    }
+
+    fn clearExpiredNotification(self: *TuiState) void {
+        if (self.notification != null) {
+            const elapsed = std.time.milliTimestamp() - self.notification_time;
+            if (elapsed > 3000) { // 3 second display
+                self.notification = null;
+            }
+        }
     }
 
     fn resetFilter(self: *TuiState) !void {
@@ -353,6 +428,14 @@ fn runInteractive(allocator: std.mem.Allocator, framework: *abi.Framework) !void
 }
 
 fn handleKeyEvent(state: *TuiState, key: tui.Key) !bool {
+    // Clear expired notifications
+    state.clearExpiredNotification();
+
+    // Handle preview mode
+    if (state.preview_mode) {
+        return try handlePreviewKey(state, key);
+    }
+
     if (state.search_mode) {
         return try handleSearchKey(state, key);
     }
@@ -360,7 +443,9 @@ fn handleKeyEvent(state: *TuiState, key: tui.Key) !bool {
     switch (key.code) {
         .ctrl_c => return true,
         .escape => {
-            if (state.search_len > 0) {
+            if (state.show_history) {
+                state.show_history = false;
+            } else if (state.search_len > 0) {
                 state.search_len = 0;
                 try state.resetFilter();
             }
@@ -376,12 +461,36 @@ fn handleKeyEvent(state: *TuiState, key: tui.Key) !bool {
                     },
                     'g' => state.goHome(),
                     'G' => state.goEnd(),
+                    't' => {
+                        // Cycle theme
+                        state.theme_manager.nextTheme();
+                        state.showNotification("Theme changed", .info);
+                    },
+                    'T' => {
+                        // Cycle theme backwards
+                        state.theme_manager.prevTheme();
+                        state.showNotification("Theme changed", .info);
+                    },
+                    '?' => {
+                        // Show preview for selected item
+                        if (state.selectedItem() != null) {
+                            state.preview_mode = true;
+                        }
+                    },
+                    'h' => {
+                        // Toggle history view
+                        state.show_history = !state.show_history;
+                    },
                     '1'...'9' => {
                         // Quick launch
                         const num = ch - '0';
                         if (findByShortcut(state.items, num)) |idx| {
+                            const item = state.items[idx];
+                            if (item.action == .command) {
+                                try state.addToHistory(item.action.command);
+                            }
                             try state.terminal.exit();
-                            try runAction(state.allocator, state.framework, state.items[idx].action);
+                            try runAction(state.allocator, state.framework, item.action);
                             std.debug.print("\n{s}Press Enter to return to menu...{s}", .{ colors.dim, colors.reset });
                             _ = state.terminal.readKey() catch {};
                             try state.terminal.enter();
@@ -400,6 +509,41 @@ fn handleKeyEvent(state: *TuiState, key: tui.Key) !bool {
         .enter => {
             if (state.selectedItem()) |item| {
                 if (item.action == .quit) return true;
+
+                // Add to history
+                if (item.action == .command) {
+                    try state.addToHistory(item.action.command);
+                }
+
+                try state.terminal.exit();
+                try runAction(state.allocator, state.framework, item.action);
+
+                std.debug.print("\n{s}Press Enter to return to menu...{s}", .{ colors.dim, colors.reset });
+                _ = state.terminal.readKey() catch {};
+
+                try state.terminal.enter();
+            }
+        },
+        else => {},
+    }
+    return false;
+}
+
+fn handlePreviewKey(state: *TuiState, key: tui.Key) !bool {
+    switch (key.code) {
+        .ctrl_c => return true,
+        .escape => {
+            state.preview_mode = false;
+        },
+        .enter => {
+            // Run the previewed command
+            state.preview_mode = false;
+            if (state.selectedItem()) |item| {
+                if (item.action == .quit) return true;
+
+                if (item.action == .command) {
+                    try state.addToHistory(item.action.command);
+                }
 
                 try state.terminal.exit();
                 try runAction(state.allocator, state.framework, item.action);
@@ -466,12 +610,28 @@ fn renderFrame(state: *TuiState) !void {
     const term = state.terminal;
     const width: usize = @min(80, state.term_size.cols);
 
+    // Handle preview mode
+    if (state.preview_mode) {
+        try renderPreview(term, state, width);
+        return;
+    }
+
     // Title bar
-    try renderTitleBar(term, width);
+    try renderTitleBar(term, state, width);
+
+    // Notification (if any)
+    if (state.notification) |msg| {
+        try renderNotification(term, state, width, msg);
+    }
 
     // Search bar (if active or has content)
     if (state.search_mode or state.search_len > 0) {
         try renderSearchBar(term, state, width);
+    }
+
+    // History panel (if shown)
+    if (state.show_history and state.history.items.len > 0) {
+        try renderHistory(term, state, width);
     }
 
     // Menu items
@@ -484,72 +644,388 @@ fn renderFrame(state: *TuiState) !void {
     try renderHelpBar(term, state, width);
 }
 
-fn renderTitleBar(term: *tui.Terminal, width: usize) !void {
+fn renderTitleBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
+    const theme = state.theme();
+
     // Top border
-    try term.write(colors.cyan);
+    try term.write(theme.border);
     try term.write(box.tl);
     try writeRepeat(term, box.h, width - 2);
     try term.write(box.tr);
-    try term.write(colors.reset);
+    try term.write(theme.reset);
     try term.write("\n");
 
     // Title
-    try term.write(colors.cyan);
+    try term.write(theme.border);
     try term.write(box.v);
-    try term.write(colors.reset);
+    try term.write(theme.reset);
 
     const title = " ABI Framework ";
     const version_str = abi.version();
-    const title_len = title.len + version_str.len + 3; // " vX.X.X"
+    const theme_indicator = state.theme_manager.current.name;
+    const title_len = title.len + version_str.len + theme_indicator.len + 6; // " vX.X.X [theme]"
     const left_pad = (width - 2 - title_len) / 2;
     const right_pad = width - 2 - title_len - left_pad;
 
     try writeRepeat(term, " ", left_pad);
-    try term.write(colors.bold);
-    try term.write(colors.cyan);
+    try term.write(theme.bold);
+    try term.write(theme.primary);
     try term.write(title);
-    try term.write(colors.dim);
+    try term.write(theme.text_dim);
     try term.write("v");
     try term.write(version_str);
-    try term.write(colors.reset);
+    try term.write(theme.reset);
+    try term.write(" ");
+    try term.write(theme.text_muted);
+    try term.write("[");
+    try term.write(theme_indicator);
+    try term.write("]");
+    try term.write(theme.reset);
     try writeRepeat(term, " ", right_pad);
 
-    try term.write(colors.cyan);
+    try term.write(theme.border);
     try term.write(box.v);
-    try term.write(colors.reset);
+    try term.write(theme.reset);
     try term.write("\n");
 
     // Separator
-    try term.write(colors.cyan);
+    try term.write(theme.border);
     try term.write(box.lsep);
     try writeRepeat(term, box.h, width - 2);
     try term.write(box.rsep);
-    try term.write(colors.reset);
+    try term.write(theme.reset);
     try term.write("\n");
 }
 
-fn renderSearchBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
-    try term.write(colors.cyan);
+fn renderNotification(term: *tui.Terminal, state: *TuiState, width: usize, msg: []const u8) !void {
+    const theme = state.theme();
+    const level_color = switch (state.notification_level) {
+        .success => theme.success,
+        .info => theme.info,
+        .warning => theme.warning,
+        .@"error" => theme.@"error",
+    };
+    const icon = switch (state.notification_level) {
+        .success => "✓",
+        .info => "ℹ",
+        .warning => "⚠",
+        .@"error" => "✗",
+    };
+
+    try term.write(theme.border);
     try term.write(box.v);
-    try term.write(colors.reset);
+    try term.write(theme.reset);
+    try term.write(" ");
+    try term.write(level_color);
+    try term.write(icon);
+    try term.write(" ");
+    try term.write(msg);
+    try term.write(theme.reset);
+
+    const used = 4 + msg.len;
+    if (used < width - 1) {
+        try writeRepeat(term, " ", width - 1 - used);
+    }
+
+    try term.write(theme.border);
+    try term.write(box.v);
+    try term.write(theme.reset);
+    try term.write("\n");
+}
+
+fn renderHistory(term: *tui.Terminal, state: *TuiState, width: usize) !void {
+    const theme = state.theme();
+
+    // Header
+    try term.write(theme.border);
+    try term.write(box.v);
+    try term.write(theme.reset);
+    try term.write(" ");
+    try term.write(theme.bold);
+    try term.write(theme.accent);
+    try term.write("Recent Commands:");
+    try term.write(theme.reset);
+
+    try writeRepeat(term, " ", width - 20);
+    try term.write(theme.border);
+    try term.write(box.v);
+    try term.write(theme.reset);
+    try term.write("\n");
+
+    // Show up to 5 recent commands
+    const max_show = @min(state.history.items.len, 5);
+    for (0..max_show) |i| {
+        const entry = state.history.items[i];
+        const cmd_name = commandName(entry.command);
+
+        try term.write(theme.border);
+        try term.write(box.v);
+        try term.write(theme.reset);
+        try term.write("   ");
+        try term.write(theme.text_dim);
+        var num_buf: [2]u8 = undefined;
+        num_buf[0] = '1' + @as(u8, @intCast(i));
+        num_buf[1] = '.';
+        try term.write(&num_buf);
+        try term.write(" ");
+        try term.write(theme.reset);
+        try term.write(theme.secondary);
+        try term.write(cmd_name);
+        try term.write(theme.reset);
+
+        const used = 7 + cmd_name.len;
+        if (used < width - 1) {
+            try writeRepeat(term, " ", width - 1 - used);
+        }
+
+        try term.write(theme.border);
+        try term.write(box.v);
+        try term.write(theme.reset);
+        try term.write("\n");
+    }
+
+    // Separator
+    try term.write(theme.border);
+    try term.write(box.lsep);
+    try writeRepeat(term, box.h, width - 2);
+    try term.write(box.rsep);
+    try term.write(theme.reset);
+    try term.write("\n");
+}
+
+fn renderPreview(term: *tui.Terminal, state: *TuiState, width: usize) !void {
+    const theme = state.theme();
+    const item = state.selectedItem() orelse return;
+
+    // Double-line box for preview
+    try term.write("\n");
+    try term.write(theme.primary);
+    try term.write(tui.widgets.box.dtl);
+    try writeRepeat(term, tui.widgets.box.dh, width - 2);
+    try term.write(tui.widgets.box.dtr);
+    try term.write(theme.reset);
+    try term.write("\n");
+
+    // Title
+    try term.write(theme.primary);
+    try term.write(tui.widgets.box.dv);
+    try term.write(theme.reset);
+    try term.write(" ");
+    try term.write(theme.bold);
+    try term.write(item.categoryColor(theme));
+    try term.write(item.label);
+    try term.write(theme.reset);
+
+    const title_len = item.label.len + 2;
+    if (title_len < width - 1) {
+        try writeRepeat(term, " ", width - 1 - title_len);
+    }
+    try term.write(theme.primary);
+    try term.write(tui.widgets.box.dv);
+    try term.write(theme.reset);
+    try term.write("\n");
+
+    // Description
+    try term.write(theme.primary);
+    try term.write(tui.widgets.box.dv);
+    try term.write(theme.reset);
+    try term.write(" ");
+    try term.write(theme.text_dim);
+    try term.write(item.description);
+    try term.write(theme.reset);
+
+    const desc_len = item.description.len + 2;
+    if (desc_len < width - 1) {
+        try writeRepeat(term, " ", width - 1 - desc_len);
+    }
+    try term.write(theme.primary);
+    try term.write(tui.widgets.box.dv);
+    try term.write(theme.reset);
+    try term.write("\n");
+
+    // Separator
+    try term.write(theme.primary);
+    try term.write(box.lsep);
+    try writeRepeat(term, tui.widgets.box.dh, width - 2);
+    try term.write(box.rsep);
+    try term.write(theme.reset);
+    try term.write("\n");
+
+    // Usage section
+    if (item.usage.len > 0) {
+        try renderPreviewSection(term, theme, "Usage", width);
+        try renderPreviewLine(term, theme, item.usage, width);
+    }
+
+    // Examples section
+    if (item.examples.len > 0) {
+        try renderPreviewSection(term, theme, "Examples", width);
+        for (item.examples) |example| {
+            try term.write(theme.primary);
+            try term.write(tui.widgets.box.dv);
+            try term.write(theme.reset);
+            try term.write("   ");
+            try term.write(theme.success);
+            try term.write("$ ");
+            try term.write(theme.reset);
+            try term.write(example);
+
+            const ex_len = example.len + 5;
+            if (ex_len < width - 1) {
+                try writeRepeat(term, " ", width - 1 - ex_len);
+            }
+            try term.write(theme.primary);
+            try term.write(tui.widgets.box.dv);
+            try term.write(theme.reset);
+            try term.write("\n");
+        }
+    }
+
+    // Related commands
+    if (item.related.len > 0) {
+        try renderPreviewSection(term, theme, "Related", width);
+        try term.write(theme.primary);
+        try term.write(tui.widgets.box.dv);
+        try term.write(theme.reset);
+        try term.write("   ");
+
+        var total_len: usize = 3;
+        for (item.related, 0..) |rel, i| {
+            if (i > 0) {
+                try term.write(", ");
+                total_len += 2;
+            }
+            try term.write(theme.accent);
+            try term.write(rel);
+            try term.write(theme.reset);
+            total_len += rel.len;
+        }
+
+        if (total_len < width - 1) {
+            try writeRepeat(term, " ", width - 1 - total_len);
+        }
+        try term.write(theme.primary);
+        try term.write(tui.widgets.box.dv);
+        try term.write(theme.reset);
+        try term.write("\n");
+    }
+
+    // Footer
+    try term.write(theme.primary);
+    try term.write(tui.widgets.box.dbl);
+    try writeRepeat(term, tui.widgets.box.dh, width - 2);
+    try term.write(tui.widgets.box.dbr);
+    try term.write(theme.reset);
+    try term.write("\n\n");
+
+    // Help text
+    try term.write(theme.text_dim);
+    try term.write(" Press ");
+    try term.write(theme.reset);
+    try term.write(theme.accent);
+    try term.write("Enter");
+    try term.write(theme.reset);
+    try term.write(theme.text_dim);
+    try term.write(" to run, ");
+    try term.write(theme.reset);
+    try term.write(theme.accent);
+    try term.write("Esc");
+    try term.write(theme.reset);
+    try term.write(theme.text_dim);
+    try term.write(" to go back\n");
+    try term.write(theme.reset);
+}
+
+fn renderPreviewSection(term: *tui.Terminal, theme: *const tui.Theme, title: []const u8, width: usize) !void {
+    try term.write(theme.primary);
+    try term.write(tui.widgets.box.dv);
+    try term.write(theme.reset);
+    try writeRepeat(term, " ", width - 2);
+    try term.write(theme.primary);
+    try term.write(tui.widgets.box.dv);
+    try term.write(theme.reset);
+    try term.write("\n");
+
+    try term.write(theme.primary);
+    try term.write(tui.widgets.box.dv);
+    try term.write(theme.reset);
+    try term.write(" ");
+    try term.write(theme.bold);
+    try term.write(theme.primary);
+    try term.write(title);
+    try term.write(":");
+    try term.write(theme.reset);
+
+    const sect_len = title.len + 3;
+    if (sect_len < width - 1) {
+        try writeRepeat(term, " ", width - 1 - sect_len);
+    }
+    try term.write(theme.primary);
+    try term.write(tui.widgets.box.dv);
+    try term.write(theme.reset);
+    try term.write("\n");
+}
+
+fn renderPreviewLine(term: *tui.Terminal, theme: *const tui.Theme, text: []const u8, width: usize) !void {
+    try term.write(theme.primary);
+    try term.write(tui.widgets.box.dv);
+    try term.write(theme.reset);
+    try term.write("   ");
+    try term.write(text);
+
+    const line_len = text.len + 3;
+    if (line_len < width - 1) {
+        try writeRepeat(term, " ", width - 1 - line_len);
+    }
+    try term.write(theme.primary);
+    try term.write(tui.widgets.box.dv);
+    try term.write(theme.reset);
+    try term.write("\n");
+}
+
+fn commandName(cmd: Command) []const u8 {
+    return switch (cmd) {
+        .db => "db",
+        .agent => "agent",
+        .bench => "bench",
+        .config => "config",
+        .discord => "discord",
+        .embed => "embed",
+        .explore => "explore",
+        .gpu => "gpu",
+        .llm => "llm",
+        .network => "network",
+        .simd => "simd",
+        .system_info => "system-info",
+        .train => "train",
+        .task => "task",
+    };
+}
+
+fn renderSearchBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
+    const theme = state.theme();
+
+    try term.write(theme.border);
+    try term.write(box.v);
+    try term.write(theme.reset);
 
     try term.write(" ");
     if (state.search_mode) {
-        try term.write(colors.yellow);
+        try term.write(theme.accent);
     } else {
-        try term.write(colors.dim);
+        try term.write(theme.text_dim);
     }
     try term.write("/");
-    try term.write(colors.reset);
+    try term.write(theme.reset);
     try term.write(" ");
 
     const query = state.search_buffer[0..state.search_len];
     try term.write(query);
 
     if (state.search_mode) {
-        try term.write(colors.yellow);
+        try term.write(theme.accent);
         try term.write("_");
-        try term.write(colors.reset);
+        try term.write(theme.reset);
     }
 
     const used = 4 + query.len + @as(usize, if (state.search_mode) 1 else 0);
@@ -557,21 +1033,22 @@ fn renderSearchBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
         try writeRepeat(term, " ", width - 1 - used);
     }
 
-    try term.write(colors.cyan);
+    try term.write(theme.border);
     try term.write(box.v);
-    try term.write(colors.reset);
+    try term.write(theme.reset);
     try term.write("\n");
 
     // Separator
-    try term.write(colors.cyan);
+    try term.write(theme.border);
     try term.write(box.lsep);
     try writeRepeat(term, box.h, width - 2);
     try term.write(box.rsep);
-    try term.write(colors.reset);
+    try term.write(theme.reset);
     try term.write("\n");
 }
 
 fn renderMenuItems(term: *tui.Terminal, state: *TuiState, width: usize) !void {
+    const theme = state.theme();
     const items = state.items;
     const indices = state.filtered_indices.items;
     const visible = state.visible_rows;
@@ -580,16 +1057,16 @@ fn renderMenuItems(term: *tui.Terminal, state: *TuiState, width: usize) !void {
 
     // Show scroll indicator if needed
     if (start > 0) {
-        try term.write(colors.cyan);
+        try term.write(theme.border);
         try term.write(box.v);
-        try term.write(colors.reset);
-        try term.write(colors.dim);
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
         try term.write("   ▲ more above");
         try writeRepeat(term, " ", width - 18);
-        try term.write(colors.reset);
-        try term.write(colors.cyan);
+        try term.write(theme.reset);
+        try term.write(theme.border);
         try term.write(box.v);
-        try term.write(colors.reset);
+        try term.write(theme.reset);
         try term.write("\n");
     }
 
@@ -598,13 +1075,13 @@ fn renderMenuItems(term: *tui.Terminal, state: *TuiState, width: usize) !void {
         const item = items[idx];
         const is_selected = i == state.selected;
 
-        try term.write(colors.cyan);
+        try term.write(theme.border);
         try term.write(box.v);
-        try term.write(colors.reset);
+        try term.write(theme.reset);
 
         if (is_selected) {
-            try term.write(colors.bg_blue);
-            try term.write(colors.bright_white);
+            try term.write(theme.selection_bg);
+            try term.write(theme.selection_fg);
             try term.write(" ▸ ");
         } else {
             try term.write("   ");
@@ -612,15 +1089,15 @@ fn renderMenuItems(term: *tui.Terminal, state: *TuiState, width: usize) !void {
 
         // Shortcut number
         if (item.shortcut) |num| {
-            try term.write(colors.dim);
+            try term.write(theme.text_dim);
             var buf: [2]u8 = undefined;
             buf[0] = '0' + num;
             buf[1] = 0;
             try term.write(buf[0..1]);
-            try term.write(colors.reset);
+            try term.write(theme.reset);
             if (is_selected) {
-                try term.write(colors.bg_blue);
-                try term.write(colors.bright_white);
+                try term.write(theme.selection_bg);
+                try term.write(theme.selection_fg);
             }
             try term.write(" ");
         } else {
@@ -628,13 +1105,13 @@ fn renderMenuItems(term: *tui.Terminal, state: *TuiState, width: usize) !void {
         }
 
         // Category color
-        try term.write(item.category.color());
-        if (is_selected) try term.write(colors.bold);
+        try term.write(item.categoryColor(theme));
+        if (is_selected) try term.write(theme.bold);
         try term.write(item.label);
-        try term.write(colors.reset);
+        try term.write(theme.reset);
         if (is_selected) {
-            try term.write(colors.bg_blue);
-            try term.write(colors.bright_white);
+            try term.write(theme.selection_bg);
+            try term.write(theme.selection_fg);
         }
 
         // Padding
@@ -643,12 +1120,12 @@ fn renderMenuItems(term: *tui.Terminal, state: *TuiState, width: usize) !void {
         try writeRepeat(term, " ", padding);
 
         // Description
-        try term.write(colors.dim);
-        if (is_selected) try term.write(colors.bright_white);
+        try term.write(theme.text_dim);
+        if (is_selected) try term.write(theme.selection_fg);
         const desc_max = width -| 24;
         const desc_len = @min(item.description.len, desc_max);
         try term.write(item.description[0..desc_len]);
-        try term.write(colors.reset);
+        try term.write(theme.reset);
 
         // Fill rest
         const used = 6 + label_len + padding + desc_len;
@@ -656,24 +1133,24 @@ fn renderMenuItems(term: *tui.Terminal, state: *TuiState, width: usize) !void {
             try writeRepeat(term, " ", width - 1 - used);
         }
 
-        try term.write(colors.cyan);
+        try term.write(theme.border);
         try term.write(box.v);
-        try term.write(colors.reset);
+        try term.write(theme.reset);
         try term.write("\n");
     }
 
     // Show scroll indicator if needed
     if (end < indices.len) {
-        try term.write(colors.cyan);
+        try term.write(theme.border);
         try term.write(box.v);
-        try term.write(colors.reset);
-        try term.write(colors.dim);
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
         try term.write("   ▼ more below");
         try writeRepeat(term, " ", width - 18);
-        try term.write(colors.reset);
-        try term.write(colors.cyan);
+        try term.write(theme.reset);
+        try term.write(theme.border);
         try term.write(box.v);
-        try term.write(colors.reset);
+        try term.write(theme.reset);
         try term.write("\n");
     }
 
@@ -681,31 +1158,33 @@ fn renderMenuItems(term: *tui.Terminal, state: *TuiState, width: usize) !void {
     const rendered = end - start + @as(usize, if (start > 0) 1 else 0) + @as(usize, if (end < indices.len) 1 else 0);
     if (rendered < visible) {
         for (0..(visible - rendered)) |_| {
-            try term.write(colors.cyan);
+            try term.write(theme.border);
             try term.write(box.v);
-            try term.write(colors.reset);
+            try term.write(theme.reset);
             try writeRepeat(term, " ", width - 2);
-            try term.write(colors.cyan);
+            try term.write(theme.border);
             try term.write(box.v);
-            try term.write(colors.reset);
+            try term.write(theme.reset);
             try term.write("\n");
         }
     }
 }
 
 fn renderStatusBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
+    const theme = state.theme();
+
     // Separator
-    try term.write(colors.cyan);
+    try term.write(theme.border);
     try term.write(box.lsep);
     try writeRepeat(term, box.h, width - 2);
     try term.write(box.rsep);
-    try term.write(colors.reset);
+    try term.write(theme.reset);
     try term.write("\n");
 
     // Status content
-    try term.write(colors.cyan);
+    try term.write(theme.border);
     try term.write(box.v);
-    try term.write(colors.reset);
+    try term.write(theme.reset);
     try term.write(" ");
 
     // OS info
@@ -715,7 +1194,7 @@ fn renderStatusBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
         .macos => "macOS",
         else => "Unknown",
     };
-    try term.write(colors.dim);
+    try term.write(theme.text_dim);
     try term.write(os_name);
 
     // Item count
@@ -725,77 +1204,79 @@ fn renderStatusBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
         state.items.len,
     }) catch "?";
     try term.write(count_str);
-    try term.write(colors.reset);
+    try term.write(theme.reset);
 
     const used = 2 + os_name.len + count_str.len;
     if (used < width - 1) {
         try writeRepeat(term, " ", width - 1 - used);
     }
 
-    try term.write(colors.cyan);
+    try term.write(theme.border);
     try term.write(box.v);
-    try term.write(colors.reset);
+    try term.write(theme.reset);
     try term.write("\n");
 }
 
 fn renderHelpBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
+    const theme = state.theme();
+
     // Bottom border with help
-    try term.write(colors.cyan);
+    try term.write(theme.border);
     try term.write(box.bl);
     try writeRepeat(term, box.h, width - 2);
     try term.write(box.br);
-    try term.write(colors.reset);
+    try term.write(theme.reset);
     try term.write("\n");
 
     // Help text
     try term.write(" ");
     if (state.search_mode) {
-        try term.write(colors.dim);
+        try term.write(theme.text_dim);
         try term.write("Type to filter │ ");
-        try term.write(colors.reset);
-        try term.write(colors.yellow);
+        try term.write(theme.reset);
+        try term.write(theme.accent);
         try term.write("Enter");
-        try term.write(colors.reset);
-        try term.write(colors.dim);
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
         try term.write(" Run │ ");
-        try term.write(colors.reset);
-        try term.write(colors.yellow);
+        try term.write(theme.reset);
+        try term.write(theme.accent);
         try term.write("Esc");
-        try term.write(colors.reset);
-        try term.write(colors.dim);
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
         try term.write(" Cancel");
-        try term.write(colors.reset);
+        try term.write(theme.reset);
     } else {
-        try term.write(colors.yellow);
+        try term.write(theme.accent);
         try term.write("Enter");
-        try term.write(colors.reset);
-        try term.write(colors.dim);
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
         try term.write(" Run │ ");
-        try term.write(colors.reset);
-        try term.write(colors.yellow);
-        try term.write("j/k");
-        try term.write(colors.reset);
-        try term.write(colors.dim);
-        try term.write(" Nav │ ");
-        try term.write(colors.reset);
-        try term.write(colors.yellow);
-        try term.write("/");
-        try term.write(colors.reset);
-        try term.write(colors.dim);
-        try term.write(" Search │ ");
-        try term.write(colors.reset);
-        try term.write(colors.yellow);
-        try term.write("1-9");
-        try term.write(colors.reset);
-        try term.write(colors.dim);
-        try term.write(" Quick │ ");
-        try term.write(colors.reset);
-        try term.write(colors.yellow);
+        try term.write(theme.reset);
+        try term.write(theme.accent);
+        try term.write("?");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Preview │ ");
+        try term.write(theme.reset);
+        try term.write(theme.accent);
+        try term.write("t");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Theme │ ");
+        try term.write(theme.reset);
+        try term.write(theme.accent);
+        try term.write("h");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" History │ ");
+        try term.write(theme.reset);
+        try term.write(theme.accent);
         try term.write("q");
-        try term.write(colors.reset);
-        try term.write(colors.dim);
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
         try term.write(" Quit");
-        try term.write(colors.reset);
+        try term.write(theme.reset);
     }
     try term.write("\n");
 }
@@ -845,29 +1326,150 @@ fn runCommand(allocator: std.mem.Allocator, cmd: Command) !void {
 // Menu Items
 // ═══════════════════════════════════════════════════════════════════════════
 
-fn menuItems() []const MenuItem {
+fn menuItemsExtended() []const MenuItem {
     return &[_]MenuItem{
         // AI & ML (shortcuts 1-3)
-        .{ .label = "AI Agent", .description = "Interactive AI assistant", .action = .{ .command = .agent }, .category = .ai, .shortcut = 1 },
-        .{ .label = "LLM", .description = "Local LLM inference", .action = .{ .command = .llm }, .category = .ai, .shortcut = 2 },
-        .{ .label = "Training", .description = "Run training pipelines", .action = .{ .command = .train }, .category = .ai, .shortcut = 3 },
-        .{ .label = "Embeddings", .description = "Generate embeddings", .action = .{ .command = .embed }, .category = .ai },
+        .{
+            .label = "AI Agent",
+            .description = "Interactive AI assistant",
+            .action = .{ .command = .agent },
+            .category = .ai,
+            .shortcut = 1,
+            .usage = "abi agent [--message \"...\"] [--persona <name>]",
+            .examples = &[_][]const u8{ "abi agent", "abi agent --message \"Hello\"" },
+            .related = &[_][]const u8{ "llm", "train" },
+        },
+        .{
+            .label = "LLM",
+            .description = "Local LLM inference",
+            .action = .{ .command = .llm },
+            .category = .ai,
+            .shortcut = 2,
+            .usage = "abi llm <subcommand> [options]",
+            .examples = &[_][]const u8{ "abi llm chat", "abi llm generate \"prompt\"", "abi llm info" },
+            .related = &[_][]const u8{ "agent", "embed" },
+        },
+        .{
+            .label = "Training",
+            .description = "Run training pipelines",
+            .action = .{ .command = .train },
+            .category = .ai,
+            .shortcut = 3,
+            .usage = "abi train <subcommand> [options]",
+            .examples = &[_][]const u8{ "abi train run", "abi train resume", "abi train info" },
+            .related = &[_][]const u8{ "agent", "llm" },
+        },
+        .{
+            .label = "Embeddings",
+            .description = "Generate embeddings",
+            .action = .{ .command = .embed },
+            .category = .ai,
+            .usage = "abi embed [--provider <name>] <text>",
+            .examples = &[_][]const u8{ "abi embed \"hello world\"", "abi embed --provider openai \"text\"" },
+            .related = &[_][]const u8{ "db", "llm" },
+        },
 
         // Data (shortcuts 4-5)
-        .{ .label = "Database", .description = "Manage vector database", .action = .{ .command = .db }, .category = .data, .shortcut = 4 },
-        .{ .label = "Explore", .description = "Search the codebase", .action = .{ .command = .explore }, .category = .data, .shortcut = 5 },
+        .{
+            .label = "Database",
+            .description = "Manage vector database",
+            .action = .{ .command = .db },
+            .category = .data,
+            .shortcut = 4,
+            .usage = "abi db <subcommand> [options]",
+            .examples = &[_][]const u8{ "abi db stats", "abi db add", "abi db query", "abi db backup" },
+            .related = &[_][]const u8{ "embed", "explore" },
+        },
+        .{
+            .label = "Explore",
+            .description = "Search the codebase",
+            .action = .{ .command = .explore },
+            .category = .data,
+            .shortcut = 5,
+            .usage = "abi explore [query]",
+            .examples = &[_][]const u8{ "abi explore", "abi explore \"function name\"" },
+            .related = &[_][]const u8{ "db", "agent" },
+        },
 
         // System (shortcuts 6-7)
-        .{ .label = "GPU", .description = "GPU devices and backends", .action = .{ .command = .gpu }, .category = .system, .shortcut = 6 },
-        .{ .label = "Network", .description = "Cluster management", .action = .{ .command = .network }, .category = .system, .shortcut = 7 },
-        .{ .label = "System Info", .description = "System and framework status", .action = .{ .command = .system_info }, .category = .system },
+        .{
+            .label = "GPU",
+            .description = "GPU devices and backends",
+            .action = .{ .command = .gpu },
+            .category = .system,
+            .shortcut = 6,
+            .usage = "abi gpu <subcommand>",
+            .examples = &[_][]const u8{ "abi gpu backends", "abi gpu devices", "abi gpu summary" },
+            .related = &[_][]const u8{ "bench", "system-info" },
+        },
+        .{
+            .label = "Network",
+            .description = "Cluster management",
+            .action = .{ .command = .network },
+            .category = .system,
+            .shortcut = 7,
+            .usage = "abi network <subcommand>",
+            .examples = &[_][]const u8{ "abi network list", "abi network status", "abi network register" },
+            .related = &[_][]const u8{ "system-info", "config" },
+        },
+        .{
+            .label = "System Info",
+            .description = "System and framework status",
+            .action = .{ .command = .system_info },
+            .category = .system,
+            .usage = "abi system-info",
+            .examples = &[_][]const u8{"abi system-info"},
+            .related = &[_][]const u8{ "gpu", "network" },
+        },
 
         // Tools (shortcuts 8-9)
-        .{ .label = "Benchmarks", .description = "Performance benchmarks", .action = .{ .command = .bench }, .category = .tools, .shortcut = 8 },
-        .{ .label = "SIMD", .description = "SIMD performance demo", .action = .{ .command = .simd }, .category = .tools, .shortcut = 9 },
-        .{ .label = "Config", .description = "Configuration management", .action = .{ .command = .config }, .category = .tools },
-        .{ .label = "Tasks", .description = "Task management", .action = .{ .command = .task }, .category = .tools },
-        .{ .label = "Discord", .description = "Discord bot integration", .action = .{ .command = .discord }, .category = .tools },
+        .{
+            .label = "Benchmarks",
+            .description = "Performance benchmarks",
+            .action = .{ .command = .bench },
+            .category = .tools,
+            .shortcut = 8,
+            .usage = "abi bench [suite]",
+            .examples = &[_][]const u8{ "abi bench", "abi bench all", "abi bench simd" },
+            .related = &[_][]const u8{ "simd", "gpu" },
+        },
+        .{
+            .label = "SIMD",
+            .description = "SIMD performance demo",
+            .action = .{ .command = .simd },
+            .category = .tools,
+            .shortcut = 9,
+            .usage = "abi simd",
+            .examples = &[_][]const u8{"abi simd"},
+            .related = &[_][]const u8{ "bench", "gpu" },
+        },
+        .{
+            .label = "Config",
+            .description = "Configuration management",
+            .action = .{ .command = .config },
+            .category = .tools,
+            .usage = "abi config <subcommand>",
+            .examples = &[_][]const u8{ "abi config show", "abi config init", "abi config validate" },
+            .related = &[_][]const u8{ "system-info", "network" },
+        },
+        .{
+            .label = "Tasks",
+            .description = "Task management",
+            .action = .{ .command = .task },
+            .category = .tools,
+            .usage = "abi task <subcommand>",
+            .examples = &[_][]const u8{ "abi task list", "abi task add", "abi task done" },
+            .related = &[_][]const u8{ "agent", "config" },
+        },
+        .{
+            .label = "Discord",
+            .description = "Discord bot integration",
+            .action = .{ .command = .discord },
+            .category = .tools,
+            .usage = "abi discord <subcommand>",
+            .examples = &[_][]const u8{ "abi discord status", "abi discord guilds" },
+            .related = &[_][]const u8{ "agent", "config" },
+        },
 
         // Meta
         .{ .label = "Help", .description = "Show CLI usage", .action = .help, .category = .meta },
@@ -930,10 +1532,22 @@ fn printHelp() void {
         \\  Enter           Run the selected command
         \\  1-9             Quick launch (numbered items)
         \\  /               Search/filter commands
-        \\  Esc             Clear search
+        \\  Esc             Clear search / Exit modes
         \\  q, Ctrl+C       Exit the TUI launcher
         \\
+        \\{s}Features:{s}
+        \\  ?               Preview command details before running
+        \\  t / T           Cycle through color themes (forward/backward)
+        \\  h               Toggle command history panel
+        \\
+        \\{s}Themes:{s}
+        \\  default, monokai, solarized, nord, gruvbox, high_contrast, minimal
+        \\
     , .{
+        colors.bold,
+        colors.reset,
+        colors.bold,
+        colors.reset,
         colors.bold,
         colors.reset,
         colors.bold,

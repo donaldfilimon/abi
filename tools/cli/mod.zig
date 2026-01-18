@@ -154,6 +154,11 @@ pub fn mainWithArgs(proc_args: std.process.Args) !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "completions")) {
+        try commands.completions.run(allocator, args[2..]);
+        return;
+    }
+
     std.debug.print("Unknown command: {s}\nUse 'help' for usage.\n", .{command});
     std.process.exit(1);
 }
@@ -182,8 +187,10 @@ fn printHelp() void {
         \\  network [command]  Manage network registry (list, register, status)
         \\  simd               Run SIMD performance demo
         \\  system-info        Show system and framework status
+        \\  task <subcommand> Task management (add, list, done, stats)
         \\  train <subcommand> Training pipeline (run, resume, info)
-        \\  tui                Launch interactive TUI command menu (type to filter)
+        \\  tui                Launch interactive TUI command menu (with themes!)
+        \\  completions <sh>   Generate shell completions (bash, zsh, fish)
         \\  version            Show framework version
         \\  help               Show this help message
         \\
