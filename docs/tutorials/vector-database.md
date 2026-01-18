@@ -1,6 +1,6 @@
 # Tutorial: Vector Database with WDBX
 
-> **Duration:** 30 minutes | **Level:** Beginner | **Video:** [Watch](videos/02-vector-database.md)
+> **Duration:** 30 minutes | **Level:** Beginner
 
 ## What You'll Learn
 
@@ -552,7 +552,7 @@ Build a tool that:
 
 ## Next Steps
 
-- [Tutorial 3: AI Integration](ai-integration.md) - Generate real embeddings with LLMs
+- [AI Guide](../ai.md) - Generate real embeddings with LLMs
 - [Database Guide](../database.md) - Advanced WDBX features
 - [API Reference](../API_REFERENCE.md) - Complete database API
 
@@ -564,4 +564,4 @@ Build a tool that:
 
 ---
 
-**Video Walkthrough:** [Watch the 30-minute guided tutorial](videos/02-vector-database.md)
+**See Also:** [Getting Started Tutorial](getting-started.md)

@@ -301,9 +301,9 @@ Compare the resulting binary sizes.
 ## Next Steps
 
 - [Tutorial 2: Vector Database](vector-database.md) - Store and search vectors
-- [Tutorial 3: AI Integration](ai-integration.md) - Connect to LLMs
-- [Tutorial 4: GPU Acceleration](gpu-acceleration.md) - Accelerate compute
 - [API Reference](../API_REFERENCE.md) - Complete API docs
+- [AI Guide](../ai.md) - Connect to LLMs
+- [GPU Guide](../gpu.md) - Accelerate compute
 
 ---
 
