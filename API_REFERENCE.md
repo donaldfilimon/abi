@@ -86,6 +86,9 @@ Top-level domain modules (flat structure):
   - `abi.ai.agents` - AI agent runtime
   - `abi.ai.training` - Training pipelines
 - `abi.gpu` - GPU backends and unified API
+  - `abi.gpu.device` - Device enumeration and selection
+  - `abi.gpu.backend_factory` - Backend auto-detection
+  - `abi.gpu.execution_coordinator` - GPU→SIMD→scalar fallback
 - `abi.database` - WDBX vector database
 - `abi.network` - Distributed compute and Raft consensus
 - `abi.web` - HTTP helpers, web utilities
@@ -141,6 +144,63 @@ See [Runtime Guide](docs/compute.md) for detailed usage.
 - `timeout_ms=null`: Waits indefinitely until result is ready
 
 **Breaking Change (0.2.1)**: Prior to version 0.2.1, `timeout_ms=0` returned `ResultNotFound` after one check. This behavior has changed to return `EngineError.Timeout` immediately for clarity. Migration: Use `timeout_ms=1000` for a one-second timeout.
+
+## GPU API
+
+### Device Enumeration
+
+- `abi.gpu.device.enumerateAllDevices(allocator)` -> `![]Device` - Enumerate all GPU devices
+- `abi.gpu.device.enumerateDevicesForBackend(allocator, backend)` -> `![]Device` - Per-backend enumeration
+- `abi.gpu.device.selectBestDevice(allocator, criteria)` -> `!?Device` - Select device by criteria
+- `abi.gpu.device.DeviceSelectionCriteria` - Selection criteria struct
+  - `.prefer_discrete: bool` - Prefer discrete GPUs
+  - `.min_memory_gb: u64` - Minimum memory requirement
+  - `.required_features: []const DeviceFeature` - Required capabilities
+
+### Backend Auto-Detection
+
+- `abi.gpu.backend_factory.detectAvailableBackends(allocator)` -> `![]Backend` - List available backends
+- `abi.gpu.backend_factory.selectBestBackendWithFallback(allocator, options)` -> `!?Backend` - Select with fallback
+- `abi.gpu.backend_factory.selectBackendWithFeatures(allocator, options)` -> `!?Backend` - Feature-based selection
+- `abi.gpu.backend_factory.SelectionOptions` - Backend selection options
+  - `.preferred: ?Backend` - Preferred backend
+  - `.fallback_chain: []const Backend` - Fallback order
+  - `.required_features: []const BackendFeature` - Required features
+  - `.fallback_to_cpu: bool` - Allow CPU fallback
+
+### Execution Coordinator
+
+- `abi.gpu.ExecutionCoordinator.init(allocator, config)` -> `!ExecutionCoordinator` - Initialize coordinator
+- `abi.gpu.ExecutionCoordinator.deinit()` - Clean up resources
+- `abi.gpu.ExecutionCoordinator.vectorAdd(a, b, result)` -> `!ExecutionMethod` - Auto-select method
+- `abi.gpu.ExecutionCoordinator.vectorAddWithMethod(a, b, result, method)` -> `!ExecutionMethod` - Force method
+- `abi.gpu.ExecutionMethod` - Execution method enum: `.gpu`, `.simd`, `.scalar`, `.failed`
+
+**Example**:
+```zig
+const device = abi.gpu.device;
+const exec = abi.gpu.execution_coordinator;
+
+// Enumerate devices
+const devices = try device.enumerateAllDevices(allocator);
+defer allocator.free(devices);
+
+// Select best GPU with 4GB+ memory
+const best = try device.selectBestDevice(allocator, .{
+    .prefer_discrete = true,
+    .min_memory_gb = 4,
+});
+
+// Use execution coordinator for automatic fallback
+var coordinator = try exec.ExecutionCoordinator.init(allocator, .{});
+defer coordinator.deinit();
+
+var result = [_]f32{0} ** 8;
+const method = try coordinator.vectorAdd(&input_a, &input_b, &result);
+// method is .gpu, .simd, or .scalar depending on availability
+```
+
+See [GPU Guide](docs/gpu.md) for detailed usage.
 
 ## AI & Agent API
 

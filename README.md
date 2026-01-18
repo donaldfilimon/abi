@@ -14,6 +14,10 @@ Modern Zig 0.16 framework for modular AI services, vector search, and high-perfo
 
 ## What's New (2026.01)
 
+- **Multi-GPU Device Enumeration** - Enumerate all GPUs across all backends with `device.enumerateAllDevices()`
+- **Backend Auto-Detection** - Feature-based backend selection with configurable fallback chains
+- **Unified Execution Coordinator** - Automatic GPU→SIMD→scalar fallback via `ExecutionCoordinator`
+- **std.gpu Integration** - Zig 0.16 std.gpu compatibility layer with CPU fallback
 - **Plugin Registry** - Three-mode feature registration (comptime, runtime-toggle, dynamic)
 - **Runtime Consolidation** - Unified `src/runtime/` with engine, scheduling, concurrency, memory
 - **CLI Runtime Flags** - `--list-features`, `--enable-*`, `--disable-*` for runtime feature control
