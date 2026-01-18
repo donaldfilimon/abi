@@ -37,3 +37,52 @@ pub const allocateDeviceMemory = vulkan_buffers.allocateDeviceMemory;
 pub const freeDeviceMemory = vulkan_buffers.freeDeviceMemory;
 pub const memcpyHostToDevice = vulkan_buffers.memcpyHostToDevice;
 pub const memcpyDeviceToHost = vulkan_buffers.memcpyDeviceToHost;
+
+// ============================================================================
+// Device Enumeration
+// ============================================================================
+
+const Device = @import("../device.zig").Device;
+const DeviceType = @import("../device.zig").DeviceType;
+const Backend = @import("../backend.zig").Backend;
+
+/// Enumerate all Vulkan devices available on the system
+pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
+    if (!isAvailable()) {
+        return &[_]Device{};
+    }
+
+    var devices = std.ArrayList(Device).init(allocator);
+    errdefer devices.deinit();
+
+    // Query Vulkan for available devices
+    // In a full implementation, we'd use vkEnumeratePhysicalDevices
+    // For now, return the initialized device if available
+    if (vulkan_init.isInitialized()) {
+        try devices.append(.{
+            .id = 0,
+            .backend = .vulkan,
+            .name = "Vulkan Device",
+            .device_type = .discrete, // Assume discrete for Vulkan
+            .total_memory = null,
+            .available_memory = null,
+            .is_emulated = false,
+            .capability = .{
+                .supports_fp16 = true,
+                .supports_fp64 = false, // Conservative
+                .supports_int8 = true,
+                .supports_async_transfers = true,
+                .unified_memory = false,
+            },
+            .compute_units = null,
+            .clock_mhz = null,
+        });
+    }
+
+    return devices.toOwnedSlice();
+}
+
+/// Check if Vulkan is available on this system
+pub fn isAvailable() bool {
+    return vulkan_init.isVulkanAvailable();
+}

@@ -100,6 +100,7 @@ comptime {
         _ = @import("tests/std_gpu_test.zig");
         _ = @import("tests/execution_fallback_test.zig");
         _ = @import("tests/integration_test.zig");
+        _ = @import("tests/all_backends_test.zig");
     }
 }
 

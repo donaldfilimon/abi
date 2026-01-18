@@ -640,3 +640,51 @@ pub fn setBufferAllocator(allocator: std.mem.Allocator) void {
 pub fn getVersion() struct { major: i32, minor: i32 } {
     return .{ .major = gl_major_version, .minor = gl_minor_version };
 }
+
+// ============================================================================
+// Device Enumeration
+// ============================================================================
+
+const Device = @import("../device.zig").Device;
+const DeviceType = @import("../device.zig").DeviceType;
+const Backend = @import("../backend.zig").Backend;
+
+/// Enumerate all OpenGL devices available on the system
+pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
+    if (!isAvailable()) {
+        return &[_]Device{};
+    }
+
+    var devices = std.ArrayList(Device).init(allocator);
+    errdefer devices.deinit();
+
+    // OpenGL typically exposes one device per context
+    if (opengl_initialized) {
+        try devices.append(.{
+            .id = 0,
+            .backend = .opengl,
+            .name = "OpenGL Device",
+            .device_type = .discrete, // Assume discrete
+            .total_memory = null,
+            .available_memory = null,
+            .is_emulated = false,
+            .capability = .{
+                .supports_fp16 = false, // OpenGL compute doesn't require FP16
+                .supports_fp64 = true, // OpenGL 4.3+ supports FP64
+                .supports_int8 = true,
+                .supports_async_transfers = false,
+                .unified_memory = false,
+            },
+            .compute_units = null,
+            .clock_mhz = null,
+        });
+    }
+
+    return devices.toOwnedSlice();
+}
+
+/// Check if OpenGL compute is available on this system
+pub fn isAvailable() bool {
+    // OpenGL compute requires 4.3+
+    return opengl_initialized and gl_major_version >= 4 and gl_minor_version >= 3;
+}
