@@ -124,13 +124,14 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
         };
 
         // Extract and duplicate null-terminated device name (properties is on stack)
+        // Always allocate to ensure consistent memory ownership for cleanup
         const name_slice = std.mem.sliceTo(&properties.deviceName, 0);
         const name: []const u8 = if (name_slice.len > 0)
             try allocator.dupe(u8, name_slice)
         else
-            "Vulkan Device";
+            try allocator.dupe(u8, "Vulkan Device");
 
-        errdefer if (name_slice.len > 0) allocator.free(name);
+        errdefer allocator.free(name);
 
         try devices.append(.{
             .id = @intCast(i),

@@ -113,7 +113,7 @@ pub const ReplicationManager = struct {
 
     /// Initialize the replication manager
     pub fn init(allocator: std.mem.Allocator, config: ReplicationConfig) ReplicationManager {
-        var prng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
+        var prng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
 
         return .{
             .allocator = allocator,

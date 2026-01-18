@@ -31,6 +31,7 @@ pub const LoadError =
     std.Io.Dir.ReadFileAllocError ||
     std.mem.Allocator.Error ||
     CheckpointError ||
+    binary.SerializationCursor.Error ||
     error{OutOfBounds};
 
 pub const StoreError = error{

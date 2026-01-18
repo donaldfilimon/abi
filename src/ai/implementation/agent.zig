@@ -468,7 +468,7 @@ pub const Agent = struct {
 
         // Retry with exponential backoff
         var attempt: u32 = 0;
-        var backoff_ms = self.config.retry_config.initial_backoff_ms;
+        var backoff_ms = self.config.retry_config.initial_delay_ms;
         // Use Instant.now() for seeding PRNG in Zig 0.16
         const instant = std.time.Instant.now() catch return AgentError.GenerationFailed;
         var seed: u64 = undefined;
@@ -490,7 +490,7 @@ pub const Agent = struct {
         var prng = std.Random.DefaultPrng.init(seed);
         const random = prng.random();
 
-        const max_attempts = self.config.retry_config.max_attempts;
+        const max_attempts = self.config.retry_config.max_retries;
         var response: http.HttpResponse = while (attempt <= max_attempts) : (attempt += 1) {
             var res = client.fetch(&request) catch |err| {
                 if (attempt >= max_attempts) {
@@ -501,7 +501,7 @@ pub const Agent = struct {
                     return AgentError.HttpRequestFailed;
                 }
 
-                const sleep_ms = if (self.config.retry_config.enable_jitter) blk: {
+                const sleep_ms = if (self.config.retry_config.jitter) blk: {
                     const jitter_min = backoff_ms / 2;
                     const jitter_range = backoff_ms - jitter_min;
                     const jitter = random.intRangeAtMost(u64, 0, jitter_range);
@@ -511,10 +511,10 @@ pub const Agent = struct {
                     time.sleepMs(sleep_ms);
                 }
                 const multiplied = @as(f64, @floatFromInt(backoff_ms)) *
-                    self.config.retry_config.backoff_multiplier;
+                    self.config.retry_config.multiplier;
                 backoff_ms = @min(
                     @as(u64, @intFromFloat(multiplied)),
-                    self.config.retry_config.max_backoff_ms,
+                    self.config.retry_config.max_delay_ms,
                 );
                 continue;
             };
@@ -524,7 +524,7 @@ pub const Agent = struct {
             if (is_retryable and attempt < max_attempts) {
                 res.deinit();
 
-                const sleep_ms = if (self.config.retry_config.enable_jitter) blk: {
+                const sleep_ms = if (self.config.retry_config.jitter) blk: {
                     const jitter_min = backoff_ms / 2;
                     const jitter_range = backoff_ms - jitter_min;
                     const jitter = random.intRangeAtMost(u64, 0, jitter_range);
@@ -534,10 +534,10 @@ pub const Agent = struct {
                     time.sleepMs(sleep_ms);
                 }
                 const multiplied = @as(f64, @floatFromInt(backoff_ms)) *
-                    self.config.retry_config.backoff_multiplier;
+                    self.config.retry_config.multiplier;
                 backoff_ms = @min(
                     @as(u64, @intFromFloat(multiplied)),
-                    self.config.retry_config.max_backoff_ms,
+                    self.config.retry_config.max_delay_ms,
                 );
                 continue;
             }

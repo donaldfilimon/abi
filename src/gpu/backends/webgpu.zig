@@ -582,10 +582,14 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
 
     // WebGPU typically exposes one logical device
     // In a real implementation, we'd query the adapter for properties
+    // Always allocate name to ensure consistent memory ownership for cleanup
+    const name = try allocator.dupe(u8, "WebGPU Device");
+    errdefer allocator.free(name);
+
     try devices.append(.{
         .id = 0,
         .backend = .webgpu,
-        .name = "WebGPU Device",
+        .name = name,
         .device_type = .integrated, // Conservative default
         .total_memory = null, // WebGPU doesn't expose memory info
         .available_memory = null,

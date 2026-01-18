@@ -56,7 +56,11 @@ pub const BatchIterator = struct {
                 idx.* = i;
             }
             // Shuffle using Fisher-Yates
-            var rng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
+            const seed = blk: {
+                const now = std.time.Instant.now() catch break :blk @as(u64, 0);
+                break :blk now.timestamp.tv_sec *% 1_000_000_000 +% @as(u64, @intCast(now.timestamp.tv_nsec));
+            };
+            var rng = std.Random.DefaultPrng.init(seed);
             rng.random().shuffle(usize, shuffle_indices.?);
         }
 
@@ -118,7 +122,11 @@ pub const BatchIterator = struct {
         self.current_idx = 0;
         // Reshuffle if needed
         if (self.shuffle_indices) |indices| {
-            var rng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
+            const seed = blk: {
+                const now = std.time.Instant.now() catch break :blk @as(u64, 0);
+                break :blk now.timestamp.tv_sec *% 1_000_000_000 +% @as(u64, @intCast(now.timestamp.tv_nsec));
+            };
+            var rng = std.Random.DefaultPrng.init(seed);
             rng.random().shuffle(usize, indices);
         }
     }

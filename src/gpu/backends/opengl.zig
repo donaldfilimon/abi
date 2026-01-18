@@ -660,10 +660,14 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
 
     // OpenGL typically exposes one device per context
     if (opengl_initialized) {
+        // Always allocate name to ensure consistent memory ownership for cleanup
+        const name = try allocator.dupe(u8, "OpenGL Device");
+        errdefer allocator.free(name);
+
         try devices.append(.{
             .id = 0,
             .backend = .opengl,
-            .name = "OpenGL Device",
+            .name = name,
             .device_type = .discrete, // Assume discrete
             .total_memory = null,
             .available_memory = null,

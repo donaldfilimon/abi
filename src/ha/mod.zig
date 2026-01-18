@@ -247,8 +247,15 @@ pub const HaManager = struct {
     }
 
     fn generateNodeId() u64 {
-        // Use timestamp + random for node ID
-        var prng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
+        // Use monotonic timer for entropy seed (Zig 0.16 compatible)
+        const seed: u64 = blk: {
+            if (std.time.Instant.now()) |instant| {
+                break :blk instant.timestamp;
+            } else |_| {
+                break :blk 0;
+            }
+        };
+        var prng = std.Random.DefaultPrng.init(seed);
         return prng.random().int(u64);
     }
 };

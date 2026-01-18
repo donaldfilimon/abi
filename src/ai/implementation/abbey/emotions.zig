@@ -7,52 +7,22 @@
 //! - Relationship memory
 
 const std = @import("std");
+const core_types = @import("../../core/types.zig");
+
+// Re-export the canonical EmotionType from core types
+// This ensures type consistency across the AI module
+pub const EmotionType = core_types.EmotionType;
 
 // Zig 0.16 compatible time function
 fn getTimestamp() i64 {
-    var timer = std.time.Timer.start() catch return 0;
-    const ns: i64 = @intCast(timer.read());
-    return @divTrunc(ns, std.time.ns_per_s);
+    return @divTrunc(std.time.milliTimestamp(), 1000);
 }
 
-/// Types of emotions Abbey can detect and respond to
-pub const EmotionType = enum {
-    /// No strong emotion detected
-    neutral,
-    /// User seems frustrated or annoyed
-    frustrated,
-    /// User is excited or enthusiastic
-    excited,
-    /// User seems confused or uncertain
-    confused,
-    /// User appears stressed or anxious
-    stressed,
-    /// User is being humorous or playful
-    playful,
-    /// User seems grateful or appreciative
-    grateful,
-    /// User is curious and exploring
-    curious,
-    /// User seems impatient or rushed
-    impatient,
-
-    pub fn toString(self: EmotionType) []const u8 {
-        return switch (self) {
-            .neutral => "neutral",
-            .frustrated => "frustrated",
-            .excited => "excited",
-            .confused => "confused",
-            .stressed => "stressed",
-            .playful => "playful",
-            .grateful => "grateful",
-            .curious => "curious",
-            .impatient => "impatient",
-        };
-    }
-
-    /// Get suggested response tone
-    pub fn getSuggestedTone(self: EmotionType) []const u8 {
-        return switch (self) {
+/// Helper functions for emotion detection (extends core EmotionType)
+pub const EmotionHelpers = struct {
+    /// Get suggested response tone for emotion detection context
+    pub fn getSuggestedTone(emotion: EmotionType) []const u8 {
+        return switch (emotion) {
             .neutral => "balanced",
             .frustrated => "direct and helpful",
             .excited => "enthusiastic",
@@ -62,12 +32,17 @@ pub const EmotionType = enum {
             .grateful => "warm",
             .curious => "engaging and thorough",
             .impatient => "concise",
+            .skeptical => "evidence-based",
+            .enthusiastic => "energetic",
+            .disappointed => "constructive",
+            .hopeful => "optimistic",
+            .anxious => "calming",
         };
     }
 
-    /// Get intensity modifier (affects temperature)
-    pub fn getIntensityModifier(self: EmotionType) f32 {
-        return switch (self) {
+    /// Get intensity modifier (affects temperature) for emotion detection
+    pub fn getIntensityModifier(emotion: EmotionType) f32 {
+        return switch (emotion) {
             .neutral => 0.0,
             .frustrated => -0.1, // Lower temp for more focused responses
             .excited => 0.1, // Higher temp for more creative responses
@@ -77,11 +52,17 @@ pub const EmotionType = enum {
             .grateful => 0.05,
             .curious => 0.05,
             .impatient => -0.2, // Much lower for brevity
+            .skeptical => -0.1,
+            .enthusiastic => 0.1,
+            .disappointed => -0.05,
+            .hopeful => 0.05,
+            .anxious => -0.15,
         };
     }
 };
 
 /// Emotional state with intensity and history
+/// Note: This is a detection-focused version; see core_types.EmotionalState for the canonical version
 pub const EmotionalState = struct {
     detected: EmotionType = .neutral,
     intensity: f32 = 0.0, // 0.0 to 1.0
@@ -161,8 +142,20 @@ pub const EmotionalState = struct {
             "get to the point", "tldr",  "tl;dr", "briefly",
         };
 
-        // Check patterns and score
-        var emotion_scores = [_]f32{0} ** 9;
+        // Skeptical patterns (new)
+        const skeptical_patterns = [_][]const u8{
+            "really?",  "are you sure", "doubt",  "skeptical", "prove it",
+            "evidence", "citation",     "source",
+        };
+
+        // Anxious patterns (new)
+        const anxious_patterns = [_][]const u8{
+            "worried",   "nervous", "afraid", "scared", "what if it fails",
+            "concerned", "uneasy",
+        };
+
+        // Check patterns and score (expanded for all 14 emotion types)
+        var emotion_scores = [_]f32{0} ** 14;
 
         for (frustration_patterns) |p| {
             if (std.mem.indexOf(u8, lower, p) != null) emotion_scores[@intFromEnum(EmotionType.frustrated)] += 1;
@@ -187,6 +180,12 @@ pub const EmotionalState = struct {
         }
         for (impatient_patterns) |p| {
             if (std.mem.indexOf(u8, lower, p) != null) emotion_scores[@intFromEnum(EmotionType.impatient)] += 1;
+        }
+        for (skeptical_patterns) |p| {
+            if (std.mem.indexOf(u8, lower, p) != null) emotion_scores[@intFromEnum(EmotionType.skeptical)] += 1;
+        }
+        for (anxious_patterns) |p| {
+            if (std.mem.indexOf(u8, lower, p) != null) emotion_scores[@intFromEnum(EmotionType.anxious)] += 1;
         }
 
         // Find highest scoring emotion
@@ -221,12 +220,12 @@ pub const EmotionalState = struct {
 
     /// Get suggested response tone
     pub fn getSuggestedTone(self: *const Self) []const u8 {
-        return self.detected.getSuggestedTone();
+        return EmotionHelpers.getSuggestedTone(self.detected);
     }
 
     /// Get temperature adjustment
     pub fn getTemperatureModifier(self: *const Self) f32 {
-        return self.detected.getIntensityModifier() * self.intensity;
+        return EmotionHelpers.getIntensityModifier(self.detected) * self.intensity;
     }
 
     /// Check if emotion persists
@@ -251,10 +250,15 @@ pub const EmotionalState = struct {
                 .curious => "highly curious - provide depth",
                 .impatient => "very impatient - be extremely brief",
                 .neutral => "neutral",
+                .skeptical => "skeptical - provide evidence",
+                .enthusiastic => "very enthusiastic - match energy",
+                .disappointed => "disappointed - be constructive",
+                .hopeful => "hopeful - encourage progress",
+                .anxious => "anxious - provide reassurance",
             };
         }
 
-        return self.detected.getSuggestedTone();
+        return EmotionHelpers.getSuggestedTone(self.detected);
     }
 };
 
@@ -285,11 +289,11 @@ pub const RelationshipMemory = struct {
             .timestamp = getTimestamp(),
         });
 
-        // Track positive/negative
+        // Track positive/negative (expanded for all emotion types)
         switch (emotion) {
-            .grateful, .excited, .playful => self.positive_interactions += 1,
-            .frustrated, .stressed, .impatient => self.negative_interactions += 1,
-            else => {},
+            .grateful, .excited, .playful, .enthusiastic, .hopeful, .curious => self.positive_interactions += 1,
+            .frustrated, .stressed, .impatient, .disappointed, .anxious => self.negative_interactions += 1,
+            .neutral, .confused, .skeptical => {}, // neutral emotions
         }
 
         self.total_turns += 1;
@@ -311,7 +315,7 @@ pub const RelationshipMemory = struct {
     pub fn getDominantPattern(self: *const Self) ?EmotionType {
         if (self.emotion_history.items.len < 5) return null;
 
-        var counts = [_]usize{0} ** 9;
+        var counts = [_]usize{0} ** 14; // Expanded for all 14 emotion types
         for (self.emotion_history.items) |record| {
             counts[@intFromEnum(record.emotion)] += 1;
         }

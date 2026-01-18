@@ -444,6 +444,48 @@ pub const KernelDispatcher = struct {
         };
     }
 
+    /// Maximum dimension size for safe matrix operations (prevents overflow).
+    const MAX_MATRIX_DIM: u32 = 32768; // 32K x 32K max
+
+    /// Safely cast u32 to i32 with overflow check.
+    fn safeCastToI32(val: u32) DispatchError!i32 {
+        if (val > std.math.maxInt(i32)) {
+            return DispatchError.InvalidArguments;
+        }
+        return @intCast(val);
+    }
+
+    /// Validate matrix dimensions to prevent overflow in stride calculations.
+    fn validateMatrixDimensions(m: u32, n: u32, k: u32) DispatchError!void {
+        if (m > MAX_MATRIX_DIM or n > MAX_MATRIX_DIM or k > MAX_MATRIX_DIM) {
+            std.log.err("Matrix dimensions exceed safe limit: m={}, n={}, k={} (max={})", .{ m, n, k, MAX_MATRIX_DIM });
+            return DispatchError.InvalidArguments;
+        }
+        // Check for potential overflow in stride calculations (i64 is safe for dimensions up to 32K)
+        const max_stride = @as(u64, m) * @as(u64, k);
+        if (max_stride > std.math.maxInt(i64)) {
+            return DispatchError.InvalidArguments;
+        }
+    }
+
+    /// Safely read a uniform parameter with type checking.
+    fn readUniformAs(comptime T: type, args: KernelArgs, index: usize, default: T) T {
+        if (index >= args.uniforms.len) return default;
+        if (index >= args.uniform_sizes.len) {
+            // No size info, use pointer cast but log warning
+            std.log.debug("Uniform at index {} has no size info, using type assumption", .{index});
+            return @as(*const T, @ptrCast(@alignCast(args.uniforms[index]))).*;
+        }
+        // Validate size matches expected type
+        if (args.uniform_sizes[index] != @sizeOf(T)) {
+            std.log.warn("Uniform size mismatch at index {}: expected {} bytes, got {}", .{
+                index, @sizeOf(T), args.uniform_sizes[index],
+            });
+            return default;
+        }
+        return @as(*const T, @ptrCast(@alignCast(args.uniforms[index]))).*;
+    }
+
     /// Execute matrix multiplication using cuBLAS (optimized BLAS library).
     fn executeCublasGemm(
         self: *Self,
@@ -466,9 +508,12 @@ pub const KernelDispatcher = struct {
         if (std.mem.eql(u8, kernel.name, "matrix_multiply")) {
             // Standard matrix multiply: C = A * B
             // Dimensions from config: global_size[0] = n, global_size[1] = m, global_size[2] = k
-            const n: i32 = @intCast(config.global_size[0]);
-            const m: i32 = @intCast(config.global_size[1]);
-            const k: i32 = @intCast(config.global_size[2]);
+            // Validate dimensions before casting
+            try validateMatrixDimensions(config.global_size[1], config.global_size[0], config.global_size[2]);
+
+            const n = try safeCastToI32(config.global_size[0]);
+            const m = try safeCastToI32(config.global_size[1]);
+            const k = try safeCastToI32(config.global_size[2]);
 
             ctx.sgemm(
                 .no_trans,
@@ -489,17 +534,31 @@ pub const KernelDispatcher = struct {
             // Batched matrix multiply: C[b] = A[b] * B[b]
             // Dimensions: global_size[0] = n, global_size[1] = m, global_size[2] = batch_size
             // k is passed via uniforms or inferred
-            const n: i32 = @intCast(config.global_size[0]);
-            const m: i32 = @intCast(config.global_size[1]);
-            const batch_count: i32 = @intCast(config.global_size[2]);
+            const n_u32 = config.global_size[0];
+            const m_u32 = config.global_size[1];
+            const batch_count_u32 = config.global_size[2];
 
             // Get k from uniforms if available, otherwise assume square matrices
-            const k: i32 = if (args.uniforms.len > 0)
-                @as(*const i32, @ptrCast(@alignCast(args.uniforms[0]))).*
-            else
-                n;
+            const k_u32: u32 = blk: {
+                const k_from_uniform = readUniformAs(i32, args, 0, 0);
+                if (k_from_uniform > 0) {
+                    break :blk @intCast(k_from_uniform);
+                }
+                break :blk n_u32;
+            };
 
-            // Calculate strides for strided batched GEMM
+            // Validate all dimensions
+            try validateMatrixDimensions(m_u32, n_u32, k_u32);
+            if (batch_count_u32 > MAX_MATRIX_DIM) {
+                return DispatchError.InvalidArguments;
+            }
+
+            const n = try safeCastToI32(n_u32);
+            const m = try safeCastToI32(m_u32);
+            const k = try safeCastToI32(k_u32);
+            const batch_count = try safeCastToI32(batch_count_u32);
+
+            // Calculate strides for strided batched GEMM (safe due to dimension validation)
             const stride_a: i64 = @as(i64, m) * @as(i64, k);
             const stride_b: i64 = @as(i64, k) * @as(i64, n);
             const stride_c: i64 = @as(i64, m) * @as(i64, n);
@@ -645,11 +704,8 @@ pub const KernelDispatcher = struct {
                 // global_size[0] = num_vectors, global_size[1] = dim
                 const num_vectors = config.global_size[0];
                 const dim = config.global_size[1];
-                // query_norm passed as first uniform
-                const query_norm = if (args.uniforms.len > 0)
-                    @as(*const f32, @ptrCast(@alignCast(args.uniforms[0]))).*
-                else
-                    1.0;
+                // query_norm passed as first uniform (use safe reader)
+                const query_norm = readUniformAs(f32, args, 0, 1.0);
                 try executeCpuBatchCosineSimilarity(bufs[0], bufs[1], bufs[2], num_vectors, dim, query_norm);
             }
         } else if (std.mem.eql(u8, name, "gelu")) {
@@ -662,31 +718,17 @@ pub const KernelDispatcher = struct {
             }
         } else if (std.mem.eql(u8, name, "layer_norm")) {
             if (bufs.len >= 4) {
-                // mean, variance, epsilon passed as uniforms
-                const mean = if (args.uniforms.len > 0)
-                    @as(*const f32, @ptrCast(@alignCast(args.uniforms[0]))).*
-                else
-                    0.0;
-                const variance = if (args.uniforms.len > 1)
-                    @as(*const f32, @ptrCast(@alignCast(args.uniforms[1]))).*
-                else
-                    1.0;
-                const epsilon = if (args.uniforms.len > 2)
-                    @as(*const f32, @ptrCast(@alignCast(args.uniforms[2]))).*
-                else
-                    1e-5;
+                // mean, variance, epsilon passed as uniforms (use safe reader)
+                const mean = readUniformAs(f32, args, 0, 0.0);
+                const variance = readUniformAs(f32, args, 1, 1.0);
+                const epsilon = readUniformAs(f32, args, 2, 1e-5);
                 try executeCpuLayerNorm(bufs[0], bufs[1], bufs[2], bufs[3], mean, variance, epsilon);
             }
         } else if (std.mem.eql(u8, name, "rms_norm")) {
             if (bufs.len >= 3) {
-                const rms = if (args.uniforms.len > 0)
-                    @as(*const f32, @ptrCast(@alignCast(args.uniforms[0]))).*
-                else
-                    1.0;
-                const epsilon = if (args.uniforms.len > 1)
-                    @as(*const f32, @ptrCast(@alignCast(args.uniforms[1]))).*
-                else
-                    1e-5;
+                // rms, epsilon passed as uniforms (use safe reader)
+                const rms = readUniformAs(f32, args, 0, 1.0);
+                const epsilon = readUniformAs(f32, args, 1, 1e-5);
                 try executeCpuRmsNorm(bufs[0], bufs[1], bufs[2], rms, epsilon);
             }
         } else {

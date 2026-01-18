@@ -18,7 +18,7 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
 const tasks = abi.tasks;
-const time_utils = abi.utils.time;
+const time_utils = abi.utils; // Time functions are directly in utils module
 
 /// Run the task command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

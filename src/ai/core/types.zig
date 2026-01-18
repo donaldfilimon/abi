@@ -6,22 +6,44 @@
 const std = @import("std");
 
 // ============================================================================
-// Time Utilities (Zig 0.16 compatible)
+// Time Utilities (Zig 0.16 compatible using std.time.Instant)
 // ============================================================================
 
+/// Internal: Get current instant for time calculations
+fn getCurrentInstant() ?std.time.Instant {
+    return std.time.Instant.now() catch null;
+}
+
+/// Application start time for relative timing (initialized lazily)
+var app_start_instant: ?std.time.Instant = null;
+var app_start_initialized: bool = false;
+
+fn ensureStartInstant() std.time.Instant {
+    if (!app_start_initialized) {
+        app_start_instant = getCurrentInstant();
+        app_start_initialized = true;
+    }
+    return app_start_instant orelse std.time.Instant{ .timestamp = 0 };
+}
+
 pub fn getTimestampNs() i128 {
-    var timer = std.time.Timer.start() catch return 0;
-    return @intCast(timer.read());
+    const start = ensureStartInstant();
+    const now = getCurrentInstant() orelse return 0;
+    return @intCast(now.since(start));
 }
 
 pub fn getTimestampMs() i64 {
-    const ns = getTimestampNs();
-    return @intCast(@divTrunc(ns, std.time.ns_per_ms));
+    const start = ensureStartInstant();
+    const now = getCurrentInstant() orelse return 0;
+    const elapsed_ns = now.since(start);
+    return @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
 }
 
 pub fn getTimestampSec() i64 {
-    const ns = getTimestampNs();
-    return @intCast(@divTrunc(ns, std.time.ns_per_s));
+    const start = ensureStartInstant();
+    const now = getCurrentInstant() orelse return 0;
+    const elapsed_ns = now.since(start);
+    return @intCast(@divTrunc(elapsed_ns, std.time.ns_per_s));
 }
 
 // ============================================================================

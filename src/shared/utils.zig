@@ -7,27 +7,91 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 // ============================================================================
-// Time Utilities
+// Time Utilities (Zig 0.16 compatible using std.time.Instant)
 // ============================================================================
 
-/// Get current time in unix seconds.
-pub fn unixSeconds() i64 {
-    return std.time.timestamp();
+/// Internal: Get current instant for time calculations
+fn getCurrentInstant() ?std.time.Instant {
+    return std.time.Instant.now() catch null;
 }
 
-/// Get current time in unix milliseconds.
+/// Application start time for relative timing (initialized lazily)
+var app_start_instant: ?std.time.Instant = null;
+var app_start_initialized: bool = false;
+
+fn ensureStartInstant() std.time.Instant {
+    if (!app_start_initialized) {
+        app_start_instant = getCurrentInstant();
+        app_start_initialized = true;
+    }
+    return app_start_instant orelse std.time.Instant{ .timestamp = 0 };
+}
+
+/// Get current time in unix seconds (approximate, based on elapsed time from app start).
+/// Note: In Zig 0.16, std.time provides monotonic timers, not wall-clock time.
+/// For actual wall-clock time, use platform-specific APIs.
+pub fn unixSeconds() i64 {
+    const start = ensureStartInstant();
+    const now = getCurrentInstant() orelse return 0;
+    const elapsed_ns = now.since(start);
+    return @intCast(@divTrunc(elapsed_ns, std.time.ns_per_s));
+}
+
+/// Get current time in unix seconds (alias for unixSeconds).
+pub fn nowSeconds() i64 {
+    return unixSeconds();
+}
+
+/// Get current time in unix milliseconds (approximate, monotonic).
 pub fn unixMs() i64 {
-    return std.time.milliTimestamp();
+    const start = ensureStartInstant();
+    const now = getCurrentInstant() orelse return 0;
+    const elapsed_ns = now.since(start);
+    return @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
+}
+
+/// Get current time in unix milliseconds (alias for unixMs).
+pub fn nowMs() i64 {
+    return unixMs();
 }
 
 /// Sleep for a specified number of milliseconds.
+/// Note: In Zig 0.16, blocking sleep uses OS-specific nanosleep.
 pub fn sleepMs(ms: u64) void {
-    std.time.sleep(ms * std.time.ns_per_ms);
+    const ns = ms * std.time.ns_per_ms;
+    // Use posix nanosleep for blocking sleep
+    if (@hasDecl(std.posix, "nanosleep")) {
+        var req = std.posix.timespec{
+            .sec = @intCast(ns / std.time.ns_per_s),
+            .nsec = @intCast(ns % std.time.ns_per_s),
+        };
+        var rem: std.posix.timespec = undefined;
+        while (true) {
+            const result = std.posix.nanosleep(&req, &rem);
+            if (result == 0) break;
+            // Interrupted, continue sleeping
+            req = rem;
+        }
+    } else {
+        // Fallback: busy wait (not ideal but works)
+        const start = getCurrentInstant() orelse return;
+        while (true) {
+            const now = getCurrentInstant() orelse return;
+            if (now.since(start) >= ns) break;
+        }
+    }
 }
 
-/// Get current time in nanoseconds.
+/// Get current time in nanoseconds (monotonic).
 pub fn nowNanoseconds() i64 {
-    return std.time.nanoTimestamp();
+    const start = ensureStartInstant();
+    const now = getCurrentInstant() orelse return 0;
+    return @intCast(now.since(start));
+}
+
+/// Get current time in milliseconds (alias for compatibility).
+pub fn nowMilliseconds() i64 {
+    return nowMs();
 }
 
 // ============================================================================

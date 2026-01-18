@@ -568,10 +568,14 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
         else
             .discrete; // Assume discrete on Intel Macs
 
+        // Always allocate name to ensure consistent memory ownership for cleanup
+        const name = try allocator.dupe(u8, "Metal GPU");
+        errdefer allocator.free(name);
+
         try devices.append(.{
             .id = 0,
             .backend = .metal,
-            .name = "Metal GPU",
+            .name = name,
             .device_type = device_type,
             .total_memory = null, // Would need to query via Metal API
             .available_memory = null,

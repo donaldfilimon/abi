@@ -10,9 +10,7 @@ const std = @import("std");
 
 // Zig 0.16 compatible time function
 fn getTimestamp() i64 {
-    var timer = std.time.Timer.start() catch return 0;
-    const ns: i64 = @intCast(timer.read());
-    return @divTrunc(ns, std.time.ns_per_s);
+    return @divTrunc(std.time.milliTimestamp(), 1000);
 }
 
 /// A topic being discussed
