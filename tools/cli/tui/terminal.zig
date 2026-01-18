@@ -4,6 +4,89 @@ const posix = std.posix;
 const windows = std.os.windows;
 const events = @import("events.zig");
 
+// Platform detection for cross-platform compatibility
+const is_windows = builtin.os.tag == .windows;
+const is_wasm = builtin.os.tag == .wasi or builtin.os.tag == .emscripten or
+    builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
+const is_posix = switch (builtin.os.tag) {
+    .linux, .macos, .freebsd, .openbsd, .netbsd, .dragonfly, .solaris, .illumos, .haiku => true,
+    else => !is_windows and !is_wasm,
+};
+
+/// Platform capabilities for feature detection
+pub const PlatformCapabilities = struct {
+    /// Whether the platform supports terminal UI
+    supports_tui: bool,
+    /// Whether mouse input is available
+    supports_mouse: bool,
+    /// Whether 256-color mode is available
+    supports_256_colors: bool,
+    /// Whether true-color (24-bit) is available
+    supports_true_color: bool,
+    /// Whether alternate screen buffer is supported
+    supports_alt_screen: bool,
+    /// Platform description for display
+    platform_name: []const u8,
+
+    /// Detect capabilities for the current platform
+    pub fn detect() PlatformCapabilities {
+        if (comptime is_wasm) {
+            return .{
+                .supports_tui = false,
+                .supports_mouse = false,
+                .supports_256_colors = false,
+                .supports_true_color = false,
+                .supports_alt_screen = false,
+                .platform_name = "WebAssembly",
+            };
+        }
+
+        if (comptime is_windows) {
+            // Windows 10+ supports VT100 escape sequences
+            return .{
+                .supports_tui = true,
+                .supports_mouse = true,
+                .supports_256_colors = true,
+                .supports_true_color = true,
+                .supports_alt_screen = true,
+                .platform_name = "Windows",
+            };
+        }
+
+        if (comptime is_posix) {
+            const platform_name = switch (builtin.os.tag) {
+                .linux => "Linux",
+                .macos => "macOS",
+                .freebsd => "FreeBSD",
+                .openbsd => "OpenBSD",
+                .netbsd => "NetBSD",
+                .dragonfly => "DragonFlyBSD",
+                .solaris, .illumos => "Solaris/illumos",
+                .haiku => "Haiku",
+                else => "POSIX",
+            };
+            return .{
+                .supports_tui = true,
+                .supports_mouse = true,
+                .supports_256_colors = true,
+                .supports_true_color = true,
+                .supports_alt_screen = true,
+                .platform_name = platform_name,
+            };
+        }
+
+        // Unknown platform - assume minimal support
+        return .{
+            .supports_tui = false,
+            .supports_mouse = false,
+            .supports_256_colors = false,
+            .supports_true_color = false,
+            .supports_alt_screen = false,
+            .platform_name = "Unknown",
+        };
+    }
+};
+
 pub const TerminalSize = struct {
     rows: u16,
     cols: u16,
@@ -39,6 +122,21 @@ pub const Terminal = struct {
     raw_state: RawState,
     active: bool,
 
+    /// Check if TUI is supported on the current platform
+    pub fn isSupported() bool {
+        return comptime PlatformCapabilities.detect().supports_tui;
+    }
+
+    /// Get platform capabilities
+    pub fn capabilities() PlatformCapabilities {
+        return comptime PlatformCapabilities.detect();
+    }
+
+    /// Get the platform name for display
+    pub fn platformName() []const u8 {
+        return comptime PlatformCapabilities.detect().platform_name;
+    }
+
     pub fn init(allocator: std.mem.Allocator) Terminal {
         var terminal: Terminal = undefined;
         terminal.allocator = allocator;
@@ -63,6 +161,12 @@ pub const Terminal = struct {
 
     pub fn enter(self: *Terminal) !void {
         if (self.active) return;
+
+        // Check platform support at comptime
+        if (comptime !isSupported()) {
+            return error.PlatformNotSupported;
+        }
+
         try self.enterRawMode();
         errdefer self.leaveRawMode() catch {};
         try self.enterAltScreen();
@@ -145,41 +249,65 @@ pub const Terminal = struct {
     }
 
     pub fn size(self: *Terminal) TerminalSize {
-        if (builtin.os.tag == .windows) {
+        // WASM/WASI - no terminal support
+        if (comptime is_wasm) {
+            return .{ .rows = 24, .cols = 80 };
+        }
+
+        if (comptime builtin.os.tag == .windows) {
             var info: windows.CONSOLE_SCREEN_BUFFER_INFO = undefined;
             if (windows.kernel32.GetConsoleScreenBufferInfo(self.stdout_file.handle, &info) != windows.FALSE) {
-                const screen_height = info.srWindow.Bottom - info.srWindow.Top;
+                // Window coordinates are 0-indexed, so add 1 for actual row count
+                const screen_height: i16 = info.srWindow.Bottom - info.srWindow.Top + 1;
+                const screen_width: i16 = info.srWindow.Right - info.srWindow.Left + 1;
                 return .{
-                    .rows = @intCast(screen_height),
-                    .cols = @intCast(info.dwSize.X),
+                    .rows = @intCast(@max(1, screen_height)),
+                    .cols = @intCast(@max(1, screen_width)),
                 };
             }
             return .{ .rows = 24, .cols = 80 };
         }
 
-        var winsize: posix.winsize = .{
-            .row = 0,
-            .col = 0,
-            .xpixel = 0,
-            .ypixel = 0,
-        };
-        const fd = self.stdout_file.handle;
-        const err = posix.system.ioctl(fd, posix.T.IOCGWINSZ, @intFromPtr(&winsize));
-        if (posix.errno(err) == .SUCCESS and winsize.row != 0 and winsize.col != 0) {
-            return .{ .rows = winsize.row, .cols = winsize.col };
+        // POSIX-compatible systems (Linux, macOS, BSDs, etc.)
+        if (comptime is_posix) {
+            var winsize: posix.winsize = .{
+                .row = 0,
+                .col = 0,
+                .xpixel = 0,
+                .ypixel = 0,
+            };
+            const fd = self.stdout_file.handle;
+            const err = posix.system.ioctl(fd, posix.T.IOCGWINSZ, @intFromPtr(&winsize));
+            if (posix.errno(err) == .SUCCESS and winsize.row != 0 and winsize.col != 0) {
+                return .{ .rows = winsize.row, .cols = winsize.col };
+            }
+            return .{ .rows = 24, .cols = 80 };
         }
+
+        // Fallback for unknown platforms
         return .{ .rows = 24, .cols = 80 };
     }
 
     fn enterRawMode(self: *Terminal) !void {
-        switch (builtin.os.tag) {
-            .windows => try self.enterRawModeWindows(),
-            else => try self.enterRawModePosix(),
+        if (comptime is_wasm) {
+            return error.PlatformNotSupported;
+        }
+
+        if (comptime is_windows) {
+            try self.enterRawModeWindows();
+        } else if (comptime is_posix) {
+            try self.enterRawModePosix();
+        } else {
+            return error.PlatformNotSupported;
         }
     }
 
     fn leaveRawMode(self: *Terminal) !void {
-        if (comptime builtin.os.tag == .windows) {
+        if (comptime is_wasm) {
+            return;
+        }
+
+        if (comptime is_windows) {
             switch (self.raw_state) {
                 .none => return,
                 .posix => return,
@@ -188,7 +316,7 @@ pub const Terminal = struct {
                     _ = windows.kernel32.SetConsoleMode(state.output_handle, state.output_mode);
                 },
             }
-        } else {
+        } else if (comptime is_posix) {
             switch (self.raw_state) {
                 .none => return,
                 .posix => |state| try posix.tcsetattr(self.stdin_file.handle, .FLUSH, state.termios),
@@ -198,7 +326,7 @@ pub const Terminal = struct {
     }
 
     fn enterRawModePosix(self: *Terminal) !void {
-        if (comptime builtin.os.tag == .windows) return;
+        if (comptime !is_posix) return;
 
         if (self.raw_state == .none) {
             const original = try posix.tcgetattr(self.stdin_file.handle);
@@ -418,7 +546,14 @@ pub const Terminal = struct {
     }
 
     fn fillInput(self: *Terminal) !void {
-        if (comptime builtin.os.tag == .windows) {
+        if (comptime is_wasm) {
+            // WASM has no stdin support in the traditional sense
+            self.input_len = 0;
+            self.input_pos = 0;
+            return;
+        }
+
+        if (comptime is_windows) {
             var bytes_read: windows.DWORD = 0;
             const result = windows.kernel32.ReadFile(
                 self.stdin_file.handle,
@@ -432,7 +567,7 @@ pub const Terminal = struct {
             } else {
                 self.input_len = @intCast(bytes_read);
             }
-        } else {
+        } else if (comptime is_posix) {
             const result = posix.system.read(
                 self.stdin_file.handle,
                 &self.input_buf,
@@ -443,6 +578,9 @@ pub const Terminal = struct {
             } else {
                 self.input_len = @intCast(result);
             }
+        } else {
+            // Unsupported platform
+            self.input_len = 0;
         }
         self.input_pos = 0;
     }
