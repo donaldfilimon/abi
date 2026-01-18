@@ -45,12 +45,12 @@ fn detectAndBenchmarkBackends(allocator: std.mem.Allocator) !void {
 
     std.debug.print("Found {d} backend(s):\n", .{backends.len});
     for (backends) |backend| {
-        std.debug.print("  - {s}\n", .{@tagName(backend)});
+        std.debug.print("  - {t}\n", .{backend});
     }
 
     // Get current backend info
     const current_backend = abi.gpu.currentBackend();
-    std.debug.print("\nActive backend: {s}\n", .{@tagName(current_backend)});
+    std.debug.print("\nActive backend: {t}\n", .{current_backend});
 }
 
 fn detectMultiGpu(allocator: std.mem.Allocator) !void {
@@ -68,7 +68,7 @@ fn detectMultiGpu(allocator: std.mem.Allocator) !void {
     for (devices, 0..) |device, idx| {
         std.debug.print("\nDevice {d}:\n", .{idx});
         std.debug.print("  Name: {s}\n", .{device.name});
-        std.debug.print("  Type: {s}\n", .{@tagName(device.type)});
+        std.debug.print("  Type: {t}\n", .{device.type});
         std.debug.print("  Memory: {d} MB\n", .{device.total_memory / (1024 * 1024)});
         std.debug.print("  Compute Units: {d}\n", .{device.compute_units});
     }
@@ -90,14 +90,14 @@ fn benchmarkAllBackends(allocator: std.mem.Allocator) !void {
 
     for (backend_list) |backend| {
         benchmarkBackend(allocator, backend) catch |err| {
-            std.debug.print("{s}: Not available ({t})\n", .{ @tagName(backend), err });
+            std.debug.print("{t}: Not available ({t})\n", .{ backend, err });
             continue;
         };
     }
 }
 
 fn benchmarkBackend(allocator: std.mem.Allocator, backend: abi.GpuBackend) !void {
-    std.debug.print("\n{s} Backend:\n", .{@tagName(backend)});
+    std.debug.print("\n{t} Backend:\n", .{backend});
 
     // Initialize with specific backend
     var fw = try abi.init(allocator, abi.Config{

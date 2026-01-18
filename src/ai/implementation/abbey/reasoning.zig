@@ -21,8 +21,8 @@ fn getTimestampNs() i128 {
 
 /// Helper to create a display string for confidence (extends core Confidence)
 pub fn confidenceToDisplayString(conf: Confidence, allocator: std.mem.Allocator) ![]u8 {
-    return std.fmt.allocPrint(allocator, "{s} ({d:.0}%): {s}", .{
-        @tagName(conf.level),
+    return std.fmt.allocPrint(allocator, "{t} ({d:.0}%): {s}", .{
+        conf.level,
         conf.score * 100,
         conf.reasoning,
     });
