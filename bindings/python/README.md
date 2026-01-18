@@ -104,6 +104,7 @@ pip install -e .
 
 MIT License - see LICENSE file for details.
 
-## Contacts
+## See Also
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+- [API Reference](../../API_REFERENCE.md) - Full API documentation
+- [CONTRIBUTING.md](../../CONTRIBUTING.md) - Development guidelines

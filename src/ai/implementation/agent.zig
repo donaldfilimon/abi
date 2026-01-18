@@ -470,8 +470,8 @@ pub const Agent = struct {
         // Retry with exponential backoff
         var attempt: u32 = 0;
         var backoff_ms = self.config.retry_config.initial_delay_ms;
-        // Use platform-aware time for seeding PRNG
-        const seed = platform_time.timestampNs();
+        // Use platform-aware seed (crypto random on WASM, timestamp on native)
+        const seed = platform_time.getSeed();
         var prng = std.Random.DefaultPrng.init(seed);
         const random = prng.random();
 
