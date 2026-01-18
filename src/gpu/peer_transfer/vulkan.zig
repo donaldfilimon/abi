@@ -210,8 +210,19 @@ pub fn exportBuffer(
     _ = buffer_handle;
     _ = device_id;
 
-    // In a real implementation:
-    // VkMemoryGetFdInfoKHR / VkMemoryGetWin32HandleInfoKHR
+    // Vulkan external memory export not yet implemented
+    // Requirements:
+    // - VK_KHR_external_memory extension support
+    // - VK_KHR_external_memory_fd (Linux) or VK_KHR_external_memory_win32 (Windows)
+    // - Create VkBuffer with VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT (Linux)
+    //   or VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT (Windows)
+    // - Call vkGetMemoryFdKHR (Linux) or vkGetMemoryWin32HandleKHR (Windows)
+    // - Return file descriptor or Win32 HANDLE wrapped in ExternalMemoryHandle
+    //
+    // Platform-specific:
+    // - Linux: Use VkMemoryGetFdInfoKHR
+    // - Windows: Use VkMemoryGetWin32HandleInfoKHR
+    // - macOS: Not applicable (use Metal peer transfer instead)
 
     return error.NotImplemented;
 }
@@ -226,8 +237,18 @@ pub fn importBuffer(
     _ = external_handle;
     _ = device_id;
 
-    // In a real implementation:
-    // VkImportMemoryFdInfoKHR / VkImportMemoryWin32HandleInfoKHR
+    // Vulkan external memory import not yet implemented
+    // Requirements:
+    // - VK_KHR_external_memory extension support
+    // - VK_KHR_external_memory_fd (Linux) or VK_KHR_external_memory_win32 (Windows)
+    // - Create VkImportMemoryFdInfoKHR (Linux) or VkImportMemoryWin32HandleInfoKHR (Windows)
+    // - Pass to VkMemoryAllocateInfo.pNext when allocating device memory
+    // - Create VkBuffer bound to the imported memory
+    // - Return VkBuffer handle as opaque pointer
+    //
+    // Platform-specific:
+    // - Linux: Import from file descriptor (ExternalMemoryHandle.fd)
+    // - Windows: Import from Win32 HANDLE (ExternalMemoryHandle.handle)
 
     return error.NotImplemented;
 }
@@ -237,8 +258,21 @@ pub fn createTimelineSemaphore(device_id: DeviceId, initial_value: u64) !*anyopa
     _ = initial_value;
     _ = device_id;
 
-    // In a real implementation:
-    // VkSemaphoreTypeCreateInfo with VK_SEMAPHORE_TYPE_TIMELINE
+    // Vulkan timeline semaphore creation not yet implemented
+    // Requirements:
+    // - VK_KHR_timeline_semaphore extension (promoted to Vulkan 1.2 core)
+    // - Create VkSemaphoreTypeCreateInfo:
+    //   {
+    //     sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+    //     semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+    //     initialValue = initial_value
+    //   }
+    // - Pass to VkSemaphoreCreateInfo.pNext
+    // - Call vkCreateSemaphore
+    // - Return VkSemaphore handle as opaque pointer
+    //
+    // Note: Timeline semaphores allow wait/signal with monotonically increasing values,
+    // enabling fine-grained synchronization without recreating semaphores
 
     return error.NotImplemented;
 }
@@ -255,8 +289,19 @@ pub fn waitTimelineSemaphore(
     _ = semaphore;
     _ = device_id;
 
-    // In a real implementation:
-    // vkWaitSemaphores with VkSemaphoreWaitInfo
+    // Vulkan timeline semaphore wait not yet implemented
+    // Requirements:
+    // - VK_KHR_timeline_semaphore extension
+    // - Create VkSemaphoreWaitInfo:
+    //   {
+    //     sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+    //     semaphoreCount = 1,
+    //     pSemaphores = &semaphore,
+    //     pValues = &value
+    //   }
+    // - Call vkWaitSemaphores with timeout_ns
+    // - Handle VK_TIMEOUT return code
+    // - Return error on timeout or failure
 
     return error.NotImplemented;
 }
@@ -271,8 +316,19 @@ pub fn signalTimelineSemaphore(
     _ = semaphore;
     _ = device_id;
 
-    // In a real implementation:
-    // vkSignalSemaphore with VkSemaphoreSignalInfo
+    // Vulkan timeline semaphore signal not yet implemented
+    // Requirements:
+    // - VK_KHR_timeline_semaphore extension
+    // - Create VkSemaphoreSignalInfo:
+    //   {
+    //     sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO,
+    //     semaphore = semaphore,
+    //     value = value
+    //   }
+    // - Call vkSignalSemaphore
+    //
+    // Note: Can be called from host (CPU) side to signal GPU operations,
+    // or from command buffer using vkCmdSetEvent2 with timeline semaphore
 
     return error.NotImplemented;
 }
