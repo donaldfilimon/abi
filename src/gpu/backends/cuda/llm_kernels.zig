@@ -177,6 +177,23 @@ const SCALE_KERNEL =
     \\}
 ;
 
+const GELU_KERNEL =
+    \\extern "C" __global__ void gelu_kernel(
+    \\    float* x,
+    \\    const int n
+    \\) {
+    \\    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    \\    if (i < n) {
+    \\        // GELU: 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
+    \\        const float val = x[i];
+    \\        const float sqrt_2_over_pi = 0.7978845608f;
+    \\        const float val3 = val * val * val;
+    \\        const float inner = sqrt_2_over_pi * (val + 0.044715f * val3);
+    \\        x[i] = 0.5f * val * (1.0f + tanhf(inner));
+    \\    }
+    \\}
+;
+
 /// Fused Attention Kernel: Computes Q*K^T, softmax, and @V in a single pass.
 /// This avoids storing the full N×N attention matrix in global memory.
 ///
@@ -419,6 +436,7 @@ pub const LlmKernelModule = struct {
     softmax_fn: ?*anyopaque,
     rmsnorm_fn: ?*anyopaque,
     silu_fn: ?*anyopaque,
+    gelu_fn: ?*anyopaque,
     elementwise_mul_fn: ?*anyopaque,
     elementwise_add_fn: ?*anyopaque,
     scale_fn: ?*anyopaque,
@@ -441,7 +459,7 @@ pub const LlmKernelModule = struct {
 
         // Compile kernels
         const combined_source = SOFTMAX_KERNEL ++ "\n" ++ RMSNORM_KERNEL ++ "\n" ++
-            SILU_KERNEL ++ "\n" ++ ELEMENTWISE_MUL_KERNEL ++ "\n" ++
+            SILU_KERNEL ++ "\n" ++ GELU_KERNEL ++ "\n" ++ ELEMENTWISE_MUL_KERNEL ++ "\n" ++
             ELEMENTWISE_ADD_KERNEL ++ "\n" ++ SCALE_KERNEL ++ "\n" ++
             FUSED_ATTENTION_KERNEL ++ "\n" ++ FUSED_ATTENTION_TILED_KERNEL;
 
@@ -471,6 +489,7 @@ pub const LlmKernelModule = struct {
         var softmax_fn: ?*anyopaque = null;
         var rmsnorm_fn: ?*anyopaque = null;
         var silu_fn: ?*anyopaque = null;
+        var gelu_fn: ?*anyopaque = null;
         var elementwise_mul_fn: ?*anyopaque = null;
         var elementwise_add_fn: ?*anyopaque = null;
         var scale_fn: ?*anyopaque = null;
@@ -485,6 +504,9 @@ pub const LlmKernelModule = struct {
         }
         if (get_fn(&silu_fn, module, "silu_kernel") != .success) {
             std.log.warn("Failed to get silu_kernel function", .{});
+        }
+        if (get_fn(&gelu_fn, module, "gelu_kernel") != .success) {
+            std.log.warn("Failed to get gelu_kernel function", .{});
         }
         if (get_fn(&elementwise_mul_fn, module, "elementwise_mul_kernel") != .success) {
             std.log.warn("Failed to get elementwise_mul_kernel function", .{});
@@ -508,6 +530,7 @@ pub const LlmKernelModule = struct {
             .softmax_fn = softmax_fn,
             .rmsnorm_fn = rmsnorm_fn,
             .silu_fn = silu_fn,
+            .gelu_fn = gelu_fn,
             .elementwise_mul_fn = elementwise_mul_fn,
             .elementwise_add_fn = elementwise_add_fn,
             .scale_fn = scale_fn,
@@ -597,6 +620,38 @@ pub const LlmKernelModule = struct {
         const launch_fn = self.cuda_fns.kernel.cuLaunchKernel orelse
             return LlmKernelError.CudaNotAvailable;
         const fn_ptr = self.silu_fn orelse return LlmKernelError.NotInitialized;
+
+        const block_size: u32 = 256;
+        const grid_size: u32 = (n + block_size - 1) / block_size;
+
+        var args = [_]?*anyopaque{
+            @ptrCast(&device_ptr),
+            @ptrCast(&n),
+        };
+
+        if (launch_fn(
+            fn_ptr,
+            grid_size,
+            1,
+            1,
+            block_size,
+            1,
+            1,
+            0,
+            stream,
+            &args,
+            null,
+        ) != .success) {
+            return LlmKernelError.KernelLaunchFailed;
+        }
+    }
+
+    /// Launch GELU activation kernel on GPU data.
+    /// GELU(x) = 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
+    pub fn gelu(self: *LlmKernelModule, device_ptr: u64, n: u32, stream: ?*anyopaque) !void {
+        const launch_fn = self.cuda_fns.kernel.cuLaunchKernel orelse
+            return LlmKernelError.CudaNotAvailable;
+        const fn_ptr = self.gelu_fn orelse return LlmKernelError.NotInitialized;
 
         const block_size: u32 = 256;
         const grid_size: u32 = (n + block_size - 1) / block_size;
