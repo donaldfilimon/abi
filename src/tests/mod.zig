@@ -30,8 +30,6 @@ comptime {
     if (build_options.enable_llm) {
         _ = @import("llm_reference_vectors.zig");
     }
-    // Note: property_tests.zig uses internal APIs (hnsw, index) and should be run directly:
-    // zig test src/tests/property_tests.zig
 }
 
 // Connector tests

@@ -4,7 +4,7 @@
 //! downstream consumers during high-throughput streaming.
 
 const std = @import("std");
-const time = @import("../../../shared/utils/time.zig");
+const time = @import("../../../shared/time.zig");
 
 /// Backpressure strategy.
 pub const BackpressureStrategy = enum {
