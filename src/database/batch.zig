@@ -684,6 +684,7 @@ pub const ImportFormat = enum {
     parquet,
     npy,
     binary,
+    zon,
 };
 
 /// Batch importer for file imports.
@@ -970,6 +971,183 @@ pub const BatchImporter = struct {
 
         return aw.toOwnedSlice();
     }
+
+    /// Import from ZON (Zig Object Notation) format.
+    /// Expects format:
+    /// .{
+    ///     .records = .{
+    ///         .{ .id = 1, .vector = .{ 0.1, 0.2, 0.3 }, .metadata = "label" },
+    ///         ...
+    ///     },
+    /// }
+    /// Or simplified array format:
+    /// .{
+    ///     .{ .id = 1, .vector = .{ 0.1, 0.2, 0.3 } },
+    ///     ...
+    /// }
+    pub fn importZon(self: *BatchImporter, data: []const u8) ![]BatchRecord {
+        var records = std.ArrayListUnmanaged(BatchRecord){};
+        errdefer {
+            for (records.items) |record| {
+                self.allocator.free(record.vector);
+                if (record.metadata) |m| self.allocator.free(m);
+                if (record.text) |t| self.allocator.free(t);
+            }
+            records.deinit(self.allocator);
+        }
+
+        // Parse using std.zon
+        const ZonRecord = struct {
+            id: u64 = 0,
+            vector: []const f32 = &.{},
+            metadata: ?[]const u8 = null,
+            text: ?[]const u8 = null,
+        };
+
+        const ZonWrapper = struct {
+            records: []const ZonRecord = &.{},
+        };
+
+        // Try parsing as wrapped format first (with .records field)
+        const parsed_wrapped = std.zon.parseFromSlice(ZonWrapper, self.allocator, data, .{});
+        if (parsed_wrapped) |parsed| {
+            defer parsed.deinit();
+
+            for (parsed.value.records) |zon_record| {
+                const vector_data = try self.allocator.dupe(f32, zon_record.vector);
+                errdefer self.allocator.free(vector_data);
+
+                var metadata: ?[]u8 = null;
+                if (zon_record.metadata) |m| {
+                    metadata = try self.allocator.dupe(u8, m);
+                }
+                errdefer if (metadata) |m| self.allocator.free(m);
+
+                var text: ?[]u8 = null;
+                if (zon_record.text) |t| {
+                    text = try self.allocator.dupe(u8, t);
+                }
+                errdefer if (text) |t| self.allocator.free(t);
+
+                try records.append(self.allocator, .{
+                    .id = zon_record.id,
+                    .vector = vector_data,
+                    .metadata = metadata,
+                    .text = text,
+                });
+            }
+            return records.toOwnedSlice(self.allocator);
+        } else |_| {
+            // Try parsing as direct array format
+            const parsed_array = std.zon.parseFromSlice([]const ZonRecord, self.allocator, data, .{}) catch |err| {
+                std.log.warn("Failed to parse ZON data: {t}", .{err});
+                return err;
+            };
+            defer parsed_array.deinit();
+
+            for (parsed_array.value) |zon_record| {
+                const vector_data = try self.allocator.dupe(f32, zon_record.vector);
+                errdefer self.allocator.free(vector_data);
+
+                var metadata: ?[]u8 = null;
+                if (zon_record.metadata) |m| {
+                    metadata = try self.allocator.dupe(u8, m);
+                }
+                errdefer if (metadata) |m| self.allocator.free(m);
+
+                var text: ?[]u8 = null;
+                if (zon_record.text) |t| {
+                    text = try self.allocator.dupe(u8, t);
+                }
+                errdefer if (text) |t| self.allocator.free(t);
+
+                try records.append(self.allocator, .{
+                    .id = zon_record.id,
+                    .vector = vector_data,
+                    .metadata = metadata,
+                    .text = text,
+                });
+            }
+            return records.toOwnedSlice(self.allocator);
+        }
+    }
+
+    /// Export records to ZON (Zig Object Notation) format.
+    /// Creates human-readable, Zig-native serialization.
+    pub fn exportZon(self: *BatchImporter, records: []const BatchRecord) ![]u8 {
+        var aw = std.Io.Writer.Allocating.init(self.allocator);
+        errdefer aw.deinit();
+        const writer = &aw.writer;
+
+        try writer.writeAll(".{\n    .records = .{\n");
+
+        for (records, 0..) |record, idx| {
+            try writer.writeAll("        .{\n");
+
+            // Write ID
+            try writer.writeAll("            .id = ");
+            try std.fmt.formatInt(record.id, 10, .lower, .{}, writer);
+            try writer.writeAll(",\n");
+
+            // Write vector
+            try writer.writeAll("            .vector = .{ ");
+            for (record.vector, 0..) |v, i| {
+                if (i > 0) try writer.writeAll(", ");
+                try std.fmt.formatFloat(writer, v, .{});
+            }
+            try writer.writeAll(" },\n");
+
+            // Write metadata (optional)
+            if (record.metadata) |meta| {
+                try writer.writeAll("            .metadata = ");
+                try writeZonString(writer, meta);
+                try writer.writeAll(",\n");
+            }
+
+            // Write text (optional)
+            if (record.text) |txt| {
+                try writer.writeAll("            .text = ");
+                try writeZonString(writer, txt);
+                try writer.writeAll(",\n");
+            }
+
+            try writer.writeAll("        }");
+            if (idx < records.len - 1) {
+                try writer.writeAll(",");
+            }
+            try writer.writeAll("\n");
+        }
+
+        try writer.writeAll("    },\n}\n");
+
+        return aw.toOwnedSlice();
+    }
+
+    /// Helper to write a ZON-escaped string literal.
+    fn writeZonString(writer: anytype, str: []const u8) !void {
+        try writer.writeAll("\"");
+        for (str) |c| {
+            switch (c) {
+                '\\' => try writer.writeAll("\\\\"),
+                '"' => try writer.writeAll("\\\""),
+                '\n' => try writer.writeAll("\\n"),
+                '\r' => try writer.writeAll("\\r"),
+                '\t' => try writer.writeAll("\\t"),
+                else => {
+                    if (c >= 0x20 and c < 0x7f) {
+                        try writer.writeByte(c);
+                    } else {
+                        // Write as hex escape
+                        try writer.writeAll("\\x");
+                        const hex_chars = "0123456789abcdef";
+                        try writer.writeByte(hex_chars[c >> 4]);
+                        try writer.writeByte(hex_chars[c & 0x0f]);
+                    }
+                },
+            }
+        }
+        try writer.writeAll("\"");
+    }
 };
 
 test "batch processor basic" {
@@ -1060,4 +1238,52 @@ test "record validation" {
     const valid_vector = [_]f32{ 1.0, 2.0, 3.0 };
     const valid_record = BatchRecord{ .id = 3, .vector = &valid_vector };
     try std.testing.expect(processor.validateRecord(valid_record));
+}
+
+test "zon export basic" {
+    const allocator = std.testing.allocator;
+    var importer = BatchImporter.init(allocator, .zon, .{});
+
+    const vector1 = [_]f32{ 1.0, 2.0, 3.0 };
+    const vector2 = [_]f32{ 4.0, 5.0, 6.0 };
+
+    const records = [_]BatchRecord{
+        .{ .id = 1, .vector = &vector1, .metadata = "test1" },
+        .{ .id = 2, .vector = &vector2, .text = "hello world" },
+    };
+
+    const exported = try importer.exportZon(&records);
+    defer allocator.free(exported);
+
+    // Verify ZON structure
+    try std.testing.expect(std.mem.startsWith(u8, exported, ".{"));
+    try std.testing.expect(std.mem.indexOf(u8, exported, ".records = .{") != null);
+    try std.testing.expect(std.mem.indexOf(u8, exported, ".id = 1") != null);
+    try std.testing.expect(std.mem.indexOf(u8, exported, ".id = 2") != null);
+    try std.testing.expect(std.mem.indexOf(u8, exported, ".metadata = \"test1\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, exported, ".text = \"hello world\"") != null);
+}
+
+test "zon string escaping in export" {
+    const allocator = std.testing.allocator;
+    var importer = BatchImporter.init(allocator, .zon, .{});
+
+    const vector = [_]f32{ 1.0, 2.0 };
+    const records = [_]BatchRecord{
+        .{ .id = 1, .vector = &vector, .metadata = "line1\nline2\ttab\"quote\"" },
+    };
+
+    const exported = try importer.exportZon(&records);
+    defer allocator.free(exported);
+
+    // Verify escaping
+    try std.testing.expect(std.mem.indexOf(u8, exported, "\\n") != null);
+    try std.testing.expect(std.mem.indexOf(u8, exported, "\\t") != null);
+    try std.testing.expect(std.mem.indexOf(u8, exported, "\\\"quote\\\"") != null);
+}
+
+test "import format enum includes zon" {
+    // Verify zon is in the enum
+    const format: ImportFormat = .zon;
+    try std.testing.expectEqual(ImportFormat.zon, format);
 }
