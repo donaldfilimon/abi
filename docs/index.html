@@ -1056,9 +1056,401 @@
                 display: block;
             }
         }
+
+        /* ========================================
+           Mobile Menu
+           ======================================== */
+        .mobile-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-primary);
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            padding: 6rem 2rem 2rem;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .mobile-menu.active {
+            transform: translateX(0);
+        }
+
+        .mobile-menu-close {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 2rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            line-height: 1;
+        }
+
+        .mobile-menu-links {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .mobile-menu-links a {
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 1.5rem;
+            font-weight: 600;
+            transition: color 0.2s ease;
+        }
+
+        .mobile-menu-links a:hover {
+            color: var(--accent-primary);
+        }
+
+        /* ========================================
+           Accessibility & Focus States
+           ======================================== */
+        .skip-link {
+            position: absolute;
+            top: -100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-primary);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: var(--radius-md);
+            z-index: 10000;
+            font-weight: 600;
+            text-decoration: none;
+            transition: top 0.3s ease;
+        }
+
+        .skip-link:focus {
+            top: 1rem;
+        }
+
+        *:focus-visible {
+            outline: 2px solid var(--accent-primary);
+            outline-offset: 2px;
+        }
+
+        button:focus-visible,
+        a:focus-visible {
+            outline: 2px solid var(--accent-primary);
+            outline-offset: 2px;
+        }
+
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* ========================================
+           Toast Notifications
+           ======================================== */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .toast {
+            background: var(--bg-card);
+            border: 1px solid var(--border-accent);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: var(--shadow-lg);
+            animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+            max-width: 320px;
+        }
+
+        .toast-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.875rem;
+            flex-shrink: 0;
+        }
+
+        .toast-message {
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+        }
+
+        /* ========================================
+           Shimmer Loading Effect
+           ======================================== */
+        .shimmer {
+            background: linear-gradient(
+                90deg,
+                var(--bg-tertiary) 25%,
+                var(--bg-card-hover) 50%,
+                var(--bg-tertiary) 75%
+            );
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* ========================================
+           Enhanced Light Theme
+           ======================================== */
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #f1f5f9;
+            --bg-tertiary: #e2e8f0;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f8fafc;
+
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+
+            --accent-primary: #4f46e5;
+            --accent-secondary: #7c3aed;
+            --accent-tertiary: #9333ea;
+            --accent-glow: rgba(79, 70, 229, 0.25);
+
+            --gradient-hero: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
+            --gradient-card: linear-gradient(145deg, rgba(79, 70, 229, 0.08), rgba(124, 58, 237, 0.04));
+
+            --border-color: rgba(0, 0, 0, 0.08);
+            --border-accent: rgba(79, 70, 229, 0.25);
+
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+            --shadow-glow: 0 0 30px rgba(79, 70, 229, 0.2);
+        }
+
+        [data-theme="light"] .nav {
+            background: rgba(248, 250, 252, 0.9);
+        }
+
+        [data-theme="light"] .bg-grid {
+            background-image:
+                linear-gradient(rgba(79, 70, 229, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(79, 70, 229, 0.04) 1px, transparent 1px);
+        }
+
+        [data-theme="light"] .bg-glow {
+            opacity: 0.1;
+        }
+
+        [data-theme="light"] .code-body {
+            background: #1e293b;
+        }
+
+        [data-theme="light"] .code-body code {
+            color: #e2e8f0;
+        }
+
+        /* ========================================
+           Additional Micro-Interactions
+           ======================================== */
+        .feature-card {
+            will-change: transform;
+        }
+
+        .btn {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.4s ease, height 0.4s ease;
+        }
+
+        .btn:active::after {
+            width: 300px;
+            height: 300px;
+        }
+
+        .doc-card {
+            position: relative;
+        }
+
+        .doc-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: var(--radius-md);
+            padding: 1px;
+            background: linear-gradient(135deg, transparent, var(--accent-primary), transparent);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .doc-card:hover::before {
+            opacity: 1;
+        }
+
+        /* ========================================
+           Print Styles
+           ======================================== */
+        @media print {
+            .nav,
+            .bg-grid,
+            .bg-glow,
+            .theme-toggle,
+            .mobile-menu-btn,
+            .copy-btn,
+            .toast-container,
+            .footer-badges {
+                display: none !important;
+            }
+
+            body {
+                background: white !important;
+                color: black !important;
+            }
+
+            .hero {
+                min-height: auto;
+                padding: 2rem;
+            }
+
+            .section {
+                padding: 2rem 1rem;
+            }
+
+            .feature-card,
+            .doc-card,
+            .cli-command {
+                box-shadow: none !important;
+                border: 1px solid #ccc !important;
+            }
+
+            a {
+                color: inherit !important;
+                text-decoration: underline;
+            }
+
+            .btn-primary,
+            .btn-secondary {
+                border: 1px solid #333 !important;
+                background: white !important;
+                color: black !important;
+            }
+        }
+
+        /* ========================================
+           Scrollbar Styling
+           ======================================== */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* Firefox scrollbar */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--text-muted) var(--bg-secondary);
+        }
+
+        /* ========================================
+           Selection Styling
+           ======================================== */
+        ::selection {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        ::-moz-selection {
+            background: var(--accent-primary);
+            color: white;
+        }
     </style>
 </head>
 <body>
+    <!-- Skip Link for Accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu" id="mobileMenu">
+        <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">&times;</button>
+        <ul class="mobile-menu-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#quickstart">Quick Start</a></li>
+            <li><a href="#docs">Documentation</a></li>
+            <li><a href="#cli">CLI</a></li>
+            <li><a href="https://github.com/donaldfilimon/abi" target="_blank" rel="noopener">GitHub</a></li>
+        </ul>
+    </div>
+
     <!-- Animated Background -->
     <div class="bg-grid"></div>
     <div class="bg-glow bg-glow-1"></div>
@@ -1093,7 +1485,7 @@
     </nav>
 
     <!-- Hero Section -->
-    <section class="hero">
+    <section class="hero" id="main-content">
         <div class="hero-badge">
             <span class="hero-badge-dot"></span>
             <span>Zig 0.16 Ready</span>
@@ -1632,8 +2024,14 @@
         const themeIcon = document.getElementById('themeIcon');
         const html = document.documentElement;
 
-        // Check for saved theme preference
-        const savedTheme = localStorage.getItem('theme') || 'dark';
+        // Check for saved theme preference or system preference
+        const getPreferredTheme = () => {
+            const saved = localStorage.getItem('theme');
+            if (saved) return saved;
+            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        };
+
+        const savedTheme = getPreferredTheme();
         html.setAttribute('data-theme', savedTheme);
         updateThemeIcon(savedTheme);
 
@@ -1649,13 +2047,84 @@
             themeIcon.textContent = theme === 'dark' ? '\u263E' : '\u2600';
         }
 
-        // Copy to Clipboard
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                const newTheme = e.matches ? 'dark' : 'light';
+                html.setAttribute('data-theme', newTheme);
+                updateThemeIcon(newTheme);
+            }
+        });
+
+        // Toast Notifications
+        function showToast(message, icon = '\u2713') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `
+                <span class="toast-icon">${icon}</span>
+                <span class="toast-message">${message}</span>
+            `;
+            container.appendChild(toast);
+
+            // Remove toast after animation
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // Copy to Clipboard with Toast
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
-                // Show feedback (you could add a toast notification here)
-                console.log('Copied to clipboard:', text);
+                showToast('Copied to clipboard!');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast('Copied to clipboard!');
+                } catch (err) {
+                    showToast('Failed to copy', '\u2717');
+                }
+                document.body.removeChild(textarea);
             });
         }
+
+        // Mobile Menu
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const mobileMenuClose = document.getElementById('mobileMenuClose');
+
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenu.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+
+        mobileMenuClose.addEventListener('click', () => {
+            mobileMenu.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+
+        // Close mobile menu when clicking a link
+        mobileMenu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.remove('active');
+                document.body.style.overflow = '';
+            });
+        });
+
+        // Close mobile menu on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && mobileMenu.classList.contains('active')) {
+                mobileMenu.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        });
 
         // Scroll Animations
         const observerOptions = {
@@ -1680,25 +2149,55 @@
         // Smooth scroll for navigation links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
+                const href = this.getAttribute('href');
+                if (href === '#') return;
+
                 e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
+                const target = document.querySelector(href);
                 if (target) {
                     target.scrollIntoView({
                         behavior: 'smooth',
                         block: 'start'
                     });
+                    // Update URL without jumping
+                    history.pushState(null, null, href);
                 }
             });
         });
 
-        // Navbar background on scroll
-        window.addEventListener('scroll', () => {
+        // Navbar background on scroll with theme awareness
+        const updateNavBackground = () => {
             const nav = document.querySelector('.nav');
+            const theme = html.getAttribute('data-theme');
+            const baseColor = theme === 'dark' ? '10, 10, 15' : '248, 250, 252';
+
             if (window.scrollY > 50) {
-                nav.style.background = 'rgba(10, 10, 15, 0.95)';
+                nav.style.background = `rgba(${baseColor}, 0.95)`;
             } else {
-                nav.style.background = 'rgba(10, 10, 15, 0.8)';
+                nav.style.background = `rgba(${baseColor}, 0.8)`;
             }
+        };
+
+        window.addEventListener('scroll', updateNavBackground);
+
+        // Update nav on theme change
+        const originalClick = themeToggle.onclick;
+        themeToggle.addEventListener('click', () => {
+            setTimeout(updateNavBackground, 10);
+        });
+
+        // Keyboard navigation improvements
+        document.querySelectorAll('.feature-card, .doc-card, .cli-command').forEach(card => {
+            card.setAttribute('tabindex', '0');
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    const link = card.querySelector('a');
+                    if (link) {
+                        e.preventDefault();
+                        link.click();
+                    }
+                }
+            });
         });
     </script>
 </body>

@@ -30,6 +30,8 @@ comptime {
     if (build_options.enable_llm) {
         _ = @import("llm_reference_vectors.zig");
     }
+    // Cross-platform OS features tests
+    _ = @import("os_test.zig");
 }
 
 // Connector tests
@@ -44,6 +46,9 @@ pub const proptest = @import("proptest.zig");
 
 // Cross-platform test utilities
 pub const platform = @import("platform.zig");
+
+// Cross-platform OS features tests
+pub const os_test = @import("os_test.zig");
 
 // LLM reference vectors for llama-cpp compatibility testing
 pub const llm_reference_vectors = if (build_options.enable_llm) @import("llm_reference_vectors.zig") else struct {};

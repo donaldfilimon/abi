@@ -74,6 +74,26 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "edit")) {
+        try runEdit(allocator, args[1..]);
+        return;
+    }
+
+    if (std.mem.eql(u8, command, "block")) {
+        try runBlock(allocator, args[1..]);
+        return;
+    }
+
+    if (std.mem.eql(u8, command, "unblock")) {
+        try runUnblock(allocator, args[1..]);
+        return;
+    }
+
+    if (std.mem.eql(u8, command, "due")) {
+        try runDue(allocator, args[1..]);
+        return;
+    }
+
     utils.output.printError("Unknown task command: {s}", .{command});
     printHelp();
 }
@@ -83,6 +103,7 @@ fn runAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var description: ?[]const u8 = null;
     var priority: tasks.Priority = .normal;
     var category: tasks.Category = .personal;
+    var due_date: ?i64 = null;
 
     var i: usize = 0;
     while (i < args.len) {
@@ -121,6 +142,18 @@ fn runAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             continue;
         }
 
+        if (utils.args.matchesAny(arg, &.{ "--due" })) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                due_date = parseDueDate(val) orelse {
+                    utils.output.printError("Invalid due date: {s}. Use: +Nd (days), +Nh (hours), or Unix timestamp", .{val});
+                    return;
+                };
+                i += 1;
+            }
+            continue;
+        }
+
         // Positional: title
         if (title == null) {
             title = arg;
@@ -129,7 +162,7 @@ fn runAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
     if (title == null) {
         utils.output.printError("Task title is required", .{});
-        std.debug.print("Usage: abi task add <title> [--priority <p>] [--category <c>] [--desc <text>]\n", .{});
+        std.debug.print("Usage: abi task add <title> [--priority <p>] [--category <c>] [--desc <text>] [--due <date>]\n", .{});
         return;
     }
 
@@ -143,6 +176,7 @@ fn runAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         .description = description,
         .priority = priority,
         .category = category,
+        .due_date = due_date,
     }) catch |err| {
         utils.output.printError("Failed to add task: {t}", .{err});
         return;
@@ -509,6 +543,257 @@ fn runImportRoadmap(allocator: std.mem.Allocator) !void {
     }
 }
 
+fn runEdit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
+        utils.output.printError("Task ID required", .{});
+        std.debug.print("Usage: abi task edit <id> [options]\n", .{});
+        std.debug.print("Options: --title, --desc, --priority, --category\n", .{});
+        return;
+    }
+
+    const id_str = std.mem.sliceTo(args[0], 0);
+    const id = std.fmt.parseInt(u64, id_str, 10) catch {
+        utils.output.printError("Invalid task ID: {s}", .{id_str});
+        return;
+    };
+
+    var manager = tasks.Manager.init(allocator, .{}) catch |err| {
+        utils.output.printError("Failed to initialize task manager: {t}", .{err});
+        return;
+    };
+    defer manager.deinit();
+
+    // Verify task exists
+    if (manager.get(id) == null) {
+        utils.output.printError("Task #{d} not found", .{id});
+        return;
+    }
+
+    var updated = false;
+    var i: usize = 1;
+    while (i < args.len) {
+        const arg = std.mem.sliceTo(args[i], 0);
+        i += 1;
+
+        if (utils.args.matchesAny(arg, &.{ "--title", "-t" })) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                manager.setTitle(id, val) catch |err| {
+                    utils.output.printError("Failed to update title: {t}", .{err});
+                    return;
+                };
+                updated = true;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (utils.args.matchesAny(arg, &.{ "--desc", "--description", "-d" })) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                manager.setDescription(id, val) catch |err| {
+                    utils.output.printError("Failed to update description: {t}", .{err});
+                    return;
+                };
+                updated = true;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (utils.args.matchesAny(arg, &.{ "--priority", "-p" })) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                const priority = tasks.Priority.fromString(val) orelse {
+                    utils.output.printError("Invalid priority: {s}. Valid: low, normal, high, critical", .{val});
+                    return;
+                };
+                manager.setPriority(id, priority) catch |err| {
+                    utils.output.printError("Failed to update priority: {t}", .{err});
+                    return;
+                };
+                updated = true;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (utils.args.matchesAny(arg, &.{ "--category", "-c" })) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                const category = tasks.Category.fromString(val) orelse {
+                    utils.output.printError("Invalid category: {s}. Valid: personal, roadmap, compute, bug, feature", .{val});
+                    return;
+                };
+                manager.setCategory(id, category) catch |err| {
+                    utils.output.printError("Failed to update category: {t}", .{err});
+                    return;
+                };
+                updated = true;
+                i += 1;
+            }
+            continue;
+        }
+    }
+
+    if (updated) {
+        utils.output.printSuccess("Task #{d} updated", .{id});
+    } else {
+        utils.output.printInfo("No changes made. Use --title, --desc, --priority, or --category to update", .{});
+    }
+}
+
+fn runBlock(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len < 2) {
+        utils.output.printError("Usage: abi task block <task_id> <blocker_id>", .{});
+        std.debug.print("Marks task <task_id> as blocked by <blocker_id>\n", .{});
+        return;
+    }
+
+    const id_str = std.mem.sliceTo(args[0], 0);
+    const id = std.fmt.parseInt(u64, id_str, 10) catch {
+        utils.output.printError("Invalid task ID: {s}", .{id_str});
+        return;
+    };
+
+    const blocker_str = std.mem.sliceTo(args[1], 0);
+    const blocker_id = std.fmt.parseInt(u64, blocker_str, 10) catch {
+        utils.output.printError("Invalid blocker ID: {s}", .{blocker_str});
+        return;
+    };
+
+    if (id == blocker_id) {
+        utils.output.printError("A task cannot block itself", .{});
+        return;
+    }
+
+    var manager = tasks.Manager.init(allocator, .{}) catch |err| {
+        utils.output.printError("Failed to initialize task manager: {t}", .{err});
+        return;
+    };
+    defer manager.deinit();
+
+    manager.setBlockedBy(id, blocker_id) catch |err| {
+        if (err == error.TaskNotFound) {
+            utils.output.printError("Task not found (check both IDs exist)", .{});
+        } else {
+            utils.output.printError("Failed to set blocker: {t}", .{err});
+        }
+        return;
+    };
+
+    utils.output.printSuccess("Task #{d} is now blocked by #{d}", .{ id, blocker_id });
+}
+
+fn runUnblock(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
+        utils.output.printError("Task ID required", .{});
+        std.debug.print("Usage: abi task unblock <task_id>\n", .{});
+        return;
+    }
+
+    const id_str = std.mem.sliceTo(args[0], 0);
+    const id = std.fmt.parseInt(u64, id_str, 10) catch {
+        utils.output.printError("Invalid task ID: {s}", .{id_str});
+        return;
+    };
+
+    var manager = tasks.Manager.init(allocator, .{}) catch |err| {
+        utils.output.printError("Failed to initialize task manager: {t}", .{err});
+        return;
+    };
+    defer manager.deinit();
+
+    manager.setBlockedBy(id, null) catch |err| {
+        if (err == error.TaskNotFound) {
+            utils.output.printError("Task #{d} not found", .{id});
+        } else {
+            utils.output.printError("Failed to unblock task: {t}", .{err});
+        }
+        return;
+    };
+
+    utils.output.printSuccess("Task #{d} unblocked", .{id});
+}
+
+fn runDue(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len < 2) {
+        utils.output.printError("Usage: abi task due <task_id> <due_date>", .{});
+        std.debug.print("Due date formats: +Nd (days), +Nh (hours), +Nm (minutes), 'clear', or Unix timestamp\n", .{});
+        std.debug.print("Examples: abi task due 1 +7d    # Due in 7 days\n", .{});
+        std.debug.print("          abi task due 1 clear  # Remove due date\n", .{});
+        return;
+    }
+
+    const id_str = std.mem.sliceTo(args[0], 0);
+    const id = std.fmt.parseInt(u64, id_str, 10) catch {
+        utils.output.printError("Invalid task ID: {s}", .{id_str});
+        return;
+    };
+
+    const date_str = std.mem.sliceTo(args[1], 0);
+
+    var manager = tasks.Manager.init(allocator, .{}) catch |err| {
+        utils.output.printError("Failed to initialize task manager: {t}", .{err});
+        return;
+    };
+    defer manager.deinit();
+
+    if (std.mem.eql(u8, date_str, "clear") or std.mem.eql(u8, date_str, "none")) {
+        manager.setDueDate(id, null) catch |err| {
+            if (err == error.TaskNotFound) {
+                utils.output.printError("Task #{d} not found", .{id});
+            } else {
+                utils.output.printError("Failed to clear due date: {t}", .{err});
+            }
+            return;
+        };
+        utils.output.printSuccess("Due date cleared for task #{d}", .{id});
+        return;
+    }
+
+    const due_date = parseDueDate(date_str) orelse {
+        utils.output.printError("Invalid due date: {s}. Use: +Nd (days), +Nh (hours), or Unix timestamp", .{date_str});
+        return;
+    };
+
+    manager.setDueDate(id, due_date) catch |err| {
+        if (err == error.TaskNotFound) {
+            utils.output.printError("Task #{d} not found", .{id});
+        } else {
+            utils.output.printError("Failed to set due date: {t}", .{err});
+        }
+        return;
+    };
+
+    utils.output.printSuccess("Due date set for task #{d}", .{id});
+}
+
+/// Parse due date string into Unix timestamp
+/// Supports: +Nd (days), +Nh (hours), +Nm (minutes), or raw Unix timestamp
+fn parseDueDate(s: []const u8) ?i64 {
+    if (s.len == 0) return null;
+
+    const now = time_utils.unixSeconds();
+
+    // Handle relative dates like +7d, +2h, +30m
+    if (s[0] == '+' and s.len >= 2) {
+        const unit = s[s.len - 1];
+        const num_str = s[1 .. s.len - 1];
+        const num = std.fmt.parseInt(i64, num_str, 10) catch return null;
+
+        return switch (unit) {
+            'd' => now + (num * 86400), // days
+            'h' => now + (num * 3600), // hours
+            'm' => now + (num * 60), // minutes
+            else => null,
+        };
+    }
+
+    // Try parsing as Unix timestamp
+    return std.fmt.parseInt(i64, s, 10) catch null;
+}
+
 fn formatTimestamp(allocator: std.mem.Allocator, timestamp: i64) ![]const u8 {
     // Simple timestamp formatting - just show as relative time or ISO-like format
     const now = time_utils.unixSeconds();
@@ -538,10 +823,14 @@ fn printHelp() void {
         \\  add <title>          Add a new task
         \\  list, ls             List tasks with optional filters
         \\  show <id>            Show task details
+        \\  edit <id> [options]  Edit task properties
         \\  done <id>            Mark task as completed
         \\  start <id>           Mark task as in-progress
         \\  cancel <id>          Cancel a task
         \\  delete <id>, rm <id> Delete a task
+        \\  due <id> <date>      Set due date (use 'clear' to remove)
+        \\  block <id> <by>      Mark task blocked by another task
+        \\  unblock <id>         Remove blocked status
         \\  stats                Show task statistics
         \\  import-roadmap       Import roadmap items as tasks
         \\  help                 Show this help message
@@ -550,6 +839,13 @@ fn printHelp() void {
         \\  -p, --priority <p>   Priority: low, normal, high, critical (default: normal)
         \\  -c, --category <c>   Category: personal, roadmap, compute, bug, feature
         \\  -d, --desc <text>    Task description
+        \\  --due <date>         Due date: +Nd (days), +Nh (hours), +Nm (minutes)
+        \\
+        \\Edit Options:
+        \\  -t, --title <text>   Update task title
+        \\  -d, --desc <text>    Update description
+        \\  -p, --priority <p>   Update priority
+        \\  -c, --category <c>   Update category
         \\
         \\List Filters:
         \\  -s, --status <s>     Filter by status: pending, in_progress, completed,
@@ -561,9 +857,17 @@ fn printHelp() void {
         \\Examples:
         \\  abi task add "Fix login bug" --priority high --category bug
         \\  abi task add "Write tests" -p normal -c feature -d "Unit tests for auth"
+        \\  abi task add "Review PR" --due +2d          # Due in 2 days
+        \\  abi task edit 1 --priority critical         # Change priority
+        \\  abi task edit 1 --title "New title"         # Change title
+        \\  abi task due 1 +7d                          # Set due date to 7 days
+        \\  abi task due 1 clear                        # Remove due date
+        \\  abi task block 2 1                          # Task 2 blocked by task 1
+        \\  abi task unblock 2                          # Unblock task 2
         \\  abi task list
         \\  abi task ls --status pending --priority high
-        \\  abi task ls -s in_progress
+        \\  abi task ls -s blocked                      # Show blocked tasks
+        \\  abi task ls --overdue                       # Show overdue tasks
         \\  abi task show 1
         \\  abi task start 1
         \\  abi task done 1
