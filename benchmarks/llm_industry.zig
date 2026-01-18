@@ -56,8 +56,8 @@ pub const HelmMetric = struct {
         _: std.fmt.FormatOptions,
         writer: anytype,
     ) !void {
-        try writer.print("{s}/{s}: {d:.4}", .{
-            @tagName(self.dimension),
+        try writer.print("{t}/{s}: {d:.4}", .{
+            self.dimension,
             self.metric_name,
             self.value,
         });
@@ -103,8 +103,8 @@ pub const HelmEvaluation = struct {
 
         for (self.metrics) |metric| {
             try buf.writer(allocator).print(
-                "| {s} | {s} | {d:.4} |\n",
-                .{ @tagName(metric.dimension), metric.metric_name, metric.value },
+                "| {t} | {s} | {d:.4} |\n",
+                .{ metric.dimension, metric.metric_name, metric.value },
             );
         }
 
