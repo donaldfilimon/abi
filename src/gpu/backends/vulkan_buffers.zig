@@ -9,18 +9,34 @@ const init = @import("vulkan_init.zig");
 
 pub const VulkanError = types.VulkanError;
 
-/// Allocate device memory on the GPU.
-pub fn allocateDeviceMemory(size: usize) !*anyopaque {
+/// Memory allocation flags for buffer creation.
+pub const MemoryLocation = enum {
+    /// GPU-local memory, fastest for GPU operations but not directly accessible from CPU
+    device_local,
+    /// Host-visible memory, can be mapped and accessed from CPU
+    host_visible,
+    /// Host-visible and coherent memory, no explicit flush required
+    host_coherent,
+};
+
+/// Allocate device memory on the GPU with specified memory location.
+pub fn allocateDeviceMemoryEx(size: usize, location: MemoryLocation) !*anyopaque {
     if (!init.vulkan_initialized or init.vulkan_context == null) {
         return VulkanError.InitializationFailed;
     }
 
     const ctx = &init.vulkan_context.?;
 
+    // Determine buffer usage flags based on memory location
+    const usage_flags: u32 = switch (location) {
+        .device_local => types.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | types.VK_BUFFER_USAGE_TRANSFER_DST_BIT | types.VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        .host_visible, .host_coherent => types.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | types.VK_BUFFER_USAGE_TRANSFER_SRC_BIT | types.VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    };
+
     // Create buffer
     const buffer_create_info = types.VkBufferCreateInfo{
         .size = @intCast(size),
-        .usage = 0x80 | 0x100, // VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT
+        .usage = usage_flags,
         .sharingMode = 0, // VK_SHARING_MODE_EXCLUSIVE
     };
 
@@ -34,15 +50,21 @@ pub fn allocateDeviceMemory(size: usize) !*anyopaque {
     errdefer if (init.vkDestroyBuffer) |destroy_fn| destroy_fn(ctx.device, buffer, null);
 
     // Get memory requirements
-    var mem_requirements: anyopaque = undefined;
+    var mem_requirements: types.VkMemoryRequirements = undefined;
     const get_req_fn = init.vkGetBufferMemoryRequirements orelse return VulkanError.MemoryAllocationFailed;
     get_req_fn(ctx.device, buffer, &mem_requirements);
 
-    // Allocate memory (simplified - should check memory properties)
-    const mem_type_index = try findSuitableMemoryType(0x1); // VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    // Find appropriate memory type based on location preference
+    const memory_properties: u32 = switch (location) {
+        .device_local => types.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        .host_visible => types.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+        .host_coherent => types.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | types.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    };
+
+    const mem_type_index = try init.findMemoryType(mem_requirements.memoryTypeBits, memory_properties);
 
     const alloc_info = types.VkMemoryAllocateInfo{
-        .allocationSize = @intCast(size),
+        .allocationSize = mem_requirements.size,
         .memoryTypeIndex = mem_type_index,
     };
 
@@ -66,11 +88,28 @@ pub fn allocateDeviceMemory(size: usize) !*anyopaque {
     vulkan_buffer.* = .{
         .buffer = buffer,
         .memory = device_memory,
-        .size = @intCast(size),
+        .size = mem_requirements.size,
         .mapped_ptr = null,
     };
 
     return vulkan_buffer;
+}
+
+/// Allocate device memory on the GPU (device-local, default).
+pub fn allocateDeviceMemory(size: usize) !*anyopaque {
+    // Try device-local first for best GPU performance
+    // If that fails, fall back to host-visible memory (for integrated GPUs)
+    return allocateDeviceMemoryEx(size, .device_local) catch |err| {
+        if (err == VulkanError.MemoryTypeNotFound) {
+            return allocateDeviceMemoryEx(size, .host_coherent);
+        }
+        return err;
+    };
+}
+
+/// Allocate staging buffer for host-to-device transfers.
+pub fn allocateStagingBuffer(size: usize) !*anyopaque {
+    return allocateDeviceMemoryEx(size, .host_coherent);
 }
 
 /// Free device memory allocated by allocateDeviceMemory.
@@ -143,11 +182,4 @@ pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) !void {
     unmap_fn(ctx.device, src_buffer.memory);
 
     src_buffer.mapped_ptr = null;
-}
-
-// Helper function to find suitable memory type
-fn findSuitableMemoryType(memory_type_bits: u32) !u32 {
-    // Simplified - return first suitable memory type
-    _ = memory_type_bits;
-    return 0;
 }
