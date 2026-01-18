@@ -9,6 +9,10 @@
 const std = @import("std");
 const types = @import("../../core/types.zig");
 const config = @import("../../core/config.zig");
+const build_options = @import("build_options");
+
+// Import web client if web feature is enabled
+const web_client = if (build_options.enable_web) @import("../../../web/client.zig") else null;
 
 // ============================================================================
 // LLM Request/Response Types
@@ -283,34 +287,136 @@ pub const OpenAIBackend = struct {
     }
 
     pub fn complete(self: *Self, request: CompletionRequest) ClientError!CompletionResponse {
-        _ = self;
-        _ = request;
-        // OpenAI API integration not yet implemented
-        // Requirements:
-        // - HTTP client with HTTPS support (use src/web/client.zig)
-        // - Request headers: Authorization: Bearer {api_key}, Content-Type: application/json
-        // - POST to: {base_url}/chat/completions (default: https://api.openai.com/v1)
-        // - JSON request body:
-        //   {
-        //     "model": "gpt-4",
-        //     "messages": [{"role": "user", "content": "..."}],
-        //     "temperature": 0.7,
-        //     "max_tokens": 2048,
-        //     "stream": false
-        //   }
-        // - Parse JSON response:
-        //   {
-        //     "choices": [{"message": {"content": "..."}, "finish_reason": "stop"}],
-        //     "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}
-        //   }
-        // - Error handling: 401 (invalid API key), 429 (rate limit), 500 (server error)
-        // - Optional: Streaming support for incremental responses
-        // - Optional: Token usage tracking and cost estimation
-        //
-        // References:
-        // - https://platform.openai.com/docs/api-reference/chat/create
-        return error.NotImplemented;
+        // Check if web feature is enabled
+        if (web_client == null) {
+            return error.NotImplemented;
+        }
+
+        const api_key = self.api_key orelse return error.AuthenticationFailed;
+        const start_time = std.time.milliTimestamp();
+
+        // Build URL
+        const url = try std.fmt.allocPrint(self.allocator, "{s}/chat/completions", .{self.base_url});
+        defer self.allocator.free(url);
+
+        // Build JSON request
+        var json_buffer = std.ArrayList(u8).init(self.allocator);
+        defer json_buffer.deinit();
+        const writer = json_buffer.writer();
+
+        try writer.writeAll("{\"model\":\"");
+        try writer.writeAll(request.model);
+        try writer.writeAll("\",\"messages\":[");
+
+        for (request.messages, 0..) |msg, i| {
+            if (i > 0) try writer.writeAll(",");
+            try writer.writeAll("{\"role\":\"");
+            try writer.writeAll(msg.role);
+            try writer.writeAll("\",\"content\":\"");
+            try writeJsonEscaped(writer, msg.content);
+            try writer.writeAll("\"}");
+        }
+
+        try writer.print("],\"temperature\":{d},\"max_tokens\":{d},\"stream\":false", .{ request.temperature, request.max_tokens });
+
+        if (request.top_p < 1.0) {
+            try writer.print(",\"top_p\":{d}", .{request.top_p});
+        }
+
+        try writer.writeAll("}");
+
+        // Make HTTP request with Authorization header
+        var http_client = web_client.?.HttpClient.init(self.allocator) catch return error.ConnectionRefused;
+        defer http_client.deinit();
+
+        // Build Authorization header
+        const auth_header = try std.fmt.allocPrint(self.allocator, "Bearer {s}", .{api_key});
+        defer self.allocator.free(auth_header);
+
+        const headers = [_]std.http.Header{
+            .{ .name = "Authorization", .value = auth_header },
+        };
+
+        const response = http_client.requestWithOptions(
+            .POST,
+            url,
+            json_buffer.items,
+            .{
+                .content_type = "application/json",
+                .extra_headers = &headers,
+            },
+        ) catch |err| {
+            return switch (err) {
+                error.ConnectionRefused => error.ConnectionRefused,
+                error.InvalidUrl => error.MalformedRequest,
+                else => error.BackendError,
+            };
+        };
+        defer http_client.freeResponse(response);
+
+        // Handle HTTP status codes
+        if (response.status == 401) return error.AuthenticationFailed;
+        if (response.status == 429) return error.RateLimitExceeded;
+        if (response.status >= 500) return error.BackendError;
+        if (response.status != 200) return error.BackendError;
+
+        // Parse JSON response
+        const parsed = std.json.parseFromSlice(
+            OpenAIResponse,
+            self.allocator,
+            response.body,
+            .{ .ignore_unknown_fields = true },
+        ) catch return error.ResponseParseError;
+        defer parsed.deinit();
+
+        const elapsed_ms = std.time.milliTimestamp() - start_time;
+
+        if (parsed.value.choices.len == 0) {
+            return error.ResponseParseError;
+        }
+
+        const choice = parsed.value.choices[0];
+
+        // Build response
+        const content = try self.allocator.dupe(u8, choice.message.content);
+        const model = try self.allocator.dupe(u8, parsed.value.model);
+
+        const finish_reason: CompletionResponse.FinishReason = if (std.mem.eql(u8, choice.finish_reason, "stop"))
+            .stop
+        else if (std.mem.eql(u8, choice.finish_reason, "length"))
+            .length
+        else
+            .unknown;
+
+        return CompletionResponse{
+            .content = content,
+            .finish_reason = finish_reason,
+            .tool_calls = null,
+            .usage = .{
+                .prompt_tokens = parsed.value.usage.prompt_tokens,
+                .completion_tokens = parsed.value.usage.completion_tokens,
+                .total_tokens = parsed.value.usage.total_tokens,
+            },
+            .model = model,
+            .latency_ms = elapsed_ms,
+        };
     }
+
+    const OpenAIResponse = struct {
+        choices: []struct {
+            message: struct {
+                role: []const u8,
+                content: []const u8,
+            },
+            finish_reason: []const u8,
+        },
+        usage: struct {
+            prompt_tokens: usize,
+            completion_tokens: usize,
+            total_tokens: usize,
+        },
+        model: []const u8,
+    };
 
     pub fn isAvailable(self: *Self) bool {
         return self.api_key != null;
@@ -346,33 +452,99 @@ pub const OllamaBackend = struct {
     }
 
     pub fn complete(self: *Self, request: CompletionRequest) ClientError!CompletionResponse {
-        _ = self;
-        _ = request;
-        // Ollama API integration not yet implemented
-        // Requirements:
-        // - HTTP client (use src/web/client.zig)
-        // - POST to: {host}/api/chat (default: http://127.0.0.1:11434)
-        // - JSON request body:
-        //   {
-        //     "model": "llama2",
-        //     "messages": [{"role": "user", "content": "..."}],
-        //     "stream": false,
-        //     "options": {"temperature": 0.7}
-        //   }
-        // - Parse JSON response:
-        //   {
-        //     "message": {"role": "assistant", "content": "..."},
-        //     "done": true,
-        //     "total_duration": 5000000000
-        //   }
-        // - Error handling: Connection refused (Ollama not running), timeouts, server errors
-        // - Optional: Streaming support with newline-delimited JSON
-        // - Optional: Model management (pull, list models)
-        //
-        // References:
-        // - https://github.com/ollama/ollama/blob/main/docs/api.md
-        return error.NotImplemented;
+        // Check if web feature is enabled
+        if (web_client == null) {
+            return error.NotImplemented;
+        }
+
+        const start_time = std.time.milliTimestamp();
+
+        // Build URL
+        const url = try std.fmt.allocPrint(self.allocator, "{s}/api/chat", .{self.host});
+        defer self.allocator.free(url);
+
+        // Build JSON request
+        var json_buffer = std.ArrayList(u8).init(self.allocator);
+        defer json_buffer.deinit();
+        const writer = json_buffer.writer();
+
+        try writer.writeAll("{\"model\":\"");
+        try writer.writeAll(request.model);
+        try writer.writeAll("\",\"messages\":[");
+
+        for (request.messages, 0..) |msg, i| {
+            if (i > 0) try writer.writeAll(",");
+            try writer.writeAll("{\"role\":\"");
+            try writer.writeAll(msg.role);
+            try writer.writeAll("\",\"content\":\"");
+            try writeJsonEscaped(writer, msg.content);
+            try writer.writeAll("\"}");
+        }
+
+        try writer.print("],\"stream\":false,\"options\":{{\"temperature\":{d},\"top_p\":{d}}}", .{ request.temperature, request.top_p });
+
+        if (request.max_tokens > 0) {
+            try writer.print(",\"num_predict\":{d}", .{request.max_tokens});
+        }
+
+        try writer.writeAll("}");
+
+        // Make HTTP request
+        var http_client = web_client.?.HttpClient.init(self.allocator) catch return error.ConnectionRefused;
+        defer http_client.deinit();
+
+        const response = http_client.postJson(url, json_buffer.items) catch |err| {
+            return switch (err) {
+                error.ConnectionRefused => error.ConnectionRefused,
+                error.InvalidUrl => error.MalformedRequest,
+                else => error.BackendError,
+            };
+        };
+        defer http_client.freeResponse(response);
+
+        if (response.status != 200) {
+            return error.BackendError;
+        }
+
+        // Parse JSON response
+        const parsed = std.json.parseFromSlice(
+            OllamaResponse,
+            self.allocator,
+            response.body,
+            .{ .ignore_unknown_fields = true },
+        ) catch return error.ResponseParseError;
+        defer parsed.deinit();
+
+        const elapsed_ms = std.time.milliTimestamp() - start_time;
+
+        // Build response
+        const content = try self.allocator.dupe(u8, parsed.value.message.content);
+        const model = try self.allocator.dupe(u8, request.model);
+
+        return CompletionResponse{
+            .content = content,
+            .finish_reason = if (parsed.value.done) .stop else .unknown,
+            .tool_calls = null,
+            .usage = .{
+                .prompt_tokens = parsed.value.prompt_eval_count orelse 0,
+                .completion_tokens = parsed.value.eval_count orelse 0,
+                .total_tokens = (parsed.value.prompt_eval_count orelse 0) + (parsed.value.eval_count orelse 0),
+            },
+            .model = model,
+            .latency_ms = elapsed_ms,
+        };
     }
+
+    const OllamaResponse = struct {
+        message: struct {
+            role: []const u8,
+            content: []const u8,
+        },
+        done: bool,
+        total_duration: ?i64 = null,
+        prompt_eval_count: ?usize = null,
+        eval_count: ?usize = null,
+    };
 
     pub fn isAvailable(self: *Self) bool {
         _ = self;
@@ -507,6 +679,24 @@ pub const RetryHandler = struct {
         self.retry_count = 0;
     }
 };
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Write a JSON-escaped string to a writer
+fn writeJsonEscaped(writer: anytype, s: []const u8) !void {
+    for (s) |c| {
+        switch (c) {
+            '"' => try writer.writeAll("\\\""),
+            '\\' => try writer.writeAll("\\\\"),
+            '\n' => try writer.writeAll("\\n"),
+            '\r' => try writer.writeAll("\\r"),
+            '\t' => try writer.writeAll("\\t"),
+            else => try writer.writeByte(c),
+        }
+    }
+}
 
 // ============================================================================
 // Tests
