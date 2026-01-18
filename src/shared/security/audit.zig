@@ -612,7 +612,7 @@ pub const AuditLogger = struct {
             .type = try self.allocator.dupe(u8, target.type),
             .id = if (target.id) |id| try self.allocator.dupe(u8, id) else null,
             .path = if (target.path) |path| try self.allocator.dupe(u8, path) else null,
-            .metadata = null, // TODO: deep copy metadata
+            .metadata = if (target.metadata) |meta| try self.dupeContext(meta) else null,
         };
     }
 
