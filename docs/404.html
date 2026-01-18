@@ -3,504 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 - Page Not Found | ABI Framework</title>
-    <meta name="description" content="The page you're looking for could not be found.">
-
+    <title>404 | ABI Framework</title>
+    <meta name="description" content="Page not found - ABI Framework">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>A</text></svg>">
     <style>
-        /* ========================================
-           CSS Variables & Theme
-           ======================================== */
         :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: #12121a;
-            --bg-tertiary: #1a1a24;
-            --text-primary: #f0f0f5;
-            --text-secondary: #a0a0b0;
-            --text-muted: #606070;
-            --accent-primary: #6366f1;
-            --accent-secondary: #8b5cf6;
-            --accent-tertiary: #a855f7;
-            --gradient-hero: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
-            --border-color: rgba(255, 255, 255, 0.08);
-            --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.4);
-            --radius-md: 12px;
-            --radius-lg: 20px;
+            --bg: #0a0a0f; --bg2: #12121a; --card: #16161f;
+            --text: #f0f0f5; --text2: #a0a0b0; --muted: #606070;
+            --accent: #6366f1; --accent2: #8b5cf6;
+            --border: rgba(255,255,255,0.08); --glow: rgba(99,102,241,0.4);
         }
-
         [data-theme="light"] {
-            --bg-primary: #f8fafc;
-            --bg-secondary: #f1f5f9;
-            --bg-tertiary: #e2e8f0;
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-            --text-muted: #94a3b8;
-            --accent-primary: #4f46e5;
-            --accent-secondary: #7c3aed;
-            --accent-tertiary: #9333ea;
-            --gradient-hero: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
-            --border-color: rgba(0, 0, 0, 0.08);
-            --shadow-glow: 0 0 40px rgba(79, 70, 229, 0.25);
+            --bg: #f8fafc; --bg2: #f1f5f9; --card: #fff;
+            --text: #0f172a; --text2: #475569; --muted: #94a3b8;
+            --accent: #4f46e5; --accent2: #7c3aed;
+            --border: rgba(0,0,0,0.08); --glow: rgba(79,70,229,0.25);
         }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; }
+        a { color: inherit; text-decoration: none; }
 
-        /* ========================================
-           Reset & Base
-           ======================================== */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        .nav { position: fixed; top: 0; left: 0; right: 0; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .logo { display: flex; align-items: center; gap: 0.5rem; font-weight: 700; }
+        .logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.9rem; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 500; border-radius: 6px; border: 1px solid var(--border); background: var(--bg2); cursor: pointer; color: var(--text); }
+        .btn-sm:hover { border-color: var(--accent); }
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 2rem;
-            position: relative;
-            overflow: hidden;
-        }
+        .content { max-width: 500px; }
+        .code { font-size: clamp(5rem, 18vw, 10rem); font-weight: 800; line-height: 1; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        h1 { font-size: 1.25rem; font-weight: 600; margin: 0.5rem 0; }
+        p { font-size: 0.95rem; color: var(--text2); margin-bottom: 1.5rem; }
 
-        /* ========================================
-           Animated Background
-           ======================================== */
-        .bg-grid {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image:
-                linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
-            background-size: 60px 60px;
-            pointer-events: none;
-            z-index: -1;
-        }
+        .error-block { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--muted); text-align: left; }
+        [data-theme="light"] .error-block { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+        .kw { color: #c792ea; }
+        .err { color: #ff5370; }
+        .cmt { color: #546e7a; }
 
-        [data-theme="light"] .bg-grid {
-            background-image:
-                linear-gradient(rgba(79, 70, 229, 0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(79, 70, 229, 0.04) 1px, transparent 1px);
-        }
+        .btns { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem; }
+        .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1.2rem; font-size: 0.9rem; font-weight: 600; border-radius: 8px; border: none; cursor: pointer; }
+        .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; box-shadow: 0 0 15px var(--glow); }
+        .btn-primary:hover { box-shadow: 0 0 25px var(--glow); }
+        .btn-ghost { background: var(--bg2); color: var(--text); border: 1px solid var(--border); }
+        .btn-ghost:hover { border-color: var(--accent); }
 
-        .bg-glow {
-            position: fixed;
-            width: 500px;
-            height: 500px;
-            border-radius: 50%;
-            filter: blur(120px);
-            opacity: 0.2;
-            pointer-events: none;
-            z-index: -1;
-            animation: float 20s ease-in-out infinite;
-        }
+        .links { border-top: 1px solid var(--border); padding-top: 1.5rem; }
+        .links-title { font-size: 0.7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; }
+        .links-list { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+        .link { padding: 0.4rem 0.8rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 100px; font-size: 0.8rem; color: var(--text2); }
+        .link:hover { border-color: var(--accent); color: var(--accent); }
 
-        [data-theme="light"] .bg-glow {
-            opacity: 0.1;
-        }
-
-        .bg-glow-1 {
-            top: -150px;
-            right: -150px;
-            background: var(--accent-primary);
-        }
-
-        .bg-glow-2 {
-            bottom: -150px;
-            left: -150px;
-            background: var(--accent-secondary);
-            animation-delay: -10s;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            25% { transform: translate(30px, 30px) scale(1.05); }
-            50% { transform: translate(0, 60px) scale(1); }
-            75% { transform: translate(-30px, 30px) scale(0.95); }
-        }
-
-        /* ========================================
-           Main Content
-           ======================================== */
-        .content {
-            position: relative;
-            z-index: 1;
-            max-width: 600px;
-        }
-
-        .error-code {
-            font-size: clamp(6rem, 20vw, 12rem);
-            font-weight: 800;
-            line-height: 1;
-            background: var(--gradient-hero);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 1rem;
-            animation: pulse 3s ease-in-out infinite;
-            text-shadow: var(--shadow-glow);
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(0.98); }
-        }
-
-        .error-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            color: var(--text-primary);
-        }
-
-        .error-desc {
-            font-size: 1.125rem;
-            color: var(--text-secondary);
-            max-width: 500px;
-            margin: 0 auto 2rem;
-            line-height: 1.7;
-        }
-
-        .error-code-block {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-md);
-            padding: 1.5rem 2rem;
-            margin-bottom: 2rem;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            text-align: left;
-            overflow-x: auto;
-        }
-
-        [data-theme="light"] .error-code-block {
-            background: #1e293b;
-            border-color: #334155;
-        }
-
-        [data-theme="light"] .error-code-block,
-        [data-theme="light"] .error-code-block .keyword,
-        [data-theme="light"] .error-code-block .comment,
-        [data-theme="light"] .error-code-block .error {
-            color: #e2e8f0;
-        }
-
-        .error-code-block .keyword { color: #c792ea; }
-        .error-code-block .string { color: #c3e88d; }
-        .error-code-block .error { color: #ff5370; }
-        .error-code-block .comment { color: #546e7a; }
-
-        [data-theme="light"] .error-code-block .keyword { color: #c792ea; }
-        [data-theme="light"] .error-code-block .error { color: #ff6b6b; }
-        [data-theme="light"] .error-code-block .comment { color: #94a3b8; }
-
-        /* ========================================
-           Actions
-           ======================================== */
-        .actions {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.875rem 1.75rem;
-            font-size: 1rem;
-            font-weight: 600;
-            border-radius: var(--radius-md);
-            text-decoration: none;
-            transition: all 0.2s ease;
-            cursor: pointer;
-            border: none;
-        }
-
-        .btn-primary {
-            background: var(--gradient-hero);
-            color: white;
-            box-shadow: var(--shadow-glow);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0 60px rgba(99, 102, 241, 0.5);
-        }
-
-        .btn-secondary {
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-
-        .btn-secondary:hover {
-            background: var(--bg-secondary);
-            border-color: rgba(99, 102, 241, 0.3);
-        }
-
-        /* ========================================
-           Navigation
-           ======================================== */
-        .nav-header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            padding: 1.5rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 100;
-        }
-
-        .nav-logo {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            text-decoration: none;
-            color: var(--text-primary);
-            font-weight: 700;
-            font-size: 1.25rem;
-        }
-
-        .nav-logo-icon {
-            width: 36px;
-            height: 36px;
-            background: var(--gradient-hero);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-            color: white;
-        }
-
-        .theme-toggle {
-            width: 40px;
-            height: 40px;
-            border: none;
-            background: var(--bg-tertiary);
-            border-radius: 8px;
-            color: var(--text-secondary);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-            transition: all 0.2s ease;
-        }
-
-        .theme-toggle:hover {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-        }
-
-        /* ========================================
-           Suggestions
-           ======================================== */
-        .suggestions {
-            margin-top: 3rem;
-            padding-top: 2rem;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .suggestions-title {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 1rem;
-        }
-
-        .suggestions-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            justify-content: center;
-        }
-
-        .suggestion-link {
-            padding: 0.5rem 1rem;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            border-radius: 100px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-        }
-
-        .suggestion-link:hover {
-            background: var(--bg-secondary);
-            color: var(--accent-primary);
-            border-color: var(--accent-primary);
-        }
-
-        /* ========================================
-           Accessibility & Focus
-           ======================================== */
-        *:focus-visible {
-            outline: 2px solid var(--accent-primary);
-            outline-offset: 2px;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            *,
-            *::before,
-            *::after {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
-        }
-
-        /* ========================================
-           Responsive
-           ======================================== */
-        @media (max-width: 480px) {
-            .actions {
-                flex-direction: column;
-                width: 100%;
-            }
-
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .error-code-block {
-                padding: 1rem;
-                font-size: 0.8rem;
-            }
-
-            .suggestions-list {
-                flex-direction: column;
-            }
-
-            .suggestion-link {
-                text-align: center;
-            }
-        }
-
-        /* ========================================
-           Scrollbar & Selection
-           ======================================== */
-        ::selection {
-            background: var(--accent-primary);
-            color: white;
-        }
-
-        ::-moz-selection {
-            background: var(--accent-primary);
-            color: white;
-        }
+        @media (max-width: 480px) { .btns { flex-direction: column; } .btn { width: 100%; justify-content: center; } }
     </style>
 </head>
 <body>
-    <div class="bg-grid"></div>
-    <div class="bg-glow bg-glow-1"></div>
-    <div class="bg-glow bg-glow-2"></div>
-
-    <header class="nav-header">
-        <a href="./" class="nav-logo">
-            <span class="nav-logo-icon">A</span>
-            <span>ABI Framework</span>
-        </a>
-        <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
-            <span id="themeIcon">&#9790;</span>
-        </button>
+    <header class="nav">
+        <a href="./" class="logo"><span class="logo-icon">A</span>ABI</a>
+        <button class="btn-sm" id="themeToggle" aria-label="Toggle theme"><span id="themeIcon">&#9790;</span></button>
     </header>
 
     <main class="content">
-        <div class="error-code">404</div>
-        <h1 class="error-title">Page Not Found</h1>
-        <p class="error-desc">
-            The page you're looking for has been moved, deleted, or never existed.
-            Let's get you back on track.
-        </p>
+        <div class="code">404</div>
+        <h1>Page Not Found</h1>
+        <p>The page has been moved, deleted, or never existed.</p>
 
-        <div class="error-code-block">
-            <span class="keyword">error</span>: PageNotFound<br>
-            <span class="comment">// The requested resource could not be located</span><br>
-            <span class="keyword">return</span> <span class="error">error.NotFound</span>;
+        <div class="error-block">
+            <span class="kw">error</span>: PageNotFound<br>
+            <span class="cmt">// resource not located</span><br>
+            <span class="kw">return</span> <span class="err">error.NotFound</span>;
         </div>
 
-        <div class="actions">
-            <a href="./" class="btn btn-primary">
-                Go Home
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-            </a>
-            <a href="https://github.com/donaldfilimon/abi" class="btn btn-secondary" target="_blank" rel="noopener">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-                GitHub
-            </a>
+        <div class="btns">
+            <a href="./" class="btn btn-primary">Go Home</a>
+            <a href="https://github.com/donaldfilimon/abi" class="btn btn-ghost" target="_blank" rel="noopener">GitHub</a>
         </div>
 
-        <div class="suggestions">
-            <h2 class="suggestions-title">Popular Pages</h2>
-            <div class="suggestions-list">
-                <a href="intro.html" class="suggestion-link">Introduction</a>
-                <a href="tutorials/getting-started.html" class="suggestion-link">Getting Started</a>
-                <a href="api/index.html" class="suggestion-link">API Reference</a>
-                <a href="ai.html" class="suggestion-link">AI Guide</a>
-                <a href="gpu.html" class="suggestion-link">GPU Guide</a>
-                <a href="database.html" class="suggestion-link">Database Guide</a>
+        <div class="links">
+            <div class="links-title">Quick Links</div>
+            <div class="links-list">
+                <a href="intro.html" class="link">Intro</a>
+                <a href="tutorials/getting-started.html" class="link">Get Started</a>
+                <a href="api/index.html" class="link">API</a>
+                <a href="ai.html" class="link">AI</a>
+                <a href="gpu.html" class="link">GPU</a>
+                <a href="database.html" class="link">WDBX</a>
             </div>
         </div>
     </main>
 
     <script>
-        // Theme Toggle
+        const html = document.documentElement;
         const themeToggle = document.getElementById('themeToggle');
         const themeIcon = document.getElementById('themeIcon');
-        const html = document.documentElement;
-
-        // Check for saved theme preference or system preference
-        const getPreferredTheme = () => {
-            const saved = localStorage.getItem('theme');
-            if (saved) return saved;
-            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-        };
-
-        const savedTheme = getPreferredTheme();
-        html.setAttribute('data-theme', savedTheme);
-        updateThemeIcon(savedTheme);
-
+        const saved = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        html.setAttribute('data-theme', saved);
+        themeIcon.textContent = saved === 'dark' ? '\u263E' : '\u2600';
         themeToggle.addEventListener('click', () => {
-            const currentTheme = html.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateThemeIcon(newTheme);
-        });
-
-        function updateThemeIcon(theme) {
-            themeIcon.textContent = theme === 'dark' ? '\u263E' : '\u2600';
-        }
-
-        // Listen for system theme changes
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-            if (!localStorage.getItem('theme')) {
-                const newTheme = e.matches ? 'dark' : 'light';
-                html.setAttribute('data-theme', newTheme);
-                updateThemeIcon(newTheme);
-            }
+            const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            themeIcon.textContent = next === 'dark' ? '\u263E' : '\u2600';
         });
     </script>
 </body>
