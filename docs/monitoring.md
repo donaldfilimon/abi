@@ -129,7 +129,7 @@ const p99 = metrics.getHistogramPercentile("request_latency_ms", 0.99);
 The compute engine provides built-in metrics:
 
 ```zig
-var engine = try abi.compute.createDefaultEngine(allocator);
+var engine = try abi.runtime.createDefaultEngine(allocator);
 defer engine.deinit();
 
 // Run workloads...
@@ -354,7 +354,7 @@ const lap_ms = watch.lapElapsedMs();
 ### Engine Profiling
 
 ```zig
-var engine = try abi.compute.createDefaultEngine(allocator);
+var engine = try abi.runtime.createDefaultEngine(allocator);
 defer engine.deinit();
 
 // Enable detailed profiling

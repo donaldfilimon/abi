@@ -219,6 +219,7 @@ All examples follow these Zig 0.16 best practices:
 
 See the [Documentation Index](docs/intro.md) for comprehensive guides, or check API_REFERENCE.md for detailed API information.
 
-## Contacts
+## See Also
 
-src/shared/contacts.zig provides a centralized list of maintainer contacts extracted from the repository markdown files. Import this module wherever contact information is needed.
+- [API Reference](../API_REFERENCE.md) - Detailed API information
+- [Documentation Index](../docs/intro.md) - Comprehensive guides
