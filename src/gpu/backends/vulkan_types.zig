@@ -22,6 +22,10 @@ pub const VulkanError = error{
     MemoryCopyFailed,
     CommandRecordingFailed,
     SubmissionFailed,
+    InvalidHandle,
+    SynchronizationFailed,
+    DeviceLost,
+    ValidationLayerNotAvailable,
 };
 
 pub const VkResult = enum(i32) {
@@ -293,6 +297,40 @@ pub const VkCommandPoolCreateInfo = extern struct {
     queueFamilyIndex: u32 = 0,
 };
 
+pub const VkPipelineCacheCreateInfo = extern struct {
+    sType: i32 = 17, // VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO
+    pNext: ?*anyopaque = null,
+    flags: u32 = 0,
+    initialDataSize: usize = 0,
+    pInitialData: ?*const anyopaque = null,
+};
+
+pub const VkQueueFamilyProperties = extern struct {
+    queueFlags: u32,
+    queueCount: u32,
+    timestampValidBits: u32,
+    minImageTransferGranularity: VkExtent3D,
+};
+
+pub const VkExtent3D = extern struct {
+    width: u32,
+    height: u32,
+    depth: u32,
+};
+
+pub const VkPushConstantRange = extern struct {
+    stageFlags: VkShaderStageFlags = 0,
+    offset: u32 = 0,
+    size: u32 = 0,
+};
+
+pub const VkLayerProperties = extern struct {
+    layerName: [256]u8,
+    specVersion: u32,
+    implementationVersion: u32,
+    description: [256]u8,
+};
+
 pub const VkPhysicalDeviceMemoryProperties = extern struct {
     memoryTypeCount: u32,
     memoryTypes: [32]VkMemoryType,
@@ -505,6 +543,43 @@ pub const VkWaitForFencesFn = *const fn (VkDevice, u32, [*]const VkFence, u32, u
 pub const VkQueueSubmitFn = *const fn (VkQueue, u32, [*]const VkSubmitInfo, VkFence) callconv(.c) VkResult;
 pub const VkQueueWaitIdleFn = *const fn (VkQueue) callconv(.c) VkResult;
 
+// Pipeline cache functions
+pub const VkCreatePipelineCacheFn = *const fn (VkDevice, *const VkPipelineCacheCreateInfo, ?*anyopaque, *VkPipelineCache) callconv(.c) VkResult;
+pub const VkDestroyPipelineCacheFn = *const fn (VkDevice, VkPipelineCache, ?*anyopaque) callconv(.c) void;
+pub const VkGetPipelineCacheDataFn = *const fn (VkDevice, VkPipelineCache, *usize, ?*anyopaque) callconv(.c) VkResult;
+pub const VkMergePipelineCachesFn = *const fn (VkDevice, VkPipelineCache, u32, [*]const VkPipelineCache) callconv(.c) VkResult;
+
+// Command buffer reset functions
+pub const VkResetCommandBufferFn = *const fn (VkCommandBuffer, u32) callconv(.c) VkResult;
+pub const VkResetCommandPoolFn = *const fn (VkDevice, VkCommandPool, u32) callconv(.c) VkResult;
+
+// Validation layer functions
+pub const VkEnumerateInstanceLayerPropertiesFn = *const fn (*u32, ?[*]VkLayerProperties) callconv(.c) VkResult;
+
+// Push constants
+pub const VkCmdPushConstantsFn = *const fn (VkCommandBuffer, VkPipelineLayout, VkShaderStageFlags, u32, u32, *const anyopaque) callconv(.c) void;
+
+// Queue family flag bits
+pub const VK_QUEUE_GRAPHICS_BIT: u32 = 0x00000001;
+pub const VK_QUEUE_COMPUTE_BIT: u32 = 0x00000002;
+pub const VK_QUEUE_TRANSFER_BIT: u32 = 0x00000004;
+pub const VK_QUEUE_SPARSE_BINDING_BIT: u32 = 0x00000008;
+
+// Memory property flag bits
+pub const VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT: u32 = 0x00000001;
+pub const VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT: u32 = 0x00000002;
+pub const VK_MEMORY_PROPERTY_HOST_COHERENT_BIT: u32 = 0x00000004;
+pub const VK_MEMORY_PROPERTY_HOST_CACHED_BIT: u32 = 0x00000008;
+
+// Buffer usage flag bits
+pub const VK_BUFFER_USAGE_TRANSFER_SRC_BIT: u32 = 0x00000001;
+pub const VK_BUFFER_USAGE_TRANSFER_DST_BIT: u32 = 0x00000002;
+pub const VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT: u32 = 0x00000010;
+pub const VK_BUFFER_USAGE_STORAGE_BUFFER_BIT: u32 = 0x00000020;
+
+// Shader stage flag bits
+pub const VK_SHADER_STAGE_COMPUTE_BIT: u32 = 0x00000020;
+
 // Context and resource structures
 pub const VulkanContext = struct {
     instance: VkInstance,
@@ -514,6 +589,10 @@ pub const VulkanContext = struct {
     compute_queue_family_index: u32,
     command_pool: VkCommandPool,
     allocator: std.mem.Allocator,
+    /// Cached memory properties for the physical device
+    memory_properties: VkPhysicalDeviceMemoryProperties = undefined,
+    /// Validation layers enabled
+    validation_enabled: bool = false,
 };
 
 pub const VulkanKernel = struct {
@@ -522,6 +601,10 @@ pub const VulkanKernel = struct {
     pipeline: VkPipeline,
     descriptor_set_layout: VkDescriptorSetLayout,
     descriptor_pool: VkDescriptorPool,
+    /// Number of storage buffer bindings for this kernel
+    binding_count: u32 = 1,
+    /// Maximum push constant size in bytes (0 = not used)
+    push_constant_size: u32 = 0,
 };
 
 pub const VulkanBuffer = struct {
@@ -529,4 +612,24 @@ pub const VulkanBuffer = struct {
     memory: VkDeviceMemory,
     size: VkDeviceSize,
     mapped_ptr: ?*anyopaque,
+};
+
+/// Kernel source format
+pub const KernelSourceFormat = enum {
+    spirv,
+    glsl,
+};
+
+/// Kernel source with metadata
+pub const KernelSource = struct {
+    code: []const u8,
+    entry_point: [:0]const u8,
+    format: KernelSourceFormat = .spirv,
+};
+
+/// Kernel launch configuration
+pub const KernelConfig = struct {
+    grid_size: [3]u32 = .{ 1, 1, 1 },
+    block_size: [3]u32 = .{ 256, 1, 1 },
+    shared_memory: u32 = 0,
 };
