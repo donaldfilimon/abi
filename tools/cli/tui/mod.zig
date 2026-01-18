@@ -12,6 +12,7 @@ pub const MouseButton = events.MouseButton;
 
 pub const Terminal = terminal.Terminal;
 pub const TerminalSize = terminal.TerminalSize;
+pub const PlatformCapabilities = terminal.PlatformCapabilities;
 
 // Widgets
 pub const ProgressIndicator = widgets.ProgressIndicator;
