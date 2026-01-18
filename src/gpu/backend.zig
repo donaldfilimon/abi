@@ -13,6 +13,7 @@ pub const Backend = enum {
     opengl,
     opengles,
     webgl2,
+    fpga,
 };
 
 pub const DetectionLevel = enum {
@@ -216,6 +217,25 @@ const backend_meta = [_]BackendMeta{
         .supports_kernels = false,
         .aliases = webgl2_aliases[0..],
     },
+    .{
+        .name = "fpga",
+        .display_name = "FPGA",
+        .description = "FPGA backend (AMD/Xilinx, Intel)",
+        .build_flag = "-Dgpu-fpga",
+        .device_name = "FPGA Accelerator",
+        .device_name_emulated = "FPGA Accelerator (emulated)",
+        .memory_bytes = 64 * GiB,
+        .capability = .{
+            .unified_memory = false,
+            .supports_fp16 = true,
+            .supports_int8 = true,
+            .supports_async_transfers = true,
+            .max_threads_per_block = 256,
+            .max_shared_memory_bytes = 4 * 1024 * 1024, // 4MB PLRAM
+        },
+        .supports_kernels = true,
+        .aliases = &.{},
+    },
 };
 
 fn meta(backend: Backend) BackendMeta {
@@ -237,6 +257,7 @@ pub fn isEnabled(backend: Backend) bool {
         .opengl => build_options.gpu_opengl,
         .opengles => build_options.gpu_opengles,
         .webgl2 => build_options.gpu_webgl2,
+        .fpga => if (@hasDecl(build_options, "gpu_fpga")) build_options.gpu_fpga else false,
     };
 }
 
@@ -344,6 +365,7 @@ pub fn backendAvailability(backend: Backend) BackendAvailability {
         .opengl => detectOpenGl(),
         .opengles => detectOpenGles(),
         .webgl2 => detectWebGl2(),
+        .fpga => detectFpga(),
     };
 }
 
@@ -541,6 +563,30 @@ fn detectWebGl2() BackendAvailability {
     return unavailableAvailability("webgl2 requires web target");
 }
 
+fn detectFpga() BackendAvailability {
+    // FPGA detection checks for XRT (Xilinx) or oneAPI (Intel) runtime
+    if (shared.isWebTarget()) {
+        return unavailableAvailability("fpga not supported on web targets");
+    }
+
+    // Check for environment variables indicating FPGA availability
+    if (std.posix.getenv("ABI_FPGA_XILINX_DEVICE")) |_| {
+        return availableAvailability(.device_count, 1, "xilinx fpga device configured");
+    }
+    if (std.posix.getenv("ABI_FPGA_INTEL_DEVICE")) |_| {
+        return availableAvailability(.device_count, 1, "intel fpga device configured");
+    }
+
+    // Try to detect XRT library (Xilinx)
+    if (shared.canUseDynLib()) {
+        if (shared.tryLoadAny(fpgaLibNames())) {
+            return availableAvailability(.loader, 1, "fpga runtime available");
+        }
+    }
+
+    return unavailableAvailability("fpga runtime not found (set ABI_FPGA_XILINX_DEVICE or ABI_FPGA_INTEL_DEVICE)");
+}
+
 fn availableAvailability(
     level: DetectionLevel,
     device_count: usize,
@@ -626,6 +672,14 @@ fn openGlesLibNames() []const []const u8 {
     };
 }
 
+fn fpgaLibNames() []const []const u8 {
+    return switch (builtin.target.os.tag) {
+        .windows => fpga_windows[0..],
+        .linux => fpga_linux[0..],
+        else => &.{},
+    };
+}
+
 const cuda_windows = [_][]const u8{"nvcuda.dll"};
 const cuda_linux = [_][]const u8{ "libcuda.so.1", "libcuda.so" };
 
@@ -646,6 +700,10 @@ const opengl_macos = [_][]const u8{"/System/Library/Frameworks/OpenGL.framework/
 const opengles_windows = [_][]const u8{ "libGLESv2.dll", "libEGL.dll" };
 const opengles_linux = [_][]const u8{ "libGLESv2.so.2", "libGLESv2.so" };
 const opengles_macos = [_][]const u8{"/System/Library/Frameworks/OpenGLES.framework/OpenGLES"};
+
+// FPGA runtime libraries
+const fpga_windows = [_][]const u8{ "xrt_coreutil.dll", "OpenCL.dll" };
+const fpga_linux = [_][]const u8{ "libxrt_coreutil.so", "libxrt_core.so", "libOpenCL.so" };
 
 const CuInitFn = *const fn (u32) callconv(.c) i32;
 const CuDeviceGetCountFn = *const fn (*i32) callconv(.c) i32;

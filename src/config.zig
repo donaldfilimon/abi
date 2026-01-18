@@ -180,6 +180,7 @@ pub const GpuConfig = struct {
         metal,
         webgpu,
         opengl,
+        fpga,
         cpu,
     };
 
@@ -198,6 +199,7 @@ pub const GpuConfig = struct {
         if (build_options.gpu_cuda) return .cuda;
         if (build_options.gpu_vulkan) return .vulkan;
         if (build_options.gpu_metal) return .metal;
+        if (@hasDecl(build_options, "gpu_fpga") and build_options.gpu_fpga) return .fpga;
         if (build_options.gpu_webgpu) return .webgpu;
         if (build_options.gpu_opengl) return .opengl;
         return .cpu;
