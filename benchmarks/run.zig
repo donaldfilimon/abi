@@ -4,14 +4,16 @@ const abi = @import("abi");
 
 // Framework initialization benchmark
 fn frameworkInitBenchmark(allocator: std.mem.Allocator) !void {
-    var framework = try abi.init(allocator, abi.FrameworkOptions{ .enable_gpu = false });
+    var framework = try abi.initDefault(allocator);
     defer abi.shutdown(&framework);
     std.mem.doNotOptimizeAway(&framework);
 }
 
 // Database benchmarks
 fn databaseInsertBenchmark(allocator: std.mem.Allocator) !void {
-    var framework = try abi.init(allocator, abi.FrameworkOptions{ .enable_database = true, .enable_gpu = false });
+    var framework = try abi.init(allocator, abi.Config{
+        .database = .{}, // Enabled with defaults
+    });
     defer abi.shutdown(&framework);
 
     var db_handle = try abi.wdbx.createDatabase(allocator, "bench");
@@ -22,7 +24,9 @@ fn databaseInsertBenchmark(allocator: std.mem.Allocator) !void {
 }
 
 fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
-    var framework = try abi.init(allocator, abi.FrameworkOptions{ .enable_database = true, .enable_gpu = false });
+    var framework = try abi.init(allocator, abi.Config{
+        .database = .{}, // Enabled with defaults
+    });
     defer abi.shutdown(&framework);
 
     var db_handle = try abi.wdbx.createDatabase(allocator, "bench");
@@ -49,7 +53,7 @@ fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
 
 // Compute benchmarks
 fn computeTaskBenchmark(allocator: std.mem.Allocator) !void {
-    var framework = try abi.init(allocator, abi.FrameworkOptions{ .enable_gpu = false });
+    var framework = try abi.init(allocator, abi.Config{});
     defer abi.shutdown(&framework);
 
     // Simple compute benchmark using SIMD operations
@@ -88,7 +92,9 @@ fn memoryAllocationBenchmark(allocator: std.mem.Allocator) !void {
 
 // GPU benchmarks (if available)
 fn gpuAvailabilityBenchmark(allocator: std.mem.Allocator) !void {
-    var framework = abi.init(allocator, abi.FrameworkOptions{ .enable_gpu = true }) catch |err| {
+    var framework = abi.init(allocator, abi.Config{
+        .gpu = .{}, // Enabled with defaults
+    }) catch |err| {
         std.debug.print("GPU initialization failed: {}\n", .{err});
         std.debug.print("GPU unavailable for benchmarking\n", .{});
         std.mem.doNotOptimizeAway(@as(bool, false));
@@ -102,7 +108,9 @@ fn gpuAvailabilityBenchmark(allocator: std.mem.Allocator) !void {
 
 // Network benchmarks (if available)
 fn networkRegistryBenchmark(allocator: std.mem.Allocator) !void {
-    var framework = try abi.init(allocator, abi.FrameworkOptions{ .enable_network = true, .enable_gpu = false });
+    var framework = try abi.init(allocator, abi.Config{
+        .network = .{}, // Enabled with defaults
+    });
     defer abi.shutdown(&framework);
 
     const registry = try abi.network.defaultRegistry();
@@ -121,7 +129,7 @@ fn jsonBenchmark(allocator: std.mem.Allocator) !void {
 
 // Logging benchmark - measures format string processing overhead without I/O
 fn loggingBenchmark(allocator: std.mem.Allocator) !void {
-    var framework = try abi.init(allocator, abi.FrameworkOptions{ .enable_gpu = false });
+    var framework = try abi.init(allocator, abi.Config{});
     defer abi.shutdown(&framework);
 
     // Measure format string preparation without stdout I/O
