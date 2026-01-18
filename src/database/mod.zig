@@ -114,6 +114,16 @@ pub const fromGguf = formats.fromGguf;
 pub const toGguf = formats.toGguf;
 pub const GgufTensorType = formats.GgufTensorType;
 
+// ZON format exports (Zig 0.16 native serialization for WDBX)
+pub const ZonFormat = formats.ZonFormat;
+pub const ZonDatabase = formats.ZonDatabase;
+pub const ZonRecord = formats.ZonRecord;
+pub const ZonDatabaseConfig = formats.ZonDatabaseConfig;
+pub const ZonDistanceMetric = formats.ZonDistanceMetric;
+pub const exportToZon = formats.exportToZon;
+pub const importFromZon = formats.importFromZon;
+pub const ImportFormat = batch.ImportFormat;
+
 pub const DatabaseFeatureError = error{
     DatabaseDisabled,
 };

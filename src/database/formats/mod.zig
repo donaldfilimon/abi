@@ -92,6 +92,7 @@ pub const streaming = @import("streaming.zig");
 pub const mmap = @import("mmap.zig");
 pub const vector_db = @import("vector_db.zig");
 pub const gguf_converter = @import("gguf_converter.zig");
+pub const zon = @import("zon.zig");
 
 // Unified format types
 pub const UnifiedFormat = unified.UnifiedFormat;
@@ -138,6 +139,17 @@ pub const toGguf = gguf_converter.toGguf;
 pub const GgufHeader = gguf_converter.GgufHeader;
 pub const GgufTensorType = gguf_converter.GgufTensorType;
 pub const GgufConversionError = gguf_converter.GgufConversionError;
+
+// ZON format types (Zig Object Notation for WDBX databases)
+pub const ZonFormat = zon.ZonFormat;
+pub const ZonDatabase = zon.ZonDatabase;
+pub const ZonRecord = zon.ZonRecord;
+pub const ZonDatabaseConfig = zon.ZonDatabaseConfig;
+pub const ZonFormatError = zon.ZonFormatError;
+pub const ZonDistanceMetric = zon.DistanceMetric;
+pub const ZON_FORMAT_VERSION = zon.ZON_FORMAT_VERSION;
+pub const exportToZon = zon.exportToZon;
+pub const importFromZon = zon.importFromZon;
 
 /// Format magic number: "ABIU" (ABI Unified)
 pub const FORMAT_MAGIC: u32 = 0x55494241;
@@ -191,6 +203,7 @@ test "formats module imports" {
     _ = mmap;
     _ = vector_db;
     _ = gguf_converter;
+    _ = zon;
 }
 
 test "format magic and version" {
