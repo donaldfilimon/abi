@@ -89,17 +89,25 @@ pub fn computePerplexityFromProbs(probs: []const f64) PerplexityResult {
         };
     }
 
-    // Convert to log probs and use main function
-    var log_probs: [1024]f64 = undefined;
-    const n = @min(probs.len, 1024);
-
-    for (0..n) |i| {
+    // Compute directly without allocation - sum log probs inline
+    var sum: f64 = 0;
+    for (probs) |p| {
         // Clamp to avoid log(0)
-        const p = @max(probs[i], 1e-10);
-        log_probs[i] = @log(p);
+        const clamped = @max(p, 1e-10);
+        sum += @log(clamped);
     }
 
-    return computePerplexity(log_probs[0..n]);
+    const n = @as(f64, @floatFromInt(probs.len));
+    const avg_log_prob = sum / n;
+    const cross_entropy = -avg_log_prob;
+    const perplexity = @exp(cross_entropy);
+
+    return .{
+        .perplexity = perplexity,
+        .avg_log_prob = avg_log_prob,
+        .cross_entropy = cross_entropy,
+        .num_tokens = probs.len,
+    };
 }
 
 /// Aggregate perplexity results from multiple sequences.
@@ -213,4 +221,20 @@ test "aggregate perplexity" {
     try std.testing.expect(aggregated.perplexity > 10);
     try std.testing.expect(aggregated.perplexity < 20);
     try std.testing.expectEqual(@as(usize, 200), aggregated.num_tokens);
+}
+
+test "perplexity from probs long sequence" {
+    // Create sequence longer than 1024
+    var probs: [2000]f64 = undefined;
+    for (&probs) |*p| {
+        p.* = 0.1; // 10% probability each
+    }
+
+    const result = computePerplexityFromProbs(&probs);
+
+    // Should process all 2000 tokens, not just 1024
+    try std.testing.expectEqual(@as(usize, 2000), result.num_tokens);
+
+    // Perplexity of uniform 0.1 = 1/0.1 = 10
+    try std.testing.expectApproxEqAbs(@as(f64, 10.0), result.perplexity, 0.01);
 }

@@ -271,3 +271,111 @@ pub fn computeExactMatch(hypothesis: []const u8, reference: []const u8) f64 {
     _ = reference;
     return 0;
 }
+
+/// Stub CER computation.
+pub fn computeCER(
+    allocator: std.mem.Allocator,
+    hypothesis: []const u8,
+    reference: []const u8,
+) !f64 {
+    _ = allocator;
+    _ = hypothesis;
+    _ = reference;
+    return error.EvalDisabled;
+}
+
+/// Stub WER computation.
+pub fn computeWER(
+    allocator: std.mem.Allocator,
+    hypothesis: []const u8,
+    reference: []const u8,
+) !f64 {
+    _ = allocator;
+    _ = hypothesis;
+    _ = reference;
+    return error.EvalDisabled;
+}
+
+/// Stub normalized exact match computation.
+pub fn computeNormalizedExactMatch(
+    allocator: std.mem.Allocator,
+    hypothesis: []const u8,
+    reference: []const u8,
+) !f64 {
+    _ = allocator;
+    _ = hypothesis;
+    _ = reference;
+    return error.EvalDisabled;
+}
+
+/// Stub Levenshtein distance computation.
+pub fn levenshteinDistance(
+    allocator: std.mem.Allocator,
+    a: []const u8,
+    b: []const u8,
+) !usize {
+    _ = allocator;
+    _ = a;
+    _ = b;
+    return error.EvalDisabled;
+}
+
+/// Stub token metrics computation.
+pub fn computeTokenMetrics(
+    allocator: std.mem.Allocator,
+    hypothesis: []const u8,
+    reference: []const u8,
+) !TokenMetrics {
+    _ = allocator;
+    _ = hypothesis;
+    _ = reference;
+    return error.EvalDisabled;
+}
+
+/// Stub text statistics computation.
+pub fn computeTextStatistics(text: []const u8) TextStatistics {
+    _ = text;
+    return .{};
+}
+
+/// Stub windowed perplexity computation.
+pub fn computeWindowedPerplexity(
+    allocator: std.mem.Allocator,
+    log_probs: []const f64,
+    window_size: usize,
+) ![]PerplexityResult {
+    _ = allocator;
+    _ = log_probs;
+    _ = window_size;
+    return error.EvalDisabled;
+}
+
+/// Stub perplexity from cross-entropy.
+pub fn perplexityFromCrossEntropy(cross_entropy: f64) f64 {
+    _ = cross_entropy;
+    return 0;
+}
+
+/// Stub perplexity from BPC.
+pub fn perplexityFromBpc(bpc: f64) f64 {
+    _ = bpc;
+    return 0;
+}
+
+/// Stub perplexity to BPC.
+pub fn perplexityToBpc(perplexity_val: f64) f64 {
+    _ = perplexity_val;
+    return 0;
+}
+
+/// Stub aggregate perplexity.
+pub fn aggregatePerplexity(results: []const PerplexityResult) PerplexityResult {
+    _ = results;
+    return .{};
+}
+
+/// Stub perplexity from probs.
+pub fn computePerplexityFromProbs(probs: []const f64) PerplexityResult {
+    _ = probs;
+    return .{};
+}
