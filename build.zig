@@ -35,6 +35,7 @@ const BuildOptions = struct {
     gpu_opengl: bool,
     gpu_opengles: bool,
     gpu_webgl2: bool,
+    gpu_fpga: bool,
     cache_dir: []const u8,
     global_cache_dir: ?[]const u8,
 };
@@ -98,6 +99,7 @@ fn readBuildOptions(b: *std.Build) BuildOptions {
     const gpu_opengles =
         b.option(bool, "gpu-opengles", "Enable OpenGL ES backend") orelse false;
     const gpu_webgl2 = b.option(bool, "gpu-webgl2", "Enable WebGL2 backend") orelse enable_web;
+    const gpu_fpga = b.option(bool, "gpu-fpga", "Enable FPGA backend (AMD/Xilinx, Intel)") orelse false;
 
     // Validate GPU backend combinations
     if (gpu_cuda and gpu_vulkan) {
@@ -125,6 +127,7 @@ fn readBuildOptions(b: *std.Build) BuildOptions {
         .gpu_opengl = gpu_opengl,
         .gpu_opengles = gpu_opengles,
         .gpu_webgl2 = gpu_webgl2,
+        .gpu_fpga = gpu_fpga,
         .cache_dir = cache_dir,
         .global_cache_dir = global_cache_dir,
     };
@@ -156,6 +159,7 @@ fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Mod
     build_options.addOption(bool, "gpu_opengl", options.gpu_opengl);
     build_options.addOption(bool, "gpu_opengles", options.gpu_opengles);
     build_options.addOption(bool, "gpu_webgl2", options.gpu_webgl2);
+    build_options.addOption(bool, "gpu_fpga", options.gpu_fpga);
 
     return build_options.createModule();
 }
