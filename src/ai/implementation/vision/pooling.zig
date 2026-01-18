@@ -48,7 +48,10 @@ pub const MaxPool2D = struct {
     const Self = @This();
 
     /// Initialize MaxPool2D layer
-    pub fn init(allocator: std.mem.Allocator, kernel_size: u32, stride: u32, padding: u32) MaxPool2D {
+    /// Returns error.InvalidDimensions if kernel_size or stride is 0
+    pub fn init(allocator: std.mem.Allocator, kernel_size: u32, stride: u32, padding: u32) !MaxPool2D {
+        if (kernel_size == 0) return error.InvalidDimensions;
+        if (stride == 0) return error.InvalidDimensions;
         return MaxPool2D{
             .kernel_size = kernel_size,
             .stride = stride,
@@ -198,7 +201,10 @@ pub const AvgPool2D = struct {
     const Self = @This();
 
     /// Initialize AvgPool2D layer
-    pub fn init(allocator: std.mem.Allocator, kernel_size: u32, stride: u32, padding: u32) AvgPool2D {
+    /// Returns error.InvalidDimensions if kernel_size or stride is 0
+    pub fn init(allocator: std.mem.Allocator, kernel_size: u32, stride: u32, padding: u32) !AvgPool2D {
+        if (kernel_size == 0) return error.InvalidDimensions;
+        if (stride == 0) return error.InvalidDimensions;
         return AvgPool2D{
             .kernel_size = kernel_size,
             .stride = stride,

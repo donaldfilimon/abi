@@ -33,6 +33,7 @@ const GlGetShaderivFn = *const fn (u32, u32, *i32) callconv(.c) void;
 const GlGetShaderInfoLogFn = *const fn (u32, i32, *i32, [*]u8) callconv(.c) void;
 const GlCreateProgramFn = *const fn () callconv(.c) u32;
 const GlAttachShaderFn = *const fn (u32, u32) callconv(.c) void;
+const GlDetachShaderFn = *const fn (u32, u32) callconv(.c) void;
 const GlLinkProgramFn = *const fn (u32) callconv(.c) void;
 const GlGetProgramivFn = *const fn (u32, u32, *i32) callconv(.c) void;
 const GlGetProgramInfoLogFn = *const fn (u32, i32, *i32, [*]u8) callconv(.c) void;
@@ -65,6 +66,7 @@ var glGetShaderiv: ?GlGetShaderivFn = null;
 var glGetShaderInfoLog: ?GlGetShaderInfoLogFn = null;
 var glCreateProgram: ?GlCreateProgramFn = null;
 var glAttachShader: ?GlAttachShaderFn = null;
+var glDetachShader: ?GlDetachShaderFn = null;
 var glLinkProgram: ?GlLinkProgramFn = null;
 var glGetProgramiv: ?GlGetProgramivFn = null;
 var glGetProgramInfoLog: ?GlGetProgramInfoLogFn = null;
@@ -335,11 +337,16 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
 
     const kernel: *OpenGlKernel = @ptrCast(@alignCast(kernel_handle));
 
-    const delete_program_fn = glDeleteProgram orelse return;
-    delete_program_fn(kernel.program);
+    // Detach shader from program before deletion (required by OpenGL)
+    if (glDetachShader) |detach_fn| {
+        detach_fn(kernel.program, kernel.shader);
+    }
 
     const delete_shader_fn = glDeleteShader orelse return;
     delete_shader_fn(kernel.shader);
+
+    const delete_program_fn = glDeleteProgram orelse return;
+    delete_program_fn(kernel.program);
 
     allocator.destroy(kernel);
 }
@@ -536,6 +543,7 @@ fn loadOpenGlFunctions() bool {
     glGetShaderInfoLog = opengl_lib.?.lookup(GlGetShaderInfoLogFn, "glGetShaderInfoLog") orelse return false;
     glCreateProgram = opengl_lib.?.lookup(GlCreateProgramFn, "glCreateProgram") orelse return false;
     glAttachShader = opengl_lib.?.lookup(GlAttachShaderFn, "glAttachShader") orelse return false;
+    glDetachShader = opengl_lib.?.lookup(GlDetachShaderFn, "glDetachShader") orelse return false;
     glLinkProgram = opengl_lib.?.lookup(GlLinkProgramFn, "glLinkProgram") orelse return false;
     glGetProgramiv = opengl_lib.?.lookup(GlGetProgramivFn, "glGetProgramiv") orelse return false;
     glGetProgramInfoLog = opengl_lib.?.lookup(GlGetProgramInfoLogFn, "glGetProgramInfoLog") orelse return false;

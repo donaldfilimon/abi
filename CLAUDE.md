@@ -64,6 +64,7 @@ zig build run-gpu                      # Run GPU example
 | `-Denable-profiling` | true | Performance profiling and metrics |
 | `-Denable-explore` | true | Codebase exploration (requires `-Denable-ai`) |
 | `-Denable-llm` | true | Local LLM inference (requires `-Denable-ai`) |
+| `-Denable-vision` | true | Vision/image processing (requires `-Denable-ai`) |
 
 **GPU Backends:** `-Dgpu-vulkan` (default), `-Dgpu-cuda`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`
 
