@@ -1,9 +1,35 @@
 # AI & Agents
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Module-AI-purple?style=for-the-badge&logo=openai&logoColor=white" alt="AI Module"/>
+  <img src="https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge" alt="Production Ready"/>
+  <img src="https://img.shields.io/badge/LLM-Llama_CPP_Parity-blue?style=for-the-badge" alt="Llama CPP Parity"/>
+</p>
+
+<p align="center">
+  <a href="#connectors">Connectors</a> •
+  <a href="#llm-sub-feature">LLM</a> •
+  <a href="#agents-sub-feature">Agents</a> •
+  <a href="#training-sub-feature">Training</a> •
+  <a href="#cli-commands">CLI</a>
+</p>
+
+---
+
 > **Developer Guide**: See [CONTRIBUTING.md](../CONTRIBUTING.md) for coding patterns and [CLAUDE.md](../CLAUDE.md) for comprehensive agent guidance.
 > **Framework**: Initialize ABI framework before using AI features - see [Framework Guide](framework.md).
 
 The **AI** module (`abi.ai`) provides the building blocks for creating autonomous agents and connecting to LLM providers.
+
+## Sub-Features Overview
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **LLM** | Local LLM inference (GGUF support) | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Embeddings** | Vector embedding generation | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Agents** | Conversational AI agents | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Training** | Training pipelines & checkpointing | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Connectors** | OpenAI, Ollama, HuggingFace | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ## Architecture
 
@@ -47,21 +73,27 @@ Connectors provide a unified interface to various model providers and platforms.
 
 ### Model Providers
 
-- **OpenAI** (`abi.ai.connectors.openai`) - GPT-4, GPT-3.5, embeddings
-- **Ollama** (`abi.ai.connectors.ollama`) - Local LLM inference
-- **HuggingFace** (`abi.ai.connectors.huggingface`) - Inference API
+| Provider | Namespace | Models | Status |
+|----------|-----------|--------|--------|
+| **OpenAI** | `abi.ai.connectors.openai` | GPT-4, GPT-3.5, embeddings | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Ollama** | `abi.ai.connectors.ollama` | Local LLMs (Llama, Mistral, etc.) | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **HuggingFace** | `abi.ai.connectors.huggingface` | Inference API models | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ### Platform Integrations
 
-- **Discord** (`abi.ai.connectors.discord`) - Discord Bot API for messaging, webhooks, and interactions
+| Platform | Namespace | Features | Status |
+|----------|-----------|----------|--------|
+| **Discord** | `abi.ai.connectors.discord` | Bot API, webhooks, interactions | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ### Configuration
 
-Connectors are typically configured via environment variables for security.
-
-- `ABI_OPENAI_API_KEY` - OpenAI API key
-- `ABI_OLLAMA_HOST` - Ollama server URL (default: `http://127.0.0.1:11434`)
-- `DISCORD_BOT_TOKEN` - Discord bot authentication token
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `ABI_OPENAI_API_KEY` | - | OpenAI API key |
+| `ABI_OLLAMA_HOST` | `http://127.0.0.1:11434` | Ollama server URL |
+| `ABI_OLLAMA_MODEL` | `gpt-oss` | Default Ollama model |
+| `ABI_HF_API_TOKEN` | - | HuggingFace token |
+| `DISCORD_BOT_TOKEN` | - | Discord bot token |
 
 ## LLM Sub-Feature
 
@@ -300,20 +332,43 @@ defer allocator.free(response);
 
 ### Supported Backends
 
-| Backend | Description |
-|---------|-------------|
-| `echo` | Local echo for testing |
-| `openai` | OpenAI API (GPT-4, etc.) |
-| `ollama` | Local Ollama instance |
-| `huggingface` | HuggingFace Inference API |
-| `local` | Embedded transformer model |
+| Backend | Description | Use Case | Status |
+|---------|-------------|----------|--------|
+| `echo` | Local echo for testing | Development/testing | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| `openai` | OpenAI API (GPT-4, etc.) | Production cloud inference | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| `ollama` | Local Ollama instance | Local development | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| `huggingface` | HuggingFace Inference API | Model experimentation | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| `local` | Embedded transformer model | Offline inference | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ---
 
 ## See Also
 
-- [Explore](explore.md) - Codebase exploration with AI
-- [Framework](framework.md) - Configuration options
-- [Compute Engine](compute.md) - Task execution for AI workloads
-- [GPU Acceleration](gpu.md) - GPU-accelerated inference
-- [Troubleshooting](troubleshooting.md) - Common issues
+<table>
+<tr>
+<td>
+
+### Related Guides
+- [Explore](explore.md) — Codebase exploration with AI
+- [Framework](framework.md) — Configuration options
+- [Compute Engine](compute.md) — Task execution for AI workloads
+- [GPU Acceleration](gpu.md) — GPU-accelerated inference
+
+</td>
+<td>
+
+### Resources
+- [Troubleshooting](troubleshooting.md) — Common issues
+- [API Reference](../API_REFERENCE.md) — AI API details
+- [Examples](../examples/) — Code samples
+
+</td>
+</tr>
+</table>
+
+---
+
+<p align="center">
+  <a href="docs-index.md">← Documentation Index</a> •
+  <a href="gpu.md">GPU Guide →</a>
+</p>

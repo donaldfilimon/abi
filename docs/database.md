@@ -1,12 +1,34 @@
 # Database (WDBX)
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Module-Database-orange?style=for-the-badge&logo=mongodb&logoColor=white" alt="Database Module"/>
+  <img src="https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge" alt="Production Ready"/>
+  <img src="https://img.shields.io/badge/Type-Vector_DB-blue?style=for-the-badge" alt="Vector DB"/>
+</p>
+
+<p align="center">
+  <a href="#usage">Usage</a> •
+  <a href="#batch-operations">Batch Ops</a> •
+  <a href="#full-text-search">Full-Text</a> •
+  <a href="#metadata-filtering">Filtering</a> •
+  <a href="#cli-commands">CLI</a>
+</p>
+
+---
+
 **WDBX** is ABI's built-in vector database solution, optimized for high-dimensional embedding storage and retrieval.
 
-## Features
+## Feature Overview
 
-- **Vector Search**: Dot product, Cosine similarity, L2 Euclidean distance.
-- **Zero-Copy**: Leverages Zig's manual memory management for efficiency.
-- **Backup/Restore**: Simple snapshotting capabilities.
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Vector Search** | Dot product, Cosine, L2 Euclidean | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Zero-Copy** | Zig's memory management | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Backup/Restore** | Secure snapshotting | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Batch Operations** | High-throughput bulk ops | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Full-Text Search** | BM25 ranking | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Metadata Filtering** | Rich query operators | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Thread Safety** | Concurrent access | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ## Usage
 
@@ -283,7 +305,31 @@ defer {
 
 ## See Also
 
-- [AI & Agents](ai.md) - Embedding generation for vectors
-- [GPU Acceleration](gpu.md) - GPU-accelerated search
-- [Monitoring](monitoring.md) - Database metrics
-- [Troubleshooting](troubleshooting.md) - Path validation and performance issues
+<table>
+<tr>
+<td>
+
+### Related Guides
+- [AI & Agents](ai.md) — Embedding generation for vectors
+- [GPU Acceleration](gpu.md) — GPU-accelerated search
+- [Monitoring](monitoring.md) — Database metrics
+
+</td>
+<td>
+
+### Resources
+- [Troubleshooting](troubleshooting.md) — Path validation and issues
+- [API Reference](../API_REFERENCE.md) — Database API details
+- [Examples](../examples/) — Database code samples
+
+</td>
+</tr>
+</table>
+
+---
+
+<p align="center">
+  <a href="gpu.md">← GPU Guide</a> •
+  <a href="docs-index.md">Documentation Index</a> •
+  <a href="network.md">Network Guide →</a>
+</p>
