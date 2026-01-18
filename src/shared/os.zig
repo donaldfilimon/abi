@@ -256,7 +256,7 @@ pub fn getCurrentDir(allocator: std.mem.Allocator) ![]u8 {
     }
 
     var buffer: [std.fs.max_path_bytes]u8 = undefined;
-    const cwd = std.fs.cwd().realpath(".", &buffer) catch {
+    const cwd = std.posix.getcwd(&buffer) catch {
         return allocator.dupe(u8, ".");
     };
     return allocator.dupe(u8, cwd);
@@ -323,12 +323,12 @@ pub fn getTotalMemory() u64 {
     }
 
     if (comptime builtin.os.tag == .linux) {
-        // Read from /proc/meminfo
-        var file = std.fs.openFileAbsolute("/proc/meminfo", .{}) catch return 0;
-        defer file.close();
+        // Read from /proc/meminfo using posix API
+        const fd = std.posix.open("/proc/meminfo", .{}, 0) catch return 0;
+        defer std.posix.close(fd);
 
         var buffer: [256]u8 = undefined;
-        const bytes_read = file.read(&buffer) catch return 0;
+        const bytes_read = std.posix.read(fd, &buffer) catch return 0;
         const content = buffer[0..bytes_read];
 
         // Parse "MemTotal: NNNN kB"
