@@ -27,6 +27,7 @@ pub const embeddings = if (build_options.enable_ai) @import("embeddings/mod.zig"
 pub const eval = if (build_options.enable_ai) @import("eval/mod.zig") else @import("eval/stub.zig");
 pub const rag = if (build_options.enable_ai) @import("rag/mod.zig") else @import("rag/stub.zig");
 pub const templates = if (build_options.enable_ai) @import("templates/mod.zig") else @import("templates/stub.zig");
+pub const vision = if (build_options.enable_vision) @import("vision/mod.zig") else @import("vision/stub.zig");
 
 pub const Agent = agent.Agent;
 pub const ModelRegistry = model_registry.ModelRegistry;
@@ -49,6 +50,14 @@ pub const LlamaTrainer = training.LlamaTrainer;
 pub const TrainableModel = training.TrainableModel;
 pub const trainLlm = training.trainLlm;
 pub const trainable_model = training.trainable_model;
+
+// Data loading exports
+pub const TokenizedDataset = training.TokenizedDataset;
+pub const DataLoader = training.DataLoader;
+pub const BatchIterator = training.BatchIterator;
+pub const Batch = training.Batch;
+pub const SequencePacker = training.SequencePacker;
+pub const parseInstructionDataset = training.parseInstructionDataset;
 
 pub const Tool = tools.Tool;
 pub const ToolResult = tools.ToolResult;

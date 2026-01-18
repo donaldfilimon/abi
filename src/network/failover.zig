@@ -132,11 +132,16 @@ pub const FailoverManager = struct {
         }
     }
 
+    fn getTimestampMs() i64 {
+        const now = std.time.Instant.now() catch return 0;
+        return now.timestamp.tv_sec * 1000 + @divTrunc(@as(i64, now.timestamp.tv_nsec), 1_000_000);
+    }
+
     fn triggerFailover(self: *Self, failed_node: []const u8) !void {
         self.state = .failing_over;
 
         try self.logEvent(.{
-            .timestamp_ms = std.time.milliTimestamp(),
+            .timestamp_ms = getTimestampMs(),
             .event_type = .failover_started,
             .node_id = failed_node,
             .details = "Primary node failed, initiating failover",
@@ -151,7 +156,7 @@ pub const FailoverManager = struct {
             self.state = .failed_over;
 
             try self.logEvent(.{
-                .timestamp_ms = std.time.milliTimestamp(),
+                .timestamp_ms = getTimestampMs(),
                 .event_type = .failover_completed,
                 .node_id = new_primary,
                 .details = "Promoted to primary",

@@ -100,6 +100,83 @@ const MetalBuffer = struct {
     allocator: std.mem.Allocator,
 };
 
+// ============================================================================
+// Safe Pointer Casting Utilities
+// ============================================================================
+
+/// Magic value used to validate MetalKernel pointers before casting.
+/// This helps detect use-after-free and invalid pointer issues.
+const kernel_magic: u64 = 0x4D45544B_45524E53; // "METKERNS" in hex
+
+/// Magic value used to validate MetalBuffer pointers before casting.
+const buffer_magic: u64 = 0x4D455442_55465300; // "METBUFS\0" in hex
+
+/// Extended MetalKernel with validation magic for safe pointer casting.
+const SafeMetalKernel = struct {
+    magic: u64 = kernel_magic,
+    inner: MetalKernel,
+};
+
+/// Extended MetalBuffer with validation magic for safe pointer casting.
+const SafeMetalBuffer = struct {
+    magic: u64 = buffer_magic,
+    inner: MetalBuffer,
+};
+
+/// Safely cast an opaque pointer to a MetalKernel pointer with validation.
+/// Returns null if the pointer is null or the magic value doesn't match.
+fn safeCastToKernel(ptr: ?*anyopaque) ?*MetalKernel {
+    // Null pointer check - return null for safety
+    const p = ptr orelse return null;
+
+    // Cast to SafeMetalKernel to validate magic
+    const safe_kernel: *SafeMetalKernel = @ptrCast(@alignCast(p));
+
+    // Validate magic value to detect corruption/invalid pointers
+    if (safe_kernel.magic != kernel_magic) {
+        std.log.err("Invalid MetalKernel pointer: magic mismatch (expected 0x{x}, got 0x{x})", .{ kernel_magic, safe_kernel.magic });
+        return null;
+    }
+
+    return &safe_kernel.inner;
+}
+
+/// Safely cast an opaque pointer to a MetalBuffer pointer with validation.
+/// Returns null if the pointer is null or the magic value doesn't match.
+fn safeCastToBuffer(ptr: ?*anyopaque) ?*MetalBuffer {
+    // Null pointer check - return null for safety
+    const p = ptr orelse return null;
+
+    // Cast to SafeMetalBuffer to validate magic
+    const safe_buffer: *SafeMetalBuffer = @ptrCast(@alignCast(p));
+
+    // Validate magic value to detect corruption/invalid pointers
+    if (safe_buffer.magic != buffer_magic) {
+        std.log.err("Invalid MetalBuffer pointer: magic mismatch (expected 0x{x}, got 0x{x})", .{ buffer_magic, safe_buffer.magic });
+        return null;
+    }
+
+    return &safe_buffer.inner;
+}
+
+/// Safely cast a const opaque pointer to a MetalBuffer pointer with validation.
+/// Returns null if the pointer is null or the magic value doesn't match.
+fn safeCastToBufferConst(ptr: ?*const anyopaque) ?*const MetalBuffer {
+    // Null pointer check - return null for safety
+    const p = ptr orelse return null;
+
+    // Cast to SafeMetalBuffer to validate magic (need to cast away const for alignment)
+    const safe_buffer: *const SafeMetalBuffer = @ptrCast(@alignCast(p));
+
+    // Validate magic value to detect corruption/invalid pointers
+    if (safe_buffer.magic != buffer_magic) {
+        std.log.err("Invalid MetalBuffer pointer: magic mismatch (expected 0x{x}, got 0x{x})", .{ buffer_magic, safe_buffer.magic });
+        return null;
+    }
+
+    return &safe_buffer.inner;
+}
+
 pub fn init() !void {
     if (metal_initialized) return;
 
@@ -221,15 +298,19 @@ pub fn compileKernel(
         return types.KernelError.CompilationFailed;
     }
 
-    const kernel = try allocator.create(MetalKernel);
-    kernel.* = .{
-        .pipeline_state = pipeline_state,
-        .library = library,
-        .function = function,
+    // Allocate SafeMetalKernel with magic validation header for safe pointer casting
+    const safe_kernel = try allocator.create(SafeMetalKernel);
+    safe_kernel.* = .{
+        .magic = kernel_magic, // Set magic for pointer validation
+        .inner = .{
+            .pipeline_state = pipeline_state,
+            .library = library,
+            .function = function,
+        },
     };
 
     std.log.debug("Metal kernel compiled successfully", .{});
-    return kernel;
+    return safe_kernel;
 }
 
 pub fn launchKernel(
@@ -249,7 +330,11 @@ pub fn launchKernel(
     const msg_send_void_ptr = objc_msgSend_void_ptr orelse return types.KernelError.LaunchFailed;
     const msg_send_void_ptr_int_int = objc_msgSend_void_ptr_int_int orelse return types.KernelError.LaunchFailed;
 
-    const kernel: *MetalKernel = @ptrCast(@alignCast(kernel_handle));
+    // Safe pointer cast with null check and magic validation
+    const kernel = safeCastToKernel(kernel_handle) orelse {
+        std.log.err("launchKernel: Invalid kernel handle (null or corrupted)", .{});
+        return types.KernelError.LaunchFailed;
+    };
 
     // Create command buffer: [commandQueue commandBuffer]
     const command_buffer = msg_send(metal_command_queue, sel_commandBuffer);
@@ -271,7 +356,11 @@ pub fn launchKernel(
     // Set buffers: [encoder setBuffer:buffer offset:0 atIndex:i]
     for (args, 0..) |arg, i| {
         if (arg != null) {
-            const buffer_wrapper: *MetalBuffer = @ptrCast(@alignCast(arg.?));
+            // Safe pointer cast with validation for buffer arguments
+            const buffer_wrapper = safeCastToBufferConst(arg) orelse {
+                std.log.err("launchKernel: Invalid buffer argument at index {} (null or corrupted)", .{i});
+                return types.KernelError.LaunchFailed;
+            };
             msg_send_void_ptr_int_int(encoder, sel_setBuffer, buffer_wrapper.buffer, 0, @intCast(i));
         }
     }
@@ -295,7 +384,11 @@ pub fn launchKernel(
 }
 
 pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
-    const kernel: *MetalKernel = @ptrCast(@alignCast(kernel_handle));
+    // Safe pointer cast with null check and magic validation
+    const kernel = safeCastToKernel(kernel_handle) orelse {
+        std.log.err("destroyKernel: Invalid kernel handle (null or corrupted), skipping destruction", .{});
+        return;
+    };
 
     // Release Metal objects using Objective-C runtime
     if (objc_msgSend_void) |release_fn| {
@@ -304,7 +397,11 @@ pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) vo
         if (kernel.library != null) release_fn(kernel.library, sel_release);
     }
 
-    allocator.destroy(kernel);
+    // Clear magic before freeing to prevent use-after-free detection issues
+    const safe_kernel: *SafeMetalKernel = @fieldParentPtr("inner", kernel);
+    safe_kernel.magic = 0; // Invalidate magic on destruction
+
+    allocator.destroy(safe_kernel);
 }
 
 pub fn allocateDeviceMemory(allocator: std.mem.Allocator, size: usize) !*anyopaque {
@@ -329,22 +426,31 @@ pub fn allocateDeviceMemoryWithAllocator(allocator: std.mem.Allocator, size: usi
         return MetalError.BufferCreationFailed;
     }
 
-    const metal_buffer = try allocator.create(MetalBuffer);
-    errdefer allocator.destroy(metal_buffer);
+    // Allocate SafeMetalBuffer with magic validation header for safe pointer casting
+    const safe_buffer = try allocator.create(SafeMetalBuffer);
+    errdefer allocator.destroy(safe_buffer);
 
-    metal_buffer.* = .{
-        .buffer = buffer,
-        .size = size,
-        .allocator = allocator,
+    safe_buffer.* = .{
+        .magic = buffer_magic, // Set magic for pointer validation
+        .inner = .{
+            .buffer = buffer,
+            .size = size,
+            .allocator = allocator,
+        },
     };
 
     std.log.debug("Metal buffer allocated: size={B}", .{size});
-    return metal_buffer;
+    return safe_buffer;
 }
 
 pub fn freeDeviceMemory(allocator: std.mem.Allocator, ptr: *anyopaque) void {
     _ = allocator;
-    const buffer: *MetalBuffer = @ptrCast(@alignCast(ptr));
+
+    // Safe pointer cast with null check and magic validation
+    const buffer = safeCastToBuffer(ptr) orelse {
+        std.log.err("freeDeviceMemory: Invalid buffer pointer (null or corrupted), skipping free", .{});
+        return;
+    };
     const buffer_allocator_ref = buffer.allocator;
 
     // Release the Metal buffer object
@@ -354,11 +460,25 @@ pub fn freeDeviceMemory(allocator: std.mem.Allocator, ptr: *anyopaque) void {
         }
     }
 
-    buffer_allocator_ref.destroy(buffer);
+    // Clear magic before freeing to prevent use-after-free detection issues
+    const safe_buffer: *SafeMetalBuffer = @fieldParentPtr("inner", buffer);
+    safe_buffer.magic = 0; // Invalidate magic on destruction
+
+    buffer_allocator_ref.destroy(safe_buffer);
 }
 
 pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
-    const dst_buffer: *MetalBuffer = @ptrCast(@alignCast(dst));
+    // Safe pointer cast with null check and magic validation
+    const dst_buffer = safeCastToBuffer(dst) orelse {
+        std.log.err("memcpyHostToDevice: Invalid destination buffer (null or corrupted)", .{});
+        return MetalError.MemoryCopyFailed;
+    };
+
+    // Bounds check: ensure copy size doesn't exceed buffer capacity
+    if (size > dst_buffer.size) {
+        std.log.err("memcpyHostToDevice: Copy size ({}) exceeds buffer size ({})", .{ size, dst_buffer.size });
+        return MetalError.MemoryCopyFailed;
+    }
 
     // Get buffer contents using objc_msgSend: [buffer contents]
     const msg_send = objc_msgSend orelse return MetalError.MemoryCopyFailed;
@@ -368,12 +488,25 @@ pub fn memcpyHostToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
         return MetalError.MemoryCopyFailed;
     }
 
-    @memcpy(@as([*]u8, @ptrCast(contents.?))[0..size], @as([*]const u8, @ptrCast(src))[0..size]);
+    // Safe memcpy with validated pointers and bounds-checked size
+    const dst_slice = @as([*]u8, @ptrCast(contents.?))[0..size];
+    const src_slice = @as([*]const u8, @ptrCast(src))[0..size];
+    @memcpy(dst_slice, src_slice);
     std.log.debug("Metal memcpy host->device: {B}", .{size});
 }
 
 pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) !void {
-    const src_buffer: *MetalBuffer = @ptrCast(@alignCast(src));
+    // Safe pointer cast with null check and magic validation
+    const src_buffer = safeCastToBuffer(src) orelse {
+        std.log.err("memcpyDeviceToHost: Invalid source buffer (null or corrupted)", .{});
+        return MetalError.MemoryCopyFailed;
+    };
+
+    // Bounds check: ensure copy size doesn't exceed buffer capacity
+    if (size > src_buffer.size) {
+        std.log.err("memcpyDeviceToHost: Copy size ({}) exceeds buffer size ({})", .{ size, src_buffer.size });
+        return MetalError.MemoryCopyFailed;
+    }
 
     // Get buffer contents using objc_msgSend: [buffer contents]
     const msg_send = objc_msgSend orelse return MetalError.MemoryCopyFailed;
@@ -383,16 +516,31 @@ pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) !void {
         return MetalError.MemoryCopyFailed;
     }
 
-    @memcpy(@as([*]u8, @ptrCast(dst))[0..size], @as([*]const u8, @ptrCast(contents.?))[0..size]);
+    // Safe memcpy with validated pointers and bounds-checked size
+    const dst_slice = @as([*]u8, @ptrCast(dst))[0..size];
+    const src_slice = @as([*]const u8, @ptrCast(contents.?))[0..size];
+    @memcpy(dst_slice, src_slice);
     std.log.debug("Metal memcpy device->host: {B}", .{size});
 }
 
 pub fn memcpyDeviceToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void {
-    const src_buffer: *MetalBuffer = @ptrCast(@alignCast(src));
-    const dst_buffer: *MetalBuffer = @ptrCast(@alignCast(dst));
+    // Safe pointer casts with null check and magic validation
+    const src_buffer = safeCastToBuffer(src) orelse {
+        std.log.err("memcpyDeviceToDevice: Invalid source buffer (null or corrupted)", .{});
+        return MetalError.MemoryCopyFailed;
+    };
+    const dst_buffer = safeCastToBuffer(dst) orelse {
+        std.log.err("memcpyDeviceToDevice: Invalid destination buffer (null or corrupted)", .{});
+        return MetalError.MemoryCopyFailed;
+    };
 
-    if (size > src_buffer.size or size > dst_buffer.size) {
-        std.log.err("Metal memcpy size ({B}) exceeds buffer size", .{size});
+    // Bounds check: ensure copy size doesn't exceed either buffer's capacity
+    if (size > src_buffer.size) {
+        std.log.err("memcpyDeviceToDevice: Copy size ({}) exceeds source buffer size ({})", .{ size, src_buffer.size });
+        return MetalError.MemoryCopyFailed;
+    }
+    if (size > dst_buffer.size) {
+        std.log.err("memcpyDeviceToDevice: Copy size ({}) exceeds destination buffer size ({})", .{ size, dst_buffer.size });
         return MetalError.MemoryCopyFailed;
     }
 
@@ -406,10 +554,10 @@ pub fn memcpyDeviceToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void
         return MetalError.MemoryCopyFailed;
     }
 
-    @memcpy(
-        @as([*]u8, @ptrCast(dst_contents.?))[0..size],
-        @as([*]const u8, @ptrCast(src_contents.?))[0..size],
-    );
+    // Safe memcpy with validated pointers and bounds-checked size
+    const dst_slice = @as([*]u8, @ptrCast(dst_contents.?))[0..size];
+    const src_slice = @as([*]const u8, @ptrCast(src_contents.?))[0..size];
+    @memcpy(dst_slice, src_slice);
     std.log.debug("Metal memcpy device->device: {B}", .{size});
 }
 

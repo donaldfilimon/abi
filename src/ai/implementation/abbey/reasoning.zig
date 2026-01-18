@@ -15,7 +15,8 @@ pub const Confidence = core_types.Confidence;
 
 // Zig 0.16 compatible time function
 fn getTimestampNs() i128 {
-    return @intCast(std.time.milliTimestamp() * std.time.ns_per_ms);
+    const now = std.time.Instant.now() catch return 0;
+    return @as(i128, now.timestamp.tv_sec) * std.time.ns_per_s + @as(i128, now.timestamp.tv_nsec);
 }
 
 /// Helper to create a display string for confidence (extends core Confidence)

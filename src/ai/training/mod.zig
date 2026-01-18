@@ -19,6 +19,14 @@ pub const CheckpointStore = features_training.CheckpointStore;
 pub const Checkpoint = features_training.Checkpoint;
 pub const GradientAccumulator = features_training.GradientAccumulator;
 
+// Data loading
+pub const TokenizedDataset = features_training.TokenizedDataset;
+pub const DataLoader = features_training.DataLoader;
+pub const BatchIterator = features_training.BatchIterator;
+pub const Batch = features_training.Batch;
+pub const SequencePacker = features_training.SequencePacker;
+pub const parseInstructionDataset = features_training.parseInstructionDataset;
+
 // LLM training
 pub const LlmTrainingConfig = features_training.LlmTrainingConfig;
 pub const LlamaTrainer = features_training.LlamaTrainer;

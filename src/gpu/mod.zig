@@ -92,6 +92,34 @@ pub const execution_coordinator = @import("execution_coordinator.zig");
 pub const ExecutionCoordinator = execution_coordinator.ExecutionCoordinator;
 pub const ExecutionMethod = execution_coordinator.ExecutionMethod;
 
+// Multi-device and peer transfer
+pub const multi_device = @import("multi_device.zig");
+pub const peer_transfer = @import("peer_transfer/mod.zig");
+
+// Multi-device types
+pub const DeviceGroup = multi_device.DeviceGroup;
+pub const GPUCluster = multi_device.GPUCluster;
+pub const GPUClusterConfig = multi_device.GPUClusterConfig;
+pub const ReduceOp = multi_device.ReduceOp;
+pub const AllReduceAlgorithm = multi_device.AllReduceAlgorithm;
+pub const ParallelismStrategy = multi_device.ParallelismStrategy;
+pub const WorkDistribution = multi_device.WorkDistribution;
+pub const ModelPartition = multi_device.ModelPartition;
+pub const DeviceBarrier = multi_device.DeviceBarrier;
+pub const GradientBucket = multi_device.GradientBucket;
+pub const GradientBucketManager = multi_device.GradientBucketManager;
+
+// Peer transfer types
+pub const PeerTransferManager = peer_transfer.PeerTransferManager;
+pub const TransferCapability = peer_transfer.TransferCapability;
+pub const TransferHandle = peer_transfer.TransferHandle;
+pub const TransferStatus = peer_transfer.TransferStatus;
+pub const TransferOptions = peer_transfer.TransferOptions;
+pub const TransferError = peer_transfer.TransferError;
+pub const TransferStats = peer_transfer.TransferStats;
+pub const DeviceBuffer = peer_transfer.DeviceBuffer;
+pub const RecoveryStrategy = peer_transfer.RecoveryStrategy;
+
 // Include test modules in test builds
 comptime {
     if (@import("builtin").is_test) {
@@ -101,6 +129,7 @@ comptime {
         _ = @import("tests/execution_fallback_test.zig");
         _ = @import("tests/integration_test.zig");
         _ = @import("tests/all_backends_test.zig");
+        _ = @import("peer_transfer/tests.zig");
     }
 }
 

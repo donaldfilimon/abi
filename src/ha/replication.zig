@@ -113,7 +113,11 @@ pub const ReplicationManager = struct {
 
     /// Initialize the replication manager
     pub fn init(allocator: std.mem.Allocator, config: ReplicationConfig) ReplicationManager {
-        var prng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+        const seed = blk: {
+            const now = std.time.Instant.now() catch break :blk @as(u64, 0);
+            break :blk now.timestamp.tv_sec *% 1_000_000_000 +% @as(u64, @intCast(now.timestamp.tv_nsec));
+        };
+        var prng = std.Random.DefaultPrng.init(seed);
 
         return .{
             .allocator = allocator,
@@ -211,6 +215,7 @@ pub const ReplicationManager = struct {
         defer self.mutex.unlock();
 
         if (!self.is_leader) {
+            std.log.warn("Rejecting write: node is not leader (local_node_id: {d}, current_leader: {d})", .{ self.local_node_id, self.leader_node_id });
             return error.NotLeader;
         }
 
@@ -269,6 +274,7 @@ pub const ReplicationManager = struct {
         }
 
         if (acks < quorum) {
+            std.log.warn("Quorum not reached for replication (acks: {d}, required: {d}, sequence: {d}, replica_count: {d})", .{ acks, quorum, sequence, self.replicas.count() });
             return error.QuorumNotReached;
         }
     }

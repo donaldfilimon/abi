@@ -73,6 +73,12 @@ pub const training = if (build_options.enable_ai)
 else
     @import("training/stub.zig");
 
+/// Vision/image processing module
+pub const vision = if (build_options.enable_vision)
+    @import("implementation/vision/mod.zig")
+else
+    @import("implementation/vision/stub.zig");
+
 // ============================================================================
 // Re-exports from existing AI module (for compatibility)
 // ============================================================================
@@ -95,6 +101,14 @@ pub const TrainableModelConfig = features_ai.trainable_model.TrainableModelConfi
 pub const LlamaTrainer = features_ai.LlamaTrainer;
 pub const loadCheckpoint = features_ai.loadCheckpoint;
 pub const saveCheckpoint = features_ai.saveCheckpoint;
+
+// Data loading
+pub const TokenizedDataset = features_ai.TokenizedDataset;
+pub const DataLoader = features_ai.DataLoader;
+pub const BatchIterator = features_ai.BatchIterator;
+pub const Batch = features_ai.Batch;
+pub const SequencePacker = features_ai.SequencePacker;
+pub const parseInstructionDataset = features_ai.parseInstructionDataset;
 
 // Tools
 pub const Tool = features_ai.Tool;

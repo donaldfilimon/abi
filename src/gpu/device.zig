@@ -544,27 +544,42 @@ fn meetsRequirements(dev: Device, criteria: DeviceSelectionCriteria) bool {
 
 fn enumerateCudaDevices(allocator: std.mem.Allocator) ![]Device {
     const cuda = @import("backends/cuda/mod.zig");
-    return cuda.enumerateDevices(allocator) catch &[_]Device{};
+    return cuda.enumerateDevices(allocator) catch |err| {
+        std.log.warn("Failed to enumerate CUDA devices: {t}", .{err});
+        return &[_]Device{};
+    };
 }
 
 fn enumerateVulkanDevices(allocator: std.mem.Allocator) ![]Device {
     const vulkan = @import("backends/vulkan.zig");
-    return vulkan.enumerateDevices(allocator) catch &[_]Device{};
+    return vulkan.enumerateDevices(allocator) catch |err| {
+        std.log.warn("Failed to enumerate Vulkan devices: {t}", .{err});
+        return &[_]Device{};
+    };
 }
 
 fn enumerateMetalDevices(allocator: std.mem.Allocator) ![]Device {
     const metal = @import("backends/metal.zig");
-    return metal.enumerateDevices(allocator) catch &[_]Device{};
+    return metal.enumerateDevices(allocator) catch |err| {
+        std.log.warn("Failed to enumerate Metal devices: {t}", .{err});
+        return &[_]Device{};
+    };
 }
 
 fn enumerateWebGPUDevices(allocator: std.mem.Allocator) ![]Device {
     const webgpu = @import("backends/webgpu.zig");
-    return webgpu.enumerateDevices(allocator) catch &[_]Device{};
+    return webgpu.enumerateDevices(allocator) catch |err| {
+        std.log.warn("Failed to enumerate WebGPU devices: {t}", .{err});
+        return &[_]Device{};
+    };
 }
 
 fn enumerateOpenGLDevices(allocator: std.mem.Allocator) ![]Device {
     const opengl = @import("backends/opengl.zig");
-    return opengl.enumerateDevices(allocator) catch &[_]Device{};
+    return opengl.enumerateDevices(allocator) catch |err| {
+        std.log.warn("Failed to enumerate OpenGL devices: {t}", .{err});
+        return &[_]Device{};
+    };
 }
 
 fn enumerateStdgpuDevices(allocator: std.mem.Allocator) ![]Device {

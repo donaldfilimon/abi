@@ -23,6 +23,7 @@ pub const llm = @import("llm/stub.zig");
 pub const embeddings = @import("embeddings/stub.zig");
 pub const agents = @import("agents/stub.zig");
 pub const training = @import("training/stub.zig");
+pub const vision = @import("implementation/vision/stub.zig");
 
 // Agent module stub (singular - for backward compatibility)
 pub const agent = struct {

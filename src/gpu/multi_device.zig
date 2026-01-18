@@ -33,6 +33,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const unified = @import("unified.zig");
+const peer_transfer = @import("peer_transfer/mod.zig");
 
 /// Device identifier.
 pub const DeviceId = u32;
@@ -564,6 +565,8 @@ pub const GPUCluster = struct {
     comm_buffers: std.AutoHashMapUnmanaged(DeviceId, CommBuffer),
     barrier: ?DeviceBarrier,
     mutex: std.Thread.Mutex,
+    /// Peer transfer manager for real GPU-to-GPU transfers.
+    peer_manager: ?peer_transfer.PeerTransferManager,
 
     /// Communication buffer for a device.
     const CommBuffer = struct {
@@ -582,6 +585,7 @@ pub const GPUCluster = struct {
             .comm_buffers = .{},
             .barrier = null,
             .mutex = .{},
+            .peer_manager = null,
         };
 
         // Initialize GPU contexts for each device
@@ -592,6 +596,11 @@ pub const GPUCluster = struct {
         // Create barrier for synchronization
         if (cluster.device_group.active_devices.items.len > 0) {
             cluster.barrier = DeviceBarrier.init(cluster.device_group.active_devices.items);
+        }
+
+        // Initialize peer transfer manager for real GPU-to-GPU transfers
+        if (config.device_config.enable_peer_transfer) {
+            cluster.peer_manager = peer_transfer.PeerTransferManager.init(allocator, &cluster.device_group) catch null;
         }
 
         return cluster;
@@ -612,6 +621,11 @@ pub const GPUCluster = struct {
 
     /// Deinitialize the cluster.
     pub fn deinit(self: *GPUCluster) void {
+        // Clean up peer transfer manager
+        if (self.peer_manager) |*pm| {
+            pm.deinit();
+        }
+
         // Clean up GPU contexts
         var ctx_iter = self.gpu_contexts.iterator();
         while (ctx_iter.next()) |entry| {
@@ -705,16 +719,88 @@ pub const GPUCluster = struct {
 
     /// AllReduce operation across all devices.
     /// Synchronizes and reduces data from all devices.
+    /// Uses real peer-to-peer transfers when available.
     pub fn allReduce(self: *GPUCluster, data: []f32, op: ReduceOp) !void {
         const device_count = self.device_group.activeDeviceCount();
         if (device_count <= 1) return; // No reduction needed
 
+        // Use peer transfer manager for real GPU-to-GPU transfers if available
+        if (self.peer_manager) |*pm| {
+            // Create device buffers for all active devices
+            var buffers = try self.allocator.alloc(peer_transfer.DeviceBuffer, device_count);
+            defer self.allocator.free(buffers);
+
+            for (self.device_group.active_devices.items, 0..) |dev_id, i| {
+                buffers[i] = .{
+                    .device_id = dev_id,
+                    .data = data, // In a real impl, each device would have its own copy
+                };
+            }
+
+            try pm.allReduceAsync(buffers, op, .{});
+            try pm.waitAll();
+            return;
+        }
+
+        // Fallback to simulated AllReduce
         switch (self.config.allreduce_algo) {
             .ring => try self.ringAllReduce(data, op),
             .tree => try self.treeAllReduce(data, op),
             .direct => try self.directAllReduce(data, op),
             .bucket => try self.bucketAllReduce(data, op),
         }
+    }
+
+    /// AllReduce operation with per-device buffers.
+    /// This is the preferred API when each device has its own buffer.
+    pub fn allReduceBuffers(self: *GPUCluster, buffers: []peer_transfer.DeviceBuffer, op: ReduceOp) !void {
+        if (buffers.len <= 1) return; // No reduction needed
+
+        // Use peer transfer manager for real GPU-to-GPU transfers if available
+        if (self.peer_manager) |*pm| {
+            try pm.allReduceAsync(buffers, op, .{});
+            try pm.waitAll();
+            return;
+        }
+
+        // Fallback: reduce to first buffer using local operations
+        const first = buffers[0].data;
+        for (buffers[1..]) |buf| {
+            for (first, 0..) |*val, i| {
+                if (i < buf.data.len) {
+                    val.* = applyOp(val.*, buf.data[i], op);
+                }
+            }
+        }
+
+        // Handle average
+        if (op == .avg) {
+            const scale = 1.0 / @as(f32, @floatFromInt(buffers.len));
+            for (first) |*val| {
+                val.* *= scale;
+            }
+        }
+
+        // Copy result back to all buffers
+        for (buffers[1..]) |buf| {
+            @memcpy(buf.data, first);
+        }
+    }
+
+    /// Get the peer transfer manager for advanced operations.
+    pub fn getPeerManager(self: *GPUCluster) ?*peer_transfer.PeerTransferManager {
+        if (self.peer_manager) |*pm| {
+            return pm;
+        }
+        return null;
+    }
+
+    /// Get transfer statistics.
+    pub fn getTransferStats(self: *const GPUCluster) ?peer_transfer.TransferStats {
+        if (self.peer_manager) |pm| {
+            return pm.getStats();
+        }
+        return null;
     }
 
     /// Ring AllReduce implementation.

@@ -130,7 +130,13 @@ fn runBenchmarkSuite(allocator: std.mem.Allocator, config: BenchConfig) !void {
 
     // Collect results
     var results: std.ArrayListUnmanaged(BenchResult) = .empty;
-    defer results.deinit(allocator);
+    defer {
+        // Free all allocated result names before freeing the list
+        for (results.items) |*result| {
+            result.deinit(allocator);
+        }
+        results.deinit(allocator);
+    }
 
     switch (config.suite) {
         .all => {
@@ -171,6 +177,14 @@ const BenchResult = struct {
     mean_ns: f64,
     p99_ns: u64,
     iterations: u64,
+    name_allocated: bool = false, // Track if name was dynamically allocated
+
+    /// Free allocated name if it was dynamically allocated
+    pub fn deinit(self: *BenchResult, allocator: std.mem.Allocator) void {
+        if (self.name_allocated) {
+            allocator.free(self.name);
+        }
+    }
 };
 
 /// Errors that can occur during benchmark execution.
@@ -339,6 +353,7 @@ fn runSimdBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmana
             .mean_ns = result.mean_ns,
             .p99_ns = result.p99_ns,
             .iterations = result.iterations,
+            .name_allocated = true,
         });
 
         std.debug.print("  dot_product[{d}]: {d:.0} ops/sec, {d:.0}ns mean\n", .{ size, result.ops_per_sec, result.mean_ns });
@@ -358,6 +373,7 @@ fn runMemoryBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnma
             .mean_ns = result.mean_ns,
             .p99_ns = result.p99_ns,
             .iterations = result.iterations,
+            .name_allocated = true,
         });
 
         std.debug.print("  alloc_free[{d}]: {d:.0} ops/sec, {d:.0}ns mean\n", .{ size, result.ops_per_sec, result.mean_ns });
@@ -924,6 +940,7 @@ fn runAiBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanage
         .mean_ns = mean_ns,
         .p99_ns = @intFromFloat(mean_ns * 1.2),
         .iterations = iterations,
+        .name_allocated = true,
     });
 
     std.debug.print("  matmul[{d}x{d}x{d}]: {d:.2} GFLOPS, {d:.0}ns mean\n", .{ m, k, n, gflops, mean_ns });

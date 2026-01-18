@@ -22,6 +22,7 @@ const BuildOptions = struct {
     enable_ai: bool,
     enable_explore: bool,
     enable_llm: bool,
+    enable_vision: bool,
     enable_web: bool,
     enable_database: bool,
     enable_network: bool,
@@ -43,6 +44,7 @@ const Defaults = struct {
     const enable_ai = true;
     const enable_explore = true;
     const enable_llm = true;
+    const enable_vision = true;
     const enable_web = true;
     const enable_database = true;
     const enable_network = true;
@@ -62,6 +64,9 @@ fn readBuildOptions(b: *std.Build) BuildOptions {
     const enable_llm =
         b.option(bool, "enable-llm", "Enable local LLM inference") orelse
         (enable_ai and Defaults.enable_llm);
+    const enable_vision =
+        b.option(bool, "enable-vision", "Enable vision/image processing") orelse
+        (enable_ai and Defaults.enable_vision);
     const enable_web =
         b.option(bool, "enable-web", "Enable web features") orelse
         Defaults.enable_web;
@@ -107,6 +112,7 @@ fn readBuildOptions(b: *std.Build) BuildOptions {
         .enable_ai = enable_ai,
         .enable_explore = enable_explore,
         .enable_llm = enable_llm,
+        .enable_vision = enable_vision,
         .enable_web = enable_web,
         .enable_database = enable_database,
         .enable_network = enable_network,
@@ -135,6 +141,7 @@ fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Mod
     build_options.addOption(bool, "enable_ai", options.enable_ai);
     build_options.addOption(bool, "enable_explore", options.enable_explore);
     build_options.addOption(bool, "enable_llm", options.enable_llm);
+    build_options.addOption(bool, "enable_vision", options.enable_vision);
     build_options.addOption(bool, "enable_web", options.enable_web);
     build_options.addOption(bool, "enable_database", options.enable_database);
     build_options.addOption(bool, "enable_network", options.enable_network);
@@ -359,6 +366,32 @@ pub fn build(b: *std.Build) void {
 
             examples_step.dependOn(&example_exe.step);
         }
+    }
+
+    // Training demo example (subdirectory example)
+    if (pathExists("examples/training/train_demo.zig")) {
+        const train_demo_exe = b.addExecutable(.{
+            .name = "example-train-demo",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("examples/training/train_demo.zig"),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+            }),
+        });
+        train_demo_exe.root_module.addImport("abi", abi_module);
+        b.installArtifact(train_demo_exe);
+
+        const run_train_demo = b.addRunArtifact(train_demo_exe);
+        if (b.args) |args| {
+            run_train_demo.addArgs(args);
+        }
+
+        const train_demo_step = b.step("run-train-demo", "Run LLM training demo");
+        train_demo_step.dependOn(b.getInstallStep());
+        train_demo_step.dependOn(&run_train_demo.step);
+
+        examples_step.dependOn(&train_demo_exe.step);
     }
 
     // Test suite

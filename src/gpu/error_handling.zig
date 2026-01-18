@@ -253,6 +253,11 @@ pub const ErrorContext = struct {
             null;
         errdefer if (extra_copy) |ctx| self.allocator.free(ctx);
 
+        const timestamp_ms: i64 = blk: {
+            const now = std.time.Instant.now() catch break :blk 0;
+            break :blk now.timestamp.tv_sec * 1000 + @divTrunc(@as(i64, now.timestamp.tv_nsec), 1_000_000);
+        };
+
         const gpu_error = GpuError{
             .code = code,
             .error_type = error_type,
@@ -262,7 +267,7 @@ pub const ErrorContext = struct {
             .operation = operation,
             .native_code = native_code,
             .extra_context = extra_copy,
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = timestamp_ms,
         };
 
         try self.errors.append(self.allocator, gpu_error);

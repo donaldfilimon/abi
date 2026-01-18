@@ -10,7 +10,8 @@ const std = @import("std");
 
 // Zig 0.16 compatible time function
 fn getTimestamp() i64 {
-    return @divTrunc(std.time.milliTimestamp(), 1000);
+    const now = std.time.Instant.now() catch return 0;
+    return now.timestamp.tv_sec;
 }
 
 /// A topic being discussed
