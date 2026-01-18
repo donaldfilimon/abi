@@ -303,6 +303,72 @@ pub const Manager = struct {
         if (self.config.auto_save) try self.save();
     }
 
+    /// Set due date for a task
+    pub fn setDueDate(self: *Manager, id: u64, due_date: ?i64) ManagerError!void {
+        const ptr = self.tasks.getPtr(id) orelse return error.TaskNotFound;
+        ptr.due_date = due_date;
+        ptr.updated_at = time_utils.unixSeconds();
+        self.dirty = true;
+        if (self.config.auto_save) try self.save();
+    }
+
+    /// Set task as blocked by another task
+    pub fn setBlockedBy(self: *Manager, id: u64, blocker_id: ?u64) ManagerError!void {
+        const ptr = self.tasks.getPtr(id) orelse return error.TaskNotFound;
+        // Verify blocker exists if set
+        if (blocker_id) |bid| {
+            if (!self.tasks.contains(bid)) return error.TaskNotFound;
+        }
+        ptr.blocked_by = blocker_id;
+        ptr.updated_at = time_utils.unixSeconds();
+        // Also set status to blocked if a blocker is specified
+        if (blocker_id != null) {
+            ptr.status = .blocked;
+        } else if (ptr.status == .blocked) {
+            ptr.status = .pending;
+        }
+        self.dirty = true;
+        if (self.config.auto_save) try self.save();
+    }
+
+    /// Update task priority
+    pub fn setPriority(self: *Manager, id: u64, priority: Priority) ManagerError!void {
+        const ptr = self.tasks.getPtr(id) orelse return error.TaskNotFound;
+        ptr.priority = priority;
+        ptr.updated_at = time_utils.unixSeconds();
+        self.dirty = true;
+        if (self.config.auto_save) try self.save();
+    }
+
+    /// Update task category
+    pub fn setCategory(self: *Manager, id: u64, category: Category) ManagerError!void {
+        const ptr = self.tasks.getPtr(id) orelse return error.TaskNotFound;
+        ptr.category = category;
+        ptr.updated_at = time_utils.unixSeconds();
+        self.dirty = true;
+        if (self.config.auto_save) try self.save();
+    }
+
+    /// Update task title
+    pub fn setTitle(self: *Manager, id: u64, title: []const u8) ManagerError!void {
+        const ptr = self.tasks.getPtr(id) orelse return error.TaskNotFound;
+        const owned_title = try self.dupeString(title);
+        ptr.title = owned_title;
+        ptr.updated_at = time_utils.unixSeconds();
+        self.dirty = true;
+        if (self.config.auto_save) try self.save();
+    }
+
+    /// Update task description
+    pub fn setDescription(self: *Manager, id: u64, description: ?[]const u8) ManagerError!void {
+        const ptr = self.tasks.getPtr(id) orelse return error.TaskNotFound;
+        const owned_desc = if (description) |d| try self.dupeString(d) else null;
+        ptr.description = owned_desc;
+        ptr.updated_at = time_utils.unixSeconds();
+        self.dirty = true;
+        if (self.config.auto_save) try self.save();
+    }
+
     /// List tasks with optional filter
     pub fn list(self: *const Manager, allocator: std.mem.Allocator, filter: Filter) ManagerError![]Task {
         var result = std.ArrayListUnmanaged(Task){};
