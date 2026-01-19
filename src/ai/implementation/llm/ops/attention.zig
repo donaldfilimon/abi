@@ -96,6 +96,7 @@ fn applyCausalMask(scores: []f32, seq_len: u32, kv_len: u32) void {
 }
 
 /// Multi-head attention.
+/// Uses an arena allocator internally for efficient per-head temporary allocations.
 pub fn multiHeadAttention(
     allocator: std.mem.Allocator,
     q: []const f32, // [seq_len, num_heads * head_dim]
@@ -113,9 +114,18 @@ pub fn multiHeadAttention(
     // Ratio for grouped-query attention
     const kv_ratio = num_heads / num_kv_heads;
 
+    // Use arena allocator for per-head temporary buffers to reduce allocation overhead
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const arena_alloc = arena.allocator();
+
     // Temporary storage for one head's attention
-    const head_output = try allocator.alloc(f32, @as(usize, seq_len) * head_dim);
-    defer allocator.free(head_output);
+    const head_output = try arena_alloc.alloc(f32, @as(usize, seq_len) * head_dim);
+
+    // Pre-allocate head buffers outside the loop for reuse
+    var q_head = try arena_alloc.alloc(f32, @as(usize, seq_len) * head_dim);
+    var k_head = try arena_alloc.alloc(f32, @as(usize, kv_len) * head_dim);
+    var v_head = try arena_alloc.alloc(f32, @as(usize, kv_len) * head_dim);
 
     // Process each query head
     for (0..num_heads) |h| {
@@ -126,14 +136,6 @@ pub fn multiHeadAttention(
         const q_offset = h * head_dim;
         const k_offset = kv_h * head_dim;
         const v_offset = kv_h * head_dim;
-
-        // Create views (strided access)
-        var q_head = try allocator.alloc(f32, @as(usize, seq_len) * head_dim);
-        defer allocator.free(q_head);
-        var k_head = try allocator.alloc(f32, @as(usize, kv_len) * head_dim);
-        defer allocator.free(k_head);
-        var v_head = try allocator.alloc(f32, @as(usize, kv_len) * head_dim);
-        defer allocator.free(v_head);
 
         // Copy head slices (strided to contiguous)
         for (0..seq_len) |i| {
@@ -492,6 +494,7 @@ fn updateOutputOnlineSoftmax(
 
 /// Flash Attention for multi-head attention.
 /// More memory efficient than standard multiHeadAttention for long sequences.
+/// Uses an arena allocator internally for efficient temporary buffer management.
 pub fn flashMultiHeadAttention(
     allocator: std.mem.Allocator,
     q: []const f32, // [seq_len, num_heads * head_dim]
@@ -508,16 +511,16 @@ pub fn flashMultiHeadAttention(
     const num_kv_heads = config.num_kv_heads;
     const kv_ratio = num_heads / num_kv_heads;
 
-    // Temporary storage for one head
-    const head_output = try allocator.alloc(f32, @as(usize, seq_len) * head_dim);
-    defer allocator.free(head_output);
+    // Use arena allocator for all temporary buffers - single deinit frees everything
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const arena_alloc = arena.allocator();
 
-    var q_head = try allocator.alloc(f32, @as(usize, seq_len) * head_dim);
-    defer allocator.free(q_head);
-    var k_head = try allocator.alloc(f32, @as(usize, kv_len) * head_dim);
-    defer allocator.free(k_head);
-    var v_head = try allocator.alloc(f32, @as(usize, kv_len) * head_dim);
-    defer allocator.free(v_head);
+    // Temporary storage for one head (reused across iterations)
+    const head_output = try arena_alloc.alloc(f32, @as(usize, seq_len) * head_dim);
+    var q_head = try arena_alloc.alloc(f32, @as(usize, seq_len) * head_dim);
+    var k_head = try arena_alloc.alloc(f32, @as(usize, kv_len) * head_dim);
+    var v_head = try arena_alloc.alloc(f32, @as(usize, kv_len) * head_dim);
 
     for (0..num_heads) |h| {
         const kv_h = h / kv_ratio;
