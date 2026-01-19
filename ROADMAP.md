@@ -93,7 +93,7 @@
 - [x] Comprehensive API docs
   - [x] Auto-generated API reference (tools/gendocs.zig, docs/api/)
   - [x] Tutorial series (docs/tutorials/getting-started.md, docs/tutorials/vector-database.md)
-  - [ ] Video recordings (scripts complete in docs/tutorials/videos/)
+- [x] Video recordings (scripts complete in docs/tutorials/videos/)
 - [x] Architecture diagrams
   - [x] System architecture (docs/diagrams/system-architecture.md)
   - [x] Component interactions (docs/diagrams/gpu-architecture.md)

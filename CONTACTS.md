@@ -5,5 +5,5 @@
 
 ## See Also
 
-- [TODO.md](TODO.md) - Pending implementations
+- [TODO.md](TODO.md) - Pending implementations (see [Claude‑Code Massive TODO](TODO.md#claude-code-massive-todo))
 - [ROADMAP.md](ROADMAP.md) - Project milestones and timeline

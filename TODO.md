@@ -24,7 +24,7 @@ The following high-level items are still open in **[ROADMAP.md](ROADMAP.md)**. T
 | File | Line | Description |
 |------|------|-------------|
 | `ROADMAP.md` | 86-89 | ~~Tooling: Debugger integration, Performance profiler, Memory leak detector~~ ✅ Complete |
-| `ROADMAP.md` | 92-95 | Documentation: Comprehensive API docs (auto-generated, tutorials, videos) |
+| `ROADMAP.md` | 92-95 | ~~Documentation: Comprehensive API docs (auto-generated, tutorials, videos)~~ ✅ Complete |
 | `ROADMAP.md` | 96-99 | ~~Documentation: Architecture diagrams (system, component, data flow)~~ ✅ Complete |
 | `ROADMAP.md` | 109 | ~~Testing: Competitive benchmarks~~ ✅ Complete |
 | `ROADMAP.md` | 125-129 | ~~High Availability: Failover mechanisms (automatic failover, health checks, circuit breakers)~~ ✅ Complete |
@@ -139,7 +139,7 @@ This section aggregates all high‑level and implementation‑level tasks that a
 | Area | Description |
 |------|-------------|
 | ~~Tooling~~ | ~~Debugger integration, performance profiler, memory‑leak detector~~ ✅ Complete |
-| Documentation | Comprehensive API docs (auto‑generated ✅, tutorials, videos) |
+| Documentation | ~~Comprehensive API docs (auto‑generated ✅, tutorials, videos)~~ ✅ Complete |
 | ~~Architecture~~ | ~~System, component, and data‑flow diagrams~~ ✅ Complete |
 | ~~Testing~~ | ~~Competitive benchmarks~~ ✅ Complete |
 | ~~High Availability~~ | ~~Failover mechanisms, health checks, circuit breakers~~ ✅ Complete |
@@ -174,7 +174,7 @@ This section aggregates all high‑level and implementation‑level tasks that a
 
 * ~~Review any remaining `TODO:`/`FIXME:` markers in the source tree and document them here.~~ ✅ All code-level TODOs complete.
 * ~~Ensure all feature‑gated stub modules correctly return `error.*Disabled`.~~ ✅ All stubs verified and tested (2026-01-17).
-* Update documentation links throughout the repo to reference this **Claude‑Code Massive TODO** for visibility.
+* ~~Update documentation links throughout the repo to reference this **Claude‑Code Massive TODO** for visibility.~~ ✅ Complete
 
 ## Stub API Parity (2026-01-17)
 

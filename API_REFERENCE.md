@@ -330,7 +330,7 @@ Flat domain structure (modular architecture):
 <td>
 
 ### Project
-- [TODO.md](TODO.md) — Pending implementations
+- [TODO.md](TODO.md) — Pending implementations (see [Claude‑Code Massive TODO](TODO.md#claude-code-massive-todo))
 - [ROADMAP.md](ROADMAP.md) — Upcoming milestones
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Development guidelines
 - [CHANGELOG.md](CHANGELOG.md) — Version history

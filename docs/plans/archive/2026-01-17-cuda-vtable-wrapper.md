@@ -820,7 +820,7 @@ git commit -m "feat(gpu): export CudaBackend from cuda module"
 
 **Step 1: Read current createCudaVTableBackend**
 
-Current implementation returns SimulatedBackend with TODO.
+Current implementation now returns the real CUDA backend (legacy TODO resolved).
 
 **Step 2: Update to use real CUDA backend**
 
