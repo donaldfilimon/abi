@@ -1,4 +1,5 @@
 # ABI Framework Examples
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 This directory contains example programs demonstrating various features of the ABI framework.
 

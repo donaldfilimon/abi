@@ -1,4 +1,5 @@
 # ABI Python Bindings
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 Python bindings for the ABI high-performance AI and vector database framework.
 

@@ -1,4 +1,5 @@
 # gpu API Reference
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 **Source:** `src/gpu/unified.zig`
 
