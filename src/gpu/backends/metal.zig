@@ -673,7 +673,7 @@ pub fn launchKernel(
     msg_send_void(command_buffer, sel_waitUntilCompleted);
 
     std.log.debug("Metal kernel launched: grid=({},{},{}), block=({},{},{})", .{
-        config.grid_size[0], config.grid_size[1], config.grid_size[2],
+        config.grid_size[0],  config.grid_size[1],  config.grid_size[2],
         config.block_size[0], config.block_size[1], config.block_size[2],
     });
 }

@@ -338,8 +338,8 @@ pub fn findOptimalBlockSize(
 
     // Common block sizes to try (optimized for different scenarios)
     const block_sizes = [_]u32{
-        32,  64,  96,  128, 160, 192, 224, 256,
-        288, 320, 384, 448, 512, 640, 768, 896,
+        32,   64,  96,  128, 160, 192, 224, 256,
+        288,  320, 384, 448, 512, 640, 768, 896,
         1024,
     };
 
