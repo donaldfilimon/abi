@@ -4,6 +4,7 @@
 //! Supports multiple encryption backends and protocols.
 
 const std = @import("std");
+const shared_utils = @import("../../shared/utils.zig");
 
 /// Encryption type for the channel.
 pub const EncryptionType = enum {
@@ -287,7 +288,7 @@ pub const SecureChannel = struct {
         }
 
         self.state = .established;
-        self.stats.established_at_ms = std.time.milliTimestamp();
+        self.stats.established_at_ms = shared_utils.unixMs();
         self.stats.handshakes += 1;
     }
 
@@ -312,7 +313,7 @@ pub const SecureChannel = struct {
         }
 
         self.state = .established;
-        self.stats.established_at_ms = std.time.milliTimestamp();
+        self.stats.established_at_ms = shared_utils.unixMs();
         self.stats.handshakes += 1;
     }
 
@@ -337,7 +338,7 @@ pub const SecureChannel = struct {
         self.send_nonce += 1;
         self.stats.encrypt_ops += 1;
         self.stats.bytes_encrypted += plaintext.len;
-        self.stats.last_activity_ms = std.time.milliTimestamp();
+        self.stats.last_activity_ms = shared_utils.unixMs();
     }
 
     /// Receive data from the channel.
@@ -353,7 +354,7 @@ pub const SecureChannel = struct {
         _ = buffer;
 
         self.stats.decrypt_ops += 1;
-        self.stats.last_activity_ms = std.time.milliTimestamp();
+        self.stats.last_activity_ms = shared_utils.unixMs();
 
         return 0;
     }
@@ -401,7 +402,7 @@ pub const SecureChannel = struct {
     /// Check if channel needs rekeying.
     pub fn needsRekey(self: *SecureChannel) bool {
         if (self.config.key_rotation_interval_s == 0) return false;
-        const now = std.time.milliTimestamp();
+        const now = shared_utils.unixMs();
         const elapsed = @as(u64, @intCast(now - self.stats.established_at_ms)) / 1000;
         return elapsed >= self.config.key_rotation_interval_s;
     }

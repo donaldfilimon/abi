@@ -81,9 +81,9 @@ pub const HttpClient = struct {
         if (body) |payload| {
             if (!method.requestHasBody()) return error.InvalidRequest;
             var send_buffer: [4096]u8 = undefined;
-            var writer = try req.sendBody(&send_buffer);
-            try writer.writeAll(payload);
-            try writer.end();
+            var body_writer = try req.sendBody(&send_buffer);
+            try body_writer.writer.writeAll(payload);
+            try body_writer.end();
         } else {
             try req.sendBodiless();
         }
@@ -123,8 +123,8 @@ fn readAllAlloc(
             return error.ReadFailed;
         if (n == 0) break;
         if (list.items.len + n > max_bytes) return error.ResponseTooLarge;
-        try list.appendSlice(allocator, buffer[0..n]);
+        list.appendSlice(allocator, buffer[0..n]) catch return error.ResponseTooLarge;
         if (n < buffer.len) break;
     }
-    return list.toOwnedSlice(allocator);
+    return list.toOwnedSlice(allocator) catch return error.ResponseTooLarge;
 }

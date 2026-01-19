@@ -4,6 +4,7 @@
 //! memory system. Regions track ownership, permissions, and coherence state.
 
 const std = @import("std");
+const shared_utils = @import("../../shared/utils.zig");
 
 /// Unique identifier for a memory region.
 pub const RegionId = u64;
@@ -140,13 +141,13 @@ pub const RegionStats = struct {
     pub fn recordRead(self: *RegionStats, bytes: usize) void {
         self.reads += 1;
         self.bytes_read += bytes;
-        self.last_access_ms = std.time.milliTimestamp();
+        self.last_access_ms = shared_utils.unixMs();
     }
 
     pub fn recordWrite(self: *RegionStats, bytes: usize) void {
         self.writes += 1;
         self.bytes_written += bytes;
-        self.last_access_ms = std.time.milliTimestamp();
+        self.last_access_ms = shared_utils.unixMs();
         self.last_modified_ms = self.last_access_ms;
     }
 };
@@ -208,7 +209,7 @@ pub const MemoryRegion = struct {
             .state = .exclusive,
             .owner_node = 0,
             .page_size = page_size,
-            .stats = .{ .created_at_ms = std.time.milliTimestamp() },
+            .stats = .{ .created_at_ms = shared_utils.unixMs() },
         };
 
         // Allocate per-page tracking if needed

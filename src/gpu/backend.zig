@@ -569,13 +569,9 @@ fn detectFpga() BackendAvailability {
         return unavailableAvailability("fpga not supported on web targets");
     }
 
-    // Check for environment variables indicating FPGA availability
-    if (std.posix.getenv("ABI_FPGA_XILINX_DEVICE")) |_| {
-        return availableAvailability(.device_count, 1, "xilinx fpga device configured");
-    }
-    if (std.posix.getenv("ABI_FPGA_INTEL_DEVICE")) |_| {
-        return availableAvailability(.device_count, 1, "intel fpga device configured");
-    }
+    // Note: Environment variable checking for FPGA devices requires runtime
+    // initialization of std.Io.Threaded which is not available in this
+    // detection context. FPGA detection relies on library probing instead.
 
     // Try to detect XRT library (Xilinx)
     if (shared.canUseDynLib()) {
@@ -584,7 +580,7 @@ fn detectFpga() BackendAvailability {
         }
     }
 
-    return unavailableAvailability("fpga runtime not found (set ABI_FPGA_XILINX_DEVICE or ABI_FPGA_INTEL_DEVICE)");
+    return unavailableAvailability("fpga runtime not found");
 }
 
 fn availableAvailability(

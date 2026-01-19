@@ -5,6 +5,7 @@
 //! cluster sizes and topologies.
 
 const std = @import("std");
+const shared_utils = @import("../../shared/utils.zig");
 const memory_region = @import("memory_region.zig");
 
 const RegionId = memory_region.RegionId;
@@ -130,7 +131,7 @@ pub const CoherenceMessage = struct {
             .block_size = 4096,
             .data = null,
             .request_id = generateRequestId(),
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = shared_utils.unixMs(),
             .ack_count = 0,
             .flags = .{ .broadcast = true },
         };
@@ -147,7 +148,7 @@ pub const CoherenceMessage = struct {
             .block_size = 4096,
             .data = null,
             .request_id = generateRequestId(),
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = shared_utils.unixMs(),
             .ack_count = 0,
             .flags = .{ .broadcast = true, .exclusive_request = true },
         };
@@ -164,7 +165,7 @@ pub const CoherenceMessage = struct {
             .block_size = 4096,
             .data = null,
             .request_id = generateRequestId(),
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = shared_utils.unixMs(),
             .ack_count = 0,
             .flags = .{},
         };
@@ -181,7 +182,7 @@ pub const CoherenceMessage = struct {
             .block_size = data.len,
             .data = data,
             .request_id = request_id,
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = shared_utils.unixMs(),
             .ack_count = 0,
             .flags = .{ .data_included = true },
         };
@@ -530,7 +531,7 @@ pub const CoherenceProtocol = struct {
                     .block_size = msg.block_size,
                     .data = null,
                     .request_id = msg.request_id,
-                    .timestamp = std.time.milliTimestamp(),
+                    .timestamp = shared_utils.unixMs(),
                     .ack_count = 0,
                     .flags = .{},
                 };

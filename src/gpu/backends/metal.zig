@@ -418,7 +418,7 @@ fn createNSString(str: []const u8) MetalError!ID {
         @memcpy(stack_buf[0..str.len], str);
         stack_buf[str.len] = 0;
         break :blk stack_buf[0..str.len :0];
-    } else {
+    } else blk: {
         // For larger strings, we'd need to allocate
         // For now, truncate to stack buffer size
         @memcpy(stack_buf[0 .. stack_buf.len - 1], str[0 .. stack_buf.len - 1]);
@@ -1241,7 +1241,7 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
     if (mtlCopyAllDevices) |copy_all_fn| {
         const device_array = copy_all_fn();
         if (device_array != null) {
-            const msg_send = objc_msgSend orelse return &[_]Device{};
+            _ = objc_msgSend orelse return &[_]Device{};
             const msg_send_u64 = objc_msgSend_u64 orelse return &[_]Device{};
 
             // Get count: [array count]

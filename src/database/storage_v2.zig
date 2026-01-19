@@ -266,8 +266,8 @@ pub const BloomFilter = struct {
     fn getHashes(self: *const BloomFilter, id: u64) [16]usize {
         _ = self;
         // Use double hashing: h(i) = h1 + i * h2
-        var h1 = std.hash.XxHash3.hash(0, std.mem.asBytes(&id));
-        var h2 = std.hash.XxHash3.hash(1, std.mem.asBytes(&id));
+        const h1 = std.hash.XxHash3.hash(0, std.mem.asBytes(&id));
+        const h2 = std.hash.XxHash3.hash(1, std.mem.asBytes(&id));
 
         var hashes: [16]usize = undefined;
         for (0..16) |i| {

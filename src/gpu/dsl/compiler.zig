@@ -101,6 +101,7 @@ fn generateSource(
             break :blk result;
         },
         .webgl2 => return CompileError.UnsupportedBackend,
+        .fpga => return CompileError.UnsupportedBackend,
     };
 }
 

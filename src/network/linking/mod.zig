@@ -32,6 +32,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+const shared_utils = @import("../../shared/utils.zig");
 
 // Sub-module imports
 pub const secure_channel = @import("secure_channel.zig");
@@ -235,13 +236,13 @@ pub const LinkStats = struct {
     pub fn recordSend(self: *LinkStats, bytes: usize) void {
         self.bytes_sent += bytes;
         self.messages_sent += 1;
-        self.last_activity_ms = std.time.milliTimestamp();
+        self.last_activity_ms = shared_utils.unixMs();
     }
 
     pub fn recordReceive(self: *LinkStats, bytes: usize) void {
         self.bytes_received += bytes;
         self.messages_received += 1;
-        self.last_activity_ms = std.time.milliTimestamp();
+        self.last_activity_ms = shared_utils.unixMs();
     }
 
     pub fn recordError(self: *LinkStats, is_send: bool) void {
@@ -366,7 +367,7 @@ pub const Link = struct {
         };
 
         self.state = .connected;
-        self.stats.connected_at_ms = std.time.milliTimestamp();
+        self.stats.connected_at_ms = shared_utils.unixMs();
     }
 
     /// Disconnect from the remote machine.

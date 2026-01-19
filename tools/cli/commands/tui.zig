@@ -188,7 +188,7 @@ const TuiState = struct {
         // Add to front
         try self.history.insert(self.allocator, 0, .{
             .command = cmd,
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = abi.utils.unixMs(),
         });
         // Keep only last 10
         while (self.history.items.len > 10) {
@@ -199,12 +199,12 @@ const TuiState = struct {
     fn showNotification(self: *TuiState, message: []const u8, level: tui.Toast.Level) void {
         self.notification = message;
         self.notification_level = level;
-        self.notification_time = std.time.milliTimestamp();
+        self.notification_time = abi.utils.unixMs();
     }
 
     fn clearExpiredNotification(self: *TuiState) void {
         if (self.notification != null) {
-            const elapsed = std.time.milliTimestamp() - self.notification_time;
+            const elapsed = abi.utils.unixMs() - self.notification_time;
             if (elapsed > 3000) { // 3 second display
                 self.notification = null;
             }
@@ -391,19 +391,18 @@ fn runInteractive(allocator: std.mem.Allocator, framework: *abi.Framework) !void
     defer terminal.deinit();
 
     terminal.enter() catch |err| {
-        switch (err) {
-            error.PlatformNotSupported => {
-                const caps = tui.Terminal.capabilities();
-                utils.output.printError("TUI is not supported on {s}.", .{caps.platform_name});
-            },
-            error.ConsoleUnavailable, error.ConsoleModeFailed => {
+        const err_msg = switch (err) {
+            error.ConsoleUnavailable, error.ConsoleModeFailed => blk: {
                 utils.output.printError("Console is not available or cannot be configured.", .{});
                 utils.output.printInfo("On Windows, ensure you're running in a terminal (not through pipes).", .{});
+                break :blk true;
             },
-            else => {
+            else => blk: {
                 utils.output.printError("Failed to initialize terminal: {t}", .{err});
+                break :blk false;
             },
-        }
+        };
+        _ = err_msg;
         utils.output.printInfo("Run directly from a terminal for interactive features.", .{});
         return;
     };
@@ -1214,11 +1213,12 @@ fn renderStatusBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
 
     // CPU count
     var cpu_buf: [16]u8 = undefined;
+    const cpu_count = std.Thread.getCpuCount() catch 1;
     const cpu_str = std.fmt.bufPrint(&cpu_buf, " │ {d} CPU", .{cpu_count}) catch "";
     try term.write(cpu_str);
 
-    // TTY indicator
-    try term.write(if (is_tty) " │ TTY" else " │ pipe");
+    // TTY indicator (if we're in the TUI, we're in a terminal)
+    try term.write(" │ TTY");
 
     // Item count
     var count_buf: [32]u8 = undefined;

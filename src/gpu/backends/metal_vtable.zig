@@ -481,11 +481,9 @@ test "Metal isAvailable" {
     const available = metal.isAvailable();
     // On macOS, this should return true
     // On other platforms, should return false
-    if (builtin.target.os.tag == .macos) {
-        // Metal should be available on macOS
-        // (unless running in a VM or very old hardware)
-        _ = available;
-    } else {
+    if (builtin.target.os.tag != .macos) {
         try std.testing.expect(!available);
     }
+    // On macOS, Metal availability depends on hardware/VM
+    // so we don't assert either way
 }

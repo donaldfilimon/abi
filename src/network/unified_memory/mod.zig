@@ -18,6 +18,7 @@
 //!
 //! var manager = try unified_memory.UnifiedMemoryManager.init(allocator, config);
 //! defer manager.deinit();
+
 //!
 //! // Register a local memory region for sharing
 //! const region_id = try manager.registerRegion(data.ptr, data.len, .read_write);
@@ -29,6 +30,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+const shared_utils = @import("../../shared/utils.zig");
 
 // Sub-module imports
 pub const memory_region = @import("memory_region.zig");
@@ -440,7 +442,7 @@ pub const UnifiedMemoryManager = struct {
             .link_type = link_type,
             .latency_us = 0,
             .bandwidth_bps = 0,
-            .last_heartbeat_ms = std.time.milliTimestamp(),
+            .last_heartbeat_ms = shared_utils.unixMs(),
         };
 
         self.nodes.put(self.allocator, node_id, node) catch return error.OutOfMemory;
@@ -539,8 +541,7 @@ pub const UnifiedMemoryManager = struct {
         // - Server-side handler for remote write requests
         // - Acknowledgment/response handling
         // - Atomic write guarantees for coherence protocol
-        // For now, discard data silently
-        _ = data;
+        // For now, only track statistics (actual transfer pending implementation)
 
         self.stats.remote_writes += 1;
         self.stats.bytes_transferred_out += data.len;
