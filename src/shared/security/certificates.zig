@@ -488,11 +488,21 @@ pub const CertificateManager = struct {
         const request = try self.buildOcspRequest(cert);
         defer self.allocator.free(request);
 
-        // In a full implementation, we would:
-        // 1. Send HTTP POST to responder_url with Content-Type: application/ocsp-request
-        // 2. Parse the OCSP response
-        // 3. Verify response signature
-        // 4. Check certificate status in response
+        // OCSP (Online Certificate Status Protocol) validation not yet implemented
+        // Requirements:
+        // - HTTP client with POST support and HTTPS (use src/web/client.zig)
+        // - DER/ASN.1 encoding for OCSP request (see buildOcspRequest())
+        // - Request headers: Content-Type: application/ocsp-request
+        // - POST binary OCSP request to responder_url
+        // - Parse DER/ASN.1 OCSP response (OCSPResponse structure)
+        // - Verify OCSP response signature (requires X.509 signature verification)
+        // - Extract certificate status: good, revoked, or unknown
+        // - Handle errors: network failures, invalid responses, signature failures
+        // - Optional: Response caching to avoid repeated OCSP queries
+        //
+        // References:
+        // - RFC 6960: X.509 Internet Public Key Infrastructure OCSP
+        // - Requires ASN.1/DER parsing library
 
         // For now, check if the certificate is clearly expired
         if (cert.isExpired()) {
@@ -505,7 +515,7 @@ pub const CertificateManager = struct {
             responder_url,
         });
 
-        // Return good for valid certificates
+        // Return good for valid certificates (WARNING: does not actually check revocation)
         return .good;
     }
 

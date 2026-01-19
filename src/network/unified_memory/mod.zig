@@ -499,7 +499,16 @@ pub const UnifiedMemoryManager = struct {
             }
         }
 
-        // TODO: Actual network transfer - for now simulate
+        // Network transfer not yet implemented
+        // Requirements:
+        // - Network protocol definition (RPC/message format)
+        // - Serialization/deserialization for memory read requests
+        // - Connection management to remote nodes
+        // - Authentication and encryption (if config.encrypt_transfers)
+        // - Timeout and retry logic (config.operation_timeout_ms, config.retry_count)
+        // - Server-side handler for remote read requests
+        // - RDMA support where available (if config.rdma_enabled)
+        // For now, simulate with zeros
         @memset(buffer, 0);
 
         self.stats.remote_reads += 1;
@@ -524,7 +533,13 @@ pub const UnifiedMemoryManager = struct {
             cm.requestWrite(region_id, offset / self.config.page_size) catch return error.CoherenceViolation;
         }
 
-        // TODO: Actual network transfer
+        // Network transfer not yet implemented
+        // Requirements: Same as readRemote() plus:
+        // - Write request serialization
+        // - Server-side handler for remote write requests
+        // - Acknowledgment/response handling
+        // - Atomic write guarantees for coherence protocol
+        // For now, discard data silently
         _ = data;
 
         self.stats.remote_writes += 1;
