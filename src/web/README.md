@@ -1,5 +1,7 @@
 //! # Web
 //!
+//! > **Codebase Status:** Synced with repository as of 2026-01-18.
+//!
 //! HTTP client utilities and web integrations.
 //!
 //! ## Features
