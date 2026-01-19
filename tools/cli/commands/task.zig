@@ -233,6 +233,28 @@ fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             filter.overdue_only = true;
             continue;
         }
+
+        if (utils.args.matchesAny(arg, &.{"--sort"})) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                filter.sort_by = tasks.SortBy.fromString(val) orelse {
+                    utils.output.printError("Invalid sort field: {s}. Valid: created, updated, priority, due_date, status", .{val});
+                    return;
+                };
+                i += 1;
+            }
+            continue;
+        }
+
+        if (utils.args.matchesAny(arg, &.{ "--asc", "--ascending" })) {
+            filter.sort_descending = false;
+            continue;
+        }
+
+        if (utils.args.matchesAny(arg, &.{ "--desc", "--descending" })) {
+            filter.sort_descending = true;
+            continue;
+        }
     }
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
@@ -853,6 +875,10 @@ fn printHelp() void {
         \\  -p, --priority <p>   Filter by priority
         \\  -c, --category <c>   Filter by category
         \\  -o, --overdue        Show only overdue tasks
+        \\  --sort <field>       Sort by: created, updated, priority, due_date, status
+        \\                       (default: created)
+        \\  --asc, --ascending   Sort in ascending order
+        \\  --desc, --descending Sort in descending order (default)
         \\
         \\Examples:
         \\  abi task add "Fix login bug" --priority high --category bug
@@ -868,6 +894,9 @@ fn printHelp() void {
         \\  abi task ls --status pending --priority high
         \\  abi task ls -s blocked                      # Show blocked tasks
         \\  abi task ls --overdue                       # Show overdue tasks
+        \\  abi task ls --sort priority                 # Sort by priority (high first)
+        \\  abi task ls --sort due_date --asc          # Sort by due date (earliest first)
+        \\  abi task ls --sort updated                  # Sort by last updated
         \\  abi task show 1
         \\  abi task start 1
         \\  abi task done 1
