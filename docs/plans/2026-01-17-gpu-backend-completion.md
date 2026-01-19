@@ -668,19 +668,26 @@ pub fn compileShaderToSpirv(
     source: []const u8,
     entry_point: []const u8,
 ) ![]const u32 {
-    _ = allocator;
     _ = source;
     _ = entry_point;
 
-    // TODO: Integrate with std.gpu's shader compilation
-    // For now, return empty SPIR-V
-    return &[_]u32{
+    if (!isStdGpuAvailable()) {
+        return error.StdGpuNotAvailable;
+    }
+
+    // Zig 0.16's std.gpu shader compilation is still experimental.
+    // For now, return a minimal SPIR-V header to keep the pipeline wired.
+    const spirv_header = [_]u32{
         0x07230203, // SPIR-V magic
         0x00010000, // Version 1.0
         0x00000000, // Generator
         0x00000001, // Bound
         0x00000000, // Schema
     };
+
+    const result = try allocator.alloc(u32, spirv_header.len);
+    @memcpy(result, &spirv_header);
+    return result;
 }
 ```
 
@@ -920,10 +927,50 @@ pub const ExecutionCoordinator = struct {
         result: []f32,
     ) !ExecutionMethod {
         if (self.gpu_backend == null) return error.GpuNotAvailable;
+        if (self.dispatcher == null) return error.GpuNotAvailable;
+        if (self.device == null) return error.GpuNotAvailable;
 
-        // TODO: Implement GPU vector add via backend
-        // For now, fallback to SIMD
-        return error.NotImplemented;
+        var disp = &self.dispatcher.?;
+        const device = &self.device.?;
+
+        const kernel = disp.getBuiltinKernel(.vector_add) catch |err| {
+            std.log.warn("Failed to get vector_add kernel: {}", .{err});
+            return error.KernelCompilationFailed;
+        };
+
+        var buf_a = Buffer.init(self.allocator, a.len * @sizeOf(f32), device, .{
+            .mode = .explicit,
+            .element_type = .f32,
+            .initial_data = std.mem.sliceAsBytes(a),
+        }) catch return error.OutOfMemory;
+        defer buf_a.deinit();
+
+        var buf_b = Buffer.init(self.allocator, b.len * @sizeOf(f32), device, .{
+            .mode = .explicit,
+            .element_type = .f32,
+            .initial_data = std.mem.sliceAsBytes(b),
+        }) catch return error.OutOfMemory;
+        defer buf_b.deinit();
+
+        var buf_result = Buffer.init(self.allocator, result.len * @sizeOf(f32), device, .{
+            .mode = .explicit,
+            .element_type = .f32,
+        }) catch return error.OutOfMemory;
+        defer buf_result.deinit();
+
+        const config = LaunchConfig.for1D(a.len, kernel.workgroup_size[0]);
+        var buffers = [_]*Buffer{ &buf_a, &buf_b, &buf_result };
+        const args = KernelArgs{ .buffers = &buffers };
+
+        _ = disp.execute(kernel, config, args) catch |err| {
+            std.log.warn("GPU vector_add execution failed: {}", .{err});
+            return error.ExecutionFailed;
+        };
+
+        buf_result.toHost() catch return error.TransferFailed;
+        buf_result.read(f32, result) catch return error.TransferFailed;
+
+        return .gpu;
     }
 
     /// Select best execution method for operation
@@ -1258,9 +1305,8 @@ const wgpu = struct {
     };
 
     pub fn isAvailable() bool {
-        // Check if wgpu/dawn library is loaded
-        // TODO: Implement actual detection
-        return false;
+        // Check if wgpu/dawn library is loaded and initialized
+        return webgpu_initialized and webgpu_device != null;
     }
 
     pub fn requestAdapter(options: anytype) ?*Adapter {

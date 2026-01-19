@@ -93,7 +93,9 @@ zig build -Denable-ai=true -Denable-database=true -Denable-gpu=false
 
 ```zig
 const std = @import("std");
-const abi = @import("src/abi.zig");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     // Get an allocator
@@ -108,8 +110,8 @@ pub fn main() !void {
 ```zig
     // Initialize ABI
     std.debug.print("Initializing ABI framework...\n", .{});
-    try abi.init(allocator);
-    defer abi.shutdown();
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 ```
 
 > "The key pattern here is `init` followed by `defer shutdown`. This ensures

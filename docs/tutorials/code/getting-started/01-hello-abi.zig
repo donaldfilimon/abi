@@ -6,7 +6,7 @@
 const std = @import("std");
 
 // In a real project, you would use: const abi = @import("abi");
-// For tutorial purposes, we use relative path
+// For tutorial purposes, we use a relative path.
 const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
@@ -17,8 +17,8 @@ pub fn main() !void {
 
     // Initialize ABI
     std.debug.print("Initializing ABI framework...\n", .{});
-    try abi.init(allocator);
-    defer abi.shutdown();
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     // Print version
     const version = abi.version();

@@ -220,7 +220,7 @@ Flat domain structure with modular architecture:
 ### Get Involved
 - [Contributing](CONTRIBUTING.md) — Development guidelines
 - [Roadmap](ROADMAP.md) — Upcoming milestones
-- [TODO](TODO.md) — Pending implementations
+- [TODO](TODO.md) — Pending implementations (see [Claude‑Code Massive TODO](TODO.md#claude-code-massive-todo))
 
 </td>
 </tr>
