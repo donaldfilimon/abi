@@ -238,10 +238,21 @@ fn discreteReduce(
 pub fn createSharedEvent(device_id: DeviceId) !*anyopaque {
     _ = device_id;
 
-    // In a real implementation:
-    // MTLDevice* device = getDevice(device_id);
-    // id<MTLSharedEvent> event = [device newSharedEvent];
-    // return (__bridge void*)event;
+    // Metal shared event creation not yet implemented
+    // Requirements:
+    // - MTLSharedEvent API (macOS 10.14+, iOS 12+)
+    // - Objective-C Metal bindings or C API wrapper
+    // - Get MTLDevice handle from device_id
+    // - Call [device newSharedEvent] to create id<MTLSharedEvent>
+    // - Return event as opaque pointer using __bridge cast
+    //
+    // Implementation approach:
+    // - Option 1: Write Objective-C wrapper and expose C API
+    // - Option 2: Use zig-objc for Objective-C interop
+    // - Option 3: Use Metal-cpp (C++ header-only library)
+    //
+    // Note: MTLSharedEvent enables cross-device sync on macOS/iOS
+    // Unlike semaphores, shared events have monotonically increasing values
 
     return error.NotImplemented;
 }

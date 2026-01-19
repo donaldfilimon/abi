@@ -1,4 +1,5 @@
 # Hardware Acceleration Research: FPGA & ASIC for ABI
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 **Document Version:** 1.0
 **Date:** January 2026

@@ -1,4 +1,5 @@
 # ABI Explore Module
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 A powerful codebase exploration and search tool with natural language query understanding, AST parsing, and multiple output formats.
 

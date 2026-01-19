@@ -1,4 +1,5 @@
 # API Reference
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 <p align="center">
   <img src="https://img.shields.io/badge/API-Stable-success?style=for-the-badge" alt="API Stable"/>

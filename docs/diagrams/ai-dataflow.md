@@ -1,4 +1,5 @@
 # AI Module Data Flow
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 ```mermaid
 flowchart LR

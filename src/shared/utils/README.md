@@ -1,5 +1,7 @@
 //! # Utility Modules
 //!
+//! > **Codebase Status:** Synced with repository as of 2026-01-18.
+//!
 //! Reusable components designed to be independent and avoid circular dependencies.
 //!
 //! ## Modules

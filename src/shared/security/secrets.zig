@@ -473,14 +473,17 @@ pub const SecretsManager = struct {
             return value.decrypt(self.master_key);
         }
 
-        // In a full implementation, we would:
-        // 1. Create HTTP client
-        // 2. Set X-Vault-Token header
-        // 3. Make GET request to vault_url/v1/secret/data/{name}
-        // 4. Parse JSON response: {"data": {"data": {"value": "secret"}}}
-        // 5. Return the secret value
+        // HashiCorp Vault network integration not yet implemented
+        // Requirements:
+        // - HTTP client with HTTPS support (use src/web/client.zig)
+        // - Request headers: X-Vault-Token: {vault_token}
+        // - GET request to: {vault_url}/v1/secret/data/{name}
+        // - JSON parsing for response: {"data": {"data": {"value": "secret"}}}
+        // - Error handling for: 404 (not found), 403 (forbidden), network errors
+        // - Optional: Response caching with TTL
+        // - Optional: Token renewal if token expires
         //
-        // For now, log that vault is configured but not fully implemented
+        // For now, log that vault is configured but network requests not implemented
         _ = vault_token;
         std.log.warn("Vault integration configured but network requests not implemented. URL: {s}", .{url});
 
@@ -587,6 +590,14 @@ pub const SecretsManager = struct {
             .cached_at = std.time.timestamp(),
         });
 
+        // HashiCorp Vault write not yet implemented
+        // Requirements:
+        // - HTTP client with PUT/POST support (use src/web/client.zig)
+        // - Request headers: X-Vault-Token: {vault_token}, Content-Type: application/json
+        // - JSON request body: {"data": {"value": "{value}"}}
+        // - PUT/POST to: {vault_url}/v1/secret/data/{name}
+        // - Parse response for success/failure status
+        // - Handle errors: 403 (forbidden), 500 (server error), network errors
         std.log.info("Vault secret cached locally (network write not implemented). Key: {s}", .{name});
     }
 
@@ -653,6 +664,13 @@ pub const SecretsManager = struct {
             v.value.deinit();
         }
 
+        // HashiCorp Vault delete not yet implemented
+        // Requirements:
+        // - HTTP client with DELETE support (use src/web/client.zig)
+        // - Request headers: X-Vault-Token: {vault_token}
+        // - DELETE to: {vault_url}/v1/secret/data/{name}
+        // - Handle success/failure responses
+        // - Handle errors: 404 (not found), 403 (forbidden), network errors
         std.log.info("Vault secret removed from local cache (network delete not implemented). Key: {s}", .{name});
     }
 

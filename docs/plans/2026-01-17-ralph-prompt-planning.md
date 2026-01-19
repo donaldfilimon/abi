@@ -1,4 +1,5 @@
 # Ralph Prompt Planning (Iterative Agent Loop)
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 > **Date:** January 17, 2026
 > **Status:** Implemented ✅

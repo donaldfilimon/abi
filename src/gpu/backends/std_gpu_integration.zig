@@ -160,8 +160,23 @@ pub fn compileShaderToSpirv(
         return error.StdGpuNotAvailable;
     }
 
-    // TODO: Integrate with std.gpu's shader compilation when available
-    // For now, return minimal SPIR-V header
+    // GPU shader compilation not yet implemented - waiting on std.gpu API
+    // Requirements:
+    // - Zig's std.gpu shader compilation APIs (currently experimental/unstable)
+    // - SPIR-V compiler integration (glslang or shaderc)
+    // - Shader source language support (GLSL, WGSL, or Zig GPU shader language)
+    // - Shader validation and optimization
+    // - Error reporting with line numbers and meaningful messages
+    // - Support for compute shaders, vertex shaders, fragment shaders
+    // - Descriptor set layout generation from shader reflection
+    // - Pipeline cache integration
+    //
+    // Current status:
+    // - std.gpu is experimental in Zig (as of Zig 0.16)
+    // - APIs may change significantly
+    // - Consider using external shader compiler (glslang/shaderc) as interim solution
+    //
+    // For now, return minimal SPIR-V header (invalid but recognizable)
     const spirv_header = [_]u32{
         0x07230203, // SPIR-V magic
         0x00010000, // Version 1.0

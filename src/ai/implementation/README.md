@@ -1,5 +1,7 @@
 //! # AI Feature Module
 //!
+//! > **Codebase Status:** Synced with repository as of 2026-01-18.
+//!
 //! Comprehensive AI capabilities including local LLM inference, embeddings,
 //! retrieval-augmented generation, and API connectors.
 //!

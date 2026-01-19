@@ -1,4 +1,5 @@
 # Contributing
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 <p align="center">
   <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge" alt="PRs Welcome"/>
