@@ -226,7 +226,20 @@ pub const TlsConnection = struct {
     }
 
     fn sendClientHello(self: *TlsConnection) !void {
-        // In a real implementation, this would construct and send a ClientHello message
+        // TLS handshake not yet fully implemented - currently simulated
+        // Requirements for real ClientHello:
+        // - Construct TLS record header (type=handshake, version, length)
+        // - Build ClientHello message:
+        //   * Protocol version (TLS 1.3 = 0x0304)
+        //   * Random (32 bytes)
+        //   * Session ID
+        //   * Cipher suites list
+        //   * Compression methods
+        //   * Extensions (SNI, ALPN, supported_groups, key_share, etc.)
+        // - Serialize to wire format
+        // - Write to underlying transport (socket/stream)
+        // - Update handshake hash
+        //
         // For now, we simulate successful sending
         try self.write_buffer.ensureTotalCapacity(self.allocator, 256);
     }
@@ -306,12 +319,23 @@ pub const TlsConnection = struct {
             return error.HandshakeNotCompleted;
         }
 
-        // In a real implementation, this would:
-        // 1. Read encrypted TLS records from underlying transport
-        // 2. Decrypt using session key
-        // 3. Verify MAC/AEAD tag
-        // 4. Return plaintext data
-
+        // TLS record decryption not yet implemented - currently returns simulated data
+        // Requirements for real implementation:
+        // - Read TLS record header from transport (5 bytes):
+        //   * Content type (1 byte): application_data (23), alert (21), etc.
+        //   * Protocol version (2 bytes)
+        //   * Length (2 bytes)
+        // - Read encrypted payload based on length
+        // - Decrypt using negotiated cipher suite:
+        //   * TLS 1.3 uses AEAD (AES-GCM or ChaCha20-Poly1305)
+        //   * Construct nonce from sequence number
+        //   * Additional data = record header
+        // - Verify AEAD authentication tag
+        // - Remove padding (if any)
+        // - Return plaintext application data
+        // - Increment sequence number
+        // - Handle record fragmentation and reassembly
+        //
         // For now, return simulated data
         const data = "Encrypted data decrypted successfully";
         const len = @min(buffer.len, data.len);
@@ -324,12 +348,25 @@ pub const TlsConnection = struct {
             return error.HandshakeNotCompleted;
         }
 
-        // In a real implementation, this would:
-        // 1. Encrypt data using session key
-        // 2. Add MAC or AEAD tag
-        // 3. Construct TLS records
-        // 4. Write to underlying transport
-
+        // TLS record encryption not yet implemented - currently simulates write
+        // Requirements for real implementation:
+        // - Fragment data if larger than max record size (16KB)
+        // - For each fragment:
+        //   * Construct TLS record header:
+        //     - Content type = application_data (23)
+        //     - Protocol version = TLS 1.2 (for compatibility)
+        //     - Length = encrypted payload length
+        //   * Encrypt plaintext using negotiated cipher suite:
+        //     - TLS 1.3 uses AEAD (AES-GCM or ChaCha20-Poly1305)
+        //     - Nonce from sequence number
+        //     - Additional data = record header
+        //     - Compute authentication tag
+        //   * Construct final record: header || ciphertext || tag
+        //   * Write to underlying transport
+        //   * Increment sequence number
+        // - Handle partial writes and buffering
+        // - Return total bytes written
+        //
         // For now, simulate successful write
         try self.write_buffer.appendSlice(self.allocator, data);
         return data.len;
