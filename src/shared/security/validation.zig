@@ -511,9 +511,10 @@ pub const Sanitizer = struct {
 
         // Don't allow special names
         const dangerous_names = &[_][]const u8{
-            ".", "..", "CON", "PRN", "AUX", "NUL",
-            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+            ".",    "..",   "CON",  "PRN",  "AUX",  "NUL",
+            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6",
+            "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3",
+            "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
         };
 
         for (dangerous_names) |name| {

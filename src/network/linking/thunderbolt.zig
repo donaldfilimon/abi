@@ -163,8 +163,8 @@ pub const ThunderboltDevice = struct {
     pub fn supportsDma(self: *const ThunderboltDevice) bool {
         return self.protocols.pcie and
             (self.security == .user_authorized or
-            self.security == .device_authorized or
-            self.security == .secure_boot);
+                self.security == .device_authorized or
+                self.security == .secure_boot);
     }
 };
 

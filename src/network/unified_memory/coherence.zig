@@ -49,28 +49,28 @@ pub const CoherenceState = enum(u8) {
 /// Types of coherence messages.
 pub const CoherenceMessageType = enum(u8) {
     // Read operations
-    bus_rd,         // Read request (want shared copy)
-    bus_rdx,        // Read exclusive (want to write)
-    bus_upgr,       // Upgrade (shared -> exclusive)
+    bus_rd, // Read request (want shared copy)
+    bus_rdx, // Read exclusive (want to write)
+    bus_upgr, // Upgrade (shared -> exclusive)
 
     // Response messages
-    data_reply,     // Data response
-    ack,            // Acknowledgment
-    nack,           // Negative acknowledgment
+    data_reply, // Data response
+    ack, // Acknowledgment
+    nack, // Negative acknowledgment
 
     // Invalidation
-    inv,            // Invalidate
-    inv_ack,        // Invalidation acknowledgment
+    inv, // Invalidate
+    inv_ack, // Invalidation acknowledgment
 
     // Writeback
-    bus_wb,         // Writeback (dirty data to memory/owner)
-    flush,          // Flush and invalidate
-    flush_opt,      // Flush but keep in shared state
+    bus_wb, // Writeback (dirty data to memory/owner)
+    flush, // Flush and invalidate
+    flush_opt, // Flush but keep in shared state
 
     // Directory-specific
-    dir_fwd,        // Directory forward request
-    dir_inv,        // Directory-initiated invalidation
-    dir_wb,         // Directory writeback request
+    dir_fwd, // Directory forward request
+    dir_inv, // Directory-initiated invalidation
+    dir_wb, // Directory writeback request
 
     // Ownership transfer
     owner_transfer, // Transfer ownership to another node
@@ -242,9 +242,9 @@ pub const DirectoryEntry = struct {
     lock: std.Thread.Mutex,
 
     pub const DirectoryState = enum {
-        uncached,     // No cached copies
-        shared,       // One or more shared copies
-        exclusive,    // Single exclusive owner
+        uncached, // No cached copies
+        shared, // One or more shared copies
+        exclusive, // Single exclusive owner
     };
 
     pub fn init(region_id: RegionId, block_index: usize) DirectoryEntry {

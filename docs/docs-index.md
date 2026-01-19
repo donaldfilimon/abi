@@ -38,6 +38,22 @@
 | [Feature Flags](feature-flags.md) | Build configuration guide | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [Troubleshooting](troubleshooting.md) | Common issues and solutions | ![Complete](https://img.shields.io/badge/-Complete-success) |
 
+## Research & Architecture
+
+| Document | Description | Status |
+|----------|-------------|--------|
+| [Abbey-Aviva Framework](research/abbey-aviva-abi-wdbx-framework.md) | Multi-persona AI architecture whitepaper | ![Research](https://img.shields.io/badge/-Research-blueviolet) |
+| [FPGA/ASIC Analysis](research/hardware-acceleration-fpga-asic.md) | Hardware acceleration research | ![Research](https://img.shields.io/badge/-Research-blueviolet) |
+
+## Implementation Plans
+
+| Plan | Description | Status |
+|------|-------------|--------|
+| [Eval Module](plans/2026-01-17-eval-module-improvements.md) | Eval improvements | ![Completed](https://img.shields.io/badge/-Completed-success) |
+| [GPU Backend](plans/2026-01-17-gpu-backend-completion.md) | GPU backend completion | ![Completed](https://img.shields.io/badge/-Completed-success) |
+| [Refactor Phase 2](plans/2026-01-17-refactor-phase2.md) | Codebase refactoring | ![Active](https://img.shields.io/badge/-Active-yellow) |
+| [Task Management](plans/2026-01-17-task-management-system.md) | Task system design | ![Active](https://img.shields.io/badge/-Active-yellow) |
+
 ## Developer Resources
 
 | Resource | Description | Status |

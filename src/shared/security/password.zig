@@ -896,10 +896,10 @@ pub fn analyzeStrength(password: []const u8) StrengthAnalysis {
 
 fn containsCommonPattern(password: []const u8) bool {
     const common_patterns = &[_][]const u8{
-        "password", "123456",  "qwerty",   "abc123",   "letmein",
-        "welcome",  "monkey",  "dragon",   "master",   "login",
-        "admin",    "root",    "pass",     "test",     "guest",
-        "hello",    "shadow",  "sunshine", "princess", "football",
+        "password", "123456", "qwerty",   "abc123",   "letmein",
+        "welcome",  "monkey", "dragon",   "master",   "login",
+        "admin",    "root",   "pass",     "test",     "guest",
+        "hello",    "shadow", "sunshine", "princess", "football",
     };
 
     var lower_buf: [128]u8 = undefined;

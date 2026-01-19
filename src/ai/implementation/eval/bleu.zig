@@ -4,6 +4,7 @@
 //! evaluating machine translation and text generation quality.
 
 const std = @import("std");
+const tokenizer = @import("tokenizer.zig");
 
 /// Smoothing method for BLEU calculation.
 pub const SmoothingMethod = enum {
@@ -57,10 +58,10 @@ pub fn computeBleu(
     max_ngram: u32,
     smoothing: SmoothingMethod,
 ) !BleuScore {
-    const hyp_tokens = try tokenize(allocator, hypothesis);
+    const hyp_tokens = try tokenizer.tokenize(allocator, hypothesis);
     defer allocator.free(hyp_tokens);
 
-    const ref_tokens = try tokenize(allocator, reference);
+    const ref_tokens = try tokenizer.tokenize(allocator, reference);
     defer allocator.free(ref_tokens);
 
     return computeBleuFromTokens(allocator, hyp_tokens, &[_][]const []const u8{ref_tokens}, max_ngram, smoothing);
@@ -74,7 +75,7 @@ pub fn computeBleuMultiRef(
     max_ngram: u32,
     smoothing: SmoothingMethod,
 ) !BleuScore {
-    const hyp_tokens = try tokenize(allocator, hypothesis);
+    const hyp_tokens = try tokenizer.tokenize(allocator, hypothesis);
     defer allocator.free(hyp_tokens);
 
     var ref_tokens_list = std.ArrayListUnmanaged([]const []const u8){};
@@ -86,7 +87,7 @@ pub fn computeBleuMultiRef(
     }
 
     for (references) |ref| {
-        const tokens = try tokenize(allocator, ref);
+        const tokens = try tokenizer.tokenize(allocator, ref);
         try ref_tokens_list.append(allocator, tokens);
     }
 
@@ -194,30 +195,6 @@ fn computeBleuFromTokens(
     };
 }
 
-fn tokenize(allocator: std.mem.Allocator, text: []const u8) ![]const []const u8 {
-    var tokens = std.ArrayListUnmanaged([]const u8){};
-    errdefer tokens.deinit(allocator);
-
-    var start: usize = 0;
-    var i: usize = 0;
-
-    while (i < text.len) : (i += 1) {
-        if (std.ascii.isWhitespace(text[i])) {
-            if (i > start) {
-                try tokens.append(allocator, text[start..i]);
-            }
-            start = i + 1;
-        }
-    }
-
-    // Last token
-    if (start < text.len) {
-        try tokens.append(allocator, text[start..]);
-    }
-
-    return tokens.toOwnedSlice(allocator);
-}
-
 fn getNgrams(
     allocator: std.mem.Allocator,
     tokens: []const []const u8,
@@ -307,15 +284,4 @@ test "bleu no match" {
     );
 
     try std.testing.expect(result.score < 0.1);
-}
-
-test "tokenization" {
-    const allocator = std.testing.allocator;
-    const tokens = try tokenize(allocator, "the cat sat");
-    defer allocator.free(tokens);
-
-    try std.testing.expectEqual(@as(usize, 3), tokens.len);
-    try std.testing.expectEqualStrings("the", tokens[0]);
-    try std.testing.expectEqualStrings("cat", tokens[1]);
-    try std.testing.expectEqualStrings("sat", tokens[2]);
 }

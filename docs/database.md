@@ -314,6 +314,7 @@ defer {
 - [AI & Agents](ai.md) — Embedding generation for vectors
 - [GPU Acceleration](gpu.md) — GPU-accelerated search
 - [Monitoring](monitoring.md) — Database metrics
+- [Abbey-Aviva Research](research/abbey-aviva-abi-wdbx-framework.md) — WDBX architecture design
 
 </td>
 <td>

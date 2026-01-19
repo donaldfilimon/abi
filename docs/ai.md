@@ -302,15 +302,15 @@ New error types: `Timeout`, `ConnectionRefused`, `ModelNotFound`
 
 ## API Reference
 
-**Source:** `src/features/ai/mod.zig`
+**Source:** `src/ai/mod.zig`
 
 ### Agent API
 
 ```zig
-const agent = @import("src/features/ai/agent.zig");
+const abi = @import("abi");
 
 // Create an agent with configuration
-var my_agent = try agent.Agent.init(allocator, .{
+var my_agent = try abi.ai.Agent.init(allocator, .{
     .name = "assistant",
     .backend = .openai,
     .model = "gpt-4",
@@ -354,6 +354,7 @@ defer allocator.free(response);
 - [Framework](framework.md) — Configuration options
 - [Compute Engine](compute.md) — Task execution for AI workloads
 - [GPU Acceleration](gpu.md) — GPU-accelerated inference
+- [Abbey-Aviva Research](research/abbey-aviva-abi-wdbx-framework.md) — Multi-persona AI architecture
 
 </td>
 <td>

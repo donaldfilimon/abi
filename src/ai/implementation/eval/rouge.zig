@@ -4,6 +4,7 @@
 //! and text generation quality.
 
 const std = @import("std");
+const tokenizer = @import("tokenizer.zig");
 
 /// ROUGE metric type.
 pub const RougeType = enum {
@@ -69,10 +70,10 @@ pub fn computeRougeN(
     reference: []const u8,
     n: usize,
 ) !RougeScore {
-    const hyp_tokens = try tokenize(allocator, hypothesis);
+    const hyp_tokens = try tokenizer.tokenize(allocator, hypothesis);
     defer allocator.free(hyp_tokens);
 
-    const ref_tokens = try tokenize(allocator, reference);
+    const ref_tokens = try tokenizer.tokenize(allocator, reference);
     defer allocator.free(ref_tokens);
 
     if (hyp_tokens.len < n or ref_tokens.len < n) {
@@ -151,10 +152,10 @@ pub fn computeRougeL(
     hypothesis: []const u8,
     reference: []const u8,
 ) !RougeScore {
-    const hyp_tokens = try tokenize(allocator, hypothesis);
+    const hyp_tokens = try tokenizer.tokenize(allocator, hypothesis);
     defer allocator.free(hyp_tokens);
 
-    const ref_tokens = try tokenize(allocator, reference);
+    const ref_tokens = try tokenizer.tokenize(allocator, reference);
     defer allocator.free(ref_tokens);
 
     if (hyp_tokens.len == 0 or ref_tokens.len == 0) {
@@ -183,29 +184,6 @@ pub fn computeRougeL(
         .recall = recall,
         .f1 = f1,
     };
-}
-
-fn tokenize(allocator: std.mem.Allocator, text: []const u8) ![]const []const u8 {
-    var tokens = std.ArrayListUnmanaged([]const u8){};
-    errdefer tokens.deinit(allocator);
-
-    var start: usize = 0;
-    var i: usize = 0;
-
-    while (i < text.len) : (i += 1) {
-        if (std.ascii.isWhitespace(text[i])) {
-            if (i > start) {
-                try tokens.append(allocator, text[start..i]);
-            }
-            start = i + 1;
-        }
-    }
-
-    if (start < text.len) {
-        try tokens.append(allocator, text[start..]);
-    }
-
-    return tokens.toOwnedSlice(allocator);
 }
 
 fn getNgrams(
