@@ -79,8 +79,8 @@ try gpu.vectorAdd(f32, a, b, result);
 
 ## AI & Agents
 
-**Module:** `ai`  
-**Source:** `src/features/ai/mod.zig`  
+**Module:** `ai`
+**Source:** `src/ai/mod.zig`
 **Guide:** [AI Guide](../ai.md#api-reference)
 
 AI feature module with agents, transformers, training, and federated learning.
@@ -102,8 +102,8 @@ AI feature module with agents, transformers, training, and federated learning.
 
 ## Database
 
-**Module:** `database`  
-**Source:** `src/features/database/mod.zig`  
+**Module:** `database`
+**Source:** `src/database/mod.zig`
 **Guide:** [Database Guide](../database.md#api-reference)
 
 WDBX vector database with HNSW indexing and hybrid search.
