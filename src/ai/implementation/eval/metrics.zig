@@ -4,6 +4,7 @@
 //! and other evaluation metrics.
 
 const std = @import("std");
+const tokenizer = @import("tokenizer.zig");
 
 /// Token-level metrics comparing hypothesis to reference.
 pub const TokenMetrics = struct {
@@ -43,10 +44,10 @@ pub fn computeTokenMetrics(
     hypothesis: []const u8,
     reference: []const u8,
 ) !TokenMetrics {
-    const hyp_tokens = try tokenize(allocator, hypothesis);
+    const hyp_tokens = try tokenizer.tokenize(allocator, hypothesis);
     defer allocator.free(hyp_tokens);
 
-    const ref_tokens = try tokenize(allocator, reference);
+    const ref_tokens = try tokenizer.tokenize(allocator, reference);
     defer allocator.free(ref_tokens);
 
     // Build set of reference tokens
@@ -139,6 +140,21 @@ pub fn computeNormalizedExactMatch(
     return computeExactMatch(norm_hyp, norm_ref);
 }
 
+/// FNV-1a hash for case-insensitive word hashing.
+fn fnv1aHashWord(word: []const u8) u64 {
+    const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+    const FNV_PRIME: u64 = 0x100000001b3;
+
+    var hash: u64 = FNV_OFFSET_BASIS;
+    for (word) |c| {
+        // Case-insensitive: convert to lowercase
+        const lower = std.ascii.toLower(c);
+        hash ^= @as(u64, lower);
+        hash *%= FNV_PRIME;
+    }
+    return hash;
+}
+
 /// Compute text statistics.
 pub fn computeTextStatistics(text: []const u8) TextStatistics {
     if (text.len == 0) {
@@ -152,23 +168,61 @@ pub fn computeTextStatistics(text: []const u8) TextStatistics {
         };
     }
 
+    // Fixed-size hash table for tracking unique words (1024 entries)
+    const HASH_TABLE_SIZE: usize = 1024;
+    var hash_table: [HASH_TABLE_SIZE]u64 = [_]u64{0} ** HASH_TABLE_SIZE;
+    var hash_occupied: [HASH_TABLE_SIZE]bool = [_]bool{false} ** HASH_TABLE_SIZE;
+
     var word_count: usize = 0;
+    var unique_words: usize = 0;
     var sentence_count: usize = 0;
     var total_word_length: usize = 0;
+    var word_start: usize = 0;
     var in_word = false;
-    var current_word_len: usize = 0;
 
-    for (text) |c| {
+    for (text, 0..) |c, i| {
         if (std.ascii.isWhitespace(c)) {
             if (in_word) {
+                const word = text[word_start..i];
                 word_count += 1;
-                total_word_length += current_word_len;
-                current_word_len = 0;
+                total_word_length += word.len;
+
+                // Check if this word is unique using hash table
+                const hash = fnv1aHashWord(word);
+                var slot = hash % HASH_TABLE_SIZE;
+                var found = false;
+
+                // Linear probing to handle collisions
+                var probes: usize = 0;
+                while (probes < HASH_TABLE_SIZE) : (probes += 1) {
+                    if (!hash_occupied[slot]) {
+                        // Empty slot - word is unique
+                        hash_table[slot] = hash;
+                        hash_occupied[slot] = true;
+                        unique_words += 1;
+                        found = true;
+                        break;
+                    } else if (hash_table[slot] == hash) {
+                        // Same hash - assume same word (collision possible but acceptable)
+                        found = true;
+                        break;
+                    }
+                    // Collision with different hash - probe next slot
+                    slot = (slot + 1) % HASH_TABLE_SIZE;
+                }
+
+                // If we exhausted all probes, count as unique (table full edge case)
+                if (!found) {
+                    unique_words += 1;
+                }
+
                 in_word = false;
             }
         } else {
-            in_word = true;
-            current_word_len += 1;
+            if (!in_word) {
+                word_start = i;
+                in_word = true;
+            }
 
             // Check for sentence terminators
             if (c == '.' or c == '!' or c == '?') {
@@ -179,8 +233,31 @@ pub fn computeTextStatistics(text: []const u8) TextStatistics {
 
     // Handle last word
     if (in_word) {
+        const word = text[word_start..];
         word_count += 1;
-        total_word_length += current_word_len;
+        total_word_length += word.len;
+
+        // Check if this word is unique
+        const hash = fnv1aHashWord(word);
+        var slot = hash % HASH_TABLE_SIZE;
+        var found = false;
+
+        var probes: usize = 0;
+        while (probes < HASH_TABLE_SIZE) : (probes += 1) {
+            if (!hash_occupied[slot]) {
+                unique_words += 1;
+                found = true;
+                break;
+            } else if (hash_table[slot] == hash) {
+                found = true;
+                break;
+            }
+            slot = (slot + 1) % HASH_TABLE_SIZE;
+        }
+
+        if (!found) {
+            unique_words += 1;
+        }
     }
 
     // Ensure at least one sentence if there's text
@@ -193,8 +270,6 @@ pub fn computeTextStatistics(text: []const u8) TextStatistics {
     else
         0;
 
-    // For unique words and TTR, we'd need to tokenize - simplified version
-    const unique_words = word_count; // Simplified
     const type_token_ratio = if (word_count > 0)
         @as(f64, @floatFromInt(unique_words)) / @as(f64, @floatFromInt(word_count))
     else
@@ -272,39 +347,16 @@ pub fn computeWER(
     hypothesis: []const u8,
     reference: []const u8,
 ) !f64 {
-    const hyp_tokens = try tokenize(allocator, hypothesis);
+    const hyp_tokens = try tokenizer.tokenize(allocator, hypothesis);
     defer allocator.free(hyp_tokens);
 
-    const ref_tokens = try tokenize(allocator, reference);
+    const ref_tokens = try tokenizer.tokenize(allocator, reference);
     defer allocator.free(ref_tokens);
 
     if (ref_tokens.len == 0) return 0;
 
     const distance = try wordLevenshteinDistance(allocator, hyp_tokens, ref_tokens);
     return @as(f64, @floatFromInt(distance)) / @as(f64, @floatFromInt(ref_tokens.len));
-}
-
-fn tokenize(allocator: std.mem.Allocator, text: []const u8) ![]const []const u8 {
-    var tokens = std.ArrayListUnmanaged([]const u8){};
-    errdefer tokens.deinit(allocator);
-
-    var start: usize = 0;
-    var i: usize = 0;
-
-    while (i < text.len) : (i += 1) {
-        if (std.ascii.isWhitespace(text[i])) {
-            if (i > start) {
-                try tokens.append(allocator, text[start..i]);
-            }
-            start = i + 1;
-        }
-    }
-
-    if (start < text.len) {
-        try tokens.append(allocator, text[start..]);
-    }
-
-    return tokens.toOwnedSlice(allocator);
 }
 
 fn normalize(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
@@ -401,4 +453,26 @@ test "text statistics" {
     try std.testing.expect(stats.word_count == 6);
     try std.testing.expect(stats.sentence_count == 2);
     try std.testing.expect(stats.avg_word_length > 0);
+}
+
+test "text statistics unique words" {
+    const stats = computeTextStatistics("the cat sat on the mat");
+    // "the" appears twice, so unique_words should be 5, not 6
+    try std.testing.expectEqual(@as(usize, 6), stats.word_count);
+    try std.testing.expectEqual(@as(usize, 5), stats.unique_words);
+    try std.testing.expectApproxEqAbs(@as(f64, 0.8333), stats.type_token_ratio, 0.01);
+}
+
+test "text statistics all unique" {
+    const stats = computeTextStatistics("one two three four");
+    try std.testing.expectEqual(@as(usize, 4), stats.word_count);
+    try std.testing.expectEqual(@as(usize, 4), stats.unique_words);
+    try std.testing.expectApproxEqAbs(@as(f64, 1.0), stats.type_token_ratio, 0.0001);
+}
+
+test "text statistics all same" {
+    const stats = computeTextStatistics("word word word word");
+    try std.testing.expectEqual(@as(usize, 4), stats.word_count);
+    try std.testing.expectEqual(@as(usize, 1), stats.unique_words);
+    try std.testing.expectApproxEqAbs(@as(f64, 0.25), stats.type_token_ratio, 0.0001);
 }

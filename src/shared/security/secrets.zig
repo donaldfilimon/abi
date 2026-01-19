@@ -495,19 +495,19 @@ pub const SecretsManager = struct {
 
         // Pack encrypted data: nonce (12) + tag (16) + ciphertext
         const packed_len = 12 + 16 + encrypted.encrypted_value.len;
-        const packed = try self.allocator.alloc(u8, packed_len);
-        defer self.allocator.free(packed);
+        const packed_data = try self.allocator.alloc(u8, packed_len);
+        defer self.allocator.free(packed_data);
 
-        @memcpy(packed[0..12], &encrypted.nonce);
-        @memcpy(packed[12..28], &encrypted.tag);
-        @memcpy(packed[28..], encrypted.encrypted_value);
+        @memcpy(packed_data[0..12], &encrypted.nonce);
+        @memcpy(packed_data[12..28], &encrypted.tag);
+        @memcpy(packed_data[28..], encrypted.encrypted_value);
 
         // Base64 encode
         const encoder = std.base64.standard.Encoder;
         const b64_size = encoder.calcSize(packed_len);
         const b64_data = try self.allocator.alloc(u8, b64_size);
         defer self.allocator.free(b64_data);
-        _ = encoder.encode(b64_data, packed);
+        _ = encoder.encode(b64_data, packed_data);
 
         // Read existing file or create new content
         var existing_content: []u8 = undefined;

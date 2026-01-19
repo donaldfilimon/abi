@@ -14,15 +14,15 @@ pub const Permission = enum {
     view_logs,
     configure,
     // Unified Memory permissions
-    memory_read,           // Read from shared memory regions
-    memory_write,          // Write to shared memory regions
-    memory_register,       // Register new memory regions for sharing
-    memory_admin,          // Manage memory regions, coherence, and policies
+    memory_read, // Read from shared memory regions
+    memory_write, // Write to shared memory regions
+    memory_register, // Register new memory regions for sharing
+    memory_admin, // Manage memory regions, coherence, and policies
     // Link permissions
-    link_connect,          // Connect to remote nodes
-    link_admin,            // Manage link configuration and security
-    link_thunderbolt,      // Use Thunderbolt transport
-    link_internet,         // Use Internet transport
+    link_connect, // Connect to remote nodes
+    link_admin, // Manage link configuration and security
+    link_thunderbolt, // Use Thunderbolt transport
+    link_internet, // Use Internet transport
 };
 
 pub const Role = struct {
