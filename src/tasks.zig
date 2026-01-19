@@ -142,6 +142,8 @@ pub const Filter = struct {
     tag: ?[]const u8 = null,
     overdue_only: bool = false,
     parent_id: ?u64 = null,
+    sort_by: SortBy = .created,
+    sort_descending: bool = true,
 };
 
 /// Sort options for task lists
@@ -151,6 +153,25 @@ pub const SortBy = enum {
     priority,
     due_date,
     status,
+
+    pub fn toString(self: SortBy) []const u8 {
+        return switch (self) {
+            .created => "created",
+            .updated => "updated",
+            .priority => "priority",
+            .due_date => "due_date",
+            .status => "status",
+        };
+    }
+
+    pub fn fromString(s: []const u8) ?SortBy {
+        if (std.mem.eql(u8, s, "created")) return .created;
+        if (std.mem.eql(u8, s, "updated")) return .updated;
+        if (std.mem.eql(u8, s, "priority")) return .priority;
+        if (std.mem.eql(u8, s, "due_date") or std.mem.eql(u8, s, "due")) return .due_date;
+        if (std.mem.eql(u8, s, "status")) return .status;
+        return null;
+    }
 };
 
 /// Task statistics
@@ -369,7 +390,7 @@ pub const Manager = struct {
         if (self.config.auto_save) try self.save();
     }
 
-    /// List tasks with optional filter
+    /// List tasks with optional filter and sorting
     pub fn list(self: *const Manager, allocator: std.mem.Allocator, filter: Filter) ManagerError![]Task {
         var result = std.ArrayListUnmanaged(Task){};
         errdefer result.deinit(allocator);
@@ -381,6 +402,40 @@ pub const Manager = struct {
                 try result.append(allocator, task);
             }
         }
+
+        // Sort the results
+        const Context = struct {
+            sort_by: SortBy,
+            descending: bool,
+
+            pub fn lessThan(ctx: @This(), a: Task, b: Task) bool {
+                const cmp = switch (ctx.sort_by) {
+                    .created => compare(a.created_at, b.created_at),
+                    .updated => compare(a.updated_at, b.updated_at),
+                    .priority => compare(@intFromEnum(a.priority), @intFromEnum(b.priority)),
+                    .due_date => compareDueDate(a.due_date, b.due_date),
+                    .status => compare(@intFromEnum(a.status), @intFromEnum(b.status)),
+                };
+                return if (ctx.descending) cmp == .gt else cmp == .lt;
+            }
+
+            fn compare(a: anytype, b: @TypeOf(a)) std.math.Order {
+                return std.math.order(a, b);
+            }
+
+            fn compareDueDate(a: ?i64, b: ?i64) std.math.Order {
+                // Tasks without due dates sort to the end
+                if (a == null and b == null) return .eq;
+                if (a == null) return .gt;
+                if (b == null) return .lt;
+                return std.math.order(a.?, b.?);
+            }
+        };
+
+        std.mem.sortUnstable(Task, result.items, Context{
+            .sort_by = filter.sort_by,
+            .descending = filter.sort_descending,
+        }, Context.lessThan);
 
         return result.toOwnedSlice(allocator);
     }
@@ -721,4 +776,46 @@ test "Manager basic operations" {
 
 test "Roadmap incomplete_items count" {
     try std.testing.expectEqual(@as(usize, 11), roadmap.incomplete_items.len);
+}
+
+test "SortBy string conversion" {
+    try std.testing.expectEqualStrings("priority", SortBy.priority.toString());
+    try std.testing.expectEqual(SortBy.due_date, SortBy.fromString("due_date").?);
+    try std.testing.expectEqual(SortBy.due_date, SortBy.fromString("due").?);
+}
+
+test "Manager list sorting by priority" {
+    var manager = try Manager.init(std.testing.allocator, .{
+        .storage_path = ".zig-cache/test_tasks_sort.json",
+        .auto_save = false,
+    });
+    defer manager.deinit();
+
+    // Add tasks with different priorities
+    _ = try manager.add("Low priority task", .{ .priority = .low });
+    _ = try manager.add("High priority task", .{ .priority = .high });
+    _ = try manager.add("Normal priority task", .{ .priority = .normal });
+
+    // List sorted by priority descending (high first)
+    const sorted_desc = try manager.list(std.testing.allocator, .{
+        .sort_by = .priority,
+        .sort_descending = true,
+    });
+    defer std.testing.allocator.free(sorted_desc);
+
+    try std.testing.expectEqual(@as(usize, 3), sorted_desc.len);
+    try std.testing.expectEqual(Priority.high, sorted_desc[0].priority);
+    try std.testing.expectEqual(Priority.normal, sorted_desc[1].priority);
+    try std.testing.expectEqual(Priority.low, sorted_desc[2].priority);
+
+    // List sorted by priority ascending (low first)
+    const sorted_asc = try manager.list(std.testing.allocator, .{
+        .sort_by = .priority,
+        .sort_descending = false,
+    });
+    defer std.testing.allocator.free(sorted_asc);
+
+    try std.testing.expectEqual(Priority.low, sorted_asc[0].priority);
+    try std.testing.expectEqual(Priority.normal, sorted_asc[1].priority);
+    try std.testing.expectEqual(Priority.high, sorted_asc[2].priority);
 }

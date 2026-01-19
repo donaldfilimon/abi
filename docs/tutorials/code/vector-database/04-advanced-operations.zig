@@ -3,7 +3,9 @@
 //! Run with: zig run docs/tutorials/code/vector-database/04-advanced-operations.zig
 
 const std = @import("std");
-const abi = @import("abi");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

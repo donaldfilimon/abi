@@ -58,7 +58,9 @@ Let's create and open a database.
 
 ```zig
 const std = @import("std");
-const abi = @import("abi");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -120,7 +122,9 @@ Now let's add some document embeddings.
 
 ```zig
 const std = @import("std");
-const abi = @import("abi");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -211,7 +215,9 @@ Let's find documents similar to a query.
 
 ```zig
 const std = @import("std");
-const abi = @import("abi");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -304,7 +310,9 @@ Results:
 
 ```zig
 const std = @import("std");
-const abi = @import("abi");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -375,7 +383,9 @@ pub fn main() !void {
 
 ```zig
 const std = @import("std");
-const abi = @import("abi");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -420,7 +430,9 @@ Let's build a practical system combining everything.
 
 ```zig
 const std = @import("std");
-const abi = @import("abi");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 const Document = struct {
     id: u64,
