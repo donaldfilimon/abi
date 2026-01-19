@@ -44,7 +44,7 @@
 |----------|-------------|--------|
 | [Contributing](../CONTRIBUTING.md) | Development workflow & style | ![Ready](https://img.shields.io/badge/-Ready-blue) |
 | [Claude Guide](../CLAUDE.md) | AI development guidance | ![Ready](https://img.shields.io/badge/-Ready-blue) |
-| [TODO](../TODO.md) | Pending implementations | ![Active](https://img.shields.io/badge/-Active-yellow) |
+| [TODO](../TODO.md) | Pending implementations (see [Claude‑Code Massive TODO](../TODO.md#claude-code-massive-todo)) | ![Active](https://img.shields.io/badge/-Active-yellow) |
 | [Roadmap](../ROADMAP.md) | Upcoming milestones | ![Active](https://img.shields.io/badge/-Active-yellow) |
 
 ## Quick Links
@@ -76,4 +76,3 @@
   <a href="../README.md">← Back to README</a> •
   <a href="intro.md">Start with Introduction →</a>
 </p>
-

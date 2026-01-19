@@ -18,7 +18,7 @@ A specialized persona variant optimized for endurance and attention to detail.
 
 - **Role:** Tireless Worker / Refactor Specialist
 - **Traits:** Thorough, iterative, self-critical, non-conversational (in loop).
-- **Location:** `src/features/ai/prompts/personas.zig` (add `.ralph` variant)
+- **Location:** `src/ai/implementation/prompts/personas.zig` (add `.ralph` variant)
 
 ### 2. Prompt Architecture
 
@@ -53,25 +53,25 @@ const RalphState = struct {
 
 ### 4. Integration Points
 
-*   **Engine:** `src/features/ai/abbey/engine.zig` - Add `runRalphLoop()` method.
-*   **Prompts:** `src/features/ai/prompts/ralph.zig` (New file) - Store specific prompt templates.
+*   **Engine:** `src/ai/implementation/abbey/engine.zig` - Add `runRalphLoop()` method.
+*   **Prompts:** `src/ai/implementation/prompts/ralph.zig` (New file) - Store specific prompt templates.
 *   **CLI:** `tools/cli/commands/agent.zig` - Add `agent ralph --task "..."` command.
 
 ## Implementation Plan
 
 ### Phase 1: Prompt Design (Complete)
 - [x] Define the `ralph` persona in `personas.zig`.
-- [x] Create `src/features/ai/prompts/ralph.zig` with format strings for loop injections.
+- [x] Create `src/ai/implementation/prompts/ralph.zig` with format strings for loop injections.
 - [x] Design the "Critic" prompt that evaluates completion.
 
 ### Phase 2: Engine Support
-- [ ] Implement `RalphLoop` struct in `engine.zig`.
-- [ ] Add support for "Stop Hooks" (intercepting `[DONE]` token).
-- [ ] Implement context window sliding/summarization for long loops.
+- [x] Implement `RalphLoop` struct in `engine.zig`.
+- [x] Add support for "Stop Hooks" (intercepting `[DONE]` token).
+- [x] Implement context window sliding/summarization for long loops.
 
 ### Phase 3: Tooling
-- [ ] Add CLI command `zig build run -- agent ralph ...`.
-- [ ] Add TUI visualizer for loop progress.
+- [x] Add CLI command `zig build run -- agent ralph ...`.
+- [x] Add TUI visualizer for loop progress.
 
 ## Prompt Drafts
 
@@ -98,6 +98,6 @@ Instruction: Proceed to the next logical step. Fix any errors found.
 
 ## Next Steps
 
-1.  Create `src/features/ai/prompts/ralph.zig`.
-2.  Update `src/features/ai/prompts/personas.zig`.
-3.  Prototype the loop in `src/features/ai/abbey/engine.zig`.
+1.  Verify `src/ai/implementation/prompts/ralph.zig` stays aligned with persona prompts.
+2.  Keep `src/ai/implementation/prompts/personas.zig` and CLI docs updated as features evolve.
+3.  Add regression tests for loop injection and stop-hook behavior.

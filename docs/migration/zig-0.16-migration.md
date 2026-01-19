@@ -282,4 +282,4 @@ The CI configuration has been updated to use Zig 0.16.x instead of 0.17.0.
 - [Documentation Index](../docs-index.md) - Full documentation
 - [Framework](../framework.md) - Configuration and lifecycle
 - [Troubleshooting](../troubleshooting.md) - Migration issues
-*See [../../TODO.md](../../TODO.md) and [../../ROADMAP.md](../../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
+*See [../../TODO.md](../../TODO.md) (including the [Claude‑Code Massive TODO](../../TODO.md#claude-code-massive-todo)) and [../../ROADMAP.md](../../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*

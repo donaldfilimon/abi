@@ -53,13 +53,17 @@ zig build -Denable-ai=true -Denable-gpu=false -Denable-database=true -Denable-ne
 
 ## Step 2: Your First Program
 
-Create a file `hello_abi.zig` in the project root:
+Use the sample file in `docs/tutorials/code/getting-started/01-hello-abi.zig`.
+If you create your own file in the project root, change the import to
+`@import("src/abi.zig")` (or `@import("abi")` when building via `build.zig`).
 
 **Code:** `docs/tutorials/code/getting-started/01-hello-abi.zig`
 
 ```zig
 const std = @import("std");
-const abi = @import("src/abi.zig");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     // Get an allocator
@@ -69,8 +73,8 @@ pub fn main() !void {
 
     // Initialize ABI
     std.debug.print("Initializing ABI framework...\n", .{});
-    try abi.init(allocator);
-    defer abi.shutdown();
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     // Print version
     const version = abi.version();
@@ -100,8 +104,8 @@ ABI framework initialized successfully!
 
 | Pattern | Purpose |
 |---------|---------|
-| `abi.init(allocator)` | Initialize all enabled features |
-| `defer abi.shutdown()` | Clean up resources on scope exit |
+| `abi.initDefault(allocator)` | Initialize all enabled features |
+| `defer framework.deinit()` | Clean up resources on scope exit |
 | `abi.version()` | Get semantic version info |
 
 ---
@@ -114,26 +118,28 @@ ABI lets you check which features are enabled at runtime:
 
 ```zig
 const std = @import("std");
-const abi = @import("src/abi.zig");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    try abi.init(allocator);
-    defer abi.shutdown();
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     std.debug.print("\n=== ABI Feature Status ===\n\n", .{});
 
     // Check each feature
     const features = [_]struct { name: []const u8, enabled: bool }{
-        .{ .name = "AI/LLM", .enabled = abi.isFeatureEnabled(.ai) },
-        .{ .name = "GPU", .enabled = abi.isFeatureEnabled(.gpu) },
-        .{ .name = "Database", .enabled = abi.isFeatureEnabled(.database) },
-        .{ .name = "Network", .enabled = abi.isFeatureEnabled(.network) },
-        .{ .name = "Web", .enabled = abi.isFeatureEnabled(.web) },
-        .{ .name = "Profiling", .enabled = abi.isFeatureEnabled(.profiling) },
+        .{ .name = "AI/LLM", .enabled = framework.isEnabled(.ai) },
+        .{ .name = "GPU", .enabled = framework.isEnabled(.gpu) },
+        .{ .name = "Database", .enabled = framework.isEnabled(.database) },
+        .{ .name = "Network", .enabled = framework.isEnabled(.network) },
+        .{ .name = "Web", .enabled = framework.isEnabled(.web) },
+        .{ .name = "Observability", .enabled = framework.isEnabled(.observability) },
     };
 
     for (features) |f| {
@@ -159,7 +165,7 @@ zig run feature_check.zig
   Database     [ENABLED]
   Network      [ENABLED]
   Web          [ENABLED]
-  Profiling    [ENABLED]
+  Observability [ENABLED]
 ```
 
 ---
@@ -172,15 +178,17 @@ ABI uses Zig's error handling system. When a feature is disabled, operations ret
 
 ```zig
 const std = @import("std");
-const abi = @import("src/abi.zig");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    try abi.init(allocator);
-    defer abi.shutdown();
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     // Try to use the database feature
     if (abi.database.openOrCreate(allocator, "test_db")) |*db| {
@@ -274,7 +282,7 @@ Create a program that:
 4. Falls back gracefully if not
 
 **Hints:**
-- Use `abi.isFeatureEnabled(.gpu)`
+- Use `framework.isEnabled(.gpu)`
 - Use `abi.gpu.listDevices()` if GPU is enabled
 
 ### Exercise 2: Build Variants
@@ -292,7 +300,7 @@ Compare the resulting binary sizes.
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| `error: FileNotFound` | Wrong import path | Use `@import("src/abi.zig")` |
+| `error: FileNotFound` | Wrong import path | Use `@import("../../../../src/abi.zig")` for tutorial files |
 | `error: OutOfMemory` | Allocator issue | Check allocator lifecycle |
 | Build fails | Missing dependencies | Run `zig build` first |
 | Feature disabled | Compile flag missing | Add `-Denable-X=true` |

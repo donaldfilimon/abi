@@ -58,7 +58,9 @@ Let's create and open a database.
 
 ```zig
 const std = @import("std");
-const abi = @import("src/abi.zig");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -66,11 +68,11 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     // Initialize framework with database enabled
-    try abi.init(allocator);
-    defer abi.shutdown();
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     // Verify database feature is enabled
-    if (!abi.isFeatureEnabled(.database)) {
+    if (!framework.isEnabled(.database)) {
         std.debug.print("Error: Database disabled\n", .{});
         std.debug.print("Rebuild with: zig build -Denable-database=true\n", .{});
         return error.DatabaseDisabled;
@@ -105,7 +107,7 @@ Database 'my_vectors' ready
 
 | Pattern | Purpose |
 |---------|---------|
-| `abi.isFeatureEnabled(.database)` | Runtime feature check |
+| `framework.isEnabled(.database)` | Runtime feature check |
 | `openOrCreate(allocator, name)` | Opens existing or creates new database |
 | `defer abi.database.close(&db)` | Ensures cleanup on scope exit |
 | `stats(&db)` | Returns metadata (count, dimension) |
@@ -120,15 +122,17 @@ Now let's add some document embeddings.
 
 ```zig
 const std = @import("std");
-const abi = @import("src/abi.zig");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    try abi.init(allocator);
-    defer abi.shutdown();
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     var db = try abi.database.openOrCreate(allocator, "documents");
     defer abi.database.close(&db);
@@ -211,15 +215,17 @@ Let's find documents similar to a query.
 
 ```zig
 const std = @import("std");
-const abi = @import("src/abi.zig");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    try abi.init(allocator);
-    defer abi.shutdown();
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     var db = try abi.database.openOrCreate(allocator, "documents");
     defer abi.database.close(&db);
@@ -265,8 +271,10 @@ pub fn main() !void {
             result.score,
         });
 
-        if (result.metadata) |meta| {
-            std.debug.print("     \"{s}\"\n", .{meta});
+        if (abi.database.get(&db, result.id)) |view| {
+            if (view.metadata) |meta| {
+                std.debug.print("     \"{s}\"\n", .{meta});
+            }
         }
     }
 }
@@ -302,15 +310,17 @@ Results:
 
 ```zig
 const std = @import("std");
-const abi = @import("src/abi.zig");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    try abi.init(allocator);
-    defer abi.shutdown();
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     var db = try abi.database.openOrCreate(allocator, "advanced_db");
     defer abi.database.close(&db);
@@ -322,26 +332,37 @@ pub fn main() !void {
 
     // Update existing vector
     const embedding1_updated = [_]f32{ 1.5, 2.5, 3.5 };
-    try abi.database.update(&db, 1, &embedding1_updated, "Updated data");
-    std.debug.print("Updated vector 1\n", .{});
+    const updated = try abi.database.update(&db, 1, &embedding1_updated);
+    if (updated) {
+        std.debug.print("Updated vector 1\n", .{});
+    } else {
+        std.debug.print("Vector 1 not found for update\n", .{});
+    }
 
     // Retrieve specific vector
-    const retrieved = try abi.database.get(&db, allocator, 1);
-    defer allocator.free(retrieved);
+    const retrieved = abi.database.get(&db, 1) orelse {
+        std.debug.print("Vector 1 not found\n", .{});
+        return;
+    };
     std.debug.print("Retrieved: [{d:.1}, {d:.1}, {d:.1}]\n", .{
-        retrieved[0],
-        retrieved[1],
-        retrieved[2],
+        retrieved.vector[0],
+        retrieved.vector[1],
+        retrieved.vector[2],
     });
 
-    // List all IDs
-    const ids = try abi.database.listIds(&db, allocator);
-    defer allocator.free(ids);
-    std.debug.print("Total vectors: {d}\n", .{ids.len});
+    // List vectors
+    const stats = abi.database.stats(&db);
+    const views = try abi.database.list(&db, allocator, stats.count);
+    defer allocator.free(views);
+    std.debug.print("Total vectors: {d}\n", .{views.len});
 
     // Delete a vector
-    try abi.database.delete(&db, 1);
-    std.debug.print("Deleted vector 1\n", .{});
+    const removed = abi.database.remove(&db, 1);
+    if (removed) {
+        std.debug.print("Deleted vector 1\n", .{});
+    } else {
+        std.debug.print("Vector 1 already removed\n", .{});
+    }
 
     // Optimize database (rebuild index for better performance)
     try abi.database.optimize(&db);
@@ -362,15 +383,17 @@ pub fn main() !void {
 
 ```zig
 const std = @import("std");
-const abi = @import("src/abi.zig");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    try abi.init(allocator);
-    defer abi.shutdown();
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     var db = try abi.database.openOrCreate(allocator, "production_db");
     defer abi.database.close(&db);
@@ -407,7 +430,9 @@ Let's build a practical system combining everything.
 
 ```zig
 const std = @import("std");
-const abi = @import("src/abi.zig");
+// In a real project, you would use: const abi = @import("abi");
+// For tutorial purposes, we use a relative path.
+const abi = @import("../../../../src/abi.zig");
 
 const Document = struct {
     id: u64,
@@ -421,8 +446,8 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    try abi.init(allocator);
-    defer abi.shutdown();
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     var db = try abi.database.openOrCreate(allocator, "document_search");
     defer abi.database.close(&db);
@@ -488,8 +513,10 @@ pub fn main() !void {
 
         for (results, 0..) |result, i| {
             std.debug.print("  {d}. Score={d:.3}\n", .{ i + 1, result.score });
-            if (result.metadata) |meta| {
-                std.debug.print("     {s}\n", .{meta});
+            if (abi.database.get(&db, result.id)) |view| {
+                if (view.metadata) |meta| {
+                    std.debug.print("     {s}\n", .{meta});
+                }
             }
         }
     }
