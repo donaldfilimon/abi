@@ -128,7 +128,8 @@ pub const ChatHandler = struct {
     pub fn handleChatWithPersona(self: *Self, request_json: []const u8, forced_persona: ?types.PersonaType) ![]const u8 {
         // Parse request
         const request = self.parseRequest(request_json) catch |err| {
-            return self.formatError("PARSE_ERROR", @errorName(err), null);
+            const err_name = @errorName(err);
+            return self.formatError("PARSE_ERROR", err_name, null);
         };
 
         // Get orchestrator
@@ -153,7 +154,8 @@ pub const ChatHandler = struct {
 
         // Process request
         const response = orch.process(persona_request) catch |err| {
-            return self.formatError("PROCESSING_ERROR", @errorName(err), null);
+            const err_name = @errorName(err);
+            return self.formatError("PROCESSING_ERROR", err_name, null);
         };
 
         // Format response

@@ -132,7 +132,8 @@ pub const GcpRuntime = struct {
         if (self.handler(&event, self.allocator)) |response| {
             return response;
         } else |err| {
-            return CloudResponse.err(self.allocator, 500, @errorName(err));
+            const err_name = @errorName(err);
+            return CloudResponse.err(self.allocator, 500, err_name);
         }
     }
 };

@@ -220,9 +220,8 @@ const example_targets = [_]BuildTarget{
 };
 
 const benchmark_targets = [_]BuildTarget{
-    .{ .name = "benchmarks", .step_name = "benchmarks", .description = "Run comprehensive benchmarks", .source_path = "benchmarks/run.zig", .optimize = .ReleaseFast },
+    .{ .name = "benchmarks", .step_name = "benchmarks", .description = "Run comprehensive benchmarks", .source_path = "benchmarks/main.zig", .optimize = .ReleaseFast },
     .{ .name = "bench-competitive", .step_name = "bench-competitive", .description = "Run competitive benchmarks", .source_path = "benchmarks/run_competitive.zig", .optimize = .ReleaseFast },
-    .{ .name = "abi-benchmark", .step_name = "benchmark-legacy", .description = "Run legacy benchmarks", .source_path = "benchmarks/legacy.zig", .optimize = .ReleaseFast },
 };
 
 fn pathExists(path: []const u8) bool {

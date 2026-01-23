@@ -21,7 +21,7 @@
 
 const std = @import("std");
 const mod = @import("mod.zig");
-const framework = @import("../framework.zig");
+const framework = @import("../system/framework.zig");
 
 /// FAISS reference performance baselines (documented values)
 pub const FaissBaseline = struct {

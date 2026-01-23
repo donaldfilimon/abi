@@ -1,0 +1,1057 @@
+//! SIMD vector operations
+//!
+//! Provides high-performance vectorized operations using SIMD instructions
+//! when available (AVX-512, NEON, WASM SIMD).
+//!
+//! # Safety Requirements
+//! All functions require input vectors to be properly sized:
+//! - All input vectors must have matching lengths where applicable
+//! - Empty vectors are not allowed (undefined behavior)
+//! - Result buffers must be pre-allocated with correct size
+//!
+//! # Performance Notes
+//! - Functions use @Vector for SIMD acceleration when VectorSize > 1
+//! - Debug builds include additional bounds checking via std.debug.assert
+//! - Release builds rely on loop bounds for safety (no debug.assert overhead)
+
+const std = @import("std");
+
+const VectorSize = std.simd.suggestVectorLength(f32) orelse 4;
+
+/// Vector addition using SIMD when available
+/// @param a First input vector
+/// @param b Second input vector (must have same length as a)
+/// @param result Output buffer (must have same length as inputs, caller-owned)
+pub fn vectorAdd(a: []const f32, b: []const f32, result: []f32) void {
+    std.debug.assert(a.len > 0);
+    std.debug.assert(b.len > 0);
+    std.debug.assert(a.len == b.len and a.len == result.len);
+
+    const len = a.len;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const va: Vec = a[i..][0..VectorSize].*;
+            const vb: Vec = b[i..][0..VectorSize].*;
+            result[i..][0..VectorSize].* = va + vb;
+        }
+    }
+
+    while (i < len) : (i += 1) {
+        result[i] = a[i] + b[i];
+    }
+}
+
+/// Vector dot product using SIMD when available
+/// @param a First input vector
+/// @param b Second input vector (must have same length as a)
+/// @return Scalar dot product
+pub fn vectorDot(a: []const f32, b: []const f32) f32 {
+    std.debug.assert(a.len > 0);
+    std.debug.assert(b.len > 0);
+    std.debug.assert(a.len == b.len);
+
+    const len = a.len;
+    var dot_sum: f32 = 0.0;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var vec_sum: Vec = @splat(0.0);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const va: Vec = a[i..][0..VectorSize].*;
+            const vb: Vec = b[i..][0..VectorSize].*;
+            vec_sum += va * vb;
+        }
+
+        const sums: [VectorSize]f32 = vec_sum;
+        for (sums) |s| {
+            dot_sum += s;
+        }
+    }
+
+    while (i < len) : (i += 1) {
+        dot_sum += a[i] * b[i];
+    }
+
+    return dot_sum;
+}
+
+/// Vector L2 norm using SIMD when available
+/// @param v Input vector (must have len > 0)
+/// @return Euclidean norm of the vector
+pub fn vectorL2Norm(v: []const f32) f32 {
+    std.debug.assert(v.len > 0);
+    const len = v.len;
+    var norm_sum: f32 = 0.0;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var vec_sum: Vec = @splat(0.0);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const vv: Vec = v[i..][0..VectorSize].*;
+            vec_sum += vv * vv;
+        }
+
+        const sums: [VectorSize]f32 = vec_sum;
+        for (sums) |s| {
+            norm_sum += s;
+        }
+    }
+
+    while (i < len) : (i += 1) {
+        norm_sum += v[i] * v[i];
+    }
+
+    return @sqrt(norm_sum);
+}
+
+/// Cosine similarity using SIMD operations
+/// @param a First input vector (must not be empty)
+/// @param b Second input vector (must not be empty and same length as a)
+/// @return Cosine similarity in range [-1, 1], or 0.0 for zero-length vectors
+pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
+    if (a.len == 0 or b.len == 0) return 0.0;
+    if (a.len != b.len) return 0.0;
+
+    const dot_product = vectorDot(a, b);
+    const norm_a = vectorL2Norm(a);
+    const norm_b = vectorL2Norm(b);
+
+    if (norm_a == 0.0 or norm_b == 0.0) {
+        return 0.0;
+    }
+
+    return dot_product / (norm_a * norm_b);
+}
+
+/// Batch cosine similarity computation with pre-computed query norm
+/// Fast version that avoids redundant query norm computation
+/// @param query Query vector (must not be empty)
+/// @param query_norm Pre-computed L2 norm of query (must be > 0)
+/// @param vectors Array of database vectors
+/// @param results Output array (must have same length as vectors, caller-owned)
+pub fn batchCosineSimilarityFast(
+    query: []const f32,
+    query_norm: f32,
+    vectors: []const []const f32,
+    results: []f32,
+) void {
+    std.debug.assert(query.len > 0);
+    std.debug.assert(query_norm > 0.0);
+    std.debug.assert(vectors.len == results.len);
+
+    for (vectors, results) |vector, *result| {
+        const dot = vectorDot(query, vector);
+        const vec_norm = vectorL2Norm(vector);
+        result.* = if (query_norm > 0 and vec_norm > 0)
+            dot / (query_norm * vec_norm)
+        else
+            0;
+    }
+}
+
+/// Batch cosine similarity computation for database searches
+/// Computes cosine similarity between a query vector and multiple database vectors
+/// @param query Query vector (must not be empty)
+/// @param vectors Array of database vectors
+/// @param results Output array (must have same length as vectors, caller-owned)
+pub fn batchCosineSimilarity(
+    query: []const f32,
+    vectors: []const []const f32,
+    results: []f32,
+) void {
+    std.debug.assert(query.len > 0);
+    std.debug.assert(vectors.len == results.len);
+
+    const query_norm = vectorL2Norm(query);
+    batchCosineSimilarityFast(query, query_norm, vectors, results);
+}
+
+/// Batch dot‑product computation.
+/// Computes the dot product of a single `query` vector against each vector in `vectors`.
+/// Results are stored in the `results` slice, which must have the same length as `vectors`.
+pub fn batchDotProduct(
+    query: []const f32,
+    vectors: []const []const f32,
+    results: []f32,
+) void {
+    std.debug.assert(query.len > 0);
+    std.debug.assert(vectors.len == results.len);
+    for (vectors, results) |vec, *res| {
+        res.* = vectorDot(query, vec);
+    }
+}
+
+/// Vector reduction operations with SIMD acceleration
+/// @param op Reduction operation: sum, max, or min
+/// @param v Input vector
+/// @return Reduced value (0.0 for sum on empty, undefined for min/max on empty)
+pub fn vectorReduce(op: enum { sum, max, min }, v: []const f32) f32 {
+    if (v.len == 0) return 0.0;
+
+    const len = v.len;
+    var i: usize = 0;
+    var result: f32 = if (op == .sum) 0.0 else v[0];
+
+    if (comptime VectorSize > 1 and len >= VectorSize) {
+        const Vec = @Vector(VectorSize, f32);
+        var vec_result: Vec = @splat(result);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const vv: Vec = v[i..][0..VectorSize].*;
+            switch (op) {
+                .sum => vec_result += vv,
+                .max => vec_result = @max(vec_result, vv),
+                .min => vec_result = @min(vec_result, vv),
+            }
+        }
+
+        const results: [VectorSize]f32 = vec_result;
+        switch (op) {
+            .sum => {
+                for (results) |r| result += r;
+            },
+            .max => {
+                for (results) |r| result = @max(result, r);
+            },
+            .min => {
+                for (results) |r| result = @min(result, r);
+            },
+        }
+    }
+
+    while (i < len) : (i += 1) {
+        switch (op) {
+            .sum => result += v[i],
+            .max => result = @max(result, v[i]),
+            .min => result = @min(result, v[i]),
+        }
+    }
+
+    return result;
+}
+
+/// Check if SIMD is available at compile time
+pub fn hasSimdSupport() bool {
+    return VectorSize > 1;
+}
+
+// ============================================================================
+// Activation Functions (SIMD-accelerated)
+// ============================================================================
+
+/// SiLU (Swish) activation: x * sigmoid(x)
+/// In-place modification for memory efficiency
+pub fn siluInPlace(data: []f32) void {
+    if (data.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const one: Vec = @splat(1.0);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const x: Vec = data[i..][0..VectorSize].*;
+            // sigmoid(x) = 1 / (1 + exp(-x))
+            const neg_x = -x;
+            const exp_neg = @exp(neg_x);
+            const sigmoid = one / (one + exp_neg);
+            data[i..][0..VectorSize].* = x * sigmoid;
+        }
+    }
+
+    // Scalar tail
+    while (i < data.len) : (i += 1) {
+        const x = data[i];
+        const sig = 1.0 / (1.0 + @exp(-x));
+        data[i] = x * sig;
+    }
+}
+
+/// GELU activation (approximate): 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
+/// In-place modification for memory efficiency
+pub fn geluInPlace(data: []f32) void {
+    if (data.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const sqrt_2_pi: Vec = @splat(0.7978845608); // sqrt(2/pi)
+        const coeff: Vec = @splat(0.044715);
+        const half: Vec = @splat(0.5);
+        const one: Vec = @splat(1.0);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const x: Vec = data[i..][0..VectorSize].*;
+            const x3 = x * x * x;
+            const inner = sqrt_2_pi * (x + coeff * x3);
+            // tanh approximation or use @tanh
+            const tanh_val = tanhVec(inner);
+            data[i..][0..VectorSize].* = half * x * (one + tanh_val);
+        }
+    }
+
+    // Scalar tail
+    while (i < data.len) : (i += 1) {
+        const x = data[i];
+        const x3 = x * x * x;
+        const inner = 0.7978845608 * (x + 0.044715 * x3);
+        const tanh_val = std.math.tanh(inner);
+        data[i] = 0.5 * x * (1.0 + tanh_val);
+    }
+}
+
+/// ReLU activation: max(0, x)
+/// In-place modification
+pub fn reluInPlace(data: []f32) void {
+    if (data.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const zero: Vec = @splat(0.0);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const x: Vec = data[i..][0..VectorSize].*;
+            data[i..][0..VectorSize].* = @max(zero, x);
+        }
+    }
+
+    // Scalar tail
+    while (i < data.len) : (i += 1) {
+        data[i] = @max(0.0, data[i]);
+    }
+}
+
+/// Leaky ReLU activation: x if x > 0 else alpha * x
+/// In-place modification
+pub fn leakyReluInPlace(data: []f32, alpha: f32) void {
+    if (data.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const zero: Vec = @splat(0.0);
+        const alpha_vec: Vec = @splat(alpha);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const x: Vec = data[i..][0..VectorSize].*;
+            // leaky_relu = x if x > 0 else alpha * x
+            // = max(x, alpha * x) when alpha < 1
+            const scaled = alpha_vec * x;
+            const mask = x > zero;
+            data[i..][0..VectorSize].* = @select(f32, mask, x, scaled);
+        }
+    }
+
+    // Scalar tail
+    while (i < data.len) : (i += 1) {
+        const x = data[i];
+        data[i] = if (x > 0) x else alpha * x;
+    }
+}
+
+// ============================================================================
+// Softmax Operations (SIMD-accelerated)
+// ============================================================================
+
+/// Find maximum value in array using SIMD
+pub fn maxValue(data: []const f32) f32 {
+    if (data.len == 0) return -std.math.inf(f32);
+
+    var i: usize = 0;
+    var max_val: f32 = data[0];
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var max_vec: Vec = @splat(data[0]);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const v: Vec = data[i..][0..VectorSize].*;
+            max_vec = @max(max_vec, v);
+        }
+
+        // Horizontal max
+        max_val = @reduce(.Max, max_vec);
+    }
+
+    // Scalar tail
+    while (i < data.len) : (i += 1) {
+        max_val = @max(max_val, data[i]);
+    }
+
+    return max_val;
+}
+
+/// Compute exp(x - max) in-place for numerical stability
+pub fn expSubtractMax(data: []f32, max_val: f32) void {
+    if (data.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const max_vec: Vec = @splat(max_val);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const x: Vec = data[i..][0..VectorSize].*;
+            const diff: Vec = x - max_vec;
+            const exp_result: Vec = @exp(diff);
+            data[i..][0..VectorSize].* = exp_result;
+        }
+    }
+
+    // Scalar tail
+    while (i < data.len) : (i += 1) {
+        data[i] = @exp(data[i] - max_val);
+    }
+}
+
+/// Sum all values in array using SIMD
+pub fn sum(data: []const f32) f32 {
+    if (data.len == 0) return 0.0;
+
+    var i: usize = 0;
+    var total: f32 = 0.0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var sum_vec: Vec = @splat(0.0);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const v: Vec = data[i..][0..VectorSize].*;
+            sum_vec += v;
+        }
+
+        total = @reduce(.Add, sum_vec);
+    }
+
+    // Scalar tail
+    while (i < data.len) : (i += 1) {
+        total += data[i];
+    }
+
+    return total;
+}
+
+/// Divide all values by a scalar using SIMD
+pub fn divideByScalar(data: []f32, divisor: f32) void {
+    if (data.len == 0 or divisor == 0.0) return;
+
+    const inv = 1.0 / divisor;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const inv_vec: Vec = @splat(inv);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const v: Vec = data[i..][0..VectorSize].*;
+            data[i..][0..VectorSize].* = v * inv_vec;
+        }
+    }
+
+    // Scalar tail
+    while (i < data.len) : (i += 1) {
+        data[i] *= inv;
+    }
+}
+
+/// Complete softmax operation in-place
+/// softmax(x)_i = exp(x_i - max(x)) / sum(exp(x - max(x)))
+pub fn softmaxInPlace(data: []f32) void {
+    if (data.len == 0) return;
+
+    // Step 1: Find max for numerical stability
+    const max_val = maxValue(data);
+
+    // Step 2: Compute exp(x - max) in-place
+    expSubtractMax(data, max_val);
+
+    // Step 3: Compute sum
+    const total = sum(data);
+
+    // Step 4: Normalize
+    if (total > 0.0) {
+        divideByScalar(data, total);
+    }
+}
+
+/// Log-softmax for cross-entropy loss: log(softmax(x))
+/// More numerically stable than log(softmax(x))
+pub fn logSoftmaxInPlace(data: []f32) void {
+    if (data.len == 0) return;
+
+    // log_softmax(x)_i = x_i - max(x) - log(sum(exp(x - max(x))))
+    const max_val = maxValue(data);
+
+    // Compute sum of exp(x - max)
+    var log_sum: f32 = 0.0;
+    for (data) |x| {
+        log_sum += @exp(x - max_val);
+    }
+    log_sum = @log(log_sum);
+
+    // Apply log-softmax in-place
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const max_vec: Vec = @splat(max_val);
+        const log_sum_vec: Vec = @splat(log_sum);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const x: Vec = data[i..][0..VectorSize].*;
+            data[i..][0..VectorSize].* = x - max_vec - log_sum_vec;
+        }
+    }
+
+    // Scalar tail
+    while (i < data.len) : (i += 1) {
+        data[i] = data[i] - max_val - log_sum;
+    }
+}
+
+// ============================================================================
+// Normalization Operations (SIMD-accelerated)
+// ============================================================================
+
+/// Compute sum of squares using SIMD (for RMSNorm)
+pub fn squaredSum(data: []const f32) f32 {
+    if (data.len == 0) return 0.0;
+
+    var i: usize = 0;
+    var total: f32 = 0.0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var sum_vec: Vec = @splat(0.0);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const v: Vec = data[i..][0..VectorSize].*;
+            sum_vec += v * v;
+        }
+
+        total = @reduce(.Add, sum_vec);
+    }
+
+    // Scalar tail
+    while (i < data.len) : (i += 1) {
+        total += data[i] * data[i];
+    }
+
+    return total;
+}
+
+/// RMSNorm: x / sqrt(mean(x^2) + eps)
+/// Modifies data in-place and optionally applies weights
+pub fn rmsNormInPlace(data: []f32, weights: ?[]const f32, eps: f32) void {
+    if (data.len == 0) return;
+
+    // Compute RMS
+    const sq_sum = squaredSum(data);
+    const mean_sq = sq_sum / @as(f32, @floatFromInt(data.len));
+    const rms = @sqrt(mean_sq + eps);
+    const inv_rms = 1.0 / rms;
+
+    var i: usize = 0;
+
+    if (weights) |w| {
+        std.debug.assert(w.len == data.len);
+
+        if (comptime VectorSize > 1) {
+            const Vec = @Vector(VectorSize, f32);
+            const inv_rms_vec: Vec = @splat(inv_rms);
+
+            while (i + VectorSize <= data.len) : (i += VectorSize) {
+                const x: Vec = data[i..][0..VectorSize].*;
+                const weight: Vec = w[i..][0..VectorSize].*;
+                data[i..][0..VectorSize].* = x * inv_rms_vec * weight;
+            }
+        }
+
+        // Scalar tail
+        while (i < data.len) : (i += 1) {
+            data[i] = data[i] * inv_rms * w[i];
+        }
+    } else {
+        if (comptime VectorSize > 1) {
+            const Vec = @Vector(VectorSize, f32);
+            const inv_rms_vec: Vec = @splat(inv_rms);
+
+            while (i + VectorSize <= data.len) : (i += VectorSize) {
+                const x: Vec = data[i..][0..VectorSize].*;
+                data[i..][0..VectorSize].* = x * inv_rms_vec;
+            }
+        }
+
+        // Scalar tail
+        while (i < data.len) : (i += 1) {
+            data[i] *= inv_rms;
+        }
+    }
+}
+
+/// LayerNorm: (x - mean) / sqrt(var + eps) * gamma + beta
+/// Modifies data in-place
+pub fn layerNormInPlace(data: []f32, gamma: ?[]const f32, beta: ?[]const f32, eps: f32) void {
+    if (data.len == 0) return;
+
+    // Compute mean
+    const mean = sum(data) / @as(f32, @floatFromInt(data.len));
+
+    // Compute variance
+    var variance: f32 = 0.0;
+    for (data) |x| {
+        const diff = x - mean;
+        variance += diff * diff;
+    }
+    variance /= @as(f32, @floatFromInt(data.len));
+
+    const inv_std = 1.0 / @sqrt(variance + eps);
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const mean_vec: Vec = @splat(mean);
+        const inv_std_vec: Vec = @splat(inv_std);
+
+        if (gamma != null and beta != null) {
+            const g = gamma.?;
+            const b = beta.?;
+            while (i + VectorSize <= data.len) : (i += VectorSize) {
+                const x: Vec = data[i..][0..VectorSize].*;
+                const g_vec: Vec = g[i..][0..VectorSize].*;
+                const b_vec: Vec = b[i..][0..VectorSize].*;
+                data[i..][0..VectorSize].* = (x - mean_vec) * inv_std_vec * g_vec + b_vec;
+            }
+        } else {
+            while (i + VectorSize <= data.len) : (i += VectorSize) {
+                const x: Vec = data[i..][0..VectorSize].*;
+                data[i..][0..VectorSize].* = (x - mean_vec) * inv_std_vec;
+            }
+        }
+    }
+
+    // Scalar tail
+    if (gamma != null and beta != null) {
+        const g = gamma.?;
+        const b = beta.?;
+        while (i < data.len) : (i += 1) {
+            data[i] = (data[i] - mean) * inv_std * g[i] + b[i];
+        }
+    } else {
+        while (i < data.len) : (i += 1) {
+            data[i] = (data[i] - mean) * inv_std;
+        }
+    }
+}
+
+// ============================================================================
+// Distance Calculations (SIMD-accelerated)
+// ============================================================================
+
+/// L2 (Euclidean) squared distance using SIMD
+/// Returns sum((a - b)^2) - use sqrt for actual distance
+pub fn l2DistanceSquared(a: []const f32, b: []const f32) f32 {
+    std.debug.assert(a.len == b.len);
+    if (a.len == 0) return 0.0;
+
+    var i: usize = 0;
+    var total: f32 = 0.0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var sum_vec: Vec = @splat(0.0);
+
+        while (i + VectorSize <= a.len) : (i += VectorSize) {
+            const va: Vec = a[i..][0..VectorSize].*;
+            const vb: Vec = b[i..][0..VectorSize].*;
+            const diff = va - vb;
+            sum_vec += diff * diff;
+        }
+
+        total = @reduce(.Add, sum_vec);
+    }
+
+    // Scalar tail
+    while (i < a.len) : (i += 1) {
+        const diff = a[i] - b[i];
+        total += diff * diff;
+    }
+
+    return total;
+}
+
+/// L2 distance (actual Euclidean distance)
+pub fn l2Distance(a: []const f32, b: []const f32) f32 {
+    return @sqrt(l2DistanceSquared(a, b));
+}
+
+/// Inner product (dot product) - already have vectorDot, this is an alias
+pub const innerProduct = vectorDot;
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Fast vectorized tanh approximation
+/// Uses the identity: tanh(x) = (exp(2x) - 1) / (exp(2x) + 1)
+fn tanhVec(x: @Vector(VectorSize, f32)) @Vector(VectorSize, f32) {
+    const Vec = @Vector(VectorSize, f32);
+    const one: Vec = @splat(1.0);
+    const two: Vec = @splat(2.0);
+
+    const exp2x = @exp(two * x);
+    return (exp2x - one) / (exp2x + one);
+}
+
+/// SIMD instruction set capabilities detected at compile time
+pub const SimdCapabilities = struct {
+    vector_size: usize,
+    has_simd: bool,
+    arch: Arch,
+
+    pub const Arch = enum {
+        x86_64,
+        aarch64,
+        wasm,
+        generic,
+    };
+};
+
+/// Get SIMD capabilities for current platform
+pub fn getSimdCapabilities() SimdCapabilities {
+    const builtin = @import("builtin");
+    const arch: SimdCapabilities.Arch = switch (builtin.cpu.arch) {
+        .x86_64 => .x86_64,
+        .aarch64 => .aarch64,
+        .wasm32, .wasm64 => .wasm,
+        else => .generic,
+    };
+
+    return .{
+        .vector_size = VectorSize,
+        .has_simd = VectorSize > 1,
+        .arch = arch,
+    };
+}
+
+/// Matrix multiplication with blocking/tiling for cache efficiency and SIMD acceleration
+/// Computes result[m][n] = a[m][k] * b[k][n]
+/// @param a Matrix A (size m x k, row-major order)
+/// @param b Matrix B (size k x n, row-major order)
+/// @param result Output matrix (size m x n, caller-owned, must be pre-zeroed or will be overwritten)
+/// @param m Number of rows in A and result
+/// @param n Number of columns in B and result
+/// @param k Number of columns in A, rows in B (must match)
+pub fn matrixMultiply(
+    a: []const f32,
+    b: []const f32,
+    result: []f32,
+    m: usize,
+    n: usize,
+    k: usize,
+) void {
+    std.debug.assert(m > 0 and n > 0 and k > 0);
+    std.debug.assert(a.len == m * k);
+    std.debug.assert(b.len == k * n);
+    std.debug.assert(result.len == m * n);
+
+    @memset(result, 0);
+
+    const BLOCK_SIZE = 32;
+    var i: usize = 0;
+
+    while (i < m) : (i += BLOCK_SIZE) {
+        const i_end = @min(i + BLOCK_SIZE, m);
+        var j: usize = 0;
+        while (j < n) : (j += BLOCK_SIZE) {
+            const j_end = @min(j + BLOCK_SIZE, n);
+            var l: usize = 0;
+            while (l < k) : (l += BLOCK_SIZE) {
+                const l_end = @min(l + BLOCK_SIZE, k);
+
+                var ii: usize = i;
+                while (ii < i_end) : (ii += 1) {
+                    // SIMD-vectorized inner loop: process VectorSize columns at a time
+                    var jj: usize = j;
+                    if (comptime VectorSize > 1) {
+                        const Vec = @Vector(VectorSize, f32);
+                        while (jj + VectorSize <= j_end) : (jj += VectorSize) {
+                            var vec_sum: Vec = result[ii * n + jj ..][0..VectorSize].*;
+                            var ll: usize = l;
+                            while (ll < l_end) : (ll += 1) {
+                                const a_val: Vec = @splat(a[ii * k + ll]);
+                                const b_vec: Vec = b[ll * n + jj ..][0..VectorSize].*;
+                                vec_sum += a_val * b_vec;
+                            }
+                            result[ii * n + jj ..][0..VectorSize].* = vec_sum;
+                        }
+                    }
+                    // Scalar fallback for remaining columns
+                    while (jj < j_end) : (jj += 1) {
+                        var acc: f32 = result[ii * n + jj];
+                        var ll: usize = l;
+                        while (ll < l_end) : (ll += 1) {
+                            acc += a[ii * k + ll] * b[ll * n + jj];
+                        }
+                        result[ii * n + jj] = acc;
+                    }
+                }
+            }
+        }
+    }
+}
+
+test "vector addition works" {
+    var a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    var b = [_]f32{ 0.5, 1.5, 2.5, 3.5 };
+    var result: [4]f32 = undefined;
+
+    vectorAdd(&a, &b, &result);
+
+    try std.testing.expectEqual(@as(f32, 1.5), result[0]);
+    try std.testing.expectEqual(@as(f32, 3.5), result[1]);
+    try std.testing.expectEqual(@as(f32, 5.5), result[2]);
+    try std.testing.expectEqual(@as(f32, 7.5), result[3]);
+}
+
+test "vector dot product works" {
+    var a = [_]f32{ 1.0, 2.0, 3.0 };
+    var b = [_]f32{ 4.0, 5.0, 6.0 };
+
+    const result = vectorDot(&a, &b);
+    try std.testing.expectApproxEqAbs(@as(f32, 32.0), result, 1e-6);
+}
+
+test "vector L2 norm works" {
+    var v = [_]f32{ 3.0, 4.0 };
+
+    const result = vectorL2Norm(&v);
+    try std.testing.expectApproxEqAbs(@as(f32, 5.0), result, 1e-6);
+}
+
+test "cosine similarity works" {
+    var a = [_]f32{ 1.0, 0.0 };
+    var b = [_]f32{ 0.0, 1.0 };
+
+    const result = cosineSimilarity(&a, &b);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), result, 1e-6);
+}
+
+test "matrix multiplication works" {
+    // 2x3 * 3x2 = 2x2
+    // A = [1 2 3]   B = [7  8 ]   Result = [58  64 ]
+    //     [4 5 6]       [9  10]            [139 154]
+    //                   [11 12]
+    var a = [_]f32{ 1, 2, 3, 4, 5, 6 };
+    var b = [_]f32{ 7, 8, 9, 10, 11, 12 };
+    var result: [4]f32 = undefined;
+
+    matrixMultiply(&a, &b, &result, 2, 2, 3);
+
+    try std.testing.expectApproxEqAbs(@as(f32, 58.0), result[0], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 64.0), result[1], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 139.0), result[2], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 154.0), result[3], 1e-5);
+}
+
+test "matrix multiplication larger" {
+    // Test with a matrix size that exercises SIMD paths (8x8)
+    const size = 8;
+    var a: [size * size]f32 = undefined;
+    var b: [size * size]f32 = undefined;
+    var result: [size * size]f32 = undefined;
+
+    // Initialize with simple values for verification
+    for (0..size) |i| {
+        for (0..size) |j| {
+            a[i * size + j] = @floatFromInt(i + j);
+            b[i * size + j] = @floatFromInt(i * j);
+        }
+    }
+
+    matrixMultiply(&a, &b, &result, size, size, size);
+
+    // Verify result[0][0] = sum(a[0][k] * b[k][0]) for k=0..7
+    // = 0*0 + 1*0 + 2*0 + 3*0 + 4*0 + 5*0 + 6*0 + 7*0 = 0
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), result[0], 1e-4);
+
+    // Verify result[1][1] = sum(a[1][k] * b[k][1]) for k=0..7
+    // = 1*0 + 2*1 + 3*2 + 4*3 + 5*4 + 6*5 + 7*6 + 8*7 = 0 + 2 + 6 + 12 + 20 + 30 + 42 + 56 = 168
+    try std.testing.expectApproxEqAbs(@as(f32, 168.0), result[size + 1], 1e-4);
+}
+
+// ============================================================================
+// Tests for Activation Functions
+// ============================================================================
+
+test "siluInPlace works" {
+    var data = [_]f32{ -2.0, -1.0, 0.0, 1.0, 2.0 };
+    siluInPlace(&data);
+
+    // SiLU(0) = 0
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), data[2], 1e-6);
+    // SiLU(x) > 0 for x > 0
+    try std.testing.expect(data[3] > 0);
+    try std.testing.expect(data[4] > 0);
+    // SiLU(x) < 0 for x < 0
+    try std.testing.expect(data[0] < 0);
+    try std.testing.expect(data[1] < 0);
+}
+
+test "geluInPlace works" {
+    var data = [_]f32{ -2.0, -1.0, 0.0, 1.0, 2.0 };
+    geluInPlace(&data);
+
+    // GELU(0) = 0
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), data[2], 1e-6);
+    // GELU(x) > 0 for x > 0
+    try std.testing.expect(data[3] > 0);
+    try std.testing.expect(data[4] > 0);
+}
+
+test "reluInPlace works" {
+    var data = [_]f32{ -2.0, -1.0, 0.0, 1.0, 2.0 };
+    reluInPlace(&data);
+
+    try std.testing.expectEqual(@as(f32, 0.0), data[0]);
+    try std.testing.expectEqual(@as(f32, 0.0), data[1]);
+    try std.testing.expectEqual(@as(f32, 0.0), data[2]);
+    try std.testing.expectEqual(@as(f32, 1.0), data[3]);
+    try std.testing.expectEqual(@as(f32, 2.0), data[4]);
+}
+
+test "leakyReluInPlace works" {
+    var data = [_]f32{ -2.0, -1.0, 0.0, 1.0, 2.0 };
+    leakyReluInPlace(&data, 0.1);
+
+    try std.testing.expectApproxEqAbs(@as(f32, -0.2), data[0], 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f32, -0.1), data[1], 1e-6);
+    try std.testing.expectEqual(@as(f32, 0.0), data[2]);
+    try std.testing.expectEqual(@as(f32, 1.0), data[3]);
+    try std.testing.expectEqual(@as(f32, 2.0), data[4]);
+}
+
+// ============================================================================
+// Tests for Softmax Operations
+// ============================================================================
+
+test "softmaxInPlace works" {
+    var data = [_]f32{ 1.0, 2.0, 3.0 };
+    softmaxInPlace(&data);
+
+    // Sum should be 1.0
+    var total: f32 = 0.0;
+    for (data) |v| total += v;
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), total, 1e-5);
+
+    // Values should be in ascending order (since inputs were)
+    try std.testing.expect(data[0] < data[1]);
+    try std.testing.expect(data[1] < data[2]);
+
+    // All values should be positive
+    for (data) |v| {
+        try std.testing.expect(v > 0);
+    }
+}
+
+test "maxValue works" {
+    const data = [_]f32{ 1.0, 5.0, 3.0, 2.0, 4.0 };
+    const max_val = maxValue(&data);
+    try std.testing.expectEqual(@as(f32, 5.0), max_val);
+}
+
+test "sum works" {
+    const data = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0 };
+    const total = sum(&data);
+    try std.testing.expectApproxEqAbs(@as(f32, 15.0), total, 1e-6);
+}
+
+// ============================================================================
+// Tests for Normalization Operations
+// ============================================================================
+
+test "rmsNormInPlace works" {
+    var data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    const original_sq_sum = squaredSum(&data);
+    rmsNormInPlace(&data, null, 1e-6);
+
+    // After RMSNorm, the RMS should be approximately 1
+    const new_sq_sum = squaredSum(&data);
+    const new_rms = @sqrt(new_sq_sum / 4.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), new_rms, 1e-4);
+
+    // Verify original was not 1 (sanity check)
+    try std.testing.expect(original_sq_sum > 1.0);
+}
+
+test "squaredSum works" {
+    const data = [_]f32{ 1.0, 2.0, 3.0 };
+    const result = squaredSum(&data);
+    // 1^2 + 2^2 + 3^2 = 1 + 4 + 9 = 14
+    try std.testing.expectApproxEqAbs(@as(f32, 14.0), result, 1e-6);
+}
+
+// ============================================================================
+// Tests for Distance Calculations
+// ============================================================================
+
+test "l2DistanceSquared works" {
+    const a = [_]f32{ 0.0, 0.0, 0.0 };
+    const b = [_]f32{ 1.0, 2.0, 2.0 };
+    const dist_sq = l2DistanceSquared(&a, &b);
+    // sqrt(1 + 4 + 4) = sqrt(9) = 3, so squared = 9
+    try std.testing.expectApproxEqAbs(@as(f32, 9.0), dist_sq, 1e-6);
+}
+
+test "l2Distance works" {
+    const a = [_]f32{ 0.0, 0.0, 0.0 };
+    const b = [_]f32{ 1.0, 2.0, 2.0 };
+    const dist = l2Distance(&a, &b);
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), dist, 1e-6);
+}
+
+test "SIMD activation large array" {
+    // Test with larger array to exercise SIMD paths
+    var data: [64]f32 = undefined;
+    for (0..64) |i| {
+        data[i] = @as(f32, @floatFromInt(i)) / 32.0 - 1.0; // Range: -1 to 1
+    }
+
+    var silu_data = data;
+    siluInPlace(&silu_data);
+
+    var gelu_data = data;
+    geluInPlace(&gelu_data);
+
+    var relu_data = data;
+    reluInPlace(&relu_data);
+
+    // Verify all outputs are reasonable (no NaN/Inf)
+    for (silu_data) |v| {
+        try std.testing.expect(!std.math.isNan(v));
+        try std.testing.expect(!std.math.isInf(v));
+    }
+    for (gelu_data) |v| {
+        try std.testing.expect(!std.math.isNan(v));
+        try std.testing.expect(!std.math.isInf(v));
+    }
+    for (relu_data) |v| {
+        try std.testing.expect(!std.math.isNan(v));
+        try std.testing.expect(!std.math.isInf(v));
+    }
+}

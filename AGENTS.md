@@ -14,8 +14,14 @@ zig build test --summary all           # Run all tests (regression)
 zig fmt .                              # Format code after edits
 zig build run -- --help                # CLI help
 
+# Testing specific files
+zig test src/specific_test.zig                            # Single test file
+zig test src/module/test_file.zig -fno-sanitize-c        # Without C sanitation
+zig test src/module/test_file.zig --reference-trace=5    # With debug refs
+
 # Benchmarking (Required for perf changes)
 zig build bench-competitive            # Run performance baseline
+zig build benchmarks                  # Complete benchmark suite
 ```
 
 ## Critical Rules (Measurable)
