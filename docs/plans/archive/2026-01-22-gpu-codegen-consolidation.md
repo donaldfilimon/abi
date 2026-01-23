@@ -1,5 +1,5 @@
 ---
-title: "2026-01-22-gpu-codegen-consolidation"
+title: "2026-01-23-gpu-codegen-consolidation"
 tags: []
 ---
 # GPU Codegen Consolidation Implementation Plan

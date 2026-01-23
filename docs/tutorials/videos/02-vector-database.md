@@ -3,7 +3,7 @@ title: "02-vector-database"
 tags: []
 ---
 # Video Walkthrough: Vector Database with WDBX
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 **Duration:** 30 minutes
 **Difficulty:** Beginner

@@ -3,7 +3,7 @@ title: "overview"
 tags: []
 ---
 # ABI Framework Architecture Overview
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 This document provides a comprehensive overview of the ABI framework architecture after the 2026.01 migration.
 
@@ -72,10 +72,11 @@ src/
 │   ├── connectors/    # API connectors (OpenAI, Ollama, Anthropic)
 │   └── ha/            # High availability (backup, PITR, replication)
 │
-└── registry/           # Plugin registry system
-    ├── comptime.zig   # Compile-time registration
-    ├── dynamic.zig    # Dynamic plugin loading
-    └── runtime.zig    # Runtime feature toggle
+└── registry/           # Feature registry system [MODULARIZED]
+    ├── mod.zig        # Public API facade with Registry struct
+    ├── types.zig      # Core types (Feature, RegistrationMode, Error)
+    ├── registration.zig # registerComptime, registerRuntimeToggle, registerDynamic
+    └── lifecycle.zig  # initFeature, deinitFeature, enable/disable
 ```
 
 ## Design Patterns
@@ -95,6 +96,17 @@ else
 - Must mirror complete API (structs, functions, constants)
 - Always return `error.<Feature>Disabled` for operations
 - Include Context struct matching real module
+- Include `isEnabled()` function returning `false`
+
+**Stub Parity Testing:**
+Automated parity verification in `src/tests/stub_parity.zig` ensures stubs stay synchronized:
+```zig
+// Verify all feature modules follow Context + isEnabled pattern
+fn verifyContextPattern(comptime Module: type) !void {
+    try testing.expect(@hasDecl(Module, "Context"));
+    try testing.expect(@hasDecl(Module, "isEnabled"));
+}
+```
 
 ### 2. Context Pattern (Framework Integration)
 
@@ -137,6 +149,36 @@ var fw = try abi.Framework.builder(allocator)
     .withDatabase(.{ .path = "./data" })
     .build();
 ```
+
+### 5. Registry Pattern (Feature Management)
+
+Three registration modes for different use cases:
+
+```zig
+const registry = @import("registry/mod.zig");
+
+var reg = registry.Registry.init(allocator);
+defer reg.deinit();
+
+// Comptime-only: Zero overhead, resolved at compile time
+try reg.registerComptime(.gpu);
+
+// Runtime-toggle: Compiled in but can be enabled/disabled
+try reg.registerRuntimeToggle(.ai, ai_mod.Context, &ai_config);
+try reg.enableFeature(.ai);
+try reg.initFeature(.ai);
+
+// Query features
+if (reg.isEnabled(.gpu)) {
+    // Use GPU...
+}
+```
+
+| Mode | Overhead | Runtime Toggle | Use Case |
+|------|----------|----------------|----------|
+| `comptime_only` | Zero | No | Static features |
+| `runtime_toggle` | Minimal | Yes | Optional features |
+| `dynamic` | Moderate | Yes | Plugin loading (future) |
 
 ## Module Responsibilities
 
@@ -220,12 +262,21 @@ zig build
 zig build -Denable-ai=false -Denable-gpu=false -Denable-database=false \
           -Denable-network=false -Denable-web=false
 
-# Run all tests
+# Run all tests (includes stub parity verification)
 zig build test --summary all
 
 # Build all examples
 zig build examples
 ```
+
+### Test Categories
+
+| Category | File | Description |
+|----------|------|-------------|
+| Framework | `src/tests/mod.zig` | Framework init, feature flags |
+| Stub Parity | `src/tests/stub_parity.zig` | Verify stub/real API match |
+| Registry | `src/registry/mod.zig` | Registration and lifecycle tests |
+| Integration | `src/tests/test_matrix.zig` | Cross-module integration |
 
 ## Related Documentation
 

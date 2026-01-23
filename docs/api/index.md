@@ -1,8 +1,3 @@
----
-title: "API Index"
-tags: []
----
-
 # ABI Framework API Reference
 
 > Comprehensive API documentation auto-generated from source code
