@@ -299,7 +299,7 @@ fn measureEfficiency(
         for (buffer[0..1024]) |v| {
             sum += v;
         }
-        _ = sum;
+        std.mem.doNotOptimizeAway(&sum);
         generated += config.batch_size;
     }
 
@@ -472,7 +472,7 @@ fn analyzeQuantizationLevel(
         for (weights[0..@min(1024, weights.len)]) |w| {
             sum += w;
         }
-        _ = sum;
+        std.mem.doNotOptimizeAway(&sum);
         total_tokens += 128;
     }
 
@@ -708,7 +708,7 @@ fn measureBatchPerformance(
     for (buffer[0..@min(1024, buffer.len)]) |v| {
         sum += v;
     }
-    _ = sum;
+    std.mem.doNotOptimizeAway(&sum);
     const ttft_ns = ttft_timer.read();
 
     // Generate tokens
@@ -721,7 +721,7 @@ fn measureBatchPerformance(
         for (buffer[0..@min(batch_size * 1024, buffer.len)]) |v| {
             token_sum += v;
         }
-        _ = token_sum;
+        std.mem.doNotOptimizeAway(&token_sum);
 
         latencies[i] = iter_timer.read();
         total_tokens += batch_size;

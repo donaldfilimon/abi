@@ -67,20 +67,13 @@ fn generateSource(
             defer gen.deinit();
             break :blk try gen.generate(ir);
         },
-        .vulkan => blk: {
-            var gen = glsl.GlslGenerator.init(allocator, .vulkan);
+        .vulkan, .opengl, .opengles => blk: {
+            // Generic GLSL generator produces Vulkan-style output (#version 450)
+            var gen = glsl.GlslGenerator.init(allocator);
             defer gen.deinit();
-            break :blk try gen.generate(ir);
-        },
-        .opengl => blk: {
-            var gen = glsl.GlslGenerator.init(allocator, .opengl);
-            defer gen.deinit();
-            break :blk try gen.generate(ir);
-        },
-        .opengles => blk: {
-            var gen = glsl.GlslGenerator.init(allocator, .opengles);
-            defer gen.deinit();
-            break :blk try gen.generate(ir);
+            var result = try gen.generate(ir);
+            result.backend = target;
+            break :blk result;
         },
         .metal => blk: {
             var gen = msl.MslGenerator.init(allocator);
@@ -94,7 +87,7 @@ fn generateSource(
         },
         .stdgpu => blk: {
             // stdgpu uses GLSL-like format
-            var gen = glsl.GlslGenerator.init(allocator, .vulkan);
+            var gen = glsl.GlslGenerator.init(allocator);
             defer gen.deinit();
             var result = try gen.generate(ir);
             result.backend = .stdgpu;

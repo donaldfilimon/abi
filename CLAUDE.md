@@ -92,8 +92,9 @@ src/
 ├── database/            # Vector database (WDBX with HNSW/IVF-PQ)
 ├── gpu/                 # GPU acceleration (Vulkan, CUDA, Metal, etc.)
 │   └── dsl/codegen/     # Shader codegen with generic comptime template
-│       ├── generic.zig  # Comptime CodeGenerator(Config) template
-│       └── configs/     # Backend-specific configs (glsl, wgsl, msl, cuda)
+│       ├── generic.zig  # Comptime CodeGenerator(BackendConfig) template
+│       ├── configs/     # Backend-specific config structs (glsl, wgsl, msl, cuda)
+│       └── *.zig        # Thin wrappers re-exporting generic generators
 ├── ha/                  # High availability (backup, PITR, replication)
 ├── network/             # Distributed compute and Raft consensus
 ├── observability/       # Consolidated metrics, tracing, monitoring
@@ -128,24 +129,31 @@ src/
 **Comptime generics pattern:** Use comptime configuration structs to eliminate code duplication. Example from GPU codegen:
 
 ```zig
-// Define config struct with backend-specific values
+// configs/wgsl_config.zig - Define config struct with backend-specific values
 pub const config = BackendConfig{
     .language = .wgsl,
     .type_names = .{ .f32_ = "f32", .i32_ = "i32", ... },
     .atomics = .{ .add_fn = "atomicAdd", ... },
 };
 
-// Generic template instantiated with config
-pub fn CodeGenerator(comptime Config: type) type {
+// generic.zig - Generic template instantiated with config
+pub fn CodeGenerator(comptime cfg: BackendConfig) type {
     return struct {
-        pub const backend_config: BackendConfig = Config.config;
-        // Shared logic uses Config.config.type_names, etc.
+        pub const backend_config = cfg;
+        // Shared logic uses backend_config.type_names, etc.
     };
 }
 
-// Backend-specific file just re-exports
-pub const WgslGenerator = generic.CodeGenerator(wgsl_config);
+// Pre-instantiate generators for each backend
+pub const WgslGenerator = CodeGenerator(wgsl_config.config);
+pub const GlslGenerator = CodeGenerator(glsl_config.config);
+
+// wgsl.zig - Backend-specific file is thin wrapper
+const generic = @import("generic.zig");
+pub const Generator = generic.WgslGenerator;
 ```
+
+This pattern reduces each backend from ~1,000+ lines to ~50-100 lines while keeping all shared logic in `generic.zig`.
 
 ### Configuration System (`src/config.zig`)
 
@@ -249,6 +257,7 @@ var server: std.http.Server = .init(
 | `ABI_OLLAMA_HOST` | `http://127.0.0.1:11434` | Ollama host |
 | `ABI_OLLAMA_MODEL` | `gpt-oss` | Default Ollama model |
 | `ABI_HF_API_TOKEN` | - | HuggingFace token |
+| `ABI_ANTHROPIC_API_KEY` | - | Anthropic/Claude API key |
 | `DISCORD_BOT_TOKEN` | - | Discord bot token |
 
 ## Reference

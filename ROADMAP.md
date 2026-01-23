@@ -1,307 +1,84 @@
 # ABI Framework Roadmap
-> **Codebase Status:** Synced with repository as of 2026-01-18.
 
-> **Developer Guide**: See [CONTRIBUTING.md](CONTRIBUTING.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.
->
-> This document tracks planned features, improvements, and milestones for ABI framework.
+> Last updated: 2026-01-22 | Current version: 0.6.0
 
-**Zig Version Requirement:** 0.16.x (migration complete)
+## Vision
 
-## Version 0.3.0 - Q1 2026
+ABI is a production-grade Zig 0.16 framework for AI systems, combining GPU acceleration,
+vector database, and distributed compute. Our focus is developer experience, performance,
+and correctness.
 
-### Core Features
-- [x] Complete GPU backend implementations
-  - [x] CUDA backend (fallback runtime + kernel simulation)
-  - [x] Vulkan backend (fallback runtime + kernel simulation)
-  - [x] Metal backend (fallback runtime + kernel simulation)
-  - [x] WebGPU backend (fallback runtime + kernel simulation)
-- [x] Full async/await implementation using std.Io
-  - [x] Async task scheduling
-  - [x] Concurrent execution primitives
-  - [x] Cancellation support
-- [x] Enhanced compute runtime
-  - [x] Work-stealing optimizations
-  - [x] NUMA awareness
-  - [x] CPU affinity control
+---
 
-### AI Features
-- [x] Connector implementations
-  - [x] OpenAI connector
-  - [x] Ollama connector
-  - [x] HuggingFace connector
-  - [x] Local scheduler connector
-- [x] Training pipeline improvements
-  - [x] Federated learning coordinator
-  - [x] Model checkpointing
-  - [x] Gradient aggregation
+## Now (v0.7.0)
 
-### Database & Storage
-- [x] Persistent vector index
-  - [x] HNSW indexing
-  - [x] IVF-PQ indexing
-  - [x] Automatic re-indexing
-- [x] Distributed database
-  - [x] Sharding support
-  - [x] Replication
-  - [x] Consistent hashing
+Active development. In progress or immediately queued.
 
-### Observability
-- [x] Advanced metrics
-  - [x] Prometheus exporter
-  - [x] OpenTelemetry integration
-  - [x] Custom dashboards
-- [x] Distributed tracing
-  - [x] Span propagation
-  - [x] Trace sampling
-  - [x] Performance profiling
+### Code Quality
+- [ ] GPU codegen consolidation - GLSL refactor ([plan](docs/plans/2026-01-22-gpu-codegen-consolidation.md))
+- [ ] Observability module consolidation ([plan](docs/plans/2026-01-17-refactor-phase2.md))
 
-### Security
-- [x] Authentication & authorization
-  - [x] API key management
-  - [x] Role-based access control
-  - [x] Token rotation
-- [x] Network security
-  - [x] TLS/SSL support
-  - [x] mTLS between nodes
-  - [x] Certificate management
-
-## Version 0.4.0 - Q2 2026
-
-### Performance
-- [x] SIMD optimizations
-  - [x] AVX-512 support (via std.simd.suggestVectorLength auto-detection)
-  - [x] NEON (ARM) support (via std.simd.suggestVectorLength auto-detection)
-  - [x] WASM SIMD (via std.simd.suggestVectorLength auto-detection)
-  - [x] Platform capability detection (SimdCapabilities struct)
-- [x] Memory management
-  - [x] Arena allocator improvements (ScopedArena)
-  - [x] Memory pools for hot paths (SlabAllocator with size classes)
-  - [x] Zero-copy optimizations (ZeroCopyBuffer)
-
-### Developer Experience
-- [x] Enhanced CLI
-  - [x] Interactive mode improvements
-  - [x] Configuration file support
-  - [x] Shell completion (bash, zsh, fish)
-  - [x] Interactive TUI command launcher (cross-platform)
-- [x] Tooling
-  - [x] Debugger integration (GDB/LLDB support documented in docs/troubleshooting.md)
-  - [x] Performance profiler (src/compute/profiling/mod.zig, src/gpu/profiling.zig)
-  - [x] Memory leak detector (src/shared/utils/memory/tracking.zig - TrackingAllocator)
+### Features
+- [ ] Task management system - CLI + persistence ([plan](docs/plans/2026-01-17-task-management-system.md))
 
 ### Documentation
-- [x] Comprehensive API docs
-  - [x] Auto-generated API reference (tools/gendocs.zig, docs/api/)
-  - [x] Tutorial series (docs/tutorials/getting-started.md, docs/tutorials/vector-database.md)
-- [x] Video recordings (scripts complete in docs/tutorials/videos/)
-- [x] Architecture diagrams
-  - [x] System architecture (docs/diagrams/system-architecture.md)
-  - [x] Component interactions (docs/diagrams/gpu-architecture.md)
-  - [x] Data flow diagrams (docs/diagrams/ai-dataflow.md)
-  - [x] Modular codebase structure (completed 2026-01-17)
+- [ ] Archive completed plans to docs/plans/archive/
 
-### Testing
-- [x] Expanded test suite
-  - [x] Property-based testing
-  - [x] Fuzzing infrastructure
-  - [x] Integration test matrix (src/tests/test_matrix.zig)
-- [x] Benchmark suite
-  - [x] Performance regression detection (compareWithBaseline, RegressionResult)
-  - [x] Baseline tracking (BenchmarkRunner with statistics)
-  - [x] Competitive benchmarks (benchmarks/competitive/mod.zig - FAISS, VectorDB, LLM comparisons)
+---
 
-## Version 0.5.0 - Q3 2026
+## Next (v0.8.0)
 
-### Distributed Systems
-- [x] Service discovery
-  - [x] Consul integration
-  - [x] etcd integration
-  - [x] Custom discovery backends (static, DNS)
-- [x] Load balancing
-  - [x] Round-robin
-  - [x] Weighted routing
-  - [x] Health-based routing
-  - [x] Least connections
-  - [x] IP hash / sticky sessions
-
-### High Availability
-- [x] Failover mechanisms
-  - [x] Automatic failover (src/features/ha/mod.zig - HaManager with auto_failover)
-  - [x] Health checks (src/network/loadbalancer.zig - NodeState)
-  - [x] Circuit breakers (src/features/monitoring/mod.zig - CircuitBreakerMetrics)
-- [x] Disaster recovery
-  - [x] Backup orchestration (src/features/ha/backup.zig - BackupOrchestrator)
-  - [x] Point-in-time recovery (src/features/ha/pitr.zig - PitrManager)
-  - [x] Multi-region support (src/features/ha/replication.zig - ReplicationManager)
+Scoped for upcoming release. Not yet started.
 
 ### Ecosystem
-- [x] Language bindings
-  - [x] Python bindings (foundation)
-  - [x] JavaScript/WASM bindings
-  - [x] C API (bindings/c/abi.h)
-- [x] Package manager integration
-  - [x] Zig package registry (build.zig.zon with fingerprint)
-  - [x] Homebrew formula (Formula/abi.rb)
-  - [x] Docker images (Dockerfile with multi-stage build)
+- [ ] Python bindings expansion (beyond foundation)
+- [ ] npm package for WASM bindings
 
-## Long-Term Goals (2026+)
+### Features
+- [ ] Streaming inference API improvements
+- [ ] Multi-model orchestration
 
-### Research & Innovation
-- [ ] Experimental features
-  - [ ] Hardware acceleration (FPGA, ASIC)
-  - [ ] Novel index structures
-  - [ ] AI-optimized workloads
-- [ ] Academic collaborations
-  - [ ] Research partnerships
-  - [ ] Paper publications
-  - [ ] Conference presentations
+### Tooling
+- [ ] VS Code extension for ABI development
+- [ ] Interactive benchmark dashboard
 
-### Community & Growth
-- [ ] Community governance
-  - [ ] RFC process
-  - [ ] Voting mechanism
-  - [ ] Contribution recognition
-- [ ] Education
-  - [ ] Training courses
-  - [ ] Certification program
-  - [ ] University partnerships
+---
 
-### Enterprise Features
-- [ ] Commercial support
-  - [ ] SLA offerings
-  - [ ] Priority support
-  - [ ] Custom development
-- [ ] Cloud integration
-  - [ ] AWS Lambda
-  - [ ] Google Cloud Functions
-  - [ ] Azure Functions
+## Later (2026-2027)
 
-## Priority Legend
+Strategic direction. May require RFCs.
 
-- 🔴 Critical - Must-have for stability/security
-- 🟡 High - Important for feature parity
-- 🟢 Medium - Nice to have
-- 🔵 Low - Future exploration
+### Research
+- [ ] Hardware acceleration (FPGA, ASIC exploration)
+- [ ] Novel vector index structures
+- [ ] Zig std.gpu native integration (when stable)
 
-## How to Contribute
+### Ecosystem
+- [ ] Cloud function adapters (AWS Lambda, GCP, Azure)
+- [ ] Kubernetes operator
 
-1. Check existing issues and PRs
-2. Create an RFC for major changes
-3. Implement with tests and docs
-4. Submit PR with clear description
-5. Participate in code review
+### Community
+- [ ] RFC process formalization
+- [ ] Contributor certification program
 
-See CONTRIBUTING.md for details.
+---
 
-## Version Timeline
+## Not Planned
 
-| Version | Target Quarter | Status | Notes |
-|----------|---------------|---------|-------|
-| 0.2.2 | 2025-12-27 | Released | Zig 0.16 modernization |
-| 0.3.0 | Q1 2026 | Complete | GPU backends, AI features |
-| 0.4.0 | Q2 2026 | Complete | Performance, DX, documentation |
-| 0.5.0 | Q3 2026 | Complete | Distributed systems, HA |
-| 0.6.0 | Q4 2026 | Complete | Llama-CPP parity, Modular architecture refactor |
+Items explicitly deprioritized:
 
-*Last updated: January 18, 2026*
+- **GUI toolkit** - Out of scope; ABI is backend-focused
+- **JavaScript runtime** - WASM bindings cover this use case
+- **Legacy Zig support** - 0.16+ only
 
-## Zig 0.16 Migration Status
+---
 
-All Zig 0.16 API migrations are complete:
+## Contributing
 
-- [x] `std.Io` unified API adoption
-- [x] `std.Io.Threaded` for synchronous I/O
-- [x] `std.Io.Dir.cwd()` replaces `std.fs.cwd()`
-- [x] `std.http.Server` initialization pattern
-- [x] `std.time.Timer` for high-precision timing
-- [x] `std.Io.Clock.Duration` for sleep operations
-- [x] `std.ArrayListUnmanaged` for explicit allocator passing
-- [x] `{t}` format specifier for enums/errors
-- [x] CI/CD pinned to Zig 0.16.x
-- [x] Feature stub API parity (2026-01-17)
+1. Check [issues](https://github.com/donaldfilimon/abi/issues) for `help-wanted`
+2. Propose features in [discussions](https://github.com/donaldfilimon/abi/discussions)
+3. See [CONTRIBUTING.md](CONTRIBUTING.md)
 
-See `docs/migration/zig-0.16-migration.md` for detailed migration guide.
+## History
 
-### Code Quality & Refactoring (2026-01-17)
-
-All feature-gated stubs have been audited and updated for API parity:
-
-- [x] AI stub API matches real implementation (SessionData, TrainingConfig, Checkpoint, etc.)
-- [x] GPU stub exports all public functions (backendAvailability)
-- [x] Network stub implements full registry API (touch, setStatus)
-- [x] All stub modules tested with `-Denable-<feature>=false` builds
-- [x] Zig 0.16 I/O patterns applied to numa.zig (std.Io.Dir.cwd())
-
-**Build Verification:** All feature flag combinations build successfully.
-
-## Changelog History
-
-- [0.2.2](CHANGELOG.md#022---2025-12-27) - Zig 0.16 modernization
-- [0.2.1](CHANGELOG.md#021---2025-12-27) - Security fixes, memory safety
-- [0.2.0](CHANGELOG.md#020---2025-12-24) - High-performance compute runtime
-- [0.1.0](CHANGELOG.md#010---2025-12-24) - Initial release
-
-## Expanded Roadmap Details
-### Tooling (Q2 2026) COMPLETE
-- **Debugger integration** - GDB/LLDB support documented in docs/troubleshooting.md.
-- **Performance profiler** - MetricsCollector and GPU Profiler implemented.
-- **Memory leak detector** - TrackingAllocator with leak detection implemented.
-### Documentation (Q2 2026)
-- **Comprehensive API docs** – Auto‑generated reference using `zig api`, plus tutorial series and video walkthroughs.
-- **Architecture diagrams** – System‑level, component interaction, and data‑flow diagrams to aid onboarding.
-### Testing (Q2 2026)
-- **Competitive benchmarks** – Benchmark ABI against leading vector‑search and AI frameworks to guide performance targets.
-### High Availability (Q3 2026)
-- **Failover mechanisms** – Automatic node takeover, health checks, and circuit‑breaker patterns.
-- **Disaster recovery** – Automated backup orchestration, point‑in‑time recovery, and multi‑region support.
-### Ecosystem (Q4 2026)
-- **Package manager integration** – Publish to the Zig package registry, provide Homebrew formulae, and release Docker images.
-### Research & Innovation (2027+)
-- **Experimental features** – Explore FPGA/ASIC acceleration, novel index structures, and AI‑optimized workloads.
-- **Academic collaborations** – Joint research projects, paper publications, and conference presentations.
-### Community & Growth (2027+)
-- **Community governance** – Formal RFC process, voting mechanisms, and contributor recognition.
-- **Education** – Training courses, certification program, and university partnerships.
-### Enterprise Features (2028+)
-- **Commercial support** – SLA offerings, priority support, and custom development services.
-- **Cloud integration** – Deploy ABI on AWS Lambda, Google Cloud Functions, and Azure Functions.
-
-## Version 0.6.0 - Q4 2026 COMPLETE
-
-### Llama-CPP Parity (Complete)
-All Llama-CPP parity tasks have been completed. See TODO.md for details:
-- [x] GGUF loader and metadata parsing (src/features/ai/llm/io/gguf.zig)
-- [x] Quantization decoders Q4_0, Q4_1, Q5_0, Q5_1, Q8_0 (src/features/ai/llm/tensor/quantized.zig)
-- [x] BPE/SentencePiece tokenizer (src/features/ai/llm/tokenizer/)
-- [x] CPU inference kernels with SIMD (src/features/ai/llm/ops/)
-- [x] GPU backend with CUDA kernels (src/features/ai/llm/ops/gpu.zig)
-- [x] Sampling strategies (src/features/ai/llm/generation/sampler.zig)
-- [x] Async token streaming (src/features/ai/llm/generation/streaming.zig)
-- [x] CLI with full llama-cpp parity (tools/cli/commands/llm.zig)
-- [x] C-compatible API (bindings/c/abi_llm.zig)
-- [x] Tests and benchmarks (src/tests/llm_reference_vectors.zig)
-
-### Modular Codebase Refactor (Complete - 2026-01-17)
-Major architecture redesign completed with 51/51 tests passing, 21/21 build steps:
-- [x] Unified configuration system with Builder pattern (src/config.zig)
-- [x] Framework orchestration for lifecycle management (src/framework.zig)
-- [x] Runtime infrastructure for always-on components (src/runtime/)
-- [x] GPU module moved to top-level (src/gpu/)
-- [x] AI module with core + sub-features (src/ai/ - llm, embeddings, agents, training)
-- [x] Top-level database module (src/database/)
-- [x] Top-level network module (src/network/)
-- [x] Top-level observability module (src/observability/)
-- [x] Top-level web module (src/web/)
-- [x] Shared utilities module (src/shared/)
-- [x] Updated abi.zig to use new modular structure
-
-### Runtime Consolidation (Complete - 2026-01-17)
-Runtime module fully consolidated from compute/:
-- [x] Plugin registry system (src/registry/mod.zig)
-- [x] Task engine migrated (src/runtime/engine/)
-- [x] Scheduling primitives migrated (src/runtime/scheduling/)
-- [x] Concurrency primitives migrated (src/runtime/concurrency/)
-- [x] Memory utilities migrated (src/runtime/memory/)
-- [x] CLI runtime flags (--list-features, --enable-*, --disable-*)
-- [x] Comptime feature validation for CLI flags
-- [x] Default Ollama model updated to gpt-oss
+See [CHANGELOG.md](CHANGELOG.md) for release history.

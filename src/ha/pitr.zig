@@ -161,7 +161,7 @@ pub const PitrManager = struct {
 
         // Check if checkpoint is needed
         if (self.shouldCheckpoint()) {
-            try self.createCheckpointLocked();
+            _ = try self.createCheckpointLocked();
         }
     }
 
