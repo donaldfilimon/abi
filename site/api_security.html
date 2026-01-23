@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>api_security - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>api_security</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#security-api-reference">security API Reference</a></li>
+        <li style="padding-left: 16px"><a href="#api">API</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="security-api-reference">security API Reference<a class="anchor" href="#security-api-reference">#</a></h1>
+
+<blockquote>TLS, mTLS, API keys, and RBAC</blockquote>
+
+<p><strong>Source:</strong> <a href="../../src/shared/security/mod.zig"><code>src/shared/security/mod.zig</code></a></p>
+
+<hr>
+
+<p>Security module providing comprehensive authentication, authorization, and security features.</p>
+
+<p>This module consolidates security-related functionality including:</p>
+<li>API key management with secure hashing and rotation</li>
+<li>Role-based access control (RBAC)</li>
+<li>TLS/SSL support for secure communication</li>
+<li>mTLS (Mutual TLS) for bidirectional certificate authentication</li>
+<li>JWT token authentication</li>
+<li>Password hashing (Argon2, PBKDF2, scrypt)</li>
+<li>Session management</li>
+<li>Input validation and sanitization</li>
+<li>Security headers middleware</li>
+<li>Secrets management</li>
+<li>Rate limiting</li>
+<li>IP filtering (allow/deny lists)</li>
+<li>Certificate management and rotation</li>
+<li>Encryption at rest</li>
+<li>CORS configuration</li>
+<li>Security audit logging</li>
+
+<hr>
+
+<h2 id="api">API<a class="anchor" href="#api">#</a></h2>
+
+<hr>
+
+<p>*Generated automatically by <code>zig build gendocs</code>*</p>
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

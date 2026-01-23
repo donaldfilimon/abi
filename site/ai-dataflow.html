@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ai-dataflow - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>ai-dataflow</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#ai-module-data-flow">AI Module Data Flow</a></li>
+        <li style="padding-left: 16px"><a href="#component-responsibilities">Component Responsibilities</a></li>
+        <li style="padding-left: 16px"><a href="#environment-variables">Environment Variables</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="ai-module-data-flow">AI Module Data Flow<a class="anchor" href="#ai-module-data-flow">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<pre class="code-block language-mermaid"><code>flowchart LR
+    subgraph &quot;Input&quot;
+        TEXT[Text Input]
+        IMG[Image Input]
+        AUDIO[Audio Input]
+    end
+
+    subgraph &quot;Connectors&quot;
+        OPENAI[OpenAI Connector]
+        OLLAMA[Ollama Connector]
+        HF[HuggingFace Connector]
+        LOCAL[Local LLM]
+    end
+
+    subgraph &quot;Processing&quot;
+        PROMPT[Prompt Engine]
+        ABBEY[Abbey Engine]
+        VISION[Vision Pipeline]
+        AGENT[Agent Orchestrator]
+    end
+
+    subgraph &quot;Output&quot;
+        RESPONSE[Text Response]
+        ACTION[Agent Action]
+        EMBED[Embeddings]
+    end
+
+    TEXT --&gt; PROMPT
+    IMG --&gt; VISION
+    AUDIO --&gt; PROMPT
+
+    PROMPT --&gt; OPENAI
+    PROMPT --&gt; OLLAMA
+    PROMPT --&gt; HF
+    PROMPT --&gt; LOCAL
+
+    OPENAI --&gt; ABBEY
+    OLLAMA --&gt; ABBEY
+    HF --&gt; ABBEY
+    LOCAL --&gt; ABBEY
+
+    VISION --&gt; AGENT
+    ABBEY --&gt; AGENT
+
+    AGENT --&gt; RESPONSE
+    AGENT --&gt; ACTION
+    ABBEY --&gt; EMBED
+</code></pre>
+
+<h2 id="component-responsibilities">Component Responsibilities<a class="anchor" href="#component-responsibilities">#</a></h2>
+
+<tr><td>Component</td><td>Description</td></tr>
+<tr><td>Connectors</td><td>External API integrations (OpenAI, Ollama, HuggingFace)</td></tr>
+<tr><td>Prompt Engine</td><td>Template management and prompt construction</td></tr>
+<tr><td>Abbey Engine</td><td>Core LLM inference and response handling</td></tr>
+<tr><td>Vision Pipeline</td><td>Image processing and feature extraction</td></tr>
+<tr><td>Agent Orchestrator</td><td>Multi-agent coordination and task decomposition</td></tr>
+
+<h2 id="environment-variables">Environment Variables<a class="anchor" href="#environment-variables">#</a></h2>
+
+<tr><td>Variable</td><td>Purpose</td></tr>
+<tr><td><code>ABI_OPENAI_API_KEY</code></td><td>OpenAI authentication</td></tr>
+<tr><td><code>ABI_OLLAMA_HOST</code></td><td>Ollama server endpoint</td></tr>
+<tr><td><code>ABI_HF_API_TOKEN</code></td><td>HuggingFace API access</td></tr>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

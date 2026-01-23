@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>api_config - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>api_config</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#config-api-reference">config API Reference</a></li>
+        <li style="padding-left: 16px"><a href="#usage">Usage</a></li>
+        <li style="padding-left: 16px"><a href="#api">API</a></li>
+        <li style="padding-left: 32px"><a href="#pub-const-config">`pub const Config`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-defaults-config">`pub fn defaults() Config`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-minimal-config">`pub fn minimal() Config`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-isenabledself-config-feature-feature-bool">`pub fn isEnabled(self: Config, feature: Feature) bool`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-enabledfeaturesself-config-allocator-stdmemallocator-feature">`pub fn enabledFeatures(self: Config, allocator: std.mem.Allocator) ![]Feature`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-const-feature">`pub const Feature`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-iscompiletimeenabledself-feature-bool">`pub fn isCompileTimeEnabled(self: Feature) bool`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-autoselectbackend-backend">`pub fn autoSelectBackend() Backend`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-llmonlyconfig-llmconfig-aiconfig">`pub fn llmOnly(config: LlmConfig) AiConfig`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-embeddingsonlyconfig-embeddingsconfig-aiconfig">`pub fn embeddingsOnly(config: EmbeddingsConfig) AiConfig`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-inmemory-databaseconfig">`pub fn inMemory() DatabaseConfig`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-standalone-networkconfig">`pub fn standalone() NetworkConfig`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-distributed-networkconfig">`pub fn distributed() NetworkConfig`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-thunderbolt-unifiedmemoryconfig">`pub fn thunderbolt() UnifiedMemoryConfig`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-internet-unifiedmemoryconfig">`pub fn internet() UnifiedMemoryConfig`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-highperformance-linkingconfig">`pub fn highPerformance() LinkingConfig`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-secure-linkingconfig">`pub fn secure() LinkingConfig`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-full-observabilityconfig">`pub fn full() ObservabilityConfig`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-const-builder">`pub const Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withdefaultsself-builder-builder">`pub fn withDefaults(self: *Builder) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withgpuself-builder-gpuconfig-gpuconfig-builder">`pub fn withGpu(self: *Builder, gpu_config: GpuConfig) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withgpudefaultsself-builder-builder">`pub fn withGpuDefaults(self: *Builder) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withaiself-builder-aiconfig-aiconfig-builder">`pub fn withAi(self: *Builder, ai_config: AiConfig) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withaidefaultsself-builder-builder">`pub fn withAiDefaults(self: *Builder) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withllmself-builder-llmconfig-llmconfig-builder">`pub fn withLlm(self: *Builder, llm_config: LlmConfig) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withdatabaseself-builder-dbconfig-databaseconfig-builder">`pub fn withDatabase(self: *Builder, db_config: DatabaseConfig) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withdatabasedefaultsself-builder-builder">`pub fn withDatabaseDefaults(self: *Builder) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withnetworkself-builder-netconfig-networkconfig-builder">`pub fn withNetwork(self: *Builder, net_config: NetworkConfig) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withnetworkdefaultsself-builder-builder">`pub fn withNetworkDefaults(self: *Builder) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withobservabilityself-builder-obsconfig-observabilityconfig-builder">`pub fn withObservability(self: *Builder, obs_config: ObservabilityConfig) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withobservabilitydefaultsself-builder-builder">`pub fn withObservabilityDefaults(self: *Builder) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withwebself-builder-webconfig-webconfig-builder">`pub fn withWeb(self: *Builder, web_config: WebConfig) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withwebdefaultsself-builder-builder">`pub fn withWebDefaults(self: *Builder) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-withpluginsself-builder-pluginconfig-pluginconfig-builder">`pub fn withPlugins(self: *Builder, plugin_config: PluginConfig) *Builder`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-buildself-builder-config">`pub fn build(self: *Builder) Config`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-validateconfig-config-configerrorvoid">`pub fn validate(config: Config) ConfigError!void`</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="config-api-reference">config API Reference<a class="anchor" href="#config-api-reference">#</a></h1>
+
+<blockquote>Unified configuration system with builder pattern</blockquote>
+
+<p><strong>Source:</strong> <a href="../../src/config.zig"><code>src/config.zig</code></a></p>
+
+<hr>
+
+<p>Unified Configuration System</p>
+
+<p>Single source of truth for all ABI framework configuration.</p>
+<p>Supports both struct literal and builder pattern APIs.</p>
+
+<h2 id="usage">Usage<a class="anchor" href="#usage">#</a></h2>
+
+<pre class="code-block language-zig"><code>// Minimal - everything auto-detected with defaults
+var fw = try abi.init(allocator);
+
+// Struct literal style
+var fw = try abi.init(allocator, .{
+.gpu = .{ .backend = .vulkan },
+.ai = .{ .llm = .{} },
+});
+
+// Builder style
+var fw = try abi.Framework.builder(allocator)
+.withGpu(.{ .backend = .cuda })
+.withAi(.{ .llm = .{ .model_path = &quot;./models/llama.gguf&quot; } })
+.withDatabase(.{ .path = &quot;./data&quot; })
+.build();
+</code></pre>
+
+<hr>
+
+<h2 id="api">API<a class="anchor" href="#api">#</a></h2>
+
+<h3 id="pub-const-config"><code>pub const Config</code><a class="anchor" href="#pub-const-config">#</a></h3>
+
+<p>&lt;sup&gt;<strong>type</strong>&lt;/sup&gt;</p>
+
+<p>Unified configuration for the ABI framework.</p>
+<p>Each field being non-null enables that feature with the specified settings.</p>
+<p>A null field means the feature is disabled.</p>
+
+<h3 id="pub-fn-defaults-config"><code>pub fn defaults() Config</code><a class="anchor" href="#pub-fn-defaults-config">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Returns a config with all compile-time enabled features activated with defaults.</p>
+
+<h3 id="pub-fn-minimal-config"><code>pub fn minimal() Config</code><a class="anchor" href="#pub-fn-minimal-config">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Returns a minimal config with no features enabled.</p>
+
+<h3 id="pub-fn-isenabledself-config-feature-feature-bool"><code>pub fn isEnabled(self: Config, feature: Feature) bool</code><a class="anchor" href="#pub-fn-isenabledself-config-feature-feature-bool">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Check if a feature is enabled in this config.</p>
+
+<h3 id="pub-fn-enabledfeaturesself-config-allocator-stdmemallocator-feature"><code>pub fn enabledFeatures(self: Config, allocator: std.mem.Allocator) ![]Feature</code><a class="anchor" href="#pub-fn-enabledfeaturesself-config-allocator-stdmemallocator-feature">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Get list of enabled features.</p>
+
+<h3 id="pub-const-feature"><code>pub const Feature</code><a class="anchor" href="#pub-const-feature">#</a></h3>
+
+<p>&lt;sup&gt;<strong>type</strong>&lt;/sup&gt;</p>
+
+<p>Feature identifiers for the framework.</p>
+
+<h3 id="pub-fn-iscompiletimeenabledself-feature-bool"><code>pub fn isCompileTimeEnabled(self: Feature) bool</code><a class="anchor" href="#pub-fn-iscompiletimeenabledself-feature-bool">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Check if this feature is available at compile time.</p>
+
+<h3 id="pub-fn-autoselectbackend-backend"><code>pub fn autoSelectBackend() Backend</code><a class="anchor" href="#pub-fn-autoselectbackend-backend">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Select the best backend based on availability.</p>
+
+<h3 id="pub-fn-llmonlyconfig-llmconfig-aiconfig"><code>pub fn llmOnly(config: LlmConfig) AiConfig</code><a class="anchor" href="#pub-fn-llmonlyconfig-llmconfig-aiconfig">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable only LLM inference.</p>
+
+<h3 id="pub-fn-embeddingsonlyconfig-embeddingsconfig-aiconfig"><code>pub fn embeddingsOnly(config: EmbeddingsConfig) AiConfig</code><a class="anchor" href="#pub-fn-embeddingsonlyconfig-embeddingsconfig-aiconfig">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable only embeddings.</p>
+
+<h3 id="pub-fn-inmemory-databaseconfig"><code>pub fn inMemory() DatabaseConfig</code><a class="anchor" href="#pub-fn-inmemory-databaseconfig">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>In-memory database configuration.</p>
+
+<h3 id="pub-fn-standalone-networkconfig"><code>pub fn standalone() NetworkConfig</code><a class="anchor" href="#pub-fn-standalone-networkconfig">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Standalone node (no clustering).</p>
+
+<h3 id="pub-fn-distributed-networkconfig"><code>pub fn distributed() NetworkConfig</code><a class="anchor" href="#pub-fn-distributed-networkconfig">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Distributed compute with unified memory.</p>
+
+<h3 id="pub-fn-thunderbolt-unifiedmemoryconfig"><code>pub fn thunderbolt() UnifiedMemoryConfig</code><a class="anchor" href="#pub-fn-thunderbolt-unifiedmemoryconfig">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>High-performance for local Thunderbolt links.</p>
+
+<h3 id="pub-fn-internet-unifiedmemoryconfig"><code>pub fn internet() UnifiedMemoryConfig</code><a class="anchor" href="#pub-fn-internet-unifiedmemoryconfig">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Secure for Internet links.</p>
+
+<h3 id="pub-fn-highperformance-linkingconfig"><code>pub fn highPerformance() LinkingConfig</code><a class="anchor" href="#pub-fn-highperformance-linkingconfig">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>High-performance local linking.</p>
+
+<h3 id="pub-fn-secure-linkingconfig"><code>pub fn secure() LinkingConfig</code><a class="anchor" href="#pub-fn-secure-linkingconfig">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Secure Internet linking.</p>
+
+<h3 id="pub-fn-full-observabilityconfig"><code>pub fn full() ObservabilityConfig</code><a class="anchor" href="#pub-fn-full-observabilityconfig">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Full observability (all features enabled).</p>
+
+<h3 id="pub-const-builder"><code>pub const Builder</code><a class="anchor" href="#pub-const-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>type</strong>&lt;/sup&gt;</p>
+
+<p>Fluent builder for constructing Config instances.</p>
+
+<h3 id="pub-fn-withdefaultsself-builder-builder"><code>pub fn withDefaults(self: *Builder) *Builder</code><a class="anchor" href="#pub-fn-withdefaultsself-builder-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Start with default configuration for all compile-time enabled features.</p>
+
+<h3 id="pub-fn-withgpuself-builder-gpuconfig-gpuconfig-builder"><code>pub fn withGpu(self: *Builder, gpu_config: GpuConfig) *Builder</code><a class="anchor" href="#pub-fn-withgpuself-builder-gpuconfig-gpuconfig-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable GPU with specified configuration.</p>
+
+<h3 id="pub-fn-withgpudefaultsself-builder-builder"><code>pub fn withGpuDefaults(self: *Builder) *Builder</code><a class="anchor" href="#pub-fn-withgpudefaultsself-builder-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable GPU with default configuration.</p>
+
+<h3 id="pub-fn-withaiself-builder-aiconfig-aiconfig-builder"><code>pub fn withAi(self: *Builder, ai_config: AiConfig) *Builder</code><a class="anchor" href="#pub-fn-withaiself-builder-aiconfig-aiconfig-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable AI with specified configuration.</p>
+
+<h3 id="pub-fn-withaidefaultsself-builder-builder"><code>pub fn withAiDefaults(self: *Builder) *Builder</code><a class="anchor" href="#pub-fn-withaidefaultsself-builder-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable AI with default configuration.</p>
+
+<h3 id="pub-fn-withllmself-builder-llmconfig-llmconfig-builder"><code>pub fn withLlm(self: *Builder, llm_config: LlmConfig) *Builder</code><a class="anchor" href="#pub-fn-withllmself-builder-llmconfig-llmconfig-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable LLM only (convenience method).</p>
+
+<h3 id="pub-fn-withdatabaseself-builder-dbconfig-databaseconfig-builder"><code>pub fn withDatabase(self: *Builder, db_config: DatabaseConfig) *Builder</code><a class="anchor" href="#pub-fn-withdatabaseself-builder-dbconfig-databaseconfig-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable database with specified configuration.</p>
+
+<h3 id="pub-fn-withdatabasedefaultsself-builder-builder"><code>pub fn withDatabaseDefaults(self: *Builder) *Builder</code><a class="anchor" href="#pub-fn-withdatabasedefaultsself-builder-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable database with default configuration.</p>
+
+<h3 id="pub-fn-withnetworkself-builder-netconfig-networkconfig-builder"><code>pub fn withNetwork(self: *Builder, net_config: NetworkConfig) *Builder</code><a class="anchor" href="#pub-fn-withnetworkself-builder-netconfig-networkconfig-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable network with specified configuration.</p>
+
+<h3 id="pub-fn-withnetworkdefaultsself-builder-builder"><code>pub fn withNetworkDefaults(self: *Builder) *Builder</code><a class="anchor" href="#pub-fn-withnetworkdefaultsself-builder-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable network with default configuration.</p>
+
+<h3 id="pub-fn-withobservabilityself-builder-obsconfig-observabilityconfig-builder"><code>pub fn withObservability(self: *Builder, obs_config: ObservabilityConfig) *Builder</code><a class="anchor" href="#pub-fn-withobservabilityself-builder-obsconfig-observabilityconfig-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable observability with specified configuration.</p>
+
+<h3 id="pub-fn-withobservabilitydefaultsself-builder-builder"><code>pub fn withObservabilityDefaults(self: *Builder) *Builder</code><a class="anchor" href="#pub-fn-withobservabilitydefaultsself-builder-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable observability with default configuration.</p>
+
+<h3 id="pub-fn-withwebself-builder-webconfig-webconfig-builder"><code>pub fn withWeb(self: *Builder, web_config: WebConfig) *Builder</code><a class="anchor" href="#pub-fn-withwebself-builder-webconfig-webconfig-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable web with specified configuration.</p>
+
+<h3 id="pub-fn-withwebdefaultsself-builder-builder"><code>pub fn withWebDefaults(self: *Builder) *Builder</code><a class="anchor" href="#pub-fn-withwebdefaultsself-builder-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Enable web with default configuration.</p>
+
+<h3 id="pub-fn-withpluginsself-builder-pluginconfig-pluginconfig-builder"><code>pub fn withPlugins(self: *Builder, plugin_config: PluginConfig) *Builder</code><a class="anchor" href="#pub-fn-withpluginsself-builder-pluginconfig-pluginconfig-builder">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Configure plugins.</p>
+
+<h3 id="pub-fn-buildself-builder-config"><code>pub fn build(self: *Builder) Config</code><a class="anchor" href="#pub-fn-buildself-builder-config">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Finalize and return the configuration.</p>
+
+<h3 id="pub-fn-validateconfig-config-configerrorvoid"><code>pub fn validate(config: Config) ConfigError!void</code><a class="anchor" href="#pub-fn-validateconfig-config-configerrorvoid">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Validate configuration against compile-time constraints.</p>
+
+<hr>
+
+<p>*Generated automatically by <code>zig build gendocs</code>*</p>
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>troubleshooting - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>troubleshooting</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#troubleshooting">Troubleshooting</a></li>
+        <li style="padding-left: 16px"><a href="#build-issues">Build Issues</a></li>
+        <li style="padding-left: 32px"><a href="#feature-disabled-errors">Feature Disabled Errors</a></li>
+        <li style="padding-left: 32px"><a href="#gpu-backend-conflicts">GPU Backend Conflicts</a></li>
+        <li style="padding-left: 32px"><a href="#wasm-build-missing-features">WASM Build Missing Features</a></li>
+        <li style="padding-left: 32px"><a href="#slow-builds">Slow Builds</a></li>
+        <li style="padding-left: 32px"><a href="#test-filter-not-working">Test Filter Not Working</a></li>
+        <li style="padding-left: 16px"><a href="#runtime-issues">Runtime Issues</a></li>
+        <li style="padding-left: 32px"><a href="#out-of-memory">Out of Memory</a></li>
+        <li style="padding-left: 32px"><a href="#timeout-errors">Timeout Errors</a></li>
+        <li style="padding-left: 32px"><a href="#connection-refused-network">Connection Refused (Network)</a></li>
+        <li style="padding-left: 32px"><a href="#gpu-not-detected">GPU Not Detected</a></li>
+        <li style="padding-left: 32px"><a href="#gpu-operations-failing-degradation-202601">GPU Operations Failing / Degradation (2026.01)</a></li>
+        <li style="padding-left: 32px"><a href="#database-path-validation-error">Database Path Validation Error</a></li>
+        <li style="padding-left: 32px"><a href="#database-health-issues-202601">Database Health Issues (2026.01)</a></li>
+        <li style="padding-left: 32px"><a href="#ai-agent-api-errors-202601">AI Agent API Errors (2026.01)</a></li>
+        <li style="padding-left: 16px"><a href="#api-issues">API Issues</a></li>
+        <li style="padding-left: 32px"><a href="#zig-016-io-migration">Zig 0.16 I/O Migration</a></li>
+        <li style="padding-left: 32px"><a href="#http-server-interface-access">HTTP Server Interface Access</a></li>
+        <li style="padding-left: 32px"><a href="#format-specifier-errors">Format Specifier Errors</a></li>
+        <li style="padding-left: 16px"><a href="#performance-issues">Performance Issues</a></li>
+        <li style="padding-left: 32px"><a href="#high-cpu-usage">High CPU Usage</a></li>
+        <li style="padding-left: 32px"><a href="#memory-leaks">Memory Leaks</a></li>
+        <li style="padding-left: 32px"><a href="#slow-database-queries">Slow Database Queries</a></li>
+        <li style="padding-left: 16px"><a href="#debugging-with-gdblldb">Debugging with GDB/LLDB</a></li>
+        <li style="padding-left: 32px"><a href="#source-level-debugging">Source-Level Debugging</a></li>
+        <li style="padding-left: 32px"><a href="#debugging-memory-issues">Debugging Memory Issues</a></li>
+        <li style="padding-left: 32px"><a href="#debugging-gpu-operations">Debugging GPU Operations</a></li>
+        <li style="padding-left: 32px"><a href="#debugging-task-execution">Debugging Task Execution</a></li>
+        <li style="padding-left: 16px"><a href="#getting-help">Getting Help</a></li>
+        <li style="padding-left: 16px"><a href="#see-also">See Also</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="troubleshooting">Troubleshooting<a class="anchor" href="#troubleshooting">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<p>Common issues and solutions when working with the ABI Framework.</p>
+
+<hr>
+
+<h2 id="build-issues">Build Issues<a class="anchor" href="#build-issues">#</a></h2>
+
+<h3 id="feature-disabled-errors">Feature Disabled Errors<a class="anchor" href="#feature-disabled-errors">#</a></h3>
+
+<p><strong>Symptom</strong>: Getting errors like <code>error.AiDisabled</code>, <code>error.GpuDisabled</code>, or <code>error.NetworkDisabled</code> at runtime.</p>
+
+<p><strong>Cause</strong>: The feature was disabled at compile time.</p>
+
+<p><strong>Solution</strong>: Rebuild with the feature enabled:</p>
+
+<pre class="code-block language-bash"><code># Enable specific features
+zig build -Denable-ai=true
+zig build -Denable-gpu=true
+zig build -Denable-network=true
+zig build -Denable-database=true
+
+# Enable all features
+zig build -Denable-ai=true -Denable-gpu=true -Denable-database=true -Denable-network=true -Denable-profiling=true
+</code></pre>
+
+<hr>
+
+<h3 id="gpu-backend-conflicts">GPU Backend Conflicts<a class="anchor" href="#gpu-backend-conflicts">#</a></h3>
+
+<p><strong>Symptom</strong>: Warning about CUDA and Vulkan conflicts, or GPU operations failing.</p>
+
+<p><strong>Cause</strong>: Multiple GPU backends enabled that may conflict.</p>
+
+<p><strong>Solution</strong>: Enable only one GPU backend:</p>
+
+<pre class="code-block language-bash"><code># Use only CUDA
+zig build -Dgpu-cuda=true -Dgpu-vulkan=false -Dgpu-metal=false
+
+# Use only Vulkan (default)
+zig build -Dgpu-vulkan=true -Dgpu-cuda=false
+
+# Use CPU fallback (stdgpu)
+zig build -Dgpu-stdgpu=true -Dgpu-cuda=false -Dgpu-vulkan=false
+</code></pre>
+
+<hr>
+
+<h3 id="wasm-build-missing-features">WASM Build Missing Features<a class="anchor" href="#wasm-build-missing-features">#</a></h3>
+
+<p><strong>Symptom</strong>: Features unavailable when building for WASM.</p>
+
+<p><strong>Cause</strong>: Certain features are automatically disabled for WASM targets due to platform limitations.</p>
+
+<p><strong>Expected behavior</strong>: These features are disabled in WASM builds:</p>
+<li><code>database</code> - No <code>std.Io.Threaded</code> support</li>
+<li><code>network</code> - No socket support</li>
+<li><code>gpu</code> - Native GPU backends unavailable</li>
+
+<p><strong>Solution</strong>: This is by design. Use the JavaScript/browser equivalents for these features in WASM builds.</p>
+
+<hr>
+
+<h3 id="slow-builds">Slow Builds<a class="anchor" href="#slow-builds">#</a></h3>
+
+<p><strong>Symptom</strong>: Build takes longer than expected.</p>
+
+<p><strong>Solutions</strong>:</p>
+
+<p>1. Clear the build cache:</p>
+<p>   <code></code>`bash</p>
+<p>   rm -rf .zig-cache</p>
+<p>   zig build</p>
+<p>   <code></code>`</p>
+
+<p>2. Reduce parallel jobs:</p>
+<p>   <code></code>`bash</p>
+<p>   zig build -j 2</p>
+<p>   <code></code>`</p>
+
+<p>3. Disable unused features:</p>
+<p>   <code></code>`bash</p>
+<p>   zig build -Denable-network=false -Denable-profiling=false</p>
+<p>   <code></code>`</p>
+
+<p>4. Check disk space - Zig needs space for incremental compilation.</p>
+
+<hr>
+
+<h3 id="test-filter-not-working">Test Filter Not Working<a class="anchor" href="#test-filter-not-working">#</a></h3>
+
+<p><strong>Symptom</strong>: <code>zig build test --test-filter &quot;pattern&quot;</code> doesn't filter tests.</p>
+
+<p><strong>Cause</strong>: <code>--test-filter</code> must be passed directly to <code>zig test</code>, not through <code>zig build test</code>.</p>
+
+<p><strong>Solution</strong>:</p>
+
+<pre class="code-block language-bash"><code># Correct - filter tests directly
+zig test src/tests/mod.zig --test-filter &quot;pattern&quot;
+
+# Does NOT work with zig build
+zig build test --test-filter &quot;pattern&quot;  # Won't filter
+</code></pre>
+
+<hr>
+
+<h2 id="runtime-issues">Runtime Issues<a class="anchor" href="#runtime-issues">#</a></h2>
+
+<h3 id="out-of-memory">Out of Memory<a class="anchor" href="#out-of-memory">#</a></h3>
+
+<p><strong>Symptom</strong>: <code>error.OutOfMemory</code> during operation.</p>
+
+<p><strong>Solutions</strong>:</p>
+
+<p>1. Use arena allocators for temporary allocations:</p>
+<p>   <code></code>`zig</p>
+<p>   var arena = std.heap.ArenaAllocator.init(allocator);</p>
+<p>   defer arena.deinit();</p>
+<p>   const temp_allocator = arena.allocator();</p>
+<p>   <code></code>`</p>
+
+<p>2. Free memory promptly with <code>defer</code>:</p>
+<p>   <code></code>`zig</p>
+<p>   const data = try allocator.alloc(u8, size);</p>
+<p>   defer allocator.free(data);</p>
+<p>   <code></code>`</p>
+
+<p>3. Reduce batch sizes for database operations:</p>
+<p>   <code></code>`zig</p>
+<p>   const config = batch.BatchConfig{</p>
+<p>       .batch_size = 500,  // Reduce from default 1000</p>
+<p>   };</p>
+<p>   <code></code>`</p>
+
+<p>4. Limit GPU memory:</p>
+<p>   <code></code>`zig</p>
+<p>   var gpu = try abi.Gpu.init(allocator, .{</p>
+<p>       .max_memory_bytes = 512 * 1024 * 1024,  // 512MB limit</p>
+<p>   });</p>
+<p>   <code></code>`</p>
+
+<hr>
+
+<h3 id="timeout-errors">Timeout Errors<a class="anchor" href="#timeout-errors">#</a></h3>
+
+<p><strong>Symptom</strong>: <code>EngineError.Timeout</code> when waiting for task results.</p>
+
+<p><strong>Cause</strong>: Task taking longer than specified timeout.</p>
+
+<p><strong>Solutions</strong>:</p>
+
+<p>1. Increase timeout:</p>
+<p>   <code></code>`zig</p>
+<p>   // Wait longer (5 seconds instead of 1)</p>
+<p>   const result = try abi.runtime.runTask(&amp;engine, u32, myTask, 5000);</p>
+
+<p>   // Wait indefinitely</p>
+<p>   const result = try abi.runtime.runTask(&amp;engine, u32, myTask, null);</p>
+<p>   <code></code>`</p>
+
+<p>2. Check for blocking operations in task code.</p>
+
+<p>3. Verify worker threads are running:</p>
+<p>   <code></code>`zig</p>
+<p>   const summary = engine.getMetricsSummary();</p>
+<p>   std.debug.print(&quot;Active workers: {d}\n&quot;, .{summary.active_workers});</p>
+<p>   <code></code>`</p>
+
+<hr>
+
+<h3 id="connection-refused-network">Connection Refused (Network)<a class="anchor" href="#connection-refused-network">#</a></h3>
+
+<p><strong>Symptom</strong>: <code>error.NodeUnreachable</code> or connection failures.</p>
+
+<p><strong>Solutions</strong>:</p>
+
+<p>1. Check if the target service is running:</p>
+<p>   <code></code>`bash</p>
+<p>   # For Ollama</p>
+<p>   curl http://127.0.0.1:11434/api/version</p>
+
+<p>   # For local scheduler</p>
+<p>   curl http://127.0.0.1:8081/health</p>
+<p>   <code></code>`</p>
+
+<p>2. Verify environment variables:</p>
+<p>   <code></code>`bash</p>
+<p>   echo $ABI_OLLAMA_HOST</p>
+<p>   echo $ABI_LOCAL_SCHEDULER_URL</p>
+<p>   <code></code>`</p>
+
+<p>3. Check firewall rules for the port.</p>
+
+<p>4. Use circuit breaker for graceful degradation:</p>
+<p>   <code></code>`zig</p>
+<p>   var breaker = try abi.network.CircuitBreaker.init(allocator, .{</p>
+<p>       .failure_threshold = 5,</p>
+<p>       .reset_timeout_ms = 30000,</p>
+<p>   });</p>
+<p>   <code></code>`</p>
+
+<hr>
+
+<h3 id="gpu-not-detected">GPU Not Detected<a class="anchor" href="#gpu-not-detected">#</a></h3>
+
+<p><strong>Symptom</strong>: GPU operations fall back to CPU simulation.</p>
+
+<p><strong>Solutions</strong>:</p>
+
+<p>1. Check available backends:</p>
+<p>   <code></code>`bash</p>
+<p>   zig build run -- gpu backends</p>
+<p>   zig build run -- gpu devices</p>
+<p>   <code></code>`</p>
+
+<p>2. Verify GPU drivers are installed.</p>
+
+<p>3. For CUDA, ensure NVIDIA drivers and toolkit are installed.</p>
+
+<p>4. For Vulkan, install Vulkan SDK and runtime.</p>
+
+<p>5. Try explicit backend selection:</p>
+<p>   <code></code>`zig</p>
+<p>   var gpu = try abi.Gpu.init(allocator, .{</p>
+<p>       .preferred_backend = .vulkan,</p>
+<p>       .allow_fallback = false,  // Fail instead of falling back</p>
+<p>   });</p>
+<p>   <code></code>`</p>
+
+<p>6. <strong>Use diagnostics</strong> (2026.01): <code>const diag = gpu_mod.DiagnosticsInfo.collect(allocator); if (diag.is_degraded) { ... }</code></p>
+
+<hr>
+
+<h3 id="gpu-operations-failing-degradation-202601">GPU Operations Failing / Degradation (2026.01)<a class="anchor" href="#gpu-operations-failing-degradation-202601">#</a></h3>
+
+<p><strong>Silent failures</strong>: Use <code>error_handling.ErrorContext.init(.backend_error, backend, &quot;msg&quot;)</code> to capture context.</p>
+
+<p><strong>No CPU fallback</strong>: Use <code>failover.FailoverManager.init(allocator)</code> with <code>.setDegradationMode(.automatic)</code>.</p>
+
+<hr>
+
+<h3 id="database-path-validation-error">Database Path Validation Error<a class="anchor" href="#database-path-validation-error">#</a></h3>
+
+<p><strong>Symptom</strong>: <code>PathValidationError</code> on backup/restore.</p>
+
+<p><strong>Cause</strong>: Path contains unsafe characters or traversal sequences.</p>
+
+<p><strong>Solution</strong>: Use safe filenames without path separators:</p>
+
+<pre class="code-block language-zig"><code>// Good - simple filename
+try db.backup(&quot;snapshot_2025.db&quot;);
+try db.restore(&quot;snapshot_2025.db&quot;);
+
+// Bad - path traversal (will fail)
+try db.restore(&quot;../../../secret.txt&quot;);  // PathValidationError
+try db.restore(&quot;/etc/passwd&quot;);           // PathValidationError
+try db.restore(&quot;C:\\Windows\\file.db&quot;);  // PathValidationError
+</code></pre>
+
+<p>All backup/restore operations are restricted to the <code>backups/</code> directory.</p>
+
+<hr>
+
+<h3 id="database-health-issues-202601">Database Health Issues (2026.01)<a class="anchor" href="#database-health-issues-202601">#</a></h3>
+
+<p><strong>Slow/inconsistent results</strong>: Use <code>const diag = db.diagnostics(); if (!diag.isHealthy()) { try db.rebuildNormCache(); }</code></p>
+
+<p><strong>Search performance</strong>: Enable <code>.cache_norms = true</code>, use <code>db.searchBatch()</code> for multiple queries.</p>
+
+<hr>
+
+<h3 id="ai-agent-api-errors-202601">AI Agent API Errors (2026.01)<a class="anchor" href="#ai-agent-api-errors-202601">#</a></h3>
+
+<p><strong>Debugging</strong>: Use <code>agent.ErrorContext.apiError(err, .openai, endpoint, status, model)</code> then <code>ctx.log()</code>.</p>
+
+<p><strong>Common errors</strong>: <code>ApiKeyMissing</code> (set env var), <code>RateLimitExceeded</code> (increase backoff), <code>Timeout</code> (check network), <code>ConnectionRefused</code> (start Ollama), <code>ModelNotFound</code> (download model).</p>
+
+<p><strong>Rate limiting</strong>: Use <code>ErrorContext.retryError()</code> with exponential backoff.</p>
+
+<hr>
+
+<h2 id="api-issues">API Issues<a class="anchor" href="#api-issues">#</a></h2>
+
+<h3 id="zig-016-io-migration">Zig 0.16 I/O Migration<a class="anchor" href="#zig-016-io-migration">#</a></h3>
+
+<p><strong>Symptom</strong>: Code using <code>std.fs.cwd()</code> or <code>std.io.AnyReader</code> doesn't compile.</p>
+
+<p><strong>Cause</strong>: Zig 0.16 uses the new <code>std.Io</code> API.</p>
+
+<p><strong>Solution</strong>: Update to new patterns:</p>
+
+<pre class="code-block language-zig"><code>// OLD (Zig 0.15)
+const file = try std.fs.cwd().openFile(path, .{});
+
+// NEW (Zig 0.16)
+var io_backend = std.Io.Threaded.init(allocator, .{
+    .environ = std.process.Environ.empty,
+});
+defer io_backend.deinit();
+const io = io_backend.io();
+
+const content = try std.Io.Dir.cwd().readFileAlloc(
+    io, path, allocator, .limited(10 * 1024 * 1024)
+);
+defer allocator.free(content);
+</code></pre>
+
+<p>See <a href="migration/zig-0.16-migration.md">Zig 0.16 Migration Guide</a> for full details.</p>
+
+<hr>
+
+<h3 id="http-server-interface-access">HTTP Server Interface Access<a class="anchor" href="#http-server-interface-access">#</a></h3>
+
+<p><strong>Symptom</strong>: Compilation error when initializing <code>std.http.Server</code>.</p>
+
+<p><strong>Cause</strong>: Need to use <code>.interface</code> field for reader/writer.</p>
+
+<p><strong>Solution</strong>:</p>
+
+<pre class="code-block language-zig"><code>// Correct pattern for Zig 0.16
+var connection_reader = stream.reader(io, &amp;recv_buffer);
+var connection_writer = stream.writer(io, &amp;send_buffer);
+var server: std.http.Server = .init(
+    &amp;connection_reader.interface,  // Use .interface
+    &amp;connection_writer.interface,
+);
+</code></pre>
+
+<hr>
+
+<h3 id="format-specifier-errors">Format Specifier Errors<a class="anchor" href="#format-specifier-errors">#</a></h3>
+
+<p><strong>Symptom</strong>: Compilation warnings about <code>@tagName()</code> or <code>@errorName()</code>.</p>
+
+<p><strong>Cause</strong>: Zig 0.16 prefers <code>{t}</code> format specifier.</p>
+
+<p><strong>Solution</strong>:</p>
+
+<pre class="code-block language-zig"><code>// OLD
+std.debug.print(&quot;Error: {s}&quot;, .{@errorName(err)});
+std.debug.print(&quot;State: {s}&quot;, .{@tagName(state)});
+
+// NEW (Zig 0.16)
+std.debug.print(&quot;Error: {t}&quot;, .{err});
+std.debug.print(&quot;State: {t}&quot;, .{state});
+</code></pre>
+
+<hr>
+
+<h2 id="performance-issues">Performance Issues<a class="anchor" href="#performance-issues">#</a></h2>
+
+<h3 id="high-cpu-usage">High CPU Usage<a class="anchor" href="#high-cpu-usage">#</a></h3>
+
+<p><strong>Symptom</strong>: CPU usage higher than expected.</p>
+
+<p><strong>Solutions</strong>:</p>
+
+<p>1. Reduce worker thread count:</p>
+<p>   <code></code>`zig</p>
+<p>   var engine = try abi.runtime.createEngine(allocator, .{</p>
+<p>       .worker_count = 2,  // Reduce from default</p>
+<p>   });</p>
+<p>   <code></code>`</p>
+
+<p>2. Add backoff in busy loops:</p>
+<p>   <code></code>`zig</p>
+<p>   const backoff = abi.compute.Backoff.init();</p>
+<p>   while (condition) {</p>
+<p>       backoff.wait();</p>
+<p>   }</p>
+<p>   <code></code>`</p>
+
+<p>3. Use profiling to find bottlenecks:</p>
+<p>   <code></code>`zig</p>
+<p>   var timer = try std.time.Timer.start();</p>
+<p>   // operation</p>
+<p>   const elapsed = timer.read();</p>
+<p>   <code></code>`</p>
+
+<hr>
+
+<h3 id="memory-leaks">Memory Leaks<a class="anchor" href="#memory-leaks">#</a></h3>
+
+<p><strong>Symptom</strong>: Memory usage grows over time.</p>
+
+<p><strong>Solutions</strong>:</p>
+
+<p>1. Ensure every allocation has corresponding deallocation:</p>
+<p>   <code></code>`zig</p>
+<p>   const data = try allocator.alloc(u8, size);</p>
+<p>   defer allocator.free(data);  // Always free</p>
+<p>   <code></code>`</p>
+
+<p>2. Use <code>errdefer</code> for cleanup on error:</p>
+<p>   <code></code>`zig</p>
+<p>   const resource = try allocator.create(Resource);</p>
+<p>   errdefer allocator.destroy(resource);</p>
+<p>   try resource.init();  // If this fails, resource is freed</p>
+<p>   <code></code>`</p>
+
+<p>3. Check for circular references in data structures.</p>
+
+<p>4. Use <code>std.heap.GeneralPurposeAllocator</code> in debug builds:</p>
+<p>   <code></code>`zig</p>
+<p>   var gpa = std.heap.GeneralPurposeAllocator(.{</p>
+<p>       .stack_trace_frames = 10,</p>
+<p>   }){};</p>
+<p>   defer {</p>
+<p>       const check = gpa.deinit();</p>
+<p>       if (check == .leak) @panic(&quot;Memory leak detected&quot;);</p>
+<p>   }</p>
+<p>   <code></code>`</p>
+
+<hr>
+
+<h3 id="slow-database-queries">Slow Database Queries<a class="anchor" href="#slow-database-queries">#</a></h3>
+
+<p><strong>Symptom</strong>: Vector search taking too long.</p>
+
+<p><strong>Solutions</strong>:</p>
+
+<p>1. Optimize HNSW parameters:</p>
+<p>   <code></code>`zig</p>
+<p>   const config = wdbx.HnswConfig{</p>
+<p>       .m = 16,              // Connections per node</p>
+<p>       .ef_construction = 200,  // Index build quality</p>
+<p>       .ef_search = 50,      // Search quality (lower = faster)</p>
+<p>   };</p>
+<p>   <code></code>`</p>
+
+<p>2. Use batch operations:</p>
+<p>   <code></code>`zig</p>
+<p>   const result = try db.batchInsert(records, .{</p>
+<p>       .batch_size = 1000,</p>
+<p>       .parallel_workers = 4,</p>
+<p>   });</p>
+<p>   <code></code>`</p>
+
+<p>3. Pre-filter with metadata:</p>
+<p>   <code></code>`zig</p>
+<p>   const results = try db.searchVectors(query, 10, .{</p>
+<p>       .filter = filter.Filter.init().field(&quot;category&quot;).eq(.{ .string = &quot;tech&quot; }),</p>
+<p>       .filter_strategy = .pre_filter,</p>
+<p>   });</p>
+<p>   <code></code>`</p>
+
+<hr>
+
+<h2 id="debugging-with-gdblldb">Debugging with GDB/LLDB<a class="anchor" href="#debugging-with-gdblldb">#</a></h2>
+
+<h3 id="source-level-debugging">Source-Level Debugging<a class="anchor" href="#source-level-debugging">#</a></h3>
+
+<p>ABI Framework supports debugging with standard debuggers (GDB, LLDB). To enable source-level debugging:</p>
+
+<p><strong>Build with Debug Info</strong>:</p>
+<pre class="code-block language-bash"><code># Debug build (default)
+zig build -Doptimize=Debug
+
+# Release with debug info
+zig build -Doptimize=ReleaseSafe
+</code></pre>
+
+<p><strong>Using GDB</strong>:</p>
+<pre class="code-block language-bash"><code># Debug the CLI
+gdb ./zig-out/bin/abi
+
+# Set breakpoints
+(gdb) break src/compute/runtime/engine.zig:150
+(gdb) run -- db stats
+
+# Step through code
+(gdb) next
+(gdb) step
+(gdb) continue
+
+# Print variables
+(gdb) print worker_count
+(gdb) info locals
+</code></pre>
+
+<p><strong>Using LLDB</strong> (recommended on macOS):</p>
+<pre class="code-block language-bash"><code># Debug the CLI
+lldb ./zig-out/bin/abi
+
+# Set breakpoints
+(lldb) breakpoint set --file engine.zig --line 150
+(lldb) run -- db stats
+
+# Step through code
+(lldb) next
+(lldb) step
+(lldb) continue
+
+# Print variables
+(lldb) frame variable
+(lldb) print worker_count
+</code></pre>
+
+<p><strong>Common Debug Commands</strong>:</p>
+
+<tr><td>GDB</td><td>LLDB</td><td>Description</td></tr>
+<tr><td><code>break file:line</code></td><td><code>b file:line</code></td><td>Set breakpoint</td></tr>
+<tr><td><code>run</code></td><td><code>run</code></td><td>Start program</td></tr>
+<tr><td><code>continue</code></td><td><code>continue</code></td><td>Continue execution</td></tr>
+<tr><td><code>next</code></td><td><code>next</code></td><td>Step over</td></tr>
+<tr><td><code>step</code></td><td><code>step</code></td><td>Step into</td></tr>
+<tr><td><code>print var</code></td><td><code>print var</code></td><td>Print variable</td></tr>
+<tr><td><code>backtrace</code></td><td><code>bt</code></td><td>Show call stack</td></tr>
+<tr><td><code>info threads</code></td><td><code>thread list</code></td><td>List threads</td></tr>
+
+<h3 id="debugging-memory-issues">Debugging Memory Issues<a class="anchor" href="#debugging-memory-issues">#</a></h3>
+
+<p>Use the built-in <code>TrackingAllocator</code> for leak detection:</p>
+
+<pre class="code-block language-zig"><code>const tracking = @import(&quot;src/shared/utils/memory/tracking.zig&quot;);
+
+var tracker = tracking.TrackingAllocator.init(std.heap.page_allocator, .{});
+defer {
+    if (tracker.detectLeaks()) {
+        tracker.dumpLeaks(std.io.getStdErr().writer()) catch {};
+    }
+    tracker.deinit();
+}
+const allocator = tracker.allocator();
+// Use allocator for operations...
+</code></pre>
+
+<h3 id="debugging-gpu-operations">Debugging GPU Operations<a class="anchor" href="#debugging-gpu-operations">#</a></h3>
+
+<p>Enable GPU profiling for timing and memory transfer analysis:</p>
+
+<pre class="code-block language-zig"><code>const gpu_profiling = @import(&quot;src/gpu/profiling.zig&quot;);
+
+var profiler = gpu_profiling.Profiler.init(allocator);
+defer profiler.deinit(allocator);
+
+profiler.enable();
+// Run GPU operations...
+gpu_profiling.formatSummary(&amp;profiler, std.io.getStdErr().writer()) catch {};
+</code></pre>
+
+<h3 id="debugging-task-execution">Debugging Task Execution<a class="anchor" href="#debugging-task-execution">#</a></h3>
+
+<p>Use the compute profiler to track task metrics:</p>
+
+<pre class="code-block language-zig"><code>const profiling = @import(&quot;src/compute/profiling/mod.zig&quot;);
+
+var collector = try profiling.initCollector(allocator, .{}, worker_count);
+defer collector.deinit();
+
+// After running tasks...
+const summary = collector.getSummary();
+std.debug.print(&quot;Total tasks: {d}, Avg time: {d}ns\n&quot;, .{
+    summary.total_tasks,
+    summary.avg_execution_ns,
+});
+</code></pre>
+
+<hr>
+
+<h2 id="getting-help">Getting Help<a class="anchor" href="#getting-help">#</a></h2>
+
+<p>If your issue isn't covered here:</p>
+
+<p>1. Check the <a href="https://github.com/donaldfilimon/abi/issues">GitHub Issues</a></p>
+<p>2. Review the relevant feature documentation</p>
+<p>3. Run with debug logging enabled</p>
+<p>4. Check the <a href="PERFORMANCE_BASELINE.md">Performance Baseline</a> for expected metrics</p>
+
+<hr>
+
+<h2 id="see-also">See Also<a class="anchor" href="#see-also">#</a></h2>
+
+<li><a href="framework.md">Framework</a> - Configuration options</li>
+<li><a href="monitoring.md">Monitoring</a> - Debugging with metrics</li>
+<li><a href="migration/zig-0.16-migration.md">Zig 0.16 Migration</a> - API changes</li>
+<li><a href="PERFORMANCE_BASELINE.md">Performance Baseline</a> - Expected performance</li>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>zig-0.16-migration - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>zig-0.16-migration</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#zig-016-migration-guide">Zig 0.16 Migration Guide</a></li>
+        <li style="padding-left: 16px"><a href="#overview">Overview</a></li>
+        <li style="padding-left: 16px"><a href="#changes-made">Changes Made</a></li>
+        <li style="padding-left: 32px"><a href="#1-reader-type-migration">1. Reader Type Migration</a></li>
+        <li style="padding-left: 32px"><a href="#2-http-server-initialization">2. HTTP Server Initialization</a></li>
+        <li style="padding-left: 32px"><a href="#3-file-reader-delimiter-methods">3. File Reader Delimiter Methods</a></li>
+        <li style="padding-left: 32px"><a href="#4-format-specifiers-for-errors-and-enums">4. Format Specifiers for Errors and Enums</a></li>
+        <li style="padding-left: 32px"><a href="#5-synchronous-file-io-with-stdiothreaded">5. Synchronous File I/O with std.Io.Threaded</a></li>
+        <li style="padding-left: 32px"><a href="#6-timing-and-measurement">6. Timing and Measurement</a></li>
+        <li style="padding-left: 32px"><a href="#7-sleep-api">7. Sleep API</a></li>
+        <li style="padding-left: 32px"><a href="#8-aligned-memory-allocation">8. Aligned Memory Allocation</a></li>
+        <li style="padding-left: 32px"><a href="#9-memory-management">9. Memory Management</a></li>
+        <li style="padding-left: 16px"><a href="#api-compatibility-notes">API Compatibility Notes</a></li>
+        <li style="padding-left: 32px"><a href="#reader-type-hierarchy">Reader Type Hierarchy</a></li>
+        <li style="padding-left: 32px"><a href="#http-server-initialization">HTTP Server Initialization</a></li>
+        <li style="padding-left: 16px"><a href="#testing">Testing</a></li>
+        <li style="padding-left: 16px"><a href="#build-configuration">Build Configuration</a></li>
+        <li style="padding-left: 32px"><a href="#ci-changes">CI Changes</a></li>
+        <li style="padding-left: 16px"><a href="#breaking-changes-summary">Breaking Changes Summary</a></li>
+        <li style="padding-left: 16px"><a href="#migration-checklist">Migration Checklist</a></li>
+        <li style="padding-left: 16px"><a href="#next-steps">Next Steps</a></li>
+        <li style="padding-left: 16px"><a href="#references">References</a></li>
+        <li style="padding-left: 16px"><a href="#see-also">See Also</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="zig-016-migration-guide">Zig 0.16 Migration Guide<a class="anchor" href="#zig-016-migration-guide">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<blockquote><strong>Status:</strong> Complete ✅</blockquote>
+<blockquote><strong>Developer Guide</strong>: See <a href="../../CONTRIBUTING.md">CONTRIBUTING.md</a> for coding patterns and <a href="../../CLAUDE.md">CLAUDE.md</a> for comprehensive guidance.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Last Updated:</strong> January 16, 2026</blockquote>
+<blockquote><strong>Zig Version:</strong> 0.16.x</blockquote>
+
+<h2 id="overview">Overview<a class="anchor" href="#overview">#</a></h2>
+
+<p>This guide documents the completed migration of the ABI Framework to Zig 0.16.x. The migration includes:</p>
+
+<li><strong>std.Io unified API</strong> - Full adoption of the new I/O interface</li>
+<li><strong>std.Io.Threaded</strong> - Synchronous file operations</li>
+<li><strong>std.Io.Dir.cwd()</strong> - Replaces deprecated <code>std.fs.cwd()</code></li>
+<li><strong>std.time.Timer</strong> - High-precision timing</li>
+<li><strong>std.Io.Clock.Duration</strong> - Sleep operations</li>
+<li><strong>std.ArrayListUnmanaged</strong> - Explicit allocator passing</li>
+<li><strong>Format specifiers</strong> - <code>{t}</code>, <code>{B}</code>, <code>{D}</code> for modern formatting</li>
+
+<h2 id="changes-made">Changes Made<a class="anchor" href="#changes-made">#</a></h2>
+
+<h3 id="1-reader-type-migration">1. Reader Type Migration<a class="anchor" href="#1-reader-type-migration">#</a></h3>
+
+<p><strong>File</strong>: <code>src/shared/utils/http/async_http.zig</code></p>
+
+<p><strong>Change</strong>: Replaced <code>std.io.AnyReader</code> with <code>std.Io.Reader</code></p>
+
+<pre class="code-block language-zig"><code>// OLD (Zig 0.15)
+pub const StreamingResponse = struct {
+    reader: std.io.AnyReader,
+    response: HttpResponse,
+    // ...
+};
+
+// NEW (Zig 0.16)
+pub const StreamingResponse = struct {
+    reader: std.Io.Reader,
+    response: HttpResponse,
+    // ...
+};
+</code></pre>
+
+<p><strong>Impact</strong>: Streaming HTTP responses now use the new unified reader interface.</p>
+
+<h3 id="2-http-server-initialization">2. HTTP Server Initialization<a class="anchor" href="#2-http-server-initialization">#</a></h3>
+
+<p><strong>File</strong>: <code>src/features/database/http.zig</code></p>
+
+<p><strong>Status</strong>: ✅ CORRECT - Uses <code>.interface</code> access for <code>std.http.Server</code></p>
+
+<p><strong>Pattern</strong>: The <code>std.http.Server.init()</code> function expects <code>*std.Io.Reader</code> and <code>*std.Io.Writer</code>, but <code>std.Io.net.Stream.reader()</code> returns <code>std.Io.net.Stream.Reader</code>. The <code>.interface</code> field provides the <code>std.Io.Reader</code> type that the server expects.</p>
+
+<pre class="code-block language-zig"><code>// CORRECT (Zig 0.16 pattern)
+var connection_reader = stream.reader(io, &amp;recv_buffer);
+var connection_writer = stream.writer(io, &amp;send_buffer);
+var server: std.http.Server = .init(
+    &amp;connection_reader.interface,  // ✅ .interface provides *Io.Reader
+    &amp;connection_writer.interface,  // ✅ .interface provides *Io.Writer
+);
+</code></pre>
+
+<p><strong>Rationale</strong>: The <code>std.Io.net.Stream.Reader</code> type wraps <code>std.Io.Reader</code> in its <code>.interface</code> field. Since <code>std.http.Server.init()</code> expects <code>*Io.Reader</code> (not <code>*Io.net.Stream.Reader</code>), the <code>.interface</code> access is required.</p>
+
+<h3 id="3-file-reader-delimiter-methods">3. File Reader Delimiter Methods<a class="anchor" href="#3-file-reader-delimiter-methods">#</a></h3>
+
+<p><strong>File</strong>: <code>src/cli.zig</code></p>
+
+<p><strong>Change</strong>: Kept <code>.interface</code> access for <code>std.Io.File.Reader</code> delimiter methods</p>
+
+<pre class="code-block language-zig"><code>// File.Reader .interface access is still valid for delimiter methods
+const line_opt = reader.interface.takeDelimiter('\n') catch |err| {
+    // ...
+};
+</code></pre>
+
+<p><strong>Rationale</strong>: The <code>std.Io.File.Reader</code> type provides specialized delimiter methods through its <code>interface</code> field. This is intentional and correct usage in Zig 0.16.</p>
+
+<h3 id="4-format-specifiers-for-errors-and-enums">4. Format Specifiers for Errors and Enums<a class="anchor" href="#4-format-specifiers-for-errors-and-enums">#</a></h3>
+
+<p><strong>Files</strong>: <code>build.zig</code>, <code>src/features/ai/explore/results.zig</code></p>
+
+<p><strong>Change</strong>: Use <code>{t}</code> format specifier instead of <code>@errorName()</code> or <code>@tagName()</code> in format strings</p>
+
+<pre class="code-block language-zig"><code>// OLD (Zig 0.15 pattern)
+std.log.err(&quot;Error: {s}&quot;, .{@errorName(err)});
+std.debug.print(&quot;State: {s}&quot;, .{@tagName(state)});
+
+// NEW (Zig 0.16 pattern)
+std.log.err(&quot;Error: {t}&quot;, .{err});
+std.debug.print(&quot;State: {t}&quot;, .{state});
+</code></pre>
+
+<p><strong>Rationale</strong>: The <code>{t}</code> format specifier directly handles error and enum types, producing human-readable output without manual conversion. This is cleaner and more idiomatic.</p>
+
+<p><strong>Note</strong>: <code>@errorName()</code> is still valid when you need the error name as a <code>[]const u8</code> string (e.g., for storing in a struct field), but should not be used with format specifiers.</p>
+
+<h3 id="5-synchronous-file-io-with-stdiothreaded">5. Synchronous File I/O with std.Io.Threaded<a class="anchor" href="#5-synchronous-file-io-with-stdiothreaded">#</a></h3>
+
+<p><strong>Pattern</strong>: For synchronous file operations outside async contexts, use <code>std.Io.Threaded</code>:</p>
+
+<pre class="code-block language-zig"><code>// Create I/O backend for synchronous file operations
+var io_backend = std.Io.Threaded.init(allocator, .{
+    .environ = std.process.Environ.empty,
+});
+defer io_backend.deinit();
+const io = io_backend.io();
+
+// Read file
+const content = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(10 * 1024 * 1024)) catch |err| {
+    return err;
+};
+defer allocator.free(content);
+
+// Write file
+var file = std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true }) catch return error.Failed;
+defer file.close(io);
+var writer = file.writer(io);
+try writer.writeAll(content);
+</code></pre>
+
+<p><strong>Note</strong>: <code>std.fs.cwd()</code> does not exist in Zig 0.16. Use <code>std.Io.Dir.cwd()</code> (passing an <code>std.Io</code> context) instead.</p>
+
+<h3 id="6-timing-and-measurement">6. Timing and Measurement<a class="anchor" href="#6-timing-and-measurement">#</a></h3>
+
+<p><strong>Change</strong>: Use <code>std.time.Timer</code> for high-precision timing (not <code>std.time.nanoTimestamp()</code>):</p>
+
+<pre class="code-block language-zig"><code>// OLD (deprecated)
+const start = std.time.nanoTimestamp();
+// ... work ...
+const elapsed = std.time.nanoTimestamp() - start;
+
+// NEW (Zig 0.16)
+var timer = std.time.Timer.start() catch return error.TimerFailed;
+// ... work ...
+const elapsed_ns = timer.read();
+</code></pre>
+
+<h3 id="7-sleep-api">7. Sleep API<a class="anchor" href="#7-sleep-api">#</a></h3>
+
+<p><strong>Change</strong>: Use <code>std.Io</code>-based sleep instead of <code>std.time.sleep()</code>:</p>
+
+<pre class="code-block language-zig"><code>// OLD (deprecated)
+std.time.sleep(nanoseconds);
+
+// NEW (Zig 0.16) - use the time utilities module
+const time_utils = @import(&quot;src/shared/utils/time.zig&quot;);
+time_utils.sleepMs(100);   // Sleep 100 milliseconds
+time_utils.sleepSeconds(1); // Sleep 1 second
+time_utils.sleepNs(50_000); // Sleep 50 microseconds
+
+// Direct Io usage (when you have an Io context)
+const duration = std.Io.Clock.Duration{
+    .clock = .awake,
+    .raw = .fromNanoseconds(nanoseconds),
+};
+std.Io.Clock.Duration.sleep(duration, io) catch {};
+</code></pre>
+
+<h3 id="8-aligned-memory-allocation">8. Aligned Memory Allocation<a class="anchor" href="#8-aligned-memory-allocation">#</a></h3>
+
+<p><strong>Change</strong>: For aligned allocations, use <code>std.mem.Alignment</code>:</p>
+
+<pre class="code-block language-zig"><code>// NEW (Zig 0.16)
+const page_size = 4096;
+const data = try allocator.alignedAlloc(u8, comptime std.mem.Alignment.fromByteUnits(page_size), size);
+defer allocator.free(data);
+</code></pre>
+
+<h3 id="9-memory-management">9. Memory Management<a class="anchor" href="#9-memory-management">#</a></h3>
+
+<p><strong>Change</strong>: Prefer <code>std.ArrayListUnmanaged</code> over <code>std.ArrayList</code>:</p>
+
+<pre class="code-block language-zig"><code>// OLD
+var list = std.ArrayList(u8).init(allocator);
+try list.append(item);
+list.deinit();
+
+// NEW (Zig 0.16 - explicit allocator passing)
+var list = std.ArrayListUnmanaged(u8).empty;
+try list.append(allocator, item);
+list.deinit(allocator);
+</code></pre>
+
+<p><strong>Benefits</strong>:</p>
+<li>Explicit allocator passing improves clarity</li>
+<li>Better control over memory ownership</li>
+<li>Reduces hidden dependencies</li>
+<li>Modern Zig 0.16 idiom</li>
+
+<h2 id="api-compatibility-notes">API Compatibility Notes<a class="anchor" href="#api-compatibility-notes">#</a></h2>
+
+<h3 id="reader-type-hierarchy">Reader Type Hierarchy<a class="anchor" href="#reader-type-hierarchy">#</a></h3>
+
+<p>Zig 0.16 introduces a unified <code>std.Io.Reader</code> type:</p>
+<li>Base type: <code>std.Io.Reader</code> - Generic reader interface</li>
+<li>File reader: <code>std.Io.File.Reader</code> - File-specific reader with <code>.interface</code> for delimiter methods</li>
+<li>Net reader: <code>std.Io.net.Stream.Reader</code> - Network stream reader</li>
+
+<h3 id="http-server-initialization">HTTP Server Initialization<a class="anchor" href="#http-server-initialization">#</a></h3>
+
+<p>The <code>std.http.Server.init()</code> function signature:</p>
+<pre class="code-block language-zig"><code>pub fn init(in: *Reader, out: *Writer) Server
+</code></pre>
+
+<p>Where:</p>
+<li><code>Reader</code> is <code>*std.Io.Reader</code> (not <code>*std.Io.net.Stream.Reader</code>)</li>
+<li><code>Writer</code> is <code>*std.Io.Writer</code></li>
+
+<p>When using <code>std.Io.net.Stream.reader()</code> and <code>std.Io.net.Stream.writer()</code>, access their <code>.interface</code> field to get the correct type for <code>std.http.Server.init()</code>.</p>
+
+<h2 id="testing">Testing<a class="anchor" href="#testing">#</a></h2>
+
+<p>All existing tests pass with the new API:</p>
+<pre class="code-block language-bash"><code>zig build test --summary all  # All tests pass
+zig build benchmark                   # Benchmarks run successfully
+</code></pre>
+
+<h2 id="build-configuration">Build Configuration<a class="anchor" href="#build-configuration">#</a></h2>
+
+<p>The CI configuration has been updated to use Zig 0.16.x instead of 0.17.0.</p>
+
+<h3 id="ci-changes">CI Changes<a class="anchor" href="#ci-changes">#</a></h3>
+<li>Updated <code>.github/workflows/ci.yml</code> to use <code>version: 0.16</code></li>
+
+<h2 id="breaking-changes-summary">Breaking Changes Summary<a class="anchor" href="#breaking-changes-summary">#</a></h2>
+
+<tr><td>Component</td><td>Change</td><td>Impact</td></tr>
+<tr><td>HTTP Client</td><td><code>std.io.AnyReader</code> → <code>std.Io.Reader</code></td><td>Low - Streaming interface updated</td></tr>
+<tr><td>HTTP Server</td><td>Requires <code>.interface</code> access for stream reader/writer</td><td>Low - Use <code>.interface</code> to get <code>*Io.Reader</code></td></tr>
+<tr><td>File I/O</td><td><code>std.fs.cwd()</code> → <code>std.Io.Dir.cwd()</code></td><td>Medium - Requires <code>std.Io</code> context</td></tr>
+<tr><td>Synchronous I/O</td><td>Requires <code>std.Io.Threaded</code> backend</td><td>Medium - New initialization pattern</td></tr>
+<tr><td>Sleep API</td><td><code>std.time.sleep()</code> → <code>std.Io.Clock.Duration.sleep()</code></td><td>Low - Use time utilities module</td></tr>
+<tr><td>Timing</td><td><code>std.time.nanoTimestamp()</code> → <code>std.time.Timer</code></td><td>Low - Better API</td></tr>
+<tr><td>Format Specifiers</td><td>Use <code>{t}</code> instead of <code>@errorName()/@tagName()</code></td><td>Low - Improved formatting</td></tr>
+<tr><td>ArrayListUnmanaged</td><td>Preferred over <code>std.ArrayList</code></td><td>Low - Explicit allocator passing</td></tr>
+
+<h2 id="migration-checklist">Migration Checklist<a class="anchor" href="#migration-checklist">#</a></h2>
+
+<li>[x] Update CI to use Zig 0.16.x</li>
+<li>[x] Replace <code>std.io.AnyReader</code> with <code>std.Io.Reader</code></li>
+<li>[x] Verify HTTP Server uses <code>.interface</code> correctly</li>
+<li>[x] Migrate <code>std.fs.cwd()</code> to <code>std.Io.Dir.cwd()</code></li>
+<li>[x] Implement <code>std.Io.Threaded</code> for synchronous I/O</li>
+<li>[x] Replace <code>std.time.sleep()</code> with <code>std.Io.Clock.Duration.sleep()</code></li>
+<li>[x] Replace <code>std.time.nanoTimestamp()</code> with <code>std.time.Timer</code></li>
+<li>[x] Migrate <code>std.ArrayList</code> to <code>std.ArrayListUnmanaged</code></li>
+<li>[x] Use <code>{t}</code> format specifier for error/enum values</li>
+<li>[x] Update documentation</li>
+<li>[x] Test all feature flag combinations</li>
+<li>[x] Run benchmarks</li>
+<li>[ ] ~~Consolidate HTTP modules~~ (Deferred - Current code works, consolidation is optional)</li>
+
+<h2 id="next-steps">Next Steps<a class="anchor" href="#next-steps">#</a></h2>
+
+<p>1. Monitor Zig 0.16.x release announcements for any additional breaking changes</p>
+<p>2. Consider consolidating HTTP modules in a future refactor (optional)</p>
+<p>3. Keep <code>build.zig.zon</code> minimum Zig version aligned to the latest 0.16.x point release</p>
+
+<h2 id="references">References<a class="anchor" href="#references">#</a></h2>
+
+<li><a href="https://github.com/ziglang/zig/tree/master">Zig main branch</a></li>
+<li><a href="https://ziglang.org/documentation/master/">Zig Standard Library Documentation</a></li>
+
+<hr>
+
+<h2 id="see-also">See Also<a class="anchor" href="#see-also">#</a></h2>
+
+<li><a href="../docs-index.md">Documentation Index</a> - Full documentation</li>
+<li><a href="../framework.md">Framework</a> - Configuration and lifecycle</li>
+<li><a href="../troubleshooting.md">Troubleshooting</a> - Migration issues</li>
+<p>*See <a href="../../TODO.md">../../TODO.md</a> (including the <a href="../../TODO.md#claude-code-massive-todo">Claude‑Code Massive TODO</a>) and <a href="../../ROADMAP.md">../../ROADMAP.md</a> for the Llama‑CPP parity task list and upcoming milestones.*</p>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

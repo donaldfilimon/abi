@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>abbey-fine-tuning - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>abbey-fine-tuning</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#fine-tuning-gpt-oss-for-abbey">Fine-Tuning gpt-oss for Abbey</a></li>
+        <li style="padding-left: 16px"><a href="#overview">Overview</a></li>
+        <li style="padding-left: 16px"><a href="#prerequisites">Prerequisites</a></li>
+        <li style="padding-left: 32px"><a href="#hardware-requirements">Hardware Requirements</a></li>
+        <li style="padding-left: 32px"><a href="#environment-setup">Environment Setup</a></li>
+        <li style="padding-left: 16px"><a href="#training-strategy">Training Strategy</a></li>
+        <li style="padding-left: 32px"><a href="#phase-1-emotional-intelligence-sft">Phase 1: Emotional Intelligence (SFT)</a></li>
+        <li style="padding-left: 32px"><a href="#phase-2-reasoning-transparency-sft">Phase 2: Reasoning Transparency (SFT)</a></li>
+        <li style="padding-left: 32px"><a href="#phase-3-confidence-calibration-dpo">Phase 3: Confidence Calibration (DPO)</a></li>
+        <li style="padding-left: 16px"><a href="#recommended-datasets">Recommended Datasets</a></li>
+        <li style="padding-left: 32px"><a href="#emotional-intelligence">Emotional Intelligence</a></li>
+        <li style="padding-left: 32px"><a href="#reasoning-transparency">Reasoning & Transparency</a></li>
+        <li style="padding-left: 32px"><a href="#confidence-uncertainty">Confidence & Uncertainty</a></li>
+        <li style="padding-left: 16px"><a href="#submitting-jobs-via-hugging-face">Submitting Jobs via Hugging Face</a></li>
+        <li style="padding-left: 16px"><a href="#converting-to-gguf-for-ollama">Converting to GGUF for Ollama</a></li>
+        <li style="padding-left: 16px"><a href="#using-with-abi-framework">Using with ABI Framework</a></li>
+        <li style="padding-left: 16px"><a href="#training-configuration-reference">Training Configuration Reference</a></li>
+        <li style="padding-left: 32px"><a href="#abi-training-infrastructure">ABI Training Infrastructure</a></li>
+        <li style="padding-left: 32px"><a href="#data-loading">Data Loading</a></li>
+        <li style="padding-left: 32px"><a href="#instruction-tuning-format">Instruction Tuning Format</a></li>
+        <li style="padding-left: 16px"><a href="#monitoring-training">Monitoring Training</a></li>
+        <li style="padding-left: 16px"><a href="#cost-estimation">Cost Estimation</a></li>
+        <li style="padding-left: 16px"><a href="#next-steps">Next Steps</a></li>
+        <li style="padding-left: 16px"><a href="#see-also">See Also</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="fine-tuning-gpt-oss-for-abbey">Fine-Tuning gpt-oss for Abbey<a class="anchor" href="#fine-tuning-gpt-oss-for-abbey">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<p>This guide covers training gpt-oss (OpenAI's open-weight model) as a base for the Abbey AI system using Hugging Face Jobs infrastructure.</p>
+
+<h2 id="overview">Overview<a class="anchor" href="#overview">#</a></h2>
+
+<p>Abbey is an emotionally intelligent AI framework with advanced cognitive capabilities:</p>
+<li><strong>14 emotion types</strong> with intensity tracking and response tone adjustment</li>
+<li><strong>3-tier memory</strong> (episodic, semantic, working)</li>
+<li><strong>Chain-of-thought reasoning</strong> with confidence calibration</li>
+<li><strong>Research triggers</strong> when confidence is low</li>
+<li><strong>Online learning</strong> and meta-learning capabilities</li>
+
+<p>To specialize gpt-oss for Abbey's unique behaviors, we fine-tune on datasets that teach:</p>
+<p>1. Emotional intelligence and empathetic responses</p>
+<p>2. Reasoning transparency (step-by-step explanations)</p>
+<p>3. Confidence awareness (knowing when to say &quot;I'm not sure&quot;)</p>
+<p>4. Research-first behavior (asking clarifying questions)</p>
+
+<h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites">#</a></h2>
+
+<h3 id="hardware-requirements">Hardware Requirements<a class="anchor" href="#hardware-requirements">#</a></h3>
+<tr><td>Model</td><td>Recommended GPU</td><td>Memory</td><td>Cost/hr</td></tr>
+<tr><td>gpt-oss:20b</td><td><code>a10g-large</code></td><td>24GB</td><td>~$5</td></tr>
+<tr><td>gpt-oss:20b + LoRA</td><td><code>l4x1</code></td><td>16GB</td><td>~$2.50</td></tr>
+
+<h3 id="environment-setup">Environment Setup<a class="anchor" href="#environment-setup">#</a></h3>
+<pre class="code-block language-bash"><code># Hugging Face CLI authentication
+huggingface-cli login
+
+# Verify authentication
+hf_whoami()
+</code></pre>
+
+<h2 id="training-strategy">Training Strategy<a class="anchor" href="#training-strategy">#</a></h2>
+
+<h3 id="phase-1-emotional-intelligence-sft">Phase 1: Emotional Intelligence (SFT)<a class="anchor" href="#phase-1-emotional-intelligence-sft">#</a></h3>
+
+<p>Train on empathetic dialogue datasets to teach Abbey's emotional awareness:</p>
+
+<pre class="code-block language-python"><code># /// script
+# dependencies = [&quot;trl&gt;=0.12.0&quot;, &quot;peft&gt;=0.7.0&quot;, &quot;trackio&quot;, &quot;datasets&quot;]
+# ///
+
+from datasets import load_dataset
+from peft import LoraConfig
+from trl import SFTTrainer, SFTConfig
+import trackio
+
+# EmpatheticDialogues teaches emotional understanding
+dataset = load_dataset(&quot;facebook/empathetic_dialogues&quot;, split=&quot;train&quot;)
+
+# Format for Abbey's emotion-aware style
+def format_empathetic(example):
+    emotion = example.get(&quot;context&quot;, &quot;neutral&quot;)
+    utterance = example.get(&quot;utterance&quot;, &quot;&quot;)
+    response = example.get(&quot;response&quot;, &quot;&quot;)
+    return {
+        &quot;text&quot;: f&quot;[EMOTION: {emotion}]\nUser: {utterance}\nAbbey: {response}&quot;
+    }
+
+dataset = dataset.map(format_empathetic)
+dataset_split = dataset.train_test_split(test_size=0.1, seed=42)
+
+trainer = SFTTrainer(
+    model=&quot;openai/gpt-oss-20b&quot;,  # Base model from HF Hub
+    train_dataset=dataset_split[&quot;train&quot;],
+    eval_dataset=dataset_split[&quot;test&quot;],
+    peft_config=LoraConfig(
+        r=16,
+        lora_alpha=32,
+        target_modules=[&quot;q_proj&quot;, &quot;v_proj&quot;, &quot;k_proj&quot;, &quot;o_proj&quot;],
+        lora_dropout=0.05,
+    ),
+    args=SFTConfig(
+        output_dir=&quot;abbey-emotional&quot;,
+        push_to_hub=True,
+        hub_model_id=&quot;YOUR_USERNAME/abbey-emotional-v1&quot;,
+        num_train_epochs=3,
+        per_device_train_batch_size=4,
+        gradient_accumulation_steps=8,
+        learning_rate=2e-5,
+        lr_scheduler_type=&quot;cosine&quot;,
+        warmup_ratio=0.1,
+        eval_strategy=&quot;steps&quot;,
+        eval_steps=100,
+        save_strategy=&quot;steps&quot;,
+        save_steps=500,
+        report_to=&quot;trackio&quot;,
+        project=&quot;abbey-training&quot;,
+        run_name=&quot;emotional-intelligence-v1&quot;,
+    )
+)
+
+trainer.train()
+trainer.push_to_hub()
+</code></pre>
+
+<h3 id="phase-2-reasoning-transparency-sft">Phase 2: Reasoning Transparency (SFT)<a class="anchor" href="#phase-2-reasoning-transparency-sft">#</a></h3>
+
+<p>Train on chain-of-thought datasets:</p>
+
+<pre class="code-block language-python"><code># /// script
+# dependencies = [&quot;trl&gt;=0.12.0&quot;, &quot;peft&gt;=0.7.0&quot;, &quot;trackio&quot;, &quot;datasets&quot;]
+# ///
+
+from datasets import load_dataset
+from peft import LoraConfig
+from trl import SFTTrainer, SFTConfig
+
+# GSM8K has step-by-step reasoning
+dataset = load_dataset(&quot;openai/gsm8k&quot;, &quot;main&quot;, split=&quot;train&quot;)
+
+def format_reasoning(example):
+    question = example[&quot;question&quot;]
+    answer = example[&quot;answer&quot;]  # Contains step-by-step reasoning
+    return {
+        &quot;text&quot;: f&quot;User: {question}\n\nAbbey: Let me think through this step by step.\n{answer}&quot;
+    }
+
+dataset = dataset.map(format_reasoning)
+dataset_split = dataset.train_test_split(test_size=0.1, seed=42)
+
+trainer = SFTTrainer(
+    model=&quot;YOUR_USERNAME/abbey-emotional-v1&quot;,  # Continue from Phase 1
+    train_dataset=dataset_split[&quot;train&quot;],
+    eval_dataset=dataset_split[&quot;test&quot;],
+    peft_config=LoraConfig(r=16, lora_alpha=32),
+    args=SFTConfig(
+        output_dir=&quot;abbey-reasoning&quot;,
+        push_to_hub=True,
+        hub_model_id=&quot;YOUR_USERNAME/abbey-reasoning-v1&quot;,
+        num_train_epochs=2,
+        per_device_train_batch_size=2,
+        gradient_accumulation_steps=16,
+        learning_rate=1e-5,
+        report_to=&quot;trackio&quot;,
+        project=&quot;abbey-training&quot;,
+        run_name=&quot;reasoning-transparency-v1&quot;,
+    )
+)
+
+trainer.train()
+trainer.push_to_hub()
+</code></pre>
+
+<h3 id="phase-3-confidence-calibration-dpo">Phase 3: Confidence Calibration (DPO)<a class="anchor" href="#phase-3-confidence-calibration-dpo">#</a></h3>
+
+<p>Use Direct Preference Optimization to teach Abbey when to express uncertainty:</p>
+
+<pre class="code-block language-python"><code># /// script
+# dependencies = [&quot;trl&gt;=0.12.0&quot;, &quot;peft&gt;=0.7.0&quot;, &quot;trackio&quot;, &quot;datasets&quot;]
+# ///
+
+from datasets import Dataset
+from peft import LoraConfig
+from trl import DPOTrainer, DPOConfig
+
+# Create synthetic preference data for confidence calibration
+# Chosen: Expresses appropriate uncertainty
+# Rejected: Overconfident or refuses to engage
+
+confidence_data = [
+    {
+        &quot;prompt&quot;: &quot;What will the stock market do tomorrow?&quot;,
+        &quot;chosen&quot;: &quot;I can't predict specific market movements with certainty. Markets are influenced by many unpredictable factors. However, I can help you understand market analysis techniques or discuss historical patterns if that would be useful.&quot;,
+        &quot;rejected&quot;: &quot;The market will definitely go up tomorrow based on my analysis.&quot;,
+    },
+    {
+        &quot;prompt&quot;: &quot;Is this code secure?&quot;,
+        &quot;chosen&quot;: &quot;I'd need to examine the code more carefully to give you a confident assessment. I can see [specific observations], but there may be edge cases I'm missing. Would you like me to walk through my analysis?&quot;,
+        &quot;rejected&quot;: &quot;Yes, it's completely secure.&quot;,
+    },
+    # Add more examples...
+]
+
+dataset = Dataset.from_list(confidence_data)
+
+trainer = DPOTrainer(
+    model=&quot;YOUR_USERNAME/abbey-reasoning-v1&quot;,
+    ref_model=None,  # Uses implicit reference
+    train_dataset=dataset,
+    peft_config=LoraConfig(r=8, lora_alpha=16),
+    args=DPOConfig(
+        output_dir=&quot;abbey-calibrated&quot;,
+        push_to_hub=True,
+        hub_model_id=&quot;YOUR_USERNAME/abbey-calibrated-v1&quot;,
+        num_train_epochs=1,
+        per_device_train_batch_size=2,
+        gradient_accumulation_steps=8,
+        learning_rate=5e-6,
+        beta=0.1,
+        report_to=&quot;trackio&quot;,
+        project=&quot;abbey-training&quot;,
+        run_name=&quot;confidence-calibration-v1&quot;,
+    )
+)
+
+trainer.train()
+trainer.push_to_hub()
+</code></pre>
+
+<h2 id="recommended-datasets">Recommended Datasets<a class="anchor" href="#recommended-datasets">#</a></h2>
+
+<h3 id="emotional-intelligence">Emotional Intelligence<a class="anchor" href="#emotional-intelligence">#</a></h3>
+<tr><td>Dataset</td><td>Purpose</td><td>Size</td></tr>
+<tr><td><code>facebook/empathetic_dialogues</code></td><td>Emotion-aware dialogue</td><td>25K</td></tr>
+<tr><td><code>daily_dialog</code></td><td>Conversational emotions</td><td>13K</td></tr>
+<tr><td><code>go_emotions</code></td><td>Fine-grained emotion classification</td><td>58K</td></tr>
+
+<h3 id="reasoning-transparency">Reasoning &amp; Transparency<a class="anchor" href="#reasoning-transparency">#</a></h3>
+<tr><td>Dataset</td><td>Purpose</td><td>Size</td></tr>
+<tr><td><code>openai/gsm8k</code></td><td>Math reasoning with steps</td><td>8.5K</td></tr>
+<tr><td><code>lighteval/MATH</code></td><td>Advanced math reasoning</td><td>12.5K</td></tr>
+<tr><td><code>hotpot_qa</code></td><td>Multi-hop reasoning</td><td>113K</td></tr>
+
+<h3 id="confidence-uncertainty">Confidence &amp; Uncertainty<a class="anchor" href="#confidence-uncertainty">#</a></h3>
+<tr><td>Dataset</td><td>Purpose</td><td>Size</td></tr>
+<tr><td><code>truthful_qa</code></td><td>Factual accuracy</td><td>817</td></tr>
+<tr><td>Custom DPO data</td><td>Uncertainty expression</td><td>Build your own</td></tr>
+
+<h2 id="submitting-jobs-via-hugging-face">Submitting Jobs via Hugging Face<a class="anchor" href="#submitting-jobs-via-hugging-face">#</a></h2>
+
+<pre class="code-block language-python"><code># Submit Phase 1 training job
+hf_jobs(&quot;uv&quot;, {
+    &quot;script&quot;: &quot;&lt;inline script from Phase 1 above&gt;&quot;,
+    &quot;flavor&quot;: &quot;a10g-large&quot;,
+    &quot;timeout&quot;: &quot;4h&quot;,
+    &quot;secrets&quot;: {&quot;HF_TOKEN&quot;: &quot;$HF_TOKEN&quot;}
+})
+</code></pre>
+
+<h2 id="converting-to-gguf-for-ollama">Converting to GGUF for Ollama<a class="anchor" href="#converting-to-gguf-for-ollama">#</a></h2>
+
+<p>After training, convert to GGUF for use with the ABI framework's Ollama integration:</p>
+
+<pre class="code-block language-python"><code># /// script
+# dependencies = [&quot;transformers&quot;, &quot;llama-cpp-python&quot;, &quot;huggingface_hub&quot;]
+# ///
+
+from huggingface_hub import snapshot_download
+import subprocess
+
+# Download trained model
+model_path = snapshot_download(&quot;YOUR_USERNAME/abbey-calibrated-v1&quot;)
+
+# Convert to GGUF (requires llama.cpp)
+subprocess.run([
+    &quot;python&quot;, &quot;convert-hf-to-gguf.py&quot;,
+    model_path,
+    &quot;--outfile&quot;, &quot;abbey-v1.gguf&quot;,
+    &quot;--outtype&quot;, &quot;q4_k_m&quot;  # 4-bit quantization
+])
+
+# Upload GGUF to Hub
+from huggingface_hub import upload_file
+upload_file(
+    path_or_fileobj=&quot;abbey-v1.gguf&quot;,
+    path_in_repo=&quot;abbey-v1-q4_k_m.gguf&quot;,
+    repo_id=&quot;YOUR_USERNAME/abbey-gguf&quot;,
+    repo_type=&quot;model&quot;
+)
+</code></pre>
+
+<h2 id="using-with-abi-framework">Using with ABI Framework<a class="anchor" href="#using-with-abi-framework">#</a></h2>
+
+<p>Once trained and converted to GGUF:</p>
+
+<pre class="code-block language-bash"><code># Pull the fine-tuned model via Ollama
+ollama create abbey -f ./Modelfile
+
+# Or use directly with ABI
+export ABI_OLLAMA_MODEL=abbey
+zig build run -- agent
+</code></pre>
+
+<p><strong>Modelfile for Ollama:</strong></p>
+<pre class="code-block"><code>FROM abbey-v1-q4_k_m.gguf
+
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+
+SYSTEM &quot;&quot;&quot;
+You are Abbey, an emotionally intelligent AI assistant. You:
+- Detect and adapt to user emotions
+- Think through problems step-by-step
+- Express appropriate uncertainty when unsure
+- Ask clarifying questions when needed
+- Provide direct, honest responses
+&quot;&quot;&quot;
+</code></pre>
+
+<h2 id="training-configuration-reference">Training Configuration Reference<a class="anchor" href="#training-configuration-reference">#</a></h2>
+
+<h3 id="abi-training-infrastructure">ABI Training Infrastructure<a class="anchor" href="#abi-training-infrastructure">#</a></h3>
+
+<p>The ABI codebase includes native training support in <code>src/ai/implementation/training/</code>:</p>
+
+<pre class="code-block language-zig"><code>const training = @import(&quot;abi&quot;).ai.training;
+
+// LLM Training Configuration
+const config = training.LlmTrainingConfig{
+    .epochs = 3,
+    .batch_size = 4,
+    .max_seq_len = 512,
+    .learning_rate = 1e-5,
+    .lr_schedule = .warmup_cosine,
+    .warmup_steps = 100,
+    .optimizer = .adamw,
+    .weight_decay = 0.01,
+    .grad_accum_steps = 8,
+    .checkpoint_interval = 500,
+    .checkpoint_path = &quot;./checkpoints&quot;,
+    .export_gguf_path = &quot;./abbey.gguf&quot;,
+};
+</code></pre>
+
+<h3 id="data-loading">Data Loading<a class="anchor" href="#data-loading">#</a></h3>
+
+<pre class="code-block language-zig"><code>const data_loader = @import(&quot;abi&quot;).ai.training.data_loader;
+
+// Load pre-tokenized binary data
+var dataset = try data_loader.TokenizedDataset.load(allocator, &quot;training_data.bin&quot;);
+defer dataset.deinit();
+
+// Create batched iterator with shuffling
+var iter = try dataset.batches(allocator, 4, 512, true);
+defer iter.deinit();
+
+while (iter.next()) |batch| {
+    // batch.input_ids, batch.labels, batch.attention_mask
+}
+</code></pre>
+
+<h3 id="instruction-tuning-format">Instruction Tuning Format<a class="anchor" href="#instruction-tuning-format">#</a></h3>
+
+<pre class="code-block language-zig"><code>// Parse JSONL instruction data
+const samples = try data_loader.parseInstructionDataset(allocator, jsonl_content);
+
+// Each sample has:
+// - instruction: The task description
+// - input: Optional context
+// - output: Expected response
+</code></pre>
+
+<h2 id="monitoring-training">Monitoring Training<a class="anchor" href="#monitoring-training">#</a></h2>
+
+<p>Use Trackio for real-time metrics:</p>
+
+<pre class="code-block"><code>https://huggingface.co/spaces/YOUR_USERNAME/trackio
+</code></pre>
+
+<p>Key metrics to watch:</p>
+<li><strong>Loss</strong>: Should decrease steadily</li>
+<li><strong>Perplexity</strong>: exp(loss), lower is better</li>
+<li><strong>Learning rate</strong>: Verify warmup and decay</li>
+<li><strong>Gradient norm</strong>: Should stay under 1.0 with clipping</li>
+
+<h2 id="cost-estimation">Cost Estimation<a class="anchor" href="#cost-estimation">#</a></h2>
+
+<tr><td>Phase</td><td>Dataset Size</td><td>Hardware</td><td>Time</td><td>Cost</td></tr>
+<tr><td>Emotional Intelligence</td><td>25K samples</td><td>a10g-large</td><td>~2h</td><td>~$10</td></tr>
+<tr><td>Reasoning</td><td>8.5K samples</td><td>a10g-large</td><td>~1h</td><td>~$5</td></tr>
+<tr><td>Confidence (DPO)</td><td>1K samples</td><td>l4x1</td><td>~30m</td><td>~$1.25</td></tr>
+<tr><td><strong>Total</strong></td><td>~3.5h</td><td><strong>~$16.25</strong></td></tr>
+
+<h2 id="next-steps">Next Steps<a class="anchor" href="#next-steps">#</a></h2>
+
+<p>1. <strong>Collect Abbey-specific data</strong>: Record real conversations to create custom training data</p>
+<p>2. <strong>Iterate on confidence</strong>: Build larger DPO datasets for better calibration</p>
+<p>3. <strong>Benchmark</strong>: Test Abbey against emotion detection and reasoning benchmarks</p>
+<p>4. <strong>Continuous learning</strong>: Use the federated learning infrastructure for ongoing updates</p>
+
+<h2 id="see-also">See Also<a class="anchor" href="#see-also">#</a></h2>
+
+<li><a href="../ai.md">AI Module Guide</a> - Full AI module documentation</li>
+<li><a href="../ai.md#cli-usage">Training CLI</a> - Training command reference</li>
+<li><a href="../troubleshooting.md">Troubleshooting</a> - Common issues</li>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

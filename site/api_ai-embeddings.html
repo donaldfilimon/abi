@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>api_ai-embeddings - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>api_ai-embeddings</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#ai-embeddings-api-reference">ai-embeddings API Reference</a></li>
+        <li style="padding-left: 16px"><a href="#api">API</a></li>
+        <li style="padding-left: 32px"><a href="#pub-const-embeddingconfig">`pub const EmbeddingConfig`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-const-embeddingmodel">`pub const EmbeddingModel`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-embedself-embeddingmodel-text-const-u8-f32">`pub fn embed(self: *EmbeddingModel, text: []const u8) ![]f32`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-embedbatchself-embeddingmodel-texts-const-const-u8-f32">`pub fn embedBatch(self: *EmbeddingModel, texts: []const []const u8) ![][]f32`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-cosinesimilarity-embeddingmodel-a-const-f32-b-const-f32-f32">`pub fn cosineSimilarity(_: *EmbeddingModel, a: []const f32, b: []const f32) f32`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-const-batchprocessor">`pub const BatchProcessor`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-const-embeddingcache">`pub const EmbeddingCache`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-const-context">`pub const Context`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-embedself-context-text-const-u8-f32">`pub fn embed(self: *Context, text: []const u8) ![]f32`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-embedbatchself-context-texts-const-const-u8-f32">`pub fn embedBatch(self: *Context, texts: []const []const u8) ![][]f32`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-cosinesimilarity-context-a-const-f32-b-const-f32-f32">`pub fn cosineSimilarity(_: *Context, a: []const f32, b: []const f32) f32`</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="ai-embeddings-api-reference">ai-embeddings API Reference<a class="anchor" href="#ai-embeddings-api-reference">#</a></h1>
+
+<blockquote>Vector embeddings generation</blockquote>
+
+<p><strong>Source:</strong> <a href="../../src/ai/embeddings/mod.zig"><code>src/ai/embeddings/mod.zig</code></a></p>
+
+<hr>
+
+<p>Embeddings Sub-module</p>
+
+<p>Vector embeddings generation for text and other data types.</p>
+<p>Provides models for converting text into dense vector representations.</p>
+
+<hr>
+
+<h2 id="api">API<a class="anchor" href="#api">#</a></h2>
+
+<h3 id="pub-const-embeddingconfig"><code>pub const EmbeddingConfig</code><a class="anchor" href="#pub-const-embeddingconfig">#</a></h3>
+
+<p>&lt;sup&gt;<strong>type</strong>&lt;/sup&gt;</p>
+
+<p>Configuration for embedding models.</p>
+
+<h3 id="pub-const-embeddingmodel"><code>pub const EmbeddingModel</code><a class="anchor" href="#pub-const-embeddingmodel">#</a></h3>
+
+<p>&lt;sup&gt;<strong>type</strong>&lt;/sup&gt;</p>
+
+<p>Embedding model for text vectorization.</p>
+
+<h3 id="pub-fn-embedself-embeddingmodel-text-const-u8-f32"><code>pub fn embed(self: *EmbeddingModel, text: []const u8) ![]f32</code><a class="anchor" href="#pub-fn-embedself-embeddingmodel-text-const-u8-f32">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Generate embedding for a single text.</p>
+
+<h3 id="pub-fn-embedbatchself-embeddingmodel-texts-const-const-u8-f32"><code>pub fn embedBatch(self: *EmbeddingModel, texts: []const []const u8) ![][]f32</code><a class="anchor" href="#pub-fn-embedbatchself-embeddingmodel-texts-const-const-u8-f32">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Generate embeddings for multiple texts.</p>
+
+<h3 id="pub-fn-cosinesimilarity-embeddingmodel-a-const-f32-b-const-f32-f32"><code>pub fn cosineSimilarity(_: *EmbeddingModel, a: []const f32, b: []const f32) f32</code><a class="anchor" href="#pub-fn-cosinesimilarity-embeddingmodel-a-const-f32-b-const-f32-f32">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Compute cosine similarity between two embeddings.</p>
+
+<h3 id="pub-const-batchprocessor"><code>pub const BatchProcessor</code><a class="anchor" href="#pub-const-batchprocessor">#</a></h3>
+
+<p>&lt;sup&gt;<strong>type</strong>&lt;/sup&gt;</p>
+
+<p>Batch processor for efficient embedding generation.</p>
+
+<h3 id="pub-const-embeddingcache"><code>pub const EmbeddingCache</code><a class="anchor" href="#pub-const-embeddingcache">#</a></h3>
+
+<p>&lt;sup&gt;<strong>type</strong>&lt;/sup&gt;</p>
+
+<p>Embedding cache for deduplication.</p>
+
+<h3 id="pub-const-context"><code>pub const Context</code><a class="anchor" href="#pub-const-context">#</a></h3>
+
+<p>&lt;sup&gt;<strong>type</strong>&lt;/sup&gt;</p>
+
+<p>Embeddings context for framework integration.</p>
+
+<h3 id="pub-fn-embedself-context-text-const-u8-f32"><code>pub fn embed(self: *Context, text: []const u8) ![]f32</code><a class="anchor" href="#pub-fn-embedself-context-text-const-u8-f32">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Generate embedding for text.</p>
+
+<h3 id="pub-fn-embedbatchself-context-texts-const-const-u8-f32"><code>pub fn embedBatch(self: *Context, texts: []const []const u8) ![][]f32</code><a class="anchor" href="#pub-fn-embedbatchself-context-texts-const-const-u8-f32">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Generate embeddings for multiple texts.</p>
+
+<h3 id="pub-fn-cosinesimilarity-context-a-const-f32-b-const-f32-f32"><code>pub fn cosineSimilarity(_: *Context, a: []const f32, b: []const f32) f32</code><a class="anchor" href="#pub-fn-cosinesimilarity-context-a-const-f32-b-const-f32-f32">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Compute cosine similarity between two embeddings.</p>
+
+<hr>
+
+<p>*Generated automatically by <code>zig build gendocs</code>*</p>
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

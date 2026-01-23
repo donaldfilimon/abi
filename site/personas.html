@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Getting Started with Personas - ABI Framework Documentation</title>
+  <meta name="description" content="Step-by-step guide to using the Multi-Persona AI Assistant">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>Getting Started with Personas</h1>
+        <p class="doc-description">Step-by-step guide to using the Multi-Persona AI Assistant</p>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#getting-started-with-personas">Getting Started with Personas</a></li>
+        <li style="padding-left: 16px"><a href="#prerequisites">Prerequisites</a></li>
+        <li style="padding-left: 16px"><a href="#quick-start">Quick Start</a></li>
+        <li style="padding-left: 32px"><a href="#1-basic-setup">1. Basic Setup</a></li>
+        <li style="padding-left: 32px"><a href="#2-understanding-persona-selection">2. Understanding Persona Selection</a></li>
+        <li style="padding-left: 16px"><a href="#working-with-abbey-empathetic-polymath">Working with Abbey (Empathetic Polymath)</a></li>
+        <li style="padding-left: 32px"><a href="#when-to-use-abbey">When to Use Abbey</a></li>
+        <li style="padding-left: 32px"><a href="#direct-abbey-requests">Direct Abbey Requests</a></li>
+        <li style="padding-left: 32px"><a href="#emotion-detection">Emotion Detection</a></li>
+        <li style="padding-left: 32px"><a href="#reasoning-chains">Reasoning Chains</a></li>
+        <li style="padding-left: 16px"><a href="#working-with-aviva-direct-expert">Working with Aviva (Direct Expert)</a></li>
+        <li style="padding-left: 32px"><a href="#when-to-use-aviva">When to Use Aviva</a></li>
+        <li style="padding-left: 32px"><a href="#direct-aviva-requests">Direct Aviva Requests</a></li>
+        <li style="padding-left: 32px"><a href="#query-classification">Query Classification</a></li>
+        <li style="padding-left: 32px"><a href="#code-generation">Code Generation</a></li>
+        <li style="padding-left: 32px"><a href="#fact-checking">Fact Checking</a></li>
+        <li style="padding-left: 16px"><a href="#routing-and-load-balancing">Routing and Load Balancing</a></li>
+        <li style="padding-left: 32px"><a href="#understanding-routing-scores">Understanding Routing Scores</a></li>
+        <li style="padding-left: 32px"><a href="#custom-routing-rules">Custom Routing Rules</a></li>
+        <li style="padding-left: 32px"><a href="#health-weighted-routing">Health-Weighted Routing</a></li>
+        <li style="padding-left: 16px"><a href="#monitoring-and-metrics">Monitoring and Metrics</a></li>
+        <li style="padding-left: 32px"><a href="#accessing-metrics">Accessing Metrics</a></li>
+        <li style="padding-left: 32px"><a href="#setting-up-alerts">Setting Up Alerts</a></li>
+        <li style="padding-left: 32px"><a href="#health-checks">Health Checks</a></li>
+        <li style="padding-left: 16px"><a href="#error-handling">Error Handling</a></li>
+        <li style="padding-left: 32px"><a href="#graceful-degradation">Graceful Degradation</a></li>
+        <li style="padding-left: 32px"><a href="#circuit-breaker-states">Circuit Breaker States</a></li>
+        <li style="padding-left: 16px"><a href="#http-api-usage">HTTP API Usage</a></li>
+        <li style="padding-left: 32px"><a href="#starting-the-api-server">Starting the API Server</a></li>
+        <li style="padding-left: 32px"><a href="#api-examples-with-curl">API Examples with curl</a></li>
+        <li style="padding-left: 16px"><a href="#best-practices">Best Practices</a></li>
+        <li style="padding-left: 32px"><a href="#1-let-the-router-decide">1. Let the Router Decide</a></li>
+        <li style="padding-left: 32px"><a href="#2-provide-context">2. Provide Context</a></li>
+        <li style="padding-left: 32px"><a href="#3-handle-metrics">3. Handle Metrics</a></li>
+        <li style="padding-left: 32px"><a href="#4-configure-appropriate-timeouts">4. Configure Appropriate Timeouts</a></li>
+        <li style="padding-left: 16px"><a href="#next-steps">Next Steps</a></li>
+        <li style="padding-left: 16px"><a href="#troubleshooting">Troubleshooting</a></li>
+        <li style="padding-left: 32px"><a href="#common-issues">Common Issues</a></li>
+      </ul></nav>
+      <div class="doc-content">
+<h1 id="getting-started-with-personas">Getting Started with Personas<a class="anchor" href="#getting-started-with-personas">#</a></h1>
+
+<p>This tutorial walks you through setting up and using the Multi-Persona AI Assistant system. You'll learn how to:</p>
+
+<p>1. Initialize the persona system</p>
+<p>2. Route messages automatically</p>
+<p>3. Use specific personas directly</p>
+<p>4. Monitor health and metrics</p>
+<p>5. Handle errors gracefully</p>
+
+<h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites">#</a></h2>
+
+<li>Zig 0.16 or later</li>
+<li>ABI framework built with AI enabled: <code>zig build -Denable-ai=true</code></li>
+
+<h2 id="quick-start">Quick Start<a class="anchor" href="#quick-start">#</a></h2>
+
+<h3 id="1-basic-setup">1. Basic Setup<a class="anchor" href="#1-basic-setup">#</a></h3>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+const abi = @import(&quot;abi&quot;);
+const personas = abi.ai.personas;
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Initialize the persona orchestrator
+    var orchestrator = try personas.PersonaOrchestrator.init(allocator, .{
+        .enable_abbey = true,
+        .enable_aviva = true,
+        .routing_strategy = .adaptive,
+    });
+    defer orchestrator.deinit();
+
+    // Process a message with automatic routing
+    const response = try orchestrator.process(.{
+        .content = &quot;How do I implement a linked list in Zig?&quot;,
+    });
+
+    std.debug.print(&quot;Persona: {s}\n&quot;, .{@tagName(response.persona_used)});
+    std.debug.print(&quot;Response: {s}\n&quot;, .{response.content});
+}
+</code></pre>
+
+<h3 id="2-understanding-persona-selection">2. Understanding Persona Selection<a class="anchor" href="#2-understanding-persona-selection">#</a></h3>
+
+<p>The system automatically routes messages based on content analysis:</p>
+
+<tr><td>Content Type</td><td>Selected Persona</td><td>Why</td></tr>
+<tr><td>Technical questions</td><td>Aviva</td><td>Direct, accurate answers</td></tr>
+<tr><td>Emotional messages</td><td>Abbey</td><td>Empathetic support</td></tr>
+<tr><td>Policy violations</td><td>Abi</td><td>Content moderation</td></tr>
+<tr><td>Ambiguous queries</td><td>Abbey/Aviva</td><td>Based on scoring</td></tr>
+
+<pre class="code-block language-zig"><code>// Technical question -&gt; Routes to Aviva
+const tech = try orchestrator.process(.{
+    .content = &quot;What's the time complexity of binary search?&quot;,
+});
+// tech.persona_used == .aviva
+
+// Emotional message -&gt; Routes to Abbey
+const emotional = try orchestrator.process(.{
+    .content = &quot;I'm really frustrated with this bug...&quot;,
+});
+// emotional.persona_used == .abbey
+</code></pre>
+
+<h2 id="working-with-abbey-empathetic-polymath">Working with Abbey (Empathetic Polymath)<a class="anchor" href="#working-with-abbey-empathetic-polymath">#</a></h2>
+
+<p>Abbey excels at supportive, thorough responses with emotional intelligence.</p>
+
+<h3 id="when-to-use-abbey">When to Use Abbey<a class="anchor" href="#when-to-use-abbey">#</a></h3>
+
+<li>User expresses frustration or confusion</li>
+<li>Complex topics requiring step-by-step explanation</li>
+<li>Situations needing empathy and encouragement</li>
+
+<h3 id="direct-abbey-requests">Direct Abbey Requests<a class="anchor" href="#direct-abbey-requests">#</a></h3>
+
+<pre class="code-block language-zig"><code>const abbey = orchestrator.getPersona(.abbey);
+
+// Process with emotional context
+const response = try abbey.process(.{
+    .content = &quot;I've been stuck on this for hours and nothing works!&quot;,
+    .emotional_context = .{
+        .detected_emotion = .frustrated,
+        .intensity = 0.8,
+    },
+});
+
+// Response includes empathetic acknowledgment
+// &quot;I understand how frustrating that can be when you've put in so much effort...&quot;
+</code></pre>
+
+<h3 id="emotion-detection">Emotion Detection<a class="anchor" href="#emotion-detection">#</a></h3>
+
+<p>Abbey automatically detects emotions in user messages:</p>
+
+<pre class="code-block language-zig"><code>const emotion_processor = abbey.getEmotionProcessor();
+const result = try emotion_processor.process(
+    &quot;This is so confusing, I don't understand anything!&quot;,
+    .{}, // empty prior context
+);
+
+std.debug.print(&quot;Detected emotion: {s}\n&quot;, .{@tagName(result.detected_emotion)});
+std.debug.print(&quot;Intensity: {d:.2}\n&quot;, .{result.intensity});
+std.debug.print(&quot;Suggested tone: {s}\n&quot;, .{@tagName(result.suggested_tone)});
+</code></pre>
+
+<h3 id="reasoning-chains">Reasoning Chains<a class="anchor" href="#reasoning-chains">#</a></h3>
+
+<p>For complex questions, Abbey generates step-by-step reasoning:</p>
+
+<pre class="code-block language-zig"><code>const reasoning_engine = abbey.getReasoningEngine();
+const chain = try reasoning_engine.reason(
+    &quot;How do I debug a memory leak in my Zig program?&quot;,
+    .{}, // memory context
+    null, // no emotional context
+);
+defer chain.deinit();
+
+for (chain.steps.items, 0..) |step, i| {
+    std.debug.print(&quot;Step {d}: {s}\n&quot;, .{ i + 1, step.content });
+    std.debug.print(&quot;  Confidence: {d:.2}\n&quot;, .{step.confidence});
+}
+</code></pre>
+
+<h2 id="working-with-aviva-direct-expert">Working with Aviva (Direct Expert)<a class="anchor" href="#working-with-aviva-direct-expert">#</a></h2>
+
+<p>Aviva provides concise, factual, technically accurate responses.</p>
+
+<h3 id="when-to-use-aviva">When to Use Aviva<a class="anchor" href="#when-to-use-aviva">#</a></h3>
+
+<li>Code generation requests</li>
+<li>Factual questions requiring accuracy</li>
+<li>Documentation lookups</li>
+<li>Debugging assistance</li>
+
+<h3 id="direct-aviva-requests">Direct Aviva Requests<a class="anchor" href="#direct-aviva-requests">#</a></h3>
+
+<pre class="code-block language-zig"><code>const aviva = orchestrator.getPersona(.aviva);
+
+const response = try aviva.process(.{
+    .content = &quot;Write a function to check if a string is a palindrome&quot;,
+    .options = .{
+        .include_code = true,
+        .language = .zig,
+    },
+});
+</code></pre>
+
+<h3 id="query-classification">Query Classification<a class="anchor" href="#query-classification">#</a></h3>
+
+<p>Aviva classifies queries to optimize response format:</p>
+
+<pre class="code-block language-zig"><code>const classifier = aviva.getClassifier();
+const classification = classifier.classify(
+    &quot;Implement a binary search tree in Zig&quot;,
+);
+
+std.debug.print(&quot;Query type: {s}\n&quot;, .{@tagName(classification.query_type)});
+std.debug.print(&quot;Language: {s}\n&quot;, .{@tagName(classification.language)});
+std.debug.print(&quot;Confidence: {d:.2}\n&quot;, .{classification.confidence});
+</code></pre>
+
+<h3 id="code-generation">Code Generation<a class="anchor" href="#code-generation">#</a></h3>
+
+<pre class="code-block language-zig"><code>const code_generator = aviva.getCodeGenerator();
+
+const params = [_][]const u8{ &quot;haystack: []const u8&quot;, &quot;needle: []const u8&quot; };
+const template = try code_generator.generateFunctionTemplate(
+    &quot;contains&quot;,
+    &amp;params,
+    &quot;bool&quot;,
+    .zig,
+    null,
+);
+
+std.debug.print(&quot;Generated code:\n{s}\n&quot;, .{template.code});
+</code></pre>
+
+<h3 id="fact-checking">Fact Checking<a class="anchor" href="#fact-checking">#</a></h3>
+
+<p>Aviva verifies claims in responses:</p>
+
+<pre class="code-block language-zig"><code>const fact_checker = aviva.getFactChecker();
+var result = try fact_checker.check(
+    &quot;Zig was created by Andrew Kelley and first released in 2016.&quot;,
+);
+defer result.deinit();
+
+std.debug.print(&quot;Overall confidence: {d:.2}\n&quot;, .{result.overall_confidence});
+for (result.claims.items) |claim| {
+    std.debug.print(&quot;  Claim: {s}\n&quot;, .{claim.text});
+    std.debug.print(&quot;  Confidence: {d:.2}\n&quot;, .{claim.confidence});
+}
+</code></pre>
+
+<h2 id="routing-and-load-balancing">Routing and Load Balancing<a class="anchor" href="#routing-and-load-balancing">#</a></h2>
+
+<h3 id="understanding-routing-scores">Understanding Routing Scores<a class="anchor" href="#understanding-routing-scores">#</a></h3>
+
+<p>The router evaluates each message and assigns scores:</p>
+
+<pre class="code-block language-zig"><code>const router = orchestrator.getRouter();
+const scores = try router.evaluate(.{
+    .content = &quot;I'm confused about how slices work in Zig&quot;,
+});
+
+std.debug.print(&quot;Routing scores:\n&quot;, .{});
+std.debug.print(&quot;  Abbey: {d:.2}\n&quot;, .{scores.getScore(.abbey) orelse 0});
+std.debug.print(&quot;  Aviva: {d:.2}\n&quot;, .{scores.getScore(.aviva) orelse 0});
+</code></pre>
+
+<h3 id="custom-routing-rules">Custom Routing Rules<a class="anchor" href="#custom-routing-rules">#</a></h3>
+
+<p>Add custom rules to influence routing:</p>
+
+<pre class="code-block language-zig"><code>var engine = orchestrator.getRulesEngine();
+
+// Boost Abbey for learning-related queries
+try engine.addRule(.{
+    .name = &quot;learning_support&quot;,
+    .condition = .{ .contains_keywords = &amp;.{ &quot;learn&quot;, &quot;understand&quot;, &quot;confused&quot; } },
+    .persona_boost = .{ .abbey = 0.2 },
+    .priority = 5,
+});
+</code></pre>
+
+<h3 id="health-weighted-routing">Health-Weighted Routing<a class="anchor" href="#health-weighted-routing">#</a></h3>
+
+<p>The load balancer considers persona health:</p>
+
+<pre class="code-block language-zig"><code>const lb = orchestrator.getLoadBalancer();
+
+// Get current health status
+const health = lb.getHealthStatus();
+for (health) |h| {
+    std.debug.print(&quot;{s}: {s} (score: {d:.2})\n&quot;, .{
+        @tagName(h.persona_type),
+        @tagName(h.status),
+        h.score,
+    });
+}
+</code></pre>
+
+<h2 id="monitoring-and-metrics">Monitoring and Metrics<a class="anchor" href="#monitoring-and-metrics">#</a></h2>
+
+<h3 id="accessing-metrics">Accessing Metrics<a class="anchor" href="#accessing-metrics">#</a></h3>
+
+<pre class="code-block language-zig"><code>const metrics = orchestrator.getMetrics();
+
+// Get latency percentiles
+const percentiles = metrics.getPercentiles(.abbey);
+std.debug.print(&quot;Abbey latency - p50: {d}ms, p99: {d}ms\n&quot;, .{
+    percentiles.p50 / 1_000_000,
+    percentiles.p99 / 1_000_000,
+});
+
+// Get success rates
+const success_rate = metrics.getSuccessRate(.aviva);
+std.debug.print(&quot;Aviva success rate: {d:.2}%\n&quot;, .{success_rate * 100});
+</code></pre>
+
+<h3 id="setting-up-alerts">Setting Up Alerts<a class="anchor" href="#setting-up-alerts">#</a></h3>
+
+<pre class="code-block language-zig"><code>const alerts = orchestrator.getAlerts();
+
+// Add custom alert
+try alerts.addRule(.{
+    .name = &quot;high_latency_warning&quot;,
+    .condition = .{ .latency_exceeds_ms = 2000 },
+    .severity = .warning,
+    .personas = &amp;.{ .abbey, .aviva },
+});
+
+// Check for active alerts
+const active = alerts.getActive();
+for (active) |alert| {
+    std.debug.print(&quot;Alert: {s} ({s})\n&quot;, .{
+        alert.name,
+        @tagName(alert.severity),
+    });
+}
+</code></pre>
+
+<h3 id="health-checks">Health Checks<a class="anchor" href="#health-checks">#</a></h3>
+
+<pre class="code-block language-zig"><code>const health_checker = orchestrator.getHealthChecker();
+
+// Check all personas
+const results = try health_checker.checkAll();
+defer allocator.free(results);
+
+for (results) |result| {
+    std.debug.print(&quot;{s}: {s}\n&quot;, .{
+        @tagName(result.persona_type),
+        @tagName(result.status),
+    });
+    std.debug.print(&quot;  Latency check: {s}\n&quot;, .{
+        if (result.checks.latency) &quot;pass&quot; else &quot;fail&quot;,
+    });
+    std.debug.print(&quot;  Error rate: {s}\n&quot;, .{
+        if (result.checks.error_rate) &quot;pass&quot; else &quot;fail&quot;,
+    });
+}
+</code></pre>
+
+<h2 id="error-handling">Error Handling<a class="anchor" href="#error-handling">#</a></h2>
+
+<h3 id="graceful-degradation">Graceful Degradation<a class="anchor" href="#graceful-degradation">#</a></h3>
+
+<p>The system handles failures with fallback:</p>
+
+<pre class="code-block language-zig"><code>const response = orchestrator.process(.{
+    .content = &quot;Help me with this code&quot;,
+}) catch |err| switch (err) {
+    error.PersonaUnavailable =&gt; {
+        // Primary persona unhealthy, try fallback
+        return orchestrator.processWithFallback(.{
+            .content = &quot;Help me with this code&quot;,
+        });
+    },
+    error.AllPersonasUnavailable =&gt; {
+        // All personas down, return cached or error
+        return error.ServiceUnavailable;
+    },
+    else =&gt; return err,
+};
+</code></pre>
+
+<h3 id="circuit-breaker-states">Circuit Breaker States<a class="anchor" href="#circuit-breaker-states">#</a></h3>
+
+<pre class="code-block language-zig"><code>const cb_state = orchestrator.getCircuitBreakerState(.abbey);
+switch (cb_state) {
+    .closed =&gt; std.debug.print(&quot;Abbey healthy\n&quot;, .{}),
+    .open =&gt; std.debug.print(&quot;Abbey circuit open - not accepting requests\n&quot;, .{}),
+    .half_open =&gt; std.debug.print(&quot;Abbey recovering - testing with limited requests\n&quot;, .{}),
+}
+</code></pre>
+
+<h2 id="http-api-usage">HTTP API Usage<a class="anchor" href="#http-api-usage">#</a></h2>
+
+<h3 id="starting-the-api-server">Starting the API Server<a class="anchor" href="#starting-the-api-server">#</a></h3>
+
+<pre class="code-block language-zig"><code>const web = abi.web;
+
+var server = try web.Server.init(allocator, .{
+    .port = 8080,
+});
+defer server.deinit();
+
+// Register persona routes
+const router = web.routes.personas.Router.init(orchestrator);
+try server.registerRoutes(router.getRoutes());
+
+std.debug.print(&quot;Server listening on http://localhost:8080\n&quot;, .{});
+try server.run();
+</code></pre>
+
+<h3 id="api-examples-with-curl">API Examples with curl<a class="anchor" href="#api-examples-with-curl">#</a></h3>
+
+<pre class="code-block language-bash"><code># Auto-routing chat
+curl -X POST http://localhost:8080/api/v1/chat \
+  -H &quot;Content-Type: application/json&quot; \
+  -H &quot;Authorization: Bearer $API_KEY&quot; \
+  -d '{&quot;message&quot;: &quot;How do I use slices in Zig?&quot;}'
+
+# Force Abbey
+curl -X POST http://localhost:8080/api/v1/chat/abbey \
+  -H &quot;Content-Type: application/json&quot; \
+  -H &quot;Authorization: Bearer $API_KEY&quot; \
+  -d '{&quot;message&quot;: &quot;Im struggling with this concept...&quot;}'
+
+# Get metrics
+curl http://localhost:8080/api/v1/personas/metrics \
+  -H &quot;Authorization: Bearer $API_KEY&quot;
+
+# Health check
+curl http://localhost:8080/api/v1/personas/health \
+  -H &quot;Authorization: Bearer $API_KEY&quot;
+</code></pre>
+
+<h2 id="best-practices">Best Practices<a class="anchor" href="#best-practices">#</a></h2>
+
+<h3 id="1-let-the-router-decide">1. Let the Router Decide<a class="anchor" href="#1-let-the-router-decide">#</a></h3>
+
+<p>In most cases, let automatic routing handle persona selection:</p>
+
+<pre class="code-block language-zig"><code>// Good - let router decide
+const response = try orchestrator.process(.{ .content = user_message });
+
+// Only force persona when you have specific requirements
+const abbey_response = try orchestrator.processWithPersona(.abbey, .{
+    .content = user_message,
+});
+</code></pre>
+
+<h3 id="2-provide-context">2. Provide Context<a class="anchor" href="#2-provide-context">#</a></h3>
+
+<p>Include session context for better routing:</p>
+
+<pre class="code-block language-zig"><code>const response = try orchestrator.process(.{
+    .content = &quot;Can you explain that again?&quot;,
+    .session_id = session_id,
+    .context = .{
+        .previous_messages = &amp;previous_messages,
+    },
+});
+</code></pre>
+
+<h3 id="3-handle-metrics">3. Handle Metrics<a class="anchor" href="#3-handle-metrics">#</a></h3>
+
+<p>Regularly check metrics for performance issues:</p>
+
+<pre class="code-block language-zig"><code>// In your monitoring loop
+const aggregate = orchestrator.getMetrics().getAggregate();
+if (aggregate.p99_latency_ms &gt; 2000) {
+    log.warn(&quot;High p99 latency: {}ms&quot;, .{aggregate.p99_latency_ms});
+}
+if (aggregate.success_rate &lt; 0.95) {
+    log.warn(&quot;Low success rate: {d:.2}%&quot;, .{aggregate.success_rate * 100});
+}
+</code></pre>
+
+<h3 id="4-configure-appropriate-timeouts">4. Configure Appropriate Timeouts<a class="anchor" href="#4-configure-appropriate-timeouts">#</a></h3>
+
+<pre class="code-block language-zig"><code>var orchestrator = try personas.PersonaOrchestrator.init(allocator, .{
+    .request_timeout_ms = 30_000,
+    .health_check_interval_ms = 5_000,
+    .circuit_breaker = .{
+        .failure_threshold = 5,
+        .reset_timeout_ms = 60_000,
+    },
+});
+</code></pre>
+
+<h2 id="next-steps">Next Steps<a class="anchor" href="#next-steps">#</a></h2>
+
+<li><a href="../api/personas.md">API Reference</a> - Complete API documentation</li>
+<li><a href="../architecture/multi-persona-roadmap.md">Architecture Overview</a> - System design details</li>
+<li><a href="../ai.md">AI Module Guide</a> - Broader AI capabilities</li>
+
+<h2 id="troubleshooting">Troubleshooting<a class="anchor" href="#troubleshooting">#</a></h2>
+
+<h3 id="common-issues">Common Issues<a class="anchor" href="#common-issues">#</a></h3>
+
+<p><strong>&quot;PersonaUnavailable&quot; error</strong></p>
+<li>Check health status: <code>orchestrator.getHealthChecker().checkAll()</code></li>
+<li>Verify circuit breaker state</li>
+<li>Check logs for underlying errors</li>
+
+<p><strong>High latency responses</strong></p>
+<li>Monitor p99 latency in metrics</li>
+<li>Consider enabling request caching</li>
+<li>Check LLM backend performance</li>
+
+<p><strong>Inconsistent routing decisions</strong></p>
+<li>Review custom routing rules</li>
+<li>Check sentiment analysis accuracy</li>
+<li>Verify emotional context is being passed</li>
+
+<p><strong>Memory issues</strong></p>
+<li>Ensure proper <code>deinit()</code> calls</li>
+<li>Use <code>GeneralPurposeAllocator</code> with leak detection</li>
+<li>Monitor memory metrics in health checks</li>
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

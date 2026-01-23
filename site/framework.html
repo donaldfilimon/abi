@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>framework - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>framework</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#framework-guide">Framework Guide</a></li>
+        <li style="padding-left: 16px"><a href="#architecture-overview">Architecture Overview</a></li>
+        <li style="padding-left: 16px"><a href="#initialization">Initialization</a></li>
+        <li style="padding-left: 16px"><a href="#configuration">Configuration</a></li>
+        <li style="padding-left: 32px"><a href="#unified-config-system">Unified Config System</a></li>
+        <li style="padding-left: 32px"><a href="#config-fields">Config Fields</a></li>
+        <li style="padding-left: 32px"><a href="#legacy-configuration">Legacy Configuration</a></li>
+        <li style="padding-left: 16px"><a href="#framework-orchestration">Framework Orchestration</a></li>
+        <li style="padding-left: 32px"><a href="#framework-lifecycle">Framework Lifecycle</a></li>
+        <li style="padding-left: 32px"><a href="#feature-states">Feature States</a></li>
+        <li style="padding-left: 16px"><a href="#feature-flags">Feature Flags</a></li>
+        <li style="padding-left: 16px"><a href="#lifecycle">Lifecycle</a></li>
+        <li style="padding-left: 16px"><a href="#plugin-system">Plugin System</a></li>
+        <li style="padding-left: 32px"><a href="#plugin-registration">Plugin Registration</a></li>
+        <li style="padding-left: 32px"><a href="#plugin-descriptor">Plugin Descriptor</a></li>
+        <li style="padding-left: 32px"><a href="#auto-discovery">Auto-Discovery</a></li>
+        <li style="padding-left: 16px"><a href="#cli-commands">CLI Commands</a></li>
+        <li style="padding-left: 16px"><a href="#api-reference">API Reference</a></li>
+        <li style="padding-left: 32px"><a href="#namespaces">Namespaces</a></li>
+        <li style="padding-left: 32px"><a href="#functions">Functions</a></li>
+        <li style="padding-left: 32px"><a href="#example">Example</a></li>
+        <li style="padding-left: 16px"><a href="#see-also">See Also</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="framework-guide">Framework Guide<a class="anchor" href="#framework-guide">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<p>This guide covers the initialization, configuration, and lifecycle management of an ABI application.</p>
+
+<h2 id="architecture-overview">Architecture Overview<a class="anchor" href="#architecture-overview">#</a></h2>
+
+<p>The framework uses a flat domain structure with clear separation of concerns:</p>
+
+<pre class="code-block"><code>src/
+├── abi.zig              # Public API entry point
+├── config.zig           # Unified configuration system
+├── framework.zig        # Framework orchestration
+├── runtime/             # Always-on infrastructure (memory, scheduling)
+├── gpu/                 # GPU acceleration (primary location)
+├── ai/                  # AI module (impl in features/ai/)
+├── database/            # Vector database (WDBX)
+├── network/             # Distributed compute
+├── observability/       # Metrics, tracing, profiling
+├── web/                 # Web/HTTP utilities
+├── shared/              # Cross-cutting utilities (simd, platform, logging)
+└── features/            # Implementation layer (ai/, connectors/, ha/)
+</code></pre>
+
+<h2 id="initialization">Initialization<a class="anchor" href="#initialization">#</a></h2>
+
+<p>The entry point for any ABI application is the <code>abi.init</code> function. It establishes the runtime environment, sets up the memory allocator, and configures enabled features.</p>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+const abi = @import(&quot;abi&quot;);
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Initialize with default configuration
+    var framework = try abi.init(allocator, .{});
+    defer abi.shutdown(&amp;framework);
+
+    // Framework is now ready
+    std.debug.print(&quot;ABI v{s} initialized\n&quot;, .{abi.version()});
+}
+</code></pre>
+
+<h2 id="configuration">Configuration<a class="anchor" href="#configuration">#</a></h2>
+
+<h3 id="unified-config-system">Unified Config System<a class="anchor" href="#unified-config-system">#</a></h3>
+
+<p>The new <code>Config</code> struct in <code>config.zig</code> provides a unified configuration system with a builder pattern for fluent configuration.</p>
+
+<pre class="code-block language-zig"><code>const abi = @import(&quot;abi&quot;);
+
+// Using the builder pattern
+var config = abi.Config.init()
+    .enableAi(true)
+    .enableGpu(true)
+    .enableDatabase(true)
+    .enableNetwork(true)
+    .enableProfiling(true)
+    .setPluginPaths(&amp;.{
+        &quot;./plugins&quot;,
+        &quot;/usr/local/abi/plugins&quot;,
+    })
+    .build();
+
+var framework = try abi.init(allocator, config);
+defer abi.shutdown(&amp;framework);
+</code></pre>
+
+<h3 id="config-fields">Config Fields<a class="anchor" href="#config-fields">#</a></h3>
+
+<tr><td>Field</td><td>Type</td><td>Default</td><td>Description</td></tr>
+<tr><td><code>enable_ai</code></td><td><code>bool</code></td><td>build default</td><td>Enable AI features and connectors</td></tr>
+<tr><td><code>enable_gpu</code></td><td><code>bool</code></td><td>build default</td><td>Enable GPU acceleration</td></tr>
+<tr><td><code>enable_web</code></td><td><code>bool</code></td><td>build default</td><td>Enable HTTP utilities</td></tr>
+<tr><td><code>enable_database</code></td><td><code>bool</code></td><td>build default</td><td>Enable WDBX vector database</td></tr>
+<tr><td><code>enable_network</code></td><td><code>bool</code></td><td>build default</td><td>Enable distributed compute</td></tr>
+<tr><td><code>enable_profiling</code></td><td><code>bool</code></td><td>build default</td><td>Enable profiling metrics</td></tr>
+<tr><td><code>disabled_features</code></td><td><code>[]const Feature</code></td><td><code>&amp;.{}</code></td><td>Features to explicitly disable</td></tr>
+<tr><td><code>plugin_paths</code></td><td><code>[]const []const u8</code></td><td><code>&amp;.{}</code></td><td>Plugin search paths</td></tr>
+<tr><td><code>auto_discover_plugins</code></td><td><code>bool</code></td><td><code>false</code></td><td>Auto-discover plugins</td></tr>
+
+<h3 id="legacy-configuration">Legacy Configuration<a class="anchor" href="#legacy-configuration">#</a></h3>
+
+<p>For backward compatibility, <code>abi.FrameworkOptions</code> is still supported:</p>
+
+<pre class="code-block language-zig"><code>const options = abi.FrameworkOptions{
+    .enable_ai = true,
+    .enable_gpu = true,
+    .enable_web = true,
+    .enable_database = true,
+    .enable_network = true,
+    .enable_profiling = true,
+    .disabled_features = &amp;.{},
+    .plugin_paths = &amp;.{
+        &quot;./plugins&quot;,
+        &quot;/usr/local/abi/plugins&quot;,
+    },
+    .auto_discover_plugins = false,
+};
+</code></pre>
+
+<h2 id="framework-orchestration">Framework Orchestration<a class="anchor" href="#framework-orchestration">#</a></h2>
+
+<p>The <code>Framework</code> struct in <code>framework.zig</code> manages feature lifecycles and orchestration.</p>
+
+<h3 id="framework-lifecycle">Framework Lifecycle<a class="anchor" href="#framework-lifecycle">#</a></h3>
+
+<pre class="code-block language-zig"><code>var framework = try abi.init(allocator, config);
+defer abi.shutdown(&amp;framework);
+
+// Access framework state
+const is_ai_enabled = framework.isFeatureEnabled(.ai);
+const is_gpu_ready = framework.isFeatureReady(.gpu);
+
+// Get feature handles
+if (framework.getFeature(.ai)) |ai_feature| {
+    // Use AI feature
+}
+</code></pre>
+
+<h3 id="feature-states">Feature States<a class="anchor" href="#feature-states">#</a></h3>
+
+<p>The framework tracks feature states through their lifecycle:</p>
+
+<tr><td>State</td><td>Description</td></tr>
+<tr><td><code>disabled</code></td><td>Feature not enabled in config</td></tr>
+<tr><td><code>initializing</code></td><td>Feature is starting up</td></tr>
+<tr><td><code>ready</code></td><td>Feature is operational</td></tr>
+<tr><td><code>degraded</code></td><td>Feature operational with reduced capability</td></tr>
+<tr><td><code>failed</code></td><td>Feature failed to initialize</td></tr>
+<tr><td><code>shutdown</code></td><td>Feature is shutting down</td></tr>
+
+<h2 id="feature-flags">Feature Flags<a class="anchor" href="#feature-flags">#</a></h2>
+
+<p>ABI uses build-time feature flags to minimize binary size and compilation time. These are passed to <code>zig build</code>.</p>
+
+<tr><td>Flag</td><td>Default</td><td>Description</td></tr>
+<tr><td><code>-Denable-ai</code></td><td><code>true</code></td><td>Enables AI agents and connectors</td></tr>
+<tr><td><code>-Denable-gpu</code></td><td><code>true</code></td><td>Enables GPU acceleration support</td></tr>
+<tr><td><code>-Denable-database</code></td><td><code>true</code></td><td>Enables WDBX vector database</td></tr>
+<tr><td><code>-Denable-web</code></td><td><code>true</code></td><td>Enables HTTP client/server utilities</td></tr>
+<tr><td><code>-Denable-network</code></td><td><code>true</code></td><td>Enables distributed compute</td></tr>
+<tr><td><code>-Denable-profiling</code></td><td><code>true</code></td><td>Enables performance profiling</td></tr>
+
+<h2 id="lifecycle">Lifecycle<a class="anchor" href="#lifecycle">#</a></h2>
+
+<p>Always ensure <code>abi.shutdown(&amp;framework)</code> is called to release resources, stop worker threads, and flush logs.</p>
+
+<pre class="code-block language-zig"><code>// Proper lifecycle management
+var framework = try abi.init(allocator, .{});
+defer abi.shutdown(&amp;framework);
+
+// Or manual shutdown with error handling
+errdefer abi.shutdown(&amp;framework);
+// ... use framework ...
+abi.shutdown(&amp;framework);
+</code></pre>
+
+<h2 id="plugin-system">Plugin System<a class="anchor" href="#plugin-system">#</a></h2>
+
+<p>The framework supports runtime-loadable plugins for extending functionality.</p>
+
+<h3 id="plugin-registration">Plugin Registration<a class="anchor" href="#plugin-registration">#</a></h3>
+
+<pre class="code-block language-zig"><code>const plugins = @import(&quot;abi&quot;).plugins;
+
+var registry = plugins.PluginRegistry.init(allocator);
+defer registry.deinit();
+
+// Register a plugin
+try registry.register(
+    &quot;my-connector&quot;,           // Plugin name
+    &quot;./plugins/connector.so&quot;, // Plugin path
+    &quot;ai&quot;,                     // Associated feature
+);
+
+// Find a plugin by name
+if (registry.findByName(&quot;my-connector&quot;)) |plugin| {
+    std.debug.print(&quot;Found plugin: {s}\n&quot;, .{plugin.path});
+}
+</code></pre>
+
+<h3 id="plugin-descriptor">Plugin Descriptor<a class="anchor" href="#plugin-descriptor">#</a></h3>
+
+<tr><td>Field</td><td>Type</td><td>Description</td></tr>
+<tr><td><code>name</code></td><td><code>[]const u8</code></td><td>Unique plugin identifier</td></tr>
+<tr><td><code>path</code></td><td><code>[]const u8</code></td><td>Path to plugin file</td></tr>
+<tr><td><code>feature</code></td><td><code>[]const u8</code></td><td>Associated feature (ai, gpu, database, etc.)</td></tr>
+
+<h3 id="auto-discovery">Auto-Discovery<a class="anchor" href="#auto-discovery">#</a></h3>
+
+<p>Enable automatic plugin discovery by setting <code>auto_discover_plugins = true</code> in the config. The framework will scan all paths in <code>plugin_paths</code> for compatible plugins.</p>
+
+<hr>
+
+<h2 id="cli-commands">CLI Commands<a class="anchor" href="#cli-commands">#</a></h2>
+
+<pre class="code-block language-bash"><code># Configuration management
+zig build run -- config init       # Initialize configuration
+zig build run -- config show       # Show current configuration
+zig build run -- config validate   # Validate configuration
+
+# System information
+zig build run -- system-info       # Show framework status
+zig build run -- --version         # Show version
+</code></pre>
+
+<hr>
+
+<h2 id="api-reference">API Reference<a class="anchor" href="#api-reference">#</a></h2>
+
+<p><strong>Source:</strong> <code>src/abi.zig</code></p>
+
+<h3 id="namespaces">Namespaces<a class="anchor" href="#namespaces">#</a></h3>
+
+<tr><td>Namespace</td><td>Description</td></tr>
+<tr><td><code>core</code></td><td>Core utilities and fundamental types</td></tr>
+<tr><td><code>features</code></td><td>Feature modules grouped for discoverability</td></tr>
+<tr><td><code>ai</code></td><td>AI feature namespace (llm, embeddings, agents, training)</td></tr>
+<tr><td><code>framework</code></td><td>Framework orchestration layer</td></tr>
+<tr><td><code>wdbx</code></td><td>Compatibility namespace for WDBX tooling</td></tr>
+
+<h3 id="functions">Functions<a class="anchor" href="#functions">#</a></h3>
+
+<tr><td>Function</td><td>Description</td></tr>
+<tr><td><code>init(allocator, config_or_options)</code></td><td>Initialize the ABI framework and return the orchestration handle</td></tr>
+<tr><td><code>shutdown(instance)</code></td><td>Convenience wrapper around <code>Framework.deinit</code></td></tr>
+<tr><td><code>version()</code></td><td>Get framework version information</td></tr>
+<tr><td><code>createDefaultFramework(allocator)</code></td><td>Create a framework with default configuration</td></tr>
+<tr><td><code>createFramework(allocator, config_or_options)</code></td><td>Create a framework with custom configuration</td></tr>
+
+<h3 id="example">Example<a class="anchor" href="#example">#</a></h3>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+const abi = @import(&quot;abi&quot;);
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Initialize framework
+    var fw = try abi.init(allocator, .{});
+    defer abi.shutdown(&amp;fw);
+
+    // Access namespaces
+    std.debug.print(&quot;Version: {s}\n&quot;, .{abi.version()});
+}
+</code></pre>
+
+<hr>
+
+<h2 id="see-also">See Also<a class="anchor" href="#see-also">#</a></h2>
+
+<li><a href="intro.md">Introduction</a> - Architecture overview</li>
+<li><a href="monitoring.md">Monitoring</a> - Logging and metrics configuration</li>
+<li><a href="compute.md">Compute Engine</a> - Engine configuration</li>
+<li><a href="gpu.md">GPU Acceleration</a> - GPU module (now at top-level)</li>
+<li><a href="troubleshooting.md">Troubleshooting</a> - Feature disabled errors</li>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

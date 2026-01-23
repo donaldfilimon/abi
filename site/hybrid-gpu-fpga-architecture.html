@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>hybrid-gpu-fpga-architecture - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>hybrid-gpu-fpga-architecture</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#hybrid-gpu-fpga-architecture-for-abi">Hybrid GPU-FPGA Architecture for ABI</a></li>
+        <li style="padding-left: 16px"><a href="#executive-summary">Executive Summary</a></li>
+        <li style="padding-left: 32px"><a href="#hybrid-value-proposition">Hybrid Value Proposition</a></li>
+        <li style="padding-left: 16px"><a href="#table-of-contents">Table of Contents</a></li>
+        <li style="padding-left: 16px"><a href="#1-architecture-patterns">1. Architecture Patterns</a></li>
+        <li style="padding-left: 32px"><a href="#11-offload-pattern">1.1 Offload Pattern</a></li>
+        <li style="padding-left: 32px"><a href="#12-pipeline-pattern">1.2 Pipeline Pattern</a></li>
+        <li style="padding-left: 32px"><a href="#13-parallel-pattern">1.3 Parallel Pattern</a></li>
+        <li style="padding-left: 32px"><a href="#14-redundancy-pattern">1.4 Redundancy Pattern</a></li>
+        <li style="padding-left: 16px"><a href="#2-workload-partitioning">2. Workload Partitioning</a></li>
+        <li style="padding-left: 32px"><a href="#21-llm-inference-partitioning">2.1 LLM Inference Partitioning</a></li>
+        <li style="padding-left: 32px"><a href="#22-vector-database-partitioning">2.2 Vector Database Partitioning</a></li>
+        <li style="padding-left: 32px"><a href="#23-decision-criteria">2.3 Decision Criteria</a></li>
+        <li style="padding-left: 16px"><a href="#3-communication-and-synchronization">3. Communication and Synchronization</a></li>
+        <li style="padding-left: 32px"><a href="#31-data-transfer-paths">3.1 Data Transfer Paths</a></li>
+        <li style="padding-left: 32px"><a href="#32-transfer-optimization-strategies">3.2 Transfer Optimization Strategies</a></li>
+        <li style="padding-left: 32px"><a href="#33-synchronization-primitives">3.3 Synchronization Primitives</a></li>
+        <li style="padding-left: 16px"><a href="#4-implementation-in-abi">4. Implementation in ABI</a></li>
+        <li style="padding-left: 32px"><a href="#41-unified-accelerator-interface">4.1 Unified Accelerator Interface</a></li>
+        <li style="padding-left: 32px"><a href="#42-runtime-integration">4.2 Runtime Integration</a></li>
+        <li style="padding-left: 32px"><a href="#43-configuration">4.3 Configuration</a></li>
+        <li style="padding-left: 16px"><a href="#5-use-case-analysis">5. Use Case Analysis</a></li>
+        <li style="padding-left: 32px"><a href="#51-real-time-rag-system">5.1 Real-Time RAG System</a></li>
+        <li style="padding-left: 32px"><a href="#52-batch-processing-pipeline">5.2 Batch Processing Pipeline</a></li>
+        <li style="padding-left: 32px"><a href="#53-edge-deployment">5.3 Edge Deployment</a></li>
+        <li style="padding-left: 16px"><a href="#6-performance-modeling">6. Performance Modeling</a></li>
+        <li style="padding-left: 32px"><a href="#61-latency-model">6.1 Latency Model</a></li>
+        <li style="padding-left: 32px"><a href="#62-throughput-model">6.2 Throughput Model</a></li>
+        <li style="padding-left: 32px"><a href="#63-power-model">6.3 Power Model</a></li>
+        <li style="padding-left: 16px"><a href="#7-deployment-topologies">7. Deployment Topologies</a></li>
+        <li style="padding-left: 32px"><a href="#71-single-node">7.1 Single Node</a></li>
+        <li style="padding-left: 32px"><a href="#72-multi-node-cluster">7.2 Multi-Node Cluster</a></li>
+        <li style="padding-left: 32px"><a href="#73-disaggregated-architecture">7.3 Disaggregated Architecture</a></li>
+        <li style="padding-left: 16px"><a href="#8-implementation-roadmap">8. Implementation Roadmap</a></li>
+        <li style="padding-left: 32px"><a href="#81-phase-1-foundation-q1-q2-2026">8.1 Phase 1: Foundation (Q1-Q2 2026)</a></li>
+        <li style="padding-left: 32px"><a href="#82-phase-2-integration-q3-q4-2026">8.2 Phase 2: Integration (Q3-Q4 2026)</a></li>
+        <li style="padding-left: 32px"><a href="#83-phase-3-optimization-2027">8.3 Phase 3: Optimization (2027)</a></li>
+        <li style="padding-left: 16px"><a href="#9-references">9. References</a></li>
+        <li style="padding-left: 32px"><a href="#academic-papers">Academic Papers</a></li>
+        <li style="padding-left: 32px"><a href="#industry-resources">Industry Resources</a></li>
+        <li style="padding-left: 32px"><a href="#abi-framework-references">ABI Framework References</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="hybrid-gpu-fpga-architecture-for-abi">Hybrid GPU-FPGA Architecture for ABI<a class="anchor" href="#hybrid-gpu-fpga-architecture-for-abi">#</a></h1>
+
+<blockquote><strong>Document Version:</strong> 1.0</blockquote>
+<blockquote><strong>Date:</strong> January 2026</blockquote>
+<blockquote><strong>Status:</strong> Research Phase</blockquote>
+<blockquote><strong>Related:</strong> <a href="./hardware-acceleration-fpga-asic.md">hardware-acceleration-fpga-asic.md</a></blockquote>
+
+<h2 id="executive-summary">Executive Summary<a class="anchor" href="#executive-summary">#</a></h2>
+
+<p>This document explores hybrid architectures that combine GPU and FPGA accelerators to leverage the strengths of each platform. GPUs excel at high-throughput parallel computation with flexible programming models, while FPGAs offer deterministic latency, custom datapaths, and superior power efficiency for fixed workloads.</p>
+
+<h3 id="hybrid-value-proposition">Hybrid Value Proposition<a class="anchor" href="#hybrid-value-proposition">#</a></h3>
+
+<tr><td>Workload</td><td>Best Platform</td><td>Reason</td></tr>
+<tr><td>LLM prefill (batch)</td><td>GPU</td><td>High parallelism, memory bandwidth</td></tr>
+<tr><td>LLM decode (single)</td><td>FPGA</td><td>Low latency, power efficiency</td></tr>
+<tr><td>Vector bulk indexing</td><td>GPU</td><td>Throughput-oriented</td></tr>
+<tr><td>Vector real-time search</td><td>FPGA</td><td>Latency-critical</td></tr>
+<tr><td>Training</td><td>GPU</td><td>Flexibility, ecosystem</td></tr>
+<tr><td>Inference edge</td><td>FPGA</td><td>Power constraints</td></tr>
+
+<hr>
+
+<h2 id="table-of-contents">Table of Contents<a class="anchor" href="#table-of-contents">#</a></h2>
+
+<p>1. <a href="#1-architecture-patterns">Architecture Patterns</a></p>
+<p>2. <a href="#2-workload-partitioning">Workload Partitioning</a></p>
+<p>3. <a href="#3-communication-and-synchronization">Communication and Synchronization</a></p>
+<p>4. <a href="#4-implementation-in-abi">Implementation in ABI</a></p>
+<p>5. <a href="#5-use-case-analysis">Use Case Analysis</a></p>
+<p>6. <a href="#6-performance-modeling">Performance Modeling</a></p>
+<p>7. <a href="#7-deployment-topologies">Deployment Topologies</a></p>
+<p>8. <a href="#8-implementation-roadmap">Implementation Roadmap</a></p>
+<p>9. <a href="#9-references">References</a></p>
+
+<hr>
+
+<h2 id="1-architecture-patterns">1. Architecture Patterns<a class="anchor" href="#1-architecture-patterns">#</a></h2>
+
+<h3 id="11-offload-pattern">1.1 Offload Pattern<a class="anchor" href="#11-offload-pattern">#</a></h3>
+
+<p>GPU handles most work; FPGA accelerates specific bottlenecks.</p>
+
+<pre class="code-block"><code>┌─────────────────────────────────────────────────────────────────┐
+│                      Offload Architecture                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Host Application                                                │
+│       │                                                          │
+│       ▼                                                          │
+│  ┌─────────────────────────────────────────┐                    │
+│  │              GPU (Primary)              │                    │
+│  │                                          │                    │
+│  │  ┌────────┐  ┌────────┐  ┌────────┐   │                    │
+│  │  │ Prefill│  │ Batch  │  │  KV    │   │                    │
+│  │  │ Phase  │  │ Decode │  │ Cache  │   │                    │
+│  │  └────────┘  └────────┘  └────────┘   │                    │
+│  │                                          │                    │
+│  │         │ Offload bottleneck            │                    │
+│  │         ▼                                │                    │
+│  │  ┌─────────────────────────────────┐   │                    │
+│  │  │     FPGA (Accelerator)          │   │                    │
+│  │  │                                  │   │                    │
+│  │  │  ┌────────────┐  ┌───────────┐ │   │                    │
+│  │  │  │ Quantized  │  │ Attention │ │   │                    │
+│  │  │  │ MatMul     │  │ Softmax   │ │   │                    │
+│  │  │  └────────────┘  └───────────┘ │   │                    │
+│  │  └─────────────────────────────────┘   │                    │
+│  └─────────────────────────────────────────┘                    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+Use when:
+- Single operation dominates latency
+- FPGA IP already developed
+- Minimal data transfer overhead
+</code></pre>
+
+<h3 id="12-pipeline-pattern">1.2 Pipeline Pattern<a class="anchor" href="#12-pipeline-pattern">#</a></h3>
+
+<p>GPU and FPGA process different stages concurrently.</p>
+
+<pre class="code-block"><code>┌─────────────────────────────────────────────────────────────────┐
+│                     Pipeline Architecture                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Request Stream                                                  │
+│       │                                                          │
+│       ▼                                                          │
+│  ┌──────────────┐                                               │
+│  │   Stage 1    │  GPU: Embedding lookup, initial layers        │
+│  │   (GPU)      │                                               │
+│  └──────┬───────┘                                               │
+│         │ intermediate tensor                                   │
+│         ▼                                                          │
+│  ┌──────────────┐                                               │
+│  │   Stage 2    │  FPGA: Attention mechanism                    │
+│  │   (FPGA)     │                                               │
+│  └──────┬───────┘                                               │
+│         │ attention output                                      │
+│         ▼                                                          │
+│  ┌──────────────┐                                               │
+│  │   Stage 3    │  GPU: FFN layers, final layers                │
+│  │   (GPU)      │                                               │
+│  └──────┬───────┘                                               │
+│         │                                                        │
+│         ▼                                                          │
+│  ┌──────────────┐                                               │
+│  │   Stage 4    │  FPGA: Sampling, post-processing              │
+│  │   (FPGA)     │                                               │
+│  └──────┬───────┘                                               │
+│         │                                                        │
+│         ▼                                                          │
+│  Response Stream                                                 │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+Use when:
+- Multiple requests need processing
+- Stages have different characteristics
+- Overlap hides transfer latency
+</code></pre>
+
+<h3 id="13-parallel-pattern">1.3 Parallel Pattern<a class="anchor" href="#13-parallel-pattern">#</a></h3>
+
+<p>GPU and FPGA handle different workload types simultaneously.</p>
+
+<pre class="code-block"><code>┌─────────────────────────────────────────────────────────────────┐
+│                     Parallel Architecture                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    Unified Scheduler                     │   │
+│  │                                                          │   │
+│  │  Classify workload → Route to optimal accelerator        │   │
+│  └───────────────────────┬─────────────────────────────────┘   │
+│                          │                                      │
+│          ┌───────────────┴───────────────┐                     │
+│          │                               │                      │
+│          ▼                               ▼                      │
+│  ┌───────────────────┐     ┌───────────────────┐              │
+│  │       GPU         │     │       FPGA        │              │
+│  │                   │     │                   │              │
+│  │  Workloads:       │     │  Workloads:       │              │
+│  │  - Batch prefill  │     │  - Single decode  │              │
+│  │  - Training       │     │  - Vector search  │              │
+│  │  - Large batch    │     │  - Low-latency    │              │
+│  │    inference      │     │    requests       │              │
+│  │                   │     │                   │              │
+│  └───────────────────┘     └───────────────────┘              │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+Use when:
+- Mixed workload types
+- Different latency requirements
+- Resource utilization optimization
+</code></pre>
+
+<h3 id="14-redundancy-pattern">1.4 Redundancy Pattern<a class="anchor" href="#14-redundancy-pattern">#</a></h3>
+
+<p>Both platforms available for failover and load balancing.</p>
+
+<pre class="code-block"><code>┌─────────────────────────────────────────────────────────────────┐
+│                    Redundancy Architecture                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                   Load Balancer                          │   │
+│  │                                                          │   │
+│  │  Health check → Route based on:                          │   │
+│  │  - Device health                                         │   │
+│  │  - Current load                                          │   │
+│  │  - Power budget                                          │   │
+│  │  - Latency SLA                                           │   │
+│  └───────────────────────┬─────────────────────────────────┘   │
+│                          │                                      │
+│          ┌───────────────┴───────────────┐                     │
+│          │                               │                      │
+│          ▼                               ▼                      │
+│  ┌───────────────────┐     ┌───────────────────┐              │
+│  │   GPU Instance    │     │  FPGA Instance    │              │
+│  │                   │     │                   │              │
+│  │  Same workload    │     │  Same workload    │              │
+│  │  capability       │     │  capability       │              │
+│  │                   │     │                   │              │
+│  │  Fallback: FPGA   │     │  Fallback: GPU    │              │
+│  └───────────────────┘     └───────────────────┘              │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+Use when:
+- High availability required
+- Gradual FPGA adoption
+- A/B testing hardware
+</code></pre>
+
+<hr>
+
+<h2 id="2-workload-partitioning">2. Workload Partitioning<a class="anchor" href="#2-workload-partitioning">#</a></h2>
+
+<h3 id="21-llm-inference-partitioning">2.1 LLM Inference Partitioning<a class="anchor" href="#21-llm-inference-partitioning">#</a></h3>
+
+<p><strong>Analysis of LLM operations:</strong></p>
+
+<tr><td>Operation</td><td>GPU Advantage</td><td>FPGA Advantage</td><td>Recommendation</td></tr>
+<tr><td>Embedding lookup</td><td>High bandwidth</td><td>N/A</td><td>GPU</td></tr>
+<tr><td>QKV projection</td><td>Batching</td><td>Quantized</td><td>Hybrid</td></tr>
+<tr><td>Attention (prefill)</td><td>Parallelism</td><td>N/A</td><td>GPU</td></tr>
+<tr><td>Attention (decode)</td><td>N/A</td><td>Low latency</td><td>FPGA</td></tr>
+<tr><td>FFN (prefill)</td><td>Batching</td><td>N/A</td><td>GPU</td></tr>
+<tr><td>FFN (decode)</td><td>N/A</td><td>Streaming</td><td>FPGA</td></tr>
+<tr><td>Softmax</td><td>N/A</td><td>Streaming</td><td>FPGA</td></tr>
+<tr><td>RMSNorm</td><td>Trivial</td><td>Trivial</td><td>Either</td></tr>
+<tr><td>Sampling</td><td>N/A</td><td>Deterministic</td><td>FPGA</td></tr>
+
+<p><strong>Optimal Partitioning Strategy:</strong></p>
+
+<pre class="code-block"><code>Prefill Phase (batch processing):
+┌─────────────────────────────────────────┐
+│                  GPU                     │
+│  Embedding → Attention → FFN → Output   │
+└─────────────────────────────────────────┘
+
+Decode Phase (autoregressive):
+┌────────────────────────────────────────────────────────────────┐
+│  GPU (QKV projection)                                          │
+│       │                                                         │
+│       ▼                                                         │
+│  ┌──────────────────────────────────────────────────────────┐ │
+│  │  FPGA (Attention + FFN + Sampling)                        │ │
+│  │                                                           │ │
+│  │  Streaming execution with on-chip KV-cache                │ │
+│  └──────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3 id="22-vector-database-partitioning">2.2 Vector Database Partitioning<a class="anchor" href="#22-vector-database-partitioning">#</a></h3>
+
+<p><strong>Analysis of vector operations:</strong></p>
+
+<tr><td>Operation</td><td>GPU Advantage</td><td>FPGA Advantage</td><td>Recommendation</td></tr>
+<tr><td>Bulk insert</td><td>Batching</td><td>N/A</td><td>GPU</td></tr>
+<tr><td>Index building</td><td>Parallelism</td><td>N/A</td><td>GPU</td></tr>
+<tr><td>Batch search</td><td>Throughput</td><td>N/A</td><td>GPU</td></tr>
+<tr><td>Single search</td><td>N/A</td><td>Latency</td><td>FPGA</td></tr>
+<tr><td>Reranking</td><td>N/A</td><td>Streaming</td><td>FPGA</td></tr>
+<tr><td>K-means</td><td>Batching</td><td>N/A</td><td>GPU</td></tr>
+<tr><td>HNSW graph update</td><td>N/A</td><td>Random access</td><td>FPGA</td></tr>
+
+<p><strong>Hybrid Search Architecture:</strong></p>
+
+<pre class="code-block"><code>┌─────────────────────────────────────────────────────────────────┐
+│                  Hybrid Vector Search                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Query arrives:                                                  │
+│       │                                                          │
+│       ▼                                                          │
+│  ┌──────────────────────────────────────┐                       │
+│  │         Query Classification         │                       │
+│  │                                       │                       │
+│  │  Batch &gt; 10 queries → GPU path       │                       │
+│  │  Single query, SLA &lt; 1ms → FPGA path │                       │
+│  └───────────────────┬──────────────────┘                       │
+│                      │                                           │
+│      ┌───────────────┴───────────────┐                          │
+│      │                               │                           │
+│      ▼                               ▼                           │
+│  ┌────────────────┐      ┌────────────────┐                     │
+│  │  GPU Path      │      │  FPGA Path     │                     │
+│  │                │      │                │                     │
+│  │  1. Batch      │      │  1. HNSW       │                     │
+│  │     distance   │      │     traverse   │                     │
+│  │  2. Parallel   │      │  2. Stream     │                     │
+│  │     top-k      │      │     distances  │                     │
+│  │  3. Merge      │      │  3. HW top-k   │                     │
+│  │                │      │                │                     │
+│  │  Latency: 5ms  │      │  Latency: 0.5ms│                     │
+│  │  Throughput:   │      │  Throughput:   │                     │
+│  │  100K qps      │      │  10K qps       │                     │
+│  └────────────────┘      └────────────────┘                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3 id="23-decision-criteria">2.3 Decision Criteria<a class="anchor" href="#23-decision-criteria">#</a></h3>
+
+<pre class="code-block language-zig"><code>// From src/runtime/workload.zig (extended concept)
+pub const HybridWorkloadHints = struct {
+    // Existing fields
+    cpu_affinity: ?u32 = null,
+    estimated_duration_us: ?u64 = null,
+
+    // Hybrid-specific fields
+    latency_sla_us: ?u64 = null,        // Strict latency requirement
+    batch_size: u32 = 1,                 // Number of items to process
+    power_budget_watts: ?f32 = null,     // Power constraint
+    prefers_deterministic: bool = false, // Needs predictable timing
+
+    // Computed routing
+    pub fn recommendedPlatform(self: HybridWorkloadHints) Platform {
+        // Strict latency requirement → FPGA
+        if (self.latency_sla_us) |sla| {
+            if (sla &lt; 1000) return .fpga;
+        }
+
+        // High batch → GPU
+        if (self.batch_size &gt; 16) return .gpu;
+
+        // Power constrained → FPGA
+        if (self.power_budget_watts) |budget| {
+            if (budget &lt; 50) return .fpga;
+        }
+
+        // Deterministic requirement → FPGA
+        if (self.prefers_deterministic) return .fpga;
+
+        // Default to GPU for flexibility
+        return .gpu;
+    }
+
+    pub const Platform = enum { cpu, gpu, fpga, hybrid };
+};
+</code></pre>
+
+<hr>
+
+<h2 id="3-communication-and-synchronization">3. Communication and Synchronization<a class="anchor" href="#3-communication-and-synchronization">#</a></h2>
+
+<h3 id="31-data-transfer-paths">3.1 Data Transfer Paths<a class="anchor" href="#31-data-transfer-paths">#</a></h3>
+
+<pre class="code-block"><code>┌─────────────────────────────────────────────────────────────────┐
+│                    System Interconnect                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│                      ┌───────────────────┐                      │
+│                      │    Host CPU       │                      │
+│                      │    (DDR5 Memory)  │                      │
+│                      └─────────┬─────────┘                      │
+│                                │                                 │
+│              PCIe Gen5 x16     │     PCIe Gen5 x16              │
+│              (64 GB/s)         │     (64 GB/s)                  │
+│          ┌─────────────────────┼─────────────────────┐          │
+│          │                     │                     │          │
+│          ▼                     │                     ▼          │
+│  ┌───────────────────┐         │         ┌───────────────────┐  │
+│  │       GPU         │         │         │       FPGA        │  │
+│  │  (HBM: 2 TB/s)    │         │         │  (HBM: 460 GB/s)  │  │
+│  └─────────┬─────────┘         │         └─────────┬─────────┘  │
+│            │                   │                   │            │
+│            │     NVLink/CXL    │    PCIe P2P       │            │
+│            │     (900 GB/s)    │    (32 GB/s)      │            │
+│            └───────────────────┴───────────────────┘            │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3 id="32-transfer-optimization-strategies">3.2 Transfer Optimization Strategies<a class="anchor" href="#32-transfer-optimization-strategies">#</a></h3>
+
+<p><strong>1. Zero-Copy Shared Memory (CXL)</strong></p>
+
+<pre class="code-block"><code>CXL Type 3 Memory:
+┌─────────────────────────────────────────────────────────────┐
+│                    CXL Shared Pool                           │
+│                    (cache-coherent)                          │
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │   CPU View   │  │   GPU View   │  │  FPGA View   │      │
+│  │              │  │              │  │              │      │
+│  │  Virtual     │  │  BAR mapped  │  │  AXI mapped  │      │
+│  │  address     │  │  to HBM      │  │  to DDR      │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+│                                                              │
+│  Latency: ~200ns (vs ~2μs for PCIe DMA)                     │
+│  Bandwidth: 64 GB/s bidirectional                           │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<p><strong>2. Pinned Buffer Pool</strong></p>
+
+<pre class="code-block language-zig"><code>// Hybrid memory pool for GPU-FPGA communication
+pub const HybridBufferPool = struct {
+    gpu_allocator: GpuAllocator,
+    fpga_allocator: FpgaAllocator,
+
+    // Pre-allocated pinned buffers for fast transfer
+    pinned_pool: []PinnedBuffer,
+
+    pub fn allocateShared(self: *HybridBufferPool, size: usize) !SharedBuffer {
+        // Allocate in host pinned memory
+        const host_ptr = try self.allocatePinned(size);
+
+        // Map to GPU address space
+        const gpu_ptr = try self.gpu_allocator.mapHostMemory(host_ptr);
+
+        // Map to FPGA address space
+        const fpga_ptr = try self.fpga_allocator.mapHostMemory(host_ptr);
+
+        return SharedBuffer{
+            .host_ptr = host_ptr,
+            .gpu_ptr = gpu_ptr,
+            .fpga_ptr = fpga_ptr,
+            .size = size,
+        };
+    }
+
+    pub const SharedBuffer = struct {
+        host_ptr: [*]u8,
+        gpu_ptr: *anyopaque,
+        fpga_ptr: *anyopaque,
+        size: usize,
+
+        pub fn syncToGpu(self: *SharedBuffer) !void {
+            // Flush CPU caches, GPU can read
+        }
+
+        pub fn syncToFpga(self: *SharedBuffer) !void {
+            // Flush CPU caches, FPGA can read
+        }
+
+        pub fn syncFromGpu(self: *SharedBuffer) !void {
+            // Invalidate CPU caches after GPU write
+        }
+
+        pub fn syncFromFpga(self: *SharedBuffer) !void {
+            // Invalidate CPU caches after FPGA write
+        }
+    };
+};
+</code></pre>
+
+<h3 id="33-synchronization-primitives">3.3 Synchronization Primitives<a class="anchor" href="#33-synchronization-primitives">#</a></h3>
+
+<p><strong>Cross-Device Events:</strong></p>
+
+<pre class="code-block language-zig"><code>pub const HybridEvent = struct {
+    gpu_event: ?GpuEvent = null,
+    fpga_event: ?FpgaEvent = null,
+    host_flag: std.atomic.Atomic(bool),
+
+    pub fn record(self: *HybridEvent, device: Device) !void {
+        switch (device) {
+            .gpu =&gt; {
+                self.gpu_event = try GpuEvent.record();
+            },
+            .fpga =&gt; {
+                self.fpga_event = try FpgaEvent.record();
+            },
+        }
+    }
+
+    pub fn waitOn(self: *HybridEvent, device: Device) !void {
+        // GPU waiting on FPGA: poll host flag
+        // FPGA waiting on GPU: poll host flag
+        // Both poll until completion then proceed
+
+        while (!self.host_flag.load(.Acquire)) {
+            std.Thread.yield();
+        }
+    }
+
+    pub fn signal(self: *HybridEvent) void {
+        self.host_flag.store(true, .Release);
+    }
+};
+</code></pre>
+
+<hr>
+
+<h2 id="4-implementation-in-abi">4. Implementation in ABI<a class="anchor" href="#4-implementation-in-abi">#</a></h2>
+
+<h3 id="41-unified-accelerator-interface">4.1 Unified Accelerator Interface<a class="anchor" href="#41-unified-accelerator-interface">#</a></h3>
+
+<pre class="code-block language-zig"><code>// Proposed extension to src/gpu/interface.zig
+pub const HybridBackend = struct {
+    gpu: ?*gpu.Backend = null,
+    fpga: ?*fpga.FpgaBackend = null,
+    scheduler: HybridScheduler,
+    transfer_manager: TransferManager,
+
+    pub fn init(allocator: std.mem.Allocator, config: HybridConfig) !*HybridBackend {
+        var self = try allocator.create(HybridBackend);
+
+        // Initialize GPU if available
+        if (gpu.isAvailable()) {
+            self.gpu = try gpu.Backend.init(allocator, config.gpu_config);
+        }
+
+        // Initialize FPGA if available
+        if (fpga.isAvailable()) {
+            self.fpga = try fpga.FpgaBackend.init(allocator, config.fpga_config);
+        }
+
+        self.scheduler = HybridScheduler.init(self.gpu, self.fpga);
+        self.transfer_manager = TransferManager.init(allocator);
+
+        return self;
+    }
+
+    pub fn executeWorkload(
+        self: *HybridBackend,
+        workload: *Workload,
+        hints: HybridWorkloadHints,
+    ) !void {
+        const platform = hints.recommendedPlatform();
+
+        switch (platform) {
+            .gpu =&gt; try self.executeOnGpu(workload),
+            .fpga =&gt; try self.executeOnFpga(workload),
+            .hybrid =&gt; try self.executeHybrid(workload),
+            .cpu =&gt; try self.executeOnCpu(workload),
+        }
+    }
+
+    fn executeHybrid(self: *HybridBackend, workload: *Workload) !void {
+        // Split workload into GPU and FPGA portions
+        const split = self.scheduler.partitionWorkload(workload);
+
+        // Set up inter-device buffers
+        var shared_buf = try self.transfer_manager.allocateShared(split.intermediate_size);
+        defer self.transfer_manager.free(&amp;shared_buf);
+
+        // Execute GPU portion
+        try self.executeOnGpu(split.gpu_portion);
+        try shared_buf.syncToFpga();
+
+        // Execute FPGA portion
+        try self.executeOnFpga(split.fpga_portion);
+        try shared_buf.syncFromFpga();
+    }
+};
+</code></pre>
+
+<h3 id="42-runtime-integration">4.2 Runtime Integration<a class="anchor" href="#42-runtime-integration">#</a></h3>
+
+<pre class="code-block language-zig"><code>// Extension to src/runtime/engine/engine.zig
+pub const HybridEngine = struct {
+    base_engine: *Engine,
+    hybrid_backend: *HybridBackend,
+
+    pub fn submitHybridTask(
+        self: *HybridEngine,
+        task: *Task,
+        hints: HybridWorkloadHints,
+    ) !TaskHandle {
+        // Determine optimal execution path
+        const platform = hints.recommendedPlatform();
+
+        // Create appropriate workload wrapper
+        const workload = switch (platform) {
+            .gpu =&gt; try createGpuWorkload(task),
+            .fpga =&gt; try createFpgaWorkload(task),
+            .hybrid =&gt; try createHybridWorkload(task),
+            .cpu =&gt; return self.base_engine.submit(task),
+        };
+
+        // Submit to hybrid backend
+        return try self.submitWorkload(workload, hints);
+    }
+};
+</code></pre>
+
+<h3 id="43-configuration">4.3 Configuration<a class="anchor" href="#43-configuration">#</a></h3>
+
+<pre class="code-block language-zig"><code>// Extension to src/config.zig
+pub const HybridConfig = struct {
+    // Enable hybrid mode
+    enable_hybrid: bool = false,
+
+    // Individual backend configs
+    gpu_config: ?GpuConfig = null,
+    fpga_config: ?FpgaConfig = null,
+
+    // Scheduling policy
+    scheduling_policy: SchedulingPolicy = .latency_optimized,
+
+    // Transfer optimization
+    use_pinned_memory: bool = true,
+    transfer_threshold_bytes: usize = 4096,
+
+    // Workload routing thresholds
+    fpga_latency_threshold_us: u64 = 1000,
+    gpu_batch_threshold: u32 = 16,
+
+    pub const SchedulingPolicy = enum {
+        latency_optimized,  // Minimize latency
+        throughput_optimized,  // Maximize throughput
+        power_optimized,  // Minimize power
+        balanced,  // Balance all factors
+    };
+};
+</code></pre>
+
+<hr>
+
+<h2 id="5-use-case-analysis">5. Use Case Analysis<a class="anchor" href="#5-use-case-analysis">#</a></h2>
+
+<h3 id="51-real-time-rag-system">5.1 Real-Time RAG System<a class="anchor" href="#51-real-time-rag-system">#</a></h3>
+
+<p><strong>Requirements:</strong></p>
+<li>Query latency: &lt;50ms P99</li>
+<li>Index size: 10M vectors</li>
+<li>Query rate: 1000 qps</li>
+<li>LLM model: 7B parameters</li>
+
+<p><strong>Hybrid Solution:</strong></p>
+
+<pre class="code-block"><code>Query Flow:
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                  │
+│  User Query                                                      │
+│       │                                                          │
+│       ▼                                                          │
+│  ┌──────────────┐                                               │
+│  │   FPGA       │  Vector search (5ms)                          │
+│  │   Search     │  - HNSW traversal                             │
+│  │              │  - Distance computation                       │
+│  │              │  - Top-10 retrieval                           │
+│  └──────┬───────┘                                               │
+│         │ context vectors                                       │
+│         ▼                                                          │
+│  ┌──────────────┐                                               │
+│  │   GPU        │  LLM prefill (15ms)                           │
+│  │   Prefill    │  - Embed context                              │
+│  │              │  - Process prompt                             │
+│  └──────┬───────┘                                               │
+│         │ KV-cache                                              │
+│         ▼                                                          │
+│  ┌──────────────┐                                               │
+│  │   FPGA       │  LLM decode (25ms for 50 tokens)              │
+│  │   Decode     │  - Streaming generation                       │
+│  │              │  - Low-latency tokens                         │
+│  └──────┬───────┘                                               │
+│         │                                                        │
+│         ▼                                                          │
+│  Response Stream                                                 │
+│                                                                  │
+│  Total latency: 45ms (vs 80ms GPU-only)                         │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3 id="52-batch-processing-pipeline">5.2 Batch Processing Pipeline<a class="anchor" href="#52-batch-processing-pipeline">#</a></h3>
+
+<p><strong>Requirements:</strong></p>
+<li>Throughput: 1M documents/hour</li>
+<li>Index update: Real-time</li>
+<li>Power budget: 5kW rack</li>
+
+<p><strong>Hybrid Solution:</strong></p>
+
+<pre class="code-block"><code>Batch Pipeline:
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                  │
+│  Document Stream (1M docs)                                       │
+│       │                                                          │
+│       ▼                                                          │
+│  ┌──────────────────────────────────────────────┐              │
+│  │                  GPU Farm (8x A100)          │              │
+│  │                                               │              │
+│  │  Parallel processing:                         │              │
+│  │  - Chunking and tokenization                 │              │
+│  │  - Embedding generation (batch 512)          │              │
+│  │  - Initial clustering                        │              │
+│  │                                               │              │
+│  │  Throughput: 50K embeddings/sec              │              │
+│  │  Power: 2kW                                  │              │
+│  └──────────────────────────────────────────────┘              │
+│                                                                  │
+│       │ embeddings stream                                       │
+│       ▼                                                          │
+│  ┌──────────────────────────────────────────────┐              │
+│  │                FPGA Array (4x U250)          │              │
+│  │                                               │              │
+│  │  Streaming insertion:                         │              │
+│  │  - HNSW graph update                         │              │
+│  │  - IVF-PQ encoding                          │              │
+│  │  - Index compaction                         │              │
+│  │                                               │              │
+│  │  Throughput: 50K inserts/sec                │              │
+│  │  Power: 300W                                │              │
+│  └──────────────────────────────────────────────┘              │
+│                                                                  │
+│  Total power: 2.3kW (vs 4kW GPU-only)                          │
+│  40% power reduction with same throughput                       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3 id="53-edge-deployment">5.3 Edge Deployment<a class="anchor" href="#53-edge-deployment">#</a></h3>
+
+<p><strong>Requirements:</strong></p>
+<li>Power: &lt;100W total system</li>
+<li>Latency: &lt;20ms response</li>
+<li>Model: 7B quantized</li>
+<li>Offline capability</li>
+
+<p><strong>Hybrid Solution:</strong></p>
+
+<pre class="code-block"><code>Edge Device:
+┌─────────────────────────────────────────────────────────────────┐
+│                  Compact Edge System                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌───────────────────┐  ┌───────────────────┐                  │
+│  │   Mobile GPU      │  │   FPGA Module     │                  │
+│  │   (RTX 4060)      │  │   (Versal AI)     │                  │
+│  │                   │  │                   │                  │
+│  │   35W TDP         │  │   25W TDP         │                  │
+│  │                   │  │                   │                  │
+│  │   Roles:          │  │   Roles:          │                  │
+│  │   - Prefill       │  │   - Decode        │                  │
+│  │   - Batch queries │  │   - Real-time     │                  │
+│  │   - Training      │  │     queries       │                  │
+│  │     (fine-tune)   │  │   - Low-power     │                  │
+│  │                   │  │     standby       │                  │
+│  └───────────────────┘  └───────────────────┘                  │
+│                                                                  │
+│  Power modes:                                                    │
+│  - Standby (FPGA only): 10W                                     │
+│  - Normal (FPGA + GPU idle): 35W                                │
+│  - Peak (both active): 60W                                      │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr>
+
+<h2 id="6-performance-modeling">6. Performance Modeling<a class="anchor" href="#6-performance-modeling">#</a></h2>
+
+<h3 id="61-latency-model">6.1 Latency Model<a class="anchor" href="#61-latency-model">#</a></h3>
+
+<pre class="code-block"><code>T_total = T_cpu_prep + T_transfer_to_accel + T_compute + T_transfer_back + T_cpu_post
+
+For GPU-only:
+  T_total_gpu = 0.1ms + 0.5ms + T_compute_gpu + 0.5ms + 0.1ms
+              = 1.2ms + T_compute_gpu
+
+For FPGA-only:
+  T_total_fpga = 0.1ms + 0.3ms + T_compute_fpga + 0.3ms + 0.1ms
+               = 0.8ms + T_compute_fpga
+
+For Hybrid (pipeline):
+  T_total_hybrid = T_transfer_to_gpu + max(T_gpu, T_fpga) + T_transfer_back
+                 = 0.5ms + max(T_gpu, T_fpga) + 0.3ms
+
+Hybrid wins when: T_gpu and T_fpga can overlap
+</code></pre>
+
+<h3 id="62-throughput-model">6.2 Throughput Model<a class="anchor" href="#62-throughput-model">#</a></h3>
+
+<pre class="code-block"><code>Throughput = min(GPU_throughput, FPGA_throughput, Transfer_throughput)
+
+GPU throughput: 100K ops/sec
+FPGA throughput: 50K ops/sec
+Transfer throughput: 64 GB/s / op_size
+
+For 1KB operations:
+  Transfer limited: 64M ops/sec (not bottleneck)
+  System throughput: ~50K ops/sec (FPGA limited)
+
+For 1MB operations:
+  Transfer limited: 64K ops/sec (becomes bottleneck)
+  System throughput: ~64K ops/sec (transfer limited)
+</code></pre>
+
+<h3 id="63-power-model">6.3 Power Model<a class="anchor" href="#63-power-model">#</a></h3>
+
+<pre class="code-block"><code>P_total = P_gpu * utilization_gpu + P_fpga * utilization_fpga + P_transfer + P_host
+
+Example (balanced workload):
+  GPU: 250W * 0.5 utilization = 125W
+  FPGA: 75W * 0.8 utilization = 60W
+  Transfer: 10W
+  Host: 50W
+  Total: 245W
+
+vs GPU-only (same throughput):
+  GPU: 250W * 1.0 = 250W
+  Host: 50W
+  Total: 300W
+
+Power savings: 18%
+</code></pre>
+
+<hr>
+
+<h2 id="7-deployment-topologies">7. Deployment Topologies<a class="anchor" href="#7-deployment-topologies">#</a></h2>
+
+<h3 id="71-single-node">7.1 Single Node<a class="anchor" href="#71-single-node">#</a></h3>
+
+<pre class="code-block"><code>┌─────────────────────────────────────────────────────────────────┐
+│                     Single Server Node                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  CPU: Xeon 8480+ (56 cores)                                     │
+│  RAM: 512 GB DDR5                                                │
+│  GPU: 2x A100 80GB (PCIe Gen5)                                  │
+│  FPGA: 2x Alveo U250 (PCIe Gen4)                                │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                     PCIe Topology                        │   │
+│  │                                                          │   │
+│  │     CPU Socket 0          CPU Socket 1                  │   │
+│  │         │                      │                         │   │
+│  │    ┌────┴────┐            ┌────┴────┐                   │   │
+│  │    │         │            │         │                    │   │
+│  │  A100-0   U250-0       A100-1   U250-1                  │   │
+│  │                                                          │   │
+│  │  GPU-FPGA pairs on same CPU for optimal transfer         │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│  Workload distribution:                                          │
+│  - Pair 0: Production inference                                 │
+│  - Pair 1: Batch processing / failover                          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3 id="72-multi-node-cluster">7.2 Multi-Node Cluster<a class="anchor" href="#72-multi-node-cluster">#</a></h3>
+
+<pre class="code-block"><code>┌─────────────────────────────────────────────────────────────────┐
+│                     Hybrid Cluster (4 Nodes)                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────┐  ┌─────────────┐                              │
+│  │   Node 1    │  │   Node 2    │    GPU-Heavy Tier             │
+│  │  4x A100    │  │  4x A100    │    - Prefill                  │
+│  │  2x U250    │  │  2x U250    │    - Training                 │
+│  └──────┬──────┘  └──────┬──────┘    - Batch inference          │
+│         │                 │                                      │
+│         └────────┬────────┘                                     │
+│                  │ 100GbE / InfiniBand                           │
+│         ┌────────┴────────┐                                     │
+│         │                 │                                      │
+│  ┌──────┴──────┐  ┌──────┴──────┐                              │
+│  │   Node 3    │  │   Node 4    │    FPGA-Heavy Tier            │
+│  │  1x A100    │  │  1x A100    │    - Decode                   │
+│  │  4x U250    │  │  4x U250    │    - Vector search            │
+│  └─────────────┘  └─────────────┘    - Real-time inference      │
+│                                                                  │
+│  Load balancer routes based on workload type                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3 id="73-disaggregated-architecture">7.3 Disaggregated Architecture<a class="anchor" href="#73-disaggregated-architecture">#</a></h3>
+
+<pre class="code-block"><code>┌─────────────────────────────────────────────────────────────────┐
+│                  Disaggregated Hybrid System                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    CXL Fabric Switch                     │   │
+│  │                    (cache-coherent)                      │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│       │           │           │           │                     │
+│       ▼           ▼           ▼           ▼                     │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐              │
+│  │  CPU    │ │  GPU    │ │  FPGA   │ │ Memory  │              │
+│  │  Pool   │ │  Pool   │ │  Pool   │ │  Pool   │              │
+│  │         │ │         │ │         │ │         │              │
+│  │ 4x Xeon │ │ 8x A100 │ │ 8x U250 │ │ 2 TB    │              │
+│  │         │ │         │ │         │ │ CXL RAM │              │
+│  └─────────┘ └─────────┘ └─────────┘ └─────────┘              │
+│                                                                  │
+│  Benefits:                                                       │
+│  - Independent scaling of each resource type                    │
+│  - Shared memory pool reduces transfers                         │
+│  - Dynamic resource allocation                                  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr>
+
+<h2 id="8-implementation-roadmap">8. Implementation Roadmap<a class="anchor" href="#8-implementation-roadmap">#</a></h2>
+
+<h3 id="81-phase-1-foundation-q1-q2-2026">8.1 Phase 1: Foundation (Q1-Q2 2026)<a class="anchor" href="#81-phase-1-foundation-q1-q2-2026">#</a></h3>
+
+<p><strong>Objectives:</strong></p>
+<li>Define hybrid interface abstractions</li>
+<li>Implement basic workload routing</li>
+<li>Create shared memory infrastructure</li>
+
+<p><strong>Deliverables:</strong></p>
+<li><code>src/gpu/hybrid/mod.zig</code> - Hybrid backend module</li>
+<li><code>src/gpu/hybrid/scheduler.zig</code> - Workload scheduler</li>
+<li><code>src/gpu/hybrid/transfer.zig</code> - Transfer manager</li>
+<li>Documentation and examples</li>
+
+<h3 id="82-phase-2-integration-q3-q4-2026">8.2 Phase 2: Integration (Q3-Q4 2026)<a class="anchor" href="#82-phase-2-integration-q3-q4-2026">#</a></h3>
+
+<p><strong>Objectives:</strong></p>
+<li>Integrate with existing GPU and FPGA backends</li>
+<li>Implement pipeline execution</li>
+<li>Add monitoring and profiling</li>
+
+<p><strong>Deliverables:</strong></p>
+<li>Runtime engine integration</li>
+<li>Metrics collection for hybrid operations</li>
+<li>Performance benchmarks</li>
+
+<h3 id="83-phase-3-optimization-2027">8.3 Phase 3: Optimization (2027)<a class="anchor" href="#83-phase-3-optimization-2027">#</a></h3>
+
+<p><strong>Objectives:</strong></p>
+<li>Optimize transfer paths</li>
+<li>Implement advanced scheduling</li>
+<li>Production hardening</li>
+
+<p><strong>Deliverables:</strong></p>
+<li>CXL support (when available)</li>
+<li>Auto-tuning workload partitioning</li>
+<li>Production deployment guide</li>
+
+<hr>
+
+<h2 id="9-references">9. References<a class="anchor" href="#9-references">#</a></h2>
+
+<h3 id="academic-papers">Academic Papers<a class="anchor" href="#academic-papers">#</a></h3>
+
+<li>&quot;FPGA-GPU Heterogeneous Computing: A Survey&quot; - ACM Computing Surveys 2024</li>
+<li>&quot;Efficient Data Transfer in Heterogeneous Systems&quot; - ISCA 2023</li>
+<li>&quot;CXL-based Disaggregated Computing&quot; - ASPLOS 2024</li>
+
+<h3 id="industry-resources">Industry Resources<a class="anchor" href="#industry-resources">#</a></h3>
+
+<li>AMD/Xilinx Heterogeneous Computing Guide</li>
+<li>NVIDIA GPU Direct with FPGAs</li>
+<li>Intel Heterogeneous Computing Documentation</li>
+
+<h3 id="abi-framework-references">ABI Framework References<a class="anchor" href="#abi-framework-references">#</a></h3>
+
+<li><code>src/gpu/interface.zig</code> - GPU backend interface</li>
+<li><code>src/gpu/backends/fpga/</code> - FPGA backend</li>
+<li><code>src/runtime/engine/</code> - Runtime engine</li>
+<li><code>docs/research/hardware-acceleration-fpga-asic.md</code> - Main research doc</li>
+
+<hr>
+
+<p>*Document prepared for ABI Framework - Hybrid GPU-FPGA Architecture Research*</p>
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SECURITY_AUDIT - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>SECURITY_AUDIT</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#security-audit-report">Security Audit Report</a></li>
+        <li style="padding-left: 16px"><a href="#executive-summary">Executive Summary</a></li>
+        <li style="padding-left: 32px"><a href="#risk-summary">Risk Summary</a></li>
+        <li style="padding-left: 16px"><a href="#files-reviewed">Files Reviewed</a></li>
+        <li style="padding-left: 32px"><a href="#web-module-srcweb">Web Module (`src/web/`)</a></li>
+        <li style="padding-left: 32px"><a href="#api-connectors-srcconnectors">API Connectors (`src/connectors/`)</a></li>
+        <li style="padding-left: 32px"><a href="#persona-system-srcaipersonas">Persona System (`src/ai/personas/`)</a></li>
+        <li style="padding-left: 32px"><a href="#network-module-srcnetwork">Network Module (`src/network/`)</a></li>
+        <li style="padding-left: 32px"><a href="#security-utilities-srcsharedsecurity">Security Utilities (`src/shared/security/`)</a></li>
+        <li style="padding-left: 16px"><a href="#findings">Findings</a></li>
+        <li style="padding-left: 32px"><a href="#high-severity">HIGH Severity</a></li>
+        <li style="padding-left: 48px"><a href="#h-1-jwt-none-algorithm-support-available">H-1: JWT "none" Algorithm Support Available</a></li>
+        <li style="padding-left: 48px"><a href="#h-2-master-key-fallback-to-random-generation-in-production">H-2: Master Key Fallback to Random Generation in Production</a></li>
+        <li style="padding-left: 32px"><a href="#medium-severity">MEDIUM Severity</a></li>
+        <li style="padding-left: 48px"><a href="#m-1-api-keys-loaded-from-environment-without-secure-wiping">M-1: API Keys Loaded from Environment Without Secure Wiping</a></li>
+        <li style="padding-left: 48px"><a href="#m-2-http-response-size-limit-may-be-insufficient-for-dos-prevention">M-2: HTTP Response Size Limit May Be Insufficient for DoS Prevention</a></li>
+        <li style="padding-left: 48px"><a href="#m-3-chat-handler-missing-request-rate-limiting">M-3: Chat Handler Missing Request Rate Limiting</a></li>
+        <li style="padding-left: 48px"><a href="#m-4-secure-channel-handshake-implementations-are-simplified-placeholders">M-4: Secure Channel Handshake Implementations Are Simplified Placeholders</a></li>
+        <li style="padding-left: 48px"><a href="#m-5-json-parsing-without-depth-limits">M-5: JSON Parsing Without Depth Limits</a></li>
+        <li style="padding-left: 32px"><a href="#low-severity">LOW Severity</a></li>
+        <li style="padding-left: 48px"><a href="#l-1-error-messages-may-leak-internal-information">L-1: Error Messages May Leak Internal Information</a></li>
+        <li style="padding-left: 48px"><a href="#l-2-circuit-breaker-failure-records-unbounded-growth-potential">L-2: Circuit Breaker Failure Records Unbounded Growth Potential</a></li>
+        <li style="padding-left: 48px"><a href="#l-3-password-hash-timing-may-leak-information-on-parse-failure">L-3: Password Hash Timing May Leak Information on Parse Failure</a></li>
+        <li style="padding-left: 48px"><a href="#l-4-route-definitions-lack-authentication-flags-enforcement">L-4: Route Definitions Lack Authentication Flags Enforcement</a></li>
+        <li style="padding-left: 16px"><a href="#positive-security-findings">Positive Security Findings</a></li>
+        <li style="padding-left: 32px"><a href="#strong-input-validation-infrastructure">Strong Input Validation Infrastructure</a></li>
+        <li style="padding-left: 32px"><a href="#secure-memory-handling">Secure Memory Handling</a></li>
+        <li style="padding-left: 32px"><a href="#cryptographic-best-practices">Cryptographic Best Practices</a></li>
+        <li style="padding-left: 32px"><a href="#resilience-patterns">Resilience Patterns</a></li>
+        <li style="padding-left: 32px"><a href="#replay-attack-protection">Replay Attack Protection</a></li>
+        <li style="padding-left: 16px"><a href="#recommendations-summary">Recommendations Summary</a></li>
+        <li style="padding-left: 32px"><a href="#immediate-actions-high-priority">Immediate Actions (High Priority)</a></li>
+        <li style="padding-left: 32px"><a href="#short-term-improvements-medium-priority">Short-Term Improvements (Medium Priority)</a></li>
+        <li style="padding-left: 32px"><a href="#long-term-enhancements-low-priority">Long-Term Enhancements (Low Priority)</a></li>
+        <li style="padding-left: 16px"><a href="#testing-recommendations">Testing Recommendations</a></li>
+        <li style="padding-left: 16px"><a href="#conclusion">Conclusion</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="security-audit-report">Security Audit Report<a class="anchor" href="#security-audit-report">#</a></h1>
+
+<p><strong>Issue</strong>: #402</p>
+<p><strong>Date</strong>: 2026-01-23</p>
+<p><strong>Auditor</strong>: Claude Opus 4.5 (Automated Security Review)</p>
+<p><strong>Scope</strong>: Input validation, memory safety, network security, credential handling</p>
+
+<hr>
+
+<h2 id="executive-summary">Executive Summary<a class="anchor" href="#executive-summary">#</a></h2>
+
+<p>This security audit reviewed the ABI codebase focusing on input validation, memory safety, network security, and credential handling. The codebase demonstrates <strong>strong security practices overall</strong>, with comprehensive input validation modules, proper cryptographic implementations, and secure memory handling patterns.</p>
+
+<h3 id="risk-summary">Risk Summary<a class="anchor" href="#risk-summary">#</a></h3>
+
+<tr><td>Severity</td><td>Count</td><td>Status</td></tr>
+<tr><td>Critical</td><td>0</td><td>-</td></tr>
+<tr><td>High</td><td>2</td><td>Requires attention</td></tr>
+<tr><td>Medium</td><td>5</td><td>Should address</td></tr>
+<tr><td>Low</td><td>4</td><td>Best practice improvements</td></tr>
+
+<hr>
+
+<h2 id="files-reviewed">Files Reviewed<a class="anchor" href="#files-reviewed">#</a></h2>
+
+<h3 id="web-module-srcweb">Web Module (<code>src/web/</code>)<a class="anchor" href="#web-module-srcweb">#</a></h3>
+<li><code>src/web/mod.zig</code> - HTTP client initialization and request handling</li>
+<li><code>src/web/client.zig</code> - HTTP client implementation</li>
+<li><code>src/web/handlers/chat.zig</code> - Chat request handlers for persona API</li>
+<li><code>src/web/routes/personas.zig</code> - Persona API route definitions</li>
+
+<h3 id="api-connectors-srcconnectors">API Connectors (<code>src/connectors/</code>)<a class="anchor" href="#api-connectors-srcconnectors">#</a></h3>
+<li><code>src/connectors/mod.zig</code> - Connector configuration and environment loading</li>
+<li><code>src/connectors/openai.zig</code> - OpenAI API connector</li>
+<li><code>src/connectors/anthropic.zig</code> - Anthropic API connector</li>
+<li><code>src/connectors/ollama.zig</code> - Ollama API connector</li>
+<li><code>src/connectors/discord/mod.zig</code> - Discord API connector</li>
+<li><code>src/connectors/shared.zig</code> - Shared types for connectors</li>
+
+<h3 id="persona-system-srcaipersonas">Persona System (<code>src/ai/personas/</code>)<a class="anchor" href="#persona-system-srcaipersonas">#</a></h3>
+<li><code>src/ai/personas/mod.zig</code> - Multi-persona system orchestration</li>
+<li><code>src/ai/personas/types.zig</code> - Core persona types</li>
+
+<h3 id="network-module-srcnetwork">Network Module (<code>src/network/</code>)<a class="anchor" href="#network-module-srcnetwork">#</a></h3>
+<li><code>src/network/circuit_breaker.zig</code> - Circuit breaker for resilience</li>
+<li><code>src/network/linking/secure_channel.zig</code> - Encrypted communication channels</li>
+<li><code>src/network/rate_limiter.zig</code> - Rate limiting implementation</li>
+
+<h3 id="security-utilities-srcsharedsecurity">Security Utilities (<code>src/shared/security/</code>)<a class="anchor" href="#security-utilities-srcsharedsecurity">#</a></h3>
+<li><code>src/shared/security/mod.zig</code> - Security module aggregation</li>
+<li><code>src/shared/security/validation.zig</code> - Input validation and sanitization</li>
+<li><code>src/shared/security/api_keys.zig</code> - API key management</li>
+<li><code>src/shared/security/secrets.zig</code> - Secrets management</li>
+<li><code>src/shared/security/password.zig</code> - Password hashing</li>
+<li><code>src/shared/security/jwt.zig</code> - JWT authentication</li>
+
+<hr>
+
+<h2 id="findings">Findings<a class="anchor" href="#findings">#</a></h2>
+
+<h3 id="high-severity">HIGH Severity<a class="anchor" href="#high-severity">#</a></h3>
+
+<h4 id="h-1-jwt-none-algorithm-support-available">H-1: JWT &quot;none&quot; Algorithm Support Available<a class="anchor" href="#h-1-jwt-none-algorithm-support-available">#</a></h4>
+
+<p><strong>File</strong>: <code>src/shared/security/jwt.zig</code> (lines 161-162, 293-296)</p>
+
+<p><strong>Description</strong>: The JWT implementation includes support for the &quot;none&quot; algorithm, which creates unsigned tokens. While disabled by default (<code>allow_none_algorithm: bool = false</code>), the configuration option exists and could be accidentally enabled.</p>
+
+<p><strong>Risk</strong>: If enabled, attackers could forge arbitrary JWT tokens without valid signatures, bypassing authentication entirely.</p>
+
+<p><strong>Code Reference</strong>:</p>
+<pre class="code-block language-zig"><code>pub const JwtConfig = struct {
+    // ...
+    /// Allow &quot;none&quot; algorithm (dangerous!)
+    allow_none_algorithm: bool = false,
+    // ...
+};
+</code></pre>
+
+<p><strong>Recommendation</strong>:</p>
+<p>1. Consider removing the &quot;none&quot; algorithm support entirely</p>
+<p>2. Add runtime warnings when this option is enabled</p>
+<p>3. Add documentation clearly marking this as dangerous</p>
+
+<hr>
+
+<h4 id="h-2-master-key-fallback-to-random-generation-in-production">H-2: Master Key Fallback to Random Generation in Production<a class="anchor" href="#h-2-master-key-fallback-to-random-generation-in-production">#</a></h4>
+
+<p><strong>File</strong>: <code>src/shared/security/secrets.zig</code> (lines 179-191)</p>
+
+<p><strong>Description</strong>: When no master key is provided and <code>ABI_MASTER_KEY</code> environment variable is not set, the secrets manager generates a random key. This causes encrypted secrets to become inaccessible after service restart.</p>
+
+<p><strong>Risk</strong>:</p>
+<li>Data loss: Encrypted secrets cannot be recovered after restart</li>
+<li>Operational issues in production deployments</li>
+<li>May lead developers to disable encryption or use weak keys</li>
+
+<p><strong>Code Reference</strong>:</p>
+<pre class="code-block language-zig"><code>if (std.posix.getenv(&quot;ABI_MASTER_KEY&quot;)) |env_key| {
+    // ... derive key
+} else {
+    // Generate random key (not recommended for production)
+    crypto.random.bytes(&amp;master_key);
+}
+</code></pre>
+
+<p><strong>Recommendation</strong>:</p>
+<p>1. Fail initialization if no master key is provided in production mode</p>
+<p>2. Add a configuration flag to explicitly allow random key generation for testing</p>
+<p>3. Log a prominent warning when using generated keys</p>
+
+<hr>
+
+<h3 id="medium-severity">MEDIUM Severity<a class="anchor" href="#medium-severity">#</a></h3>
+
+<h4 id="m-1-api-keys-loaded-from-environment-without-secure-wiping">M-1: API Keys Loaded from Environment Without Secure Wiping<a class="anchor" href="#m-1-api-keys-loaded-from-environment-without-secure-wiping">#</a></h4>
+
+<p><strong>File</strong>: <code>src/connectors/mod.zig</code> (lines 36-56)</p>
+
+<p><strong>Description</strong>: API keys loaded from environment variables via <code>getEnvOwned</code> are stored as regular heap allocations without secure memory handling. When these keys are freed, the memory contents may persist until overwritten.</p>
+
+<p><strong>Risk</strong>: API keys could be recovered from memory dumps, core dumps, or memory forensics.</p>
+
+<p><strong>Code Reference</strong>:</p>
+<pre class="code-block language-zig"><code>pub fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) !?[]u8 {
+    // ...
+    return allocator.dupe(u8, value) catch return error.OutOfMemory;
+}
+</code></pre>
+
+<p><strong>Recommendation</strong>:</p>
+<p>1. Use <code>SecureString</code> from <code>src/shared/security/secrets.zig</code> for API key storage</p>
+<p>2. Implement <code>secureZero</code> on key deallocation in Config.deinit() methods</p>
+<p>3. Consider using mlock() to prevent key memory from being swapped</p>
+
+<hr>
+
+<h4 id="m-2-http-response-size-limit-may-be-insufficient-for-dos-prevention">M-2: HTTP Response Size Limit May Be Insufficient for DoS Prevention<a class="anchor" href="#m-2-http-response-size-limit-may-be-insufficient-for-dos-prevention">#</a></h4>
+
+<p><strong>File</strong>: <code>src/web/client.zig</code> (lines 11-18)</p>
+
+<p><strong>Description</strong>: The default <code>max_response_bytes</code> is set to 1MB, but this can be overridden without upper bounds validation.</p>
+
+<p><strong>Risk</strong>: An attacker controlling an upstream API could return extremely large responses, causing memory exhaustion.</p>
+
+<p><strong>Code Reference</strong>:</p>
+<pre class="code-block language-zig"><code>pub const RequestOptions = struct {
+    max_response_bytes: usize = 1024 * 1024,  // 1MB default
+    // No upper bound validation
+};
+</code></pre>
+
+<p><strong>Recommendation</strong>:</p>
+<p>1. Add a hard upper limit (e.g., 100MB) that cannot be exceeded</p>
+<p>2. Implement streaming response handling for large payloads</p>
+<p>3. Add response size monitoring metrics</p>
+
+<hr>
+
+<h4 id="m-3-chat-handler-missing-request-rate-limiting">M-3: Chat Handler Missing Request Rate Limiting<a class="anchor" href="#m-3-chat-handler-missing-request-rate-limiting">#</a></h4>
+
+<p><strong>File</strong>: <code>src/web/handlers/chat.zig</code>, <code>src/web/routes/personas.zig</code></p>
+
+<p><strong>Description</strong>: The persona chat API handlers process requests without built-in rate limiting. While rate limiting infrastructure exists in <code>src/network/rate_limiter.zig</code> and <code>src/shared/security/rate_limit.zig</code>, it is not integrated into the HTTP handlers.</p>
+
+<p><strong>Risk</strong>:</p>
+<li>Resource exhaustion through rapid API calls</li>
+<li>Potential for abuse of AI inference resources</li>
+<li>Increased cloud costs from excessive API calls to upstream services</li>
+
+<p><strong>Recommendation</strong>:</p>
+<p>1. Integrate <code>RateLimiter</code> into the <code>Router</code> or individual handlers</p>
+<p>2. Add per-user and per-IP rate limiting</p>
+<p>3. Return appropriate <code>429 Too Many Requests</code> responses with <code>Retry-After</code> headers</p>
+
+<hr>
+
+<h4 id="m-4-secure-channel-handshake-implementations-are-simplified-placeholders">M-4: Secure Channel Handshake Implementations Are Simplified Placeholders<a class="anchor" href="#m-4-secure-channel-handshake-implementations-are-simplified-placeholders">#</a></h4>
+
+<p><strong>File</strong>: <code>src/network/linking/secure_channel.zig</code> (lines 427-482)</p>
+
+<p><strong>Description</strong>: The Noise XX, WireGuard, and TLS handshake implementations are placeholders that derive symmetric keys from local public keys only, without actual key exchange with the peer.</p>
+
+<p><strong>Risk</strong>:</p>
+<li>No actual cryptographic authentication of remote peer</li>
+<li>Susceptible to man-in-the-middle attacks</li>
+<li>Keys are predictable based on local key material alone</li>
+
+<p><strong>Code Reference</strong>:</p>
+<pre class="code-block language-zig"><code>fn noiseXXHandshake(self: *SecureChannel) ChannelError!void {
+    // Noise XX pattern: -&gt; e, &lt;- e, ee, s, es, -&gt; s, se
+    const kp = self.local_keypair orelse return error.NoKeyPair;
+
+    // Generate ephemeral keys and derive session keys
+    // This is a simplified implementation
+    var hash = std.crypto.hash.Blake2b256.init(.{});
+    hash.update(&amp;kp.public_key);
+    hash.update(&quot;noise-xx-handshake&quot;);
+    hash.final(&amp;self.send_key);
+    // ...
+}
+</code></pre>
+
+<p><strong>Recommendation</strong>:</p>
+<p>1. Mark these implementations as non-production ready in documentation</p>
+<p>2. Implement proper X25519 key exchange for the custom handshakes</p>
+<p>3. Consider using established TLS libraries for TLS 1.2/1.3 support</p>
+<p>4. Add integration tests that verify peer authentication</p>
+
+<hr>
+
+<h4 id="m-5-json-parsing-without-depth-limits">M-5: JSON Parsing Without Depth Limits<a class="anchor" href="#m-5-json-parsing-without-depth-limits">#</a></h4>
+
+<p><strong>File</strong>: <code>src/web/handlers/chat.zig</code> (line 251), <code>src/connectors/*.zig</code></p>
+
+<p><strong>Description</strong>: JSON parsing uses <code>std.json.parseFromSlice</code> with <code>ignore_unknown_fields = true</code> but without explicit depth or size limits for nested structures.</p>
+
+<p><strong>Risk</strong>: Deeply nested JSON payloads could cause stack overflow or excessive memory allocation.</p>
+
+<p><strong>Code Reference</strong>:</p>
+<pre class="code-block language-zig"><code>const parsed = try std.json.parseFromSlice(ChatRequest, self.allocator, json, .{
+    .ignore_unknown_fields = true,
+});
+</code></pre>
+
+<p><strong>Recommendation</strong>:</p>
+<p>1. Implement custom JSON parsing with depth limits for untrusted input</p>
+<p>2. Validate input size before parsing</p>
+<p>3. Consider using streaming JSON parsers for large payloads</p>
+
+<hr>
+
+<h3 id="low-severity">LOW Severity<a class="anchor" href="#low-severity">#</a></h3>
+
+<h4 id="l-1-error-messages-may-leak-internal-information">L-1: Error Messages May Leak Internal Information<a class="anchor" href="#l-1-error-messages-may-leak-internal-information">#</a></h4>
+
+<p><strong>File</strong>: <code>src/web/routes/personas.zig</code> (lines 120-123, 134, 148, 158, 167)</p>
+
+<p><strong>Description</strong>: Error responses include raw error names from <code>@errorName(err)</code>, which could reveal internal implementation details.</p>
+
+<p><strong>Code Reference</strong>:</p>
+<pre class="code-block language-zig"><code>const response = ctx.chat_handler.handleChat(ctx.body) catch |err| {
+    try ctx.writeError(500, &quot;INTERNAL_ERROR&quot;, @errorName(err));
+    return;
+};
+</code></pre>
+
+<p><strong>Recommendation</strong>:</p>
+<p>1. Map internal errors to generic user-facing error codes</p>
+<p>2. Log detailed errors server-side but return sanitized messages</p>
+<p>3. Never expose stack traces or internal error names in production</p>
+
+<hr>
+
+<h4 id="l-2-circuit-breaker-failure-records-unbounded-growth-potential">L-2: Circuit Breaker Failure Records Unbounded Growth Potential<a class="anchor" href="#l-2-circuit-breaker-failure-records-unbounded-growth-potential">#</a></h4>
+
+<p><strong>File</strong>: <code>src/network/circuit_breaker.zig</code> (lines 343-347)</p>
+
+<p><strong>Description</strong>: Failure records are appended without capacity limits when <code>failure_window_ms = 0</code>. While old records are cleaned when windowing is enabled, infinite history is possible.</p>
+
+<p><strong>Code Reference</strong>:</p>
+<pre class="code-block language-zig"><code>// Record failure for windowed counting
+self.failure_records.append(self.allocator, .{
+    .timestamp_ms = now_ms,
+    .error_code = error_code,
+}) catch {};  // Silently ignores OOM
+</code></pre>
+
+<p><strong>Recommendation</strong>:</p>
+<p>1. Add a maximum failure record count even when windowing is disabled</p>
+<p>2. Handle OOM explicitly rather than silently ignoring</p>
+
+<hr>
+
+<h4 id="l-3-password-hash-timing-may-leak-information-on-parse-failure">L-3: Password Hash Timing May Leak Information on Parse Failure<a class="anchor" href="#l-3-password-hash-timing-may-leak-information-on-parse-failure">#</a></h4>
+
+<p><strong>File</strong>: <code>src/shared/security/password.zig</code> (lines 471-527)</p>
+
+<p><strong>Description</strong>: When password verification fails due to hash format parsing (e.g., <code>parseArgon2Encoded</code> returns null), the function returns immediately without performing a full hash computation. This creates a timing difference between invalid format and wrong password scenarios.</p>
+
+<p><strong>Recommendation</strong>:</p>
+<p>1. Always perform a dummy hash computation when format parsing fails</p>
+<p>2. Ensure constant-time behavior for all verification code paths</p>
+
+<hr>
+
+<h4 id="l-4-route-definitions-lack-authentication-flags-enforcement">L-4: Route Definitions Lack Authentication Flags Enforcement<a class="anchor" href="#l-4-route-definitions-lack-authentication-flags-enforcement">#</a></h4>
+
+<p><strong>File</strong>: <code>src/web/routes/personas.zig</code> (lines 205-242)</p>
+
+<p><strong>Description</strong>: Routes have a <code>requires_auth</code> field, but this flag is not enforced in the router's <code>handle</code> method.</p>
+
+<p><strong>Code Reference</strong>:</p>
+<pre class="code-block language-zig"><code>pub const Route = struct {
+    // ...
+    requires_auth: bool = false,  // Defined but not enforced
+};
+</code></pre>
+
+<p><strong>Recommendation</strong>:</p>
+<p>1. Implement authentication middleware that checks <code>requires_auth</code></p>
+<p>2. Document which routes require authentication</p>
+<p>3. Add tests verifying authentication enforcement</p>
+
+<hr>
+
+<h2 id="positive-security-findings">Positive Security Findings<a class="anchor" href="#positive-security-findings">#</a></h2>
+
+<p>The following security practices were observed and should be maintained:</p>
+
+<h3 id="strong-input-validation-infrastructure">Strong Input Validation Infrastructure<a class="anchor" href="#strong-input-validation-infrastructure">#</a></h3>
+
+<p><strong>File</strong>: <code>src/shared/security/validation.zig</code></p>
+
+<p>The codebase includes comprehensive validation for:</p>
+<li>SQL injection patterns (30+ patterns detected)</li>
+<li>XSS attack vectors (35+ patterns detected)</li>
+<li>Command injection sequences</li>
+<li>Path traversal attempts</li>
+<li>Email, URL, and IP address validation</li>
+<li>Null byte and control character filtering</li>
+
+<h3 id="secure-memory-handling">Secure Memory Handling<a class="anchor" href="#secure-memory-handling">#</a></h3>
+
+<p><strong>Files</strong>: <code>src/shared/security/api_keys.zig</code>, <code>src/shared/security/secrets.zig</code></p>
+
+<li>Use of <code>std.crypto.utils.secureZero</code> for wiping sensitive data</li>
+<li>Proper <code>errdefer</code> patterns for cleanup on error paths</li>
+<li><code>SecureString</code> type with automatic secure wiping on deallocation</li>
+
+<h3 id="cryptographic-best-practices">Cryptographic Best Practices<a class="anchor" href="#cryptographic-best-practices">#</a></h3>
+
+<p><strong>Files</strong>: <code>src/shared/security/password.zig</code>, <code>src/shared/security/jwt.zig</code>, <code>src/shared/security/api_keys.zig</code></p>
+
+<li>Argon2id as default password hashing algorithm with configurable parameters</li>
+<li>PBKDF2 with 600,000 iterations (meets OWASP 2023 recommendations)</li>
+<li>Timing-safe comparisons via <code>std.crypto.utils.timingSafeEql</code></li>
+<li>Proper salt generation using <code>std.crypto.random</code></li>
+<li>Iterative key hashing with configurable iterations (default 100,000)</li>
+
+<h3 id="resilience-patterns">Resilience Patterns<a class="anchor" href="#resilience-patterns">#</a></h3>
+
+<p><strong>Files</strong>: <code>src/network/circuit_breaker.zig</code>, <code>src/network/rate_limiter.zig</code></p>
+
+<li>Circuit breaker pattern implementation with configurable thresholds</li>
+<li>Multiple rate limiting algorithms (token bucket, sliding window, fixed window)</li>
+<li>Thread-safe implementations with mutex protection</li>
+
+<h3 id="replay-attack-protection">Replay Attack Protection<a class="anchor" href="#replay-attack-protection">#</a></h3>
+
+<p><strong>File</strong>: <code>src/network/linking/secure_channel.zig</code></p>
+
+<li>Nonce bitmap for replay detection in secure channels</li>
+<li>Configurable replay protection flag</li>
+
+<hr>
+
+<h2 id="recommendations-summary">Recommendations Summary<a class="anchor" href="#recommendations-summary">#</a></h2>
+
+<h3 id="immediate-actions-high-priority">Immediate Actions (High Priority)<a class="anchor" href="#immediate-actions-high-priority">#</a></h3>
+<p>1. Review and consider removing JWT &quot;none&quot; algorithm support</p>
+<p>2. Require explicit master key configuration in production environments</p>
+<p>3. Integrate rate limiting into HTTP handlers</p>
+
+<h3 id="short-term-improvements-medium-priority">Short-Term Improvements (Medium Priority)<a class="anchor" href="#short-term-improvements-medium-priority">#</a></h3>
+<p>4. Implement secure memory handling for API keys in connectors</p>
+<p>5. Add depth limits to JSON parsing</p>
+<p>6. Complete secure channel handshake implementations or mark as non-production</p>
+<p>7. Add hard upper bounds for HTTP response sizes</p>
+
+<h3 id="long-term-enhancements-low-priority">Long-Term Enhancements (Low Priority)<a class="anchor" href="#long-term-enhancements-low-priority">#</a></h3>
+<p>8. Sanitize error messages in API responses</p>
+<p>9. Add constant-time behavior to all password verification paths</p>
+<p>10. Enforce route authentication flags</p>
+<p>11. Bound circuit breaker failure record growth</p>
+
+<hr>
+
+<h2 id="testing-recommendations">Testing Recommendations<a class="anchor" href="#testing-recommendations">#</a></h2>
+
+<p>1. <strong>Fuzzing</strong>: Apply fuzzing to JSON parsing and input validation functions</p>
+<p>2. <strong>Penetration Testing</strong>: Test API endpoints for injection vulnerabilities</p>
+<p>3. <strong>Load Testing</strong>: Verify rate limiting effectiveness under load</p>
+<p>4. <strong>Memory Analysis</strong>: Verify sensitive data is properly wiped from memory</p>
+
+<hr>
+
+<h2 id="conclusion">Conclusion<a class="anchor" href="#conclusion">#</a></h2>
+
+<p>The ABI codebase demonstrates mature security practices with comprehensive validation, proper cryptographic implementations, and defensive patterns. The identified issues are primarily around edge cases and incomplete implementations rather than fundamental security flaws. Addressing the HIGH severity items should be prioritized, followed by the MEDIUM severity items during the next development cycle.</p>
+
+<hr>
+
+<p>*This audit was generated by automated security review. Manual verification of findings is recommended before implementing changes.*</p>
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>todo - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>todo</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#development-todo-zig-016-patterns">Development TODO & Zig 0.16 Patterns</a></li>
+        <li style="padding-left: 16px"><a href="#zig-016-environment-initialization">Zig 0.16 Environment Initialization</a></li>
+        <li style="padding-left: 32px"><a href="#basic-environment-setup">Basic Environment Setup</a></li>
+        <li style="padding-left: 32px"><a href="#environment-options">Environment Options</a></li>
+        <li style="padding-left: 32px"><a href="#file-operations-pattern">File Operations Pattern</a></li>
+        <li style="padding-left: 32px"><a href="#directory-operations">Directory Operations</a></li>
+        <li style="padding-left: 32px"><a href="#http-server-with-environment">HTTP Server with Environment</a></li>
+        <li style="padding-left: 32px"><a href="#best-practices">Best Practices</a></li>
+        <li style="padding-left: 32px"><a href="#migration-from-zig-015">Migration from Zig 0.15</a></li>
+        <li style="padding-left: 16px"><a href="#current-development-tasks">Current Development Tasks</a></li>
+        <li style="padding-left: 32px"><a href="#quick-links">Quick Links</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="development-todo-zig-016-patterns">Development TODO &amp; Zig 0.16 Patterns<a class="anchor" href="#development-todo-zig-016-patterns">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<blockquote><strong>Developer Guide</strong>: See <a href="../CONTRIBUTING.md">CONTRIBUTING.md</a> for coding patterns and <a href="../CLAUDE.md">CLAUDE.md</a> for comprehensive guidance.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Last Updated:</strong> January 23, 2026</blockquote>
+<blockquote><strong>Zig Version:</strong> 0.16.x</blockquote>
+
+<h2 id="zig-016-environment-initialization">Zig 0.16 Environment Initialization<a class="anchor" href="#zig-016-environment-initialization">#</a></h2>
+
+<p>Zig 0.16 introduces a unified I/O system that requires explicit environment configuration. This section documents the patterns for initializing the environment correctly.</p>
+
+<h3 id="basic-environment-setup">Basic Environment Setup<a class="anchor" href="#basic-environment-setup">#</a></h3>
+
+<p>The <code>std.Io.Threaded</code> backend provides synchronous I/O operations with environment access:</p>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Initialize I/O backend with environment configuration
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,  // Use empty for no env access
+    });
+    defer io_backend.deinit();
+
+    // Get the I/O interface for operations
+    const io = io_backend.io();
+
+    // Now you can use io for file operations
+    const content = try std.Io.Dir.cwd().readFileAlloc(
+        io,
+        &quot;config.json&quot;,
+        allocator,
+        .limited(10 * 1024 * 1024),  // 10MB limit
+    );
+    defer allocator.free(content);
+}
+</code></pre>
+
+<h3 id="environment-options">Environment Options<a class="anchor" href="#environment-options">#</a></h3>
+
+<p>The <code>std.Io.Threaded.init()</code> accepts an options struct with these fields:</p>
+
+<tr><td>Option</td><td>Type</td><td>Description</td></tr>
+<tr><td><code>environ</code></td><td><code>std.process.Environ</code></td><td>Environment variable access configuration</td></tr>
+
+<p><strong>Environment configurations:</strong></p>
+
+<pre class="code-block language-zig"><code>// No environment access (most common for library code)
+.environ = std.process.Environ.empty
+
+// Full environment access (for CLI applications)
+.environ = std.process.Environ.init()
+
+// Custom environment (for testing)
+.environ = std.process.Environ.fromMap(&amp;.{
+    .{ &quot;HOME&quot;, &quot;/home/user&quot; },
+    .{ &quot;PATH&quot;, &quot;/usr/bin&quot; },
+})
+</code></pre>
+
+<h3 id="file-operations-pattern">File Operations Pattern<a class="anchor" href="#file-operations-pattern">#</a></h3>
+
+<pre class="code-block language-zig"><code>fn readConfigFile(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    return std.Io.Dir.cwd().readFileAlloc(
+        io,
+        path,
+        allocator,
+        .limited(10 * 1024 * 1024),
+    );
+}
+
+fn writeConfigFile(allocator: std.mem.Allocator, path: []const u8, content: []const u8) !void {
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
+    defer file.close(io);
+
+    var writer = file.writer(io);
+    try writer.writeAll(content);
+}
+</code></pre>
+
+<h3 id="directory-operations">Directory Operations<a class="anchor" href="#directory-operations">#</a></h3>
+
+<pre class="code-block language-zig"><code>fn ensureDirectory(allocator: std.mem.Allocator, path: []const u8) !void {
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    std.Io.Dir.cwd().makePath(io, path) catch |err| switch (err) {
+        error.PathAlreadyExists =&gt; {},  // Directory exists, that's fine
+        else =&gt; return err,
+    };
+}
+
+fn listDirectory(allocator: std.mem.Allocator, path: []const u8) !void {
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var dir = try std.Io.Dir.cwd().openDir(io, path, .{ .iterate = true });
+    defer dir.close(io);
+
+    var iter = dir.iterate();
+    while (try iter.next()) |entry| {
+        std.debug.print(&quot;{s}\n&quot;, .{entry.name});
+    }
+}
+</code></pre>
+
+<h3 id="http-server-with-environment">HTTP Server with Environment<a class="anchor" href="#http-server-with-environment">#</a></h3>
+
+<pre class="code-block language-zig"><code>fn startHttpServer(allocator: std.mem.Allocator, stream: anytype) !void {
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var recv_buffer: [8192]u8 = undefined;
+    var send_buffer: [8192]u8 = undefined;
+
+    var connection_reader = stream.reader(io, &amp;recv_buffer);
+    var connection_writer = stream.writer(io, &amp;send_buffer);
+
+    // Use .interface to get the correct type for std.http.Server
+    var server: std.http.Server = .init(
+        &amp;connection_reader.interface,
+        &amp;connection_writer.interface,
+    );
+
+    // Handle requests...
+}
+</code></pre>
+
+<h3 id="best-practices">Best Practices<a class="anchor" href="#best-practices">#</a></h3>
+
+<p>1. <strong>Scope the I/O backend narrowly</strong>: Create the <code>io_backend</code> only when needed and <code>defer</code> its cleanup immediately.</p>
+
+<p>2. <strong>Use <code>Environ.empty</code> for library code</strong>: Unless you specifically need environment variables, use <code>std.process.Environ.empty</code>.</p>
+
+<p>3. <strong>Pass <code>io</code> to operations</strong>: All <code>std.Io.Dir</code> operations require the <code>io</code> parameter.</p>
+
+<p>4. <strong>Handle file limits</strong>: Use <code>.limited(size)</code> to prevent reading excessively large files.</p>
+
+<p>5. <strong>Close files explicitly</strong>: Always <code>defer file.close(io)</code> after opening.</p>
+
+<h3 id="migration-from-zig-015">Migration from Zig 0.15<a class="anchor" href="#migration-from-zig-015">#</a></h3>
+
+<tr><td>Old Pattern (Zig 0.15)</td><td>New Pattern (Zig 0.16)</td></tr>
+<tr><td><code>std.fs.cwd()</code></td><td><code>std.Io.Dir.cwd()</code> (requires <code>io</code> param)</td></tr>
+<tr><td><code>std.fs.openFile()</code></td><td><code>std.Io.Dir.cwd().openFile(io, ...)</code></td></tr>
+<tr><td><code>std.fs.createFile()</code></td><td><code>std.Io.Dir.cwd().createFile(io, ...)</code></td></tr>
+<tr><td><code>std.io.AnyReader</code></td><td><code>std.Io.Reader</code></td></tr>
+<tr><td><code>std.time.sleep()</code></td><td><code>std.Io.Clock.Duration.sleep(duration, io)</code></td></tr>
+
+<h2 id="current-development-tasks">Current Development Tasks<a class="anchor" href="#current-development-tasks">#</a></h2>
+
+<p>See <a href="../TODO.md">TODO.md</a> for the comprehensive project task list.</p>
+
+<h3 id="quick-links">Quick Links<a class="anchor" href="#quick-links">#</a></h3>
+
+<li><a href="migration/zig-0.16-migration.md">Zig 0.16 Migration Guide</a> - Full migration documentation</li>
+<li><a href="framework.md">Framework Guide</a> - Configuration and initialization</li>
+<li><a href="troubleshooting.md">Troubleshooting</a> - Common issues and solutions</li>
+
+<hr>
+
+<p>&lt;p align=&quot;center&quot;&gt;</p>
+<p>  &lt;a href=&quot;docs-index.md&quot;&gt;&amp;larr; Documentation Index&lt;/a&gt;</p>
+<p>&lt;/p&gt;</p>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

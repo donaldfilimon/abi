@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>explore - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>explore</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#abi-explore-module">ABI Explore Module</a></li>
+        <li style="padding-left: 16px"><a href="#overview">Overview</a></li>
+        <li style="padding-left: 16px"><a href="#quick-start">Quick Start</a></li>
+        <li style="padding-left: 32px"><a href="#cli-usage">CLI Usage</a></li>
+        <li style="padding-left: 32px"><a href="#library-usage">Library Usage</a></li>
+        <li style="padding-left: 16px"><a href="#explore-levels">Explore Levels</a></li>
+        <li style="padding-left: 16px"><a href="#configuration">Configuration</a></li>
+        <li style="padding-left: 16px"><a href="#natural-language-query-understanding">Natural Language Query Understanding</a></li>
+        <li style="padding-left: 32px"><a href="#supported-intent-types">Supported Intent Types</a></li>
+        <li style="padding-left: 16px"><a href="#pattern-matching">Pattern Matching</a></li>
+        <li style="padding-left: 32px"><a href="#literal-search">Literal Search</a></li>
+        <li style="padding-left: 32px"><a href="#glob-patterns">Glob Patterns</a></li>
+        <li style="padding-left: 32px"><a href="#regex-patterns">Regex Patterns</a></li>
+        <li style="padding-left: 32px"><a href="#fuzzy-matching">Fuzzy Matching</a></li>
+        <li style="padding-left: 16px"><a href="#ast-parsing">AST Parsing</a></li>
+        <li style="padding-left: 32px"><a href="#supported-languages">Supported Languages</a></li>
+        <li style="padding-left: 16px"><a href="#output-formats">Output Formats</a></li>
+        <li style="padding-left: 32px"><a href="#human-readable-default">Human Readable (Default)</a></li>
+        <li style="padding-left: 32px"><a href="#json">JSON</a></li>
+        <li style="padding-left: 32px"><a href="#yaml">YAML</a></li>
+        <li style="padding-left: 32px"><a href="#compact">Compact</a></li>
+        <li style="padding-left: 16px"><a href="#cli-options">CLI Options</a></li>
+        <li style="padding-left: 16px"><a href="#examples">Examples</a></li>
+        <li style="padding-left: 32px"><a href="#find-all-http-handlers">Find all HTTP handlers</a></li>
+        <li style="padding-left: 32px"><a href="#find-test-functions">Find test functions</a></li>
+        <li style="padding-left: 32px"><a href="#find-configuration">Find configuration</a></li>
+        <li style="padding-left: 32px"><a href="#find-todo-comments">Find TODO comments</a></li>
+        <li style="padding-left: 32px"><a href="#find-imports">Find imports</a></li>
+        <li style="padding-left: 32px"><a href="#analyze-code-structure">Analyze code structure</a></li>
+        <li style="padding-left: 16px"><a href="#api-reference">API Reference</a></li>
+        <li style="padding-left: 32px"><a href="#main-types">Main Types</a></li>
+        <li style="padding-left: 32px"><a href="#key-functions">Key Functions</a></li>
+        <li style="padding-left: 32px"><a href="#parallel-exploration">Parallel Exploration</a></li>
+        <li style="padding-left: 16px"><a href="#performance-tips">Performance Tips</a></li>
+        <li style="padding-left: 16px"><a href="#error-handling">Error Handling</a></li>
+        <li style="padding-left: 16px"><a href="#see-also">See Also</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="abi-explore-module">ABI Explore Module<a class="anchor" href="#abi-explore-module">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<p>A powerful codebase exploration and search tool with natural language query understanding, AST parsing, and multiple output formats.</p>
+
+<h2 id="overview">Overview<a class="anchor" href="#overview">#</a></h2>
+
+<p>The explore module provides intelligent search capabilities for codebases with:</p>
+
+<li><strong>Natural Language Queries</strong>: Understand queries like &quot;find all HTTP handlers&quot; or &quot;show me test functions&quot;</li>
+<li><strong>Multiple Search Levels</strong>: From quick filename search to deep semantic analysis</li>
+<li><strong>Pattern Matching</strong>: Literal, glob, regex, and fuzzy matching</li>
+<li><strong>AST Parsing</strong>: Extract functions, types, imports, and more from source files</li>
+<li><strong>Multiple Output Formats</strong>: Human-readable, JSON, YAML, or compact output</li>
+
+<h2 id="quick-start">Quick Start<a class="anchor" href="#quick-start">#</a></h2>
+
+<h3 id="cli-usage">CLI Usage<a class="anchor" href="#cli-usage">#</a></h3>
+
+<pre class="code-block language-bash"><code># Basic search
+zig build run -- explore &quot;HTTP handler&quot;
+
+# Search with specific level
+zig build run -- explore -l thorough &quot;TODO&quot;
+
+# Search with output format
+zig build run -- explore -f json &quot;pub fn&quot;
+
+# Include specific file types
+zig build run -- explore -i &quot;*.zig&quot; &quot;pub const&quot;
+
+# Exclude patterns
+zig build run -- explore -e &quot;test&quot; &quot;handler&quot;
+
+# Use regex patterns
+zig build run -- explore -r &quot;fn\s+\w+&quot;
+</code></pre>
+
+<h3 id="library-usage">Library Usage<a class="anchor" href="#library-usage">#</a></h3>
+
+<pre class="code-block language-zig"><code>const explore = abi.ai.explore;
+
+var agent = explore.ExploreAgent.init(allocator, explore.ExploreConfig.defaultForLevel(.medium));
+defer agent.deinit();
+
+const result = try agent.explore(&quot;.&quot;, &quot;my search query&quot;);
+defer result.deinit();
+
+// Print results
+try result.formatHuman(std.debug);
+</code></pre>
+
+<h2 id="explore-levels">Explore Levels<a class="anchor" href="#explore-levels">#</a></h2>
+
+<tr><td>Level</td><td>Max Files</td><td>Max Depth</td><td>Timeout</td><td>Use Case</td></tr>
+<tr><td><code>quick</code></td><td>1,000</td><td>3</td><td>10s</td><td>Fast filename search</td></tr>
+<tr><td><code>medium</code></td><td>5,000</td><td>10</td><td>30s</td><td>Balanced search</td></tr>
+<tr><td><code>thorough</code></td><td>10,000</td><td>20</td><td>60s</td><td>Full content analysis</td></tr>
+<tr><td><code>deep</code></td><td>50,000</td><td>50</td><td>5min</td><td>Complete codebase scan</td></tr>
+
+<h2 id="configuration">Configuration<a class="anchor" href="#configuration">#</a></h2>
+
+<pre class="code-block language-zig"><code>const config = explore.ExploreConfig{
+    .level = .medium,
+    .max_files = 5000,
+    .max_depth = 10,
+    .timeout_ms = 30000,
+    .case_sensitive = false,
+    .use_regex = false,
+    .parallel_io = true,
+    .include_patterns = &amp;.{ &quot;*.zig&quot;, &quot;*.md&quot; },
+    .exclude_patterns = &amp;.{ &quot;*.git&quot;, &quot;node_modules&quot; },
+    .file_size_limit_bytes = 1024 * 1024,
+};
+</code></pre>
+
+<h2 id="natural-language-query-understanding">Natural Language Query Understanding<a class="anchor" href="#natural-language-query-understanding">#</a></h2>
+
+<p>The explore module can understand natural language queries:</p>
+
+<pre class="code-block language-zig"><code>var understander = explore.QueryUnderstanding.init(allocator);
+defer understander.deinit();
+
+const parsed = try understander.parse(&quot;find all HTTP handlers in src/api/&quot;);
+// parsed.intent = .find_functions
+// parsed.patterns = &amp;.{&quot;handler&quot;}
+// parsed.target_paths = &amp;.{&quot;src/api&quot;}
+// parsed.file_extensions = &amp;.{&quot;.zig&quot;}
+</code></pre>
+
+<h3 id="supported-intent-types">Supported Intent Types<a class="anchor" href="#supported-intent-types">#</a></h3>
+
+<li><code>find_functions</code> - Search for function definitions</li>
+<li><code>find_types</code> - Search for type definitions (structs, enums, etc.)</li>
+<li><code>find_tests</code> - Search for test cases</li>
+<li><code>find_imports</code> - Search for import statements</li>
+<li><code>find_comments</code> - Search for comments and TODOs</li>
+<li><code>find_configs</code> - Search for configuration</li>
+<li><code>find_docs</code> - Search for documentation</li>
+<li><code>list_files</code> - List files in paths</li>
+<li><code>count_occurrences</code> - Count pattern occurrences</li>
+<li><code>analyze_structure</code> - Analyze code structure</li>
+
+<h2 id="pattern-matching">Pattern Matching<a class="anchor" href="#pattern-matching">#</a></h2>
+
+<h3 id="literal-search">Literal Search<a class="anchor" href="#literal-search">#</a></h3>
+
+<pre class="code-block language-zig"><code>const pattern = try compiler.compile(&quot;my_function&quot;, .literal, false);
+</code></pre>
+
+<h3 id="glob-patterns">Glob Patterns<a class="anchor" href="#glob-patterns">#</a></h3>
+
+<pre class="code-block language-zig"><code>const pattern = try compiler.compile(&quot;*.zig&quot;, .glob, false);
+const pattern = try compiler.compile(&quot;src/**/*.test.zig&quot;, .glob, false);
+</code></pre>
+
+<h3 id="regex-patterns">Regex Patterns<a class="anchor" href="#regex-patterns">#</a></h3>
+
+<pre class="code-block language-zig"><code>const pattern = try compiler.compile(&quot;fn\\s+\\w+&quot;, .regex, false);
+</code></pre>
+
+<h3 id="fuzzy-matching">Fuzzy Matching<a class="anchor" href="#fuzzy-matching">#</a></h3>
+
+<pre class="code-block language-zig"><code>const pattern = try compiler.compile(&quot;hndlr&quot;, .fuzzy, false);
+// Matches: &quot;handler&quot;, &quot;handlr&quot;, &quot;hnldr&quot;
+</code></pre>
+
+<h2 id="ast-parsing">AST Parsing<a class="anchor" href="#ast-parsing">#</a></h2>
+
+<p>Parse source code to extract code elements:</p>
+
+<pre class="code-block language-zig"><code>var parser = explore.AstParser.init(allocator);
+defer parser.deinit();
+
+// Read file content using std.Io
+var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+defer io_backend.deinit();
+const io = io_backend.io();
+
+const content = try std.Io.Dir.cwd().readFileAlloc(io, &quot;src/abi.zig&quot;, allocator, .limited(1024 * 1024));
+defer allocator.free(content);
+const parsed = try parser.parseFile(&amp;file_stat, content);
+defer parsed.deinit();
+
+// Access parsed elements
+for (parsed.functions.items) |fn_name| {
+    std.debug.print(&quot;Found function: {s}\n&quot;, .{fn_name});
+}
+
+for (parsed.imports.items) |imp| {
+    std.debug.print(&quot;Found import: {s}\n&quot;, .{imp});
+}
+
+for (parsed.types.items) |type_name| {
+    std.debug.print(&quot;Found type: {s}\n&quot;, .{type_name});
+}
+</code></pre>
+
+<h3 id="supported-languages">Supported Languages<a class="anchor" href="#supported-languages">#</a></h3>
+
+<li><strong>Zig</strong>: Functions, structs, enums, const, imports, tests</li>
+<li><strong>Rust</strong>: Functions, structs, enums, use imports, tests</li>
+<li><strong>TypeScript/JavaScript</strong>: Functions, classes, interfaces, imports</li>
+<li><strong>Generic</strong>: Functions, comments (works for any language)</li>
+
+<h2 id="output-formats">Output Formats<a class="anchor" href="#output-formats">#</a></h2>
+
+<h3 id="human-readable-default">Human Readable (Default)<a class="anchor" href="#human-readable-default">#</a></h3>
+
+<pre class="code-block"><code>Exploration Results for: &quot;handler&quot;
+Level: medium
+Files Scanned: 45
+Matches Found: 12
+Duration: 234ms
+
+Top Matches:
+-------------
+1. src/http/server.zig:42
+   pub fn handleRequest(
+   Score: 0.85
+</code></pre>
+
+<h3 id="json">JSON<a class="anchor" href="#json">#</a></h3>
+
+<pre class="code-block language-json"><code>{
+  &quot;query&quot;: &quot;handler&quot;,
+  &quot;level&quot;: &quot;medium&quot;,
+  &quot;files_scanned&quot;: 45,
+  &quot;matches_found&quot;: 12,
+  &quot;duration_ms&quot;: 234,
+  &quot;matches&quot;: [
+    {
+      &quot;file&quot;: &quot;src/http/server.zig&quot;,
+      &quot;line&quot;: 42,
+      &quot;type&quot;: &quot;function_definition&quot;,
+      &quot;text&quot;: &quot;pub fn handleRequest(&quot;,
+      &quot;score&quot;: 0.85
+    }
+  ]
+}
+</code></pre>
+
+<h3 id="yaml">YAML<a class="anchor" href="#yaml">#</a></h3>
+
+<pre class="code-block language-yaml"><code>query: &quot;handler&quot;
+level: medium
+matches_found: 12
+duration_ms: 234
+</code></pre>
+
+<h3 id="compact">Compact<a class="anchor" href="#compact">#</a></h3>
+
+<pre class="code-block"><code>Query: &quot;handler&quot; | Found: 12 matches in 234ms
+</code></pre>
+
+<h2 id="cli-options">CLI Options<a class="anchor" href="#cli-options">#</a></h2>
+
+<pre class="code-block"><code>Usage: zig build run -- explore [options] &lt;query&gt;
+
+Arguments:
+  &lt;query&gt;              Search pattern or natural language query
+
+Options:
+  -l, --level &lt;level&gt;  Exploration depth: quick, medium, thorough, deep
+  -f, --format &lt;fmt&gt;   Output format: human, json, compact, yaml
+  -i, --include &lt;pat&gt;  Include files matching pattern
+  -e, --exclude &lt;pat&gt;  Exclude files matching pattern
+  -c, --case-sensitive Match case sensitively
+  -r, --regex          Treat query as regex pattern
+  --path &lt;path&gt;        Root directory to search (default: .)
+  --max-files &lt;n&gt;      Maximum files to scan
+  --max-depth &lt;n&gt;      Maximum directory depth
+  --timeout &lt;ms&gt;       Timeout in milliseconds
+  -h, --help           Show this help message
+</code></pre>
+
+<h2 id="examples">Examples<a class="anchor" href="#examples">#</a></h2>
+
+<h3 id="find-all-http-handlers">Find all HTTP handlers<a class="anchor" href="#find-all-http-handlers">#</a></h3>
+
+<pre class="code-block language-bash"><code>zig build run -- explore &quot;HTTP handler&quot;
+zig build run -- explore -l thorough &quot;handleRequest&quot;
+zig build run -- explore -i &quot;*.zig&quot; &quot;pub fn&quot;
+</code></pre>
+
+<h3 id="find-test-functions">Find test functions<a class="anchor" href="#find-test-functions">#</a></h3>
+
+<pre class="code-block language-bash"><code>zig build run -- explore &quot;test&quot;
+zig build run -- explore -l thorough &quot;test case&quot;
+zig build run -- explore -i &quot;_test.zig&quot; &quot;&quot;
+</code></pre>
+
+<h3 id="find-configuration">Find configuration<a class="anchor" href="#find-configuration">#</a></h3>
+
+<pre class="code-block language-bash"><code>zig build run -- explore &quot;const CONFIG&quot;
+zig build run -- explore &quot;pub const&quot;
+zig build run -- explore -e &quot;test&quot; &quot;config&quot;
+</code></pre>
+
+<h3 id="find-todo-comments">Find TODO comments<a class="anchor" href="#find-todo-comments">#</a></h3>
+
+<pre class="code-block language-bash"><code>zig build run -- explore &quot;TODO&quot;
+zig build run -- explore -l thorough &quot;TODO FIXME&quot;
+zig build run -- explore -f json &quot;fixme&quot;
+</code></pre>
+
+<h3 id="find-imports">Find imports<a class="anchor" href="#find-imports">#</a></h3>
+
+<pre class="code-block language-bash"><code>zig build run -- explore &quot;import&quot;
+zig build run -- explore -l quick &quot;use @import&quot;
+</code></pre>
+
+<h3 id="analyze-code-structure">Analyze code structure<a class="anchor" href="#analyze-code-structure">#</a></h3>
+
+<pre class="code-block language-bash"><code>zig build run -- explore -l thorough &quot;analyze structure&quot;
+zig build run -- explore -l deep &quot;list all functions&quot;
+</code></pre>
+
+<h2 id="api-reference">API Reference<a class="anchor" href="#api-reference">#</a></h2>
+
+<h3 id="main-types">Main Types<a class="anchor" href="#main-types">#</a></h3>
+
+<li><code>ExploreAgent</code> - Main exploration agent</li>
+<li><code>ExploreConfig</code> - Configuration for exploration</li>
+<li><code>ExploreResult</code> - Results from exploration</li>
+<li><code>ExploreLevel</code> - Exploration depth levels</li>
+<li><code>OutputFormat</code> - Output format options</li>
+<li><code>QueryUnderstanding</code> - Natural language query parser</li>
+<li><code>AstParser</code> - Source code AST parser</li>
+<li><code>ParallelExplorer</code> - Multi-threaded exploration</li>
+<li><code>WorkItem</code> - Work item for parallel processing</li>
+<li><code>SearchPattern</code> - Compiled search pattern</li>
+<li><code>PatternType</code> - Pattern matching type (literal, glob, regex, fuzzy)</li>
+<li><code>PatternCompiler</code> - Compiler for search patterns</li>
+<li><code>AstNode</code> - AST node with type, name, location</li>
+<li><code>ParsedQuery</code> - Parsed natural language query</li>
+<li><code>QueryIntent</code> - Query classification (find_functions, find_types, etc.)</li>
+
+<h3 id="key-functions">Key Functions<a class="anchor" href="#key-functions">#</a></h3>
+
+<pre class="code-block language-zig"><code>// Create agents with default configurations
+pub fn createDefaultAgent(allocator: std.mem.Allocator) ExploreAgent
+pub fn createQuickAgent(allocator: std.mem.Allocator) ExploreAgent
+pub fn createThoroughAgent(allocator: std.mem.Allocator) ExploreAgent
+
+// Create parallel exploration agents
+pub fn parallelExplore(
+    allocator: std.mem.Allocator,
+    root_path: []const u8,
+    config: ExploreConfig,
+    search_query: []const u8,
+) !ExploreResult
+
+// Explore methods
+pub fn explore(self: *ExploreAgent, root_path: []const u8, query: []const u8) !ExploreResult
+pub fn exploreWithPatterns(self: *ExploreAgent, root_path: []const u8, patterns: []const []const u8) !ExploreResult
+pub fn exploreNaturalLanguage(self: *ExploreAgent, root_path: []const u8, nl_query: []const u8) !ExploreResult
+</code></pre>
+
+<h3 id="parallel-exploration">Parallel Exploration<a class="anchor" href="#parallel-exploration">#</a></h3>
+
+<p>The <code>parallelExplore</code> function provides high-performance multi-threaded exploration:</p>
+
+<pre class="code-block language-zig"><code>const allocator = std.testing.allocator;
+
+const config = explore.ExploreConfig.defaultForLevel(.thorough);
+const result = try explore.parallelExplore(allocator, &quot;.&quot;, config, &quot;my query&quot;);
+defer result.deinit();
+
+try result.formatHuman(std.debug);
+</code></pre>
+
+<p>Parallel exploration features:</p>
+<li>Automatic CPU detection and thread pool sizing</li>
+<li>Work chunking for balanced load distribution</li>
+<li>Thread-safe result aggregation with mutex locks</li>
+<li>Graceful fallback on thread spawn failure</li>
+<li>Cancellation support with <code>cancel()</code> method</li>
+
+<h2 id="performance-tips">Performance Tips<a class="anchor" href="#performance-tips">#</a></h2>
+
+<p>1. <strong>Use <code>quick</code> level for filename-only searches</strong></p>
+<p>2. <strong>Use <code>--max-files</code> and <code>--max-depth</code> to limit scope</strong></p>
+<p>3. <strong>Use <code>-i</code> to include only relevant file types</strong></p>
+<p>4. <strong>Use <code>-e</code> to exclude build artifacts and dependencies</strong></p>
+<p>5. <strong>Use <code>--timeout</code> to prevent long-running searches</strong></p>
+<p>6. <strong>Use <code>compact</code> format for scripting and parsing</strong></p>
+
+<h2 id="error-handling">Error Handling<a class="anchor" href="#error-handling">#</a></h2>
+
+<pre class="code-block language-zig"><code>const result = agent.explore(&quot;.&quot;, &quot;query&quot;) catch |err| {
+    switch (err) {
+        error.PathNotFound =&gt; std.debug.print(&quot;Path not found\n&quot;, .{}),
+        error.Timeout =&gt; std.debug.print(&quot;Search timed out\n&quot;, .{}),
+        error.TooManyFiles =&gt; std.debug.print(&quot;Too many files\n&quot;, .{}),
+        else =&gt; std.debug.print(&quot;Error: {}\n&quot;, .{err}),
+    }
+    return;
+};
+</code></pre>
+
+<hr>
+
+<h2 id="see-also">See Also<a class="anchor" href="#see-also">#</a></h2>
+
+<li><a href="ai.md">AI &amp; Agents</a> - AI-powered features</li>
+<li><a href="compute.md">Compute Engine</a> - Parallel exploration execution</li>
+<li><a href="framework.md">Framework</a> - Configuration options</li>
+<li><a href="troubleshooting.md">Troubleshooting</a> - Search and timeout issues</li>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>api_runtime - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>api_runtime</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#runtime-api-reference">runtime API Reference</a></li>
+        <li style="padding-left: 16px"><a href="#module-organization">Module Organization</a></li>
+        <li style="padding-left: 16px"><a href="#usage">Usage</a></li>
+        <li style="padding-left: 16px"><a href="#api">API</a></li>
+        <li style="padding-left: 32px"><a href="#pub-const-context">`pub const Context`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-initallocator-stdmemallocator-errorcontext">`pub fn init(allocator: std.mem.Allocator) Error!*Context`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-deinitself-context-void">`pub fn deinit(self: *Context) void`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-getengineself-context-errorengine">`pub fn getEngine(self: *Context) Error!*Engine`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-createtaskgroupself-context-config-taskgroupconfig-taskgroup">`pub fn createTaskGroup(self: *Context, config: TaskGroupConfig) !TaskGroup`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-createfutureself-context-comptime-t-type-futuret">`pub fn createFuture(self: *Context, comptime T: type) !Future(T)`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-createcancellationsourceself-context-cancellationsource">`pub fn createCancellationSource(self: *Context) !CancellationSource`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-createengineallocator-stdmemallocator-config-engineconfig-engine">`pub fn createEngine(allocator: std.mem.Allocator, config: EngineConfig) !Engine`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-createdefaultengineallocator-stdmemallocator-engine">`pub fn createDefaultEngine(allocator: std.mem.Allocator) !Engine`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-createenginewithconfigallocator-stdmemallocator-config-engineconfig-engine">`pub fn createEngineWithConfig(allocator: std.mem.Allocator, config: EngineConfig) !Engine`</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="runtime-api-reference">runtime API Reference<a class="anchor" href="#runtime-api-reference">#</a></h1>
+
+<blockquote>Runtime infrastructure (engine, scheduling, memory)</blockquote>
+
+<p><strong>Source:</strong> <a href="../../src/runtime/mod.zig"><code>src/runtime/mod.zig</code></a></p>
+
+<hr>
+
+<p>Runtime Module - Always-on Core Infrastructure</p>
+
+<p>This module provides the foundational runtime infrastructure that is always</p>
+<p>available regardless of which features are enabled. It includes:</p>
+
+<li>Task scheduling and execution engine</li>
+<li>Concurrency primitives (futures, task groups, cancellation)</li>
+<li>Memory management utilities</li>
+
+<h2 id="module-organization">Module Organization<a class="anchor" href="#module-organization">#</a></h2>
+
+<pre class="code-block"><code>runtime/
+├── mod.zig          # This file - unified entry point
+├── engine/          # Task execution engine
+├── scheduling/      # Futures, cancellation, task groups
+├── concurrency/     # Lock-free data structures
+└── memory/          # Memory pools and allocators
+</code></pre>
+
+<h2 id="usage">Usage<a class="anchor" href="#usage">#</a></h2>
+
+<pre class="code-block language-zig"><code>const runtime = @import(&quot;runtime/mod.zig&quot;);
+
+// Create runtime context
+var ctx = try runtime.Context.init(allocator);
+defer ctx.deinit();
+
+// Use task groups for parallel work
+var group = try ctx.createTaskGroup(.{});
+defer group.deinit();
+</code></pre>
+
+<hr>
+
+<h2 id="api">API<a class="anchor" href="#api">#</a></h2>
+
+<h3 id="pub-const-context"><code>pub const Context</code><a class="anchor" href="#pub-const-context">#</a></h3>
+
+<p>&lt;sup&gt;<strong>type</strong>&lt;/sup&gt;</p>
+
+<p>Runtime context - the always-available infrastructure.</p>
+<p>This is created automatically by the Framework and provides</p>
+<p>access to scheduling, concurrency, and memory primitives.</p>
+
+<h3 id="pub-fn-initallocator-stdmemallocator-errorcontext"><code>pub fn init(allocator: std.mem.Allocator) Error!*Context</code><a class="anchor" href="#pub-fn-initallocator-stdmemallocator-errorcontext">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Initialize the runtime context.</p>
+
+<h3 id="pub-fn-deinitself-context-void"><code>pub fn deinit(self: *Context) void</code><a class="anchor" href="#pub-fn-deinitself-context-void">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Shutdown the runtime context.</p>
+
+<h3 id="pub-fn-getengineself-context-errorengine"><code>pub fn getEngine(self: *Context) Error!*Engine</code><a class="anchor" href="#pub-fn-getengineself-context-errorengine">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Get or create the compute engine.</p>
+
+<h3 id="pub-fn-createtaskgroupself-context-config-taskgroupconfig-taskgroup"><code>pub fn createTaskGroup(self: *Context, config: TaskGroupConfig) !TaskGroup</code><a class="anchor" href="#pub-fn-createtaskgroupself-context-config-taskgroupconfig-taskgroup">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Create a new task group.</p>
+
+<h3 id="pub-fn-createfutureself-context-comptime-t-type-futuret"><code>pub fn createFuture(self: *Context, comptime T: type) !Future(T)</code><a class="anchor" href="#pub-fn-createfutureself-context-comptime-t-type-futuret">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Create a new future.</p>
+
+<h3 id="pub-fn-createcancellationsourceself-context-cancellationsource"><code>pub fn createCancellationSource(self: *Context) !CancellationSource</code><a class="anchor" href="#pub-fn-createcancellationsourceself-context-cancellationsource">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Create a cancellation source.</p>
+
+<h3 id="pub-fn-createengineallocator-stdmemallocator-config-engineconfig-engine"><code>pub fn createEngine(allocator: std.mem.Allocator, config: EngineConfig) !Engine</code><a class="anchor" href="#pub-fn-createengineallocator-stdmemallocator-config-engineconfig-engine">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Create an engine with configuration (2-arg version for compatibility).</p>
+
+<h3 id="pub-fn-createdefaultengineallocator-stdmemallocator-engine"><code>pub fn createDefaultEngine(allocator: std.mem.Allocator) !Engine</code><a class="anchor" href="#pub-fn-createdefaultengineallocator-stdmemallocator-engine">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Create an engine with default configuration.</p>
+
+<h3 id="pub-fn-createenginewithconfigallocator-stdmemallocator-config-engineconfig-engine"><code>pub fn createEngineWithConfig(allocator: std.mem.Allocator, config: EngineConfig) !Engine</code><a class="anchor" href="#pub-fn-createenginewithconfigallocator-stdmemallocator-config-engineconfig-engine">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Create an engine with custom configuration.</p>
+
+<hr>
+
+<p>*Generated automatically by <code>zig build gendocs</code>*</p>
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

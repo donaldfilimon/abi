@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ai - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>ai</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#ai-agents">AI & Agents</a></li>
+        <li style="padding-left: 16px"><a href="#sub-features-overview">Sub-Features Overview</a></li>
+        <li style="padding-left: 16px"><a href="#architecture">Architecture</a></li>
+        <li style="padding-left: 16px"><a href="#connectors">Connectors</a></li>
+        <li style="padding-left: 32px"><a href="#model-providers">Model Providers</a></li>
+        <li style="padding-left: 32px"><a href="#platform-integrations">Platform Integrations</a></li>
+        <li style="padding-left: 32px"><a href="#configuration">Configuration</a></li>
+        <li style="padding-left: 16px"><a href="#llm-sub-feature">LLM Sub-Feature</a></li>
+        <li style="padding-left: 32px"><a href="#basic-generation">Basic Generation</a></li>
+        <li style="padding-left: 32px"><a href="#streaming-generation">Streaming Generation</a></li>
+        <li style="padding-left: 48px"><a href="#callback-based-streaming">Callback-based Streaming</a></li>
+        <li style="padding-left: 48px"><a href="#iterator-based-streaming-with-streamingresponse">Iterator-based Streaming with StreamingResponse</a></li>
+        <li style="padding-left: 48px"><a href="#streaming-with-callbacks-and-configuration">Streaming with Callbacks and Configuration</a></li>
+        <li style="padding-left: 32px"><a href="#streaming-configuration-options">Streaming Configuration Options</a></li>
+        <li style="padding-left: 32px"><a href="#streaming-types">Streaming Types</a></li>
+        <li style="padding-left: 32px"><a href="#server-sent-events-sse-support">Server-Sent Events (SSE) Support</a></li>
+        <li style="padding-left: 32px"><a href="#cancellation-support">Cancellation Support</a></li>
+        <li style="padding-left: 16px"><a href="#embeddings-sub-feature">Embeddings Sub-Feature</a></li>
+        <li style="padding-left: 16px"><a href="#training-sub-feature">Training Sub-Feature</a></li>
+        <li style="padding-left: 32px"><a href="#llm-training-extras">LLM Training Extras</a></li>
+        <li style="padding-left: 32px"><a href="#cli-usage">CLI Usage</a></li>
+        <li style="padding-left: 16px"><a href="#federated-learning">Federated Learning</a></li>
+        <li style="padding-left: 16px"><a href="#agents-sub-feature">Agents Sub-Feature</a></li>
+        <li style="padding-left: 32px"><a href="#agent-configuration">Agent Configuration</a></li>
+        <li style="padding-left: 32px"><a href="#agent-methods">Agent Methods</a></li>
+        <li style="padding-left: 16px"><a href="#multi-persona-system">Multi-Persona System</a></li>
+        <li style="padding-left: 32px"><a href="#quick-start">Quick Start</a></li>
+        <li style="padding-left: 32px"><a href="#persona-configuration">Persona Configuration</a></li>
+        <li style="padding-left: 32px"><a href="#routing-logic">Routing Logic</a></li>
+        <li style="padding-left: 32px"><a href="#http-api">HTTP API</a></li>
+        <li style="padding-left: 32px"><a href="#metrics-monitoring">Metrics & Monitoring</a></li>
+        <li style="padding-left: 32px"><a href="#architecture">Architecture</a></li>
+        <li style="padding-left: 16px"><a href="#cli-commands">CLI Commands</a></li>
+        <li style="padding-left: 16px"><a href="#new-in-202601-error-context">New in 2026.01: Error Context</a></li>
+        <li style="padding-left: 16px"><a href="#api-reference">API Reference</a></li>
+        <li style="padding-left: 32px"><a href="#agent-api">Agent API</a></li>
+        <li style="padding-left: 32px"><a href="#error-context-types">Error Context Types</a></li>
+        <li style="padding-left: 32px"><a href="#supported-backends">Supported Backends</a></li>
+        <li style="padding-left: 16px"><a href="#see-also">See Also</a></li>
+        <li style="padding-left: 32px"><a href="#related-guides">Related Guides</a></li>
+        <li style="padding-left: 32px"><a href="#resources">Resources</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="ai-agents">AI &amp; Agents<a class="anchor" href="#ai-agents">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<p>&lt;p align=&quot;center&quot;&gt;</p>
+<p>  &lt;img src=&quot;https://img.shields.io/badge/Module-AI-purple?style=for-the-badge&amp;logo=openai&amp;logoColor=white&quot; alt=&quot;AI Module&quot;/&gt;</p>
+<p>  &lt;img src=&quot;https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge&quot; alt=&quot;Production Ready&quot;/&gt;</p>
+<p>  &lt;img src=&quot;https://img.shields.io/badge/LLM-Llama_CPP_Parity-blue?style=for-the-badge&quot; alt=&quot;Llama CPP Parity&quot;/&gt;</p>
+<p>&lt;/p&gt;</p>
+
+<p>&lt;p align=&quot;center&quot;&gt;</p>
+<p>  &lt;a href=&quot;#connectors&quot;&gt;Connectors&lt;/a&gt; •</p>
+<p>  &lt;a href=&quot;#llm-sub-feature&quot;&gt;LLM&lt;/a&gt; •</p>
+<p>  &lt;a href=&quot;#agents-sub-feature&quot;&gt;Agents&lt;/a&gt; •</p>
+<p>  &lt;a href=&quot;#training-sub-feature&quot;&gt;Training&lt;/a&gt; •</p>
+<p>  &lt;a href=&quot;#cli-commands&quot;&gt;CLI&lt;/a&gt;</p>
+<p>&lt;/p&gt;</p>
+
+<hr>
+
+<blockquote><strong>Developer Guide</strong>: See <a href="../CONTRIBUTING.md">CONTRIBUTING.md</a> for coding patterns and <a href="../CLAUDE.md">CLAUDE.md</a> for comprehensive agent guidance.</blockquote>
+<blockquote><strong>Framework</strong>: Initialize ABI framework before using AI features - see <a href="framework.md">Framework Guide</a>.</blockquote>
+
+<p>The <strong>AI</strong> module (<code>abi.ai</code>) provides the building blocks for creating autonomous agents and connecting to LLM providers.</p>
+
+<h2 id="sub-features-overview">Sub-Features Overview<a class="anchor" href="#sub-features-overview">#</a></h2>
+
+<tr><td>Feature</td><td>Description</td><td>Status</td></tr>
+<tr><td><strong>LLM</strong></td><td>Local LLM inference (GGUF support)</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><strong>Embeddings</strong></td><td>Vector embedding generation</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><strong>Agents</strong></td><td>Conversational AI agents</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><strong>Training</strong></td><td>Training pipelines &amp; checkpointing</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><strong>Connectors</strong></td><td>OpenAI, Ollama, HuggingFace</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+
+<h2 id="architecture">Architecture<a class="anchor" href="#architecture">#</a></h2>
+
+<p>The AI module uses a modular architecture with a core module and independent sub-features:</p>
+
+<pre class="code-block"><code>src/ai/
+├── mod.zig              # AI module entry point (core)
+├── core/                # Core AI primitives
+│   ├── embeddings.zig   # Embedding generation
+│   ├── inference.zig    # Inference engine
+│   └── tokenizer.zig    # Tokenization
+├── llm/                 # LLM sub-feature
+│   ├── mod.zig          # LLM entry point
+│   ├── gguf.zig         # GGUF model loading
+│   └── quantization.zig # Quantization support
+├── embeddings/          # Embeddings sub-feature
+│   ├── mod.zig          # Embeddings entry point
+│   └── models/          # Embedding models
+├── agents/              # Agents sub-feature
+│   ├── mod.zig          # Agent entry point
+│   ├── agent.zig        # Agent implementation
+│   └── prompts/         # Prompt templates
+├── training/            # Training sub-feature
+│   ├── mod.zig          # Training entry point
+│   ├── trainer.zig      # Training loop
+│   ├── checkpoint.zig   # Checkpointing
+│   └── federated.zig    # Federated learning
+└── connectors/          # External provider connectors
+    ├── openai.zig       # OpenAI API
+    ├── ollama.zig       # Ollama local inference
+    ├── huggingface.zig  # HuggingFace API
+    └── discord.zig      # Discord Bot API
+</code></pre>
+
+<p>Each sub-feature (llm, embeddings, agents, training) can be independently enabled or disabled, and they share the core primitives.</p>
+
+<h2 id="connectors">Connectors<a class="anchor" href="#connectors">#</a></h2>
+
+<p>Connectors provide a unified interface to various model providers and platforms.</p>
+
+<h3 id="model-providers">Model Providers<a class="anchor" href="#model-providers">#</a></h3>
+
+<tr><td>Provider</td><td>Namespace</td><td>Models</td><td>Status</td></tr>
+<tr><td><strong>OpenAI</strong></td><td><code>abi.ai.connectors.openai</code></td><td>GPT-4, GPT-3.5, embeddings</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><strong>Ollama</strong></td><td><code>abi.ai.connectors.ollama</code></td><td>Local LLMs (Llama, Mistral, etc.)</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><strong>HuggingFace</strong></td><td><code>abi.ai.connectors.huggingface</code></td><td>Inference API models</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+
+<h3 id="platform-integrations">Platform Integrations<a class="anchor" href="#platform-integrations">#</a></h3>
+
+<tr><td>Platform</td><td>Namespace</td><td>Features</td><td>Status</td></tr>
+<tr><td><strong>Discord</strong></td><td><code>abi.ai.connectors.discord</code></td><td>Bot API, webhooks, interactions</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+
+<h3 id="configuration">Configuration<a class="anchor" href="#configuration">#</a></h3>
+
+<tr><td>Environment Variable</td><td>Default</td><td>Description</td></tr>
+<tr><td><code>ABI_OPENAI_API_KEY</code></td><td>-</td><td>OpenAI API key</td></tr>
+<tr><td><code>ABI_OLLAMA_HOST</code></td><td><code>http://127.0.0.1:11434</code></td><td>Ollama server URL</td></tr>
+<tr><td><code>ABI_OLLAMA_MODEL</code></td><td><code>gpt-oss</code></td><td>Default Ollama model</td></tr>
+<tr><td><code>ABI_HF_API_TOKEN</code></td><td>-</td><td>HuggingFace token</td></tr>
+<tr><td><code>DISCORD_BOT_TOKEN</code></td><td>-</td><td>Discord bot token</td></tr>
+
+<h2 id="llm-sub-feature">LLM Sub-Feature<a class="anchor" href="#llm-sub-feature">#</a></h2>
+
+<p>The LLM sub-feature (<code>abi.ai.llm</code>) provides local LLM inference capabilities with both batch and streaming generation.</p>
+
+<h3 id="basic-generation">Basic Generation<a class="anchor" href="#basic-generation">#</a></h3>
+
+<pre class="code-block language-zig"><code>const llm = abi.ai.llm;
+
+// Load a GGUF model
+var model = try llm.loadModel(allocator, &quot;model.gguf&quot;, .{});
+defer model.deinit();
+
+// Generate text
+const output = try model.generate(&quot;Hello, &quot;, .{
+    .max_tokens = 100,
+    .temperature = 0.7,
+});
+defer allocator.free(output);
+</code></pre>
+
+<h3 id="streaming-generation">Streaming Generation<a class="anchor" href="#streaming-generation">#</a></h3>
+
+<p>The LLM module provides advanced streaming capabilities for token-by-token generation, ideal for interactive applications and real-time output.</p>
+
+<h4 id="callback-based-streaming">Callback-based Streaming<a class="anchor" href="#callback-based-streaming">#</a></h4>
+
+<p>Simple callback-based streaming for quick implementation:</p>
+
+<pre class="code-block language-zig"><code>var engine = llm.Engine.init(allocator, .{});
+defer engine.deinit();
+
+try engine.loadModel(&quot;model.gguf&quot;);
+
+// Stream with callback
+try engine.generateStreaming(&quot;Once upon a time&quot;, struct {
+    fn onToken(text: []const u8) void {
+        std.debug.print(&quot;{s}&quot;, .{text});
+    }
+}.onToken);
+</code></pre>
+
+<h4 id="iterator-based-streaming-with-streamingresponse">Iterator-based Streaming with StreamingResponse<a class="anchor" href="#iterator-based-streaming-with-streamingresponse">#</a></h4>
+
+<p>For more control, use the <code>StreamingResponse</code> iterator which provides pull-based streaming with statistics and cancellation support:</p>
+
+<pre class="code-block language-zig"><code>const llm = abi.ai.llm;
+
+var engine = llm.Engine.init(allocator, .{});
+defer engine.deinit();
+
+try engine.loadModel(&quot;model.gguf&quot;);
+
+// Create streaming response with configuration
+var response = try engine.createStreamingResponse(&quot;Write a story about&quot;, .{
+    .max_tokens = 200,
+    .temperature = 0.8,
+    .top_k = 40,
+    .top_p = 0.9,
+    .decode_tokens = true,
+});
+defer response.deinit();
+
+// Iterate through tokens
+while (try response.next()) |event| {
+    if (event.text) |text| {
+        try stdout.writeAll(text);
+    }
+    if (event.is_final) break;
+}
+
+// Get generation statistics
+const stats = response.getStats();
+std.debug.print(&quot;\n\nTokens: {d}, Speed: {d:.1} tok/s\n&quot;, .{
+    stats.tokens_generated,
+    stats.tokensPerSecond(),
+});
+</code></pre>
+
+<h4 id="streaming-with-callbacks-and-configuration">Streaming with Callbacks and Configuration<a class="anchor" href="#streaming-with-callbacks-and-configuration">#</a></h4>
+
+<p>Combine callbacks with the advanced configuration:</p>
+
+<pre class="code-block language-zig"><code>const stats = try engine.generateStreamingWithConfig(&quot;Hello, &quot;, .{
+    .max_tokens = 100,
+    .temperature = 0.7,
+    .on_token = struct {
+        fn onToken(event: llm.TokenEvent) void {
+            if (event.text) |text| {
+                std.debug.print(&quot;{s}&quot;, .{text});
+            }
+        }
+    }.onToken,
+    .on_complete = struct {
+        fn onComplete(stats: llm.StreamingStats) void {
+            std.debug.print(&quot;\nGenerated {d} tokens\n&quot;, .{stats.tokens_generated});
+        }
+    }.onComplete,
+});
+</code></pre>
+
+<h3 id="streaming-configuration-options">Streaming Configuration Options<a class="anchor" href="#streaming-configuration-options">#</a></h3>
+
+<tr><td>Option</td><td>Type</td><td>Default</td><td>Description</td></tr>
+<tr><td><code>max_tokens</code></td><td><code>u32</code></td><td>256</td><td>Maximum tokens to generate</td></tr>
+<tr><td><code>temperature</code></td><td><code>f32</code></td><td>0.7</td><td>Sampling temperature (0.0 = greedy)</td></tr>
+<tr><td><code>top_k</code></td><td><code>u32</code></td><td>40</td><td>Top-k sampling (0 = disabled)</td></tr>
+<tr><td><code>top_p</code></td><td><code>f32</code></td><td>0.9</td><td>Nucleus sampling threshold</td></tr>
+<tr><td><code>repetition_penalty</code></td><td><code>f32</code></td><td>1.1</td><td>Repetition penalty (1.0 = disabled)</td></tr>
+<tr><td><code>stop_tokens</code></td><td><code>[]const u32</code></td><td>EOS</td><td>Stop token IDs</td></tr>
+<tr><td><code>initial_buffer_capacity</code></td><td><code>u32</code></td><td>256</td><td>Token buffer initial size</td></tr>
+<tr><td><code>decode_tokens</code></td><td><code>bool</code></td><td>true</td><td>Decode tokens to text</td></tr>
+<tr><td><code>generation_timeout_ns</code></td><td><code>u64</code></td><td>0</td><td>Generation timeout (0 = none)</td></tr>
+<tr><td><code>on_token</code></td><td>callback</td><td>null</td><td>Per-token callback</td></tr>
+<tr><td><code>on_complete</code></td><td>callback</td><td>null</td><td>Completion callback</td></tr>
+
+<h3 id="streaming-types">Streaming Types<a class="anchor" href="#streaming-types">#</a></h3>
+
+<li><code>StreamingResponse</code> - Iterator for pull-based streaming</li>
+<li><code>StreamingConfig</code> - Configuration for streaming behavior</li>
+<li><code>TokenEvent</code> - Event emitted for each token (includes text, position, timestamps)</li>
+<li><code>StreamingStats</code> - Generation statistics (tokens/sec, time-to-first-token)</li>
+<li><code>StreamingState</code> - Current state (idle, prefilling, generating, completed, cancelled)</li>
+
+<h3 id="server-sent-events-sse-support">Server-Sent Events (SSE) Support<a class="anchor" href="#server-sent-events-sse-support">#</a></h3>
+
+<p>Built-in SSE formatting for web APIs:</p>
+
+<pre class="code-block language-zig"><code>const llm = abi.ai.llm;
+
+// Format token as SSE
+const sse_data = try llm.SSEFormatter.formatTokenEvent(allocator, event);
+defer allocator.free(sse_data);
+// Output: data: {&quot;token_id&quot;:123,&quot;text&quot;:&quot;hello&quot;,&quot;position&quot;:5,&quot;is_final&quot;:false}\n\n
+
+// Format completion as SSE
+const completion_sse = try llm.SSEFormatter.formatCompletionEvent(allocator, stats);
+defer allocator.free(completion_sse);
+// Output: data: {&quot;event&quot;:&quot;complete&quot;,&quot;tokens_generated&quot;:50,&quot;tokens_per_second&quot;:25.0}\n\n
+</code></pre>
+
+<h3 id="cancellation-support">Cancellation Support<a class="anchor" href="#cancellation-support">#</a></h3>
+
+<pre class="code-block language-zig"><code>var response = try engine.createStreamingResponse(prompt, config);
+defer response.deinit();
+
+// In another thread or from a signal handler
+response.cancel();
+
+// In the main loop, cancelled responses return null
+while (try response.next()) |event| {
+    // Process event...
+}
+// Loop exits when cancelled
+
+if (response.isCancelled()) {
+    std.debug.print(&quot;Generation was cancelled\n&quot;, .{});
+}
+</code></pre>
+
+<h2 id="embeddings-sub-feature">Embeddings Sub-Feature<a class="anchor" href="#embeddings-sub-feature">#</a></h2>
+
+<p>The embeddings sub-feature (<code>abi.ai.embeddings</code>) generates vector embeddings.</p>
+
+<pre class="code-block language-zig"><code>const embeddings = abi.ai.embeddings;
+
+var encoder = try embeddings.Encoder.init(allocator, .{});
+defer encoder.deinit();
+
+const vector = try encoder.encode(&quot;Hello, world!&quot;);
+defer allocator.free(vector);
+</code></pre>
+
+<h2 id="training-sub-feature">Training Sub-Feature<a class="anchor" href="#training-sub-feature">#</a></h2>
+
+<p>The training sub-feature (<code>abi.ai.training</code>) supports gradient accumulation and checkpointing with a simple simulation backend.</p>
+
+<pre class="code-block language-zig"><code>const report = try abi.ai.training.train(allocator, .{
+    .epochs = 2,
+    .batch_size = 8,
+    .sample_count = 64,
+    .model_size = 128,
+    .gradient_accumulation_steps = 2,
+    .checkpoint_interval = 1,
+    .max_checkpoints = 3,
+    .checkpoint_path = &quot;./model.ckpt&quot;,
+});
+</code></pre>
+
+<p>The training pipeline writes weight-only checkpoints using the <code>abi.ai.training.checkpoint</code> module. LLM training uses <code>abi.ai.training.llm_checkpoint</code> to persist model weights and optimizer state together. Checkpoints can be re-loaded with <code>abi.ai.training.loadCheckpoint</code> (generic) or <code>abi.ai.training.loadLlmCheckpoint</code> (LLM) to resume training or for inference.</p>
+
+<h3 id="llm-training-extras">LLM Training Extras<a class="anchor" href="#llm-training-extras">#</a></h3>
+
+<p>The LLM trainer supports training metrics, checkpointing with optimizer state, TensorBoard/W&amp;B logging, and GGUF export.</p>
+
+<p>Key options on <code>LlmTrainingConfig</code>:</p>
+<li><code>checkpoint_interval</code>, <code>checkpoint_path</code> - Save LLM checkpoints (weights + optimizer state)</li>
+<li><code>log_dir</code>, <code>enable_tensorboard</code>, <code>enable_wandb</code> - Scalar metrics logging</li>
+<li><code>export_gguf_path</code> - Export trained weights to GGUF after training</li>
+
+<p>W&amp;B logging writes offline run files under <code>log_dir/wandb/</code> (sync with <code>wandb sync</code> if desired).</p>
+
+<h3 id="cli-usage">CLI Usage<a class="anchor" href="#cli-usage">#</a></h3>
+
+<p>The <code>train</code> command provides subcommands for running and managing training:</p>
+
+<pre class="code-block language-bash"><code># Run training with default configuration
+zig build run -- train run
+
+# Run with custom options
+zig build run -- train run --epochs 5 --batch-size 16 --learning-rate 0.01
+
+# Run with optimizer and checkpointing
+zig build run -- train run \
+    -e 10 \
+    -b 32 \
+    --model-size 512 \
+    --optimizer adamw \
+    --lr-schedule warmup_cosine \
+    --checkpoint-interval 100 \
+    --checkpoint-path ./checkpoints/model.ckpt
+
+# Show default configuration
+zig build run -- train info
+
+# Resume from checkpoint
+zig build run -- train resume ./checkpoints/model.ckpt
+
+# Show all options
+zig build run -- train help
+</code></pre>
+
+<p><strong>Available options:</strong></p>
+<li><code>-e, --epochs</code> - Number of epochs (default: 10)</li>
+<li><code>-b, --batch-size</code> - Batch size (default: 32)</li>
+<li><code>--model-size</code> - Model parameters (default: 512)</li>
+<li><code>--lr, --learning-rate</code> - Learning rate (default: 0.001)</li>
+<li><code>--optimizer</code> - sgd, adam, adamw (default: adamw)</li>
+<li><code>--lr-schedule</code> - constant, cosine, warmup_cosine, step, polynomial</li>
+<li><code>--checkpoint-interval</code> - Steps between checkpoints</li>
+<li><code>--checkpoint-path</code> - Path to save checkpoints</li>
+<li><code>--mixed-precision</code> - Enable mixed precision training</li>
+
+<p>See <code>src/tests/training_demo.zig</code> for a working test example.</p>
+
+<h2 id="federated-learning">Federated Learning<a class="anchor" href="#federated-learning">#</a></h2>
+
+<p>Federated coordination (<code>abi.ai.training.federated</code>) aggregates model updates across nodes.</p>
+
+<pre class="code-block language-zig"><code>var coordinator = try abi.ai.training.federated.Coordinator.init(allocator, .{}, 128);
+defer coordinator.deinit();
+
+try coordinator.registerNode(&quot;node-a&quot;);
+try coordinator.submitUpdate(.{
+    .node_id = &quot;node-a&quot;,
+    .step = 1,
+    .weights = &amp;.{ 0.1, 0.2 },
+});
+const global = try coordinator.aggregate();
+</code></pre>
+
+<h2 id="agents-sub-feature">Agents Sub-Feature<a class="anchor" href="#agents-sub-feature">#</a></h2>
+
+<p>An <strong>Agent</strong> (<code>abi.ai.agents</code>) provides a conversational interface with configurable history and parameters.</p>
+
+<pre class="code-block language-zig"><code>var agent = try abi.ai.agents.Agent.init(allocator, .{
+    .name = &quot;coding-assistant&quot;,
+    .enable_history = true,
+    .temperature = 0.7,
+    .top_p = 0.9,
+});
+defer agent.deinit();
+
+// Use chat() for conversational interface
+const response = try agent.chat(&quot;How do I write a Hello World in Zig?&quot;, allocator);
+defer allocator.free(response);
+
+// Or use process() for the same functionality
+const response2 = try agent.process(&quot;Another question&quot;, allocator);
+defer allocator.free(response2);
+</code></pre>
+
+<h3 id="agent-configuration">Agent Configuration<a class="anchor" href="#agent-configuration">#</a></h3>
+
+<p>The <code>AgentConfig</code> struct supports:</p>
+<li><code>name: []const u8</code> - Agent identifier (required)</li>
+<li><code>enable_history: bool</code> - Enable conversation history (default: true)</li>
+<li><code>temperature: f32</code> - Sampling temperature 0.0-2.0 (default: 0.7)</li>
+<li><code>top_p: f32</code> - Nucleus sampling parameter 0.0-1.0 (default: 0.9)</li>
+
+<h3 id="agent-methods">Agent Methods<a class="anchor" href="#agent-methods">#</a></h3>
+
+<li><code>chat(input, allocator)</code> - Process input and return response (conversational interface)</li>
+<li><code>process(input, allocator)</code> - Same as chat(), alternative naming</li>
+<li><code>historyCount()</code> - Get number of history entries</li>
+<li><code>historySlice()</code> - Get conversation history</li>
+<li><code>clearHistory()</code> - Clear conversation history</li>
+<li><code>setTemperature(temp)</code> - Update temperature</li>
+<li><code>setTopP(top_p)</code> - Update top_p parameter</li>
+<li><code>setHistoryEnabled(enabled)</code> - Enable/disable history tracking</li>
+
+<hr>
+
+<h2 id="multi-persona-system">Multi-Persona System<a class="anchor" href="#multi-persona-system">#</a></h2>
+
+<p>The <strong>Multi-Persona AI Assistant</strong> (<code>abi.ai.personas</code>) provides intelligent routing between specialized AI personas:</p>
+
+<tr><td>Persona</td><td>Role</td><td>Characteristics</td></tr>
+<tr><td><strong>Abi</strong></td><td>Router/Moderator</td><td>Content moderation, sentiment analysis, policy enforcement</td></tr>
+<tr><td><strong>Abbey</strong></td><td>Empathetic Polymath</td><td>Supportive, thorough responses with emotional awareness</td></tr>
+<tr><td><strong>Aviva</strong></td><td>Direct Expert</td><td>Concise, factual, technically rigorous responses</td></tr>
+
+<h3 id="quick-start">Quick Start<a class="anchor" href="#quick-start">#</a></h3>
+
+<pre class="code-block language-zig"><code>const personas = abi.ai.personas;
+
+// Initialize the multi-persona system
+var system = try personas.MultiPersonaSystem.init(allocator, .{
+    .default_persona = .abbey,
+    .enable_dynamic_routing = true,
+});
+defer system.deinit();
+
+// Process a request with automatic routing
+const request = personas.PersonaRequest{
+    .content = &quot;Help me understand memory management in Zig&quot;,
+    .user_id = &quot;user-123&quot;,
+};
+
+const response = try system.process(request);
+defer @constCast(&amp;response).deinit(allocator);
+
+// Response includes which persona handled it
+std.debug.print(&quot;Persona: {s}, Content: {s}\n&quot;, .{
+    @tagName(response.persona),
+    response.content,
+});
+</code></pre>
+
+<h3 id="persona-configuration">Persona Configuration<a class="anchor" href="#persona-configuration">#</a></h3>
+
+<pre class="code-block language-zig"><code>const cfg = personas.MultiPersonaConfig{
+    .default_persona = .abbey,
+    .enable_dynamic_routing = true,
+    .routing_confidence_threshold = 0.5,
+    .abbey = .{
+        .empathy_level = .high,
+        .response_depth = .thorough,
+    },
+    .aviva = .{
+        .cite_sources = true,
+        .skip_preamble = true,
+    },
+};
+</code></pre>
+
+<h3 id="routing-logic">Routing Logic<a class="anchor" href="#routing-logic">#</a></h3>
+
+<p>The system routes requests based on:</p>
+
+<p>1. <strong>Sentiment Analysis</strong> - Detects emotional tone and urgency</p>
+<p>2. <strong>Policy Checking</strong> - Ensures content compliance</p>
+<p>3. <strong>Query Classification</strong> - Identifies request type (code, factual, explanation)</p>
+<p>4. <strong>Rules Engine</strong> - Applies routing rules based on analysis</p>
+
+<p><strong>Example routing scenarios:</strong></p>
+<li>Frustrated user → Abbey (empathetic support)</li>
+<li>Technical code request → Aviva (direct expertise)</li>
+<li>Policy violation → Abi (moderation)</li>
+
+<h3 id="http-api">HTTP API<a class="anchor" href="#http-api">#</a></h3>
+
+<p>The personas module provides HTTP API handlers:</p>
+
+<pre class="code-block"><code>POST /api/v1/chat              # Auto-routing to best persona
+POST /api/v1/chat/abbey        # Force Abbey persona
+POST /api/v1/chat/aviva        # Force Aviva persona
+GET  /api/v1/personas          # List available personas
+GET  /api/v1/personas/metrics  # Get persona metrics
+GET  /api/v1/personas/health   # Health check
+</code></pre>
+
+<p><strong>Request format:</strong></p>
+<pre class="code-block language-json"><code>{
+  &quot;content&quot;: &quot;Help me understand recursion&quot;,
+  &quot;user_id&quot;: &quot;user-123&quot;,
+  &quot;session_id&quot;: &quot;session-456&quot;,
+  &quot;persona&quot;: null
+}
+</code></pre>
+
+<p><strong>Response format:</strong></p>
+<pre class="code-block language-json"><code>{
+  &quot;content&quot;: &quot;Recursion is when a function calls itself...&quot;,
+  &quot;persona&quot;: &quot;abbey&quot;,
+  &quot;confidence&quot;: 0.92,
+  &quot;latency_ms&quot;: 450
+}
+</code></pre>
+
+<h3 id="metrics-monitoring">Metrics &amp; Monitoring<a class="anchor" href="#metrics-monitoring">#</a></h3>
+
+<pre class="code-block language-zig"><code>// Access persona metrics
+if (system.metrics) |m| {
+    const stats = m.getStats(.abbey);
+    if (stats) |s| {
+        std.debug.print(&quot;Abbey: {d} requests, {d:.1}% success\n&quot;, .{
+            s.total_requests,
+            s.success_rate * 100,
+        });
+    }
+}
+
+// Get latency percentiles
+if (m.getLatencyPercentiles(.abbey)) |lat| {
+    std.debug.print(&quot;P50: {d:.0}ms, P99: {d:.0}ms\n&quot;, .{
+        lat.p50, lat.p99,
+    });
+}
+</code></pre>
+
+<h3 id="architecture">Architecture<a class="anchor" href="#architecture">#</a></h3>
+
+<pre class="code-block"><code>src/ai/personas/
+├── mod.zig              # Main orchestrator
+├── types.zig            # Core types (PersonaRequest, PersonaResponse)
+├── config.zig           # Configuration structs
+├── registry.zig         # Persona registry
+├── metrics.zig          # Metrics with percentile tracking
+├── loadbalancer.zig     # Health-weighted load balancing
+├── health.zig           # Health checking
+├── alerts.zig           # Alert rules and manager
+├── abi/                 # Router persona
+│   ├── sentiment.zig    # Sentiment analysis
+│   ├── policy.zig       # Content moderation
+│   └── rules.zig        # Routing rules engine
+├── abbey/               # Empathetic persona
+│   ├── emotion.zig      # Emotion detection
+│   ├── empathy.zig      # Empathy injection
+│   └── reasoning.zig    # Reasoning chains
+└── aviva/               # Expert persona
+    ├── classifier.zig   # Query classification
+    ├── knowledge.zig    # Knowledge retrieval
+    ├── code.zig         # Code generation
+    └── facts.zig        # Fact checking
+</code></pre>
+
+<p>For detailed API documentation, see <a href="api/personas.md">Personas API Reference</a>.</p>
+
+<hr>
+
+<h2 id="cli-commands">CLI Commands<a class="anchor" href="#cli-commands">#</a></h2>
+
+<pre class="code-block language-bash"><code># Run AI agent interactively
+zig build run -- agent
+
+# Run with a single message
+zig build run -- agent --message &quot;Hello, how are you?&quot;
+
+# LLM model operations
+zig build run -- llm info model.gguf       # Show model information
+zig build run -- llm generate model.gguf   # Generate text
+zig build run -- llm chat model.gguf       # Interactive chat
+zig build run -- llm bench model.gguf      # Benchmark performance
+
+# Training pipeline
+zig build run -- train run --epochs 10     # Run training
+zig build run -- train info                # Show configuration
+zig build run -- train resume ./model.ckpt # Resume from checkpoint
+</code></pre>
+
+<hr>
+
+<h2 id="new-in-202601-error-context">New in 2026.01: Error Context<a class="anchor" href="#new-in-202601-error-context">#</a></h2>
+
+<pre class="code-block language-zig"><code>// Create and log error context
+const ctx = agent.ErrorContext.apiError(err, .openai, endpoint, 500, &quot;gpt-4&quot;);
+ctx.log();  // Outputs: &quot;AgentError: HttpRequestFailed during API request [backend=openai] [model=gpt-4]&quot;
+</code></pre>
+
+<p>Factory methods: <code>apiError()</code>, <code>configError()</code>, <code>generationError()</code>, <code>retryError()</code></p>
+
+<p>New error types: <code>Timeout</code>, <code>ConnectionRefused</code>, <code>ModelNotFound</code></p>
+
+<hr>
+
+<h2 id="api-reference">API Reference<a class="anchor" href="#api-reference">#</a></h2>
+
+<p><strong>Source:</strong> <code>src/ai/mod.zig</code></p>
+
+<h3 id="agent-api">Agent API<a class="anchor" href="#agent-api">#</a></h3>
+
+<pre class="code-block language-zig"><code>const abi = @import(&quot;abi&quot;);
+
+// Create an agent with configuration
+var my_agent = try abi.ai.Agent.init(allocator, .{
+    .name = &quot;assistant&quot;,
+    .backend = .openai,
+    .model = &quot;gpt-4&quot;,
+    .temperature = 0.7,
+    .system_prompt = &quot;You are a helpful assistant.&quot;,
+});
+defer my_agent.deinit();
+
+// Process a message
+const response = try my_agent.process(&quot;Hello!&quot;, allocator);
+defer allocator.free(response);
+</code></pre>
+
+<h3 id="error-context-types">Error Context Types<a class="anchor" href="#error-context-types">#</a></h3>
+
+<li><code>apiError()</code> - For HTTP/API errors with status codes</li>
+<li><code>configError()</code> - For configuration validation errors</li>
+<li><code>generationError()</code> - For response generation failures</li>
+<li><code>retryError()</code> - For retry-related errors with attempt tracking</li>
+
+<h3 id="supported-backends">Supported Backends<a class="anchor" href="#supported-backends">#</a></h3>
+
+<tr><td>Backend</td><td>Description</td><td>Use Case</td><td>Status</td></tr>
+<tr><td><code>echo</code></td><td>Local echo for testing</td><td>Development/testing</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><code>openai</code></td><td>OpenAI API (GPT-4, etc.)</td><td>Production cloud inference</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><code>ollama</code></td><td>Local Ollama instance</td><td>Local development</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><code>huggingface</code></td><td>HuggingFace Inference API</td><td>Model experimentation</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><code>local</code></td><td>Embedded transformer model</td><td>Offline inference</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+
+<hr>
+
+<h2 id="see-also">See Also<a class="anchor" href="#see-also">#</a></h2>
+
+<p>&lt;table&gt;</p>
+<p>&lt;tr&gt;</p>
+<p>&lt;td&gt;</p>
+
+<h3 id="related-guides">Related Guides<a class="anchor" href="#related-guides">#</a></h3>
+<li><a href="explore.md">Explore</a> — Codebase exploration with AI</li>
+<li><a href="framework.md">Framework</a> — Configuration options</li>
+<li><a href="compute.md">Compute Engine</a> — Task execution for AI workloads</li>
+<li><a href="gpu.md">GPU Acceleration</a> — GPU-accelerated inference</li>
+<li><a href="research/abbey-aviva-abi-wdbx-framework.md">Abbey-Aviva Research</a> — Multi-persona AI architecture</li>
+
+<p>&lt;/td&gt;</p>
+<p>&lt;td&gt;</p>
+
+<h3 id="resources">Resources<a class="anchor" href="#resources">#</a></h3>
+<li><a href="troubleshooting.md">Troubleshooting</a> — Common issues</li>
+<li><a href="../API_REFERENCE.md">API Reference</a> — AI API details</li>
+<li><a href="../examples/">Examples</a> — Code samples</li>
+
+<p>&lt;/td&gt;</p>
+<p>&lt;/tr&gt;</p>
+<p>&lt;/table&gt;</p>
+
+<hr>
+
+<p>&lt;p align=&quot;center&quot;&gt;</p>
+<p>  &lt;a href=&quot;docs-index.md&quot;&gt;← Documentation Index&lt;/a&gt; •</p>
+<p>  &lt;a href=&quot;gpu.md&quot;&gt;GPU Guide →&lt;/a&gt;</p>
+<p>&lt;/p&gt;</p>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

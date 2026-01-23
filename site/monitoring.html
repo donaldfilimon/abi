@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>monitoring - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>monitoring</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#monitoring-observability">Monitoring & Observability</a></li>
+        <li style="padding-left: 16px"><a href="#feature-overview">Feature Overview</a></li>
+        <li style="padding-left: 16px"><a href="#logging">Logging</a></li>
+        <li style="padding-left: 32px"><a href="#basic-usage">Basic Usage</a></li>
+        <li style="padding-left: 32px"><a href="#scoped-logging">Scoped Logging</a></li>
+        <li style="padding-left: 32px"><a href="#log-levels">Log Levels</a></li>
+        <li style="padding-left: 16px"><a href="#metrics">Metrics</a></li>
+        <li style="padding-left: 32px"><a href="#metrics-collector">Metrics Collector</a></li>
+        <li style="padding-left: 32px"><a href="#metric-types">Metric Types</a></li>
+        <li style="padding-left: 48px"><a href="#counters">Counters</a></li>
+        <li style="padding-left: 48px"><a href="#gauges">Gauges</a></li>
+        <li style="padding-left: 48px"><a href="#histograms">Histograms</a></li>
+        <li style="padding-left: 32px"><a href="#compute-engine-metrics">Compute Engine Metrics</a></li>
+        <li style="padding-left: 16px"><a href="#alerting">Alerting</a></li>
+        <li style="padding-left: 32px"><a href="#alert-manager">Alert Manager</a></li>
+        <li style="padding-left: 32px"><a href="#adding-rules">Adding Rules</a></li>
+        <li style="padding-left: 32px"><a href="#alert-conditions">Alert Conditions</a></li>
+        <li style="padding-left: 32px"><a href="#alert-severities">Alert Severities</a></li>
+        <li style="padding-left: 32px"><a href="#notification-handlers">Notification Handlers</a></li>
+        <li style="padding-left: 32px"><a href="#alert-states">Alert States</a></li>
+        <li style="padding-left: 16px"><a href="#tracing">Tracing</a></li>
+        <li style="padding-left: 32px"><a href="#basic-tracing">Basic Tracing</a></li>
+        <li style="padding-left: 32px"><a href="#span-attributes">Span Attributes</a></li>
+        <li style="padding-left: 32px"><a href="#trace-export">Trace Export</a></li>
+        <li style="padding-left: 16px"><a href="#profiling">Profiling</a></li>
+        <li style="padding-left: 32px"><a href="#timer-based-profiling">Timer-Based Profiling</a></li>
+        <li style="padding-left: 32px"><a href="#stopwatch-utility">Stopwatch Utility</a></li>
+        <li style="padding-left: 32px"><a href="#engine-profiling">Engine Profiling</a></li>
+        <li style="padding-left: 32px"><a href="#gpu-profiling">GPU Profiling</a></li>
+        <li style="padding-left: 16px"><a href="#configuration">Configuration</a></li>
+        <li style="padding-left: 32px"><a href="#metrics-configuration">Metrics Configuration</a></li>
+        <li style="padding-left: 32px"><a href="#alerting-configuration">Alerting Configuration</a></li>
+        <li style="padding-left: 16px"><a href="#cli-commands">CLI Commands</a></li>
+        <li style="padding-left: 16px"><a href="#best-practices">Best Practices</a></li>
+        <li style="padding-left: 16px"><a href="#see-also">See Also</a></li>
+        <li style="padding-left: 32px"><a href="#related-guides">Related Guides</a></li>
+        <li style="padding-left: 32px"><a href="#resources">Resources</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="monitoring-observability">Monitoring &amp; Observability<a class="anchor" href="#monitoring-observability">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<p>&lt;p align=&quot;center&quot;&gt;</p>
+<p>  &lt;img src=&quot;https://img.shields.io/badge/Module-Observability-teal?style=for-the-badge&amp;logo=grafana&amp;logoColor=white&quot; alt=&quot;Observability Module&quot;/&gt;</p>
+<p>  &lt;img src=&quot;https://img.shields.io/badge/Status-Ready-success?style=for-the-badge&quot; alt=&quot;Ready&quot;/&gt;</p>
+<p>  &lt;img src=&quot;https://img.shields.io/badge/Feature_Flag-enable--profiling-yellow?style=for-the-badge&quot; alt=&quot;Feature Flag&quot;/&gt;</p>
+<p>&lt;/p&gt;</p>
+
+<p>&lt;p align=&quot;center&quot;&gt;</p>
+<p>  &lt;a href=&quot;#logging&quot;&gt;Logging&lt;/a&gt; •</p>
+<p>  &lt;a href=&quot;#metrics&quot;&gt;Metrics&lt;/a&gt; •</p>
+<p>  &lt;a href=&quot;#alerting&quot;&gt;Alerting&lt;/a&gt; •</p>
+<p>  &lt;a href=&quot;#tracing&quot;&gt;Tracing&lt;/a&gt; •</p>
+<p>  &lt;a href=&quot;#profiling&quot;&gt;Profiling&lt;/a&gt;</p>
+<p>&lt;/p&gt;</p>
+
+<hr>
+
+<blockquote><strong>Build Flag</strong>: Requires <code>-Denable-profiling=true</code> at build time.</blockquote>
+<blockquote><strong>Module</strong>: <code>src/observability/</code> (consolidated from <code>features/monitoring/</code> as of 2026-01-17)</blockquote>
+
+<p>The <strong>Observability</strong> module provides comprehensive monitoring tools for tracking application health, performance, and behavior.</p>
+
+<h2 id="feature-overview">Feature Overview<a class="anchor" href="#feature-overview">#</a></h2>
+
+<tr><td>Feature</td><td>Description</td><td>Status</td></tr>
+<tr><td><strong>Logging</strong></td><td>Structured log output with levels</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><strong>Metrics</strong></td><td>Counters, gauges, histograms</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><strong>Alerting</strong></td><td>Threshold-based notifications</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><strong>Tracing</strong></td><td>Request flow tracking</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+<tr><td><strong>Profiling</strong></td><td>Performance measurement</td><td>!<a href="https://img.shields.io/badge/-Ready-success">Ready</a></td></tr>
+
+<hr>
+
+<h2 id="logging">Logging<a class="anchor" href="#logging">#</a></h2>
+
+<p>Use <code>abi.log</code> for structured logging with automatic context.</p>
+
+<h3 id="basic-usage">Basic Usage<a class="anchor" href="#basic-usage">#</a></h3>
+
+<pre class="code-block language-zig"><code>const abi = @import(&quot;abi&quot;);
+
+// Log levels
+abi.log.debug(&quot;Debug message: {d}&quot;, .{value});
+abi.log.info(&quot;Server started on port {d}&quot;, .{port});
+abi.log.warn(&quot;Connection pool low: {d} remaining&quot;, .{count});
+abi.log.err(&quot;Failed to connect: {t}&quot;, .{error_value});
+</code></pre>
+
+<h3 id="scoped-logging">Scoped Logging<a class="anchor" href="#scoped-logging">#</a></h3>
+
+<pre class="code-block language-zig"><code>const log = std.log.scoped(.my_module);
+
+pub fn processRequest(req: Request) !void {
+    log.info(&quot;Processing request {d}&quot;, .{req.id});
+    defer log.debug(&quot;Request {d} complete&quot;, .{req.id});
+    // ...
+}
+</code></pre>
+
+<h3 id="log-levels">Log Levels<a class="anchor" href="#log-levels">#</a></h3>
+
+<tr><td>Level</td><td>Use Case</td></tr>
+<tr><td><code>debug</code></td><td>Detailed debugging information</td></tr>
+<tr><td><code>info</code></td><td>Normal operational messages</td></tr>
+<tr><td><code>warn</code></td><td>Potential issues that don't stop execution</td></tr>
+<tr><td><code>err</code></td><td>Errors that affect functionality</td></tr>
+
+<hr>
+
+<h2 id="metrics">Metrics<a class="anchor" href="#metrics">#</a></h2>
+
+<p>Enable metrics collection to track quantitative data about your application.</p>
+
+<h3 id="metrics-collector">Metrics Collector<a class="anchor" href="#metrics-collector">#</a></h3>
+
+<pre class="code-block language-zig"><code>const abi = @import(&quot;abi&quot;);
+
+var metrics = try abi.observability.MetricsCollector.init(
+    allocator,
+    abi.observability.DEFAULT_METRICS_CONFIG,
+    4,  // worker count
+);
+defer metrics.deinit();
+
+// Record task execution times
+metrics.recordTaskExecution(task_id, duration_ns);
+
+// Get summary statistics
+const summary = metrics.getSummary();
+std.debug.print(&quot;Total tasks: {d}\n&quot;, .{summary.total_tasks});
+std.debug.print(&quot;Avg execution: {d} us\n&quot;, .{summary.avg_execution_ns / 1000});
+std.debug.print(&quot;P99 execution: {d} us\n&quot;, .{summary.p99_execution_ns / 1000});
+</code></pre>
+
+<h3 id="metric-types">Metric Types<a class="anchor" href="#metric-types">#</a></h3>
+
+<h4 id="counters">Counters<a class="anchor" href="#counters">#</a></h4>
+
+<p>Track cumulative values that only increase.</p>
+
+<pre class="code-block language-zig"><code>// Record distinct events
+metrics.incrementCounter(&quot;requests_total&quot;);
+metrics.incrementCounterBy(&quot;bytes_processed&quot;, byte_count);
+</code></pre>
+
+<h4 id="gauges">Gauges<a class="anchor" href="#gauges">#</a></h4>
+
+<p>Track instantaneous values that can go up or down.</p>
+
+<pre class="code-block language-zig"><code>// Set current value
+metrics.setGauge(&quot;active_connections&quot;, connection_count);
+metrics.setGauge(&quot;memory_usage_bytes&quot;, @as(f64, @floatFromInt(used_memory)));
+
+// Read current value
+const current = metrics.getGauge(&quot;active_connections&quot;);
+</code></pre>
+
+<h4 id="histograms">Histograms<a class="anchor" href="#histograms">#</a></h4>
+
+<p>Track value distributions for latency, sizes, etc.</p>
+
+<pre class="code-block language-zig"><code>// Record observations
+metrics.recordHistogram(&quot;request_latency_ms&quot;, latency_ms);
+metrics.recordHistogram(&quot;response_size_bytes&quot;, size);
+
+// Get percentiles
+const p50 = metrics.getHistogramPercentile(&quot;request_latency_ms&quot;, 0.50);
+const p95 = metrics.getHistogramPercentile(&quot;request_latency_ms&quot;, 0.95);
+const p99 = metrics.getHistogramPercentile(&quot;request_latency_ms&quot;, 0.99);
+</code></pre>
+
+<h3 id="compute-engine-metrics">Compute Engine Metrics<a class="anchor" href="#compute-engine-metrics">#</a></h3>
+
+<p>The compute engine provides built-in metrics:</p>
+
+<pre class="code-block language-zig"><code>var engine = try abi.runtime.createDefaultEngine(allocator);
+defer engine.deinit();
+
+// Run workloads...
+
+// Get engine metrics summary
+const summary = engine.getMetricsSummary();
+std.debug.print(&quot;Tasks completed: {d}\n&quot;, .{summary.total_tasks});
+std.debug.print(&quot;Avg task time: {d} us\n&quot;, .{summary.avg_execution_ns / 1000});
+std.debug.print(&quot;Min task time: {d} us\n&quot;, .{summary.min_execution_ns / 1000});
+std.debug.print(&quot;Max task time: {d} us\n&quot;, .{summary.max_execution_ns / 1000});
+std.debug.print(&quot;Work steals: {d}\n&quot;, .{summary.work_steals});
+</code></pre>
+
+<hr>
+
+<h2 id="alerting">Alerting<a class="anchor" href="#alerting">#</a></h2>
+
+<p>Configure rules to trigger notifications when metrics cross thresholds.</p>
+
+<h3 id="alert-manager">Alert Manager<a class="anchor" href="#alert-manager">#</a></h3>
+
+<pre class="code-block language-zig"><code>const alerting = abi.observability.alerting;
+
+var manager = try alerting.AlertManager.init(allocator, .{
+    .evaluation_interval_ms = 15_000,    // Check every 15 seconds
+    .default_for_duration_ms = 60_000,   // Alert after 1 minute
+});
+defer manager.deinit();
+</code></pre>
+
+<h3 id="adding-rules">Adding Rules<a class="anchor" href="#adding-rules">#</a></h3>
+
+<pre class="code-block language-zig"><code>// High error rate alert
+try manager.addRule(.{
+    .name = &quot;high_error_rate&quot;,
+    .metric = &quot;errors_total&quot;,
+    .condition = .greater_than,
+    .threshold = 100,
+    .severity = .critical,
+    .for_duration_ms = 30_000,  // Must exceed threshold for 30s
+});
+
+// Low memory alert
+try manager.addRule(.{
+    .name = &quot;low_memory&quot;,
+    .metric = &quot;memory_available_bytes&quot;,
+    .condition = .less_than,
+    .threshold = 100 * 1024 * 1024,  // 100MB
+    .severity = .warning,
+});
+
+// CPU saturation alert
+try manager.addRule(.{
+    .name = &quot;cpu_saturation&quot;,
+    .metric = &quot;cpu_usage_percent&quot;,
+    .condition = .greater_than,
+    .threshold = 90,
+    .severity = .warning,
+    .for_duration_ms = 120_000,  // 2 minutes
+});
+</code></pre>
+
+<h3 id="alert-conditions">Alert Conditions<a class="anchor" href="#alert-conditions">#</a></h3>
+
+<tr><td>Condition</td><td>Description</td></tr>
+<tr><td><code>greater_than</code></td><td>Metric &gt; threshold</td></tr>
+<tr><td><code>less_than</code></td><td>Metric &lt; threshold</td></tr>
+<tr><td><code>equal_to</code></td><td>Metric == threshold</td></tr>
+<tr><td><code>not_equal_to</code></td><td>Metric != threshold</td></tr>
+<tr><td><code>greater_or_equal</code></td><td>Metric &gt;= threshold</td></tr>
+<tr><td><code>less_or_equal</code></td><td>Metric &lt;= threshold</td></tr>
+
+<h3 id="alert-severities">Alert Severities<a class="anchor" href="#alert-severities">#</a></h3>
+
+<tr><td>Severity</td><td>Use Case</td></tr>
+<tr><td><code>info</code></td><td>Informational, no action required</td></tr>
+<tr><td><code>warning</code></td><td>Potential issue, investigate soon</td></tr>
+<tr><td><code>critical</code></td><td>Immediate action required</td></tr>
+
+<h3 id="notification-handlers">Notification Handlers<a class="anchor" href="#notification-handlers">#</a></h3>
+
+<pre class="code-block language-zig"><code>// Register a handler function
+try manager.addHandler(.{
+    .callback = struct {
+        fn handle(alert: alerting.Alert) void {
+            std.debug.print(&quot;[ALERT] {t}: {s} ({t})\n&quot;, .{
+                alert.severity,  // Zig 0.16: Use {t} directly instead of @tagName
+                alert.rule_name,
+                alert.state,
+            });
+            // Send to external system (Slack, PagerDuty, etc.)
+        }
+    }.handle,
+    .min_severity = .warning,  // Only trigger for warning+
+});
+
+// Evaluate rules periodically (Zig 0.16: use time utilities)
+const time_utils = @import(&quot;shared/utils/time.zig&quot;);
+while (running) {
+    try manager.evaluate(metrics);
+    time_utils.sleepSeconds(15);
+}
+</code></pre>
+
+<h3 id="alert-states">Alert States<a class="anchor" href="#alert-states">#</a></h3>
+
+<p>Alerts transition through these states:</p>
+
+<pre class="code-block"><code>inactive -&gt; pending -&gt; firing -&gt; resolved
+    ^                              |
+    |______________________________|
+</code></pre>
+
+<tr><td>State</td><td>Description</td></tr>
+<tr><td><code>inactive</code></td><td>Condition not met</td></tr>
+<tr><td><code>pending</code></td><td>Condition met, waiting for <code>for_duration</code></td></tr>
+<tr><td><code>firing</code></td><td>Condition met for required duration</td></tr>
+<tr><td><code>resolved</code></td><td>Previously firing, now inactive</td></tr>
+
+<hr>
+
+<h2 id="tracing">Tracing<a class="anchor" href="#tracing">#</a></h2>
+
+<p>Track request flow across operations for debugging and performance analysis.</p>
+
+<h3 id="basic-tracing">Basic Tracing<a class="anchor" href="#basic-tracing">#</a></h3>
+
+<pre class="code-block language-zig"><code>const tracing = abi.observability.tracing;
+
+var tracer = try tracing.Tracer.init(allocator, .{
+    .sample_rate = 1.0,  // 100% sampling
+    .max_spans = 10000,
+});
+defer tracer.deinit();
+
+// Start a trace
+var span = tracer.startSpan(&quot;handle_request&quot;);
+defer span.end();
+
+// Add context
+span.setTag(&quot;user_id&quot;, user.id);
+span.setTag(&quot;endpoint&quot;, &quot;/api/search&quot;);
+
+// Child spans
+{
+    var db_span = tracer.startSpanWithParent(&quot;database_query&quot;, span);
+    defer db_span.end();
+
+    const result = try db.query(sql);
+    db_span.setTag(&quot;row_count&quot;, result.rows.len);
+}
+</code></pre>
+
+<h3 id="span-attributes">Span Attributes<a class="anchor" href="#span-attributes">#</a></h3>
+
+<pre class="code-block language-zig"><code>span.setTag(&quot;http.method&quot;, &quot;POST&quot;);
+span.setTag(&quot;http.status_code&quot;, 200);
+span.setTag(&quot;db.statement&quot;, &quot;SELECT * FROM users&quot;);
+span.setBaggage(&quot;request_id&quot;, request_id);
+</code></pre>
+
+<h3 id="trace-export">Trace Export<a class="anchor" href="#trace-export">#</a></h3>
+
+<pre class="code-block language-zig"><code>// Export traces for analysis
+const traces = tracer.getCompletedTraces();
+for (traces) |trace| {
+    std.debug.print(&quot;Trace {s}: {d} spans, {d}ms\n&quot;, .{
+        trace.id,
+        trace.spans.len,
+        trace.duration_ms,
+    });
+}
+</code></pre>
+
+<hr>
+
+<h2 id="profiling">Profiling<a class="anchor" href="#profiling">#</a></h2>
+
+<p>Measure performance to identify bottlenecks.</p>
+
+<h3 id="timer-based-profiling">Timer-Based Profiling<a class="anchor" href="#timer-based-profiling">#</a></h3>
+
+<pre class="code-block language-zig"><code>const time_utils = abi.shared.time;
+
+// Measure operation duration
+var timer = try std.time.Timer.start();
+performExpensiveOperation();
+const elapsed_ns = timer.read();
+
+std.debug.print(&quot;Operation took {d} us\n&quot;, .{elapsed_ns / 1000});
+</code></pre>
+
+<h3 id="stopwatch-utility">Stopwatch Utility<a class="anchor" href="#stopwatch-utility">#</a></h3>
+
+<pre class="code-block language-zig"><code>const time_utils = abi.shared.time;
+
+var watch = try time_utils.Stopwatch.start();
+
+// ... do work ...
+
+const elapsed_ms = watch.elapsedMs();
+std.debug.print(&quot;Elapsed: {d} ms\n&quot;, .{elapsed_ms});
+
+// Lap times
+watch.lap();
+// ... more work ...
+const lap_ms = watch.lapElapsedMs();
+</code></pre>
+
+<h3 id="engine-profiling">Engine Profiling<a class="anchor" href="#engine-profiling">#</a></h3>
+
+<pre class="code-block language-zig"><code>var engine = try abi.runtime.createDefaultEngine(allocator);
+defer engine.deinit();
+
+// Enable detailed profiling
+engine.enableProfiling(.{
+    .track_steals = true,
+    .track_wait_times = true,
+    .histogram_buckets = 100,
+});
+
+// Run workloads...
+
+// Export profiling data
+const profile = engine.getProfilingData();
+std.debug.print(&quot;Worker utilization: {d:.2}%\n&quot;, .{profile.avg_utilization * 100});
+std.debug.print(&quot;Steal success rate: {d:.2}%\n&quot;, .{profile.steal_success_rate * 100});
+</code></pre>
+
+<h3 id="gpu-profiling">GPU Profiling<a class="anchor" href="#gpu-profiling">#</a></h3>
+
+<pre class="code-block language-zig"><code>var gpu = try abi.Gpu.init(allocator, .{
+    .enable_profiling = true,
+});
+defer gpu.deinit();
+
+// Run GPU operations...
+
+// Get GPU metrics
+if (gpu.getMetricsSummary()) |summary| {
+    std.debug.print(&quot;Total kernels: {d}\n&quot;, .{summary.total_kernel_invocations});
+    std.debug.print(&quot;Avg kernel time: {d:.3} us\n&quot;, .{
+        @as(f64, @floatFromInt(summary.avg_kernel_time_ns)) / 1000.0,
+    });
+    std.debug.print(&quot;Total transfers: {d}\n&quot;, .{summary.total_transfers});
+    std.debug.print(&quot;Bytes transferred: {d}\n&quot;, .{summary.total_bytes_transferred});
+}
+</code></pre>
+
+<hr>
+
+<h2 id="configuration">Configuration<a class="anchor" href="#configuration">#</a></h2>
+
+<h3 id="metrics-configuration">Metrics Configuration<a class="anchor" href="#metrics-configuration">#</a></h3>
+
+<pre class="code-block language-zig"><code>const config = abi.observability.MetricsConfig{
+    .enable_histograms = true,
+    .histogram_buckets = 50,
+    .max_metrics = 1000,
+    .flush_interval_ms = 10_000,
+    .enable_percentiles = true,
+};
+
+var metrics = try abi.observability.MetricsCollector.init(allocator, config, worker_count);
+</code></pre>
+
+<h3 id="alerting-configuration">Alerting Configuration<a class="anchor" href="#alerting-configuration">#</a></h3>
+
+<pre class="code-block language-zig"><code>const config = abi.observability.alerting.AlertManagerConfig{
+    .evaluation_interval_ms = 15_000,
+    .default_for_duration_ms = 60_000,
+    .max_rules = 100,
+    .max_handlers = 10,
+};
+</code></pre>
+
+<hr>
+
+<h2 id="cli-commands">CLI Commands<a class="anchor" href="#cli-commands">#</a></h2>
+
+<pre class="code-block language-bash"><code># Show system and framework status
+zig build run -- system-info
+
+# Run with profiling enabled
+zig build -Denable-profiling=true run -- &lt;command&gt;
+
+# Run benchmarks with metrics
+zig build benchmarks
+</code></pre>
+
+<hr>
+
+<h2 id="best-practices">Best Practices<a class="anchor" href="#best-practices">#</a></h2>
+
+<p>1. <strong>Use appropriate log levels</strong> - Don't log debug in production</p>
+<p>2. <strong>Sample traces in production</strong> - Use 1-10% sampling for high-traffic systems</p>
+<p>3. <strong>Set meaningful alert thresholds</strong> - Base on historical data</p>
+<p>4. <strong>Use <code>for_duration</code></strong> - Avoid alerting on transient spikes</p>
+<p>5. <strong>Export metrics</strong> - Integrate with external monitoring systems</p>
+<p>6. <strong>Profile before optimizing</strong> - Measure, don't guess</p>
+
+<hr>
+
+<h2 id="see-also">See Also<a class="anchor" href="#see-also">#</a></h2>
+
+<p>&lt;table&gt;</p>
+<p>&lt;tr&gt;</p>
+<p>&lt;td&gt;</p>
+
+<h3 id="related-guides">Related Guides<a class="anchor" href="#related-guides">#</a></h3>
+<li><a href="compute.md">Compute Engine</a> — Engine metrics and profiling</li>
+<li><a href="gpu.md">GPU Acceleration</a> — GPU metrics and profiling</li>
+<li><a href="PERFORMANCE_BASELINE.md">Performance Baseline</a> — Benchmark targets</li>
+
+<p>&lt;/td&gt;</p>
+<p>&lt;td&gt;</p>
+
+<h3 id="resources">Resources<a class="anchor" href="#resources">#</a></h3>
+<li><a href="framework.md">Framework</a> — Framework configuration</li>
+<li><a href="troubleshooting.md">Troubleshooting</a> — Debugging issues</li>
+<li><a href="../API_REFERENCE.md">API Reference</a> — Observability API details</li>
+
+<p>&lt;/td&gt;</p>
+<p>&lt;/tr&gt;</p>
+<p>&lt;/table&gt;</p>
+
+<hr>
+
+<p>&lt;p align=&quot;center&quot;&gt;</p>
+<p>  &lt;a href=&quot;network.md&quot;&gt;← Network Guide&lt;/a&gt; •</p>
+<p>  &lt;a href=&quot;docs-index.md&quot;&gt;Documentation Index&lt;/a&gt; •</p>
+<p>  &lt;a href=&quot;compute.md&quot;&gt;Compute Guide →&lt;/a&gt;</p>
+<p>&lt;/p&gt;</p>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

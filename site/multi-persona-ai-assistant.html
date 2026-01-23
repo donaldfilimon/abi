@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>multi-persona-ai-assistant - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>multi-persona-ai-assistant</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#multi-persona-ai-assistant-architecture">Multi-Persona AI Assistant Architecture</a></li>
+        <li style="padding-left: 16px"><a href="#overview">Overview</a></li>
+        <li style="padding-left: 16px"><a href="#system-architecture">System Architecture</a></li>
+        <li style="padding-left: 16px"><a href="#core-components">Core Components</a></li>
+        <li style="padding-left: 32px"><a href="#1-abi-content-moderation-routing-layer">1. Abi: Content Moderation & Routing Layer</a></li>
+        <li style="padding-left: 48px"><a href="#11-sentiment-analysis-component">1.1 Sentiment Analysis Component</a></li>
+        <li style="padding-left: 48px"><a href="#12-policy-checker-component">1.2 Policy Checker Component</a></li>
+        <li style="padding-left: 48px"><a href="#13-persona-router-component">1.3 Persona Router Component</a></li>
+        <li style="padding-left: 32px"><a href="#2-abbey-empathetic-polymath-persona">2. Abbey: Empathetic Polymath Persona</a></li>
+        <li style="padding-left: 32px"><a href="#3-aviva-direct-expert-persona">3. Aviva: Direct Expert Persona</a></li>
+        <li style="padding-left: 32px"><a href="#4-wdbx-integration-for-persona-embeddings">4. WDBX Integration for Persona Embeddings</a></li>
+        <li style="padding-left: 32px"><a href="#5-persona-registry-configuration">5. Persona Registry & Configuration</a></li>
+        <li style="padding-left: 32px"><a href="#6-metrics-observability">6. Metrics & Observability</a></li>
+        <li style="padding-left: 16px"><a href="#data-flow">Data Flow</a></li>
+        <li style="padding-left: 32px"><a href="#request-processing-flow">Request Processing Flow</a></li>
+        <li style="padding-left: 32px"><a href="#memory-integration-flow">Memory Integration Flow</a></li>
+        <li style="padding-left: 16px"><a href="#configuration-schema">Configuration Schema</a></li>
+        <li style="padding-left: 16px"><a href="#file-structure">File Structure</a></li>
+        <li style="padding-left: 16px"><a href="#integration-with-existing-codebase">Integration with Existing Codebase</a></li>
+        <li style="padding-left: 32px"><a href="#1-extend-existing-persona-system">1. Extend Existing Persona System</a></li>
+        <li style="padding-left: 32px"><a href="#2-integrate-with-abbey-engine">2. Integrate with Abbey Engine</a></li>
+        <li style="padding-left: 32px"><a href="#3-integrate-with-wdbx-database">3. Integrate with WDBX Database</a></li>
+        <li style="padding-left: 32px"><a href="#4-integrate-with-load-balancer">4. Integrate with Load Balancer</a></li>
+        <li style="padding-left: 16px"><a href="#testing-strategy">Testing Strategy</a></li>
+        <li style="padding-left: 32px"><a href="#unit-tests">Unit Tests</a></li>
+        <li style="padding-left: 32px"><a href="#integration-tests">Integration Tests</a></li>
+        <li style="padding-left: 16px"><a href="#performance-considerations">Performance Considerations</a></li>
+        <li style="padding-left: 32px"><a href="#latency-budget">Latency Budget</a></li>
+        <li style="padding-left: 32px"><a href="#optimization-strategies">Optimization Strategies</a></li>
+        <li style="padding-left: 16px"><a href="#security-considerations">Security Considerations</a></li>
+        <li style="padding-left: 16px"><a href="#future-extensions">Future Extensions</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="multi-persona-ai-assistant-architecture">Multi-Persona AI Assistant Architecture<a class="anchor" href="#multi-persona-ai-assistant-architecture">#</a></h1>
+
+<h2 id="overview">Overview<a class="anchor" href="#overview">#</a></h2>
+
+<p>This document describes the architecture for implementing a multi-layer, multi-persona AI assistant system based on the research paper &quot;Extended Multi-Layer, Multi-Persona AI Assistant with WDBX.&quot; The architecture leverages existing ABI framework components while introducing new modules for persona routing, content moderation, and distributed inference.</p>
+
+<h2 id="system-architecture">System Architecture<a class="anchor" href="#system-architecture">#</a></h2>
+
+<pre class="code-block"><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                              User Request                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          API Gateway Layer                                   │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │ Rate Limiter│  │Auth/RBAC   │  │ Request     │  │ Session Manager     │ │
+│  │             │  │             │  │ Validator   │  │                     │ │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Abi: Content Moderation &amp; Routing Layer                   │
+│  ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────────┐   │
+│  │ Sentiment Analysis│  │ Policy Checker    │  │ Persona Router        │   │
+│  │ - Emotion detect  │  │ - Content filter  │  │ - Intent classifier   │   │
+│  │ - Urgency score   │  │ - Safety rules    │  │ - Persona scoring     │   │
+│  │ - Context capture │  │ - Compliance      │  │ - Load balancing      │   │
+│  └───────────────────┘  └───────────────────┘  └───────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    ▼               ▼               ▼
+┌─────────────────────────┐ ┌─────────────────────────┐ ┌─────────────────────┐
+│   Abbey: Empathetic     │ │  Aviva: Direct Expert   │ │ Custom Personas     │
+│   Polymath              │ │                         │ │                     │
+│ ┌─────────────────────┐ │ │ ┌─────────────────────┐ │ │ ┌─────────────────┐ │
+│ │ Emotion Processing  │ │ │ │ Fact Retrieval      │ │ │ │ Domain-Specific │ │
+│ │ - Empathy injection │ │ │ │ - Knowledge base    │ │ │ │ - Healthcare    │ │
+│ │ - Tone adaptation   │ │ │ │ - Code expertise    │ │ │ │ - Legal         │ │
+│ │ - Support patterns  │ │ │ │ - Minimal tone      │ │ │ │ - Creative      │ │
+│ └─────────────────────┘ │ │ └─────────────────────┘ │ │ └─────────────────┘ │
+│ ┌─────────────────────┐ │ │ ┌─────────────────────┐ │ │                     │
+│ │ Reasoning Chain     │ │ │ │ Direct Response     │ │ │                     │
+│ │ - Step-by-step      │ │ │ │ - No disclaimers    │ │ │                     │
+│ │ - Confidence scores │ │ │ │ - Code examples     │ │ │                     │
+│ └─────────────────────┘ │ │ └─────────────────────┘ │ │                     │
+└─────────────────────────┘ └─────────────────────────┘ └─────────────────────┘
+                    │               │               │
+                    └───────────────┼───────────────┘
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Response Aggregation &amp; Validation                         │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────────┐  │
+│  │ Response Merger │  │ Quality Check   │  │ Final Policy Compliance     │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              User Response                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h2 id="core-components">Core Components<a class="anchor" href="#core-components">#</a></h2>
+
+<h3 id="1-abi-content-moderation-routing-layer">1. Abi: Content Moderation &amp; Routing Layer<a class="anchor" href="#1-abi-content-moderation-routing-layer">#</a></h3>
+
+<p><strong>Location</strong>: <code>src/ai/personas/abi/</code></p>
+
+<p>Abi serves as the gatekeeper, handling:</p>
+<li><strong>Sentiment Analysis</strong>: Detect user emotional state to route appropriately</li>
+<li><strong>Policy Checking</strong>: Ensure content complies with safety guidelines</li>
+<li><strong>Persona Routing</strong>: Select optimal persona based on query analysis</li>
+
+<pre class="code-block language-zig"><code>// src/ai/personas/abi/mod.zig
+pub const AbiRouter = struct {
+    allocator: Allocator,
+    sentiment_analyzer: SentimentAnalyzer,
+    policy_checker: PolicyChecker,
+    persona_scorer: PersonaScorer,
+    load_balancer: PersonaLoadBalancer,
+
+    pub fn init(allocator: Allocator, config: AbiConfig) !AbiRouter;
+    pub fn route(self: *AbiRouter, request: UserRequest) !RoutingDecision;
+    pub fn validateResponse(self: *AbiRouter, response: Response) !ValidationResult;
+};
+
+pub const RoutingDecision = struct {
+    selected_persona: PersonaType,
+    confidence: f32,
+    emotional_context: EmotionalState,
+    policy_flags: PolicyFlags,
+    routing_reason: []const u8,
+};
+</code></pre>
+
+<h4 id="11-sentiment-analysis-component">1.1 Sentiment Analysis Component<a class="anchor" href="#11-sentiment-analysis-component">#</a></h4>
+
+<pre class="code-block language-zig"><code>// src/ai/personas/abi/sentiment.zig
+pub const SentimentAnalyzer = struct {
+    emotion_classifier: *EmotionClassifier,
+    urgency_detector: *UrgencyDetector,
+
+    pub fn analyze(self: *SentimentAnalyzer, text: []const u8) !SentimentResult {
+        const emotion = try self.emotion_classifier.classify(text);
+        const urgency = try self.urgency_detector.detect(text);
+
+        return SentimentResult{
+            .primary_emotion = emotion.primary,
+            .secondary_emotions = emotion.secondary,
+            .urgency_score = urgency.score,
+            .requires_empathy = emotion.requires_support,
+            .is_technical = try self.detectTechnicalContent(text),
+        };
+    }
+};
+
+pub const SentimentResult = struct {
+    primary_emotion: EmotionType,
+    secondary_emotions: []const EmotionType,
+    urgency_score: f32, // 0.0 - 1.0
+    requires_empathy: bool,
+    is_technical: bool,
+};
+</code></pre>
+
+<h4 id="12-policy-checker-component">1.2 Policy Checker Component<a class="anchor" href="#12-policy-checker-component">#</a></h4>
+
+<pre class="code-block language-zig"><code>// src/ai/personas/abi/policy.zig
+pub const PolicyChecker = struct {
+    content_filter: *ContentFilter,
+    safety_rules: []const SafetyRule,
+    compliance_checker: *ComplianceChecker,
+
+    pub fn check(self: *PolicyChecker, content: []const u8) !PolicyResult {
+        // Check against content filters
+        const filter_result = try self.content_filter.scan(content);
+
+        // Check safety rules
+        const safety_result = try self.checkSafetyRules(content);
+
+        // Check regulatory compliance (GDPR, CCPA, etc.)
+        const compliance_result = try self.compliance_checker.verify(content);
+
+        return PolicyResult{
+            .is_allowed = filter_result.is_safe and safety_result.passed and compliance_result.compliant,
+            .violations = filter_result.violations ++ safety_result.violations,
+            .requires_moderation = filter_result.needs_review,
+            .suggested_action = self.determineSuggestedAction(filter_result, safety_result),
+        };
+    }
+};
+
+pub const SafetyRule = struct {
+    name: []const u8,
+    pattern: ?[]const u8,
+    action: SafetyAction,
+    severity: Severity,
+};
+
+pub const SafetyAction = enum {
+    allow,
+    warn,
+    block,
+    redirect_to_support,
+    require_human_review,
+};
+</code></pre>
+
+<h4 id="13-persona-router-component">1.3 Persona Router Component<a class="anchor" href="#13-persona-router-component">#</a></h4>
+
+<pre class="code-block language-zig"><code>// src/ai/personas/abi/router.zig
+pub const PersonaRouter = struct {
+    persona_registry: *PersonaRegistry,
+    embedding_index: *EmbeddingIndex, // WDBX-backed
+    attention_scorer: *MultiHeadAttention,
+    load_balancer: *PersonaLoadBalancer,
+
+    pub fn selectPersona(
+        self: *PersonaRouter,
+        request: UserRequest,
+        sentiment: SentimentResult,
+        context: ConversationContext,
+    ) !RoutingDecision {
+        // Generate query embedding
+        const query_embedding = try self.generateQueryEmbedding(request.content);
+
+        // Score each persona using attention mechanism
+        var persona_scores = std.AutoHashMap(PersonaType, f32).init(self.allocator);
+        defer persona_scores.deinit();
+
+        for (self.persona_registry.getActivePersonas()) |persona| {
+            const score = try self.scorePersona(persona, query_embedding, sentiment, context);
+            try persona_scores.put(persona.persona_type, score);
+        }
+
+        // Apply routing rules
+        const routing_rules_score = try self.applyRoutingRules(request, sentiment);
+
+        // Combine scores with weighted average
+        const final_scores = try self.combineScores(persona_scores, routing_rules_score);
+
+        // Select best persona with load balancing consideration
+        const selected = try self.load_balancer.selectWithScores(final_scores);
+
+        return RoutingDecision{
+            .selected_persona = selected.persona_type,
+            .confidence = selected.score,
+            .emotional_context = sentiment.toEmotionalState(),
+            .policy_flags = .{},
+            .routing_reason = try self.generateRoutingReason(selected),
+        };
+    }
+
+    fn applyRoutingRules(self: *PersonaRouter, request: UserRequest, sentiment: SentimentResult) !RoutingRulesScore {
+        var rules_score = RoutingRulesScore{};
+
+        // Rule 1: High urgency + negative emotion -&gt; Abbey
+        if (sentiment.urgency_score &gt; 0.7 and sentiment.requires_empathy) {
+            rules_score.abbey_boost = 0.3;
+        }
+
+        // Rule 2: Technical query without emotional content -&gt; Aviva
+        if (sentiment.is_technical and !sentiment.requires_empathy) {
+            rules_score.aviva_boost = 0.25;
+        }
+
+        // Rule 3: Sensitive topics -&gt; Policy redirect
+        if (try self.detectSensitiveTopic(request.content)) {
+            rules_score.requires_moderation = true;
+        }
+
+        return rules_score;
+    }
+};
+</code></pre>
+
+<h3 id="2-abbey-empathetic-polymath-persona">2. Abbey: Empathetic Polymath Persona<a class="anchor" href="#2-abbey-empathetic-polymath-persona">#</a></h3>
+
+<p><strong>Location</strong>: <code>src/ai/personas/abbey/</code> (extends existing <code>src/ai/implementation/abbey/</code>)</p>
+
+<p>Abbey combines emotional intelligence with technical expertise.</p>
+
+<pre class="code-block language-zig"><code>// src/ai/personas/abbey/mod.zig
+pub const AbbeyPersona = struct {
+    config: AbbeyConfig,
+    emotion_processor: *EmotionProcessor,
+    reasoning_engine: *ReasoningEngine,
+    memory_system: *ThreeTierMemory,
+    llm_client: *LLMClient,
+
+    pub fn process(self: *AbbeyPersona, request: PersonaRequest) !PersonaResponse {
+        // Step 1: Process emotional context
+        const emotional_response = try self.emotion_processor.process(
+            request.content,
+            request.emotional_context,
+        );
+
+        // Step 2: Retrieve relevant context from memory
+        const memory_context = try self.memory_system.retrieveContext(
+            request.content,
+            request.session_id,
+        );
+
+        // Step 3: Build reasoning chain
+        const reasoning = try self.reasoning_engine.reason(
+            request.content,
+            memory_context,
+            emotional_response,
+        );
+
+        // Step 4: Generate empathetic response
+        const response = try self.generateResponse(
+            request,
+            reasoning,
+            emotional_response,
+        );
+
+        // Step 5: Update memory
+        try self.memory_system.store(request, response);
+
+        return response;
+    }
+
+    fn generateResponse(
+        self: *AbbeyPersona,
+        request: PersonaRequest,
+        reasoning: ReasoningChain,
+        emotional_response: EmotionalResponse,
+    ) !PersonaResponse {
+        // Build empathetic prompt
+        const prompt = try self.buildEmpathyPrompt(
+            request,
+            reasoning,
+            emotional_response,
+        );
+
+        // Generate with appropriate temperature for empathy
+        const llm_response = try self.llm_client.generate(.{
+            .prompt = prompt,
+            .temperature = 0.7, // Slightly higher for more natural empathy
+            .max_tokens = 2048,
+        });
+
+        return PersonaResponse{
+            .content = llm_response.text,
+            .persona = .abbey,
+            .confidence = reasoning.confidence,
+            .emotional_tone = emotional_response.suggested_tone,
+            .reasoning_chain = reasoning.steps,
+        };
+    }
+};
+
+pub const AbbeyConfig = struct {
+    empathy_level: f32 = 0.8, // 0.0 - 1.0
+    technical_depth: f32 = 0.7,
+    include_reasoning: bool = true,
+    max_reasoning_steps: u32 = 5,
+    emotion_adaptation: bool = true,
+};
+</code></pre>
+
+<h3 id="3-aviva-direct-expert-persona">3. Aviva: Direct Expert Persona<a class="anchor" href="#3-aviva-direct-expert-persona">#</a></h3>
+
+<p><strong>Location</strong>: <code>src/ai/personas/aviva/</code></p>
+
+<p>Aviva provides concise, factual responses without emotional overhead.</p>
+
+<pre class="code-block language-zig"><code>// src/ai/personas/aviva/mod.zig
+pub const AvivaPersona = struct {
+    config: AvivaConfig,
+    knowledge_retriever: *KnowledgeRetriever,
+    code_generator: *CodeGenerator,
+    fact_checker: *FactChecker,
+    llm_client: *LLMClient,
+
+    pub fn process(self: *AvivaPersona, request: PersonaRequest) !PersonaResponse {
+        // Step 1: Classify query type
+        const query_type = try self.classifyQuery(request.content);
+
+        // Step 2: Retrieve relevant knowledge
+        const knowledge = try self.knowledge_retriever.retrieve(
+            request.content,
+            query_type,
+        );
+
+        // Step 3: Generate response based on query type
+        const response = switch (query_type) {
+            .code_request =&gt; try self.generateCodeResponse(request, knowledge),
+            .factual_query =&gt; try self.generateFactualResponse(request, knowledge),
+            .explanation =&gt; try self.generateExplanation(request, knowledge),
+            else =&gt; try self.generateGenericResponse(request, knowledge),
+        };
+
+        // Step 4: Verify facts if applicable
+        if (self.config.verify_facts) {
+            try self.fact_checker.verify(response);
+        }
+
+        return response;
+    }
+
+    fn generateCodeResponse(
+        self: *AvivaPersona,
+        request: PersonaRequest,
+        knowledge: Knowledge,
+    ) !PersonaResponse {
+        // Generate code with minimal commentary
+        const code = try self.code_generator.generate(.{
+            .request = request.content,
+            .context = knowledge,
+            .include_comments = self.config.include_code_comments,
+            .language = try self.detectLanguage(request.content),
+        });
+
+        return PersonaResponse{
+            .content = code.formatted,
+            .persona = .aviva,
+            .confidence = code.confidence,
+            .code_blocks = code.blocks,
+            .references = knowledge.sources,
+        };
+    }
+};
+
+pub const AvivaConfig = struct {
+    directness_level: f32 = 0.9, // 0.0 - 1.0
+    include_disclaimers: bool = false,
+    include_code_comments: bool = true,
+    verify_facts: bool = true,
+    max_response_length: u32 = 4096,
+};
+</code></pre>
+
+<h3 id="4-wdbx-integration-for-persona-embeddings">4. WDBX Integration for Persona Embeddings<a class="anchor" href="#4-wdbx-integration-for-persona-embeddings">#</a></h3>
+
+<p><strong>Location</strong>: <code>src/ai/personas/embeddings/</code></p>
+
+<pre class="code-block language-zig"><code>// src/ai/personas/embeddings/persona_index.zig
+pub const PersonaEmbeddingIndex = struct {
+    database: *wdbx.Database,
+    embedding_model: *EmbeddingModel,
+    persona_vectors: std.AutoHashMap(PersonaType, []const f32),
+
+    pub fn init(allocator: Allocator, config: EmbeddingConfig) !PersonaEmbeddingIndex {
+        const db = try wdbx.Database.init(allocator, .{
+            .name = &quot;persona_embeddings&quot;,
+            .enable_hnsw = true,
+            .hnsw_m = 16,
+            .hnsw_ef_construction = 200,
+        });
+
+        return PersonaEmbeddingIndex{
+            .database = db,
+            .embedding_model = try EmbeddingModel.init(config.model_path),
+            .persona_vectors = std.AutoHashMap(PersonaType, []const f32).init(allocator),
+        };
+    }
+
+    /// Store persona characteristic embedding
+    pub fn storePersonaEmbedding(
+        self: *PersonaEmbeddingIndex,
+        persona: PersonaType,
+        characteristics: []const u8,
+    ) !void {
+        const embedding = try self.embedding_model.embed(characteristics);
+        try self.persona_vectors.put(persona, embedding);
+
+        try self.database.upsert(.{
+            .id = @intFromEnum(persona),
+            .vector = embedding,
+            .metadata = try std.json.stringifyAlloc(self.allocator, .{
+                .persona = @tagName(persona),
+                .characteristics = characteristics,
+            }),
+        });
+    }
+
+    /// Find best matching persona for a query
+    pub fn findBestPersona(
+        self: *PersonaEmbeddingIndex,
+        query: []const u8,
+        top_k: usize,
+    ) ![]PersonaMatch {
+        const query_embedding = try self.embedding_model.embed(query);
+
+        const results = try self.database.search(.{
+            .query_vector = query_embedding,
+            .k = top_k,
+            .include_metadata = true,
+        });
+
+        var matches = std.ArrayList(PersonaMatch).init(self.allocator);
+        for (results) |result| {
+            try matches.append(.{
+                .persona = try self.parsePersonaFromMetadata(result.metadata),
+                .similarity = 1.0 - result.distance, // Convert distance to similarity
+                .metadata = result.metadata,
+            });
+        }
+
+        return matches.toOwnedSlice();
+    }
+
+    /// Store conversation embedding for persona learning
+    pub fn storeConversationEmbedding(
+        self: *PersonaEmbeddingIndex,
+        conversation_id: u64,
+        content: []const u8,
+        persona_used: PersonaType,
+        success_score: f32,
+    ) !void {
+        const embedding = try self.embedding_model.embed(content);
+
+        try self.database.upsert(.{
+            .id = conversation_id,
+            .vector = embedding,
+            .metadata = try std.json.stringifyAlloc(self.allocator, .{
+                .persona = @tagName(persona_used),
+                .success_score = success_score,
+                .timestamp = std.time.timestamp(),
+            }),
+        });
+    }
+};
+
+pub const PersonaMatch = struct {
+    persona: PersonaType,
+    similarity: f32,
+    metadata: ?[]const u8,
+};
+</code></pre>
+
+<h3 id="5-persona-registry-configuration">5. Persona Registry &amp; Configuration<a class="anchor" href="#5-persona-registry-configuration">#</a></h3>
+
+<p><strong>Location</strong>: <code>src/ai/personas/registry.zig</code></p>
+
+<pre class="code-block language-zig"><code>// src/ai/personas/registry.zig
+pub const PersonaRegistry = struct {
+    allocator: Allocator,
+    personas: std.AutoHashMap(PersonaType, *Persona),
+    configs: std.AutoHashMap(PersonaType, PersonaConfig),
+    metrics: *PersonaMetrics,
+
+    pub fn init(allocator: Allocator) !PersonaRegistry {
+        var registry = PersonaRegistry{
+            .allocator = allocator,
+            .personas = std.AutoHashMap(PersonaType, *Persona).init(allocator),
+            .configs = std.AutoHashMap(PersonaType, PersonaConfig).init(allocator),
+            .metrics = try PersonaMetrics.init(allocator),
+        };
+
+        // Register default personas
+        try registry.registerPersona(.abbey, AbbeyPersona.default());
+        try registry.registerPersona(.aviva, AvivaPersona.default());
+        try registry.registerPersona(.abi, AbiPersona.default());
+
+        return registry;
+    }
+
+    pub fn registerPersona(
+        self: *PersonaRegistry,
+        persona_type: PersonaType,
+        persona: *Persona,
+    ) !void {
+        try self.personas.put(persona_type, persona);
+        try self.metrics.registerPersona(persona_type);
+    }
+
+    pub fn getPersona(self: *PersonaRegistry, persona_type: PersonaType) ?*Persona {
+        return self.personas.get(persona_type);
+    }
+
+    pub fn getActivePersonas(self: *PersonaRegistry) []const *Persona {
+        var active = std.ArrayList(*Persona).init(self.allocator);
+        var iter = self.personas.iterator();
+        while (iter.next()) |entry| {
+            if (self.isPersonaActive(entry.key_ptr.*)) {
+                active.append(entry.value_ptr.*) catch continue;
+            }
+        }
+        return active.toOwnedSlice() catch &amp;[_]*Persona{};
+    }
+};
+
+pub const PersonaConfig = struct {
+    enabled: bool = true,
+    max_concurrent_requests: u32 = 100,
+    timeout_ms: u64 = 30000,
+    priority: u8 = 5, // 1-10
+    routing_weight: f32 = 1.0,
+    specialized_domains: []const []const u8 = &amp;[_][]const u8{},
+};
+</code></pre>
+
+<h3 id="6-metrics-observability">6. Metrics &amp; Observability<a class="anchor" href="#6-metrics-observability">#</a></h3>
+
+<p><strong>Location</strong>: <code>src/ai/personas/metrics.zig</code></p>
+
+<pre class="code-block language-zig"><code>// src/ai/personas/metrics.zig
+pub const PersonaMetrics = struct {
+    allocator: Allocator,
+    counters: std.AutoHashMap(MetricKey, u64),
+    histograms: std.AutoHashMap(MetricKey, *Histogram),
+    gauges: std.AutoHashMap(MetricKey, f64),
+
+    pub fn recordRequest(self: *PersonaMetrics, persona: PersonaType) !void {
+        const key = MetricKey{ .persona = persona, .metric = &quot;requests_total&quot; };
+        const current = self.counters.get(key) orelse 0;
+        try self.counters.put(key, current + 1);
+    }
+
+    pub fn recordLatency(self: *PersonaMetrics, persona: PersonaType, latency_ms: u64) !void {
+        const key = MetricKey{ .persona = persona, .metric = &quot;latency_ms&quot; };
+        if (self.histograms.get(key)) |histogram| {
+            try histogram.observe(@floatFromInt(latency_ms));
+        }
+    }
+
+    pub fn recordSuccess(self: *PersonaMetrics, persona: PersonaType, success: bool) !void {
+        const suffix = if (success) &quot;success&quot; else &quot;failure&quot;;
+        const key = MetricKey{ .persona = persona, .metric = suffix };
+        const current = self.counters.get(key) orelse 0;
+        try self.counters.put(key, current + 1);
+    }
+
+    pub fn recordUserSatisfaction(self: *PersonaMetrics, persona: PersonaType, score: f32) !void {
+        const key = MetricKey{ .persona = persona, .metric = &quot;satisfaction_score&quot; };
+        if (self.histograms.get(key)) |histogram| {
+            try histogram.observe(score);
+        }
+    }
+
+    pub fn getPersonaStats(self: *PersonaMetrics, persona: PersonaType) PersonaStats {
+        return PersonaStats{
+            .total_requests = self.getCounter(persona, &quot;requests_total&quot;),
+            .success_rate = self.calculateSuccessRate(persona),
+            .avg_latency_ms = self.getHistogramMean(persona, &quot;latency_ms&quot;),
+            .p99_latency_ms = self.getHistogramP99(persona, &quot;latency_ms&quot;),
+            .avg_satisfaction = self.getHistogramMean(persona, &quot;satisfaction_score&quot;),
+        };
+    }
+};
+
+pub const PersonaStats = struct {
+    total_requests: u64,
+    success_rate: f32,
+    avg_latency_ms: f64,
+    p99_latency_ms: f64,
+    avg_satisfaction: f32,
+};
+</code></pre>
+
+<h2 id="data-flow">Data Flow<a class="anchor" href="#data-flow">#</a></h2>
+
+<h3 id="request-processing-flow">Request Processing Flow<a class="anchor" href="#request-processing-flow">#</a></h3>
+
+<pre class="code-block"><code>1. User Request
+   │
+   ▼
+2. API Gateway
+   ├── Rate limiting check
+   ├── Authentication/RBAC
+   └── Request validation
+   │
+   ▼
+3. Abi Layer (Content Moderation &amp; Routing)
+   ├── Sentiment analysis
+   │   ├── Emotion detection
+   │   ├── Urgency scoring
+   │   └── Technical content detection
+   ├── Policy checking
+   │   ├── Content filtering
+   │   ├── Safety rule evaluation
+   │   └── Compliance verification
+   └── Persona routing
+       ├── Query embedding generation
+       ├── Persona scoring via attention
+       ├── Rule-based adjustments
+       └── Load-balanced selection
+   │
+   ▼
+4. Selected Persona Processing
+   │
+   ├── Abbey (if selected)
+   │   ├── Emotion processing
+   │   ├── Memory retrieval
+   │   ├── Reasoning chain construction
+   │   └── Empathetic response generation
+   │
+   └── Aviva (if selected)
+       ├── Query classification
+       ├── Knowledge retrieval
+       ├── Fact verification
+       └── Direct response generation
+   │
+   ▼
+5. Response Validation
+   ├── Quality check
+   ├── Policy compliance
+   └── Confidence threshold
+   │
+   ▼
+6. User Response
+</code></pre>
+
+<h3 id="memory-integration-flow">Memory Integration Flow<a class="anchor" href="#memory-integration-flow">#</a></h3>
+
+<pre class="code-block"><code>┌─────────────────────────────────────────────────────────────┐
+│                    Three-Tier Memory System                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
+│  │ Working Memory  │  │ Episodic Memory │  │ Semantic    │  │
+│  │ (Short-term)    │  │ (Events)        │  │ Memory      │  │
+│  │                 │  │                 │  │ (Knowledge) │  │
+│  │ • Current ctx   │  │ • Conversations │  │ • Facts     │  │
+│  │ • Recent turns  │  │ • User prefs    │  │ • Concepts  │  │
+│  │ • Emotional st. │  │ • Outcomes      │  │ • Relations │  │
+│  └────────┬────────┘  └────────┬────────┘  └──────┬──────┘  │
+│           │                    │                   │         │
+│           └────────────────────┼───────────────────┘         │
+│                                │                             │
+│                    ┌───────────▼───────────┐                │
+│                    │    WDBX Vector DB     │                │
+│                    │  • Embedding storage  │                │
+│                    │  • Hybrid search      │                │
+│                    │  • Persona learning   │                │
+│                    └───────────────────────┘                │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h2 id="configuration-schema">Configuration Schema<a class="anchor" href="#configuration-schema">#</a></h2>
+
+<pre class="code-block language-zig"><code>// src/ai/personas/config.zig
+pub const MultiPersonaConfig = struct {
+    /// Global settings
+    default_persona: PersonaType = .abbey,
+    enable_dynamic_routing: bool = true,
+    routing_confidence_threshold: f32 = 0.6,
+
+    /// Abi (Router) settings
+    abi: AbiConfig = .{},
+
+    /// Abbey settings
+    abbey: AbbeyConfig = .{},
+
+    /// Aviva settings
+    aviva: AvivaConfig = .{},
+
+    /// WDBX integration
+    embeddings: EmbeddingConfig = .{},
+
+    /// Load balancing
+    load_balancing: LoadBalancingConfig = .{},
+
+    /// Metrics
+    metrics: MetricsConfig = .{},
+};
+
+pub const AbiConfig = struct {
+    enable_sentiment_analysis: bool = true,
+    enable_policy_checking: bool = true,
+    sensitive_topic_detection: bool = true,
+    content_filter_level: FilterLevel = .moderate,
+    max_routing_latency_ms: u64 = 50,
+};
+
+pub const LoadBalancingConfig = struct {
+    strategy: LoadBalancerStrategy = .health_weighted,
+    enable_circuit_breaker: bool = true,
+    circuit_breaker_threshold: u32 = 5,
+    circuit_breaker_timeout_ms: u64 = 30000,
+};
+</code></pre>
+
+<h2 id="file-structure">File Structure<a class="anchor" href="#file-structure">#</a></h2>
+
+<pre class="code-block"><code>src/ai/personas/
+├── mod.zig                    # Module entry point
+├── config.zig                 # Configuration definitions
+├── registry.zig               # Persona registry
+├── metrics.zig                # Observability/metrics
+├── types.zig                  # Shared types
+│
+├── abi/                       # Abi: Moderation &amp; Routing
+│   ├── mod.zig
+│   ├── sentiment.zig          # Sentiment analysis
+│   ├── policy.zig             # Policy checking
+│   ├── router.zig             # Persona routing
+│   └── rules.zig              # Routing rules
+│
+├── abbey/                     # Abbey: Empathetic Polymath
+│   ├── mod.zig
+│   ├── emotion.zig            # Emotion processing
+│   ├── empathy.zig            # Empathy injection
+│   └── reasoning.zig          # Enhanced reasoning
+│
+├── aviva/                     # Aviva: Direct Expert
+│   ├── mod.zig
+│   ├── knowledge.zig          # Knowledge retrieval
+│   ├── code.zig               # Code generation
+│   └── facts.zig              # Fact checking
+│
+├── embeddings/                # WDBX Integration
+│   ├── mod.zig
+│   ├── persona_index.zig      # Persona embeddings
+│   └── learning.zig           # Adaptive learning
+│
+└── tests/                     # Unit tests
+    ├── abi_test.zig
+    ├── abbey_test.zig
+    ├── aviva_test.zig
+    └── integration_test.zig
+</code></pre>
+
+<h2 id="integration-with-existing-codebase">Integration with Existing Codebase<a class="anchor" href="#integration-with-existing-codebase">#</a></h2>
+
+<h3 id="1-extend-existing-persona-system">1. Extend Existing Persona System<a class="anchor" href="#1-extend-existing-persona-system">#</a></h3>
+
+<p>The existing <code>src/ai/implementation/prompts/personas.zig</code> will be extended:</p>
+
+<pre class="code-block language-zig"><code>// Add to PersonaType enum
+pub const PersonaType = enum {
+    assistant,
+    coder,
+    writer,
+    analyst,
+    companion,
+    docs,
+    reviewer,
+    minimal,
+    abbey,    // Enhanced
+    aviva,    // New
+    abi,      // New (routing/moderation)
+    ralph,
+};
+</code></pre>
+
+<h3 id="2-integrate-with-abbey-engine">2. Integrate with Abbey Engine<a class="anchor" href="#2-integrate-with-abbey-engine">#</a></h3>
+
+<p>Leverage existing Abbey engine at <code>src/ai/implementation/abbey/engine.zig</code>:</p>
+
+<pre class="code-block language-zig"><code>// Extend ProcessingPipeline to support persona-aware processing
+pub const PersonaAwarePipeline = struct {
+    base_pipeline: *ProcessingPipeline,
+    persona_router: *PersonaRouter,
+
+    pub fn process(self: *PersonaAwarePipeline, request: Request) !Response {
+        // Route through Abi
+        const routing = try self.persona_router.route(request);
+
+        // Process with selected persona
+        return switch (routing.selected_persona) {
+            .abbey =&gt; try self.processWithAbbey(request, routing),
+            .aviva =&gt; try self.processWithAviva(request, routing),
+            else =&gt; try self.base_pipeline.process(request),
+        };
+    }
+};
+</code></pre>
+
+<h3 id="3-integrate-with-wdbx-database">3. Integrate with WDBX Database<a class="anchor" href="#3-integrate-with-wdbx-database">#</a></h3>
+
+<p>Leverage existing database at <code>src/database/database.zig</code>:</p>
+
+<pre class="code-block language-zig"><code>// Create persona-specific database instance
+const persona_db = try wdbx.Database.init(allocator, .{
+    .name = &quot;personas&quot;,
+    .enable_hnsw = true,
+    .enable_hybrid_search = true,
+});
+</code></pre>
+
+<h3 id="4-integrate-with-load-balancer">4. Integrate with Load Balancer<a class="anchor" href="#4-integrate-with-load-balancer">#</a></h3>
+
+<p>Leverage existing load balancer at <code>src/network/loadbalancer.zig</code>:</p>
+
+<pre class="code-block language-zig"><code>// Create persona-specific load balancer
+const persona_lb = try LoadBalancer.init(allocator, .{
+    .strategy = .health_weighted,
+    .health_check_interval_ms = 5000,
+});
+
+// Register personas as nodes
+try persona_lb.registerNode(.{
+    .id = &quot;abbey&quot;,
+    .weight = 10,
+});
+try persona_lb.registerNode(.{
+    .id = &quot;aviva&quot;,
+    .weight = 10,
+});
+</code></pre>
+
+<h2 id="testing-strategy">Testing Strategy<a class="anchor" href="#testing-strategy">#</a></h2>
+
+<h3 id="unit-tests">Unit Tests<a class="anchor" href="#unit-tests">#</a></h3>
+
+<pre class="code-block language-zig"><code>// src/ai/personas/tests/abi_test.zig
+test &quot;sentiment analysis detects frustration&quot; {
+    const analyzer = try SentimentAnalyzer.init(testing.allocator);
+    defer analyzer.deinit();
+
+    const result = try analyzer.analyze(&quot;This is so frustrating! Nothing works!&quot;);
+
+    try testing.expect(result.primary_emotion == .frustrated);
+    try testing.expect(result.requires_empathy);
+    try testing.expect(result.urgency_score &gt; 0.5);
+}
+
+test &quot;policy checker blocks harmful content&quot; {
+    const checker = try PolicyChecker.init(testing.allocator);
+    defer checker.deinit();
+
+    const result = try checker.check(&quot;[harmful content]&quot;);
+
+    try testing.expect(!result.is_allowed);
+    try testing.expect(result.violations.len &gt; 0);
+}
+
+test &quot;persona router selects Abbey for emotional queries&quot; {
+    const router = try PersonaRouter.init(testing.allocator);
+    defer router.deinit();
+
+    const decision = try router.selectPersona(.{
+        .content = &quot;I'm feeling really overwhelmed with work&quot;,
+        .emotional_context = .{ .detected = .stressed },
+    });
+
+    try testing.expect(decision.selected_persona == .abbey);
+    try testing.expect(decision.confidence &gt; 0.7);
+}
+</code></pre>
+
+<h3 id="integration-tests">Integration Tests<a class="anchor" href="#integration-tests">#</a></h3>
+
+<pre class="code-block language-zig"><code>// src/ai/personas/tests/integration_test.zig
+test &quot;full request flow through persona system&quot; {
+    // Initialize system
+    var system = try MultiPersonaSystem.init(testing.allocator);
+    defer system.deinit();
+
+    // Test empathetic query -&gt; Abbey
+    {
+        const response = try system.process(.{
+            .content = &quot;I'm struggling with this bug and feeling stuck&quot;,
+            .session_id = 1,
+        });
+
+        try testing.expect(response.persona == .abbey);
+        try testing.expect(std.mem.indexOf(u8, response.content, &quot;understand&quot;) != null);
+    }
+
+    // Test technical query -&gt; Aviva
+    {
+        const response = try system.process(.{
+            .content = &quot;How do I implement a binary search tree in Zig?&quot;,
+            .session_id = 2,
+        });
+
+        try testing.expect(response.persona == .aviva);
+        try testing.expect(response.code_blocks.len &gt; 0);
+    }
+}
+</code></pre>
+
+<h2 id="performance-considerations">Performance Considerations<a class="anchor" href="#performance-considerations">#</a></h2>
+
+<h3 id="latency-budget">Latency Budget<a class="anchor" href="#latency-budget">#</a></h3>
+
+<tr><td>Component</td><td>Target Latency</td></tr>
+<tr><td>API Gateway</td><td>&lt; 5ms</td></tr>
+<tr><td>Sentiment Analysis</td><td>&lt; 10ms</td></tr>
+<tr><td>Policy Check</td><td>&lt; 5ms</td></tr>
+<tr><td>Persona Routing</td><td>&lt; 20ms</td></tr>
+<tr><td>Embedding Lookup</td><td>&lt; 15ms</td></tr>
+<tr><td>LLM Generation</td><td>&lt; 2000ms</td></tr>
+<tr><td>Response Validation</td><td>&lt; 10ms</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>&lt; 2100ms</strong></td></tr>
+
+<h3 id="optimization-strategies">Optimization Strategies<a class="anchor" href="#optimization-strategies">#</a></h3>
+
+<p>1. <strong>Parallel Processing</strong>: Run sentiment analysis and policy checking concurrently</p>
+<p>2. <strong>Embedding Caching</strong>: Cache frequently used query embeddings</p>
+<p>3. <strong>Warm Persona Pools</strong>: Pre-initialize persona instances</p>
+<p>4. <strong>Streaming Responses</strong>: Stream LLM output for perceived lower latency</p>
+<p>5. <strong>Circuit Breakers</strong>: Prevent cascade failures with per-persona circuit breakers</p>
+
+<h2 id="security-considerations">Security Considerations<a class="anchor" href="#security-considerations">#</a></h2>
+
+<p>1. <strong>Input Sanitization</strong>: All user input sanitized before processing</p>
+<p>2. <strong>Content Filtering</strong>: Multi-layer content filtering in Abi</p>
+<p>3. <strong>Rate Limiting</strong>: Per-user and per-IP rate limiting</p>
+<p>4. <strong>RBAC Integration</strong>: Persona access controlled via existing RBAC system</p>
+<p>5. <strong>Audit Logging</strong>: All persona decisions logged for audit</p>
+<p>6. <strong>PII Detection</strong>: Automatic PII detection and redaction</p>
+<p>7. <strong>Encryption</strong>: All data encrypted at rest and in transit</p>
+
+<h2 id="future-extensions">Future Extensions<a class="anchor" href="#future-extensions">#</a></h2>
+
+<p>1. <strong>Additional Personas</strong>: Healthcare, Legal, Creative Arts, Financial</p>
+<p>2. <strong>Multimodal Support</strong>: Voice, image, and video processing</p>
+<p>3. <strong>Federated Learning</strong>: Cross-session persona improvement</p>
+<p>4. <strong>A/B Testing</strong>: Built-in experimentation framework</p>
+<p>5. <strong>User Personalization</strong>: Per-user persona preferences</p>
+<p>6. <strong>Multi-turn Memory</strong>: Enhanced conversation continuity</p>
+<p></p>
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

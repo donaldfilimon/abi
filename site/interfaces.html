@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interface Contracts - ABI Framework Documentation</title>
+  <meta name="description" content="High-level interface boundaries, data shapes, and compile-time gating rules">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>Interface Contracts</h1>
+        <p class="doc-description">High-level interface boundaries, data shapes, and compile-time gating rules</p>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#interface-contracts">Interface Contracts</a></li>
+        <li style="padding-left: 16px"><a href="#overview">Overview</a></li>
+        <li style="padding-left: 16px"><a href="#1-config-domain">1. Config Domain</a></li>
+        <li style="padding-left: 32px"><a href="#public-surface">Public Surface</a></li>
+        <li style="padding-left: 32px"><a href="#domain-sub-configs">Domain Sub-Configs</a></li>
+        <li style="padding-left: 32px"><a href="#compile-time-gating-rules">Compile-Time Gating Rules</a></li>
+        <li style="padding-left: 32px"><a href="#domain-split-boundaries-phase-2">Domain Split Boundaries (Phase 2)</a></li>
+        <li style="padding-left: 16px"><a href="#2-tasks-domain">2. Tasks Domain</a></li>
+        <li style="padding-left: 32px"><a href="#public-surface">Public Surface</a></li>
+        <li style="padding-left: 32px"><a href="#domain-split-boundaries-phase-3">Domain Split Boundaries (Phase 3)</a></li>
+        <li style="padding-left: 16px"><a href="#3-registry-domain">3. Registry Domain</a></li>
+        <li style="padding-left: 32px"><a href="#public-surface">Public Surface</a></li>
+        <li style="padding-left: 32px"><a href="#registration-mode-behavior">Registration Mode Behavior</a></li>
+        <li style="padding-left: 32px"><a href="#domain-split-boundaries-phase-4-complete">Domain Split Boundaries (Phase 4) ✅ COMPLETE</a></li>
+        <li style="padding-left: 16px"><a href="#4-aigpu-interface">4. AI/GPU Interface</a></li>
+        <li style="padding-left: 32px"><a href="#current-coupling">Current Coupling</a></li>
+        <li style="padding-left: 32px"><a href="#decoupled-interface-phase-5">Decoupled Interface (Phase 5)</a></li>
+        <li style="padding-left: 32px"><a href="#compile-time-gating-assertions">Compile-Time Gating Assertions</a></li>
+        <li style="padding-left: 16px"><a href="#5-stub-parity-contract">5. Stub Parity Contract</a></li>
+        <li style="padding-left: 32px"><a href="#pattern">Pattern</a></li>
+        <li style="padding-left: 32px"><a href="#parity-rules">Parity Rules</a></li>
+        <li style="padding-left: 32px"><a href="#automated-parity-check-phase-6-complete">Automated Parity Check (Phase 6) ✅ COMPLETE</a></li>
+        <li style="padding-left: 16px"><a href="#6-error-contracts">6. Error Contracts</a></li>
+        <li style="padding-left: 32px"><a href="#standard-error-sets">Standard Error Sets</a></li>
+        <li style="padding-left: 16px"><a href="#summary">Summary</a></li>
+      </ul></nav>
+      <div class="doc-content">
+<h1 id="interface-contracts">Interface Contracts<a class="anchor" href="#interface-contracts">#</a></h1>
+
+<p>This document defines the interface boundaries for the ABI framework. These contracts serve as the foundation for modular refactoring while ensuring backward compatibility.</p>
+
+<h2 id="overview">Overview<a class="anchor" href="#overview">#</a></h2>
+
+<p>The framework uses four key domain boundaries:</p>
+<p>1. <strong>Config</strong> - Unified configuration with feature-specific sub-configs</p>
+<p>2. <strong>Tasks</strong> - Task management with persistence, querying, and lifecycle</p>
+<p>3. <strong>Registry</strong> - Feature registration with three registration modes</p>
+<p>4. <strong>AI/GPU Coupling</strong> - Decoupled interfaces for GPU acceleration in AI workloads</p>
+
+<h2 id="1-config-domain">1. Config Domain<a class="anchor" href="#1-config-domain">#</a></h2>
+
+<h3 id="public-surface">Public Surface<a class="anchor" href="#public-surface">#</a></h3>
+
+<pre class="code-block language-zig"><code>// src/config.zig
+
+/// Main configuration struct - all features are optional
+pub const Config = struct {
+    gpu: ?GpuConfig = null,
+    ai: ?AiConfig = null,
+    database: ?DatabaseConfig = null,
+    network: ?NetworkConfig = null,
+    observability: ?ObservabilityConfig = null,
+    web: ?WebConfig = null,
+    plugins: PluginConfig = .{},
+
+    pub fn defaults() Config;        // All compile-time enabled features
+    pub fn minimal() Config;          // Empty config (all disabled)
+    pub fn isEnabled(Feature) bool;   // Runtime feature check
+    pub fn enabledFeatures(Allocator) ![]Feature;
+};
+
+/// Feature identifiers
+pub const Feature = enum {
+    gpu, ai, llm, embeddings, agents, training,
+    database, network, observability, web,
+
+    pub fn name() []const u8;
+    pub fn description() []const u8;
+    pub fn isCompileTimeEnabled() bool;  // Uses build_options
+};
+
+/// Fluent builder for Config
+pub const Builder = struct {
+    pub fn init(Allocator) Builder;
+    pub fn withDefaults() *Builder;
+    pub fn withGpu(GpuConfig) *Builder;
+    pub fn withGpuDefaults() *Builder;
+    pub fn withAi(AiConfig) *Builder;
+    pub fn withAiDefaults() *Builder;
+    pub fn withLlm(LlmConfig) *Builder;
+    pub fn withDatabase(DatabaseConfig) *Builder;
+    pub fn withDatabaseDefaults() *Builder;
+    pub fn withNetwork(NetworkConfig) *Builder;
+    pub fn withNetworkDefaults() *Builder;
+    pub fn withObservability(ObservabilityConfig) *Builder;
+    pub fn withObservabilityDefaults() *Builder;
+    pub fn withWeb(WebConfig) *Builder;
+    pub fn withWebDefaults() *Builder;
+    pub fn withPlugins(PluginConfig) *Builder;
+    pub fn build() Config;
+};
+
+/// Validation
+pub fn validate(Config) ConfigError!void;
+</code></pre>
+
+<h3 id="domain-sub-configs">Domain Sub-Configs<a class="anchor" href="#domain-sub-configs">#</a></h3>
+
+<tr><td>Config</td><td>Nested Configs</td><td>Key Fields</td></tr>
+<tr><td><code>GpuConfig</code></td><td><code>RecoveryConfig</code></td><td>backend, device_index, memory_limit, async_enabled</td></tr>
+<tr><td><code>AiConfig</code></td><td><code>LlmConfig</code>, <code>EmbeddingsConfig</code>, <code>AgentsConfig</code>, <code>TrainingConfig</code></td><td>Sub-features are optional</td></tr>
+<tr><td><code>DatabaseConfig</code></td><td>-</td><td>path, index_type, wal_enabled, cache_size</td></tr>
+<tr><td><code>NetworkConfig</code></td><td><code>UnifiedMemoryConfig</code>, <code>LinkingConfig</code></td><td>bind_address, port, discovery_enabled, role</td></tr>
+<tr><td><code>ObservabilityConfig</code></td><td>-</td><td>metrics_enabled, tracing_enabled, profiling_enabled</td></tr>
+<tr><td><code>WebConfig</code></td><td>-</td><td>bind_address, port, cors_enabled, timeout_ms</td></tr>
+<tr><td><code>PluginConfig</code></td><td>-</td><td>paths, auto_discover, load</td></tr>
+
+<h3 id="compile-time-gating-rules">Compile-Time Gating Rules<a class="anchor" href="#compile-time-gating-rules">#</a></h3>
+
+<pre class="code-block language-zig"><code>// defaults() respects compile-time flags
+pub fn defaults() Config {
+    return .{
+        .gpu = if (build_options.enable_gpu) GpuConfig.defaults() else null,
+        .ai = if (build_options.enable_ai) AiConfig.defaults() else null,
+        // ... etc
+    };
+}
+
+// validate() enforces compile-time constraints
+pub fn validate(config: Config) ConfigError!void {
+    if (config.gpu != null and !build_options.enable_gpu)
+        return ConfigError.FeatureDisabled;
+    // ... etc
+}
+</code></pre>
+
+<h3 id="domain-split-boundaries-phase-2">Domain Split Boundaries (Phase 2)<a class="anchor" href="#domain-split-boundaries-phase-2">#</a></h3>
+
+<pre class="code-block"><code>src/config.zig          # Shim: re-exports from config/*
+src/config/
+├── gpu.zig            # GpuConfig, RecoveryConfig
+├── ai.zig             # AiConfig, LlmConfig, EmbeddingsConfig, etc.
+├── database.zig       # DatabaseConfig
+├── network.zig        # NetworkConfig, UnifiedMemoryConfig, LinkingConfig
+├── observability.zig  # ObservabilityConfig
+├── web.zig            # WebConfig
+└── plugin.zig         # PluginConfig
+</code></pre>
+
+<hr>
+
+<h2 id="2-tasks-domain">2. Tasks Domain<a class="anchor" href="#2-tasks-domain">#</a></h2>
+
+<h3 id="public-surface">Public Surface<a class="anchor" href="#public-surface">#</a></h3>
+
+<pre class="code-block language-zig"><code>// src/tasks.zig
+
+/// Core types
+pub const Priority = enum(u8) { low, normal, high, critical };
+pub const Status = enum(u8) { pending, in_progress, completed, cancelled, blocked };
+pub const Category = enum(u8) { personal, roadmap, compute, bug, feature };
+pub const SortBy = enum { created, updated, priority, due_date, status };
+
+pub const Task = struct {
+    id: u64,
+    title: []const u8,
+    description: ?[]const u8,
+    status: Status,
+    priority: Priority,
+    category: Category,
+    tags: []const []const u8,
+    created_at: i64,
+    updated_at: i64,
+    due_date: ?i64,
+    completed_at: ?i64,
+    blocked_by: ?u64,
+    parent_id: ?u64,
+
+    pub fn isActionable() bool;
+    pub fn isOverdue() bool;
+};
+
+pub const Filter = struct {
+    status: ?Status,
+    priority: ?Priority,
+    category: ?Category,
+    tag: ?[]const u8,
+    overdue_only: bool,
+    parent_id: ?u64,
+    sort_by: SortBy,
+    sort_descending: bool,
+};
+
+pub const Stats = struct {
+    total: usize,
+    pending: usize,
+    in_progress: usize,
+    completed: usize,
+    cancelled: usize,
+    blocked: usize,
+    overdue: usize,
+};
+
+/// Manager configuration
+pub const ManagerConfig = struct {
+    storage_path: []const u8 = &quot;.abi/tasks.json&quot;,
+    auto_save: bool = true,
+};
+
+pub const AddOptions = struct {
+    description: ?[]const u8,
+    priority: Priority,
+    category: Category,
+    tags: []const []const u8,
+    due_date: ?i64,
+    parent_id: ?u64,
+};
+
+/// Task Manager
+pub const Manager = struct {
+    // Lifecycle
+    pub fn init(Allocator, ManagerConfig) ManagerError!Manager;
+    pub fn deinit() void;
+
+    // CRUD operations (lifecycle)
+    pub fn add(title: []const u8, AddOptions) ManagerError!u64;
+    pub fn get(id: u64) ?Task;
+    pub fn delete(id: u64) ManagerError!void;
+
+    // Status operations (lifecycle)
+    pub fn setStatus(id: u64, Status) ManagerError!void;
+    pub fn complete(id: u64) ManagerError!void;
+    pub fn start(id: u64) ManagerError!void;
+    pub fn cancel(id: u64) ManagerError!void;
+
+    // Property operations (lifecycle)
+    pub fn setTitle(id: u64, []const u8) ManagerError!void;
+    pub fn setDescription(id: u64, ?[]const u8) ManagerError!void;
+    pub fn setPriority(id: u64, Priority) ManagerError!void;
+    pub fn setCategory(id: u64, Category) ManagerError!void;
+    pub fn setDueDate(id: u64, ?i64) ManagerError!void;
+    pub fn setBlockedBy(id: u64, ?u64) ManagerError!void;
+
+    // Querying
+    pub fn list(Allocator, Filter) ManagerError![]Task;
+    pub fn getStats() Stats;
+
+    // Persistence
+    pub fn save() ManagerError!void;
+    pub fn load() ManagerError!void;
+};
+
+/// Roadmap integration
+pub const roadmap = struct {
+    pub const RoadmapItem = struct { ... };
+    pub const incomplete_items: []const RoadmapItem;
+    pub fn importAll(*Manager) !usize;
+};
+</code></pre>
+
+<h3 id="domain-split-boundaries-phase-3">Domain Split Boundaries (Phase 3)<a class="anchor" href="#domain-split-boundaries-phase-3">#</a></h3>
+
+<pre class="code-block"><code>src/tasks.zig           # Facade: routes to tasks/*
+src/tasks/
+├── types.zig          # Task, Priority, Status, Category, Filter, SortBy, Stats
+├── persistence.zig    # save(), load(), JSON serialization
+├── querying.zig       # list(), matchesFilter(), sorting
+├── lifecycle.zig      # add, get, delete, setStatus, complete, start, etc.
+└── roadmap.zig        # RoadmapItem, incomplete_items, importAll
+</code></pre>
+
+<hr>
+
+<h2 id="3-registry-domain">3. Registry Domain<a class="anchor" href="#3-registry-domain">#</a></h2>
+
+<h3 id="public-surface">Public Surface<a class="anchor" href="#public-surface">#</a></h3>
+
+<pre class="code-block language-zig"><code>// src/registry/mod.zig
+
+pub const Feature = config_module.Feature;  // Re-exported
+
+pub const RegistrationMode = enum {
+    comptime_only,     // Zero overhead, resolved at compile time
+    runtime_toggle,    // Compiled in, can be enabled/disabled at runtime
+    dynamic,           // Loaded from shared libraries (future)
+};
+
+pub const FeatureRegistration = struct {
+    feature: Feature,
+    mode: RegistrationMode,
+    context_ptr: ?*anyopaque,
+    config_ptr: ?*const anyopaque,
+    init_fn: ?*const fn(Allocator, *const anyopaque) anyerror!*anyopaque,
+    deinit_fn: ?*const fn(*anyopaque) void,
+    library_handle: ?*anyopaque,  // For dynamic mode
+    library_path: ?[]const u8,
+    enabled: bool,
+    initialized: bool,
+};
+
+pub const Registry = struct {
+    pub const Error = error{
+        FeatureNotRegistered,
+        FeatureAlreadyRegistered,
+        FeatureNotCompiled,
+        FeatureDisabled,
+        InitializationFailed,
+        AlreadyInitialized,
+        NotInitialized,
+        DynamicLoadingNotSupported,
+        LibraryLoadFailed,
+        SymbolNotFound,
+        InvalidMode,
+    } || Allocator.Error;
+
+    // Lifecycle
+    pub fn init(Allocator) Registry;
+    pub fn deinit() void;
+
+    // Registration API
+    pub fn registerComptime(comptime Feature) Error!void;
+    pub fn registerRuntimeToggle(comptime Feature, comptime ContextType, *const anyopaque) Error!void;
+    pub fn registerDynamic(Feature, library_path: []const u8) Error!void;
+
+    // Feature Lifecycle
+    pub fn initFeature(Feature) Error!void;
+    pub fn deinitFeature(Feature) Error!void;
+
+    // Query API
+    pub fn isRegistered(Feature) bool;
+    pub fn isEnabled(Feature) bool;
+    pub fn isInitialized(Feature) bool;
+    pub fn getMode(Feature) ?RegistrationMode;
+    pub fn getContext(Feature, comptime ContextType) Error!*ContextType;
+
+    // Toggle API (runtime_toggle only)
+    pub fn enableFeature(Feature) Error!void;
+    pub fn disableFeature(Feature) Error!void;
+
+    // Enumeration
+    pub fn listFeatures(Allocator) Error![]Feature;
+    pub fn count() usize;
+};
+
+// Compile-time helpers
+pub fn isFeatureCompiledIn(comptime Feature) bool;
+pub fn getParentFeature(Feature) ?Feature;
+</code></pre>
+
+<h3 id="registration-mode-behavior">Registration Mode Behavior<a class="anchor" href="#registration-mode-behavior">#</a></h3>
+
+<tr><td>Mode</td><td>Compile-time</td><td>Runtime Enable</td><td>Runtime Disable</td><td>Init Required</td></tr>
+<tr><td><code>comptime_only</code></td><td>Must be enabled</td><td>Always enabled</td><td>Cannot disable</td><td>No</td></tr>
+<tr><td><code>runtime_toggle</code></td><td>Must be compiled</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+<tr><td><code>dynamic</code></td><td>N/A</td><td>Yes (after load)</td><td>Yes</td><td>Yes</td></tr>
+
+<h3 id="domain-split-boundaries-phase-4-complete">Domain Split Boundaries (Phase 4) ✅ COMPLETE<a class="anchor" href="#domain-split-boundaries-phase-4-complete">#</a></h3>
+
+<pre class="code-block"><code>src/registry/
+├── mod.zig            # Public API facade with Registry struct
+├── types.zig          # Core types: Feature, RegistrationMode, FeatureRegistration, Error
+├── registration.zig   # registerComptime, registerRuntimeToggle, registerDynamic
+├── lifecycle.zig      # initFeature, deinitFeature, enable/disable
+└── plugins/           # Dynamic loading infrastructure (future)
+    └── discovery.zig
+</code></pre>
+
+<p><strong>Implementation Notes:</strong></p>
+<li><code>mod.zig</code> delegates to sub-modules while maintaining backward-compatible API</li>
+<li><code>Registry.Error</code> alias provided for existing code using <code>Registry.Error.*</code></li>
+<li><code>types.zig</code> includes <code>isFeatureCompiledIn()</code> and <code>getParentFeature()</code> helpers</li>
+
+<hr>
+
+<h2 id="4-aigpu-interface">4. AI/GPU Interface<a class="anchor" href="#4-aigpu-interface">#</a></h2>
+
+<h3 id="current-coupling">Current Coupling<a class="anchor" href="#current-coupling">#</a></h3>
+
+<p>AI and GPU modules are currently loosely coupled:</p>
+
+<pre class="code-block language-zig"><code>// src/ai/mod.zig - Current pattern
+pub const llm = if (build_options.enable_llm)
+    @import(&quot;llm/mod.zig&quot;)
+else
+    @import(&quot;llm/stub.zig&quot;);
+
+// LLM can optionally use GPU
+pub const LlmConfig = struct {
+    use_gpu: bool = true,  // Config option, not hard dependency
+    // ...
+};
+</code></pre>
+
+<pre class="code-block language-zig"><code>// src/gpu/mod.zig - Current pattern
+pub const Context = struct {
+    pub fn init(Allocator, GpuConfig) !*Context;
+    pub fn createBuffer(...) !UnifiedBuffer;
+    pub fn vectorAdd(...) !ExecutionResult;
+    pub fn matrixMultiply(...) !ExecutionResult;
+};
+</code></pre>
+
+<h3 id="decoupled-interface-phase-5">Decoupled Interface (Phase 5)<a class="anchor" href="#decoupled-interface-phase-5">#</a></h3>
+
+<pre class="code-block language-zig"><code>// src/ai/gpu_interface.zig - New abstraction layer
+
+/// Lightweight GPU operations interface for AI workloads
+pub const GpuOps = struct {
+    pub const Error = error{
+        GpuDisabled,
+        AllocationFailed,
+        ComputeFailed,
+    };
+
+    /// Check if GPU acceleration is available
+    pub fn isAvailable() bool {
+        return build_options.enable_gpu and gpu_module.isEnabled();
+    }
+
+    /// Matrix multiply with automatic GPU/CPU fallback
+    pub fn matmul(a: []const f32, b: []const f32, result: []f32, m: usize, n: usize, k: usize) Error!void {
+        if (comptime !build_options.enable_gpu) {
+            return cpuMatmul(a, b, result, m, n, k);
+        }
+        // Try GPU, fallback to CPU on failure
+    }
+
+    /// Batch SIMD operations
+    pub fn simdAdd(a: []const f32, b: []const f32, result: []f32) Error!void;
+    pub fn simdMul(a: []const f32, b: []const f32, result: []f32) Error!void;
+    pub fn softmax(input: []const f32, output: []f32) Error!void;
+    pub fn layerNorm(input: []const f32, output: []f32, gamma: []const f32, beta: []const f32) Error!void;
+};
+</code></pre>
+
+<pre class="code-block language-zig"><code>// src/shared/gpu_ai_utils.zig - Shared utilities
+
+/// Tensor operations used by both AI and GPU modules
+pub const TensorOps = struct {
+    pub fn reshape(data: []f32, old_shape: []const usize, new_shape: []const usize) !void;
+    pub fn transpose(data: []f32, shape: []const usize, axes: []const usize) !void;
+    pub fn slice(data: []const f32, shape: []const usize, starts: []const usize, ends: []const usize) ![]f32;
+};
+
+/// Memory layout utilities
+pub const MemoryLayout = struct {
+    pub const Order = enum { row_major, col_major };
+    pub fn stride(shape: []const usize, order: Order) []usize;
+    pub fn offset(indices: []const usize, shape: []const usize, order: Order) usize;
+};
+</code></pre>
+
+<h3 id="compile-time-gating-assertions">Compile-Time Gating Assertions<a class="anchor" href="#compile-time-gating-assertions">#</a></h3>
+
+<pre class="code-block language-zig"><code>// In AI modules that use GPU
+
+comptime {
+    // Ensure GPU operations go through the interface
+    if (build_options.enable_gpu) {
+        // Verify interface is available
+        _ = @import(&quot;gpu_interface.zig&quot;).GpuOps;
+    }
+}
+
+// Usage in LLM inference
+pub fn forward(self: *Model, input: []const f32) ![]f32 {
+    const gpu_ops = @import(&quot;gpu_interface.zig&quot;).GpuOps;
+
+    if (self.config.use_gpu and gpu_ops.isAvailable()) {
+        return try gpu_ops.matmul(input, self.weights, self.output, ...);
+    } else {
+        return try self.cpuForward(input);
+    }
+}
+</code></pre>
+
+<hr>
+
+<h2 id="5-stub-parity-contract">5. Stub Parity Contract<a class="anchor" href="#5-stub-parity-contract">#</a></h2>
+
+<p>Every feature module must have a corresponding stub with identical public API:</p>
+
+<h3 id="pattern">Pattern<a class="anchor" href="#pattern">#</a></h3>
+
+<pre class="code-block language-zig"><code>// src/&lt;feature&gt;/mod.zig - Real implementation
+pub const Context = struct {
+    pub fn init(Allocator, Config) !*Context;
+    pub fn deinit(*Context) void;
+    pub fn doWork(*Context, input: []const u8) ![]u8;
+};
+
+pub fn isEnabled() bool {
+    return build_options.enable_&lt;feature&gt;;
+}
+
+// src/&lt;feature&gt;/stub.zig - Stub implementation
+pub const Context = struct {
+    pub fn init(_: Allocator, _: Config) !*Context {
+        return error.&lt;Feature&gt;Disabled;
+    }
+    pub fn deinit(_: *Context) void {}
+    pub fn doWork(_: *Context, _: []const u8) ![]u8 {
+        return error.&lt;Feature&gt;Disabled;
+    }
+};
+
+pub fn isEnabled() bool {
+    return false;
+}
+</code></pre>
+
+<h3 id="parity-rules">Parity Rules<a class="anchor" href="#parity-rules">#</a></h3>
+
+<p>1. <strong>Same public declarations</strong>: All <code>pub</code> types, functions, and constants must exist in both</p>
+<p>2. <strong>Same function signatures</strong>: Parameters, return types, and error sets must match</p>
+<p>3. <strong>Stub behavior</strong>: Return appropriate <code>error.*Disabled</code> or no-op</p>
+<p>4. <strong>Compile-time safety</strong>: Stub must compile independently</p>
+
+<h3 id="automated-parity-check-phase-6-complete">Automated Parity Check (Phase 6) ✅ COMPLETE<a class="anchor" href="#automated-parity-check-phase-6-complete">#</a></h3>
+
+<p>Implemented in <code>src/tests/stub_parity.zig</code>:</p>
+
+<pre class="code-block language-zig"><code>// Verify modules follow Context + isEnabled pattern
+fn verifyContextPattern(comptime Module: type) !void {
+    try testing.expect(@hasDecl(Module, &quot;Context&quot;));
+    try testing.expect(@hasDecl(Module, &quot;isEnabled&quot;));
+}
+
+test &quot;all feature modules have consistent API surface&quot; {
+    try verifyContextPattern(abi.database);
+    try verifyContextPattern(abi.gpu);
+    try verifyContextPattern(abi.network);
+    try verifyContextPattern(abi.web);
+    try verifyContextPattern(abi.observability);
+    if (build_options.enable_ai) {
+        try verifyContextPattern(abi.ai);
+    }
+}
+</code></pre>
+
+<p><strong>Test Coverage:</strong></p>
+<li>Database: Context, SearchResult, DatabaseHandle, sub-modules (wdbx, fulltext, hybrid, filter, batch, clustering, formats)</li>
+<li>GPU: Context, isEnabled</li>
+<li>Network: Context, isEnabled</li>
+<li>Web: Context, isEnabled</li>
+<li>Observability: Context, isEnabled</li>
+<li>AI: Context, isEnabled (when enabled)</li>
+<li>AI sub-modules: llm, agents, embeddings, training (when enabled)</li>
+
+<hr>
+
+<h2 id="6-error-contracts">6. Error Contracts<a class="anchor" href="#6-error-contracts">#</a></h2>
+
+<h3 id="standard-error-sets">Standard Error Sets<a class="anchor" href="#standard-error-sets">#</a></h3>
+
+<pre class="code-block language-zig"><code>// Config errors
+pub const ConfigError = error{
+    FeatureDisabled,
+    InvalidConfig,
+    MissingRequired,
+    ConflictingConfig,
+};
+
+// Task errors
+pub const ManagerError = error{
+    TaskNotFound,
+    InvalidOperation,
+    PersistenceFailed,
+    ParseError,
+} || Allocator.Error || Io.Error;
+
+// Registry errors
+pub const RegistryError = error{
+    FeatureNotRegistered,
+    FeatureAlreadyRegistered,
+    FeatureNotCompiled,
+    FeatureDisabled,
+    InitializationFailed,
+    AlreadyInitialized,
+    NotInitialized,
+    DynamicLoadingNotSupported,
+    InvalidMode,
+} || Allocator.Error;
+
+// GPU interface errors
+pub const GpuInterfaceError = error{
+    GpuDisabled,
+    AllocationFailed,
+    ComputeFailed,
+    KernelFailed,
+    SynchronizationFailed,
+};
+</code></pre>
+
+<hr>
+
+<h2 id="summary">Summary<a class="anchor" href="#summary">#</a></h2>
+
+<tr><td>Domain</td><td>Entry Point</td><td>Key Types</td><td>Split Target</td></tr>
+<tr><td>Config</td><td><code>src/config.zig</code></td><td><code>Config</code>, <code>Feature</code>, <code>Builder</code></td><td><code>src/config/*.zig</code></td></tr>
+<tr><td>Tasks</td><td><code>src/tasks.zig</code></td><td><code>Manager</code>, <code>Task</code>, <code>Filter</code></td><td><code>src/tasks/*.zig</code></td></tr>
+<tr><td>Registry</td><td><code>src/registry/mod.zig</code></td><td><code>Registry</code>, <code>RegistrationMode</code></td><td><code>src/registry/*.zig</code></td></tr>
+<tr><td>AI/GPU</td><td><code>src/ai/gpu_interface.zig</code></td><td><code>GpuOps</code></td><td>New file + <code>shared/gpu_ai_utils.zig</code></td></tr>
+
+<p>These interfaces form the contract for Phases 2-9. Changes to public surfaces require updating this document and ensuring backward compatibility.</p>
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

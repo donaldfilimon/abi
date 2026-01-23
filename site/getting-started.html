@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>getting-started - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>getting-started</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#tutorial-getting-started-with-abi">Tutorial: Getting Started with ABI</a></li>
+        <li style="padding-left: 16px"><a href="#what-youll-learn">What You'll Learn</a></li>
+        <li style="padding-left: 16px"><a href="#prerequisites">Prerequisites</a></li>
+        <li style="padding-left: 16px"><a href="#step-1-clone-and-build">Step 1: Clone and Build</a></li>
+        <li style="padding-left: 32px"><a href="#build-options">Build Options</a></li>
+        <li style="padding-left: 16px"><a href="#step-2-your-first-program">Step 2: Your First Program</a></li>
+        <li style="padding-left: 32px"><a href="#key-patterns">Key Patterns</a></li>
+        <li style="padding-left: 16px"><a href="#step-3-feature-detection">Step 3: Feature Detection</a></li>
+        <li style="padding-left: 16px"><a href="#step-4-error-handling">Step 4: Error Handling</a></li>
+        <li style="padding-left: 32px"><a href="#common-error-types">Common Error Types</a></li>
+        <li style="padding-left: 16px"><a href="#step-5-using-the-cli">Step 5: Using the CLI</a></li>
+        <li style="padding-left: 32px"><a href="#cli-commands-reference">CLI Commands Reference</a></li>
+        <li style="padding-left: 16px"><a href="#step-6-configuration-via-environment">Step 6: Configuration via Environment</a></li>
+        <li style="padding-left: 16px"><a href="#practice-exercises">Practice Exercises</a></li>
+        <li style="padding-left: 32px"><a href="#exercise-1-custom-initialization">Exercise 1: Custom Initialization</a></li>
+        <li style="padding-left: 32px"><a href="#exercise-2-build-variants">Exercise 2: Build Variants</a></li>
+        <li style="padding-left: 16px"><a href="#common-issues">Common Issues</a></li>
+        <li style="padding-left: 16px"><a href="#next-steps">Next Steps</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="tutorial-getting-started-with-abi">Tutorial: Getting Started with ABI<a class="anchor" href="#tutorial-getting-started-with-abi">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<blockquote><strong>Duration:</strong> 20 minutes | <strong>Level:</strong> Beginner | <strong>Video:</strong> <a href="videos/01-getting-started.md">Watch</a></blockquote>
+
+<h2 id="what-youll-learn">What You'll Learn<a class="anchor" href="#what-youll-learn">#</a></h2>
+
+<li>Install and configure the ABI framework</li>
+<li>Initialize and shut down the framework</li>
+<li>Understand feature gating and build options</li>
+<li>Run your first ABI program</li>
+
+<h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites">#</a></h2>
+
+<li>Zig 0.16.x or later installed</li>
+<li>Basic familiarity with the command line</li>
+<li>Text editor of your choice</li>
+
+<hr>
+
+<h2 id="step-1-clone-and-build">Step 1: Clone and Build<a class="anchor" href="#step-1-clone-and-build">#</a></h2>
+
+<p>First, clone the ABI repository and build the project.</p>
+
+<pre class="code-block language-bash"><code>git clone https://github.com/donaldfilimon/abi.git
+cd abi
+zig build
+</code></pre>
+
+<p><strong>Expected output:</strong></p>
+<pre class="code-block"><code>Build completed successfully.
+</code></pre>
+
+<h3 id="build-options">Build Options<a class="anchor" href="#build-options">#</a></h3>
+
+<p>ABI uses feature gating to let you compile only what you need:</p>
+
+<tr><td>Flag</td><td>Default</td><td>Description</td></tr>
+<tr><td><code>-Denable-ai</code></td><td>true</td><td>AI/LLM capabilities</td></tr>
+<tr><td><code>-Denable-gpu</code></td><td>true</td><td>GPU acceleration</td></tr>
+<tr><td><code>-Denable-database</code></td><td>true</td><td>Vector database (WDBX)</td></tr>
+<tr><td><code>-Denable-network</code></td><td>true</td><td>Distributed computing</td></tr>
+
+<p><strong>Example: Build with only AI and database:</strong></p>
+<pre class="code-block language-bash"><code>zig build -Denable-ai=true -Denable-gpu=false -Denable-database=true -Denable-network=false
+</code></pre>
+
+<hr>
+
+<h2 id="step-2-your-first-program">Step 2: Your First Program<a class="anchor" href="#step-2-your-first-program">#</a></h2>
+
+<p>Use the sample file in <code>docs/tutorials/code/getting-started/01-hello-abi.zig</code>.</p>
+<p>If you create your own file in the project root, change the import to</p>
+<p><code>@import(&quot;src/abi.zig&quot;)</code> (or <code>@import(&quot;abi&quot;)</code> when building via <code>build.zig</code>).</p>
+
+<p><strong>Code:</strong> <code>docs/tutorials/code/getting-started/01-hello-abi.zig</code></p>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+// In a real project, you would use: const abi = @import(&quot;abi&quot;);
+// For tutorial purposes, we use a relative path.
+const abi = @import(&quot;../../../../src/abi.zig&quot;);
+
+pub fn main() !void {
+    // Get an allocator
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Initialize ABI
+    std.debug.print(&quot;Initializing ABI framework...\n&quot;, .{});
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
+
+    // Print version
+    const version = abi.version();
+    std.debug.print(&quot;ABI Version: {d}.{d}.{d}\n&quot;, .{
+        version.major,
+        version.minor,
+        version.patch,
+    });
+
+    std.debug.print(&quot;ABI framework initialized successfully!\n&quot;, .{});
+}
+</code></pre>
+
+<p><strong>Run:</strong></p>
+<pre class="code-block language-bash"><code>zig run hello_abi.zig
+</code></pre>
+
+<p><strong>Expected output:</strong></p>
+<pre class="code-block"><code>Initializing ABI framework...
+ABI Version: 1.0.0
+ABI framework initialized successfully!
+</code></pre>
+
+<h3 id="key-patterns">Key Patterns<a class="anchor" href="#key-patterns">#</a></h3>
+
+<tr><td>Pattern</td><td>Purpose</td></tr>
+<tr><td><code>abi.initDefault(allocator)</code></td><td>Initialize all enabled features</td></tr>
+<tr><td><code>defer framework.deinit()</code></td><td>Clean up resources on scope exit</td></tr>
+<tr><td><code>abi.version()</code></td><td>Get semantic version info</td></tr>
+
+<hr>
+
+<h2 id="step-3-feature-detection">Step 3: Feature Detection<a class="anchor" href="#step-3-feature-detection">#</a></h2>
+
+<p>ABI lets you check which features are enabled at runtime:</p>
+
+<p><strong>Code:</strong> <code>docs/tutorials/code/getting-started/02-feature-detection.zig</code></p>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+// In a real project, you would use: const abi = @import(&quot;abi&quot;);
+// For tutorial purposes, we use a relative path.
+const abi = @import(&quot;../../../../src/abi.zig&quot;);
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
+
+    std.debug.print(&quot;\n=== ABI Feature Status ===\n\n&quot;, .{});
+
+    // Check each feature
+    const features = [_]struct { name: []const u8, enabled: bool }{
+        .{ .name = &quot;AI/LLM&quot;, .enabled = framework.isEnabled(.ai) },
+        .{ .name = &quot;GPU&quot;, .enabled = framework.isEnabled(.gpu) },
+        .{ .name = &quot;Database&quot;, .enabled = framework.isEnabled(.database) },
+        .{ .name = &quot;Network&quot;, .enabled = framework.isEnabled(.network) },
+        .{ .name = &quot;Web&quot;, .enabled = framework.isEnabled(.web) },
+        .{ .name = &quot;Observability&quot;, .enabled = framework.isEnabled(.observability) },
+    };
+
+    for (features) |f| {
+        const status = if (f.enabled) &quot;[ENABLED]&quot; else &quot;[DISABLED]&quot;;
+        std.debug.print(&quot;  {s:&lt;12} {s}\n&quot;, .{ f.name, status });
+    }
+
+    std.debug.print(&quot;\n&quot;, .{});
+}
+</code></pre>
+
+<p><strong>Run:</strong></p>
+<pre class="code-block language-bash"><code>zig run feature_check.zig
+</code></pre>
+
+<p><strong>Expected output:</strong></p>
+<pre class="code-block"><code>=== ABI Feature Status ===
+
+  AI/LLM       [ENABLED]
+  GPU          [ENABLED]
+  Database     [ENABLED]
+  Network      [ENABLED]
+  Web          [ENABLED]
+  Observability [ENABLED]
+</code></pre>
+
+<hr>
+
+<h2 id="step-4-error-handling">Step 4: Error Handling<a class="anchor" href="#step-4-error-handling">#</a></h2>
+
+<p>ABI uses Zig's error handling system. When a feature is disabled, operations return <code>error.*Disabled</code>:</p>
+
+<p><strong>Code:</strong> <code>docs/tutorials/code/getting-started/03-error-handling.zig</code></p>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+// In a real project, you would use: const abi = @import(&quot;abi&quot;);
+// For tutorial purposes, we use a relative path.
+const abi = @import(&quot;../../../../src/abi.zig&quot;);
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
+
+    // Try to use the database feature
+    if (abi.database.openOrCreate(allocator, &quot;test_db&quot;)) |*db| {
+        defer abi.database.close(db);
+        std.debug.print(&quot;Database opened successfully\n&quot;, .{});
+    } else |err| {
+        switch (err) {
+            error.DatabaseDisabled =&gt; {
+                std.debug.print(&quot;Database feature is disabled.\n&quot;, .{});
+                std.debug.print(&quot;Rebuild with: zig build -Denable-database=true\n&quot;, .{});
+            },
+            else =&gt; {
+                std.debug.print(&quot;Database error: {t}\n&quot;, .{err});
+            },
+        }
+    }
+}
+</code></pre>
+
+<h3 id="common-error-types">Common Error Types<a class="anchor" href="#common-error-types">#</a></h3>
+
+<tr><td>Error</td><td>Cause</td><td>Solution</td></tr>
+<tr><td><code>error.AiDisabled</code></td><td>AI feature not compiled</td><td><code>-Denable-ai=true</code></td></tr>
+<tr><td><code>error.GpuDisabled</code></td><td>GPU feature not compiled</td><td><code>-Denable-gpu=true</code></td></tr>
+<tr><td><code>error.DatabaseDisabled</code></td><td>Database not compiled</td><td><code>-Denable-database=true</code></td></tr>
+<tr><td><code>error.NetworkDisabled</code></td><td>Network not compiled</td><td><code>-Denable-network=true</code></td></tr>
+
+<hr>
+
+<h2 id="step-5-using-the-cli">Step 5: Using the CLI<a class="anchor" href="#step-5-using-the-cli">#</a></h2>
+
+<p>ABI includes a powerful CLI for common operations:</p>
+
+<pre class="code-block language-bash"><code># Show help
+zig build run -- --help
+
+# Check system info
+zig build run -- system-info
+
+# List GPU backends
+zig build run -- gpu backends
+
+# Explore codebase
+zig build run -- explore &quot;fn init&quot; --level thorough
+</code></pre>
+
+<h3 id="cli-commands-reference">CLI Commands Reference<a class="anchor" href="#cli-commands-reference">#</a></h3>
+
+<tr><td>Command</td><td>Description</td></tr>
+<tr><td><code>system-info</code></td><td>Display system capabilities</td></tr>
+<tr><td><code>gpu backends</code></td><td>List available GPU backends</td></tr>
+<tr><td><code>gpu devices</code></td><td>Show GPU devices</td></tr>
+<tr><td><code>db stats</code></td><td>Database statistics</td></tr>
+<tr><td><code>explore</code></td><td>Search codebase</td></tr>
+<tr><td><code>tui</code></td><td>Interactive terminal UI</td></tr>
+
+<hr>
+
+<h2 id="step-6-configuration-via-environment">Step 6: Configuration via Environment<a class="anchor" href="#step-6-configuration-via-environment">#</a></h2>
+
+<p>ABI reads configuration from environment variables:</p>
+
+<tr><td>Variable</td><td>Default</td><td>Description</td></tr>
+<tr><td><code>ABI_OPENAI_API_KEY</code></td><td>-</td><td>OpenAI API key</td></tr>
+<tr><td><code>ABI_OLLAMA_HOST</code></td><td><code>http://127.0.0.1:11434</code></td><td>Ollama server</td></tr>
+<tr><td><code>ABI_HF_API_TOKEN</code></td><td>-</td><td>HuggingFace token</td></tr>
+
+<p><strong>Example: Setting up Ollama integration:</strong></p>
+
+<pre class="code-block language-bash"><code>export ABI_OLLAMA_HOST=&quot;http://localhost:11434&quot;
+export ABI_OLLAMA_MODEL=&quot;gpt-oss&quot;
+
+zig build run -- agent chat --prompt &quot;Hello, world!&quot;
+</code></pre>
+
+<hr>
+
+<h2 id="practice-exercises">Practice Exercises<a class="anchor" href="#practice-exercises">#</a></h2>
+
+<h3 id="exercise-1-custom-initialization">Exercise 1: Custom Initialization<a class="anchor" href="#exercise-1-custom-initialization">#</a></h3>
+
+<p>Create a program that:</p>
+<p>1. Initializes ABI</p>
+<p>2. Checks if GPU is available</p>
+<p>3. Prints GPU device info if available</p>
+<p>4. Falls back gracefully if not</p>
+
+<p><strong>Hints:</strong></p>
+<li>Use <code>framework.isEnabled(.gpu)</code></li>
+<li>Use <code>abi.gpu.listDevices()</code> if GPU is enabled</li>
+
+<h3 id="exercise-2-build-variants">Exercise 2: Build Variants<a class="anchor" href="#exercise-2-build-variants">#</a></h3>
+
+<p>Build ABI three times with different configurations:</p>
+<p>1. Full features (all enabled)</p>
+<p>2. Minimal (AI only)</p>
+<p>3. Embedded (no network, no GPU)</p>
+
+<p>Compare the resulting binary sizes.</p>
+
+<hr>
+
+<h2 id="common-issues">Common Issues<a class="anchor" href="#common-issues">#</a></h2>
+
+<tr><td>Issue</td><td>Cause</td><td>Solution</td></tr>
+<tr><td><code>error: FileNotFound</code></td><td>Wrong import path</td><td>Use <code>@import(&quot;../../../../src/abi.zig&quot;)</code> for tutorial files</td></tr>
+<tr><td><code>error: OutOfMemory</code></td><td>Allocator issue</td><td>Check allocator lifecycle</td></tr>
+<tr><td>Build fails</td><td>Missing dependencies</td><td>Run <code>zig build</code> first</td></tr>
+<tr><td>Feature disabled</td><td>Compile flag missing</td><td>Add <code>-Denable-X=true</code></td></tr>
+
+<hr>
+
+<h2 id="next-steps">Next Steps<a class="anchor" href="#next-steps">#</a></h2>
+
+<li><a href="vector-database.md">Tutorial 2: Vector Database</a> - Store and search vectors</li>
+<li><a href="../API_REFERENCE.md">API Reference</a> - Complete API docs</li>
+<li><a href="../ai.md">AI Guide</a> - Connect to LLMs</li>
+<li><a href="../gpu.md">GPU Guide</a> - Accelerate compute</li>
+
+<hr>
+
+<p><strong>Video Walkthrough:</strong> <a href="videos/01-getting-started.md">Watch the 20-minute guided tutorial</a></p>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

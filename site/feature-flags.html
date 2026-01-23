@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>feature-flags - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>feature-flags</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#feature-flags-reference">Feature Flags Reference</a></li>
+        <li style="padding-left: 16px"><a href="#quick-reference">Quick Reference</a></li>
+        <li style="padding-left: 16px"><a href="#feature-flags">Feature Flags</a></li>
+        <li style="padding-left: 32px"><a href="#flag-dependencies">Flag Dependencies</a></li>
+        <li style="padding-left: 16px"><a href="#gpu-backend-flags">GPU Backend Flags</a></li>
+        <li style="padding-left: 32px"><a href="#backend-selection-guidelines">Backend Selection Guidelines</a></li>
+        <li style="padding-left: 32px"><a href="#backend-conflict-warnings">Backend Conflict Warnings</a></li>
+        <li style="padding-left: 16px"><a href="#wasm-target-limitations">WASM Target Limitations</a></li>
+        <li style="padding-left: 16px"><a href="#build-configurations">Build Configurations</a></li>
+        <li style="padding-left: 32px"><a href="#development-default">Development (Default)</a></li>
+        <li style="padding-left: 32px"><a href="#production">Production</a></li>
+        <li style="padding-left: 32px"><a href="#minimal-ai">Minimal AI</a></li>
+        <li style="padding-left: 32px"><a href="#gpu-compute-only">GPU Compute Only</a></li>
+        <li style="padding-left: 32px"><a href="#cuda-optimized">CUDA-Optimized</a></li>
+        <li style="padding-left: 32px"><a href="#database-only">Database-Only</a></li>
+        <li style="padding-left: 16px"><a href="#cache-options">Cache Options</a></li>
+        <li style="padding-left: 16px"><a href="#environment-variables">Environment Variables</a></li>
+        <li style="padding-left: 32px"><a href="#ai-connectors">AI Connectors</a></li>
+        <li style="padding-left: 32px"><a href="#network-configuration">Network Configuration</a></li>
+        <li style="padding-left: 16px"><a href="#checking-enabled-features">Checking Enabled Features</a></li>
+        <li style="padding-left: 16px"><a href="#see-also">See Also</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="feature-flags-reference">Feature Flags Reference<a class="anchor" href="#feature-flags-reference">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<blockquote><strong>Single source of truth for all ABI framework build options</strong></blockquote>
+
+<p>This document describes all feature flags available when building the ABI framework. Use these flags with <code>zig build</code> to customize your build.</p>
+
+<h2 id="quick-reference">Quick Reference<a class="anchor" href="#quick-reference">#</a></h2>
+
+<pre class="code-block language-bash"><code># Enable specific features
+zig build -Denable-ai=true -Denable-gpu=false
+
+# Select GPU backend
+zig build -Dgpu-cuda=true -Dgpu-vulkan=false
+
+# Production build with all features
+zig build -Doptimize=ReleaseFast
+</code></pre>
+
+<hr>
+
+<h2 id="feature-flags">Feature Flags<a class="anchor" href="#feature-flags">#</a></h2>
+
+<tr><td>Flag</td><td>Default</td><td>Description</td></tr>
+<tr><td><code>-Denable-ai</code></td><td><code>true</code></td><td>AI agents, LLM connectors, training, federated learning</td></tr>
+<tr><td><code>-Denable-gpu</code></td><td><code>true</code></td><td>GPU acceleration framework with unified API</td></tr>
+<tr><td><code>-Denable-database</code></td><td><code>true</code></td><td>Vector database (WDBX) with HNSW indexing</td></tr>
+<tr><td><code>-Denable-network</code></td><td><code>true</code></td><td>Distributed compute, node discovery, Raft consensus</td></tr>
+<tr><td><code>-Denable-web</code></td><td><code>true</code></td><td>HTTP client/server, web utilities</td></tr>
+<tr><td><code>-Denable-profiling</code></td><td><code>true</code></td><td>Performance profiling, metrics, monitoring</td></tr>
+<tr><td><code>-Denable-explore</code></td><td><code>true</code></td><td>Codebase exploration and search (requires <code>-Denable-ai</code>)</td></tr>
+<tr><td><code>-Denable-llm</code></td><td><code>true</code></td><td>Local LLM inference with GGUF models (requires <code>-Denable-ai</code>)</td></tr>
+
+<h3 id="flag-dependencies">Flag Dependencies<a class="anchor" href="#flag-dependencies">#</a></h3>
+
+<pre class="code-block"><code>enable-ai ──┬── enable-explore
+            └── enable-llm
+</code></pre>
+
+<p>When <code>-Denable-ai=false</code>, both <code>-Denable-explore</code> and <code>-Denable-llm</code> are automatically disabled.</p>
+
+<hr>
+
+<h2 id="gpu-backend-flags">GPU Backend Flags<a class="anchor" href="#gpu-backend-flags">#</a></h2>
+
+<tr><td>Flag</td><td>Default</td><td>Description</td></tr>
+<tr><td><code>-Dgpu-vulkan</code></td><td><code>true</code></td><td>Vulkan compute backend (cross-platform, recommended)</td></tr>
+<tr><td><code>-Dgpu-cuda</code></td><td><code>false</code></td><td>NVIDIA CUDA backend (requires CUDA toolkit)</td></tr>
+<tr><td><code>-Dgpu-metal</code></td><td><code>false</code></td><td>Apple Metal backend (macOS/iOS only)</td></tr>
+<tr><td><code>-Dgpu-webgpu</code></td><td><code>true</code>*</td><td>WebGPU backend (when <code>-Denable-web=true</code>)</td></tr>
+<tr><td><code>-Dgpu-opengl</code></td><td><code>false</code></td><td>OpenGL compute backend (legacy)</td></tr>
+<tr><td><code>-Dgpu-opengles</code></td><td><code>false</code></td><td>OpenGL ES backend (mobile/embedded)</td></tr>
+<tr><td><code>-Dgpu-stdgpu</code></td><td><code>false</code></td><td>Zig std.gpu SPIR-V backend (CPU fallback)</td></tr>
+<tr><td><code>-Dgpu-webgl2</code></td><td><code>true</code>*</td><td>WebGL2 backend (when <code>-Denable-web=true</code>)</td></tr>
+
+<p>*WebGPU and WebGL2 default to <code>true</code> when <code>-Denable-web=true</code>.</p>
+
+<h3 id="backend-selection-guidelines">Backend Selection Guidelines<a class="anchor" href="#backend-selection-guidelines">#</a></h3>
+
+<li><strong>Cross-platform desktop</strong>: Use <code>-Dgpu-vulkan=true</code> (default)</li>
+<li><strong>NVIDIA GPU optimization</strong>: Use <code>-Dgpu-cuda=true -Dgpu-vulkan=false</code></li>
+<li><strong>Apple platforms</strong>: Use <code>-Dgpu-metal=true</code></li>
+<li><strong>Web deployment</strong>: Use <code>-Dgpu-webgpu=true</code></li>
+<li><strong>CPU-only fallback</strong>: Use <code>-Dgpu-stdgpu=true -Dgpu-vulkan=false</code></li>
+
+<h3 id="backend-conflict-warnings">Backend Conflict Warnings<a class="anchor" href="#backend-conflict-warnings">#</a></h3>
+
+<p>The build system will warn if potentially conflicting backends are enabled:</p>
+<li>CUDA + Vulkan (may cause resource conflicts)</li>
+<li>OpenGL + WebGL2 (prefer one or the other)</li>
+
+<hr>
+
+<h2 id="wasm-target-limitations">WASM Target Limitations<a class="anchor" href="#wasm-target-limitations">#</a></h2>
+
+<p>When building for WebAssembly targets, certain features are automatically disabled:</p>
+
+<tr><td>Feature</td><td>Status</td><td>Reason</td></tr>
+<tr><td><code>-Denable-database</code></td><td>Disabled</td><td>File system access</td></tr>
+<tr><td><code>-Denable-network</code></td><td>Disabled</td><td>Socket operations</td></tr>
+<tr><td><code>-Denable-gpu</code></td><td>Limited</td><td>Only WebGPU/WebGL2 available</td></tr>
+
+<hr>
+
+<h2 id="build-configurations">Build Configurations<a class="anchor" href="#build-configurations">#</a></h2>
+
+<h3 id="development-default">Development (Default)<a class="anchor" href="#development-default">#</a></h3>
+
+<pre class="code-block language-bash"><code>zig build
+</code></pre>
+
+<p>All features enabled with debug symbols.</p>
+
+<h3 id="production">Production<a class="anchor" href="#production">#</a></h3>
+
+<pre class="code-block language-bash"><code>zig build -Doptimize=ReleaseFast
+</code></pre>
+
+<p>Optimized build with all features.</p>
+
+<h3 id="minimal-ai">Minimal AI<a class="anchor" href="#minimal-ai">#</a></h3>
+
+<pre class="code-block language-bash"><code>zig build -Denable-ai=true -Denable-gpu=false -Denable-database=false -Denable-network=false
+</code></pre>
+
+<p>AI features only, no GPU/database/network.</p>
+
+<h3 id="gpu-compute-only">GPU Compute Only<a class="anchor" href="#gpu-compute-only">#</a></h3>
+
+<pre class="code-block language-bash"><code>zig build -Denable-gpu=true -Denable-ai=false -Denable-database=false
+</code></pre>
+
+<p>GPU acceleration without AI or database.</p>
+
+<h3 id="cuda-optimized">CUDA-Optimized<a class="anchor" href="#cuda-optimized">#</a></h3>
+
+<pre class="code-block language-bash"><code>zig build -Dgpu-cuda=true -Dgpu-vulkan=false -Doptimize=ReleaseFast
+</code></pre>
+
+<p>NVIDIA CUDA backend for maximum GPU performance.</p>
+
+<h3 id="database-only">Database-Only<a class="anchor" href="#database-only">#</a></h3>
+
+<pre class="code-block language-bash"><code>zig build -Denable-database=true -Denable-ai=false -Denable-gpu=false
+</code></pre>
+
+<p>Vector database without AI or GPU.</p>
+
+<hr>
+
+<h2 id="cache-options">Cache Options<a class="anchor" href="#cache-options">#</a></h2>
+
+<tr><td>Flag</td><td>Default</td><td>Description</td></tr>
+<tr><td><code>-Dcache-dir</code></td><td><code>.zig-cache</code></td><td>Directory for build cache</td></tr>
+<tr><td><code>-Dglobal-cache-dir</code></td><td>(none)</td><td>Directory for global build cache</td></tr>
+
+<hr>
+
+<h2 id="environment-variables">Environment Variables<a class="anchor" href="#environment-variables">#</a></h2>
+
+<p>The framework also respects environment variables for runtime configuration:</p>
+
+<h3 id="ai-connectors">AI Connectors<a class="anchor" href="#ai-connectors">#</a></h3>
+
+<tr><td>Variable</td><td>Default</td><td>Description</td></tr>
+<tr><td><code>ABI_OPENAI_API_KEY</code> or <code>OPENAI_API_KEY</code></td><td>-</td><td>OpenAI API authentication</td></tr>
+<tr><td><code>ABI_OPENAI_BASE_URL</code></td><td><code>https://api.openai.com/v1</code></td><td>OpenAI base URL</td></tr>
+<tr><td><code>ABI_OLLAMA_HOST</code> or <code>OLLAMA_HOST</code></td><td><code>http://127.0.0.1:11434</code></td><td>Ollama server URL</td></tr>
+<tr><td><code>ABI_OLLAMA_MODEL</code></td><td><code>gpt-oss</code></td><td>Default Ollama model</td></tr>
+<tr><td><code>ABI_HF_API_TOKEN</code> or <code>HF_API_TOKEN</code></td><td>-</td><td>HuggingFace API access</td></tr>
+<tr><td><code>DISCORD_BOT_TOKEN</code></td><td>-</td><td>Discord integration token</td></tr>
+
+<h3 id="network-configuration">Network Configuration<a class="anchor" href="#network-configuration">#</a></h3>
+
+<tr><td>Variable</td><td>Default</td><td>Description</td></tr>
+<tr><td><code>ABI_LOCAL_SCHEDULER_URL</code></td><td><code>http://127.0.0.1:8081</code></td><td>Local scheduler URL</td></tr>
+
+<hr>
+
+<h2 id="checking-enabled-features">Checking Enabled Features<a class="anchor" href="#checking-enabled-features">#</a></h2>
+
+<p>At runtime, check if a feature is enabled:</p>
+
+<pre class="code-block language-zig"><code>const abi = @import(&quot;abi&quot;);
+
+if (abi.ai.isEnabled()) {
+    // AI features available
+}
+
+if (abi.gpu.isEnabled()) {
+    // GPU acceleration available
+}
+
+if (abi.database.isEnabled()) {
+    // Vector database available
+}
+</code></pre>
+
+<hr>
+
+<h2 id="see-also">See Also<a class="anchor" href="#see-also">#</a></h2>
+
+<li><a href="../README.md">README.md</a> - Project overview</li>
+<li><a href="../CLAUDE.md">CLAUDE.md</a> - Development guidelines</li>
+<li><a href="gpu.md">docs/gpu.md</a> - GPU programming guide</li>
+<li><a href="ai.md">docs/ai.md</a> - AI features guide</li>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

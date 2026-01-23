@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Benchmarking Guide - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>Benchmarking Guide</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#abi-framework-benchmarking-guide">ABI Framework Benchmarking Guide</a></li>
+        <li style="padding-left: 16px"><a href="#running-benchmark-suites">Running benchmark suites</a></li>
+        <li style="padding-left: 16px"><a href="#json-output-and-file-export">JSON output and file export</a></li>
+        <li style="padding-left: 16px"><a href="#microbenchmarks">Micro‑benchmarks</a></li>
+        <li style="padding-left: 16px"><a href="#quick-benchmarks-ci">Quick benchmarks (CI)</a></li>
+        <li style="padding-left: 16px"><a href="#listing-available-suites">Listing available suites</a></li>
+        <li style="padding-left: 16px"><a href="#error-handling">Error handling</a></li>
+      </ul></nav>
+      <div class="doc-content">
+<h1 id="abi-framework-benchmarking-guide">ABI Framework Benchmarking Guide<a class="anchor" href="#abi-framework-benchmarking-guide">#</a></h1>
+
+<p>This guide provides quick reference for using the <strong>benchmark</strong> command suite.</p>
+
+<h2 id="running-benchmark-suites">Running benchmark suites<a class="anchor" href="#running-benchmark-suites">#</a></h2>
+
+<pre class="code-block language-bash"><code># Run all benchmark suites (human‑readable output)
+abi bench all
+
+# Run a specific suite
+abi bench simd
+abi bench memory
+abi bench concurrency
+abi bench database
+abi bench network
+abi bench crypto
+abi bench ai
+abi bench quick
+</code></pre>
+
+<h2 id="json-output-and-file-export">JSON output and file export<a class="anchor" href="#json-output-and-file-export">#</a></h2>
+
+<p>All suites accept <code>--json</code> to emit machine‑readable results and <code>--output &lt;file&gt;</code> to write the JSON to disk:</p>
+
+<pre class="code-block language-bash"><code># Full suite, JSON output to a file
+abi bench all --json --output all.json
+
+# SIMD suite only, JSON to file
+abi bench simd --json --output simd.json
+</code></pre>
+
+<p>The generated JSON follows this schema (excerpt):</p>
+
+<pre class="code-block language-json"><code>{
+  &quot;duration_sec&quot;: 0.08,
+  &quot;benchmarks&quot;: [
+    {&quot;name&quot;: &quot;dot_product_64&quot;, &quot;category&quot;: &quot;simd&quot;, &quot;ops_per_sec&quot;: 9.4e6, &quot;mean_ns&quot;: 106, &quot;iterations&quot;: 10000},
+    ...
+  ]
+}
+</code></pre>
+
+<h2 id="microbenchmarks">Micro‑benchmarks<a class="anchor" href="#microbenchmarks">#</a></h2>
+
+<p>Fine‑grained performance tests are available via <code>micro</code>:</p>
+
+<pre class="code-block language-bash"><code># Hash benchmark (default 1000 iterations)
+abi bench micro hash
+
+# Custom iterations and JSON output
+abi bench micro alloc --iterations 2000 --json
+abi bench micro parse --iterations 1500 --output parse.json
+</code></pre>
+
+<p>Supported operations:</p>
+
+<li><code>hash</code> – simple hash computation</li>
+<li><code>alloc</code> – memory allocation pattern</li>
+<li><code>parse</code> – basic parsing workload</li>
+<li><code>noop</code> – empty baseline (useful for overhead measurement)</li>
+
+<h2 id="quick-benchmarks-ci">Quick benchmarks (CI)<a class="anchor" href="#quick-benchmarks-ci">#</a></h2>
+
+<p>The <code>quick</code> suite runs a minimal set of benchmarks suitable for continuous‑integration pipelines:</p>
+
+<pre class="code-block language-bash"><code>abi bench quick
+</code></pre>
+
+<h2 id="listing-available-suites">Listing available suites<a class="anchor" href="#listing-available-suites">#</a></h2>
+
+<pre class="code-block language-bash"><code>abi bench list
+</code></pre>
+
+<h2 id="error-handling">Error handling<a class="anchor" href="#error-handling">#</a></h2>
+
+<p>If an unknown suite is supplied, the command prints an error and suggests <code>abi bench list</code>.</p>
+
+<pre class="code-block language-bash"><code>abi bench unknown
+# → error: Unknown benchmark suite: unknown
+#   Use 'abi bench list' to see available suites.
+</code></pre>
+
+<hr>
+
+<p>Feel free to explore the generated JSON files for deeper performance analysis or integrate them into your CI dashboards.</p>
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

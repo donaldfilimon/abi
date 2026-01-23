@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>api_runtime-engine - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>api_runtime-engine</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#runtime-engine-api-reference">runtime-engine API Reference</a></li>
+        <li style="padding-left: 16px"><a href="#api">API</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-createengineallocator-stdmemallocator-engine">`pub fn createEngine(allocator: std.mem.Allocator) !Engine`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-createenginewithconfigallocator-stdmemallocator-config-engineconfig-engine">`pub fn createEngineWithConfig(allocator: std.mem.Allocator, config: EngineConfig) !Engine`</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="runtime-engine-api-reference">runtime-engine API Reference<a class="anchor" href="#runtime-engine-api-reference">#</a></h1>
+
+<blockquote>Work-stealing task execution engine</blockquote>
+
+<p><strong>Source:</strong> <a href="../../src/runtime/engine/mod.zig"><code>src/runtime/engine/mod.zig</code></a></p>
+
+<hr>
+
+<p>Task Execution Engine</p>
+
+<p>This module provides the core task execution engine with:</p>
+
+<li><code>Engine</code> - Work-stealing distributed compute engine</li>
+<li><code>EngineConfig</code> - Engine configuration options</li>
+<li>NUMA-aware task scheduling</li>
+<li>Result handling and task lifecycle</li>
+
+<p>Note: On WASM/freestanding targets without thread support, the engine</p>
+<p>provides stub implementations that return appropriate errors.</p>
+
+<hr>
+
+<h2 id="api">API<a class="anchor" href="#api">#</a></h2>
+
+<h3 id="pub-fn-createengineallocator-stdmemallocator-engine"><code>pub fn createEngine(allocator: std.mem.Allocator) !Engine</code><a class="anchor" href="#pub-fn-createengineallocator-stdmemallocator-engine">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Create an engine with default configuration.</p>
+
+<h3 id="pub-fn-createenginewithconfigallocator-stdmemallocator-config-engineconfig-engine"><code>pub fn createEngineWithConfig(allocator: std.mem.Allocator, config: EngineConfig) !Engine</code><a class="anchor" href="#pub-fn-createenginewithconfigallocator-stdmemallocator-config-engineconfig-engine">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Create an engine with custom configuration.</p>
+
+<hr>
+
+<p>*Generated automatically by <code>zig build gendocs</code>*</p>
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

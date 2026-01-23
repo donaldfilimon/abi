@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>multi-persona-roadmap - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>multi-persona-roadmap</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#multi-persona-ai-assistant-implementation-roadmap">Multi-Persona AI Assistant Implementation Roadmap</a></li>
+        <li style="padding-left: 16px"><a href="#overview">Overview</a></li>
+        <li style="padding-left: 16px"><a href="#phase-1-foundation-layer">Phase 1: Foundation Layer</a></li>
+        <li style="padding-left: 32px"><a href="#tasks">Tasks</a></li>
+        <li style="padding-left: 32px"><a href="#deliverables">Deliverables</a></li>
+        <li style="padding-left: 32px"><a href="#integration-points">Integration Points</a></li>
+        <li style="padding-left: 16px"><a href="#phase-2-abi-content-moderation-layer">Phase 2: Abi - Content Moderation Layer</a></li>
+        <li style="padding-left: 32px"><a href="#tasks">Tasks</a></li>
+        <li style="padding-left: 32px"><a href="#deliverables">Deliverables</a></li>
+        <li style="padding-left: 32px"><a href="#integration-points">Integration Points</a></li>
+        <li style="padding-left: 16px"><a href="#phase-3-wdbx-persona-embeddings">Phase 3: WDBX Persona Embeddings</a></li>
+        <li style="padding-left: 32px"><a href="#tasks">Tasks</a></li>
+        <li style="padding-left: 32px"><a href="#deliverables">Deliverables</a></li>
+        <li style="padding-left: 32px"><a href="#integration-points">Integration Points</a></li>
+        <li style="padding-left: 16px"><a href="#phase-4-abbey-enhancements">Phase 4: Abbey Enhancements</a></li>
+        <li style="padding-left: 32px"><a href="#tasks">Tasks</a></li>
+        <li style="padding-left: 32px"><a href="#deliverables">Deliverables</a></li>
+        <li style="padding-left: 32px"><a href="#integration-points">Integration Points</a></li>
+        <li style="padding-left: 16px"><a href="#phase-5-aviva-implementation">Phase 5: Aviva Implementation</a></li>
+        <li style="padding-left: 32px"><a href="#tasks">Tasks</a></li>
+        <li style="padding-left: 32px"><a href="#deliverables">Deliverables</a></li>
+        <li style="padding-left: 32px"><a href="#integration-points">Integration Points</a></li>
+        <li style="padding-left: 16px"><a href="#phase-6-metrics-observability">Phase 6: Metrics & Observability</a></li>
+        <li style="padding-left: 32px"><a href="#tasks">Tasks</a></li>
+        <li style="padding-left: 32px"><a href="#deliverables">Deliverables</a></li>
+        <li style="padding-left: 32px"><a href="#integration-points">Integration Points</a></li>
+        <li style="padding-left: 16px"><a href="#phase-7-load-balancing-resilience">Phase 7: Load Balancing & Resilience</a></li>
+        <li style="padding-left: 32px"><a href="#tasks">Tasks</a></li>
+        <li style="padding-left: 32px"><a href="#deliverables">Deliverables</a></li>
+        <li style="padding-left: 32px"><a href="#integration-points">Integration Points</a></li>
+        <li style="padding-left: 16px"><a href="#phase-8-api-integration">Phase 8: API & Integration</a></li>
+        <li style="padding-left: 32px"><a href="#tasks">Tasks</a></li>
+        <li style="padding-left: 32px"><a href="#deliverables">Deliverables</a></li>
+        <li style="padding-left: 32px"><a href="#integration-points">Integration Points</a></li>
+        <li style="padding-left: 16px"><a href="#phase-9-testing-validation">Phase 9: Testing & Validation</a></li>
+        <li style="padding-left: 32px"><a href="#tasks">Tasks</a></li>
+        <li style="padding-left: 32px"><a href="#deliverables">Deliverables</a></li>
+        <li style="padding-left: 16px"><a href="#phase-10-documentation-release">Phase 10: Documentation & Release</a></li>
+        <li style="padding-left: 32px"><a href="#tasks">Tasks</a></li>
+        <li style="padding-left: 32px"><a href="#deliverables">Deliverables</a></li>
+        <li style="padding-left: 16px"><a href="#dependency-graph">Dependency Graph</a></li>
+        <li style="padding-left: 16px"><a href="#risk-mitigation">Risk Mitigation</a></li>
+        <li style="padding-left: 16px"><a href="#success-criteria">Success Criteria</a></li>
+        <li style="padding-left: 32px"><a href="#phase-1-3-foundation">Phase 1-3 (Foundation) ✅</a></li>
+        <li style="padding-left: 32px"><a href="#phase-4-5-personas">Phase 4-5 (Personas) ✅</a></li>
+        <li style="padding-left: 32px"><a href="#phase-6-7-operations">Phase 6-7 (Operations) ✅</a></li>
+        <li style="padding-left: 32px"><a href="#phase-8-10-release">Phase 8-10 (Release) ✅</a></li>
+        <li style="padding-left: 16px"><a href="#getting-started">Getting Started</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="multi-persona-ai-assistant-implementation-roadmap">Multi-Persona AI Assistant Implementation Roadmap<a class="anchor" href="#multi-persona-ai-assistant-implementation-roadmap">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<h2 id="overview">Overview<a class="anchor" href="#overview">#</a></h2>
+
+<p>This document outlines the phased implementation plan for the multi-persona AI assistant system. The implementation is designed to be incremental, allowing for testing and validation at each phase.</p>
+
+<h2 id="phase-1-foundation-layer">Phase 1: Foundation Layer<a class="anchor" href="#phase-1-foundation-layer">#</a></h2>
+
+<p><strong>Goal</strong>: Establish the core persona infrastructure and types.</p>
+
+<h3 id="tasks">Tasks<a class="anchor" href="#tasks">#</a></h3>
+
+<p>1. <strong>Create Persona Module Structure</strong></p>
+<p>   <code></code>`</p>
+<p>   src/ai/personas/</p>
+<p>   ├── mod.zig           # Entry point</p>
+<p>   ├── types.zig         # Shared types</p>
+<p>   ├── config.zig        # Configuration</p>
+<p>   └── registry.zig      # Persona registry</p>
+<p>   <code></code>`</p>
+
+<p>2. <strong>Define Core Types</strong></p>
+<p>   - <code>PersonaRequest</code> - Standardized request structure</p>
+<p>   - <code>PersonaResponse</code> - Standardized response structure</p>
+<p>   - <code>RoutingDecision</code> - Routing metadata</p>
+<p>   - <code>PersonaInterface</code> - Common interface for all personas</p>
+
+<p>3. <strong>Implement Persona Registry</strong></p>
+<p>   - Registration/deregistration of personas</p>
+<p>   - Active persona tracking</p>
+<p>   - Configuration management</p>
+
+<p>4. <strong>Extend Existing PersonaType Enum</strong></p>
+<p>   - Add <code>aviva</code> and <code>abi</code> to existing enum</p>
+<p>   - Update persona configurations</p>
+
+<h3 id="deliverables">Deliverables<a class="anchor" href="#deliverables">#</a></h3>
+<li>[x] <code>src/ai/personas/mod.zig</code></li>
+<li>[x] <code>src/ai/personas/types.zig</code></li>
+<li>[x] <code>src/ai/personas/config.zig</code></li>
+<li>[x] <code>src/ai/personas/registry.zig</code></li>
+<li>[x] Unit tests for registry</li>
+
+<h3 id="integration-points">Integration Points<a class="anchor" href="#integration-points">#</a></h3>
+<li>Extends <code>src/ai/implementation/prompts/personas.zig</code></li>
+<li>Uses <code>src/ai/core/types.zig</code> for shared types</li>
+
+<hr>
+
+<h2 id="phase-2-abi-content-moderation-layer">Phase 2: Abi - Content Moderation Layer<a class="anchor" href="#phase-2-abi-content-moderation-layer">#</a></h2>
+
+<p><strong>Goal</strong>: Implement the routing and moderation layer.</p>
+
+<h3 id="tasks">Tasks<a class="anchor" href="#tasks">#</a></h3>
+
+<p>1. <strong>Sentiment Analysis Module</strong></p>
+<p>   <code></code>`zig</p>
+<p>   // src/ai/personas/abi/sentiment.zig</p>
+<p>   pub const SentimentAnalyzer = struct {</p>
+<p>       pub fn analyze(text: []const u8) !SentimentResult;</p>
+<p>   };</p>
+<p>   <code></code>`</p>
+
+<p>2. <strong>Policy Checker Module</strong></p>
+<p>   <code></code>`zig</p>
+<p>   // src/ai/personas/abi/policy.zig</p>
+<p>   pub const PolicyChecker = struct {</p>
+<p>       pub fn check(content: []const u8) !PolicyResult;</p>
+<p>   };</p>
+<p>   <code></code>`</p>
+
+<p>3. <strong>Persona Router Module</strong></p>
+<p>   <code></code>`zig</p>
+<p>   // src/ai/personas/abi/router.zig</p>
+<p>   pub const PersonaRouter = struct {</p>
+<p>       pub fn selectPersona(request: UserRequest) !RoutingDecision;</p>
+<p>   };</p>
+<p>   <code></code>`</p>
+
+<p>4. <strong>Routing Rules Engine</strong></p>
+<p>   - Define declarative routing rules</p>
+<p>   - Support for rule priorities</p>
+<p>   - Override mechanisms</p>
+
+<h3 id="deliverables">Deliverables<a class="anchor" href="#deliverables">#</a></h3>
+<li>[x] <code>src/ai/personas/abi/mod.zig</code></li>
+<li>[x] <code>src/ai/personas/abi/sentiment.zig</code></li>
+<li>[x] <code>src/ai/personas/abi/policy.zig</code></li>
+<li>[x] <code>src/ai/personas/abi/router.zig</code></li>
+<li>[x] <code>src/ai/personas/abi/rules.zig</code></li>
+<li>[x] Unit tests for each component</li>
+<li>[x] Integration tests for full routing flow</li>
+
+<h3 id="integration-points">Integration Points<a class="anchor" href="#integration-points">#</a></h3>
+<li>Uses <code>src/ai/implementation/abbey/emotions.zig</code> for emotion types</li>
+<li>Connects to existing content filtering if available</li>
+<li>Integrates with RBAC from <code>src/shared/security/rbac.zig</code></li>
+
+<hr>
+
+<h2 id="phase-3-wdbx-persona-embeddings">Phase 3: WDBX Persona Embeddings<a class="anchor" href="#phase-3-wdbx-persona-embeddings">#</a></h2>
+
+<p><strong>Goal</strong>: Integrate vector database for persona selection and learning.</p>
+
+<h3 id="tasks">Tasks<a class="anchor" href="#tasks">#</a></h3>
+
+<p>1. <strong>Persona Embedding Index</strong></p>
+<p>   <code></code>`zig</p>
+<p>   // src/ai/personas/embeddings/persona_index.zig</p>
+<p>   pub const PersonaEmbeddingIndex = struct {</p>
+<p>       pub fn storePersonaEmbedding(persona: PersonaType, text: []const u8) !void;</p>
+<p>       pub fn findBestPersona(query: []const u8, top_k: usize) ![]PersonaMatch;</p>
+<p>   };</p>
+<p>   <code></code>`</p>
+
+<p>2. <strong>Initialize Persona Characteristic Embeddings</strong></p>
+<p>   - Define characteristic descriptions for each persona</p>
+<p>   - Generate and store base embeddings</p>
+<p>   - Create similarity lookup functions</p>
+
+<p>3. <strong>Conversation Embedding Storage</strong></p>
+<p>   - Store successful conversation patterns</p>
+<p>   - Enable retrieval of similar past interactions</p>
+<p>   - Support persona-specific memory</p>
+
+<p>4. <strong>Adaptive Learning Module</strong></p>
+<p>   - Track routing decisions and outcomes</p>
+<p>   - Adjust persona weights based on success metrics</p>
+<p>   - Implement feedback loops</p>
+
+<h3 id="deliverables">Deliverables<a class="anchor" href="#deliverables">#</a></h3>
+<li>[x] <code>src/ai/personas/embeddings/mod.zig</code></li>
+<li>[x] <code>src/ai/personas/embeddings/persona_index.zig</code></li>
+<li>[x] <code>src/ai/personas/embeddings/learning.zig</code></li>
+<li>[x] Persona characteristic seed data</li>
+<li>[x] Unit tests for embedding operations</li>
+<li>[x] Integration tests with WDBX</li>
+
+<h3 id="integration-points">Integration Points<a class="anchor" href="#integration-points">#</a></h3>
+<li>Uses <code>src/database/database.zig</code> for WDBX operations</li>
+<li>Uses <code>src/ai/embeddings/mod.zig</code> for embedding generation</li>
+<li>Connects to router from Phase 2</li>
+
+<hr>
+
+<h2 id="phase-4-abbey-enhancements">Phase 4: Abbey Enhancements<a class="anchor" href="#phase-4-abbey-enhancements">#</a></h2>
+
+<p><strong>Goal</strong>: Enhance Abbey persona with deeper emotional intelligence.</p>
+
+<h3 id="tasks">Tasks<a class="anchor" href="#tasks">#</a></h3>
+
+<p>1. <strong>Enhanced Emotion Processing</strong></p>
+<p>   <code></code>`zig</p>
+<p>   // src/ai/personas/abbey/emotion.zig</p>
+<p>   pub const EmotionProcessor = struct {</p>
+<p>       pub fn process(text: []const u8, context: EmotionalState) !EmotionalResponse;</p>
+<p>       pub fn suggestTone(emotion: EmotionType) ToneStyle;</p>
+<p>   };</p>
+<p>   <code></code>`</p>
+
+<p>2. <strong>Empathy Injection Module</strong></p>
+<p>   - Template-based empathy patterns</p>
+<p>   - Context-aware empathy calibration</p>
+<p>   - Tone adaptation based on emotional state</p>
+
+<p>3. <strong>Enhanced Reasoning Chain</strong></p>
+<p>   - Step-by-step reasoning with emotional awareness</p>
+<p>   - Confidence calibration per reasoning step</p>
+<p>   - Reasoning chain visualization</p>
+
+<p>4. <strong>Memory Integration</strong></p>
+<p>   - Episodic memory for emotional context</p>
+<p>   - Cross-session emotional continuity</p>
+<p>   - User preference learning</p>
+
+<h3 id="deliverables">Deliverables<a class="anchor" href="#deliverables">#</a></h3>
+<li>[x] <code>src/ai/personas/abbey/mod.zig</code></li>
+<li>[x] <code>src/ai/personas/abbey/emotion.zig</code></li>
+<li>[x] <code>src/ai/personas/abbey/empathy.zig</code></li>
+<li>[x] <code>src/ai/personas/abbey/reasoning.zig</code></li>
+<li>[x] Unit tests for emotion processing</li>
+<li>[x] Integration tests with existing Abbey engine</li>
+
+<h3 id="integration-points">Integration Points<a class="anchor" href="#integration-points">#</a></h3>
+<li>Extends <code>src/ai/implementation/abbey/engine.zig</code></li>
+<li>Uses <code>src/ai/implementation/abbey/memory/</code> for memory system</li>
+<li>Uses <code>src/ai/implementation/abbey/emotions.zig</code> for base emotion types</li>
+
+<hr>
+
+<h2 id="phase-5-aviva-implementation">Phase 5: Aviva Implementation<a class="anchor" href="#phase-5-aviva-implementation">#</a></h2>
+
+<p><strong>Goal</strong>: Implement the direct expert persona.</p>
+
+<h3 id="tasks">Tasks<a class="anchor" href="#tasks">#</a></h3>
+
+<p>1. <strong>Query Classifier</strong></p>
+<p>   <code></code>`zig</p>
+<p>   // src/ai/personas/aviva/mod.zig</p>
+<p>   pub const QueryClassifier = struct {</p>
+<p>       pub fn classify(query: []const u8) !QueryType;</p>
+<p>   };</p>
+
+<p>   pub const QueryType = enum {</p>
+<p>       code_request,</p>
+<p>       factual_query,</p>
+<p>       explanation,</p>
+<p>       documentation,</p>
+<p>       debugging,</p>
+<p>       general,</p>
+<p>   };</p>
+<p>   <code></code>`</p>
+
+<p>2. <strong>Knowledge Retriever</strong></p>
+<p>   - Integration with existing knowledge bases</p>
+<p>   - Domain-specific knowledge lookup</p>
+<p>   - Source attribution</p>
+
+<p>3. <strong>Code Generation Module</strong></p>
+<p>   - Language detection</p>
+<p>   - Code formatting</p>
+<p>   - Syntax validation</p>
+<p>   - Comment generation (configurable)</p>
+
+<p>4. <strong>Fact Checker</strong></p>
+<p>   - Confidence scoring for facts</p>
+<p>   - Source verification</p>
+<p>   - Contradiction detection</p>
+
+<h3 id="deliverables">Deliverables<a class="anchor" href="#deliverables">#</a></h3>
+<li>[x] <code>src/ai/personas/aviva/mod.zig</code></li>
+<li>[x] <code>src/ai/personas/aviva/knowledge.zig</code></li>
+<li>[x] <code>src/ai/personas/aviva/code.zig</code></li>
+<li>[x] <code>src/ai/personas/aviva/facts.zig</code></li>
+<li>[x] Unit tests for each component</li>
+<li>[x] Integration tests for full Aviva flow</li>
+
+<h3 id="integration-points">Integration Points<a class="anchor" href="#integration-points">#</a></h3>
+<li>Uses <code>src/connectors/</code> for LLM access</li>
+<li>Uses <code>src/database/</code> for knowledge storage</li>
+<li>May integrate with existing code analysis tools</li>
+
+<hr>
+
+<h2 id="phase-6-metrics-observability">Phase 6: Metrics &amp; Observability<a class="anchor" href="#phase-6-metrics-observability">#</a></h2>
+
+<p><strong>Goal</strong>: Implement comprehensive monitoring for the persona system.</p>
+
+<h3 id="tasks">Tasks<a class="anchor" href="#tasks">#</a></h3>
+
+<p>1. <strong>Persona Metrics Collection</strong></p>
+<p>   <code></code>`zig</p>
+<p>   // src/ai/personas/metrics.zig</p>
+<p>   pub const PersonaMetrics = struct {</p>
+<p>       pub fn recordRequest(persona: PersonaType) !void;</p>
+<p>       pub fn recordLatency(persona: PersonaType, latency_ms: u64) !void;</p>
+<p>       pub fn recordSuccess(persona: PersonaType, success: bool) !void;</p>
+<p>       pub fn recordUserSatisfaction(persona: PersonaType, score: f32) !void;</p>
+<p>   };</p>
+<p>   <code></code>`</p>
+
+<p>2. <strong>Dashboard Integration</strong></p>
+<p>   - Real-time persona usage statistics</p>
+<p>   - Latency percentiles (p50, p95, p99)</p>
+<p>   - Success rate tracking</p>
+<p>   - User satisfaction trends</p>
+
+<p>3. <strong>Alerting Rules</strong></p>
+<p>   - High latency alerts</p>
+<p>   - Low success rate alerts</p>
+<p>   - Routing anomaly detection</p>
+
+<p>4. <strong>Audit Logging</strong></p>
+<p>   - All routing decisions logged</p>
+<p>   - Content moderation events</p>
+<p>   - Policy violation tracking</p>
+
+<h3 id="deliverables">Deliverables<a class="anchor" href="#deliverables">#</a></h3>
+<li>[x] <code>src/ai/personas/metrics.zig</code></li>
+<li>[x] Prometheus metric exports</li>
+<li>[x] Grafana dashboard configuration</li>
+<li>[x] Alert rule definitions</li>
+<li>[x] Audit log schema</li>
+
+<h3 id="integration-points">Integration Points<a class="anchor" href="#integration-points">#</a></h3>
+<li>Uses <code>src/observability/</code> for metrics infrastructure</li>
+<li>Integrates with existing logging from <code>src/shared/logging.zig</code></li>
+
+<hr>
+
+<h2 id="phase-7-load-balancing-resilience">Phase 7: Load Balancing &amp; Resilience<a class="anchor" href="#phase-7-load-balancing-resilience">#</a></h2>
+
+<p><strong>Goal</strong>: Implement production-ready load balancing and fault tolerance.</p>
+
+<h3 id="tasks">Tasks<a class="anchor" href="#tasks">#</a></h3>
+
+<p>1. <strong>Persona Load Balancer</strong></p>
+<p>   <code></code>`zig</p>
+<p>   // src/ai/personas/loadbalancer.zig</p>
+<p>   pub const PersonaLoadBalancer = struct {</p>
+<p>       pub fn selectWithScores(scores: []const PersonaScore) !*PersonaNode;</p>
+<p>       pub fn recordSuccess(persona: PersonaType) !void;</p>
+<p>       pub fn recordFailure(persona: PersonaType) !void;</p>
+<p>   };</p>
+<p>   <code></code>`</p>
+
+<p>2. <strong>Circuit Breaker Integration</strong></p>
+<p>   - Per-persona circuit breakers</p>
+<p>   - Automatic fallback to alternative personas</p>
+<p>   - Recovery detection</p>
+
+<p>3. <strong>Rate Limiting</strong></p>
+<p>   - Per-user rate limits</p>
+<p>   - Per-persona capacity limits</p>
+<p>   - Graceful degradation</p>
+
+<p>4. <strong>Health Checking</strong></p>
+<p>   - Periodic persona health checks</p>
+<p>   - Automatic unhealthy persona removal</p>
+<p>   - Health-weighted routing</p>
+
+<h3 id="deliverables">Deliverables<a class="anchor" href="#deliverables">#</a></h3>
+<li>[x] <code>src/ai/personas/loadbalancer.zig</code></li>
+<li>[x] Circuit breaker configuration</li>
+<li>[x] Rate limiter integration</li>
+<li>[x] Health check endpoints</li>
+<li>[x] Stress tests</li>
+
+<h3 id="integration-points">Integration Points<a class="anchor" href="#integration-points">#</a></h3>
+<li>Uses <code>src/network/loadbalancer.zig</code> for base load balancing</li>
+<li>Uses <code>src/network/circuit_breaker.zig</code> for circuit breakers</li>
+<li>Uses <code>src/network/rate_limiter.zig</code> for rate limiting</li>
+
+<hr>
+
+<h2 id="phase-8-api-integration">Phase 8: API &amp; Integration<a class="anchor" href="#phase-8-api-integration">#</a></h2>
+
+<p><strong>Goal</strong>: Expose the persona system via stable APIs.</p>
+
+<h3 id="tasks">Tasks<a class="anchor" href="#tasks">#</a></h3>
+
+<p>1. <strong>HTTP API Endpoints</strong></p>
+<p>   <code></code>`</p>
+<p>   POST /api/v1/chat              # Main chat endpoint with auto-routing</p>
+<p>   POST /api/v1/chat/abbey        # Force Abbey persona</p>
+<p>   POST /api/v1/chat/aviva        # Force Aviva persona</p>
+<p>   GET  /api/v1/personas          # List available personas</p>
+<p>   GET  /api/v1/personas/metrics  # Get persona metrics</p>
+<p>   <code></code>`</p>
+
+<p>2. <strong>WebSocket Support</strong></p>
+<p>   - Streaming responses</p>
+<p>   - Real-time persona switching</p>
+<p>   - Connection state management</p>
+
+<p>3. <strong>SDK/Client Libraries</strong></p>
+<p>   - Zig client library</p>
+<p>   - HTTP client examples</p>
+<p>   - Documentation</p>
+
+<p>4. <strong>Configuration API</strong></p>
+<p>   - Runtime persona configuration</p>
+<p>   - Dynamic routing rule updates</p>
+<p>   - Feature flags</p>
+
+<h3 id="deliverables">Deliverables<a class="anchor" href="#deliverables">#</a></h3>
+<li>[x] HTTP API implementation</li>
+<li>[x] WebSocket handler</li>
+<li>[x] API documentation</li>
+<li>[x] Client library</li>
+<li>[x] Integration tests</li>
+
+<h3 id="integration-points">Integration Points<a class="anchor" href="#integration-points">#</a></h3>
+<li>Uses <code>src/web/</code> for HTTP server</li>
+<li>Uses existing authentication from <code>src/shared/security/</code></li>
+
+<hr>
+
+<h2 id="phase-9-testing-validation">Phase 9: Testing &amp; Validation<a class="anchor" href="#phase-9-testing-validation">#</a></h2>
+
+<p><strong>Goal</strong>: Comprehensive testing and performance validation.</p>
+
+<h3 id="tasks">Tasks<a class="anchor" href="#tasks">#</a></h3>
+
+<p>1. <strong>Unit Test Suite</strong></p>
+<p>   - All components have &gt;80% coverage</p>
+<p>   - Edge case testing</p>
+<p>   - Error handling validation</p>
+
+<p>2. <strong>Integration Test Suite</strong></p>
+<p>   - End-to-end request flows</p>
+<p>   - Multi-persona interactions</p>
+<p>   - Memory persistence tests</p>
+
+<p>3. <strong>Performance Benchmarks</strong></p>
+<p>   - Latency benchmarks per component</p>
+<p>   - Throughput testing</p>
+<p>   - Memory usage profiling</p>
+
+<p>4. <strong>Chaos Testing</strong></p>
+<p>   - Persona failure scenarios</p>
+<p>   - Network partition handling</p>
+<p>   - Recovery testing</p>
+
+<h3 id="deliverables">Deliverables<a class="anchor" href="#deliverables">#</a></h3>
+<li>[x] Unit test suite</li>
+<li>[x] Integration test suite</li>
+<li>[x] Benchmark suite</li>
+<li>[x] Chaos test scenarios</li>
+<li>[x] Performance report</li>
+
+<hr>
+
+<h2 id="phase-10-documentation-release">Phase 10: Documentation &amp; Release<a class="anchor" href="#phase-10-documentation-release">#</a></h2>
+
+<p><strong>Goal</strong>: Prepare for production release.</p>
+
+<h3 id="tasks">Tasks<a class="anchor" href="#tasks">#</a></h3>
+
+<p>1. <strong>API Documentation</strong></p>
+<p>   - OpenAPI/Swagger spec</p>
+<p>   - Usage examples</p>
+<p>   - Error code reference</p>
+
+<p>2. <strong>Architecture Documentation</strong></p>
+<p>   - System design document</p>
+<p>   - Component diagrams</p>
+<p>   - Data flow diagrams</p>
+
+<p>3. <strong>Operations Guide</strong></p>
+<p>   - Deployment procedures</p>
+<p>   - Monitoring setup</p>
+<p>   - Troubleshooting guide</p>
+
+<p>4. <strong>User Guide</strong></p>
+<p>   - Getting started</p>
+<p>   - Persona customization</p>
+<p>   - Best practices</p>
+
+<h3 id="deliverables">Deliverables<a class="anchor" href="#deliverables">#</a></h3>
+<li>[x] API documentation</li>
+<li>[x] Architecture documentation</li>
+<li>[x] Operations guide</li>
+<li>[x] User guide</li>
+<li>[x] Release notes</li>
+
+<hr>
+
+<h2 id="dependency-graph">Dependency Graph<a class="anchor" href="#dependency-graph">#</a></h2>
+
+<pre class="code-block"><code>Phase 1 (Foundation)
+    │
+    ├──► Phase 2 (Abi Router)
+    │        │
+    │        ├──► Phase 3 (WDBX Embeddings)
+    │        │        │
+    │        │        └──► Phase 7 (Load Balancing)
+    │        │
+    │        ├──► Phase 4 (Abbey Enhancements)
+    │        │
+    │        └──► Phase 5 (Aviva Implementation)
+    │
+    └──► Phase 6 (Metrics)
+              │
+              └──► Phase 7 (Load Balancing)
+                       │
+                       └──► Phase 8 (API)
+                                │
+                                ├──► Phase 9 (Testing)
+                                │
+                                └──► Phase 10 (Documentation)
+</code></pre>
+
+<h2 id="risk-mitigation">Risk Mitigation<a class="anchor" href="#risk-mitigation">#</a></h2>
+
+<tr><td>Risk</td><td>Mitigation</td></tr>
+<tr><td>Routing latency too high</td><td>Pre-compute persona scores, use caching</td></tr>
+<tr><td>Sentiment analysis inaccurate</td><td>Use multiple models, add feedback loop</td></tr>
+<tr><td>Memory constraints</td><td>Implement embedding compression, tiered storage</td></tr>
+<tr><td>LLM API failures</td><td>Circuit breakers, fallback models</td></tr>
+<tr><td>Scaling issues</td><td>Horizontal scaling via load balancer</td></tr>
+
+<h2 id="success-criteria">Success Criteria<a class="anchor" href="#success-criteria">#</a></h2>
+
+<h3 id="phase-1-3-foundation">Phase 1-3 (Foundation) ✅<a class="anchor" href="#phase-1-3-foundation">#</a></h3>
+<li>[x] Routing decisions made in &lt;50ms</li>
+<li>[x] 95% routing accuracy on test set</li>
+<li>[x] All unit tests passing (103/103)</li>
+
+<h3 id="phase-4-5-personas">Phase 4-5 (Personas) ✅<a class="anchor" href="#phase-4-5-personas">#</a></h3>
+<li>[x] Abbey empathy score &gt;0.85</li>
+<li>[x] Aviva factual accuracy &gt;90%</li>
+<li>[x] Code generation syntax validity &gt;95%</li>
+
+<h3 id="phase-6-7-operations">Phase 6-7 (Operations) ✅<a class="anchor" href="#phase-6-7-operations">#</a></h3>
+<li>[x] p99 latency &lt;2s</li>
+<li>[x] 99.9% availability</li>
+<li>[x] Automatic failover working</li>
+
+<h3 id="phase-8-10-release">Phase 8-10 (Release) ✅<a class="anchor" href="#phase-8-10-release">#</a></h3>
+<li>[x] API documentation complete</li>
+<li>[x] Integration tests &gt;80% coverage</li>
+<li>[x] Performance benchmarks documented</li>
+
+<h2 id="getting-started">Getting Started<a class="anchor" href="#getting-started">#</a></h2>
+
+<p>To begin implementation, start with Phase 1:</p>
+
+<pre class="code-block language-bash"><code># Create the personas module structure
+mkdir -p src/ai/personas/{abi,abbey,aviva,embeddings,tests}
+
+# Create initial files
+touch src/ai/personas/mod.zig
+touch src/ai/personas/types.zig
+touch src/ai/personas/config.zig
+touch src/ai/personas/registry.zig
+
+# Run tests as you implement
+zig build test --summary all
+</code></pre>
+
+<p>See the main <a href="./multi-persona-ai-assistant.md">architecture document</a> for detailed component specifications.</p>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>agents - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>agents</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#agents-guide">Agents Guide</a></li>
+        <li style="padding-left: 16px"><a href="#overview">Overview</a></li>
+        <li style="padding-left: 16px"><a href="#zig-016-environment-initialization">Zig 0.16 Environment Initialization</a></li>
+        <li style="padding-left: 32px"><a href="#standard-agent-initialization">Standard Agent Initialization</a></li>
+        <li style="padding-left: 32px"><a href="#agent-with-file-based-configuration">Agent with File-Based Configuration</a></li>
+        <li style="padding-left: 32px"><a href="#agent-with-environment-variables">Agent with Environment Variables</a></li>
+        <li style="padding-left: 16px"><a href="#agent-configuration">Agent Configuration</a></li>
+        <li style="padding-left: 32px"><a href="#agentconfig-options">AgentConfig Options</a></li>
+        <li style="padding-left: 32px"><a href="#agent-methods">Agent Methods</a></li>
+        <li style="padding-left: 16px"><a href="#backend-configuration">Backend Configuration</a></li>
+        <li style="padding-left: 32px"><a href="#echo-backend-testing">Echo Backend (Testing)</a></li>
+        <li style="padding-left: 32px"><a href="#openai-backend">OpenAI Backend</a></li>
+        <li style="padding-left: 32px"><a href="#ollama-backend-local">Ollama Backend (Local)</a></li>
+        <li style="padding-left: 32px"><a href="#huggingface-backend">HuggingFace Backend</a></li>
+        <li style="padding-left: 16px"><a href="#error-handling">Error Handling</a></li>
+        <li style="padding-left: 32px"><a href="#error-context">Error Context</a></li>
+        <li style="padding-left: 32px"><a href="#error-types">Error Types</a></li>
+        <li style="padding-left: 16px"><a href="#cli-usage">CLI Usage</a></li>
+        <li style="padding-left: 16px"><a href="#best-practices">Best Practices</a></li>
+        <li style="padding-left: 16px"><a href="#related-documentation">Related Documentation</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="agents-guide">Agents Guide<a class="anchor" href="#agents-guide">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<blockquote><strong>Developer Guide</strong>: See <a href="../CONTRIBUTING.md">CONTRIBUTING.md</a> for coding patterns and <a href="../CLAUDE.md">CLAUDE.md</a> for comprehensive guidance.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Last Updated:</strong> January 23, 2026</blockquote>
+<blockquote><strong>Zig Version:</strong> 0.16.x</blockquote>
+
+<h2 id="overview">Overview<a class="anchor" href="#overview">#</a></h2>
+
+<p>The ABI Agents module (<code>abi.ai.agents</code>) provides conversational AI agents with configurable history, sampling parameters, and backend support. This guide covers agent initialization, configuration, and the Zig 0.16 environment patterns required for proper setup.</p>
+
+<h2 id="zig-016-environment-initialization">Zig 0.16 Environment Initialization<a class="anchor" href="#zig-016-environment-initialization">#</a></h2>
+
+<p>Before using agents with file-based operations (loading configs, model files, etc.), you need to initialize the Zig 0.16 I/O environment.</p>
+
+<h3 id="standard-agent-initialization">Standard Agent Initialization<a class="anchor" href="#standard-agent-initialization">#</a></h3>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+const abi = @import(&quot;abi&quot;);
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Initialize I/O backend for file operations (Zig 0.16)
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    // Initialize the ABI framework
+    const config = abi.Config.init()
+        .withAI(true);
+
+    var framework = try abi.Framework.init(allocator, config);
+    defer framework.deinit();
+
+    // Create an agent
+    var agent = try abi.ai.agents.Agent.init(allocator, .{
+        .name = &quot;assistant&quot;,
+        .enable_history = true,
+        .temperature = 0.7,
+        .top_p = 0.9,
+    });
+    defer agent.deinit();
+
+    // Use the agent
+    const response = try agent.chat(&quot;Hello, how can you help me?&quot;, allocator);
+    defer allocator.free(response);
+
+    std.debug.print(&quot;Agent: {s}\n&quot;, .{response});
+}
+</code></pre>
+
+<h3 id="agent-with-file-based-configuration">Agent with File-Based Configuration<a class="anchor" href="#agent-with-file-based-configuration">#</a></h3>
+
+<p>When loading agent configurations from files, use the I/O backend:</p>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+const abi = @import(&quot;abi&quot;);
+
+pub fn loadAgentConfig(allocator: std.mem.Allocator, config_path: []const u8) !abi.ai.agents.AgentConfig {
+    // Initialize I/O backend for file reading
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    // Read configuration file
+    const content = std.Io.Dir.cwd().readFileAlloc(
+        io,
+        config_path,
+        allocator,
+        .limited(1 * 1024 * 1024),  // 1MB limit
+    ) catch |err| {
+        std.log.err(&quot;Failed to read config: {t}&quot;, .{err});
+        return err;
+    };
+    defer allocator.free(content);
+
+    // Parse JSON configuration (example)
+    // Return parsed config...
+    return .{
+        .name = &quot;configured-agent&quot;,
+        .enable_history = true,
+        .temperature = 0.7,
+        .top_p = 0.9,
+    };
+}
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    const config = try loadAgentConfig(allocator, &quot;agent-config.json&quot;);
+    var agent = try abi.ai.agents.Agent.init(allocator, config);
+    defer agent.deinit();
+}
+</code></pre>
+
+<h3 id="agent-with-environment-variables">Agent with Environment Variables<a class="anchor" href="#agent-with-environment-variables">#</a></h3>
+
+<p>For agents that need environment variable access (API keys, etc.):</p>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+const abi = @import(&quot;abi&quot;);
+
+pub fn createAgentWithEnv(allocator: std.mem.Allocator) !*abi.ai.agents.Agent {
+    // Use full environment access for API key retrieval
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.init(),  // Full env access
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+    _ = io;  // Used for env-based operations
+
+    // Environment variables are typically accessed via std.process.getEnvVarOwned
+    // or through connector configuration
+
+    var agent = try abi.ai.agents.Agent.init(allocator, .{
+        .name = &quot;api-agent&quot;,
+        .enable_history = true,
+        .temperature = 0.7,
+    });
+
+    return agent;
+}
+</code></pre>
+
+<h2 id="agent-configuration">Agent Configuration<a class="anchor" href="#agent-configuration">#</a></h2>
+
+<h3 id="agentconfig-options">AgentConfig Options<a class="anchor" href="#agentconfig-options">#</a></h3>
+
+<tr><td>Field</td><td>Type</td><td>Default</td><td>Description</td></tr>
+<tr><td><code>name</code></td><td><code>[]const u8</code></td><td>Required</td><td>Agent identifier</td></tr>
+<tr><td><code>enable_history</code></td><td><code>bool</code></td><td><code>true</code></td><td>Enable conversation history</td></tr>
+<tr><td><code>temperature</code></td><td><code>f32</code></td><td><code>0.7</code></td><td>Sampling temperature (0.0-2.0)</td></tr>
+<tr><td><code>top_p</code></td><td><code>f32</code></td><td><code>0.9</code></td><td>Nucleus sampling parameter (0.0-1.0)</td></tr>
+
+<h3 id="agent-methods">Agent Methods<a class="anchor" href="#agent-methods">#</a></h3>
+
+<pre class="code-block language-zig"><code>// Core conversation methods
+const response = try agent.chat(input, allocator);      // Conversational interface
+const response = try agent.process(input, allocator);   // Alternative naming
+
+// History management
+const count = agent.historyCount();           // Get history entry count
+const history = agent.historySlice();         // Get conversation history
+agent.clearHistory();                         // Clear history
+
+// Parameter adjustment
+agent.setTemperature(0.5);                    // Update temperature
+agent.setTopP(0.85);                          // Update top_p
+agent.setHistoryEnabled(false);               // Disable history
+</code></pre>
+
+<h2 id="backend-configuration">Backend Configuration<a class="anchor" href="#backend-configuration">#</a></h2>
+
+<p>Agents support multiple backends through connectors:</p>
+
+<h3 id="echo-backend-testing">Echo Backend (Testing)<a class="anchor" href="#echo-backend-testing">#</a></h3>
+
+<pre class="code-block language-zig"><code>var agent = try abi.ai.agents.Agent.init(allocator, .{
+    .name = &quot;test-agent&quot;,
+    .backend = .echo,  // Returns input as output
+});
+</code></pre>
+
+<h3 id="openai-backend">OpenAI Backend<a class="anchor" href="#openai-backend">#</a></h3>
+
+<p>Requires <code>ABI_OPENAI_API_KEY</code> environment variable:</p>
+
+<pre class="code-block language-zig"><code>var agent = try abi.ai.agents.Agent.init(allocator, .{
+    .name = &quot;openai-agent&quot;,
+    .backend = .openai,
+    .model = &quot;gpt-4&quot;,
+    .system_prompt = &quot;You are a helpful assistant.&quot;,
+});
+</code></pre>
+
+<h3 id="ollama-backend-local">Ollama Backend (Local)<a class="anchor" href="#ollama-backend-local">#</a></h3>
+
+<p>Requires Ollama server running locally:</p>
+
+<pre class="code-block language-zig"><code>var agent = try abi.ai.agents.Agent.init(allocator, .{
+    .name = &quot;local-agent&quot;,
+    .backend = .ollama,
+    .model = &quot;llama2&quot;,  // Or ABI_OLLAMA_MODEL env var
+});
+</code></pre>
+
+<h3 id="huggingface-backend">HuggingFace Backend<a class="anchor" href="#huggingface-backend">#</a></h3>
+
+<p>Requires <code>ABI_HF_API_TOKEN</code> environment variable:</p>
+
+<pre class="code-block language-zig"><code>var agent = try abi.ai.agents.Agent.init(allocator, .{
+    .name = &quot;hf-agent&quot;,
+    .backend = .huggingface,
+    .model = &quot;meta-llama/Llama-2-7b-chat-hf&quot;,
+});
+</code></pre>
+
+<h2 id="error-handling">Error Handling<a class="anchor" href="#error-handling">#</a></h2>
+
+<h3 id="error-context">Error Context<a class="anchor" href="#error-context">#</a></h3>
+
+<pre class="code-block language-zig"><code>const agent = abi.ai.agents;
+
+// Create detailed error context
+const ctx = agent.ErrorContext.apiError(
+    err,
+    .openai,
+    &quot;/v1/chat/completions&quot;,
+    500,
+    &quot;gpt-4&quot;,
+);
+ctx.log();  // Logs: &quot;AgentError: HttpRequestFailed during API request [backend=openai] [model=gpt-4]&quot;
+</code></pre>
+
+<h3 id="error-types">Error Types<a class="anchor" href="#error-types">#</a></h3>
+
+<tr><td>Error</td><td>Description</td></tr>
+<tr><td><code>Timeout</code></td><td>Request timed out</td></tr>
+<tr><td><code>ConnectionRefused</code></td><td>Cannot connect to backend</td></tr>
+<tr><td><code>ModelNotFound</code></td><td>Specified model not available</td></tr>
+<tr><td><code>HttpRequestFailed</code></td><td>HTTP request failed</td></tr>
+<tr><td><code>InvalidResponse</code></td><td>Response parsing failed</td></tr>
+
+<h2 id="cli-usage">CLI Usage<a class="anchor" href="#cli-usage">#</a></h2>
+
+<pre class="code-block language-bash"><code># Interactive agent session
+zig build run -- agent
+
+# Single message
+zig build run -- agent --message &quot;What is Zig?&quot;
+
+# With persona
+zig build run -- agent --persona coding-assistant
+
+# Show agent info
+zig build run -- agent --info
+</code></pre>
+
+<h2 id="best-practices">Best Practices<a class="anchor" href="#best-practices">#</a></h2>
+
+<p>1. <strong>Initialize I/O backend for file operations</strong>: When loading configs or models from disk, create the <code>std.Io.Threaded</code> backend.</p>
+
+<p>2. <strong>Use <code>Environ.empty</code> for library code</strong>: Only use full environment access in CLI applications.</p>
+
+<p>3. <strong>Scope I/O backend narrowly</strong>: Create and defer cleanup immediately.</p>
+
+<p>4. <strong>Handle errors with context</strong>: Use <code>ErrorContext</code> factory methods for detailed error reporting.</p>
+
+<p>5. <strong>Clean up resources</strong>: Always <code>defer agent.deinit()</code> after initialization.</p>
+
+<h2 id="related-documentation">Related Documentation<a class="anchor" href="#related-documentation">#</a></h2>
+
+<li><a href="ai.md">AI Module Guide</a> - Full AI module documentation</li>
+<li><a href="explore.md">Explore Guide</a> - Codebase exploration with AI</li>
+<li><a href="framework.md">Framework Guide</a> - Configuration and initialization</li>
+<li><a href="migration/zig-0.16-migration.md">Zig 0.16 Migration</a> - Full migration guide</li>
+
+<hr>
+
+<p>&lt;p align=&quot;center&quot;&gt;</p>
+<p>  &lt;a href=&quot;docs-index.md&quot;&gt;&amp;larr; Documentation Index&lt;/a&gt; &amp;bull;</p>
+<p>  &lt;a href=&quot;ai.md&quot;&gt;AI Guide &amp;rarr;&lt;/a&gt;</p>
+<p>&lt;/p&gt;</p>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

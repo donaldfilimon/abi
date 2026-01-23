@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>api_ai-training - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>api_ai-training</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#ai-training-api-reference">ai-training API Reference</a></li>
+        <li style="padding-left: 16px"><a href="#api">API</a></li>
+        <li style="padding-left: 32px"><a href="#pub-const-context">`pub const Context`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-trainself-context-trainconfig-trainingconfig-trainingresult">`pub fn train(self: *Context, train_config: TrainingConfig) !TrainingResult`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-getcheckpointstoreself-context-checkpointstore">`pub fn getCheckpointStore(self: *Context) !*CheckpointStore`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-savecheckpointself-context-name-const-u8-data-anytype-void">`pub fn saveCheckpoint(self: *Context, name: []const u8, data: anytype) !void`</a></li>
+        <li style="padding-left: 32px"><a href="#pub-fn-loadcheckpointdataself-context-name-const-u8-comptime-t-type-t">`pub fn loadCheckpointData(self: *Context, name: []const u8, comptime T: type) !T`</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="ai-training-api-reference">ai-training API Reference<a class="anchor" href="#ai-training-api-reference">#</a></h1>
+
+<blockquote>Training pipelines and fine-tuning</blockquote>
+
+<p><strong>Source:</strong> <a href="../../src/ai/training/mod.zig"><code>src/ai/training/mod.zig</code></a></p>
+
+<hr>
+
+<p>Training Sub-module</p>
+
+<p>Training pipeline utilities, gradient aggregation, and checkpointing.</p>
+
+<p>Provides neural network training with SGD, Adam optimizers, learning rate scheduling,</p>
+<p>gradient clipping, loss functions, and mixed precision support.</p>
+
+<hr>
+
+<h2 id="api">API<a class="anchor" href="#api">#</a></h2>
+
+<h3 id="pub-const-context"><code>pub const Context</code><a class="anchor" href="#pub-const-context">#</a></h3>
+
+<p>&lt;sup&gt;<strong>type</strong>&lt;/sup&gt;</p>
+
+<p>Training context for framework integration.</p>
+
+<h3 id="pub-fn-trainself-context-trainconfig-trainingconfig-trainingresult"><code>pub fn train(self: *Context, train_config: TrainingConfig) !TrainingResult</code><a class="anchor" href="#pub-fn-trainself-context-trainconfig-trainingconfig-trainingresult">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Run training with the given configuration.</p>
+
+<h3 id="pub-fn-getcheckpointstoreself-context-checkpointstore"><code>pub fn getCheckpointStore(self: *Context) !*CheckpointStore</code><a class="anchor" href="#pub-fn-getcheckpointstoreself-context-checkpointstore">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Get or create checkpoint store.</p>
+
+<h3 id="pub-fn-savecheckpointself-context-name-const-u8-data-anytype-void"><code>pub fn saveCheckpoint(self: *Context, name: []const u8, data: anytype) !void</code><a class="anchor" href="#pub-fn-savecheckpointself-context-name-const-u8-data-anytype-void">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Save a checkpoint.</p>
+
+<h3 id="pub-fn-loadcheckpointdataself-context-name-const-u8-comptime-t-type-t"><code>pub fn loadCheckpointData(self: *Context, name: []const u8, comptime T: type) !T</code><a class="anchor" href="#pub-fn-loadcheckpointdataself-context-name-const-u8-comptime-t-type-t">#</a></h3>
+
+<p>&lt;sup&gt;<strong>fn</strong>&lt;/sup&gt;</p>
+
+<p>Load a checkpoint.</p>
+
+<hr>
+
+<p>*Generated automatically by <code>zig build gendocs</code>*</p>
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>

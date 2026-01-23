@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>vector-database - ABI Framework Documentation</title>
+  <meta name="description" content="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/abi/assets/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="/abi/" class="nav-logo">
+      <span class="logo-text">ABI</span>
+      <span class="logo-version">v0.16.0</span>
+    </a>
+    <div class="nav-links">
+      <a href="/abi/">Home</a>
+      <a href="/abi/intro.html">Docs</a>
+      <a href="https://github.com/donaldfilimon/abi" target="_blank">GitHub</a>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="theme-icon">🌙</span></button>
+  </div>
+</nav>
+<div class="main-container">
+  <main class="content" style="margin-left: 0;">
+    <article class="doc-article">
+      <header class="doc-header">
+        <h1>vector-database</h1>
+      </header>
+      <nav class="toc"><h3>On this page</h3><ul>
+        <li style="padding-left: 0px"><a href="#tutorial-vector-database-with-wdbx">Tutorial: Vector Database with WDBX</a></li>
+        <li style="padding-left: 16px"><a href="#what-youll-learn">What You'll Learn</a></li>
+        <li style="padding-left: 16px"><a href="#prerequisites">Prerequisites</a></li>
+        <li style="padding-left: 16px"><a href="#conceptual-overview">Conceptual Overview</a></li>
+        <li style="padding-left: 32px"><a href="#architecture">Architecture</a></li>
+        <li style="padding-left: 16px"><a href="#step-1-database-initialization">Step 1: Database Initialization</a></li>
+        <li style="padding-left: 32px"><a href="#key-patterns">Key Patterns</a></li>
+        <li style="padding-left: 16px"><a href="#step-2-inserting-vectors">Step 2: Inserting Vectors</a></li>
+        <li style="padding-left: 32px"><a href="#important-notes">Important Notes</a></li>
+        <li style="padding-left: 16px"><a href="#step-3-similarity-search">Step 3: Similarity Search</a></li>
+        <li style="padding-left: 32px"><a href="#understanding-scores">Understanding Scores</a></li>
+        <li style="padding-left: 16px"><a href="#step-4-advanced-operations">Step 4: Advanced Operations</a></li>
+        <li style="padding-left: 16px"><a href="#step-5-backup-and-restore">Step 5: Backup and Restore</a></li>
+        <li style="padding-left: 16px"><a href="#complete-example-document-search-system">Complete Example: Document Search System</a></li>
+        <li style="padding-left: 16px"><a href="#practice-exercises">Practice Exercises</a></li>
+        <li style="padding-left: 32px"><a href="#exercise-1-dynamic-document-loader">Exercise 1: Dynamic Document Loader</a></li>
+        <li style="padding-left: 32px"><a href="#exercise-2-performance-benchmarking">Exercise 2: Performance Benchmarking</a></li>
+        <li style="padding-left: 16px"><a href="#common-issues">Common Issues</a></li>
+        <li style="padding-left: 16px"><a href="#performance-tips">Performance Tips</a></li>
+        <li style="padding-left: 16px"><a href="#next-steps">Next Steps</a></li>
+        <li style="padding-left: 16px"><a href="#additional-resources">Additional Resources</a></li>
+      </ul></nav>
+      <div class="doc-content"><h1 id="tutorial-vector-database-with-wdbx">Tutorial: Vector Database with WDBX<a class="anchor" href="#tutorial-vector-database-with-wdbx">#</a></h1>
+<blockquote><strong>Codebase Status:</strong> Synced with repository as of 2026-01-23.</blockquote>
+
+<blockquote><strong>Duration:</strong> 30 minutes | <strong>Level:</strong> Beginner</blockquote>
+
+<h2 id="what-youll-learn">What You'll Learn<a class="anchor" href="#what-youll-learn">#</a></h2>
+
+<li>Insert and retrieve high-dimensional vectors</li>
+<li>Perform similarity search with HNSW indexing</li>
+<li>Manage database lifecycle and backups</li>
+<li>Build a practical document search system</li>
+
+<h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites">#</a></h2>
+
+<li>Complete <a href="getting-started.md">Getting Started Tutorial</a></li>
+<li>Zig 0.16.x installed</li>
+<li>Database feature enabled (<code>-Denable-database=true</code>)</li>
+
+<hr>
+
+<h2 id="conceptual-overview">Conceptual Overview<a class="anchor" href="#conceptual-overview">#</a></h2>
+
+<p>Vector databases store high-dimensional data and enable fast similarity search. This is essential for:</p>
+
+<li><strong>Semantic Search:</strong> Find documents by meaning, not keywords</li>
+<li><strong>RAG (Retrieval-Augmented Generation):</strong> Provide context to LLMs</li>
+<li><strong>Recommendation Systems:</strong> Find similar items</li>
+<li><strong>Anomaly Detection:</strong> Identify outliers in embeddings</li>
+
+<h3 id="architecture">Architecture<a class="anchor" href="#architecture">#</a></h3>
+
+<pre class="code-block"><code>+---------------------+
+|  Your Application   |
+|  (Embeddings)       |
++----------+----------+
+           |
+           v
++---------------------+
+|  abi.database API   |
+|  (High-level ops)   |
++----------+----------+
+           |
+           v
++---------------------+
+|  WDBX Database      |
+|  (HNSW + Storage)   |
++---------------------+
+</code></pre>
+
+<hr>
+
+<h2 id="step-1-database-initialization">Step 1: Database Initialization<a class="anchor" href="#step-1-database-initialization">#</a></h2>
+
+<p>Let's create and open a database.</p>
+
+<p><strong>Code:</strong> <code>docs/tutorials/code/vector-database/01-basic-operations.zig</code></p>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+// In a real project, you would use: const abi = @import(&quot;abi&quot;);
+// For tutorial purposes, we use a relative path.
+const abi = @import(&quot;../../../../src/abi.zig&quot;);
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Initialize framework with database enabled
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
+
+    // Verify database feature is enabled
+    if (!framework.isEnabled(.database)) {
+        std.debug.print(&quot;Error: Database disabled\n&quot;, .{});
+        std.debug.print(&quot;Rebuild with: zig build -Denable-database=true\n&quot;, .{});
+        return error.DatabaseDisabled;
+    }
+
+    // Open or create database named &quot;my_vectors&quot;
+    var db = try abi.database.openOrCreate(allocator, &quot;my_vectors&quot;);
+    defer abi.database.close(&amp;db);
+
+    std.debug.print(&quot;Database 'my_vectors' ready\n&quot;, .{});
+
+    // Get current statistics
+    const stats = abi.database.stats(&amp;db);
+    std.debug.print(&quot;  Vectors: {d}\n&quot;, .{stats.count});
+    std.debug.print(&quot;  Dimensions: {d}\n&quot;, .{stats.dimension});
+}
+</code></pre>
+
+<p><strong>Run:</strong></p>
+<pre class="code-block language-bash"><code>zig run docs/tutorials/code/vector-database/01-basic-operations.zig
+</code></pre>
+
+<p><strong>Expected Output:</strong></p>
+<pre class="code-block"><code>Database 'my_vectors' ready
+  Vectors: 0
+  Dimensions: 0
+</code></pre>
+
+<h3 id="key-patterns">Key Patterns<a class="anchor" href="#key-patterns">#</a></h3>
+
+<tr><td>Pattern</td><td>Purpose</td></tr>
+<tr><td><code>framework.isEnabled(.database)</code></td><td>Runtime feature check</td></tr>
+<tr><td><code>openOrCreate(allocator, name)</code></td><td>Opens existing or creates new database</td></tr>
+<tr><td><code>defer abi.database.close(&amp;db)</code></td><td>Ensures cleanup on scope exit</td></tr>
+<tr><td><code>stats(&amp;db)</code></td><td>Returns metadata (count, dimension)</td></tr>
+
+<hr>
+
+<h2 id="step-2-inserting-vectors">Step 2: Inserting Vectors<a class="anchor" href="#step-2-inserting-vectors">#</a></h2>
+
+<p>Now let's add some document embeddings.</p>
+
+<p><strong>Code:</strong> <code>docs/tutorials/code/vector-database/02-insert-vectors.zig</code></p>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+// In a real project, you would use: const abi = @import(&quot;abi&quot;);
+// For tutorial purposes, we use a relative path.
+const abi = @import(&quot;../../../../src/abi.zig&quot;);
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
+
+    var db = try abi.database.openOrCreate(allocator, &quot;documents&quot;);
+    defer abi.database.close(&amp;db);
+
+    // Sample document embeddings (3-dimensional for simplicity)
+    // In production, use 384, 768, or 1536 dimensions from real embedding models
+    const Document = struct {
+        id: u64,
+        text: []const u8,
+        embedding: [3]f32,
+    };
+
+    const documents = [_]Document{
+        .{
+            .id = 1,
+            .text = &quot;Zig programming language tutorial&quot;,
+            .embedding = [_]f32{ 0.8, 0.2, 0.1 },
+        },
+        .{
+            .id = 2,
+            .text = &quot;Vector database architecture guide&quot;,
+            .embedding = [_]f32{ 0.2, 0.9, 0.3 },
+        },
+        .{
+            .id = 3,
+            .text = &quot;High-performance systems programming&quot;,
+            .embedding = [_]f32{ 0.7, 0.3, 0.8 },
+        },
+        .{
+            .id = 4,
+            .text = &quot;Machine learning embeddings explained&quot;,
+            .embedding = [_]f32{ 0.3, 0.8, 0.4 },
+        },
+    };
+
+    // Insert all documents
+    for (documents) |doc| {
+        try abi.database.insert(&amp;db, doc.id, &amp;doc.embedding, doc.text);
+        std.debug.print(&quot;Inserted: {s}\n&quot;, .{doc.text});
+    }
+
+    // Verify insertion
+    const stats = abi.database.stats(&amp;db);
+    std.debug.print(&quot;\nDatabase contains {d} vectors of dimension {d}\n&quot;, .{
+        stats.count,
+        stats.dimension,
+    });
+}
+</code></pre>
+
+<p><strong>Output:</strong></p>
+<pre class="code-block"><code>Inserted: Zig programming language tutorial
+Inserted: Vector database architecture guide
+Inserted: High-performance systems programming
+Inserted: Machine learning embeddings explained
+
+Database contains 4 vectors of dimension 3
+</code></pre>
+
+<h3 id="important-notes">Important Notes<a class="anchor" href="#important-notes">#</a></h3>
+
+<p><strong>Vector Dimensions:</strong></p>
+<li>All vectors in a database must have the same dimensionality</li>
+<li>First insert determines the dimension for the entire database</li>
+<li>Common dimensions: 384 (sentence-transformers), 768 (BERT), 1536 (OpenAI)</li>
+
+<p><strong>Metadata:</strong></p>
+<li>The fourth parameter (text) is optional metadata</li>
+<li>Useful for storing original document text or references</li>
+<li>Retrieved alongside search results</li>
+
+<hr>
+
+<h2 id="step-3-similarity-search">Step 3: Similarity Search<a class="anchor" href="#step-3-similarity-search">#</a></h2>
+
+<p>Let's find documents similar to a query.</p>
+
+<p><strong>Code:</strong> <code>docs/tutorials/code/vector-database/03-similarity-search.zig</code></p>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+// In a real project, you would use: const abi = @import(&quot;abi&quot;);
+// For tutorial purposes, we use a relative path.
+const abi = @import(&quot;../../../../src/abi.zig&quot;);
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
+
+    var db = try abi.database.openOrCreate(allocator, &quot;documents&quot;);
+    defer abi.database.close(&amp;db);
+
+    // Insert sample data (same as Step 2)
+    const embeddings = [_][3]f32{
+        [_]f32{ 0.8, 0.2, 0.1 }, // Zig programming
+        [_]f32{ 0.2, 0.9, 0.3 }, // Vector database
+        [_]f32{ 0.7, 0.3, 0.8 }, // Systems programming
+        [_]f32{ 0.3, 0.8, 0.4 }, // ML embeddings
+    };
+    const texts = [_][]const u8{
+        &quot;Zig programming language tutorial&quot;,
+        &quot;Vector database architecture guide&quot;,
+        &quot;High-performance systems programming&quot;,
+        &quot;Machine learning embeddings explained&quot;,
+    };
+
+    for (embeddings, 0..) |emb, i| {
+        try abi.database.insert(&amp;db, @intCast(i + 1), &amp;emb, texts[i]);
+    }
+
+    // Query embedding (similar to &quot;Zig programming&quot;)
+    const query_embedding = [_]f32{ 0.75, 0.25, 0.15 };
+    const k = 3; // Find top 3 similar vectors
+
+    std.debug.print(&quot;\n--- Similarity Search ---\n&quot;, .{});
+    std.debug.print(&quot;Query vector: [{d:.2}, {d:.2}, {d:.2}]\n&quot;, .{
+        query_embedding[0],
+        query_embedding[1],
+        query_embedding[2],
+    });
+    std.debug.print(&quot;Finding top {d} matches...\n\n&quot;, .{k});
+
+    const results = try abi.database.search(&amp;db, allocator, &amp;query_embedding, k);
+    defer allocator.free(results);
+
+    std.debug.print(&quot;Results:\n&quot;, .{});
+    for (results, 0..) |result, i| {
+        std.debug.print(&quot;  {d}. ID={d}, Score={d:.3}\n&quot;, .{
+            i + 1,
+            result.id,
+            result.score,
+        });
+
+        if (abi.database.get(&amp;db, result.id)) |view| {
+            if (view.metadata) |meta| {
+                std.debug.print(&quot;     \&quot;{s}\&quot;\n&quot;, .{meta});
+            }
+        }
+    }
+}
+</code></pre>
+
+<p><strong>Output:</strong></p>
+<pre class="code-block"><code>--- Similarity Search ---
+Query vector: [0.75, 0.25, 0.15]
+Finding top 3 matches...
+
+Results:
+  1. ID=1, Score=0.987
+     &quot;Zig programming language tutorial&quot;
+  2. ID=3, Score=0.823
+     &quot;High-performance systems programming&quot;
+  3. ID=2, Score=0.612
+     &quot;Vector database architecture guide&quot;
+</code></pre>
+
+<h3 id="understanding-scores">Understanding Scores<a class="anchor" href="#understanding-scores">#</a></h3>
+
+<li><strong>Range:</strong> 0.0 (completely different) to 1.0 (identical)</li>
+<li><strong>Algorithm:</strong> Cosine similarity (default in WDBX)</li>
+<li><strong>HNSW:</strong> Hierarchical Navigable Small World graph for fast search</li>
+<li><strong>Complexity:</strong> O(log n) average case (vs O(n) for brute force)</li>
+
+<hr>
+
+<h2 id="step-4-advanced-operations">Step 4: Advanced Operations<a class="anchor" href="#step-4-advanced-operations">#</a></h2>
+
+<p><strong>Code:</strong> <code>docs/tutorials/code/vector-database/04-advanced-operations.zig</code></p>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+// In a real project, you would use: const abi = @import(&quot;abi&quot;);
+// For tutorial purposes, we use a relative path.
+const abi = @import(&quot;../../../../src/abi.zig&quot;);
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
+
+    var db = try abi.database.openOrCreate(allocator, &quot;advanced_db&quot;);
+    defer abi.database.close(&amp;db);
+
+    // Initial insert
+    const embedding1 = [_]f32{ 1.0, 2.0, 3.0 };
+    try abi.database.insert(&amp;db, 1, &amp;embedding1, &quot;Original data&quot;);
+    std.debug.print(&quot;Inserted vector 1\n&quot;, .{});
+
+    // Update existing vector
+    const embedding1_updated = [_]f32{ 1.5, 2.5, 3.5 };
+    const updated = try abi.database.update(&amp;db, 1, &amp;embedding1_updated);
+    if (updated) {
+        std.debug.print(&quot;Updated vector 1\n&quot;, .{});
+    } else {
+        std.debug.print(&quot;Vector 1 not found for update\n&quot;, .{});
+    }
+
+    // Retrieve specific vector
+    const retrieved = abi.database.get(&amp;db, 1) orelse {
+        std.debug.print(&quot;Vector 1 not found\n&quot;, .{});
+        return;
+    };
+    std.debug.print(&quot;Retrieved: [{d:.1}, {d:.1}, {d:.1}]\n&quot;, .{
+        retrieved.vector[0],
+        retrieved.vector[1],
+        retrieved.vector[2],
+    });
+
+    // List vectors
+    const stats = abi.database.stats(&amp;db);
+    const views = try abi.database.list(&amp;db, allocator, stats.count);
+    defer allocator.free(views);
+    std.debug.print(&quot;Total vectors: {d}\n&quot;, .{views.len});
+
+    // Delete a vector
+    const removed = abi.database.remove(&amp;db, 1);
+    if (removed) {
+        std.debug.print(&quot;Deleted vector 1\n&quot;, .{});
+    } else {
+        std.debug.print(&quot;Vector 1 already removed\n&quot;, .{});
+    }
+
+    // Optimize database (rebuild index for better performance)
+    try abi.database.optimize(&amp;db);
+    std.debug.print(&quot;Database optimized\n&quot;, .{});
+}
+</code></pre>
+
+<p><strong>When to Optimize:</strong></p>
+<li>After bulk insertions/updates</li>
+<li>Before heavy search workloads</li>
+<li>Periodically in long-running applications</li>
+
+<hr>
+
+<h2 id="step-5-backup-and-restore">Step 5: Backup and Restore<a class="anchor" href="#step-5-backup-and-restore">#</a></h2>
+
+<p><strong>Code:</strong> <code>docs/tutorials/code/vector-database/05-backup-restore.zig</code></p>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+// In a real project, you would use: const abi = @import(&quot;abi&quot;);
+// For tutorial purposes, we use a relative path.
+const abi = @import(&quot;../../../../src/abi.zig&quot;);
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
+
+    var db = try abi.database.openOrCreate(allocator, &quot;production_db&quot;);
+    defer abi.database.close(&amp;db);
+
+    // Insert critical data
+    const embedding = [_]f32{ 1.0, 2.0, 3.0 };
+    try abi.database.insert(&amp;db, 1, &amp;embedding, &quot;Critical business data&quot;);
+    std.debug.print(&quot;Inserted data\n&quot;, .{});
+
+    // Create backup (restricted to backups/ directory for security)
+    const backup_name = &quot;backup_20260117.db&quot;;
+    try abi.database.backup(&amp;db, backup_name);
+    std.debug.print(&quot;Backup created: backups/{s}\n&quot;, .{backup_name});
+
+    // Restore from backup (example - don't run in same session)
+    // try abi.database.restore(&amp;db, backup_name);
+    // std.debug.print(&quot;Restored from backup\n&quot;, .{});
+}
+</code></pre>
+
+<p><strong>Security Notes:</strong></p>
+<li>Backups stored in <code>backups/</code> directory only</li>
+<li>Path traversal (<code>../</code>) blocked</li>
+<li>Absolute paths rejected</li>
+<li>See <a href="../SECURITY.md">Security Guide</a> for details</li>
+
+<hr>
+
+<h2 id="complete-example-document-search-system">Complete Example: Document Search System<a class="anchor" href="#complete-example-document-search-system">#</a></h2>
+
+<p>Let's build a practical system combining everything.</p>
+
+<p><strong>Code:</strong> <code>docs/tutorials/code/vector-database/06-document-search-system.zig</code></p>
+
+<pre class="code-block language-zig"><code>const std = @import(&quot;std&quot;);
+// In a real project, you would use: const abi = @import(&quot;abi&quot;);
+// For tutorial purposes, we use a relative path.
+const abi = @import(&quot;../../../../src/abi.zig&quot;);
+
+const Document = struct {
+    id: u64,
+    title: []const u8,
+    content: []const u8,
+    embedding: [3]f32, // In production, use 384+ dimensions
+};
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
+
+    var db = try abi.database.openOrCreate(allocator, &quot;document_search&quot;);
+    defer abi.database.close(&amp;db);
+
+    // Sample document corpus
+    const docs = [_]Document{
+        .{
+            .id = 1,
+            .title = &quot;Zig Programming Guide&quot;,
+            .content = &quot;Learn Zig from scratch with hands-on examples&quot;,
+            .embedding = [_]f32{ 0.9, 0.1, 0.2 },
+        },
+        .{
+            .id = 2,
+            .title = &quot;Vector Database Tutorial&quot;,
+            .content = &quot;Understanding similarity search and embeddings&quot;,
+            .embedding = [_]f32{ 0.2, 0.9, 0.3 },
+        },
+        .{
+            .id = 3,
+            .title = &quot;Systems Programming&quot;,
+            .content = &quot;Low-level programming for performance&quot;,
+            .embedding = [_]f32{ 0.8, 0.2, 0.7 },
+        },
+    };
+
+    // Index documents
+    std.debug.print(&quot;Indexing documents...\n&quot;, .{});
+    for (docs) |doc| {
+        const metadata = try std.fmt.allocPrint(allocator, &quot;{s}: {s}&quot;, .{
+            doc.title,
+            doc.content,
+        });
+        defer allocator.free(metadata);
+
+        try abi.database.insert(&amp;db, doc.id, &amp;doc.embedding, metadata);
+        std.debug.print(&quot;  Indexed: {s}\n&quot;, .{doc.title});
+    }
+
+    // Optimize for search
+    try abi.database.optimize(&amp;db);
+
+    // Perform searches
+    const queries = [_]struct {
+        text: []const u8,
+        embedding: [3]f32,
+    }{
+        .{
+            .text = &quot;How do I learn Zig?&quot;,
+            .embedding = [_]f32{ 0.85, 0.15, 0.25 },
+        },
+        .{
+            .text = &quot;What is a vector database?&quot;,
+            .embedding = [_]f32{ 0.25, 0.85, 0.35 },
+        },
+    };
+
+    for (queries) |query| {
+        std.debug.print(&quot;\n--- Query: \&quot;{s}\&quot; ---\n&quot;, .{query.text});
+
+        const results = try abi.database.search(&amp;db, allocator, &amp;query.embedding, 2);
+        defer allocator.free(results);
+
+        for (results, 0..) |result, i| {
+            std.debug.print(&quot;  {d}. Score={d:.3}\n&quot;, .{ i + 1, result.score });
+            if (abi.database.get(&amp;db, result.id)) |view| {
+                if (view.metadata) |meta| {
+                    std.debug.print(&quot;     {s}\n&quot;, .{meta});
+                }
+            }
+        }
+    }
+
+    // Backup the database
+    try abi.database.backup(&amp;db, &quot;search_system_backup.db&quot;);
+    std.debug.print(&quot;\nBackup created\n&quot;, .{});
+}
+</code></pre>
+
+<hr>
+
+<h2 id="practice-exercises">Practice Exercises<a class="anchor" href="#practice-exercises">#</a></h2>
+
+<h3 id="exercise-1-dynamic-document-loader">Exercise 1: Dynamic Document Loader<a class="anchor" href="#exercise-1-dynamic-document-loader">#</a></h3>
+
+<p>Create a program that:</p>
+<p>1. Reads documents from a JSON file</p>
+<p>2. Generates random embeddings for each</p>
+<p>3. Inserts into database</p>
+<p>4. Accepts user queries and returns top 5 results</p>
+
+<p><strong>Hints:</strong></p>
+<li>Use <code>std.json</code> for parsing</li>
+<li>Use <code>std.rand</code> for embeddings</li>
+<li>Accept query via command-line arguments</li>
+
+<h3 id="exercise-2-performance-benchmarking">Exercise 2: Performance Benchmarking<a class="anchor" href="#exercise-2-performance-benchmarking">#</a></h3>
+
+<p>Build a tool that:</p>
+<p>1. Inserts 1000, 10000, and 100000 vectors</p>
+<p>2. Measures insertion time</p>
+<p>3. Measures search time at each scale</p>
+<p>4. Compares optimized vs unoptimized performance</p>
+
+<p><strong>Starter Template:</strong> See <code>benchmarks/database_perf.zig</code></p>
+
+<hr>
+
+<h2 id="common-issues">Common Issues<a class="anchor" href="#common-issues">#</a></h2>
+
+<tr><td>Error</td><td>Cause</td><td>Solution</td></tr>
+<tr><td><code>error.DimensionMismatch</code></td><td>Vectors have different dimensions</td><td>Ensure all vectors have same length</td></tr>
+<tr><td><code>error.DatabaseDisabled</code></td><td>Feature not enabled</td><td>Rebuild with <code>-Denable-database=true</code></td></tr>
+<tr><td><code>error.PathValidationError</code></td><td>Invalid backup path</td><td>Use filenames only, no paths</td></tr>
+<tr><td>Slow search</td><td>Database not optimized</td><td>Call <code>optimize()</code> after bulk inserts</td></tr>
+
+<hr>
+
+<h2 id="performance-tips">Performance Tips<a class="anchor" href="#performance-tips">#</a></h2>
+
+<p>1. <strong>Batch Operations:</strong> Insert many vectors, then optimize once</p>
+<p>2. <strong>Dimension Selection:</strong> Higher dimensions = better accuracy but slower search</p>
+<p>3. <strong>Memory Management:</strong> Use arena allocators for temporary search results</p>
+<p>4. <strong>Index Tuning:</strong> For &gt;100K vectors, consider advanced HNSW parameters</p>
+
+<p><strong>Benchmarks:</strong> See <a href="../PERFORMANCE_BASELINE.md">Performance Baseline</a></p>
+
+<hr>
+
+<h2 id="next-steps">Next Steps<a class="anchor" href="#next-steps">#</a></h2>
+
+<li><a href="../ai.md">AI Guide</a> - Generate real embeddings with LLMs</li>
+<li><a href="../database.md">Database Guide</a> - Advanced WDBX features</li>
+<li><a href="../API_REFERENCE.md">API Reference</a> - Complete database API</li>
+
+<h2 id="additional-resources">Additional Resources<a class="anchor" href="#additional-resources">#</a></h2>
+
+<li><strong>HNSW Paper:</strong> <a href="https://arxiv.org/abs/1603.09320">arxiv.org/abs/1603.09320</a></li>
+<li><strong>Vector DB Comparison:</strong> <a href="../database.md#architecture">Database Guide - Architecture</a></li>
+<li><strong>Real-world Examples:</strong> See <code>examples/database.zig</code></li>
+
+<hr>
+
+<p><strong>See Also:</strong> <a href="getting-started.md">Getting Started Tutorial</a></p>
+
+</div>
+    </article>
+  </main>
+</div>
+<footer class="footer" style="margin-left: 0;">
+  <div class="footer-content">
+    <div class="footer-section">
+      <h4>ABI Framework</h4>
+      <p>Modern Zig framework for AI services and high-performance systems.</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2026 ABI Framework. Built with Zig.</p></div>
+</footer>
+<script src="/abi/assets/js/main.js"></script>
+</body>
+</html>
