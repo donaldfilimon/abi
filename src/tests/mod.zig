@@ -20,6 +20,10 @@ comptime {
     if (build_options.enable_explore) {
         _ = abi.ai.explore;
     }
+    // Persona integration tests
+    if (build_options.enable_ai) {
+        _ = abi.ai.personas;
+    }
     // Connector tests
     _ = @import("connectors_test.zig");
     // Integration test matrix
@@ -34,6 +38,8 @@ comptime {
     _ = @import("os_test.zig");
     // High Availability module tests
     _ = @import("ha_test.zig");
+    // Stub parity verification tests
+    _ = @import("stub_parity.zig");
 }
 
 // Connector tests

@@ -32,3 +32,11 @@ pub const plugins = @import("plugins.zig");
 pub const simd = @import("simd.zig");
 pub const time = @import("time.zig");
 pub const utils = @import("utils.zig");
+
+// Direct re-exports from utils for convenience
+pub const unixSeconds = utils.unixSeconds;
+pub const unixMs = utils.unixMs;
+pub const nowSeconds = utils.nowSeconds;
+pub const nowMs = utils.nowMs;
+pub const nowNanoseconds = utils.nowNanoseconds;
+pub const sleepMs = utils.sleepMs;

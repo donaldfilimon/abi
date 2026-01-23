@@ -97,7 +97,7 @@ test "Multi-Persona System End-to-End Workflow" {
         // Verify routing to Abi for moderation/refusal
         try testing.expect(response.persona == .abi);
         try testing.expect(std.mem.indexOf(u8, response.content, "policy") != null or
-                           std.mem.indexOf(u8, response.content, "cannot") != null);
+            std.mem.indexOf(u8, response.content, "cannot") != null);
     }
 }
 

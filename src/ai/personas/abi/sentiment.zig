@@ -259,8 +259,8 @@ pub const SentimentAnalyzer = struct {
 
     // Negation words
     const NEGATION_WORDS = [_][]const u8{
-        "not", "no", "don't", "doesn't", "didn't", "won't", "wouldn't",
-        "can't", "cannot", "never", "none", "nothing", "without",
+        "not",   "no",     "don't", "doesn't", "didn't",  "won't",   "wouldn't",
+        "can't", "cannot", "never", "none",    "nothing", "without",
     };
 
     pub fn init(allocator: std.mem.Allocator) Self {

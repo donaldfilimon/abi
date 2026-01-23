@@ -99,10 +99,10 @@ const PersonaMetricsJson = struct {
     latency_p99_ms: ?f64 = null,
 };
 
-/// Chat handler that wraps the persona orchestrator.
+/// Chat handler that wraps the persona system.
 pub const ChatHandler = struct {
     allocator: std.mem.Allocator,
-    orchestrator: ?*personas.PersonaOrchestrator = null,
+    orchestrator: ?*personas.MultiPersonaSystem = null,
 
     const Self = @This();
 
@@ -115,7 +115,7 @@ pub const ChatHandler = struct {
     }
 
     /// Set the orchestrator reference.
-    pub fn setOrchestrator(self: *Self, orchestrator: *personas.PersonaOrchestrator) void {
+    pub fn setOrchestrator(self: *Self, orchestrator: *personas.MultiPersonaSystem) void {
         self.orchestrator = orchestrator;
     }
 

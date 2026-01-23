@@ -249,6 +249,13 @@ pub const AlertManager = struct {
 
     /// Shutdown and free resources.
     pub fn deinit(self: *Self) void {
+        // Free heap-allocated alert messages
+        for (self.active_alerts.items) |alert| {
+            self.allocator.free(alert.message);
+        }
+        for (self.history.items) |alert| {
+            self.allocator.free(alert.message);
+        }
         self.rules.deinit();
         self.active_alerts.deinit();
         self.history.deinit();
@@ -307,14 +314,14 @@ pub const AlertManager = struct {
 
     /// Trigger an alert.
     fn triggerAlert(self: *Self, rule: AlertRule, metrics: MetricSnapshot, now: i64) !void {
-        // Build message
-        var msg_buf: [256]u8 = undefined;
-        const message = try std.fmt.bufPrint(&msg_buf, "{s}: {s} (current: {d:.2}, threshold: {d:.2})", .{
+        // Build message - heap-allocate to avoid use-after-scope
+        const message = try std.fmt.allocPrint(self.allocator, "{s}: {s} (current: {d:.2}, threshold: {d:.2})", .{
             rule.severity.getPrefix(),
             rule.description,
             metrics.getValue(rule.name),
             rule.threshold,
         });
+        errdefer self.allocator.free(message);
 
         const alert = Alert{
             .rule = rule,
@@ -327,6 +334,9 @@ pub const AlertManager = struct {
         // Add to active alerts (with limit)
         if (self.active_alerts.items.len < self.config.max_active_alerts) {
             try self.active_alerts.append(alert);
+        } else {
+            // If we can't add the alert, free the message we allocated
+            self.allocator.free(message);
         }
 
         // Update last alert time

@@ -187,13 +187,9 @@ pub fn getHostname(allocator: std.mem.Allocator) ![]u8 {
     }
 
     // POSIX systems use gethostname via uname
-    var uname_buf: posix.utsname = undefined;
-    if (posix.uname(&uname_buf)) |_| {
-        const nodename = std.mem.sliceTo(&uname_buf.nodename, 0);
-        return allocator.dupe(u8, nodename);
-    } else |_| {
-        return allocator.dupe(u8, "localhost");
-    }
+    const uname_buf = posix.uname();
+    const nodename = std.mem.sliceTo(&uname_buf.nodename, 0);
+    return allocator.dupe(u8, nodename);
 }
 
 /// Get the current username
@@ -307,13 +303,9 @@ pub fn getOsVersion(allocator: std.mem.Allocator) ![]u8 {
     }
 
     if (comptime current_os.isPosix()) {
-        var uname_buf: posix.utsname = undefined;
-        if (posix.uname(&uname_buf)) |_| {
-            const release = std.mem.sliceTo(&uname_buf.release, 0);
-            return allocator.dupe(u8, release);
-        } else |_| {
-            return allocator.dupe(u8, "unknown");
-        }
+        const uname_buf = posix.uname();
+        const release = std.mem.sliceTo(&uname_buf.release, 0);
+        return allocator.dupe(u8, release);
     }
 
     if (comptime builtin.os.tag == .windows) {
@@ -350,13 +342,15 @@ pub fn getTotalMemory() u64 {
     }
 
     if (comptime builtin.os.tag == .linux) {
-        // Read from /proc/meminfo using posix API
-        const fd = std.posix.open("/proc/meminfo", .{}, 0) catch return 0;
-        defer std.posix.close(fd);
+        // Read from /proc/meminfo using Linux system call
+        const fd = std.posix.system.open("/proc/meminfo", .{ .ACCMODE = .RDONLY }, @as(std.posix.mode_t, 0));
+        if (fd < 0) return 0;
+        defer _ = std.posix.system.close(fd);
 
         var buffer: [256]u8 = undefined;
-        const bytes_read = std.posix.read(fd, &buffer) catch return 0;
-        const content = buffer[0..bytes_read];
+        const bytes_read = std.posix.system.read(fd, &buffer, buffer.len);
+        if (bytes_read <= 0) return 0;
+        const content = buffer[0..@intCast(bytes_read)];
 
         // Parse "MemTotal: NNNN kB"
         if (std.mem.indexOf(u8, content, "MemTotal:")) |start| {
@@ -952,7 +946,11 @@ pub fn isatty() bool {
         return windows.kernel32.GetConsoleMode(handle, &mode) != 0;
     }
 
-    return posix.isatty(posix.STDIN_FILENO);
+    // POSIX: use ioctl to check if fd is a tty
+    const TIOCGWINSZ = 0x5413; // Linux value
+    var wsz: extern struct { ws_row: u16, ws_col: u16, ws_xpixel: u16, ws_ypixel: u16 } = undefined;
+    const result = std.posix.system.ioctl(posix.STDIN_FILENO, TIOCGWINSZ, @intFromPtr(&wsz));
+    return result == 0;
 }
 
 /// Check if stdout is a TTY
@@ -965,7 +963,11 @@ pub fn isattyStdout() bool {
         return windows.kernel32.GetConsoleMode(handle, &mode) != 0;
     }
 
-    return posix.isatty(posix.STDOUT_FILENO);
+    // POSIX: use ioctl to check if fd is a tty
+    const TIOCGWINSZ = 0x5413; // Linux value
+    var wsz: extern struct { ws_row: u16, ws_col: u16, ws_xpixel: u16, ws_ypixel: u16 } = undefined;
+    const result = std.posix.system.ioctl(posix.STDOUT_FILENO, TIOCGWINSZ, @intFromPtr(&wsz));
+    return result == 0;
 }
 
 /// Detect if running in a CI environment

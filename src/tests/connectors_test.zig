@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const build_options = @import("build_options");
 
 // ============================================================================
 // Discord Connector Tests
@@ -209,6 +210,9 @@ test "json parse number fields" {
 // ============================================================================
 
 test "discord tools registration" {
+    // Skip when AI is disabled - stubs return null for registry.get()
+    if (!build_options.enable_ai) return error.SkipZigTest;
+
     const allocator = std.testing.allocator;
 
     var registry = abi.ai.ToolRegistry.init(allocator);
@@ -227,6 +231,9 @@ test "discord tools registration" {
 }
 
 test "discord tool definitions are valid" {
+    // Skip when AI is disabled - stubs have empty parameters
+    if (!build_options.enable_ai) return error.SkipZigTest;
+
     // Verify send_message tool
     const send_tool = abi.DiscordTools.send_message_tool;
     try std.testing.expectEqualStrings("discord_send_message", send_tool.name);

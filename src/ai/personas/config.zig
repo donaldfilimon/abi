@@ -71,6 +71,10 @@ pub const AvivaConfig = struct {
     verify_facts: bool = true,
     /// Maximum allowed response length in tokens.
     max_response_length: u32 = 4096,
+    /// Whether to cite sources in responses.
+    cite_sources: bool = false,
+    /// Whether to skip preamble/boilerplate in code generation.
+    skip_preamble: bool = false,
 };
 
 /// Settings for persona scaling and resilience.

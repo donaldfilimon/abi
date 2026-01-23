@@ -60,14 +60,24 @@ pub const TrainingReport = struct {
     early_stopped: bool = false,
     total_time_ms: u64 = 0,
 };
+pub const CheckpointStore = struct {
+    pub fn init(_: std.mem.Allocator, _: u32) CheckpointStore {
+        return .{};
+    }
+    pub fn deinit(_: *CheckpointStore) void {}
+    pub fn count(_: *const CheckpointStore) usize {
+        return 0;
+    }
+    pub fn add(_: *CheckpointStore, _: u64, _: []const f32) !void {}
+};
 pub const TrainingResult = struct {
     report: TrainingReport = .{},
+    checkpoints: CheckpointStore = .{},
     loss_history: []f32 = &.{},
     accuracy_history: []f32 = &.{},
 
     pub fn deinit(_: *TrainingResult) void {}
 };
-pub const CheckpointStore = struct {};
 pub const Checkpoint = struct {
     step: u64 = 0,
     timestamp: i64 = 0,

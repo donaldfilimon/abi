@@ -7,7 +7,7 @@
 //! - Lag monitoring
 
 const std = @import("std");
-const time = @import("../shared/utils.zig");
+const time = @import("../shared/utils_combined.zig");
 const platform_time = @import("../shared/time.zig");
 
 /// Replication configuration
@@ -81,7 +81,7 @@ const ReplicaNode = struct {
     region: []const u8,
     address: []const u8,
     state: NodeState,
-    last_heartbeat: i64,
+    last_heartbeat: u64,
     replication_lag_ms: u64,
     sequence_number: u64,
 
@@ -151,7 +151,7 @@ pub const ReplicationManager = struct {
             .region = region,
             .address = address,
             .state = .connecting,
-            .last_heartbeat = time.nowSeconds(),
+            .last_heartbeat = time.time.timestampSec(),
             .replication_lag_ms = 0,
             .sequence_number = 0,
         };
@@ -185,7 +185,7 @@ pub const ReplicationManager = struct {
     pub fn getReplicaCount(self: *ReplicationManager) u32 {
         self.mutex.lock();
         defer self.mutex.unlock();
-        return @intCast(self.replicas.count());
+        return @as(u32, self.replicas.count());
     }
 
     /// Get maximum replication lag
@@ -295,7 +295,7 @@ pub const ReplicationManager = struct {
             return self.config.write_quorum;
         }
         // Default to majority
-        const total = @as(u32, @intCast(self.replicas.count())) + 1;
+        const total = @as(u32, self.replicas.count()) + 1;
         return (total / 2) + 1;
     }
 
@@ -321,7 +321,7 @@ pub const ReplicationManager = struct {
         defer self.mutex.unlock();
 
         if (self.replicas.getPtr(node_id)) |node| {
-            node.last_heartbeat = time.nowSeconds();
+            node.last_heartbeat = @as(i64, time.time.timestampSec());
             node.sequence_number = sequence;
 
             // Calculate lag

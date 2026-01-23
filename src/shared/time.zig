@@ -61,13 +61,25 @@ pub fn elapsedSec(start: ?Instant, end: ?Instant) u64 {
     return elapsed(start, end) / std.time.ns_per_s;
 }
 
+/// App start time for relative timing (initialized lazily)
+var app_start: ?Instant = null;
+var app_start_initialized: bool = false;
+
+fn getAppStart() ?Instant {
+    if (!app_start_initialized) {
+        app_start = Instant.now() catch null;
+        app_start_initialized = true;
+    }
+    return app_start;
+}
+
 /// Get a timestamp in nanoseconds (monotonic, from app start)
 /// Returns 0 on WASM
 pub fn timestampNs() u64 {
     if (!has_instant) return 0;
-    const instant = Instant.now() catch return 0;
-    // Use timestamp field directly for simplicity
-    return instant.timestamp;
+    const start = getAppStart() orelse return 0;
+    const now_inst = Instant.now() catch return 0;
+    return now_inst.since(start);
 }
 
 /// Get a timestamp in milliseconds
