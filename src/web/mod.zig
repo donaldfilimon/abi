@@ -13,7 +13,7 @@ pub const HttpClient = client.HttpClient;
 pub const RequestOptions = client.RequestOptions;
 pub const WeatherClient = weather.WeatherClient;
 pub const WeatherConfig = weather.WeatherConfig;
-pub const http = @import("../shared/utils/http/mod.zig");
+pub const http = @import("../shared/utils_combined.zig").http;
 
 pub const WebError = error{
     WebDisabled,

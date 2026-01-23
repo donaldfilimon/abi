@@ -2,7 +2,7 @@
 const std = @import("std");
 const database = @import("database.zig");
 const storage = @import("storage.zig");
-const fs = @import("../shared/utils/fs/mod.zig");
+const fs = @import("../shared/utils_combined.zig").fs;
 
 pub const UnifiedError = error{
     Unsupported,

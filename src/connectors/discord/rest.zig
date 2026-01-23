@@ -10,8 +10,8 @@
 
 const std = @import("std");
 const types = @import("types.zig");
-const async_http = @import("../../shared/utils/http/async_http.zig");
-const json_utils = @import("../../shared/utils/json/mod.zig");
+const async_http = @import("../../shared/utils_combined.zig").async_http;
+const json_utils = @import("../../shared/utils_combined.zig").json;
 
 // Re-export types used in API
 pub const DiscordError = types.DiscordError;

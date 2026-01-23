@@ -27,7 +27,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 
 // Re-export ConfigLoader from shared utilities for file-based configuration
-const shared_config = @import("shared/utils/config.zig");
+const shared_config = @import("shared/utils_combined.zig").config;
 pub const ConfigLoader = shared_config.ConfigLoader;
 
 /// Unified configuration for the ABI framework.

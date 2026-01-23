@@ -11,7 +11,7 @@ const std = @import("std");
 const json = std.json;
 const tool = @import("tool.zig");
 const discord = @import("../../connectors/discord/mod.zig");
-const json_utils = @import("../../shared/utils/json/mod.zig");
+const json_utils = @import("../../shared/utils_combined.zig").json;
 
 const Tool = tool.Tool;
 const ToolResult = tool.ToolResult;
