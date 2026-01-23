@@ -92,7 +92,7 @@ pub const TokenBucketLimiter = struct {
         return .{
             .config = config,
             .tokens = std.atomic.Value(u64).init(capacity),
-            .last_refill = std.atomic.Value(i64).init(time.nowSeconds()),
+            .last_refill = std.atomic.Value(i64).init(time.nowNanoseconds()),
             .refill_rate_ns = refill_rate,
             .mutex = .{},
         };
@@ -154,13 +154,13 @@ pub const TokenBucketLimiter = struct {
     }
 
     fn refill(self: *TokenBucketLimiter) void {
-        const now = time.nowSeconds();
+        const now = time.nowNanoseconds();
         const last = self.last_refill.load(.monotonic);
-        const elapsed: u64 = @intCast(@max(0, now - last));
+        const elapsed_ns: u64 = @intCast(@max(0, now - last));
 
-        if (elapsed == 0) return;
+        if (elapsed_ns == 0) return;
 
-        const tokens_to_add = elapsed * 1_000_000_000 / self.refill_rate_ns;
+        const tokens_to_add = elapsed_ns / self.refill_rate_ns;
         if (tokens_to_add > 0) {
             const capacity = self.config.burst_capacity orelse self.config.max_requests;
             const current = self.tokens.load(.monotonic);
@@ -199,8 +199,8 @@ pub const SlidingWindowLimiter = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = time.nowSeconds();
-        const window_start = now - @as(i64, @intCast(self.config.window_ns / 1_000_000_000));
+        const now = time.nowNanoseconds();
+        const window_start = now - @as(i64, @intCast(self.config.window_ns));
 
         // Remove expired timestamps
         var i: usize = 0;
@@ -220,8 +220,8 @@ pub const SlidingWindowLimiter = struct {
                 self.timestamps.items[0]
             else
                 now;
-            const time_diff = @max(0, oldest + @as(i64, @intCast(self.config.window_ns / 1_000_000_000)) - now);
-            const reset_after: u64 = @as(u64, @intCast(time_diff)) * 1_000_000_000;
+            const time_diff = @max(0, oldest + @as(i64, @intCast(self.config.window_ns)) - now);
+            const reset_after: u64 = @intCast(time_diff);
 
             return .{ .allowed = .{
                 .remaining = remaining,
@@ -232,8 +232,8 @@ pub const SlidingWindowLimiter = struct {
 
         // Calculate retry time
         const oldest = self.timestamps.items[0];
-        const retry_diff = @max(0, oldest + @as(i64, @intCast(self.config.window_ns / 1_000_000_000)) - now);
-        const retry_after: u64 = @as(u64, @intCast(retry_diff)) * 1_000_000_000;
+        const retry_diff = @max(0, oldest + @as(i64, @intCast(self.config.window_ns)) - now);
+        const retry_after: u64 = @intCast(retry_diff);
 
         return .{ .denied = .{
             .retry_after_ns = retry_after,
@@ -247,8 +247,8 @@ pub const SlidingWindowLimiter = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = time.nowSeconds();
-        const window_start = now - @as(i64, @intCast(self.config.window_ns / 1_000_000_000));
+        const now = time.nowNanoseconds();
+        const window_start = now - @as(i64, @intCast(self.config.window_ns));
 
         var count: u32 = 0;
         for (self.timestamps.items) |ts| {
@@ -270,7 +270,7 @@ pub const FixedWindowLimiter = struct {
         return .{
             .config = config,
             .count = std.atomic.Value(u32).init(0),
-            .window_start = std.atomic.Value(i64).init(time.nowSeconds()),
+            .window_start = std.atomic.Value(i64).init(time.nowNanoseconds()),
             .mutex = .{},
         };
     }
@@ -280,9 +280,9 @@ pub const FixedWindowLimiter = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = time.nowSeconds();
+        const now = time.nowNanoseconds();
         const window_start = self.window_start.load(.monotonic);
-        const window_end = window_start + @as(i64, @intCast(self.config.window_ns / 1_000_000_000));
+        const window_end = window_start + @as(i64, @intCast(self.config.window_ns));
 
         // Check if we need to reset window
         if (now >= window_end) {
@@ -301,7 +301,7 @@ pub const FixedWindowLimiter = struct {
             self.count.store(current + 1, .monotonic);
 
             const reset_diff = @max(0, window_end - now);
-            const reset_after: u64 = @as(u64, @intCast(reset_diff)) * 1_000_000_000;
+            const reset_after: u64 = @intCast(reset_diff);
 
             return .{ .allowed = .{
                 .remaining = self.config.max_requests - current - 1,
@@ -311,7 +311,7 @@ pub const FixedWindowLimiter = struct {
         }
 
         const retry_window_diff = @max(0, window_end - now);
-        const retry_after: u64 = @as(u64, @intCast(retry_window_diff)) * 1_000_000_000;
+        const retry_after: u64 = @intCast(retry_window_diff);
 
         return .{ .denied = .{
             .retry_after_ns = retry_after,
@@ -331,7 +331,7 @@ pub const FixedWindowLimiter = struct {
         defer self.mutex.unlock();
 
         self.count.store(0, .monotonic);
-        self.window_start.store(time.nowSeconds(), .monotonic);
+        self.window_start.store(time.nowNanoseconds(), .monotonic);
     }
 };
 
@@ -484,4 +484,24 @@ test "rate limiter unified" {
 
     const stats = limiter.getStats();
     try std.testing.expectEqual(RateLimitAlgorithm.token_bucket, stats.algorithm);
+}
+
+test "token bucket sub-second refill" {
+    var limiter = TokenBucketLimiter.init(.{
+        .max_requests = 10,
+        .window_ns = 100_000_000, // 100ms window
+    });
+
+    _ = limiter.acquireN(10);
+    try std.testing.expectEqual(@as(u32, 0), limiter.availableTokens());
+
+    const now = time.nowNanoseconds();
+    const advance_ns: u64 = limiter.refill_rate_ns * 5;
+    const simulated_last: i64 = now - @as(i64, @intCast(advance_ns));
+    limiter.last_refill.store(simulated_last, .monotonic);
+
+    limiter.refill();
+
+    const tokens = limiter.availableTokens();
+    try std.testing.expect(tokens >= 5);
 }

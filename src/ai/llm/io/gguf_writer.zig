@@ -19,6 +19,20 @@ pub const GgufWriterError = error{
     DuplicateTensor,
 };
 
+pub const TokenizerConfig = struct {
+    model: []const u8 = "llama",
+    tokens: []const []const u8,
+    scores: ?[]const f32 = null,
+    token_types: ?[]const i32 = null,
+    merges: ?[]const []const u8 = null,
+    bos_token_id: u32,
+    eos_token_id: u32,
+    unknown_token_id: ?u32 = null,
+    padding_token_id: ?u32 = null,
+    add_bos_token: bool = true,
+    add_eos_token: bool = false,
+};
+
 /// GGUF file writer for creating model export files.
 pub const GgufWriter = struct {
     allocator: std.mem.Allocator,
@@ -339,19 +353,7 @@ pub const GgufWriter = struct {
     /// Add tokenizer metadata.
     pub fn addTokenizerMetadata(
         self: *GgufWriter,
-        config: struct {
-            model: []const u8 = "llama",
-            tokens: []const []const u8,
-            scores: ?[]const f32 = null,
-            token_types: ?[]const i32 = null,
-            merges: ?[]const []const u8 = null,
-            bos_token_id: u32,
-            eos_token_id: u32,
-            unknown_token_id: ?u32 = null,
-            padding_token_id: ?u32 = null,
-            add_bos_token: bool = true,
-            add_eos_token: bool = false,
-        },
+        config: TokenizerConfig,
     ) !void {
         try self.addMetadataString("tokenizer.ggml.model", config.model);
         try self.addMetadataStringArray("tokenizer.ggml.tokens", config.tokens);
@@ -546,20 +548,6 @@ pub const ExportConfig = struct {
     rope_freq_base: f32 = 10000.0,
     layer_norm_rms_epsilon: f32 = 1e-5,
     tokenizer: ?TokenizerConfig = null,
-
-    pub const TokenizerConfig = struct {
-        model: []const u8 = "llama",
-        tokens: []const []const u8,
-        scores: ?[]const f32 = null,
-        token_types: ?[]const i32 = null,
-        merges: ?[]const []const u8 = null,
-        bos_token_id: u32,
-        eos_token_id: u32,
-        unknown_token_id: ?u32 = null,
-        padding_token_id: ?u32 = null,
-        add_bos_token: bool = true,
-        add_eos_token: bool = false,
-    };
 };
 
 /// Layer weights for export.

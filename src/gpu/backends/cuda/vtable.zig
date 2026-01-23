@@ -409,6 +409,18 @@ pub const CudaBackend = struct {
         }
     }
 
+    /// Copy data from host to device asynchronously.
+    pub fn copyToDeviceAsync(self: *Self, dst: *anyopaque, src: []const u8, stream: ?*anyopaque) interface.MemoryError!void {
+        _ = stream; // TODO: Use cuMemcpyHtoDAsync
+        return self.copyToDevice(dst, src);
+    }
+
+    /// Copy data from device to host asynchronously.
+    pub fn copyFromDeviceAsync(self: *Self, dst: []u8, src: *anyopaque, stream: ?*anyopaque) interface.MemoryError!void {
+        _ = stream; // TODO: Use cuMemcpyDtoHAsync
+        return self.copyFromDevice(dst, src);
+    }
+
     // ========================================================================
     // Kernel Operations
     // ========================================================================

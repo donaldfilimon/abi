@@ -387,12 +387,18 @@ zig build run -- tui               # Interactive launcher
 zig build run -- db stats          # Database statistics
 zig build run -- gpu backends      # List GPU backends
 zig build run -- agent             # AI agent mode
+zig build run -- convert dataset --help # Dataset conversion
 
 # Runtime feature flags (new)
 zig build run -- --list-features              # List available features and status
 zig build run -- --enable-gpu db stats        # Enable feature for this run
 zig build run -- --disable-ai llm info        # Disable feature for this run
 ```
+
+### Lint & Typecheck
+
+- `zig build lint` runs `zig fmt --check .`
+- `zig build typecheck` compiles the test suite without running it
 
 ## Architecture
 

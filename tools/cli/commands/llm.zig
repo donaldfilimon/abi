@@ -10,6 +10,17 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
 
+const llm_subcommands = [_][]const u8{
+    "info",
+    "generate",
+    "chat",
+    "bench",
+    "list",
+    "list-local",
+    "demo",
+    "download",
+};
+
 /// Run the LLM command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0 or utils.args.matchesAny(args[0], &[_][]const u8{ "help", "--help", "-h" })) {
@@ -40,11 +51,19 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 
     if (std.mem.eql(u8, command, "list")) {
+        if (utils.args.containsHelpArgs(args[1..])) {
+            printHelp();
+            return;
+        }
         runList();
         return;
     }
 
     if (std.mem.eql(u8, command, "list-local")) {
+        if (utils.args.containsHelpArgs(args[1..])) {
+            printHelp();
+            return;
+        }
         runListLocal(allocator, args[1..]);
         return;
     }
@@ -60,10 +79,18 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 
     std.debug.print("Unknown llm command: {s}\n", .{command});
+    if (utils.args.suggestCommand(command, &llm_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
     printHelp();
 }
 
 fn runInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+
     if (args.len == 0) {
         std.debug.print("Usage: abi llm info <model-path>\n", .{});
         return;
@@ -114,6 +141,11 @@ fn runInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn runGenerate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+
     var model_path: ?[]const u8 = null;
     var prompt: ?[]const u8 = null;
     var max_tokens: u32 = 256;
@@ -330,6 +362,11 @@ fn runGenerate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn runChat(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+
     if (args.len == 0) {
         std.debug.print("Usage: abi llm chat <model>\n", .{});
         std.debug.print("\nStarts an interactive chat session with the specified LLM model.\n", .{});
@@ -456,6 +493,11 @@ fn runChat(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+
     var model_path: ?[]const u8 = null;
     var prompt_tokens: u32 = 128;
     var gen_tokens: u32 = 64;
@@ -657,6 +699,11 @@ fn runList() void {
 }
 
 fn runListLocal(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+
     var search_dir: []const u8 = ".";
 
     // Parse directory argument
@@ -700,6 +747,11 @@ fn runListLocal(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
 }
 
 fn runDownload(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+
     if (args.len == 0) {
         std.debug.print("Usage: abi llm download <url> [--output <path>]\n\n", .{});
         std.debug.print("Download a GGUF model from a URL.\n\n", .{});
@@ -804,6 +856,11 @@ fn printHelp() void {
 }
 
 fn runDemo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+
     _ = allocator; // Not used in demo mode
     var prompt: ?[]const u8 = null;
     var max_tokens: u32 = 100;

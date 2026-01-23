@@ -179,6 +179,33 @@ pub const GgufMetadataValue = union(GgufMetadataValueType) {
         count: u64,
     };
 
+    pub const StringArrayIterator = struct {
+        data: []const u8,
+        count: u64,
+        index: u64 = 0,
+        offset: usize = 0,
+
+        pub fn next(self: *StringArrayIterator) ?[]const u8 {
+            if (self.index >= self.count) return null;
+            if (self.offset + 8 > self.data.len) return null;
+            const len = std.mem.readInt(u64, self.data[self.offset..][0..8], .little);
+            self.offset += 8;
+            if (self.offset + len > self.data.len) return null;
+            const slice = self.data[self.offset .. self.offset + @as(usize, @intCast(len))];
+            self.offset += @intCast(len);
+            self.index += 1;
+            return slice;
+        }
+    };
+
+    pub fn stringArrayIterator(self: ArrayValue) ?StringArrayIterator {
+        if (self.element_type != .string) return null;
+        return .{
+            .data = self.data,
+            .count = self.count,
+        };
+    }
+
     pub fn asU32(self: GgufMetadataValue) ?u32 {
         return switch (self) {
             .uint8 => |v| v,
@@ -625,8 +652,28 @@ fn readMetadataValue(cursor: *mmap.MemoryCursor, value_type: GgufMetadataValueTy
                 .uint16, .int16 => 2,
                 .uint32, .int32, .float32 => 4,
                 .uint64, .int64, .float64 => 8,
-                .string, .array => return GgufError.ParseError, // Nested not supported inline
+                .string => 0, // Variable size, handled below
+                .array => return GgufError.ParseError, // Nested not supported inline
             };
+
+            if (elem_type == .string) {
+                const start = cursor.position;
+                var idx: u64 = 0;
+                while (idx < count) : (idx += 1) {
+                    const str_len = cursor.read(u64) orelse return GgufError.ParseError;
+                    if (!cursor.skip(@intCast(str_len))) return GgufError.ParseError;
+                }
+                const end = cursor.position;
+                if (end < start or end > cursor.data.len) return GgufError.ParseError;
+                const data = cursor.data[start..end];
+                break :blk .{
+                    .array = .{
+                        .element_type = elem_type,
+                        .data = data,
+                        .count = count,
+                    },
+                };
+            }
 
             const data_size: usize = @intCast(count * elem_size);
             const data = cursor.readBytes(data_size) orelse return GgufError.ParseError;

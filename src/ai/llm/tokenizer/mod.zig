@@ -6,6 +6,7 @@
 //! - SentencePiece (Unigram) - LLaMA-style tokenization
 
 const std = @import("std");
+const gguf = @import("../io/gguf.zig");
 
 pub const bpe = @import("bpe.zig");
 pub const sentencepiece = @import("sentencepiece.zig");
@@ -21,6 +22,13 @@ pub const SpecialTokens = special_tokens.SpecialTokens;
 pub const TokenizerError = bpe.TokenizerError;
 pub const SentencePieceError = sentencepiece.SentencePieceError;
 pub const TokenType = sentencepiece.TokenType;
+
+pub const TokenizerLoadError = error{
+    MissingTokenizer,
+    InvalidTokenizer,
+    UnsupportedTokenizer,
+    OutOfMemory,
+};
 
 /// Tokenizer type enumeration for auto-detection.
 pub const TokenizerKind = enum {
@@ -138,6 +146,76 @@ pub const Tokenizer = union(TokenizerKind) {
         }
     }
 };
+
+/// Load tokenizer metadata from a GGUF file.
+pub fn loadFromGguf(allocator: std.mem.Allocator, gguf_file: *const gguf.GgufFile) !Tokenizer {
+    const model_type = gguf_file.getTokenizerModel();
+    const kind = TokenizerKind.fromGgufModel(model_type);
+    if (kind == .unknown) return TokenizerLoadError.UnsupportedTokenizer;
+
+    const tokens_array = gguf_file.getTokensArray() orelse return TokenizerLoadError.MissingTokenizer;
+    if (tokens_array.element_type != .string) return TokenizerLoadError.InvalidTokenizer;
+
+    var tokenizer = Tokenizer.init(allocator, kind);
+    errdefer tokenizer.deinit();
+
+    // Load vocab + merges/scores
+    switch (tokenizer) {
+        .bpe => |*t| {
+            try t.vocab.loadFromGguf(tokens_array.data, tokens_array.count);
+            if (gguf_file.getMergesArray()) |merges| {
+                if (merges.element_type == .string) {
+                    try t.loadMergesFromGguf(merges.data, merges.count);
+                }
+            }
+        },
+        .sentencepiece => |*t| {
+            const scores = gguf_file.getScoresArray();
+            const scores_data = if (scores) |arr| arr.data else &.{};
+            try t.loadFromGgufMetadata(tokens_array.data, scores_data, tokens_array.count);
+        },
+        .unknown => {},
+    }
+
+    // Apply special token IDs if available
+    if (gguf_file.getBosTokenId()) |bos| {
+        switch (tokenizer) {
+            .bpe => |*t| t.special.bos_id = bos,
+            .sentencepiece => |*t| t.special.bos_id = bos,
+            .unknown => {},
+        }
+    }
+    if (gguf_file.getEosTokenId()) |eos| {
+        switch (tokenizer) {
+            .bpe => |*t| t.special.eos_id = eos,
+            .sentencepiece => |*t| t.special.eos_id = eos,
+            .unknown => {},
+        }
+    }
+    if (gguf_file.getPadTokenId()) |pad| {
+        switch (tokenizer) {
+            .bpe => |*t| t.special.pad_id = pad,
+            .sentencepiece => |*t| t.special.pad_id = pad,
+            .unknown => {},
+        }
+    }
+    if (gguf_file.getUnkTokenId()) |unk| {
+        switch (tokenizer) {
+            .bpe => |*t| t.special.unk_id = unk,
+            .sentencepiece => |*t| t.special.unk_id = unk,
+            .unknown => {},
+        }
+    }
+
+    if (gguf_file.getAddBosToken()) |add_bos| {
+        tokenizer.setAddBos(add_bos);
+    }
+    if (gguf_file.getAddEosToken()) |add_eos| {
+        tokenizer.setAddEos(add_eos);
+    }
+
+    return tokenizer;
+}
 
 /// Quick encode helper.
 pub fn encode(allocator: std.mem.Allocator, tokenizer: *BpeTokenizer, text: []const u8) ![]u32 {

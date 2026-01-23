@@ -4,7 +4,7 @@
 //! exponential backoff, jitter, and retry condition filtering.
 
 const std = @import("std");
-const time = @import("../shared/utils.zig");
+const time = @import("../shared/time.zig");
 
 /// Comprehensive error set for retry operations
 pub const RetryableError = error{
@@ -137,6 +137,23 @@ pub const RetryableErrors = struct {
     }
 };
 
+fn applyJitter(prng: *std.Random.DefaultPrng, base_delay: u64, jitter: bool, jitter_factor: f64) u64 {
+    if (!jitter or base_delay == 0) return base_delay;
+
+    const jitter_range = @as(u64, @intFromFloat(@as(f64, @floatFromInt(base_delay)) * jitter_factor));
+    if (jitter_range == 0) return base_delay;
+
+    var adjusted = base_delay;
+    const jitter_value = prng.random().uintLessThan(u64, jitter_range * 2);
+    if (jitter_value < jitter_range) {
+        adjusted -|= jitter_value;
+    } else {
+        adjusted +|= jitter_value - jitter_range;
+    }
+
+    return adjusted;
+}
+
 /// Retry executor with configurable strategy.
 pub fn RetryExecutor(comptime T: type) type {
     return struct {
@@ -153,7 +170,7 @@ pub fn RetryExecutor(comptime T: type) type {
                 .config = config,
                 .strategy = strategy,
                 .retryable = .{},
-                .prng = std.Random.DefaultPrng.init(0),
+                .prng = std.Random.DefaultPrng.init(time.getSeed()),
             };
         }
 
@@ -163,7 +180,7 @@ pub fn RetryExecutor(comptime T: type) type {
                 .config = config,
                 .strategy = strategy,
                 .retryable = retryable,
-                .prng = std.Random.DefaultPrng.init(0),
+                .prng = std.Random.DefaultPrng.init(time.getSeed()),
             };
         }
 
@@ -320,18 +337,7 @@ pub fn RetryExecutor(comptime T: type) type {
             // Apply max delay cap
             base_delay = @min(base_delay, self.config.max_delay_ns);
 
-            // Apply jitter
-            if (self.config.jitter and base_delay > 0) {
-                const jitter_range = @as(u64, @intFromFloat(@as(f64, @floatFromInt(base_delay)) * self.config.jitter_factor));
-                if (jitter_range > 0) {
-                    const jitter = self.prng.random().uintLessThan(u64, jitter_range * 2);
-                    if (jitter < jitter_range) {
-                        base_delay -|= jitter;
-                    } else {
-                        base_delay +|= jitter - jitter_range;
-                    }
-                }
-            }
+            base_delay = applyJitter(&self.prng, base_delay, self.config.jitter, self.config.jitter_factor);
 
             return base_delay;
         }
@@ -373,7 +379,7 @@ pub const BackoffCalculator = struct {
             .config = config,
             .strategy = strategy,
             .attempt = 0,
-            .prng = std.Random.DefaultPrng.init(0),
+            .prng = std.Random.DefaultPrng.init(time.getSeed()),
         };
     }
 
@@ -411,17 +417,7 @@ pub const BackoffCalculator = struct {
 
         base_delay = @min(base_delay, self.config.max_delay_ns);
 
-        if (self.config.jitter and base_delay > 0) {
-            const jitter_range = @as(u64, @intFromFloat(@as(f64, @floatFromInt(base_delay)) * self.config.jitter_factor));
-            if (jitter_range > 0) {
-                const jitter = self.prng.random().uintLessThan(u64, jitter_range * 2);
-                if (jitter < jitter_range) {
-                    base_delay -|= jitter;
-                } else {
-                    base_delay +|= jitter - jitter_range;
-                }
-            }
-        }
+        base_delay = applyJitter(&self.prng, base_delay, self.config.jitter, self.config.jitter_factor);
 
         return base_delay;
     }

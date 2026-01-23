@@ -92,6 +92,73 @@ pub fn timestampSec() u64 {
     return timestampNs() / std.time.ns_per_s;
 }
 
+/// Get current time in unix seconds (approximate, monotonic since app start).
+/// On WASM, returns 0 (no timer available).
+pub fn unixSeconds() i64 {
+    if (!has_instant) return 0;
+    return @intCast(timestampSec());
+}
+
+/// Get current time in unix seconds (alias for unixSeconds).
+pub fn nowSeconds() i64 {
+    return unixSeconds();
+}
+
+/// Get current time in unix milliseconds (approximate, monotonic).
+/// On WASM, returns 0 (no timer available).
+pub fn unixMs() i64 {
+    if (!has_instant) return 0;
+    return @intCast(timestampMs());
+}
+
+/// Get current time in unix milliseconds (alias for unixMs).
+pub fn nowMs() i64 {
+    return unixMs();
+}
+
+/// Get current time in nanoseconds (monotonic).
+/// On WASM, returns 0 (no timer available).
+pub fn nowNanoseconds() i64 {
+    if (!has_instant) return 0;
+    return @intCast(timestampNs());
+}
+
+/// Get current time in milliseconds (alias for compatibility).
+pub fn nowMilliseconds() i64 {
+    return nowMs();
+}
+
+/// Sleep for a specified number of nanoseconds.
+/// On WASM, this is a no-op (can't block in WASM).
+pub fn sleepNs(ns: u64) void {
+    if (!has_instant) return;
+    if (@hasDecl(std.posix, "nanosleep")) {
+        var req = std.posix.timespec{
+            .sec = @intCast(ns / std.time.ns_per_s),
+            .nsec = @intCast(ns % std.time.ns_per_s),
+        };
+        var rem: std.posix.timespec = undefined;
+        while (true) {
+            const result = std.posix.nanosleep(&req, &rem);
+            if (result == 0) break;
+            req = rem;
+        }
+    } else {
+        const start = now() orelse return;
+        while (true) {
+            const current = now() orelse return;
+            if (current.since(start) >= ns) break;
+        }
+    }
+}
+
+/// Sleep for a specified number of milliseconds.
+/// On WASM, this is a no-op (can't block in WASM).
+pub fn sleepMs(ms: u64) void {
+    const ns = ms * std.time.ns_per_ms;
+    sleepNs(ns);
+}
+
 /// Get a seed value suitable for PRNG initialization.
 /// On native platforms: uses monotonic timestamp for uniqueness.
 /// On WASM: uses std.crypto.random for true randomness.

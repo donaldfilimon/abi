@@ -15,8 +15,8 @@ const Allocator = std.mem.Allocator;
 // =============================================================================
 
 const Config = struct {
-    input_dir: []const u8 = "docs-src",
-    output_dir: []const u8 = "docs",
+    input_dir: []const u8 = "docs",
+    output_dir: []const u8 = "docs_html",
     base_url: []const u8 = "/abi",
     site_title: []const u8 = "ABI Framework Documentation",
     version: []const u8 = "0.16.0",
@@ -39,6 +39,12 @@ const TocEntry = struct {
     slug: []const u8,
 };
 
+const SearchEntry = struct {
+    title: []const u8,
+    path: []const u8,
+    content: []const u8,
+};
+
 // =============================================================================
 // Markdown Parser
 // =============================================================================
@@ -49,6 +55,7 @@ const MarkdownParser = struct {
     pos: usize,
     output: std.ArrayListUnmanaged(u8),
     toc: std.ArrayListUnmanaged(TocEntry),
+    text_content: std.ArrayListUnmanaged(u8), // For search index
     in_code_block: bool,
     code_lang: []const u8,
 
@@ -59,6 +66,7 @@ const MarkdownParser = struct {
             .pos = 0,
             .output = .empty,
             .toc = .empty,
+            .text_content = .empty,
             .in_code_block = false,
             .code_lang = "",
         };
@@ -67,9 +75,10 @@ const MarkdownParser = struct {
     pub fn deinit(self: *MarkdownParser) void {
         self.output.deinit(self.allocator);
         self.toc.deinit(self.allocator);
+        self.text_content.deinit(self.allocator);
     }
 
-    pub fn parse(self: *MarkdownParser) !struct { html: []const u8, toc: []const TocEntry } {
+    pub fn parse(self: *MarkdownParser) !struct { html: []const u8, toc: []const TocEntry, text: []const u8 } {
         while (self.pos < self.source.len) {
             try self.parseLine();
         }
@@ -81,6 +90,7 @@ const MarkdownParser = struct {
         return .{
             .html = try self.output.toOwnedSlice(self.allocator),
             .toc = try self.toc.toOwnedSlice(self.allocator),
+            .text = try self.text_content.toOwnedSlice(self.allocator),
         };
     }
 
@@ -88,6 +98,12 @@ const MarkdownParser = struct {
         const line_end = std.mem.indexOfScalar(u8, self.source[self.pos..], '\n') orelse self.source.len - self.pos;
         const line = self.source[self.pos .. self.pos + line_end];
         self.pos += line_end + 1;
+
+        // Collect text content for search (skip code blocks)
+        if (!self.in_code_block and !std.mem.startsWith(u8, line, "```")) {
+            try self.text_content.appendSlice(self.allocator, line);
+            try self.text_content.append(self.allocator, ' ');
+        }
 
         // Code block handling
         if (std.mem.startsWith(u8, line, "```")) {
@@ -187,6 +203,27 @@ const MarkdownParser = struct {
         var i: usize = 0;
         while (i < text.len) {
             const c = text[i];
+
+            // Image ![alt](url)
+            if (c == '!' and i + 1 < text.len and text[i + 1] == '[') {
+                if (std.mem.indexOf(u8, text[i + 2 ..], "](")) |bracket_end_rel| {
+                    const bracket_end = i + 2 + bracket_end_rel;
+                    if (std.mem.indexOfScalar(u8, text[bracket_end + 2 ..], ')')) |paren_end_rel| {
+                        const paren_end = bracket_end + 2 + paren_end_rel;
+                        const alt_text = text[i + 2 .. bracket_end];
+                        const img_url = text[bracket_end + 2 .. paren_end];
+
+                        try self.output.appendSlice(self.allocator, "<img src=\"");
+                        try self.output.appendSlice(self.allocator, img_url);
+                        try self.output.appendSlice(self.allocator, "\" alt=\"");
+                        try self.output.appendSlice(self.allocator, alt_text);
+                        try self.output.appendSlice(self.allocator, "\">");
+
+                        i = paren_end + 1;
+                        continue;
+                    }
+                }
+            }
 
             // Bold **text**
             if (i + 1 < text.len and c == '*' and text[i + 1] == '*') {
@@ -432,15 +469,29 @@ pub fn main() !void {
     try writeFile(io, allocator, js_path, @embedFile("templates/main.js"));
     std.debug.print("📦 Assets copied\n", .{});
 
+    // Search index
+    var search_index = std.ArrayList(SearchEntry).init(allocator);
+    defer {
+        for (search_index.items) |item| {
+            allocator.free(item.title);
+            allocator.free(item.path);
+            allocator.free(item.content);
+        }
+        search_index.deinit();
+    }
+
     // Process markdown files
     var doc_count: usize = 0;
-    try processDirectory(allocator, io, config, config.input_dir, "", &doc_count);
+    try processDirectory(allocator, io, config, config.input_dir, "", &doc_count, &search_index);
+
+    // Write search index
+    try writeSearchIndex(io, allocator, config.output_dir, search_index.items);
 
     std.debug.print("\n✅ Generated {d} pages\n", .{doc_count});
     std.debug.print("   Open {s}/index.html to view\n", .{config.output_dir});
 }
 
-fn processDirectory(allocator: Allocator, io: anytype, config: Config, base: []const u8, rel: []const u8, count: *usize) !void {
+fn processDirectory(allocator: Allocator, io: anytype, config: Config, base: []const u8, rel: []const u8, count: *usize, search_index: *std.ArrayList(SearchEntry)) !void {
     const path = if (rel.len > 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ base, rel }) else base;
     defer if (rel.len > 0) allocator.free(path);
 
@@ -457,14 +508,14 @@ fn processDirectory(allocator: Allocator, io: anytype, config: Config, base: []c
         defer allocator.free(child_rel);
 
         if (entry.kind == .directory) {
-            try processDirectory(allocator, io, config, base, child_rel, count);
+            try processDirectory(allocator, io, config, base, child_rel, count, search_index);
         } else if (entry.kind == .file and std.mem.endsWith(u8, name, ".md")) {
-            try processMarkdownFile(allocator, io, config, path, name, count);
+            try processMarkdownFile(allocator, io, config, path, name, count, search_index, rel);
         }
     }
 }
 
-fn processMarkdownFile(allocator: Allocator, io: anytype, config: Config, dir_path: []const u8, filename: []const u8, count: *usize) !void {
+fn processMarkdownFile(allocator: Allocator, io: anytype, config: Config, dir_path: []const u8, filename: []const u8, count: *usize, search_index: *std.ArrayList(SearchEntry), rel_dir: []const u8) !void {
     const full_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir_path, filename });
     defer allocator.free(full_path);
 
@@ -480,6 +531,7 @@ fn processMarkdownFile(allocator: Allocator, io: anytype, config: Config, dir_pa
         for (result.toc) |entry| allocator.free(entry.slug);
         allocator.free(result.toc);
     }
+    defer allocator.free(result.text);
 
     const title = if (parsed.front_matter.title.len > 0) parsed.front_matter.title else filename[0 .. filename.len - 3];
     const html = try generateHtml(allocator, title, parsed.front_matter.description, result.html, result.toc, config);
@@ -487,12 +539,39 @@ fn processMarkdownFile(allocator: Allocator, io: anytype, config: Config, dir_pa
 
     const html_name = try std.mem.replaceOwned(u8, allocator, filename, ".md", ".html");
     defer allocator.free(html_name);
+
+    // Construct relative path for search index
+    const rel_path = if (rel_dir.len > 0)
+        try std.fmt.allocPrint(allocator, "{s}/{s}", .{ rel_dir, html_name })
+    else
+        try allocator.dupe(u8, html_name);
+    defer allocator.free(rel_path);
+
+    // Add to search index
+    try search_index.append(.{
+        .title = try allocator.dupe(u8, title),
+        .path = try allocator.dupe(u8, rel_path),
+        .content = try allocator.dupe(u8, result.text),
+    });
+
     const output_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ config.output_dir, html_name });
     defer allocator.free(output_path);
 
     try writeFile(io, allocator, output_path, html);
     std.debug.print("   ✓ {s}\n", .{filename});
     count.* += 1;
+}
+
+fn writeSearchIndex(io: anytype, allocator: Allocator, output_dir: []const u8, items: []const SearchEntry) !void {
+    var list = std.ArrayList(u8).init(allocator);
+    defer list.deinit();
+
+    try std.json.stringify(items, .{ .whitespace = .indent_2 }, list.writer());
+
+    const path = try std.fmt.allocPrint(allocator, "{s}/search.json", .{output_dir});
+    defer allocator.free(path);
+    try writeFile(io, allocator, path, list.items);
+    std.debug.print("🔍 Search index generated\n", .{});
 }
 
 fn writeFile(io: anytype, allocator: Allocator, path: []const u8, content: []const u8) !void {

@@ -134,7 +134,7 @@ fn benchmarkBatchThroughput(
 }
 
 /// Run all LLM comparison benchmarks
-pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig) !void {
+pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig, runner: *framework.BenchmarkRunner) !void {
     _ = config;
     std.debug.print("Comparing ABI LLM inference against frameworks...\n\n", .{});
 
@@ -144,6 +144,32 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
     std.debug.print("  ABI: {d:.0} tokens/sec, TTFT={d:.2}ms\n", .{
         single_result.tokens_per_sec,
         single_result.ttft_ms,
+    });
+
+    // Record Single Request Result
+    const single_mean_ns = 1_000_000_000.0 / single_result.tokens_per_sec;
+    try runner.results.append(allocator, .{
+        .config = .{
+            .name = "ABI LLM Single Request",
+            .category = "llm",
+        },
+        .stats = .{
+            .min_ns = 0,
+            .max_ns = 0,
+            .mean_ns = single_mean_ns,
+            .median_ns = single_mean_ns,
+            .std_dev_ns = 0,
+            .p50_ns = @intFromFloat(single_result.ttft_ms * 1_000_000.0), // Use TTFT for latency metric
+            .p90_ns = @intFromFloat(single_result.ttft_ms * 1_000_000.0),
+            .p95_ns = 0,
+            .p99_ns = 0,
+            .iterations = 128,
+            .outliers_removed = 0,
+            .total_time_ns = @intFromFloat(single_mean_ns * 128.0),
+        },
+        .memory_allocated = 0,
+        .memory_freed = 0,
+        .timestamp = 0,
     });
 
     // Compare with baselines
@@ -167,6 +193,32 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
     std.debug.print("  ABI: {d:.0} total tokens/sec, {d:.2}ms per request\n", .{
         batch_result.total_tokens_per_sec,
         batch_result.latency_per_request_ms,
+    });
+
+    // Record Batch Result
+    const batch_mean_ns = 1_000_000_000.0 / batch_result.total_tokens_per_sec;
+    try runner.results.append(allocator, .{
+        .config = .{
+            .name = "ABI LLM Batch Throughput",
+            .category = "llm",
+        },
+        .stats = .{
+            .min_ns = 0,
+            .max_ns = 0,
+            .mean_ns = batch_mean_ns,
+            .median_ns = batch_mean_ns,
+            .std_dev_ns = 0,
+            .p50_ns = @intFromFloat(batch_result.latency_per_request_ms * 1_000_000.0),
+            .p90_ns = 0,
+            .p95_ns = 0,
+            .p99_ns = 0,
+            .iterations = 8 * 64,
+            .outliers_removed = 0,
+            .total_time_ns = @intFromFloat(batch_mean_ns * (8.0 * 64.0)),
+        },
+        .memory_allocated = 0,
+        .memory_freed = 0,
+        .timestamp = 0,
     });
 
     // Compare with batch baselines

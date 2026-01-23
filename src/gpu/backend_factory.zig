@@ -101,6 +101,7 @@ const backend_priority = [_]Backend{
     .webgpu, // Modern cross-platform
     .opengl, // Wide support but limited compute
     .opengles, // Mobile
+    .fpga, // Specialized hardware
     .stdgpu, // CPU fallback - always available
 };
 
@@ -139,6 +140,11 @@ pub fn createBackend(allocator: std.mem.Allocator, backend_type: Backend) Factor
             instance.backend = try initOpenGLBackend(allocator);
             instance.max_threads_per_block = 1024;
             instance.total_memory = null;
+        },
+        .fpga => {
+            instance.backend = try initFpgaBackend(allocator);
+            instance.max_threads_per_block = 1;
+            instance.total_memory = queryFpgaMemory();
         },
         .stdgpu => {
             instance.backend = initStdgpuBackend();
@@ -319,6 +325,8 @@ fn initCudaBackend(allocator: std.mem.Allocator) FactoryError!BackendInterface {
         .memcpyHostToDevice = memcpyStub,
         .memcpyDeviceToHost = memcpyStub,
         .memcpyDeviceToDevice = memcpyStub,
+        .copyToDeviceAsync = memcpyAsyncStub,
+        .copyFromDeviceAsync = memcpyAsyncStub,
         .synchronize = synchronizeStub,
         .deinit = null,
     };
@@ -340,6 +348,8 @@ fn initVulkanBackend(allocator: std.mem.Allocator) FactoryError!BackendInterface
         .memcpyHostToDevice = memcpyStub,
         .memcpyDeviceToHost = memcpyStub,
         .memcpyDeviceToDevice = memcpyStub,
+        .copyToDeviceAsync = memcpyAsyncStub,
+        .copyFromDeviceAsync = memcpyAsyncStub,
         .synchronize = synchronizeStub,
         .deinit = null,
     };
@@ -361,6 +371,8 @@ fn initMetalBackend(allocator: std.mem.Allocator) FactoryError!BackendInterface 
         .memcpyHostToDevice = memcpyStub,
         .memcpyDeviceToHost = memcpyStub,
         .memcpyDeviceToDevice = memcpyStub,
+        .copyToDeviceAsync = memcpyAsyncStub,
+        .copyFromDeviceAsync = memcpyAsyncStub,
         .synchronize = synchronizeStub,
         .deinit = null,
     };
@@ -381,6 +393,8 @@ fn initWebGPUBackend(allocator: std.mem.Allocator) FactoryError!BackendInterface
         .memcpyHostToDevice = memcpyStub,
         .memcpyDeviceToHost = memcpyStub,
         .memcpyDeviceToDevice = memcpyStub,
+        .copyToDeviceAsync = memcpyAsyncStub,
+        .copyFromDeviceAsync = memcpyAsyncStub,
         .synchronize = synchronizeStub,
         .deinit = null,
     };
@@ -401,6 +415,30 @@ fn initOpenGLBackend(allocator: std.mem.Allocator) FactoryError!BackendInterface
         .memcpyHostToDevice = memcpyStub,
         .memcpyDeviceToHost = memcpyStub,
         .memcpyDeviceToDevice = memcpyStub,
+        .copyToDeviceAsync = memcpyAsyncStub,
+        .copyFromDeviceAsync = memcpyAsyncStub,
+        .synchronize = synchronizeStub,
+        .deinit = null,
+    };
+}
+
+fn initFpgaBackend(allocator: std.mem.Allocator) FactoryError!BackendInterface {
+    _ = allocator;
+    if (!isBackendAvailable(.fpga)) {
+        return FactoryError.BackendNotAvailable;
+    }
+
+    return BackendInterface{
+        .compileKernel = compileKernelStub,
+        .launchKernel = launchKernelStub,
+        .destroyKernel = destroyKernelStub,
+        .allocateMemory = allocateMemoryStub,
+        .freeMemory = freeMemoryStub,
+        .memcpyHostToDevice = memcpyStub,
+        .memcpyDeviceToHost = memcpyStub,
+        .memcpyDeviceToDevice = memcpyStub,
+        .copyToDeviceAsync = memcpyAsyncStub,
+        .copyFromDeviceAsync = memcpyAsyncStub,
         .synchronize = synchronizeStub,
         .deinit = null,
     };
@@ -416,6 +454,8 @@ fn initStdgpuBackend() BackendInterface {
         .memcpyHostToDevice = memcpyStub,
         .memcpyDeviceToHost = memcpyStub,
         .memcpyDeviceToDevice = memcpyStub,
+        .copyToDeviceAsync = memcpyAsyncStub,
+        .copyFromDeviceAsync = memcpyAsyncStub,
         .synchronize = synchronizeStub,
         .deinit = null,
     };
@@ -437,6 +477,10 @@ fn queryVulkanMemory() ?u64 {
 
 fn queryMetalMemory() ?u64 {
     // Would query Metal device memory
+    return null;
+}
+
+fn queryFpgaMemory() ?u64 {
     return null;
 }
 
@@ -483,6 +527,14 @@ fn memcpyStub(dst: *anyopaque, src: *const anyopaque, size: usize) interface.Int
     _ = dst;
     _ = src;
     _ = size;
+    return interface.InterfaceError.NotImplemented;
+}
+
+fn memcpyAsyncStub(dst: *anyopaque, src: *const anyopaque, size: usize, stream: ?*anyopaque) interface.InterfaceError!void {
+    _ = dst;
+    _ = src;
+    _ = size;
+    _ = stream;
     return interface.InterfaceError.NotImplemented;
 }
 
@@ -595,6 +647,16 @@ pub const SimulatedBackend = struct {
         @memcpy(dst, src_ptr[0..dst.len]);
     }
 
+    pub fn copyToDeviceAsync(self: *SimulatedBackend, dst: *anyopaque, src: []const u8, stream: ?*anyopaque) interface.MemoryError!void {
+        _ = stream;
+        return self.copyToDevice(dst, src);
+    }
+
+    pub fn copyFromDeviceAsync(self: *SimulatedBackend, dst: []u8, src: *anyopaque, stream: ?*anyopaque) interface.MemoryError!void {
+        _ = stream;
+        return self.copyFromDevice(dst, src);
+    }
+
     pub fn compileKernel(
         self: *SimulatedBackend,
         allocator: std.mem.Allocator,
@@ -650,6 +712,7 @@ pub fn createVTableBackend(allocator: std.mem.Allocator, backend_type: Backend) 
         .metal => createMetalVTableBackend(allocator),
         .webgpu => createWebGPUVTableBackend(allocator),
         .opengl, .opengles => createOpenGLVTableBackend(allocator),
+        .fpga => createFpgaVTableBackend(allocator),
         .stdgpu => createSimulatedVTableBackend(allocator),
         .webgl2 => FactoryError.UnsupportedBackend,
     };
@@ -668,6 +731,24 @@ pub fn createBestVTableBackend(allocator: std.mem.Allocator) FactoryError!interf
 fn createSimulatedVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
     const impl = SimulatedBackend.init(allocator) catch return FactoryError.OutOfMemory;
     return interface.createBackend(SimulatedBackend, impl);
+}
+
+fn createFpgaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
+    // Check if FPGA is available at comptime
+    if (comptime !build_options.gpu_fpga) {
+        return FactoryError.BackendNotAvailable;
+    }
+
+    const fpga_vtable = @import("backends/fpga/vtable.zig");
+    return fpga_vtable.createFpgaVTable(allocator) catch |err| {
+        return switch (err) {
+            error.NotAvailable => FactoryError.BackendNotAvailable,
+            error.DeviceNotFound => FactoryError.BackendNotAvailable,
+            error.InitFailed => FactoryError.BackendInitializationFailed,
+            error.OutOfMemory => FactoryError.OutOfMemory,
+            else => FactoryError.BackendInitializationFailed,
+        };
+    };
 }
 
 fn createCudaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {

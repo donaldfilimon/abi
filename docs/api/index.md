@@ -9,9 +9,7 @@
 | Module | Description |
 |--------|-------------|
 | [abi](../api_abi.md) | Main framework entry point and public API |
-| [config](../api_config.md) | Unified configuration system with builder pattern |
 | [framework](../api_framework.md) | Framework orchestration and lifecycle management |
-| [tasks](../api_tasks.md) | Centralized task management system |
 | [runtime](../api_runtime.md) | Runtime infrastructure (engine, scheduling, memory) |
 | [runtime-engine](../api_runtime-engine.md) | Work-stealing task execution engine |
 | [runtime-scheduling](../api_runtime-scheduling.md) | Futures, cancellation, and task groups |
@@ -42,23 +40,11 @@ Main framework entry point and public API
 
 **Source:** [`src/abi.zig`](../../src/abi.zig)
 
-### [config](../api_config.md)
-
-Unified configuration system with builder pattern
-
-**Source:** [`src/config.zig`](../../src/config.zig)
-
 ### [framework](../api_framework.md)
 
 Framework orchestration and lifecycle management
 
 **Source:** [`src/framework.zig`](../../src/framework.zig)
-
-### [tasks](../api_tasks.md)
-
-Centralized task management system
-
-**Source:** [`src/tasks.zig`](../../src/tasks.zig)
 
 ## Compute & Runtime
 

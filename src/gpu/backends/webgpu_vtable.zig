@@ -176,6 +176,16 @@ pub const WebGpuBackend = struct {
         };
     }
 
+    pub fn copyToDeviceAsync(self: *Self, dst: *anyopaque, src: []const u8, stream: ?*anyopaque) interface.MemoryError!void {
+        _ = stream;
+        return self.copyToDevice(dst, src);
+    }
+
+    pub fn copyFromDeviceAsync(self: *Self, dst: []u8, src: *anyopaque, stream: ?*anyopaque) interface.MemoryError!void {
+        _ = stream;
+        return self.copyFromDevice(dst, src);
+    }
+
     // ========================================================================
     // Kernel Operations
     // ========================================================================

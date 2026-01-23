@@ -111,7 +111,6 @@ pub const TrackingAllocator = struct {
             .vtable = &.{
                 .alloc = alloc,
                 .resize = resize,
-                .remap = remap,
                 .free = free,
             },
         };
@@ -202,9 +201,9 @@ pub const TrackingAllocator = struct {
     }
 
     // Allocator vtable implementations
-    fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
+    fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
         const self: *Self = @ptrCast(@alignCast(ctx));
-        const ptr = self.backing_allocator.rawAlloc(len, alignment, ret_addr);
+        const ptr = self.backing_allocator.rawAlloc(len, ptr_align, ret_addr);
 
         self.mutex.lock();
         defer self.mutex.unlock();
@@ -214,7 +213,7 @@ pub const TrackingAllocator = struct {
             const info = AllocationInfo{
                 .address = address,
                 .size = len,
-                .alignment = @intCast(alignment.toByteUnits()),
+                .alignment = ptr_align,
                 .timestamp = if (self.config.capture_timing) 0 else null,
                 .is_active = true,
                 .source_file = null,
@@ -242,9 +241,9 @@ pub const TrackingAllocator = struct {
         return ptr;
     }
 
-    fn resize(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
+    fn resize(ctx: *anyopaque, memory: []u8, ptr_align: u8, new_len: usize, ret_addr: usize) bool {
         const self: *Self = @ptrCast(@alignCast(ctx));
-        const result = self.backing_allocator.rawResize(memory, alignment, new_len, ret_addr);
+        const result = self.backing_allocator.rawResize(memory, ptr_align, new_len, ret_addr);
 
         if (result) {
             self.mutex.lock();
@@ -274,55 +273,7 @@ pub const TrackingAllocator = struct {
         return result;
     }
 
-    fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
-        const self: *Self = @ptrCast(@alignCast(ctx));
-        const result = self.backing_allocator.rawRemap(memory, alignment, new_len, ret_addr);
-
-        if (result) |new_ptr| {
-            self.mutex.lock();
-            defer self.mutex.unlock();
-
-            const old_address = @intFromPtr(memory.ptr);
-            const new_address = @intFromPtr(new_ptr);
-
-            // Remove old allocation
-            if (self.allocations.fetchRemove(old_address)) |old_kv| {
-                const old_size = old_kv.value.size;
-
-                // Add new allocation
-                const info = AllocationInfo{
-                    .address = new_address,
-                    .size = new_len,
-                    .alignment = @intCast(alignment.toByteUnits()),
-                    .timestamp = if (self.config.capture_timing) 0 else null,
-                    .is_active = true,
-                    .source_file = old_kv.value.source_file,
-                    .source_line = old_kv.value.source_line,
-                };
-
-                self.allocations.put(self.backing_allocator, new_address, info) catch {};
-
-                // Update stats
-                if (new_len > old_size) {
-                    const diff = new_len - old_size;
-                    self.stats.current_bytes += diff;
-                    self.stats.total_bytes_allocated += diff;
-                } else {
-                    const diff = old_size - new_len;
-                    self.stats.current_bytes -= diff;
-                    self.stats.total_bytes_freed += diff;
-                }
-
-                if (self.stats.current_bytes > self.stats.peak_bytes) {
-                    self.stats.peak_bytes = self.stats.current_bytes;
-                }
-            }
-        }
-
-        return result;
-    }
-
-    fn free(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
+    fn free(ctx: *anyopaque, memory: []u8, ptr_align: u8, ret_addr: usize) void {
         const self: *Self = @ptrCast(@alignCast(ctx));
         const address = @intFromPtr(memory.ptr);
 
@@ -342,7 +293,7 @@ pub const TrackingAllocator = struct {
         }
         self.mutex.unlock();
 
-        self.backing_allocator.rawFree(memory, alignment, ret_addr);
+        self.backing_allocator.rawFree(memory, ptr_align, ret_addr);
     }
 };
 

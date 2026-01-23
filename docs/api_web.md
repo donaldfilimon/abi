@@ -8,6 +8,11 @@
 
 Web feature helpers for HTTP and weather client access.
 
+This module provides:
+- HTTP client for making requests
+- Weather API client
+- Persona API handlers and routes
+
 ---
 
 ## API

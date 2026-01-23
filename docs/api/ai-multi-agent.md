@@ -1,5 +1,5 @@
 ---
-title: "api_ai-multi-agent"
+title: "api-ai-multi-agent"
 tags: []
 ---
 # Multi‑Agent Coordination API

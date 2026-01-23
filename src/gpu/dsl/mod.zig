@@ -253,6 +253,9 @@ pub const getBestBackend = compiler.getBestBackend;
 /// Check if backend supports compilation.
 pub const backendSupportsCompilation = compiler.backendSupportsCompilation;
 
+/// Zig-to-SPIRV compiler integration.
+pub const zig_spirv = @import("spirv.zig");
+
 // ============================================================================
 // Tests
 // ============================================================================

@@ -68,6 +68,29 @@ pub const BpeTokenizer = struct {
         }
     }
 
+    /// Load merge rules from GGUF string array data.
+    /// GGUF stores merges as length-prefixed UTF-8 strings.
+    pub fn loadMergesFromGguf(self: *BpeTokenizer, merges_data: []const u8, count: u64) !void {
+        var offset: usize = 0;
+        var idx: u64 = 0;
+
+        while (idx < count and offset + 8 <= merges_data.len) : (idx += 1) {
+            const len = std.mem.readInt(u64, merges_data[offset..][0..8], .little);
+            offset += 8;
+            if (offset + len > merges_data.len) break;
+
+            const merge = merges_data[offset .. offset + @as(usize, @intCast(len))];
+            offset += @intCast(len);
+
+            var parts = std.mem.splitScalar(u8, merge, ' ');
+            const left = parts.next() orelse continue;
+            const right = parts.next() orelse continue;
+
+            const key = try std.fmt.allocPrint(self.allocator, "{s} {s}", .{ left, right });
+            try self.merge_ranks.put(self.allocator, key, @intCast(idx));
+        }
+    }
+
     /// Encode text to token IDs.
     pub fn encode(self: *BpeTokenizer, allocator: std.mem.Allocator, text: []const u8) ![]u32 {
         var tokens = std.ArrayListUnmanaged(u32).empty;

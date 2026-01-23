@@ -224,15 +224,151 @@
   }
 
   // ==========================================================================
-  // Search (placeholder for future implementation)
+  // Search
   // ==========================================================================
+
+  let searchIndex = null;
+  let isSearchOpen = false;
+
+  function getBaseUrl() {
+    const link = document.querySelector('link[href*="style.css"]');
+    if (link) {
+      return link.getAttribute('href').replace(/\/assets\/css\/style\.css$/, '');
+    }
+    return '';
+  }
 
   /**
    * Initialize search functionality
    */
-  function initSearch() {
-    // Placeholder for future search implementation
-    // Could integrate with Lunr.js or Algolia
+  async function initSearch() {
+    const navbar = document.querySelector('.nav-links');
+    if (!navbar) return;
+
+    // Inject Search Button
+    const searchBtn = document.createElement('button');
+    searchBtn.className = 'search-button';
+    searchBtn.innerHTML = `
+      <span class="search-icon">🔍</span>
+      <span>Search</span>
+      <div class="search-keys">
+        <span class="search-key">Ctrl</span>
+        <span class="search-key">K</span>
+      </div>
+    `;
+    navbar.insertBefore(searchBtn, navbar.firstChild);
+
+    // Inject Modal
+    const modalBackdrop = document.createElement('div');
+    modalBackdrop.className = 'search-modal-backdrop';
+    modalBackdrop.innerHTML = `
+      <div class="search-modal" role="dialog" aria-modal="true">
+        <div class="search-header">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" placeholder="Search documentation..." aria-label="Search">
+          <button class="search-close" aria-label="Close search">✕</button>
+        </div>
+        <div class="search-results"></div>
+      </div>
+    `;
+    document.body.appendChild(modalBackdrop);
+
+    // Event Listeners
+    searchBtn.addEventListener('click', openSearch);
+    
+    modalBackdrop.addEventListener('click', (e) => {
+      if (e.target === modalBackdrop) closeSearch();
+    });
+
+    modalBackdrop.querySelector('.search-close').addEventListener('click', closeSearch);
+
+    const input = modalBackdrop.querySelector('.search-input');
+    input.addEventListener('input', debounce((e) => performSearch(e.target.value), 300));
+    
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        openSearch();
+      }
+      if (e.key === 'Escape' && isSearchOpen) {
+        closeSearch();
+      }
+    });
+  }
+
+  async function openSearch() {
+    if (isSearchOpen) return;
+    isSearchOpen = true;
+    
+    const backdrop = document.querySelector('.search-modal-backdrop');
+    backdrop.classList.add('open');
+    
+    const input = backdrop.querySelector('.search-input');
+    input.focus();
+
+    if (!searchIndex) {
+      try {
+        const baseUrl = getBaseUrl();
+        // Try multiple paths to be robust
+        const paths = [
+            `${baseUrl}/search.json`, 
+            'search.json', 
+            '../search.json', 
+            '../../search.json'
+        ];
+        
+        for (const path of paths) {
+            try {
+                const response = await fetch(path);
+                if (response.ok) {
+                    searchIndex = await response.json();
+                    break;
+                }
+            } catch (e) { continue; }
+        }
+        
+        if (!searchIndex) console.error('Could not load search index');
+      } catch (err) {
+        console.error('Failed to load search index:', err);
+      }
+    }
+  }
+
+  function closeSearch() {
+    isSearchOpen = false;
+    document.querySelector('.search-modal-backdrop').classList.remove('open');
+  }
+
+  function performSearch(query) {
+    const resultsContainer = document.querySelector('.search-results');
+    resultsContainer.innerHTML = '';
+
+    if (!query || !searchIndex) return;
+
+    const normalizedQuery = query.toLowerCase();
+    const results = searchIndex.filter(item => {
+      const titleMatch = item.title.toLowerCase().includes(normalizedQuery);
+      const contentMatch = item.content.toLowerCase().includes(normalizedQuery);
+      return titleMatch || contentMatch;
+    }).slice(0, 10);
+
+    if (results.length === 0) {
+      resultsContainer.innerHTML = '<div class="search-no-results">No results found</div>';
+      return;
+    }
+
+    const baseUrl = getBaseUrl();
+    results.forEach(result => {
+      const item = document.createElement('a');
+      item.className = 'search-result-item';
+      item.href = `${baseUrl}/${result.path}`;
+      item.innerHTML = `
+        <span class="search-result-title">${result.title}</span>
+        <span class="search-result-path">${result.path}</span>
+      `;
+      item.addEventListener('click', closeSearch);
+      resultsContainer.appendChild(item);
+    });
   }
 
   // ==========================================================================

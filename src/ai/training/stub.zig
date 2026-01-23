@@ -78,6 +78,15 @@ pub const TrainingResult = struct {
 
     pub fn deinit(_: *TrainingResult) void {}
 };
+pub const TokenBlock = struct {
+    allocator: std.mem.Allocator,
+    tokens: []u32 = &.{},
+    text: ?[]u8 = null,
+
+    pub fn deinit(self: *TokenBlock) void {
+        _ = self;
+    }
+};
 pub const Checkpoint = struct {
     step: u64 = 0,
     timestamp: i64 = 0,
@@ -119,6 +128,31 @@ pub const TrainableModel = struct {
     }
 };
 
+pub const WdbxTokenDataset = struct {
+    pub fn init(_: std.mem.Allocator, _: []const u8) Error!WdbxTokenDataset {
+        return error.TrainingDisabled;
+    }
+    pub fn deinit(_: *WdbxTokenDataset) void {}
+    pub fn save(_: *WdbxTokenDataset) Error!void {
+        return error.TrainingDisabled;
+    }
+    pub fn appendTokens(_: *WdbxTokenDataset, _: []const u32, _: ?[]const u8) Error!void {
+        return error.TrainingDisabled;
+    }
+    pub fn importTokenBin(_: *WdbxTokenDataset, _: []const u32, _: u32) Error!void {
+        return error.TrainingDisabled;
+    }
+    pub fn collectTokens(_: *WdbxTokenDataset, _: std.mem.Allocator, _: usize) Error![]u32 {
+        return error.TrainingDisabled;
+    }
+    pub fn exportTokenBinFile(_: *WdbxTokenDataset, _: std.mem.Allocator, _: []const u8, _: usize) Error!void {
+        return error.TrainingDisabled;
+    }
+    pub fn ingestText(_: *WdbxTokenDataset, _: std.mem.Allocator, _: anytype, _: []const u8, _: u32) Error!void {
+        return error.TrainingDisabled;
+    }
+};
+
 pub const Context = struct {
     pub fn init(_: std.mem.Allocator, _: config_module.TrainingConfig) Error!*Context {
         return error.TrainingDisabled;
@@ -156,5 +190,21 @@ pub fn trainWithResult(_: std.mem.Allocator, _: TrainingConfig) Error!TrainingRe
 }
 
 pub fn trainLlm(_: std.mem.Allocator, _: LlmTrainingConfig) Error!void {
+    return error.TrainingDisabled;
+}
+
+pub fn encodeTokenBlock(_: std.mem.Allocator, _: []const u32, _: ?[]const u8) Error![]u8 {
+    return error.TrainingDisabled;
+}
+
+pub fn decodeTokenBlock(_: std.mem.Allocator, _: []const u8) Error!TokenBlock {
+    return error.TrainingDisabled;
+}
+
+pub fn readTokenBinFile(_: std.mem.Allocator, _: []const u8) Error![]u32 {
+    return error.TrainingDisabled;
+}
+
+pub fn writeTokenBinFile(_: []const u8, _: []const u32) Error!void {
     return error.TrainingDisabled;
 }

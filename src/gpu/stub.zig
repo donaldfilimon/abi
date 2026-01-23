@@ -236,6 +236,12 @@ pub const MetricsSummary = struct {
     kernels_per_second: f64 = 0.0,
 };
 
+pub const DeviceGroup = struct {};
+pub const WorkDistribution = struct {};
+pub const GroupStats = struct {};
+pub const KernelMetrics = struct {};
+pub const MetricsCollector = struct {};
+
 pub const Gpu = struct {
     pub fn init(_: std.mem.Allocator, _: GpuConfig) Error!Gpu {
         return stub_common.stubError(error.GpuDisabled);
@@ -271,6 +277,57 @@ pub const Gpu = struct {
     }
     pub fn getMemoryInfo(_: *const Gpu) MemoryInfo {
         return .{};
+    }
+    pub fn selectDevice(_: *Gpu, _: DeviceSelector) Error!void {
+        return error.GpuDisabled;
+    }
+    pub fn enableMultiGpu(_: *Gpu, _: MultiGpuConfig) Error!void {
+        return error.GpuDisabled;
+    }
+    pub fn getDeviceGroup(_: *Gpu) ?*DeviceGroup {
+        return null;
+    }
+    pub fn distributeWork(_: *Gpu, _: usize) Error![]WorkDistribution {
+        return error.GpuDisabled;
+    }
+    pub fn compileKernel(_: *Gpu, _: PortableKernelSource) Error!CompiledKernel {
+        return error.GpuDisabled;
+    }
+    pub fn launchKernel(_: *Gpu, _: *const CompiledKernel, _: LaunchConfig, _: anytype) Error!ExecutionResult {
+        return error.GpuDisabled;
+    }
+    pub fn synchronize(_: *Gpu) Error!void {
+        return error.GpuDisabled;
+    }
+    pub fn createStream(_: *Gpu, _: StreamOptions) Error!*Stream {
+        return error.GpuDisabled;
+    }
+    pub fn createEvent(_: *Gpu, _: EventOptions) Error!*Event {
+        return error.GpuDisabled;
+    }
+    pub fn isProfilingEnabled(_: *const Gpu) bool {
+        return false;
+    }
+    pub fn enableProfiling(_: *Gpu) void {}
+    pub fn disableProfiling(_: *Gpu) void {}
+    pub fn getKernelMetrics(_: *Gpu, _: []const u8) ?KernelMetrics {
+        return null;
+    }
+    pub fn getMetricsCollector(_: *Gpu) ?*MetricsCollector {
+        return null;
+    }
+    pub fn resetMetrics(_: *Gpu) void {}
+    pub fn isMultiGpuEnabled(_: *const Gpu) bool {
+        return false;
+    }
+    pub fn getMultiGpuStats(_: *const Gpu) ?GroupStats {
+        return null;
+    }
+    pub fn activeDeviceCount(_: *const Gpu) usize {
+        return 0;
+    }
+    pub fn softmax(_: *Gpu, _: *Buffer, _: *Buffer) Error!ExecutionResult {
+        return error.GpuDisabled;
     }
     pub fn checkHealth(_: *const Gpu) HealthStatus {
         return .unhealthy;

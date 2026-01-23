@@ -234,8 +234,8 @@ const WandbLogger = struct {
             try buffer.appendSlice(self.allocator, metric.key);
             try buffer.appendSlice(self.allocator, "\":");
             var temp: [64]u8 = undefined;
-            const len = std.fmt.bufPrint(&temp, "{d}", .{metric.value}) catch 0;
-            try buffer.appendSlice(self.allocator, temp[0..len]);
+            const rendered = std.fmt.bufPrint(&temp, "{d}", .{metric.value}) catch "0";
+            try buffer.appendSlice(self.allocator, rendered);
         }
         try buffer.appendSlice(self.allocator, "}\n");
 

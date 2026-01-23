@@ -147,5 +147,5 @@ tags: []
 //!
 //! - [CLAUDE.md](../CLAUDE.md) - Full project documentation
 //! - [API Reference](../API_REFERENCE.md)
+//! - [Docs Map](../docs/README.md) - Documentation layout and entry points
 //! - [docs/intro.md](../docs/intro.md) - Architecture overview
-

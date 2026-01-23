@@ -25,6 +25,18 @@ zig build benchmarks -- --verbose
 
 ---
 
+## Directory Layout
+
+| Path | Purpose |
+| --- | --- |
+| `benchmarks/` | Suite entry points (`main.zig`, `run.zig`, `mod.zig`) |
+| `benchmarks/competitive/` | Competitive comparisons (FAISS, vector DBs, LLMs) |
+| `benchmarks/run_competitive.zig` | CLI entry point for competitive runs |
+| `benchmarks/industry_standard.zig` | Industry-standard baseline harness |
+| `benchmarks/*` | Individual suite implementations (simd, memory, gpu, network, ai) |
+
+---
+
 ## Available Suites
 
 | Suite | Purpose | Key Metrics |
@@ -280,4 +292,3 @@ zig build benchmarks -Denable-database=true -Denable-gpu=true
 - [docs/PERFORMANCE_BASELINE.md](../docs/PERFORMANCE_BASELINE.md) - Reference performance metrics
 - [docs/gpu.md](../docs/gpu.md) - GPU-specific benchmarking
 - [CLAUDE.md](../CLAUDE.md) - Development guidelines
-

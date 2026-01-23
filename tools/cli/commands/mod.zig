@@ -6,6 +6,7 @@ pub const db = @import("db.zig");
 pub const agent = @import("agent.zig");
 pub const bench = @import("bench.zig");
 pub const config = @import("config.zig");
+pub const convert = @import("convert.zig");
 pub const discord = @import("discord.zig");
 pub const embed = @import("embed.zig");
 pub const explore = @import("explore.zig");

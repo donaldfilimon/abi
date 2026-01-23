@@ -23,6 +23,7 @@ pub const llm = @import("llm/stub.zig");
 pub const embeddings = @import("embeddings/stub.zig");
 pub const agents = @import("agents/stub.zig");
 pub const training = @import("training/stub.zig");
+pub const database = @import("database/stub.zig");
 pub const vision = @import("vision/stub.zig");
 pub const orchestration = @import("orchestration/stub.zig");
 
@@ -119,6 +120,15 @@ pub const Checkpoint = training.Checkpoint;
 pub const LlmTrainingConfig = training.LlmTrainingConfig;
 pub const LlamaTrainer = training.LlamaTrainer;
 pub const TrainableModel = training.TrainableModel;
+pub const WdbxTokenDataset = database.WdbxTokenDataset;
+pub const TokenBlock = training.TokenBlock;
+pub const encodeTokenBlock = training.encodeTokenBlock;
+pub const decodeTokenBlock = training.decodeTokenBlock;
+pub const readTokenBinFile = database.readTokenBinFile;
+pub const writeTokenBinFile = database.writeTokenBinFile;
+pub const tokenBinToWdbx = database.tokenBinToWdbx;
+pub const wdbxToTokenBin = database.wdbxToTokenBin;
+pub const exportGguf = database.exportGguf;
 
 pub const trainable_model = struct {
     pub const TrainableModelConfig = struct {

@@ -42,7 +42,7 @@ tags: []
 | [GPU Backend Details](gpu-backend-improvements.md) | Implementation specifics | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [Feature Flags](feature-flags.md) | Build configuration guide | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [Troubleshooting](troubleshooting.md) | Common issues and solutions | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| [Multi‑Agent Coordination](api_ai-multi-agent.md) | Coordinator API for AI agents | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [Multi‑Agent Coordination](api/ai-multi-agent.md) | Coordinator API for AI agents | ![Complete](https://img.shields.io/badge/-Complete-success) |
 
 ## Research & Architecture
 
@@ -80,6 +80,7 @@ tags: []
 - [README](../README.md) — Project overview
 - [Quickstart](../QUICKSTART.md) — 5-minute setup
 - [API Reference](../API_REFERENCE.md) — Public API
+- [API Reference (Docs)](api/index.md) — Generated API pages
 
 </td>
 <td width="50%">

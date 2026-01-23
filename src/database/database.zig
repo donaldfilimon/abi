@@ -474,6 +474,12 @@ pub const Database = struct {
         };
     }
 
+    pub const BatchItem = struct {
+        id: u64,
+        vector: []const f32,
+        metadata: ?[]const u8 = null,
+    };
+
     /// Acquire read lock for concurrent read operations.
     /// Call unlockRead() when done.
     pub fn lockRead(self: *Database) void {
@@ -556,6 +562,33 @@ pub const Database = struct {
 
         // Maintain O(1) lookup index
         try self.id_index.put(self.allocator, id, new_index);
+    }
+
+    pub fn reserve(self: *Database, additional: usize) !void {
+        const target = self.records.items.len + additional;
+        try self.records.ensureTotalCapacity(self.allocator, target);
+        try self.id_index.ensureTotalCapacity(self.allocator, @intCast(target));
+        if (self.config.cache_norms) {
+            try self.cached_norms.ensureTotalCapacity(self.allocator, target);
+        }
+    }
+
+    pub fn insertBatch(self: *Database, items: []const BatchItem) !void {
+        if (items.len == 0) return;
+
+        const base_dim = if (self.records.items.len > 0)
+            self.records.items[0].vector.len
+        else
+            items[0].vector.len;
+
+        for (items) |item| {
+            if (item.vector.len != base_dim) return DatabaseError.InvalidDimension;
+        }
+
+        try self.reserve(items.len);
+        for (items) |item| {
+            try self.insert(item.id, item.vector, item.metadata);
+        }
     }
 
     pub fn update(self: *Database, id: u64, vector: []const f32) !bool {

@@ -10,7 +10,7 @@
 //!
 //! ## Output
 //! - `docs/api/index.md` - API index with all modules
-//! - `docs/api_<module>.md` - Individual module documentation
+//! - `docs/api/<module>.md` - Individual module documentation
 
 const std = @import("std");
 
@@ -147,7 +147,7 @@ fn generateModuleDoc(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, 
     };
     defer allocator.free(source);
 
-    const out_name = try std.fmt.allocPrint(allocator, "docs/api_{s}.md", .{mod.name});
+    const out_name = try std.fmt.allocPrint(allocator, "docs/api/{s}.md", .{mod.name});
     defer allocator.free(out_name);
 
     var file = cwd.createFile(io, out_name, .{}) catch |err| {
@@ -273,7 +273,7 @@ fn generateIndex(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, gene
 
     // Quick links table
     for (generated_modules) |mod| {
-        try print(allocator, io, file, "| [{s}](../api_{s}.md) | {s} |\n", .{ mod.name, mod.name, mod.description });
+        try print(allocator, io, file, "| [{s}](../api/{s}.md) | {s} |\n", .{ mod.name, mod.name, mod.description });
     }
 
     try file.writeStreamingAll(io, "\n---\n\n");
@@ -290,7 +290,7 @@ fn generateIndex(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, gene
                     try print(allocator, io, file, "## {s}\n\n", .{cat_name});
                     has_items = true;
                 }
-                try print(allocator, io, file, "### [{s}](../api_{s}.md)\n\n", .{ mod.name, mod.name });
+                try print(allocator, io, file, "### [{s}](../api/{s}.md)\n\n", .{ mod.name, mod.name });
                 try print(allocator, io, file, "{s}\n\n", .{mod.description});
                 try print(allocator, io, file, "**Source:** [`{s}`](../../{s})\n\n", .{ mod.path, mod.path });
             }

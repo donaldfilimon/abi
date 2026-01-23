@@ -88,7 +88,6 @@ pub const StackAllocator = struct {
             .vtable = &.{
                 .alloc = alloc,
                 .resize = resize,
-                .remap = remap,
                 .free = free,
             },
         };
@@ -163,10 +162,10 @@ pub const StackAllocator = struct {
     }
 
     // Allocator vtable implementations
-    fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
+    fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
-        const align_val = alignment.toByteUnits();
+        const align_val = @as(usize, 1) << @as(u6, @intCast(ptr_align));
         const aligned_offset = (self.offset + align_val - 1) & ~(align_val - 1);
         const end_offset = aligned_offset + len;
 
@@ -184,7 +183,7 @@ pub const StackAllocator = struct {
         // Try fallback if enabled
         if (self.config.allow_fallback) {
             if (self.config.fallback_allocator) |fallback| {
-                const fallback_mem = fallback.rawAlloc(len, alignment, ret_addr) orelse return null;
+                const fallback_mem = fallback.rawAlloc(len, ptr_align, ret_addr) orelse return null;
                 const slice = fallback_mem[0..len];
                 self.fallback_allocations.append(fallback, slice) catch return null;
                 return fallback_mem;
@@ -194,7 +193,7 @@ pub const StackAllocator = struct {
         return null;
     }
 
-    fn resize(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
+    fn resize(ctx: *anyopaque, memory: []u8, ptr_align: u8, new_len: usize, ret_addr: usize) bool {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
         // Check if this is a stack allocation
@@ -222,37 +221,13 @@ pub const StackAllocator = struct {
 
         // Delegate to fallback
         if (self.config.fallback_allocator) |fallback| {
-            return fallback.rawResize(memory, alignment, new_len, ret_addr);
+            return fallback.rawResize(memory, ptr_align, new_len, ret_addr);
         }
 
         return false;
     }
 
-    fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
-        const self: *Self = @ptrCast(@alignCast(ctx));
-
-        // Check if this is a stack allocation
-        const mem_addr = @intFromPtr(memory.ptr);
-        const buf_start = @intFromPtr(self.buffer.ptr);
-        const buf_end = buf_start + self.buffer.len;
-
-        if (mem_addr >= buf_start and mem_addr < buf_end) {
-            // Stack allocations can't be remapped to different location
-            if (resize(ctx, memory, alignment, new_len, ret_addr)) {
-                return memory.ptr;
-            }
-            return null;
-        }
-
-        // Delegate to fallback
-        if (self.config.fallback_allocator) |fallback| {
-            return fallback.rawRemap(memory, alignment, new_len, ret_addr);
-        }
-
-        return null;
-    }
-
-    fn free(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
+    fn free(ctx: *anyopaque, memory: []u8, ptr_align: u8, ret_addr: usize) void {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
         // Check if this is a stack allocation
@@ -278,7 +253,7 @@ pub const StackAllocator = struct {
             for (self.fallback_allocations.items, 0..) |alloc_slice, i| {
                 if (alloc_slice.ptr == memory.ptr) {
                     _ = self.fallback_allocations.swapRemove(i);
-                    fallback.rawFree(memory, alignment, ret_addr);
+                    fallback.rawFree(memory, ptr_align, ret_addr);
                     return;
                 }
             }

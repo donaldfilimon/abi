@@ -2,6 +2,7 @@
 const std = @import("std");
 const database = @import("database.zig");
 const storage = @import("storage.zig");
+const storage_v2 = @import("storage_v2.zig");
 const fs = @import("../shared/utils_combined.zig").fs;
 
 pub const UnifiedError = error{
@@ -15,9 +16,19 @@ pub const DatabaseHandle = struct {
 pub const SearchResult = database.SearchResult;
 pub const VectorView = database.VectorView;
 pub const Stats = database.Stats;
+pub const DatabaseConfig = database.DatabaseConfig;
+pub const BatchItem = database.Database.BatchItem;
 
 pub fn createDatabase(allocator: std.mem.Allocator, name: []const u8) !DatabaseHandle {
     return .{ .db = try database.Database.init(allocator, name) };
+}
+
+pub fn createDatabaseWithConfig(
+    allocator: std.mem.Allocator,
+    name: []const u8,
+    config: database.DatabaseConfig,
+) !DatabaseHandle {
+    return .{ .db = try database.Database.initWithConfig(allocator, name, config) };
 }
 
 pub fn connectDatabase(allocator: std.mem.Allocator, name: []const u8) !DatabaseHandle {
@@ -36,6 +47,10 @@ pub fn insertVector(
     metadata: ?[]const u8,
 ) !void {
     try handle.db.insert(id, vector, metadata);
+}
+
+pub fn insertBatch(handle: *DatabaseHandle, items: []const BatchItem) !void {
+    try handle.db.insertBatch(items);
 }
 
 pub fn searchVectors(
@@ -79,7 +94,7 @@ pub fn backup(handle: *DatabaseHandle, path: []const u8) !void {
     if (!fs.isSafeBackupPath(path)) return fs.PathValidationError.InvalidPath;
     const safe_path = try fs.normalizeBackupPath(handle.db.allocator, path);
     defer handle.db.allocator.free(safe_path);
-    try storage.saveDatabase(handle.db.allocator, &handle.db, safe_path);
+    try storage_v2.saveDatabaseV2(handle.db.allocator, &handle.db, safe_path, .{});
 }
 
 pub fn restore(handle: *DatabaseHandle, path: []const u8) !void {
@@ -89,7 +104,16 @@ pub fn restore(handle: *DatabaseHandle, path: []const u8) !void {
     const safe_path = try fs.normalizeBackupPath(allocator, path);
     defer allocator.free(safe_path);
 
-    const restored = try storage.loadDatabase(allocator, safe_path);
+    var restored: database.Database = undefined;
+    if (storage_v2.loadDatabaseV2(allocator, safe_path, .{})) |db| {
+        restored = db;
+    } else |err| {
+        if (err == storage_v2.StorageV2Error.InvalidMagic) {
+            restored = try storage.loadDatabase(allocator, safe_path);
+        } else {
+            return err;
+        }
+    }
     handle.db.deinit();
     handle.db = restored;
 }

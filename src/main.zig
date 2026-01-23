@@ -24,17 +24,17 @@ pub fn main() !void {
         return;
     };
 
-    if (std.mem.eql(u8, command, "help") or std.mem.eql(u8, command, "--help")) {
+    if (std.mem.eql(u8, command, "help") or std.mem.eql(u8, command, "--help") or std.mem.eql(u8, command, "-h")) {
         printHelp();
         return;
     }
 
-    if (std.mem.eql(u8, command, "version")) {
+    if (std.mem.eql(u8, command, "version") or std.mem.eql(u8, command, "--version") or std.mem.eql(u8, command, "-v")) {
         std.debug.print("ABI Framework v{s}\n", .{abi.version()});
         return;
     }
 
-    if (std.mem.eql(u8, command, "info")) {
+    if (std.mem.eql(u8, command, "info") or std.mem.eql(u8, command, "system-info")) {
         try printFrameworkInfo(allocator);
         return;
     }
@@ -51,9 +51,9 @@ fn printHelp() void {
         \\  abi <command> [options]
         \\
         \\Commands:
-        \\  help, --help     Show this help message
-        \\  version          Show framework version
-        \\  info             Show framework information and available features
+        \\  help, --help, -h     Show this help message
+        \\  version, --version  Show framework version
+        \\  info, system-info   Show framework information and available features
         \\
         \\For the full CLI (including tui), build the tools/cli entrypoint.
         \\For more advanced usage, see the examples/ directory.

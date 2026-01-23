@@ -155,6 +155,13 @@ pub const Stats = struct {
     dimension: usize = 0,
 };
 
+pub const DatabaseConfig = struct {
+    cache_norms: bool = false,
+    initial_capacity: usize = 0,
+    use_vector_pool: bool = false,
+    thread_safe: bool = false,
+};
+
 pub const Database = struct {
     allocator: std.mem.Allocator,
 
@@ -166,6 +173,12 @@ pub const Database = struct {
     pub fn deinit(self: *@This()) void {
         _ = self;
     }
+};
+
+pub const BatchItem = struct {
+    id: u64 = 0,
+    vector: []const f32 = &.{},
+    metadata: ?[]const u8 = null,
 };
 
 // Full-text search types
@@ -676,6 +689,80 @@ pub const wdbx = struct {
     pub const SearchResult = stub_root.SearchResult;
     pub const VectorView = stub_root.VectorView;
     pub const Stats = stub_root.Stats;
+    pub const DatabaseConfig = stub_root.DatabaseConfig;
+    pub const BatchItem = stub_root.BatchItem;
+
+    pub fn createDatabase(_: std.mem.Allocator, _: []const u8) !stub_root.DatabaseHandle {
+        return error.DatabaseDisabled;
+    }
+
+    pub fn createDatabaseWithConfig(
+        _: std.mem.Allocator,
+        _: []const u8,
+        _: stub_root.DatabaseConfig,
+    ) !stub_root.DatabaseHandle {
+        return error.DatabaseDisabled;
+    }
+
+    pub fn connectDatabase(_: std.mem.Allocator, _: []const u8) !stub_root.DatabaseHandle {
+        return error.DatabaseDisabled;
+    }
+
+    pub fn closeDatabase(_: *stub_root.DatabaseHandle) void {}
+
+    pub fn insertVector(
+        _: *stub_root.DatabaseHandle,
+        _: u64,
+        _: []const f32,
+        _: ?[]const u8,
+    ) !void {
+        return error.DatabaseDisabled;
+    }
+
+    pub fn insertBatch(_: *stub_root.DatabaseHandle, _: []const stub_root.BatchItem) !void {
+        return error.DatabaseDisabled;
+    }
+
+    pub fn searchVectors(
+        _: *stub_root.DatabaseHandle,
+        _: std.mem.Allocator,
+        _: []const f32,
+        _: usize,
+    ) ![]stub_root.SearchResult {
+        return error.DatabaseDisabled;
+    }
+
+    pub fn deleteVector(_: *stub_root.DatabaseHandle, _: u64) bool {
+        return false;
+    }
+
+    pub fn updateVector(_: *stub_root.DatabaseHandle, _: u64, _: []const f32) !bool {
+        return error.DatabaseDisabled;
+    }
+
+    pub fn getVector(_: *stub_root.DatabaseHandle, _: u64) ?stub_root.VectorView {
+        return null;
+    }
+
+    pub fn listVectors(_: *stub_root.DatabaseHandle, _: std.mem.Allocator, _: usize) ![]stub_root.VectorView {
+        return error.DatabaseDisabled;
+    }
+
+    pub fn getStats(_: *stub_root.DatabaseHandle) stub_root.Stats {
+        return .{};
+    }
+
+    pub fn optimize(_: *stub_root.DatabaseHandle) !void {
+        return error.DatabaseDisabled;
+    }
+
+    pub fn backup(_: *stub_root.DatabaseHandle, _: []const u8) !void {
+        return error.DatabaseDisabled;
+    }
+
+    pub fn restore(_: *stub_root.DatabaseHandle, _: []const u8) !void {
+        return error.DatabaseDisabled;
+    }
 };
 pub const cli = struct {
     pub fn run(_: std.mem.Allocator, _: []const [:0]const u8) !void {

@@ -115,7 +115,7 @@ pub const ComparisonSummary = struct {
 };
 
 /// Run all competitive benchmarks
-pub fn runAllBenchmarks(allocator: std.mem.Allocator, config: CompetitiveConfig) !void {
+pub fn runAllBenchmarks(allocator: std.mem.Allocator, config: CompetitiveConfig, runner: *framework.BenchmarkRunner) !void {
     std.debug.print("\n", .{});
     std.debug.print("================================================================================\n", .{});
     std.debug.print("                     ABI COMPETITIVE BENCHMARK SUITE\n", .{});
@@ -124,17 +124,17 @@ pub fn runAllBenchmarks(allocator: std.mem.Allocator, config: CompetitiveConfig)
     // Vector similarity search benchmarks
     std.debug.print("[Vector Search Benchmarks]\n", .{});
     std.debug.print("-" ** 80 ++ "\n", .{});
-    try faiss.runBenchmarks(allocator, config);
+    try faiss.runBenchmarks(allocator, config, runner);
 
     // Vector database benchmarks
     std.debug.print("\n[Vector Database Benchmarks]\n", .{});
     std.debug.print("-" ** 80 ++ "\n", .{});
-    try vector_db.runBenchmarks(allocator, config);
+    try vector_db.runBenchmarks(allocator, config, runner);
 
     // LLM inference benchmarks
     std.debug.print("\n[LLM Inference Benchmarks]\n", .{});
     std.debug.print("-" ** 80 ++ "\n", .{});
-    try llm.runBenchmarks(allocator, config);
+    try llm.runBenchmarks(allocator, config, runner);
 
     std.debug.print("\n================================================================================\n", .{});
     std.debug.print("                     BENCHMARK COMPLETE\n", .{});

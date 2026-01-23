@@ -314,8 +314,17 @@ pub const Buffer = struct {
             return;
         }
 
-        // In a real implementation, this would call the backend's memcpy
-        // For now, just update state
+        // Use synchronous copy
+        if (self.host_data) |src| {
+            if (self.device_handle) |dst| {
+                try self.backend.copyToDevice(dst, src);
+            } else {
+                return error.NoDeviceMemory;
+            }
+        } else {
+            return error.NoHostMemory;
+        }
+
         self.clearHostDirty();
         self.markDeviceDirty();
 
@@ -326,14 +335,65 @@ pub const Buffer = struct {
         self.sync_event.record();
     }
 
+    /// Transfer data from host to device asynchronously.
+    /// Does not block host. Synchronization should be handled via the stream.
+    pub fn toDeviceAsync(self: *Buffer, stream: ?*anyopaque) !void {
+        if (!self.isHostDirty()) return;
+
+        if (self.host_data) |src| {
+            if (self.device_handle) |dst| {
+                try self.backend.copyToDeviceAsync(dst, src, stream);
+            } else {
+                return error.NoDeviceMemory;
+            }
+        } else {
+            return error.NoHostMemory;
+        }
+
+        self.clearHostDirty();
+        self.markDeviceDirty();
+
+        self.host_to_device_transfers += 1;
+        self.bytes_transferred += self.size;
+    }
+
     /// Transfer data from device to host (explicit mode).
     pub fn toHost(self: *Buffer) !void {
         if (!self.isDeviceDirty()) {
             return; // No need to transfer
         }
 
-        // In a real implementation, this would call the backend's memcpy
-        // For now, just update state
+        if (self.host_data) |dst| {
+            if (self.device_handle) |src| {
+                try self.backend.copyFromDevice(dst, src);
+            } else {
+                return error.NoDeviceMemory;
+            }
+        } else {
+            return error.NoHostMemory;
+        }
+
+        self.clearDeviceDirty();
+
+        self.device_to_host_transfers += 1;
+        self.bytes_transferred += self.size;
+    }
+
+    /// Transfer data from device to host asynchronously.
+    /// Does not block host. Synchronization should be handled via the stream.
+    pub fn toHostAsync(self: *Buffer, stream: ?*anyopaque) !void {
+        if (!self.isDeviceDirty()) return;
+
+        if (self.host_data) |dst| {
+            if (self.device_handle) |src| {
+                try self.backend.copyFromDeviceAsync(dst, src, stream);
+            } else {
+                return error.NoDeviceMemory;
+            }
+        } else {
+            return error.NoHostMemory;
+        }
+
         self.clearDeviceDirty();
 
         self.device_to_host_transfers += 1;

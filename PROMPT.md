@@ -1,215 +1,122 @@
 ---
 title: "PROMPT"
-tags: []
+tags: ["requirements", "standards", "kpi", "architecture"]
 ---
-# Project Context for Ralph
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+# ABI Framework: Engineering Requirements & Standards
 
-## ABI Framework Overview
+> **Status:** Synced with repository as of 2026-01-23.
+> **Standard:** Zig 0.16 (Master Branch) with `std.gpu`.
 
-ABI is a modern Zig 0.16 framework designed for modular AI services, vector search, and high-performance tooling.
+## 1. Core Mandates
 
-### Core Highlights
+All contributions must adhere to these engineering standards. Deviations require explicit justification.
 
-| Feature | Description |
-|---------|-------------|
-| **AI Runtime** | LLM inference (Llama-CPP parity), agent runtime, training pipelines |
-| **Vector Database** | WDBX with HNSW/IVF-PQ indexing and hybrid search |
-| **Runtime Engine** | Work-stealing scheduler, NUMA awareness, lock-free primitives |
-| **GPU Backends** | CUDA, Vulkan, Metal, WebGPU - unified API |
-| **Distributed Network** | Node discovery, Raft consensus, load balancing |
-| **Observability** | Metrics, tracing, profiling, circuit breakers |
-| **CLI** | TUI launcher, runtime feature flags, database ops |
+### 1.1 Technology Stack
+*   **Language:** Zig 0.16.0-dev (Master). Use strict types, explicit allocators, and `std.ArrayListUnmanaged`.
+*   **GPU Compute:** Prioritize `std.gpu` (Zig 0.16 native) for kernels. Fallback to VTable implementations (CUDA/Vulkan/Metal) only when features are missing.
+*   **Memory Management:** 
+    *   Use `std.mem.Allocator` passed explicitly to init functions.
+    *   Use `std.heap.ArenaAllocator` for short-lived scopes.
+    *   Zero global mutable state unless protected by `std.Thread.Mutex`.
 
-## Documentation
+### 1.2 Cross-Platform Targets
+Code must compile and run on the following tiers:
 
-- [Online Docs](https://donaldfilimon.github.io/abi/) - searchable static site
-- [Introduction](docs/intro.md) - architecture overview
-- [API Reference](API_REFERENCE.md) - public API summary
-- [Quickstart](QUICKSTART.md) - getting-started guide
-- [Migration Guide](docs/migration/zig-0.16-migration.md) - Zig 0.16 patterns
-- [Troubleshooting](docs/troubleshooting.md) - common issues
+| Tier | Platforms | Requirements |
+|------|-----------|--------------|
+| **Tier 1 (Desktop)** | Windows (MSVC/GNU), Linux (Gnu/Musl), macOS (ARM64/x86_64) | Full feature parity, high performance. |
+| **Tier 2 (Mobile)** | Android (aarch64), iOS (aarch64) | `std.gpu` compute, minimized binary size, battery-aware scheduling. |
+| **Tier 3 (Web)** | WASM32 (WASI/Emscripten) | No threads (async/await simulation), WebGPU backend, limited FS access. |
 
-## Build & Test
+### 1.3 Measurable Outcomes (KPIs)
+Changes must meet these measurable thresholds:
 
-```bash
-zig build                    # Build the project
-zig build test --summary all # Run tests
-zig build -Doptimize=ReleaseFast
-```
+*   **Performance:**
+    *   Kernel Latency: < 50µs dispatch overhead.
+    *   Throughput: > 80% theoretical peak memory bandwidth (measured via `bench-competitive`).
+    *   Startup Time: < 100ms to first token/kernel.
+*   **Quality:**
+    *   Test Coverage: > 90% statement coverage for core modules (`runtime`, `gpu`, `ai`).
+    *   Zero Leaks: `GeneralPurposeAllocator` must report no leaks on shutdown.
+    *   Linting: Zero `zig fmt` diffs.
 
-Feature-gated builds:
+## 2. Architecture & Patterns
 
-```bash
-zig build -Denable-ai=true \
-          -Denable-gpu=false \
-          -Denable-database=true
-```
-
-Runtime feature flags (CLI):
-
-```bash
-zig build run -- --list-features          # List features and status
-zig build run -- --enable-gpu db stats    # Enable feature for this run
-zig build run -- --disable-ai llm info    # Disable feature for this run
-```
-
-## Feature Flags
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-Denable-ai` | true | AI features and connectors |
-| `-Denable-llm` | true | Local LLM inference |
-| `-Denable-gpu` | true | GPU acceleration |
-| `-Denable-web` | true | Web utilities and HTTP |
-| `-Denable-database` | true | Vector database (WDBX) |
-| `-Denable-network` | true | Distributed compute |
-| `-Denable-profiling` | true | Profiling and metrics |
-
-**GPU Backends**: `-Dgpu-vulkan` (default), `-Dgpu-cuda`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`
-
-## Quick Example
+### 2.1 Modular VTable Pattern
+Backends (GPU, Database, Network) must use the **Interface VTable** pattern for runtime polymorphism without generic bloat.
 
 ```zig
-const std = @import("std");
-const abi = @import("abi");
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    var framework = try abi.init(allocator, .{});
-    defer abi.shutdown(&framework);
-
-    std.debug.print("ABI version: {s}\n", .{abi.version()});
-}
-```
-
-## Training Example
-
-```zig
-const config = abi.ai.TrainingConfig{
-    .epochs = 10,
-    .batch_size = 32,
-    .sample_count = 1024,
-    .model_size = 512,
-    .learning_rate = 0.001,
-    .optimizer = .adamw,
+pub const Backend = struct {
+    ptr: *anyopaque,
+    vtable: *const VTable,
+    
+    pub const VTable = struct {
+        launchKernel: *const fn (*anyopaque, Config, Args) Error!void,
+        // ...
+    };
+    
+    pub fn launchKernel(self: Backend, ...) !void {
+        return self.vtable.launchKernel(self.ptr, ...);
+    }
 };
-
-var result = try abi.ai.trainWithResult(allocator, config);
-defer result.deinit();
-
-std.debug.print("Final loss: {d:.6}\n", .{result.report.final_loss});
 ```
 
-## CLI Commands
+### 2.2 Unified GPU API
+*   **Buffer:** `UnifiedBuffer` handles host/device sync automatically (`dirty` flags).
+*   **Stream:** All operations must take an optional `*Stream` for async execution.
+*   **Fallback:** `Dispatcher` must automatically downgrade: `std.gpu` → `Backend VTable` → `SIMD CPU` → `Scalar CPU`.
 
-| Command | Description |
-|---------|-------------|
-| `--help` | Show help |
-| `--list-features` | List available features and status |
-| `--enable-<feature>` | Enable a feature at runtime |
-| `--disable-<feature>` | Disable a feature at runtime |
-| `tui` | Interactive launcher |
-| `db stats` | Database statistics |
-| `gpu backends` | List GPU backends |
-| `agent` | AI agent mode |
+## 3. Build System (`build.zig`)
 
-## Architecture
+### 3.1 Standard Flags
+Use these flags to control the build graph. Do not introduce custom ad-hoc flags.
+
+| Flag | Values | Description |
+|------|--------|-------------|
+| `-Dgpu-backend` | `auto`, `cuda`, `vulkan`, `metal`, `webgpu`, `stdgpu` | Comma-separated list of enabled backends. |
+| `-Denable-ai` | `true`/`false` | Include LLM and training modules. |
+| `-Denable-mobile` | `true`/`false` | Enable mobile-specific optimizations (strip debug, small buffer sizes). |
+| `-Doptimize` | `Debug`, `ReleaseFast`, `ReleaseSafe`, `ReleaseSmall` | Standard Zig optimization modes. |
+
+### 3.2 Mobile & Web Builds
+*   **Android:** `zig build -Dtarget=aarch64-linux-android -Denable-mobile=true`
+*   **iOS:** `zig build -Dtarget=aarch64-macos-none -Denable-mobile=true` (simulated as macOS for now)
+*   **WASM:** `zig build -Dtarget=wasm32-wasi -Dgpu-backend=webgpu`
+
+## 4. Workflows
+
+### 4.1 Development
+1.  **Format:** `zig fmt .`
+2.  **Test:** `zig build test --summary all`
+3.  **Benchmark:** `zig build bench-competitive`
+4.  **Verify:** `zig build full-check`
+
+### 4.2 Contribution Checklist
+- [ ] Requirements: Does this match Tier 1/2/3 targets?
+- [ ] Performance: Did you run benchmarks? Regression?
+- [ ] Tests: Added unit tests?
+- [ ] Docs: Updated `API_REFERENCE.md`?
+
+## 5. Directory Structure (Canonical)
 
 ```
-abi/
-├── src/
-│   ├── abi.zig          # Public API entry point
-│   ├── config.zig       # Unified configuration system
-│   ├── framework.zig    # Framework orchestration
-│   ├── registry/        # Plugin registry system (comptime, runtime, dynamic)
-│   ├── runtime/         # Always-on infrastructure
-│   │   ├── engine/      # Work-stealing task execution
-│   │   ├── scheduling/  # Futures, cancellation, task groups
-│   │   ├── concurrency/ # Lock-free primitives
-│   │   └── memory/      # Memory pools and allocators
-│   ├── gpu/             # GPU acceleration (unified API)
-│   ├── ai/              # AI module (LLM, embeddings, agents, training)
-│   ├── database/        # Vector database (WDBX)
-│   ├── network/         # Distributed compute
-│   ├── web/             # Web utilities and HTTP
-│   ├── observability/   # Metrics, tracing, profiling
-│   ├── tasks/           # Task management system
-│   ├── shared/          # Logging, security, platform utilities
-│   ├── ha/              # High availability (backup, PITR, replication)
-│   └── connectors/      # API connectors (OpenAI, Ollama, Anthropic)
-├── tools/cli/           # CLI implementation
-├── benchmarks/          # Performance benchmarks
-└── docs/                # Documentation
+src/
+├── abi.zig              # Public Facade
+├── framework.zig        # Lifecycle Manager
+├── config/              # Configuration Structs
+├── gpu/                 # Unified GPU API (std.gpu + Backends)
+│   ├── std_gpu.zig      # Zig 0.16 Native Interface
+│   ├── backends/        # VTable Implementations (Cuda/Vulkan/etc)
+│   └── dispatcher.zig   # Kernel Selection Logic
+├── runtime/             # Engine, Scheduler, Memory
+├── observability/       # Metrics, Tracing
+└── shared/              # Cross-module Utilities
 ```
 
-## Testing
+## 6. Terminology
 
-```bash
-zig build test --summary all                    # All tests
-zig test src/runtime/engine/engine.zig          # Single file
-zig test src/tests/mod.zig --test-filter "pat"  # Filter tests
-zig build benchmarks                            # Run benchmarks
-```
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ABI_OPENAI_API_KEY` | - | OpenAI API key |
-| `ABI_OLLAMA_HOST` | `http://127.0.0.1:11434` | Ollama host |
-| `ABI_OLLAMA_MODEL` | `gpt-oss` | Default Ollama model |
-| `ABI_HF_API_TOKEN` | - | HuggingFace token |
-| `DISCORD_BOT_TOKEN` | - | Discord bot token |
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for workflow and [CLAUDE.md](CLAUDE.md) for coding guidelines.
-
-## License
-
-[LICENSE](LICENSE)
-
-## Roadmap
-
-The roadmap is split into phases:
-
-### Completed Phases
-1. **GPU Modular Refactor** - Moved to `src/gpu/`
-2. **Documentation Infrastructure** - API generator, diagrams
-3. **Benchmark Framework** - Runner, competitive benches
-4. **High Availability Infrastructure** - Failover, PITR
-5. **Ecosystem Packaging** - Docker, Zig registry
-6. **Runtime Consolidation** - Migrated and removed legacy compute/
-   - Plugin registry system (`src/registry/`)
-   - CLI runtime flags (`--list-features`, `--enable-*`, `--disable-*`)
-   - Task engine, scheduling, concurrency, memory modules
-   - Removed deprecated `src/compute/` re-export layer (commit 64334a1)
-
-### Next Up
-- **Benchmark baseline refresh** - Validate consolidation performance
-- **Python bindings expansion** - Beyond foundation bindings
-
-All open items tracked in [ROADMAP.md](ROADMAP.md).
-
-## Migration Status
-
-All modules fully migrated to flat structure (no more `src/features/`):
-
-| Module | Location | Status |
-|--------|----------|--------|
-| GPU | `src/gpu/` | ✅ Complete |
-| Database | `src/database/` | ✅ Complete |
-| Network | `src/network/` | ✅ Complete |
-| Web | `src/web/` | ✅ Complete |
-| Runtime | `src/runtime/` | ✅ Complete |
-| Registry | `src/registry/` | ✅ Complete |
-| Tasks | `src/tasks.zig` | ✅ Complete |
-| AI | `src/ai/` | ✅ Complete |
-| Observability | `src/observability/` | ✅ Complete |
-| HA | `src/ha/` | ✅ Complete |
-| Connectors | `src/connectors/` | ✅ Complete |
-
+*   **VTable:** Virtual Method Table for runtime polymorphism.
+*   **SIMD:** Single Instruction, Multiple Data (CPU vectorization).
+*   **Kernel:** A compute shader function executed on the GPU.
+*   **Dispatcher:** The component selecting the best kernel/device.
+*   **Unified Buffer:** Memory accessible by both Host (CPU) and Device (GPU).

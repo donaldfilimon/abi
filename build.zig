@@ -49,8 +49,22 @@ fn parseGpuBackends(b: *std.Build, enable_gpu: bool, enable_web: bool) []const G
 
     if (has_legacy) std.log.warn("Legacy GPU flags are deprecated. Use -Dgpu-backend=cuda,vulkan instead.", .{});
 
-    var buffer: [11]GpuBackend = undefined;
+    const backend_count = 11;
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
     var count: usize = 0;
+    var use_auto = false;
+
+    const addBackend = struct {
+        fn call(backend: GpuBackend, buffer_ptr: *[backend_count]GpuBackend, count_ptr: *usize, seen_ptr: *[backend_count]bool) void {
+            const idx = @intFromEnum(backend);
+            if (seen_ptr[idx]) return;
+            if (count_ptr.* >= buffer_ptr.len) return;
+            buffer_ptr[count_ptr.*] = backend;
+            count_ptr.* += 1;
+            seen_ptr[idx] = true;
+        }
+    }.call;
 
     if (backend_str) |str| {
         var iter = std.mem.splitScalar(u8, str, ',');
@@ -59,50 +73,31 @@ fn parseGpuBackends(b: *std.Build, enable_gpu: bool, enable_web: bool) []const G
             if (trimmed.len == 0) continue;
             if (GpuBackend.fromString(trimmed)) |backend| {
                 if (backend == .none) return &.{};
-                if (count < buffer.len) {
-                    buffer[count] = backend;
-                    count += 1;
+                if (backend == .auto) {
+                    use_auto = true;
+                    continue;
                 }
+                addBackend(backend, &buffer, &count, &seen);
             } else std.log.warn("Unknown GPU backend: '{s}'", .{trimmed});
+        }
+        if (use_auto) {
+            if (enable_gpu) addBackend(.vulkan, &buffer, &count, &seen);
+            if (enable_web) {
+                addBackend(.webgpu, &buffer, &count, &seen);
+                addBackend(.webgl2, &buffer, &count, &seen);
+            }
         }
     } else {
         // Legacy defaults
-        if (legacy.cuda orelse false) {
-            buffer[count] = .cuda;
-            count += 1;
-        }
-        if (legacy.vulkan orelse enable_gpu) {
-            buffer[count] = .vulkan;
-            count += 1;
-        }
-        if (legacy.stdgpu orelse false) {
-            buffer[count] = .stdgpu;
-            count += 1;
-        }
-        if (legacy.metal orelse false) {
-            buffer[count] = .metal;
-            count += 1;
-        }
-        if (legacy.webgpu orelse enable_web) {
-            buffer[count] = .webgpu;
-            count += 1;
-        }
-        if (legacy.opengl orelse false) {
-            buffer[count] = .opengl;
-            count += 1;
-        }
-        if (legacy.opengles orelse false) {
-            buffer[count] = .opengles;
-            count += 1;
-        }
-        if (legacy.webgl2 orelse enable_web) {
-            buffer[count] = .webgl2;
-            count += 1;
-        }
-        if (legacy.fpga orelse false) {
-            buffer[count] = .fpga;
-            count += 1;
-        }
+        if (legacy.cuda orelse false) addBackend(.cuda, &buffer, &count, &seen);
+        if (legacy.vulkan orelse enable_gpu) addBackend(.vulkan, &buffer, &count, &seen);
+        if (legacy.stdgpu orelse false) addBackend(.stdgpu, &buffer, &count, &seen);
+        if (legacy.metal orelse false) addBackend(.metal, &buffer, &count, &seen);
+        if (legacy.webgpu orelse enable_web) addBackend(.webgpu, &buffer, &count, &seen);
+        if (legacy.opengl orelse false) addBackend(.opengl, &buffer, &count, &seen);
+        if (legacy.opengles orelse false) addBackend(.opengles, &buffer, &count, &seen);
+        if (legacy.webgl2 orelse enable_web) addBackend(.webgl2, &buffer, &count, &seen);
+        if (legacy.fpga orelse false) addBackend(.fpga, &buffer, &count, &seen);
     }
     return b.allocator.dupe(GpuBackend, buffer[0..count]) catch &.{};
 }
@@ -236,19 +231,32 @@ fn pathExists(path: []const u8) bool {
     return true;
 }
 
-fn buildTargets(b: *std.Build, targets: []const BuildTarget, abi_module: *std.Build.Module, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, aggregate: ?*std.Build.Step) void {
+fn buildTargets(
+    b: *std.Build,
+    targets: []const BuildTarget,
+    abi_module: *std.Build.Module,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    aggregate: ?*std.Build.Step,
+    aggregate_runs: bool,
+) void {
     for (targets) |t| {
         if (!pathExists(t.source_path)) continue;
+        const exe_optimize = t.optimize orelse optimize;
         const exe = b.addExecutable(.{
             .name = t.name,
             .root_module = b.createModule(.{
                 .root_source_file = b.path(t.source_path),
                 .target = target,
-                .optimize = t.optimize orelse optimize,
+                .optimize = exe_optimize,
                 .link_libc = true,
             }),
         });
         exe.root_module.addImport("abi", abi_module);
+
+        // Apply performance optimizations
+        applyPerformanceTweaks(exe, exe_optimize);
+
         b.installArtifact(exe);
 
         const run = b.addRunArtifact(exe);
@@ -256,7 +264,13 @@ fn buildTargets(b: *std.Build, targets: []const BuildTarget, abi_module: *std.Bu
         const step = b.step(t.step_name, t.description);
         step.dependOn(b.getInstallStep());
         step.dependOn(&run.step);
-        if (aggregate) |agg| agg.dependOn(&exe.step);
+        if (aggregate) |agg| {
+            if (aggregate_runs) {
+                agg.dependOn(&run.step);
+            } else {
+                agg.dependOn(&exe.step);
+            }
+        }
     }
 }
 
@@ -302,6 +316,24 @@ fn createAbiModule(b: *std.Build, options: BuildOptions, target: std.Build.Resol
 }
 
 // ============================================================================
+// Performance Tuning
+// ============================================================================
+
+fn applyPerformanceTweaks(exe: *std.Build.Step.Compile, optimize: std.builtin.OptimizeMode) void {
+    if (optimize == .ReleaseFast or optimize == .ReleaseSmall) {
+        // Link Time Optimization: significantly improves throughput and reduces binary size
+        // by allowing optimizations across module boundaries.
+        // exe.want_lto = true; // Removed as it is not a valid field in Zig 0.16 Build.Step.Compile
+
+        // Stripping: Reduces binary size, improving disk resource utilization and start-up latency.
+        // We default to true for release builds unless explicitly overridden later (e.g. for profiling).
+        if (exe.root_module.strip == null) {
+            exe.root_module.strip = true;
+        }
+    }
+}
+
+// ============================================================================
 // Main Build Function
 // ============================================================================
 
@@ -323,6 +355,10 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("abi", abi_module);
     if (pathExists("tools/cli/main.zig")) exe.root_module.addImport("cli", createCliModule(b, abi_module, target, optimize));
+
+    // Apply performance optimizations (LTO, strip)
+    applyPerformanceTweaks(exe, optimize);
+
     b.installArtifact(exe);
 
     const run_cli = b.addRunArtifact(exe);
@@ -331,7 +367,7 @@ pub fn build(b: *std.Build) void {
     b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
 
     // Examples and benchmarks (table-driven)
-    buildTargets(b, &example_targets, abi_module, target, optimize, b.step("examples", "Build all examples"));
+    buildTargets(b, &example_targets, abi_module, target, optimize, b.step("examples", "Build all examples"), false);
 
     // ---------------------------------------------------------------------------
     // CLI smoke-test step (runs all example commands sequentially)
@@ -340,25 +376,32 @@ pub fn build(b: *std.Build) void {
     b.step("cli-tests", "Run smoke test of all CLI example commands").dependOn(&cli_test_cmd.step);
 
     // ---------------------------------------------------------------------------
+    // Lint step (formatting check)
+    // ---------------------------------------------------------------------------
+    const lint_cmd = b.addSystemCommand(&[_][]const u8{ "zig", "fmt", "--check", "." });
+    b.step("lint", "Check code formatting").dependOn(&lint_cmd.step);
+
+    // ---------------------------------------------------------------------------
     // Full verification step – formatting, tests, CLI smoke test, benchmarks
     // ---------------------------------------------------------------------------
     const full_check_cmd = b.addSystemCommand(&[_][]const u8{ "cmd", "/c", "scripts\\full_check.bat" });
     b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and benchmarks").dependOn(&full_check_cmd.step);
-    buildTargets(b, &benchmark_targets, abi_module, target, optimize, b.step("bench-all", "Run all benchmark suites"));
+    buildTargets(b, &benchmark_targets, abi_module, target, optimize, b.step("bench-all", "Run all benchmark suites"), true);
 
     // Tests
     if (pathExists("src/tests/mod.zig")) {
         const tests = b.addTest(.{ .root_module = b.createModule(.{ .root_source_file = b.path("src/tests/mod.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
         tests.root_module.addImport("abi", abi_module);
         tests.root_module.addImport("build_options", build_opts);
+        b.step("typecheck", "Compile tests without running").dependOn(&tests.step);
         const run_tests = b.addRunArtifact(tests);
         run_tests.skip_foreign_checks = true;
         b.step("test", "Run unit tests").dependOn(&run_tests.step);
     }
 
     // Documentation - API markdown generation
-    if (pathExists("tools/gendocs.zig")) {
-        const gendocs = b.addExecutable(.{ .name = "gendocs", .root_module = b.createModule(.{ .root_source_file = b.path("tools/gendocs.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
+    if (pathExists("tools/gendocs/main.zig")) {
+        const gendocs = b.addExecutable(.{ .name = "gendocs", .root_module = b.createModule(.{ .root_source_file = b.path("tools/gendocs/main.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
         const run_gendocs = b.addRunArtifact(gendocs);
         if (b.args) |args| run_gendocs.addArgs(args);
         b.step("gendocs", "Generate API documentation").dependOn(&run_gendocs.step);
@@ -380,8 +423,54 @@ pub fn build(b: *std.Build) void {
         const profile_exe = b.addExecutable(.{ .name = "abi-profile", .root_module = b.createModule(.{ .root_source_file = b.path("tools/cli/main.zig"), .target = target, .optimize = .ReleaseFast, .link_libc = true }) });
         profile_exe.root_module.addImport("abi", abi_profile);
         profile_exe.root_module.addImport("cli", createCliModule(b, abi_profile, target, optimize));
+
+        // Profiling specific overrides:
+        // 1. Keep symbols for profilers (don't strip)
+        profile_exe.root_module.strip = false;
+        // 2. Keep frame pointers for accurate stack unwinding in perf/instruments
+        profile_exe.root_module.omit_frame_pointer = false;
+
         b.installArtifact(profile_exe);
         b.step("profile", "Build with performance profiling").dependOn(b.getInstallStep());
+    }
+
+    // Mobile
+    const mobile_step = b.step("mobile", "Build for mobile targets (Android/iOS)");
+    const enable_mobile = b.option(bool, "enable-mobile", "Enable mobile target cross-compilation") orelse false;
+
+    if (enable_mobile) {
+        // Android (aarch64)
+        const android_target = b.resolveTargetQuery(.{ .cpu_arch = .aarch64, .os_tag = .linux, .abi = .android });
+        const abi_android = b.addLibrary(.{
+            .name = "abi-android",
+            .root_module = b.createModule(.{ .root_source_file = b.path("src/abi.zig"), .target = android_target, .optimize = optimize }),
+            .linkage = .static,
+        });
+        abi_android.root_module.addImport("build_options", createBuildOptionsModule(b, options));
+        mobile_step.dependOn(&b.addInstallArtifact(abi_android, .{ .dest_dir = .{ .override = .{ .custom = "mobile/android" } } }).step);
+
+        // iOS (aarch64) - Simulated as macOS-none for now or actual ios if SDK present
+        // Zig treats aarch64-macos as compatible for general logic, but strict iOS requires ios tag
+        const ios_target = b.resolveTargetQuery(.{ .cpu_arch = .aarch64, .os_tag = .ios });
+        const abi_ios = b.addLibrary(.{
+            .name = "abi-ios",
+            .root_module = b.createModule(.{ .root_source_file = b.path("src/abi.zig"), .target = ios_target, .optimize = optimize }),
+            .linkage = .static,
+        });
+        abi_ios.root_module.addImport("build_options", createBuildOptionsModule(b, options));
+        mobile_step.dependOn(&b.addInstallArtifact(abi_ios, .{ .dest_dir = .{ .override = .{ .custom = "mobile/ios" } } }).step);
+    }
+
+    // Performance Verification Tool
+    if (pathExists("tools/perf/check.zig")) {
+        const check_perf_exe = b.addExecutable(.{
+            .name = "abi-check-perf",
+            .root_module = b.createModule(.{ .root_source_file = b.path("tools/perf/check.zig"), .target = target, .optimize = .ReleaseSafe }),
+        });
+        b.installArtifact(check_perf_exe);
+        const check_perf_run = b.addRunArtifact(check_perf_exe);
+        if (b.args) |args| check_perf_run.addArgs(args);
+        b.step("check-perf", "Run performance verification tool").dependOn(&check_perf_run.step);
     }
 
     // WASM

@@ -13,9 +13,55 @@ pub fn matchesAny(text: []const u8, options: []const []const u8) bool {
     return false;
 }
 
+fn startsWithIgnoreCase(haystack: []const u8, needle: []const u8) bool {
+    if (needle.len > haystack.len) return false;
+    for (needle, 0..) |c, i| {
+        if (std.ascii.toLower(c) != std.ascii.toLower(haystack[i])) return false;
+    }
+    return true;
+}
+
+fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
+    if (needle.len == 0) return true;
+    if (needle.len > haystack.len) return false;
+    var i: usize = 0;
+    while (i + needle.len <= haystack.len) : (i += 1) {
+        if (startsWithIgnoreCase(haystack[i..], needle)) return true;
+    }
+    return false;
+}
+
+/// Suggest a command based on a partial or mistyped input.
+pub fn suggestCommand(input: []const u8, commands: []const []const u8) ?[]const u8 {
+    if (input.len == 0) return null;
+
+    for (commands) |cmd| {
+        if (std.ascii.eqlIgnoreCase(input, cmd)) return cmd;
+    }
+
+    for (commands) |cmd| {
+        if (startsWithIgnoreCase(cmd, input) or startsWithIgnoreCase(input, cmd)) return cmd;
+    }
+
+    for (commands) |cmd| {
+        if (containsIgnoreCase(cmd, input)) return cmd;
+    }
+
+    return null;
+}
+
 /// Convert a null-terminated argument to a regular slice.
 pub fn toSlice(arg: [:0]const u8) []const u8 {
     return arg[0..];
+}
+
+/// Check if any argument requests help.
+pub fn containsHelpArgs(args: []const [:0]const u8) bool {
+    for (args) |arg| {
+        const slice = arg[0..];
+        if (matchesAny(slice, &[_][]const u8{ "help", "--help", "-h" })) return true;
+    }
+    return false;
 }
 
 /// Parse a node status string to enum value.
@@ -96,6 +142,15 @@ pub const ArgParser = struct {
     pub fn wantsHelp(self: *const ArgParser) bool {
         const curr = self.current() orelse return false;
         return matchesAny(curr, &[_][]const u8{ "help", "--help", "-h" });
+    }
+
+    /// Check if any argument requests help.
+    pub fn containsHelp(self: *const ArgParser) bool {
+        for (self.args) |arg| {
+            const slice = arg[0..];
+            if (matchesAny(slice, &[_][]const u8{ "help", "--help", "-h" })) return true;
+        }
+        return false;
     }
 
     /// Check if there are more arguments.
@@ -179,6 +234,18 @@ test "matchesAny helper function" {
     try std.testing.expect(!matchesAny("invalid", &[_][]const u8{ "help", "--help", "-h" }));
     try std.testing.expect(matchesAny("test", &[_][]const u8{"test"}));
     try std.testing.expect(!matchesAny("test", &[_][]const u8{"other"}));
+}
+
+test "containsHelpArgs" {
+    const args_list = [_][:0]const u8{ "generate", "--help" };
+    try std.testing.expect(containsHelpArgs(&args_list));
+}
+
+test "suggestCommand" {
+    const commands = [_][]const u8{ "llm", "train", "embed" };
+    const suggestion = suggestCommand("lm", &commands);
+    try std.testing.expect(suggestion != null);
+    try std.testing.expectEqualStrings("llm", suggestion.?);
 }
 
 test "ArgParser basic operations" {

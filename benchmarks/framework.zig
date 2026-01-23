@@ -90,6 +90,40 @@ pub const BenchResult = struct {
     }
 };
 
+var global_collector: ?*BenchCollector = null;
+
+/// Shared collector for aggregating benchmark results across suites.
+pub const BenchCollector = struct {
+    allocator: std.mem.Allocator,
+    results: std.ArrayListUnmanaged(BenchResult),
+
+    pub fn init(allocator: std.mem.Allocator) BenchCollector {
+        return .{
+            .allocator = allocator,
+            .results = .{},
+        };
+    }
+
+    pub fn deinit(self: *BenchCollector) void {
+        self.results.deinit(self.allocator);
+    }
+
+    pub fn append(self: *BenchCollector, result: BenchResult) !void {
+        try self.results.append(self.allocator, result);
+    }
+};
+
+/// Set a global collector for benchmark results.
+pub fn setGlobalCollector(collector: ?*BenchCollector) void {
+    global_collector = collector;
+}
+
+fn appendGlobalResult(result: BenchResult) !void {
+    if (global_collector) |collector| {
+        try collector.append(result);
+    }
+}
+
 /// Tracking allocator for memory benchmarks
 pub const TrackingAllocator = struct {
     parent: std.mem.Allocator,
@@ -310,6 +344,7 @@ pub const BenchmarkRunner = struct {
         };
 
         try self.results.append(self.allocator, result);
+        try appendGlobalResult(result);
         return result;
     }
 
@@ -362,6 +397,7 @@ pub const BenchmarkRunner = struct {
         };
 
         try self.results.append(self.allocator, result);
+        try appendGlobalResult(result);
         return result;
     }
 

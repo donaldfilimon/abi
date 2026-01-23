@@ -805,60 +805,67 @@ fn detectAlgorithm(encoded: []const u8) ?Algorithm {
     return null;
 }
 
-/// Analyze password strength
-pub fn analyzeStrength(password: []const u8) StrengthAnalysis {
+const ClassFlags = struct {
+    has_lower: bool,
+    has_upper: bool,
+    has_digit: bool,
+    has_special: bool,
+};
+
+fn scoreLength(len: usize) u32 {
     var score: u32 = 0;
-    var feedback = std.BoundedArray([]const u8, 10){};
+    if (len >= 8) score += 10;
+    if (len >= 12) score += 10;
+    if (len >= 16) score += 10;
+    if (len >= 20) score += 10;
+    return score;
+}
 
-    // Length scoring
-    if (password.len >= 8) score += 10;
-    if (password.len >= 12) score += 10;
-    if (password.len >= 16) score += 10;
-    if (password.len >= 20) score += 10;
-
-    // Character class analysis
-    var has_lower = false;
-    var has_upper = false;
-    var has_digit = false;
-    var has_special = false;
+fn analyzeClasses(password: []const u8) ClassFlags {
+    var flags = ClassFlags{
+        .has_lower = false,
+        .has_upper = false,
+        .has_digit = false,
+        .has_special = false,
+    };
 
     for (password) |c| {
-        if (c >= 'a' and c <= 'z') has_lower = true;
-        if (c >= 'A' and c <= 'Z') has_upper = true;
-        if (c >= '0' and c <= '9') has_digit = true;
+        if (c >= 'a' and c <= 'z') flags.has_lower = true;
+        if (c >= 'A' and c <= 'Z') flags.has_upper = true;
+        if (c >= '0' and c <= '9') flags.has_digit = true;
         if ((c >= '!' and c <= '/') or (c >= ':' and c <= '@') or
             (c >= '[' and c <= '`') or (c >= '{' and c <= '~'))
         {
-            has_special = true;
+            flags.has_special = true;
         }
     }
 
-    if (has_lower) score += 10 else feedback.append("Add lowercase letters") catch {};
-    if (has_upper) score += 10 else feedback.append("Add uppercase letters") catch {};
-    if (has_digit) score += 10 else feedback.append("Add numbers") catch {};
-    if (has_special) score += 15 else feedback.append("Add special characters") catch {};
+    return flags;
+}
 
-    // Check for common patterns
-    const has_common = containsCommonPattern(password);
-    if (has_common) {
-        score -|= 20;
-        feedback.append("Avoid common patterns") catch {};
-    }
+fn appendFeedback(feedback: *std.BoundedArray([]const u8, 10), message: []const u8) void {
+    feedback.append(message) catch {};
+}
 
-    // Sequential characters penalty
-    if (hasSequentialChars(password)) {
-        score -|= 10;
-        feedback.append("Avoid sequential characters") catch {};
-    }
+fn scoreClasses(feedback: *std.BoundedArray([]const u8, 10), flags: ClassFlags) u32 {
+    var score: u32 = 0;
 
-    // Repeated characters penalty
-    if (hasRepeatedChars(password)) {
-        score -|= 10;
-        feedback.append("Avoid repeated characters") catch {};
-    }
+    if (flags.has_lower) score += 10 else appendFeedback(feedback, "Add lowercase letters");
+    if (flags.has_upper) score += 10 else appendFeedback(feedback, "Add uppercase letters");
+    if (flags.has_digit) score += 10 else appendFeedback(feedback, "Add numbers");
+    if (flags.has_special) score += 15 else appendFeedback(feedback, "Add special characters");
 
-    // Determine strength level
-    const strength: PasswordStrength = if (score >= 60)
+    return score;
+}
+
+fn applyPenalty(feedback: *std.BoundedArray([]const u8, 10), score: *u32, condition: bool, penalty: u32, message: []const u8) void {
+    if (!condition) return;
+    score.* -|= penalty;
+    appendFeedback(feedback, message);
+}
+
+fn strengthFromScore(score: u32) PasswordStrength {
+    return if (score >= 60)
         .very_strong
     else if (score >= 45)
         .strong
@@ -868,9 +875,10 @@ pub fn analyzeStrength(password: []const u8) StrengthAnalysis {
         .weak
     else
         .very_weak;
+}
 
-    // Estimate crack time (simplified)
-    const crack_time: []const u8 = if (score >= 60)
+fn crackTimeFromScore(score: u32) []const u8 {
+    return if (score >= 60)
         "centuries"
     else if (score >= 45)
         "years"
@@ -880,15 +888,41 @@ pub fn analyzeStrength(password: []const u8) StrengthAnalysis {
         "days"
     else
         "instant";
+}
+
+/// Analyze password strength
+pub fn analyzeStrength(password: []const u8) StrengthAnalysis {
+    var score: u32 = scoreLength(password.len);
+    var feedback = std.BoundedArray([]const u8, 10){};
+
+    // Character class analysis
+    const class_flags = analyzeClasses(password);
+    score += scoreClasses(&feedback, class_flags);
+
+    // Check for common patterns
+    const has_common = containsCommonPattern(password);
+    applyPenalty(&feedback, &score, has_common, 20, "Avoid common patterns");
+
+    // Sequential characters penalty
+    applyPenalty(&feedback, &score, hasSequentialChars(password), 10, "Avoid sequential characters");
+
+    // Repeated characters penalty
+    applyPenalty(&feedback, &score, hasRepeatedChars(password), 10, "Avoid repeated characters");
+
+    // Determine strength level
+    const strength = strengthFromScore(score);
+
+    // Estimate crack time (simplified)
+    const crack_time = crackTimeFromScore(score);
 
     return .{
         .strength = strength,
         .score = score,
         .feedback = feedback.slice(),
-        .has_lowercase = has_lower,
-        .has_uppercase = has_upper,
-        .has_digits = has_digit,
-        .has_special = has_special,
+        .has_lowercase = class_flags.has_lower,
+        .has_uppercase = class_flags.has_upper,
+        .has_digits = class_flags.has_digit,
+        .has_special = class_flags.has_special,
         .has_common_pattern = has_common,
         .estimated_crack_time = crack_time,
     };

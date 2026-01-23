@@ -9,6 +9,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../../config/mod.zig");
 const time_utils = @import("../../shared/utils.zig");
+const database = @import("../../database/mod.zig");
 
 // Local submodule imports
 const checkpoint = @import("checkpoint.zig");
@@ -18,6 +19,7 @@ pub const loss = @import("loss.zig");
 pub const trainable_model = @import("trainable_model.zig");
 pub const llm_trainer = @import("llm_trainer.zig");
 pub const data_loader = @import("data_loader.zig");
+pub const wdbx_dataset = @import("../database/wdbx.zig");
 pub const lora = @import("lora.zig");
 pub const mixed_precision = @import("mixed_precision.zig");
 pub const logging = @import("logging.zig");
@@ -71,6 +73,12 @@ pub const BatchIterator = data_loader.BatchIterator;
 pub const SequencePacker = data_loader.SequencePacker;
 pub const InstructionSample = data_loader.InstructionSample;
 pub const parseInstructionDataset = data_loader.parseInstructionDataset;
+pub const WdbxTokenDataset = wdbx_dataset.WdbxTokenDataset;
+pub const TokenBlock = wdbx_dataset.TokenBlock;
+pub const encodeTokenBlock = wdbx_dataset.encodeTokenBlock;
+pub const decodeTokenBlock = wdbx_dataset.decodeTokenBlock;
+pub const readTokenBinFile = wdbx_dataset.readTokenBinFile;
+pub const writeTokenBinFile = wdbx_dataset.writeTokenBinFile;
 
 // LoRA exports
 pub const LoraAdapter = lora.LoraAdapter;
@@ -551,6 +559,17 @@ pub fn clipGradients(gradients: []f32, max_norm: f32) f32 {
     }
 
     return norm;
+}
+
+pub fn saveModelToWdbx(allocator: std.mem.Allocator, model: *const ModelState, path: []const u8) !void {
+    var handle = try database.wdbx.createDatabase(allocator, "model_checkpoint");
+    defer database.wdbx.closeDatabase(&handle);
+
+    // Store weights as vector ID 0
+    // In a real scenario we'd split layers, but for this concise implementation we store flattened weights
+    try database.wdbx.insertVector(&handle, 0, model.weights, model.name);
+
+    try database.wdbx.backup(&handle, path);
 }
 
 pub fn train(

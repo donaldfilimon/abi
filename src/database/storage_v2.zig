@@ -160,6 +160,7 @@ pub const DistanceMetric = enum(u8) {
 /// CRC32 implementation for data integrity
 pub const Crc32 = struct {
     const TABLE: [256]u32 = blk: {
+        @setEvalBranchQuota(4000);
         var table: [256]u32 = undefined;
         for (0..256) |i| {
             var crc: u32 = @intCast(i);

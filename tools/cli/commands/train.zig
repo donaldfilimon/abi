@@ -11,6 +11,14 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
 
+const train_subcommands = [_][]const u8{
+    "run",
+    "llm",
+    "resume",
+    "info",
+    "help",
+};
+
 /// Run the train command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0 or utils.args.matchesAny(args[0], &[_][]const u8{ "help", "--help", "-h" })) {
@@ -41,10 +49,18 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 
     std.debug.print("Unknown train command: {s}\n", .{command});
+    if (utils.args.suggestCommand(command, &train_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
     printHelp();
 }
 
 fn runTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+
     var config = abi.ai.TrainingConfig{};
 
     var i: usize = 0;
@@ -280,6 +296,11 @@ fn runTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+
     // Check if LLM feature is enabled
     if (!abi.ai.llm.isEnabled()) {
         std.debug.print("Error: LLM feature is not enabled. Build with -Denable-llm=true\n", .{});
@@ -298,6 +319,16 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     // Parse LLM training options
     var config = abi.ai.LlmTrainingConfig{};
     var use_gpu: bool = false;
+    var dataset_url: ?[]const u8 = null;
+    var dataset_path: ?[]const u8 = null;
+    var dataset_cache: ?[]const u8 = null;
+    var dataset_wdbx: ?[]const u8 = null;
+    var dataset_format: DatasetFormat = .tokenbin;
+    var dataset_block_tokens: u32 = 2048;
+    var dataset_max_tokens: usize = 0;
+    var dataset_max_bytes: usize = 64 * 1024 * 1024;
+    var export_gguf_path: ?[]const u8 = null;
+    var export_gguf_name: ?[]const u8 = null;
     var i: usize = 1;
 
     while (i < args.len) {
@@ -402,6 +433,15 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             continue;
         }
 
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--max-checkpoints")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                config.max_checkpoints = std.fmt.parseInt(u32, val, 10) catch 3;
+                i += 1;
+            }
+            continue;
+        }
+
         if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--optimizer")) {
             if (i < args.len) {
                 const val = std.mem.sliceTo(args[i], 0);
@@ -438,6 +478,89 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             }
             continue;
         }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--dataset-url")) {
+            if (i < args.len) {
+                dataset_url = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--dataset-path")) {
+            if (i < args.len) {
+                dataset_path = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--dataset-cache")) {
+            if (i < args.len) {
+                dataset_cache = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--dataset-wdbx")) {
+            if (i < args.len) {
+                dataset_wdbx = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--dataset-format")) {
+            if (i < args.len) {
+                dataset_format = parseDatasetFormat(std.mem.sliceTo(args[i], 0));
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--dataset-block-tokens")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                dataset_block_tokens = std.fmt.parseInt(u32, val, 10) catch 2048;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--dataset-max-tokens")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                dataset_max_tokens = std.fmt.parseInt(usize, val, 10) catch 0;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--dataset-max-bytes")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                dataset_max_bytes = std.fmt.parseInt(usize, val, 10) catch dataset_max_bytes;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--export-gguf")) {
+            if (i < args.len) {
+                export_gguf_path = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--export-name")) {
+            if (i < args.len) {
+                export_gguf_name = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
     }
 
     // Print configuration
@@ -464,27 +587,26 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         std.debug.print("Checkpoint path:  {s}\n", .{path});
     }
     std.debug.print("Use GPU:          {}\n", .{use_gpu});
+    std.debug.print("Dataset format:   {s}\n", .{@tagName(dataset_format)});
+    if (dataset_url) |url| {
+        std.debug.print("Dataset URL:      {s}\n", .{url});
+    }
+    if (dataset_path) |path| {
+        std.debug.print("Dataset path:     {s}\n", .{path});
+    }
+    if (dataset_wdbx) |path| {
+        std.debug.print("Dataset WDBX:     {s}\n", .{path});
+    }
+    if (dataset_max_tokens > 0) {
+        std.debug.print("Max tokens:       {d}\n", .{dataset_max_tokens});
+    }
     std.debug.print("Mixed precision:  {}\n", .{config.mixed_precision});
     std.debug.print("\n", .{});
 
     // Load model
     std.debug.print("Loading model from {s}...\n", .{model_path});
-    std.debug.print("Note: GGUF loading is a placeholder. Using demo configuration.\n\n", .{});
-
-    // Create model with demo configuration
-    // In full implementation, this would parse GGUF and extract config
-    const model_config = abi.ai.trainable_model.TrainableModelConfig{
-        .hidden_dim = 256,
-        .num_layers = 4,
-        .num_heads = 4,
-        .num_kv_heads = 4,
-        .intermediate_dim = 512,
-        .vocab_size = 32000,
-        .max_seq_len = config.max_seq_len,
-    };
-
-    var model = abi.ai.TrainableModel.init(allocator, model_config) catch |err| {
-        std.debug.print("Error initializing model: {t}\n", .{err});
+    var model = abi.ai.TrainableModel.fromGguf(allocator, model_path) catch |err| {
+        std.debug.print("Error loading GGUF model: {t}\n", .{err});
         return;
     };
     defer model.deinit();
@@ -495,29 +617,102 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         @as(f64, @floatFromInt(num_params * 4)) / (1024 * 1024),
     });
 
-    // Create trainer
-    var trainer = abi.ai.LlamaTrainer.init(allocator, &model, config) catch |err| {
-        std.debug.print("Error creating trainer: {t}\n", .{err});
+    if (export_gguf_path) |path| {
+        config.export_gguf_path = path;
+    }
+    if (export_gguf_name) |name| {
+        config.export_name = name;
+    }
+
+    var tokenizer: ?abi.ai.llm.tokenizer.Tokenizer = null;
+    defer if (tokenizer) |*tok| tok.deinit();
+
+    if (dataset_format != .tokenbin) {
+        var gguf_file = abi.ai.llm.io.gguf.GgufFile.open(allocator, model_path) catch |err| {
+            std.debug.print("Error opening GGUF for tokenizer: {t}\n", .{err});
+            return;
+        };
+        defer gguf_file.deinit();
+
+        const tok = abi.ai.llm.tokenizer.loadFromGguf(allocator, &gguf_file) catch |err| {
+            std.debug.print("Error loading tokenizer from GGUF: {t}\n", .{err});
+            return;
+        };
+        tokenizer = tok;
+    }
+
+    var dataset = try resolveDatasetPath(allocator, dataset_url, dataset_path, dataset_cache, dataset_max_bytes);
+    defer if (dataset.owned and dataset.path.len > 0) allocator.free(dataset.path);
+
+    var train_tokens: []u32 = &.{};
+    const tokenizer_ptr: ?*abi.ai.llm.tokenizer.Tokenizer = if (tokenizer) |*tok| tok else null;
+    if (dataset_wdbx) |db_path| {
+        var wdbx_dataset = abi.ai.WdbxTokenDataset.init(allocator, db_path) catch |err| {
+            std.debug.print("Error opening WDBX dataset: {t}\n", .{err});
+            return;
+        };
+        defer wdbx_dataset.deinit();
+
+        if (dataset.path.len > 0) {
+            const ingest_tokens = try loadTokensFromPath(
+                allocator,
+                dataset_format,
+                dataset.path,
+                tokenizer_ptr,
+                dataset_max_tokens,
+            );
+            defer allocator.free(ingest_tokens);
+
+            try wdbx_dataset.importTokenBin(ingest_tokens, dataset_block_tokens);
+            try wdbx_dataset.save();
+        }
+
+        train_tokens = try wdbx_dataset.collectTokens(dataset_max_tokens);
+    } else {
+        if (dataset.path.len == 0) {
+            std.debug.print("Error: dataset path or URL required when --dataset-wdbx is not provided.\n", .{});
+            return;
+        }
+        train_tokens = try loadTokensFromPath(
+            allocator,
+            dataset_format,
+            dataset.path,
+            tokenizer_ptr,
+            dataset_max_tokens,
+        );
+    }
+    defer allocator.free(train_tokens);
+
+    if (train_tokens.len == 0) {
+        std.debug.print("Error: dataset yielded no tokens.\n", .{});
         return;
-    };
-    defer trainer.deinit();
+    }
+
+    clampTokens(train_tokens, model.config.vocab_size);
 
     std.debug.print("Starting LLM training...\n", .{});
-    std.debug.print("Note: Training requires a data iterator with (input_ids, labels) pairs.\n", .{});
-    std.debug.print("This command demonstrates the training setup. For actual training,\n", .{});
-    std.debug.print("use the training API programmatically with your dataset.\n\n", .{});
 
-    // Show training API usage
-    std.debug.print("Training API Example:\n", .{});
-    std.debug.print("  var trainer = try abi.ai.LlamaTrainer.init(allocator, &model, config);\n", .{});
-    std.debug.print("  defer trainer.deinit();\n", .{});
-    std.debug.print("  for (data_iterator) |batch| {{\n", .{});
-    std.debug.print("      const loss = try trainer.trainStep(batch.input_ids, batch.labels);\n", .{});
-    std.debug.print("  }}\n", .{});
-    std.debug.print("\nTrainer initialized successfully. Ready for training.\n", .{});
+    const report = abi.ai.training.llm_trainer.trainLlm(allocator, &model, config, train_tokens) catch |err| {
+        std.debug.print("Training failed: {t}\n", .{err});
+        return;
+    };
+
+    std.debug.print("\nTraining Complete\n", .{});
+    std.debug.print("=================\n", .{});
+    std.debug.print("Final loss:       {d:.6}\n", .{report.final_loss});
+    std.debug.print("Final accuracy:   {d:.2}%\n", .{report.final_accuracy * 100});
+    std.debug.print("Total steps:      {d}\n", .{report.total_steps});
+    std.debug.print("Tokens processed: {d}\n", .{report.total_tokens});
+    std.debug.print("Total time:       {d:.2}s\n", .{@as(f64, @floatFromInt(report.total_time_ns)) / 1e9});
+    std.debug.print("Checkpoints saved:{d}\n", .{report.checkpoints_saved});
 }
 
 fn runResume(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+
     if (args.len == 0) {
         std.debug.print("Usage: abi train resume <checkpoint-path>\n", .{});
         return;
@@ -596,6 +791,234 @@ fn parseLrSchedule(val: []const u8) abi.ai.LearningRateSchedule {
     return .warmup_cosine; // default
 }
 
+const DatasetFormat = enum {
+    tokenbin,
+    text,
+    jsonl,
+};
+
+const DatasetPath = struct {
+    path: []const u8,
+    owned: bool,
+};
+
+fn parseDatasetFormat(val: []const u8) DatasetFormat {
+    if (std.mem.eql(u8, val, "text")) return .text;
+    if (std.mem.eql(u8, val, "jsonl")) return .jsonl;
+    return .tokenbin;
+}
+
+fn resolveDatasetPath(
+    allocator: std.mem.Allocator,
+    dataset_url: ?[]const u8,
+    dataset_path: ?[]const u8,
+    dataset_cache: ?[]const u8,
+    max_bytes: usize,
+) !DatasetPath {
+    if (dataset_path) |path| {
+        return .{ .path = path, .owned = false };
+    }
+    if (dataset_url == null) {
+        return .{ .path = "", .owned = false };
+    }
+
+    const url = dataset_url.?;
+    const cache_path = if (dataset_cache) |path|
+        path
+    else
+        try defaultDatasetCachePath(allocator, url);
+    const owned = dataset_cache == null;
+
+    if (!fileExists(cache_path)) {
+        try downloadToFile(allocator, url, cache_path, max_bytes);
+    }
+
+    return .{ .path = cache_path, .owned = owned };
+}
+
+fn defaultDatasetCachePath(allocator: std.mem.Allocator, url: []const u8) ![]const u8 {
+    var name: []const u8 = "dataset.bin";
+    if (std.mem.lastIndexOfScalar(u8, url, '/')) |idx| {
+        const tail = url[idx + 1 ..];
+        if (tail.len > 0) name = tail;
+    }
+
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+    std.Io.Dir.cwd().createDirPath(io, "datasets") catch {};
+
+    return std.fs.path.join(allocator, &.{ "datasets", name });
+}
+
+fn downloadToFile(allocator: std.mem.Allocator, url: []const u8, path: []const u8, max_bytes: usize) !void {
+    var client = try abi.utils.async_http.AsyncHttpClient.init(allocator);
+    defer client.deinit();
+
+    var request = try abi.utils.async_http.HttpRequest.init(allocator, .get, url);
+    defer request.deinit();
+
+    var response = try client.fetch(&request);
+    defer response.deinit();
+
+    if (!response.isSuccess()) {
+        return error.DownloadFailed;
+    }
+    if (max_bytes > 0 and response.body.len > max_bytes) {
+        return error.PayloadTooLarge;
+    }
+
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
+    defer file.close(io);
+    try file.writeStreamingAll(io, response.body);
+}
+
+fn loadTokensFromPath(
+    allocator: std.mem.Allocator,
+    format: DatasetFormat,
+    path: []const u8,
+    tokenizer: ?*abi.ai.llm.tokenizer.Tokenizer,
+    max_tokens: usize,
+) ![]u32 {
+    switch (format) {
+        .tokenbin => {
+            var tokens = try abi.ai.readTokenBinFile(allocator, path);
+            if (max_tokens > 0 and tokens.len > max_tokens) {
+                const trimmed = try allocator.alloc(u32, max_tokens);
+                @memcpy(trimmed, tokens[0..max_tokens]);
+                allocator.free(tokens);
+                tokens = trimmed;
+            }
+            return tokens;
+        },
+        .text => {
+            const text = try readTextFile(allocator, path);
+            defer allocator.free(text);
+            if (tokenizer == null) return error.InvalidTokenizer;
+            var tokens = try tokenizer.?.encode(allocator, text);
+            if (max_tokens > 0 and tokens.len > max_tokens) {
+                const trimmed = try allocator.alloc(u32, max_tokens);
+                @memcpy(trimmed, tokens[0..max_tokens]);
+                allocator.free(tokens);
+                tokens = trimmed;
+            }
+            return tokens;
+        },
+        .jsonl => {
+            const text = try readTextFile(allocator, path);
+            defer allocator.free(text);
+            if (tokenizer == null) return error.InvalidTokenizer;
+            return try tokenizeJsonl(allocator, tokenizer.?, text, max_tokens);
+        },
+    }
+}
+
+fn readTextFile(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    return std.Io.Dir.cwd().readFileAlloc(
+        io,
+        path,
+        allocator,
+        .limited(256 * 1024 * 1024),
+    );
+}
+
+fn tokenizeJsonl(
+    allocator: std.mem.Allocator,
+    tokenizer: *abi.ai.llm.tokenizer.Tokenizer,
+    data: []const u8,
+    max_tokens: usize,
+) ![]u32 {
+    var tokens = std.ArrayListUnmanaged(u32).empty;
+    errdefer tokens.deinit(allocator);
+
+    var lines = std.mem.splitScalar(u8, data, '\n');
+    while (lines.next()) |line| {
+        if (line.len == 0) continue;
+        var text = line;
+
+        const parsed = std.json.parseFromSlice(
+            struct {
+                text: ?[]const u8 = null,
+                instruction: ?[]const u8 = null,
+                input: ?[]const u8 = null,
+                output: ?[]const u8 = null,
+            },
+            allocator,
+            line,
+            .{},
+        ) catch null;
+
+        if (parsed) |p| {
+            defer p.deinit();
+            if (p.value.text) |t| {
+                text = t;
+            } else if (p.value.instruction != null or p.value.output != null) {
+                var buf = std.ArrayListUnmanaged(u8).empty;
+                defer buf.deinit(allocator);
+                if (p.value.instruction) |instr| {
+                    try buf.appendSlice(allocator, instr);
+                }
+                if (p.value.input) |inp| {
+                    if (buf.items.len > 0) try buf.appendSlice(allocator, "\n");
+                    try buf.appendSlice(allocator, inp);
+                }
+                if (p.value.output) |out| {
+                    if (buf.items.len > 0) try buf.appendSlice(allocator, "\n");
+                    try buf.appendSlice(allocator, out);
+                }
+                text = try buf.toOwnedSlice(allocator);
+                defer allocator.free(@constCast(text));
+            }
+        }
+
+        const line_tokens = try tokenizer.encode(allocator, text);
+        defer allocator.free(line_tokens);
+        try appendTokensWithLimit(allocator, &tokens, line_tokens, max_tokens);
+        if (max_tokens > 0 and tokens.items.len >= max_tokens) break;
+    }
+
+    return tokens.toOwnedSlice(allocator);
+}
+
+fn appendTokensWithLimit(
+    allocator: std.mem.Allocator,
+    out: *std.ArrayListUnmanaged(u32),
+    tokens: []const u32,
+    max_tokens: usize,
+) !void {
+    var idx: usize = 0;
+    while (idx < tokens.len) : (idx += 1) {
+        if (max_tokens > 0 and out.items.len >= max_tokens) break;
+        try out.append(allocator, tokens[idx]);
+    }
+}
+
+fn clampTokens(tokens: []u32, vocab_size: u32) void {
+    if (vocab_size == 0) return;
+    const max_id = vocab_size - 1;
+    for (tokens) |*t| {
+        if (t.* > max_id) t.* = max_id;
+    }
+}
+
+fn fileExists(path: []const u8) bool {
+    var io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const file = std.Io.Dir.cwd().openFile(io, path, .{}) catch return false;
+    file.close(io);
+    return true;
+}
+
 fn printHelp() void {
     const help_text =
         \\Usage: abi train <command> [options]
@@ -642,9 +1065,20 @@ fn printHelp() void {
         \\  --lr-schedule <type>       LR schedule (default: warmup_cosine)
         \\  --checkpoint-interval <n>  Steps between checkpoints (default: 0)
         \\  --checkpoint-path <path>   Path to save checkpoints
+        \\  --max-checkpoints <n>      Max checkpoints to retain (default: 3)
         \\  --use-gpu                  Enable GPU acceleration (cuBLAS)
         \\  --mixed-precision          Enable mixed precision training
         \\  --log-interval <n>         Steps between log outputs (default: 10)
+        \\  --export-gguf <path>       Export GGUF weights after training
+        \\  --export-name <name>       GGUF model name metadata (default: abi-llama)
+        \\  --dataset-url <url>        Download dataset from URL
+        \\  --dataset-path <path>      Load dataset from local path
+        \\  --dataset-cache <path>     Cache downloaded dataset
+        \\  --dataset-wdbx <path>      Store or read dataset from WDBX
+        \\  --dataset-format <type>    tokenbin, text, jsonl (default: tokenbin)
+        \\  --dataset-block-tokens <n> Tokens per WDBX block (default: 2048)
+        \\  --dataset-max-tokens <n>   Limit tokens used for training
+        \\  --dataset-max-bytes <n>    Limit download size in bytes
         \\
         \\LR schedules: constant, cosine, warmup_cosine, step, polynomial
         \\Optimizers: sgd, adam, adamw
@@ -655,6 +1089,9 @@ fn printHelp() void {
         \\  abi train llm model.gguf --epochs 1 --batch-size 4 --lr 1e-5
         \\  abi train llm model.gguf --grad-accum 8 --max-seq-len 512 --use-gpu
         \\  abi train llm model.gguf --checkpoint-interval 100 --checkpoint-path ./ckpt
+        \\  abi train llm model.gguf --dataset-url https://example.com/data.bin --dataset-format tokenbin
+        \\  abi train llm model.gguf --dataset-path data.jsonl --dataset-format jsonl
+        \\  abi train llm model.gguf --dataset-url https://example.com/text.txt --dataset-format text --dataset-wdbx ./data/train.wdbx
         \\  abi train resume ./checkpoints/model.ckpt
         \\  abi train info
         \\

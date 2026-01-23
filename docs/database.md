@@ -189,6 +189,12 @@ zig build run -- db restore --path snapshot.db
 zig build run -- db serve --port 8080
 ```
 
+```bash
+# Dataset conversion
+zig build run -- convert dataset --input data.bin --output data.wdbx --format to-wdbx
+zig build run -- convert dataset --input data.wdbx --output data.bin --format to-tokenbin
+```
+
 ---
 
 ## New in 2026.01
@@ -339,4 +345,3 @@ defer {
   <a href="docs-index.md">Documentation Index</a> •
   <a href="network.md">Network Guide →</a>
 </p>
-

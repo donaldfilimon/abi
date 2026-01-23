@@ -8,33 +8,73 @@
 
 AI Module - Public API
 
-This is the primary entry point for AI functionality. Import from here for
-Framework integration and the stable public API.
+This is the primary entry point for AI functionality in the ABI framework.
+Import from here for Framework integration and the stable public API.
 
-Modular AI capabilities organized as independent sub-features:
+## Overview
 
-- **core**: Shared types, interfaces, and utilities (always available when AI enabled)
-- **llm**: Local LLM inference (GGUF, transformer models)
-- **embeddings**: Vector embeddings generation
-- **agents**: AI agent runtime and tools
-- **training**: Model training pipelines
+The AI module provides modular AI capabilities organized as independent sub-features,
+each of which can be enabled or disabled independently:
 
-Each sub-feature can be independently enabled/disabled.
+| Sub-feature | Description | Build Flag |
+|-------------|-------------|------------|
+| **core** | Shared types, interfaces, utilities | Always available |
+| **llm** | Local LLM inference (GGUF models) | `-Denable-llm` |
+| **embeddings** | Vector embeddings generation | `-Denable-ai` |
+| **agents** | AI agent runtime and tools | `-Denable-ai` |
+| **training** | Model training pipelines | `-Denable-ai` |
+| **personas** | Multi-persona AI assistant | `-Denable-ai` |
+| **vision** | Image processing and analysis | `-Denable-vision` |
 
-## Usage
+## Quick Start
 
 ```zig
-const ai = @import("ai/mod.zig");
+const abi = @import("abi");
 
-// Initialize AI context
+// Initialize framework with AI enabled
+var fw = try abi.Framework.init(allocator, .{
+.ai = .{
+.llm = .{ .model_path = "./models/llama-7b.gguf" },
+.embeddings = .{ .dimension = 768 },
+},
+});
+defer fw.deinit();
+
+// Access AI context
+const ai_ctx = try fw.getAi();
+
+// Use LLM
+const llm = try ai_ctx.getLlm();
+// ... perform inference ...
+```
+
+## Standalone Usage
+
+```zig
+const ai = abi.ai;
+
+// Initialize AI context directly
 var ctx = try ai.Context.init(allocator, .{
 .llm = .{ .model_path = "./models/llama.gguf" },
 });
 defer ctx.deinit();
 
-// Use LLM
-const response = try ctx.getLlm().generate("Hello, world!");
+// Check which sub-features are enabled
+if (ctx.isSubFeatureEnabled(.llm)) {
+const llm = try ctx.getLlm();
+// ... use LLM ...
+}
 ```
+
+## Sub-module Access
+
+Access sub-modules directly through the namespace:
+- `abi.ai.llm` - LLM inference engine
+- `abi.ai.embeddings` - Embedding generation
+- `abi.ai.agents` - Agent runtime
+- `abi.ai.training` - Training pipelines
+- `abi.ai.personas` - Multi-persona system
+- `abi.ai.vision` - Vision processing
 
 ---
 
@@ -70,6 +110,12 @@ Agent runtime module
 
 Training pipelines module
 
+### `pub const database`
+
+<sup>**const**</sup>
+
+AI Database module
+
 ### `pub const vision`
 
 <sup>**const**</sup>
@@ -81,7 +127,55 @@ Vision/image processing module
 <sup>**type**</sup>
 
 AI context for Framework integration.
-Manages AI sub-features based on configuration.
+
+The Context struct manages all AI sub-features (LLM, embeddings, agents, training,
+personas) based on the provided configuration. Each sub-feature is independently
+initialized and can be accessed through type-safe getter methods.
+
+## Thread Safety
+
+The Context itself is not thread-safe. If you need to access AI features from
+multiple threads, use external synchronization.
+
+## Memory Management
+
+The Context allocates memory for each enabled sub-feature context. All memory
+is released when `deinit()` is called.
+
+## Example
+
+```zig
+var ctx = try ai.Context.init(allocator, .{
+.llm = .{ .model_path = "./models/llama.gguf" },
+.embeddings = .{ .dimension = 768 },
+});
+defer ctx.deinit();
+
+// Access sub-features
+const llm = try ctx.getLlm();
+const emb = try ctx.getEmbeddings();
+```
+
+### `pub fn init(allocator: std.mem.Allocator, cfg: config_module.AiConfig) !*Context`
+
+<sup>**fn**</sup>
+
+Initialize the AI context with the given configuration.
+
+## Parameters
+
+- `allocator`: Memory allocator for context resources
+- `cfg`: AI configuration specifying which sub-features to enable
+
+## Returns
+
+A pointer to the initialized Context.
+
+## Errors
+
+- `error.AiDisabled`: AI is disabled at compile time
+- `error.OutOfMemory`: Memory allocation failed
+- Sub-feature specific errors during initialization
 
 ### `pub fn getLlm(self: *Context) Error!*llm.Context`
 
@@ -106,6 +200,12 @@ Get agents context (returns error if not enabled).
 <sup>**fn**</sup>
 
 Get training context (returns error if not enabled).
+
+### `pub fn getPersonas(self: *Context) Error!*personas.Context`
+
+<sup>**fn**</sup>
+
+Get personas context (returns error if not enabled).
 
 ### `pub fn isSubFeatureEnabled(self: *Context, feature: SubFeature) bool`
 

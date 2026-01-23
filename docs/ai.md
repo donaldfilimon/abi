@@ -589,6 +589,10 @@ zig build run -- llm bench model.gguf      # Benchmark performance
 zig build run -- train run --epochs 10     # Run training
 zig build run -- train info                # Show configuration
 zig build run -- train resume ./model.ckpt # Resume from checkpoint
+
+# Dataset conversion (TokenBin <-> WDBX)
+zig build run -- convert dataset --input data.bin --output data.wdbx --format to-wdbx
+zig build run -- convert dataset --input data.wdbx --output data.bin --format to-tokenbin
 ```
 
 ---
@@ -681,4 +685,3 @@ defer allocator.free(response);
   <a href="docs-index.md">← Documentation Index</a> •
   <a href="gpu.md">GPU Guide →</a>
 </p>
-

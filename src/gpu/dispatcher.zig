@@ -413,10 +413,17 @@ pub const KernelDispatcher = struct {
         // Ensure buffers are on device
         for (args.buffers) |buf| {
             if (buf.isHostDirty()) {
-                buf.toDevice() catch |err| {
-                    std.log.warn("Failed to sync buffer to device: {}", .{err});
-                    return DispatchError.BufferNotReady;
-                };
+                if (config.stream) |s| {
+                    buf.toDeviceAsync(s) catch |err| {
+                        std.log.warn("Failed to sync buffer to device async: {}", .{err});
+                        return DispatchError.BufferNotReady;
+                    };
+                } else {
+                    buf.toDevice() catch |err| {
+                        std.log.warn("Failed to sync buffer to device: {}", .{err});
+                        return DispatchError.BufferNotReady;
+                    };
+                }
             }
         }
 

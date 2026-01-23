@@ -208,6 +208,14 @@ pub const Backend = struct {
         return self.vtable.copyFromDevice(self.ptr, dst, src);
     }
 
+    pub fn copyToDeviceAsync(self: Backend, dst: *anyopaque, src: []const u8, stream: ?*anyopaque) MemoryError!void {
+        return self.vtable.copyToDeviceAsync(self.ptr, dst, src, stream);
+    }
+
+    pub fn copyFromDeviceAsync(self: Backend, dst: []u8, src: *anyopaque, stream: ?*anyopaque) MemoryError!void {
+        return self.vtable.copyFromDeviceAsync(self.ptr, dst, src, stream);
+    }
+
     pub fn compileKernel(self: Backend, allocator: std.mem.Allocator, source: []const u8, name: []const u8) KernelError!*anyopaque {
         return self.vtable.compileKernel(self.ptr, allocator, source, name);
     }
@@ -311,6 +319,16 @@ pub fn createBackend(
             return self.copyFromDevice(dst, src);
         }
 
+        fn copyToDeviceAsync(ptr: *anyopaque, dst: *anyopaque, src: []const u8, stream: ?*anyopaque) MemoryError!void {
+            const self: *Impl = @ptrCast(@alignCast(ptr));
+            return self.copyToDeviceAsync(dst, src, stream);
+        }
+
+        fn copyFromDeviceAsync(ptr: *anyopaque, dst: []u8, src: *anyopaque, stream: ?*anyopaque) MemoryError!void {
+            const self: *Impl = @ptrCast(@alignCast(ptr));
+            return self.copyFromDeviceAsync(dst, src, stream);
+        }
+
         fn compileKernel(ptr: *anyopaque, allocator: std.mem.Allocator, source: []const u8, kernel_name: []const u8) KernelError!*anyopaque {
             const self: *Impl = @ptrCast(@alignCast(ptr));
             return self.compileKernel(allocator, source, kernel_name);
@@ -339,6 +357,8 @@ pub fn createBackend(
             .free = free,
             .copyToDevice = copyToDevice,
             .copyFromDevice = copyFromDevice,
+            .copyToDeviceAsync = copyToDeviceAsync,
+            .copyFromDeviceAsync = copyFromDeviceAsync,
             .compileKernel = compileKernel,
             .launchKernel = launchKernel,
             .destroyKernel = destroyKernel,

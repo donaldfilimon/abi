@@ -115,13 +115,13 @@ fn benchmarkAbiHnswSearch(
 }
 
 /// Run all FAISS comparison benchmarks
-pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig) !void {
+pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig, runner: *framework.BenchmarkRunner) !void {
     std.debug.print("Comparing ABI HNSW against FAISS baselines...\n\n", .{});
 
     // Test configurations
-    const test_sizes = [_]usize{ 1_000, 10_000 };
-    const test_dims = [_]usize{ 128, 384 };
-    const test_k = [_]usize{10};
+    const test_sizes = config.dataset_sizes;
+    const test_dims = config.dimensions;
+    const test_k = config.top_k_values;
 
     for (test_sizes) |size| {
         for (test_dims) |dim| {
@@ -144,10 +144,44 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
                     allocator.free(result.results);
                 }
 
-                const latency_ms = @as(f64, @floatFromInt(result.latency_ns)) / 1_000_000.0;
+                const latency_ns = result.latency_ns;
+                const latency_ms = @as(f64, @floatFromInt(latency_ns)) / 1_000_000.0;
                 const qps = @as(f64, @floatFromInt(config.num_queries)) / (latency_ms / 1000.0);
+                const mean_ns = @as(f64, @floatFromInt(latency_ns)) / @as(f64, @floatFromInt(config.num_queries));
 
                 std.debug.print("  ABI:   {d:.2} ms total, {d:.0} QPS\n", .{ latency_ms, qps });
+
+                // Record result
+                const bench_name = try std.fmt.allocPrint(allocator, "ABI HNSW n={d} d={d} k={d}", .{ size, dim, k });
+                // Note: name leaks here but it's a short-lived benchmark process
+
+                const bench_config = framework.BenchConfig{
+                    .name = bench_name,
+                    .category = "vector_search",
+                };
+
+                const stats = framework.Statistics{
+                    .min_ns = 0, // Detailed per-query stats not tracked here yet
+                    .max_ns = 0,
+                    .mean_ns = mean_ns,
+                    .median_ns = mean_ns,
+                    .std_dev_ns = 0,
+                    .p50_ns = @intFromFloat(mean_ns),
+                    .p90_ns = @intFromFloat(mean_ns),
+                    .p95_ns = @intFromFloat(mean_ns),
+                    .p99_ns = @intFromFloat(mean_ns),
+                    .iterations = config.num_queries,
+                    .outliers_removed = 0,
+                    .total_time_ns = latency_ns,
+                };
+
+                try runner.results.append(allocator, .{
+                    .config = bench_config,
+                    .stats = stats,
+                    .memory_allocated = 0,
+                    .memory_freed = 0,
+                    .timestamp = 0,
+                });
 
                 // Find matching FAISS baseline
                 for (faiss_baselines) |baseline| {

@@ -124,6 +124,12 @@ pub const training = if (build_options.enable_ai)
 else
     @import("training/stub.zig");
 
+/// AI Database module
+pub const database = if (build_options.enable_ai)
+    @import("database/mod.zig")
+else
+    @import("database/stub.zig");
+
 // ---------------------------------------------------------------------------
 // Multi‑Agent coordination (requires AI feature)
 // ---------------------------------------------------------------------------
@@ -174,6 +180,12 @@ pub const BatchIterator = training.BatchIterator;
 pub const Batch = training.Batch;
 pub const SequencePacker = training.SequencePacker;
 pub const parseInstructionDataset = training.parseInstructionDataset;
+pub const WdbxTokenDataset = database.WdbxTokenDataset;
+pub const tokenBinToWdbx = database.tokenBinToWdbx;
+pub const wdbxToTokenBin = database.wdbxToTokenBin;
+pub const readTokenBinFile = database.readTokenBinFile;
+pub const writeTokenBinFile = database.writeTokenBinFile;
+pub const exportGguf = database.exportGguf;
 
 // Tools
 pub const Tool = tools.Tool;

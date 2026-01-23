@@ -373,9 +373,76 @@ pub const SecretsManager = struct {
         self.cache.clearRetainingCapacity();
     }
 
+    fn packEncryptedValue(self: *SecretsManager, encrypted: SecretValue) SecretsError![]u8 {
+        const packed_len = 12 + 16 + encrypted.encrypted_value.len;
+        const packed_data = try self.allocator.alloc(u8, packed_len);
+        @memcpy(packed_data[0..12], &encrypted.nonce);
+        @memcpy(packed_data[12..28], &encrypted.tag);
+        @memcpy(packed_data[28..], encrypted.encrypted_value);
+        return packed_data;
+    }
+
+    fn encodeBase64(self: *SecretsManager, data: []const u8) SecretsError![]u8 {
+        const encoder = std.base64.standard.Encoder;
+        const b64_size = encoder.calcSize(data.len);
+        const b64_data = try self.allocator.alloc(u8, b64_size);
+        _ = encoder.encode(b64_data, data);
+        return b64_data;
+    }
+
+    fn readSecretsFile(self: *SecretsManager, secrets_path: []const u8) SecretsError![]u8 {
+        const io = self.io_backend.io();
+        return std.Io.Dir.cwd().readFileAlloc(io, secrets_path, self.allocator, .limited(1024 * 1024)) catch return error.SecretNotFound;
+    }
+
+    fn readSecretsFileOrEmpty(self: *SecretsManager, secrets_path: []const u8) SecretsError![]u8 {
+        const io = self.io_backend.io();
+        return std.Io.Dir.cwd().readFileAlloc(io, secrets_path, self.allocator, .limited(1024 * 1024)) catch try self.allocator.dupe(u8, "{}");
+    }
+
+    fn buildJsonEntry(self: *SecretsManager, name: []const u8, b64_data: []const u8) SecretsError![]u8 {
+        return std.fmt.allocPrint(self.allocator, "\"{s}\":\"{s}\"", .{ name, b64_data });
+    }
+
+    fn buildUpdatedContent(
+        self: *SecretsManager,
+        existing: []const u8,
+        name: []const u8,
+        new_entry: []const u8,
+    ) SecretsError![]u8 {
+        const trimmed_all = std.mem.trim(u8, existing, " \n\r\t");
+        if (trimmed_all.len == 0 or std.mem.eql(u8, trimmed_all, "{}")) {
+            return std.fmt.allocPrint(self.allocator, "{{{s}}}", .{new_entry});
+        }
+
+        const search_key = try std.fmt.allocPrint(self.allocator, "\"{s}\":\"", .{name});
+        defer self.allocator.free(search_key);
+
+        if (std.mem.indexOf(u8, existing, search_key)) |key_idx| {
+            const value_start = key_idx + search_key.len;
+            var value_end = value_start;
+            while (value_end < existing.len and existing[value_end] != '"') : (value_end += 1) {}
+            if (value_end >= existing.len) return error.InvalidSecretFormat;
+
+            const prefix = existing[0..key_idx];
+            const suffix = existing[value_end + 1 ..];
+            return std.fmt.allocPrint(self.allocator, "{s}{s}{s}", .{ prefix, new_entry, suffix });
+        }
+
+        const trimmed = std.mem.trimEnd(u8, existing, " \n\r\t}");
+        return std.fmt.allocPrint(self.allocator, "{s},{s}}}", .{ trimmed, new_entry });
+    }
+
+    fn writeSecretsFile(self: *SecretsManager, secrets_path: []const u8, content: []const u8) SecretsError!void {
+        const io = self.io_backend.io();
+        var file = std.Io.Dir.cwd().createFile(io, secrets_path, .{ .truncate = true }) catch return error.FileWriteFailed;
+        defer file.close(io);
+        file.writer(io).writeAll(content) catch return error.FileWriteFailed;
+    }
+
     // Private methods
 
-    fn loadFromEnv(self: *SecretsManager, name: []const u8) ![]u8 {
+    fn loadFromEnv(self: *SecretsManager, name: []const u8) SecretsError![]u8 {
         // Build env var name with prefix
         const env_name = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{
             self.config.env_prefix,
@@ -390,12 +457,11 @@ pub const SecretsManager = struct {
         return self.allocator.dupe(u8, value);
     }
 
-    fn loadFromFile(self: *SecretsManager, name: []const u8) ![]u8 {
+    fn loadFromFile(self: *SecretsManager, name: []const u8) SecretsError![]u8 {
         const secrets_path = self.config.secrets_file orelse return error.SecretNotFound;
-        const io = self.io_backend.io();
 
         // Read the secrets file using Zig 0.16 I/O API
-        const content = std.Io.Dir.cwd().readFileAlloc(io, secrets_path, self.allocator, .limited(1024 * 1024)) catch return error.SecretNotFound;
+        const content = try self.readSecretsFile(secrets_path);
         defer self.allocator.free(content);
 
         // Parse JSON-like format: {"name": "encrypted_base64_value", ...}
@@ -416,16 +482,16 @@ pub const SecretsManager = struct {
 
         // Decode base64 to get encrypted data
         const decoder = std.base64.standard.Decoder;
-        const decoded_size = decoder.calcSizeForSlice(encrypted_b64) catch return error.SecretNotFound;
+        const decoded_size = decoder.calcSizeForSlice(encrypted_b64) catch return error.InvalidBase64;
         const encrypted_data = try self.allocator.alloc(u8, decoded_size);
         errdefer self.allocator.free(encrypted_data);
 
-        decoder.decode(encrypted_data, encrypted_b64) catch return error.SecretNotFound;
+        decoder.decode(encrypted_data, encrypted_b64) catch return error.InvalidBase64;
 
         // Encrypted format: nonce (12 bytes) + tag (16 bytes) + ciphertext
         if (encrypted_data.len < 28) {
             self.allocator.free(encrypted_data);
-            return error.SecretNotFound;
+            return error.InvalidSecretFormat;
         }
 
         const nonce = encrypted_data[0..12].*;
@@ -447,15 +513,15 @@ pub const SecretsManager = struct {
         return plaintext;
     }
 
-    fn loadFromMemory(self: *SecretsManager, name: []const u8) ![]u8 {
+    fn loadFromMemory(self: *SecretsManager, name: []const u8) SecretsError![]u8 {
         if (self.cache.get(name)) |cached| {
             var value = cached.value;
-            return value.decrypt(self.master_key);
+            return try value.decrypt(self.master_key);
         }
         return error.SecretNotFound;
     }
 
-    fn loadFromVault(self: *SecretsManager, name: []const u8) ![]u8 {
+    fn loadFromVault(self: *SecretsManager, name: []const u8) SecretsError![]u8 {
         // HashiCorp Vault / AWS Secrets Manager integration
         // Requires vault_url and vault_token to be configured
         const vault_url = self.config.vault_url orelse return error.NotImplemented;
@@ -496,68 +562,35 @@ pub const SecretsManager = struct {
         return error.NotImplemented;
     }
 
-    fn saveToFile(self: *SecretsManager, name: []const u8, encrypted: SecretValue) !void {
+    fn saveToFile(self: *SecretsManager, name: []const u8, encrypted: SecretValue) SecretsError!void {
         const secrets_path = self.config.secrets_file orelse return error.NotImplemented;
 
         // Pack encrypted data: nonce (12) + tag (16) + ciphertext
-        const packed_len = 12 + 16 + encrypted.encrypted_value.len;
-        const packed_data = try self.allocator.alloc(u8, packed_len);
+        const packed_data = try self.packEncryptedValue(encrypted);
         defer self.allocator.free(packed_data);
 
-        @memcpy(packed_data[0..12], &encrypted.nonce);
-        @memcpy(packed_data[12..28], &encrypted.tag);
-        @memcpy(packed_data[28..], encrypted.encrypted_value);
-
         // Base64 encode
-        const encoder = std.base64.standard.Encoder;
-        const b64_size = encoder.calcSize(packed_len);
-        const b64_data = try self.allocator.alloc(u8, b64_size);
+        const b64_data = try self.encodeBase64(packed_data);
         defer self.allocator.free(b64_data);
-        _ = encoder.encode(b64_data, packed_data);
 
         // Read existing file or create new content (Zig 0.16 I/O API)
-        const io = self.io_backend.io();
-        const existing_content = std.Io.Dir.cwd().readFileAlloc(io, secrets_path, self.allocator, .limited(1024 * 1024)) catch try self.allocator.dupe(u8, "{}");
+        const existing_content = try self.readSecretsFileOrEmpty(secrets_path);
         defer self.allocator.free(existing_content);
 
         // Build new entry
-        const new_entry = try std.fmt.allocPrint(self.allocator, "\"{s}\":\"{s}\"", .{ name, b64_data });
+        const new_entry = try self.buildJsonEntry(name, b64_data);
         defer self.allocator.free(new_entry);
 
         // Simple approach: rebuild the entire file
-        // Find if key already exists and replace, or add new entry
-        const search_key = try std.fmt.allocPrint(self.allocator, "\"{s}\":", .{name});
-        defer self.allocator.free(search_key);
-
-        var new_content: []u8 = undefined;
-        if (std.mem.indexOf(u8, existing_content, search_key)) |_| {
-            // Key exists, need to replace - for simplicity, just rewrite
-            // In production, would parse and rebuild JSON properly
-            if (std.mem.eql(u8, existing_content, "{}")) {
-                new_content = try std.fmt.allocPrint(self.allocator, "{{{s}}}", .{new_entry});
-            } else {
-                // Remove trailing } and add new entry
-                const trimmed = std.mem.trimEnd(u8, existing_content, " \n\r\t}");
-                new_content = try std.fmt.allocPrint(self.allocator, "{s},{s}}}", .{ trimmed, new_entry });
-            }
-        } else {
-            // Add new entry
-            if (std.mem.eql(u8, existing_content, "{}")) {
-                new_content = try std.fmt.allocPrint(self.allocator, "{{{s}}}", .{new_entry});
-            } else {
-                const trimmed = std.mem.trimEnd(u8, existing_content, " \n\r\t}");
-                new_content = try std.fmt.allocPrint(self.allocator, "{s},{s}}}", .{ trimmed, new_entry });
-            }
-        }
+        // In production, would parse and rebuild JSON properly
+        const new_content = try self.buildUpdatedContent(existing_content, name, new_entry);
         defer self.allocator.free(new_content);
 
         // Write to file (Zig 0.16 I/O API)
-        var file = try std.Io.Dir.cwd().createFile(io, secrets_path, .{ .truncate = true });
-        defer file.close(io);
-        try file.writer(io).writeAll(new_content);
+        try self.writeSecretsFile(secrets_path, new_content);
     }
 
-    fn saveToVault(self: *SecretsManager, name: []const u8, value: []const u8) !void {
+    fn saveToVault(self: *SecretsManager, name: []const u8, value: []const u8) SecretsError!void {
         // HashiCorp Vault write operation
         // PUT /v1/secret/data/{name} with JSON body {"data": {"value": "..."}}
         const vault_url = self.config.vault_url orelse return error.NotImplemented;
@@ -591,7 +624,7 @@ pub const SecretsManager = struct {
         std.log.info("Vault secret cached locally (network write not implemented). Key: {s}", .{name});
     }
 
-    fn deleteFromFile(self: *SecretsManager, name: []const u8) !void {
+    fn deleteFromFile(self: *SecretsManager, name: []const u8) SecretsError!void {
         const secrets_path = self.config.secrets_file orelse return error.NotImplemented;
         const io = self.io_backend.io();
 
@@ -600,7 +633,7 @@ pub const SecretsManager = struct {
         defer self.allocator.free(content);
 
         // Find and remove the key-value pair
-        const search_key = std.fmt.allocPrint(self.allocator, "\"{s}\":\"", .{name}) catch return;
+        const search_key = try std.fmt.allocPrint(self.allocator, "\"{s}\":\"", .{name});
         defer self.allocator.free(search_key);
 
         const key_idx = std.mem.indexOf(u8, content, search_key) orelse return;
@@ -627,23 +660,23 @@ pub const SecretsManager = struct {
         var new_content = std.ArrayList(u8).init(self.allocator);
         defer new_content.deinit();
 
-        new_content.appendSlice(content[0..remove_start]) catch return;
-        new_content.appendSlice(content[remove_end..]) catch return;
+        try new_content.appendSlice(content[0..remove_start]);
+        try new_content.appendSlice(content[remove_end..]);
 
         // Write back (Zig 0.16 I/O API)
-        var write_file = std.Io.Dir.cwd().createFile(io, secrets_path, .{ .truncate = true }) catch return;
+        var write_file = std.Io.Dir.cwd().createFile(io, secrets_path, .{ .truncate = true }) catch return error.FileWriteFailed;
         defer write_file.close(io);
-        write_file.writer(io).writeAll(new_content.items) catch return;
+        write_file.writer(io).writeAll(new_content.items) catch return error.FileWriteFailed;
     }
 
-    fn deleteFromVault(self: *SecretsManager, name: []const u8) !void {
+    fn deleteFromVault(self: *SecretsManager, name: []const u8) SecretsError!void {
         // HashiCorp Vault delete operation
         // DELETE /v1/secret/data/{name}
         const vault_url = self.config.vault_url orelse return error.NotImplemented;
         _ = vault_url;
 
         // Remove from local cache
-        const cache_key = std.fmt.allocPrint(self.allocator, "vault:{s}", .{name}) catch return;
+        const cache_key = try std.fmt.allocPrint(self.allocator, "vault:{s}", .{name});
         defer self.allocator.free(cache_key);
 
         if (self.cache.fetchRemove(cache_key)) |kv| {
@@ -695,7 +728,7 @@ pub const SecretsManager = struct {
         return self.cache.contains(cache_key);
     }
 
-    fn encryptSecret(self: *SecretsManager, value: []const u8) !SecretValue {
+    fn encryptSecret(self: *SecretsManager, value: []const u8) SecretsError!SecretValue {
         var nonce: [12]u8 = undefined;
         crypto.random.bytes(&nonce);
 
@@ -718,7 +751,7 @@ pub const SecretsManager = struct {
         };
     }
 
-    fn validateSecret(self: *SecretsManager, name: []const u8, value: []const u8) !void {
+    fn validateSecret(self: *SecretsManager, name: []const u8, value: []const u8) SecretsError!void {
         for (self.config.validation_rules) |rule| {
             if (!matchesPattern(name, rule.name_pattern)) continue;
 
@@ -813,6 +846,7 @@ pub const SecretsError = error{
     RequiredSecretMissing,
     NotImplemented,
     OutOfMemory,
+    FileWriteFailed,
 };
 
 // Tests

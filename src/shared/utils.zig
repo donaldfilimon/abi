@@ -4,126 +4,50 @@
 //! the ABI framework. Organized by functional sub-modules.
 
 const std = @import("std");
-const builtin = @import("builtin");
+const platform_time = @import("time.zig");
 
 // ============================================================================
 // Time Utilities (Zig 0.16 compatible, platform-aware)
 // ============================================================================
 
-/// Check if we're on a platform that supports std.time.Instant
-const has_instant = !isWasmTarget();
-
-fn isWasmTarget() bool {
-    return builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
-}
-
-/// Platform-aware Instant wrapper
-const PlatformInstant = if (has_instant) std.time.Instant else struct {
-    /// Stub timestamp for WASM (monotonic counter)
-    counter: u64,
-
-    pub fn now() error{Unsupported}!@This() {
-        // On WASM, we don't have a real timer, return a stub
-        return .{ .counter = 0 };
-    }
-
-    pub fn since(self: @This(), earlier: @This()) u64 {
-        _ = self;
-        _ = earlier;
-        return 0;
-    }
-};
-
-/// Internal: Get current instant for time calculations
-fn getCurrentInstant() ?PlatformInstant {
-    return PlatformInstant.now() catch null;
-}
-
-/// Application start time for relative timing (initialized lazily)
-var app_start_instant: ?PlatformInstant = null;
-var app_start_initialized: bool = false;
-
-fn ensureStartInstant() ?PlatformInstant {
-    if (!app_start_initialized) {
-        app_start_instant = getCurrentInstant();
-        app_start_initialized = true;
-    }
-    return app_start_instant;
-}
-
-/// Get current time in unix seconds (approximate, based on elapsed time from app start).
-/// Note: In Zig 0.16, std.time provides monotonic timers, not wall-clock time.
-/// For actual wall-clock time, use platform-specific APIs.
-/// On WASM, returns 0 (no timer available).
+/// Get current time in unix seconds (approximate, monotonic).
 pub fn unixSeconds() i64 {
-    if (!has_instant) return 0;
-    const start = ensureStartInstant() orelse return 0;
-    const now = getCurrentInstant() orelse return 0;
-    const elapsed_ns = now.since(start);
-    return @intCast(@divTrunc(elapsed_ns, std.time.ns_per_s));
+    return platform_time.unixSeconds();
 }
 
 /// Get current time in unix seconds (alias for unixSeconds).
 pub fn nowSeconds() i64 {
-    return unixSeconds();
+    return platform_time.nowSeconds();
 }
 
 /// Get current time in unix milliseconds (approximate, monotonic).
-/// On WASM, returns 0 (no timer available).
 pub fn unixMs() i64 {
-    if (!has_instant) return 0;
-    const start = ensureStartInstant() orelse return 0;
-    const now = getCurrentInstant() orelse return 0;
-    const elapsed_ns = now.since(start);
-    return @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
+    return platform_time.unixMs();
 }
 
 /// Get current time in unix milliseconds (alias for unixMs).
 pub fn nowMs() i64 {
-    return unixMs();
-}
-
-/// Sleep for a specified number of milliseconds.
-/// Note: In Zig 0.16, blocking sleep uses OS-specific nanosleep.
-/// On WASM, this is a no-op (can't block in WASM).
-pub fn sleepMs(ms: u64) void {
-    if (!has_instant) return; // Can't sleep on WASM
-    const ns = ms * std.time.ns_per_ms;
-    // Use posix nanosleep for blocking sleep
-    if (@hasDecl(std.posix, "nanosleep")) {
-        var req = std.posix.timespec{
-            .sec = @intCast(ns / std.time.ns_per_s),
-            .nsec = @intCast(ns % std.time.ns_per_s),
-        };
-        var rem: std.posix.timespec = undefined;
-        while (true) {
-            const result = std.posix.nanosleep(&req, &rem);
-            if (result == 0) break;
-            // Interrupted, continue sleeping
-            req = rem;
-        }
-    } else {
-        // Fallback: busy wait (not ideal but works)
-        const start = getCurrentInstant() orelse return;
-        while (true) {
-            const now_inst = getCurrentInstant() orelse return;
-            if (now_inst.since(start) >= ns) break;
-        }
-    }
+    return platform_time.nowMs();
 }
 
 /// Get current time in nanoseconds (monotonic).
-/// On WASM, returns 0 (no timer available).
 pub fn nowNanoseconds() i64 {
-    if (!has_instant) return 0;
-    const start = ensureStartInstant() orelse return 0;
-    const now = getCurrentInstant() orelse return 0;
-    return @intCast(now.since(start));
+    return platform_time.nowNanoseconds();
 }
 
 /// Get current time in milliseconds (alias for compatibility).
 pub fn nowMilliseconds() i64 {
-    return nowMs();
+    return platform_time.nowMilliseconds();
+}
+
+/// Sleep for a specified number of milliseconds.
+pub fn sleepMs(ms: u64) void {
+    platform_time.sleepMs(ms);
+}
+
+/// Sleep for a specified number of nanoseconds.
+pub fn sleepNs(ns: u64) void {
+    platform_time.sleepNs(ns);
 }
 
 // ============================================================================
@@ -433,15 +357,9 @@ pub const retry = struct {
 // Binary Utilities
 // ============================================================================
 
-pub const binary = struct {
-    pub fn readInt(comptime T: type, bytes: []const u8, endian: std.builtin.Endian) T {
-        return std.mem.readInt(T, bytes[0..@sizeOf(T)], endian);
-    }
-
-    pub fn writeInt(comptime T: type, buf: []u8, value: T, endian: std.builtin.Endian) void {
-        std.mem.writeInt(T, buf[0..@sizeOf(T)], value, endian);
-    }
-};
+pub const binary = @import("utils/binary.zig");
+pub const SerializationWriter = binary.SerializationWriter;
+pub const SerializationCursor = binary.SerializationCursor;
 
 // ============================================================================
 // Sub-module Imports (for legacy or complex modules)

@@ -904,7 +904,7 @@ pub const TrainableModel = struct {
         path: []const u8,
         config: struct {
             name: []const u8 = "abi-llama",
-            tokenizer: ?gguf_writer.ExportConfig.TokenizerConfig = null,
+            tokenizer: ?gguf_writer.TokenizerConfig = null,
         },
     ) !void {
         const layer_count: usize = @intCast(self.config.num_layers);

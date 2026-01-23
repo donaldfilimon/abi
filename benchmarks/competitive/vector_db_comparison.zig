@@ -149,11 +149,11 @@ fn benchmarkAbiQuery(
 }
 
 /// Run all vector database comparison benchmarks
-pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig) !void {
+pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig, runner: *framework.BenchmarkRunner) !void {
     std.debug.print("Comparing ABI WDBX against vector databases...\n\n", .{});
 
-    const test_sizes = [_]usize{ 1_000, 10_000 };
-    const test_dims = [_]usize{ 384, 1536 };
+    const test_sizes = config.dataset_sizes;
+    const test_dims = config.dimensions;
 
     for (test_sizes) |size| {
         for (test_dims) |dim| {
@@ -172,6 +172,34 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
                 memory_per_vec,
             });
 
+            // Record Insert Result
+            const insert_name = try std.fmt.allocPrint(allocator, "ABI WDBX Insert n={d} d={d}", .{ size, dim });
+            const insert_mean_ns = 1_000_000_000.0 / insert_result.throughput;
+
+            try runner.results.append(allocator, .{
+                .config = .{
+                    .name = insert_name,
+                    .category = "vector_db",
+                },
+                .stats = .{
+                    .min_ns = 0,
+                    .max_ns = 0,
+                    .mean_ns = insert_mean_ns,
+                    .median_ns = insert_mean_ns,
+                    .std_dev_ns = 0,
+                    .p50_ns = @intFromFloat(insert_mean_ns),
+                    .p90_ns = @intFromFloat(insert_mean_ns),
+                    .p95_ns = @intFromFloat(insert_mean_ns),
+                    .p99_ns = @intFromFloat(insert_mean_ns),
+                    .iterations = size,
+                    .outliers_removed = 0,
+                    .total_time_ns = @intFromFloat(insert_mean_ns * @as(f64, @floatFromInt(size))),
+                },
+                .memory_allocated = insert_result.memory_bytes,
+                .memory_freed = 0,
+                .timestamp = 0,
+            });
+
             // Query benchmark
             const queries = try mod.generateRandomVectors(allocator, config.num_queries, dim, 123);
             defer mod.freeVectors(allocator, queries);
@@ -181,6 +209,34 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
                 query_result.p50_ms,
                 query_result.p99_ms,
                 query_result.throughput,
+            });
+
+            // Record Query Result
+            const query_name = try std.fmt.allocPrint(allocator, "ABI WDBX Query n={d} d={d}", .{ size, dim });
+            const query_mean_ns = 1_000_000_000.0 / query_result.throughput;
+
+            try runner.results.append(allocator, .{
+                .config = .{
+                    .name = query_name,
+                    .category = "vector_db",
+                },
+                .stats = .{
+                    .min_ns = 0,
+                    .max_ns = 0,
+                    .mean_ns = query_mean_ns,
+                    .median_ns = query_mean_ns,
+                    .std_dev_ns = 0,
+                    .p50_ns = @intFromFloat(query_result.p50_ms * 1_000_000.0),
+                    .p90_ns = @intFromFloat(query_result.p99_ms * 1_000_000.0), // using p99 slot for p99
+                    .p95_ns = @intFromFloat(query_result.p99_ms * 1_000_000.0),
+                    .p99_ns = @intFromFloat(query_result.p99_ms * 1_000_000.0),
+                    .iterations = config.num_queries,
+                    .outliers_removed = 0,
+                    .total_time_ns = @intFromFloat(query_mean_ns * @as(f64, @floatFromInt(config.num_queries))),
+                },
+                .memory_allocated = 0,
+                .memory_freed = 0,
+                .timestamp = 0,
             });
 
             // Compare with baselines

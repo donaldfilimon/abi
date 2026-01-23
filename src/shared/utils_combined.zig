@@ -40,3 +40,4 @@ pub const nowSeconds = utils.nowSeconds;
 pub const nowMs = utils.nowMs;
 pub const nowNanoseconds = utils.nowNanoseconds;
 pub const sleepMs = utils.sleepMs;
+pub const sleepNs = utils.sleepNs;
