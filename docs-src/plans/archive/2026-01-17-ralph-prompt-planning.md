@@ -1,7 +1,3 @@
----
-title: "2026-01-17-ralph-prompt-planning"
-tags: []
----
 # Ralph Prompt Planning (Iterative Agent Loop)
 > **Codebase Status:** Synced with repository as of 2026-01-18.
 
@@ -105,4 +101,3 @@ Instruction: Proceed to the next logical step. Fix any errors found.
 1.  Verify `src/ai/implementation/prompts/ralph.zig` stays aligned with persona prompts.
 2.  Keep `src/ai/implementation/prompts/personas.zig` and CLI docs updated as features evolve.
 3.  Add regression tests for loop injection and stop-hook behavior.
-

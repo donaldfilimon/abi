@@ -5,9 +5,7 @@
 
 const std = @import("std");
 
-// In a real project, you would use: const abi = @import("abi");
-// For tutorial purposes, we use a relative path.
-const abi = @import("../../../../src/abi.zig");
+const abi = @import("abi");
 
 pub fn main() !void {
     // Get an allocator

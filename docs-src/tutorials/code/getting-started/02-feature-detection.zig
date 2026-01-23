@@ -3,9 +3,7 @@
 //! Run with: zig run docs/tutorials/code/getting-started/02-feature-detection.zig
 
 const std = @import("std");
-// In a real project, you would use: const abi = @import("abi");
-// For tutorial purposes, we use a relative path.
-const abi = @import("../../../../src/abi.zig");
+const abi = @import("abi");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

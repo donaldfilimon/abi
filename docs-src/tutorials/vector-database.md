@@ -1,9 +1,5 @@
----
-title: "vector-database"
-tags: []
----
 # Tutorial: Vector Database with WDBX
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 > **Duration:** 30 minutes | **Level:** Beginner
 
@@ -62,9 +58,7 @@ Let's create and open a database.
 
 ```zig
 const std = @import("std");
-// In a real project, you would use: const abi = @import("abi");
-// For tutorial purposes, we use a relative path.
-const abi = @import("../../../../src/abi.zig");
+const abi = @import("abi");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -126,9 +120,7 @@ Now let's add some document embeddings.
 
 ```zig
 const std = @import("std");
-// In a real project, you would use: const abi = @import("abi");
-// For tutorial purposes, we use a relative path.
-const abi = @import("../../../../src/abi.zig");
+const abi = @import("abi");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -219,9 +211,7 @@ Let's find documents similar to a query.
 
 ```zig
 const std = @import("std");
-// In a real project, you would use: const abi = @import("abi");
-// For tutorial purposes, we use a relative path.
-const abi = @import("../../../../src/abi.zig");
+const abi = @import("abi");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -314,9 +304,7 @@ Results:
 
 ```zig
 const std = @import("std");
-// In a real project, you would use: const abi = @import("abi");
-// For tutorial purposes, we use a relative path.
-const abi = @import("../../../../src/abi.zig");
+const abi = @import("abi");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -387,9 +375,7 @@ pub fn main() !void {
 
 ```zig
 const std = @import("std");
-// In a real project, you would use: const abi = @import("abi");
-// For tutorial purposes, we use a relative path.
-const abi = @import("../../../../src/abi.zig");
+const abi = @import("abi");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -434,9 +420,7 @@ Let's build a practical system combining everything.
 
 ```zig
 const std = @import("std");
-// In a real project, you would use: const abi = @import("abi");
-// For tutorial purposes, we use a relative path.
-const abi = @import("../../../../src/abi.zig");
+const abi = @import("abi");
 
 const Document = struct {
     id: u64,
@@ -597,4 +581,3 @@ Build a tool that:
 ---
 
 **See Also:** [Getting Started Tutorial](getting-started.md)
-

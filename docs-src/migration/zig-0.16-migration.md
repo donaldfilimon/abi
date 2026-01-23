@@ -1,9 +1,5 @@
----
-title: "zig-0.16-migration"
-tags: []
----
 # Zig 0.16 Migration Guide
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 > **Status:** Complete ✅
 > **Developer Guide**: See [CONTRIBUTING.md](../../CONTRIBUTING.md) for coding patterns and [CLAUDE.md](../../CLAUDE.md) for comprehensive guidance.
@@ -287,4 +283,3 @@ The CI configuration has been updated to use Zig 0.16.x instead of 0.17.0.
 - [Framework](../framework.md) - Configuration and lifecycle
 - [Troubleshooting](../troubleshooting.md) - Migration issues
 *See [../../TODO.md](../../TODO.md) (including the [Claude‑Code Massive TODO](../../TODO.md#claude-code-massive-todo)) and [../../ROADMAP.md](../../ROADMAP.md) for the Llama‑CPP parity task list and upcoming milestones.*
-

@@ -1,9 +1,5 @@
----
-title: "01-getting-started"
-tags: []
----
 # Video Walkthrough: Getting Started with ABI
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 **Duration:** 20 minutes
 **Difficulty:** Beginner
@@ -97,9 +93,7 @@ zig build -Denable-ai=true -Denable-database=true -Denable-gpu=false
 
 ```zig
 const std = @import("std");
-// In a real project, you would use: const abi = @import("abi");
-// For tutorial purposes, we use a relative path.
-const abi = @import("../../../../src/abi.zig");
+const abi = @import("abi");
 
 pub fn main() !void {
     // Get an allocator
@@ -327,4 +321,3 @@ Next Tutorial: Vector Database Operations
 
 #zig #programming #tutorial #abi #framework
 ```
-

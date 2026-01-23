@@ -1,9 +1,5 @@
----
-title: "SECURITY"
-tags: []
----
 # Security Policy
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 ## Security Advisories
 
@@ -74,4 +70,3 @@ The CLI is minimal by design; most deployments should embed ABI as a library.
 
 - [CONTACTS.md](CONTACTS.md) - Maintainer contact information
 - [TODO.md](TODO.md) - Pending implementations (see [Claude‑Code Massive TODO](TODO.md#claude-code-massive-todo))
-
