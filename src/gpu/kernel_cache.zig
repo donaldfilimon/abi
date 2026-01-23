@@ -36,6 +36,8 @@ pub const KernelError = std.mem.Allocator.Error || error{
     InvalidOptions,
     CacheCorrupted,
     InvalidCacheKey,
+    CacheFull,
+    CacheMiss,
 };
 
 /// Validate a cache key for safe filesystem use.
@@ -85,6 +87,22 @@ pub const CompileOptions = struct {
     defines: []const []const u8 = &.{},
     /// Include paths.
     include_paths: []const []const u8 = &.{},
+};
+
+/// Source for prefetching kernels.
+pub const PrefetchSource = struct {
+    source: []const u8,
+    source_type: KernelSourceType,
+    entry_point: []const u8,
+    options: CompileOptions,
+};
+
+/// Commonly used kernel for cache warming.
+pub const CommonKernel = struct {
+    source: []const u8,
+    source_type: KernelSourceType,
+    entry_point: []const u8,
+    options: CompileOptions,
 };
 
 /// Cache entry metadata.
@@ -176,6 +194,80 @@ pub const KernelCache = struct {
         self.lru_head = null;
         self.lru_tail = null;
         self.* = undefined;
+    }
+
+    /// Prefetch kernels for likely future use.
+    /// This can improve performance by compiling commonly used kernels in advance.
+    pub fn prefetch(
+        self: *KernelCache,
+        sources: []const PrefetchSource,
+        compiler: *const fn ([]const u8, KernelSourceType, CompileOptions) KernelError![]u8,
+    ) !void {
+        for (sources) |source| {
+            // Check if already cached
+            const key = try self.computeKey(source.source, source.source_type, source.entry_point, source.options);
+            defer self.allocator.free(key);
+
+            self.mutex.lock();
+            const already_cached = self.entries.contains(key);
+            self.mutex.unlock();
+
+            if (!already_cached) {
+                // Compile and cache asynchronously if possible
+                _ = try self.getOrCompile(source.source, source.source_type, source.entry_point, source.options, compiler);
+            }
+        }
+    }
+
+    /// Warm up the cache with commonly used kernels.
+    /// This should be called during application initialization.
+    pub fn warmup(
+        self: *KernelCache,
+        common_kernels: []const CommonKernel,
+        compiler: *const fn ([]const u8, KernelSourceType, CompileOptions) KernelError![]u8,
+    ) !void {
+        var prefetch_sources = std.ArrayList(PrefetchSource).init(self.allocator);
+        defer prefetch_sources.deinit();
+
+        for (common_kernels) |kernel| {
+            try prefetch_sources.append(.{
+                .source = kernel.source,
+                .source_type = kernel.source_type,
+                .entry_point = kernel.entry_point,
+                .options = kernel.options,
+            });
+        }
+
+        try self.prefetch(prefetch_sources.items, compiler);
+    }
+
+    /// Adapt cache size based on usage patterns.
+    /// Increases size if hit rate is high, decreases if memory pressure is detected.
+    pub fn adaptCacheSize(self: *KernelCache, target_hit_rate: f64, memory_pressure: bool) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        const total_requests = self.stats.hits + self.stats.misses;
+        if (total_requests == 0) return;
+
+        const current_hit_rate = @as(f64, @floatFromInt(self.stats.hits)) / @as(f64, @floatFromInt(total_requests));
+
+        if (current_hit_rate > target_hit_rate and !memory_pressure) {
+            // Increase cache size by 25% if hit rate is good and no memory pressure
+            const new_max_size = self.config.max_cache_size * 5 / 4;
+            const new_max_entries = self.config.max_entries * 5 / 4;
+            self.config.max_cache_size = @min(new_max_size, DEFAULT_MAX_CACHE_SIZE * 4); // Cap at 4x default
+            self.config.max_entries = @min(new_max_entries, DEFAULT_MAX_ENTRIES * 4);
+        } else if ((current_hit_rate < target_hit_rate * 0.8) or memory_pressure) {
+            // Decrease cache size by 20% if hit rate is poor or memory pressure
+            const new_max_size = self.config.max_cache_size * 4 / 5;
+            const new_max_entries = self.config.max_entries * 4 / 5;
+            self.config.max_cache_size = @max(new_max_size, DEFAULT_MAX_CACHE_SIZE / 4); // Floor at 1/4 default
+            self.config.max_entries = @max(new_max_entries, DEFAULT_MAX_ENTRIES / 4);
+
+            // Evict entries if over new limit
+            self.evictToSize(self.config.max_cache_size);
+        }
     }
 
     /// Get a cached kernel or compile and cache it.

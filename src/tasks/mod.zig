@@ -221,12 +221,10 @@ pub const Manager = struct {
         const count = try roadmap.importAll(
             self.allocator,
             &self.tasks,
-            &self.strings,
             &self.next_id,
-            self.config.auto_save,
-            self.config.storage_path,
+            &self.strings,
         );
-        if (count > 0) self.dirty = true;
+        self.dirty = true;
         return count;
     }
 };

@@ -78,7 +78,7 @@ const TensorboardLogger = struct {
     file: std.Io.File,
 
     pub fn init(allocator: std.mem.Allocator, log_dir: []const u8) LogError!TensorboardLogger {
-        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = .empty });
         errdefer io_backend.deinit();
         const io = io_backend.io();
 
@@ -169,12 +169,12 @@ const WandbLogger = struct {
                 .inode = 0,
                 .nlink = 0,
                 .size = 0,
-                .block_size = 0,
                 .permissions = @enumFromInt(0),
                 .kind = .file,
                 .atime = null,
                 .mtime = .{ .nanoseconds = 0 },
                 .ctime = .{ .nanoseconds = 0 },
+                .block_size = 0,
             },
             else => return err,
         };

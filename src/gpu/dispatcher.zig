@@ -74,6 +74,8 @@ pub const DispatchError = error{
     BackendNotInitialized,
     InvalidArguments,
     TimerFailed,
+    LaunchQueueFull,
+    BatchTooLarge,
 };
 
 /// Handle to a compiled kernel.
@@ -173,6 +175,13 @@ pub const ExecutionResult = struct {
     }
 };
 
+/// Queued kernel launch for batching.
+pub const QueuedLaunch = struct {
+    kernel: *const CompiledKernelHandle,
+    config: LaunchConfig,
+    args: KernelArgs,
+};
+
 /// Kernel dispatcher - manages kernel compilation, caching, and execution.
 pub const KernelDispatcher = struct {
     allocator: std.mem.Allocator,
@@ -201,6 +210,13 @@ pub const KernelDispatcher = struct {
     /// Kernel launch configuration ring buffer for fast-path reuse.
     kernel_ring: KernelRing,
 
+    /// Launch queue for batching kernel launches.
+    launch_queue: std.ArrayListUnmanaged(QueuedLaunch),
+    /// Mutex for thread-safe queue operations.
+    queue_mutex: std.Thread.Mutex,
+    /// Maximum queue size before auto-flush.
+    max_queue_size: usize = 32,
+
     const Self = @This();
 
     /// Initialize a new kernel dispatcher.
@@ -224,6 +240,9 @@ pub const KernelDispatcher = struct {
             .cublas_ops = 0,
             .ring_hits = 0,
             .kernel_ring = KernelRing.init(),
+            .launch_queue = .empty,
+            .queue_mutex = .{},
+            .max_queue_size = 32,
         };
 
         // Try to initialize cuBLAS for CUDA backend

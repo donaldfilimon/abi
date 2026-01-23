@@ -1316,18 +1316,18 @@ fn writeRepeat(term: *tui.Terminal, char: []const u8, count: usize) !void {
 // ═══════════════════════════════════════════════════════════════════════════
 
 fn runAction(allocator: std.mem.Allocator, framework: *abi.Framework, action: Action) !void {
-    const io = framework.io.?;
+    _ = framework;
     std.debug.print("\n", .{});
 
     switch (action) {
-        .command => |cmd| try runCommand(allocator, io, cmd),
+        .command => |cmd| try runCommand(allocator, cmd),
         .version => utils.output.printInfo("ABI Framework v{s}", .{abi.version()}),
         .help => printHelp(),
         .quit => {},
     }
 }
 
-fn runCommand(allocator: std.mem.Allocator, io: std.Io, cmd: Command) !void {
+fn runCommand(allocator: std.mem.Allocator, cmd: Command) !void {
     switch (cmd) {
         .db => try db.run(allocator, empty_args),
         .agent => try agent.run(allocator, empty_args),
@@ -1342,7 +1342,7 @@ fn runCommand(allocator: std.mem.Allocator, io: std.Io, cmd: Command) !void {
         .simd => try simd.run(allocator, empty_args),
         .system_info => try system_info.run(allocator, empty_args),
         .train => try train.run(allocator, empty_args),
-        .task => try task.run(allocator, io, empty_args),
+        .task => try task.run(allocator, empty_args),
     }
 }
 

@@ -158,7 +158,7 @@ pub fn mainWithArgs(proc_args: std.process.Args) !void {
     }
 
     if (std.mem.eql(u8, command, "task")) {
-        try commands.task.run(allocator, io, args[2..]);
+        try commands.task.run(allocator, args[2..]);
         return;
     }
 

@@ -25,6 +25,13 @@ pub fn writeJsonString(allocator: std.mem.Allocator, buf: *std.ArrayListUnmanage
     }
 }
 
+/// Duplicate a string and store it in the strings list.
+pub fn dupeString(allocator: std.mem.Allocator, strings: *std.ArrayListUnmanaged([]u8), s: []const u8) ManagerError![]const u8 {
+    const duped = try allocator.dupe(u8, s);
+    try strings.append(allocator, duped);
+    return duped;
+}
+
 /// Write a single task as JSON to the buffer.
 pub fn writeTask(allocator: std.mem.Allocator, buf: *std.ArrayListUnmanaged(u8), task: Task) !void {
     try buf.appendSlice(allocator, "    {");
@@ -58,10 +65,10 @@ pub fn writeTask(allocator: std.mem.Allocator, buf: *std.ArrayListUnmanaged(u8),
 pub fn parseTask(
     allocator: std.mem.Allocator,
     obj: std.json.ObjectMap,
-    dupeStringFn: *const fn (std.mem.Allocator, []const u8) ManagerError![]const u8,
+    strings: *std.ArrayListUnmanaged([]u8),
 ) ManagerError!Task {
     const id: u64 = @intCast(obj.get("id").?.integer);
-    const title = try dupeStringFn(allocator, obj.get("title").?.string);
+    const title = try dupeString(allocator, strings, obj.get("title").?.string);
     const status = Status.fromString(obj.get("status").?.string) orelse .pending;
     const priority = Priority.fromString(obj.get("priority").?.string) orelse .normal;
     const category = Category.fromString(obj.get("category").?.string) orelse .personal;
@@ -79,7 +86,7 @@ pub fn parseTask(
     };
 
     if (obj.get("description")) |d| {
-        task.description = try dupeStringFn(allocator, d.string);
+        task.description = try dupeString(allocator, strings, d.string);
     }
     if (obj.get("due_date")) |d| {
         task.due_date = d.integer;
@@ -101,7 +108,7 @@ pub fn save(
     tasks: *std.AutoHashMapUnmanaged(u64, Task),
     next_id: u64,
 ) ManagerError!void {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = .empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -134,14 +141,14 @@ pub fn save(
 }
 
 /// Load tasks from a JSON file.
-/// Returns the next_id value from the file.
 pub fn load(
     allocator: std.mem.Allocator,
     storage_path: []const u8,
     tasks: *std.AutoHashMapUnmanaged(u64, Task),
-    dupeStringFn: *const fn (std.mem.Allocator, []const u8) ManagerError![]const u8,
-) ManagerError!u64 {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    next_id: *u64,
+    strings: *std.ArrayListUnmanaged([]u8),
+) ManagerError!void {
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = .empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -162,18 +169,18 @@ pub fn load(
 
     const root = parsed.value.object;
 
-    var next_id: u64 = 1;
+    var next_id_local: u64 = 1;
     if (root.get("next_id")) |nid| {
-        next_id = @intCast(nid.integer);
+        next_id_local = @intCast(nid.integer);
     }
 
     if (root.get("tasks")) |tasks_val| {
         for (tasks_val.array.items) |task_val| {
             const obj = task_val.object;
-            const task = try parseTask(allocator, obj, dupeStringFn);
+            const task = try parseTask(allocator, obj, strings);
             try tasks.put(allocator, task.id, task);
         }
     }
 
-    return next_id;
+    next_id.* = next_id_local;
 }

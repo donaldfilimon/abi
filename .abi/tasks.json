@@ -1,6 +1,0 @@
-{
-  "next_id": 2,
-  "tasks": [
-    {"id":1,"title":"Verify Zig 0.16 migration","status":"pending","priority":"high","category":"roadmap","created_at":0,"updated_at":0}
-  ]
-}

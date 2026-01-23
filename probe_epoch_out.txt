@@ -1,0 +1,12 @@
+probe_epoch.zig:3:5: error: found compile log statement
+    @compileLog("Has now:", @hasDecl(std.time.epoch, "now"));
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+referenced by:
+    callMain [inlined]: C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\start.zig:679:59
+    WinStartup: C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\start.zig:479:53
+    2 reference(s) hidden; use '-freference-trace=4' to see all references
+
+Compile Log Output:
+@as(*const [8:0]u8, "Has now:"), @as(bool, false)
+@as(*const [15:0]u8, "Has systemTime:"), @as(bool, false)
+@as(*const [13:0]u8, "Has DateTime:"), @as(bool, false)

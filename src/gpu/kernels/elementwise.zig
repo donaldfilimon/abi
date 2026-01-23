@@ -20,7 +20,12 @@ pub const AccessMode = dsl.AccessMode;
 
 /// Build vector_add kernel: c[i] = a[i] + b[i]
 pub fn buildVectorAddKernel(allocator: std.mem.Allocator) !*const KernelIR {
-    var builder = KernelBuilder.init(allocator, "vector_add");
+    return buildVectorAddKernelSIMD(allocator, 1); // Default to scalar version
+}
+
+/// Build SIMD vector_add kernel with vectorization factor
+pub fn buildVectorAddKernelSIMD(allocator: std.mem.Allocator, vector_width: u32) !*const KernelIR {
+    var builder = KernelBuilder.init(allocator, if (vector_width == 1) "vector_add" else "vector_add_simd");
     errdefer builder.deinit();
 
     _ = builder.setWorkgroupSize(256, 1, 1);
@@ -33,19 +38,35 @@ pub fn buildVectorAddKernel(allocator: std.mem.Allocator) !*const KernelIR {
 
     // Get thread index
     const gid = builder.globalInvocationId();
-    const idx = try gid.x();
+    const base_idx = try gid.x();
 
-    // Bounds check: if (idx < n)
-    const condition = try builder.lt(idx, try n.toExpr());
+    // Calculate vectorized indices
+    var statements = std.ArrayList(*const dsl.Stmt).init(allocator);
+    defer statements.deinit();
 
-    // c[idx] = a[idx] + b[idx]
-    const a_val = try a.at(idx);
-    const b_val = try b.at(idx);
-    const sum = try builder.add(a_val, b_val);
-    const c_idx = try c.at(idx);
+    var i: u32 = 0;
+    while (i < vector_width) : (i += 1) {
+        const idx = try builder.add(base_idx, try builder.intLiteral(@intCast(i)));
 
-    const assign_stmt = try builder.assignStmt(c_idx, sum);
-    try builder.ifStmt(condition, &[_]*const dsl.Stmt{assign_stmt}, null);
+        // Bounds check: if (idx < n)
+        const condition = try builder.lt(idx, try n.toExpr());
+
+        // c[idx] = a[idx] + b[idx]
+        const a_val = try a.at(idx);
+        const b_val = try b.at(idx);
+        const sum = try builder.add(a_val, b_val);
+        const c_idx = try c.at(idx);
+
+        const assign_stmt = try builder.assignStmt(c_idx, sum);
+        const if_stmt = try builder.ifStmt(condition, &[_]*const dsl.Stmt{assign_stmt}, null);
+
+        try statements.append(if_stmt);
+    }
+
+    // Add all statements to the kernel
+    for (statements.items) |stmt| {
+        try builder.addStmt(stmt);
+    }
 
     const ir = try allocator.create(KernelIR);
     ir.* = try builder.build();

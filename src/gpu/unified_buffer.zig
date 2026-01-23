@@ -122,6 +122,7 @@ const DirtyState = packed struct {
 pub const Buffer = struct {
     // Core state
     allocator: std.mem.Allocator,
+    thread_safe_allocator: std.heap.ThreadSafeAllocator,
     size: usize,
     element_type: ElementType,
     options: BufferOptions,
@@ -135,6 +136,9 @@ pub const Buffer = struct {
     mode: MemoryMode,
     device_id: u32,
     backend: Backend,
+
+    // Thread safety
+    mutex: std.Thread.Mutex,
 
     // Statistics
     host_to_device_transfers: u64,
@@ -151,16 +155,18 @@ pub const Buffer = struct {
         device: *const Device,
         options: BufferOptions,
     ) !Buffer {
+        var thread_safe_allocator = std.heap.ThreadSafeAllocator{ .child_allocator = allocator };
+
         // Allocate host memory if needed
         const host_data: ?[]u8 = switch (options.location) {
             .device_only => null,
             else => blk: {
-                const data = try allocator.alloc(u8, size);
+                const data = try thread_safe_allocator.allocator().alloc(u8, size);
                 @memset(data, 0);
                 break :blk data;
             },
         };
-        errdefer if (host_data) |data| allocator.free(data);
+        errdefer if (host_data) |data| thread_safe_allocator.allocator().free(data);
 
         // Copy initial data if provided
         if (options.initial_data) |initial| {
@@ -172,6 +178,7 @@ pub const Buffer = struct {
 
         var buffer = Buffer{
             .allocator = allocator,
+            .thread_safe_allocator = thread_safe_allocator,
             .size = size,
             .element_type = options.element_type,
             .options = options,
@@ -181,6 +188,7 @@ pub const Buffer = struct {
             .mode = options.mode,
             .device_id = device.id,
             .backend = device.backend,
+            .mutex = .{},
             .host_to_device_transfers = 0,
             .device_to_host_transfers = 0,
             .bytes_transferred = 0,
@@ -198,7 +206,7 @@ pub const Buffer = struct {
     /// Destroy the buffer.
     pub fn deinit(self: *Buffer) void {
         if (self.host_data) |data| {
-            self.allocator.free(data);
+            self.thread_safe_allocator.allocator().free(data);
         }
         self.sync_event.deinit();
         // Backend would free device_handle here
@@ -217,6 +225,9 @@ pub const Buffer = struct {
 
     /// Write data to the buffer from host.
     pub fn write(self: *Buffer, comptime T: type, data: []const T) !void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
         const bytes = std.mem.sliceAsBytes(data);
         if (bytes.len > self.size) {
             return error.BufferOverflow;
@@ -257,6 +268,9 @@ pub const Buffer = struct {
 
     /// Read data from the buffer to host.
     pub fn read(self: *Buffer, comptime T: type, output: []T) !void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
         const needed_bytes = output.len * @sizeOf(T);
         if (needed_bytes > self.size) {
             return error.BufferOverflow;

@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const config_module = @import("../config/mod.zig");
+const stub_common = @import("../shared/stub_common.zig");
 
 // ============================================================================
 // Errors
@@ -18,7 +19,7 @@ pub const Error = error{
     OutOfMemory,
     KernelCompilationFailed,
     KernelExecutionFailed,
-};
+} || stub_common.CommonError;
 
 pub const GpuError = Error;
 pub const MemoryError = Error;
@@ -237,7 +238,7 @@ pub const MetricsSummary = struct {
 
 pub const Gpu = struct {
     pub fn init(_: std.mem.Allocator, _: GpuConfig) Error!Gpu {
-        return error.GpuDisabled;
+        return stub_common.stubError(error.GpuDisabled);
     }
     pub fn deinit(_: *Gpu) void {}
     pub fn isAvailable(_: *const Gpu) bool {

@@ -4,6 +4,7 @@ tags: []
 ---
 
 # ABI Framework
+>
 > **Codebase Status:** Synced with repository as of 2026-01-23.
 
 <p align="center">
@@ -55,6 +56,8 @@ tags: []
 <details>
 <summary><strong>Detailed Feature Links</strong></summary>
 
+- [Framework Guide](docs/framework.md) - Lifecycle and initialization
+- [Compute Guide](docs/compute.md) - Work-stealing scheduler
 - [AI Guide](docs/ai.md) - LLM, agents, training, embeddings
 - [Database Guide](docs/database.md) - WDBX vector database
 - [GPU Guide](docs/gpu.md) - Multi-backend GPU acceleration
@@ -146,10 +149,7 @@ zig build test --summary all
 zig build run -- --help
 ```
 
-
 ### Basic Framework Usage
-
-
 
 ```src/main.zig#L140-167
 const std = @import("std");
@@ -179,25 +179,20 @@ pub fn main() !void {
 }
 ```
 
-
 <details>
 
 <summary><strong>Backward-compatible initialization</strong></summary>
-
-
 
 ```src/framework.zig#L174-175
 var framework = try abi.init(allocator, .{});
 defer abi.shutdown(&framework);
 ```
+
 </details>
 
 ## Examples
 
-
 ### AI Agent Chat
-
-
 
 ```src/examples/ai_agent.zig#L10-30
 
@@ -240,7 +235,6 @@ pub fn main() !void {
 ```
 
 ### Vector Database Operations
-
 
 ```src/examples/vector_db.zig#L10-35
 
@@ -293,7 +287,6 @@ pub fn main() !void {
 }
 
 ```
-
 
 ### GPU-Accelerated Compute
 
@@ -359,6 +352,7 @@ pub fn main() !void {
 ```
 
 **CLI Training:**
+
 ```bash
 zig build run -- train run --epochs 10 --batch-size 32
 zig build run -- train resume ./checkpoint.ckpt

@@ -437,12 +437,103 @@ pub const AdvancedMemoryPool = struct {
         const max_passes: usize = 5;
 
         while (passes < max_passes) {
+            // First pass: coalesce free blocks
             self.coalesceAll();
+
+            // Second pass: compact highly fragmented size classes
+            if (self.config.aggressive_coalesce_threshold > 0.0) {
+                self.compactFragmentedClasses();
+            }
 
             const new_frag = self.calculateFragmentation();
             if (new_frag <= self.config.target_fragmentation) break;
 
             passes += 1;
+        }
+    }
+
+    /// Compact highly fragmented size classes by reallocating active buffers.
+    fn compactFragmentedClasses(self: *AdvancedMemoryPool) void {
+        for (&self.size_classes) |*bucket| {
+            const fragmentation = self.calculateBucketFragmentation(bucket);
+            if (fragmentation >= self.config.aggressive_coalesce_threshold) {
+                // Find the size class for this bucket
+                const size_class = bucket.size_class;
+                self.compactBucket(bucket, size_class);
+            }
+        }
+    }
+
+    /// Calculate fragmentation ratio for a specific bucket.
+    fn calculateBucketFragmentation(_: *const AdvancedMemoryPool, bucket: *const SizeClassBucket) f64 {
+        if (bucket.total_allocated == 0) return 0.0;
+        return 1.0 - (@as(f64, @floatFromInt(bucket.total_used)) / @as(f64, @floatFromInt(bucket.total_allocated)));
+    }
+
+    /// Compact a bucket by reallocating active buffers to fill gaps.
+    fn compactBucket(self: *AdvancedMemoryPool, bucket: *SizeClassBucket, size_class: usize) void {
+        // Create a list of active buffers
+        var active_buffers = std.ArrayListUnmanaged(*memory.GpuBuffer).empty;
+        defer active_buffers.deinit(self.allocator);
+
+        var new_metadata = std.ArrayListUnmanaged(AllocationMeta).empty;
+        defer new_metadata.deinit(self.allocator);
+
+        // Collect active buffers and their metadata
+        for (bucket.metadata.items, 0..) |*meta, idx| {
+            if (meta.used) {
+                active_buffers.append(self.allocator, &bucket.allocations.items[idx]) catch continue;
+                new_metadata.append(self.allocator, meta.*) catch continue;
+            } else {
+                // Free unused buffer
+                bucket.allocations.items[idx].deinit();
+            }
+        }
+
+        // Clear old allocations
+        bucket.allocations.clearRetainingCapacity();
+        bucket.metadata.clearRetainingCapacity();
+        bucket.free_list = null;
+        bucket.total_allocated = 0;
+
+        // Reallocate active buffers in contiguous memory
+        var i: usize = 0;
+        while (i < active_buffers.items.len) : (i += 1) {
+            const meta = new_metadata.items[i];
+
+            // Reallocate buffer (in a real implementation, this would copy data)
+            var new_buf = memory.GpuBuffer.init(self.allocator, size_class, .{}) catch continue;
+            errdefer new_buf.deinit();
+
+            bucket.allocations.append(self.allocator, new_buf) catch {
+                new_buf.deinit();
+                continue;
+            };
+
+            bucket.metadata.append(self.allocator, meta) catch {
+                var last = bucket.allocations.pop();
+                last.deinit();
+                continue;
+            };
+
+            bucket.total_allocated += size_class;
+        }
+
+        // Update free list for remaining capacity
+        const remaining_slots = bucket.allocations.capacity - bucket.allocations.items.len;
+        if (remaining_slots > 0) {
+            // Add remaining slots to free list
+            while (bucket.metadata.items.len < bucket.allocations.capacity) {
+                const meta = AllocationMeta{
+                    .size = 0,
+                    .size_class_idx = null,
+                    .allocated_at = time.unixSeconds(),
+                    .used = false,
+                    .next_free = bucket.free_list,
+                };
+                bucket.metadata.append(self.allocator, meta) catch break;
+                bucket.free_list = &bucket.metadata.items[bucket.metadata.items.len - 1];
+            }
         }
     }
 

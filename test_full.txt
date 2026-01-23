@@ -1,0 +1,11 @@
+test
++- run test w
+Training completed: epochs=2, loss=0.0001587825
+failed command: ".\\.zig-cache\\o\\6713385dd1796ad8dcf209b29ae0152a\\test.exe" "--cache-dir=.\\.zig-cache" --seed=0x54f91303 --listen=-
+
+Build Summary: 4/4 steps succeeded; 194/198 tests passed (4 skipped)
+test success
++- run test 194 pass, 4 skip (198 total) 334ms MaxRSS:9M
+   +- compile test Debug native success 6s MaxRSS:625M
+      +- options cached
+

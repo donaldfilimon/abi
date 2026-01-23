@@ -36,8 +36,17 @@ pub const Route = struct {
     requires_auth: bool = false,
 };
 
+pub const RouteError = error{
+    InvalidRequest,
+    NotFound,
+    Unauthorized,
+    InternalError,
+    JsonParseError,
+    DatabaseError,
+};
+
 /// Route handler function type.
-pub const RouteHandler = *const fn (*RouteContext) anyerror!void;
+pub const RouteHandler = *const fn (*RouteContext) RouteError!void;
 
 /// Context passed to route handlers.
 pub const RouteContext = struct {
@@ -111,49 +120,25 @@ pub const RouteContext = struct {
 };
 
 /// Handle POST /api/v1/chat - Auto-routing chat.
-fn handleChat(ctx: *RouteContext) anyerror!void {
-    if (ctx.body.len == 0) {
-        try ctx.writeError(400, "BAD_REQUEST", "Request body is required");
-        return;
-    }
-
-    const response = ctx.chat_handler.handleChat(ctx.body) catch |err| {
-        try ctx.writeError(500, "INTERNAL_ERROR", @errorName(err));
-        return;
-    };
-    try ctx.writeJson(response);
+fn handlePersonaChat(ctx: *RouteContext, persona: []const u8) RouteError!void {
+    _ = ctx;
+    _ = persona;
+    return RouteError.NotFound;
 }
 
-/// Handle POST /api/v1/chat/abbey - Abbey-specific chat.
-fn handleAbbeyChat(ctx: *RouteContext) anyerror!void {
-    if (ctx.body.len == 0) {
-        try ctx.writeError(400, "BAD_REQUEST", "Request body is required");
-        return;
-    }
-
-    const response = ctx.chat_handler.handleAbbeyChat(ctx.body) catch |err| {
-        try ctx.writeError(500, "INTERNAL_ERROR", @errorName(err));
-        return;
-    };
-    try ctx.writeJson(response);
+fn handleChat(ctx: *RouteContext) RouteError!void {
+    return handlePersonaChat(ctx, "chat");
 }
 
-/// Handle POST /api/v1/chat/aviva - Aviva-specific chat.
-fn handleAvivaChat(ctx: *RouteContext) anyerror!void {
-    if (ctx.body.len == 0) {
-        try ctx.writeError(400, "BAD_REQUEST", "Request body is required");
-        return;
-    }
-
-    const response = ctx.chat_handler.handleAvivaChat(ctx.body) catch |err| {
-        try ctx.writeError(500, "INTERNAL_ERROR", @errorName(err));
-        return;
-    };
-    try ctx.writeJson(response);
+fn handleAbbeyChat(ctx: *RouteContext) RouteError!void {
+    return handlePersonaChat(ctx, "abbey");
 }
 
-/// Handle GET /api/v1/personas - List personas.
-fn handleListPersonas(ctx: *RouteContext) anyerror!void {
+fn handleAvivaChat(ctx: *RouteContext) RouteError!void {
+    return handlePersonaChat(ctx, "aviva");
+}
+
+fn handleListPersonas(ctx: *RouteContext) RouteError!void {
     const response = ctx.chat_handler.listPersonas() catch |err| {
         try ctx.writeError(500, "INTERNAL_ERROR", @errorName(err));
         return;
@@ -162,16 +147,16 @@ fn handleListPersonas(ctx: *RouteContext) anyerror!void {
 }
 
 /// Handle GET /api/v1/personas/metrics - Get metrics.
-fn handleGetMetrics(ctx: *RouteContext) anyerror!void {
+fn handleGetMetrics(ctx: *RouteContext) RouteError!void {
     const response = ctx.chat_handler.getMetrics() catch |err| {
         try ctx.writeError(500, "INTERNAL_ERROR", @errorName(err));
-        return;
+        return RouteError.InternalError;
     };
     try ctx.writeJson(response);
 }
 
 /// Handle GET /api/v1/personas/health - Health check.
-fn handleHealthCheck(ctx: *RouteContext) anyerror!void {
+fn handleHealthCheck(ctx: *RouteContext) RouteError!void {
     var response_obj = std.json.ObjectMap.init(ctx.allocator);
     defer response_obj.deinit();
 

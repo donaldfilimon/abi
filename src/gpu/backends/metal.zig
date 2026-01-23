@@ -99,6 +99,10 @@ var pending_buffers_allocator: ?std.mem.Allocator = null;
 // Cached allocator for buffer metadata
 var buffer_allocator: ?std.mem.Allocator = null;
 
+// Pipeline cache for compiled compute pipelines
+var pipeline_cache: std.StringHashMapUnmanaged(ID) = .empty;
+var pipeline_cache_allocator: ?std.mem.Allocator = null;
+
 // Objective-C runtime function pointers
 const ObjcMsgSendFn = *const fn (ID, SEL) callconv(.c) ID;
 const ObjcMsgSendIntFn = *const fn (ID, SEL, usize, u32) callconv(.c) ID;

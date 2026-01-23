@@ -4,6 +4,8 @@
 
 const std = @import("std");
 const types = @import("types.zig");
+const persistence = @import("persistence.zig");
+const time_utils = @import("../shared/utils.zig");
 
 pub const RoadmapItem = struct {
     title: []const u8,
@@ -87,27 +89,24 @@ pub fn importAll(
     allocator: std.mem.Allocator,
     tasks: *std.AutoHashMapUnmanaged(u64, types.Task),
     next_id: *u64,
-    dupeStringFn: *const fn (std.mem.Allocator, []const u8) types.ManagerError![]const u8,
-    time_utils: anytype,
+    strings: *std.ArrayListUnmanaged([]u8),
 ) !usize {
+    const now = time_utils.unixSeconds();
     var count: usize = 0;
     for (incomplete_items) |item| {
         var exists = false;
-        var iter = tasks.iterator();
-        while (iter.next()) |entry| {
+        var it = tasks.iterator();
+        while (it.next()) |entry| {
             if (std.mem.eql(u8, entry.value_ptr.title, item.title)) {
                 exists = true;
                 break;
             }
         }
-
         if (!exists) {
-            const now = time_utils.unixSeconds();
             const id = next_id.*;
             next_id.* += 1;
-
-            const owned_title = try dupeStringFn(allocator, item.title);
-            const owned_desc = if (item.description) |d| try dupeStringFn(allocator, d) else null;
+            const owned_title = try persistence.dupeString(allocator, strings, item.title);
+            const owned_desc = if (item.description) |d| try persistence.dupeString(allocator, strings, d) else null;
 
             const task = types.Task{
                 .id = id,

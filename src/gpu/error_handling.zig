@@ -25,6 +25,22 @@ pub const GpuErrorCode = enum(u32) {
     invalid_resource_handle = 717,
     invalid_configuration = 723,
     invalid_operation = 724,
+    // Additional specific GPU errors
+    buffer_overflow = 800,
+    no_host_memory = 801,
+    no_device_memory = 802,
+    synchronization_timeout = 803,
+    kernel_compilation_failed = 804,
+    kernel_link_failed = 805,
+    backend_not_supported = 806,
+    device_lost = 807,
+    memory_corruption = 808,
+    invalid_kernel_arguments = 809,
+    stream_synchronization_failed = 810,
+    peer_access_already_enabled = 811,
+    memory_pool_exhausted = 812,
+    cache_miss = 813,
+    profiling_not_enabled = 814,
     unknown = 9999999,
 };
 
@@ -39,6 +55,10 @@ pub const GpuErrorType = enum {
     compilation,
     launch,
     synchronization,
+    buffer,
+    backend,
+    cache,
+    profiling,
 };
 
 /// Operation context for tracking what was being performed when error occurred.
@@ -443,6 +463,21 @@ pub fn getRecoverySuggestion(code: GpuErrorCode) []const u8 {
         .launch_timeout => "Check for deadlocks or kernel hangs",
         .illegal_address => "Verify all memory addresses are valid and allocated",
         .invalid_configuration => "Review kernel launch parameters and grid/block dimensions",
+        .buffer_overflow => "Ensure data size fits within buffer capacity",
+        .no_host_memory => "Check host memory availability or enable unified memory",
+        .no_device_memory => "Free unused GPU memory or reduce allocation size",
+        .synchronization_timeout => "Check for deadlocks or increase timeout values",
+        .kernel_compilation_failed => "Review kernel code for syntax errors or unsupported features",
+        .kernel_link_failed => "Check kernel dependencies and linking requirements",
+        .backend_not_supported => "Try a different GPU backend or check driver compatibility",
+        .device_lost => "Reset GPU context or restart the application",
+        .memory_corruption => "Check for buffer overflows or race conditions",
+        .invalid_kernel_arguments => "Verify kernel argument types and buffer bindings",
+        .stream_synchronization_failed => "Check stream dependencies and ordering",
+        .peer_access_already_enabled => "Peer access is already enabled for these devices",
+        .memory_pool_exhausted => "Increase memory pool size or free unused allocations",
+        .cache_miss => "Consider pre-warming cache or adjusting cache policies",
+        .profiling_not_enabled => "Enable profiling in GPU configuration",
         else => "See documentation for detailed error information",
     };
 }

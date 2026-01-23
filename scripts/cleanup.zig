@@ -14,16 +14,19 @@ pub fn main() !void {
     }
     const allocator = gpa.allocator();
 
+    var io = std.Io.Threaded.init(allocator);
+    defer io.deinit();
+
     // Map from file path to index
     var all_files = try std.ArrayList([]const u8).initCapacity(allocator, 0);
     defer all_files.deinit();
-    try walkSrcFiles(&all_files);
+    try walkSrcFiles(allocator, &io, &all_files);
 
     // Build import graph
     var graph = std.AutoHashMap([]const u8, []const []const u8).init(allocator);
     defer graph.deinit();
     for (all_files.items) |file| {
-        const imports = try parseImports(file, allocator);
+        const imports = try parseImports(file, allocator, &io);
         try graph.put(file, imports);
     }
 
@@ -48,8 +51,8 @@ pub fn main() !void {
     // requires semantic comparison. We leave that as a TODO.
 }
 
-fn walkSrcFiles(files: *std.ArrayList([]const u8)) !void {
-    const cwd = try std.fs.cwd();
+fn walkSrcFiles(allocator: std.mem.Allocator, io: *std.Io.Threaded, files: *std.ArrayList([]const u8)) !void {
+    const cwd = try std.Io.Dir.cwd(io.*);
     var walker = try cwd.walk(allocator);
     defer walker.deinit();
     while (try walker.next()) |entry| {
@@ -60,8 +63,9 @@ fn walkSrcFiles(files: *std.ArrayList([]const u8)) !void {
     }
 }
 
-fn parseImports(path: []const u8, allocator: std.mem.Allocator) ![]const []const u8 {
-    const content = try std.fs.cwd().readFileAlloc(allocator, path, std.math.maxInt(usize));
+fn parseImports(path: []const u8, allocator: std.mem.Allocator, io: *std.Io.Threaded) ![]const []const u8 {
+    const cwd = try std.Io.Dir.cwd(io.*);
+    const content = try cwd.readFileAlloc(allocator, path, std.math.maxInt(usize));
     defer allocator.free(content);
     var imports = std.ArrayList([]const u8).init(allocator);
     defer imports.deinit();
