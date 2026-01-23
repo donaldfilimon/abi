@@ -25,8 +25,8 @@ fn skipIfDatabaseDisabled() !void {
 // Basic CRUD Operations
 // ============================================================================
 
-// Testdatabase creation and basic lifecycle.
-// Verifiesdatabase can be created, used, and properly cleaned up.
+// Test database creation and basic lifecycle.
+// Verifies database can be created, used, and properly cleaned up.
 test "database: lifecycle management" {
     try skipIfDatabaseDisabled();
 
@@ -40,8 +40,8 @@ test "database: lifecycle management" {
     try std.testing.expectEqual(@as(usize, 0), s.count);
 }
 
-// Testinserting vectors into the database.
-// Verifiesinsert operation stores vectors correctly.
+// Test inserting vectors into the database.
+// Verifies insert operation stores vectors correctly.
 test "database: insert vectors" {
     try skipIfDatabaseDisabled();
 
@@ -65,8 +65,8 @@ test "database: insert vectors" {
     try std.testing.expectEqual(@as(usize, 2), s.count);
 }
 
-// Testinserting vectors with metadata.
-// Verifiesmetadata is stored and retrievable.
+// Test inserting vectors with metadata.
+// Verifies metadata is stored and retrievable.
 test "database: insert with metadata" {
     try skipIfDatabaseDisabled();
 
@@ -89,8 +89,8 @@ test "database: insert with metadata" {
     try std.testing.expectEqualStrings("document-2", view2.?.metadata.?);
 }
 
-// Testretrieving vectors by ID.
-// Verifiesget operation returns correct vector data.
+// Test retrieving vectors by ID.
+// Verifies get operation returns correct vector data.
 test "database: get vectors" {
     try skipIfDatabaseDisabled();
 
@@ -115,8 +115,8 @@ test "database: get vectors" {
     try std.testing.expect(missing == null);
 }
 
-// Testupdating existing vectors.
-// Verifiesupdate operation modifies vector data in place.
+// Test updating existing vectors.
+// Verifies update operation modifies vector data in place.
 test "database: update vectors" {
     try skipIfDatabaseDisabled();
 
@@ -143,8 +143,8 @@ test "database: update vectors" {
     try std.testing.expect(!not_updated);
 }
 
-// Testdeleting vectors from the database.
-// Verifiesdelete operation removes vectors correctly.
+// Test deleting vectors from the database.
+// Verifies delete operation removes vectors correctly.
 test "database: delete vectors" {
     try skipIfDatabaseDisabled();
 
@@ -184,8 +184,8 @@ test "database: delete vectors" {
 // Vector Search Tests
 // ============================================================================
 
-// Testbasic vector similarity search.
-// Verifiessearch returns results sorted by similarity.
+// Test basic vector similarity search.
+// Verifies search returns results sorted by similarity.
 test "database: vector search" {
     try skipIfDatabaseDisabled();
 
@@ -215,7 +215,7 @@ test "database: vector search" {
     try std.testing.expectEqual(@as(u64, 3), results[1].id);
 }
 
-// Testsearch with top_k larger than database size.
+// Test search with top_k larger than database size.
 // Shouldreturn all available results without error.
 test "database: search top_k exceeds count" {
     try skipIfDatabaseDisabled();
@@ -237,7 +237,7 @@ test "database: search top_k exceeds count" {
     try std.testing.expectEqual(@as(usize, 2), results.len);
 }
 
-// Testsearch on empty database.
+// Test search on empty database.
 // Shouldreturn empty results without error.
 test "database: search empty database" {
     try skipIfDatabaseDisabled();
@@ -253,7 +253,7 @@ test "database: search empty database" {
     try std.testing.expectEqual(@as(usize, 0), results.len);
 }
 
-// Testsearch with zero vector query.
+// Test search with zero vector query.
 // Zerovectors should be handled gracefully.
 test "database: search with zero vector" {
     try skipIfDatabaseDisabled();
@@ -277,7 +277,7 @@ test "database: search with zero vector" {
 // List Operations
 // ============================================================================
 
-// Testlisting vectors from database.
+// Test listing vectors from database.
 // Verifieslist operation returns correct subset of vectors.
 test "database: list vectors" {
     try skipIfDatabaseDisabled();
@@ -307,7 +307,7 @@ test "database: list vectors" {
 // Database Statistics and Diagnostics
 // ============================================================================
 
-// Testdatabase statistics.
+// Test database statistics.
 // Verifiesstats accurately reflect database state.
 test "database: statistics" {
     try skipIfDatabaseDisabled();
@@ -333,7 +333,7 @@ test "database: statistics" {
     try std.testing.expect(s.memory_bytes > 0);
 }
 
-// Testdatabase optimize operation.
+// Test database optimize operation.
 // Verifiesoptimize doesn't corrupt data.
 test "database: optimize" {
     try skipIfDatabaseDisabled();
@@ -365,7 +365,7 @@ test "database: optimize" {
 // Error Condition Tests
 // ============================================================================
 
-// Testduplicate ID insertion.
+// Test duplicate ID insertion.
 // Shouldreturn error when inserting same ID twice.
 test "database: duplicate id error" {
     try skipIfDatabaseDisabled();
@@ -387,7 +387,7 @@ test "database: duplicate id error" {
     try std.testing.expectEqual(@as(usize, 1), s.count);
 }
 
-// Testdimension mismatch error.
+// Test dimension mismatch error.
 // Shouldreturn error when inserting vector with wrong dimension.
 test "database: dimension mismatch error" {
     try skipIfDatabaseDisabled();
@@ -409,7 +409,7 @@ test "database: dimension mismatch error" {
 // Edge Case Tests
 // ============================================================================
 
-// Testwith single-dimension vectors.
+// Test with single-dimension vectors.
 // Minimumdimension should work correctly.
 test "edge case: single dimension vectors" {
     try skipIfDatabaseDisabled();
@@ -430,7 +430,7 @@ test "edge case: single dimension vectors" {
     try std.testing.expectEqual(@as(u64, 1), results[0].id);
 }
 
-// Testwith high-dimension vectors.
+// Test with high-dimension vectors.
 // Largedimensions should work correctly.
 test "edge case: high dimension vectors" {
     try skipIfDatabaseDisabled();
@@ -460,7 +460,7 @@ test "edge case: high dimension vectors" {
     try std.testing.expectEqual(@as(u64, 1), results[0].id);
 }
 
-// Testwith empty metadata.
+// Test with empty metadata.
 // Nulland empty metadata should be distinguished.
 test "edge case: empty vs null metadata" {
     try skipIfDatabaseDisabled();
@@ -507,7 +507,7 @@ test "edge case: unicode metadata" {
     try std.testing.expectEqualStrings(unicode_meta, view.?.metadata.?);
 }
 
-// Testwith special float values.
+// Test with special float values.
 // NaNand infinity should be handled appropriately.
 test "edge case: special float values" {
     try skipIfDatabaseDisabled();
@@ -534,7 +534,7 @@ test "edge case: special float values" {
     try std.testing.expect(results.len > 0);
 }
 
-// Testwith large number of vectors.
+// Test with large number of vectors.
 // Databaseshould handle many vectors without issues.
 test "edge case: many vectors" {
     try skipIfDatabaseDisabled();
@@ -565,7 +565,7 @@ test "edge case: many vectors" {
 // Database Module Feature Tests
 // ============================================================================
 
-// Testdatabase module feature detection.
+// Test database module feature detection.
 // VerifiesisEnabled() returns correct value.
 test "database feature: detection" {
     const enabled = abi.database.isEnabled();
@@ -577,7 +577,7 @@ test "database feature: detection" {
     }
 }
 
-// Testdatabase module initialization.
+// Test database module initialization.
 // Verifiesinit/deinit cycle works correctly.
 test "database feature: init cycle" {
     try skipIfDatabaseDisabled();
@@ -595,7 +595,7 @@ test "database feature: init cycle" {
 // Delete Consistency Tests
 // ============================================================================
 
-// Testthat delete operations maintain index consistency.
+// Test that delete operations maintain index consistency.
 // SwapRemoveshould update index correctly for moved elements.
 test "database: delete maintains index consistency" {
     try skipIfDatabaseDisabled();
@@ -623,7 +623,7 @@ test "database: delete maintains index consistency" {
     try std.testing.expectEqualStrings("last", view.?.metadata.?);
 }
 
-// Testmultiple sequential deletes.
+// Test multiple sequential deletes.
 // Ensuresconsistency is maintained across multiple deletions.
 test "database: sequential deletes" {
     try skipIfDatabaseDisabled();

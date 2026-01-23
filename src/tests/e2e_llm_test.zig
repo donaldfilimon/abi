@@ -49,8 +49,8 @@ test "tokenizer: initialization with different kinds" {
     try std.testing.expectEqual(@as(u32, 0), unk_tok.vocabSize());
 }
 
-// Testtokenizer kind detection from GGUF model type strings.
-// Ensurescorrect tokenizer selection for different model architectures.
+// Test tokenizer kind detection from GGUF model type strings.
+// Ensures correct tokenizer selection for different model architectures.
 test "tokenizer: kind detection from model type" {
     try skipIfLlmDisabled();
 
@@ -495,18 +495,20 @@ test "llm feature: detection" {
 }
 
 // ============================================================================
-// Parallel Inference Configuration Tests
+// Parallel Processing Tests
 // ============================================================================
 
-// Test parallel inference configuration types exist.
-// Verifies parallel execution support is available when LLM is enabled.
-test "parallel config: type definitions" {
+// Test parallel executor basic initialization.
+// Verifies parallel processing support is available when LLM is enabled.
+test "parallel: executor initialization" {
     try skipIfLlmDisabled();
 
-    // Verify parallel configuration types are accessible
-    _ = abi.ai.llm.ParallelStrategy;
-    _ = abi.ai.llm.ParallelConfig;
-    _ = abi.ai.llm.ParallelMode;
-    _ = abi.ai.llm.TensorParallelConfig;
-    _ = abi.ai.llm.PipelineParallelConfig;
+    const allocator = std.testing.allocator;
+
+    // Create a parallel executor with 2 threads
+    var executor = try abi.ai.llm.parallel.ParallelExecutor.init(allocator, 2);
+    defer executor.deinit();
+
+    // Verify it was created with the requested thread count
+    try std.testing.expectEqual(@as(usize, 2), executor.thread_count);
 }
