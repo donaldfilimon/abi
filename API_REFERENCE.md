@@ -262,7 +262,7 @@ The Multi-Persona AI Assistant routes queries through specialized personas.
 
 ### Core Types
 
-- `abi.ai.personas.PersonaOrchestrator` - Main orchestrator managing persona routing
+- `abi.ai.personas.MultiPersonaSystem` - Main orchestrator managing persona routing
 - `abi.ai.personas.PersonaType` - Enum: `.abi`, `.abbey`, `.aviva`
 - `abi.ai.personas.PersonaRequest` - Request structure with content and context
 - `abi.ai.personas.PersonaResponse` - Response with content and routing info
@@ -270,13 +270,13 @@ The Multi-Persona AI Assistant routes queries through specialized personas.
 
 ### Orchestrator API
 
-- `PersonaOrchestrator.init(allocator, config)` -> `!PersonaOrchestrator` - Initialize
-- `PersonaOrchestrator.deinit()` - Clean up resources
-- `PersonaOrchestrator.process(request)` -> `!PersonaResponse` - Auto-route message
-- `PersonaOrchestrator.processWithPersona(type, request)` -> `!PersonaResponse` - Force persona
-- `PersonaOrchestrator.getPersona(type)` -> `?*Persona` - Access specific persona
-- `PersonaOrchestrator.getMetrics()` -> `*Metrics` - Access metrics
-- `PersonaOrchestrator.getHealthChecker()` -> `*HealthChecker` - Access health
+- `MultiPersonaSystem.init(allocator, config)` -> `!MultiPersonaSystem` - Initialize
+- `MultiPersonaSystem.deinit()` - Clean up resources
+- `MultiPersonaSystem.process(request)` -> `!PersonaResponse` - Auto-route message
+- `MultiPersonaSystem.processWithPersona(type, request)` -> `!PersonaResponse` - Force persona
+- `MultiPersonaSystem.getPersona(type)` -> `?*Persona` - Access specific persona
+- `MultiPersonaSystem.getMetrics()` -> `*Metrics` - Access metrics
+- `MultiPersonaSystem.getHealthChecker()` -> `*HealthChecker` - Access health
 
 ### Abi (Router) Components
 
@@ -315,7 +315,7 @@ The Multi-Persona AI Assistant routes queries through specialized personas.
 const personas = abi.ai.personas;
 
 // Initialize orchestrator
-var orchestrator = try personas.PersonaOrchestrator.init(allocator, .{
+var orchestrator = try personas.MultiPersonaSystem.init(allocator, .{
     .enable_abbey = true,
     .enable_aviva = true,
     .routing_strategy = .adaptive,
