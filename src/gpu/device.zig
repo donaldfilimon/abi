@@ -44,6 +44,133 @@ pub const DeviceType = enum {
     }
 };
 
+/// GPU vendor identification.
+pub const Vendor = enum {
+    nvidia,
+    amd,
+    intel,
+    apple,
+    qualcomm,
+    arm,
+    mesa,
+    microsoft,
+    unknown,
+
+    /// Get vendor from device name string.
+    pub fn fromDeviceName(name: []const u8) Vendor {
+        // Convert to lowercase for case-insensitive matching
+        var lower_buf: [256]u8 = undefined;
+        const len = @min(name.len, lower_buf.len);
+        for (name[0..len], 0..) |c, i| {
+            lower_buf[i] = std.ascii.toLower(c);
+        }
+        const lower = lower_buf[0..len];
+
+        // NVIDIA detection
+        if (std.mem.indexOf(u8, lower, "nvidia") != null or
+            std.mem.indexOf(u8, lower, "geforce") != null or
+            std.mem.indexOf(u8, lower, "quadro") != null or
+            std.mem.indexOf(u8, lower, "tesla") != null or
+            std.mem.indexOf(u8, lower, "rtx") != null or
+            std.mem.indexOf(u8, lower, "gtx") != null)
+        {
+            return .nvidia;
+        }
+
+        // AMD detection
+        if (std.mem.indexOf(u8, lower, "amd") != null or
+            std.mem.indexOf(u8, lower, "radeon") != null or
+            std.mem.indexOf(u8, lower, "vega") != null or
+            std.mem.indexOf(u8, lower, "navi") != null or
+            std.mem.indexOf(u8, lower, "polaris") != null or
+            std.mem.indexOf(u8, lower, "rx ") != null)
+        {
+            return .amd;
+        }
+
+        // Intel detection
+        if (std.mem.indexOf(u8, lower, "intel") != null or
+            std.mem.indexOf(u8, lower, "iris") != null or
+            std.mem.indexOf(u8, lower, "arc") != null or
+            std.mem.indexOf(u8, lower, "uhd graphics") != null or
+            std.mem.indexOf(u8, lower, "hd graphics") != null)
+        {
+            return .intel;
+        }
+
+        // Apple detection
+        if (std.mem.indexOf(u8, lower, "apple") != null or
+            std.mem.indexOf(u8, lower, "m1") != null or
+            std.mem.indexOf(u8, lower, "m2") != null or
+            std.mem.indexOf(u8, lower, "m3") != null or
+            std.mem.indexOf(u8, lower, "m4") != null)
+        {
+            return .apple;
+        }
+
+        // Qualcomm detection (Adreno)
+        if (std.mem.indexOf(u8, lower, "qualcomm") != null or
+            std.mem.indexOf(u8, lower, "adreno") != null)
+        {
+            return .qualcomm;
+        }
+
+        // ARM Mali detection
+        if (std.mem.indexOf(u8, lower, "mali") != null or
+            std.mem.indexOf(u8, lower, "arm") != null)
+        {
+            return .arm;
+        }
+
+        // Mesa (open source) detection
+        if (std.mem.indexOf(u8, lower, "llvmpipe") != null or
+            std.mem.indexOf(u8, lower, "softpipe") != null or
+            std.mem.indexOf(u8, lower, "mesa") != null or
+            std.mem.indexOf(u8, lower, "swrast") != null)
+        {
+            return .mesa;
+        }
+
+        // Microsoft (WARP) detection
+        if (std.mem.indexOf(u8, lower, "microsoft") != null or
+            std.mem.indexOf(u8, lower, "warp") != null)
+        {
+            return .microsoft;
+        }
+
+        return .unknown;
+    }
+
+    /// Get recommended backend for this vendor.
+    pub fn recommendedBackend(self: Vendor) Backend {
+        return switch (self) {
+            .nvidia => .cuda, // CUDA is optimal for NVIDIA
+            .amd => .vulkan, // Vulkan works well on AMD
+            .intel => .vulkan, // Vulkan or OpenCL for Intel
+            .apple => .metal, // Metal is native for Apple
+            .qualcomm => .vulkan, // Vulkan for mobile Qualcomm
+            .arm => .vulkan, // Vulkan for ARM Mali
+            .mesa, .microsoft => .vulkan, // Software rasterizers
+            .unknown => .stdgpu, // Fall back to std.gpu
+        };
+    }
+
+    /// Get vendor display name.
+    pub fn displayName(self: Vendor) []const u8 {
+        return switch (self) {
+            .nvidia => "NVIDIA",
+            .amd => "AMD",
+            .intel => "Intel",
+            .apple => "Apple",
+            .qualcomm => "Qualcomm",
+            .arm => "ARM",
+            .mesa => "Mesa/Open Source",
+            .microsoft => "Microsoft",
+            .unknown => "Unknown",
+        };
+    }
+};
+
 /// Represents a GPU device with extended information.
 pub const Device = struct {
     /// Unique device identifier within this session.
@@ -54,6 +181,8 @@ pub const Device = struct {
     name: []const u8,
     /// Device type classification.
     device_type: DeviceType,
+    /// GPU vendor.
+    vendor: Vendor,
     /// Total device memory in bytes (if known).
     total_memory: ?u64,
     /// Available device memory in bytes (if known).
@@ -66,6 +195,10 @@ pub const Device = struct {
     compute_units: ?u32,
     /// Clock speed in MHz (if known).
     clock_mhz: ?u32,
+    /// PCI bus ID (if available).
+    pci_bus_id: ?[]const u8,
+    /// Driver version (if available).
+    driver_version: ?[]const u8,
 
     /// Calculate a score for device selection.
     pub fn score(self: Device) u32 {
@@ -93,7 +226,23 @@ pub const Device = struct {
         if (self.capability.supports_async_transfers) total += 40;
         if (self.capability.unified_memory) total += 20;
 
+        // Bonus for using vendor's native backend
+        if (self.isUsingNativeBackend()) {
+            total += 100;
+        }
+
         return total;
+    }
+
+    /// Check if this device is using its vendor's native/optimal backend.
+    pub fn isUsingNativeBackend(self: Device) bool {
+        const recommended = self.vendor.recommendedBackend();
+        return self.backend == recommended;
+    }
+
+    /// Get vendor display name.
+    pub fn vendorName(self: Device) []const u8 {
+        return self.vendor.displayName();
     }
 
     /// Check if this device supports a specific feature.
@@ -137,6 +286,8 @@ pub const DeviceSelector = union(enum) {
     by_backend: Backend,
     /// Select by device type preference.
     by_type: DeviceType,
+    /// Select by vendor preference.
+    by_vendor: Vendor,
     /// Select by minimum memory requirement.
     by_memory: u64,
     /// Select by required features.
@@ -152,6 +303,7 @@ pub const DeviceSelector = union(enum) {
             .by_id => |id| selectById(devices, id),
             .by_backend => |backend| selectByBackend(devices, backend),
             .by_type => |device_type| selectByType(devices, device_type),
+            .by_vendor => |vendor| selectByVendor(devices, vendor),
             .by_memory => |min_memory| selectByMemory(devices, min_memory),
             .by_features => |features| selectByFeatures(devices, features),
             .custom => |func| func(devices),
@@ -205,6 +357,23 @@ pub const DeviceSelector = union(enum) {
 
         for (devices) |device| {
             if (device.device_type == device_type) {
+                const device_score = device.score();
+                if (best == null or device_score > best_score) {
+                    best = device;
+                    best_score = device_score;
+                }
+            }
+        }
+
+        return best;
+    }
+
+    fn selectByVendor(devices: []const Device, vendor: Vendor) ?Device {
+        var best: ?Device = null;
+        var best_score: u32 = 0;
+
+        for (devices) |device| {
+            if (device.vendor == vendor) {
                 const device_score = device.score();
                 if (best == null or device_score > best_score) {
                     best = device;
@@ -357,18 +526,22 @@ pub fn discoverDevices(allocator: std.mem.Allocator) ![]Device {
 
     for (backend_devices) |info| {
         const device_type = classifyDevice(info);
+        const vendor = Vendor.fromDeviceName(info.name);
 
         try devices.append(allocator, .{
             .id = info.id,
             .backend = info.backend,
             .name = info.name,
             .device_type = device_type,
+            .vendor = vendor,
             .total_memory = info.total_memory_bytes,
             .available_memory = null, // Not tracked at discovery time
             .is_emulated = info.is_emulated,
             .capability = info.capability,
             .compute_units = null, // Would need deeper probing
             .clock_mhz = null, // Would need deeper probing
+            .pci_bus_id = null, // Would need deeper probing
+            .driver_version = null, // Would need deeper probing
         });
     }
 
@@ -623,6 +796,7 @@ test "Device scoring" {
         .backend = .cuda,
         .name = "Test GPU",
         .device_type = .discrete,
+        .vendor = .nvidia,
         .total_memory = 8 * 1024 * 1024 * 1024,
         .available_memory = null,
         .is_emulated = false,
@@ -633,6 +807,8 @@ test "Device scoring" {
         },
         .compute_units = 40,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     const device2 = Device{
@@ -640,12 +816,15 @@ test "Device scoring" {
         .backend = .stdgpu,
         .name = "CPU Fallback",
         .device_type = .cpu,
+        .vendor = .unknown,
         .total_memory = 2 * 1024 * 1024 * 1024,
         .available_memory = null,
         .is_emulated = true,
         .capability = .{},
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     try std.testing.expect(device1.score() > device2.score());
@@ -658,24 +837,30 @@ test "DeviceSelector best" {
             .backend = .vulkan,
             .name = "Device 0",
             .device_type = .integrated,
+            .vendor = .intel,
             .total_memory = 2 * 1024 * 1024 * 1024,
             .available_memory = null,
             .is_emulated = true,
             .capability = .{},
             .compute_units = null,
             .clock_mhz = null,
+            .pci_bus_id = null,
+            .driver_version = null,
         },
         .{
             .id = 1,
             .backend = .cuda,
             .name = "Device 1",
             .device_type = .discrete,
+            .vendor = .nvidia,
             .total_memory = 8 * 1024 * 1024 * 1024,
             .available_memory = null,
             .is_emulated = false,
             .capability = .{ .supports_fp16 = true },
             .compute_units = null,
             .clock_mhz = null,
+            .pci_bus_id = null,
+            .driver_version = null,
         },
     };
 
@@ -693,24 +878,30 @@ test "DeviceSelector by_backend" {
             .backend = .vulkan,
             .name = "Vulkan Device",
             .device_type = .discrete,
+            .vendor = .amd,
             .total_memory = null,
             .available_memory = null,
             .is_emulated = false,
             .capability = .{},
             .compute_units = null,
             .clock_mhz = null,
+            .pci_bus_id = null,
+            .driver_version = null,
         },
         .{
             .id = 1,
             .backend = .cuda,
             .name = "CUDA Device",
             .device_type = .discrete,
+            .vendor = .nvidia,
             .total_memory = null,
             .available_memory = null,
             .is_emulated = false,
             .capability = .{},
             .compute_units = null,
             .clock_mhz = null,
+            .pci_bus_id = null,
+            .driver_version = null,
         },
     };
 

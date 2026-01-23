@@ -120,11 +120,27 @@ pub const sync_event = @import("sync_event.zig");
 pub const kernel_ring = @import("kernel_ring.zig");
 pub const adaptive_tiling = @import("adaptive_tiling.zig");
 
+// std.gpu integration (Zig 0.16+ native GPU support)
+pub const std_gpu = @import("std_gpu.zig");
+pub const std_gpu_kernels = @import("std_gpu_kernels.zig");
+
 // Performance types
 pub const SyncEvent = sync_event.SyncEvent;
 pub const KernelRing = kernel_ring.KernelRing;
 pub const AdaptiveTiling = adaptive_tiling.AdaptiveTiling;
 pub const TileConfig = adaptive_tiling.AdaptiveTiling.TileConfig;
+
+// std.gpu types (Zig native GPU address spaces and shader built-ins)
+pub const GlobalPtr = std_gpu.GlobalPtr;
+pub const SharedPtr = std_gpu.SharedPtr;
+pub const StoragePtr = std_gpu.StoragePtr;
+pub const UniformPtr = std_gpu.UniformPtr;
+pub const ConstantPtr = std_gpu.ConstantPtr;
+pub const globalInvocationId = std_gpu.globalInvocationId;
+pub const workgroupId = std_gpu.workgroupId;
+pub const localInvocationId = std_gpu.localInvocationId;
+pub const workgroupBarrier = std_gpu.workgroupBarrier;
+pub const setLocalSize = std_gpu.setLocalSize;
 
 // Unified API modules
 pub const unified = @import("unified.zig");
@@ -216,6 +232,9 @@ comptime {
         _ = @import("sync_event.zig");
         _ = @import("kernel_ring.zig");
         _ = @import("adaptive_tiling.zig");
+        // std.gpu integration tests
+        _ = @import("std_gpu.zig");
+        _ = @import("std_gpu_kernels.zig");
     }
 }
 
@@ -317,6 +336,7 @@ pub const DeviceFeature = device.DeviceFeature;
 pub const DeviceSelector = device.DeviceSelector;
 pub const DeviceManager = device.DeviceManager;
 pub const discoverDevices = device.discoverDevices;
+pub const Vendor = device.Vendor;
 pub const getBestKernelBackend = device.getBestKernelBackend;
 
 // Stream and event types

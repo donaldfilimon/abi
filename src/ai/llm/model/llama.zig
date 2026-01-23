@@ -8,7 +8,7 @@ const weights_mod = @import("weights.zig");
 const layer_mod = @import("layer.zig");
 const cache_mod = @import("../cache/mod.zig");
 const ops = @import("../ops/mod.zig");
-const tokenizer = @import("../tokenizer/mod.zig");
+const tok_mod = @import("../tokenizer/mod.zig");
 const generation = @import("../generation/mod.zig");
 
 /// Full LLaMA model.
@@ -19,7 +19,7 @@ pub const LlamaModel = struct {
     layers: []layer_mod.TransformerLayer,
     kv_cache: cache_mod.KvCache,
     rope_cache: ops.rope.RopeCache,
-    tok: ?tokenizer.BpeTokenizer,
+    tokenizer: ?tok_mod.BpeTokenizer,
 
     // Scratch buffers
     logits: []f32,
@@ -64,7 +64,7 @@ pub const LlamaModel = struct {
             .layers = layers,
             .kv_cache = kv_cache,
             .rope_cache = rope_cache,
-            .tok = null,
+            .tokenizer = null,
             .logits = logits,
             .hidden = hidden,
         };
@@ -83,7 +83,7 @@ pub const LlamaModel = struct {
         @constCast(&self.rope_cache).deinit();
         self.weights.deinit();
 
-        if (self.tok) |*t| {
+        if (self.tokenizer) |*t| {
             t.deinit();
         }
 
@@ -105,7 +105,7 @@ pub const LlamaModel = struct {
         try model.weights.loadFromGguf(path);
 
         // Load tokenizer from GGUF
-        model.tok = tokenizer.BpeTokenizer.init(allocator);
+        model.tokenizer = tok_mod.BpeTokenizer.init(allocator);
 
         return model;
     }
@@ -196,7 +196,7 @@ pub const LlamaModel = struct {
 
     /// Encode text to tokens.
     pub fn encode(self: *LlamaModel, text: []const u8) ![]u32 {
-        if (self.tok) |*t| {
+        if (self.tokenizer) |*t| {
             return t.encode(self.allocator, text);
         }
         return error.TokenizerNotLoaded;
@@ -204,7 +204,7 @@ pub const LlamaModel = struct {
 
     /// Decode tokens to text.
     pub fn decode(self: *LlamaModel, tokens: []const u32) ![]u8 {
-        if (self.tok) |*t| {
+        if (self.tokenizer) |*t| {
             return t.decode(self.allocator, tokens);
         }
         return error.TokenizerNotLoaded;

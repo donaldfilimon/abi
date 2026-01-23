@@ -187,6 +187,71 @@ _ = try gpu.matrixMultiply(&a, &b, &c, .{
 | Tall (m >> n) | Favor M dimension (e.g., 128x32) |
 | Wide (n >> m) | Favor N dimension (e.g., 32x128) |
 
+#### Native Zig GPU Support (std.gpu)
+
+The `std_gpu` module provides direct access to Zig 0.16's native GPU facilities:
+
+```zig
+const std_gpu = abi.gpu.std_gpu;
+
+// GPU-aware pointer types (compile to proper address spaces on SPIR-V)
+const GlobalPtr = std_gpu.GlobalPtr(f32);    // Global device memory
+const SharedPtr = std_gpu.SharedPtr(f32);    // Workgroup shared memory
+const StoragePtr = std_gpu.StoragePtr(f32);  // Storage buffer
+
+// Shader built-in variables (return fallback values on CPU)
+const gid = std_gpu.globalInvocationId();    // Thread index
+const lid = std_gpu.localInvocationId();     // Local index in workgroup
+const wid = std_gpu.workgroupId();           // Workgroup index
+
+// Synchronization primitives
+std_gpu.workgroupBarrier();                  // Sync all threads in workgroup
+
+// Atomic operations (Zig 0.16 compatible)
+_ = std_gpu.atomicAddU32(&counter, 1);
+_ = std_gpu.atomicMaxU32(&max_val, new_val);
+```
+
+**Writing Native GPU Kernels:**
+
+```zig
+// Kernels use spirv_kernel calling convention on GPU targets
+fn vectorAdd(
+    a: std_gpu.StorageConstPtr(f32),
+    b: std_gpu.StorageConstPtr(f32),
+    result: std_gpu.StoragePtr(f32),
+    n: u32,
+) callconv(if (std_gpu.is_gpu_target) .spirv_kernel else .auto) void {
+    const gid = std_gpu.globalInvocationId()[0];
+    if (gid < n) {
+        result[gid] = a[gid] + b[gid];
+    }
+}
+
+// Set workgroup size at comptime
+comptime {
+    if (std_gpu.is_gpu_target) {
+        std_gpu.setLocalSize(vectorAdd, 256, 1, 1);
+    }
+}
+```
+
+**Compiling for GPU:**
+
+```bash
+# Build kernel module for SPIR-V (Vulkan/OpenGL)
+zig build-obj -target spirv64-unknown -O ReleaseFast src/gpu/std_gpu_kernels.zig
+
+# Load the .spv output with Vulkan backend
+```
+
+The `std_gpu_kernels` module provides pre-built kernels for common operations:
+- Vector operations: `vectorAdd`, `vectorMul`, `vectorFMA`
+- Reductions: `reduceSum`, `reduceMax`
+- Matrix operations: `matrixMul`, `matrixMulTiled`
+- Neural network activations: `relu`, `sigmoid`, `silu`, `softmax`
+- Normalization: `rmsNorm`
+
 ### Multi-GPU Support
 
 ```zig

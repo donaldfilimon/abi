@@ -360,14 +360,16 @@ pub const Engine = struct {
 
     /// Tokenize text
     pub fn tokenize(self: *Engine, allocator: std.mem.Allocator, text: []const u8) ![]u32 {
-        const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
-        return m.tokenizer.encode(allocator, text);
+        var m = self.loaded_model orelse return LlmError.InvalidModelFormat;
+        _ = allocator;
+        return m.encode(text);
     }
 
     /// Detokenize tokens
     pub fn detokenize(self: *Engine, allocator: std.mem.Allocator, tokens: []const u32) ![]u8 {
-        const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
-        return m.tokenizer.decode(allocator, tokens);
+        var m = self.loaded_model orelse return LlmError.InvalidModelFormat;
+        _ = allocator;
+        return m.decode(tokens);
     }
 
     /// Get current statistics
