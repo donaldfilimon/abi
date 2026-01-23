@@ -20,6 +20,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         },
         else => return err,
     };
+    defer abi.network.deinit();
 
     if (!parser.hasMore()) {
         try printStatus();
