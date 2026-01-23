@@ -3,7 +3,7 @@ title: "README"
 tags: []
 ---
 # ABI Python Bindings
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 Python bindings for the ABI high-performance AI and vector database framework.
 

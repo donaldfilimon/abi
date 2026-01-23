@@ -9,7 +9,7 @@ const is_windows = builtin.os.tag == .windows;
 const is_wasm = builtin.os.tag == .wasi or builtin.os.tag == .emscripten or
     builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
 const is_posix = switch (builtin.os.tag) {
-    .linux, .macos, .freebsd, .openbsd, .netbsd, .dragonfly, .solaris, .illumos, .haiku => true,
+    .linux, .macos, .freebsd, .openbsd, .netbsd, .dragonfly, .haiku => true,
     else => !is_windows and !is_wasm,
 };
 
@@ -61,7 +61,6 @@ pub const PlatformCapabilities = struct {
                 .openbsd => "OpenBSD",
                 .netbsd => "NetBSD",
                 .dragonfly => "DragonFlyBSD",
-                .solaris, .illumos => "Solaris/illumos",
                 .haiku => "Haiku",
                 else => "POSIX",
             };
