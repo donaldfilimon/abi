@@ -64,7 +64,7 @@ pub const LatencyWindow = struct {
         if (self.sorted_cache) |cache| {
             self.allocator.free(cache);
         }
-        self.samples.deinit(self.allocator);
+        self.samples.deinit();
     }
 
     pub fn record(self: *Self, latency_ms: u64) !void {
