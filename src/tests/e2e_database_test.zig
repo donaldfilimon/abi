@@ -216,7 +216,7 @@ test "database: vector search" {
 }
 
 // Test search with top_k larger than database size.
-// Shouldreturn all available results without error.
+// Should return all available results without error.
 test "database: search top_k exceeds count" {
     try skipIfDatabaseDisabled();
 
@@ -238,7 +238,7 @@ test "database: search top_k exceeds count" {
 }
 
 // Test search on empty database.
-// Shouldreturn empty results without error.
+// Should return empty results without error.
 test "database: search empty database" {
     try skipIfDatabaseDisabled();
 
@@ -254,7 +254,7 @@ test "database: search empty database" {
 }
 
 // Test search with zero vector query.
-// Zerovectors should be handled gracefully.
+// Zero vectors should be handled gracefully.
 test "database: search with zero vector" {
     try skipIfDatabaseDisabled();
 
@@ -278,7 +278,7 @@ test "database: search with zero vector" {
 // ============================================================================
 
 // Test listing vectors from database.
-// Verifieslist operation returns correct subset of vectors.
+// Verifies list operation returns correct subset of vectors.
 test "database: list vectors" {
     try skipIfDatabaseDisabled();
 
@@ -308,7 +308,7 @@ test "database: list vectors" {
 // ============================================================================
 
 // Test database statistics.
-// Verifiesstats accurately reflect database state.
+// Verifies stats accurately reflect database state.
 test "database: statistics" {
     try skipIfDatabaseDisabled();
 
@@ -334,7 +334,7 @@ test "database: statistics" {
 }
 
 // Test database optimize operation.
-// Verifiesoptimize doesn't corrupt data.
+// Verifies optimize doesn't corrupt data.
 test "database: optimize" {
     try skipIfDatabaseDisabled();
 
@@ -366,7 +366,7 @@ test "database: optimize" {
 // ============================================================================
 
 // Test duplicate ID insertion.
-// Shouldreturn error when inserting same ID twice.
+// Should return error when inserting same ID twice.
 test "database: duplicate id error" {
     try skipIfDatabaseDisabled();
 
@@ -388,7 +388,7 @@ test "database: duplicate id error" {
 }
 
 // Test dimension mismatch error.
-// Shouldreturn error when inserting vector with wrong dimension.
+// Should return error when inserting vector with wrong dimension.
 test "database: dimension mismatch error" {
     try skipIfDatabaseDisabled();
 
@@ -410,7 +410,7 @@ test "database: dimension mismatch error" {
 // ============================================================================
 
 // Test with single-dimension vectors.
-// Minimumdimension should work correctly.
+// Minimum dimension should work correctly.
 test "edge case: single dimension vectors" {
     try skipIfDatabaseDisabled();
 
@@ -431,7 +431,7 @@ test "edge case: single dimension vectors" {
 }
 
 // Test with high-dimension vectors.
-// Largedimensions should work correctly.
+// Large dimensions should work correctly.
 test "edge case: high dimension vectors" {
     try skipIfDatabaseDisabled();
 
@@ -461,7 +461,7 @@ test "edge case: high dimension vectors" {
 }
 
 // Test with empty metadata.
-// Nulland empty metadata should be distinguished.
+// Null and empty metadata should be distinguished.
 test "edge case: empty vs null metadata" {
     try skipIfDatabaseDisabled();
 
@@ -508,7 +508,7 @@ test "edge case: unicode metadata" {
 }
 
 // Test with special float values.
-// NaNand infinity should be handled appropriately.
+// NaN and infinity should be handled appropriately.
 test "edge case: special float values" {
     try skipIfDatabaseDisabled();
 
@@ -535,7 +535,7 @@ test "edge case: special float values" {
 }
 
 // Test with large number of vectors.
-// Databaseshould handle many vectors without issues.
+// Database should handle many vectors without issues.
 test "edge case: many vectors" {
     try skipIfDatabaseDisabled();
 
@@ -566,7 +566,7 @@ test "edge case: many vectors" {
 // ============================================================================
 
 // Test database module feature detection.
-// VerifiesisEnabled() returns correct value.
+// Verifies isEnabled() returns correct value.
 test "database feature: detection" {
     const enabled = abi.database.isEnabled();
 
@@ -578,7 +578,7 @@ test "database feature: detection" {
 }
 
 // Test database module initialization.
-// Verifiesinit/deinit cycle works correctly.
+// Verifies init/deinit cycle works correctly.
 test "database feature: init cycle" {
     try skipIfDatabaseDisabled();
 
@@ -596,7 +596,7 @@ test "database feature: init cycle" {
 // ============================================================================
 
 // Test that delete operations maintain index consistency.
-// SwapRemoveshould update index correctly for moved elements.
+// Swap Removeshould update index correctly for moved elements.
 test "database: delete maintains index consistency" {
     try skipIfDatabaseDisabled();
 
@@ -624,7 +624,7 @@ test "database: delete maintains index consistency" {
 }
 
 // Test multiple sequential deletes.
-// Ensuresconsistency is maintained across multiple deletions.
+// Ensures consistency is maintained across multiple deletions.
 test "database: sequential deletes" {
     try skipIfDatabaseDisabled();
 
