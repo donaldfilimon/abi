@@ -116,6 +116,15 @@ pub const occupancy = @import("occupancy.zig");
 pub const fusion = @import("fusion.zig");
 pub const execution_coordinator = @import("execution_coordinator.zig");
 pub const memory_pool_advanced = @import("memory_pool_advanced.zig");
+pub const sync_event = @import("sync_event.zig");
+pub const kernel_ring = @import("kernel_ring.zig");
+pub const adaptive_tiling = @import("adaptive_tiling.zig");
+
+// Performance types
+pub const SyncEvent = sync_event.SyncEvent;
+pub const KernelRing = kernel_ring.KernelRing;
+pub const AdaptiveTiling = adaptive_tiling.AdaptiveTiling;
+pub const TileConfig = adaptive_tiling.AdaptiveTiling.TileConfig;
 
 // Unified API modules
 pub const unified = @import("unified.zig");
@@ -203,6 +212,10 @@ comptime {
         _ = @import("tests/integration_test.zig");
         _ = @import("tests/all_backends_test.zig");
         _ = @import("peer_transfer/tests.zig");
+        // Performance optimization module tests
+        _ = @import("sync_event.zig");
+        _ = @import("kernel_ring.zig");
+        _ = @import("adaptive_tiling.zig");
     }
 }
 
