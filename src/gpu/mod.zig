@@ -93,8 +93,7 @@ pub const ErrorContext = error_handling.ErrorContext;
 pub const GpuErrorCode = error_handling.GpuErrorCode;
 pub const GpuErrorType = error_handling.GpuErrorType;
 
-// Execution coordinator (GPU→SIMD→scalar fallback)
-pub const execution_coordinator = @import("execution_coordinator.zig");
+// Execution coordinator convenience exports (GPU→SIMD→scalar fallback)
 pub const ExecutionCoordinator = execution_coordinator.ExecutionCoordinator;
 pub const ExecutionMethod = execution_coordinator.ExecutionMethod;
 

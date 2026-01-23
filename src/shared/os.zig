@@ -571,7 +571,7 @@ pub const Path = struct {
 
     /// Normalize path separators to the platform's native separator
     pub fn normalize(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
-        var result = try allocator.dupe(u8, path);
+        const result = try allocator.dupe(u8, path);
         for (result) |*c| {
             if (c.* == '/' or c.* == '\\') {
                 c.* = path_separator;

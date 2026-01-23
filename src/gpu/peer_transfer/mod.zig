@@ -18,6 +18,7 @@
 //! var manager = try peer.PeerTransferManager.init(allocator, device_group);
 //! defer manager.deinit();
 //!
+
 //! // Async transfer
 //! const handle = try manager.transferAsync(src_device, dst_device, data, .{});
 //! try manager.waitForTransfer(handle);
@@ -29,6 +30,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+const shared_utils = @import("../../shared/utils.zig");
 
 const multi_device = @import("../multi_device.zig");
 const stream_mod = @import("../stream.zig");
@@ -331,7 +333,7 @@ pub const PeerTransferManager = struct {
     ) !*TransferHandle {
         const capability = opts.force_capability orelse self.getCapability(src_device, dst_device);
         const transfer_id = self.next_transfer_id.fetchAdd(1, .monotonic);
-        const now = std.time.milliTimestamp();
+        const now = shared_utils.unixMs();
 
         self.mutex.lock();
         defer self.mutex.unlock();
@@ -358,7 +360,7 @@ pub const PeerTransferManager = struct {
                 self.stats.fallback_count += 1;
                 try self.host_staged_backend.transfer(src_device, dst_device, data);
                 handle.status.store(.completed, .release);
-                handle.completion_time = std.time.milliTimestamp();
+                handle.completion_time = shared_utils.unixMs();
             }
         };
 
@@ -427,7 +429,7 @@ pub const PeerTransferManager = struct {
         }
 
         handle.status.store(.completed, .release);
-        handle.completion_time = std.time.milliTimestamp();
+        handle.completion_time = shared_utils.unixMs();
 
         self.stats.successful_transfers += 1;
         self.stats.bytes_transferred += handle.size;

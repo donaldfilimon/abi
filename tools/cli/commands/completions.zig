@@ -15,7 +15,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         return;
     }
 
-    const shell = parser.consumePositional() orelse {
+    const shell = parser.next() orelse {
         printHelp();
         return;
     };

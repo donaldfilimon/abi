@@ -12,7 +12,7 @@
 
 const std = @import("std");
 const types = @import("vulkan_types.zig");
-const init = @import("vulkan_init.zig");
+const vulkan_init = @import("vulkan_init.zig");
 
 /// Pipeline cache configuration
 pub const PipelineCacheConfig = struct {
@@ -120,8 +120,8 @@ pub const VulkanPipelineCache = struct {
 
         // Destroy Vulkan cache
         if (self.vk_cache) |cache| {
-            if (init.vulkan_context) |*ctx| {
-                if (init.vkDestroyPipelineCache) |destroy_fn| {
+            if (vulkan_init.vulkan_context) |*ctx| {
+                if (vulkan_init.vkDestroyPipelineCache) |destroy_fn| {
                     destroy_fn(ctx.device, cache, null);
                 }
             }
@@ -164,10 +164,10 @@ pub const VulkanPipelineCache = struct {
 
         // Update cache size
         if (self.vk_cache) |cache| {
-            if (init.vulkan_context != null) {
-                if (init.vkGetPipelineCacheData) |get_data_fn| {
+            if (vulkan_init.vulkan_context != null) {
+                if (vulkan_init.vkGetPipelineCacheData) |get_data_fn| {
                     var size: usize = 0;
-                    _ = get_data_fn(init.vulkan_context.?.device, cache, &size, null);
+                    _ = get_data_fn(vulkan_init.vulkan_context.?.device, cache, &size, null);
                     self.stats.cache_size_bytes = size;
                 }
             }
@@ -200,9 +200,9 @@ pub const VulkanPipelineCache = struct {
     pub fn saveToDisk(self: *Self) !void {
         if (!self.config.enable_persistence) return;
 
-        const ctx = init.vulkan_context orelse return error.NotInitialized;
+        const ctx = vulkan_init.vulkan_context orelse return error.NotInitialized;
         const cache = self.vk_cache orelse return error.NoCacheHandle;
-        const get_data_fn = init.vkGetPipelineCacheData orelse return error.FunctionNotLoaded;
+        const get_data_fn = vulkan_init.vkGetPipelineCacheData orelse return error.FunctionNotLoaded;
 
         // Get cache data size
         var size: usize = 0;
@@ -310,8 +310,8 @@ pub const VulkanPipelineCache = struct {
     // Internal methods
 
     fn createVulkanCache(self: *Self) !void {
-        const ctx = init.vulkan_context orelse return error.NotInitialized;
-        const create_fn = init.vkCreatePipelineCache orelse return error.FunctionNotLoaded;
+        const ctx = vulkan_init.vulkan_context orelse return error.NotInitialized;
+        const create_fn = vulkan_init.vkCreatePipelineCache orelse return error.FunctionNotLoaded;
 
         const create_info = types.VkPipelineCacheCreateInfo{
             .initialDataSize = if (self.cache_data) |d| d.len else 0,
