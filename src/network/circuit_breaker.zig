@@ -273,7 +273,10 @@ pub const CircuitBreaker = struct {
                 self.failure_count,
                 self.config.failure_threshold,
             });
-            return .{ .err = .{ .code = code, .message = @errorName(err) } };
+            // Use {t} format specifier instead of @errorName (Zig 0.16)
+            var err_buf: [64]u8 = undefined;
+            const err_name = std.fmt.bufPrint(&err_buf, "{t}", .{err}) catch "unknown_error";
+            return .{ .err = .{ .code = code, .message = err_name } };
         };
 
         self.onSuccess();

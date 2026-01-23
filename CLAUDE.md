@@ -1,5 +1,4 @@
 # CLAUDE.md
-> **Codebase Status:** Synced with repository as of 2026-01-18.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -52,6 +51,8 @@ zig build run-gpu                      # Run GPU example
 | Import paths | Always use `@import("abi")` for public API, not direct file paths |
 | Stub API mismatch | When adding to real module, mirror the change in the corresponding `stub.zig` |
 | Format specifiers | Use `{t}` for errors/enums, not `@errorName()`/`@tagName()` |
+| ArrayListUnmanaged | Use `.empty` not `.init()` for unmanaged variants |
+| Timer API | Use `std.time.Timer.start()` not `std.time.Instant.now()` |
 
 ## Feature Flags
 
@@ -119,6 +120,8 @@ src/
 - **Shared Utilities**: Import from `src/shared/utils.zig` or specific files
 - **Internal AI**: Implementation files import from `../../core/mod.zig` for types
 
+**Stub pattern:** Each feature module has a `stub.zig` that provides the same API surface when the feature is disabled. When modifying a module's public API, update both `mod.zig` and `stub.zig` to maintain compatibility.
+
 ### Configuration System (`src/config.zig`)
 
 Single `Config` struct with optional feature configs and builder pattern:
@@ -146,101 +149,57 @@ defer framework.deinit();
 
 ## Zig 0.16 Patterns
 
-### Environment Initialization (CRITICAL)
+> See [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) for comprehensive examples.
 
-Zig 0.16 requires explicit I/O backend initialization for file and network operations. **Always initialize `std.Io.Threaded` before any file I/O.**
+### I/O Backend Initialization (CRITICAL)
+
+Zig 0.16 requires explicit I/O backend initialization for file and network operations. Requires an allocator; see `examples/` for full setup with `GeneralPurposeAllocator`.
 
 ```zig
-const std = @import("std");
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    // Step 1: Initialize I/O backend with environment config
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,  // Use .empty for no env access
-    });
-    defer io_backend.deinit();
-
-    // Step 2: Get the I/O interface
-    const io = io_backend.io();
-
-    // Step 3: Use io for all file/network operations
-    const content = try std.Io.Dir.cwd().readFileAlloc(io, "file.txt", allocator, .limited(10 * 1024 * 1024));
-    defer allocator.free(content);
-}
-```
-
-**Environment options:**
-- `std.process.Environ.empty` - No env access (use for library code)
-- `std.process.Environ.init()` - Full env access (use for CLI apps)
-
-### File I/O (std.Io.Threaded)
-```zig
-var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+// Initialize once, use for all file/network operations
+var io_backend = std.Io.Threaded.init(allocator, .{
+    .environ = std.process.Environ.empty,  // .empty for library, .init() for CLI
+});
 defer io_backend.deinit();
 const io = io_backend.io();
+
+// File read
 const content = try std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(10 * 1024 * 1024));
-```
+defer allocator.free(content);
 
-### File Write Operations
-```zig
-var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
-defer io_backend.deinit();
-const io = io_backend.io();
-
+// File write
 var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
 defer file.close(io);
-var writer = file.writer(io);
-try writer.writeAll(content);
-```
+try file.writer(io).writeAll(content);
 
-### Directory Operations
-```zig
-var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
-defer io_backend.deinit();
-const io = io_backend.io();
-
-// Create directory
+// Directory operations
 std.Io.Dir.cwd().makePath(io, "path/to/dir") catch |err| switch (err) {
     error.PathAlreadyExists => {},
     else => return err,
 };
 
-// Open and iterate directory
+// Directory iteration
 var dir = try std.Io.Dir.cwd().openDir(io, "path", .{ .iterate = true });
 defer dir.close(io);
 ```
 
-### Error/Enum Formatting
-```zig
-std.debug.print("Error: {t}", .{err});   // Use {t}, not @errorName()
-std.debug.print("State: {t}", .{state}); // Use {t}, not @tagName()
-```
+### Other Zig 0.16 Changes
 
-### Memory Management
 ```zig
-var list = std.ArrayListUnmanaged(u8).empty;  // Prefer Unmanaged variant
-try list.append(allocator, item);
-list.deinit(allocator);
-```
+// Error/enum formatting: use {t} instead of @errorName()/@tagName()
+std.debug.print("Error: {t}, State: {t}", .{err, state});
 
-### High-Precision Timing
-```zig
+// ArrayListUnmanaged: use .empty not .init()
+var list = std.ArrayListUnmanaged(u8).empty;
+
+// Timing: use Timer.start() not Instant.now()
 var timer = std.time.Timer.start() catch return error.TimerFailed;
-// ... work ...
 const elapsed_ns = timer.read();
-```
 
-### HTTP Server Initialization
-```zig
-var connection_reader = stream.reader(io, &recv_buffer);
-var connection_writer = stream.writer(io, &send_buffer);
+// HTTP server: use .interface for reader/writer (from stream.reader/writer)
 var server: std.http.Server = .init(
-    &connection_reader.interface,  // Use .interface for *Io.Reader
-    &connection_writer.interface,
+    &connection_reader.interface,  // connection_reader = stream.reader(io, &recv_buffer)
+    &connection_writer.interface,  // connection_writer = stream.writer(io, &send_buffer)
 );
 ```
 

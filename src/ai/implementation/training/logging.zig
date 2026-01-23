@@ -169,6 +169,7 @@ const WandbLogger = struct {
                 .inode = 0,
                 .nlink = 0,
                 .size = 0,
+                .block_size = 0,
                 .permissions = @enumFromInt(0),
                 .kind = .file,
                 .atime = null,

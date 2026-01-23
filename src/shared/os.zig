@@ -20,6 +20,28 @@ const posix = std.posix;
 const windows = if (builtin.os.tag == .windows) std.os.windows else struct {};
 const linux = if (builtin.os.tag == .linux) std.os.linux else struct {};
 
+// libc imports for cross-platform compatibility (Zig 0.16)
+const libc = @cImport({
+    @cInclude("stdlib.h");
+    if (builtin.os.tag == .windows) {
+        @cInclude("windows.h");
+    }
+});
+
+// Helper to get environment variable via libc (Zig 0.16 compatible)
+fn getenvC(name: []const u8) ?[]const u8 {
+    if (comptime is_wasm) return null;
+    var name_buf: [256]u8 = undefined;
+    if (name.len >= name_buf.len) return null;
+    @memcpy(name_buf[0..name.len], name);
+    name_buf[name.len] = 0;
+    const ptr = libc.getenv(&name_buf);
+    if (ptr) |p| {
+        return std.mem.sliceTo(@as([*:0]const u8, @ptrCast(p)), 0);
+    }
+    return null;
+}
+
 // ============================================================================
 // Platform Detection
 // ============================================================================
@@ -157,8 +179,8 @@ pub fn getHostname(allocator: std.mem.Allocator) ![]u8 {
 
     if (comptime builtin.os.tag == .windows) {
         var buffer: [256]u8 = undefined;
-        var size: u32 = @intCast(buffer.len);
-        if (windows.kernel32.GetComputerNameA(&buffer, &size) != 0) {
+        var size: libc.DWORD = @intCast(buffer.len);
+        if (libc.GetComputerNameA(&buffer, &size) != 0) {
             return allocator.dupe(u8, buffer[0..size]);
         }
         return allocator.dupe(u8, "localhost");
@@ -182,18 +204,18 @@ pub fn getUsername(allocator: std.mem.Allocator) ![]u8 {
 
     if (comptime builtin.os.tag == .windows) {
         var buffer: [256]u8 = undefined;
-        var size: u32 = @intCast(buffer.len);
-        if (windows.kernel32.GetUserNameA(&buffer, &size) != 0) {
+        var size: libc.DWORD = @intCast(buffer.len);
+        if (libc.GetUserNameA(&buffer, &size) != 0) {
             return allocator.dupe(u8, buffer[0 .. size - 1]); // -1 to exclude null terminator
         }
         return allocator.dupe(u8, "user");
     }
 
     // POSIX: try environment variables first
-    if (std.process.getenv("USER")) |user| {
+    if (getenvC("USER")) |user| {
         return allocator.dupe(u8, user);
     }
-    if (std.process.getenv("LOGNAME")) |user| {
+    if (getenvC("LOGNAME")) |user| {
         return allocator.dupe(u8, user);
     }
 
@@ -208,11 +230,11 @@ pub fn getHomeDir(allocator: std.mem.Allocator) ![]u8 {
     }
 
     if (comptime builtin.os.tag == .windows) {
-        if (std.process.getenv("USERPROFILE")) |profile| {
+        if (getenvC("USERPROFILE")) |profile| {
             return allocator.dupe(u8, profile);
         }
-        if (std.process.getenv("HOMEDRIVE")) |drive| {
-            if (std.process.getenv("HOMEPATH")) |path| {
+        if (getenvC("HOMEDRIVE")) |drive| {
+            if (getenvC("HOMEPATH")) |path| {
                 return std.fmt.allocPrint(allocator, "{s}{s}", .{ drive, path });
             }
         }
@@ -220,7 +242,7 @@ pub fn getHomeDir(allocator: std.mem.Allocator) ![]u8 {
     }
 
     // POSIX
-    if (std.process.getenv("HOME")) |home| {
+    if (getenvC("HOME")) |home| {
         return allocator.dupe(u8, home);
     }
     return allocator.dupe(u8, "/home");
@@ -233,17 +255,17 @@ pub fn getTempDir(allocator: std.mem.Allocator) ![]u8 {
     }
 
     if (comptime builtin.os.tag == .windows) {
-        if (std.process.getenv("TEMP")) |temp| {
+        if (getenvC("TEMP")) |temp| {
             return allocator.dupe(u8, temp);
         }
-        if (std.process.getenv("TMP")) |tmp| {
+        if (getenvC("TMP")) |tmp| {
             return allocator.dupe(u8, tmp);
         }
         return allocator.dupe(u8, "C:\\Windows\\Temp");
     }
 
     // POSIX
-    if (std.process.getenv("TMPDIR")) |tmpdir| {
+    if (getenvC("TMPDIR")) |tmpdir| {
         return allocator.dupe(u8, tmpdir);
     }
     return allocator.dupe(u8, "/tmp");
@@ -313,7 +335,12 @@ pub fn getPageSize() usize {
     if (comptime is_wasm) {
         return 65536; // WASM page size
     }
-    return std.mem.page_size;
+    // Platform-specific page sizes (Zig 0.16 compatible)
+    return switch (builtin.os.tag) {
+        .windows => 4096,
+        .macos, .ios => 16384, // Apple Silicon uses 16KB pages
+        else => 4096, // Linux and most Unix systems
+    };
 }
 
 /// Get total system memory (best effort, returns 0 if unavailable)
@@ -356,8 +383,7 @@ pub fn getTotalMemory() u64 {
 pub const Env = struct {
     /// Get an environment variable
     pub fn get(name: []const u8) ?[]const u8 {
-        if (comptime is_wasm) return null;
-        return std.process.getenv(name);
+        return getenvC(name);
     }
 
     /// Get an environment variable or return a default
@@ -396,8 +422,8 @@ pub const Env = struct {
 
     /// Expand environment variables in a string (e.g., $HOME or %USERPROFILE%)
     pub fn expand(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-        var result = std.ArrayList(u8).init(allocator);
-        errdefer result.deinit();
+        var result: std.ArrayListUnmanaged(u8) = .empty;
+        errdefer result.deinit(allocator);
 
         var i: usize = 0;
         while (i < input.len) {
@@ -407,7 +433,7 @@ pub const Env = struct {
                     if (std.mem.indexOfPos(u8, input, i + 1, "%")) |end| {
                         const var_name = input[i + 1 .. end];
                         if (get(var_name)) |value| {
-                            try result.appendSlice(value);
+                            try result.appendSlice(allocator, value);
                         }
                         i = end + 1;
                         continue;
@@ -422,7 +448,7 @@ pub const Env = struct {
                     if (std.mem.indexOfPos(u8, input, i + 2, "}")) |end| {
                         const var_name = input[i + 2 .. end];
                         if (get(var_name)) |value| {
-                            try result.appendSlice(value);
+                            try result.appendSlice(allocator, value);
                         }
                         i = end + 1;
                         continue;
@@ -437,7 +463,7 @@ pub const Env = struct {
                     if (end > start) {
                         const var_name = input[start..end];
                         if (get(var_name)) |value| {
-                            try result.appendSlice(value);
+                            try result.appendSlice(allocator, value);
                         }
                         i = end;
                         continue;
@@ -445,11 +471,11 @@ pub const Env = struct {
                 }
             }
 
-            try result.append(input[i]);
+            try result.append(allocator, input[i]);
             i += 1;
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(allocator);
     }
 };
 
@@ -593,7 +619,7 @@ pub fn getpid() Pid {
     if (comptime is_wasm) return 0;
 
     if (comptime builtin.os.tag == .windows) {
-        return windows.kernel32.GetCurrentProcessId();
+        return libc.GetCurrentProcessId();
     }
 
     return @intCast(linux.getpid());

@@ -201,8 +201,14 @@ pub fn loadBitstream(
 
     const device = device_cache[device_index];
 
-    // Validate bitstream file exists
-    std.fs.cwd().access(bitstream_path, .{}) catch {
+    // Validate bitstream file exists (Zig 0.16 I/O API)
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    std.Io.Dir.cwd().access(io, bitstream_path, .{}) catch {
         std.log.err("FPGA loader: Bitstream file not found: {s}", .{bitstream_path});
         return error.InvalidBitstream;
     };

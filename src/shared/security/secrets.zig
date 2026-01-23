@@ -153,6 +153,8 @@ pub const SecretsManager = struct {
     /// Statistics
     stats: SecretsStats,
     mutex: std.Thread.Mutex,
+    /// I/O backend for file operations (Zig 0.16)
+    io_backend: std.Io.Threaded,
 
     const CachedSecret = struct {
         value: SecretValue,
@@ -197,6 +199,9 @@ pub const SecretsManager = struct {
             .master_key = master_key,
             .stats = .{},
             .mutex = .{},
+            .io_backend = std.Io.Threaded.init(allocator, .{
+                .environ = std.process.Environ.empty,
+            }),
         };
 
         // Load required secrets
@@ -217,6 +222,9 @@ pub const SecretsManager = struct {
             entry.value_ptr.value.deinit();
         }
         self.cache.deinit(self.allocator);
+
+        // Clean up I/O backend
+        self.io_backend.deinit();
 
         // Securely wipe master key
         crypto.utils.secureZero(u8, &self.master_key);
@@ -384,12 +392,10 @@ pub const SecretsManager = struct {
 
     fn loadFromFile(self: *SecretsManager, name: []const u8) ![]u8 {
         const secrets_path = self.config.secrets_file orelse return error.SecretNotFound;
+        const io = self.io_backend.io();
 
-        // Read the secrets file
-        const file = std.fs.cwd().openFile(secrets_path, .{}) catch return error.SecretNotFound;
-        defer file.close();
-
-        const content = file.readToEndAlloc(self.allocator, 1024 * 1024) catch return error.SecretNotFound;
+        // Read the secrets file using Zig 0.16 I/O API
+        const content = std.Io.Dir.cwd().readFileAlloc(io, secrets_path, self.allocator, .limited(1024 * 1024)) catch return error.SecretNotFound;
         defer self.allocator.free(content);
 
         // Parse JSON-like format: {"name": "encrypted_base64_value", ...}
@@ -509,26 +515,10 @@ pub const SecretsManager = struct {
         defer self.allocator.free(b64_data);
         _ = encoder.encode(b64_data, packed_data);
 
-        // Read existing file or create new content
-        var existing_content: []u8 = undefined;
-        var has_existing = false;
-
-        if (std.fs.cwd().openFile(secrets_path, .{})) |file| {
-            defer file.close();
-            existing_content = file.readToEndAlloc(self.allocator, 1024 * 1024) catch {
-                existing_content = try self.allocator.dupe(u8, "{}");
-                has_existing = true;
-                return;
-            };
-            has_existing = true;
-        } else |_| {
-            existing_content = try self.allocator.dupe(u8, "{}");
-            has_existing = true;
-        }
-
-        if (has_existing) {
-            defer self.allocator.free(existing_content);
-        }
+        // Read existing file or create new content (Zig 0.16 I/O API)
+        const io = self.io_backend.io();
+        const existing_content = std.Io.Dir.cwd().readFileAlloc(io, secrets_path, self.allocator, .limited(1024 * 1024)) catch try self.allocator.dupe(u8, "{}");
+        defer self.allocator.free(existing_content);
 
         // Build new entry
         const new_entry = try std.fmt.allocPrint(self.allocator, "\"{s}\":\"{s}\"", .{ name, b64_data });
@@ -561,10 +551,10 @@ pub const SecretsManager = struct {
         }
         defer self.allocator.free(new_content);
 
-        // Write to file
-        const file = try std.fs.cwd().createFile(secrets_path, .{});
-        defer file.close();
-        try file.writeAll(new_content);
+        // Write to file (Zig 0.16 I/O API)
+        var file = try std.Io.Dir.cwd().createFile(io, secrets_path, .{ .truncate = true });
+        defer file.close(io);
+        try file.writer(io).writeAll(new_content);
     }
 
     fn saveToVault(self: *SecretsManager, name: []const u8, value: []const u8) !void {
@@ -603,12 +593,10 @@ pub const SecretsManager = struct {
 
     fn deleteFromFile(self: *SecretsManager, name: []const u8) !void {
         const secrets_path = self.config.secrets_file orelse return error.NotImplemented;
+        const io = self.io_backend.io();
 
-        // Read existing file
-        const file = std.fs.cwd().openFile(secrets_path, .{}) catch return;
-        defer file.close();
-
-        const content = file.readToEndAlloc(self.allocator, 1024 * 1024) catch return;
+        // Read existing file (Zig 0.16 I/O API)
+        const content = std.Io.Dir.cwd().readFileAlloc(io, secrets_path, self.allocator, .limited(1024 * 1024)) catch return;
         defer self.allocator.free(content);
 
         // Find and remove the key-value pair
@@ -642,10 +630,10 @@ pub const SecretsManager = struct {
         new_content.appendSlice(content[0..remove_start]) catch return;
         new_content.appendSlice(content[remove_end..]) catch return;
 
-        // Write back
-        const write_file = std.fs.cwd().createFile(secrets_path, .{}) catch return;
-        defer write_file.close();
-        write_file.writeAll(new_content.items) catch return;
+        // Write back (Zig 0.16 I/O API)
+        var write_file = std.Io.Dir.cwd().createFile(io, secrets_path, .{ .truncate = true }) catch return;
+        defer write_file.close(io);
+        write_file.writer(io).writeAll(new_content.items) catch return;
     }
 
     fn deleteFromVault(self: *SecretsManager, name: []const u8) !void {
@@ -686,11 +674,10 @@ pub const SecretsManager = struct {
 
     fn fileExists(self: *SecretsManager, name: []const u8) bool {
         const secrets_path = self.config.secrets_file orelse return false;
+        const io = self.io_backend.io();
 
-        const file = std.fs.cwd().openFile(secrets_path, .{}) catch return false;
-        defer file.close();
-
-        const content = file.readToEndAlloc(self.allocator, 1024 * 1024) catch return false;
+        // Read file using Zig 0.16 I/O API
+        const content = std.Io.Dir.cwd().readFileAlloc(io, secrets_path, self.allocator, .limited(1024 * 1024)) catch return false;
         defer self.allocator.free(content);
 
         // Look for the key

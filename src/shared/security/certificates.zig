@@ -258,15 +258,21 @@ pub const CertificateManager = struct {
 
     /// Load certificate from file
     pub fn loadFromFile(self: *CertificateManager, path: []const u8) !CertificateInfo {
-        // Read file
-        const file = try std.fs.cwd().openFile(path, .{});
-        defer file.close();
+        // Initialize I/O backend (Zig 0.16)
+        var io_backend = std.Io.Threaded.init(self.allocator, .{
+            .environ = std.process.Environ.empty,
+        });
+        defer io_backend.deinit();
+        const io = io_backend.io();
 
-        const stat = try file.stat();
-        const pem_data = try self.allocator.alloc(u8, stat.size);
+        // Read file using new I/O API
+        const pem_data = std.Io.Dir.cwd().readFileAlloc(io, path, self.allocator, .limited(1024 * 1024)) catch |err| {
+            return switch (err) {
+                error.FileNotFound => error.CertificateNotFound,
+                else => error.CertificateLoadFailed,
+            };
+        };
         defer self.allocator.free(pem_data);
-
-        _ = try file.readAll(pem_data);
 
         return self.loadFromPem(pem_data);
     }

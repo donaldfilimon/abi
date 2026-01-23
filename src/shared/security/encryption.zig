@@ -435,11 +435,19 @@ pub const KeyWrapper = struct {
 };
 
 /// Securely delete a file by overwriting with random data
-pub fn secureDelete(path: []const u8, passes: u8) !void {
-    const file = try std.fs.cwd().openFile(path, .{ .mode = .write_only });
-    defer file.close();
+/// Note: In Zig 0.16+, this function requires an allocator for I/O backend initialization
+pub fn secureDelete(allocator: std.mem.Allocator, path: []const u8, passes: u8) !void {
+    // Initialize I/O backend (Zig 0.16)
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
 
-    const stat = try file.stat();
+    var file = try std.Io.Dir.cwd().openFile(io, path, .{ .mode = .read_write });
+    errdefer file.close(io);
+
+    const stat = try file.stat(io);
     const size = stat.size;
 
     var buffer: [4096]u8 = undefined;
@@ -451,11 +459,11 @@ pub fn secureDelete(path: []const u8, passes: u8) !void {
         while (remaining > 0) {
             const to_write = @min(buffer.len, remaining);
             crypto.random.bytes(buffer[0..to_write]);
-            _ = try file.write(buffer[0..to_write]);
+            _ = try file.writer(io).write(buffer[0..to_write]);
             remaining -= to_write;
         }
 
-        try file.sync();
+        try file.sync(io);
     }
 
     // Final pass with zeros
@@ -465,15 +473,15 @@ pub fn secureDelete(path: []const u8, passes: u8) !void {
     var remaining = size;
     while (remaining > 0) {
         const to_write = @min(buffer.len, remaining);
-        _ = try file.write(buffer[0..to_write]);
+        _ = try file.writer(io).write(buffer[0..to_write]);
         remaining -= to_write;
     }
 
-    try file.sync();
-    file.close();
+    try file.sync(io);
+    file.close(io);
 
     // Delete file
-    try std.fs.cwd().deleteFile(path);
+    try std.Io.Dir.cwd().deleteFile(io, path);
 }
 
 /// Generate a random encryption key

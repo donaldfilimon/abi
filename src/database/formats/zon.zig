@@ -224,7 +224,8 @@ pub const ZonFormat = struct {
         try writer.writeAll(",\n");
 
         try writer.writeAll("    .distance_metric = .");
-        try writer.writeAll(@tagName(db.distance_metric));
+        // Use {t} format specifier instead of @tagName (Zig 0.16)
+        try std.fmt.format(writer, "{t}", .{db.distance_metric});
         try writer.writeAll(",\n");
 
         // Optional timestamps
@@ -492,8 +493,10 @@ test "zon format version constant" {
 }
 
 test "distance metric enum" {
-    try std.testing.expectEqualStrings("euclidean", @tagName(DistanceMetric.euclidean));
-    try std.testing.expectEqualStrings("cosine", @tagName(DistanceMetric.cosine));
-    try std.testing.expectEqualStrings("dot_product", @tagName(DistanceMetric.dot_product));
-    try std.testing.expectEqualStrings("manhattan", @tagName(DistanceMetric.manhattan));
+    // Use {t} format specifier instead of @tagName (Zig 0.16)
+    var buf: [32]u8 = undefined;
+    try std.testing.expectEqualStrings("euclidean", std.fmt.bufPrint(&buf, "{t}", .{DistanceMetric.euclidean}) catch "");
+    try std.testing.expectEqualStrings("cosine", std.fmt.bufPrint(&buf, "{t}", .{DistanceMetric.cosine}) catch "");
+    try std.testing.expectEqualStrings("dot_product", std.fmt.bufPrint(&buf, "{t}", .{DistanceMetric.dot_product}) catch "");
+    try std.testing.expectEqualStrings("manhattan", std.fmt.bufPrint(&buf, "{t}", .{DistanceMetric.manhattan}) catch "");
 }

@@ -4,7 +4,8 @@
 
 const std = @import("std");
 const testing = std.testing;
-const os = @import("../shared/os.zig");
+const abi = @import("abi");
+const os = abi.os;
 
 // ============================================================================
 // Platform Detection Tests

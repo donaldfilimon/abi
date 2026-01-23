@@ -231,7 +231,10 @@ pub const ReasoningChain = struct {
 
         if (self.overall_confidence) |conf| {
             try result.appendSlice(allocator, "\nOverall: ");
-            try result.appendSlice(allocator, @tagName(conf.level));
+            // Use {t} format specifier instead of @tagName (Zig 0.16)
+            var level_buf: [32]u8 = undefined;
+            const level_name = std.fmt.bufPrint(&level_buf, "{t}", .{conf.level}) catch "unknown";
+            try result.appendSlice(allocator, level_name);
             try result.appendSlice(allocator, " confidence\n");
         }
 
@@ -260,7 +263,10 @@ pub const ReasoningChain = struct {
             try result.appendSlice(allocator, "{\"type\":\"");
             try result.appendSlice(allocator, step.step_type.toString());
             try result.appendSlice(allocator, "\",\"confidence\":\"");
-            try result.appendSlice(allocator, @tagName(step.confidence.level));
+            // Use {t} format specifier instead of @tagName (Zig 0.16)
+            var conf_buf: [32]u8 = undefined;
+            const conf_name = std.fmt.bufPrint(&conf_buf, "{t}", .{step.confidence.level}) catch "unknown";
+            try result.appendSlice(allocator, conf_name);
             try result.appendSlice(allocator, "\"}");
         }
 
