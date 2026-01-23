@@ -7,10 +7,12 @@ const std = @import("std");
 const backend_mod = @import("backend.zig");
 const device_mod = @import("device.zig");
 const stream_mod = @import("stream.zig");
+const sync_event_mod = @import("sync_event.zig");
 
 pub const Backend = backend_mod.Backend;
 pub const Device = device_mod.Device;
 pub const Stream = stream_mod.Stream;
+pub const SyncEvent = sync_event_mod.SyncEvent;
 
 /// Memory management mode.
 pub const MemoryMode = enum {
@@ -139,6 +141,9 @@ pub const Buffer = struct {
     device_to_host_transfers: u64,
     bytes_transferred: u64,
 
+    // Synchronization event for non-blocking sync operations
+    sync_event: SyncEvent,
+
     /// Create a new buffer.
     pub fn init(
         allocator: std.mem.Allocator,
@@ -179,6 +184,7 @@ pub const Buffer = struct {
             .host_to_device_transfers = 0,
             .device_to_host_transfers = 0,
             .bytes_transferred = 0,
+            .sync_event = SyncEvent.init(),
         };
 
         // In automatic mode with initial data, mark for upload
@@ -194,6 +200,7 @@ pub const Buffer = struct {
         if (self.host_data) |data| {
             self.allocator.free(data);
         }
+        self.sync_event.deinit();
         // Backend would free device_handle here
         self.* = undefined;
     }
@@ -286,9 +293,11 @@ pub const Buffer = struct {
     }
 
     /// Transfer data from host to device (explicit mode).
+    /// Signals the sync event upon completion.
     pub fn toDevice(self: *Buffer) !void {
         if (!self.isHostDirty()) {
-            return; // No need to transfer
+            self.sync_event.record(); // Already synced
+            return;
         }
 
         // In a real implementation, this would call the backend's memcpy
@@ -298,6 +307,9 @@ pub const Buffer = struct {
 
         self.host_to_device_transfers += 1;
         self.bytes_transferred += self.size;
+
+        // Signal that transfer is complete
+        self.sync_event.record();
     }
 
     /// Transfer data from device to host (explicit mode).
@@ -373,8 +385,10 @@ pub const Buffer = struct {
     }
 
     /// Mark host data as modified.
+    /// Resets the sync event to indicate pending transfer.
     pub fn markHostDirty(self: *Buffer) void {
         _ = self.dirty.fetchOr(0b01, .release);
+        self.sync_event.reset();
     }
 
     /// Mark device data as modified.
@@ -405,6 +419,31 @@ pub const Buffer = struct {
     /// Check if data is synchronized.
     pub fn isSynchronized(self: *const Buffer) bool {
         return self.dirty.load(.acquire) == 0;
+    }
+
+    /// Get the sync event for non-blocking synchronization checks.
+    /// Use isComplete() to check if transfer is done without blocking,
+    /// or wait() to block until transfer completes.
+    pub fn getSyncEvent(self: *Buffer) *SyncEvent {
+        return &self.sync_event;
+    }
+
+    /// Check if the last transfer operation has completed.
+    /// Non-blocking - returns immediately.
+    pub fn isSyncComplete(self: *const Buffer) bool {
+        return self.sync_event.isComplete();
+    }
+
+    /// Wait for the last transfer operation to complete.
+    /// Blocking - returns when transfer is done.
+    pub fn waitForSync(self: *Buffer) void {
+        self.sync_event.wait();
+    }
+
+    /// Wait for sync with timeout.
+    /// Returns true if sync completed, false if timeout expired.
+    pub fn waitForSyncTimeout(self: *Buffer, timeout_ns: u64) bool {
+        return self.sync_event.waitTimeout(timeout_ns);
     }
 
     /// Get transfer statistics.
