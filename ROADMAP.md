@@ -4,7 +4,7 @@ tags: []
 ---
 # ABI Framework Roadmap
 
-> Last updated: 2026-01-22 | Current version: 0.6.0
+> Last updated: 2026-01-23 | Current version: 0.6.0
 
 ## Vision
 
