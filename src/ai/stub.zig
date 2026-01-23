@@ -23,7 +23,7 @@ pub const llm = @import("llm/stub.zig");
 pub const embeddings = @import("embeddings/stub.zig");
 pub const agents = @import("agents/stub.zig");
 pub const training = @import("training/stub.zig");
-pub const vision = @import("implementation/vision/stub.zig");
+pub const vision = @import("vision/stub.zig");
 
 // Agent module stub (singular - for backward compatibility)
 pub const agent = struct {
@@ -131,12 +131,26 @@ pub const trainable_model = struct {
     };
 };
 
-pub const Tool = struct {};
-pub const ToolResult = struct {};
-pub const ToolRegistry = struct {};
-pub const TaskTool = struct {};
-pub const Subagent = struct {};
-pub const DiscordTools = struct {};
+pub const tools = struct {
+    pub const Tool = struct {};
+    pub const ToolResult = struct {};
+    pub const ToolRegistry = struct {};
+    pub const TaskTool = struct {};
+    pub const Subagent = struct {};
+    pub const DiscordTools = struct {};
+    pub const OsTools = struct {};
+    pub fn registerDiscordTools(_: anytype) void {}
+    pub fn registerOsTools(_: anytype) void {}
+};
+pub const Tool = tools.Tool;
+pub const ToolResult = tools.ToolResult;
+pub const ToolRegistry = tools.ToolRegistry;
+pub const TaskTool = tools.TaskTool;
+pub const Subagent = tools.Subagent;
+pub const DiscordTools = tools.DiscordTools;
+pub const OsTools = tools.OsTools;
+pub const registerDiscordTools = tools.registerDiscordTools;
+pub const registerOsTools = tools.registerOsTools;
 
 pub const transformer = struct {
     pub const TransformerConfig = struct {};

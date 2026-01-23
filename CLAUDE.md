@@ -17,6 +17,7 @@ zig test src/tests/mod.zig --test-filter "pattern"
 
 # Feature-gated builds
 zig build -Denable-ai=true -Denable-gpu=false -Denable-database=true
+zig build -Dgpu-backend=cuda,vulkan         # GPU backends (comma-separated)
 
 # Runtime feature flags (CLI)
 zig build run -- --list-features          # List features and their status
@@ -70,7 +71,19 @@ zig build run-gpu                      # Run GPU example
 | `-Denable-llm` | true | Local LLM inference (requires `-Denable-ai`) |
 | `-Denable-vision` | true | Vision/image processing (requires `-Denable-ai`) |
 
-**GPU Backends:** `-Dgpu-vulkan` (default), `-Dgpu-cuda`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`
+### GPU Backends
+
+**New unified syntax (recommended):**
+```bash
+zig build -Dgpu-backend=vulkan              # Single backend
+zig build -Dgpu-backend=cuda,vulkan         # Multiple backends (comma-separated)
+zig build -Dgpu-backend=none                # Disable all GPU backends
+zig build -Dgpu-backend=auto                # Auto-detect available backends
+```
+
+**Available backends:** `none`, `auto`, `cuda`, `vulkan`, `stdgpu`, `metal`, `webgpu`, `opengl`, `opengles`, `webgl2`, `fpga`
+
+**Deprecated (still works with warning):** `-Dgpu-vulkan`, `-Dgpu-cuda`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`
 
 ## Architecture
 
@@ -250,6 +263,24 @@ var server: std.http.Server = .init(
 | `task` | Task management (add, list, done, stats) |
 | `tui` | Interactive TUI launcher |
 | `system-info` | Framework and feature status |
+
+### LLM CLI Examples
+
+```bash
+zig build run -- llm chat --model llama-7b           # Interactive chat
+zig build run -- llm generate "Once upon" --max 100  # Text generation
+zig build run -- llm info --model mistral            # Model information
+zig build run -- llm list                            # List available models
+```
+
+The LLM feature (`src/ai/llm/`) provides local GGUF model inference with:
+- **Tokenization**: BPE and SentencePiece (Viterbi)
+- **Quantization**: Q4_0, Q4_1, Q5_0, Q5_1, Q8_0 with roundtrip encoding
+- **Transformer Ops**: MatMul, attention, RoPE, RMSNorm, SiLU with SIMD
+- **KV Cache**: Standard, sliding window, and paged attention (vLLM-style)
+- **GPU Acceleration**: CUDA kernels for softmax, RMSNorm, SiLU with CPU fallback
+- **Sampling**: Greedy, top-k, top-p, temperature, tail-free, mirostat (v1/v2)
+- **Export**: GGUF writer for trained model export
 
 ## Environment Variables
 

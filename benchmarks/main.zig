@@ -19,10 +19,13 @@ const framework = @import("framework.zig");
 const simd = @import("simd.zig");
 const memory = @import("memory.zig");
 const concurrency = @import("concurrency.zig");
-const database = @import("database.zig");
 const network = @import("network.zig");
 const crypto = @import("crypto.zig");
-const ai = @import("ai.zig");
+
+// New consolidated modules
+const core = @import("core/mod.zig");
+const database = @import("database/mod.zig");
+const ai = @import("ai/mod.zig");
 
 const BenchmarkSuite = enum {
     all,
@@ -33,7 +36,7 @@ const BenchmarkSuite = enum {
     network,
     crypto,
     ai,
-    quick, // Fast subset for CI
+    quick,
 };
 
 const Args = struct {
@@ -48,7 +51,7 @@ fn parseArgs(allocator: std.mem.Allocator) Args {
     const args = std.process.argsAlloc(allocator) catch return args_val;
     defer std.process.argsFree(allocator, args);
 
-    var i: usize = 1; // Skip program name
+    var i: usize = 1;
     while (i < args.len) : (i += 1) {
         const arg = args[i];
         if (std.mem.startsWith(u8, arg, "--suite=")) {
@@ -89,10 +92,10 @@ fn printHelp() void {
         \\  simd          SIMD/Vector operations (dot product, matmul, distances)
         \\  memory        Memory allocator patterns (arena, pool, fragmentation)
         \\  concurrency   Concurrency primitives (locks, queues, work stealing)
-        \\  database      Vector database operations (HNSW, k-NN search)
+        \\  database      Vector database operations (HNSW, k-NN search, ANN-benchmarks)
         \\  network       HTTP/Network operations (parsing, JSON, WebSocket)
         \\  crypto        Cryptographic operations (hashing, encryption, KDF)
-        \\  ai            AI/ML inference (GEMM, attention, activations)
+        \\  ai            AI/ML inference (GEMM, attention, activations, LLM metrics)
         \\  quick         Fast subset for continuous integration
         \\  all           Run all benchmark suites (default)
         \\
@@ -109,16 +112,16 @@ fn printHelp() void {
 fn printHeader() void {
     const header =
         \\
-        \\╔════════════════════════════════════════════════════════════════════════════╗
-        \\║                                                                            ║
-        \\║              ABI FRAMEWORK COMPREHENSIVE BENCHMARK SUITE                   ║
-        \\║                                                                            ║
-        \\║  Industry-standard benchmarks with statistical analysis                    ║
-        \\║  • Warm-up phases for CPU cache stabilization                              ║
-        \\║  • Outlier detection and removal                                           ║
-        \\║  • Percentile reporting (p50, p90, p95, p99)                               ║
-        \\║                                                                            ║
-        \\╚════════════════════════════════════════════════════════════════════════════╝
+        \\================================================================================
+        \\
+        \\              ABI FRAMEWORK COMPREHENSIVE BENCHMARK SUITE
+        \\
+        \\  Industry-standard benchmarks with statistical analysis
+        \\  - Warm-up phases for CPU cache stabilization
+        \\  - Outlier detection and removal
+        \\  - Percentile reporting (p50, p90, p95, p99)
+        \\
+        \\================================================================================
         \\
     ;
     std.debug.print("{s}", .{header});
@@ -157,7 +160,7 @@ pub fn main() !void {
             try concurrency.runConcurrencyBenchmarks(allocator, .{});
 
             printSuiteHeader("Database/HNSW Vector Search");
-            try database.runDatabaseBenchmarks(allocator, .{});
+            try database.runAllBenchmarks(allocator, .standard);
 
             printSuiteHeader("HTTP/Network Operations");
             try network.runNetworkBenchmarks(allocator, .{});
@@ -166,7 +169,7 @@ pub fn main() !void {
             try crypto.runCryptoBenchmarks(allocator, .{});
 
             printSuiteHeader("AI/ML Inference");
-            try ai.runAIBenchmarks(allocator, .{});
+            try ai.runAllBenchmarks(allocator, .standard);
         },
         .simd => {
             printSuiteHeader("SIMD/Vector Operations");
@@ -182,7 +185,7 @@ pub fn main() !void {
         },
         .database => {
             printSuiteHeader("Database/HNSW Vector Search");
-            try database.runDatabaseBenchmarks(allocator, .{});
+            try database.runAllBenchmarks(allocator, .standard);
         },
         .network => {
             printSuiteHeader("HTTP/Network Operations");
@@ -194,10 +197,9 @@ pub fn main() !void {
         },
         .ai => {
             printSuiteHeader("AI/ML Inference");
-            try ai.runAIBenchmarks(allocator, .{});
+            try ai.runAllBenchmarks(allocator, .standard);
         },
         .quick => {
-            // Quick benchmarks for CI - reduced iterations and fewer test cases
             printSuiteHeader("Quick Benchmark Suite (CI Mode)");
             std.debug.print("\nRunning reduced benchmark set for CI...\n\n", .{});
 
@@ -216,11 +218,17 @@ pub fn main() !void {
                 .test_fragmentation = false,
             });
 
+            // Database - quick config
+            try database.runAllBenchmarks(allocator, .quick);
+
             // Crypto - quick config
             try crypto.runCryptoBenchmarks(allocator, .{
                 .data_sizes = &.{1024},
                 .pbkdf_iterations = &.{1000},
             });
+
+            // AI - quick config
+            try ai.runAllBenchmarks(allocator, .quick);
         },
     }
 
@@ -235,7 +243,6 @@ pub fn main() !void {
 }
 
 test "benchmark imports" {
-    // Verify all benchmark modules can be imported
     _ = framework;
     _ = simd;
     _ = memory;
@@ -244,4 +251,5 @@ test "benchmark imports" {
     _ = network;
     _ = crypto;
     _ = ai;
+    _ = core;
 }

@@ -6,9 +6,9 @@ const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../../config.zig");
 
-// Re-export from existing agent module
-const features_agent = @import("../implementation/agent.zig");
-const features_tools = @import("../implementation/tools/mod.zig");
+// Re-export from agent module (now at src/ai/agent.zig)
+const features_agent = @import("../agent.zig");
+const features_tools = @import("../tools/mod.zig");
 
 pub const Agent = features_agent.Agent;
 pub const AgentConfig = features_agent.AgentConfig;

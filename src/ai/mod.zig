@@ -13,9 +13,6 @@
 //!
 //! Each sub-feature can be independently enabled/disabled.
 //!
-//! Implementation lives in `src/features/ai/` - this module re-exports with
-//! Framework-compatible Context wrappers.
-//!
 //! ## Usage
 //!
 //! ```zig
@@ -35,12 +32,24 @@ const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../config.zig");
 
-// Re-export from implementation for gradual migration
-const features_ai = @import("implementation/implementation_mod.zig");
+// ============================================================================
+// Direct module imports (no longer using implementation_mod.zig bridge)
+// ============================================================================
 
-// Direct module re-exports for backward compatibility
-pub const agent = features_ai.agent;
-pub const model_registry = features_ai.model_registry;
+// Direct imports for AI submodules
+pub const agent = @import("agent.zig");
+pub const model_registry = @import("model_registry.zig");
+pub const transformer = @import("transformer/mod.zig");
+pub const streaming = @import("streaming/mod.zig");
+pub const tools = @import("tools/mod.zig");
+pub const prompts = @import("prompts/mod.zig");
+pub const abbey = @import("abbey/mod.zig");
+pub const memory = @import("memory/mod.zig");
+pub const federated = @import("federated/mod.zig");
+pub const rag = if (build_options.enable_ai) @import("rag/mod.zig") else @import("rag/stub.zig");
+pub const templates = if (build_options.enable_ai) @import("templates/mod.zig") else @import("templates/stub.zig");
+pub const eval = if (build_options.enable_ai) @import("eval/mod.zig") else @import("eval/stub.zig");
+pub const explore = if (build_options.enable_explore) @import("explore/mod.zig") else @import("explore/stub.zig");
 
 // ============================================================================
 // Sub-modules (conditionally compiled)
@@ -75,119 +84,104 @@ else
 
 /// Vision/image processing module
 pub const vision = if (build_options.enable_vision)
-    @import("implementation/vision/mod.zig")
+    @import("vision/mod.zig")
 else
-    @import("implementation/vision/stub.zig");
+    @import("vision/stub.zig");
 
 // ============================================================================
-// Re-exports from existing AI module (for compatibility)
+// Re-exports for backward compatibility
 // ============================================================================
 
-pub const Agent = features_ai.Agent;
-pub const ModelRegistry = features_ai.ModelRegistry;
-pub const ModelInfo = features_ai.ModelInfo;
-pub const TrainingConfig = features_ai.TrainingConfig;
-pub const TrainingReport = features_ai.TrainingReport;
-pub const TrainingResult = features_ai.TrainingResult;
-pub const TrainError = features_ai.TrainError;
-pub const OptimizerType = features_ai.OptimizerType;
-pub const LearningRateSchedule = features_ai.LearningRateSchedule;
-pub const CheckpointStore = features_ai.CheckpointStore;
-pub const Checkpoint = features_ai.Checkpoint;
-pub const LlmTrainingConfig = features_ai.LlmTrainingConfig;
-pub const trainable_model = features_ai.trainable_model;
-pub const TrainableModel = features_ai.TrainableModel;
-pub const TrainableModelConfig = features_ai.trainable_model.TrainableModelConfig;
-pub const LlamaTrainer = features_ai.LlamaTrainer;
-pub const loadCheckpoint = features_ai.loadCheckpoint;
-pub const saveCheckpoint = features_ai.saveCheckpoint;
+// Agent types
+pub const Agent = agent.Agent;
+
+// Model registry types
+pub const ModelRegistry = model_registry.ModelRegistry;
+pub const ModelInfo = model_registry.ModelInfo;
+
+// Training types (from training module)
+pub const TrainingConfig = training.TrainingConfig;
+pub const TrainingReport = training.TrainingReport;
+pub const TrainingResult = training.TrainingResult;
+pub const TrainError = training.TrainError;
+pub const OptimizerType = training.OptimizerType;
+pub const LearningRateSchedule = training.LearningRateSchedule;
+pub const CheckpointStore = training.CheckpointStore;
+pub const Checkpoint = training.Checkpoint;
+pub const LlmTrainingConfig = training.LlmTrainingConfig;
+pub const trainable_model = training.trainable_model;
+pub const TrainableModel = training.TrainableModel;
+pub const TrainableModelConfig = training.trainable_model.TrainableModelConfig;
+pub const LlamaTrainer = training.LlamaTrainer;
+pub const loadCheckpoint = training.loadCheckpoint;
+pub const saveCheckpoint = training.saveCheckpoint;
 
 // Data loading
-pub const TokenizedDataset = features_ai.TokenizedDataset;
-pub const DataLoader = features_ai.DataLoader;
-pub const BatchIterator = features_ai.BatchIterator;
-pub const Batch = features_ai.Batch;
-pub const SequencePacker = features_ai.SequencePacker;
-pub const parseInstructionDataset = features_ai.parseInstructionDataset;
+pub const TokenizedDataset = training.TokenizedDataset;
+pub const DataLoader = training.DataLoader;
+pub const BatchIterator = training.BatchIterator;
+pub const Batch = training.Batch;
+pub const SequencePacker = training.SequencePacker;
+pub const parseInstructionDataset = training.parseInstructionDataset;
 
 // Tools
-pub const Tool = features_ai.Tool;
-pub const ToolResult = features_ai.ToolResult;
-pub const ToolRegistry = features_ai.ToolRegistry;
-pub const TaskTool = features_ai.TaskTool;
-pub const Subagent = features_ai.Subagent;
-pub const DiscordTools = features_ai.DiscordTools;
-pub const registerDiscordTools = features_ai.registerDiscordTools;
-pub const OsTools = features_ai.OsTools;
-pub const registerOsTools = features_ai.registerOsTools;
+pub const Tool = tools.Tool;
+pub const ToolResult = tools.ToolResult;
+pub const ToolRegistry = tools.ToolRegistry;
+pub const TaskTool = tools.TaskTool;
+pub const Subagent = tools.Subagent;
+pub const DiscordTools = tools.DiscordTools;
+pub const registerDiscordTools = tools.registerDiscordTools;
+pub const OsTools = tools.OsTools;
+pub const registerOsTools = tools.registerOsTools;
 
 // Transformer
-pub const transformer = features_ai.transformer;
 pub const TransformerConfig = transformer.TransformerConfig;
 pub const TransformerModel = transformer.TransformerModel;
 
 // Streaming
-pub const streaming = features_ai.streaming;
 pub const StreamingGenerator = streaming.StreamingGenerator;
 pub const StreamToken = streaming.StreamToken;
 pub const StreamState = streaming.StreamState;
 pub const GenerationConfig = streaming.GenerationConfig;
 
 // LLM Engine
-pub const LlmEngine = features_ai.LlmEngine;
-pub const LlmModel = features_ai.LlmModel;
-pub const LlmConfig = features_ai.LlmConfig;
-pub const GgufFile = features_ai.GgufFile;
-pub const BpeTokenizer = features_ai.BpeTokenizer;
+pub const LlmEngine = llm.Engine;
+pub const LlmModel = llm.Model;
+pub const LlmConfig = llm.InferenceConfig;
+pub const GgufFile = llm.GgufFile;
+pub const BpeTokenizer = llm.BpeTokenizer;
 
 // Prompts
-pub const prompts = features_ai.prompts;
-pub const PromptBuilder = features_ai.PromptBuilder;
-pub const Persona = features_ai.Persona;
-pub const PersonaType = features_ai.PersonaType;
-pub const PromptFormat = features_ai.PromptFormat;
+pub const PromptBuilder = prompts.PromptBuilder;
+pub const Persona = prompts.Persona;
+pub const PersonaType = prompts.PersonaType;
+pub const PromptFormat = prompts.PromptFormat;
 
 // Abbey / Core AI
-pub const abbey = features_ai.abbey;
-pub const Abbey = features_ai.Abbey;
+pub const Abbey = abbey.Abbey;
 pub const AbbeyConfig = core.AbbeyConfig;
 pub const AbbeyResponse = core.Response;
-pub const AbbeyStats = features_ai.AbbeyStats;
-pub const ReasoningChain = features_ai.ReasoningChain;
-pub const ReasoningStep = features_ai.ReasoningStep;
+pub const AbbeyStats = abbey.Stats;
+pub const ReasoningChain = abbey.ReasoningChain;
+pub const ReasoningStep = abbey.ReasoningStep;
 pub const Confidence = core.Confidence;
 pub const ConfidenceLevel = core.ConfidenceLevel;
 pub const EmotionalState = core.EmotionalState;
 pub const EmotionType = core.EmotionType;
-pub const ConversationContext = features_ai.ConversationContext;
+pub const ConversationContext = abbey.ConversationContext;
 pub const TopicTracker = core.Topic;
 
 // Explore
-pub const explore = features_ai.explore;
-pub const ExploreAgent = features_ai.ExploreAgent;
-pub const ExploreConfig = features_ai.ExploreConfig;
-pub const ExploreLevel = features_ai.ExploreLevel;
-pub const ExploreResult = features_ai.ExploreResult;
-pub const Match = features_ai.Match;
-pub const ExplorationStats = features_ai.ExplorationStats;
-pub const QueryIntent = features_ai.QueryIntent;
-pub const ParsedQuery = features_ai.ParsedQuery;
-pub const QueryUnderstanding = features_ai.QueryUnderstanding;
-
-// Memory
-pub const memory = features_ai.memory;
-
-// Federated
-pub const federated = features_ai.federated;
-
-// RAG
-pub const rag = features_ai.rag;
-
-// Templates
-pub const templates = features_ai.templates;
-
-// Eval
-pub const eval = features_ai.eval;
+pub const ExploreAgent = explore.ExploreAgent;
+pub const ExploreConfig = explore.ExploreConfig;
+pub const ExploreLevel = explore.ExploreLevel;
+pub const ExploreResult = explore.ExploreResult;
+pub const Match = explore.Match;
+pub const ExplorationStats = explore.ExplorationStats;
+pub const QueryIntent = explore.QueryIntent;
+pub const ParsedQuery = explore.ParsedQuery;
+pub const QueryUnderstanding = explore.QueryUnderstanding;
 
 // ============================================================================
 // Errors
@@ -213,7 +207,7 @@ pub const Error = error{
 };
 
 // ============================================================================
-// Context - New unified interface for Framework integration
+// Context - Unified interface for Framework integration
 // ============================================================================
 
 /// AI context for Framework integration.
@@ -324,6 +318,12 @@ pub const Context = struct {
 };
 
 // ============================================================================
+// Module state
+// ============================================================================
+
+var initialized: bool = false;
+
+// ============================================================================
 // Module-level functions
 // ============================================================================
 
@@ -339,55 +339,65 @@ pub fn isLlmEnabled() bool {
 
 /// Check if AI module is initialized.
 pub fn isInitialized() bool {
-    return features_ai.isInitialized();
+    return initialized;
 }
 
 /// Initialize the AI module (legacy compatibility).
 pub fn init(allocator: std.mem.Allocator) Error!void {
+    _ = allocator;
     if (!isEnabled()) return error.AiDisabled;
-    features_ai.init(allocator) catch return error.AiDisabled;
+    initialized = true;
 }
 
 /// Deinitialize the AI module (legacy compatibility).
 pub fn deinit() void {
-    features_ai.deinit();
+    initialized = false;
 }
 
 // Legacy convenience functions
 pub fn createRegistry(allocator: std.mem.Allocator) ModelRegistry {
-    return features_ai.createRegistry(allocator);
+    return ModelRegistry.init(allocator);
 }
 
 pub fn train(allocator: std.mem.Allocator, config: TrainingConfig) TrainError!TrainingReport {
-    return features_ai.train(allocator, config);
+    return training.trainAndReport(allocator, config);
 }
 
 pub fn trainWithResult(allocator: std.mem.Allocator, config: TrainingConfig) TrainError!TrainingResult {
-    return features_ai.trainWithResult(allocator, config);
+    return training.trainWithResult(allocator, config);
 }
 
 pub fn createAgent(allocator: std.mem.Allocator, name: []const u8) !Agent {
-    return features_ai.createAgent(allocator, name);
+    if (!isEnabled()) return error.AiDisabled;
+    return agent.Agent.init(allocator, .{ .name = name });
 }
 
 pub fn createTransformer(config: TransformerConfig) TransformerModel {
-    return features_ai.createTransformer(config);
+    return transformer.TransformerModel.init(config);
 }
 
 pub fn inferText(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-    return features_ai.inferText(allocator, input);
+    if (!isEnabled()) return error.AiDisabled;
+    var model = transformer.TransformerModel.init(.{});
+    return model.infer(allocator, input);
 }
 
 pub fn embedText(allocator: std.mem.Allocator, input: []const u8) ![]f32 {
-    return features_ai.embedText(allocator, input);
+    if (!isEnabled()) return error.AiDisabled;
+    var model = transformer.TransformerModel.init(.{});
+    return model.embed(allocator, input);
 }
 
 pub fn encodeTokens(allocator: std.mem.Allocator, input: []const u8) ![]u32 {
-    return features_ai.encodeTokens(allocator, input);
+    if (!isEnabled()) return error.AiDisabled;
+    const model = transformer.TransformerModel.init(.{});
+    return model.encode(allocator, input);
 }
 
 pub fn decodeTokens(allocator: std.mem.Allocator, tokens: []const u32) ![]u8 {
-    return features_ai.decodeTokens(allocator, tokens);
+    if (!isEnabled()) return error.AiDisabled;
+    const model = transformer.TransformerModel.init(.{});
+    return model.decode(allocator, tokens);
 }
 
 // ============================================================================
@@ -400,4 +410,12 @@ test "isEnabled returns build option" {
 
 test "isLlmEnabled returns build option" {
     try std.testing.expectEqual(build_options.enable_llm, isLlmEnabled());
+}
+
+test "ai module init gating" {
+    if (!isEnabled()) return;
+    try init(std.testing.allocator);
+    try std.testing.expect(isInitialized());
+    deinit();
+    try std.testing.expect(!isInitialized());
 }

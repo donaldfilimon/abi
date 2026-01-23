@@ -1,18 +1,9 @@
 //! Embeddings Stub Module
 //!
 //! Stub implementation when Embeddings is disabled at compile time.
-//! Re-exports from implementation stub and adds Context wrapper.
 
 const std = @import("std");
 const config_module = @import("../../config.zig");
-
-// Re-export all types from implementation stub
-const impl_stub = @import("../implementation/embeddings/stub.zig");
-
-pub const EmbeddingConfig = impl_stub.EmbeddingConfig;
-pub const EmbeddingModel = impl_stub.EmbeddingModel;
-pub const BatchProcessor = impl_stub.BatchProcessor;
-pub const EmbeddingCache = impl_stub.EmbeddingCache;
 
 pub const Error = error{
     EmbeddingsDisabled,
@@ -21,7 +12,71 @@ pub const Error = error{
     InvalidInput,
 };
 
-/// Public API Context wrapper (specific to this stub)
+/// Configuration for embedding models.
+pub const EmbeddingConfig = struct {
+    dimension: usize = 384,
+    max_seq_len: usize = 512,
+    batch_size: usize = 32,
+    normalize: bool = true,
+    model_id: []const u8 = "default",
+};
+
+/// Embedding model stub.
+pub const EmbeddingModel = struct {
+    pub fn init(_: std.mem.Allocator, _: EmbeddingConfig) EmbeddingModel {
+        return .{};
+    }
+
+    pub fn deinit(_: *EmbeddingModel) void {}
+
+    pub fn embed(_: *EmbeddingModel, _: []const u8) Error![]f32 {
+        return error.EmbeddingsDisabled;
+    }
+
+    pub fn embedBatch(_: *EmbeddingModel, _: []const []const u8) Error![][]f32 {
+        return error.EmbeddingsDisabled;
+    }
+
+    pub fn cosineSimilarity(_: *EmbeddingModel, _: []const f32, _: []const f32) f32 {
+        return 0;
+    }
+};
+
+/// Batch processor stub.
+pub const BatchProcessor = struct {
+    pub fn init(_: *EmbeddingModel) BatchProcessor {
+        return .{};
+    }
+
+    pub fn deinit(_: *BatchProcessor) void {}
+
+    pub fn add(_: *BatchProcessor, _: []const u8) Error!void {
+        return error.EmbeddingsDisabled;
+    }
+
+    pub fn process(_: *BatchProcessor) Error![][]f32 {
+        return error.EmbeddingsDisabled;
+    }
+};
+
+/// Embedding cache stub.
+pub const EmbeddingCache = struct {
+    pub fn init(_: std.mem.Allocator) EmbeddingCache {
+        return .{};
+    }
+
+    pub fn deinit(_: *EmbeddingCache) void {}
+
+    pub fn get(_: *EmbeddingCache, _: []const u8) ?[]f32 {
+        return null;
+    }
+
+    pub fn put(_: *EmbeddingCache, _: []const u8, _: []f32) Error!void {
+        return error.EmbeddingsDisabled;
+    }
+};
+
+/// Public API Context wrapper
 pub const Context = struct {
     pub fn init(_: std.mem.Allocator, _: config_module.EmbeddingsConfig) Error!*Context {
         return error.EmbeddingsDisabled;

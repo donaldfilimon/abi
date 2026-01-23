@@ -9,7 +9,7 @@
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
+pub fn main(init: std.process.Init.Minimal) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
@@ -24,7 +24,6 @@ pub fn main() !void {
     // Initialize framework
     var framework = abi.init(allocator, abi.FrameworkOptions{
         .enable_ai = true,
-        .enable_llm = true,
         .enable_gpu = false,
     }) catch |err| {
         std.debug.print("Framework initialization failed: {}\n", .{err});
@@ -36,23 +35,21 @@ pub fn main() !void {
     std.debug.print("--- Model Loading ---\n", .{});
 
     // Check for model file argument or use default
-    const model_path = if (std.process.argsWithAllocator(allocator)) |args| blk: {
-        defer {
-            for (args) |arg| allocator.free(arg);
-            allocator.free(args);
-        }
-        if (args.len > 1) break :blk args[1];
+    const model_path = blk: {
+        var args_it = init.args.iterateAllocator(allocator) catch |err| {
+            std.debug.print("Failed to read args: {t}\n", .{err});
+            break :blk "model.gguf";
+        };
+        defer args_it.deinit();
+        _ = args_it.next(); // Skip executable name.
+        if (args_it.next()) |arg| break :blk arg[0..arg.len];
         break :blk "model.gguf";
-    } else |_| "model.gguf";
+    };
 
     std.debug.print("Looking for model: {s}\n", .{model_path});
 
     // Try to load model (will fail gracefully if not found)
-    var model = abi.llm.loadModel(allocator, model_path, .{
-        .context_length = 2048,
-        .batch_size = 512,
-        .use_mmap = true,
-    }) catch |err| {
+    var model = abi.ai.llm.Model.load(allocator, model_path) catch |err| {
         std.debug.print("\nModel not found or failed to load: {}\n", .{err});
         std.debug.print("\nTo use this example:\n", .{});
         std.debug.print("  1. Download a GGUF model (e.g., from HuggingFace)\n", .{});
@@ -67,18 +64,20 @@ pub fn main() !void {
 
     // === Model Info ===
     std.debug.print("\n--- Model Information ---\n", .{});
-    const info = model.getInfo();
+    const info = model.info();
     std.debug.print("Architecture: {s}\n", .{info.architecture});
-    std.debug.print("Parameters: {d}M\n", .{info.parameter_count / 1_000_000});
-    std.debug.print("Context length: {d}\n", .{info.context_length});
-    std.debug.print("Embedding size: {d}\n", .{info.embedding_size});
+    std.debug.print("Hidden dim: {d}\n", .{info.dim});
+    std.debug.print("Layers: {d}\n", .{info.n_layers});
+    std.debug.print("Heads: {d} (KV: {d})\n", .{ info.n_heads, info.n_kv_heads });
     std.debug.print("Vocab size: {d}\n", .{info.vocab_size});
-    std.debug.print("Quantization: {t}\n", .{info.quantization});
+    std.debug.print("Max context: {d}\n", .{info.max_seq_len});
+    std.debug.print("KV cache: {B}\n", .{info.kv_cache_memory});
+    std.debug.print("Weights: {B}\n", .{info.weights_memory});
 
     // === Tokenization Demo ===
     std.debug.print("\n--- Tokenization ---\n", .{});
     const test_text = "Hello, world! How are you today?";
-    const tokens = model.tokenize(allocator, test_text) catch |err| {
+    const tokens = model.encode(test_text) catch |err| {
         std.debug.print("Tokenization failed: {}\n", .{err});
         return err;
     };
@@ -92,7 +91,7 @@ pub fn main() !void {
     std.debug.print("\n", .{});
 
     // Decode back
-    const decoded = model.detokenize(allocator, tokens) catch |err| {
+    const decoded = model.decode(tokens) catch |err| {
         std.debug.print("Detokenization failed: {}\n", .{err});
         return err;
     };
@@ -106,42 +105,47 @@ pub fn main() !void {
     std.debug.print("Prompt: \"{s}\"\n", .{prompt});
     std.debug.print("Generating...\n\n", .{});
 
-    // Configure sampling
-    const sampler_config = abi.llm.SamplerConfig{
+    // Configure generation
+    const gen_config = abi.ai.llm.generation.GeneratorConfig{
         .temperature = 0.8,
         .top_k = 40,
         .top_p = 0.95,
-        .repeat_penalty = 1.1,
+        .repetition_penalty = 1.1,
         .max_tokens = 50,
     };
 
-    // Generate with streaming
-    var generator = model.createGenerator(sampler_config) catch |err| {
-        std.debug.print("Failed to create generator: {}\n", .{err});
+    const prompt_tokens = model.encode(prompt) catch |err| {
+        std.debug.print("Prompt encoding failed: {}\n", .{err});
         return err;
     };
-    defer generator.deinit();
+    defer allocator.free(prompt_tokens);
 
-    generator.setPrompt(prompt) catch |err| {
-        std.debug.print("Failed to set prompt: {}\n", .{err});
+    var timer = std.time.Timer.start() catch null;
+    const output_tokens = model.generate(prompt_tokens, gen_config) catch |err| {
+        std.debug.print("Generation failed: {}\n", .{err});
         return err;
     };
+    const elapsed_ns = if (timer) |*t| t.read() else 0;
+    defer allocator.free(output_tokens);
 
-    std.debug.print("{s}", .{prompt});
-    var token_count: usize = 0;
-    while (generator.next()) |token_text| {
-        std.debug.print("{s}", .{token_text});
-        token_count += 1;
-    }
-    std.debug.print("\n\n", .{});
+    const output_text = model.decode(output_tokens) catch |err| {
+        std.debug.print("Decoding failed: {}\n", .{err});
+        return err;
+    };
+    defer allocator.free(output_text);
+
+    std.debug.print("{s}{s}\n\n", .{ prompt, output_text });
 
     // === Generation Stats ===
     std.debug.print("--- Generation Stats ---\n", .{});
-    const gen_stats = generator.getStats();
+    const token_count = output_tokens.len;
     std.debug.print("Tokens generated: {d}\n", .{token_count});
-    std.debug.print("Tokens/second: {d:.2}\n", .{gen_stats.tokens_per_second});
-    std.debug.print("Prompt eval time: {d:.2}ms\n", .{gen_stats.prompt_eval_time_ms});
-    std.debug.print("Generation time: {d:.2}ms\n", .{gen_stats.generation_time_ms});
+    if (elapsed_ns > 0) {
+        const tokens_per_second = @as(f64, @floatFromInt(token_count)) /
+            (@as(f64, @floatFromInt(elapsed_ns)) / 1_000_000_000.0);
+        std.debug.print("Tokens/second: {d:.2}\n", .{tokens_per_second});
+        std.debug.print("Generation time: {d:.2}ms\n", .{@as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0});
+    }
 
     std.debug.print("\n=== LLM Example Complete ===\n", .{});
 }
@@ -151,27 +155,28 @@ fn demoApiStructure() void {
     std.debug.print("--- LLM API Structure Demo ---\n\n", .{});
 
     std.debug.print("1. Load Model:\n", .{});
-    std.debug.print("   var model = try abi.llm.loadModel(allocator, \"model.gguf\", .{{}});\n", .{});
+    std.debug.print("   var model = try abi.ai.llm.Model.load(allocator, \"model.gguf\");\n", .{});
     std.debug.print("   defer model.deinit();\n\n", .{});
 
     std.debug.print("2. Tokenize Text:\n", .{});
-    std.debug.print("   const tokens = try model.tokenize(allocator, \"Hello world\");\n", .{});
+    std.debug.print("   const tokens = try model.encode(\"Hello world\");\n", .{});
     std.debug.print("   defer allocator.free(tokens);\n\n", .{});
 
     std.debug.print("3. Configure Sampling:\n", .{});
-    std.debug.print("   const config = abi.llm.SamplerConfig{{\n", .{});
+    std.debug.print("   const config = abi.ai.llm.generation.GeneratorConfig{{\n", .{});
     std.debug.print("       .temperature = 0.8,\n", .{});
     std.debug.print("       .top_k = 40,\n", .{});
     std.debug.print("       .top_p = 0.95,\n", .{});
     std.debug.print("   }};\n\n", .{});
 
     std.debug.print("4. Generate Text:\n", .{});
-    std.debug.print("   var gen = try model.createGenerator(config);\n", .{});
-    std.debug.print("   defer gen.deinit();\n", .{});
-    std.debug.print("   try gen.setPrompt(\"Once upon a time\");\n", .{});
-    std.debug.print("   while (gen.next()) |token| {{\n", .{});
-    std.debug.print("       std.debug.print(\"{{s}}\", .{{token}});\n", .{});
-    std.debug.print("   }}\n\n", .{});
+    std.debug.print("   const prompt_tokens = try model.encode(\"Once upon a time\");\n", .{});
+    std.debug.print("   defer allocator.free(prompt_tokens);\n", .{});
+    std.debug.print("   const output_tokens = try model.generate(prompt_tokens, config);\n", .{});
+    std.debug.print("   defer allocator.free(output_tokens);\n", .{});
+    std.debug.print("   const output = try model.decode(output_tokens);\n", .{});
+    std.debug.print("   defer allocator.free(output);\n", .{});
+    std.debug.print("   std.debug.print(\"Once upon a time{{s}}\", .{{output}});\n\n", .{});
 
     std.debug.print("5. CLI Commands:\n", .{});
     std.debug.print("   zig build run -- llm info model.gguf\n", .{});

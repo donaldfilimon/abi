@@ -6,17 +6,23 @@
 //!
 //! - `framework`: Core benchmark runner with statistical analysis
 //! - `industry_standard`: Cache profiling, energy metrics, regression detection
-//! - `database_industry`: ANN-benchmarks, concurrent stress tests
-//! - `llm_industry`: HELM metrics, quantization analysis
+//! - `core`: Shared infrastructure (vectors, distance, config)
+//! - `database`: Vector database benchmarks (HNSW, operations, ANN-benchmarks)
+//! - `ai`: AI/ML benchmarks (kernels, LLM metrics)
 //! - `ci_integration`: CI/CD reporting and badge generation
 //!
 //! ## Quick Start
 //!
 //! ```zig
 //! const bench = @import("benchmarks");
+//!
+//! // Run all benchmarks with a preset
+//! try bench.database.runAllBenchmarks(allocator, .standard);
+//! try bench.ai.runAllBenchmarks(allocator, .standard);
+//!
+//! // Or use the framework directly
 //! var runner = bench.framework.BenchmarkRunner.init(allocator);
 //! defer runner.deinit();
-//!
 //! const result = try runner.run(.{ .name = "my_bench" }, myFn, .{});
 //! ```
 
@@ -28,12 +34,12 @@ pub const framework = @import("framework.zig");
 // Industry-standard extensions
 pub const industry_standard = @import("industry_standard.zig");
 
-// Database-specific benchmarks
-pub const database = @import("database.zig");
-pub const database_industry = @import("database_industry.zig");
+// Shared infrastructure
+pub const core = @import("core/mod.zig");
 
-// LLM-specific benchmarks
-pub const llm_industry = @import("llm_industry.zig");
+// Domain-specific benchmarks (new consolidated modules)
+pub const database = @import("database/mod.zig");
+pub const ai = @import("ai/mod.zig");
 
 // CI/CD integration
 pub const ci_integration = @import("ci_integration.zig");
@@ -47,7 +53,20 @@ pub const BenchConfig = framework.BenchConfig;
 pub const Statistics = framework.Statistics;
 pub const TrackingAllocator = framework.TrackingAllocator;
 
-// Legacy types
+// Config re-exports
+pub const DatabaseBenchConfig = core.config.DatabaseBenchConfig;
+pub const AIBenchConfig = core.config.AIBenchConfig;
+pub const LLMBenchConfig = core.config.LLMBenchConfig;
+pub const AnnDataset = core.config.AnnDataset;
+
+// Vector and distance re-exports
+pub const VectorDistribution = core.vectors.VectorDistribution;
+pub const VectorConfig = core.vectors.VectorConfig;
+pub const Metric = core.distance.Metric;
+pub const generateVectors = core.vectors.generate;
+pub const freeVectors = core.vectors.free;
+
+/// Legacy BenchmarkResult for backwards compatibility
 pub const BenchmarkResult = struct {
     name: []const u8,
     iterations: u64,
@@ -56,6 +75,7 @@ pub const BenchmarkResult = struct {
     error_count: u64,
 };
 
+/// Legacy BenchmarkSuite for backwards compatibility
 pub const BenchmarkSuite = struct {
     allocator: std.mem.Allocator,
     results: std.ArrayListUnmanaged(BenchmarkResult),
@@ -63,7 +83,7 @@ pub const BenchmarkSuite = struct {
     pub fn init(allocator: std.mem.Allocator) BenchmarkSuite {
         return .{
             .allocator = allocator,
-            .results = .empty,
+            .results = .{},
         };
     }
 
@@ -83,8 +103,7 @@ pub const BenchmarkSuite = struct {
         var errors: u64 = 0;
         const start = timer.read();
 
-        // Run benchmark for at least 1 second or 1000 iterations
-        const min_duration_ns = 1_000_000_000; // 1 second
+        const min_duration_ns = 1_000_000_000;
         const max_iterations = 100_000;
 
         while (iterations < max_iterations) {
@@ -106,8 +125,8 @@ pub const BenchmarkSuite = struct {
         const ops_per_sec = if (seconds == 0) 0 else @as(f64, @floatFromInt(iterations)) / seconds;
 
         std.debug.print("  iterations: {d}\n", .{iterations});
-        std.debug.print("  duration: {D} ns ({d:.3}s)\n", .{ duration_ns, seconds });
-        std.debug.print("  avg: {D} ns/op\n", .{duration_ns / iterations});
+        std.debug.print("  duration: {d} ns ({d:.3}s)\n", .{ duration_ns, seconds });
+        std.debug.print("  avg: {d} ns/op\n", .{duration_ns / iterations});
         std.debug.print("  ops/sec: {d:.0}\n", .{ops_per_sec});
         if (errors > 0) {
             std.debug.print("  errors: {d}\n", .{errors});
@@ -145,3 +164,13 @@ pub const BenchmarkSuite = struct {
         std.debug.print("  Total errors: {d}\n", .{total_errors});
     }
 };
+
+test {
+    _ = framework;
+    _ = industry_standard;
+    _ = core;
+    _ = database;
+    _ = ai;
+    _ = ci_integration;
+    _ = competitive;
+}

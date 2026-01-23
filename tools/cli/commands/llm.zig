@@ -307,7 +307,7 @@ fn runGenerate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     };
 
     // Generate
-    const output = engine.generate(prompt.?) catch |err| {
+    const output = engine.generate(allocator, prompt.?) catch |err| {
         std.debug.print("Error during generation: {t}\n", .{err});
         return;
     };
@@ -439,7 +439,7 @@ fn runChat(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
         // Generate response
         std.debug.print("\nAssistant> ", .{});
-        const response = engine.generate(conversation.items) catch |err| {
+        const response = engine.generate(allocator, conversation.items) catch |err| {
             std.debug.print("Error generating response: {t}\n\n", .{err});
             continue;
         };

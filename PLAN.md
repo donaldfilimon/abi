@@ -19,6 +19,7 @@ Ready to start when current work completes:
 
 ## Recently Completed
 
+- Documentation update: LLM feature details added to CLAUDE.md and AGENTS.md
 - GPU codegen consolidation: WGSL, CUDA, MSL, GLSL all using generic module
 - Observability module consolidation (unified metrics, tracing, profiling)
 - Task management system (CLI + persistence)

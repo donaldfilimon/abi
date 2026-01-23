@@ -142,7 +142,7 @@ fn runAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             continue;
         }
 
-        if (utils.args.matchesAny(arg, &.{ "--due" })) {
+        if (utils.args.matchesAny(arg, &.{"--due"})) {
             if (i < args.len) {
                 const val = std.mem.sliceTo(args[i], 0);
                 due_date = parseDueDate(val) orelse {

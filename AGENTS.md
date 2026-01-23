@@ -16,6 +16,11 @@ zig build run -- --help                # CLI help
 zig build run-hello                    # Run hello example
 zig build run-database                 # Run database example
 zig build run-agent                    # Run agent example
+
+# LLM commands
+zig build run -- llm chat --model llama-7b   # Interactive chat
+zig build run -- llm generate "Once" --max 50 # Text generation
+zig build run -- llm list                    # List available models
 ```
 
 ## Codebase Overview
@@ -98,6 +103,7 @@ src/
 |--------|----------|---------|
 | **Public API** | `src/abi.zig` | Entry point for framework users |
 | **AI** | `src/ai/` | API in `src/ai/`, implementation in `src/ai/implementation/` |
+| **LLM** | `src/ai/llm/` | Local GGUF inference (Q4/Q5/Q8, BPE/SentencePiece, CUDA) |
 | **GPU** | `src/gpu/` | Unified API and hardware backends |
 | **Database** | `src/database/` | WDBX vector database |
 | **Shared** | `src/shared/` | Consolidated utils, logging, platform detection |

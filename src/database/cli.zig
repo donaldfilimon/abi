@@ -5,7 +5,7 @@ const database = @import("database.zig");
 const storage = @import("storage.zig");
 const db_helpers = @import("db_helpers.zig");
 const http = @import("http.zig");
-const transformer = @import("../ai/implementation/transformer/mod.zig");
+const transformer = @import("../ai/transformer/mod.zig");
 
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0) {
