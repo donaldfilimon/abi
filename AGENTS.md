@@ -1,5 +1,5 @@
 # AGENTS.md
-> **Codebase Status:** Synced with repository as of 2026-01-18.
+> **Codebase Status:** Synced with repository as of 2026-01-22.
 
 This file provides guidance for AI agents (Claude, GPT, Gemini, Copilot, and others) working with the ABI framework codebase.
 

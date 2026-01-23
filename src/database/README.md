@@ -1,6 +1,6 @@
 //! # WDBX Vector Database
 //!
-//! > **Codebase Status:** Synced with repository as of 2026-01-18.
+//! > **Codebase Status:** Synced with repository as of 2026-01-22.
 //!
 //! High-performance vector database with HNSW indexing, hybrid search, and batch operations.
 //!

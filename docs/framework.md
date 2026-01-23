@@ -1,5 +1,5 @@
 # Framework Guide
-> **Codebase Status:** Synced with repository as of 2026-01-18.
+> **Codebase Status:** Synced with repository as of 2026-01-22.
 
 This guide covers the initialization, configuration, and lifecycle management of an ABI application.
 

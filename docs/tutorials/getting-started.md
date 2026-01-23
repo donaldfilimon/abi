@@ -1,5 +1,5 @@
 # Tutorial: Getting Started with ABI
-> **Codebase Status:** Synced with repository as of 2026-01-18.
+> **Codebase Status:** Synced with repository as of 2026-01-22.
 
 > **Duration:** 20 minutes | **Level:** Beginner | **Video:** [Watch](videos/01-getting-started.md)
 

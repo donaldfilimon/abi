@@ -53,6 +53,8 @@ zig build run-gpu                      # Run GPU example
 | Format specifiers | Use `{t}` for errors/enums, not `@errorName()`/`@tagName()` |
 | ArrayListUnmanaged | Use `.empty` not `.init()` for unmanaged variants |
 | Timer API | Use `std.time.Timer.start()` not `std.time.Instant.now()` |
+| Slow builds | Clear `.zig-cache` or reduce parallelism with `zig build -j 2` |
+| Debug builds | Use `-Doptimize=Debug` for debugging, `-Doptimize=ReleaseFast` for performance |
 
 ## Feature Flags
 
@@ -259,6 +261,24 @@ var server: std.http.Server = .init(
 | `ABI_HF_API_TOKEN` | - | HuggingFace token |
 | `ABI_ANTHROPIC_API_KEY` | - | Anthropic/Claude API key |
 | `DISCORD_BOT_TOKEN` | - | Discord bot token |
+
+## Debugging
+
+```bash
+# Debug build
+zig build -Doptimize=Debug
+
+# Run with GDB
+gdb ./zig-out/bin/abi
+(gdb) break src/runtime/engine/engine.zig:150
+(gdb) run -- db stats
+
+# Run with LLDB (macOS)
+lldb ./zig-out/bin/abi
+(lldb) breakpoint set --file engine.zig --line 150
+```
+
+For memory leak detection, use `std.heap.GeneralPurposeAllocator` with `.stack_trace_frames = 10`.
 
 ## Reference
 

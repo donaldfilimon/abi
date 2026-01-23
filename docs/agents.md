@@ -1,9 +1,9 @@
 # Agents Guide
-> **Codebase Status:** Synced with repository as of 2026-01-18.
+> **Codebase Status:** Synced with repository as of 2026-01-22.
 
 > **Developer Guide**: See [CONTRIBUTING.md](../CONTRIBUTING.md) for coding patterns and [CLAUDE.md](../CLAUDE.md) for comprehensive guidance.
 >
-> **Last Updated:** January 18, 2026
+> **Last Updated:** January 22, 2026
 > **Zig Version:** 0.16.x
 
 ## Overview

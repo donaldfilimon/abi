@@ -1,5 +1,5 @@
 # ABI Framework Documentation
-> **Codebase Status:** Synced with repository as of 2026-01-18.
+> **Codebase Status:** Synced with repository as of 2026-01-22.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Docs-Complete-success?style=for-the-badge" alt="Docs Complete"/>
@@ -45,14 +45,15 @@
 | [Abbey-Aviva Framework](research/abbey-aviva-abi-wdbx-framework.md) | Multi-persona AI architecture whitepaper | ![Research](https://img.shields.io/badge/-Research-blueviolet) |
 | [FPGA/ASIC Analysis](research/hardware-acceleration-fpga-asic.md) | Hardware acceleration research | ![Research](https://img.shields.io/badge/-Research-blueviolet) |
 
-## Implementation Plans
+## Implementation Plans (Archived)
 
 | Plan | Description | Status |
 |------|-------------|--------|
-| [Eval Module](plans/2026-01-17-eval-module-improvements.md) | Eval improvements | ![Completed](https://img.shields.io/badge/-Completed-success) |
-| [GPU Backend](plans/2026-01-17-gpu-backend-completion.md) | GPU backend completion | ![Completed](https://img.shields.io/badge/-Completed-success) |
-| [Refactor Phase 2](plans/2026-01-17-refactor-phase2.md) | Codebase refactoring | ![Active](https://img.shields.io/badge/-Active-yellow) |
-| [Task Management](plans/2026-01-17-task-management-system.md) | Task system design | ![Active](https://img.shields.io/badge/-Active-yellow) |
+| [Eval Module](plans/archive/2026-01-17-eval-module-improvements.md) | Eval improvements | ![Completed](https://img.shields.io/badge/-Completed-success) |
+| [GPU Backend](plans/archive/2026-01-17-gpu-backend-completion.md) | GPU backend completion | ![Completed](https://img.shields.io/badge/-Completed-success) |
+| [Refactor Phase 2](plans/archive/2026-01-17-refactor-phase2.md) | Codebase refactoring | ![Completed](https://img.shields.io/badge/-Completed-success) |
+| [Task Management](plans/archive/2026-01-17-task-management-system.md) | Task system design | ![Completed](https://img.shields.io/badge/-Completed-success) |
+| [GPU Codegen Consolidation](plans/archive/2026-01-22-gpu-codegen-consolidation.md) | GPU codegen refactoring | ![Completed](https://img.shields.io/badge/-Completed-success) |
 
 ## Developer Resources
 
