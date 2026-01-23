@@ -119,6 +119,74 @@ The unified API provides these built-in operations:
 | `dotProduct(a, b)` | Dot product of two vectors |
 | `softmax(input, output)` | Softmax activation |
 
+### Performance Optimizations
+
+The GPU module includes several performance optimization components:
+
+#### Event-Based Memory Synchronization
+
+Use `SyncEvent` for non-blocking memory synchronization instead of polling:
+
+```zig
+var buffer = try gpu.createBuffer(f32, 1024, .{});
+defer gpu.destroyBuffer(&buffer);
+
+// Write data and mark dirty
+try buffer.write(f32, &data);
+
+// Non-blocking check if transfer is complete
+if (!buffer.isSyncComplete()) {
+    // Do other work while waiting...
+}
+
+// Or block until complete
+buffer.waitForSync();
+
+// Timeout-based wait (1 second)
+const completed = buffer.waitForSyncTimeout(1_000_000_000);
+```
+
+#### Kernel Launch Caching
+
+The `KernelRing` provides fast-path reuse of recent kernel configurations:
+
+```zig
+// Access dispatcher statistics
+if (gpu.dispatcher) |disp| {
+    const stats = disp.getStats();
+    std.debug.print("Ring cache hits: {}\n", .{stats.ring_hits});
+    std.debug.print("Ring entries: {}\n", .{stats.ring_entries});
+}
+```
+
+- Automatic caching of last 256 kernel launch configurations
+- O(1) lookup for repeated configurations
+- Lock-free implementation for multi-threaded dispatch
+
+#### Adaptive Matrix Tiling
+
+Matrix operations automatically select optimal tile sizes based on:
+
+```zig
+// Adaptive tiling is automatic in matrixMultiply
+_ = try gpu.matrixMultiply(&a, &b, &c, .{
+    .m = 4096,  // Tall matrix
+    .k = 64,
+    .n = 256,
+});
+// Tile selection considers:
+// - Matrix dimensions (tall/wide/square)
+// - Device max threads per block
+// - Device shared memory limits
+// - Backend-specific warp sizes
+```
+
+| Matrix Shape | Tile Strategy |
+|--------------|---------------|
+| Square (m ≈ n) | Balanced tiles (e.g., 64x64) |
+| Tall (m >> n) | Favor M dimension (e.g., 128x32) |
+| Wide (n >> m) | Favor N dimension (e.g., 32x128) |
+
 ### Multi-GPU Support
 
 ```zig
