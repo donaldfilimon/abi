@@ -369,3 +369,23 @@ defer {
 - [docs-src/cloud-deployment.md](docs-src/cloud-deployment.md) - Cloud function deployment
 - [docs-src/SECURITY_AUDIT.md](docs-src/SECURITY_AUDIT.md) - Security findings and recommendations
 
+## New Feature Flags
+During CI or local builds you may need to toggle new experimental flags via `-D` options. Examples:
+
+```bash
+zig build -Denable-telemetry=true        # Enable experimental telemetry
+zig build -Denable-scripting=true       # Enable embedded scripting backends
+```
+These flags are integrated into `build_options` and must have corresponding stub implementations in `stub.zig` to keep API parity.
+
+## Important Gotchas
+* **Stub‑Real API parity** – Every change to a `mod.zig` file must be mirrored in its `stub.zig`. The CI parity checker will flag mismatches.
+* **GPU backend list** – `-Dgpu-backend` accepts a comma‑separated list; use `-Dgpu-backend=none` to disable all backends.
+* **WASM builds** – When targeting WebAssembly the `database`, `network`, and `gpu` features are auto‑disabled; declare them explicitly for deterministic runs.
+* **Compile‑time vs Runtime Flags** – `-D...` flags affect compilation. Runtime toggles (`--enable-gpu`) only modify a binary's runtime behaviour.
+* **Dependency order** – Changing the import order in `build.zig` can alter the feature graph.
+
+★ *Tip:* After editing run `zig fmt .` and verify with
+```bash
+zig build test --summary all
+```

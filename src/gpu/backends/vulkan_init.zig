@@ -386,7 +386,7 @@ fn selectPhysicalDeviceWithPreference(instance: types.VkInstance, preferred_type
         }
     }
 
-    // Fall back to scoring-based selection
+    // Fall back to VRAM-aware scoring-based selection
     var best_device: ?types.VkPhysicalDevice = null;
     var best_score: u32 = 0;
 
@@ -394,7 +394,8 @@ fn selectPhysicalDeviceWithPreference(instance: types.VkInstance, preferred_type
         var properties: types.VkPhysicalDeviceProperties = undefined;
         get_properties_fn(device, &properties);
 
-        const score = scorePhysicalDevice(&properties);
+        // Use VRAM-aware scoring for better device selection
+        const score = scorePhysicalDeviceWithMemory(device, &properties);
         if (best_device == null or score > best_score) {
             best_device = device;
             best_score = score;
@@ -437,7 +438,7 @@ fn selectPhysicalDevice(instance: types.VkInstance) !types.VkPhysicalDevice {
         return VulkanError.PhysicalDeviceNotFound;
     }
 
-    // Score each device and select the best one
+    // Score each device and select the best one (using VRAM-aware scoring)
     var best_device: ?types.VkPhysicalDevice = null;
     var best_score: u32 = 0;
 
@@ -450,7 +451,8 @@ fn selectPhysicalDevice(instance: types.VkInstance) !types.VkPhysicalDevice {
         var properties: types.VkPhysicalDeviceProperties = undefined;
         get_properties_fn(device, &properties);
 
-        const score = scorePhysicalDevice(&properties);
+        // Use VRAM-aware scoring for better device selection
+        const score = scorePhysicalDeviceWithMemory(device, &properties);
         if (best_device == null or score > best_score) {
             best_device = device;
             best_score = score;
@@ -468,18 +470,64 @@ fn scorePhysicalDevice(properties: *const types.VkPhysicalDeviceProperties) u32 
 
     // Base score by device type
     const type_score: u32 = switch (device_type) {
-        .discrete_gpu => 1000,
-        .integrated_gpu => 500,
-        .virtual_gpu => 100,
-        .cpu => 50,
-        else => 10,
+        .discrete_gpu => 10000,
+        .integrated_gpu => 5000,
+        .virtual_gpu => 1000,
+        .cpu => 500,
+        else => 100,
     };
 
     // Bonus for API version (prefer newer Vulkan versions)
     const api_version = properties.apiVersion;
-    const api_bonus: u32 = @min(api_version / 0x00100000, 10); // Cap at version 10
+    const api_bonus: u32 = @min(api_version / 0x00100000, 100); // Cap at version 10 = 100 points
 
-    return type_score + api_bonus;
+    // Bonus for compute capabilities
+    const compute_bonus: u32 = blk: {
+        const limits = &properties.limits;
+        var bonus: u32 = 0;
+
+        // Prefer GPUs with larger workgroups
+        if (limits.maxComputeWorkGroupInvocations >= 1024) bonus += 50;
+        if (limits.maxComputeWorkGroupInvocations >= 2048) bonus += 50;
+
+        // Prefer GPUs with larger shared memory
+        if (limits.maxComputeSharedMemorySize >= 32768) bonus += 50;
+        if (limits.maxComputeSharedMemorySize >= 65536) bonus += 50;
+
+        // Prefer GPUs with more storage buffer range
+        if (limits.maxStorageBufferRange >= 128 * 1024 * 1024) bonus += 50;
+
+        break :blk bonus;
+    };
+
+    return type_score + api_bonus + compute_bonus;
+}
+
+/// Score a physical device with memory properties for VRAM-aware selection.
+/// This gives bonus points for devices with more device-local (VRAM) memory.
+fn scorePhysicalDeviceWithMemory(device: types.VkPhysicalDevice, properties: *const types.VkPhysicalDeviceProperties) u32 {
+    var score = scorePhysicalDevice(properties);
+
+    // Get memory properties to score VRAM
+    if (vkGetPhysicalDeviceMemoryProperties) |get_mem_props_fn| {
+        var mem_props: types.VkPhysicalDeviceMemoryProperties = undefined;
+        get_mem_props_fn(device, &mem_props);
+
+        // Add bonus for device-local (VRAM) memory
+        // Each GB of VRAM adds points to the score
+        var total_device_local_mb: u64 = 0;
+        for (mem_props.memoryHeaps[0..mem_props.memoryHeapCount]) |heap| {
+            // VK_MEMORY_HEAP_DEVICE_LOCAL_BIT = 1
+            if ((heap.flags & 1) != 0) {
+                total_device_local_mb += heap.size / (1024 * 1024);
+            }
+        }
+
+        // Add 1 point per MB of VRAM, capped at 32GB (32768 points)
+        score += @intCast(@min(total_device_local_mb, 32768));
+    }
+
+    return score;
 }
 
 fn findComputeQueueFamily(physical_device: types.VkPhysicalDevice) !u32 {
@@ -680,4 +728,141 @@ pub fn isValidationEnabled() bool {
         return ctx.validation_enabled;
     }
     return false;
+}
+
+/// Information about a physical GPU device
+pub const PhysicalDeviceInfo = struct {
+    name: [256]u8,
+    device_type: types.VkPhysicalDeviceType,
+    vendor_id: u32,
+    device_id: u32,
+    api_version: u32,
+    driver_version: u32,
+    total_vram_mb: u64,
+    max_compute_work_group_invocations: u32,
+    max_compute_shared_memory_size: u32,
+    score: u32,
+
+    pub fn getDeviceName(self: *const PhysicalDeviceInfo) []const u8 {
+        return std.mem.sliceTo(&self.name, 0);
+    }
+
+    pub fn getVendorName(self: *const PhysicalDeviceInfo) []const u8 {
+        return switch (self.vendor_id) {
+            0x1002 => "AMD",
+            0x10DE => "NVIDIA",
+            0x8086 => "Intel",
+            0x13B5 => "ARM",
+            0x5143 => "Qualcomm",
+            0x106B => "Apple",
+            else => "Unknown",
+        };
+    }
+
+    pub fn getDeviceTypeName(self: *const PhysicalDeviceInfo) []const u8 {
+        return switch (self.device_type) {
+            .discrete_gpu => "Discrete GPU",
+            .integrated_gpu => "Integrated GPU",
+            .virtual_gpu => "Virtual GPU",
+            .cpu => "CPU",
+            else => "Other",
+        };
+    }
+};
+
+/// Get detailed information about the currently selected physical device.
+pub fn getPhysicalDeviceInfo() ?PhysicalDeviceInfo {
+    const ctx = vulkan_context orelse return null;
+    const get_properties_fn = vkGetPhysicalDeviceProperties orelse return null;
+
+    var properties: types.VkPhysicalDeviceProperties = undefined;
+    get_properties_fn(ctx.physical_device, &properties);
+
+    var info = PhysicalDeviceInfo{
+        .name = properties.deviceName,
+        .device_type = properties.deviceType,
+        .vendor_id = properties.vendorID,
+        .device_id = properties.deviceID,
+        .api_version = properties.apiVersion,
+        .driver_version = properties.driverVersion,
+        .total_vram_mb = 0,
+        .max_compute_work_group_invocations = properties.limits.maxComputeWorkGroupInvocations,
+        .max_compute_shared_memory_size = properties.limits.maxComputeSharedMemorySize,
+        .score = scorePhysicalDeviceWithMemory(ctx.physical_device, &properties),
+    };
+
+    // Calculate total VRAM
+    for (ctx.memory_properties.memoryHeaps[0..ctx.memory_properties.memoryHeapCount]) |heap| {
+        // VK_MEMORY_HEAP_DEVICE_LOCAL_BIT = 1
+        if ((heap.flags & 1) != 0) {
+            info.total_vram_mb += heap.size / (1024 * 1024);
+        }
+    }
+
+    return info;
+}
+
+/// Enumerate all available physical devices with their info.
+pub fn enumeratePhysicalDevices(allocator: std.mem.Allocator) ![]PhysicalDeviceInfo {
+    if (!vulkan_initialized) {
+        // Try to initialize temporarily for enumeration
+        if (!tryLoadVulkan()) return error.VulkanNotAvailable;
+        if (!loadVulkanFunctions()) return error.VulkanNotAvailable;
+    }
+
+    const enumerate_fn = vkEnumeratePhysicalDevices orelse return error.VulkanNotAvailable;
+    const ctx = vulkan_context orelse return error.VulkanNotAvailable;
+    const get_properties_fn = vkGetPhysicalDeviceProperties orelse return error.VulkanNotAvailable;
+
+    var device_count: u32 = 0;
+    var result = enumerate_fn(ctx.instance, &device_count, null);
+    if (result != .success or device_count == 0) {
+        return error.NoDevicesFound;
+    }
+
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const temp_allocator = arena.allocator();
+
+    const devices = try temp_allocator.alloc(types.VkPhysicalDevice, device_count);
+    result = enumerate_fn(ctx.instance, &device_count, devices.ptr);
+    if (result != .success) {
+        return error.EnumerationFailed;
+    }
+
+    const infos = try allocator.alloc(PhysicalDeviceInfo, device_count);
+    errdefer allocator.free(infos);
+
+    for (devices, 0..) |device, i| {
+        var properties: types.VkPhysicalDeviceProperties = undefined;
+        get_properties_fn(device, &properties);
+
+        infos[i] = PhysicalDeviceInfo{
+            .name = properties.deviceName,
+            .device_type = properties.deviceType,
+            .vendor_id = properties.vendorID,
+            .device_id = properties.deviceID,
+            .api_version = properties.apiVersion,
+            .driver_version = properties.driverVersion,
+            .total_vram_mb = 0,
+            .max_compute_work_group_invocations = properties.limits.maxComputeWorkGroupInvocations,
+            .max_compute_shared_memory_size = properties.limits.maxComputeSharedMemorySize,
+            .score = scorePhysicalDeviceWithMemory(device, &properties),
+        };
+
+        // Calculate total VRAM
+        if (vkGetPhysicalDeviceMemoryProperties) |get_mem_props_fn| {
+            var mem_props: types.VkPhysicalDeviceMemoryProperties = undefined;
+            get_mem_props_fn(device, &mem_props);
+
+            for (mem_props.memoryHeaps[0..mem_props.memoryHeapCount]) |heap| {
+                // VK_MEMORY_HEAP_DEVICE_LOCAL_BIT = 1
+                if ((heap.flags & 1) != 0) {
+                    infos[i].total_vram_mb += heap.size / (1024 * 1024);
+                }
+            }
+        }
+    }
+
+    return infos;
 }

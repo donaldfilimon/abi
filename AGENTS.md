@@ -180,3 +180,25 @@ The codebase underwent a modular refactor in phases to improve maintainability a
 ## Need Help?
 - Read `CLAUDE.md` for detailed engineering guidelines.
 - Run `zig build run -- --help` for CLI command details.
+
+## New Build Examples
+The example binaries use a `run-` prefix and forward all arguments. Typical usage:
+
+```bash
+zig build run-hello          # Hello world demo
+zig build run-database       # Vector database example
+zig build run-agent          # Autonomous agent example
+zig build run-llm            # Local LLM inference demo
+zig build run-gpu            # GPU compute example
+```
+
+To add a new example, insert a `BuildTarget{ .cli = "new", .source = "examples/new.zig" }` into the `example_targets` array in `build.zig` and create the file in `examples/`.
+
+## Important Gotchas
+* **Stub‑Real Sync** – Mutating `src/<feature>/mod.zig` requires the companion `src/<feature>/stub.zig` to stay API‑compatible. The CI parity checker on every push will flag mismatches.
+* **GPU Backend List** – `-Dgpu-backend` accepts a comma‑separated list. For a single backend, supply only one identifier such as `-Dgpu-backend=cuda`.
+* **WebAssembly Builds** – When `zig build wasm` or `-Dtarget=wasm32` is used, the `database`, `network`, and `gpu` features are automatically disabled; explicitly disabling them makes the build deterministic.
+* **Public API Import** – All public APIs must be accessed via `@import("abi")`. Direct relative imports break the public contract and will cause link errors when size‑optimised builds are performed.
+* **Compile‑time vs Runtime Flags** – Feature toggles prefixed with `-D` affect compilation. Runtime flags such as `--enable-gpu` only modify a running binary's behaviour.
+
+★ *Tip:* Run `zig fmt .` after any edit and immediately verify with `zig build test --summary all`.
