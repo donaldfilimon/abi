@@ -57,6 +57,18 @@ pub const Generator = generation.Generator;
 pub const Sampler = generation.Sampler;
 pub const SamplerConfig = generation.SamplerConfig;
 
+// Streaming exports
+pub const StreamingGenerator = generation.StreamingGenerator;
+pub const StreamingResponse = generation.StreamingResponse;
+pub const StreamingConfig = generation.StreamingConfig;
+pub const StreamingState = generation.StreamingState;
+pub const StreamingStats = generation.StreamingStats;
+pub const StreamingCallbacks = generation.StreamingCallbacks;
+pub const StreamingError = generation.StreamingError;
+pub const TokenEvent = generation.TokenEvent;
+pub const SSEFormatter = generation.SSEFormatter;
+pub const collectStreamingResponse = generation.collectStreamingResponse;
+
 // Parallel inference exports
 pub const ParallelStrategy = parallel.ParallelStrategy;
 pub const ParallelConfig = parallel.ParallelConfig;
@@ -237,6 +249,9 @@ pub const Engine = struct {
     }
 
     /// Generate with streaming callback (per-token)
+    ///
+    /// This is the simple callback-based streaming API. For more control,
+    /// use `createStreamingResponse()` which returns an iterator.
     pub fn generateStreaming(
         self: *Engine,
         prompt: []const u8,
@@ -245,25 +260,102 @@ pub const Engine = struct {
         const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
 
         // Encode prompt to tokens
-        const prompt_tokens = try m.tokenizer.encode(self.allocator, prompt);
+        const tok = if (m.tok) |*t| t else return LlmError.TokenizationFailed;
+        const prompt_tokens = try tok.encode(self.allocator, prompt);
         defer self.allocator.free(prompt_tokens);
 
         // Create generator with streaming enabled
-        var gen = m.createGenerator(.{
+        var gen = m.generator(.{
             .max_tokens = self.config.max_new_tokens,
             .temperature = self.config.temperature,
             .top_k = self.config.top_k,
             .top_p = self.config.top_p,
-            .stop_tokens = &[_]u32{m.tokenizer.eos_token_id},
         });
         defer gen.deinit();
 
         // Generate with per-token streaming callback
-        const output_tokens = try gen.generateTokensStreaming(prompt_tokens, &m.tokenizer, callback);
+        const output_tokens = try gen.generateTokensStreaming(prompt_tokens, tok, callback);
         defer self.allocator.free(output_tokens);
 
         // Update stats
         self.stats.generated_tokens += @intCast(output_tokens.len);
+    }
+
+    /// Generate with streaming using advanced configuration.
+    ///
+    /// This function provides more control over streaming behavior through
+    /// the `StreamingConfig` struct. It returns a `StreamingResponse` iterator
+    /// that can be used for pull-based streaming.
+    ///
+    /// ## Example
+    ///
+    /// ```zig
+    /// var response = try engine.createStreamingResponse(prompt, .{
+    ///     .max_tokens = 100,
+    ///     .temperature = 0.8,
+    ///     .on_token = myCallback,
+    /// });
+    /// defer response.deinit();
+    ///
+    /// while (try response.next()) |event| {
+    ///     if (event.text) |text| {
+    ///         try stdout.writeAll(text);
+    ///     }
+    ///     if (event.is_final) break;
+    /// }
+    /// ```
+    pub fn createStreamingResponse(
+        self: *Engine,
+        prompt: []const u8,
+        stream_config: StreamingConfig,
+    ) !StreamingResponse {
+        const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
+
+        // Get tokenizer
+        const tok = if (m.tok) |*t| t else return LlmError.TokenizationFailed;
+
+        // Encode prompt to tokens
+        const prompt_tokens = try tok.encode(self.allocator, prompt);
+        // Note: prompt_tokens ownership transfers to caller, must be freed
+
+        // Create streaming response with model and config
+        return StreamingResponse.init(
+            self.allocator,
+            m,
+            prompt_tokens,
+            stream_config,
+            tok,
+        ) catch |e| switch (e) {
+            StreamingError.OutOfMemory => return LlmError.OutOfMemory,
+            StreamingError.TimerFailed => return LlmError.InferenceError,
+            else => return LlmError.InferenceError,
+        };
+    }
+
+    /// Generate with streaming callbacks using advanced configuration.
+    ///
+    /// This is a convenience function that sets up streaming with callbacks
+    /// and iterates through all tokens automatically.
+    pub fn generateStreamingWithConfig(
+        self: *Engine,
+        prompt: []const u8,
+        stream_config: StreamingConfig,
+    ) !StreamingStats {
+        var response = try self.createStreamingResponse(prompt, stream_config);
+        defer response.deinit();
+
+        // Iterate through all tokens
+        while (try response.next()) |event| {
+            if (event.is_final) break;
+        }
+
+        // Update engine stats
+        const stats = response.getStats();
+        self.stats.generated_tokens += stats.tokens_generated;
+        self.stats.prefill_time_ns += stats.prefill_time_ns;
+        self.stats.decode_time_ns += stats.generation_time_ns;
+
+        return stats;
     }
 
     /// Tokenize text

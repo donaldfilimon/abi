@@ -1,0 +1,2 @@
+# This directory contains the built WASM binary (abi.wasm)
+# Build with: npm run build:wasm (or: zig build wasm from repo root)

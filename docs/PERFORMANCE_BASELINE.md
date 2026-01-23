@@ -25,6 +25,39 @@ This document establishes a performance baseline for the ABI Framework after the
 
 ## Current Baseline (2026-01-23)
 
+**Post-Consolidation Baseline** - After Multi-Persona AI Assistant implementation, utils consolidation, and codebase refactoring (Issue #389).
+
+| Benchmark | ops/sec | Change vs Previous | Notes |
+|-----------|---------|-------------------|-------|
+| Framework Initialization | 188 | +9% | Full feature init |
+| Logging Operations | 362,577 | +45% | Async logging improved |
+| Configuration Loading | 66,675,557 | stable | Config struct access |
+| Memory Allocation (1KB) | 498,349 | stable | GPA allocation |
+| SIMD Vector Dot Product | 84,552,296 | stable | 4-element vectors |
+| SIMD Vector Addition | 84,466,593 | stable | 4-element vectors |
+| Compute Engine Task | 99,036 | +1% | Work-stealing |
+| Database Vector Insert | 71,778 | +1% | WDBX insert |
+| Database Vector Search | 58,662 | +1% | HNSW search |
+| JSON Parse/Serialize | 86,687 | stable | Round-trip |
+| GPU Availability Check | 184 | stable | Backend probe (GPU disabled) |
+| Network Registry Operations | 121,403 | +3% | Discovery ops |
+
+**Summary:**
+- Total benchmarks: 12
+- Average ops/sec: 19,749,442
+- Total errors: 0
+- Performance: Stable with minor improvements in logging (+45%) and network ops (+3%)
+
+**Environment:**
+- OS: Windows 10
+- Zig Version: 0.16.0-dev.2290+200fb7c2a
+- Framework Version: 0.3.0
+- Git Commit: 840771d (feat(ai): implement Multi-Persona AI Assistant system)
+
+---
+
+## Previous Baseline (2026-01-23 Pre-Refresh)
+
 After Multi-Persona AI Assistant implementation and utils consolidation:
 
 | Benchmark | ops/sec | Change vs Previous | Notes |
@@ -46,7 +79,6 @@ After Multi-Persona AI Assistant implementation and utils consolidation:
 - Total benchmarks: 12
 - Average ops/sec: 19,787,695
 - Total errors: 0
-- Performance improvement: +33% average (excluding Framework Init and GPU)
 
 **Environment:** Windows 10, Zig 0.16.0-dev, Framework 0.1.0
 
@@ -298,8 +330,8 @@ For critical code paths:
 
 ---
 
-**Document Version**: 1.2
-**Last Updated**: 2026-01-23
+**Document Version**: 1.3
+**Last Updated**: 2026-01-23 (Post-Consolidation Baseline Refresh - Issue #389)
 
 ---
 

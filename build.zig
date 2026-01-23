@@ -222,6 +222,7 @@ const example_targets = [_]BuildTarget{
     .{ .name = "example-training", .step_name = "run-training", .description = "Run training example", .source_path = "examples/training.zig" },
     .{ .name = "example-ha", .step_name = "run-ha", .description = "Run HA example", .source_path = "examples/ha.zig" },
     .{ .name = "example-train-demo", .step_name = "run-train-demo", .description = "Run LLM training demo", .source_path = "examples/training/train_demo.zig" },
+    .{ .name = "example-orchestration", .step_name = "run-orchestration", .description = "Run multi-model orchestration example", .source_path = "examples/orchestration.zig" },
 };
 
 const benchmark_targets = [_]BuildTarget{

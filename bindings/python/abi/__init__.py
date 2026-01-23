@@ -17,6 +17,21 @@ Example usage:
     b = [4.0, 5.0, 6.0]
     similarity = abi.cosine_similarity(a, b)
 
+    # Vector database
+    db = abi.VectorDatabase(dimensions=3)
+    db.add([1.0, 0.0, 0.0], metadata={"label": "x"})
+    results = db.search([0.9, 0.1, 0.0], top_k=5)
+
+    # LLM inference
+    engine = abi.LlmEngine()
+    engine.load_model("./model.gguf")
+    response = engine.generate("Hello!")
+
+    # GPU acceleration
+    ctx = abi.GpuContext()
+    if ctx.is_available:
+        result = ctx.matrix_multiply(a, b)
+
     # Cleanup
     abi.shutdown()
 """
@@ -26,26 +41,66 @@ import ctypes
 import os
 import sys
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
+
+# Core exports
 __all__ = [
+    # Version and info
+    "__version__",
+    "version",
+    # Initialization
     "init",
     "shutdown",
-    "version",
     "is_initialized",
+    # SIMD operations
     "has_simd",
     "cosine_similarity",
     "vector_dot",
     "vector_add",
     "l2_norm",
+    # Classes
     "VectorDatabase",
     "Agent",
     "Feature",
+    # Configuration
+    "Config",
+    "ConfigBuilder",
+    "GpuConfig",
+    "AiConfig",
+    "LlmConfig",
+    "DatabaseConfig",
+    "NetworkConfig",
+    "ObservabilityConfig",
+    # LLM
+    "LlmEngine",
+    "LlmContext",
+    "InferenceConfig",
+    "InferenceStats",
+    # Database
+    "SearchResult",
+    "DatabaseStats",
+    "DatabaseContext",
+    "create_database",
+    "open_database",
+    # GPU
+    "GpuContext",
+    "GpuDevice",
+    "GpuBackend",
+    "GpuStats",
+    "is_gpu_available",
+    "list_gpu_devices",
+    # Submodules
+    "config",
+    "llm",
+    "database",
+    "gpu",
 ]
 
 
 # Library loading
 _lib = None
 _lib_path = None
+_initialized = False
 
 
 def _find_library() -> Optional[str]:
@@ -67,6 +122,10 @@ def _find_library() -> Optional[str]:
     # Add LD_LIBRARY_PATH entries
     if "LD_LIBRARY_PATH" in os.environ:
         search_paths.extend(os.environ["LD_LIBRARY_PATH"].split(":"))
+
+    # Add Windows PATH
+    if sys.platform == "win32" and "PATH" in os.environ:
+        search_paths.extend(os.environ["PATH"].split(";"))
 
     for path in search_paths:
         for name in possible_names:
@@ -150,7 +209,7 @@ class _MockLibrary:
     """Mock library for development without native library."""
 
     def abi_version(self):
-        return b"0.3.0-mock"
+        return b"0.4.0-mock"
 
     def abi_init(self):
         return 0
@@ -165,8 +224,6 @@ class _MockLibrary:
         return False
 
     def abi_vector_dot(self, a, b, length):
-        import math
-
         result = sum(a[i] * b[i] for i in range(length))
         return result
 
@@ -196,44 +253,78 @@ class _MockLibrary:
         return 0
 
     def abi_platform_max_threads(self):
-        import os
-
         return os.cpu_count() or 1
 
 
-# Public API
+# =============================================================================
+# Core API
+# =============================================================================
 
 
-def init() -> None:
-    """Initialize the ABI framework."""
+def init(config: Optional["Config"] = None) -> None:
+    """
+    Initialize the ABI framework.
+
+    Args:
+        config: Optional configuration object
+
+    Example:
+        >>> import abi
+        >>> abi.init()
+        >>> # or with configuration
+        >>> abi.init(abi.Config.defaults())
+    """
+    global _initialized
     lib = _load_library()
     result = lib.abi_init()
     if result != 0:
         raise RuntimeError("Failed to initialize ABI framework")
+    _initialized = True
 
 
 def shutdown() -> None:
-    """Shutdown the ABI framework."""
+    """Shutdown the ABI framework and release resources."""
+    global _initialized
     lib = _load_library()
     lib.abi_shutdown()
+    _initialized = False
 
 
 def version() -> str:
-    """Get the ABI framework version."""
+    """
+    Get the ABI framework version.
+
+    Returns:
+        Version string
+    """
     lib = _load_library()
     return lib.abi_version().decode("utf-8")
 
 
 def is_initialized() -> bool:
-    """Check if the framework is initialized."""
-    lib = _load_library()
-    return lib.abi_is_initialized()
+    """
+    Check if the framework is initialized.
+
+    Returns:
+        True if initialized
+    """
+    return _initialized
 
 
 def has_simd() -> bool:
-    """Check if SIMD operations are available."""
+    """
+    Check if SIMD operations are available.
+
+    Returns:
+        True if SIMD is available
+    """
     lib = _load_library()
     return lib.abi_simd_available()
+
+
+# =============================================================================
+# Vector Operations
+# =============================================================================
 
 
 def _to_float_array(vec: List[float]) -> ctypes.Array:
@@ -338,6 +429,11 @@ def l2_norm(vec: List[float]) -> float:
     return lib.abi_l2_norm(arr, len(vec))
 
 
+# =============================================================================
+# Feature Enumeration
+# =============================================================================
+
+
 class Feature:
     """Enumeration of ABI framework features."""
 
@@ -348,87 +444,69 @@ class Feature:
     NETWORK = 4
     PROFILING = 5
     MONITORING = 6
+    LLM = 7
+    EMBEDDINGS = 8
+    AGENTS = 9
+    TRAINING = 10
 
 
-class VectorDatabase:
-    """
-    Vector database interface for storing and querying vectors.
+# =============================================================================
+# Import Submodules
+# =============================================================================
 
-    Example:
-        db = VectorDatabase()
-        db.add([1.0, 2.0, 3.0], metadata={"id": "vec1"})
-        results = db.query([1.1, 2.1, 3.1], top_k=5)
-    """
+# Configuration
+from .config import (
+    Config,
+    ConfigBuilder,
+    GpuConfig,
+    AiConfig,
+    LlmConfig,
+    DatabaseConfig,
+    NetworkConfig,
+    ObservabilityConfig,
+    EmbeddingsConfig,
+    AgentsConfig,
+    TrainingConfig,
+)
 
-    def __init__(self, name: str = "default", dimension: int = 0):
-        """
-        Initialize a vector database.
+# LLM
+from .llm import (
+    LlmEngine,
+    LlmContext,
+    InferenceConfig,
+    InferenceStats,
+    ModelInfo,
+    infer as llm_infer,
+)
 
-        Args:
-            name: Database name
-            dimension: Vector dimension (0 for auto-detect)
-        """
-        self.name = name
-        self.dimension = dimension
-        self._vectors: List[Dict[str, Any]] = []
+# Database
+from .database import (
+    VectorDatabase,
+    SearchResult,
+    DatabaseStats,
+    DatabaseContext,
+    BatchResult,
+    create_database,
+    open_database,
+)
 
-    def add(
-        self, vector: List[float], metadata: Optional[Dict[str, Any]] = None
-    ) -> int:
-        """
-        Add a vector to the database.
+# GPU
+from .gpu import (
+    GpuContext,
+    GpuDevice,
+    GpuBackend,
+    GpuStats,
+    is_gpu_available,
+    list_backends as list_gpu_backends,
+)
 
-        Args:
-            vector: Vector to add
-            metadata: Optional metadata to associate
+# Convenience aliases
+list_gpu_devices = GpuContext.list_devices
 
-        Returns:
-            Vector ID
-        """
-        if self.dimension == 0:
-            self.dimension = len(vector)
-        elif len(vector) != self.dimension:
-            raise ValueError(f"Vector dimension must be {self.dimension}")
 
-        vec_id = len(self._vectors)
-        self._vectors.append({"id": vec_id, "vector": vector, "metadata": metadata or {}})
-        return vec_id
-
-    def query(
-        self, vector: List[float], top_k: int = 10
-    ) -> List[Dict[str, Any]]:
-        """
-        Query the database for similar vectors.
-
-        Args:
-            vector: Query vector
-            top_k: Number of results to return
-
-        Returns:
-            List of results with scores
-        """
-        if len(vector) != self.dimension:
-            raise ValueError(f"Query vector dimension must be {self.dimension}")
-
-        # Compute similarities
-        results = []
-        for entry in self._vectors:
-            score = cosine_similarity(vector, entry["vector"])
-            results.append(
-                {"id": entry["id"], "score": score, "metadata": entry["metadata"]}
-            )
-
-        # Sort by score descending
-        results.sort(key=lambda x: x["score"], reverse=True)
-        return results[:top_k]
-
-    def count(self) -> int:
-        """Get the number of vectors in the database."""
-        return len(self._vectors)
-
-    def clear(self) -> None:
-        """Clear all vectors from the database."""
-        self._vectors.clear()
+# =============================================================================
+# Legacy Classes (backwards compatibility)
+# =============================================================================
 
 
 class Agent:
@@ -450,6 +528,7 @@ class Agent:
         """
         self.name = name
         self._history: List[Dict[str, str]] = []
+        self._llm: Optional[LlmEngine] = None
 
     def process(self, message: str) -> str:
         """
@@ -463,11 +542,24 @@ class Agent:
         """
         self._history.append({"role": "user", "content": message})
 
-        # Placeholder response - in production this would call the LLM
-        response = f"[Agent {self.name}] Received: {message}"
+        # Use LLM if available, otherwise placeholder
+        if self._llm and self._llm.is_loaded:
+            response = self._llm.chat(self._history)
+        else:
+            response = f"[Agent {self.name}] Received: {message}"
 
         self._history.append({"role": "assistant", "content": response})
         return response
+
+    def load_model(self, model_path: str) -> None:
+        """
+        Load an LLM model for the agent.
+
+        Args:
+            model_path: Path to GGUF model file
+        """
+        self._llm = LlmEngine()
+        self._llm.load_model(model_path)
 
     def clear_history(self) -> None:
         """Clear the conversation history."""
@@ -476,6 +568,16 @@ class Agent:
     def get_history(self) -> List[Dict[str, str]]:
         """Get the conversation history."""
         return self._history.copy()
+
+
+# =============================================================================
+# Module-level submodules
+# =============================================================================
+
+from . import config
+from . import llm
+from . import database
+from . import gpu
 
 
 # Auto-initialize on import if environment variable is set

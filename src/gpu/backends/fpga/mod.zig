@@ -40,6 +40,7 @@ pub const loader = @import("loader.zig");
 pub const memory = @import("memory.zig");
 pub const vtable = @import("vtable.zig");
 pub const kernels = @import("kernels.zig");
+pub const types = @import("types.zig");
 
 // Re-export key types
 pub const FpgaBackend = vtable.FpgaBackend;
@@ -55,6 +56,21 @@ pub const FpgaKernelType = kernels.FpgaKernelType;
 pub const VectorDistanceConfig = kernels.VectorDistanceConfig;
 pub const QuantizedMatmulConfig = kernels.QuantizedMatmulConfig;
 pub const KMeansConfig = kernels.KMeansConfig;
+
+// Core types from types.zig
+pub const Platform = types.Platform;
+pub const DeviceFamily = types.DeviceFamily;
+pub const DeviceCapabilities = types.DeviceCapabilities;
+pub const MemoryBank = types.MemoryBank;
+pub const MemoryFlags = types.MemoryFlags;
+pub const BufferDescriptor = types.BufferDescriptor;
+pub const KernelClass = types.KernelClass;
+pub const KernelConfig = types.KernelConfig;
+pub const KernelResult = types.KernelResult;
+pub const BitstreamInfo = types.BitstreamInfo;
+pub const QuantizationType = types.QuantizationType;
+pub const DistanceMetric = types.DistanceMetric;
+pub const FpgaStats = types.FpgaStats;
 
 /// Check if FPGA support is enabled at compile time
 pub fn isEnabled() bool {

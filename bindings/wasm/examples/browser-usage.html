@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABI WASM Browser Example</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 { color: #333; }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #0052a3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .status { color: #666; font-style: italic; }
+        .success { color: #22863a; }
+        .error { color: #cb2431; }
+        #output { min-height: 200px; }
+        .vector-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin: 10px 0;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>ABI WASM Browser Example</h1>
+
+    <div class="card">
+        <h2>Initialization</h2>
+        <button id="initBtn" onclick="initAbi()">Initialize ABI</button>
+        <span id="initStatus" class="status"></span>
+    </div>
+
+    <div class="card">
+        <h2>Vector Operations</h2>
+        <div class="vector-input">
+            <label>Vector A:</label>
+            <input type="text" id="vectorA" value="1, 2, 3, 4" placeholder="Comma-separated numbers">
+        </div>
+        <div class="vector-input">
+            <label>Vector B:</label>
+            <input type="text" id="vectorB" value="4, 3, 2, 1" placeholder="Comma-separated numbers">
+        </div>
+        <button onclick="calculateSimilarity()" id="calcBtn" disabled>Calculate Similarity</button>
+        <div id="vectorResult"></div>
+    </div>
+
+    <div class="card">
+        <h2>Vector Database Demo</h2>
+        <button onclick="runDatabaseDemo()" id="dbBtn" disabled>Run Database Demo</button>
+        <div id="dbResult"></div>
+    </div>
+
+    <div class="card">
+        <h2>Output Log</h2>
+        <pre id="output"></pre>
+    </div>
+
+    <!-- Load the bundled ABI WASM module -->
+    <script type="module">
+        // In production, import from the npm package:
+        // import * as abi from '@anthropic/abi-wasm';
+
+        // For this example, we'll define the module inline
+        // (In reality, you'd build and serve the TypeScript files)
+
+        let isInitialized = false;
+        let vectorDb = null;
+
+        // Simple vector operations (pure JS fallback for demo)
+        function cosineSimilarity(a, b) {
+            if (a.length !== b.length) throw new Error('Vector length mismatch');
+            let dot = 0, normA = 0, normB = 0;
+            for (let i = 0; i < a.length; i++) {
+                dot += a[i] * b[i];
+                normA += a[i] * a[i];
+                normB += b[i] * b[i];
+            }
+            const mag = Math.sqrt(normA) * Math.sqrt(normB);
+            return mag === 0 ? 0 : dot / mag;
+        }
+
+        function normalize(vec) {
+            const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
+            return norm === 0 ? vec.slice() : vec.map(v => v / norm);
+        }
+
+        function log(message) {
+            const output = document.getElementById('output');
+            output.textContent += message + '\n';
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // Simple in-memory vector database
+        class VectorDatabase {
+            constructor(name) {
+                this.name = name;
+                this.vectors = [];
+                this.nextId = 0;
+            }
+
+            add(vector, metadata) {
+                const id = this.nextId++;
+                this.vectors.push({ id, vector: vector.slice(), metadata });
+                return id;
+            }
+
+            search(query, topK = 10) {
+                return this.vectors
+                    .map(v => ({
+                        id: v.id,
+                        score: cosineSimilarity(query, v.vector),
+                        metadata: v.metadata
+                    }))
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, topK);
+            }
+
+            get size() { return this.vectors.length; }
+        }
+
+        window.initAbi = async function() {
+            const status = document.getElementById('initStatus');
+            const initBtn = document.getElementById('initBtn');
+
+            try {
+                status.textContent = 'Initializing...';
+                status.className = 'status';
+
+                // In production with actual WASM:
+                // await abi.init({ wasmPath: '/abi.wasm' });
+
+                // For demo, simulate initialization
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                isInitialized = true;
+                status.textContent = 'Initialized! Version: 0.3.0';
+                status.className = 'status success';
+                initBtn.disabled = true;
+                document.getElementById('calcBtn').disabled = false;
+                document.getElementById('dbBtn').disabled = false;
+
+                log('ABI Framework initialized successfully');
+                log('Version: 0.3.0');
+                log('');
+            } catch (err) {
+                status.textContent = 'Error: ' + err.message;
+                status.className = 'status error';
+                log('Initialization failed: ' + err.message);
+            }
+        };
+
+        window.calculateSimilarity = function() {
+            if (!isInitialized) return;
+
+            try {
+                const vecA = document.getElementById('vectorA').value
+                    .split(',').map(v => parseFloat(v.trim()));
+                const vecB = document.getElementById('vectorB').value
+                    .split(',').map(v => parseFloat(v.trim()));
+
+                const similarity = cosineSimilarity(vecA, vecB);
+
+                const result = document.getElementById('vectorResult');
+                result.innerHTML = `
+                    <p><strong>Cosine Similarity:</strong> ${similarity.toFixed(6)}</p>
+                    <p><strong>Interpretation:</strong> ${
+                        similarity > 0.9 ? 'Very similar' :
+                        similarity > 0.7 ? 'Similar' :
+                        similarity > 0.5 ? 'Somewhat similar' :
+                        similarity > 0 ? 'Different' : 'Opposite'
+                    }</p>
+                `;
+
+                log(`Calculated similarity between vectors:`);
+                log(`  A: [${vecA.join(', ')}]`);
+                log(`  B: [${vecB.join(', ')}]`);
+                log(`  Similarity: ${similarity.toFixed(6)}`);
+                log('');
+            } catch (err) {
+                document.getElementById('vectorResult').innerHTML =
+                    `<p class="error">Error: ${err.message}</p>`;
+            }
+        };
+
+        window.runDatabaseDemo = function() {
+            if (!isInitialized) return;
+
+            const result = document.getElementById('dbResult');
+
+            try {
+                log('=== Vector Database Demo ===');
+
+                vectorDb = new VectorDatabase('demo');
+
+                // Add some sample embeddings
+                const samples = [
+                    { vec: [1, 0, 0], meta: { label: 'x-axis', color: 'red' } },
+                    { vec: [0, 1, 0], meta: { label: 'y-axis', color: 'green' } },
+                    { vec: [0, 0, 1], meta: { label: 'z-axis', color: 'blue' } },
+                    { vec: normalize([1, 1, 0]), meta: { label: 'xy-plane', color: 'yellow' } },
+                    { vec: normalize([1, 1, 1]), meta: { label: 'diagonal', color: 'gray' } },
+                ];
+
+                for (const sample of samples) {
+                    const id = vectorDb.add(sample.vec, sample.meta);
+                    log(`Added vector ${id}: ${sample.meta.label}`);
+                }
+
+                log(`\nDatabase size: ${vectorDb.size} vectors`);
+
+                // Search
+                const query = normalize([0.9, 0.1, 0]);
+                log(`\nSearching for query: [${query.map(v => v.toFixed(3)).join(', ')}]`);
+
+                const results = vectorDb.search(query, 3);
+                log('\nTop 3 results:');
+
+                let html = '<table style="width:100%; border-collapse: collapse;">';
+                html += '<tr><th>Rank</th><th>Label</th><th>Score</th><th>Color</th></tr>';
+
+                results.forEach((r, i) => {
+                    log(`  ${i + 1}. ${r.metadata.label}: ${r.score.toFixed(4)}`);
+                    html += `<tr>
+                        <td>${i + 1}</td>
+                        <td>${r.metadata.label}</td>
+                        <td>${r.score.toFixed(4)}</td>
+                        <td style="color: ${r.metadata.color}">${r.metadata.color}</td>
+                    </tr>`;
+                });
+
+                html += '</table>';
+                result.innerHTML = html;
+
+                log('\n=== Demo Complete ===\n');
+            } catch (err) {
+                result.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+                log('Error: ' + err.message);
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+apiVersion: v2
+name: abi
+description: A Helm chart for deploying ABI (Abbey) instances on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+kubeVersion: ">=1.25.0-0"
+
+keywords:
+  - abi
+  - abbey
+  - ai
+  - llm
+  - vector-database
+  - gpu
+
+home: https://github.com/abi/abi
+sources:
+  - https://github.com/abi/abi
+
+maintainers:
+  - name: ABI Team
+    email: team@abi.io
+
+annotations:
+  artifacthub.io/category: ai-machine-learning
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/operator: "false"
+  artifacthub.io/prerelease: "false"
+
+dependencies: []

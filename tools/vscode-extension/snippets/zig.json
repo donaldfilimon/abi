@@ -1,0 +1,285 @@
+{
+  "ABI Initialization": {
+    "prefix": "abi-init",
+    "body": [
+      "const std = @import(\"std\");",
+      "const abi = @import(\"abi\");",
+      "",
+      "pub fn main() !void {",
+      "    var gpa = std.heap.GeneralPurposeAllocator(.{}){};",
+      "    defer _ = gpa.deinit();",
+      "    const allocator = gpa.allocator();",
+      "",
+      "    // Initialize I/O backend (required for Zig 0.16)",
+      "    var io_backend = std.Io.Threaded.init(allocator, .{",
+      "        .environ = std.process.Environ.init(),",
+      "    });",
+      "    defer io_backend.deinit();",
+      "    const io = io_backend.io();",
+      "",
+      "    // Initialize ABI framework",
+      "    const config = abi.Config.init()",
+      "        .withAI(${1:true})",
+      "        .withGPU(${2:true})",
+      "        .withDatabase(${3:true});",
+      "",
+      "    var framework = try abi.Framework.init(allocator, config);",
+      "    defer framework.deinit();",
+      "",
+      "    ${0:// Your code here}",
+      "}"
+    ],
+    "description": "Initialize ABI framework with full setup"
+  },
+  "ABI Config Builder": {
+    "prefix": "abi-config",
+    "body": [
+      "const config = abi.Config.init()",
+      "    .withAI(${1:true})",
+      "    .withGPU(${2:true})",
+      "    .withDatabase(${3:true})",
+      "    .withNetwork(${4:true})",
+      "    .withObservability(${5:true});",
+      "${0}"
+    ],
+    "description": "Create ABI configuration with builder pattern"
+  },
+  "ABI GPU Config": {
+    "prefix": "abi-gpu-config",
+    "body": [
+      "const gpu_config = abi.GpuConfig{",
+      "    .backend = .${1|vulkan,cuda,metal,webgpu,opengl|},",
+      "    .device_index = ${2:0},",
+      "    .enable_profiling = ${3:true},",
+      "    .memory_limit = ${4:null},",
+      "};",
+      "${0}"
+    ],
+    "description": "Create GPU configuration"
+  },
+  "ABI AI Config": {
+    "prefix": "abi-ai-config",
+    "body": [
+      "const ai_config = abi.AiConfig{",
+      "    .model_path = \"${1:models/}\",",
+      "    .default_model = \"${2:llama-7b}\",",
+      "    .max_tokens = ${3:2048},",
+      "    .temperature = ${4:0.7},",
+      "    .enable_gpu_acceleration = ${5:true},",
+      "};",
+      "${0}"
+    ],
+    "description": "Create AI configuration"
+  },
+  "ABI Database Config": {
+    "prefix": "abi-db-config",
+    "body": [
+      "const db_config = abi.DatabaseConfig{",
+      "    .storage_path = \"${1:data/}\",",
+      "    .index_type = .${2|hnsw,ivf_pq,flat|},",
+      "    .dimension = ${3:1536},",
+      "    .metric = .${4|cosine,euclidean,dot_product|},",
+      "};",
+      "${0}"
+    ],
+    "description": "Create database configuration"
+  },
+  "ABI Framework Init": {
+    "prefix": "abi-framework",
+    "body": [
+      "var framework = try abi.Framework.init(allocator, config);",
+      "defer framework.deinit();",
+      "${0}"
+    ],
+    "description": "Initialize ABI framework"
+  },
+  "ABI Test Setup": {
+    "prefix": "abi-test",
+    "body": [
+      "const std = @import(\"std\");",
+      "const testing = std.testing;",
+      "const abi = @import(\"abi\");",
+      "",
+      "test \"${1:test name}\" {",
+      "    const allocator = testing.allocator;",
+      "",
+      "    const config = abi.Config.init();",
+      "    var framework = try abi.Framework.init(allocator, config);",
+      "    defer framework.deinit();",
+      "",
+      "    ${0:// Test assertions}",
+      "}"
+    ],
+    "description": "Create ABI test setup"
+  },
+  "ABI Error Handling": {
+    "prefix": "abi-error",
+    "body": [
+      "${1:result} catch |err| {",
+      "    std.log.err(\"Error: {t}\", .{err});",
+      "    return err;",
+      "};",
+      "${0}"
+    ],
+    "description": "ABI error handling pattern"
+  },
+  "ABI Stub Pattern": {
+    "prefix": "abi-stub",
+    "body": [
+      "/// ${1:Description of the function}",
+      "pub fn ${2:functionName}(${3:args}) ${4:ReturnType} {",
+      "    // Stub implementation when feature is disabled",
+      "    ${0:return error.FeatureDisabled;}",
+      "}"
+    ],
+    "description": "Create stub function pattern"
+  },
+  "ABI I/O Backend": {
+    "prefix": "abi-io",
+    "body": [
+      "var io_backend = std.Io.Threaded.init(allocator, .{",
+      "    .environ = std.process.Environ.${1|init(),empty|},",
+      "});",
+      "defer io_backend.deinit();",
+      "const io = io_backend.io();",
+      "${0}"
+    ],
+    "description": "Initialize Zig 0.16 I/O backend"
+  },
+  "ABI File Read": {
+    "prefix": "abi-file-read",
+    "body": [
+      "const content = try std.Io.Dir.cwd().readFileAlloc(",
+      "    io,",
+      "    \"${1:path/to/file}\",",
+      "    allocator,",
+      "    .limited(${2:10} * 1024 * 1024),",
+      ");",
+      "defer allocator.free(content);",
+      "${0}"
+    ],
+    "description": "Read file with Zig 0.16 I/O"
+  },
+  "ABI File Write": {
+    "prefix": "abi-file-write",
+    "body": [
+      "var file = try std.Io.Dir.cwd().createFile(io, \"${1:path/to/file}\", .{ .truncate = true });",
+      "defer file.close(io);",
+      "try file.writer(io).writeAll(${2:content});",
+      "${0}"
+    ],
+    "description": "Write file with Zig 0.16 I/O"
+  },
+  "ABI Timer": {
+    "prefix": "abi-timer",
+    "body": [
+      "var timer = std.time.Timer.start() catch return error.TimerFailed;",
+      "${0:// Code to time}",
+      "const elapsed_ns = timer.read();",
+      "std.log.info(\"Elapsed: {d}ms\", .{@as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0});"
+    ],
+    "description": "Timing measurement with Zig 0.16 Timer"
+  },
+  "ABI Agent Handler": {
+    "prefix": "abi-agent",
+    "body": [
+      "const ${1:AgentName} = struct {",
+      "    allocator: std.mem.Allocator,",
+      "    config: abi.AiConfig,",
+      "",
+      "    pub fn init(allocator: std.mem.Allocator, config: abi.AiConfig) !@This() {",
+      "        return .{",
+      "            .allocator = allocator,",
+      "            .config = config,",
+      "        };",
+      "    }",
+      "",
+      "    pub fn deinit(self: *@This()) void {",
+      "        _ = self;",
+      "    }",
+      "",
+      "    pub fn process(self: *@This(), input: []const u8) ![]const u8 {",
+      "        _ = self;",
+      "        _ = input;",
+      "        ${0:// Agent processing logic}",
+      "        return \"\";",
+      "    }",
+      "};"
+    ],
+    "description": "Create AI agent handler struct"
+  },
+  "ABI Vector Search": {
+    "prefix": "abi-vector-search",
+    "body": [
+      "const results = try db.search(.{",
+      "    .query_vector = ${1:query_embedding},",
+      "    .top_k = ${2:10},",
+      "    .metric = .${3|cosine,euclidean,dot_product|},",
+      "    .filter = ${4:null},",
+      "});",
+      "defer results.deinit();",
+      "",
+      "for (results.items) |result| {",
+      "    std.log.info(\"ID: {s}, Score: {d}\", .{ result.id, result.score });",
+      "}",
+      "${0}"
+    ],
+    "description": "Vector database search pattern"
+  },
+  "ABI Memory Leak Check": {
+    "prefix": "abi-leak-check",
+    "body": [
+      "var gpa = std.heap.GeneralPurposeAllocator(.{",
+      "    .stack_trace_frames = 10,",
+      "}){};",
+      "defer {",
+      "    const check = gpa.deinit();",
+      "    if (check == .leak) @panic(\"Memory leak detected\");",
+      "}",
+      "const allocator = gpa.allocator();",
+      "${0}"
+    ],
+    "description": "Memory leak detection setup"
+  },
+  "ABI Comptime Config": {
+    "prefix": "abi-comptime-config",
+    "body": [
+      "pub const ${1:ConfigName} = struct {",
+      "    pub const ${2:setting1}: ${3:type} = ${4:value};",
+      "    pub const ${5:setting2}: ${6:type} = ${7:value};",
+      "",
+      "    pub fn validate() bool {",
+      "        ${0:return true;}",
+      "    }",
+      "};"
+    ],
+    "description": "Comptime configuration pattern"
+  },
+  "ABI Module Public API": {
+    "prefix": "abi-module",
+    "body": [
+      "//! ${1:Module description}",
+      "//!",
+      "//! This module provides ${2:functionality description}.",
+      "",
+      "const std = @import(\"std\");",
+      "const abi = @import(\"abi\");",
+      "",
+      "/// ${3:Main struct description}",
+      "pub const ${4:ModuleName} = struct {",
+      "    allocator: std.mem.Allocator,",
+      "",
+      "    pub fn init(allocator: std.mem.Allocator) !@This() {",
+      "        return .{ .allocator = allocator };",
+      "    }",
+      "",
+      "    pub fn deinit(self: *@This()) void {",
+      "        _ = self;",
+      "    }",
+      "};",
+      "",
+      "${0}"
+    ],
+    "description": "Create module with public API"
+  }
+}

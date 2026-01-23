@@ -102,7 +102,9 @@ Connectors provide a unified interface to various model providers and platforms.
 
 ## LLM Sub-Feature
 
-The LLM sub-feature (`abi.ai.llm`) provides local LLM inference capabilities.
+The LLM sub-feature (`abi.ai.llm`) provides local LLM inference capabilities with both batch and streaming generation.
+
+### Basic Generation
 
 ```zig
 const llm = abi.ai.llm;
@@ -117,6 +119,151 @@ const output = try model.generate("Hello, ", .{
     .temperature = 0.7,
 });
 defer allocator.free(output);
+```
+
+### Streaming Generation
+
+The LLM module provides advanced streaming capabilities for token-by-token generation, ideal for interactive applications and real-time output.
+
+#### Callback-based Streaming
+
+Simple callback-based streaming for quick implementation:
+
+```zig
+var engine = llm.Engine.init(allocator, .{});
+defer engine.deinit();
+
+try engine.loadModel("model.gguf");
+
+// Stream with callback
+try engine.generateStreaming("Once upon a time", struct {
+    fn onToken(text: []const u8) void {
+        std.debug.print("{s}", .{text});
+    }
+}.onToken);
+```
+
+#### Iterator-based Streaming with StreamingResponse
+
+For more control, use the `StreamingResponse` iterator which provides pull-based streaming with statistics and cancellation support:
+
+```zig
+const llm = abi.ai.llm;
+
+var engine = llm.Engine.init(allocator, .{});
+defer engine.deinit();
+
+try engine.loadModel("model.gguf");
+
+// Create streaming response with configuration
+var response = try engine.createStreamingResponse("Write a story about", .{
+    .max_tokens = 200,
+    .temperature = 0.8,
+    .top_k = 40,
+    .top_p = 0.9,
+    .decode_tokens = true,
+});
+defer response.deinit();
+
+// Iterate through tokens
+while (try response.next()) |event| {
+    if (event.text) |text| {
+        try stdout.writeAll(text);
+    }
+    if (event.is_final) break;
+}
+
+// Get generation statistics
+const stats = response.getStats();
+std.debug.print("\n\nTokens: {d}, Speed: {d:.1} tok/s\n", .{
+    stats.tokens_generated,
+    stats.tokensPerSecond(),
+});
+```
+
+#### Streaming with Callbacks and Configuration
+
+Combine callbacks with the advanced configuration:
+
+```zig
+const stats = try engine.generateStreamingWithConfig("Hello, ", .{
+    .max_tokens = 100,
+    .temperature = 0.7,
+    .on_token = struct {
+        fn onToken(event: llm.TokenEvent) void {
+            if (event.text) |text| {
+                std.debug.print("{s}", .{text});
+            }
+        }
+    }.onToken,
+    .on_complete = struct {
+        fn onComplete(stats: llm.StreamingStats) void {
+            std.debug.print("\nGenerated {d} tokens\n", .{stats.tokens_generated});
+        }
+    }.onComplete,
+});
+```
+
+### Streaming Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `max_tokens` | `u32` | 256 | Maximum tokens to generate |
+| `temperature` | `f32` | 0.7 | Sampling temperature (0.0 = greedy) |
+| `top_k` | `u32` | 40 | Top-k sampling (0 = disabled) |
+| `top_p` | `f32` | 0.9 | Nucleus sampling threshold |
+| `repetition_penalty` | `f32` | 1.1 | Repetition penalty (1.0 = disabled) |
+| `stop_tokens` | `[]const u32` | EOS | Stop token IDs |
+| `initial_buffer_capacity` | `u32` | 256 | Token buffer initial size |
+| `decode_tokens` | `bool` | true | Decode tokens to text |
+| `generation_timeout_ns` | `u64` | 0 | Generation timeout (0 = none) |
+| `on_token` | callback | null | Per-token callback |
+| `on_complete` | callback | null | Completion callback |
+
+### Streaming Types
+
+- `StreamingResponse` - Iterator for pull-based streaming
+- `StreamingConfig` - Configuration for streaming behavior
+- `TokenEvent` - Event emitted for each token (includes text, position, timestamps)
+- `StreamingStats` - Generation statistics (tokens/sec, time-to-first-token)
+- `StreamingState` - Current state (idle, prefilling, generating, completed, cancelled)
+
+### Server-Sent Events (SSE) Support
+
+Built-in SSE formatting for web APIs:
+
+```zig
+const llm = abi.ai.llm;
+
+// Format token as SSE
+const sse_data = try llm.SSEFormatter.formatTokenEvent(allocator, event);
+defer allocator.free(sse_data);
+// Output: data: {"token_id":123,"text":"hello","position":5,"is_final":false}\n\n
+
+// Format completion as SSE
+const completion_sse = try llm.SSEFormatter.formatCompletionEvent(allocator, stats);
+defer allocator.free(completion_sse);
+// Output: data: {"event":"complete","tokens_generated":50,"tokens_per_second":25.0}\n\n
+```
+
+### Cancellation Support
+
+```zig
+var response = try engine.createStreamingResponse(prompt, config);
+defer response.deinit();
+
+// In another thread or from a signal handler
+response.cancel();
+
+// In the main loop, cancelled responses return null
+while (try response.next()) |event| {
+    // Process event...
+}
+// Loop exits when cancelled
+
+if (response.isCancelled()) {
+    std.debug.print("Generation was cancelled\n", .{});
+}
 ```
 
 ## Embeddings Sub-Feature

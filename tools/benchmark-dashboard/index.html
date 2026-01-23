@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABI Benchmark Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>ABI Benchmark Dashboard</h1>
+                <span class="version-badge" id="current-version">v0.0.0</span>
+            </div>
+            <div class="header-right">
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark/light mode">
+                    <span class="icon-sun">&#9728;</span>
+                    <span class="icon-moon">&#9790;</span>
+                </button>
+                <button class="btn btn-primary" id="export-btn">Export Data</button>
+            </div>
+        </header>
+
+        <nav class="dashboard-nav">
+            <div class="filter-group">
+                <label for="benchmark-type">Benchmark Type:</label>
+                <select id="benchmark-type">
+                    <option value="all">All Types</option>
+                    <option value="runtime">Runtime</option>
+                    <option value="memory">Memory</option>
+                    <option value="throughput">Throughput</option>
+                    <option value="gpu">GPU</option>
+                    <option value="database">Database</option>
+                    <option value="network">Network</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="version-filter">Version:</label>
+                <select id="version-filter">
+                    <option value="all">All Versions</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="date-range">Date Range:</label>
+                <select id="date-range">
+                    <option value="7">Last 7 days</option>
+                    <option value="30" selected>Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="all">All time</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="compare-versions">Compare Versions:</label>
+                <select id="compare-versions" multiple>
+                </select>
+            </div>
+        </nav>
+
+        <main class="dashboard-main">
+            <section class="stats-overview">
+                <div class="stat-card">
+                    <h3>Total Benchmarks</h3>
+                    <span class="stat-value" id="total-benchmarks">0</span>
+                </div>
+                <div class="stat-card">
+                    <h3>Avg Execution Time</h3>
+                    <span class="stat-value" id="avg-time">0 ms</span>
+                </div>
+                <div class="stat-card">
+                    <h3>Avg Memory Usage</h3>
+                    <span class="stat-value" id="avg-memory">0 MB</span>
+                </div>
+                <div class="stat-card">
+                    <h3>Avg Throughput</h3>
+                    <span class="stat-value" id="avg-throughput">0 ops/s</span>
+                </div>
+            </section>
+
+            <section class="charts-grid">
+                <div class="chart-container">
+                    <h2>Execution Time Trends</h2>
+                    <canvas id="time-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>Memory Usage Trends</h2>
+                    <canvas id="memory-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>Throughput Trends</h2>
+                    <canvas id="throughput-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>Version Comparison</h2>
+                    <canvas id="comparison-chart"></canvas>
+                </div>
+            </section>
+
+            <section class="benchmark-table-section">
+                <h2>Benchmark Results</h2>
+                <div class="table-controls">
+                    <input type="text" id="search-input" placeholder="Search benchmarks...">
+                    <button class="btn btn-secondary" id="refresh-btn">Refresh</button>
+                </div>
+                <div class="table-wrapper">
+                    <table class="benchmark-table" id="benchmark-table">
+                        <thead>
+                            <tr>
+                                <th data-sort="name">Name <span class="sort-indicator"></span></th>
+                                <th data-sort="type">Type <span class="sort-indicator"></span></th>
+                                <th data-sort="version">Version <span class="sort-indicator"></span></th>
+                                <th data-sort="date">Date <span class="sort-indicator"></span></th>
+                                <th data-sort="time">Time (ms) <span class="sort-indicator"></span></th>
+                                <th data-sort="memory">Memory (MB) <span class="sort-indicator"></span></th>
+                                <th data-sort="throughput">Throughput (ops/s) <span class="sort-indicator"></span></th>
+                                <th data-sort="status">Status <span class="sort-indicator"></span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="benchmark-tbody">
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination">
+                </div>
+            </section>
+
+            <section class="system-info-section">
+                <h2>System Information</h2>
+                <div class="system-info-grid" id="system-info">
+                </div>
+            </section>
+        </main>
+
+        <footer class="dashboard-footer">
+            <p>ABI Benchmark Dashboard - Generated at <span id="generated-time"></span></p>
+            <p>Data source: <code>data/benchmarks.json</code></p>
+        </footer>
+    </div>
+
+    <div class="modal" id="export-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Export Benchmark Data</h2>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="export-options">
+                    <label>
+                        <input type="radio" name="export-format" value="json" checked>
+                        JSON
+                    </label>
+                    <label>
+                        <input type="radio" name="export-format" value="csv">
+                        CSV
+                    </label>
+                    <label>
+                        <input type="radio" name="export-format" value="markdown">
+                        Markdown
+                    </label>
+                </div>
+                <div class="export-scope">
+                    <label>
+                        <input type="checkbox" id="export-filtered" checked>
+                        Export filtered data only
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-export">Cancel</button>
+                <button class="btn btn-primary" id="confirm-export">Export</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

@@ -30,23 +30,105 @@ This document presents a comprehensive analysis of hardware acceleration opportu
 
 ---
 
-## Table of Contents
+## Related Documents
 
-1. [Current Architecture Analysis](#1-current-architecture-analysis)
-2. [Compute-Intensive Workloads](#2-compute-intensive-workloads)
-3. [FPGA Acceleration Opportunities](#3-fpga-acceleration-opportunities)
-4. [ASIC Acceleration Opportunities](#4-asic-acceleration-opportunities)
-5. [Development Tools & Frameworks](#5-development-tools--frameworks)
-6. [Implementation Roadmap](#6-implementation-roadmap)
-7. [Performance Projections](#7-performance-projections)
-8. [Risk Analysis](#8-risk-analysis)
-9. [References & Resources](#9-references--resources)
+This document is part of the FPGA/ASIC research series:
+
+- **[FPGA Inference Acceleration](./fpga-inference-acceleration.md)** - Detailed FPGA design for LLM inference
+- **[Custom ASIC Considerations](./custom-asic-considerations.md)** - When and how to pursue ASIC development
+- **[Hybrid GPU-FPGA Architecture](./hybrid-gpu-fpga-architecture.md)** - Combined GPU and FPGA approaches
+- **[FPGA Backend README](../../src/gpu/backends/fpga/README.md)** - Implementation status and usage
 
 ---
 
-## 1. Current Architecture Analysis
+## Table of Contents
 
-### 1.1 GPU Backend Architecture
+1. [FPGA vs ASIC Trade-offs](#1-fpga-vs-asic-trade-offs)
+2. [Current Architecture Analysis](#2-current-architecture-analysis)
+3. [Compute-Intensive Workloads](#3-compute-intensive-workloads)
+4. [FPGA Acceleration Opportunities](#4-fpga-acceleration-opportunities)
+5. [ASIC Acceleration Opportunities](#5-asic-acceleration-opportunities)
+6. [Vendor Options](#6-vendor-options)
+7. [Development Tools & Frameworks](#7-development-tools--frameworks)
+8. [Implementation Roadmap](#8-implementation-roadmap)
+9. [Cost-Benefit Analysis](#9-cost-benefit-analysis)
+10. [Performance Projections](#10-performance-projections)
+11. [Timeline Considerations](#11-timeline-considerations)
+12. [Risk Analysis](#12-risk-analysis)
+13. [References & Resources](#13-references--resources)
+
+---
+
+## 1. FPGA vs ASIC Trade-offs
+
+### 1.1 Fundamental Differences
+
+| Aspect | FPGA | ASIC |
+|--------|------|------|
+| **Definition** | Reconfigurable logic fabric | Fixed-function silicon |
+| **NRE Cost** | $100K-$500K | $10M-$50M |
+| **Unit Cost (10K vol)** | $5,000-$15,000 | $50-$200 |
+| **Time to Market** | 6-12 months | 18-36 months |
+| **Performance** | 1-5x vs GPU | 10-50x vs GPU |
+| **Power Efficiency** | 5-10x vs GPU | 20-100x vs GPU |
+| **Flexibility** | Full reconfiguration | None post-silicon |
+| **Risk** | Low-Medium | High |
+
+### 1.2 Decision Matrix
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Hardware Selection Guide                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Volume < 10K units/year?                                        │
+│  ├── Yes → FPGA or GPU                                          │
+│  └── No ↓                                                        │
+│                                                                  │
+│  Workload stable for 3+ years?                                   │
+│  ├── No → FPGA (reconfigurable)                                 │
+│  └── Yes ↓                                                       │
+│                                                                  │
+│  Power budget < 25W?                                             │
+│  ├── No → GPU may suffice                                       │
+│  └── Yes ↓                                                       │
+│                                                                  │
+│  Latency < 1ms required?                                         │
+│  ├── No → FPGA                                                  │
+│  └── Yes → FPGA or ASIC depending on volume                     │
+│                                                                  │
+│  Budget > $15M NRE?                                              │
+│  ├── No → FPGA                                                  │
+│  └── Yes → Evaluate ASIC                                        │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 1.3 Use Case Alignment
+
+| Use Case | Best Choice | Rationale |
+|----------|-------------|-----------|
+| Prototype/R&D | FPGA | Low risk, rapid iteration |
+| Low volume (<1K/year) | FPGA | Unit economics favor FPGA |
+| Medium volume (1K-100K/year) | FPGA or Structured ASIC | Balance of cost and flexibility |
+| High volume (>100K/year) | Full Custom ASIC | NRE amortizes, unit cost dominates |
+| Edge deployment | FPGA initially, ASIC later | Validate design before committing |
+| Evolving algorithms | FPGA | Can update in field |
+| Fixed algorithms | ASIC | Maximum efficiency |
+
+### 1.4 ABI Framework Recommendation
+
+Given current stage and requirements:
+
+1. **Immediate (2026)**: FPGA development for validation
+2. **Near-term (2027)**: Production FPGA deployment
+3. **Long-term (2028+)**: ASIC evaluation if volume justifies
+
+---
+
+## 2. Current Architecture Analysis
+
+### 2.1 GPU Backend Architecture
 
 The ABI framework implements a sophisticated, layered GPU acceleration system:
 
@@ -77,7 +159,7 @@ The ABI framework implements a sophisticated, layered GPU acceleration system:
 - **Unified Buffer System:** Smart buffers with automatic CPU/GPU synchronization
 - **Execution Coordinator:** Adaptive fallback chain (GPU → SIMD → Scalar)
 
-### 1.2 Runtime Engine
+### 2.2 Runtime Engine
 
 The work-stealing task execution engine (`src/runtime/engine/`) provides:
 
@@ -97,7 +179,7 @@ pub const WorkloadHints = struct {
 3. **NUMA-Aware Execution:** CPU affinity and topology detection
 4. **Sharded Results Storage:** 16-shard map for reduced lock contention
 
-### 1.3 Current SIMD Optimizations
+### 2.3 Current SIMD Optimizations
 
 The database module (`src/shared/simd.zig`) implements vectorized operations:
 
@@ -110,9 +192,9 @@ The database module (`src/shared/simd.zig`) implements vectorized operations:
 
 ---
 
-## 2. Compute-Intensive Workloads
+## 3. Compute-Intensive Workloads
 
-### 2.1 LLM Inference Operations
+### 3.1 LLM Inference Operations
 
 **Per-Token Compute Requirements (LLaMA 7B):**
 
@@ -139,7 +221,7 @@ Q8_0: 8-bit signed quantization
 - `src/ai/implementation/llm/ops/matmul_quant.zig` - Quantized matmul
 - `src/ai/implementation/llm/tensor/quantized.zig` - Quantization formats
 
-### 2.2 Vector Database Operations
+### 3.2 Vector Database Operations
 
 **HNSW Search Complexity:**
 
@@ -162,7 +244,7 @@ Typical: 300 iterations × 10k vectors × 16 clusters × 768 dims
 - `src/database/clustering.zig` - K-means implementation
 - `src/database/gpu_accel.zig` - GPU acceleration interface
 
-### 2.3 Training Operations
+### 3.3 Training Operations
 
 **Backward Pass Requirements:**
 
@@ -175,9 +257,9 @@ Typical: 300 iterations × 10k vectors × 16 clusters × 768 dims
 
 ---
 
-## 3. FPGA Acceleration Opportunities
+## 4. FPGA Acceleration Opportunities
 
-### 3.1 Why FPGAs for ABI?
+### 4.1 Why FPGAs for ABI?
 
 **Advantages:**
 
@@ -193,7 +275,7 @@ Typical: 300 iterations × 10k vectors × 16 clusters × 768 dims
 - Falcon: FPGA graph vector search on AMD Alveo U250, achieves near-linear scaling
 - hls4ml: Open-source framework deploying neural networks on FPGAs
 
-### 3.2 Priority Acceleration Targets
+### 4.2 Priority Acceleration Targets
 
 #### Tier 1: Highest Impact
 
@@ -280,7 +362,7 @@ FPGA Design:
 Expected Speedup: 5-10×
 ```
 
-### 3.3 FPGA Backend Integration
+### 4.3 FPGA Backend Integration
 
 **Proposed Architecture:**
 
@@ -319,7 +401,7 @@ pub const FpgaVTable = gpu.interface.Backend.VTable{
 };
 ```
 
-### 3.4 Target FPGA Platforms
+### 4.4 Target FPGA Platforms
 
 | Platform | LUTs | DSPs | BRAM | HBM | Use Case |
 |----------|------|------|------|-----|----------|
@@ -330,9 +412,9 @@ pub const FpgaVTable = gpu.interface.Backend.VTable{
 
 ---
 
-## 4. ASIC Acceleration Opportunities
+## 5. ASIC Acceleration Opportunities
 
-### 4.1 When ASICs Make Sense
+### 5.1 When ASICs Make Sense
 
 **Criteria for ASIC Investment:**
 
@@ -341,7 +423,7 @@ pub const FpgaVTable = gpu.interface.Backend.VTable{
 3. **Power Critical:** Edge/mobile deployment constraints
 4. **Latency Critical:** Sub-microsecond response requirements
 
-### 4.2 ASIC Design Options
+### 5.2 ASIC Design Options
 
 #### Option A: Custom ASIC (Full Custom)
 
@@ -383,7 +465,7 @@ pub const FpgaVTable = gpu.interface.Backend.VTable{
 - Synopsys ARC NPU
 - CEVA NeuPro
 
-### 4.3 Proposed ASIC Architecture
+### 5.3 Proposed ASIC Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -425,9 +507,87 @@ pub const FpgaVTable = gpu.interface.Backend.VTable{
 
 ---
 
-## 5. Development Tools & Frameworks
+## 6. Vendor Options
 
-### 5.1 FPGA Development
+### 6.1 FPGA Vendors
+
+#### AMD/Xilinx (Recommended for ABI)
+
+| Product Line | Target Market | Key Devices | ABI Fit |
+|--------------|---------------|-------------|---------|
+| **Alveo** | Data center | U250, U280, U55C | Excellent - primary target |
+| **Versal** | AI/Edge | AI Core, AI Edge | Good - future edge deployment |
+| **Kintex** | Mid-range | UltraScale+ | Good - cost-sensitive deployments |
+| **Artix** | Cost-optimized | UltraScale+ | Limited - basic applications |
+
+**Strengths:**
+- Industry-leading HLS tools (Vitis)
+- Extensive AI ecosystem (Vitis AI)
+- Strong community and documentation
+- Best-in-class XRT runtime for Zig integration
+
+**Development Tools:**
+- Vitis HLS 2024.2+ (C/C++ to RTL)
+- Vitis AI (model quantization, deployment)
+- Vivado (RTL design, implementation)
+- XRT (Xilinx Runtime) - primary integration point
+
+#### Intel
+
+| Product Line | Target Market | Key Devices | ABI Fit |
+|--------------|---------------|-------------|---------|
+| **Agilex 7** | High-performance | F-Series, I-Series | Good - HBM2e option |
+| **Stratix 10** | Enterprise | GX, MX | Moderate - DDR4 only |
+| **Agilex 5** | Mid-range | E-Series | Good - cost-effective |
+
+**Strengths:**
+- oneAPI unified programming model
+- Strong enterprise relationships
+- HBM2e support in Agilex 7
+
+**Considerations:**
+- FPGA division transition (recently acquired by partners)
+- Smaller AI ecosystem vs AMD
+- oneAPI integration more complex than XRT
+
+#### Lattice (Edge Focus)
+
+| Product Line | Target Market | Key Devices | ABI Fit |
+|--------------|---------------|-------------|---------|
+| **Nexus** | Low-power AI | CrossLink-NX | Limited - very small |
+| **CertusPro** | General | NX | Limited |
+
+**Best for:** Ultra-low-power edge deployments (<1W)
+
+### 6.2 ASIC Partners
+
+| Partner | Specialization | NRE Range | Notable Projects |
+|---------|----------------|-----------|------------------|
+| **Broadcom** | Custom silicon | $15-50M | Google TPU |
+| **Marvell** | AI accelerators | $10-30M | Amazon Graviton |
+| **Synopsys** | DesignWare IP | $2-10M (IP) | AI subsystems |
+| **Cadence** | Tensilica DSP | $5-15M | Edge AI |
+| **Flex Logix** | eFPGA IP | $1-5M | Embedded reconfigurability |
+
+### 6.3 Vendor Selection Criteria
+
+| Criteria | Weight | AMD/Xilinx | Intel | Lattice |
+|----------|--------|------------|-------|---------|
+| Tool maturity | 25% | 9/10 | 7/10 | 6/10 |
+| AI ecosystem | 20% | 9/10 | 6/10 | 4/10 |
+| Price/performance | 20% | 8/10 | 7/10 | 7/10 |
+| Zig integration ease | 15% | 8/10 | 5/10 | 6/10 |
+| Long-term roadmap | 10% | 9/10 | 7/10 | 7/10 |
+| Community support | 10% | 8/10 | 6/10 | 5/10 |
+| **Weighted Score** | 100% | **8.5** | **6.4** | **5.6** |
+
+**Recommendation:** AMD/Xilinx Alveo U250 for initial development, with U55C (HBM) for high-bandwidth workloads.
+
+---
+
+## 7. Development Tools & Frameworks
+
+### 7.1 FPGA Development
 
 #### AMD Vitis HLS
 
@@ -495,7 +655,7 @@ q.submit([&](handler& h) {
 });
 ```
 
-### 5.2 ASIC Development
+### 7.2 ASIC Development
 
 | Stage | Tool | Vendor |
 |-------|------|--------|
@@ -518,7 +678,7 @@ make
 
 ---
 
-## 6. Implementation Roadmap
+## 8. Implementation Roadmap
 
 ### Phase 1: Foundation (Months 1-3)
 
@@ -574,9 +734,93 @@ make
 
 ---
 
-## 7. Performance Projections
+## 9. Cost-Benefit Analysis
 
-### 7.1 FPGA Performance Model
+### 9.1 FPGA Cost Model
+
+**Capital Costs (Initial Investment):**
+
+| Component | Cost | Notes |
+|-----------|------|-------|
+| Development board (U250) | $6,500 | One-time |
+| Vitis/Vivado license | $3,000/year | Required for development |
+| Engineering (6 months) | $150,000 | 2 FTEs at $150K/year |
+| Test infrastructure | $10,000 | Servers, equipment |
+| **Total Year 1** | **~$170,000** | |
+
+**Operating Costs (Per Node/Year):**
+
+| Component | GPU (A100) | FPGA (U250) | Savings |
+|-----------|------------|-------------|---------|
+| Hardware depreciation | $3,750 | $1,625 | 57% |
+| Power (8760 hrs @ $0.10/kWh) | $219 | $66 | 70% |
+| Cooling | $44 | $13 | 70% |
+| Maintenance | $500 | $300 | 40% |
+| **Total/Year** | **$4,513** | **$2,004** | **56%** |
+
+### 9.2 Break-Even Analysis
+
+**Scenario: 10 inference nodes**
+
+```
+GPU Path:
+  10 nodes × $15,000/A100 = $150,000 hardware
+  10 nodes × $4,513/year = $45,130/year operating
+
+FPGA Path:
+  10 nodes × $6,500/U250 = $65,000 hardware
+  Development: $170,000 (one-time)
+  10 nodes × $2,004/year = $20,040/year operating
+
+Year 1: GPU = $195,130, FPGA = $255,040 (FPGA worse)
+Year 2: GPU = $240,260, FPGA = $275,080 (FPGA worse)
+Year 3: GPU = $285,390, FPGA = $295,120 (approaching parity)
+Year 4: GPU = $330,520, FPGA = $315,160 (FPGA wins)
+Year 5: GPU = $375,650, FPGA = $335,200 (FPGA saves $40K)
+```
+
+**Break-even point: ~3.5 years at 10 nodes**
+
+### 9.3 ROI by Deployment Scale
+
+| Scale | Break-Even | 5-Year ROI | Recommendation |
+|-------|------------|------------|----------------|
+| 1-5 nodes | Never | Negative | Use GPU |
+| 6-10 nodes | 3-4 years | 10-20% | Consider FPGA |
+| 11-50 nodes | 2-3 years | 30-50% | FPGA recommended |
+| 50+ nodes | 1-2 years | 50-100% | FPGA strongly recommended |
+
+### 9.4 ASIC Cost Model
+
+**Development Investment:**
+
+| Item | Cost | Timeline |
+|------|------|----------|
+| Architecture & specification | $1M | 4 months |
+| RTL development | $4M | 8 months |
+| Verification | $3M | 6 months |
+| Physical design | $2M | 4 months |
+| Mask set (7nm) | $4M | - |
+| Packaging development | $500K | 2 months |
+| Silicon validation | $1M | 3 months |
+| **Total NRE** | **~$15.5M** | **18-24 months** |
+
+**Unit Economics:**
+
+| Volume/Year | Unit Cost | Amortized NRE | Total Unit |
+|-------------|-----------|---------------|------------|
+| 1,000 | $150 | $5,167 | $5,317 |
+| 10,000 | $80 | $517 | $597 |
+| 100,000 | $50 | $52 | $102 |
+| 1,000,000 | $30 | $5 | $35 |
+
+**ASIC only makes sense at >10K units/year over 3+ years.**
+
+---
+
+## 10. Performance Projections
+
+### 10.1 FPGA Performance Model
 
 **Assumptions:**
 - Platform: AMD Alveo U250 (12,288 DSPs, 64 GB DDR4)
@@ -593,7 +837,7 @@ make
 | K-Means Iteration (10k×768) | 85 ms | 2.1 ms | 40× |
 | LLM Token (7B params) | 180 ms | 15 ms | 12× |
 
-### 7.2 Power Efficiency
+### 10.2 Power Efficiency
 
 | Platform | LLM Inference (tokens/sec/W) | Vector Search (queries/sec/W) |
 |----------|------------------------------|-------------------------------|
@@ -602,7 +846,7 @@ make
 | FPGA (U250) | 12 | 15,000 |
 | ASIC (projected) | 50 | 50,000 |
 
-### 7.3 Cost Analysis
+### 10.3 Cost Analysis
 
 **FPGA Deployment (per node):**
 
@@ -620,7 +864,135 @@ make
 
 ---
 
-## 8. Risk Analysis
+## 11. Timeline Considerations
+
+### 11.1 FPGA Development Timeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    FPGA Development Timeline (12 months)                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Month 1-2: Foundation                                                       │
+│  ├── Environment setup (Vitis, XRT)                                         │
+│  ├── Backend interface design                                                │
+│  ├── Memory management implementation                                        │
+│  └── First "hello world" kernel                                             │
+│                                                                              │
+│  Month 3-4: Core Kernel Development                                          │
+│  ├── Vector distance HLS kernel                                             │
+│  ├── Initial optimization (pipelining, unrolling)                           │
+│  └── CPU vs FPGA benchmark validation                                       │
+│                                                                              │
+│  Month 5-6: Quantized Operations                                             │
+│  ├── Q4_0 dequantization pipeline                                           │
+│  ├── Quantized matrix multiplication                                         │
+│  └── Performance tuning                                                      │
+│                                                                              │
+│  Month 7-8: Integration                                                      │
+│  ├── Integration with ABI GPU interface                                     │
+│  ├── Automatic dispatch (GPU vs FPGA)                                       │
+│  └── Error handling and fallback                                            │
+│                                                                              │
+│  Month 9-10: LLM Operations                                                  │
+│  ├── Attention softmax kernel                                               │
+│  ├── KV-cache management                                                    │
+│  └── End-to-end inference test                                              │
+│                                                                              │
+│  Month 11-12: Production Hardening                                           │
+│  ├── Multi-device support                                                   │
+│  ├── Documentation and examples                                             │
+│  └── Performance benchmarks and tuning guide                                │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 11.2 ASIC Development Timeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    ASIC Development Timeline (24 months)                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Month 1-4: Specification                                                    │
+│  ├── Architecture definition                                                │
+│  ├── IP selection and licensing                                             │
+│  ├── Power/area budgeting                                                   │
+│  └── Design partner selection                                               │
+│                                                                              │
+│  Month 5-12: RTL Development                                                 │
+│  ├── RTL implementation                                                     │
+│  ├── Unit-level verification                                                │
+│  ├── FPGA emulation                                                         │
+│  └── System-level verification                                              │
+│                                                                              │
+│  Month 13-16: Physical Design                                                │
+│  ├── Synthesis                                                              │
+│  ├── Floor planning                                                         │
+│  ├── Place and route                                                        │
+│  └── Timing closure                                                         │
+│                                                                              │
+│  Month 17-18: Signoff                                                        │
+│  ├── DRC/LVS                                                                │
+│  ├── Timing signoff                                                         │
+│  ├── Power analysis                                                         │
+│  └── Tape-out                                                               │
+│                                                                              │
+│  Month 19-24: Silicon                                                        │
+│  ├── Fabrication (2-3 months)                                               │
+│  ├── Packaging (1 month)                                                    │
+│  └── Silicon validation (2-3 months)                                        │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 11.3 Critical Path Items
+
+| Phase | Critical Dependencies | Risk Mitigation |
+|-------|----------------------|-----------------|
+| FPGA Foundation | XRT/Vitis compatibility with Zig | Early integration testing |
+| HLS Kernels | Algorithm stability | Freeze algorithm before HLS |
+| Integration | GPU interface compatibility | Parallel development |
+| ASIC Spec | Volume projections | Conservative estimates |
+| RTL Development | IP availability | Early IP engagement |
+| Physical Design | Timing closure | 10% margin in spec |
+| Silicon | Yield | Multi-die strategy |
+
+### 11.4 Decision Gates
+
+| Gate | Timing | Criteria | Go/No-Go Decision |
+|------|--------|----------|-------------------|
+| G1 | Month 3 | First kernel validated | Continue FPGA development |
+| G2 | Month 6 | 5x speedup achieved | Expand kernel coverage |
+| G3 | Month 12 | Production-ready backend | Deploy to customers |
+| G4 | Month 18 | 10K+ unit demand validated | Initiate ASIC evaluation |
+| G5 | Month 24 | ASIC business case approved | Begin ASIC development |
+
+### 11.5 Resource Requirements
+
+**FPGA Development Team:**
+
+| Role | Headcount | Duration | Total Person-Months |
+|------|-----------|----------|---------------------|
+| FPGA/HLS Engineer | 2 | 12 months | 24 |
+| Backend Integration | 1 | 6 months | 6 |
+| Test/Validation | 1 | 6 months | 6 |
+| **Total** | **4** | | **36 person-months** |
+
+**ASIC Development Team (if pursued):**
+
+| Role | Headcount | Duration | Total Person-Months |
+|------|-----------|----------|---------------------|
+| Architect | 2 | 24 months | 48 |
+| RTL Designer | 6 | 18 months | 108 |
+| Verification | 4 | 18 months | 72 |
+| Physical Design | 3 | 12 months | 36 |
+| Firmware/SW | 2 | 12 months | 24 |
+| **Total** | **17** | | **288 person-months** |
+
+---
+
+## 12. Risk Analysis
 
 ### Technical Risks
 
@@ -642,7 +1014,7 @@ make
 
 ---
 
-## 9. References & Resources
+## 13. References & Resources
 
 ### Industry Research
 

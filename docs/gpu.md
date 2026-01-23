@@ -306,6 +306,7 @@ ABI supports 8 GPU backends with comprehensive implementations:
 | **std.gpu** | Zig stdlib | CPU fallback, portable | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | **OpenCL** | Cross-platform | Legacy compute support | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | **WebGL2** | Browser | Rendering only (no compute) | ![Limited](https://img.shields.io/badge/-Limited-yellow) |
+| **FPGA** | Data center/Edge | AMD/Xilinx, Intel FPGAs | ![Development](https://img.shields.io/badge/-Development-orange) |
 
 ### Backend Details
 
@@ -348,6 +349,65 @@ ABI supports 8 GPU backends with comprehensive implementations:
 - **Features**: Automatic CPU fallback, SIMD acceleration
 - **Best for**: Development, testing, CPU-only environments
 </details>
+
+<details>
+<summary><strong>FPGA (AMD/Xilinx, Intel)</strong></summary>
+
+- **Platform**: Data center (Alveo), Edge (Versal)
+- **Features**: Quantized matmul, vector search, deterministic latency
+- **Best for**: Power-efficient inference, real-time systems
+- **Status**: Development phase
+- **Documentation**: See [FPGA Backend README](../src/gpu/backends/fpga/README.md)
+</details>
+
+## FPGA Backend Roadmap
+
+The FPGA backend is under active development, targeting hardware acceleration for specific workloads where FPGAs excel.
+
+### Current Status
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| Backend Interface | Complete | VTable implementation for GPU interface |
+| Memory Management | Complete | DDR/HBM allocation and transfer |
+| Bitstream Loading | Complete | AMD/Xilinx XRT integration (stub) |
+| Vector Distance | Implemented | Cosine, L2, dot product |
+| Quantized MatMul | Implemented | Q4, Q8 matrix operations |
+| K-means | Implemented | Centroid assignment |
+| Softmax | Implemented | Streaming implementation |
+
+### Development Phases
+
+**Phase 1: Foundation (Q1 2026)** - Complete
+- Backend structure and interface
+- Memory management
+- CPU simulation for testing
+
+**Phase 2: Core Kernels (Q2-Q3 2026)** - In Progress
+- HLS kernel development (Vitis)
+- Optimized vector operations
+- LLM inference primitives
+
+**Phase 3: Production (Q4 2026)**
+- Intel oneAPI support
+- Multi-FPGA scaling
+- Performance validation
+
+### Target Use Cases
+
+| Use Case | FPGA Advantage | Status |
+|----------|----------------|--------|
+| Vector similarity search | 10-50x speedup, low latency | Development |
+| Quantized LLM inference | Native Q4/Q8, power efficient | Planned |
+| Real-time RAG | Deterministic <1ms latency | Planned |
+| Edge deployment | <25W power budget | Planned |
+
+### Related Documentation
+
+- [FPGA/ASIC Research Overview](research/hardware-acceleration-fpga-asic.md)
+- [FPGA for LLM Inference](research/fpga-inference-acceleration.md)
+- [Custom ASIC Considerations](research/custom-asic-considerations.md)
+- [Hybrid GPU-FPGA Architecture](research/hybrid-gpu-fpga-architecture.md)
 
 ## Memory Management
 

@@ -25,10 +25,14 @@ pub const StreamingGenerator = streaming.StreamingGenerator;
 pub const StreamingState = streaming.StreamingState;
 pub const StreamingStats = streaming.StreamingStats;
 pub const StreamingCallbacks = streaming.StreamingCallbacks;
+pub const StreamingConfig = streaming.StreamingConfig;
+pub const StreamingError = streaming.StreamingError;
+pub const StreamingResponse = streaming.StreamingResponse;
 pub const TokenEvent = streaming.TokenEvent;
 pub const SSEFormatter = streaming.SSEFormatter;
 pub const streamToStdout = streaming.streamToStdout;
 pub const printCompletionStats = streaming.printCompletionStats;
+pub const collectStreamingResponse = streaming.collectStreamingResponse;
 
 test "generation module imports" {
     _ = sampler;

@@ -1,27 +1,63 @@
 //! Unified Configuration System
 //!
-//! Single source of truth for all ABI framework configuration.
-//! Supports both struct literal and builder pattern APIs.
+//! This module provides a single source of truth for all ABI framework configuration.
+//! It supports both struct literal initialization and a fluent builder pattern API.
 //!
-//! ## Usage
+//! ## Overview
+//!
+//! The configuration system is designed around the principle that each feature can be
+//! independently enabled or disabled. A `null` value for any feature config means that
+//! feature is disabled; a non-null value enables it with the specified settings.
+//!
+//! ## Configuration Styles
+//!
+//! ### 1. Minimal (Everything Auto-detected)
 //!
 //! ```zig
-//! // Minimal - everything auto-detected with defaults
-//! var fw = try abi.init(allocator);
+//! var fw = try abi.initDefault(allocator);
+//! defer fw.deinit();
+//! ```
 //!
-//! // Struct literal style
+//! ### 2. Struct Literal Style
+//!
+//! ```zig
 //! var fw = try abi.init(allocator, .{
 //!     .gpu = .{ .backend = .vulkan },
 //!     .ai = .{ .llm = .{} },
+//!     .database = null,  // Explicitly disabled
 //! });
+//! defer fw.deinit();
+//! ```
 //!
-//! // Builder style
-//! var fw = try abi.Framework.builder(allocator)
+//! ### 3. Builder Pattern Style
+//!
+//! ```zig
+//! var builder = abi.config.Builder.init(allocator);
+//! const config = builder
 //!     .withGpu(.{ .backend = .cuda })
 //!     .withAi(.{ .llm = .{ .model_path = "./models/llama.gguf" } })
-//!     .withDatabase(.{ .path = "./data" })
+//!     .withDatabaseDefaults()
 //!     .build();
+//!
+//! var fw = try abi.Framework.init(allocator, config);
+//! defer fw.deinit();
 //! ```
+//!
+//! ## Feature Configuration Types
+//!
+//! - `GpuConfig` - GPU backend selection and memory limits
+//! - `AiConfig` - AI sub-features (LLM, embeddings, agents, training, personas)
+//! - `DatabaseConfig` - Vector database path and index settings
+//! - `NetworkConfig` - Distributed compute and Raft settings
+//! - `ObservabilityConfig` - Metrics, tracing, and profiling
+//! - `WebConfig` - HTTP server and client settings
+//! - `PluginConfig` - Plugin discovery and loading
+//!
+//! ## Compile-Time vs Runtime Configuration
+//!
+//! Some features can be disabled at compile time using build flags (e.g., `-Denable-gpu=false`).
+//! If a feature is disabled at compile time, attempting to enable it at runtime via
+//! configuration will result in a `ConfigError.FeatureDisabled` error.
 
 const std = @import("std");
 const build_options = @import("build_options");
@@ -42,6 +78,7 @@ const database_mod = @import("config/database.zig");
 const network_mod = @import("config/network.zig");
 const observability_mod = @import("config/observability.zig");
 const web_mod = @import("config/web.zig");
+const cloud_mod = @import("config/cloud.zig");
 const plugins_mod = @import("config/plugins.zig");
 
 // GPU configuration types
@@ -69,35 +106,96 @@ pub const ObservabilityConfig = observability_mod.ObservabilityConfig;
 // Web configuration types
 pub const WebConfig = web_mod.WebConfig;
 
+// Cloud configuration types
+pub const CloudConfig = cloud_mod.CloudConfig;
+pub const CloudProvider = cloud_mod.CloudProvider;
+
 // Plugin configuration types
 pub const PluginConfig = plugins_mod.PluginConfig;
 
 /// Unified configuration for the ABI framework.
-/// Each field being non-null enables that feature with the specified settings.
-/// A null field means the feature is disabled.
+///
+/// This struct holds configuration for all framework features. Each field being non-null
+/// enables that feature with the specified settings; a null field means the feature is
+/// disabled.
+///
+/// ## Thread Safety
+///
+/// Configuration is immutable once created. It can be safely shared across threads
+/// after initialization.
+///
+/// ## Example
+///
+/// ```zig
+/// // Create with struct literal
+/// const config = Config{
+///     .gpu = .{ .backend = .vulkan },
+///     .ai = .{
+///         .llm = .{ .model_path = "./model.gguf" },
+///         .embeddings = .{ .dimension = 768 },
+///     },
+///     .database = .{ .path = "./vectors.db" },
+/// };
+///
+/// // Or use defaults
+/// const config = Config.defaults();
+/// ```
 pub const Config = struct {
-    /// GPU acceleration settings. Set to enable GPU features.
+    /// GPU acceleration settings.
+    ///
+    /// Set to a `GpuConfig` to enable GPU features, or leave as `null` to disable.
+    /// When enabled, the framework will initialize the specified GPU backend.
     gpu: ?GpuConfig = null,
 
     /// AI settings with independent sub-features.
+    ///
+    /// The AI module has multiple sub-features (LLM, embeddings, agents, training, personas)
+    /// that can be independently enabled within this config.
     ai: ?AiConfig = null,
 
     /// Vector database settings.
+    ///
+    /// Enables the WDBX vector database with HNSW/IVF-PQ indexing for similarity search.
     database: ?DatabaseConfig = null,
 
     /// Distributed network settings.
+    ///
+    /// Enables distributed compute capabilities including Raft consensus and task distribution.
     network: ?NetworkConfig = null,
 
     /// Observability and monitoring settings.
+    ///
+    /// Enables metrics collection, distributed tracing, and performance profiling.
     observability: ?ObservabilityConfig = null,
 
     /// Web/HTTP utilities settings.
+    ///
+    /// Enables HTTP server/client utilities and web-related functionality.
     web: ?WebConfig = null,
 
+    /// Cloud function adapters settings.
+    ///
+    /// Enables cloud function adapters for AWS Lambda, GCP Functions, and Azure Functions.
+    cloud: ?CloudConfig = null,
+
     /// Plugin configuration.
+    ///
+    /// Controls plugin discovery and loading. Unlike other features, this is always
+    /// available (not optional) but can be configured to enable/disable plugin loading.
     plugins: PluginConfig = .{},
 
     /// Returns a config with all compile-time enabled features activated with defaults.
+    ///
+    /// This creates a configuration where every feature that was enabled at compile time
+    /// is also enabled at runtime with default settings. Features disabled at compile time
+    /// will have `null` configurations.
+    ///
+    /// ## Example
+    ///
+    /// ```zig
+    /// const config = Config.defaults();
+    /// // All compile-time enabled features are now runtime enabled
+    /// ```
     pub fn defaults() Config {
         return .{
             .gpu = if (build_options.enable_gpu) GpuConfig.defaults() else null,
@@ -106,16 +204,48 @@ pub const Config = struct {
             .network = if (build_options.enable_network) NetworkConfig.defaults() else null,
             .observability = if (build_options.enable_profiling) ObservabilityConfig.defaults() else null,
             .web = if (build_options.enable_web) WebConfig.defaults() else null,
+            .cloud = if (build_options.enable_web) CloudConfig.defaults() else null,
             .plugins = .{},
         };
     }
 
     /// Returns a minimal config with no features enabled.
+    ///
+    /// This creates a configuration where all optional features are disabled (set to `null`).
+    /// Useful for testing or when you want to enable features one at a time.
+    ///
+    /// ## Example
+    ///
+    /// ```zig
+    /// var config = Config.minimal();
+    /// config.gpu = .{ .backend = .vulkan };  // Enable only GPU
+    /// ```
     pub fn minimal() Config {
         return .{};
     }
 
-    /// Check if a feature is enabled in this config.
+    /// Check if a feature is enabled in this configuration.
+    ///
+    /// ## Parameters
+    ///
+    /// - `feature`: The feature to check
+    ///
+    /// ## Returns
+    ///
+    /// `true` if the feature is enabled, `false` otherwise.
+    ///
+    /// ## Example
+    ///
+    /// ```zig
+    /// const config = Config{
+    ///     .gpu = .{ .backend = .vulkan },
+    ///     .ai = null,
+    /// };
+    /// std.debug.print("GPU: {}, AI: {}\n", .{
+    ///     config.isEnabled(.gpu),   // true
+    ///     config.isEnabled(.ai),    // false
+    /// });
+    /// ```
     pub fn isEnabled(self: Config, feature: Feature) bool {
         return switch (feature) {
             .gpu => self.gpu != null,
@@ -129,10 +259,34 @@ pub const Config = struct {
             .network => self.network != null,
             .observability => self.observability != null,
             .web => self.web != null,
+            .cloud => self.cloud != null,
         };
     }
 
-    /// Get list of enabled features.
+    /// Get a list of all enabled features.
+    ///
+    /// Allocates and returns a slice containing all features that are currently enabled
+    /// in this configuration. The caller owns the returned slice and must free it.
+    ///
+    /// ## Parameters
+    ///
+    /// - `allocator`: Allocator for the returned slice
+    ///
+    /// ## Returns
+    ///
+    /// A slice of `Feature` values representing all enabled features.
+    ///
+    /// ## Example
+    ///
+    /// ```zig
+    /// const config = Config.defaults();
+    /// const features = try config.enabledFeatures(allocator);
+    /// defer allocator.free(features);
+    ///
+    /// for (features) |feature| {
+    ///     std.debug.print("Enabled: {s}\n", .{feature.name()});
+    /// }
+    /// ```
     pub fn enabledFeatures(self: Config, allocator: std.mem.Allocator) ![]Feature {
         var list = std.ArrayListUnmanaged(Feature){};
         errdefer list.deinit(allocator);
@@ -149,23 +303,66 @@ pub const Config = struct {
 };
 
 /// Feature identifiers for the framework.
+///
+/// This enum represents all available features in the ABI framework. Features can be
+/// checked at both compile time (via build options) and runtime (via configuration).
+///
+/// ## Hierarchy
+///
+/// Some features are sub-features of others:
+/// - `ai` is the parent of `llm`, `embeddings`, `agents`, `training`, `personas`
+///
+/// Enabling a parent feature doesn't automatically enable sub-features; each must be
+/// configured independently.
+///
+/// ## Example
+///
+/// ```zig
+/// const feature = Feature.gpu;
+/// std.debug.print("Feature: {s}\n", .{feature.name()});
+/// std.debug.print("Description: {s}\n", .{feature.description()});
+/// std.debug.print("Compile-time enabled: {}\n", .{feature.isCompileTimeEnabled()});
+/// ```
 pub const Feature = enum {
+    /// GPU acceleration and compute
     gpu,
+    /// AI core functionality (parent of llm, embeddings, agents, training, personas)
     ai,
+    /// Local LLM inference
     llm,
+    /// Vector embeddings generation
     embeddings,
+    /// AI agent runtime
     agents,
+    /// Model training pipelines
     training,
+    /// Multi-persona AI assistant
     personas,
+    /// Vector database (WDBX)
     database,
+    /// Distributed compute network
     network,
+    /// Metrics, tracing, and profiling
     observability,
+    /// Web/HTTP utilities
     web,
+    /// Cloud function adapters
+    cloud,
 
+    /// Get the feature name as a string.
+    ///
+    /// ## Returns
+    ///
+    /// The lowercase name of the feature (e.g., "gpu", "ai", "database").
     pub fn name(self: Feature) []const u8 {
         return @tagName(self);
     }
 
+    /// Get a human-readable description of the feature.
+    ///
+    /// ## Returns
+    ///
+    /// A brief description of what the feature provides.
     pub fn description(self: Feature) []const u8 {
         return switch (self) {
             .gpu => "GPU acceleration and compute",
@@ -179,10 +376,28 @@ pub const Feature = enum {
             .network => "Distributed compute network",
             .observability => "Metrics, tracing, profiling",
             .web => "Web/HTTP utilities",
+            .cloud => "Cloud function adapters",
         };
     }
 
     /// Check if this feature is available at compile time.
+    ///
+    /// This checks the build options to determine if the feature was enabled during
+    /// compilation. Even if enabled at compile time, the feature may still be disabled
+    /// at runtime via configuration.
+    ///
+    /// ## Returns
+    ///
+    /// `true` if the feature was enabled at compile time, `false` otherwise.
+    ///
+    /// ## Example
+    ///
+    /// ```zig
+    /// if (Feature.gpu.isCompileTimeEnabled()) {
+    ///     // GPU code is compiled in, safe to configure
+    ///     config.gpu = .{ .backend = .vulkan };
+    /// }
+    /// ```
     pub fn isCompileTimeEnabled(self: Feature) bool {
         return switch (self) {
             .gpu => build_options.enable_gpu,
@@ -190,7 +405,7 @@ pub const Feature = enum {
             .database => build_options.enable_database,
             .network => build_options.enable_network,
             .observability => build_options.enable_profiling,
-            .web => build_options.enable_web,
+            .web, .cloud => build_options.enable_web,
         };
     }
 };
@@ -200,10 +415,43 @@ pub const Feature = enum {
 // ============================================================================
 
 /// Fluent builder for constructing Config instances.
+///
+/// The Builder provides a chainable API for constructing framework configuration.
+/// Each method returns a pointer to the builder, allowing method chaining.
+///
+/// ## Example
+///
+/// ```zig
+/// var builder = Builder.init(allocator);
+/// const config = builder
+///     .withGpu(.{ .backend = .cuda })
+///     .withAi(.{ .llm = .{ .model_path = "./model.gguf" } })
+///     .withDatabaseDefaults()
+///     .build();
+///
+/// var fw = try Framework.init(allocator, config);
+/// defer fw.deinit();
+/// ```
+///
+/// ## Note
+///
+/// The builder stores a copy of the allocator but doesn't allocate memory itself.
+/// All configuration is stored inline in the Config struct.
 pub const Builder = struct {
+    /// Allocator provided during initialization (stored for potential future use).
     allocator: std.mem.Allocator,
+    /// The configuration being built.
     config: Config,
 
+    /// Initialize a new builder with an empty configuration.
+    ///
+    /// ## Parameters
+    ///
+    /// - `allocator`: Memory allocator (stored for potential future use)
+    ///
+    /// ## Returns
+    ///
+    /// A new Builder instance with all features disabled.
     pub fn init(allocator: std.mem.Allocator) Builder {
         return .{
             .allocator = allocator,
@@ -307,6 +555,18 @@ pub const Builder = struct {
         return self;
     }
 
+    /// Enable cloud with specified configuration.
+    pub fn withCloud(self: *Builder, cloud_config: CloudConfig) *Builder {
+        self.config.cloud = cloud_config;
+        return self;
+    }
+
+    /// Enable cloud with default configuration.
+    pub fn withCloudDefaults(self: *Builder) *Builder {
+        self.config.cloud = CloudConfig.defaults();
+        return self;
+    }
+
     /// Configure plugins.
     pub fn withPlugins(self: *Builder, plugin_config: PluginConfig) *Builder {
         self.config.plugins = plugin_config;
@@ -370,6 +630,11 @@ pub fn validate(config: Config) ConfigError!void {
 
     // Check observability config
     if (config.observability != null and !build_options.enable_profiling) {
+        return ConfigError.FeatureDisabled;
+    }
+
+    // Check cloud config (depends on web being enabled)
+    if (config.cloud != null and !build_options.enable_web) {
         return ConfigError.FeatureDisabled;
     }
 }

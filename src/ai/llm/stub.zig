@@ -49,6 +49,144 @@ pub const PipelineParallelConfig = struct {};
 pub const ParallelConfig = struct {};
 pub const ParallelCoordinator = struct {};
 
+// Streaming stub types
+pub const StreamingError = error{
+    OutOfMemory,
+    WeightsNotLoaded,
+    TokenizerNotLoaded,
+    InvalidToken,
+    ContextOverflow,
+    InvalidState,
+    Cancelled,
+    BufferOverflow,
+    AlreadyStreaming,
+    TimerFailed,
+    LlmDisabled,
+};
+
+pub const StreamingState = enum {
+    idle,
+    prefilling,
+    generating,
+    completed,
+    cancelled,
+    errored,
+};
+
+pub const TokenEvent = struct {
+    token_id: u32 = 0,
+    text: ?[]const u8 = null,
+    position: u32 = 0,
+    is_final: bool = false,
+    timestamp_ns: u64 = 0,
+};
+
+pub const StreamingStats = struct {
+    tokens_generated: u32 = 0,
+    prefill_time_ns: u64 = 0,
+    generation_time_ns: u64 = 0,
+    time_to_first_token_ns: u64 = 0,
+    prompt_tokens: u32 = 0,
+
+    pub fn tokensPerSecond(_: StreamingStats) f64 {
+        return 0;
+    }
+
+    pub fn timeToFirstTokenMs(_: StreamingStats) f64 {
+        return 0;
+    }
+};
+
+pub const StreamingCallbacks = struct {
+    on_token: ?*const fn (TokenEvent) void = null,
+    on_complete: ?*const fn (StreamingStats) void = null,
+    on_error: ?*const fn (StreamingError) void = null,
+    user_data: ?*anyopaque = null,
+};
+
+pub const StreamingConfig = struct {
+    max_tokens: u32 = 256,
+    temperature: f32 = 0.7,
+    top_k: u32 = 40,
+    top_p: f32 = 0.9,
+    repetition_penalty: f32 = 1.1,
+    seed: u64 = 0,
+    stop_tokens: []const u32 = &[_]u32{2},
+    initial_buffer_capacity: u32 = 256,
+    max_buffer_size: u32 = 0,
+    decode_tokens: bool = true,
+    min_token_delay_ns: u64 = 0,
+    generation_timeout_ns: u64 = 0,
+    on_token: ?*const fn (TokenEvent) void = null,
+    on_complete: ?*const fn (StreamingStats) void = null,
+    on_error: ?*const fn (StreamingError) void = null,
+};
+
+pub const StreamingGenerator = struct {
+    pub fn init(_: std.mem.Allocator, _: anytype) StreamingGenerator {
+        return .{};
+    }
+    pub fn deinit(_: *StreamingGenerator) void {}
+    pub fn setCallbacks(_: *StreamingGenerator, _: StreamingCallbacks) void {}
+    pub fn cancel(_: *StreamingGenerator) void {}
+    pub fn isCancelled(_: *StreamingGenerator) bool {
+        return false;
+    }
+    pub fn getTokens(_: *const StreamingGenerator) []const u32 {
+        return &[_]u32{};
+    }
+    pub fn getState(_: *const StreamingGenerator) StreamingState {
+        return .idle;
+    }
+    pub fn getStats(_: *const StreamingGenerator) StreamingStats {
+        return .{};
+    }
+    pub fn reset(_: *StreamingGenerator) void {}
+};
+
+pub const StreamingResponse = struct {
+    pub fn init(_: std.mem.Allocator, _: anytype, _: []const u32, _: StreamingConfig, _: anytype) StreamingError!StreamingResponse {
+        return error.LlmDisabled;
+    }
+    pub fn deinit(_: *StreamingResponse) void {}
+    pub fn next(_: *StreamingResponse) StreamingError!?TokenEvent {
+        return error.LlmDisabled;
+    }
+    pub fn cancel(_: *StreamingResponse) void {}
+    pub fn isCancelled(_: *StreamingResponse) bool {
+        return false;
+    }
+    pub fn getState(_: *const StreamingResponse) StreamingState {
+        return .idle;
+    }
+    pub fn getStats(_: *const StreamingResponse) StreamingStats {
+        return .{};
+    }
+    pub fn getTokens(_: *const StreamingResponse) []const u32 {
+        return &[_]u32{};
+    }
+    pub fn getText(_: *StreamingResponse) StreamingError!?[]u8 {
+        return error.LlmDisabled;
+    }
+    pub fn reset(_: *StreamingResponse, _: []const u32) void {}
+};
+
+pub const SSEFormatter = struct {
+    pub fn formatTokenEvent(_: std.mem.Allocator, _: TokenEvent) LlmError![]u8 {
+        return error.LlmDisabled;
+    }
+    pub fn formatCompletionEvent(_: std.mem.Allocator, _: StreamingStats) LlmError![]u8 {
+        return error.LlmDisabled;
+    }
+    pub fn formatErrorEvent(_: std.mem.Allocator, _: StreamingError) LlmError![]u8 {
+        return error.LlmDisabled;
+    }
+};
+
+pub fn collectStreamingResponse(_: std.mem.Allocator, _: *StreamingResponse) LlmError!struct { text: ?[]u8, stats: StreamingStats } {
+    return error.LlmDisabled;
+}
+
 pub const InferenceConfig = struct {
     max_context_length: u32 = 2048,
     max_new_tokens: u32 = 256,
@@ -100,6 +238,14 @@ pub const Engine = struct {
         return error.LlmDisabled;
     }
 
+    pub fn createStreamingResponse(_: *Engine, _: []const u8, _: StreamingConfig) LlmError!StreamingResponse {
+        return error.LlmDisabled;
+    }
+
+    pub fn generateStreamingWithConfig(_: *Engine, _: []const u8, _: StreamingConfig) LlmError!StreamingStats {
+        return error.LlmDisabled;
+    }
+
     pub fn tokenize(_: *Engine, _: std.mem.Allocator, _: []const u8) LlmError![]u32 {
         return error.LlmDisabled;
     }
@@ -144,6 +290,16 @@ pub const generation = struct {
     pub const Generator = stub_root.Generator;
     pub const Sampler = stub_root.Sampler;
     pub const SamplerConfig = stub_root.SamplerConfig;
+    pub const StreamingGenerator = stub_root.StreamingGenerator;
+    pub const StreamingResponse = stub_root.StreamingResponse;
+    pub const StreamingConfig = stub_root.StreamingConfig;
+    pub const StreamingState = stub_root.StreamingState;
+    pub const StreamingStats = stub_root.StreamingStats;
+    pub const StreamingCallbacks = stub_root.StreamingCallbacks;
+    pub const StreamingError = stub_root.StreamingError;
+    pub const TokenEvent = stub_root.TokenEvent;
+    pub const SSEFormatter = stub_root.SSEFormatter;
+    pub const collectStreamingResponse = stub_root.collectStreamingResponse;
 };
 
 pub const cache = struct {

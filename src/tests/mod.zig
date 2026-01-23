@@ -40,6 +40,12 @@ comptime {
     _ = @import("ha_test.zig");
     // Stub parity verification tests
     _ = @import("stub_parity.zig");
+
+    // End-to-end integration tests (issue #397)
+    _ = @import("e2e_llm_test.zig");
+    _ = @import("e2e_database_test.zig");
+    _ = @import("e2e_personas_test.zig");
+    _ = @import("error_handling_test.zig");
 }
 
 // Connector tests
@@ -60,6 +66,12 @@ pub const os_test = @import("os_test.zig");
 
 // LLM reference vectors for llama-cpp compatibility testing
 pub const llm_reference_vectors = if (build_options.enable_llm) @import("llm_reference_vectors.zig") else struct {};
+
+// End-to-end integration tests (issue #397)
+pub const e2e_llm_test = @import("e2e_llm_test.zig");
+pub const e2e_database_test = @import("e2e_database_test.zig");
+pub const e2e_personas_test = @import("e2e_personas_test.zig");
+pub const error_handling_test = @import("error_handling_test.zig");
 
 pub const Generator = proptest.Generator;
 pub const Generators = proptest.Generators;

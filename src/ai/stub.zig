@@ -24,6 +24,7 @@ pub const embeddings = @import("embeddings/stub.zig");
 pub const agents = @import("agents/stub.zig");
 pub const training = @import("training/stub.zig");
 pub const vision = @import("vision/stub.zig");
+pub const orchestration = @import("orchestration/stub.zig");
 
 // Agent module stub (singular - for backward compatibility)
 pub const agent = struct {
@@ -523,6 +524,21 @@ pub const federated = struct {};
 pub const rag = struct {};
 pub const templates = struct {};
 pub const eval = struct {};
+
+// Orchestration - Multi-model coordination (stub re-exports)
+pub const Orchestrator = orchestration.Orchestrator;
+pub const OrchestrationConfig = orchestration.OrchestrationConfig;
+pub const OrchestrationError = orchestration.OrchestrationError;
+pub const RoutingStrategy = orchestration.RoutingStrategy;
+pub const TaskType = orchestration.TaskType;
+pub const RouteResult = orchestration.RouteResult;
+pub const EnsembleMethod = orchestration.EnsembleMethod;
+pub const EnsembleResult = orchestration.EnsembleResult;
+pub const FallbackPolicy = orchestration.FallbackPolicy;
+pub const HealthStatus = orchestration.HealthStatus;
+pub const ModelBackend = orchestration.ModelBackend;
+pub const ModelCapability = orchestration.Capability;
+pub const OrchestrationModelConfig = orchestration.ModelConfig;
 
 pub const Context = struct {
     pub const SubFeature = enum { llm, embeddings, agents, training };

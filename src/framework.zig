@@ -1,29 +1,76 @@
 //! Framework Orchestration Layer
 //!
-//! Manages the lifecycle of the ABI framework, coordinating feature
-//! initialization, configuration, and runtime state.
+//! This module provides the central orchestration for the ABI framework, managing
+//! the lifecycle of all feature modules, coordinating initialization and shutdown,
+//! and maintaining runtime state.
 //!
-//! ## Usage
+//! ## Overview
+//!
+//! The `Framework` struct is the primary entry point for using ABI. It:
+//!
+//! - Initializes and manages feature contexts (GPU, AI, Database, etc.)
+//! - Maintains a feature registry for runtime feature management
+//! - Provides typed access to enabled features
+//! - Handles graceful shutdown and resource cleanup
+//!
+//! ## Initialization Patterns
+//!
+//! ### Default Initialization
 //!
 //! ```zig
 //! const abi = @import("abi");
 //!
-//! // Using init with defaults
-//! var fw = try abi.init(allocator);
+//! var fw = try abi.Framework.initDefault(allocator);
 //! defer fw.deinit();
 //!
-//! // Using builder pattern
+//! // All compile-time enabled features are now available
+//! ```
+//!
+//! ### Custom Configuration
+//!
+//! ```zig
+//! var fw = try abi.Framework.init(allocator, .{
+//!     .gpu = .{ .backend = .vulkan },
+//!     .ai = .{ .llm = .{ .model_path = "./model.gguf" } },
+//!     .database = .{ .path = "./data" },
+//! });
+//! defer fw.deinit();
+//! ```
+//!
+//! ### Builder Pattern
+//!
+//! ```zig
 //! var fw = try abi.Framework.builder(allocator)
 //!     .withGpu(.{ .backend = .vulkan })
-//!     .withAi(.{ .llm = .{} })
+//!     .withAiDefaults()
+//!     .withDatabaseDefaults()
 //!     .build();
 //! defer fw.deinit();
-//!
-//! // Check feature status
-//! if (fw.isEnabled(.gpu)) {
-//!     // Use GPU features
-//! }
 //! ```
+//!
+//! ## Feature Access
+//!
+//! ```zig
+//! // Check if a feature is enabled
+//! if (fw.isEnabled(.gpu)) {
+//!     // Get the feature context
+//!     const gpu_ctx = try fw.getGpu();
+//!     // Use GPU features...
+//! }
+//!
+//! // Runtime context is always available
+//! const runtime = fw.getRuntime();
+//! ```
+//!
+//! ## State Management
+//!
+//! The framework transitions through the following states:
+//! - `uninitialized`: Initial state before `init()`
+//! - `initializing`: During feature initialization
+//! - `running`: Normal operation state
+//! - `stopping`: During shutdown
+//! - `stopped`: After `deinit()` completes
+//! - `failed`: If initialization fails
 
 const std = @import("std");
 const build_options = @import("build_options");
@@ -47,27 +94,75 @@ const ha_mod = @import("ha/mod.zig");
 const runtime_mod = @import("runtime/mod.zig");
 
 /// Framework orchestration handle.
-/// Manages lifecycle of all enabled features.
+///
+/// The Framework struct is the central coordinator for the ABI framework. It manages
+/// the lifecycle of all enabled feature modules, provides access to their contexts,
+/// and maintains the framework's runtime state.
+///
+/// ## Thread Safety
+///
+/// The Framework itself is not thread-safe. If you need to access the framework from
+/// multiple threads, you should use external synchronization or ensure each thread
+/// has its own Framework instance.
+///
+/// ## Memory Management
+///
+/// The Framework allocates memory for feature contexts during initialization. All
+/// allocated memory is released when `deinit()` is called. The caller must ensure
+/// the provided allocator remains valid for the lifetime of the Framework.
+///
+/// ## Example
+///
+/// ```zig
+/// var fw = try Framework.init(allocator, Config.defaults());
+/// defer fw.deinit();
+///
+/// // Check state
+/// if (fw.isRunning()) {
+///     // Access features
+///     if (fw.gpu) |gpu_ctx| {
+///         // Use GPU...
+///     }
+/// }
+/// ```
 pub const Framework = struct {
+    /// Memory allocator used for all framework allocations.
     allocator: std.mem.Allocator,
-    // New optional I/O backend (shared across the framework).  Sub‑systems that need
-    // file or network access can retrieve it via `self.io`.  It is set during
-    // initialization by the builder (see `FrameworkBuilder.withIo`).
+
+    /// Optional I/O backend shared across the framework.
+    ///
+    /// Sub-systems that need file or network access can retrieve it via `self.io`.
+    /// It is set during initialization by the builder (see `FrameworkBuilder.withIo`).
     io: ?std.Io = null,
+
+    /// The configuration used to initialize this framework instance.
     config: Config,
+
+    /// Current lifecycle state of the framework.
     state: State,
+
+    /// Feature registry for runtime feature management.
     registry: Registry,
 
     // Feature handles (null if disabled)
+    /// GPU context, or null if GPU is not enabled.
     gpu: ?*gpu_mod.Context = null,
+    /// AI context, or null if AI is not enabled.
     ai: ?*ai_mod.Context = null,
+    /// Database context, or null if database is not enabled.
     database: ?*database_mod.Context = null,
+    /// Network context, or null if network is not enabled.
     network: ?*network_mod.Context = null,
+    /// Observability context, or null if observability is not enabled.
     observability: ?*observability_mod.Context = null,
+    /// Web context, or null if web is not enabled.
     web: ?*web_mod.Context = null,
+    /// High availability manager, or null if not initialized.
     ha: ?ha_mod.HaManager = null,
+    /// Runtime context (always available).
     runtime: *runtime_mod.Context,
 
+    /// Framework lifecycle states.
     pub const State = enum {
         uninitialized,
         initializing,
@@ -122,6 +217,36 @@ pub const Framework = struct {
     } || std.mem.Allocator.Error || ConfigError || RegistryError;
 
     /// Initialize the framework with the given configuration.
+    ///
+    /// This is the primary initialization method for the Framework. It validates the
+    /// configuration, initializes all enabled feature modules, and transitions the
+    /// framework to the `running` state.
+    ///
+    /// ## Parameters
+    ///
+    /// - `allocator`: Memory allocator for framework resources. Must remain valid for
+    ///   the lifetime of the Framework.
+    /// - `cfg`: Configuration specifying which features to enable and their settings.
+    ///
+    /// ## Returns
+    ///
+    /// A fully initialized Framework instance in the `running` state.
+    ///
+    /// ## Errors
+    ///
+    /// - `ConfigError.FeatureDisabled`: A feature is enabled in config but disabled at compile time
+    /// - `error.OutOfMemory`: Memory allocation failed
+    /// - `error.FeatureInitFailed`: A feature module failed to initialize
+    ///
+    /// ## Example
+    ///
+    /// ```zig
+    /// var fw = try Framework.init(allocator, .{
+    ///     .gpu = .{ .backend = .vulkan },
+    ///     .database = .{ .path = "./data" },
+    /// });
+    /// defer fw.deinit();
+    /// ```
     pub fn init(allocator: std.mem.Allocator, cfg: Config) Error!Framework {
         // Validate configuration against compile-time constraints
         try config_module.validate(cfg);
@@ -200,21 +325,100 @@ pub const Framework = struct {
     }
 
     /// Create a framework with default configuration.
+    ///
+    /// This is a convenience method that creates a framework with all compile-time
+    /// enabled features also enabled at runtime with their default settings.
+    ///
+    /// ## Parameters
+    ///
+    /// - `allocator`: Memory allocator for framework resources
+    ///
+    /// ## Returns
+    ///
+    /// A Framework instance with default configuration.
+    ///
+    /// ## Example
+    ///
+    /// ```zig
+    /// var fw = try Framework.initDefault(allocator);
+    /// defer fw.deinit();
+    /// ```
     pub fn initDefault(allocator: std.mem.Allocator) Error!Framework {
         return init(allocator, Config.defaults());
     }
 
     /// Create a framework with minimal configuration (no features enabled).
+    ///
+    /// This creates a framework with no optional features enabled. Only the
+    /// runtime context is initialized. Useful for testing or when you want
+    /// to explicitly enable specific features.
+    ///
+    /// ## Parameters
+    ///
+    /// - `allocator`: Memory allocator for framework resources
+    ///
+    /// ## Returns
+    ///
+    /// A Framework instance with minimal configuration.
+    ///
+    /// ## Example
+    ///
+    /// ```zig
+    /// var fw = try Framework.initMinimal(allocator);
+    /// defer fw.deinit();
+    ///
+    /// // Only runtime is available, no features enabled
+    /// try std.testing.expect(fw.gpu == null);
+    /// try std.testing.expect(fw.ai == null);
+    /// ```
     pub fn initMinimal(allocator: std.mem.Allocator) Error!Framework {
         return init(allocator, Config.minimal());
     }
 
     /// Start building a framework configuration.
+    ///
+    /// Returns a FrameworkBuilder that provides a fluent API for configuring
+    /// and initializing the framework.
+    ///
+    /// ## Parameters
+    ///
+    /// - `allocator`: Memory allocator for framework resources
+    ///
+    /// ## Returns
+    ///
+    /// A FrameworkBuilder instance for configuring the framework.
+    ///
+    /// ## Example
+    ///
+    /// ```zig
+    /// var fw = try Framework.builder(allocator)
+    ///     .withGpuDefaults()
+    ///     .withAi(.{ .llm = .{} })
+    ///     .build();
+    /// defer fw.deinit();
+    /// ```
     pub fn builder(allocator: std.mem.Allocator) FrameworkBuilder {
         return FrameworkBuilder.init(allocator);
     }
 
     /// Shutdown and cleanup the framework.
+    ///
+    /// This method transitions the framework to the `stopping` state, deinitializes
+    /// all feature contexts in reverse order of initialization, cleans up the registry,
+    /// and finally transitions to `stopped`.
+    ///
+    /// After calling `deinit()`, the framework instance should not be used. Any
+    /// pointers to feature contexts become invalid.
+    ///
+    /// This method is idempotent - calling it multiple times is safe.
+    ///
+    /// ## Example
+    ///
+    /// ```zig
+    /// var fw = try Framework.initDefault(allocator);
+    /// // ... use framework ...
+    /// fw.deinit();  // Clean up all resources
+    /// ```
     pub fn deinit(self: *Framework) void {
         if (self.state == .stopped) return;
 
