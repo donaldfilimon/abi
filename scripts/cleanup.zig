@@ -48,7 +48,7 @@ pub fn main() !void {
     }
 
     // (Optional) detection of duplicate helpers is much more involved and
-    // requires semantic comparison. We leave that as a TODO.
+    // requires semantic comparison. Not implemented in this script.
 }
 
 fn walkSrcFiles(allocator: std.mem.Allocator, io: *std.Io.Threaded, files: *std.ArrayList([]const u8)) !void {
