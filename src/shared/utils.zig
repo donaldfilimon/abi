@@ -289,6 +289,25 @@ pub const string = struct {
     }
 };
 
+// ---------------------------------------------------------------------------
+// Unit Tests for time utilities
+// ---------------------------------------------------------------------------
+
+test "unixMs monotonic" {
+    const start = unixMs();
+    sleepMs(5);
+    const later = unixMs();
+    try std.testing.expect(later > start);
+}
+
+test "sleepMs respects duration" {
+    const before = unixMs();
+    const wait: u64 = 20;
+    sleepMs(wait);
+    const after = unixMs();
+    try std.testing.expect((after - before) >= @as(i64, @intCast(wait)));
+}
+
 // ============================================================================
 // Lifecycle Management
 // ============================================================================

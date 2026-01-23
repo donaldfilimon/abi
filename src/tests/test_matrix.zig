@@ -312,5 +312,5 @@ test "matrix: framework reinit" {
 test "matrix: version info" {
     const version = abi.version();
     try std.testing.expect(version.len > 0);
-    try std.testing.expectEqualStrings("0.1.0", version);
+    try std.testing.expectEqualStrings("0.1.1", version);
 }

@@ -115,26 +115,60 @@ pub const CudaFunctions = struct {
     device: DeviceFunctions = .{},
 };
 
+// Global state for the loaded CUDA library and its symbols
 var cuda_lib: ?std.DynLib = null;
 var cuda_functions: CudaFunctions = .{};
 var load_attempted: bool = false;
 
+// Helper to lookup a symbol from the optional library.
+fn bind(comptime T: type, name: []const u8) ?T {
+    if (cuda_lib) |lib| {
+        return lib.lookup(T, name);
+    }
+    return null;
+}
+
+/// Errors that can occur while loading the CUDA driver.
+pub const LoadError = error{ LibraryNotFound, SymbolNotFound, PlatformNotSupported };
+
 /// Load CUDA library and all functions
-pub fn load() !*const CudaFunctions {
+pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
+    // If we already attempted loading, return the existing state.
     if (load_attempted) {
         if (cuda_lib != null) return &cuda_functions;
         return error.LibraryNotFound;
     }
     load_attempted = true;
 
-    // Try platform-specific library names
-    const lib_names: []const []const u8 = switch (builtin.os.tag) {
+    // Platform‑specific library names; honour a CUDA_PATH env var if set.
+    var lib_paths = std.ArrayList([]const u8).init(allocator);
+    defer lib_paths.deinit();
+
+    // Optional custom path via environment variable (e.g., "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.0\\bin\\nvcuda.dll")
+    if (std.process.getEnvVarOwned(allocator, "CUDA_PATH")) |custom_path| {
+        defer allocator.free(custom_path);
+        // Append the file name for the appropriate OS.
+        const file_name = switch (builtin.os.tag) {
+            .windows => "nvcuda.dll",
+            .linux => "libcuda.so",
+            else => "",
+        };
+        if (file_name.len > 0) {
+            const full = std.fs.path.join(allocator, &.{ custom_path, file_name }) catch "";
+            if (full.len > 0) _ = lib_paths.append(full) catch {};
+        }
+    } else |_| {}
+
+    // Default library names per platform.
+    const default_names = switch (builtin.os.tag) {
         .windows => &.{"nvcuda.dll"},
         .linux => &.{ "libcuda.so.1", "libcuda.so" },
         else => return error.PlatformNotSupported,
     };
+    for (default_names) |n| _ = lib_paths.append(n) catch {};
 
-    for (lib_names) |name| {
+    // Attempt to open each candidate name.
+    for (lib_paths.items) |name| {
         if (std.DynLib.open(name)) |lib| {
             cuda_lib = lib;
             break;
@@ -143,38 +177,46 @@ pub fn load() !*const CudaFunctions {
 
     if (cuda_lib == null) return error.LibraryNotFound;
 
-    // Load core functions
-    cuda_functions.core.cuInit = cuda_lib.?.lookup(CuInitFn, "cuInit");
-    cuda_functions.core.cuDeviceGetCount = cuda_lib.?.lookup(CuDeviceGetCountFn, "cuDeviceGetCount");
-    cuda_functions.core.cuDeviceGet = cuda_lib.?.lookup(CuDeviceGetFn, "cuDeviceGet");
-    cuda_functions.core.cuCtxCreate = cuda_lib.?.lookup(CuCtxCreateFn, "cuCtxCreate_v2");
-    cuda_functions.core.cuCtxDestroy = cuda_lib.?.lookup(CuCtxDestroyFn, "cuCtxDestroy_v2");
-    cuda_functions.core.cuCtxSynchronize = cuda_lib.?.lookup(CuCtxSynchronizeFn, "cuCtxSynchronize");
+    // Load core symbols – they are required for any CUDA operation.
+    cuda_functions.core.cuInit = bind(CuInitFn, "cuInit");
+    cuda_functions.core.cuDeviceGetCount = bind(CuDeviceGetCountFn, "cuDeviceGetCount");
+    cuda_functions.core.cuDeviceGet = bind(CuDeviceGetFn, "cuDeviceGet");
+    cuda_functions.core.cuCtxCreate = bind(CuCtxCreateFn, "cuCtxCreate_v2");
+    cuda_functions.core.cuCtxDestroy = bind(CuCtxDestroyFn, "cuCtxDestroy_v2");
+    cuda_functions.core.cuCtxSynchronize = bind(CuCtxSynchronizeFn, "cuCtxSynchronize");
 
-    // Load memory functions
-    cuda_functions.memory.cuMemAlloc = cuda_lib.?.lookup(CuMemAllocFn, "cuMemAlloc_v2");
-    cuda_functions.memory.cuMemFree = cuda_lib.?.lookup(CuMemFreeFn, "cuMemFree_v2");
-    cuda_functions.memory.cuMemcpyHtoD = cuda_lib.?.lookup(CuMemcpyHtoDFn, "cuMemcpyHtoD_v2");
-    cuda_functions.memory.cuMemcpyDtoH = cuda_lib.?.lookup(CuMemcpyDtoHFn, "cuMemcpyDtoH_v2");
-    cuda_functions.memory.cuMemcpyDtoD = cuda_lib.?.lookup(CuMemcpyDtoDFn, "cuMemcpyDtoD_v2");
-    cuda_functions.memory.cuMemAllocHost = cuda_lib.?.lookup(CuMemAllocHostFn, "cuMemAllocHost_v2");
-    cuda_functions.memory.cuMemFreeHost = cuda_lib.?.lookup(CuMemFreeHostFn, "cuMemFreeHost");
+    // Verify required core symbols are present.
+    if (cuda_functions.core.cuInit == null or
+        cuda_functions.core.cuDeviceGetCount == null or
+        cuda_functions.core.cuDeviceGet == null)
+    {
+        return error.SymbolNotFound;
+    }
 
-    // Load stream functions
-    cuda_functions.stream.cuStreamCreate = cuda_lib.?.lookup(CuStreamCreateFn, "cuStreamCreate");
-    cuda_functions.stream.cuStreamDestroy = cuda_lib.?.lookup(CuStreamDestroyFn, "cuStreamDestroy_v2");
-    cuda_functions.stream.cuStreamSynchronize = cuda_lib.?.lookup(CuStreamSynchronizeFn, "cuStreamSynchronize");
+    // Load optional memory symbols.
+    cuda_functions.memory.cuMemAlloc = bind(CuMemAllocFn, "cuMemAlloc_v2");
+    cuda_functions.memory.cuMemFree = bind(CuMemFreeFn, "cuMemFree_v2");
+    cuda_functions.memory.cuMemcpyHtoD = bind(CuMemcpyHtoDFn, "cuMemcpyHtoD_v2");
+    cuda_functions.memory.cuMemcpyDtoH = bind(CuMemcpyDtoHFn, "cuMemcpyDtoH_v2");
+    cuda_functions.memory.cuMemcpyDtoD = bind(CuMemcpyDtoDFn, "cuMemcpyDtoD_v2");
+    cuda_functions.memory.cuMemAllocHost = bind(CuMemAllocHostFn, "cuMemAllocHost_v2");
+    cuda_functions.memory.cuMemFreeHost = bind(CuMemFreeHostFn, "cuMemFreeHost");
 
-    // Load kernel functions
-    cuda_functions.kernel.cuModuleLoadData = cuda_lib.?.lookup(CuModuleLoadDataFn, "cuModuleLoadData");
-    cuda_functions.kernel.cuModuleUnload = cuda_lib.?.lookup(CuModuleUnloadFn, "cuModuleUnload");
-    cuda_functions.kernel.cuModuleGetFunction = cuda_lib.?.lookup(CuModuleGetFunctionFn, "cuModuleGetFunction");
-    cuda_functions.kernel.cuLaunchKernel = cuda_lib.?.lookup(CuLaunchKernelFn, "cuLaunchKernel");
+    // Load stream symbols.
+    cuda_functions.stream.cuStreamCreate = bind(CuStreamCreateFn, "cuStreamCreate");
+    cuda_functions.stream.cuStreamDestroy = bind(CuStreamDestroyFn, "cuStreamDestroy_v2");
+    cuda_functions.stream.cuStreamSynchronize = bind(CuStreamSynchronizeFn, "cuStreamSynchronize");
 
-    // Load device functions
-    cuda_functions.device.cuDeviceGetName = cuda_lib.?.lookup(CuDeviceGetNameFn, "cuDeviceGetName");
-    cuda_functions.device.cuDeviceGetAttribute = cuda_lib.?.lookup(CuDeviceGetAttributeFn, "cuDeviceGetAttribute");
-    cuda_functions.device.cuDeviceTotalMem = cuda_lib.?.lookup(CuDeviceTotalMemFn, "cuDeviceTotalMem_v2");
+    // Load kernel symbols.
+    cuda_functions.kernel.cuModuleLoadData = bind(CuModuleLoadDataFn, "cuModuleLoadData");
+    cuda_functions.kernel.cuModuleUnload = bind(CuModuleUnloadFn, "cuModuleUnload");
+    cuda_functions.kernel.cuModuleGetFunction = bind(CuModuleGetFunctionFn, "cuModuleGetFunction");
+    cuda_functions.kernel.cuLaunchKernel = bind(CuLaunchKernelFn, "cuLaunchKernel");
+
+    // Load device query symbols.
+    cuda_functions.device.cuDeviceGetName = bind(CuDeviceGetNameFn, "cuDeviceGetName");
+    cuda_functions.device.cuDeviceGetAttribute = bind(CuDeviceGetAttributeFn, "cuDeviceGetAttribute");
+    cuda_functions.device.cuDeviceTotalMem = bind(CuDeviceTotalMemFn, "cuDeviceTotalMem_v2");
 
     return &cuda_functions;
 }

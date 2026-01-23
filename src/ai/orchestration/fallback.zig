@@ -4,6 +4,8 @@
 //! health tracking, circuit breakers, and failover strategies.
 
 const std = @import("std");
+// Shared utilities for millisecond timestamps
+const utils = @import("../../shared/utils.zig");
 
 // ============================================================================
 // Types
@@ -116,7 +118,7 @@ pub const CircuitBreaker = struct {
     /// Record a failed request.
     pub fn recordFailure(self: *CircuitBreaker) void {
         self.failure_count += 1;
-        self.last_failure_time = std.time.milliTimestamp();
+        self.last_failure_time = utils.unixMs();
 
         switch (self.state) {
             .closed => {
@@ -139,7 +141,7 @@ pub const CircuitBreaker = struct {
             .half_open => return true, // Allow probe requests
             .open => {
                 // Check if enough time has passed to try half-open
-                const now = std.time.milliTimestamp();
+                const now = utils.unixMs();
                 const elapsed = now - self.last_state_change;
                 if (elapsed >= @as(i64, @intCast(self.config.circuit_open_duration_ms))) {
                     self.transitionTo(.half_open);
@@ -161,7 +163,7 @@ pub const CircuitBreaker = struct {
 
     fn transitionTo(self: *CircuitBreaker, new_state: State) void {
         self.state = new_state;
-        self.last_state_change = std.time.milliTimestamp();
+        self.last_state_change = utils.unixMs();
 
         switch (new_state) {
             .closed => {

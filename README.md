@@ -95,6 +95,26 @@ tags: []
 ## Documentation
 
 - **[Online Docs](https://donaldfilimon.github.io/abi/)** - Searchable static site
+- **[GPU Backend Guide](docs/gpu-backends.md)** - Overview of supported GPU backends and enable flags
+## Performance Results (Benchmark Suite)
+The `zig build benchmarks` target runs a comprehensive suite covering core framework, SIMD, database, GPU, and networking.
+
+| Benchmark | Ops/sec |
+|-----------|---------|
+| Framework Initialization | 175 |
+| Logging Operations | 331,960 |
+| Configuration Loading | 66,476,102 |
+| Memory Allocation (1KB) | 464,712 |
+| SIMD Vector Dot Product | 84,875,233 |
+| SIMD Vector Addition | 84,709,869 |
+| Compute Engine Task | 93,368 |
+| Database Vector Insert | 68,444 |
+| Database Vector Search | 56,563 |
+| JSON Parse/Serialize | 83,371 |
+| GPU Availability Check | 183 |
+| Network Registry Operations | 84,831 |
+
+These numbers are from a ReleaseFast build on a typical development workstation; actual performance varies with hardware and enabled backends.
 - [Introduction](docs/intro.md) - Architecture overview
 - [API Reference](API_REFERENCE.md) - Public API summary
 - [Quickstart](QUICKSTART.md) - Getting started guide

@@ -394,8 +394,18 @@ fn runInteractive(allocator: std.mem.Allocator, framework: *abi.Framework) !void
     terminal.enter() catch |err| {
         const err_msg = switch (err) {
             error.ConsoleUnavailable, error.ConsoleModeFailed => blk: {
-                utils.output.printError("Console is not available or cannot be configured.", .{});
-                utils.output.printInfo("On Windows, ensure you're running in a terminal (not through pipes).", .{});
+                utils.output.printError("Interactive TUI requires a real terminal/console.", .{});
+                utils.output.printInfo("This command needs to run in a proper terminal window.", .{});
+                std.debug.print("\nAvailable commands (run individually):\n", .{});
+                std.debug.print("  abi llm list                    - List supported LLM formats\n", .{});
+                std.debug.print("  abi llm demo                    - Demo LLM interface (no model needed)\n", .{});
+                std.debug.print("  abi bench all                   - Run all benchmarks\n", .{});
+                std.debug.print("  abi system-info                 - Show system information\n", .{});
+                std.debug.print("  abi config show                 - Show current configuration\n", .{});
+                std.debug.print("  abi db stats                    - Show database statistics\n", .{});
+                std.debug.print("  abi gpu backends                - List GPU backends\n", .{});
+                std.debug.print("  abi task list                   - List tasks\n", .{});
+                std.debug.print("  abi --list-features             - Show available features\n", .{});
                 break :blk true;
             },
             else => blk: {
@@ -404,7 +414,6 @@ fn runInteractive(allocator: std.mem.Allocator, framework: *abi.Framework) !void
             },
         };
         _ = err_msg;
-        utils.output.printInfo("Run directly from a terminal for interactive features.", .{});
         return;
     };
     defer terminal.exit() catch {};

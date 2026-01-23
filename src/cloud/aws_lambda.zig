@@ -24,6 +24,8 @@
 
 const std = @import("std");
 const types = @import("types.zig");
+// Shared utilities for time handling (Unix ms)
+const utils = @import("../shared/utils.zig");
 
 pub const CloudEvent = types.CloudEvent;
 pub const CloudResponse = types.CloudResponse;
@@ -68,7 +70,7 @@ pub const LambdaRuntime = struct {
         defer invocation.deinit();
 
         const request_id = invocation.request_id;
-        const start_time = std.time.milliTimestamp();
+        const start_time = utils.unixMs();
 
         // Parse the event
         var event = try parseEvent(self.allocator, invocation.body, request_id);
@@ -100,7 +102,7 @@ pub const LambdaRuntime = struct {
             .request_id = request_id,
             .provider = .aws_lambda,
             .start_time = start_time,
-            .end_time = std.time.milliTimestamp(),
+            .end_time = utils.unixMs(),
             .status_code = response.status_code,
             .error_message = error_message,
             .cold_start = self.cold_start,

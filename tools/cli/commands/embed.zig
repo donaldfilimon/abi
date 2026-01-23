@@ -108,6 +108,10 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             break :blk content;
         } else {
             utils.output.printError("No input provided. Use --text or --file", .{});
+            std.debug.print("\nExamples:\n", .{});
+            std.debug.print("  abi embed --text \"Hello world\"\n", .{});
+            std.debug.print("  abi embed --file document.txt\n", .{});
+            std.debug.print("  abi embed --text \"Query\" --provider ollama\n\n", .{});
             printHelp(allocator);
             return EmbedError.NoInput;
         }

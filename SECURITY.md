@@ -62,6 +62,8 @@ Include reproduction steps, impact assessment, and suggested fixes.
 - Use the latest supported version.
 - Keep Zig updated.
 - Validate untrusted inputs and sandbox untrusted code.
+- **Secrets Management**: Use `src/shared/security/secrets.zig` for all credential handling. Secrets are encrypted in memory, audited on access, and never logged. Configure `SecretsConfig` with an appropriate `env_prefix` and enable `audit_logging`.
+- Avoid printing secret values or their hashes to logs; the `SecretsManager` ensures decryption occurs only in controlled code paths.
 
 ## Additional Details
 The CLI is minimal by design; most deployments should embed ABI as a library.

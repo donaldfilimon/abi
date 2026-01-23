@@ -214,7 +214,6 @@ const example_targets = [_]BuildTarget{
     .{ .name = "example-hello", .step_name = "run-hello", .description = "Run hello example", .source_path = "examples/hello.zig" },
     .{ .name = "example-database", .step_name = "run-database", .description = "Run database example", .source_path = "examples/database.zig" },
     .{ .name = "example-agent", .step_name = "run-agent", .description = "Run agent example", .source_path = "examples/agent.zig" },
-    .{ .name = "example-gpu", .step_name = "run-gpu", .description = "Run GPU example", .source_path = "examples/gpu.zig" },
     .{ .name = "example-compute", .step_name = "run-compute", .description = "Run compute example", .source_path = "examples/compute.zig" },
     .{ .name = "example-network", .step_name = "run-network", .description = "Run network example", .source_path = "examples/network.zig" },
     .{ .name = "example-discord", .step_name = "run-discord", .description = "Run discord example", .source_path = "examples/discord.zig" },
@@ -267,7 +266,7 @@ fn buildTargets(b: *std.Build, targets: []const BuildTarget, abi_module: *std.Bu
 
 fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Module {
     var opts = b.addOptions();
-    opts.addOption([]const u8, "package_version", "0.1.0");
+    opts.addOption([]const u8, "package_version", "0.1.1");
     opts.addOption(bool, "enable_gpu", options.enable_gpu);
     opts.addOption(bool, "enable_ai", options.enable_ai);
     opts.addOption(bool, "enable_explore", options.enable_explore);
@@ -333,6 +332,18 @@ pub fn build(b: *std.Build) void {
 
     // Examples and benchmarks (table-driven)
     buildTargets(b, &example_targets, abi_module, target, optimize, b.step("examples", "Build all examples"));
+
+    // ---------------------------------------------------------------------------
+    // CLI smoke-test step (runs all example commands sequentially)
+    // ---------------------------------------------------------------------------
+    const cli_test_cmd = b.addSystemCommand(&[_][]const u8{ "cmd", "/c", "scripts\\run_cli_tests.bat" });
+    b.step("cli-tests", "Run smoke test of all CLI example commands").dependOn(&cli_test_cmd.step);
+
+    // ---------------------------------------------------------------------------
+    // Full verification step – formatting, tests, CLI smoke test, benchmarks
+    // ---------------------------------------------------------------------------
+    const full_check_cmd = b.addSystemCommand(&[_][]const u8{ "cmd", "/c", "scripts\\full_check.bat" });
+    b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and benchmarks").dependOn(&full_check_cmd.step);
     buildTargets(b, &benchmark_targets, abi_module, target, optimize, b.step("bench-all", "Run all benchmark suites"));
 
     // Tests

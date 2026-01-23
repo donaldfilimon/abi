@@ -208,7 +208,7 @@ pub const TestSuite = struct {
         defer g.destroyBuffer(&buffer);
 
         // Test write and read
-        const test_data = [_]f32{1.0, 2.0, 3.0, 4.0};
+        const test_data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
         try buffer.write(f32, &test_data);
 
         var read_data: [4]f32 = undefined;
@@ -560,5 +560,4 @@ test "comprehensive GPU test suite" {
 
     // Verify we got some results
     try std.testing.expect(suite.getResults().len > 0);
-}</content>
-<parameter name="filePath">C:\Users\donald\abi\src\gpu\tests\comprehensive_test.zig
+}

@@ -33,6 +33,8 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+// Shared utilities for timestamps
+const utils = @import("../../shared/utils.zig");
 
 // Sub-modules
 pub const router = @import("router.zig");
@@ -722,7 +724,7 @@ pub const Orchestrator = struct {
         self.mutex.lock();
         model.active_requests += 1;
         model.total_requests += 1;
-        model.last_request_time = std.time.milliTimestamp();
+        model.last_request_time = utils.unixMs();
         self.mutex.unlock();
 
         defer {

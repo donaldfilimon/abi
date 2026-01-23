@@ -5,6 +5,8 @@
 //! other framework components to query basic system metrics.
 
 const std = @import("std");
+// Shared utilities for wall‑clock ms timestamps
+const utils = @import("../../shared/utils.zig");
 
 /// SystemInfo offers static helpers for runtime data.
 pub const SystemInfo = struct {
@@ -17,6 +19,6 @@ pub const SystemInfo = struct {
 
     /// Returns the current wall‑clock time in milliseconds since the Unix epoch.
     pub fn timestampMs() u64 {
-        return std.time.milliTimestamp();
+        return utils.unixMs();
     }
 };

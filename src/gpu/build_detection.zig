@@ -301,5 +301,4 @@ test "GPU capability detection" {
 
     // Print report for manual verification
     caps.printReport();
-}</content>
-<parameter name="filePath">C:\Users\donald\abi\src\gpu\build_detection.zig
+}
