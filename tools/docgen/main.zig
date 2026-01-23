@@ -15,8 +15,8 @@ const Allocator = std.mem.Allocator;
 // =============================================================================
 
 const Config = struct {
-    input_dir: []const u8 = "docs",
-    output_dir: []const u8 = "site",
+    input_dir: []const u8 = "docs-src",
+    output_dir: []const u8 = "docs",
     base_url: []const u8 = "/abi",
     site_title: []const u8 = "ABI Framework Documentation",
     version: []const u8 = "0.16.0",

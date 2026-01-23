@@ -4,8 +4,8 @@ zig-out/
 build/
 .zig-cache/
 
-# Documentation
-docs/build/
+# Documentation build artifacts
+docs-src/build/
 
 # Editor and IDE
 .vscode/

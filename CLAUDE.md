@@ -233,7 +233,7 @@ defer framework.deinit();
 
 ## Zig 0.16 Patterns
 
-> See [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) for comprehensive examples.
+> See [docs-src/migration/zig-0.16-migration.md](docs-src/migration/zig-0.16-migration.md) for comprehensive examples.
 
 ### I/O Backend Initialization (CRITICAL)
 
@@ -360,12 +360,12 @@ defer {
 
 - [README.md](README.md) - Project overview
 - [API_REFERENCE.md](API_REFERENCE.md) - Public API reference
-- [docs/troubleshooting.md](docs/troubleshooting.md) - Common issues and solutions
-- [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) - Zig 0.16 patterns
-- [docs/todo.md](docs/todo.md) - Development TODO & Zig 0.16 environment init
-- [docs/agents.md](docs/agents.md) - Agents guide with environment setup
-- [docs/gpu.md](docs/gpu.md) - GPU backend details
-- [docs/ai.md](docs/ai.md) - AI module guide
-- [docs/cloud-deployment.md](docs/cloud-deployment.md) - Cloud function deployment
-- [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) - Security findings and recommendations
+- [docs-src/troubleshooting.md](docs-src/troubleshooting.md) - Common issues and solutions
+- [docs-src/migration/zig-0.16-migration.md](docs-src/migration/zig-0.16-migration.md) - Zig 0.16 patterns
+- [docs-src/todo.md](docs-src/todo.md) - Development TODO & Zig 0.16 environment init
+- [docs-src/agents.md](docs-src/agents.md) - Agents guide with environment setup
+- [docs-src/gpu.md](docs-src/gpu.md) - GPU backend details
+- [docs-src/ai.md](docs-src/ai.md) - AI module guide
+- [docs-src/cloud-deployment.md](docs-src/cloud-deployment.md) - Cloud function deployment
+- [docs-src/SECURITY_AUDIT.md](docs-src/SECURITY_AUDIT.md) - Security findings and recommendations
 
