@@ -1,3 +1,7 @@
+---
+title: "2026-01-17-src-refactoring"
+tags: []
+---
 # ABI Framework `src/` Directory Refactoring Plan
 > **Codebase Status:** Synced with repository as of 2026-01-18.
 
@@ -429,3 +433,4 @@ Solution: Rebuild with:
 | Registry | 0 | 2 | +2 |
 | CLI flags | 0 | 1 | +1 |
 | **Total** | ~140 | ~118 | **-22** |
+

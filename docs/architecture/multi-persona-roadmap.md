@@ -1,3 +1,7 @@
+---
+title: "multi-persona-roadmap"
+tags: []
+---
 # Multi-Persona AI Assistant Implementation Roadmap
 
 ## Overview
@@ -523,3 +527,4 @@ zig build test --summary all
 ```
 
 See the main [architecture document](./multi-persona-ai-assistant.md) for detailed component specifications.
+

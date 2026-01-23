@@ -1,3 +1,7 @@
+---
+title: "intro"
+tags: []
+---
 # Introduction
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -160,3 +164,4 @@ pub fn main() !void {
 - [Zig 0.16 Migration](migration/zig-0.16-migration.md) - API compatibility notes
 - [TODO List](../TODO.md) - Pending implementations (see [Claude‑Code Massive TODO](../TODO.md#claude-code-massive-todo))
 - [ROADMAP](../ROADMAP.md) - Upcoming milestones
+

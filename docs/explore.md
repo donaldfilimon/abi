@@ -1,3 +1,7 @@
+---
+title: "explore"
+tags: []
+---
 # ABI Explore Module
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -391,3 +395,4 @@ const result = agent.explore(".", "query") catch |err| {
 - [Compute Engine](compute.md) - Parallel exploration execution
 - [Framework](framework.md) - Configuration options
 - [Troubleshooting](troubleshooting.md) - Search and timeout issues
+

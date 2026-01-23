@@ -1,3 +1,7 @@
+---
+title: "CONTACTS"
+tags: []
+---
 # Contacts
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -23,3 +27,4 @@
 - [SECURITY.md](SECURITY.md) - Security policy and reporting
 - [TODO.md](TODO.md) - Pending implementations
 - [ROADMAP.md](ROADMAP.md) - Project milestones and timeline
+

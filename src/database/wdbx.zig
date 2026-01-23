@@ -87,7 +87,7 @@ pub fn restore(handle: *DatabaseHandle, path: []const u8) !void {
 
     const allocator = handle.db.allocator;
     const safe_path = try fs.normalizeBackupPath(allocator, path);
-    errdefer allocator.free(safe_path);
+    defer allocator.free(safe_path);
 
     const restored = try storage.loadDatabase(allocator, safe_path);
     handle.db.deinit();

@@ -1,3 +1,7 @@
+---
+title: "2026-01-17-cuda-vtable-wrapper"
+tags: []
+---
 # CUDA VTable Wrapper Implementation Plan
 > **Codebase Status:** Synced with repository as of 2026-01-18.
 
@@ -1047,3 +1051,4 @@ git commit -m "docs(gpu): add CUDA VTable documentation"
 **Total estimated commits:** 10
 **New files:** 2
 **Modified files:** 3
+

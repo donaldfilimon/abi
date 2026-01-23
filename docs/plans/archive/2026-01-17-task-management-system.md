@@ -1,3 +1,7 @@
+---
+title: "2026-01-17-task-management-system"
+tags: []
+---
 # Task Management System Implementation Plan
 > **Codebase Status:** Synced with repository as of 2026-01-18.
 
@@ -1352,3 +1356,4 @@ git commit -m "chore: task management system complete
 6. ✅ Tasks persist to `.abi/tasks.json`
 7. ✅ All tests pass
 8. ✅ Programmatic access via `abi.tasks`
+

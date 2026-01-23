@@ -537,7 +537,7 @@ pub const SecretsManager = struct {
                 new_content = try std.fmt.allocPrint(self.allocator, "{{{s}}}", .{new_entry});
             } else {
                 // Remove trailing } and add new entry
-                const trimmed = std.mem.trimRight(u8, existing_content, " \n\r\t}");
+                const trimmed = std.mem.trimEnd(u8, existing_content, " \n\r\t}");
                 new_content = try std.fmt.allocPrint(self.allocator, "{s},{s}}}", .{ trimmed, new_entry });
             }
         } else {
@@ -545,7 +545,7 @@ pub const SecretsManager = struct {
             if (std.mem.eql(u8, existing_content, "{}")) {
                 new_content = try std.fmt.allocPrint(self.allocator, "{{{s}}}", .{new_entry});
             } else {
-                const trimmed = std.mem.trimRight(u8, existing_content, " \n\r\t}");
+                const trimmed = std.mem.trimEnd(u8, existing_content, " \n\r\t}");
                 new_content = try std.fmt.allocPrint(self.allocator, "{s},{s}}}", .{ trimmed, new_entry });
             }
         }

@@ -1,3 +1,7 @@
+---
+title: "README"
+tags: []
+---
 # LLM Training Example
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -324,3 +328,4 @@ defer lora_model.deinit();
 - [API Reference](../../API_REFERENCE.md) - Full API documentation
 - [AI Module Guide](../../docs/ai.md) - AI subsystem details
 - [Troubleshooting](../../docs/troubleshooting.md) - Common issues
+

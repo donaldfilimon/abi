@@ -1,0 +1,8 @@
+{
+  "duration_sec": 0.18,
+  "benchmarks": [
+    {"name": "http_header_parse", "category": "network", "ops_per_sec": 322817.86, "mean_ns": 3097.72, "iterations": 50000},
+    {"name": "url_parse", "category": "network", "ops_per_sec": 6566893.66, "mean_ns": 152.28, "iterations": 100000},
+    {"name": "json_key_scan", "category": "network", "ops_per_sec": 3188978.89, "mean_ns": 313.58, "iterations": 20000}
+  ]
+}

@@ -1,3 +1,7 @@
+---
+title: "gpu"
+tags: []
+---
 # GPU Acceleration
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -549,3 +553,4 @@ When GPU unavailable, `stdgpu` provides AVX/SSE/NEON accelerated operations:
   <a href="docs-index.md">Documentation Index</a> •
   <a href="database.md">Database Guide →</a>
 </p>
+

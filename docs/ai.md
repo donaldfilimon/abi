@@ -1,3 +1,7 @@
+---
+title: "ai"
+tags: []
+---
 # AI & Agents
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -374,3 +378,4 @@ defer allocator.free(response);
   <a href="docs-index.md">← Documentation Index</a> •
   <a href="gpu.md">GPU Guide →</a>
 </p>
+

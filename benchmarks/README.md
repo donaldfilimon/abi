@@ -1,3 +1,7 @@
+---
+title: "README"
+tags: []
+---
 # ABI Benchmark Suite
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -276,3 +280,4 @@ zig build benchmarks -Denable-database=true -Denable-gpu=true
 - [docs/PERFORMANCE_BASELINE.md](../docs/PERFORMANCE_BASELINE.md) - Reference performance metrics
 - [docs/gpu.md](../docs/gpu.md) - GPU-specific benchmarking
 - [CLAUDE.md](../CLAUDE.md) - Development guidelines
+

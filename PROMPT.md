@@ -1,3 +1,7 @@
+---
+title: "PROMPT"
+tags: []
+---
 # Project Context for Ralph
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -204,3 +208,4 @@ All open items tracked in [ROADMAP.md](ROADMAP.md).
 | Tasks | `src/tasks/` | ✅ Standalone module |
 | AI | `src/ai/` + `src/features/ai/` | 🔄 Partial (wrapper + implementation) |
 | Observability | `src/observability/` + `src/features/monitoring/` | 🔄 Needs consolidation |
+

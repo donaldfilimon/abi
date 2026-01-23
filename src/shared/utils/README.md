@@ -1,3 +1,7 @@
+---
+title: "README"
+tags: []
+---
 //! # Utility Modules
 //!
 //! > **Codebase Status:** Synced with repository as of 2026-01-22.
@@ -47,4 +51,5 @@
 //! ## See Also
 //!
 //! - [Shared Module](../README.md)
+
 

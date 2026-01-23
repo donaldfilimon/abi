@@ -1,3 +1,7 @@
+---
+title: "DEPLOYMENT_GUIDE"
+tags: []
+---
 # ABI Deployment Guide
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -274,5 +278,6 @@ zig build test --summary all
 # Run benchmarks
 zig build benchmarks
 ```
+
 
 

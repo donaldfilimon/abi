@@ -82,6 +82,19 @@ pub const CompletionResponse = struct {
         completion_tokens: usize,
         total_tokens: usize,
     };
+
+    pub fn deinit(self: *CompletionResponse, allocator: std.mem.Allocator) void {
+        if (self.tool_calls) |calls| {
+            for (calls) |call| {
+                allocator.free(call.id);
+                allocator.free(call.name);
+                allocator.free(call.arguments);
+            }
+            allocator.free(calls);
+        }
+        allocator.free(self.content);
+        allocator.free(self.model);
+    }
 };
 
 /// Streaming chunk
@@ -201,6 +214,8 @@ pub const EchoBackend = struct {
         }
 
         const content = try response.toOwnedSlice(self.allocator);
+        errdefer self.allocator.free(content);
+        const model = try self.allocator.dupe(u8, "echo");
         const end = types.getTimestampMs();
 
         return CompletionResponse{
@@ -211,7 +226,7 @@ pub const EchoBackend = struct {
                 .completion_tokens = (content.len + 3) / 4,
                 .total_tokens = estimateTokens(request.messages) + (content.len + 3) / 4,
             },
-            .model = "echo",
+            .model = model,
             .latency_ms = end - start,
         };
     }
@@ -221,8 +236,8 @@ pub const EchoBackend = struct {
         request: CompletionRequest,
         callback: *LLMClient.StreamCallback,
     ) ClientError!void {
-        const response = try self.complete(request);
-        defer self.allocator.free(response.content);
+        var response = try self.complete(request);
+        defer response.deinit(self.allocator);
 
         callback(.{
             .content = response.content,
@@ -383,6 +398,7 @@ pub const OpenAIBackend = struct {
 
         // Build response
         const content = try self.allocator.dupe(u8, choice.message.content);
+        errdefer self.allocator.free(content);
         const model = try self.allocator.dupe(u8, parsed.value.model);
 
         const finish_reason: CompletionResponse.FinishReason = if (std.mem.eql(u8, choice.finish_reason, "stop"))
@@ -525,6 +541,7 @@ pub const OllamaBackend = struct {
 
         // Build response
         const content = try self.allocator.dupe(u8, parsed.value.message.content);
+        errdefer self.allocator.free(content);
         const model = try self.allocator.dupe(u8, request.model);
 
         return CompletionResponse{
@@ -718,10 +735,10 @@ test "echo backend" {
         .{ .role = "user", .content = "Hello, Abbey!" },
     };
 
-    const response = try backend.complete(.{
+    var response = try backend.complete(.{
         .messages = &messages,
     });
-    defer allocator.free(response.content);
+    defer response.deinit(allocator);
 
     try std.testing.expect(response.content.len > 0);
     try std.testing.expectEqual(CompletionResponse.FinishReason.stop, response.finish_reason);

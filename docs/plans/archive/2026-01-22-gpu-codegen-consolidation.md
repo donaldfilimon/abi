@@ -1,3 +1,7 @@
+---
+title: "2026-01-22-gpu-codegen-consolidation"
+tags: []
+---
 # GPU Codegen Consolidation Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
@@ -716,3 +720,4 @@ Total savings: ~2,500 lines"
 | **Total** | 4,365 | 3,046 | **~1,319 lines** |
 
 Note: The actual savings are lower than originally estimated because the generic module and configs add ~1,775 lines of shared infrastructure. However, the code is now DRY and any future backends will only need ~50-100 lines of config.
+

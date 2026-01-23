@@ -31,7 +31,7 @@ const config = @import("../core/config.zig");
 const types = @import("../core/types.zig");
 const emotions = @import("emotions.zig");
 const reasoning = @import("reasoning.zig");
-const advanced = @import("advanced/mod.zig");
+const advanced = @import("advanced.zig");
 const client = @import("client.zig");
 
 // ============================================================================

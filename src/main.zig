@@ -7,6 +7,8 @@ const std = @import("std");
 // Using the file name ensures the import works even when the project build does not
 // provide a named module.
 const abi = @import("abi.zig");
+// New I/O backend helper (Zig 0.16)
+const IoBackend = @import("io").IoBackend;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -64,25 +66,25 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
     std.debug.print("Version: {s}\n", .{abi.version()});
     std.debug.print("SIMD Support: {s}\n", .{if (abi.hasSimdSupport()) "Yes" else "No"});
 
-    var framework = abi.init(allocator, abi.FrameworkOptions{
-        .enable_gpu = true,
-        .enable_ai = true,
-        .enable_database = true,
-        .enable_web = true,
-        .enable_network = true,
-        .enable_profiling = true,
-    }) catch |err| {
+    // Initialise the shared I/O backend (Zig 0.16)
+    var io_backend = try IoBackend.init(allocator);
+    defer io_backend.deinit();
+
+    // Build a fully‑featured framework using the builder pattern.
+    var framework = try abi.Framework.builder(allocator)
+        .withGpuDefaults()
+        .withAiDefaults()
+        .withDatabaseDefaults()
+        .withWebDefaults()
+        .withNetworkDefaults()
+        .withObservabilityDefaults()
+        .withIo(io_backend.io)
+        .build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});
         std.debug.print("Running with minimal features...\n", .{});
 
-        var minimal_framework = try abi.init(allocator, abi.FrameworkOptions{
-            .enable_gpu = false,
-            .enable_ai = false,
-            .enable_database = false,
-            .enable_web = false,
-            .enable_network = false,
-            .enable_profiling = false,
-        });
+        // Minimal framework – builder without any feature defaults.
+        var minimal_framework = try abi.Framework.builder(allocator).build();
         defer abi.shutdown(&minimal_framework);
 
         std.debug.print("Minimal framework initialized successfully\n", .{});

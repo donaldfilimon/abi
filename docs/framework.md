@@ -1,3 +1,7 @@
+---
+title: "framework"
+tags: []
+---
 # Framework Guide
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -274,3 +278,4 @@ pub fn main() !void {
 - [Compute Engine](compute.md) - Engine configuration
 - [GPU Acceleration](gpu.md) - GPU module (now at top-level)
 - [Troubleshooting](troubleshooting.md) - Feature disabled errors
+

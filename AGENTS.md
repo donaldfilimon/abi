@@ -1,3 +1,12 @@
+---
+title: "AGENTS"
+tags: []
+---
+---
+title: "AGENTS"
+tags: []
+---
+
 # AGENTS.md
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 

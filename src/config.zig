@@ -430,11 +430,16 @@ pub const NetworkConfig = struct {
 // ============================================================================
 
 pub const UnifiedMemoryConfig = struct {
+    const max_shared_memory_default: usize = @intCast(@min(
+        @as(u64, 16 * 1024 * 1024 * 1024),
+        @as(u64, std.math.maxInt(usize)),
+    ));
+
     /// Maximum number of registered memory regions.
     max_regions: usize = 256,
 
     /// Maximum total shared memory size (bytes).
-    max_shared_memory: usize = 16 * 1024 * 1024 * 1024, // 16 GB
+    max_shared_memory: usize = max_shared_memory_default, // 16 GB (clamped)
 
     /// Enable memory coherence protocol.
     coherence_enabled: bool = true,

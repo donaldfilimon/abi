@@ -1,3 +1,7 @@
+---
+title: "network"
+tags: []
+---
 # Network & Distributed Compute
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -199,3 +203,4 @@ zig build run -- network status                 # Show network status
   <a href="docs-index.md">Documentation Index</a> •
   <a href="monitoring.md">Monitoring Guide →</a>
 </p>
+

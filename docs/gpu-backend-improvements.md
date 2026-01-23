@@ -1,3 +1,7 @@
+---
+title: "gpu-backend-improvements"
+tags: []
+---
 # GPU Backend Comprehensive Overhaul
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -293,3 +297,4 @@ This comprehensive overhaul brings the GPU backend implementation in line with Z
 - [Compute Engine](compute.md) - CPU/GPU workload scheduling
 - [Monitoring](monitoring.md) - GPU metrics and profiling
 - [Troubleshooting](troubleshooting.md) - GPU detection and issues
+

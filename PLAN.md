@@ -1,3 +1,7 @@
+---
+title: "PLAN"
+tags: []
+---
 # Current Development Focus
 
 > Updated: 2026-01-22
@@ -34,3 +38,4 @@ Ready to start when current work completes:
 - [docs/plans/](docs/plans/) - Active implementation plans
 - [docs/plans/archive/](docs/plans/archive/) - Completed plans
 - [CLAUDE.md](CLAUDE.md) - Development guidelines
+

@@ -1,3 +1,7 @@
+---
+title: "getting-started"
+tags: []
+---
 # Tutorial: Getting Started with ABI
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -317,3 +321,4 @@ Compare the resulting binary sizes.
 ---
 
 **Video Walkthrough:** [Watch the 20-minute guided tutorial](videos/01-getting-started.md)
+

@@ -1,0 +1,2011 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modern Zig framework for modular AI services, vector search, and systems tooling.">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>abbey-aviva-abi-wdbx-framework - ABI Framework</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#abbeyavivaabi-multipersona-ai-framework-with-wdbx-architecture" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ABI Framework" class="md-header__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ABI Framework
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              abbey-aviva-abi-wdbx-framework
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/intro.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Introduction
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/framework.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Framework
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/compute.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Compute
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/gpu.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  GPU
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/database.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Database
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/network.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Network
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/monitoring.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Monitoring
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/ai.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  AI
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../docs/migration/zig-0.16-migration.md" class="md-tabs__link">
+          
+  
+  
+  Migration
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ABI Framework" class="md-nav__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ABI Framework
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/intro.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/framework.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/compute.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compute
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/gpu.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/database.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Database
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/network.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/monitoring.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/ai.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Migration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/migration/zig-0.16-migration.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zig 0.16 Migration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#abstract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-introduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Introduction
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Introduction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-contributions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Contributions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-design-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Design Principles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-system-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. System Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. System Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-request-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Request Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-control-surfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Control Surfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-data-flow-and-artifacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Data Flow and Artifacts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-persona-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Persona Design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Persona Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-abbey-empathetic-polymath" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Abbey: Empathetic Polymath
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-aviva-unfiltered-expert" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Aviva: Unfiltered Expert
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-abi-adaptive-moderator-and-router" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Abi: Adaptive Moderator and Router
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-persona-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Persona Contracts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-wdbx-wide-distributed-block-exchange" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. WDBX: Wide Distributed Block Exchange
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. WDBX: Wide Distributed Block Exchange">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-data-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Data Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-block-chaining-for-continuity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Block Chaining for Continuity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-sharding-and-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Sharding and Routing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-mvcc-for-concurrent-readswrites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 MVCC for Concurrent Reads/Writes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46-retrieval-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.6 Retrieval Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#47-compression-and-storage-efficiency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.7 Compression and Storage Efficiency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#48-replication-and-consistency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.8 Replication and Consistency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#49-summarization-blocks-and-memory-hygiene" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.9 Summarization Blocks and Memory Hygiene
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#410-integrity-and-audit-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.10 Integrity and Audit Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-persona-routing-and-blending" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Persona Routing and Blending
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Persona Routing and Blending">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-signals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Signals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-persona-selection-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Persona Selection Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-blending-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Blending Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-user-override" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 User Override
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#55-explainable-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.5 Explainable Routing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-training-methodology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Training Methodology
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Training Methodology">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-base-model-and-persona-conditioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Base Model and Persona Conditioning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-abbey-finetuning-objectives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Abbey Fine‑Tuning Objectives
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-aviva-finetuning-objectives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Aviva Fine‑Tuning Objectives
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-abi-training-objectives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 Abi Training Objectives
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65-data-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 Data Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#66-feedback-and-continuous-learning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.6 Feedback and Continuous Learning
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Evaluation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Evaluation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-quality-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Quality Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-persona-fidelity-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Persona Fidelity Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-safety-and-policy-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Safety and Policy Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-performance-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 Performance Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#75-suggested-benchmark-harness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.5 Suggested Benchmark Harness
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#76-ablation-studies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.6 Ablation Studies
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-security-privacy-and-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Security, Privacy, and Compliance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Security, Privacy, and Compliance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-data-minimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 Data Minimization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-encryption-and-access-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 Encryption and Access Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-auditability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 Auditability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#84-user-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.4 User Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#85-compliance-posture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.5 Compliance Posture
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-implementation-blueprint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Implementation Blueprint
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Implementation Blueprint">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 Services
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92-block-schema-illustrative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 Block Schema (Illustrative)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#93-operational-playbook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.3 Operational Playbook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#94-failure-modes-and-mitigations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.4 Failure Modes and Mitigations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-future-directions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Future Directions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conclusion
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-a-retrieval-scoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix A: Retrieval Scoring
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-b-recency-decay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix B: Recency Decay
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-c-persona-preference-prior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix C: Persona Preference Prior
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-d-simple-confidence-fusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix D: Simple Confidence Fusion
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="abbeyavivaabi-multipersona-ai-framework-with-wdbx-architecture">Abbey–Aviva–Abi Multi‑Persona AI Framework with WDBX Architecture</h1>
+<h2 id="abstract">Abstract</h2>
+<p>Modern assistants are expected to be emotionally aware, technically correct, fast, and policy‑aligned. Forcing these competing objectives through a single response style tends to produce inconsistent tone, excessive hedging, over‑refusal, or brittle behavior when prompts shift. This whitepaper proposes a multi‑persona assistant architecture consisting of three specialized interaction models (Abbey, Aviva, Abi) routed through a transparent policy and blending layer, supported by a distributed neural database called WDBX (Wide Distributed Block Exchange).</p>
+<p>WDBX is designed for high‑dimensional embedding retrieval, multi‑turn context continuity, and low‑latency, high‑concurrency operations under mixed read/write workloads. We describe the system design, routing logic, mathematical models for retrieval and persona selection, data management with MVCC and block chaining, evaluation methodology (including ablations), security and privacy controls, and a production implementation blueprint spanning storage, inference, observability, and governance.</p>
+<h2 id="1-introduction">1. Introduction</h2>
+<p>AI assistants are expected to behave like adaptable collaborators: empathetic when the user is frustrated, concise when the user is busy, rigorous when correctness matters, and compliant with safety constraints. Single‑persona systems must reconcile these demands simultaneously, leading to brittle tradeoffs: tone whiplash, refusal volatility, “helpful but vague” output, or policy behavior that feels unpredictable.</p>
+<p>The Abbey–Aviva–Abi framework decomposes assistant behavior into three roles:</p>
+<ul>
+<li><strong>Abbey:</strong> the empathetic polymath for supportive, human‑centered communication while maintaining technical depth.</li>
+<li><strong>Aviva:</strong> the unfiltered expert for direct, compressed, technically forceful output.</li>
+<li><strong>Abi:</strong> the adaptive moderator and router that selects or blends personas, enforces constraints, and maintains intent alignment.</li>
+</ul>
+<p>WDBX provides the memory substrate for long‑context interaction, persona‑aware retrieval, and traceable state transitions.</p>
+<h3 id="11-problem-statement">1.1 Problem Statement</h3>
+<p>The core engineering problem is not just “generate text,” but control: control over style, correctness, safety posture, and continuity. Without modularity, a single model tends to blur objectives and amplify conflicts. A multi‑persona system creates an explicit place to resolve conflicts: routing, blending, and memory.</p>
+<h3 id="12-contributions">1.2 Contributions</h3>
+<p>This paper contributes:</p>
+<ol>
+<li>A modular multi‑persona assistant architecture with explicit routing and blending.</li>
+<li>WDBX, a distributed block‑chained embedding store optimized for conversational continuity.</li>
+<li>Formal models for retrieval scoring, persona selection, and latency.</li>
+<li>An evaluation methodology with measurable metrics for quality, safety, persona fidelity, and performance.</li>
+<li>A security and privacy model suitable for production deployments.</li>
+<li>A deployment blueprint including sharding, replication, caching, observability, and failure handling.</li>
+</ol>
+<h3 id="13-design-principles">1.3 Design Principles</h3>
+<ul>
+<li><strong>Separation of concerns:</strong> emotional calibration, direct technical output, and moderation are distinct objectives.</li>
+<li><strong>Predictable control:</strong> the system can justify which persona acted and why, at an appropriate level.</li>
+<li><strong>Continuity:</strong> long‑context behavior is achieved through structured memory, not only context windows.</li>
+<li><strong>Scalability:</strong> horizontal scaling for retrieval and inference with minimal coordination overhead.</li>
+<li><strong>Safety by architecture:</strong> moderation is explicit and auditable, not implicit and inconsistent.</li>
+<li><strong>Regression resistance:</strong> behavior changes must be measurable and testable (quality, safety, and latency).</li>
+</ul>
+<h2 id="2-system-overview">2. System Overview</h2>
+<p>The system is organized into four planes:</p>
+<ol>
+<li><strong>Interaction Plane:</strong> user messages, attachments, tool calls, session metadata.</li>
+<li><strong>Persona Plane:</strong> Abbey, Aviva, Abi models (or persona‑conditioned adapters on a shared base).</li>
+<li><strong>Routing Plane:</strong> intent detection, risk scoring, persona selection and blending, refusal logic.</li>
+<li><strong>Memory Plane:</strong> WDBX storage, indexing, retrieval, and trace emission.</li>
+</ol>
+<h3 id="21-request-lifecycle">2.1 Request Lifecycle</h3>
+<ol>
+<li>Receive user input, metadata, and tool context.</li>
+<li>Compute intent embedding and safety/risk features.</li>
+<li>Retrieve context candidates from WDBX (global + session chain).</li>
+<li>Abi selects persona(s) and blending weights subject to constraints.</li>
+<li>Generate response with persona tokens or adapters.</li>
+<li>Store results, summaries, and trace artifacts back into WDBX.</li>
+</ol>
+<h3 id="22-control-surfaces">2.2 Control Surfaces</h3>
+<p>Production systems benefit from explicit knobs:</p>
+<ul>
+<li>persona preference (per user, per channel, per project)</li>
+<li>aggressiveness of summarization and memory retention</li>
+<li>risk thresholds for routing and refusal</li>
+<li>retrieval depth (K) and rerank budget</li>
+<li>latency budgets (p95/p99 targets) per tier</li>
+</ul>
+<h3 id="23-data-flow-and-artifacts">2.3 Data Flow and Artifacts</h3>
+<p>Each turn produces a compact set of stored artifacts:</p>
+<ul>
+<li>query embedding</li>
+<li>response embedding</li>
+<li>optional summary embedding</li>
+<li>routing decision and weights</li>
+<li>policy/risk decision</li>
+<li>retrieval “evidence set” pointers</li>
+</ul>
+<p>The objective is to store enough to reproduce decisions and maintain continuity without storing unnecessary private text.</p>
+<h2 id="3-persona-design">3. Persona Design</h2>
+<h3 id="31-abbey-empathetic-polymath">3.1 Abbey: Empathetic Polymath</h3>
+<p>Abbey is optimized for:</p>
+<ul>
+<li>emotional intelligence (tone matching, de‑escalation)</li>
+<li>deep technical assistance (systems, ML, code)</li>
+<li>educational clarity and context‑aware continuity</li>
+</ul>
+<p>Typical use cases: mentoring, troubleshooting with frustration signals, high‑stakes planning, collaborative writing.</p>
+<p>Failure modes to test:</p>
+<ul>
+<li>being overly gentle when the user needs strict technical correctness</li>
+<li>adding unnecessary verbosity</li>
+<li>premature reassurance without confirming constraints</li>
+</ul>
+<h3 id="32-aviva-unfiltered-expert">3.2 Aviva: Unfiltered Expert</h3>
+<p>Aviva is optimized for:</p>
+<ul>
+<li>directness and density</li>
+<li>minimal hedging</li>
+<li>strong technical prioritization and decisive recommendations</li>
+</ul>
+<p>Typical use cases: debugging under time pressure, code review, architecture critiques, terse summaries.</p>
+<p>Failure modes to test:</p>
+<ul>
+<li>lack of empathy when the user is clearly stressed</li>
+<li>overconfidence on uncertain facts</li>
+<li>insufficient safety gating when risk is elevated</li>
+</ul>
+<h3 id="33-abi-adaptive-moderator-and-router">3.3 Abi: Adaptive Moderator and Router</h3>
+<p>Abi controls:</p>
+<ul>
+<li>persona selection and blending</li>
+<li>constraint enforcement (policy and safety)</li>
+<li>refusal policy and redirection</li>
+<li>traceability and audit logging</li>
+</ul>
+<p>Abi does not need to be a large generative model; it can be a smaller policy model + rules + calibrated classifiers.</p>
+<p>Key property: Abi should be stable under small prompt perturbations. If two prompts are semantically equivalent, routing decisions should not flip unpredictably.</p>
+<h3 id="34-persona-contracts">3.4 Persona Contracts</h3>
+<p>A useful production pattern is to define “contracts”:</p>
+<ul>
+<li>Abbey contract: clarity, supportive tone, helpfulness, correctness.</li>
+<li>Aviva contract: brevity, decisiveness, technical sharpness, correctness.</li>
+<li>Abi contract: alignment, stability, auditability, constraint enforcement.</li>
+</ul>
+<p>Contracts become test targets: if you cannot measure them, you cannot keep them.</p>
+<h2 id="4-wdbx-wide-distributed-block-exchange">4. WDBX: Wide Distributed Block Exchange</h2>
+<p>WDBX is a distributed memory system for embedding storage and retrieval with a block‑chaining model for semantic continuity.</p>
+<h3 id="41-requirements">4.1 Requirements</h3>
+<ul>
+<li>High‑dimensional similarity search</li>
+<li>Low latency at high QPS</li>
+<li>Multi‑turn session continuity</li>
+<li>Concurrent writes (feedback, edits) without blocking reads</li>
+<li>Traceable evolution of stored semantic state</li>
+<li>Efficient retention and deletion policies</li>
+</ul>
+<h3 id="42-data-model">4.2 Data Model</h3>
+<p>Each stored unit is a Block.</p>
+<p>Definition 1 (Block)</p>
+<pre><code>B_t = {V_t, M_t, T_t, R_t, H_t}
+</code></pre>
+<ul>
+<li><strong>V_t:</strong> embedding vectors (query, response, summary, optional tool embeddings)</li>
+<li><strong>M_t:</strong> metadata (persona tag, intent, risk score, content type, tenant)</li>
+<li><strong>T_t:</strong> temporal markers (turn index, timestamps)</li>
+<li><strong>R_t:</strong> references (parent pointer, skip pointers, shard pointers, evidence pointers)</li>
+<li><strong>H_t:</strong> integrity fields (checksums, optional signatures)</li>
+</ul>
+<p>A block is intentionally compact: the design prefers storing pointers and embeddings over raw conversation text unless explicitly required.</p>
+<h3 id="43-block-chaining-for-continuity">4.3 Block Chaining for Continuity</h3>
+<p>Conversation sessions form a chain:</p>
+<pre><code>C = (B_1 \rightarrow B_2 \rightarrow \dots \rightarrow B_T)
+</code></pre>
+<p>To accelerate traversal, blocks may include skip pointers:</p>
+<pre><code>R_t^{(\text{skip})}(k) = B_{t-2^k}
+</code></pre>
+<p>Skip pointers reduce the cost of retrieving far‑back context in long sessions, and enable cheap “walk back” during summarization or dispute resolution.</p>
+<h3 id="44-sharding-and-routing">4.4 Sharding and Routing</h3>
+<p>WDBX partitions data across nodes. A hybrid strategy is recommended:</p>
+<ul>
+<li>shard by tenant/user</li>
+<li>sub‑shard by conversation/session</li>
+<li>optionally cluster by semantic neighborhood</li>
+<li>maintain a small routing index for shard pruning</li>
+</ul>
+<p>Latency model (Eq. 1)</p>
+<pre><code>L_{\text{shard}} = \alpha + \frac{\beta \cdot S}{n}
+</code></pre>
+<ul>
+<li><strong>\alpha:</strong> network overhead</li>
+<li><strong>\beta:</strong> per‑shard retrieval cost</li>
+<li><strong>S:</strong> segment size referenced by query</li>
+<li><strong>n:</strong> number of participating shards</li>
+</ul>
+<p>A practical goal is to keep the expected shard fan‑out bounded by a constant for most queries.</p>
+<h3 id="45-mvcc-for-concurrent-readswrites">4.5 MVCC for Concurrent Reads/Writes</h3>
+<p>WDBX uses Multi‑Version Concurrency Control so inference reads can remain consistent during updates.</p>
+<p>Definition 2 (Visibility)</p>
+<p>A transaction (x) sees version (v) iff:</p>
+<pre><code>v.\text{commit_ts} \le x.\text{snapshot_ts} \wedge v.\text{end_ts} &gt; x.\text{snapshot_ts}
+</code></pre>
+<p>Implication: inference can operate on a stable snapshot while background processes write new versions (feedback corrections, embedding re‑generation, updated summaries).</p>
+<h3 id="46-retrieval-pipeline">4.6 Retrieval Pipeline</h3>
+<p>A two‑stage retrieval pipeline balances speed and recall:</p>
+<ol>
+<li>Candidate generation: ANN index (IVF/HNSW), shard pruning, optional persona‑lane filtering.</li>
+<li>Reranking: exact distance + metadata filters + optional learned reranker.</li>
+</ol>
+<p>End‑to‑end retrieval latency:</p>
+<pre><code>L_{\text{retrieval}} = L_{\text{route}} + L_{\text{ANN}} + L_{\text{fetch}} + L_{\text{rerank}}
+</code></pre>
+<h3 id="47-compression-and-storage-efficiency">4.7 Compression and Storage Efficiency</h3>
+<p>To reduce memory and I/O, WDBX supports compressed representations:</p>
+<ul>
+<li>product quantization (PQ) for vector compression</li>
+<li>storing uncompressed vectors for refinement</li>
+<li>tiered storage (hot RAM, warm SSD, cold object store)</li>
+</ul>
+<p>A common pattern is “compressed for search, uncompressed for verify,” with refinement only on the top‑K candidates.</p>
+<h3 id="48-replication-and-consistency">4.8 Replication and Consistency</h3>
+<p>WDBX replication is tuned for conversational systems:</p>
+<ul>
+<li>asynchronous replication for low‑latency writes</li>
+<li>quorum replication for high‑integrity deployments</li>
+<li>session‑causal consistency to ensure a session reads its own writes in order</li>
+</ul>
+<p>Definition 3 (Session Causality)</p>
+<p>If B_i happens‑before B_j within a session, reads should not observe B_j without B_i.</p>
+<h3 id="49-summarization-blocks-and-memory-hygiene">4.9 Summarization Blocks and Memory Hygiene</h3>
+<p>Long sessions require compaction:</p>
+<ul>
+<li>periodic summary blocks that compress older turns</li>
+<li>retention windows (time‑based, size‑based, sensitivity‑based)</li>
+<li>deletion by user request with tombstones and GC</li>
+</ul>
+<p>A simple compaction schedule can be “summarize every N turns,” with N adapted to latency budgets.</p>
+<h3 id="410-integrity-and-audit-fields">4.10 Integrity and Audit Fields</h3>
+<p>Integrity fields can support:</p>
+<ul>
+<li>checksum verification</li>
+<li>signed checkpoints for regulated environments</li>
+<li>trace pointers for reproducibility</li>
+</ul>
+<p>This is not “blockchain for vibes.” It is a structured audit trail for decisions and continuity.</p>
+<h2 id="5-persona-routing-and-blending">5. Persona Routing and Blending</h2>
+<h3 id="51-signals">5.1 Signals</h3>
+<p>Abi’s router uses features including:</p>
+<ul>
+<li>intent classification (support, code, critique, planning)</li>
+<li>user preference (explicit persona selection)</li>
+<li>risk score (policy constraints)</li>
+<li>frustration/urgency cues</li>
+<li>task domain (security, finance, health)</li>
+<li>uncertainty signals (low retrieval confidence, conflicting evidence)</li>
+</ul>
+<h3 id="52-persona-selection-model">5.2 Persona Selection Model</h3>
+<p>Let x be a request representation. Abi computes persona logits:</p>
+<pre><code>\ell = f(x) \in \mathbb{R}^3
+</code></pre>
+<p>Converted to weights via softmax:</p>
+<pre><code>w_i = \frac{e^{\ell_i}}{\sum_j e^{\ell_j}}
+</code></pre>
+<p>Then either:</p>
+<ul>
+<li>select \arg\max_i w_i (hard routing), or</li>
+<li>mix outputs using w (soft blending) with constraints.</li>
+</ul>
+<h3 id="53-blending-constraints">5.3 Blending Constraints</h3>
+<p>To prevent incoherent responses, blending is constrained:</p>
+<ul>
+<li>restrict to at most two personas per turn</li>
+<li>enforce a minimum dominance threshold (e.g., max weight &gt; 0.7)</li>
+<li>forbid Aviva dominance when policy risk exceeds threshold</li>
+<li>avoid “tone oscillation” by adding a hysteresis term</li>
+</ul>
+<p>Hysteresis sketch (Eq. 2)</p>
+<pre><code>\ell' = \ell + \tau \cdot \ell_{\text{prev}}
+</code></pre>
+<p>Where \tau controls how strongly the previous routing influences the current decision.</p>
+<h3 id="54-user-override">5.4 User Override</h3>
+<p>If the user explicitly requests Aviva or Abbey, override routing unless safety constraints require moderation.</p>
+<h3 id="55-explainable-routing">5.5 Explainable Routing</h3>
+<p>Abi should be able to produce a short, non‑sensitive explanation of its choice, especially in enterprise contexts. Examples of explainable features:</p>
+<ul>
+<li>user preference signal present</li>
+<li>urgency detected</li>
+<li>elevated risk threshold triggered</li>
+<li>retrieval confidence low, requiring careful tone</li>
+</ul>
+<p>Explainability is not for philosophical comfort; it reduces debugging time and increases trust.</p>
+<h2 id="6-training-methodology">6. Training Methodology</h2>
+<h3 id="61-base-model-and-persona-conditioning">6.1 Base Model and Persona Conditioning</h3>
+<p>Two viable approaches:</p>
+<ol>
+<li>Persona tokens injected into the prompt.</li>
+<li>Adapters/LoRA per persona with shared base weights.</li>
+</ol>
+<p>A hybrid strategy is common: persona tokens for quick switching plus adapters for strong separation.</p>
+<h3 id="62-abbey-finetuning-objectives">6.2 Abbey Fine‑Tuning Objectives</h3>
+<pre><code>\mathcal{L}_{\text{Abbey}} = \mathcal{L}_{\text{task}} + \gamma \mathcal{L}_{\text{tone}} + \delta \mathcal{L}_{\text{coherence}}
+</code></pre>
+<ul>
+<li><strong>\mathcal{L}_{\text{tone}}:</strong> penalize mismatch with target empathy/clarity</li>
+<li><strong>\mathcal{L}_{\text{coherence}}:</strong> long‑context consistency</li>
+</ul>
+<h3 id="63-aviva-finetuning-objectives">6.3 Aviva Fine‑Tuning Objectives</h3>
+<pre><code>\mathcal{L}_{\text{Aviva}} = \mathcal{L}_{\text{task}} + \eta \mathcal{L}_{\text{brevity}} - \kappa \mathcal{L}_{\text{hedge}}
+</code></pre>
+<ul>
+<li>brevity encourages density while preserving correctness</li>
+<li>hedge penalty reduces unnecessary apologetics and hedging</li>
+</ul>
+<h3 id="64-abi-training-objectives">6.4 Abi Training Objectives</h3>
+<p>Abi is trained for calibrated decisions:</p>
+<pre><code>\mathcal{L}_{\text{Abi}} = \mathcal{L}_{\text{route}} + \lambda \mathcal{L}_{\text{policy}} + \mu \mathcal{L}_{\text{stability}}
+</code></pre>
+<ul>
+<li>routing accuracy</li>
+<li>policy compliance</li>
+<li>stability across prompt perturbations</li>
+</ul>
+<h3 id="65-data-strategy">6.5 Data Strategy</h3>
+<p>A robust dataset mix includes:</p>
+<ul>
+<li>task corpora for code, systems, and planning</li>
+<li>dialog corpora with labeled empathy and tone targets</li>
+<li>safety policy examples with fine‑grained labels</li>
+<li>retrieval‑grounded examples (answer must cite retrieved facts)</li>
+</ul>
+<h3 id="66-feedback-and-continuous-learning">6.6 Feedback and Continuous Learning</h3>
+<ul>
+<li>preference tuning (pairwise rankings)</li>
+<li>regression tests for safety and style</li>
+<li>drift detection on user satisfaction and refusal rates</li>
+<li>“canary prompts” to detect sudden persona regressions</li>
+</ul>
+<p>A practical governance rule: never ship a persona update without running a fixed suite of routing and safety tests.</p>
+<h2 id="7-evaluation">7. Evaluation</h2>
+<h3 id="71-quality-metrics">7.1 Quality Metrics</h3>
+<ul>
+<li>task success rate</li>
+<li>factuality checks (self‑consistency + retrieval grounding)</li>
+<li>code correctness (unit tests, compilation)</li>
+<li>coherence across turns</li>
+<li>tool‑use correctness (if tools are integrated)</li>
+</ul>
+<h3 id="72-persona-fidelity-metrics">7.2 Persona Fidelity Metrics</h3>
+<ul>
+<li>tone consistency score (classifier)</li>
+<li>verbosity compression ratio</li>
+<li>hedging frequency</li>
+<li>“Abbey warmth” vs “Aviva sharpness” separation score</li>
+</ul>
+<h3 id="73-safety-and-policy-metrics">7.3 Safety and Policy Metrics</h3>
+<ul>
+<li>refusal correctness</li>
+<li>harmful content leakage rate</li>
+<li>false refusal rate</li>
+<li>policy‑routing stability under paraphrase</li>
+</ul>
+<h3 id="74-performance-metrics">7.4 Performance Metrics</h3>
+<ul>
+<li>p50/p95/p99 retrieval latency</li>
+<li>throughput (QPS) under concurrency</li>
+<li>write amplification and storage cost</li>
+<li>cache hit rates (hot shards, embeddings, rerank)</li>
+</ul>
+<h3 id="75-suggested-benchmark-harness">7.5 Suggested Benchmark Harness</h3>
+<p>A reproducible harness should include:</p>
+<ul>
+<li>fixed datasets (embeddings + metadata)</li>
+<li>workload generator (read/write mix)</li>
+<li>measured latencies per pipeline stage</li>
+<li>persona routing stress tests</li>
+<li>failure injection (node loss, shard lag, stale replicas)</li>
+</ul>
+<h3 id="76-ablation-studies">7.6 Ablation Studies</h3>
+<p>Recommended ablations:</p>
+<ul>
+<li>single persona vs multi‑persona (quality and safety)</li>
+<li>hard routing vs blended routing</li>
+<li>WDBX chain retrieval vs flat vector retrieval</li>
+<li>MVCC vs locking (latency under concurrent writes)</li>
+</ul>
+<p>Ablations turn architecture claims into measurable engineering facts.</p>
+<h2 id="8-security-privacy-and-compliance">8. Security, Privacy, and Compliance</h2>
+<h3 id="81-data-minimization">8.1 Data Minimization</h3>
+<ul>
+<li>store only needed artifacts</li>
+<li>redact sensitive user data where possible</li>
+<li>separate identifying data from embeddings</li>
+<li>minimize raw text retention unless explicitly required</li>
+</ul>
+<h3 id="82-encryption-and-access-control">8.2 Encryption and Access Control</h3>
+<ul>
+<li>AES‑256 at rest</li>
+<li>TLS in transit</li>
+<li>role‑based access control</li>
+<li>per‑tenant keying where applicable</li>
+<li>audit logs for access and deletion</li>
+</ul>
+<h3 id="83-auditability">8.3 Auditability</h3>
+<ul>
+<li>block chaining provides traceable state</li>
+<li>logs for persona selection decisions</li>
+<li>signed checkpoints for sensitive deployments</li>
+<li>reproducible “why this answer” trace pointers</li>
+</ul>
+<h3 id="84-user-control">8.4 User Control</h3>
+<ul>
+<li>memory export and deletion</li>
+<li>persona preference controls</li>
+<li>opt‑out of training data usage</li>
+<li>configurable retention policies</li>
+</ul>
+<h3 id="85-compliance-posture">8.5 Compliance Posture</h3>
+<p>WDBX and routing traces enable:</p>
+<ul>
+<li>incident investigation without storing unnecessary personal text</li>
+<li>retention enforcement</li>
+<li>demonstrable policy behavior over time</li>
+</ul>
+<p>Compliance is a product feature when it prevents expensive surprises.</p>
+<h2 id="9-implementation-blueprint">9. Implementation Blueprint</h2>
+<h3 id="91-services">9.1 Services</h3>
+<ul>
+<li>Gateway: auth, rate limiting, request normalization</li>
+<li>Router (Abi): intent + risk + persona weights + explainability</li>
+<li>Retriever (WDBX): candidate + rerank + evidence pointers</li>
+<li>Generator: persona‑conditioned inference</li>
+<li>Writer: block creation, MVCC versioning, compaction jobs</li>
+<li>Telemetry: metrics, traces, audit logs</li>
+</ul>
+<h3 id="92-block-schema-illustrative">9.2 Block Schema (Illustrative)</h3>
+<ul>
+<li>block_id</li>
+<li>tenant_id</li>
+<li>session_id</li>
+<li>turn_index</li>
+<li>created_at</li>
+<li>persona_tag</li>
+<li>intent_tag</li>
+<li>risk_score</li>
+<li>embedding_query</li>
+<li>embedding_response</li>
+<li>summary_embedding</li>
+<li>evidence_block_ids</li>
+<li>parent_block_id</li>
+<li>skip_pointers</li>
+<li>checksums</li>
+<li>version fields (commit_ts, end_ts)</li>
+</ul>
+<h3 id="93-operational-playbook">9.3 Operational Playbook</h3>
+<ul>
+<li>blue/green deploys for router changes</li>
+<li>canary prompts and regression suites</li>
+<li>snapshot backups for WDBX metadata and routing logs</li>
+<li>rolling compaction windows to avoid latency spikes</li>
+</ul>
+<h3 id="94-failure-modes-and-mitigations">9.4 Failure Modes and Mitigations</h3>
+<ul>
+<li>Context drift: periodic summarization blocks + recency weighting.</li>
+<li>Shard hotspots: adaptive sharding and workload‑aware routing.</li>
+<li>Incoherent persona blending: constrained blending and dominance thresholds.</li>
+<li>Over‑refusal: calibrated risk models and regression tests.</li>
+<li>Stale replicas: session‑causal reads, replica health scoring.</li>
+</ul>
+<h2 id="10-future-directions">10. Future Directions</h2>
+<ul>
+<li>multimodal memory blocks (image/audio embeddings)</li>
+<li>hierarchical memory (episodic vs semantic)</li>
+<li>tighter integration with long‑context attention mechanisms</li>
+<li>differential privacy options for enterprise deployments</li>
+<li>hardware‑accelerated vector search (SIMD/GPU)</li>
+<li>persona‑specific “style embeddings” for stronger separation</li>
+</ul>
+<h2 id="conclusion">Conclusion</h2>
+<p>The Abbey–Aviva–Abi framework reframes assistant behavior as a controllable, modular system rather than a single blended personality. WDBX provides a scalable memory substrate with semantic continuity via block chaining, high concurrency via MVCC, and low latency via shard‑aware indexing and reranking. Together, these components enable assistants to remain emotionally calibrated, technically effective, and policy aligned while retaining long‑term conversational coherence.</p>
+<h2 id="appendix-a-retrieval-scoring">Appendix A: Retrieval Scoring</h2>
+<p>A hybrid score combines similarity and metadata relevance:</p>
+<pre><code>\text{score}(B_i, q) = \lambda \cdot \cos(V_i, q) + (1-\lambda)\cdot g(M_i, T_i)
+</code></pre>
+<p>Where g may incorporate recency decay, persona matching, and evidence confidence.</p>
+<h2 id="appendix-b-recency-decay">Appendix B: Recency Decay</h2>
+<p>Example exponential decay:</p>
+<pre><code>\text{recency}(\Delta t) = e^{-\rho \Delta t}
+</code></pre>
+<p>A practical enhancement is to cap decay to preserve a minimum influence for key “identity” blocks.</p>
+<h2 id="appendix-c-persona-preference-prior">Appendix C: Persona Preference Prior</h2>
+<p>User preference prior (p) can be fused with router weights (w):</p>
+<pre><code>\tilde{w} = \text{normalize}(w \odot p)
+</code></pre>
+<h2 id="appendix-d-simple-confidence-fusion">Appendix D: Simple Confidence Fusion</h2>
+<p>If retrieval confidence (c \in [0, 1]) is available, routing can be made more conservative when c is low:</p>
+<pre><code>\ell_{\text{safe}} = \ell - \upsilon (1-c)
+</code></pre>
+<p>Where \upsilon increases cautious routing under low confidence.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

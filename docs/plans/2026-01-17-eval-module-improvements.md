@@ -1,3 +1,7 @@
+---
+title: "2026-01-17-eval-module-improvements"
+tags: []
+---
 # Eval Module Improvements Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
@@ -841,3 +845,4 @@ git status
 
 **Total commits:** 7-8
 **Estimated implementation time:** 45-60 minutes
+

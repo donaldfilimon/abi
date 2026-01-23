@@ -1,0 +1,1579 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modern Zig framework for modular AI services, vector search, and systems tooling.">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>explore - ABI Framework</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#abi-explore-module" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="ABI Framework" class="md-header__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ABI Framework
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              explore
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/intro.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Introduction
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/framework.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Framework
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/compute.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Compute
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/gpu.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  GPU
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/database.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Database
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/network.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Network
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/monitoring.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Monitoring
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/ai.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  AI
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../docs/migration/zig-0.16-migration.md" class="md-tabs__link">
+          
+  
+  
+  Migration
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="ABI Framework" class="md-nav__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ABI Framework
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/intro.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/framework.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/compute.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compute
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/gpu.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/database.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Database
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/network.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/monitoring.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/ai.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Migration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/migration/zig-0.16-migration.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zig 0.16 Migration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cli-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#library-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Library Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#explore-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Explore Levels
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#natural-language-query-understanding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Natural Language Query Understanding
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Natural Language Query Understanding">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#supported-intent-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported Intent Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pattern-matching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern Matching
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pattern Matching">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#literal-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Literal Search
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glob-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Glob Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#regex-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Regex Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fuzzy-matching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fuzzy Matching
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ast-parsing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AST Parsing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AST Parsing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#supported-languages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported Languages
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Formats
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output Formats">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#human-readable-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Human Readable (Default)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JSON
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#yaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        YAML
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compact
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#find-all-http-handlers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Find all HTTP handlers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#find-test-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Find test functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#find-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Find configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#find-todo-comments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Find TODO comments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#find-imports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Find imports
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analyze-code-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analyze code structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#main-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Main Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallel-exploration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel Exploration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Tips
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="abi-explore-module">ABI Explore Module</h1>
+<blockquote>
+<p><strong>Codebase Status:</strong> Synced with repository as of 2026-01-22.</p>
+</blockquote>
+<p>A powerful codebase exploration and search tool with natural language query understanding, AST parsing, and multiple output formats.</p>
+<h2 id="overview">Overview</h2>
+<p>The explore module provides intelligent search capabilities for codebases with:</p>
+<ul>
+<li><strong>Natural Language Queries</strong>: Understand queries like "find all HTTP handlers" or "show me test functions"</li>
+<li><strong>Multiple Search Levels</strong>: From quick filename search to deep semantic analysis</li>
+<li><strong>Pattern Matching</strong>: Literal, glob, regex, and fuzzy matching</li>
+<li><strong>AST Parsing</strong>: Extract functions, types, imports, and more from source files</li>
+<li><strong>Multiple Output Formats</strong>: Human-readable, JSON, YAML, or compact output</li>
+</ul>
+<h2 id="quick-start">Quick Start</h2>
+<h3 id="cli-usage">CLI Usage</h3>
+<pre><code class="language-bash"># Basic search
+zig build run -- explore &quot;HTTP handler&quot;
+
+# Search with specific level
+zig build run -- explore -l thorough &quot;TODO&quot;
+
+# Search with output format
+zig build run -- explore -f json &quot;pub fn&quot;
+
+# Include specific file types
+zig build run -- explore -i &quot;*.zig&quot; &quot;pub const&quot;
+
+# Exclude patterns
+zig build run -- explore -e &quot;test&quot; &quot;handler&quot;
+
+# Use regex patterns
+zig build run -- explore -r &quot;fn\s+\w+&quot;
+</code></pre>
+<h3 id="library-usage">Library Usage</h3>
+<pre><code class="language-zig">const explore = abi.ai.explore;
+
+var agent = explore.ExploreAgent.init(allocator, explore.ExploreConfig.defaultForLevel(.medium));
+defer agent.deinit();
+
+const result = try agent.explore(&quot;.&quot;, &quot;my search query&quot;);
+defer result.deinit();
+
+// Print results
+try result.formatHuman(std.debug);
+</code></pre>
+<h2 id="explore-levels">Explore Levels</h2>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Max Files</th>
+<th>Max Depth</th>
+<th>Timeout</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>quick</code></td>
+<td>1,000</td>
+<td>3</td>
+<td>10s</td>
+<td>Fast filename search</td>
+</tr>
+<tr>
+<td><code>medium</code></td>
+<td>5,000</td>
+<td>10</td>
+<td>30s</td>
+<td>Balanced search</td>
+</tr>
+<tr>
+<td><code>thorough</code></td>
+<td>10,000</td>
+<td>20</td>
+<td>60s</td>
+<td>Full content analysis</td>
+</tr>
+<tr>
+<td><code>deep</code></td>
+<td>50,000</td>
+<td>50</td>
+<td>5min</td>
+<td>Complete codebase scan</td>
+</tr>
+</tbody>
+</table>
+<h2 id="configuration">Configuration</h2>
+<pre><code class="language-zig">const config = explore.ExploreConfig{
+    .level = .medium,
+    .max_files = 5000,
+    .max_depth = 10,
+    .timeout_ms = 30000,
+    .case_sensitive = false,
+    .use_regex = false,
+    .parallel_io = true,
+    .include_patterns = &amp;.{ &quot;*.zig&quot;, &quot;*.md&quot; },
+    .exclude_patterns = &amp;.{ &quot;*.git&quot;, &quot;node_modules&quot; },
+    .file_size_limit_bytes = 1024 * 1024,
+};
+</code></pre>
+<h2 id="natural-language-query-understanding">Natural Language Query Understanding</h2>
+<p>The explore module can understand natural language queries:</p>
+<pre><code class="language-zig">var understander = explore.QueryUnderstanding.init(allocator);
+defer understander.deinit();
+
+const parsed = try understander.parse(&quot;find all HTTP handlers in src/api/&quot;);
+// parsed.intent = .find_functions
+// parsed.patterns = &amp;.{&quot;handler&quot;}
+// parsed.target_paths = &amp;.{&quot;src/api&quot;}
+// parsed.file_extensions = &amp;.{&quot;.zig&quot;}
+</code></pre>
+<h3 id="supported-intent-types">Supported Intent Types</h3>
+<ul>
+<li><code>find_functions</code> - Search for function definitions</li>
+<li><code>find_types</code> - Search for type definitions (structs, enums, etc.)</li>
+<li><code>find_tests</code> - Search for test cases</li>
+<li><code>find_imports</code> - Search for import statements</li>
+<li><code>find_comments</code> - Search for comments and TODOs</li>
+<li><code>find_configs</code> - Search for configuration</li>
+<li><code>find_docs</code> - Search for documentation</li>
+<li><code>list_files</code> - List files in paths</li>
+<li><code>count_occurrences</code> - Count pattern occurrences</li>
+<li><code>analyze_structure</code> - Analyze code structure</li>
+</ul>
+<h2 id="pattern-matching">Pattern Matching</h2>
+<h3 id="literal-search">Literal Search</h3>
+<pre><code class="language-zig">const pattern = try compiler.compile(&quot;my_function&quot;, .literal, false);
+</code></pre>
+<h3 id="glob-patterns">Glob Patterns</h3>
+<pre><code class="language-zig">const pattern = try compiler.compile(&quot;*.zig&quot;, .glob, false);
+const pattern = try compiler.compile(&quot;src/**/*.test.zig&quot;, .glob, false);
+</code></pre>
+<h3 id="regex-patterns">Regex Patterns</h3>
+<pre><code class="language-zig">const pattern = try compiler.compile(&quot;fn\\s+\\w+&quot;, .regex, false);
+</code></pre>
+<h3 id="fuzzy-matching">Fuzzy Matching</h3>
+<pre><code class="language-zig">const pattern = try compiler.compile(&quot;hndlr&quot;, .fuzzy, false);
+// Matches: &quot;handler&quot;, &quot;handlr&quot;, &quot;hnldr&quot;
+</code></pre>
+<h2 id="ast-parsing">AST Parsing</h2>
+<p>Parse source code to extract code elements:</p>
+<pre><code class="language-zig">var parser = explore.AstParser.init(allocator);
+defer parser.deinit();
+
+// Read file content using std.Io
+var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+defer io_backend.deinit();
+const io = io_backend.io();
+
+const content = try std.Io.Dir.cwd().readFileAlloc(io, &quot;src/abi.zig&quot;, allocator, .limited(1024 * 1024));
+defer allocator.free(content);
+const parsed = try parser.parseFile(&amp;file_stat, content);
+defer parsed.deinit();
+
+// Access parsed elements
+for (parsed.functions.items) |fn_name| {
+    std.debug.print(&quot;Found function: {s}\n&quot;, .{fn_name});
+}
+
+for (parsed.imports.items) |imp| {
+    std.debug.print(&quot;Found import: {s}\n&quot;, .{imp});
+}
+
+for (parsed.types.items) |type_name| {
+    std.debug.print(&quot;Found type: {s}\n&quot;, .{type_name});
+}
+</code></pre>
+<h3 id="supported-languages">Supported Languages</h3>
+<ul>
+<li><strong>Zig</strong>: Functions, structs, enums, const, imports, tests</li>
+<li><strong>Rust</strong>: Functions, structs, enums, use imports, tests</li>
+<li><strong>TypeScript/JavaScript</strong>: Functions, classes, interfaces, imports</li>
+<li><strong>Generic</strong>: Functions, comments (works for any language)</li>
+</ul>
+<h2 id="output-formats">Output Formats</h2>
+<h3 id="human-readable-default">Human Readable (Default)</h3>
+<pre><code>Exploration Results for: &quot;handler&quot;
+Level: medium
+Files Scanned: 45
+Matches Found: 12
+Duration: 234ms
+
+Top Matches:
+-------------
+1. src/http/server.zig:42
+   pub fn handleRequest(
+   Score: 0.85
+</code></pre>
+<h3 id="json">JSON</h3>
+<pre><code class="language-json">{
+  &quot;query&quot;: &quot;handler&quot;,
+  &quot;level&quot;: &quot;medium&quot;,
+  &quot;files_scanned&quot;: 45,
+  &quot;matches_found&quot;: 12,
+  &quot;duration_ms&quot;: 234,
+  &quot;matches&quot;: [
+    {
+      &quot;file&quot;: &quot;src/http/server.zig&quot;,
+      &quot;line&quot;: 42,
+      &quot;type&quot;: &quot;function_definition&quot;,
+      &quot;text&quot;: &quot;pub fn handleRequest(&quot;,
+      &quot;score&quot;: 0.85
+    }
+  ]
+}
+</code></pre>
+<h3 id="yaml">YAML</h3>
+<pre><code class="language-yaml">query: &quot;handler&quot;
+level: medium
+matches_found: 12
+duration_ms: 234
+</code></pre>
+<h3 id="compact">Compact</h3>
+<pre><code>Query: &quot;handler&quot; | Found: 12 matches in 234ms
+</code></pre>
+<h2 id="cli-options">CLI Options</h2>
+<pre><code>Usage: zig build run -- explore [options] &lt;query&gt;
+
+Arguments:
+  &lt;query&gt;              Search pattern or natural language query
+
+Options:
+  -l, --level &lt;level&gt;  Exploration depth: quick, medium, thorough, deep
+  -f, --format &lt;fmt&gt;   Output format: human, json, compact, yaml
+  -i, --include &lt;pat&gt;  Include files matching pattern
+  -e, --exclude &lt;pat&gt;  Exclude files matching pattern
+  -c, --case-sensitive Match case sensitively
+  -r, --regex          Treat query as regex pattern
+  --path &lt;path&gt;        Root directory to search (default: .)
+  --max-files &lt;n&gt;      Maximum files to scan
+  --max-depth &lt;n&gt;      Maximum directory depth
+  --timeout &lt;ms&gt;       Timeout in milliseconds
+  -h, --help           Show this help message
+</code></pre>
+<h2 id="examples">Examples</h2>
+<h3 id="find-all-http-handlers">Find all HTTP handlers</h3>
+<pre><code class="language-bash">zig build run -- explore &quot;HTTP handler&quot;
+zig build run -- explore -l thorough &quot;handleRequest&quot;
+zig build run -- explore -i &quot;*.zig&quot; &quot;pub fn&quot;
+</code></pre>
+<h3 id="find-test-functions">Find test functions</h3>
+<pre><code class="language-bash">zig build run -- explore &quot;test&quot;
+zig build run -- explore -l thorough &quot;test case&quot;
+zig build run -- explore -i &quot;_test.zig&quot; &quot;&quot;
+</code></pre>
+<h3 id="find-configuration">Find configuration</h3>
+<pre><code class="language-bash">zig build run -- explore &quot;const CONFIG&quot;
+zig build run -- explore &quot;pub const&quot;
+zig build run -- explore -e &quot;test&quot; &quot;config&quot;
+</code></pre>
+<h3 id="find-todo-comments">Find TODO comments</h3>
+<pre><code class="language-bash">zig build run -- explore &quot;TODO&quot;
+zig build run -- explore -l thorough &quot;TODO FIXME&quot;
+zig build run -- explore -f json &quot;fixme&quot;
+</code></pre>
+<h3 id="find-imports">Find imports</h3>
+<pre><code class="language-bash">zig build run -- explore &quot;import&quot;
+zig build run -- explore -l quick &quot;use @import&quot;
+</code></pre>
+<h3 id="analyze-code-structure">Analyze code structure</h3>
+<pre><code class="language-bash">zig build run -- explore -l thorough &quot;analyze structure&quot;
+zig build run -- explore -l deep &quot;list all functions&quot;
+</code></pre>
+<h2 id="api-reference">API Reference</h2>
+<h3 id="main-types">Main Types</h3>
+<ul>
+<li><code>ExploreAgent</code> - Main exploration agent</li>
+<li><code>ExploreConfig</code> - Configuration for exploration</li>
+<li><code>ExploreResult</code> - Results from exploration</li>
+<li><code>ExploreLevel</code> - Exploration depth levels</li>
+<li><code>OutputFormat</code> - Output format options</li>
+<li><code>QueryUnderstanding</code> - Natural language query parser</li>
+<li><code>AstParser</code> - Source code AST parser</li>
+<li><code>ParallelExplorer</code> - Multi-threaded exploration</li>
+<li><code>WorkItem</code> - Work item for parallel processing</li>
+<li><code>SearchPattern</code> - Compiled search pattern</li>
+<li><code>PatternType</code> - Pattern matching type (literal, glob, regex, fuzzy)</li>
+<li><code>PatternCompiler</code> - Compiler for search patterns</li>
+<li><code>AstNode</code> - AST node with type, name, location</li>
+<li><code>ParsedQuery</code> - Parsed natural language query</li>
+<li><code>QueryIntent</code> - Query classification (find_functions, find_types, etc.)</li>
+</ul>
+<h3 id="key-functions">Key Functions</h3>
+<pre><code class="language-zig">// Create agents with default configurations
+pub fn createDefaultAgent(allocator: std.mem.Allocator) ExploreAgent
+pub fn createQuickAgent(allocator: std.mem.Allocator) ExploreAgent
+pub fn createThoroughAgent(allocator: std.mem.Allocator) ExploreAgent
+
+// Create parallel exploration agents
+pub fn parallelExplore(
+    allocator: std.mem.Allocator,
+    root_path: []const u8,
+    config: ExploreConfig,
+    search_query: []const u8,
+) !ExploreResult
+
+// Explore methods
+pub fn explore(self: *ExploreAgent, root_path: []const u8, query: []const u8) !ExploreResult
+pub fn exploreWithPatterns(self: *ExploreAgent, root_path: []const u8, patterns: []const []const u8) !ExploreResult
+pub fn exploreNaturalLanguage(self: *ExploreAgent, root_path: []const u8, nl_query: []const u8) !ExploreResult
+</code></pre>
+<h3 id="parallel-exploration">Parallel Exploration</h3>
+<p>The <code>parallelExplore</code> function provides high-performance multi-threaded exploration:</p>
+<pre><code class="language-zig">const allocator = std.testing.allocator;
+
+const config = explore.ExploreConfig.defaultForLevel(.thorough);
+const result = try explore.parallelExplore(allocator, &quot;.&quot;, config, &quot;my query&quot;);
+defer result.deinit();
+
+try result.formatHuman(std.debug);
+</code></pre>
+<p>Parallel exploration features:
+- Automatic CPU detection and thread pool sizing
+- Work chunking for balanced load distribution
+- Thread-safe result aggregation with mutex locks
+- Graceful fallback on thread spawn failure
+- Cancellation support with <code>cancel()</code> method</p>
+<h2 id="performance-tips">Performance Tips</h2>
+<ol>
+<li><strong>Use <code>quick</code> level for filename-only searches</strong></li>
+<li><strong>Use <code>--max-files</code> and <code>--max-depth</code> to limit scope</strong></li>
+<li><strong>Use <code>-i</code> to include only relevant file types</strong></li>
+<li><strong>Use <code>-e</code> to exclude build artifacts and dependencies</strong></li>
+<li><strong>Use <code>--timeout</code> to prevent long-running searches</strong></li>
+<li><strong>Use <code>compact</code> format for scripting and parsing</strong></li>
+</ol>
+<h2 id="error-handling">Error Handling</h2>
+<pre><code class="language-zig">const result = agent.explore(&quot;.&quot;, &quot;query&quot;) catch |err| {
+    switch (err) {
+        error.PathNotFound =&gt; std.debug.print(&quot;Path not found\n&quot;, .{}),
+        error.Timeout =&gt; std.debug.print(&quot;Search timed out\n&quot;, .{}),
+        error.TooManyFiles =&gt; std.debug.print(&quot;Too many files\n&quot;, .{}),
+        else =&gt; std.debug.print(&quot;Error: {}\n&quot;, .{err}),
+    }
+    return;
+};
+</code></pre>
+<hr />
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="../ai/">AI &amp; Agents</a> - AI-powered features</li>
+<li><a href="../compute/">Compute Engine</a> - Parallel exploration execution</li>
+<li><a href="../framework/">Framework</a> - Configuration options</li>
+<li><a href="../troubleshooting/">Troubleshooting</a> - Search and timeout issues</li>
+</ul>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

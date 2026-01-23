@@ -82,6 +82,14 @@ pub const training = if (build_options.enable_ai)
 else
     @import("training/stub.zig");
 
+// ---------------------------------------------------------------------------
+// Multi‑Agent coordination (requires AI feature)
+// ---------------------------------------------------------------------------
+pub const multi_agent = if (build_options.enable_ai)
+    @import("multi_agent/mod.zig")
+else
+    @import("multi_agent/stub.zig");
+
 /// Vision/image processing module
 pub const vision = if (build_options.enable_vision)
     @import("vision/mod.zig")
@@ -94,6 +102,7 @@ else
 
 // Agent types
 pub const Agent = agent.Agent;
+pub const MultiAgentCoordinator = multi_agent.Coordinator;
 
 // Model registry types
 pub const ModelRegistry = model_registry.ModelRegistry;

@@ -1,3 +1,7 @@
+---
+title: "ROADMAP"
+tags: []
+---
 # ABI Framework Roadmap
 
 > Last updated: 2026-01-22 | Current version: 0.6.0
@@ -85,3 +89,4 @@ Items explicitly deprioritized:
 ## History
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
+

@@ -1,3 +1,7 @@
+---
+title: "troubleshooting"
+tags: []
+---
 # Troubleshooting
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -590,3 +594,4 @@ If your issue isn't covered here:
 - [Monitoring](monitoring.md) - Debugging with metrics
 - [Zig 0.16 Migration](migration/zig-0.16-migration.md) - API changes
 - [Performance Baseline](PERFORMANCE_BASELINE.md) - Expected performance
+

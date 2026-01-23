@@ -1,0 +1,2251 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modern Zig framework for modular AI services, vector search, and systems tooling.">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>2026-01-17-task-management-system - ABI Framework</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#task-management-system-implementation-plan" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="ABI Framework" class="md-header__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ABI Framework
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              2026-01-17-task-management-system
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/intro.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Introduction
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/framework.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Framework
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/compute.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Compute
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/gpu.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  GPU
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/database.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Database
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/network.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Network
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/monitoring.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Monitoring
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/ai.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  AI
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../docs/migration/zig-0.16-migration.md" class="md-tabs__link">
+          
+  
+  
+  Migration
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="ABI Framework" class="md-nav__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ABI Framework
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/intro.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/framework.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/compute.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compute
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/gpu.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/database.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Database
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/network.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/monitoring.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/ai.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Migration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/migration/zig-0.16-migration.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zig 0.16 Migration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#phase-1-core-task-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Core Task Module
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 1: Core Task Module">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-11-create-task-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 1.1: Create Task Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#task-12-create-task-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 1.2: Create Task Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-2-cli-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: CLI Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 2: CLI Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-21-create-task-cli-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 2.1: Create Task CLI Command
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-3-roadmap-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Roadmap Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 3: Roadmap Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-31-import-roadmap-items-as-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 3.1: Import Roadmap Items as Tasks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-4-abi-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4: ABI Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 4: ABI Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-41-add-tasks-to-abizig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 4.1: Add Tasks to abi.zig
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-5-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 5: Documentation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 5: Documentation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-51-add-task-module-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 5.1: Add Task Module Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#programmatic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Programmatic Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Storage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-properties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task Properties
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Verification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#final-verification-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Final Verification Steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#success-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Success Criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="task-management-system-implementation-plan">Task Management System Implementation Plan</h1>
+<blockquote>
+<p><strong>Codebase Status:</strong> Synced with repository as of 2026-01-18.</p>
+<p><strong>Status:</strong> In Progress 🔄</p>
+<p><strong>For Claude:</strong> REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.</p>
+</blockquote>
+<p><strong>Goal:</strong> Build a unified task management system that provides CLI-based personal task tracking, integrates with the distributed compute scheduler, and organizes project roadmap items.</p>
+<p><strong>Architecture:</strong> Three-layer design: (1) Core <code>Task</code> abstraction in <code>src/tasks/</code> with persistence, (2) CLI command <code>tools/cli/commands/task.zig</code> for user interaction, (3) Integration hooks into existing <code>TaskScheduler</code> for distributed execution. Uses JSON file storage for simplicity.</p>
+<p><strong>Tech Stack:</strong> Zig 0.16, JSON serialization via <code>std.json</code>, file-based persistence, existing CLI patterns from <code>tools/cli/</code></p>
+<hr />
+<h2 id="phase-1-core-task-module">Phase 1: Core Task Module</h2>
+<h3 id="task-11-create-task-types">Task 1.1: Create Task Types</h3>
+<p><strong>Files:</strong>
+- Create: <code>src/tasks/types.zig</code>
+- Create: <code>src/tasks/mod.zig</code></p>
+<p><strong>Step 1: Create the types file</strong></p>
+<p>Create <code>src/tasks/types.zig</code>:</p>
+<pre><code class="language-zig">//! Task Management Types
+//!
+//! Core types for the unified task system supporting personal tasks,
+//! distributed compute tasks, and project roadmap items.
+
+const std = @import(&quot;std&quot;);
+
+/// Task priority levels
+pub const Priority = enum(u8) {
+    low = 0,
+    normal = 1,
+    high = 2,
+    critical = 3,
+
+    pub fn toString(self: Priority) []const u8 {
+        return switch (self) {
+            .low =&gt; &quot;low&quot;,
+            .normal =&gt; &quot;normal&quot;,
+            .high =&gt; &quot;high&quot;,
+            .critical =&gt; &quot;critical&quot;,
+        };
+    }
+
+    pub fn fromString(s: []const u8) ?Priority {
+        if (std.mem.eql(u8, s, &quot;low&quot;)) return .low;
+        if (std.mem.eql(u8, s, &quot;normal&quot;)) return .normal;
+        if (std.mem.eql(u8, s, &quot;high&quot;)) return .high;
+        if (std.mem.eql(u8, s, &quot;critical&quot;)) return .critical;
+        return null;
+    }
+};
+
+/// Task status
+pub const Status = enum(u8) {
+    pending = 0,
+    in_progress = 1,
+    completed = 2,
+    cancelled = 3,
+    blocked = 4,
+
+    pub fn toString(self: Status) []const u8 {
+        return switch (self) {
+            .pending =&gt; &quot;pending&quot;,
+            .in_progress =&gt; &quot;in_progress&quot;,
+            .completed =&gt; &quot;completed&quot;,
+            .cancelled =&gt; &quot;cancelled&quot;,
+            .blocked =&gt; &quot;blocked&quot;,
+        };
+    }
+
+    pub fn fromString(s: []const u8) ?Status {
+        if (std.mem.eql(u8, s, &quot;pending&quot;)) return .pending;
+        if (std.mem.eql(u8, s, &quot;in_progress&quot;)) return .in_progress;
+        if (std.mem.eql(u8, s, &quot;completed&quot;)) return .completed;
+        if (std.mem.eql(u8, s, &quot;cancelled&quot;)) return .cancelled;
+        if (std.mem.eql(u8, s, &quot;blocked&quot;)) return .blocked;
+        return null;
+    }
+};
+
+/// Task category for organization
+pub const Category = enum(u8) {
+    personal = 0,
+    roadmap = 1,
+    compute = 2,
+    bug = 3,
+    feature = 4,
+
+    pub fn toString(self: Category) []const u8 {
+        return switch (self) {
+            .personal =&gt; &quot;personal&quot;,
+            .roadmap =&gt; &quot;roadmap&quot;,
+            .compute =&gt; &quot;compute&quot;,
+            .bug =&gt; &quot;bug&quot;,
+            .feature =&gt; &quot;feature&quot;,
+        };
+    }
+
+    pub fn fromString(s: []const u8) ?Category {
+        if (std.mem.eql(u8, s, &quot;personal&quot;)) return .personal;
+        if (std.mem.eql(u8, s, &quot;roadmap&quot;)) return .roadmap;
+        if (std.mem.eql(u8, s, &quot;compute&quot;)) return .compute;
+        if (std.mem.eql(u8, s, &quot;bug&quot;)) return .bug;
+        if (std.mem.eql(u8, s, &quot;feature&quot;)) return .feature;
+        return null;
+    }
+};
+
+/// Core task structure
+pub const Task = struct {
+    id: u64,
+    title: []const u8,
+    description: ?[]const u8 = null,
+    status: Status = .pending,
+    priority: Priority = .normal,
+    category: Category = .personal,
+    tags: []const []const u8 = &amp;.{},
+    created_at: i64,
+    updated_at: i64,
+    due_date: ?i64 = null,
+    completed_at: ?i64 = null,
+    blocked_by: ?u64 = null,
+    parent_id: ?u64 = null,
+
+    /// Check if task is actionable (not blocked or completed)
+    pub fn isActionable(self: *const Task) bool {
+        return self.status == .pending or self.status == .in_progress;
+    }
+
+    /// Check if task is overdue
+    pub fn isOverdue(self: *const Task) bool {
+        if (self.due_date) |due| {
+            if (self.status == .completed or self.status == .cancelled) return false;
+            return std.time.timestamp() &gt; due;
+        }
+        return false;
+    }
+};
+
+/// Filter criteria for querying tasks
+pub const Filter = struct {
+    status: ?Status = null,
+    priority: ?Priority = null,
+    category: ?Category = null,
+    tag: ?[]const u8 = null,
+    overdue_only: bool = false,
+    parent_id: ?u64 = null,
+};
+
+/// Sort options for task lists
+pub const SortBy = enum {
+    created,
+    updated,
+    priority,
+    due_date,
+    status,
+};
+
+/// Task statistics
+pub const Stats = struct {
+    total: usize = 0,
+    pending: usize = 0,
+    in_progress: usize = 0,
+    completed: usize = 0,
+    cancelled: usize = 0,
+    blocked: usize = 0,
+    overdue: usize = 0,
+};
+</code></pre>
+<p><strong>Step 2: Create the module entry point</strong></p>
+<p>Create <code>src/tasks/mod.zig</code>:</p>
+<pre><code class="language-zig">//! Task Management Module
+//!
+//! Provides unified task tracking for personal tasks, project roadmap
+//! items, and distributed compute jobs.
+//!
+//! ## Usage
+//!
+//! ```zig
+//! const tasks = @import(&quot;tasks/mod.zig&quot;);
+//!
+//! var manager = try tasks.Manager.init(allocator, .{});
+//! defer manager.deinit();
+//!
+//! const id = try manager.add(&quot;Fix bug&quot;, .{ .priority = .high });
+//! try manager.complete(id);
+//! ```
+
+pub const types = @import(&quot;types.zig&quot;);
+
+pub const Task = types.Task;
+pub const Priority = types.Priority;
+pub const Status = types.Status;
+pub const Category = types.Category;
+pub const Filter = types.Filter;
+pub const SortBy = types.SortBy;
+pub const Stats = types.Stats;
+
+// Manager will be added in Task 1.2
+pub const Manager = @import(&quot;manager.zig&quot;).Manager;
+pub const ManagerError = @import(&quot;manager.zig&quot;).ManagerError;
+
+test {
+    _ = types;
+    _ = @import(&quot;manager.zig&quot;);
+}
+</code></pre>
+<p><strong>Step 3: Verify compilation</strong></p>
+<p>Run: <code>zig build-lib src/tasks/types.zig -femit-bin=nul</code>
+Expected: Clean compilation</p>
+<p><strong>Step 4: Commit</strong></p>
+<pre><code class="language-bash">git add src/tasks/types.zig src/tasks/mod.zig
+git commit -m &quot;feat(tasks): add core task types
+
+- Task struct with id, title, status, priority, category
+- Priority, Status, Category enums with string conversion
+- Filter and SortBy for queries
+- Stats for aggregates&quot;
+</code></pre>
+<hr />
+<h3 id="task-12-create-task-manager">Task 1.2: Create Task Manager</h3>
+<p><strong>Files:</strong>
+- Create: <code>src/tasks/manager.zig</code>
+- Modify: <code>src/tasks/mod.zig</code> (already imports manager)</p>
+<p><strong>Step 1: Create the manager file</strong></p>
+<p>Create <code>src/tasks/manager.zig</code>:</p>
+<pre><code class="language-zig">//! Task Manager
+//!
+//! Handles task CRUD operations, persistence, and queries.
+
+const std = @import(&quot;std&quot;);
+const types = @import(&quot;types.zig&quot;);
+
+const Task = types.Task;
+const Priority = types.Priority;
+const Status = types.Status;
+const Category = types.Category;
+const Filter = types.Filter;
+const SortBy = types.SortBy;
+const Stats = types.Stats;
+
+pub const ManagerError = error{
+    TaskNotFound,
+    InvalidOperation,
+    PersistenceFailed,
+    ParseError,
+} || std.mem.Allocator.Error || std.fs.File.OpenError || std.fs.File.ReadError || std.fs.File.WriteError;
+
+pub const ManagerConfig = struct {
+    storage_path: []const u8 = &quot;.abi/tasks.json&quot;,
+    auto_save: bool = true,
+};
+
+pub const AddOptions = struct {
+    description: ?[]const u8 = null,
+    priority: Priority = .normal,
+    category: Category = .personal,
+    tags: []const []const u8 = &amp;.{},
+    due_date: ?i64 = null,
+    parent_id: ?u64 = null,
+};
+
+pub const Manager = struct {
+    allocator: std.mem.Allocator,
+    config: ManagerConfig,
+    tasks: std.AutoHashMapUnmanaged(u64, Task),
+    next_id: u64,
+    dirty: bool,
+
+    // Owned string storage
+    strings: std.ArrayListUnmanaged([]u8),
+
+    pub fn init(allocator: std.mem.Allocator, config: ManagerConfig) ManagerError!Manager {
+        var self = Manager{
+            .allocator = allocator,
+            .config = config,
+            .tasks = .{},
+            .next_id = 1,
+            .dirty = false,
+            .strings = .{},
+        };
+
+        // Try to load existing tasks
+        self.load() catch |err| switch (err) {
+            error.FileNotFound =&gt; {}, // No existing file is OK
+            else =&gt; return err,
+        };
+
+        return self;
+    }
+
+    pub fn deinit(self: *Manager) void {
+        if (self.dirty and self.config.auto_save) {
+            self.save() catch {};
+        }
+
+        // Free all owned strings
+        for (self.strings.items) |s| {
+            self.allocator.free(s);
+        }
+        self.strings.deinit(self.allocator);
+
+        self.tasks.deinit(self.allocator);
+    }
+
+    /// Add a new task
+    pub fn add(self: *Manager, title: []const u8, options: AddOptions) ManagerError!u64 {
+        const now = std.time.timestamp();
+        const id = self.next_id;
+        self.next_id += 1;
+
+        // Duplicate strings we need to own
+        const owned_title = try self.dupeString(title);
+        const owned_desc = if (options.description) |d| try self.dupeString(d) else null;
+
+        const task = Task{
+            .id = id,
+            .title = owned_title,
+            .description = owned_desc,
+            .priority = options.priority,
+            .category = options.category,
+            .created_at = now,
+            .updated_at = now,
+            .due_date = options.due_date,
+            .parent_id = options.parent_id,
+        };
+
+        try self.tasks.put(self.allocator, id, task);
+        self.dirty = true;
+
+        if (self.config.auto_save) {
+            try self.save();
+        }
+
+        return id;
+    }
+
+    /// Get a task by ID
+    pub fn get(self: *const Manager, id: u64) ?Task {
+        return self.tasks.get(id);
+    }
+
+    /// Update task status
+    pub fn setStatus(self: *Manager, id: u64, status: Status) ManagerError!void {
+        const ptr = self.tasks.getPtr(id) orelse return error.TaskNotFound;
+        ptr.status = status;
+        ptr.updated_at = std.time.timestamp();
+        if (status == .completed) {
+            ptr.completed_at = ptr.updated_at;
+        }
+        self.dirty = true;
+        if (self.config.auto_save) try self.save();
+    }
+
+    /// Mark task as completed
+    pub fn complete(self: *Manager, id: u64) ManagerError!void {
+        return self.setStatus(id, .completed);
+    }
+
+    /// Mark task as in progress
+    pub fn start(self: *Manager, id: u64) ManagerError!void {
+        return self.setStatus(id, .in_progress);
+    }
+
+    /// Cancel a task
+    pub fn cancel(self: *Manager, id: u64) ManagerError!void {
+        return self.setStatus(id, .cancelled);
+    }
+
+    /// Delete a task
+    pub fn delete(self: *Manager, id: u64) ManagerError!void {
+        if (!self.tasks.remove(id)) return error.TaskNotFound;
+        self.dirty = true;
+        if (self.config.auto_save) try self.save();
+    }
+
+    /// List tasks with optional filter
+    pub fn list(self: *const Manager, allocator: std.mem.Allocator, filter: Filter) ManagerError![]Task {
+        var result = std.ArrayListUnmanaged(Task){};
+        errdefer result.deinit(allocator);
+
+        var iter = self.tasks.iterator();
+        while (iter.next()) |entry| {
+            const task = entry.value_ptr.*;
+            if (self.matchesFilter(&amp;task, filter)) {
+                try result.append(allocator, task);
+            }
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    /// Get statistics
+    pub fn getStats(self: *const Manager) Stats {
+        var stats = Stats{};
+        var iter = self.tasks.iterator();
+        while (iter.next()) |entry| {
+            const task = entry.value_ptr.*;
+            stats.total += 1;
+            switch (task.status) {
+                .pending =&gt; stats.pending += 1,
+                .in_progress =&gt; stats.in_progress += 1,
+                .completed =&gt; stats.completed += 1,
+                .cancelled =&gt; stats.cancelled += 1,
+                .blocked =&gt; stats.blocked += 1,
+            }
+            if (task.isOverdue()) stats.overdue += 1;
+        }
+        return stats;
+    }
+
+    fn matchesFilter(self: *const Manager, task: *const Task, filter: Filter) bool {
+        _ = self;
+        if (filter.status) |s| if (task.status != s) return false;
+        if (filter.priority) |p| if (task.priority != p) return false;
+        if (filter.category) |c| if (task.category != c) return false;
+        if (filter.overdue_only and !task.isOverdue()) return false;
+        if (filter.parent_id) |pid| if (task.parent_id != pid) return false;
+        return true;
+    }
+
+    fn dupeString(self: *Manager, s: []const u8) ManagerError![]const u8 {
+        const owned = try self.allocator.dupe(u8, s);
+        try self.strings.append(self.allocator, owned);
+        return owned;
+    }
+
+    /// Save tasks to file
+    pub fn save(self: *Manager) ManagerError!void {
+        // Ensure directory exists
+        const dir_path = std.fs.path.dirname(self.config.storage_path) orelse &quot;.&quot;;
+        std.fs.cwd().makePath(dir_path) catch {};
+
+        var file = std.fs.cwd().createFile(self.config.storage_path, .{}) catch |err| {
+            return err;
+        };
+        defer file.close();
+
+        var writer = file.writer();
+
+        // Write simple JSON manually
+        try writer.writeAll(&quot;{\n  \&quot;next_id\&quot;: &quot;);
+        try std.fmt.format(writer, &quot;{d}&quot;, .{self.next_id});
+        try writer.writeAll(&quot;,\n  \&quot;tasks\&quot;: [\n&quot;);
+
+        var first = true;
+        var iter = self.tasks.iterator();
+        while (iter.next()) |entry| {
+            if (!first) try writer.writeAll(&quot;,\n&quot;);
+            first = false;
+            try self.writeTask(writer, entry.value_ptr.*);
+        }
+
+        try writer.writeAll(&quot;\n  ]\n}\n&quot;);
+        self.dirty = false;
+    }
+
+    fn writeTask(self: *const Manager, writer: anytype, task: Task) !void {
+        _ = self;
+        try writer.writeAll(&quot;    {&quot;);
+        try std.fmt.format(writer, &quot;\&quot;id\&quot;:{d},&quot;, .{task.id});
+        try writer.writeAll(&quot;\&quot;title\&quot;:\&quot;&quot;);
+        try writeJsonString(writer, task.title);
+        try writer.writeAll(&quot;\&quot;,&quot;);
+        try std.fmt.format(writer, &quot;\&quot;status\&quot;:\&quot;{s}\&quot;,&quot;, .{task.status.toString()});
+        try std.fmt.format(writer, &quot;\&quot;priority\&quot;:\&quot;{s}\&quot;,&quot;, .{task.priority.toString()});
+        try std.fmt.format(writer, &quot;\&quot;category\&quot;:\&quot;{s}\&quot;,&quot;, .{task.category.toString()});
+        try std.fmt.format(writer, &quot;\&quot;created_at\&quot;:{d},&quot;, .{task.created_at});
+        try std.fmt.format(writer, &quot;\&quot;updated_at\&quot;:{d}&quot;, .{task.updated_at});
+        if (task.description) |d| {
+            try writer.writeAll(&quot;,\&quot;description\&quot;:\&quot;&quot;);
+            try writeJsonString(writer, d);
+            try writer.writeAll(&quot;\&quot;&quot;);
+        }
+        if (task.due_date) |d| {
+            try std.fmt.format(writer, &quot;,\&quot;due_date\&quot;:{d}&quot;, .{d});
+        }
+        if (task.completed_at) |c| {
+            try std.fmt.format(writer, &quot;,\&quot;completed_at\&quot;:{d}&quot;, .{c});
+        }
+        if (task.parent_id) |p| {
+            try std.fmt.format(writer, &quot;,\&quot;parent_id\&quot;:{d}&quot;, .{p});
+        }
+        try writer.writeAll(&quot;}&quot;);
+    }
+
+    /// Load tasks from file
+    pub fn load(self: *Manager) ManagerError!void {
+        const file = try std.fs.cwd().openFile(self.config.storage_path, .{});
+        defer file.close();
+
+        const content = file.readToEndAlloc(self.allocator, 1024 * 1024) catch |err| {
+            return err;
+        };
+        defer self.allocator.free(content);
+
+        // Parse JSON using std.json
+        var parsed = std.json.parseFromSlice(std.json.Value, self.allocator, content, .{}) catch {
+            return error.ParseError;
+        };
+        defer parsed.deinit();
+
+        const root = parsed.value.object;
+
+        if (root.get(&quot;next_id&quot;)) |nid| {
+            self.next_id = @intCast(nid.integer);
+        }
+
+        if (root.get(&quot;tasks&quot;)) |tasks_val| {
+            for (tasks_val.array.items) |task_val| {
+                const obj = task_val.object;
+                const task = try self.parseTask(obj);
+                try self.tasks.put(self.allocator, task.id, task);
+            }
+        }
+
+        self.dirty = false;
+    }
+
+    fn parseTask(self: *Manager, obj: std.json.ObjectMap) ManagerError!Task {
+        const id: u64 = @intCast(obj.get(&quot;id&quot;).?.integer);
+        const title = try self.dupeString(obj.get(&quot;title&quot;).?.string);
+        const status = Status.fromString(obj.get(&quot;status&quot;).?.string) orelse .pending;
+        const priority = Priority.fromString(obj.get(&quot;priority&quot;).?.string) orelse .normal;
+        const category = Category.fromString(obj.get(&quot;category&quot;).?.string) orelse .personal;
+        const created_at: i64 = obj.get(&quot;created_at&quot;).?.integer;
+        const updated_at: i64 = obj.get(&quot;updated_at&quot;).?.integer;
+
+        var task = Task{
+            .id = id,
+            .title = title,
+            .status = status,
+            .priority = priority,
+            .category = category,
+            .created_at = created_at,
+            .updated_at = updated_at,
+        };
+
+        if (obj.get(&quot;description&quot;)) |d| {
+            task.description = try self.dupeString(d.string);
+        }
+        if (obj.get(&quot;due_date&quot;)) |d| {
+            task.due_date = d.integer;
+        }
+        if (obj.get(&quot;completed_at&quot;)) |c| {
+            task.completed_at = c.integer;
+        }
+        if (obj.get(&quot;parent_id&quot;)) |p| {
+            task.parent_id = @intCast(p.integer);
+        }
+
+        return task;
+    }
+};
+
+fn writeJsonString(writer: anytype, s: []const u8) !void {
+    for (s) |c| {
+        switch (c) {
+            '&quot;' =&gt; try writer.writeAll(&quot;\\\&quot;&quot;),
+            '\\' =&gt; try writer.writeAll(&quot;\\\\&quot;),
+            '\n' =&gt; try writer.writeAll(&quot;\\n&quot;),
+            '\r' =&gt; try writer.writeAll(&quot;\\r&quot;),
+            '\t' =&gt; try writer.writeAll(&quot;\\t&quot;),
+            else =&gt; try writer.writeByte(c),
+        }
+    }
+}
+
+test &quot;Manager basic operations&quot; {
+    var manager = try Manager.init(std.testing.allocator, .{
+        .storage_path = &quot;/tmp/abi_test_tasks.json&quot;,
+        .auto_save = false,
+    });
+    defer manager.deinit();
+
+    const id = try manager.add(&quot;Test task&quot;, .{ .priority = .high });
+    try std.testing.expect(id == 1);
+
+    const task = manager.get(id).?;
+    try std.testing.expectEqualStrings(&quot;Test task&quot;, task.title);
+    try std.testing.expectEqual(Priority.high, task.priority);
+    try std.testing.expectEqual(Status.pending, task.status);
+
+    try manager.complete(id);
+    const updated = manager.get(id).?;
+    try std.testing.expectEqual(Status.completed, updated.status);
+}
+
+test &quot;Manager stats&quot; {
+    var manager = try Manager.init(std.testing.allocator, .{
+        .storage_path = &quot;/tmp/abi_test_tasks2.json&quot;,
+        .auto_save = false,
+    });
+    defer manager.deinit();
+
+    _ = try manager.add(&quot;Task 1&quot;, .{});
+    _ = try manager.add(&quot;Task 2&quot;, .{});
+    const id3 = try manager.add(&quot;Task 3&quot;, .{});
+    try manager.complete(id3);
+
+    const stats = manager.getStats();
+    try std.testing.expectEqual(@as(usize, 3), stats.total);
+    try std.testing.expectEqual(@as(usize, 2), stats.pending);
+    try std.testing.expectEqual(@as(usize, 1), stats.completed);
+}
+</code></pre>
+<p><strong>Step 2: Verify compilation</strong></p>
+<p>Run: <code>zig build-lib src/tasks/manager.zig -femit-bin=nul</code>
+Expected: Clean compilation</p>
+<p><strong>Step 3: Run tests</strong></p>
+<p>Run: <code>zig test src/tasks/manager.zig</code>
+Expected: All tests pass</p>
+<p><strong>Step 4: Commit</strong></p>
+<pre><code class="language-bash">git add src/tasks/manager.zig
+git commit -m &quot;feat(tasks): add task manager with persistence
+
+- CRUD operations (add, get, setStatus, delete)
+- Convenience methods (complete, start, cancel)
+- JSON file persistence with auto-save
+- Filtering and statistics
+- Tests for basic operations&quot;
+</code></pre>
+<hr />
+<h2 id="phase-2-cli-integration">Phase 2: CLI Integration</h2>
+<h3 id="task-21-create-task-cli-command">Task 2.1: Create Task CLI Command</h3>
+<p><strong>Files:</strong>
+- Create: <code>tools/cli/commands/task.zig</code>
+- Modify: <code>tools/cli/mod.zig</code> (add task command)
+- Modify: <code>tools/cli/commands/mod.zig</code> (export task)</p>
+<p><strong>Step 1: Create the task command</strong></p>
+<p>Create <code>tools/cli/commands/task.zig</code>:</p>
+<pre><code class="language-zig">//! Task Management CLI
+//!
+//! Commands:
+//!   task add &lt;title&gt; [--priority=&lt;p&gt;] [--category=&lt;c&gt;]
+//!   task list [--status=&lt;s&gt;] [--priority=&lt;p&gt;]
+//!   task show &lt;id&gt;
+//!   task done &lt;id&gt;
+//!   task start &lt;id&gt;
+//!   task cancel &lt;id&gt;
+//!   task delete &lt;id&gt;
+//!   task stats
+
+const std = @import(&quot;std&quot;);
+const tasks = @import(&quot;../../../src/tasks/mod.zig&quot;);
+const utils = @import(&quot;../utils/mod.zig&quot;);
+
+pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+
+    if (!parser.hasMore() or parser.wantsHelp()) {
+        printHelp();
+        return;
+    }
+
+    var manager = tasks.Manager.init(allocator, .{}) catch |err| {
+        utils.output.printError(&quot;Failed to initialize task manager: {}&quot;, .{err});
+        return;
+    };
+    defer manager.deinit();
+
+    const command = parser.next().?;
+
+    if (std.mem.eql(u8, command, &quot;add&quot;)) {
+        try runAdd(allocator, &amp;parser, &amp;manager);
+    } else if (std.mem.eql(u8, command, &quot;list&quot;) or std.mem.eql(u8, command, &quot;ls&quot;)) {
+        try runList(allocator, &amp;parser, &amp;manager);
+    } else if (std.mem.eql(u8, command, &quot;show&quot;)) {
+        try runShow(&amp;parser, &amp;manager);
+    } else if (std.mem.eql(u8, command, &quot;done&quot;)) {
+        try runDone(&amp;parser, &amp;manager);
+    } else if (std.mem.eql(u8, command, &quot;start&quot;)) {
+        try runStart(&amp;parser, &amp;manager);
+    } else if (std.mem.eql(u8, command, &quot;cancel&quot;)) {
+        try runCancel(&amp;parser, &amp;manager);
+    } else if (std.mem.eql(u8, command, &quot;delete&quot;) or std.mem.eql(u8, command, &quot;rm&quot;)) {
+        try runDelete(&amp;parser, &amp;manager);
+    } else if (std.mem.eql(u8, command, &quot;stats&quot;)) {
+        runStats(&amp;manager);
+    } else {
+        utils.output.printError(&quot;Unknown command: {s}&quot;, .{command});
+        printHelp();
+    }
+}
+
+fn runAdd(allocator: std.mem.Allocator, parser: *utils.args.ArgParser, manager: *tasks.Manager) !void {
+    const title = parser.next() orelse {
+        utils.output.printError(&quot;Usage: task add &lt;title&gt; [options]&quot;, .{});
+        return;
+    };
+
+    const priority_str = parser.consumeOption(&amp;.{ &quot;--priority&quot;, &quot;-p&quot; });
+    const priority = if (priority_str) |p| tasks.Priority.fromString(p) orelse .normal else .normal;
+
+    const category_str = parser.consumeOption(&amp;.{ &quot;--category&quot;, &quot;-c&quot; });
+    const category = if (category_str) |c| tasks.Category.fromString(c) orelse .personal else .personal;
+
+    const desc = parser.consumeOption(&amp;.{ &quot;--desc&quot;, &quot;-d&quot; });
+
+    const id = manager.add(title, .{
+        .priority = priority,
+        .category = category,
+        .description = desc,
+    }) catch |err| {
+        utils.output.printError(&quot;Failed to add task: {}&quot;, .{err});
+        return;
+    };
+
+    utils.output.printSuccess(&quot;Created task #{d}: {s}&quot;, .{ id, title });
+    _ = allocator;
+}
+
+fn runList(allocator: std.mem.Allocator, parser: *utils.args.ArgParser, manager: *tasks.Manager) !void {
+    var filter = tasks.Filter{};
+
+    if (parser.consumeOption(&amp;.{ &quot;--status&quot;, &quot;-s&quot; })) |s| {
+        filter.status = tasks.Status.fromString(s);
+    }
+    if (parser.consumeOption(&amp;.{ &quot;--priority&quot;, &quot;-p&quot; })) |p| {
+        filter.priority = tasks.Priority.fromString(p);
+    }
+    if (parser.consumeOption(&amp;.{ &quot;--category&quot;, &quot;-c&quot; })) |c| {
+        filter.category = tasks.Category.fromString(c);
+    }
+    if (parser.consumeFlag(&amp;.{&quot;--overdue&quot;})) {
+        filter.overdue_only = true;
+    }
+
+    const task_list = manager.list(allocator, filter) catch |err| {
+        utils.output.printError(&quot;Failed to list tasks: {}&quot;, .{err});
+        return;
+    };
+    defer allocator.free(task_list);
+
+    if (task_list.len == 0) {
+        std.debug.print(&quot;No tasks found.\n&quot;, .{});
+        return;
+    }
+
+    std.debug.print(&quot;\n&quot;, .{});
+    std.debug.print(&quot;{s:&lt;5} {s:&lt;10} {s:&lt;10} {s:&lt;12} {s}\n&quot;, .{ &quot;ID&quot;, &quot;Status&quot;, &quot;Priority&quot;, &quot;Category&quot;, &quot;Title&quot; });
+    std.debug.print(&quot;{s}\n&quot;, .{&quot;-&quot; ** 70});
+
+    for (task_list) |task| {
+        const status_marker = switch (task.status) {
+            .pending =&gt; &quot;[ ]&quot;,
+            .in_progress =&gt; &quot;[~]&quot;,
+            .completed =&gt; &quot;[x]&quot;,
+            .cancelled =&gt; &quot;[-]&quot;,
+            .blocked =&gt; &quot;[!]&quot;,
+        };
+        std.debug.print(&quot;#{d:&lt;4} {s:&lt;10} {s:&lt;10} {s:&lt;12} {s}\n&quot;, .{
+            task.id,
+            status_marker,
+            task.priority.toString(),
+            task.category.toString(),
+            task.title,
+        });
+    }
+    std.debug.print(&quot;\n&quot;, .{});
+}
+
+fn runShow(parser: *utils.args.ArgParser, manager: *tasks.Manager) !void {
+    const id_str = parser.next() orelse {
+        utils.output.printError(&quot;Usage: task show &lt;id&gt;&quot;, .{});
+        return;
+    };
+
+    const id = std.fmt.parseInt(u64, id_str, 10) catch {
+        utils.output.printError(&quot;Invalid task ID: {s}&quot;, .{id_str});
+        return;
+    };
+
+    const task = manager.get(id) orelse {
+        utils.output.printError(&quot;Task #{d} not found&quot;, .{id});
+        return;
+    };
+
+    std.debug.print(&quot;\nTask #{d}\n&quot;, .{task.id});
+    std.debug.print(&quot;  Title:    {s}\n&quot;, .{task.title});
+    std.debug.print(&quot;  Status:   {s}\n&quot;, .{task.status.toString()});
+    std.debug.print(&quot;  Priority: {s}\n&quot;, .{task.priority.toString()});
+    std.debug.print(&quot;  Category: {s}\n&quot;, .{task.category.toString()});
+    if (task.description) |d| {
+        std.debug.print(&quot;  Description: {s}\n&quot;, .{d});
+    }
+    std.debug.print(&quot;\n&quot;, .{});
+}
+
+fn runDone(parser: *utils.args.ArgParser, manager: *tasks.Manager) !void {
+    const id = try parseTaskId(parser);
+    manager.complete(id) catch |err| {
+        utils.output.printError(&quot;Failed to complete task: {}&quot;, .{err});
+        return;
+    };
+    utils.output.printSuccess(&quot;Completed task #{d}&quot;, .{id});
+}
+
+fn runStart(parser: *utils.args.ArgParser, manager: *tasks.Manager) !void {
+    const id = try parseTaskId(parser);
+    manager.start(id) catch |err| {
+        utils.output.printError(&quot;Failed to start task: {}&quot;, .{err});
+        return;
+    };
+    utils.output.printSuccess(&quot;Started task #{d}&quot;, .{id});
+}
+
+fn runCancel(parser: *utils.args.ArgParser, manager: *tasks.Manager) !void {
+    const id = try parseTaskId(parser);
+    manager.cancel(id) catch |err| {
+        utils.output.printError(&quot;Failed to cancel task: {}&quot;, .{err});
+        return;
+    };
+    utils.output.printSuccess(&quot;Cancelled task #{d}&quot;, .{id});
+}
+
+fn runDelete(parser: *utils.args.ArgParser, manager: *tasks.Manager) !void {
+    const id = try parseTaskId(parser);
+    manager.delete(id) catch |err| {
+        utils.output.printError(&quot;Failed to delete task: {}&quot;, .{err});
+        return;
+    };
+    utils.output.printSuccess(&quot;Deleted task #{d}&quot;, .{id});
+}
+
+fn runStats(manager: *tasks.Manager) void {
+    const stats = manager.getStats();
+
+    std.debug.print(&quot;\nTask Statistics\n&quot;, .{});
+    std.debug.print(&quot;{s}\n&quot;, .{&quot;-&quot; ** 30});
+    std.debug.print(&quot;  Total:       {d}\n&quot;, .{stats.total});
+    std.debug.print(&quot;  Pending:     {d}\n&quot;, .{stats.pending});
+    std.debug.print(&quot;  In Progress: {d}\n&quot;, .{stats.in_progress});
+    std.debug.print(&quot;  Completed:   {d}\n&quot;, .{stats.completed});
+    std.debug.print(&quot;  Cancelled:   {d}\n&quot;, .{stats.cancelled});
+    std.debug.print(&quot;  Blocked:     {d}\n&quot;, .{stats.blocked});
+    if (stats.overdue &gt; 0) {
+        std.debug.print(&quot;  Overdue:     {d} (!)\n&quot;, .{stats.overdue});
+    }
+    std.debug.print(&quot;\n&quot;, .{});
+}
+
+fn parseTaskId(parser: *utils.args.ArgParser) !u64 {
+    const id_str = parser.next() orelse {
+        utils.output.printError(&quot;Usage: task &lt;command&gt; &lt;id&gt;&quot;, .{});
+        return error.MissingArgument;
+    };
+
+    return std.fmt.parseInt(u64, id_str, 10) catch {
+        utils.output.printError(&quot;Invalid task ID: {s}&quot;, .{id_str});
+        return error.InvalidArgument;
+    };
+}
+
+const CommandError = error{
+    MissingArgument,
+    InvalidArgument,
+};
+
+fn printHelp() void {
+    std.debug.print(
+        \\
+        \\Task Management
+        \\
+        \\USAGE:
+        \\  abi task &lt;command&gt; [args] [options]
+        \\
+        \\COMMANDS:
+        \\  add &lt;title&gt;     Add a new task
+        \\  list, ls        List tasks (with optional filters)
+        \\  show &lt;id&gt;       Show task details
+        \\  done &lt;id&gt;       Mark task as completed
+        \\  start &lt;id&gt;      Mark task as in-progress
+        \\  cancel &lt;id&gt;     Cancel a task
+        \\  delete, rm &lt;id&gt; Delete a task
+        \\  stats           Show task statistics
+        \\
+        \\OPTIONS:
+        \\  --priority, -p &lt;low|normal|high|critical&gt;
+        \\  --category, -c &lt;personal|roadmap|compute|bug|feature&gt;
+        \\  --status, -s   &lt;pending|in_progress|completed|cancelled|blocked&gt;
+        \\  --desc, -d     Description text
+        \\  --overdue      Show only overdue tasks
+        \\
+        \\EXAMPLES:
+        \\  abi task add &quot;Fix bug&quot; --priority=high --category=bug
+        \\  abi task list --status=pending
+        \\  abi task done 1
+        \\  abi task stats
+        \\
+    , .{});
+}
+</code></pre>
+<p><strong>Step 2: Add task to commands/mod.zig</strong></p>
+<p>Modify <code>tools/cli/commands/mod.zig</code> to export task:</p>
+<pre><code class="language-zig">pub const task = @import(&quot;task.zig&quot;);
+</code></pre>
+<p><strong>Step 3: Add task command to dispatcher</strong></p>
+<p>Modify <code>tools/cli/mod.zig</code>, add after the existing command checks:</p>
+<pre><code class="language-zig">if (std.mem.eql(u8, command, &quot;task&quot;)) {
+    try commands.task.run(allocator, args[2..]);
+    return;
+}
+</code></pre>
+<p><strong>Step 4: Build and test</strong></p>
+<p>Run: <code>zig build</code>
+Expected: Clean build</p>
+<p>Run: <code>zig build run -- task --help</code>
+Expected: Shows task command help</p>
+<p>Run: <code>zig build run -- task add "Test task" --priority=high</code>
+Expected: Shows "Created task #1: Test task"</p>
+<p>Run: <code>zig build run -- task list</code>
+Expected: Shows the task in a table</p>
+<p><strong>Step 5: Commit</strong></p>
+<pre><code class="language-bash">git add tools/cli/commands/task.zig tools/cli/commands/mod.zig tools/cli/mod.zig
+git commit -m &quot;feat(cli): add task management command
+
+Commands: add, list, show, done, start, cancel, delete, stats
+Options: --priority, --category, --status, --desc, --overdue
+Persistence: JSON file at .abi/tasks.json&quot;
+</code></pre>
+<hr />
+<h2 id="phase-3-roadmap-integration">Phase 3: Roadmap Integration</h2>
+<h3 id="task-31-import-roadmap-items-as-tasks">Task 3.1: Import Roadmap Items as Tasks</h3>
+<p><strong>Files:</strong>
+- Create: <code>src/tasks/roadmap.zig</code>
+- Modify: <code>src/tasks/mod.zig</code> (export roadmap)</p>
+<p><strong>Step 1: Create roadmap importer</strong></p>
+<p>Create <code>src/tasks/roadmap.zig</code>:</p>
+<pre><code class="language-zig">//! Roadmap Item Importer
+//!
+//! Imports incomplete roadmap items from ROADMAP.md as tasks.
+
+const std = @import(&quot;std&quot;);
+const Manager = @import(&quot;manager.zig&quot;).Manager;
+const types = @import(&quot;types.zig&quot;);
+
+pub const RoadmapItem = struct {
+    title: []const u8,
+    category: []const u8,
+    timeline: []const u8,
+    description: ?[]const u8 = null,
+};
+
+/// Predefined roadmap items from ROADMAP.md analysis
+pub const incomplete_items = [_]RoadmapItem{
+    .{
+        .title = &quot;Record video tutorials&quot;,
+        .category = &quot;Documentation&quot;,
+        .timeline = &quot;Short-term&quot;,
+        .description = &quot;Record and produce video tutorials from existing scripts in docs/tutorials/videos/&quot;,
+    },
+    .{
+        .title = &quot;FPGA/ASIC hardware acceleration research&quot;,
+        .category = &quot;Research &amp; Innovation&quot;,
+        .timeline = &quot;Long-term (2027+)&quot;,
+        .description = &quot;Experimental hardware acceleration using FPGA and ASIC for vector operations&quot;,
+    },
+    .{
+        .title = &quot;Novel index structures research&quot;,
+        .category = &quot;Research &amp; Innovation&quot;,
+        .timeline = &quot;Long-term (2027+)&quot;,
+        .description = &quot;Research and implement novel index structures for improved search performance&quot;,
+    },
+    .{
+        .title = &quot;AI-optimized workloads&quot;,
+        .category = &quot;Research &amp; Innovation&quot;,
+        .timeline = &quot;Long-term (2027+)&quot;,
+        .description = &quot;Optimize workloads specifically for AI/ML inference patterns&quot;,
+    },
+    .{
+        .title = &quot;Academic collaborations&quot;,
+        .category = &quot;Research &amp; Innovation&quot;,
+        .timeline = &quot;Long-term (2027+)&quot;,
+        .description = &quot;Research partnerships, paper publications, conference presentations&quot;,
+    },
+    .{
+        .title = &quot;Community governance RFC process&quot;,
+        .category = &quot;Community &amp; Growth&quot;,
+        .timeline = &quot;Long-term (2027+)&quot;,
+        .description = &quot;Establish RFC process, voting mechanism, contribution recognition&quot;,
+    },
+    .{
+        .title = &quot;Education and certification program&quot;,
+        .category = &quot;Community &amp; Growth&quot;,
+        .timeline = &quot;Long-term (2027+)&quot;,
+        .description = &quot;Training courses, certification program, university partnerships&quot;,
+    },
+    .{
+        .title = &quot;Commercial support services&quot;,
+        .category = &quot;Enterprise Features&quot;,
+        .timeline = &quot;Long-term (2028+)&quot;,
+        .description = &quot;SLA offerings, priority support, custom development services&quot;,
+    },
+    .{
+        .title = &quot;AWS Lambda integration&quot;,
+        .category = &quot;Cloud Integration&quot;,
+        .timeline = &quot;Long-term (2028+)&quot;,
+        .description = &quot;Deploy ABI functions to AWS Lambda&quot;,
+    },
+    .{
+        .title = &quot;Google Cloud Functions integration&quot;,
+        .category = &quot;Cloud Integration&quot;,
+        .timeline = &quot;Long-term (2028+)&quot;,
+        .description = &quot;Deploy ABI functions to Google Cloud Functions&quot;,
+    },
+    .{
+        .title = &quot;Azure Functions integration&quot;,
+        .category = &quot;Cloud Integration&quot;,
+        .timeline = &quot;Long-term (2028+)&quot;,
+        .description = &quot;Deploy ABI functions to Azure Functions&quot;,
+    },
+};
+
+/// Import all incomplete roadmap items as tasks
+pub fn importAll(manager: *Manager) !usize {
+    var count: usize = 0;
+
+    for (incomplete_items) |item| {
+        // Check if already exists (by title)
+        var exists = false;
+        var iter = manager.tasks.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, entry.value_ptr.title, item.title)) {
+                exists = true;
+                break;
+            }
+        }
+
+        if (!exists) {
+            _ = try manager.add(item.title, .{
+                .description = item.description,
+                .category = .roadmap,
+                .priority = if (std.mem.eql(u8, item.timeline, &quot;Short-term&quot;)) .high else .low,
+            });
+            count += 1;
+        }
+    }
+
+    return count;
+}
+</code></pre>
+<p><strong>Step 2: Add to mod.zig</strong></p>
+<p>Add to <code>src/tasks/mod.zig</code>:</p>
+<pre><code class="language-zig">pub const roadmap = @import(&quot;roadmap.zig&quot;);
+</code></pre>
+<p><strong>Step 3: Add CLI command for import</strong></p>
+<p>Add to <code>tools/cli/commands/task.zig</code> in the command dispatch:</p>
+<pre><code class="language-zig">} else if (std.mem.eql(u8, command, &quot;import-roadmap&quot;)) {
+    try runImportRoadmap(&amp;manager);
+}
+</code></pre>
+<p>And add the handler:</p>
+<pre><code class="language-zig">fn runImportRoadmap(manager: *tasks.Manager) !void {
+    const count = tasks.roadmap.importAll(manager) catch |err| {
+        utils.output.printError(&quot;Failed to import roadmap: {}&quot;, .{err});
+        return;
+    };
+    utils.output.printSuccess(&quot;Imported {d} roadmap items as tasks&quot;, .{count});
+}
+</code></pre>
+<p><strong>Step 4: Test import</strong></p>
+<p>Run: <code>zig build run -- task import-roadmap</code>
+Expected: Shows "Imported 11 roadmap items as tasks"</p>
+<p>Run: <code>zig build run -- task list --category=roadmap</code>
+Expected: Shows all roadmap items</p>
+<p><strong>Step 5: Commit</strong></p>
+<pre><code class="language-bash">git add src/tasks/roadmap.zig src/tasks/mod.zig tools/cli/commands/task.zig
+git commit -m &quot;feat(tasks): add roadmap item import
+
+- Predefined list of incomplete ROADMAP.md items
+- import-roadmap command to create tasks from roadmap
+- Automatically sets category=roadmap and appropriate priority&quot;
+</code></pre>
+<hr />
+<h2 id="phase-4-abi-integration">Phase 4: ABI Integration</h2>
+<h3 id="task-41-add-tasks-to-abizig">Task 4.1: Add Tasks to abi.zig</h3>
+<p><strong>Files:</strong>
+- Modify: <code>src/abi.zig</code> (add tasks export)</p>
+<p><strong>Step 1: Add tasks import to abi.zig</strong></p>
+<p>Add to <code>src/abi.zig</code> with other imports:</p>
+<pre><code class="language-zig">pub const tasks = @import(&quot;tasks/mod.zig&quot;);
+</code></pre>
+<p><strong>Step 2: Verify build</strong></p>
+<p>Run: <code>zig build</code>
+Expected: Clean build</p>
+<p>Run: <code>zig build test --summary all</code>
+Expected: All tests pass</p>
+<p><strong>Step 3: Commit</strong></p>
+<pre><code class="language-bash">git add src/abi.zig
+git commit -m &quot;feat(abi): export tasks module
+
+Tasks module now accessible via abi.tasks for programmatic use&quot;
+</code></pre>
+<hr />
+<h2 id="phase-5-documentation">Phase 5: Documentation</h2>
+<h3 id="task-51-add-task-module-documentation">Task 5.1: Add Task Module Documentation</h3>
+<p><strong>Files:</strong>
+- Create: <code>src/tasks/README.md</code>
+- Modify: <code>CLAUDE.md</code> (add tasks to CLI commands table)</p>
+<p><strong>Step 1: Create module README</strong></p>
+<p>Create <code>src/tasks/README.md</code>:</p>
+<pre><code class="language-markdown"># Task Management Module
+
+**Status:** ✅ Complete
+
+## Overview
+
+Unified task management for personal tasks, project roadmap items, and future distributed compute job tracking.
+
+## CLI Usage
+
+```bash
+# Add tasks
+abi task add &quot;Fix bug&quot; --priority=high --category=bug
+abi task add &quot;Write docs&quot; --desc=&quot;API documentation&quot;
+
+# List and filter
+abi task list
+abi task list --status=pending
+abi task list --category=roadmap --priority=high
+
+# Manage status
+abi task done 1
+abi task start 2
+abi task cancel 3
+
+# View details
+abi task show 1
+abi task stats
+
+# Import roadmap items
+abi task import-roadmap
+</code></pre>
+<h2 id="programmatic-usage">Programmatic Usage</h2>
+<pre><code class="language-zig">const abi = @import(&quot;abi&quot;);
+
+var manager = try abi.tasks.Manager.init(allocator, .{});
+defer manager.deinit();
+
+// Add task
+const id = try manager.add(&quot;My task&quot;, .{
+    .priority = .high,
+    .category = .feature,
+});
+
+// Query
+const pending = try manager.list(allocator, .{ .status = .pending });
+defer allocator.free(pending);
+
+// Update
+try manager.complete(id);
+</code></pre>
+<h2 id="storage">Storage</h2>
+<p>Tasks are stored in <code>.abi/tasks.json</code> with auto-save enabled by default.</p>
+<h2 id="task-properties">Task Properties</h2>
+<ul>
+<li><strong>id:</strong> Unique identifier</li>
+<li><strong>title:</strong> Task name</li>
+<li><strong>description:</strong> Optional detailed description</li>
+<li><strong>status:</strong> pending, in_progress, completed, cancelled, blocked</li>
+<li><strong>priority:</strong> low, normal, high, critical</li>
+<li><strong>category:</strong> personal, roadmap, compute, bug, feature</li>
+<li><strong>due_date:</strong> Optional deadline (Unix timestamp)</li>
+<li><strong>parent_id:</strong> Optional parent task for subtasks</li>
+</ul>
+<pre><code>
+**Step 2: Update CLAUDE.md CLI table**
+
+Add to the CLI Commands table in CLAUDE.md:
+
+```markdown
+| `task` | Task management (add, list, done, stats, import-roadmap) |
+</code></pre>
+<p><strong>Step 3: Commit</strong></p>
+<pre><code class="language-bash">git add src/tasks/README.md CLAUDE.md
+git commit -m &quot;docs: add task module documentation
+
+- Module README with CLI and programmatic usage
+- Updated CLAUDE.md CLI commands table&quot;
+</code></pre>
+<hr />
+<h2 id="verification">Verification</h2>
+<h3 id="final-verification-steps">Final Verification Steps</h3>
+<p><strong>Step 1: Clean build</strong></p>
+<p>Run: <code>rm -rf .zig-cache zig-out &amp;&amp; zig build</code>
+Expected: Clean build</p>
+<p><strong>Step 2: Run tests</strong></p>
+<p>Run: <code>zig build test --summary all</code>
+Expected: All tests pass</p>
+<p><strong>Step 3: Test CLI workflow</strong></p>
+<pre><code class="language-bash"># Full workflow test
+zig build run -- task add &quot;Test task 1&quot; --priority=high
+zig build run -- task add &quot;Test task 2&quot; --category=bug
+zig build run -- task list
+zig build run -- task done 1
+zig build run -- task stats
+zig build run -- task import-roadmap
+zig build run -- task list --category=roadmap
+</code></pre>
+<p>Expected: All commands work correctly</p>
+<p><strong>Step 4: Verify persistence</strong></p>
+<p>Run: <code>cat .abi/tasks.json</code>
+Expected: JSON file with all tasks</p>
+<p><strong>Step 5: Final commit</strong></p>
+<pre><code class="language-bash">git add -A
+git commit -m &quot;chore: task management system complete
+
+- Core task module with types, manager, persistence
+- CLI with full CRUD operations
+- Roadmap import integration
+- Documentation complete
+- All tests passing&quot;
+</code></pre>
+<hr />
+<h2 id="success-criteria">Success Criteria</h2>
+<ol>
+<li>✅ <code>zig build run -- task add "Title"</code> creates a task</li>
+<li>✅ <code>zig build run -- task list</code> shows tasks in table format</li>
+<li>✅ <code>zig build run -- task done &lt;id&gt;</code> marks task complete</li>
+<li>✅ <code>zig build run -- task stats</code> shows aggregate statistics</li>
+<li>✅ <code>zig build run -- task import-roadmap</code> imports ROADMAP.md items</li>
+<li>✅ Tasks persist to <code>.abi/tasks.json</code></li>
+<li>✅ All tests pass</li>
+<li>✅ Programmatic access via <code>abi.tasks</code></li>
+</ol>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,3 +1,7 @@
+---
+title: "CLAUDE"
+tags: []
+---
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -321,3 +325,4 @@ For memory leak detection, use `std.heap.GeneralPurposeAllocator` with `.stack_t
 - [docs/agents.md](docs/agents.md) - Agents guide with environment setup
 - [docs/gpu.md](docs/gpu.md) - GPU backend details
 - [docs/ai.md](docs/ai.md) - AI module guide
+

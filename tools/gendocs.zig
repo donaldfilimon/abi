@@ -107,7 +107,7 @@ pub fn main() !void {
     const cwd = std.Io.Dir.cwd();
 
     // Ensure docs/api directory exists for index
-    cwd.makeDir(io, "docs/api") catch |err| {
+    cwd.createDirPath(io, "docs/api") catch |err| {
         if (err != error.PathAlreadyExists) {
             std.debug.print("Warning: Could not create docs/api directory: {}\n", .{err});
         }
@@ -192,7 +192,7 @@ fn generateModuleDoc(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, 
         if (std.mem.startsWith(u8, trimmed, "//!")) {
             if (in_module_docs) {
                 const content = if (trimmed.len > 3) trimmed[3..] else "";
-                const trimmed_content = std.mem.trimLeft(u8, content, " ");
+                const trimmed_content = std.mem.trimStart(u8, content, " ");
                 try print(allocator, io, file, "{s}\n", .{trimmed_content});
                 module_doc_written = true;
             }
@@ -208,7 +208,7 @@ fn generateModuleDoc(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, 
         // Item-level doc comments (///)
         if (std.mem.startsWith(u8, trimmed, "///")) {
             const content = if (trimmed.len > 3) trimmed[3..] else "";
-            const trimmed_content = std.mem.trimLeft(u8, content, " ");
+            const trimmed_content = std.mem.trimStart(u8, content, " ");
             try doc_buffer.appendSlice(allocator, trimmed_content);
             try doc_buffer.append(allocator, '\n');
             continue;

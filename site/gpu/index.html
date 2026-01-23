@@ -1,0 +1,1948 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modern Zig framework for modular AI services, vector search, and systems tooling.">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>gpu - ABI Framework</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#gpu-acceleration" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="ABI Framework" class="md-header__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ABI Framework
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              gpu
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/intro.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Introduction
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/framework.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Framework
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/compute.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Compute
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/gpu.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  GPU
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/database.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Database
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/network.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Network
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/monitoring.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Monitoring
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../docs/ai.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  AI
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../docs/migration/zig-0.16-migration.md" class="md-tabs__link">
+          
+  
+  
+  Migration
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="ABI Framework" class="md-nav__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ABI Framework
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/intro.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/framework.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/compute.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compute
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/gpu.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/database.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Database
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/network.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/monitoring.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/ai.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Migration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/migration/zig-0.16-migration.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zig 0.16 Migration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#feature-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feature Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unified-gpu-api-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unified GPU API (Recommended)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unified GPU API (Recommended)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#high-level-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High-Level Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-gpu-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-GPU Support
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#profiling-and-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profiling and Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#device-enumeration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device Enumeration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backend-auto-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend Auto-Detection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unified-execution-coordinator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unified Execution Coordinator
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#portable-kernel-dsl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portable Kernel DSL
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Portable Kernel DSL">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#building-a-kernel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building a Kernel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#code-generation-targets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Generation Targets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backends
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Backends">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#backend-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend Details
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory Management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Memory Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#smart-buffers-unified-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Smart Buffers (Unified API)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#legacy-memory-pool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Legacy Memory Pool
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI Commands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-with-gpu-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building with GPU Support
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#new-in-202601" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New in 2026.01
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="New in 2026.01">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Context
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#graceful-degradation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graceful Degradation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#simd-cpu-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SIMD CPU Fallback
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gpu-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gpu Methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionresult-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ExecutionResult Methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="gpu-acceleration">GPU Acceleration</h1>
+<blockquote>
+<p><strong>Codebase Status:</strong> Synced with repository as of 2026-01-22.</p>
+</blockquote>
+<p align="center">
+  <img src="https://img.shields.io/badge/Module-GPU-green?style=for-the-badge&logo=nvidia&logoColor=white" alt="GPU Module"/>
+  <img src="https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge" alt="Production Ready"/>
+  <img src="https://img.shields.io/badge/Backends-8-blue?style=for-the-badge" alt="8 Backends"/>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/CUDA-Supported-76B900?logo=nvidia&logoColor=white" alt="CUDA"/>
+  <img src="https://img.shields.io/badge/Vulkan-Supported-AC162C?logo=vulkan&logoColor=white" alt="Vulkan"/>
+  <img src="https://img.shields.io/badge/Metal-Supported-000000?logo=apple&logoColor=white" alt="Metal"/>
+  <img src="https://img.shields.io/badge/WebGPU-Supported-005A9C?logo=w3c&logoColor=white" alt="WebGPU"/>
+</p>
+
+<p align="center">
+  <a href="#unified-gpu-api-recommended">Unified API</a> •
+  <a href="#backends">Backends</a> •
+  <a href="#portable-kernel-dsl">Kernel DSL</a> •
+  <a href="#device-enumeration">Device Enum</a> •
+  <a href="#cli-commands">CLI</a>
+</p>
+
+<hr />
+<blockquote>
+<p><strong>Status</strong>: Production Ready. Backends provide native GPU execution with automatic fallback to CPU simulation when native runtimes are unavailable.</p>
+<p><strong>Developer Guide</strong>: See <a href="../CONTRIBUTING.md">CONTRIBUTING.md</a> for GPU coding patterns and <a href="../CLAUDE.md">CLAUDE.md</a> for backend internals.
+<strong>GPU Backends</strong>: See <a href="../gpu-backend-improvements/">GPU Backend Details</a> for implementation specifics.</p>
+</blockquote>
+<p>The <strong>GPU</strong> module (<code>abi.gpu</code>) provides a unified interface for hardware-accelerated compute across different platforms.</p>
+<h2 id="feature-overview">Feature Overview</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Unified API</strong></td>
+<td>Single interface for all backends</td>
+<td><img alt="Ready" src="https://img.shields.io/badge/-Ready-success" /></td>
+</tr>
+<tr>
+<td><strong>Multi-GPU</strong></td>
+<td>Multi-device load balancing</td>
+<td><img alt="Ready" src="https://img.shields.io/badge/-Ready-success" /></td>
+</tr>
+<tr>
+<td><strong>Auto-Detection</strong></td>
+<td>Backend selection with fallback</td>
+<td><img alt="Ready" src="https://img.shields.io/badge/-Ready-success" /></td>
+</tr>
+<tr>
+<td><strong>Kernel DSL</strong></td>
+<td>Write once, compile everywhere</td>
+<td><img alt="Ready" src="https://img.shields.io/badge/-Ready-success" /></td>
+</tr>
+<tr>
+<td><strong>SIMD Fallback</strong></td>
+<td>AVX/SSE/NEON when no GPU</td>
+<td><img alt="Ready" src="https://img.shields.io/badge/-Ready-success" /></td>
+</tr>
+<tr>
+<td><strong>Profiling</strong></td>
+<td>Per-kernel metrics &amp; timing</td>
+<td><img alt="Ready" src="https://img.shields.io/badge/-Ready-success" /></td>
+</tr>
+</tbody>
+</table>
+<h2 id="unified-gpu-api-recommended">Unified GPU API (Recommended)</h2>
+<p>The new unified GPU API provides a single interface for all 8 backends with smart buffer management and optional profiling.</p>
+<h3 id="quick-start">Quick Start</h3>
+<pre><code class="language-zig">const abi = @import(&quot;abi&quot;);
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Initialize unified GPU API
+    var gpu = try abi.Gpu.init(allocator, .{
+        .enable_profiling = true,
+        .memory_mode = .automatic,
+    });
+    defer gpu.deinit();
+
+    // Create buffers with automatic memory management
+    const a = try gpu.createBufferFromSlice(f32, &amp;[_]f32{ 1, 2, 3, 4 }, .{});
+    defer gpu.destroyBuffer(a);
+
+    const b = try gpu.createBufferFromSlice(f32, &amp;[_]f32{ 5, 6, 7, 8 }, .{});
+    defer gpu.destroyBuffer(b);
+
+    const result = try gpu.createBuffer(4 * @sizeOf(f32), .{});
+    defer gpu.destroyBuffer(result);
+
+    // Execute vector addition (transfers handled automatically)
+    _ = try gpu.vectorAdd(a, b, result);
+
+    // Read results back
+    var output: [4]f32 = undefined;
+    try result.read(f32, &amp;output);
+    // output = { 6, 8, 10, 12 }
+}
+</code></pre>
+<h3 id="configuration-options">Configuration Options</h3>
+<pre><code class="language-zig">pub const GpuConfig = struct {
+    preferred_backend: ?Backend = null,    // null = auto-select best
+    allow_fallback: bool = true,
+    memory_mode: MemoryMode = .automatic,
+    max_memory_bytes: usize = 0,           // 0 = unlimited
+    enable_profiling: bool = false,
+    multi_gpu: bool = false,
+    load_balance_strategy: LoadBalanceStrategy = .memory_aware,
+};
+
+pub const MemoryMode = enum {
+    automatic,  // API handles all transfers (recommended)
+    explicit,   // User controls transfers via toDevice()/toHost()
+    unified,    // Use unified memory where available
+};
+</code></pre>
+<h3 id="high-level-operations">High-Level Operations</h3>
+<p>The unified API provides these built-in operations:</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vectorAdd(a, b, result)</code></td>
+<td>Element-wise vector addition</td>
+</tr>
+<tr>
+<td><code>matrixMultiply(a, b, result, dims)</code></td>
+<td>Matrix multiplication</td>
+</tr>
+<tr>
+<td><code>reduceSum(input)</code></td>
+<td>Sum reduction</td>
+</tr>
+<tr>
+<td><code>dotProduct(a, b)</code></td>
+<td>Dot product of two vectors</td>
+</tr>
+<tr>
+<td><code>softmax(input, output)</code></td>
+<td>Softmax activation</td>
+</tr>
+</tbody>
+</table>
+<h3 id="multi-gpu-support">Multi-GPU Support</h3>
+<pre><code class="language-zig">var gpu = try abi.Gpu.init(allocator, .{
+    .multi_gpu = true,
+    .load_balance_strategy = .memory_aware,
+});
+
+// Enable multi-GPU after init
+try gpu.enableMultiGpu(.{
+    .strategy = .round_robin,
+    .enable_peer_access = true,
+});
+
+// Get multi-GPU stats
+if (gpu.getMultiGpuStats()) |stats| {
+    std.debug.print(&quot;Active devices: {}\n&quot;, .{stats.active_device_count});
+}
+</code></pre>
+<h3 id="profiling-and-metrics">Profiling and Metrics</h3>
+<pre><code class="language-zig">var gpu = try abi.Gpu.init(allocator, .{
+    .enable_profiling = true,
+});
+
+// ... execute operations ...
+
+// Get metrics summary
+if (gpu.getMetricsSummary()) |summary| {
+    std.debug.print(&quot;Total kernel invocations: {d}\n&quot;, .{summary.total_kernel_invocations});
+    std.debug.print(&quot;Average kernel time: {d:.3}ns\n&quot;, .{summary.avg_kernel_time_ns});
+}
+
+// Get per-kernel metrics
+if (gpu.getKernelMetrics(&quot;vectorAdd&quot;)) |metrics| {
+    std.debug.print(&quot;vectorAdd invocations: {d}\n&quot;, .{metrics.invocation_count});
+}
+</code></pre>
+<h3 id="device-enumeration">Device Enumeration</h3>
+<p>Enumerate all available GPU devices across all backends:</p>
+<pre><code class="language-zig">const device = abi.gpu.device;
+
+// Enumerate all devices
+const all_devices = try device.enumerateAllDevices(allocator);
+defer allocator.free(all_devices);
+
+for (all_devices) |dev| {
+    std.debug.print(&quot;Device: {s} ({})\n&quot;, .{dev.name, dev.backend});
+    std.debug.print(&quot;  Type: {}\n&quot;, .{dev.device_type});
+    if (dev.total_memory) |mem| {
+        std.debug.print(&quot;  Memory: {} GB\n&quot;, .{mem / (1024 * 1024 * 1024)});
+    }
+}
+
+// Enumerate devices for a specific backend
+const cuda_devices = try device.enumerateDevicesForBackend(allocator, .cuda);
+defer allocator.free(cuda_devices);
+
+// Select best device with criteria
+const criteria = device.DeviceSelectionCriteria{
+    .prefer_discrete = true,
+    .min_memory_gb = 4,
+    .required_features = &amp;.{.fp16},
+};
+const best = try device.selectBestDevice(allocator, criteria);
+</code></pre>
+<h3 id="backend-auto-detection">Backend Auto-Detection</h3>
+<p>The backend factory provides enhanced auto-detection with fallback chains:</p>
+<pre><code class="language-zig">const backend_factory = abi.gpu.backend_factory;
+
+// Detect all available backends
+const backends = try backend_factory.detectAvailableBackends(allocator);
+defer allocator.free(backends);
+
+// Select best backend with fallback chain
+const best = try backend_factory.selectBestBackendWithFallback(allocator, .{
+    .preferred = .cuda,
+    .fallback_chain = &amp;.{ .vulkan, .metal, .stdgpu },
+});
+
+// Select backend with specific feature requirements
+const fp16_backend = try backend_factory.selectBackendWithFeatures(allocator, .{
+    .required_features = &amp;.{.fp16, .atomics},
+    .fallback_to_cpu = false,
+});
+</code></pre>
+<h3 id="unified-execution-coordinator">Unified Execution Coordinator</h3>
+<p>Automatic GPU → SIMD → scalar fallback for optimal performance:</p>
+<pre><code class="language-zig">const exec = abi.gpu.execution_coordinator;
+
+var coordinator = try exec.ExecutionCoordinator.init(allocator, .{
+    .prefer_gpu = true,
+    .fallback_chain = &amp;.{ .gpu, .simd, .scalar },
+    .gpu_threshold_size = 1024,  // Min elements for GPU
+    .simd_threshold_size = 4,    // Min elements for SIMD
+});
+defer coordinator.deinit();
+
+// Automatic method selection
+const a = [_]f32{ 1, 2, 3, 4, 5, 6, 7, 8 };
+const b = [_]f32{ 8, 7, 6, 5, 4, 3, 2, 1 };
+var result = [_]f32{0} ** 8;
+
+const method = try coordinator.vectorAdd(&amp;a, &amp;b, &amp;result);
+// method is .gpu, .simd, or .scalar depending on availability and size
+
+// Explicit method override
+const forced_method = try coordinator.vectorAddWithMethod(&amp;a, &amp;b, &amp;result, .simd);
+</code></pre>
+<h2 id="portable-kernel-dsl">Portable Kernel DSL</h2>
+<p>Write kernels once, compile to all backends (CUDA, GLSL, WGSL, MSL).</p>
+<h3 id="building-a-kernel">Building a Kernel</h3>
+<pre><code class="language-zig">const dsl = abi.gpu.dsl;
+
+var builder = dsl.KernelBuilder.init(allocator, &quot;scale_vector&quot;);
+defer builder.deinit();
+
+// Set workgroup size
+_ = builder.setWorkgroupSize(256, 1, 1);
+
+// Define bindings
+const input = try builder.addBuffer(&quot;input&quot;, 0, .{ .scalar = .f32 }, .read_only);
+const output = try builder.addBuffer(&quot;output&quot;, 1, .{ .scalar = .f32 }, .write_only);
+const scale = try builder.addUniform(&quot;scale&quot;, 2, .{ .scalar = .f32 });
+
+// Get global invocation ID
+const gid = builder.globalInvocationId();
+const idx = try builder.component(try gid.toExpr(), &quot;x&quot;);
+
+// output[idx] = input[idx] * scale
+const scaled = try builder.mul(
+    try builder.index(try input.toExpr(), idx),
+    try scale.toExpr()
+);
+try builder.addStatement(try builder.assignStmt(
+    try builder.index(try output.toExpr(), idx),
+    scaled
+));
+
+// Build and compile
+const ir = try builder.build();
+var kernel = try gpu.compileKernel(.{ .ir = &amp;ir });
+defer kernel.deinit();
+</code></pre>
+<h3 id="code-generation-targets">Code Generation Targets</h3>
+<table>
+<thead>
+<tr>
+<th>IR Construct</th>
+<th>CUDA</th>
+<th>GLSL</th>
+<th>WGSL</th>
+<th>MSL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>global_id</code></td>
+<td><code>blockIdx.x * blockDim.x + threadIdx.x</code></td>
+<td><code>gl_GlobalInvocationID.x</code></td>
+<td><code>@builtin(global_invocation_id)</code></td>
+<td><code>thread_position_in_grid</code></td>
+</tr>
+<tr>
+<td><code>barrier()</code></td>
+<td><code>__syncthreads()</code></td>
+<td><code>barrier()</code></td>
+<td><code>workgroupBarrier()</code></td>
+<td><code>threadgroup_barrier()</code></td>
+</tr>
+<tr>
+<td><code>atomic_add</code></td>
+<td><code>atomicAdd()</code></td>
+<td><code>atomicAdd()</code></td>
+<td><code>atomicAdd()</code></td>
+<td><code>atomic_fetch_add_explicit()</code></td>
+</tr>
+<tr>
+<td><code>buffer&lt;f32&gt;</code></td>
+<td><code>float*</code></td>
+<td><code>buffer { float data[]; }</code></td>
+<td><code>var&lt;storage&gt; array&lt;f32&gt;</code></td>
+<td><code>device float*</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="backends">Backends</h2>
+<p>ABI supports 8 GPU backends with comprehensive implementations:</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Platform</th>
+<th>Features</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CUDA</strong></td>
+<td>NVIDIA GPUs</td>
+<td>Tensor cores, async D2D, device queries</td>
+<td><img alt="Complete" src="https://img.shields.io/badge/-Complete-success" /></td>
+</tr>
+<tr>
+<td><strong>Vulkan</strong></td>
+<td>Cross-platform</td>
+<td>SPIR-V generation, compute shaders</td>
+<td><img alt="Complete" src="https://img.shields.io/badge/-Complete-success" /></td>
+</tr>
+<tr>
+<td><strong>Metal</strong></td>
+<td>Apple Silicon</td>
+<td>Objective-C bindings, compute kernels</td>
+<td><img alt="Complete" src="https://img.shields.io/badge/-Complete-success" /></td>
+</tr>
+<tr>
+<td><strong>WebGPU</strong></td>
+<td>Browser/Native</td>
+<td>Async handling, cross-platform</td>
+<td><img alt="Complete" src="https://img.shields.io/badge/-Complete-success" /></td>
+</tr>
+<tr>
+<td><strong>OpenGL/ES</strong></td>
+<td>Legacy/Mobile</td>
+<td>Compute shaders (4.3+/ES 3.1+)</td>
+<td><img alt="Complete" src="https://img.shields.io/badge/-Complete-success" /></td>
+</tr>
+<tr>
+<td><strong>std.gpu</strong></td>
+<td>Zig stdlib</td>
+<td>CPU fallback, portable</td>
+<td><img alt="Complete" src="https://img.shields.io/badge/-Complete-success" /></td>
+</tr>
+<tr>
+<td><strong>OpenCL</strong></td>
+<td>Cross-platform</td>
+<td>Legacy compute support</td>
+<td><img alt="Complete" src="https://img.shields.io/badge/-Complete-success" /></td>
+</tr>
+<tr>
+<td><strong>WebGL2</strong></td>
+<td>Browser</td>
+<td>Rendering only (no compute)</td>
+<td><img alt="Limited" src="https://img.shields.io/badge/-Limited-yellow" /></td>
+</tr>
+</tbody>
+</table>
+<h3 id="backend-details">Backend Details</h3>
+<details>
+<summary><strong>CUDA (NVIDIA GPUs)</strong></summary>
+
+- **Platform**: Linux/Windows
+- **Features**: Tensor core support, async D2D transfers, full device queries
+- **Best for**: High-performance compute, ML training
+</details>
+
+<details>
+<summary><strong>Vulkan (Cross-platform)</strong></summary>
+
+- **Platform**: Linux/Windows/Android
+- **Features**: SPIR-V shader generation, compute shaders
+- **Best for**: Cross-platform GPU compute
+</details>
+
+<details>
+<summary><strong>Metal (Apple Silicon)</strong></summary>
+
+- **Platform**: macOS/iOS
+- **Features**: Objective-C runtime bindings, compute kernels
+- **Best for**: Apple hardware optimization
+</details>
+
+<details>
+<summary><strong>WebGPU (Browser/Native)</strong></summary>
+
+- **Platform**: Browser (via Dawn/wgpu)
+- **Features**: Async adapter handling, portable compute
+- **Best for**: Web-based GPU compute
+</details>
+
+<details>
+<summary><strong>std.gpu (Zig stdlib)</strong></summary>
+
+- **Platform**: Any
+- **Features**: Automatic CPU fallback, SIMD acceleration
+- **Best for**: Development, testing, CPU-only environments
+</details>
+
+<h2 id="memory-management">Memory Management</h2>
+<h3 id="smart-buffers-unified-api">Smart Buffers (Unified API)</h3>
+<p>The unified API handles memory automatically by default:</p>
+<pre><code class="language-zig">// Automatic mode (default) - transfers handled for you
+var buf = try gpu.createBufferFromSlice(f32, &amp;data, .{});
+_ = try gpu.vectorAdd(buf, other, result);  // Auto upload
+try result.read(f32, &amp;output);               // Auto download
+
+// Explicit mode - you control transfers
+var buf = try gpu.createBuffer(size, .{ .mode = .explicit });
+try buf.write(f32, &amp;data);
+try buf.toDevice();   // Explicit upload
+// ... operations ...
+try buf.toHost();     // Explicit download
+</code></pre>
+<h3 id="legacy-memory-pool">Legacy Memory Pool</h3>
+<p>Use <code>abi.gpu.GPUMemoryPool</code> for manual device memory management:</p>
+<pre><code class="language-zig">var pool = abi.gpu.GPUMemoryPool.init(allocator, 1024 * 1024 * 64); // 64MB
+defer pool.deinit();
+
+const buffer = try abi.gpu.GPUBuffer.init(
+    allocator,
+    1024 * 1024, // 1MB
+    .{ .device_local = true, .write_only = true }
+);
+defer buffer.deinit();
+</code></pre>
+<h2 id="cli-commands">CLI Commands</h2>
+<p>Check GPU status and capabilities:</p>
+<pre><code class="language-bash"># List available backends and their status
+zig build run -- gpu backends
+
+# Show GPU module summary
+zig build run -- gpu summary
+
+# List detected GPU devices (shows native vs fallback mode)
+zig build run -- gpu devices
+
+# Show default GPU device
+zig build run -- gpu default
+</code></pre>
+<h2 id="building-with-gpu-support">Building with GPU Support</h2>
+<p>Enable GPU backends at build time:</p>
+<pre><code class="language-bash"># Enable all GPU backends (default)
+zig build -Denable-gpu=true
+
+# Enable only CUDA
+zig build -Denable-gpu=true -Dgpu-cuda=true -Dgpu-vulkan=false -Dgpu-metal=false
+
+# Disable GPU entirely
+zig build -Denable-gpu=false
+</code></pre>
+<hr />
+<h2 id="new-in-202601">New in 2026.01</h2>
+<h3 id="diagnostics">Diagnostics</h3>
+<pre><code class="language-zig">const diag = gpu_mod.DiagnosticsInfo.collect(allocator);
+if (!diag.isHealthy()) { diag.log(); }
+</code></pre>
+<p>Fields: <code>backend_type</code>, <code>device_count</code>, <code>memory_stats</code>, <code>kernel_cache_stats</code>, <code>is_degraded</code></p>
+<h3 id="error-context">Error Context</h3>
+<pre><code class="language-zig">const ctx = error_handling.ErrorContext.init(.backend_error, .cuda, &quot;message&quot;);
+ctx.log();  // Or ctx.reportErrorFull(allocator)
+</code></pre>
+<h3 id="graceful-degradation">Graceful Degradation</h3>
+<pre><code class="language-zig">var manager = failover.FailoverManager.init(allocator);
+manager.setDegradationMode(.automatic);  // .none, .warn_and_continue, .silent
+if (manager.isDegraded()) { /* CPU fallback active */ }
+</code></pre>
+<h3 id="simd-cpu-fallback">SIMD CPU Fallback</h3>
+<p>When GPU unavailable, <code>stdgpu</code> provides AVX/SSE/NEON accelerated operations:
+<code>simdVectorAdd</code>, <code>simdDotProduct</code>, <code>simdSum</code>, <code>simdRelu</code>, <code>simdSoftmax</code>, <code>simdMatVecMul</code></p>
+<hr />
+<h2 id="api-reference">API Reference</h2>
+<p><strong>Source:</strong> <code>src/gpu/unified.zig</code></p>
+<h3 id="types">Types</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Gpu</code></td>
+<td>Main unified GPU API</td>
+</tr>
+<tr>
+<td><code>GpuConfig</code></td>
+<td>GPU configuration</td>
+</tr>
+<tr>
+<td><code>ExecutionResult</code></td>
+<td>Execution result with timing and statistics</td>
+</tr>
+<tr>
+<td><code>MatrixDims</code></td>
+<td>Matrix dimensions for matrix operations</td>
+</tr>
+<tr>
+<td><code>LaunchConfig</code></td>
+<td>Kernel launch configuration</td>
+</tr>
+<tr>
+<td><code>CompiledKernel</code></td>
+<td>Compiled kernel handle</td>
+</tr>
+<tr>
+<td><code>MemoryInfo</code></td>
+<td>GPU memory information</td>
+</tr>
+<tr>
+<td><code>GpuStats</code></td>
+<td>GPU statistics</td>
+</tr>
+<tr>
+<td><code>HealthStatus</code></td>
+<td>Health status</td>
+</tr>
+<tr>
+<td><code>MultiGpuConfig</code></td>
+<td>Multi-GPU configuration</td>
+</tr>
+<tr>
+<td><code>LoadBalanceStrategy</code></td>
+<td>Load balance strategy for multi-GPU</td>
+</tr>
+</tbody>
+</table>
+<h3 id="gpu-methods">Gpu Methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>init(allocator, config)</code></td>
+<td>Initialize the unified GPU API</td>
+</tr>
+<tr>
+<td><code>deinit()</code></td>
+<td>Deinitialize and cleanup</td>
+</tr>
+<tr>
+<td><code>selectDevice(selector)</code></td>
+<td>Select a device based on criteria</td>
+</tr>
+<tr>
+<td><code>getActiveDevice()</code></td>
+<td>Get the currently active device</td>
+</tr>
+<tr>
+<td><code>listDevices()</code></td>
+<td>List all available devices</td>
+</tr>
+<tr>
+<td><code>enableMultiGpu(config)</code></td>
+<td>Enable multi-GPU mode</td>
+</tr>
+<tr>
+<td><code>getDeviceGroup()</code></td>
+<td>Get multi-GPU device group (if enabled)</td>
+</tr>
+<tr>
+<td><code>distributeWork(total_work)</code></td>
+<td>Distribute work across multiple GPUs</td>
+</tr>
+<tr>
+<td><code>createBuffer(size, options)</code></td>
+<td>Create a new buffer</td>
+</tr>
+<tr>
+<td><code>createBufferFromSlice(T, slice, options)</code></td>
+<td>Create a buffer from a typed slice</td>
+</tr>
+<tr>
+<td><code>destroyBuffer(buffer)</code></td>
+<td>Destroy a buffer</td>
+</tr>
+<tr>
+<td><code>vectorAdd(a, b, result)</code></td>
+<td>Vector addition: result = a + b</td>
+</tr>
+<tr>
+<td><code>matrixMultiply(a, b, result, dims)</code></td>
+<td>Matrix multiplication: result = a * b</td>
+</tr>
+<tr>
+<td><code>reduceSum(input)</code></td>
+<td>Reduce sum: returns sum of all elements</td>
+</tr>
+<tr>
+<td><code>dotProduct(a, b)</code></td>
+<td>Dot product: returns a . b</td>
+</tr>
+<tr>
+<td><code>softmax(input, output)</code></td>
+<td>Softmax: output = softmax(input)</td>
+</tr>
+<tr>
+<td><code>compileKernel(source)</code></td>
+<td>Compile a kernel from portable source</td>
+</tr>
+<tr>
+<td><code>launchKernel(kernel, config, args)</code></td>
+<td>Launch a compiled kernel</td>
+</tr>
+<tr>
+<td><code>synchronize()</code></td>
+<td>Synchronize all pending operations</td>
+</tr>
+<tr>
+<td><code>createStream(options)</code></td>
+<td>Create a new stream</td>
+</tr>
+<tr>
+<td><code>createEvent(options)</code></td>
+<td>Create a new event</td>
+</tr>
+<tr>
+<td><code>getStats()</code></td>
+<td>Get GPU statistics</td>
+</tr>
+<tr>
+<td><code>getMemoryInfo()</code></td>
+<td>Get memory information</td>
+</tr>
+<tr>
+<td><code>checkHealth()</code></td>
+<td>Check GPU health</td>
+</tr>
+<tr>
+<td><code>isAvailable()</code></td>
+<td>Check if GPU is available</td>
+</tr>
+<tr>
+<td><code>getBackend()</code></td>
+<td>Get the active backend</td>
+</tr>
+<tr>
+<td><code>isProfilingEnabled()</code></td>
+<td>Check if profiling is enabled</td>
+</tr>
+<tr>
+<td><code>enableProfiling()</code></td>
+<td>Enable profiling</td>
+</tr>
+<tr>
+<td><code>disableProfiling()</code></td>
+<td>Disable profiling</td>
+</tr>
+<tr>
+<td><code>getMetricsSummary()</code></td>
+<td>Get metrics summary (if profiling enabled)</td>
+</tr>
+<tr>
+<td><code>getKernelMetrics(name)</code></td>
+<td>Get kernel-specific metrics</td>
+</tr>
+<tr>
+<td><code>getMetricsCollector()</code></td>
+<td>Get the metrics collector directly</td>
+</tr>
+<tr>
+<td><code>resetMetrics()</code></td>
+<td>Reset all profiling metrics</td>
+</tr>
+<tr>
+<td><code>isMultiGpuEnabled()</code></td>
+<td>Check if multi-GPU is enabled</td>
+</tr>
+<tr>
+<td><code>getMultiGpuStats()</code></td>
+<td>Get multi-GPU statistics (if enabled)</td>
+</tr>
+<tr>
+<td><code>activeDeviceCount()</code></td>
+<td>Get the number of active devices</td>
+</tr>
+</tbody>
+</table>
+<h3 id="executionresult-methods">ExecutionResult Methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>throughputGBps()</code></td>
+<td>Get throughput in GB/s</td>
+</tr>
+<tr>
+<td><code>elementsPerSecond()</code></td>
+<td>Get elements per second</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="see-also">See Also</h2>
+<table>
+<tr>
+<td>
+
+### Related Guides
+- [GPU Backend Details](gpu-backend-improvements.md) — Implementation specifics
+- [Compute Engine](compute.md) — CPU/GPU workload scheduling
+- [Monitoring](monitoring.md) — GPU metrics and profiling
+
+</td>
+<td>
+
+### Resources
+- [Troubleshooting](troubleshooting.md) — GPU detection issues
+- [API Reference](../API_REFERENCE.md) — GPU API details
+- [Examples](../examples/) — GPU code samples
+
+</td>
+</tr>
+</table>
+
+<hr />
+<p align="center">
+  <a href="ai.md">← AI Guide</a> •
+  <a href="docs-index.md">Documentation Index</a> •
+  <a href="database.md">Database Guide →</a>
+</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

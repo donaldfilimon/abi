@@ -1,3 +1,12 @@
+---
+title: "README"
+tags: []
+---
+---
+title: "ABI Framework"
+tags: []
+---
+
 # ABI Framework
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -137,9 +146,12 @@ zig build test --summary all
 zig build run -- --help
 ```
 
+
 ### Basic Framework Usage
 
-```zig
+
+
+```src/main.zig#L140-167
 const std = @import("std");
 const abi = @import("abi");
 
@@ -167,36 +179,58 @@ pub fn main() !void {
 }
 ```
 
+
 <details>
+
 <summary><strong>Backward-compatible initialization</strong></summary>
 
-```zig
+
+
+```src/framework.zig#L174-175
 var framework = try abi.init(allocator, .{});
 defer abi.shutdown(&framework);
 ```
-
 </details>
 
 ## Examples
 
+
 ### AI Agent Chat
 
-```zig
+
+
+```src/examples/ai_agent.zig#L10-30
+
 const std = @import("std");
+
 const abi = @import("abi");
 
+
+
 pub fn main() !void {
+
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+
     defer _ = gpa.deinit();
+
     const allocator = gpa.allocator();
 
+
+
     // Create an AI agent
+
     var agent = try abi.ai.Agent.init(allocator, .{
+
         .name = "assistant",
+
         .temperature = 0.7,
+
         .enable_history = true,
+
     });
+
     defer agent.deinit();
+
 
     // Chat with the agent
     const response = try agent.chat("Explain Zig's comptime in one sentence.", allocator);
@@ -207,32 +241,59 @@ pub fn main() !void {
 
 ### Vector Database Operations
 
-```zig
+
+```src/examples/vector_db.zig#L10-35
+
 const std = @import("std");
+
 const abi = @import("abi");
 
+
+
 pub fn main() !void {
+
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+
     defer _ = gpa.deinit();
+
     const allocator = gpa.allocator();
 
+
+
     // Create a vector database
+
     var db = try abi.wdbx.createDatabase(allocator, .{ .dimension = 384 });
+
     defer db.deinit();
 
+
+
     // Insert vectors
+
     try db.insertVector(1, &[_]f32{ 0.1, 0.2, 0.3 } ++ [_]f32{0} ** 381);
+
     try db.insertVector(2, &[_]f32{ 0.4, 0.5, 0.6 } ++ [_]f32{0} ** 381);
 
+
+
     // Search for similar vectors
+
     const results = try db.searchVectors(&[_]f32{ 0.1, 0.2, 0.3 } ++ [_]f32{0} ** 381, 10);
+
     defer allocator.free(results);
 
+
+
     for (results) |result| {
+
         std.debug.print("ID: {d}, Score: {d:.4}\n", .{ result.id, result.score });
+
     }
+
 }
+
 ```
+
 
 ### GPU-Accelerated Compute
 
@@ -536,3 +597,4 @@ See [LICENSE](LICENSE) for details.
 <p align="center">
   Made with Zig
 </p>
+

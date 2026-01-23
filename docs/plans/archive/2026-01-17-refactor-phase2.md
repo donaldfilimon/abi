@@ -1,3 +1,7 @@
+---
+title: "2026-01-17-refactor-phase2"
+tags: []
+---
 # ABI Framework Refactoring - Phase 2
 > **Codebase Status:** Synced with repository as of 2026-01-18.
 
@@ -226,3 +230,4 @@ After Phase 2 completion, Phase 3 will tackle the full AI module migration:
 - Move `src/features/ai/abbey/` → `src/ai/abbey/`
 
 This is a larger effort (~120 files) and will be planned separately.
+

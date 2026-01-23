@@ -85,18 +85,22 @@ pub const FileVisitor = struct {
         }
         self.files.deinit(self.allocator);
 
-        for (self.directories.items) |dir| {
-            self.allocator.free(dir);
-        }
         self.directories.deinit(self.allocator);
 
+        var it = self.visited_paths.iterator();
+        while (it.next()) |entry| {
+            self.allocator.free(entry.key_ptr.*);
+        }
         self.visited_paths.deinit(self.allocator);
         self.io_backend.deinit();
     }
 
     pub fn visit(self: *FileVisitor, root_path: []const u8) !void {
-        try self.visited_paths.put(self.allocator, root_path, true);
-        try self.directories.append(self.allocator, try self.allocator.dupe(u8, root_path));
+        const root_owned = try self.allocator.dupe(u8, root_path);
+        errdefer self.allocator.free(root_owned);
+        try self.visited_paths.put(self.allocator, root_owned, true);
+        errdefer _ = self.visited_paths.remove(root_owned);
+        try self.directories.append(self.allocator, root_owned);
 
         while (self.directories.pop()) |dir| {
             try self.walkDirectory(dir);
@@ -128,9 +132,11 @@ pub const FileVisitor = struct {
                     self.allocator.free(full_path);
                     continue;
                 }
+                errdefer self.allocator.free(full_path);
                 try self.visited_paths.put(self.allocator, full_path, true);
+                errdefer _ = self.visited_paths.remove(full_path);
                 try self.directories.append(self.allocator, full_path);
-                // Don't free full_path - it's now owned by directories list
+                // Don't free full_path - it's now owned by visited_paths
             } else if (entry.kind == .file) {
                 defer self.allocator.free(full_path);
                 const stats = FileStats.fromDirEntry(self.allocator, io, dir_path, entry) catch {

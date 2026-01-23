@@ -482,3 +482,9 @@ pub const Context = struct {
         return try Span.start(allocator, name, null, null, .internal);
     }
 };
+
+// ---------------------------------------------------------------------------
+// System Information Helper
+// ---------------------------------------------------------------------------
+pub const system_info = @import("system_info/mod.zig");
+pub const SystemInfo = system_info.SystemInfo;

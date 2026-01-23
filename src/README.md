@@ -1,3 +1,7 @@
+---
+title: "README"
+tags: []
+---
 //! # Source Directory
 //!
 //! > **Codebase Status:** Synced with repository as of 2026-01-22.
@@ -141,3 +145,4 @@
 //! - [CLAUDE.md](../CLAUDE.md) - Full project documentation
 //! - [API Reference](../API_REFERENCE.md)
 //! - [docs/intro.md](../docs/intro.md) - Architecture overview
+

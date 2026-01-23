@@ -1,3 +1,7 @@
+---
+title: "README"
+tags: []
+---
 # ABI Python Bindings
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -109,3 +113,4 @@ MIT License - see LICENSE file for details.
 
 - [API Reference](../../API_REFERENCE.md) - Full API documentation
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) - Development guidelines
+

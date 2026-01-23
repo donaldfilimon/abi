@@ -1,3 +1,7 @@
+---
+title: "2026-01-17-eval-module-improvements"
+tags: []
+---
 # Eval Module Improvements Implementation Plan
 > **Codebase Status:** Synced with repository as of 2026-01-18.
 
@@ -844,3 +848,4 @@ git status
 
 **Total commits:** 7-8
 **Estimated implementation time:** 45-60 minutes
+

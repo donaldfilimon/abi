@@ -1,3 +1,7 @@
+---
+title: "multi-persona-ai-assistant"
+tags: []
+---
 # Multi-Persona AI Assistant Architecture
 
 ## Overview
@@ -990,3 +994,4 @@ test "full request flow through persona system" {
 4. **A/B Testing**: Built-in experimentation framework
 5. **User Personalization**: Per-user persona preferences
 6. **Multi-turn Memory**: Enhanced conversation continuity
+

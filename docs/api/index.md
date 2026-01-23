@@ -1,182 +1,198 @@
-# ABI API Reference
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+# ABI Framework API Reference
 
-Auto-generated API documentation index. For detailed API references, see module-specific documentation.
+> Comprehensive API documentation auto-generated from source code
 
-## Quick Navigation
+---
 
-- [Core Framework](#core-framework)
-- [GPU Acceleration](#gpu-acceleration)
-- [AI & Agents](#ai--agents)
-- [Database](#database)
-- [Network](#network)
-- [Compute Runtime](#compute-runtime)
+## Quick Links
+
+| Module | Description |
+|--------|-------------|
+| [abi](../api_abi.md) | Main framework entry point and public API |
+| [config](../api_config.md) | Unified configuration system with builder pattern |
+| [framework](../api_framework.md) | Framework orchestration and lifecycle management |
+| [tasks](../api_tasks.md) | Centralized task management system |
+| [runtime](../api_runtime.md) | Runtime infrastructure (engine, scheduling, memory) |
+| [runtime-engine](../api_runtime-engine.md) | Work-stealing task execution engine |
+| [runtime-scheduling](../api_runtime-scheduling.md) | Futures, cancellation, and task groups |
+| [runtime-memory](../api_runtime-memory.md) | Memory pools and custom allocators |
+| [runtime-concurrency](../api_runtime-concurrency.md) | Lock-free concurrent primitives |
+| [gpu](../api_gpu.md) | GPU acceleration framework (Vulkan, CUDA, Metal, WebGPU) |
+| [ai](../api_ai.md) | AI module with agents, LLM, embeddings, and training |
+| [ai-agents](../api_ai-agents.md) | Agent runtime and orchestration |
+| [ai-embeddings](../api_ai-embeddings.md) | Vector embeddings generation |
+| [ai-llm](../api_ai-llm.md) | Local LLM inference |
+| [ai-training](../api_ai-training.md) | Training pipelines and fine-tuning |
+| [connectors](../api_connectors.md) | API connectors (OpenAI, Ollama, Anthropic, HuggingFace) |
+| [database](../api_database.md) | Vector database (WDBX with HNSW/IVF-PQ) |
+| [network](../api_network.md) | Distributed compute and Raft consensus |
+| [ha](../api_ha.md) | High availability (backup, PITR, replication) |
+| [observability](../api_observability.md) | Metrics, tracing, and monitoring |
+| [registry](../api_registry.md) | Plugin registry (comptime, runtime, dynamic) |
+| [web](../api_web.md) | Web utilities and HTTP support |
+| [security](../api_security.md) | TLS, mTLS, API keys, and RBAC |
 
 ---
 
 ## Core Framework
 
-**Module:** `abi`  
-**Source:** `src/abi.zig`  
-**Guide:** [Framework Guide](../framework.md#api-reference)
+### [abi](../api_abi.md)
 
-High-level entrypoints and re-exports for the modernized runtime.
+Main framework entry point and public API
 
-### Core Components
+**Source:** [`src/abi.zig`](../../src/abi.zig)
 
-- `Framework` - Framework orchestration layer
-- `Config` - Unified configuration system
-- `Feature` - Feature enum and runtime checking
-- `init()`, `shutdown()` - Lifecycle management
+### [config](../api_config.md)
 
-**Related Documentation:**
+Unified configuration system with builder pattern
 
-- [Framework Guide](../framework.md)
-- [Configuration System](../framework.md#configuration)
+**Source:** [`src/config.zig`](../../src/config.zig)
 
----
+### [framework](../api_framework.md)
 
-## GPU Acceleration
+Framework orchestration and lifecycle management
 
-**Module:** `gpu`  
-**Source:** `src/gpu/unified.zig`  
-**Guide:** [GPU Guide](../gpu.md#api-reference)
+**Source:** [`src/framework.zig`](../../src/framework.zig)
 
-Unified GPU API supporting multiple backends (CUDA, Vulkan, Metal, WebGPU, OpenGL).
+### [tasks](../api_tasks.md)
 
-### Quick Start
+Centralized task management system
 
-```zig
-const abi = @import("abi");
+**Source:** [`src/tasks.zig`](../../src/tasks.zig)
 
-var fw = try abi.init(allocator, .{ .gpu = .{ .backend = .vulkan } });
-defer fw.deinit();
+## Compute & Runtime
 
-const gpu = try fw.getGpu();
+### [runtime](../api_runtime.md)
 
-// Create buffers and perform operations
-var a = try gpu.createBufferFromSlice(f32, &[_]f32{ 1, 2, 3, 4 }, .{});
-var b = try gpu.createBufferFromSlice(f32, &[_]f32{ 5, 6, 7, 8 }, .{});
-var result = try gpu.createBuffer(4 * @sizeOf(f32), .{});
+Runtime infrastructure (engine, scheduling, memory)
 
-try gpu.vectorAdd(f32, a, b, result);
-```
+**Source:** [`src/runtime/mod.zig`](../../src/runtime/mod.zig)
 
-### GPU Components
+### [runtime-engine](../api_runtime-engine.md)
 
-- `Gpu` - Main GPU context
-- `GpuBuffer` - GPU memory management
-- `GpuDevice` - Device selection and capabilities
-- `KernelBuilder` - Custom kernel compilation
-- `vectorAdd`, `matrixMultiply` - High-level operations
+Work-stealing task execution engine
 
-**Related Documentation:**
+**Source:** [`src/runtime/engine/mod.zig`](../../src/runtime/engine/mod.zig)
 
-- [GPU Guide](../gpu.md)
-- [GPU Architecture](../diagrams/gpu-architecture.md)
+### [runtime-scheduling](../api_runtime-scheduling.md)
 
----
+Futures, cancellation, and task groups
 
-## AI & Agents
+**Source:** [`src/runtime/scheduling/mod.zig`](../../src/runtime/scheduling/mod.zig)
 
-**Module:** `ai`
-**Source:** `src/ai/mod.zig`
-**Guide:** [AI Guide](../ai.md#api-reference)
+### [runtime-memory](../api_runtime-memory.md)
 
-AI feature module with agents, transformers, training, and federated learning.
+Memory pools and custom allocators
 
-### AI Components
+**Source:** [`src/runtime/memory/mod.zig`](../../src/runtime/memory/mod.zig)
 
-- `Agent` - Conversational AI agents
-- `TransformerConfig`, `TransformerModel` - LLM inference
-- `LlmTrainer`, `TrainableModel` - Training pipelines
-- `ExploreAgent` - Codebase exploration
-- `Tool`, `ToolRegistry` - Agent tooling system
+### [runtime-concurrency](../api_runtime-concurrency.md)
 
-**Related Documentation:**
+Lock-free concurrent primitives
 
-- [AI Guide](../ai.md)
-- [AI Dataflow](../diagrams/ai-dataflow.md)
+**Source:** [`src/runtime/concurrency/mod.zig`](../../src/runtime/concurrency/mod.zig)
 
----
+### [gpu](../api_gpu.md)
 
-## Database
+GPU acceleration framework (Vulkan, CUDA, Metal, WebGPU)
 
-**Module:** `database`
-**Source:** `src/database/mod.zig`
-**Guide:** [Database Guide](../database.md#api-reference)
+**Source:** [`src/gpu/mod.zig`](../../src/gpu/mod.zig)
 
-WDBX vector database with HNSW indexing and hybrid search.
+## AI & Machine Learning
 
-### Database Components
+### [ai](../api_ai.md)
 
-- `createDatabase`, `connectDatabase` - Database management
-- `insertVector`, `searchVectors` - Vector operations
-- `updateVector`, `deleteVector` - Vector updates
-- `getVector`, `listVectors` - Vector retrieval
+AI module with agents, LLM, embeddings, and training
 
-**Related Documentation:**
+**Source:** [`src/ai/mod.zig`](../../src/ai/mod.zig)
 
-- [Database Guide](../database.md)
-- [Vector Database Tutorial](../tutorials/vector-database.md)
+### [ai-agents](../api_ai-agents.md)
 
----
+Agent runtime and orchestration
 
-## Network
+**Source:** [`src/ai/agents/mod.zig`](../../src/ai/agents/mod.zig)
 
-**Module:** `network`  
-**Source:** `src/network/mod.zig`  
-**Guide:** [Network Guide](../network.md)
+### [ai-embeddings](../api_ai-embeddings.md)
 
-Distributed compute and Raft consensus for cluster coordination.
+Vector embeddings generation
 
-### Network Components
+**Source:** [`src/ai/embeddings/mod.zig`](../../src/ai/embeddings/mod.zig)
 
-- `NetworkConfig` - Network configuration
-- `NetworkState` - Cluster state management
-- Distributed task execution
+### [ai-llm](../api_ai-llm.md)
 
-**Related Documentation:**
+Local LLM inference
 
-- [Network Guide](../network.md)
+**Source:** [`src/ai/llm/mod.zig`](../../src/ai/llm/mod.zig)
 
----
+### [ai-training](../api_ai-training.md)
 
-## Compute Runtime
+Training pipelines and fine-tuning
 
-**Module:** `runtime`
-**Source:** `src/runtime/mod.zig`
-**Guide:** [Compute Guide](../compute.md#api-reference)
+**Source:** [`src/ai/training/mod.zig`](../../src/ai/training/mod.zig)
 
-Work-stealing scheduler, futures, cancellation, and task groups.
+### [connectors](../api_connectors.md)
 
-### Runtime Components
+API connectors (OpenAI, Ollama, Anthropic, HuggingFace)
 
-- `DistributedComputeEngine` - Main compute engine
-- `Future`, `Promise` - Async result handling
-- `CancellationToken` - Cooperative cancellation
-- `TaskGroup` - Hierarchical task organization
-- `runTask`, `submitTask`, `waitForResult` - Task execution
+**Source:** [`src/connectors/mod.zig`](../../src/connectors/mod.zig)
 
-**Related Documentation:**
+## Data & Storage
 
-- [Compute Guide](../compute.md)
+### [database](../api_database.md)
 
----
+Vector database (WDBX with HNSW/IVF-PQ)
 
-## Module-Specific References
+**Source:** [`src/database/mod.zig`](../../src/database/mod.zig)
 
-For detailed API documentation with complete symbol listings, see the API Reference section in each guide:
+## Infrastructure
 
-| Module | Documentation |
-|--------|---------------|
-| Core Framework | [Framework Guide - API Reference](../framework.md#api-reference) |
-| GPU | [GPU Guide - API Reference](../gpu.md#api-reference) |
-| AI | [AI Guide - API Reference](../ai.md#api-reference) |
-| Database | [Database Guide - API Reference](../database.md#api-reference) |
-| Network | [Network Guide](../network.md) |
-| Compute | [Compute Guide - API Reference](../compute.md#api-reference) |
+### [network](../api_network.md)
+
+Distributed compute and Raft consensus
+
+**Source:** [`src/network/mod.zig`](../../src/network/mod.zig)
+
+### [ha](../api_ha.md)
+
+High availability (backup, PITR, replication)
+
+**Source:** [`src/ha/mod.zig`](../../src/ha/mod.zig)
+
+### [observability](../api_observability.md)
+
+Metrics, tracing, and monitoring
+
+**Source:** [`src/observability/mod.zig`](../../src/observability/mod.zig)
+
+### [registry](../api_registry.md)
+
+Plugin registry (comptime, runtime, dynamic)
+
+**Source:** [`src/registry/mod.zig`](../../src/registry/mod.zig)
+
+### [web](../api_web.md)
+
+Web utilities and HTTP support
+
+**Source:** [`src/web/mod.zig`](../../src/web/mod.zig)
+
+## Utilities
+
+### [security](../api_security.md)
+
+TLS, mTLS, API keys, and RBAC
+
+**Source:** [`src/shared/security/mod.zig`](../../src/shared/security/mod.zig)
 
 ---
 
-*Generated API documentation. See guide files for complete API references.*
+## Additional Resources
+
+- [Getting Started Guide](../tutorials/getting-started.md)
+- [Architecture Overview](../architecture/overview.md)
+- [Feature Flags](../feature-flags.md)
+- [Troubleshooting](../troubleshooting.md)
+
+---
+
+*Generated automatically by `zig build gendocs`*

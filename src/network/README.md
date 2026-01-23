@@ -1,3 +1,7 @@
+---
+title: "README"
+tags: []
+---
 //! # Network
 //!
 //! > **Codebase Status:** Synced with repository as of 2026-01-22.
@@ -51,4 +55,5 @@
 //!
 //! - [Network Documentation](../../docs/network.md)
 //! - [API Reference](../../API_REFERENCE.md)
+
 

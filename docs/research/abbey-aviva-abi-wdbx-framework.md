@@ -1,3 +1,7 @@
+---
+title: "abbey-aviva-abi-wdbx-framework"
+tags: []
+---
 # Abbey–Aviva–Abi Multi‑Persona AI Framework with WDBX Architecture
 
 ## Abstract
@@ -589,3 +593,4 @@ If retrieval confidence (c \in [0, 1]) is available, routing can be made more co
 ```
 
 Where \upsilon increases cautious routing under low confidence.
+

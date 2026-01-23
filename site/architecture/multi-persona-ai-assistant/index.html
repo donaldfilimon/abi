@@ -1,0 +1,2113 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modern Zig framework for modular AI services, vector search, and systems tooling.">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>multi-persona-ai-assistant - ABI Framework</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#multi-persona-ai-assistant-architecture" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ABI Framework" class="md-header__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ABI Framework
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              multi-persona-ai-assistant
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/intro.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Introduction
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/framework.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Framework
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/compute.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Compute
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/gpu.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  GPU
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/database.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Database
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/network.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Network
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/monitoring.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Monitoring
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/ai.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  AI
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../docs/migration/zig-0.16-migration.md" class="md-tabs__link">
+          
+  
+  
+  Migration
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ABI Framework" class="md-nav__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ABI Framework
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/intro.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/framework.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/compute.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compute
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/gpu.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/database.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Database
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/network.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/monitoring.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/ai.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Migration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/migration/zig-0.16-migration.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zig 0.16 Migration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-abi-content-moderation-routing-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Abi: Content Moderation &amp; Routing Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Abi: Content Moderation &amp; Routing Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-sentiment-analysis-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Sentiment Analysis Component
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-policy-checker-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Policy Checker Component
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-persona-router-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Persona Router Component
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-abbey-empathetic-polymath-persona" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Abbey: Empathetic Polymath Persona
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-aviva-direct-expert-persona" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Aviva: Direct Expert Persona
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-wdbx-integration-for-persona-embeddings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. WDBX Integration for Persona Embeddings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-persona-registry-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Persona Registry &amp; Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-metrics-observability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Metrics &amp; Observability
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#request-processing-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request Processing Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-integration-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory Integration Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Schema
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-with-existing-codebase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration with Existing Codebase
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration with Existing Codebase">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-extend-existing-persona-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Extend Existing Persona System
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-integrate-with-abbey-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Integrate with Abbey Engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-integrate-with-wdbx-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Integrate with WDBX Database
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-integrate-with-load-balancer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Integrate with Load Balancer
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Strategy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unit-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#latency-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Latency Budget
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimization-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization Strategies
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Considerations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-extensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Future Extensions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="multi-persona-ai-assistant-architecture">Multi-Persona AI Assistant Architecture</h1>
+<h2 id="overview">Overview</h2>
+<p>This document describes the architecture for implementing a multi-layer, multi-persona AI assistant system based on the research paper "Extended Multi-Layer, Multi-Persona AI Assistant with WDBX." The architecture leverages existing ABI framework components while introducing new modules for persona routing, content moderation, and distributed inference.</p>
+<h2 id="system-architecture">System Architecture</h2>
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                              User Request                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          API Gateway Layer                                   │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │ Rate Limiter│  │Auth/RBAC   │  │ Request     │  │ Session Manager     │ │
+│  │             │  │             │  │ Validator   │  │                     │ │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Abi: Content Moderation &amp; Routing Layer                   │
+│  ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────────┐   │
+│  │ Sentiment Analysis│  │ Policy Checker    │  │ Persona Router        │   │
+│  │ - Emotion detect  │  │ - Content filter  │  │ - Intent classifier   │   │
+│  │ - Urgency score   │  │ - Safety rules    │  │ - Persona scoring     │   │
+│  │ - Context capture │  │ - Compliance      │  │ - Load balancing      │   │
+│  └───────────────────┘  └───────────────────┘  └───────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    ▼               ▼               ▼
+┌─────────────────────────┐ ┌─────────────────────────┐ ┌─────────────────────┐
+│   Abbey: Empathetic     │ │  Aviva: Direct Expert   │ │ Custom Personas     │
+│   Polymath              │ │                         │ │                     │
+│ ┌─────────────────────┐ │ │ ┌─────────────────────┐ │ │ ┌─────────────────┐ │
+│ │ Emotion Processing  │ │ │ │ Fact Retrieval      │ │ │ │ Domain-Specific │ │
+│ │ - Empathy injection │ │ │ │ - Knowledge base    │ │ │ │ - Healthcare    │ │
+│ │ - Tone adaptation   │ │ │ │ - Code expertise    │ │ │ │ - Legal         │ │
+│ │ - Support patterns  │ │ │ │ - Minimal tone      │ │ │ │ - Creative      │ │
+│ └─────────────────────┘ │ │ └─────────────────────┘ │ │ └─────────────────┘ │
+│ ┌─────────────────────┐ │ │ ┌─────────────────────┐ │ │                     │
+│ │ Reasoning Chain     │ │ │ │ Direct Response     │ │ │                     │
+│ │ - Step-by-step      │ │ │ │ - No disclaimers    │ │ │                     │
+│ │ - Confidence scores │ │ │ │ - Code examples     │ │ │                     │
+│ └─────────────────────┘ │ │ └─────────────────────┘ │ │                     │
+└─────────────────────────┘ └─────────────────────────┘ └─────────────────────┘
+                    │               │               │
+                    └───────────────┼───────────────┘
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Response Aggregation &amp; Validation                         │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────────┐  │
+│  │ Response Merger │  │ Quality Check   │  │ Final Policy Compliance     │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              User Response                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<h2 id="core-components">Core Components</h2>
+<h3 id="1-abi-content-moderation-routing-layer">1. Abi: Content Moderation &amp; Routing Layer</h3>
+<p><strong>Location</strong>: <code>src/ai/personas/abi/</code></p>
+<p>Abi serves as the gatekeeper, handling:
+- <strong>Sentiment Analysis</strong>: Detect user emotional state to route appropriately
+- <strong>Policy Checking</strong>: Ensure content complies with safety guidelines
+- <strong>Persona Routing</strong>: Select optimal persona based on query analysis</p>
+<pre><code class="language-zig">// src/ai/personas/abi/mod.zig
+pub const AbiRouter = struct {
+    allocator: Allocator,
+    sentiment_analyzer: SentimentAnalyzer,
+    policy_checker: PolicyChecker,
+    persona_scorer: PersonaScorer,
+    load_balancer: PersonaLoadBalancer,
+
+    pub fn init(allocator: Allocator, config: AbiConfig) !AbiRouter;
+    pub fn route(self: *AbiRouter, request: UserRequest) !RoutingDecision;
+    pub fn validateResponse(self: *AbiRouter, response: Response) !ValidationResult;
+};
+
+pub const RoutingDecision = struct {
+    selected_persona: PersonaType,
+    confidence: f32,
+    emotional_context: EmotionalState,
+    policy_flags: PolicyFlags,
+    routing_reason: []const u8,
+};
+</code></pre>
+<h4 id="11-sentiment-analysis-component">1.1 Sentiment Analysis Component</h4>
+<pre><code class="language-zig">// src/ai/personas/abi/sentiment.zig
+pub const SentimentAnalyzer = struct {
+    emotion_classifier: *EmotionClassifier,
+    urgency_detector: *UrgencyDetector,
+
+    pub fn analyze(self: *SentimentAnalyzer, text: []const u8) !SentimentResult {
+        const emotion = try self.emotion_classifier.classify(text);
+        const urgency = try self.urgency_detector.detect(text);
+
+        return SentimentResult{
+            .primary_emotion = emotion.primary,
+            .secondary_emotions = emotion.secondary,
+            .urgency_score = urgency.score,
+            .requires_empathy = emotion.requires_support,
+            .is_technical = try self.detectTechnicalContent(text),
+        };
+    }
+};
+
+pub const SentimentResult = struct {
+    primary_emotion: EmotionType,
+    secondary_emotions: []const EmotionType,
+    urgency_score: f32, // 0.0 - 1.0
+    requires_empathy: bool,
+    is_technical: bool,
+};
+</code></pre>
+<h4 id="12-policy-checker-component">1.2 Policy Checker Component</h4>
+<pre><code class="language-zig">// src/ai/personas/abi/policy.zig
+pub const PolicyChecker = struct {
+    content_filter: *ContentFilter,
+    safety_rules: []const SafetyRule,
+    compliance_checker: *ComplianceChecker,
+
+    pub fn check(self: *PolicyChecker, content: []const u8) !PolicyResult {
+        // Check against content filters
+        const filter_result = try self.content_filter.scan(content);
+
+        // Check safety rules
+        const safety_result = try self.checkSafetyRules(content);
+
+        // Check regulatory compliance (GDPR, CCPA, etc.)
+        const compliance_result = try self.compliance_checker.verify(content);
+
+        return PolicyResult{
+            .is_allowed = filter_result.is_safe and safety_result.passed and compliance_result.compliant,
+            .violations = filter_result.violations ++ safety_result.violations,
+            .requires_moderation = filter_result.needs_review,
+            .suggested_action = self.determineSuggestedAction(filter_result, safety_result),
+        };
+    }
+};
+
+pub const SafetyRule = struct {
+    name: []const u8,
+    pattern: ?[]const u8,
+    action: SafetyAction,
+    severity: Severity,
+};
+
+pub const SafetyAction = enum {
+    allow,
+    warn,
+    block,
+    redirect_to_support,
+    require_human_review,
+};
+</code></pre>
+<h4 id="13-persona-router-component">1.3 Persona Router Component</h4>
+<pre><code class="language-zig">// src/ai/personas/abi/router.zig
+pub const PersonaRouter = struct {
+    persona_registry: *PersonaRegistry,
+    embedding_index: *EmbeddingIndex, // WDBX-backed
+    attention_scorer: *MultiHeadAttention,
+    load_balancer: *PersonaLoadBalancer,
+
+    pub fn selectPersona(
+        self: *PersonaRouter,
+        request: UserRequest,
+        sentiment: SentimentResult,
+        context: ConversationContext,
+    ) !RoutingDecision {
+        // Generate query embedding
+        const query_embedding = try self.generateQueryEmbedding(request.content);
+
+        // Score each persona using attention mechanism
+        var persona_scores = std.AutoHashMap(PersonaType, f32).init(self.allocator);
+        defer persona_scores.deinit();
+
+        for (self.persona_registry.getActivePersonas()) |persona| {
+            const score = try self.scorePersona(persona, query_embedding, sentiment, context);
+            try persona_scores.put(persona.persona_type, score);
+        }
+
+        // Apply routing rules
+        const routing_rules_score = try self.applyRoutingRules(request, sentiment);
+
+        // Combine scores with weighted average
+        const final_scores = try self.combineScores(persona_scores, routing_rules_score);
+
+        // Select best persona with load balancing consideration
+        const selected = try self.load_balancer.selectWithScores(final_scores);
+
+        return RoutingDecision{
+            .selected_persona = selected.persona_type,
+            .confidence = selected.score,
+            .emotional_context = sentiment.toEmotionalState(),
+            .policy_flags = .{},
+            .routing_reason = try self.generateRoutingReason(selected),
+        };
+    }
+
+    fn applyRoutingRules(self: *PersonaRouter, request: UserRequest, sentiment: SentimentResult) !RoutingRulesScore {
+        var rules_score = RoutingRulesScore{};
+
+        // Rule 1: High urgency + negative emotion -&gt; Abbey
+        if (sentiment.urgency_score &gt; 0.7 and sentiment.requires_empathy) {
+            rules_score.abbey_boost = 0.3;
+        }
+
+        // Rule 2: Technical query without emotional content -&gt; Aviva
+        if (sentiment.is_technical and !sentiment.requires_empathy) {
+            rules_score.aviva_boost = 0.25;
+        }
+
+        // Rule 3: Sensitive topics -&gt; Policy redirect
+        if (try self.detectSensitiveTopic(request.content)) {
+            rules_score.requires_moderation = true;
+        }
+
+        return rules_score;
+    }
+};
+</code></pre>
+<h3 id="2-abbey-empathetic-polymath-persona">2. Abbey: Empathetic Polymath Persona</h3>
+<p><strong>Location</strong>: <code>src/ai/personas/abbey/</code> (extends existing <code>src/ai/implementation/abbey/</code>)</p>
+<p>Abbey combines emotional intelligence with technical expertise.</p>
+<pre><code class="language-zig">// src/ai/personas/abbey/mod.zig
+pub const AbbeyPersona = struct {
+    config: AbbeyConfig,
+    emotion_processor: *EmotionProcessor,
+    reasoning_engine: *ReasoningEngine,
+    memory_system: *ThreeTierMemory,
+    llm_client: *LLMClient,
+
+    pub fn process(self: *AbbeyPersona, request: PersonaRequest) !PersonaResponse {
+        // Step 1: Process emotional context
+        const emotional_response = try self.emotion_processor.process(
+            request.content,
+            request.emotional_context,
+        );
+
+        // Step 2: Retrieve relevant context from memory
+        const memory_context = try self.memory_system.retrieveContext(
+            request.content,
+            request.session_id,
+        );
+
+        // Step 3: Build reasoning chain
+        const reasoning = try self.reasoning_engine.reason(
+            request.content,
+            memory_context,
+            emotional_response,
+        );
+
+        // Step 4: Generate empathetic response
+        const response = try self.generateResponse(
+            request,
+            reasoning,
+            emotional_response,
+        );
+
+        // Step 5: Update memory
+        try self.memory_system.store(request, response);
+
+        return response;
+    }
+
+    fn generateResponse(
+        self: *AbbeyPersona,
+        request: PersonaRequest,
+        reasoning: ReasoningChain,
+        emotional_response: EmotionalResponse,
+    ) !PersonaResponse {
+        // Build empathetic prompt
+        const prompt = try self.buildEmpathyPrompt(
+            request,
+            reasoning,
+            emotional_response,
+        );
+
+        // Generate with appropriate temperature for empathy
+        const llm_response = try self.llm_client.generate(.{
+            .prompt = prompt,
+            .temperature = 0.7, // Slightly higher for more natural empathy
+            .max_tokens = 2048,
+        });
+
+        return PersonaResponse{
+            .content = llm_response.text,
+            .persona = .abbey,
+            .confidence = reasoning.confidence,
+            .emotional_tone = emotional_response.suggested_tone,
+            .reasoning_chain = reasoning.steps,
+        };
+    }
+};
+
+pub const AbbeyConfig = struct {
+    empathy_level: f32 = 0.8, // 0.0 - 1.0
+    technical_depth: f32 = 0.7,
+    include_reasoning: bool = true,
+    max_reasoning_steps: u32 = 5,
+    emotion_adaptation: bool = true,
+};
+</code></pre>
+<h3 id="3-aviva-direct-expert-persona">3. Aviva: Direct Expert Persona</h3>
+<p><strong>Location</strong>: <code>src/ai/personas/aviva/</code></p>
+<p>Aviva provides concise, factual responses without emotional overhead.</p>
+<pre><code class="language-zig">// src/ai/personas/aviva/mod.zig
+pub const AvivaPersona = struct {
+    config: AvivaConfig,
+    knowledge_retriever: *KnowledgeRetriever,
+    code_generator: *CodeGenerator,
+    fact_checker: *FactChecker,
+    llm_client: *LLMClient,
+
+    pub fn process(self: *AvivaPersona, request: PersonaRequest) !PersonaResponse {
+        // Step 1: Classify query type
+        const query_type = try self.classifyQuery(request.content);
+
+        // Step 2: Retrieve relevant knowledge
+        const knowledge = try self.knowledge_retriever.retrieve(
+            request.content,
+            query_type,
+        );
+
+        // Step 3: Generate response based on query type
+        const response = switch (query_type) {
+            .code_request =&gt; try self.generateCodeResponse(request, knowledge),
+            .factual_query =&gt; try self.generateFactualResponse(request, knowledge),
+            .explanation =&gt; try self.generateExplanation(request, knowledge),
+            else =&gt; try self.generateGenericResponse(request, knowledge),
+        };
+
+        // Step 4: Verify facts if applicable
+        if (self.config.verify_facts) {
+            try self.fact_checker.verify(response);
+        }
+
+        return response;
+    }
+
+    fn generateCodeResponse(
+        self: *AvivaPersona,
+        request: PersonaRequest,
+        knowledge: Knowledge,
+    ) !PersonaResponse {
+        // Generate code with minimal commentary
+        const code = try self.code_generator.generate(.{
+            .request = request.content,
+            .context = knowledge,
+            .include_comments = self.config.include_code_comments,
+            .language = try self.detectLanguage(request.content),
+        });
+
+        return PersonaResponse{
+            .content = code.formatted,
+            .persona = .aviva,
+            .confidence = code.confidence,
+            .code_blocks = code.blocks,
+            .references = knowledge.sources,
+        };
+    }
+};
+
+pub const AvivaConfig = struct {
+    directness_level: f32 = 0.9, // 0.0 - 1.0
+    include_disclaimers: bool = false,
+    include_code_comments: bool = true,
+    verify_facts: bool = true,
+    max_response_length: u32 = 4096,
+};
+</code></pre>
+<h3 id="4-wdbx-integration-for-persona-embeddings">4. WDBX Integration for Persona Embeddings</h3>
+<p><strong>Location</strong>: <code>src/ai/personas/embeddings/</code></p>
+<pre><code class="language-zig">// src/ai/personas/embeddings/persona_index.zig
+pub const PersonaEmbeddingIndex = struct {
+    database: *wdbx.Database,
+    embedding_model: *EmbeddingModel,
+    persona_vectors: std.AutoHashMap(PersonaType, []const f32),
+
+    pub fn init(allocator: Allocator, config: EmbeddingConfig) !PersonaEmbeddingIndex {
+        const db = try wdbx.Database.init(allocator, .{
+            .name = &quot;persona_embeddings&quot;,
+            .enable_hnsw = true,
+            .hnsw_m = 16,
+            .hnsw_ef_construction = 200,
+        });
+
+        return PersonaEmbeddingIndex{
+            .database = db,
+            .embedding_model = try EmbeddingModel.init(config.model_path),
+            .persona_vectors = std.AutoHashMap(PersonaType, []const f32).init(allocator),
+        };
+    }
+
+    /// Store persona characteristic embedding
+    pub fn storePersonaEmbedding(
+        self: *PersonaEmbeddingIndex,
+        persona: PersonaType,
+        characteristics: []const u8,
+    ) !void {
+        const embedding = try self.embedding_model.embed(characteristics);
+        try self.persona_vectors.put(persona, embedding);
+
+        try self.database.upsert(.{
+            .id = @intFromEnum(persona),
+            .vector = embedding,
+            .metadata = try std.json.stringifyAlloc(self.allocator, .{
+                .persona = @tagName(persona),
+                .characteristics = characteristics,
+            }),
+        });
+    }
+
+    /// Find best matching persona for a query
+    pub fn findBestPersona(
+        self: *PersonaEmbeddingIndex,
+        query: []const u8,
+        top_k: usize,
+    ) ![]PersonaMatch {
+        const query_embedding = try self.embedding_model.embed(query);
+
+        const results = try self.database.search(.{
+            .query_vector = query_embedding,
+            .k = top_k,
+            .include_metadata = true,
+        });
+
+        var matches = std.ArrayList(PersonaMatch).init(self.allocator);
+        for (results) |result| {
+            try matches.append(.{
+                .persona = try self.parsePersonaFromMetadata(result.metadata),
+                .similarity = 1.0 - result.distance, // Convert distance to similarity
+                .metadata = result.metadata,
+            });
+        }
+
+        return matches.toOwnedSlice();
+    }
+
+    /// Store conversation embedding for persona learning
+    pub fn storeConversationEmbedding(
+        self: *PersonaEmbeddingIndex,
+        conversation_id: u64,
+        content: []const u8,
+        persona_used: PersonaType,
+        success_score: f32,
+    ) !void {
+        const embedding = try self.embedding_model.embed(content);
+
+        try self.database.upsert(.{
+            .id = conversation_id,
+            .vector = embedding,
+            .metadata = try std.json.stringifyAlloc(self.allocator, .{
+                .persona = @tagName(persona_used),
+                .success_score = success_score,
+                .timestamp = std.time.timestamp(),
+            }),
+        });
+    }
+};
+
+pub const PersonaMatch = struct {
+    persona: PersonaType,
+    similarity: f32,
+    metadata: ?[]const u8,
+};
+</code></pre>
+<h3 id="5-persona-registry-configuration">5. Persona Registry &amp; Configuration</h3>
+<p><strong>Location</strong>: <code>src/ai/personas/registry.zig</code></p>
+<pre><code class="language-zig">// src/ai/personas/registry.zig
+pub const PersonaRegistry = struct {
+    allocator: Allocator,
+    personas: std.AutoHashMap(PersonaType, *Persona),
+    configs: std.AutoHashMap(PersonaType, PersonaConfig),
+    metrics: *PersonaMetrics,
+
+    pub fn init(allocator: Allocator) !PersonaRegistry {
+        var registry = PersonaRegistry{
+            .allocator = allocator,
+            .personas = std.AutoHashMap(PersonaType, *Persona).init(allocator),
+            .configs = std.AutoHashMap(PersonaType, PersonaConfig).init(allocator),
+            .metrics = try PersonaMetrics.init(allocator),
+        };
+
+        // Register default personas
+        try registry.registerPersona(.abbey, AbbeyPersona.default());
+        try registry.registerPersona(.aviva, AvivaPersona.default());
+        try registry.registerPersona(.abi, AbiPersona.default());
+
+        return registry;
+    }
+
+    pub fn registerPersona(
+        self: *PersonaRegistry,
+        persona_type: PersonaType,
+        persona: *Persona,
+    ) !void {
+        try self.personas.put(persona_type, persona);
+        try self.metrics.registerPersona(persona_type);
+    }
+
+    pub fn getPersona(self: *PersonaRegistry, persona_type: PersonaType) ?*Persona {
+        return self.personas.get(persona_type);
+    }
+
+    pub fn getActivePersonas(self: *PersonaRegistry) []const *Persona {
+        var active = std.ArrayList(*Persona).init(self.allocator);
+        var iter = self.personas.iterator();
+        while (iter.next()) |entry| {
+            if (self.isPersonaActive(entry.key_ptr.*)) {
+                active.append(entry.value_ptr.*) catch continue;
+            }
+        }
+        return active.toOwnedSlice() catch &amp;[_]*Persona{};
+    }
+};
+
+pub const PersonaConfig = struct {
+    enabled: bool = true,
+    max_concurrent_requests: u32 = 100,
+    timeout_ms: u64 = 30000,
+    priority: u8 = 5, // 1-10
+    routing_weight: f32 = 1.0,
+    specialized_domains: []const []const u8 = &amp;[_][]const u8{},
+};
+</code></pre>
+<h3 id="6-metrics-observability">6. Metrics &amp; Observability</h3>
+<p><strong>Location</strong>: <code>src/ai/personas/metrics.zig</code></p>
+<pre><code class="language-zig">// src/ai/personas/metrics.zig
+pub const PersonaMetrics = struct {
+    allocator: Allocator,
+    counters: std.AutoHashMap(MetricKey, u64),
+    histograms: std.AutoHashMap(MetricKey, *Histogram),
+    gauges: std.AutoHashMap(MetricKey, f64),
+
+    pub fn recordRequest(self: *PersonaMetrics, persona: PersonaType) !void {
+        const key = MetricKey{ .persona = persona, .metric = &quot;requests_total&quot; };
+        const current = self.counters.get(key) orelse 0;
+        try self.counters.put(key, current + 1);
+    }
+
+    pub fn recordLatency(self: *PersonaMetrics, persona: PersonaType, latency_ms: u64) !void {
+        const key = MetricKey{ .persona = persona, .metric = &quot;latency_ms&quot; };
+        if (self.histograms.get(key)) |histogram| {
+            try histogram.observe(@floatFromInt(latency_ms));
+        }
+    }
+
+    pub fn recordSuccess(self: *PersonaMetrics, persona: PersonaType, success: bool) !void {
+        const suffix = if (success) &quot;success&quot; else &quot;failure&quot;;
+        const key = MetricKey{ .persona = persona, .metric = suffix };
+        const current = self.counters.get(key) orelse 0;
+        try self.counters.put(key, current + 1);
+    }
+
+    pub fn recordUserSatisfaction(self: *PersonaMetrics, persona: PersonaType, score: f32) !void {
+        const key = MetricKey{ .persona = persona, .metric = &quot;satisfaction_score&quot; };
+        if (self.histograms.get(key)) |histogram| {
+            try histogram.observe(score);
+        }
+    }
+
+    pub fn getPersonaStats(self: *PersonaMetrics, persona: PersonaType) PersonaStats {
+        return PersonaStats{
+            .total_requests = self.getCounter(persona, &quot;requests_total&quot;),
+            .success_rate = self.calculateSuccessRate(persona),
+            .avg_latency_ms = self.getHistogramMean(persona, &quot;latency_ms&quot;),
+            .p99_latency_ms = self.getHistogramP99(persona, &quot;latency_ms&quot;),
+            .avg_satisfaction = self.getHistogramMean(persona, &quot;satisfaction_score&quot;),
+        };
+    }
+};
+
+pub const PersonaStats = struct {
+    total_requests: u64,
+    success_rate: f32,
+    avg_latency_ms: f64,
+    p99_latency_ms: f64,
+    avg_satisfaction: f32,
+};
+</code></pre>
+<h2 id="data-flow">Data Flow</h2>
+<h3 id="request-processing-flow">Request Processing Flow</h3>
+<pre><code>1. User Request
+   │
+   ▼
+2. API Gateway
+   ├── Rate limiting check
+   ├── Authentication/RBAC
+   └── Request validation
+   │
+   ▼
+3. Abi Layer (Content Moderation &amp; Routing)
+   ├── Sentiment analysis
+   │   ├── Emotion detection
+   │   ├── Urgency scoring
+   │   └── Technical content detection
+   ├── Policy checking
+   │   ├── Content filtering
+   │   ├── Safety rule evaluation
+   │   └── Compliance verification
+   └── Persona routing
+       ├── Query embedding generation
+       ├── Persona scoring via attention
+       ├── Rule-based adjustments
+       └── Load-balanced selection
+   │
+   ▼
+4. Selected Persona Processing
+   │
+   ├── Abbey (if selected)
+   │   ├── Emotion processing
+   │   ├── Memory retrieval
+   │   ├── Reasoning chain construction
+   │   └── Empathetic response generation
+   │
+   └── Aviva (if selected)
+       ├── Query classification
+       ├── Knowledge retrieval
+       ├── Fact verification
+       └── Direct response generation
+   │
+   ▼
+5. Response Validation
+   ├── Quality check
+   ├── Policy compliance
+   └── Confidence threshold
+   │
+   ▼
+6. User Response
+</code></pre>
+<h3 id="memory-integration-flow">Memory Integration Flow</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                    Three-Tier Memory System                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
+│  │ Working Memory  │  │ Episodic Memory │  │ Semantic    │  │
+│  │ (Short-term)    │  │ (Events)        │  │ Memory      │  │
+│  │                 │  │                 │  │ (Knowledge) │  │
+│  │ • Current ctx   │  │ • Conversations │  │ • Facts     │  │
+│  │ • Recent turns  │  │ • User prefs    │  │ • Concepts  │  │
+│  │ • Emotional st. │  │ • Outcomes      │  │ • Relations │  │
+│  └────────┬────────┘  └────────┬────────┘  └──────┬──────┘  │
+│           │                    │                   │         │
+│           └────────────────────┼───────────────────┘         │
+│                                │                             │
+│                    ┌───────────▼───────────┐                │
+│                    │    WDBX Vector DB     │                │
+│                    │  • Embedding storage  │                │
+│                    │  • Hybrid search      │                │
+│                    │  • Persona learning   │                │
+│                    └───────────────────────┘                │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+<h2 id="configuration-schema">Configuration Schema</h2>
+<pre><code class="language-zig">// src/ai/personas/config.zig
+pub const MultiPersonaConfig = struct {
+    /// Global settings
+    default_persona: PersonaType = .abbey,
+    enable_dynamic_routing: bool = true,
+    routing_confidence_threshold: f32 = 0.6,
+
+    /// Abi (Router) settings
+    abi: AbiConfig = .{},
+
+    /// Abbey settings
+    abbey: AbbeyConfig = .{},
+
+    /// Aviva settings
+    aviva: AvivaConfig = .{},
+
+    /// WDBX integration
+    embeddings: EmbeddingConfig = .{},
+
+    /// Load balancing
+    load_balancing: LoadBalancingConfig = .{},
+
+    /// Metrics
+    metrics: MetricsConfig = .{},
+};
+
+pub const AbiConfig = struct {
+    enable_sentiment_analysis: bool = true,
+    enable_policy_checking: bool = true,
+    sensitive_topic_detection: bool = true,
+    content_filter_level: FilterLevel = .moderate,
+    max_routing_latency_ms: u64 = 50,
+};
+
+pub const LoadBalancingConfig = struct {
+    strategy: LoadBalancerStrategy = .health_weighted,
+    enable_circuit_breaker: bool = true,
+    circuit_breaker_threshold: u32 = 5,
+    circuit_breaker_timeout_ms: u64 = 30000,
+};
+</code></pre>
+<h2 id="file-structure">File Structure</h2>
+<pre><code>src/ai/personas/
+├── mod.zig                    # Module entry point
+├── config.zig                 # Configuration definitions
+├── registry.zig               # Persona registry
+├── metrics.zig                # Observability/metrics
+├── types.zig                  # Shared types
+│
+├── abi/                       # Abi: Moderation &amp; Routing
+│   ├── mod.zig
+│   ├── sentiment.zig          # Sentiment analysis
+│   ├── policy.zig             # Policy checking
+│   ├── router.zig             # Persona routing
+│   └── rules.zig              # Routing rules
+│
+├── abbey/                     # Abbey: Empathetic Polymath
+│   ├── mod.zig
+│   ├── emotion.zig            # Emotion processing
+│   ├── empathy.zig            # Empathy injection
+│   └── reasoning.zig          # Enhanced reasoning
+│
+├── aviva/                     # Aviva: Direct Expert
+│   ├── mod.zig
+│   ├── knowledge.zig          # Knowledge retrieval
+│   ├── code.zig               # Code generation
+│   └── facts.zig              # Fact checking
+│
+├── embeddings/                # WDBX Integration
+│   ├── mod.zig
+│   ├── persona_index.zig      # Persona embeddings
+│   └── learning.zig           # Adaptive learning
+│
+└── tests/                     # Unit tests
+    ├── abi_test.zig
+    ├── abbey_test.zig
+    ├── aviva_test.zig
+    └── integration_test.zig
+</code></pre>
+<h2 id="integration-with-existing-codebase">Integration with Existing Codebase</h2>
+<h3 id="1-extend-existing-persona-system">1. Extend Existing Persona System</h3>
+<p>The existing <code>src/ai/implementation/prompts/personas.zig</code> will be extended:</p>
+<pre><code class="language-zig">// Add to PersonaType enum
+pub const PersonaType = enum {
+    assistant,
+    coder,
+    writer,
+    analyst,
+    companion,
+    docs,
+    reviewer,
+    minimal,
+    abbey,    // Enhanced
+    aviva,    // New
+    abi,      // New (routing/moderation)
+    ralph,
+};
+</code></pre>
+<h3 id="2-integrate-with-abbey-engine">2. Integrate with Abbey Engine</h3>
+<p>Leverage existing Abbey engine at <code>src/ai/implementation/abbey/engine.zig</code>:</p>
+<pre><code class="language-zig">// Extend ProcessingPipeline to support persona-aware processing
+pub const PersonaAwarePipeline = struct {
+    base_pipeline: *ProcessingPipeline,
+    persona_router: *PersonaRouter,
+
+    pub fn process(self: *PersonaAwarePipeline, request: Request) !Response {
+        // Route through Abi
+        const routing = try self.persona_router.route(request);
+
+        // Process with selected persona
+        return switch (routing.selected_persona) {
+            .abbey =&gt; try self.processWithAbbey(request, routing),
+            .aviva =&gt; try self.processWithAviva(request, routing),
+            else =&gt; try self.base_pipeline.process(request),
+        };
+    }
+};
+</code></pre>
+<h3 id="3-integrate-with-wdbx-database">3. Integrate with WDBX Database</h3>
+<p>Leverage existing database at <code>src/database/database.zig</code>:</p>
+<pre><code class="language-zig">// Create persona-specific database instance
+const persona_db = try wdbx.Database.init(allocator, .{
+    .name = &quot;personas&quot;,
+    .enable_hnsw = true,
+    .enable_hybrid_search = true,
+});
+</code></pre>
+<h3 id="4-integrate-with-load-balancer">4. Integrate with Load Balancer</h3>
+<p>Leverage existing load balancer at <code>src/network/loadbalancer.zig</code>:</p>
+<pre><code class="language-zig">// Create persona-specific load balancer
+const persona_lb = try LoadBalancer.init(allocator, .{
+    .strategy = .health_weighted,
+    .health_check_interval_ms = 5000,
+});
+
+// Register personas as nodes
+try persona_lb.registerNode(.{
+    .id = &quot;abbey&quot;,
+    .weight = 10,
+});
+try persona_lb.registerNode(.{
+    .id = &quot;aviva&quot;,
+    .weight = 10,
+});
+</code></pre>
+<h2 id="testing-strategy">Testing Strategy</h2>
+<h3 id="unit-tests">Unit Tests</h3>
+<pre><code class="language-zig">// src/ai/personas/tests/abi_test.zig
+test &quot;sentiment analysis detects frustration&quot; {
+    const analyzer = try SentimentAnalyzer.init(testing.allocator);
+    defer analyzer.deinit();
+
+    const result = try analyzer.analyze(&quot;This is so frustrating! Nothing works!&quot;);
+
+    try testing.expect(result.primary_emotion == .frustrated);
+    try testing.expect(result.requires_empathy);
+    try testing.expect(result.urgency_score &gt; 0.5);
+}
+
+test &quot;policy checker blocks harmful content&quot; {
+    const checker = try PolicyChecker.init(testing.allocator);
+    defer checker.deinit();
+
+    const result = try checker.check(&quot;[harmful content]&quot;);
+
+    try testing.expect(!result.is_allowed);
+    try testing.expect(result.violations.len &gt; 0);
+}
+
+test &quot;persona router selects Abbey for emotional queries&quot; {
+    const router = try PersonaRouter.init(testing.allocator);
+    defer router.deinit();
+
+    const decision = try router.selectPersona(.{
+        .content = &quot;I'm feeling really overwhelmed with work&quot;,
+        .emotional_context = .{ .detected = .stressed },
+    });
+
+    try testing.expect(decision.selected_persona == .abbey);
+    try testing.expect(decision.confidence &gt; 0.7);
+}
+</code></pre>
+<h3 id="integration-tests">Integration Tests</h3>
+<pre><code class="language-zig">// src/ai/personas/tests/integration_test.zig
+test &quot;full request flow through persona system&quot; {
+    // Initialize system
+    var system = try MultiPersonaSystem.init(testing.allocator);
+    defer system.deinit();
+
+    // Test empathetic query -&gt; Abbey
+    {
+        const response = try system.process(.{
+            .content = &quot;I'm struggling with this bug and feeling stuck&quot;,
+            .session_id = 1,
+        });
+
+        try testing.expect(response.persona == .abbey);
+        try testing.expect(std.mem.indexOf(u8, response.content, &quot;understand&quot;) != null);
+    }
+
+    // Test technical query -&gt; Aviva
+    {
+        const response = try system.process(.{
+            .content = &quot;How do I implement a binary search tree in Zig?&quot;,
+            .session_id = 2,
+        });
+
+        try testing.expect(response.persona == .aviva);
+        try testing.expect(response.code_blocks.len &gt; 0);
+    }
+}
+</code></pre>
+<h2 id="performance-considerations">Performance Considerations</h2>
+<h3 id="latency-budget">Latency Budget</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Target Latency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API Gateway</td>
+<td>&lt; 5ms</td>
+</tr>
+<tr>
+<td>Sentiment Analysis</td>
+<td>&lt; 10ms</td>
+</tr>
+<tr>
+<td>Policy Check</td>
+<td>&lt; 5ms</td>
+</tr>
+<tr>
+<td>Persona Routing</td>
+<td>&lt; 20ms</td>
+</tr>
+<tr>
+<td>Embedding Lookup</td>
+<td>&lt; 15ms</td>
+</tr>
+<tr>
+<td>LLM Generation</td>
+<td>&lt; 2000ms</td>
+</tr>
+<tr>
+<td>Response Validation</td>
+<td>&lt; 10ms</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>&lt; 2100ms</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="optimization-strategies">Optimization Strategies</h3>
+<ol>
+<li><strong>Parallel Processing</strong>: Run sentiment analysis and policy checking concurrently</li>
+<li><strong>Embedding Caching</strong>: Cache frequently used query embeddings</li>
+<li><strong>Warm Persona Pools</strong>: Pre-initialize persona instances</li>
+<li><strong>Streaming Responses</strong>: Stream LLM output for perceived lower latency</li>
+<li><strong>Circuit Breakers</strong>: Prevent cascade failures with per-persona circuit breakers</li>
+</ol>
+<h2 id="security-considerations">Security Considerations</h2>
+<ol>
+<li><strong>Input Sanitization</strong>: All user input sanitized before processing</li>
+<li><strong>Content Filtering</strong>: Multi-layer content filtering in Abi</li>
+<li><strong>Rate Limiting</strong>: Per-user and per-IP rate limiting</li>
+<li><strong>RBAC Integration</strong>: Persona access controlled via existing RBAC system</li>
+<li><strong>Audit Logging</strong>: All persona decisions logged for audit</li>
+<li><strong>PII Detection</strong>: Automatic PII detection and redaction</li>
+<li><strong>Encryption</strong>: All data encrypted at rest and in transit</li>
+</ol>
+<h2 id="future-extensions">Future Extensions</h2>
+<ol>
+<li><strong>Additional Personas</strong>: Healthcare, Legal, Creative Arts, Financial</li>
+<li><strong>Multimodal Support</strong>: Voice, image, and video processing</li>
+<li><strong>Federated Learning</strong>: Cross-session persona improvement</li>
+<li><strong>A/B Testing</strong>: Built-in experimentation framework</li>
+<li><strong>User Personalization</strong>: Per-user persona preferences</li>
+<li><strong>Multi-turn Memory</strong>: Enhanced conversation continuity</li>
+</ol>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

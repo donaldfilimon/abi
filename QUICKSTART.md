@@ -1,3 +1,7 @@
+---
+title: "QUICKSTART"
+tags: []
+---
 # Quickstart
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -232,3 +236,4 @@ Flat domain structure with modular architecture:
   <a href="README.md">← Back to README</a> •
   <a href="docs/intro.md">Full Documentation →</a>
 </p>
+

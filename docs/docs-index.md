@@ -1,3 +1,7 @@
+---
+title: "docs-index"
+tags: []
+---
 # ABI Framework Documentation
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -37,6 +41,7 @@
 | [GPU Backend Details](gpu-backend-improvements.md) | Implementation specifics | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [Feature Flags](feature-flags.md) | Build configuration guide | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [Troubleshooting](troubleshooting.md) | Common issues and solutions | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [Multi‑Agent Coordination](api_ai-multi-agent.md) | Coordinator API for AI agents | ![Complete](https://img.shields.io/badge/-Complete-success) |
 
 ## Research & Architecture
 
@@ -93,3 +98,4 @@
   <a href="../README.md">← Back to README</a> •
   <a href="intro.md">Start with Introduction →</a>
 </p>
+

@@ -1,3 +1,7 @@
+---
+title: "overview"
+tags: []
+---
 # ABI Framework Architecture Overview
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -230,3 +234,4 @@ zig build examples
 - [GPU Guide](../gpu.md) - GPU programming
 - [Database Guide](../database.md) - Vector database operations
 - [Troubleshooting](../troubleshooting.md) - Common issues
+

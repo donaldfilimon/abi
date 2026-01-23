@@ -361,7 +361,7 @@ pub fn getTotalMemory() u64 {
         // Parse "MemTotal: NNNN kB"
         if (std.mem.indexOf(u8, content, "MemTotal:")) |start| {
             const after_colon = content[start + 9 ..];
-            const trimmed = std.mem.trimLeft(u8, after_colon, " ");
+            const trimmed = std.mem.trimStart(u8, after_colon, " ");
             if (std.mem.indexOf(u8, trimmed, " ")) |space_idx| {
                 const num_str = trimmed[0..space_idx];
                 const kb = std.fmt.parseInt(u64, num_str, 10) catch return 0;

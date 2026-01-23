@@ -1,3 +1,7 @@
+---
+title: "system-architecture"
+tags: []
+---
 # ABI System Architecture
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -87,3 +91,4 @@ else
 ```
 
 Disabled features return `error.<Feature>Disabled`.
+

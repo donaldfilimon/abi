@@ -88,6 +88,9 @@ pub const observability = if (build_options.enable_profiling)
 else
     @import("observability/stub.zig");
 
+/// Convenience alias for system information utilities.
+pub const systemInfo = observability.SystemInfo;
+
 /// Web utilities.
 pub const web = if (build_options.enable_web)
     @import("web/mod.zig")

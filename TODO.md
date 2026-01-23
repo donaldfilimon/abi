@@ -1,3 +1,7 @@
+---
+title: "TODO"
+tags: []
+---
 # Project TODO List
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -191,9 +195,10 @@ All feature stubs have been updated to match real implementations and tested wit
 | Profiling | `src/compute/profiling/stub.zig` | ✅ | Verified (no changes needed) |
 
 **Build Verification:**
-- ✅ `zig build -Denable-ai=false` - Passes
-- ✅ `zig build -Denable-gpu=false` - Passes
-- ✅ `zig build -Denable-network=false` - Passes
-- ✅ `zig build -Denable-database=false` - Passes
-- ✅ `zig build -Denable-web=false` - Passes
-- ✅ `zig build -Denable-profiling=false` - Passes
+- ✅ `zig build -Denable-ai=true` - Passes
+- ✅ `zig build -Denable-gpu=true` - Passes
+- ✅ `zig build -Denable-network=true` - Passes
+- ✅ `zig build -Denable-database=true` - Passes
+- ✅ `zig build -Denable-web=true` - Passes
+- ✅ `zig build -Denable-profiling=true` - Passes
+

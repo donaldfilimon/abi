@@ -1,3 +1,7 @@
+---
+title: "roadmap-2026-01-pre-overhaul"
+tags: []
+---
 # ABI Framework Roadmap
 > **Codebase Status:** Synced with repository as of 2026-01-18.
 
@@ -305,3 +309,4 @@ Runtime module fully consolidated from compute/:
 - [x] CLI runtime flags (--list-features, --enable-*, --disable-*)
 - [x] Comptime feature validation for CLI flags
 - [x] Default Ollama model updated to gpt-oss
+

@@ -1,3 +1,7 @@
+---
+title: "README"
+tags: []
+---
 //! # AI
 //!
 //! > **Codebase Status:** Synced with repository as of 2026-01-22.
@@ -81,4 +85,5 @@
 //! - [AI Documentation](../../docs/ai.md)
 //! - [API Reference](../../docs/ai.md#api-reference)
 //! - [Training Guide](../../docs/ai.md#training)
+
 

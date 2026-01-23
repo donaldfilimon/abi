@@ -1,3 +1,7 @@
+---
+title: "vector-database"
+tags: []
+---
 # Tutorial: Vector Database with WDBX
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -593,3 +597,4 @@ Build a tool that:
 ---
 
 **See Also:** [Getting Started Tutorial](getting-started.md)
+

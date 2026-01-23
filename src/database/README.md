@@ -1,3 +1,7 @@
+---
+title: "README"
+tags: []
+---
 //! # WDBX Vector Database
 //!
 //! > **Codebase Status:** Synced with repository as of 2026-01-22.
@@ -74,4 +78,5 @@
 //!
 //! - [Database Documentation](../../../docs/database.md)
 //! - [API Reference](../../../API_REFERENCE.md)
+
 

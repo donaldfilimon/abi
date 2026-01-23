@@ -1,3 +1,7 @@
+---
+title: "2026-01-17-modular-codebase-refactor"
+tags: []
+---
 # Modular Codebase Refactor Design
 > **Codebase Status:** Synced with repository as of 2026-01-18.
 
@@ -215,3 +219,4 @@ pub const BuiltinKernels = struct {
 | Breaking existing API | Keep old exports, add new layer on top |
 | Performance overhead from vtable | Use comptime dispatch where possible |
 | Incomplete backend coverage | Start with CUDA, expand incrementally |
+

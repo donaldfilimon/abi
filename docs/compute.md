@@ -1,3 +1,7 @@
+---
+title: "compute"
+tags: []
+---
 # Compute Engine
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -179,3 +183,4 @@ const TaskGroup = abi.runtime.TaskGroup;
   <a href="docs-index.md">Documentation Index</a> •
   <a href="gpu.md">GPU Guide →</a>
 </p>
+

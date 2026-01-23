@@ -1,3 +1,7 @@
+---
+title: "feature-flags"
+tags: []
+---
 # Feature Flags Reference
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -199,3 +203,4 @@ if (abi.database.isEnabled()) {
 - [CLAUDE.md](../CLAUDE.md) - Development guidelines
 - [docs/gpu.md](gpu.md) - GPU programming guide
 - [docs/ai.md](ai.md) - AI features guide
+

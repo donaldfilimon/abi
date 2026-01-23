@@ -1,0 +1,1201 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modern Zig framework for modular AI services, vector search, and systems tooling.">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>01-getting-started - ABI Framework</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#video-walkthrough-getting-started-with-abi" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="ABI Framework" class="md-header__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ABI Framework
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              01-getting-started
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/intro.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Introduction
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/framework.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Framework
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/compute.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Compute
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/gpu.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  GPU
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/database.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Database
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/network.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Network
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/monitoring.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Monitoring
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../docs/ai.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  AI
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../docs/migration/zig-0.16-migration.md" class="md-tabs__link">
+          
+  
+  
+  Migration
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="ABI Framework" class="md-nav__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ABI Framework
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/intro.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/framework.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/compute.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compute
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/gpu.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/database.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Database
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/network.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/monitoring.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/ai.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Migration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/migration/zig-0.16-migration.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zig 0.16 Migration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#video-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Video Metadata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Script
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Script">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#000-introduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0:00] Introduction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#130-installation-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [1:30] Installation &amp; Build
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#400-first-program" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [4:00] First Program
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#730-feature-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [7:30] Feature Detection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1000-error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [10:00] Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1300-cli-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [13:00] CLI Overview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1600-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [16:00] Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1830-wrap-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [18:30] Wrap-up
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#production-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="video-walkthrough-getting-started-with-abi">Video Walkthrough: Getting Started with ABI</h1>
+<blockquote>
+<p><strong>Codebase Status:</strong> Synced with repository as of 2026-01-22.</p>
+</blockquote>
+<p><strong>Duration:</strong> 20 minutes
+<strong>Difficulty:</strong> Beginner
+<strong>Code:</strong> <code>docs/tutorials/code/getting-started/</code></p>
+<hr />
+<h2 id="video-metadata">Video Metadata</h2>
+<p><strong>Title:</strong> ABI Framework Tutorial: Getting Started</p>
+<p><strong>Description:</strong>
+Learn to install, configure, and use the ABI framework. This tutorial covers
+framework initialization, feature detection, error handling, and CLI usage.</p>
+<p><strong>Tags:</strong> #zig #abi #framework #tutorial #getting-started</p>
+<p><strong>Chapters/Timestamps:</strong>
+- 0:00 Introduction
+- 1:30 Installation &amp; Build
+- 4:00 First Program
+- 7:30 Feature Detection
+- 10:00 Error Handling
+- 13:00 CLI Overview
+- 16:00 Configuration
+- 18:30 Wrap-up</p>
+<hr />
+<h2 id="script">Script</h2>
+<h3 id="000-introduction">[0:00] Introduction</h3>
+<p><strong>[Title Slide: "Getting Started with ABI"]</strong></p>
+<blockquote>
+<p>"Welcome to the ABI framework tutorial series. In this first video, I'll
+show you how to install, configure, and run your first ABI program.</p>
+<p>ABI is a modular framework written in Zig that provides AI, GPU acceleration,
+vector database, and distributed computing capabilities. By the end of this
+video, you'll have a working ABI installation and understand its core concepts."</p>
+</blockquote>
+<p><strong>[Transition to screen capture]</strong></p>
+<hr />
+<h3 id="130-installation-build">[1:30] Installation &amp; Build</h3>
+<p><strong>[Terminal visible]</strong></p>
+<blockquote>
+<p>"Let's start by cloning the repository. Open your terminal and run:"</p>
+</blockquote>
+<pre><code class="language-bash">git clone https://github.com/donaldfilimon/abi.git
+cd abi
+</code></pre>
+<blockquote>
+<p>"Now let's build the project with Zig. Make sure you have Zig 0.16 or later."</p>
+</blockquote>
+<pre><code class="language-bash">zig version
+# Should show 0.16.x
+
+zig build
+</code></pre>
+<blockquote>
+<p>"ABI uses feature gating, which means you only compile the features you need.
+Let's see the available options."</p>
+</blockquote>
+<pre><code class="language-bash">zig build --help
+</code></pre>
+<p><strong>[Highlight the enable flags]</strong></p>
+<blockquote>
+<p>"For example, to build with only AI and database support, you'd run:"</p>
+</blockquote>
+<pre><code class="language-bash">zig build -Denable-ai=true -Denable-database=true -Denable-gpu=false
+</code></pre>
+<blockquote>
+<p>"This keeps your binary small and compilation fast."</p>
+</blockquote>
+<hr />
+<h3 id="400-first-program">[4:00] First Program</h3>
+<p><strong>[Open editor with hello_abi.zig]</strong></p>
+<blockquote>
+<p>"Now let's write our first ABI program. Create a new file called hello_abi.zig."</p>
+</blockquote>
+<pre><code class="language-zig">const std = @import(&quot;std&quot;);
+// In a real project, you would use: const abi = @import(&quot;abi&quot;);
+// For tutorial purposes, we use a relative path.
+const abi = @import(&quot;../../../../src/abi.zig&quot;);
+
+pub fn main() !void {
+    // Get an allocator
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+</code></pre>
+<blockquote>
+<p>"Every ABI program starts with an allocator. We're using the general purpose
+allocator here, but you can use any Zig allocator."</p>
+</blockquote>
+<pre><code class="language-zig">    // Initialize ABI
+    std.debug.print(&quot;Initializing ABI framework...\n&quot;, .{});
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
+</code></pre>
+<blockquote>
+<p>"The key pattern here is <code>init</code> followed by <code>defer shutdown</code>. This ensures
+proper cleanup regardless of how the function exits."</p>
+</blockquote>
+<pre><code class="language-zig">    // Print version
+    const version = abi.version();
+    std.debug.print(&quot;ABI Version: {d}.{d}.{d}\n&quot;, .{
+        version.major,
+        version.minor,
+        version.patch,
+    });
+}
+</code></pre>
+<p><strong>[Run the program]</strong></p>
+<pre><code class="language-bash">zig run hello_abi.zig
+</code></pre>
+<p><strong>[Show output]</strong></p>
+<blockquote>
+<p>"There we go - ABI is initialized and we can see the version. The framework
+is now ready to use."</p>
+</blockquote>
+<hr />
+<h3 id="730-feature-detection">[7:30] Feature Detection</h3>
+<p><strong>[Open feature_check.zig]</strong></p>
+<blockquote>
+<p>"ABI lets you check which features are enabled at runtime. This is useful for
+graceful degradation when a feature isn't available."</p>
+</blockquote>
+<pre><code class="language-zig">const features = [_]struct { name: []const u8, enabled: bool }{
+    .{ .name = &quot;AI/LLM&quot;, .enabled = abi.isFeatureEnabled(.ai) },
+    .{ .name = &quot;GPU&quot;, .enabled = abi.isFeatureEnabled(.gpu) },
+    .{ .name = &quot;Database&quot;, .enabled = abi.isFeatureEnabled(.database) },
+};
+
+for (features) |f| {
+    const status = if (f.enabled) &quot;[ENABLED]&quot; else &quot;[DISABLED]&quot;;
+    std.debug.print(&quot;  {s:&lt;12} {s}\n&quot;, .{ f.name, status });
+}
+</code></pre>
+<p><strong>[Run and show output]</strong></p>
+<blockquote>
+<p>"As you can see, all features are enabled in this build. If we rebuild with
+different flags, we'd see different results."</p>
+</blockquote>
+<hr />
+<h3 id="1000-error-handling">[10:00] Error Handling</h3>
+<p><strong>[Show error handling code]</strong></p>
+<blockquote>
+<p>"When you try to use a disabled feature, ABI returns specific error types.
+Let's see how to handle this gracefully."</p>
+</blockquote>
+<pre><code class="language-zig">if (abi.database.openOrCreate(allocator, &quot;test_db&quot;)) |*db| {
+    defer abi.database.close(db);
+    std.debug.print(&quot;Database opened successfully\n&quot;, .{});
+} else |err| {
+    switch (err) {
+        error.DatabaseDisabled =&gt; {
+            std.debug.print(&quot;Database feature is disabled.\n&quot;, .{});
+            std.debug.print(&quot;Rebuild with: zig build -Denable-database=true\n&quot;, .{});
+        },
+        else =&gt; std.debug.print(&quot;Error: {t}\n&quot;, .{err}),
+    }
+}
+</code></pre>
+<blockquote>
+<p>"This pattern lets your code adapt to different build configurations
+without crashing."</p>
+</blockquote>
+<hr />
+<h3 id="1300-cli-overview">[13:00] CLI Overview</h3>
+<p><strong>[Terminal visible]</strong></p>
+<blockquote>
+<p>"ABI includes a command-line interface for common operations."</p>
+</blockquote>
+<pre><code class="language-bash">zig build run -- --help
+</code></pre>
+<p><strong>[Show help output, highlight key commands]</strong></p>
+<blockquote>
+<p>"Let's try a few useful commands."</p>
+</blockquote>
+<pre><code class="language-bash"># System information
+zig build run -- system-info
+
+# GPU backends
+zig build run -- gpu backends
+
+# Search the codebase
+zig build run -- explore &quot;fn init&quot; --level quick
+</code></pre>
+<p><strong>[Show each command's output]</strong></p>
+<hr />
+<h3 id="1600-configuration">[16:00] Configuration</h3>
+<p><strong>[Show environment variables]</strong></p>
+<blockquote>
+<p>"ABI reads configuration from environment variables. Here are the key ones
+for AI integration."</p>
+</blockquote>
+<pre><code class="language-bash">export ABI_OLLAMA_HOST=&quot;http://localhost:11434&quot;
+export ABI_OLLAMA_MODEL=&quot;gpt-oss&quot;
+</code></pre>
+<blockquote>
+<p>"If you're using OpenAI:"</p>
+</blockquote>
+<pre><code class="language-bash">export ABI_OPENAI_API_KEY=&quot;sk-...&quot;
+</code></pre>
+<blockquote>
+<p>"These let you configure connectors without changing code."</p>
+</blockquote>
+<hr />
+<h3 id="1830-wrap-up">[18:30] Wrap-up</h3>
+<p><strong>[Show resources slide]</strong></p>
+<blockquote>
+<p>"That's it for getting started! You now know how to:
+- Install and build ABI
+- Initialize the framework
+- Check feature availability
+- Handle errors gracefully
+- Use the CLI</p>
+<p>In the next tutorial, we'll dive into the vector database for storing
+and searching high-dimensional data.</p>
+<p>All code is available in docs/tutorials/code/getting-started.
+Thanks for watching!"</p>
+</blockquote>
+<p><strong>[End screen with links]</strong></p>
+<hr />
+<h2 id="production-checklist">Production Checklist</h2>
+<p><strong>Before Recording:</strong>
+- [ ] Verify all code examples compile and run
+- [ ] Test on clean Zig 0.16.x installation
+- [ ] Prepare title slides and diagrams
+- [ ] Set up clean terminal environment (no personal info visible)</p>
+<p><strong>Recording Setup:</strong>
+- [ ] Screen: 1920x1080, 60fps
+- [ ] Audio: Clear microphone, no background noise
+- [ ] Editor: VS Code with Zig syntax highlighting
+- [ ] Terminal: Font size 16+, high contrast</p>
+<p><strong>Post-Production:</strong>
+- [ ] Add chapter markers at timestamps above
+- [ ] Add code overlays for key snippets
+- [ ] Add captions/subtitles
+- [ ] Color-code output (green=success, red=error)
+- [ ] Add end screen with next tutorial link</p>
+<p><strong>YouTube Description:</strong></p>
+<pre><code>Learn to install, configure, and use the ABI framework in Zig.
+
+What You'll Learn:
+- Framework installation and build options
+- Initialization and shutdown patterns
+- Feature detection and error handling
+- CLI commands for common operations
+- Environment configuration for AI connectors
+
+Resources:
+- Written Tutorial: [link]
+- Code Examples: [link]
+- API Reference: [link]
+- ABI Documentation: [link]
+
+Chapters:
+0:00 Introduction
+1:30 Installation &amp; Build
+4:00 First Program
+7:30 Feature Detection
+10:00 Error Handling
+13:00 CLI Overview
+16:00 Configuration
+18:30 Wrap-up
+
+Prerequisites:
+- Zig 0.16.x: https://ziglang.org/download/
+- Basic terminal knowledge
+
+Next Tutorial: Vector Database Operations
+
+#zig #programming #tutorial #abi #framework
+</code></pre>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

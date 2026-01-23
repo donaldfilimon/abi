@@ -1,3 +1,7 @@
+---
+title: "README"
+tags: []
+---
 //! # Web
 //!
 //! > **Codebase Status:** Synced with repository as of 2026-01-22.
@@ -46,4 +50,5 @@
 //!
 //! - [HTTP Utilities](../../shared/utils/http/README.md)
 //! - [CLAUDE.md Web Section](../../../CLAUDE.md)
+
 

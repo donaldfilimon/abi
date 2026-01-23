@@ -1,3 +1,7 @@
+---
+title: "CONTRIBUTING"
+tags: []
+---
 # Contributing
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -160,3 +164,4 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});
   <a href="README.md">← Back to README</a> •
   <a href="CLAUDE.md">Development Guide →</a>
 </p>
+

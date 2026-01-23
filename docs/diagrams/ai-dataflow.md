@@ -1,3 +1,7 @@
+---
+title: "ai-dataflow"
+tags: []
+---
 # AI Module Data Flow
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -68,3 +72,4 @@ flowchart LR
 | `ABI_OPENAI_API_KEY` | OpenAI authentication |
 | `ABI_OLLAMA_HOST` | Ollama server endpoint |
 | `ABI_HF_API_TOKEN` | HuggingFace API access |
+

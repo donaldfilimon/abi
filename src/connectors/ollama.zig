@@ -7,10 +7,14 @@ const json_utils = @import("../shared/utils/json/mod.zig");
 pub const Config = struct {
     host: []u8,
     model: []const u8 = "llama2",
+    model_owned: bool = false,
     timeout_ms: u32 = 120_000,
 
     pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
         allocator.free(self.host);
+        if (self.model_owned) {
+            allocator.free(@constCast(self.model));
+        }
         self.* = undefined;
     }
 };
@@ -259,6 +263,7 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
     return .{
         .host = host,
         .model = model,
+        .model_owned = true,
         .timeout_ms = 120_000,
     };
 }

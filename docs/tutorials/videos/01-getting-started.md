@@ -1,3 +1,7 @@
+---
+title: "01-getting-started"
+tags: []
+---
 # Video Walkthrough: Getting Started with ABI
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -323,3 +327,4 @@ Next Tutorial: Vector Database Operations
 
 #zig #programming #tutorial #abi #framework
 ```
+

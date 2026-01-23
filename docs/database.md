@@ -1,3 +1,7 @@
+---
+title: "database"
+tags: []
+---
 # Database (WDBX)
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -335,3 +339,4 @@ defer {
   <a href="docs-index.md">Documentation Index</a> •
   <a href="network.md">Network Guide →</a>
 </p>
+

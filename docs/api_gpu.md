@@ -1,232 +1,102 @@
 # gpu API Reference
-> **Codebase Status:** Synced with repository as of 2026-01-22.
 
-**Source:** `src/gpu/unified.zig`
+> GPU acceleration framework (Vulkan, CUDA, Metal, WebGPU)
 
- Unified GPU API
- Main entry point for the unified GPU API.
- Provides a single interface for all GPU backends with:
- - High-level operations (vectorAdd, matrixMultiply, etc.)
- - Custom kernel compilation and execution
- - Smart buffer management
- - Device discovery and selection
- - Stream/event synchronization
- ## Quick Start
- ```zig
- var gpu = try Gpu.init(allocator, .{});
- defer gpu.deinit();
- // Create buffers
- var a = try gpu.createBufferFromSlice(f32, &[_]f32{ 1, 2, 3, 4 }, .{});
- var b = try gpu.createBufferFromSlice(f32, &[_]f32{ 5, 6, 7, 8 }, .{});
- var result = try gpu.createBuffer(4 * @sizeOf(f32), .{});
- defer { gpu.destroyBuffer(&a); gpu.destroyBuffer(&b); gpu.destroyBuffer(&result); }
- // Run operation
- _ = try gpu.vectorAdd(&a, &b, &result);
- // Read results
- var output: [4]f32 = undefined;
- try result.read(f32, &output);
- ```
-### `pub const LoadBalanceStrategy`
+**Source:** [`src/gpu/mod.zig`](../../src/gpu/mod.zig)
 
- Load balance strategy for multi-GPU.
+---
 
-### `pub const GpuConfig`
+GPU backend detection, kernel management, and memory utilities.
 
- GPU configuration.
+This module provides a unified interface for GPU compute operations across
+multiple backends including CUDA, Vulkan, Metal, WebGPU, OpenGL, and std.gpu.
 
-### `pub const ExecutionResult`
+## Public API
 
- Execution result with timing and statistics.
+These exports form the stable interface:
+- `Gpu` - Main unified GPU context
+- `GpuConfig` - Configuration for GPU initialization
+- `UnifiedBuffer` - Cross-backend buffer type
+- `Device`, `DeviceType` - Device discovery and selection
+- `KernelBuilder`, `KernelIR` - DSL for custom kernels
+- `Backend`, `BackendAvailability` - Backend detection
 
-### `pub fn throughputGBps(self: ExecutionResult) f64`
+## Internal (do not depend on)
 
- Get throughput in GB/s.
+These may change without notice:
+- Direct backend module imports (cuda_loader, vulkan_*, etc.)
+- Lifecycle management internals (gpu_lifecycle, cuda_backend_init_lock)
+- Backend-specific initialization functions (initCudaComponents, etc.)
 
-### `pub fn elementsPerSecond(self: ExecutionResult) f64`
+## Unified API Example
 
- Get elements per second.
+```zig
+const gpu = @import("gpu/mod.zig");
 
-### `pub const MatrixDims`
+var g = try gpu.Gpu.init(allocator, .{});
+defer g.deinit();
 
- Matrix dimensions for matrix operations.
+var a = try g.createBufferFromSlice(f32, &[_]f32{ 1, 2, 3, 4 }, .{});
+var b = try g.createBufferFromSlice(f32, &[_]f32{ 5, 6, 7, 8 }, .{});
+var result = try g.createBuffer(4 * @sizeOf(f32), .{});
+defer { g.destroyBuffer(&a); g.destroyBuffer(&b); g.destroyBuffer(&result); }
 
-### `pub const LaunchConfig`
+_ = try g.vectorAdd(&a, &b, &result);
+```
 
- Kernel launch configuration.
+---
 
-### `pub const CompiledKernel`
+## API
 
- Compiled kernel handle.
+### `pub const Context`
 
-### `pub const MemoryInfo`
+<sup>**type**</sup>
 
- GPU memory information.
+GPU Context for Framework integration.
+Wraps the Gpu struct to provide a consistent interface with other modules.
 
-### `pub const GpuStats`
+### `pub fn getGpu(self: *Context) *Gpu`
 
- GPU statistics.
+<sup>**fn**</sup>
 
-### `pub const HealthStatus`
+Get the underlying Gpu instance.
 
- Health status.
+### `pub fn createBuffer(self: *Context, comptime T: type, count: usize, options: BufferOptions) !UnifiedBuffer`
 
-### `pub const MultiGpuConfig`
+<sup>**fn**</sup>
 
- Multi-GPU configuration.
+Create a buffer.
 
-### `pub const Gpu`
+### `pub fn createBufferFromSlice(self: *Context, comptime T: type, data: []const T, options: BufferOptions) !UnifiedBuffer`
 
- Main unified GPU API.
+<sup>**fn**</sup>
 
-### `pub fn init(allocator: std.mem.Allocator, config: GpuConfig) !Gpu`
+Create a buffer from a slice.
 
- Initialize the unified GPU API.
+### `pub fn destroyBuffer(self: *Context, buffer: *UnifiedBuffer) void`
 
-### `pub fn deinit(self: *Gpu) void`
+<sup>**fn**</sup>
 
- Deinitialize and cleanup.
+Destroy a buffer.
 
-### `pub fn selectDevice(self: *Gpu, selector: DeviceSelector) !void`
+### `pub fn vectorAdd(self: *Context, a: *UnifiedBuffer, b: *UnifiedBuffer, result: *UnifiedBuffer) !ExecutionResult`
 
- Select a device based on criteria.
+<sup>**fn**</sup>
 
-### `pub fn getActiveDevice(self: *const Gpu) ?*const Device`
+Vector addition.
 
- Get the currently active device.
+### `pub fn matrixMultiply(self: *Context, a: *UnifiedBuffer, b: *UnifiedBuffer, result: *UnifiedBuffer, dims: MatrixDims) !ExecutionResult`
 
-### `pub fn listDevices(self: *const Gpu) []const Device`
+<sup>**fn**</sup>
 
- List all available devices.
+Matrix multiplication.
 
-### `pub fn enableMultiGpu(self: *Gpu, config: MultiGpuConfig) !void`
+### `pub fn getHealth(self: *Context) !HealthStatus`
 
- Enable multi-GPU mode.
+<sup>**fn**</sup>
 
-### `pub fn getDeviceGroup(self: *Gpu) ?*DeviceGroup`
+Get GPU health status.
 
- Get multi-GPU device group (if enabled).
+---
 
-### `pub fn distributeWork(self: *Gpu, total_work: usize) ![]WorkDistribution`
-
- Distribute work across multiple GPUs.
-
-### `pub fn createBuffer(self: *Gpu, size: usize, options: BufferOptions) !*Buffer`
-
- Create a new buffer.
-
-### `pub fn createBufferFromSlice(`
-
- Create a buffer from a typed slice.
-
-### `pub fn destroyBuffer(self: *Gpu, buffer: *Buffer) void`
-
- Destroy a buffer.
-
-### `pub fn vectorAdd(self: *Gpu, a: *Buffer, b: *Buffer, result: *Buffer) !ExecutionResult`
-
- Vector addition: result = a + b
-
-### `pub fn matrixMultiply(`
-
- Matrix multiplication: result = a * b
-
-### `pub fn reduceSum(self: *Gpu, input: *Buffer) !struct`
-
- Reduce sum: returns sum of all elements.
-
-### `pub fn dotProduct(self: *Gpu, a: *Buffer, b: *Buffer) !struct`
-
- Dot product: returns a · b
-
-### `pub fn softmax(self: *Gpu, input: *Buffer, output: *Buffer) !ExecutionResult`
-
- Softmax: output = softmax(input)
-
-### `pub fn compileKernel(self: *Gpu, source: PortableKernelSource) !CompiledKernel`
-
- Compile a kernel from portable source.
-
-### `pub fn launchKernel(`
-
- Launch a compiled kernel.
-
-### `pub fn synchronize(self: *Gpu) !void`
-
- Synchronize all pending operations.
-
-### `pub fn createStream(self: *Gpu, options: StreamOptions) !*Stream`
-
- Create a new stream.
-
-### `pub fn createEvent(self: *Gpu, options: EventOptions) !*Event`
-
- Create a new event.
-
-### `pub fn getStats(self: *const Gpu) GpuStats`
-
- Get GPU statistics.
-
-### `pub fn getMemoryInfo(self: *Gpu) MemoryInfo`
-
- Get memory information.
-
-### `pub fn checkHealth(self: *const Gpu) HealthStatus`
-
- Check GPU health.
-
-### `pub fn isAvailable(self: *const Gpu) bool`
-
- Check if GPU is available.
-
-### `pub fn getBackend(self: *const Gpu) ?Backend`
-
- Get the active backend.
-
-### `pub fn getDispatcher(self: *Gpu) ?*KernelDispatcher`
-
- Get the kernel dispatcher (for advanced usage).
-
-### `pub fn getDispatcherStats(self: *const Gpu) ?struct`
-
- Get dispatcher statistics.
-
-### `pub fn isProfilingEnabled(self: *const Gpu) bool`
-
- Check if profiling is enabled.
-
-### `pub fn enableProfiling(self: *Gpu) void`
-
- Enable profiling (creates metrics collector if not exists).
-
-### `pub fn disableProfiling(self: *Gpu) void`
-
- Disable profiling.
-
-### `pub fn getMetricsSummary(self: *Gpu) ?MetricsSummary`
-
- Get metrics summary (if profiling enabled).
-
-### `pub fn getKernelMetrics(self: *Gpu, name: []const u8) ?KernelMetrics`
-
- Get kernel-specific metrics (if profiling enabled).
-
-### `pub fn getMetricsCollector(self: *Gpu) ?*MetricsCollector`
-
- Get the metrics collector directly (for advanced usage).
-
-### `pub fn resetMetrics(self: *Gpu) void`
-
- Reset all profiling metrics.
-
-### `pub fn isMultiGpuEnabled(self: *const Gpu) bool`
-
- Check if multi-GPU is enabled.
-
-### `pub fn getMultiGpuStats(self: *const Gpu) ?multi_device.GroupStats`
-
- Get multi-GPU statistics (if enabled).
-
-### `pub fn activeDeviceCount(self: *const Gpu) usize`
-
- Get the number of active devices.
-
+*Generated automatically by `zig build gendocs`*

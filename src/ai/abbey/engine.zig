@@ -323,7 +323,8 @@ pub const AbbeyEngine = struct {
                 .max_tokens = self.config.behavior.max_tokens,
             };
 
-            const response = try self.llm_client.complete(request);
+            var response = try self.llm_client.complete(request);
+            defer response.deinit(self.allocator);
             last_response = try self.allocator.dupe(u8, response.content);
 
             // Store agent response
@@ -447,7 +448,8 @@ pub const AbbeyEngine = struct {
             .max_tokens = self.config.behavior.max_tokens,
         };
 
-        const response = try self.llm_client.complete(request);
+        var response = try self.llm_client.complete(request);
+        defer response.deinit(self.allocator);
 
         // Track usage
         self.total_tokens_used += response.usage.total_tokens;

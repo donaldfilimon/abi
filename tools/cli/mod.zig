@@ -109,6 +109,11 @@ pub fn mainWithArgs(proc_args: std.process.Args) !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "multi-agent")) {
+        try commands.multi_agent.run(allocator, args[2..]);
+        return;
+    }
+
     if (std.mem.eql(u8, command, "explore")) {
         try commands.explore.run(allocator, args[2..]);
         return;

@@ -1,3 +1,7 @@
+---
+title: "CHANGELOG"
+tags: []
+---
 # Changelog
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -46,6 +50,26 @@ All feature-gated stub modules have been audited and updated for complete API pa
 - Updated ROADMAP.md with code quality completion status
 
 ---
+
+## 0.3.2 - 2026-01-23
+
+### Benchmark CLI Verification & Documentation
+
+- Added YAML front‑matter to every Markdown file for MkDocs.
+- Regenerated the full API reference (`zig build gendocs`).
+- Executed **all** nested benchmark commands with every option combination:
+  - Suites: `all`, `simd`, `memory`, `concurrency`, `database`, `network`, `crypto`, `ai`, `quick`.
+  - Flags: `--json`, `--output <file>`, custom `--iterations` for micro‑benchmarks.
+  - Verified proper error handling for unknown suites and missing arguments.
+  - Produced valid JSON files (`all.json`, `simd.json`, `conc.json`, `db.json`, `net.json`, `crypto.json`, `ai.json`, `quick.json`, plus micro‑benchmark JSONs) and confirmed their existence.
+- Added a new documentation page `docs/benchmarking.md` with usage examples and flag reference.
+- Re‑ran the full test suite (`zig build test --summary all`) – 92 / 92 tests still pass.
+- Built the MkDocs site (`mkdocs build`) successfully with the new theme.
+
+### Miscellaneous
+
+- Minor formatting clean‑up (`zig fmt .`).
+- Updated `CHANGELOG.md` to record these actions.
 
 ## Unreleased (v0.3.1-dev)
 
@@ -392,3 +416,4 @@ Updated all feature documentation with new APIs and examples.
 
 - [TODO.md](TODO.md) - Pending implementations
 - [ROADMAP.md](ROADMAP.md) - Upcoming milestones
+

@@ -1,3 +1,7 @@
+---
+title: "README"
+tags: []
+---
 # GPU Module Overview
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -45,3 +49,4 @@ _ = try gpu.vectorAdd(a, b, result);
 
 - [GPU Documentation](../../docs/gpu.md)
 - [API Reference](../../API_REFERENCE.md)
+

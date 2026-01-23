@@ -3,8 +3,8 @@
 //! Provides cross-platform time functionality that works on all targets
 //! including WASM where std.time.Instant is not available.
 //!
-//! On WASM: Uses std.crypto.random for entropy-based seeding since
-//! monotonic timers are unavailable. Timing functions return 0.
+//! On WASM: Uses entropy when available; otherwise falls back to a counter
+//! since monotonic timers are unavailable. Timing functions return 0.
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -17,7 +17,8 @@ fn isWasmTarget() bool {
 }
 
 /// Thread-safe counter for WASM fallback uniqueness
-var wasm_counter: std.atomic.Value(u64) = .{ .raw = 0 };
+const CounterInt = if (isWasmTarget()) u32 else u64;
+var wasm_counter: std.atomic.Value(CounterInt) = .{ .raw = 0 };
 
 /// Platform-aware Instant type
 /// On native platforms, this is std.time.Instant
@@ -88,13 +89,19 @@ pub fn getSeed() u64 {
         // On native platforms, timestamp provides good uniqueness
         return timestampNs();
     } else {
-        // On WASM, use cryptographic randomness + counter for uniqueness
-        var seed_bytes: [8]u8 = undefined;
-        std.crypto.random.bytes(&seed_bytes);
-        const random_part = std.mem.readInt(u64, &seed_bytes, .little);
-        // Add counter to ensure uniqueness even if crypto.random has issues
-        const counter = wasm_counter.fetchAdd(1, .monotonic);
-        return random_part ^ counter;
+        if (builtin.os.tag == .wasi) {
+            // On WASI, use cryptographic randomness + counter for uniqueness
+            var seed_bytes: [8]u8 = undefined;
+            std.crypto.random.bytes(&seed_bytes);
+            const random_part = std.mem.readInt(u64, &seed_bytes, .little);
+            const counter = @as(u64, wasm_counter.fetchAdd(1, .monotonic));
+            return random_part ^ counter;
+        }
+
+        // On freestanding WASM, use a counter + address salt fallback.
+        const counter = @as(u64, wasm_counter.fetchAdd(1, .monotonic));
+        const salt = @as(u64, @intFromPtr(&wasm_counter));
+        return counter ^ (salt *% 0x9e3779b97f4a7c15);
     }
 }
 

@@ -1,3 +1,7 @@
+---
+title: "agents"
+tags: []
+---
 # Agents Guide
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -283,3 +287,4 @@ zig build run -- agent --info
   <a href="docs-index.md">&larr; Documentation Index</a> &bull;
   <a href="ai.md">AI Guide &rarr;</a>
 </p>
+

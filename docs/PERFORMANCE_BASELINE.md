@@ -1,3 +1,7 @@
+---
+title: "PERFORMANCE_BASELINE"
+tags: []
+---
 # Performance Baseline Document
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -244,3 +248,4 @@ For critical code paths:
 - [GPU Acceleration](gpu.md) - GPU performance benchmarks
 - [Monitoring](monitoring.md) - Metrics collection
 - [Troubleshooting](troubleshooting.md) - Performance debugging
+

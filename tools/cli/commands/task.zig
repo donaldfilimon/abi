@@ -350,7 +350,9 @@ fn runShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     utils.output.printHeader("Task Details");
     std.debug.print("\n", .{});
 
-    utils.output.printKeyValue("ID", std.fmt.allocPrint(allocator, "{d}", .{task.id}) catch "?");
+    const id_display = std.fmt.allocPrint(allocator, "{d}", .{task.id}) catch "?";
+    defer if (id_display.len > 0 and !std.mem.eql(u8, id_display, "?")) allocator.free(id_display);
+    utils.output.printKeyValue("ID", id_display);
     utils.output.printKeyValue("Title", task.title);
     utils.output.printKeyValue("Status", task.status.toString());
     utils.output.printKeyValue("Priority", task.priority.toString());

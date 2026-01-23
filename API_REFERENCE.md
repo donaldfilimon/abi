@@ -1,3 +1,7 @@
+---
+title: "API_REFERENCE"
+tags: []
+---
 # API Reference
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -345,3 +349,4 @@ Flat domain structure (modular architecture):
   <a href="README.md">← Back to README</a> •
   <a href="docs/intro.md">Full Documentation →</a>
 </p>
+

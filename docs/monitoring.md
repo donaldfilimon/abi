@@ -1,3 +1,7 @@
+---
+title: "monitoring"
+tags: []
+---
 # Monitoring & Observability
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -495,3 +499,4 @@ zig build benchmarks
   <a href="docs-index.md">Documentation Index</a> •
   <a href="compute.md">Compute Guide →</a>
 </p>
+

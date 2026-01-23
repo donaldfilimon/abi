@@ -188,10 +188,11 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
         },
         .ollama => {
             // Ollama embeddings
-            const config = abi.connectors.loadOllama(allocator) catch {
+            var config = abi.connectors.loadOllama(allocator) catch {
                 utils.output.printError("Could not load Ollama config", .{});
                 return EmbedError.ProviderNotConfigured;
             };
+            defer config.deinit(allocator);
 
             const effective_model = model orelse config.model;
             utils.output.printKeyValue("Model", effective_model);

@@ -1,3 +1,7 @@
+---
+title: "README"
+tags: []
+---
 # ABI Framework Examples
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -224,3 +228,4 @@ See the [Documentation Index](docs/intro.md) for comprehensive guides, or check 
 
 - [API Reference](../API_REFERENCE.md) - Detailed API information
 - [Documentation Index](../docs/intro.md) - Comprehensive guides
+

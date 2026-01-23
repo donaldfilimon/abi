@@ -1,3 +1,7 @@
+---
+title: "gpu-architecture"
+tags: []
+---
 # GPU Architecture Diagram
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -64,3 +68,4 @@ flowchart TB
 | Backend Factory | `backend_factory.zig` | Creates VTable backends |
 | Device Manager | `device.zig` | Device discovery and selection |
 | Unified Buffer | `unified_buffer.zig` | Memory management across backends |
+

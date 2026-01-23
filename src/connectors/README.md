@@ -1,3 +1,7 @@
+---
+title: "README"
+tags: []
+---
 //! # Connectors
 //!
 //! > **Codebase Status:** Synced with repository as of 2026-01-22.
@@ -55,4 +59,5 @@
 //!
 //! - [AI Module](../ai/README.md)
 //! - [Agent Documentation](../../../docs/ai.md)
+
 

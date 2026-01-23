@@ -1,3 +1,7 @@
+---
+title: "hardware-acceleration-fpga-asic"
+tags: []
+---
 # Hardware Acceleration Research: FPGA & ASIC for ABI
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -743,3 +747,4 @@ pub const WorkloadHints = struct {
 ---
 
 *Document prepared for ABI Framework - Hardware Acceleration Research Initiative*
+

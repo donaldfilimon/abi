@@ -1,0 +1,1643 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modern Zig framework for modular AI services, vector search, and systems tooling.">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>2026-01-17-eval-module-improvements - ABI Framework</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#eval-module-improvements-implementation-plan" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ABI Framework" class="md-header__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ABI Framework
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              2026-01-17-eval-module-improvements
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/intro.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Introduction
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/framework.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Framework
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/compute.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Compute
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/gpu.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  GPU
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/database.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Database
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/network.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Network
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/monitoring.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Monitoring
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../docs/ai.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  AI
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../docs/migration/zig-0.16-migration.md" class="md-tabs__link">
+          
+  
+  
+  Migration
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ABI Framework" class="md-nav__button md-logo" aria-label="ABI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ABI Framework
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/donaldfilimon/abi" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/intro.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/framework.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/compute.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compute
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/gpu.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/database.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Database
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/network.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/monitoring.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/ai.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Migration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../docs/migration/zig-0.16-migration.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zig 0.16 Migration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#task-1-extract-shared-tokenization-utility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 1: Extract Shared Tokenization Utility
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-2-fix-broken-unique_words-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 2: Fix Broken unique_words Calculation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-3-add-missing-exports-to-stub" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 3: Add Missing Exports to Stub
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-4-export-eval-module-from-ai-public-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 4: Export Eval Module from AI Public API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-5-fix-perplexity-hard-coded-limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 5: Fix Perplexity Hard-coded Limit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-6-add-batch-evaluation-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 6: Add Batch Evaluation Tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-7-add-additional-metrics-exports-to-modzig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 7: Add Additional Metrics Exports to mod.zig
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-8-final-verification-and-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 8: Final Verification and Documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary-of-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary of Changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="eval-module-improvements-implementation-plan">Eval Module Improvements Implementation Plan</h1>
+<blockquote>
+<p><strong>For Claude:</strong> REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.</p>
+</blockquote>
+<p><strong>Goal:</strong> Fix critical bugs, eliminate code duplication, improve performance, and add missing functionality to the eval module.</p>
+<p><strong>Architecture:</strong> Extract shared tokenization to a common utility, fix the broken unique_words calculation, optimize n-gram computation with buffer reuse, add missing metrics (METEOR, CER, WER exports), and ensure proper API exposure.</p>
+<p><strong>Tech Stack:</strong> Zig 0.16, existing LLM tokenizer infrastructure, standard testing patterns</p>
+<hr />
+<h2 id="task-1-extract-shared-tokenization-utility">Task 1: Extract Shared Tokenization Utility</h2>
+<p><strong>Files:</strong>
+- Create: <code>src/ai/implementation/eval/tokenizer.zig</code>
+- Modify: <code>src/ai/implementation/eval/bleu.zig</code>
+- Modify: <code>src/ai/implementation/eval/rouge.zig</code>
+- Modify: <code>src/ai/implementation/eval/metrics.zig</code>
+- Modify: <code>src/ai/implementation/eval/mod.zig</code></p>
+<p><strong>Step 1: Create the shared tokenizer module</strong></p>
+<p>Create <code>src/ai/implementation/eval/tokenizer.zig</code>:</p>
+<pre><code class="language-zig">//! Shared tokenization utilities for evaluation metrics.
+//!
+//! Provides consistent text tokenization across BLEU, ROUGE, and other metrics.
+
+const std = @import(&quot;std&quot;);
+
+/// Tokenize text by whitespace, returning slices into the original text.
+/// Caller owns the returned slice array (but not the token contents).
+pub fn tokenize(allocator: std.mem.Allocator, text: []const u8) ![]const []const u8 {
+    var tokens = std.ArrayListUnmanaged([]const u8){};
+    errdefer tokens.deinit(allocator);
+
+    var start: usize = 0;
+    var i: usize = 0;
+
+    while (i &lt; text.len) : (i += 1) {
+        if (std.ascii.isWhitespace(text[i])) {
+            if (i &gt; start) {
+                try tokens.append(allocator, text[start..i]);
+            }
+            start = i + 1;
+        }
+    }
+
+    // Last token
+    if (start &lt; text.len) {
+        try tokens.append(allocator, text[start..]);
+    }
+
+    return tokens.toOwnedSlice(allocator);
+}
+
+/// Tokenize and lowercase text.
+pub fn tokenizeLower(allocator: std.mem.Allocator, text: []const u8) !struct { tokens: []const []const u8, buffer: []u8 } {
+    // First, create lowercased copy
+    const lower = try allocator.alloc(u8, text.len);
+    errdefer allocator.free(lower);
+
+    for (text, 0..) |c, i| {
+        lower[i] = std.ascii.toLower(c);
+    }
+
+    const tokens = try tokenize(allocator, lower);
+    return .{ .tokens = tokens, .buffer = lower };
+}
+
+/// Count tokens without allocating the token array.
+pub fn countTokens(text: []const u8) usize {
+    var count: usize = 0;
+    var in_word = false;
+
+    for (text) |c| {
+        if (std.ascii.isWhitespace(c)) {
+            if (in_word) {
+                count += 1;
+                in_word = false;
+            }
+        } else {
+            in_word = true;
+        }
+    }
+
+    if (in_word) count += 1;
+    return count;
+}
+
+test &quot;tokenize basic&quot; {
+    const allocator = std.testing.allocator;
+    const tokens = try tokenize(allocator, &quot;the cat sat&quot;);
+    defer allocator.free(tokens);
+
+    try std.testing.expectEqual(@as(usize, 3), tokens.len);
+    try std.testing.expectEqualStrings(&quot;the&quot;, tokens[0]);
+    try std.testing.expectEqualStrings(&quot;cat&quot;, tokens[1]);
+    try std.testing.expectEqualStrings(&quot;sat&quot;, tokens[2]);
+}
+
+test &quot;tokenize empty&quot; {
+    const allocator = std.testing.allocator;
+    const tokens = try tokenize(allocator, &quot;&quot;);
+    defer allocator.free(tokens);
+
+    try std.testing.expectEqual(@as(usize, 0), tokens.len);
+}
+
+test &quot;tokenize multiple spaces&quot; {
+    const allocator = std.testing.allocator;
+    const tokens = try tokenize(allocator, &quot;  hello   world  &quot;);
+    defer allocator.free(tokens);
+
+    try std.testing.expectEqual(@as(usize, 2), tokens.len);
+    try std.testing.expectEqualStrings(&quot;hello&quot;, tokens[0]);
+    try std.testing.expectEqualStrings(&quot;world&quot;, tokens[1]);
+}
+
+test &quot;count tokens&quot; {
+    try std.testing.expectEqual(@as(usize, 3), countTokens(&quot;the cat sat&quot;));
+    try std.testing.expectEqual(@as(usize, 0), countTokens(&quot;&quot;));
+    try std.testing.expectEqual(@as(usize, 2), countTokens(&quot;  hello   world  &quot;));
+}
+</code></pre>
+<p><strong>Step 2: Run test to verify tokenizer works</strong></p>
+<p>Run: <code>zig test src/ai/implementation/eval/tokenizer.zig</code>
+Expected: PASS (4 tests)</p>
+<p><strong>Step 3: Update bleu.zig to use shared tokenizer</strong></p>
+<p>In <code>src/ai/implementation/eval/bleu.zig</code>, add import at top and remove local tokenize:</p>
+<pre><code class="language-zig">// Add after other imports (around line 5):
+const tokenizer = @import(&quot;tokenizer.zig&quot;);
+
+// Replace all calls to local tokenize() with tokenizer.tokenize()
+// Delete the local tokenize function (lines 197-220)
+</code></pre>
+<p>Changes:
+- Line ~56: <code>const hyp_tokens = try tokenizer.tokenize(allocator, hypothesis);</code>
+- Line ~59: <code>const ref_tokens = try tokenizer.tokenize(allocator, reference);</code>
+- Line ~74: <code>const hyp_tokens = try tokenizer.tokenize(allocator, hypothesis);</code>
+- Line ~82: <code>const tokens = try tokenizer.tokenize(allocator, ref);</code>
+- Delete lines 197-220 (local tokenize function)</p>
+<p><strong>Step 4: Update rouge.zig to use shared tokenizer</strong></p>
+<p>In <code>src/ai/implementation/eval/rouge.zig</code>:</p>
+<pre><code class="language-zig">// Add after std import (line 6):
+const tokenizer = @import(&quot;tokenizer.zig&quot;);
+
+// Replace local tokenize calls with tokenizer.tokenize
+// Delete local tokenize function (lines 188-211)
+</code></pre>
+<p>Changes:
+- Line ~68: <code>const hyp_tokens = try tokenizer.tokenize(allocator, hypothesis);</code>
+- Line ~71: <code>const ref_tokens = try tokenizer.tokenize(allocator, reference);</code>
+- Line ~152: <code>const hyp_tokens = try tokenizer.tokenize(allocator, hypothesis);</code>
+- Line ~155: <code>const ref_tokens = try tokenizer.tokenize(allocator, reference);</code>
+- Delete lines 188-211 (local tokenize function)</p>
+<p><strong>Step 5: Update metrics.zig to use shared tokenizer</strong></p>
+<p>In <code>src/ai/implementation/eval/metrics.zig</code>:</p>
+<pre><code class="language-zig">// Add after std import (line 5):
+const tokenizer = @import(&quot;tokenizer.zig&quot;);
+
+// Replace local tokenize calls with tokenizer.tokenize
+// Delete local tokenize function (lines 287-308)
+</code></pre>
+<p>Changes:
+- Line ~47: <code>const hyp_tokens = try tokenizer.tokenize(allocator, hypothesis);</code>
+- Line ~50: <code>const ref_tokens = try tokenizer.tokenize(allocator, reference);</code>
+- Line ~264: <code>const hyp_tokens = try tokenizer.tokenize(allocator, hypothesis);</code>
+- Line ~267: <code>const ref_tokens = try tokenizer.tokenize(allocator, reference);</code>
+- Delete lines 287-308 (local tokenize function)</p>
+<p><strong>Step 6: Export tokenizer from mod.zig</strong></p>
+<p>In <code>src/ai/implementation/eval/mod.zig</code>, add:</p>
+<pre><code class="language-zig">// After other imports (around line 10):
+pub const tokenizer = @import(&quot;tokenizer.zig&quot;);
+pub const tokenize = tokenizer.tokenize;
+</code></pre>
+<p><strong>Step 7: Run all eval tests</strong></p>
+<p>Run: <code>zig build test --summary all</code>
+Expected: All 51+ tests pass</p>
+<p><strong>Step 8: Commit</strong></p>
+<pre><code class="language-bash">git add src/ai/implementation/eval/tokenizer.zig src/ai/implementation/eval/bleu.zig src/ai/implementation/eval/rouge.zig src/ai/implementation/eval/metrics.zig src/ai/implementation/eval/mod.zig
+git commit -m &quot;refactor(eval): extract shared tokenization utility
+
+- Create tokenizer.zig with shared tokenize() function
+- Remove duplicated tokenize() from bleu.zig, rouge.zig, metrics.zig
+- Add tokenize tests for edge cases (empty, multiple spaces)
+- Export tokenizer from eval mod.zig&quot;
+</code></pre>
+<hr />
+<h2 id="task-2-fix-broken-unique_words-calculation">Task 2: Fix Broken unique_words Calculation</h2>
+<p><strong>Files:</strong>
+- Modify: <code>src/ai/implementation/eval/metrics.zig</code></p>
+<p><strong>Step 1: Write failing test for unique_words</strong></p>
+<p>Add test at end of <code>src/ai/implementation/eval/metrics.zig</code>:</p>
+<pre><code class="language-zig">test &quot;text statistics unique words&quot; {
+    const stats = computeTextStatistics(&quot;the cat sat on the mat&quot;);
+
+    // &quot;the&quot; appears twice, so unique_words should be 5, not 6
+    try std.testing.expectEqual(@as(usize, 6), stats.word_count);
+    try std.testing.expectEqual(@as(usize, 5), stats.unique_words);
+
+    // TTR = 5/6 ≈ 0.833
+    try std.testing.expectApproxEqAbs(@as(f64, 0.8333), stats.type_token_ratio, 0.01);
+}
+
+test &quot;text statistics all unique&quot; {
+    const stats = computeTextStatistics(&quot;one two three four&quot;);
+
+    try std.testing.expectEqual(@as(usize, 4), stats.word_count);
+    try std.testing.expectEqual(@as(usize, 4), stats.unique_words);
+    try std.testing.expectApproxEqAbs(@as(f64, 1.0), stats.type_token_ratio, 0.0001);
+}
+
+test &quot;text statistics all same&quot; {
+    const stats = computeTextStatistics(&quot;word word word word&quot;);
+
+    try std.testing.expectEqual(@as(usize, 4), stats.word_count);
+    try std.testing.expectEqual(@as(usize, 1), stats.unique_words);
+    try std.testing.expectApproxEqAbs(@as(f64, 0.25), stats.type_token_ratio, 0.0001);
+}
+</code></pre>
+<p><strong>Step 2: Run test to verify it fails</strong></p>
+<p>Run: <code>zig test src/ai/implementation/eval/metrics.zig --test-filter "unique"</code>
+Expected: FAIL - unique_words equals word_count (the bug)</p>
+<p><strong>Step 3: Fix computeTextStatistics to track unique words</strong></p>
+<p>Replace the <code>computeTextStatistics</code> function in <code>metrics.zig</code> (around lines 131-205):</p>
+<pre><code class="language-zig">/// Compute text statistics.
+pub fn computeTextStatistics(text: []const u8) TextStatistics {
+    if (text.len == 0) {
+        return .{
+            .char_count = 0,
+            .word_count = 0,
+            .sentence_count = 0,
+            .avg_word_length = 0,
+            .unique_words = 0,
+            .type_token_ratio = 0,
+        };
+    }
+
+    var word_count: usize = 0;
+    var sentence_count: usize = 0;
+    var total_word_length: usize = 0;
+    var in_word = false;
+    var word_start: usize = 0;
+
+    // Use a simple hash set for unique words (bounded to avoid allocation)
+    // Store hashes of words we've seen
+    var word_hashes: [1024]u64 = undefined;
+    var unique_count: usize = 0;
+
+    for (text, 0..) |c, i| {
+        if (std.ascii.isWhitespace(c)) {
+            if (in_word) {
+                const word = text[word_start..i];
+                word_count += 1;
+                total_word_length += word.len;
+
+                // Check if word is unique using hash
+                const hash = hashWord(word);
+                if (!containsHash(&amp;word_hashes, unique_count, hash)) {
+                    if (unique_count &lt; word_hashes.len) {
+                        word_hashes[unique_count] = hash;
+                        unique_count += 1;
+                    }
+                }
+
+                in_word = false;
+            }
+        } else {
+            if (!in_word) {
+                word_start = i;
+                in_word = true;
+            }
+
+            // Check for sentence terminators
+            if (c == '.' or c == '!' or c == '?') {
+                sentence_count += 1;
+            }
+        }
+    }
+
+    // Handle last word
+    if (in_word) {
+        const word = text[word_start..];
+        word_count += 1;
+        total_word_length += word.len;
+
+        const hash = hashWord(word);
+        if (!containsHash(&amp;word_hashes, unique_count, hash)) {
+            if (unique_count &lt; word_hashes.len) {
+                word_hashes[unique_count] = hash;
+                unique_count += 1;
+            }
+        }
+    }
+
+    // Ensure at least one sentence if there's text
+    if (sentence_count == 0 and word_count &gt; 0) {
+        sentence_count = 1;
+    }
+
+    const avg_word_length = if (word_count &gt; 0)
+        @as(f64, @floatFromInt(total_word_length)) / @as(f64, @floatFromInt(word_count))
+    else
+        0;
+
+    const type_token_ratio = if (word_count &gt; 0)
+        @as(f64, @floatFromInt(unique_count)) / @as(f64, @floatFromInt(word_count))
+    else
+        0;
+
+    return .{
+        .char_count = text.len,
+        .word_count = word_count,
+        .sentence_count = sentence_count,
+        .avg_word_length = avg_word_length,
+        .unique_words = unique_count,
+        .type_token_ratio = type_token_ratio,
+    };
+}
+
+fn hashWord(word: []const u8) u64 {
+    // Simple FNV-1a hash, case-insensitive
+    var hash: u64 = 0xcbf29ce484222325;
+    for (word) |c| {
+        hash ^= @as(u64, std.ascii.toLower(c));
+        hash *%= 0x100000001b3;
+    }
+    return hash;
+}
+
+fn containsHash(hashes: []const u64, count: usize, hash: u64) bool {
+    for (hashes[0..count]) |h| {
+        if (h == hash) return true;
+    }
+    return false;
+}
+</code></pre>
+<p><strong>Step 4: Run test to verify it passes</strong></p>
+<p>Run: <code>zig test src/ai/implementation/eval/metrics.zig --test-filter "unique"</code>
+Expected: PASS (3 tests)</p>
+<p><strong>Step 5: Run all tests</strong></p>
+<p>Run: <code>zig build test --summary all</code>
+Expected: All tests pass</p>
+<p><strong>Step 6: Commit</strong></p>
+<pre><code class="language-bash">git add src/ai/implementation/eval/metrics.zig
+git commit -m &quot;fix(eval): compute actual unique_words in text statistics
+
+- Track unique words using hash-based detection
+- Fix type_token_ratio to return correct lexical diversity
+- Add tests for unique word counting edge cases&quot;
+</code></pre>
+<hr />
+<h2 id="task-3-add-missing-exports-to-stub">Task 3: Add Missing Exports to Stub</h2>
+<p><strong>Files:</strong>
+- Modify: <code>src/ai/implementation/eval/stub.zig</code></p>
+<p><strong>Step 1: Add missing function stubs</strong></p>
+<p>Add the following to <code>stub.zig</code> after the existing stub functions:</p>
+<pre><code class="language-zig">/// Stub CER computation.
+pub fn computeCER(
+    allocator: std.mem.Allocator,
+    hypothesis: []const u8,
+    reference: []const u8,
+) !f64 {
+    _ = allocator;
+    _ = hypothesis;
+    _ = reference;
+    return error.EvalDisabled;
+}
+
+/// Stub WER computation.
+pub fn computeWER(
+    allocator: std.mem.Allocator,
+    hypothesis: []const u8,
+    reference: []const u8,
+) !f64 {
+    _ = allocator;
+    _ = hypothesis;
+    _ = reference;
+    return error.EvalDisabled;
+}
+
+/// Stub normalized exact match computation.
+pub fn computeNormalizedExactMatch(
+    allocator: std.mem.Allocator,
+    hypothesis: []const u8,
+    reference: []const u8,
+) !f64 {
+    _ = allocator;
+    _ = hypothesis;
+    _ = reference;
+    return error.EvalDisabled;
+}
+
+/// Stub Levenshtein distance computation.
+pub fn levenshteinDistance(
+    allocator: std.mem.Allocator,
+    a: []const u8,
+    b: []const u8,
+) !usize {
+    _ = allocator;
+    _ = a;
+    _ = b;
+    return error.EvalDisabled;
+}
+
+/// Stub token metrics computation.
+pub fn computeTokenMetrics(
+    allocator: std.mem.Allocator,
+    hypothesis: []const u8,
+    reference: []const u8,
+) !TokenMetrics {
+    _ = allocator;
+    _ = hypothesis;
+    _ = reference;
+    return error.EvalDisabled;
+}
+
+/// Stub text statistics computation.
+pub fn computeTextStatistics(text: []const u8) TextStatistics {
+    _ = text;
+    return .{};
+}
+
+/// Stub windowed perplexity computation.
+pub fn computeWindowedPerplexity(
+    allocator: std.mem.Allocator,
+    log_probs: []const f64,
+    window_size: usize,
+) ![]PerplexityResult {
+    _ = allocator;
+    _ = log_probs;
+    _ = window_size;
+    return error.EvalDisabled;
+}
+
+/// Stub perplexity from cross-entropy.
+pub fn perplexityFromCrossEntropy(cross_entropy: f64) f64 {
+    _ = cross_entropy;
+    return 0;
+}
+
+/// Stub perplexity from BPC.
+pub fn perplexityFromBpc(bpc: f64) f64 {
+    _ = bpc;
+    return 0;
+}
+
+/// Stub perplexity to BPC.
+pub fn perplexityToBpc(perplexity_val: f64) f64 {
+    _ = perplexity_val;
+    return 0;
+}
+
+/// Stub aggregate perplexity.
+pub fn aggregatePerplexity(results: []const PerplexityResult) PerplexityResult {
+    _ = results;
+    return .{};
+}
+</code></pre>
+<p><strong>Step 2: Run build to verify stub compiles</strong></p>
+<p>Run: <code>zig build -Denable-ai=false</code>
+Expected: Build succeeds</p>
+<p><strong>Step 3: Run full build with AI enabled</strong></p>
+<p>Run: <code>zig build test --summary all</code>
+Expected: All tests pass</p>
+<p><strong>Step 4: Commit</strong></p>
+<pre><code class="language-bash">git add src/ai/implementation/eval/stub.zig
+git commit -m &quot;fix(eval): add missing function stubs for disabled AI
+
+- Add computeCER, computeWER, computeNormalizedExactMatch stubs
+- Add levenshteinDistance, computeTokenMetrics stubs
+- Add perplexity utility stubs (aggregatePerplexity, etc.)
+- Ensures API parity between enabled and disabled states&quot;
+</code></pre>
+<hr />
+<h2 id="task-4-export-eval-module-from-ai-public-api">Task 4: Export Eval Module from AI Public API</h2>
+<p><strong>Files:</strong>
+- Modify: <code>src/ai/mod.zig</code></p>
+<p><strong>Step 1: Read current ai/mod.zig exports</strong></p>
+<p>Check current exports to understand pattern.</p>
+<p><strong>Step 2: Add eval export</strong></p>
+<p>In <code>src/ai/mod.zig</code>, add after other implementation exports:</p>
+<pre><code class="language-zig">// Add with other pub const declarations:
+pub const eval = implementation.eval;
+</code></pre>
+<p><strong>Step 3: Run tests to verify export works</strong></p>
+<p>Run: <code>zig build test --summary all</code>
+Expected: All tests pass</p>
+<p><strong>Step 4: Commit</strong></p>
+<pre><code class="language-bash">git add src/ai/mod.zig
+git commit -m &quot;feat(ai): export eval module from public AI API
+
+- Add eval to ai/mod.zig public exports
+- Allows access via abi.ai.eval pattern
+- Consistent with other AI module exports&quot;
+</code></pre>
+<hr />
+<h2 id="task-5-fix-perplexity-hard-coded-limit">Task 5: Fix Perplexity Hard-coded Limit</h2>
+<p><strong>Files:</strong>
+- Modify: <code>src/ai/implementation/eval/perplexity.zig</code></p>
+<p><strong>Step 1: Write failing test for long sequences</strong></p>
+<p>Add test at end of <code>perplexity.zig</code>:</p>
+<pre><code class="language-zig">test &quot;perplexity from probs long sequence&quot; {
+    // Create sequence longer than 1024
+    var probs: [2000]f64 = undefined;
+    for (&amp;probs) |*p| {
+        p.* = 0.1; // 10% probability each
+    }
+
+    const result = computePerplexityFromProbs(&amp;probs);
+
+    // Should process all 2000 tokens, not just 1024
+    try std.testing.expectEqual(@as(usize, 2000), result.num_tokens);
+
+    // Perplexity of uniform 0.1 = 1/0.1 = 10
+    try std.testing.expectApproxEqAbs(@as(f64, 10.0), result.perplexity, 0.01);
+}
+</code></pre>
+<p><strong>Step 2: Run test to verify it fails</strong></p>
+<p>Run: <code>zig test src/ai/implementation/eval/perplexity.zig --test-filter "long sequence"</code>
+Expected: FAIL - num_tokens will be 1024, not 2000</p>
+<p><strong>Step 3: Fix computePerplexityFromProbs to use dynamic allocation</strong></p>
+<p>Replace the function in <code>perplexity.zig</code>:</p>
+<pre><code class="language-zig">/// Compute perplexity for a sequence with model probabilities.
+/// Probabilities should be actual probabilities (0-1), not log probs.
+pub fn computePerplexityFromProbs(probs: []const f64) PerplexityResult {
+    if (probs.len == 0) {
+        return .{
+            .perplexity = std.math.inf(f64),
+            .avg_log_prob = 0,
+            .cross_entropy = std.math.inf(f64),
+            .num_tokens = 0,
+        };
+    }
+
+    // Compute directly without allocation - sum log probs inline
+    var sum: f64 = 0;
+    for (probs) |p| {
+        // Clamp to avoid log(0)
+        const clamped = @max(p, 1e-10);
+        sum += @log(clamped);
+    }
+
+    const n = @as(f64, @floatFromInt(probs.len));
+    const avg_log_prob = sum / n;
+    const cross_entropy = -avg_log_prob;
+    const perplexity = @exp(cross_entropy);
+
+    return .{
+        .perplexity = perplexity,
+        .avg_log_prob = avg_log_prob,
+        .cross_entropy = cross_entropy,
+        .num_tokens = probs.len,
+    };
+}
+</code></pre>
+<p><strong>Step 4: Run test to verify it passes</strong></p>
+<p>Run: <code>zig test src/ai/implementation/eval/perplexity.zig --test-filter "long sequence"</code>
+Expected: PASS</p>
+<p><strong>Step 5: Run all tests</strong></p>
+<p>Run: <code>zig build test --summary all</code>
+Expected: All tests pass</p>
+<p><strong>Step 6: Commit</strong></p>
+<pre><code class="language-bash">git add src/ai/implementation/eval/perplexity.zig
+git commit -m &quot;fix(eval): remove 1024 token limit in perplexity from probs
+
+- Compute log probs inline without intermediate array
+- Handle sequences of any length correctly
+- Add test for long sequences (2000 tokens)&quot;
+</code></pre>
+<hr />
+<h2 id="task-6-add-batch-evaluation-tests">Task 6: Add Batch Evaluation Tests</h2>
+<p><strong>Files:</strong>
+- Modify: <code>src/ai/implementation/eval/mod.zig</code></p>
+<p><strong>Step 1: Add batch evaluation tests</strong></p>
+<p>Add tests at end of <code>mod.zig</code>:</p>
+<pre><code class="language-zig">test &quot;batch evaluation&quot; {
+    const allocator = std.testing.allocator;
+    var evaluator = Evaluator.init(allocator, .{});
+
+    const hypotheses = [_][]const u8{
+        &quot;the cat sat on the mat&quot;,
+        &quot;hello world&quot;,
+        &quot;foo bar baz&quot;,
+    };
+    const references = [_][]const u8{
+        &quot;the cat sat on the mat&quot;,
+        &quot;hello there world&quot;,
+        &quot;completely different text&quot;,
+    };
+
+    const report = try evaluator.evaluateBatch(&amp;hypotheses, &amp;references);
+
+    try std.testing.expectEqual(@as(usize, 3), report.num_samples);
+    try std.testing.expect(report.avg_bleu &gt; 0);
+    try std.testing.expect(report.avg_f1 &gt; 0);
+    try std.testing.expect(report.exact_match_ratio &gt; 0); // At least one exact match
+}
+
+test &quot;batch evaluation length mismatch&quot; {
+    const allocator = std.testing.allocator;
+    var evaluator = Evaluator.init(allocator, .{});
+
+    const hypotheses = [_][]const u8{ &quot;a&quot;, &quot;b&quot; };
+    const references = [_][]const u8{&quot;a&quot;};
+
+    const result = evaluator.evaluateBatch(&amp;hypotheses, &amp;references);
+    try std.testing.expectError(error.LengthMismatch, result);
+}
+
+test &quot;batch evaluation empty&quot; {
+    const allocator = std.testing.allocator;
+    var evaluator = Evaluator.init(allocator, .{});
+
+    const hypotheses = [_][]const u8{};
+    const references = [_][]const u8{};
+
+    const result = evaluator.evaluateBatch(&amp;hypotheses, &amp;references);
+    try std.testing.expectError(error.EmptyInput, result);
+}
+</code></pre>
+<p><strong>Step 2: Run tests</strong></p>
+<p>Run: <code>zig test src/ai/implementation/eval/mod.zig --test-filter "batch"</code>
+Expected: PASS (3 tests)</p>
+<p><strong>Step 3: Run all tests</strong></p>
+<p>Run: <code>zig build test --summary all</code>
+Expected: All tests pass</p>
+<p><strong>Step 4: Commit</strong></p>
+<pre><code class="language-bash">git add src/ai/implementation/eval/mod.zig
+git commit -m &quot;test(eval): add batch evaluation tests
+
+- Test batch evaluation with multiple samples
+- Test length mismatch error handling
+- Test empty input error handling&quot;
+</code></pre>
+<hr />
+<h2 id="task-7-add-additional-metrics-exports-to-modzig">Task 7: Add Additional Metrics Exports to mod.zig</h2>
+<p><strong>Files:</strong>
+- Modify: <code>src/ai/implementation/eval/mod.zig</code></p>
+<p><strong>Step 1: Add missing exports</strong></p>
+<p>In <code>src/ai/implementation/eval/mod.zig</code>, add after existing exports:</p>
+<pre><code class="language-zig">// Add after existing metrics exports:
+pub const computeTokenMetrics = metrics.computeTokenMetrics;
+pub const computeTextStatistics = metrics.computeTextStatistics;
+pub const computeNormalizedExactMatch = metrics.computeNormalizedExactMatch;
+pub const computeCER = metrics.computeCER;
+pub const computeWER = metrics.computeWER;
+pub const levenshteinDistance = metrics.levenshteinDistance;
+
+// Add perplexity utilities:
+pub const perplexityFromCrossEntropy = perplexity.perplexityFromCrossEntropy;
+pub const perplexityFromBpc = perplexity.perplexityFromBpc;
+pub const perplexityToBpc = perplexity.perplexityToBpc;
+pub const aggregatePerplexity = perplexity.aggregatePerplexity;
+pub const computeWindowedPerplexity = perplexity.computeWindowedPerplexity;
+pub const computePerplexityFromProbs = perplexity.computePerplexityFromProbs;
+
+// Add BLEU smoothing method:
+pub const SmoothingMethod = bleu.SmoothingMethod;
+</code></pre>
+<p><strong>Step 2: Run tests</strong></p>
+<p>Run: <code>zig build test --summary all</code>
+Expected: All tests pass</p>
+<p><strong>Step 3: Commit</strong></p>
+<pre><code class="language-bash">git add src/ai/implementation/eval/mod.zig
+git commit -m &quot;feat(eval): export all metrics functions from mod.zig
+
+- Export CER, WER, normalized exact match
+- Export levenshtein distance
+- Export perplexity utilities
+- Export BLEU smoothing method enum&quot;
+</code></pre>
+<hr />
+<h2 id="task-8-final-verification-and-documentation">Task 8: Final Verification and Documentation</h2>
+<p><strong>Files:</strong>
+- None (verification only)</p>
+<p><strong>Step 1: Run full test suite</strong></p>
+<p>Run: <code>zig build test --summary all</code>
+Expected: All tests pass</p>
+<p><strong>Step 2: Run WASM build check</strong></p>
+<p>Run: <code>zig build check-wasm</code>
+Expected: Build succeeds</p>
+<p><strong>Step 3: Run regular build</strong></p>
+<p>Run: <code>zig build</code>
+Expected: Build succeeds</p>
+<p><strong>Step 4: Final commit (if any remaining changes)</strong></p>
+<pre><code class="language-bash">git status
+# If clean, no commit needed
+# If changes, commit with appropriate message
+</code></pre>
+<hr />
+<h2 id="summary-of-changes">Summary of Changes</h2>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>What Changed</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Extract shared tokenizer</td>
+<td>Eliminates 3x code duplication</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Fix unique_words</td>
+<td>Fixes broken type_token_ratio</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Complete stub API</td>
+<td>Prevents compilation surprises</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Export eval from AI API</td>
+<td>Consistent public API</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Fix perplexity limit</td>
+<td>Handles arbitrary length sequences</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Add batch tests</td>
+<td>Better test coverage</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Export all functions</td>
+<td>Complete public API</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Verification</td>
+<td>Ensures everything works</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Total commits:</strong> 7-8
+<strong>Estimated implementation time:</strong> 45-60 minutes</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

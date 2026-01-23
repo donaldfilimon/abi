@@ -1,3 +1,7 @@
+---
+title: "README"
+tags: []
+---
 //! # Shared Utilities
 //!
 //! > **Codebase Status:** Synced with repository as of 2026-01-22.
@@ -57,3 +61,4 @@
 //! - [Logging](logging/README.md)
 //! - [Platform](platform/README.md)
 //! - [Utils](utils/README.md)
+

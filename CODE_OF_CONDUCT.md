@@ -1,3 +1,7 @@
+---
+title: "CODE_OF_CONDUCT"
+tags: []
+---
 # Code of Conduct
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -15,3 +19,4 @@ https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
 - [CONTACTS.md](CONTACTS.md) - Maintainer contact information
+

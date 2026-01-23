@@ -1,3 +1,7 @@
+---
+title: "abbey-fine-tuning"
+tags: []
+---
 # Fine-Tuning gpt-oss for Abbey
 > **Codebase Status:** Synced with repository as of 2026-01-22.
 
@@ -394,3 +398,4 @@ Key metrics to watch:
 - [AI Module Guide](../ai.md) - Full AI module documentation
 - [Training CLI](../ai.md#cli-usage) - Training command reference
 - [Troubleshooting](../troubleshooting.md) - Common issues
+

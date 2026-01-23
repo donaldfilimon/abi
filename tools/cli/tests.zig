@@ -248,12 +248,9 @@ test "cross-platform path separator" {
 }
 
 test "cross-platform temp directory" {
-    // Verify we can get temp dir on any platform
-    const tmp = std.fs.tmpPath() orelse switch (builtin.os.tag) {
-        .windows => "C:\\Windows\\Temp",
-        else => "/tmp",
-    };
-    try std.testing.expect(tmp.len > 0);
+    var tmp_dir = std.testing.tmpDir(.{});
+    defer tmp_dir.cleanup();
+    try std.testing.expect(tmp_dir.sub_path.len > 0);
 }
 
 // ============================================================================
@@ -336,8 +333,9 @@ test "integration: parse explore config style args" {
             level = args.parseEnum(ExploreLevel, val) orelse .medium;
             continue;
         }
-        if (parser.consumeInt(usize, &[_][]const u8{"--max-files"}, 0)) |val| {
-            if (val > 0) max_files = val;
+        const max_files_override = parser.consumeInt(usize, &[_][]const u8{"--max-files"}, 0);
+        if (max_files_override > 0) {
+            max_files = max_files_override;
             continue;
         }
         if (parser.consumeFlag(&[_][]const u8{ "--case-sensitive", "-c" })) {

@@ -49,6 +49,10 @@ const runtime_mod = @import("runtime/mod.zig");
 /// Manages lifecycle of all enabled features.
 pub const Framework = struct {
     allocator: std.mem.Allocator,
+    // New optional I/O backend (shared across the framework).  Sub‑systems that need
+    // file or network access can retrieve it via `self.io`.  It is set during
+    // initialization by the builder (see `FrameworkBuilder.withIo`).
+    io: ?std.Io = null,
     config: Config,
     state: State,
     registry: Registry,
@@ -186,6 +190,14 @@ pub const Framework = struct {
         return fw;
     }
 
+    /// Initialize the framework with the given configuration **and** an I/O backend.
+    /// This method is used by the builder when `withIo` is supplied.
+    pub fn initWithIo(allocator: std.mem.Allocator, cfg: Config, io: std.Io) Error!Framework {
+        var fw = try Framework.init(allocator, cfg);
+        fw.io = io;
+        return fw;
+    }
+
     /// Create a framework with default configuration.
     pub fn initDefault(allocator: std.mem.Allocator) Error!Framework {
         return init(allocator, Config.defaults());
@@ -309,11 +321,15 @@ pub const Framework = struct {
 pub const FrameworkBuilder = struct {
     allocator: std.mem.Allocator,
     config_builder: config_module.Builder,
+    // Optional shared I/O backend (set via `withIo`).  Sub‑systems that need
+    // file or network access can retrieve it through `framework.io`.
+    io: ?std.Io = null,
 
     pub fn init(allocator: std.mem.Allocator) FrameworkBuilder {
         return .{
             .allocator = allocator,
             .config_builder = config_module.Builder.init(allocator),
+            .io = null,
         };
     }
 
@@ -332,6 +348,13 @@ pub const FrameworkBuilder = struct {
     /// Enable GPU with defaults.
     pub fn withGpuDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
         _ = self.config_builder.withGpuDefaults();
+        return self;
+    }
+
+    /// Provide a shared I/O backend for the framework.
+    /// Pass the `std.Io` obtained from `IoBackend.init`.
+    pub fn withIo(self: *FrameworkBuilder, io: std.Io) *FrameworkBuilder {
+        self.io = io;
         return self;
     }
 
@@ -408,9 +431,15 @@ pub const FrameworkBuilder = struct {
     }
 
     /// Build and initialize the framework.
+    /// If an I/O backend was supplied via `withIo`, it will be stored in the
+    /// resulting `Framework` instance.
     pub fn build(self: *FrameworkBuilder) Framework.Error!Framework {
         const config = self.config_builder.build();
-        return Framework.init(self.allocator, config);
+        if (self.io) |io| {
+            return Framework.initWithIo(self.allocator, config, io);
+        } else {
+            return Framework.init(self.allocator, config);
+        }
     }
 };
 
