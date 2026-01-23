@@ -7,12 +7,14 @@
 //! - Retry and fallback handling
 
 const std = @import("std");
-const types = @import("../../core/types.zig");
-const config = @import("../../core/config.zig");
+const types = @import("../core/types.zig");
+const config = @import("../core/config.zig");
 const build_options = @import("build_options");
+const shared_utils = @import("../../shared/utils.zig");
 
 // Import web client if web feature is enabled
-const web_client = if (build_options.enable_web) @import("../../../web/client.zig") else null;
+const web_client = if (build_options.enable_web) @import("../../web/client.zig") else @as(?void, null);
+const web_enabled = build_options.enable_web;
 
 // ============================================================================
 // LLM Request/Response Types
@@ -303,45 +305,48 @@ pub const OpenAIBackend = struct {
 
     pub fn complete(self: *Self, request: CompletionRequest) ClientError!CompletionResponse {
         // Check if web feature is enabled
-        if (web_client == null) {
+        if (!web_enabled) {
             return error.NotImplemented;
         }
 
         const api_key = self.api_key orelse return error.AuthenticationFailed;
-        const start_time = std.time.milliTimestamp();
+        var timer = std.time.Timer.start() catch return error.BackendError;
 
         // Build URL
         const url = try std.fmt.allocPrint(self.allocator, "{s}/chat/completions", .{self.base_url});
         defer self.allocator.free(url);
 
-        // Build JSON request
-        var json_buffer = std.ArrayList(u8).init(self.allocator);
-        defer json_buffer.deinit();
-        const writer = json_buffer.writer();
+        // Build JSON request using allocPrint
+        var json_buffer = std.ArrayListUnmanaged(u8).empty;
+        defer json_buffer.deinit(self.allocator);
 
-        try writer.writeAll("{\"model\":\"");
-        try writer.writeAll(request.model);
-        try writer.writeAll("\",\"messages\":[");
+        try json_buffer.appendSlice(self.allocator, "{\"model\":\"");
+        try json_buffer.appendSlice(self.allocator, request.model);
+        try json_buffer.appendSlice(self.allocator, "\",\"messages\":[");
 
         for (request.messages, 0..) |msg, i| {
-            if (i > 0) try writer.writeAll(",");
-            try writer.writeAll("{\"role\":\"");
-            try writer.writeAll(msg.role);
-            try writer.writeAll("\",\"content\":\"");
-            try writeJsonEscaped(writer, msg.content);
-            try writer.writeAll("\"}");
+            if (i > 0) try json_buffer.appendSlice(self.allocator, ",");
+            try json_buffer.appendSlice(self.allocator, "{\"role\":\"");
+            try json_buffer.appendSlice(self.allocator, msg.role);
+            try json_buffer.appendSlice(self.allocator, "\",\"content\":\"");
+            try appendJsonEscaped(&json_buffer, self.allocator, msg.content);
+            try json_buffer.appendSlice(self.allocator, "\"}");
         }
 
-        try writer.print("],\"temperature\":{d},\"max_tokens\":{d},\"stream\":false", .{ request.temperature, request.max_tokens });
+        const temp_str = try std.fmt.allocPrint(self.allocator, "],\"temperature\":{d},\"max_tokens\":{d},\"stream\":false", .{ request.temperature, request.max_tokens });
+        defer self.allocator.free(temp_str);
+        try json_buffer.appendSlice(self.allocator, temp_str);
 
         if (request.top_p < 1.0) {
-            try writer.print(",\"top_p\":{d}", .{request.top_p});
+            const top_p_str = try std.fmt.allocPrint(self.allocator, ",\"top_p\":{d}", .{request.top_p});
+            defer self.allocator.free(top_p_str);
+            try json_buffer.appendSlice(self.allocator, top_p_str);
         }
 
-        try writer.writeAll("}");
+        try json_buffer.appendSlice(self.allocator, "}");
 
         // Make HTTP request with Authorization header
-        var http_client = web_client.?.HttpClient.init(self.allocator) catch return error.ConnectionRefused;
+        var http_client = web_client.HttpClient.init(self.allocator) catch return error.ConnectionRefused;
         defer http_client.deinit();
 
         // Build Authorization header
@@ -384,7 +389,8 @@ pub const OpenAIBackend = struct {
         ) catch return error.ResponseParseError;
         defer parsed.deinit();
 
-        const elapsed_ms = std.time.milliTimestamp() - start_time;
+        const elapsed_ns = timer.read();
+        const elapsed_ms: i64 = @intCast(elapsed_ns / std.time.ns_per_ms);
 
         if (parsed.value.choices.len == 0) {
             return error.ResponseParseError;
@@ -468,44 +474,47 @@ pub const OllamaBackend = struct {
 
     pub fn complete(self: *Self, request: CompletionRequest) ClientError!CompletionResponse {
         // Check if web feature is enabled
-        if (web_client == null) {
+        if (!web_enabled) {
             return error.NotImplemented;
         }
 
-        const start_time = std.time.milliTimestamp();
+        var timer = std.time.Timer.start() catch return error.BackendError;
 
         // Build URL
         const url = try std.fmt.allocPrint(self.allocator, "{s}/api/chat", .{self.host});
         defer self.allocator.free(url);
 
-        // Build JSON request
-        var json_buffer = std.ArrayList(u8).init(self.allocator);
-        defer json_buffer.deinit();
-        const writer = json_buffer.writer();
+        // Build JSON request using allocPrint
+        var json_buffer = std.ArrayListUnmanaged(u8).empty;
+        defer json_buffer.deinit(self.allocator);
 
-        try writer.writeAll("{\"model\":\"");
-        try writer.writeAll(request.model);
-        try writer.writeAll("\",\"messages\":[");
+        try json_buffer.appendSlice(self.allocator, "{\"model\":\"");
+        try json_buffer.appendSlice(self.allocator, request.model);
+        try json_buffer.appendSlice(self.allocator, "\",\"messages\":[");
 
         for (request.messages, 0..) |msg, i| {
-            if (i > 0) try writer.writeAll(",");
-            try writer.writeAll("{\"role\":\"");
-            try writer.writeAll(msg.role);
-            try writer.writeAll("\",\"content\":\"");
-            try writeJsonEscaped(writer, msg.content);
-            try writer.writeAll("\"}");
+            if (i > 0) try json_buffer.appendSlice(self.allocator, ",");
+            try json_buffer.appendSlice(self.allocator, "{\"role\":\"");
+            try json_buffer.appendSlice(self.allocator, msg.role);
+            try json_buffer.appendSlice(self.allocator, "\",\"content\":\"");
+            try appendJsonEscaped(&json_buffer, self.allocator, msg.content);
+            try json_buffer.appendSlice(self.allocator, "\"}");
         }
 
-        try writer.print("],\"stream\":false,\"options\":{{\"temperature\":{d},\"top_p\":{d}}}", .{ request.temperature, request.top_p });
+        const opts_str = try std.fmt.allocPrint(self.allocator, "],\"stream\":false,\"options\":{{\"temperature\":{d},\"top_p\":{d}}}", .{ request.temperature, request.top_p });
+        defer self.allocator.free(opts_str);
+        try json_buffer.appendSlice(self.allocator, opts_str);
 
         if (request.max_tokens > 0) {
-            try writer.print(",\"num_predict\":{d}", .{request.max_tokens});
+            const predict_str = try std.fmt.allocPrint(self.allocator, ",\"num_predict\":{d}", .{request.max_tokens});
+            defer self.allocator.free(predict_str);
+            try json_buffer.appendSlice(self.allocator, predict_str);
         }
 
-        try writer.writeAll("}");
+        try json_buffer.appendSlice(self.allocator, "}");
 
         // Make HTTP request
-        var http_client = web_client.?.HttpClient.init(self.allocator) catch return error.ConnectionRefused;
+        var http_client = web_client.HttpClient.init(self.allocator) catch return error.ConnectionRefused;
         defer http_client.deinit();
 
         const response = http_client.postJson(url, json_buffer.items) catch |err| {
@@ -530,7 +539,8 @@ pub const OllamaBackend = struct {
         ) catch return error.ResponseParseError;
         defer parsed.deinit();
 
-        const elapsed_ms = std.time.milliTimestamp() - start_time;
+        const elapsed_ns = timer.read();
+        const elapsed_ms: i64 = @intCast(elapsed_ns / std.time.ns_per_ms);
 
         // Build response
         const content = try self.allocator.dupe(u8, parsed.value.message.content);
@@ -699,16 +709,16 @@ pub const RetryHandler = struct {
 // Helper Functions
 // ============================================================================
 
-/// Write a JSON-escaped string to a writer
-fn writeJsonEscaped(writer: anytype, s: []const u8) !void {
+/// Append a JSON-escaped string to an ArrayListUnmanaged
+fn appendJsonEscaped(buffer: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, s: []const u8) !void {
     for (s) |c| {
         switch (c) {
-            '"' => try writer.writeAll("\\\""),
-            '\\' => try writer.writeAll("\\\\"),
-            '\n' => try writer.writeAll("\\n"),
-            '\r' => try writer.writeAll("\\r"),
-            '\t' => try writer.writeAll("\\t"),
-            else => try writer.writeByte(c),
+            '"' => try buffer.appendSlice(allocator, "\\\""),
+            '\\' => try buffer.appendSlice(allocator, "\\\\"),
+            '\n' => try buffer.appendSlice(allocator, "\\n"),
+            '\r' => try buffer.appendSlice(allocator, "\\r"),
+            '\t' => try buffer.appendSlice(allocator, "\\t"),
+            else => try buffer.append(allocator, c),
         }
     }
 }
