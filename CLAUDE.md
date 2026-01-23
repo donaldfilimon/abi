@@ -91,6 +91,9 @@ src/
 ├── connectors/          # API connectors (OpenAI, Ollama, Anthropic, HuggingFace)
 ├── database/            # Vector database (WDBX with HNSW/IVF-PQ)
 ├── gpu/                 # GPU acceleration (Vulkan, CUDA, Metal, etc.)
+│   └── dsl/codegen/     # Shader codegen with generic comptime template
+│       ├── generic.zig  # Comptime CodeGenerator(Config) template
+│       └── configs/     # Backend-specific configs (glsl, wgsl, msl, cuda)
 ├── ha/                  # High availability (backup, PITR, replication)
 ├── network/             # Distributed compute and Raft consensus
 ├── observability/       # Consolidated metrics, tracing, monitoring
@@ -121,6 +124,28 @@ src/
 - **Internal AI**: Implementation files import from `../../core/mod.zig` for types
 
 **Stub pattern:** Each feature module has a `stub.zig` that provides the same API surface when the feature is disabled. When modifying a module's public API, update both `mod.zig` and `stub.zig` to maintain compatibility.
+
+**Comptime generics pattern:** Use comptime configuration structs to eliminate code duplication. Example from GPU codegen:
+
+```zig
+// Define config struct with backend-specific values
+pub const config = BackendConfig{
+    .language = .wgsl,
+    .type_names = .{ .f32_ = "f32", .i32_ = "i32", ... },
+    .atomics = .{ .add_fn = "atomicAdd", ... },
+};
+
+// Generic template instantiated with config
+pub fn CodeGenerator(comptime Config: type) type {
+    return struct {
+        pub const backend_config: BackendConfig = Config.config;
+        // Shared logic uses Config.config.type_names, etc.
+    };
+}
+
+// Backend-specific file just re-exports
+pub const WgslGenerator = generic.CodeGenerator(wgsl_config);
+```
 
 ### Configuration System (`src/config.zig`)
 
