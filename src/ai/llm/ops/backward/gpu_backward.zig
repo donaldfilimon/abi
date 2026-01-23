@@ -3,92 +3,22 @@
 //! Provides cuBLAS-accelerated implementations of backward pass operations
 //! for matrix multiplication and attention. Falls back to CPU implementations
 //! when GPU is unavailable.
+//!
+//! GPU access is provided through the centralized ai_ops interface, which
+//! handles compile-time gating and provides stub implementations when GPU
+//! is disabled.
 
 const std = @import("std");
 const build_options = @import("build_options");
 const matmul_backward = @import("matmul_backward.zig");
 const attention_backward = @import("attention_backward.zig");
 
-// cuBLAS support
-const cublas = if (build_options.enable_gpu)
-    @import("../../../../gpu/backends/cuda/cublas.zig")
-else
-    struct {
-        pub fn isAvailable() bool {
-            return false;
-        }
-        pub const CublasOperation = enum { no_trans, trans };
-        pub const CublasContext = struct {
-            pub fn init() !@This() {
-                return error.NotAvailable;
-            }
-            pub fn deinit(_: *@This()) void {}
-            pub fn sgemm(
-                _: *@This(),
-                _: CublasOperation,
-                _: CublasOperation,
-                _: i32,
-                _: i32,
-                _: i32,
-                _: f32,
-                _: *const anyopaque,
-                _: i32,
-                _: *const anyopaque,
-                _: i32,
-                _: f32,
-                _: *anyopaque,
-                _: i32,
-            ) !void {
-                return error.NotAvailable;
-            }
-            pub fn sgemmStridedBatched(
-                _: *@This(),
-                _: CublasOperation,
-                _: CublasOperation,
-                _: i32,
-                _: i32,
-                _: i32,
-                _: f32,
-                _: *const anyopaque,
-                _: i32,
-                _: i64,
-                _: *const anyopaque,
-                _: i32,
-                _: i64,
-                _: f32,
-                _: *anyopaque,
-                _: i32,
-                _: i64,
-                _: i32,
-            ) !void {
-                return error.NotAvailable;
-            }
-        };
-    };
+// Centralized GPU interface - handles compile-time gating and stubs
+const ai_ops = @import("../../../../gpu/ai_ops.zig");
 
-const cuda_memory = if (build_options.enable_gpu)
-    @import("../../../../gpu/backends/cuda/memory.zig")
-else
-    struct {
-        pub fn init() !void {
-            return error.NotAvailable;
-        }
-        pub const DeviceMemory = struct {
-            ptr: ?*anyopaque,
-            size: usize,
-            allocator: std.mem.Allocator,
-            pub fn init(_: std.mem.Allocator, _: usize) !@This() {
-                return error.NotAvailable;
-            }
-            pub fn deinit(_: *@This()) void {}
-        };
-        pub fn memcpyHostToDevice(_: *anyopaque, _: *const anyopaque, _: usize) !void {
-            return error.NotAvailable;
-        }
-        pub fn memcpyDeviceToHost(_: *anyopaque, _: *anyopaque, _: usize) !void {
-            return error.NotAvailable;
-        }
-    };
+// Re-export GPU modules from ai_ops (stubs provided when GPU disabled)
+const cublas = ai_ops.cublas;
+const cuda_memory = ai_ops.memory;
 
 /// GPU backward context for training operations.
 pub const GpuBackwardContext = struct {

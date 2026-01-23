@@ -34,6 +34,7 @@ pub const Config = config_module.Config;
 pub const Feature = config_module.Feature;
 pub const ConfigError = config_module.ConfigError;
 pub const Registry = registry_mod.Registry;
+pub const RegistryError = registry_mod.types.Error;
 
 // Feature modules - imported based on build configuration
 const gpu_mod = if (build_options.enable_gpu) @import("gpu/mod.zig") else @import("gpu/stub.zig");
@@ -118,7 +119,7 @@ pub const Framework = struct {
         WebDisabled,
         RequestFailed,
         InvalidUrl,
-    } || std.mem.Allocator.Error || ConfigError || Registry.Error;
+    } || std.mem.Allocator.Error || ConfigError || RegistryError;
 
     /// Initialize the framework with the given configuration.
     pub fn init(allocator: std.mem.Allocator, cfg: Config) Error!Framework {
@@ -312,7 +313,7 @@ pub const Framework = struct {
     }
 
     /// List all registered features.
-    pub fn listRegisteredFeatures(self: *const Framework, allocator: std.mem.Allocator) Registry.Error![]Feature {
+    pub fn listRegisteredFeatures(self: *const Framework, allocator: std.mem.Allocator) RegistryError![]Feature {
         return self.registry.listFeatures(allocator);
     }
 };

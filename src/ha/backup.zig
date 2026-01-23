@@ -8,7 +8,7 @@
 //! - Backup verification and integrity checks
 
 const std = @import("std");
-const time = @import("../shared/utils.zig");
+const time = @import("../shared/utils_combined.zig");
 
 /// Backup configuration
 pub const BackupConfig = struct {
@@ -98,7 +98,7 @@ pub const BackupEvent = union(enum) {
 /// Backup result
 pub const BackupResult = struct {
     backup_id: u64,
-    timestamp: i64,
+    timestamp: u64,
     mode: BackupMode,
     size_bytes: u64,
     size_compressed: u64,
@@ -111,7 +111,7 @@ pub const BackupResult = struct {
 /// Backup metadata
 const BackupMetadata = struct {
     backup_id: u64,
-    timestamp: i64,
+    timestamp: u64,
     mode: BackupMode,
     size_bytes: u64,
     checksum: [32]u8,
@@ -127,7 +127,7 @@ pub const BackupOrchestrator = struct {
     // State
     state: BackupState,
     current_backup_id: u64,
-    last_backup_time: i64,
+    last_backup_time: u64,
     last_full_backup_id: u64,
 
     // Backup history
@@ -168,9 +168,10 @@ pub const BackupOrchestrator = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = time.nowSeconds();
-        const interval_sec = @as(i64, @intCast(self.config.interval_hours)) * 3600;
-        return (now - self.last_backup_time) >= interval_sec;
+        const now = time.time.timestampSec();
+        const interval_sec = @as(u64, self.config.interval_hours) * 3600;
+        const last = self.last_backup_time;
+        return (now - last) >= interval_sec;
     }
 
     /// Trigger a manual backup
@@ -218,7 +219,7 @@ pub const BackupOrchestrator = struct {
         };
 
         // Simulate backup process (in real implementation, this would be async)
-        const start_time = time.nowSeconds();
+        const start_time = time.time.timestampSec();
 
         self.state = .backing_up;
         self.emitEvent(.{ .backup_progress = .{ .backup_id = backup_id, .percent = 25 } });
@@ -246,8 +247,8 @@ pub const BackupOrchestrator = struct {
         var checksum: [32]u8 = undefined;
         @memset(&checksum, 0);
 
-        const end_time = time.nowSeconds();
-        const duration_ms = @as(u64, @intCast((end_time - start_time) * 1000));
+        const end_time = time.time.timestampSec();
+        const duration_ms = (end_time - start_time) * 1000;
 
         // Record metadata
         const metadata = BackupMetadata{

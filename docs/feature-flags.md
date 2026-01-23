@@ -3,7 +3,7 @@ title: "feature-flags"
 tags: []
 ---
 # Feature Flags Reference
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 > **Single source of truth for all ABI framework build options**
 

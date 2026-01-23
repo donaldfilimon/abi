@@ -7,7 +7,7 @@
 //! - Efficient recovery with minimal data loss
 
 const std = @import("std");
-const time = @import("../shared/utils.zig");
+const time = @import("../shared/utils_combined.zig");
 
 /// PITR configuration
 pub const PitrConfig = struct {
@@ -38,7 +38,7 @@ pub const PitrEvent = union(enum) {
 /// Recovery point information
 pub const RecoveryPoint = struct {
     sequence: u64,
-    timestamp: i64,
+    timestamp: u64,
     size_bytes: u64,
     operation_count: u64,
     checksum: [32]u8,
@@ -81,7 +81,7 @@ pub const PitrManager = struct {
 
     // State
     current_sequence: u64,
-    last_checkpoint_time: i64,
+    last_checkpoint_time: u64,
     pending_operations: std.ArrayListUnmanaged(Operation),
 
     // Recovery points
@@ -151,7 +151,7 @@ pub const PitrManager = struct {
 
         const op = Operation{
             .type = op_type,
-            .timestamp = time.nowSeconds(),
+            .timestamp = @intCast(time.time.timestampSec()),
             .key = key_copy,
             .value = value_copy,
             .previous_value = prev_copy,
@@ -166,8 +166,8 @@ pub const PitrManager = struct {
     }
 
     fn shouldCheckpoint(self: *PitrManager) bool {
-        const now = time.nowSeconds();
-        const interval = @as(i64, @intCast(self.config.checkpoint_interval_sec));
+        const now = time.time.timestampSec();
+        const interval = @as(u64, self.config.checkpoint_interval_sec);
 
         // Time-based trigger
         if (now - self.last_checkpoint_time >= interval) {
@@ -215,7 +215,7 @@ pub const PitrManager = struct {
 
         const recovery_point = RecoveryPoint{
             .sequence = sequence,
-            .timestamp = time.nowSeconds(),
+            .timestamp = @as(u64, time.time.timestampSec()),
             .size_bytes = total_size,
             .operation_count = self.pending_operations.items.len,
             .checksum = checksum,
@@ -231,7 +231,7 @@ pub const PitrManager = struct {
         }
         self.pending_operations.clearRetainingCapacity();
 
-        self.last_checkpoint_time = time.nowSeconds();
+        self.last_checkpoint_time = time.time.timestampSec();
 
         self.emitEvent(.{ .checkpoint_created = .{
             .sequence = sequence,
@@ -249,16 +249,22 @@ pub const PitrManager = struct {
     }
 
     /// Find nearest recovery point to timestamp
+    /// Find the nearest recovery point **not after** the given timestamp.
+    /// Returns `null` when the timestamp is negative or no suitable point exists.
     pub fn findNearestRecoveryPoint(self: *PitrManager, timestamp: i64) ?RecoveryPoint {
         self.mutex.lock();
         defer self.mutex.unlock();
 
+        // Guard against negative timestamps which cannot be represented as unsigned.
+        if (timestamp < 0) return null;
+
         var nearest: ?RecoveryPoint = null;
-        var min_diff: i64 = std.math.maxInt(i64);
+        var min_diff: u64 = std.math.maxInt(u64);
+        const ts: u64 = @intCast(timestamp);
 
         for (self.recovery_points.items) |point| {
-            if (point.timestamp <= timestamp) {
-                const diff = timestamp - point.timestamp;
+            if (point.timestamp <= ts) {
+                const diff = ts - point.timestamp;
                 if (diff < min_diff) {
                     min_diff = diff;
                     nearest = point;
@@ -333,8 +339,8 @@ pub const PitrManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = time.nowSeconds();
-        const retention_sec = @as(i64, @intCast(self.config.retention_hours)) * 3600;
+        const now = time.time.timestampSec();
+        const retention_sec = @as(u64, self.config.retention_hours) * 3600;
         const cutoff = now - retention_sec;
 
         var pruned_count: u32 = 0;

@@ -3,7 +3,7 @@ title: "ai"
 tags: []
 ---
 # AI & Agents
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Module-AI-purple?style=for-the-badge&logo=openai&logoColor=white" alt="AI Module"/>
@@ -264,6 +264,162 @@ The `AgentConfig` struct supports:
 - `setTemperature(temp)` - Update temperature
 - `setTopP(top_p)` - Update top_p parameter
 - `setHistoryEnabled(enabled)` - Enable/disable history tracking
+
+---
+
+## Multi-Persona System
+
+The **Multi-Persona AI Assistant** (`abi.ai.personas`) provides intelligent routing between specialized AI personas:
+
+| Persona | Role | Characteristics |
+|---------|------|-----------------|
+| **Abi** | Router/Moderator | Content moderation, sentiment analysis, policy enforcement |
+| **Abbey** | Empathetic Polymath | Supportive, thorough responses with emotional awareness |
+| **Aviva** | Direct Expert | Concise, factual, technically rigorous responses |
+
+### Quick Start
+
+```zig
+const personas = abi.ai.personas;
+
+// Initialize the multi-persona system
+var system = try personas.MultiPersonaSystem.init(allocator, .{
+    .default_persona = .abbey,
+    .enable_dynamic_routing = true,
+});
+defer system.deinit();
+
+// Process a request with automatic routing
+const request = personas.PersonaRequest{
+    .content = "Help me understand memory management in Zig",
+    .user_id = "user-123",
+};
+
+const response = try system.process(request);
+defer @constCast(&response).deinit(allocator);
+
+// Response includes which persona handled it
+std.debug.print("Persona: {s}, Content: {s}\n", .{
+    @tagName(response.persona),
+    response.content,
+});
+```
+
+### Persona Configuration
+
+```zig
+const cfg = personas.MultiPersonaConfig{
+    .default_persona = .abbey,
+    .enable_dynamic_routing = true,
+    .routing_confidence_threshold = 0.5,
+    .abbey = .{
+        .empathy_level = .high,
+        .response_depth = .thorough,
+    },
+    .aviva = .{
+        .cite_sources = true,
+        .skip_preamble = true,
+    },
+};
+```
+
+### Routing Logic
+
+The system routes requests based on:
+
+1. **Sentiment Analysis** - Detects emotional tone and urgency
+2. **Policy Checking** - Ensures content compliance
+3. **Query Classification** - Identifies request type (code, factual, explanation)
+4. **Rules Engine** - Applies routing rules based on analysis
+
+**Example routing scenarios:**
+- Frustrated user → Abbey (empathetic support)
+- Technical code request → Aviva (direct expertise)
+- Policy violation → Abi (moderation)
+
+### HTTP API
+
+The personas module provides HTTP API handlers:
+
+```
+POST /api/v1/chat              # Auto-routing to best persona
+POST /api/v1/chat/abbey        # Force Abbey persona
+POST /api/v1/chat/aviva        # Force Aviva persona
+GET  /api/v1/personas          # List available personas
+GET  /api/v1/personas/metrics  # Get persona metrics
+GET  /api/v1/personas/health   # Health check
+```
+
+**Request format:**
+```json
+{
+  "content": "Help me understand recursion",
+  "user_id": "user-123",
+  "session_id": "session-456",
+  "persona": null
+}
+```
+
+**Response format:**
+```json
+{
+  "content": "Recursion is when a function calls itself...",
+  "persona": "abbey",
+  "confidence": 0.92,
+  "latency_ms": 450
+}
+```
+
+### Metrics & Monitoring
+
+```zig
+// Access persona metrics
+if (system.metrics) |m| {
+    const stats = m.getStats(.abbey);
+    if (stats) |s| {
+        std.debug.print("Abbey: {d} requests, {d:.1}% success\n", .{
+            s.total_requests,
+            s.success_rate * 100,
+        });
+    }
+}
+
+// Get latency percentiles
+if (m.getLatencyPercentiles(.abbey)) |lat| {
+    std.debug.print("P50: {d:.0}ms, P99: {d:.0}ms\n", .{
+        lat.p50, lat.p99,
+    });
+}
+```
+
+### Architecture
+
+```
+src/ai/personas/
+├── mod.zig              # Main orchestrator
+├── types.zig            # Core types (PersonaRequest, PersonaResponse)
+├── config.zig           # Configuration structs
+├── registry.zig         # Persona registry
+├── metrics.zig          # Metrics with percentile tracking
+├── loadbalancer.zig     # Health-weighted load balancing
+├── health.zig           # Health checking
+├── alerts.zig           # Alert rules and manager
+├── abi/                 # Router persona
+│   ├── sentiment.zig    # Sentiment analysis
+│   ├── policy.zig       # Content moderation
+│   └── rules.zig        # Routing rules engine
+├── abbey/               # Empathetic persona
+│   ├── emotion.zig      # Emotion detection
+│   ├── empathy.zig      # Empathy injection
+│   └── reasoning.zig    # Reasoning chains
+└── aviva/               # Expert persona
+    ├── classifier.zig   # Query classification
+    ├── knowledge.zig    # Knowledge retrieval
+    ├── code.zig         # Code generation
+    └── facts.zig        # Fact checking
+```
+
+For detailed API documentation, see [Personas API Reference](api/personas.md).
 
 ---
 

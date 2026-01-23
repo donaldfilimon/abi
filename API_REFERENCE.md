@@ -3,7 +3,7 @@ title: "API_REFERENCE"
 tags: []
 ---
 # API Reference
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 <p align="center">
   <img src="https://img.shields.io/badge/API-Stable-success?style=for-the-badge" alt="API Stable"/>
@@ -101,6 +101,7 @@ Top-level domain modules (flat structure):
 | `abi.ai.embeddings` | Vector embeddings | ![Stable](https://img.shields.io/badge/-Stable-success) |
 | `abi.ai.agents` | AI agent runtime | ![Stable](https://img.shields.io/badge/-Stable-success) |
 | `abi.ai.training` | Training pipelines | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.ai.personas` | Multi-persona AI assistant | ![Stable](https://img.shields.io/badge/-Stable-success) |
 | `abi.gpu` | GPU backends and unified API | ![Stable](https://img.shields.io/badge/-Stable-success) |
 | `abi.gpu.device` | Device enumeration and selection | ![Stable](https://img.shields.io/badge/-Stable-success) |
 | `abi.gpu.backend_factory` | Backend auto-detection | ![Stable](https://img.shields.io/badge/-Stable-success) |
@@ -246,6 +247,97 @@ std.debug.print("Agent: {s}\n", .{response});
 ```
 
 See [AI Guide](docs/ai.md) for detailed usage.
+
+## Personas API
+
+The Multi-Persona AI Assistant routes queries through specialized personas.
+
+### Personas
+
+| Persona | Type | Description |
+|---------|------|-------------|
+| **Abi** | Router/Moderator | Content moderation, sentiment analysis, routing |
+| **Abbey** | Empathetic Polymath | Supportive responses with emotional intelligence |
+| **Aviva** | Direct Expert | Concise, factual, technically accurate responses |
+
+### Core Types
+
+- `abi.ai.personas.MultiPersonaSystem` - Main orchestrator managing persona routing
+- `abi.ai.personas.PersonaType` - Enum: `.abi`, `.abbey`, `.aviva`
+- `abi.ai.personas.PersonaRequest` - Request structure with content and context
+- `abi.ai.personas.PersonaResponse` - Response with content and routing info
+- `abi.ai.personas.RoutingScore` - Scores for each persona
+
+### Orchestrator API
+
+- `MultiPersonaSystem.init(allocator, config)` -> `!MultiPersonaSystem` - Initialize
+- `MultiPersonaSystem.deinit()` - Clean up resources
+- `MultiPersonaSystem.process(request)` -> `!PersonaResponse` - Auto-route message
+- `MultiPersonaSystem.processWithPersona(type, request)` -> `!PersonaResponse` - Force persona
+- `MultiPersonaSystem.getPersona(type)` -> `?*Persona` - Access specific persona
+- `MultiPersonaSystem.getMetrics()` -> `*Metrics` - Access metrics
+- `MultiPersonaSystem.getHealthChecker()` -> `*HealthChecker` - Access health
+
+### Abi (Router) Components
+
+- `abi.ai.personas.abi.sentiment.SentimentAnalyzer` - Analyze message sentiment
+- `abi.ai.personas.abi.policy.PolicyChecker` - Check content policy
+- `abi.ai.personas.abi.rules.RulesEngine` - Evaluate routing rules
+
+### Abbey (Empathetic) Components
+
+- `abi.ai.personas.abbey.emotion.EmotionProcessor` - Detect emotions
+- `abi.ai.personas.abbey.empathy.EmpathyInjector` - Inject empathetic responses
+- `abi.ai.personas.abbey.reasoning.ReasoningEngine` - Generate reasoning chains
+
+### Aviva (Expert) Components
+
+- `abi.ai.personas.aviva.classifier.QueryClassifier` - Classify query types
+- `abi.ai.personas.aviva.knowledge.KnowledgeRetriever` - Retrieve knowledge
+- `abi.ai.personas.aviva.code.CodeGenerator` - Generate code blocks
+- `abi.ai.personas.aviva.facts.FactChecker` - Verify factual claims
+
+### HTTP API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/chat` | Auto-routing chat |
+| POST | `/api/v1/chat/abbey` | Force Abbey persona |
+| POST | `/api/v1/chat/aviva` | Force Aviva persona |
+| GET | `/api/v1/personas` | List personas and status |
+| GET | `/api/v1/personas/metrics` | Get aggregated metrics |
+| GET | `/api/v1/personas/health` | Health check all personas |
+| WS | `/api/v1/chat/stream` | WebSocket streaming |
+
+### Example
+
+```zig
+const personas = abi.ai.personas;
+
+// Initialize orchestrator
+var orchestrator = try personas.MultiPersonaSystem.init(allocator, .{
+    .enable_abbey = true,
+    .enable_aviva = true,
+    .routing_strategy = .adaptive,
+});
+defer orchestrator.deinit();
+
+// Auto-route based on content
+const response = try orchestrator.process(.{
+    .content = "How do I implement a linked list?",
+});
+
+std.debug.print("Persona: {s}\n", .{@tagName(response.persona_used)});
+std.debug.print("Response: {s}\n", .{response.content});
+
+// Force specific persona
+const abbey_response = try orchestrator.processWithPersona(.abbey, .{
+    .content = "I'm struggling with this concept...",
+});
+```
+
+See [Personas API Reference](docs/api/personas.md) for complete documentation.
+See [Personas Tutorial](docs/tutorials/personas.md) for getting started guide.
 
 ## Connectors API
 

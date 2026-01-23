@@ -3,7 +3,7 @@ title: "CHANGELOG"
 tags: []
 ---
 # Changelog
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 ## 0.3.0 - 2026-01-17
 
@@ -48,6 +48,28 @@ All feature-gated stub modules have been audited and updated for complete API pa
 - Removed stale MAIN_WORKSPACE.md references from 53 files
 - Updated TODO.md with stub verification status
 - Updated ROADMAP.md with code quality completion status
+
+---
+
+## 0.3.3 - 2026-01-23
+
+### Documentation & Cleanup
+
+- Updated CLAUDE.md and AGENTS.md with "Common Workflows" section
+- Removed `src/features/` directory - all modules now in flat structure
+- Updated all markdown files with correct paths and dates
+- Consolidated TODO tracking with ROADMAP.md
+- Removed temporary/audit files (audit_report.md, md_audit_report.md, temp.zig, scripts/)
+- Fixed broken links to archived plan files
+
+### Path Migration Complete
+
+All modules migrated from `src/features/` to top-level `src/`:
+- `src/features/ai/` → `src/ai/`
+- `src/features/monitoring/` → `src/observability/`
+- `src/features/connectors/` → `src/connectors/`
+- `src/features/database/` → `src/database/`
+- `src/features/web/` → `src/web/`
 
 ---
 

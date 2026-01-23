@@ -3,127 +3,24 @@
 //! Provides GPU acceleration for Abbey's neural network operations with
 //! automatic fallback to CPU when GPU is unavailable. Implements adaptive
 //! dispatch based on operation size thresholds to maximize efficiency.
+//!
+//! GPU access is provided through the centralized ai_ops interface, which
+//! handles compile-time gating and provides stub implementations when GPU
+//! is disabled.
 
 const std = @import("std");
 const build_options = @import("build_options");
 
-// GPU backend imports - use stubs when GPU disabled
-const cuda_mod = if (build_options.enable_gpu)
-    @import("../../../gpu/backends/cuda/mod.zig")
-else
-    struct {
-        pub const llm_kernels = struct {
-            pub fn isAvailable() bool {
-                return false;
-            }
-            pub const LlmKernelModule = struct {
-                pub fn init(_: std.mem.Allocator) !@This() {
-                    return error.NotAvailable;
-                }
-                pub fn deinit(_: *@This()) void {}
-                pub fn softmax(_: *@This(), _: u64, _: u32, _: ?*anyopaque) !void {
-                    return error.NotAvailable;
-                }
-                pub fn rmsnorm(_: *@This(), _: u64, _: u64, _: u32, _: f32, _: ?*anyopaque) !void {
-                    return error.NotAvailable;
-                }
-                pub fn silu(_: *@This(), _: u64, _: u32, _: ?*anyopaque) !void {
-                    return error.NotAvailable;
-                }
-                pub fn gelu(_: *@This(), _: u64, _: u32, _: ?*anyopaque) !void {
-                    return error.NotAvailable;
-                }
-                pub fn elementwiseMul(_: *@This(), _: u64, _: u64, _: u32, _: ?*anyopaque) !void {
-                    return error.NotAvailable;
-                }
-                pub fn elementwiseAdd(_: *@This(), _: u64, _: u64, _: u32, _: ?*anyopaque) !void {
-                    return error.NotAvailable;
-                }
-                pub fn scale(_: *@This(), _: u64, _: f32, _: u32, _: ?*anyopaque) !void {
-                    return error.NotAvailable;
-                }
-            };
-        };
-        pub const memory = struct {
-            pub fn init() !void {
-                return error.NotAvailable;
-            }
-            pub const DeviceMemory = struct {
-                ptr: ?*anyopaque,
-                size: usize,
-                allocator: std.mem.Allocator,
-                pub fn init(_: std.mem.Allocator, _: usize) !@This() {
-                    return error.NotAvailable;
-                }
-                pub fn deinit(_: *@This()) void {}
-            };
-            pub fn memcpyHostToDevice(_: *anyopaque, _: *const anyopaque, _: usize) !void {
-                return error.NotAvailable;
-            }
-            pub fn memcpyDeviceToHost(_: *anyopaque, _: *anyopaque, _: usize) !void {
-                return error.NotAvailable;
-            }
-        };
-    };
+// Centralized GPU interface - handles compile-time gating and stubs
+const ai_ops = @import("../../../gpu/ai_ops.zig");
 
-// cuBLAS support
-const cublas = if (build_options.enable_gpu)
-    @import("../../../gpu/backends/cuda/cublas.zig")
-else
-    struct {
-        pub fn isAvailable() bool {
-            return false;
-        }
-        pub const CublasOperation = enum { no_trans, trans };
-        pub const CublasContext = struct {
-            pub fn init() !@This() {
-                return error.NotAvailable;
-            }
-            pub fn deinit(_: *@This()) void {}
-            pub fn sgemm(
-                _: *@This(),
-                _: CublasOperation,
-                _: CublasOperation,
-                _: i32,
-                _: i32,
-                _: i32,
-                _: f32,
-                _: *const anyopaque,
-                _: i32,
-                _: *const anyopaque,
-                _: i32,
-                _: f32,
-                _: *anyopaque,
-                _: i32,
-            ) !void {
-                return error.NotAvailable;
-            }
-        };
-    };
-
-// GPU backend detection
-const backend_mod = if (build_options.enable_gpu)
-    @import("../../../gpu/backend.zig")
-else
-    struct {
-        pub fn summary() Summary {
-            return .{
-                .module_enabled = false,
-                .enabled_backend_count = 0,
-                .available_backend_count = 0,
-                .device_count = 0,
-                .emulated_devices = 0,
-            };
-        }
-
-        pub const Summary = struct {
-            module_enabled: bool,
-            enabled_backend_count: usize,
-            available_backend_count: usize,
-            device_count: usize,
-            emulated_devices: usize,
-        };
-    };
+// Re-export GPU modules from ai_ops (stubs provided when GPU disabled)
+const cuda_mod = struct {
+    pub const llm_kernels = ai_ops.llm_kernels;
+    pub const memory = ai_ops.memory;
+};
+const cublas = ai_ops.cublas;
+const backend_mod = ai_ops.backend;
 
 /// GPU operations context for Abbey neural computations.
 /// Provides unified interface with automatic CPU fallback.

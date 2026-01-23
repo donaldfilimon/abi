@@ -3,7 +3,7 @@ title: "abbey-fine-tuning"
 tags: []
 ---
 # Fine-Tuning gpt-oss for Abbey
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 This guide covers training gpt-oss (OpenAI's open-weight model) as a base for the Abbey AI system using Hugging Face Jobs infrastructure.
 

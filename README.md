@@ -1,14 +1,10 @@
 ---
-title: "README"
-tags: []
----
----
 title: "ABI Framework"
 tags: []
 ---
 
 # ABI Framework
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
@@ -572,7 +568,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow and [CLAUDE.md](
 - Runtime consolidation (`src/runtime/`)
 - CLI runtime flags (`--list-features`, `--enable-*`, `--disable-*`)
 
-See [ROADMAP.md](ROADMAP.md) for upcoming milestones and [docs/plans/2026-01-17-src-refactoring.md](docs/plans/2026-01-17-src-refactoring.md) for refactoring details.
+See [ROADMAP.md](ROADMAP.md) for upcoming milestones and [docs/plans/archive/2026-01-17-src-refactoring.md](docs/plans/archive/2026-01-17-src-refactoring.md) for refactoring details.
 
 </details>
 

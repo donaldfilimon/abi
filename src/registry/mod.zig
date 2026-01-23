@@ -27,47 +27,26 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../config.zig");
 
-pub const Feature = config_module.Feature;
+// Import sub-modules
+pub const types = @import("types.zig");
+pub const registration = @import("registration.zig");
+pub const lifecycle = @import("lifecycle.zig");
 
-/// Registration mode determines how features are discovered and managed.
-pub const RegistrationMode = enum {
-    /// Features resolved at compile time only. Zero runtime overhead.
-    /// Enabled features are statically known and cannot be toggled.
-    comptime_only,
+// Re-export types for backward compatibility
+pub const Feature = types.Feature;
+pub const RegistrationMode = types.RegistrationMode;
+pub const FeatureRegistration = types.FeatureRegistration;
 
-    /// Features compiled in but can be enabled/disabled at runtime.
-    /// Small overhead for state checking and conditional initialization.
-    runtime_toggle,
-
-    /// Features can be dynamically loaded from shared libraries at runtime.
-    /// Requires platform support (dlopen/LoadLibrary). Most flexible but highest overhead.
-    dynamic,
-};
-
-/// Feature registration entry with lifecycle management.
-pub const FeatureRegistration = struct {
-    feature: Feature,
-    mode: RegistrationMode,
-
-    // For comptime_only and runtime_toggle
-    context_ptr: ?*anyopaque = null,
-    config_ptr: ?*const anyopaque = null,
-    init_fn: ?*const fn (std.mem.Allocator, *const anyopaque) anyerror!*anyopaque = null,
-    deinit_fn: ?*const fn (*anyopaque) void = null,
-
-    // For dynamic mode (future)
-    library_handle: ?*anyopaque = null,
-    library_path: ?[]const u8 = null,
-
-    // Runtime state
-    enabled: bool = false,
-    initialized: bool = false,
-};
+// Re-export compile-time utilities
+pub const isFeatureCompiledIn = types.isFeatureCompiledIn;
+pub const getParentFeature = types.getParentFeature;
 
 /// Central registry managing feature lifecycle across all registration modes.
 pub const Registry = struct {
+    /// Error type for Registry operations (alias for backward compatibility).
+    pub const Error = types.Error;
+
     allocator: std.mem.Allocator,
 
     /// Static registrations (comptime_only, runtime_toggle)
@@ -75,20 +54,6 @@ pub const Registry = struct {
 
     /// Runtime toggles (only used if any features are runtime_toggle)
     runtime_overrides: std.AutoHashMapUnmanaged(Feature, bool),
-
-    pub const Error = error{
-        FeatureNotRegistered,
-        FeatureAlreadyRegistered,
-        FeatureNotCompiled,
-        FeatureDisabled,
-        InitializationFailed,
-        AlreadyInitialized,
-        NotInitialized,
-        DynamicLoadingNotSupported,
-        LibraryLoadFailed,
-        SymbolNotFound,
-        InvalidMode,
-    } || std.mem.Allocator.Error;
 
     /// Initialize empty registry.
     pub fn init(allocator: std.mem.Allocator) Registry {
@@ -118,30 +83,14 @@ pub const Registry = struct {
     }
 
     // ========================================================================
-    // Registration API
+    // Registration API (delegates to registration module)
     // ========================================================================
 
     /// Register a feature for comptime-only resolution.
     /// The feature must be enabled at compile time via build_options.
     /// This is zero-overhead - just validates feature exists at comptime.
     pub fn registerComptime(self: *Registry, comptime feature: Feature) Error!void {
-        // Compile-time check that feature is enabled
-        if (!comptime isFeatureCompiledIn(feature)) {
-            @compileError("Feature " ++ @tagName(feature) ++ " not enabled at compile time");
-        }
-
-        // Check if already registered
-        if (self.registrations.contains(feature)) {
-            return Error.FeatureAlreadyRegistered;
-        }
-
-        // Register in map
-        try self.registrations.put(self.allocator, feature, .{
-            .feature = feature,
-            .mode = .comptime_only,
-            .enabled = true, // Comptime features are always enabled
-            .initialized = false,
-        });
+        return registration.registerComptime(self.allocator, &self.registrations, feature);
     }
 
     /// Register a feature with runtime toggle capability.
@@ -152,39 +101,7 @@ pub const Registry = struct {
         comptime ContextType: type,
         config_ptr: *const anyopaque,
     ) Error!void {
-        // Compile-time validation
-        if (!comptime isFeatureCompiledIn(feature)) {
-            @compileError("Feature " ++ @tagName(feature) ++ " not compiled in");
-        }
-
-        // Check if already registered
-        if (self.registrations.contains(feature)) {
-            return Error.FeatureAlreadyRegistered;
-        }
-
-        // Create type-erased init/deinit wrappers
-        const Wrapper = struct {
-            fn initWrapper(allocator: std.mem.Allocator, cfg_ptr: *const anyopaque) anyerror!*anyopaque {
-                _ = cfg_ptr; // Config handled by ContextType.init
-                const ctx = try ContextType.init(allocator);
-                return @ptrCast(ctx);
-            }
-
-            fn deinitWrapper(context_ptr: *anyopaque) void {
-                const ctx: *ContextType = @ptrCast(@alignCast(context_ptr));
-                ctx.deinit();
-            }
-        };
-
-        try self.registrations.put(self.allocator, feature, .{
-            .feature = feature,
-            .mode = .runtime_toggle,
-            .config_ptr = config_ptr,
-            .init_fn = &Wrapper.initWrapper,
-            .deinit_fn = &Wrapper.deinitWrapper,
-            .enabled = false, // Disabled by default, must explicitly enable
-            .initialized = false,
-        });
+        return registration.registerRuntimeToggle(self.allocator, &self.registrations, feature, ContextType, config_ptr);
     }
 
     /// Register a feature for dynamic loading from a shared library (future).
@@ -193,80 +110,31 @@ pub const Registry = struct {
         feature: Feature,
         library_path: []const u8,
     ) Error!void {
-        // Check if already registered
-        if (self.registrations.contains(feature)) {
-            return Error.FeatureAlreadyRegistered;
-        }
-
-        const path_copy = try self.allocator.dupe(u8, library_path);
-        errdefer self.allocator.free(path_copy);
-
-        try self.registrations.put(self.allocator, feature, .{
-            .feature = feature,
-            .mode = .dynamic,
-            .library_path = path_copy,
-            .enabled = false,
-            .initialized = false,
-        });
+        return registration.registerDynamic(self.allocator, &self.registrations, feature, library_path);
     }
 
     // ========================================================================
-    // Lifecycle Management
+    // Lifecycle Management (delegates to lifecycle module)
     // ========================================================================
 
     /// Initialize a registered feature. For runtime_toggle and dynamic modes.
     pub fn initFeature(self: *Registry, feature: Feature) Error!void {
-        const reg = self.registrations.getPtr(feature) orelse return Error.FeatureNotRegistered;
-
-        if (reg.initialized) return Error.AlreadyInitialized;
-
-        switch (reg.mode) {
-            .comptime_only => {
-                // Comptime features don't need explicit init via registry
-                reg.initialized = true;
-            },
-
-            .runtime_toggle => {
-                if (!reg.enabled) return Error.FeatureDisabled;
-
-                const init_fn = reg.init_fn orelse return Error.InitializationFailed;
-                const config_ptr = reg.config_ptr orelse return Error.InitializationFailed;
-                reg.context_ptr = init_fn(self.allocator, config_ptr) catch return Error.InitializationFailed;
-                reg.initialized = true;
-            },
-
-            .dynamic => {
-                // Dynamic loading not yet implemented
-                return Error.DynamicLoadingNotSupported;
-            },
-        }
+        return lifecycle.initFeature(self.allocator, &self.registrations, feature);
     }
 
     /// Shutdown a feature, releasing resources.
     pub fn deinitFeature(self: *Registry, feature: Feature) Error!void {
-        const reg = self.registrations.getPtr(feature) orelse return Error.FeatureNotRegistered;
+        return lifecycle.deinitFeature(&self.registrations, feature);
+    }
 
-        if (!reg.initialized) return;
+    /// Enable a runtime-toggleable feature.
+    pub fn enableFeature(self: *Registry, feature: Feature) Error!void {
+        return lifecycle.enableFeature(self.allocator, &self.registrations, &self.runtime_overrides, feature);
+    }
 
-        switch (reg.mode) {
-            .comptime_only => {
-                reg.initialized = false;
-            },
-
-            .runtime_toggle => {
-                if (reg.deinit_fn) |deinit_fn| {
-                    if (reg.context_ptr) |ptr| {
-                        deinit_fn(ptr);
-                    }
-                }
-                reg.context_ptr = null;
-                reg.initialized = false;
-            },
-
-            .dynamic => {
-                return Error.DynamicLoadingNotSupported;
-            },
-        }
+    /// Disable a runtime-toggleable feature. Deinitializes if currently initialized.
+    pub fn disableFeature(self: *Registry, feature: Feature) Error!void {
+        return lifecycle.disableFeature(self.allocator, &self.registrations, &self.runtime_overrides, feature);
     }
 
     // ========================================================================
@@ -328,35 +196,6 @@ pub const Registry = struct {
         return @ptrCast(@alignCast(ptr));
     }
 
-    /// Enable a runtime-toggleable feature.
-    pub fn enableFeature(self: *Registry, feature: Feature) Error!void {
-        const reg = self.registrations.getPtr(feature) orelse return Error.FeatureNotRegistered;
-
-        if (reg.mode == .comptime_only) {
-            return; // Already enabled, nothing to do
-        }
-
-        reg.enabled = true;
-        try self.runtime_overrides.put(self.allocator, feature, true);
-    }
-
-    /// Disable a runtime-toggleable feature. Deinitializes if currently initialized.
-    pub fn disableFeature(self: *Registry, feature: Feature) Error!void {
-        const reg = self.registrations.getPtr(feature) orelse return Error.FeatureNotRegistered;
-
-        if (reg.mode == .comptime_only) {
-            return Error.InvalidMode;
-        }
-
-        // Deinit if initialized
-        if (reg.initialized) {
-            try self.deinitFeature(feature);
-        }
-
-        reg.enabled = false;
-        try self.runtime_overrides.put(self.allocator, feature, false);
-    }
-
     /// Get list of all registered features.
     pub fn listFeatures(self: *const Registry, allocator: std.mem.Allocator) Error![]Feature {
         var list = std.ArrayList(Feature).init(allocator);
@@ -375,34 +214,6 @@ pub const Registry = struct {
         return self.registrations.count();
     }
 };
-
-// ============================================================================
-// Compile-time Feature Checking
-// ============================================================================
-
-/// Check if a feature is compiled in via build_options.
-pub fn isFeatureCompiledIn(comptime feature: Feature) bool {
-    return switch (feature) {
-        .gpu => build_options.enable_gpu,
-        .ai => build_options.enable_ai,
-        .llm => build_options.enable_llm,
-        .embeddings => build_options.enable_ai,
-        .agents => build_options.enable_ai,
-        .training => build_options.enable_ai,
-        .database => build_options.enable_database,
-        .network => build_options.enable_network,
-        .observability => build_options.enable_profiling,
-        .web => build_options.enable_web,
-    };
-}
-
-/// Get parent feature for sub-features.
-pub fn getParentFeature(feature: Feature) ?Feature {
-    return switch (feature) {
-        .llm, .embeddings, .agents, .training => .ai,
-        else => null,
-    };
-}
 
 // ============================================================================
 // Tests

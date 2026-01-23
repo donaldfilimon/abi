@@ -41,28 +41,24 @@ fn getCurrentInstant() ?PlatformInstant {
 var app_start_instant: ?PlatformInstant = null;
 var app_start_initialized: bool = false;
 
-fn ensureStartInstant() PlatformInstant {
+fn ensureStartInstant() ?PlatformInstant {
     if (!app_start_initialized) {
         app_start_instant = getCurrentInstant();
         app_start_initialized = true;
     }
-    if (has_instant) {
-        return app_start_instant orelse PlatformInstant{ .timestamp = 0 };
-    } else {
-        return app_start_instant orelse PlatformInstant{ .counter = 0 };
-    }
+    return app_start_instant;
 }
 
 pub fn getTimestampNs() i128 {
     if (!has_instant) return 0;
-    const start = ensureStartInstant();
+    const start = ensureStartInstant() orelse return 0;
     const now = getCurrentInstant() orelse return 0;
     return @intCast(now.since(start));
 }
 
 pub fn getTimestampMs() i64 {
     if (!has_instant) return 0;
-    const start = ensureStartInstant();
+    const start = ensureStartInstant() orelse return 0;
     const now = getCurrentInstant() orelse return 0;
     const elapsed_ns = now.since(start);
     return @intCast(@divTrunc(elapsed_ns, std.time.ns_per_ms));
@@ -70,7 +66,7 @@ pub fn getTimestampMs() i64 {
 
 pub fn getTimestampSec() i64 {
     if (!has_instant) return 0;
-    const start = ensureStartInstant();
+    const start = ensureStartInstant() orelse return 0;
     const now = getCurrentInstant() orelse return 0;
     const elapsed_ns = now.since(start);
     return @intCast(@divTrunc(elapsed_ns, std.time.ns_per_s));

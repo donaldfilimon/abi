@@ -3,7 +3,7 @@ title: "intro"
 tags: []
 ---
 # Introduction
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 > **Quick Start**: See [Quickstart Guide](../QUICKSTART.md) for immediate setup examples.
 > **Developer Guide**: See [CONTRIBUTING.md](../CONTRIBUTING.md) for AI agent coding patterns and build commands.

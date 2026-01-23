@@ -30,6 +30,48 @@ const build_options = @import("build_options");
 const shared_config = @import("shared/utils_combined.zig").config;
 pub const ConfigLoader = shared_config.ConfigLoader;
 
+// =============================================================================
+// Domain Configuration Re-exports
+// =============================================================================
+// Domain-specific configs are defined in separate files for maintainability.
+// This module re-exports them to maintain backward compatibility.
+
+const gpu_mod = @import("config/gpu.zig");
+const ai_mod = @import("config/ai.zig");
+const database_mod = @import("config/database.zig");
+const network_mod = @import("config/network.zig");
+const observability_mod = @import("config/observability.zig");
+const web_mod = @import("config/web.zig");
+const plugins_mod = @import("config/plugins.zig");
+
+// GPU configuration types
+pub const GpuConfig = gpu_mod.GpuConfig;
+
+// AI configuration types
+pub const AiConfig = ai_mod.AiConfig;
+pub const LlmConfig = ai_mod.LlmConfig;
+pub const EmbeddingsConfig = ai_mod.EmbeddingsConfig;
+pub const AgentsConfig = ai_mod.AgentsConfig;
+pub const TrainingConfig = ai_mod.TrainingConfig;
+pub const PersonasConfig = ai_mod.PersonasConfig;
+
+// Database configuration types
+pub const DatabaseConfig = database_mod.DatabaseConfig;
+
+// Network configuration types
+pub const NetworkConfig = network_mod.NetworkConfig;
+pub const UnifiedMemoryConfig = network_mod.UnifiedMemoryConfig;
+pub const LinkingConfig = network_mod.LinkingConfig;
+
+// Observability configuration types
+pub const ObservabilityConfig = observability_mod.ObservabilityConfig;
+
+// Web configuration types
+pub const WebConfig = web_mod.WebConfig;
+
+// Plugin configuration types
+pub const PluginConfig = plugins_mod.PluginConfig;
+
 /// Unified configuration for the ABI framework.
 /// Each field being non-null enables that feature with the specified settings.
 /// A null field means the feature is disabled.
@@ -82,6 +124,7 @@ pub const Config = struct {
             .embeddings => if (self.ai) |ai| ai.embeddings != null else false,
             .agents => if (self.ai) |ai| ai.agents != null else false,
             .training => if (self.ai) |ai| ai.training != null else false,
+            .personas => if (self.ai) |ai| ai.personas != null else false,
             .database => self.database != null,
             .network => self.network != null,
             .observability => self.observability != null,
@@ -113,6 +156,7 @@ pub const Feature = enum {
     embeddings,
     agents,
     training,
+    personas,
     database,
     network,
     observability,
@@ -130,6 +174,7 @@ pub const Feature = enum {
             .embeddings => "Vector embeddings generation",
             .agents => "AI agent runtime",
             .training => "Model training pipelines",
+            .personas => "Multi-persona assistant",
             .database => "Vector database (WDBX)",
             .network => "Distributed compute network",
             .observability => "Metrics, tracing, profiling",
@@ -141,567 +186,13 @@ pub const Feature = enum {
     pub fn isCompileTimeEnabled(self: Feature) bool {
         return switch (self) {
             .gpu => build_options.enable_gpu,
-            .ai, .llm, .embeddings, .agents, .training => build_options.enable_ai,
+            .ai, .llm, .embeddings, .agents, .training, .personas => build_options.enable_ai,
             .database => build_options.enable_database,
             .network => build_options.enable_network,
             .observability => build_options.enable_profiling,
             .web => build_options.enable_web,
         };
     }
-};
-
-// ============================================================================
-// GPU Configuration
-// ============================================================================
-
-pub const GpuConfig = struct {
-    /// GPU backend to use. Auto-detect by default.
-    backend: Backend = .auto,
-
-    /// Preferred device index (0 = first available).
-    device_index: u32 = 0,
-
-    /// Maximum GPU memory to use (null = no limit).
-    memory_limit: ?usize = null,
-
-    /// Enable async operations.
-    async_enabled: bool = true,
-
-    /// Enable kernel caching.
-    cache_kernels: bool = true,
-
-    /// Recovery settings for GPU failures.
-    recovery: RecoveryConfig = .{},
-
-    pub const Backend = enum {
-        auto,
-        vulkan,
-        cuda,
-        metal,
-        webgpu,
-        opengl,
-        fpga,
-        cpu,
-    };
-
-    pub const RecoveryConfig = struct {
-        enabled: bool = true,
-        max_retries: u32 = 3,
-        fallback_to_cpu: bool = true,
-    };
-
-    pub fn defaults() GpuConfig {
-        return .{};
-    }
-
-    /// Select the best backend based on availability.
-    pub fn autoSelectBackend() Backend {
-        if (build_options.gpu_cuda) return .cuda;
-        if (build_options.gpu_vulkan) return .vulkan;
-        if (build_options.gpu_metal) return .metal;
-        if (@hasDecl(build_options, "gpu_fpga") and build_options.gpu_fpga) return .fpga;
-        if (build_options.gpu_webgpu) return .webgpu;
-        if (build_options.gpu_opengl) return .opengl;
-        return .cpu;
-    }
-};
-
-// ============================================================================
-// AI Configuration
-// ============================================================================
-
-pub const AiConfig = struct {
-    /// LLM inference settings. Set to enable local LLM.
-    llm: ?LlmConfig = null,
-
-    /// Embeddings generation settings.
-    embeddings: ?EmbeddingsConfig = null,
-
-    /// Agent runtime settings.
-    agents: ?AgentsConfig = null,
-
-    /// Training pipeline settings.
-    training: ?TrainingConfig = null,
-
-    pub fn defaults() AiConfig {
-        return .{
-            .llm = if (build_options.enable_llm) LlmConfig.defaults() else null,
-            .embeddings = EmbeddingsConfig.defaults(),
-            .agents = AgentsConfig.defaults(),
-            .training = null, // Training not enabled by default
-        };
-    }
-
-    /// Enable only LLM inference.
-    pub fn llmOnly(config: LlmConfig) AiConfig {
-        return .{ .llm = config };
-    }
-
-    /// Enable only embeddings.
-    pub fn embeddingsOnly(config: EmbeddingsConfig) AiConfig {
-        return .{ .embeddings = config };
-    }
-};
-
-pub const LlmConfig = struct {
-    /// Path to model file (GGUF format).
-    model_path: ?[]const u8 = null,
-
-    /// Model to use from registry.
-    model_name: []const u8 = "gpt2",
-
-    /// Context window size.
-    context_size: u32 = 2048,
-
-    /// Number of threads for inference.
-    threads: ?u32 = null,
-
-    /// Use GPU acceleration if available.
-    use_gpu: bool = true,
-
-    /// Batch size for inference.
-    batch_size: u32 = 512,
-
-    pub fn defaults() LlmConfig {
-        return .{};
-    }
-};
-
-pub const EmbeddingsConfig = struct {
-    /// Embedding model to use.
-    model: []const u8 = "default",
-
-    /// Output embedding dimension.
-    dimension: u32 = 384,
-
-    /// Normalize output vectors.
-    normalize: bool = true,
-
-    pub fn defaults() EmbeddingsConfig {
-        return .{};
-    }
-};
-
-pub const AgentsConfig = struct {
-    /// Maximum concurrent agents.
-    max_agents: u32 = 16,
-
-    /// Default agent timeout in milliseconds.
-    timeout_ms: u64 = 30000,
-
-    /// Enable agent memory/context persistence.
-    persistent_memory: bool = false,
-
-    pub fn defaults() AgentsConfig {
-        return .{};
-    }
-};
-
-pub const TrainingConfig = struct {
-    /// Number of training epochs.
-    epochs: u32 = 10,
-
-    /// Training batch size.
-    batch_size: u32 = 32,
-
-    /// Learning rate.
-    learning_rate: f32 = 0.001,
-
-    /// Optimizer to use.
-    optimizer: Optimizer = .adamw,
-
-    /// Checkpoint directory.
-    checkpoint_dir: ?[]const u8 = null,
-
-    /// Checkpoint frequency (epochs).
-    checkpoint_frequency: u32 = 1,
-
-    pub const Optimizer = enum {
-        sgd,
-        adam,
-        adamw,
-        rmsprop,
-    };
-
-    pub fn defaults() TrainingConfig {
-        return .{};
-    }
-};
-
-// ============================================================================
-// Database Configuration
-// ============================================================================
-
-pub const DatabaseConfig = struct {
-    /// Database file path.
-    path: []const u8 = "./abi.db",
-
-    /// Index type for vector search.
-    index_type: IndexType = .hnsw,
-
-    /// Enable write-ahead logging.
-    wal_enabled: bool = true,
-
-    /// Cache size in bytes.
-    cache_size: usize = 64 * 1024 * 1024, // 64MB
-
-    /// Auto-optimize on startup.
-    auto_optimize: bool = false,
-
-    pub const IndexType = enum {
-        hnsw,
-        ivf_pq,
-        flat,
-    };
-
-    pub fn defaults() DatabaseConfig {
-        return .{};
-    }
-
-    /// In-memory database configuration.
-    pub fn inMemory() DatabaseConfig {
-        return .{
-            .path = ":memory:",
-            .wal_enabled = false,
-        };
-    }
-};
-
-// ============================================================================
-// Network Configuration
-// ============================================================================
-
-pub const NetworkConfig = struct {
-    /// Node bind address.
-    bind_address: []const u8 = "0.0.0.0",
-
-    /// Node bind port.
-    port: u16 = 8080,
-
-    /// Enable node discovery.
-    discovery_enabled: bool = true,
-
-    /// Known peer addresses for bootstrapping.
-    bootstrap_peers: []const []const u8 = &.{},
-
-    /// Enable Raft consensus.
-    consensus_enabled: bool = false,
-
-    /// Node role in the cluster.
-    role: Role = .worker,
-
-    /// Unified memory configuration.
-    unified_memory: ?UnifiedMemoryConfig = null,
-
-    /// Linking configuration.
-    linking: ?LinkingConfig = null,
-
-    pub const Role = enum {
-        coordinator,
-        worker,
-        observer,
-    };
-
-    pub fn defaults() NetworkConfig {
-        return .{};
-    }
-
-    /// Standalone node (no clustering).
-    pub fn standalone() NetworkConfig {
-        return .{
-            .discovery_enabled = false,
-            .consensus_enabled = false,
-        };
-    }
-
-    /// Distributed compute with unified memory.
-    pub fn distributed() NetworkConfig {
-        return .{
-            .discovery_enabled = true,
-            .consensus_enabled = true,
-            .unified_memory = UnifiedMemoryConfig.defaults(),
-            .linking = LinkingConfig.defaults(),
-        };
-    }
-};
-
-// ============================================================================
-// Unified Memory Configuration
-// ============================================================================
-
-pub const UnifiedMemoryConfig = struct {
-    const max_shared_memory_default: usize = @intCast(@min(
-        @as(u64, 16 * 1024 * 1024 * 1024),
-        @as(u64, std.math.maxInt(usize)),
-    ));
-
-    /// Maximum number of registered memory regions.
-    max_regions: usize = 256,
-
-    /// Maximum total shared memory size (bytes).
-    max_shared_memory: usize = max_shared_memory_default, // 16 GB (clamped)
-
-    /// Enable memory coherence protocol.
-    coherence_enabled: bool = true,
-
-    /// Coherence protocol to use.
-    coherence_protocol: CoherenceProtocol = .mesi,
-
-    /// Enable encryption for memory transfers.
-    encrypt_transfers: bool = true,
-
-    /// Enable compression for memory transfers.
-    compress_transfers: bool = true,
-
-    /// Page size for memory regions.
-    page_size: usize = 4096,
-
-    /// Enable RDMA when available.
-    rdma_enabled: bool = true,
-
-    /// Timeout for remote memory operations (ms).
-    operation_timeout_ms: u64 = 5000,
-
-    /// Enable memory prefetching.
-    prefetch_enabled: bool = true,
-
-    pub const CoherenceProtocol = enum {
-        mesi,
-        moesi,
-        directory,
-        none,
-    };
-
-    pub fn defaults() UnifiedMemoryConfig {
-        return .{};
-    }
-
-    /// High-performance for local Thunderbolt links.
-    pub fn thunderbolt() UnifiedMemoryConfig {
-        return .{
-            .coherence_protocol = .moesi,
-            .encrypt_transfers = false,
-            .compress_transfers = false,
-            .rdma_enabled = true,
-            .operation_timeout_ms = 100,
-        };
-    }
-
-    /// Secure for Internet links.
-    pub fn internet() UnifiedMemoryConfig {
-        return .{
-            .coherence_protocol = .directory,
-            .encrypt_transfers = true,
-            .compress_transfers = true,
-            .rdma_enabled = false,
-            .operation_timeout_ms = 30000,
-        };
-    }
-};
-
-// ============================================================================
-// Linking Configuration
-// ============================================================================
-
-pub const LinkingConfig = struct {
-    /// Preferred transport type.
-    transport: Transport = .auto,
-
-    /// Enable automatic reconnection.
-    auto_reconnect: bool = true,
-
-    /// Maximum reconnection attempts.
-    max_reconnect_attempts: u32 = 5,
-
-    /// Enable bandwidth aggregation.
-    bandwidth_aggregation: bool = false,
-
-    /// Enable compression.
-    compression_enabled: bool = true,
-
-    /// Enable keepalive.
-    keepalive_enabled: bool = true,
-
-    /// Keepalive interval (milliseconds).
-    keepalive_interval_ms: u64 = 30000,
-
-    /// Encryption settings.
-    encryption: EncryptionConfig = .{},
-
-    /// Thunderbolt-specific settings.
-    thunderbolt: ThunderboltConfig = .{},
-
-    /// Internet-specific settings.
-    internet: InternetLinkConfig = .{},
-
-    pub const Transport = enum {
-        auto,
-        thunderbolt,
-        internet_tcp,
-        internet_quic,
-        rdma_roce,
-        rdma_infiniband,
-    };
-
-    pub const EncryptionConfig = struct {
-        /// Encryption type.
-        encryption_type: EncryptionType = .tls_1_3,
-        /// Require mutual TLS.
-        require_mtls: bool = true,
-        /// Certificate path.
-        cert_path: ?[]const u8 = null,
-        /// Key path.
-        key_path: ?[]const u8 = null,
-        /// CA path.
-        ca_path: ?[]const u8 = null,
-
-        pub const EncryptionType = enum {
-            none,
-            tls_1_2,
-            tls_1_3,
-            noise_xx,
-            wireguard,
-        };
-    };
-
-    pub const ThunderboltConfig = struct {
-        /// Enable DMA.
-        dma_enabled: bool = true,
-        /// Maximum DMA transfer size.
-        max_dma_size: usize = 4 * 1024 * 1024,
-        /// Enable peer-to-peer.
-        p2p_enabled: bool = true,
-        /// Security level.
-        security_level: SecurityLevel = .user_authorized,
-
-        pub const SecurityLevel = enum {
-            none,
-            user_authorized,
-            secure_boot,
-        };
-    };
-
-    pub const InternetLinkConfig = struct {
-        /// Enable ICE for NAT traversal.
-        ice_enabled: bool = true,
-        /// STUN servers.
-        stun_servers: []const []const u8 = &default_stun_servers,
-        /// Enable QUIC 0-RTT.
-        zero_rtt_enabled: bool = true,
-        /// Congestion control algorithm.
-        congestion_control: CongestionControl = .bbr,
-
-        pub const CongestionControl = enum {
-            bbr,
-            cubic,
-            reno,
-        };
-
-        const default_stun_servers = [_][]const u8{
-            "stun:stun.l.google.com:19302",
-            "stun:stun.cloudflare.com:3478",
-        };
-    };
-
-    pub fn defaults() LinkingConfig {
-        return .{};
-    }
-
-    /// High-performance local linking.
-    pub fn highPerformance() LinkingConfig {
-        return .{
-            .transport = .thunderbolt,
-            .compression_enabled = false,
-            .encryption = .{ .encryption_type = .none },
-        };
-    }
-
-    /// Secure Internet linking.
-    pub fn secure() LinkingConfig {
-        return .{
-            .transport = .internet_quic,
-            .compression_enabled = true,
-            .encryption = .{
-                .encryption_type = .tls_1_3,
-                .require_mtls = true,
-            },
-        };
-    }
-};
-
-// ============================================================================
-// Observability Configuration
-// ============================================================================
-
-pub const ObservabilityConfig = struct {
-    /// Enable metrics collection.
-    metrics_enabled: bool = true,
-
-    /// Enable distributed tracing.
-    tracing_enabled: bool = true,
-
-    /// Enable performance profiling.
-    profiling_enabled: bool = false,
-
-    /// Metrics export endpoint.
-    metrics_endpoint: ?[]const u8 = null,
-
-    /// Trace sampling rate (0.0 - 1.0).
-    trace_sample_rate: f32 = 0.1,
-
-    pub fn defaults() ObservabilityConfig {
-        return .{};
-    }
-
-    /// Full observability (all features enabled).
-    pub fn full() ObservabilityConfig {
-        return .{
-            .metrics_enabled = true,
-            .tracing_enabled = true,
-            .profiling_enabled = true,
-            .trace_sample_rate = 1.0,
-        };
-    }
-};
-
-// ============================================================================
-// Web Configuration
-// ============================================================================
-
-pub const WebConfig = struct {
-    /// HTTP server bind address.
-    bind_address: []const u8 = "127.0.0.1",
-
-    /// HTTP server port.
-    port: u16 = 3000,
-
-    /// Enable CORS.
-    cors_enabled: bool = true,
-
-    /// Request timeout in milliseconds.
-    timeout_ms: u64 = 30000,
-
-    /// Maximum request body size.
-    max_body_size: usize = 10 * 1024 * 1024, // 10MB
-
-    pub fn defaults() WebConfig {
-        return .{};
-    }
-};
-
-// ============================================================================
-// Plugin Configuration
-// ============================================================================
-
-pub const PluginConfig = struct {
-    /// Paths to search for plugins.
-    paths: []const []const u8 = &.{},
-
-    /// Auto-discover plugins in paths.
-    auto_discover: bool = false,
-
-    /// Plugins to load by name.
-    load: []const []const u8 = &.{},
 };
 
 // ============================================================================
@@ -747,6 +238,15 @@ pub const Builder = struct {
     /// Enable AI with default configuration.
     pub fn withAiDefaults(self: *Builder) *Builder {
         self.config.ai = AiConfig.defaults();
+        return self;
+    }
+
+    /// Enable personas with specified configuration.
+    pub fn withPersonas(self: *Builder, personas_config: PersonasConfig) *Builder {
+        if (self.config.ai == null) {
+            self.config.ai = .{};
+        }
+        self.config.ai.?.personas = personas_config;
         return self;
     }
 

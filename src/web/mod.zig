@@ -1,10 +1,33 @@
 //! Web feature helpers for HTTP and weather client access.
+//!
+//! This module provides:
+//! - HTTP client for making requests
+//! - Weather API client
+//! - Persona API handlers and routes
 const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../config.zig");
 
 const client = @import("client.zig");
 const weather = @import("weather.zig");
+
+// Handlers and routes for persona API
+pub const handlers = struct {
+    pub const chat = @import("handlers/chat.zig");
+};
+pub const routes = struct {
+    pub const personas = @import("routes/personas.zig");
+};
+
+// Re-export handler types
+pub const ChatHandler = handlers.chat.ChatHandler;
+pub const ChatRequest = handlers.chat.ChatRequest;
+pub const ChatResponse = handlers.chat.ChatResponse;
+
+// Re-export route types
+pub const PersonaRouter = routes.personas.Router;
+pub const Route = routes.personas.Route;
+pub const RouteContext = routes.personas.RouteContext;
 
 pub const JsonValue = std.json.Value;
 pub const ParsedJson = std.json.Parsed(JsonValue);

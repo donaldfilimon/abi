@@ -4,7 +4,7 @@ tags: []
 ---
 //! # Source Directory
 //!
-//! > **Codebase Status:** Synced with repository as of 2026-01-22.
+//! > **Codebase Status:** Synced with repository as of 2026-01-23.
 //!
 //! Core source modules of the ABI framework organized by function.
 //!
@@ -32,7 +32,7 @@ tags: []
 //! | `compute/` | Legacy re-exports (backward compat - use `runtime/` instead) |
 //! | `features/` | Legacy feature implementations (ai, connectors, ha) |
 //! | `shared/` | Cross-cutting utilities (logging, platform, utils) |
-//! | `tests/` | Test utilities and property-based testing |
+//! | `tests/` | Test utilities, property-based testing, stub parity verification |
 //!
 //! ## Module Hierarchy
 //!
@@ -42,8 +42,11 @@ tags: []
 //! ├── config.zig           # Unified configuration
 //! ├── framework.zig        # Framework orchestration
 //! │
-//! ├── registry/            # Plugin registry system
-//! │   └── mod.zig          # Feature registration (comptime, runtime-toggle, dynamic)
+//! ├── registry/            # Feature registry system
+//! │   ├── mod.zig          # Public API facade with Registry struct
+//! │   ├── types.zig        # Core types (Feature, RegistrationMode, Error)
+//! │   ├── registration.zig # registerComptime, registerRuntimeToggle, registerDynamic
+//! │   └── lifecycle.zig    # initFeature, deinitFeature, enable/disable
 //! │
 //! ├── runtime/             # Always-on infrastructure (CONSOLIDATED)
 //! │   ├── mod.zig          # Unified entry point

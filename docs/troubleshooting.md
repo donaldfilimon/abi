@@ -3,7 +3,7 @@ title: "troubleshooting"
 tags: []
 ---
 # Troubleshooting
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 Common issues and solutions when working with the ABI Framework.
 

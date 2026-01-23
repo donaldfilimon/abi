@@ -3,7 +3,7 @@ title: "PROMPT"
 tags: []
 ---
 # Project Context for Ralph
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 ## ABI Framework Overview
 
@@ -139,8 +139,8 @@ abi/
 │   ├── observability/   # Metrics, tracing, profiling
 │   ├── tasks/           # Task management system
 │   ├── shared/          # Logging, security, platform utilities
-│   ├── core/            # I/O, diagnostics, collections
-│   └── features/        # Legacy features (connectors, HA, monitoring)
+│   ├── ha/              # High availability (backup, PITR, replication)
+│   └── connectors/      # API connectors (OpenAI, Ollama, Anthropic)
 ├── tools/cli/           # CLI implementation
 ├── benchmarks/          # Performance benchmarks
 └── docs/                # Documentation
@@ -189,23 +189,27 @@ The roadmap is split into phases:
    - Task engine, scheduling, concurrency, memory modules
    - Removed deprecated `src/compute/` re-export layer (commit 64334a1)
 
-### In Progress
-- **Phase 2: Observability Consolidation** - Unify monitoring implementations
-- **Phase 3: AI Module Migration** - Move features/ai/ to ai/
+### Next Up
+- **Benchmark baseline refresh** - Validate consolidation performance
+- **Python bindings expansion** - Beyond foundation bindings
 
 All open items tracked in [ROADMAP.md](ROADMAP.md).
 
 ## Migration Status
 
+All modules fully migrated to flat structure (no more `src/features/`):
+
 | Module | Location | Status |
 |--------|----------|--------|
-| GPU | `src/gpu/` | ✅ Fully migrated |
-| Database | `src/database/` | ✅ Fully migrated |
-| Network | `src/network/` | ✅ Fully migrated |
-| Web | `src/web/` | ✅ Fully migrated |
-| Runtime | `src/runtime/` | ✅ Fully migrated |
-| Registry | `src/registry/` | ✅ New (complete) |
-| Tasks | `src/tasks/` | ✅ Standalone module |
-| AI | `src/ai/` + `src/features/ai/` | 🔄 Partial (wrapper + implementation) |
-| Observability | `src/observability/` + `src/features/monitoring/` | 🔄 Needs consolidation |
+| GPU | `src/gpu/` | ✅ Complete |
+| Database | `src/database/` | ✅ Complete |
+| Network | `src/network/` | ✅ Complete |
+| Web | `src/web/` | ✅ Complete |
+| Runtime | `src/runtime/` | ✅ Complete |
+| Registry | `src/registry/` | ✅ Complete |
+| Tasks | `src/tasks.zig` | ✅ Complete |
+| AI | `src/ai/` | ✅ Complete |
+| Observability | `src/observability/` | ✅ Complete |
+| HA | `src/ha/` | ✅ Complete |
+| Connectors | `src/connectors/` | ✅ Complete |
 

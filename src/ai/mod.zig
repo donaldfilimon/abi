@@ -46,6 +46,7 @@ pub const prompts = @import("prompts/mod.zig");
 pub const abbey = @import("abbey/mod.zig");
 pub const memory = @import("memory/mod.zig");
 pub const federated = @import("federated/mod.zig");
+pub const personas = if (build_options.enable_ai) @import("personas/mod.zig") else @import("personas/stub.zig");
 pub const rag = if (build_options.enable_ai) @import("rag/mod.zig") else @import("rag/stub.zig");
 pub const templates = if (build_options.enable_ai) @import("templates/mod.zig") else @import("templates/stub.zig");
 pub const eval = if (build_options.enable_ai) @import("eval/mod.zig") else @import("eval/stub.zig");
@@ -230,6 +231,7 @@ pub const Context = struct {
     embeddings_ctx: ?*embeddings.Context = null,
     agents_ctx: ?*agents.Context = null,
     training_ctx: ?*training.Context = null,
+    personas_ctx: ?*personas.Context = null,
 
     pub fn init(allocator: std.mem.Allocator, cfg: config_module.AiConfig) !*Context {
         if (!isEnabled()) return error.AiDisabled;
@@ -261,6 +263,10 @@ pub const Context = struct {
             ctx.training_ctx = try training.Context.init(allocator, train_cfg);
         }
 
+        if (cfg.personas) |personas_cfg| {
+            ctx.personas_ctx = try personas.Context.init(allocator, personas_cfg);
+        }
+
         return ctx;
     }
 
@@ -270,6 +276,10 @@ pub const Context = struct {
     }
 
     fn deinitSubFeatures(self: *Context) void {
+        if (self.personas_ctx) |p| {
+            p.deinit();
+            self.personas_ctx = null;
+        }
         if (self.training_ctx) |t| {
             t.deinit();
             self.training_ctx = null;
@@ -308,6 +318,11 @@ pub const Context = struct {
         return self.training_ctx orelse error.TrainingDisabled;
     }
 
+    /// Get personas context (returns error if not enabled).
+    pub fn getPersonas(self: *Context) Error!*personas.Context {
+        return self.personas_ctx orelse error.AiDisabled;
+    }
+
     /// Check if a sub-feature is enabled.
     pub fn isSubFeatureEnabled(self: *Context, feature: SubFeature) bool {
         return switch (feature) {
@@ -315,6 +330,7 @@ pub const Context = struct {
             .embeddings => self.embeddings_ctx != null,
             .agents => self.agents_ctx != null,
             .training => self.training_ctx != null,
+            .personas => self.personas_ctx != null,
         };
     }
 
@@ -323,6 +339,7 @@ pub const Context = struct {
         embeddings,
         agents,
         training,
+        personas,
     };
 };
 

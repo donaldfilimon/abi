@@ -3,7 +3,7 @@ title: "docs-index"
 tags: []
 ---
 # ABI Framework Documentation
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Docs-Complete-success?style=for-the-badge" alt="Docs Complete"/>
@@ -58,7 +58,7 @@ tags: []
 | [GPU Backend](plans/archive/2026-01-17-gpu-backend-completion.md) | GPU backend completion | ![Completed](https://img.shields.io/badge/-Completed-success) |
 | [Refactor Phase 2](plans/archive/2026-01-17-refactor-phase2.md) | Codebase refactoring | ![Completed](https://img.shields.io/badge/-Completed-success) |
 | [Task Management](plans/archive/2026-01-17-task-management-system.md) | Task system design | ![Completed](https://img.shields.io/badge/-Completed-success) |
-| [GPU Codegen Consolidation](plans/archive/2026-01-22-gpu-codegen-consolidation.md) | GPU codegen refactoring | ![Completed](https://img.shields.io/badge/-Completed-success) |
+| [GPU Codegen Consolidation](plans/archive/2026-01-23-gpu-codegen-consolidation.md) | GPU codegen refactoring | ![Completed](https://img.shields.io/badge/-Completed-success) |
 
 ## Developer Resources
 

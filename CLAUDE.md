@@ -1,10 +1,10 @@
----
-title: "CLAUDE"
-tags: []
----
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Working with the Codebase
+
+**IMPORTANT**: Before making changes, always check `git status` for uncommitted work. This codebase frequently has work-in-progress changes across multiple files. Review existing changes before adding new ones to avoid conflicts or duplicating work.
 
 ## Quick Reference
 
@@ -40,6 +40,11 @@ zig build run-hello                    # Run hello example
 zig build run-database                 # Run database example
 zig build run-agent                    # Run agent example
 zig build run-gpu                      # Run GPU example
+
+# Debugging
+zig build -Doptimize=Debug             # Debug build with symbols
+gdb ./zig-out/bin/abi                  # Debug with GDB
+lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 ```
 
 ## Critical Gotchas
@@ -54,10 +59,12 @@ zig build run-gpu                      # Run GPU example
 | WASM limitations | `database`, `network`, `gpu` features auto-disabled for WASM targets |
 | libc linking | CLI and examples require libc for environment variable access |
 | Import paths | Always use `@import("abi")` for public API, not direct file paths |
-| Stub API mismatch | When adding to real module, mirror the change in the corresponding `stub.zig` |
+| Stub/Real module sync | Changes to `mod.zig` must be mirrored in `stub.zig` with identical signatures |
 | Format specifiers | Use `{t}` for errors/enums, not `@errorName()`/`@tagName()` |
 | ArrayListUnmanaged | Use `.empty` not `.init()` for unmanaged variants |
 | Timer API | Use `std.time.Timer.start()` not `std.time.Instant.now()` |
+| Sleep API | Use `std.Io.Clock.Duration.sleep()` not `std.time.sleep()` |
+| HTTP Server init | Use `&reader.interface` and `&writer.interface` for `std.http.Server.init()` |
 | Slow builds | Clear `.zig-cache` or reduce parallelism with `zig build -j 2` |
 | Debug builds | Use `-Doptimize=Debug` for debugging, `-Doptimize=ReleaseFast` for performance |
 
@@ -117,7 +124,11 @@ src/
 ├── ha/                  # High availability (backup, PITR, replication)
 ├── network/             # Distributed compute and Raft consensus
 ├── observability/       # Consolidated metrics, tracing, monitoring
-├── registry/            # Plugin registry (comptime, runtime, dynamic)
+├── registry/            # Feature registry (comptime, runtime, dynamic)
+│   ├── mod.zig          # Public API facade with Registry struct
+│   ├── types.zig        # Core types (Feature, RegistrationMode, Error)
+│   ├── registration.zig # registerComptime, registerRuntimeToggle, registerDynamic
+│   └── lifecycle.zig    # initFeature, deinitFeature, enable/disable
 ├── runtime/             # Always-on infrastructure
 │   ├── engine/          # Work-stealing task execution
 │   ├── scheduling/      # Futures, cancellation, task groups
@@ -131,7 +142,8 @@ src/
 │   ├── platform.zig     # Platform detection
 │   ├── plugins.zig      # Plugin registry primitives
 │   ├── simd.zig         # SIMD vector operations
-│   └── utils.zig        # Base utilities (time, math, string)
+│   ├── utils.zig        # Base utilities (time, math, string)
+│   └── utils_combined.zig  # Unified re-export of all utils sub-modules
 ├── tasks.zig            # Centralized task management
 ├── web/                 # Web/HTTP utilities
 └── tests/               # Integration test suite
@@ -140,7 +152,7 @@ src/
 **Import guidance:**
 - **Public API**: Always use `@import("abi")` - never import files directly
 - **Feature Modules**: Access via `abi.gpu`, `abi.ai`, `abi.database`, etc.
-- **Shared Utilities**: Import from `src/shared/utils.zig` or specific files
+- **Shared Utilities**: Import from `src/shared/utils_combined.zig` for all utils sub-modules, or specific files for targeted imports
 - **Internal AI**: Implementation files import from `../../core/mod.zig` for types
 
 **Stub pattern:** Each feature module has a `stub.zig` that provides the same API surface when the feature is disabled. When modifying a module's public API, update both `mod.zig` and `stub.zig` to maintain compatibility.
@@ -174,6 +186,8 @@ pub const Generator = generic.WgslGenerator;
 
 This pattern reduces each backend from ~1,000+ lines to ~50-100 lines while keeping all shared logic in `generic.zig`.
 
+**Table-driven build system:** `build.zig` uses arrays of `BuildTarget` structs to define examples and benchmarks. When adding new examples or benchmarks, add them to the appropriate array (`example_targets` or `benchmark_targets`) rather than duplicating build code. The `buildTargets()` function handles compilation uniformly.
+
 ### Configuration System (`src/config.zig`)
 
 Single `Config` struct with optional feature configs and builder pattern:
@@ -198,6 +212,19 @@ const config = abi.Config.init()
 var framework = try abi.Framework.init(allocator, config);
 defer framework.deinit();
 ```
+
+## Common Workflows
+
+### Adding a new public API function
+1. Add to the real module (`src/<feature>/mod.zig`)
+2. Mirror the same signature in `src/<feature>/stub.zig`
+3. If the function needs types from core, import from `../../core/mod.zig`
+4. Run `zig build test` to verify both paths compile
+
+### Adding a new example
+1. Add entry to `example_targets` array in `build.zig`
+2. Create the example file in `examples/`
+3. Run `zig build examples` to verify compilation
 
 ## Zig 0.16 Patterns
 
@@ -313,7 +340,16 @@ lldb ./zig-out/bin/abi
 (lldb) breakpoint set --file engine.zig --line 150
 ```
 
-For memory leak detection, use `std.heap.GeneralPurposeAllocator` with `.stack_trace_frames = 10`.
+**Memory leak detection:**
+```zig
+var gpa = std.heap.GeneralPurposeAllocator(.{
+    .stack_trace_frames = 10,
+}){};
+defer {
+    const check = gpa.deinit();
+    if (check == .leak) @panic("Memory leak detected");
+}
+```
 
 ## Reference
 

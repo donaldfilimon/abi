@@ -3,7 +3,7 @@ title: "01-getting-started"
 tags: []
 ---
 # Video Walkthrough: Getting Started with ABI
-> **Codebase Status:** Synced with repository as of 2026-01-22.
+> **Codebase Status:** Synced with repository as of 2026-01-23.
 
 **Duration:** 20 minutes
 **Difficulty:** Beginner
