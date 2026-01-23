@@ -540,7 +540,8 @@ pub const UnifiedMemoryManager = struct {
         // - Server-side handler for remote write requests
         // - Acknowledgment/response handling
         // - Atomic write guarantees for coherence protocol
-        // For now, only track statistics (actual transfer pending implementation)
+        // For now, discard data silently
+        _ = data;
 
         self.stats.remote_writes += 1;
         self.stats.bytes_transferred_out += data.len;
