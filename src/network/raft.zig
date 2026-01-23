@@ -1240,7 +1240,7 @@ pub const RaftSnapshotManager = struct {
         const io = io_backend.io();
 
         // Ensure directory exists
-        std.Io.Dir.cwd().makePath(io, self.snapshot_dir) catch |err| {
+        std.Io.Dir.cwd().createDirPath(io, self.snapshot_dir) catch |err| {
             std.log.warn("Failed to create snapshot directory '{s}': {t}", .{ self.snapshot_dir, err });
         };
 
