@@ -112,14 +112,19 @@ src/
 │   ├── implementation/  # Consolidated AI implementation layer
 │   ├── agents/          # Agent runtime
 │   ├── embeddings/      # Vector embeddings
-│   ├── llm/             # Local LLM inference
+│   ├── llm/             # Local LLM inference (streaming, tokenization)
+│   ├── orchestration/   # Multi-model routing, ensemble, fallback
 │   └── training/        # Training pipelines
+├── cloud/               # Cloud function adapters (AWS Lambda, Azure, GCP)
 ├── connectors/          # API connectors (OpenAI, Ollama, Anthropic, HuggingFace)
 ├── database/            # Vector database (WDBX with HNSW/IVF-PQ)
 ├── gpu/                 # GPU acceleration (Vulkan, CUDA, Metal, etc.)
+│   ├── kernels/         # Split kernel implementations (elementwise, matrix, etc.)
+│   ├── backends/fpga/   # FPGA backend stubs and types
 │   └── dsl/codegen/     # Shader codegen with generic comptime template
 │       ├── generic.zig  # Comptime CodeGenerator(BackendConfig) template
 │       ├── configs/     # Backend-specific config structs (glsl, wgsl, msl, cuda)
+│       ├── spirv/       # Split SPIRV generator modules
 │       └── *.zig        # Thin wrappers re-exporting generic generators
 ├── ha/                  # High availability (backup, PITR, replication)
 ├── network/             # Distributed compute and Raft consensus
@@ -361,4 +366,6 @@ defer {
 - [docs/agents.md](docs/agents.md) - Agents guide with environment setup
 - [docs/gpu.md](docs/gpu.md) - GPU backend details
 - [docs/ai.md](docs/ai.md) - AI module guide
+- [docs/cloud-deployment.md](docs/cloud-deployment.md) - Cloud function deployment
+- [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) - Security findings and recommendations
 
