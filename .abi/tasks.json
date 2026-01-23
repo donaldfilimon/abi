@@ -1,0 +1,6 @@
+{
+  "next_id": 2,
+  "tasks": [
+    {"id":1,"title":"Test task","status":"pending","priority":"high","category":"personal","created_at":0,"updated_at":0}
+  ]
+}
