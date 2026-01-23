@@ -209,5 +209,10 @@ pub fn isEnabled() bool {
 
 test {
     std.testing.refAllDecls(@This());
+    // Integration and unit tests
     _ = @import("tests/integration_test.zig");
+    _ = @import("tests/abbey_test.zig");
+    _ = @import("tests/abi_test.zig");
+    _ = @import("tests/aviva_test.zig");
+    _ = @import("tests/benchmark_test.zig");
 }

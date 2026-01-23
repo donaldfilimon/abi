@@ -219,7 +219,7 @@ test "routing decision flow" {
         try testing.expect(pol.is_safe);
 
         // Step 3: Evaluate rules
-        var request = types.PersonaRequest{ .content = content };
+        const request = types.PersonaRequest{ .content = content };
         const scores = engine.evaluate(request, sent);
 
         // Should produce valid scores
@@ -234,7 +234,7 @@ test "routing decision flow" {
         const pol = checker.check(content);
         try testing.expect(pol.is_safe);
 
-        var request = types.PersonaRequest{ .content = content };
+        const request = types.PersonaRequest{ .content = content };
         const scores = engine.evaluate(request, sent);
 
         // Abbey should be favored

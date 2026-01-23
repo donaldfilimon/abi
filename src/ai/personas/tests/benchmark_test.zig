@@ -220,7 +220,7 @@ test "benchmark: routing rules evaluation" {
     var i: u32 = 0;
     while (i < iterations) : (i += 1) {
         for (test_requests) |content| {
-            var request = types.PersonaRequest{ .content = content };
+            const request = types.PersonaRequest{ .content = content };
             const sent_result = analyzer.analyze(content);
 
             var timer = std.time.Timer.start() catch continue;
@@ -407,7 +407,7 @@ test "benchmark: full routing pipeline" {
             _ = classification;
 
             // Step 4: Rules evaluation
-            var request = types.PersonaRequest{ .content = query };
+            const request = types.PersonaRequest{ .content = query };
             const scores = engine.evaluate(request, sent_result);
             _ = scores;
 

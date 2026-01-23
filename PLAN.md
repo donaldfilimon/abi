@@ -4,7 +4,7 @@ tags: []
 ---
 # Current Development Focus
 
-> Updated: 2026-01-22
+> Updated: 2026-01-23
 
 ## This Sprint
 
@@ -16,14 +16,17 @@ All sprint items completed. Ready for next sprint planning.
 
 Ready to start when current work completes:
 
-1. **Benchmark baseline refresh** - Performance validation after consolidation
-2. **Python bindings expansion** - Beyond foundation bindings
+1. **Python bindings expansion** - Beyond foundation bindings
+2. **npm package for WASM bindings** - Web distribution
+3. **VS Code extension** - ABI development tooling
 
 ---
 
 ## Recently Completed
 
-- Documentation update: LLM feature details added to CLAUDE.md and AGENTS.md
+- **Multi-Persona AI Assistant** - Full implementation of Abi/Abbey/Aviva personas with routing, embeddings, metrics, load balancing, API, and documentation (2026-01-23)
+- **Benchmark baseline refresh** - Performance validation showing +33% average improvement (2026-01-23)
+- Documentation update: Common Workflows section added to CLAUDE.md and AGENTS.md
 - GPU codegen consolidation: WGSL, CUDA, MSL, GLSL all using generic module
 - Observability module consolidation (unified metrics, tracing, profiling)
 - Task management system (CLI + persistence)
