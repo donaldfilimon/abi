@@ -403,7 +403,7 @@ pub const KernelResult = struct {
     pub const Status = enum {
         success,
         timeout,
-        error,
+        err,
         cancelled,
     };
 };

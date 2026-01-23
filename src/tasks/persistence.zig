@@ -16,7 +16,7 @@ pub fn writeJsonString(allocator: std.mem.Allocator, buf: *std.ArrayListUnmanage
     for (s) |c| {
         switch (c) {
             '"' => try buf.appendSlice(allocator, "\\\""),
-            '\' => try buf.appendSlice(allocator, "\\\\"),
+            '\\' => try buf.appendSlice(allocator, "\\\\"),
             '\n' => try buf.appendSlice(allocator, "\n"),
             '\r' => try buf.appendSlice(allocator, "\r"),
             '\t' => try buf.appendSlice(allocator, "\t"),

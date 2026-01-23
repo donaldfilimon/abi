@@ -19,6 +19,9 @@ Ready to start when current work completes:
 1. **Python bindings expansion** - Beyond foundation bindings
 2. **npm package for WASM bindings** - Web distribution
 3. **VS Code extension** - ABI development tooling
+4. **GPU performance refactor** - Optimize memory sync, kernel launch overhead, and adaptive tiling (see docs/plans/2026-01-23-gpu-performance-refactor.md)
+5. **Mega GPU + TUI + Self-Learning Agent Upgrade** - Complete real Vulkan backend, dynamic TUI, and self-improving Claude-style agent (see docs/plans/2026-01-23-mega-gpu-tui-agent-upgrade.md)
+4. **Vulkan backend consolidation** - Merge `vulkan_types.zig`, `vulkan_init.zig`, `vulkan_pipelines.zig`, and `vulkan_buffers.zig` into a single `vulkan.zig` module (see docs/plans/2026-01-23-vulkan-combine.md)
 
 ---
 
@@ -41,4 +44,3 @@ Ready to start when current work completes:
 - [docs/plans/](docs/plans/) - Active implementation plans
 - [docs/plans/archive/](docs/plans/archive/) - Completed plans
 - [CLAUDE.md](CLAUDE.md) - Development guidelines
-

@@ -65,7 +65,7 @@ fn executeEdit(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
 
     // Read file
     const max_size = 10 * 1024 * 1024; // 10MB max
-    const content = std.fs.cwd().readFileAlloc(ctx.allocator, full_path, max_size) catch |err| {
+    const content = std.io.cwd().readFileAlloc(ctx.allocator, full_path, max_size) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to read file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };
@@ -117,7 +117,7 @@ fn executeEdit(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
     new_content.appendSlice(content[last_end..]) catch return error.OutOfMemory;
 
     // Write file
-    const file = std.fs.cwd().createFile(full_path, .{}) catch |err| {
+    const file = std.io.cwd().createFile(full_path, .{}) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to write file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };
@@ -203,7 +203,7 @@ fn executeInsertLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
 
     // Read file
     const max_size = 10 * 1024 * 1024; // 10MB max
-    const file_content = std.fs.cwd().readFileAlloc(ctx.allocator, full_path, max_size) catch |err| {
+    const file_content = std.io.cwd().readFileAlloc(ctx.allocator, full_path, max_size) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to read file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };
@@ -246,7 +246,7 @@ fn executeInsertLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
     }
 
     // Write file
-    const file = std.fs.cwd().createFile(full_path, .{}) catch |err| {
+    const file = std.io.cwd().createFile(full_path, .{}) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to write file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };
@@ -336,7 +336,7 @@ fn executeDeleteLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
 
     // Read file
     const max_size = 10 * 1024 * 1024; // 10MB max
-    const file_content = std.fs.cwd().readFileAlloc(ctx.allocator, full_path, max_size) catch |err| {
+    const file_content = std.io.cwd().readFileAlloc(ctx.allocator, full_path, max_size) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to read file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };
@@ -376,7 +376,7 @@ fn executeDeleteLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
     }
 
     // Write file
-    const file = std.fs.cwd().createFile(full_path, .{}) catch |err| {
+    const file = std.io.cwd().createFile(full_path, .{}) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to write file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };

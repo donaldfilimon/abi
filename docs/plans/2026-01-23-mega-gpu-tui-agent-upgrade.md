@@ -1,5 +1,7 @@
 # Mega GPU + TUI + Self-Learning Agent Upgrade Plan
 
+**Status** – Core stubs for `AsyncTui`, widget placeholders, and agent scaffolding have been added; detailed implementation to follow.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Complete GPU backend implementations with real hardware support, upgrade TUI with dynamic real-time refresh, and build a self-learning Claude-Code-like agent system in Zig.

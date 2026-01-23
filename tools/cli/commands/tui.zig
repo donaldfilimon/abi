@@ -364,7 +364,7 @@ const colors = struct {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /// Entry point for the TUI command.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8) !void {
     var parser = utils.args.ArgParser.init(allocator, args);
 
     if (parser.wantsHelp()) {
@@ -372,7 +372,8 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         return;
     }
 
-    var framework = try abi.init(allocator, abi.FrameworkOptions{});
+    const fw_config = (abi.FrameworkOptions{}).toConfig();
+    var framework = try abi.Framework.initWithIo(allocator, fw_config, io);
     defer abi.shutdown(&framework);
 
     try runInteractive(allocator, &framework);
@@ -1315,18 +1316,18 @@ fn writeRepeat(term: *tui.Terminal, char: []const u8, count: usize) !void {
 // ═══════════════════════════════════════════════════════════════════════════
 
 fn runAction(allocator: std.mem.Allocator, framework: *abi.Framework, action: Action) !void {
-    _ = framework;
+    const io = framework.io.?;
     std.debug.print("\n", .{});
 
     switch (action) {
-        .command => |cmd| try runCommand(allocator, cmd),
+        .command => |cmd| try runCommand(allocator, io, cmd),
         .version => utils.output.printInfo("ABI Framework v{s}", .{abi.version()}),
         .help => printHelp(),
         .quit => {},
     }
 }
 
-fn runCommand(allocator: std.mem.Allocator, cmd: Command) !void {
+fn runCommand(allocator: std.mem.Allocator, io: std.Io, cmd: Command) !void {
     switch (cmd) {
         .db => try db.run(allocator, empty_args),
         .agent => try agent.run(allocator, empty_args),
@@ -1341,7 +1342,7 @@ fn runCommand(allocator: std.mem.Allocator, cmd: Command) !void {
         .simd => try simd.run(allocator, empty_args),
         .system_info => try system_info.run(allocator, empty_args),
         .train => try train.run(allocator, empty_args),
-        .task => try task.run(allocator, empty_args),
+        .task => try task.run(allocator, io, empty_args),
     }
 }
 

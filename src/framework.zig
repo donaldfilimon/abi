@@ -74,7 +74,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("config.zig");
+const config_module = @import("config/mod.zig");
 const registry_mod = @import("registry/mod.zig");
 
 pub const Config = config_module.Config;

@@ -46,6 +46,8 @@ comptime {
     _ = @import("e2e_database_test.zig");
     _ = @import("e2e_personas_test.zig");
     _ = @import("error_handling_test.zig");
+    // KernelRing fast‑path test
+    _ = @import("kernel_ring_test.zig");
 }
 
 // Connector tests

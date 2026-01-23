@@ -52,7 +52,15 @@ pub fn mainWithArgs(proc_args: std.process.Args) !void {
         std.process.exit(1);
     }
 
-    var framework = try abi.init(allocator, abi.FrameworkOptions{});
+    // Initialize shared I/O backend for Zig 0.16
+    var io_backend = std.Io.Threaded.init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const fw_config = (abi.FrameworkOptions{}).toConfig();
+    var framework = try abi.Framework.initWithIo(allocator, fw_config, io);
     defer abi.shutdown(&framework);
 
     // Apply runtime feature overrides to registry
@@ -150,12 +158,12 @@ pub fn mainWithArgs(proc_args: std.process.Args) !void {
     }
 
     if (std.mem.eql(u8, command, "task")) {
-        try commands.task.run(allocator, args[2..]);
+        try commands.task.run(allocator, io, args[2..]);
         return;
     }
 
     if (std.mem.eql(u8, command, "tui")) {
-        try commands.tui.run(allocator, args[2..]);
+        try commands.tui.run(allocator, io, args[2..]);
         return;
     }
 

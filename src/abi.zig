@@ -76,7 +76,7 @@ comptime {
 // ============================================================================
 
 /// Unified configuration system.
-pub const config = @import("config.zig");
+pub const config = @import("config/mod.zig");
 pub const Config = config.Config;
 pub const Feature = config.Feature;
 
@@ -141,7 +141,7 @@ else
 pub const ha = @import("ha/mod.zig");
 
 /// Task management system.
-pub const tasks = @import("tasks.zig");
+pub const tasks = @import("tasks/mod.zig");
 
 // ============================================================================
 // Legacy Compatibility Layer

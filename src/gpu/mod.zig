@@ -106,7 +106,7 @@
 //! - Backend-specific initialization functions (initCudaComponents, etc.)
 const std = @import("std");
 const backend = @import("backend.zig");
-const kernels = @import("kernels.zig");
+const kernels = @import("runtime_kernels.zig");
 const memory = @import("memory.zig");
 const kernel_cache = @import("kernel_cache.zig");
 pub const profiling = @import("profiling.zig");
@@ -457,7 +457,7 @@ pub fn isInitialized() bool {
 // Context - Framework Integration
 // ============================================================================
 
-const config_module = @import("../config.zig");
+const config_module = @import("../config/mod.zig");
 
 /// GPU Context for Framework integration.
 ///

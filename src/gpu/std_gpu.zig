@@ -75,7 +75,7 @@ pub fn GlobalPtr(comptime T: type) type {
 /// Const pointer to global (device) memory
 pub fn GlobalConstPtr(comptime T: type) type {
     if (is_gpu_target) {
-        return *const addrspace(.global) T;
+        return *addrspace(.global) const T;
     }
     return *const T;
 }
@@ -91,7 +91,7 @@ pub fn SharedPtr(comptime T: type) type {
 /// Const pointer to shared (workgroup) memory
 pub fn SharedConstPtr(comptime T: type) type {
     if (is_gpu_target) {
-        return *const addrspace(.shared) T;
+        return *addrspace(.shared) const T;
     }
     return *const T;
 }
@@ -99,7 +99,7 @@ pub fn SharedConstPtr(comptime T: type) type {
 /// Pointer to constant (uniform) memory
 pub fn ConstantPtr(comptime T: type) type {
     if (is_gpu_target) {
-        return *const addrspace(.constant) T;
+        return *addrspace(.constant) const T;
     }
     return *const T;
 }
@@ -107,7 +107,7 @@ pub fn ConstantPtr(comptime T: type) type {
 /// Pointer to uniform buffer memory
 pub fn UniformPtr(comptime T: type) type {
     if (is_gpu_target) {
-        return *const addrspace(.uniform) T;
+        return *addrspace(.uniform) const T;
     }
     return *const T;
 }
@@ -123,7 +123,7 @@ pub fn StoragePtr(comptime T: type) type {
 /// Const pointer to storage buffer memory
 pub fn StorageConstPtr(comptime T: type) type {
     if (is_gpu_target) {
-        return *const addrspace(.storage_buffer) T;
+        return *addrspace(.storage_buffer) const T;
     }
     return *const T;
 }
@@ -131,7 +131,7 @@ pub fn StorageConstPtr(comptime T: type) type {
 /// Pointer to push constant memory
 pub fn PushConstantPtr(comptime T: type) type {
     if (is_gpu_target) {
-        return *const addrspace(.push_constant) T;
+        return *addrspace(.push_constant) const T;
     }
     return *const T;
 }

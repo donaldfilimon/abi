@@ -7,7 +7,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../config.zig");
+const config_module = @import("../../config/mod.zig");
 const time_utils = @import("../../shared/utils.zig");
 
 // Local submodule imports

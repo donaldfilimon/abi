@@ -20,8 +20,9 @@ const builtin = @import("builtin");
 
 const multi_device = @import("../multi_device.zig");
 const stream_mod = @import("../stream.zig");
-const vulkan_types = @import("../backends/vulkan_types.zig");
-const vulkan_init = @import("../backends/vulkan_init.zig");
+const vulkan = @import("../backends/vulkan.zig");
+const vulkan_types = vulkan.vulkan_types;
+const vulkan_init = vulkan.vulkan_init;
 
 pub const DeviceId = multi_device.DeviceId;
 pub const ReduceOp = multi_device.ReduceOp;

@@ -53,6 +53,8 @@ pub const Feature = enum {
     network,
     observability,
     web,
+    personas,
+    cloud,
 
     pub fn name(self: Feature) []const u8 {
         return @tagName(self);
@@ -70,17 +72,19 @@ pub const Feature = enum {
             .network => "Distributed compute network",
             .observability => "Metrics, tracing, profiling",
             .web => "Web/HTTP utilities",
+            .personas => "Multi-persona AI assistant",
+            .cloud => "Cloud provider integration",
         };
     }
 
     pub fn isCompileTimeEnabled(self: Feature) bool {
         return switch (self) {
             .gpu => build_options.enable_gpu,
-            .ai, .llm, .embeddings, .agents, .training => build_options.enable_ai,
+            .ai, .llm, .embeddings, .agents, .training, .personas => build_options.enable_ai,
             .database => build_options.enable_database,
             .network => build_options.enable_network,
             .observability => build_options.enable_profiling,
-            .web => build_options.enable_web,
+            .web, .cloud => build_options.enable_web,
         };
     }
 };
@@ -130,6 +134,8 @@ pub const Config = struct {
             .network => self.network != null,
             .observability => self.observability != null,
             .web => self.web != null,
+            .personas => if (self.ai) |ai| ai.personas != null else false,
+            .cloud => self.web != null, // Cloud feature falls under web config
         };
     }
 

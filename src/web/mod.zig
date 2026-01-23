@@ -6,7 +6,7 @@
 //! - Persona API handlers and routes
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../config.zig");
+const config_module = @import("../config/mod.zig");
 
 const client = @import("client.zig");
 const weather = @import("weather.zig");

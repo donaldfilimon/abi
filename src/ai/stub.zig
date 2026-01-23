@@ -3,7 +3,7 @@
 //! Stub implementation when AI is disabled at compile time.
 
 const std = @import("std");
-const config_module = @import("../config.zig");
+const config_module = @import("../config/mod.zig");
 const stub_root = @This();
 
 pub const Error = error{

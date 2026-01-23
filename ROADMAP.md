@@ -13,6 +13,7 @@
 - [x] Complete GPU backend implementations
   - [x] CUDA backend (fallback runtime + kernel simulation)
   - [x] Vulkan backend (fallback runtime + kernel simulation)
+  - [ ] Vulkan backend consolidation – merge `vulkan_types.zig`, `vulkan_init.zig`, `vulkan_pipelines.zig`, and `vulkan_buffers.zig` into a single `vulkan.zig` module (see docs/plans/2026-01-23-vulkan-combine.md)
   - [x] Metal backend (fallback runtime + kernel simulation)
   - [x] WebGPU backend (fallback runtime + kernel simulation)
 - [x] Full async/await implementation using std.Io
@@ -79,15 +80,17 @@
   - [x] Zero-copy optimizations (ZeroCopyBuffer)
 
 ### Developer Experience
-- [x] Enhanced CLI
-  - [x] Interactive mode improvements
-  - [x] Configuration file support
-  - [x] Shell completion (bash, zsh, fish)
-  - [x] Interactive TUI command launcher (cross-platform)
-- [x] Tooling
-  - [x] Debugger integration (GDB/LLDB support documented in docs/troubleshooting.md)
-  - [x] Performance profiler (src/compute/profiling/mod.zig, src/gpu/profiling.zig)
-  - [x] Memory leak detector (src/shared/utils/memory/tracking.zig - TrackingAllocator)
+    - [x] Enhanced CLI
+      - [x] Interactive mode improvements
+      - [x] Configuration file support
+      - [x] Shell completion (bash, zsh, fish)
+      - [x] Interactive TUI command launcher (cross-platform)
+    - [x] Tooling
+      - [x] Debugger integration (GDB/LLDB support documented in docs/troubleshooting.md)
+      - [x] Performance profiler (src/compute/profiling/mod.zig, src/gpu/profiling.zig)
+      - [x] Memory leak detector (src/shared/utils/memory/tracking.zig - TrackingAllocator)
+    - [ ] Vulkan backend consolidation
+      - [ ] Merge four Vulkan source files into a single module (`vulkan.zig`)
 
 ### Documentation
 - [x] Comprehensive API docs
@@ -99,6 +102,8 @@
   - [x] Component interactions (docs/diagrams/gpu-architecture.md)
   - [x] Data flow diagrams (docs/diagrams/ai-dataflow.md)
   - [x] Modular codebase structure (completed 2026-01-17)
+  - [ ] Vulkan backend consolidation documentation – see `docs/plans/2026-01-23-vulkan-combine.md`
+ - [ ] Mega GPU + TUI + Self-Learning Agent Upgrade – see `docs/plans/2026-01-23-mega-gpu-tui-agent-upgrade.md`
 
 ### Testing
 - [x] Expanded test suite

@@ -1,5 +1,7 @@
 # GPU Performance Refactor Implementation Plan
 
+**Status** – Stubs for `SyncEvent` and `KernelRing` have been added to the codebase; full implementation pending.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Optimize GPU acceleration module for 1.5-2x performance improvement by addressing memory synchronization, kernel launch overhead, and adaptive tiling.

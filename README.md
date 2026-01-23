@@ -47,6 +47,7 @@ tags: []
 | **Vector Database** | WDBX with HNSW/IVF-PQ indexing, hybrid search, diagnostics | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Compute Engine** | Work-stealing scheduler, NUMA-aware, lock-free primitives | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **GPU Backends** | CUDA, Vulkan, Metal, WebGPU with unified API, graceful degradation | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **GPU Sync & Cache** | Event‑based synchronization (SyncEvent) and fast‑path kernel descriptor cache (KernelRing) | ![In‑Progress](https://img.shields.io/badge/-In%20Progress-yellow) |
 | **Distributed Network** | Node discovery, Raft consensus, load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Observability** | Metrics, tracing, profiling, circuit breakers | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Interactive CLI** | TUI launcher, training commands, database operations | ![Ready](https://img.shields.io/badge/-Ready-success) |
@@ -82,6 +83,9 @@ tags: []
 | **CLI** | Runtime Flags | `--list-features`, `--enable-*`, `--disable-*` for feature control |
 | **Database** | Diagnostics | Memory stats, health checks, configuration debugging |
 | **AI** | Error Context | Structured error context for agent operations with retry tracking |
+| **GPU** | Event‑Based Sync (`SyncEvent`) | Non‑blocking host/device sync using `std.atomic` and `std.Thread.Futex` |
+| **GPU** | Fast‑Path Kernel Cache (`KernelRing`) | Reuses recent kernel launch configs; statistics visible via dispatcher stats |
+| **Codebase** | Deprecated I/O migration | Replaced all `std.fs.cwd()` usages with `std.io.cwd()` for Zig 0.16 compliance |
 
 </details>
 
@@ -593,4 +597,3 @@ See [LICENSE](LICENSE) for details.
 <p align="center">
   Made with Zig
 </p>
-

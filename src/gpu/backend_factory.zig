@@ -696,8 +696,8 @@ fn createVulkanVTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
     }
 
     // Try to create real Vulkan backend
-    const vulkan_vtable = @import("backends/vulkan_vtable.zig");
-    return vulkan_vtable.createVulkanVTable(allocator) catch |err| {
+    const vulkan = @import("backends/vulkan.zig");
+    return vulkan.vulkan_vtable.createVulkanVTable(allocator) catch |err| {
         return switch (err) {
             error.NotAvailable => FactoryError.BackendNotAvailable,
             error.DeviceNotFound => FactoryError.BackendNotAvailable,

@@ -23,7 +23,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../config.zig");
+const config_module = @import("../../config/mod.zig");
 
 // Core modules (local imports)
 pub const io = @import("io/mod.zig");

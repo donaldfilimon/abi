@@ -54,7 +54,7 @@ fn walkSrcFiles(files: *std.ArrayList([]const u8)) !void {
     defer walker.deinit();
     while (try walker.next()) |entry| {
         if (entry.kind == .file and std.mem.endsWith(u8, entry.basename, ".zig")) {
-            const full = try std.fs.path.join(allocator, &[_][]const u8{"src", entry.path});
+            const full = try std.fs.path.join(allocator, &[_][]const u8{ "src", entry.path });
             try files.append(full);
         }
     }
@@ -78,4 +78,3 @@ fn parseImports(path: []const u8, allocator: std.mem.Allocator) ![]const []const
     }
     return imports.toOwnedSlice();
 }
-
