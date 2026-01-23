@@ -345,12 +345,20 @@ pub fn build(b: *std.Build) void {
         b.step("test", "Run unit tests").dependOn(&run_tests.step);
     }
 
-    // Documentation
+    // Documentation - API markdown generation
     if (pathExists("tools/gendocs.zig")) {
         const gendocs = b.addExecutable(.{ .name = "gendocs", .root_module = b.createModule(.{ .root_source_file = b.path("tools/gendocs.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
         const run_gendocs = b.addRunArtifact(gendocs);
         if (b.args) |args| run_gendocs.addArgs(args);
         b.step("gendocs", "Generate API documentation").dependOn(&run_gendocs.step);
+    }
+
+    // Documentation - Static site generation
+    if (pathExists("tools/docgen/main.zig")) {
+        const docgen = b.addExecutable(.{ .name = "docgen", .root_module = b.createModule(.{ .root_source_file = b.path("tools/docgen/main.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
+        const run_docgen = b.addRunArtifact(docgen);
+        if (b.args) |args| run_docgen.addArgs(args);
+        b.step("docs-site", "Generate documentation website").dependOn(&run_docgen.step);
     }
 
     // Profile build
