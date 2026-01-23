@@ -15,20 +15,23 @@ and correctness.
 Active development. In progress or immediately queued.
 
 ### Code Quality
-- [ ] GPU codegen consolidation - GLSL refactor ([plan](docs/plans/2026-01-22-gpu-codegen-consolidation.md))
-- [ ] Observability module consolidation ([plan](docs/plans/2026-01-17-refactor-phase2.md))
+- [x] GPU codegen consolidation - GLSL refactor (completed)
+- [x] Observability module consolidation (completed)
 
 ### Features
-- [ ] Task management system - CLI + persistence ([plan](docs/plans/2026-01-17-task-management-system.md))
+- [x] Task management system - CLI + persistence (completed)
 
 ### Documentation
-- [ ] Archive completed plans to docs/plans/archive/
+- [x] Archive completed plans to docs/plans/archive/ (completed)
 
 ---
 
 ## Next (v0.8.0)
 
 Scoped for upcoming release. Not yet started.
+
+### Performance
+- [ ] Benchmark baseline refresh - Validate consolidation performance
 
 ### Ecosystem
 - [ ] Python bindings expansion (beyond foundation)
