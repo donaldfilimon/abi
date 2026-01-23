@@ -188,7 +188,9 @@ pub const ReasoningChain = struct {
     /// Get overall confidence (auto-finalizes if needed)
     pub fn getOverallConfidence(self: *Self) Confidence {
         if (!self.finalized) {
-            self.finalize() catch {};
+            self.finalize() catch |err| {
+                std.log.warn("Reasoning chain finalization failed: {t}", .{err});
+            };
         }
         return self.overall_confidence orelse .{
             .level = .unknown,

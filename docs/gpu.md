@@ -414,26 +414,6 @@ zig build -Denable-gpu=true -Dgpu-cuda=true -Dgpu-vulkan=false -Dgpu-metal=false
 zig build -Denable-gpu=false
 ```
 
-## Migration from acceleration.zig
-
-The `acceleration.zig` module is deprecated. Migrate to the unified API:
-
-```zig
-// Old API
-const accel = try Accelerator.init(allocator, .{});
-defer accel.deinit();
-_ = try acceleration.vectorAdd(allocator, &a, &b, &result);
-
-// New API
-var gpu = try abi.Gpu.init(allocator, .{});
-defer gpu.deinit();
-const a_buf = try gpu.createBufferFromSlice(f32, &a, .{});
-const b_buf = try gpu.createBufferFromSlice(f32, &b, .{});
-const result_buf = try gpu.createBuffer(a.len * @sizeOf(f32), .{});
-_ = try gpu.vectorAdd(a_buf, b_buf, result_buf);
-try result_buf.read(f32, &result);
-```
-
 ---
 
 ## New in 2026.01

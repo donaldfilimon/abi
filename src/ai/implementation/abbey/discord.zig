@@ -168,18 +168,28 @@ pub const AbbeyDiscordBot = struct {
 
         /// Add a reaction to a message
         pub fn addReaction(self: *DiscordClientWrapper, channel_id: []const u8, message_id: []const u8, emoji: []const u8) !void {
-            var client = discord.createClient(self.allocator) catch return;
+            var client = discord.createClient(self.allocator) catch |err| {
+                std.log.debug("Discord client creation failed for reaction: {t}", .{err});
+                return;
+            };
             defer client.deinit();
 
-            client.createReaction(channel_id, message_id, emoji) catch {};
+            client.createReaction(channel_id, message_id, emoji) catch |err| {
+                std.log.debug("Discord reaction failed: {t}", .{err});
+            };
         }
 
         /// Show typing indicator
         pub fn triggerTyping(self: *DiscordClientWrapper, channel_id: []const u8) void {
-            var client = discord.createClient(self.allocator) catch return;
+            var client = discord.createClient(self.allocator) catch |err| {
+                std.log.debug("Discord client creation failed for typing: {t}", .{err});
+                return;
+            };
             defer client.deinit();
 
-            client.triggerTypingIndicator(channel_id) catch {};
+            client.triggerTypingIndicator(channel_id) catch |err| {
+                std.log.debug("Discord typing indicator failed: {t}", .{err});
+            };
         }
     };
 

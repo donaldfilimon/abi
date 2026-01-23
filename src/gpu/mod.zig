@@ -41,7 +41,6 @@ const kernels = @import("kernels.zig");
 const memory = @import("memory.zig");
 const kernel_cache = @import("kernel_cache.zig");
 pub const profiling = @import("profiling.zig");
-pub const acceleration = @import("acceleration.zig");
 
 // Performance optimization modules
 pub const occupancy = @import("occupancy.zig");
@@ -195,19 +194,6 @@ pub const defaultDeviceLabel = backend.defaultDeviceLabel;
 pub const summary = backend.summary;
 pub const moduleEnabled = backend.moduleEnabled;
 pub const isEnabled = backend.isEnabled;
-
-// Acceleration API exports
-pub const Accelerator = acceleration.Accelerator;
-pub const AcceleratorConfig = acceleration.AcceleratorConfig;
-pub const AcceleratorError = acceleration.AcceleratorError;
-pub const ComputeTask = acceleration.ComputeTask;
-pub const ExecutionStats = acceleration.ExecutionStats;
-pub const vectorAdd = acceleration.vectorAdd;
-pub const matrixMultiply = acceleration.matrixMultiply;
-pub const reduceSum = acceleration.reduceSum;
-pub const getAvailableBackends = acceleration.getAvailableBackends;
-pub const getBestBackend = acceleration.getBestBackend;
-pub const isGpuAvailable = acceleration.isGpuAvailable;
 
 // Profiling exports
 pub const Profiler = profiling.Profiler;

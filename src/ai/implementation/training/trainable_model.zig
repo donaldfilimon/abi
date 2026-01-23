@@ -725,19 +725,27 @@ pub const TrainableModel = struct {
     /// Internal weight loading (for use after config is set).
     fn loadFromGgufInternal(self: *TrainableModel, gguf_file: *gguf.GgufFile) !void {
         // Load token embedding
-        self.loadTensor(gguf_file, "token_embd.weight", self.weights.token_embedding) catch {};
+        self.loadTensor(gguf_file, "token_embd.weight", self.weights.token_embedding) catch |err| {
+            std.log.warn("Failed to load token embedding: {t}", .{err});
+        };
 
         // Load layer weights
         for (self.weights.layers, 0..) |*layer, i| {
-            self.loadLayerWeights(gguf_file, layer, @intCast(i)) catch {};
+            self.loadLayerWeights(gguf_file, layer, @intCast(i)) catch |err| {
+                std.log.warn("Failed to load layer {d} weights: {t}", .{ i, err });
+            };
         }
 
         // Load final norm
-        self.loadTensor(gguf_file, "output_norm.weight", self.weights.final_norm) catch {};
+        self.loadTensor(gguf_file, "output_norm.weight", self.weights.final_norm) catch |err| {
+            std.log.warn("Failed to load final norm: {t}", .{err});
+        };
 
         // Load output projection if not tied
         if (self.weights.output_proj) |out_proj| {
-            self.loadTensor(gguf_file, "output.weight", out_proj) catch {};
+            self.loadTensor(gguf_file, "output.weight", out_proj) catch |err| {
+                std.log.warn("Failed to load output projection: {t}", .{err});
+            };
         }
     }
 

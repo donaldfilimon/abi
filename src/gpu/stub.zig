@@ -214,10 +214,6 @@ pub const TimingResult = struct {};
 pub const OccupancyResult = struct {};
 pub const MemoryBandwidth = struct {};
 
-pub const Accelerator = struct {};
-pub const AcceleratorConfig = struct {};
-pub const ComputeTask = struct {};
-
 pub const recovery = struct {};
 pub const failover = struct {};
 pub const RecoveryManager = struct {};

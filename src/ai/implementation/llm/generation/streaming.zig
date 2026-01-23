@@ -206,7 +206,9 @@ pub const StreamingGenerator = struct {
             }
 
             // Emit token event
-            self.token_buffer.append(self.allocator, next_token) catch {};
+            self.token_buffer.append(self.allocator, next_token) catch |err| {
+                std.log.warn("Token buffer append failed: {t}", .{err});
+            };
             self.stats.tokens_generated += 1;
 
             if (self.callbacks.on_token) |on_token| {

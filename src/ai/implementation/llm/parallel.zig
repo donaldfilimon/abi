@@ -36,7 +36,10 @@ pub const ParallelExecutor = struct {
                         f(idx, s[idx]);
                     }
                 }
-            }.run, .{ work_slice, func }) catch {};
+            }.run, .{ work_slice, func }) catch |err| {
+                std.log.warn("Thread spawn failed for parallel executor: {t}", .{err});
+                continue;
+            };
             start = end;
         }
         // Join threads

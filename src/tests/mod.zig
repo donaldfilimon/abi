@@ -32,6 +32,8 @@ comptime {
     }
     // Cross-platform OS features tests
     _ = @import("os_test.zig");
+    // High Availability module tests
+    _ = @import("ha_test.zig");
 }
 
 // Connector tests

@@ -20,7 +20,6 @@ The files are grouped by responsibility:
 | `unified.zig` | Unified GPU API with multi-backend support |
 | `backend.zig` | Backend abstraction layer |
 | `backend_factory.zig` | Backend auto-detection and selection |
-| `acceleration.zig` | High-level acceleration utilities |
 | `device.zig` | Device enumeration and selection |
 | `execution_coordinator.zig` | GPU→SIMD→scalar fallback coordinator |
 | `profiling.zig` | GPU profiling and metrics |

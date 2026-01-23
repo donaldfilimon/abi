@@ -108,7 +108,10 @@ pub const Converter = struct {
             const offsets = tensor_info.get("data_offsets").?.array;
 
             // Convert dtype
-            const data_type = safeTensorsDtypeToUnified(dtype_str) catch continue;
+            const data_type = safeTensorsDtypeToUnified(dtype_str) catch |err| {
+                std.log.debug("Skipping tensor with unsupported dtype '{s}': {t}", .{ dtype_str, err });
+                continue;
+            };
 
             // Parse shape
             var dims: [4]u64 = .{ 0, 0, 0, 0 };
@@ -167,7 +170,10 @@ pub const Converter = struct {
             first = false;
 
             // Write tensor entry
-            const dtype_str = unifiedDtypeToSafeTensors(desc.data_type) catch continue;
+            const dtype_str = unifiedDtypeToSafeTensors(desc.data_type) catch |err| {
+                std.log.debug("Skipping tensor '{s}' with unsupported type: {t}", .{ name, err });
+                continue;
+            };
 
             header.appendSlice(self.allocator, "\"") catch return error.OutOfMemory;
             header.appendSlice(self.allocator, name) catch return error.OutOfMemory;
@@ -219,7 +225,10 @@ pub const Converter = struct {
         tensor_iter = source.tensors.iterator();
         while (tensor_iter.next()) |entry| {
             const desc = entry.value_ptr.*;
-            const tensor_data = source.getTensorData(self.allocator, entry.key_ptr.*) catch continue;
+            const tensor_data = source.getTensorData(self.allocator, entry.key_ptr.*) catch |err| {
+                std.log.debug("Failed to get tensor data for SafeTensors export: {t}", .{err});
+                continue;
+            };
             defer if (desc.compressed_size > 0) self.allocator.free(tensor_data);
 
             @memcpy(output[data_offset..][0..tensor_data.len], tensor_data);
@@ -315,16 +324,25 @@ pub const Converter = struct {
             const name = entry.key_ptr.*;
             const desc = entry.value_ptr.*;
 
-            const tensor_data = source.getTensorData(self.allocator, name) catch continue;
+            const tensor_data = source.getTensorData(self.allocator, name) catch |err| {
+                std.log.debug("Failed to get tensor data '{s}' for unified export: {t}", .{ name, err });
+                continue;
+            };
             defer if (desc.compressed_size > 0) self.allocator.free(tensor_data);
 
-            _ = builder.addTensor(name, tensor_data, desc.data_type, desc.shape()) catch continue;
+            _ = builder.addTensor(name, tensor_data, desc.data_type, desc.shape()) catch |err| {
+                std.log.debug("Failed to add tensor '{s}' to unified format: {t}", .{ name, err });
+                continue;
+            };
         }
 
         // Copy metadata
         var meta_iter = source.metadata.iterator();
         while (meta_iter.next()) |entry| {
-            _ = builder.addMetadata(entry.key_ptr.*, entry.value_ptr.*) catch continue;
+            _ = builder.addMetadata(entry.key_ptr.*, entry.value_ptr.*) catch |err| {
+                std.log.debug("Failed to copy metadata '{s}': {t}", .{ entry.key_ptr.*, err });
+                continue;
+            };
         }
 
         return builder.build() catch return error.OutOfMemory;

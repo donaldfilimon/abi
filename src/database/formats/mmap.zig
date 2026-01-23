@@ -185,7 +185,9 @@ pub const MappedFile = struct {
         if (builtin.os.tag == .windows) {
             _ = std.os.windows.kernel32.FlushViewOfFile(@ptrCast(self.data.ptr), self.size);
         } else {
-            std.posix.msync(self.data, .{ .SYNC = true }) catch {};
+            std.posix.msync(self.data, .{ .SYNC = true }) catch |err| {
+                std.log.warn("Memory-mapped file sync failed: {t}", .{err});
+            };
         }
     }
 

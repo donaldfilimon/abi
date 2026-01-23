@@ -148,9 +148,15 @@ pub const VectorDatabase = struct {
         // Save vectors as tensors
         for (self.vectors.items, 0..) |v, i| {
             var name_buf: [64]u8 = undefined;
-            const name = std.fmt.bufPrint(&name_buf, "vector_{d}", .{i}) catch continue;
+            const name = std.fmt.bufPrint(&name_buf, "vector_{d}", .{i}) catch |err| {
+                std.log.debug("Failed to format vector name {d}: {t}", .{ i, err });
+                continue;
+            };
             const bytes = std.mem.sliceAsBytes(v.data);
-            _ = builder.addTensor(name, bytes, .vec_f32, &.{v.data.len}) catch continue;
+            _ = builder.addTensor(name, bytes, .vec_f32, &.{v.data.len}) catch |err| {
+                std.log.debug("Failed to add vector tensor {d}: {t}", .{ i, err });
+                continue;
+            };
         }
 
         // Save metadata
@@ -217,14 +223,23 @@ pub const VectorDatabase = struct {
         var i: usize = 0;
         var name_buf: [64]u8 = undefined;
         while (i < ids.len) : (i += 1) {
-            const name = std.fmt.bufPrint(&name_buf, "vector_{d}", .{i}) catch continue;
+            const name = std.fmt.bufPrint(&name_buf, "vector_{d}", .{i}) catch |err| {
+                std.log.debug("Failed to format vector name during load {d}: {t}", .{ i, err });
+                continue;
+            };
             const desc = format.getTensor(name) orelse continue;
-            const vec_data = format.getTensorData(allocator, name) catch continue;
+            const vec_data = format.getTensorData(allocator, name) catch |err| {
+                std.log.debug("Failed to get tensor data for vector {d}: {t}", .{ i, err });
+                continue;
+            };
             defer if (desc.compressed_size > 0) allocator.free(vec_data);
 
             const aligned_vec: []align(@alignOf(f32)) const u8 = @alignCast(vec_data);
             const vector = std.mem.bytesAsSlice(f32, aligned_vec);
-            db.insert(ids[i], vector, null) catch continue;
+            db.insert(ids[i], vector, null) catch |err| {
+                std.log.debug("Failed to insert vector {d}: {t}", .{ i, err });
+                continue;
+            };
         }
 
         return db;
