@@ -41,6 +41,7 @@ const dsl = @import("dsl/mod.zig");
 const unified_buffer = @import("unified_buffer.zig");
 const kernel_types = @import("kernel_types.zig");
 const builtin_kernels = @import("builtin_kernels.zig");
+const kernel_ring_mod = @import("kernel_ring.zig");
 
 // Conditionally import CUDA/cuBLAS for optimized BLAS operations
 const cublas = if (build_options.enable_gpu)
@@ -57,6 +58,7 @@ pub const Backend = backend_mod.Backend;
 pub const Device = device_mod.Device;
 pub const Buffer = unified_buffer.Buffer;
 pub const KernelIR = dsl.KernelIR;
+pub const KernelRing = kernel_ring_mod.KernelRing;
 
 /// Errors that can occur during kernel dispatch.
 pub const DispatchError = error{
@@ -194,6 +196,10 @@ pub const KernelDispatcher = struct {
     cache_hits: u64,
     cache_misses: u64,
     cublas_ops: u64,
+    ring_hits: u64,
+
+    /// Kernel launch configuration ring buffer for fast-path reuse.
+    kernel_ring: KernelRing,
 
     const Self = @This();
 
@@ -216,6 +222,8 @@ pub const KernelDispatcher = struct {
             .cache_hits = 0,
             .cache_misses = 0,
             .cublas_ops = 0,
+            .ring_hits = 0,
+            .kernel_ring = KernelRing.init(),
         };
 
         // Try to initialize cuBLAS for CUDA backend
@@ -354,6 +362,24 @@ pub const KernelDispatcher = struct {
         args: KernelArgs,
     ) DispatchError!ExecutionResult {
         var timer = std.time.Timer.start() catch return DispatchError.TimerFailed;
+
+        // Track launch configuration in ring buffer for fast-path detection
+        const grid = config.gridDimensions();
+        const local = config.local_size orelse .{ 256, 1, 1 };
+        const ring_desc = KernelRing.Descriptor{
+            .kernel_handle = if (kernel.handle) |h| @intFromPtr(h) else std.hash.Wyhash.hash(0, kernel.name),
+            .grid_dim = grid,
+            .block_dim = local,
+            .shared_mem = config.shared_memory,
+        };
+
+        // Check if this is a repeated configuration (fast-path)
+        const old_count = self.kernel_ring.count();
+        _ = self.kernel_ring.pushOrReuse(ring_desc);
+        if (self.kernel_ring.count() == old_count) {
+            // Reused existing slot - this is a repeated configuration
+            self.ring_hits += 1;
+        }
 
         // Validate arguments
         if (args.buffers.len != kernel.buffer_count) {
@@ -746,6 +772,8 @@ pub const KernelDispatcher = struct {
         cache_misses: u64,
         cache_hit_rate: f64,
         cublas_ops: u64,
+        ring_hits: u64,
+        ring_entries: u32,
     } {
         const total_lookups = self.cache_hits + self.cache_misses;
         const hit_rate = if (total_lookups > 0)
@@ -760,7 +788,14 @@ pub const KernelDispatcher = struct {
             .cache_misses = self.cache_misses,
             .cache_hit_rate = hit_rate,
             .cublas_ops = self.cublas_ops,
+            .ring_hits = self.ring_hits,
+            .ring_entries = self.kernel_ring.count(),
         };
+    }
+
+    /// Get the kernel ring buffer for direct access.
+    pub fn getKernelRing(self: *Self) *KernelRing {
+        return &self.kernel_ring;
     }
 };
 
