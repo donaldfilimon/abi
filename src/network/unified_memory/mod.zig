@@ -18,6 +18,7 @@
 //!
 //! var manager = try unified_memory.UnifiedMemoryManager.init(allocator, config);
 //! defer manager.deinit();
+
 //!
 //! // Register a local memory region for sharing
 //! const region_id = try manager.registerRegion(data.ptr, data.len, .read_write);

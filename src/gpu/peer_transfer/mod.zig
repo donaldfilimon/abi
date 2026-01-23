@@ -18,6 +18,7 @@
 //! var manager = try peer.PeerTransferManager.init(allocator, device_group);
 //! defer manager.deinit();
 //!
+
 //! // Async transfer
 //! const handle = try manager.transferAsync(src_device, dst_device, data, .{});
 //! try manager.waitForTransfer(handle);
