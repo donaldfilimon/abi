@@ -80,7 +80,7 @@ After Multi-Persona AI Assistant implementation and utils consolidation:
 - Average ops/sec: 19,787,695
 - Total errors: 0
 
-**Environment:** Windows 10, Zig 0.16.0-dev, Framework 0.1.0
+**Environment:** Windows 10, Zig 0.16.0-dev, Framework 0.1.1
 
 ---
 
@@ -110,7 +110,7 @@ After Phase 4-6 refactoring (Registry Modularization, AI/GPU Decoupling, Stub Pa
 - Average ops/sec: 14,913,941
 - Total errors: 0
 
-**Environment:** WSL2 Linux, Zig 0.16.0-dev, Framework 0.1.0
+**Environment:** WSL2 Linux, Zig 0.16.0-dev, Framework 0.1.1
 
 ---
 
@@ -341,4 +341,3 @@ For critical code paths:
 - [GPU Acceleration](gpu.md) - GPU performance benchmarks
 - [Monitoring](monitoring.md) - Metrics collection
 - [Troubleshooting](troubleshooting.md) - Performance debugging
-

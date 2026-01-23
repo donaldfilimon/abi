@@ -724,7 +724,7 @@ export fn llama_get_last_error() [*:0]const u8 {
 
 /// Get library version string.
 export fn llama_version() [*:0]const u8 {
-    return "abi-llm-0.1.0";
+    return "abi-llm-0.1.1";
 }
 
 /// Check if LLM feature is enabled.
