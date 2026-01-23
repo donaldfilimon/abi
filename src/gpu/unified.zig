@@ -37,6 +37,7 @@ const dsl = @import("dsl/mod.zig");
 const multi_device = @import("multi_device.zig");
 const metrics_mod = @import("metrics.zig");
 const dispatcher_mod = @import("dispatcher.zig");
+const adaptive_tiling_mod = @import("adaptive_tiling.zig");
 
 // Re-export key types
 pub const Backend = backend_mod.Backend;
@@ -569,7 +570,39 @@ pub const Gpu = struct {
         if (self.dispatcher) |*disp| {
             const kernel = disp.getBuiltinKernel(.matrix_multiply) catch null;
             if (kernel) |k| {
-                const config = dispatcher_mod.LaunchConfig.for2D(dims.n, dims.m, 16, 16);
+                // Use adaptive tiling based on matrix dimensions and device capabilities
+                // Default warp size: 32 for NVIDIA, 64 for AMD, 32 for others
+                const warp_size: u32 = switch (device.backend) {
+                    .cuda => 32,
+                    .vulkan => 32, // Varies, but 32 is common
+                    .metal => 32,
+                    else => 32,
+                };
+
+                // Default compute capability based on backend
+                // CUDA: assume SM 7.0 (Volta) as baseline
+                // Others: use conservative defaults
+                const cc_major: u32 = switch (device.backend) {
+                    .cuda => 7,
+                    .vulkan, .metal => 7, // Similar tier
+                    else => 6,
+                };
+
+                const tiling = adaptive_tiling_mod.AdaptiveTiling.init(.{
+                    .max_threads_per_block = device.maxWorkgroupSize(),
+                    .max_shared_memory = device.maxSharedMemory(),
+                    .warp_size = warp_size,
+                    .compute_capability = .{ .major = cc_major, .minor = 0 },
+                });
+
+                const tile = tiling.selectTile(
+                    @intCast(dims.m),
+                    @intCast(dims.n),
+                    @intCast(dims.k),
+                    .f32,
+                );
+
+                const config = dispatcher_mod.LaunchConfig.for2D(dims.n, dims.m, tile.n, tile.m);
                 const exec_result = disp.execute(k, config, .{
                     .buffers = &.{ a, b, result },
                 }) catch null;
