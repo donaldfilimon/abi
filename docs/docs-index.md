@@ -38,6 +38,7 @@ tags: []
 |----------|-------------|--------|
 | [Zig 0.16 Migration](migration/zig-0.16-migration.md) | Migration patterns and best practices | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [Performance Baseline](PERFORMANCE_BASELINE.md) | Benchmark measurements | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [Performance Results](performance.md) | Updated benchmark table and analysis | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [GPU Backend Details](gpu-backend-improvements.md) | Implementation specifics | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [Feature Flags](feature-flags.md) | Build configuration guide | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [Troubleshooting](troubleshooting.md) | Common issues and solutions | ![Complete](https://img.shields.io/badge/-Complete-success) |
