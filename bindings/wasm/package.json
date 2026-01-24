@@ -1,6 +1,6 @@
 {
-  "name": "@anthropic/abi-wasm",
-  "version": "0.3.0",
+  "name": "@abi-framework/wasm",
+  "version": "0.4.0",
   "description": "WebAssembly bindings for the ABI high-performance AI and vector database framework",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
