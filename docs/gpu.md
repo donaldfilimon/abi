@@ -273,6 +273,44 @@ if (gpu.getMultiGpuStats()) |stats| {
 }
 ```
 
+### Mega GPU Orchestration
+
+The Mega GPU module provides cross-backend coordination for simultaneous CUDA, Vulkan, and Metal operation with intelligent workload scheduling.
+
+```zig
+const abi = @import("abi");
+
+// Initialize the mega GPU coordinator
+var coordinator = try abi.gpu.mega.Coordinator.init(allocator);
+defer coordinator.deinit();
+
+// Create a learning-based scheduler
+var scheduler = try abi.gpu.mega.LearningScheduler.init(allocator, coordinator);
+defer scheduler.deinit();
+
+// Schedule a workload
+const profile = abi.gpu.mega.WorkloadProfile{
+    .compute_intensity = 0.8,  // 0.0 = memory-bound, 1.0 = compute-bound
+    .memory_requirement_mb = 2048,
+    .is_training = true,
+};
+
+const decision = scheduler.schedule(profile);
+std.debug.print("Backend: {s}, Confidence: {d:.2}\n", .{
+    @tagName(decision.backend_type),
+    decision.confidence,
+});
+
+// Record outcome for learning
+try scheduler.recordAndLearn(decision, actual_time_ms, success);
+```
+
+**Features:**
+- Cross-backend device discovery and health monitoring
+- Q-learning based scheduling with experience replay
+- Automatic exploration/exploitation balancing
+- Backend usage statistics and performance tracking
+
 ### Profiling and Metrics
 
 ```zig
