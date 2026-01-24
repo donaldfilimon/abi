@@ -4,7 +4,7 @@ tags: ["requirements", "standards", "kpi", "architecture"]
 ---
 # ABI Framework: Engineering Requirements & Standards
 
-> **Status:** Synced with repository as of 2026-01-23.
+> **Status:** Synced with repository as of 2026-01-24.
 > **Standard:** Zig 0.16 (Master Branch) with `std.gpu`.
 
 ## 1. Core Mandates
