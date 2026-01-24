@@ -22,6 +22,12 @@ pub const MetricsCollector = struct {
     pub fn registerCounter(_: *MetricsCollector, _: []const u8) Error!*Counter {
         return error.ObservabilityDisabled;
     }
+    pub fn registerGauge(_: *MetricsCollector, _: []const u8) Error!*Gauge {
+        return error.ObservabilityDisabled;
+    }
+    pub fn registerFloatGauge(_: *MetricsCollector, _: []const u8) Error!*FloatGauge {
+        return error.ObservabilityDisabled;
+    }
     pub fn registerHistogram(_: *MetricsCollector, _: []const u8, _: []const u64) Error!*Histogram {
         return error.ObservabilityDisabled;
     }
@@ -29,8 +35,32 @@ pub const MetricsCollector = struct {
 
 pub const Counter = struct {
     pub fn inc(_: *Counter, _: u64) void {}
-    pub fn get(_: *Counter) u64 {
+    pub fn get(_: *const Counter) u64 {
         return 0;
+    }
+    pub fn reset(_: *Counter) void {}
+};
+
+/// Gauge metric - stub implementation.
+pub const Gauge = struct {
+    name: []const u8 = "",
+    pub fn set(_: *Gauge, _: i64) void {}
+    pub fn inc(_: *Gauge) void {}
+    pub fn dec(_: *Gauge) void {}
+    pub fn add(_: *Gauge, _: i64) void {}
+    pub fn get(_: *const Gauge) i64 {
+        return 0;
+    }
+};
+
+/// Float gauge metric - stub implementation.
+/// Note: get() requires mutable reference for mutex locking in the real implementation.
+pub const FloatGauge = struct {
+    name: []const u8 = "",
+    pub fn set(_: *FloatGauge, _: f64) void {}
+    pub fn add(_: *FloatGauge, _: f64) void {}
+    pub fn get(_: *FloatGauge) f64 {
+        return 0.0;
     }
 };
 

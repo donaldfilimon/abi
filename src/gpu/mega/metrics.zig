@@ -2,9 +2,14 @@
 //!
 //! Provides metrics collection for GPU workloads with Prometheus-compatible
 //! export. Uses a snapshot pattern to avoid blocking during I/O operations.
+//!
+//! Note: This module uses local Counter/Gauge/Histogram types that are protected
+//! by MetricsExporter.mutex. For standalone thread-safe primitives, use the
+//! types from `observability.Counter`, `observability.Gauge`, etc.
 
 const std = @import("std");
 const backend_mod = @import("../backend.zig");
+const obs = @import("../../observability/mod.zig");
 
 /// Standard latency buckets in milliseconds for histogram tracking.
 pub const default_latency_buckets = [_]f64{ 0.5, 1, 2.5, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000 };

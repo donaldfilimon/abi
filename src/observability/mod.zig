@@ -28,6 +28,62 @@ pub const Counter = struct {
     pub fn get(self: *const Counter) u64 {
         return self.value.load(.monotonic);
     }
+
+    pub fn reset(self: *Counter) void {
+        self.value.store(0, .monotonic);
+    }
+};
+
+/// Gauge metric - a value that can increase or decrease.
+/// Uses atomic i64 for thread-safe operations.
+pub const Gauge = struct {
+    name: []const u8,
+    value: std.atomic.Value(i64) = std.atomic.Value(i64).init(0),
+
+    pub fn set(self: *Gauge, val: i64) void {
+        self.value.store(val, .monotonic);
+    }
+
+    pub fn inc(self: *Gauge) void {
+        _ = self.value.fetchAdd(1, .monotonic);
+    }
+
+    pub fn dec(self: *Gauge) void {
+        _ = self.value.fetchSub(1, .monotonic);
+    }
+
+    pub fn add(self: *Gauge, delta: i64) void {
+        _ = self.value.fetchAdd(delta, .monotonic);
+    }
+
+    pub fn get(self: *const Gauge) i64 {
+        return self.value.load(.monotonic);
+    }
+};
+
+/// Float gauge metric - for f64 values requiring mutex protection.
+pub const FloatGauge = struct {
+    name: []const u8,
+    value: f64 = 0.0,
+    mutex: std.Thread.Mutex = .{},
+
+    pub fn set(self: *FloatGauge, val: f64) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        self.value = val;
+    }
+
+    pub fn add(self: *FloatGauge, delta: f64) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        self.value += delta;
+    }
+
+    pub fn get(self: *FloatGauge) f64 {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        return self.value;
+    }
 };
 
 pub const Histogram = struct {
@@ -68,8 +124,10 @@ pub const Histogram = struct {
 
 pub const MetricsCollector = struct {
     allocator: std.mem.Allocator,
-    counters: std.ArrayListUnmanaged(*Counter) = .{},
-    histograms: std.ArrayListUnmanaged(*Histogram) = .{},
+    counters: std.ArrayListUnmanaged(*Counter) = .empty,
+    gauges: std.ArrayListUnmanaged(*Gauge) = .empty,
+    float_gauges: std.ArrayListUnmanaged(*FloatGauge) = .empty,
+    histograms: std.ArrayListUnmanaged(*Histogram) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) MetricsCollector {
         return .{
@@ -82,6 +140,14 @@ pub const MetricsCollector = struct {
             self.allocator.destroy(counter);
         }
         self.counters.deinit(self.allocator);
+        for (self.gauges.items) |gauge| {
+            self.allocator.destroy(gauge);
+        }
+        self.gauges.deinit(self.allocator);
+        for (self.float_gauges.items) |gauge| {
+            self.allocator.destroy(gauge);
+        }
+        self.float_gauges.deinit(self.allocator);
         for (self.histograms.items) |histogram| {
             histogram.deinit(self.allocator);
             self.allocator.destroy(histogram);
@@ -98,6 +164,22 @@ pub const MetricsCollector = struct {
         return counter;
     }
 
+    pub fn registerGauge(self: *MetricsCollector, name: []const u8) !*Gauge {
+        const gauge = try self.allocator.create(Gauge);
+        errdefer self.allocator.destroy(gauge);
+        gauge.* = .{ .name = name };
+        try self.gauges.append(self.allocator, gauge);
+        return gauge;
+    }
+
+    pub fn registerFloatGauge(self: *MetricsCollector, name: []const u8) !*FloatGauge {
+        const gauge = try self.allocator.create(FloatGauge);
+        errdefer self.allocator.destroy(gauge);
+        gauge.* = .{ .name = name };
+        try self.float_gauges.append(self.allocator, gauge);
+        return gauge;
+    }
+
     pub fn registerHistogram(
         self: *MetricsCollector,
         name: []const u8,
@@ -109,6 +191,7 @@ pub const MetricsCollector = struct {
         errdefer self.allocator.free(bounds_copy);
         std.mem.copyForwards(u64, bounds_copy, bounds);
         histogram.* = try Histogram.init(self.allocator, name, bounds_copy);
+        errdefer histogram.deinit(self.allocator); // Clean up histogram internals on failure
         self.allocator.free(bounds_copy); // Histogram.init makes its own copy
         try self.histograms.append(self.allocator, histogram);
         return histogram;
