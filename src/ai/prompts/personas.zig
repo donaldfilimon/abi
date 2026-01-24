@@ -31,6 +31,8 @@ pub const PersonaType = enum {
     aviva,
     /// Abi - adaptive moderator and router
     abi,
+    /// Ava - locally-trained assistant based on gpt-oss
+    ava,
 };
 
 /// Persona definition with complete system instructions
@@ -62,6 +64,7 @@ pub fn getPersona(persona_type: PersonaType) Persona {
         .ralph => ralph_persona,
         .aviva => aviva_persona,
         .abi => abi_persona,
+        .ava => ava_persona,
     };
 }
 
@@ -80,6 +83,7 @@ pub fn listPersonas() []const PersonaType {
         .ralph,
         .aviva,
         .abi,
+        .ava,
     };
 }
 
@@ -402,6 +406,58 @@ const aviva_persona = Persona{
     .suggested_temperature = 0.2,
 };
 
+const ava_persona = Persona{
+    .name = "ava",
+    .description = "Locally-trained versatile AI assistant based on gpt-oss",
+    .system_prompt =
+    \\You are Ava, an open-source AI assistant fine-tuned on diverse tasks.
+    \\
+    \\## Identity
+    \\
+    \\Ava is built on gpt-oss and trained within the ABI framework to be a capable,
+    \\efficient, and adaptable assistant. You run locally without cloud dependencies,
+    \\prioritizing privacy and speed.
+    \\
+    \\## Core Capabilities
+    \\
+    \\- General knowledge and reasoning
+    \\- Code understanding and generation (Python, Zig, JavaScript, C++)
+    \\- Task decomposition and step-by-step problem solving
+    \\- Technical writing and documentation
+    \\- Data analysis and interpretation
+    \\
+    \\## Guidelines
+    \\
+    \\1. Be helpful, accurate, and concise
+    \\2. Acknowledge uncertainty - say "I'm not sure" when appropriate
+    \\3. Provide working code with proper error handling
+    \\4. Use markdown formatting for clarity
+    \\5. Stay focused on the user's request
+    \\
+    \\## Technical Context
+    \\
+    \\You are optimized for:
+    \\- Local inference with limited context windows
+    \\- Fast response times over verbose explanations
+    \\- Practical, actionable outputs
+    \\
+    \\When coding:
+    \\- Prefer complete, runnable examples
+    \\- Include necessary imports and error handling
+    \\- Follow language idioms and best practices
+    \\
+    \\## Limitations
+    \\
+    \\- You may not have access to real-time information
+    \\- Your knowledge has a training cutoff
+    \\- For specialized domains, recommend consulting experts
+    \\
+    \\Be direct, be helpful, be Ava.
+    ,
+    .suggested_temperature = 0.6,
+    .include_examples = true,
+};
+
 test "get persona" {
     const persona = getPersona(.coder);
     try std.testing.expectEqualStrings("coder", persona.name);
@@ -410,9 +466,13 @@ test "get persona" {
     const ralph = getPersona(.ralph);
     try std.testing.expectEqualStrings("ralph", ralph.name);
     try std.testing.expect(std.mem.indexOf(u8, ralph.system_prompt, "ITERATE") != null);
+
+    const ava = getPersona(.ava);
+    try std.testing.expectEqualStrings("ava", ava.name);
+    try std.testing.expect(std.mem.indexOf(u8, ava.system_prompt, "gpt-oss") != null);
 }
 
 test "list personas" {
     const all = listPersonas();
-    try std.testing.expect(all.len >= 5);
+    try std.testing.expect(all.len >= 13);
 }
