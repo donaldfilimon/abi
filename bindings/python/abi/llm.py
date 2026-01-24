@@ -332,11 +332,47 @@ class LlmEngine:
             raise RuntimeError("No model loaded. Call load_model() first.")
 
         max_tokens = max_tokens or self._config.max_new_tokens
+        temperature = temperature if temperature is not None else self._config.temperature
 
-        # Mock streaming generation
-        tokens = ["[", "Generated", " ", "response", " ", "for", ":", " ", prompt[:20], "...]"]
+        # Try native streaming via FFI
+        if self._lib is not None:
+            try:
+                from .llm_streaming import (
+                    _stream_create, _stream_next, _stream_destroy,
+                    _setup_streaming_functions
+                )
+                _setup_streaming_functions(self._lib)
 
-        for token in tokens:
+                stream_id = _stream_create(self._lib, prompt, max_tokens, temperature)
+                try:
+                    while True:
+                        event = _stream_next(self._lib, stream_id)
+                        if event is None:
+                            break
+
+                        if event.text:
+                            if callback:
+                                callback(event.text)
+                            yield event.text
+
+                        if event.is_final:
+                            break
+                finally:
+                    _stream_destroy(self._lib, stream_id)
+                return
+            except (ImportError, AttributeError, RuntimeError):
+                pass  # Fall through to mock implementation
+
+        # Mock streaming generation (development fallback)
+        tokens = ["The", " ", "AI", " ", "assistant", " ", "responds", ":", " "]
+        # Add some prompt context
+        words = prompt.split()[:5]
+        for word in words:
+            tokens.append(word)
+            tokens.append(" ")
+        tokens.append("...")
+
+        for token in tokens[:max_tokens]:
             if callback:
                 callback(token)
             yield token

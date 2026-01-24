@@ -98,6 +98,21 @@ pub export fn abi_get_last_error() [*:0]const u8 {
     return "No error";
 }
 
+// Include streaming and training FFI exports
+const streaming = @import("abi_python_streaming.zig");
+
+// Re-export streaming FFI functions
+pub const abi_llm_stream_create = streaming.abi_llm_stream_create;
+pub const abi_llm_stream_create_ex = streaming.abi_llm_stream_create_ex;
+pub const abi_llm_stream_next = streaming.abi_llm_stream_next;
+pub const abi_llm_stream_cancel = streaming.abi_llm_stream_cancel;
+pub const abi_llm_stream_destroy = streaming.abi_llm_stream_destroy;
+pub const abi_train_create = streaming.abi_train_create;
+pub const abi_train_step = streaming.abi_train_step;
+pub const abi_train_save_checkpoint = streaming.abi_train_save_checkpoint;
+pub const abi_train_get_report = streaming.abi_train_get_report;
+pub const abi_train_destroy = streaming.abi_train_destroy;
+
 // Module handle for Python extension
 pub export fn PyInit_abi() ?*anyopaque {
     // This would be filled in by the actual Python C extension code

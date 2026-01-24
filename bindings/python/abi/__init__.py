@@ -89,11 +89,18 @@ __all__ = [
     "GpuStats",
     "is_gpu_available",
     "list_gpu_devices",
+    # Training
+    "Trainer",
+    "TrainingConfig",
+    "TrainingMetrics",
+    "TrainingReport",
+    "train",
     # Submodules
     "config",
     "llm",
     "database",
     "gpu",
+    "training",
 ]
 
 
@@ -578,6 +585,16 @@ from . import config
 from . import llm
 from . import database
 from . import gpu
+from . import training
+
+# Training exports
+from .training import (
+    Trainer,
+    TrainingConfig,
+    TrainingMetrics,
+    TrainingReport,
+    train,
+)
 
 
 # Auto-initialize on import if environment variable is set
